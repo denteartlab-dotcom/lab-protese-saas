@@ -281,7 +281,7 @@ export function ModuloProducaoColaborador({ userRole }: Props) {
     );
   }
 
-  const whatsappDigits = (lab.whatsapp || lab.telefoneComercial || "").replace(/\D/g, "");
+  const whatsappDigits = (lab.telefones || "").replace(/\D/g, "");
   const whatsappHref = whatsappDigits
     ? `https://wa.me/55${whatsappDigits.replace(/^55/, "")}`
     : "https://wa.me/";
