@@ -24,7 +24,7 @@ function sessionTokenAceito(token: string): boolean {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (pathname.startsWith("/api/auth")) {
+  if (pathname.startsWith("/api/auth") || pathname.startsWith("/api/setup")) {
     return NextResponse.next();
   }
 

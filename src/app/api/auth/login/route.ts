@@ -9,16 +9,40 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { email, password } = schema.parse(body);
+  if (!process.env.JWT_SECRET?.trim()) {
+    return NextResponse.json(
+      {
+        error:
+          "Servidor sem JWT_SECRET. Em Vercel: Settings → Environment Variables → JWT_SECRET → Redeploy.",
+      },
+      { status: 503 }
+    );
+  }
 
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Requisição inválida." }, { status: 400 });
+  }
+
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "E-mail ou senha inválidos." }, { status: 400 });
+  }
+
+  const { email, password } = parsed.data;
+
+  try {
     const user = await prisma.user.findUnique({
       where: { email: email.trim().toLowerCase() },
     });
     if (!user || !(await verifyPassword(password, user.password))) {
       return NextResponse.json(
-        { error: "E-mail ou senha inválidos" },
+        {
+          error:
+            "E-mail ou senha inválidos. Se o site acabou de subir, abra /api/setup/criar-admin uma vez.",
+        },
         { status: 401 }
       );
     }
@@ -37,7 +61,14 @@ export async function POST(request: Request) {
         email: user.email,
       },
     });
-  } catch {
-    return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
+  } catch (err) {
+    console.error("[auth/login]", err);
+    return NextResponse.json(
+      {
+        error:
+          "Erro no servidor (banco ou sessão). Verifique DATABASE_URL e JWT_SECRET na Vercel.",
+      },
+      { status: 500 }
+    );
   }
 }
