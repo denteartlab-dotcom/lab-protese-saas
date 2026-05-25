@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import {
   grupoOsIdOf,
   segmentoEfetivoTrabalho,
+  whereGrupoOs,
   type SegmentoFaturamento,
 } from "@/lib/trabalho-os-segmento";
 import { telefoneWhatsappCliente } from "@/lib/cliente-observacoes";
@@ -18,6 +19,8 @@ import { PdfOsViewer } from "./pdf-os-viewer";
 type Trabalho = {
   id: string;
   numeroOs: number;
+  segmentoFaturamento?: string | null;
+  grupoOsId?: string | null;
   tipoProtese: string;
   dentes?: string | null;
   cor?: string | null;
@@ -51,8 +54,7 @@ function empty(value?: string | null) {
 
 function dateOrEmpty(value?: string | Date | null) {
   if (!value) return "";
-  const formatted = formatDate(value instanceof Date ? value.toISOString() : value);
-  return formatted;
+  return formatDate(value instanceof Date ? value.toISOString() : value);
 }
 
 function linesFrom(instrucoes?: string | null) {
@@ -83,25 +85,28 @@ function searchFlag(value: string | string[] | undefined) {
   return texto === "1" || texto === "sim" || texto === "true";
 }
 
-export default async function ImprimirOSPage({
-  params,
-  searchParams,
+function ErroImpressao({
+  titulo,
+  detalhe,
 }: {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  titulo: string;
+  detalhe: string;
 }) {
-  const session = await getSession();
-  if (!session) {
-    return (
-      <div className="mx-auto mt-10 max-w-xl rounded border border-red-200 bg-red-50 p-6 text-center text-red-700">
-        <p className="font-semibold">Sessão expirada.</p>
-        <p className="mt-2 text-sm">Faça login novamente para imprimir a OS.</p>
-      </div>
-    );
-  }
+  return (
+    <div className="mx-auto mt-10 max-w-xl rounded border border-red-200 bg-red-50 p-6 text-center text-red-700">
+      <p className="font-semibold">{titulo}</p>
+      <p className="mt-2 text-sm">{detalhe}</p>
+    </div>
+  );
+}
 
-  const { id } = await params;
-  const sp = await searchParams;
+async function ImprimirOSConteudo({
+  id,
+  sp,
+}: {
+  id: string;
+  sp: Record<string, string | string[] | undefined>;
+}) {
   const somenteItem = searchFlag(sp.somenteItem);
   const duasVias = sp.vias === "2" || searchFlag(sp.duasVias);
   const formato = String(Array.isArray(sp.formato) ? sp.formato[0] : sp.formato || "a4");
@@ -117,26 +122,31 @@ export default async function ImprimirOSPage({
         ? "modelo2"
         : "modelo1";
   const segmentoParam = String(Array.isArray(sp.segmento) ? sp.segmento[0] : sp.segmento || "");
-  const t = (await prisma.trabalho.findFirst({
+
+  const t = await prisma.trabalho.findFirst({
     where: { id },
     include: { cliente: true, paciente: true },
-  })) as Trabalho | null;
+  });
 
   if (!t) {
     return (
-      <div className="mx-auto mt-10 max-w-xl rounded border border-red-200 bg-red-50 p-6 text-center text-red-700">
-        <p className="font-semibold">OS não encontrada ou removida.</p>
-        <p className="mt-2 text-sm">Volte para o Controle de Produção e abra uma OS existente.</p>
-      </div>
+      <ErroImpressao
+        titulo="OS não encontrada ou removida."
+        detalhe="Volte para o Controle de Produção e abra uma OS existente."
+      />
     );
   }
 
-  const grupo = await prisma.trabalho.findMany({
-    where: {
-      grupoOsId: grupoOsIdOf(t),
-    },
-    orderBy: { segmentoFaturamento: "asc" },
-  });
+  let grupo: Array<typeof t> = [];
+  try {
+    grupo = await prisma.trabalho.findMany({
+      where: whereGrupoOs(t),
+      orderBy: { segmentoFaturamento: "asc" },
+    });
+  } catch (err) {
+    console.error("imprimir: grupo OS", { id, grupoOsId: grupoOsIdOf(t), err });
+    grupo = [t];
+  }
 
   const instrucoesGrupo = somenteItem
     ? [t.instrucoes]
@@ -148,7 +158,8 @@ export default async function ImprimirOSPage({
     : grupo.length > 0
       ? grupo.reduce((sum, row) => sum + row.valor, 0)
       : t.valor;
-  const trabalhoServico = grupo.find((row) => (row.segmentoFaturamento || "servico") === "servico") || t;
+  const trabalhoServico =
+    grupo.find((row) => (row.segmentoFaturamento || "servico") === "servico") || t;
 
   const segmentoSomenteItem: SegmentoFaturamento | null = somenteItem
     ? segmentoParam === "servico" ||
@@ -227,7 +238,7 @@ export default async function ImprimirOSPage({
       data={{
         numeroOs: t.numeroOs,
         dataEntrada: dateOrEmpty(t.dataEntrada),
-        status: STATUS_TRABALHO[t.status]?.label || "",
+        status: STATUS_TRABALHO[t.status]?.label || t.status || "",
         cliente: nomeCliente,
         dentista: empty(dentistaNome) || empty(cliente.cro),
         paciente: empty(paciente.nome),
@@ -246,4 +257,41 @@ export default async function ImprimirOSPage({
       }}
     />
   );
+}
+
+export default async function ImprimirOSPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const session = await getSession();
+  if (!session) {
+    return (
+      <ErroImpressao
+        titulo="Sessão expirada."
+        detalhe="Faça login novamente para imprimir a OS."
+      />
+    );
+  }
+
+  const { id } = await params;
+  const sp = await searchParams;
+
+  try {
+    return await ImprimirOSConteudo({ id, sp });
+  } catch (err) {
+    console.error("imprimir OS", { id, err });
+    const detalhe =
+      process.env.NODE_ENV === "development" && err instanceof Error
+        ? err.message
+        : "Não foi possível gerar a requisição. Verifique a conexão com o banco (Neon) e faça um novo deploy na Vercel.";
+    return (
+      <ErroImpressao
+        titulo="Erro ao abrir a impressão."
+        detalhe={detalhe}
+      />
+    );
+  }
 }

@@ -10,6 +10,12 @@ function getSecret() {
   return new TextEncoder().encode(secret);
 }
 
+function getSecretOrNull() {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) return null;
+  return new TextEncoder().encode(secret);
+}
+
 export type SessionUser = {
   id: string;
   name: string;
@@ -63,8 +69,11 @@ export async function getSession(): Promise<SessionUser | null> {
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
 
+  const secret = getSecretOrNull();
+  if (!secret) return null;
+
   try {
-    const { payload } = await jwtVerify(token, getSecret());
+    const { payload } = await jwtVerify(token, secret);
     return {
       id: payload.id as string,
       name: payload.name as string,

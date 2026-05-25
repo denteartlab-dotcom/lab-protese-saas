@@ -11,6 +11,14 @@ export function grupoOsIdOf(trabalho: { id: string; grupoOsId?: string | null })
   return trabalho.grupoOsId || trabalho.id;
 }
 
+/** Todas as linhas da mesma OS (serviço + produto + transporte), incluindo a linha “pai”. */
+export function whereGrupoOs(trabalho: { id: string; grupoOsId?: string | null }) {
+  const chave = grupoOsIdOf(trabalho);
+  return {
+    OR: [{ id: chave }, { grupoOsId: chave }],
+  };
+}
+
 export function classificarItemOs(item: ItemOsLinha): SegmentoFaturamento {
   if (item.produtoId) return "produto";
   const servico = item.servico.trim();

@@ -21,22 +21,30 @@ export function exibirTexto(value?: string | null) {
   return texto;
 }
 
+function parseDateInput(date: Date | string): Date {
+  if (date instanceof Date) return date;
+  const match = date.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  }
+  return new Date(date);
+}
+
+function isValidDate(d: Date) {
+  return d instanceof Date && !Number.isNaN(d.getTime());
+}
+
 export function formatDate(date: Date | string | null | undefined) {
   if (!date) return "";
-  const d =
-    typeof date === "string"
-      ? (() => {
-          const match = date.match(/^(\d{4})-(\d{2})-(\d{2})/);
-          if (!match) return new Date(date);
-          return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-        })()
-      : date;
+  const d = typeof date === "string" ? parseDateInput(date) : date;
+  if (!isValidDate(d)) return "";
   return format(d, "dd/MM/yyyy", { locale: ptBR });
 }
 
 export function formatDateTime(date: Date | string | null | undefined) {
   if (!date) return "";
-  const d = typeof date === "string" ? new Date(date) : date;
+  const d = typeof date === "string" ? parseDateInput(date) : date;
+  if (!isValidDate(d)) return "";
   return format(d, "dd/MM/yyyy HH:mm", { locale: ptBR });
 }
 
