@@ -1,0 +1,2619 @@
+"use client";
+
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import {
+  Camera,
+  Edit3,
+  Eye,
+  ImageUp,
+  Plus,
+  Printer,
+  Save,
+  Search,
+  Trash2,
+} from "lucide-react";
+import {
+  ControleProducaoFiltrosLista,
+  ControleProducaoToolbar,
+} from "@/components/ControleProducaoToolbar";
+import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
+import { ImprimirOsModal } from "@/components/ImprimirOsModal";
+import {
+  classificarItemOs,
+  editIdPreferidoGrupo,
+  formatarDescontoItemOs,
+  grupoOsTemMultiplosSegmentos,
+  itemExibeBadgeProduto,
+  itemExibeBadgeTransporte,
+  itemUsaCamposOdontologicos,
+  nomeExibicaoItemOs,
+  situacaoExibicaoTrabalho,
+  trabalhoEhFichaSemServico,
+  trabalhoEhProdutoOuTransporte,
+} from "@/lib/trabalho-os-segmento";
+import { ConfiguracaoListaGear } from "@/components/listagem/ConfiguracaoListaGear";
+import { Button, CampoDataBr, Input, Select, Textarea } from "@/components/ui";
+import { parseCurrencyBr } from "@/lib/cliente-financeiro";
+import { brShortToIso, parseBrDate } from "@/lib/datas-br";
+import { propsInputComSelecaoAoFocar } from "@/lib/input-selecao";
+import { calcularDatasPrazoServico } from "@/lib/prazos-servico";
+import {
+  buscarServicoNaTabela,
+  carregarCategoriasPorTabelaPreco,
+  categoriaDoServicoNaTabela,
+  categoriasSelecionaveisNaOs,
+  servicosDaCategoriaTabela,
+  servicosSelecionaveisNaOs,
+  type CategoriaTabelaPrecoOs,
+} from "@/lib/tabela-precos-os";
+import {
+  colaboradoresParaExibicaoControle,
+  parseComplementosInstrucoesGrupo,
+  resumoColaboradorControle,
+  resumoEtapasControle,
+} from "@/lib/etapas-os";
+import {
+  filtrarTrabalhosAtrasados,
+  filtrarTrabalhosVencendoPeriodo,
+  type TipoPrazoProducao,
+} from "@/lib/controle-producao-prazos";
+import { BarraConfigListagem } from "@/components/listagem/BarraConfigListagem";
+import { useListagemPaginada } from "@/hooks/use-listagem-paginada";
+import {
+  compararDataIso,
+  compararNumero,
+  compararTextoBr,
+} from "@/lib/listagem-config";
+import { exibirTexto, formatCurrency, formatDate, STATUS_TRABALHO } from "@/lib/utils";
+
+type CampoOrdenacaoControle = "numeroOs" | "dataEntrada" | "cliente" | "paciente";
+
+type Trabalho = {
+  id: string;
+  numeroOs: number;
+  segmentoFaturamento?: string | null;
+  grupoOsId?: string | null;
+  tipoProtese: string;
+  dentes?: string | null;
+  cor?: string | null;
+  material?: string | null;
+  escala?: string | null;
+  status: string;
+  valor: number;
+  dataEntrada: string;
+  dataPrevista?: string | null;
+  dataEntrega?: string | null;
+  observacoes?: string | null;
+  instrucoes?: string | null;
+  cliente?: { nome?: string | null; cro?: string | null };
+  paciente?: { nome?: string | null };
+};
+
+const OPCOES_ORDENACAO_CONTROLE = [
+  { valor: "numeroOs" as const, label: "Num OS" },
+  { valor: "dataEntrada" as const, label: "Entrada" },
+  { valor: "cliente" as const, label: "Cliente" },
+  { valor: "paciente" as const, label: "Paciente" },
+];
+
+const COMPARADORES_CONTROLE: Record<
+  CampoOrdenacaoControle,
+  (a: Trabalho, b: Trabalho) => number
+> = {
+  numeroOs: (a, b) => compararNumero(a.numeroOs, b.numeroOs),
+  dataEntrada: (a, b) => compararDataIso(a.dataEntrada, b.dataEntrada),
+  cliente: (a, b) => compararTextoBr(clienteNome(a), clienteNome(b)),
+  paciente: (a, b) => compararTextoBr(pacienteNome(a), pacienteNome(b)),
+};
+
+type EditForm = {
+  categoria: string;
+  tipoProtese: string;
+  dentes: string;
+  cor: string;
+  escalaCor: string;
+  material: string;
+  status: string;
+  valor: string;
+  quantidade: string;
+  descontoTipo: string;
+  desconto: string;
+  dataPrevista: string;
+  dataLaboratorio: string;
+  horaLaboratorio: string;
+  dataDentista: string;
+  horaDentista: string;
+  observacoes: string;
+  /** Texto digitado só para o serviço em edição (vai em ` - obs ` na linha do item). */
+  observacaoServico: string;
+  /** Corpo das instruções da OS sem linhas de itens (preservado ao gravar). */
+  instrucoesCorpo: string;
+  urgente: boolean;
+  repeticao: boolean;
+};
+
+type AbaServicoEdicao = "etapas" | "produtos" | "colaboradores" | "terceiros";
+type PainelEdicaoItem = "servico" | "produto" | "transporte";
+
+type ProdutoCadastro = { id: string; nome: string; valor: number };
+type ProdutoOsEdicao = {
+  produtoId: string;
+  quantidade: string;
+  valor: string;
+  observacao: string;
+};
+
+type EditItem = {
+  id: string;
+  servico: string;
+  categoria?: string;
+  numeroDente: string;
+  corDente: string;
+  quantidade: string;
+  valor: number;
+  descontoTipo?: string;
+  desconto?: string;
+  situacao?: string;
+  urgente?: boolean;
+  repeticao?: boolean;
+  produtoId?: string;
+  observacao?: string;
+};
+
+function formatCurrencyInputControle(value: string) {
+  return parseCurrencyBr(value).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+function formatPercentInputControle(value: string) {
+  const amount = Number(value.replace(/\D/g, "")) / 100;
+  return amount.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function valorComDescontoControle(valor: number, descontoTipo?: string, desconto?: string) {
+  const descontoTexto = desconto || "0,00";
+  const descontoValor =
+    descontoTipo === "valor" || descontoTexto.trim().startsWith("R$")
+      ? parseCurrencyBr(descontoTexto)
+      : valor *
+        (Math.min(Math.max(Number(descontoTexto.replace(",", ".") || 0), 0), 100) / 100);
+
+  return Math.max(valor - descontoValor, 0);
+}
+
+function formatarLinhaItemEdicao(item: EditItem) {
+  const incluirCategoria = item.categoria?.trim() && itemUsaCamposOdontologicos(item);
+  return `Item adicionado: ${item.servico} - dentes ${item.numeroDente} - cor ${item.corDente} - qtd ${item.quantidade} - valor ${item.valor.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  })}${incluirCategoria ? ` - categoria ${item.categoria}` : ""}${
+    itemUsaCamposOdontologicos(item) && item.desconto ? ` - desc ${item.desconto}` : ""
+  }${itemUsaCamposOdontologicos(item) && item.situacao ? ` - situação ${item.situacao}` : ""}${
+    item.produtoId ? ` - produtoId ${item.produtoId}` : ""
+  }${item.urgente ? " - urgente" : ""}${item.repeticao ? " - repetição" : ""}${
+    item.observacao ? ` - obs ${item.observacao}` : ""
+  }`;
+}
+
+function tipoPainelEdicaoItem(item: EditItem): PainelEdicaoItem {
+  const tipo = classificarItemOs(item);
+  if (tipo === "produto") return "produto";
+  if (tipo === "transporte") return "transporte";
+  return "servico";
+}
+
+function TextareaObservacaoInterna({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "0px";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+
+  return (
+    <div className="space-y-1">
+      <label className="block text-sm font-medium text-slate-700">{label}</label>
+      <textarea
+        ref={ref}
+        rows={1}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full resize-none overflow-hidden rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+        style={{ minHeight: "2.5rem" }}
+      />
+    </div>
+  );
+}
+
+type StatusForm = {
+  status: string;
+  dataPrevista: string;
+  observacoes: string;
+  instrucoes: string;
+};
+
+type AnexoOs = {
+  name: string;
+  type: string;
+  url: string;
+};
+
+function dateToInput(date: string | null | undefined) {
+  if (!date) return "";
+  return new Date(date).toISOString().slice(0, 10);
+}
+
+function statusLabel(status: string) {
+  return STATUS_TRABALHO[status]?.label || status;
+}
+
+function clienteNome(trabalho: Trabalho) {
+  return trabalho.cliente?.nome || "";
+}
+
+function pacienteNome(trabalho: Trabalho) {
+  return trabalho.paciente?.nome || "";
+}
+
+function caixaOs(trabalho: Trabalho) {
+  const line = (trabalho.instrucoes || "")
+    .split("\n")
+    .find((item) => item.trim().startsWith("Caixa:"));
+  return line?.replace(/^Caixa:\s*/i, "").trim() || "";
+}
+
+function osBadge(numeroOs: number) {
+  return (
+    <span className="inline-flex min-w-9 items-center justify-center rounded bg-red-100 px-2 py-1 text-[13px] font-bold text-red-700">
+      {numeroOs}
+    </span>
+  );
+}
+
+function CelulaSituacaoControle({
+  trabalho,
+  primeiroItem,
+  onEditarStatus,
+}: {
+  trabalho: Trabalho;
+  primeiroItem?: ReturnType<typeof parseItens>[number];
+  onEditarStatus: () => void;
+}) {
+  const exibicao = situacaoExibicaoTrabalho(trabalho, primeiroItem);
+
+  if (exibicao.kind === "produto") {
+    return (
+      <span className="inline-flex items-center rounded-full bg-slate-600 px-2.5 py-1 text-[10px] font-semibold text-white">
+        Produto
+      </span>
+    );
+  }
+
+  if (exibicao.kind === "transporte") {
+    return (
+      <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
+        Transporte
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onEditarStatus}
+      className={`rounded px-2 py-1 text-[10px] font-semibold ${STATUS_TRABALHO[trabalho.status]?.color || "bg-slate-100 text-slate-700"}`}
+      title="Alterar situação"
+    >
+      {statusLabel(trabalho.status)}
+    </button>
+  );
+}
+
+function parseMoney(value: string) {
+  const normalized = value
+    .replace(/[^\d,.-]/g, "")
+    .replace(/\./g, "")
+    .replace(",", ".");
+  return Number(normalized) || 0;
+}
+
+function parseItens(trabalho: Trabalho): EditItem[] {
+  const lines = (trabalho.instrucoes || "").split("\n");
+  const itens = lines
+    .map((line, index) => {
+      const match = line.match(
+        /^Item adicionado:\s*(.*?)\s*-\s*dentes\s*(.*?)\s*-\s*cor\s*(.*?)\s*-\s*qtd\s*(.*?)\s*-\s*valor\s*(.*)$/i
+      );
+      if (!match) return null;
+      return {
+        id: `${trabalho.id}-item-${index}`,
+        servico: match[1]?.trim() || trabalho.tipoProtese,
+        categoria:
+          line.match(/ - categoria (.*?)(?: - desc| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i)?.[1]?.trim() ||
+          trabalho.escala ||
+          "",
+        numeroDente: match[2]?.trim() || trabalho.dentes || "-",
+        corDente: match[3]?.trim() || trabalho.cor || "-",
+        quantidade: match[4]?.trim() || "1",
+        valor: parseMoney(
+          line.match(/ - valor (.*?)(?: - categoria| - desc| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i)?.[1] ||
+            match[5] ||
+            ""
+        ),
+        desconto:
+          line.match(
+            / - desc (.*?)(?: - categoria| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
+          )?.[1]?.trim() || "0,00",
+        situacao:
+          line.match(/ - situação (.*?)(?: - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i)?.[1]?.trim() ||
+          trabalho.status,
+        observacao: line.match(/ - obs (.*)$/i)?.[1]?.trim() || "",
+        urgente: / - urgente(?: -|$)/i.test(line),
+        repeticao: / - repetição(?: -|$)| - repeticao(?: -|$)/i.test(line),
+      };
+    })
+    .filter(Boolean) as EditItem[];
+
+  if (itens.length > 0) return itens;
+
+  return [
+    {
+      id: `${trabalho.id}-principal`,
+      servico: trabalho.tipoProtese,
+      numeroDente: trabalho.dentes || "-",
+      corDente: trabalho.cor || "-",
+      quantidade: "1",
+      valor: trabalho.valor || 0,
+      urgente: false,
+      repeticao: false,
+    },
+  ];
+}
+
+function ServicoComMarcadores({ item }: { item: EditItem }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span>{nomeExibicaoItemOs(item)}</span>
+      {item.urgente && (
+        <span className="text-[10px] font-extrabold uppercase tracking-wide text-red-800">
+          URGENTE
+        </span>
+      )}
+      {item.repeticao && (
+        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded bg-orange-100 px-1.5 text-[10px] font-extrabold text-orange-700">
+          R
+        </span>
+      )}
+    </div>
+  );
+}
+
+function anexosFromInstrucoes(instrucoes?: string | null): AnexoOs[] {
+  return (instrucoes || "")
+    .split("\n")
+    .map((line) => {
+      if (!line.startsWith("Arquivo anexado:")) return null;
+      const [name, type, url] = line.replace("Arquivo anexado:", "").split("|").map((item) => item.trim());
+      if (!url) return null;
+      return { name: name || "Arquivo", type: type || "", url };
+    })
+    .filter(Boolean) as AnexoOs[];
+}
+
+function instrucoesSemAnexos(instrucoes?: string | null) {
+  return (instrucoes || "")
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("Arquivo anexado:") && !line.trim().startsWith("Arquivos anexados:"))
+    .join("\n");
+}
+
+function instrucoesCorpoSemItens(instrucoes?: string | null) {
+  return instrucoesSemAnexos(instrucoes)
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("Item adicionado:"))
+    .join("\n")
+    .trim();
+}
+
+function chaveGrupoOs(trabalho: Trabalho) {
+  return trabalho.grupoOsId || trabalho.id;
+}
+
+function instrucoesConsolidadas(trabalho: Trabalho, trabalhos: Trabalho[]) {
+  const grupo = trabalhos.filter((item) => chaveGrupoOs(item) === chaveGrupoOs(trabalho));
+  if (grupo.length <= 1) return trabalho.instrucoes || "";
+  return grupo
+    .map((item) => item.instrucoes || "")
+    .filter(Boolean)
+    .join("\n");
+}
+
+const dentesSuperiores = ["18", "17", "16", "15", "14", "13", "12", "11", "21", "22", "23", "24", "25", "26", "27", "28"];
+const dentesInferiores = ["48", "47", "46", "45", "44", "43", "42", "41", "31", "32", "33", "34", "35", "36", "37", "38"];
+const dentesDeciduosSuperiores = ["55", "54", "53", "52", "51", "61", "62", "63", "64", "65"];
+const dentesDeciduosInferiores = ["85", "84", "83", "82", "81", "71", "72", "73", "74", "75"];
+const dentesDeciduosComImagem = new Set([...dentesDeciduosSuperiores, ...dentesDeciduosInferiores]);
+
+type TipoDenticao = "permanente" | "deciduos";
+
+function dentesPorDenticaoControle(tipo: TipoDenticao) {
+  return tipo === "deciduos"
+    ? { superiores: dentesDeciduosSuperiores, inferiores: dentesDeciduosInferiores }
+    : { superiores: dentesSuperiores, inferiores: dentesInferiores };
+}
+
+function tipoDenticaoFromDentesControle(valores: string[]): TipoDenticao {
+  return valores.some(
+    (dente) => dentesDeciduosSuperiores.includes(dente) || dentesDeciduosInferiores.includes(dente)
+  )
+    ? "deciduos"
+    : "permanente";
+}
+
+function dentesFromResumoControle(resumo: string, tipo: TipoDenticao = "permanente") {
+  const { superiores, inferiores } = dentesPorDenticaoControle(tipo);
+  const partes = resumo.split(",").map((parte) => parte.trim()).filter(Boolean);
+  return Array.from(
+    new Set(
+      partes.flatMap((parte) => {
+        if (parte === "SUP") return superiores;
+        if (parte === "INF") return inferiores;
+        return /^\d+$/.test(parte) ? [parte] : [];
+      })
+    )
+  );
+}
+
+function numeroDenteResumoControle(dentes: string[], tipo: TipoDenticao) {
+  const { superiores, inferiores } = dentesPorDenticaoControle(tipo);
+  const todosSuperiores = superiores.every((dente) => dentes.includes(dente));
+  const todosInferiores = inferiores.every((dente) => dentes.includes(dente));
+  const superioresExtras = dentes.filter((dente) => !superiores.includes(dente));
+  const inferioresExtras = dentes.filter((dente) => !inferiores.includes(dente));
+  const partes = [
+    todosSuperiores ? "SUP" : "",
+    todosInferiores ? "INF" : "",
+    ...(!todosSuperiores ? dentes.filter((dente) => superiores.includes(dente)) : []),
+    ...(!todosInferiores ? dentes.filter((dente) => inferiores.includes(dente)) : []),
+  ].filter(Boolean);
+
+  if (todosSuperiores && todosInferiores) return "SUP, INF";
+  if (todosSuperiores && superioresExtras.length === inferiores.length) return "SUP, INF";
+  if (todosInferiores && inferioresExtras.length === superiores.length) return "SUP, INF";
+  return partes.length ? partes.join(", ") : "";
+}
+
+function renderDentesSelecionadosControle(resumo: string) {
+  if (!resumo.trim()) {
+    return <span className="font-normal text-slate-600">Nenhum dente selecionado</span>;
+  }
+
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1">
+      {resumo.split(", ").map((parte) =>
+        parte === "SUP" || parte === "INF" ? (
+          <span key={parte} className="rounded bg-emerald-500 px-2 py-1 text-[11px] font-bold text-white">
+            {parte}
+          </span>
+        ) : (
+          <span
+            key={parte}
+            className="inline-flex h-5 min-w-5 items-center justify-center rounded bg-emerald-500 px-1.5 text-[10px] font-bold text-white"
+          >
+            {parte}
+          </span>
+        )
+      )}
+    </span>
+  );
+}
+
+export default function ControlePage() {
+  const searchParams = useSearchParams();
+  const painelInicial = searchParams.get("painel");
+  const prazoInicial: TipoPrazoProducao =
+    searchParams.get("prazo") === "dentista" ? "dentista" : "lab";
+  const diaVencendo = searchParams.get("dia") || "hoje";
+  const painelDestaque = searchParams.get("destaque");
+  const [trabalhos, setTrabalhos] = useState<Trabalho[]>([]);
+  const [busca, setBusca] = useState("");
+  const statusUrl = searchParams.get("status");
+  const [status, setStatus] = useState(
+    statusUrl && statusUrl !== "todos" ? statusUrl : "todos"
+  );
+  const [cliente, setCliente] = useState("");
+  const [dataEntrada, setDataEntrada] = useState("");
+  const [osAberta, setOsAberta] = useState<string | null>(null);
+  const [editando, setEditando] = useState<Trabalho | null>(null);
+  const [form, setForm] = useState<EditForm | null>(null);
+  const [editItems, setEditItems] = useState<EditItem[]>([]);
+  const [itemSelecionadoId, setItemSelecionadoId] = useState<string | null>(null);
+  const [abaServicoEdicao, setAbaServicoEdicao] = useState<AbaServicoEdicao>("etapas");
+  const [tipoDenticao, setTipoDenticao] = useState<TipoDenticao>("permanente");
+  const [dentesEdicao, setDentesEdicao] = useState<string[]>([]);
+  const [painelEdicaoItem, setPainelEdicaoItem] = useState<PainelEdicaoItem>("servico");
+  const [adicionandoServico, setAdicionandoServico] = useState(false);
+  const [produtosCadastro, setProdutosCadastro] = useState<ProdutoCadastro[]>([]);
+  const [produtosOs, setProdutosOs] = useState<ProdutoOsEdicao[]>([]);
+  const [categoriasTabelaPreco, setCategoriasTabelaPreco] = useState<CategoriaTabelaPrecoOs[]>([]);
+
+  const painelEdicaoVisivel = Boolean(itemSelecionadoId || adicionandoServico);
+
+  const servicosDaCategoriaEdicao = useMemo(
+    () => servicosSelecionaveisNaOs(servicosDaCategoriaTabela(categoriasTabelaPreco, form?.categoria || "")),
+    [categoriasTabelaPreco, form?.categoria]
+  );
+  const [anexoAberto, setAnexoAberto] = useState<AnexoOs | null>(null);
+  const [osExcluindo, setOsExcluindo] = useState<Trabalho | null>(null);
+  const [statusEditando, setStatusEditando] = useState<Trabalho | null>(null);
+  const [statusForm, setStatusForm] = useState<StatusForm>({
+    status: "",
+    dataPrevista: "",
+    observacoes: "",
+    instrucoes: "",
+  });
+  const [filtroProdutos, setFiltroProdutos] = useState(false);
+  const [filtroFichasSemServicos, setFiltroFichasSemServicos] = useState(false);
+  const [imprimirOs, setImprimirOs] = useState<Trabalho | null>(null);
+
+  async function load() {
+    const params = new URLSearchParams();
+    if (busca) params.set("q", busca);
+    if (status && status !== "todos") params.set("status", status);
+    const dataIso = brShortToIso(dataEntrada);
+    if (dataIso) params.set("dataEntrada", dataIso);
+    const res = await fetch(`/api/trabalhos?${params.toString()}`);
+    const data = await res.json();
+    setTrabalhos(Array.isArray(data) ? data : []);
+  }
+
+  useEffect(() => {
+    const timer = window.setTimeout(load, 250);
+    return () => window.clearTimeout(timer);
+  }, [busca, status, dataEntrada]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const produtosSalvo =
+        window.localStorage.getItem("labProteseControleProdutos") ??
+        window.localStorage.getItem("labProteseControleProdutor");
+      setFiltroProdutos(produtosSalvo === "1");
+      setFiltroFichasSemServicos(
+        window.localStorage.getItem("labProteseControleFichasSemServicos") === "1"
+      );
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    if (painelInicial === "vencendo" || painelInicial === "atrasados") {
+      setStatus("todos");
+    } else if (statusUrl && statusUrl !== "todos") {
+      setStatus(statusUrl);
+    }
+  }, [painelInicial, statusUrl]);
+
+  const filtrados = useMemo(() => {
+    let lista = trabalhos.filter((trabalho) =>
+      cliente ? clienteNome(trabalho) === cliente : true
+    );
+    if (painelInicial === "vencendo") {
+      lista = filtrarTrabalhosVencendoPeriodo(lista, prazoInicial, diaVencendo);
+    } else if (painelInicial === "atrasados") {
+      lista = filtrarTrabalhosAtrasados(lista, prazoInicial);
+    }
+
+    lista = lista.filter((trabalho) => {
+      const primeiroItem = parseItens(trabalho)[0];
+      if (trabalhoEhProdutoOuTransporte(trabalho, primeiroItem)) {
+        return filtroProdutos;
+      }
+      if (trabalhoEhFichaSemServico(trabalho)) {
+        return filtroFichasSemServicos;
+      }
+      return true;
+    });
+
+    return lista;
+  }, [
+    trabalhos,
+    cliente,
+    painelInicial,
+    prazoInicial,
+    diaVencendo,
+    filtroProdutos,
+    filtroFichasSemServicos,
+  ]);
+
+  const listagem = useListagemPaginada<Trabalho, CampoOrdenacaoControle>({
+    storageKey: "controle-producao",
+    itens: filtrados,
+    padrao: {
+      ordenarPor: "numeroOs",
+      direcao: "desc",
+      porPagina: 50,
+    },
+    comparadores: COMPARADORES_CONTROLE,
+  });
+
+  useEffect(() => {
+    if (searchParams.get("imprimir") !== "1") return;
+    const timer = window.setTimeout(() => window.print(), 600);
+    return () => window.clearTimeout(timer);
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!painelDestaque || trabalhos.length === 0) return;
+    const alvo = trabalhos.find((t) => t.id === painelDestaque);
+    if (alvo) setOsAberta(alvo.id);
+  }, [painelDestaque, trabalhos]);
+
+  useEffect(() => {
+    if (!editando) return;
+    fetch("/api/produtos")
+      .then((res) => res.json())
+      .then((data) => setProdutosCadastro(Array.isArray(data) ? data : []))
+      .catch(() => setProdutosCadastro([]));
+
+    const porTabela = carregarCategoriasPorTabelaPreco();
+    const tabela = "Tabela Principal";
+    setCategoriasTabelaPreco(porTabela[tabela] || Object.values(porTabela)[0] || []);
+  }, [editando]);
+
+  const editIdPorGrupo = useMemo(() => {
+    const mapa = new Map<string, string>();
+    const porGrupo = new Map<string, Trabalho[]>();
+    for (const trabalho of trabalhos) {
+      const chave = trabalho.grupoOsId || trabalho.id;
+      const lista = porGrupo.get(chave) || [];
+      lista.push(trabalho);
+      porGrupo.set(chave, lista);
+    }
+    porGrupo.forEach((grupo, chave) => {
+      mapa.set(chave, editIdPreferidoGrupo(grupo) || grupo[0].id);
+    });
+    return mapa;
+  }, [trabalhos]);
+
+  function editIdTrabalho(trabalho: Trabalho) {
+    return editIdPorGrupo.get(trabalho.grupoOsId || trabalho.id) || trabalho.id;
+  }
+
+  const totalServicoEdicao = useMemo(() => {
+    if (!form) return 0;
+    if (painelEdicaoItem === "produto" && produtosOs[0]) {
+      const qtd = Number(produtosOs[0].quantidade || 1) || 1;
+      return parseCurrencyBr(produtosOs[0].valor) * qtd;
+    }
+    const subtotal =
+      parseCurrencyBr(form.valor) * (Number(form.quantidade || 1) || 1);
+    return valorComDescontoControle(subtotal, form.descontoTipo, form.desconto);
+  }, [form, painelEdicaoItem, produtosOs]);
+
+  const totalItensEdicao = useMemo(
+    () =>
+      editItems.reduce(
+        (sum, item) => sum + valorComDescontoControle(item.valor, item.descontoTipo, item.desconto),
+        0
+      ),
+    [editItems]
+  );
+
+  const clientes = Array.from(
+    new Set(trabalhos.map(clienteNome).filter(Boolean))
+  );
+
+  function formVazioEdicao(trabalho: Trabalho): EditForm {
+    const dataBr = formatDate(trabalho.dataPrevista);
+    return {
+      categoria: trabalho.escala || "",
+      tipoProtese: trabalho.tipoProtese,
+      dentes: trabalho.dentes || "",
+      cor: trabalho.cor || "",
+      escalaCor: trabalho.escala || trabalho.cor || "",
+      material: trabalho.material || "",
+      status: trabalho.status,
+      valor: (trabalho.valor || 0).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      }),
+      quantidade: "1",
+      descontoTipo: "percentual",
+      desconto: "0,00",
+      dataPrevista: dateToInput(trabalho.dataPrevista),
+      dataLaboratorio: dataBr,
+      horaLaboratorio: "",
+      dataDentista: dataBr,
+      horaDentista: "",
+      observacoes: trabalho.observacoes || "",
+      observacaoServico: "",
+      instrucoesCorpo: instrucoesCorpoSemItens(trabalho.instrucoes),
+      urgente: false,
+      repeticao: false,
+    };
+  }
+
+  function valorSelectServicoEdicao() {
+    if (!form) return "";
+    const texto = form.tipoProtese.trim();
+    if (/^(transporte|frete)\s*:/i.test(texto)) {
+      return texto.replace(/^(transporte|frete)\s*:/i, "").trim();
+    }
+    return texto;
+  }
+
+  function prazosDoServicoEdicao(nomeServico: string) {
+    const servico = buscarServicoNaTabela(categoriasTabelaPreco, nomeServico);
+    const base = parseBrDate(formatDate(editando?.dataEntrada)) || new Date();
+    return servico ? calcularDatasPrazoServico(servico, base) : { dataLaboratorio: "", dataDentista: "" };
+  }
+
+  function selecionarCategoriaServicoEdicao(categoriaNome: string) {
+    setForm((atual) =>
+      atual
+        ? {
+            ...atual,
+            categoria: categoriaNome,
+            tipoProtese: "",
+            valor: "R$ 0,00",
+            dataLaboratorio: "",
+            dataDentista: "",
+          }
+        : atual
+    );
+  }
+
+  function selecionarServicoTabelaEdicao(servicoRef: string) {
+    if (!form) return;
+    if (!servicoRef) {
+      setForm((atual) =>
+        atual
+          ? { ...atual, tipoProtese: "", valor: "R$ 0,00", dataLaboratorio: "", dataDentista: "" }
+          : atual
+      );
+      return;
+    }
+
+    const servico = buscarServicoNaTabela(categoriasTabelaPreco, servicoRef);
+    if (!servico) return;
+
+    const valorFmt = servico.valor.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
+
+    if (servico.tipo === "transporte") {
+      setForm((atual) =>
+        atual
+          ? {
+              ...atual,
+              tipoProtese: `Transporte: ${servico.nome}`,
+              valor: valorFmt,
+              quantidade: "1",
+              dataLaboratorio: "",
+              dataDentista: "",
+            }
+          : atual
+      );
+      return;
+    }
+
+    const prazos = prazosDoServicoEdicao(servico.nome);
+    setForm((atual) =>
+      atual
+        ? {
+            ...atual,
+            tipoProtese: servico.nome,
+            valor: valorFmt,
+            dataLaboratorio: prazos.dataLaboratorio,
+            dataDentista: prazos.dataDentista,
+            dataPrevista: brShortToIso(prazos.dataLaboratorio) || atual.dataPrevista,
+          }
+        : atual
+    );
+  }
+
+  function fecharEdicaoOs() {
+    setEditando(null);
+    setForm(null);
+    setEditItems([]);
+    setItemSelecionadoId(null);
+    setAbaServicoEdicao("etapas");
+    setPainelEdicaoItem("servico");
+    setAdicionandoServico(false);
+    setProdutosOs([]);
+    setTipoDenticao("permanente");
+    setDentesEdicao([]);
+  }
+
+  function classeAbaEdicao(aba: AbaServicoEdicao) {
+    return abaServicoEdicao === aba
+      ? "rounded px-3 py-2 text-xs font-medium bg-primary-600 text-white shadow"
+      : "px-1 py-2 text-xs font-medium text-slate-700 hover:text-primary-700";
+  }
+
+  function sincronizarDentesNoFormulario(dentes: string[], tipo: TipoDenticao = tipoDenticao) {
+    const resumo = numeroDenteResumoControle(dentes, tipo);
+    setDentesEdicao(dentes);
+    setForm((atual) => (atual ? { ...atual, dentes: resumo } : atual));
+  }
+
+  function toggleDenteEdicao(dente: string) {
+    setDentesEdicao((atual) => {
+      const prox = atual.includes(dente) ? atual.filter((d) => d !== dente) : [...atual, dente];
+      const resumo = numeroDenteResumoControle(prox, tipoDenticao);
+      setForm((f) => (f ? { ...f, dentes: resumo } : f));
+      return prox;
+    });
+  }
+
+  function selecionarArcadaEdicao(arcada: "sup" | "inf") {
+    const { superiores, inferiores } = dentesPorDenticaoControle(tipoDenticao);
+    const linha = arcada === "sup" ? superiores : inferiores;
+    setDentesEdicao((atual) => {
+      const todosSelecionados = linha.every((dente) => atual.includes(dente));
+      const prox = todosSelecionados
+        ? atual.filter((dente) => !linha.includes(dente))
+        : Array.from(new Set([...atual, ...linha]));
+      const resumo = numeroDenteResumoControle(prox, tipoDenticao);
+      setForm((f) => (f ? { ...f, dentes: resumo } : f));
+      return prox;
+    });
+  }
+
+  function trocarTipoDenticaoEdicao(tipo: TipoDenticao) {
+    setTipoDenticao(tipo);
+    sincronizarDentesNoFormulario([], tipo);
+  }
+
+  function abrirEdicao(trabalho: Trabalho) {
+    const idAlvo = editIdTrabalho(trabalho);
+    const alvo = trabalhos.find((item) => item.id === idAlvo) || trabalho;
+    const grupo = trabalhos.filter((item) => chaveGrupoOs(item) === chaveGrupoOs(trabalho));
+    const itens = grupo.length > 1 ? grupo.flatMap((item) => parseItens(item)) : parseItens(alvo);
+    const dentesIniciais = dentesFromResumoControle(alvo.dentes || "");
+    const denticaoInicial = tipoDenticaoFromDentesControle(dentesIniciais);
+    setEditando(alvo);
+    setEditItems(itens);
+    setItemSelecionadoId(null);
+    setAbaServicoEdicao("etapas");
+    setPainelEdicaoItem("servico");
+    setAdicionandoServico(false);
+    setProdutosOs([]);
+    setTipoDenticao(denticaoInicial);
+    setDentesEdicao(dentesIniciais);
+    setForm({
+      ...formVazioEdicao(alvo),
+      dentes: numeroDenteResumoControle(dentesIniciais, denticaoInicial),
+    });
+  }
+
+  function selecionarItemEdicao(item: EditItem) {
+    const painel = tipoPainelEdicaoItem(item);
+    setAdicionandoServico(false);
+    setItemSelecionadoId(item.id);
+    setPainelEdicaoItem(painel);
+    const qtd = Number(item.quantidade || 1) || 1;
+    const unitario = item.valor / qtd;
+
+    if (painel === "produto") {
+      setAbaServicoEdicao("produtos");
+      const nomeProduto = nomeExibicaoItemOs(item);
+      const produto = produtosCadastro.find(
+        (p) => p.id === item.produtoId || p.nome === nomeProduto
+      );
+      setProdutosOs([
+        {
+          produtoId: produto?.id || item.produtoId || "",
+          quantidade: item.quantidade || "1",
+          valor: String(unitario || 0),
+          observacao: item.observacao || nomeProduto,
+        },
+      ]);
+      setForm((atual) => ({
+        ...(atual || formVazioEdicao(editando!)),
+        quantidade: item.quantidade || "1",
+        valor: String(unitario || 0),
+        urgente: Boolean(item.urgente),
+        repeticao: Boolean(item.repeticao),
+        observacaoServico: "",
+      }));
+      return;
+    }
+
+    if (painel === "transporte") {
+      setProdutosOs([]);
+      setForm((atual) => ({
+        ...(atual || formVazioEdicao(editando!)),
+        tipoProtese: item.servico,
+        quantidade: item.quantidade || "1",
+        valor: String(unitario || 0),
+        urgente: Boolean(item.urgente),
+        repeticao: Boolean(item.repeticao),
+        observacaoServico: "",
+      }));
+      return;
+    }
+
+    setAbaServicoEdicao("etapas");
+    setProdutosOs([]);
+    const resumoDentes = item.numeroDente === "-" ? "" : item.numeroDente;
+    const dentesItem = dentesFromResumoControle(resumoDentes);
+    const denticaoItem = tipoDenticaoFromDentesControle(dentesItem);
+    setTipoDenticao(denticaoItem);
+    setDentesEdicao(dentesItem);
+    const descontoItem = item.desconto || "0,00";
+    setForm((atual) => ({
+      ...(atual || formVazioEdicao(editando!)),
+      categoria:
+        item.categoria ||
+        categoriaDoServicoNaTabela(categoriasTabelaPreco, item.servico) ||
+        editando!.escala ||
+        "",
+      tipoProtese: item.servico,
+      dentes: numeroDenteResumoControle(dentesItem, denticaoItem) || resumoDentes,
+      cor: item.corDente === "-" ? "" : item.corDente,
+      escalaCor: item.corDente === "-" ? "" : item.corDente,
+      quantidade: item.quantidade || "1",
+      valor: unitario.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+      descontoTipo: item.descontoTipo || (descontoItem.startsWith("R$") ? "valor" : "percentual"),
+      desconto: descontoItem,
+      status: item.situacao || editando!.status,
+      urgente: Boolean(item.urgente),
+      repeticao: Boolean(item.repeticao),
+      observacaoServico: item.observacao || "",
+    }));
+  }
+
+  function montarItemEdicaoAtual(): EditItem | null {
+    if (!itemSelecionadoId || !form) return null;
+    const base = editItems.find((item) => item.id === itemSelecionadoId);
+    if (!base) return null;
+
+    if (painelEdicaoItem === "produto") {
+      const produtoOs = produtosOs[0];
+      if (!produtoOs) return null;
+      const produto = produtosCadastro.find((p) => p.id === produtoOs.produtoId);
+      const nome = produto?.nome || produtoOs.observacao?.trim() || "Produto";
+      const quantidade = produtoOs.quantidade || "1";
+      const valorUnit = Number(produtoOs.valor || 0) || 0;
+      return {
+        ...base,
+        servico: `Produto: ${nome}`,
+        numeroDente: "-",
+        corDente: "-",
+        quantidade,
+        valor: valorUnit * (Number(quantidade) || 1),
+        produtoId: produtoOs.produtoId || undefined,
+        observacao: produtoOs.observacao,
+        urgente: form.urgente,
+        repeticao: form.repeticao,
+      };
+    }
+
+    if (painelEdicaoItem === "transporte") {
+      const nomeCampo = form.tipoProtese.trim();
+      const nome = /^(transporte|frete)\s*:/i.test(nomeCampo)
+        ? nomeCampo
+        : `Transporte: ${nomeExibicaoItemOs({ servico: nomeCampo })}`;
+      const quantidade = form.quantidade || "1";
+      const valorLinha = (Number(form.valor || 0) || 0) * (Number(quantidade) || 1);
+      return {
+        ...base,
+        servico: nome,
+        numeroDente: "-",
+        corDente: "-",
+        quantidade,
+        valor: valorLinha,
+        urgente: form.urgente,
+        repeticao: form.repeticao,
+      };
+    }
+
+    const qtd = Number(form.quantidade || 1) || 1;
+    return {
+      ...base,
+      servico: form.tipoProtese,
+      categoria: form.categoria,
+      numeroDente: form.dentes || "-",
+      corDente: form.escalaCor || form.cor || "-",
+      quantidade: form.quantidade || "1",
+      valor: parseCurrencyBr(form.valor) * qtd,
+      descontoTipo: form.descontoTipo,
+      desconto: form.desconto,
+      situacao: form.status,
+      urgente: form.urgente,
+      repeticao: form.repeticao,
+      observacao: form.observacaoServico.trim() || undefined,
+    };
+  }
+
+  function aplicarFormularioAoItemSelecionado() {
+    if (!itemSelecionadoId || !form) return;
+    const atualizado = montarItemEdicaoAtual();
+    if (!atualizado) return;
+    setEditItems((itens) =>
+      itens.map((item) => (item.id === itemSelecionadoId ? atualizado : item))
+    );
+  }
+
+  function confirmarEdicaoItem() {
+    if (itemSelecionadoId) {
+      aplicarFormularioAoItemSelecionado();
+      return;
+    }
+    if (adicionandoServico && painelEdicaoItem === "servico" && abaServicoEdicao === "produtos") {
+      const produtoOs = produtosOs[0];
+      if (!produtoOs?.produtoId && !produtoOs?.observacao?.trim()) return;
+      const produto = produtosCadastro.find((p) => p.id === produtoOs.produtoId);
+      const nome = produto?.nome || produtoOs.observacao?.trim() || "Produto";
+      const quantidade = produtoOs.quantidade || "1";
+      const valor = (Number(produtoOs.valor || 0) || 0) * (Number(quantidade) || 1);
+      const novo: EditItem = {
+        id: `${Date.now()}`,
+        servico: `Produto: ${nome}`,
+        numeroDente: "-",
+        corDente: "-",
+        quantidade,
+        valor,
+        produtoId: produtoOs.produtoId || undefined,
+        observacao: produtoOs.observacao,
+      };
+      setEditItems((atuais) => [...atuais, novo]);
+      setAdicionandoServico(false);
+      setProdutosOs([]);
+      setAbaServicoEdicao("etapas");
+      return;
+    }
+    if (!form) return;
+    if (adicionandoServico && painelEdicaoItem === "servico") {
+      if (!form.tipoProtese.trim() && dentesEdicao.length === 0) return;
+      const quantidade = form.quantidade || "1";
+      const novo: EditItem = {
+        id: `${Date.now()}`,
+        servico: form.tipoProtese.trim() || "Novo serviço",
+        categoria: form.categoria,
+        numeroDente: form.dentes || "-",
+        corDente: form.escalaCor || form.cor || "-",
+        quantidade,
+        valor: parseCurrencyBr(form.valor) * (Number(quantidade) || 1),
+        descontoTipo: form.descontoTipo,
+        desconto: form.desconto,
+        situacao: form.status,
+        urgente: form.urgente,
+        repeticao: form.repeticao,
+        observacao: form.observacaoServico.trim() || undefined,
+      };
+      setEditItems((atuais) => [...atuais, novo]);
+      setAdicionandoServico(false);
+      setForm((atual) => (atual ? { ...atual, observacaoServico: "" } : atual));
+      return;
+    }
+    if (painelEdicaoItem === "produto") {
+      const produtoOs = produtosOs[0];
+      if (!produtoOs?.produtoId && !produtoOs?.observacao?.trim()) return;
+      const produto = produtosCadastro.find((p) => p.id === produtoOs.produtoId);
+      const nome = produto?.nome || produtoOs.observacao?.trim() || "Produto";
+      const quantidade = produtoOs.quantidade || "1";
+      const valor = (Number(produtoOs.valor || 0) || 0) * (Number(quantidade) || 1);
+      const novo: EditItem = {
+        id: `${Date.now()}`,
+        servico: `Produto: ${nome}`,
+        numeroDente: "-",
+        corDente: "-",
+        quantidade,
+        valor,
+        produtoId: produtoOs.produtoId || undefined,
+        observacao: produtoOs.observacao,
+      };
+      setEditItems((atuais) => [...atuais, novo]);
+      selecionarItemEdicao(novo);
+      return;
+    }
+    if (painelEdicaoItem === "transporte") {
+      if (!form.tipoProtese.trim()) return;
+      const quantidade = form.quantidade || "1";
+      const nome = /^(transporte|frete)\s*:/i.test(form.tipoProtese.trim())
+        ? form.tipoProtese.trim()
+        : `Transporte: ${form.tipoProtese.trim()}`;
+      const novo: EditItem = {
+        id: `${Date.now()}`,
+        servico: nome,
+        numeroDente: "-",
+        corDente: "-",
+        quantidade,
+        valor: (Number(form.valor || 0) || 0) * (Number(quantidade) || 1),
+      };
+      setEditItems((atuais) => [...atuais, novo]);
+      selecionarItemEdicao(novo);
+    }
+  }
+
+  function abrirAdicionarServico() {
+    if (!editando) return;
+    setAdicionandoServico(true);
+    setItemSelecionadoId(null);
+    setPainelEdicaoItem("servico");
+    setAbaServicoEdicao("etapas");
+    setProdutosOs([]);
+    setTipoDenticao("permanente");
+    setDentesEdicao([]);
+    setForm({
+      ...formVazioEdicao(editando),
+      categoria: "",
+      tipoProtese: "",
+      dentes: "",
+      cor: "",
+      escalaCor: "",
+      quantidade: "1",
+      valor: "R$ 0,00",
+      descontoTipo: "percentual",
+      desconto: "0,00",
+      observacaoServico: "",
+      urgente: false,
+      repeticao: false,
+    });
+  }
+
+  function limparSelecaoItemEdicao() {
+    setItemSelecionadoId(null);
+    setAdicionandoServico(false);
+    setPainelEdicaoItem("servico");
+    setProdutosOs([]);
+    setAbaServicoEdicao("etapas");
+    if (!editando) return;
+    const dentesIniciais = dentesFromResumoControle(editando.dentes || "");
+    const denticaoInicial = tipoDenticaoFromDentesControle(dentesIniciais);
+    setTipoDenticao(denticaoInicial);
+    setDentesEdicao(dentesIniciais);
+    setForm({
+      ...formVazioEdicao(editando),
+      dentes: numeroDenteResumoControle(dentesIniciais, denticaoInicial),
+    });
+  }
+
+  async function salvarEdicao() {
+    if (!editando || !form) return;
+    let itensSalvar = editItems;
+    if (itemSelecionadoId && form) {
+      const atualizado = montarItemEdicaoAtual();
+      if (atualizado) {
+        itensSalvar = editItems.map((item) =>
+          item.id === itemSelecionadoId ? atualizado : item
+        );
+        setEditItems(itensSalvar);
+      }
+    }
+    const primeiroItem = itensSalvar[0];
+    const itensInstrucoes = itensSalvar.map((item) => formatarLinhaItemEdicao(item)).join("\n");
+    const valorTotal = itensSalvar.reduce(
+      (sum, item) => sum + valorComDescontoControle(item.valor, item.descontoTipo, item.desconto),
+      0
+    );
+
+    await fetch(`/api/trabalhos/${editando.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tipoProtese: primeiroItem?.servico || form.tipoProtese,
+        dentes: primeiroItem?.numeroDente || form.dentes,
+        cor: primeiroItem?.corDente || form.cor,
+        material: form.material,
+        status: form.status,
+        valor: valorTotal || Number(form.valor || 0),
+        dataPrevista: brShortToIso(form.dataLaboratorio) || form.dataPrevista || null,
+        observacoes: form.observacoes,
+        instrucoes: [form.instrucoesCorpo, itensInstrucoes].filter(Boolean).join("\n"),
+      }),
+    });
+
+    fecharEdicaoOs();
+    load();
+  }
+
+  function adicionarLinhaProdutoEdicao() {
+    setProdutosOs((atuais) => [
+      ...atuais,
+      { produtoId: "", quantidade: "1", valor: "0", observacao: "" },
+    ]);
+  }
+
+  function removerItemEdicao(id: string) {
+    setEditItems((atuais) => atuais.filter((item) => item.id !== id));
+    if (itemSelecionadoId === id) {
+      limparSelecaoItemEdicao();
+    }
+  }
+
+  async function atualizarStatus(trabalho: Trabalho, novoStatus: string) {
+    setTrabalhos((atuais) =>
+      atuais.map((item) =>
+        item.id === trabalho.id ? { ...item, status: novoStatus } : item
+      )
+    );
+
+    const res = await fetch(`/api/trabalhos/${trabalho.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: novoStatus }),
+    });
+
+    if (!res.ok) {
+      load();
+    }
+  }
+
+  function abrirStatusRapido(trabalho: Trabalho) {
+    setStatusEditando(trabalho);
+    setStatusForm({
+      status: trabalho.status,
+      dataPrevista: dateToInput(trabalho.dataPrevista),
+      observacoes: trabalho.observacoes || "",
+      instrucoes: trabalho.instrucoes || "",
+    });
+  }
+
+  async function salvarStatusRapido() {
+    if (!statusEditando) return;
+
+    setTrabalhos((atuais) =>
+      atuais.map((item) =>
+        item.id === statusEditando.id
+          ? {
+              ...item,
+              status: statusForm.status,
+              dataPrevista: statusForm.dataPrevista || null,
+              observacoes: statusForm.observacoes,
+              instrucoes: statusForm.instrucoes,
+            }
+          : item
+      )
+    );
+
+    const res = await fetch(`/api/trabalhos/${statusEditando.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: statusForm.status,
+        dataPrevista: statusForm.dataPrevista || null,
+        observacoes: statusForm.observacoes,
+        instrucoes: statusForm.instrucoes,
+      }),
+    });
+
+    setStatusEditando(null);
+    if (!res.ok) load();
+  }
+
+  async function confirmarExclusaoOs() {
+    if (!osExcluindo) return;
+    const trabalho = osExcluindo;
+    await fetch(`/api/trabalhos/${trabalho.id}`, { method: "DELETE" });
+    setOsExcluindo(null);
+    load();
+  }
+
+  return (
+    <div className="space-y-3 text-[11px] text-slate-700">
+      <div className="flex items-center gap-2 text-sm text-slate-500">
+        <span>Produção</span>
+        <span>/</span>
+        <span className="font-medium text-slate-700">Controle de Produção</span>
+      </div>
+
+      <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">
+        <ControleProducaoToolbar viewAtiva="lista" somenteNavegacao />
+
+        <div className="grid gap-2 md:grid-cols-[1fr_1.2fr_1fr_1.2fr_auto]">
+          <div>
+            <Select label="Situação" value={status} onChange={(e) => setStatus(e.target.value)}>
+              <option value="todos">Todos</option>
+              {Object.entries(STATUS_TRABALHO).map(([key, value]) => (
+                <option key={key} value={key}>
+                  {value.label}
+                </option>
+              ))}
+            </Select>
+            <ControleProducaoFiltrosLista
+              produtos={filtroProdutos}
+              fichasSemServicos={filtroFichasSemServicos}
+              onProdutosChange={(valor) => {
+                setFiltroProdutos(valor);
+                listagem.atualizarExtraRascunho("mostrarProdutosTransportes", valor);
+              }}
+              onFichasSemServicosChange={setFiltroFichasSemServicos}
+              configLista={
+                <ConfiguracaoListaGear
+                  variante="controle"
+                  aberto={listagem.configAberto}
+                  onToggle={() => {
+                    if (listagem.configAberto) {
+                      listagem.fecharConfig();
+                      return;
+                    }
+                    listagem.atualizarRascunho({
+                      extras: { mostrarProdutosTransportes: filtroProdutos },
+                    });
+                    listagem.abrirConfig();
+                  }}
+                  onFechar={listagem.fecharConfig}
+                  rascunho={listagem.rascunho}
+                  opcoesOrdenacao={OPCOES_ORDENACAO_CONTROLE}
+                  onAlterarOrdenarPor={(valor) => listagem.atualizarRascunho({ ordenarPor: valor })}
+                  onAlterarDirecao={(direcao) => listagem.atualizarRascunho({ direcao })}
+                  onAlterarPorPagina={(porPagina) => listagem.atualizarRascunho({ porPagina })}
+                  extras={[
+                    {
+                      chave: "mostrarProdutosTransportes",
+                      label: "Mostrar Produtos e Transportes",
+                    },
+                  ]}
+                  onAlterarExtra={(chave, valor) => {
+                    listagem.atualizarExtraRascunho(chave, valor);
+                    if (chave === "mostrarProdutosTransportes") setFiltroProdutos(valor);
+                  }}
+                  onGravar={() => {
+                    const mostrar =
+                      listagem.rascunho.extras?.mostrarProdutosTransportes ?? filtroProdutos;
+                    setFiltroProdutos(mostrar);
+                    if (typeof window !== "undefined") {
+                      window.localStorage.setItem(
+                        "labProteseControleProdutos",
+                        mostrar ? "1" : "0"
+                      );
+                    }
+                    listagem.gravarConfig();
+                  }}
+                />
+              }
+            />
+          </div>
+          <CampoDataBr
+            label="Data lançamento"
+            value={dataEntrada}
+            onChange={setDataEntrada}
+            placeholder="dd/mm/aaaa"
+          />
+          <Select label="Cliente" value={cliente} onChange={(e) => setCliente(e.target.value)}>
+            <option value="">Todos</option>
+            {clientes.map((nome) => (
+              <option key={nome}>{nome}</option>
+            ))}
+          </Select>
+          <Input
+            label="Buscar"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Nº OS, ID, cliente, paciente ou serviço"
+          />
+          <Button className="mt-6" size="sm" onClick={load}>
+            <Search className="h-4 w-4" />
+            Buscar
+          </Button>
+        </div>
+      </div>
+
+      <BarraConfigListagem
+        ocultarGear
+        pagina={listagem.pagina}
+        totalPaginas={listagem.totalPaginas}
+        onPagina={listagem.setPagina}
+        totalItens={listagem.totalItens}
+        configAberto={false}
+        onToggleConfig={() => undefined}
+        onFecharConfig={() => undefined}
+        rascunho={listagem.rascunho}
+        opcoesOrdenacao={OPCOES_ORDENACAO_CONTROLE}
+        onAlterarOrdenarPor={() => undefined}
+        onAlterarDirecao={() => undefined}
+        onAlterarPorPagina={() => undefined}
+        onGravarConfig={() => undefined}
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1000px] text-[11px]">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
+                <th className="px-2 py-2 text-left font-semibold uppercase">OS</th>
+                <th className="px-2 py-2 text-left font-semibold uppercase">Caixa</th>
+                <th className="px-2 py-2 text-left font-semibold uppercase">Entrada</th>
+                <th className="px-2 py-2 text-left font-semibold uppercase">Qtd</th>
+                <th className="px-2 py-2 text-left font-semibold uppercase">Serviço</th>
+                <th className="px-2 py-2 text-left font-semibold uppercase">Cliente</th>
+                <th className="px-2 py-2 text-left font-semibold uppercase">Dentista</th>
+                <th className="px-2 py-2 text-left font-semibold uppercase">Paciente</th>
+                <th className="px-2 py-2 text-left font-semibold uppercase">Colaborador</th>
+                <th className="px-2 py-2 text-left font-semibold uppercase">Etapas</th>
+                <th className="px-2 py-2 text-left font-semibold uppercase">Situação</th>
+                <th className="px-2 py-2 text-center font-semibold uppercase">Opções</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {listagem.itensPagina.map((trabalho) => {
+                const primeiroItem = parseItens(trabalho)[0];
+                const exibicaoLinha = situacaoExibicaoTrabalho(trabalho, primeiroItem);
+                const linhaProdutoOuTransporte =
+                  exibicaoLinha.kind === "produto" || exibicaoLinha.kind === "transporte";
+                const grupoOs = trabalhos.filter((item) => chaveGrupoOs(item) === chaveGrupoOs(trabalho));
+                const textosInstrucoes = linhaProdutoOuTransporte
+                  ? [trabalho.instrucoes || ""]
+                  : grupoOs.map((item) => item.instrucoes || "");
+                const complementosOs = parseComplementosInstrucoesGrupo(textosInstrucoes);
+                const etapasOs = linhaProdutoOuTransporte ? [] : complementosOs.etapas;
+                const colaboradoresOs = colaboradoresParaExibicaoControle(
+                  complementosOs.colaboradores,
+                  etapasOs
+                );
+                const resumoColaborador = resumoColaboradorControle(colaboradoresOs);
+                const resumoEtapas = resumoEtapasControle(etapasOs);
+                return (
+                <Fragment key={trabalho.id}>
+                  <tr className="hover:bg-slate-50">
+                    <td className="px-2 py-2">{osBadge(trabalho.numeroOs)}</td>
+                    <td className="px-2 py-2">{caixaOs(trabalho)}</td>
+                    <td className="px-2 py-2">{formatDate(trabalho.dataEntrada)}</td>
+                    <td className="px-2 py-2">{primeiroItem?.quantidade || "1"}</td>
+                    <td className="px-2 py-2">
+                      <ServicoComMarcadores item={primeiroItem || {
+                        id: `${trabalho.id}-principal`,
+                        servico: trabalho.tipoProtese,
+                        numeroDente: trabalho.dentes || "",
+                        corDente: trabalho.cor || "",
+                        quantidade: "1",
+                        valor: trabalho.valor || 0,
+                      }} />
+                    </td>
+                    <td className="px-2 py-2">{clienteNome(trabalho)}</td>
+                    <td className="px-2 py-2">{exibirTexto(trabalho.cliente?.cro)}</td>
+                    <td className="px-2 py-2">{pacienteNome(trabalho)}</td>
+                    <td
+                      className="max-w-[160px] truncate px-2 py-2"
+                      title={
+                        resumoColaborador
+                          ? "Colaboradores da ordem de serviço (edite na OS)"
+                          : undefined
+                      }
+                    >
+                      {resumoColaborador}
+                    </td>
+                    <td
+                      className="max-w-[180px] truncate px-2 py-2 text-slate-700"
+                      title={
+                        resumoEtapas
+                          ? "Etapas da ordem de serviço (edite na OS)"
+                          : undefined
+                      }
+                    >
+                      {resumoEtapas}
+                    </td>
+                    <td className="px-2 py-2">
+                      <CelulaSituacaoControle
+                        trabalho={trabalho}
+                        primeiroItem={primeiroItem}
+                        onEditarStatus={() => abrirStatusRapido(trabalho)}
+                      />
+                    </td>
+                    <td className="px-2 py-2">
+                      <div className="flex justify-center gap-1 text-slate-500">
+                        <button
+                          type="button"
+                          onClick={() => setOsAberta(osAberta === trabalho.id ? null : trabalho.id)}
+                          title="Ver detalhes"
+                          className="rounded p-1 hover:bg-slate-100 hover:text-primary-700"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => abrirEdicao(trabalho)}
+                          title="Editar OS"
+                          className="rounded p-1 hover:bg-slate-100 hover:text-primary-700"
+                        >
+                          <Edit3 className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setImprimirOs(trabalho)}
+                          title="Imprimir OS"
+                          className="rounded p-1 hover:bg-slate-100 hover:text-primary-700"
+                        >
+                          <Printer className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setOsExcluindo(trabalho)}
+                          title="Excluir OS"
+                          className="rounded p-1 hover:bg-red-50 hover:text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {osAberta === trabalho.id && (
+                    <tr>
+                      <td colSpan={12} className="bg-slate-50 px-4 py-3">
+                        {(() => {
+                          const anexos = anexosFromInstrucoes(trabalho.instrucoes);
+                          return anexos.length > 0 ? (
+                            <div className="mb-3">
+                              <p className="mb-2 text-xs font-semibold text-slate-600">Imagem:</p>
+                              <div className="flex flex-wrap gap-2">
+                                {anexos.map((anexo) => (
+                                  <button
+                                    type="button"
+                                    key={`${anexo.url}-${anexo.name}`}
+                                    onClick={() => setAnexoAberto(anexo)}
+                                    className="overflow-hidden rounded border border-slate-200 bg-white shadow-sm hover:border-primary-300"
+                                    title={anexo.name}
+                                  >
+                                    {anexo.type.startsWith("image/") ? (
+                                      <img src={anexo.url} alt={anexo.name} className="h-16 w-24 object-cover" />
+                                    ) : anexo.type.startsWith("video/") ? (
+                                      <video src={anexo.url} className="h-16 w-24 bg-black object-cover" />
+                                    ) : (
+                                      <div className="flex h-16 w-24 items-center justify-center text-[10px] text-slate-400">Arquivo</div>
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null;
+                        })()}
+                        <div className="grid gap-3 md:grid-cols-4">
+                          <Detail label="OS Externa" value="-" />
+                          <Detail label="Prazo Laboratório" value={formatDate(trabalho.dataPrevista)} />
+                          <Detail label="Valor Unitário" value={formatCurrency(trabalho.valor)} />
+                          <Detail label="Número do Dente" value={exibirTexto(trabalho.dentes)} />
+                          <Detail label="Cor do Dente" value={exibirTexto(trabalho.cor)} />
+                          <Detail label="Material enviado" value={trabalho.material || ""} />
+                          <Detail label="Observação Serviço" value={trabalho.observacoes || ""} emptyValue="" />
+                          <Detail label="Observação Interna / Técnica" value={instrucoesSemAnexos(trabalho.instrucoes)} />
+                        </div>
+                        <div className="mt-3 flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            type="button"
+                            onClick={() => setImprimirOs(trabalho)}
+                          >
+                            Ver Protocolo
+                          </Button>
+                          <button className="rounded border border-emerald-300 px-3 py-1 text-emerald-700">
+                            + Adicionar Imagem
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+                );
+              })}
+              {listagem.totalItens === 0 && (
+                <tr>
+                  <td colSpan={12} className="px-4 py-8 text-center text-slate-400">
+                    Nenhuma OS encontrada.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </BarraConfigListagem>
+
+      <ConfirmacaoExclusaoModal
+        open={!!osExcluindo}
+        titulo="Excluir Ordem de Serviço"
+        mensagem="Deseja realmente excluir essa Ordem de Serviço?"
+        aviso="Atenção!! Todas as comissões serão excluídas exceto comissões já faturadas"
+        onClose={() => setOsExcluindo(null)}
+        onConfirm={confirmarExclusaoOs}
+      />
+
+      {anexoAberto && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4">
+          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+              <div className="min-w-0">
+                <h2 className="truncate text-sm font-semibold text-slate-700">{anexoAberto.name}</h2>
+                <p className="text-xs text-slate-400">{anexoAberto.type || "Arquivo anexado"}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={anexoAberto.url}
+                  download={anexoAberto.name}
+                  className="rounded border border-primary-200 px-3 py-2 text-xs font-medium text-primary-700 hover:bg-primary-50"
+                >
+                  Baixar
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setAnexoAberto(null)}
+                  className="rounded border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-1 items-center justify-center overflow-auto bg-slate-950 p-4">
+              {anexoAberto.type.startsWith("image/") ? (
+                <img
+                  src={anexoAberto.url}
+                  alt={anexoAberto.name}
+                  className="max-h-[78vh] max-w-full rounded bg-white object-contain"
+                />
+              ) : anexoAberto.type.startsWith("video/") ? (
+                <video
+                  src={anexoAberto.url}
+                  controls
+                  autoPlay
+                  className="max-h-[78vh] max-w-full rounded bg-black"
+                />
+              ) : (
+                <div className="rounded bg-white p-8 text-center text-slate-500">
+                  <p>Pré-visualização indisponível para este arquivo.</p>
+                  <a href={anexoAberto.url} download={anexoAberto.name} className="mt-3 inline-block text-primary-700">
+                    Baixar arquivo
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {statusEditando && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[90vh] w-full max-w-xl overflow-auto rounded bg-white p-4 shadow-xl">
+            <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-2">
+              <h2 className="text-sm font-semibold text-slate-700">Alteração Rápida</h2>
+              <button
+                type="button"
+                onClick={() => setStatusEditando(null)}
+                className="text-slate-400 hover:text-slate-700"
+              >
+                x
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <Select
+                label="Situação"
+                value={statusForm.status}
+                onChange={(e) => setStatusForm({ ...statusForm, status: e.target.value })}
+              >
+                {Object.entries(STATUS_TRABALHO).map(([key, value]) => (
+                  <option key={key} value={key}>{value.label}</option>
+                ))}
+              </Select>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <Input
+                  label="Protocolo"
+                  value={String(statusEditando.numeroOs)}
+                  readOnly
+                />
+                <Input
+                  label="Data Disponibilidade"
+                  type="date"
+                  value={statusForm.dataPrevista}
+                  onChange={(e) => setStatusForm({ ...statusForm, dataPrevista: e.target.value })}
+                />
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <Input
+                  label="Prazo Laboratório"
+                  type="date"
+                  value={statusForm.dataPrevista}
+                  onChange={(e) => setStatusForm({ ...statusForm, dataPrevista: e.target.value })}
+                />
+                <Input label="Hora Laboratório" type="time" />
+              </div>
+
+              <Textarea
+                label="Observações Internas / Técnicas"
+                value={statusForm.instrucoes}
+                onChange={(e) => setStatusForm({ ...statusForm, instrucoes: e.target.value })}
+              />
+              <Textarea
+                label="Observações Serviço"
+                value={statusForm.observacoes}
+                onChange={(e) => setStatusForm({ ...statusForm, observacoes: e.target.value })}
+              />
+
+              <div className="space-y-2 pt-2">
+                <Button className="w-full" onClick={salvarStatusRapido}>
+                  Gravar
+                </Button>
+                <Button variant="outline" className="w-full" onClick={() => setStatusEditando(null)}>
+                  Fechar
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editando && form && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-2 md:p-4">
+          <div className="flex max-h-[94vh] w-full max-w-[96vw] flex-col overflow-hidden rounded border border-slate-200 bg-white shadow-xl">
+            <div className="relative shrink-0 border-b border-slate-100 px-4 py-3">
+              <p className="text-left text-xs font-medium text-slate-500">Editar Entrada</p>
+              <h2 className="text-center text-sm font-medium text-slate-700">
+                Ordem de Serviço {editando.numeroOs}
+              </h2>
+              <button
+                type="button"
+                onClick={fecharEdicaoOs}
+                className="absolute right-4 top-3 text-lg text-slate-400 hover:text-slate-700"
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto text-xs text-slate-700">
+              <section className="grid gap-3 p-4 md:grid-cols-4">
+                <Input label="Data Lançamento Ficha" value={formatDate(editando.dataEntrada)} readOnly />
+                <Input label="OS Externa" value="" readOnly />
+                <Input label="Caixa Organizadora" value={caixaOs(editando)} readOnly />
+                <Input label="Paciente" value={pacienteNome(editando)} readOnly />
+                <Input label="Selecione um Cliente *" value={clienteNome(editando)} readOnly />
+                <Input label="Dentista Conveniado" value="" readOnly />
+                <div className="md:col-span-2">
+                  <Input
+                    label="Material Enviado pelo Dentista"
+                    value={exibirTexto(form.material)}
+                    readOnly
+                  />
+                </div>
+                <div className="md:col-span-4">
+                  <TextareaObservacaoInterna
+                    label="Observação Interna"
+                    value={form.observacoes}
+                    onChange={(observacoes) => setForm({ ...form, observacoes })}
+                  />
+                </div>
+                <p className="md:col-span-4 text-xs text-primary-600">
+                  Tabela Utilizada: Tabela Principal
+                </p>
+              </section>
+
+              <section className="border-t border-slate-100 bg-slate-50/50 p-4">
+                <div className="rounded border border-slate-200 bg-white p-3">
+                  <p className="mb-3 text-center text-sm font-medium text-slate-600">
+                    Serviços/Produtos Adicionados
+                  </p>
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={abrirAdicionarServico}
+                      className="inline-flex items-center gap-1 rounded border border-primary-400 bg-white px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-50"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Adicionar Serviço
+                    </button>
+                    <span className="text-[11px] text-slate-600">
+                      Total Serviços: {formatCurrency(totalItensEdicao)}
+                    </span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[720px] text-[11px]">
+                      <thead>
+                        <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
+                          <th className="px-3 py-2 text-left font-semibold uppercase">Selecionado</th>
+                          <th className="px-3 py-2 text-left font-semibold uppercase">Serviço/Produto</th>
+                          <th className="px-3 py-2 text-left font-semibold uppercase">Número Dente</th>
+                          <th className="px-3 py-2 text-left font-semibold uppercase">Cor Dente</th>
+                          <th className="px-3 py-2 text-left font-semibold uppercase">Quantidade</th>
+                          <th className="px-3 py-2 text-left font-semibold uppercase">Valor</th>
+                          <th className="px-3 py-2 text-center font-semibold uppercase">Opções</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {editItems.length === 0 && (
+                          <tr>
+                            <td colSpan={7} className="px-3 py-5 text-center text-slate-400">
+                              Nenhum serviço adicionado. Clique em Adicionar Serviço ou selecione uma linha.
+                            </td>
+                          </tr>
+                        )}
+                        {editItems.map((item) => (
+                          <tr
+                            key={item.id}
+                            onClick={() => selecionarItemEdicao(item)}
+                            className={`cursor-pointer transition-colors hover:bg-slate-50 ${
+                              itemSelecionadoId === item.id ? "bg-[#FFE5D4]" : ""
+                            }`}
+                          >
+                            <td className="px-3 py-2 text-center">
+                              {itemSelecionadoId === item.id ? (
+                                <span className="text-sm font-semibold text-slate-600">✓</span>
+                              ) : null}
+                            </td>
+                            <td className="px-3 py-2 text-slate-700">
+                              <ServicoComMarcadores item={item} />
+                            </td>
+                            <td className="px-3 py-2 text-slate-600">
+                              {itemUsaCamposOdontologicos(item)
+                                ? exibirTexto(item.numeroDente)
+                                : ""}
+                            </td>
+                            <td className="px-3 py-2 text-slate-600">
+                              {itemUsaCamposOdontologicos(item) ? exibirTexto(item.corDente) : ""}
+                            </td>
+                            <td className="px-3 py-2 text-slate-600">{item.quantidade}</td>
+                            <td className="px-3 py-2 text-slate-700">{formatCurrency(item.valor)}</td>
+                            <td className="px-3 py-2 text-center">
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  removerItemEdicao(item.id);
+                                }}
+                                className="rounded p-1 text-red-500 hover:bg-red-50"
+                                title="Excluir serviço"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </section>
+
+              {painelEdicaoVisivel && (
+              <section className="border-t border-slate-100 bg-slate-50/50 p-4">
+                <div className="rounded border border-slate-200 bg-white p-4">
+                  {(painelEdicaoItem === "servico" || adicionandoServico) && (
+                    <>
+                    {abaServicoEdicao !== "produtos" && (
+                    <>
+                    <h3 className="mb-4 text-center text-base font-medium text-slate-700">Serviço</h3>
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex gap-5">
+                        <label className="flex cursor-pointer flex-col items-start gap-1 text-[10px] font-medium text-slate-500">
+                          <span>Urgente</span>
+                          <span
+                            className={`relative inline-flex h-5 w-10 items-center rounded-full transition ${
+                              form.urgente ? "bg-red-700" : "bg-slate-200"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={form.urgente}
+                              onChange={(e) => setForm({ ...form, urgente: e.target.checked })}
+                              className="peer sr-only"
+                            />
+                            <span
+                              className={`absolute left-1 h-4 w-4 rounded-full bg-white shadow transition ${
+                                form.urgente ? "translate-x-5" : ""
+                              }`}
+                            />
+                          </span>
+                        </label>
+                        <label className="flex cursor-pointer flex-col items-start gap-1 text-[10px] font-medium text-slate-500">
+                          <span>Repetição</span>
+                          <span
+                            className={`relative inline-flex h-5 w-10 items-center rounded-full transition ${
+                              form.repeticao ? "bg-orange-300" : "bg-slate-200"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={form.repeticao}
+                              onChange={(e) => setForm({ ...form, repeticao: e.target.checked })}
+                              className="peer sr-only"
+                            />
+                            <span
+                              className={`absolute left-1 h-4 w-4 rounded-full bg-white shadow transition ${
+                                form.repeticao ? "translate-x-5" : ""
+                              }`}
+                            />
+                          </span>
+                        </label>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-primary-700">
+                        <span>Total Serviço:</span>
+                        <input
+                          className="w-40 rounded border border-slate-200 px-3 py-2 text-right text-slate-700"
+                          value={formatCurrency(totalServicoEdicao)}
+                          readOnly
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-6">
+                      <Select
+                        label="Categoria"
+                        value={form.categoria}
+                        onChange={(e) => selecionarCategoriaServicoEdicao(e.target.value)}
+                        disabled={categoriasTabelaPreco.length === 0}
+                      >
+                        <option value="">
+                          {categoriasTabelaPreco.length === 0
+                            ? "Cadastre categorias na Tabela de Preços"
+                            : "Selecione uma Categoria"}
+                        </option>
+                        {categoriasSelecionaveisNaOs(categoriasTabelaPreco).map((categoria) => (
+                          <option key={categoria.id} value={categoria.nome}>
+                            {categoria.nome}
+                          </option>
+                        ))}
+                        {form.categoria &&
+                          !categoriasTabelaPreco.some((c) => c.nome === form.categoria) && (
+                            <option value={form.categoria}>{form.categoria}</option>
+                          )}
+                      </Select>
+                      <Select
+                        label="Serviço"
+                        value={valorSelectServicoEdicao()}
+                        onChange={(e) => selecionarServicoTabelaEdicao(e.target.value)}
+                        disabled={!form.categoria}
+                      >
+                        <option value="">
+                          {!form.categoria
+                            ? "Selecione uma categoria"
+                            : servicosDaCategoriaEdicao.length === 0
+                              ? "Nenhum serviço nesta categoria"
+                              : "Selecione um Serviço"}
+                        </option>
+                        {valorSelectServicoEdicao() &&
+                          !servicosDaCategoriaEdicao.some(
+                            (s) => s.nome === valorSelectServicoEdicao()
+                          ) && (
+                            <option value={valorSelectServicoEdicao()}>
+                              {valorSelectServicoEdicao()}
+                            </option>
+                          )}
+                        {servicosDaCategoriaEdicao.map((servico) => (
+                          <option key={servico.id} value={servico.nome}>
+                            {servico.nome}
+                            {servico.tipo === "transporte" ? " (Transporte)" : ""}
+                          </option>
+                        ))}
+                      </Select>
+                      <Input
+                        label="Qtd"
+                        type="number"
+                        min="1"
+                        value={form.quantidade}
+                        onChange={(e) => setForm({ ...form, quantidade: e.target.value })}
+                      />
+                      <Input
+                        label="Valor Un."
+                        selectOnFocus
+                        value={form.valor}
+                        onChange={(e) =>
+                          setForm({ ...form, valor: formatCurrencyInputControle(e.target.value) })
+                        }
+                      />
+                      <div className="space-y-1">
+                        <label className="block text-sm font-medium text-slate-700">Desc.</label>
+                        <div className="flex overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20">
+                          <select
+                            value={form.descontoTipo}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                descontoTipo: e.target.value,
+                                desconto: e.target.value === "valor" ? "R$ 0,00" : "0,00",
+                              })
+                            }
+                            className="w-14 border-r border-slate-300 bg-white px-2 text-sm text-slate-600 focus:outline-none"
+                          >
+                            <option value="percentual">%</option>
+                            <option value="valor">$</option>
+                          </select>
+                          <input
+                            value={form.desconto}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                desconto:
+                                  form.descontoTipo === "valor"
+                                    ? formatCurrencyInputControle(e.target.value)
+                                    : formatPercentInputControle(e.target.value),
+                              })
+                            }
+                            placeholder={form.descontoTipo === "valor" ? "R$ 0,00" : "0,00"}
+                            className="w-full px-3 py-2 text-sm outline-none"
+                            {...propsInputComSelecaoAoFocar({})}
+                          />
+                        </div>
+                      </div>
+                      <Select
+                        label="Situação"
+                        value={form.status}
+                        onChange={(e) => setForm({ ...form, status: e.target.value })}
+                      >
+                        {Object.entries(STATUS_TRABALHO).map(([key, value]) => (
+                          <option key={key} value={key}>
+                            {value.label}
+                          </option>
+                        ))}
+                      </Select>
+                      <CampoDataBr
+                        label="Prazo Laboratório"
+                        value={form.dataLaboratorio}
+                        onChange={(value) =>
+                          setForm({
+                            ...form,
+                            dataLaboratorio: value,
+                            dataPrevista: brShortToIso(value) || form.dataPrevista,
+                          })
+                        }
+                      />
+                      <Input
+                        label="Hora Laboratório"
+                        type="time"
+                        value={form.horaLaboratorio}
+                        onChange={(e) => setForm({ ...form, horaLaboratorio: e.target.value })}
+                      />
+                      <CampoDataBr
+                        label="Prazo Dentista"
+                        value={form.dataDentista}
+                        onChange={(value) => setForm({ ...form, dataDentista: value })}
+                      />
+                      <Input
+                        label="Hora Dentista"
+                        type="time"
+                        value={form.horaDentista}
+                        onChange={(e) => setForm({ ...form, horaDentista: e.target.value })}
+                      />
+                      <Input
+                        label="Escala/Cor"
+                        value={form.escalaCor}
+                        onChange={(e) =>
+                          setForm({ ...form, escalaCor: e.target.value, cor: e.target.value })
+                        }
+                      />
+                    </div>
+
+                    <div className="mt-5 text-center">
+                      <div className="mb-2 text-[11px] text-slate-500">Selecione os dentes do trabalho</div>
+                      <div className="mb-3 flex justify-center gap-5 text-[11px] text-slate-600">
+                        <label className="inline-flex cursor-pointer items-center gap-1.5">
+                          <input
+                            type="radio"
+                            name="tipoDenticaoControle"
+                            checked={tipoDenticao === "permanente"}
+                            onChange={() => trocarTipoDenticaoEdicao("permanente")}
+                            className="h-3.5 w-3.5 accent-blue-500"
+                          />
+                          Permanente
+                        </label>
+                        <label className="inline-flex cursor-pointer items-center gap-1.5">
+                          <input
+                            type="radio"
+                            name="tipoDenticaoControle"
+                            checked={tipoDenticao === "deciduos"}
+                            onChange={() => trocarTipoDenticaoEdicao("deciduos")}
+                            className="h-3.5 w-3.5 accent-blue-500"
+                          />
+                          Decíduos
+                        </label>
+                      </div>
+                      <div className="mx-auto max-w-3xl rounded bg-white px-3 py-2">
+                        <div className="flex items-end justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => selecionarArcadaEdicao("sup")}
+                            className="mb-1 rounded bg-slate-500 px-2 py-1 text-[11px] font-bold text-white hover:bg-primary-600"
+                          >
+                            SUP
+                          </button>
+                          <div className="flex flex-wrap justify-center gap-0.5 border-b border-dashed border-slate-300 pb-1">
+                            {dentesPorDenticaoControle(tipoDenticao).superiores.map((dente) => {
+                              const selected = dentesEdicao.includes(dente);
+                              const imagemDente =
+                                tipoDenticao === "deciduos" && dentesDeciduosComImagem.has(dente)
+                                  ? `/api/dentes-deciduos/${dente}`
+                                  : `/dentes/dente-${dente}.png`;
+                              return (
+                                <button
+                                  key={dente}
+                                  type="button"
+                                  onClick={() => toggleDenteEdicao(dente)}
+                                  className={`group flex w-7 flex-col items-center gap-0.5 rounded px-0.5 py-1 transition ${
+                                    selected
+                                      ? "bg-emerald-50 text-emerald-700"
+                                      : "text-slate-500 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  <img
+                                    src={imagemDente}
+                                    alt={`Dente ${dente}`}
+                                    className={`h-8 w-5 object-contain transition ${
+                                      selected
+                                        ? "opacity-100 drop-shadow-[0_0_7px_rgba(16,185,129,0.85)] sepia saturate-200 hue-rotate-75"
+                                        : "opacity-45 grayscale group-hover:opacity-80"
+                                    }`}
+                                    onError={(event) => {
+                                      event.currentTarget.style.display = "none";
+                                    }}
+                                  />
+                                  <span
+                                    className={`text-[11px] leading-none ${
+                                      selected ? "font-bold text-emerald-600" : "text-slate-500"
+                                    }`}
+                                  >
+                                    {dente}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div className="flex items-start justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => selecionarArcadaEdicao("inf")}
+                            className="mt-1 rounded bg-slate-500 px-2 py-1 text-[11px] font-bold text-white hover:bg-primary-600"
+                          >
+                            INF
+                          </button>
+                          <div className="flex flex-wrap justify-center gap-0.5 pt-1">
+                            {dentesPorDenticaoControle(tipoDenticao).inferiores.map((dente) => {
+                              const selected = dentesEdicao.includes(dente);
+                              const imagemDente =
+                                tipoDenticao === "deciduos" && dentesDeciduosComImagem.has(dente)
+                                  ? `/api/dentes-deciduos/${dente}`
+                                  : `/dentes/dente-${dente}.png`;
+                              return (
+                                <button
+                                  key={dente}
+                                  type="button"
+                                  onClick={() => toggleDenteEdicao(dente)}
+                                  className={`group flex w-7 flex-col items-center gap-0.5 rounded px-0.5 py-1 transition ${
+                                    selected
+                                      ? "bg-emerald-50 text-emerald-700"
+                                      : "text-slate-500 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  <img
+                                    src={imagemDente}
+                                    alt={`Dente ${dente}`}
+                                    className={`order-2 h-8 w-5 object-contain transition ${
+                                      selected
+                                        ? "opacity-100 drop-shadow-[0_0_7px_rgba(16,185,129,0.85)] sepia saturate-200 hue-rotate-75"
+                                        : "opacity-45 grayscale group-hover:opacity-80"
+                                    }`}
+                                    onError={(event) => {
+                                      event.currentTarget.style.display = "none";
+                                    }}
+                                  />
+                                  <span
+                                    className={`text-[11px] leading-none ${
+                                      selected ? "font-bold text-emerald-600" : "text-slate-500"
+                                    }`}
+                                  >
+                                    {dente}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-5">
+                      <div className="mb-3 text-left text-[11px] font-semibold text-emerald-600">
+                        Dentes Selecionados: {renderDentesSelecionadosControle(form.dentes)}
+                      </div>
+                      <div className="mb-5">
+                        <Textarea
+                          label="Observação Serviço"
+                          value={form.observacaoServico}
+                          onChange={(e) =>
+                            setForm({ ...form, observacaoServico: e.target.value })
+                          }
+                          placeholder="Descreva todos os detalhes do trabalho, ajustes, material, cor, acabamento, prova, entrega..."
+                          className="min-h-16"
+                        />
+                      </div>
+                    </div>
+                    </>
+                    )}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPainelEdicaoItem("servico");
+                            setAbaServicoEdicao("etapas");
+                          }}
+                          className={classeAbaEdicao("etapas")}
+                        >
+                          Etapas
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAbaServicoEdicao("produtos");
+                            if (produtosOs.length === 0) {
+                              setProdutosOs([
+                                { produtoId: "", quantidade: "1", valor: "0", observacao: "" },
+                              ]);
+                            }
+                          }}
+                          className={classeAbaEdicao("produtos")}
+                        >
+                          {abaServicoEdicao === "produtos" ? "Produtos" : "PRODUTOS"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPainelEdicaoItem("servico");
+                            setAbaServicoEdicao("colaboradores");
+                          }}
+                          className={classeAbaEdicao("colaboradores")}
+                        >
+                          Colaboradores / Comissões
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPainelEdicaoItem("servico");
+                            setAbaServicoEdicao("terceiros");
+                          }}
+                          className={classeAbaEdicao("terceiros")}
+                        >
+                          Serviços Terceirizados / Comissões
+                        </button>
+                      </div>
+                      <div className="mt-3 rounded border border-slate-200 bg-slate-50 p-3 text-left">
+                        {abaServicoEdicao === "etapas" && (
+                          <p className="text-center text-[11px] text-slate-500">
+                            Etapas completas na tela Ordem de Serviço.
+                          </p>
+                        )}
+                        {abaServicoEdicao === "produtos" && (
+                          <div className="space-y-3">
+                            {produtosOs.length === 0 && (
+                              <button
+                                type="button"
+                                onClick={adicionarLinhaProdutoEdicao}
+                                className="w-full rounded bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
+                              >
+                                + Adicionar Produto
+                              </button>
+                            )}
+                            {produtosOs.map((produtoOs, index) => (
+                              <div
+                                key={`${produtoOs.produtoId}-${index}`}
+                                className="grid gap-3 rounded border border-slate-200 bg-white p-3 md:grid-cols-[1.4fr_0.7fr_1fr_1fr_auto]"
+                              >
+                                <Select
+                                  label="Produto cadastrado"
+                                  value={produtoOs.produtoId}
+                                  onChange={(e) => {
+                                    const produto = produtosCadastro.find(
+                                      (item) => item.id === e.target.value
+                                    );
+                                    setProdutosOs((atuais) =>
+                                      atuais.map((item, i) =>
+                                        i === index
+                                          ? {
+                                              ...item,
+                                              produtoId: e.target.value,
+                                              valor: String(produto?.valor ?? item.valor),
+                                              observacao: produto?.nome || item.observacao,
+                                            }
+                                          : item
+                                      )
+                                    );
+                                  }}
+                                >
+                                  <option value="">Selecione um produto</option>
+                                  {produtosCadastro.map((produto) => (
+                                    <option key={produto.id} value={produto.id}>
+                                      {produto.nome} - {formatCurrency(produto.valor)}
+                                    </option>
+                                  ))}
+                                </Select>
+                                <Input
+                                  label="Quantidade"
+                                  type="number"
+                                  min="1"
+                                  value={produtoOs.quantidade}
+                                  onChange={(e) =>
+                                    setProdutosOs((atuais) =>
+                                      atuais.map((item, i) =>
+                                        i === index ? { ...item, quantidade: e.target.value } : item
+                                      )
+                                    )
+                                  }
+                                />
+                                <Input
+                                  label="Valor"
+                                  type="number"
+                                  step="0.01"
+                                  value={produtoOs.valor}
+                                  onChange={(e) =>
+                                    setProdutosOs((atuais) =>
+                                      atuais.map((item, i) =>
+                                        i === index ? { ...item, valor: e.target.value } : item
+                                      )
+                                    )
+                                  }
+                                />
+                                <Input
+                                  label="Observação"
+                                  value={produtoOs.observacao}
+                                  onChange={(e) =>
+                                    setProdutosOs((atuais) =>
+                                      atuais.map((item, i) =>
+                                        i === index ? { ...item, observacao: e.target.value } : item
+                                      )
+                                    )
+                                  }
+                                  placeholder="Lote, marca ou detalhe"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setProdutosOs((atuais) => atuais.filter((_, i) => i !== index))
+                                  }
+                                  className="mt-6 inline-flex h-10 items-center justify-center rounded border border-red-200 px-3 text-red-600 hover:bg-red-50"
+                                  title="Excluir produto"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            ))}
+                            {produtosOs.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={adicionarLinhaProdutoEdicao}
+                                className="w-full rounded bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
+                              >
+                                + Adicionar Produto
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        {abaServicoEdicao === "colaboradores" && (
+                          <p className="text-center text-[11px] text-slate-500">
+                            Colaboradores e comissões na tela Ordem de Serviço.
+                          </p>
+                        )}
+                        {abaServicoEdicao === "terceiros" && (
+                          <p className="text-center text-[11px] text-slate-500">
+                            Terceirizados na tela Ordem de Serviço.
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {painelEdicaoItem === "produto" && !adicionandoServico && (
+                    <div className="space-y-3">
+                      {produtosOs.length === 0 && (
+                        <button
+                          type="button"
+                          onClick={adicionarLinhaProdutoEdicao}
+                          className="w-full rounded bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
+                        >
+                          + Adicionar Produto
+                        </button>
+                      )}
+                      {produtosOs.map((produtoOs, index) => (
+                        <div
+                          key={`${produtoOs.produtoId}-${index}`}
+                          className="grid gap-3 rounded border border-slate-200 bg-white p-3 md:grid-cols-[1.4fr_0.7fr_1fr_1fr_auto]"
+                        >
+                          <Select
+                            label="Produto cadastrado"
+                            value={produtoOs.produtoId}
+                            onChange={(e) => {
+                              const produto = produtosCadastro.find((item) => item.id === e.target.value);
+                              setProdutosOs((atuais) =>
+                                atuais.map((item, i) =>
+                                  i === index
+                                    ? {
+                                        ...item,
+                                        produtoId: e.target.value,
+                                        valor: String(produto?.valor ?? item.valor),
+                                        observacao: produto?.nome || item.observacao,
+                                      }
+                                    : item
+                                )
+                              );
+                            }}
+                          >
+                            <option value="">Selecione um produto</option>
+                            {produtosCadastro.map((produto) => (
+                              <option key={produto.id} value={produto.id}>
+                                {produto.nome} - {formatCurrency(produto.valor)}
+                              </option>
+                            ))}
+                          </Select>
+                          <Input
+                            label="Quantidade"
+                            type="number"
+                            min="1"
+                            value={produtoOs.quantidade}
+                            onChange={(e) =>
+                              setProdutosOs((atuais) =>
+                                atuais.map((item, i) =>
+                                  i === index ? { ...item, quantidade: e.target.value } : item
+                                )
+                              )
+                            }
+                          />
+                          <Input
+                            label="Valor"
+                            type="number"
+                            step="0.01"
+                            value={produtoOs.valor}
+                            onChange={(e) =>
+                              setProdutosOs((atuais) =>
+                                atuais.map((item, i) =>
+                                  i === index ? { ...item, valor: e.target.value } : item
+                                )
+                              )
+                            }
+                          />
+                          <Input
+                            label="Observação"
+                            value={produtoOs.observacao}
+                            onChange={(e) =>
+                              setProdutosOs((atuais) =>
+                                atuais.map((item, i) =>
+                                  i === index ? { ...item, observacao: e.target.value } : item
+                                )
+                              )
+                            }
+                            placeholder="Lote, marca ou detalhe"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const proximos = produtosOs.filter((_, i) => i !== index);
+                              setProdutosOs(proximos);
+                            }}
+                            className="mt-6 inline-flex h-10 items-center justify-center rounded border border-red-200 px-3 text-red-600 hover:bg-red-50"
+                            title="Excluir produto"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {painelEdicaoItem === "transporte" && (
+                    <div className="grid gap-3 md:grid-cols-6">
+                      <div className="md:col-span-3">
+                        <Input
+                          label="Transporte / Frete"
+                          value={form.tipoProtese}
+                          onChange={(e) => setForm({ ...form, tipoProtese: e.target.value })}
+                          placeholder="Ex.: Transporte: Entrega expressa"
+                        />
+                      </div>
+                      <Input
+                        label="Qtd"
+                        type="number"
+                        min="1"
+                        value={form.quantidade}
+                        onChange={(e) => setForm({ ...form, quantidade: e.target.value })}
+                      />
+                      <Input
+                        label="Valor Un."
+                        type="number"
+                        step="0.01"
+                        value={form.valor}
+                        onChange={(e) => setForm({ ...form, valor: e.target.value })}
+                      />
+                      <Select
+                        label="Situação"
+                        value={form.status}
+                        onChange={(e) => setForm({ ...form, status: e.target.value })}
+                      >
+                        {Object.entries(STATUS_TRABALHO).map(([key, value]) => (
+                          <option key={key} value={key}>
+                            {value.label}
+                          </option>
+                        ))}
+                      </Select>
+                      <div className="md:col-span-6 flex items-center gap-2 text-sm text-primary-700">
+                        <span>Total:</span>
+                        <input
+                          className="w-40 rounded border border-slate-200 px-3 py-2 text-right text-slate-700"
+                          value={formatCurrency(totalServicoEdicao)}
+                          readOnly
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={confirmarEdicaoItem}
+                    className="mt-4 flex w-full items-center justify-center gap-2 rounded bg-emerald-500 px-3 py-2 text-xs font-medium text-white shadow-sm hover:bg-emerald-600"
+                  >
+                    {itemSelecionadoId
+                      ? "Atualizar Item Selecionado"
+                      : adicionandoServico && abaServicoEdicao === "produtos"
+                        ? "+ Adicionar Produto"
+                        : painelEdicaoItem === "produto"
+                          ? "+ Adicionar Produto"
+                          : painelEdicaoItem === "transporte"
+                            ? "+ Adicionar Transporte"
+                            : "+ Adicionar Serviço"}
+                  </button>
+                </div>
+              </section>
+              )}
+            </div>
+
+            <div className="flex shrink-0 flex-wrap justify-between gap-2 border-t border-slate-100 bg-white p-4">
+              <Button
+                type="button"
+                variant="outline"
+                className="border-red-300 text-red-600 hover:bg-red-50"
+                onClick={fecharEdicaoOs}
+              >
+                Fechar / Cancelar
+              </Button>
+              <Button
+                type="button"
+                className="bg-emerald-600 hover:bg-emerald-700"
+                onClick={salvarEdicao}
+              >
+                <Save className="h-4 w-4" />
+                Gravar Alterações Ordem de Serviço
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ImprimirOsModal
+        open={!!imprimirOs}
+        onClose={() => setImprimirOs(null)}
+        trabalho={imprimirOs}
+        multiplosSegmentos={
+          imprimirOs
+            ? grupoOsTemMultiplosSegmentos(
+                trabalhos.filter((item) => chaveGrupoOs(item) === chaveGrupoOs(imprimirOs))
+              )
+            : false
+        }
+      />
+    </div>
+  );
+}
+
+function Detail({ label, value, emptyValue = "-" }: { label: string; value: string; emptyValue?: string }) {
+  return (
+    <div>
+      <p className="font-semibold text-slate-500">{label}:</p>
+      <p className="whitespace-pre-wrap text-slate-700">{value || emptyValue}</p>
+    </div>
+  );
+}

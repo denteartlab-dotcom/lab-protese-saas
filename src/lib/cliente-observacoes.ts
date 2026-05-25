@@ -1,0 +1,71 @@
+import { configValueFromObservacoes } from "@/lib/cliente-financeiro";
+
+/** WhatsApp do cliente na impressão (não lista telefone comercial). */
+export function telefoneWhatsappCliente(cliente: {
+  celular?: string | null;
+  telefone?: string | null;
+  observacoes?: string | null;
+}): string {
+  const waContato = configValueFromObservacoes(
+    cliente.observacoes,
+    "WhatsApp Contato:"
+  );
+  if (waContato) return waContato;
+  return (cliente.celular || "").trim();
+}
+
+const PREFIXO_NASCIMENTO = "Data de Nascimento:";
+
+/** dd/mm ou dd/mm/aaaa */
+export function parseDataNascimentoBr(texto: string): {
+  day: number;
+  month: number;
+  year?: number;
+} | null {
+  const limpo = texto.trim();
+  const match = limpo.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/);
+  if (!match) return null;
+  const day = Number.parseInt(match[1], 10);
+  const month = Number.parseInt(match[2], 10);
+  if (day < 1 || day > 31 || month < 1 || month > 12) return null;
+  let year: number | undefined;
+  if (match[3]) {
+    const y = Number.parseInt(match[3], 10);
+    year = y < 100 ? 2000 + y : y;
+  }
+  return { day, month, year };
+}
+
+export function dataNascimentoCliente(observacoes: string | null | undefined): string {
+  return configValueFromObservacoes(observacoes, PREFIXO_NASCIMENTO);
+}
+
+export function clienteAniversarioNoMes(
+  observacoes: string | null | undefined,
+  mes: number
+): boolean {
+  const parsed = parseDataNascimentoBr(dataNascimentoCliente(observacoes));
+  if (!parsed) return false;
+  return parsed.month === mes + 1;
+}
+
+export function linhaObservacaoDataNascimento(data: string): string {
+  const limpo = data.trim();
+  if (!limpo) return "";
+  return `${PREFIXO_NASCIMENTO} ${limpo}`;
+}
+
+export function mesclarObservacoesComDataNascimento(
+  observacoes: string | null | undefined,
+  dataNascimento: string
+) {
+  const linhas = (observacoes || "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(
+      (l) => l && !l.toLowerCase().startsWith(PREFIXO_NASCIMENTO.toLowerCase())
+    );
+  const nova = linhaObservacaoDataNascimento(dataNascimento);
+  if (nova) linhas.push(nova);
+  return linhas.join("\n");
+}

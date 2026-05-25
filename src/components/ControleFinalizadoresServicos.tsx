@@ -1,0 +1,439 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import {
+  AlertTriangle,
+  Check,
+  DollarSign,
+  Edit3,
+  Eye,
+  FileSpreadsheet,
+  MessageCircle,
+  Printer,
+} from "lucide-react";
+import { ControleProducaoToolbar } from "@/components/ControleProducaoToolbar";
+import { CampoDataBr } from "@/components/ui";
+import {
+  formatarMoedaFinalizador,
+  montarLinhasFinalizadoresServicos,
+  type LinhaFinalizadorServico,
+  type TrabalhoFinalizador,
+} from "@/lib/finalizadores-servicos";
+import { carregarPrestadoresListagem } from "@/lib/prestadores-listagem";
+import { parseBrDate } from "@/lib/datas-br";
+import { STATUS_TRABALHO } from "@/lib/utils";
+
+function CardResumo({
+  titulo,
+  valor,
+  icone,
+}: {
+  titulo: string;
+  valor: string;
+  icone: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-w-[200px] flex-1 items-center justify-between rounded border border-[#e5e7eb] bg-white px-5 py-4 shadow-sm">
+      <div>
+        <p className="text-[22px] font-normal leading-none text-[#374151]">{valor}</p>
+        <p className="mt-2 text-[12px] text-[#6b7280]">{titulo}</p>
+      </div>
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#f97316] text-white">
+        {icone}
+      </div>
+    </div>
+  );
+}
+
+function osBadge(numeroOs: number) {
+  return (
+    <span className="inline-flex min-w-9 items-center justify-center rounded bg-red-100 px-2 py-0.5 text-[12px] font-bold text-red-700">
+      {numeroOs}
+    </span>
+  );
+}
+
+function labelFiltro(texto: string) {
+  return <span className="mb-0.5 block text-[11px] text-slate-600">{texto}</span>;
+}
+
+function selectClassName() {
+  return "h-8 w-full rounded border border-[#d1d5db] bg-white px-2 text-[11px] text-slate-700 focus:border-blue-500 focus:outline-none";
+}
+
+export function ControleFinalizadoresServicos() {
+  const [trabalhos, setTrabalhos] = useState<TrabalhoFinalizador[]>([]);
+  const [prestador, setPrestador] = useState("");
+  const [periodo, setPeriodo] = useState("pedido");
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
+  const [situacao, setSituacao] = useState("");
+  const [busca, setBusca] = useState("");
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+
+  async function load() {
+    const res = await fetch("/api/trabalhos");
+    const data = await res.json();
+    setTrabalhos(Array.isArray(data) ? data : []);
+  }
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const prestadoresCadastro = useMemo(() => carregarPrestadoresListagem(), []);
+  const linhasBase = useMemo(() => montarLinhasFinalizadoresServicos(trabalhos), [trabalhos]);
+
+  const linhasFiltradas = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    return linhasBase.filter((linha) => {
+      if (prestador && linha.prestador !== prestador) return false;
+      if (situacao && linha.situacaoKey !== situacao) return false;
+
+      if (termo) {
+        const haystack = [
+          String(linha.numeroOs),
+          linha.servico,
+          linha.descricao,
+          linha.cliente,
+          linha.paciente,
+          linha.prestador,
+        ]
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(termo)) return false;
+      }
+
+      if (dataInicio || dataFim) {
+        const campoData = periodo === "prazo" ? linha.prazo : linha.dataPedido;
+        if (campoData === "—") return false;
+        const dataLinha = parseBrDate(campoData);
+        if (!dataLinha) return false;
+        if (dataInicio) {
+          const ini = parseBrDate(dataInicio);
+          if (ini && dataLinha < ini) return false;
+        }
+        if (dataFim) {
+          const fim = parseBrDate(dataFim);
+          if (fim) {
+            const fimDia = new Date(fim);
+            fimDia.setHours(23, 59, 59, 999);
+            if (dataLinha > fimDia) return false;
+          }
+        }
+      }
+
+      return true;
+    });
+  }, [linhasBase, prestador, situacao, busca, dataInicio, dataFim, periodo]);
+
+  const totalComissoes = useMemo(
+    () => linhasFiltradas.reduce((s, l) => s + l.comissaoValor, 0),
+    [linhasFiltradas]
+  );
+
+  const totalSelecionados = useMemo(
+    () =>
+      linhasFiltradas
+        .filter((l) => selecionados.has(l.id))
+        .reduce((s, l) => s + l.comissaoValor, 0),
+    [linhasFiltradas, selecionados]
+  );
+
+  const todosSelecionados =
+    linhasFiltradas.length > 0 && linhasFiltradas.every((l) => selecionados.has(l.id));
+
+  function toggleLinha(id: string) {
+    setSelecionados((atual) => {
+      const next = new Set(atual);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleTodos() {
+    if (todosSelecionados) {
+      setSelecionados(new Set());
+      return;
+    }
+    setSelecionados(new Set(linhasFiltradas.map((l) => l.id)));
+  }
+
+  const barraEsquerda = (
+    <>
+      <button
+        type="button"
+        className="rounded bg-[#3b82f6] px-4 py-1.5 text-[11px] font-medium text-white hover:bg-blue-600"
+      >
+        Relatórios
+      </button>
+      <button
+        type="button"
+        title="Imprimir"
+        className="flex h-8 w-8 items-center justify-center rounded border border-[#d1d5db] bg-[#f3f4f6] text-[#6b7280] hover:bg-[#e5e7eb]"
+      >
+        <Printer className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        title="Exportar"
+        className="flex h-8 w-8 items-center justify-center rounded border border-[#86efac] bg-[#dcfce7] text-[#16a34a] hover:bg-[#bbf7d0]"
+      >
+        <FileSpreadsheet className="h-4 w-4" />
+      </button>
+    </>
+  );
+
+  return (
+    <div className="space-y-3 pb-16 text-[11px] text-slate-700">
+      <div className="text-sm text-slate-500">
+        <span>Produção</span>
+        <span className="mx-1">/</span>
+        <span className="font-medium text-slate-700">Finalizadores de Serviço</span>
+      </div>
+
+      <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">
+        <ControleProducaoToolbar viewAtiva="terceirizados" barraEsquerda={barraEsquerda} />
+
+        <div className="mb-3 flex flex-wrap gap-3">
+          <CardResumo
+            titulo="Valor Comissões"
+            valor={formatarMoedaFinalizador(totalComissoes)}
+            icone={<DollarSign className="h-5 w-5" strokeWidth={2} />}
+          />
+          <CardResumo
+            titulo="Selecionados"
+            valor={formatarMoedaFinalizador(totalSelecionados)}
+            icone={<Check className="h-5 w-5" strokeWidth={2.5} />}
+          />
+        </div>
+
+        <div className="mb-3 grid gap-2 md:grid-cols-[1.2fr_0.9fr_0.85fr_0.85fr_1fr_1.2fr]">
+          <div>
+            {labelFiltro("Prestadores")}
+            <select
+              value={prestador}
+              onChange={(e) => setPrestador(e.target.value)}
+              className={selectClassName()}
+            >
+              <option value="">Todos</option>
+              {prestadoresCadastro.map((p) => (
+                <option key={p.id} value={p.nome}>
+                  {p.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            {labelFiltro("Período")}
+            <select
+              value={periodo}
+              onChange={(e) => setPeriodo(e.target.value)}
+              className={selectClassName()}
+            >
+              <option value="pedido">Data Pedido</option>
+              <option value="prazo">Prazo</option>
+            </select>
+          </div>
+          <CampoDataBr
+            label="Data início"
+            value={dataInicio}
+            onChange={setDataInicio}
+            placeholder="dd/mm/aaaa"
+            inputClassName="h-8 text-[11px]"
+            className="[&_label]:text-[11px]"
+          />
+          <CampoDataBr
+            label="Data fim"
+            value={dataFim}
+            onChange={setDataFim}
+            placeholder="dd/mm/aaaa"
+            inputClassName="h-8 text-[11px]"
+            className="[&_label]:text-[11px]"
+          />
+          <div>
+            {labelFiltro("Situação")}
+            <select
+              value={situacao}
+              onChange={(e) => setSituacao(e.target.value)}
+              className={selectClassName()}
+            >
+              <option value="">Todos</option>
+              {Object.entries(STATUS_TRABALHO).map(([key, value]) => (
+                <option key={key} value={key}>
+                  {value.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            {labelFiltro("Busca")}
+            <div className="relative">
+              <input
+                type="text"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="OS, cliente, paciente..."
+                className={`${selectClassName()} pr-14`}
+              />
+              {busca ? (
+                <button
+                  type="button"
+                  onClick={() => setBusca("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-blue-600 hover:underline"
+                >
+                  Limpar
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto rounded border border-slate-200">
+          <table className="w-full min-w-[1180px] text-[11px]">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                <th className="w-8 px-2 py-2">
+                  <input
+                    type="checkbox"
+                    checked={todosSelecionados}
+                    onChange={toggleTodos}
+                    className="h-3.5 w-3.5 rounded border-slate-300"
+                    aria-label="Selecionar todos"
+                  />
+                </th>
+                <th className="px-2 py-2 text-left">OS</th>
+                <th className="px-2 py-2 text-left">Data Pedido</th>
+                <th className="px-2 py-2 text-left">Prazo</th>
+                <th className="px-2 py-2 text-left">Qtd</th>
+                <th className="px-2 py-2 text-left">Serviço</th>
+                <th className="px-2 py-2 text-left">Descrição</th>
+                <th className="px-2 py-2 text-left">Cliente</th>
+                <th className="px-2 py-2 text-left">Paciente</th>
+                <th className="px-2 py-2 text-left">Situação Pedido</th>
+                <th className="px-2 py-2 text-right">Comissão</th>
+                <th className="px-2 py-2 text-center">Opções</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {linhasFiltradas.length === 0 ? (
+                <tr>
+                  <td colSpan={12} className="px-4 py-10 text-center text-slate-500">
+                    Nenhum registro de terceirizado encontrado para os filtros selecionados.
+                  </td>
+                </tr>
+              ) : (
+                linhasFiltradas.map((linha) => (
+                  <LinhaTabela
+                    key={linha.id}
+                    linha={linha}
+                    selecionado={selecionados.has(linha.id)}
+                    onToggle={() => toggleLinha(linha.id)}
+                  />
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <footer className="fixed bottom-0 left-0 right-0 z-20 flex items-center justify-between border-t border-[#e8e8e8] bg-white px-6 py-2.5 text-[12px] md:left-56">
+        <div className="flex flex-wrap items-center gap-2 text-[#6b7280]">
+          <span>Está com dúvidas? - Suporte</span>
+          <a
+            href="https://wa.me/5511999999999"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center rounded-full bg-[#25d366] px-4 py-1 text-[12px] text-white"
+          >
+            Whatsapp
+          </a>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 rounded-full bg-[#3b82f6] px-4 py-1 text-[12px] text-white"
+          >
+            <MessageCircle className="h-3.5 w-3.5" />
+            Chat
+          </button>
+        </div>
+        <div className="hidden items-center gap-1 text-[#6b7280] sm:flex">
+          <AlertTriangle className="h-4 w-4 text-[#f59e0b]" />
+          <span>Seu teste termina em 21/06/2026</span>
+          <button type="button" className="font-semibold text-[#3b82f6] hover:underline">
+            assinar
+          </button>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+function LinhaTabela({
+  linha,
+  selecionado,
+  onToggle,
+}: {
+  linha: LinhaFinalizadorServico;
+  selecionado: boolean;
+  onToggle: () => void;
+}) {
+  const statusInfo = STATUS_TRABALHO[linha.situacaoKey];
+
+  return (
+    <tr className="hover:bg-slate-50">
+      <td className="px-2 py-2">
+        <input
+          type="checkbox"
+          checked={selecionado}
+          onChange={onToggle}
+          className="h-3.5 w-3.5 rounded border-slate-300"
+          aria-label={`Selecionar OS ${linha.numeroOs}`}
+        />
+      </td>
+      <td className="px-2 py-2">{osBadge(linha.numeroOs)}</td>
+      <td className="whitespace-nowrap px-2 py-2">{linha.dataPedido}</td>
+      <td className="whitespace-nowrap px-2 py-2">{linha.prazo}</td>
+      <td className="px-2 py-2">{linha.qtd}</td>
+      <td className="max-w-[140px] truncate px-2 py-2" title={linha.servico}>
+        {linha.servico}
+      </td>
+      <td className="max-w-[120px] truncate px-2 py-2 text-slate-600" title={linha.descricao}>
+        {linha.descricao}
+      </td>
+      <td className="max-w-[120px] truncate px-2 py-2">{linha.cliente}</td>
+      <td className="max-w-[120px] truncate px-2 py-2">{linha.paciente}</td>
+      <td className="px-2 py-2">
+        <span
+          className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium ${
+            statusInfo?.color || "bg-slate-100 text-slate-700"
+          }`}
+        >
+          {linha.situacaoPedido}
+        </span>
+      </td>
+      <td className="whitespace-nowrap px-2 py-2 text-right font-medium text-slate-800">
+        {formatarMoedaFinalizador(linha.comissaoValor)}
+      </td>
+      <td className="px-2 py-2">
+        <div className="flex justify-center gap-1 text-slate-500">
+          <Link
+            href={`/app/producao/os?os=${linha.numeroOs}`}
+            title="Ver OS"
+            className="rounded p-1 hover:bg-slate-100 hover:text-blue-600"
+          >
+            <Eye className="h-4 w-4" />
+          </Link>
+          <Link
+            href={`/app/producao/os?editar=${linha.trabalhoId}`}
+            title="Editar OS"
+            className="rounded p-1 hover:bg-slate-100 hover:text-blue-600"
+          >
+            <Edit3 className="h-4 w-4" />
+          </Link>
+        </div>
+      </td>
+    </tr>
+  );
+}

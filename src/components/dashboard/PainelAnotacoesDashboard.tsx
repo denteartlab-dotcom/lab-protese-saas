@@ -1,0 +1,130 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { Trash2 } from "lucide-react";
+import {
+  adicionarAnotacaoDashboard,
+  ANOTACOES_ATUALIZADO_EVENT,
+  lerAnotacoesDashboard,
+  removerAnotacaoDashboard,
+  type AnotacaoDashboard,
+} from "@/lib/anotacoes-dashboard";
+import type { Locale } from "@/lib/i18n";
+import {
+  lerNotificacoesDescartadas,
+  lerNotificacoesLidas,
+  salvarNotificacoesDescartadas,
+  salvarNotificacoesLidas,
+} from "@/lib/notificacoes-client";
+
+function formatarDataAnotacao(iso: string, locale: Locale) {
+  const tag = locale === "pt" ? "pt-BR" : locale === "es" ? "es-ES" : "en-US";
+  return new Date(iso).toLocaleString(tag, {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
+export function PainelAnotacoesDashboard({
+  titulo,
+  locale,
+}: {
+  titulo: string;
+  locale: Locale;
+}) {
+  const [lista, setLista] = useState<AnotacaoDashboard[]>([]);
+  const [texto, setTexto] = useState("");
+
+  const recarregar = useCallback(() => {
+    setLista(lerAnotacoesDashboard());
+  }, []);
+
+  useEffect(() => {
+    recarregar();
+    window.addEventListener(ANOTACOES_ATUALIZADO_EVENT, recarregar);
+    return () => window.removeEventListener(ANOTACOES_ATUALIZADO_EVENT, recarregar);
+  }, [recarregar]);
+
+  function enviar() {
+    const nova = adicionarAnotacaoDashboard(texto);
+    if (!nova) return;
+    setTexto("");
+    setLista(lerAnotacoesDashboard());
+  }
+
+  function excluir(id: string) {
+    const notifId = removerAnotacaoDashboard(id);
+    salvarNotificacoesLidas(lerNotificacoesLidas().filter((x) => x !== notifId));
+    salvarNotificacoesDescartadas(
+      lerNotificacoesDescartadas().filter((x) => x !== notifId)
+    );
+    setLista(lerAnotacoesDashboard());
+  }
+
+  return (
+    <section className="rounded border border-slate-200 bg-white shadow-sm">
+      <div className="flex min-h-10 items-center justify-between border-b border-slate-100 px-4 py-2">
+        <h2 className="text-sm font-medium text-slate-700">{titulo}</h2>
+      </div>
+      <div className="flex h-56 flex-col p-3">
+        <div className="min-h-0 flex-1 overflow-y-auto rounded border border-slate-100 bg-slate-50/50">
+          {lista.length === 0 ? (
+            <p className="px-3 py-6 text-center text-[11px] text-slate-400">
+              Nenhuma anotação. Envie um lembrete abaixo.
+            </p>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {lista.map((a) => (
+                <li key={a.id} className="group flex gap-2 px-3 py-2.5 hover:bg-white">
+                  <div className="min-w-0 flex-1">
+                    <p className="whitespace-pre-wrap text-[12px] leading-snug text-slate-700">
+                      {a.texto}
+                    </p>
+                    <p className="mt-1 text-[10px] text-slate-400">
+                      {formatarDataAnotacao(a.criadoEm, locale)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => excluir(a.id)}
+                    className="flex shrink-0 items-center gap-1 self-start rounded border border-slate-200 bg-white px-2 py-1 text-[10px] font-medium text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                    title="Excluir anotação"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Excluir
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="mt-2 flex gap-2">
+          <input
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                enviar();
+              }
+            }}
+            className="flex-1 rounded border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-slate-700 outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-200"
+            placeholder="Adicione uma Anotação"
+          />
+          <button
+            type="button"
+            onClick={enviar}
+            disabled={!texto.trim()}
+            className="rounded border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Enviar
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}

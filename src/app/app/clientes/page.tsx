@@ -1,0 +1,820 @@
+"use client";
+
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { Eye, FileText, MessageCircle, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
+import { Button, Input, Modal } from "@/components/ui";
+import { abrirWhatsAppAcompanhamentoCliente } from "@/lib/whatsapp";
+import {
+  dataNascimentoCliente,
+  mesclarObservacoesComDataNascimento,
+} from "@/lib/cliente-observacoes";
+import {
+  carregarNomesTabelasPreco,
+  carregarNomesTabelasPrecoRemoto,
+  TABELA_PRECOS_EVENT,
+} from "@/lib/tabela-precos-os";
+import { BarraConfigListagem } from "@/components/listagem/BarraConfigListagem";
+import { useListagemPaginada } from "@/hooks/use-listagem-paginada";
+import { compararTextoBr } from "@/lib/listagem-config";
+
+type Cliente = {
+  id: string;
+  nome: string;
+  razaoSocial?: string | null;
+  cnpjCpf?: string | null;
+  cro?: string | null;
+  telefone?: string | null;
+  celular?: string | null;
+  email?: string | null;
+  endereco?: string | null;
+  cidade?: string | null;
+  uf?: string | null;
+  cep?: string | null;
+  observacoes?: string | null;
+  _count?: { pacientes: number; trabalhos: number };
+};
+
+function IconWhatsApp({ className = "h-3.5 w-3.5" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+    </svg>
+  );
+}
+
+const empty = {
+  tipoCliente: "Dentista",
+  abreviacao: "",
+  nome: "",
+  razaoSocial: "",
+  cnpjCpf: "",
+  cpf: "",
+  dataNascimento: "",
+  cro: "",
+  telefone: "",
+  telefoneComercial: "",
+  celular: "",
+  whatsapp: "",
+  email: "",
+  contato: "",
+  contatoTelefoneComercial: "",
+  contatoWhatsapp: "",
+  contatoEmail: "",
+  representante: "",
+  descricaoEndereco: "Endereço Principal",
+  rua: "",
+  numero: "",
+  bairro: "",
+  complemento: "",
+  entregador: "",
+  custoEntrega: "0,00",
+  tabelaPreco: "Tabela Principal",
+  descontoGeral: "0,00",
+  limiteSaldoDevedor: "0,00",
+  diaCobranca: "",
+  endereco: "",
+  cidade: "",
+  uf: "",
+  cep: "",
+  observacoes: "",
+};
+
+export default function ClientesPage() {
+  const [list, setList] = useState<Cliente[]>([]);
+  const [clienteParaExcluir, setClienteParaExcluir] = useState<Cliente | null>(null);
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Cliente | null>(null);
+  const [detalhe, setDetalhe] = useState<Cliente | null>(null);
+  const [abaModal, setAbaModal] = useState("dados");
+  const [form, setForm] = useState(empty);
+  const [enviandoWhatsAppId, setEnviandoWhatsAppId] = useState<string | null>(null);
+  const [tabelasPreco, setTabelasPreco] = useState<string[]>(["Tabela Principal"]);
+
+  const recarregarTabelasPreco = async () => {
+    const nomes = await carregarNomesTabelasPrecoRemoto();
+    setTabelasPreco(nomes);
+  };
+
+  async function load() {
+    const res = await fetch(`/api/clientes?q=${encodeURIComponent(q)}`);
+    setList(await res.json());
+  }
+
+  function formatCepInput(value: string) {
+    const digits = value.replace(/\D/g, "").slice(0, 8);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 5) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+    return `${digits.slice(0, 3)}.${digits.slice(3, 5)}-${digits.slice(5)}`;
+  }
+
+  function formatDateInput(value: string) {
+    const digits = value.replace(/\D/g, "").slice(0, 8);
+    const day = digits.slice(0, 2);
+    const month = digits.slice(2, 4);
+    const year = digits.slice(4, 8);
+    if (digits.length <= 2) return day;
+    if (digits.length <= 4) return `${day}/${month}`;
+    return `${day}/${month}/${year}`;
+  }
+
+  function formatDecimalInput(value: string) {
+    const amount = Number(value.replace(/\D/g, "")) / 100;
+    return amount.toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
+  function configValue(observacoes: string | null | undefined, prefix: string) {
+    return (observacoes || "")
+      .split("\n")
+      .find((line) => line.startsWith(prefix))
+      ?.replace(prefix, "")
+      .trim() || "";
+  }
+
+  async function buscarEnderecoPorCep() {
+    const cep = form.cep.replace(/\D/g, "");
+    if (cep.length !== 8) {
+      alert("Informe um CEP com 8 números.");
+      return;
+    }
+
+    const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    const data = await response.json();
+    if (data.erro) {
+      alert("CEP não encontrado.");
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      rua: data.logradouro || current.rua,
+      bairro: data.bairro || current.bairro,
+      cidade: data.localidade || current.cidade,
+      uf: data.uf || current.uf,
+      cep: formatCepInput(cep),
+    }));
+  }
+
+  useEffect(() => {
+    load();
+  }, [q]);
+
+  useEffect(() => {
+    void recarregarTabelasPreco();
+    const aoAtualizar = () => void recarregarTabelasPreco();
+    window.addEventListener(TABELA_PRECOS_EVENT, aoAtualizar);
+    window.addEventListener("focus", aoAtualizar);
+    return () => {
+      window.removeEventListener(TABELA_PRECOS_EVENT, aoAtualizar);
+      window.removeEventListener("focus", aoAtualizar);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (open) void recarregarTabelasPreco();
+  }, [open]);
+
+  useEffect(() => {
+    if (open && abaModal === "configuracao") void recarregarTabelasPreco();
+  }, [open, abaModal]);
+
+  const opcoesTabelaPreco = useMemo(() => {
+    const base = [...tabelasPreco];
+    if (form.tabelaPreco && !base.includes(form.tabelaPreco)) {
+      base.unshift(form.tabelaPreco);
+    }
+    return base;
+  }, [tabelasPreco, form.tabelaPreco]);
+
+  const listagem = useListagemPaginada<Cliente, "nome" | "cidade" | "email">({
+    storageKey: "clientes",
+    itens: list,
+    padrao: { ordenarPor: "nome", direcao: "asc", porPagina: 50 },
+    comparadores: {
+      nome: (a, b) => compararTextoBr(a.nome, b.nome),
+      cidade: (a, b) => compararTextoBr(a.cidade || "", b.cidade || ""),
+      email: (a, b) => compararTextoBr(a.email || "", b.email || ""),
+    },
+  });
+
+  async function openNew() {
+    const tabelas = await carregarNomesTabelasPrecoRemoto();
+    setEditing(null);
+    setForm({
+      ...empty,
+      tabelaPreco: tabelas[0] || "Tabela Principal",
+    });
+    setAbaModal("dados");
+    setOpen(true);
+  }
+
+  function openEdit(c: Cliente) {
+    setEditing(c);
+    setForm({
+      tipoCliente: "Dentista",
+      abreviacao: "",
+      nome: c.nome,
+      razaoSocial: c.razaoSocial || "",
+      cnpjCpf: c.cnpjCpf || "",
+      cpf: "",
+      dataNascimento: dataNascimentoCliente(c.observacoes),
+      cro: c.cro || "",
+      telefone: c.telefone || "",
+      telefoneComercial: c.telefone || "",
+      celular: c.celular || "",
+      whatsapp: c.celular || "",
+      email: c.email || "",
+      contato: "",
+      contatoTelefoneComercial: "",
+      contatoWhatsapp: "",
+      contatoEmail: "",
+      representante: "",
+      descricaoEndereco: "Endereço Principal",
+      rua: c.endereco || "",
+      numero: "",
+      bairro: "",
+      complemento: "",
+      entregador: "",
+      custoEntrega: "0,00",
+      tabelaPreco: configValue(c.observacoes, "Tabela de Preço:") || "Tabela Principal",
+      descontoGeral: configValue(c.observacoes, "Desconto Geral:") || "0,00",
+      limiteSaldoDevedor: configValue(c.observacoes, "Limite Saldo Devedor:") || "0,00",
+      diaCobranca: configValue(c.observacoes, "Dia da Cobrança:"),
+      endereco: c.endereco || "",
+      cidade: c.cidade || "",
+      uf: c.uf || "",
+      cep: c.cep || "",
+      observacoes: c.observacoes || "",
+    });
+    setAbaModal("dados");
+    setOpen(true);
+  }
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    const url = editing ? `/api/clientes/${editing.id}` : "/api/clientes";
+    const payload = {
+      nome: form.nome,
+      razaoSocial: form.razaoSocial,
+      cnpjCpf: form.cnpjCpf || form.cpf,
+      cro: form.cro,
+      telefone: form.telefoneComercial || form.telefone,
+      celular: form.whatsapp || form.celular,
+      email: form.email || form.contatoEmail,
+      endereco: form.endereco || [form.rua, form.numero, form.bairro, form.complemento].filter(Boolean).join(", "),
+      cidade: form.cidade,
+      uf: form.uf,
+      cep: form.cep,
+      observacoes: mesclarObservacoesComDataNascimento(
+        [
+          form.observacoes,
+          form.tipoCliente ? `Tipo de Cliente: ${form.tipoCliente}` : "",
+        form.abreviacao ? `Abreviação: ${form.abreviacao}` : "",
+        form.contato ? `Contato: ${form.contato}` : "",
+        form.contatoTelefoneComercial ? `Telefone Contato: ${form.contatoTelefoneComercial}` : "",
+        form.contatoWhatsapp ? `WhatsApp Contato: ${form.contatoWhatsapp}` : "",
+        form.representante ? `Representante: ${form.representante}` : "",
+        form.tabelaPreco ? `Tabela de Preço: ${form.tabelaPreco}` : "",
+        form.descontoGeral ? `Desconto Geral: ${form.descontoGeral}` : "",
+        form.limiteSaldoDevedor ? `Limite Saldo Devedor: ${form.limiteSaldoDevedor}` : "",
+        form.diaCobranca ? `Dia da Cobrança: ${form.diaCobranca}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+        form.dataNascimento
+      ),
+    };
+    await fetch(url, {
+      method: editing ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    setOpen(false);
+    load();
+  }
+
+  async function confirmarExclusaoCliente() {
+    if (!clienteParaExcluir) return;
+    await fetch(`/api/clientes/${clienteParaExcluir.id}`, { method: "DELETE" });
+    setClienteParaExcluir(null);
+    load();
+  }
+
+  async function enviarAcompanhamentoWhatsApp(cliente: Cliente) {
+    const telefone = (cliente.celular || cliente.telefone || "").trim();
+    if (!telefone) {
+      alert(
+        "Cadastre o celular ou WhatsApp do cliente para enviar o link de acompanhamento."
+      );
+      return;
+    }
+
+    setEnviandoWhatsAppId(cliente.id);
+    try {
+      const res = await fetch(`/api/clientes/${cliente.id}/acompanhamento`);
+      const data = await res.json();
+      if (!res.ok || !data.publicUrl) {
+        alert(data.error || "Não foi possível gerar o link de acompanhamento.");
+        return;
+      }
+      const ok = abrirWhatsAppAcompanhamentoCliente(
+        telefone,
+        cliente.nome,
+        data.publicUrl
+      );
+      if (!ok) {
+        alert(
+          "Link gerado, mas não foi possível abrir o WhatsApp. Verifique o número do cliente."
+        );
+      }
+    } catch {
+      alert("Erro ao preparar o envio pelo WhatsApp.");
+    } finally {
+      setEnviandoWhatsAppId(null);
+    }
+  }
+
+  return (
+    <div className="space-y-4 text-xs text-slate-600">
+      <div className="flex items-center gap-2">
+        <h1 className="text-lg font-medium text-slate-700">Cadastros</h1>
+        <span className="text-slate-300">/</span>
+        <span>Clientes</span>
+      </div>
+
+      <div className="rounded border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-3 py-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={openNew}
+              className="inline-flex items-center gap-1 rounded bg-emerald-500 px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-600"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Adicionar Cliente
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 rounded border border-blue-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-blue-600 hover:bg-blue-50"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Ver Certificado
+            </button>
+            <button type="button" className="rounded bg-blue-500 px-2 py-1.5 text-[11px] font-bold text-white">F</button>
+            <button type="button" className="rounded bg-sky-500 px-2 py-1.5 text-[11px] font-bold text-white">E</button>
+            <button type="button" className="rounded bg-emerald-500 px-2 py-1.5 text-[11px] font-bold text-white">E</button>
+          </div>
+
+          <div className="flex min-w-[320px] max-w-lg flex-1 justify-end">
+            <div className="relative w-full max-w-md">
+              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <input
+                className="h-8 w-full rounded border border-slate-300 py-1 pl-8 pr-16 text-xs outline-none focus:border-primary-400"
+                placeholder="Procurar"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setQ("")}
+                className="absolute right-0 top-0 h-8 rounded-r bg-slate-500 px-4 text-[11px] font-semibold text-white hover:bg-slate-600"
+              >
+                Limpar
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <BarraConfigListagem
+          embutido
+          configAberto={listagem.configAberto}
+          onToggleConfig={() =>
+            listagem.configAberto ? listagem.fecharConfig() : listagem.abrirConfig()
+          }
+          onFecharConfig={listagem.fecharConfig}
+          rascunho={listagem.rascunho}
+          opcoesOrdenacao={[
+            { valor: "nome", label: "Nome" },
+            { valor: "cidade", label: "Cidade" },
+            { valor: "email", label: "E-mail" },
+          ]}
+          onAlterarOrdenarPor={(valor) => listagem.atualizarRascunho({ ordenarPor: valor })}
+          onAlterarDirecao={(direcao) => listagem.atualizarRascunho({ direcao })}
+          onAlterarPorPagina={(porPagina) => listagem.atualizarRascunho({ porPagina })}
+          onGravarConfig={listagem.gravarConfig}
+          pagina={listagem.pagina}
+          totalPaginas={listagem.totalPaginas}
+          onPagina={listagem.setPagina}
+          totalItens={listagem.totalItens}
+        >
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[980px] border-collapse text-[11px]">
+            <thead>
+              <tr className="border-b border-slate-100 bg-slate-50 text-slate-500">
+                <th className="w-8 px-3 py-2 text-left font-semibold">TODOS</th>
+                <th className="px-3 py-2 text-left font-semibold">NOME</th>
+                <th className="px-3 py-2 text-left font-semibold">CONTATO</th>
+                <th className="px-3 py-2 text-left font-semibold">CELULAR</th>
+                <th className="px-3 py-2 text-left font-semibold">WHATSAPP</th>
+                <th className="px-3 py-2 text-left font-semibold">EMAIL</th>
+                <th className="px-3 py-2 text-center font-semibold">OPÇÕES</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {listagem.itensPagina.map((c) => {
+                const aberto = detalhe?.id === c.id;
+                return (
+                  <Fragment key={c.id}>
+                    <tr className={aberto ? "bg-blue-50/40" : "hover:bg-slate-50"}>
+                      <td className="px-3 py-2">
+                        <input type="checkbox" className="h-3.5 w-3.5 accent-primary-600" />
+                      </td>
+                      <td className="px-3 py-2 font-medium text-slate-600">{c.nome}</td>
+                      <td className="px-3 py-2 text-slate-500">{c.telefone || ""}</td>
+                      <td className="px-3 py-2 text-slate-500">{c.celular || ""}</td>
+                      <td className="px-3 py-2 text-slate-500">
+                        {c.celular ? (
+                          <a
+                            href={`https://wa.me/${c.celular.replace(/\D/g, "")}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-emerald-600 hover:underline"
+                          >
+                            <MessageCircle className="h-3.5 w-3.5" />
+                            WhatsApp
+                          </a>
+                        ) : (
+                          ""
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-slate-500">{c.email || ""}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex justify-center gap-2 text-slate-500">
+                          <button
+                            type="button"
+                            onClick={() => void enviarAcompanhamentoWhatsApp(c)}
+                            disabled={enviandoWhatsAppId === c.id}
+                            title="Enviar link de acompanhamento da produção no WhatsApp"
+                            className="rounded p-1 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50"
+                          >
+                            <IconWhatsApp />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDetalhe(aberto ? null : c)}
+                            title="Visualizar"
+                            className={`rounded p-1 hover:bg-blue-50 hover:text-blue-600 ${aberto ? "bg-blue-50 text-blue-500" : ""}`}
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </button>
+                          <button type="button" onClick={() => openEdit(c)} title="Editar" className="hover:text-primary-700">
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setClienteParaExcluir(c)}
+                            title="Excluir"
+                            className="hover:text-red-600"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {aberto && (
+                      <tr className="bg-white">
+                        <td colSpan={7} className="px-3 py-3">
+                          <div className="rounded border border-slate-100 bg-white p-3 text-[10px] text-slate-600">
+                            <div className="mb-3 flex items-center gap-2 font-semibold text-emerald-600">
+                              <Eye className="h-3.5 w-3.5" />
+                              {c.nome}
+                            </div>
+                            <div className="grid gap-x-8 gap-y-3 border-b border-slate-100 pb-3 md:grid-cols-4">
+                              <p><span className="font-semibold text-slate-700">Nome:</span> {c.nome}</p>
+                              <p><span className="font-semibold text-slate-700">Razão Social:</span> {c.razaoSocial || ""}</p>
+                              <p><span className="font-semibold text-slate-700">CPF/CNPJ:</span> {c.cnpjCpf || ""}</p>
+                              <p><span className="font-semibold text-slate-700">CRO:</span> {c.cro || ""}</p>
+                              <p><span className="font-semibold text-slate-700">Telefone:</span> {c.telefone || ""}</p>
+                              <p><span className="font-semibold text-slate-700">Celular:</span> {c.celular || ""}</p>
+                              <p><span className="font-semibold text-slate-700">Email:</span> {c.email || ""}</p>
+                              <p><span className="font-semibold text-slate-700">Cidade/UF:</span> {[c.cidade, c.uf].filter(Boolean).join(" / ")}</p>
+                              <p className="md:col-span-2"><span className="font-semibold text-slate-700">Endereço:</span> {c.endereco || ""}</p>
+                              <p className="md:col-span-2"><span className="font-semibold text-slate-700">Observações:</span> {c.observacoes || ""}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setDetalhe(null)}
+                              className="mt-3 rounded border border-slate-300 bg-white px-3 py-1 text-[10px] text-slate-600 hover:bg-slate-50"
+                            >
+                              Fechar Detalhes
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+              {listagem.totalItens === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-3 py-10 text-center text-slate-400">
+                    Nenhum cliente encontrado.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        </BarraConfigListagem>
+      </div>
+
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title={editing ? "Cadastro de Clientes" : "Cadastro de Clientes"}
+        size="xl"
+      >
+        <form onSubmit={save} className="space-y-7 text-xs">
+          <div className="flex gap-6 border-b border-slate-200 text-slate-500">
+            {[
+              { id: "dados", label: "Dados do Cliente" },
+              { id: "endereco", label: "Endereço" },
+              { id: "configuracao", label: "Configuração" },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setAbaModal(tab.id)}
+                className={`border-b-2 px-2 pb-3 text-xs ${
+                  abaModal === tab.id
+                    ? "border-primary-600 text-primary-700"
+                    : "border-transparent hover:text-primary-700"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {abaModal === "dados" && (
+          <>
+          <div className="grid gap-4 md:grid-cols-5">
+            <div className="space-y-1">
+              <label className="block text-[11px] text-slate-600">Tipo de Cliente</label>
+              <select
+                value={form.tipoCliente}
+                onChange={(e) => setForm({ ...form, tipoCliente: e.target.value })}
+                className="h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs outline-none focus:border-primary-500"
+              >
+                <option>Dentista</option>
+                <option>Clínica</option>
+                <option>Laboratório</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="block text-[11px] text-slate-600">Abreviação</label>
+              <select
+                value={form.abreviacao}
+                onChange={(e) => setForm({ ...form, abreviacao: e.target.value })}
+                className="h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs outline-none focus:border-primary-500"
+              >
+                <option value=""></option>
+                <option>Dr.</option>
+                <option>Dra.</option>
+              </select>
+            </div>
+            <Input label="Razão Social" value={form.razaoSocial} onChange={(e) => setForm({ ...form, razaoSocial: e.target.value })} />
+            <Input label="Nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
+            <Input label="Data de Nascimento" value={form.dataNascimento} onChange={(e) => setForm({ ...form, dataNascimento: formatDateInput(e.target.value) })} placeholder="dd/mm/aaaa" />
+
+            <Input label="CRO Responsável" value={form.cro} onChange={(e) => setForm({ ...form, cro: e.target.value })} />
+            <Input label="CNPJ" value={form.cnpjCpf} onChange={(e) => setForm({ ...form, cnpjCpf: e.target.value })} />
+            <Input label="CPF" value={form.cpf} onChange={(e) => setForm({ ...form, cpf: e.target.value })} />
+            <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="md:col-span-2" />
+
+            <Input label="Telefone Residencial" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} />
+            <Input label="Telefone Comercial" value={form.telefoneComercial} onChange={(e) => setForm({ ...form, telefoneComercial: e.target.value })} />
+            <Input label="Celular" value={form.celular} onChange={(e) => setForm({ ...form, celular: e.target.value })} />
+            <Input label="WhatsApp" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} className="md:col-span-2" />
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
+              <span>Contato</span>
+            </div>
+            <div className="grid gap-4 md:grid-cols-[1.5fr_0.7fr_0.7fr_1.5fr]">
+              <Input label="Contato" value={form.contato} onChange={(e) => setForm({ ...form, contato: e.target.value })} />
+              <Input label="Telefone Comercial" value={form.contatoTelefoneComercial} onChange={(e) => setForm({ ...form, contatoTelefoneComercial: e.target.value })} />
+              <Input label="WhatsApp" value={form.contatoWhatsapp} onChange={(e) => setForm({ ...form, contatoWhatsapp: e.target.value })} />
+              <Input label="Email" type="email" value={form.contatoEmail} onChange={(e) => setForm({ ...form, contatoEmail: e.target.value })} />
+            </div>
+          </div>
+          </>
+          )}
+
+          {abaModal === "endereco" && (
+            <div className="space-y-7">
+              <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                <span>Endereço Principal</span>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-12">
+                <div className="md:col-span-4">
+                  <Input
+                    label="Descrição (Apelido)"
+                    value={form.descricaoEndereco}
+                    onChange={(e) => setForm({ ...form, descricaoEndereco: e.target.value })}
+                    placeholder="Endereço Principal"
+                  />
+                </div>
+
+                <div className="md:col-span-4 md:col-start-1">
+                  <Input
+                    label="CEP"
+                    value={form.cep}
+                    onChange={(e) => setForm({ ...form, cep: formatCepInput(e.target.value) })}
+                  />
+                </div>
+                <div className="flex items-end md:col-span-1">
+                  <button
+                    type="button"
+                    onClick={buscarEnderecoPorCep}
+                    className="h-9 w-full rounded border border-primary-500 bg-white px-2 text-[11px] text-primary-700 hover:bg-primary-50"
+                  >
+                    Buscar Endereço
+                  </button>
+                </div>
+                <div className="md:col-span-5">
+                  <Input label="Rua" value={form.rua} onChange={(e) => setForm({ ...form, rua: e.target.value })} />
+                </div>
+                <div className="md:col-span-2">
+                  <Input label="Número" value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} />
+                </div>
+
+                <div className="md:col-span-3">
+                  <Input label="Cidade" value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} />
+                </div>
+                <div className="md:col-span-2">
+                  <Input label="UF" value={form.uf} onChange={(e) => setForm({ ...form, uf: e.target.value })} />
+                </div>
+                <div className="md:col-span-4">
+                  <Input label="Bairro" value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} />
+                </div>
+                <div className="md:col-span-3">
+                  <Input label="Complemento" value={form.complemento} onChange={(e) => setForm({ ...form, complemento: e.target.value })} />
+                </div>
+
+                <div className="space-y-1 md:col-span-6">
+                  <label className="block text-[11px] text-slate-600">Entregador</label>
+                  <select
+                    value={form.entregador}
+                    onChange={(e) => setForm({ ...form, entregador: e.target.value })}
+                    className="h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs outline-none focus:border-primary-500"
+                  >
+                    <option value="">Selecione...</option>
+                    <option>Entregador padrão</option>
+                  </select>
+                </div>
+                <div className="md:col-span-4">
+                  <Input
+                    label="Custo de Entrega"
+                    value={form.custoEntrega}
+                    onChange={(e) => setForm({ ...form, custoEntrega: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 pt-6">
+                <button
+                  type="button"
+                  className="rounded bg-emerald-500 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-600"
+                >
+                  + Endereço Extra
+                </button>
+              </div>
+            </div>
+          )}
+
+          {abaModal === "configuracao" && (
+            <div className="space-y-5">
+              <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                <span className="text-base">$</span>
+                <span>Cobranças</span>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-4">
+                <div className="space-y-1">
+                  <label className="block text-[11px] text-slate-600">Tabela de Preço</label>
+                  <select
+                    value={form.tabelaPreco}
+                    onChange={(e) => setForm({ ...form, tabelaPreco: e.target.value })}
+                    className="h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs outline-none focus:border-primary-500"
+                  >
+                    {opcoesTabelaPreco.length === 0 ? (
+                      <option value="Tabela Principal">Tabela Principal</option>
+                    ) : (
+                      opcoesTabelaPreco.map((nome) => (
+                        <option key={nome} value={nome}>
+                          {nome}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    Esta tabela será usada na ordem de serviço deste cliente. Cadastre
+                    novas tabelas em Cadastros → Tabela de Preços.
+                  </p>
+                  {tabelasPreco.length <= 1 ? (
+                    <p className="mt-0.5 text-[10px] text-amber-700">
+                      Só uma tabela encontrada — abra Tabela de Preços uma vez para
+                      sincronizar as demais.
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[11px] text-slate-600">Desconto Geral</label>
+                  <div className="flex h-9 overflow-hidden rounded border border-slate-300 bg-white">
+                    <span className="flex w-9 items-center justify-center border-r border-slate-200 text-xs text-slate-500">%</span>
+                    <input
+                      value={form.descontoGeral}
+                      onChange={(e) => setForm({ ...form, descontoGeral: formatDecimalInput(e.target.value) })}
+                      className="w-full px-2 text-xs outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[11px] text-slate-600">Limite Saldo Devedor</label>
+                  <div className="flex h-9 overflow-hidden rounded border border-slate-300 bg-white">
+                    <span className="flex w-9 items-center justify-center border-r border-slate-200 text-xs text-slate-500">$</span>
+                    <input
+                      value={form.limiteSaldoDevedor}
+                      onChange={(e) => setForm({ ...form, limiteSaldoDevedor: formatDecimalInput(e.target.value) })}
+                      className="w-full px-2 text-xs outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[11px] text-slate-600">Dia da Cobrança</label>
+                  <div className="relative">
+                    <input
+                      value={form.diaCobranca}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          diaCobranca: e.target.value.replace(/\D/g, "").slice(0, 2),
+                        })
+                      }
+                      placeholder="1 a 31"
+                      className="h-9 w-full rounded border border-emerald-300 px-2 pr-8 text-xs outline-none focus:border-emerald-500"
+                    />
+                    {form.diaCobranca ? (
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-600">
+                        ✓
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="text-[10px] text-slate-400">
+                    No dia {form.diaCobranca || "—"} de cada mês você recebe um lembrete no
+                    sino para cobrar este cliente.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+              {editing ? "Salvar Cliente" : "Cadastrar Cliente"}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Fechar
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmacaoExclusaoModal
+        open={!!clienteParaExcluir}
+        titulo="Excluir Cliente"
+        mensagem="Deseja realmente excluir esse cliente?"
+        aviso="Atenção!! Pacientes e vínculos podem ser afetados."
+        detalhe={clienteParaExcluir?.nome}
+        onClose={() => setClienteParaExcluir(null)}
+        onConfirm={confirmarExclusaoCliente}
+      />
+    </div>
+  );
+}
+

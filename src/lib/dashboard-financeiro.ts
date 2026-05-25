@@ -1,0 +1,166 @@
+/** Resumo financeiro do Início — mesma lógica de Contas a Receber / Contas a Pagar. */
+
+export type LancamentoFinanceiroResumo = {
+  id: string;
+  tipo: string;
+  descricao: string;
+  valor: number;
+  data: string | Date;
+  status: string;
+  formaPagamento?: string | null;
+  clienteId?: string | null;
+  trabalhoId?: string | null;
+  trabalhoNumeroOs?: number | null;
+};
+
+export type TrabalhoFinanceiroRef = {
+  id: string;
+  numeroOs: number;
+  status: string;
+};
+
+export type ResumoFinanceiroDashboard = {
+  receitasAReceber: number;
+  receitasInadimplencia: number;
+  despesasAPagar: number;
+  despesasVencidas: number;
+};
+
+function dateOnly(value: string | Date) {
+  const raw = typeof value === "string" ? value : value.toISOString();
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const date = match
+    ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+    : new Date(raw);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function numerosOsDoLancamento(
+  lancamento: LancamentoFinanceiroResumo
+): number[] {
+  const numeros = new Set<number>();
+  if (lancamento.trabalhoNumeroOs) numeros.add(lancamento.trabalhoNumeroOs);
+  const descricao = lancamento.descricao.replace(/\s+/g, " ");
+  const match = descricao.match(/cobrança os\s+(.+)$/i);
+  if (match) {
+    match[1]
+      .split(" - ")[0]
+      .split(/[,\s]+/)
+      .map((value) => Number(value.replace(/\D/g, "")))
+      .filter((value) => Number.isFinite(value) && value > 0)
+      .forEach((value) => numeros.add(value));
+  }
+  return Array.from(numeros);
+}
+
+function isCreditoGerado(lancamento: LancamentoFinanceiroResumo) {
+  const descricao = lancamento.descricao.toLowerCase();
+  return descricao.startsWith("adiantamento") || descricao.includes("crédito cliente");
+}
+
+function isCreditoUtilizado(lancamento: LancamentoFinanceiroResumo) {
+  const descricao = lancamento.descricao.toLowerCase();
+  return (
+    descricao.startsWith("crédito utilizado") ||
+    descricao.includes("desconto com crédito")
+  );
+}
+
+function trabalhosDaFatura(
+  lancamento: LancamentoFinanceiroResumo,
+  trabalhos: TrabalhoFinanceiroRef[]
+) {
+  const numerosOs = numerosOsDoLancamento(lancamento);
+  return trabalhos.filter(
+    (t) => t.id === lancamento.trabalhoId || numerosOs.includes(t.numeroOs)
+  );
+}
+
+function faturaSomenteComOsFinalizadas(
+  lancamento: LancamentoFinanceiroResumo,
+  trabalhos: TrabalhoFinanceiroRef[]
+) {
+  const descricao = lancamento.descricao.toLowerCase();
+  if (!descricao.startsWith("cobrança os")) return true;
+  const relacionados = trabalhosDaFatura(lancamento, trabalhos);
+  if (relacionados.length === 0) return true;
+  return relacionados.every((t) => ["entregue", "finalizado"].includes(t.status));
+}
+
+function isFaturaContasReceber(
+  lancamento: LancamentoFinanceiroResumo,
+  trabalhos: TrabalhoFinanceiroRef[],
+  todosLancamentos: LancamentoFinanceiroResumo[]
+) {
+  if (isCreditoGerado(lancamento) || isCreditoUtilizado(lancamento)) return false;
+  if (!lancamento.descricao.toLowerCase().startsWith("cobrança os")) return false;
+  if (lancamento.formaPagamento?.toLowerCase().includes("crédito")) return false;
+  if (!faturaSomenteComOsFinalizadas(lancamento, trabalhos)) return false;
+
+  const creditoUsado = todosLancamentos
+    .filter(
+      (item) =>
+        isCreditoUtilizado(item) &&
+        item.clienteId === lancamento.clienteId &&
+        item.descricao.includes(lancamento.descricao)
+    )
+    .reduce((sum, item) => sum + item.valor, 0);
+
+  const saldo = Math.max(lancamento.valor - (lancamento.status === "pago" ? lancamento.valor : Math.min(creditoUsado, lancamento.valor)), 0);
+  return saldo > 0.005;
+}
+
+function saldoFatura(
+  lancamento: LancamentoFinanceiroResumo,
+  todosLancamentos: LancamentoFinanceiroResumo[]
+) {
+  if (lancamento.status === "pago") return 0;
+  const creditoUsado = todosLancamentos
+    .filter(
+      (item) =>
+        isCreditoUtilizado(item) &&
+        item.clienteId === lancamento.clienteId &&
+        item.descricao.includes(lancamento.descricao)
+    )
+    .reduce((sum, item) => sum + item.valor, 0);
+  return Math.max(lancamento.valor - Math.min(creditoUsado, lancamento.valor), 0);
+}
+
+export function calcularResumoFinanceiroDashboard(
+  lancamentos: LancamentoFinanceiroResumo[],
+  trabalhos: TrabalhoFinanceiroRef[]
+): ResumoFinanceiroDashboard {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  let receitasAReceber = 0;
+  let receitasInadimplencia = 0;
+  let despesasAPagar = 0;
+  let despesasVencidas = 0;
+
+  for (const l of lancamentos) {
+    if (l.tipo === "receita") {
+      if (isCreditoGerado(l) || isCreditoUtilizado(l)) continue;
+      if (!isFaturaContasReceber(l, trabalhos, lancamentos)) continue;
+      if (l.status !== "pago") {
+        const saldo = saldoFatura(l, lancamentos);
+        receitasAReceber += saldo;
+        if (dateOnly(l.data) < hoje) receitasInadimplencia += saldo;
+      }
+      continue;
+    }
+
+    if (l.tipo === "despesa" && l.status === "pendente") {
+      despesasAPagar += l.valor;
+      if (dateOnly(l.data) < hoje) despesasVencidas += l.valor;
+    }
+  }
+
+  return {
+    receitasAReceber,
+    receitasInadimplencia,
+    despesasAPagar,
+    despesasVencidas,
+  };
+}

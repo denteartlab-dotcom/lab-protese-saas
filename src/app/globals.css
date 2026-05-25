@@ -1,0 +1,134 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+  }
+
+  .dark body {
+    @apply bg-slate-950 text-slate-100;
+  }
+}
+
+@layer utilities {
+  .gradient-hero {
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #0ea5e9 100%);
+  }
+}
+
+/* Login: cobre a tela sem distorcer; usa o PNG original de /public */
+@layer components {
+  .login-hero__bg {
+    min-width: 100%;
+    min-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: cover;
+    object-position: center center;
+    image-rendering: auto;
+  }
+}
+
+@layer components {
+  .dark .bg-white {
+    background-color: #0f172a;
+  }
+
+  .dark .bg-slate-50 {
+    background-color: #0f172a;
+  }
+
+  .dark .bg-slate-100 {
+    background-color: #1e293b;
+  }
+
+  .dark .bg-\[\#f4f6f8\] {
+    background-color: #020617;
+  }
+
+  .dark .border-slate-100,
+  .dark .border-slate-200,
+  .dark .border-slate-300,
+  .dark .border-slate-400 {
+    border-color: #334155;
+  }
+
+  .dark .text-slate-900,
+  .dark .text-slate-800,
+  .dark .text-slate-700 {
+    color: #f1f5f9;
+  }
+
+  .dark .text-slate-600,
+  .dark .text-slate-500 {
+    color: #cbd5e1;
+  }
+
+  .dark .text-slate-400 {
+    color: #94a3b8;
+  }
+
+  .dark input,
+  .dark select,
+  .dark textarea {
+    border-color: #334155;
+    background-color: #0f172a;
+    color: #f1f5f9;
+  }
+
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: #64748b;
+  }
+
+  .dark table thead tr {
+    background-color: #1e293b;
+    color: #cbd5e1;
+  }
+
+  .dark tbody tr:hover {
+    background-color: #1e293b;
+  }
+
+  .dark .shadow-sm,
+  .dark .shadow-xl {
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.35);
+  }
+}
+
+@page {
+  size: A4;
+  margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    box-sizing: border-box;
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 !important;
+    padding: 8mm 10mm !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

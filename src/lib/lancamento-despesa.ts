@@ -1,0 +1,127 @@
+/** Metadados de despesa embutidos na descrição (Contas a Pagar). */
+export const DESPESA_META_SEP = "\n@@CAP@@\n";
+
+export type EntidadeDespesa =
+  | "todos"
+  | "fornecedores"
+  | "colaboradores"
+  | "prestadores"
+  | "entregadores"
+  | "clientes";
+
+export type DespesaMeta = {
+  entidade?: EntidadeDespesa;
+  categoria?: string;
+  conta?: string;
+  parcela?: string;
+  referencia?: string;
+  nome?: string;
+};
+
+export type DespesaDescompactada = {
+  texto: string;
+  meta: DespesaMeta;
+  nome: string;
+  referencia: string;
+  categoria: string;
+  conta: string;
+  parcela: string;
+};
+
+export function empacotarDespesa(descricao: string, meta: DespesaMeta) {
+  const base = descricao.trim();
+  return `${base}${DESPESA_META_SEP}${JSON.stringify(meta)}`;
+}
+
+export function desempacotarDespesa(descricao: string): DespesaDescompactada {
+  const idx = descricao.indexOf(DESPESA_META_SEP);
+  let texto = descricao;
+  let meta: DespesaMeta = {};
+  if (idx >= 0) {
+    texto = descricao.slice(0, idx).trim();
+    try {
+      meta = JSON.parse(descricao.slice(idx + DESPESA_META_SEP.length)) as DespesaMeta;
+    } catch {
+      meta = {};
+    }
+  }
+
+  const orcamento = texto.match(/^Orçamento #(\d+)\s*-\s*(.+)$/i);
+  const nome =
+    meta.nome ||
+    (orcamento?.[2]?.trim() ?? texto.split("\n")[0]?.trim()) ||
+    "—";
+  const referencia =
+    meta.referencia ||
+    (orcamento ? `Pedido ${orcamento[1]}` : "") ||
+    "—";
+
+  return {
+    texto,
+    meta,
+    nome,
+    referencia,
+    categoria: meta.categoria || "—",
+    conta: meta.conta || "—",
+    parcela: meta.parcela || "1",
+  };
+}
+
+export function lerFornecedoresStorage(): Array<{ id: string; nome: string }> {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem("labProteseFornecedores");
+    if (!raw) return [];
+    const lista = JSON.parse(raw) as Array<{
+      id: string;
+      nome?: string;
+      razaoSocial?: string;
+      cnpj?: string;
+    }>;
+    if (!Array.isArray(lista)) return [];
+    return lista.map((f) => ({
+      id: f.id,
+      nome: (f.nome || f.razaoSocial || "Fornecedor").trim(),
+      cnpj: f.cnpj,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export function lerNomesStorage(key: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return [];
+    const lista = JSON.parse(raw) as Array<{ nome?: string; razaoSocial?: string }>;
+    if (!Array.isArray(lista)) return [];
+    return lista
+      .map((item) => (item.nome || item.razaoSocial || "").trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+export function classificarEntidadeDespesa(
+  nome: string,
+  temCliente: boolean,
+  listas: {
+    fornecedores: string[];
+    colaboradores: string[];
+    prestadores: string[];
+    entregadores: string[];
+  }
+): EntidadeDespesa {
+  if (temCliente) return "clientes";
+  const n = nome.toLowerCase();
+  if (/orçamento/i.test(nome)) return "fornecedores";
+  const match = (lista: string[]) =>
+    lista.some((item) => item && n.includes(item.toLowerCase()));
+  if (match(listas.fornecedores)) return "fornecedores";
+  if (match(listas.colaboradores)) return "colaboradores";
+  if (match(listas.prestadores)) return "prestadores";
+  if (match(listas.entregadores)) return "entregadores";
+  return "fornecedores";
+}

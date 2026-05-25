@@ -1,0 +1,1091 @@
+"use client";
+
+import Link from "next/link";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { AppMobileNav, BotaoMenuMobile } from "@/components/AppMobileNav";
+import { ConfiguracoesGearMenu } from "@/components/ConfiguracoesGearMenu";
+import { LanguageMenu } from "@/components/header/LanguageMenu";
+import { NotificationsBell } from "@/components/header/NotificationsBell";
+import { LeitorCodigoBarrasModal } from "@/components/LeitorCodigoBarrasModal";
+import { SiteSearchBar, SiteSearchButton } from "@/components/header/SiteSearchBar";
+import { I18nProvider, useI18n } from "@/components/i18n-provider";
+import { LAB_CONFIG_ATUALIZADA_EVENT } from "@/lib/configuracoes-lab";
+import { sincronizarConfigLaboratorioDoServidor } from "@/lib/lab-config-sync";
+import { rotuloPapelUsuario } from "@/lib/auth-client";
+import { dimensoesLogoPx } from "@/lib/lab-logo";
+import { useLabConfigClient } from "@/lib/use-lab-config-client";
+import {
+  appNavPrincipal,
+  appNavSemDropdown,
+  cadastrosNav,
+  estoqueNav,
+  financeiroNav,
+  producaoNav,
+} from "@/lib/app-nav";
+import type { MessageKey } from "@/lib/i18n";
+import { cn, STATUS_TRABALHO } from "@/lib/utils";
+import {
+  CheckSquare,
+  ClipboardList,
+  Home,
+  LockKeyhole,
+  LogOut,
+  Moon,
+  Package,
+  ScanBarcode,
+  Settings,
+  User,
+  Users,
+  Wallet,
+} from "lucide-react";
+
+type TrabalhoBuscaOs = {
+  id: string;
+  numeroOs: number;
+  tipoProtese: string;
+  valor: number;
+  status: string;
+  dentes?: string | null;
+  cor?: string | null;
+  material?: string | null;
+  observacoes?: string | null;
+  instrucoes?: string | null;
+  dataEntrada?: string | null;
+  dataPrevista?: string | null;
+  cliente?: { nome?: string | null } | null;
+  paciente?: { nome?: string | null } | null;
+};
+
+type ItemBuscaOs = {
+  id: string;
+  descricao: string;
+  prazo?: string | null;
+  qtd: string;
+  dente: string;
+  desconto: string;
+  valor: number;
+  situacao: string;
+  tipo: "trabalho" | "frete" | "produto";
+};
+
+type LancamentoBuscaOs = {
+  status: string;
+  descricao: string;
+  trabalho?: { numeroOs?: number | null } | null;
+};
+
+export function AppShell({
+  userName,
+  userRole,
+  children,
+}: {
+  userName: string;
+  userRole: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <I18nProvider>
+      <AppShellInner userName={userName} userRole={userRole}>
+        {children}
+      </AppShellInner>
+    </I18nProvider>
+  );
+}
+
+function AppShellInner({
+  userName,
+  userRole,
+  children,
+}: {
+  userName: string;
+  userRole: string;
+  children: React.ReactNode;
+}) {
+  const { t } = useI18n();
+  const pathname = usePathname();
+  const router = useRouter();
+  const isPrint = pathname.includes("/imprimir");
+  const isModuloColaborador = pathname === "/app/producao/modulo";
+  const isDashboard = pathname === "/app";
+  const [darkMode, setDarkMode] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [buscaSiteAberta, setBuscaSiteAberta] = useState(false);
+  const [buscaOsAberta, setBuscaOsAberta] = useState(false);
+  const [buscaOs, setBuscaOs] = useState("");
+  const [buscaPacienteAberta, setBuscaPacienteAberta] = useState(false);
+  const [buscaPaciente, setBuscaPaciente] = useState("");
+  const [resultadosOs, setResultadosOs] = useState<TrabalhoBuscaOs[]>([]);
+  const [osSelecionada, setOsSelecionada] = useState<TrabalhoBuscaOs | null>(null);
+  const [itemOsSelecionado, setItemOsSelecionado] = useState<string | null>(null);
+  const [lancamentosFinanceirosOs, setLancamentosFinanceirosOs] = useState<LancamentoBuscaOs[]>([]);
+  const [buscandoOs, setBuscandoOs] = useState(false);
+  const [buscaOsExecutada, setBuscaOsExecutada] = useState(false);
+  const [leitorCodigoAberto, setLeitorCodigoAberto] = useState(false);
+  const [menuMobileAberto, setMenuMobileAberto] = useState(false);
+  const { montado, lab, nomeLaboratorio } = useLabConfigClient();
+  const fecharMenuMobile = useCallback(() => setMenuMobileAberto(false), []);
+  const alternarMenuMobile = useCallback(
+    () => setMenuMobileAberto((atual) => !atual),
+    []
+  );
+  const logoPerfil = dimensoesLogoPx(lab, { largura: 36, altura: 36 });
+  const temLogoPerfil = montado && Boolean(lab.logoDataUrl?.startsWith("data:image"));
+  const papelUsuario = rotuloPapelUsuario(userRole);
+
+  useEffect(() => {
+    void sincronizarConfigLaboratorioDoServidor().then(() => {
+      window.dispatchEvent(new Event(LAB_CONFIG_ATUALIZADA_EVENT));
+    });
+  }, []);
+
+  useEffect(() => {
+    const savedTheme = window.localStorage.getItem("theme");
+    const shouldUseDark = savedTheme === "dark";
+    setDarkMode(shouldUseDark);
+    document.documentElement.classList.toggle("dark", shouldUseDark);
+  }, []);
+
+  useEffect(() => {
+    setUserMenuOpen(false);
+    setMenuMobileAberto(false);
+    if (pathname !== "/app") {
+      setBuscaOsAberta(false);
+      setBuscaPacienteAberta(false);
+    }
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!buscaOsAberta) return;
+
+    async function carregarFinanceiro() {
+      try {
+        const response = await fetch("/api/financeiro?tipo=receita", { cache: "no-store" });
+        const data = await response.json();
+        setLancamentosFinanceirosOs(Array.isArray(data?.lancamentos) ? data.lancamentos : []);
+      } catch {
+        setLancamentosFinanceirosOs([]);
+      }
+    }
+
+    void carregarFinanceiro();
+  }, [buscaOsAberta]);
+
+  useEffect(() => {
+    if (!buscaPacienteAberta) return;
+    const termo = buscaPaciente.trim();
+    if (termo.length < 2) {
+      setResultadosOs([]);
+      return;
+    }
+
+    const timeout = window.setTimeout(async () => {
+      setBuscandoOs(true);
+      try {
+        const response = await fetch(`/api/trabalhos?q=${encodeURIComponent(termo)}`, { cache: "no-store" });
+        const data = await response.json();
+        setResultadosOs(Array.isArray(data) ? data : []);
+      } finally {
+        setBuscandoOs(false);
+      }
+    }, 250);
+
+    return () => window.clearTimeout(timeout);
+  }, [buscaPaciente, buscaPacienteAberta]);
+
+  function toggleTheme() {
+    setDarkMode((current) => {
+      const next = !current;
+      document.documentElement.classList.toggle("dark", next);
+      window.localStorage.setItem("theme", next ? "dark" : "light");
+      return next;
+    });
+  }
+
+  async function logout() {
+    setUserMenuOpen(false);
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+    } finally {
+      window.location.href = "/login";
+    }
+  }
+
+  async function buscarOrdemServico(termoInformado?: string) {
+    const bruto = (termoInformado ?? buscaOs).trim();
+    if (!bruto) return;
+    const numeroLido = bruto.replace(/\D/g, "");
+    const query = numeroLido || bruto;
+    setBuscaOs(query);
+
+    setBuscandoOs(true);
+    setBuscaOsExecutada(true);
+    try {
+      const response = await fetch(`/api/trabalhos?q=${encodeURIComponent(query)}`, { cache: "no-store" });
+      const data = await response.json();
+      const resultados = Array.isArray(data) ? data : [];
+      setResultadosOs(resultados);
+      setOsSelecionada(resultados.length === 1 ? resultados[0] : null);
+      setItemOsSelecionado(null);
+    } finally {
+      setBuscandoOs(false);
+    }
+  }
+
+  async function buscarPorPaciente() {
+    const termo = buscaPaciente.trim();
+    if (!termo) return;
+
+    setBuscandoOs(true);
+    setBuscaOsExecutada(true);
+    try {
+      const response = await fetch(`/api/trabalhos?q=${encodeURIComponent(termo)}`, { cache: "no-store" });
+      const data = await response.json();
+      const resultados = Array.isArray(data) ? data : [];
+      setResultadosOs(resultados);
+      setOsSelecionada(resultados.length > 0 ? resultados[0] : null);
+      setItemOsSelecionado(null);
+      setBuscaOs(termo);
+      setBuscaPacienteAberta(false);
+    } finally {
+      setBuscandoOs(false);
+    }
+  }
+
+  function abrirBuscaOs() {
+    if (!isDashboard) return;
+
+    setBuscaOsAberta(true);
+    setBuscaOs("");
+    setResultadosOs([]);
+    setOsSelecionada(null);
+    setItemOsSelecionado(null);
+    setBuscaOsExecutada(false);
+  }
+
+  function abrirOs(trabalho: TrabalhoBuscaOs) {
+    setOsSelecionada(trabalho);
+    setItemOsSelecionado(null);
+  }
+
+  function abrirOsDoPaciente(trabalho: TrabalhoBuscaOs) {
+    setBuscaPacienteAberta(false);
+    setBuscaOs(String(trabalho.numeroOs));
+    setBuscaOsExecutada(true);
+    setResultadosOs([trabalho]);
+    setOsSelecionada(trabalho);
+    setItemOsSelecionado(null);
+  }
+
+  function atualizarSituacaoOs(status: string) {
+    setOsSelecionada((atual) => (atual ? { ...atual, status } : atual));
+    setResultadosOs((atuais) =>
+      atuais.map((trabalho) =>
+        trabalho.id === osSelecionada?.id ? { ...trabalho, status } : trabalho
+      )
+    );
+  }
+
+  function formatDate(value?: string | null) {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+    return date.toLocaleDateString("pt-BR");
+  }
+
+  function money(value: number) {
+    return value.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
+  }
+
+  function statusOs(status: string) {
+    return STATUS_TRABALHO[status] || { label: status, color: "bg-slate-100 text-slate-700" };
+  }
+
+  function materiaisOs(trabalho: TrabalhoBuscaOs) {
+    return (trabalho.material || trabalho.instrucoes || "")
+      .split(/\n|,/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 6);
+  }
+
+  function tipoItemOs(descricao: string): ItemBuscaOs["tipo"] {
+    const lower = descricao.toLowerCase();
+    if (lower.startsWith("produto:") || lower.includes("produto")) return "produto";
+    if (lower.includes("frete") || lower.includes("entrega") || lower.includes("retirada")) return "frete";
+    return "trabalho";
+  }
+
+  function itensDaOs(trabalho: TrabalhoBuscaOs): ItemBuscaOs[] {
+    const linhas = (trabalho.instrucoes || "")
+      .split("\n")
+      .filter((line) => line.trim().startsWith("Item adicionado:"));
+
+    const itens = linhas.map((line, index) => {
+      const match = line.match(
+        /^Item adicionado:\s*(.*?)\s*-\s*dentes\s*(.*?)\s*-\s*cor\s*(.*?)\s*-\s*qtd\s*(.*?)\s*-\s*valor\s*(.*?)(?:\s*-\s*categoria|\s*-\s*desc|\s*-\s*situação|\s*-\s*produtoId|\s*-\s*urgente|\s*-\s*repetição|\s*-\s*repeticao|\s*-\s*obs|$)/i
+      );
+      const descricao = match?.[1]?.trim() || trabalho.tipoProtese;
+      const desconto = line.match(/ - desc (.*?)(?: - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i)?.[1]?.trim() || "0,00";
+      const situacao = line.match(/ - situação (.*?)(?: - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i)?.[1]?.trim() || trabalho.status;
+      const valor = Number((match?.[5] || "").replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".")) || 0;
+
+      return {
+        id: `${trabalho.id}-${index}`,
+        descricao: descricao.replace(/^Produto:\s*/i, ""),
+        prazo: trabalho.dataPrevista,
+        qtd: match?.[4]?.trim() || "1",
+        dente: match?.[2]?.trim() || trabalho.dentes || "-",
+        desconto,
+        valor,
+        situacao,
+        tipo: tipoItemOs(descricao),
+      };
+    });
+
+    return itens.length
+      ? itens
+      : [
+          {
+            id: `${trabalho.id}-principal`,
+            descricao: trabalho.tipoProtese,
+            prazo: trabalho.dataPrevista,
+            qtd: "1",
+            dente: trabalho.dentes || "-",
+            desconto: "0,00",
+            valor: trabalho.valor || 0,
+            situacao: trabalho.status,
+            tipo: tipoItemOs(trabalho.tipoProtese),
+          },
+        ];
+  }
+
+  function itemAtivoDaOs(trabalho: TrabalhoBuscaOs) {
+    const itens = itensDaOs(trabalho);
+    return itens.find((item) => item.id === itemOsSelecionado) || itens[0];
+  }
+
+  function osEstaFaturada(trabalho: TrabalhoBuscaOs) {
+    return lancamentosFinanceirosOs.some((lancamento) => {
+      if (lancamento.status === "cancelado") return false;
+      if (!lancamento.descricao.toLowerCase().startsWith("cobrança os")) return false;
+      if (lancamento.trabalho?.numeroOs === trabalho.numeroOs) return true;
+      return new RegExp(`\\b${trabalho.numeroOs}\\b`).test(lancamento.descricao);
+    });
+  }
+
+  function faturadoBadge(trabalho: TrabalhoBuscaOs) {
+    const faturada = osEstaFaturada(trabalho);
+    return (
+      <span
+        className={cn(
+          "inline-flex min-w-12 justify-center rounded px-2 py-1 text-[9px] font-bold",
+          faturada
+            ? "bg-emerald-100/70 text-emerald-700"
+            : "bg-red-100/70 text-red-700"
+        )}
+      >
+        {faturada ? "Sim" : "Não"}
+      </span>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "min-h-screen transition-colors",
+        isModuloColaborador ? "bg-white" : "bg-[#f4f6f8] dark:bg-slate-950"
+      )}
+    >
+      {!isPrint && !isModuloColaborador && (
+        <>
+        <AppMobileNav
+          aberto={menuMobileAberto}
+          onFechar={fecharMenuMobile}
+          nomeLaboratorio={nomeLaboratorio}
+          logoDataUrl={montado ? lab.logoDataUrl : undefined}
+          logoLargura={logoPerfil.largura}
+          logoAltura={logoPerfil.altura}
+        />
+        <header className="no-print sticky top-0 z-30 border-b border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <SiteSearchBar
+            aberto={buscaSiteAberta}
+            onFechar={() => setBuscaSiteAberta(false)}
+          />
+          <div className="flex h-14 items-center justify-between gap-2 px-3 sm:px-4">
+            <div className="flex min-w-0 flex-1 items-center gap-2 lg:flex-none">
+              <BotaoMenuMobile aberto={menuMobileAberto} onAlternar={alternarMenuMobile} />
+              <div className="hidden items-center gap-4 lg:flex">
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-blue-600 transition hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-slate-800"
+                title={darkMode ? t("theme.claro") : t("theme.escuro")}
+                aria-label={darkMode ? t("theme.ativarClaro") : t("theme.ativarEscuro")}
+              >
+                <Moon className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={abrirBuscaOs}
+                disabled={!isDashboard}
+                className={cn(
+                  "inline-flex h-8 w-8 items-center justify-center rounded-full transition dark:hover:bg-slate-800",
+                  isDashboard
+                    ? "text-emerald-500 hover:bg-emerald-50"
+                    : "cursor-not-allowed text-slate-300 hover:bg-transparent"
+                )}
+                title={isDashboard ? t("barcode.titulo") : t("barcode.somenteInicio")}
+                aria-label={isDashboard ? t("barcode.ariaInicio") : t("barcode.ariaForaInicio")}
+              >
+                <ScanBarcode className="h-5 w-5" />
+              </button>
+              </div>
+            </div>
+
+            <nav className="hidden items-center gap-1 lg:flex">
+            {appNavPrincipal.filter((item) => item.labelKey === "nav.inicio").map((item) => {
+              const active = pathname === item.href;
+              return (
+                <Link
+                  key={`${item.href}-${item.labelKey}`}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition",
+                    active
+                      ? "bg-primary-50 text-primary-700"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  )}
+                >
+                  <item.icon className="h-3.5 w-3.5" />
+                  {t(item.labelKey)}
+                </Link>
+              );
+            })}
+            <div className="group relative">
+              <Link
+                href="/app/producao"
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition",
+                  pathname.startsWith("/app/producao") || pathname.startsWith("/app/trabalhos")
+                    ? "bg-primary-600 text-white"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                )}
+              >
+                <ClipboardList className="h-3.5 w-3.5" />
+                {t("nav.producao")} ▾
+              </Link>
+              <div className="invisible absolute left-0 top-full z-40 w-56 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
+                {producaoNav.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-primary-700"
+                  >
+                    <item.icon className="h-3.5 w-3.5" />
+                    {t(item.labelKey)}
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <div className="group relative">
+              <Link
+                href="/app/financeiro"
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition",
+                  pathname.startsWith("/app/financeiro")
+                    ? "bg-primary-600 text-white shadow-md shadow-primary-600/25"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                )}
+              >
+                <Wallet className="h-3.5 w-3.5" />
+                {t("nav.financeiro")} ▾
+              </Link>
+              <div className="invisible absolute left-0 top-full z-40 w-56 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+                {financeiroNav.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-primary-700"
+                  >
+                    <item.icon className="h-3.5 w-3.5" />
+                    {t(item.labelKey)}
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <div className="group relative">
+              <Link
+                href="/app/clientes"
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition",
+                  pathname.startsWith("/app/clientes") || pathname.startsWith("/app/cadastros")
+                    ? "bg-primary-600 text-white"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                )}
+              >
+                <Users className="h-4 w-4" />
+                {t("nav.cadastros")} ▾
+              </Link>
+              <div className="invisible absolute left-0 top-full z-40 w-64 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
+                {cadastrosNav.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="flex items-center gap-1.5 rounded-md px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-primary-700"
+                  >
+                    <item.icon className="h-3.5 w-3.5" />
+                    {t(item.labelKey)}
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <div className="group relative">
+              <Link
+                href="/app/produtos"
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition",
+                  pathname.startsWith("/app/produtos") || pathname.startsWith("/app/orcamentos")
+                    ? "bg-primary-600 text-white"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                )}
+              >
+                <Package className="h-4 w-4" />
+                {t("nav.estoque")} ▾
+              </Link>
+              <div className="invisible absolute left-0 top-full z-40 w-48 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
+                {estoqueNav.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-primary-700"
+                  >
+                    <item.icon className="h-3.5 w-3.5" />
+                    {t(item.labelKey)}
+                  </Link>
+                ))}
+              </div>
+            </div>
+            {appNavPrincipal
+              .filter((item) => !appNavSemDropdown.has(item.labelKey))
+              .map((item) => {
+              const active =
+                pathname === item.href ||
+                (item.href !== "/app" && pathname.startsWith(item.href));
+              return (
+                <Link
+                  key={`${item.href}-${item.labelKey}`}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition",
+                    active
+                      ? "bg-primary-50 text-primary-700"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  )}
+                >
+                  <item.icon className="h-3.5 w-3.5" />
+                  {t(item.labelKey)}
+                </Link>
+              );
+            })}
+          </nav>
+
+            <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+              <LanguageMenu />
+              <SiteSearchButton onAbrir={() => setBuscaSiteAberta(true)} />
+              <Suspense
+                fallback={
+                  <span className="inline-flex h-8 w-8 items-center justify-center text-slate-400">
+                    <Settings className="h-5 w-5" />
+                  </span>
+                }
+              >
+                <ConfiguracoesGearMenu />
+              </Suspense>
+              <NotificationsBell />
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUserMenuOpen((current) => !current);
+                  }}
+                  className="flex items-center gap-2 rounded-xl px-2 py-1.5 text-left transition hover:bg-slate-100 dark:hover:bg-slate-800"
+                  aria-expanded={userMenuOpen}
+                  aria-label="Abrir menu do usuário"
+                >
+                  <div className="hidden leading-tight sm:block">
+                    <p
+                      suppressHydrationWarning
+                      className="text-xs font-bold text-slate-700 dark:text-slate-100"
+                    >
+                      {nomeLaboratorio}
+                    </p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">{papelUsuario}</p>
+                  </div>
+                  <div
+                    className={cn(
+                      "relative inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full",
+                      temLogoPerfil ? "bg-white ring-1 ring-slate-200" : "bg-blue-100 text-primary-700"
+                    )}
+                  >
+                    {temLogoPerfil ? (
+                      <img
+                        src={lab.logoDataUrl}
+                        alt="Logo do laboratório"
+                        className="object-contain"
+                        width={logoPerfil.largura}
+                        height={logoPerfil.altura}
+                      />
+                    ) : (
+                      <User className="h-5 w-5" />
+                    )}
+                    <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 dark:border-slate-900" />
+                  </div>
+                </button>
+
+                {userMenuOpen && (
+                  <div className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-lg border border-slate-200 bg-white py-2 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+                    <div className="border-b border-slate-100 px-4 pb-3 pt-2 dark:border-slate-800">
+                      <p
+                        suppressHydrationWarning
+                        className="text-sm font-bold text-slate-700 dark:text-slate-100"
+                      >
+                        {nomeLaboratorio}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{papelUsuario}</p>
+                    </div>
+                    <div className="py-1">
+                      {[
+                        { labelKey: "user.perfil" as MessageKey, icon: User },
+                        { labelKey: "user.alterarSenha" as MessageKey, icon: LockKeyhole },
+                      ].map((item) => (
+                        <button
+                          key={item.labelKey}
+                          type="button"
+                          className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-600 transition hover:bg-slate-50 hover:text-primary-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                        >
+                          <item.icon className="h-4 w-4 text-slate-500" />
+                          <span>{t(item.labelKey)}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="border-t border-slate-100 pt-1 dark:border-slate-800">
+                      <button
+                        type="button"
+                        onClick={logout}
+                        className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-600 transition hover:bg-red-50 hover:text-red-600 dark:text-slate-300 dark:hover:bg-red-950/30"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        {t("user.logout")}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </header>
+        </>
+      )}
+      {buscaOsAberta && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/45 p-4 pt-20">
+          <div className="relative w-full max-w-6xl rounded bg-white shadow-2xl">
+            <div className="flex h-9 items-center justify-between border-b border-slate-100 px-4">
+              <h2 className="text-[11px] font-medium text-slate-700">Busca Rápida de Ordem de Serviço</h2>
+              <span className="ml-auto mr-4 text-[11px] font-semibold text-emerald-600">
+                OS: {osSelecionada?.numeroOs || ""}
+              </span>
+              <button
+                type="button"
+                onClick={() => setBuscaOsAberta(false)}
+                className="flex h-7 w-7 items-center justify-center rounded text-lg leading-none text-slate-500 hover:bg-slate-100"
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-3 px-4 py-4 text-[11px] text-slate-600">
+              <div className="flex items-end gap-2">
+                <div className="flex-1 space-y-1">
+                  <label className="block text-[10px] text-slate-500">Número da OS</label>
+                  <input
+                    value={buscaOs}
+                    onChange={(event) => setBuscaOs(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        void buscarOrdemServico();
+                      }
+                    }}
+                    autoFocus
+                    placeholder="Busque número pela OS ou passe o leitor de código de barras"
+                    className="h-8 w-full rounded border border-slate-300 px-3 text-[11px] outline-none focus:border-blue-500"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void buscarOrdemServico()}
+                  disabled={buscandoOs}
+                  className="h-8 rounded bg-blue-600 px-4 text-[10px] font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {buscandoOs ? "Buscando..." : "Buscar"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLeitorCodigoAberto(true)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-sm bg-blue-600 text-white shadow-sm transition hover:bg-blue-700"
+                  title="Abrir leitor de código de barras"
+                  aria-label="Abrir leitor de código de barras"
+                >
+                  <ScanBarcode className="h-5 w-5" strokeWidth={2.4} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBuscaPaciente("");
+                    setBuscaPacienteAberta(true);
+                  }}
+                  className="h-8 rounded border border-slate-300 bg-white px-4 text-[10px] font-semibold text-slate-600 hover:bg-slate-50"
+                >
+                  Pesquisar Paciente
+                </button>
+              </div>
+
+              {buscaOsExecutada && resultadosOs.length === 0 && (
+                <div className="rounded bg-orange-50 px-3 py-2 text-[10px] text-orange-600">
+                  Nenhuma ordem de serviço encontrada.
+                </div>
+              )}
+
+              <div className="overflow-x-auto rounded border border-slate-200">
+                <table className="w-full min-w-[900px] text-[10px]">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-[#f4f3fb] uppercase text-slate-500">
+                      <th className="px-3 py-2 text-left">OS</th>
+                      <th className="px-3 py-2 text-left">Descrição</th>
+                      <th className="px-3 py-2 text-left">Prazo</th>
+                      <th className="px-3 py-2 text-center">Qtd</th>
+                      <th className="px-3 py-2 text-right">Desc</th>
+                      <th className="px-3 py-2 text-right">Valor</th>
+                      <th className="px-3 py-2 text-center">Situação</th>
+                      <th className="px-3 py-2 text-center">Faturado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {osSelecionada
+                      ? itensDaOs(osSelecionada).map((item) => {
+                        const ativo = (itemOsSelecionado || itensDaOs(osSelecionada)[0]?.id) === item.id;
+                        return (
+                        <tr
+                          key={item.id}
+                          onClick={() => setItemOsSelecionado(item.id)}
+                          className={cn(
+                            "cursor-pointer border-b border-slate-100 hover:bg-orange-50",
+                            ativo && "bg-orange-100/70"
+                          )}
+                        >
+                          <td className="px-3 py-2 text-center text-slate-500">{ativo ? "✓" : ""}</td>
+                          <td className="px-3 py-2">{item.descricao}</td>
+                          <td className="px-3 py-2">{formatDate(item.prazo)}</td>
+                          <td className="px-3 py-2 text-center">{item.qtd}</td>
+                          <td className="px-3 py-2 text-right">{item.desconto}</td>
+                          <td className="px-3 py-2 text-right">{money(item.valor || 0)}</td>
+                          <td className="px-3 py-2 text-center">
+                            <span className={cn("rounded px-2 py-1 text-[9px] font-semibold", statusOs(item.situacao).color)}>
+                              {statusOs(item.situacao).label}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            {faturadoBadge(osSelecionada)}
+                          </td>
+                        </tr>
+                      );
+                    })
+                      : resultadosOs.map((trabalho) => (
+                      <tr
+                        key={trabalho.id}
+                        onClick={() => abrirOs(trabalho)}
+                        className="cursor-pointer border-b border-slate-100 hover:bg-blue-50"
+                      >
+                        <td className="px-3 py-2 font-semibold text-blue-700">{trabalho.numeroOs}</td>
+                        <td className="px-3 py-2">{trabalho.tipoProtese}</td>
+                        <td className="px-3 py-2">{formatDate(trabalho.dataPrevista)}</td>
+                        <td className="px-3 py-2 text-center">1</td>
+                        <td className="px-3 py-2 text-right">0,00</td>
+                        <td className="px-3 py-2 text-right">{money(trabalho.valor || 0)}</td>
+                        <td className="px-3 py-2 text-center">
+                          <span className={cn("rounded px-2 py-1 text-[9px] font-semibold", statusOs(trabalho.status).color)}>
+                            {statusOs(trabalho.status).label}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          {faturadoBadge(trabalho)}
+                        </td>
+                      </tr>
+                    ))}
+                    {resultadosOs.length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="px-3 py-5 text-center text-slate-400">
+                          Busque pelo número da OS ou passe o leitor de código de barras.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {osSelecionada && (() => {
+                const itemAtivo = itemAtivoDaOs(osSelecionada);
+                const detalheCompleto = itemAtivo?.tipo === "trabalho";
+                return (
+                <div className="overflow-hidden rounded border border-slate-200 bg-white">
+                  <div className="bg-blue-50 px-3 py-2 text-[10px] font-semibold uppercase text-blue-700">
+                    Materiais
+                  </div>
+                  <div className="min-h-16 bg-blue-50/70 px-4 py-2 text-[10px] text-blue-800">
+                    {materiaisOs(osSelecionada).length > 0 ? (
+                      <ul className="list-disc pl-4">
+                        {materiaisOs(osSelecionada).map((material) => (
+                          <li key={material}>{material}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <span>Nenhum material informado.</span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-6 border-b border-slate-100 text-center text-[10px] font-semibold text-slate-500">
+                    {["DADOS", "ETAPAS", "ANOTAÇÕES", "COMISSÕES", "TERCEIRIZADO", "IMAGENS"].map((aba, index) => (
+                      <button
+                        key={aba}
+                        type="button"
+                        className={cn(
+                          "h-9 border-r border-slate-100 text-[10px] font-medium tracking-wide last:border-r-0",
+                          index === 0 ? "bg-blue-600 text-white" : "bg-white text-slate-500 hover:bg-slate-50"
+                        )}
+                      >
+                        {aba}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="space-y-4 px-3 py-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] font-semibold text-emerald-600">{itemAtivo?.descricao || osSelecionada.tipoProtese}</p>
+                      <div className="flex gap-4 text-[10px] text-slate-500">
+                      <label className="inline-flex items-center gap-1">
+                        <input type="checkbox" className="h-3 w-3" /> Urgente
+                      </label>
+                      <label className="inline-flex items-center gap-1">
+                        <input type="checkbox" className="h-3 w-3" /> Repetição
+                      </label>
+                      </div>
+                    </div>
+                    <div className={cn("grid gap-3", detalheCompleto ? "md:grid-cols-4" : "md:grid-cols-2")}>
+                      <div className="space-y-1">
+                        <label className="block text-[10px] text-slate-500">Data Lançamento</label>
+                        <input readOnly value={formatDate(osSelecionada.dataEntrada)} className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-[10px]" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[10px] text-slate-500">Data Entrega p/Finalizado</label>
+                        <input readOnly value={formatDate(osSelecionada.dataPrevista)} className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-[10px]" />
+                      </div>
+                      {detalheCompleto && (
+                        <>
+                      <div className="space-y-1">
+                        <label className="block text-[10px] text-slate-500">Situação</label>
+                        <select
+                          value={osSelecionada.status}
+                          onChange={(event) => atualizarSituacaoOs(event.target.value)}
+                          className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-[10px] text-slate-700 outline-none focus:border-blue-500"
+                        >
+                          {Object.entries(STATUS_TRABALHO).map(([key, value]) => (
+                            <option key={key} value={key}>
+                              {value.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[10px] text-slate-500">Paciente</label>
+                        <input readOnly value={osSelecionada.paciente?.nome || "-"} className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-[10px]" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[10px] text-slate-500">Caixa Organizadora</label>
+                        <input readOnly value="-" className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-[10px]" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[10px] text-slate-500">Prazo Laboratório</label>
+                        <input readOnly value={formatDate(osSelecionada.dataPrevista)} className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-[10px]" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[10px] text-slate-500">Hora Laboratório</label>
+                        <input readOnly value="14:00" className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-[10px]" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[10px] text-slate-500">Prazo Dentista</label>
+                        <input readOnly value={formatDate(osSelecionada.dataPrevista)} className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-[10px]" />
+                      </div>
+                      <div className="space-y-1 md:col-start-4">
+                        <label className="block text-[10px] text-slate-500">Hora Dentista</label>
+                        <input readOnly value="-" className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-[10px]" />
+                      </div>
+                        </>
+                      )}
+                    </div>
+
+                    {detalheCompleto && (
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="space-y-1">
+                        <label className="block text-[10px] text-slate-500">Observação Interna</label>
+                        <textarea readOnly value={osSelecionada.observacoes || ""} className="min-h-20 w-full rounded border border-slate-300 bg-white px-2 py-2 text-[10px]" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[10px] text-slate-500">Observação Serviço</label>
+                        <textarea readOnly value={osSelecionada.instrucoes || ""} className="min-h-20 w-full rounded border border-slate-300 bg-white px-2 py-2 text-[10px]" />
+                      </div>
+                    </div>
+                    )}
+
+                    <div className="grid gap-3 md:grid-cols-[0.18fr_0.22fr_1fr_1fr]">
+                      <button
+                        type="button"
+                        onClick={() => window.open(`/app/trabalhos/${osSelecionada.id}/imprimir`, "_blank")}
+                        className="h-8 rounded border border-emerald-200 bg-white px-3 text-[10px] font-semibold text-emerald-600 hover:bg-emerald-50"
+                      >
+                        Imprimir
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBuscaOsAberta(false);
+                          router.push(`/app/producao/controle?q=${osSelecionada.numeroOs}`);
+                        }}
+                        className="h-8 rounded border border-emerald-200 bg-white px-3 text-[10px] font-semibold text-emerald-600 hover:bg-emerald-50"
+                      >
+                        Controle de Entregas
+                      </button>
+                      {itemAtivo?.tipo === "produto" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBuscaOsAberta(false);
+                            router.push(`/app/producao/os?edit=${osSelecionada.id}`);
+                          }}
+                          className="h-8 rounded border border-emerald-200 bg-white px-3 text-[10px] font-semibold text-emerald-600 hover:bg-emerald-50"
+                        >
+                          Baixar Produto no Estoque
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBuscaOsAberta(false);
+                          router.push(`/app/producao/os?edit=${osSelecionada.id}`);
+                        }}
+                        className="h-8 rounded bg-blue-600 px-4 text-[10px] font-semibold text-white hover:bg-blue-700"
+                      >
+                        Gravar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBuscaOsAberta(false)}
+                        className="h-8 rounded border border-slate-300 bg-white px-4 text-[10px] text-slate-600 hover:bg-slate-50"
+                      >
+                        Fechar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+      {buscaPacienteAberta && (
+        <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/20 p-4 pt-24">
+          <div className="relative w-full max-w-md rounded bg-white shadow-2xl">
+            <div className="flex h-9 items-center justify-between border-b border-slate-100 px-4">
+              <h2 className="text-[11px] font-medium text-slate-700">Buscar por Paciente</h2>
+              <button
+                type="button"
+                onClick={() => setBuscaPacienteAberta(false)}
+                className="flex h-7 w-7 items-center justify-center rounded text-lg leading-none text-slate-500 hover:bg-slate-100"
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+            <div className="space-y-3 px-4 py-4 text-[11px] text-slate-600">
+              <input
+                value={buscaPaciente}
+                onChange={(event) => setBuscaPaciente(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void buscarPorPaciente();
+                  }
+                }}
+                autoFocus
+                placeholder="Digite o nome do paciente"
+                className="h-8 w-full rounded border border-slate-300 px-3 text-[11px] outline-none focus:border-blue-500"
+              />
+              <div className="space-y-1">
+                {buscaPaciente.trim().length < 2 && (
+                  <p className="text-center text-[10px] text-slate-400">
+                    Digite ao menos 2 caracteres para buscar
+                  </p>
+                )}
+                {buscaPaciente.trim().length >= 2 && buscandoOs && (
+                  <p className="text-center text-[10px] text-slate-400">Buscando paciente...</p>
+                )}
+                {buscaPaciente.trim().length >= 2 && !buscandoOs && resultadosOs.length === 0 && (
+                  <p className="text-center text-[10px] text-slate-400">Nenhuma OS encontrada.</p>
+                )}
+                {resultadosOs.map((trabalho) => (
+                  <button
+                    type="button"
+                    key={trabalho.id}
+                    onClick={() => abrirOsDoPaciente(trabalho)}
+                    className="flex w-full items-center justify-between rounded border border-slate-200 bg-white px-3 py-2 text-left text-[11px] hover:bg-blue-50"
+                  >
+                    <span>{trabalho.paciente?.nome || trabalho.cliente?.nome || "-"}</span>
+                    <span className="rounded bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-600">
+                      OS {trabalho.numeroOs}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <LeitorCodigoBarrasModal
+        open={leitorCodigoAberto}
+        onClose={() => setLeitorCodigoAberto(false)}
+        onCodigoLido={(numero) => void buscarOrdemServico(numero)}
+      />
+
+      <main>
+        <div
+          className={cn(
+            "min-h-screen",
+            isPrint || isModuloColaborador ? "p-0" : "px-3 py-4 sm:px-5"
+          )}
+        >
+          {children}
+        </div>
+      </main>
+    </div>
+  );
+}

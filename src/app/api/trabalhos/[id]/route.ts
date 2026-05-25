@@ -1,0 +1,160 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/auth";
+import { grupoOsIdOf } from "@/lib/trabalho-os-segmento";
+import { z } from "zod";
+
+const schema = z.object({
+  segmentoFaturamento: z.enum(["servico", "produto", "transporte"]).nullish(),
+  tipoProtese: z.string().nullish(),
+  dentes: z.string().nullish(),
+  cor: z.string().nullish(),
+  material: z.string().nullish(),
+  escala: z.string().nullish(),
+  dataPrevista: z.string().nullish(),
+  dataEntrega: z.string().nullish(),
+  valor: z.number().nullish(),
+  status: z.string().nullish(),
+  observacoes: z.string().nullish(),
+  instrucoes: z.string().nullish(),
+});
+
+function parseDateOnly(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return new Date(value);
+  return new Date(year, month - 1, day, 12);
+}
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+
+  const { id } = await params;
+  const trabalho = await prisma.trabalho.findFirst({
+    where: { id },
+    include: { cliente: true, paciente: true },
+  });
+
+  if (!trabalho) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
+
+  const grupo = await prisma.trabalho.findMany({
+    where: {
+      grupoOsId: grupoOsIdOf(trabalho),
+    },
+    include: { cliente: true, paciente: true },
+    orderBy: { segmentoFaturamento: "asc" },
+  });
+
+  return NextResponse.json({ ...trabalho, grupo });
+}
+
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+
+  const { id } = await params;
+  try {
+    const body = await request.json();
+    const data = schema.parse(body);
+    const atual = await prisma.trabalho.findFirst({
+      where: { id },
+    });
+    if (!atual) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
+
+    const payload: Record<string, unknown> = {};
+
+    if (data.segmentoFaturamento != null) {
+      payload.segmentoFaturamento = data.segmentoFaturamento;
+    }
+    if (data.tipoProtese != null && data.tipoProtese !== "") {
+      payload.tipoProtese = data.tipoProtese;
+    }
+    if (data.dentes !== undefined) payload.dentes = data.dentes;
+    if (data.cor !== undefined) payload.cor = data.cor;
+    if (data.material !== undefined) payload.material = data.material;
+    if (data.escala !== undefined) payload.escala = data.escala;
+    if (data.valor != null) payload.valor = data.valor;
+    if (data.status != null && data.status !== "") payload.status = data.status;
+    if (data.observacoes !== undefined) payload.observacoes = data.observacoes;
+    if (data.instrucoes !== undefined) payload.instrucoes = data.instrucoes;
+
+    if (data.dataPrevista === null) payload.dataPrevista = null;
+    else if (data.dataPrevista) payload.dataPrevista = parseDateOnly(data.dataPrevista);
+
+    if (data.dataEntrega === null) payload.dataEntrega = null;
+    else if (data.dataEntrega) payload.dataEntrega = parseDateOnly(data.dataEntrega);
+
+    const trabalho = await prisma.trabalho.update({
+      where: { id },
+      data: payload,
+      include: { cliente: true, paciente: true },
+    });
+
+    const camposCompartilhados: Record<string, unknown> = {};
+    if (data.status !== undefined) camposCompartilhados.status = data.status;
+    if (data.observacoes !== undefined) camposCompartilhados.observacoes = data.observacoes;
+    if (payload.dataPrevista !== undefined) camposCompartilhados.dataPrevista = payload.dataPrevista;
+    if (payload.dataEntrega !== undefined) camposCompartilhados.dataEntrega = payload.dataEntrega;
+    if (data.material !== undefined) camposCompartilhados.material = data.material;
+    if (data.cor !== undefined) camposCompartilhados.cor = data.cor;
+    if (data.dentes !== undefined) camposCompartilhados.dentes = data.dentes;
+
+    if (Object.keys(camposCompartilhados).length > 0 && atual.grupoOsId) {
+      await prisma.trabalho.updateMany({
+        where: {
+          grupoOsId: grupoOsIdOf(atual),
+          NOT: { id },
+        },
+        data: camposCompartilhados,
+      });
+    }
+
+    return NextResponse.json(trabalho);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const mensagem = error.issues
+        .map((issue) => {
+          const campo = issue.path.length ? issue.path.join(".") : "dados";
+          return `${campo}: ${issue.message}`;
+        })
+        .join("; ");
+      return NextResponse.json({ error: mensagem || "Dados inválidos" }, { status: 400 });
+    }
+    console.error("PUT /api/trabalhos/[id]", error);
+    return NextResponse.json({ error: "Não foi possível atualizar a OS." }, { status: 400 });
+  }
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+
+  const { id } = await params;
+  try {
+    const atual = await prisma.trabalho.findFirst({
+      where: { id },
+    });
+    if (!atual) return NextResponse.json({ ok: true });
+    if (atual.grupoOsId) {
+      await prisma.trabalho.deleteMany({
+        where: {
+          grupoOsId: grupoOsIdOf(atual),
+        },
+      });
+    } else {
+      await prisma.trabalho.delete({ where: { id } });
+    }
+  } catch {
+    return NextResponse.json({ ok: true });
+  }
+  return NextResponse.json({ ok: true });
+}
