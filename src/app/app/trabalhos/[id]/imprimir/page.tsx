@@ -123,7 +123,22 @@ async function ImprimirOSConteudo({
         : "modelo1";
   const segmentoParam = String(Array.isArray(sp.segmento) ? sp.segmento[0] : sp.segmento || "");
 
-  const includeTrabalho = { cliente: true, paciente: true } as const;
+  /** Só campos usados no PDF — evita falha se o Neon estiver sem colunas novas do schema. */
+  const includeTrabalho = {
+    cliente: {
+      select: {
+        nome: true,
+        cro: true,
+        telefone: true,
+        celular: true,
+        email: true,
+        endereco: true,
+        cidade: true,
+        observacoes: true,
+      },
+    },
+    paciente: { select: { nome: true } },
+  } as const;
 
   const t = await prisma.trabalho.findFirst({
     where: { id },
@@ -288,10 +303,16 @@ export default async function ImprimirOSPage({
     return await ImprimirOSConteudo({ id, sp });
   } catch (err) {
     console.error("imprimir OS", { id, err });
+    const prismaCode =
+      err && typeof err === "object" && "code" in err
+        ? String((err as { code: string }).code)
+        : "";
     const detalhe =
       process.env.NODE_ENV === "development" && err instanceof Error
         ? err.message
-        : "Não foi possível gerar a requisição. Verifique a conexão com o banco (Neon) e faça um novo deploy na Vercel.";
+        : prismaCode === "P2022"
+          ? "O banco Neon está desatualizado em relação ao sistema. No computador, na pasta do projeto, execute: npx prisma db push (com DATABASE_URL do Neon no .env)."
+          : "Não foi possível gerar a requisição. Verifique a conexão com o banco (Neon) e faça um novo deploy na Vercel.";
     return (
       <ErroImpressao
         titulo="Erro ao abrir a impressão."
