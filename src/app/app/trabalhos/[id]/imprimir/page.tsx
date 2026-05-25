@@ -123,9 +123,11 @@ async function ImprimirOSConteudo({
         : "modelo1";
   const segmentoParam = String(Array.isArray(sp.segmento) ? sp.segmento[0] : sp.segmento || "");
 
+  const includeTrabalho = { cliente: true, paciente: true } as const;
+
   const t = await prisma.trabalho.findFirst({
     where: { id },
-    include: { cliente: true, paciente: true },
+    include: includeTrabalho,
   });
 
   if (!t) {
@@ -137,11 +139,14 @@ async function ImprimirOSConteudo({
     );
   }
 
-  let grupo: Array<typeof t> = [];
+  type TrabalhoComRelacoes = typeof t;
+
+  let grupo: TrabalhoComRelacoes[] = [t];
   try {
     grupo = await prisma.trabalho.findMany({
       where: whereGrupoOs(t),
       orderBy: { segmentoFaturamento: "asc" },
+      include: includeTrabalho,
     });
   } catch (err) {
     console.error("imprimir: grupo OS", { id, grupoOsId: grupoOsIdOf(t), err });
