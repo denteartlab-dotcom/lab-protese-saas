@@ -66,41 +66,29 @@ async function cobrancasPorLancamentoIds(
   const map = new Map<string, CobrancaAsaasResumo>();
   if (ids.length === 0) return map;
 
-  const delegate = (
-    prisma as {
-      cobrancaAsaas?: {
-        findMany: (args: {
-          where: { lancamentoId: { in: string[] } };
-        }) => Promise<CobrancaAsaasResumo[]>;
-      };
+  try {
+    const rows = await prisma.cobrancaAsaas.findMany({
+      where: { lancamentoId: { in: ids } },
+    });
+    for (const row of rows) {
+      map.set(row.lancamentoId, row);
     }
-  ).cobrancaAsaas;
-
-  if (delegate) {
-    try {
-      const rows = await delegate.findMany({
-        where: { lancamentoId: { in: ids } },
-      });
-      for (const row of rows) {
-        map.set(row.lancamentoId, row);
-      }
-      return map;
-    } catch {
-      /* tabela ainda não existe ou client inconsistente */
-    }
+    return map;
+  } catch {
+    /* fallback se tabela ainda não existir no banco */
   }
 
   try {
     const rows = await prisma.$queryRaw<CobrancaAsaasResumo[]>`
       SELECT id, lancamentoId, asaasPaymentId, bankSlipUrl, invoiceUrl, linhaDigitavel, statusAsaas
-      FROM CobrancaAsaas
-      WHERE lancamentoId IN (${Prisma.join(ids)})
+      FROM "CobrancaAsaas"
+      WHERE "lancamentoId" IN (${Prisma.join(ids)})
     `;
     for (const row of rows) {
       map.set(row.lancamentoId, row);
     }
   } catch {
-    /* sem integração Asaas no banco */
+    /* sem integração Asaas */
   }
 
   return map;
