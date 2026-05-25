@@ -25,15 +25,17 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q") || "";
+  const excluidos = searchParams.get("excluidos") === "1";
 
   const clientes = await prisma.cliente.findMany({
     where: {
+      ativo: excluidos ? false : true,
       ...(q
         ? {
             OR: [
-              { nome: { contains: q } },
-              { email: { contains: q } },
-              { cro: { contains: q } },
+              { nome: { contains: q, mode: "insensitive" } },
+              { email: { contains: q, mode: "insensitive" } },
+              { cro: { contains: q, mode: "insensitive" } },
             ],
           }
         : {}),

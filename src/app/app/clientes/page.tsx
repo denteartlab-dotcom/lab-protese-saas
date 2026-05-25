@@ -88,6 +88,8 @@ const empty = {
 export default function ClientesPage() {
   const [list, setList] = useState<Cliente[]>([]);
   const [clienteParaExcluir, setClienteParaExcluir] = useState<Cliente | null>(null);
+  const [mostrarExcluidos, setMostrarExcluidos] = useState(false);
+  const [excluindoCliente, setExcluindoCliente] = useState(false);
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Cliente | null>(null);
@@ -103,8 +105,15 @@ export default function ClientesPage() {
   };
 
   async function load() {
-    const res = await fetch(`/api/clientes?q=${encodeURIComponent(q)}`);
-    setList(await res.json());
+    const params = new URLSearchParams({ q });
+    if (mostrarExcluidos) params.set("excluidos", "1");
+    const res = await fetch(`/api/clientes?${params}`);
+    if (!res.ok) {
+      setList([]);
+      return;
+    }
+    const data = await res.json();
+    setList(Array.isArray(data) ? data : []);
   }
 
   function formatCepInput(value: string) {
@@ -165,8 +174,8 @@ export default function ClientesPage() {
   }
 
   useEffect(() => {
-    load();
-  }, [q]);
+    void load();
+  }, [q, mostrarExcluidos]);
 
   useEffect(() => {
     void recarregarTabelasPreco();
@@ -304,9 +313,37 @@ export default function ClientesPage() {
 
   async function confirmarExclusaoCliente() {
     if (!clienteParaExcluir) return;
-    await fetch(`/api/clientes/${clienteParaExcluir.id}`, { method: "DELETE" });
-    setClienteParaExcluir(null);
-    load();
+    setExcluindoCliente(true);
+    try {
+      const url = mostrarExcluidos
+        ? `/api/clientes/${clienteParaExcluir.id}?permanente=1`
+        : `/api/clientes/${clienteParaExcluir.id}`;
+      const res = await fetch(url, { method: "DELETE" });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        alert(data.error || "Não foi possível excluir o cliente.");
+        return;
+      }
+      setClienteParaExcluir(null);
+      await load();
+    } finally {
+      setExcluindoCliente(false);
+    }
+  }
+
+  async function restaurarCliente(cliente: Cliente) {
+    const res = await fetch(`/api/clientes/${cliente.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ativo: true }),
+    });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      alert(data.error || "Não foi possível restaurar o cliente.");
+      return;
+    }
+    setMostrarExcluidos(false);
+    await load();
   }
 
   async function enviarAcompanhamentoWhatsApp(cliente: Cliente) {
@@ -361,6 +398,14 @@ export default function ClientesPage() {
             >
               <Plus className="h-3.5 w-3.5" />
               Adicionar Cliente
+            </button>
+            <button
+              type="button"
+              onClick={() => setMostrarExcluidos((atual) => !atual)}
+              className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              <Trash2 className="h-3.5 w-3.5 text-red-400" />
+              {mostrarExcluidos ? "Ver Ativos" : "Lixeira"}
             </button>
             <button
               type="button"
@@ -479,10 +524,20 @@ export default function ClientesPage() {
                           <button type="button" onClick={() => openEdit(c)} title="Editar" className="hover:text-primary-700">
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
+                          {mostrarExcluidos ? (
+                            <button
+                              type="button"
+                              onClick={() => void restaurarCliente(c)}
+                              title="Restaurar cliente"
+                              className="rounded px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600 hover:bg-emerald-50"
+                            >
+                              Restaurar
+                            </button>
+                          ) : null}
                           <button
                             type="button"
                             onClick={() => setClienteParaExcluir(c)}
-                            title="Excluir"
+                            title={mostrarExcluidos ? "Excluir definitivamente" : "Enviar para a lixeira"}
                             className="hover:text-red-600"
                           >
                             <Trash2 className="h-3.5 w-3.5 text-red-400" />
@@ -807,10 +862,19 @@ export default function ClientesPage() {
 
       <ConfirmacaoExclusaoModal
         open={!!clienteParaExcluir}
-        titulo="Excluir Cliente"
-        mensagem="Deseja realmente excluir esse cliente?"
-        aviso="Atenção!! Pacientes e vínculos podem ser afetados."
+        titulo={mostrarExcluidos ? "Excluir definitivamente" : "Enviar para a lixeira"}
+        mensagem={
+          mostrarExcluidos
+            ? "Deseja remover este cliente do sistema? Só é possível se não houver OS, pacientes ou lançamentos vinculados."
+            : "Deseja enviar este cliente para a lixeira? Ele sairá da lista de ativos, mas OS e histórico permanecem."
+        }
+        aviso={
+          mostrarExcluidos
+            ? "Se ainda existir vínculo, o cadastro continuará apenas inativo."
+            : "Clientes com OS ou pacientes ficam inativos (não apagam o histórico)."
+        }
         detalhe={clienteParaExcluir?.nome}
+        processando={excluindoCliente}
         onClose={() => setClienteParaExcluir(null)}
         onConfirm={confirmarExclusaoCliente}
       />
