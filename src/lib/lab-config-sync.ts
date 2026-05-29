@@ -1,6 +1,7 @@
 import {
   CONFIG_LAB_PADRAO,
   CONFIG_LAB_STORAGE_KEY,
+  LAB_CONFIG_ATUALIZADA_EVENT,
   carregarConfigLaboratorio,
   normalizarTipoPessoa,
   prepararConfigParaSalvar,
@@ -106,7 +107,14 @@ export async function sincronizarConfigLaboratorioDoServidor(): Promise<void> {
     if (!remoto || typeof remoto !== "object") return;
     const mesclado = mesclarConfigLaboratorio(carregarConfigLaboratorio(), remoto);
     salvarConfigLaboratorio(mesclado);
+    window.dispatchEvent(new Event(LAB_CONFIG_ATUALIZADA_EVENT));
   } catch {
     /* offline ou não autenticado */
   }
+}
+
+/** Grava no navegador a config já validada no servidor (sem flash de dados antigos). */
+export function aplicarConfigLaboratorioNoCliente(config: ConfigLaboratorio) {
+  salvarConfigLaboratorio(config);
+  window.dispatchEvent(new Event(LAB_CONFIG_ATUALIZADA_EVENT));
 }

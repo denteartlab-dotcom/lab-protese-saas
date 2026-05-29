@@ -18,6 +18,14 @@ export const LOGO_TAMANHO_MIN = 0;
 export const LOGO_TAMANHO_MAX = 100;
 export const LOGO_TAMANHO_PADRAO = 0;
 
+/** Logo no cabeçalho da requisição OS (PDF A4) — mm no jsPDF. */
+export const LOGO_PDF_CABECALHO_OS_LARGURA_MM = 32;
+export const LOGO_PDF_CABECALHO_OS_ALTURA_MM = 24;
+
+/** Logo em HTML (fatura, recibo, nota) — px. */
+export const LOGO_HTML_CABECALHO_LARGURA_PX = 91;
+export const LOGO_HTML_CABECALHO_ALTURA_PX = 62;
+
 export function normalizarLogoTamanho(pct: number | undefined | null): number {
   if (pct == null || Number.isNaN(pct)) return LOGO_TAMANHO_PADRAO;
   return Math.min(LOGO_TAMANHO_MAX, Math.max(LOGO_TAMANHO_MIN, Math.round(pct)));

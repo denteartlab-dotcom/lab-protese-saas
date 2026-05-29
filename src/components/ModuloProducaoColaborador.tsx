@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle,
@@ -13,6 +14,7 @@ import {
   LogOut,
   MessageCircle,
   Moon,
+  Sun,
   RefreshCw,
   ScanBarcode,
   Settings,
@@ -25,11 +27,9 @@ import { NotificationsBell } from "@/components/header/NotificationsBell";
 import { SiteSearchBar, SiteSearchButton } from "@/components/header/SiteSearchBar";
 import { useI18n } from "@/components/i18n-provider";
 import { LeitorCodigoBarrasModal } from "@/components/LeitorCodigoBarrasModal";
-import { rotuloPapelUsuario } from "@/lib/auth-client";
-import { LAB_CONFIG_ATUALIZADA_EVENT } from "@/lib/configuracoes-lab";
 import type { MessageKey } from "@/lib/i18n";
+import { AppFaixaTopo } from "@/components/AppFaixaTopo";
 import { dimensoesLogoPx } from "@/lib/lab-logo";
-import { sincronizarConfigLaboratorioDoServidor } from "@/lib/lab-config-sync";
 import type { EtapaOsLinha } from "@/lib/etapas-os";
 import {
   complementosDaOs,
@@ -81,6 +81,7 @@ type Props = {
 
 export function ModuloProducaoColaborador({ userRole }: Props) {
   const { t } = useI18n();
+  const router = useRouter();
   const { montado, lab, nomeLaboratorio } = useLabConfigClient();
   const [buscaSiteAberta, setBuscaSiteAberta] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -100,18 +101,9 @@ export function ModuloProducaoColaborador({ userRole }: Props) {
   const [salvandoAnotacao, setSalvandoAnotacao] = useState(false);
   const [comissaoVisivel, setComissaoVisivel] = useState(false);
 
-  const logoHeader = dimensoesLogoPx(lab, { largura: 140, altura: 40 });
   const logoPerfil = dimensoesLogoPx(lab, { largura: 36, altura: 36 });
   const temLogo = montado && Boolean(lab.logoDataUrl?.startsWith("data:image"));
   const temLogoPerfil = temLogo;
-  const papel = rotuloPapelUsuario(userRole);
-
-  useEffect(() => {
-    void sincronizarConfigLaboratorioDoServidor().then(() => {
-      window.dispatchEvent(new Event(LAB_CONFIG_ATUALIZADA_EVENT));
-    });
-  }, []);
-
   async function logout() {
     setUserMenuOpen(false);
     try {
@@ -205,10 +197,17 @@ export function ModuloProducaoColaborador({ userRole }: Props) {
     return () => window.clearTimeout(timeout);
   }, [buscaPaciente, buscaPacienteAberta]);
 
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    setDarkMode(window.localStorage.getItem("theme") === "dark");
+  }, []);
+
   function toggleTheme() {
     const next = !document.documentElement.classList.contains("dark");
     document.documentElement.classList.toggle("dark", next);
     window.localStorage.setItem("theme", next ? "dark" : "light");
+    setDarkMode(next);
   }
 
   async function carregarGrupoOs(trabalho: TrabalhoModuloOs) {
@@ -242,12 +241,35 @@ export function ModuloProducaoColaborador({ userRole }: Props) {
   }
 
   function alternarEtapa(indice: number) {
-    if (!chaveEtapasConcluidas) return;
+    if (!chaveEtapasConcluidas || !osSelecionada) return;
+    const etapa = etapasOs.find((e) => e.indice === indice);
+    const concluidaAntes = etapasOk.has(indice);
     const next = new Set(etapasOk);
     if (next.has(indice)) next.delete(indice);
     else next.add(indice);
     setEtapasOk(next);
     salvarEtapasConcluidas(chaveEtapasConcluidas, next);
+
+    void fetch("/api/relatorios/logs-auditoria", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        categoria: "etapas",
+        tipoAlteracao: "alteracao",
+        numeroOs: osSelecionada.numeroOs,
+        trabalhoId: osSelecionada.id,
+        servico: itemAtivo?.descricao || osSelecionada.tipoProtese,
+        etapa: etapa?.nome,
+        colaborador: etapa?.responsavel || undefined,
+        detalhes: [
+          {
+            campo: etapa?.nome || "Etapa",
+            antes: concluidaAntes ? "Concluída" : "Pendente",
+            depois: concluidaAntes ? "Pendente" : "Concluída",
+          },
+        ],
+      }),
+    }).catch(() => {});
   }
 
   async function salvarAnotacoes() {
@@ -304,51 +326,36 @@ export function ModuloProducaoColaborador({ userRole }: Props) {
         : [];
 
   return (
-    <div className="flex min-h-screen flex-col bg-white text-[#333]">
-      <header className="relative shrink-0 border-b border-[#e8e8e8] bg-white shadow-sm">
-        <SiteSearchBar aberto={buscaSiteAberta} onFechar={() => setBuscaSiteAberta(false)} />
-        <div className="grid h-14 grid-cols-[auto_1fr_auto] items-center gap-2 px-3 sm:px-4">
+    <div className="flex min-h-0 flex-1 flex-col bg-white text-[#333]">
+      <AppFaixaTopo
+        antes={
+          <SiteSearchBar aberto={buscaSiteAberta} onFechar={() => setBuscaSiteAberta(false)} />
+        }
+        esquerda={
           <button
             type="button"
             onClick={toggleTheme}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#5b9bd5] transition hover:bg-blue-50"
-            aria-label="Alternar tema"
-          >
-            <Moon className="h-4 w-4" strokeWidth={1.75} />
-          </button>
-
-          <Link
-            href="/app"
-            className="flex min-h-10 items-center justify-center justify-self-center px-2 outline-none transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[#4a90d9]/40"
-            title="Ir para o início"
-          >
-            {!montado ? (
-              <span className="inline-block h-9 w-[120px]" aria-hidden />
-            ) : temLogo ? (
-              <img
-                src={lab.logoDataUrl}
-                alt={nomeLaboratorio}
-                className="max-h-9 w-auto max-w-[200px] object-contain"
-                width={logoHeader.largura}
-                height={logoHeader.altura}
-              />
-            ) : (
-              <span
-                suppressHydrationWarning
-                className="text-base font-bold text-slate-700"
-              >
-                {nomeLaboratorio}
-              </span>
+            className={cn(
+              "inline-flex h-7 w-7 items-center justify-center rounded-full transition hover:bg-black/5 dark:hover:bg-white/10",
+              darkMode ? "text-sky-400" : "text-[#5b9bd5]"
             )}
-          </Link>
-
-          <div className="flex items-center justify-end gap-1 sm:gap-2">
+            aria-label={darkMode ? "Ativar modo claro" : "Ativar modo escuro"}
+          >
+            {darkMode ? (
+              <Sun className="h-4 w-4" strokeWidth={1.75} />
+            ) : (
+              <Moon className="h-4 w-4" strokeWidth={1.75} />
+            )}
+          </button>
+        }
+        direita={
+          <>
             <LanguageMenu />
             <SiteSearchButton onAbrir={() => setBuscaSiteAberta(true)} />
             <Suspense
               fallback={
-                <span className="inline-flex h-8 w-8 items-center justify-center text-slate-400">
-                  <Settings className="h-5 w-5" />
+                <span className="inline-flex h-7 w-7 items-center justify-center text-slate-400">
+                  <Settings className="h-[18px] w-[18px]" />
                 </span>
               }
             >
@@ -359,23 +366,23 @@ export function ModuloProducaoColaborador({ userRole }: Props) {
               <button
                 type="button"
                 onClick={() => setUserMenuOpen((open) => !open)}
-                className="flex items-center gap-2 rounded-xl px-2 py-1.5 text-left transition hover:bg-slate-100"
+                className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-left transition hover:bg-black/5"
                 aria-expanded={userMenuOpen}
                 aria-label="Abrir menu do usuário"
               >
                 <div className="hidden leading-tight sm:block">
                   <p
                     suppressHydrationWarning
-                    className="text-xs font-bold text-slate-700"
+                    className="text-[11px] font-bold text-slate-800"
                   >
                     {montado ? nomeLaboratorio : "\u00a0"}
                   </p>
-                  <p className="text-[10px] text-slate-500">{papel}</p>
+                  <p className="text-[10px] text-slate-500">{userName}</p>
                 </div>
                 <div
                   className={cn(
-                    "relative inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full",
-                    temLogoPerfil ? "bg-white ring-1 ring-slate-200" : "bg-blue-100 text-[#4a90d9]"
+                    "relative inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full",
+                    temLogoPerfil ? "bg-white ring-1 ring-slate-200/80" : "bg-[#dbeafe] text-[#4a90d9]"
                   )}
                 >
                   {temLogoPerfil ? (
@@ -387,9 +394,9 @@ export function ModuloProducaoColaborador({ userRole }: Props) {
                       height={logoPerfil.altura}
                     />
                   ) : (
-                    <User className="h-5 w-5" />
+                    <User className="h-4 w-4" />
                   )}
-                  <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
+                  <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#f2f4f6] bg-emerald-500" />
                 </div>
               </button>
               {userMenuOpen && (
@@ -401,24 +408,20 @@ export function ModuloProducaoColaborador({ userRole }: Props) {
                     >
                       {nomeLaboratorio}
                     </p>
-                    <p className="text-xs text-slate-500">{papel}</p>
+                    <p className="text-xs text-slate-500">{userName}</p>
                   </div>
                   <div className="py-1">
-                    {(
-                      [
-                        { labelKey: "user.perfil" as MessageKey, icon: User },
-                        { labelKey: "user.alterarSenha" as MessageKey, icon: LockKeyhole },
-                      ] as const
-                    ).map((item) => (
-                      <button
-                        key={item.labelKey}
-                        type="button"
-                        className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-600 transition hover:bg-slate-50 hover:text-[#4a90d9]"
-                      >
-                        <item.icon className="h-4 w-4 text-slate-500" />
-                        <span>{t(item.labelKey)}</span>
-                      </button>
-                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        router.push("/app/alterar-senha");
+                      }}
+                      className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-600 transition hover:bg-slate-50 hover:text-[#4a90d9]"
+                    >
+                      <LockKeyhole className="h-4 w-4 text-slate-500" />
+                      <span>{t("user.alterarSenha")}</span>
+                    </button>
                   </div>
                   <div className="border-t border-slate-100 pt-1">
                     <button
@@ -433,9 +436,9 @@ export function ModuloProducaoColaborador({ userRole }: Props) {
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       <main className="mx-auto w-full max-w-[1180px] flex-1 px-6 py-5 pb-24">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_250px]">

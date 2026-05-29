@@ -33,9 +33,6 @@ export function navegarParaRequisicao(
     }
   }
 
-  const segunda = window.open(urlAbsoluta, "_blank", "noopener,noreferrer");
-  if (segunda) return "popup";
-
   window.location.assign(urlAbsoluta);
   return "mesma_aba";
 }

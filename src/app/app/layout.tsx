@@ -1,18 +1,24 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth";
 import { AppShell } from "@/components/app-shell";
+import { PermissoesAppProvider } from "@/components/PermissoesAppProvider";
+import { obterContextoAppServidor } from "@/lib/contexto-app-servidor";
 
 export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getSession();
-  if (!session) redirect("/login");
+  const ctx = await obterContextoAppServidor();
+  if (!ctx) redirect("/login");
 
   return (
-    <AppShell userName={session.name} userRole={session.role}>
-      {children}
-    </AppShell>
+    <PermissoesAppProvider
+      acessoTotal={ctx.acessoTotal}
+      permissoesModulos={ctx.permissoesModulos}
+    >
+      <AppShell userName={ctx.user.name} userRole={ctx.user.role} initialLab={ctx.lab}>
+        {children}
+      </AppShell>
+    </PermissoesAppProvider>
   );
 }

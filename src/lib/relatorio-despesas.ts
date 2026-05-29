@@ -1,5 +1,6 @@
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
 import { parseBrDate } from "@/lib/datas-br";
+import { abrirPdfNoVisualizador } from "@/lib/pdf-viewer";
 import { formatDate } from "@/lib/utils";
 
 export type FiltroRelatorioDespesas = {
@@ -122,84 +123,21 @@ function money(value: number) {
   });
 }
 
-export function imprimirRelatorioDespesas(
+export async function imprimirRelatorioDespesas(
   linhas: LinhaRelatorioDespesa[],
   tituloModelo: string,
-  periodoLabel: string
+  periodoLabel: string,
+  janelaReservada?: Window | null
 ) {
-  const total = linhas.reduce((s, l) => s + l.valor, 0);
-  const rows = linhas
-    .map(
-      (l) => `
-    <tr>
-      <td>${l.vencimento}</td>
-      <td>${l.parcela}</td>
-      <td>${escapeHtml(l.nome)}</td>
-      <td>${escapeHtml(l.referencia)}</td>
-      <td>${escapeHtml(l.categoria)}</td>
-      <td>${escapeHtml(l.formaPagamento)}</td>
-      <td class="num">${money(l.valor)}</td>
-      <td>${escapeHtml(l.conta)}</td>
-      <td>${l.status === "pago" ? "Pago" : "Pendente"}</td>
-    </tr>`
-    )
-    .join("");
-
-  const html = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="utf-8"/>
-  <title>Relatório Despesas</title>
-  <style>
-    * { box-sizing: border-box; }
-    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #333; margin: 24px; }
-    h1 { font-size: 16px; font-weight: 600; margin: 0 0 4px; }
-    .meta { font-size: 10px; color: #666; margin-bottom: 16px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
-    th { background: #f5f6f8; font-size: 9px; text-transform: uppercase; color: #555; }
-    td.num { text-align: right; }
-    tfoot td { font-weight: bold; background: #fafafa; }
-    @media print { body { margin: 12px; } }
-  </style>
-</head>
-<body>
-  <h1>Relatório Despesas</h1>
-  <p class="meta">${escapeHtml(tituloModelo)} · ${escapeHtml(periodoLabel)} · ${linhas.length} registro(s)</p>
-  <table>
-    <thead>
-      <tr>
-        <th>Vencimento</th>
-        <th>Parc.</th>
-        <th>Nome</th>
-        <th>Referência</th>
-        <th>Categoria</th>
-        <th>Forma Pagamento</th>
-        <th>Valor</th>
-        <th>Conta</th>
-        <th>Situação</th>
-      </tr>
-    </thead>
-    <tbody>${rows || '<tr><td colspan="9">Nenhum registro</td></tr>'}</tbody>
-    <tfoot>
-      <tr>
-        <td colspan="6">Total</td>
-        <td class="num">R$ ${money(total)}</td>
-        <td colspan="2"></td>
-      </tr>
-    </tfoot>
-  </table>
-  <script>window.onload = function() { window.print(); };</script>
-</body>
-</html>`;
-
-  const janela = window.open("", "_blank", "noopener,noreferrer,width=900,height=700");
-  if (!janela) {
-    alert("Permita pop-ups para imprimir o relatório.");
-    return;
+  const janela = janelaReservada ?? null;
+  try {
+    const { gerarRelatorioDespesasPdf } = await import("@/lib/relatorios-impressao-pdf");
+    const blob = await gerarRelatorioDespesasPdf(linhas, tituloModelo, periodoLabel);
+    abrirPdfNoVisualizador(blob, "relatorio-despesas.pdf", undefined, janela);
+  } catch (err) {
+    janela?.close();
+    throw err;
   }
-  janela.document.write(html);
-  janela.document.close();
 }
 
 function escapeHtml(texto: string) {

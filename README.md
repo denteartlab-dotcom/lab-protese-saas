@@ -29,6 +29,8 @@ npm run dev
 
 Acesse: http://localhost:3000
 
+**Publicar de novo (GitHub + Neon + Vercel):** [DEPLOY.md](./DEPLOY.md)
+
 ### Credenciais demo
 
 - **E-mail:** admin@labprotese.com

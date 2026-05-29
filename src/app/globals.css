@@ -10,6 +10,14 @@
   .dark body {
     @apply bg-slate-950 text-slate-100;
   }
+
+  /* Evita arrastar texto de um input e soltar em outro campo */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  textarea,
+  select {
+    -webkit-user-drag: none;
+    user-select: text;
+  }
 }
 
 @layer utilities {
@@ -20,6 +28,27 @@
 
 /* Login: cobre a tela sem distorcer; usa o PNG original de /public */
 @layer components {
+  /* Barra superior full-width — estreita, fundo cinza (Smart Prótese) */
+  .site-topo-marca {
+    width: 100%;
+    background: linear-gradient(
+      90deg,
+      #e8eaed 0%,
+      #f2f4f6 45%,
+      #eef2f6 100%
+    );
+    line-height: normal;
+  }
+
+  .dark .site-topo-marca {
+    background: linear-gradient(
+      90deg,
+      #0f172a 0%,
+      #1e293b 50%,
+      #0f172a 100%
+    );
+  }
+
   .login-hero__bg {
     min-width: 100%;
     min-height: 100%;
@@ -48,10 +77,33 @@
     background-color: #020617;
   }
 
+  .dark .bg-\[\#f5f6f8\],
+  .dark .bg-\[\#f0f7ff\],
+  .dark .bg-\[\#f0faf0\],
+  .dark .bg-\[\#e8f2fc\] {
+    background-color: #1e293b;
+  }
+
+  .dark .bg-\[\#fafafa\] {
+    background-color: #0f172a;
+  }
+
+  .dark .hover\:bg-slate-50:hover {
+    background-color: #1e293b;
+  }
+
+  .dark .hover\:bg-\[\#f0f7ff\]:hover {
+    background-color: #1e3a5f;
+  }
+
   .dark .border-slate-100,
   .dark .border-slate-200,
   .dark .border-slate-300,
-  .dark .border-slate-400 {
+  .dark .border-slate-400,
+  .dark .border-\[\#d4d4d4\],
+  .dark .border-\[\#e0e0e0\],
+  .dark .border-\[\#e5e5e5\],
+  .dark .border-\[\#ececec\] {
     border-color: #334155;
   }
 

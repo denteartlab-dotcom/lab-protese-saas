@@ -3,16 +3,20 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Box,
   CheckSquare,
+  ChevronDown,
   ChevronsDownUp,
   Copy,
   Edit3,
   Eye,
   FileDown,
   FileText,
+  Gem,
   Plus,
   Printer,
   Trash2,
+  X,
 } from "lucide-react";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { PainelCarregando } from "@/components/ListaCarregando";
@@ -27,7 +31,14 @@ import {
   PRODUTOS_ESTOQUE_EVENT,
   type ProdutoListagem,
 } from "@/lib/produtos-listagem";
+import {
+  higienizarItensCustoCadastro,
+  ITENS_CUSTO_CADASTRO_EVENT,
+  removerItemCustoCadastro,
+  salvarItemCustoCadastro,
+} from "@/lib/itens-custo-cadastro";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
+import { cn } from "@/lib/utils";
 
 type TipoItemPreco = "servico" | "produto" | "transporte";
 
@@ -81,6 +92,7 @@ type ComissaoServico = {
 type EtapaServico = {
   id: string;
   nome: string;
+  qtd?: string;
   valorHora: string;
 };
 
@@ -210,6 +222,7 @@ function novaEtapaServico(): EtapaServico {
   return {
     id: `${Date.now()}-${Math.random()}`,
     nome: "",
+    qtd: "1",
     valorHora: "0,00",
   };
 }
@@ -241,6 +254,21 @@ export default function TabelaPrecosPage() {
     categoriaId: string;
     itemId: string | null;
   } | null>(null);
+  const [modalCustos, setModalCustos] = useState<{
+    categoriaId: string;
+    itemId: string;
+    tipo: TipoItemPreco;
+  } | null>(null);
+  const [formCustoItem, setFormCustoItem] = useState({ custo: "0,00" });
+  const [formCustoEtapa, setFormCustoEtapa] = useState({
+    nome: "",
+    qtd: "1",
+    custo: "0,00",
+  });
+  const [modalNovoItemCusto, setModalNovoItemCusto] = useState(false);
+  const [nomeNovoItemCusto, setNomeNovoItemCusto] = useState("");
+  const [itensCustoCadastro, setItensCustoCadastro] = useState<string[]>([]);
+  const [selectItemCustoAberto, setSelectItemCustoAberto] = useState(false);
   const [formTransporte, setFormTransporte] = useState({
     nome: "",
     valor: "0,00",
@@ -298,12 +326,22 @@ export default function TabelaPrecosPage() {
     function recarregarEtapas() {
       setEtapasCadastro(nomesEtapasCadastro());
     }
+    function recarregarItensCusto() {
+      setItensCustoCadastro(higienizarItensCustoCadastro());
+    }
     recarregarEtapas();
+    recarregarItensCusto();
     window.addEventListener("focus", recarregarEtapas);
     window.addEventListener("storage", recarregarEtapas);
+    window.addEventListener(ITENS_CUSTO_CADASTRO_EVENT, recarregarItensCusto);
+    window.addEventListener("focus", recarregarItensCusto);
+    window.addEventListener("storage", recarregarItensCusto);
     return () => {
       window.removeEventListener("focus", recarregarEtapas);
       window.removeEventListener("storage", recarregarEtapas);
+      window.removeEventListener(ITENS_CUSTO_CADASTRO_EVENT, recarregarItensCusto);
+      window.removeEventListener("focus", recarregarItensCusto);
+      window.removeEventListener("storage", recarregarItensCusto);
     };
   }, [paginaPronta]);
 
@@ -738,6 +776,175 @@ export default function TabelaPrecosPage() {
     }));
   }
 
+  function totalCustosServico(servico: ServicoPreco) {
+    const etapas = servico.etapas || [];
+    return etapas.reduce((s, e) => {
+      const raw = String(e.qtd ?? "1");
+      const match = raw.match(/(\d+(?:[.,]\d+)?)/);
+      const qtd = match ? Number(match[1].replace(",", ".")) : 1;
+      const custo = parseMoney(e.valorHora || "0,00");
+      return s + qtd * custo;
+    }, 0);
+  }
+
+  function abrirModalCustos(categoriaId: string, item: ServicoPreco) {
+    setModalCustos({ categoriaId, itemId: item.id, tipo: item.tipo });
+    if (item.tipo === "servico") {
+      setItensCustoCadastro(higienizarItensCustoCadastro());
+      setFormCustoEtapa({ nome: "", qtd: "", custo: "0,00" });
+      setModalNovoItemCusto(false);
+      setNomeNovoItemCusto("");
+      setSelectItemCustoAberto(false);
+      return;
+    }
+    setFormCustoItem({ custo: money(item.valorCusto || 0) });
+  }
+
+  function fecharModalCustos() {
+    setModalCustos(null);
+    setFormCustoItem({ custo: "0,00" });
+    setFormCustoEtapa({ nome: "", qtd: "", custo: "0,00" });
+    setModalNovoItemCusto(false);
+    setNomeNovoItemCusto("");
+    setSelectItemCustoAberto(false);
+  }
+
+  function servicoNoModalCustos(): { categoria: CategoriaPreco; servico: ServicoPreco } | null {
+    if (!modalCustos) return null;
+    const categoria = categorias.find((c) => c.id === modalCustos.categoriaId);
+    const servico = categoria?.servicos.find((s) => s.id === modalCustos.itemId);
+    if (!categoria || !servico) return null;
+    return { categoria, servico: normalizarServico(servico) };
+  }
+
+  function adicionarCustoEtapa() {
+    const current = servicoNoModalCustos();
+    if (!current) return;
+    const nome = formCustoEtapa.nome.trim();
+    if (!nome) return;
+    const qtdTexto = formCustoEtapa.qtd.trim() || "1";
+    const match = qtdTexto.match(/(\d+(?:[.,]\d+)?)/);
+    const qtdNum = match ? Number(match[1].replace(",", ".")) : 1;
+    if (qtdNum <= 0) return;
+    const custo = formatMoneyInput(formCustoEtapa.custo);
+    const proximoItens = salvarItemCustoCadastro(nome);
+    setItensCustoCadastro(proximoItens);
+    atualizarCategorias((atuais) =>
+      atuais.map((categoria) => {
+        if (categoria.id !== modalCustos?.categoriaId) return categoria;
+        return {
+          ...categoria,
+          servicos: categoria.servicos.map((s) => {
+            if (s.id !== modalCustos?.itemId) return s;
+            const etapas = (s.etapas || []).map((e) => ({ ...e, qtd: e.qtd ?? "1" }));
+            return {
+              ...s,
+              etapas: [
+                ...etapas,
+                {
+                  id: `${Date.now()}-${Math.random()}`,
+                  nome,
+                  qtd: qtdTexto,
+                  valorHora: custo,
+                },
+              ],
+            };
+          }),
+        };
+      })
+    );
+    setFormCustoEtapa({ nome: "", qtd: "", custo: "0,00" });
+  }
+
+  function adicionarOpcaoCustoServico(nome: string) {
+    const valor = nome.trim();
+    if (!valor || !modalCustos) return;
+    atualizarCategorias((atuais) =>
+      atuais.map((categoria) => {
+        if (categoria.id !== modalCustos.categoriaId) return categoria;
+        return {
+          ...categoria,
+          servicos: categoria.servicos.map((s) => {
+            if (s.id !== modalCustos.itemId) return s;
+            const atuaisOpcoes = s.opcoesEtapas || [];
+            if (atuaisOpcoes.some((o) => o.toLowerCase() === valor.toLowerCase())) return s;
+            return { ...s, opcoesEtapas: [...atuaisOpcoes, valor] };
+          }),
+        };
+      })
+    );
+  }
+
+  function cadastrarNovoItemCusto() {
+    const nome = nomeNovoItemCusto.trim();
+    if (!nome) return;
+    const proximo = salvarItemCustoCadastro(nome);
+    setItensCustoCadastro(proximo);
+    adicionarOpcaoCustoServico(nome);
+    setFormCustoEtapa((s) => ({ ...s, nome }));
+    setNomeNovoItemCusto("");
+    setModalNovoItemCusto(false);
+    setSelectItemCustoAberto(false);
+  }
+
+  function excluirItemCustoCadastro(nome: string) {
+    const proximo = removerItemCustoCadastro(nome);
+    setItensCustoCadastro(proximo);
+    if (formCustoEtapa.nome === nome) {
+      setFormCustoEtapa((s) => ({ ...s, nome: "" }));
+    }
+    atualizarCategorias((atuais) =>
+      atuais.map((categoria) => {
+        if (categoria.id !== modalCustos?.categoriaId) return categoria;
+        return {
+          ...categoria,
+          servicos: categoria.servicos.map((s) => {
+            if (s.id !== modalCustos?.itemId) return s;
+            const opcoes = (s.opcoesEtapas || []).filter((o) => o !== nome);
+            return { ...s, opcoesEtapas: opcoes };
+          }),
+        };
+      })
+    );
+  }
+
+  function removerCustoEtapa(id: string) {
+    atualizarCategorias((atuais) =>
+      atuais.map((categoria) => {
+        if (categoria.id !== modalCustos?.categoriaId) return categoria;
+        return {
+          ...categoria,
+          servicos: categoria.servicos.map((s) => {
+            if (s.id !== modalCustos?.itemId) return s;
+            return { ...s, etapas: (s.etapas || []).filter((e) => e.id !== id) };
+          }),
+        };
+      })
+    );
+  }
+
+  function salvarCustoItem() {
+    if (!modalCustos) return;
+    const custo = parseMoney(formCustoItem.custo);
+    atualizarCategorias((atuais) =>
+      atuais.map((categoria) => {
+        if (categoria.id !== modalCustos.categoriaId) return categoria;
+        return {
+          ...categoria,
+          servicos: categoria.servicos.map((s) =>
+            s.id === modalCustos.itemId ? { ...s, valorCusto: custo } : s
+          ),
+        };
+      })
+    );
+    fecharModalCustos();
+  }
+
+  function salvarCustosServico() {
+    // Custos do serviço são persistidos ao adicionar/remover etapas.
+    fecharModalCustos();
+  }
+
   function adicionarEtapa() {
     setFormServico((current) => ({
       ...current,
@@ -1159,6 +1366,9 @@ export default function TabelaPrecosPage() {
                     <th className="px-3 py-2 text-left font-semibold uppercase">Nome serviço</th>
                     <th className="w-28 px-3 py-2 text-right font-semibold uppercase">Valor</th>
                     <th className="w-40 px-3 py-2 text-center font-semibold uppercase">Etapas</th>
+                    <th className="w-28 px-3 py-2 text-center font-semibold uppercase">
+                      Custos
+                    </th>
                     <th className="w-28 px-3 py-2 text-center font-semibold uppercase">Ocultar</th>
                     <th className="w-24 px-3 py-2 text-center font-semibold">OPÇÕES</th>
                   </tr>
@@ -1182,6 +1392,16 @@ export default function TabelaPrecosPage() {
                         ) : (
                           <span className="text-slate-400">—</span>
                         )}
+                      </td>
+                      <td className="px-3 py-1.5 text-center">
+                        <button
+                          type="button"
+                          onClick={() => abrirModalCustos(categoria.id, item)}
+                          className="inline-flex rounded-sm p-1.5 text-red-500 hover:bg-red-50 hover:text-red-600"
+                          title={item.tipo === "servico" ? "Gerenciar custos por etapa" : "Editar custo do item"}
+                        >
+                          <Gem className="h-3.5 w-3.5" strokeWidth={1.75} />
+                        </button>
                       </td>
                       <td className="px-3 py-1.5 text-center">
                         <input
@@ -1216,7 +1436,7 @@ export default function TabelaPrecosPage() {
                   })}
                   {categoria.servicos.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-3 py-8 text-center text-slate-400">
+                      <td colSpan={6} className="px-3 py-8 text-center text-slate-400">
                         Nenhum serviço cadastrado nesta categoria.
                       </td>
                     </tr>
@@ -1225,6 +1445,298 @@ export default function TabelaPrecosPage() {
               </table>
             </div>
             ))}
+
+            {modalCustos && (() => {
+              const data = servicoNoModalCustos();
+              if (!data) return null;
+              const item = data.servico;
+              const opcoesCustosSelecao = itensCustoCadastro;
+              const listaEtapas = (item.etapas || []).map((e) => ({ ...e, qtd: e.qtd ?? "1" }));
+              const total = item.tipo === "servico" ? totalCustosServico(item) : (item.valorCusto || 0);
+
+              return (
+                <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/40 p-4">
+                  <div className="w-full max-w-3xl rounded-md border border-slate-200 bg-white shadow-xl">
+                    <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                      <h2 className="text-sm font-semibold text-slate-700">
+                        {item.tipo === "servico" ? "Gerenciar Custos do Serviço" : "Custo do Item"}
+                      </h2>
+                      <button
+                        type="button"
+                        onClick={fecharModalCustos}
+                        className="text-slate-400 hover:text-slate-700"
+                        aria-label="Fechar"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+
+                    <div className="p-4">
+                      {modalNovoItemCusto ? (
+                        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 p-4">
+                          <div className="w-full max-w-sm rounded-md border border-slate-200 bg-white shadow-xl">
+                            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                              <h3 className="text-sm font-semibold text-slate-700">Cadastrar Novo Item</h3>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setModalNovoItemCusto(false);
+                                  setNomeNovoItemCusto("");
+                                }}
+                                className="text-slate-400 hover:text-slate-700"
+                                aria-label="Fechar"
+                              >
+                                <X className="h-5 w-5" />
+                              </button>
+                            </div>
+                            <div className="space-y-3 p-4">
+                              <div className="space-y-1">
+                                <label className="block text-[11px] text-slate-600">Nome do custo</label>
+                                <input
+                                  value={nomeNovoItemCusto}
+                                  onChange={(e) => setNomeNovoItemCusto(e.target.value)}
+                                  className="h-9 w-full rounded-sm border border-slate-200 bg-white px-2 text-[12px] text-slate-700 outline-none focus:border-blue-400"
+                                  autoFocus
+                                />
+                              </div>
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setModalNovoItemCusto(false);
+                                    setNomeNovoItemCusto("");
+                                  }}
+                                  className="h-9 rounded-sm border border-slate-200 bg-white px-4 text-[12px] font-semibold text-slate-600 hover:bg-slate-50"
+                                >
+                                  Cancelar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cadastrarNovoItemCusto}
+                                  className="h-9 rounded-sm bg-blue-600 px-4 text-[12px] font-semibold text-white hover:bg-blue-700"
+                                >
+                                  Cadastrar
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
+                      {item.tipo === "servico" ? (
+                        <>
+                          <div className="grid grid-cols-12 items-end gap-3">
+                            <div className="col-span-6">
+                              <label className="mb-1 block text-[11px] text-slate-600">
+                                Item ou Serviço
+                              </label>
+                              <div className="relative">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectItemCustoAberto((aberto) => !aberto)}
+                                  className={cn(
+                                    "flex h-9 w-full items-center justify-between rounded-sm border border-slate-200 bg-white px-2 text-left text-[12px] outline-none focus:border-blue-400",
+                                    formCustoEtapa.nome ? "text-slate-700" : "text-slate-400"
+                                  )}
+                                >
+                                  <span className="truncate">
+                                    {formCustoEtapa.nome || "Selecione o item"}
+                                  </span>
+                                  <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+                                </button>
+                                {selectItemCustoAberto && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className="fixed inset-0 z-[100]"
+                                      aria-label="Fechar lista"
+                                      onClick={() => setSelectItemCustoAberto(false)}
+                                    />
+                                    <ul className="absolute left-0 right-0 top-full z-[101] mt-1 max-h-48 overflow-auto rounded-sm border border-slate-200 bg-white py-1 shadow-lg">
+                                      <li>
+                                        <button
+                                          type="button"
+                                          className="w-full px-3 py-2 text-left text-[12px] font-semibold text-emerald-600 hover:bg-slate-50"
+                                          onClick={() => {
+                                            setSelectItemCustoAberto(false);
+                                            setModalNovoItemCusto(true);
+                                            setNomeNovoItemCusto("");
+                                          }}
+                                        >
+                                          + Cadastrar Novo Item
+                                        </button>
+                                      </li>
+                                      {opcoesCustosSelecao.map((nome) => (
+                                        <li
+                                          key={nome}
+                                          className={cn(
+                                            "flex items-center gap-1 px-2 py-1 hover:bg-slate-50",
+                                            formCustoEtapa.nome === nome && "bg-slate-50"
+                                          )}
+                                        >
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              excluirItemCustoCadastro(nome);
+                                            }}
+                                            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-red-600 hover:bg-red-50"
+                                            title={`Excluir ${nome}`}
+                                            aria-label={`Excluir ${nome}`}
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className={cn(
+                                              "min-w-0 flex-1 py-1.5 text-left text-[12px] text-slate-700",
+                                              formCustoEtapa.nome === nome && "font-medium"
+                                            )}
+                                            onClick={() => {
+                                              setFormCustoEtapa((s) => ({ ...s, nome }));
+                                              setSelectItemCustoAberto(false);
+                                            }}
+                                          >
+                                            {nome}
+                                          </button>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            <div className="col-span-2">
+                              <label className="mb-1 block text-[11px] text-slate-600">Qtd (Unid)</label>
+                              <input
+                                value={formCustoEtapa.qtd}
+                                onChange={(e) => setFormCustoEtapa((s) => ({ ...s, qtd: e.target.value }))}
+                                className="h-9 w-full rounded-sm border border-slate-200 bg-white px-2 text-[12px] text-slate-700 outline-none focus:border-blue-400"
+                                placeholder="Ex: 20g"
+                              />
+                            </div>
+                            <div className="col-span-4">
+                              <label className="mb-1 block text-[11px] text-slate-600">Custo</label>
+                              <div className="flex gap-2">
+                                <div className="flex h-9 min-w-0 flex-1 overflow-hidden rounded-sm border border-slate-200 bg-white">
+                                  <span className="flex w-10 shrink-0 items-center justify-center border-r border-slate-200 text-[12px] text-slate-500">
+                                    R$
+                                  </span>
+                                  <input
+                                    value={formCustoEtapa.custo}
+                                    onChange={(e) =>
+                                      setFormCustoEtapa((s) => ({
+                                        ...s,
+                                        custo: formatMoneyInput(e.target.value),
+                                      }))
+                                    }
+                                    className="w-full min-w-0 px-2 text-[12px] text-slate-700 outline-none"
+                                    placeholder="0,00"
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={adicionarCustoEtapa}
+                                  disabled={!formCustoEtapa.nome.trim()}
+                                  className="h-9 shrink-0 rounded-sm bg-blue-600 px-3 text-[11px] font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  + Adicionar
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 min-h-[200px] rounded-md border border-slate-100 bg-white">
+                            {listaEtapas.length === 0 ? (
+                              <div className="flex h-[200px] flex-col items-center justify-center gap-2 text-slate-300">
+                                <Box className="h-10 w-10" />
+                                <p className="text-[12px]">Nada adicionado ainda...</p>
+                              </div>
+                            ) : (
+                              <ul className="divide-y divide-slate-100 py-1">
+                                {listaEtapas.map((e) => {
+                                  const raw = String(e.qtd ?? "1");
+                                  const match = raw.match(/(\d+(?:[.,]\d+)?)/);
+                                  const qtd = match ? Number(match[1].replace(",", ".")) : 1;
+                                  const custo = parseMoney(e.valorHora || "0,00");
+                                  const tot = qtd * custo;
+                                  return (
+                                    <li
+                                      key={e.id}
+                                      className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2.5 hover:bg-slate-50"
+                                    >
+                                      <div className="flex min-w-[160px] items-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => removerCustoEtapa(e.id)}
+                                          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-red-600 hover:bg-red-50"
+                                          title="Remover"
+                                          aria-label={`Remover ${e.nome}`}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </button>
+                                        <span className="text-[12px] font-medium text-slate-700">
+                                          {e.nome || "—"}
+                                        </span>
+                                      </div>
+                                      <span className="text-[11px] text-slate-500">
+                                        Qtd:{" "}
+                                        <span className="text-slate-700">{String(e.qtd ?? "1")}</span>
+                                      </span>
+                                      <span className="text-[11px] text-slate-500">
+                                        Custo:{" "}
+                                        <span className="text-slate-700">{money(custo)}</span>
+                                      </span>
+                                      <span className="text-[11px] text-slate-500">
+                                        Total:{" "}
+                                        <span className="font-semibold text-slate-700">{money(tot)}</span>
+                                      </span>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="grid grid-cols-12 gap-3">
+                          <div className="col-span-4">
+                            <label className="mb-1 block text-[11px] text-slate-600">Custo</label>
+                            <input
+                              value={formCustoItem.custo}
+                              onChange={(e) => setFormCustoItem({ custo: formatMoneyInput(e.target.value) })}
+                              className="h-9 w-full rounded-sm border border-slate-200 bg-white px-2 text-[12px] text-slate-700 outline-none focus:border-blue-400"
+                              placeholder="0,00"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+                        <p className="text-[12px] text-slate-500">
+                          Total: <span className="font-semibold text-slate-700">{money(total)}</span>
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={fecharModalCustos}
+                            className="h-9 rounded-sm border border-slate-200 bg-white px-4 text-[12px] font-semibold text-slate-600 hover:bg-slate-50"
+                          >
+                            Fechar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={item.tipo === "servico" ? salvarCustosServico : salvarCustoItem}
+                            className="h-9 rounded-sm bg-emerald-500 px-4 text-[12px] font-semibold text-white hover:bg-emerald-600"
+                          >
+                            Salvar Custos
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {!recolhida && !editandoRapido && (
             <div className="flex flex-wrap gap-2 border-t border-slate-100 px-3 py-2">
@@ -1361,8 +1873,8 @@ export default function TabelaPrecosPage() {
 
       {categoriaServico && tipoItemCadastro === "servico" && (
         <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/45 p-4 pt-16">
-          <div className="relative w-full max-w-6xl rounded bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+          <div className="relative flex max-h-[calc(100vh-5rem)] w-full max-w-6xl flex-col rounded bg-white shadow-2xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-4 py-3">
               <h2 className="text-sm font-medium text-slate-700">
                 {tituloCadastroServico(Boolean(servicoEditando))} — Categoria: {categoriaServico.nome}
               </h2>
@@ -1375,7 +1887,7 @@ export default function TabelaPrecosPage() {
                 ×
               </button>
             </div>
-            <div className="space-y-8 px-6 py-6 text-xs text-slate-600">
+            <div className="min-h-0 flex-1 space-y-8 overflow-y-auto px-6 py-6 text-xs text-slate-600">
               <div className="grid gap-4 md:grid-cols-[1.4fr_0.85fr_0.85fr_0.65fr_0.65fr]">
                 <div className="space-y-1">
                   <label className="block text-[11px] text-slate-600">Nome do Serviço</label>
@@ -1643,7 +2155,7 @@ export default function TabelaPrecosPage() {
                     .
                   </p>
                 )}
-                <div className="space-y-3">
+                <div className="max-h-[min(320px,42vh)] space-y-3 overflow-y-auto overflow-x-hidden pr-1">
                   {formServico.etapas.map((etapa, index) => (
                     <div key={etapa.id} className="relative grid gap-3 rounded border border-blue-300 p-3 md:grid-cols-[1.2fr_0.8fr]">
                       <button

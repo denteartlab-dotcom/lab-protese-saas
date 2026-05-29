@@ -330,12 +330,18 @@ export function ContasPagarConteudo() {
           }),
         });
       } else {
-        for (const parcela of payload.parcelas) {
+        const totalParcelas = payload.parcelas.length;
+        let numeroFatura: number | undefined;
+        for (let i = 0; i < payload.parcelas.length; i++) {
+          const parcela = payload.parcelas[i];
           const valor = Number(
             parcela.valor.replace(/\./g, "").replace(",", ".")
           );
           if (!Number.isFinite(valor) || valor <= 0) continue;
-          await fetch("/api/financeiro", {
+          const partes = parcela.parcela.split("/").map((x) => Number(x.trim()));
+          const parcelaNumero = partes[0] || i + 1;
+          const parcelaTotal = partes[1] || totalParcelas;
+          const res = await fetch("/api/financeiro", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -345,8 +351,15 @@ export function ContasPagarConteudo() {
               data: brShortToIso(parcela.vencimento || payload.dataLancamento),
               status: parcela.pago ? "pago" : "pendente",
               formaPagamento: parcela.formaPagamento || "Pix",
+              parcelaNumero,
+              parcelaTotal,
+              numeroFatura,
             }),
           });
+          const json = (await res.json().catch(() => ({}))) as {
+            numeroFatura?: number;
+          };
+          if (json.numeroFatura) numeroFatura = json.numeroFatura;
         }
       }
       setModalAberto(false);

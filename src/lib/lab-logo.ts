@@ -1,5 +1,7 @@
 import {
   LAB_IMPRESSAO_PADRAO,
+  LOGO_HTML_CABECALHO_ALTURA_PX,
+  LOGO_HTML_CABECALHO_LARGURA_PX,
   LOGO_TAMANHO_PADRAO,
   normalizarLogoTamanho,
   type LabImpressaoConfig,
@@ -8,6 +10,7 @@ import {
   carregarConfigLaboratorio,
   nomeExibicaoLaboratorio,
   telefoneWhatsappLaboratorio,
+  type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
 
 /** 0% = 1× (natural); cada +1% soma 1% ao tamanho (100% = 2×). */
@@ -45,7 +48,7 @@ export function htmlLogoLaboratorio(
 
 export function htmlCabecalhoLab(
   lab: LabImpressaoConfig,
-  logoBase = { largura: 76, altura: 62 }
+  logoBase = { largura: LOGO_HTML_CABECALHO_LARGURA_PX, altura: LOGO_HTML_CABECALHO_ALTURA_PX }
 ) {
   const nome = escapeHtml(lab.responsavel || LAB_IMPRESSAO_PADRAO.responsavel);
   const endereco = escapeHtml(lab.endereco || lab.enderecoLinha1 || "");
@@ -61,8 +64,7 @@ export function htmlCabecalhoLab(
           </div>`;
 }
 
-export function labImpressaoFromConfig(): LabImpressaoConfig {
-  const cfg = carregarConfigLaboratorio();
+export function configParaLabImpressao(cfg: ConfigLaboratorio): LabImpressaoConfig {
   return {
     marca: cfg.marca || LAB_IMPRESSAO_PADRAO.marca,
     marcaSubtitulo: cfg.marcaSubtitulo || LAB_IMPRESSAO_PADRAO.marcaSubtitulo,
@@ -79,6 +81,10 @@ export function labImpressaoFromConfig(): LabImpressaoConfig {
     logoDataUrl: cfg.logoDataUrl || "",
     logoTamanho: normalizarLogoTamanho(cfg.logoTamanho),
   };
+}
+
+export function labImpressaoFromConfig(): LabImpressaoConfig {
+  return configParaLabImpressao(carregarConfigLaboratorio());
 }
 
 function escapeHtml(texto: string) {

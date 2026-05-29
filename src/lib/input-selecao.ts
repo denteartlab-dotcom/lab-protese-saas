@@ -1,8 +1,25 @@
 import type {
+  DragEvent,
   FocusEvent,
   InputHTMLAttributes,
   MouseEvent,
 } from "react";
+
+/** Impede arrastar texto de um campo e soltar em outro (comportamento nativo do navegador). */
+export function propsBloquearArrasteEntreCampos() {
+  const bloquear = (e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  return {
+    draggable: false as const,
+    onDragStart: bloquear,
+    onDrag: bloquear,
+    onDragEnd: bloquear,
+    onDragOver: bloquear,
+    onDrop: bloquear,
+  };
+}
 
 /** Seleciona todo o texto do campo (permite apagar com Backspace/Delete de uma vez). */
 export function selecionarTextoInput(

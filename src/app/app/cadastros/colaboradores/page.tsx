@@ -1057,7 +1057,16 @@ export default function ColaboradoresPage() {
                 </a>
                 <button
                   type="button"
-                  onClick={() => window.open(pdfColaboradoresUrl, "_blank")}
+                  onClick={() => {
+                    const iframe = document.querySelector(
+                      'iframe[title="PDF colaboradores"]'
+                    ) as HTMLIFrameElement | null;
+                    try {
+                      iframe?.contentWindow?.print();
+                    } catch {
+                      /* ignorar */
+                    }
+                  }}
                   className="inline-flex h-8 items-center gap-2 rounded bg-emerald-500 px-3 text-[11px] font-semibold text-white hover:bg-emerald-600"
                 >
                   <Printer className="h-3.5 w-3.5" />

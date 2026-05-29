@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Download, ExternalLink, Printer } from "lucide-react";
 import { Button } from "@/components/ui";
-import { LAB_IMPRESSAO_PADRAO, type LabImpressaoConfig } from "@/lib/lab-impressao";
+import { prepararAbaPdf, visualizarPdfUrl } from "@/lib/pdf-viewer";
+import {
+  LAB_IMPRESSAO_PADRAO,
+  LOGO_PDF_CABECALHO_OS_ALTURA_MM,
+  LOGO_PDF_CABECALHO_OS_LARGURA_MM,
+  type LabImpressaoConfig,
+} from "@/lib/lab-impressao";
 import { LAB_CONFIG_ATUALIZADA_EVENT } from "@/lib/configuracoes-lab";
 import { escalaLogoMultiplicador, labImpressaoFromConfig } from "@/lib/lab-logo";
 
@@ -36,6 +43,8 @@ type PdfOsData = {
   observacoes: string;
   /** Linha de prazo abaixo do serviço (garantia se notasAbaixo não vier no item). */
   prazoLinhaServico?: string;
+  urgente?: boolean;
+  repeticao?: boolean;
   itens: PdfItem[];
 };
 
@@ -206,6 +215,26 @@ type PdfRenderApi = {
   setFillColor: (r: number, g?: number, b?: number) => void;
 };
 
+const ESPACO_APOS_OS_EXTERNA_MM = 60;
+
+function desenharMarcadoresUrgenciaRepeticao(pdf: PdfRenderApi, data: PdfOsData, xRotulo: number, y: number) {
+  const marcas: string[] = [];
+  if (data.urgente) marcas.push("URGENTE");
+  if (data.repeticao) marcas.push("REPETIÇÃO");
+  if (!marcas.length) return;
+
+  const x = xRotulo + ESPACO_APOS_OS_EXTERNA_MM;
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(11);
+  let yMarc = y;
+  for (const texto of marcas) {
+    pdf.text(texto, x, yMarc);
+    yMarc += 5.5;
+  }
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(9);
+}
+
 function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
   const pageWidth = pdf.internal.pageSize.getWidth();
   const margin = 15;
@@ -222,6 +251,7 @@ function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
   labelValue(pdf, "Núm OS:", String(data.numeroOs), 15, y);
   pdf.setFont("helvetica", "normal");
   pdf.text("Os Externa:", 110, y);
+  desenharMarcadoresUrgenciaRepeticao(pdf, data, 110, y);
   y += 5;
   labelValue(pdf, "Cliente:", data.cliente, 15, y);
   labelValue(pdf, "Caixa:", data.caixa, 110, y, "");
@@ -403,8 +433,8 @@ function desenharCabecalhoLabPdf(
     lab,
     margin,
     topo,
-    28,
-    24
+    LOGO_PDF_CABECALHO_OS_LARGURA_MM,
+    LOGO_PDF_CABECALHO_OS_ALTURA_MM
   );
   const labX = margin + (logoW > 0 ? logoW + 10 : 0);
   const colDirInicio = tableRight - 82;
@@ -937,12 +967,31 @@ export function PdfOsViewer({
     };
   }, [dadosPdf, formato, modelo, duasVias]);
 
+  function imprimirPdf() {
+    if (!pdfUrl) return;
+    const iframe = document.getElementById("pdf-os-viewer") as HTMLIFrameElement | null;
+    try {
+      iframe?.contentWindow?.print();
+    } catch {
+      /* ignorar */
+    }
+  }
+
+  function abrirEmNovaAba() {
+    if (!pdfUrl) return;
+    const janela = prepararAbaPdf();
+    visualizarPdfUrl(pdfUrl, `OS-${data.numeroOs}.pdf`, `OS ${data.numeroOs}`, {
+      janela,
+      revogarAoFechar: false,
+    });
+  }
+
   return (
-    <div className="flex h-screen flex-col bg-slate-100">
-      <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 no-print">
+    <div className="flex h-screen flex-col bg-[#525659]">
+      <div className="flex items-center justify-between border-b border-slate-700 bg-[#3c3c3c] px-4 py-3 text-white">
         <div>
-          <h1 className="text-sm font-semibold text-slate-700">OS {data.numeroOs} - Visualizador PDF</h1>
-          <p className="text-xs text-slate-500">
+          <h1 className="text-sm font-semibold">OS {data.numeroOs} — PDF</h1>
+          <p className="text-xs text-slate-300">
             {formato === "termica" && modelo === "modelo3"
               ? "Comprovante — Térmica 80mm (Modelo 3)"
               : formato === "termica" && modelo === "modelo4"
@@ -954,28 +1003,55 @@ export function PdfOsViewer({
         </div>
         <div className="flex gap-2">
           {pdfUrl && (
-            <a href={pdfUrl} download={`OS-${data.numeroOs}.pdf`}>
-              <Button type="button" variant="outline">Baixar PDF</Button>
-            </a>
-          )}
-          {pdfUrl && (
-            <a href={pdfUrl} target="_blank" rel="noreferrer">
-              <Button type="button">Abrir PDF</Button>
-            </a>
+            <>
+              <a href={pdfUrl} download={`OS-${data.numeroOs}.pdf`}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-1.5 border-slate-500 bg-transparent text-white"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Baixar
+                </Button>
+              </a>
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-1.5 border-slate-500 bg-transparent text-white"
+                onClick={imprimirPdf}
+              >
+                <Printer className="h-3.5 w-3.5" />
+                Imprimir
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-1.5 border-slate-500 bg-transparent text-white"
+                onClick={abrirEmNovaAba}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Nova aba
+              </Button>
+            </>
           )}
         </div>
       </div>
       {erroPdf ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-          <p className="text-sm font-medium text-red-600">{erroPdf}</p>
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center text-white">
+          <p className="text-sm font-medium text-red-300">{erroPdf}</p>
           <Button type="button" onClick={() => window.location.reload()}>
             Tentar novamente
           </Button>
         </div>
       ) : pdfUrl ? (
-        <iframe title={`OS ${data.numeroOs}`} src={pdfUrl} className="h-full w-full flex-1 border-0" />
+        <iframe
+          id="pdf-os-viewer"
+          title={`OS ${data.numeroOs}`}
+          src={pdfUrl}
+          className="h-full w-full flex-1 border-0"
+        />
       ) : (
-        <div className="flex flex-1 items-center justify-center text-sm text-slate-500">
+        <div className="flex flex-1 items-center justify-center text-sm text-slate-300">
           Gerando PDF da OS...
         </div>
       )}

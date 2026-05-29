@@ -95,7 +95,7 @@ export function CadastrarContaBancariaModal({
       aria-labelledby="cadastrar-conta-titulo"
     >
       <div className="absolute inset-0" onClick={onClose} aria-hidden />
-      <div className="relative my-auto w-full max-w-[820px] rounded border border-[#d4d4d4] bg-white shadow-[0_12px_40px_rgba(0,0,0,0.2)]">
+      <div className="relative my-auto w-full max-w-[820px] rounded border border-[#d4d4d4] bg-white shadow-[0_12px_40px_rgba(0,0,0,0.2)] dark:border-slate-600 dark:bg-slate-900">
         <div className="flex items-center justify-between border-b border-[#e5e5e5] px-4 py-3">
           <h2
             id="cadastrar-conta-titulo"

@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import {
+  auditarAlteracaoLancamento,
+  auditarExclusaoLancamento,
+} from "@/lib/log-auditoria-financeiro";
 import { z } from "zod";
 
 const schema = z.object({
@@ -33,6 +37,10 @@ export async function PUT(
     const data = schema.parse(body);
     const existente = await prisma.lancamento.findFirst({
       where: { id },
+      include: {
+        cliente: true,
+        trabalho: { select: { numeroOs: true } },
+      },
     });
     if (!existente) {
       return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
@@ -43,7 +51,12 @@ export async function PUT(
         ...data,
         data: parseDateOnly(data.data),
       },
+      include: {
+        cliente: true,
+        trabalho: { select: { numeroOs: true } },
+      },
     });
+    await auditarAlteracaoLancamento(session, existente, lancamento);
     return NextResponse.json(lancamento);
   } catch {
     return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
@@ -61,8 +74,13 @@ export async function DELETE(
   try {
     const existente = await prisma.lancamento.findFirst({
       where: { id },
+      include: {
+        cliente: true,
+        trabalho: { select: { numeroOs: true } },
+      },
     });
     if (!existente) return NextResponse.json({ ok: true });
+    await auditarExclusaoLancamento(session, existente);
     const lancamento = await prisma.lancamento.delete({
       where: { id },
       include: {

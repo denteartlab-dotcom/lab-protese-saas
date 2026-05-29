@@ -3,17 +3,24 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      String   @default("admin")
-  createdAt DateTime @default(now())
+  id              String    @id @default(cuid())
+  name            String
+  email           String    @unique
+  password        String
+  role            String    @default("usuario")
+  colaboradorId   String?
+  colaboradorNome String?
+  moduloProducao  Boolean   @default(false)
+  permissoesJson  String?
+  excluidoEm      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now()) @updatedAt
 }
 
 model Cliente {
@@ -152,6 +159,33 @@ model JsonStore {
   key       String   @id
   payload   String
   updatedAt DateTime @updatedAt
+}
+
+model LogAuditoria {
+  id            String   @id @default(cuid())
+  categoria     String
+  tipoAlteracao String
+  numeroOs      Int?
+  trabalhoId    String?
+  lancamentoId  String?
+  referencia    String?
+  servico       String?
+  etapa         String?
+  colaborador   String?
+  clienteNome   String?
+  parcelaNumero Int?
+  parcelaTotal  Int?
+  usuarioId     String?
+  usuarioNome   String
+  dataAlteracao DateTime @default(now())
+  detalhesJson  String?
+
+  @@index([categoria])
+  @@index([tipoAlteracao])
+  @@index([numeroOs])
+  @@index([referencia])
+  @@index([lancamentoId])
+  @@index([dataAlteracao])
 }
 
 model Orcamento {

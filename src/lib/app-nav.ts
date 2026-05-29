@@ -6,7 +6,6 @@ import {
   DollarSign,
   FileText,
   HandCoins,
-  HelpCircle,
   Home,
   LayoutGrid,
   List,
@@ -22,6 +21,7 @@ import {
   Wallet,
 } from "lucide-react";
 import type { MessageKey } from "@/lib/i18n";
+import { relatoriosNav } from "@/lib/relatorios-nav";
 
 export type AppNavItem = {
   href: string;
@@ -34,8 +34,6 @@ export const appNavPrincipal: AppNavItem[] = [
   { href: "/app/financeiro", labelKey: "nav.financeiro", icon: Wallet },
   { href: "/app/clientes", labelKey: "nav.cadastros", icon: Users },
   { href: "/app/produtos", labelKey: "nav.estoque", icon: Package },
-  { href: "/app", labelKey: "nav.relatorios", icon: Settings },
-  { href: "/app", labelKey: "nav.ajuda", icon: HelpCircle },
 ];
 
 export const appNavSemDropdown = new Set<MessageKey>([
@@ -43,7 +41,10 @@ export const appNavSemDropdown = new Set<MessageKey>([
   "nav.financeiro",
   "nav.cadastros",
   "nav.estoque",
+  "nav.relatorios",
 ]);
+
+export { relatoriosNav };
 
 export const producaoNav: AppNavItem[] = [
   { href: "/app/producao/os", labelKey: "nav.os", icon: ClipboardList },
@@ -125,5 +126,13 @@ export const gruposNavMobile: AppNavGrupoMobile[] = [
     ativo: (pathname) =>
       pathname.startsWith("/app/produtos") || pathname.startsWith("/app/orcamentos"),
     itens: estoqueNav,
+  },
+  {
+    id: "relatorios",
+    labelKey: "nav.relatorios",
+    icon: FileText,
+    hrefBase: "/app/relatorios",
+    ativo: (pathname) => pathname.startsWith("/app/relatorios"),
+    itens: relatoriosNav as AppNavItem[],
   },
 ];

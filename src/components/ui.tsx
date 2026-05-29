@@ -1,10 +1,16 @@
 "use client";
 
-import { criarHandlersSelecionarAoFocar } from "@/lib/input-selecao";
+import {
+  criarHandlersSelecionarAoFocar,
+  propsBloquearArrasteEntreCampos,
+} from "@/lib/input-selecao";
 import { cn } from "@/lib/utils";
 import { ButtonHTMLAttributes, Children, InputHTMLAttributes, cloneElement, forwardRef, isValidElement } from "react";
 
-export { propsInputComSelecaoAoFocar } from "@/lib/input-selecao";
+export {
+  propsBloquearArrasteEntreCampos,
+  propsInputComSelecaoAoFocar,
+} from "@/lib/input-selecao";
 export { CampoDataBr } from "@/components/campo-data-br";
 
 export function Button({
@@ -74,6 +80,7 @@ export const Input = forwardRef<
           error && "border-red-500",
           className
         )}
+        {...propsBloquearArrasteEntreCampos()}
         {...props}
         {...handlersSelecao}
       />
@@ -116,6 +123,7 @@ export const Select = forwardRef<
           isPlaceholder ? "text-slate-400" : "text-slate-700",
           className
         )}
+        {...propsBloquearArrasteEntreCampos()}
         {...props}
       >
         {options}
@@ -143,6 +151,7 @@ export const Textarea = forwardRef<
           "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 min-h-[80px]",
           className
         )}
+        {...propsBloquearArrasteEntreCampos()}
         {...props}
       />
     </div>

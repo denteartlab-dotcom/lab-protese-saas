@@ -9,8 +9,20 @@ export type LancamentoFinanceiroResumo = {
   status: string;
   formaPagamento?: string | null;
   clienteId?: string | null;
+  clienteNome?: string | null;
   trabalhoId?: string | null;
   trabalhoNumeroOs?: number | null;
+};
+
+export type FaturaInadimplente = {
+  id: string;
+  clienteId: string;
+  clienteNome: string;
+  descricao: string;
+  valor: number;
+  data: string;
+  dataFormatada: string;
+  numeroOs: number | null;
 };
 
 export type TrabalhoFinanceiroRef = {
@@ -163,4 +175,54 @@ export function calcularResumoFinanceiroDashboard(
     despesasAPagar,
     despesasVencidas,
   };
+}
+
+function formatarDataBr(value: string | Date) {
+  const d = dateOnly(value);
+  return d.toLocaleDateString("pt-BR");
+}
+
+/** Faturas de OS vencidas e não pagas (inadimplência). */
+export function listarFaturasInadimplentes(
+  lancamentos: LancamentoFinanceiroResumo[],
+  trabalhos: TrabalhoFinanceiroRef[]
+): FaturaInadimplente[] {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const lista: FaturaInadimplente[] = [];
+
+  for (const l of lancamentos) {
+    if (l.status === "cancelado") continue;
+    if (l.tipo !== "receita") continue;
+    if (!isFaturaContasReceber(l, trabalhos, lancamentos)) continue;
+    if (l.status === "pago") continue;
+    if (dateOnly(l.data) >= hoje) continue;
+
+    const saldo = saldoFatura(l, lancamentos);
+    if (saldo <= 0.005) continue;
+
+    const numerosOs = numerosOsDoLancamento(l);
+    lista.push({
+      id: l.id,
+      clienteId: l.clienteId || "",
+      clienteNome: l.clienteNome?.trim() || "Cliente",
+      descricao: l.descricao,
+      valor: saldo,
+      data: typeof l.data === "string" ? l.data : l.data.toISOString(),
+      dataFormatada: formatarDataBr(l.data),
+      numeroOs: l.trabalhoNumeroOs ?? numerosOs[0] ?? null,
+    });
+  }
+
+  return lista.sort((a, b) => a.data.localeCompare(b.data));
+}
+
+export function contarClientesInadimplentes(faturas: FaturaInadimplente[]) {
+  const clientes = new Set(
+    faturas.map((f) => f.clienteId).filter((id) => id && id.length > 0)
+  );
+  if (clientes.size === 0 && faturas.length > 0) {
+    return new Set(faturas.map((f) => f.clienteNome.toLowerCase())).size;
+  }
+  return clientes.size;
 }

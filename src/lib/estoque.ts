@@ -259,6 +259,31 @@ export function sincronizarMovimentosOs(osId: string, movimentos: MovimentoEstoq
   setProdutosEstoqueExtras(extras);
 }
 
+/** Todos os movimentos (histórico + OS), sem duplicar. */
+export function listarTodosMovimentosEstoque(): MovimentoEstoque[] {
+  const historico = readJson<MovimentoEstoque[]>(PRODUTOS_ESTOQUE_MOVIMENTOS_KEY, []);
+  const porOs = readJson<EstoqueOsMap>(PRODUTOS_ESTOQUE_OS_KEY, {});
+
+  const fromOs = Object.entries(porOs).flatMap(([osId, movimentos]) =>
+    movimentos.map((movimento) =>
+      normalizarMovimento({
+        ...movimento,
+        referencia: movimento.referencia || osId,
+        origem: "os",
+      })
+    )
+  );
+
+  const mapa = new Map<string, MovimentoEstoque>();
+  [...historico, ...fromOs].forEach((item) => {
+    mapa.set(chaveMovimento(normalizarMovimento(item)), normalizarMovimento(item));
+  });
+
+  return Array.from(mapa.values()).sort(
+    (a, b) => new Date(b.data).getTime() - new Date(a.data).getTime()
+  );
+}
+
 export function getHistoricoMovimentosProduto(produtoId: string) {
   const historico = readJson<MovimentoEstoque[]>(PRODUTOS_ESTOQUE_MOVIMENTOS_KEY, []);
   const porOs = readJson<EstoqueOsMap>(PRODUTOS_ESTOQUE_OS_KEY, {});

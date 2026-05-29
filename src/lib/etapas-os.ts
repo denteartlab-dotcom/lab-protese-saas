@@ -6,9 +6,29 @@ export type EtapaCadastro = {
   id: string;
   nome: string;
   setor?: string;
+  /** Cor de fundo do nome da etapa (hex). */
+  cor?: string;
   tempoMedio?: string;
   calculoPorElemento?: string;
 };
+
+/** Cor de fundo da etapa; usa fallback do setor se não definida. */
+export function corFundoEtapa(etapa: EtapaCadastro, corSetorFallback?: string) {
+  const cor = etapa.cor?.trim();
+  if (cor && /^#[0-9a-fA-F]{6}$/.test(cor)) return cor;
+  if (corSetorFallback && /^#[0-9a-fA-F]{6}$/.test(corSetorFallback)) return corSetorFallback;
+  return "#f9a8d4";
+}
+
+export function corTextoSobreFundo(hex: string) {
+  const limpo = hex.replace("#", "");
+  if (limpo.length !== 6) return "#374151";
+  const r = Number.parseInt(limpo.slice(0, 2), 16);
+  const g = Number.parseInt(limpo.slice(2, 4), 16);
+  const b = Number.parseInt(limpo.slice(4, 6), 16);
+  const luminancia = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminancia > 0.62 ? "#374151" : "#ffffff";
+}
 
 export type EtapaOsLinha = {
   /** Índice estável na lista de etapas da OS */
@@ -17,6 +37,8 @@ export type EtapaOsLinha = {
   responsavel: string;
   prazo: string;
   observacao: string;
+  /** Texto após "tempo" na linha da OS (ex.: "30 min"). */
+  tempo?: string;
 };
 
 const etapasPadrao: EtapaCadastro[] = [
@@ -33,13 +55,14 @@ export function carregarEtapasCadastro(): EtapaCadastro[] {
 function parseRestoEtapa(resto: string) {
   let responsavel = "";
   let prazo = "";
+  let tempo = "";
   const observacoes: string[] = [];
 
   for (const parte of resto.split(" - ").map((p) => p.trim()).filter(Boolean)) {
     if (/^resp\./i.test(parte)) {
       responsavel = parte.replace(/^resp\.\s*/i, "").trim();
     } else if (/^tempo\s+/i.test(parte)) {
-      continue;
+      tempo = parte.replace(/^tempo\s+/i, "").trim();
     } else if (/^prazo\s+/i.test(parte)) {
       prazo = parte.replace(/^prazo\s*/i, "").trim();
     } else {
@@ -50,8 +73,21 @@ function parseRestoEtapa(resto: string) {
   return {
     responsavel,
     prazo,
+    tempo,
     observacao: observacoes.join(" - "),
   };
+}
+
+/** Converte texto de tempo da etapa (ex.: "30 min") em minutos. */
+export function tempoMinutosEtapa(tempo?: string, tempoMedioCadastro?: string) {
+  const fonte = (tempo || tempoMedioCadastro || "").trim().toLowerCase();
+  if (!fonte) return 0;
+  const match = fonte.match(/(\d+(?:[.,]\d+)?)/);
+  if (!match) return 0;
+  const valor = Number(match[1].replace(",", "."));
+  if (!Number.isFinite(valor)) return 0;
+  if (/h|hora/.test(fonte)) return Math.round(valor * 60);
+  return Math.round(valor);
 }
 
 export function parseEtapasInstrucoes(instrucoes?: string | null): EtapaOsLinha[] {
@@ -110,6 +146,57 @@ export function resumoEtapasControle(etapas: EtapaOsLinha[]) {
   if (etapas.length === 0) return "";
   const nomes = [...new Set(etapas.map((e) => e.nome.trim()).filter(Boolean))];
   return nomes.join(", ");
+}
+
+const SETORES_STORAGE_KEY = "labProteseSetores";
+
+function corSetorCadastro(nomeSetor?: string) {
+  if (!nomeSetor?.trim() || typeof window === "undefined") return undefined;
+  try {
+    const raw = window.localStorage.getItem(SETORES_STORAGE_KEY);
+    if (!raw) return undefined;
+    const setores = JSON.parse(raw) as { nome?: string; cor?: string }[];
+    return setores.find((s) => s.nome === nomeSetor)?.cor;
+  } catch {
+    return undefined;
+  }
+}
+
+export type EtapaControleBadge = {
+  nome: string;
+  cor: string;
+  texto: string;
+};
+
+/** Nomes únicos das etapas da OS com cor de fundo do cadastro de etapas. */
+export function etapasUnicasComCor(
+  etapas: EtapaOsLinha[],
+  cadastro?: EtapaCadastro[]
+): EtapaControleBadge[] {
+  const modelos = cadastro ?? carregarEtapasCadastro();
+  const vistas = new Set<string>();
+  const resultado: EtapaControleBadge[] = [];
+
+  for (const etapa of etapas) {
+    const nome = etapa.nome.trim();
+    if (!nome) continue;
+    const chave = nome.toLowerCase();
+    if (vistas.has(chave)) continue;
+    vistas.add(chave);
+
+    const modelo = modelos.find((m) => m.nome.trim().toLowerCase() === chave);
+    const fundo = corFundoEtapa(
+      modelo || { id: "", nome, setor: modelo?.setor },
+      modelo?.setor ? corSetorCadastro(modelo.setor) : undefined
+    );
+    resultado.push({
+      nome,
+      cor: fundo,
+      texto: corTextoSobreFundo(fundo),
+    });
+  }
+
+  return resultado;
 }
 
 export type TerceirizadoOsLinha = {

@@ -51,7 +51,7 @@ function LoginForm() {
     "h-8 w-full rounded border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15";
 
   return (
-    <div className="login-hero relative flex min-h-screen min-h-[100dvh] items-center justify-center overflow-hidden bg-[#0a2f6e] px-4">
+    <div className="login-hero relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[#0a2f6e] px-4">
       {/* PNG em /public — arquivo original, sem next/image (sem recompressão) */}
       <img
         src="/images/login-background.png"
@@ -152,7 +152,9 @@ export default function LoginPage() {
   return (
     <I18nProvider>
       <Suspense>
-        <LoginForm />
+        <div className="flex min-h-0 flex-1 flex-col">
+          <LoginForm />
+        </div>
       </Suspense>
     </I18nProvider>
   );

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
 import { dateToBrShort } from "@/lib/datas-br";
+import { prepararAbaPdf } from "@/lib/pdf-viewer";
 import {
   filtrarLinhasRelatorio,
   imprimirRelatorioDespesas,
@@ -95,6 +96,7 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
   }, [linhasBase]);
 
   function imprimir() {
+    const janela = prepararAbaPdf();
     const filtro: FiltroRelatorioDespesas = {
       ordenarPor,
       situacao,
@@ -109,7 +111,11 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
     const modeloLabel =
       modelo === "despesas-modelo-1" ? "Despesas - Modelo 1" : modelo;
     const periodoLabel = `${periodoCampo === "data_lancamento" ? "Data Lançamento" : "Data Vencimento"}: ${dataInicio} a ${dataFinal}`;
-    imprimirRelatorioDespesas(ordenadas, modeloLabel, periodoLabel);
+    void imprimirRelatorioDespesas(ordenadas, modeloLabel, periodoLabel, janela).catch(
+      () => {
+        alert("Não foi possível gerar o PDF. Permita pop-ups para este site.");
+      }
+    );
   }
 
   if (!open) return null;

@@ -167,15 +167,12 @@ export function situacaoExibicaoTrabalho(
     instrucoes?: string | null;
     status: string;
   },
-  primeiroItem?: ItemOsLinha | null
+  _primeiroItem?: ItemOsLinha | null
 ): { kind: "produto" | "transporte" | "status"; status: string } {
+  void _primeiroItem;
   const badge = badgeSegmentoOs(trabalho);
   if (badge === "produto") return { kind: "produto", status: trabalho.status };
   if (badge === "transporte") return { kind: "transporte", status: trabalho.status };
-  if (primeiroItem) {
-    if (itemExibeBadgeTransporte(primeiroItem)) return { kind: "transporte", status: trabalho.status };
-    if (itemExibeBadgeProduto(primeiroItem)) return { kind: "produto", status: trabalho.status };
-  }
   return { kind: "status", status: trabalho.status };
 }
 
@@ -185,10 +182,19 @@ export function trabalhoEhProdutoOuTransporte(
     instrucoes?: string | null;
     status: string;
   },
-  primeiroItem?: ItemOsLinha | null
+  _primeiroItem?: ItemOsLinha | null
 ) {
-  const exibicao = situacaoExibicaoTrabalho(trabalho, primeiroItem);
-  return exibicao.kind === "produto" || exibicao.kind === "transporte";
+  void _primeiroItem;
+  const efetivo = segmentoEfetivoTrabalho(trabalho);
+  return efetivo === "produto" || efetivo === "transporte";
+}
+
+/** Itens das instruções que pertencem ao segmento do registro (serviço/produto/transporte). */
+export function filtrarItensPorSegmentoTrabalho<
+  T extends { servico: string; produtoId?: string },
+>(itens: T[], trabalho: { segmentoFaturamento?: string | null; instrucoes?: string | null }) {
+  const segmento = segmentoEfetivoTrabalho(trabalho);
+  return itens.filter((item) => classificarItemOs(item) === segmento);
 }
 
 /** Ficha de OS sem linha de serviço odontológico (só produto/transporte ou ficha vazia). */
@@ -268,6 +274,39 @@ export function situacaoReceitaVinculaProdutoTransporte(situacaoOs: string) {
   return servicoFinalizadoParaCobranca(situacaoOs);
 }
 
+/**
+ * Entregues/finalizados não faturados: quando o serviço da OS está pronto para cobrança,
+ * inclui também produto e transporte da mesma OS (ainda não faturados), pois serão cobrados juntos.
+ */
+export function listarTrabalhosNaoFaturados<
+  T extends {
+    id: string;
+    numeroOs: number;
+    status: string;
+    segmentoFaturamento?: string | null;
+    instrucoes?: string | null;
+  },
+>(trabalhos: T[], estaFaturado: (trabalho: T) => boolean): T[] {
+  const osComServicoPronto = new Set<number>();
+  for (const trabalho of trabalhos) {
+    if (
+      segmentoEfetivoTrabalho(trabalho) === "servico" &&
+      servicoFinalizadoParaCobranca(trabalho.status)
+    ) {
+      osComServicoPronto.add(trabalho.numeroOs);
+    }
+  }
+
+  const incluidos = new Map<string, T>();
+  for (const trabalho of trabalhos) {
+    if (!osComServicoPronto.has(trabalho.numeroOs)) continue;
+    if (estaFaturado(trabalho)) continue;
+    incluidos.set(trabalho.id, trabalho);
+  }
+
+  return Array.from(incluidos.values());
+}
+
 /** OS com mais de um segmento (serviço, produto e/ou transporte). */
 export type RegistroGrupoOs = {
   id: string;
@@ -322,6 +361,98 @@ export function grupoOsTemMultiplosSegmentos<
 >(grupo: T[]) {
   const segmentos = new Set(grupo.map((trabalho) => segmentoEfetivoTrabalho(trabalho)));
   return segmentos.size > 1;
+}
+
+export function trabalhosDoMesmoGrupoOsId<
+  T extends { id: string; grupoOsId?: string | null },
+>(trabalho: T, todos: T[]) {
+  const chave = grupoOsIdOf(trabalho);
+  return todos.filter((t) => grupoOsIdOf(t) === chave);
+}
+
+export function grupoOsTemProdutoOuTransporte<
+  T extends {
+    segmentoFaturamento?: string | null;
+    instrucoes?: string | null;
+  },
+>(grupo: T[]) {
+  return grupo.some((t) => segmentoEfetivoTrabalho(t) !== "servico");
+}
+
+export function linhaServicoDoGrupoOs<
+  T extends {
+    segmentoFaturamento?: string | null;
+    instrucoes?: string | null;
+  },
+>(grupo: T[]) {
+  return grupo.find((t) => segmentoEfetivoTrabalho(t) === "servico");
+}
+
+type FiltrosControleProducao = {
+  filtroProdutos: boolean;
+  filtroFichasSemServicos: boolean;
+};
+
+/** Visibilidade de uma linha na listagem do Controle de Produção. */
+export function deveExibirTrabalhoNoControleProducao<
+  T extends {
+    tipoProtese?: string | null;
+    instrucoes?: string | null;
+    segmentoFaturamento?: string | null;
+  },
+>(
+  trabalho: T,
+  grupo: T[],
+  filtros: FiltrosControleProducao,
+  primeiroItem?: ItemOsLinha
+) {
+  if (trabalhoEhProdutoOuTransporte(trabalho, primeiroItem)) {
+    return filtros.filtroProdutos;
+  }
+  if (trabalhoEhFichaSemServico(trabalho)) {
+    if (filtros.filtroFichasSemServicos) return true;
+    if (grupoOsTemProdutoOuTransporte(grupo)) return true;
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Garante a linha de serviço na listagem quando o grupo tem produto/transporte
+ * (ex.: produto criado antes do serviço ou ficha de serviço ainda vazia).
+ */
+export function expandirControleProducaoComServicoDoGrupo<
+  T extends {
+    id: string;
+    grupoOsId?: string | null;
+    tipoProtese?: string | null;
+    instrucoes?: string | null;
+    segmentoFaturamento?: string | null;
+  },
+>(lista: T[], todosTrabalhos: T[], filtros: FiltrosControleProducao): T[] {
+  const porGrupo = new Map<string, T[]>();
+  for (const t of todosTrabalhos) {
+    const chave = grupoOsIdOf(t);
+    const arr = porGrupo.get(chave);
+    if (arr) arr.push(t);
+    else porGrupo.set(chave, [t]);
+  }
+
+  const ids = new Set(lista.map((t) => t.id));
+  const extras: T[] = [];
+
+  for (const trabalho of lista) {
+    if (segmentoEfetivoTrabalho(trabalho) === "servico") continue;
+    const grupo = porGrupo.get(grupoOsIdOf(trabalho)) ?? [];
+    const servico = linhaServicoDoGrupoOs(grupo);
+    if (!servico || ids.has(servico.id)) continue;
+    if (!deveExibirTrabalhoNoControleProducao(servico, grupo, filtros)) continue;
+    extras.push(servico);
+    ids.add(servico.id);
+  }
+
+  if (!extras.length) return lista;
+  return [...lista, ...extras];
 }
 
 export const ORDEM_SEGMENTO_FATURAMENTO: Record<SegmentoFaturamento, number> = {

@@ -13,20 +13,41 @@ import {
 } from "@/components/ui";
 import { brShortToIso, dateToBrShort, formatDateBr, parseBrDate } from "@/lib/datas-br";
 import {
+  empacotarCobrancaOs,
+  lancamentoFaturaOsAtivo,
+  trabalhoEstaFaturado,
+} from "@/lib/os-faturamento";
+import {
   filtrarTrabalhoPorSituacaoFaturamento,
+  listarTrabalhosNaoFaturados,
   ORDEM_SEGMENTO_FATURAMENTO,
   segmentosCobraveisMesmaOs,
   segmentoEfetivoTrabalho,
   servicoFinalizadoParaCobranca,
   situacaoReceitaVinculaProdutoTransporte,
-  situacaoExibicaoTrabalho,
   type ItemOsLinha,
 } from "@/lib/trabalho-os-segmento";
 import { cn, formatDate, STATUS_TRABALHO } from "@/lib/utils";
 import { htmlCabecalhoLab, labImpressaoFromConfig } from "@/lib/lab-logo";
 import { ContaBancariaConteudo } from "@/components/financeiro/ContaBancariaConteudo";
 import { ContasPagarConteudo } from "@/components/financeiro/ContasPagarConteudo";
+import { RelatorioContasReceberModal } from "@/components/financeiro/RelatorioContasReceberModal";
+import { ServicosNaoFaturadosModal } from "@/components/financeiro/ServicosNaoFaturadosModal";
+import {
+  LancarReceitaOsModal,
+  type LancarReceitaOsSubmit,
+  type ParcelaLinhaReceita,
+} from "@/components/financeiro/LancarReceitaOsModal";
+import { ImprimirReciboModal } from "@/components/financeiro/ImprimirReciboModal";
 import { PlanoContasConteudo } from "@/components/financeiro/PlanoContasConteudo";
+import { empacotarDespesa } from "@/lib/lancamento-despesa";
+import {
+  carregarPlanoContas,
+  categoriaPadraoLancamento,
+} from "@/lib/plano-contas";
+import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
+import { gerarRelatorioTabelaPdf } from "@/lib/pdf-relatorio-tabela";
+import type { LinhaReciboRecebimento } from "@/lib/recibo-recebimento";
 
 type CobrancaAsaas = {
   id: string;
@@ -53,6 +74,7 @@ type Lancamento = {
 type Cliente = {
   id: string;
   nome: string;
+  cro?: string | null;
 };
 
 type Trabalho = {
@@ -135,35 +157,6 @@ function primeiroItemLinhaReceita(trabalho: Trabalho): ItemOsLinha | null {
     return { servico, produtoId: produtoId || undefined };
   }
   return { servico: trabalho.tipoProtese };
-}
-
-function SituacaoOsBadgeReceita({ trabalho }: { trabalho: Trabalho }) {
-  const primeiroItem = primeiroItemLinhaReceita(trabalho);
-  const exibicao = situacaoExibicaoTrabalho(trabalho, primeiroItem ?? undefined);
-
-  if (exibicao.kind === "produto") {
-    return (
-      <span className="inline-flex items-center rounded-full bg-slate-600 px-2.5 py-1 text-[10px] font-semibold text-white">
-        Produto
-      </span>
-    );
-  }
-  if (exibicao.kind === "transporte") {
-    return (
-      <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
-        Transporte
-      </span>
-    );
-  }
-  return (
-    <span
-      className={`inline-flex rounded px-2 py-1 text-[10px] font-semibold ${
-        STATUS_TRABALHO[trabalho.status]?.color || "bg-slate-100 text-slate-700"
-      }`}
-    >
-      {STATUS_TRABALHO[trabalho.status]?.label || trabalho.status}
-    </span>
-  );
 }
 
 function valorTrabalho(trabalho: Trabalho) {
@@ -277,8 +270,8 @@ function FinanceiroReceberConteudo() {
   const [trabalhos, setTrabalhos] = useState<Trabalho[]>([]);
   const [osSelecionadas, setOsSelecionadas] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
+  const [relatorioAberto, setRelatorioAberto] = useState(false);
   const [modalNaoFaturados, setModalNaoFaturados] = useState(false);
-  const [buscaNaoFaturados, setBuscaNaoFaturados] = useState("");
   const [mensagemLancamento, setMensagemLancamento] = useState("");
   const [mensagemLancamentoTipo, setMensagemLancamentoTipo] = useState<
     "sucesso" | "erro" | "info"
@@ -293,8 +286,8 @@ function FinanceiroReceberConteudo() {
     lancamento: Lancamento;
   } | null>(null);
   const [reciboRecebimento, setReciboRecebimento] = useState<{
-    cliente: ClienteReceber;
-    lancamento: Lancamento;
+    clienteNome: string;
+    linhas: LinhaReciboRecebimento[];
   } | null>(null);
   const [confirmacaoExclusao, setConfirmacaoExclusao] = useState<{
     title: string;
@@ -323,14 +316,16 @@ function FinanceiroReceberConteudo() {
   const [busca, setBusca] = useState("");
   const [form, setForm] = useState({
     tipo: "receita",
+    semOs: false,
     clienteId: "",
     convenio: "",
-    categoria: "Honorários de Serviços",
+    categoria: "Receitas de Serviços",
     descricao: "",
-    valor: "",
+    valor: "0,00",
     descontoTipo: "percentual",
-    desconto: "0",
-    juros: "0",
+    desconto: "0,00",
+    jurosTipo: "percentual",
+    juros: "0,00",
     acrescimo: false,
     data: dateToBrShort(new Date()),
     pedidoInicio: "",
@@ -340,8 +335,9 @@ function FinanceiroReceberConteudo() {
     status: "pendente",
     formaPagamento: "Forma Pagamento",
     conta: "Caixa Principal",
-    parcela: "1",
+    parcela: "1/1",
     observacoes: "",
+    recebido: false,
   });
 
   async function lerJsonResposta<T>(res: Response): Promise<T | null> {
@@ -434,26 +430,18 @@ function FinanceiroReceberConteudo() {
     () =>
       (data?.lancamentos || []).filter(
         (lancamento) =>
-          lancamento.status !== "cancelado" &&
-          (lancamento.descricao.toLowerCase().startsWith("cobrança os") ||
-            isCreditoUtilizado(lancamento))
+          lancamentoFaturaOsAtivo(lancamento) || isCreditoUtilizado(lancamento)
       ),
     [data]
   );
 
-  const trabalhosNaoFaturados = useMemo(() => {
-    return trabalhos.filter(
-      (trabalho) =>
-        ["entregue", "finalizado"].includes(trabalho.status) &&
-        !cobrancasAtivas.some((lancamento) =>
-          lancamento.trabalho?.id === trabalho.id ||
-          numerosOsDoLancamento(lancamento).includes(trabalho.numeroOs)
-        )
-    );
-  }, [cobrancasAtivas, trabalhos]);
-
   const trabalhoJaFaturado = (trabalho: Trabalho) =>
-    cobrancasAtivas.some((lancamento) => lancamento.trabalho?.id === trabalho.id);
+    trabalhoEstaFaturado(trabalho, cobrancasAtivas);
+
+  const trabalhosNaoFaturados = useMemo(
+    () => listarTrabalhosNaoFaturados(trabalhos, trabalhoJaFaturado),
+    [cobrancasAtivas, trabalhos]
+  );
 
   function passaFiltrosReceita(trabalho: Trabalho) {
     if (form.clienteId && trabalho.cliente?.id !== form.clienteId) return false;
@@ -479,7 +467,9 @@ function FinanceiroReceberConteudo() {
     trabalhoServico: Trabalho
   ) {
     for (const vinculado of segmentosCobraveisVinculados(trabalhoServico)) {
-      incluidos.set(vinculado.id, vinculado);
+      if (!trabalhoJaFaturado(vinculado)) {
+        incluidos.set(vinculado.id, vinculado);
+      }
     }
   }
 
@@ -554,15 +544,24 @@ function FinanceiroReceberConteudo() {
 
   function complementoDescricaoCobranca(descricao: string) {
     if (!descricao.toLowerCase().startsWith("cobrança os")) return descricao;
-    return descricao.split(" - ").slice(1).join(" - ");
+    return descricao
+      .replace(/@@trab:[a-zA-Z0-9_,-]+@@/g, "")
+      .split(" - ")
+      .slice(1)
+      .join(" - ")
+      .trim();
   }
 
   function descricaoCobrancaEditada(trabalhosRelacionados: Trabalho[], descricaoAtual: string) {
     if (!trabalhosRelacionados.length) return descricaoAtual;
     const complemento = complementoDescricaoCobranca(descricaoAtual);
-    return `Cobrança OS ${trabalhosRelacionados.map((trabalho) => trabalho.numeroOs).join(", ")}${
+    const base = `Cobrança OS ${trabalhosRelacionados.map((trabalho) => trabalho.numeroOs).join(", ")}${
       complemento ? ` - ${complemento}` : ""
     }`;
+    return empacotarCobrancaOs(
+      base,
+      trabalhosRelacionados.map((trabalho) => trabalho.id)
+    );
   }
 
   useEffect(() => {
@@ -703,32 +702,19 @@ function FinanceiroReceberConteudo() {
     () => trabalhos.filter((trabalho) => osSelecionadas.includes(trabalho.id)),
     [trabalhos, osSelecionadas]
   );
-  const trabalhosNaoFaturadosFiltrados = useMemo(() => {
-    const termo = buscaNaoFaturados.trim().toLowerCase();
-    if (!termo) return trabalhosNaoFaturados;
-    return trabalhosNaoFaturados.filter((trabalho) =>
-      [
-        trabalho.numeroOs,
-        trabalho.cliente?.nome,
-        trabalho.paciente?.nome,
-        trabalho.tipoProtese,
-        trabalho.dentes,
-        trabalho.cor,
-      ]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(termo))
-    );
-  }, [trabalhosNaoFaturados, buscaNaoFaturados]);
   const totalNaoFaturados = trabalhosNaoFaturados.reduce((sum, trabalho) => sum + valorTrabalho(trabalho), 0);
   const valorOsSelecionadas = trabalhosSelecionados.reduce((sum, trabalho) => sum + valorTrabalho(trabalho), 0);
-  const valorBruto = valorOsSelecionadas;
+  const valorBruto = form.semOs ? parseDecimal(form.valor || "0") : valorOsSelecionadas;
   const descontoBase = parseDecimal(form.desconto || "0");
   const desconto =
     form.descontoTipo === "valor"
       ? descontoBase
       : valorBruto * (Math.min(Math.max(descontoBase, 0), 100) / 100);
-  const jurosPercentual = parseDecimal(form.juros || "0");
-  const jurosValor = Math.max(valorBruto - desconto, 0) * (Math.max(jurosPercentual, 0) / 100);
+  const jurosBase = parseDecimal(form.juros || "0");
+  const jurosValor =
+    form.jurosTipo === "valor"
+      ? jurosBase
+      : Math.max(valorBruto - desconto, 0) * (Math.max(jurosBase, 0) / 100);
   const totalLiquido = Math.max(0, valorBruto - desconto + jurosValor);
   const creditoDisponivel = creditoDisponivelCliente(form.clienteId);
   const creditoAplicado = Math.min(creditoDisponivel, totalLiquido);
@@ -739,47 +725,154 @@ function FinanceiroReceberConteudo() {
     return (form.formaPagamento || "").toLowerCase().includes("boleto");
   }
 
-  async function save(e: React.FormEvent) {
-    e.preventDefault();
+  function categoriaPadraoReceita() {
+    const plano = carregarPlanoContas();
+    return categoriaPadraoLancamento(plano, "receitas") || "Receitas de Serviços";
+  }
+
+  function descricaoReceitaComPlano(descricaoBase: string) {
+    return empacotarDespesa(descricaoBase, {
+      categoria: form.categoria || categoriaPadraoReceita(),
+      conta: form.conta,
+      parcela: form.parcela,
+    });
+  }
+
+  function formaPagamentoValida(valor: string) {
+    const v = valor?.trim();
+    if (!v || v === "Forma Pagamento") return "Pix";
+    return v;
+  }
+
+  function valorCampoMoedaPercentual(
+    valor: string,
+    tipo: "percentual" | "valor",
+    base: number
+  ) {
+    const n = parseDecimal(valor || "0");
+    return tipo === "percentual" ? (base * n) / 100 : n;
+  }
+
+  function valorParcelaNumerico(parcela: ParcelaLinhaReceita, baseParcela: number) {
+    const valor = valorCampoMoedaPercentual(parcela.valor, parcela.valorTipo, baseParcela);
+    const juros = valorCampoMoedaPercentual(
+      parcela.juros,
+      parcela.jurosTipo,
+      Math.max(valor, 0)
+    );
+    return Math.max(0, valor + juros);
+  }
+
+  async function marcarOsFaturadasComoEntregues() {
+    const hoje = brShortToIso(dateToBrShort(new Date()));
+    const paraEntregar = trabalhosSelecionados.filter((t) => t.status === "finalizado");
+    await Promise.all(
+      paraEntregar.map((trabalho) =>
+        fetch(`/api/trabalhos/${trabalho.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: "entregue",
+            dataEntrega: hoje,
+          }),
+        })
+      )
+    );
+  }
+
+  async function save({
+    form,
+    parcelas,
+    imprimirRecibo,
+    alterarEntregue,
+  }: LancarReceitaOsSubmit) {
     setMensagemLancamento("");
-    const descricaoCobranca = trabalhosSelecionados.length
-      ? `Cobrança OS ${trabalhosSelecionados.map((trabalho) => trabalho.numeroOs).join(", ")}${
-          form.descricao ? ` - ${form.descricao}` : ""
-        }`
+    const descricaoBase = trabalhosSelecionados.length
+      ? empacotarCobrancaOs(
+          `Cobrança OS ${trabalhosSelecionados.map((trabalho) => trabalho.numeroOs).join(", ")}${
+            form.descricao ? ` - ${form.descricao}` : ""
+          }`,
+          trabalhosSelecionados.map((trabalho) => trabalho.id)
+        )
       : form.descricao || "Receita sem cobrança";
+    const descricaoCobranca = descricaoReceitaComPlano(descricaoBase);
+    const hojeIso = brShortToIso(dateToBrShort(new Date()));
+    const lancamentosCriados: Lancamento[] = [];
+    const algumRecebido = parcelas.some((p) => p.recebido);
+
     if (deveCriarFaturaReceber) {
-      const res = await fetch("/api/financeiro", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tipo: "receita",
-          clienteId: form.clienteId || undefined,
-          valor: totalAReceberComCredito,
-          data: brShortToIso(form.vencimento || form.data),
-          formaPagamento: form.formaPagamento,
-          status: "pendente",
-          trabalhoId: trabalhosSelecionados.length === 1 ? trabalhosSelecionados[0].id : undefined,
-          descricao: descricaoCobranca,
-          emitirBoleto: formaSelecionadaEhBoleto(),
-        }),
-      });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setMensagemLancamentoTipo("erro");
-        setMensagemLancamento(
-          typeof payload.error === "string"
-            ? payload.error
-            : "Não foi possível lançar a cobrança."
-        );
-        return;
-      }
-      if (payload.cobrancaAsaas?.bankSlipUrl) {
-        setMensagemLancamentoTipo("sucesso");
-        setMensagemLancamento("Boleto emitido no Asaas. Abrindo PDF…");
-        window.open(payload.cobrancaAsaas.bankSlipUrl, "_blank", "noopener,noreferrer");
-      } else if (formaSelecionadaEhBoleto()) {
-        setMensagemLancamentoTipo("sucesso");
-        setMensagemLancamento("Cobrança lançada.");
+      const basePorParcela =
+        parcelas.length > 0 ? totalAReceberComCredito / parcelas.length : totalAReceberComCredito;
+
+      if (parcelas.length > 1) {
+        const res = await fetch("/api/financeiro", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tipo: "receita",
+            clienteId: form.clienteId || undefined,
+            descricao: descricaoCobranca,
+            trabalhoId: trabalhosSelecionados.length === 1 ? trabalhosSelecionados[0].id : undefined,
+            parcelas: parcelas.map((p) => ({
+              valor: valorParcelaNumerico(p, basePorParcela),
+              data: p.recebido ? hojeIso : brShortToIso(p.vencimento || form.data),
+              status: p.recebido ? "pago" : "pendente",
+              formaPagamento: formaPagamentoValida(p.formaPagamento),
+            })),
+          }),
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setMensagemLancamentoTipo("erro");
+          setMensagemLancamento(
+            typeof payload.error === "string"
+              ? payload.error
+              : "Não foi possível lançar a cobrança."
+          );
+          return;
+        }
+        if (Array.isArray(payload.lancamentos)) {
+          lancamentosCriados.push(...payload.lancamentos);
+        }
+      } else {
+        const p = parcelas[0];
+        const valorLancamento = p
+          ? valorParcelaNumerico(p, totalAReceberComCredito)
+          : totalAReceberComCredito;
+        const res = await fetch("/api/financeiro", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tipo: "receita",
+            clienteId: form.clienteId || undefined,
+            valor: valorLancamento,
+            data: p?.recebido ? hojeIso : brShortToIso(p?.vencimento || form.vencimento || form.data),
+            formaPagamento: formaPagamentoValida(p?.formaPagamento || form.formaPagamento),
+            status: p?.recebido ? "pago" : form.status || "pendente",
+            trabalhoId: trabalhosSelecionados.length === 1 ? trabalhosSelecionados[0].id : undefined,
+            descricao: descricaoCobranca,
+            emitirBoleto: formaSelecionadaEhBoleto() && !algumRecebido,
+          }),
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setMensagemLancamentoTipo("erro");
+          setMensagemLancamento(
+            typeof payload.error === "string"
+              ? payload.error
+              : "Não foi possível lançar a cobrança."
+          );
+          return;
+        }
+        if (payload.id) lancamentosCriados.push(payload as Lancamento);
+        if (payload.cobrancaAsaas?.bankSlipUrl) {
+          setMensagemLancamentoTipo("sucesso");
+          setMensagemLancamento("Boleto emitido no Asaas. Abrindo PDF…");
+          window.open(payload.cobrancaAsaas.bankSlipUrl, "_blank", "noopener,noreferrer");
+        } else if (formaSelecionadaEhBoleto() && !algumRecebido) {
+          setMensagemLancamentoTipo("sucesso");
+          setMensagemLancamento("Cobrança lançada.");
+        }
       }
     }
     if (creditoAplicado > 0) {
@@ -793,24 +886,40 @@ function FinanceiroReceberConteudo() {
           data: brShortToIso(form.vencimento || form.data),
           status: "pago",
           formaPagamento: "Crédito do cliente",
-          descricao: `Desconto com crédito - ${descricaoCobranca}`,
+          descricao: descricaoReceitaComPlano(
+            `Desconto com crédito - ${descricaoBase}`
+          ),
         }),
       });
     }
     if (!mensagemLancamento || mensagemLancamentoTipo !== "erro") {
+      if (
+        alterarEntregue &&
+        trabalhosSelecionados.length > 0 &&
+        (deveCriarFaturaReceber || creditoAplicado > 0)
+      ) {
+        await marcarOsFaturadasComoEntregues();
+      }
+      const clienteNome =
+        clientes.find((c) => c.id === form.clienteId)?.nome || "Cliente";
+      if (imprimirRecibo && lancamentosCriados.length > 0) {
+        abrirModalRecibo(clienteNome, lancamentosCriados);
+      }
       setOpen(false);
       setMensagemLancamento("");
     }
     setForm({
       tipo: "receita",
+      semOs: false,
       clienteId: "",
       convenio: "",
-      categoria: "Honorários de Serviços",
+      categoria: categoriaPadraoReceita(),
       descricao: "",
-      valor: "",
+      valor: "0,00",
       descontoTipo: "percentual",
-      desconto: "0",
-      juros: "0",
+      desconto: "0,00",
+      jurosTipo: "percentual",
+      juros: "0,00",
       acrescimo: false,
       data: dateToBrShort(new Date()),
       pedidoInicio: "",
@@ -820,8 +929,9 @@ function FinanceiroReceberConteudo() {
       status: "pendente",
       formaPagamento: "Forma Pagamento",
       conta: "Caixa Principal",
-      parcela: "1",
+      parcela: "1/1",
       observacoes: "",
+      recebido: false,
     });
     setOsSelecionadas([]);
     load();
@@ -874,16 +984,10 @@ function FinanceiroReceberConteudo() {
     const idsParaExcluir = Array.from(
       new Set([id, ...relacionados.map((item) => item.id), ...creditosUtilizados.map((item) => item.id)])
     );
-    const numerosOsLabel = (numerosOs.length
-      ? numerosOs
-      : [lancamento?.trabalho?.numeroOs]
-    )
-      .filter(Boolean)
-      .join(", ");
     const avisos: string[] = [];
-    if (numerosOsLabel) {
+    if (numerosOs.length > 0 || lancamento?.trabalho?.numeroOs) {
       avisos.push(
-        `Atenção!! As OS ${numerosOsLabel} voltarão para Entregues | Finalizados não faturados.`
+        "Atenção!! As OS voltarão para Entregues | Finalizados não faturados."
       );
     }
     if (relacionados.length) {
@@ -1114,7 +1218,7 @@ function FinanceiroReceberConteudo() {
     }
 
     if (imprimir) {
-      imprimirNota({ ...recebendoCliente, lancamentos: faturasPagas });
+      abrirModalRecibo(recebendoCliente.nome, faturasPagas);
     }
     setRecebendoCliente(null);
     setFaturasSelecionadas([]);
@@ -1323,7 +1427,7 @@ function FinanceiroReceberConteudo() {
       .actions{text-align:right;margin-bottom:8px}
       .header{display:grid;grid-template-columns:118px 1fr 150px;gap:18px;align-items:center;margin:20px 0 22px}
       .header:not(:has(.logo)){grid-template-columns:1fr 150px}
-      .logo{display:flex;align-items:center;justify-content:flex-start;min-width:76px}
+      .logo{display:flex;align-items:center;justify-content:flex-start;min-width:91px}
       .lab{line-height:1.05}.lab strong{display:block;font-size:18px;margin-bottom:4px}.lab span{font-size:14px}
       .invoice{text-align:center;font-size:22px;line-height:1.05}.invoice strong{display:block;font-size:24px;margin-top:4px}.invoice span{display:block;margin-top:12px;font-size:8px}
       .rule{border-top:2px solid #111;margin:0 0 8px}
@@ -1381,68 +1485,52 @@ function FinanceiroReceberConteudo() {
     </body></html>`;
   }
 
-  function imprimirNota(cliente: ClienteReceber) {
-    const janela = window.open("", "_blank");
-    if (!janela) return;
-    janela.document.write(faturaHtml(cliente));
-    janela.document.close();
+  async function imprimirNota(cliente: ClienteReceber) {
+    const receitas = cliente.lancamentos.filter((l) => l.tipo === "receita");
+    const total = receitas.reduce((s, l) => s + l.valor, 0);
+    const janela = prepararAbaPdf();
+    try {
+      const blob = await gerarRelatorioTabelaPdf({
+        tituloRelatorio: `Nota de Cobrança — ${cliente.nome}`,
+        colunas: [
+          { titulo: "Descrição", larguraMm: 110, alinhamento: "left" },
+          { titulo: "Valor", larguraMm: 66, alinhamento: "right" },
+        ],
+        linhas: receitas.map((l) => [l.descricao, currency(l.valor)]),
+        linhaTotal: {
+          indiceRotulo: 0,
+          rotulo: "TOTAL",
+          celulas: ["TOTAL", currency(total)],
+        },
+      });
+      abrirPdfNoVisualizador(blob, "nota-cobranca.pdf", undefined, janela);
+    } catch (err) {
+      if (janela && !janela.closed) janela.close();
+      console.error("gerar PDF nota", err);
+      alert("Não foi possível gerar o PDF da nota.");
+    }
   }
 
-  function dataPorExtenso(value: string | Date) {
-    const date = typeof value === "string" ? new Date(value) : value;
-    return date.toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
+  function linhasReciboDeLancamentos(lancamentos: Lancamento[]): LinhaReciboRecebimento[] {
+    return lancamentos.map((l) => ({
+      valor: l.valor,
+      data: l.data,
+      formaPagamento: l.formaPagamento,
+      descricao: l.descricao,
+      numeroFatura: numeroFatura(l),
+    }));
+  }
+
+  function abrirModalRecibo(clienteNome: string, lancamentos: Lancamento[]) {
+    if (lancamentos.length === 0) return;
+    setReciboRecebimento({
+      clienteNome,
+      linhas: linhasReciboDeLancamentos(lancamentos),
     });
   }
 
-  function reciboHtml(lancamento: Lancamento, cliente: ClienteReceber) {
-    const numero = numeroFatura(lancamento);
-    const vencimento = formatDate(lancamento.data);
-    const forma = (lancamento.formaPagamento || "Pix Externo").toUpperCase();
-    const valor = currency(lancamento.valor);
-    const lab = labImpressaoFromConfig();
-    const cabecalhoRecibo = htmlCabecalhoLab(lab, { largura: 70, altura: 55 });
-
-    return `<!doctype html><html><head><title>Recibo</title><style>
-      body{font-family:Arial,sans-serif;background:#fff;color:#111;font-size:12px;margin:0;padding:32px}
-      .page{max-width:820px;margin:0 auto}
-      .top{display:flex;align-items:flex-start;gap:18px;border-bottom:1px solid #222;padding-bottom:10px}
-      .logo{display:flex;align-items:center;justify-content:flex-start;flex-shrink:0}
-      .lab strong{display:block;font-size:14px}.title{text-align:center;font-size:14px;font-weight:bold;margin:18px 0}
-      .amount{text-align:right;font-size:15px;font-weight:bold;margin:8px 0 32px}
-      .line{margin:14px 0}.table{width:88%;margin:22px auto;border-collapse:collapse;font-size:11px}
-      th,td{border-bottom:1px solid #e5e7eb;padding:7px;text-align:left}th{text-align:center;font-weight:bold}
-      td{text-align:center}.footer{text-align:right;margin-top:26px}.sign{width:420px;margin:70px auto 0;text-align:center;border-top:1px solid #444;padding-top:8px}
-      .actions{margin-bottom:14px;text-align:right}@media print{.actions{display:none}body{padding:0}.page{max-width:none}}
-    </style></head><body>
-      <div class="page">
-        <div class="actions"><button onclick="window.print()">Imprimir</button></div>
-        <div class="top">
-          ${cabecalhoRecibo}
-        </div>
-        <div class="title">RECIBO</div>
-        <div class="amount">${valor}</div>
-        <div class="line"><strong>Recebi de:</strong> ${cliente.nome}</div>
-        <div class="line"><strong>A quantia de:</strong> ${valor}</div>
-        <div class="line"><strong>Referente a:</strong> Recebimento das cobranças descritas abaixo:</div>
-        <table class="table">
-          <thead><tr><th>Forma Pagamento</th><th>Valor</th></tr></thead>
-          <tbody>
-            <tr><td>${forma}</td><td>${valor}</td></tr>
-            <tr><td><strong>Fatura: ${numero}</strong> | Vencimento: ${vencimento}</td><td>${valor}</td></tr>
-          </tbody>
-        </table>
-        <p>e para clareza firmo o presente.</p>
-        <p class="footer">Governador Valadares, ${dataPorExtenso(new Date())}.</p>
-        <div class="sign">Mateus Bonfim<br/><br/>CNPJ: 65.881.387/0001-88</div>
-      </div>
-    </body></html>`;
-  }
-
   function imprimirRecibo(lancamento: Lancamento, cliente: ClienteReceber) {
-    setReciboRecebimento({ cliente, lancamento });
+    abrirModalRecibo(cliente.nome, [lancamento]);
   }
 
   function limparFiltros() {
@@ -1519,7 +1607,12 @@ function FinanceiroReceberConteudo() {
 
   return (
     <div className="space-y-3 text-[11px] text-slate-700">
-      <div className="grid gap-3 md:grid-cols-4">
+      <div
+        className={cn(
+          "grid gap-3",
+          trabalhosNaoFaturados.length > 0 ? "md:grid-cols-4" : "md:grid-cols-3"
+        )}
+      >
         <div className="rounded border border-slate-100 bg-white p-4 shadow-sm">
           <div className="flex items-start justify-between">
             <div>
@@ -1553,26 +1646,30 @@ function FinanceiroReceberConteudo() {
             </span>
           </div>
         </div>
-        <div className="rounded border border-slate-100 bg-white p-4 shadow-sm">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-lg font-semibold text-slate-800">{money(totalNaoFaturados)}</p>
-              <p className="text-[11px] text-slate-500">
-                Entregues | Finalizados não faturados{" "}
-                <button
-                  type="button"
-                  onClick={() => setModalNaoFaturados(true)}
-                  className="rounded bg-primary-600 px-1 text-[9px] text-white"
-                >
-                  Ver
-                </button>
-              </p>
+        {trabalhosNaoFaturados.length > 0 ? (
+          <div className="rounded border border-slate-100 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-lg font-semibold text-slate-800">
+                  {money(totalNaoFaturados)}
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  Entregues | Finalizados não faturados{" "}
+                  <button
+                    type="button"
+                    onClick={() => setModalNaoFaturados(true)}
+                    className="rounded bg-[#4a90d9] px-1.5 py-0.5 text-[9px] font-normal text-white hover:bg-[#3b7bc4]"
+                  >
+                    Ver
+                  </button>
+                </p>
+              </div>
+              <span className="rounded-full bg-amber-50 p-2 text-amber-500">
+                <AlertTriangle className="h-4 w-4" />
+              </span>
             </div>
-            <span className="rounded-full bg-amber-50 p-2 text-amber-500">
-              <AlertTriangle className="h-4 w-4" />
-            </span>
           </div>
-        </div>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -1580,7 +1677,12 @@ function FinanceiroReceberConteudo() {
           <Plus className="h-3.5 w-3.5" />
           Lançar Receita (Sem Cobrança)
         </Button>
-        <Button size="sm" variant="outline" className="bg-primary-600 text-white hover:bg-primary-700">
+        <Button
+          size="sm"
+          variant="outline"
+          className="bg-primary-600 text-white hover:bg-primary-700"
+          onClick={() => setRelatorioAberto(true)}
+        >
           <FileText className="h-3.5 w-3.5" />
           Relatórios
         </Button>
@@ -2421,30 +2523,12 @@ function FinanceiroReceberConteudo() {
         )}
       </Modal>
 
-      <Modal
+      <ImprimirReciboModal
         open={Boolean(reciboRecebimento)}
         onClose={() => setReciboRecebimento(null)}
-        title="Recibo"
-        size="xl"
-      >
-        {reciboRecebimento && (
-          <div className="space-y-3">
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => window.print()}>
-                Imprimir Recibo
-              </Button>
-              <Button type="button" variant="outline" onClick={() => setReciboRecebimento(null)}>
-                Fechar
-              </Button>
-            </div>
-            <iframe
-              title="Recibo"
-              srcDoc={reciboHtml(reciboRecebimento.lancamento, reciboRecebimento.cliente)}
-              className="h-[680px] w-full rounded border border-slate-200 bg-white"
-            />
-          </div>
-        )}
-      </Modal>
+        clienteNome={reciboRecebimento?.clienteNome ?? ""}
+        linhas={reciboRecebimento?.linhas ?? []}
+      />
 
       <Modal
         open={Boolean(notaCliente)}
@@ -2455,7 +2539,7 @@ function FinanceiroReceberConteudo() {
         {notaCliente && (
           <div className="space-y-3">
             <div className="flex justify-end gap-2">
-              <Button size="sm" onClick={() => imprimirNota(notaCliente)}>
+              <Button size="sm" onClick={() => void imprimirNota(notaCliente)}>
                 Imprimir Nota
               </Button>
               <Button size="sm" variant="outline" onClick={() => setNotaCliente(null)}>
@@ -2471,415 +2555,61 @@ function FinanceiroReceberConteudo() {
         )}
       </Modal>
 
-      <Modal
+      <ServicosNaoFaturadosModal
         open={modalNaoFaturados}
         onClose={() => setModalNaoFaturados(false)}
-        title="Serviços Entregues/Finalizados e não Faturados"
-        size="xl"
-      >
-        <div className="space-y-3 text-[11px]">
-          <div className="flex items-end gap-2">
-            <Input
-              value={buscaNaoFaturados}
-              onChange={(e) => setBuscaNaoFaturados(e.target.value)}
-              placeholder="OS, situação, paciente, serviço ou cliente"
-            />
-            <Button size="sm" variant="secondary" onClick={() => setBuscaNaoFaturados("")}>
-              Limpar
-            </Button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] text-[11px]">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
-                  <th className="px-3 py-2 text-left font-semibold uppercase">OS</th>
-                  <th className="px-3 py-2 text-left font-semibold uppercase">Cliente</th>
-                  <th className="px-3 py-2 text-left font-semibold uppercase">Serviço</th>
-                  <th className="px-3 py-2 text-left font-semibold uppercase">Paciente</th>
-                  <th className="px-3 py-2 text-left font-semibold uppercase">Num Dente</th>
-                  <th className="px-3 py-2 text-left font-semibold uppercase">Cor</th>
-                  <th className="px-3 py-2 text-right font-semibold uppercase">Valor</th>
-                  <th className="px-3 py-2 text-left font-semibold uppercase">Situação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {trabalhosNaoFaturadosFiltrados.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="px-3 py-8 text-center text-slate-400">
-                      Nenhum serviço entregue/finalizado pendente de faturamento.
-                    </td>
-                  </tr>
-                )}
-                {trabalhosNaoFaturadosFiltrados.map((trabalho) => (
-                  <tr key={trabalho.id} className="hover:bg-slate-50">
-                    <td className="px-3 py-2">{trabalho.numeroOs}</td>
-                    <td className="px-3 py-2">{trabalho.cliente?.nome || "-"}</td>
-                    <td className="px-3 py-2">{trabalho.tipoProtese}</td>
-                    <td className="px-3 py-2">{trabalho.paciente?.nome || "-"}</td>
-                    <td className="px-3 py-2">{trabalho.dentes || "-"}</td>
-                    <td className="px-3 py-2">{trabalho.cor || "-"}</td>
-                    <td className="px-3 py-2 text-right">{money(valorTrabalho(trabalho))}</td>
-                    <td className="px-3 py-2">
-                      <span className={`rounded px-2 py-1 text-[10px] font-semibold ${STATUS_TRABALHO[trabalho.status]?.color || "bg-slate-100 text-slate-700"}`}>
-                        {STATUS_TRABALHO[trabalho.status]?.label || trabalho.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </Modal>
+        trabalhos={trabalhosNaoFaturados}
+        valorTrabalho={valorTrabalho}
+      />
 
-      <Modal
+      <LancarReceitaOsModal
         open={open}
         onClose={() => setOpen(false)}
-        title="Lançar Receita"
-        size="xl"
-      >
-        <form onSubmit={save} className="space-y-5 text-[11px]">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <label className="relative inline-flex cursor-pointer items-center">
-              <input type="checkbox" className="peer sr-only" />
-              <span className="h-5 w-9 rounded-full bg-slate-200 after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition peer-checked:bg-primary-600 peer-checked:after:translate-x-4" />
-            </label>
-            <span className="text-slate-500">Lançar esta cobrança em Conta Bancária com ID 8</span>
-          </div>
+        onSubmit={save}
+        form={form}
+        setForm={setForm}
+        clientes={clientes}
+        trabalhosParaReceita={trabalhosParaReceita}
+        osSelecionadas={osSelecionadas}
+        toggleOsReceita={toggleOsReceita}
+        toggleSelecionarTodasReceita={toggleSelecionarTodasReceita}
+        todasReceitaSelecionadas={todasReceitaSelecionadas}
+        algumasReceitaSelecionadas={algumasReceitaSelecionadas}
+        valorOsSelecionadas={valorOsSelecionadas}
+        totalLiquido={totalLiquido}
+        creditoAplicado={creditoAplicado}
+        totalAReceberComCredito={totalAReceberComCredito}
+        mensagemLancamento={mensagemLancamento}
+        mensagemLancamentoTipo={mensagemLancamentoTipo}
+        formaSelecionadaEhBoleto={formaSelecionadaEhBoleto}
+        valorTrabalho={valorTrabalho}
+        onLimparOsSelecionadas={() => setOsSelecionadas([])}
+        money={money}
+        currency={currency}
+        formatDecimalInput={formatDecimalInput}
+        formatCurrencyInput={formatCurrencyInput}
+      />
 
-          <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
-            <div className="space-y-4">
-              <div className="grid gap-3 md:grid-cols-[1fr_0.75fr_1.35fr_1fr]">
-                <Select
-                  label="Clientes"
-                  value={form.clienteId}
-                  onChange={(e) => {
-                    setForm({ ...form, clienteId: e.target.value });
-                    setOsSelecionadas([]);
-                  }}
-                >
-                  <option value="">Selecione</option>
-                  {clientes.map((cliente) => (
-                    <option key={cliente.id} value={cliente.id}>
-                      {cliente.nome}
-                    </option>
-                  ))}
-                </Select>
-                <Select
-                  label="Conveniado"
-                  value={form.convenio}
-                  onChange={(e) => setForm({ ...form, convenio: e.target.value })}
-                >
-                  <option value="">Selecione</option>
-                  <option>Particular</option>
-                  <option>Convênio</option>
-                </Select>
-                <div className="space-y-1">
-                  <label className="block text-sm font-medium text-slate-700">Pedido (data entrega)</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <CampoDataBr
-                      value={form.pedidoInicio}
-                      onChange={(value) => setForm({ ...form, pedidoInicio: value })}
-                    />
-                    <CampoDataBr
-                      value={form.pedidoFinal}
-                      onChange={(value) => setForm({ ...form, pedidoFinal: value })}
-                    />
-                  </div>
-                </div>
-                <Select
-                  label="Situação"
-                  value={form.situacaoOs}
-                  onChange={(e) => {
-                    setForm({ ...form, situacaoOs: e.target.value });
-                    setOsSelecionadas([]);
-                  }}
-                >
-                  <option value="">Selecione</option>
-                  {Object.entries(STATUS_TRABALHO).map(([key, value]) => (
-                    <option key={key} value={key}>{value.label}</option>
-                  ))}
-                  <option value="produto">Produto</option>
-                  <option value="transporte">Transporte</option>
-                </Select>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-                <Input
-                  placeholder="OS, serviço ou paciente"
-                  value={form.descricao}
-                  onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-                />
-                <Button type="button" size="sm" variant="secondary">
-                  Limpar
-                </Button>
-              </div>
-
-              <div className="min-h-28 rounded border border-slate-200 bg-slate-50/60 p-3">
-                {!form.clienteId || !form.situacaoOs ? (
-                  <p className="py-8 text-center text-slate-400">Selecione um cliente e uma situação para listar as OS.</p>
-                ) : trabalhosParaReceita.length === 0 ? (
-                  <p className="py-8 text-center text-slate-400">Nenhuma OS encontrada para este cliente e situação.</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[860px] text-[11px]">
-                      <thead>
-                        <tr className="border-b border-slate-200 text-slate-500">
-                          <th className="px-2 py-2 text-left">
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={todasReceitaSelecionadas}
-                                ref={(el) => {
-                                  if (el) {
-                                    el.indeterminate =
-                                      algumasReceitaSelecionadas && !todasReceitaSelecionadas;
-                                  }
-                                }}
-                                onChange={toggleSelecionarTodasReceita}
-                                className="h-4 w-4 accent-primary-600"
-                                aria-label="Selecionar todas as OS"
-                              />
-                              <span>Selecionar</span>
-                            </div>
-                          </th>
-                          <th className="px-2 py-2 text-left">OS</th>
-                          <th className="px-2 py-2 text-left">Cliente</th>
-                          <th className="px-2 py-2 text-left">Paciente</th>
-                          <th className="px-2 py-2 text-left">Serviço</th>
-                          <th className="px-2 py-2 text-left">Situação</th>
-                          <th className="px-2 py-2 text-right">Valor</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {trabalhosParaReceita.map((trabalho) => (
-                          <tr key={trabalho.id} className={osSelecionadas.includes(trabalho.id) ? "bg-blue-50" : "bg-white"}>
-                            <td className="px-2 py-2">
-                              <input
-                                type="checkbox"
-                                checked={osSelecionadas.includes(trabalho.id)}
-                                onChange={() => toggleOsReceita(trabalho.id)}
-                                className="h-4 w-4 accent-primary-600"
-                              />
-                            </td>
-                            <td className="px-2 py-2 font-semibold">{trabalho.numeroOs}</td>
-                            <td className="px-2 py-2">{trabalho.cliente?.nome || "-"}</td>
-                            <td className="px-2 py-2">{trabalho.paciente?.nome || "-"}</td>
-                            <td className="px-2 py-2">{trabalho.tipoProtese}</td>
-                            <td className="px-2 py-2">
-                              <SituacaoOsBadgeReceita trabalho={trabalho} />
-                            </td>
-                            <td className="px-2 py-2 text-right">{money(valorTrabalho(trabalho))}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    <div className="mt-2 text-right text-xs font-semibold text-slate-700">
-                      Total selecionado: {money(valorOsSelecionadas)}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-wrap gap-6 pt-1">
-                <label className="inline-flex items-center gap-2 text-slate-600">
-                  <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-slate-300" />
-                  Alterar Situação para Entregue?
-                </label>
-                <label className="inline-flex items-center gap-2 text-slate-600">
-                  <input type="checkbox" className="h-4 w-4 rounded border-slate-300" />
-                  Enviar Cadastro PagSeguro
-                </label>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="grid gap-3 md:grid-cols-[auto_1fr]">
-                <Button type="button" size="sm" variant="secondary">
-                  add
-                </Button>
-                <Input placeholder="Código de barras" />
-              </div>
-
-              <div className="ml-auto w-full max-w-sm space-y-3">
-                <div className="flex items-center justify-between border-b border-slate-100 py-2">
-                  <span className="text-slate-500">Valor Total</span>
-                  <Input
-                    value={currency(valorBruto)}
-                    readOnly
-                    className="h-8 max-w-32 text-right"
-                  />
-                </div>
-                <div className="flex items-center justify-between border-b border-slate-100 py-2">
-                  <span className="text-slate-500">Desconto</span>
-                  <div className="flex max-w-52 overflow-hidden rounded border border-slate-200">
-                    <select
-                      value={form.descontoTipo}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          descontoTipo: e.target.value,
-                          desconto: e.target.value === "valor" ? "R$ 0,00" : "0,00",
-                        })
-                      }
-                      className="w-14 border-r border-slate-200 bg-white px-2 text-xs text-slate-600 outline-none"
-                    >
-                      <option value="percentual">%</option>
-                      <option value="valor">R$</option>
-                    </select>
-                    <Input
-                      selectOnFocus
-                      value={form.desconto}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          desconto:
-                            form.descontoTipo === "valor"
-                              ? formatCurrencyInput(e.target.value)
-                              : formatDecimalInput(e.target.value),
-                        })
-                      }
-                      className="h-8 border-0 text-right shadow-none focus:ring-0"
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center justify-between border-b border-slate-100 py-3 font-semibold text-primary-700">
-                  <span>Total Líquido</span>
-                  <span>{currency(totalLiquido)}</span>
-                </div>
-                {creditoAplicado > 0 && (
-                  <>
-                    <div className="flex items-center justify-between border-b border-slate-100 py-2 text-emerald-700">
-                      <span>Desconto com crédito</span>
-                      <span>- {currency(creditoAplicado)}</span>
-                    </div>
-                    <div className="flex items-center justify-between py-3 font-semibold text-slate-800">
-                      <span>Total a cobrar</span>
-                      <span>{currency(totalAReceberComCredito)}</span>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="text-center text-slate-500">Escolha a(s) forma(s) de recebimento</div>
-          {formaSelecionadaEhBoleto() ? (
-            <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-center text-[11px] text-amber-900">
-              Com <strong>Boleto</strong>, o sistema emite automaticamente no Asaas ao cadastrar. O cliente
-              precisa ter <strong>CPF ou CNPJ</strong> no cadastro. Configure a API em Configurações → Boletos.
-            </p>
-          ) : null}
-          {mensagemLancamento ? (
-            <p
-              role="alert"
-              className={cn(
-                "rounded px-3 py-2 text-center text-[11px] font-medium",
-                mensagemLancamentoTipo === "erro"
-                  ? "bg-red-50 text-red-700"
-                  : "bg-emerald-50 text-emerald-800"
-              )}
-            >
-              {mensagemLancamento}
-            </p>
-          ) : null}
-
-          <div className="rounded border border-primary-300 p-3">
-            <Select
-              label="Entrada"
-              value={form.formaPagamento}
-              onChange={(e) => setForm({ ...form, formaPagamento: e.target.value })}
-            >
-              <option>Forma Pagamento</option>
-              <option>Dinheiro</option>
-              <option>Pix</option>
-              <option>Cartão</option>
-              <option>Boleto</option>
-            </Select>
-
-            <div className="mt-3 overflow-visible">
-              <table className="w-full min-w-[900px] text-[11px]">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
-                    <th className="px-2 py-2 text-left">Parcela</th>
-                    <th className="px-2 py-2 text-left">Forma Recebimento</th>
-                    <th className="px-2 py-2 text-left">Conta</th>
-                    <th className="px-2 py-2 text-left">Vencimento</th>
-                    <th className="px-2 py-2 text-left">Valor</th>
-                    <th className="px-2 py-2 text-left">Juros (%)</th>
-                    <th className="px-2 py-2 text-left">Acréscimo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="px-2 py-2">
-                      <Input value={form.parcela} onChange={(e) => setForm({ ...form, parcela: e.target.value })} className="h-8" />
-                    </td>
-                    <td className="px-2 py-2">
-                      <Select value={form.formaPagamento} onChange={(e) => setForm({ ...form, formaPagamento: e.target.value })}>
-                        <option>Forma Pagamento</option>
-                        <option>Dinheiro</option>
-                        <option>Pix</option>
-                        <option>Cartão</option>
-                        <option>Boleto</option>
-                      </Select>
-                    </td>
-                    <td className="px-2 py-2">
-                      <Select value={form.conta} onChange={(e) => setForm({ ...form, conta: e.target.value })}>
-                        <option>Caixa Principal</option>
-                        <option>Banco</option>
-                      </Select>
-                    </td>
-                    <td className="px-2 py-2">
-                      <CampoDataBr
-                        value={form.vencimento}
-                        onChange={(value) => setForm({ ...form, vencimento: value })}
-                        calendarPosition="relative"
-                      />
-                    </td>
-                    <td className="px-2 py-2">
-                      <Input value={currency(totalAReceberComCredito)} readOnly className="h-8 text-right" />
-                    </td>
-                    <td className="px-2 py-2">
-                      <Input
-                        value={form.juros}
-                        onChange={(e) => setForm({ ...form, juros: formatDecimalInput(e.target.value) })}
-                        className="h-8 text-right"
-                      />
-                    </td>
-                    <td className="px-2 py-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={form.acrescimo}
-                        onChange={(e) => setForm({ ...form, acrescimo: e.target.checked })}
-                        className="h-4 w-4 rounded border-slate-300"
-                      />
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Observações</label>
-            <textarea
-              value={form.observacoes}
-              onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
-              className="min-h-20 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-            />
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <Button type="submit" className="w-full">
-              Cadastrar
-            </Button>
-            <Button type="button" variant="outline" className="w-full" onClick={() => setOpen(false)}>
-              Fechar
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      <RelatorioContasReceberModal
+        open={relatorioAberto}
+        onClose={() => setRelatorioAberto(false)}
+        lancamentos={data?.lancamentos ?? []}
+        trabalhos={trabalhos.map((t) => ({
+          id: t.id,
+          numeroOs: t.numeroOs,
+          status: t.status,
+          paciente: t.paciente?.nome ?? null,
+          tipoProtese: t.tipoProtese,
+          valor: t.valor,
+          dentes: t.dentes,
+          cor: t.cor,
+          instrucoes: t.instrucoes,
+          dataEntrega: t.dataEntrega ?? null,
+          cliente: t.cliente
+            ? { nome: t.cliente.nome, cro: t.cliente.cro }
+            : null,
+        }))}
+      />
     </div>
   );
 }

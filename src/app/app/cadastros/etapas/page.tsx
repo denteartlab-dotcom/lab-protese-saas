@@ -7,6 +7,7 @@ import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { compararTextoBr } from "@/lib/listagem-config";
 import { Button, Input, Modal, Select } from "@/components/ui";
 import { usePageReady } from "@/hooks/use-page-ready";
+import { corFundoEtapa, corTextoSobreFundo } from "@/lib/etapas-os";
 import { writeStorage } from "@/lib/persisted-storage";
 
 type Setor = {
@@ -19,6 +20,7 @@ type Etapa = {
   id: string;
   nome: string;
   setor: string;
+  cor: string;
   tempoMedio: string;
   calculoPorElemento: string;
 };
@@ -32,29 +34,40 @@ const setoresPadrao: Setor[] = [
   { id: "metal", nome: "Metal", cor: "#e9a94f" },
 ];
 
+const COR_ETAPA_PADRAO = "#f9a8d4";
+
 const etapasIniciais: Etapa[] = [
-  { id: "modelo-individual", nome: "Modelo Individual", setor: "Resina", tempoMedio: "30", calculoPorElemento: "Não" },
-  { id: "montagem", nome: "Montagem", setor: "Resina", tempoMedio: "80", calculoPorElemento: "Não" },
-  { id: "plano-cera", nome: "Plano de cera", setor: "Resina", tempoMedio: "45", calculoPorElemento: "Não" },
-  { id: "acrilizacao-comum", nome: "Acrilização comum", setor: "Resina", tempoMedio: "80", calculoPorElemento: "Não" },
-  { id: "acrilizacao-stg", nome: "Acrilização STG", setor: "Resina", tempoMedio: "45", calculoPorElemento: "Não" },
-  { id: "recebimento", nome: "Recebimento", setor: "Resina", tempoMedio: "80", calculoPorElemento: "Não" },
-  { id: "plano-cera-personalizado", nome: "Plano de cera personalizado", setor: "Resina", tempoMedio: "60", calculoPorElemento: "Não" },
-  { id: "montagem-dentes-protocolo", nome: "Montagem de dentes protocolo", setor: "Resina", tempoMedio: "90", calculoPorElemento: "Não" },
-  { id: "barra-protocolo-titanio", nome: "Barra protocolo titânio", setor: "Resina", tempoMedio: "20", calculoPorElemento: "Não" },
-  { id: "acrilizacao-caracterizada", nome: "Acrilização caracterizada", setor: "Resina", tempoMedio: "80", calculoPorElemento: "Não" },
-  { id: "estrutura-metalica", nome: "Estrutura metálica", setor: "Metal", tempoMedio: "0", calculoPorElemento: "Não" },
-  { id: "montagem-ppr", nome: "Montagem ppr", setor: "Resina", tempoMedio: "80", calculoPorElemento: "Não" },
-  { id: "acrilizacao-ppr", nome: "Acrilização ppr", setor: "Resina", tempoMedio: "60", calculoPorElemento: "Não" },
-  { id: "acrilizacao-stg-ppr", nome: "Acrilização STG (PPR)", setor: "Resina", tempoMedio: "80", calculoPorElemento: "Não" },
+  { id: "modelo-individual", nome: "Modelo Individual", setor: "Resina", cor: "#f9a8d4", tempoMedio: "30", calculoPorElemento: "Não" },
+  { id: "montagem", nome: "Montagem", setor: "Resina", cor: "#f9a8d4", tempoMedio: "80", calculoPorElemento: "Não" },
+  { id: "plano-cera", nome: "Plano de cera", setor: "Resina", cor: "#f9a8d4", tempoMedio: "45", calculoPorElemento: "Não" },
+  { id: "acrilizacao-comum", nome: "Acrilização comum", setor: "Resina", cor: "#f9a8d4", tempoMedio: "80", calculoPorElemento: "Não" },
+  { id: "acrilizacao-stg", nome: "Acrilização STG", setor: "Resina", cor: "#f9a8d4", tempoMedio: "45", calculoPorElemento: "Não" },
+  { id: "recebimento", nome: "Recebimento", setor: "Resina", cor: "#d1d5db", tempoMedio: "80", calculoPorElemento: "Não" },
+  { id: "plano-cera-personalizado", nome: "Plano de cera personalizado", setor: "Resina", cor: "#f9a8d4", tempoMedio: "60", calculoPorElemento: "Não" },
+  { id: "montagem-dentes-protocolo", nome: "Montagem de dentes protocolo", setor: "Resina", cor: "#f9a8d4", tempoMedio: "90", calculoPorElemento: "Não" },
+  { id: "barra-protocolo-titanio", nome: "Barra protocolo titânio", setor: "Resina", cor: "#f9a8d4", tempoMedio: "20", calculoPorElemento: "Não" },
+  { id: "acrilizacao-caracterizada", nome: "Acrilização caracterizada", setor: "Resina", cor: "#f9a8d4", tempoMedio: "80", calculoPorElemento: "Não" },
+  { id: "estrutura-metalica", nome: "Estrutura metálica", setor: "Metal", cor: "#fde68a", tempoMedio: "0", calculoPorElemento: "Não" },
+  { id: "montagem-ppr", nome: "Montagem ppr", setor: "Resina", cor: "#f9a8d4", tempoMedio: "80", calculoPorElemento: "Não" },
+  { id: "acrilizacao-ppr", nome: "Acrilização ppr", setor: "Resina", cor: "#f9a8d4", tempoMedio: "60", calculoPorElemento: "Não" },
+  { id: "acrilizacao-stg-ppr", nome: "Acrilização STG (PPR)", setor: "Resina", cor: "#f9a8d4", tempoMedio: "80", calculoPorElemento: "Não" },
 ];
 
 const formularioVazio = {
   nome: "",
   setor: "",
+  cor: COR_ETAPA_PADRAO,
   tempoMedio: "",
   calculoPorElemento: "Não",
 };
+
+function normalizarEtapa(etapa: Etapa, setores: Setor[]): Etapa {
+  const setor = setores.find((s) => s.nome === etapa.setor);
+  return {
+    ...etapa,
+    cor: corFundoEtapa(etapa, setor?.cor),
+  };
+}
 
 function carregarLista<T>(key: string, fallback: T[]) {
   if (typeof window === "undefined") return fallback;
@@ -84,9 +97,15 @@ export default function EtapasPage() {
   const [persistenciaPronta, setPersistenciaPronta] = useState(false);
 
   const paginaPronta = usePageReady(() => {
-    setEtapas(carregarLista(STORAGE_KEY, etapasIniciais));
-    setEtapasExcluidas(carregarLista(EXCLUIDOS_STORAGE_KEY, []));
-    setSetores(carregarLista(SETORES_STORAGE_KEY, setoresPadrao));
+    const setoresCarregados = carregarLista(SETORES_STORAGE_KEY, setoresPadrao);
+    const etapasCarregadas = carregarLista<Etapa>(STORAGE_KEY, etapasIniciais).map((e) =>
+      normalizarEtapa(e, setoresCarregados)
+    );
+    setEtapas(etapasCarregadas);
+    setEtapasExcluidas(
+      carregarLista<Etapa>(EXCLUIDOS_STORAGE_KEY, []).map((e) => normalizarEtapa(e, setoresCarregados))
+    );
+    setSetores(setoresCarregados);
     setSetoresCarregados(true);
     setPersistenciaPronta(true);
   });
@@ -135,6 +154,10 @@ export default function EtapasPage() {
     return setores.find((setor) => setor.nome === nome) || { nome, cor: "#ef4444" };
   }
 
+  function corDaEtapa(etapa: Etapa) {
+    return corFundoEtapa(etapa, setorInfo(etapa.setor).cor);
+  }
+
   function abrirNovo() {
     setEditando(null);
     setForm(formularioVazio);
@@ -146,6 +169,7 @@ export default function EtapasPage() {
     setForm({
       nome: etapa.nome,
       setor: etapa.setor,
+      cor: corDaEtapa(etapa),
       tempoMedio: etapa.tempoMedio,
       calculoPorElemento: etapa.calculoPorElemento,
     });
@@ -159,7 +183,9 @@ export default function EtapasPage() {
     if (editando) {
       setEtapas((atuais) =>
         atuais.map((etapa) =>
-          etapa.id === editando.id ? { ...etapa, ...form, nome: form.nome.trim() } : etapa
+          etapa.id === editando.id
+            ? { ...etapa, ...form, nome: form.nome.trim(), cor: form.cor }
+            : etapa
         )
       );
     } else {
@@ -169,6 +195,7 @@ export default function EtapasPage() {
           id: crypto.randomUUID(),
           ...form,
           nome: form.nome.trim(),
+          cor: form.cor,
         },
       ]);
     }
@@ -286,10 +313,11 @@ export default function EtapasPage() {
         >
           {(itensPagina) => (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-[10px]">
+          <table className="w-full min-w-[980px] text-[10px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50 text-slate-500">
                 <th className="px-3 py-2 text-left font-semibold uppercase">Nome</th>
+                <th className="w-14 px-3 py-2 text-center font-semibold uppercase">Cor</th>
                 <th className="px-3 py-2 text-left font-semibold uppercase">Setor</th>
                 <th className="px-3 py-2 text-left font-semibold uppercase">Tempo Médio Execução Minutos</th>
                 <th className="px-3 py-2 text-left font-semibold uppercase">Cálculo por Elemento</th>
@@ -298,13 +326,21 @@ export default function EtapasPage() {
             </thead>
             <tbody className="divide-y divide-slate-50">
               {!paginaPronta ? (
-                <ListaCarregando colSpan={5} />
+                <ListaCarregando colSpan={6} />
               ) : (
               itensPagina.map((etapa) => {
                 const setor = setorInfo(etapa.setor);
+                const fundoNome = corDaEtapa(etapa);
                 return (
                   <tr key={etapa.id} className="hover:bg-slate-50">
                     <td className="px-3 py-2 text-slate-700">{etapa.nome}</td>
+                    <td className="px-3 py-2 text-center">
+                      <span
+                        className="inline-block h-5 w-5 rounded-sm border border-slate-300 shadow-inner"
+                        style={{ backgroundColor: fundoNome }}
+                        title={fundoNome}
+                      />
+                    </td>
                     <td className="px-3 py-2">
                       <span
                         className="inline-flex rounded px-2 py-0.5 text-[9px] font-semibold text-white"
@@ -366,7 +402,7 @@ export default function EtapasPage() {
               )}
               {paginaPronta && filtradas.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-3 py-8 text-center text-slate-400">
+                  <td colSpan={6} className="px-3 py-8 text-center text-slate-400">
                     {mostrarExcluidas ? "Nenhuma etapa excluída." : "Nenhuma etapa encontrada."}
                   </td>
                 </tr>
@@ -391,6 +427,33 @@ export default function EtapasPage() {
             onChange={(event) => setForm({ ...form, nome: event.target.value })}
             required
           />
+          <div className="space-y-1 md:col-span-2">
+            <label className="block text-sm font-medium text-slate-700">
+              Cor de fundo do nome
+            </label>
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="color"
+                value={form.cor}
+                onChange={(event) => setForm({ ...form, cor: event.target.value })}
+                className="h-10 w-14 cursor-pointer rounded-lg border border-slate-300 bg-white p-1"
+                title="Escolher cor"
+              />
+              <span
+                className="inline-block h-10 w-10 shrink-0 rounded-lg border border-slate-300 shadow-inner"
+                style={{ backgroundColor: form.cor }}
+              />
+              <span
+                className="inline-flex min-h-[28px] items-center rounded px-2 py-1 text-[11px] font-medium"
+                style={{
+                  backgroundColor: form.cor,
+                  color: corTextoSobreFundo(form.cor),
+                }}
+              >
+                {form.nome.trim() || "Prévia do nome"}
+              </span>
+            </div>
+          </div>
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-2">
               <label className="block text-sm font-medium text-slate-700">Setor</label>

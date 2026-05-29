@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Eye, FileText, MessageCircle, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { Button, Input, Modal } from "@/components/ui";
@@ -17,6 +17,8 @@ import {
 import { BarraConfigListagem } from "@/components/listagem/BarraConfigListagem";
 import { useListagemPaginada } from "@/hooks/use-listagem-paginada";
 import { compararTextoBr } from "@/lib/listagem-config";
+import { buscarEnderecoPorCep as buscarCepApi } from "@/lib/cep-lookup";
+import { formatCepInput } from "@/lib/documento-br";
 
 type Cliente = {
   id: string;
@@ -98,6 +100,8 @@ export default function ClientesPage() {
   const [form, setForm] = useState(empty);
   const [enviandoWhatsAppId, setEnviandoWhatsAppId] = useState<string | null>(null);
   const [tabelasPreco, setTabelasPreco] = useState<string[]>(["Tabela Principal"]);
+  const [buscandoCep, setBuscandoCep] = useState(false);
+  const ultimoCepBuscado = useRef("");
 
   const recarregarTabelasPreco = async () => {
     const nomes = await carregarNomesTabelasPrecoRemoto();
@@ -114,13 +118,6 @@ export default function ClientesPage() {
     }
     const data = await res.json();
     setList(Array.isArray(data) ? data : []);
-  }
-
-  function formatCepInput(value: string) {
-    const digits = value.replace(/\D/g, "").slice(0, 8);
-    if (digits.length <= 3) return digits;
-    if (digits.length <= 5) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
-    return `${digits.slice(0, 3)}.${digits.slice(3, 5)}-${digits.slice(5)}`;
   }
 
   function formatDateInput(value: string) {
@@ -149,29 +146,58 @@ export default function ClientesPage() {
       .trim() || "";
   }
 
-  async function buscarEnderecoPorCep() {
-    const cep = form.cep.replace(/\D/g, "");
+  function aplicarEnderecoCep(
+    endereco: NonNullable<Awaited<ReturnType<typeof buscarCepApi>>>
+  ) {
+    setForm((current) => {
+      const rua = endereco.rua || current.rua;
+      const bairro = endereco.bairro || current.bairro;
+      const cidade = endereco.cidade || current.cidade;
+      const uf = endereco.uf || current.uf;
+      return {
+        ...current,
+        rua,
+        bairro,
+        cidade,
+        uf,
+        cep: endereco.cep,
+        endereco: [rua, current.numero, bairro, current.complemento]
+          .filter(Boolean)
+          .join(", "),
+      };
+    });
+  }
+
+  async function buscarEnderecoPorCep(cepInformado = form.cep) {
+    const cep = cepInformado.replace(/\D/g, "");
     if (cep.length !== 8) {
       alert("Informe um CEP com 8 números.");
       return;
     }
 
-    const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-    const data = await response.json();
-    if (data.erro) {
-      alert("CEP não encontrado.");
-      return;
+    ultimoCepBuscado.current = cep;
+    setBuscandoCep(true);
+    try {
+      const endereco = await buscarCepApi(cepInformado);
+      if (!endereco) {
+        alert("CEP não encontrado.");
+        return;
+      }
+      aplicarEnderecoCep(endereco);
+    } catch {
+      alert("Não foi possível consultar o CEP. Tente novamente.");
+    } finally {
+      setBuscandoCep(false);
     }
-
-    setForm((current) => ({
-      ...current,
-      rua: data.logradouro || current.rua,
-      bairro: data.bairro || current.bairro,
-      cidade: data.localidade || current.cidade,
-      uf: data.uf || current.uf,
-      cep: formatCepInput(cep),
-    }));
   }
+
+  useEffect(() => {
+    if (!open) return;
+    const cep = form.cep.replace(/\D/g, "");
+    if (cep.length === 8 && cep !== ultimoCepBuscado.current) {
+      void buscarEnderecoPorCep(form.cep);
+    }
+  }, [form.cep, open]);
 
   useEffect(() => {
     void load();
@@ -218,6 +244,7 @@ export default function ClientesPage() {
   async function openNew() {
     const tabelas = await carregarNomesTabelasPrecoRemoto();
     setEditing(null);
+    ultimoCepBuscado.current = "";
     setForm({
       ...empty,
       tabelaPreco: tabelas[0] || "Tabela Principal",
@@ -228,6 +255,7 @@ export default function ClientesPage() {
 
   function openEdit(c: Cliente) {
     setEditing(c);
+    ultimoCepBuscado.current = (c.cep || "").replace(/\D/g, "");
     setForm({
       tipoCliente: "Dentista",
       abreviacao: "",
@@ -699,13 +727,14 @@ export default function ClientesPage() {
                     onChange={(e) => setForm({ ...form, cep: formatCepInput(e.target.value) })}
                   />
                 </div>
-                <div className="flex items-end md:col-span-1">
+                <div className="flex items-end md:col-span-2">
                   <button
                     type="button"
-                    onClick={buscarEnderecoPorCep}
-                    className="h-9 w-full rounded border border-primary-500 bg-white px-2 text-[11px] text-primary-700 hover:bg-primary-50"
+                    onClick={() => void buscarEnderecoPorCep()}
+                    disabled={buscandoCep}
+                    className="h-9 w-full whitespace-nowrap rounded border border-primary-500 bg-white px-3 text-[11px] text-primary-700 hover:bg-primary-50 disabled:opacity-60"
                   >
-                    Buscar Endereço
+                    {buscandoCep ? "Buscando..." : "Buscar CEP"}
                   </button>
                 </div>
                 <div className="md:col-span-5">

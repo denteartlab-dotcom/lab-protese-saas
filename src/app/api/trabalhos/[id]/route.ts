@@ -1,7 +1,20 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { grupoOsIdOf } from "@/lib/trabalho-os-segmento";
+import {
+  formatClienteLogAuditoria,
+  formatServicoLogAuditoria,
+  formatarValorCampoLog,
+  registrarLogAuditoria,
+  type DetalheAlteracaoAuditoria,
+} from "@/lib/logs-auditoria";
+import {
+  lancamentoFaturaOsAtivo,
+  MENSAGEM_OS_FATURADA_NAO_EXCLUI,
+  osEstaFaturadaContasReceber,
+} from "@/lib/os-faturamento";
+import { grupoOsIdOf, whereGrupoOs } from "@/lib/trabalho-os-segmento";
+import { STATUS_TRABALHO } from "@/lib/utils";
 import { z } from "zod";
 
 const schema = z.object({
@@ -96,6 +109,51 @@ export async function PUT(
       include: { cliente: true, paciente: true },
     });
 
+    const detalhes: DetalheAlteracaoAuditoria[] = [];
+    const rotulo = (campo: string, antes: unknown, depois: unknown) => {
+      const a = antes == null || antes === "" ? "—" : String(antes);
+      const d = depois == null || depois === "" ? "—" : String(depois);
+      if (a !== d) detalhes.push({ campo, antes: a, depois: d });
+    };
+
+    if (data.status != null && data.status !== atual.status) {
+      rotulo(
+        "Situação",
+        STATUS_TRABALHO[atual.status]?.label || atual.status,
+        STATUS_TRABALHO[data.status]?.label || data.status
+      );
+    }
+    if (data.observacoes !== undefined && data.observacoes !== atual.observacoes) {
+      rotulo("Anotações", atual.observacoes, data.observacoes);
+    }
+    if (data.tipoProtese != null && data.tipoProtese !== atual.tipoProtese) {
+      rotulo("Serviço", atual.tipoProtese, data.tipoProtese);
+    }
+    if (data.valor != null && data.valor !== atual.valor) {
+      rotulo(
+        "Valor",
+        formatarValorCampoLog("Valor", String(atual.valor)),
+        formatarValorCampoLog("Valor", String(data.valor))
+      );
+    }
+
+    if (detalhes.length > 0) {
+      await registrarLogAuditoria({
+        categoria: "os",
+        clienteNome: formatClienteLogAuditoria(
+          trabalho.cliente?.nome,
+          trabalho.clienteId
+        ),
+        tipoAlteracao: "alteracao",
+        numeroOs: atual.numeroOs,
+        trabalhoId: atual.id,
+        servico: formatServicoLogAuditoria(trabalho.tipoProtese, trabalho.id),
+        usuarioId: session.id,
+        usuarioNome: session.name,
+        detalhes,
+      });
+    }
+
     const camposCompartilhados: Record<string, unknown> = {};
     if (data.status !== undefined) camposCompartilhados.status = data.status;
     if (data.observacoes !== undefined) camposCompartilhados.observacoes = data.observacoes;
@@ -142,8 +200,48 @@ export async function DELETE(
   try {
     const atual = await prisma.trabalho.findFirst({
       where: { id },
+      include: { cliente: true },
     });
     if (!atual) return NextResponse.json({ ok: true });
+
+    const grupo = await prisma.trabalho.findMany({
+      where: whereGrupoOs(atual),
+      select: { id: true, numeroOs: true },
+    });
+    const lancamentos = await prisma.lancamento.findMany({
+      where: { tipo: "receita" },
+      select: {
+        id: true,
+        status: true,
+        descricao: true,
+        trabalho: { select: { id: true, numeroOs: true } },
+      },
+    });
+    const cobrancasAtivas = lancamentos.filter((l) => lancamentoFaturaOsAtivo(l));
+    if (
+      osEstaFaturadaContasReceber(
+        atual.numeroOs,
+        grupo.map((t) => t.id),
+        cobrancasAtivas
+      )
+    ) {
+      return NextResponse.json({ error: MENSAGEM_OS_FATURADA_NAO_EXCLUI }, { status: 409 });
+    }
+
+    await registrarLogAuditoria({
+      categoria: "os",
+      tipoAlteracao: "exclusao",
+      numeroOs: atual.numeroOs,
+      trabalhoId: atual.id,
+      servico: formatServicoLogAuditoria(atual.tipoProtese, atual.id),
+      clienteNome: formatClienteLogAuditoria(
+        atual.cliente?.nome,
+        atual.clienteId
+      ),
+      usuarioId: session.id,
+      usuarioNome: session.name,
+    });
+
     if (atual.grupoOsId) {
       await prisma.trabalho.deleteMany({
         where: {

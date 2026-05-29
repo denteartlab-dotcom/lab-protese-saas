@@ -17,11 +17,13 @@ import {
   ControleProducaoFiltrosLista,
   ControleProducaoToolbar,
 } from "@/components/ControleProducaoToolbar";
+import { EtapasControleCelula } from "@/components/producao/EtapasControleCelula";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { ImprimirOsModal } from "@/components/ImprimirOsModal";
 import {
   classificarItemOs,
   editIdPreferidoGrupo,
+  filtrarItensPorSegmentoTrabalho,
   formatarDescontoItemOs,
   grupoOsTemMultiplosSegmentos,
   itemExibeBadgeProduto,
@@ -29,8 +31,9 @@ import {
   itemUsaCamposOdontologicos,
   nomeExibicaoItemOs,
   situacaoExibicaoTrabalho,
-  trabalhoEhFichaSemServico,
-  trabalhoEhProdutoOuTransporte,
+  deveExibirTrabalhoNoControleProducao,
+  expandirControleProducaoComServicoDoGrupo,
+  trabalhosDoMesmoGrupoOsId,
 } from "@/lib/trabalho-os-segmento";
 import { ConfiguracaoListaGear } from "@/components/listagem/ConfiguracaoListaGear";
 import { Button, CampoDataBr, Input, Select, Textarea } from "@/components/ui";
@@ -51,7 +54,6 @@ import {
   colaboradoresParaExibicaoControle,
   parseComplementosInstrucoesGrupo,
   resumoColaboradorControle,
-  resumoEtapasControle,
 } from "@/lib/etapas-os";
 import {
   filtrarTrabalhosAtrasados,
@@ -65,7 +67,13 @@ import {
   compararNumero,
   compararTextoBr,
 } from "@/lib/listagem-config";
-import { exibirTexto, formatCurrency, formatDate, STATUS_TRABALHO } from "@/lib/utils";
+import {
+  grupoOsEstaFaturado,
+  MENSAGEM_OS_FATURADA_NAO_EXCLUI,
+  type LancamentoFaturaOs,
+} from "@/lib/os-faturamento";
+import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
+import { cn, exibirTexto, formatCurrency, formatDate, STATUS_TRABALHO } from "@/lib/utils";
 
 type CampoOrdenacaoControle = "numeroOs" | "dataEntrada" | "cliente" | "paciente";
 
@@ -162,7 +170,8 @@ type EditItem = {
 };
 
 function formatCurrencyInputControle(value: string) {
-  return parseCurrencyBr(value).toLocaleString("pt-BR", {
+  const centavos = Number(String(value).replace(/\D/g, "")) || 0;
+  return (centavos / 100).toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",
   });
@@ -552,8 +561,18 @@ export default function ControlePage() {
   const [produtosCadastro, setProdutosCadastro] = useState<ProdutoCadastro[]>([]);
   const [produtosOs, setProdutosOs] = useState<ProdutoOsEdicao[]>([]);
   const [categoriasTabelaPreco, setCategoriasTabelaPreco] = useState<CategoriaTabelaPrecoOs[]>([]);
+  const [lancamentosFatura, setLancamentosFatura] = useState<LancamentoFaturaOs[]>([]);
 
   const painelEdicaoVisivel = Boolean(itemSelecionadoId || adicionandoServico);
+
+  const osFaturada = useMemo(() => {
+    if (!editando) return false;
+    return grupoOsEstaFaturado(editando, trabalhos, lancamentosFatura);
+  }, [editando, trabalhos, lancamentosFatura]);
+
+  function trabalhoGrupoFaturado(trabalho: Trabalho) {
+    return grupoOsEstaFaturado(trabalho, trabalhos, lancamentosFatura);
+  }
 
   const servicosDaCategoriaEdicao = useMemo(
     () => servicosSelecionaveisNaOs(servicosDaCategoriaTabela(categoriasTabelaPreco, form?.categoria || "")),
@@ -621,18 +640,23 @@ export default function ControlePage() {
       lista = filtrarTrabalhosAtrasados(lista, prazoInicial);
     }
 
+    const filtrosControle = { filtroProdutos, filtroFichasSemServicos };
+    const baseGrupo = trabalhos.filter((t) =>
+      cliente ? clienteNome(t) === cliente : true
+    );
+
     lista = lista.filter((trabalho) => {
       const primeiroItem = parseItens(trabalho)[0];
-      if (trabalhoEhProdutoOuTransporte(trabalho, primeiroItem)) {
-        return filtroProdutos;
-      }
-      if (trabalhoEhFichaSemServico(trabalho)) {
-        return filtroFichasSemServicos;
-      }
-      return true;
+      const grupo = trabalhosDoMesmoGrupoOsId(trabalho, baseGrupo);
+      return deveExibirTrabalhoNoControleProducao(
+        trabalho,
+        grupo,
+        filtrosControle,
+        primeiroItem
+      );
     });
 
-    return lista;
+    return expandirControleProducaoComServicoDoGrupo(lista, baseGrupo, filtrosControle);
   }, [
     trabalhos,
     cliente,
@@ -665,6 +689,15 @@ export default function ControlePage() {
     const alvo = trabalhos.find((t) => t.id === painelDestaque);
     if (alvo) setOsAberta(alvo.id);
   }, [painelDestaque, trabalhos]);
+
+  useEffect(() => {
+    fetch("/api/financeiro?tipo=receita", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : { lancamentos: [] }))
+      .then((data) =>
+        setLancamentosFatura(Array.isArray(data?.lancamentos) ? data.lancamentos : [])
+      )
+      .catch(() => setLancamentosFatura([]));
+  }, []);
 
   useEffect(() => {
     if (!editando) return;
@@ -842,6 +875,7 @@ export default function ControlePage() {
     setProdutosOs([]);
     setTipoDenticao("permanente");
     setDentesEdicao([]);
+    setLancamentosFatura([]);
   }
 
   function classeAbaEdicao(aba: AbaServicoEdicao) {
@@ -887,8 +921,7 @@ export default function ControlePage() {
   function abrirEdicao(trabalho: Trabalho) {
     const idAlvo = editIdTrabalho(trabalho);
     const alvo = trabalhos.find((item) => item.id === idAlvo) || trabalho;
-    const grupo = trabalhos.filter((item) => chaveGrupoOs(item) === chaveGrupoOs(trabalho));
-    const itens = grupo.length > 1 ? grupo.flatMap((item) => parseItens(item)) : parseItens(alvo);
+    const itens = filtrarItensPorSegmentoTrabalho(parseItens(alvo), alvo);
     const dentesIniciais = dentesFromResumoControle(alvo.dentes || "");
     const denticaoInicial = tipoDenticaoFromDentesControle(dentesIniciais);
     setEditando(alvo);
@@ -945,7 +978,7 @@ export default function ControlePage() {
         ...(atual || formVazioEdicao(editando!)),
         tipoProtese: item.servico,
         quantidade: item.quantidade || "1",
-        valor: String(unitario || 0),
+        valor: unitario.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
         urgente: Boolean(item.urgente),
         repeticao: Boolean(item.repeticao),
         observacaoServico: "",
@@ -1015,7 +1048,7 @@ export default function ControlePage() {
         ? nomeCampo
         : `Transporte: ${nomeExibicaoItemOs({ servico: nomeCampo })}`;
       const quantidade = form.quantidade || "1";
-      const valorLinha = (Number(form.valor || 0) || 0) * (Number(quantidade) || 1);
+      const valorLinha = parseCurrencyBr(form.valor) * (Number(quantidade) || 1);
       return {
         ...base,
         servico: nome,
@@ -1056,6 +1089,7 @@ export default function ControlePage() {
   }
 
   function confirmarEdicaoItem() {
+    if (osFaturada) return;
     if (itemSelecionadoId) {
       aplicarFormularioAoItemSelecionado();
       return;
@@ -1148,7 +1182,7 @@ export default function ControlePage() {
   }
 
   function abrirAdicionarServico() {
-    if (!editando) return;
+    if (!editando || osFaturada) return;
     setAdicionandoServico(true);
     setItemSelecionadoId(null);
     setPainelEdicaoItem("servico");
@@ -1192,15 +1226,34 @@ export default function ControlePage() {
 
   async function salvarEdicao() {
     if (!editando || !form) return;
-    let itensSalvar = editItems;
+
+    if (osFaturada) {
+      await fetch(`/api/trabalhos/${editando.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ observacoes: form.observacoes }),
+      });
+      fecharEdicaoOs();
+      load();
+      return;
+    }
+
+    let itensSalvar = filtrarItensPorSegmentoTrabalho(editItems, editando);
     if (itemSelecionadoId && form) {
       const atualizado = montarItemEdicaoAtual();
       if (atualizado) {
         itensSalvar = editItems.map((item) =>
           item.id === itemSelecionadoId ? atualizado : item
         );
+        itensSalvar = filtrarItensPorSegmentoTrabalho(itensSalvar, editando);
         setEditItems(itensSalvar);
       }
+    } else if (form) {
+      itensSalvar = itensSalvar.map((item) =>
+        classificarItemOs(item) === "servico" && itemUsaCamposOdontologicos(item)
+          ? { ...item, urgente: form.urgente, repeticao: form.repeticao }
+          : item
+      );
     }
     const primeiroItem = itensSalvar[0];
     const itensInstrucoes = itensSalvar.map((item) => formatarLinhaItemEdicao(item)).join("\n");
@@ -1237,6 +1290,7 @@ export default function ControlePage() {
   }
 
   function removerItemEdicao(id: string) {
+    if (osFaturada) return;
     setEditItems((atuais) => atuais.filter((item) => item.id !== id));
     if (itemSelecionadoId === id) {
       limparSelecaoItemEdicao();
@@ -1258,6 +1312,8 @@ export default function ControlePage() {
 
     if (!res.ok) {
       load();
+    } else {
+      notificarTrabalhosAtualizados({ trabalhoId: trabalho.id });
     }
   }
 
@@ -1300,13 +1356,29 @@ export default function ControlePage() {
     });
 
     setStatusEditando(null);
-    if (!res.ok) load();
+    if (!res.ok) {
+      load();
+    } else {
+      notificarTrabalhosAtualizados({ trabalhoId: statusEditando.id });
+    }
   }
 
   async function confirmarExclusaoOs() {
     if (!osExcluindo) return;
     const trabalho = osExcluindo;
-    await fetch(`/api/trabalhos/${trabalho.id}`, { method: "DELETE" });
+    if (trabalhoGrupoFaturado(trabalho)) {
+      window.alert(MENSAGEM_OS_FATURADA_NAO_EXCLUI);
+      setOsExcluindo(null);
+      return;
+    }
+    const res = await fetch(`/api/trabalhos/${trabalho.id}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      window.alert(
+        typeof data.error === "string" ? data.error : MENSAGEM_OS_FATURADA_NAO_EXCLUI
+      );
+      return;
+    }
     setOsExcluindo(null);
     load();
   }
@@ -1462,7 +1534,6 @@ export default function ControlePage() {
                   etapasOs
                 );
                 const resumoColaborador = resumoColaboradorControle(colaboradoresOs);
-                const resumoEtapas = resumoEtapasControle(etapasOs);
                 return (
                 <Fragment key={trabalho.id}>
                   <tr className="hover:bg-slate-50">
@@ -1494,14 +1565,14 @@ export default function ControlePage() {
                       {resumoColaborador}
                     </td>
                     <td
-                      className="max-w-[180px] truncate px-2 py-2 text-slate-700"
+                      className="max-w-[200px] px-2 py-2 align-top"
                       title={
-                        resumoEtapas
+                        etapasOs.length
                           ? "Etapas da ordem de serviço (edite na OS)"
                           : undefined
                       }
                     >
-                      {resumoEtapas}
+                      <EtapasControleCelula etapas={etapasOs} />
                     </td>
                     <td className="px-2 py-2">
                       <CelulaSituacaoControle
@@ -1538,7 +1609,13 @@ export default function ControlePage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setOsExcluindo(trabalho)}
+                          onClick={() => {
+                            if (trabalhoGrupoFaturado(trabalho)) {
+                              window.alert(MENSAGEM_OS_FATURADA_NAO_EXCLUI);
+                              return;
+                            }
+                            setOsExcluindo(trabalho);
+                          }}
                           title="Excluir OS"
                           className="rounded p-1 hover:bg-red-50 hover:text-red-600"
                         >
@@ -1622,7 +1699,7 @@ export default function ControlePage() {
         open={!!osExcluindo}
         titulo="Excluir Ordem de Serviço"
         mensagem="Deseja realmente excluir essa Ordem de Serviço?"
-        aviso="Atenção!! Todas as comissões serão excluídas exceto comissões já faturadas"
+        aviso="Atenção!! Todas as comissões serão excluídas exceto comissões já faturadas. Se a OS já foi faturada em Contas a Receber, exclua o lançamento no Financeiro antes."
         onClose={() => setOsExcluindo(null)}
         onConfirm={confirmarExclusaoOs}
       />
@@ -1798,8 +1875,28 @@ export default function ControlePage() {
                 </p>
               </section>
 
-              <section className="border-t border-slate-100 bg-slate-50/50 p-4">
-                <div className="rounded border border-slate-200 bg-white p-3">
+              <section
+                className={cn(
+                  "border-t border-slate-100 bg-slate-50/50 p-4",
+                  osFaturada && "relative"
+                )}
+              >
+                {osFaturada && (
+                  <div className="mb-3 rounded-sm border border-red-200 bg-red-50 px-3 py-2.5 text-[11px] leading-relaxed text-red-800">
+                    <span className="mr-2 inline-flex rounded bg-red-600 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+                      Faturado
+                    </span>
+                    Esta ordem de serviço já foi faturada em{" "}
+                    <strong>Contas a Receber</strong>. Os serviços estão bloqueados para edição.
+                    Cancele ou exclua o lançamento da fatura no financeiro para liberar a alteração.
+                  </div>
+                )}
+                <div
+                  className={cn(
+                    "rounded border border-slate-200 bg-white p-3",
+                    osFaturada && "pointer-events-none select-none opacity-55"
+                  )}
+                >
                   <p className="mb-3 text-center text-sm font-medium text-slate-600">
                     Serviços/Produtos Adicionados
                   </p>
@@ -1807,7 +1904,8 @@ export default function ControlePage() {
                     <button
                       type="button"
                       onClick={abrirAdicionarServico}
-                      className="inline-flex items-center gap-1 rounded border border-primary-400 bg-white px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-50"
+                      disabled={osFaturada}
+                      className="inline-flex items-center gap-1 rounded border border-primary-400 bg-white px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Plus className="h-3.5 w-3.5" />
                       Adicionar Serviço
@@ -1886,11 +1984,29 @@ export default function ControlePage() {
 
               {painelEdicaoVisivel && (
               <section className="border-t border-slate-100 bg-slate-50/50 p-4">
-                <div className="rounded border border-slate-200 bg-white p-4">
+                <div
+                  className={cn(
+                    "rounded border border-slate-200 bg-white p-4",
+                    osFaturada && "pointer-events-none select-none opacity-55"
+                  )}
+                >
                   {(painelEdicaoItem === "servico" || adicionandoServico) && (
                     <>
                     {abaServicoEdicao !== "produtos" && (
                     <>
+                    <div className="mb-3 flex flex-wrap items-center gap-3">
+                      <span className="text-[11px] text-slate-500">
+                        Data Lançamento:{" "}
+                        <span className="font-medium text-slate-700">
+                          {formatDate(editando.dataEntrada)}
+                        </span>
+                      </span>
+                      {osFaturada && (
+                        <span className="rounded bg-red-600 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                          Faturado
+                        </span>
+                      )}
+                    </div>
                     <h3 className="mb-4 text-center text-base font-medium text-slate-700">Serviço</h3>
                     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                       <div className="flex gap-5">
@@ -2524,10 +2640,11 @@ export default function ControlePage() {
                       />
                       <Input
                         label="Valor Un."
-                        type="number"
-                        step="0.01"
+                        selectOnFocus
                         value={form.valor}
-                        onChange={(e) => setForm({ ...form, valor: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, valor: formatCurrencyInputControle(e.target.value) })
+                        }
                       />
                       <Select
                         label="Situação"
@@ -2554,7 +2671,8 @@ export default function ControlePage() {
                   <button
                     type="button"
                     onClick={confirmarEdicaoItem}
-                    className="mt-4 flex w-full items-center justify-center gap-2 rounded bg-emerald-500 px-3 py-2 text-xs font-medium text-white shadow-sm hover:bg-emerald-600"
+                    disabled={osFaturada}
+                    className="mt-4 flex w-full items-center justify-center gap-2 rounded bg-emerald-500 px-3 py-2 text-xs font-medium text-white shadow-sm hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {itemSelecionadoId
                       ? "Atualizar Item Selecionado"
@@ -2586,7 +2704,9 @@ export default function ControlePage() {
                 onClick={salvarEdicao}
               >
                 <Save className="h-4 w-4" />
-                Gravar Alterações Ordem de Serviço
+                {osFaturada
+                  ? "Gravar somente observação interna"
+                  : "Gravar Alterações Ordem de Serviço"}
               </Button>
             </div>
           </div>

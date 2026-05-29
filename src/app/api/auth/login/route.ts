@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createSession, verifyPassword } from "@/lib/auth";
+import { parsePermissoesUsuario } from "@/lib/usuarios-sistema";
 import { z } from "zod";
 
 const schema = z.object({
@@ -36,13 +37,24 @@ export async function POST(request: Request) {
   try {
     const user = await prisma.user.findUnique({
       where: { email: email.trim().toLowerCase() },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        password: true,
+        role: true,
+        permissoesJson: true,
+        excluidoEm: true,
+      },
     });
-    if (!user || !(await verifyPassword(password, user.password))) {
+    if (
+      !user ||
+      user.excluidoEm ||
+      parsePermissoesUsuario(user.permissoesJson).situacao === "inativo" ||
+      !(await verifyPassword(password, user.password))
+    ) {
       return NextResponse.json(
-        {
-          error:
-            "E-mail ou senha inválidos. Se o site acabou de subir, abra /api/setup/criar-admin uma vez.",
-        },
+        { error: "E-mail ou senha inválidos." },
         { status: 401 }
       );
     }

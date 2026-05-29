@@ -107,6 +107,40 @@ export function itensDaOsModulo(trabalho: TrabalhoModuloOs): ItemModuloOs[] {
       ];
 }
 
+function flagsUrgenciaLinhaItem(line: string) {
+  return {
+    urgente: / - urgente(?: -|$)/i.test(line),
+    repeticao: / - repetição(?: -|$)| - repeticao(?: -|$)/i.test(line),
+  };
+}
+
+function normDescricaoItem(s: string) {
+  return s
+    .trim()
+    .toLowerCase()
+    .replace(/^produto:\s*/i, "");
+}
+
+/** Urgente/repetição do item na OS (flags em `Item adicionado:` nas instruções). */
+export function flagsUrgenciaTrabalho(trabalho: TrabalhoModuloOs) {
+  const linhas = (trabalho.instrucoes || "")
+    .split("\n")
+    .filter((line) => line.trim().startsWith("Item adicionado:"));
+  if (!linhas.length) return { urgente: false, repeticao: false };
+
+  const alvo = normDescricaoItem(trabalho.tipoProtese || "");
+  const linha =
+    linhas.find((line) => {
+      const m = line.match(/^Item adicionado:\s*(.*?)\s*-/i);
+      const desc = normDescricaoItem(m?.[1] || "");
+      return desc === alvo || (alvo.length > 2 && (desc.includes(alvo) || alvo.includes(desc)));
+    }) ??
+    linhas.find((line) => !/^Item adicionado:\s*produto:/i.test(line)) ??
+    linhas[0];
+
+  return flagsUrgenciaLinhaItem(linha);
+}
+
 /** Itens de serviço/produto de todos os segmentos da mesma OS. */
 export function itensDoGrupoOs(trabalhos: TrabalhoModuloOs[]): ItemModuloOs[] {
   const todos: ItemModuloOs[] = [];

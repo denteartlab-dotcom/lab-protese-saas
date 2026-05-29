@@ -3,6 +3,7 @@ import {
   LOGO_TAMANHO_PADRAO,
   type LabImpressaoConfig,
 } from "@/lib/lab-impressao";
+import { normalizarConfigLaboratorio } from "@/lib/configuracoes-lab-parse";
 import { normalizarIdioma, type Locale } from "@/lib/i18n";
 
 export const CONFIG_LAB_STORAGE_KEY = "labProteseConfigLaboratorio";
@@ -116,49 +117,33 @@ function montarTelefones(config: ConfigLaboratorio) {
   return telefoneWhatsappLaboratorio(config);
 }
 
-function migrarLegado(parsed: Partial<ConfigLaboratorio>): ConfigLaboratorio {
-  const base = { ...CONFIG_LAB_PADRAO, ...parsed };
-  if (!base.nomeLaboratorio?.trim()) {
-    const legado =
-      base.nomeFantasia?.trim() ||
-      base.nome?.trim() ||
-      base.responsavel?.trim() ||
-      "";
-    if (legado) base.nomeLaboratorio = legado;
-  }
-  if (parsed.rua) return base;
-  const texto = (parsed.endereco || "").trim();
-  if (!texto) return base;
-  const matchNumero = texto.match(/,\s*(\d+)/);
-  return {
-    ...base,
-    rua: texto.split(",")[0]?.trim() || texto,
-    numero: matchNumero?.[1] || base.numero,
-  };
-}
-
 function readStorage(): ConfigLaboratorio | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(chaveStorageLaboratorio());
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<ConfigLaboratorio>;
-    const config = migrarLegado(parsed);
-    return {
-      ...config,
-      tipoPessoa: normalizarTipoPessoa(config.tipoPessoa),
-      idioma: normalizarIdioma(config.idioma),
-      pais: config.pais || CONFIG_LAB_PADRAO.pais,
-      moeda: config.moeda || CONFIG_LAB_PADRAO.moeda,
-      codigoPaisTelefone:
-        config.codigoPaisTelefone || CONFIG_LAB_PADRAO.codigoPaisTelefone,
-    };
+    return normalizarConfigLaboratorio(parsed);
   } catch {
     return null;
   }
 }
 
 /** Nome exibido no login, perfil e impressos (dados do laboratório). */
+export function cabecalhoRelatorioLaboratorio(config?: ConfigLaboratorio) {
+  const cfg = config ?? (typeof window !== "undefined" ? carregarConfigLaboratorio() : CONFIG_LAB_PADRAO);
+  const telefones = [cfg.telefoneComercial, cfg.celular, cfg.whatsapp]
+    .map((t) => t?.trim())
+    .filter(Boolean)
+    .join(" | ");
+  return {
+    nome: nomeExibicaoLaboratorio(cfg),
+    endereco: montarEnderecoCompleto(cfg) || cfg.endereco?.trim() || "",
+    telefones,
+    email: cfg.email?.trim() || "",
+  };
+}
+
 export function nomeExibicaoLaboratorio(config: ConfigLaboratorio): string {
   const principal = config.nomeLaboratorio?.trim();
   if (principal) return principal;

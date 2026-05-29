@@ -257,11 +257,7 @@ export default function OrcamentoPublicoPage() {
   return (
     <div className="min-h-screen bg-[#f3f4f6] py-6 print:bg-white print:py-0">
       <div className="mx-auto max-w-5xl px-4 print:max-w-none print:px-0">
-        <div className="mb-4 flex items-center justify-between print:hidden">
-          <div className="flex items-center gap-2">
-            <span className="text-xl font-semibold text-[#5b6ee1]">smart</span>
-            <span className="text-xl font-light text-slate-600">prótese</span>
-          </div>
+        <div className="mb-4 flex items-center justify-end print:hidden">
           <div className="flex gap-2">
             <button
               type="button"
@@ -284,7 +280,14 @@ export default function OrcamentoPublicoPage() {
 
         <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm print:border-0 print:shadow-none">
           <div className="hidden border-b border-slate-100 py-6 text-center print:block">
-            <span className="text-2xl font-semibold text-[#5b6ee1]">smart prótese</span>
+            <img
+              src="/images/dente-art-logo.png"
+              alt="Dente Art"
+              width={300}
+              height={100}
+              className="mx-auto object-contain"
+              style={{ width: 300, height: 100 }}
+            />
           </div>
 
           <div className="grid gap-4 border-b border-slate-100 px-5 py-4 text-[11px] text-slate-600 md:grid-cols-3">

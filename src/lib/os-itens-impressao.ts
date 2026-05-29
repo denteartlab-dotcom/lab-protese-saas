@@ -242,3 +242,27 @@ export function extrairItensImpressaoOs(
 
   return anexarPrazosServico(resultado, ctxPrazos);
 }
+
+/** Indica se há item com urgente e/ou repetição nas instruções (opcionalmente por segmento). */
+export function flagsUrgenteRepeticaoInstrucoes(
+  instrucoesBlocos: Array<string | null | undefined>,
+  segmentoFiltro?: SegmentoFaturamento | null
+) {
+  const linhas = instrucoesBlocos
+    .flatMap((texto) => (texto || "").split("\n"))
+    .map((l) => l.trim())
+    .filter((l) => l.startsWith("Item adicionado:"));
+
+  let urgente = false;
+  let repeticao = false;
+
+  for (const line of linhas) {
+    const item = parseLinhaItemAdicionado(line);
+    if (!item) continue;
+    if (segmentoFiltro && item.tipo !== segmentoFiltro) continue;
+    if (/ - urgente(?: -|$)/i.test(line)) urgente = true;
+    if (/ - repetição(?: -|$)| - repeticao(?: -|$)/i.test(line)) repeticao = true;
+  }
+
+  return { urgente, repeticao };
+}

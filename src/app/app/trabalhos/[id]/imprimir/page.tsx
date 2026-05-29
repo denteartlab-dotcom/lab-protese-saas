@@ -12,6 +12,7 @@ import { instrucoesTextoLivre, parseEtapasInstrucoes } from "@/lib/etapas-os";
 import {
   extrairDataPrazoBr,
   extrairItensImpressaoOs,
+  flagsUrgenteRepeticaoInstrucoes,
   linhaPrazoImpressaoOs,
 } from "@/lib/os-itens-impressao";
 import { PdfOsViewer } from "./pdf-os-viewer";
@@ -249,6 +250,10 @@ async function ImprimirOSConteudo({
   };
   const paciente = t.paciente || { nome: "" };
   const nomeCliente = clienteNomeComAbreviacao(cliente);
+  const { urgente, repeticao } = flagsUrgenteRepeticaoInstrucoes(
+    instrucoesGrupo,
+    segmentoSomenteItem
+  );
 
   return (
     <PdfOsViewer
@@ -273,6 +278,8 @@ async function ImprimirOSConteudo({
         materiais,
         observacoes: observacoesUsuario,
         prazoLinhaServico,
+        urgente,
+        repeticao,
         itens,
       }}
     />

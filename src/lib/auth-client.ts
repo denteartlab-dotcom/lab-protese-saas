@@ -11,6 +11,10 @@ export function usuarioJaEntrou(): boolean {
 }
 
 export function rotuloPapelUsuario(role: string): string {
-  if (role === "admin") return "Administrador";
+  if (role === "admin" || role === "proprietario") return "Proprietário";
+  if (role === "gerente") return "Gerente";
+  if (role === "financeiro") return "Financeiro";
+  if (role === "producao") return "Produção";
+  if (role === "usuario") return "Usuário";
   return role;
 }

@@ -58,10 +58,10 @@ function parseMoneyBr(value: string) {
 }
 
 const thClass =
-  "border-b border-[#e0e0e0] bg-[#f5f6f8] px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
+  "border-b border-[#e0e0e0] bg-[#f5f6f8] px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300";
 
 const inputClass =
-  "h-9 w-full rounded border border-[#d4d4d4] bg-white px-2.5 text-[13px] text-slate-800 outline-none focus:border-[#4a90d9]";
+  "h-9 w-full rounded border border-[#d4d4d4] bg-white px-2.5 text-[13px] text-slate-800 outline-none focus:border-[#4a90d9] dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-[#4a90d9]";
 
 function ModalSimples({
   titulo,
@@ -80,13 +80,13 @@ function ModalSimples({
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/45 p-4 pt-12">
       <div className="absolute inset-0" onClick={onClose} aria-hidden />
-      <div className="relative w-full max-w-md rounded border border-[#d4d4d4] bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-[#e5e5e5] px-4 py-3">
-          <h2 className="text-[15px] font-normal text-slate-800">{titulo}</h2>
+      <div className="relative w-full max-w-md rounded border border-[#d4d4d4] bg-white shadow-xl dark:border-slate-600 dark:bg-slate-900">
+        <div className="flex items-center justify-between border-b border-[#e5e5e5] px-4 py-3 dark:border-slate-700">
+          <h2 className="text-[15px] font-normal text-slate-800 dark:text-slate-100">{titulo}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-lg text-slate-400 hover:text-slate-600"
+            className="text-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
             aria-label="Fechar"
           >
             <X className="h-5 w-5" />
@@ -94,7 +94,7 @@ function ModalSimples({
         </div>
         <div className="px-4 py-4">{children}</div>
         {footer ? (
-          <div className="flex gap-2 border-t border-[#e5e5e5] px-4 py-3">
+          <div className="flex gap-2 border-t border-[#e5e5e5] px-4 py-3 dark:border-slate-700">
             {footer}
           </div>
         ) : null}
@@ -329,7 +329,7 @@ export function ContaBancariaConteudo() {
         <button
           type="button"
           onClick={() => setModalConciliar(true)}
-          className="inline-flex items-center gap-1.5 rounded border border-[#4cae4c] bg-white px-4 py-2 text-[13px] text-[#4cae4c] hover:bg-[#f0faf0]"
+          className="inline-flex items-center gap-1.5 rounded border border-[#4cae4c] bg-white px-4 py-2 text-[13px] text-[#4cae4c] hover:bg-[#f0faf0] dark:border-emerald-700 dark:bg-slate-900 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
         >
           <ArrowUpFromLine className="h-4 w-4" />
           Conciliar
@@ -340,8 +340,8 @@ export function ContaBancariaConteudo() {
           className={cn(
             "inline-flex items-center gap-1.5 rounded border px-4 py-2 text-[13px] hover:bg-[#f0f7ff]",
             verExcluidos
-              ? "border-[#4a90d9] bg-[#e8f2fc] text-[#4a90d9]"
-              : "border-[#4a90d9] bg-white text-[#4a90d9]"
+              ? "border-[#4a90d9] bg-[#e8f2fc] text-[#4a90d9] dark:border-[#4a90d9] dark:bg-slate-800 dark:text-[#7eb8f7]"
+              : "border-[#4a90d9] bg-white text-[#4a90d9] dark:bg-slate-900 dark:text-[#7eb8f7]"
           )}
         >
           <Eye className="h-4 w-4" />
@@ -349,24 +349,24 @@ export function ContaBancariaConteudo() {
         </button>
       </div>
 
-      <div className="flex overflow-hidden rounded border border-[#d4d4d4] bg-white shadow-sm">
+      <div className="flex overflow-hidden rounded border border-[#d4d4d4] bg-white shadow-sm dark:border-slate-600 dark:bg-slate-900">
         <input
           type="text"
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
           placeholder="Procurar"
-          className="min-w-0 flex-1 border-0 px-3 py-2.5 text-[13px] outline-none"
+          className="min-w-0 flex-1 border-0 bg-transparent px-3 py-2.5 text-[13px] text-slate-800 outline-none dark:text-slate-100 dark:placeholder:text-slate-500"
         />
         <button
           type="button"
           onClick={() => setBusca("")}
-          className="shrink-0 border-l border-[#e0e0e0] px-4 py-2.5 text-[12px] text-slate-500 hover:bg-slate-50"
+          className="shrink-0 border-l border-[#e0e0e0] bg-transparent px-4 py-2.5 text-[12px] text-slate-500 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-800"
         >
           Limpar
         </button>
       </div>
 
-      <div className="overflow-hidden rounded border border-[#d4d4d4] bg-white shadow-sm">
+      <div className="overflow-hidden rounded border border-[#d4d4d4] bg-white shadow-sm dark:border-slate-600 dark:bg-slate-900">
         <table className="w-full border-collapse text-left">
           <thead>
             <tr>
@@ -380,7 +380,7 @@ export function ContaBancariaConteudo() {
               <tr>
                 <td
                   colSpan={3}
-                  className="px-4 py-10 text-center text-[13px] text-slate-400"
+                  className="px-4 py-10 text-center text-[13px] text-slate-400 dark:text-slate-500"
                 >
                   {verExcluidos
                     ? "Nenhuma conta excluída."
@@ -392,19 +392,21 @@ export function ContaBancariaConteudo() {
                 <tr
                   key={conta.id}
                   className={cn(
-                    "border-b border-[#ececec] text-[13px]",
-                    index % 2 === 1 ? "bg-[#fafafa]" : "bg-white"
+                    "border-b border-[#ececec] text-[13px] dark:border-slate-700",
+                    index % 2 === 1
+                      ? "bg-[#fafafa] dark:bg-slate-800/60"
+                      : "bg-white dark:bg-slate-900"
                   )}
                 >
-                  <td className="px-4 py-3 font-normal text-slate-800">
+                  <td className="px-4 py-3 font-normal text-slate-800 dark:text-slate-100">
                     <span>{conta.nome}</span>
                     {conta.modoVinculo === "open_finance" &&
                     conta.openFinance?.itemId ? (
-                      <span className="ml-2 rounded bg-[#e8f2fc] px-1.5 py-0.5 text-[10px] text-[#4a90d9]">
+                      <span className="ml-2 rounded bg-[#e8f2fc] px-1.5 py-0.5 text-[10px] text-[#4a90d9] dark:bg-slate-700 dark:text-sky-300">
                         Open Finance
                       </span>
                     ) : conta.modoVinculo === "extrato_arquivo" ? (
-                      <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
+                      <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500 dark:bg-slate-700 dark:text-slate-300">
                         Extrato arquivo
                       </span>
                     ) : null}
@@ -412,7 +414,9 @@ export function ContaBancariaConteudo() {
                   <td
                     className={cn(
                       "px-4 py-3 text-right tabular-nums",
-                      saldo > 0 ? "text-[#4cae4c]" : "text-slate-800"
+                      saldo > 0
+                        ? "text-[#4cae4c] dark:text-emerald-400"
+                        : "text-slate-800 dark:text-slate-200"
                     )}
                   >
                     {money(saldo)}
@@ -423,7 +427,7 @@ export function ContaBancariaConteudo() {
                         <button
                           type="button"
                           onClick={() => restaurarConta(conta)}
-                          className="rounded border border-[#4a90d9] px-3 py-1 text-[12px] text-[#4a90d9] hover:bg-[#f0f7ff]"
+                          className="rounded border border-[#4a90d9] px-3 py-1 text-[12px] text-[#4a90d9] hover:bg-[#f0f7ff] dark:border-sky-600 dark:text-sky-300 dark:hover:bg-slate-800"
                         >
                           Restaurar
                         </button>
@@ -433,7 +437,7 @@ export function ContaBancariaConteudo() {
                             type="button"
                             title="Ver extrato"
                             onClick={() => setModalExtrato(conta)}
-                            className="inline-flex h-8 w-8 items-center justify-center text-slate-500 hover:text-[#4a90d9]"
+                            className="inline-flex h-8 w-8 items-center justify-center text-slate-500 hover:text-[#4a90d9] dark:text-slate-400 dark:hover:text-sky-300"
                           >
                             <FileText className="h-4 w-4" />
                           </button>
@@ -441,7 +445,7 @@ export function ContaBancariaConteudo() {
                             type="button"
                             title="Editar"
                             onClick={() => setModalEditar(conta)}
-                            className="inline-flex h-8 w-8 items-center justify-center text-slate-500 hover:text-[#4a90d9]"
+                            className="inline-flex h-8 w-8 items-center justify-center text-slate-500 hover:text-[#4a90d9] dark:text-slate-400 dark:hover:text-sky-300"
                           >
                             <Pencil className="h-4 w-4" />
                           </button>
@@ -453,7 +457,7 @@ export function ContaBancariaConteudo() {
                               setContaDestinoId("");
                               setValorTransf("");
                             }}
-                            className="inline-flex h-8 w-8 items-center justify-center text-slate-500 hover:text-[#4a90d9]"
+                            className="inline-flex h-8 w-8 items-center justify-center text-slate-500 hover:text-[#4a90d9] dark:text-slate-400 dark:hover:text-sky-300"
                           >
                             <ArrowLeftRight className="h-4 w-4" />
                           </button>

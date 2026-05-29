@@ -3,22 +3,33 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+const EMAIL_PROPRIETARIO = "admin@labprotese.com";
+const SENHA_PROPRIETARIO = "789654";
+
 async function main() {
-  const password = await bcrypt.hash("admin123", 10);
+  const password = await bcrypt.hash(SENHA_PROPRIETARIO, 10);
   await prisma.user.upsert({
-    where: { email: "admin@labprotese.com" },
-    update: { name: "Administrador", role: "admin" },
-    create: {
-      name: "Administrador",
-      email: "admin@labprotese.com",
+    where: { email: EMAIL_PROPRIETARIO },
+    update: {
+      name: "Proprietário",
       password,
-      role: "admin",
+      role: "proprietario",
+      excluidoEm: null,
+      moduloProducao: false,
+    },
+    create: {
+      name: "Proprietário",
+      email: EMAIL_PROPRIETARIO,
+      password,
+      role: "proprietario",
     },
   });
 
   const count = await prisma.cliente.count();
   if (count > 0) {
-    console.log("Seed: dados demo já existem. Login: admin@labprotese.com / admin123");
+    console.log(
+      `Seed: dados demo já existem. Login proprietário: ${EMAIL_PROPRIETARIO} / ${SENHA_PROPRIETARIO}`
+    );
     return;
   }
 
@@ -56,7 +67,7 @@ async function main() {
     ],
   });
 
-  console.log("Seed OK. Login: admin@labprotese.com / admin123");
+  console.log(`Seed OK. Login proprietário: ${EMAIL_PROPRIETARIO} / ${SENHA_PROPRIETARIO}`);
 }
 
 main()

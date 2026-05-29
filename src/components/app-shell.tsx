@@ -11,10 +11,11 @@ import { NotificationsBell } from "@/components/header/NotificationsBell";
 import { LeitorCodigoBarrasModal } from "@/components/LeitorCodigoBarrasModal";
 import { SiteSearchBar, SiteSearchButton } from "@/components/header/SiteSearchBar";
 import { I18nProvider, useI18n } from "@/components/i18n-provider";
-import { LAB_CONFIG_ATUALIZADA_EVENT } from "@/lib/configuracoes-lab";
-import { sincronizarConfigLaboratorioDoServidor } from "@/lib/lab-config-sync";
-import { rotuloPapelUsuario } from "@/lib/auth-client";
+import { usePermissoesApp } from "@/components/PermissoesAppProvider";
+import type { LabImpressaoConfig } from "@/lib/lab-impressao";
 import { dimensoesLogoPx } from "@/lib/lab-logo";
+import { permissaoIdPorHref } from "@/lib/usuarios-menu-permissoes";
+import { AppFaixaTopo } from "@/components/AppFaixaTopo";
 import { useLabConfigClient } from "@/lib/use-lab-config-client";
 import {
   appNavPrincipal,
@@ -23,16 +24,19 @@ import {
   estoqueNav,
   financeiroNav,
   producaoNav,
+  relatoriosNav,
 } from "@/lib/app-nav";
 import type { MessageKey } from "@/lib/i18n";
 import { cn, STATUS_TRABALHO } from "@/lib/utils";
 import {
+  BarChart3,
   CheckSquare,
   ClipboardList,
   Home,
   LockKeyhole,
   LogOut,
   Moon,
+  Sun,
   Package,
   ScanBarcode,
   Settings,
@@ -79,15 +83,17 @@ type LancamentoBuscaOs = {
 export function AppShell({
   userName,
   userRole,
+  initialLab,
   children,
 }: {
   userName: string;
   userRole: string;
+  initialLab: LabImpressaoConfig;
   children: React.ReactNode;
 }) {
   return (
     <I18nProvider>
-      <AppShellInner userName={userName} userRole={userRole}>
+      <AppShellInner userName={userName} userRole={userRole} initialLab={initialLab}>
         {children}
       </AppShellInner>
     </I18nProvider>
@@ -97,10 +103,12 @@ export function AppShell({
 function AppShellInner({
   userName,
   userRole,
+  initialLab,
   children,
 }: {
   userName: string;
   userRole: string;
+  initialLab: LabImpressaoConfig;
   children: React.ReactNode;
 }) {
   const { t } = useI18n();
@@ -124,7 +132,8 @@ function AppShellInner({
   const [buscaOsExecutada, setBuscaOsExecutada] = useState(false);
   const [leitorCodigoAberto, setLeitorCodigoAberto] = useState(false);
   const [menuMobileAberto, setMenuMobileAberto] = useState(false);
-  const { montado, lab, nomeLaboratorio } = useLabConfigClient();
+  const { acessoTotal, permissoesModulos } = usePermissoesApp();
+  const { montado, lab, nomeLaboratorio } = useLabConfigClient({ initialLab });
   const fecharMenuMobile = useCallback(() => setMenuMobileAberto(false), []);
   const alternarMenuMobile = useCallback(
     () => setMenuMobileAberto((atual) => !atual),
@@ -132,13 +141,12 @@ function AppShellInner({
   );
   const logoPerfil = dimensoesLogoPx(lab, { largura: 36, altura: 36 });
   const temLogoPerfil = montado && Boolean(lab.logoDataUrl?.startsWith("data:image"));
-  const papelUsuario = rotuloPapelUsuario(userRole);
-
-  useEffect(() => {
-    void sincronizarConfigLaboratorioDoServidor().then(() => {
-      window.dispatchEvent(new Event(LAB_CONFIG_ATUALIZADA_EVENT));
-    });
-  }, []);
+  function podeVerMenu(href: string) {
+    if (acessoTotal) return true;
+    const id = permissaoIdPorHref(href);
+    const valor = permissoesModulos?.[id]?.ver;
+    return valor !== false;
+  }
 
   useEffect(() => {
     const savedTheme = window.localStorage.getItem("theme");
@@ -400,7 +408,7 @@ function AppShellInner({
   return (
     <div
       className={cn(
-        "min-h-screen transition-colors",
+        "flex min-h-0 flex-1 flex-col transition-colors",
         isModuloColaborador ? "bg-white" : "bg-[#f4f6f8] dark:bg-slate-950"
       )}
     >
@@ -414,43 +422,145 @@ function AppShellInner({
           logoLargura={logoPerfil.largura}
           logoAltura={logoPerfil.altura}
         />
-        <header className="no-print sticky top-0 z-30 border-b border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <SiteSearchBar
-            aberto={buscaSiteAberta}
-            onFechar={() => setBuscaSiteAberta(false)}
-          />
-          <div className="flex h-14 items-center justify-between gap-2 px-3 sm:px-4">
-            <div className="flex min-w-0 flex-1 items-center gap-2 lg:flex-none">
-              <BotaoMenuMobile aberto={menuMobileAberto} onAlternar={alternarMenuMobile} />
-              <div className="hidden items-center gap-4 lg:flex">
-              <button
-                type="button"
-                onClick={toggleTheme}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-blue-600 transition hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-slate-800"
-                title={darkMode ? t("theme.claro") : t("theme.escuro")}
-                aria-label={darkMode ? t("theme.ativarClaro") : t("theme.ativarEscuro")}
-              >
-                <Moon className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={abrirBuscaOs}
-                disabled={!isDashboard}
-                className={cn(
-                  "inline-flex h-8 w-8 items-center justify-center rounded-full transition dark:hover:bg-slate-800",
-                  isDashboard
-                    ? "text-emerald-500 hover:bg-emerald-50"
-                    : "cursor-not-allowed text-slate-300 hover:bg-transparent"
-                )}
-                title={isDashboard ? t("barcode.titulo") : t("barcode.somenteInicio")}
-                aria-label={isDashboard ? t("barcode.ariaInicio") : t("barcode.ariaForaInicio")}
-              >
-                <ScanBarcode className="h-5 w-5" />
-              </button>
-              </div>
-            </div>
+        <div className="no-print sticky top-0 z-30 shrink-0">
+          <AppFaixaTopo
+            antes={
+              <SiteSearchBar
+                aberto={buscaSiteAberta}
+                onFechar={() => setBuscaSiteAberta(false)}
+              />
+            }
+            esquerda={
+              <>
+                <BotaoMenuMobile aberto={menuMobileAberto} onAlternar={alternarMenuMobile} />
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  className={cn(
+                    "inline-flex h-7 w-7 items-center justify-center rounded-full transition hover:bg-black/5 dark:hover:bg-white/10",
+                    darkMode ? "text-sky-400" : "text-[#3b6ea8]"
+                  )}
+                  title={darkMode ? t("theme.claro") : t("theme.escuro")}
+                  aria-label={darkMode ? t("theme.ativarClaro") : t("theme.ativarEscuro")}
+                >
+                  {darkMode ? (
+                    <Sun className="h-4 w-4" strokeWidth={1.75} />
+                  ) : (
+                    <Moon className="h-4 w-4" strokeWidth={1.75} />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={abrirBuscaOs}
+                  disabled={!isDashboard}
+                  className={cn(
+                    "inline-flex h-7 w-7 items-center justify-center rounded-full transition",
+                    isDashboard
+                      ? "text-emerald-500 hover:bg-black/5"
+                      : "cursor-not-allowed text-slate-300"
+                  )}
+                  title={isDashboard ? t("barcode.titulo") : t("barcode.somenteInicio")}
+                  aria-label={isDashboard ? t("barcode.ariaInicio") : t("barcode.ariaForaInicio")}
+                >
+                  <ScanBarcode className="h-[18px] w-[18px]" strokeWidth={2} />
+                </button>
+              </>
+            }
+            direita={
+              <>
+                <LanguageMenu />
+                <SiteSearchButton onAbrir={() => setBuscaSiteAberta(true)} />
+                <Suspense
+                  fallback={
+                    <span className="inline-flex h-7 w-7 items-center justify-center text-slate-400">
+                      <Settings className="h-[18px] w-[18px]" />
+                    </span>
+                  }
+                >
+                  <ConfiguracoesGearMenu />
+                </Suspense>
+                <NotificationsBell />
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setUserMenuOpen((current) => !current)}
+                    className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-left transition hover:bg-black/5"
+                    aria-expanded={userMenuOpen}
+                    aria-label="Abrir menu do usuário"
+                  >
+                    <div className="hidden leading-tight sm:block">
+                      <p
+                        suppressHydrationWarning
+                        className="text-[11px] font-bold text-slate-800"
+                      >
+                        {nomeLaboratorio}
+                      </p>
+                      <p className="text-[10px] text-slate-500">{userName}</p>
+                    </div>
+                    <div
+                      className={cn(
+                        "relative inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full",
+                        temLogoPerfil ? "bg-white ring-1 ring-slate-200/80" : "bg-[#dbeafe] text-[#3b6ea8]"
+                      )}
+                    >
+                      {temLogoPerfil ? (
+                        <img
+                          src={lab.logoDataUrl}
+                          alt="Logo do laboratório"
+                          className="object-contain"
+                          width={logoPerfil.largura}
+                          height={logoPerfil.altura}
+                        />
+                      ) : (
+                        <User className="h-4 w-4" />
+                      )}
+                      <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#f2f4f6] bg-emerald-500" />
+                    </div>
+                  </button>
 
-            <nav className="hidden items-center gap-1 lg:flex">
+                  {userMenuOpen && (
+                    <div className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-lg border border-slate-200 bg-white py-2 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+                      <div className="border-b border-slate-100 px-4 pb-3 pt-2 dark:border-slate-800">
+                        <p
+                          suppressHydrationWarning
+                          className="text-sm font-bold text-slate-700 dark:text-slate-100"
+                        >
+                          {nomeLaboratorio}
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{userName}</p>
+                      </div>
+                      <div className="py-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUserMenuOpen(false);
+                            router.push("/app/alterar-senha");
+                          }}
+                          className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-600 transition hover:bg-slate-50 hover:text-primary-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                        >
+                          <LockKeyhole className="h-4 w-4 text-slate-500" />
+                          <span>{t("user.alterarSenha")}</span>
+                        </button>
+                      </div>
+                      <div className="border-t border-slate-100 pt-1 dark:border-slate-800">
+                        <button
+                          type="button"
+                          onClick={logout}
+                          className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-600 transition hover:bg-red-50 hover:text-red-600 dark:text-slate-300 dark:hover:bg-red-950/30"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          {t("user.logout")}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            }
+          />
+
+          <header className="hidden border-b border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:block">
+            <nav className="flex h-14 items-center justify-center gap-1 px-4">
             {appNavPrincipal.filter((item) => item.labelKey === "nav.inicio").map((item) => {
               const active = pathname === item.href;
               return (
@@ -483,16 +593,28 @@ function AppShellInner({
                 {t("nav.producao")} ▾
               </Link>
               <div className="invisible absolute left-0 top-full z-40 w-56 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
-                {producaoNav.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-primary-700"
-                  >
-                    <item.icon className="h-3.5 w-3.5" />
-                    {t(item.labelKey)}
-                  </Link>
-                ))}
+                {producaoNav.map((item) => {
+                  const permitido = podeVerMenu(item.href);
+                  return permitido ? (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-primary-700"
+                    >
+                      <item.icon className="h-3.5 w-3.5" />
+                      {t(item.labelKey)}
+                    </Link>
+                  ) : (
+                    <span
+                      key={item.href}
+                      className="flex cursor-not-allowed items-center gap-2 px-3 py-2 text-xs text-slate-300"
+                      title="Sem permissão"
+                    >
+                      <item.icon className="h-3.5 w-3.5" />
+                      {t(item.labelKey)}
+                    </span>
+                  );
+                })}
               </div>
             </div>
             <div className="group relative">
@@ -509,16 +631,28 @@ function AppShellInner({
                 {t("nav.financeiro")} ▾
               </Link>
               <div className="invisible absolute left-0 top-full z-40 w-56 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
-                {financeiroNav.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-primary-700"
-                  >
-                    <item.icon className="h-3.5 w-3.5" />
-                    {t(item.labelKey)}
-                  </Link>
-                ))}
+                {financeiroNav.map((item) => {
+                  const permitido = podeVerMenu(item.href);
+                  return permitido ? (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-primary-700"
+                    >
+                      <item.icon className="h-3.5 w-3.5" />
+                      {t(item.labelKey)}
+                    </Link>
+                  ) : (
+                    <span
+                      key={item.href}
+                      className="flex cursor-not-allowed items-center gap-2 px-3 py-2 text-xs text-slate-300"
+                      title="Sem permissão"
+                    >
+                      <item.icon className="h-3.5 w-3.5" />
+                      {t(item.labelKey)}
+                    </span>
+                  );
+                })}
               </div>
             </div>
             <div className="group relative">
@@ -535,16 +669,28 @@ function AppShellInner({
                 {t("nav.cadastros")} ▾
               </Link>
               <div className="invisible absolute left-0 top-full z-40 w-64 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
-                {cadastrosNav.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="flex items-center gap-1.5 rounded-md px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-primary-700"
-                  >
-                    <item.icon className="h-3.5 w-3.5" />
-                    {t(item.labelKey)}
-                  </Link>
-                ))}
+                {cadastrosNav.map((item) => {
+                  const permitido = podeVerMenu(item.href);
+                  return permitido ? (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="flex items-center gap-1.5 rounded-md px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-primary-700"
+                    >
+                      <item.icon className="h-3.5 w-3.5" />
+                      {t(item.labelKey)}
+                    </Link>
+                  ) : (
+                    <span
+                      key={item.href}
+                      className="flex cursor-not-allowed items-center gap-1.5 rounded-md px-3 py-2 text-xs text-slate-300"
+                      title="Sem permissão"
+                    >
+                      <item.icon className="h-3.5 w-3.5" />
+                      {t(item.labelKey)}
+                    </span>
+                  );
+                })}
               </div>
             </div>
             <div className="group relative">
@@ -561,16 +707,66 @@ function AppShellInner({
                 {t("nav.estoque")} ▾
               </Link>
               <div className="invisible absolute left-0 top-full z-40 w-48 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
-                {estoqueNav.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-primary-700"
-                  >
-                    <item.icon className="h-3.5 w-3.5" />
-                    {t(item.labelKey)}
-                  </Link>
-                ))}
+                {estoqueNav.map((item) => {
+                  const permitido = podeVerMenu(item.href);
+                  return permitido ? (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-primary-700"
+                    >
+                      <item.icon className="h-3.5 w-3.5" />
+                      {t(item.labelKey)}
+                    </Link>
+                  ) : (
+                    <span
+                      key={item.href}
+                      className="flex cursor-not-allowed items-center gap-2 px-3 py-2 text-xs text-slate-300"
+                      title="Sem permissão"
+                    >
+                      <item.icon className="h-3.5 w-3.5" />
+                      {t(item.labelKey)}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="group relative">
+              <Link
+                href="/app/relatorios/fluxo-de-caixa"
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition",
+                  pathname.startsWith("/app/relatorios")
+                    ? "bg-primary-600 text-white"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                )}
+              >
+                <BarChart3 className="h-3.5 w-3.5" />
+                {t("nav.relatorios")} ▾
+              </Link>
+              <div className="invisible absolute left-0 top-full z-40 w-56 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
+                {relatoriosNav.map((item) => {
+                  const permitido = podeVerMenu(item.href);
+                  return permitido ? (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-primary-700"
+                    >
+                      <item.icon className="h-3.5 w-3.5" />
+                      {t(item.labelKey)}
+                    </Link>
+                  ) : (
+                    <span
+                      key={item.href}
+                      className="flex cursor-not-allowed items-center gap-2 px-3 py-2 text-xs text-slate-300"
+                      title="Sem permissão"
+                    >
+                      <item.icon className="h-3.5 w-3.5" />
+                      {t(item.labelKey)}
+                    </span>
+                  );
+                })}
               </div>
             </div>
             {appNavPrincipal
@@ -595,103 +791,9 @@ function AppShellInner({
                 </Link>
               );
             })}
-          </nav>
-
-            <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-              <LanguageMenu />
-              <SiteSearchButton onAbrir={() => setBuscaSiteAberta(true)} />
-              <Suspense
-                fallback={
-                  <span className="inline-flex h-8 w-8 items-center justify-center text-slate-400">
-                    <Settings className="h-5 w-5" />
-                  </span>
-                }
-              >
-                <ConfiguracoesGearMenu />
-              </Suspense>
-              <NotificationsBell />
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUserMenuOpen((current) => !current);
-                  }}
-                  className="flex items-center gap-2 rounded-xl px-2 py-1.5 text-left transition hover:bg-slate-100 dark:hover:bg-slate-800"
-                  aria-expanded={userMenuOpen}
-                  aria-label="Abrir menu do usuário"
-                >
-                  <div className="hidden leading-tight sm:block">
-                    <p
-                      suppressHydrationWarning
-                      className="text-xs font-bold text-slate-700 dark:text-slate-100"
-                    >
-                      {nomeLaboratorio}
-                    </p>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400">{papelUsuario}</p>
-                  </div>
-                  <div
-                    className={cn(
-                      "relative inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full",
-                      temLogoPerfil ? "bg-white ring-1 ring-slate-200" : "bg-blue-100 text-primary-700"
-                    )}
-                  >
-                    {temLogoPerfil ? (
-                      <img
-                        src={lab.logoDataUrl}
-                        alt="Logo do laboratório"
-                        className="object-contain"
-                        width={logoPerfil.largura}
-                        height={logoPerfil.altura}
-                      />
-                    ) : (
-                      <User className="h-5 w-5" />
-                    )}
-                    <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 dark:border-slate-900" />
-                  </div>
-                </button>
-
-                {userMenuOpen && (
-                  <div className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-lg border border-slate-200 bg-white py-2 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-                    <div className="border-b border-slate-100 px-4 pb-3 pt-2 dark:border-slate-800">
-                      <p
-                        suppressHydrationWarning
-                        className="text-sm font-bold text-slate-700 dark:text-slate-100"
-                      >
-                        {nomeLaboratorio}
-                      </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{papelUsuario}</p>
-                    </div>
-                    <div className="py-1">
-                      {[
-                        { labelKey: "user.perfil" as MessageKey, icon: User },
-                        { labelKey: "user.alterarSenha" as MessageKey, icon: LockKeyhole },
-                      ].map((item) => (
-                        <button
-                          key={item.labelKey}
-                          type="button"
-                          className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-600 transition hover:bg-slate-50 hover:text-primary-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                        >
-                          <item.icon className="h-4 w-4 text-slate-500" />
-                          <span>{t(item.labelKey)}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="border-t border-slate-100 pt-1 dark:border-slate-800">
-                      <button
-                        type="button"
-                        onClick={logout}
-                        className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-600 transition hover:bg-red-50 hover:text-red-600 dark:text-slate-300 dark:hover:bg-red-950/30"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        {t("user.logout")}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </header>
+            </nav>
+          </header>
+        </div>
         </>
       )}
       {buscaOsAberta && (
@@ -958,7 +1060,13 @@ function AppShellInner({
                     <div className="grid gap-3 md:grid-cols-[0.18fr_0.22fr_1fr_1fr]">
                       <button
                         type="button"
-                        onClick={() => window.open(`/app/trabalhos/${osSelecionada.id}/imprimir`, "_blank")}
+                        onClick={() =>
+                          window.open(
+                            `/app/trabalhos/${osSelecionada.id}/imprimir`,
+                            "_blank",
+                            "noopener,noreferrer"
+                          )
+                        }
                         className="h-8 rounded border border-emerald-200 bg-white px-3 text-[10px] font-semibold text-emerald-600 hover:bg-emerald-50"
                       >
                         Imprimir

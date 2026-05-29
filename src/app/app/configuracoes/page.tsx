@@ -13,6 +13,7 @@ import { HorarioFuncionamentoTab } from "@/components/HorarioFuncionamentoTab";
 import { IdiomaLaboratorioTab } from "@/components/IdiomaLaboratorioTab";
 import { ConfiguracoesBoletosTab } from "@/components/ConfiguracoesBoletosTab";
 import { ConfiguracoesNfseTab } from "@/components/ConfiguracoesNfseTab";
+import { MeusUsuariosTab } from "@/components/configuracoes/MeusUsuariosTab";
 import { LogoLaboratorioTab } from "@/components/LogoLaboratorioTab";
 import { useI18n } from "@/components/i18n-provider";
 import {
@@ -299,6 +300,8 @@ function ConfiguracoesConteudo() {
                 </p>
               ) : null}
             </>
+          ) : aba === "usuarios" ? (
+            <MeusUsuariosTab />
           ) : abaNaPagina ? (
             <div className="py-16 text-center text-sm text-slate-500">
               <p className="font-medium text-slate-700">{titulo}</p>

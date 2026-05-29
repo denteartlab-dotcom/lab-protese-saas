@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Printer } from "lucide-react";
 import { Button, Card, Select, Badge } from "@/components/ui";
+import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
 import {
   formatCurrency,
   formatDate,
@@ -44,11 +45,12 @@ export default function TrabalhoDetailPage() {
   }, [id]);
 
   async function updateStatus(status: string) {
-    await fetch(`/api/trabalhos/${id}`, {
+    const res = await fetch(`/api/trabalhos/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
+    if (res.ok) notificarTrabalhosAtualizados({ trabalhoId: id });
     load();
   }
 

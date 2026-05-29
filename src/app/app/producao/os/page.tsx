@@ -65,6 +65,7 @@ import {
 import { carregarSetoresCadastro, type SetorCadastro } from "@/lib/setores-cadastro";
 import { exibirTexto, STATUS_TRABALHO } from "@/lib/utils";
 import { bodyTrabalhoSemNull } from "@/lib/trabalho-api-body";
+import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
 
 type Cliente = { id: string; nome: string; observacoes?: string | null };
 type Produto = { id: string; nome: string; categoria?: string | null; valor: number; estoque?: number; unidadeMedida?: string };
@@ -2107,6 +2108,7 @@ export default function OrdemServicoPage() {
         if (!falha) {
           const idEstoque = editIdPreferidoGrupo(registros) || editId;
           sincronizarMovimentosOs(idEstoque, movimentosEstoqueDaOs(idEstoque, itensParaSalvar));
+          notificarTrabalhosAtualizados({ trabalhoId: idEstoque });
           router.push("/app/producao/controle");
         } else {
           alert(await mensagemErroApi(falha, "Não foi possível salvar a edição da OS."));
@@ -2121,6 +2123,7 @@ export default function OrdemServicoPage() {
         setSalvando(false);
         if (res.ok) {
           sincronizarMovimentosOs(alvo.id, movimentosEstoqueDaOs(alvo.id, itensParaSalvar));
+          notificarTrabalhosAtualizados({ trabalhoId: alvo.id });
           router.push("/app/producao/controle");
         } else {
           alert(await mensagemErroApi(res, "Não foi possível salvar a edição da OS."));
@@ -2234,6 +2237,7 @@ export default function OrdemServicoPage() {
 
     setSalvando(false);
     if (trabalhoPrincipal) {
+      notificarTrabalhosAtualizados({ trabalhoId: trabalhoPrincipal.id });
       sincronizarMovimentosOs(
         trabalhoPrincipal.id,
         movimentosEstoqueDaOs(trabalhoPrincipal.id, itensParaSalvar)
@@ -2880,6 +2884,7 @@ export default function OrdemServicoPage() {
                         + Adicionar Etapa
                       </button>
                     )}
+                    <div className="max-h-[min(360px,48vh)] space-y-3 overflow-y-auto overflow-x-hidden pr-1">
                     {etapas.map((etapa, index) => (
                       <div
                         key={`${etapa.nome}-${index}`}
@@ -3002,6 +3007,7 @@ export default function OrdemServicoPage() {
                         </button>
                       </div>
                     ))}
+                    </div>
                     {etapas.length > 0 && (
                       <button
                         type="button"

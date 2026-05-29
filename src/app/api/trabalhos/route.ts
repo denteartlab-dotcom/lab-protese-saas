@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import {
+  formatClienteLogAuditoria,
+  formatServicoLogAuditoria,
+  registrarLogAuditoria,
+} from "@/lib/logs-auditoria";
 import { proximoNumeroOsDisponivel, registrarNumeroOsUtilizado } from "@/lib/os-sequencia";
 import { z } from "zod";
 
@@ -171,7 +176,18 @@ export async function POST(request: Request) {
       });
     }
 
-    await registrarNumeroOsUtilizado( trabalho.numeroOs);
+    await registrarNumeroOsUtilizado(trabalho.numeroOs);
+
+    await registrarLogAuditoria({
+      categoria: "os",
+      tipoAlteracao: "inclusao",
+      numeroOs: trabalho.numeroOs,
+      trabalhoId: trabalho.id,
+      servico: formatServicoLogAuditoria(trabalho.tipoProtese, trabalho.id),
+      clienteNome: formatClienteLogAuditoria(cliente.nome, trabalho.clienteId),
+      usuarioId: session.id,
+      usuarioNome: session.name,
+    });
 
     return NextResponse.json(trabalho, { status: 201 });
   } catch (error) {

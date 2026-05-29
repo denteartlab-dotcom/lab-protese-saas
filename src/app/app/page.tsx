@@ -31,27 +31,8 @@ import { PainelAnotacoesDashboard } from "@/components/dashboard/PainelAnotacoes
 import { DashboardInicioSkeleton } from "@/components/dashboard/DashboardInicioSkeleton";
 import { PainelServicosDashboard } from "@/components/dashboard/PainelServicosDashboard";
 import { hrefControlePainel } from "@/lib/notificacao-links";
-
-const DASHBOARD_CACHE_KEY = "labProteseDashboardInicio";
-
-function lerCacheDashboard(): Dashboard | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = sessionStorage.getItem(DASHBOARD_CACHE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as Dashboard;
-  } catch {
-    return null;
-  }
-}
-
-function gravarCacheDashboard(payload: Dashboard) {
-  try {
-    sessionStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify(payload));
-  } catch {
-    /* quota ou modo privado */
-  }
-}
+import { usePermissoesApp } from "@/components/PermissoesAppProvider";
+import { permissaoIdPorHref } from "@/lib/usuarios-menu-permissoes";
 
 type Dashboard = {
   totalClientes: number;
@@ -131,6 +112,7 @@ export default function DashboardPage() {
   const [anoFiltro, setAnoFiltro] = useState(new Date().getFullYear());
   const [diasSemServico, setDiasSemServico] = useState(15);
   const [uploadsResumo, setUploadsResumo] = useState<UploadsResumoUi | null>(null);
+  const { acessoTotal, permissoesModulos } = usePermissoesApp();
   const dataRef = useRef<Dashboard | null>(data);
   dataRef.current = data;
 
@@ -145,7 +127,6 @@ export default function DashboardPage() {
     return apiFetch<Dashboard>(`/api/dashboard?${params}`)
       .then((dash) => {
         setData(dash);
-        gravarCacheDashboard(dash);
         if (dash.uploadsResumo) setUploadsResumo(dash.uploadsResumo);
       })
       .catch((e) => setError(e.message))
@@ -162,12 +143,6 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    const cached = lerCacheDashboard();
-    if (cached) {
-      setData(cached);
-      setCarregando(false);
-      if (cached.uploadsResumo) setUploadsResumo(cached.uploadsResumo);
-    }
     setClientePronto(true);
   }, []);
 
@@ -218,6 +193,19 @@ export default function DashboardPage() {
   const atrasados = atrasadosLista.length;
   const producaoResumo = dashboard.producaoResumo ?? resumoProducaoVazio;
   const financeiroResumo = dashboard.financeiroResumo ?? resumoFinanceiroVazio;
+  const podeVer = (href: string) => {
+    if (acessoTotal) return true;
+    const id = permissaoIdPorHref(href);
+    return Boolean(permissoesModulos?.[id]?.ver);
+  };
+  const podeFinanceiro =
+    podeVer("/app/financeiro?tipo=receita") ||
+    podeVer("/app/financeiro?tipo=despesa") ||
+    podeVer("/app/financeiro?aba=plano-de-contas") ||
+    podeVer("/app/financeiro?aba=conta-bancaria") ||
+    podeVer("/app/financeiro?aba=cheques") ||
+    podeVer("/app/financeiro?aba=nfse");
+  const podeClientes = podeVer("/app/clientes");
 
   return (
     <div className="space-y-4 text-[13px] text-slate-700">
@@ -324,31 +312,37 @@ export default function DashboardPage() {
           }}
         />
 
-        <PainelFinanceiroDashboard
-          titulo={t("dashboard.financeiro")}
-          resumo={financeiroResumo}
-          mes={mesFiltro}
-          ano={anoFiltro}
-          onMesChange={setMesFiltro}
-          onAnoChange={setAnoFiltro}
-        />
+        {podeFinanceiro ? (
+          <PainelFinanceiroDashboard
+            titulo={t("dashboard.financeiro")}
+            resumo={financeiroResumo}
+            mes={mesFiltro}
+            ano={anoFiltro}
+            onMesChange={setMesFiltro}
+            onAnoChange={setAnoFiltro}
+          />
+        ) : null}
 
         <PainelAnotacoesDashboard titulo="Anotações" locale={locale} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <PainelAniversariantesDashboard
-          titulo={`${t("dashboard.aniversariantes")} 🎉`}
-          lista={dashboard.aniversariantesMes ?? []}
-          mes={new Date().getMonth()}
-        />
+        {podeClientes ? (
+          <PainelAniversariantesDashboard
+            titulo={`${t("dashboard.aniversariantes")} 🎉`}
+            lista={dashboard.aniversariantesMes ?? []}
+            mes={new Date().getMonth()}
+          />
+        ) : null}
 
-        <PainelClientesServicosDashboard
-          titulo="Clientes - Serviços"
-          lista={dashboard.clientesSemServico ?? []}
-          diasMinimos={diasSemServico}
-          onDiasChange={setDiasSemServico}
-        />
+        {podeClientes ? (
+          <PainelClientesServicosDashboard
+            titulo="Clientes - Serviços"
+            lista={dashboard.clientesSemServico ?? []}
+            diasMinimos={diasSemServico}
+            onDiasChange={setDiasSemServico}
+          />
+        ) : null}
 
         <PainelUploadsDashboard
           titulo="Uploads"

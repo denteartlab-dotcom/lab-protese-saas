@@ -8,6 +8,7 @@ import {
   nomeExibicaoLaboratorio,
   normalizarTipoPessoa,
 } from "@/lib/configuracoes-lab";
+import { prepararAbaPdf, visualizarPdfUrl } from "@/lib/pdf-viewer";
 
 const labelClass = "mb-1 block text-[11px] font-medium text-slate-600";
 const inputClass =
@@ -131,6 +132,7 @@ export function ConfiguracoesNfseTab({ onMensagem }: Props) {
       return;
     }
     setEmitindo(true);
+    const janela = prepararAbaPdf();
     try {
       const res = await fetch("/api/nfse/emitir", {
         method: "POST",
@@ -157,13 +159,19 @@ export function ConfiguracoesNfseTab({ onMensagem }: Props) {
           "sucesso"
         );
         if (data.pdfUrl) {
-          window.open(data.pdfUrl, "_blank", "noopener,noreferrer");
+          visualizarPdfUrl(data.pdfUrl, "nfse.pdf", "NFS-e", {
+            revogarAoFechar: false,
+            janela,
+          });
+        } else {
+          janela?.close();
         }
         setValor("");
         setDescricao("");
       }
       void carregarHistorico();
     } catch (e) {
+      janela?.close();
       onMensagem?.(e instanceof Error ? e.message : "Erro ao emitir.", "erro");
     } finally {
       setEmitindo(false);
