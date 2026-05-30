@@ -21,6 +21,17 @@ function sessionTokenAceito(token: string): boolean {
   }
 }
 
+function limparCookieSessao(response: NextResponse) {
+  response.cookies.set(COOKIE_NAME, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
+  return response;
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -49,9 +60,8 @@ export function middleware(request: NextRequest) {
   }
 
   if (PUBLIC.includes(pathname)) {
-    // Não redireciona /login → /app só pelo cookie: evita loop se o token
-    // for antigo ou JWT_SECRET tiver mudado (layout valida assinatura no servidor).
-    return NextResponse.next();
+    // Limpa cookie ao abrir login — evita loop com token antigo ou JWT_SECRET diferente.
+    return limparCookieSessao(NextResponse.next());
   }
 
   const needsAuth = pathname.startsWith("/app") || pathname.startsWith("/api");
@@ -67,7 +77,7 @@ export function middleware(request: NextRequest) {
     }
     const login = new URL("/login", request.url);
     login.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(login);
+    return limparCookieSessao(NextResponse.redirect(login));
   }
 
   return NextResponse.next();
