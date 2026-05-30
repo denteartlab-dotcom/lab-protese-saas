@@ -424,6 +424,12 @@ export function RelatorioProducaoConteudo() {
     const titulo =
       OPCOES_RELATORIO_PRODUCAO.find((o) => o.value === opcaoRelatorio)?.label ??
       "Relatório de Produção";
+
+    if (dados.layout === "servicos_etapas") {
+      window.print();
+      return;
+    }
+
     void abrirPdfGerando(
       () =>
         gerarRelatorioProducaoPdf(

@@ -88,7 +88,7 @@ type Props = {
   creditoAplicado: number;
   totalAReceberComCredito: number;
   mensagemLancamento: string;
-  mensagemLancamentoTipo: "erro" | "sucesso";
+  mensagemLancamentoTipo: "erro" | "sucesso" | "info";
   formaSelecionadaEhBoleto: () => boolean;
   valorTrabalho: (trabalho: TrabalhoReceita) => number;
   onLimparOsSelecionadas: () => void;
@@ -653,7 +653,9 @@ export function LancarReceitaOsModal({
                 "mb-3 rounded-sm px-3 py-2 text-center text-[11px]",
                 mensagemLancamentoTipo === "erro"
                   ? "bg-red-50 text-red-700"
-                  : "bg-emerald-50 text-emerald-800"
+                  : mensagemLancamentoTipo === "info"
+                    ? "bg-sky-50 text-sky-800"
+                    : "bg-emerald-50 text-emerald-800"
               )}
             >
               {mensagemLancamento}

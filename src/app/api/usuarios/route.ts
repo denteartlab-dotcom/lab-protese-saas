@@ -9,7 +9,9 @@ import {
   ROLES_USUARIO,
   serializarPermissoesUsuario,
   usuarioEhProprietario,
+  type PermissoesUsuario,
 } from "@/lib/usuarios-sistema";
+import { normalizarPermissoesCompletas } from "@/lib/usuarios-menu-permissoes";
 
 const permissaoCrudSchema = z.object({
   ver: z.boolean().optional(),
@@ -103,16 +105,21 @@ export async function POST(request: Request) {
         ? data.password.trim()
         : gerarSenhaAutomatica();
 
-    const permissoes = serializarPermissoesUsuario({
-      setores: data.permissoes?.setores ?? [],
-      modulos: data.permissoes?.modulos,
-      situacao: data.permissoes?.situacao ?? "ativo",
-      permitirRetiradasCarteira: data.permissoes?.permitirRetiradasCarteira,
-      permitirAlterarChavePix: data.permissoes?.permitirAlterarChavePix,
-      permitirAlterarSenha: data.permissoes?.permitirAlterarSenha,
-      acessoMobile: data.permissoes?.acessoMobile,
-      avatarDataUrl: data.permissoes?.avatarDataUrl,
-    });
+    const permissoes = serializarPermissoesUsuario(
+      normalizarPermissoesCompletas(
+        {
+          setores: data.permissoes?.setores ?? [],
+          modulos: data.permissoes?.modulos,
+          situacao: data.permissoes?.situacao ?? "ativo",
+          permitirRetiradasCarteira: data.permissoes?.permitirRetiradasCarteira,
+          permitirAlterarChavePix: data.permissoes?.permitirAlterarChavePix,
+          permitirAlterarSenha: data.permissoes?.permitirAlterarSenha,
+          acessoMobile: data.permissoes?.acessoMobile,
+          avatarDataUrl: data.permissoes?.avatarDataUrl,
+        } as Partial<PermissoesUsuario>,
+        data.role
+      )
+    );
 
     const criado = await prisma.user.create({
       data: {

@@ -186,7 +186,7 @@ export function etapasUnicasComCor(
 
     const modelo = modelos.find((m) => m.nome.trim().toLowerCase() === chave);
     const fundo = corFundoEtapa(
-      modelo || { id: "", nome, setor: modelo?.setor },
+      modelo ?? { id: "", nome },
       modelo?.setor ? corSetorCadastro(modelo.setor) : undefined
     );
     resultado.push({

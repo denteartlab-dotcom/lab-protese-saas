@@ -557,7 +557,7 @@ export function gerarRelatorioVendaProdutos(
     linhas.push({
       id: movimento.id || `${movimento.produtoId}-${movimento.data}-${qtd}`,
       dataEntregue: formatarDataEntregueRelatorio(dataEntregue),
-      dataEntregueOrdenacao: dataEntregue.getTime(),
+      dataEntregueOrdenacao: dataEntregue?.getTime() ?? 0,
       quantidade: qtd,
       quantidadeLabel: formatarQuantidadeRelatorio(qtd),
       produto: produto?.nome?.trim() || "—",

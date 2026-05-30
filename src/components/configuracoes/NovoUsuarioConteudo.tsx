@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Home, Plus, UserCog } from "lucide-react";
-import { ListaCarregando } from "@/components/ListaCarregando";
+import { PainelCarregando } from "@/components/ListaCarregando";
 import { carregarColaboradoresListagem } from "@/lib/colaboradores-listagem";
 import {
   ROLES_USUARIO,
@@ -140,7 +140,7 @@ export function NovoUsuarioConteudo() {
   }
 
   if (verificando) {
-    return <ListaCarregando mensagem="Carregando..." />;
+    return <PainelCarregando mensagem="Carregando..." />;
   }
 
   if (!podeGerenciar) {

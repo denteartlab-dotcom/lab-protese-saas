@@ -348,7 +348,7 @@ export async function listarLogsAuditoria(filtros: FiltrosLogsAuditoria) {
     categoria?: string;
     tipoAlteracao?: string;
     numeroOs?: number;
-    referencia?: { contains: string };
+    referencia?: string | { contains: string };
     dataAlteracao?: { gte?: Date; lte?: Date };
   } = {};
 

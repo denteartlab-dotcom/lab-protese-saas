@@ -9,7 +9,9 @@ import {
   ROLES_USUARIO,
   serializarPermissoesUsuario,
   usuarioEhProprietario,
+  type PermissoesUsuario,
 } from "@/lib/usuarios-sistema";
+import { normalizarPermissoesCompletas } from "@/lib/usuarios-menu-permissoes";
 
 const permissaoCrudSchema = z.object({
   ver: z.boolean().optional(),
@@ -143,11 +145,18 @@ export async function PATCH(request: Request, { params }: Params) {
 
     const permissoesJson =
       data.permissoes !== undefined
-        ? serializarPermissoesUsuario({
-            ...parsePermissoesUsuario(atual.permissoesJson),
-            ...data.permissoes,
-            setores: data.permissoes.setores ?? parsePermissoesUsuario(atual.permissoesJson).setores,
-          })
+        ? serializarPermissoesUsuario(
+            normalizarPermissoesCompletas(
+              {
+                ...parsePermissoesUsuario(atual.permissoesJson),
+                ...data.permissoes,
+                setores:
+                  data.permissoes.setores ??
+                  parsePermissoesUsuario(atual.permissoesJson).setores,
+              } as Partial<PermissoesUsuario>,
+              data.role ?? atual.role
+            )
+          )
         : undefined;
 
     const atualizado = await prisma.user.update({

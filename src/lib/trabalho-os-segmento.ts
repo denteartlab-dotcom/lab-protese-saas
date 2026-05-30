@@ -180,7 +180,6 @@ export function trabalhoEhProdutoOuTransporte(
   trabalho: {
     segmentoFaturamento?: string | null;
     instrucoes?: string | null;
-    status: string;
   },
   _primeiroItem?: ItemOsLinha | null
 ) {

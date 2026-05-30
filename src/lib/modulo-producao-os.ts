@@ -122,7 +122,10 @@ function normDescricaoItem(s: string) {
 }
 
 /** Urgente/repetição do item na OS (flags em `Item adicionado:` nas instruções). */
-export function flagsUrgenciaTrabalho(trabalho: TrabalhoModuloOs) {
+export function flagsUrgenciaTrabalho(trabalho: {
+  tipoProtese: string;
+  instrucoes?: string | null;
+}) {
   const linhas = (trabalho.instrucoes || "")
     .split("\n")
     .filter((line) => line.trim().startsWith("Item adicionado:"));

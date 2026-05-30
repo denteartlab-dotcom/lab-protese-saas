@@ -79,7 +79,7 @@ type Props = {
   userRole: string;
 };
 
-export function ModuloProducaoColaborador({ userRole }: Props) {
+export function ModuloProducaoColaborador({ userName, userRole }: Props) {
   const { t } = useI18n();
   const router = useRouter();
   const { montado, lab, nomeLaboratorio } = useLabConfigClient();
