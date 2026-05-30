@@ -118,9 +118,11 @@ async function main() {
   console.log("=== Publicar banco no Neon (substituir tudo) ===\n");
   console.log("Passo 1/2: Recriar tabelas no Neon (apaga dados antigos)...");
 
+  // db push no Neon precisa da URL direct (sem pooler)
+  const urlPush = process.env.DIRECT_URL || process.env.DATABASE_URL;
   execSync("npx prisma db push --force-reset --accept-data-loss", {
     stdio: "inherit",
-    env: process.env,
+    env: { ...process.env, DATABASE_URL: urlPush },
   });
 
   console.log("\nPasso 2/2: Copiar SQLite local → Neon");

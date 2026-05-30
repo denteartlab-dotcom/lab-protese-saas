@@ -82,9 +82,11 @@ git push origin main
 ## Passo 4 — Vercel (mesmo projeto de antes)
 
 1. [vercel.com](https://vercel.com) → abra o projeto do lab  
-2. **Settings** → **Environment Variables**  
-   - Confira `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `NEXT_PUBLIC_APP_URL`  
-   - `DATABASE_URL` = pooled do Neon (o mesmo do `.env`)  
+2. **Settings** → **Environments** → **Production** e **Preview** (as duas!)  
+   - `DATABASE_URL` = URL **pooled** do Neon (com `-pooler` no host)  
+   - `JWT_SECRET` = mesma chave de sempre (senão não loga)  
+   - `NEXT_PUBLIC_APP_URL` = `https://www.denteartlab.com.br`  
+   - Marque **Production** e **Preview** em cada variável (links `*.vercel.app` usam Preview)  
 3. Se o push não disparou deploy sozinho: **Deployments** → **Redeploy**
 
 ---

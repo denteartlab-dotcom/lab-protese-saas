@@ -75,10 +75,29 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     console.error("[auth/login]", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/Environment variable not found|DATABASE_URL|Can't reach database/i.test(msg)) {
+      return NextResponse.json(
+        {
+          error:
+            "Banco não conectou. Na Vercel (Production e Preview): DATABASE_URL do Neon. Depois rode npm run db:publicar-neon no PC.",
+        },
+        { status: 503 }
+      );
+    }
+    if (/column|does not exist|P2022|P2010/i.test(msg)) {
+      return NextResponse.json(
+        {
+          error:
+            "Banco desatualizado. No PC: npm run db:publicar-neon (com .env do Neon) e tente de novo.",
+        },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
       {
         error:
-          "Erro no servidor (banco ou sessão). Verifique DATABASE_URL e JWT_SECRET na Vercel.",
+          "Erro no servidor (banco ou sessão). Verifique DATABASE_URL e JWT_SECRET na Vercel (Production e Preview).",
       },
       { status: 500 }
     );
