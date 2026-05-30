@@ -7,7 +7,11 @@ import { AppFaixaTopo } from "@/components/AppFaixaTopo";
 export function SiteTopoMarca() {
   const pathname = usePathname() ?? "";
 
-  if (pathname.includes("/imprimir") || pathname.startsWith("/app")) {
+  if (
+    pathname === "/login" ||
+    pathname.includes("/imprimir") ||
+    pathname.startsWith("/app")
+  ) {
     return null;
   }
 
