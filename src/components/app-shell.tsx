@@ -27,6 +27,7 @@ import {
   relatoriosNav,
 } from "@/lib/app-nav";
 import type { MessageKey } from "@/lib/i18n";
+import { rotuloPapelUsuario } from "@/lib/auth-client";
 import { cn, STATUS_TRABALHO } from "@/lib/utils";
 import {
   BarChart3,
@@ -134,6 +135,7 @@ function AppShellInner({
   const [menuMobileAberto, setMenuMobileAberto] = useState(false);
   const { acessoTotal, permissoesModulos } = usePermissoesApp();
   const { montado, lab, nomeLaboratorio } = useLabConfigClient({ initialLab });
+  const papelUsuario = rotuloPapelUsuario(userRole);
   const fecharMenuMobile = useCallback(() => setMenuMobileAberto(false), []);
   const alternarMenuMobile = useCallback(
     () => setMenuMobileAberto((atual) => !atual),
@@ -493,9 +495,9 @@ function AppShellInner({
                         suppressHydrationWarning
                         className="text-[11px] font-bold text-slate-800"
                       >
-                        {nomeLaboratorio}
+                        {userName}
                       </p>
-                      <p className="text-[10px] text-slate-500">{userName}</p>
+                      <p className="text-[10px] text-slate-500">{papelUsuario}</p>
                     </div>
                     <div
                       className={cn(
@@ -525,9 +527,11 @@ function AppShellInner({
                           suppressHydrationWarning
                           className="text-sm font-bold text-slate-700 dark:text-slate-100"
                         >
-                          {nomeLaboratorio}
+                          {userName}
                         </p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">{userName}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {papelUsuario}
+                        </p>
                       </div>
                       <div className="py-1">
                         <button
