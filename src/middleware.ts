@@ -45,18 +45,12 @@ export function middleware(request: NextRequest) {
   }
 
   if (pathname === "/") {
-    const token = request.cookies.get(COOKIE_NAME)?.value;
-    if (token && sessionTokenAceito(token)) {
-      return NextResponse.redirect(new URL("/app", request.url));
-    }
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
   if (PUBLIC.includes(pathname)) {
-    const token = request.cookies.get(COOKIE_NAME)?.value;
-    if (token && sessionTokenAceito(token)) {
-      return NextResponse.redirect(new URL("/app", request.url));
-    }
+    // Não redireciona /login → /app só pelo cookie: evita loop se o token
+    // for antigo ou JWT_SECRET tiver mudado (layout valida assinatura no servidor).
     return NextResponse.next();
   }
 
