@@ -7,6 +7,7 @@ import { z } from "zod";
 const schema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+  remember: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "E-mail ou senha inválidos." }, { status: 400 });
   }
 
-  const { email, password } = parsed.data;
+  const { email, password, remember } = parsed.data;
 
   try {
     const user = await prisma.user.findUnique({
@@ -59,12 +60,15 @@ export async function POST(request: Request) {
       );
     }
 
-    await createSession({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    });
+    await createSession(
+      {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+      { remember: remember === true }
+    );
 
     return NextResponse.json({
       user: {

@@ -1,4 +1,33 @@
 const AUTH_JA_ENTROU_KEY = "labProteseJaEntrou";
+const LEMBRAR_LOGIN_KEY = "labProteseLembrarLogin";
+
+export type LembrarLoginSalvo = {
+  email: string;
+  password: string;
+};
+
+export function salvarLembrarLogin(dados: LembrarLoginSalvo) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(LEMBRAR_LOGIN_KEY, JSON.stringify(dados));
+}
+
+export function limparLembrarLogin() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(LEMBRAR_LOGIN_KEY);
+}
+
+export function lerLembrarLogin(): LembrarLoginSalvo | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(LEMBRAR_LOGIN_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as LembrarLoginSalvo;
+    if (!parsed.email?.trim() || !parsed.password) return null;
+    return { email: parsed.email.trim(), password: parsed.password };
+  } catch {
+    return null;
+  }
+}
 
 export function marcarUsuarioJaEntrou() {
   if (typeof window === "undefined") return;

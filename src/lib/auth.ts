@@ -31,7 +31,13 @@ export async function verifyPassword(password: string, hash: string) {
   return bcrypt.compare(password, hash);
 }
 
-export async function createSession(user: SessionUser) {
+export async function createSession(
+  user: SessionUser,
+  options?: { remember?: boolean }
+) {
+  const dias = options?.remember ? 30 : 7;
+  const maxAge = 60 * 60 * 24 * dias;
+
   const token = await new SignJWT({
     id: user.id,
     name: user.name,
@@ -40,7 +46,7 @@ export async function createSession(user: SessionUser) {
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("7d")
+    .setExpirationTime(`${dias}d`)
     .sign(getSecret());
 
   const cookieStore = await cookies();
@@ -49,7 +55,7 @@ export async function createSession(user: SessionUser) {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge,
   });
 }
 

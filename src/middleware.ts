@@ -60,8 +60,7 @@ export function middleware(request: NextRequest) {
   }
 
   if (PUBLIC.includes(pathname)) {
-    // Limpa cookie ao abrir login — evita loop com token antigo ou JWT_SECRET diferente.
-    return limparCookieSessao(NextResponse.next());
+    return NextResponse.next();
   }
 
   const needsAuth = pathname.startsWith("/app") || pathname.startsWith("/api");
