@@ -29,6 +29,18 @@ export const TODOS_DENTES_DECIDUOS = [
   ...DENTES_DECIDUOS_INFERIORES,
 ] as const;
 
+export type NumeroDenteDeciduo = (typeof TODOS_DENTES_DECIDUOS)[number];
+
+const todosDeciduosLista: readonly string[] = TODOS_DENTES_DECIDUOS;
+
+export function isDenteDeciduo(numero: string): numero is NumeroDenteDeciduo {
+  return todosDeciduosLista.includes(numero);
+}
+
+export function tipoDenticaoFromNumerosDentes(valores: string[]): "permanente" | "deciduos" {
+  return valores.some(isDenteDeciduo) ? "deciduos" : "permanente";
+}
+
 export function urlImagemDente(numero: string, tipoDenticao: "permanente" | "deciduos") {
   if (tipoDenticao === "deciduos") {
     return `/dentes-deciduos/dente-${numero}.png`;

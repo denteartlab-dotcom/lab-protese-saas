@@ -1,14 +1,14 @@
 import { readFile } from "fs/promises";
 import path from "path";
 import { NextResponse } from "next/server";
-import { TODOS_DENTES_DECIDUOS } from "@/lib/dentes-imagens";
+import { isDenteDeciduo } from "@/lib/dentes-imagens";
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ numero: string }> }
 ) {
   const { numero } = await params;
-  if (!TODOS_DENTES_DECIDUOS.includes(numero as (typeof TODOS_DENTES_DECIDUOS)[number])) {
+  if (!isDenteDeciduo(numero)) {
     return NextResponse.json({ error: "Dente decíduo inválido" }, { status: 404 });
   }
 

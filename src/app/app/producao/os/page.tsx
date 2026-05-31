@@ -71,6 +71,7 @@ import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
 import {
   DENTES_DECIDUOS_INFERIORES,
   DENTES_DECIDUOS_SUPERIORES,
+  tipoDenticaoFromNumerosDentes,
   urlImagemDente,
 } from "@/lib/dentes-imagens";
 
@@ -1164,9 +1165,7 @@ export default function OrdemServicoPage() {
   }
 
   function tipoDenticaoFromDentes(valores: string[]) {
-    return valores.some((dente) => dentesDeciduosSuperiores.includes(dente) || dentesDeciduosInferiores.includes(dente))
-      ? "deciduos"
-      : "permanente";
+    return tipoDenticaoFromNumerosDentes(valores);
   }
 
   function trocarTipoDenticao(tipo: TipoDenticao) {
