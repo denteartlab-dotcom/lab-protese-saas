@@ -12,6 +12,8 @@ import {
   carregarEtapasCadastro,
   deduplicarEtapas,
   formatarLinhaEtapaComTempo,
+  normalizarNomeEtapaCadastro,
+  nomeEtapaSemSetor,
   type EtapaCadastro,
   type EtapaOsLinha,
 } from "@/lib/etapas-os";
@@ -80,7 +82,7 @@ export function etapasFormParaLinhasInstrucoes(
 
 export function etapasOsLinhaParaForm(etapas: EtapaOsLinha[]): EtapaOsFormLinha[] {
   return etapas.map((etapa) => ({
-    nome: etapa.nome,
+    nome: normalizarNomeEtapaCadastro(etapa.nome),
     setor: "",
     responsavel: etapa.responsavel,
     prazo: etapa.prazo,
@@ -183,12 +185,11 @@ export function EtapasOsEditor({
                   {index === 0 ? "Selecione a etapa de entrada" : "Selecione uma etapa"}
                 </option>
                 {etapa.nome && !modelosEtapas.some((modelo) => modelo.nome === etapa.nome) && (
-                  <option value={etapa.nome}>{etapa.nome}</option>
+                  <option value={etapa.nome}>{nomeEtapaSemSetor(etapa.nome)}</option>
                 )}
                 {modelosEtapas.map((modelo) => (
                   <option key={modelo.id} value={modelo.nome}>
                     {modelo.nome}
-                    {modelo.setor ? ` — ${modelo.setor}` : ""}
                   </option>
                 ))}
               </Select>

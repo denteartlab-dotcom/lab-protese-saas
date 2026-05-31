@@ -58,6 +58,7 @@ import {
   deduplicarEtapas,
   formatarLinhaColaborador,
   formatarLinhaEtapaComTempo,
+  nomeEtapaSemSetor,
   instrucoesTextoLivre,
   parseComplementosInstrucoesGrupo,
   removerComplementosOsDoCorpo,
@@ -67,6 +68,11 @@ import { carregarSetoresCadastro, type SetorCadastro } from "@/lib/setores-cadas
 import { exibirTexto, STATUS_TRABALHO } from "@/lib/utils";
 import { bodyTrabalhoSemNull } from "@/lib/trabalho-api-body";
 import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
+import {
+  DENTES_DECIDUOS_INFERIORES,
+  DENTES_DECIDUOS_SUPERIORES,
+  urlImagemDente,
+} from "@/lib/dentes-imagens";
 
 type Cliente = { id: string; nome: string; observacoes?: string | null };
 type Produto = { id: string; nome: string; categoria?: string | null; valor: number; estoque?: number; unidadeMedida?: string };
@@ -190,21 +196,8 @@ const materiaisPadrao = [
 
 const dentesSuperiores = ["18", "17", "16", "15", "14", "13", "12", "11", "21", "22", "23", "24", "25", "26", "27", "28"];
 const dentesInferiores = ["48", "47", "46", "45", "44", "43", "42", "41", "31", "32", "33", "34", "35", "36", "37", "38"];
-const dentesDeciduosSuperiores = ["55", "54", "53", "52", "51", "61", "62", "63", "64", "65"];
-const dentesDeciduosInferiores = ["85", "84", "83", "82", "81", "71", "72", "73", "74", "75"];
-const dentesDeciduosComImagem = new Set([
-  ...dentesDeciduosSuperiores,
-  "71",
-  "72",
-  "73",
-  "74",
-  "75",
-  "81",
-  "82",
-  "83",
-  "84",
-  "85",
-]);
+const dentesDeciduosSuperiores = [...DENTES_DECIDUOS_SUPERIORES];
+const dentesDeciduosInferiores = [...DENTES_DECIDUOS_INFERIORES];
 
 function requiredLabel(label: string, show = false) {
   return (
@@ -1299,10 +1292,7 @@ export default function OrdemServicoPage() {
 
   function toothButton(dente: string, arcada: "sup" | "inf") {
     const selected = dentes.includes(dente);
-    const imagemDente =
-      tipoDenticao === "deciduos" && dentesDeciduosComImagem.has(dente)
-        ? `/api/dentes-deciduos/${dente}`
-        : `/dentes/dente-${dente}.png`;
+    const imagemDente = urlImagemDente(dente, tipoDenticao);
 
     return (
       <button
@@ -2954,12 +2944,11 @@ export default function OrdemServicoPage() {
                               {index === 0 ? "Selecione a etapa de entrada" : "Selecione uma etapa"}
                             </option>
                             {etapa.nome && !modelosEtapas.some((modelo) => modelo.nome === etapa.nome) && (
-                              <option value={etapa.nome}>{etapa.nome}</option>
+                              <option value={etapa.nome}>{nomeEtapaSemSetor(etapa.nome)}</option>
                             )}
                             {modelosEtapas.map((modelo) => (
                               <option key={modelo.id} value={modelo.nome}>
                                 {modelo.nome}
-                                {modelo.setor ? ` — ${modelo.setor}` : ""}
                               </option>
                             ))}
                           </Select>

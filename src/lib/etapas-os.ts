@@ -52,6 +52,26 @@ export function carregarEtapasCadastro(): EtapaCadastro[] {
   return lista.filter((e) => e?.nome?.trim());
 }
 
+/** Remove sufixo visual " — Setor" (ex.: "Plano de cera — Resina" → "Plano de cera"). */
+export function nomeEtapaSemSetor(nome: string) {
+  const texto = nome.trim();
+  const separador = texto.indexOf(" — ");
+  return separador >= 0 ? texto.slice(0, separador).trim() : texto;
+}
+
+/** Nome da etapa alinhado ao cadastro (sem sufixo de setor no rótulo). */
+export function normalizarNomeEtapaCadastro(
+  nome: string,
+  cadastro?: EtapaCadastro[]
+) {
+  const limpo = nomeEtapaSemSetor(nome);
+  const modelos = cadastro ?? carregarEtapasCadastro();
+  const exato = modelos.find(
+    (m) => m.nome === limpo || m.nome === nome.trim() || nomeEtapaSemSetor(m.nome) === limpo
+  );
+  return exato?.nome ?? limpo;
+}
+
 function parseRestoEtapa(resto: string) {
   let responsavel = "";
   let prazo = "";
@@ -97,7 +117,7 @@ export function parseEtapasInstrucoes(instrucoes?: string | null): EtapaOsLinha[
   linhas.forEach((line) => {
     const match = line.trim().match(/^Etapa\s+(.+?):\s*(.*)$/i);
     if (!match) return;
-    const nome = match[1].trim();
+    const nome = normalizarNomeEtapaCadastro(match[1].trim());
     const resto = parseRestoEtapa(match[2] || "");
     etapas.push({
       indice: etapas.length,
@@ -144,7 +164,9 @@ export function substituirEtapasInstrucoes(instrucoes: string, etapas: EtapaOsLi
 
 export function resumoEtapasControle(etapas: EtapaOsLinha[]) {
   if (etapas.length === 0) return "";
-  const nomes = [...new Set(etapas.map((e) => e.nome.trim()).filter(Boolean))];
+  const nomes = [
+    ...new Set(etapas.map((e) => nomeEtapaSemSetor(e.nome)).filter(Boolean)),
+  ];
   return nomes.join(", ");
 }
 
@@ -178,7 +200,7 @@ export function etapasUnicasComCor(
   const resultado: EtapaControleBadge[] = [];
 
   for (const etapa of etapas) {
-    const nome = etapa.nome.trim();
+    const nome = nomeEtapaSemSetor(etapa.nome);
     if (!nome) continue;
     const chave = nome.toLowerCase();
     if (vistas.has(chave)) continue;
@@ -324,7 +346,7 @@ export function parseColaboradoresInstrucoes(instrucoes?: string | null): Colabo
       return {
         nome,
         comissao: match[2]?.trim() || "0",
-        etapa: match[3]?.trim() || "",
+        etapa: match[3]?.trim() ? normalizarNomeEtapaCadastro(match[3].trim()) : "",
       };
     })
     .filter((item): item is ColaboradorOsLinha => item !== null && Boolean(item.nome));

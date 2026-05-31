@@ -80,6 +80,11 @@ import {
   type LancamentoFaturaOs,
 } from "@/lib/os-faturamento";
 import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
+import {
+  DENTES_DECIDUOS_INFERIORES,
+  DENTES_DECIDUOS_SUPERIORES,
+  urlImagemDente,
+} from "@/lib/dentes-imagens";
 import { cn, exibirTexto, formatCurrency, formatDate, STATUS_TRABALHO } from "@/lib/utils";
 
 type CampoOrdenacaoControle = "numeroOs" | "dataEntrada" | "cliente" | "paciente";
@@ -480,9 +485,8 @@ function instrucoesConsolidadas(trabalho: Trabalho, trabalhos: Trabalho[]) {
 
 const dentesSuperiores = ["18", "17", "16", "15", "14", "13", "12", "11", "21", "22", "23", "24", "25", "26", "27", "28"];
 const dentesInferiores = ["48", "47", "46", "45", "44", "43", "42", "41", "31", "32", "33", "34", "35", "36", "37", "38"];
-const dentesDeciduosSuperiores = ["55", "54", "53", "52", "51", "61", "62", "63", "64", "65"];
-const dentesDeciduosInferiores = ["85", "84", "83", "82", "81", "71", "72", "73", "74", "75"];
-const dentesDeciduosComImagem = new Set([...dentesDeciduosSuperiores, ...dentesDeciduosInferiores]);
+const dentesDeciduosSuperiores = [...DENTES_DECIDUOS_SUPERIORES];
+const dentesDeciduosInferiores = [...DENTES_DECIDUOS_INFERIORES];
 
 type TipoDenticao = "permanente" | "deciduos";
 
@@ -2293,10 +2297,7 @@ export default function ControlePage() {
                           <div className="flex flex-wrap justify-center gap-0.5 border-b border-dashed border-slate-300 pb-1">
                             {dentesPorDenticaoControle(tipoDenticao).superiores.map((dente) => {
                               const selected = dentesEdicao.includes(dente);
-                              const imagemDente =
-                                tipoDenticao === "deciduos" && dentesDeciduosComImagem.has(dente)
-                                  ? `/api/dentes-deciduos/${dente}`
-                                  : `/dentes/dente-${dente}.png`;
+                              const imagemDente = urlImagemDente(dente, tipoDenticao);
                               return (
                                 <button
                                   key={dente}
@@ -2343,10 +2344,7 @@ export default function ControlePage() {
                           <div className="flex flex-wrap justify-center gap-0.5 pt-1">
                             {dentesPorDenticaoControle(tipoDenticao).inferiores.map((dente) => {
                               const selected = dentesEdicao.includes(dente);
-                              const imagemDente =
-                                tipoDenticao === "deciduos" && dentesDeciduosComImagem.has(dente)
-                                  ? `/api/dentes-deciduos/${dente}`
-                                  : `/dentes/dente-${dente}.png`;
+                              const imagemDente = urlImagemDente(dente, tipoDenticao);
                               return (
                                 <button
                                   key={dente}
