@@ -36,7 +36,7 @@ export function LogoMarcaDenteArt({ className, variant = "topo" }: Props) {
       height={altura}
       className={cn(
         "block shrink-0 object-center",
-        variant === "topo" && "rounded-sm dark:bg-slate-900/90",
+        variant === "topo" && "site-topo-marca__logo",
         className
       )}
       style={{

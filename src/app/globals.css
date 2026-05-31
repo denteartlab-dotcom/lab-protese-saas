@@ -40,13 +40,14 @@
     line-height: normal;
   }
 
+  /* Mesmo tom do menu abaixo (slate-900) — evita “caixa” clara no logo */
   .dark .site-topo-marca {
-    background: linear-gradient(
-      90deg,
-      #0f172a 0%,
-      #1e293b 50%,
-      #0f172a 100%
-    );
+    background: #0f172a;
+  }
+
+  .dark .site-topo-marca .site-topo-marca__logo {
+    background: transparent;
+    mix-blend-mode: multiply;
   }
 
   .login-hero__bg {
