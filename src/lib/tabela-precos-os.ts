@@ -1,3 +1,4 @@
+import type { EtapaCadastro } from "@/lib/etapas-os";
 import { readStorage } from "@/lib/persisted-storage";
 
 export const TABELA_PRECOS_STORAGE_KEY = "labProteseTabelaPrecos";
@@ -13,6 +14,13 @@ type DadosTabelaPrecosStorage = {
 
 export type TipoItemTabelaPrecoOs = "servico" | "produto" | "transporte";
 
+export type EtapaServicoTabelaPrecoOs = {
+  id?: string;
+  nome: string;
+  qtd?: string;
+  valorHora?: string;
+};
+
 export type ServicoTabelaPrecoOs = {
   id: string;
   nome: string;
@@ -21,6 +29,17 @@ export type ServicoTabelaPrecoOs = {
   prazoDentista?: string;
   tipo?: TipoItemTabelaPrecoOs;
   produtoId?: string;
+  /** Linhas da aba Etapas do serviço na tabela de preços */
+  etapas?: EtapaServicoTabelaPrecoOs[];
+  opcoesEtapas?: string[];
+};
+
+export type EtapaOsLinhaVazia = {
+  nome: string;
+  setor: string;
+  responsavel: string;
+  prazo: string;
+  observacao: string;
 };
 
 export type CategoriaTabelaPrecoOs = {
@@ -63,6 +82,61 @@ export function servicosSelecionaveisNaOs(servicos: ServicoTabelaPrecoOs[]) {
 /** Categorias que têm ao menos um serviço ou transporte (oculta categorias só de produto). */
 export function categoriasSelecionaveisNaOs(categorias: CategoriaTabelaPrecoOs[]) {
   return categorias.filter((categoria) => servicosSelecionaveisNaOs(categoria.servicos).length > 0);
+}
+
+/** Nomes das etapas cadastradas nas linhas do serviço (aba Etapas na tabela de preços). */
+export function nomesEtapasCadastradasNoServico(
+  servico?: ServicoTabelaPrecoOs | null
+): string[] {
+  const dasLinhas = (servico?.etapas || [])
+    .map((etapa) => etapa.nome?.trim())
+    .filter(Boolean) as string[];
+  return [...new Set(dasLinhas)];
+}
+
+/**
+ * Etapas a usar na OS:
+ * - serviço com etapas na tabela → só essas;
+ * - serviço sem etapas → todas do cadastro geral Etapas.
+ */
+export function nomesEtapasParaOsServico(
+  servico: ServicoTabelaPrecoOs | undefined,
+  todosCadastro: EtapaCadastro[]
+): string[] {
+  const doServico = nomesEtapasCadastradasNoServico(servico);
+  if (doServico.length > 0) return doServico;
+  return todosCadastro.map((etapa) => etapa.nome).filter(Boolean);
+}
+
+export function modelosEtapasParaOsServico(
+  servico: ServicoTabelaPrecoOs | undefined,
+  todosCadastro: EtapaCadastro[]
+): EtapaCadastro[] {
+  const nomes = nomesEtapasParaOsServico(servico, todosCadastro);
+  if (nomes.length === 0) return [];
+
+  const mapaCadastro = new Map(
+    todosCadastro.map((modelo) => [normalizarTextoTabela(modelo.nome), modelo])
+  );
+
+  return nomes.map((nome, indice) => {
+    const existente = mapaCadastro.get(normalizarTextoTabela(nome));
+    if (existente) return existente;
+    return { id: `os-svc-${indice}-${nome}`, nome };
+  });
+}
+
+export function linhasEtapasVaziasParaOs(
+  servico: ServicoTabelaPrecoOs | undefined,
+  todosCadastro: EtapaCadastro[]
+): EtapaOsLinhaVazia[] {
+  return modelosEtapasParaOsServico(servico, todosCadastro).map((modelo) => ({
+    nome: modelo.nome,
+    setor: modelo.setor || "",
+    responsavel: "",
+    prazo: "",
+    observacao: "",
+  }));
 }
 
 export function buscarServicoNaTabela(

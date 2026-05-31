@@ -43,6 +43,8 @@ import {
   buscarServicoNaTabela,
   carregarCategoriasPorTabelaPreco,
   categoriaDoServicoNaTabela,
+  linhasEtapasVaziasParaOs,
+  modelosEtapasParaOsServico,
   servicosDaCategoriaTabela,
   categoriasSelecionaveisNaOs,
   servicosSelecionaveisNaOs,
@@ -811,6 +813,30 @@ export default function OrdemServicoPage() {
     servicosDaCategoriaTabela(categoriasTabelaPreco, form.categoria)
   );
 
+  const servicoOsAtual = useMemo(() => {
+    const nome = form.tipoProtese.trim();
+    if (!nome || /^Transporte:/i.test(nome) || /^Produto:/i.test(nome)) return undefined;
+    return buscarServicoNaTabela(categoriasTabelaPreco, nome);
+  }, [form.tipoProtese, categoriasTabelaPreco]);
+
+  const modelosEtapasOs = useMemo(() => {
+    if (!servicoOsAtual) return modelosEtapas;
+    return modelosEtapasParaOsServico(servicoOsAtual, modelosEtapas);
+  }, [servicoOsAtual, modelosEtapas]);
+
+  useEffect(() => {
+    if (editId || modelosEtapas.length === 0) return;
+    const nome = form.tipoProtese.trim();
+    if (!nome || /^Transporte:/i.test(nome)) return;
+    const servico = buscarServicoNaTabela(categoriasTabelaPreco, nome);
+    if (!servico) return;
+    setEtapas((atuais) => {
+      if (atuais.some((etapa) => etapa.nome.trim())) return atuais;
+      const linhas = linhasEtapasVaziasParaOs(servico, modelosEtapas);
+      return linhas.length > 0 ? linhas : atuais;
+    });
+  }, [editId, modelosEtapas, form.tipoProtese, categoriasTabelaPreco]);
+
   useEffect(() => {
     if (!form.categoria) return;
     const categoriaValida = categoriasTabelaPreco.some(
@@ -894,6 +920,7 @@ export default function OrdemServicoPage() {
         dataLaboratorio: "",
         dataDentista: "",
       }));
+      setEtapas([]);
       return;
     }
 
@@ -908,6 +935,7 @@ export default function OrdemServicoPage() {
 
     if (tipo === "transporte") {
       setProdutosOs([]);
+      setEtapas([]);
       setForm((current) => ({
         ...current,
         tipoProtese: `Transporte: ${servico.nome}`,
@@ -929,6 +957,11 @@ export default function OrdemServicoPage() {
       dataLaboratorio: prazos.dataLaboratorio,
       dataDentista: prazos.dataDentista,
     }));
+    const linhasEtapas = linhasEtapasVaziasParaOs(servico, modelosEtapas);
+    if (linhasEtapas.length > 0) {
+      setEtapas(linhasEtapas);
+      setAbaServico("etapas");
+    }
     setAvisoAdicionarServico("");
   }
 
@@ -2933,7 +2966,7 @@ export default function OrdemServicoPage() {
                         key={`${etapa.nome}-${index}`}
                         className="grid gap-2 rounded border border-slate-200 bg-white p-3 md:grid-cols-[1fr_0.75fr_1fr_0.8fr_1fr_1fr_auto]"
                       >
-                        {modelosEtapas.length > 0 ? (
+                        {modelosEtapasOs.length > 0 ? (
                           <Select
                             label={index === 0 ? "Entrada" : "Etapa"}
                             value={etapa.nome}
@@ -2942,10 +2975,10 @@ export default function OrdemServicoPage() {
                             <option value="">
                               {index === 0 ? "Selecione a etapa de entrada" : "Selecione uma etapa"}
                             </option>
-                            {etapa.nome && !modelosEtapas.some((modelo) => modelo.nome === etapa.nome) && (
+                            {etapa.nome && !modelosEtapasOs.some((modelo) => modelo.nome === etapa.nome) && (
                               <option value={etapa.nome}>{nomeEtapaSemSetor(etapa.nome)}</option>
                             )}
-                            {modelosEtapas.map((modelo) => (
+                            {modelosEtapasOs.map((modelo) => (
                               <option key={modelo.id} value={modelo.nome}>
                                 {modelo.nome}
                               </option>
@@ -3240,7 +3273,7 @@ export default function OrdemServicoPage() {
                           }
                           placeholder="0,00"
                         />
-                        {modelosEtapas.length > 0 ? (
+                        {modelosEtapasOs.length > 0 ? (
                           <Select
                             label="Etapa"
                             value={colaborador.etapa}
@@ -3254,10 +3287,10 @@ export default function OrdemServicoPage() {
                           >
                             <option value="">Selecione uma etapa</option>
                             {colaborador.etapa &&
-                              !modelosEtapas.some((m) => m.nome === colaborador.etapa) && (
+                              !modelosEtapasOs.some((m) => m.nome === colaborador.etapa) && (
                                 <option value={colaborador.etapa}>{colaborador.etapa}</option>
                               )}
-                            {modelosEtapas.map((modelo) => (
+                            {modelosEtapasOs.map((modelo) => (
                               <option key={modelo.id} value={modelo.nome}>
                                 {modelo.nome}
                               </option>
