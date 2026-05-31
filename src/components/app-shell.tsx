@@ -497,11 +497,7 @@ function AppShellInner({
                       >
                         {nomeLaboratorio}
                       </p>
-                      <p className="text-[10px] text-slate-500">
-                        {userName}
-                        <span className="text-slate-300"> · </span>
-                        {papelUsuario}
-                      </p>
+                      <p className="text-[10px] text-slate-500">{papelUsuario}</p>
                     </div>
                     <div
                       className={cn(
@@ -534,8 +530,6 @@ function AppShellInner({
                           {nomeLaboratorio}
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">
-                          {userName}
-                          <span className="text-slate-300 dark:text-slate-600"> · </span>
                           {papelUsuario}
                         </p>
                       </div>
