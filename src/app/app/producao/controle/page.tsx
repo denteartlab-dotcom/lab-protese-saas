@@ -18,6 +18,12 @@ import {
   ControleProducaoToolbar,
 } from "@/components/ControleProducaoToolbar";
 import { EtapasControleCelula } from "@/components/producao/EtapasControleCelula";
+import {
+  EtapasOsEditor,
+  etapasFormParaLinhasInstrucoes,
+  etapasOsLinhaParaForm,
+  type EtapaOsFormLinha,
+} from "@/components/producao/EtapasOsEditor";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { ImprimirOsModal } from "@/components/ImprimirOsModal";
 import {
@@ -51,6 +57,7 @@ import {
   type CategoriaTabelaPrecoOs,
 } from "@/lib/tabela-precos-os";
 import {
+  carregarEtapasCadastro,
   colaboradoresParaExibicaoControle,
   parseComplementosInstrucoesGrupo,
   resumoColaboradorControle,
@@ -440,6 +447,24 @@ function instrucoesCorpoSemItens(instrucoes?: string | null) {
     .trim();
 }
 
+function instrucoesCorpoSemEtapas(corpo: string) {
+  return corpo
+    .split("\n")
+    .filter((line) => !/^Etapa\s+/i.test(line.trim()))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function complementosEdicaoTrabalho(trabalho: Trabalho, todos: Trabalho[]) {
+  const grupo = trabalhosDoMesmoGrupoOsId(trabalho, todos);
+  const textos =
+    grupo.length > 1
+      ? grupo.map((item) => item.instrucoes || "")
+      : [instrucoesConsolidadas(trabalho, todos)];
+  return parseComplementosInstrucoesGrupo(textos);
+}
+
 function chaveGrupoOs(trabalho: Trabalho) {
   return trabalho.grupoOsId || trabalho.id;
 }
@@ -560,6 +585,7 @@ export default function ControlePage() {
   const [adicionandoServico, setAdicionandoServico] = useState(false);
   const [produtosCadastro, setProdutosCadastro] = useState<ProdutoCadastro[]>([]);
   const [produtosOs, setProdutosOs] = useState<ProdutoOsEdicao[]>([]);
+  const [etapasEdicao, setEtapasEdicao] = useState<EtapaOsFormLinha[]>([]);
   const [categoriasTabelaPreco, setCategoriasTabelaPreco] = useState<CategoriaTabelaPrecoOs[]>([]);
   const [lancamentosFatura, setLancamentosFatura] = useState<LancamentoFaturaOs[]>([]);
 
@@ -754,7 +780,11 @@ export default function ControlePage() {
     new Set(trabalhos.map(clienteNome).filter(Boolean))
   );
 
-  function formVazioEdicao(trabalho: Trabalho): EditForm {
+  function formVazioEdicao(trabalho: Trabalho, todos: Trabalho[] = trabalhos): EditForm {
+    const complementos = complementosEdicaoTrabalho(trabalho, todos);
+    const corpo = instrucoesCorpoSemEtapas(
+      instrucoesCorpoSemItens(instrucoesConsolidadas(trabalho, todos))
+    );
     const dataBr = formatDate(trabalho.dataPrevista);
     return {
       categoria: trabalho.escala || "",
@@ -778,7 +808,7 @@ export default function ControlePage() {
       horaDentista: "",
       observacoes: trabalho.observacoes || "",
       observacaoServico: "",
-      instrucoesCorpo: instrucoesCorpoSemItens(trabalho.instrucoes),
+      instrucoesCorpo: complementos.textoLivre || corpo,
       urgente: false,
       repeticao: false,
     };
@@ -873,9 +903,21 @@ export default function ControlePage() {
     setPainelEdicaoItem("servico");
     setAdicionandoServico(false);
     setProdutosOs([]);
+    setEtapasEdicao([]);
     setTipoDenticao("permanente");
     setDentesEdicao([]);
     setLancamentosFatura([]);
+  }
+
+  function carregarEtapasNaEdicao(trabalho: Trabalho) {
+    const complementos = complementosEdicaoTrabalho(trabalho, trabalhos);
+    const modelos = carregarEtapasCadastro();
+    setEtapasEdicao(
+      etapasOsLinhaParaForm(complementos.etapas).map((etapa) => ({
+        ...etapa,
+        setor: modelos.find((m) => m.nome === etapa.nome)?.setor || "",
+      }))
+    );
   }
 
   function classeAbaEdicao(aba: AbaServicoEdicao) {
@@ -934,9 +976,10 @@ export default function ControlePage() {
     setTipoDenticao(denticaoInicial);
     setDentesEdicao(dentesIniciais);
     setForm({
-      ...formVazioEdicao(alvo),
+      ...formVazioEdicao(alvo, trabalhos),
       dentes: numeroDenteResumoControle(dentesIniciais, denticaoInicial),
     });
+    carregarEtapasNaEdicao(alvo);
   }
 
   function selecionarItemEdicao(item: EditItem) {
@@ -1191,7 +1234,7 @@ export default function ControlePage() {
     setTipoDenticao("permanente");
     setDentesEdicao([]);
     setForm({
-      ...formVazioEdicao(editando),
+      ...formVazioEdicao(editando, trabalhos),
       categoria: "",
       tipoProtese: "",
       dentes: "",
@@ -1219,9 +1262,10 @@ export default function ControlePage() {
     setTipoDenticao(denticaoInicial);
     setDentesEdicao(dentesIniciais);
     setForm({
-      ...formVazioEdicao(editando),
+      ...formVazioEdicao(editando, trabalhos),
       dentes: numeroDenteResumoControle(dentesIniciais, denticaoInicial),
     });
+    carregarEtapasNaEdicao(editando);
   }
 
   async function salvarEdicao() {
@@ -1257,6 +1301,11 @@ export default function ControlePage() {
     }
     const primeiroItem = itensSalvar[0];
     const itensInstrucoes = itensSalvar.map((item) => formatarLinhaItemEdicao(item)).join("\n");
+    const corpoSemEtapas = instrucoesCorpoSemEtapas(form.instrucoesCorpo);
+    const linhasEtapas = etapasFormParaLinhasInstrucoes(etapasEdicao, {
+      prazoGeral: form.dataLaboratorio,
+      quantidadeDentes: dentesEdicao.length || 1,
+    });
     const valorTotal = itensSalvar.reduce(
       (sum, item) => sum + valorComDescontoControle(item.valor, item.descontoTipo, item.desconto),
       0
@@ -1274,7 +1323,7 @@ export default function ControlePage() {
         valor: valorTotal || Number(form.valor || 0),
         dataPrevista: brShortToIso(form.dataLaboratorio) || form.dataPrevista || null,
         observacoes: form.observacoes,
-        instrucoes: [form.instrucoesCorpo, itensInstrucoes].filter(Boolean).join("\n"),
+        instrucoes: [corpoSemEtapas, linhasEtapas, itensInstrucoes].filter(Boolean).join("\n"),
       }),
     });
 
@@ -1568,7 +1617,7 @@ export default function ControlePage() {
                       className="max-w-[200px] px-2 py-2 align-top"
                       title={
                         etapasOs.length
-                          ? "Etapas da ordem de serviço (edite na OS)"
+                          ? "Etapas da ordem de serviço (edite pelo ícone de lápis)"
                           : undefined
                       }
                     >
@@ -2402,9 +2451,12 @@ export default function ControlePage() {
                       </div>
                       <div className="mt-3 rounded border border-slate-200 bg-slate-50 p-3 text-left">
                         {abaServicoEdicao === "etapas" && (
-                          <p className="text-center text-[11px] text-slate-500">
-                            Etapas completas na tela Ordem de Serviço.
-                          </p>
+                          <EtapasOsEditor
+                            etapas={etapasEdicao}
+                            onChange={setEtapasEdicao}
+                            quantidadeDentes={dentesEdicao.length || 1}
+                            desabilitado={osFaturada}
+                          />
                         )}
                         {abaServicoEdicao === "produtos" && (
                           <div className="space-y-3">
