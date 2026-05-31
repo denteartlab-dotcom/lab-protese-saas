@@ -14,6 +14,7 @@ import {
   notificacaoSistemaAtiva,
   notificacoesAnotacoesLocal,
   notificacoesEstoqueLocal,
+  notificacaoSoMarcarLida,
   ANOTACOES_ATUALIZADO_EVENT,
   PRODUTOS_ESTOQUE_EVENT,
   salvarNotificacoesDescartadas,
@@ -119,10 +120,35 @@ export function NotificationsBell() {
     setLidas(next);
   }
 
-  function aoClicarNotificacao(id: string) {
+  function aoClicarNotificacao(id: string, fecharPainel = true) {
     marcarComoLida(id);
-    setAberto(false);
+    if (fecharPainel) setAberto(false);
   }
+
+  const conteudoNotificacao = (n: NotificacaoUi, lida: boolean) => (
+    <>
+      <AlertTriangle
+        className={cn(
+          "mt-0.5 h-5 w-5 shrink-0",
+          lida ? "fill-[#4cae4c] text-[#449d44]" : "fill-amber-400 text-amber-600"
+        )}
+        strokeWidth={1.5}
+      />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <strong className="text-[12px] font-bold text-slate-800 dark:text-slate-100">
+            {t(n.tituloKey)}
+          </strong>
+          <span className="shrink-0 whitespace-nowrap text-[10px] text-slate-400">
+            {formatarDataNotificacao(n.criadoEm, locale)}
+          </span>
+        </div>
+        <p className="mt-1 line-clamp-3 text-[11px] leading-snug text-slate-500 dark:text-slate-400">
+          {t(n.kind, n.params)}
+        </p>
+      </div>
+    </>
+  );
 
   /** Remove do painel só as notificações já lidas (ícone verde), como no Smart Prótese. */
   function limparNotificacoesLidas() {
@@ -211,36 +237,28 @@ export function NotificationsBell() {
               <ul>
                 {exibir.map((n) => {
                   const lida = lidas.includes(n.id);
+                  const somenteMarcar = notificacaoSoMarcarLida(n);
+                  const className =
+                    "flex w-full gap-3 border-b border-slate-100 px-4 py-3 text-left transition hover:bg-slate-50/80 last:border-0 dark:border-slate-800 dark:hover:bg-slate-800/60";
                   return (
                     <li key={n.id}>
-                      <Link
-                        href={n.href}
-                        onClick={() => aoClicarNotificacao(n.id)}
-                        className="flex gap-3 border-b border-slate-100 px-4 py-3 transition hover:bg-slate-50/80 last:border-0 dark:border-slate-800 dark:hover:bg-slate-800/60"
-                      >
-                        <AlertTriangle
-                          className={cn(
-                            "mt-0.5 h-5 w-5 shrink-0",
-                            lida
-                              ? "fill-[#4cae4c] text-[#449d44]"
-                              : "fill-amber-400 text-amber-600"
-                          )}
-                          strokeWidth={1.5}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <strong className="text-[12px] font-bold text-slate-800 dark:text-slate-100">
-                              {t(n.tituloKey)}
-                            </strong>
-                            <span className="shrink-0 whitespace-nowrap text-[10px] text-slate-400">
-                              {formatarDataNotificacao(n.criadoEm, locale)}
-                            </span>
-                          </div>
-                          <p className="mt-1 line-clamp-3 text-[11px] leading-snug text-slate-500 dark:text-slate-400">
-                            {t(n.kind, n.params)}
-                          </p>
-                        </div>
-                      </Link>
+                      {somenteMarcar ? (
+                        <button
+                          type="button"
+                          onClick={() => aoClicarNotificacao(n.id, false)}
+                          className={className}
+                        >
+                          {conteudoNotificacao(n, lida)}
+                        </button>
+                      ) : (
+                        <Link
+                          href={n.href}
+                          onClick={() => aoClicarNotificacao(n.id)}
+                          className={className}
+                        >
+                          {conteudoNotificacao(n, lida)}
+                        </Link>
+                      )}
                     </li>
                   );
                 })}

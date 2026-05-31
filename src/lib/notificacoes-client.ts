@@ -1,7 +1,6 @@
 import type { NotificacaoApi } from "@/app/api/notificacoes/route";
 import { getProdutosEstoqueExtras, PRODUTOS_ESTOQUE_EVENT } from "@/lib/estoque";
 import type { MessageKey } from "@/lib/i18n";
-import { hrefProdutoEstoque } from "@/lib/notificacao-links";
 
 export type NotificacaoUi = {
   id: string;
@@ -33,6 +32,11 @@ const TITULO_POR_KIND: Partial<Record<MessageKey, MessageKey>> = {
 
 export function tituloKeyNotificacao(kind: MessageKey): MessageKey {
   return TITULO_POR_KIND[kind] || "notif.titulo.geral";
+}
+
+/** Notificações que só marcam como lidas ao clicar (sem navegar para outra tela). */
+export function notificacaoSoMarcarLida(n: Pick<NotificacaoUi, "kind">) {
+  return n.kind === "notif.estoque_zerado" || n.kind === "notif.estoque_baixo";
 }
 
 export function lerNotificacoesLidas(): string[] {
@@ -89,7 +93,7 @@ export function notificacoesEstoqueLocal(
         id: `estoque-zero-${p.id}`,
         kind: "notif.estoque_zerado",
         tituloKey: "notif.titulo.estoque_zerado",
-        href: hrefProdutoEstoque(p.id),
+        href: "/app/produtos",
         params: { produto: p.nome },
         criadoEm: new Date().toISOString(),
       });
@@ -98,7 +102,7 @@ export function notificacoesEstoqueLocal(
         id: `estoque-baixo-${p.id}`,
         kind: "notif.estoque_baixo",
         tituloKey: "notif.titulo.estoque_baixo",
-        href: hrefProdutoEstoque(p.id),
+        href: "/app/produtos",
         params: { produto: p.nome, qtd },
         criadoEm: new Date().toISOString(),
       });
