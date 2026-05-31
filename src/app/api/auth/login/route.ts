@@ -48,12 +48,19 @@ export async function POST(request: Request) {
         excluidoEm: true,
       },
     });
-    if (
-      !user ||
-      user.excluidoEm ||
-      parsePermissoesUsuario(user.permissoesJson).situacao === "inativo" ||
-      !(await verifyPassword(password, user.password))
-    ) {
+    if (!user || user.excluidoEm) {
+      return NextResponse.json(
+        { error: "E-mail ou senha inválidos." },
+        { status: 401 }
+      );
+    }
+    if (parsePermissoesUsuario(user.permissoesJson).situacao === "inativo") {
+      return NextResponse.json(
+        { error: "E-mail ou senha inválidos." },
+        { status: 401 }
+      );
+    }
+    if (!(await verifyPassword(password, user.password))) {
       return NextResponse.json(
         { error: "E-mail ou senha inválidos." },
         { status: 401 }

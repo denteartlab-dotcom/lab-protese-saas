@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
 import { Eye } from "lucide-react";
 import { I18nProvider, useI18n } from "@/components/i18n-provider";
@@ -16,7 +16,6 @@ import { useLabConfigClient } from "@/lib/use-lab-config-client";
 
 function LoginForm() {
   const { t } = useI18n();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -69,8 +68,8 @@ function LoginForm() {
     }
 
     marcarUsuarioJaEntrou();
-    router.push(redirectDestino);
-    router.refresh();
+    // Navegação direta: mais rápido que router.push + refresh (evita 2ª ida ao servidor).
+    window.location.assign(redirectDestino);
   }
 
   const logoLogin = dimensoesLogoPx(lab, { largura: 120, altura: 72 });

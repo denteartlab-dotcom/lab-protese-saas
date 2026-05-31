@@ -25,21 +25,20 @@ export async function obterContextoAppServidor(): Promise<ContextoAppServidor | 
   const session = await getSession();
   if (!session) return null;
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.id },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      permissoesJson: true,
-      excluidoEm: true,
-    },
-  });
+  const [user, configLab] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: session.id },
+      select: {
+        role: true,
+        permissoesJson: true,
+        excluidoEm: true,
+      },
+    }),
+    carregarConfigLaboratorioServidor(),
+  ]);
 
   if (!user || user.excluidoEm) return null;
 
-  const configLab = await carregarConfigLaboratorioServidor();
   const lab = configParaLabImpressao(configLab);
   const nomeLaboratorio = nomeExibicaoLaboratorio(configLab) || "Lab Prótese";
 
@@ -50,9 +49,9 @@ export async function obterContextoAppServidor(): Promise<ContextoAppServidor | 
 
   return {
     user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
+      id: session.id,
+      name: session.name,
+      email: session.email,
       role: user.role,
     },
     lab,

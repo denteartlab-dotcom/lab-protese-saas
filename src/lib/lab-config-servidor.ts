@@ -1,3 +1,4 @@
+import { cache } from "react";
 import {
   CONFIG_LAB_PADRAO,
   CONFIG_LAB_STORAGE_KEY,
@@ -6,7 +7,8 @@ import {
 import { normalizarConfigLaboratorio } from "@/lib/configuracoes-lab-parse";
 import { prisma } from "@/lib/db";
 
-export async function carregarConfigLaboratorioServidor(): Promise<ConfigLaboratorio> {
+/** Uma leitura por requisição (layout raiz + /app não duplicam query). */
+export const carregarConfigLaboratorioServidor = cache(async (): Promise<ConfigLaboratorio> => {
   const row = await prisma.jsonStore.findUnique({
     where: { key: CONFIG_LAB_STORAGE_KEY },
   });
@@ -19,4 +21,4 @@ export async function carregarConfigLaboratorioServidor(): Promise<ConfigLaborat
   } catch {
     return { ...CONFIG_LAB_PADRAO, tipoPessoa: "Jurídica" };
   }
-}
+});
