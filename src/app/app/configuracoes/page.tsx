@@ -14,6 +14,7 @@ import { IdiomaLaboratorioTab } from "@/components/IdiomaLaboratorioTab";
 import { ConfiguracoesBoletosTab } from "@/components/ConfiguracoesBoletosTab";
 import { ConfiguracoesNfseTab } from "@/components/ConfiguracoesNfseTab";
 import { MeusUsuariosTab } from "@/components/configuracoes/MeusUsuariosTab";
+import { BackupLaboratorioTab } from "@/components/configuracoes/BackupLaboratorioTab";
 import { LogoLaboratorioTab } from "@/components/LogoLaboratorioTab";
 import { useI18n } from "@/components/i18n-provider";
 import {
@@ -33,6 +34,7 @@ const abasPagina = [
   { id: "horario", labelKey: "settings.horario" as MessageKey },
   { id: "nfse", labelKey: "settings.nfse" as MessageKey },
   { id: "boletos", labelKey: "settings.boletos" as MessageKey },
+  { id: "backup", labelKey: "settings.backup" as MessageKey },
 ];
 
 const titulosAbaKeys: Record<string, MessageKey> = {
@@ -51,6 +53,7 @@ const titulosAbaKeys: Record<string, MessageKey> = {
   usuarios: "settings.usuarios",
   migrar: "settings.migrar",
   integracoes: "settings.integracoes",
+  backup: "settings.backupTitulo",
 };
 
 function ConfiguracoesConteudo() {
@@ -302,6 +305,16 @@ function ConfiguracoesConteudo() {
             </>
           ) : aba === "usuarios" ? (
             <MeusUsuariosTab />
+          ) : aba === "backup" ? (
+            <BackupLaboratorioTab
+              onMensagem={(texto, tipo = "info") => {
+                setMensagem(texto);
+                setMensagemTipo(tipo);
+                if (tipo === "sucesso" || tipo === "info") {
+                  window.setTimeout(() => setMensagem(""), 6000);
+                }
+              }}
+            />
           ) : abaNaPagina ? (
             <div className="py-16 text-center text-sm text-slate-500">
               <p className="font-medium text-slate-700">{titulo}</p>

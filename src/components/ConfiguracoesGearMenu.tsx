@@ -7,6 +7,7 @@ import {
   BarChart3,
   ClipboardList,
   Cog,
+  DatabaseBackup,
   FileText,
   MessageCircle,
   Users,
@@ -25,6 +26,7 @@ const itensConfiguracao = [
   { href: "/app/configuracoes?aba=os", labelKey: "settings.os" as MessageKey, icon: ClipboardList },
   { href: "/app/configuracoes?aba=faturas", labelKey: "settings.faturas" as MessageKey, icon: FileText },
   { href: "/app/configuracoes?aba=usuarios", labelKey: "settings.usuarios" as MessageKey, icon: Users },
+  { href: "/app/configuracoes?aba=backup", labelKey: "settings.backup" as MessageKey, icon: DatabaseBackup },
 ];
 
 export function ConfiguracoesGearMenu() {

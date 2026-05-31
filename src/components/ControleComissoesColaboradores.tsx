@@ -3,13 +3,11 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle,
   Check,
   DollarSign,
   Edit3,
   Eye,
   FileSpreadsheet,
-  MessageCircle,
   Printer,
   X,
 } from "lucide-react";
@@ -240,7 +238,7 @@ export function ControleComissoesColaboradores() {
   );
 
   return (
-    <div className="space-y-3 pb-16 text-[11px] text-slate-700">
+    <div className="space-y-3 text-[11px] text-slate-700">
       <div className="text-sm text-slate-500">
         <span>Produção</span>
         <span className="mx-1">/</span>
@@ -398,34 +396,6 @@ export function ControleComissoesColaboradores() {
           </table>
         </div>
       </div>
-
-      <footer className="fixed bottom-0 left-0 right-0 z-20 flex items-center justify-between border-t border-[#e8e8e8] bg-white px-6 py-2.5 text-[12px] md:left-56">
-        <div className="flex flex-wrap items-center gap-2 text-[#6b7280]">
-          <span>Está com dúvidas? - Suporte</span>
-          <a
-            href="https://wa.me/5511999999999"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center rounded-full bg-[#25d366] px-4 py-1 text-[12px] text-white"
-          >
-            Whatsapp
-          </a>
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 rounded-full bg-[#3b82f6] px-4 py-1 text-[12px] text-white"
-          >
-            <MessageCircle className="h-3.5 w-3.5" />
-            Chat
-          </button>
-        </div>
-        <div className="hidden items-center gap-1 text-[#6b7280] sm:flex">
-          <AlertTriangle className="h-4 w-4 text-[#f59e0b]" />
-          <span>Seu teste termina em 21/08/2026</span>
-          <button type="button" className="font-semibold text-[#3b82f6] hover:underline">
-            assinar
-          </button>
-        </div>
-      </footer>
     </div>
   );
 }

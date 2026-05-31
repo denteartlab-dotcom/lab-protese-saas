@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import {
-  AlertTriangle,
   Calendar,
   Check,
   DollarSign,
@@ -12,7 +11,6 @@ import {
   EyeOff,
   LockKeyhole,
   LogOut,
-  MessageCircle,
   Moon,
   Sun,
   RefreshCw,
@@ -302,11 +300,6 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
       lista.map((t) => (t.id === osSelecionada.id ? { ...t, status: novoStatus } : t))
     );
   }
-
-  const whatsappDigits = (lab.telefones || "").replace(/\D/g, "");
-  const whatsappHref = whatsappDigits
-    ? `https://wa.me/55${whatsappDigits.replace(/^55/, "")}`
-    : "https://wa.me/";
 
   type LinhaTabela = ItemModuloOs & { _trabalho?: TrabalhoModuloOs };
 
@@ -795,34 +788,6 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
           </aside>
         </div>
       </main>
-
-      <footer className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-between border-t border-[#e8e8e8] bg-white px-6 py-2.5 text-[12px]">
-        <div className="flex flex-wrap items-center gap-2 text-[#6b7280]">
-          <span>Está com dúvidas? - Suporte</span>
-          <a
-            href={whatsappHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center rounded-full bg-[#25d366] px-4 py-1 text-[12px] font-normal text-white"
-          >
-            Whatsapp
-          </a>
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 rounded-full bg-[#3b82f6] px-4 py-1 text-[12px] font-normal text-white"
-          >
-            <MessageCircle className="h-3.5 w-3.5" />
-            Chat
-          </button>
-        </div>
-        <div className="hidden items-center gap-1 text-[#6b7280] sm:flex">
-          <AlertTriangle className="h-4 w-4 text-[#f59e0b]" />
-          <span>Seu teste termina em 21/08/2026</span>
-          <button type="button" className="font-semibold text-[#3b82f6] hover:underline">
-            assinar
-          </button>
-        </div>
-      </footer>
 
       {buscaPacienteAberta && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-28">
