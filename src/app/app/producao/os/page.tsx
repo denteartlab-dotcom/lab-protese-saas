@@ -5,11 +5,11 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, ImageUp, Plus, Save, Tag, Trash2 } from "lucide-react";
 import { PainelCarregando } from "@/components/ListaCarregando";
-import { Button, CampoDataBr, Input, Modal, Select, Textarea } from "@/components/ui";
 import {
-  abrirJanelaRequisicao,
-  navegarParaRequisicao,
-} from "@/lib/abrir-requisicao-os";
+  ImprimirOsModal,
+  type TrabalhoImpressaoOs,
+} from "@/components/ImprimirOsModal";
+import { Button, CampoDataBr, Input, Modal, Select, Textarea } from "@/components/ui";
 import { notificarUploadsAtualizados } from "@/lib/uploads-armazenamento";
 import { formatDateBr, parseBrDate } from "@/lib/datas-br";
 import { propsInputComSelecaoAoFocar } from "@/lib/input-selecao";
@@ -25,6 +25,7 @@ import {
   classificarItemOs,
   dividirItensPorSegmento,
   deveDividirOs,
+  grupoOsTemMultiplosSegmentos,
   buscarRegistroGrupoSegmento,
   editIdPreferidoGrupo,
   formatarDescontoItemOs,
@@ -323,6 +324,10 @@ export default function OrdemServicoPage() {
     }>
   >([]);
   const [salvando, setSalvando] = useState(false);
+  const [imprimirOsAposSalvar, setImprimirOsAposSalvar] = useState<{
+    trabalho: TrabalhoImpressaoOs;
+    multiplosSegmentos: boolean;
+  } | null>(null);
   const [avisoAdicionarServico, setAvisoAdicionarServico] = useState("");
   const [form, setForm] = useState({
     numeroOs: "",
@@ -1738,6 +1743,36 @@ export default function OrdemServicoPage() {
     event.target.value = "";
   }
 
+  function abrirModalImpressaoAposSalvar(
+    trabalho: {
+      id: string;
+      numeroOs: number;
+      segmentoFaturamento?: string | null;
+      instrucoes?: string | null;
+      tipoProtese?: string | null;
+    },
+    multiplosSegmentos: boolean
+  ) {
+    setImprimirOsAposSalvar({
+      trabalho: {
+        id: trabalho.id,
+        numeroOs: trabalho.numeroOs,
+        segmentoFaturamento: trabalho.segmentoFaturamento,
+        instrucoes: trabalho.instrucoes,
+        tipoProtese: trabalho.tipoProtese ?? form.tipoProtese,
+      },
+      multiplosSegmentos,
+    });
+  }
+
+  async function fecharModalImpressaoAposSalvar() {
+    const eraNovaOs = !editId;
+    setImprimirOsAposSalvar(null);
+    if (eraNovaOs) {
+      await resetarFormularioNovaOs();
+    }
+  }
+
   async function resetarFormularioNovaOs() {
     const nextOs = await fetch("/api/trabalhos/next-os")
       .then((response) => (response.ok ? response.json() : null))
@@ -1972,7 +2007,6 @@ export default function OrdemServicoPage() {
       }
     }
 
-    const printWindow = editId ? null : abrirJanelaRequisicao();
     setSalvando(true);
     const arquivosEnviados = await uploadArquivosSelecionados();
     const itensNaLista = itensComMarcadoresAtualizados();
@@ -1981,7 +2015,6 @@ export default function OrdemServicoPage() {
 
     if (itensParaSalvar.length === 0) {
       setSalvando(false);
-      printWindow?.close();
       alert("Adicione ao menos um serviço ou produto em Itens Adicionados.");
       return;
     }
@@ -2109,7 +2142,19 @@ export default function OrdemServicoPage() {
           const idEstoque = editIdPreferidoGrupo(registros) || editId;
           sincronizarMovimentosOs(idEstoque, movimentosEstoqueDaOs(idEstoque, itensParaSalvar));
           notificarTrabalhosAtualizados({ trabalhoId: idEstoque });
-          router.push("/app/producao/controle");
+          const regPrincipal = registros.find((r) => r.id === idEstoque) || registros[0];
+          abrirModalImpressaoAposSalvar(
+            {
+              id: idEstoque,
+              numeroOs: Number(form.numeroOs) || 0,
+              segmentoFaturamento: regPrincipal?.segmentoFaturamento,
+              instrucoes: regPrincipal?.instrucoes,
+              tipoProtese: form.tipoProtese,
+            },
+            grupoOsTemMultiplosSegmentos(
+              blocosSegmento.map((b) => ({ segmentoFaturamento: b.segmento }))
+            )
+          );
         } else {
           alert(await mensagemErroApi(falha, "Não foi possível salvar a edição da OS."));
         }
@@ -2124,7 +2169,16 @@ export default function OrdemServicoPage() {
         if (res.ok) {
           sincronizarMovimentosOs(alvo.id, movimentosEstoqueDaOs(alvo.id, itensParaSalvar));
           notificarTrabalhosAtualizados({ trabalhoId: alvo.id });
-          router.push("/app/producao/controle");
+          abrirModalImpressaoAposSalvar(
+            {
+              id: alvo.id,
+              numeroOs: Number(form.numeroOs) || 0,
+              segmentoFaturamento: segmentoUnico,
+              instrucoes: alvo.instrucoes,
+              tipoProtese: form.tipoProtese,
+            },
+            false
+          );
         } else {
           alert(await mensagemErroApi(res, "Não foi possível salvar a edição da OS."));
         }
@@ -2143,7 +2197,6 @@ export default function OrdemServicoPage() {
 
     if (!pacienteRes.ok) {
       setSalvando(false);
-      printWindow?.close();
       alert("Não foi possível cadastrar o paciente.");
       return;
     }
@@ -2193,7 +2246,6 @@ export default function OrdemServicoPage() {
         });
         if (!res.ok) {
           setSalvando(false);
-          printWindow?.close();
           const rotulo =
             segmento === "servico"
               ? "serviços"
@@ -2228,7 +2280,6 @@ export default function OrdemServicoPage() {
       });
       if (!res.ok) {
         setSalvando(false);
-        printWindow?.close();
         alert(await mensagemErroApi(res, "Não foi possível criar a OS."));
         return;
       }
@@ -2242,14 +2293,17 @@ export default function OrdemServicoPage() {
         trabalhoPrincipal.id,
         movimentosEstoqueDaOs(trabalhoPrincipal.id, itensParaSalvar)
       );
-      const printUrl = `/app/trabalhos/${trabalhoPrincipal.id}/imprimir`;
-      const modo = navegarParaRequisicao(printWindow, printUrl);
-      if (modo === "mesma_aba") {
-        return;
-      }
-      await resetarFormularioNovaOs();
-    } else {
-      printWindow?.close();
+      abrirModalImpressaoAposSalvar(
+        {
+          id: trabalhoPrincipal.id,
+          numeroOs: trabalhoPrincipal.numeroOs,
+          segmentoFaturamento: blocosSegmento[0]?.segmento ?? "servico",
+          tipoProtese: form.tipoProtese,
+        },
+        grupoOsTemMultiplosSegmentos(
+          blocosSegmento.map((b) => ({ segmentoFaturamento: b.segmento }))
+        )
+      );
     }
   }
 
@@ -3409,6 +3463,13 @@ export default function OrdemServicoPage() {
           </div>
         </form>
       </Modal>
+
+      <ImprimirOsModal
+        open={!!imprimirOsAposSalvar}
+        onClose={() => void fecharModalImpressaoAposSalvar()}
+        trabalho={imprimirOsAposSalvar?.trabalho ?? null}
+        multiplosSegmentos={imprimirOsAposSalvar?.multiplosSegmentos ?? false}
+      />
     </div>
   );
 }
