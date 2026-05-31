@@ -1,5 +1,6 @@
 import { getSession } from "@/lib/auth";
 import { carregarConfigLaboratorioServidor } from "@/lib/lab-config-servidor";
+import { nomeExibicaoLaboratorio } from "@/lib/configuracoes-lab";
 import { configParaLabImpressao } from "@/lib/lab-logo";
 import type { LabImpressaoConfig } from "@/lib/lab-impressao";
 import { prisma } from "@/lib/db";
@@ -40,7 +41,7 @@ export async function obterContextoAppServidor(): Promise<ContextoAppServidor | 
 
   const configLab = await carregarConfigLaboratorioServidor();
   const lab = configParaLabImpressao(configLab);
-  const nomeLaboratorio = lab.responsavel?.trim() || "Lab Prótese";
+  const nomeLaboratorio = nomeExibicaoLaboratorio(configLab) || "Lab Prótese";
 
   const permissoes = normalizarPermissoesCompletas(
     parsePermissoesUsuario(user.permissoesJson),

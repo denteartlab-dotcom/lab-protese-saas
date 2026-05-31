@@ -8,7 +8,10 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
+import {
+  nomeExibicaoLaboratorio,
+  type ConfigLaboratorio,
+} from "@/lib/configuracoes-lab";
 import { aplicarConfigLaboratorioNoCliente } from "@/lib/lab-config-sync";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
 import type { LabImpressaoConfig } from "@/lib/lab-impressao";
@@ -36,9 +39,10 @@ export function LabConfigProvider({ lab, configLaboratorio, children }: Props) {
   const value = useMemo(
     () => ({
       lab,
-      nomeLaboratorio: lab.responsavel?.trim() || NOME_LAB_PADRAO,
+      nomeLaboratorio:
+        nomeExibicaoLaboratorio(configLaboratorio) || NOME_LAB_PADRAO,
     }),
-    [lab]
+    [lab, configLaboratorio]
   );
 
   useEffect(() => {
