@@ -43,7 +43,6 @@ import {
   buscarServicoNaTabela,
   carregarCategoriasPorTabelaPreco,
   categoriaDoServicoNaTabela,
-  linhasEtapasVaziasParaOs,
   modelosEtapasParaOsServico,
   servicosDaCategoriaTabela,
   categoriasSelecionaveisNaOs,
@@ -825,19 +824,6 @@ export default function OrdemServicoPage() {
   }, [servicoOsAtual, modelosEtapas]);
 
   useEffect(() => {
-    if (editId || modelosEtapas.length === 0) return;
-    const nome = form.tipoProtese.trim();
-    if (!nome || /^Transporte:/i.test(nome)) return;
-    const servico = buscarServicoNaTabela(categoriasTabelaPreco, nome);
-    if (!servico) return;
-    setEtapas((atuais) => {
-      if (atuais.some((etapa) => etapa.nome.trim())) return atuais;
-      const linhas = linhasEtapasVaziasParaOs(servico, modelosEtapas);
-      return linhas.length > 0 ? linhas : atuais;
-    });
-  }, [editId, modelosEtapas, form.tipoProtese, categoriasTabelaPreco]);
-
-  useEffect(() => {
     if (!form.categoria) return;
     const categoriaValida = categoriasTabelaPreco.some(
       (categoria) => categoria.nome === form.categoria || categoria.id === form.categoria
@@ -957,11 +943,8 @@ export default function OrdemServicoPage() {
       dataLaboratorio: prazos.dataLaboratorio,
       dataDentista: prazos.dataDentista,
     }));
-    const linhasEtapas = linhasEtapasVaziasParaOs(servico, modelosEtapas);
-    if (linhasEtapas.length > 0) {
-      setEtapas(linhasEtapas);
-      setAbaServico("etapas");
-    }
+    setEtapas([{ nome: "", setor: "", responsavel: "", prazo: "", observacao: "" }]);
+    setAbaServico("etapas");
     setAvisoAdicionarServico("");
   }
 
