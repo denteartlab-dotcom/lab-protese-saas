@@ -139,6 +139,27 @@ export function linhasEtapasVaziasParaOs(
   }));
 }
 
+/** Etapas do formulário da OS filtradas pelas etapas cadastradas no serviço (tabela de preços). */
+export function etapasFormParaItemServico(
+  nomeServico: string,
+  etapasForm: EtapaOsLinhaVazia[],
+  categorias: CategoriaTabelaPrecoOs[],
+  todosCadastro: EtapaCadastro[]
+): EtapaOsLinhaVazia[] {
+  const servico = buscarServicoNaTabela(categorias, nomeServico);
+  const permitidos = new Set(
+    nomesEtapasParaOsServico(servico, todosCadastro).map((n) => normalizarTextoTabela(n))
+  );
+  if (permitidos.size > 0) {
+    const filtradas = etapasForm.filter(
+      (e) => e.nome.trim() && permitidos.has(normalizarTextoTabela(e.nome))
+    );
+    if (filtradas.length > 0) return filtradas;
+  }
+  if (servico) return linhasEtapasVaziasParaOs(servico, todosCadastro);
+  return etapasForm;
+}
+
 export function buscarServicoNaTabela(
   categorias: CategoriaTabelaPrecoOs[],
   nomeOuId: string

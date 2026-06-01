@@ -25,6 +25,8 @@ type PdfItem = {
 
 type PdfOsData = {
   numeroOs: number;
+  /** Usuário que criou a OS (log de auditoria). */
+  usuarioCriou?: string;
   dataEntrada: string;
   status: string;
   cliente: string;
@@ -238,13 +240,19 @@ function desenharMarcadoresUrgenciaRepeticao(pdf: PdfRenderApi, data: PdfOsData,
 function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
   const pageWidth = pdf.internal.pageSize.getWidth();
   const margin = 15;
-  let y = desenharCabecalhoLabPdf(pdf, data, "Requisição de Produção", (yDir, _m, dir) => {
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(8.5);
-    pdf.text(`Data: ${data.dataEntrada}`, dir, yDir, { align: "right" });
-    yDir += 4.5;
-    pdf.text(`Status: ${data.status}`, dir, yDir, { align: "right" });
-    return yDir + 4.5;
+  let y = desenharCabecalhoLabPdf(pdf, data, "Ordem de Serviço", (yDir, _m, dir) => {
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(16);
+    pdf.text(String(data.numeroOs), dir, yDir, { align: "right" });
+    yDir += 6;
+    const usuario = (data.usuarioCriou || "").trim();
+    if (usuario) {
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(8.5);
+      pdf.text(`Usuário: ${usuario}`, dir, yDir, { align: "right" });
+      yDir += 4.5;
+    }
+    return yDir;
   });
 
   pdf.setFontSize(9);
@@ -998,7 +1006,7 @@ export function PdfOsViewer({
                 ? "Comprovante de entrega — Térmica 80mm (Modelo 4)"
                 : formato === "a4" && modelo === "modelo2"
                   ? "Comprovante de entrega (A4)"
-                  : "Requisição de produção"}
+                  : "Ordem de Serviço"}
           </p>
         </div>
         <div className="flex gap-2">

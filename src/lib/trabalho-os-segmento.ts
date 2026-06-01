@@ -78,8 +78,31 @@ export function dividirItensPorSegmento<T extends ItemOsLinha>(itens: T[]) {
 
 export function deveDividirOs<T extends ItemOsLinha>(itens: T[]) {
   const { servico, produto, transporte } = dividirItensPorSegmento(itens);
+  if (servico.length > 1) return true;
   const segmentosPreenchidos = [servico, produto, transporte].filter((lista) => lista.length > 0).length;
   return segmentosPreenchidos > 1;
+}
+
+export type BlocoSalvarOs<T extends ItemOsLinha = ItemOsLinha> = {
+  segmento: SegmentoFaturamento;
+  itens: T[];
+};
+
+/** Um trabalho por serviço; produto e transporte permanecem em bloco único cada. */
+export function planejarBlocosSalvarOs<T extends ItemOsLinha>(itens: T[]): BlocoSalvarOs<T>[] {
+  const { servico, produto, transporte } = dividirItensPorSegmento(itens);
+  const blocos: BlocoSalvarOs<T>[] = [];
+  for (const item of servico) {
+    blocos.push({ segmento: "servico", itens: [item] });
+  }
+  if (produto.length > 0) blocos.push({ segmento: "produto", itens: produto });
+  if (transporte.length > 0) blocos.push({ segmento: "transporte", itens: transporte });
+  return blocos;
+}
+
+export function tituloTrabalhoServicoItem(item: ItemOsLinha) {
+  const nome = (item.servico || "").trim();
+  return nome || "Serviço";
 }
 
 /** Título gravado em Trabalho.tipoProtese por segmento (nunca vazio — exigido pela API). */
@@ -311,7 +334,52 @@ export type RegistroGrupoOs = {
   id: string;
   segmentoFaturamento?: string | null;
   instrucoes?: string | null;
+  tipoProtese?: string | null;
 };
+
+function nomeServicoItemParaMatch(item: ItemOsLinha) {
+  return nomeExibicaoItemOs(item) || item.servico.trim();
+}
+
+/** Localiza o trabalho de serviço do grupo que corresponde a um item (vários serviços na mesma OS). */
+export function buscarRegistroGrupoItemServico(
+  registros: RegistroGrupoOs[],
+  item: ItemOsLinha,
+  idsUsados: Set<string>
+): { reg?: RegistroGrupoOs; migrarSegmento?: SegmentoFaturamento } {
+  const disponiveis = registros.filter((r) => !idsUsados.has(r.id));
+  const alvo = nomeServicoItemParaMatch(item).toLowerCase();
+
+  for (const reg of disponiveis) {
+    if (segmentoEfetivoTrabalho(reg) !== "servico") continue;
+    const titulo = (reg.tipoProtese || "").trim().toLowerCase();
+    if (titulo && titulo === alvo) return { reg };
+
+    const linhas = parseItensAdicionadosLinhas(reg.instrucoes);
+    if (linhas.length === 1) {
+      const match = linhas[0].match(/^Item adicionado:\s*(.*?)\s*-\s*dentes/i);
+      const nomeLinha = (match?.[1]?.trim() || "").toLowerCase();
+      const nomeExib = nomeExibicaoItemOs({ servico: nomeLinha }).toLowerCase();
+      if (nomeExib && nomeExib === alvo) return { reg };
+    }
+  }
+
+  const servicosDisp = disponiveis.filter((r) => segmentoEfetivoTrabalho(r) === "servico");
+  if (servicosDisp.length === 1) return { reg: servicosDisp[0] };
+
+  return {};
+}
+
+export function buscarRegistroParaBlocoSalvar(
+  registros: RegistroGrupoOs[],
+  bloco: BlocoSalvarOs,
+  idsUsados: Set<string>
+): { reg?: RegistroGrupoOs; migrarSegmento?: SegmentoFaturamento } {
+  if (bloco.segmento === "servico" && bloco.itens.length === 1) {
+    return buscarRegistroGrupoItemServico(registros, bloco.itens[0], idsUsados);
+  }
+  return buscarRegistroGrupoSegmento(registros, bloco.segmento, idsUsados);
+}
 
 /** Localiza o trabalho do grupo para gravar um segmento (inclui legado produto+só frete). */
 export function buscarRegistroGrupoSegmento(
@@ -387,6 +455,16 @@ export function linhaServicoDoGrupoOs<
   return grupo.find((t) => segmentoEfetivoTrabalho(t) === "servico");
 }
 
+/** Todos os registros de serviço do mesmo grupo (vários serviços na mesma OS). */
+export function linhasServicoDoGrupoOs<
+  T extends {
+    segmentoFaturamento?: string | null;
+    instrucoes?: string | null;
+  },
+>(grupo: T[]) {
+  return grupo.filter((t) => segmentoEfetivoTrabalho(t) === "servico");
+}
+
 type FiltrosControleProducao = {
   filtroProdutos: boolean;
   filtroFichasSemServicos: boolean;
@@ -443,11 +521,12 @@ export function expandirControleProducaoComServicoDoGrupo<
   for (const trabalho of lista) {
     if (segmentoEfetivoTrabalho(trabalho) === "servico") continue;
     const grupo = porGrupo.get(grupoOsIdOf(trabalho)) ?? [];
-    const servico = linhaServicoDoGrupoOs(grupo);
-    if (!servico || ids.has(servico.id)) continue;
-    if (!deveExibirTrabalhoNoControleProducao(servico, grupo, filtros)) continue;
-    extras.push(servico);
-    ids.add(servico.id);
+    for (const servico of linhasServicoDoGrupoOs(grupo)) {
+      if (ids.has(servico.id)) continue;
+      if (!deveExibirTrabalhoNoControleProducao(servico, grupo, filtros)) continue;
+      extras.push(servico);
+      ids.add(servico.id);
+    }
   }
 
   if (!extras.length) return lista;

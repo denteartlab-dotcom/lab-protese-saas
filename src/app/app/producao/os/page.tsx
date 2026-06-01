@@ -22,20 +22,20 @@ import {
   type MovimentoEstoque,
 } from "@/lib/estoque";
 import {
+  buscarRegistroParaBlocoSalvar,
   classificarItemOs,
-  dividirItensPorSegmento,
   deveDividirOs,
   grupoOsTemMultiplosSegmentos,
-  buscarRegistroGrupoSegmento,
   editIdPreferidoGrupo,
   formatarDescontoItemOs,
-  ORDEM_SALVAR_SEGMENTOS_OS,
   itemExibeBadgeProduto,
   itemExibeBadgeTransporte,
   itemSomenteFrete,
   itemUsaCamposOdontologicos,
   nomeExibicaoItemOs,
+  planejarBlocosSalvarOs,
   tituloSegmentoOs,
+  tituloTrabalhoServicoItem,
   type SegmentoFaturamento,
 } from "@/lib/trabalho-os-segmento";
 import { calcularDatasPrazoServico } from "@/lib/prazos-servico";
@@ -43,6 +43,7 @@ import {
   buscarServicoNaTabela,
   carregarCategoriasPorTabelaPreco,
   categoriaDoServicoNaTabela,
+  etapasFormParaItemServico,
   modelosEtapasParaOsServico,
   servicosDaCategoriaTabela,
   categoriasSelecionaveisNaOs,
@@ -665,6 +666,7 @@ export default function OrdemServicoPage() {
           id: item.id,
           segmentoFaturamento: (item.segmentoFaturamento || "servico") as SegmentoFaturamento,
           instrucoes: item.instrucoes,
+          tipoProtese: item.tipoProtese,
         }))
       );
 
@@ -2017,13 +2019,50 @@ export default function OrdemServicoPage() {
       .join("\n");
   }
 
+  function linhasEtapasParaItemServico(item: ItemAdicionado) {
+    const filtradas = etapasFormParaItemServico(
+      item.servico,
+      etapas,
+      categoriasTabelaPreco,
+      modelosEtapas
+    );
+    const prazoGeral = form.dataLaboratorio.trim();
+    let lista = deduplicarEtapas(
+      filtradas.map((etapa, indice) => ({
+        indice,
+        nome: etapa.nome,
+        responsavel: etapa.responsavel,
+        prazo: etapa.prazo,
+        observacao: etapa.observacao,
+      }))
+    );
+    if (prazoGeral && lista.length > 0) {
+      const ultima = lista[lista.length - 1];
+      if (!ultima.prazo.trim()) {
+        lista = [...lista.slice(0, -1), { ...ultima, prazo: prazoGeral }];
+      }
+    }
+    return lista
+      .map((etapa) =>
+        formatarLinhaEtapaComTempo(etapa, tempoCalculadoEtapa(etapa.nome) || undefined)
+      )
+      .filter(Boolean)
+      .join("\n");
+  }
+
   function montarInstrucoesSegmento(
     itens: ItemAdicionado[],
     corpoComum: string,
-    segmento: SegmentoFaturamento = "servico"
+    segmento: SegmentoFaturamento = "servico",
+    linhasEtapasServico?: string
   ) {
-    const corpo =
+    const servicoUnico = segmento === "servico" && itens.length === 1;
+    let corpo =
       segmento === "servico" ? corpoComum : removerComplementosOsDoCorpo(corpoComum);
+    if (servicoUnico && linhasEtapasServico !== undefined) {
+      corpo = removerComplementosOsDoCorpo(corpo);
+      corpo = [corpo, linhasEtapasServico].filter(Boolean).join("\n");
+    }
     const linhas = itens.map(formatarLinhaItem).join("\n");
     return [corpo, linhas].filter(Boolean).join("\n");
   }
@@ -2066,16 +2105,8 @@ export default function OrdemServicoPage() {
       return;
     }
     const corpoComum = montarCorpoInstrucoes(arquivosEnviados);
-    const { servico: itensServico, produto: itensProduto, transporte: itensTransporte } =
-      dividirItensPorSegmento(itensParaSalvar);
-    const blocosSegmento = (
-      [
-        { segmento: "servico" as const, itens: itensServico },
-        { segmento: "produto" as const, itens: itensProduto },
-        { segmento: "transporte" as const, itens: itensTransporte },
-      ] as const
-    ).filter((bloco) => bloco.itens.length > 0);
-    const dividir = deveDividirOs(itensParaSalvar);
+    const blocosSalvar = planejarBlocosSalvarOs(itensParaSalvar);
+    const dividir = blocosSalvar.length > 1 || deveDividirOs(itensParaSalvar);
 
     const dataPrevistaIso = brDateToIso(form.dataLaboratorio || form.dataDentista);
     const dentesResumo = dentesSelecionadosResumo();
@@ -2101,20 +2132,44 @@ export default function OrdemServicoPage() {
       id: string,
       segmento: SegmentoFaturamento,
       itens: ItemAdicionado[],
-      opts?: { segmentoFaturamento?: SegmentoFaturamento }
+      opts?: {
+        segmentoFaturamento?: SegmentoFaturamento;
+        linhasEtapasServico?: string;
+        tipoProtese?: string;
+        dentes?: string | null;
+      }
     ) {
+      const item = itens[0];
+      const dentes =
+        opts?.dentes !== undefined
+          ? opts.dentes
+          : segmento === "servico" &&
+              itens.length === 1 &&
+              item?.numeroDente &&
+              item.numeroDente !== "-"
+            ? item.numeroDente
+            : payloadPutCompartilhado.dentes;
+
       return fetch(`/api/trabalhos/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...payloadPutCompartilhado,
+          dentes,
           ...(opts?.segmentoFaturamento
             ? { segmentoFaturamento: opts.segmentoFaturamento }
             : {}),
           escala: escalaOsParaSalvar(itens) || null,
-          tipoProtese: tituloSegmentoOs(itens, segmento, form.tipoProtese),
+          tipoProtese:
+            opts?.tipoProtese ?? tituloSegmentoOs(itens, segmento, form.tipoProtese),
           valor: valorItens(itens),
-          instrucoes: montarInstrucoesSegmento(itens, corpoComum, segmento) || null,
+          instrucoes:
+            montarInstrucoesSegmento(
+              itens,
+              corpoComum,
+              segmento,
+              opts?.linhasEtapasServico
+            ) || null,
         }),
       });
     }
@@ -2130,10 +2185,8 @@ export default function OrdemServicoPage() {
 
         if (!meta?.pacienteId) {
           const idsProbe = new Set<string>();
-          const precisaCriarSegmento = ORDEM_SALVAR_SEGMENTOS_OS.some((segmento) => {
-            const bloco = blocosSegmento.find((b) => b.segmento === segmento);
-            if (!bloco?.itens.length) return false;
-            const { reg } = buscarRegistroGrupoSegmento(registros, segmento, idsProbe);
+          const precisaCriarSegmento = blocosSalvar.some((bloco) => {
+            const { reg } = buscarRegistroParaBlocoSalvar(registros, bloco, idsProbe);
             if (reg) {
               idsProbe.add(reg.id);
               return false;
@@ -2154,21 +2207,33 @@ export default function OrdemServicoPage() {
 
         const promessas: Promise<Response>[] = [];
 
-        for (const segmento of ORDEM_SALVAR_SEGMENTOS_OS) {
-          const bloco = blocosSegmento.find((b) => b.segmento === segmento);
-          if (!bloco || bloco.itens.length === 0) continue;
-
-          const { reg, migrarSegmento } = buscarRegistroGrupoSegmento(
+        for (const bloco of blocosSalvar) {
+          const { reg, migrarSegmento } = buscarRegistroParaBlocoSalvar(
             registros,
-            segmento,
+            bloco,
             idsUsados
           );
+          const servicoUnico =
+            bloco.segmento === "servico" && bloco.itens.length === 1;
+          const linhasEtapas = servicoUnico
+            ? linhasEtapasParaItemServico(bloco.itens[0])
+            : undefined;
+          const tipoProtese = servicoUnico
+            ? tituloTrabalhoServicoItem(bloco.itens[0])
+            : tituloSegmentoOs(bloco.itens, bloco.segmento, form.tipoProtese);
+          const dentesItem =
+            servicoUnico && bloco.itens[0].numeroDente !== "-"
+              ? bloco.itens[0].numeroDente
+              : null;
 
           if (reg) {
             idsUsados.add(reg.id);
             promessas.push(
-              salvarSegmentoExistente(reg.id, segmento, bloco.itens, {
+              salvarSegmentoExistente(reg.id, bloco.segmento, bloco.itens, {
                 segmentoFaturamento: migrarSegmento,
+                linhasEtapasServico: linhasEtapas,
+                tipoProtese,
+                dentes: dentesItem ?? payloadPutCompartilhado.dentes,
               })
             );
             continue;
@@ -2187,12 +2252,18 @@ export default function OrdemServicoPage() {
                   pacienteId: meta.pacienteId,
                   numeroOs: meta.numeroOs,
                   grupoOsId: meta.grupoOsId,
-                  segmentoFaturamento: segmento,
-                  tipoProtese: tituloSegmentoOs(bloco.itens, segmento, form.tipoProtese),
+                  segmentoFaturamento: bloco.segmento,
+                  tipoProtese,
                   dataEntrada: new Date(meta.dataEntrada).toISOString().slice(0, 10),
+                  dentes: dentesItem || undefined,
                   escala: escalaOsParaSalvar(bloco.itens) || undefined,
                   valor: valorItens(bloco.itens),
-                  instrucoes: montarInstrucoesSegmento(bloco.itens, corpoComum, segmento),
+                  instrucoes: montarInstrucoesSegmento(
+                    bloco.itens,
+                    corpoComum,
+                    bloco.segmento,
+                    linhasEtapas
+                  ),
                 })
               ),
             })
@@ -2216,19 +2287,36 @@ export default function OrdemServicoPage() {
               tipoProtese: form.tipoProtese,
             },
             grupoOsTemMultiplosSegmentos(
-              blocosSegmento.map((b) => ({ segmentoFaturamento: b.segmento }))
+              blocosSalvar.map((b) => ({ segmentoFaturamento: b.segmento }))
             )
           );
         } else {
           alert(await mensagemErroApi(falha, "Não foi possível salvar a edição da OS."));
         }
       } else {
-        const blocoUnico = blocosSegmento[0];
+        const blocoUnico = blocosSalvar[0];
         const segmentoUnico = blocoUnico?.segmento ?? "servico";
-        const { reg } = buscarRegistroGrupoSegmento(registros, segmentoUnico, new Set());
+        const { reg } = buscarRegistroParaBlocoSalvar(
+          registros,
+          blocoUnico ?? { segmento: segmentoUnico, itens: itensParaSalvar },
+          new Set()
+        );
         const alvo = reg || registros[0];
         const itensUnicos = blocoUnico?.itens ?? itensParaSalvar;
-        const res = await salvarSegmentoExistente(alvo.id, segmentoUnico, itensUnicos);
+        const servicoUnico =
+          segmentoUnico === "servico" && itensUnicos.length === 1;
+        const res = await salvarSegmentoExistente(alvo.id, segmentoUnico, itensUnicos, {
+          linhasEtapasServico: servicoUnico
+            ? linhasEtapasParaItemServico(itensUnicos[0])
+            : undefined,
+          tipoProtese: servicoUnico
+            ? tituloTrabalhoServicoItem(itensUnicos[0])
+            : undefined,
+          dentes:
+            servicoUnico && itensUnicos[0].numeroDente !== "-"
+              ? itensUnicos[0].numeroDente
+              : undefined,
+        });
         setSalvando(false);
         if (res.ok) {
           sincronizarMovimentosOs(alvo.id, movimentosEstoqueDaOs(alvo.id, itensParaSalvar));
@@ -2271,23 +2359,37 @@ export default function OrdemServicoPage() {
       segmento: SegmentoFaturamento,
       itens: ItemAdicionado[],
       extras?: { numeroOs?: number; grupoOsId?: string }
-    ) => ({
-      clienteId: form.clienteId,
-      pacienteId: paciente.id,
-      segmentoFaturamento: segmento,
-      tipoProtese: tituloSegmentoOs(itens, segmento, form.tipoProtese),
-      dentes: dentesSelecionadosResumo(),
-      cor: form.escalaCor,
-      material: form.materialEnviado,
-      escala: escalaOsParaSalvar(itens),
-      dataEntrada: brDateToIso(form.dataLancamento) || undefined,
-      dataPrevista: brDateToIso(form.dataLaboratorio || form.dataDentista) || undefined,
-      valor: valorItens(itens),
-      status: form.situacao,
-      observacoes: form.observacoes,
-      instrucoes: montarInstrucoesSegmento(itens, corpoComum, segmento),
-      ...extras,
-    });
+    ) => {
+      const servicoUnico = segmento === "servico" && itens.length === 1;
+      const item = itens[0];
+      return {
+        clienteId: form.clienteId,
+        pacienteId: paciente.id,
+        segmentoFaturamento: segmento,
+        tipoProtese: servicoUnico
+          ? tituloTrabalhoServicoItem(item)
+          : tituloSegmentoOs(itens, segmento, form.tipoProtese),
+        dentes:
+          servicoUnico && item.numeroDente !== "-"
+            ? item.numeroDente
+            : dentesSelecionadosResumo(),
+        cor: form.escalaCor,
+        material: form.materialEnviado,
+        escala: escalaOsParaSalvar(itens),
+        dataEntrada: brDateToIso(form.dataLancamento) || undefined,
+        dataPrevista: brDateToIso(form.dataLaboratorio || form.dataDentista) || undefined,
+        valor: valorItens(itens),
+        status: form.situacao,
+        observacoes: form.observacoes,
+        instrucoes: montarInstrucoesSegmento(
+          itens,
+          corpoComum,
+          segmento,
+          servicoUnico ? linhasEtapasParaItemServico(item) : undefined
+        ),
+        ...extras,
+      };
+    };
 
     let trabalhoPrincipal: { id: string; numeroOs: number; grupoOsId?: string | null } | null = null;
 
@@ -2295,13 +2397,13 @@ export default function OrdemServicoPage() {
       let numeroOs: number | undefined;
       let grupoOsId: string | undefined;
 
-      for (const { segmento, itens } of blocosSegmento) {
+      for (const bloco of blocosSalvar) {
         const res = await fetch("/api/trabalhos", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(
             bodyTrabalhoSemNull(
-              criarPayload(segmento, itens, {
+              criarPayload(bloco.segmento, bloco.itens, {
                 numeroOs,
                 grupoOsId,
               })
@@ -2311,9 +2413,11 @@ export default function OrdemServicoPage() {
         if (!res.ok) {
           setSalvando(false);
           const rotulo =
-            segmento === "servico"
-              ? "serviços"
-              : segmento === "produto"
+            bloco.segmento === "servico"
+              ? bloco.itens.length > 1
+                ? "serviços"
+                : "serviço"
+              : bloco.segmento === "produto"
                 ? "produtos"
                 : "transporte";
           alert(
@@ -2334,7 +2438,7 @@ export default function OrdemServicoPage() {
         }
       }
     } else {
-      const blocoUnico = blocosSegmento[0];
+      const blocoUnico = blocosSalvar[0];
       const segmento: SegmentoFaturamento = blocoUnico?.segmento ?? "servico";
       const itensUnicos = blocoUnico?.itens ?? itensParaSalvar;
       const res = await fetch("/api/trabalhos", {
@@ -2361,11 +2465,11 @@ export default function OrdemServicoPage() {
         {
           id: trabalhoPrincipal.id,
           numeroOs: trabalhoPrincipal.numeroOs,
-          segmentoFaturamento: blocosSegmento[0]?.segmento ?? "servico",
+          segmentoFaturamento: blocosSalvar[0]?.segmento ?? "servico",
           tipoProtese: form.tipoProtese,
         },
         grupoOsTemMultiplosSegmentos(
-          blocosSegmento.map((b) => ({ segmentoFaturamento: b.segmento }))
+          blocosSalvar.map((b) => ({ segmentoFaturamento: b.segmento }))
         )
       );
     }

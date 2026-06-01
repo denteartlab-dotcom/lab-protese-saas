@@ -27,9 +27,8 @@ import {
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { ImprimirOsModal } from "@/components/ImprimirOsModal";
 import {
-  buscarRegistroGrupoSegmento,
+  buscarRegistroParaBlocoSalvar,
   classificarItemOs,
-  dividirItensPorSegmento,
   editIdPreferidoGrupo,
   grupoOsIdOf,
   deveDividirOs,
@@ -39,9 +38,11 @@ import {
   itemExibeBadgeTransporte,
   itemUsaCamposOdontologicos,
   nomeExibicaoItemOs,
-  ORDEM_SALVAR_SEGMENTOS_OS,
+  planejarBlocosSalvarOs,
+  segmentoEfetivoTrabalho,
   situacaoExibicaoTrabalho,
   tituloSegmentoOs,
+  tituloTrabalhoServicoItem,
   deveExibirTrabalhoNoControleProducao,
   expandirControleProducaoComServicoDoGrupo,
   trabalhosDoMesmoGrupoOsId,
@@ -59,6 +60,7 @@ import {
   buscarServicoNaTabela,
   carregarCategoriasPorTabelaPreco,
   categoriaDoServicoNaTabela,
+  etapasFormParaItemServico,
   categoriasSelecionaveisNaOs,
   servicosDaCategoriaTabela,
   servicosSelecionaveisNaOs,
@@ -271,10 +273,15 @@ function montarInstrucoesSegmentoControle(
   linhasEtapas: string,
   segmento: SegmentoFaturamento
 ) {
-  const corpo =
-    segmento === "servico"
-      ? [corpoSemEtapas, linhasEtapas].filter(Boolean).join("\n")
-      : removerComplementosOsDoCorpo(corpoSemEtapas);
+  let corpo: string;
+  if (segmento === "servico") {
+    const base = linhasEtapas
+      ? removerComplementosOsDoCorpo(corpoSemEtapas)
+      : corpoSemEtapas;
+    corpo = [base, linhasEtapas].filter(Boolean).join("\n");
+  } else {
+    corpo = removerComplementosOsDoCorpo(corpoSemEtapas);
+  }
   const linhas = itens.map(formatarLinhaItemEdicao).join("\n");
   return [corpo, linhas].filter(Boolean).join("\n");
 }
@@ -1038,6 +1045,45 @@ export default function ControlePage() {
     );
   }
 
+  function linhasEtapasItemControle(item: EditItem) {
+    const filtradas = etapasFormParaItemServico(
+      item.servico,
+      etapasEdicao,
+      categoriasTabelaPreco,
+      carregarEtapasCadastro()
+    );
+    return etapasFormParaLinhasInstrucoes(filtradas, {
+      prazoGeral: form?.dataLaboratorio,
+      quantidadeDentes: dentesEdicao.length || 1,
+    });
+  }
+
+  function carregarEtapasDoItemServico(item: EditItem, trabalhoRef?: Trabalho) {
+    const base = trabalhoRef ?? editando;
+    if (!base) return;
+    const grupo = trabalhosDoMesmoGrupoOsId(base, trabalhos);
+    const nomeItem = item.servico.trim().toLowerCase();
+    const registro =
+      grupo.find(
+        (t) =>
+          segmentoEfetivoTrabalho(t) === "servico" &&
+          (t.tipoProtese || "").trim().toLowerCase() === nomeItem
+      ) || base;
+    const complementos = parseComplementosInstrucoesGrupo([registro.instrucoes || ""]);
+    const modelos = carregarEtapasCadastro();
+    const etapasForm = etapasOsLinhaParaForm(complementos.etapas);
+    const filtradas =
+      etapasForm.length > 0
+        ? etapasForm
+        : etapasFormParaItemServico(item.servico, [], categoriasTabelaPreco, modelos);
+    setEtapasEdicao(
+      filtradas.map((etapa) => ({
+        ...etapa,
+        setor: modelos.find((m) => m.nome === etapa.nome)?.setor || etapa.setor || "",
+      }))
+    );
+  }
+
   function classeAbaEdicao(aba: AbaServicoEdicao) {
     return abaServicoEdicao === aba
       ? "rounded px-3 py-2 text-xs font-medium bg-primary-600 text-white shadow"
@@ -1088,6 +1134,7 @@ export default function ControlePage() {
         id: item.id,
         segmentoFaturamento: (item.segmentoFaturamento || "servico") as SegmentoFaturamento,
         instrucoes: item.instrucoes,
+        tipoProtese: item.tipoProtese,
       }))
     );
     const dentesIniciais = dentesFromResumoControle(alvo.dentes || "");
@@ -1105,7 +1152,12 @@ export default function ControlePage() {
       ...formVazioEdicao(alvo, trabalhos),
       dentes: numeroDenteResumoControle(dentesIniciais, denticaoInicial),
     });
-    carregarEtapasNaEdicao(alvo);
+    const primeiroServico = itens.find((item) => classificarItemOs(item) === "servico");
+    if (primeiroServico) {
+      carregarEtapasDoItemServico(primeiroServico, alvo);
+    } else {
+      carregarEtapasNaEdicao(alvo);
+    }
   }
 
   function selecionarItemEdicao(item: EditItem) {
@@ -1158,6 +1210,7 @@ export default function ControlePage() {
 
     setAbaServicoEdicao("etapas");
     setProdutosOs([]);
+    carregarEtapasDoItemServico(item);
     const resumoDentes = item.numeroDente === "-" ? "" : item.numeroDente;
     const dentesItem = dentesFromResumoControle(resumoDentes);
     const denticaoItem = tipoDenticaoFromDentesControle(dentesItem);
@@ -1451,21 +1504,9 @@ export default function ControlePage() {
       );
     }
 
-    const { servico: itensServico, produto: itensProduto, transporte: itensTransporte } =
-      dividirItensPorSegmento(itensSalvar);
-    const blocosSegmento = (
-      [
-        { segmento: "servico" as const, itens: itensServico },
-        { segmento: "produto" as const, itens: itensProduto },
-        { segmento: "transporte" as const, itens: itensTransporte },
-      ] as const
-    ).filter((bloco) => bloco.itens.length > 0);
-    const dividir = deveDividirOs(itensSalvar);
+    const blocosSalvar = planejarBlocosSalvarOs(itensSalvar);
+    const dividir = blocosSalvar.length > 1 || deveDividirOs(itensSalvar);
     const corpoSemEtapas = instrucoesCorpoSemEtapas(form.instrucoesCorpo);
-    const linhasEtapas = etapasFormParaLinhasInstrucoes(etapasEdicao, {
-      prazoGeral: form.dataLaboratorio,
-      quantidadeDentes: dentesEdicao.length || 1,
-    });
     const dataPrevistaIso = brShortToIso(form.dataLaboratorio) || form.dataPrevista || null;
 
     const payloadPutCompartilhado = {
@@ -1490,24 +1531,46 @@ export default function ControlePage() {
       id: string,
       segmento: SegmentoFaturamento,
       itens: EditItem[],
-      opts?: { segmentoFaturamento?: SegmentoFaturamento }
+      opts?: {
+        segmentoFaturamento?: SegmentoFaturamento;
+        linhasEtapas?: string;
+        tipoProtese?: string;
+        dentes?: string | null;
+      }
     ) {
+      const item = itens[0];
+      const dentes =
+        opts?.dentes !== undefined
+          ? opts.dentes
+          : segmento === "servico" &&
+              itens.length === 1 &&
+              item?.numeroDente &&
+              item.numeroDente !== "-"
+            ? item.numeroDente
+            : payloadPutCompartilhado.dentes;
+
       return fetch(`/api/trabalhos/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...payloadPutCompartilhado,
+          dentes,
           ...(opts?.segmentoFaturamento
             ? { segmentoFaturamento: opts.segmentoFaturamento }
             : {}),
           escala: escalaOsParaSalvarControle(itens) || null,
-          tipoProtese: tituloSegmentoOs(itens, segmento, form!.tipoProtese),
+          tipoProtese:
+            opts?.tipoProtese ?? tituloSegmentoOs(itens, segmento, form!.tipoProtese),
           valor: valorItensControle(itens),
           instrucoes:
             montarInstrucoesSegmentoControle(
               itens,
               corpoSemEtapas,
-              linhasEtapas,
+              opts?.linhasEtapas ??
+                etapasFormParaLinhasInstrucoes(etapasEdicao, {
+                  prazoGeral: form!.dataLaboratorio,
+                  quantidadeDentes: dentesEdicao.length || 1,
+                }),
               segmento
             ) || null,
         }),
@@ -1523,6 +1586,7 @@ export default function ControlePage() {
               segmentoFaturamento: (editando.segmentoFaturamento ||
                 "servico") as SegmentoFaturamento,
               instrucoes: editando.instrucoes,
+              tipoProtese: editando.tipoProtese,
             },
           ];
 
@@ -1534,10 +1598,8 @@ export default function ControlePage() {
 
       if (!dadosPost) {
         const idsProbe = new Set<string>();
-        const precisaCriarSegmento = ORDEM_SALVAR_SEGMENTOS_OS.some((segmento) => {
-          const bloco = blocosSegmento.find((b) => b.segmento === segmento);
-          if (!bloco?.itens.length) return false;
-          const { reg } = buscarRegistroGrupoSegmento(registros, segmento, idsProbe);
+        const precisaCriarSegmento = blocosSalvar.some((bloco) => {
+          const { reg } = buscarRegistroParaBlocoSalvar(registros, bloco, idsProbe);
           if (reg) {
             idsProbe.add(reg.id);
             return false;
@@ -1550,21 +1612,33 @@ export default function ControlePage() {
         }
       }
 
-      for (const segmento of ORDEM_SALVAR_SEGMENTOS_OS) {
-        const bloco = blocosSegmento.find((b) => b.segmento === segmento);
-        if (!bloco || bloco.itens.length === 0) continue;
-
-        const { reg, migrarSegmento } = buscarRegistroGrupoSegmento(
+      for (const bloco of blocosSalvar) {
+        const { reg, migrarSegmento } = buscarRegistroParaBlocoSalvar(
           registros,
-          segmento,
+          bloco,
           idsUsados
         );
+        const servicoUnico =
+          bloco.segmento === "servico" && bloco.itens.length === 1;
+        const linhasEtapas = servicoUnico
+          ? linhasEtapasItemControle(bloco.itens[0])
+          : "";
+        const tipoProtese = servicoUnico
+          ? tituloTrabalhoServicoItem(bloco.itens[0])
+          : tituloSegmentoOs(bloco.itens, bloco.segmento, form.tipoProtese);
+        const dentesItem =
+          servicoUnico && bloco.itens[0].numeroDente !== "-"
+            ? bloco.itens[0].numeroDente
+            : null;
 
         if (reg) {
           idsUsados.add(reg.id);
           promessas.push(
-            salvarSegmentoExistente(reg.id, segmento, bloco.itens, {
+            salvarSegmentoExistente(reg.id, bloco.segmento, bloco.itens, {
               segmentoFaturamento: migrarSegmento,
+              linhasEtapas,
+              tipoProtese,
+              dentes: dentesItem ?? payloadPutCompartilhado.dentes,
             })
           );
           continue;
@@ -1583,16 +1657,17 @@ export default function ControlePage() {
                 pacienteId: dadosPost.pacienteId,
                 numeroOs: dadosPost.numeroOs,
                 grupoOsId: dadosPost.grupoOsId,
-                segmentoFaturamento: segmento,
-                tipoProtese: tituloSegmentoOs(bloco.itens, segmento, form.tipoProtese),
+                segmentoFaturamento: bloco.segmento,
+                tipoProtese,
                 dataEntrada: new Date(dadosPost.dataEntrada).toISOString().slice(0, 10),
+                dentes: dentesItem || undefined,
                 escala: escalaOsParaSalvarControle(bloco.itens) || undefined,
                 valor: valorItensControle(bloco.itens),
                 instrucoes: montarInstrucoesSegmentoControle(
                   bloco.itens,
                   corpoSemEtapas,
                   linhasEtapas,
-                  segmento
+                  bloco.segmento
                 ),
               })
             ),
@@ -1600,13 +1675,32 @@ export default function ControlePage() {
         );
       }
     } else {
-      const blocoUnico = blocosSegmento[0];
+      const blocoUnico = blocosSalvar[0];
       const segmentoUnico = blocoUnico?.segmento ?? "servico";
-      const { reg } = buscarRegistroGrupoSegmento(registros, segmentoUnico, new Set());
+      const { reg } = buscarRegistroParaBlocoSalvar(
+        registros,
+        blocoUnico ?? { segmento: segmentoUnico, itens: itensSalvar },
+        new Set()
+      );
       const alvo = reg || registros[0];
       const itensUnicos = blocoUnico?.itens ?? itensSalvar;
+      const servicoUnico =
+        segmentoUnico === "servico" && itensUnicos.length === 1;
       if (alvo) {
-        promessas.push(salvarSegmentoExistente(alvo.id, segmentoUnico, itensUnicos));
+        promessas.push(
+          salvarSegmentoExistente(alvo.id, segmentoUnico, itensUnicos, {
+            linhasEtapas: servicoUnico
+              ? linhasEtapasItemControle(itensUnicos[0])
+              : undefined,
+            tipoProtese: servicoUnico
+              ? tituloTrabalhoServicoItem(itensUnicos[0])
+              : undefined,
+            dentes:
+              servicoUnico && itensUnicos[0].numeroDente !== "-"
+                ? itensUnicos[0].numeroDente
+                : undefined,
+          })
+        );
       }
     }
 
@@ -1863,11 +1957,9 @@ export default function ControlePage() {
                 const exibicaoLinha = situacaoExibicaoTrabalho(trabalho, primeiroItem);
                 const linhaProdutoOuTransporte =
                   exibicaoLinha.kind === "produto" || exibicaoLinha.kind === "transporte";
-                const grupoOs = trabalhos.filter((item) => chaveGrupoOs(item) === chaveGrupoOs(trabalho));
-                const textosInstrucoes = linhaProdutoOuTransporte
-                  ? [trabalho.instrucoes || ""]
-                  : grupoOs.map((item) => item.instrucoes || "");
-                const complementosOs = parseComplementosInstrucoesGrupo(textosInstrucoes);
+                const complementosOs = parseComplementosInstrucoesGrupo([
+                  trabalho.instrucoes || "",
+                ]);
                 const etapasOs = linhaProdutoOuTransporte ? [] : complementosOs.etapas;
                 const colaboradoresOs = colaboradoresParaExibicaoControle(
                   complementosOs.colaboradores,

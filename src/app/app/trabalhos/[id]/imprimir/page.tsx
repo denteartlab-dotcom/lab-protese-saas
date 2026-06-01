@@ -104,9 +104,11 @@ function ErroImpressao({
 async function ImprimirOSConteudo({
   id,
   sp,
+  nomeUsuarioSessao,
 }: {
   id: string;
   sp: Record<string, string | string[] | undefined>;
+  nomeUsuarioSessao: string;
 }) {
   const somenteItem = searchFlag(sp.somenteItem);
   const duasVias = sp.vias === "2" || searchFlag(sp.duasVias);
@@ -255,6 +257,25 @@ async function ImprimirOSConteudo({
     segmentoSomenteItem
   );
 
+  let usuarioCriou = "";
+  try {
+    const logCriacao = await prisma.logAuditoria.findFirst({
+      where: {
+        categoria: "os",
+        tipoAlteracao: "inclusao",
+        OR: [{ numeroOs: t.numeroOs }, { trabalhoId: t.id }],
+      },
+      orderBy: { dataAlteracao: "asc" },
+      select: { usuarioNome: true },
+    });
+    usuarioCriou = logCriacao?.usuarioNome?.trim() || "";
+  } catch (err) {
+    console.error("imprimir: usuário criador OS", { id, err });
+  }
+  if (!usuarioCriou) {
+    usuarioCriou = nomeUsuarioSessao.trim();
+  }
+
   return (
     <PdfOsViewer
       formato={formato}
@@ -262,6 +283,7 @@ async function ImprimirOSConteudo({
       duasVias={duasVias}
       data={{
         numeroOs: t.numeroOs,
+        usuarioCriou,
         dataEntrada: dateOrEmpty(t.dataEntrada),
         status: STATUS_TRABALHO[t.status]?.label || t.status || "",
         cliente: nomeCliente,
@@ -307,7 +329,7 @@ export default async function ImprimirOSPage({
   const sp = await searchParams;
 
   try {
-    return await ImprimirOSConteudo({ id, sp });
+    return await ImprimirOSConteudo({ id, sp, nomeUsuarioSessao: session.name || "" });
   } catch (err) {
     console.error("imprimir OS", { id, err });
     const prismaCode =
