@@ -1001,14 +1001,14 @@ export default function ControlePage() {
         {
           produtoId: produto?.id || item.produtoId || "",
           quantidade: item.quantidade || "1",
-          valor: String(unitario || 0),
+          valor: formatCurrency(unitario || 0),
           observacao: item.observacao || nomeProduto,
         },
       ]);
       setForm((atual) => ({
         ...(atual || formVazioEdicao(editando!)),
         quantidade: item.quantidade || "1",
-        valor: String(unitario || 0),
+        valor: formatCurrency(unitario || 0),
         urgente: Boolean(item.urgente),
         repeticao: Boolean(item.repeticao),
         observacaoServico: "",
@@ -1071,7 +1071,7 @@ export default function ControlePage() {
       const produto = produtosCadastro.find((p) => p.id === produtoOs.produtoId);
       const nome = produto?.nome || produtoOs.observacao?.trim() || "Produto";
       const quantidade = produtoOs.quantidade || "1";
-      const valorUnit = Number(produtoOs.valor || 0) || 0;
+      const valorUnit = parseCurrencyBr(produtoOs.valor || "R$ 0,00");
       return {
         ...base,
         servico: `Produto: ${nome}`,
@@ -1138,7 +1138,7 @@ export default function ControlePage() {
     const produto = produtosCadastro.find((p) => p.id === produtoOs.produtoId);
     const nome = produto?.nome || produtoOs.observacao?.trim() || "Produto";
     const quantidade = produtoOs.quantidade || "1";
-    const valor = (Number(produtoOs.valor || 0) || 0) * (Number(quantidade) || 1);
+    const valor = parseCurrencyBr(produtoOs.valor || "R$ 0,00") * (Number(quantidade) || 1);
     return {
       id: `${Date.now()}`,
       servico: `Produto: ${nome}`,
@@ -1163,7 +1163,7 @@ export default function ControlePage() {
       numeroDente: "-",
       corDente: "-",
       quantidade,
-      valor: (Number(form.valor || 0) || 0) * (Number(quantidade) || 1),
+      valor: parseCurrencyBr(form.valor || "R$ 0,00") * (Number(quantidade) || 1),
     };
   }
 
@@ -1343,7 +1343,7 @@ export default function ControlePage() {
         cor: primeiroItem?.corDente || form.cor,
         material: form.material,
         status: form.status,
-        valor: valorTotal || Number(form.valor || 0),
+        valor: valorTotal || parseCurrencyBr(form.valor || "R$ 0,00"),
         dataPrevista: brShortToIso(form.dataLaboratorio) || form.dataPrevista || null,
         observacoes: form.observacoes,
         instrucoes: [corpoSemEtapas, linhasEtapas, itensInstrucoes].filter(Boolean).join("\n"),
@@ -1357,7 +1357,7 @@ export default function ControlePage() {
   function adicionarLinhaProdutoEdicao() {
     setProdutosOs((atuais) => [
       ...atuais,
-      { produtoId: "", quantidade: "1", valor: "0", observacao: "" },
+      { produtoId: "", quantidade: "1", valor: "R$ 0,00", observacao: "" },
     ]);
   }
 
@@ -2437,7 +2437,7 @@ export default function ControlePage() {
                             setAbaServicoEdicao("produtos");
                             if (produtosOs.length === 0) {
                               setProdutosOs([
-                                { produtoId: "", quantidade: "1", valor: "0", observacao: "" },
+                                { produtoId: "", quantidade: "1", valor: "R$ 0,00", observacao: "" },
                               ]);
                             }
                           }}
@@ -2505,7 +2505,7 @@ export default function ControlePage() {
                                           ? {
                                               ...item,
                                               produtoId: e.target.value,
-                                              valor: String(produto?.valor ?? item.valor),
+                                              valor: formatCurrency(produto?.valor ?? parseCurrencyBr(item.valor)),
                                               observacao: produto?.nome || item.observacao,
                                             }
                                           : item
@@ -2535,13 +2535,14 @@ export default function ControlePage() {
                                 />
                                 <Input
                                   label="Valor"
-                                  type="number"
-                                  step="0.01"
+                                  selectOnFocus
                                   value={produtoOs.valor}
                                   onChange={(e) =>
                                     setProdutosOs((atuais) =>
                                       atuais.map((item, i) =>
-                                        i === index ? { ...item, valor: e.target.value } : item
+                                        i === index
+                                          ? { ...item, valor: formatCurrencyInputControle(e.target.value) }
+                                          : item
                                       )
                                     )
                                   }
@@ -2622,7 +2623,7 @@ export default function ControlePage() {
                                     ? {
                                         ...item,
                                         produtoId: e.target.value,
-                                        valor: String(produto?.valor ?? item.valor),
+                                        valor: formatCurrency(produto?.valor ?? parseCurrencyBr(item.valor)),
                                         observacao: produto?.nome || item.observacao,
                                       }
                                     : item
@@ -2652,13 +2653,14 @@ export default function ControlePage() {
                           />
                           <Input
                             label="Valor"
-                            type="number"
-                            step="0.01"
+                            selectOnFocus
                             value={produtoOs.valor}
                             onChange={(e) =>
                               setProdutosOs((atuais) =>
                                 atuais.map((item, i) =>
-                                  i === index ? { ...item, valor: e.target.value } : item
+                                  i === index
+                                    ? { ...item, valor: formatCurrencyInputControle(e.target.value) }
+                                    : item
                                 )
                               )
                             }
