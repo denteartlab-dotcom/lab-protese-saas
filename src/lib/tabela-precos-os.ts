@@ -47,12 +47,9 @@ export type EtapasFormParaItemServicoOpts = {
   somentePreenchidasNoForm?: boolean;
 };
 
-/** Etapa que o usuário de fato preencheu (não só nome sugerido pelo cadastro). */
+/** Etapa escolhida/preenchida pelo usuário (nome no select já conta; não gera linhas vazias sem nome). */
 export function etapaOsTemConteudoParaSalvar(etapa: EtapaOsLinhaVazia) {
-  if (!etapa.nome.trim()) return false;
-  return Boolean(
-    etapa.prazo.trim() || etapa.responsavel.trim() || etapa.observacao.trim()
-  );
+  return Boolean(etapa.nome.trim());
 }
 
 export type CategoriaTabelaPrecoOs = {
