@@ -124,6 +124,8 @@ export async function POST(request: Request) {
       );
     }
 
+    const tipoProtese = data.tipoProtese.trim();
+
     const trabalho = await prisma.trabalho.create({
       data: {
         numeroOs,
@@ -131,7 +133,7 @@ export async function POST(request: Request) {
         ...(data.grupoOsId ? { grupoOsId: data.grupoOsId } : {}),
         clienteId: data.clienteId,
         pacienteId: data.pacienteId,
-        tipoProtese: data.tipoProtese,
+        tipoProtese,
         dentes: data.dentes,
         cor: data.cor,
         material: data.material,
@@ -207,7 +209,7 @@ export async function POST(request: Request) {
       {
         error:
           prismaCode === "P2002"
-            ? "Já existe OS com este número e segmento (serviço, produto ou transporte)."
+            ? "Já existe registro desta OS com o mesmo segmento e mesmo serviço/título. Verifique itens duplicados ou aplique a migração do banco (vários serviços por OS)."
             : "Não foi possível gravar a OS.",
         code: prismaCode || undefined,
       },
