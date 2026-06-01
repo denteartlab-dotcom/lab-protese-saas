@@ -8,12 +8,12 @@ import {
   type SegmentoFaturamento,
 } from "@/lib/trabalho-os-segmento";
 import { telefoneWhatsappCliente } from "@/lib/cliente-observacoes";
-import { instrucoesTextoLivre, parseEtapasInstrucoes } from "@/lib/etapas-os";
+import { instrucoesTextoLivre } from "@/lib/etapas-os";
 import {
+  anexarPrazosServicoPorTrabalho,
   extrairDataPrazoBr,
   extrairItensImpressaoOs,
   flagsUrgenteRepeticaoInstrucoes,
-  linhaPrazoImpressaoOs,
 } from "@/lib/os-itens-impressao";
 import { PdfOsViewer } from "./pdf-os-viewer";
 
@@ -196,27 +196,9 @@ async function ImprimirOSConteudo({
   const linhas = linesFrom(textoInstrucoesGrupo);
   const prazoLaboratorio = extrairDataPrazoBr(lineValue(linhas, "Data laboratório:"));
   const prazoDentista = extrairDataPrazoBr(lineValue(linhas, "Data dentista:"));
-  const etapasOs = parseEtapasInstrucoes(textoInstrucoesGrupo);
-  const etapaCorrente =
-    etapasOs.filter((etapa) => etapa.nome.trim()).at(-1) ?? etapasOs.at(-1);
   const statusServico = trabalhoServico.status;
-  const ctxPrazos = {
-    status: statusServico,
-    statusLabel: STATUS_TRABALHO[statusServico]?.label || statusServico,
-    etapaAtual: etapaCorrente?.nome.trim() || undefined,
-    etapaPrazo: extrairDataPrazoBr(etapaCorrente?.prazo),
-    dataPrevista: dateOrEmpty(trabalhoServico.dataPrevista),
-    dataEntrega: dateOrEmpty(trabalhoServico.dataEntrega),
-    dataEntrada: dateOrEmpty(trabalhoServico.dataEntrada),
-    prazoLaboratorio,
-    prazoDentista,
-    textoInstrucoes: textoInstrucoesGrupo,
-  };
-  const prazoLinhaServico =
-    segmentoSomenteItem && segmentoSomenteItem !== "servico"
-      ? ""
-      : linhaPrazoImpressaoOs(ctxPrazos) || "";
-  const itens = extrairItensImpressaoOs(
+
+  let itens = extrairItensImpressaoOs(
     instrucoesGrupo,
     {
       tipoProtese: t.tipoProtese,
@@ -224,13 +206,20 @@ async function ImprimirOSConteudo({
       cor: t.cor,
       valor: t.valor,
     },
-    ctxPrazos,
+    {},
     segmentoSomenteItem
-  ).map((item) =>
-    item.tipo === "servico" && prazoLinhaServico
-      ? { ...item, notasAbaixo: [prazoLinhaServico] }
-      : item
   );
+
+  itens = anexarPrazosServicoPorTrabalho(
+    itens,
+    grupo,
+    (status) => STATUS_TRABALHO[status]?.label || status
+  );
+
+  const prazoLinhaServico =
+    segmentoSomenteItem && segmentoSomenteItem !== "servico"
+      ? ""
+      : itens.find((item) => item.tipo === "servico")?.notasAbaixo?.[0] || "";
   const materiais = lineValue(linhas, "Material enviado:") || empty(t.material);
   const caixa = lineValue(linhas, "Caixa:");
   const dentistaNome =

@@ -316,7 +316,12 @@ function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
 
     const notasPrazo =
       item.notasAbaixo?.filter(Boolean) ||
-      (ehServico && servicoIndex === 0 && data.prazoLinhaServico ? [data.prazoLinhaServico] : []);
+      (ehServico &&
+      servicoIndex === 0 &&
+      data.prazoLinhaServico &&
+      !data.itens.some((i) => i.notasAbaixo?.length)
+        ? [data.prazoLinhaServico]
+        : []);
     if (ehServico) servicoIndex += 1;
 
     if (notasPrazo.length) {

@@ -1,9 +1,11 @@
+import { parseEtapasInstrucoes } from "@/lib/etapas-os";
 import {
   classificarItemOs,
   itemExibeBadgeProduto,
   itemExibeBadgeTransporte,
   itemUsaCamposOdontologicos,
   nomeExibicaoItemOs,
+  segmentoEfetivoTrabalho,
   type ItemOsLinha,
   type SegmentoFaturamento,
 } from "@/lib/trabalho-os-segmento";
@@ -182,6 +184,112 @@ function anexarPrazosServico(itens: ItemImpressaoOs[], ctx: ContextoPrazosImpres
   });
 }
 
+function lineValueInstrucoes(linhas: string[], prefix: string) {
+  return linhas.find((line) => line.startsWith(prefix))?.replace(prefix, "").trim() || "";
+}
+
+/** Contexto de prazo/etapa a partir das instruções de um único trabalho (serviço). */
+export function ctxPrazosDeInstrucoesTrabalho(
+  instrucoes: string | null | undefined,
+  opts: {
+    status: string;
+    statusLabel: string;
+    dataPrevista?: string;
+    dataEntrega?: string;
+    dataEntrada?: string;
+  }
+): ContextoPrazosImpressao {
+  const texto = instrucoes || "";
+  const linhas = texto
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const etapas = parseEtapasInstrucoes(texto);
+  const etapaCorrente =
+    etapas.filter((etapa) => etapa.nome.trim()).at(-1) ?? etapas.at(-1);
+
+  return {
+    status: opts.status,
+    statusLabel: opts.statusLabel,
+    etapaAtual: etapaCorrente?.nome.trim() || undefined,
+    etapaPrazo: extrairDataPrazoBr(etapaCorrente?.prazo),
+    dataPrevista: opts.dataPrevista,
+    dataEntrega: opts.dataEntrega,
+    dataEntrada: opts.dataEntrada,
+    prazoLaboratorio: extrairDataPrazoBr(lineValueInstrucoes(linhas, "Data laboratório:")),
+    prazoDentista: extrairDataPrazoBr(lineValueInstrucoes(linhas, "Data dentista:")),
+    textoInstrucoes: texto,
+  };
+}
+
+export type TrabalhoPrazoImpressao = {
+  tipoProtese?: string | null;
+  instrucoes?: string | null;
+  status: string;
+  dataPrevista?: Date | string | null;
+  dataEntrega?: Date | string | null;
+  dataEntrada?: Date | string | null;
+  segmentoFaturamento?: string | null;
+};
+
+function normalizarNomeServicoImpressao(nome: string) {
+  return nome.trim().toLowerCase();
+}
+
+function trabalhoServicoParaItem(
+  item: ItemImpressaoOs,
+  trabalhos: TrabalhoPrazoImpressao[]
+): TrabalhoPrazoImpressao | undefined {
+  const alvo = normalizarNomeServicoImpressao(item.descricao);
+  const servicos = trabalhos.filter((t) => segmentoEfetivoTrabalho(t) === "servico");
+  const exato = servicos.find(
+    (t) => normalizarNomeServicoImpressao(t.tipoProtese || "") === alvo
+  );
+  if (exato) return exato;
+
+  const linhaItem = servicos.find((t) => {
+    const linhas = (t.instrucoes || "").split("\n");
+    return linhas.some((line) => {
+      const match = line.match(/^Item adicionado:\s*(.*?)\s*-\s*dentes/i);
+      const nome = (match?.[1]?.trim() || t.tipoProtese || "").trim();
+      return normalizarNomeServicoImpressao(nomeExibicaoItemOs({ servico: nome })) === alvo;
+    });
+  });
+  return linhaItem;
+}
+
+/** Cada linha de serviço na requisição usa a etapa/prazo do trabalho correspondente no grupo. */
+export function anexarPrazosServicoPorTrabalho(
+  itens: ItemImpressaoOs[],
+  trabalhos: TrabalhoPrazoImpressao[],
+  statusLabel: (status: string) => string
+): ItemImpressaoOs[] {
+  return itens.map((item) => {
+    if (item.tipo !== "servico") return item;
+    const trabalho = trabalhoServicoParaItem(item, trabalhos);
+    if (!trabalho) return item;
+
+    const formatarData = (value?: Date | string | null) => {
+      if (!value) return "";
+      const iso = value instanceof Date ? value.toISOString() : String(value);
+      const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (match) return `${match[3]}/${match[2]}/${match[1]}`;
+      const br = iso.match(/\d{2}\/\d{2}\/\d{4}/);
+      return br ? br[0] : "";
+    };
+
+    const ctx = ctxPrazosDeInstrucoesTrabalho(trabalho.instrucoes, {
+      status: trabalho.status,
+      statusLabel: statusLabel(trabalho.status),
+      dataPrevista: formatarData(trabalho.dataPrevista),
+      dataEntrega: formatarData(trabalho.dataEntrega),
+      dataEntrada: formatarData(trabalho.dataEntrada),
+    });
+    const linha = linhaPrazoImpressaoOs(ctx);
+    return linha ? { ...item, notasAbaixo: [linha] } : { ...item, notasAbaixo: undefined };
+  });
+}
+
 export function filtrarItensImpressaoPorSegmento(
   itens: ItemImpressaoOs[],
   segmento: SegmentoFaturamento
@@ -240,7 +348,10 @@ export function extrairItensImpressaoOs(
     }
   }
 
-  return anexarPrazosServico(resultado, ctxPrazos);
+  if (ctxPrazos.etapaAtual || ctxPrazos.etapaPrazo || ctxPrazos.textoInstrucoes) {
+    return anexarPrazosServico(resultado, ctxPrazos);
+  }
+  return resultado;
 }
 
 /** Indica se há item com urgente e/ou repetição nas instruções (opcionalmente por segmento). */
