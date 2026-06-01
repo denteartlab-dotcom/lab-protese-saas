@@ -27,20 +27,27 @@ import {
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { ImprimirOsModal } from "@/components/ImprimirOsModal";
 import {
+  buscarRegistroGrupoSegmento,
   classificarItemOs,
+  dividirItensPorSegmento,
   editIdPreferidoGrupo,
-  filtrarItensPorSegmentoTrabalho,
+  deveDividirOs,
   formatarDescontoItemOs,
   grupoOsTemMultiplosSegmentos,
   itemExibeBadgeProduto,
   itemExibeBadgeTransporte,
   itemUsaCamposOdontologicos,
   nomeExibicaoItemOs,
+  ORDEM_SALVAR_SEGMENTOS_OS,
   situacaoExibicaoTrabalho,
+  tituloSegmentoOs,
   deveExibirTrabalhoNoControleProducao,
   expandirControleProducaoComServicoDoGrupo,
   trabalhosDoMesmoGrupoOsId,
+  type RegistroGrupoOs,
+  type SegmentoFaturamento,
 } from "@/lib/trabalho-os-segmento";
+import { bodyTrabalhoSemNull } from "@/lib/trabalho-api-body";
 import { ConfiguracaoListaGear } from "@/components/listagem/ConfiguracaoListaGear";
 import { Button, CampoDataBr, Input, Select, Textarea } from "@/components/ui";
 import { parseCurrencyBr } from "@/lib/cliente-financeiro";
@@ -60,6 +67,7 @@ import {
   carregarEtapasCadastro,
   colaboradoresParaExibicaoControle,
   parseComplementosInstrucoesGrupo,
+  removerComplementosOsDoCorpo,
   resumoColaboradorControle,
 } from "@/lib/etapas-os";
 import {
@@ -161,9 +169,91 @@ type ProdutoCadastro = { id: string; nome: string; valor: number };
 type ProdutoOsEdicao = {
   produtoId: string;
   quantidade: string;
+  valorUnitario: string;
   valor: string;
   observacao: string;
 };
+
+function valorUnitarioProdutoOs(produtoOs: ProdutoOsEdicao) {
+  return parseCurrencyBr(produtoOs.valorUnitario || produtoOs.valor || "R$ 0,00");
+}
+
+function valorTotalLinhaProdutoOs(produtoOs: ProdutoOsEdicao) {
+  const qtd = Number(produtoOs.quantidade || 1) || 1;
+  return valorUnitarioProdutoOs(produtoOs) * qtd;
+}
+
+function produtoOsVazio(): ProdutoOsEdicao {
+  return {
+    produtoId: "",
+    quantidade: "1",
+    valorUnitario: "R$ 0,00",
+    valor: "R$ 0,00",
+    observacao: "",
+  };
+}
+
+function atualizarProdutoOsQuantidade(item: ProdutoOsEdicao, quantidade: string): ProdutoOsEdicao {
+  const qtd = Number(quantidade) || 1;
+  return {
+    ...item,
+    quantidade,
+    valor: formatCurrency(valorUnitarioProdutoOs(item) * qtd),
+  };
+}
+
+function atualizarProdutoOsSelecao(
+  item: ProdutoOsEdicao,
+  produto: ProdutoCadastro | undefined,
+  produtoId: string
+): ProdutoOsEdicao {
+  const qtd = Number(item.quantidade || 1) || 1;
+  const unit = produto?.valor ?? valorUnitarioProdutoOs(item);
+  const valorUnitario = formatCurrency(unit);
+  return {
+    ...item,
+    produtoId,
+    valorUnitario,
+    valor: formatCurrency(unit * qtd),
+    observacao: produto?.nome || item.observacao,
+  };
+}
+
+function atualizarProdutoOsValorTotal(item: ProdutoOsEdicao, totalStr: string): ProdutoOsEdicao {
+  const qtd = Number(item.quantidade || 1) || 1;
+  const total = parseCurrencyBr(formatCurrencyInputControle(totalStr));
+  return {
+    ...item,
+    valor: formatCurrency(total),
+    valorUnitario: formatCurrency(total / qtd),
+  };
+}
+
+function escalaOsParaSalvarControle(itens: EditItem[]) {
+  const itemServico = itens.find((item) => classificarItemOs(item) === "servico");
+  return itemServico?.categoria?.trim() || "";
+}
+
+function valorItensControle(itens: EditItem[]) {
+  return itens.reduce(
+    (sum, item) => sum + valorComDescontoControle(item.valor, item.descontoTipo, item.desconto),
+    0
+  );
+}
+
+function montarInstrucoesSegmentoControle(
+  itens: EditItem[],
+  corpoSemEtapas: string,
+  linhasEtapas: string,
+  segmento: SegmentoFaturamento
+) {
+  const corpo =
+    segmento === "servico"
+      ? [corpoSemEtapas, linhasEtapas].filter(Boolean).join("\n")
+      : removerComplementosOsDoCorpo(corpoSemEtapas);
+  const linhas = itens.map(formatarLinhaItemEdicao).join("\n");
+  return [corpo, linhas].filter(Boolean).join("\n");
+}
 
 type EditItem = {
   id: string;
@@ -586,6 +676,7 @@ export default function ControlePage() {
   const [adicionandoServico, setAdicionandoServico] = useState(false);
   const [produtosCadastro, setProdutosCadastro] = useState<ProdutoCadastro[]>([]);
   const [produtosOs, setProdutosOs] = useState<ProdutoOsEdicao[]>([]);
+  const [grupoOsRegistros, setGrupoOsRegistros] = useState<RegistroGrupoOs[]>([]);
   const [etapasEdicao, setEtapasEdicao] = useState<EtapaOsFormLinha[]>([]);
   const [categoriasTabelaPreco, setCategoriasTabelaPreco] = useState<CategoriaTabelaPrecoOs[]>([]);
   const [lancamentosFatura, setLancamentosFatura] = useState<LancamentoFaturaOs[]>([]);
@@ -761,8 +852,7 @@ export default function ControlePage() {
     if (!form) return 0;
     const usandoCamposProduto = painelEdicaoItem === "produto" || abaServicoEdicao === "produtos";
     if (usandoCamposProduto && produtosOs[0]) {
-      const qtd = Number(produtosOs[0].quantidade || 1) || 1;
-      return parseCurrencyBr(produtosOs[0].valor) * qtd;
+      return valorTotalLinhaProdutoOs(produtosOs[0]);
     }
     const subtotal =
       parseCurrencyBr(form.valor) * (Number(form.quantidade || 1) || 1);
@@ -900,6 +990,7 @@ export default function ControlePage() {
     setEditando(null);
     setForm(null);
     setEditItems([]);
+    setGrupoOsRegistros([]);
     setItemSelecionadoId(null);
     setAbaServicoEdicao("etapas");
     setPainelEdicaoItem("servico");
@@ -965,7 +1056,15 @@ export default function ControlePage() {
   function abrirEdicao(trabalho: Trabalho) {
     const idAlvo = editIdTrabalho(trabalho);
     const alvo = trabalhos.find((item) => item.id === idAlvo) || trabalho;
-    const itens = filtrarItensPorSegmentoTrabalho(parseItens(alvo), alvo);
+    const grupo = trabalhosDoMesmoGrupoOsId(alvo, trabalhos);
+    const itens = grupo.flatMap((t) => parseItens(t));
+    setGrupoOsRegistros(
+      grupo.map((item) => ({
+        id: item.id,
+        segmentoFaturamento: (item.segmentoFaturamento || "servico") as SegmentoFaturamento,
+        instrucoes: item.instrucoes,
+      }))
+    );
     const dentesIniciais = dentesFromResumoControle(alvo.dentes || "");
     const denticaoInicial = tipoDenticaoFromDentesControle(dentesIniciais);
     setEditando(alvo);
@@ -1002,14 +1101,15 @@ export default function ControlePage() {
         {
           produtoId: produto?.id || item.produtoId || "",
           quantidade: item.quantidade || "1",
-          valor: formatCurrency(unitario || 0),
+          valorUnitario: formatCurrency(unitario || 0),
+          valor: formatCurrency(item.valor),
           observacao: item.observacao || nomeProduto,
         },
       ]);
       setForm((atual) => ({
         ...(atual || formVazioEdicao(editando!)),
         quantidade: item.quantidade || "1",
-        valor: formatCurrency(unitario || 0),
+        valor: formatCurrency(item.valor),
         urgente: Boolean(item.urgente),
         repeticao: Boolean(item.repeticao),
         observacaoServico: "",
@@ -1072,14 +1172,13 @@ export default function ControlePage() {
       const produto = produtosCadastro.find((p) => p.id === produtoOs.produtoId);
       const nome = produto?.nome || produtoOs.observacao?.trim() || "Produto";
       const quantidade = produtoOs.quantidade || "1";
-      const valorUnit = parseCurrencyBr(produtoOs.valor || "R$ 0,00");
       return {
         ...base,
         servico: `Produto: ${nome}`,
         numeroDente: "-",
         corDente: "-",
         quantidade,
-        valor: valorUnit * (Number(quantidade) || 1),
+        valor: valorTotalLinhaProdutoOs(produtoOs),
         produtoId: produtoOs.produtoId || undefined,
         observacao: produtoOs.observacao,
         urgente: form.urgente,
@@ -1139,14 +1238,13 @@ export default function ControlePage() {
     const produto = produtosCadastro.find((p) => p.id === produtoOs.produtoId);
     const nome = produto?.nome || produtoOs.observacao?.trim() || "Produto";
     const quantidade = produtoOs.quantidade || "1";
-    const valor = parseCurrencyBr(produtoOs.valor || "R$ 0,00") * (Number(quantidade) || 1);
     return {
       id: `${Date.now()}`,
       servico: `Produto: ${nome}`,
       numeroDente: "-",
       corDente: "-",
       quantidade,
-      valor,
+      valor: valorTotalLinhaProdutoOs(produtoOs),
       produtoId: produtoOs.produtoId || undefined,
       observacao: produtoOs.observacao,
     };
@@ -1322,43 +1420,170 @@ export default function ControlePage() {
           : item
       );
     }
-    const primeiroItem = itensSalvar[0];
-    const itensInstrucoes = itensSalvar.map((item) => formatarLinhaItemEdicao(item)).join("\n");
+
+    const { servico: itensServico, produto: itensProduto, transporte: itensTransporte } =
+      dividirItensPorSegmento(itensSalvar);
+    const blocosSegmento = (
+      [
+        { segmento: "servico" as const, itens: itensServico },
+        { segmento: "produto" as const, itens: itensProduto },
+        { segmento: "transporte" as const, itens: itensTransporte },
+      ] as const
+    ).filter((bloco) => bloco.itens.length > 0);
+    const dividir = deveDividirOs(itensSalvar);
     const corpoSemEtapas = instrucoesCorpoSemEtapas(form.instrucoesCorpo);
     const linhasEtapas = etapasFormParaLinhasInstrucoes(etapasEdicao, {
       prazoGeral: form.dataLaboratorio,
       quantidadeDentes: dentesEdicao.length || 1,
     });
-    const valorTotal = itensSalvar.reduce(
-      (sum, item) => sum + valorComDescontoControle(item.valor, item.descontoTipo, item.desconto),
-      0
-    );
+    const dataPrevistaIso = brShortToIso(form.dataLaboratorio) || form.dataPrevista || null;
 
-    await fetch(`/api/trabalhos/${editando.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        tipoProtese: primeiroItem?.servico || form.tipoProtese,
-        dentes: primeiroItem?.numeroDente || form.dentes,
-        cor: primeiroItem?.corDente || form.cor,
-        material: form.material,
-        status: form.status,
-        valor: valorTotal || parseCurrencyBr(form.valor || "R$ 0,00"),
-        dataPrevista: brShortToIso(form.dataLaboratorio) || form.dataPrevista || null,
-        observacoes: form.observacoes,
-        instrucoes: [corpoSemEtapas, linhasEtapas, itensInstrucoes].filter(Boolean).join("\n"),
-      }),
+    const payloadPutCompartilhado = {
+      dentes: form.dentes || null,
+      cor: form.escalaCor || form.cor || null,
+      material: form.material || null,
+      status: form.status,
+      dataPrevista: dataPrevistaIso,
+      observacoes: form.observacoes ?? null,
+    };
+
+    const payloadPostCompartilhado = bodyTrabalhoSemNull({
+      status: form.status,
+      ...(form.dentes ? { dentes: form.dentes } : {}),
+      ...((form.escalaCor || form.cor) ? { cor: form.escalaCor || form.cor } : {}),
+      ...(form.material ? { material: form.material } : {}),
+      ...(dataPrevistaIso ? { dataPrevista: dataPrevistaIso } : {}),
+      ...(form.observacoes ? { observacoes: form.observacoes } : {}),
     });
 
+    async function salvarSegmentoExistente(
+      id: string,
+      segmento: SegmentoFaturamento,
+      itens: EditItem[],
+      opts?: { segmentoFaturamento?: SegmentoFaturamento }
+    ) {
+      return fetch(`/api/trabalhos/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...payloadPutCompartilhado,
+          ...(opts?.segmentoFaturamento
+            ? { segmentoFaturamento: opts.segmentoFaturamento }
+            : {}),
+          escala: escalaOsParaSalvarControle(itens) || null,
+          tipoProtese: tituloSegmentoOs(itens, segmento, form!.tipoProtese),
+          valor: valorItensControle(itens),
+          instrucoes:
+            montarInstrucoesSegmentoControle(
+              itens,
+              corpoSemEtapas,
+              linhasEtapas,
+              segmento
+            ) || null,
+        }),
+      });
+    }
+
+    const registros =
+      grupoOsRegistros.length > 0
+        ? grupoOsRegistros
+        : [
+            {
+              id: editando.id,
+              segmentoFaturamento: (editando.segmentoFaturamento ||
+                "servico") as SegmentoFaturamento,
+              instrucoes: editando.instrucoes,
+            },
+          ];
+
+    const respostas: Response[] = [];
+
+    if (dividir) {
+      let pacienteAtual: {
+        clienteId: string;
+        pacienteId: string;
+        numeroOs: number;
+        grupoOsId?: string | null;
+        id: string;
+        dataEntrada: string;
+      } | null = null;
+
+      const idsUsados = new Set<string>();
+
+      for (const segmento of ORDEM_SALVAR_SEGMENTOS_OS) {
+        const bloco = blocosSegmento.find((b) => b.segmento === segmento);
+        if (!bloco || bloco.itens.length === 0) continue;
+
+        const { reg, migrarSegmento } = buscarRegistroGrupoSegmento(
+          registros,
+          segmento,
+          idsUsados
+        );
+
+        if (reg) {
+          idsUsados.add(reg.id);
+          respostas.push(
+            await salvarSegmentoExistente(reg.id, segmento, bloco.itens, {
+              segmentoFaturamento: migrarSegmento,
+            })
+          );
+          continue;
+        }
+
+        if (!pacienteAtual) {
+          pacienteAtual = await fetch(`/api/trabalhos/${editando.id}`).then((r) => r.json());
+        }
+        respostas.push(
+          await fetch("/api/trabalhos", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(
+              bodyTrabalhoSemNull({
+                ...payloadPostCompartilhado,
+                clienteId: pacienteAtual!.clienteId,
+                pacienteId: pacienteAtual!.pacienteId,
+                numeroOs: pacienteAtual!.numeroOs,
+                grupoOsId: pacienteAtual!.grupoOsId || pacienteAtual!.id,
+                segmentoFaturamento: segmento,
+                tipoProtese: tituloSegmentoOs(bloco.itens, segmento, form.tipoProtese),
+                dataEntrada: new Date(pacienteAtual!.dataEntrada).toISOString().slice(0, 10),
+                escala: escalaOsParaSalvarControle(bloco.itens) || undefined,
+                valor: valorItensControle(bloco.itens),
+                instrucoes: montarInstrucoesSegmentoControle(
+                  bloco.itens,
+                  corpoSemEtapas,
+                  linhasEtapas,
+                  segmento
+                ),
+              })
+            ),
+          })
+        );
+      }
+    } else {
+      const blocoUnico = blocosSegmento[0];
+      const segmentoUnico = blocoUnico?.segmento ?? "servico";
+      const { reg } = buscarRegistroGrupoSegmento(registros, segmentoUnico, new Set());
+      const alvo = reg || registros[0];
+      const itensUnicos = blocoUnico?.itens ?? itensSalvar;
+      if (alvo) {
+        respostas.push(await salvarSegmentoExistente(alvo.id, segmentoUnico, itensUnicos));
+      }
+    }
+
+    const falha = respostas.find((res) => !res.ok);
+    if (falha) {
+      alert("Não foi possível salvar a OS. Verifique os dados e tente novamente.");
+      return;
+    }
+
+    notificarTrabalhosAtualizados({ trabalhoId: editando.id });
     fecharEdicaoOs();
     load();
   }
 
   function adicionarLinhaProdutoEdicao() {
-    setProdutosOs((atuais) => [
-      ...atuais,
-      { produtoId: "", quantidade: "1", valor: "R$ 0,00", observacao: "" },
-    ]);
+    setProdutosOs((atuais) => [...atuais, produtoOsVazio()]);
   }
 
   function removerItemEdicao(id: string) {
@@ -2437,7 +2662,7 @@ export default function ControlePage() {
                             setAbaServicoEdicao("produtos");
                             if (produtosOs.length === 0) {
                               setProdutosOs([
-                                { produtoId: "", quantidade: "1", valor: "R$ 0,00", observacao: "" },
+                                produtoOsVazio(),
                               ]);
                             }
                           }}
@@ -2502,12 +2727,7 @@ export default function ControlePage() {
                                     setProdutosOs((atuais) =>
                                       atuais.map((item, i) =>
                                         i === index
-                                          ? {
-                                              ...item,
-                                              produtoId: e.target.value,
-                                              valor: formatCurrency(produto?.valor ?? parseCurrencyBr(item.valor)),
-                                              observacao: produto?.nome || item.observacao,
-                                            }
+                                          ? atualizarProdutoOsSelecao(item, produto, e.target.value)
                                           : item
                                       )
                                     );
@@ -2528,7 +2748,9 @@ export default function ControlePage() {
                                   onChange={(e) =>
                                     setProdutosOs((atuais) =>
                                       atuais.map((item, i) =>
-                                        i === index ? { ...item, quantidade: e.target.value } : item
+                                        i === index
+                                          ? atualizarProdutoOsQuantidade(item, e.target.value)
+                                          : item
                                       )
                                     )
                                   }
@@ -2541,7 +2763,7 @@ export default function ControlePage() {
                                     setProdutosOs((atuais) =>
                                       atuais.map((item, i) =>
                                         i === index
-                                          ? { ...item, valor: formatCurrencyInputControle(e.target.value) }
+                                          ? atualizarProdutoOsValorTotal(item, e.target.value)
                                           : item
                                       )
                                     )
@@ -2620,12 +2842,7 @@ export default function ControlePage() {
                               setProdutosOs((atuais) =>
                                 atuais.map((item, i) =>
                                   i === index
-                                    ? {
-                                        ...item,
-                                        produtoId: e.target.value,
-                                        valor: formatCurrency(produto?.valor ?? parseCurrencyBr(item.valor)),
-                                        observacao: produto?.nome || item.observacao,
-                                      }
+                                    ? atualizarProdutoOsSelecao(item, produto, e.target.value)
                                     : item
                                 )
                               );
@@ -2646,7 +2863,9 @@ export default function ControlePage() {
                             onChange={(e) =>
                               setProdutosOs((atuais) =>
                                 atuais.map((item, i) =>
-                                  i === index ? { ...item, quantidade: e.target.value } : item
+                                  i === index
+                                    ? atualizarProdutoOsQuantidade(item, e.target.value)
+                                    : item
                                 )
                               )
                             }
@@ -2659,7 +2878,7 @@ export default function ControlePage() {
                               setProdutosOs((atuais) =>
                                 atuais.map((item, i) =>
                                   i === index
-                                    ? { ...item, valor: formatCurrencyInputControle(e.target.value) }
+                                    ? atualizarProdutoOsValorTotal(item, e.target.value)
                                     : item
                                 )
                               )
