@@ -20,6 +20,7 @@ type Etapa = {
   id: string;
   nome: string;
   setor: string;
+  /** Cor hex da etapa; vazio/null indica "Sem Fundo". */
   cor: string;
   tempoMedio: string;
   calculoPorElemento: string;
@@ -68,7 +69,10 @@ function normalizarEtapa(etapa: Etapa, setores: Setor[]): Etapa {
   return {
     ...etapa,
     prazoDias: etapa.prazoDias ?? "",
-    cor: corFundoEtapa(etapa, setor?.cor),
+    // Mantém vazio para etapas salvas como "Sem Fundo"
+    cor: etapa.cor?.trim()
+      ? etapa.cor
+      : corFundoEtapa({ id: etapa.id, nome: etapa.nome, cor: "", setor: etapa.setor }, setor?.cor),
   };
 }
 
@@ -158,7 +162,11 @@ export default function EtapasPage() {
   }
 
   function corDaEtapa(etapa: Etapa) {
-    return corFundoEtapa(etapa, setorInfo(etapa.setor).cor);
+    if (!etapa.cor?.trim()) return "#ffffff";
+    return corFundoEtapa(
+      { id: etapa.id, nome: etapa.nome, cor: etapa.cor, setor: etapa.setor },
+      setorInfo(etapa.setor).cor
+    );
   }
 
   function abrirNovo() {
@@ -172,7 +180,7 @@ export default function EtapasPage() {
     setForm({
       nome: etapa.nome,
       setor: etapa.setor,
-      cor: corDaEtapa(etapa),
+      cor: etapa.cor || "",
       tempoMedio: etapa.tempoMedio,
       calculoPorElemento: etapa.calculoPorElemento,
       prazoDias: etapa.prazoDias || "",
@@ -199,7 +207,8 @@ export default function EtapasPage() {
           id: crypto.randomUUID(),
           ...form,
           nome: form.nome.trim(),
-          cor: form.cor,
+          // Se marcado "Sem Fundo", salva vazio
+          cor: form.cor === "__sem_fundo__" ? "" : form.cor,
         },
       ]);
     }
@@ -486,20 +495,33 @@ export default function EtapasPage() {
                   </option>
                 ))}
               </select>
-              <span
-                className="inline-flex h-10 w-16 rounded-lg border border-slate-200"
-                style={{ backgroundColor: form.setor ? setorInfo(form.setor).cor : "#ffffff" }}
-                title={form.setor ? `Cor do setor ${form.setor}` : "Selecione um setor"}
-              />
             </div>
           </div>
-          <Input
-            label="Tempo Médio Execução Minutos"
-            type="number"
-            min="0"
-            value={form.tempoMedio}
-            onChange={(event) => setForm({ ...form, tempoMedio: event.target.value })}
-          />
+          <div className="grid grid-cols-[1fr_auto] items-end gap-2">
+            <Input
+              label="Tempo Médio Execução Minutos"
+              type="number"
+              min="0"
+              value={form.tempoMedio}
+              onChange={(event) => setForm({ ...form, tempoMedio: event.target.value })}
+            />
+            <button
+              type="button"
+              onClick={() =>
+                setForm((current) => ({
+                  ...current,
+                  cor: current.cor === "__sem_fundo__" ? COR_ETAPA_PADRAO : "__sem_fundo__",
+                }))
+              }
+              className={`mb-0.5 h-9 rounded border px-3 text-[11px] font-semibold ${
+                form.cor === "__sem_fundo__"
+                  ? "border-slate-400 bg-slate-100 text-slate-700"
+                  : "border-slate-300 bg-white text-slate-500"
+              }`}
+            >
+              {form.cor === "__sem_fundo__" ? "Sem Fundo (ativo)" : "Sem Fundo"}
+            </button>
+          </div>
           <Input
             label="Prazo em dias"
             type="number"

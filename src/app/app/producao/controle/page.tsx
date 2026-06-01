@@ -1132,29 +1132,76 @@ export default function ControlePage() {
     );
   }
 
+  function novoItemProdutoEdicao(): EditItem | null {
+    const produtoOs = produtosOs[0];
+    if (!produtoOs?.produtoId && !produtoOs?.observacao?.trim()) return null;
+    const produto = produtosCadastro.find((p) => p.id === produtoOs.produtoId);
+    const nome = produto?.nome || produtoOs.observacao?.trim() || "Produto";
+    const quantidade = produtoOs.quantidade || "1";
+    const valor = (Number(produtoOs.valor || 0) || 0) * (Number(quantidade) || 1);
+    return {
+      id: `${Date.now()}`,
+      servico: `Produto: ${nome}`,
+      numeroDente: "-",
+      corDente: "-",
+      quantidade,
+      valor,
+      produtoId: produtoOs.produtoId || undefined,
+      observacao: produtoOs.observacao,
+    };
+  }
+
+  function novoItemTransporteEdicao(): EditItem | null {
+    if (!form || !form.tipoProtese.trim()) return null;
+    const quantidade = form.quantidade || "1";
+    const nome = /^(transporte|frete)\s*:/i.test(form.tipoProtese.trim())
+      ? form.tipoProtese.trim()
+      : `Transporte: ${form.tipoProtese.trim()}`;
+    return {
+      id: `${Date.now()}`,
+      servico: nome,
+      numeroDente: "-",
+      corDente: "-",
+      quantidade,
+      valor: (Number(form.valor || 0) || 0) * (Number(quantidade) || 1),
+    };
+  }
+
   function confirmarEdicaoItem() {
     if (osFaturada) return;
     if (itemSelecionadoId) {
+      const itemSelecionado = editItems.find((item) => item.id === itemSelecionadoId);
+      const selecionadoEhServico = itemSelecionado
+        ? classificarItemOs(itemSelecionado) === "servico"
+        : false;
+
+      // Fluxo pedido: com serviço selecionado, lançar produto cria NOVO item.
+      if (selecionadoEhServico && abaServicoEdicao === "produtos") {
+        const novoProduto = novoItemProdutoEdicao();
+        if (!novoProduto) return;
+        setEditItems((atuais) => [...atuais, novoProduto]);
+        selecionarItemEdicao(novoProduto);
+        return;
+      }
+
+      // Fluxo pedido: com serviço selecionado, lançar transporte cria NOVO item.
+      const transporteNoFormulario =
+        painelEdicaoItem === "transporte" ||
+        (form ? /^(transporte|frete)\s*:/i.test(form.tipoProtese.trim()) : false);
+      if (selecionadoEhServico && transporteNoFormulario) {
+        const novoTransporte = novoItemTransporteEdicao();
+        if (!novoTransporte) return;
+        setEditItems((atuais) => [...atuais, novoTransporte]);
+        selecionarItemEdicao(novoTransporte);
+        return;
+      }
+
       aplicarFormularioAoItemSelecionado();
       return;
     }
     if (adicionandoServico && painelEdicaoItem === "servico" && abaServicoEdicao === "produtos") {
-      const produtoOs = produtosOs[0];
-      if (!produtoOs?.produtoId && !produtoOs?.observacao?.trim()) return;
-      const produto = produtosCadastro.find((p) => p.id === produtoOs.produtoId);
-      const nome = produto?.nome || produtoOs.observacao?.trim() || "Produto";
-      const quantidade = produtoOs.quantidade || "1";
-      const valor = (Number(produtoOs.valor || 0) || 0) * (Number(quantidade) || 1);
-      const novo: EditItem = {
-        id: `${Date.now()}`,
-        servico: `Produto: ${nome}`,
-        numeroDente: "-",
-        corDente: "-",
-        quantidade,
-        valor,
-        produtoId: produtoOs.produtoId || undefined,
-        observacao: produtoOs.observacao,
-      };
+      const novo = novoItemProdutoEdicao();
+      if (!novo) return;
       setEditItems((atuais) => [...atuais, novo]);
       setAdicionandoServico(false);
       setProdutosOs([]);
@@ -1186,40 +1233,15 @@ export default function ControlePage() {
       return;
     }
     if (painelEdicaoItem === "produto") {
-      const produtoOs = produtosOs[0];
-      if (!produtoOs?.produtoId && !produtoOs?.observacao?.trim()) return;
-      const produto = produtosCadastro.find((p) => p.id === produtoOs.produtoId);
-      const nome = produto?.nome || produtoOs.observacao?.trim() || "Produto";
-      const quantidade = produtoOs.quantidade || "1";
-      const valor = (Number(produtoOs.valor || 0) || 0) * (Number(quantidade) || 1);
-      const novo: EditItem = {
-        id: `${Date.now()}`,
-        servico: `Produto: ${nome}`,
-        numeroDente: "-",
-        corDente: "-",
-        quantidade,
-        valor,
-        produtoId: produtoOs.produtoId || undefined,
-        observacao: produtoOs.observacao,
-      };
+      const novo = novoItemProdutoEdicao();
+      if (!novo) return;
       setEditItems((atuais) => [...atuais, novo]);
       selecionarItemEdicao(novo);
       return;
     }
     if (painelEdicaoItem === "transporte") {
-      if (!form.tipoProtese.trim()) return;
-      const quantidade = form.quantidade || "1";
-      const nome = /^(transporte|frete)\s*:/i.test(form.tipoProtese.trim())
-        ? form.tipoProtese.trim()
-        : `Transporte: ${form.tipoProtese.trim()}`;
-      const novo: EditItem = {
-        id: `${Date.now()}`,
-        servico: nome,
-        numeroDente: "-",
-        corDente: "-",
-        quantidade,
-        valor: (Number(form.valor || 0) || 0) * (Number(quantidade) || 1),
-      };
+      const novo = novoItemTransporteEdicao();
+      if (!novo) return;
       setEditItems((atuais) => [...atuais, novo]);
       selecionarItemEdicao(novo);
     }
