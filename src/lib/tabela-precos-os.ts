@@ -42,6 +42,19 @@ export type EtapaOsLinhaVazia = {
   observacao: string;
 };
 
+export type EtapasFormParaItemServicoOpts = {
+  /** Ao salvar: só etapas com prazo, responsável ou observação (não gera linhas vazias). */
+  somentePreenchidasNoForm?: boolean;
+};
+
+/** Etapa que o usuário de fato preencheu (não só nome sugerido pelo cadastro). */
+export function etapaOsTemConteudoParaSalvar(etapa: EtapaOsLinhaVazia) {
+  if (!etapa.nome.trim()) return false;
+  return Boolean(
+    etapa.prazo.trim() || etapa.responsavel.trim() || etapa.observacao.trim()
+  );
+}
+
 export type CategoriaTabelaPrecoOs = {
   id: string;
   nome: string;
@@ -144,18 +157,27 @@ export function etapasFormParaItemServico(
   nomeServico: string,
   etapasForm: EtapaOsLinhaVazia[],
   categorias: CategoriaTabelaPrecoOs[],
-  todosCadastro: EtapaCadastro[]
+  todosCadastro: EtapaCadastro[],
+  opts?: EtapasFormParaItemServicoOpts
 ): EtapaOsLinhaVazia[] {
   const servico = buscarServicoNaTabela(categorias, nomeServico);
   const permitidos = new Set(
     nomesEtapasParaOsServico(servico, todosCadastro).map((n) => normalizarTextoTabela(n))
   );
+  let filtradas: EtapaOsLinhaVazia[] = [];
   if (permitidos.size > 0) {
-    const filtradas = etapasForm.filter(
+    filtradas = etapasForm.filter(
       (e) => e.nome.trim() && permitidos.has(normalizarTextoTabela(e.nome))
     );
-    if (filtradas.length > 0) return filtradas;
+  } else if (!opts?.somentePreenchidasNoForm) {
+    filtradas = etapasForm.filter((e) => e.nome.trim());
   }
+
+  if (opts?.somentePreenchidasNoForm) {
+    return filtradas.filter(etapaOsTemConteudoParaSalvar);
+  }
+
+  if (filtradas.length > 0) return filtradas;
   if (servico) return linhasEtapasVaziasParaOs(servico, todosCadastro);
   return etapasForm;
 }

@@ -1050,7 +1050,8 @@ export default function ControlePage() {
       item.servico,
       etapasEdicao,
       categoriasTabelaPreco,
-      carregarEtapasCadastro()
+      carregarEtapasCadastro(),
+      { somentePreenchidasNoForm: true }
     );
     return etapasFormParaLinhasInstrucoes(filtradas, {
       prazoGeral: form?.dataLaboratorio,
@@ -1071,16 +1072,16 @@ export default function ControlePage() {
       ) || base;
     const complementos = parseComplementosInstrucoesGrupo([registro.instrucoes || ""]);
     const modelos = carregarEtapasCadastro();
-    const etapasForm = etapasOsLinhaParaForm(complementos.etapas);
-    const filtradas =
-      etapasForm.length > 0
-        ? etapasForm
-        : etapasFormParaItemServico(item.servico, [], categoriasTabelaPreco, modelos);
+    const etapasForm = etapasOsLinhaParaForm(complementos.etapas).filter((e) =>
+      e.nome.trim()
+    );
     setEtapasEdicao(
-      filtradas.map((etapa) => ({
-        ...etapa,
-        setor: modelos.find((m) => m.nome === etapa.nome)?.setor || etapa.setor || "",
-      }))
+      etapasForm.length > 0
+        ? etapasForm.map((etapa) => ({
+            ...etapa,
+            setor: modelos.find((m) => m.nome === etapa.nome)?.setor || etapa.setor || "",
+          }))
+        : [{ nome: "", setor: "", responsavel: "", prazo: "", observacao: "" }]
     );
   }
 

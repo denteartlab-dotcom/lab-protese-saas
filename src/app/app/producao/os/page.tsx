@@ -127,6 +127,14 @@ type TrabalhoEdicao = {
   cliente?: { observacoes?: string | null };
   paciente?: { nome?: string | null };
 };
+type EtapaOsItemServico = {
+  nome: string;
+  setor: string;
+  responsavel: string;
+  prazo: string;
+  observacao: string;
+};
+
 type ItemAdicionado = {
   id: string;
   servico: string;
@@ -142,6 +150,8 @@ type ItemAdicionado = {
   observacao?: string;
   urgente?: boolean;
   repeticao?: boolean;
+  /** Etapas preenchidas para este serviço (uma OS com vários serviços). */
+  etapasServico?: EtapaOsItemServico[];
 };
 type CampoData = "dataLancamento" | "dataLaboratorio" | "dataDentista";
 type TipoDenticao = "permanente" | "deciduos";
@@ -1450,6 +1460,16 @@ export default function OrdemServicoPage() {
     }
 
     setProdutosOs([]);
+    setAbaServico("etapas");
+    const etapasDoItem = item.etapasServico?.length
+      ? item.etapasServico
+      : [{ nome: "", setor: "", responsavel: "", prazo: "", observacao: "" }];
+    setEtapas(
+      etapasDoItem.map((etapa) => ({
+        ...etapa,
+        setor: etapa.setor || modeloEtapa(etapa.nome)?.setor || "",
+      }))
+    );
   }
 
   function tipoItemAdicionado(item: ItemAdicionado) {
@@ -1525,6 +1545,7 @@ export default function OrdemServicoPage() {
       valor: parseCurrency(form.valor) * Number(form.quantidade || 1),
       ...descontoCampos,
       situacao: form.situacao,
+      etapasServico: capturarEtapasParaServico(nomeServico),
       ...flagsUrgencia,
     };
   }
@@ -1596,6 +1617,7 @@ export default function OrdemServicoPage() {
             valor: parseCurrency(form.valor) * Number(form.quantidade || 1),
             ...descontoCampos,
             situacao: form.situacao,
+            etapasServico: capturarEtapasParaServico(nomeServico),
             ...flagsUrgencia,
           }
         : null;
@@ -1709,11 +1731,42 @@ export default function OrdemServicoPage() {
     setTerceirizados((atuais) => [...atuais, { nome: "", servico: "", custo: "" }]);
   }
 
+  function capturarEtapasParaServico(nomeServico: string, etapasForm = etapas) {
+    return etapasFormParaItemServico(
+      nomeServico,
+      etapasForm,
+      categoriasTabelaPreco,
+      modelosEtapas,
+      { somentePreenchidasNoForm: true }
+    );
+  }
+
+  function anexarEtapasServicoAoItem(item: ItemAdicionado): ItemAdicionado {
+    if (tipoItemAdicionado(item) !== "servico") return item;
+    return {
+      ...item,
+      etapasServico: capturarEtapasParaServico(item.servico),
+    };
+  }
+
+  function prepararItensParaSalvarOs(itens: ItemAdicionado[]): ItemAdicionado[] {
+    const servicos = itens.filter((item) => tipoItemAdicionado(item) === "servico");
+    return itens.map((item) => {
+      if (tipoItemAdicionado(item) !== "servico") return item;
+      if (item.etapasServico !== undefined) return item;
+      if (servicos.length === 1 && servicos[0]?.id === item.id) {
+        return anexarEtapasServicoAoItem(item);
+      }
+      return { ...item, etapasServico: [] };
+    });
+  }
+
   function limparFormularioServicoAposAdicionar() {
     setTipoDenticao("permanente");
     setDentes([]);
     setProdutosOs([]);
     setAbaServico("etapas");
+    setEtapas([{ nome: "", setor: "", responsavel: "", prazo: "", observacao: "" }]);
     setForm((current) => ({
       ...current,
       produtoId: "",
@@ -2020,15 +2073,13 @@ export default function OrdemServicoPage() {
   }
 
   function linhasEtapasParaItemServico(item: ItemAdicionado) {
-    const filtradas = etapasFormParaItemServico(
-      item.servico,
-      etapas,
-      categoriasTabelaPreco,
-      modelosEtapas
-    );
+    const fonte =
+      item.etapasServico !== undefined
+        ? item.etapasServico
+        : capturarEtapasParaServico(item.servico);
     const prazoGeral = form.dataLaboratorio.trim();
     let lista = deduplicarEtapas(
-      filtradas.map((etapa, indice) => ({
+      fonte.map((etapa, indice) => ({
         indice,
         nome: etapa.nome,
         responsavel: etapa.responsavel,
@@ -2036,11 +2087,9 @@ export default function OrdemServicoPage() {
         observacao: etapa.observacao,
       }))
     );
-    if (prazoGeral && lista.length > 0) {
+    if (prazoGeral && lista.length === 1 && !lista[0]?.prazo.trim()) {
       const ultima = lista[lista.length - 1];
-      if (!ultima.prazo.trim()) {
-        lista = [...lista.slice(0, -1), { ...ultima, prazo: prazoGeral }];
-      }
+      lista = [{ ...ultima, prazo: prazoGeral }];
     }
     return lista
       .map((etapa) =>
@@ -2097,7 +2146,8 @@ export default function OrdemServicoPage() {
     const arquivosEnviados = await uploadArquivosSelecionados();
     const itensNaLista = itensComMarcadoresAtualizados();
     const itensExtrasForm = itensDoFormulario();
-    const itensParaSalvar = itensNaLista.length > 0 ? itensNaLista : itensExtrasForm;
+    let itensParaSalvar = itensNaLista.length > 0 ? itensNaLista : itensExtrasForm;
+    itensParaSalvar = prepararItensParaSalvarOs(itensParaSalvar);
 
     if (itensParaSalvar.length === 0) {
       setSalvando(false);
