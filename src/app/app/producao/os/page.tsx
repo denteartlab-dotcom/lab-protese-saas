@@ -111,6 +111,7 @@ type TrabalhoEdicao = {
   grupoOsId?: string | null;
   grupo?: TrabalhoEdicao[];
   clienteId: string;
+  pacienteId?: string;
   tipoProtese: string;
   dentes?: string | null;
   cor?: string | null;
@@ -320,6 +321,13 @@ export default function OrdemServicoPage() {
     }>
   >([]);
   const [salvando, setSalvando] = useState(false);
+  const [metaGrupoOsEdicao, setMetaGrupoOsEdicao] = useState<{
+    clienteId: string;
+    pacienteId: string;
+    numeroOs: number;
+    grupoOsId: string;
+    dataEntrada: string;
+  } | null>(null);
   const [imprimirOsAposSalvar, setImprimirOsAposSalvar] = useState<{
     trabalho: TrabalhoImpressaoOs;
     multiplosSegmentos: boolean;
@@ -720,6 +728,14 @@ export default function OrdemServicoPage() {
         }))
       );
 
+      setMetaGrupoOsEdicao({
+        clienteId: trabalho.clienteId,
+        pacienteId: trabalho.pacienteId || "",
+        numeroOs: trabalho.numeroOs,
+        grupoOsId: trabalho.grupoOsId || trabalho.id,
+        dataEntrada: trabalho.dataEntrada,
+      });
+
       setForm((current) => ({
         ...current,
         numeroOs: String(trabalho.numeroOs),
@@ -749,6 +765,7 @@ export default function OrdemServicoPage() {
     carregarEdicao();
     return () => {
       setGrupoOsRegistros([]);
+      setMetaGrupoOsEdicao(null);
       mounted = false;
     };
   }, [editId]);
@@ -2013,6 +2030,7 @@ export default function OrdemServicoPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (salvando) return;
     if (!form.clienteId || !form.pacienteNome.trim()) {
       alert("Selecione o cliente e informe o nome do paciente.");
       return;
@@ -2107,17 +2125,34 @@ export default function OrdemServicoPage() {
         : [{ id: editId, segmentoFaturamento: "servico" as SegmentoFaturamento }];
 
       if (dividir) {
-        let pacienteAtual: {
-          clienteId: string;
-          pacienteId: string;
-          numeroOs: number;
-          grupoOsId?: string | null;
-          id: string;
-          dataEntrada: string;
-        } | null = null;
-
         const idsUsados = new Set<string>();
-        const respostas: Response[] = [];
+        let meta = metaGrupoOsEdicao;
+
+        if (!meta?.pacienteId) {
+          const idsProbe = new Set<string>();
+          const precisaCriarSegmento = ORDEM_SALVAR_SEGMENTOS_OS.some((segmento) => {
+            const bloco = blocosSegmento.find((b) => b.segmento === segmento);
+            if (!bloco?.itens.length) return false;
+            const { reg } = buscarRegistroGrupoSegmento(registros, segmento, idsProbe);
+            if (reg) {
+              idsProbe.add(reg.id);
+              return false;
+            }
+            return true;
+          });
+          if (precisaCriarSegmento) {
+            const completo = await fetch(`/api/trabalhos/${editId}`).then((r) => r.json());
+            meta = {
+              clienteId: completo.clienteId,
+              pacienteId: completo.pacienteId,
+              numeroOs: completo.numeroOs,
+              grupoOsId: completo.grupoOsId || completo.id,
+              dataEntrada: completo.dataEntrada,
+            };
+          }
+        }
+
+        const promessas: Promise<Response>[] = [];
 
         for (const segmento of ORDEM_SALVAR_SEGMENTOS_OS) {
           const bloco = blocosSegmento.find((b) => b.segmento === segmento);
@@ -2131,31 +2166,30 @@ export default function OrdemServicoPage() {
 
           if (reg) {
             idsUsados.add(reg.id);
-            respostas.push(
-              await salvarSegmentoExistente(reg.id, segmento, bloco.itens, {
+            promessas.push(
+              salvarSegmentoExistente(reg.id, segmento, bloco.itens, {
                 segmentoFaturamento: migrarSegmento,
               })
             );
             continue;
           }
 
-          if (!pacienteAtual) {
-            pacienteAtual = await fetch(`/api/trabalhos/${editId}`).then((r) => r.json());
-          }
-          respostas.push(
-            await fetch("/api/trabalhos", {
+          if (!meta?.pacienteId) continue;
+
+          promessas.push(
+            fetch("/api/trabalhos", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(
                 bodyTrabalhoSemNull({
                   ...payloadPostCompartilhado,
-                  clienteId: pacienteAtual!.clienteId,
-                  pacienteId: pacienteAtual!.pacienteId,
-                  numeroOs: pacienteAtual!.numeroOs,
-                  grupoOsId: pacienteAtual!.grupoOsId || pacienteAtual!.id,
+                  clienteId: meta.clienteId,
+                  pacienteId: meta.pacienteId,
+                  numeroOs: meta.numeroOs,
+                  grupoOsId: meta.grupoOsId,
                   segmentoFaturamento: segmento,
                   tipoProtese: tituloSegmentoOs(bloco.itens, segmento, form.tipoProtese),
-                  dataEntrada: new Date(pacienteAtual!.dataEntrada).toISOString().slice(0, 10),
+                  dataEntrada: new Date(meta.dataEntrada).toISOString().slice(0, 10),
                   escala: escalaOsParaSalvar(bloco.itens) || undefined,
                   valor: valorItens(bloco.itens),
                   instrucoes: montarInstrucoesSegmento(bloco.itens, corpoComum, segmento),
@@ -2165,6 +2199,7 @@ export default function OrdemServicoPage() {
           );
         }
 
+        const respostas = await Promise.all(promessas);
         const falha = respostas.find((res) => !res.ok);
         setSalvando(false);
         if (!falha) {

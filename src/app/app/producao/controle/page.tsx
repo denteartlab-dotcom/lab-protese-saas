@@ -31,6 +31,7 @@ import {
   classificarItemOs,
   dividirItensPorSegmento,
   editIdPreferidoGrupo,
+  grupoOsIdOf,
   deveDividirOs,
   formatarDescontoItemOs,
   grupoOsTemMultiplosSegmentos,
@@ -101,6 +102,8 @@ type CampoOrdenacaoControle = "numeroOs" | "dataEntrada" | "cliente" | "paciente
 type Trabalho = {
   id: string;
   numeroOs: number;
+  clienteId?: string;
+  pacienteId?: string;
   segmentoFaturamento?: string | null;
   grupoOsId?: string | null;
   tipoProtese: string;
@@ -115,9 +118,30 @@ type Trabalho = {
   dataEntrega?: string | null;
   observacoes?: string | null;
   instrucoes?: string | null;
-  cliente?: { nome?: string | null; cro?: string | null };
-  paciente?: { nome?: string | null };
+  cliente?: { id?: string; nome?: string | null; cro?: string | null };
+  paciente?: { id?: string; nome?: string | null };
 };
+
+type DadosPostGrupoOs = {
+  clienteId: string;
+  pacienteId: string;
+  numeroOs: number;
+  grupoOsId: string;
+  dataEntrada: string;
+};
+
+function dadosPostGrupoOsDeTrabalho(trabalho: Trabalho): DadosPostGrupoOs | null {
+  const clienteId = trabalho.clienteId || trabalho.cliente?.id;
+  const pacienteId = trabalho.pacienteId || trabalho.paciente?.id;
+  if (!clienteId || !pacienteId) return null;
+  return {
+    clienteId,
+    pacienteId,
+    numeroOs: trabalho.numeroOs,
+    grupoOsId: trabalho.grupoOsId || trabalho.id,
+    dataEntrada: trabalho.dataEntrada,
+  };
+}
 
 const OPCOES_ORDENACAO_CONTROLE = [
   { valor: "numeroOs" as const, label: "Num OS" },
@@ -708,6 +732,7 @@ export default function ControlePage() {
   const [filtroProdutos, setFiltroProdutos] = useState(false);
   const [filtroFichasSemServicos, setFiltroFichasSemServicos] = useState(false);
   const [imprimirOs, setImprimirOs] = useState<Trabalho | null>(null);
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
 
   async function load() {
     const params = new URLSearchParams();
@@ -1391,16 +1416,22 @@ export default function ControlePage() {
   }
 
   async function salvarEdicao() {
-    if (!editando || !form) return;
+    if (!editando || !form || salvandoEdicao) return;
 
+    setSalvandoEdicao(true);
+    try {
     if (osFaturada) {
-      await fetch(`/api/trabalhos/${editando.id}`, {
+      const res = await fetch(`/api/trabalhos/${editando.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ observacoes: form.observacoes }),
       });
+      if (!res.ok) {
+        alert("Não foi possível gravar a observação.");
+        return;
+      }
       fecharEdicaoOs();
-      load();
+      void load();
       return;
     }
 
@@ -1411,7 +1442,6 @@ export default function ControlePage() {
         itensSalvar = editItems.map((item) =>
           item.id === itemSelecionadoId ? atualizado : item
         );
-        setEditItems(itensSalvar);
       }
     } else if (form) {
       itensSalvar = itensSalvar.map((item) =>
@@ -1496,19 +1526,29 @@ export default function ControlePage() {
             },
           ];
 
-    const respostas: Response[] = [];
+    const promessas: Promise<Response>[] = [];
 
     if (dividir) {
-      let pacienteAtual: {
-        clienteId: string;
-        pacienteId: string;
-        numeroOs: number;
-        grupoOsId?: string | null;
-        id: string;
-        dataEntrada: string;
-      } | null = null;
-
       const idsUsados = new Set<string>();
+      let dadosPost = dadosPostGrupoOsDeTrabalho(editando);
+
+      if (!dadosPost) {
+        const idsProbe = new Set<string>();
+        const precisaCriarSegmento = ORDEM_SALVAR_SEGMENTOS_OS.some((segmento) => {
+          const bloco = blocosSegmento.find((b) => b.segmento === segmento);
+          if (!bloco?.itens.length) return false;
+          const { reg } = buscarRegistroGrupoSegmento(registros, segmento, idsProbe);
+          if (reg) {
+            idsProbe.add(reg.id);
+            return false;
+          }
+          return true;
+        });
+        if (precisaCriarSegmento) {
+          const completo = await fetch(`/api/trabalhos/${editando.id}`).then((r) => r.json());
+          dadosPost = dadosPostGrupoOsDeTrabalho(completo);
+        }
+      }
 
       for (const segmento of ORDEM_SALVAR_SEGMENTOS_OS) {
         const bloco = blocosSegmento.find((b) => b.segmento === segmento);
@@ -1522,31 +1562,30 @@ export default function ControlePage() {
 
         if (reg) {
           idsUsados.add(reg.id);
-          respostas.push(
-            await salvarSegmentoExistente(reg.id, segmento, bloco.itens, {
+          promessas.push(
+            salvarSegmentoExistente(reg.id, segmento, bloco.itens, {
               segmentoFaturamento: migrarSegmento,
             })
           );
           continue;
         }
 
-        if (!pacienteAtual) {
-          pacienteAtual = await fetch(`/api/trabalhos/${editando.id}`).then((r) => r.json());
-        }
-        respostas.push(
-          await fetch("/api/trabalhos", {
+        if (!dadosPost) continue;
+
+        promessas.push(
+          fetch("/api/trabalhos", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(
               bodyTrabalhoSemNull({
                 ...payloadPostCompartilhado,
-                clienteId: pacienteAtual!.clienteId,
-                pacienteId: pacienteAtual!.pacienteId,
-                numeroOs: pacienteAtual!.numeroOs,
-                grupoOsId: pacienteAtual!.grupoOsId || pacienteAtual!.id,
+                clienteId: dadosPost.clienteId,
+                pacienteId: dadosPost.pacienteId,
+                numeroOs: dadosPost.numeroOs,
+                grupoOsId: dadosPost.grupoOsId,
                 segmentoFaturamento: segmento,
                 tipoProtese: tituloSegmentoOs(bloco.itens, segmento, form.tipoProtese),
-                dataEntrada: new Date(pacienteAtual!.dataEntrada).toISOString().slice(0, 10),
+                dataEntrada: new Date(dadosPost.dataEntrada).toISOString().slice(0, 10),
                 escala: escalaOsParaSalvarControle(bloco.itens) || undefined,
                 valor: valorItensControle(bloco.itens),
                 instrucoes: montarInstrucoesSegmentoControle(
@@ -1567,10 +1606,11 @@ export default function ControlePage() {
       const alvo = reg || registros[0];
       const itensUnicos = blocoUnico?.itens ?? itensSalvar;
       if (alvo) {
-        respostas.push(await salvarSegmentoExistente(alvo.id, segmentoUnico, itensUnicos));
+        promessas.push(salvarSegmentoExistente(alvo.id, segmentoUnico, itensUnicos));
       }
     }
 
+    const respostas = await Promise.all(promessas);
     const falha = respostas.find((res) => !res.ok);
     if (falha) {
       alert("Não foi possível salvar a OS. Verifique os dados e tente novamente.");
@@ -1579,7 +1619,10 @@ export default function ControlePage() {
 
     notificarTrabalhosAtualizados({ trabalhoId: editando.id });
     fecharEdicaoOs();
-    load();
+    void load();
+    } finally {
+      setSalvandoEdicao(false);
+    }
   }
 
   function adicionarLinhaProdutoEdicao() {
@@ -2992,12 +3035,15 @@ export default function ControlePage() {
               <Button
                 type="button"
                 className="bg-emerald-600 hover:bg-emerald-700"
+                disabled={salvandoEdicao}
                 onClick={salvarEdicao}
               >
-                <Save className="h-4 w-4" />
-                {osFaturada
-                  ? "Gravar somente observação interna"
-                  : "Gravar Alterações Ordem de Serviço"}
+                <Save className={cn("h-4 w-4", salvandoEdicao && "animate-spin")} />
+                {salvandoEdicao
+                  ? "Salvando..."
+                  : osFaturada
+                    ? "Gravar somente observação interna"
+                    : "Gravar Alterações Ordem de Serviço"}
               </Button>
             </div>
           </div>
