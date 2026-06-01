@@ -14,6 +14,7 @@ import {
   formatarLinhaEtapaComTempo,
   normalizarNomeEtapaCadastro,
   nomeEtapaSemSetor,
+  prazoVencimentoEtapaOs,
   type EtapaCadastro,
   type EtapaOsLinha,
 } from "@/lib/etapas-os";
@@ -31,6 +32,7 @@ type Props = {
   etapas: EtapaOsFormLinha[];
   onChange: (etapas: EtapaOsFormLinha[]) => void;
   quantidadeDentes?: number;
+  dataLancamento?: string;
   desabilitado?: boolean;
 };
 
@@ -94,6 +96,7 @@ export function EtapasOsEditor({
   etapas,
   onChange,
   quantidadeDentes = 1,
+  dataLancamento = "",
   desabilitado = false,
 }: Props) {
   const [modelosEtapas, setModelosEtapas] = useState<EtapaCadastro[]>([]);
@@ -126,6 +129,12 @@ export function EtapasOsEditor({
     return `${tempo} min`;
   }
 
+  function prazoCalculadoEtapa(nome: string) {
+    const modelo = modeloEtapa(nome);
+    if (!modelo?.prazoDias?.trim()) return "";
+    return prazoVencimentoEtapaOs(dataLancamento, modelo.prazoDias);
+  }
+
   function selecionarEtapa(index: number, nomeEtapa: string) {
     if (desabilitado) return;
     if (nomeEtapa) {
@@ -136,6 +145,7 @@ export function EtapasOsEditor({
       }
     }
     const modelo = modeloEtapa(nomeEtapa);
+    const prazoAuto = nomeEtapa ? prazoCalculadoEtapa(nomeEtapa) : "";
     onChange(
       etapas.map((item, i) =>
         i === index
@@ -143,11 +153,25 @@ export function EtapasOsEditor({
               ...item,
               nome: nomeEtapa,
               setor: modelo?.setor || item.setor || "",
+              prazo: prazoAuto || (nomeEtapa ? item.prazo : ""),
             }
           : item
       )
     );
   }
+
+  useEffect(() => {
+    if (!dataLancamento.trim() || modelosEtapas.length === 0 || desabilitado) return;
+    let mudou = false;
+    const atualizadas = etapas.map((etapa) => {
+      if (!etapa.nome.trim()) return etapa;
+      const prazoAuto = prazoCalculadoEtapa(etapa.nome);
+      if (!prazoAuto || etapa.prazo === prazoAuto) return etapa;
+      mudou = true;
+      return { ...etapa, prazo: prazoAuto };
+    });
+    if (mudou) onChange(atualizadas);
+  }, [dataLancamento, modelosEtapas, desabilitado, etapas, onChange]);
 
   function adicionarLinhaEtapa() {
     if (desabilitado) return;

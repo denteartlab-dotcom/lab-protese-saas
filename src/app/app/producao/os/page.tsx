@@ -63,6 +63,7 @@ import {
   instrucoesTextoLivre,
   parseComplementosInstrucoesGrupo,
   removerComplementosOsDoCorpo,
+  prazoVencimentoEtapaOs,
   type EtapaCadastro,
 } from "@/lib/etapas-os";
 import { carregarSetoresCadastro, type SetorCadastro } from "@/lib/setores-cadastro";
@@ -1247,6 +1248,12 @@ export default function OrdemServicoPage() {
     return { nome: modelo.setor, cor: setor?.cor || "#ef4444" };
   }
 
+  function prazoCalculadoEtapa(nome: string) {
+    const modelo = modeloEtapa(nome);
+    if (!modelo?.prazoDias?.trim()) return "";
+    return prazoVencimentoEtapaOs(form.dataLancamento, modelo.prazoDias);
+  }
+
   function selecionarEtapaOs(index: number, nomeEtapa: string) {
     if (nomeEtapa) {
       const duplicata = etapas.findIndex((item, i) => i !== index && item.nome === nomeEtapa);
@@ -1256,6 +1263,7 @@ export default function OrdemServicoPage() {
       }
     }
     const modelo = modeloEtapa(nomeEtapa);
+    const prazoAuto = nomeEtapa ? prazoCalculadoEtapa(nomeEtapa) : "";
     setEtapas((atuais) =>
       atuais.map((item, i) =>
         i === index
@@ -1263,11 +1271,27 @@ export default function OrdemServicoPage() {
               ...item,
               nome: nomeEtapa,
               setor: modelo?.setor || item.setor || "",
+              prazo: prazoAuto || (nomeEtapa ? item.prazo : ""),
             }
           : item
       )
     );
   }
+
+  useEffect(() => {
+    if (modelosEtapas.length === 0) return;
+    setEtapas((atuais) => {
+      let mudou = false;
+      const proximas = atuais.map((etapa) => {
+        if (!etapa.nome.trim()) return etapa;
+        const prazoAuto = prazoCalculadoEtapa(etapa.nome);
+        if (!prazoAuto || etapa.prazo === prazoAuto) return etapa;
+        mudou = true;
+        return { ...etapa, prazo: prazoAuto };
+      });
+      return mudou ? proximas : atuais;
+    });
+  }, [form.dataLancamento, modelosEtapas]);
 
   function tempoCalculadoEtapa(nome: string) {
     const modelo = modeloEtapa(nome);

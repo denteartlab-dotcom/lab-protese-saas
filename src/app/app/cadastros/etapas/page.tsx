@@ -23,6 +23,7 @@ type Etapa = {
   cor: string;
   tempoMedio: string;
   calculoPorElemento: string;
+  prazoDias?: string;
 };
 
 const STORAGE_KEY = "labProteseEtapas";
@@ -59,12 +60,14 @@ const formularioVazio = {
   cor: COR_ETAPA_PADRAO,
   tempoMedio: "",
   calculoPorElemento: "Não",
+  prazoDias: "",
 };
 
 function normalizarEtapa(etapa: Etapa, setores: Setor[]): Etapa {
   const setor = setores.find((s) => s.nome === etapa.setor);
   return {
     ...etapa,
+    prazoDias: etapa.prazoDias ?? "",
     cor: corFundoEtapa(etapa, setor?.cor),
   };
 }
@@ -143,7 +146,7 @@ export default function EtapasPage() {
     if (!termo) return lista;
 
     return lista.filter((etapa) =>
-      [etapa.nome, etapa.setor, etapa.tempoMedio, etapa.calculoPorElemento]
+      [etapa.nome, etapa.setor, etapa.tempoMedio, etapa.prazoDias, etapa.calculoPorElemento]
         .join(" ")
         .toLowerCase()
         .includes(termo)
@@ -172,6 +175,7 @@ export default function EtapasPage() {
       cor: corDaEtapa(etapa),
       tempoMedio: etapa.tempoMedio,
       calculoPorElemento: etapa.calculoPorElemento,
+      prazoDias: etapa.prazoDias || "",
     });
     setModalAberto(true);
   }
@@ -313,20 +317,21 @@ export default function EtapasPage() {
         >
           {(itensPagina) => (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-[10px]">
+          <table className="w-full min-w-[1080px] text-[10px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50 text-slate-500">
                 <th className="px-3 py-2 text-left font-semibold uppercase">Nome</th>
                 <th className="w-14 px-3 py-2 text-center font-semibold uppercase">Cor</th>
                 <th className="px-3 py-2 text-left font-semibold uppercase">Setor</th>
                 <th className="px-3 py-2 text-left font-semibold uppercase">Tempo Médio Execução Minutos</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">Prazo (dias)</th>
                 <th className="px-3 py-2 text-left font-semibold uppercase">Cálculo por Elemento</th>
                 <th className="px-3 py-2 text-center font-semibold uppercase">Opções</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {!paginaPronta ? (
-                <ListaCarregando colSpan={6} />
+                <ListaCarregando colSpan={7} />
               ) : (
               itensPagina.map((etapa) => {
                 const setor = setorInfo(etapa.setor);
@@ -350,6 +355,7 @@ export default function EtapasPage() {
                       </span>
                     </td>
                     <td className="px-3 py-2 text-slate-700">{etapa.tempoMedio}</td>
+                    <td className="px-3 py-2 text-slate-700">{etapa.prazoDias || "-"}</td>
                     <td className="px-3 py-2">
                       <span className="rounded bg-slate-500 px-2 py-0.5 text-[9px] font-semibold text-white">
                         {etapa.calculoPorElemento || "Não"}
@@ -402,7 +408,7 @@ export default function EtapasPage() {
               )}
               {paginaPronta && filtradas.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-3 py-8 text-center text-slate-400">
+                  <td colSpan={7} className="px-3 py-8 text-center text-slate-400">
                     {mostrarExcluidas ? "Nenhuma etapa excluída." : "Nenhuma etapa encontrada."}
                   </td>
                 </tr>
@@ -493,6 +499,14 @@ export default function EtapasPage() {
             min="0"
             value={form.tempoMedio}
             onChange={(event) => setForm({ ...form, tempoMedio: event.target.value })}
+          />
+          <Input
+            label="Prazo em dias"
+            type="number"
+            min="0"
+            value={form.prazoDias}
+            onChange={(event) => setForm({ ...form, prazoDias: event.target.value })}
+            placeholder="Ex.: 3"
           />
           <Select
             label="Cálculo por Elemento"

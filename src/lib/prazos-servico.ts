@@ -1,3 +1,5 @@
+import { parseBrDate } from "@/lib/datas-br";
+
 export type ServicoComPrazo = {
   prazo?: string | null;
   prazoDentista?: string | null;
@@ -32,4 +34,27 @@ export function calcularDatasPrazoServico(
   }
 
   return { dataLaboratorio, dataDentista };
+}
+
+export function calcularDataVencimentoPorDias(
+  dataBase: Date | string | null | undefined,
+  prazoDias?: string | null
+) {
+  const dias = parseDiasPrazo(prazoDias);
+  if (dias <= 0) return "";
+
+  let base: Date;
+  if (dataBase instanceof Date) {
+    base = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate());
+  } else if (typeof dataBase === "string" && dataBase.trim()) {
+    base = parseBrDate(dataBase.trim()) || new Date();
+    base = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+  } else {
+    const hoje = new Date();
+    base = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  }
+
+  const vencimento = new Date(base);
+  vencimento.setDate(vencimento.getDate() + dias);
+  return vencimento.toLocaleDateString("pt-BR");
 }

@@ -2450,6 +2450,7 @@ export default function ControlePage() {
                             etapas={etapasEdicao}
                             onChange={setEtapasEdicao}
                             quantidadeDentes={dentesEdicao.length || 1}
+                            dataLancamento={editando ? formatDate(editando.dataEntrada) : ""}
                             desabilitado={osFaturada}
                           />
                         )}

@@ -1,4 +1,5 @@
 import { readStorage } from "@/lib/persisted-storage";
+import { calcularDataVencimentoPorDias } from "@/lib/prazos-servico";
 
 export const ETAPAS_STORAGE_KEY = "labProteseEtapas";
 
@@ -10,6 +11,8 @@ export type EtapaCadastro = {
   cor?: string;
   tempoMedio?: string;
   calculoPorElemento?: string;
+  /** Prazo de vencimento da etapa em dias (contado a partir da data de lançamento da OS). */
+  prazoDias?: string;
 };
 
 /** Cor de fundo da etapa; usa fallback do setor se não definida. */
@@ -50,6 +53,11 @@ const etapasPadrao: EtapaCadastro[] = [
 export function carregarEtapasCadastro(): EtapaCadastro[] {
   const lista = readStorage<EtapaCadastro[]>(ETAPAS_STORAGE_KEY, etapasPadrao);
   return lista.filter((e) => e?.nome?.trim());
+}
+
+/** Data de vencimento (dd/mm/aaaa) da etapa com base na data de lançamento da OS. */
+export function prazoVencimentoEtapaOs(dataLancamentoBr: string, prazoDias?: string | null) {
+  return calcularDataVencimentoPorDias(dataLancamentoBr, prazoDias);
 }
 
 /** Remove sufixo visual " — Setor" (ex.: "Plano de cera — Resina" → "Plano de cera"). */
