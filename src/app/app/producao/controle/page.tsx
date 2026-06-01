@@ -759,14 +759,15 @@ export default function ControlePage() {
 
   const totalServicoEdicao = useMemo(() => {
     if (!form) return 0;
-    if (painelEdicaoItem === "produto" && produtosOs[0]) {
+    const usandoCamposProduto = painelEdicaoItem === "produto" || abaServicoEdicao === "produtos";
+    if (usandoCamposProduto && produtosOs[0]) {
       const qtd = Number(produtosOs[0].quantidade || 1) || 1;
       return parseCurrencyBr(produtosOs[0].valor) * qtd;
     }
     const subtotal =
       parseCurrencyBr(form.valor) * (Number(form.quantidade || 1) || 1);
     return valorComDescontoControle(subtotal, form.descontoTipo, form.desconto);
-  }, [form, painelEdicaoItem, produtosOs]);
+  }, [form, painelEdicaoItem, abaServicoEdicao, produtosOs]);
 
   const totalItensEdicao = useMemo(
     () =>
@@ -1305,14 +1306,13 @@ export default function ControlePage() {
       return;
     }
 
-    let itensSalvar = filtrarItensPorSegmentoTrabalho(editItems, editando);
+    let itensSalvar = [...editItems];
     if (itemSelecionadoId && form) {
       const atualizado = montarItemEdicaoAtual();
       if (atualizado) {
         itensSalvar = editItems.map((item) =>
           item.id === itemSelecionadoId ? atualizado : item
         );
-        itensSalvar = filtrarItensPorSegmentoTrabalho(itensSalvar, editando);
         setEditItems(itensSalvar);
       }
     } else if (form) {
