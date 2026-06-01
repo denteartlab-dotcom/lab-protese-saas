@@ -518,6 +518,21 @@ export default function TabelaPrecosPage() {
     }));
   }
 
+  function adicionarEtapaNaTabelaPrecos(nome: string) {
+    const nomeLimpo = nome.trim();
+    if (!nomeLimpo) return;
+    setFormServico((current) => {
+      const jaExiste = current.etapas.some(
+        (etapa) => etapa.nome.trim().toLowerCase() === nomeLimpo.toLowerCase()
+      );
+      if (jaExiste) return current;
+      return {
+        ...current,
+        etapas: [...current.etapas, { ...novaEtapaServico(), nome: nomeLimpo }],
+      };
+    });
+  }
+
   function abrirModalProdutos(categoriaId: string) {
     setModalProdutosCategoriaId(categoriaId);
     setBuscaProdutoEstoque("");
@@ -2293,20 +2308,40 @@ export default function TabelaPrecosPage() {
               <ul className="max-h-48 space-y-1 overflow-y-auto rounded border border-slate-200">
                 {formServico.opcoesEtapas.map((opcao) => {
                   const padrao = ETAPAS_OPCOES_PADRAO.includes(opcao);
+                  const jaNaTabela = formServico.etapas.some(
+                    (etapa) => etapa.nome.trim().toLowerCase() === opcao.trim().toLowerCase()
+                  );
                   return (
                     <li
                       key={opcao}
                       className="flex items-center justify-between gap-2 border-b border-slate-50 px-3 py-2 last:border-0"
                     >
-                      <span className="text-slate-700">
-                        {opcao}
-                        {padrao && <span className="ml-1 text-[10px] text-slate-400">(padrão)</span>}
-                      </span>
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => adicionarEtapaNaTabelaPrecos(opcao)}
+                          disabled={jaNaTabela}
+                          className={cn(
+                            "flex h-7 w-7 shrink-0 items-center justify-center rounded border",
+                            jaNaTabela
+                              ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+                              : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                          )}
+                          title={jaNaTabela ? "Etapa já adicionada ao serviço" : "Adicionar etapa ao serviço"}
+                          aria-label={jaNaTabela ? `${opcao} já adicionada` : `Adicionar ${opcao}`}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </button>
+                        <span className="truncate text-slate-700">
+                          {opcao}
+                          {padrao && <span className="ml-1 text-[10px] text-slate-400">(padrão)</span>}
+                        </span>
+                      </div>
                       {!padrao && (
                         <button
                           type="button"
                           onClick={() => removerOpcaoEtapaServico(opcao)}
-                          className="text-red-400 hover:text-red-600"
+                          className="shrink-0 text-red-400 hover:text-red-600"
                           aria-label={`Remover ${opcao}`}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
