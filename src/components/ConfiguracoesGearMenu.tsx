@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 
 const itensConfiguracao = [
   { href: "/app/configuracoes?aba=dados", labelKey: "settings.dadosLabTitulo" as MessageKey, icon: FileText },
-  { href: "/app/configuracoes?aba=cabecalho", labelKey: "settings.cabecalho" as MessageKey, icon: FileText },
+  { href: "/app/configuracoes/cabecalho", labelKey: "settings.cabecalho" as MessageKey, icon: FileText },
   { href: "/app/configuracoes?aba=gerais", labelKey: "settings.gerais" as MessageKey, icon: Wrench },
   { href: "/app/configuracoes?aba=boletos", labelKey: "settings.boletos" as MessageKey, icon: BarChart3 },
   { href: "/app/configuracoes?aba=mensagens", labelKey: "settings.mensagens" as MessageKey, icon: MessageCircle },
@@ -75,7 +75,9 @@ export function ConfiguracoesGearMenu() {
           {itensConfiguracao.map((item) => {
             const itemAba = item.href.split("aba=")[1] || "dados";
             const ativo =
-              pathname.startsWith("/app/configuracoes") && abaAtual === itemAba;
+              item.href === "/app/configuracoes/cabecalho"
+                ? pathname.startsWith("/app/configuracoes/cabecalho")
+                : pathname.startsWith("/app/configuracoes") && abaAtual === itemAba;
             return (
               <Link
                 key={item.href}

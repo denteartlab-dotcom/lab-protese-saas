@@ -80,6 +80,11 @@ export const SECOES_MENU_PERMISSOES: MenuPermissaoSecao[] = [
     titulo: "MENU CONFIGURAÇÕES",
     itens: [
       { id: "configuracoes-dados", label: t("settings.dadosLabTitulo"), href: "/app/configuracoes" },
+      {
+        id: "configuracoes-cabecalho",
+        label: t("settings.cabecalho"),
+        href: "/app/configuracoes/cabecalho",
+      },
       { id: "configuracoes-logo", label: t("settings.logo"), href: "/app/configuracoes" },
       { id: "configuracoes-idioma", label: t("settings.idioma"), href: "/app/configuracoes" },
       { id: "configuracoes-horario", label: t("settings.horario"), href: "/app/configuracoes" },

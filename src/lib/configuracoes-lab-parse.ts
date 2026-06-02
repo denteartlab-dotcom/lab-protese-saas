@@ -1,3 +1,4 @@
+import { normalizarCabecalhoRequisicao } from "@/lib/cabecalho-requisicao";
 import {
   CONFIG_LAB_PADRAO,
   type ConfigLaboratorio,
@@ -33,10 +34,12 @@ export function normalizarConfigLaboratorio(
     return { ...CONFIG_LAB_PADRAO, tipoPessoa: "Jurídica" };
   }
   const config = migrarLegado(parsed);
+  const cabecalhoRequisicao = normalizarCabecalhoRequisicao(config.cabecalhoRequisicao);
   const tipo = normalizarTipoPessoa(config.tipoPessoa);
   if (tipo === "Física") {
     return {
       ...config,
+      cabecalhoRequisicao,
       tipoPessoa: tipo,
       razaoSocial: "",
       idioma: normalizarIdioma(config.idioma),
@@ -48,6 +51,7 @@ export function normalizarConfigLaboratorio(
   }
   return {
     ...config,
+    cabecalhoRequisicao,
     tipoPessoa: tipo,
     idioma: normalizarIdioma(config.idioma),
     pais: config.pais || CONFIG_LAB_PADRAO.pais,

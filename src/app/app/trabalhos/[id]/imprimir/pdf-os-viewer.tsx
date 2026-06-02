@@ -4,14 +4,14 @@ import { useEffect, useState } from "react";
 import { Download, ExternalLink, Printer } from "lucide-react";
 import { Button } from "@/components/ui";
 import { prepararAbaPdf, visualizarPdfUrl } from "@/lib/pdf-viewer";
+import { LAB_IMPRESSAO_PADRAO, type LabImpressaoConfig } from "@/lib/lab-impressao";
 import {
-  LAB_IMPRESSAO_PADRAO,
-  LOGO_PDF_CABECALHO_OS_ALTURA_MM,
-  LOGO_PDF_CABECALHO_OS_LARGURA_MM,
-  type LabImpressaoConfig,
-} from "@/lib/lab-impressao";
-import { LAB_CONFIG_ATUALIZADA_EVENT } from "@/lib/configuracoes-lab";
-import { escalaLogoMultiplicador, labImpressaoFromConfig } from "@/lib/lab-logo";
+  carregarConfigLaboratorio,
+  LAB_CONFIG_ATUALIZADA_EVENT,
+} from "@/lib/configuracoes-lab";
+import { normalizarCabecalhoRequisicao, type CabecalhoRequisicaoConfig } from "@/lib/cabecalho-requisicao";
+import { labImpressaoFromConfig } from "@/lib/lab-logo";
+import { desenharCabecalhoRequisicaoPdf } from "@/lib/pdf-cabecalho-os";
 
 type PdfItem = {
   qtd: string;
@@ -37,6 +37,7 @@ type PdfOsData = {
   email: string;
   endereco: string;
   lab?: LabImpressaoConfig;
+  cabecalhoRequisicao?: CabecalhoRequisicaoConfig;
   valor: number;
   prazo: string;
   prazoLaboratorio: string;
@@ -279,9 +280,12 @@ function desenharMarcadoresUrgenciaRepeticao(pdf: PdfRenderApi, data: PdfOsData,
 function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
   const pageWidth = pdf.internal.pageSize.getWidth();
   const margin = 15;
-  let y = desenharCabecalhoLabPdf(pdf, data, "Ordem de Serviço", (yDir, _m, dir) =>
-    desenharMetaOsCabecalhoDireita(pdf, data, yDir, dir)
-  );
+  let y = desenharCabecalhoRequisicaoPdf(pdf, {
+    lab: data.lab,
+    cabecalhoRequisicao: data.cabecalhoRequisicao,
+    tituloDireita: "Ordem de Serviço",
+    extrasDireita: (yDir, _m, dir) => desenharMetaOsCabecalhoDireita(pdf, data, yDir, dir),
+  });
 
   pdf.setFontSize(9);
   labelValue(pdf, "Núm OS:", String(data.numeroOs), 15, y);
@@ -444,7 +448,7 @@ function desenharLogoLab(
   if (!dataUrl?.startsWith("data:image")) {
     return { largura: 0, altura: 0 };
   }
-  const s = escalaLogoMultiplicador(lab.logoTamanho);
+  const s = 1 + Math.min(100, Math.max(0, lab.logoTamanho ?? 0)) / 100;
   const w = larguraBase * s;
   const h = alturaBase * s;
   const fmt = dataUrl.includes("image/png") ? "PNG" : "JPEG";
@@ -456,82 +460,17 @@ function desenharLogoLab(
   }
 }
 
-/** Cabeçalho: logo à esquerda, dados do lab no centro-esquerda, título OS à direita. */
-function desenharCabecalhoLabPdf(
-  pdf: PdfRenderApi,
-  data: PdfOsData,
-  tituloDireita: string,
-  extrasDireita?: (y: number, margin: number, tableRight: number) => number
-): number {
-  const lab = data.lab || LAB_IMPRESSAO_PADRAO;
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const margin = 15;
-  const tableRight = pageWidth - margin;
-  const topo = 14;
-
-  const { largura: logoW, altura: logoH } = desenharLogoLab(
-    pdf,
-    lab,
-    margin,
-    topo,
-    LOGO_PDF_CABECALHO_OS_LARGURA_MM,
-    LOGO_PDF_CABECALHO_OS_ALTURA_MM
-  );
-  const labX = margin + (logoW > 0 ? logoW + 10 : 0);
-  const colDirInicio = tableRight - 82;
-  const larguraColEsq = Math.max(35, colDirInicio - labX - 4);
-  const linha1 = topo + 5;
-
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(13);
-  const linhasNome = pdf.splitTextToSize(lab.responsavel || "", larguraColEsq);
-  pdf.text(linhasNome, labX, linha1);
-
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(11);
-  pdf.text(tituloDireita, tableRight, linha1, { align: "right" });
-
-  let yLab = linha1 + linhasNome.length * 5.5 + 2;
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(8.5);
-  const endereco =
-    lab.enderecoLinha1 && lab.enderecoLinha2
-      ? `${lab.enderecoLinha1} — ${lab.enderecoLinha2}`
-      : lab.endereco || lab.enderecoLinha1 || "";
-  if (endereco) {
-    const linhasEnd = pdf.splitTextToSize(endereco, larguraColEsq);
-    pdf.text(linhasEnd, labX, yLab);
-    yLab += linhasEnd.length * 4.5;
-  }
-  if (lab.telefones) {
-    const linhasTel = pdf.splitTextToSize(lab.telefones, larguraColEsq);
-    pdf.text(linhasTel, labX, yLab);
-    yLab += linhasTel.length * 4.5;
-  }
-  if (lab.email) {
-    pdf.text(lab.email, labX, yLab);
-    yLab += 4.5;
-  }
-
-  let yDir = linha1 + 7;
-  if (extrasDireita) {
-    yDir = extrasDireita(yDir, margin, tableRight);
-  }
-
-  const fimBloco = Math.max(topo + (logoH > 0 ? logoH + 2 : 0), yLab, yDir) + 4;
-  pdf.setLineWidth(0.4);
-  pdf.line(margin, fimBloco, tableRight, fimBloco);
-  return fimBloco + 6;
-}
-
 /** Modelo 2 — comprovante de entrega (layout Smart/DenteArt). */
 function renderModeloComprovante(pdf: PdfRenderApi, data: PdfOsData) {
   const pageWidth = pdf.internal.pageSize.getWidth();
   const margin = 15;
   const tableRight = pageWidth - margin;
-  let y = desenharCabecalhoLabPdf(pdf, data, "Ordem de Serviço", (yDir, _m, dir) =>
-    desenharMetaOsCabecalhoDireita(pdf, data, yDir, dir)
-  );
+  let y = desenharCabecalhoRequisicaoPdf(pdf, {
+    lab: data.lab,
+    cabecalhoRequisicao: data.cabecalhoRequisicao,
+    tituloDireita: "Ordem de Serviço",
+    extrasDireita: (yDir, _m, dir) => desenharMetaOsCabecalhoDireita(pdf, data, yDir, dir),
+  });
 
   pdf.setFontSize(9);
   labelValue(pdf, "Núm OS:", String(data.numeroOs), margin, y);
@@ -931,9 +870,11 @@ export function PdfOsViewer({
   }));
 
   function atualizarLab() {
+    const cfg = carregarConfigLaboratorio();
     setDadosPdf({
       ...data,
       lab: labImpressaoFromConfig(),
+      cabecalhoRequisicao: normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao),
     });
   }
 

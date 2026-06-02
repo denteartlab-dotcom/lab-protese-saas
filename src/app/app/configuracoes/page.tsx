@@ -28,19 +28,21 @@ import { persistirConfigLaboratorioServidor } from "@/lib/lab-config-sync";
 import type { MessageKey } from "@/lib/i18n";
 import { normalizarLogoTamanho } from "@/lib/lab-impressao";
 
-const abasPagina = [
-  { id: "dados", labelKey: "settings.dadosLab" as MessageKey },
-  { id: "logo", labelKey: "settings.logo" as MessageKey },
-  { id: "idioma", labelKey: "settings.idioma" as MessageKey },
-  { id: "horario", labelKey: "settings.horario" as MessageKey },
-  { id: "nfse", labelKey: "settings.nfse" as MessageKey },
-  { id: "boletos", labelKey: "settings.boletos" as MessageKey },
-  { id: "usuarios", labelKey: "settings.usuarios" as MessageKey },
-  { id: "backup", labelKey: "settings.backup" as MessageKey },
+const abasPagina: Array<{ id: string; labelKey: MessageKey; href?: string }> = [
+  { id: "dados", labelKey: "settings.dadosLab" },
+  { id: "cabecalho", labelKey: "settings.cabecalho", href: "/app/configuracoes/cabecalho" },
+  { id: "logo", labelKey: "settings.logo" },
+  { id: "idioma", labelKey: "settings.idioma" },
+  { id: "horario", labelKey: "settings.horario" },
+  { id: "nfse", labelKey: "settings.nfse" },
+  { id: "boletos", labelKey: "settings.boletos" },
+  { id: "usuarios", labelKey: "settings.usuarios" },
+  { id: "backup", labelKey: "settings.backup" },
 ];
 
 const abaPermissaoId: Record<string, string> = {
   dados: "configuracoes-dados",
+  cabecalho: "configuracoes-cabecalho",
   logo: "configuracoes-logo",
   idioma: "configuracoes-idioma",
   horario: "configuracoes-horario",
@@ -91,6 +93,10 @@ function ConfiguracoesConteudo() {
   const [mensagemTipo, setMensagemTipo] = useState<TipoMensagemForm>("info");
 
   useEffect(() => {
+    if (aba === "cabecalho") {
+      router.replace("/app/configuracoes/cabecalho");
+      return;
+    }
     if (!abasPermitidas.length) return;
     if (abasPermitidas.some((item) => item.id === aba)) return;
     router.replace(`/app/configuracoes?aba=${abasPermitidas[0].id}`);
@@ -176,10 +182,11 @@ function ConfiguracoesConteudo() {
         <div className="mt-3 flex flex-wrap gap-0">
           {abasPermitidas.map((item) => {
             const ativa = aba === item.id;
+            const href = item.href ?? `/app/configuracoes?aba=${item.id}`;
             return (
               <Link
                 key={item.id}
-                href={`/app/configuracoes?aba=${item.id}`}
+                href={href}
                 className={`rounded-t px-3 py-2 text-[13px] font-normal transition ${
                   ativa
                     ? "bg-[#4a90d9] text-white"

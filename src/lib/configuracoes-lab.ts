@@ -3,6 +3,11 @@ import {
   LOGO_TAMANHO_PADRAO,
   type LabImpressaoConfig,
 } from "@/lib/lab-impressao";
+import {
+  CABECALHO_REQUISICAO_PADRAO,
+  normalizarCabecalhoRequisicao,
+  type CabecalhoRequisicaoConfig,
+} from "@/lib/cabecalho-requisicao";
 import { normalizarConfigLaboratorio } from "@/lib/configuracoes-lab-parse";
 import { normalizarIdioma, type Locale } from "@/lib/i18n";
 
@@ -53,6 +58,8 @@ export type ConfigLaboratorio = LabImpressaoConfig & {
   pais: string;
   moeda: string;
   codigoPaisTelefone: string;
+  /** Layout do cabeçalho em requisições / OS impressas. */
+  cabecalhoRequisicao?: CabecalhoRequisicaoConfig;
 };
 
 export const CONFIG_LAB_PADRAO: ConfigLaboratorio = {
@@ -85,6 +92,7 @@ export const CONFIG_LAB_PADRAO: ConfigLaboratorio = {
   pais: "Brasil",
   moeda: "Real",
   codigoPaisTelefone: "+55",
+  cabecalhoRequisicao: { ...CABECALHO_REQUISICAO_PADRAO },
 };
 
 export function normalizarTipoPessoa(valor?: string): "Física" | "Jurídica" {
@@ -259,6 +267,7 @@ export function prepararConfigParaSalvar(form: ConfigLaboratorio): ConfigLaborat
   });
   return {
     ...preparado,
+    cabecalhoRequisicao: normalizarCabecalhoRequisicao(form.cabecalhoRequisicao),
     razaoSocial: ehFisica ? "" : form.razaoSocial,
     nomeLaboratorio: form.nomeLaboratorio?.trim() || nomeExibicao,
     responsavel: nomeExibicao,
