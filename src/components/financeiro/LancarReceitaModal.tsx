@@ -849,7 +849,6 @@ export function LancarReceitaModal({
             ref={anexosRef}
             pasta={pastaAnexos}
             anexosIniciais={anexosIniciais}
-            resetToken={open}
             className="mt-4"
           />
 

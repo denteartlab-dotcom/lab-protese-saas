@@ -846,7 +846,6 @@ export function LancarReceitaOsModal({
           <AnexosReciboCampo
             ref={anexosRef}
             pasta="receitas"
-            resetToken={open}
             className="mt-4"
           />
 

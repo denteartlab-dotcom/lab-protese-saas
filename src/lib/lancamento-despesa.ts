@@ -34,9 +34,16 @@ export const ACCEPT_ANEXOS_FINANCEIRO =
   "image/*,application/pdf,.pdf,.heic,.heif";
 
 export function arquivoEhAnexoFinanceiro(file: File) {
-  if (file.type.startsWith("image/")) return true;
-  if (file.type === "application/pdf") return true;
   const nome = file.name.toLowerCase();
+  if (/\.pdf$/i.test(nome)) return true;
+  if (file.type === "application/pdf") return true;
+  if (file.type.startsWith("image/")) return true;
+  if (
+    file.type === "application/octet-stream" &&
+    /\.(jpe?g|png|gif|webp|bmp|heic|heif|pdf)$/i.test(nome)
+  ) {
+    return true;
+  }
   return /\.(jpe?g|png|gif|webp|bmp|heic|heif|pdf)$/i.test(nome);
 }
 
