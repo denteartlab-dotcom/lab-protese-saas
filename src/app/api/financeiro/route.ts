@@ -42,7 +42,26 @@ function parseDateOnly(value?: string) {
     const [year, month, day] = value.split("-").map(Number);
     return new Date(year, month - 1, day, 12);
   }
-  return new Date(value);
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return new Date();
+  return parsed;
+}
+
+/** Campos aceitos pelo model Lancamento (evita enviar parcelaNumero etc. ao Prisma). */
+function dadosCreateLancamento(
+  data: z.infer<typeof schema>,
+  descricao: string
+) {
+  return {
+    tipo: data.tipo,
+    descricao,
+    valor: data.valor,
+    data: parseDateOnly(data.data),
+    status: data.status ?? "pendente",
+    formaPagamento: data.formaPagamento ?? null,
+    clienteId: data.clienteId ?? null,
+    trabalhoId: data.trabalhoId ?? null,
+  };
 }
 
 export async function GET(request: Request) {
@@ -115,7 +134,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const data = schema.parse(body);
-    const { emitirBoleto, parcelas: parcelasBody, ...camposLancamento } = data;
+    const { emitirBoleto, parcelas: parcelasBody } = data;
 
     if (
       data.tipo === "receita" &&
@@ -135,9 +154,9 @@ export async function POST(request: Request) {
             valor: p.valor,
             data: parseDateOnly(p.data ?? data.data),
             status: p.status ?? data.status ?? "pendente",
-            formaPagamento: p.formaPagamento ?? data.formaPagamento,
-            clienteId: data.clienteId,
-            trabalhoId: data.trabalhoId,
+            formaPagamento: p.formaPagamento ?? data.formaPagamento ?? null,
+            clienteId: data.clienteId ?? null,
+            trabalhoId: data.trabalhoId ?? null,
           },
           include: { cliente: true, trabalho: true },
         });
@@ -163,12 +182,7 @@ export async function POST(request: Request) {
     }
 
     const lancamento = await prisma.lancamento.create({
-      data: {
-        ...camposLancamento,
-        descricao,
-        data: parseDateOnly(data.data),
-        status: data.status ?? "pendente",
-      },
+      data: dadosCreateLancamento(data, descricao),
       include: {
         cliente: true,
         trabalho: true,

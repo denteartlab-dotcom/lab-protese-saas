@@ -56,10 +56,21 @@ export async function PUT(
         trabalho: { select: { numeroOs: true } },
       },
     });
-    await auditarAlteracaoLancamento(session, existente, lancamento);
+    try {
+      await auditarAlteracaoLancamento(session, existente, lancamento);
+    } catch (auditErr) {
+      console.error("[financeiro PUT] auditoria", auditErr);
+    }
     return NextResponse.json(lancamento);
-  } catch {
-    return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
+  } catch (err) {
+    console.error("[financeiro PUT]", err);
+    if (err instanceof z.ZodError) {
+      return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
+    }
+    return NextResponse.json(
+      { error: "Não foi possível salvar o lançamento." },
+      { status: 500 }
+    );
   }
 }
 
