@@ -16,6 +16,7 @@ import { ConfiguracoesBoletosTab } from "@/components/ConfiguracoesBoletosTab";
 import { ConfiguracoesNfseTab } from "@/components/ConfiguracoesNfseTab";
 import { MeusUsuariosTab } from "@/components/configuracoes/MeusUsuariosTab";
 import { BackupLaboratorioTab } from "@/components/configuracoes/BackupLaboratorioTab";
+import { ConfiguracoesGeraisTab } from "@/components/configuracoes/ConfiguracoesGeraisTab";
 import { LogoLaboratorioTab } from "@/components/LogoLaboratorioTab";
 import { useI18n } from "@/components/i18n-provider";
 import {
@@ -323,6 +324,32 @@ function ConfiguracoesConteudo() {
           ) : aba === "horario" ? (
             <>
               <HorarioFuncionamentoTab
+                onMensagem={(texto, tipo = "info") => {
+                  setMensagem(texto);
+                  setMensagemTipo(tipo);
+                  if (tipo === "sucesso" || tipo === "info") {
+                    window.setTimeout(() => setMensagem(""), 4000);
+                  }
+                }}
+              />
+              {mensagem ? (
+                <p
+                  role="alert"
+                  className={`mt-4 text-sm font-medium ${
+                    mensagemTipo === "sucesso"
+                      ? "text-emerald-600"
+                      : mensagemTipo === "erro"
+                        ? "text-red-600"
+                        : "text-slate-600"
+                  }`}
+                >
+                  {mensagem}
+                </p>
+              ) : null}
+            </>
+          ) : aba === "gerais" ? (
+            <>
+              <ConfiguracoesGeraisTab
                 onMensagem={(texto, tipo = "info") => {
                   setMensagem(texto);
                   setMensagemTipo(tipo);
