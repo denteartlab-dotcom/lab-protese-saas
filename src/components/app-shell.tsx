@@ -115,7 +115,9 @@ function AppShellInner({
   const { t } = useI18n();
   const pathname = usePathname();
   const router = useRouter();
-  const isPrint = pathname.includes("/imprimir");
+  const isPrint =
+    pathname.includes("/imprimir") ||
+    pathname.startsWith("/app/configuracoes/cabecalho");
   const isModuloColaborador = pathname === "/app/producao/modulo";
   const isDashboard = pathname === "/app";
   const [darkMode, setDarkMode] = useState(false);
@@ -1191,8 +1193,9 @@ function AppShellInner({
       <main>
         <div
           className={cn(
-            "min-h-screen",
-            isPrint || isModuloColaborador ? "p-0" : "px-3 py-4 sm:px-5"
+            isPrint || isModuloColaborador
+              ? "h-screen min-h-0 overflow-hidden p-0"
+              : "min-h-screen px-3 py-4 sm:px-5"
           )}
         >
           {children}

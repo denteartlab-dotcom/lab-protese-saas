@@ -84,10 +84,7 @@ function PreviewCabecalho({
   const logoH = Math.round(logoW * 0.75);
 
   return (
-    <div
-      className="relative mx-auto w-full max-w-[820px] rounded-sm bg-white px-8 py-6 shadow-lg"
-      style={{ minHeight: 140 }}
-    >
+    <div className="relative w-full bg-white px-10 py-8" style={{ minHeight: "100%" }}>
       <div className="flex gap-4">
         <div
           style={{
@@ -207,13 +204,17 @@ export function ConfiguracoesCabecalhoConteudo() {
   }
 
   if (!cfg) {
-    return <p className="p-6 text-sm text-slate-500">Carregando…</p>;
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#4a4f56]">
+        <p className="text-sm text-slate-300">Carregando…</p>
+      </div>
+    );
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)] flex-col lg:flex-row">
-      <aside className="w-full shrink-0 overflow-y-auto border-b border-slate-300 bg-[#d9dde3] lg:w-[340px] lg:border-b-0 lg:border-r">
-        <div className="space-y-5 p-4 pb-24">
+    <div className="flex h-screen w-full flex-col overflow-hidden lg:flex-row">
+      <aside className="flex h-full w-full shrink-0 flex-col border-b border-slate-300 bg-[#d9dde3] lg:w-[360px] lg:border-b-0 lg:border-r">
+        <div className="flex-1 space-y-5 overflow-y-auto p-4">
           <div>
             <h1 className="text-[15px] font-normal text-slate-800">Cabeçalho</h1>
             <p className="text-[11px] text-slate-600">Requisições e ordens de serviço</p>
@@ -316,7 +317,7 @@ export function ConfiguracoesCabecalhoConteudo() {
             </p>
           </div>
         </div>
-        <div className="fixed bottom-0 left-0 z-10 w-full border-t border-slate-300 bg-[#d9dde3] p-4 lg:w-[340px]">
+        <div className="shrink-0 border-t border-slate-300 bg-[#d9dde3] p-4">
           <Button
             type="button"
             onClick={() => void salvar()}
@@ -338,16 +339,16 @@ export function ConfiguracoesCabecalhoConteudo() {
         </div>
       </aside>
 
-      <div className="flex min-h-[420px] flex-1 flex-col bg-[#4a4f56]">
-        <div className="flex items-center justify-end gap-2 border-b border-[#3d4248] px-4 py-2">
+      <div className="flex min-h-0 flex-1 flex-col bg-[#4a4f56]">
+        <div className="flex shrink-0 items-center justify-end gap-2 border-b border-[#3d4248] bg-[#4a4f56] px-4 py-2.5">
           <Link
             href="/app/configuracoes?aba=dados"
-            className="rounded bg-[#5a6068] px-4 py-1.5 text-[12px] text-white hover:bg-[#6a7078]"
+            className="rounded bg-[#5a6068] px-5 py-2 text-[12px] text-white hover:bg-[#6a7078]"
           >
             Voltar
           </Link>
         </div>
-        <div className="flex flex-1 items-start justify-center overflow-auto p-6 md:p-10">
+        <div className="min-h-0 flex-1 overflow-auto p-4 md:p-6">
           <PreviewCabecalho cfg={cfg} cab={cab} />
         </div>
       </div>
