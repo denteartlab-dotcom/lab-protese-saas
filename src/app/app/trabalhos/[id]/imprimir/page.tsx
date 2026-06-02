@@ -226,7 +226,11 @@ async function ImprimirOSConteudo({
       : itens.find((item) => item.tipo === "servico")?.notasAbaixo?.[0] || "";
   const materiais = lineValue(linhas, "Material enviado:") || empty(t.material);
   const caixa = lineValue(linhas, "Caixa:");
-  const osExterna = lineValue(linhas, "OS Externa:") || lineValue(linhas, "OS externa:");
+  const osExterna =
+    lineValue(linhas, "OS Interna:") ||
+    lineValue(linhas, "OS Externa:") ||
+    lineValue(linhas, "OS externa:");
+  const chavePed = lineValue(linhas, "Chave Ped:") || lineValue(linhas, "Chave ped:");
   const colaborador = lineValue(linhas, "Colaborador:");
   const dentistaNome =
     lineValue(linhas, "Dentista:") || lineValue(linhas, "Dentista convidado:");
@@ -315,6 +319,7 @@ async function ImprimirOSConteudo({
         observacoes: observacoesUsuario,
         prazoLinhaServico,
         osExterna,
+        chavePed,
         finalizado: dateOrEmpty(trabalhoServico.dataEntrega),
         colaborador,
         etapas: lineValue(linhas, "Etapas:"),

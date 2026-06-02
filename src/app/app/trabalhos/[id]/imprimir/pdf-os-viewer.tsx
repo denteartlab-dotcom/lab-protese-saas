@@ -15,6 +15,8 @@ import {
   carregarLayoutModelo1,
   carregarLayoutModelo2,
   carregarLayoutModelo3,
+  carregarLayoutModelo4,
+  carregarLayoutModelo5,
 } from "@/lib/configuracoes-os";
 import {
   hexParaRgb,
@@ -24,6 +26,8 @@ import {
 } from "@/lib/os-modelo1-layout";
 import { normalizarOsModelo2Layout } from "@/lib/os-modelo2-layout";
 import { normalizarOsModelo3Layout } from "@/lib/os-modelo3-layout";
+import { normalizarOsModelo4Layout, type OsModelo4Layout } from "@/lib/os-modelo4-layout";
+import { normalizarOsModelo5Layout, type OsModelo5Layout } from "@/lib/os-modelo5-layout";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
 import { desenharCabecalhoRequisicaoPdf } from "@/lib/pdf-cabecalho-os";
 
@@ -64,6 +68,9 @@ type PdfOsData = {
   layoutModelo1?: OsModelo1Layout;
   layoutModelo2?: OsModelo1Layout;
   layoutModelo3?: OsModelo1Layout;
+  layoutModelo4?: OsModelo4Layout;
+  layoutModelo5?: OsModelo5Layout;
+  chavePed?: string;
   osExterna?: string;
   finalizado?: string;
   colaborador?: string;
@@ -851,7 +858,15 @@ function renderModeloComprovante(
 
 const TERMICA_MARGEM = 4;
 
-function linhaTermica(pdf: PdfRenderApi, y: number, pageWidth: number) {
+function pxTermicaParaMm(px: number) {
+  return px * 0.264583;
+}
+
+function linhaTermica(pdf: PdfRenderApi, y: number, pageWidth: number, corHex?: string) {
+  if (corHex) {
+    const { r, g, b } = hexParaRgb(corHex);
+    pdf.setDrawColor(r, g, b);
+  }
   pdf.setLineWidth(0.25);
   pdf.line(TERMICA_MARGEM, y, pageWidth - TERMICA_MARGEM, y);
 }
@@ -988,121 +1003,519 @@ function totalTermicaDireita(
   return y + 4;
 }
 
-/** Modelo 4 — comprovante com valores/descontos (térmica 80mm, Epson T20). */
-function renderTermicaModelo4(pdf: PdfRenderApi, data: PdfOsData): number {
+/** Modelo 4 — cupom térmica 80mm Epson T20 (layout Smart). */
+function renderTermicaModelo4(
+  pdf: PdfRenderApi,
+  data: PdfOsData,
+  layoutOverride?: OsModelo4Layout
+): number {
+  const lay = normalizarOsModelo4Layout(layoutOverride ?? data.layoutModelo4);
   const lab = data.lab || LAB_IMPRESSAO_PADRAO;
   const pageWidth = pdf.internal.pageSize.getWidth();
   const cx = pageWidth / 2;
   const mx = TERMICA_MARGEM;
   const dir = pageWidth - mx;
-  const larguraDesc = 38;
+  const corLinha = lay.bordas;
+  const fs = Math.max(6.5, lay.tamanhoFonte * 0.625);
+  const fsSmall = Math.max(6, fs - 0.5);
+  const larguraCampo = pageWidth - mx * 2 - 24;
   let y = 5;
 
-  const logoTermica = desenharLogoLab(pdf, lab, cx - 14, y, 28, 12);
-  if (logoTermica.altura > 0) y += logoTermica.altura + 3;
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(11);
-  pdf.text(lab.responsavel, cx, y, { align: "center" });
-  y += 6;
+  if (lay.dataOs && data.dataEntrada) {
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(fsSmall);
+    pdf.text(data.dataEntrada, dir, y, { align: "right" });
+    y += 4;
+  }
 
-  linhaTermica(pdf, y, pageWidth);
-  y += 4;
+  if (lay.logo) {
+    const logoWmm = Math.min(pageWidth - mx * 2 - 2, pxTermicaParaMm(lay.logoTamanhoPx));
+    const logoHmm = logoWmm * 0.85;
+    const logoX = cx - logoWmm / 2 + pxTermicaParaMm(lay.logoMargemEsq) * 0.15;
+    y += pxTermicaParaMm(lay.logoMargemTopo) * 0.2;
+    const logoTermica = desenharLogoLab(pdf, lab, logoX, y, logoWmm, logoHmm);
+    if (logoTermica.altura > 0) y += logoTermica.altura + 2;
+  }
 
-  pdf.setFontSize(7.5);
-  const larguraCampo = pageWidth - mx * 2 - 22;
-  y = campoTermica(pdf, "OS:", String(data.numeroOs), mx, y, larguraCampo);
-  y = campoTermica(pdf, "Conta:", data.caixa, mx, y, larguraCampo);
-  y = campoTermica(pdf, "Cliente:", data.cliente, mx, y, larguraCampo);
-  y = campoTermica(pdf, "Dentista:", data.dentista, mx, y, larguraCampo);
-  y = campoTermica(pdf, "Paciente:", data.paciente, mx, y, larguraCampo);
-  y = campoTermica(pdf, "Telefone:", data.telefones, mx, y, larguraCampo);
-  y = campoTermica(pdf, "Email:", data.email, mx, y, larguraCampo);
-  y = campoTermica(pdf, "Endereço:", data.endereco, mx, y, larguraCampo);
+  if (lay.infoLab) {
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(fs + 0.5);
+    pdf.text(lab.responsavel, cx, y, { align: "center" });
+    y += 5;
+  }
+
+  pdf.setFontSize(fsSmall);
+  const usuario = (data.usuarioCriou || "").trim();
+
+  if (lay.numOs) {
+    y = campoTermica(pdf, "Num OS:", String(data.numeroOs), mx, y, larguraCampo);
+  }
+  if (lay.osExterna) {
+    y = campoTermica(pdf, "OS Externa:", data.osExterna || "", mx, y, larguraCampo);
+  }
+  if (lay.caixa) {
+    y = campoTermica(pdf, "Caixa:", data.caixa, mx, y, larguraCampo);
+  }
+  if (lay.cliente) {
+    y = campoTermica(pdf, "Cliente:", data.cliente, mx, y, larguraCampo);
+  }
+  if (lay.dentista) {
+    y = campoTermica(pdf, "Dentista:", data.dentista, mx, y, larguraCampo);
+  }
+  if (lay.paciente) {
+    y = campoTermica(pdf, "Paciente:", data.paciente, mx, y, larguraCampo);
+  }
+  if (lay.clienteTel) {
+    y = campoTermica(pdf, "Telefones:", data.telefones, mx, y, larguraCampo);
+  }
+  if (lay.clienteEmail) {
+    y = campoTermica(pdf, "Email:", data.email, mx, y, larguraCampo);
+  }
+  if (lay.clienteEnd) {
+    y = campoTermica(pdf, "Endereço:", data.endereco, mx, y, larguraCampo);
+  }
+  if (lay.chavePed && data.chavePed) {
+    y = campoTermica(pdf, "Chave Ped:", data.chavePed, mx, y, larguraCampo);
+  }
+  if (lay.usuario && usuario) {
+    y = campoTermica(pdf, "Usuário:", usuario, mx, y, larguraCampo);
+  }
   y += 1;
 
-  linhaTermica(pdf, y, pageWidth);
-  y += 4;
+  if (lay.produtos && data.itens.length > 0) {
+    linhaTermica(pdf, y, pageWidth, corLinha);
+    y += 3.5;
 
-  const colQtd = mx;
-  const colDesc = mx + 9;
-  const colValorUn = 54;
-  const colDescPct = dir;
+    const colQtd = mx;
+    const colDesc = mx + 8;
+    const colValorUn = lay.valorUnit ? 52 : dir;
+    const colDescPct = dir;
+    const larguraDesc = lay.desconto ? 34 : 42;
 
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(7);
-  pdf.text("Qtd", colQtd, y);
-  pdf.text("Descrição", colDesc, y);
-  pdf.text("Valor Un", colValorUn, y, { align: "right" });
-  pdf.text("Desc", colDescPct, y, { align: "right" });
-  y += 3.5;
-  linhaTermica(pdf, y, pageWidth);
-  y += 4;
-
-  pdf.setFont("helvetica", "normal");
-  let totalServicos = 0;
-  let totalDescontos = 0;
-
-  for (const item of data.itens) {
-    const bruto = valorBrutoItem(item);
-    const subtotal = subtotalItem(item);
-    totalServicos += bruto;
-    totalDescontos += bruto - subtotal;
-
-    const descricaoLinhas = pdf.splitTextToSize(String(item.descricao), larguraDesc);
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(7.5);
-    pdf.text(String(item.qtd), colQtd, y);
-    pdf.setFont("helvetica", "normal");
-    pdf.text(descricaoLinhas, colDesc, y);
-    pdf.text(unitarioTabela(item.unitario), colValorUn, y, { align: "right" });
-    pdf.text(descTermicaPct(item.desconto), colDescPct, y, { align: "right" });
-    y += Math.max(4, descricaoLinhas.length * 3.4) + 1;
+    pdf.setFontSize(fsSmall - 0.5);
+    pdf.text("Qtd", colQtd, y);
+    pdf.text("Descrição", colDesc, y);
+    if (lay.valorUnit) {
+      pdf.text("Unitário", colValorUn, y, { align: "right" });
+    }
+    if (lay.desconto) {
+      pdf.text("Descontos", colDescPct, y, { align: "right" });
+    }
+    y += 3;
+    linhaTermica(pdf, y, pageWidth, corLinha);
+    y += 3.5;
 
-    pdf.setFontSize(7);
-    y = campoTermica(pdf, "Num Dente:", item.dente, mx + 1, y, larguraCampo);
-    y = campoTermica(pdf, "Cor Dente:", item.cor, mx + 1, y, larguraCampo);
+    pdf.setFont("helvetica", "normal");
+    let totalServicos = 0;
+    let totalDescontos = 0;
+
+    for (const item of data.itens) {
+      const bruto = valorBrutoItem(item);
+      const subtotal = subtotalItem(item);
+      totalServicos += bruto;
+      totalDescontos += bruto - subtotal;
+
+      const descricaoLinhas = pdf.splitTextToSize(String(item.descricao), larguraDesc);
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(fsSmall);
+      pdf.text(String(item.qtd), colQtd, y);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(descricaoLinhas, colDesc, y);
+      if (lay.valorUnit) {
+        pdf.text(money(item.unitario), colValorUn, y, { align: "right" });
+      }
+      if (lay.desconto) {
+        pdf.text(descTermicaPct(item.desconto), colDescPct, y, { align: "right" });
+      }
+      y += Math.max(3.8, descricaoLinhas.length * 3.3) + 0.5;
+
+      pdf.setFontSize(fsSmall - 0.5);
+      if (lay.numDente) {
+        y = campoTermica(pdf, "Num Dente:", item.dente, mx + 1, y, larguraCampo);
+      }
+      if (lay.corDente) {
+        y = campoTermica(pdf, "Cor Dente:", item.cor, mx + 1, y, larguraCampo);
+      }
+      const { prazo, finalizado } = prazoFinalizadoTermica(data, item);
+      if (lay.dataPrazo || lay.finalizado) {
+        pdf.setFont("helvetica", "normal");
+        let xCampo = mx + 1;
+        if (lay.dataPrazo && prazo) {
+          pdf.text("Prazo: ", xCampo, y);
+          xCampo += pdf.getTextWidth("Prazo: ");
+          pdf.setFont("helvetica", "bold");
+          pdf.text(prazo, xCampo, y);
+          xCampo += pdf.getTextWidth(prazo) + 1.5;
+          pdf.setFont("helvetica", "normal");
+        }
+        if (lay.finalizado && finalizado) {
+          pdf.text("Finalizado: ", xCampo, y);
+          xCampo += pdf.getTextWidth("Finalizado: ");
+          pdf.setFont("helvetica", "bold");
+          pdf.text(finalizado, xCampo, y);
+          pdf.setFont("helvetica", "normal");
+        }
+        y += 3.6;
+      }
+      if (lay.colaborador && data.colaborador) {
+        y = campoTermica(pdf, "Colaborador:", data.colaborador, mx + 1, y, larguraCampo);
+      }
+      const obsServ = item.notasAbaixo?.find((n) => /observ/i.test(n)) || "";
+      if (lay.obsServico) {
+        const obsTexto =
+          obsServ.replace(/^observ[aã]o:\s*/i, "") || data.observacoes?.slice(0, 200) || "";
+        if (obsTexto) {
+          y = campoTermica(pdf, "Observação:", obsTexto, mx + 1, y, larguraCampo);
+        }
+      }
+      pdf.setFontSize(fsSmall);
+      y += 0.5;
+    }
+
+    linhaTermica(pdf, y, pageWidth, corLinha);
+    y += 3.5;
+
+    const subtotalGeral = totalServicos - totalDescontos;
+    const totalFinal =
+      subtotalGeral > 0 ? subtotalGeral : data.valor > 0 ? data.valor : subtotalGeral;
+
+    if (lay.subtotal) {
+      y = totalTermicaDireita(pdf, `Subtotal: ${money(subtotalGeral)}`, y, pageWidth, mx);
+    }
+    y = totalTermicaDireita(pdf, `Total Serviços: ${money(totalServicos)}`, y, pageWidth, mx);
+    if (lay.desconto) {
+      y = totalTermicaDireita(pdf, `(-) Descontos: ${money(totalDescontos)}`, y, pageWidth, mx);
+    }
+    if (lay.total) {
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(fsSmall);
+      pdf.text(`(=) Total: ${money(totalFinal)}`, pageWidth - mx, y, { align: "right" });
+      y += 4;
+    }
     y += 1;
   }
 
-  linhaTermica(pdf, y, pageWidth);
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(fsSmall);
+
+  if (lay.materialRec && data.materiais) {
+    pdf.text("Materiais:", mx, y);
+    pdf.setFont("helvetica", "bold");
+    const linhasMat = pdf.splitTextToSize(data.materiais, larguraCampo);
+    pdf.text(linhasMat, mx + pdf.getTextWidth("Materiais:") + 1, y);
+    pdf.setFont("helvetica", "normal");
+    y += Math.max(3.8, linhasMat.length * 3.5) + 1;
+  }
+
+  if (lay.obsFicha && data.obsFicha) {
+    pdf.text("Observação:", mx, y);
+    pdf.setFont("helvetica", "bold");
+    const linhasObs = pdf.splitTextToSize(data.obsFicha, larguraCampo);
+    pdf.text(linhasObs, mx + pdf.getTextWidth("Observação:") + 1, y);
+    pdf.setFont("helvetica", "normal");
+    y += Math.max(3.8, linhasObs.length * 3.5) + 1;
+  }
+
+  if (lay.assinatura) {
+    y += 4;
+    const assinW = 50;
+    const assinX = cx - assinW / 2;
+    const { r, g, b } = hexParaRgb(corLinha);
+    pdf.setDrawColor(r, g, b);
+    pdf.setLineWidth(0.25);
+    pdf.line(assinX, y, assinX + assinW, y);
+    y += 4;
+    pdf.setFontSize(fsSmall - 0.5);
+    pdf.text("recebi o(s) serviço(s) descrito acima", cx, y, { align: "center" });
+    y += 5;
+    pdf.line(assinX, y, assinX + assinW, y);
+    y += 4;
+  }
+
+  pdf.setFontSize(fsSmall - 0.5);
+  pdf.text(lab.enderecoLinha1, cx, y, { align: "center" });
+  y += 3.2;
+  pdf.text((lab.enderecoLinha2 || "").replace(" / ", "/"), cx, y, { align: "center" });
+  y += 3.2;
+  pdf.text(lab.telefones, cx, y, { align: "center" });
+  y += 3.2;
+  pdf.text(`email: ${lab.email}`, cx, y, { align: "center" });
   y += 4;
 
-  const subtotalGeral = totalServicos - totalDescontos;
-  y = totalTermicaDireita(pdf, `Subtotal: ${money(subtotalGeral)}`, y, pageWidth, mx);
-  y = totalTermicaDireita(pdf, `Total Serviços: ${money(totalServicos)}`, y, pageWidth, mx);
-  y = totalTermicaDireita(pdf, `(-) Descontos: ${money(totalDescontos)}`, y, pageWidth, mx);
-  y = totalTermicaDireita(pdf, `(=) Total: ${money(subtotalGeral > 0 ? subtotalGeral : data.valor)}`, y, pageWidth, mx);
-  y += 2;
+  if (lay.codBarras) {
+    const barcodeValue = `OS${data.numeroOs}`;
+    const barcodeW = 42;
+    drawCode39(pdf, barcodeValue, cx - barcodeW / 2, y);
+    pdf.setFontSize(5.5);
+    pdf.text(barcodeValue, cx, y + 9, { align: "center" });
+    y += 12;
+  }
 
-  linhaTermica(pdf, y, pageWidth);
-  y += 5;
+  return y + 2;
+}
+
+/** Modelo 5 — comprovante de entrega térmica 80mm Epson T20 (layout Smart). */
+function renderTermicaModelo5(
+  pdf: PdfRenderApi,
+  data: PdfOsData,
+  layoutOverride?: OsModelo5Layout
+): number {
+  const lay = normalizarOsModelo5Layout(layoutOverride ?? data.layoutModelo5);
+  const lab = data.lab || LAB_IMPRESSAO_PADRAO;
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const cx = pageWidth / 2;
+  const mx = TERMICA_MARGEM;
+  const dir = pageWidth - mx;
+  const corLinha = lay.bordas;
+  const fs = Math.max(6.5, lay.tamanhoFonte * 0.625);
+  const fsSmall = Math.max(6, fs - 0.5);
+  const larguraCampo = pageWidth - mx * 2 - 24;
+  let y = 5;
+  const yTopo = y;
+
+  if (lay.logo) {
+    const logoWmm = Math.min(22, pxTermicaParaMm(lay.logoTamanhoPx) * 0.47);
+    const logoHmm = logoWmm * 0.85;
+    const logoTermica = desenharLogoLab(pdf, lab, mx, yTopo, logoWmm, logoHmm);
+    if (logoTermica.altura > 0) y = Math.max(y, yTopo + logoTermica.altura);
+  }
+
+  if (lay.dataOs && data.dataEntrada) {
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(fsSmall);
+    pdf.text(data.dataEntrada, dir, yTopo + 3, { align: "right" });
+  }
+
+  y = Math.max(y, yTopo + 4) + 1;
+
+  if (lay.infoLab) {
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(fs + 0.5);
+    pdf.text(lab.responsavel, cx, y, { align: "center" });
+    y += 5;
+  }
+
+  pdf.setFontSize(fsSmall);
+  const usuario = (data.usuarioCriou || "").trim();
+
+  if (lay.numOs) {
+    y = campoTermica(pdf, "Num OS:", String(data.numeroOs), mx, y, larguraCampo);
+  }
+  if (lay.osExterna) {
+    y = campoTermica(pdf, "OS Interna:", data.osExterna || "", mx, y, larguraCampo);
+  }
+  if (lay.caixa) {
+    y = campoTermica(pdf, "Caixa:", data.caixa, mx, y, larguraCampo);
+  }
+  if (lay.cliente) {
+    y = campoTermica(pdf, "Cliente:", data.cliente, mx, y, larguraCampo);
+  }
+  if (lay.dentista) {
+    y = campoTermica(pdf, "Dentista:", data.dentista, mx, y, larguraCampo);
+  }
+  if (lay.paciente) {
+    y = campoTermica(pdf, "Paciente:", data.paciente, mx, y, larguraCampo);
+  }
+  if (lay.clienteTel) {
+    y = campoTermica(pdf, "Telefone:", data.telefones, mx, y, larguraCampo);
+  }
+  if (lay.clienteEmail) {
+    y = campoTermica(pdf, "Email:", data.email, mx, y, larguraCampo);
+  }
+  if (lay.clienteEnd) {
+    y = campoTermica(pdf, "Endereço:", data.endereco, mx, y, larguraCampo);
+  }
+  if (lay.usuario && usuario) {
+    y = campoTermica(pdf, "Usuário:", usuario, mx, y, larguraCampo);
+  }
+  y += 1;
+
+  if (lay.produtos && data.itens.length > 0) {
+    linhaTermica(pdf, y, pageWidth, corLinha);
+    y += 3.5;
+
+    const colQtd = mx;
+    const colDesc = mx + 8;
+    const colValorUn = lay.valorUnit ? 52 : dir;
+    const colDescPct = dir;
+    const larguraDesc = 44;
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(fsSmall - 0.5);
+    pdf.text("Qtd", colQtd, y);
+    pdf.text("Descrição", colDesc, y);
+    if (lay.valorUnit) {
+      pdf.text("Unitário", colValorUn, y, { align: "right" });
+    }
+    if (lay.desconto) {
+      pdf.text("Descontos", colDescPct, y, { align: "right" });
+    }
+    y += 3;
+    linhaTermica(pdf, y, pageWidth, corLinha);
+    y += 3.5;
+
+    pdf.setFont("helvetica", "normal");
+    let totalServicos = 0;
+    let totalDescontos = 0;
+
+    for (const item of data.itens) {
+      const bruto = valorBrutoItem(item);
+      const subtotal = subtotalItem(item);
+      totalServicos += bruto;
+      totalDescontos += bruto - subtotal;
+
+      const descricaoLinhas = pdf.splitTextToSize(String(item.descricao), larguraDesc);
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(fsSmall);
+      pdf.text(String(item.qtd), colQtd, y);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(descricaoLinhas, colDesc, y);
+      y += Math.max(3.8, descricaoLinhas.length * 3.3) + 0.5;
+
+      if (lay.valorUnit || lay.desconto) {
+        pdf.setFontSize(fsSmall);
+        if (lay.valorUnit) {
+          pdf.text(money(item.unitario), colValorUn, y, { align: "right" });
+        }
+        if (lay.desconto) {
+          pdf.text(descTermicaPct(item.desconto), colDescPct, y, { align: "right" });
+        }
+        y += 3.6;
+      }
+
+      pdf.setFontSize(fsSmall - 0.5);
+      if (lay.numDente) {
+        y = campoTermica(pdf, "Num Dente:", item.dente, mx + 1, y, larguraCampo);
+      }
+      if (lay.corDente) {
+        y = campoTermica(pdf, "Cor Dente:", item.cor, mx + 1, y, larguraCampo);
+      }
+      const { prazo, finalizado } = prazoFinalizadoTermica(data, item);
+      if (lay.dataPrazo || lay.finalizado) {
+        pdf.setFont("helvetica", "normal");
+        let xCampo = mx + 1;
+        if (lay.dataPrazo && prazo) {
+          pdf.text("Prazo: ", xCampo, y);
+          xCampo += pdf.getTextWidth("Prazo: ");
+          pdf.setFont("helvetica", "bold");
+          pdf.text(prazo, xCampo, y);
+          xCampo += pdf.getTextWidth(prazo) + 1.5;
+          pdf.setFont("helvetica", "normal");
+        }
+        if (lay.finalizado && finalizado) {
+          pdf.text("Finalizado: ", xCampo, y);
+          xCampo += pdf.getTextWidth("Finalizado: ");
+          pdf.setFont("helvetica", "bold");
+          pdf.text(finalizado, xCampo, y);
+          pdf.setFont("helvetica", "normal");
+        }
+        y += 3.6;
+      }
+      if (lay.colaborador && data.colaborador) {
+        y = campoTermica(pdf, "Colaborador:", data.colaborador, mx + 1, y, larguraCampo);
+      }
+      const obsServ = item.notasAbaixo?.find((n) => /observ/i.test(n)) || "";
+      if (lay.obsServico) {
+        const obsTexto =
+          obsServ.replace(/^observ[aã]o:\s*/i, "") || data.observacoes?.slice(0, 200) || "";
+        if (obsTexto) {
+          y = campoTermica(pdf, "Observação:", obsTexto, mx + 1, y, larguraCampo);
+        }
+      }
+      pdf.setFontSize(fsSmall);
+      y += 0.5;
+    }
+
+    linhaTermica(pdf, y, pageWidth, corLinha);
+    y += 3.5;
+
+    const subtotalGeral = totalServicos - totalDescontos;
+    const totalFinal =
+      subtotalGeral > 0 ? subtotalGeral : data.valor > 0 ? data.valor : subtotalGeral;
+
+    if (lay.subtotal) {
+      y = totalTermicaDireita(pdf, `Subtotal: ${money(subtotalGeral)}`, y, pageWidth, mx);
+    }
+    y = totalTermicaDireita(pdf, `Total Serviços: ${money(totalServicos)}`, y, pageWidth, mx);
+    if (lay.desconto) {
+      y = totalTermicaDireita(pdf, `(-) Descontos: ${money(totalDescontos)}`, y, pageWidth, mx);
+    }
+    if (lay.total) {
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(fsSmall);
+      pdf.text(`(=) Total: ${money(totalFinal)}`, pageWidth - mx, y, { align: "right" });
+      y += 4;
+    }
+    y += 1;
+  }
 
   pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(7);
-  pdf.text("Recebi o(s) serviço(s) descritos acima.", cx, y, { align: "center" });
-  y += 5;
-  pdf.text(lab.enderecoLinha1, cx, y, { align: "center" });
-  y += 3.5;
-  pdf.text(lab.enderecoLinha2.replace(" / ", "/"), cx, y, { align: "center" });
-  y += 3.5;
-  pdf.text(lab.telefones, cx, y, { align: "center" });
-  y += 3.5;
-  pdf.text(`Email: ${lab.email}`, cx, y, { align: "center" });
-  y += 5;
+  pdf.setFontSize(fsSmall);
 
-  const barcodeValue = `OS${data.numeroOs}`;
-  const barcodeW = 42;
-  drawCode39(pdf, barcodeValue, cx - barcodeW / 2, y);
-  pdf.setFontSize(6);
-  pdf.text(barcodeValue, cx, y + 10, { align: "center" });
-  y += 13;
-  linhaTermica(pdf, y, pageWidth);
+  if (lay.materialRec && data.materiais) {
+    pdf.text("Materiais:", mx, y);
+    pdf.setFont("helvetica", "bold");
+    const linhasMat = pdf.splitTextToSize(data.materiais, larguraCampo);
+    pdf.text(linhasMat, mx + pdf.getTextWidth("Materiais:") + 1, y);
+    pdf.setFont("helvetica", "normal");
+    y += Math.max(3.8, linhasMat.length * 3.5) + 1;
+  }
+
+  if (lay.obsFicha && data.obsFicha) {
+    pdf.text("Observação:", mx, y);
+    pdf.setFont("helvetica", "bold");
+    const linhasObs = pdf.splitTextToSize(data.obsFicha, larguraCampo);
+    pdf.text(linhasObs, mx + pdf.getTextWidth("Observação:") + 1, y);
+    pdf.setFont("helvetica", "normal");
+    y += Math.max(3.8, linhasObs.length * 3.5) + 1;
+  }
+
+  if (lay.assinatura) {
+    y += 4;
+    const assinW = 50;
+    const assinX = cx - assinW / 2;
+    const { r, g, b } = hexParaRgb(corLinha);
+    pdf.setDrawColor(r, g, b);
+    pdf.setLineWidth(0.25);
+    pdf.line(assinX, y, assinX + assinW, y);
+    y += 4;
+    pdf.setFontSize(fsSmall - 0.5);
+    pdf.text("recebi o(s) serviço(s) descrito acima", cx, y, { align: "center" });
+    y += 5;
+  }
+
+  pdf.setFontSize(fsSmall - 0.5);
+  pdf.text(lab.enderecoLinha1, cx, y, { align: "center" });
+  y += 3.2;
+  pdf.text((lab.enderecoLinha2 || "").replace(" / ", "/"), cx, y, { align: "center" });
+  y += 3.2;
+  pdf.text(lab.telefones, cx, y, { align: "center" });
+  y += 3.2;
+  pdf.text(`email: ${lab.email}`, cx, y, { align: "center" });
+  y += 4;
+
+  if (lay.codBarras) {
+    const barcodeValue = `OS${data.numeroOs}`;
+    const barcodeW = 42;
+    drawCode39(pdf, barcodeValue, cx - barcodeW / 2, y);
+    pdf.setFontSize(5.5);
+    pdf.text(barcodeValue, cx, y + 9, { align: "center" });
+    y += 12;
+  }
 
   return y + 2;
 }
 
 function renderTermicaPorModelo(modelo: string) {
-  if (modelo === "modelo4" || modelo === "modelo5") return renderTermicaModelo4;
+  if (modelo === "modelo4") {
+    return (pdf: PdfRenderApi, data: PdfOsData) =>
+      renderTermicaModelo4(pdf, data, data.layoutModelo4);
+  }
+  if (modelo === "modelo5") {
+    return (pdf: PdfRenderApi, data: PdfOsData) =>
+      renderTermicaModelo5(pdf, data, data.layoutModelo5);
+  }
   return renderTermicaModelo3;
 }
 
@@ -1133,6 +1546,8 @@ export function PdfOsViewer({
       layoutModelo1: carregarLayoutModelo1(),
       layoutModelo2: carregarLayoutModelo2(),
       layoutModelo3: carregarLayoutModelo3(),
+      layoutModelo4: carregarLayoutModelo4(),
+      layoutModelo5: carregarLayoutModelo5(),
     });
   }
 

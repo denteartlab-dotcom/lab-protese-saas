@@ -10,6 +10,14 @@ import {
   normalizarOsModelo3Layout,
   type OsModelo3Layout,
 } from "@/lib/os-modelo3-layout";
+import {
+  normalizarOsModelo4Layout,
+  type OsModelo4Layout,
+} from "@/lib/os-modelo4-layout";
+import {
+  normalizarOsModelo5Layout,
+  type OsModelo5Layout,
+} from "@/lib/os-modelo5-layout";
 
 export const CONFIG_OS_STORAGE_KEY = "labProteseConfiguracoesOs";
 export const CONFIG_OS_ATUALIZADA_EVENT = "lab-config-os-atualizada";
@@ -44,6 +52,7 @@ export type ConfiguracoesOs = {
   layoutModelo1: OsModelo1Layout;
   layoutModelo2: OsModelo2Layout;
   layoutModelo3: OsModelo3Layout;
+  layoutModelo4: OsModelo4Layout;
 };
 
 export const CONFIG_OS_PADRAO: ConfiguracoesOs = {
@@ -58,6 +67,8 @@ export const CONFIG_OS_PADRAO: ConfiguracoesOs = {
   layoutModelo1: normalizarOsModelo1Layout(null),
   layoutModelo2: normalizarOsModelo2Layout(null),
   layoutModelo3: normalizarOsModelo3Layout(null),
+  layoutModelo4: normalizarOsModelo4Layout(null),
+  layoutModelo5: normalizarOsModelo5Layout(null),
 };
 
 export function formatoPorModeloOs(id: ModeloOsId): "a4" | "termica" {
@@ -93,6 +104,8 @@ export function normalizarConfiguracoesOs(
       layoutModelo1: normalizarOsModelo1Layout(null),
       layoutModelo2: normalizarOsModelo2Layout(null),
       layoutModelo3: normalizarOsModelo3Layout(null),
+      layoutModelo4: normalizarOsModelo4Layout(null),
+      layoutModelo5: normalizarOsModelo5Layout(null),
     };
   }
 
@@ -113,7 +126,17 @@ export function normalizarConfiguracoesOs(
     layoutModelo1: normalizarOsModelo1Layout(valor.layoutModelo1),
     layoutModelo2: normalizarOsModelo2Layout(valor.layoutModelo2),
     layoutModelo3: normalizarOsModelo3Layout(valor.layoutModelo3),
+    layoutModelo4: normalizarOsModelo4Layout(valor.layoutModelo4),
+    layoutModelo5: normalizarOsModelo5Layout(valor.layoutModelo5),
   };
+}
+
+export function carregarLayoutModelo5(): OsModelo5Layout {
+  return carregarConfiguracoesOs().layoutModelo5;
+}
+
+export function carregarLayoutModelo4(): OsModelo4Layout {
+  return carregarConfiguracoesOs().layoutModelo4;
 }
 
 export function carregarLayoutModelo3(): OsModelo3Layout {
