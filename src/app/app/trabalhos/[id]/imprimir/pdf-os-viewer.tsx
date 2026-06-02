@@ -207,7 +207,7 @@ function criarPdf(formato: string) {
 }
 
 type PdfRenderApi = {
-  internal: { pageSize: { getWidth: () => number } };
+  internal: { pageSize: { getWidth: () => number; getHeight: () => number } };
   setFont: (fontName: string, fontStyle?: string) => void;
   setFontSize: (size: number) => void;
   setLineWidth: (width: number) => void;
