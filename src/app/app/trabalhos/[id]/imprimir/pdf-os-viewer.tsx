@@ -500,7 +500,9 @@ function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
     pdf.text(barcodeValue, 15, y + 12);
   }
 
-  desenharBordaPaginaPdf(pdf, lay.bordas);
+  if (lay.exibirBordas) {
+    desenharBordaPaginaPdf(pdf, lay.bordas);
+  }
 }
 
 function parseQtdItem(qtd: string) {

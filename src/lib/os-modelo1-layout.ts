@@ -1,4 +1,6 @@
 export type OsModelo1Layout = {
+  /** Exibir borda ao redor da página A4. */
+  exibirBordas: boolean;
   /** Cor da borda da página A4 (hex). */
   bordas: string;
   /** Texto opcional exibido no rodapé da requisição. */
@@ -36,6 +38,7 @@ export type OsModelo1Layout = {
 };
 
 export const OS_MODELO1_LAYOUT_PADRAO: OsModelo1Layout = {
+  exibirBordas: true,
   bordas: "#bdbdbd",
   mensagem: "",
   infoLab: true,
@@ -137,6 +140,8 @@ export function normalizarOsModelo1Layout(
       base.tamanhoFonte = clamp(Number(valor.tamanhoFonte) || 17, 8, 24);
     } else if (key === "bordas" || key === "mensagem") {
       /* já tratados */
+    } else if (key === "exibirBordas") {
+      base.exibirBordas = valor.exibirBordas !== false;
     } else if (key in valor) {
       base[key] = Boolean(valor[key]);
     }

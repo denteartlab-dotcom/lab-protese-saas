@@ -131,7 +131,7 @@ function PreviewOsModelo1({
         padding: "14mm 16mm 16mm",
         fontSize: `${fs}px`,
         fontFamily: "Arial, Helvetica, sans-serif",
-        border: `1px solid ${corBorda}`,
+        border: layout.exibirBordas ? `1px solid ${corBorda}` : "none",
       }}
     >
       <div className="flex items-start gap-3">
@@ -483,25 +483,32 @@ export function ConfiguracoesOsModelo1Conteudo() {
     <div className="flex h-screen w-full flex-col overflow-hidden lg:flex-row">
       <aside className="flex h-full w-full shrink-0 flex-col border-b border-slate-300 bg-[#d9dde3] lg:w-[360px] lg:border-b-0 lg:border-r">
         <div className="flex-1 space-y-3 overflow-y-auto p-4">
-          <label className="block">
+          <div>
             <span className="mb-1 block text-[11px] font-semibold text-slate-700">Bordas</span>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
+              <CheckboxCampo
+                label="Bordas"
+                checked={layout.exibirBordas}
+                onChange={(v) => patchLayout({ exibirBordas: v })}
+              />
               <input
                 type="color"
                 value={corBorda.length === 7 ? corBorda : "#bdbdbd"}
-                onChange={(e) => patchLayout({ bordas: e.target.value })}
-                className="h-8 w-10 shrink-0 cursor-pointer rounded border border-slate-300 bg-white p-0.5"
+                onChange={(e) => patchLayout({ bordas: e.target.value, exibirBordas: true })}
+                disabled={!layout.exibirBordas}
+                className="h-8 w-10 shrink-0 cursor-pointer rounded border border-slate-300 bg-white p-0.5 disabled:cursor-not-allowed disabled:opacity-40"
                 title="Cor da borda da página"
               />
               <input
                 type="text"
                 value={layout.bordas}
                 onChange={(e) => patchLayout({ bordas: e.target.value })}
+                disabled={!layout.exibirBordas}
                 placeholder="#bdbdbd"
-                className="h-8 min-w-0 flex-1 rounded border border-slate-300 bg-white px-2 text-[12px] outline-none focus:border-[#4a90d9]"
+                className="h-8 min-w-0 flex-1 rounded border border-slate-300 bg-white px-2 text-[12px] outline-none focus:border-[#4a90d9] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60"
               />
             </div>
-          </label>
+          </div>
 
           <div className="grid grid-cols-2 gap-x-2 gap-y-1">
             {CAMPOS_MODELO1_GERAL.map(({ key, label }) => (
