@@ -65,16 +65,31 @@ export function htmlCabecalhoLab(
 }
 
 export function configParaLabImpressao(cfg: ConfigLaboratorio): LabImpressaoConfig {
+  const ruaNumero = [cfg.rua?.trim(), cfg.numero?.trim()].filter(Boolean).join(", ");
+  const bairro = cfg.bairro?.trim() || "";
+  const cidadeUf = [cfg.cidade?.trim(), cfg.uf?.trim()].filter(Boolean).join(" / ");
+  const cep = cfg.cep?.trim() ? `CEP ${cfg.cep.trim()}` : "";
+  const complemento = cfg.complemento?.trim() || "";
+
+  const enderecoLinha1 =
+    ruaNumero || cfg.enderecoLinha1?.trim() || LAB_IMPRESSAO_PADRAO.enderecoLinha1;
+  const enderecoLinha2Partes = [bairro, cidadeUf, complemento, cep].filter(Boolean);
+  const enderecoLinha2 =
+    enderecoLinha2Partes.join(" - ") ||
+    cfg.enderecoLinha2?.trim() ||
+    LAB_IMPRESSAO_PADRAO.enderecoLinha2;
+  const enderecoCompleto =
+    [enderecoLinha1, enderecoLinha2].filter(Boolean).join(" - ") ||
+    cfg.endereco?.trim() ||
+    LAB_IMPRESSAO_PADRAO.endereco;
+
   return {
     marca: cfg.marca || LAB_IMPRESSAO_PADRAO.marca,
     marcaSubtitulo: cfg.marcaSubtitulo || LAB_IMPRESSAO_PADRAO.marcaSubtitulo,
     responsavel: nomeExibicaoLaboratorio(cfg),
-    endereco:
-      cfg.endereco ||
-      [cfg.enderecoLinha1, cfg.enderecoLinha2].filter(Boolean).join(" ") ||
-      LAB_IMPRESSAO_PADRAO.endereco,
-    enderecoLinha1: cfg.enderecoLinha1 || LAB_IMPRESSAO_PADRAO.enderecoLinha1,
-    enderecoLinha2: cfg.enderecoLinha2 || LAB_IMPRESSAO_PADRAO.enderecoLinha2,
+    endereco: enderecoCompleto,
+    enderecoLinha1: enderecoLinha1,
+    enderecoLinha2: enderecoLinha2,
     telefones:
       telefoneWhatsappLaboratorio(cfg) || LAB_IMPRESSAO_PADRAO.telefones,
     email: cfg.email || LAB_IMPRESSAO_PADRAO.email,
