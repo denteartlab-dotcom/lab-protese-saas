@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Barcode, Minus, Plus, X } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
@@ -13,6 +13,11 @@ import {
   contasAnaliticasPlano,
   PLANO_CONTAS_ATUALIZADO_EVENT,
 } from "@/lib/plano-contas";
+import {
+  AnexosReciboCampo,
+  type AnexosReciboCampoRef,
+} from "@/components/financeiro/AnexosReciboCampo";
+import type { AnexoDespesa } from "@/lib/lancamento-despesa";
 import { cn, STATUS_TRABALHO } from "@/lib/utils";
 import type { TrabalhoSituacaoBadge } from "@/components/financeiro/SituacaoOsBadgeReceita";
 
@@ -64,6 +69,7 @@ export type LancarReceitaOsSubmit = {
   parcelas: ParcelaLinhaReceita[];
   imprimirRecibo: boolean;
   alterarEntregue: boolean;
+  anexos?: AnexoDespesa[];
 };
 
 const labelClass = "mb-1 block text-[11px] font-normal text-[#6b7280]";
@@ -88,7 +94,7 @@ type Props = {
   creditoAplicado: number;
   totalAReceberComCredito: number;
   mensagemLancamento: string;
-  mensagemLancamentoTipo: "erro" | "sucesso" | "info";
+  mensagemLancamentoTipo: "erro" | "sucesso";
   formaSelecionadaEhBoleto: () => boolean;
   valorTrabalho: (trabalho: TrabalhoReceita) => number;
   onLimparOsSelecionadas: () => void;
@@ -204,6 +210,8 @@ export function LancarReceitaOsModal({
   formatCurrencyInput,
 }: Props) {
   const [portalPronto, setPortalPronto] = useState(false);
+  const [enviandoAnexos, setEnviandoAnexos] = useState(false);
+  const anexosRef = useRef<AnexosReciboCampoRef>(null);
   const [alterarEntregue, setAlterarEntregue] = useState(true);
   const [enviarControleEntrega, setEnviarControleEntrega] = useState(false);
   const [codigoBarras, setCodigoBarras] = useState("");
@@ -319,9 +327,20 @@ export function LancarReceitaOsModal({
     setParcelas((lista) => lista.map((p, i) => (i === index ? { ...p, ...patch } : p)));
   }
 
-  function enviarFormulario(e: React.FormEvent) {
+  async function enviarFormulario(e: React.FormEvent) {
     e.preventDefault();
-    void onSubmit({ form, parcelas, imprimirRecibo, alterarEntregue });
+    let anexos: AnexoDespesa[] | undefined;
+    setEnviandoAnexos(true);
+    try {
+      const lista = await anexosRef.current?.resolverAnexos();
+      if (lista?.length) anexos = lista;
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Falha ao enviar os arquivos.");
+      setEnviandoAnexos(false);
+      return;
+    }
+    setEnviandoAnexos(false);
+    await onSubmit({ form, parcelas, imprimirRecibo, alterarEntregue, anexos });
   }
 
   if (!open || !portalPronto) return null;
@@ -653,9 +672,7 @@ export function LancarReceitaOsModal({
                 "mb-3 rounded-sm px-3 py-2 text-center text-[11px]",
                 mensagemLancamentoTipo === "erro"
                   ? "bg-red-50 text-red-700"
-                  : mensagemLancamentoTipo === "info"
-                    ? "bg-sky-50 text-sky-800"
-                    : "bg-emerald-50 text-emerald-800"
+                  : "bg-emerald-50 text-emerald-800"
               )}
             >
               {mensagemLancamento}
@@ -826,12 +843,20 @@ export function LancarReceitaOsModal({
             />
           </div>
 
+          <AnexosReciboCampo
+            ref={anexosRef}
+            pasta="receitas"
+            resetToken={open}
+            className="mt-4"
+          />
+
           <div className="mt-5 grid grid-cols-2 gap-3 border-t border-[#f3f4f6] pt-4">
             <button
               type="submit"
-              className="h-10 rounded-sm bg-[#4a90d9] text-[13px] font-normal text-white hover:bg-[#3d7fc4]"
+              disabled={enviandoAnexos}
+              className="h-10 rounded-sm bg-[#4a90d9] text-[13px] font-normal text-white hover:bg-[#3d7fc4] disabled:opacity-50"
             >
-              Cadastrar
+              {enviandoAnexos ? "Enviando arquivos…" : "Cadastrar"}
             </button>
             <button
               type="button"

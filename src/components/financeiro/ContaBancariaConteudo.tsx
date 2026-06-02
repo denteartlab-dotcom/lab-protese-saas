@@ -28,6 +28,7 @@ import {
   type DadosFormContaBancaria,
   type MovimentacaoContaBancaria,
 } from "@/lib/conta-bancaria";
+import { notificarFinanceiroAtualizado } from "@/lib/financeiro-events";
 import {
   carregarExtratoBancario,
   mesclarExtrato,
@@ -169,11 +170,13 @@ export function ContaBancariaConteudo() {
   function persistirContas(novaLista: ContaBancaria[]) {
     setContas(novaLista);
     salvarContasBancarias(novaLista);
+    notificarFinanceiroAtualizado();
   }
 
   function persistirMovs(novaLista: MovimentacaoContaBancaria[]) {
     setMovimentacoes(novaLista);
     salvarMovimentacoesConta(novaLista);
+    notificarFinanceiroAtualizado();
   }
 
   function aplicarExtratoPendente(

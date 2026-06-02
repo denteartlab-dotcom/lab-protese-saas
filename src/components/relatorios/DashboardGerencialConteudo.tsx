@@ -49,6 +49,7 @@ import {
   type DashboardGerencialPayload,
   type ItemCurvaAbcDashboard,
 } from "@/lib/dashboard-gerencial";
+import { FINANCEIRO_ATUALIZADO_EVENT } from "@/lib/financeiro-events";
 import { cn } from "@/lib/utils";
 
 const COR = {
@@ -469,7 +470,7 @@ function GraficoCurvaAbc({
             tickLine={false}
           />
           <Tooltip
-            formatter={(value) => [Number(value ?? 0).toFixed(2), "Participação"]}
+            formatter={(value: number) => [Number(value).toFixed(2), "Participação"]}
             labelFormatter={(label) => label}
             contentStyle={{
               fontSize: 12,
@@ -554,7 +555,6 @@ function payloadVazio(ano: number): DashboardGerencialPayload {
       clientes: montarCurvaAbcSecoesGrafico(secoesCurvaAbcClientesVazias()),
     },
     curvaAbcServicosSecoes: secoesCurvaAbcClientesVazias(),
-    curvaAbcFornecedoresSecoes: secoesCurvaAbcClientesVazias(),
     curvaAbcClientesSecoes: secoesCurvaAbcClientesVazias(),
     producao: { entregues: 0, atrasados: 0, total: 0 },
     trabalhosProducao: [],
@@ -600,6 +600,16 @@ export function DashboardGerencialConteudo() {
 
   useEffect(() => {
     void carregar();
+  }, [carregar]);
+
+  useEffect(() => {
+    const atualizar = () => void carregar();
+    window.addEventListener(FINANCEIRO_ATUALIZADO_EVENT, atualizar);
+    window.addEventListener("focus", atualizar);
+    return () => {
+      window.removeEventListener(FINANCEIRO_ATUALIZADO_EVENT, atualizar);
+      window.removeEventListener("focus", atualizar);
+    };
   }, [carregar]);
 
   useEffect(() => {
@@ -900,8 +910,8 @@ export function DashboardGerencialConteudo() {
                     <XAxis dataKey="mes" tick={tickAxis} axisLine={false} tickLine={false} />
                     <YAxis tick={tickAxis} axisLine={false} tickLine={false} />
                     <Tooltip
-                      formatter={(v) =>
-                        Number(v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                      formatter={(v: number) =>
+                        v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
                       }
                       contentStyle={{
                         fontSize: 12,
@@ -955,8 +965,8 @@ export function DashboardGerencialConteudo() {
                     }
                   />
                   <Tooltip
-                    formatter={(v) =>
-                      Number(v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                    formatter={(v: number) =>
+                      v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
                     }
                     contentStyle={{
                       fontSize: 12,

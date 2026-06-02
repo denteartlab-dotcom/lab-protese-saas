@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  AlertTriangle,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -11,6 +12,7 @@ import {
   Flag,
   Home,
   List,
+  MessageCircle,
   Printer,
 } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
@@ -19,6 +21,7 @@ import {
   carregarMovimentacoesConta,
   type ContaBancaria,
 } from "@/lib/conta-bancaria";
+import { FINANCEIRO_ATUALIZADO_EVENT } from "@/lib/financeiro-events";
 import { dateToBrShort } from "@/lib/datas-br";
 import {
   calcularFluxoDeCaixa,
@@ -54,9 +57,17 @@ function money(value: number) {
   });
 }
 
-function hojeBr() {
-  return dateToBrShort(new Date());
+function periodoMesAtualBr() {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const inicio = new Date(hoje);
+  inicio.setDate(1);
+  const fim = new Date(hoje);
+  fim.setMonth(hoje.getMonth() + 1, 0);
+  return { inicio: dateToBrShort(inicio), fim: dateToBrShort(fim) };
 }
+
+const periodoMesInicial = periodoMesAtualBr();
 
 export function FluxoDeCaixaConteudo() {
   const [lancamentos, setLancamentos] = useState<LancamentoFluxo[]>([]);
@@ -66,9 +77,9 @@ export function FluxoDeCaixaConteudo() {
   const [conta, setConta] = useState("Todos");
   const [tipo, setTipo] = useState("Todas");
   const [formaPagamento, setFormaPagamento] = useState("Forma Pagamento");
-  const [periodo, setPeriodo] = useState("hoje");
-  const [dataInicio, setDataInicio] = useState(hojeBr);
-  const [dataFinal, setDataFinal] = useState(hojeBr);
+  const [periodo, setPeriodo] = useState("mes");
+  const [dataInicio, setDataInicio] = useState(periodoMesInicial.inicio);
+  const [dataFinal, setDataFinal] = useState(periodoMesInicial.fim);
   const [pagina, setPagina] = useState(1);
   const [anoMensal, setAnoMensal] = useState(new Date().getFullYear());
   const [situacao, setSituacao] = useState<SituacaoFluxoCaixa>("previsto");
@@ -96,6 +107,18 @@ export function FluxoDeCaixaConteudo() {
 
   useEffect(() => {
     void recarregarDados();
+  }, [recarregarDados]);
+
+  useEffect(() => {
+    const atualizar = () => void recarregarDados();
+    window.addEventListener(FINANCEIRO_ATUALIZADO_EVENT, atualizar);
+    window.addEventListener("focus", atualizar);
+    window.addEventListener("storage", atualizar);
+    return () => {
+      window.removeEventListener(FINANCEIRO_ATUALIZADO_EVENT, atualizar);
+      window.removeEventListener("focus", atualizar);
+      window.removeEventListener("storage", atualizar);
+    };
   }, [recarregarDados]);
 
   function aplicarPeriodo(value: string) {
@@ -152,7 +175,8 @@ export function FluxoDeCaixaConteudo() {
         dataFim: dataFinal,
         modo: "diario",
       },
-      periodo
+      periodo,
+      situacao
     );
   }, [
     lancamentos,
@@ -164,6 +188,7 @@ export function FluxoDeCaixaConteudo() {
     dataInicio,
     dataFinal,
     periodo,
+    situacao,
   ]);
 
   const resultadoMensal = useMemo(() => {
@@ -240,7 +265,7 @@ export function FluxoDeCaixaConteudo() {
     "inline-flex h-[34px] items-center gap-2 px-4 text-[12px] font-medium transition-colors";
 
   return (
-    <div className="text-[11px] text-slate-600">
+    <div className="pb-16 text-[11px] text-slate-600">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1.5 text-slate-500">
           <Home className="h-3.5 w-3.5" />
@@ -363,6 +388,17 @@ export function FluxoDeCaixaConteudo() {
               <option value="proximos30">Próximos 30 dias</option>
               <option value="todos">Mostrar Todos</option>
               <option value="outro">Outro Período</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>Situação</label>
+            <select
+              className={selectClass}
+              value={situacao}
+              onChange={(e) => setSituacao(e.target.value as SituacaoFluxoCaixa)}
+            >
+              <option value="previsto">Previsto</option>
+              <option value="realizado">Realizado</option>
             </select>
           </div>
           <div>
@@ -609,6 +645,34 @@ export function FluxoDeCaixaConteudo() {
           }
         }
       `}</style>
+
+      <footer className="fixed bottom-0 left-0 right-0 z-20 flex items-center justify-between border-t border-[#e8e8e8] bg-white px-6 py-2.5 text-[12px] md:left-56">
+        <div className="flex flex-wrap items-center gap-2 text-[#6b7280]">
+          <span>Está com dúvidas? - Suporte</span>
+          <a
+            href="https://wa.me/5531982709866"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center rounded-full bg-[#25d366] px-4 py-1 text-[12px] text-white"
+          >
+            Whatsapp
+          </a>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 rounded-full bg-[#3b82f6] px-4 py-1 text-[12px] text-white"
+          >
+            <MessageCircle className="h-3.5 w-3.5" />
+            Chat
+          </button>
+        </div>
+        <div className="hidden items-center gap-1 text-[#6b7280] sm:flex">
+          <AlertTriangle className="h-4 w-4 text-[#f59e0b]" />
+          <span>Seu teste termina em 21/06/2026</span>
+          <button type="button" className="font-semibold text-[#3b82f6] hover:underline">
+            assinar
+          </button>
+        </div>
+      </footer>
     </div>
   );
 }

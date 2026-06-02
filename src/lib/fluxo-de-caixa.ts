@@ -309,11 +309,12 @@ export function calcularFluxoDeCaixa(
   movimentacoes: MovimentacaoContaBancaria[],
   contas: ContaBancaria[],
   filtros: FiltrosFluxoCaixa,
-  periodoPreset: string
+  periodoPreset: string,
+  situacao: SituacaoFluxoCaixa = "realizado"
 ) {
   const { inicio, fim } = inicioFimPeriodo(periodoPreset, filtros.dataInicio, filtros.dataFim);
   const filtroConta = nomeContaFiltro(filtros.conta, contas);
-  const brutos = movimentosBrutos(lancamentos, movimentacoes, contas, "realizado");
+  const brutos = movimentosBrutos(lancamentos, movimentacoes, contas, situacao);
 
   const saldoInicial = saldoConsolidado(contas, brutos, inicio, true, filtroConta);
 

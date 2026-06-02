@@ -40,7 +40,8 @@ import {
 } from "@/components/financeiro/LancarReceitaOsModal";
 import { ImprimirReciboModal } from "@/components/financeiro/ImprimirReciboModal";
 import { PlanoContasConteudo } from "@/components/financeiro/PlanoContasConteudo";
-import { empacotarDespesa } from "@/lib/lancamento-despesa";
+import { notificarFinanceiroAtualizado } from "@/lib/financeiro-events";
+import { empacotarDespesa, type AnexoDespesa } from "@/lib/lancamento-despesa";
 import {
   carregarPlanoContas,
   categoriaPadraoLancamento,
@@ -88,8 +89,7 @@ type Trabalho = {
   cor?: string | null;
   instrucoes?: string | null;
   dataPrevista?: string | null;
-  dataEntrega?: string | null;
-  cliente?: { id?: string; nome?: string | null; cro?: string | null } | null;
+  cliente?: { id?: string; nome?: string | null } | null;
   paciente?: { nome?: string | null } | null;
 };
 
@@ -160,13 +160,7 @@ function primeiroItemLinhaReceita(trabalho: Trabalho): ItemOsLinha | null {
   return { servico: trabalho.tipoProtese };
 }
 
-type TrabalhoValoravel = {
-  tipoProtese: string;
-  valor?: number;
-  instrucoes?: string | null;
-};
-
-function valorTrabalho(trabalho: TrabalhoValoravel) {
+function valorTrabalho(trabalho: Trabalho) {
   const linhasItens = (trabalho.instrucoes || "")
     .split("\n")
     .filter((line) => line.trim().startsWith("Item adicionado:"));
@@ -398,6 +392,8 @@ function FinanceiroReceberConteudo() {
 
     const trabalhosData = await lerJsonResposta<Trabalho[]>(trabalhosRes);
     if (Array.isArray(trabalhosData)) setTrabalhos(trabalhosData);
+
+    notificarFinanceiroAtualizado();
   }
 
   useEffect(() => {
@@ -737,11 +733,12 @@ function FinanceiroReceberConteudo() {
     return categoriaPadraoLancamento(plano, "receitas") || "Receitas de Serviços";
   }
 
-  function descricaoReceitaComPlano(descricaoBase: string) {
+  function descricaoReceitaComPlano(descricaoBase: string, anexos?: AnexoDespesa[]) {
     return empacotarDespesa(descricaoBase, {
       categoria: form.categoria || categoriaPadraoReceita(),
       conta: form.conta,
       parcela: form.parcela,
+      ...(anexos?.length ? { anexos } : {}),
     });
   }
 
@@ -792,6 +789,7 @@ function FinanceiroReceberConteudo() {
     parcelas,
     imprimirRecibo,
     alterarEntregue,
+    anexos,
   }: LancarReceitaOsSubmit) {
     setMensagemLancamento("");
     const descricaoBase = trabalhosSelecionados.length
@@ -802,7 +800,7 @@ function FinanceiroReceberConteudo() {
           trabalhosSelecionados.map((trabalho) => trabalho.id)
         )
       : form.descricao || "Receita sem cobrança";
-    const descricaoCobranca = descricaoReceitaComPlano(descricaoBase);
+    const descricaoCobranca = descricaoReceitaComPlano(descricaoBase, anexos);
     const hojeIso = brShortToIso(dateToBrShort(new Date()));
     const lancamentosCriados: Lancamento[] = [];
     const algumRecebido = parcelas.some((p) => p.recebido);
@@ -894,7 +892,8 @@ function FinanceiroReceberConteudo() {
           status: "pago",
           formaPagamento: "Crédito do cliente",
           descricao: descricaoReceitaComPlano(
-            `Desconto com crédito - ${descricaoBase}`
+            `Desconto com crédito - ${descricaoBase}`,
+            anexos
           ),
         }),
       });

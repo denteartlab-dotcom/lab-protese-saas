@@ -139,13 +139,16 @@ export type MovimentacaoContaBancaria = {
 export const CONTAS_BANCARIAS_STORAGE_KEY = "labProteseContasBancarias";
 export const MOVIMENTACOES_CONTA_STORAGE_KEY = "labProteseMovimentacoesConta";
 export const CONTAS_BANCARIAS_VERSION_KEY = "labProteseContasBancariasVersion";
-export const CONTAS_BANCARIAS_VERSION = 2;
+export const CONTAS_BANCARIAS_VERSION = 3;
+
+/** Saldo de demonstração legado — zerado na migração v3. */
+const SALDO_INICIAL_DEMO_LEGADO = 18215.6;
 
 export const CONTAS_BANCARIAS_PADRAO: ContaBancaria[] = [
   {
     id: "cb-caixa",
     nome: "Caixa Principal",
-    saldoInicial: 18215.6,
+    saldoInicial: 0,
     acaoPrincipal: "movimentar",
   },
   {
@@ -169,33 +172,44 @@ type LancamentoResumo = {
   status: string;
 };
 
+function normalizarSaldoLegado(contas: ContaBancaria[]): ContaBancaria[] {
+  return contas.map((c) => {
+    if (
+      c.id === "cb-caixa" &&
+      Math.abs(c.saldoInicial - SALDO_INICIAL_DEMO_LEGADO) < 0.01
+    ) {
+      return { ...c, saldoInicial: 0 };
+    }
+    return c;
+  });
+}
+
 export function carregarContasBancarias(): ContaBancaria[] {
   if (typeof window === "undefined") return CONTAS_BANCARIAS_PADRAO;
   try {
     const versao = window.localStorage.getItem(CONTAS_BANCARIAS_VERSION_KEY);
+    const rawExistente = window.localStorage.getItem(CONTAS_BANCARIAS_STORAGE_KEY);
+
     if (versao !== String(CONTAS_BANCARIAS_VERSION)) {
-      const rawExistente = window.localStorage.getItem(CONTAS_BANCARIAS_STORAGE_KEY);
-      window.localStorage.setItem(
-        CONTAS_BANCARIAS_VERSION_KEY,
-        String(CONTAS_BANCARIAS_VERSION)
-      );
+      let contas = CONTAS_BANCARIAS_PADRAO;
       if (rawExistente) {
         try {
           const parsed = JSON.parse(rawExistente) as ContaBancaria[];
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          if (Array.isArray(parsed) && parsed.length > 0) contas = parsed;
         } catch {
           /* usa padrão */
         }
       }
-      salvarContasBancarias(CONTAS_BANCARIAS_PADRAO);
-      return CONTAS_BANCARIAS_PADRAO;
+      contas = normalizarSaldoLegado(contas);
+      salvarContasBancarias(contas);
+      return contas;
     }
+
     const raw = window.localStorage.getItem(CONTAS_BANCARIAS_STORAGE_KEY);
     if (!raw) return CONTAS_BANCARIAS_PADRAO;
     const parsed = JSON.parse(raw) as ContaBancaria[];
-    return Array.isArray(parsed) && parsed.length > 0
-      ? parsed
-      : CONTAS_BANCARIAS_PADRAO;
+    if (!Array.isArray(parsed) || parsed.length === 0) return CONTAS_BANCARIAS_PADRAO;
+    return normalizarSaldoLegado(parsed);
   } catch {
     return CONTAS_BANCARIAS_PADRAO;
   }

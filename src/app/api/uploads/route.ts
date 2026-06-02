@@ -44,8 +44,13 @@ export async function POST(request: Request) {
     );
   }
 
+  const pastaParam = new URL(request.url).searchParams.get("pasta");
   const subpasta =
-    new URL(request.url).searchParams.get("pasta") === "despesas" ? "despesas" : "os";
+    pastaParam === "despesas"
+      ? "despesas"
+      : pastaParam === "receitas"
+        ? "receitas"
+        : "os";
   const uploadDir = path.join(process.cwd(), "public", "uploads", subpasta);
   await mkdir(uploadDir, { recursive: true });
 

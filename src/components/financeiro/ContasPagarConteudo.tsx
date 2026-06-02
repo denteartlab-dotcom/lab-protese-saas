@@ -23,6 +23,7 @@ import { Button, CampoDataBr, Select } from "@/components/ui";
 import type { LancarReceitaPayload } from "@/components/financeiro/LancarReceitaModal";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { RelatorioDespesasModal } from "@/components/financeiro/RelatorioDespesasModal";
+import { notificarFinanceiroAtualizado } from "@/lib/financeiro-events";
 
 const LancarDespesaModal = dynamic(
   () =>
@@ -127,6 +128,7 @@ export function ContasPagarConteudo() {
       setLancamentos([]);
     } finally {
       setCarregando(false);
+      notificarFinanceiroAtualizado();
     }
   }, []);
 

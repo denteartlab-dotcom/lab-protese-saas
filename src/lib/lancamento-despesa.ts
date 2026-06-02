@@ -22,11 +22,22 @@ export type DespesaMeta = {
   parcela?: string;
   referencia?: string;
   nome?: string;
-  /** Recibos e outras imagens (máx. 5). */
+  /** Recibos e comprovantes — imagens ou PDF (máx. 5). */
   anexos?: AnexoDespesa[];
 };
 
 export const LIMITE_ANEXOS_DESPESA = 5;
+export const LIMITE_ANEXOS_FINANCEIRO = LIMITE_ANEXOS_DESPESA;
+export const ACCEPT_ANEXOS_FINANCEIRO = "image/*,application/pdf";
+
+export function arquivoEhAnexoFinanceiro(file: File) {
+  if (file.type.startsWith("image/")) return true;
+  if (file.type === "application/pdf") return true;
+  const nome = file.name.toLowerCase();
+  return /\.(jpe?g|png|gif|webp|bmp|pdf)$/i.test(nome);
+}
+
+export type PastaAnexoFinanceiro = "despesas" | "receitas";
 
 export type DespesaDescompactada = {
   texto: string;
