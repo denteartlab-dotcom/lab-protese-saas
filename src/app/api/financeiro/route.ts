@@ -211,17 +211,30 @@ export async function POST(request: Request) {
       }
     }
 
-    const audit = await auditarCriacaoLancamento(session, lancamento, {
-      parcelaNumero,
-      parcelaTotal,
-      numeroFatura: data.numeroFatura,
-    });
+    let numeroFaturaRetorno = data.numeroFatura;
+    try {
+      const audit = await auditarCriacaoLancamento(session, lancamento, {
+        parcelaNumero,
+        parcelaTotal,
+        numeroFatura: data.numeroFatura,
+      });
+      numeroFaturaRetorno = audit.numeroFatura ?? numeroFaturaRetorno;
+    } catch (auditErr) {
+      console.error("[financeiro POST] auditoria", auditErr);
+    }
 
     return NextResponse.json(
-      { ...lancamento, numeroFatura: audit.numeroFatura },
+      { ...lancamento, numeroFatura: numeroFaturaRetorno },
       { status: 201 }
     );
-  } catch {
-    return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
+  } catch (err) {
+    console.error("[financeiro POST]", err);
+    if (err instanceof z.ZodError) {
+      return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
+    }
+    return NextResponse.json(
+      { error: "Não foi possível salvar o lançamento." },
+      { status: 500 }
+    );
   }
 }

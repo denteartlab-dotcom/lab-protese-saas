@@ -23,7 +23,7 @@ import { Button, CampoDataBr, Select } from "@/components/ui";
 import type { LancarReceitaPayload } from "@/components/financeiro/LancarReceitaModal";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { RelatorioDespesasModal } from "@/components/financeiro/RelatorioDespesasModal";
-import { notificarFinanceiroAtualizado } from "@/lib/financeiro-events";
+import { FINANCEIRO_ATUALIZADO_EVENT } from "@/lib/financeiro-events";
 
 const LancarDespesaModal = dynamic(
   () =>
@@ -92,7 +92,8 @@ export function ContasPagarConteudo() {
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [entidadeAtiva, setEntidadeAtiva] = useState<EntidadeDespesa>("todos");
-  const [tipoDespesa, setTipoDespesa] = useState("a_pagar");
+  const [tipoDespesa, setTipoDespesa] = useState("todas");
+  const [erroLista, setErroLista] = useState("");
   const [periodo, setPeriodo] = useState("todos");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFinal, setDataFinal] = useState("");
@@ -114,11 +115,20 @@ export function ContasPagarConteudo() {
 
   const load = useCallback(async () => {
     setCarregando(true);
+    setErroLista("");
     try {
       const res = await fetch(`/api/financeiro?tipo=despesa&_=${Date.now()}`, {
         cache: "no-store",
       });
-      const json = await res.json();
+      const json = (await res.json().catch(() => ({}))) as {
+        lancamentos?: Lancamento[];
+        error?: string;
+      };
+      if (!res.ok) {
+        setLancamentos([]);
+        setErroLista(json.error || "Não foi possível carregar as despesas.");
+        return;
+      }
       setLancamentos(
         Array.isArray(json.lancamentos)
           ? json.lancamentos.filter((l: Lancamento) => l.tipo === "despesa")
@@ -126,14 +136,24 @@ export function ContasPagarConteudo() {
       );
     } catch {
       setLancamentos([]);
+      setErroLista("Não foi possível carregar as despesas.");
     } finally {
       setCarregando(false);
-      notificarFinanceiroAtualizado();
     }
   }, []);
 
   useEffect(() => {
     void load();
+    const atualizar = () => void load();
+    window.addEventListener(FINANCEIRO_ATUALIZADO_EVENT, atualizar);
+    window.addEventListener("focus", atualizar);
+    return () => {
+      window.removeEventListener(FINANCEIRO_ATUALIZADO_EVENT, atualizar);
+      window.removeEventListener("focus", atualizar);
+    };
+  }, [load]);
+
+  useEffect(() => {
     setListasNomes({
       fornecedores: lerNomesStorage("labProteseFornecedores"),
       colaboradores: lerNomesStorage("labProteseColaboradores"),
@@ -142,7 +162,7 @@ export function ContasPagarConteudo() {
     });
     setFornecedores(lerFornecedoresStorage());
     aplicarPeriodo("todos");
-  }, [load]);
+  }, []);
 
   function aplicarPeriodo(value: string) {
     setPeriodo(value);
@@ -321,7 +341,7 @@ export function ContasPagarConteudo() {
         const valor = Number(
           (parcela?.valor || "0").replace(/\./g, "").replace(",", ".")
         );
-        await fetch(`/api/financeiro/${editando.id}`, {
+        const res = await fetch(`/api/financeiro/${editando.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -332,15 +352,26 @@ export function ContasPagarConteudo() {
             formaPagamento: parcela?.formaPagamento || "Pix",
           }),
         });
+        if (!res.ok) {
+          const json = (await res.json().catch(() => ({}))) as { error?: string };
+          alert(json.error || "Não foi possível salvar a despesa.");
+          return;
+        }
+        setTipoDespesa(parcela?.pago ? "pagas" : "a_pagar");
       } else {
         const totalParcelas = payload.parcelas.length;
         let numeroFatura: number | undefined;
+        let salvos = 0;
+        let temPago = false;
+        let temPendente = false;
         for (let i = 0; i < payload.parcelas.length; i++) {
           const parcela = payload.parcelas[i];
           const valor = Number(
             parcela.valor.replace(/\./g, "").replace(",", ".")
           );
           if (!Number.isFinite(valor) || valor <= 0) continue;
+          if (parcela.pago) temPago = true;
+          else temPendente = true;
           const partes = parcela.parcela.split("/").map((x) => Number(x.trim()));
           const parcelaNumero = partes[0] || i + 1;
           const parcelaTotal = partes[1] || totalParcelas;
@@ -361,9 +392,22 @@ export function ContasPagarConteudo() {
           });
           const json = (await res.json().catch(() => ({}))) as {
             numeroFatura?: number;
+            error?: string;
           };
+          if (!res.ok) {
+            alert(json.error || "Não foi possível salvar a despesa.");
+            return;
+          }
+          salvos += 1;
           if (json.numeroFatura) numeroFatura = json.numeroFatura;
         }
+        if (salvos === 0) {
+          alert("Informe um valor maior que zero para salvar a despesa.");
+          return;
+        }
+        if (temPago && !temPendente) setTipoDespesa("pagas");
+        else if (temPendente && !temPago) setTipoDespesa("a_pagar");
+        else setTipoDespesa("todas");
       }
       setModalAberto(false);
       setEditando(null);
@@ -604,8 +648,21 @@ export function ContasPagarConteudo() {
                 </tr>
               ) : linhas.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-3 py-12 text-center text-slate-400">
-                    Nenhuma despesa encontrada.
+                  <td colSpan={9} className="px-3 py-12 text-center text-slate-500">
+                    {erroLista ? (
+                      <span className="text-red-600">{erroLista}</span>
+                    ) : lancamentos.length > 0 ? (
+                      <>
+                        Nenhuma despesa com os filtros atuais.
+                        <br />
+                        <span className="text-[11px] text-slate-400">
+                          Você tem {lancamentos.length} despesa(s) salva(s). Tente
+                          &quot;Todas&quot; ou &quot;Pagas&quot; se marcou como pago.
+                        </span>
+                      </>
+                    ) : (
+                      "Nenhuma despesa encontrada."
+                    )}
                   </td>
                 </tr>
               ) : (
