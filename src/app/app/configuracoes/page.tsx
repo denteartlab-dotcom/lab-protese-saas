@@ -35,6 +35,7 @@ const abasPagina = [
   { id: "horario", labelKey: "settings.horario" as MessageKey },
   { id: "nfse", labelKey: "settings.nfse" as MessageKey },
   { id: "boletos", labelKey: "settings.boletos" as MessageKey },
+  { id: "usuarios", labelKey: "settings.usuarios" as MessageKey },
   { id: "backup", labelKey: "settings.backup" as MessageKey },
 ];
 
@@ -45,6 +46,7 @@ const abaPermissaoId: Record<string, string> = {
   horario: "configuracoes-horario",
   nfse: "configuracoes-nfse",
   boletos: "configuracoes-boletos",
+  usuarios: "configuracoes-usuarios",
   backup: "configuracoes-backup",
 };
 
