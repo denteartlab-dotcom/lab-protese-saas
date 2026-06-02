@@ -36,6 +36,11 @@ const abasPagina: Array<{ id: string; labelKey: MessageKey; href?: string }> = [
   { id: "horario", labelKey: "settings.horario" },
   { id: "nfse", labelKey: "settings.nfse" },
   { id: "boletos", labelKey: "settings.boletos" },
+  { id: "gerais", labelKey: "settings.gerais" },
+  { id: "mensagens", labelKey: "settings.mensagens" },
+  { id: "os", labelKey: "settings.os" },
+  { id: "faturas", labelKey: "settings.faturas" },
+  { id: "etiquetas", labelKey: "settings.etiquetas" },
   { id: "usuarios", labelKey: "settings.usuarios" },
   { id: "backup", labelKey: "settings.backup" },
 ];
@@ -48,6 +53,11 @@ const abaPermissaoId: Record<string, string> = {
   horario: "configuracoes-horario",
   nfse: "configuracoes-nfse",
   boletos: "configuracoes-boletos",
+  gerais: "configuracoes-gerais",
+  mensagens: "configuracoes-mensagens",
+  os: "configuracoes-os",
+  faturas: "configuracoes-faturas",
+  etiquetas: "configuracoes-etiquetas",
   usuarios: "configuracoes-usuarios",
   backup: "configuracoes-backup",
 };

@@ -10,6 +10,7 @@ import {
   DatabaseBackup,
   FileText,
   MessageCircle,
+  Tag,
   Users,
   Wrench,
 } from "lucide-react";
@@ -25,6 +26,7 @@ const itensConfiguracao = [
   { href: "/app/configuracoes?aba=mensagens", labelKey: "settings.mensagens" as MessageKey, icon: MessageCircle },
   { href: "/app/configuracoes?aba=os", labelKey: "settings.os" as MessageKey, icon: ClipboardList },
   { href: "/app/configuracoes?aba=faturas", labelKey: "settings.faturas" as MessageKey, icon: FileText },
+  { href: "/app/configuracoes?aba=etiquetas", labelKey: "settings.etiquetas" as MessageKey, icon: Tag },
   { href: "/app/configuracoes?aba=usuarios", labelKey: "settings.usuarios" as MessageKey, icon: Users },
   { href: "/app/configuracoes?aba=backup", labelKey: "settings.backup" as MessageKey, icon: DatabaseBackup },
 ];
@@ -71,16 +73,18 @@ export function ConfiguracoesGearMenu() {
       </button>
 
       {aberto && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-md border border-slate-200 bg-white py-1 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+        <div className="absolute right-0 top-full z-50 mt-2 max-h-[min(70vh,420px)] w-56 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
           {itensConfiguracao.map((item) => {
-            const itemAba = item.href.split("aba=")[1] || "dados";
+            const itemAba = item.href.includes("aba=")
+              ? item.href.split("aba=")[1]?.split("&")[0] || "dados"
+              : "";
             const ativo =
               item.href === "/app/configuracoes/cabecalho"
                 ? pathname.startsWith("/app/configuracoes/cabecalho")
                 : pathname.startsWith("/app/configuracoes") && abaAtual === itemAba;
             return (
               <Link
-                key={item.href}
+                key={item.labelKey}
                 href={item.href}
                 onClick={() => setAberto(false)}
                 className={cn(

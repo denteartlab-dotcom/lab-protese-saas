@@ -90,6 +90,11 @@ export const SECOES_MENU_PERMISSOES: MenuPermissaoSecao[] = [
       { id: "configuracoes-horario", label: t("settings.horario"), href: "/app/configuracoes" },
       { id: "configuracoes-nfse", label: t("settings.nfse"), href: "/app/configuracoes" },
       { id: "configuracoes-boletos", label: t("settings.boletos"), href: "/app/configuracoes" },
+      { id: "configuracoes-gerais", label: t("settings.gerais"), href: "/app/configuracoes" },
+      { id: "configuracoes-mensagens", label: t("settings.mensagens"), href: "/app/configuracoes" },
+      { id: "configuracoes-os", label: t("settings.os"), href: "/app/configuracoes" },
+      { id: "configuracoes-faturas", label: t("settings.faturas"), href: "/app/configuracoes" },
+      { id: "configuracoes-etiquetas", label: t("settings.etiquetas"), href: "/app/configuracoes" },
       { id: "configuracoes-backup", label: t("settings.backup"), href: "/app/configuracoes" },
       { id: "configuracoes-usuarios", label: t("settings.usuarios"), href: "/app/configuracoes" },
       {
