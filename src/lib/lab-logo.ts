@@ -66,14 +66,16 @@ export function htmlCabecalhoLab(
 
 export function configParaLabImpressao(cfg: ConfigLaboratorio): LabImpressaoConfig {
   const ruaNumero = [cfg.rua?.trim(), cfg.numero?.trim()].filter(Boolean).join(", ");
+  const numeroComplemento = [ruaNumero, cfg.complemento?.trim()]
+    .filter(Boolean)
+    .join(" - ");
   const bairro = cfg.bairro?.trim() || "";
   const cidadeUf = [cfg.cidade?.trim(), cfg.uf?.trim()].filter(Boolean).join(" / ");
   const cep = cfg.cep?.trim() ? `CEP ${cfg.cep.trim()}` : "";
-  const complemento = cfg.complemento?.trim() || "";
 
   const enderecoLinha1 =
-    ruaNumero || cfg.enderecoLinha1?.trim() || LAB_IMPRESSAO_PADRAO.enderecoLinha1;
-  const enderecoLinha2Partes = [bairro, cidadeUf, complemento, cep].filter(Boolean);
+    numeroComplemento || cfg.enderecoLinha1?.trim() || LAB_IMPRESSAO_PADRAO.enderecoLinha1;
+  const enderecoLinha2Partes = [bairro, cidadeUf, cep].filter(Boolean);
   const enderecoLinha2 =
     enderecoLinha2Partes.join(" - ") ||
     cfg.enderecoLinha2?.trim() ||
