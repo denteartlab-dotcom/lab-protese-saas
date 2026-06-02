@@ -116,7 +116,11 @@ export const messages = {
     "settings.backupConfirmeSubstituir": "Marque a confirmação para continuar.",
     "settings.restaurarPadraoSecaoTitulo": "Restaurar padrão do site",
     "settings.restaurarPadraoSecaoDesc":
-      "Apague dados por módulo (banco, anexos e navegador). Só é possível recuperar com um backup exportado antes.",
+      "Apague dados por módulo (banco, anexos e navegador). Só é possível recuperar com um backup exportado antes. Exige senha do proprietário.",
+    "settings.restaurarPadraoSomenteProprietario":
+      "Disponível apenas para o usuário proprietário.",
+    "settings.restaurarPadraoAcessoNegado":
+      "Restaurar padrão e palavra-chave de recuperação são exclusivos do proprietário.",
     "settings.restaurarPadraoBotao": "Restaurar padrão do site",
     "settings.restaurarPadraoTitulo": "Restaurar padrão — escolher módulos",
     "settings.restaurarPadraoDescricao":
@@ -130,9 +134,36 @@ export const messages = {
     "settings.restaurarPadraoLimparSelecao": "Limpar seleção",
     "settings.restaurarPadraoAviso":
       "Esta ação não pode ser desfeita. Faça um backup antes. Se limpar Clientes, marque também Produção e Financeiro se ainda houver OS ou lançamentos.",
-    "settings.restaurarPadraoDigiteApagar": "Digite APAGAR para confirmar",
+    "settings.restaurarPadraoSenhaProprietario": "Senha do proprietário",
+    "settings.restaurarPadraoInformeSenha": "Informe a senha do proprietário.",
+    "settings.restaurarPadraoTentativasSenha": "Tentativa(s) incorreta(s): {n} de 2.",
+    "settings.restaurarPadraoBloqueadoSenha":
+      "Após 2 senhas incorretas, use a palavra-chave de recuperação.",
+    "settings.restaurarPadraoPalavraChaveCampo": "Palavra-chave de recuperação",
+    "settings.restaurarPadraoInformePalavraChave": "Informe a palavra-chave de recuperação.",
+    "settings.restaurarPadraoCadastrePalavraChave":
+      "Cadastre uma palavra-chave em Backup (acima) antes de continuar.",
+    "settings.restaurarPadraoReferenciaLembrete": "Referência cadastrada",
     "settings.restaurarPadraoCheckbox":
       "Entendo que os dados dos módulos selecionados serão apagados permanentemente e só poderei recuperar via backup.",
+    "settings.restaurarPadraoConfirmeCheckbox":
+      "Marque a confirmação para continuar.",
+    "settings.palavraChaveTitulo": "Palavra-chave de recuperação (restaurar padrão)",
+    "settings.palavraChaveDesc":
+      "Usada após 2 senhas incorretas ao restaurar o padrão. Cadastre uma vez; para alterar, informe a palavra-chave atual.",
+    "settings.palavraChaveReferencia": "Referência (lembrete)",
+    "settings.palavraChaveJaCadastrada": "Palavra-chave já cadastrada. Para trocar, use o botão abaixo.",
+    "settings.palavraChaveCadastrar": "Cadastrar palavra-chave",
+    "settings.palavraChaveAlterar": "Alterar palavra-chave",
+    "settings.palavraChaveCampo": "Palavra-chave",
+    "settings.palavraChaveNova": "Nova palavra-chave",
+    "settings.palavraChaveAtual": "Palavra-chave atual",
+    "settings.palavraChaveReferenciaCampo": "Referência para lembrar",
+    "settings.palavraChaveReferenciaPlaceholder": "Ex.: nome do primeiro cachorro",
+    "settings.palavraChaveReferenciaAjuda":
+      "Texto só para você lembrar qual palavra-chave escolheu (não é a senha).",
+    "settings.palavraChaveSalva": "Palavra-chave salva com sucesso.",
+    "settings.palavraChaveErroSalvar": "Não foi possível salvar a palavra-chave.",
     "settings.restaurarPadraoExecutar": "Apagar dados selecionados",
     "settings.restaurarPadraoProcessando": "Apagando...",
     "settings.restaurarPadraoSucesso":
@@ -140,8 +171,6 @@ export const messages = {
     "settings.restaurarPadraoErroListar": "Não foi possível carregar a lista de módulos.",
     "settings.restaurarPadraoErroLimpar": "Não foi possível limpar os módulos selecionados.",
     "settings.restaurarPadraoSelecioneModulo": "Selecione ao menos um módulo.",
-    "settings.restaurarPadraoConfirmeApagar":
-      "Digite APAGAR e marque a confirmação para continuar.",
     "settings.emBreve": "Esta aba será configurada em uma próxima versão.",
     "settings.emBreveSecao": "Esta seção será configurada em uma próxima versão.",
     "settings.irDados": "Ir para Dados do Laboratório",
@@ -385,7 +414,10 @@ export const messages = {
     "settings.backupConfirmeSubstituir": "Check the confirmation box to continue.",
     "settings.restaurarPadraoSecaoTitulo": "Restore site defaults",
     "settings.restaurarPadraoSecaoDesc":
-      "Erase data by module (database, attachments, and browser). Recovery is only possible from a previously exported backup.",
+      "Erase data by module (database, attachments, and browser). Recovery is only possible from a previously exported backup. Requires owner password.",
+    "settings.restaurarPadraoSomenteProprietario": "Available only to the owner account.",
+    "settings.restaurarPadraoAcessoNegado":
+      "Restore defaults and recovery passphrase are owner-only.",
     "settings.restaurarPadraoBotao": "Restore site defaults",
     "settings.restaurarPadraoTitulo": "Restore defaults — choose modules",
     "settings.restaurarPadraoDescricao":
@@ -399,9 +431,35 @@ export const messages = {
     "settings.restaurarPadraoLimparSelecao": "Clear selection",
     "settings.restaurarPadraoAviso":
       "This cannot be undone. Export a backup first. To clear Clients, also select Production and Finance if work orders or entries still exist.",
-    "settings.restaurarPadraoDigiteApagar": "Type DELETE to confirm",
+    "settings.restaurarPadraoSenhaProprietario": "Owner password",
+    "settings.restaurarPadraoInformeSenha": "Enter the owner password.",
+    "settings.restaurarPadraoTentativasSenha": "Incorrect attempt(s): {n} of 2.",
+    "settings.restaurarPadraoBloqueadoSenha":
+      "After 2 wrong passwords, use the recovery passphrase.",
+    "settings.restaurarPadraoPalavraChaveCampo": "Recovery passphrase",
+    "settings.restaurarPadraoInformePalavraChave": "Enter the recovery passphrase.",
+    "settings.restaurarPadraoCadastrePalavraChave":
+      "Register a recovery passphrase in Backup (above) before continuing.",
+    "settings.restaurarPadraoReferenciaLembrete": "Registered hint",
     "settings.restaurarPadraoCheckbox":
       "I understand selected module data will be permanently deleted and can only be recovered from backup.",
+    "settings.restaurarPadraoConfirmeCheckbox": "Check the confirmation box to continue.",
+    "settings.palavraChaveTitulo": "Recovery passphrase (restore defaults)",
+    "settings.palavraChaveDesc":
+      "Used after 2 wrong passwords when restoring defaults. Register once; to change, enter the current passphrase.",
+    "settings.palavraChaveReferencia": "Hint (reminder)",
+    "settings.palavraChaveJaCadastrada": "Passphrase already registered. Use the button below to change it.",
+    "settings.palavraChaveCadastrar": "Register passphrase",
+    "settings.palavraChaveAlterar": "Change passphrase",
+    "settings.palavraChaveCampo": "Passphrase",
+    "settings.palavraChaveNova": "New passphrase",
+    "settings.palavraChaveAtual": "Current passphrase",
+    "settings.palavraChaveReferenciaCampo": "Reminder hint",
+    "settings.palavraChaveReferenciaPlaceholder": "E.g. first dog's name",
+    "settings.palavraChaveReferenciaAjuda":
+      "Text to help you remember which passphrase you chose (not the passphrase itself).",
+    "settings.palavraChaveSalva": "Passphrase saved successfully.",
+    "settings.palavraChaveErroSalvar": "Could not save passphrase.",
     "settings.restaurarPadraoExecutar": "Delete selected data",
     "settings.restaurarPadraoProcessando": "Deleting...",
     "settings.restaurarPadraoSucesso":
@@ -409,8 +467,6 @@ export const messages = {
     "settings.restaurarPadraoErroListar": "Could not load module list.",
     "settings.restaurarPadraoErroLimpar": "Could not clear selected modules.",
     "settings.restaurarPadraoSelecioneModulo": "Select at least one module.",
-    "settings.restaurarPadraoConfirmeApagar":
-      "Type DELETE and check the confirmation box to continue.",
     "settings.emBreve": "This tab will be available in a future version.",
     "settings.emBreveSecao": "This section will be available in a future version.",
     "settings.irDados": "Go to Laboratory Data",
@@ -654,7 +710,10 @@ export const messages = {
     "settings.backupConfirmeSubstituir": "Marque la confirmación para continuar.",
     "settings.restaurarPadraoSecaoTitulo": "Restaurar estándar del sitio",
     "settings.restaurarPadraoSecaoDesc":
-      "Borre datos por módulo (base de datos, adjuntos y navegador). Solo puede recuperar con una copia de seguridad exportada antes.",
+      "Borre datos por módulo (base de datos, adjuntos y navegador). Solo puede recuperar con una copia de seguridad exportada antes. Requiere contraseña del propietario.",
+    "settings.restaurarPadraoSomenteProprietario": "Solo disponible para el usuario propietario.",
+    "settings.restaurarPadraoAcessoNegado":
+      "Restaurar estándar y palabra clave de recuperación son exclusivos del propietario.",
     "settings.restaurarPadraoBotao": "Restaurar estándar del sitio",
     "settings.restaurarPadraoTitulo": "Restaurar estándar — elegir módulos",
     "settings.restaurarPadraoDescricao":
@@ -668,9 +727,35 @@ export const messages = {
     "settings.restaurarPadraoLimparSelecao": "Limpiar selección",
     "settings.restaurarPadraoAviso":
       "Esta acción no se puede deshacer. Haga una copia de seguridad antes. Para limpiar Clientes, marque también Producción y Finanzas si aún hay OS o asientos.",
-    "settings.restaurarPadraoDigiteApagar": "Escriba APAGAR para confirmar",
+    "settings.restaurarPadraoSenhaProprietario": "Contraseña del propietario",
+    "settings.restaurarPadraoInformeSenha": "Informe la contraseña del propietario.",
+    "settings.restaurarPadraoTentativasSenha": "Intento(s) incorrecto(s): {n} de 2.",
+    "settings.restaurarPadraoBloqueadoSenha":
+      "Tras 2 contraseñas incorrectas, use la palabra clave de recuperación.",
+    "settings.restaurarPadraoPalavraChaveCampo": "Palabra clave de recuperación",
+    "settings.restaurarPadraoInformePalavraChave": "Informe la palabra clave de recuperación.",
+    "settings.restaurarPadraoCadastrePalavraChave":
+      "Registre una palabra clave en Respaldo (arriba) antes de continuar.",
+    "settings.restaurarPadraoReferenciaLembrete": "Referencia registrada",
     "settings.restaurarPadraoCheckbox":
       "Entiendo que los datos de los módulos seleccionados se borrarán permanentemente y solo podré recuperarlos con una copia de seguridad.",
+    "settings.restaurarPadraoConfirmeCheckbox": "Marque la confirmación para continuar.",
+    "settings.palavraChaveTitulo": "Palabra clave de recuperación (restaurar estándar)",
+    "settings.palavraChaveDesc":
+      "Se usa tras 2 contraseñas incorrectas al restaurar el estándar. Regístrela una vez; para cambiar, indique la palabra clave actual.",
+    "settings.palavraChaveReferencia": "Referencia (recordatorio)",
+    "settings.palavraChaveJaCadastrada": "Palabra clave ya registrada. Use el botón abajo para cambiarla.",
+    "settings.palavraChaveCadastrar": "Registrar palabra clave",
+    "settings.palavraChaveAlterar": "Cambiar palabra clave",
+    "settings.palavraChaveCampo": "Palabra clave",
+    "settings.palavraChaveNova": "Nueva palabra clave",
+    "settings.palavraChaveAtual": "Palabra clave actual",
+    "settings.palavraChaveReferenciaCampo": "Referencia para recordar",
+    "settings.palavraChaveReferenciaPlaceholder": "Ej.: nombre del primer perro",
+    "settings.palavraChaveReferenciaAjuda":
+      "Texto solo para recordar qué palabra clave eligió (no es la clave).",
+    "settings.palavraChaveSalva": "Palabra clave guardada con éxito.",
+    "settings.palavraChaveErroSalvar": "No se pudo guardar la palabra clave.",
     "settings.restaurarPadraoExecutar": "Borrar datos seleccionados",
     "settings.restaurarPadraoProcessando": "Borrando...",
     "settings.restaurarPadraoSucesso":
@@ -678,8 +763,6 @@ export const messages = {
     "settings.restaurarPadraoErroListar": "No se pudo cargar la lista de módulos.",
     "settings.restaurarPadraoErroLimpar": "No se pudieron limpiar los módulos seleccionados.",
     "settings.restaurarPadraoSelecioneModulo": "Seleccione al menos un módulo.",
-    "settings.restaurarPadraoConfirmeApagar":
-      "Escriba APAGAR y marque la confirmación para continuar.",
     "settings.emBreve": "Esta pestaña estará disponible en una próxima versión.",
     "settings.emBreveSecao": "Esta sección estará disponible en una próxima versión.",
     "settings.irDados": "Ir a Datos del Laboratorio",

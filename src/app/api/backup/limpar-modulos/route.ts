@@ -1,19 +1,22 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { exigirGestorUsuarios } from "@/lib/exigir-gestor";
+import { exigirProprietario } from "@/lib/exigir-proprietario";
 import { prisma } from "@/lib/db";
 import {
   idsModulosValidos,
   limparModulosSelecionados,
 } from "@/lib/limpar-modulos-laboratorio";
+import { autenticarRestaurarPadrao } from "@/lib/seguranca-restaurar-padrao";
 
 const bodySchema = z.object({
   modulos: z.array(z.string()).min(1),
   confirmacao: z.literal("apagar-modulos-selecionados"),
+  senha: z.string().optional(),
+  palavraChave: z.string().optional(),
 });
 
 export async function POST(request: Request) {
-  const auth = await exigirGestorUsuarios();
+  const auth = await exigirProprietario();
   if (auth.erro) return auth.erro;
 
   const headerConfirmar =
@@ -21,8 +24,7 @@ export async function POST(request: Request) {
   if (!headerConfirmar) {
     return NextResponse.json(
       {
-        error:
-          "Confirme a operação na tela (digite APAGAR e marque a confirmação).",
+        error: "Confirme a operação na tela antes de continuar.",
       },
       { status: 400 }
     );
@@ -48,6 +50,22 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Nenhum módulo válido selecionado." },
       { status: 400 }
+    );
+  }
+
+  const autenticacao = await autenticarRestaurarPadrao(auth.session!.id, {
+    senha: parsed.data.senha,
+    palavraChave: parsed.data.palavraChave,
+  });
+  if (!autenticacao.ok) {
+    return NextResponse.json(
+      {
+        error: autenticacao.error,
+        tentativasSenha: autenticacao.tentativasSenha,
+        exigePalavraChave: autenticacao.exigePalavraChave,
+        palavraChaveCadastrada: autenticacao.palavraChaveCadastrada,
+      },
+      { status: 403 }
     );
   }
 

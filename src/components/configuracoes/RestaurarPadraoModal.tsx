@@ -77,21 +77,44 @@ export function RestaurarPadraoModal({
   const [processando, setProcessando] = useState(false);
   const [selecionados, setSelecionados] = useState<Set<ModuloLimpezaId>>(new Set());
   const [confirmar, setConfirmar] = useState(false);
-  const [textoConfirmacao, setTextoConfirmacao] = useState("");
+  const [senha, setSenha] = useState("");
+  const [palavraChave, setPalavraChave] = useState("");
+  const [exigePalavraChave, setExigePalavraChave] = useState(false);
+  const [referenciaPalavraChave, setReferenciaPalavraChave] = useState<string | null>(
+    null
+  );
+  const [palavraChaveCadastrada, setPalavraChaveCadastrada] = useState(false);
+  const [tentativasSenha, setTentativasSenha] = useState(0);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
     try {
-      const res = await fetch("/api/backup/modulos", { credentials: "same-origin" });
-      const data = (await res.json().catch(() => ({}))) as {
+      const [resModulos, resSeg] = await Promise.all([
+        fetch("/api/backup/modulos", { credentials: "same-origin" }),
+        fetch("/api/backup/seguranca-restaurar", { credentials: "same-origin" }),
+      ]);
+      const dataMod = (await resModulos.json().catch(() => ({}))) as {
         modulos?: ModuloApi[];
         error?: string;
       };
-      if (!res.ok) {
-        onMensagem?.(data.error || t("settings.restaurarPadraoErroListar"), "erro");
+      if (!resModulos.ok) {
+        onMensagem?.(dataMod.error || t("settings.restaurarPadraoErroListar"), "erro");
         return;
       }
-      setModulos(data.modulos ?? []);
+      setModulos(dataMod.modulos ?? []);
+
+      if (resSeg.ok) {
+        const dataSeg = (await resSeg.json()) as {
+          exigePalavraChave?: boolean;
+          referencia?: string | null;
+          palavraChaveCadastrada?: boolean;
+          tentativasSenha?: number;
+        };
+        setExigePalavraChave(Boolean(dataSeg.exigePalavraChave));
+        setReferenciaPalavraChave(dataSeg.referencia ?? null);
+        setPalavraChaveCadastrada(Boolean(dataSeg.palavraChaveCadastrada));
+        setTentativasSenha(dataSeg.tentativasSenha ?? 0);
+      }
     } catch {
       onMensagem?.(t("settings.restaurarPadraoErroListar"), "erro");
     } finally {
@@ -103,7 +126,8 @@ export function RestaurarPadraoModal({
     if (!open) return;
     setSelecionados(new Set());
     setConfirmar(false);
-    setTextoConfirmacao("");
+    setSenha("");
+    setPalavraChave("");
     void carregar();
   }, [open, carregar]);
 
@@ -142,8 +166,21 @@ export function RestaurarPadraoModal({
       onMensagem?.(t("settings.restaurarPadraoSelecioneModulo"), "erro");
       return;
     }
-    if (!confirmar || textoConfirmacao.trim().toUpperCase() !== "APAGAR") {
-      onMensagem?.(t("settings.restaurarPadraoConfirmeApagar"), "erro");
+    if (!confirmar) {
+      onMensagem?.(t("settings.restaurarPadraoConfirmeCheckbox"), "erro");
+      return;
+    }
+    if (exigePalavraChave) {
+      if (!palavraChave.trim()) {
+        onMensagem?.(t("settings.restaurarPadraoInformePalavraChave"), "erro");
+        return;
+      }
+      if (!palavraChaveCadastrada) {
+        onMensagem?.(t("settings.restaurarPadraoCadastrePalavraChave"), "erro");
+        return;
+      }
+    } else if (!senha) {
+      onMensagem?.(t("settings.restaurarPadraoInformeSenha"), "erro");
       return;
     }
 
@@ -159,6 +196,9 @@ export function RestaurarPadraoModal({
         body: JSON.stringify({
           modulos: [...selecionados],
           confirmacao: "apagar-modulos-selecionados",
+          ...(exigePalavraChave
+            ? { palavraChave: palavraChave.trim() }
+            : { senha }),
         }),
       });
       const data = (await res.json().catch(() => ({}))) as {
@@ -166,8 +206,20 @@ export function RestaurarPadraoModal({
         localStorageKeys?: string[];
         localStoragePrefixos?: string[];
         apagados?: Record<string, number>;
+        exigePalavraChave?: boolean;
+        tentativasSenha?: number;
+        palavraChaveCadastrada?: boolean;
       };
       if (!res.ok) {
+        if (typeof data.exigePalavraChave === "boolean") {
+          setExigePalavraChave(data.exigePalavraChave);
+        }
+        if (typeof data.tentativasSenha === "number") {
+          setTentativasSenha(data.tentativasSenha);
+        }
+        if (typeof data.palavraChaveCadastrada === "boolean") {
+          setPalavraChaveCadastrada(data.palavraChaveCadastrada);
+        }
         onMensagem?.(data.error || t("settings.restaurarPadraoErroLimpar"), "erro");
         return;
       }
@@ -337,18 +389,55 @@ export function RestaurarPadraoModal({
             <p className="text-xs text-red-800">{t("settings.restaurarPadraoAviso")}</p>
           </div>
 
-          <label className="mt-4 block text-xs font-medium text-slate-700">
-            {t("settings.restaurarPadraoDigiteApagar")}
-            <input
-              type="text"
-              value={textoConfirmacao}
-              onChange={(e) => setTextoConfirmacao(e.target.value)}
-              placeholder="APAGAR"
-              className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm uppercase"
-              disabled={processando}
-              autoComplete="off"
-            />
-          </label>
+          {exigePalavraChave ? (
+            <div className="mt-4 space-y-3 rounded border border-amber-300 bg-amber-50 p-3">
+              <p className="text-xs font-medium text-amber-900">
+                {t("settings.restaurarPadraoBloqueadoSenha")}
+              </p>
+              {referenciaPalavraChave ? (
+                <p className="text-[11px] text-amber-800">
+                  {t("settings.restaurarPadraoReferenciaLembrete")}:{" "}
+                  <strong>{referenciaPalavraChave}</strong>
+                </p>
+              ) : null}
+              <label className="block text-xs font-medium text-slate-700">
+                {t("settings.restaurarPadraoPalavraChaveCampo")}
+                <input
+                  type="password"
+                  value={palavraChave}
+                  onChange={(e) => setPalavraChave(e.target.value)}
+                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  disabled={processando}
+                  autoComplete="off"
+                />
+              </label>
+              {!palavraChaveCadastrada ? (
+                <p className="text-[11px] text-red-700">
+                  {t("settings.restaurarPadraoCadastrePalavraChave")}
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <label className="mt-4 block text-xs font-medium text-slate-700">
+              {t("settings.restaurarPadraoSenhaProprietario")}
+              <input
+                type="password"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                disabled={processando}
+                autoComplete="current-password"
+              />
+              {tentativasSenha > 0 ? (
+                <span className="mt-1 block text-[11px] text-amber-700">
+                  {t("settings.restaurarPadraoTentativasSenha").replace(
+                    "{n}",
+                    String(tentativasSenha)
+                  )}
+                </span>
+              ) : null}
+            </label>
+          )}
 
           <label className="mt-3 flex cursor-pointer items-start gap-2 text-xs text-slate-700">
             <input

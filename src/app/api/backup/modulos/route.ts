@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { exigirGestorUsuarios } from "@/lib/exigir-gestor";
+import { exigirProprietario } from "@/lib/exigir-proprietario";
 import { prisma } from "@/lib/db";
 import {
   MODULOS_LIMPEZA,
@@ -8,7 +8,7 @@ import {
 } from "@/lib/limpar-modulos-laboratorio";
 
 export async function GET() {
-  const auth = await exigirGestorUsuarios();
+  const auth = await exigirProprietario();
   if (auth.erro) return auth.erro;
 
   try {

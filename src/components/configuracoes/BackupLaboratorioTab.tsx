@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Download, Upload, AlertTriangle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui";
 import { useI18n } from "@/components/i18n-provider";
 import { RestaurarPadraoModal } from "@/components/configuracoes/RestaurarPadraoModal";
+import { PalavraChaveRestaurarSection } from "@/components/configuracoes/PalavraChaveRestaurarSection";
 
 type Props = {
   onMensagem?: (texto: string, tipo?: "info" | "sucesso" | "erro") => void;
@@ -17,6 +18,16 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
   const [confirmarSubstituir, setConfirmarSubstituir] = useState(false);
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [modalPadraoAberto, setModalPadraoAberto] = useState(false);
+  const [ehProprietario, setEhProprietario] = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      const res = await fetch("/api/backup/seguranca-restaurar", {
+        credentials: "same-origin",
+      });
+      setEhProprietario(res.ok);
+    })();
+  }, []);
 
   async function exportar() {
     setExportando(true);
@@ -176,27 +187,38 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
         </div>
       </section>
 
-      <section className="rounded-lg border border-red-200 bg-red-50/80 p-5">
-        <div className="flex items-start gap-3">
-          <RotateCcw className="mt-0.5 h-5 w-5 shrink-0 text-red-700" />
-          <div className="flex-1">
-            <h3 className="text-sm font-medium text-red-900">
-              {t("settings.restaurarPadraoSecaoTitulo")}
-            </h3>
-            <p className="mt-1 text-xs text-red-900/90">
-              {t("settings.restaurarPadraoSecaoDesc")}
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setModalPadraoAberto(true)}
-              className="mt-4 rounded border-red-600 bg-white px-4 py-2 text-sm text-red-800 hover:bg-red-100"
-            >
-              {t("settings.restaurarPadraoBotao")}
-            </Button>
-          </div>
-        </div>
-      </section>
+      {ehProprietario ? (
+        <>
+          <PalavraChaveRestaurarSection onMensagem={onMensagem} />
+
+          <section className="rounded-lg border border-red-200 bg-red-50/80 p-5">
+            <div className="flex items-start gap-3">
+              <RotateCcw className="mt-0.5 h-5 w-5 shrink-0 text-red-700" />
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-red-900">
+                  {t("settings.restaurarPadraoSecaoTitulo")}
+                </h3>
+                <p className="mt-1 text-xs text-red-900/90">
+                  {t("settings.restaurarPadraoSecaoDesc")}
+                </p>
+                <p className="mt-2 text-[11px] font-medium text-red-800">
+                  {t("settings.restaurarPadraoSomenteProprietario")}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setModalPadraoAberto(true)}
+                  className="mt-4 rounded border-red-600 bg-white px-4 py-2 text-sm text-red-800 hover:bg-red-100"
+                >
+                  {t("settings.restaurarPadraoBotao")}
+                </Button>
+              </div>
+            </div>
+          </section>
+        </>
+      ) : (
+        <p className="text-xs text-slate-500">{t("settings.restaurarPadraoAcessoNegado")}</p>
+      )}
 
       <RestaurarPadraoModal
         open={modalPadraoAberto}
