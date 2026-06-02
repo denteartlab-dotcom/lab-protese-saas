@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Settings } from "lucide-react";
 import { Button, Modal } from "@/components/ui";
 import type { TipoMensagemForm } from "@/components/DadosLaboratorioForm";
@@ -35,6 +36,7 @@ function BadgeSimNao({ valor }: { valor: boolean }) {
 }
 
 export function ConfiguracoesOsTab({ onMensagem }: Props) {
+  const router = useRouter();
   const [config, setConfig] = useState<ConfiguracoesOs>(() => carregarConfiguracoesOs());
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -58,6 +60,10 @@ export function ConfiguracoesOsTab({ onMensagem }: Props) {
   const modeloAtual = MODELOS_OS.find((m) => m.id === modeloEditando);
 
   function abrirConfigurar(id: ModeloOsId) {
+    if (id === "modelo1") {
+      router.push("/app/configuracoes/os/modelo1");
+      return;
+    }
     setModeloEditando(id);
     setPadraoModal(config.modeloPadrao === id);
     setDuasViasModal(config.duasVias[id]);

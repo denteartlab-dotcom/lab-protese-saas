@@ -1,3 +1,8 @@
+import {
+  normalizarOsModelo1Layout,
+  type OsModelo1Layout,
+} from "@/lib/os-modelo1-layout";
+
 export const CONFIG_OS_STORAGE_KEY = "labProteseConfiguracoesOs";
 export const CONFIG_OS_ATUALIZADA_EVENT = "lab-config-os-atualizada";
 
@@ -28,6 +33,7 @@ export const MODELOS_OS: Array<{ id: ModeloOsId; nome: string }> = [
 export type ConfiguracoesOs = {
   modeloPadrao: ModeloOsId;
   duasVias: Record<ModeloOsId, boolean>;
+  layoutModelo1: OsModelo1Layout;
 };
 
 export const CONFIG_OS_PADRAO: ConfiguracoesOs = {
@@ -39,6 +45,7 @@ export const CONFIG_OS_PADRAO: ConfiguracoesOs = {
     modelo4: false,
     modelo5: false,
   },
+  layoutModelo1: normalizarOsModelo1Layout(null),
 };
 
 export function formatoPorModeloOs(id: ModeloOsId): "a4" | "termica" {
@@ -52,6 +59,7 @@ export function normalizarConfiguracoesOs(
     return {
       modeloPadrao: CONFIG_OS_PADRAO.modeloPadrao,
       duasVias: { ...CONFIG_OS_PADRAO.duasVias },
+      layoutModelo1: normalizarOsModelo1Layout(null),
     };
   }
 
@@ -66,7 +74,15 @@ export function normalizarConfiguracoesOs(
     }
   }
 
-  return { modeloPadrao, duasVias };
+  return {
+    modeloPadrao,
+    duasVias,
+    layoutModelo1: normalizarOsModelo1Layout(valor.layoutModelo1),
+  };
+}
+
+export function carregarLayoutModelo1(): OsModelo1Layout {
+  return carregarConfiguracoesOs().layoutModelo1;
 }
 
 export function carregarConfiguracoesOs(): ConfiguracoesOs {

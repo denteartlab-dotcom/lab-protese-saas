@@ -117,7 +117,8 @@ function AppShellInner({
   const router = useRouter();
   const isPrint =
     pathname.includes("/imprimir") ||
-    pathname.startsWith("/app/configuracoes/cabecalho");
+    pathname.startsWith("/app/configuracoes/cabecalho") ||
+    pathname.startsWith("/app/configuracoes/os/modelo1");
   const isModuloColaborador = pathname === "/app/producao/modulo";
   const isDashboard = pathname === "/app";
   const [darkMode, setDarkMode] = useState(false);

@@ -10,6 +10,11 @@ import {
   LAB_CONFIG_ATUALIZADA_EVENT,
 } from "@/lib/configuracoes-lab";
 import { normalizarCabecalhoRequisicao, type CabecalhoRequisicaoConfig } from "@/lib/cabecalho-requisicao";
+import { CONFIG_OS_ATUALIZADA_EVENT, carregarLayoutModelo1 } from "@/lib/configuracoes-os";
+import {
+  normalizarOsModelo1Layout,
+  type OsModelo1Layout,
+} from "@/lib/os-modelo1-layout";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
 import { desenharCabecalhoRequisicaoPdf } from "@/lib/pdf-cabecalho-os";
 
@@ -46,6 +51,11 @@ type PdfOsData = {
   observacoes: string;
   /** Linha de prazo abaixo do serviço (garantia se notasAbaixo não vier no item). */
   prazoLinhaServico?: string;
+  layoutModelo1?: OsModelo1Layout;
+  osExterna?: string;
+  finalizado?: string;
+  colaborador?: string;
+  etapas?: string;
   urgente?: boolean;
   repeticao?: boolean;
   itens: PdfItem[];
@@ -224,8 +234,10 @@ function desenharMetaOsCabecalhoDireita(
   pdf: PdfRenderApi,
   data: PdfOsData,
   yDir: number,
-  dir: number
+  dir: number,
+  layout?: OsModelo1Layout
 ) {
+  const lay = layout ?? normalizarOsModelo1Layout(null);
   const desenharRotuloValorDireita = (rotulo: string, valor: string, y: number) => {
     pdf.setFont("helvetica", "bold");
     const wRotulo = pdf.getTextWidth(rotulo);
@@ -244,15 +256,17 @@ function desenharMetaOsCabecalhoDireita(
   pdf.text(String(data.numeroOs), dir, yDir, { align: "right" });
   yDir += 6;
 
-  pdf.setFontSize(8.5);
-  desenharRotuloValorDireita("Data: ", data.dataEntrada?.trim() || "—", yDir);
-  yDir += 4.5;
+  if (lay.dataOs) {
+    pdf.setFontSize(8.5);
+    desenharRotuloValorDireita("Data: ", data.dataEntrada?.trim() || "—", yDir);
+    yDir += 4.5;
+  }
 
   desenharRotuloValorDireita("Status: ", data.status?.trim() || "—", yDir);
   yDir += 4.5;
 
   const usuario = (data.usuarioCriou || "").trim();
-  if (usuario) {
+  if (lay.usuario && usuario) {
     desenharRotuloValorDireita("Usuário: ", usuario, yDir);
     yDir += 4.5;
   }
@@ -278,31 +292,61 @@ function desenharMarcadoresUrgenciaRepeticao(pdf: PdfRenderApi, data: PdfOsData,
 }
 
 function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
+  const lay = normalizarOsModelo1Layout(data.layoutModelo1);
+  const fontBase = Math.max(7, lay.tamanhoFonte * 0.53);
   const pageWidth = pdf.internal.pageSize.getWidth();
-  const margin = 15;
   let y = desenharCabecalhoRequisicaoPdf(pdf, {
     lab: data.lab,
     cabecalhoRequisicao: data.cabecalhoRequisicao,
     tituloDireita: "Ordem de Serviço",
-    extrasDireita: (yDir, _m, dir) => desenharMetaOsCabecalhoDireita(pdf, data, yDir, dir),
+    exibirLogo: lay.logo,
+    exibirInfoLab: lay.infoLab,
+    extrasDireita: (yDir, _m, dir) =>
+      desenharMetaOsCabecalhoDireita(pdf, data, yDir, dir, lay),
   });
 
-  pdf.setFontSize(9);
-  labelValue(pdf, "Núm OS:", String(data.numeroOs), 15, y);
-  pdf.setFont("helvetica", "normal");
-  pdf.text("Os Externa:", 110, y);
-  desenharMarcadoresUrgenciaRepeticao(pdf, data, 110, y);
-  y += 5;
-  labelValue(pdf, "Cliente:", data.cliente, 15, y);
-  labelValue(pdf, "Caixa:", data.caixa, 110, y, "");
-  y += 5;
-  labelValue(pdf, "Dentista:", data.dentista, 15, y);
-  pdf.text(`Telefones: ${data.telefones}`, 110, y);
-  y += 5;
-  labelValue(pdf, "Paciente:", data.paciente, 15, y);
-  pdf.text(`Endereço: ${data.endereco}`, 110, y);
-  y += 8;
+  pdf.setFontSize(fontBase);
+  if (lay.numOs) {
+    labelValue(pdf, "Núm OS:", String(data.numeroOs), 15, y);
+  }
+  if (lay.osExterna) {
+    pdf.setFont("helvetica", "normal");
+    pdf.text("OS Externa:", 110, y);
+    pdf.setFont("helvetica", "bold");
+    pdf.text(data.osExterna || "—", 110 + pdf.getTextWidth("OS Externa:") + 1.5, y);
+    pdf.setFont("helvetica", "normal");
+  }
+  if (lay.numOs || lay.osExterna) {
+    desenharMarcadoresUrgenciaRepeticao(pdf, data, 110, y);
+    y += 5;
+  }
+  if (lay.cliente) {
+    labelValue(pdf, "Cliente:", data.cliente, 15, y);
+  }
+  if (lay.caixa) {
+    labelValue(pdf, "Caixa:", data.caixa, 110, y, "");
+  }
+  if (lay.cliente || lay.caixa) y += 5;
+  if (lay.dentista) {
+    labelValue(pdf, "Dentista:", data.dentista, 15, y);
+  }
+  if (lay.clienteTel) {
+    pdf.text(`Telefones: ${data.telefones}`, 110, y);
+  }
+  if (lay.dentista || lay.clienteTel) y += 5;
+  if (lay.paciente) {
+    labelValue(pdf, "Paciente:", data.paciente, 15, y);
+  }
+  if (lay.clienteEnd) {
+    pdf.text(`Endereço: ${data.endereco}`, 110, y);
+  }
+  if (lay.paciente || lay.clienteEnd) y += 5;
+  if (lay.clienteEmail) {
+    pdf.text(`Email: ${data.email}`, lay.clienteTel ? 15 : 110, y);
+    y += 5;
+  }
 
+  y += 3;
   pdf.line(15, y, pageWidth - 15, y);
   y += 5;
 
@@ -310,40 +354,51 @@ function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
   const tableRight = pageWidth - 15;
   const colQtd = tableLeft;
   const colDesc = 28;
-  const colDente = 112;
-  const colCor = 132;
-  const colUnit = 158;
-  const colDescPct = tableRight;
+  let colDente = 112;
+  let colCor = 132;
+  let colUnit = 158;
+  let colDescPct = tableRight;
+  if (lay.subtotal) {
+    colDescPct = tableRight - 22;
+    colUnit = colDescPct - 26;
+    colCor = colUnit - 26;
+    colDente = colCor - 20;
+  }
 
-  pdf.setFontSize(10);
+  pdf.setFontSize(fontBase + 1);
   pdf.setFont("helvetica", "bold");
   pdf.text("Qtd", colQtd, y);
   pdf.text("Descrição", colDesc, y);
-  pdf.text("Número Dente", colDente, y, { align: "center" });
-  pdf.text("Cor", colCor, y, { align: "center" });
-  pdf.text("Unitário", colUnit, y, { align: "right" });
-  pdf.text("Desc", colDescPct, y, { align: "right" });
+  if (lay.numDente) pdf.text("Número Dente", colDente, y, { align: "center" });
+  if (lay.corDente) pdf.text("Cor", colCor, y, { align: "center" });
+  if (lay.valorUnit) pdf.text("Unitário", colUnit, y, { align: "right" });
+  if (lay.desconto) pdf.text("Desc", colDescPct, y, { align: "right" });
+  if (lay.subtotal) pdf.text("Subtotal", tableRight, y, { align: "right" });
   y += 3;
   pdf.line(tableLeft, y, tableRight, y);
   y += 5;
 
   pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(fontBase);
   let servicoIndex = 0;
   data.itens.forEach((item) => {
     if (y > 265) {
       pdf.addPage();
       y = 16;
     }
-    const descricaoLinhas = pdf.splitTextToSize(String(item.descricao), 68);
+    const descricaoLinhas = pdf.splitTextToSize(String(item.descricao), lay.subtotal ? 58 : 68);
     const ehProduto = /\(\s*Produto\s*\)/i.test(String(item.descricao));
     const ehServico = !ehProduto && !/\(\s*Transporte\s*\)/i.test(String(item.descricao));
 
     pdf.text(String(item.qtd), colQtd, y);
     pdf.text(descricaoLinhas, colDesc, y);
-    pdf.text(String(item.dente).slice(0, 12), colDente, y, { align: "center" });
-    pdf.text(String(item.cor).slice(0, 10), colCor, y, { align: "center" });
-    pdf.text(unitarioTabela(item.unitario), colUnit, y, { align: "right" });
-    pdf.text(descontoCelula(item.desconto), colDescPct, y, { align: "right" });
+    if (lay.numDente) pdf.text(String(item.dente).slice(0, 12), colDente, y, { align: "center" });
+    if (lay.corDente) pdf.text(String(item.cor).slice(0, 10), colCor, y, { align: "center" });
+    if (lay.valorUnit) pdf.text(unitarioTabela(item.unitario), colUnit, y, { align: "right" });
+    if (lay.desconto) pdf.text(descontoCelula(item.desconto), colDescPct, y, { align: "right" });
+    if (lay.subtotal) {
+      pdf.text(unitarioTabela(subtotalItem(item)), tableRight, y, { align: "right" });
+    }
     y += Math.max(5, descricaoLinhas.length * 4.5);
 
     const notasPrazo =
@@ -356,7 +411,7 @@ function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
         : []);
     if (ehServico) servicoIndex += 1;
 
-    if (notasPrazo.length) {
+    if (lay.dataPrazo && notasPrazo.length) {
       notasPrazo.forEach((nota) => {
         if (y > 265) {
           pdf.addPage();
@@ -372,30 +427,32 @@ function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
     y += 5;
   });
 
-  y += 3;
-  pdf.setFont("helvetica", "bold");
-  pdf.text(`TOTAL ${money(data.valor)}`, pageWidth - 15, y, { align: "right" });
-  y += 8;
+  if (lay.total) {
+    y += 3;
+    pdf.setFont("helvetica", "bold");
+    pdf.text(`TOTAL ${money(data.valor)}`, pageWidth - 15, y, { align: "right" });
+    y += 8;
+  }
 
   pdf.setFont("helvetica", "normal");
   const prazosJaNoItem = data.itens.some((item) => item.notasAbaixo?.length);
-  if (!prazosJaNoItem && data.prazo) {
+  if (lay.dataPrazo && !prazosJaNoItem && data.prazo) {
     pdf.text(`Prazo: ${data.prazo}`, 15, y);
     y += 5;
   }
-  if (!prazosJaNoItem && data.prazoLaboratorio) {
-    pdf.text(`Prazo laboratório: ${data.prazoLaboratorio}`, 15, y);
+  if (lay.finalizado && data.finalizado) {
+    pdf.text(`Finalizado: ${data.finalizado}`, 15, y);
     y += 5;
   }
-  if (!prazosJaNoItem && data.prazoDentista) {
-    pdf.text(`Prazo dentista: ${data.prazoDentista}`, 15, y);
+  if (lay.colaborador && data.colaborador) {
+    pdf.text(`Colaborador: ${data.colaborador}`, 15, y);
     y += 5;
   }
-  if (data.materiais) {
+  if (lay.materialRec && data.materiais) {
     pdf.text(`Materiais: ${data.materiais}`.slice(0, 110), 15, y);
     y += 6;
   }
-  if (data.observacoes) {
+  if (lay.obsServico && data.observacoes) {
     pdf.setFont("helvetica", "bold");
     pdf.text("Observações / Instruções técnicas:", 15, y);
     y += 5;
@@ -404,16 +461,29 @@ function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
     pdf.text(linhasObservacoes, 15, y);
     y += linhasObservacoes.length * 4 + 3;
   }
-
-  const barcodeValue = `OS${data.numeroOs}`;
-  if (y > 260) {
-    pdf.addPage();
-    y = 16;
+  if (lay.etapas && data.etapas) {
+    pdf.text(`Etapas: ${data.etapas}`.slice(0, 110), 15, y);
+    y += 6;
   }
-  drawCode39(pdf, barcodeValue, 15, y);
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(6);
-  pdf.text(barcodeValue, 15, y + 12);
+  if (lay.assinatura) {
+    y += 12;
+    pdf.line(15, y, 80, y);
+    pdf.setFontSize(fontBase - 1);
+    pdf.text("Assinatura", 15, y + 4);
+    y += 10;
+  }
+
+  if (lay.codBarras) {
+    const barcodeValue = `OS${data.numeroOs}`;
+    if (y > 260) {
+      pdf.addPage();
+      y = 16;
+    }
+    drawCode39(pdf, barcodeValue, 15, y);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(6);
+    pdf.text(barcodeValue, 15, y + 12);
+  }
 }
 
 function parseQtdItem(qtd: string) {
@@ -875,6 +945,7 @@ export function PdfOsViewer({
       ...data,
       lab: labImpressaoFromConfig(),
       cabecalhoRequisicao: normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao),
+      layoutModelo1: carregarLayoutModelo1(),
     });
   }
 
@@ -885,7 +956,11 @@ export function PdfOsViewer({
   useEffect(() => {
     const handler = () => atualizarLab();
     window.addEventListener(LAB_CONFIG_ATUALIZADA_EVENT, handler);
-    return () => window.removeEventListener(LAB_CONFIG_ATUALIZADA_EVENT, handler);
+    window.addEventListener(CONFIG_OS_ATUALIZADA_EVENT, handler);
+    return () => {
+      window.removeEventListener(LAB_CONFIG_ATUALIZADA_EVENT, handler);
+      window.removeEventListener(CONFIG_OS_ATUALIZADA_EVENT, handler);
+    };
   }, [data]);
 
   useEffect(() => {

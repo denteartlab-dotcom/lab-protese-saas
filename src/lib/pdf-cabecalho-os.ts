@@ -68,6 +68,8 @@ export function desenharCabecalhoRequisicaoPdf(
     configLab?: ConfigLaboratorio;
     tituloDireita: string;
     extrasDireita?: (y: number, margin: number, tableRight: number) => number;
+    exibirLogo?: boolean;
+    exibirInfoLab?: boolean;
   }
 ): number {
   const cfg =
@@ -89,13 +91,12 @@ export function desenharCabecalhoRequisicaoPdf(
   const topo = 14 + pxCabecalhoParaMm(cab.logoMargemTopo);
   const marginLogoX = margin + pxCabecalhoParaMm(cab.logoMargemEsquerda);
 
-  const { largura: logoW, altura: logoH } = desenharLogoLab(
-    pdf,
-    lab,
-    cab,
-    marginLogoX,
-    topo
-  );
+  const exibirLogo = opts.exibirLogo !== false;
+  const exibirInfoLab = opts.exibirInfoLab !== false;
+
+  const { largura: logoW, altura: logoH } = exibirLogo
+    ? desenharLogoLab(pdf, lab, cab, marginLogoX, topo)
+    : { largura: 0, altura: 0 };
 
   const infoOffsetX = pxCabecalhoParaMm(cab.infoMargemEsquerda);
   const infoOffsetY = pxCabecalhoParaMm(cab.infoMargemTopo);
@@ -109,21 +110,26 @@ export function desenharCabecalhoRequisicaoPdf(
 
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(fonteNomePdf);
-  const linhasNome = pdf.splitTextToSize(textos.nome || "", larguraColEsq);
-  pdf.text(linhasNome, labX, linha1);
+  let linhasNome: string[] = [];
+  if (exibirInfoLab) {
+    linhasNome = pdf.splitTextToSize(textos.nome || "", larguraColEsq);
+    pdf.text(linhasNome, labX, linha1);
+  }
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(Math.max(fonteNomePdf - 1, 11));
   pdf.text(opts.tituloDireita, tableRight, linha1, { align: "right" });
 
-  let yLab = linha1 + linhasNome.length * (fonteNomePdf * 0.42) + 2;
+  let yLab = linha1 + (exibirInfoLab ? linhasNome.length * (fonteNomePdf * 0.42) + 2 : 2);
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(fonteInfoPdf);
 
-  for (const linha of textos.linhas) {
-    const linhasBloco = pdf.splitTextToSize(linha, larguraColEsq);
-    pdf.text(linhasBloco, labX, yLab);
-    yLab += linhasBloco.length * (fonteInfoPdf * 0.52);
+  if (exibirInfoLab) {
+    for (const linha of textos.linhas) {
+      const linhasBloco = pdf.splitTextToSize(linha, larguraColEsq);
+      pdf.text(linhasBloco, labX, yLab);
+      yLab += linhasBloco.length * (fonteInfoPdf * 0.52);
+    }
   }
 
   let yDir = linha1 + 7;
