@@ -294,6 +294,7 @@ export type ResultadoLimpezaModulos = {
   apagados: Record<string, number>;
   localStorageKeys: string[];
   localStoragePrefixos: string[];
+  localStorageSet: Record<string, string>;
 };
 
 export async function limparModulosSelecionados(
@@ -307,6 +308,7 @@ export async function limparModulosSelecionados(
   );
 
   const apagados: Record<string, number> = {};
+  const localStorageSet: Record<string, string> = {};
   const pastasUpload: PastaUpload[] = [];
   const jsonKeys = new Set<string>();
 
@@ -359,19 +361,57 @@ export async function limparModulosSelecionados(
       case "produtos": {
         const c = await prisma.produto.deleteMany();
         apagados.produtos = c.count;
+        localStorageSet.labProteseProdutosExcluidos = "[]";
+        localStorageSet.labProteseProdutosExcluidosSnapshots = "{}";
+        localStorageSet.labProteseProdutosRemovidosPermanentemente = JSON.stringify([
+          "padrao-brux",
+          "padrao-deline",
+          "padrao-estrutura",
+          "padrao-investa",
+          "padrao-newflex",
+          "padrao-trilux",
+        ]);
+        localStorageSet.labProteseProdutosEstoqueExtras = "{}";
+        localStorageSet.labProteseProdutosEstoqueMovimentos = "[]";
+        localStorageSet.labProteseProdutosEstoqueOsMovimentos = "[]";
         break;
       }
-      case "tabela_precos":
+      case "tabela_precos": {
         apagados.tabela_precos = 0;
+        const payloadTabelaVazia = JSON.stringify({
+          tabela: "Tabela Principal",
+          tabelas: ["Tabela Principal"],
+          categoriasPorTabela: { "Tabela Principal": [] },
+        });
+        localStorageSet.labProteseTabelaPrecos = payloadTabelaVazia;
+        localStorageSet.labProteseItensCustoCadastro = "[]";
+        await prisma.jsonStore.upsert({
+          where: { key: "labProteseTabelaPrecos" },
+          create: { key: "labProteseTabelaPrecos", payload: payloadTabelaVazia },
+          update: { payload: payloadTabelaVazia },
+        });
         break;
+      }
       case "etapas":
         apagados.etapas = 0;
+        localStorageSet.labProteseEtapas = "[]";
+        localStorageSet.labProteseEtapasExcluidas = "[]";
+        localStorageSet.labProteseSetores = "[]";
+        localStorageSet.labProteseSetoresExcluidos = "[]";
         break;
       case "colaboradores":
         apagados.colaboradores = 0;
+        localStorageSet.labProteseColaboradores = "[]";
+        localStorageSet.labProteseColaboradoresExcluidos = "[]";
+        localStorageSet.labProtesePrestadores = "[]";
+        localStorageSet.labProtesePrestadoresExcluidos = "[]";
         break;
       case "cadastros":
         apagados.cadastros = 0;
+        localStorageSet.labProteseFornecedores = "[]";
+        localStorageSet.labProteseFornecedoresExcluidos = "[]";
+        localStorageSet.labProteseCategoriasFornecedores = "[]";
+        localStorageSet.labProteseMateriaisDentista = "[]";
         break;
       case "integracoes": {
         await prisma.jsonStore.upsert({
@@ -444,5 +484,6 @@ export async function limparModulosSelecionados(
     apagados,
     localStorageKeys: lsKeys.filter((k) => !k.endsWith(":")),
     localStoragePrefixos: [...prefixos],
+    localStorageSet,
   };
 }

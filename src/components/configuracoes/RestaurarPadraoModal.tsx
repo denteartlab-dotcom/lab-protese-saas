@@ -47,10 +47,15 @@ function contarItensLocalStorage(mod: ModuloApi): number {
 
 function limparLocalStorageCliente(
   keys: string[],
-  prefixos: string[]
+  prefixos: string[],
+  setValues: Record<string, string>
 ) {
   if (typeof window === "undefined") return;
+  for (const [key, value] of Object.entries(setValues)) {
+    window.localStorage.setItem(key, value);
+  }
   for (const key of keys) {
+    if (key in setValues) continue;
     window.localStorage.removeItem(key);
   }
   const remover: string[] = [];
@@ -205,6 +210,7 @@ export function RestaurarPadraoModal({
         error?: string;
         localStorageKeys?: string[];
         localStoragePrefixos?: string[];
+        localStorageSet?: Record<string, string>;
         apagados?: Record<string, number>;
         exigePalavraChave?: boolean;
         tentativasSenha?: number;
@@ -226,7 +232,8 @@ export function RestaurarPadraoModal({
 
       limparLocalStorageCliente(
         data.localStorageKeys ?? [],
-        data.localStoragePrefixos ?? []
+        data.localStoragePrefixos ?? [],
+        data.localStorageSet ?? {}
       );
 
       const totalApagado = Object.values(data.apagados ?? {}).reduce(

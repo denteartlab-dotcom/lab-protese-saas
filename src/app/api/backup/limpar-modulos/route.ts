@@ -78,6 +78,7 @@ export async function POST(request: Request) {
       apagados: resultado.apagados,
       localStorageKeys: resultado.localStorageKeys,
       localStoragePrefixos: resultado.localStoragePrefixos,
+      localStorageSet: resultado.localStorageSet,
       modulos: resultado.modulos,
     });
   } catch (err) {
