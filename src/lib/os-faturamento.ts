@@ -29,6 +29,14 @@ export function lancamentoCreditoUtilizado(lancamento: LancamentoFaturaOs) {
   return descricao.startsWith("crédito utilizado") || descricao.includes("desconto com crédito");
 }
 
+/** Receita gerada por faturamento de OS (contas a receber), não movimento de caixa até o pagamento. */
+export function ehDescricaoReceitaOs(descricao: string) {
+  const d = descricao.replace(/\s+/g, " ").trim().toLowerCase();
+  if (d.includes("desconto com crédito") || d.startsWith("crédito utilizado")) return false;
+  if (d.startsWith("cobrança os")) return true;
+  return /^os\s*#\d+/i.test(d) || /\bos\s*#\d+/i.test(d);
+}
+
 /** Lançamento de fatura OS ainda válido (não cancelado / excluído). */
 export function lancamentoFaturaOsAtivo(lancamento: LancamentoFaturaOs) {
   if (lancamento.status === "cancelado") return false;

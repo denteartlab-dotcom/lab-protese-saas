@@ -219,6 +219,42 @@ type PdfRenderApi = {
 
 const ESPACO_APOS_OS_EXTERNA_MM = 60;
 
+function desenharMetaOsCabecalhoDireita(
+  pdf: PdfRenderApi,
+  data: PdfOsData,
+  yDir: number,
+  dir: number
+) {
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(16);
+  pdf.text(String(data.numeroOs), dir, yDir, { align: "right" });
+  yDir += 6;
+
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(8.5);
+  pdf.text("Data", dir, yDir, { align: "right" });
+  yDir += 3.5;
+  pdf.setFont("helvetica", "normal");
+  pdf.text(data.dataEntrada?.trim() || "—", dir, yDir, { align: "right" });
+  yDir += 4.5;
+
+  pdf.setFont("helvetica", "bold");
+  pdf.text("Status", dir, yDir, { align: "right" });
+  yDir += 3.5;
+  pdf.setFont("helvetica", "normal");
+  pdf.text(data.status?.trim() || "—", dir, yDir, { align: "right" });
+  yDir += 4.5;
+
+  const usuario = (data.usuarioCriou || "").trim();
+  if (usuario) {
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8.5);
+    pdf.text(`Usuário: ${usuario}`, dir, yDir, { align: "right" });
+    yDir += 4.5;
+  }
+  return yDir;
+}
+
 function desenharMarcadoresUrgenciaRepeticao(pdf: PdfRenderApi, data: PdfOsData, xRotulo: number, y: number) {
   const marcas: string[] = [];
   if (data.urgente) marcas.push("URGENTE");
@@ -240,20 +276,9 @@ function desenharMarcadoresUrgenciaRepeticao(pdf: PdfRenderApi, data: PdfOsData,
 function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
   const pageWidth = pdf.internal.pageSize.getWidth();
   const margin = 15;
-  let y = desenharCabecalhoLabPdf(pdf, data, "Ordem de Serviço", (yDir, _m, dir) => {
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(16);
-    pdf.text(String(data.numeroOs), dir, yDir, { align: "right" });
-    yDir += 6;
-    const usuario = (data.usuarioCriou || "").trim();
-    if (usuario) {
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(8.5);
-      pdf.text(`Usuário: ${usuario}`, dir, yDir, { align: "right" });
-      yDir += 4.5;
-    }
-    return yDir;
-  });
+  let y = desenharCabecalhoLabPdf(pdf, data, "Ordem de Serviço", (yDir, _m, dir) =>
+    desenharMetaOsCabecalhoDireita(pdf, data, yDir, dir)
+  );
 
   pdf.setFontSize(9);
   labelValue(pdf, "Núm OS:", String(data.numeroOs), 15, y);
@@ -501,12 +526,9 @@ function renderModeloComprovante(pdf: PdfRenderApi, data: PdfOsData) {
   const pageWidth = pdf.internal.pageSize.getWidth();
   const margin = 15;
   const tableRight = pageWidth - margin;
-  let y = desenharCabecalhoLabPdf(pdf, data, "Ordem de Serviço", (yDir, _m, dir) => {
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(16);
-    pdf.text(String(data.numeroOs), dir, yDir, { align: "right" });
-    return yDir + 6;
-  });
+  let y = desenharCabecalhoLabPdf(pdf, data, "Ordem de Serviço", (yDir, _m, dir) =>
+    desenharMetaOsCabecalhoDireita(pdf, data, yDir, dir)
+  );
 
   pdf.setFontSize(9);
   labelValue(pdf, "Núm OS:", String(data.numeroOs), margin, y);

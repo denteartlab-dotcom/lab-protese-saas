@@ -21,6 +21,10 @@ import {
   carregarMovimentacoesConta,
   type ContaBancaria,
 } from "@/lib/conta-bancaria";
+import {
+  lerPreferenciasCookie,
+  salvarPreferenciasCookie,
+} from "@/lib/app-preferencias-cookie";
 import { FINANCEIRO_ATUALIZADO_EVENT } from "@/lib/financeiro-events";
 import { dateToBrShort } from "@/lib/datas-br";
 import {
@@ -82,7 +86,10 @@ export function FluxoDeCaixaConteudo() {
   const [dataFinal, setDataFinal] = useState(periodoMesInicial.fim);
   const [pagina, setPagina] = useState(1);
   const [anoMensal, setAnoMensal] = useState(new Date().getFullYear());
-  const [situacao, setSituacao] = useState<SituacaoFluxoCaixa>("previsto");
+  const [situacao, setSituacao] = useState<SituacaoFluxoCaixa>(() => {
+    const prefs = lerPreferenciasCookie();
+    return prefs.fluxoSituacao === "previsto" ? "previsto" : "realizado";
+  });
   const [pdfCarregando, setPdfCarregando] = useState(false);
   const porPagina = 20;
 
@@ -201,6 +208,10 @@ export function FluxoDeCaixaConteudo() {
       situacao
     );
   }, [lancamentos, movimentacoes, contas, anoMensal, conta, tipo, formaPagamento, situacao]);
+
+  useEffect(() => {
+    salvarPreferenciasCookie({ fluxoSituacao: situacao, fluxoPeriodo: periodo });
+  }, [situacao, periodo]);
 
   useEffect(() => {
     setPagina(1);

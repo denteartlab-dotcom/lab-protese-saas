@@ -5,6 +5,7 @@ import {
 } from "@/lib/conta-bancaria";
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
 import { parseBrDate } from "@/lib/datas-br";
+import { ehDescricaoReceitaOs } from "@/lib/os-faturamento";
 
 export type LancamentoFluxo = {
   id: string;
@@ -118,9 +119,15 @@ function descricaoLancamento(l: LancamentoFluxo) {
   return l.descricao;
 }
 
-function lancamentoIncluido(status: string, situacao: SituacaoFluxoCaixa) {
-  if (situacao === "realizado") return status === "pago";
-  return status === "pago" || status === "pendente";
+function lancamentoIncluido(
+  l: LancamentoFluxo,
+  situacao: SituacaoFluxoCaixa
+) {
+  if (l.tipo === "receita" && ehDescricaoReceitaOs(l.descricao) && l.status !== "pago") {
+    return false;
+  }
+  if (situacao === "realizado") return l.status === "pago";
+  return l.status === "pago" || l.status === "pendente";
 }
 
 function movimentosBrutos(
@@ -141,7 +148,7 @@ function movimentosBrutos(
   }> = [];
 
   for (const l of lancamentos) {
-    if (!lancamentoIncluido(l.status, situacao)) continue;
+    if (!lancamentoIncluido(l, situacao)) continue;
     const data = new Date(l.data);
     const conta = contaDeLancamento(l, "Caixa Principal");
     const valor = l.tipo === "receita" ? l.valor : -l.valor;

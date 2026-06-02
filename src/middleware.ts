@@ -66,7 +66,15 @@ export function middleware(request: NextRequest) {
   const needsAuth = pathname.startsWith("/app") || pathname.startsWith("/api");
 
   if (!needsAuth) {
-    return NextResponse.next();
+    const res = NextResponse.next();
+    if (
+      pathname.startsWith("/_next/static") ||
+      pathname.startsWith("/uploads/") ||
+      pathname.match(/\.(png|jpg|jpeg|gif|webp|svg|ico|woff2?)$/i)
+    ) {
+      res.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    }
+    return res;
   }
 
   const token = request.cookies.get(COOKIE_NAME)?.value;
@@ -79,7 +87,9 @@ export function middleware(request: NextRequest) {
     return limparCookieSessao(NextResponse.redirect(login));
   }
 
-  return NextResponse.next();
+  const res = NextResponse.next();
+  res.headers.set("X-Content-Type-Options", "nosniff");
+  return res;
 }
 
 export const config = {
