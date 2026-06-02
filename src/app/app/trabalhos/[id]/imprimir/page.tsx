@@ -118,9 +118,11 @@ async function ImprimirOSConteudo({
   const modeloRaw = String(Array.isArray(sp.modelo) ? sp.modelo[0] : sp.modelo || "");
   const modelo =
     formato === "termica"
-      ? modeloRaw === "modelo3"
-        ? "modelo3"
-        : "modelo4"
+      ? modeloRaw === "modelo5"
+        ? "modelo5"
+        : modeloRaw === "modelo4"
+          ? "modelo4"
+          : "modelo3"
       : modeloRaw === "modelo2" ||
           modeloRaw === "modelo3" ||
           modeloRaw === "comprovante"

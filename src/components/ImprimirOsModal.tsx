@@ -8,6 +8,11 @@ import {
   segmentoEfetivoTrabalho,
   type SegmentoFaturamento,
 } from "@/lib/trabalho-os-segmento";
+import {
+  carregarConfiguracoesOs,
+  formatoPorModeloOs,
+  type ModeloOsId,
+} from "@/lib/configuracoes-os";
 
 export type FormatoImpressaoOs = "a4" | "termica" | "etiquetas";
 
@@ -69,16 +74,27 @@ export function ImprimirOsModal({
 
   useEffect(() => {
     if (!open) return;
-    setFormato("a4");
-    setModelo("modelo1");
+    const cfg = carregarConfiguracoesOs();
+    const modeloPadrao = cfg.modeloPadrao as ModeloOsId;
+    setFormato(formatoPorModeloOs(modeloPadrao));
+    setModelo(modeloPadrao);
     setSomenteItem(multiplosSegmentos ? "sim" : "nao");
-    setDuasVias("nao");
+    setDuasVias(cfg.duasVias[modeloPadrao] ? "sim" : "nao");
   }, [open, multiplosSegmentos, trabalho?.id]);
 
   function aoMudarFormato(novo: FormatoImpressaoOs) {
     setFormato(novo);
     if (novo === "termica") setModelo("modelo3");
     else if (novo === "a4") setModelo("modelo1");
+  }
+
+  function aoMudarModelo(novo: string) {
+    setModelo(novo);
+    const cfg = carregarConfiguracoesOs();
+    const id = novo as ModeloOsId;
+    if (cfg.duasVias[id] !== undefined) {
+      setDuasVias(cfg.duasVias[id] ? "sim" : "nao");
+    }
   }
 
   function imprimir() {
@@ -151,7 +167,7 @@ export function ImprimirOsModal({
               <Select
                 label="Modelo OS (A4)"
                 value={modelo}
-                onChange={(e) => setModelo(e.target.value)}
+                onChange={(e) => aoMudarModelo(e.target.value)}
               >
                 <option value="modelo1">Modelo 1 — Produção</option>
                 <option value="modelo2">Modelo 2 — Comprovante de entrega</option>
@@ -160,13 +176,14 @@ export function ImprimirOsModal({
               <Select
                 label="Modelo OS (Térmica 80mm)"
                 value={modelo}
-                onChange={(e) => setModelo(e.target.value)}
+                onChange={(e) => aoMudarModelo(e.target.value)}
               >
-                <option value="modelo3">
-                  Modelo 3 — Comprovante de entrega (Epson T20)
-                </option>
+                <option value="modelo3">Modelo 3 - (Comprovante de Entrega)</option>
                 <option value="modelo4">
-                  Modelo 4 — Comprovante de entrega (Epson T20)
+                  Modelo 4 - (Impressora térmica 80mm - Epson T20)
+                </option>
+                <option value="modelo5">
+                  Modelo 5 - (Comprovante de Entrega - Impressora térmica 80mm - Epson T20)
                 </option>
               </Select>
             ) : (
