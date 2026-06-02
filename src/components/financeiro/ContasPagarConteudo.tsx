@@ -26,7 +26,10 @@ import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal"
 import { RelatorioDespesasModal } from "@/components/financeiro/RelatorioDespesasModal";
 import { DespesaDetalheModal } from "@/components/financeiro/DespesaDetalheModal";
 import { VisualizadorAnexoDespesa } from "@/components/financeiro/VisualizadorAnexoDespesa";
-import type { AnexoDespesa } from "@/lib/lancamento-despesa";
+import {
+  ANEXOS_FINANCEIRO_VAZIOS,
+  type AnexoDespesa,
+} from "@/lib/lancamento-despesa";
 import {
   FINANCEIRO_ATUALIZADO_EVENT,
   notificarFinanceiroAtualizado,
@@ -807,7 +810,10 @@ export function ContasPagarConteudo() {
           salvando={salvando}
           tituloEdicao={editando ? "Editar Despesa" : undefined}
           anexosIniciais={
-            editando ? desempacotarDespesa(editando.descricao).meta.anexos || [] : []
+            editando
+              ? desempacotarDespesa(editando.descricao).meta.anexos ||
+                ANEXOS_FINANCEIRO_VAZIOS
+              : ANEXOS_FINANCEIRO_VAZIOS
           }
         />
       ) : null}

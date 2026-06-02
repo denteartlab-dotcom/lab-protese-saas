@@ -7,7 +7,7 @@ import {
   AnexosReciboCampo,
   type AnexosReciboCampoRef,
 } from "@/components/financeiro/AnexosReciboCampo";
-import type { AnexoDespesa } from "@/lib/lancamento-despesa";
+import { ANEXOS_FINANCEIRO_VAZIOS, type AnexoDespesa } from "@/lib/lancamento-despesa";
 import { CampoDataBr } from "@/components/ui";
 import { dateToBrShort } from "@/lib/datas-br";
 import { parseNotaFiscalArquivo } from "@/lib/nfe-import";
@@ -158,7 +158,7 @@ export function LancarReceitaModal({
   modo = "receita",
   salvando = false,
   tituloEdicao,
-  anexosIniciais = [],
+  anexosIniciais = ANEXOS_FINANCEIRO_VAZIOS,
 }: Props) {
   const cfg = cfgModo[modo];
   const secaoPlano = modo === "receita" ? "receitas" : "despesas";

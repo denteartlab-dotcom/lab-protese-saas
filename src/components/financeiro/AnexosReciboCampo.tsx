@@ -4,7 +4,6 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -13,6 +12,7 @@ import { FileText, ImageUp, Loader2, Trash2 } from "lucide-react";
 import {
   ACCEPT_ANEXOS_FINANCEIRO,
   arquivoEhAnexoFinanceiro,
+  ANEXOS_FINANCEIRO_VAZIOS,
   LIMITE_ANEXOS_FINANCEIRO,
   type AnexoDespesa,
   type PastaAnexoFinanceiro,
@@ -58,16 +58,27 @@ async function uploadAnexos(
 }
 
 export const AnexosReciboCampo = forwardRef<AnexosReciboCampoRef, Props>(
-  function AnexosReciboCampo({ pasta, anexosIniciais = [], resetToken, className }, ref) {
-    const [anexosSalvos, setAnexosSalvos] = useState<AnexoDespesa[]>([]);
+  function AnexosReciboCampo(
+    { pasta, anexosIniciais = ANEXOS_FINANCEIRO_VAZIOS, resetToken, className },
+    ref
+  ) {
+    const [anexosSalvos, setAnexosSalvos] = useState<AnexoDespesa[]>(() => [
+      ...anexosIniciais,
+    ]);
     const [enviando, setEnviando] = useState(false);
     const [erroUpload, setErroUpload] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const anexosSalvosRef = useRef(anexosSalvos);
+    anexosSalvosRef.current = anexosSalvos;
 
+    /** Só reinicia ao abrir o modal — não quando o pai re-renderiza com `[]` novo. */
     useEffect(() => {
+      if (!resetToken) return;
       setAnexosSalvos([...anexosIniciais]);
       setErroUpload(null);
-    }, [resetToken, anexosIniciais]);
+      // anexosIniciais intencionalmente fora das deps (evita apagar anexos já enviados)
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [resetToken]);
 
     const totalAnexos = anexosSalvos.length;
 
@@ -82,7 +93,7 @@ export const AnexosReciboCampo = forwardRef<AnexosReciboCampoRef, Props>(
 
     async function adicionarArquivos(lista: FileList | null) {
       if (!lista?.length || enviando) return;
-      const vagas = LIMITE_ANEXOS_FINANCEIRO - totalAnexos;
+      const vagas = LIMITE_ANEXOS_FINANCEIRO - anexosSalvosRef.current.length;
       if (vagas <= 0) return;
 
       const candidatos = Array.from(lista).filter(arquivoEhAnexoFinanceiro);
@@ -162,10 +173,13 @@ export const AnexosReciboCampo = forwardRef<AnexosReciboCampoRef, Props>(
               ? "Enviando…"
               : totalAnexos >= LIMITE_ANEXOS_FINANCEIRO
                 ? `Limite de ${LIMITE_ANEXOS_FINANCEIRO} arquivos`
-                : "Adicionar imagens ou PDF"}
+                : totalAnexos > 0
+                  ? "Adicionar outro arquivo"
+                  : "Adicionar imagens ou PDF"}
           </button>
           <span className="text-[10px] text-slate-500">
-            {totalAnexos}/{LIMITE_ANEXOS_FINANCEIRO} · máx. 4 MB por arquivo
+            {totalAnexos}/{LIMITE_ANEXOS_FINANCEIRO} arquivos · máx. 4 MB cada · selecione vários
+            de uma vez se quiser
           </span>
         </div>
         <input

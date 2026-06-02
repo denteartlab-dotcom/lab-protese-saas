@@ -28,6 +28,8 @@ export type DespesaMeta = {
 
 export const LIMITE_ANEXOS_DESPESA = 5;
 export const LIMITE_ANEXOS_FINANCEIRO = LIMITE_ANEXOS_DESPESA;
+/** Referência estável para evitar reset dos anexos a cada re-render do modal. */
+export const ANEXOS_FINANCEIRO_VAZIOS: AnexoDespesa[] = [];
 export const ACCEPT_ANEXOS_FINANCEIRO =
   "image/*,application/pdf,.pdf,.heic,.heif";
 
