@@ -44,7 +44,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "os");
+  const subpasta =
+    new URL(request.url).searchParams.get("pasta") === "despesas" ? "despesas" : "os";
+  const uploadDir = path.join(process.cwd(), "public", "uploads", subpasta);
   await mkdir(uploadDir, { recursive: true });
 
   const uploaded = await Promise.all(
@@ -56,7 +58,7 @@ export async function POST(request: Request) {
       return {
         name: file.name,
         type: file.type,
-        url: `/uploads/os/${filename}`,
+        url: `/uploads/${subpasta}/${filename}`,
       };
     })
   );

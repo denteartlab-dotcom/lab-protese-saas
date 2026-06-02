@@ -304,6 +304,7 @@ export function ContasPagarConteudo() {
       parcela: String(payload.parcelas.length),
       referencia: payload.notaFiscalRef,
       nome: nomeEntidade,
+      ...(payload.anexos?.length ? { anexos: payload.anexos } : {}),
     };
     const descricaoBase = empacotarDespesa(
       [descricaoItens, payload.observacoes].filter(Boolean).join(" | ") ||
@@ -696,6 +697,9 @@ export function ContasPagarConteudo() {
           entidades={fornecedores}
           salvando={salvando}
           tituloEdicao={editando ? "Editar Despesa" : undefined}
+          anexosIniciais={
+            editando ? desempacotarDespesa(editando.descricao).meta.anexos || [] : []
+          }
         />
       ) : null}
     </div>

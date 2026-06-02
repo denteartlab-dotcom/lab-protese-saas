@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Barcode, Minus, Plus, Upload } from "lucide-react";
+import Image from "next/image";
+import { Barcode, ImageUp, Minus, Plus, Trash2, Upload } from "lucide-react";
+import type { AnexoDespesa } from "@/lib/lancamento-despesa";
+import { LIMITE_ANEXOS_DESPESA } from "@/lib/lancamento-despesa";
+import { notificarUploadsAtualizados } from "@/lib/uploads-armazenamento";
 import { CampoDataBr } from "@/components/ui";
 import { dateToBrShort } from "@/lib/datas-br";
 import { parseNotaFiscalArquivo } from "@/lib/nfe-import";
@@ -51,6 +55,7 @@ export type LancarReceitaPayload = {
   observacoes: string;
   valorBruto: number;
   totalLiquido: number;
+  anexos?: AnexoDespesa[];
 };
 
 export type ModoLancamento = "receita" | "despesa";
@@ -107,6 +112,8 @@ type Props = {
   modo?: ModoLancamento;
   salvando?: boolean;
   tituloEdicao?: string;
+  /** Imagens já salvas (edição de despesa). */
+  anexosIniciais?: AnexoDespesa[];
 };
 
 const cfgModo = {
@@ -150,6 +157,7 @@ export function LancarReceitaModal({
   modo = "receita",
   salvando = false,
   tituloEdicao,
+  anexosIniciais = [],
 }: Props) {
   const cfg = cfgModo[modo];
   const secaoPlano = modo === "receita" ? "receitas" : "despesas";
@@ -183,6 +191,27 @@ export function LancarReceitaModal({
     texto: string;
   } | null>(null);
   const [portalPronto, setPortalPronto] = useState(false);
+  const [anexosSalvos, setAnexosSalvos] = useState<AnexoDespesa[]>([]);
+  const [anexosNovos, setAnexosNovos] = useState<File[]>([]);
+  const [enviandoAnexos, setEnviandoAnexos] = useState(false);
+  const inputImagensDespesaRef = useRef<HTMLInputElement>(null);
+  const previewsNovos = useMemo(
+    () =>
+      anexosNovos.map((file) => ({
+        file,
+        url: URL.createObjectURL(file),
+        isImage: file.type.startsWith("image/"),
+      })),
+    [anexosNovos]
+  );
+
+  useEffect(() => {
+    return () => {
+      previewsNovos.forEach((p) => URL.revokeObjectURL(p.url));
+    };
+  }, [previewsNovos]);
+
+  const totalAnexosDespesa = anexosSalvos.length + anexosNovos.length;
 
   useEffect(() => {
     setPortalPronto(true);
@@ -208,7 +237,40 @@ export function LancarReceitaModal({
     setArquivoNota(null);
     setParseandoNota(false);
     setFeedbackNota(null);
-  }, [open, cfg.tipoPadrao, cfg.categoriaPadrao, secaoPlano]);
+    setAnexosSalvos(modo === "despesa" ? [...anexosIniciais] : []);
+    setAnexosNovos([]);
+  }, [open, cfg.tipoPadrao, cfg.categoriaPadrao, secaoPlano, modo, anexosIniciais]);
+
+  function adicionarImagensDespesa(lista: FileList | null) {
+    if (!lista?.length || modo !== "despesa") return;
+    const vagas = LIMITE_ANEXOS_DESPESA - totalAnexosDespesa;
+    if (vagas <= 0) return;
+    const candidatos = Array.from(lista).filter((f) => f.type.startsWith("image/"));
+    if (!candidatos.length) {
+      alert("Selecione apenas imagens (JPEG, PNG, WebP, etc.).");
+      return;
+    }
+    setAnexosNovos((atual) => [...atual, ...candidatos.slice(0, vagas)]);
+  }
+
+  async function uploadAnexosDespesa(arquivos: File[]): Promise<AnexoDespesa[]> {
+    if (!arquivos.length) return [];
+    const formData = new FormData();
+    arquivos.forEach((arquivo) => formData.append("files", arquivo));
+    const res = await fetch("/api/uploads?pasta=despesas", {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(
+        typeof err?.error === "string" ? err.error : "Não foi possível enviar as imagens."
+      );
+    }
+    const uploaded = (await res.json()) as AnexoDespesa[];
+    notificarUploadsAtualizados();
+    return uploaded;
+  }
 
   async function importarArquivoNotaFiscal(file: File | null) {
     setArquivoNota(file);
@@ -341,9 +403,23 @@ export function LancarReceitaModal({
     );
   }
 
-  function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    void onSubmit({
+    let anexos: AnexoDespesa[] | undefined;
+    if (modo === "despesa") {
+      setEnviandoAnexos(true);
+      try {
+        const enviados =
+          anexosNovos.length > 0 ? await uploadAnexosDespesa(anexosNovos) : [];
+        anexos = [...anexosSalvos, ...enviados].slice(0, LIMITE_ANEXOS_DESPESA);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Falha ao enviar imagens.");
+        setEnviandoAnexos(false);
+        return;
+      }
+      setEnviandoAnexos(false);
+    }
+    await onSubmit({
       clienteId,
       tipoCliente,
       categoria,
@@ -357,6 +433,7 @@ export function LancarReceitaModal({
       observacoes,
       valorBruto,
       totalLiquido,
+      anexos,
     });
   }
 
@@ -821,17 +898,135 @@ export function LancarReceitaModal({
             />
           </div>
 
+          {modo === "despesa" ? (
+            <div className="mt-4 rounded border border-slate-200 bg-slate-50/80 p-3">
+              <label className={labelClass}>Imagens (recibos e comprovantes)</label>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  className={cn(selectClass, "max-w-[220px]")}
+                  value=""
+                  disabled={totalAnexosDespesa >= LIMITE_ANEXOS_DESPESA || enviandoAnexos}
+                  onChange={(e) => {
+                    if (e.target.value === "adicionar") {
+                      inputImagensDespesaRef.current?.click();
+                    }
+                    e.target.value = "";
+                  }}
+                >
+                  <option value="" disabled>
+                    {totalAnexosDespesa >= LIMITE_ANEXOS_DESPESA
+                      ? `Limite de ${LIMITE_ANEXOS_DESPESA} fotos`
+                      : "Escolha uma opção…"}
+                  </option>
+                  <option value="adicionar">+ Adicionar imagens</option>
+                </select>
+                <span className="text-[10px] text-slate-500">
+                  {totalAnexosDespesa}/{LIMITE_ANEXOS_DESPESA} fotos (máx.{" "}
+                  {LIMITE_ANEXOS_DESPESA})
+                </span>
+              </div>
+              <input
+                ref={inputImagensDespesaRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="sr-only"
+                onChange={(e) => {
+                  adicionarImagensDespesa(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+              {totalAnexosDespesa > 0 ? (
+                <div className="mt-3 grid gap-2 sm:grid-cols-3 md:grid-cols-5">
+                  {anexosSalvos.map((anexo) => (
+                    <div
+                      key={anexo.url}
+                      className="relative overflow-hidden rounded border border-slate-200 bg-white shadow-sm"
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAnexosSalvos((lista) =>
+                            lista.filter((a) => a.url !== anexo.url)
+                          )
+                        }
+                        className="absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-red-600 shadow hover:bg-red-50"
+                        title="Remover imagem"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                      <a href={anexo.url} target="_blank" rel="noreferrer">
+                        <Image
+                          src={anexo.url}
+                          alt={anexo.name}
+                          width={120}
+                          height={96}
+                          unoptimized
+                          className="h-20 w-full object-cover"
+                        />
+                      </a>
+                      <p className="truncate px-1 py-0.5 text-[9px] text-slate-500">
+                        {anexo.name}
+                      </p>
+                    </div>
+                  ))}
+                  {previewsNovos.map((preview, index) => (
+                    <div
+                      key={`${preview.file.name}-${preview.file.size}`}
+                      className="relative overflow-hidden rounded border border-emerald-200 bg-white shadow-sm"
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAnexosNovos((lista) => lista.filter((_, i) => i !== index))
+                        }
+                        className="absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-red-600 shadow hover:bg-red-50"
+                        title="Remover imagem"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                      {preview.isImage ? (
+                        <Image
+                          src={preview.url}
+                          alt={preview.file.name}
+                          width={120}
+                          height={96}
+                          unoptimized
+                          className="h-20 w-full object-cover"
+                        />
+                      ) : null}
+                      <p className="truncate px-1 py-0.5 text-[9px] text-slate-500">
+                        {preview.file.name}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => inputImagensDespesaRef.current?.click()}
+                  disabled={enviandoAnexos}
+                  className="mt-2 inline-flex items-center gap-1.5 rounded border border-dashed border-slate-300 bg-white px-3 py-2 text-[11px] text-slate-600 hover:border-[#4a90d9] hover:text-[#4a90d9] disabled:opacity-50"
+                >
+                  <ImageUp className="h-3.5 w-3.5" />
+                  Selecionar imagens
+                </button>
+              )}
+            </div>
+          ) : null}
+
           <div className="mt-5 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4">
             <button
               type="submit"
               disabled={
                 salvando ||
+                enviandoAnexos ||
                 totalLiquido <= 0 ||
                 (modo === "receita" && !clienteId)
               }
               className="h-10 rounded bg-[#4a90d9] text-[13px] font-normal text-white hover:bg-[#3d7fc4] disabled:opacity-50"
             >
-              {salvando ? "Cadastrando…" : "Cadastrar"}
+              {salvando || enviandoAnexos ? "Cadastrando…" : "Cadastrar"}
             </button>
             <button
               type="button"

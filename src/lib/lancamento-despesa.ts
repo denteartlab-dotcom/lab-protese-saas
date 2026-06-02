@@ -9,6 +9,12 @@ export type EntidadeDespesa =
   | "entregadores"
   | "clientes";
 
+export type AnexoDespesa = {
+  name: string;
+  type: string;
+  url: string;
+};
+
 export type DespesaMeta = {
   entidade?: EntidadeDespesa;
   categoria?: string;
@@ -16,7 +22,11 @@ export type DespesaMeta = {
   parcela?: string;
   referencia?: string;
   nome?: string;
+  /** Recibos e outras imagens (máx. 5). */
+  anexos?: AnexoDespesa[];
 };
+
+export const LIMITE_ANEXOS_DESPESA = 5;
 
 export type DespesaDescompactada = {
   texto: string;
