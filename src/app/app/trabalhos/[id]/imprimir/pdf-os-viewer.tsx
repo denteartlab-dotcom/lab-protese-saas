@@ -12,6 +12,7 @@ import {
 import { normalizarCabecalhoRequisicao, type CabecalhoRequisicaoConfig } from "@/lib/cabecalho-requisicao";
 import { CONFIG_OS_ATUALIZADA_EVENT, carregarLayoutModelo1 } from "@/lib/configuracoes-os";
 import {
+  hexParaRgb,
   normalizarOsModelo1Layout,
   type OsModelo1Layout,
 } from "@/lib/os-modelo1-layout";
@@ -210,6 +211,7 @@ type PdfRenderApi = {
   setFont: (fontName: string, fontStyle?: string) => void;
   setFontSize: (size: number) => void;
   setLineWidth: (width: number) => void;
+  setDrawColor: (r: number, g?: number, b?: number) => void;
   text: (text: string | string[], x: number, y: number, options?: { align?: string }) => void;
   line: (x1: number, y1: number, x2: number, y2: number) => void;
   splitTextToSize: (text: string, maxWidth: number) => string[];
@@ -262,9 +264,6 @@ function desenharMetaOsCabecalhoDireita(
     yDir += 4.5;
   }
 
-  desenharRotuloValorDireita("Status: ", data.status?.trim() || "—", yDir);
-  yDir += 4.5;
-
   const usuario = (data.usuarioCriou || "").trim();
   if (lay.usuario && usuario) {
     desenharRotuloValorDireita("Usuário: ", usuario, yDir);
@@ -289,6 +288,16 @@ function desenharMarcadoresUrgenciaRepeticao(pdf: PdfRenderApi, data: PdfOsData,
   }
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(9);
+}
+
+function desenharBordaPaginaPdf(pdf: PdfRenderApi, corHex: string) {
+  const { r, g, b } = hexParaRgb(corHex);
+  const pw = pdf.internal.pageSize.getWidth();
+  const ph = pdf.internal.pageSize.getHeight();
+  const margem = 8;
+  pdf.setDrawColor(r, g, b);
+  pdf.setLineWidth(0.35);
+  pdf.rect(margem, margem, pw - margem * 2, ph - margem * 2);
 }
 
 function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
@@ -436,13 +445,14 @@ function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
 
   pdf.setFont("helvetica", "normal");
   const prazosJaNoItem = data.itens.some((item) => item.notasAbaixo?.length);
-  if (lay.dataPrazo && !prazosJaNoItem && data.prazo) {
-    pdf.text(`Prazo: ${data.prazo}`, 15, y);
-    y += 5;
-  }
-  if (lay.finalizado && data.finalizado) {
-    pdf.text(`Finalizado: ${data.finalizado}`, 15, y);
-    y += 5;
+  if (!prazosJaNoItem && (lay.dataPrazo || lay.finalizado)) {
+    const partes: string[] = [];
+    if (lay.dataPrazo && data.prazo) partes.push(`Prazo: ${data.prazo}`);
+    if (lay.finalizado && data.finalizado) partes.push(`Finalizado: ${data.finalizado}`);
+    if (partes.length) {
+      pdf.text(partes.join(" | "), 15, y);
+      y += 5;
+    }
   }
   if (lay.colaborador && data.colaborador) {
     pdf.text(`Colaborador: ${data.colaborador}`, 15, y);
@@ -465,6 +475,11 @@ function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
     pdf.text(`Etapas: ${data.etapas}`.slice(0, 110), 15, y);
     y += 6;
   }
+  if (lay.mensagem?.trim()) {
+    const linhasMsg = pdf.splitTextToSize(lay.mensagem.trim(), 180);
+    pdf.text(linhasMsg, 15, y);
+    y += linhasMsg.length * 4 + 2;
+  }
   if (lay.assinatura) {
     y += 12;
     pdf.line(15, y, 80, y);
@@ -484,6 +499,8 @@ function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
     pdf.setFontSize(6);
     pdf.text(barcodeValue, 15, y + 12);
   }
+
+  desenharBordaPaginaPdf(pdf, lay.bordas);
 }
 
 function parseQtdItem(qtd: string) {

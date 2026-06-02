@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui";
+import { Code39Barcode } from "@/lib/code39-barcode";
 import {
   montarTextosCabecalhoRequisicao,
   normalizarCabecalhoRequisicao,
@@ -19,11 +20,11 @@ import {
   sincronizarConfiguracoesOsDoServidor,
   type ConfiguracoesOs,
 } from "@/lib/configuracoes-os";
-import { persistirConfigLaboratorioServidor } from "@/lib/lab-config-sync";
 import { configParaLabImpressao, escalaLogoMultiplicador } from "@/lib/lab-logo";
 import {
-  CAMPOS_MODELO1_CAMPOS,
   CAMPOS_MODELO1_GERAL,
+  CAMPOS_MODELO1_PARES,
+  normalizarCorBorda,
   normalizarOsModelo1Layout,
   PREVIEW_OS_MODELO1,
   type OsModelo1Layout,
@@ -86,8 +87,8 @@ function LinhaRotuloValor({
   className?: string;
 }) {
   return (
-    <p className={cn("leading-snug text-slate-800", className)}>
-      <span className="font-normal">{rotulo}</span>
+    <p className={cn("leading-snug text-slate-900", className)}>
+      <span>{rotulo}</span>
       <span className="font-bold"> {valor}</span>
     </p>
   );
@@ -114,18 +115,26 @@ function PreviewOsModelo1({
   const logoH = Math.round(logoW * 0.75);
   const amostra = PREVIEW_OS_MODELO1;
   const fs = layout.tamanhoFonte;
-  const fsSmall = Math.max(10, fs - 3);
-  const fsTiny = Math.max(9, fs - 5);
+  const fsSmall = Math.max(10, fs - 4);
+  const corBorda = normalizarCorBorda(layout.bordas);
 
   const money = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   return (
     <div
-      className="mx-auto w-full max-w-[820px] bg-white px-8 py-7 shadow-lg"
-      style={{ fontSize: `${fs}px`, fontFamily: "Arial, Helvetica, sans-serif" }}
+      className="mx-auto box-border bg-white text-slate-900 shadow-md"
+      style={{
+        width: "210mm",
+        minHeight: "297mm",
+        maxWidth: "100%",
+        padding: "14mm 16mm 16mm",
+        fontSize: `${fs}px`,
+        fontFamily: "Arial, Helvetica, sans-serif",
+        border: `1px solid ${corBorda}`,
+      }}
     >
-      <div className="flex gap-4">
+      <div className="flex items-start gap-3">
         {layout.logo ? (
           <div className="shrink-0">
             {cfg.logoDataUrl?.startsWith("data:image") ? (
@@ -137,8 +146,8 @@ function PreviewOsModelo1({
               />
             ) : (
               <div
-                className="flex items-center justify-center border border-dashed border-slate-300 bg-slate-50 text-slate-400"
-                style={{ width: logoW, height: logoH, fontSize: fsTiny }}
+                className="flex items-center justify-center border border-dashed border-slate-300 bg-slate-100 text-slate-400"
+                style={{ width: logoW, height: logoH, fontSize: 10 }}
               >
                 Logo
               </div>
@@ -147,12 +156,12 @@ function PreviewOsModelo1({
         ) : null}
 
         {layout.infoLab ? (
-          <div className="min-w-0 flex-1">
-            <p className="font-bold leading-tight" style={{ fontSize: `${fs + 2}px` }}>
+          <div className="min-w-0 flex-1 pt-0.5">
+            <p className="font-bold leading-tight" style={{ fontSize: `${fs + 1}px` }}>
               {textos.nome || "Mateus Bonfim"}
             </p>
             {textos.linhas.map((linha) => (
-              <p key={linha} className="mt-0.5 text-slate-700" style={{ fontSize: `${fsSmall}px` }}>
+              <p key={linha} className="leading-snug" style={{ fontSize: `${fsSmall}px` }}>
                 {linha}
               </p>
             ))}
@@ -161,9 +170,9 @@ function PreviewOsModelo1({
           <div className="flex-1" />
         )}
 
-        <div className="shrink-0 text-right text-slate-800" style={{ fontSize: `${fsSmall}px` }}>
-          <p>Ordem de Serviço</p>
-          <p className="font-bold leading-none" style={{ fontSize: `${fs + 8}px` }}>
+        <div className="shrink-0 text-right" style={{ fontSize: `${fsSmall}px` }}>
+          <p className="font-normal">Ordem de Serviço</p>
+          <p className="font-bold leading-none" style={{ fontSize: `${fs + 10}px` }}>
             {amostra.numeroOs}
           </p>
           {layout.dataOs ? (
@@ -172,10 +181,6 @@ function PreviewOsModelo1({
               {amostra.dataEntrada}
             </p>
           ) : null}
-          <p>
-            <span className="font-bold">Status: </span>
-            {amostra.status}
-          </p>
           {layout.usuario ? (
             <p>
               <span className="font-bold">Usuário: </span>
@@ -185,12 +190,15 @@ function PreviewOsModelo1({
         </div>
       </div>
 
-      <div className="mt-4 border-t border-slate-400" />
+      <div className="mt-3 border-t border-slate-400" />
 
-      <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1" style={{ fontSize: `${fsSmall}px` }}>
-        <div className="space-y-1">
+      <div
+        className="mt-2.5 grid grid-cols-2 gap-x-8 gap-y-0.5"
+        style={{ fontSize: `${fsSmall}px` }}
+      >
+        <div className="space-y-0.5">
           {layout.numOs ? (
-            <LinhaRotuloValor rotulo="Núm OS:" valor={String(amostra.numeroOs)} />
+            <LinhaRotuloValor rotulo="Num. OS:" valor={String(amostra.numeroOs)} />
           ) : null}
           {layout.cliente ? (
             <LinhaRotuloValor rotulo="Cliente:" valor={amostra.cliente} />
@@ -202,7 +210,7 @@ function PreviewOsModelo1({
             <LinhaRotuloValor rotulo="Paciente:" valor={amostra.paciente} />
           ) : null}
         </div>
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           {layout.osExterna ? (
             <LinhaRotuloValor rotulo="OS Externa:" valor={amostra.osExterna} />
           ) : null}
@@ -219,7 +227,7 @@ function PreviewOsModelo1({
         </div>
       </div>
 
-      <div className="mt-3 border-t border-slate-400" />
+      <div className="mt-2.5 border-t border-slate-400" />
 
       <table
         className="mt-2 w-full border-collapse"
@@ -227,118 +235,122 @@ function PreviewOsModelo1({
       >
         <thead>
           <tr className="border-b border-slate-400">
-            <th className="py-1 text-left font-bold">Qtd</th>
-            <th className="py-1 text-left font-bold">Descrição</th>
+            <th className="py-1 pr-2 text-left font-bold">Qtd</th>
+            <th className="py-1 pr-2 text-left font-bold">Descrição</th>
             {layout.numDente ? (
-              <th className="py-1 text-center font-bold">Número Dente</th>
+              <th className="py-1 px-1 text-center font-bold">Número Dente</th>
             ) : null}
-            {layout.corDente ? <th className="py-1 text-center font-bold">Cor</th> : null}
+            {layout.corDente ? <th className="py-1 px-1 text-center font-bold">Cor</th> : null}
             {layout.valorUnit ? (
-              <th className="py-1 text-right font-bold">Unitário</th>
+              <th className="py-1 px-1 text-right font-bold">Unitário</th>
             ) : null}
-            {layout.desconto ? <th className="py-1 text-right font-bold">Desc</th> : null}
-            {layout.subtotal ? <th className="py-1 text-right font-bold">Subtotal</th> : null}
+            {layout.desconto ? <th className="py-1 pl-1 text-right font-bold">Desc</th> : null}
+            {layout.subtotal ? <th className="py-1 pl-1 text-right font-bold">Subtotal</th> : null}
           </tr>
         </thead>
         <tbody>
           {amostra.itens.map((item) => (
-            <tr key={item.descricao} className="border-b border-slate-300">
-              <td className="py-2 align-top">{item.qtd}</td>
-              <td className="py-2 align-top">{item.descricao}</td>
+            <tr key={item.descricao}>
+              <td className="py-1.5 pr-2 align-top">{item.qtd}</td>
+              <td className="py-1.5 pr-2 align-top">{item.descricao}</td>
               {layout.numDente ? (
-                <td className="py-2 text-center align-top">{item.dente}</td>
+                <td className="px-1 py-1.5 text-center align-top">{item.dente}</td>
               ) : null}
               {layout.corDente ? (
-                <td className="py-2 text-center align-top">{item.cor}</td>
+                <td className="px-1 py-1.5 text-center align-top">{item.cor}</td>
               ) : null}
               {layout.valorUnit ? (
-                <td className="py-2 text-right align-top">{money(item.unitario)}</td>
+                <td className="px-1 py-1.5 text-right align-top">{money(item.unitario)}</td>
               ) : null}
               {layout.desconto ? (
-                <td className="py-2 text-right align-top">{item.desconto}</td>
+                <td className="py-1.5 pl-1 text-right align-top">{item.desconto}</td>
               ) : null}
               {layout.subtotal ? (
-                <td className="py-2 text-right align-top">{money(item.subtotal)}</td>
+                <td className="py-1.5 pl-1 text-right align-top">{money(item.subtotal)}</td>
               ) : null}
             </tr>
           ))}
         </tbody>
       </table>
 
-      {layout.dataPrazo ? (
-        <p className="mt-2" style={{ fontSize: `${fsSmall}px` }}>
-          <span className="font-normal">Prazo: </span>
-          <span className="font-bold">{amostra.prazo}</span>
-        </p>
-      ) : null}
-      {layout.finalizado ? (
-        <p style={{ fontSize: `${fsSmall}px` }}>
-          <span className="font-normal">Finalizado: </span>
-          <span className="font-bold">{amostra.finalizado}</span>
-        </p>
-      ) : null}
-      {layout.colaborador ? (
-        <p style={{ fontSize: `${fsSmall}px` }}>
-          <span className="font-normal">Colaborador: </span>
-          <span className="font-bold">{amostra.colaborador}</span>
-        </p>
-      ) : null}
-      {layout.obsServico ? (
-        <p className="mt-1" style={{ fontSize: `${fsSmall}px` }}>
-          <span className="font-normal">Observação: </span>
-          <span className="font-bold">{amostra.obsServico}</span>
-        </p>
-      ) : null}
+      <div className="mt-2 space-y-0.5" style={{ fontSize: `${fsSmall}px` }}>
+        {layout.dataPrazo || layout.finalizado ? (
+          <p>
+            {layout.dataPrazo ? (
+              <>
+                <span>Prazo: </span>
+                <span className="font-bold">{amostra.prazo}</span>
+              </>
+            ) : null}
+            {layout.dataPrazo && layout.finalizado ? (
+              <span className="mx-1 font-normal">|</span>
+            ) : null}
+            {layout.finalizado ? (
+              <>
+                <span>Finalizado: </span>
+                <span className="font-bold">{amostra.finalizado}</span>
+              </>
+            ) : null}
+          </p>
+        ) : null}
+        {layout.colaborador ? (
+          <p>
+            <span>Colaborador: </span>
+            <span className="font-bold">{amostra.colaborador}</span>
+          </p>
+        ) : null}
+        {layout.obsServico ? (
+          <p>
+            <span>Observação: </span>
+            <span className="font-bold">{amostra.obsServico}</span>
+          </p>
+        ) : null}
+      </div>
 
       {layout.total ? (
         <>
-          <div className="mt-3 border-t border-slate-400" />
-          <p className="mt-2 text-right font-bold">Total {money(amostra.total)}</p>
+          <div className="mt-2 border-t border-slate-400" />
+          <p className="mt-1.5 text-right font-bold">Total {money(amostra.total)}</p>
         </>
       ) : null}
 
       {layout.materialRec ? (
-        <p className="mt-3" style={{ fontSize: `${fsSmall}px` }}>
-          <span className="font-normal">Materiais: </span>
+        <p className="mt-2" style={{ fontSize: `${fsSmall}px` }}>
+          <span>Materiais: </span>
           <span className="font-bold">{amostra.materiais}</span>
         </p>
       ) : null}
       {layout.obsFicha ? (
         <p style={{ fontSize: `${fsSmall}px` }}>
-          <span className="font-normal">Observação: </span>
+          <span>Observação: </span>
           <span className="font-bold">{amostra.obsFicha}</span>
         </p>
       ) : null}
       {layout.etapas ? (
-        <p className="mt-1" style={{ fontSize: `${fsSmall}px` }}>
-          <span className="font-normal">Etapas: </span>
+        <p style={{ fontSize: `${fsSmall}px` }}>
+          <span>Etapas: </span>
           <span className="font-bold">{amostra.etapas}</span>
         </p>
       ) : null}
-      {layout.produtos ? (
-        <p className="mt-1 text-slate-500" style={{ fontSize: `${fsTiny}px` }}>
-          Produtos vinculados à OS aparecem aqui na impressão.
+      {layout.mensagem.trim() ? (
+        <p className="mt-2 italic text-slate-700" style={{ fontSize: `${fsSmall}px` }}>
+          {layout.mensagem}
         </p>
       ) : null}
+
       {layout.assinatura ? (
-        <p className="mt-6 border-t border-slate-300 pt-8 text-center text-slate-500" style={{ fontSize: `${fsTiny}px` }}>
-          _________________________________________
-          <br />
-          Assinatura
-        </p>
+        <div className="mt-8 text-center" style={{ fontSize: `${fsSmall - 1}px` }}>
+          <div className="mx-auto w-48 border-t border-slate-500" />
+          <p className="mt-1 text-slate-600">Assinatura</p>
+        </div>
       ) : null}
+
       {layout.codBarras ? (
-        <div className="mt-4">
-          <div className="inline-flex h-8 gap-px bg-black px-1">
-            {Array.from({ length: 48 }).map((_, i) => (
-              <span
-                key={i}
-                className="bg-black"
-                style={{ width: i % 3 === 0 ? 2 : 1, marginLeft: i % 2 ? 0 : 1 }}
-              />
-            ))}
-          </div>
-          <p className="mt-0.5 font-mono text-[10px] text-slate-700">OS{amostra.numeroOs}</p>
+        <div className="mt-5">
+          <Code39Barcode value={`OS${amostra.numeroOs}`} height={36} />
+          <p className="mt-0.5 font-mono text-[9px] tracking-wide text-slate-800">
+            OS{amostra.numeroOs}
+          </p>
         </div>
       ) : null}
     </div>
@@ -355,15 +367,46 @@ function CheckboxCampo({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2 text-[12px] text-slate-700">
+    <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-slate-800">
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="h-3.5 w-3.5 rounded border-slate-300 accent-[#4a90d9]"
+        className="h-3.5 w-3.5 shrink-0 rounded border-slate-400 accent-[#4a90d9]"
       />
-      {label}
+      <span className="leading-tight">{label}</span>
     </label>
+  );
+}
+
+function GridCheckboxes({
+  layout,
+  onPatch,
+}: {
+  layout: OsModelo1Layout;
+  onPatch: (patch: Partial<OsModelo1Layout>) => void;
+}) {
+  return (
+    <div className="space-y-1">
+      {CAMPOS_MODELO1_PARES.map(([esq, dir], idx) => (
+        <div key={idx} className="grid grid-cols-2 gap-x-2">
+          <CheckboxCampo
+            label={esq.label}
+            checked={Boolean(layout[esq.key])}
+            onChange={(v) => onPatch({ [esq.key]: v })}
+          />
+          {dir ? (
+            <CheckboxCampo
+              label={dir.label}
+              checked={Boolean(layout[dir.key])}
+              onChange={(v) => onPatch({ [dir.key]: v })}
+            />
+          ) : (
+            <span />
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -434,74 +477,83 @@ export function ConfiguracoesOsModelo1Conteudo() {
     );
   }
 
+  const corBorda = normalizarCorBorda(layout.bordas);
+
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden lg:flex-row">
-      <aside className="flex h-full w-full shrink-0 flex-col border-b border-slate-300 bg-[#d9dde3] lg:w-[320px] lg:border-b-0 lg:border-r xl:w-[340px]">
-        <div className="flex-1 space-y-4 overflow-y-auto p-4">
-          <div>
-            <h1 className="text-[15px] font-normal text-slate-800">Modelo 1 - (Produção)</h1>
-            <p className="text-[11px] text-slate-600">Ordem de serviço — impressão A4</p>
-          </div>
-
-          <div>
-            <h2 className="text-[12px] font-semibold text-slate-800">Geral</h2>
-            <div className="mt-2 space-y-1.5">
-              {CAMPOS_MODELO1_GERAL.map(({ key, label }) => (
-                <CheckboxCampo
-                  key={key}
-                  label={label}
-                  checked={Boolean(layout[key])}
-                  onChange={(v) => patchLayout({ [key]: v })}
-                />
-              ))}
-            </div>
-            <div className="mt-3">
-              <CampoNumero
-                label="Tamanho da Fonte"
-                value={layout.tamanhoFonte}
-                onChange={(v) => patchLayout({ tamanhoFonte: v })}
+      <aside className="flex h-full w-full shrink-0 flex-col border-b border-slate-300 bg-[#d9dde3] lg:w-[360px] lg:border-b-0 lg:border-r">
+        <div className="flex-1 space-y-3 overflow-y-auto p-4">
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-semibold text-slate-700">Bordas</span>
+            <div className="flex gap-2">
+              <input
+                type="color"
+                value={corBorda.length === 7 ? corBorda : "#bdbdbd"}
+                onChange={(e) => patchLayout({ bordas: e.target.value })}
+                className="h-8 w-10 shrink-0 cursor-pointer rounded border border-slate-300 bg-white p-0.5"
+                title="Cor da borda da página"
+              />
+              <input
+                type="text"
+                value={layout.bordas}
+                onChange={(e) => patchLayout({ bordas: e.target.value })}
+                placeholder="#bdbdbd"
+                className="h-8 min-w-0 flex-1 rounded border border-slate-300 bg-white px-2 text-[12px] outline-none focus:border-[#4a90d9]"
               />
             </div>
-          </div>
+          </label>
 
-          <div>
-            <h2 className="text-[12px] font-semibold text-slate-800">Campos</h2>
-            <div className="mt-2 space-y-1.5">
-              {CAMPOS_MODELO1_CAMPOS.map(({ key, label }) => (
-                <CheckboxCampo
-                  key={key}
-                  label={label}
-                  checked={Boolean(layout[key])}
-                  onChange={(v) => patchLayout({ [key]: v })}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded border border-slate-300 bg-white/60 p-3">
-            <h2 className="text-[12px] font-semibold text-slate-800">Impressão</h2>
-            <div className="mt-2 space-y-1.5">
+          <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+            {CAMPOS_MODELO1_GERAL.map(({ key, label }) => (
               <CheckboxCampo
-                label="Modelo padrão"
-                checked={configOs.modeloPadrao === "modelo1"}
-                onChange={(v) =>
-                  setConfigOs((atual) => ({
-                    ...atual,
-                    modeloPadrao: v ? "modelo1" : atual.modeloPadrao,
-                  }))
-                }
+                key={key}
+                label={label}
+                checked={Boolean(layout[key])}
+                onChange={(v) => patchLayout({ [key]: v })}
               />
-              <CheckboxCampo
-                label="Duas vias"
-                checked={configOs.duasVias.modelo1}
-                onChange={(v) =>
-                  setConfigOs((atual) => ({
-                    ...atual,
-                    duasVias: { ...atual.duasVias, modelo1: v },
-                  }))
-                }
-              />
-            </div>
+            ))}
+          </div>
+
+          <CampoNumero
+            label="Tamanho da Fonte"
+            value={layout.tamanhoFonte}
+            onChange={(v) => patchLayout({ tamanhoFonte: v })}
+          />
+
+          <GridCheckboxes layout={layout} onPatch={patchLayout} />
+
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-semibold text-slate-700">Mensagem</span>
+            <textarea
+              value={layout.mensagem}
+              onChange={(e) => patchLayout({ mensagem: e.target.value })}
+              rows={3}
+              className="w-full resize-y rounded border border-slate-300 bg-white px-2 py-1.5 text-[12px] outline-none focus:border-[#4a90d9]"
+              placeholder="Texto opcional no rodapé da requisição"
+            />
+          </label>
+
+          <div className="grid grid-cols-2 gap-x-2 border-t border-slate-300/80 pt-2">
+            <CheckboxCampo
+              label="Modelo padrão"
+              checked={configOs.modeloPadrao === "modelo1"}
+              onChange={(v) =>
+                setConfigOs((atual) => ({
+                  ...atual,
+                  modeloPadrao: v ? "modelo1" : atual.modeloPadrao,
+                }))
+              }
+            />
+            <CheckboxCampo
+              label="Duas vias"
+              checked={configOs.duasVias.modelo1}
+              onChange={(v) =>
+                setConfigOs((atual) => ({
+                  ...atual,
+                  duasVias: { ...atual.duasVias, modelo1: v },
+                }))
+              }
+            />
           </div>
         </div>
 
@@ -523,7 +575,10 @@ export function ConfiguracoesOsModelo1Conteudo() {
             {mensagem}
           </div>
         ) : null}
-        <div className="flex shrink-0 items-center justify-end gap-2 border-b border-[#3d4248] px-4 py-2.5">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[#3d4248] bg-[#4a4f56] px-4 py-2.5">
+          <span className="rounded border border-[#5a6068] bg-[#5a6068] px-3 py-1.5 text-[12px] text-white">
+            Modelo 1 - (Produção)
+          </span>
           <Link
             href="/app/configuracoes?aba=os"
             className="rounded bg-[#5a6068] px-5 py-2 text-[12px] text-white hover:bg-[#6a7078]"
@@ -531,7 +586,7 @@ export function ConfiguracoesOsModelo1Conteudo() {
             Voltar
           </Link>
         </div>
-        <div className="min-h-0 flex-1 overflow-auto p-4 md:p-6">
+        <div className="min-h-0 flex-1 overflow-auto p-6">
           <PreviewOsModelo1 cfg={cfg} layout={layout} />
         </div>
       </div>
