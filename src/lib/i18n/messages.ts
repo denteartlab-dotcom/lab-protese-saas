@@ -114,6 +114,34 @@ export const messages = {
     "settings.backupErroImportar": "Não foi possível importar o backup.",
     "settings.backupSelecioneArquivo": "Selecione um arquivo de backup.",
     "settings.backupConfirmeSubstituir": "Marque a confirmação para continuar.",
+    "settings.restaurarPadraoSecaoTitulo": "Restaurar padrão do site",
+    "settings.restaurarPadraoSecaoDesc":
+      "Apague dados por módulo (banco, anexos e navegador). Só é possível recuperar com um backup exportado antes.",
+    "settings.restaurarPadraoBotao": "Restaurar padrão do site",
+    "settings.restaurarPadraoTitulo": "Restaurar padrão — escolher módulos",
+    "settings.restaurarPadraoDescricao":
+      "Marque os módulos que deseja zerar. Cada um remove registros no PostgreSQL, arquivos anexados e dados salvos neste navegador.",
+    "settings.restaurarPadraoComDados": "Com dados",
+    "settings.restaurarPadraoSemDados": "Vazio",
+    "settings.restaurarPadraoRegistrosBanco": "{n} no banco",
+    "settings.restaurarPadraoRegistrosNavegador": "{n} no navegador",
+    "settings.restaurarPadraoNenhumRegistro": "Nenhum registro",
+    "settings.restaurarPadraoSelecionarTodos": "Selecionar todos",
+    "settings.restaurarPadraoLimparSelecao": "Limpar seleção",
+    "settings.restaurarPadraoAviso":
+      "Esta ação não pode ser desfeita. Faça um backup antes. Se limpar Clientes, marque também Produção e Financeiro se ainda houver OS ou lançamentos.",
+    "settings.restaurarPadraoDigiteApagar": "Digite APAGAR para confirmar",
+    "settings.restaurarPadraoCheckbox":
+      "Entendo que os dados dos módulos selecionados serão apagados permanentemente e só poderei recuperar via backup.",
+    "settings.restaurarPadraoExecutar": "Apagar dados selecionados",
+    "settings.restaurarPadraoProcessando": "Apagando...",
+    "settings.restaurarPadraoSucesso":
+      "Módulos limpos ({n} registros no banco). Dados do navegador também foram removidos.",
+    "settings.restaurarPadraoErroListar": "Não foi possível carregar a lista de módulos.",
+    "settings.restaurarPadraoErroLimpar": "Não foi possível limpar os módulos selecionados.",
+    "settings.restaurarPadraoSelecioneModulo": "Selecione ao menos um módulo.",
+    "settings.restaurarPadraoConfirmeApagar":
+      "Digite APAGAR e marque a confirmação para continuar.",
     "settings.emBreve": "Esta aba será configurada em uma próxima versão.",
     "settings.emBreveSecao": "Esta seção será configurada em uma próxima versão.",
     "settings.irDados": "Ir para Dados do Laboratório",
@@ -355,6 +383,34 @@ export const messages = {
     "settings.backupErroImportar": "Could not import backup.",
     "settings.backupSelecioneArquivo": "Select a backup file.",
     "settings.backupConfirmeSubstituir": "Check the confirmation box to continue.",
+    "settings.restaurarPadraoSecaoTitulo": "Restore site defaults",
+    "settings.restaurarPadraoSecaoDesc":
+      "Erase data by module (database, attachments, and browser). Recovery is only possible from a previously exported backup.",
+    "settings.restaurarPadraoBotao": "Restore site defaults",
+    "settings.restaurarPadraoTitulo": "Restore defaults — choose modules",
+    "settings.restaurarPadraoDescricao":
+      "Select modules to reset. Each removes PostgreSQL records, uploaded files, and data stored in this browser.",
+    "settings.restaurarPadraoComDados": "Has data",
+    "settings.restaurarPadraoSemDados": "Empty",
+    "settings.restaurarPadraoRegistrosBanco": "{n} in database",
+    "settings.restaurarPadraoRegistrosNavegador": "{n} in browser",
+    "settings.restaurarPadraoNenhumRegistro": "No records",
+    "settings.restaurarPadraoSelecionarTodos": "Select all",
+    "settings.restaurarPadraoLimparSelecao": "Clear selection",
+    "settings.restaurarPadraoAviso":
+      "This cannot be undone. Export a backup first. To clear Clients, also select Production and Finance if work orders or entries still exist.",
+    "settings.restaurarPadraoDigiteApagar": "Type DELETE to confirm",
+    "settings.restaurarPadraoCheckbox":
+      "I understand selected module data will be permanently deleted and can only be recovered from backup.",
+    "settings.restaurarPadraoExecutar": "Delete selected data",
+    "settings.restaurarPadraoProcessando": "Deleting...",
+    "settings.restaurarPadraoSucesso":
+      "Modules cleared ({n} database records). Browser data was removed as well.",
+    "settings.restaurarPadraoErroListar": "Could not load module list.",
+    "settings.restaurarPadraoErroLimpar": "Could not clear selected modules.",
+    "settings.restaurarPadraoSelecioneModulo": "Select at least one module.",
+    "settings.restaurarPadraoConfirmeApagar":
+      "Type DELETE and check the confirmation box to continue.",
     "settings.emBreve": "This tab will be available in a future version.",
     "settings.emBreveSecao": "This section will be available in a future version.",
     "settings.irDados": "Go to Laboratory Data",
@@ -596,6 +652,34 @@ export const messages = {
     "settings.backupErroImportar": "No se pudo importar el respaldo.",
     "settings.backupSelecioneArquivo": "Seleccione un archivo de respaldo.",
     "settings.backupConfirmeSubstituir": "Marque la confirmación para continuar.",
+    "settings.restaurarPadraoSecaoTitulo": "Restaurar estándar del sitio",
+    "settings.restaurarPadraoSecaoDesc":
+      "Borre datos por módulo (base de datos, adjuntos y navegador). Solo puede recuperar con una copia de seguridad exportada antes.",
+    "settings.restaurarPadraoBotao": "Restaurar estándar del sitio",
+    "settings.restaurarPadraoTitulo": "Restaurar estándar — elegir módulos",
+    "settings.restaurarPadraoDescricao":
+      "Marque los módulos que desea vaciar. Cada uno elimina registros en PostgreSQL, archivos adjuntos y datos guardados en este navegador.",
+    "settings.restaurarPadraoComDados": "Con datos",
+    "settings.restaurarPadraoSemDados": "Vacío",
+    "settings.restaurarPadraoRegistrosBanco": "{n} en la base",
+    "settings.restaurarPadraoRegistrosNavegador": "{n} en el navegador",
+    "settings.restaurarPadraoNenhumRegistro": "Sin registros",
+    "settings.restaurarPadraoSelecionarTodos": "Seleccionar todos",
+    "settings.restaurarPadraoLimparSelecao": "Limpiar selección",
+    "settings.restaurarPadraoAviso":
+      "Esta acción no se puede deshacer. Haga una copia de seguridad antes. Para limpiar Clientes, marque también Producción y Finanzas si aún hay OS o asientos.",
+    "settings.restaurarPadraoDigiteApagar": "Escriba APAGAR para confirmar",
+    "settings.restaurarPadraoCheckbox":
+      "Entiendo que los datos de los módulos seleccionados se borrarán permanentemente y solo podré recuperarlos con una copia de seguridad.",
+    "settings.restaurarPadraoExecutar": "Borrar datos seleccionados",
+    "settings.restaurarPadraoProcessando": "Borrando...",
+    "settings.restaurarPadraoSucesso":
+      "Módulos limpiados ({n} registros en la base). También se eliminaron datos del navegador.",
+    "settings.restaurarPadraoErroListar": "No se pudo cargar la lista de módulos.",
+    "settings.restaurarPadraoErroLimpar": "No se pudieron limpiar los módulos seleccionados.",
+    "settings.restaurarPadraoSelecioneModulo": "Seleccione al menos un módulo.",
+    "settings.restaurarPadraoConfirmeApagar":
+      "Escriba APAGAR y marque la confirmación para continuar.",
     "settings.emBreve": "Esta pestaña estará disponible en una próxima versión.",
     "settings.emBreveSecao": "Esta sección estará disponible en una próxima versión.",
     "settings.irDados": "Ir a Datos del Laboratorio",
