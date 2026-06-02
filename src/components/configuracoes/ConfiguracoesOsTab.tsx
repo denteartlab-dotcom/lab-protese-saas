@@ -76,6 +76,7 @@ export function ConfiguracoesOsTab({ onMensagem }: Props) {
   async function salvarModelo() {
     if (!modeloEditando) return;
     const novaConfig: ConfiguracoesOs = {
+      ...config,
       modeloPadrao: padraoModal ? modeloEditando : config.modeloPadrao,
       duasVias: {
         ...config.duasVias,
