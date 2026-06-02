@@ -155,7 +155,7 @@ function PreviewOsModelo1({
       }}
     >
       <div
-        className="box-border h-full min-h-[calc(297mm-20mm)]"
+        className="box-border w-full"
         style={{
           border: comBorda ? `2px solid ${corBorda}` : "none",
           padding: "8mm 10mm",

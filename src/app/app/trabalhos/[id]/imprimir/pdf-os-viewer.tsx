@@ -525,10 +525,12 @@ function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(6);
     pdf.text(barcodeValue, 15, y + 12);
+    y += 16;
   }
 
   if (lay.exibirBordas) {
-    desenharBordaRequisicaoPdf(pdf, lay.bordas, yBordaTop, y + 8);
+    const yFimBorda = y + 2;
+    desenharBordaRequisicaoPdf(pdf, lay.bordas, yBordaTop, yFimBorda);
   }
 }
 
