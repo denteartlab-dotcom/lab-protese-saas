@@ -16,7 +16,12 @@ export async function GET() {
     const modulos = MODULOS_LIMPEZA.map((mod) => {
       const registros = contagens[mod.id as ModuloLimpezaId] ?? 0;
       const somenteNavegador =
-        mod.id === "cadastros" || mod.id === "inicio" || mod.id === "configuracoes";
+        mod.id === "cadastros" ||
+        mod.id === "inicio" ||
+        mod.id === "configuracoes" ||
+        mod.id === "tabela_precos" ||
+        mod.id === "etapas" ||
+        mod.id === "colaboradores";
       return {
         id: mod.id,
         label: mod.label,

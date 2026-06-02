@@ -11,7 +11,10 @@ export type ModuloLimpezaId =
   | "producao"
   | "clientes"
   | "orcamentos"
-  | "estoque"
+  | "produtos"
+  | "tabela_precos"
+  | "etapas"
+  | "colaboradores"
   | "cadastros"
   | "integracoes"
   | "configuracoes"
@@ -80,38 +83,60 @@ export const MODULOS_LIMPEZA: ModuloLimpezaDef[] = [
     localStorageKeys: [],
   },
   {
-    id: "estoque",
-    label: "Estoque / Produtos",
-    descricao: "Produtos no banco e movimentações salvas no navegador.",
+    id: "produtos",
+    label: "Cadastros de produtos",
+    descricao: "Produtos no banco e movimentações de estoque no navegador.",
     ordemExclusao: 50,
     localStorageKeys: [
       "labProteseProdutosEstoqueExtras",
       "labProteseProdutosEstoqueMovimentos",
+      "labProteseProdutosEstoqueOsMovimentos",
       "labProteseProdutosRemovidosPermanentemente",
       "labProteseProdutosExcluidosSnapshots",
+    ],
+  },
+  {
+    id: "tabela_precos",
+    label: "Tabela de preços",
+    descricao: "Tabela de preços e itens de custo cadastrados.",
+    ordemExclusao: 55,
+    localStorageKeys: ["labProteseTabelaPrecos", "labProteseItensCustoCadastro"],
+  },
+  {
+    id: "etapas",
+    label: "Etapas e setores",
+    descricao: "Etapas e setores cadastrados no sistema.",
+    ordemExclusao: 56,
+    localStorageKeys: [
+      "labProteseEtapas",
+      "labProteseEtapasExcluidas",
+      "labProteseSetores",
+      "labProteseSetoresExcluidos",
+    ],
+  },
+  {
+    id: "colaboradores",
+    label: "Colaboradores e prestadores",
+    descricao: "Colaboradores, prestadores e entregadores cadastrados.",
+    ordemExclusao: 57,
+    localStorageKeys: [
+      "labProteseColaboradores",
+      "labProteseColaboradoresExcluidos",
+      "labProtesePrestadores",
+      "labProtesePrestadoresExcluidos",
     ],
   },
   {
     id: "cadastros",
     label: "Cadastros auxiliares",
     descricao:
-      "Setores, etapas, colaboradores, fornecedores, prestadores, tabela de preços e material do dentista (navegador).",
+      "Fornecedores, categorias de fornecedores e material do dentista (navegador).",
     ordemExclusao: 60,
     localStorageKeys: [
-      "labProteseSetores",
-      "labProteseSetoresExcluidos",
-      "labProteseEtapas",
-      "labProteseEtapasExcluidas",
-      "labProteseColaboradores",
-      "labProteseColaboradoresExcluidos",
-      "labProtesePrestadores",
-      "labProtesePrestadoresExcluidos",
       "labProteseFornecedores",
       "labProteseFornecedoresExcluidos",
       "labProteseCategoriasFornecedores",
-      "labProteseTabelaPrecos",
       "labProteseMateriaisDentista",
-      "labProteseItensCustoCadastro",
     ],
     localStoragePrefixos: ["labProteseListaConfig:"],
   },
@@ -230,7 +255,10 @@ export async function contarRegistrosModulos(
     producao: trabalhos + (sequenciaOs > 0 ? 1 : 0),
     clientes: clientes + pacientes,
     orcamentos,
-    estoque: produtos,
+    produtos,
+    tabela_precos: 0,
+    etapas: 0,
+    colaboradores: 0,
     cadastros: 0,
     integracoes,
     configuracoes,
@@ -328,11 +356,20 @@ export async function limparModulosSelecionados(
         apagados.clientes = c.count;
         break;
       }
-      case "estoque": {
+      case "produtos": {
         const c = await prisma.produto.deleteMany();
-        apagados.estoque = c.count;
+        apagados.produtos = c.count;
         break;
       }
+      case "tabela_precos":
+        apagados.tabela_precos = 0;
+        break;
+      case "etapas":
+        apagados.etapas = 0;
+        break;
+      case "colaboradores":
+        apagados.colaboradores = 0;
+        break;
       case "cadastros":
         apagados.cadastros = 0;
         break;

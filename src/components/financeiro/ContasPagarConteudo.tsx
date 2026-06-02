@@ -24,7 +24,9 @@ import { Button, CampoDataBr, Select } from "@/components/ui";
 import type { LancarReceitaPayload } from "@/components/financeiro/LancarReceitaModal";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { RelatorioDespesasModal } from "@/components/financeiro/RelatorioDespesasModal";
-import { VisualizarDespesaModal } from "@/components/financeiro/VisualizarDespesaModal";
+import { DespesaDetalheModal } from "@/components/financeiro/DespesaDetalheModal";
+import { VisualizadorAnexoDespesa } from "@/components/financeiro/VisualizadorAnexoDespesa";
+import type { AnexoDespesa } from "@/lib/lancamento-despesa";
 import {
   FINANCEIRO_ATUALIZADO_EVENT,
   notificarFinanceiroAtualizado,
@@ -112,10 +114,11 @@ export function ContasPagarConteudo() {
   const [modalAberto, setModalAberto] = useState(false);
   const [relatorioAberto, setRelatorioAberto] = useState(false);
   const [despesaParaExcluir, setDespesaParaExcluir] = useState<Lancamento | null>(null);
-  const [despesaVisualizando, setDespesaVisualizando] = useState<{
+  const [despesaAberta, setDespesaAberta] = useState<{
     lancamento: Lancamento;
     ref: string;
   } | null>(null);
+  const [anexoAberto, setAnexoAberto] = useState<AnexoDespesa | null>(null);
   const [editando, setEditando] = useState<Lancamento | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [fornecedores, setFornecedores] = useState<Array<{ id: string; nome: string }>>(
@@ -676,80 +679,99 @@ export function ContasPagarConteudo() {
                   </td>
                 </tr>
               ) : (
-                linhas.map(({ lancamento, pack, ref }) => (
-                  <tr
-                    key={lancamento.id}
-                    className="border-b border-slate-100 hover:bg-slate-50/80"
-                  >
-                    <td className="px-3 py-2 text-slate-800">
-                      {formatDate(lancamento.data)}
-                    </td>
-                    <td className="px-3 py-2 text-slate-700">{pack.parcela}</td>
-                    <td className="px-3 py-2 font-medium text-slate-800">
-                      {lancamento.cliente?.nome || pack.nome}
-                    </td>
-                    <td className="px-3 py-2 text-slate-600">{ref}</td>
-                    <td className="px-3 py-2 text-slate-600">{pack.categoria}</td>
-                    <td className="px-3 py-2 text-slate-600">
-                      {lancamento.formaPagamento || "—"}
-                    </td>
-                    <td className="px-3 py-2 text-right font-medium text-slate-800">
-                      {money(lancamento.valor)}
-                    </td>
-                    <td className="px-3 py-2 text-slate-600">{pack.conta}</td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center justify-center gap-1">
-                        {lancamento.status === "pendente" ? (
-                          <button
-                            type="button"
-                            title="Marcar como pago"
-                            onClick={() => void marcarPago(lancamento)}
-                            className="rounded bg-[#4cae4c] px-2 py-1 text-[10px] font-semibold text-white hover:bg-[#449d44]"
-                          >
-                            <Check className="h-3 w-3" />
-                          </button>
-                        ) : null}
-                        <button
-                          type="button"
-                          title="Visualizar"
-                          onClick={() =>
-                            setDespesaVisualizando({ lancamento, ref })
-                          }
-                          className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-[#4a90d9]"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          title="Editar"
-                          onClick={() => abrirEdicao(lancamento)}
-                          className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-[#4a90d9]"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          title="Excluir"
-                          onClick={() => setDespesaParaExcluir(lancamento)}
-                          className="rounded p-1 text-slate-500 hover:bg-red-50 hover:text-red-600"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                linhas.map(({ lancamento, pack, ref }) => {
+                  const aberta = despesaAberta?.lancamento.id === lancamento.id;
+                  return (
+                    <tr
+                      key={lancamento.id}
+                      className={cn(
+                        "border-b border-slate-100 hover:bg-slate-50/80",
+                        aberta && "bg-slate-50"
+                      )}
+                    >
+                        <td className="px-3 py-2 text-slate-800">
+                          {formatDate(lancamento.data)}
+                        </td>
+                        <td className="px-3 py-2 text-slate-700">{pack.parcela}</td>
+                        <td className="px-3 py-2 font-medium text-slate-800">
+                          {lancamento.cliente?.nome || pack.nome}
+                        </td>
+                        <td className="px-3 py-2 text-slate-600">{ref}</td>
+                        <td className="px-3 py-2 text-slate-600">{pack.categoria}</td>
+                        <td className="px-3 py-2 text-slate-600">
+                          {lancamento.formaPagamento || "—"}
+                        </td>
+                        <td className="px-3 py-2 text-right font-medium text-slate-800">
+                          {money(lancamento.valor)}
+                        </td>
+                        <td className="px-3 py-2 text-slate-600">{pack.conta}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center justify-center gap-1">
+                            {lancamento.status === "pendente" ? (
+                              <button
+                                type="button"
+                                title="Marcar como pago"
+                                onClick={() => void marcarPago(lancamento)}
+                                className="rounded bg-[#4cae4c] px-2 py-1 text-[10px] font-semibold text-white hover:bg-[#449d44]"
+                              >
+                                <Check className="h-3 w-3" />
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              title="Ver detalhes"
+                              onClick={() =>
+                                setDespesaAberta({ lancamento, ref })
+                              }
+                              className={cn(
+                                "rounded p-1 hover:bg-slate-100",
+                                aberta
+                                  ? "text-[#4a90d9] bg-slate-100"
+                                  : "text-slate-500 hover:text-[#4a90d9]"
+                              )}
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              title="Editar"
+                              onClick={() => abrirEdicao(lancamento)}
+                              className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-[#4a90d9]"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              title="Excluir"
+                              onClick={() => setDespesaParaExcluir(lancamento)}
+                              className="rounded p-1 text-slate-500 hover:bg-red-50 hover:text-red-600"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      <VisualizarDespesaModal
-        open={!!despesaVisualizando}
-        lancamento={despesaVisualizando?.lancamento ?? null}
-        refOs={despesaVisualizando?.ref}
-        onClose={() => setDespesaVisualizando(null)}
+      <VisualizadorAnexoDespesa anexo={anexoAberto} onClose={() => setAnexoAberto(null)} />
+
+      <DespesaDetalheModal
+        open={!!despesaAberta}
+        lancamento={despesaAberta?.lancamento ?? null}
+        refOs={despesaAberta?.ref}
+        onClose={() => setDespesaAberta(null)}
+        onEditar={() => {
+          if (!despesaAberta?.lancamento) return;
+          setDespesaAberta(null);
+          abrirEdicao(despesaAberta.lancamento);
+        }}
+        onAnexoClick={setAnexoAberto}
       />
 
       <ConfirmacaoExclusaoModal
