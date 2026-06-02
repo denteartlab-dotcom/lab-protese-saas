@@ -215,3 +215,16 @@ model Orcamento {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 }
+
+/** Anexos (despesas, receitas, OS) — persistidos no banco em produção (Vercel). */
+model ArquivoUpload {
+  id        String   @id @default(cuid())
+  pasta     String
+  nome      String
+  mimeType  String   @default("application/octet-stream")
+  tamanho   Int
+  dados     Bytes
+  criadoEm  DateTime @default(now())
+
+  @@index([pasta])
+}

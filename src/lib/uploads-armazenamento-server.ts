@@ -8,6 +8,11 @@ import {
   LIMITE_ARMAZENAMENTO_BYTES,
   LIMITE_GALERIA_GB,
 } from "@/lib/uploads-armazenamento";
+import {
+  bytesTotalArquivosBanco,
+  excluirArquivoBancoPorId,
+  listarArquivosBanco,
+} from "@/lib/upload-arquivo-server";
 
 export function caminhoPastaUploads() {
   return path.join(process.cwd(), "public", "uploads");
@@ -55,10 +60,15 @@ export async function listarArquivosGaleria(): Promise<ArquivoGaleria[]> {
   }
 
   await walk(base, "");
-  return lista.sort((a, b) => b.bytes - a.bytes);
+  const doBanco = await listarArquivosBanco();
+  return [...lista, ...doBanco].sort((a, b) => b.bytes - a.bytes);
 }
 
 export async function excluirArquivoGaleria(relativePath: string) {
+  if (relativePath.startsWith("db/")) {
+    await excluirArquivoBancoPorId(relativePath.slice(3));
+    return;
+  }
   const alvo = resolverArquivoUploads(relativePath);
   await unlink(alvo);
 }
@@ -125,7 +135,7 @@ export function resumoArmazenamentoVazio() {
 
 export async function calcularArmazenamentoGaleria() {
   const base = caminhoPastaUploads();
-  const bytesUsados = await tamanhoDiretorio(base);
+  const bytesUsados = (await tamanhoDiretorio(base)) + (await bytesTotalArquivosBanco());
   const bytesLivres = Math.max(0, LIMITE_ARMAZENAMENTO_BYTES - bytesUsados);
   const percentualUsado =
     LIMITE_ARMAZENAMENTO_BYTES > 0
