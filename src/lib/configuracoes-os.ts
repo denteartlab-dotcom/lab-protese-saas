@@ -53,6 +53,7 @@ export type ConfiguracoesOs = {
   layoutModelo2: OsModelo2Layout;
   layoutModelo3: OsModelo3Layout;
   layoutModelo4: OsModelo4Layout;
+  layoutModelo5: OsModelo5Layout;
 };
 
 export const CONFIG_OS_PADRAO: ConfiguracoesOs = {

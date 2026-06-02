@@ -902,6 +902,13 @@ function prazoDoItemTermica(item: PdfItem, data: PdfOsData) {
   return "";
 }
 
+function prazoFinalizadoTermica(data: PdfOsData, item: PdfItem) {
+  return {
+    prazo: prazoDoItemTermica(item, data),
+    finalizado: (data.finalizado || "").trim(),
+  };
+}
+
 /** Modelo 3 — comprovante térmico 80mm (Epson T20). */
 function renderTermicaModelo3(pdf: PdfRenderApi, data: PdfOsData): number {
   const lab = data.lab || LAB_IMPRESSAO_PADRAO;
