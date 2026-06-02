@@ -226,6 +226,8 @@ async function ImprimirOSConteudo({
       : itens.find((item) => item.tipo === "servico")?.notasAbaixo?.[0] || "";
   const materiais = lineValue(linhas, "Material enviado:") || empty(t.material);
   const caixa = lineValue(linhas, "Caixa:");
+  const osExterna = lineValue(linhas, "OS Externa:") || lineValue(linhas, "OS externa:");
+  const colaborador = lineValue(linhas, "Colaborador:");
   const dentistaNome =
     lineValue(linhas, "Dentista:") || lineValue(linhas, "Dentista convidado:");
   const observacoesUsuario = somenteItem
@@ -312,10 +314,15 @@ async function ImprimirOSConteudo({
         materiais,
         observacoes: observacoesUsuario,
         prazoLinhaServico,
+        osExterna,
+        finalizado: dateOrEmpty(trabalhoServico.dataEntrega),
+        colaborador,
+        etapas: lineValue(linhas, "Etapas:"),
         urgente,
         repeticao,
         producao: STATUS_TRABALHO[statusServico]?.label || statusServico || "",
         pecas: empty(t.dentes),
+        obsFicha: empty(trabalhoServico.observacoes),
         itens,
       }}
     />

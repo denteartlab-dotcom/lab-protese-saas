@@ -58,6 +58,7 @@ type PdfOsData = {
   prazoDentista: string;
   materiais: string;
   observacoes: string;
+  obsFicha?: string;
   /** Linha de prazo abaixo do serviço (garantia se notasAbaixo não vier no item). */
   prazoLinhaServico?: string;
   layoutModelo1?: OsModelo1Layout;
@@ -317,18 +318,11 @@ function desenharBordaRequisicaoPdf(
   pdf.rect(m, yTop, pw - m * 2, altura, "S");
 }
 
-function aplicarCorLinhaBorda(
-  pdf: PdfRenderApi,
-  lay: OsModelo1Layout
-) {
-  if (lay.exibirBordas) {
-    const { r, g, b } = hexParaRgb(lay.bordas);
-    pdf.setDrawColor(r, g, b);
-    pdf.setLineWidth(0.35);
-  } else {
-    pdf.setDrawColor(0, 0, 0);
-    pdf.setLineWidth(0.4);
-  }
+/** Cor de todas as linhas internas da requisição (campo Bordas na configuração). */
+function aplicarCorLinhaRequisicao(pdf: PdfRenderApi, lay: OsModelo1Layout) {
+  const { r, g, b } = hexParaRgb(lay.bordas);
+  pdf.setDrawColor(r, g, b);
+  pdf.setLineWidth(0.35);
 }
 
 function renderModeloProducao(
@@ -392,7 +386,7 @@ function renderModeloProducao(
   }
 
   y += 3;
-  aplicarCorLinhaBorda(pdf, lay);
+  aplicarCorLinhaRequisicao(pdf, lay);
   pdf.line(15, y, pageWidth - 15, y);
   y += 5;
 
@@ -421,14 +415,15 @@ function renderModeloProducao(
   if (lay.desconto) pdf.text("Desc", colDescPct, y, { align: "right" });
   if (lay.subtotal) pdf.text("Subtotal", tableRight, y, { align: "right" });
   y += 3;
-  aplicarCorLinhaBorda(pdf, lay);
+  aplicarCorLinhaRequisicao(pdf, lay);
   pdf.line(tableLeft, y, tableRight, y);
   y += 5;
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(fontBase);
   let servicoIndex = 0;
-  data.itens.forEach((item) => {
+  const totalItens = data.itens.length;
+  data.itens.forEach((item, indiceItem) => {
     if (y > 265) {
       pdf.addPage();
       y = 16;
@@ -469,16 +464,25 @@ function renderModeloProducao(
       });
     }
 
-    y += 1.5;
-    aplicarCorLinhaBorda(pdf, lay);
-    pdf.line(tableLeft, y, tableRight, y);
-    y += 5;
+    const isUltimoItem = indiceItem === totalItens - 1;
+    if (!isUltimoItem) {
+      y += 1.5;
+      aplicarCorLinhaRequisicao(pdf, lay);
+      pdf.line(tableLeft, y, tableRight, y);
+      y += 5;
+    } else {
+      y += 1.5;
+      if (!lay.total) {
+        aplicarCorLinhaRequisicao(pdf, lay);
+        pdf.line(tableLeft, y, tableRight, y);
+        y += 5;
+      }
+    }
   });
 
   if (lay.total) {
-    y += 3;
-    aplicarCorLinhaBorda(pdf, lay);
-    pdf.line(15, y, pageWidth - 15, y);
+    aplicarCorLinhaRequisicao(pdf, lay);
+    pdf.line(tableLeft, y, tableRight, y);
     y += 4;
     pdf.setFont("helvetica", "bold");
     pdf.text(`TOTAL ${money(data.valor)}`, pageWidth - 15, y, { align: "right" });
@@ -532,6 +536,7 @@ function renderModeloProducao(
   }
   if (lay.assinatura) {
     y += 12;
+    aplicarCorLinhaRequisicao(pdf, lay);
     pdf.line(15, y, 80, y);
     pdf.setFontSize(fontBase - 1);
     pdf.text("Assinatura", 15, y + 4);
@@ -612,6 +617,7 @@ function renderModeloComprovante(
   const pageWidth = pdf.internal.pageSize.getWidth();
   const margin = 15;
   const tableRight = pageWidth - margin;
+  const yBordaTop = lay.exibirBordas ? OS_MODELO1_BORDA_MARGEM_MM : 0;
   let y = desenharCabecalhoRequisicaoPdf(pdf, {
     lab: data.lab,
     cabecalhoRequisicao: data.cabecalhoRequisicao,
@@ -627,25 +633,33 @@ function renderModeloComprovante(
   if (lay.numOs) {
     labelValue(pdf, "Núm OS:", String(data.numeroOs), margin, y);
   }
-  if (lay.caixa) {
-    labelValue(pdf, "Caixa:", data.caixa, colDir, y, "");
+  if (lay.osExterna) {
+    pdf.setFont("helvetica", "normal");
+    pdf.text("OS Externa:", colDir, y);
+    pdf.setFont("helvetica", "bold");
+    pdf.text(data.osExterna || "—", colDir + pdf.getTextWidth("OS Externa:") + 1.5, y);
+    pdf.setFont("helvetica", "normal");
   }
-  if (lay.numOs || lay.caixa) y += 5;
+  if (lay.numOs || lay.osExterna) y += 5;
 
   if (lay.cliente) {
     labelValue(pdf, "Cliente:", data.cliente, margin, y);
   }
-  if (lay.clienteTel) {
-    pdf.setFont("helvetica", "normal");
-    pdf.text("Telefones:", colDir, y);
-    pdf.setFont("helvetica", "bold");
-    pdf.text(data.telefones || "", colDir + pdf.getTextWidth("Telefones:") + 1.5, y);
-    pdf.setFont("helvetica", "normal");
+  if (lay.caixa) {
+    labelValue(pdf, "Caixa:", data.caixa, colDir, y, "");
   }
-  if (lay.cliente || lay.clienteTel) y += 5;
+  if (lay.cliente || lay.caixa) y += 5;
 
   if (lay.dentista) {
     labelValue(pdf, "Dentista:", data.dentista, margin, y);
+  }
+  if (lay.clienteTel) {
+    pdf.text(`Telefones: ${data.telefones}`, colDir, y);
+  }
+  if (lay.dentista || lay.clienteTel) y += 5;
+
+  if (lay.paciente) {
+    labelValue(pdf, "Paciente:", data.paciente, margin, y);
   }
   if (lay.clienteEmail) {
     pdf.setFont("helvetica", "normal");
@@ -654,27 +668,16 @@ function renderModeloComprovante(
     pdf.text(data.email || "", colDir + pdf.getTextWidth("Email:") + 1.5, y);
     pdf.setFont("helvetica", "normal");
   }
-  if (lay.dentista || lay.clienteEmail) y += 5;
+  if (lay.paciente || lay.clienteEmail) y += 5;
 
-  if (lay.paciente) {
-    pdf.setFont("helvetica", "bold");
-    pdf.text("Paciente:", margin, y);
-    pdf.text(data.paciente || "-", margin + pdf.getTextWidth("Paciente:") + 1.5, y);
-    pdf.setFont("helvetica", "normal");
-  }
   if (lay.clienteEnd) {
-    pdf.setFont("helvetica", "normal");
-    pdf.text("Endereço:", colDir, y);
-    pdf.setFont("helvetica", "bold");
-    const enderecoLinhas = pdf.splitTextToSize(data.endereco || "", 75);
-    pdf.text(enderecoLinhas, colDir + pdf.getTextWidth("Endereço:") + 1.5, y);
-    pdf.setFont("helvetica", "normal");
-    y += Math.max(5, enderecoLinhas.length * 4);
-  } else if (lay.paciente) {
+    pdf.text(`Endereço: ${data.endereco}`, colDir, y);
     y += 5;
   }
-  y += 4;
 
+  y += 3;
+
+  aplicarCorLinhaRequisicao(pdf, lay);
   pdf.line(margin, y, tableRight, y);
   y += 5;
 
@@ -702,6 +705,7 @@ function renderModeloComprovante(
   if (lay.desconto) pdf.text("Desc", colDescPct, y, { align: "right" });
   if (lay.subtotal) pdf.text("Subtotal", colSubtotal, y, { align: "right" });
   y += 3;
+  aplicarCorLinhaRequisicao(pdf, lay);
   pdf.line(margin, y, tableRight, y);
   y += 5;
 
@@ -742,6 +746,7 @@ function renderModeloComprovante(
   }
 
   y += 1;
+  aplicarCorLinhaRequisicao(pdf, lay);
   pdf.line(margin, y, tableRight, y);
   y += 7;
 
@@ -781,6 +786,7 @@ function renderModeloComprovante(
   if (lay.assinatura) {
     const assinaturaLargura = 90;
     const assinaturaX = (pageWidth - assinaturaLargura) / 2;
+    aplicarCorLinhaRequisicao(pdf, lay);
     pdf.line(assinaturaX, assinaturaY, assinaturaX + assinaturaLargura, assinaturaY);
     pdf.setFontSize(fontBase - 1);
     pdf.text("Recebi o(s) serviço(s) descritos acima", pageWidth / 2, assinaturaY + 3.5, {
@@ -794,8 +800,12 @@ function renderModeloComprovante(
     drawCode39(pdf, barcodeValue, margin, assinaturaY);
     pdf.setFontSize(6);
     pdf.text(barcodeValue, margin, assinaturaY + 10);
-    pdf.setLineWidth(0.4);
+    aplicarCorLinhaRequisicao(pdf, lay);
     pdf.line(margin, assinaturaY + 14, tableRight, assinaturaY + 14);
+  }
+
+  if (lay.exibirBordas) {
+    desenharBordaRequisicaoPdf(pdf, lay.bordas, yBordaTop, assinaturaY + 18);
   }
 }
 

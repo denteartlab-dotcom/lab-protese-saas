@@ -102,4 +102,6 @@ export const PREVIEW_OS_MODELO3 = {
   ...PREVIEW_OS_MODELO1,
   totalServicos: 1275,
   totalDescontos: 127.5,
+  produtos: "Elemento Metalo Cerâmica (serviço principal)",
+  pecas: "22, 25, 27, 32, 35",
 };

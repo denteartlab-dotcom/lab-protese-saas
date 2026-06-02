@@ -29,6 +29,12 @@ function LinhaRotuloValor({
   );
 }
 
+function LinhaSeparador({ cor, className }: { cor: string; className?: string }) {
+  return (
+    <div className={cn("border-t", className)} style={{ borderColor: cor }} />
+  );
+}
+
 export function PreviewOsModeloComprovante({
   cfg,
   layout,
@@ -53,12 +59,11 @@ export function PreviewOsModeloComprovante({
   const fsSmall = Math.max(10, fs - 4);
   const corBorda = normalizarCorBorda(layout.bordas);
   const comBorda = layout.exibirBordas;
-  const corLinha = comBorda ? corBorda : "#94a3b8";
+  const corLinha = corBorda;
 
   const money = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  const item = amostra.itens[0];
   const totalServicos = amostra.totalServicos;
   const totalDescontos = amostra.totalDescontos;
   const totalFinal = amostra.total;
@@ -139,7 +144,7 @@ export function PreviewOsModeloComprovante({
           </div>
         </div>
 
-        <div className="mt-3 border-t" style={{ borderColor: corLinha }} />
+        <LinhaSeparador cor={corLinha} className="mt-3" />
 
         <div
           className="mt-2.5 grid grid-cols-2 gap-x-8 gap-y-0.5"
@@ -147,7 +152,7 @@ export function PreviewOsModeloComprovante({
         >
           <div className="space-y-0.5">
             {layout.numOs ? (
-              <LinhaRotuloValor rotulo="Núm OS:" valor={String(amostra.numeroOs)} />
+              <LinhaRotuloValor rotulo="Num. OS:" valor={String(amostra.numeroOs)} />
             ) : null}
             {layout.cliente ? (
               <LinhaRotuloValor rotulo="Cliente:" valor={amostra.cliente} />
@@ -160,6 +165,9 @@ export function PreviewOsModeloComprovante({
             ) : null}
           </div>
           <div className="space-y-0.5">
+            {layout.osExterna ? (
+              <LinhaRotuloValor rotulo="OS Externa:" valor={amostra.osExterna} />
+            ) : null}
             {layout.caixa ? <LinhaRotuloValor rotulo="Caixa:" valor={amostra.caixa} /> : null}
             {layout.clienteTel ? (
               <LinhaRotuloValor rotulo="Telefones:" valor={amostra.telefones} />
@@ -170,13 +178,10 @@ export function PreviewOsModeloComprovante({
             {layout.clienteEnd ? (
               <LinhaRotuloValor rotulo="Endereço:" valor={amostra.endereco} />
             ) : null}
-            {layout.osExterna ? (
-              <LinhaRotuloValor rotulo="OS Externa:" valor={amostra.osExterna} />
-            ) : null}
           </div>
         </div>
 
-        <div className="mt-2.5 border-t" style={{ borderColor: corLinha }} />
+        <LinhaSeparador cor={corLinha} className="mt-2.5" />
 
         <table
           className="mt-2 w-full border-collapse"
@@ -200,54 +205,130 @@ export function PreviewOsModeloComprovante({
             </tr>
           </thead>
           <tbody>
-            <tr className="border-b" style={{ borderColor: corLinha }}>
-              <td className="py-1.5 pr-2 align-top">{item.qtd}</td>
-              <td className="py-1.5 pr-2 align-top">{item.descricao}</td>
-              {layout.numDente ? (
-                <td className="px-1 py-1.5 text-center align-top">{item.dente}</td>
-              ) : null}
-              {layout.corDente ? (
-                <td className="px-1 py-1.5 text-center align-top">{item.cor}</td>
-              ) : null}
-              {layout.valorUnit ? (
-                <td className="px-1 py-1.5 text-right align-top">{money(item.unitario)}</td>
-              ) : null}
-              {layout.desconto ? (
-                <td className="py-1.5 pl-1 text-right align-top">{item.desconto}</td>
-              ) : null}
-              {layout.subtotal ? (
-                <td className="py-1.5 pl-1 text-right align-top">{money(item.subtotal)}</td>
-              ) : null}
-            </tr>
+            {amostra.itens.map((item, indice) => (
+              <tr
+                key={item.descricao}
+                className={
+                  indice < amostra.itens.length - 1 || !layout.total ? "border-b" : ""
+                }
+                style={{ borderColor: corLinha }}
+              >
+                <td className="py-1.5 pr-2 align-top">{item.qtd}</td>
+                <td className="py-1.5 pr-2 align-top">
+                  <div>{item.descricao}</div>
+                  {layout.dataPrazo && indice === 0 ? (
+                    <p className="mt-0.5 text-[11px]">
+                      <span>Prazo: </span>
+                      <span className="font-bold">{amostra.prazo}</span>
+                    </p>
+                  ) : null}
+                </td>
+                {layout.numDente ? (
+                  <td className="px-1 py-1.5 text-center align-top">{item.dente}</td>
+                ) : null}
+                {layout.corDente ? (
+                  <td className="px-1 py-1.5 text-center align-top">{item.cor}</td>
+                ) : null}
+                {layout.valorUnit ? (
+                  <td className="px-1 py-1.5 text-right align-top">{money(item.unitario)}</td>
+                ) : null}
+                {layout.desconto ? (
+                  <td className="py-1.5 pl-1 text-right align-top">{item.desconto}</td>
+                ) : null}
+                {layout.subtotal ? (
+                  <td className="py-1.5 pl-1 text-right align-top">{money(item.subtotal)}</td>
+                ) : null}
+              </tr>
+            ))}
           </tbody>
         </table>
 
-        {layout.colaborador ? (
-          <p className="mt-1.5" style={{ fontSize: `${fsSmall}px` }}>
-            <span>Colaborador: </span>
-            <span className="font-bold">{amostra.colaborador}</span>
-          </p>
-        ) : null}
+        <div className="mt-2 space-y-0.5" style={{ fontSize: `${fsSmall}px` }}>
+          {layout.dataPrazo || layout.finalizado ? (
+            <p>
+              {layout.dataPrazo ? (
+                <>
+                  <span>Prazo: </span>
+                  <span className="font-bold">{amostra.prazo}</span>
+                </>
+              ) : null}
+              {layout.dataPrazo && layout.finalizado ? (
+                <span className="mx-1 font-normal">|</span>
+              ) : null}
+              {layout.finalizado ? (
+                <>
+                  <span>Finalizado: </span>
+                  <span className="font-bold">{amostra.finalizado}</span>
+                </>
+              ) : null}
+            </p>
+          ) : null}
+          {layout.colaborador ? (
+            <p>
+              <span>Colaborador: </span>
+              <span className="font-bold">{amostra.colaborador}</span>
+            </p>
+          ) : null}
+          {layout.produtos && amostra.produtos ? (
+            <p>
+              <span>Produtos: </span>
+              <span className="font-bold">{amostra.produtos}</span>
+            </p>
+          ) : null}
+          {layout.producao ? (
+            <p>
+              <span>Produção: </span>
+              <span className="font-bold">Em produção</span>
+            </p>
+          ) : null}
+          {layout.obsServico ? (
+            <p>
+              <span>Observação: </span>
+              <span className="font-bold">{amostra.obsServico}</span>
+            </p>
+          ) : null}
+          {layout.obsFicha ? (
+            <p>
+              <span>Observação: </span>
+              <span className="font-bold">{amostra.obsFicha}</span>
+            </p>
+          ) : null}
+          {layout.pecas && amostra.pecas ? (
+            <p>
+              <span>Peças: </span>
+              <span className="font-bold">{amostra.pecas}</span>
+            </p>
+          ) : null}
+          {layout.etapas ? (
+            <p>
+              <span>Etapas: </span>
+              <span className="font-bold">{amostra.etapas}</span>
+            </p>
+          ) : null}
+        </div>
 
         {layout.total ? (
-          <div className="mt-3 space-y-0.5 text-right" style={{ fontSize: `${fsSmall}px` }}>
-            <p>
-              <span className="font-bold">Total Serviços </span>
-              {money(totalServicos)}
-            </p>
-            <p>
-              <span className="font-bold">(-) Descontos </span>
-              {money(totalDescontos)}
-            </p>
-            <p>
-              <span className="font-bold">(=) Total </span>
-              {money(totalFinal)}
-            </p>
-          </div>
+          <>
+            <LinhaSeparador cor={corLinha} className="mt-2" />
+            <div className="mt-1.5 space-y-0.5 text-right" style={{ fontSize: `${fsSmall}px` }}>
+              <p>
+                <span className="font-bold">Total Serviços </span>
+                {money(totalServicos)}
+              </p>
+              <p>
+                <span className="font-bold">(-) Descontos </span>
+                {money(totalDescontos)}
+              </p>
+              <p>
+                <span className="font-bold">(=) Total </span>
+                {money(totalFinal)}
+              </p>
+            </div>
+          </>
         ) : null}
 
         {layout.materialRec ? (
-          <p className="mt-3" style={{ fontSize: `${fsSmall}px` }}>
+          <p className="mt-2" style={{ fontSize: `${fsSmall}px` }}>
             <span>Materiais: </span>
             <span className="font-bold">{amostra.materiais}</span>
           </p>
@@ -261,7 +342,7 @@ export function PreviewOsModeloComprovante({
 
         {layout.assinatura ? (
           <div className="mt-10 text-center" style={{ fontSize: `${fsSmall - 1}px` }}>
-            <div className="mx-auto w-56 border-t border-slate-500" />
+            <div className="mx-auto w-56 border-t" style={{ borderColor: corLinha }} />
             <p className="mt-1 text-slate-800">Recebi o(s) serviço(s) descritos acima</p>
           </div>
         ) : null}
@@ -275,7 +356,7 @@ export function PreviewOsModeloComprovante({
           </div>
         ) : null}
 
-        <div className="mt-4 border-t" style={{ borderColor: corLinha }} />
+        <LinhaSeparador cor={corLinha} className="mt-4" />
       </div>
     </div>
   );

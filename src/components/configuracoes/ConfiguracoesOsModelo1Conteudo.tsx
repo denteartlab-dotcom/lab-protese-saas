@@ -129,20 +129,9 @@ function LinhaRotuloValor({
   );
 }
 
-function LinhaSeparador({
-  cor,
-  comBorda,
-  className,
-}: {
-  cor: string;
-  comBorda: boolean;
-  className?: string;
-}) {
+function LinhaSeparador({ cor, className }: { cor: string; className?: string }) {
   return (
-    <div
-      className={cn("border-t", className)}
-      style={{ borderColor: comBorda ? cor : "#94a3b8" }}
-    />
+    <div className={cn("border-t", className)} style={{ borderColor: cor }} />
   );
 }
 
@@ -171,7 +160,7 @@ function PreviewOsModeloProducao({
   const fsSmall = Math.max(10, fs - 4);
   const corBorda = normalizarCorBorda(layout.bordas);
   const comBorda = layout.exibirBordas;
-  const corLinha = comBorda ? corBorda : "#94a3b8";
+  const corLinha = corBorda;
 
   const money = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -252,7 +241,7 @@ function PreviewOsModeloProducao({
         </div>
       </div>
 
-      <LinhaSeparador cor={corBorda} comBorda={comBorda} className="mt-3" />
+      <LinhaSeparador cor={corLinha} className="mt-3" />
 
       <div
         className="mt-2.5 grid grid-cols-2 gap-x-8 gap-y-0.5"
@@ -289,7 +278,7 @@ function PreviewOsModeloProducao({
         </div>
       </div>
 
-      <LinhaSeparador cor={corBorda} comBorda={comBorda} className="mt-2.5" />
+      <LinhaSeparador cor={corLinha} className="mt-2.5" />
 
       <table
         className="mt-2 w-full border-collapse"
@@ -311,8 +300,14 @@ function PreviewOsModeloProducao({
           </tr>
         </thead>
         <tbody>
-          {amostra.itens.map((item) => (
-            <tr key={item.descricao} className="border-b" style={{ borderColor: corLinha }}>
+          {amostra.itens.map((item, indice) => (
+            <tr
+              key={item.descricao}
+              className={
+                indice < amostra.itens.length - 1 || !layout.total ? "border-b" : ""
+              }
+              style={{ borderColor: corLinha }}
+            >
               <td className="py-1.5 pr-2 align-top">{item.qtd}</td>
               <td className="py-1.5 pr-2 align-top">{item.descricao}</td>
               {layout.numDente ? (
@@ -377,7 +372,7 @@ function PreviewOsModeloProducao({
 
       {layout.total ? (
         <>
-          <LinhaSeparador cor={corBorda} comBorda={comBorda} className="mt-2" />
+          <LinhaSeparador cor={corLinha} className="mt-2" />
           <p className="mt-1.5 text-right font-bold">Total {money(amostra.total)}</p>
         </>
       ) : null}
@@ -414,7 +409,7 @@ function PreviewOsModeloProducao({
 
       {layout.assinatura ? (
         <div className="mt-8 text-center" style={{ fontSize: `${fsSmall - 1}px` }}>
-          <div className="mx-auto w-48 border-t border-slate-500" />
+          <div className="mx-auto w-48 border-t" style={{ borderColor: corLinha }} />
           <p className="mt-1 text-slate-600">Assinatura</p>
         </div>
       ) : null}
