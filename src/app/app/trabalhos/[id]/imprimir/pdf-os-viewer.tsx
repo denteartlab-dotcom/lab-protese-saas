@@ -225,24 +225,34 @@ function desenharMetaOsCabecalhoDireita(
   yDir: number,
   dir: number
 ) {
+  const desenharRotuloValorDireita = (rotulo: string, valor: string, y: number) => {
+    pdf.setFont("helvetica", "bold");
+    const wRotulo = pdf.getTextWidth(rotulo);
+    pdf.setFont("helvetica", "normal");
+    const wValor = pdf.getTextWidth(valor);
+    const xInicio = dir - (wRotulo + wValor);
+
+    pdf.setFont("helvetica", "bold");
+    pdf.text(rotulo, xInicio, y);
+    pdf.setFont("helvetica", "normal");
+    pdf.text(valor, xInicio + wRotulo, y);
+  };
+
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(16);
   pdf.text(String(data.numeroOs), dir, yDir, { align: "right" });
   yDir += 6;
 
-  pdf.setFont("helvetica", "normal");
   pdf.setFontSize(8.5);
-  pdf.text(`Data: ${data.dataEntrada?.trim() || "—"}`, dir, yDir, { align: "right" });
+  desenharRotuloValorDireita("Data: ", data.dataEntrada?.trim() || "—", yDir);
   yDir += 4.5;
 
-  pdf.text(`Status: ${data.status?.trim() || "—"}`, dir, yDir, { align: "right" });
+  desenharRotuloValorDireita("Status: ", data.status?.trim() || "—", yDir);
   yDir += 4.5;
 
   const usuario = (data.usuarioCriou || "").trim();
   if (usuario) {
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(8.5);
-    pdf.text(`Usuário: ${usuario}`, dir, yDir, { align: "right" });
+    desenharRotuloValorDireita("Usuário: ", usuario, yDir);
     yDir += 4.5;
   }
   return yDir;
