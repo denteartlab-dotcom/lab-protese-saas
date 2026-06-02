@@ -89,7 +89,8 @@ type Trabalho = {
   cor?: string | null;
   instrucoes?: string | null;
   dataPrevista?: string | null;
-  cliente?: { id?: string; nome?: string | null } | null;
+  dataEntrega?: string | null;
+  cliente?: { id?: string; nome?: string | null; cro?: string | null } | null;
   paciente?: { nome?: string | null } | null;
 };
 
@@ -160,7 +161,11 @@ function primeiroItemLinhaReceita(trabalho: Trabalho): ItemOsLinha | null {
   return { servico: trabalho.tipoProtese };
 }
 
-function valorTrabalho(trabalho: Trabalho) {
+function valorTrabalho(trabalho: {
+  instrucoes?: string | null;
+  valor?: number;
+  tipoProtese?: string;
+}) {
   const linhasItens = (trabalho.instrucoes || "")
     .split("\n")
     .filter((line) => line.trim().startsWith("Item adicionado:"));

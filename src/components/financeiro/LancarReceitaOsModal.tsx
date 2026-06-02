@@ -94,7 +94,7 @@ type Props = {
   creditoAplicado: number;
   totalAReceberComCredito: number;
   mensagemLancamento: string;
-  mensagemLancamentoTipo: "erro" | "sucesso";
+  mensagemLancamentoTipo: "erro" | "sucesso" | "info";
   formaSelecionadaEhBoleto: () => boolean;
   valorTrabalho: (trabalho: TrabalhoReceita) => number;
   onLimparOsSelecionadas: () => void;

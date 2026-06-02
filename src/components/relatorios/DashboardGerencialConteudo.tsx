@@ -470,7 +470,10 @@ function GraficoCurvaAbc({
             tickLine={false}
           />
           <Tooltip
-            formatter={(value: number) => [Number(value).toFixed(2), "Participação"]}
+            formatter={(value) => [
+              Number(value ?? 0).toFixed(2),
+              "Participação",
+            ]}
             labelFormatter={(label) => label}
             contentStyle={{
               fontSize: 12,
@@ -555,6 +558,7 @@ function payloadVazio(ano: number): DashboardGerencialPayload {
       clientes: montarCurvaAbcSecoesGrafico(secoesCurvaAbcClientesVazias()),
     },
     curvaAbcServicosSecoes: secoesCurvaAbcClientesVazias(),
+    curvaAbcFornecedoresSecoes: secoesCurvaAbcClientesVazias(),
     curvaAbcClientesSecoes: secoesCurvaAbcClientesVazias(),
     producao: { entregues: 0, atrasados: 0, total: 0 },
     trabalhosProducao: [],
@@ -910,8 +914,11 @@ export function DashboardGerencialConteudo() {
                     <XAxis dataKey="mes" tick={tickAxis} axisLine={false} tickLine={false} />
                     <YAxis tick={tickAxis} axisLine={false} tickLine={false} />
                     <Tooltip
-                      formatter={(v: number) =>
-                        v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                      formatter={(v) =>
+                        Number(v ?? 0).toLocaleString("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
+                        })
                       }
                       contentStyle={{
                         fontSize: 12,
@@ -965,8 +972,11 @@ export function DashboardGerencialConteudo() {
                     }
                   />
                   <Tooltip
-                    formatter={(v: number) =>
-                      v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                    formatter={(v) =>
+                      Number(v ?? 0).toLocaleString("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      })
                     }
                     contentStyle={{
                       fontSize: 12,
