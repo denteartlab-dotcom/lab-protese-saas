@@ -43,6 +43,7 @@ import { brShortToIso, dateToBrShort, parseBrDate } from "@/lib/datas-br";
 import {
   classificarEntidadeDespesa,
   desempacotarDespesa,
+  descricaoDespesaComParcela,
   empacotarDespesa,
   lerFornecedoresStorage,
   lerNomesStorage,
@@ -392,7 +393,7 @@ export function ContasPagarConteudo() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               tipo: "despesa",
-              descricao: `${descricaoBase} (${parcela.parcela})`,
+              descricao: descricaoDespesaComParcela(descricaoBase, parcela.parcela),
               valor,
               data: brShortToIso(parcela.vencimento || payload.dataLancamento),
               status: parcela.pago ? "pago" : "pendente",

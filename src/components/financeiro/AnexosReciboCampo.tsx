@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import Image from "next/image";
-import { FileText, ImageUp, Trash2 } from "lucide-react";
+import { FileText, ImageUp, Loader2, Trash2 } from "lucide-react";
 import {
   ACCEPT_ANEXOS_FINANCEIRO,
   arquivoEhAnexoFinanceiro,
@@ -20,8 +20,6 @@ import {
 import { notificarUploadsAtualizados } from "@/lib/uploads-armazenamento";
 import { cn } from "@/lib/utils";
 
-const selectClass =
-  "h-9 w-full max-w-[220px] rounded border border-slate-300 bg-white px-2.5 text-[12px] text-slate-800 outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]";
 const labelClass = "mb-1 block text-[11px] font-medium text-slate-600";
 
 export type AnexosReciboCampoRef = {
@@ -36,13 +34,17 @@ type Props = {
   className?: string;
 };
 
-async function uploadAnexos(pasta: PastaAnexoFinanceiro, arquivos: File[]): Promise<AnexoDespesa[]> {
+async function uploadAnexos(
+  pasta: PastaAnexoFinanceiro,
+  arquivos: File[]
+): Promise<AnexoDespesa[]> {
   if (!arquivos.length) return [];
   const formData = new FormData();
   arquivos.forEach((arquivo) => formData.append("files", arquivo));
   const res = await fetch(`/api/uploads?pasta=${pasta}`, {
     method: "POST",
     body: formData,
+    credentials: "same-origin",
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -58,51 +60,57 @@ async function uploadAnexos(pasta: PastaAnexoFinanceiro, arquivos: File[]): Prom
 export const AnexosReciboCampo = forwardRef<AnexosReciboCampoRef, Props>(
   function AnexosReciboCampo({ pasta, anexosIniciais = [], resetToken, className }, ref) {
     const [anexosSalvos, setAnexosSalvos] = useState<AnexoDespesa[]>([]);
-    const [anexosNovos, setAnexosNovos] = useState<File[]>([]);
+    const [enviando, setEnviando] = useState(false);
+    const [erroUpload, setErroUpload] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-
-    const previewsNovos = useMemo(
-      () =>
-        anexosNovos.map((file) => ({
-          file,
-          url: URL.createObjectURL(file),
-          isImage: file.type.startsWith("image/"),
-          isPdf: file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"),
-        })),
-      [anexosNovos]
-    );
-
-    useEffect(() => {
-      return () => {
-        previewsNovos.forEach((p) => URL.revokeObjectURL(p.url));
-      };
-    }, [previewsNovos]);
 
     useEffect(() => {
       setAnexosSalvos([...anexosIniciais]);
-      setAnexosNovos([]);
+      setErroUpload(null);
     }, [resetToken, anexosIniciais]);
 
-    const totalAnexos = anexosSalvos.length + anexosNovos.length;
+    const totalAnexos = anexosSalvos.length;
 
     useImperativeHandle(ref, () => ({
       async resolverAnexos() {
-        const enviados =
-          anexosNovos.length > 0 ? await uploadAnexos(pasta, anexosNovos) : [];
-        return [...anexosSalvos, ...enviados].slice(0, LIMITE_ANEXOS_FINANCEIRO);
+        if (enviando) {
+          throw new Error("Aguarde o envio dos arquivos terminar.");
+        }
+        return anexosSalvos.slice(0, LIMITE_ANEXOS_FINANCEIRO);
       },
     }));
 
-    function adicionarArquivos(lista: FileList | null) {
-      if (!lista?.length) return;
+    async function adicionarArquivos(lista: FileList | null) {
+      if (!lista?.length || enviando) return;
       const vagas = LIMITE_ANEXOS_FINANCEIRO - totalAnexos;
       if (vagas <= 0) return;
+
       const candidatos = Array.from(lista).filter(arquivoEhAnexoFinanceiro);
       if (!candidatos.length) {
-        alert("Selecione imagens (JPEG, PNG, etc.) ou arquivos PDF.");
+        setErroUpload("Use imagens (JPEG, PNG, HEIC, etc.) ou arquivos PDF.");
         return;
       }
-      setAnexosNovos((atual) => [...atual, ...candidatos.slice(0, vagas)]);
+
+      const paraEnviar = candidatos.slice(0, vagas);
+      setErroUpload(null);
+      setEnviando(true);
+      try {
+        const enviados = await uploadAnexos(pasta, paraEnviar);
+        setAnexosSalvos((atual) =>
+          [...atual, ...enviados].slice(0, LIMITE_ANEXOS_FINANCEIRO)
+        );
+        if (candidatos.length > paraEnviar.length) {
+          setErroUpload(
+            `Somente ${paraEnviar.length} arquivo(s) foram adicionados (limite de ${LIMITE_ANEXOS_FINANCEIRO}).`
+          );
+        }
+      } catch (err) {
+        setErroUpload(
+          err instanceof Error ? err.message : "Não foi possível enviar os arquivos."
+        );
+      } finally {
+        setEnviando(false);
+      }
     }
 
     function previewSalvo(anexo: AnexoDespesa) {
@@ -128,28 +136,36 @@ export const AnexosReciboCampo = forwardRef<AnexosReciboCampoRef, Props>(
       );
     }
 
+    const podeAdicionar = totalAnexos < LIMITE_ANEXOS_FINANCEIRO && !enviando;
+
     return (
       <div className={cn("rounded border border-slate-200 bg-slate-50/80 p-3", className)}>
         <label className={labelClass}>Recibos e comprovantes (imagens ou PDF)</label>
         <div className="flex flex-wrap items-center gap-2">
-          <select
-            className={selectClass}
-            value=""
-            disabled={totalAnexos >= LIMITE_ANEXOS_FINANCEIRO}
-            onChange={(e) => {
-              if (e.target.value === "adicionar") inputRef.current?.click();
-              e.target.value = "";
-            }}
+          <button
+            type="button"
+            disabled={!podeAdicionar}
+            onClick={() => inputRef.current?.click()}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded border px-3 py-2 text-[11px] font-medium transition",
+              podeAdicionar
+                ? "border-[#4a90d9] bg-white text-[#4a90d9] hover:bg-[#f0f7ff]"
+                : "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+            )}
           >
-            <option value="" disabled>
-              {totalAnexos >= LIMITE_ANEXOS_FINANCEIRO
+            {enviando ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <ImageUp className="h-3.5 w-3.5" />
+            )}
+            {enviando
+              ? "Enviando…"
+              : totalAnexos >= LIMITE_ANEXOS_FINANCEIRO
                 ? `Limite de ${LIMITE_ANEXOS_FINANCEIRO} arquivos`
-                : "Escolha uma opção…"}
-            </option>
-            <option value="adicionar">+ Adicionar arquivos</option>
-          </select>
+                : "Adicionar imagens ou PDF"}
+          </button>
           <span className="text-[10px] text-slate-500">
-            {totalAnexos}/{LIMITE_ANEXOS_FINANCEIRO} arquivos (máx. {LIMITE_ANEXOS_FINANCEIRO})
+            {totalAnexos}/{LIMITE_ANEXOS_FINANCEIRO} · máx. 4 MB por arquivo
           </span>
         </div>
         <input
@@ -158,11 +174,17 @@ export const AnexosReciboCampo = forwardRef<AnexosReciboCampoRef, Props>(
           accept={ACCEPT_ANEXOS_FINANCEIRO}
           multiple
           className="sr-only"
+          disabled={!podeAdicionar}
           onChange={(e) => {
-            adicionarArquivos(e.target.files);
+            void adicionarArquivos(e.target.files);
             e.target.value = "";
           }}
         />
+        {erroUpload ? (
+          <p className="mt-2 text-[11px] text-red-600" role="alert">
+            {erroUpload}
+          </p>
+        ) : null}
         {totalAnexos > 0 ? (
           <div className="mt-3 grid gap-2 sm:grid-cols-3 md:grid-cols-5">
             {anexosSalvos.map((anexo) => (
@@ -186,51 +208,12 @@ export const AnexosReciboCampo = forwardRef<AnexosReciboCampoRef, Props>(
                 <p className="truncate px-1 py-0.5 text-[9px] text-slate-500">{anexo.name}</p>
               </div>
             ))}
-            {previewsNovos.map((preview, index) => (
-              <div
-                key={`${preview.file.name}-${preview.file.size}`}
-                className="relative overflow-hidden rounded border border-emerald-200 bg-white shadow-sm"
-              >
-                <button
-                  type="button"
-                  onClick={() =>
-                    setAnexosNovos((lista) => lista.filter((_, i) => i !== index))
-                  }
-                  className="absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-red-600 shadow hover:bg-red-50"
-                  title="Remover arquivo"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-                {preview.isImage ? (
-                  <Image
-                    src={preview.url}
-                    alt={preview.file.name}
-                    width={120}
-                    height={96}
-                    unoptimized
-                    className="h-20 w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-20 flex-col items-center justify-center gap-1 bg-slate-50 text-emerald-700">
-                    <FileText className="h-8 w-8" />
-                    <span className="text-[9px] font-medium uppercase">PDF</span>
-                  </div>
-                )}
-                <p className="truncate px-1 py-0.5 text-[9px] text-slate-500">
-                  {preview.file.name}
-                </p>
-              </div>
-            ))}
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="mt-2 inline-flex items-center gap-1.5 rounded border border-dashed border-slate-300 bg-white px-3 py-2 text-[11px] text-slate-600 hover:border-[#4a90d9] hover:text-[#4a90d9]"
-          >
-            <ImageUp className="h-3.5 w-3.5" />
-            Selecionar imagens ou PDF
-          </button>
+          <p className="mt-2 text-[10px] text-slate-500">
+            Os arquivos são enviados assim que você seleciona. Depois clique em Cadastrar para
+            salvar a despesa.
+          </p>
         )}
       </div>
     );

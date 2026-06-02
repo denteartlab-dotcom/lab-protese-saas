@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { tentarEmitirBoletoParaLancamento } from "@/lib/asaas-boleto";
 import { parseParcelaNaDescricao } from "@/lib/fatura-financeiro";
+import { descricaoDespesaComParcela } from "@/lib/lancamento-despesa";
 import {
   auditarCriacaoLancamento,
   auditarCriacaoReceitasParceladas,
@@ -178,7 +179,10 @@ export async function POST(request: Request) {
       parcelaTotal > 1 &&
       !parseParcelaNaDescricao(descricao)
     ) {
-      descricao = `${descricao.trim()} (${parcelaNumero}/${parcelaTotal})`;
+      descricao = descricaoDespesaComParcela(
+        descricao,
+        `${parcelaNumero}/${parcelaTotal}`
+      );
     }
 
     const lancamento = await prisma.lancamento.create({

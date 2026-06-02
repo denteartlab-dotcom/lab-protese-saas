@@ -46,6 +46,19 @@ export async function POST(request: Request) {
     return NextResponse.json(uploaded);
   } catch (err) {
     console.error("POST /api/uploads", err);
+    const prismaCode =
+      err && typeof err === "object" && "code" in err
+        ? String((err as { code?: string }).code)
+        : "";
+    if (prismaCode === "P2021") {
+      return NextResponse.json(
+        {
+          error:
+            "Armazenamento de anexos não configurado no banco. Execute o script prisma/scripts/criar-tabela-arquivo-upload.sql no Neon.",
+        },
+        { status: 503 }
+      );
+    }
     const msg =
       err instanceof Error
         ? err.message

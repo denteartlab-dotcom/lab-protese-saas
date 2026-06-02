@@ -28,13 +28,14 @@ export type DespesaMeta = {
 
 export const LIMITE_ANEXOS_DESPESA = 5;
 export const LIMITE_ANEXOS_FINANCEIRO = LIMITE_ANEXOS_DESPESA;
-export const ACCEPT_ANEXOS_FINANCEIRO = "image/*,application/pdf";
+export const ACCEPT_ANEXOS_FINANCEIRO =
+  "image/*,application/pdf,.pdf,.heic,.heif";
 
 export function arquivoEhAnexoFinanceiro(file: File) {
   if (file.type.startsWith("image/")) return true;
   if (file.type === "application/pdf") return true;
   const nome = file.name.toLowerCase();
-  return /\.(jpe?g|png|gif|webp|bmp|pdf)$/i.test(nome);
+  return /\.(jpe?g|png|gif|webp|bmp|heic|heif|pdf)$/i.test(nome);
 }
 
 export type PastaAnexoFinanceiro = "despesas" | "receitas";
@@ -54,16 +55,48 @@ export function empacotarDespesa(descricao: string, meta: DespesaMeta) {
   return `${base}${DESPESA_META_SEP}${JSON.stringify(meta)}`;
 }
 
+/** Inclui rótulo de parcela no texto visível, sem corromper o JSON em @@CAP@@. */
+export function descricaoDespesaComParcela(descricaoEmpacotada: string, parcelaLabel: string) {
+  const label = parcelaLabel.trim();
+  if (!label) return descricaoEmpacotada;
+  const idx = descricaoEmpacotada.indexOf(DESPESA_META_SEP);
+  if (idx < 0) {
+    return `${descricaoEmpacotada.trim()} (${label})`;
+  }
+  const texto = descricaoEmpacotada.slice(0, idx).trimEnd();
+  const metaPart = descricaoEmpacotada.slice(idx);
+  return `${texto} (${label})${metaPart}`;
+}
+
+function parseMetaDespesa(metaRaw: string): { meta: DespesaMeta; parcelaNoMeta?: string } {
+  const trimmed = metaRaw.trim();
+  try {
+    return { meta: JSON.parse(trimmed) as DespesaMeta };
+  } catch {
+    /* compat: "(1/3)" gravado após o JSON por versões antigas */
+  }
+  const match = trimmed.match(/^(\{[\s\S]*\})\s*(\(\d+\s*\/\s*\d+\))\s*$/);
+  if (!match) return { meta: {} };
+  try {
+    return {
+      meta: JSON.parse(match[1]) as DespesaMeta,
+      parcelaNoMeta: match[2],
+    };
+  } catch {
+    return { meta: {} };
+  }
+}
+
 export function desempacotarDespesa(descricao: string): DespesaDescompactada {
   const idx = descricao.indexOf(DESPESA_META_SEP);
   let texto = descricao;
   let meta: DespesaMeta = {};
   if (idx >= 0) {
     texto = descricao.slice(0, idx).trim();
-    try {
-      meta = JSON.parse(descricao.slice(idx + DESPESA_META_SEP.length)) as DespesaMeta;
-    } catch {
-      meta = {};
+    const parsed = parseMetaDespesa(descricao.slice(idx + DESPESA_META_SEP.length));
+    meta = parsed.meta;
+    if (parsed.parcelaNoMeta && !/\(\d+\s*\/\s*\d+\)\s*$/.test(texto)) {
+      texto = `${texto} ${parsed.parcelaNoMeta}`.trim();
     }
   }
 
