@@ -713,6 +713,7 @@ function renderModeloComprovante(
   pdf.setFontSize(fontBase);
   let totalServicos = 0;
   let totalDescontos = 0;
+  let servicoIndex = 0;
 
   data.itens.forEach((item) => {
     if (y > 248) {
@@ -723,6 +724,9 @@ function renderModeloComprovante(
     const subtotal = subtotalItem(item);
     totalServicos += bruto;
     totalDescontos += bruto - subtotal;
+
+    const ehProduto = /\(\s*Produto\s*\)/i.test(String(item.descricao));
+    const ehServico = !ehProduto && !/\(\s*Transporte\s*\)/i.test(String(item.descricao));
 
     const descricaoLargura = lay.subtotal ? 62 : 72;
     const descricaoLinhas = pdf.splitTextToSize(String(item.descricao), descricaoLargura);
@@ -737,8 +741,34 @@ function renderModeloComprovante(
     if (lay.subtotal) {
       pdf.text(unitarioTabela(subtotal), colSubtotal, y, { align: "right" });
     }
-    y += Math.max(5, descricaoLinhas.length * 4.5) + 1.5;
+    y += Math.max(5, descricaoLinhas.length * 4.5);
+
+    const notasPrazo =
+      item.notasAbaixo?.filter(Boolean) ||
+      (ehServico &&
+      servicoIndex === 0 &&
+      data.prazoLinhaServico &&
+      !data.itens.some((i) => i.notasAbaixo?.length)
+        ? [data.prazoLinhaServico]
+        : []);
+    if (ehServico) servicoIndex += 1;
+
+    notasPrazo.forEach((nota) => {
+      if (y > 265) {
+        pdf.addPage();
+        y = 16;
+      }
+      desenharLinhaPrazo(pdf, nota, colDesc, y);
+      y += 4.5;
+    });
+
+    y += 1.5;
   });
+
+  if (lay.finalizado && data.finalizado) {
+    pdf.text(`Finalizado: ${data.finalizado}`, margin, y);
+    y += 5;
+  }
 
   if (lay.colaborador && data.colaborador) {
     pdf.text(`Colaborador: ${data.colaborador}`.slice(0, 110), colDesc, y);
@@ -774,6 +804,16 @@ function renderModeloComprovante(
     pdf.text(data.materiais.slice(0, 120), margin + pdf.getTextWidth("Materiais:") + 2, y);
     pdf.setFont("helvetica", "normal");
     y += 6;
+  }
+
+  if (lay.obsFicha && data.obsFicha) {
+    pdf.setFont("helvetica", "bold");
+    pdf.text("Observação:", margin, y);
+    y += 4;
+    pdf.setFont("helvetica", "normal");
+    const linhasFicha = pdf.splitTextToSize(data.obsFicha, 180);
+    pdf.text(linhasFicha, margin, y);
+    y += linhasFicha.length * 4 + 3;
   }
 
   if (lay.mensagem?.trim()) {

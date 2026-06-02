@@ -216,9 +216,9 @@ export function PreviewOsModeloComprovante({
                 <td className="py-1.5 pr-2 align-top">{item.qtd}</td>
                 <td className="py-1.5 pr-2 align-top">
                   <div>{item.descricao}</div>
-                  {layout.dataPrazo && indice === 0 ? (
+                  {indice === 0 ? (
                     <p className="mt-0.5 text-[11px]">
-                      <span>Prazo: </span>
+                      <span>Prazo: Produção: </span>
                       <span className="font-bold">{amostra.prazo}</span>
                     </p>
                   ) : null}
@@ -244,23 +244,10 @@ export function PreviewOsModeloComprovante({
         </table>
 
         <div className="mt-2 space-y-0.5" style={{ fontSize: `${fsSmall}px` }}>
-          {layout.dataPrazo || layout.finalizado ? (
+          {layout.finalizado ? (
             <p>
-              {layout.dataPrazo ? (
-                <>
-                  <span>Prazo: </span>
-                  <span className="font-bold">{amostra.prazo}</span>
-                </>
-              ) : null}
-              {layout.dataPrazo && layout.finalizado ? (
-                <span className="mx-1 font-normal">|</span>
-              ) : null}
-              {layout.finalizado ? (
-                <>
-                  <span>Finalizado: </span>
-                  <span className="font-bold">{amostra.finalizado}</span>
-                </>
-              ) : null}
+              <span>Finalizado: </span>
+              <span className="font-bold">{amostra.finalizado}</span>
             </p>
           ) : null}
           {layout.colaborador ? (
@@ -279,24 +266,6 @@ export function PreviewOsModeloComprovante({
             <p>
               <span>Produção: </span>
               <span className="font-bold">Em produção</span>
-            </p>
-          ) : null}
-          {layout.obsServico ? (
-            <p>
-              <span>Observação: </span>
-              <span className="font-bold">{amostra.obsServico}</span>
-            </p>
-          ) : null}
-          {layout.obsFicha ? (
-            <p>
-              <span>Observação: </span>
-              <span className="font-bold">{amostra.obsFicha}</span>
-            </p>
-          ) : null}
-          {layout.pecas && amostra.pecas ? (
-            <p>
-              <span>Peças: </span>
-              <span className="font-bold">{amostra.pecas}</span>
             </p>
           ) : null}
           {layout.etapas ? (
@@ -331,6 +300,13 @@ export function PreviewOsModeloComprovante({
           <p className="mt-2" style={{ fontSize: `${fsSmall}px` }}>
             <span>Materiais: </span>
             <span className="font-bold">{amostra.materiais}</span>
+          </p>
+        ) : null}
+
+        {layout.obsFicha ? (
+          <p className="mt-2" style={{ fontSize: `${fsSmall}px` }}>
+            <span>Observação: </span>
+            <span className="font-bold">{amostra.obsFicha}</span>
           </p>
         ) : null}
 

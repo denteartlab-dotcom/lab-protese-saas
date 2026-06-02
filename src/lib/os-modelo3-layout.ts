@@ -69,10 +69,10 @@ export const CAMPOS_MODELO3_PARES: Array<[CampoCheckbox, CampoCheckbox | null]> 
   [{ key: "numDente", label: "Num Dente" }, { key: "corDente", label: "Cor Dente" }],
   [{ key: "valorUnit", label: "Valor Unit" }, { key: "desconto", label: "Desconto" }],
   [{ key: "subtotal", label: "Subtotal" }, { key: "total", label: "Total" }],
-  [{ key: "dataPrazo", label: "Data Prazo" }, { key: "finalizado", label: "Finalizado" }],
-  [{ key: "colaborador", label: "Colaborador" }, { key: "produtos", label: "Produtos" }],
-  [{ key: "obsFicha", label: "Obs Ficha" }, { key: "obsServico", label: "Cód Serviço" }],
-  [{ key: "materialRec", label: "Material Rec" }, { key: "pecas", label: "Peças" }],
+  [{ key: "finalizado", label: "Finalizado" }, { key: "colaborador", label: "Colaborador" }],
+  [{ key: "produtos", label: "Produtos" }, { key: "producao", label: "Produção" }],
+  [{ key: "etapas", label: "Etapas" }, null],
+  [{ key: "materialRec", label: "Material Rec" }, { key: "obsFicha", label: "Obs Ficha" }],
   [{ key: "assinatura", label: "Assinatura" }, { key: "codBarras", label: "Cod Barras" }],
 ];
 
@@ -95,6 +95,9 @@ export function normalizarOsModelo3Layout(
       base[key] = Boolean(valor[key]);
     }
   }
+  base.dataPrazo = false;
+  base.obsServico = false;
+  base.pecas = false;
   return base;
 }
 
@@ -103,5 +106,4 @@ export const PREVIEW_OS_MODELO3 = {
   totalServicos: 1275,
   totalDescontos: 127.5,
   produtos: "Elemento Metalo Cerâmica (serviço principal)",
-  pecas: "22, 25, 27, 32, 35",
 };
