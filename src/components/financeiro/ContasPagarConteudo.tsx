@@ -8,6 +8,7 @@ import {
   Filter,
   Flag,
   List,
+  Eye,
   Pencil,
   Plus,
   Printer,
@@ -23,6 +24,7 @@ import { Button, CampoDataBr, Select } from "@/components/ui";
 import type { LancarReceitaPayload } from "@/components/financeiro/LancarReceitaModal";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { RelatorioDespesasModal } from "@/components/financeiro/RelatorioDespesasModal";
+import { VisualizarDespesaModal } from "@/components/financeiro/VisualizarDespesaModal";
 import {
   FINANCEIRO_ATUALIZADO_EVENT,
   notificarFinanceiroAtualizado,
@@ -110,6 +112,10 @@ export function ContasPagarConteudo() {
   const [modalAberto, setModalAberto] = useState(false);
   const [relatorioAberto, setRelatorioAberto] = useState(false);
   const [despesaParaExcluir, setDespesaParaExcluir] = useState<Lancamento | null>(null);
+  const [despesaVisualizando, setDespesaVisualizando] = useState<{
+    lancamento: Lancamento;
+    ref: string;
+  } | null>(null);
   const [editando, setEditando] = useState<Lancamento | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [fornecedores, setFornecedores] = useState<Array<{ id: string; nome: string }>>(
@@ -705,6 +711,16 @@ export function ContasPagarConteudo() {
                         ) : null}
                         <button
                           type="button"
+                          title="Visualizar"
+                          onClick={() =>
+                            setDespesaVisualizando({ lancamento, ref })
+                          }
+                          className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-[#4a90d9]"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
                           title="Editar"
                           onClick={() => abrirEdicao(lancamento)}
                           className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-[#4a90d9]"
@@ -728,6 +744,13 @@ export function ContasPagarConteudo() {
           </table>
         </div>
       </div>
+
+      <VisualizarDespesaModal
+        open={!!despesaVisualizando}
+        lancamento={despesaVisualizando?.lancamento ?? null}
+        refOs={despesaVisualizando?.ref}
+        onClose={() => setDespesaVisualizando(null)}
+      />
 
       <ConfirmacaoExclusaoModal
         open={!!despesaParaExcluir}
