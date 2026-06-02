@@ -14,6 +14,7 @@ import { CONFIG_OS_ATUALIZADA_EVENT, carregarLayoutModelo1 } from "@/lib/configu
 import {
   hexParaRgb,
   normalizarOsModelo1Layout,
+  OS_MODELO1_BORDA_MARGEM_MM,
   type OsModelo1Layout,
 } from "@/lib/os-modelo1-layout";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
@@ -290,20 +291,40 @@ function desenharMarcadoresUrgenciaRepeticao(pdf: PdfRenderApi, data: PdfOsData,
   pdf.setFontSize(9);
 }
 
-function desenharBordaPaginaPdf(pdf: PdfRenderApi, corHex: string) {
+function desenharBordaRequisicaoPdf(
+  pdf: PdfRenderApi,
+  corHex: string,
+  yTop: number,
+  yBottom: number
+) {
   const { r, g, b } = hexParaRgb(corHex);
   const pw = pdf.internal.pageSize.getWidth();
-  const ph = pdf.internal.pageSize.getHeight();
-  const margem = 8;
+  const m = OS_MODELO1_BORDA_MARGEM_MM;
+  const altura = Math.max(20, yBottom - yTop);
   pdf.setDrawColor(r, g, b);
-  pdf.setLineWidth(0.35);
-  pdf.rect(margem, margem, pw - margem * 2, ph - margem * 2);
+  pdf.setLineWidth(0.55);
+  pdf.rect(m, yTop, pw - m * 2, altura, "S");
+}
+
+function aplicarCorLinhaBorda(
+  pdf: PdfRenderApi,
+  lay: OsModelo1Layout
+) {
+  if (lay.exibirBordas) {
+    const { r, g, b } = hexParaRgb(lay.bordas);
+    pdf.setDrawColor(r, g, b);
+    pdf.setLineWidth(0.35);
+  } else {
+    pdf.setDrawColor(0, 0, 0);
+    pdf.setLineWidth(0.4);
+  }
 }
 
 function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
   const lay = normalizarOsModelo1Layout(data.layoutModelo1);
   const fontBase = Math.max(7, lay.tamanhoFonte * 0.53);
   const pageWidth = pdf.internal.pageSize.getWidth();
+  const yBordaTop = lay.exibirBordas ? OS_MODELO1_BORDA_MARGEM_MM : 0;
   let y = desenharCabecalhoRequisicaoPdf(pdf, {
     lab: data.lab,
     cabecalhoRequisicao: data.cabecalhoRequisicao,
@@ -356,6 +377,7 @@ function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
   }
 
   y += 3;
+  aplicarCorLinhaBorda(pdf, lay);
   pdf.line(15, y, pageWidth - 15, y);
   y += 5;
 
@@ -384,6 +406,7 @@ function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
   if (lay.desconto) pdf.text("Desc", colDescPct, y, { align: "right" });
   if (lay.subtotal) pdf.text("Subtotal", tableRight, y, { align: "right" });
   y += 3;
+  aplicarCorLinhaBorda(pdf, lay);
   pdf.line(tableLeft, y, tableRight, y);
   y += 5;
 
@@ -432,12 +455,16 @@ function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
     }
 
     y += 1.5;
+    aplicarCorLinhaBorda(pdf, lay);
     pdf.line(tableLeft, y, tableRight, y);
     y += 5;
   });
 
   if (lay.total) {
     y += 3;
+    aplicarCorLinhaBorda(pdf, lay);
+    pdf.line(15, y, pageWidth - 15, y);
+    y += 4;
     pdf.setFont("helvetica", "bold");
     pdf.text(`TOTAL ${money(data.valor)}`, pageWidth - 15, y, { align: "right" });
     y += 8;
@@ -501,7 +528,7 @@ function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
   }
 
   if (lay.exibirBordas) {
-    desenharBordaPaginaPdf(pdf, lay.bordas);
+    desenharBordaRequisicaoPdf(pdf, lay.bordas, yBordaTop, y + 8);
   }
 }
 

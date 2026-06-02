@@ -26,6 +26,7 @@ import {
   CAMPOS_MODELO1_PARES,
   normalizarCorBorda,
   normalizarOsModelo1Layout,
+  OS_MODELO1_BORDA_MARGEM_MM,
   PREVIEW_OS_MODELO1,
   type OsModelo1Layout,
 } from "@/lib/os-modelo1-layout";
@@ -94,6 +95,23 @@ function LinhaRotuloValor({
   );
 }
 
+function LinhaSeparador({
+  cor,
+  comBorda,
+  className,
+}: {
+  cor: string;
+  comBorda: boolean;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn("border-t", className)}
+      style={{ borderColor: comBorda ? cor : "#94a3b8" }}
+    />
+  );
+}
+
 function PreviewOsModelo1({
   cfg,
   layout,
@@ -117,6 +135,8 @@ function PreviewOsModelo1({
   const fs = layout.tamanhoFonte;
   const fsSmall = Math.max(10, fs - 4);
   const corBorda = normalizarCorBorda(layout.bordas);
+  const comBorda = layout.exibirBordas;
+  const corLinha = comBorda ? corBorda : "#94a3b8";
 
   const money = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -128,12 +148,19 @@ function PreviewOsModelo1({
         width: "210mm",
         minHeight: "297mm",
         maxWidth: "100%",
-        padding: "14mm 16mm 16mm",
+        padding: `${OS_MODELO1_BORDA_MARGEM_MM}mm`,
         fontSize: `${fs}px`,
         fontFamily: "Arial, Helvetica, sans-serif",
-        border: layout.exibirBordas ? `1px solid ${corBorda}` : "none",
+        boxSizing: "border-box",
       }}
     >
+      <div
+        className="box-border h-full min-h-[calc(297mm-20mm)]"
+        style={{
+          border: comBorda ? `2px solid ${corBorda}` : "none",
+          padding: "8mm 10mm",
+        }}
+      >
       <div className="flex items-start gap-3">
         {layout.logo ? (
           <div className="shrink-0">
@@ -190,7 +217,7 @@ function PreviewOsModelo1({
         </div>
       </div>
 
-      <div className="mt-3 border-t border-slate-400" />
+      <LinhaSeparador cor={corBorda} comBorda={comBorda} className="mt-3" />
 
       <div
         className="mt-2.5 grid grid-cols-2 gap-x-8 gap-y-0.5"
@@ -227,14 +254,14 @@ function PreviewOsModelo1({
         </div>
       </div>
 
-      <div className="mt-2.5 border-t border-slate-400" />
+      <LinhaSeparador cor={corBorda} comBorda={comBorda} className="mt-2.5" />
 
       <table
         className="mt-2 w-full border-collapse"
         style={{ fontSize: `${fsSmall}px` }}
       >
         <thead>
-          <tr className="border-b border-slate-400">
+          <tr className="border-b" style={{ borderColor: corLinha }}>
             <th className="py-1 pr-2 text-left font-bold">Qtd</th>
             <th className="py-1 pr-2 text-left font-bold">Descrição</th>
             {layout.numDente ? (
@@ -250,7 +277,7 @@ function PreviewOsModelo1({
         </thead>
         <tbody>
           {amostra.itens.map((item) => (
-            <tr key={item.descricao}>
+            <tr key={item.descricao} className="border-b" style={{ borderColor: corLinha }}>
               <td className="py-1.5 pr-2 align-top">{item.qtd}</td>
               <td className="py-1.5 pr-2 align-top">{item.descricao}</td>
               {layout.numDente ? (
@@ -309,7 +336,7 @@ function PreviewOsModelo1({
 
       {layout.total ? (
         <>
-          <div className="mt-2 border-t border-slate-400" />
+          <LinhaSeparador cor={corBorda} comBorda={comBorda} className="mt-2" />
           <p className="mt-1.5 text-right font-bold">Total {money(amostra.total)}</p>
         </>
       ) : null}
@@ -353,6 +380,7 @@ function PreviewOsModelo1({
           </p>
         </div>
       ) : null}
+      </div>
     </div>
   );
 }

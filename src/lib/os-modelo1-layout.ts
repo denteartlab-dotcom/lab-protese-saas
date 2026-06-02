@@ -108,6 +108,9 @@ export function normalizarCorBorda(valor?: string): string {
   return OS_MODELO1_LAYOUT_PADRAO.bordas;
 }
 
+/** Margem externa da folha A4 até a borda da requisição (mm). */
+export const OS_MODELO1_BORDA_MARGEM_MM = 10;
+
 export function hexParaRgb(hex: string): { r: number; g: number; b: number } {
   const normalizado = normalizarCorBorda(hex).replace("#", "");
   const expandido =
