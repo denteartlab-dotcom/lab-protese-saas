@@ -10,13 +10,20 @@ import {
   LAB_CONFIG_ATUALIZADA_EVENT,
 } from "@/lib/configuracoes-lab";
 import { normalizarCabecalhoRequisicao, type CabecalhoRequisicaoConfig } from "@/lib/cabecalho-requisicao";
-import { CONFIG_OS_ATUALIZADA_EVENT, carregarLayoutModelo1 } from "@/lib/configuracoes-os";
+import {
+  CONFIG_OS_ATUALIZADA_EVENT,
+  carregarLayoutModelo1,
+  carregarLayoutModelo2,
+  carregarLayoutModelo3,
+} from "@/lib/configuracoes-os";
 import {
   hexParaRgb,
   normalizarOsModelo1Layout,
   OS_MODELO1_BORDA_MARGEM_MM,
   type OsModelo1Layout,
 } from "@/lib/os-modelo1-layout";
+import { normalizarOsModelo2Layout } from "@/lib/os-modelo2-layout";
+import { normalizarOsModelo3Layout } from "@/lib/os-modelo3-layout";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
 import { desenharCabecalhoRequisicaoPdf } from "@/lib/pdf-cabecalho-os";
 
@@ -54,10 +61,14 @@ type PdfOsData = {
   /** Linha de prazo abaixo do serviço (garantia se notasAbaixo não vier no item). */
   prazoLinhaServico?: string;
   layoutModelo1?: OsModelo1Layout;
+  layoutModelo2?: OsModelo1Layout;
+  layoutModelo3?: OsModelo1Layout;
   osExterna?: string;
   finalizado?: string;
   colaborador?: string;
   etapas?: string;
+  producao?: string;
+  pecas?: string;
   urgente?: boolean;
   repeticao?: boolean;
   itens: PdfItem[];
@@ -320,8 +331,12 @@ function aplicarCorLinhaBorda(
   }
 }
 
-function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
-  const lay = normalizarOsModelo1Layout(data.layoutModelo1);
+function renderModeloProducao(
+  pdf: PdfRenderApi,
+  data: PdfOsData,
+  layoutOverride?: OsModelo1Layout
+) {
+  const lay = normalizarOsModelo1Layout(layoutOverride ?? data.layoutModelo1);
   const fontBase = Math.max(7, lay.tamanhoFonte * 0.53);
   const pageWidth = pdf.internal.pageSize.getWidth();
   const yBordaTop = lay.exibirBordas ? OS_MODELO1_BORDA_MARGEM_MM : 0;
@@ -502,6 +517,14 @@ function renderModeloProducao(pdf: PdfRenderApi, data: PdfOsData) {
     pdf.text(`Etapas: ${data.etapas}`.slice(0, 110), 15, y);
     y += 6;
   }
+  if (lay.producao && data.producao) {
+    pdf.text(`Produção: ${data.producao}`.slice(0, 110), 15, y);
+    y += 6;
+  }
+  if (lay.pecas && data.pecas) {
+    pdf.text(`Peças: ${data.pecas}`.slice(0, 110), 15, y);
+    y += 6;
+  }
   if (lay.mensagem?.trim()) {
     const linhasMsg = pdf.splitTextToSize(lay.mensagem.trim(), 180);
     pdf.text(linhasMsg, 15, y);
@@ -578,8 +601,14 @@ function desenharLogoLab(
   }
 }
 
-/** Modelo 2 — comprovante de entrega (layout Smart/DenteArt). */
-function renderModeloComprovante(pdf: PdfRenderApi, data: PdfOsData) {
+/** Modelo 3 — comprovante de entrega A4 (layout Smart/DenteArt). */
+function renderModeloComprovante(
+  pdf: PdfRenderApi,
+  data: PdfOsData,
+  layoutOverride?: OsModelo1Layout
+) {
+  const lay = normalizarOsModelo3Layout(layoutOverride ?? data.layoutModelo3);
+  const fontBase = Math.max(7, lay.tamanhoFonte * 0.53);
   const pageWidth = pdf.internal.pageSize.getWidth();
   const margin = 15;
   const tableRight = pageWidth - margin;
@@ -587,61 +616,97 @@ function renderModeloComprovante(pdf: PdfRenderApi, data: PdfOsData) {
     lab: data.lab,
     cabecalhoRequisicao: data.cabecalhoRequisicao,
     tituloDireita: "Ordem de Serviço",
-    extrasDireita: (yDir, _m, dir) => desenharMetaOsCabecalhoDireita(pdf, data, yDir, dir),
+    exibirLogo: lay.logo,
+    exibirInfoLab: lay.infoLab,
+    extrasDireita: (yDir, _m, dir) => desenharMetaOsCabecalhoDireita(pdf, data, yDir, dir, lay),
   });
 
-  pdf.setFontSize(9);
-  labelValue(pdf, "Núm OS:", String(data.numeroOs), margin, y);
-  labelValue(pdf, "Caixa:", data.caixa, 110, y, "");
-  y += 5;
-  labelValue(pdf, "Cliente:", data.cliente, margin, y);
-  pdf.setFont("helvetica", "normal");
-  pdf.text("Telefones:", 110, y);
-  pdf.setFont("helvetica", "bold");
-  pdf.text(data.telefones || "", 110 + pdf.getTextWidth("Telefones:") + 1.5, y);
-  pdf.setFont("helvetica", "normal");
-  y += 5;
-  labelValue(pdf, "Dentista:", data.dentista, margin, y);
-  pdf.text("Email:", 110, y);
-  pdf.setFont("helvetica", "bold");
-  pdf.text(data.email || "", 110 + pdf.getTextWidth("Email:") + 1.5, y);
-  pdf.setFont("helvetica", "normal");
-  y += 5;
-  pdf.setFont("helvetica", "bold");
-  pdf.text("Paciente:", margin, y);
-  pdf.text(data.paciente || "-", margin + pdf.getTextWidth("Paciente:") + 1.5, y);
-  pdf.setFont("helvetica", "normal");
-  pdf.text("Endereço:", 110, y);
-  pdf.setFont("helvetica", "bold");
-  const enderecoLinhas = pdf.splitTextToSize(data.endereco || "", 75);
-  pdf.text(enderecoLinhas, 110 + pdf.getTextWidth("Endereço:") + 1.5, y);
-  y += Math.max(5, enderecoLinhas.length * 4) + 4;
+  pdf.setFontSize(fontBase);
+  const colDir = 110;
+
+  if (lay.numOs) {
+    labelValue(pdf, "Núm OS:", String(data.numeroOs), margin, y);
+  }
+  if (lay.caixa) {
+    labelValue(pdf, "Caixa:", data.caixa, colDir, y, "");
+  }
+  if (lay.numOs || lay.caixa) y += 5;
+
+  if (lay.cliente) {
+    labelValue(pdf, "Cliente:", data.cliente, margin, y);
+  }
+  if (lay.clienteTel) {
+    pdf.setFont("helvetica", "normal");
+    pdf.text("Telefones:", colDir, y);
+    pdf.setFont("helvetica", "bold");
+    pdf.text(data.telefones || "", colDir + pdf.getTextWidth("Telefones:") + 1.5, y);
+    pdf.setFont("helvetica", "normal");
+  }
+  if (lay.cliente || lay.clienteTel) y += 5;
+
+  if (lay.dentista) {
+    labelValue(pdf, "Dentista:", data.dentista, margin, y);
+  }
+  if (lay.clienteEmail) {
+    pdf.setFont("helvetica", "normal");
+    pdf.text("Email:", colDir, y);
+    pdf.setFont("helvetica", "bold");
+    pdf.text(data.email || "", colDir + pdf.getTextWidth("Email:") + 1.5, y);
+    pdf.setFont("helvetica", "normal");
+  }
+  if (lay.dentista || lay.clienteEmail) y += 5;
+
+  if (lay.paciente) {
+    pdf.setFont("helvetica", "bold");
+    pdf.text("Paciente:", margin, y);
+    pdf.text(data.paciente || "-", margin + pdf.getTextWidth("Paciente:") + 1.5, y);
+    pdf.setFont("helvetica", "normal");
+  }
+  if (lay.clienteEnd) {
+    pdf.setFont("helvetica", "normal");
+    pdf.text("Endereço:", colDir, y);
+    pdf.setFont("helvetica", "bold");
+    const enderecoLinhas = pdf.splitTextToSize(data.endereco || "", 75);
+    pdf.text(enderecoLinhas, colDir + pdf.getTextWidth("Endereço:") + 1.5, y);
+    pdf.setFont("helvetica", "normal");
+    y += Math.max(5, enderecoLinhas.length * 4);
+  } else if (lay.paciente) {
+    y += 5;
+  }
+  y += 4;
 
   pdf.line(margin, y, tableRight, y);
   y += 5;
 
   const colQtd = margin;
   const colDesc = 28;
-  const colDente = 100;
-  const colCor = 118;
-  const colUnit = 148;
-  const colDescPct = 168;
-  const colSubtotal = tableRight;
+  let colDente = 100;
+  let colCor = 118;
+  let colUnit = 148;
+  let colDescPct = 168;
+  let colSubtotal = tableRight;
+  if (lay.subtotal) {
+    colDescPct = tableRight - 22;
+    colUnit = colDescPct - 26;
+    colCor = colUnit - 26;
+    colDente = colCor - 20;
+  }
 
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(9);
+  pdf.setFontSize(fontBase + 1);
   pdf.text("Qtd", colQtd, y);
   pdf.text("Descrição", colDesc, y);
-  pdf.text("Número Dente", colDente, y, { align: "center" });
-  pdf.text("Cor", colCor, y, { align: "center" });
-  pdf.text("Unitário", colUnit, y, { align: "right" });
-  pdf.text("Desc", colDescPct, y, { align: "right" });
-  pdf.text("Subtotal", colSubtotal, y, { align: "right" });
+  if (lay.numDente) pdf.text("Número Dente", colDente, y, { align: "center" });
+  if (lay.corDente) pdf.text("Cor", colCor, y, { align: "center" });
+  if (lay.valorUnit) pdf.text("Unitário", colUnit, y, { align: "right" });
+  if (lay.desconto) pdf.text("Desc", colDescPct, y, { align: "right" });
+  if (lay.subtotal) pdf.text("Subtotal", colSubtotal, y, { align: "right" });
   y += 3;
   pdf.line(margin, y, tableRight, y);
   y += 5;
 
   pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(fontBase);
   let totalServicos = 0;
   let totalDescontos = 0;
 
@@ -655,61 +720,83 @@ function renderModeloComprovante(pdf: PdfRenderApi, data: PdfOsData) {
     totalServicos += bruto;
     totalDescontos += bruto - subtotal;
 
-    const descricaoLinhas = pdf.splitTextToSize(String(item.descricao), 62);
+    const descricaoLargura = lay.subtotal ? 62 : 72;
+    const descricaoLinhas = pdf.splitTextToSize(String(item.descricao), descricaoLargura);
     pdf.text(String(item.qtd), colQtd, y);
     pdf.text(descricaoLinhas, colDesc, y);
-    pdf.text(String(item.dente).slice(0, 10), colDente, y, { align: "center" });
-    pdf.text(String(item.cor).slice(0, 8), colCor, y, { align: "center" });
-    pdf.text(unitarioTabela(item.unitario), colUnit, y, { align: "right" });
-    pdf.text(descontoCelula(item.desconto).replace(".", ","), colDescPct, y, { align: "right" });
-    pdf.text(unitarioTabela(subtotal), colSubtotal, y, { align: "right" });
+    if (lay.numDente) pdf.text(String(item.dente).slice(0, 12), colDente, y, { align: "center" });
+    if (lay.corDente) pdf.text(String(item.cor).slice(0, 10), colCor, y, { align: "center" });
+    if (lay.valorUnit) pdf.text(unitarioTabela(item.unitario), colUnit, y, { align: "right" });
+    if (lay.desconto) {
+      pdf.text(descontoCelula(item.desconto).replace(".", ","), colDescPct, y, { align: "right" });
+    }
+    if (lay.subtotal) {
+      pdf.text(unitarioTabela(subtotal), colSubtotal, y, { align: "right" });
+    }
     y += Math.max(5, descricaoLinhas.length * 4.5) + 1.5;
   });
+
+  if (lay.colaborador && data.colaborador) {
+    pdf.text(`Colaborador: ${data.colaborador}`.slice(0, 110), colDesc, y);
+    y += 5;
+  }
 
   y += 1;
   pdf.line(margin, y, tableRight, y);
   y += 7;
 
   const totalFinal = totalServicos - totalDescontos;
-  const blocoTotalX = 118;
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(9);
-  pdf.text("TOTAL SERVIÇOS", blocoTotalX, y);
-  pdf.text(money(totalServicos), tableRight, y, { align: "right" });
-  y += 5;
-  pdf.text("(-) DESCONTOS", blocoTotalX, y);
-  pdf.text(money(totalDescontos), tableRight, y, { align: "right" });
-  y += 5;
-  pdf.text("(=) TOTAL", blocoTotalX, y);
-  pdf.text(money(totalFinal > 0 ? totalFinal : data.valor), tableRight, y, { align: "right" });
-  y += 5;
+  if (lay.total) {
+    const blocoTotalX = 118;
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(fontBase + 1);
+    pdf.text("TOTAL SERVIÇOS", blocoTotalX, y);
+    pdf.text(money(totalServicos), tableRight, y, { align: "right" });
+    y += 5;
+    pdf.text("(-) DESCONTOS", blocoTotalX, y);
+    pdf.text(money(totalDescontos), tableRight, y, { align: "right" });
+    y += 5;
+    pdf.text("(=) TOTAL", blocoTotalX, y);
+    pdf.text(money(totalFinal > 0 ? totalFinal : data.valor), tableRight, y, { align: "right" });
+    y += 5;
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(fontBase);
+  }
 
-  pdf.setFont("helvetica", "normal");
-  pdf.text("Materiais:", margin, y);
-  if (data.materiais) {
+  if (lay.materialRec && data.materiais) {
+    pdf.text("Materiais:", margin, y);
     pdf.setFont("helvetica", "bold");
     pdf.text(data.materiais.slice(0, 120), margin + pdf.getTextWidth("Materiais:") + 2, y);
     pdf.setFont("helvetica", "normal");
+    y += 6;
   }
-  y += 6;
 
-  const assinaturaLargura = 90;
-  const assinaturaX = (pageWidth - assinaturaLargura) / 2;
-  const assinaturaY = y + 2;
-  pdf.line(assinaturaX, assinaturaY, assinaturaX + assinaturaLargura, assinaturaY);
-  pdf.setFontSize(8);
-  pdf.text("Recebi o(s) serviço(s) descritos acima", pageWidth / 2, assinaturaY + 3.5, {
-    align: "center",
-  });
+  if (lay.mensagem?.trim()) {
+    const linhasMsg = pdf.splitTextToSize(lay.mensagem.trim(), 180);
+    pdf.text(linhasMsg, margin, y);
+    y += linhasMsg.length * 4 + 3;
+  }
 
-  const barcodeValue = `OS${data.numeroOs}`;
-  const barcodeY = assinaturaY + 8;
-  drawCode39(pdf, barcodeValue, margin, barcodeY);
-  pdf.setFontSize(6);
-  pdf.text(barcodeValue, margin, barcodeY + 10);
+  let assinaturaY = y + 2;
+  if (lay.assinatura) {
+    const assinaturaLargura = 90;
+    const assinaturaX = (pageWidth - assinaturaLargura) / 2;
+    pdf.line(assinaturaX, assinaturaY, assinaturaX + assinaturaLargura, assinaturaY);
+    pdf.setFontSize(fontBase - 1);
+    pdf.text("Recebi o(s) serviço(s) descritos acima", pageWidth / 2, assinaturaY + 3.5, {
+      align: "center",
+    });
+    assinaturaY += 8;
+  }
 
-  pdf.setLineWidth(0.4);
-  pdf.line(margin, barcodeY + 14, tableRight, barcodeY + 14);
+  if (lay.codBarras) {
+    const barcodeValue = `OS${data.numeroOs}`;
+    drawCode39(pdf, barcodeValue, margin, assinaturaY);
+    pdf.setFontSize(6);
+    pdf.text(barcodeValue, margin, assinaturaY + 10);
+    pdf.setLineWidth(0.4);
+    pdf.line(margin, assinaturaY + 14, tableRight, assinaturaY + 14);
+  }
 }
 
 const TERMICA_MARGEM = 4;
@@ -994,6 +1081,8 @@ export function PdfOsViewer({
       lab: labImpressaoFromConfig(),
       cabecalhoRequisicao: normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao),
       layoutModelo1: carregarLayoutModelo1(),
+      layoutModelo2: carregarLayoutModelo2(),
+      layoutModelo3: carregarLayoutModelo3(),
     });
   }
 
@@ -1037,13 +1126,19 @@ export function PdfOsViewer({
         return;
       }
 
-      const usarComprovante = formato === "a4" && modelo === "modelo2";
+      const layoutModelo2 = normalizarOsModelo2Layout(dadosPdf.layoutModelo2);
+      const layoutModelo3 = normalizarOsModelo3Layout(dadosPdf.layoutModelo3);
       const pdf = new jsPDF({ unit: "mm", format: criarPdf(formato) });
       const api = pdf as unknown as PdfRenderApi;
-      const renderPagina = () =>
-        usarComprovante
-          ? renderModeloComprovante(api, dadosPdf)
-          : renderModeloProducao(api, dadosPdf);
+      const renderPagina = () => {
+        if (modelo === "modelo3") {
+          return renderModeloComprovante(api, dadosPdf, layoutModelo3);
+        }
+        if (modelo === "modelo2") {
+          return renderModeloProducao(api, dadosPdf, layoutModelo2);
+        }
+        return renderModeloProducao(api, dadosPdf, dadosPdf.layoutModelo1);
+      };
 
       renderPagina();
       if (duasVias) {
@@ -1094,13 +1189,17 @@ export function PdfOsViewer({
         <div>
           <h1 className="text-sm font-semibold">OS {data.numeroOs} — PDF</h1>
           <p className="text-xs text-slate-300">
-            {formato === "termica" && modelo === "modelo3"
-              ? "Comprovante — Térmica 80mm (Modelo 3)"
+            {formato === "a4" && modelo === "modelo3"
+              ? "Comprovante de entrega (A4) — Modelo 3"
               : formato === "termica" && modelo === "modelo4"
                 ? "Comprovante de entrega — Térmica 80mm (Modelo 4)"
-                : formato === "a4" && modelo === "modelo2"
-                  ? "Comprovante de entrega (A4)"
-                  : "Ordem de Serviço"}
+                : formato === "termica" && modelo === "modelo5"
+                  ? "Comprovante de entrega — Térmica 80mm (Modelo 5)"
+                  : formato === "a4" && modelo === "modelo2"
+                    ? "Ordem de Serviço — Modelo 2 (Produção)"
+                    : formato === "a4" && modelo === "modelo1"
+                      ? "Ordem de Serviço — Modelo 1 (Produção)"
+                      : "Ordem de Serviço"}
           </p>
         </div>
         <div className="flex gap-2">

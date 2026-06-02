@@ -2,6 +2,14 @@ import {
   normalizarOsModelo1Layout,
   type OsModelo1Layout,
 } from "@/lib/os-modelo1-layout";
+import {
+  normalizarOsModelo2Layout,
+  type OsModelo2Layout,
+} from "@/lib/os-modelo2-layout";
+import {
+  normalizarOsModelo3Layout,
+  type OsModelo3Layout,
+} from "@/lib/os-modelo3-layout";
 
 export const CONFIG_OS_STORAGE_KEY = "labProteseConfiguracoesOs";
 export const CONFIG_OS_ATUALIZADA_EVENT = "lab-config-os-atualizada";
@@ -34,6 +42,8 @@ export type ConfiguracoesOs = {
   modeloPadrao: ModeloOsId;
   duasVias: Record<ModeloOsId, boolean>;
   layoutModelo1: OsModelo1Layout;
+  layoutModelo2: OsModelo2Layout;
+  layoutModelo3: OsModelo3Layout;
 };
 
 export const CONFIG_OS_PADRAO: ConfiguracoesOs = {
@@ -46,10 +56,31 @@ export const CONFIG_OS_PADRAO: ConfiguracoesOs = {
     modelo5: false,
   },
   layoutModelo1: normalizarOsModelo1Layout(null),
+  layoutModelo2: normalizarOsModelo2Layout(null),
+  layoutModelo3: normalizarOsModelo3Layout(null),
 };
 
 export function formatoPorModeloOs(id: ModeloOsId): "a4" | "termica" {
-  return id === "modelo4" || id === "modelo5" || id === "modelo3" ? "termica" : "a4";
+  return id === "modelo4" || id === "modelo5" ? "termica" : "a4";
+}
+
+export function nomeModeloOs(id: ModeloOsId): string {
+  return MODELOS_OS.find((m) => m.id === id)?.nome ?? id;
+}
+
+/** Modelos disponíveis no modal de impressão para o formato escolhido. */
+export function modelosOsPorFormato(formato: "a4" | "termica"): ModeloOsId[] {
+  return MODELOS_OS_IDS.filter((id) => formatoPorModeloOs(id) === formato);
+}
+
+/** Modelo padrão da config, ou o primeiro do formato se o padrão for de outro formato. */
+export function modeloPadraoParaFormato(
+  cfg: ConfiguracoesOs,
+  formato: "a4" | "termica"
+): ModeloOsId {
+  const lista = modelosOsPorFormato(formato);
+  if (lista.includes(cfg.modeloPadrao)) return cfg.modeloPadrao;
+  return lista[0] ?? cfg.modeloPadrao;
 }
 
 export function normalizarConfiguracoesOs(
@@ -60,6 +91,8 @@ export function normalizarConfiguracoesOs(
       modeloPadrao: CONFIG_OS_PADRAO.modeloPadrao,
       duasVias: { ...CONFIG_OS_PADRAO.duasVias },
       layoutModelo1: normalizarOsModelo1Layout(null),
+      layoutModelo2: normalizarOsModelo2Layout(null),
+      layoutModelo3: normalizarOsModelo3Layout(null),
     };
   }
 
@@ -78,7 +111,17 @@ export function normalizarConfiguracoesOs(
     modeloPadrao,
     duasVias,
     layoutModelo1: normalizarOsModelo1Layout(valor.layoutModelo1),
+    layoutModelo2: normalizarOsModelo2Layout(valor.layoutModelo2),
+    layoutModelo3: normalizarOsModelo3Layout(valor.layoutModelo3),
   };
+}
+
+export function carregarLayoutModelo3(): OsModelo3Layout {
+  return carregarConfiguracoesOs().layoutModelo3;
+}
+
+export function carregarLayoutModelo2(): OsModelo2Layout {
+  return carregarConfiguracoesOs().layoutModelo2;
 }
 
 export function carregarLayoutModelo1(): OsModelo1Layout {

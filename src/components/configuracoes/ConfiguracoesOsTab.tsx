@@ -64,6 +64,14 @@ export function ConfiguracoesOsTab({ onMensagem }: Props) {
       router.push("/app/configuracoes/os/modelo1");
       return;
     }
+    if (id === "modelo2") {
+      router.push("/app/configuracoes/os/modelo2");
+      return;
+    }
+    if (id === "modelo3") {
+      router.push("/app/configuracoes/os/modelo3");
+      return;
+    }
     setModeloEditando(id);
     setPadraoModal(config.modeloPadrao === id);
     setDuasViasModal(config.duasVias[id]);

@@ -19,6 +19,7 @@ import {
   salvarConfiguracoesOs,
   sincronizarConfiguracoesOsDoServidor,
   type ConfiguracoesOs,
+  type ModeloOsId,
 } from "@/lib/configuracoes-os";
 import { configParaLabImpressao, escalaLogoMultiplicador } from "@/lib/lab-logo";
 import {
@@ -30,7 +31,40 @@ import {
   PREVIEW_OS_MODELO1,
   type OsModelo1Layout,
 } from "@/lib/os-modelo1-layout";
+import {
+  CAMPOS_MODELO2_PARES,
+  normalizarOsModelo2Layout,
+  PREVIEW_OS_MODELO2,
+} from "@/lib/os-modelo2-layout";
+import {
+  CAMPOS_MODELO3_GERAL,
+  CAMPOS_MODELO3_PARES,
+  normalizarOsModelo3Layout,
+  PREVIEW_OS_MODELO3,
+} from "@/lib/os-modelo3-layout";
+import { PreviewOsModeloComprovante } from "@/components/configuracoes/ConfiguracoesOsModeloComprovantePreview";
 import { cn } from "@/lib/utils";
+
+type CampoPar = Array<
+  [{ key: keyof OsModelo1Layout; label: string }, { key: keyof OsModelo1Layout; label: string } | null]
+>;
+
+type PreviewAmostra = typeof PREVIEW_OS_MODELO1 & {
+  producao?: string;
+  pecas?: string;
+};
+
+export type ModeloProducaoEditorConfig = {
+  tituloBarra: string;
+  modeloId: Extract<ModeloOsId, "modelo1" | "modelo2" | "modelo3">;
+  layoutKey: "layoutModelo1" | "layoutModelo2" | "layoutModelo3";
+  tipoPreview: "producao" | "comprovante";
+  camposGeral: Array<{ key: keyof OsModelo1Layout; label: string }>;
+  camposPares: CampoPar;
+  amostraPreview: PreviewAmostra;
+  normalizarLayout: (valor?: Partial<OsModelo1Layout> | null) => OsModelo1Layout;
+  lerLayout: (config: ConfiguracoesOs) => OsModelo1Layout;
+};
 
 function CampoNumero({
   label,
@@ -112,12 +146,14 @@ function LinhaSeparador({
   );
 }
 
-function PreviewOsModelo1({
+function PreviewOsModeloProducao({
   cfg,
   layout,
+  amostra,
 }: {
   cfg: ConfigLaboratorio;
   layout: OsModelo1Layout;
+  amostra: PreviewAmostra;
 }) {
   const lab = useMemo(() => configParaLabImpressao(cfg), [cfg]);
   const cab = useMemo(
@@ -131,7 +167,6 @@ function PreviewOsModelo1({
   const escalaLogo = escalaLogoMultiplicador(cfg.logoTamanho);
   const logoW = Math.round(cab.logoTamanhoPx * escalaLogo);
   const logoH = Math.round(logoW * 0.75);
-  const amostra = PREVIEW_OS_MODELO1;
   const fs = layout.tamanhoFonte;
   const fsSmall = Math.max(10, fs - 4);
   const corBorda = normalizarCorBorda(layout.bordas);
@@ -326,6 +361,12 @@ function PreviewOsModelo1({
             <span className="font-bold">{amostra.colaborador}</span>
           </p>
         ) : null}
+        {layout.producao && amostra.producao ? (
+          <p>
+            <span>Produção: </span>
+            <span className="font-bold">{amostra.producao}</span>
+          </p>
+        ) : null}
         {layout.obsServico ? (
           <p>
             <span>Observação: </span>
@@ -357,6 +398,12 @@ function PreviewOsModelo1({
         <p style={{ fontSize: `${fsSmall}px` }}>
           <span>Etapas: </span>
           <span className="font-bold">{amostra.etapas}</span>
+        </p>
+      ) : null}
+      {layout.pecas && amostra.pecas ? (
+        <p style={{ fontSize: `${fsSmall}px` }}>
+          <span>Peças: </span>
+          <span className="font-bold">{amostra.pecas}</span>
         </p>
       ) : null}
       {layout.mensagem.trim() ? (
@@ -410,13 +457,15 @@ function CheckboxCampo({
 function GridCheckboxes({
   layout,
   onPatch,
+  camposPares,
 }: {
   layout: OsModelo1Layout;
   onPatch: (patch: Partial<OsModelo1Layout>) => void;
+  camposPares: CampoPar;
 }) {
   return (
     <div className="space-y-1">
-      {CAMPOS_MODELO1_PARES.map(([esq, dir], idx) => (
+      {camposPares.map(([esq, dir], idx) => (
         <div key={idx} className="grid grid-cols-2 gap-x-2">
           <CheckboxCampo
             label={esq.label}
@@ -438,11 +487,15 @@ function GridCheckboxes({
   );
 }
 
-export function ConfiguracoesOsModelo1Conteudo() {
+export function ConfiguracoesOsModeloProducaoConteudo({
+  editor,
+}: {
+  editor: ModeloProducaoEditorConfig;
+}) {
   const [cfg, setCfg] = useState<ConfigLaboratorio | null>(null);
   const [configOs, setConfigOs] = useState<ConfiguracoesOs>(() => carregarConfiguracoesOs());
   const [layout, setLayout] = useState<OsModelo1Layout>(() =>
-    normalizarOsModelo1Layout(carregarConfiguracoesOs().layoutModelo1)
+    editor.normalizarLayout(editor.lerLayout(carregarConfiguracoesOs()))
   );
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState("");
@@ -458,7 +511,7 @@ export function ConfiguracoesOsModelo1Conteudo() {
       if (!ativo) return;
       setCfg(carregarConfigLaboratorio());
       setConfigOs(cfgOs);
-      setLayout(normalizarOsModelo1Layout(cfgOs.layoutModelo1));
+      setLayout(editor.normalizarLayout(editor.lerLayout(cfgOs)));
       setCarregando(false);
     })();
     const recarregarLab = () => setCfg(carregarConfigLaboratorio());
@@ -467,19 +520,19 @@ export function ConfiguracoesOsModelo1Conteudo() {
       ativo = false;
       window.removeEventListener("lab-config-atualizada", recarregarLab);
     };
-  }, []);
+  }, [editor]);
 
   function patchLayout(patch: Partial<OsModelo1Layout>) {
-    setLayout((atual) => normalizarOsModelo1Layout({ ...atual, ...patch }));
+    setLayout((atual) => editor.normalizarLayout({ ...atual, ...patch }));
   }
 
   async function salvar() {
     setSalvando(true);
     setMensagem("");
-    const layoutNorm = normalizarOsModelo1Layout(layout);
+    const layoutNorm = editor.normalizarLayout(layout);
     const novaConfig: ConfiguracoesOs = {
       ...configOs,
-      layoutModelo1: layoutNorm,
+      [editor.layoutKey]: layoutNorm,
     };
     setConfigOs(novaConfig);
     salvarConfiguracoesOs(novaConfig);
@@ -539,7 +592,7 @@ export function ConfiguracoesOsModelo1Conteudo() {
           </div>
 
           <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-            {CAMPOS_MODELO1_GERAL.map(({ key, label }) => (
+            {editor.camposGeral.map(({ key, label }) => (
               <CheckboxCampo
                 key={key}
                 label={label}
@@ -555,7 +608,7 @@ export function ConfiguracoesOsModelo1Conteudo() {
             onChange={(v) => patchLayout({ tamanhoFonte: v })}
           />
 
-          <GridCheckboxes layout={layout} onPatch={patchLayout} />
+          <GridCheckboxes layout={layout} onPatch={patchLayout} camposPares={editor.camposPares} />
 
           <label className="block">
             <span className="mb-1 block text-[11px] font-semibold text-slate-700">Mensagem</span>
@@ -571,21 +624,21 @@ export function ConfiguracoesOsModelo1Conteudo() {
           <div className="grid grid-cols-2 gap-x-2 border-t border-slate-300/80 pt-2">
             <CheckboxCampo
               label="Modelo padrão"
-              checked={configOs.modeloPadrao === "modelo1"}
+              checked={configOs.modeloPadrao === editor.modeloId}
               onChange={(v) =>
                 setConfigOs((atual) => ({
                   ...atual,
-                  modeloPadrao: v ? "modelo1" : atual.modeloPadrao,
+                  modeloPadrao: v ? editor.modeloId : atual.modeloPadrao,
                 }))
               }
             />
             <CheckboxCampo
               label="Duas vias"
-              checked={configOs.duasVias.modelo1}
+              checked={configOs.duasVias[editor.modeloId]}
               onChange={(v) =>
                 setConfigOs((atual) => ({
                   ...atual,
-                  duasVias: { ...atual.duasVias, modelo1: v },
+                  duasVias: { ...atual.duasVias, [editor.modeloId]: v },
                 }))
               }
             />
@@ -612,7 +665,7 @@ export function ConfiguracoesOsModelo1Conteudo() {
         ) : null}
         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[#3d4248] bg-[#4a4f56] px-4 py-2.5">
           <span className="rounded border border-[#5a6068] bg-[#5a6068] px-3 py-1.5 text-[12px] text-white">
-            Modelo 1 - (Produção)
+            {editor.tituloBarra}
           </span>
           <Link
             href="/app/configuracoes?aba=os"
@@ -622,9 +675,61 @@ export function ConfiguracoesOsModelo1Conteudo() {
           </Link>
         </div>
         <div className="min-h-0 flex-1 overflow-auto p-6">
-          <PreviewOsModelo1 cfg={cfg} layout={layout} />
+          {editor.tipoPreview === "comprovante" ? (
+            <PreviewOsModeloComprovante cfg={cfg} layout={layout} />
+          ) : (
+            <PreviewOsModeloProducao cfg={cfg} layout={layout} amostra={editor.amostraPreview} />
+          )}
         </div>
       </div>
     </div>
   );
+}
+
+const EDITOR_MODELO1: ModeloProducaoEditorConfig = {
+  tituloBarra: "Modelo 1 - (Produção)",
+  modeloId: "modelo1",
+  layoutKey: "layoutModelo1",
+  tipoPreview: "producao",
+  camposGeral: CAMPOS_MODELO1_GERAL,
+  camposPares: CAMPOS_MODELO1_PARES,
+  amostraPreview: PREVIEW_OS_MODELO1,
+  normalizarLayout: normalizarOsModelo1Layout,
+  lerLayout: (config) => config.layoutModelo1,
+};
+
+const EDITOR_MODELO2: ModeloProducaoEditorConfig = {
+  tituloBarra: "Modelo 2 - (Produção)",
+  modeloId: "modelo2",
+  layoutKey: "layoutModelo2",
+  tipoPreview: "producao",
+  camposGeral: CAMPOS_MODELO1_GERAL,
+  camposPares: CAMPOS_MODELO2_PARES,
+  amostraPreview: PREVIEW_OS_MODELO2,
+  normalizarLayout: normalizarOsModelo2Layout,
+  lerLayout: (config) => config.layoutModelo2,
+};
+
+const EDITOR_MODELO3: ModeloProducaoEditorConfig = {
+  tituloBarra: "Modelo 3 - (Comprovante de Entrega)",
+  modeloId: "modelo3",
+  layoutKey: "layoutModelo3",
+  tipoPreview: "comprovante",
+  camposGeral: CAMPOS_MODELO3_GERAL,
+  camposPares: CAMPOS_MODELO3_PARES,
+  amostraPreview: PREVIEW_OS_MODELO3,
+  normalizarLayout: normalizarOsModelo3Layout,
+  lerLayout: (config) => config.layoutModelo3,
+};
+
+export function ConfiguracoesOsModelo1Conteudo() {
+  return <ConfiguracoesOsModeloProducaoConteudo editor={EDITOR_MODELO1} />;
+}
+
+export function ConfiguracoesOsModelo2Conteudo() {
+  return <ConfiguracoesOsModeloProducaoConteudo editor={EDITOR_MODELO2} />;
+}
+
+export function ConfiguracoesOsModelo3Conteudo() {
+  return <ConfiguracoesOsModeloProducaoConteudo editor={EDITOR_MODELO3} />;
 }

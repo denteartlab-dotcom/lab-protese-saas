@@ -29,10 +29,12 @@ export type OsModelo1Layout = {
   finalizado: boolean;
   colaborador: boolean;
   produtos: boolean;
+  producao: boolean;
   obsFicha: boolean;
   obsServico: boolean;
   materialRec: boolean;
   etapas: boolean;
+  pecas: boolean;
   assinatura: boolean;
   codBarras: boolean;
 };
@@ -65,10 +67,12 @@ export const OS_MODELO1_LAYOUT_PADRAO: OsModelo1Layout = {
   finalizado: true,
   colaborador: true,
   produtos: true,
+  producao: false,
   obsFicha: true,
   obsServico: true,
   materialRec: true,
   etapas: true,
+  pecas: false,
   assinatura: true,
   codBarras: true,
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Printer, X } from "lucide-react";
 import { Button, Modal, Select } from "@/components/ui";
 import {
@@ -10,7 +10,13 @@ import {
 } from "@/lib/trabalho-os-segmento";
 import {
   carregarConfiguracoesOs,
+  CONFIG_OS_ATUALIZADA_EVENT,
   formatoPorModeloOs,
+  modelosOsPorFormato,
+  modeloPadraoParaFormato,
+  nomeModeloOs,
+  sincronizarConfiguracoesOsDoServidor,
+  type ConfiguracoesOs,
   type ModeloOsId,
 } from "@/lib/configuracoes-os";
 
@@ -46,12 +52,23 @@ export function montarUrlImpressaoOs(
   if (opcoes.formato === "a4" && opcoes.modelo !== "modelo1") {
     params.set("modelo", opcoes.modelo);
   }
-  if (opcoes.formato === "termica" && opcoes.modelo !== "modelo3") {
+  if (opcoes.formato === "termica" && opcoes.modelo !== "modelo4") {
     params.set("modelo", opcoes.modelo);
   }
   if (opcoes.duasVias) params.set("vias", "2");
   const qs = params.toString();
   return `/app/trabalhos/${trabalhoId}/imprimir${qs ? `?${qs}` : ""}`;
+}
+
+function aplicarConfigNoModal(cfg: ConfiguracoesOs, multiplosSegmentos: boolean) {
+  const modelo = cfg.modeloPadrao;
+  const formato = formatoPorModeloOs(modelo);
+  return {
+    formato,
+    modelo,
+    somenteItem: multiplosSegmentos ? "sim" : "nao",
+    duasVias: cfg.duasVias[modelo] ? "sim" : "nao",
+  };
 }
 
 type ImprimirOsModalProps = {
@@ -67,33 +84,73 @@ export function ImprimirOsModal({
   trabalho,
   multiplosSegmentos,
 }: ImprimirOsModalProps) {
+  const [configOs, setConfigOs] = useState<ConfiguracoesOs>(() => carregarConfiguracoesOs());
+  const [sincronizando, setSincronizando] = useState(false);
   const [formato, setFormato] = useState<FormatoImpressaoOs>("a4");
-  const [modelo, setModelo] = useState("modelo1");
+  const [modelo, setModelo] = useState<ModeloOsId>("modelo1");
   const [somenteItem, setSomenteItem] = useState("sim");
   const [duasVias, setDuasVias] = useState("nao");
 
+  const recarregarConfig = useCallback(async () => {
+    setSincronizando(true);
+    try {
+      const cfg = await sincronizarConfiguracoesOsDoServidor();
+      setConfigOs(cfg);
+      return cfg;
+    } catch {
+      const cfg = carregarConfiguracoesOs();
+      setConfigOs(cfg);
+      return cfg;
+    } finally {
+      setSincronizando(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!open) return;
-    const cfg = carregarConfiguracoesOs();
-    const modeloPadrao = cfg.modeloPadrao as ModeloOsId;
-    setFormato(formatoPorModeloOs(modeloPadrao));
-    setModelo(modeloPadrao);
-    setSomenteItem(multiplosSegmentos ? "sim" : "nao");
-    setDuasVias(cfg.duasVias[modeloPadrao] ? "sim" : "nao");
-  }, [open, multiplosSegmentos, trabalho?.id]);
+    let ativo = true;
+    void recarregarConfig().then((cfg) => {
+      if (!ativo) return;
+      const estado = aplicarConfigNoModal(cfg, multiplosSegmentos);
+      setFormato(estado.formato);
+      setModelo(estado.modelo);
+      setSomenteItem(estado.somenteItem);
+      setDuasVias(estado.duasVias);
+    });
+    return () => {
+      ativo = false;
+    };
+  }, [open, multiplosSegmentos, trabalho?.id, recarregarConfig]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = () => {
+      const cfg = carregarConfiguracoesOs();
+      setConfigOs(cfg);
+    };
+    window.addEventListener(CONFIG_OS_ATUALIZADA_EVENT, handler);
+    return () => window.removeEventListener(CONFIG_OS_ATUALIZADA_EVENT, handler);
+  }, [open]);
+
+  const modelosA4 = useMemo(() => modelosOsPorFormato("a4"), []);
+  const modelosTermica = useMemo(() => modelosOsPorFormato("termica"), []);
 
   function aoMudarFormato(novo: FormatoImpressaoOs) {
     setFormato(novo);
-    if (novo === "termica") setModelo("modelo3");
-    else if (novo === "a4") setModelo("modelo1");
+    if (novo === "etiquetas") return;
+    const fmt = novo as "a4" | "termica";
+    const proximo = modeloPadraoParaFormato(configOs, fmt);
+    setModelo(proximo);
+    setDuasVias(configOs.duasVias[proximo] ? "sim" : "nao");
   }
 
   function aoMudarModelo(novo: string) {
-    setModelo(novo);
-    const cfg = carregarConfiguracoesOs();
     const id = novo as ModeloOsId;
-    if (cfg.duasVias[id] !== undefined) {
-      setDuasVias(cfg.duasVias[id] ? "sim" : "nao");
+    setModelo(id);
+    setDuasVias(configOs.duasVias[id] ? "sim" : "nao");
+    const fmtModelo = formatoPorModeloOs(id);
+    if (formato !== "etiquetas" && fmtModelo !== formato) {
+      setFormato(fmtModelo);
     }
   }
 
@@ -116,6 +173,14 @@ export function ImprimirOsModal({
     trabalho?.tipoProtese?.trim() ||
     (segmentoLabel !== "Serviço" ? segmentoLabel : "Serviço");
 
+  const modelosDoFormato =
+    formato === "a4" ? modelosA4 : formato === "termica" ? modelosTermica : [];
+
+  function rotuloOpcaoModelo(id: ModeloOsId) {
+    const nome = nomeModeloOs(id);
+    return id === configOs.modeloPadrao ? `${nome} (padrão)` : nome;
+  }
+
   return (
     <Modal open={open} onClose={onClose} title="Imprimir Ordem de Serviço" size="lg">
       {trabalho && (
@@ -128,6 +193,10 @@ export function ImprimirOsModal({
               </span>
             ) : null}
           </div>
+
+          {sincronizando ? (
+            <p className="text-center text-xs text-slate-500">Sincronizando modelos da configuração…</p>
+          ) : null}
 
           <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-700">
             <label className="flex cursor-pointer items-center gap-2">
@@ -163,28 +232,18 @@ export function ImprimirOsModal({
           </div>
 
           <div className="grid gap-3 md:grid-cols-3">
-            {formato === "a4" ? (
+            {formato === "a4" || formato === "termica" ? (
               <Select
-                label="Modelo OS (A4)"
+                label={formato === "a4" ? "Modelo OS (A4)" : "Modelo OS (Térmica 80mm)"}
                 value={modelo}
                 onChange={(e) => aoMudarModelo(e.target.value)}
+                disabled={sincronizando || modelosDoFormato.length === 0}
               >
-                <option value="modelo1">Modelo 1 — Produção</option>
-                <option value="modelo2">Modelo 2 — Comprovante de entrega</option>
-              </Select>
-            ) : formato === "termica" ? (
-              <Select
-                label="Modelo OS (Térmica 80mm)"
-                value={modelo}
-                onChange={(e) => aoMudarModelo(e.target.value)}
-              >
-                <option value="modelo3">Modelo 3 - (Comprovante de Entrega)</option>
-                <option value="modelo4">
-                  Modelo 4 - (Impressora térmica 80mm - Epson T20)
-                </option>
-                <option value="modelo5">
-                  Modelo 5 - (Comprovante de Entrega - Impressora térmica 80mm - Epson T20)
-                </option>
+                {modelosDoFormato.map((id) => (
+                  <option key={id} value={id}>
+                    {rotuloOpcaoModelo(id)}
+                  </option>
+                ))}
               </Select>
             ) : (
               <div className="space-y-1">
@@ -225,6 +284,19 @@ export function ImprimirOsModal({
             </Select>
           </div>
 
+          {formato !== "etiquetas" ? (
+            <p className="text-center text-xs text-slate-500">
+              Modelos conforme{" "}
+              <span className="font-medium">Configurações → Ordem de Serviço</span>
+              {configOs.modeloPadrao ? (
+                <>
+                  {" "}
+                  · padrão: <span className="font-medium">{nomeModeloOs(configOs.modeloPadrao)}</span>
+                </>
+              ) : null}
+            </p>
+          ) : null}
+
           {multiplosSegmentos ? (
             <p className="text-center text-xs text-slate-500">
               Com <strong>Sim</strong>, a requisição inclui apenas o item desta linha (
@@ -238,6 +310,7 @@ export function ImprimirOsModal({
               type="button"
               className="bg-emerald-600 hover:bg-emerald-700"
               onClick={imprimir}
+              disabled={sincronizando || (formato !== "etiquetas" && !modelo)}
             >
               <Printer className="h-4 w-4" />
               Imprimir

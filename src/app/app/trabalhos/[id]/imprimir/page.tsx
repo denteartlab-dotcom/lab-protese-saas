@@ -122,12 +122,12 @@ async function ImprimirOSConteudo({
         ? "modelo5"
         : modeloRaw === "modelo4"
           ? "modelo4"
-          : "modelo3"
-      : modeloRaw === "modelo2" ||
-          modeloRaw === "modelo3" ||
-          modeloRaw === "comprovante"
-        ? "modelo2"
-        : "modelo1";
+          : "modelo4"
+      : modeloRaw === "modelo3" || modeloRaw === "comprovante"
+        ? "modelo3"
+        : modeloRaw === "modelo2"
+          ? "modelo2"
+          : "modelo1";
   const segmentoParam = String(Array.isArray(sp.segmento) ? sp.segmento[0] : sp.segmento || "");
 
   /** Só campos usados no PDF — evita falha se o Neon estiver sem colunas novas do schema. */
@@ -314,6 +314,8 @@ async function ImprimirOSConteudo({
         prazoLinhaServico,
         urgente,
         repeticao,
+        producao: STATUS_TRABALHO[statusServico]?.label || statusServico || "",
+        pecas: empty(t.dentes),
         itens,
       }}
     />

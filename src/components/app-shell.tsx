@@ -118,7 +118,9 @@ function AppShellInner({
   const isPrint =
     pathname.includes("/imprimir") ||
     pathname.startsWith("/app/configuracoes/cabecalho") ||
-    pathname.startsWith("/app/configuracoes/os/modelo1");
+    pathname.startsWith("/app/configuracoes/os/modelo1") ||
+    pathname.startsWith("/app/configuracoes/os/modelo2") ||
+    pathname.startsWith("/app/configuracoes/os/modelo3");
   const isModuloColaborador = pathname === "/app/producao/modulo";
   const isDashboard = pathname === "/app";
   const [darkMode, setDarkMode] = useState(false);
