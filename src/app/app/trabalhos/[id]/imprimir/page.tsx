@@ -105,10 +105,12 @@ async function ImprimirOSConteudo({
   id,
   sp,
   nomeUsuarioSessao,
+  usuarioSessaoId,
 }: {
   id: string;
   sp: Record<string, string | string[] | undefined>;
   nomeUsuarioSessao: string;
+  usuarioSessaoId: string;
 }) {
   const somenteItem = searchFlag(sp.somenteItem);
   const duasVias = sp.vias === "2" || searchFlag(sp.duasVias);
@@ -255,14 +257,33 @@ async function ImprimirOSConteudo({
         OR: [{ numeroOs: t.numeroOs }, { trabalhoId: t.id }],
       },
       orderBy: { dataAlteracao: "asc" },
-      select: { usuarioNome: true },
+      select: { usuarioNome: true, usuarioId: true },
     });
-    usuarioCriou = logCriacao?.usuarioNome?.trim() || "";
+    if (logCriacao?.usuarioId) {
+      const userCriador = await prisma.user.findUnique({
+        where: { id: logCriacao.usuarioId },
+        select: { name: true, colaboradorNome: true },
+      });
+      usuarioCriou =
+        userCriador?.name?.trim() ||
+        userCriador?.colaboradorNome?.trim() ||
+        logCriacao.usuarioNome?.trim() ||
+        "";
+    } else {
+      usuarioCriou = logCriacao?.usuarioNome?.trim() || "";
+    }
   } catch (err) {
     console.error("imprimir: usuário criador OS", { id, err });
   }
   if (!usuarioCriou) {
-    usuarioCriou = nomeUsuarioSessao.trim();
+    const usuarioAtual = await prisma.user.findUnique({
+      where: { id: usuarioSessaoId },
+      select: { name: true, colaboradorNome: true },
+    });
+    usuarioCriou =
+      usuarioAtual?.name?.trim() ||
+      usuarioAtual?.colaboradorNome?.trim() ||
+      nomeUsuarioSessao.trim();
   }
 
   return (
@@ -318,7 +339,12 @@ export default async function ImprimirOSPage({
   const sp = await searchParams;
 
   try {
-    return await ImprimirOSConteudo({ id, sp, nomeUsuarioSessao: session.name || "" });
+    return await ImprimirOSConteudo({
+      id,
+      sp,
+      nomeUsuarioSessao: session.name || "",
+      usuarioSessaoId: session.id,
+    });
   } catch (err) {
     console.error("imprimir OS", { id, err });
     const prismaCode =

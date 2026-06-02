@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Home } from "lucide-react";
 import { Button } from "@/components/ui";
+import { usePermissoesApp } from "@/components/PermissoesAppProvider";
 import {
   DadosLaboratorioForm,
   type TipoMensagemForm,
@@ -37,6 +38,16 @@ const abasPagina = [
   { id: "backup", labelKey: "settings.backup" as MessageKey },
 ];
 
+const abaPermissaoId: Record<string, string> = {
+  dados: "configuracoes-dados",
+  logo: "configuracoes-logo",
+  idioma: "configuracoes-idioma",
+  horario: "configuracoes-horario",
+  nfse: "configuracoes-nfse",
+  boletos: "configuracoes-boletos",
+  backup: "configuracoes-backup",
+};
+
 const titulosAbaKeys: Record<string, MessageKey> = {
   dados: "settings.dadosLabTitulo",
   logo: "settings.logo",
@@ -58,17 +69,30 @@ const titulosAbaKeys: Record<string, MessageKey> = {
 
 function ConfiguracoesConteudo() {
   const { t } = useI18n();
+  const { acessoTotal, permissoesModulos } = usePermissoesApp();
   const router = useRouter();
   const searchParams = useSearchParams();
   const aba = searchParams.get("aba") || "dados";
   const titulo = titulosAbaKeys[aba] ? t(titulosAbaKeys[aba]) : t("settings.titulo");
-  const abaNaPagina = abasPagina.some((item) => item.id === aba);
+  const abasPermitidas = abasPagina.filter((item) => {
+    if (acessoTotal) return true;
+    const permissaoId = abaPermissaoId[item.id];
+    if (!permissaoId) return true;
+    return permissoesModulos?.[permissaoId]?.ver !== false;
+  });
+  const abaNaPagina = abasPermitidas.some((item) => item.id === aba);
 
   const [form, setForm] = useState<ConfigLaboratorio | null>(null);
   const [inicial, setInicial] = useState<ConfigLaboratorio | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [mensagemTipo, setMensagemTipo] = useState<TipoMensagemForm>("info");
+
+  useEffect(() => {
+    if (!abasPermitidas.length) return;
+    if (abasPermitidas.some((item) => item.id === aba)) return;
+    router.replace(`/app/configuracoes?aba=${abasPermitidas[0].id}`);
+  }, [aba, abasPermitidas, router]);
 
   useEffect(() => {
     let ativo = true;
@@ -148,7 +172,7 @@ function ConfiguracoesConteudo() {
         </p>
 
         <div className="mt-3 flex flex-wrap gap-0">
-          {abasPagina.map((item) => {
+          {abasPermitidas.map((item) => {
             const ativa = aba === item.id;
             return (
               <Link
