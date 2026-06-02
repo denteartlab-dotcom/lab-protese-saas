@@ -230,19 +230,12 @@ function desenharMetaOsCabecalhoDireita(
   pdf.text(String(data.numeroOs), dir, yDir, { align: "right" });
   yDir += 6;
 
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(8.5);
-  pdf.text("Data", dir, yDir, { align: "right" });
-  yDir += 3.5;
   pdf.setFont("helvetica", "normal");
-  pdf.text(data.dataEntrada?.trim() || "—", dir, yDir, { align: "right" });
+  pdf.setFontSize(8.5);
+  pdf.text(`Data: ${data.dataEntrada?.trim() || "—"}`, dir, yDir, { align: "right" });
   yDir += 4.5;
 
-  pdf.setFont("helvetica", "bold");
-  pdf.text("Status", dir, yDir, { align: "right" });
-  yDir += 3.5;
-  pdf.setFont("helvetica", "normal");
-  pdf.text(data.status?.trim() || "—", dir, yDir, { align: "right" });
+  pdf.text(`Status: ${data.status?.trim() || "—"}`, dir, yDir, { align: "right" });
   yDir += 4.5;
 
   const usuario = (data.usuarioCriou || "").trim();
