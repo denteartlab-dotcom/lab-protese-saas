@@ -528,8 +528,7 @@ export default function OrdemServicoPage() {
       }
     }
 
-    window.addEventListener("focus", carregarOpcoesTerceirizados);
-    return () => window.removeEventListener("focus", carregarOpcoesTerceirizados);
+    carregarOpcoesTerceirizados();
   }, [paginaPronta]);
 
   useEffect(() => {
@@ -559,8 +558,7 @@ export default function OrdemServicoPage() {
       }
     }
 
-    window.addEventListener("focus", carregarMateriaisDentista);
-    return () => window.removeEventListener("focus", carregarMateriaisDentista);
+    carregarMateriaisDentista();
   }, [paginaPronta]);
 
   useEffect(() => {

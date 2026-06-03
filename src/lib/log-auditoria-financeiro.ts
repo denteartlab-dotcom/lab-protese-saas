@@ -27,6 +27,8 @@ export type OpcoesAuditoriaLancamento = {
   parcelaTotal?: number;
   numeroFatura?: number;
   eventoRecebimento?: boolean;
+  /** Evita nova consulta ao usuário em lote de parcelas. */
+  usuarioNome?: string;
 };
 
 function moneyBr(value: number) {
@@ -122,11 +124,29 @@ export async function auditarCriacaoLancamento(
     parcelaNumero: parcela.numero,
     parcelaTotal: parcela.total,
     usuarioId: session.id,
-    usuarioNome: await nomeUsuarioParaLogAuditoria(session),
+    usuarioNome:
+      opts?.usuarioNome ?? (await nomeUsuarioParaLogAuditoria(session)),
     detalhes: detalhesLancamento(lancamento),
   });
 
   return { numeroFatura };
+}
+
+/** Várias parcelas de despesa em uma única gravação (uma consulta de usuário). */
+export async function auditarCriacaoDespesasParceladas(
+  session: SessionUser,
+  lancamentos: LancamentoAudit[]
+) {
+  if (!lancamentos.length) return;
+  const usuarioNome = await nomeUsuarioParaLogAuditoria(session);
+  const total = lancamentos.length;
+  for (let i = 0; i < lancamentos.length; i++) {
+    await auditarCriacaoLancamento(session, lancamentos[i], {
+      usuarioNome,
+      parcelaNumero: i + 1,
+      parcelaTotal: total,
+    });
+  }
 }
 
 export async function auditarAlteracaoLancamento(
@@ -235,6 +255,7 @@ export async function auditarCriacaoReceitasParceladas(
 ) {
   if (!lancamentos.length) return;
   const numeroFatura = await proximoNumeroFaturaReceita();
+  const usuarioNome = await nomeUsuarioParaLogAuditoria(session);
   const total = lancamentos.length;
 
   for (let i = 0; i < lancamentos.length; i++) {
@@ -242,6 +263,7 @@ export async function auditarCriacaoReceitasParceladas(
       numeroFatura,
       parcelaNumero: i + 1,
       parcelaTotal: total,
+      usuarioNome,
     });
   }
 

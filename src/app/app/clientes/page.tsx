@@ -204,19 +204,15 @@ export default function ClientesPage() {
   }, [q, mostrarExcluidos]);
 
   useEffect(() => {
+    const local = carregarNomesTabelasPreco();
+    if (local.length) setTabelasPreco(local);
     void recarregarTabelasPreco();
     const aoAtualizar = () => void recarregarTabelasPreco();
     window.addEventListener(TABELA_PRECOS_EVENT, aoAtualizar);
-    window.addEventListener("focus", aoAtualizar);
     return () => {
       window.removeEventListener(TABELA_PRECOS_EVENT, aoAtualizar);
-      window.removeEventListener("focus", aoAtualizar);
     };
   }, []);
-
-  useEffect(() => {
-    if (open) void recarregarTabelasPreco();
-  }, [open]);
 
   useEffect(() => {
     if (open && abaModal === "configuracao") void recarregarTabelasPreco();
@@ -241,8 +237,9 @@ export default function ClientesPage() {
     },
   });
 
-  async function openNew() {
-    const tabelas = await carregarNomesTabelasPrecoRemoto();
+  function openNew() {
+    const tabelasLocal = carregarNomesTabelasPreco();
+    const tabelas = tabelasLocal.length ? tabelasLocal : tabelasPreco;
     setEditing(null);
     ultimoCepBuscado.current = "";
     setForm({
@@ -251,6 +248,7 @@ export default function ClientesPage() {
     });
     setAbaModal("dados");
     setOpen(true);
+    void recarregarTabelasPreco();
   }
 
   function openEdit(c: Cliente) {

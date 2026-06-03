@@ -133,9 +133,7 @@ export function ContaBancariaConteudo() {
     setContas(carregarContasBancarias());
     setMovimentacoes(carregarMovimentacoesConta());
     try {
-      const res = await fetch(`/api/financeiro?_=${Date.now()}`, {
-        cache: "no-store",
-      });
+      const res = await fetch("/api/financeiro");
       if (res.ok) {
         const json = await res.json();
         setLancamentos(json.lancamentos || []);

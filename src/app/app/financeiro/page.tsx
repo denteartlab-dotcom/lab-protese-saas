@@ -264,6 +264,7 @@ function FinanceiroReceberConteudo() {
   const searchParams = useSearchParams();
   const notifDeepLinkFeito = useRef(false);
   const saveEmAndamentoRef = useRef(false);
+  const referenciasCarregadasRef = useRef(false);
   const [salvandoLancamento, setSalvandoLancamento] = useState(false);
   const [data, setData] = useState<{
     lancamentos: Lancamento[];
@@ -358,14 +359,8 @@ function FinanceiroReceberConteudo() {
     }
   }
 
-  async function load() {
-    const cacheBust = Date.now();
-    const [financeiroRes, clientesRes, trabalhosRes] = await Promise.all([
-      fetch(`/api/financeiro?tipo=receita&_=${cacheBust}`, { cache: "no-store" }),
-      fetch(`/api/clientes?_=${cacheBust}`, { cache: "no-store" }),
-      fetch(`/api/trabalhos?_=${cacheBust}`, { cache: "no-store" }),
-    ]);
-
+  async function carregarLancamentosReceita() {
+    const financeiroRes = await fetch("/api/financeiro?tipo=receita");
     const financeiroData = await lerJsonResposta<{
       lancamentos?: Lancamento[];
       resumo?: { totalReceitas: number; totalDespesas: number; saldo: number; receitasPendentes: number };
@@ -382,29 +377,52 @@ function FinanceiroReceberConteudo() {
         lancamentos: [],
         resumo: { totalReceitas: 0, totalDespesas: 0, saldo: 0, receitasPendentes: 0 },
       });
-    } else {
-      setData({
-        lancamentos: financeiroData.lancamentos,
-        resumo: financeiroData.resumo || {
-          totalReceitas: 0,
-          totalDespesas: 0,
-          saldo: 0,
-          receitasPendentes: 0,
-        },
-      });
+      return;
     }
 
+    setData({
+      lancamentos: financeiroData.lancamentos,
+      resumo: financeiroData.resumo || {
+        totalReceitas: 0,
+        totalDespesas: 0,
+        saldo: 0,
+        receitasPendentes: 0,
+      },
+    });
+  }
+
+  async function carregarReferencias() {
+    const [clientesRes, trabalhosRes] = await Promise.all([
+      fetch("/api/clientes"),
+      fetch("/api/trabalhos"),
+    ]);
     const clientesData = await lerJsonResposta<Cliente[]>(clientesRes);
     if (Array.isArray(clientesData)) setClientes(clientesData);
-
     const trabalhosData = await lerJsonResposta<Trabalho[]>(trabalhosRes);
     if (Array.isArray(trabalhosData)) setTrabalhos(trabalhosData);
+    referenciasCarregadasRef.current = true;
+  }
 
+  async function load(opts?: { comReferencias?: boolean }) {
+    const precisaReferencias =
+      opts?.comReferencias ?? !referenciasCarregadasRef.current;
+    if (precisaReferencias) {
+      await Promise.all([carregarLancamentosReceita(), carregarReferencias()]);
+      return;
+    }
+    await carregarLancamentosReceita();
+  }
+
+  async function loadPosMutacao() {
+    await Promise.all([carregarLancamentosReceita(), fetch("/api/trabalhos").then(async (res) => {
+      const trabalhosData = await lerJsonResposta<Trabalho[]>(res);
+      if (Array.isArray(trabalhosData)) setTrabalhos(trabalhosData);
+    })]);
     notificarFinanceiroAtualizado();
   }
 
   useEffect(() => {
-    load();
+    void load({ comReferencias: true });
   }, []);
 
   const receitasFiltradas = useMemo(() => {
@@ -712,7 +730,10 @@ function FinanceiroReceberConteudo() {
     () => trabalhos.filter((trabalho) => osSelecionadas.includes(trabalho.id)),
     [trabalhos, osSelecionadas]
   );
-  const totalNaoFaturados = trabalhosNaoFaturados.reduce((sum, trabalho) => sum + valorTrabalho(trabalho), 0);
+  const totalNaoFaturados = useMemo(
+    () => trabalhosNaoFaturados.reduce((sum, trabalho) => sum + valorTrabalho(trabalho), 0),
+    [trabalhosNaoFaturados]
+  );
   const valorOsSelecionadas = trabalhosSelecionados.reduce((sum, trabalho) => sum + valorTrabalho(trabalho), 0);
   const valorBruto = form.semOs ? parseDecimal(form.valor || "0") : valorOsSelecionadas;
   const descontoBase = parseDecimal(form.desconto || "0");
@@ -951,7 +972,7 @@ function FinanceiroReceberConteudo() {
       recebido: false,
     });
     setOsSelecionadas([]);
-    await load();
+    await loadPosMutacao();
     } finally {
       saveEmAndamentoRef.current = false;
       setSalvandoLancamento(false);
@@ -964,7 +985,7 @@ function FinanceiroReceberConteudo() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "pago" }),
     });
-    load();
+    await loadPosMutacao();
   }
 
   async function remove(id: string, contextoCliente?: ClienteReceber) {
@@ -1024,13 +1045,26 @@ function FinanceiroReceberConteudo() {
       message: "Deseja realmente excluir esse lançamento?",
       aviso: avisos.length > 0 ? avisos.join("\n\n") : undefined,
       onConfirm: async () => {
-        await Promise.all(idsParaExcluir.map((lancamentoId) => fetch(`/api/financeiro/${lancamentoId}`, { method: "DELETE" })));
+        const idsSet = new Set(idsParaExcluir);
+        setData((prev) =>
+          prev
+            ? {
+                ...prev,
+                lancamentos: prev.lancamentos.filter((l) => !idsSet.has(l.id)),
+              }
+            : prev
+        );
         setNotaCliente(null);
         setFaturaEditando(null);
         setDetalheRecebimento(null);
         setReciboRecebimento(null);
         setClienteCollapseAberto(null);
-        await load();
+        await Promise.all(
+          idsParaExcluir.map((lancamentoId) =>
+            fetch(`/api/financeiro/${lancamentoId}`, { method: "DELETE" })
+          )
+        );
+        await loadPosMutacao();
       },
     });
   }
@@ -1045,7 +1079,7 @@ function FinanceiroReceberConteudo() {
           setDetalheRecebimento(null);
           setReciboRecebimento(null);
           setClienteCollapseAberto(null);
-          await load();
+          await loadPosMutacao();
         },
       });
       return;
@@ -1060,7 +1094,7 @@ function FinanceiroReceberConteudo() {
           setDetalheRecebimento(null);
           setReciboRecebimento(null);
           setClienteCollapseAberto(null);
-          await load();
+          await loadPosMutacao();
         },
       });
       return;
@@ -1102,7 +1136,7 @@ function FinanceiroReceberConteudo() {
         setDetalheRecebimento(null);
         setReciboRecebimento(null);
         setClienteCollapseAberto(null);
-        await load();
+        await loadPosMutacao();
       },
     });
   }
@@ -1138,7 +1172,7 @@ function FinanceiroReceberConteudo() {
     });
     setFaturaEditando(null);
     setOsRemovidasEdicao([]);
-    load();
+    void loadPosMutacao();
   }
 
   function removerOsDaEdicao(trabalhoId: string) {
@@ -1243,7 +1277,7 @@ function FinanceiroReceberConteudo() {
     }
     setRecebendoCliente(null);
     setFaturasSelecionadas([]);
-    load();
+    void loadPosMutacao();
   }
 
   function toggleFatura(id: string) {

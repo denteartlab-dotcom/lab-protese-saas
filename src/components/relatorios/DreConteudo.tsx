@@ -167,10 +167,10 @@ export function DreConteudo() {
     return [atual - 2, atual - 1, atual, atual + 1];
   }, []);
 
-  const recarregar = useCallback(async () => {
-    setCarregando(true);
+  const recarregar = useCallback(async (silencioso = false) => {
+    if (!silencioso) setCarregando(true);
     try {
-      const res = await fetch("/api/financeiro", { cache: "no-store" });
+      const res = await fetch("/api/financeiro");
       const data = await res.json();
       setLancamentos(Array.isArray(data.lancamentos) ? data.lancamentos : []);
       setPlanoContas(carregarPlanoContas());
@@ -184,10 +184,18 @@ export function DreConteudo() {
   useEffect(() => {
     void recarregar();
     const onPlano = () => setPlanoContas(carregarPlanoContas());
-    const onFinanceiro = () => void recarregar();
+    let financeiroTimer: ReturnType<typeof setTimeout> | null = null;
+    const onFinanceiro = () => {
+      if (financeiroTimer) clearTimeout(financeiroTimer);
+      financeiroTimer = setTimeout(() => {
+        financeiroTimer = null;
+        void recarregar(true);
+      }, 320);
+    };
     window.addEventListener("labProtesePlanoContasAtualizado", onPlano);
     window.addEventListener(FINANCEIRO_ATUALIZADO_EVENT, onFinanceiro);
     return () => {
+      if (financeiroTimer) clearTimeout(financeiroTimer);
       window.removeEventListener("labProtesePlanoContasAtualizado", onPlano);
       window.removeEventListener(FINANCEIRO_ATUALIZADO_EVENT, onFinanceiro);
     };

@@ -587,12 +587,10 @@ export function DashboardGerencialConteudo() {
     return Array.from({ length: 6 }, (_, i) => atual - 3 + i);
   }, []);
 
-  const carregar = useCallback(async () => {
-    setCarregando(true);
+  const carregar = useCallback(async (silencioso = false) => {
+    if (!silencioso) setCarregando(true);
     try {
-      const res = await fetch(`/api/relatorios/dashboard-gerencial?ano=${ano}`, {
-        cache: "no-store",
-      });
+      const res = await fetch(`/api/relatorios/dashboard-gerencial?ano=${ano}`);
       const json = res.ok ? await res.json() : payloadVazio(ano);
       setDados(json);
     } catch {
@@ -607,12 +605,18 @@ export function DashboardGerencialConteudo() {
   }, [carregar]);
 
   useEffect(() => {
-    const atualizar = () => void carregar();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const atualizar = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        void carregar(true);
+      }, 320);
+    };
     window.addEventListener(FINANCEIRO_ATUALIZADO_EVENT, atualizar);
-    window.addEventListener("focus", atualizar);
     return () => {
+      if (timer) clearTimeout(timer);
       window.removeEventListener(FINANCEIRO_ATUALIZADO_EVENT, atualizar);
-      window.removeEventListener("focus", atualizar);
     };
   }, [carregar]);
 
@@ -622,10 +626,8 @@ export function DashboardGerencialConteudo() {
 
   useEffect(() => {
     const atualizar = () => setVersaoCadastrosProducao((v) => v + 1);
-    window.addEventListener("focus", atualizar);
     window.addEventListener("storage", atualizar);
     return () => {
-      window.removeEventListener("focus", atualizar);
       window.removeEventListener("storage", atualizar);
     };
   }, []);

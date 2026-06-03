@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { debounceCallback } from "@/lib/debounce-callback";
 import {
   AlertTriangle,
   Check,
@@ -130,13 +131,13 @@ export function ContasPagarConteudo() {
     []
   );
 
-  const load = useCallback(async () => {
-    setCarregando(true);
-    setErroLista("");
+  const load = useCallback(async (opts?: { silencioso?: boolean }) => {
+    if (!opts?.silencioso) {
+      setCarregando(true);
+      setErroLista("");
+    }
     try {
-      const res = await fetch(`/api/financeiro?tipo=despesa&_=${Date.now()}`, {
-        cache: "no-store",
-      });
+      const res = await fetch("/api/financeiro?tipo=despesa");
       const json = (await res.json().catch(() => ({}))) as {
         lancamentos?: Lancamento[];
         error?: string;
@@ -161,12 +162,14 @@ export function ContasPagarConteudo() {
 
   useEffect(() => {
     void load();
-    const atualizar = () => void load();
+    const { debounced: atualizar, cancel } = debounceCallback(
+      () => void load({ silencioso: true }),
+      320
+    );
     window.addEventListener(FINANCEIRO_ATUALIZADO_EVENT, atualizar);
-    window.addEventListener("focus", atualizar);
     return () => {
+      cancel();
       window.removeEventListener(FINANCEIRO_ATUALIZADO_EVENT, atualizar);
-      window.removeEventListener("focus", atualizar);
     };
   }, [load]);
 
@@ -378,59 +381,75 @@ export function ContasPagarConteudo() {
         }
         setTipoDespesa(parcela?.pago ? "pagas" : "a_pagar");
       } else {
-        const totalParcelas = payload.parcelas.length;
-        let numeroFatura: number | undefined;
-        let salvos = 0;
-        let temPago = false;
-        let temPendente = false;
-        for (let i = 0; i < payload.parcelas.length; i++) {
-          const parcela = payload.parcelas[i];
-          const valor = Number(
-            parcela.valor.replace(/\./g, "").replace(",", ".")
-          );
-          if (!Number.isFinite(valor) || valor <= 0) continue;
-          if (parcela.pago) temPago = true;
-          else temPendente = true;
+        const parcelasApi = payload.parcelas
+          .map((parcela) => {
+            const valor = Number(
+              parcela.valor.replace(/\./g, "").replace(",", ".")
+            );
+            if (!Number.isFinite(valor) || valor <= 0) return null;
+            return {
+              valor,
+              data: brShortToIso(parcela.vencimento || payload.dataLancamento),
+              status: (parcela.pago ? "pago" : "pendente") as "pago" | "pendente",
+              formaPagamento: parcela.formaPagamento || "Pix",
+            };
+          })
+          .filter((p): p is NonNullable<typeof p> => p !== null);
+
+        if (parcelasApi.length === 0) {
+          alert("Informe um valor maior que zero para salvar a despesa.");
+          return;
+        }
+
+        const temPago = parcelasApi.some((p) => p.status === "pago");
+        const temPendente = parcelasApi.some((p) => p.status === "pendente");
+
+        if (parcelasApi.length === 1) {
+          const parcela = payload.parcelas[0];
           const partes = parcela.parcela.split("/").map((x) => Number(x.trim()));
-          const parcelaNumero = partes[0] || i + 1;
-          const parcelaTotal = partes[1] || totalParcelas;
           const res = await fetch("/api/financeiro", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               tipo: "despesa",
               descricao: descricaoDespesaComParcela(descricaoBase, parcela.parcela),
-              valor,
-              data: brShortToIso(parcela.vencimento || payload.dataLancamento),
-              status: parcela.pago ? "pago" : "pendente",
-              formaPagamento: parcela.formaPagamento || "Pix",
-              parcelaNumero,
-              parcelaTotal,
-              numeroFatura,
+              valor: parcelasApi[0].valor,
+              data: parcelasApi[0].data,
+              status: parcelasApi[0].status,
+              formaPagamento: parcelasApi[0].formaPagamento,
+              parcelaNumero: partes[0] || 1,
+              parcelaTotal: partes[1] || 1,
             }),
           });
-          const json = (await res.json().catch(() => ({}))) as {
-            numeroFatura?: number;
-            error?: string;
-          };
+          const json = (await res.json().catch(() => ({}))) as { error?: string };
           if (!res.ok) {
             alert(json.error || "Não foi possível salvar a despesa.");
             return;
           }
-          salvos += 1;
-          if (json.numeroFatura) numeroFatura = json.numeroFatura;
+        } else {
+          const res = await fetch("/api/financeiro", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tipo: "despesa",
+              descricao: descricaoBase,
+              valor: parcelasApi[0].valor,
+              parcelas: parcelasApi,
+            }),
+          });
+          const json = (await res.json().catch(() => ({}))) as { error?: string };
+          if (!res.ok) {
+            alert(json.error || "Não foi possível salvar a despesa.");
+            return;
+          }
         }
-        if (salvos === 0) {
-          alert("Informe um valor maior que zero para salvar a despesa.");
-          return;
-        }
+
         if (temPago && !temPendente) setTipoDespesa("pagas");
         else if (temPendente && !temPago) setTipoDespesa("a_pagar");
         else setTipoDespesa("todas");
       }
       setModalAberto(false);
       setEditando(null);
-      await load();
       notificarFinanceiroAtualizado();
     } finally {
       salvarDespesaEmAndamentoRef.current = false;
@@ -439,19 +458,24 @@ export function ContasPagarConteudo() {
   }
 
   async function marcarPago(l: Lancamento) {
+    setLancamentos((lista) =>
+      lista.map((item) => (item.id === l.id ? { ...item, status: "pago" } : item))
+    );
     await fetch(`/api/financeiro/${l.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "pago" }),
     });
-    await load();
+    notificarFinanceiroAtualizado();
   }
 
   async function confirmarExclusaoDespesa() {
     if (!despesaParaExcluir) return;
-    await fetch(`/api/financeiro/${despesaParaExcluir.id}`, { method: "DELETE" });
+    const id = despesaParaExcluir.id;
+    setLancamentos((lista) => lista.filter((item) => item.id !== id));
     setDespesaParaExcluir(null);
-    await load();
+    await fetch(`/api/financeiro/${id}`, { method: "DELETE" });
+    notificarFinanceiroAtualizado();
   }
 
   return (

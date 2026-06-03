@@ -5,6 +5,7 @@ import { tentarEmitirBoletoParaLancamento } from "@/lib/asaas-boleto";
 import { parseParcelaNaDescricao } from "@/lib/fatura-financeiro";
 import { descricaoDespesaComParcela } from "@/lib/lancamento-despesa";
 import {
+  auditarCriacaoDespesasParceladas,
   auditarCriacaoLancamento,
   auditarCriacaoReceitasParceladas,
 } from "@/lib/log-auditoria-financeiro";
@@ -136,6 +137,42 @@ export async function POST(request: Request) {
     const body = await request.json();
     const data = schema.parse(body);
     const { emitirBoleto, parcelas: parcelasBody } = data;
+
+    if (
+      data.tipo === "despesa" &&
+      parcelasBody &&
+      parcelasBody.length > 1
+    ) {
+      const baseDescricao = data.descricao.trim();
+      const criados = await prisma.$transaction(async (tx) => {
+        const lista = [];
+        for (let i = 0; i < parcelasBody.length; i++) {
+          const p = parcelasBody[i];
+          const n = i + 1;
+          const total = parcelasBody.length;
+          const lancamento = await tx.lancamento.create({
+            data: {
+              tipo: "despesa",
+              descricao: descricaoDespesaComParcela(
+                baseDescricao,
+                `${n}/${total}`
+              ),
+              valor: p.valor,
+              data: parseDateOnly(p.data ?? data.data),
+              status: p.status ?? data.status ?? "pendente",
+              formaPagamento: p.formaPagamento ?? data.formaPagamento ?? null,
+              clienteId: data.clienteId ?? null,
+              trabalhoId: data.trabalhoId ?? null,
+            },
+            include: { cliente: true, trabalho: true },
+          });
+          lista.push(lancamento);
+        }
+        return lista;
+      });
+      await auditarCriacaoDespesasParceladas(session, criados);
+      return NextResponse.json({ lancamentos: criados }, { status: 201 });
+    }
 
     if (
       data.tipo === "receita" &&

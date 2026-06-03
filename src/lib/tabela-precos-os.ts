@@ -264,8 +264,7 @@ export async function carregarNomesTabelasPrecoRemoto(): Promise<string[]> {
 
   try {
     const res = await fetch(
-      `/api/json-store/${encodeURIComponent(TABELA_PRECOS_STORAGE_KEY)}`,
-      { cache: "no-store" }
+      `/api/json-store/${encodeURIComponent(TABELA_PRECOS_STORAGE_KEY)}`
     );
     if (res.ok) {
       const saved = (await res.json()) as DadosTabelaPrecosStorage | null;

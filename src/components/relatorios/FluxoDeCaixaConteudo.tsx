@@ -98,10 +98,10 @@ export function FluxoDeCaixaConteudo() {
     return [atual - 2, atual - 1, atual, atual + 1];
   }, []);
 
-  const recarregarDados = useCallback(async () => {
-    setCarregando(true);
+  const recarregarDados = useCallback(async (silencioso = false) => {
+    if (!silencioso) setCarregando(true);
     try {
-      const res = await fetch("/api/financeiro", { cache: "no-store" });
+      const res = await fetch("/api/financeiro");
       const data = await res.json();
       setLancamentos(Array.isArray(data.lancamentos) ? data.lancamentos : []);
       setContas(carregarContasBancarias().filter((c) => !c.excluida));
@@ -117,14 +117,18 @@ export function FluxoDeCaixaConteudo() {
   }, [recarregarDados]);
 
   useEffect(() => {
-    const atualizar = () => void recarregarDados();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const atualizar = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        void recarregarDados(true);
+      }, 320);
+    };
     window.addEventListener(FINANCEIRO_ATUALIZADO_EVENT, atualizar);
-    window.addEventListener("focus", atualizar);
-    window.addEventListener("storage", atualizar);
     return () => {
+      if (timer) clearTimeout(timer);
       window.removeEventListener(FINANCEIRO_ATUALIZADO_EVENT, atualizar);
-      window.removeEventListener("focus", atualizar);
-      window.removeEventListener("storage", atualizar);
     };
   }, [recarregarDados]);
 
