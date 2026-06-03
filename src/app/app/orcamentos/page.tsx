@@ -21,6 +21,7 @@ import {
   type StatusOrcamento,
 } from "@/lib/orcamentos";
 import { linkOrcamentoAtivo } from "@/lib/orcamentos-types";
+import { readStorage } from "@/lib/persisted-storage";
 import {
   exigeParcelamento,
   parseCondicoesPagamento,
@@ -67,12 +68,7 @@ function IconWhatsApp({ className = "h-4 w-4" }: { className?: string }) {
 
 function readJson<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
-  try {
-    const saved = window.localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : fallback;
-  } catch {
-    return fallback;
-  }
+  return readStorage(key, fallback);
 }
 
 export default function OrcamentosPage() {

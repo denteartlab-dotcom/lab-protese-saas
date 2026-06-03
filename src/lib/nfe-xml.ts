@@ -1,4 +1,5 @@
 import { dateToBrShort } from "@/lib/datas-br";
+import { readStorage } from "@/lib/persisted-storage";
 
 export type ItemNfeImportado = {
   produto: string;
@@ -178,14 +179,14 @@ export type FornecedorMatch = { id: string; nome: string; cnpj?: string };
 export function lerFornecedoresComCnpj(): FornecedorMatch[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem("labProteseFornecedores");
-    if (!raw) return [];
-    const lista = JSON.parse(raw) as Array<{
-      id: string;
-      nome?: string;
-      razaoSocial?: string;
-      cnpj?: string;
-    }>;
+    const lista = readStorage<
+      Array<{
+        id: string;
+        nome?: string;
+        razaoSocial?: string;
+        cnpj?: string;
+      }>
+    >("labProteseFornecedores", []);
     if (!Array.isArray(lista)) return [];
     return lista.map((f) => ({
       id: f.id,

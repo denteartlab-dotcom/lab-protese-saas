@@ -6,6 +6,7 @@ import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { Button, Input, Modal } from "@/components/ui";
 import { usePageReady } from "@/hooks/use-page-ready";
+import { readStorage, writeStorage } from "@/lib/persisted-storage";
 
 type Setor = {
   id: string;
@@ -28,15 +29,8 @@ const formularioVazio = {
 
 function carregarLista(key: string, fallback: Setor[] = []) {
   if (typeof window === "undefined") return fallback;
-  const saved = window.localStorage.getItem(key);
-  if (!saved) return fallback;
-
-  try {
-    const parsed = JSON.parse(saved);
-    return Array.isArray(parsed) ? parsed : fallback;
-  } catch {
-    return fallback;
-  }
+  const parsed = readStorage<Setor[]>(key, fallback);
+  return Array.isArray(parsed) ? parsed : fallback;
 }
 
 export default function SetoresPage() {
@@ -73,12 +67,12 @@ export default function SetoresPage() {
 
   useEffect(() => {
     if (!setoresCarregados) return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(setores));
+    writeStorage(STORAGE_KEY, setores);
   }, [setores, setoresCarregados]);
 
   useEffect(() => {
     if (!excluidosCarregados) return;
-    window.localStorage.setItem(EXCLUIDOS_STORAGE_KEY, JSON.stringify(setoresExcluidos));
+    writeStorage(EXCLUIDOS_STORAGE_KEY, setoresExcluidos);
   }, [setoresExcluidos, excluidosCarregados]);
 
   const filtrados = useMemo(() => {
@@ -112,22 +106,17 @@ export default function SetoresPage() {
         const atualizados = atuais.map((setor) =>
           setor.id === editando.id ? { ...setor, nome: form.nome.trim(), cor: form.cor } : setor
         );
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(atualizados));
         return atualizados;
       });
     } else {
-      setSetores((atuais) => {
-        const atualizados = [
-          ...atuais,
-          {
+      setSetores((atuais) => [
+        ...atuais,
+        {
           id: crypto.randomUUID(),
           nome: form.nome.trim(),
           cor: form.cor,
-          },
-        ];
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(atualizados));
-        return atualizados;
-      });
+        },
+      ]);
     }
 
     setModalAberto(false);
@@ -138,41 +127,21 @@ export default function SetoresPage() {
   function excluirSetor(id: string) {
     const setor = setores.find((item) => item.id === id);
     if (setor) {
-      setSetoresExcluidos((atuais) => {
-        const atualizados = [...atuais, setor];
-        window.localStorage.setItem(EXCLUIDOS_STORAGE_KEY, JSON.stringify(atualizados));
-        return atualizados;
-      });
+      setSetoresExcluidos((atuais) => [...atuais, setor]);
     }
-    setSetores((atuais) => {
-      const atualizados = atuais.filter((item) => item.id !== id);
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(atualizados));
-      return atualizados;
-    });
+    setSetores((atuais) => atuais.filter((item) => item.id !== id));
   }
 
   function restaurarSetor(id: string) {
     const setor = setoresExcluidos.find((item) => item.id === id);
     if (setor) {
-      setSetores((atuais) => {
-        const atualizados = [...atuais, setor];
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(atualizados));
-        return atualizados;
-      });
+      setSetores((atuais) => [...atuais, setor]);
     }
-    setSetoresExcluidos((atuais) => {
-      const atualizados = atuais.filter((item) => item.id !== id);
-      window.localStorage.setItem(EXCLUIDOS_STORAGE_KEY, JSON.stringify(atualizados));
-      return atualizados;
-    });
+    setSetoresExcluidos((atuais) => atuais.filter((item) => item.id !== id));
   }
 
   function removerSetorDefinitivo(id: string) {
-    setSetoresExcluidos((atuais) => {
-      const atualizados = atuais.filter((item) => item.id !== id);
-      window.localStorage.setItem(EXCLUIDOS_STORAGE_KEY, JSON.stringify(atualizados));
-      return atualizados;
-    });
+    setSetoresExcluidos((atuais) => atuais.filter((item) => item.id !== id));
   }
 
   return (

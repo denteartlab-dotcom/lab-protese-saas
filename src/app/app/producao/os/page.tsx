@@ -68,6 +68,7 @@ import {
   type EtapaCadastro,
 } from "@/lib/etapas-os";
 import { carregarSetoresCadastro, type SetorCadastro } from "@/lib/setores-cadastro";
+import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { exibirTexto, STATUS_TRABALHO } from "@/lib/utils";
 import { bodyTrabalhoSemNull } from "@/lib/trabalho-api-body";
 import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
@@ -84,6 +85,13 @@ type TerceirizadoOpcao = {
   id: string;
   nome: string;
   origem: "fornecedor" | "prestador";
+  valorComissao?: string;
+  valorComissaoRepeticao?: string;
+  tipoServico?: string;
+};
+type TerceirizadoStorage = {
+  id?: string;
+  nome?: string;
   valorComissao?: string;
   valorComissaoRepeticao?: string;
   tipoServico?: string;
@@ -376,12 +384,11 @@ export default function OrdemServicoPage() {
     if (typeof window === "undefined") return;
 
     try {
-      const saved = window.localStorage.getItem(TABELA_PRECOS_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved) as {
-          tabela?: string;
-          categoriasPorTabela?: Record<string, CategoriaTabelaPreco[]>;
-        };
+      const parsed = readStorage<{
+        tabela?: string;
+        categoriasPorTabela?: Record<string, CategoriaTabelaPreco[]>;
+      } | null>(TABELA_PRECOS_STORAGE_KEY, null);
+      if (parsed) {
         if (parsed.tabela) setTabelaPrecoAtual(parsed.tabela);
         if (parsed.categoriasPorTabela) {
           setCategoriasPorTabelaPreco(parsed.categoriasPorTabela);
@@ -396,8 +403,8 @@ export default function OrdemServicoPage() {
     }
 
     try {
-      const fornecedores = JSON.parse(window.localStorage.getItem(FORNECEDORES_STORAGE_KEY) || "[]");
-      const prestadores = JSON.parse(window.localStorage.getItem(PRESTADORES_STORAGE_KEY) || "[]");
+      const fornecedores = readStorage<TerceirizadoStorage[]>(FORNECEDORES_STORAGE_KEY, []);
+      const prestadores = readStorage<TerceirizadoStorage[]>(PRESTADORES_STORAGE_KEY, []);
       const fornecedoresAtivos: TerceirizadoOpcao[] = Array.isArray(fornecedores)
         ? fornecedores
             .filter((fornecedor) => fornecedor?.nome)
@@ -425,9 +432,8 @@ export default function OrdemServicoPage() {
     }
 
     try {
-      const saved = window.localStorage.getItem(MATERIAIS_DENTISTA_STORAGE_KEY);
-      const parsed = saved ? JSON.parse(saved) : materiaisPadrao;
-      const lista = Array.isArray(parsed) ? parsed : materiaisPadrao;
+      const parsed = readStorage<string[] | null>(MATERIAIS_DENTISTA_STORAGE_KEY, null);
+      const lista = Array.isArray(parsed) && parsed.length > 0 ? parsed : materiaisPadrao;
       setMateriais(lista);
     } catch {
       setMateriais(materiaisPadrao);
@@ -435,10 +441,8 @@ export default function OrdemServicoPage() {
     setMateriaisCarregados(true);
 
     try {
-      const etapasSaved = window.localStorage.getItem(ETAPAS_STORAGE_KEY);
-      const setoresSaved = window.localStorage.getItem(SETORES_STORAGE_KEY);
-      const parsed = etapasSaved ? JSON.parse(etapasSaved) : [];
-      const setoresParsed = setoresSaved ? JSON.parse(setoresSaved) : [];
+      const parsed = readStorage<EtapaCadastro[]>(ETAPAS_STORAGE_KEY, []);
+      const setoresParsed = readStorage<SetorCadastro[]>(SETORES_STORAGE_KEY, []);
       setModelosEtapas(Array.isArray(parsed) ? parsed : []);
       setSetoresCadastrados(Array.isArray(setoresParsed) ? setoresParsed : []);
       setColaboradoresOpcoes(carregarColaboradoresListagem());
@@ -497,8 +501,8 @@ export default function OrdemServicoPage() {
 
     function carregarOpcoesTerceirizados() {
       try {
-        const fornecedores = JSON.parse(window.localStorage.getItem(FORNECEDORES_STORAGE_KEY) || "[]");
-        const prestadores = JSON.parse(window.localStorage.getItem(PRESTADORES_STORAGE_KEY) || "[]");
+        const fornecedores = readStorage<TerceirizadoStorage[]>(FORNECEDORES_STORAGE_KEY, []);
+        const prestadores = readStorage<TerceirizadoStorage[]>(PRESTADORES_STORAGE_KEY, []);
 
         const fornecedoresAtivos: TerceirizadoOpcao[] = Array.isArray(fornecedores)
           ? fornecedores
@@ -536,9 +540,8 @@ export default function OrdemServicoPage() {
 
     function carregarMateriaisDentista() {
       try {
-        const saved = window.localStorage.getItem(MATERIAIS_DENTISTA_STORAGE_KEY);
-        const parsed = saved ? JSON.parse(saved) : materiaisPadrao;
-        const lista = Array.isArray(parsed) ? parsed : materiaisPadrao;
+        const parsed = readStorage<string[] | null>(MATERIAIS_DENTISTA_STORAGE_KEY, null);
+        const lista = Array.isArray(parsed) && parsed.length > 0 ? parsed : materiaisPadrao;
         setMateriais(lista);
         setMateriaisSelecionados((selecionados) => {
           const atualizados = selecionados.filter((material) => lista.includes(material));
@@ -570,20 +573,16 @@ export default function OrdemServicoPage() {
         setCategoriasPorTabelaPreco((atual) => ({ ...atual, ...salvo }));
       }
       try {
-        const parsed = JSON.parse(window.localStorage.getItem(TABELA_PRECOS_STORAGE_KEY) || "{}") as {
-          tabela?: string;
-        };
-        if (parsed.tabela) setTabelaPrecoAtual(parsed.tabela);
+        const parsed = readStorage<{ tabela?: string } | null>(TABELA_PRECOS_STORAGE_KEY, null);
+        if (parsed?.tabela) setTabelaPrecoAtual(parsed.tabela);
       } catch {
         // ignora JSON inválido
       }
     }
 
     sincronizarTabelaPrecos();
-    window.addEventListener("focus", sincronizarTabelaPrecos);
     window.addEventListener("storage", sincronizarTabelaPrecos);
     return () => {
-      window.removeEventListener("focus", sincronizarTabelaPrecos);
       window.removeEventListener("storage", sincronizarTabelaPrecos);
     };
   }, [paginaPronta]);
@@ -603,10 +602,9 @@ export default function OrdemServicoPage() {
       }
     }
 
-    window.addEventListener("focus", carregarModelosEtapasESetores);
+    carregarModelosEtapasESetores();
     window.addEventListener("storage", carregarModelosEtapasESetores);
     return () => {
-      window.removeEventListener("focus", carregarModelosEtapasESetores);
       window.removeEventListener("storage", carregarModelosEtapasESetores);
     };
   }, [paginaPronta]);
@@ -623,7 +621,7 @@ export default function OrdemServicoPage() {
 
   useEffect(() => {
     if (!materiaisCarregados || typeof window === "undefined") return;
-    window.localStorage.setItem(MATERIAIS_DENTISTA_STORAGE_KEY, JSON.stringify(materiais));
+    writeStorage(MATERIAIS_DENTISTA_STORAGE_KEY, materiais);
   }, [materiais, materiaisCarregados]);
 
   useEffect(() => {
@@ -643,10 +641,8 @@ export default function OrdemServicoPage() {
       setProdutos((atuais) => aplicarExtrasEstoque(atuais));
     }
 
-    window.addEventListener("focus", recarregarEstoqueProdutos);
     window.addEventListener(PRODUTOS_ESTOQUE_EVENT, recarregarEstoqueProdutos);
     return () => {
-      window.removeEventListener("focus", recarregarEstoqueProdutos);
       window.removeEventListener(PRODUTOS_ESTOQUE_EVENT, recarregarEstoqueProdutos);
     };
   }, [paginaPronta]);
@@ -1067,9 +1063,6 @@ export default function OrdemServicoPage() {
     setMateriais((atuais) => {
       if (atuais.some((item) => item.toLowerCase() === material.toLowerCase())) return atuais;
       const atualizados = [...atuais, material];
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(MATERIAIS_DENTISTA_STORAGE_KEY, JSON.stringify(atualizados));
-      }
       return atualizados;
     });
     setNovoMaterial("");

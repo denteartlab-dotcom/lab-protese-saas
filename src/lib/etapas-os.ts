@@ -183,9 +183,7 @@ const SETORES_STORAGE_KEY = "labProteseSetores";
 function corSetorCadastro(nomeSetor?: string) {
   if (!nomeSetor?.trim() || typeof window === "undefined") return undefined;
   try {
-    const raw = window.localStorage.getItem(SETORES_STORAGE_KEY);
-    if (!raw) return undefined;
-    const setores = JSON.parse(raw) as { nome?: string; cor?: string }[];
+    const setores = readStorage<{ nome?: string; cor?: string }[]>(SETORES_STORAGE_KEY, []);
     return setores.find((s) => s.nome === nomeSetor)?.cor;
   } catch {
     return undefined;

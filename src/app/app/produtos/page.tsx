@@ -635,10 +635,13 @@ function ProdutosConteudo() {
   function carregarResponsaveisMovimento() {
     if (typeof window === "undefined") return;
     try {
-      const fornecedores = JSON.parse(window.localStorage.getItem(FORNECEDORES_STORAGE_KEY) || "[]");
-      const prestadores = JSON.parse(window.localStorage.getItem(PRESTADORES_STORAGE_KEY) || "[]");
-      const colaboradores = JSON.parse(window.localStorage.getItem(COLABORADORES_STORAGE_KEY) || "[]");
-      const setores = JSON.parse(window.localStorage.getItem(SETORES_STORAGE_KEY) || "[]");
+      const fornecedores = readStorage<Array<{ nome?: string }>>(FORNECEDORES_STORAGE_KEY, []);
+      const prestadores = readStorage<Array<{ nome?: string }>>(PRESTADORES_STORAGE_KEY, []);
+      const colaboradores = readStorage<Array<{ nome?: string; setorAtuacao?: string }>>(
+        COLABORADORES_STORAGE_KEY,
+        []
+      );
+      const setores = readStorage<Array<{ nome?: string }>>(SETORES_STORAGE_KEY, []);
       setFornecedoresMovimento(
         Array.isArray(fornecedores) ? fornecedores.map((item) => String(item?.nome || "")).filter(Boolean) : []
       );

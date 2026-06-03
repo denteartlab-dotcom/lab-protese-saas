@@ -1,3 +1,5 @@
+import { readStorage, writeStorage } from "@/lib/persisted-storage";
+
 export type SecaoPlanoContas = "receitas" | "despesas";
 
 export type ItemPlanoContas = {
@@ -315,19 +317,13 @@ export const PLANO_CONTAS_PADRAO: ItemPlanoContas[] = [
 export function carregarPlanoContas(): ItemPlanoContas[] {
   if (typeof window === "undefined") return PLANO_CONTAS_PADRAO;
   try {
-    const versaoSalva = window.localStorage.getItem(PLANO_CONTAS_STORAGE_VERSION_KEY);
+    const versaoSalva = readStorage<string | null>(PLANO_CONTAS_STORAGE_VERSION_KEY, null);
     if (versaoSalva !== String(PLANO_CONTAS_STORAGE_VERSION)) {
       salvarPlanoContas(PLANO_CONTAS_PADRAO);
-      window.localStorage.setItem(
-        PLANO_CONTAS_STORAGE_VERSION_KEY,
-        String(PLANO_CONTAS_STORAGE_VERSION)
-      );
       return PLANO_CONTAS_PADRAO;
     }
 
-    const raw = window.localStorage.getItem(PLANO_CONTAS_STORAGE_KEY);
-    if (!raw) return PLANO_CONTAS_PADRAO;
-    const parsed = JSON.parse(raw) as ItemPlanoContas[];
+    const parsed = readStorage<ItemPlanoContas[] | null>(PLANO_CONTAS_STORAGE_KEY, null);
     return Array.isArray(parsed) && parsed.length > 0 ? parsed : PLANO_CONTAS_PADRAO;
   } catch {
     return PLANO_CONTAS_PADRAO;
@@ -336,11 +332,8 @@ export function carregarPlanoContas(): ItemPlanoContas[] {
 
 export function salvarPlanoContas(itens: ItemPlanoContas[]) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(PLANO_CONTAS_STORAGE_KEY, JSON.stringify(itens));
-  window.localStorage.setItem(
-    PLANO_CONTAS_STORAGE_VERSION_KEY,
-    String(PLANO_CONTAS_STORAGE_VERSION)
-  );
+  writeStorage(PLANO_CONTAS_STORAGE_KEY, itens);
+  writeStorage(PLANO_CONTAS_STORAGE_VERSION_KEY, String(PLANO_CONTAS_STORAGE_VERSION));
   window.dispatchEvent(new CustomEvent(PLANO_CONTAS_ATUALIZADO_EVENT));
 }
 

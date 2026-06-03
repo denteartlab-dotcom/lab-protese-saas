@@ -40,11 +40,14 @@ import {
   type TrabalhoModuloOs,
 } from "@/lib/modulo-producao-os";
 import { cn } from "@/lib/utils";
+import {
+  etapasConcluidasModulo,
+  salvarEtapasConcluidasModulo,
+} from "@/lib/modulo-producao-etapas";
+import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { useLabConfigClient } from "@/lib/use-lab-config-client";
 
 type AbaModulo = "etapas" | "anotacoes" | "imagens" | "detalhes";
-
-const ETAPAS_CONCLUIDAS_PREFIX = "moduloProducaoEtapas:";
 
 const abas: { id: AbaModulo; label: string }[] = [
   { id: "etapas", label: "ETAPAS" },
@@ -52,25 +55,6 @@ const abas: { id: AbaModulo; label: string }[] = [
   { id: "imagens", label: "IMAGENS" },
   { id: "detalhes", label: "DETALHES SERVIÇO" },
 ];
-
-function etapasConcluidas(chave: string): Set<number> {
-  if (typeof window === "undefined") return new Set();
-  try {
-    const raw = window.localStorage.getItem(`${ETAPAS_CONCLUIDAS_PREFIX}${chave}`);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw) as number[];
-    return new Set(Array.isArray(parsed) ? parsed : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function salvarEtapasConcluidas(chave: string, indices: Set<number>) {
-  window.localStorage.setItem(
-    `${ETAPAS_CONCLUIDAS_PREFIX}${chave}`,
-    JSON.stringify([...indices])
-  );
-}
 
 type Props = {
   userName: string;
@@ -169,7 +153,7 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
       setEtapasOk(new Set());
       return;
     }
-    setEtapasOk(etapasConcluidas(chaveEtapasConcluidas));
+    setEtapasOk(etapasConcluidasModulo(chaveEtapasConcluidas));
     setAnotacoes(osSelecionada?.observacoes || "");
   }, [chaveEtapasConcluidas, osSelecionada?.observacoes]);
 
@@ -198,13 +182,13 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
   const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
-    setDarkMode(window.localStorage.getItem("theme") === "dark");
+    setDarkMode(readStorage<string | null>("labProteseTheme", null) === "dark");
   }, []);
 
   function toggleTheme() {
     const next = !document.documentElement.classList.contains("dark");
     document.documentElement.classList.toggle("dark", next);
-    window.localStorage.setItem("theme", next ? "dark" : "light");
+    writeStorage("labProteseTheme", next ? "dark" : "light");
     setDarkMode(next);
   }
 
@@ -246,7 +230,7 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
     if (next.has(indice)) next.delete(indice);
     else next.add(indice);
     setEtapasOk(next);
-    salvarEtapasConcluidas(chaveEtapasConcluidas, next);
+    salvarEtapasConcluidasModulo(chaveEtapasConcluidas, next);
 
     void fetch("/api/relatorios/logs-auditoria", {
       method: "POST",

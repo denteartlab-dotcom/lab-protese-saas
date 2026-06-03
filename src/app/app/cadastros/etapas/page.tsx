@@ -8,7 +8,7 @@ import { compararTextoBr } from "@/lib/listagem-config";
 import { Button, Input, Modal, Select } from "@/components/ui";
 import { usePageReady } from "@/hooks/use-page-ready";
 import { corFundoEtapa, corTextoSobreFundo } from "@/lib/etapas-os";
-import { writeStorage } from "@/lib/persisted-storage";
+import { readStorage, writeStorage } from "@/lib/persisted-storage";
 
 type Setor = {
   id?: string;
@@ -141,7 +141,7 @@ export default function EtapasPage() {
 
   useEffect(() => {
     if (!setoresCarregados) return;
-    window.localStorage.setItem(SETORES_STORAGE_KEY, JSON.stringify(setores));
+    writeStorage(SETORES_STORAGE_KEY, setores);
   }, [setores, setoresCarregados]);
 
   const filtradas = useMemo(() => {
@@ -253,7 +253,7 @@ export default function EtapasPage() {
     setSetores((atuais) => {
       if (atuais.some((item) => item.nome.toLowerCase() === nome.toLowerCase())) return atuais;
       const atualizados = [...atuais, setor];
-      window.localStorage.setItem(SETORES_STORAGE_KEY, JSON.stringify(atualizados));
+      writeStorage(SETORES_STORAGE_KEY, atualizados);
       return atualizados;
     });
     setForm((current) => ({ ...current, setor: nome }));

@@ -1,3 +1,5 @@
+import { readStorage, writeStorage } from "@/lib/persisted-storage";
+
 export const HORARIO_FUNCIONAMENTO_STORAGE_KEY = "labProteseHorarioFuncionamento";
 
 export type IntervaloDia = {
@@ -81,9 +83,11 @@ function normalizarDias(parsed?: DiaFuncionamento[]): DiaFuncionamento[] {
 export function carregarHorarioFuncionamento(): HorarioFuncionamentoConfig {
   if (typeof window === "undefined") return HORARIO_FUNCIONAMENTO_PADRAO;
   try {
-    const raw = window.localStorage.getItem(HORARIO_FUNCIONAMENTO_STORAGE_KEY);
-    if (!raw) return HORARIO_FUNCIONAMENTO_PADRAO;
-    const parsed = JSON.parse(raw) as Partial<HorarioFuncionamentoConfig>;
+    const parsed = readStorage<Partial<HorarioFuncionamentoConfig> | null>(
+      HORARIO_FUNCIONAMENTO_STORAGE_KEY,
+      null
+    );
+    if (!parsed) return HORARIO_FUNCIONAMENTO_PADRAO;
     return {
       dias: normalizarDias(parsed.dias),
       feriados: Array.isArray(parsed.feriados) ? parsed.feriados : [],
@@ -95,10 +99,7 @@ export function carregarHorarioFuncionamento(): HorarioFuncionamentoConfig {
 
 export function salvarHorarioFuncionamento(config: HorarioFuncionamentoConfig) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(
-    HORARIO_FUNCIONAMENTO_STORAGE_KEY,
-    JSON.stringify(config)
-  );
+  writeStorage(HORARIO_FUNCIONAMENTO_STORAGE_KEY, config);
 }
 
 export function criarIntervalo(inicio?: string, fim?: string): IntervaloDia {

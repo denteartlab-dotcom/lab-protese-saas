@@ -64,21 +64,18 @@ export type ItemEstoqueOrcamento = {
 
 const ORCAMENTOS_ESTOQUE_APLICADOS_KEY = "labProteseOrcamentosEstoqueAplicados";
 
+import { readStorage, writeStorage } from "@/lib/persisted-storage";
+
 type EstoqueOsMap = Record<string, MovimentoEstoque[]>;
 
 function readJson<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
-  try {
-    const saved = window.localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : fallback;
-  } catch {
-    return fallback;
-  }
+  return readStorage(key, fallback);
 }
 
 function writeJson<T>(key: string, value: T) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(key, JSON.stringify(value));
+  writeStorage(key, value);
 }
 
 function notifyEstoqueUpdated() {

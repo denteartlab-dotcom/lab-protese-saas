@@ -22,9 +22,10 @@ import {
 import { carregarColaboradoresListagem } from "@/lib/colaboradores-listagem";
 import { carregarEtapasCadastro } from "@/lib/etapas-os";
 import { parseBrDate } from "@/lib/datas-br";
+import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { STATUS_TRABALHO } from "@/lib/utils";
 
-const STORAGE_COMISSAO_ZERO = "labProteseComissaoZero";
+const STORAGE_COMISSAO_ZERO = "labProteseControleComissaoZero";
 
 function ToggleComissaoZero({
   checked,
@@ -106,7 +107,7 @@ export function ControleComissoesColaboradores() {
 
   useEffect(() => {
     try {
-      setComissaoZero(window.localStorage.getItem(STORAGE_COMISSAO_ZERO) === "1");
+      setComissaoZero(readStorage<string | null>(STORAGE_COMISSAO_ZERO, null) === "1");
     } catch {
       setComissaoZero(false);
     }
@@ -188,7 +189,7 @@ export function ControleComissoesColaboradores() {
   function alterarComissaoZero(valor: boolean) {
     setComissaoZero(valor);
     try {
-      window.localStorage.setItem(STORAGE_COMISSAO_ZERO, valor ? "1" : "0");
+      writeStorage(STORAGE_COMISSAO_ZERO, valor ? "1" : "0");
     } catch {
       /* ignore */
     }

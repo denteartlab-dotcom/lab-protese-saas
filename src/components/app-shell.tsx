@@ -27,7 +27,9 @@ import {
   relatoriosNav,
 } from "@/lib/app-nav";
 import type { MessageKey } from "@/lib/i18n";
+import { ArmazenamentoLaboratorioProvider } from "@/components/ArmazenamentoLaboratorioProvider";
 import { rotuloPapelUsuario } from "@/lib/auth-client";
+import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { cn, STATUS_TRABALHO } from "@/lib/utils";
 import {
   BarChart3,
@@ -94,9 +96,11 @@ export function AppShell({
 }) {
   return (
     <I18nProvider>
-      <AppShellInner userName={userName} userRole={userRole} initialLab={initialLab}>
-        {children}
-      </AppShellInner>
+      <ArmazenamentoLaboratorioProvider>
+        <AppShellInner userName={userName} userRole={userRole} initialLab={initialLab}>
+          {children}
+        </AppShellInner>
+      </ArmazenamentoLaboratorioProvider>
     </I18nProvider>
   );
 }
@@ -158,7 +162,7 @@ function AppShellInner({
   }
 
   useEffect(() => {
-    const savedTheme = window.localStorage.getItem("theme");
+    const savedTheme = readStorage<string | null>("labProteseTheme", null);
     const shouldUseDark = savedTheme === "dark";
     setDarkMode(shouldUseDark);
     document.documentElement.classList.toggle("dark", shouldUseDark);
@@ -215,7 +219,7 @@ function AppShellInner({
     setDarkMode((current) => {
       const next = !current;
       document.documentElement.classList.toggle("dark", next);
-      window.localStorage.setItem("theme", next ? "dark" : "light");
+      writeStorage("labProteseTheme", next ? "dark" : "light");
       return next;
     });
   }

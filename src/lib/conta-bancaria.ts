@@ -1,4 +1,5 @@
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
+import { readStorage, writeStorage } from "@/lib/persisted-storage";
 
 export type AcaoContaBancaria = "movimentar" | "baixar" | "adicionar_credito";
 
@@ -187,29 +188,19 @@ function normalizarSaldoLegado(contas: ContaBancaria[]): ContaBancaria[] {
 export function carregarContasBancarias(): ContaBancaria[] {
   if (typeof window === "undefined") return CONTAS_BANCARIAS_PADRAO;
   try {
-    const versao = window.localStorage.getItem(CONTAS_BANCARIAS_VERSION_KEY);
-    const rawExistente = window.localStorage.getItem(CONTAS_BANCARIAS_STORAGE_KEY);
+    const versao = readStorage<string | null>(CONTAS_BANCARIAS_VERSION_KEY, null);
+    const existente = readStorage<ContaBancaria[] | null>(CONTAS_BANCARIAS_STORAGE_KEY, null);
 
     if (versao !== String(CONTAS_BANCARIAS_VERSION)) {
-      let contas = CONTAS_BANCARIAS_PADRAO;
-      if (rawExistente) {
-        try {
-          const parsed = JSON.parse(rawExistente) as ContaBancaria[];
-          if (Array.isArray(parsed) && parsed.length > 0) contas = parsed;
-        } catch {
-          /* usa padrão */
-        }
-      }
+      let contas =
+        Array.isArray(existente) && existente.length > 0 ? existente : CONTAS_BANCARIAS_PADRAO;
       contas = normalizarSaldoLegado(contas);
       salvarContasBancarias(contas);
       return contas;
     }
 
-    const raw = window.localStorage.getItem(CONTAS_BANCARIAS_STORAGE_KEY);
-    if (!raw) return CONTAS_BANCARIAS_PADRAO;
-    const parsed = JSON.parse(raw) as ContaBancaria[];
-    if (!Array.isArray(parsed) || parsed.length === 0) return CONTAS_BANCARIAS_PADRAO;
-    return normalizarSaldoLegado(parsed);
+    if (!Array.isArray(existente) || existente.length === 0) return CONTAS_BANCARIAS_PADRAO;
+    return normalizarSaldoLegado(existente);
   } catch {
     return CONTAS_BANCARIAS_PADRAO;
   }
@@ -217,31 +208,22 @@ export function carregarContasBancarias(): ContaBancaria[] {
 
 export function salvarContasBancarias(contas: ContaBancaria[]) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(CONTAS_BANCARIAS_STORAGE_KEY, JSON.stringify(contas));
-  window.localStorage.setItem(
-    CONTAS_BANCARIAS_VERSION_KEY,
-    String(CONTAS_BANCARIAS_VERSION)
-  );
+  writeStorage(CONTAS_BANCARIAS_STORAGE_KEY, contas);
+  writeStorage(CONTAS_BANCARIAS_VERSION_KEY, String(CONTAS_BANCARIAS_VERSION));
 }
 
 export function carregarMovimentacoesConta(): MovimentacaoContaBancaria[] {
   if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(MOVIMENTACOES_CONTA_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as MovimentacaoContaBancaria[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  const parsed = readStorage<MovimentacaoContaBancaria[] | null>(
+    MOVIMENTACOES_CONTA_STORAGE_KEY,
+    null
+  );
+  return Array.isArray(parsed) ? parsed : [];
 }
 
 export function salvarMovimentacoesConta(movs: MovimentacaoContaBancaria[]) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(
-    MOVIMENTACOES_CONTA_STORAGE_KEY,
-    JSON.stringify(movs)
-  );
+  writeStorage(MOVIMENTACOES_CONTA_STORAGE_KEY, movs);
 }
 
 export function contaDeLancamento(

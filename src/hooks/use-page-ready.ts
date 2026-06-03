@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {
+  armazenamentoLaboratorioPronto,
+  inicializarArmazenamentoLaboratorio,
+} from "@/lib/armazenamento-laboratorio";
 
 /**
- * Aguarda carregar localStorage/API antes de exibir listas.
- * Evita o "flash" de dados padrão que somem após o hydrate.
+ * Aguarda hidratar dados do servidor (JsonStore) antes de exibir listas.
  */
 export function usePageReady(init: () => void | Promise<void>) {
   const [ready, setReady] = useState(false);
@@ -15,6 +18,9 @@ export function usePageReady(init: () => void | Promise<void>) {
     let cancelled = false;
 
     async function run() {
+      if (!armazenamentoLaboratorioPronto()) {
+        await inicializarArmazenamentoLaboratorio();
+      }
       await initRef.current();
       if (!cancelled) setReady(true);
     }

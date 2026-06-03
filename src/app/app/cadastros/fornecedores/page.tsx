@@ -87,41 +87,20 @@ function formatCepInput(value: string) {
 
 function carregarFornecedores() {
   if (typeof window === "undefined") return fornecedoresIniciais;
-  const saved = window.localStorage.getItem(STORAGE_KEY);
-  if (!saved) return fornecedoresIniciais;
-
-  try {
-    const parsed = JSON.parse(saved);
-    return Array.isArray(parsed) ? parsed : fornecedoresIniciais;
-  } catch {
-    return fornecedoresIniciais;
-  }
+  const parsed = readStorage<Fornecedor[] | null>(STORAGE_KEY, null);
+  return Array.isArray(parsed) && parsed.length > 0 ? parsed : fornecedoresIniciais;
 }
 
 function carregarFornecedoresExcluidos() {
   if (typeof window === "undefined") return [];
-  const saved = window.localStorage.getItem(EXCLUIDOS_STORAGE_KEY);
-  if (!saved) return [];
-
-  try {
-    const parsed = JSON.parse(saved);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  const parsed = readStorage<Fornecedor[]>(EXCLUIDOS_STORAGE_KEY, []);
+  return Array.isArray(parsed) ? parsed : [];
 }
 
 function carregarCategorias() {
   if (typeof window === "undefined") return categoriasIniciais;
-  const saved = window.localStorage.getItem(CATEGORIAS_STORAGE_KEY);
-  if (!saved) return categoriasIniciais;
-
-  try {
-    const parsed = JSON.parse(saved);
-    return Array.isArray(parsed) ? parsed : categoriasIniciais;
-  } catch {
-    return categoriasIniciais;
-  }
+  const parsed = readStorage<string[] | null>(CATEGORIAS_STORAGE_KEY, null);
+  return Array.isArray(parsed) && parsed.length > 0 ? parsed : categoriasIniciais;
 }
 
 export default function FornecedoresPage() {

@@ -1,3 +1,5 @@
+import { readStorage } from "@/lib/persisted-storage";
+
 /** Metadados de despesa embutidos na descrição (Contas a Pagar). */
 export const DESPESA_META_SEP = "\n@@CAP@@\n";
 
@@ -133,14 +135,14 @@ export function desempacotarDespesa(descricao: string): DespesaDescompactada {
 export function lerFornecedoresStorage(): Array<{ id: string; nome: string }> {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem("labProteseFornecedores");
-    if (!raw) return [];
-    const lista = JSON.parse(raw) as Array<{
-      id: string;
-      nome?: string;
-      razaoSocial?: string;
-      cnpj?: string;
-    }>;
+    const lista = readStorage<
+      Array<{
+        id: string;
+        nome?: string;
+        razaoSocial?: string;
+        cnpj?: string;
+      }>
+    >("labProteseFornecedores", []);
     if (!Array.isArray(lista)) return [];
     return lista.map((f) => ({
       id: f.id,
@@ -155,9 +157,7 @@ export function lerFornecedoresStorage(): Array<{ id: string; nome: string }> {
 export function lerNomesStorage(key: string): string[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return [];
-    const lista = JSON.parse(raw) as Array<{ nome?: string; razaoSocial?: string }>;
+    const lista = readStorage<Array<{ nome?: string; razaoSocial?: string }>>(key, []);
     if (!Array.isArray(lista)) return [];
     return lista
       .map((item) => (item.nome || item.razaoSocial || "").trim())

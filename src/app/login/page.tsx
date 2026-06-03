@@ -29,13 +29,28 @@ function LoginForm() {
   const redirectDestino = searchParams.get("redirect") || "/app";
 
   useEffect(() => {
-    setJaEntrou(usuarioJaEntrou());
-    const salvo = lerLembrarLogin();
-    if (salvo) {
-      setEmail(salvo.email);
-      setPassword(salvo.password);
-      setLembrarSenha(true);
-    }
+    void (async () => {
+      try {
+        const res = await fetch("/api/auth/prefs-lembrete", { cache: "no-store" });
+        if (res.ok) {
+          const data = (await res.json()) as { email?: string | null; jaEntrou?: boolean };
+          setJaEntrou(Boolean(data.jaEntrou));
+          if (data.email) {
+            setEmail(data.email);
+            setLembrarSenha(true);
+            return;
+          }
+        }
+      } catch {
+        /* fallback cache local pós-login */
+      }
+      setJaEntrou(usuarioJaEntrou());
+      const salvo = lerLembrarLogin();
+      if (salvo) {
+        setEmail(salvo.email);
+        setLembrarSenha(true);
+      }
+    })();
   }, []);
 
   async function handleLogin(e: React.FormEvent) {
@@ -62,7 +77,7 @@ function LoginForm() {
     }
 
     if (lembrarSenha) {
-      salvarLembrarLogin({ email: email.trim(), password });
+      salvarLembrarLogin({ email: email.trim() });
     } else {
       limparLembrarLogin();
     }

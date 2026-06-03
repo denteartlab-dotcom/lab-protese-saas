@@ -18,6 +18,11 @@ import {
   normalizarOsModelo5Layout,
   type OsModelo5Layout,
 } from "@/lib/os-modelo5-layout";
+import {
+  persistirArmazenamentoImediato,
+  readStorage,
+  writeStorage,
+} from "@/lib/persisted-storage";
 
 export const CONFIG_OS_STORAGE_KEY = "labProteseConfiguracoesOs";
 export const CONFIG_OS_ATUALIZADA_EVENT = "lab-config-os-atualizada";
@@ -41,10 +46,10 @@ export function aplicarMigracaoBordaDesligadaModelos123(
   if (typeof window === "undefined") {
     return { config: cfg, alterou: false };
   }
-  if (localStorage.getItem(MIGRATION_BORDA_DESLIGADA_KEY) === "1") {
+  if (readStorage<string | null>(MIGRATION_BORDA_DESLIGADA_KEY, null) === "1") {
     return { config: cfg, alterou: false };
   }
-  localStorage.setItem(MIGRATION_BORDA_DESLIGADA_KEY, "1");
+  writeStorage(MIGRATION_BORDA_DESLIGADA_KEY, "1");
   return { config: desligarBordaModelosA4(cfg), alterou: true };
 }
 
@@ -181,9 +186,9 @@ export function carregarLayoutModelo1(): OsModelo1Layout {
 function lerConfigOsDoStorage(): ConfiguracoesOs {
   if (typeof window === "undefined") return normalizarConfiguracoesOs(null);
   try {
-    const raw = window.localStorage.getItem(CONFIG_OS_STORAGE_KEY);
-    if (!raw) return normalizarConfiguracoesOs(null);
-    return normalizarConfiguracoesOs(JSON.parse(raw) as Partial<ConfiguracoesOs>);
+    const salvo = readStorage<Partial<ConfiguracoesOs> | null>(CONFIG_OS_STORAGE_KEY, null);
+    if (!salvo) return normalizarConfiguracoesOs(null);
+    return normalizarConfiguracoesOs(salvo);
   } catch {
     return normalizarConfiguracoesOs(null);
   }
@@ -194,7 +199,7 @@ export function carregarConfiguracoesOs(): ConfiguracoesOs {
   const base = lerConfigOsDoStorage();
   const { config, alterou } = aplicarMigracaoBordaDesligadaModelos123(base);
   if (alterou) {
-    window.localStorage.setItem(CONFIG_OS_STORAGE_KEY, JSON.stringify(config));
+    writeStorage(CONFIG_OS_STORAGE_KEY, config);
     void persistirConfiguracoesOsServidor(config).catch(() => undefined);
   }
   return config;
@@ -203,7 +208,8 @@ export function carregarConfiguracoesOs(): ConfiguracoesOs {
 export function salvarConfiguracoesOs(config: ConfiguracoesOs) {
   if (typeof window === "undefined") return;
   const normalizado = normalizarConfiguracoesOs(config);
-  window.localStorage.setItem(CONFIG_OS_STORAGE_KEY, JSON.stringify(normalizado));
+  writeStorage(CONFIG_OS_STORAGE_KEY, normalizado);
+  void persistirArmazenamentoImediato(CONFIG_OS_STORAGE_KEY, normalizado);
   window.dispatchEvent(new Event(CONFIG_OS_ATUALIZADA_EVENT));
 }
 

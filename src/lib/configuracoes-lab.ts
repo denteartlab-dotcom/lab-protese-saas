@@ -10,6 +10,11 @@ import {
 } from "@/lib/cabecalho-requisicao";
 import { normalizarConfigLaboratorio } from "@/lib/configuracoes-lab-parse";
 import { normalizarIdioma, type Locale } from "@/lib/i18n";
+import {
+  persistirArmazenamentoImediato,
+  readStorage,
+  writeStorage,
+} from "@/lib/persisted-storage";
 
 export const CONFIG_LAB_STORAGE_KEY = "labProteseConfigLaboratorio";
 export const LAB_CONFIG_ATUALIZADA_EVENT = "lab-config-atualizada";
@@ -17,13 +22,14 @@ const LAB_TENANT_ID_KEY = "labProteseLaboratorioId";
 
 function chaveStorageLaboratorio(): string {
   if (typeof window === "undefined") return CONFIG_LAB_STORAGE_KEY;
-  const tenant = window.localStorage.getItem(LAB_TENANT_ID_KEY);
+  const tenant = readStorage<string | null>(LAB_TENANT_ID_KEY, null);
   return tenant ? `${CONFIG_LAB_STORAGE_KEY}:${tenant}` : CONFIG_LAB_STORAGE_KEY;
 }
 
 export function definirLaboratorioConfigAtivo(laboratorioId: string) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(LAB_TENANT_ID_KEY, laboratorioId);
+  writeStorage(LAB_TENANT_ID_KEY, laboratorioId);
+  void persistirArmazenamentoImediato(LAB_TENANT_ID_KEY, laboratorioId);
 }
 
 export type ConfigLaboratorio = LabImpressaoConfig & {
@@ -125,12 +131,14 @@ function montarTelefones(config: ConfigLaboratorio) {
   return telefoneWhatsappLaboratorio(config);
 }
 
-function readStorage(): ConfigLaboratorio | null {
+function lerConfigSalva(): ConfigLaboratorio | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(chaveStorageLaboratorio());
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<ConfigLaboratorio>;
+    const parsed = readStorage<Partial<ConfigLaboratorio> | null>(
+      chaveStorageLaboratorio(),
+      null
+    );
+    if (!parsed || typeof parsed !== "object") return null;
     return normalizarConfigLaboratorio(parsed);
   } catch {
     return null;
@@ -196,11 +204,11 @@ export function aplicarNomeLaboratorio(
 
 export function temConfigLaboratorioSalva(): boolean {
   if (typeof window === "undefined") return false;
-  return Boolean(window.localStorage.getItem(chaveStorageLaboratorio()));
+  return lerConfigSalva() !== null;
 }
 
 export function carregarConfigLaboratorio(): ConfigLaboratorio {
-  const salvo = readStorage();
+  const salvo = lerConfigSalva();
   if (!salvo) {
     return { ...CONFIG_LAB_PADRAO, tipoPessoa: "Jurídica" };
   }
@@ -288,10 +296,10 @@ export function prepararConfigParaSalvar(form: ConfigLaboratorio): ConfigLaborat
 
 export function salvarConfigLaboratorio(config: ConfigLaboratorio) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(
-    chaveStorageLaboratorio(),
-    JSON.stringify(prepararConfigParaSalvar(config))
-  );
+  const preparado = prepararConfigParaSalvar(config);
+  const chave = chaveStorageLaboratorio();
+  writeStorage(chave, preparado);
+  void persistirArmazenamentoImediato(chave, preparado);
   window.dispatchEvent(new Event(LAB_CONFIG_ATUALIZADA_EVENT));
 }
 

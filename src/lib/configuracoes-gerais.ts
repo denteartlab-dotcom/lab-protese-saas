@@ -1,3 +1,5 @@
+import { persistirArmazenamentoImediato, readStorage, writeStorage } from "@/lib/persisted-storage";
+
 export const CONFIG_GERAIS_STORAGE_KEY = "labProteseConfiguracoesGerais";
 export const CONFIG_GERAIS_ATUALIZADA_EVENT = "lab-config-gerais-atualizada";
 
@@ -52,9 +54,12 @@ export function normalizarConfiguracoesGerais(
 export function carregarConfiguracoesGerais(): ConfiguracoesGerais {
   if (typeof window === "undefined") return { ...CONFIG_GERAIS_PADRAO };
   try {
-    const raw = window.localStorage.getItem(CONFIG_GERAIS_STORAGE_KEY);
-    if (!raw) return { ...CONFIG_GERAIS_PADRAO };
-    return normalizarConfiguracoesGerais(JSON.parse(raw) as Partial<ConfiguracoesGerais>);
+    const salvo = readStorage<Partial<ConfiguracoesGerais> | null>(
+      CONFIG_GERAIS_STORAGE_KEY,
+      null
+    );
+    if (!salvo) return { ...CONFIG_GERAIS_PADRAO };
+    return normalizarConfiguracoesGerais(salvo);
   } catch {
     return { ...CONFIG_GERAIS_PADRAO };
   }
@@ -63,7 +68,8 @@ export function carregarConfiguracoesGerais(): ConfiguracoesGerais {
 export function salvarConfiguracoesGerais(config: ConfiguracoesGerais) {
   if (typeof window === "undefined") return;
   const normalizado = normalizarConfiguracoesGerais(config);
-  window.localStorage.setItem(CONFIG_GERAIS_STORAGE_KEY, JSON.stringify(normalizado));
+  writeStorage(CONFIG_GERAIS_STORAGE_KEY, normalizado);
+  void persistirArmazenamentoImediato(CONFIG_GERAIS_STORAGE_KEY, normalizado);
   window.dispatchEvent(new Event(CONFIG_GERAIS_ATUALIZADA_EVENT));
 }
 

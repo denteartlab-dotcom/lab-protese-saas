@@ -1,5 +1,6 @@
 import type { MessageKey } from "@/lib/i18n";
 import type { NotificacaoUi } from "@/lib/notificacoes-client";
+import { readStorage, writeStorage } from "@/lib/persisted-storage";
 
 export const ANOTACOES_DASHBOARD_KEY = "labProteseAnotacoesDashboard";
 export const ANOTACOES_ATUALIZADO_EVENT = "labProteseAnotacoesAtualizado";
@@ -19,18 +20,13 @@ function notifyAnotacoesAtualizadas() {
 
 export function lerAnotacoesDashboard(): AnotacaoDashboard[] {
   if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(ANOTACOES_DASHBOARD_KEY);
-    const lista = raw ? (JSON.parse(raw) as AnotacaoDashboard[]) : [];
-    return Array.isArray(lista) ? lista : [];
-  } catch {
-    return [];
-  }
+  const lista = readStorage<AnotacaoDashboard[]>(ANOTACOES_DASHBOARD_KEY, []);
+  return Array.isArray(lista) ? lista : [];
 }
 
 export function salvarAnotacoesDashboard(lista: AnotacaoDashboard[]) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(ANOTACOES_DASHBOARD_KEY, JSON.stringify(lista.slice(0, MAX_ANOTACOES)));
+  writeStorage(ANOTACOES_DASHBOARD_KEY, lista.slice(0, MAX_ANOTACOES));
   notifyAnotacoesAtualizadas();
 }
 

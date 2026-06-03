@@ -6,6 +6,7 @@ import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { Button, Input, Modal } from "@/components/ui";
 import { usePageReady } from "@/hooks/use-page-ready";
+import { readStorage, writeStorage } from "@/lib/persisted-storage";
 
 const STORAGE_KEY = "labProteseMateriaisDentista";
 
@@ -29,15 +30,8 @@ const materiaisPadrao = [
 
 function carregarMateriais() {
   if (typeof window === "undefined") return materiaisPadrao;
-  const saved = window.localStorage.getItem(STORAGE_KEY);
-  if (!saved) return materiaisPadrao;
-
-  try {
-    const parsed = JSON.parse(saved);
-    return Array.isArray(parsed) ? parsed : materiaisPadrao;
-  } catch {
-    return materiaisPadrao;
-  }
+  const parsed = readStorage<string[] | null>(STORAGE_KEY, null);
+  return Array.isArray(parsed) && parsed.length > 0 ? parsed : materiaisPadrao;
 }
 
 export default function MaterialDentistaPage() {
@@ -67,7 +61,7 @@ export default function MaterialDentistaPage() {
 
   useEffect(() => {
     if (!materiaisCarregados) return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(materiais));
+    writeStorage(STORAGE_KEY, materiais);
   }, [materiais, materiaisCarregados]);
 
   const filtrados = useMemo(() => {
@@ -103,9 +97,7 @@ export default function MaterialDentistaPage() {
         (material) =>
           material !== editando && material.toLowerCase() !== nome.toLowerCase()
       );
-      const atualizados = editando ? semDuplicidade.concat(nome) : [...semDuplicidade, nome];
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(atualizados));
-      return atualizados;
+      return editando ? semDuplicidade.concat(nome) : [...semDuplicidade, nome];
     });
     setModalAberto(false);
     setEditando(null);
@@ -113,11 +105,7 @@ export default function MaterialDentistaPage() {
   }
 
   function excluirMaterial(material: string) {
-    setMateriais((atuais) => {
-      const atualizados = atuais.filter((item) => item !== material);
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(atualizados));
-      return atualizados;
-    });
+    setMateriais((atuais) => atuais.filter((item) => item !== material));
   }
 
   return (

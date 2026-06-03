@@ -6,7 +6,7 @@ import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { compararTextoBr } from "@/lib/listagem-config";
 import { usePageReady } from "@/hooks/use-page-ready";
-import { writeStorage } from "@/lib/persisted-storage";
+import { readStorage, writeStorage } from "@/lib/persisted-storage";
 
 type Colaborador = {
   id: string;
@@ -112,28 +112,14 @@ const setoresIniciais: Setor[] = [
 
 function carregarSetoresCadastrados() {
   if (typeof window === "undefined") return setoresIniciais;
-  const saved = window.localStorage.getItem(SETORES_STORAGE_KEY);
-  if (!saved) return setoresIniciais;
-
-  try {
-    const parsed = JSON.parse(saved);
-    return Array.isArray(parsed) ? parsed : setoresIniciais;
-  } catch {
-    return setoresIniciais;
-  }
+  const parsed = readStorage<Setor[]>(SETORES_STORAGE_KEY, setoresIniciais);
+  return Array.isArray(parsed) && parsed.length > 0 ? parsed : setoresIniciais;
 }
 
 function carregarLista<T>(key: string, fallback: T[]) {
   if (typeof window === "undefined") return fallback;
-  const saved = window.localStorage.getItem(key);
-  if (!saved) return fallback;
-
-  try {
-    const parsed = JSON.parse(saved);
-    return Array.isArray(parsed) ? parsed : fallback;
-  } catch {
-    return fallback;
-  }
+  const parsed = readStorage<T[]>(key, fallback);
+  return Array.isArray(parsed) ? parsed : fallback;
 }
 
 export default function ColaboradoresPage() {
@@ -178,17 +164,17 @@ export default function ColaboradoresPage() {
 
   useEffect(() => {
     if (!setoresCarregados) return;
-    window.localStorage.setItem(SETORES_STORAGE_KEY, JSON.stringify(setores));
+    writeStorage(SETORES_STORAGE_KEY, setores);
   }, [setores, setoresCarregados]);
 
   useEffect(() => {
     if (!colaboradoresCarregados) return;
-    window.localStorage.setItem(COLABORADORES_STORAGE_KEY, JSON.stringify(colaboradores));
+    writeStorage(COLABORADORES_STORAGE_KEY, colaboradores);
   }, [colaboradores, colaboradoresCarregados]);
 
   useEffect(() => {
     if (!colaboradoresExcluidosCarregados) return;
-    window.localStorage.setItem(COLABORADORES_EXCLUIDOS_STORAGE_KEY, JSON.stringify(colaboradoresExcluidos));
+    writeStorage(COLABORADORES_EXCLUIDOS_STORAGE_KEY, colaboradoresExcluidos);
   }, [colaboradoresExcluidos, colaboradoresExcluidosCarregados]);
 
   const colaboradoresFiltrados = useMemo(() => {
@@ -399,7 +385,7 @@ export default function ColaboradoresPage() {
     setSetores((atuais) => {
       if (atuais.some((item) => item.nome.toLowerCase() === nome.toLowerCase())) return atuais;
       const atualizados = [...atuais, setor];
-      window.localStorage.setItem(SETORES_STORAGE_KEY, JSON.stringify(atualizados));
+      writeStorage(SETORES_STORAGE_KEY, atualizados);
       return atualizados;
     });
     setCampo("setor", nome);
@@ -411,7 +397,7 @@ export default function ColaboradoresPage() {
   function excluirSetor(nome: string) {
     setSetores((atuais) => {
       const atualizados = atuais.filter((setor) => setor.nome !== nome);
-      window.localStorage.setItem(SETORES_STORAGE_KEY, JSON.stringify(atualizados));
+      writeStorage(SETORES_STORAGE_KEY, atualizados);
       return atualizados;
     });
     if (form.setor === nome) {

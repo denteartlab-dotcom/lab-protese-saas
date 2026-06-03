@@ -1,6 +1,7 @@
 import type { NotificacaoApi } from "@/app/api/notificacoes/route";
 import { getProdutosEstoqueExtras, PRODUTOS_ESTOQUE_EVENT } from "@/lib/estoque";
 import type { MessageKey } from "@/lib/i18n";
+import { readStorage, writeStorage } from "@/lib/persisted-storage";
 
 export type NotificacaoUi = {
   id: string;
@@ -41,42 +42,34 @@ export function notificacaoSoMarcarLida(n: Pick<NotificacaoUi, "kind">) {
 
 export function lerNotificacoesLidas(): string[] {
   if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(NOTIF_LIDAS_KEY);
-    return raw ? (JSON.parse(raw) as string[]) : [];
-  } catch {
-    return [];
-  }
+  const parsed = readStorage<string[]>(NOTIF_LIDAS_KEY, []);
+  return Array.isArray(parsed) ? parsed : [];
 }
 
 export function salvarNotificacoesLidas(ids: string[]) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(NOTIF_LIDAS_KEY, JSON.stringify(ids));
+  writeStorage(NOTIF_LIDAS_KEY, ids);
 }
 
 export function lerNotificacoesDescartadas(): string[] {
   if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(NOTIF_DESCARTADAS_KEY);
-    return raw ? (JSON.parse(raw) as string[]) : [];
-  } catch {
-    return [];
-  }
+  const parsed = readStorage<string[]>(NOTIF_DESCARTADAS_KEY, []);
+  return Array.isArray(parsed) ? parsed : [];
 }
 
 export function salvarNotificacoesDescartadas(ids: string[]) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(NOTIF_DESCARTADAS_KEY, JSON.stringify(ids));
+  writeStorage(NOTIF_DESCARTADAS_KEY, ids);
 }
 
 export function notificacaoSistemaAtiva(): boolean {
   if (typeof window === "undefined") return true;
-  return window.localStorage.getItem(NOTIF_SISTEMA_KEY) !== "off";
+  return readStorage<string>(NOTIF_SISTEMA_KEY, "on") !== "off";
 }
 
 export function definirNotificacaoSistema(ativa: boolean) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(NOTIF_SISTEMA_KEY, ativa ? "on" : "off");
+  writeStorage(NOTIF_SISTEMA_KEY, ativa ? "on" : "off");
 }
 
 const ESTOQUE_BAIXO_LIMITE = 5;

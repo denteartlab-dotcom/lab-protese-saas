@@ -4,7 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckSquare, Square, X } from "lucide-react";
 import { Button } from "@/components/ui";
 import { useI18n } from "@/components/i18n-provider";
+import { aplicarArmazenamentoLaboratorioCliente } from "@/lib/armazenamento-laboratorio";
+import { LISTAGEM_CONFIGS_KEY } from "@/lib/armazenamento-laboratorio-keys";
 import type { ModuloLimpezaId } from "@/lib/limpar-modulos-laboratorio";
+import { readStorage } from "@/lib/persisted-storage";
 
 type ModuloApi = {
   id: ModuloLimpezaId;
@@ -24,50 +27,40 @@ type Props = {
   onConcluido?: () => void;
 };
 
-function contarItensLocalStorage(mod: ModuloApi): number {
+function valorTemDados(valor: unknown): boolean {
+  if (valor == null) return false;
+  if (Array.isArray(valor)) return valor.length > 0;
+  if (typeof valor === "object") return Object.keys(valor as object).length > 0;
+  if (typeof valor === "string") {
+    return valor !== "" && valor !== "[]" && valor !== "{}" && valor !== "null";
+  }
+  return true;
+}
+
+function contarItensArmazenamento(mod: ModuloApi): number {
   if (typeof window === "undefined") return 0;
   let n = 0;
   for (const key of mod.localStorageKeys) {
-    const v = window.localStorage.getItem(key);
-    if (v && v !== "[]" && v !== "{}" && v !== "null") n += 1;
+    if (valorTemDados(readStorage(key, null))) n += 1;
   }
   const prefixos = mod.localStoragePrefixos ?? [];
-  if (prefixos.length) {
-    for (let i = 0; i < window.localStorage.length; i++) {
-      const k = window.localStorage.key(i);
-      if (!k) continue;
-      if (prefixos.some((p) => k.startsWith(p))) {
-        const v = window.localStorage.getItem(k);
-        if (v && v !== "[]" && v !== "{}") n += 1;
-      }
-    }
+  if (prefixos.some((p) => p.startsWith("labProteseListaConfig:"))) {
+    const mapa = readStorage<Record<string, unknown>>(LISTAGEM_CONFIGS_KEY, {});
+    if (Object.keys(mapa).length > 0) n += 1;
   }
   return n;
 }
 
-function limparLocalStorageCliente(
-  keys: string[],
-  prefixos: string[],
-  setValues: Record<string, string>
-) {
-  if (typeof window === "undefined") return;
-  for (const [key, value] of Object.entries(setValues)) {
-    window.localStorage.setItem(key, value);
+function parseValoresRestauracao(setValues: Record<string, string>): Record<string, unknown> {
+  const entradas: Record<string, unknown> = {};
+  for (const [key, raw] of Object.entries(setValues)) {
+    try {
+      entradas[key] = JSON.parse(raw) as unknown;
+    } catch {
+      entradas[key] = raw;
+    }
   }
-  for (const key of keys) {
-    if (key in setValues) continue;
-    window.localStorage.removeItem(key);
-  }
-  const remover: string[] = [];
-  for (let i = 0; i < window.localStorage.length; i++) {
-    const k = window.localStorage.key(i);
-    if (!k) continue;
-    if (prefixos.some((p) => k.startsWith(p))) remover.push(k);
-  }
-  for (const k of remover) window.localStorage.removeItem(k);
-  if (prefixos.some((p) => p.startsWith("labProteseConfigLaboratorio"))) {
-    window.localStorage.removeItem("labProteseConfigLaboratorio");
-  }
+  return entradas;
 }
 
 export function RestaurarPadraoModal({
@@ -138,7 +131,7 @@ export function RestaurarPadraoModal({
 
   const modulosComContagem = useMemo(() => {
     return modulos.map((mod) => {
-      const local = contarItensLocalStorage(mod);
+      const local = contarItensArmazenamento(mod);
       const total = mod.registros + local;
       return {
         ...mod,
@@ -230,10 +223,10 @@ export function RestaurarPadraoModal({
         return;
       }
 
-      limparLocalStorageCliente(
+      await aplicarArmazenamentoLaboratorioCliente(
         data.localStorageKeys ?? [],
         data.localStoragePrefixos ?? [],
-        data.localStorageSet ?? {}
+        parseValoresRestauracao(data.localStorageSet ?? {})
       );
 
       const totalApagado = Object.values(data.apagados ?? {}).reduce(

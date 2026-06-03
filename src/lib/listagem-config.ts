@@ -1,3 +1,9 @@
+import {
+  LISTAGEM_CONFIGS_KEY,
+  LISTAGEM_CONFIG_PREFIX,
+} from "@/lib/armazenamento-laboratorio-keys";
+import { readStorage, writeStorage } from "@/lib/persisted-storage";
+
 export type DirecaoLista = "asc" | "desc";
 
 export type ConfigListagemPersistida<C extends string = string> = {
@@ -11,7 +17,16 @@ export const POR_PAGINA_PADRAO = 50;
 export const POR_PAGINA_MIN = 1;
 export const POR_PAGINA_MAX = 500;
 
-const STORAGE_PREFIX = "labProteseListaConfig:";
+function lerMapaListagens(): Record<string, ConfigListagemPersistida<string>> {
+  return readStorage<Record<string, ConfigListagemPersistida<string>>>(
+    LISTAGEM_CONFIGS_KEY,
+    {}
+  );
+}
+
+function gravarMapaListagens(mapa: Record<string, ConfigListagemPersistida<string>>) {
+  writeStorage(LISTAGEM_CONFIGS_KEY, mapa);
+}
 
 export function normalizarPorPagina(valor: number | string) {
   const n = Number(valor);
@@ -25,9 +40,9 @@ export function lerConfigListagem<C extends string>(
 ): ConfigListagemPersistida<C> {
   if (typeof window === "undefined") return padrao;
   try {
-    const raw = window.localStorage.getItem(`${STORAGE_PREFIX}${storageKey}`);
-    if (!raw) return padrao;
-    const parsed = JSON.parse(raw) as Partial<ConfigListagemPersistida<C>>;
+    const mapa = lerMapaListagens();
+    const parsed = mapa[storageKey] as Partial<ConfigListagemPersistida<C>> | undefined;
+    if (!parsed) return padrao;
     return {
       ...padrao,
       ...parsed,
@@ -45,17 +60,19 @@ export function gravarConfigListagem<C extends string>(
 ) {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(
-      `${STORAGE_PREFIX}${storageKey}`,
-      JSON.stringify({
-        ...config,
-        porPagina: normalizarPorPagina(config.porPagina),
-      })
-    );
+    const mapa = lerMapaListagens();
+    mapa[storageKey] = {
+      ...config,
+      porPagina: normalizarPorPagina(config.porPagina),
+    } as ConfigListagemPersistida<string>;
+    gravarMapaListagens(mapa);
   } catch {
     /* ignore */
   }
 }
+
+/** Legado — usado só na migração automática (prefixo removido do localStorage). */
+export const LISTAGEM_STORAGE_PREFIX = LISTAGEM_CONFIG_PREFIX;
 
 export function compararTextoBr(a: string, b: string) {
   return a.localeCompare(b, "pt-BR", { sensitivity: "base" });

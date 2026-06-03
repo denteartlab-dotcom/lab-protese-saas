@@ -85,6 +85,7 @@ import {
   compararNumero,
   compararTextoBr,
 } from "@/lib/listagem-config";
+import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import {
   grupoOsEstaFaturado,
   MENSAGEM_OS_FATURADA_NAO_EXCLUI,
@@ -761,11 +762,11 @@ export default function ControlePage() {
     if (typeof window === "undefined") return;
     try {
       const produtosSalvo =
-        window.localStorage.getItem("labProteseControleProdutos") ??
-        window.localStorage.getItem("labProteseControleProdutor");
+        readStorage<string | null>("labProteseControleProdutos", null) ??
+        readStorage<string | null>("labProteseControleProdutor", null);
       setFiltroProdutos(produtosSalvo === "1");
       setFiltroFichasSemServicos(
-        window.localStorage.getItem("labProteseControleFichasSemServicos") === "1"
+        readStorage<string | null>("labProteseControleFichasSemServicos", null) === "1"
       );
     } catch {
       /* ignore */
@@ -1890,10 +1891,7 @@ export default function ControlePage() {
                       listagem.rascunho.extras?.mostrarProdutosTransportes ?? filtroProdutos;
                     setFiltroProdutos(mostrar);
                     if (typeof window !== "undefined") {
-                      window.localStorage.setItem(
-                        "labProteseControleProdutos",
-                        mostrar ? "1" : "0"
-                      );
+                      writeStorage("labProteseControleProdutos", mostrar ? "1" : "0");
                     }
                     listagem.gravarConfig();
                   }}

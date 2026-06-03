@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { usePageReady } from "@/hooks/use-page-ready";
+import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import {
   CalendarDays,
   List,
@@ -109,10 +110,10 @@ function usePreferenciasControle(
     if (typeof window === "undefined") return;
     try {
       const produtosSalvo =
-        window.localStorage.getItem(STORAGE_PRODUTOS) ??
-        window.localStorage.getItem(STORAGE_PRODUTOS_LEGADO);
+        readStorage<string | null>(STORAGE_PRODUTOS, null) ??
+        readStorage<string | null>(STORAGE_PRODUTOS_LEGADO, null);
       setProdutosInterno(produtosSalvo === "1");
-      setFichasInterno(window.localStorage.getItem(STORAGE_FICHAS_SEM_SERVICOS) === "1");
+      setFichasInterno(readStorage<string | null>(STORAGE_FICHAS_SEM_SERVICOS, null) === "1");
     } catch {
       setProdutosInterno(false);
       setFichasInterno(false);
@@ -156,7 +157,7 @@ export function ControleProducaoFiltrosLista({
     onProdutosChange?.(valor);
     if (produtosControlado === undefined) setProdutosInterno(valor);
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_PRODUTOS, valor ? "1" : "0");
+      writeStorage(STORAGE_PRODUTOS, valor ? "1" : "0");
     }
   }
 
@@ -164,7 +165,7 @@ export function ControleProducaoFiltrosLista({
     onFichasSemServicosChange?.(valor);
     if (fichasControlado === undefined) setFichasInterno(valor);
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_FICHAS_SEM_SERVICOS, valor ? "1" : "0");
+      writeStorage(STORAGE_FICHAS_SEM_SERVICOS, valor ? "1" : "0");
     }
   }
 
@@ -210,7 +211,7 @@ export function ControleProducaoToolbar({
     onProdutosChange?.(valor);
     if (produtosControlado === undefined) setProdutosInterno(valor);
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_PRODUTOS, valor ? "1" : "0");
+      writeStorage(STORAGE_PRODUTOS, valor ? "1" : "0");
     }
   }
 
@@ -218,7 +219,7 @@ export function ControleProducaoToolbar({
     onFichasSemServicosChange?.(valor);
     if (fichasControlado === undefined) setFichasInterno(valor);
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_FICHAS_SEM_SERVICOS, valor ? "1" : "0");
+      writeStorage(STORAGE_FICHAS_SEM_SERVICOS, valor ? "1" : "0");
     }
   }
 

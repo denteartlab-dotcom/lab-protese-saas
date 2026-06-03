@@ -7,7 +7,7 @@ import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { compararTextoBr } from "@/lib/listagem-config";
 import { Button, Input, Modal, Select } from "@/components/ui";
 import { usePageReady } from "@/hooks/use-page-ready";
-import { writeStorage } from "@/lib/persisted-storage";
+import { readStorage, writeStorage } from "@/lib/persisted-storage";
 
 type Prestador = {
   id: string;
@@ -72,17 +72,10 @@ function formatPercentInput(value: string) {
   })}%`;
 }
 
-function carregarLista(key: string) {
+function carregarLista<T>(key: string): T[] {
   if (typeof window === "undefined") return [];
-  const saved = window.localStorage.getItem(key);
-  if (!saved) return [];
-
-  try {
-    const parsed = JSON.parse(saved);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  const parsed = readStorage<T[]>(key, []);
+  return Array.isArray(parsed) ? parsed : [];
 }
 
 export default function PrestadoresPage() {
