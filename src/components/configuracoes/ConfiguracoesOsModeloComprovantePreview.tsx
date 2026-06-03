@@ -363,9 +363,6 @@ export function PreviewOsModeloComprovante({
         {layout.codBarras ? (
           <div style={{ marginTop: gap(4) }}>
             <Code39Barcode value={`OS${amostra.numeroOs}`} height={36} />
-            <p className="font-mono text-[9px] tracking-wide text-slate-800" style={{ marginTop: gap(0.5) }}>
-              OS{amostra.numeroOs}
-            </p>
             <LinhaSeparador marginTop={gap(2)} />
           </div>
         ) : null}

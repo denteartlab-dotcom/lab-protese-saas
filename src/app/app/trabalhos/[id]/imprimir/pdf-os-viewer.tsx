@@ -294,10 +294,7 @@ function desenharRodapeRequisicaoA4(
     }
     const barcodeValue = `OS${data.numeroOs}`;
     drawCode39(pdf, barcodeValue, conteudoEsq, y);
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(6);
-    pdf.text(barcodeValue, conteudoEsq, y + 12);
-    y += g(12);
+    y += 10;
     linhaPagina(pdf, lay, y, pageWidth);
   }
 
@@ -1069,9 +1066,7 @@ function renderTermicaModelo3(pdf: PdfRenderApi, data: PdfOsData): number {
   const barcodeValue = `OS${data.numeroOs}`;
   const barcodeW = 42;
   drawCode39(pdf, barcodeValue, cx - barcodeW / 2, y);
-  pdf.setFontSize(6);
-  pdf.text(barcodeValue, cx, y + 10, { align: "center" });
-  y += 13;
+  y += 10;
   linhaTermica(pdf, y, pageWidth);
 
   return y + 2;
@@ -1342,9 +1337,7 @@ function renderTermicaModelo4(
     const barcodeValue = `OS${data.numeroOs}`;
     const barcodeW = 42;
     drawCode39(pdf, barcodeValue, cx - barcodeW / 2, y);
-    pdf.setFontSize(5.5);
-    pdf.text(barcodeValue, cx, y + 9, { align: "center" });
-    y += 12;
+    y += 10;
   }
 
   return y + 2;
@@ -1594,9 +1587,7 @@ function renderTermicaModelo5(
     const barcodeValue = `OS${data.numeroOs}`;
     const barcodeW = 42;
     drawCode39(pdf, barcodeValue, cx - barcodeW / 2, y);
-    pdf.setFontSize(5.5);
-    pdf.text(barcodeValue, cx, y + 9, { align: "center" });
-    y += 12;
+    y += 10;
   }
 
   return y + 2;
