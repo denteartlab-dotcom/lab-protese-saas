@@ -23,7 +23,7 @@ export const CONFIG_OS_STORAGE_KEY = "labProteseConfiguracoesOs";
 export const CONFIG_OS_ATUALIZADA_EVENT = "lab-config-os-atualizada";
 
 /** Migração única: modelos A4 1–3 sem moldura até o usuário marcar “Bordas”. */
-const MIGRATION_BORDA_DESLIGADA_KEY = "labProteseOsBordaDesligada_v2";
+const MIGRATION_BORDA_DESLIGADA_KEY = "labProteseOsBordaDesligada_v3";
 
 function desligarBordaModelosA4(cfg: ConfiguracoesOs): ConfiguracoesOs {
   return {
@@ -178,21 +178,26 @@ export function carregarLayoutModelo1(): OsModelo1Layout {
   return carregarConfiguracoesOs().layoutModelo1;
 }
 
-export function carregarConfiguracoesOs(): ConfiguracoesOs {
+function lerConfigOsDoStorage(): ConfiguracoesOs {
   if (typeof window === "undefined") return normalizarConfiguracoesOs(null);
   try {
     const raw = window.localStorage.getItem(CONFIG_OS_STORAGE_KEY);
-    const base = raw
-      ? normalizarConfiguracoesOs(JSON.parse(raw) as Partial<ConfiguracoesOs>)
-      : normalizarConfiguracoesOs(null);
-    const { config, alterou } = aplicarMigracaoBordaDesligadaModelos123(base);
-    if (alterou) {
-      window.localStorage.setItem(CONFIG_OS_STORAGE_KEY, JSON.stringify(config));
-    }
-    return config;
+    if (!raw) return normalizarConfiguracoesOs(null);
+    return normalizarConfiguracoesOs(JSON.parse(raw) as Partial<ConfiguracoesOs>);
   } catch {
     return normalizarConfiguracoesOs(null);
   }
+}
+
+export function carregarConfiguracoesOs(): ConfiguracoesOs {
+  if (typeof window === "undefined") return normalizarConfiguracoesOs(null);
+  const base = lerConfigOsDoStorage();
+  const { config, alterou } = aplicarMigracaoBordaDesligadaModelos123(base);
+  if (alterou) {
+    window.localStorage.setItem(CONFIG_OS_STORAGE_KEY, JSON.stringify(config));
+    void persistirConfiguracoesOsServidor(config).catch(() => undefined);
+  }
+  return config;
 }
 
 export function salvarConfiguracoesOs(config: ConfiguracoesOs) {
@@ -203,24 +208,25 @@ export function salvarConfiguracoesOs(config: ConfiguracoesOs) {
 }
 
 export async function sincronizarConfiguracoesOsDoServidor(): Promise<ConfiguracoesOs> {
-  const local = carregarConfiguracoesOs();
+  const local = lerConfigOsDoStorage();
   try {
     const res = await fetch(
       `/api/json-store/${encodeURIComponent(CONFIG_OS_STORAGE_KEY)}`,
       { cache: "no-store", credentials: "same-origin" }
     );
-    if (!res.ok) return local;
+    if (!res.ok) return carregarConfiguracoesOs();
     const remoto = (await res.json()) as Partial<ConfiguracoesOs> | null;
-    if (!remoto || typeof remoto !== "object") return local;
-    const mesclado = normalizarConfiguracoesOs({ ...local, ...remoto });
+    if (!remoto || typeof remoto !== "object") return carregarConfiguracoesOs();
+    /** Local por último: não deixa o servidor reativar “Bordas” sem você salvar no editor. */
+    const mesclado = normalizarConfiguracoesOs({ ...remoto, ...local });
     const { config, alterou } = aplicarMigracaoBordaDesligadaModelos123(mesclado);
     salvarConfiguracoesOs(config);
     if (alterou) {
-      void persistirConfiguracoesOsServidor(config).catch(() => undefined);
+      await persistirConfiguracoesOsServidor(config).catch(() => undefined);
     }
     return config;
   } catch {
-    return local;
+    return carregarConfiguracoesOs();
   }
 }
 
