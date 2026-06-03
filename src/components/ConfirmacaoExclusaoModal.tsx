@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { X } from "lucide-react";
 
 type Props = {
@@ -31,10 +32,27 @@ export function ConfirmacaoExclusaoModal({
   labelConfirmar = "Sim",
   labelCancelar = "Não",
 }: Props) {
+  const confirmandoRef = useRef(false);
+
   if (!open) return null;
 
-  async function handleConfirmar() {
-    await onConfirm();
+  function handleConfirmar() {
+    if (processando || confirmandoRef.current) return;
+    confirmandoRef.current = true;
+    const action = onConfirm;
+    onClose();
+    void Promise.resolve(action())
+      .catch((err) => {
+        console.error("[ConfirmacaoExclusaoModal]", err);
+        alert(
+          err instanceof Error
+            ? err.message
+            : "Não foi possível concluir a operação. Tente novamente."
+        );
+      })
+      .finally(() => {
+        confirmandoRef.current = false;
+      });
   }
 
   return (
@@ -84,7 +102,7 @@ export function ConfirmacaoExclusaoModal({
           </button>
           <button
             type="button"
-            onClick={() => void handleConfirmar()}
+            onClick={handleConfirmar}
             disabled={processando}
             className={
               tipoConfirmacao === "primario"

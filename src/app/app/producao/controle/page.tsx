@@ -1799,23 +1799,31 @@ export default function ControlePage() {
   }
 
   async function confirmarExclusaoOs() {
-    if (!osExcluindo) return;
     const trabalho = osExcluindo;
+    if (!trabalho) return;
     if (trabalhoGrupoFaturado(trabalho)) {
       window.alert(MENSAGEM_OS_FATURADA_NAO_EXCLUI);
       setOsExcluindo(null);
       return;
     }
-    const res = await fetch(`/api/trabalhos/${trabalho.id}`, { method: "DELETE" });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      window.alert(
-        typeof data.error === "string" ? data.error : MENSAGEM_OS_FATURADA_NAO_EXCLUI
-      );
-      return;
-    }
+    const id = trabalho.id;
     setOsExcluindo(null);
-    load();
+    setTrabalhos((lista) => lista.filter((item) => item.id !== id));
+    try {
+      const res = await fetch(`/api/trabalhos/${id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        window.alert(
+          typeof data.error === "string" ? data.error : MENSAGEM_OS_FATURADA_NAO_EXCLUI
+        );
+        void load();
+        return;
+      }
+      void load();
+    } catch {
+      window.alert("Não foi possível excluir a ordem de serviço.");
+      void load();
+    }
   }
 
   return (

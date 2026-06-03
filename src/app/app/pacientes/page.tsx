@@ -93,10 +93,21 @@ export default function PacientesPage() {
   }
 
   async function confirmarExclusaoPaciente() {
-    if (!pacienteParaExcluir) return;
-    await fetch(`/api/pacientes/${pacienteParaExcluir.id}`, { method: "DELETE" });
+    const paciente = pacienteParaExcluir;
+    if (!paciente) return;
     setPacienteParaExcluir(null);
-    load();
+    setList((lista) => lista.filter((p) => p.id !== paciente.id));
+    try {
+      const res = await fetch(`/api/pacientes/${paciente.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        alert(data.error || "Não foi possível excluir o paciente.");
+        void load();
+      }
+    } catch {
+      alert("Não foi possível excluir o paciente.");
+      void load();
+    }
   }
 
   return (

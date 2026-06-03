@@ -583,8 +583,10 @@ function ProdutosConteudo() {
   }
 
   async function confirmarExclusaoPermanente() {
-    if (!produtoParaExcluirPermanente) return;
-    const { id } = produtoParaExcluirPermanente;
+    const produto = produtoParaExcluirPermanente;
+    if (!produto) return;
+    const { id } = produto;
+    setProdutoParaExcluirPermanente(null);
 
     const idsExcluidosAtualizados = produtosExcluidos.filter((itemId) => itemId !== id);
     const snapshotsAtualizados = { ...snapshotsExcluidos };
@@ -609,18 +611,15 @@ function ProdutosConteudo() {
     });
     limparDadosEstoqueDoProduto(id);
 
-    if (!id.startsWith("padrao-")) {
-      try {
-        await fetch(`/api/produtos?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-      } catch {
-        // mantém remoção local mesmo se a API falhar
-      }
-    }
-
     if (visualizandoProduto?.id === id) setVisualizandoProduto(null);
     if (historicoProduto?.id === id) setHistoricoProduto(null);
     if (movimentoProduto?.id === id) setMovimentoProduto(null);
-    setProdutoParaExcluirPermanente(null);
+
+    if (!id.startsWith("padrao-")) {
+      void fetch(`/api/produtos?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(
+        () => undefined
+      );
+    }
   }
 
   function alterarUnidadeMedida(unidadeMedida: string) {

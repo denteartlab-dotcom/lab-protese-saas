@@ -972,7 +972,7 @@ function FinanceiroReceberConteudo() {
       recebido: false,
     });
     setOsSelecionadas([]);
-    await loadPosMutacao();
+    void loadPosMutacao();
     } finally {
       saveEmAndamentoRef.current = false;
       setSalvandoLancamento(false);
@@ -985,7 +985,7 @@ function FinanceiroReceberConteudo() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "pago" }),
     });
-    await loadPosMutacao();
+    void loadPosMutacao();
   }
 
   async function remove(id: string, contextoCliente?: ClienteReceber) {
@@ -1064,7 +1064,7 @@ function FinanceiroReceberConteudo() {
             fetch(`/api/financeiro/${lancamentoId}`, { method: "DELETE" })
           )
         );
-        await loadPosMutacao();
+        void loadPosMutacao();
       },
     });
   }
@@ -1079,7 +1079,7 @@ function FinanceiroReceberConteudo() {
           setDetalheRecebimento(null);
           setReciboRecebimento(null);
           setClienteCollapseAberto(null);
-          await loadPosMutacao();
+          void loadPosMutacao();
         },
       });
       return;
@@ -1094,7 +1094,7 @@ function FinanceiroReceberConteudo() {
           setDetalheRecebimento(null);
           setReciboRecebimento(null);
           setClienteCollapseAberto(null);
-          await loadPosMutacao();
+          void loadPosMutacao();
         },
       });
       return;
@@ -1136,7 +1136,7 @@ function FinanceiroReceberConteudo() {
         setDetalheRecebimento(null);
         setReciboRecebimento(null);
         setClienteCollapseAberto(null);
-        await loadPosMutacao();
+        void loadPosMutacao();
       },
     });
   }
@@ -2044,11 +2044,8 @@ function FinanceiroReceberConteudo() {
         detalhe={confirmacaoExclusao?.detalhe}
         tipoConfirmacao={confirmacaoExclusao?.tipoConfirmacao}
         onClose={() => setConfirmacaoExclusao(null)}
-        onConfirm={async () => {
-          if (confirmacaoExclusao) {
-            await confirmacaoExclusao.onConfirm();
-            setConfirmacaoExclusao(null);
-          }
+        onConfirm={() => {
+          if (confirmacaoExclusao) void confirmacaoExclusao.onConfirm();
         }}
       />
 

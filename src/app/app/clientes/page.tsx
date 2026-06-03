@@ -91,7 +91,6 @@ export default function ClientesPage() {
   const [list, setList] = useState<Cliente[]>([]);
   const [clienteParaExcluir, setClienteParaExcluir] = useState<Cliente | null>(null);
   const [mostrarExcluidos, setMostrarExcluidos] = useState(false);
-  const [excluindoCliente, setExcluindoCliente] = useState(false);
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Cliente | null>(null);
@@ -338,22 +337,25 @@ export default function ClientesPage() {
   }
 
   async function confirmarExclusaoCliente() {
-    if (!clienteParaExcluir) return;
-    setExcluindoCliente(true);
+    const cliente = clienteParaExcluir;
+    if (!cliente) return;
+    setClienteParaExcluir(null);
+    setList((lista) => lista.filter((c) => c.id !== cliente.id));
     try {
       const url = mostrarExcluidos
-        ? `/api/clientes/${clienteParaExcluir.id}?permanente=1`
-        : `/api/clientes/${clienteParaExcluir.id}`;
+        ? `/api/clientes/${cliente.id}?permanente=1`
+        : `/api/clientes/${cliente.id}`;
       const res = await fetch(url, { method: "DELETE" });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
         alert(data.error || "Não foi possível excluir o cliente.");
+        void load();
         return;
       }
-      setClienteParaExcluir(null);
-      await load();
-    } finally {
-      setExcluindoCliente(false);
+      void load();
+    } catch {
+      alert("Não foi possível excluir o cliente.");
+      void load();
     }
   }
 
@@ -901,7 +903,6 @@ export default function ClientesPage() {
             : "Clientes com OS ou pacientes ficam inativos (não apagam o histórico)."
         }
         detalhe={clienteParaExcluir?.nome}
-        processando={excluindoCliente}
         onClose={() => setClienteParaExcluir(null)}
         onConfirm={confirmarExclusaoCliente}
       />
