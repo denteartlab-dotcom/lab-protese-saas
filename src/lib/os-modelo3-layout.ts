@@ -89,7 +89,7 @@ export function normalizarOsModelo3Layout(
     Math.max(8, Number(valor.tamanhoFonte) || OS_MODELO3_LAYOUT_PADRAO.tamanhoFonte)
   );
   base.bordas = normalizarCorBorda(valor.bordas ?? base.bordas);
-  base.exibirBordas = Boolean(valor.exibirBordas);
+  base.exibirBordas = valor.exibirBordas === true;
   base.mensagem = String(valor.mensagem ?? "").trim();
   for (const key of Object.keys(OS_MODELO3_LAYOUT_PADRAO) as Array<keyof OsModelo3Layout>) {
     if (

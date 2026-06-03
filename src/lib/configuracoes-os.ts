@@ -22,6 +22,32 @@ import {
 export const CONFIG_OS_STORAGE_KEY = "labProteseConfiguracoesOs";
 export const CONFIG_OS_ATUALIZADA_EVENT = "lab-config-os-atualizada";
 
+/** Migração única: modelos A4 1–3 sem moldura até o usuário marcar “Bordas”. */
+const MIGRATION_BORDA_DESLIGADA_KEY = "labProteseOsBordaDesligada_v2";
+
+function desligarBordaModelosA4(cfg: ConfiguracoesOs): ConfiguracoesOs {
+  return {
+    ...cfg,
+    layoutModelo1: { ...cfg.layoutModelo1, exibirBordas: false },
+    layoutModelo2: { ...cfg.layoutModelo2, exibirBordas: false },
+    layoutModelo3: { ...cfg.layoutModelo3, exibirBordas: false },
+  };
+}
+
+/** Aplica padrão sem borda nos modelos 1, 2 e 3 (uma vez por navegador). */
+export function aplicarMigracaoBordaDesligadaModelos123(
+  cfg: ConfiguracoesOs
+): { config: ConfiguracoesOs; alterou: boolean } {
+  if (typeof window === "undefined") {
+    return { config: cfg, alterou: false };
+  }
+  if (localStorage.getItem(MIGRATION_BORDA_DESLIGADA_KEY) === "1") {
+    return { config: cfg, alterou: false };
+  }
+  localStorage.setItem(MIGRATION_BORDA_DESLIGADA_KEY, "1");
+  return { config: desligarBordaModelosA4(cfg), alterou: true };
+}
+
 export type ModeloOsId = "modelo1" | "modelo2" | "modelo3" | "modelo4" | "modelo5";
 
 export const MODELOS_OS_IDS: ModeloOsId[] = [
@@ -156,8 +182,14 @@ export function carregarConfiguracoesOs(): ConfiguracoesOs {
   if (typeof window === "undefined") return normalizarConfiguracoesOs(null);
   try {
     const raw = window.localStorage.getItem(CONFIG_OS_STORAGE_KEY);
-    if (!raw) return normalizarConfiguracoesOs(null);
-    return normalizarConfiguracoesOs(JSON.parse(raw) as Partial<ConfiguracoesOs>);
+    const base = raw
+      ? normalizarConfiguracoesOs(JSON.parse(raw) as Partial<ConfiguracoesOs>)
+      : normalizarConfiguracoesOs(null);
+    const { config, alterou } = aplicarMigracaoBordaDesligadaModelos123(base);
+    if (alterou) {
+      window.localStorage.setItem(CONFIG_OS_STORAGE_KEY, JSON.stringify(config));
+    }
+    return config;
   } catch {
     return normalizarConfiguracoesOs(null);
   }
@@ -181,8 +213,12 @@ export async function sincronizarConfiguracoesOsDoServidor(): Promise<Configurac
     const remoto = (await res.json()) as Partial<ConfiguracoesOs> | null;
     if (!remoto || typeof remoto !== "object") return local;
     const mesclado = normalizarConfiguracoesOs({ ...local, ...remoto });
-    salvarConfiguracoesOs(mesclado);
-    return mesclado;
+    const { config, alterou } = aplicarMigracaoBordaDesligadaModelos123(mesclado);
+    salvarConfiguracoesOs(config);
+    if (alterou) {
+      void persistirConfiguracoesOsServidor(config).catch(() => undefined);
+    }
+    return config;
   } catch {
     return local;
   }
