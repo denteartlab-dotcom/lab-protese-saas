@@ -139,6 +139,12 @@ export function recuoMetadadosColunaDescricaoPreviewMm() {
   );
 }
 
+/** Largura da linha de assinatura — Modelos 1 e 2 (preview w-48 ≈ 50 mm). */
+export const OS_ASSINATURA_LINHA_PRODUCAO_MM = 50;
+
+/** Largura da linha de assinatura — Modelo 3 comprovante (preview w-56). */
+export const OS_ASSINATURA_LINHA_COMPROVANTE_MM = 56;
+
 /** Margem horizontal do texto — não muda ao ligar/desligar borda. */
 export const OS_REQUISICAO_MARGEM_CONTEUDO_MM = 15;
 
@@ -333,7 +339,7 @@ export function normalizarOsModelo1Layout(
     } else if (key === "bordas" || key === "mensagem") {
       /* já tratados */
     } else if (key === "exibirBordas") {
-      base.exibirBordas = Boolean(valor.exibirBordas);
+      base.exibirBordas = valor.exibirBordas === true;
     } else if (key in valor) {
       base[key] = Boolean(valor[key]);
     }

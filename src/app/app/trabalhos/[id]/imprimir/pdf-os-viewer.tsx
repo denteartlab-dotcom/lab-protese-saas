@@ -30,6 +30,8 @@ import {
   OS_REQUISICAO_BORDA_PADDING_MM,
   OS_REQUISICAO_LINHA_DIVISAO_COR,
   OS_REQUISICAO_LINHA_INTERNA_MM,
+  OS_ASSINATURA_LINHA_COMPROVANTE_MM,
+  OS_ASSINATURA_LINHA_PRODUCAO_MM,
   OS_REQUISICAO_COL_DESCRICAO_MM,
   OS_REQUISICAO_MARGEM_CONTEUDO_MM,
   OS_REQUISICAO_TOPO_MM,
@@ -241,6 +243,64 @@ function desenharMetadadosServicoRequisicao(
       y += (linhasObs.length - 1) * 3.8 * escalaEspacamentoRequisicao(lay) + g(2);
     }
   }
+  return y;
+}
+
+type VarianteRodapeRequisicao = "producao" | "comprovante";
+
+/** Rodapé A4 igual ao preview: assinatura centralizada e código de barras à esquerda. */
+function desenharRodapeRequisicaoA4(
+  pdf: PdfRenderApi,
+  lay: OsModelo1Layout,
+  data: PdfOsData,
+  pageWidth: number,
+  conteudoEsq: number,
+  yInicio: number,
+  g: (mm: number) => number,
+  fontBase: number,
+  variante: VarianteRodapeRequisicao,
+  linhaSegmento: (
+    pdf: PdfRenderApi,
+    lay: OsModelo1Layout,
+    x1: number,
+    y: number,
+    x2: number
+  ) => void,
+  linhaPagina: (pdf: PdfRenderApi, lay: OsModelo1Layout, y: number, pageWidth: number) => void
+) {
+  let y = yInicio;
+
+  if (lay.assinatura) {
+    y += g(6);
+    const largura =
+      variante === "comprovante"
+        ? OS_ASSINATURA_LINHA_COMPROVANTE_MM
+        : OS_ASSINATURA_LINHA_PRODUCAO_MM;
+    const xLinha = (pageWidth - largura) / 2;
+    linhaSegmento(pdf, lay, xLinha, y, xLinha + largura);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(fontBase - 1);
+    const rotuloAssinatura =
+      variante === "comprovante"
+        ? "Recebi o(s) serviço(s) descritos acima"
+        : "Assinatura";
+    pdf.text(rotuloAssinatura, pageWidth / 2, y + 4, { align: "center" });
+    y += g(6);
+  }
+
+  if (lay.codBarras) {
+    if (!lay.assinatura) {
+      y += g(4);
+    }
+    const barcodeValue = `OS${data.numeroOs}`;
+    drawCode39(pdf, barcodeValue, conteudoEsq, y);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(6);
+    pdf.text(barcodeValue, conteudoEsq, y + 12);
+    y += g(12);
+    linhaPagina(pdf, lay, y, pageWidth);
+  }
+
   return y;
 }
 
@@ -620,27 +680,20 @@ function renderModeloProducao(
     pdf.text(linhasMsg, m.conteudoEsq, y);
     y += linhasMsg.length * 3.8 * escalaEspacamentoRequisicao(lay) + g(2);
   }
-  if (lay.assinatura) {
-    y += g(8);
-    linhaRequisicaoPdfSegmento(pdf, lay, m.conteudoEsq, y, m.conteudoEsq + 65);
-    pdf.setFontSize(fontBase - 1);
-    pdf.text("Assinatura", m.conteudoEsq, y + 4);
-    y += g(8);
-  }
 
-  if (lay.codBarras) {
-    const barcodeValue = `OS${data.numeroOs}`;
-    if (y > 260) {
-      pdf.addPage();
-      y = OS_REQUISICAO_MARGEM_CONTEUDO_MM + 1;
-    }
-    drawCode39(pdf, barcodeValue, m.conteudoEsq, y);
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(6);
-    pdf.text(barcodeValue, m.conteudoEsq, y + 12);
-    y += g(12);
-    linhaRequisicaoPdf(pdf, lay, y, pageWidth);
-  }
+  y = desenharRodapeRequisicaoA4(
+    pdf,
+    lay,
+    data,
+    pageWidth,
+    m.conteudoEsq,
+    y,
+    g,
+    fontBase,
+    "producao",
+    linhaRequisicaoPdfSegmento,
+    linhaRequisicaoPdf
+  );
 
   if (lay.exibirBordas) {
     desenharBordaRequisicaoPdf(pdf, lay.bordas, y);
@@ -766,7 +819,7 @@ function renderModeloComprovante(
   y += g(4);
 
   const colQtd = m.tabelaEsq;
-  const colDesc = 28;
+  const colDesc = OS_REQUISICAO_COL_DESCRICAO_MM;
   let colDente = 100;
   let colCor = 118;
   let colUnit = 148;
@@ -796,7 +849,6 @@ function renderModeloComprovante(
   pdf.setFontSize(fontBase);
   let totalServicos = 0;
   let totalDescontos = 0;
-  let servicoIndex = 0;
 
   data.itens.forEach((item) => {
     if (y > 248) {
@@ -807,9 +859,6 @@ function renderModeloComprovante(
     const subtotal = subtotalItem(item);
     totalServicos += bruto;
     totalDescontos += bruto - subtotal;
-
-    const ehProduto = /\(\s*Produto\s*\)/i.test(String(item.descricao));
-    const ehServico = !ehProduto && !/\(\s*Transporte\s*\)/i.test(String(item.descricao));
 
     const descricaoLargura = lay.subtotal ? 62 : 72;
     const descricaoLinhas = pdf.splitTextToSize(String(item.descricao), descricaoLargura);
@@ -825,38 +874,10 @@ function renderModeloComprovante(
       pdf.text(unitarioTabela(subtotal), colSubtotal, y, { align: "right" });
     }
     y += Math.max(g(4), descricaoLinhas.length * 4.2 * escalaEspacamentoRequisicao(lay));
-
-    const notasPrazo =
-      item.notasAbaixo?.filter(Boolean) ||
-      (ehServico &&
-      servicoIndex === 0 &&
-      data.prazoLinhaServico &&
-      !data.itens.some((i) => i.notasAbaixo?.length)
-        ? [data.prazoLinhaServico]
-        : []);
-    if (ehServico) servicoIndex += 1;
-
-    notasPrazo.forEach((nota) => {
-      if (y > 265) {
-        pdf.addPage();
-        y = OS_REQUISICAO_MARGEM_CONTEUDO_MM + 1;
-      }
-      desenharLinhaPrazo(pdf, nota, colDesc, y);
-      y += g(4);
-    });
-
     y += g(1);
   });
 
-  if (lay.finalizado && data.finalizado) {
-    pdf.text(`Finalizado: ${data.finalizado}`, m.conteudoEsq, y);
-    y += g(4);
-  }
-
-  if (lay.colaborador && data.colaborador) {
-    pdf.text(`Colaborador: ${data.colaborador}`.slice(0, 110), colDesc, y);
-    y += g(4);
-  }
+  y = desenharMetadadosServicoRequisicao(pdf, lay, data, colDesc, y, g);
 
   y += g(1);
   linhaRequisicaoPdf(pdf, lay, y, pageWidth);
@@ -904,30 +925,22 @@ function renderModeloComprovante(
     y += linhasMsg.length * 3.8 * escalaEspacamentoRequisicao(lay) + g(2);
   }
 
-  let assinaturaY = y + g(1);
-  if (lay.assinatura) {
-    const assinaturaLargura = 90;
-    const assinaturaX = (pageWidth - assinaturaLargura) / 2;
-    linhaRequisicaoPdfSegmento(pdf, lay, assinaturaX, assinaturaY, assinaturaX + assinaturaLargura);
-    pdf.setFontSize(fontBase - 1);
-    pdf.text("Recebi o(s) serviço(s) descritos acima", pageWidth / 2, assinaturaY + 3.5, {
-      align: "center",
-    });
-    assinaturaY += g(6);
-  }
-
-  let yFimConteudo = assinaturaY;
-  if (lay.codBarras) {
-    const barcodeValue = `OS${data.numeroOs}`;
-    drawCode39(pdf, barcodeValue, m.conteudoEsq, assinaturaY);
-    pdf.setFontSize(6);
-    pdf.text(barcodeValue, m.conteudoEsq, assinaturaY + 10);
-    yFimConteudo = assinaturaY + 14;
-    linhaRequisicaoPdf(pdf, lay, yFimConteudo, pageWidth);
-  }
+  y = desenharRodapeRequisicaoA4(
+    pdf,
+    lay,
+    data,
+    pageWidth,
+    m.conteudoEsq,
+    y,
+    g,
+    fontBase,
+    "comprovante",
+    linhaRequisicaoPdfSegmento,
+    linhaRequisicaoPdf
+  );
 
   if (lay.exibirBordas) {
-    desenharBordaRequisicaoPdf(pdf, lay.bordas, yFimConteudo);
+    desenharBordaRequisicaoPdf(pdf, lay.bordas, y);
   }
 }
 

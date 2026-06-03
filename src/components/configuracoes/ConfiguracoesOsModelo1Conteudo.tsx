@@ -615,7 +615,7 @@ export function ConfiguracoesOsModeloProducaoConteudo({
               <input
                 type="color"
                 value={corBorda.length === 7 ? corBorda : "#bdbdbd"}
-                onChange={(e) => patchLayout({ bordas: e.target.value, exibirBordas: true })}
+                onChange={(e) => patchLayout({ bordas: e.target.value })}
                 disabled={!layout.exibirBordas}
                 className="h-8 w-10 shrink-0 cursor-pointer rounded border border-slate-300 bg-white p-0.5 disabled:cursor-not-allowed disabled:opacity-40"
                 title="Cor da borda da página"
