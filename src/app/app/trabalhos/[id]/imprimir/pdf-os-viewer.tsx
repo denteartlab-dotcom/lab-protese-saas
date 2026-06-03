@@ -333,19 +333,17 @@ function desenharBordaRequisicaoPdf(
   const m = OS_MODELO1_BORDA_MARGEM_MM;
   const yTop = yTopoBordaRequisicaoPdf();
   const yBottom = yFimConteudo + OS_REQUISICAO_BORDA_PADDING_MM;
-  const altura = Math.max(20, yBottom - yTop);
-  pdf.setDrawColor(r, g, b);
-  pdf.setLineWidth(OS_REQUISICAO_BORDA_EXTERNA_MM);
-  pdf.rect(m, yTop, pw - m * 2, altura, "S");
+  const t = OS_REQUISICAO_BORDA_EXTERNA_MM;
+  const w = pw - m * 2;
+  const h = Math.max(t, yBottom - yTop);
+  pdf.setFillColor(r, g, b);
+  pdf.rect(m, yTop, w, t, "F");
+  pdf.rect(m, yBottom - t, w, t, "F");
+  pdf.rect(m, yTop, t, h, "F");
+  pdf.rect(pw - m - t, yTop, t, h, "F");
 }
 
-/** Cor das linhas divisórias internas (sempre preto; borda usa lay.bordas). */
-function aplicarCorLinhaDivisoriaRequisicao(pdf: PdfRenderApi) {
-  const { r, g, b } = hexParaRgb(OS_REQUISICAO_LINHA_DIVISAO_COR);
-  pdf.setDrawColor(r, g, b);
-  pdf.setLineWidth(OS_REQUISICAO_LINHA_INTERNA_MM);
-}
-
+/** Linha divisória preenchida (espessura fixa, igual ao preview 1px). */
 function linhaRequisicaoPdf(
   pdf: PdfRenderApi,
   lay: OsModelo1Layout,
@@ -353,19 +351,23 @@ function linhaRequisicaoPdf(
   pageWidth: number
 ) {
   const { linhaEsq, linhaDir } = margensLinhaRequisicao(pageWidth, lay);
-  aplicarCorLinhaDivisoriaRequisicao(pdf);
-  pdf.line(linhaEsq, y, linhaDir, y);
+  const h = OS_REQUISICAO_LINHA_INTERNA_MM;
+  const { r, g, b } = hexParaRgb(OS_REQUISICAO_LINHA_DIVISAO_COR);
+  pdf.setFillColor(r, g, b);
+  pdf.rect(linhaEsq, y - h / 2, linhaDir - linhaEsq, h, "F");
 }
 
 function linhaRequisicaoPdfSegmento(
   pdf: PdfRenderApi,
-  lay: OsModelo1Layout,
+  _lay: OsModelo1Layout,
   x1: number,
   y: number,
   x2: number
 ) {
-  aplicarCorLinhaDivisoriaRequisicao(pdf);
-  pdf.line(x1, y, x2, y);
+  const h = OS_REQUISICAO_LINHA_INTERNA_MM;
+  const { r, g, b } = hexParaRgb(OS_REQUISICAO_LINHA_DIVISAO_COR);
+  pdf.setFillColor(r, g, b);
+  pdf.rect(x1, y - h / 2, x2 - x1, h, "F");
 }
 
 function renderModeloProducao(
@@ -1570,15 +1572,13 @@ export function PdfOsViewer({
 }) {
   const [pdfUrl, setPdfUrl] = useState("");
   const [erroPdf, setErroPdf] = useState("");
-  const [dadosPdf, setDadosPdf] = useState<PdfOsData>(() => ({
-    ...data,
-    lab: data.lab || LAB_IMPRESSAO_PADRAO,
-  }));
-
-  function atualizarLab() {
+  function montarDadosPdf(base: PdfOsData): PdfOsData {
+    if (typeof window === "undefined") {
+      return { ...base, lab: base.lab || LAB_IMPRESSAO_PADRAO };
+    }
     const cfg = carregarConfigLaboratorio();
-    setDadosPdf({
-      ...data,
+    return {
+      ...base,
       lab: labImpressaoFromConfig(),
       cabecalhoRequisicao: normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao),
       layoutModelo1: carregarLayoutModelo1(),
@@ -1586,7 +1586,18 @@ export function PdfOsViewer({
       layoutModelo3: carregarLayoutModelo3(),
       layoutModelo4: carregarLayoutModelo4(),
       layoutModelo5: carregarLayoutModelo5(),
-    });
+    };
+  }
+
+  const [dadosPdf, setDadosPdf] = useState<PdfOsData>(() => ({
+    ...data,
+    lab: data.lab || LAB_IMPRESSAO_PADRAO,
+  }));
+  const [configOsPronta, setConfigOsPronta] = useState(false);
+
+  function atualizarLab() {
+    setDadosPdf(montarDadosPdf(data));
+    setConfigOsPronta(true);
   }
 
   useEffect(() => {
@@ -1604,6 +1615,8 @@ export function PdfOsViewer({
   }, [data]);
 
   useEffect(() => {
+    if (!configOsPronta) return;
+
     let url = "";
 
     async function buildPdf() {
@@ -1665,7 +1678,7 @@ export function PdfOsViewer({
     return () => {
       if (url) URL.revokeObjectURL(url);
     };
-  }, [dadosPdf, formato, modelo, duasVias]);
+  }, [configOsPronta, dadosPdf, formato, modelo, duasVias]);
 
   function imprimirPdf() {
     if (!pdfUrl) return;

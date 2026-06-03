@@ -41,6 +41,8 @@ export type PdfCabecalhoApi = {
     h: number
   ) => void;
   getTextWidth: (text: string) => number;
+  setFillColor: (r: number, g?: number, b?: number) => void;
+  rect: (x: number, y: number, w: number, h: number, style?: string) => void;
 };
 
 function desenharLogoLab(
@@ -153,8 +155,8 @@ export function desenharCabecalhoRequisicaoPdf(
 
   const fimBloco = Math.max(topo + (logoH > 0 ? logoH + 2 : 0), yLab, yDir) + 4;
   const { r, g, b } = hexParaRgb(OS_REQUISICAO_LINHA_DIVISAO_COR);
-  pdf.setDrawColor(r, g, b);
-  pdf.setLineWidth(OS_REQUISICAO_LINHA_INTERNA_MM);
-  pdf.line(linhaEsq, fimBloco, linhaDir, fimBloco);
+  const hLinha = OS_REQUISICAO_LINHA_INTERNA_MM;
+  pdf.setFillColor(r, g, b);
+  pdf.rect(linhaEsq, fimBloco - hLinha / 2, linhaDir - linhaEsq, hLinha, "F");
   return fimBloco + 6;
 }

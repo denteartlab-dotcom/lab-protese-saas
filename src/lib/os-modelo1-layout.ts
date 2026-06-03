@@ -131,11 +131,14 @@ export const OS_REQUISICAO_ESPACAMENTO_MIN = 70;
 export const OS_REQUISICAO_ESPACAMENTO_MAX = 130;
 export const OS_REQUISICAO_ESPACAMENTO_PADRAO = 88;
 
-/** Espessura das linhas divisórias internas no PDF (mm). */
-export const OS_REQUISICAO_LINHA_INTERNA_MM = 0.12;
+/**
+ * Espessura das linhas no PDF (mm), equivalente a ~1px do preview HTML (96dpi).
+ * Traço via `line()` no jsPDF costuma ficar grosso no viewer; usamos retângulo preenchido.
+ */
+export const OS_REQUISICAO_LINHA_INTERNA_MM = 0.264583;
 
-/** Espessura da borda externa da requisição no PDF (mm). */
-export const OS_REQUISICAO_BORDA_EXTERNA_MM = 0.15;
+/** Moldura externa — mesma espessura visual das divisórias. */
+export const OS_REQUISICAO_BORDA_EXTERNA_MM = OS_REQUISICAO_LINHA_INTERNA_MM;
 
 /** Espessura das linhas no preview HTML (px). */
 export const OS_REQUISICAO_LINHA_PREVIEW_PX = 1;
