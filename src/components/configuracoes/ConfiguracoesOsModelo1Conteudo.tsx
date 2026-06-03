@@ -25,6 +25,8 @@ import { configParaLabImpressao, escalaLogoMultiplicador } from "@/lib/lab-logo"
 import {
   CAMPOS_MODELO1_GERAL,
   CAMPOS_MODELO1_PARES,
+  estiloAteBordaPreview,
+  estiloLinhaDivisoriaAteBordaPreview,
   estiloLinhaInferiorRequisicaoPreview,
   estiloLinhaRequisicaoPreview,
   estiloPaginaRequisicaoPreview,
@@ -136,9 +138,11 @@ function LinhaRotuloValor({
 }
 
 function LinhaSeparador({
+  layout,
   className,
   marginTop,
 }: {
+  layout: OsModelo1Layout;
   className?: string;
   marginTop?: string;
 }) {
@@ -146,8 +150,7 @@ function LinhaSeparador({
     <div
       className={cn(className)}
       style={{
-        ...estiloLinhaRequisicaoPreview(),
-        width: "100%",
+        ...estiloLinhaDivisoriaAteBordaPreview(layout),
         ...(marginTop ? { marginTop } : undefined),
       }}
     />
@@ -251,7 +254,7 @@ function PreviewOsModeloProducao({
         </div>
       </div>
 
-      <LinhaSeparador marginTop={gap(2)} />
+      <LinhaSeparador layout={layout} marginTop={gap(2)} />
 
       <div
         className="grid grid-cols-2 gap-x-8"
@@ -292,14 +295,15 @@ function PreviewOsModeloProducao({
         </div>
       </div>
 
-      <LinhaSeparador marginTop={gap(2)} />
+      <LinhaSeparador layout={layout} marginTop={gap(2)} />
 
+      <div style={{ marginTop: gap(2), ...estiloAteBordaPreview(layout) }}>
       <table
         className="w-full border-collapse"
-        style={{ fontSize: `${fsSmall}px`, marginTop: gap(2) }}
+        style={{ fontSize: `${fsSmall}px` }}
       >
         <thead>
-          <tr style={estiloLinhaRequisicaoPreview()}>
+          <tr style={estiloLinhaInferiorRequisicaoPreview()}>
             <th className="py-0.5 pr-2 text-left font-bold">Qtd</th>
             <th className="py-0.5 pr-2 text-left font-bold">Descrição</th>
             {layout.numDente ? (
@@ -344,6 +348,7 @@ function PreviewOsModeloProducao({
           ))}
         </tbody>
       </table>
+      </div>
 
       <div style={{ fontSize: `${fsSmall}px`, marginTop: gap(2), display: "flex", flexDirection: "column", gap: gap(0.5) }}>
         {layout.dataPrazo || layout.finalizado ? (
@@ -387,7 +392,7 @@ function PreviewOsModeloProducao({
 
       {layout.total ? (
         <>
-          <LinhaSeparador marginTop={gap(2)} />
+          <LinhaSeparador layout={layout} marginTop={gap(2)} />
           <p className="text-right font-bold" style={{ marginTop: gap(1.5) }}>
             Total {money(amostra.total)}
           </p>
@@ -425,7 +430,7 @@ function PreviewOsModeloProducao({
       ) : null}
 
       {layout.assinatura ? (
-        <div className="text-center" style={{ fontSize: `${fsSmall - 1}px`, marginTop: gap(6) }}>
+        <div className="text-center" style={{ fontSize: `${fsSmall - 1}px`, marginTop: gap(6), ...estiloAteBordaPreview(layout) }}>
           <div className="mx-auto w-48" style={estiloLinhaRequisicaoPreview()} />
           <p className="text-slate-600" style={{ marginTop: gap(1) }}>
             Assinatura
@@ -439,7 +444,7 @@ function PreviewOsModeloProducao({
           <p className="font-mono text-[9px] tracking-wide text-slate-800" style={{ marginTop: gap(0.5) }}>
             OS{amostra.numeroOs}
           </p>
-          <LinhaSeparador marginTop={gap(2)} />
+          <LinhaSeparador layout={layout} marginTop={gap(2)} />
         </div>
       ) : null}
       </div>

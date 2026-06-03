@@ -9,6 +9,8 @@ import {
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
 import { configParaLabImpressao, escalaLogoMultiplicador } from "@/lib/lab-logo";
 import {
+  estiloAteBordaPreview,
+  estiloLinhaDivisoriaAteBordaPreview,
   estiloLinhaInferiorRequisicaoPreview,
   estiloLinhaRequisicaoPreview,
   estiloPaginaRequisicaoPreview,
@@ -36,12 +38,17 @@ function LinhaRotuloValor({
   );
 }
 
-function LinhaSeparador({ marginTop }: { marginTop?: string }) {
+function LinhaSeparador({
+  layout,
+  marginTop,
+}: {
+  layout: OsModelo1Layout;
+  marginTop?: string;
+}) {
   return (
     <div
       style={{
-        ...estiloLinhaRequisicaoPreview(),
-        width: "100%",
+        ...estiloLinhaDivisoriaAteBordaPreview(layout),
         ...(marginTop ? { marginTop } : undefined),
       }}
     />
@@ -148,7 +155,7 @@ export function PreviewOsModeloComprovante({
           </div>
         </div>
 
-        <LinhaSeparador marginTop={gap(2)} />
+        <LinhaSeparador layout={layout} marginTop={gap(2)} />
 
         <div
           className="grid grid-cols-2 gap-x-8"
@@ -189,11 +196,12 @@ export function PreviewOsModeloComprovante({
           </div>
         </div>
 
-        <LinhaSeparador marginTop={gap(2)} />
+        <LinhaSeparador layout={layout} marginTop={gap(2)} />
 
+        <div style={{ marginTop: gap(2), ...estiloAteBordaPreview(layout) }}>
         <table
           className="w-full border-collapse"
-          style={{ fontSize: `${fsSmall}px`, marginTop: gap(2) }}
+          style={{ fontSize: `${fsSmall}px` }}
         >
           <thead>
             <tr style={estiloLinhaInferiorRequisicaoPreview()}>
@@ -251,6 +259,7 @@ export function PreviewOsModeloComprovante({
             ))}
           </tbody>
         </table>
+        </div>
 
         <div
           style={{
@@ -295,7 +304,7 @@ export function PreviewOsModeloComprovante({
 
         {layout.total ? (
           <>
-            <LinhaSeparador marginTop={gap(2)} />
+            <LinhaSeparador layout={layout} marginTop={gap(2)} />
             <div
               className="text-right"
               style={{
@@ -343,7 +352,10 @@ export function PreviewOsModeloComprovante({
         ) : null}
 
         {layout.assinatura ? (
-          <div className="text-center" style={{ fontSize: `${fsSmall - 1}px`, marginTop: gap(6) }}>
+          <div
+            className="text-center"
+            style={{ fontSize: `${fsSmall - 1}px`, marginTop: gap(6), ...estiloAteBordaPreview(layout) }}
+          >
             <div className="mx-auto w-56" style={estiloLinhaRequisicaoPreview()} />
             <p className="text-slate-800" style={{ marginTop: gap(1) }}>
               Recebi o(s) serviço(s) descritos acima
@@ -357,7 +369,7 @@ export function PreviewOsModeloComprovante({
             <p className="font-mono text-[9px] tracking-wide text-slate-800" style={{ marginTop: gap(0.5) }}>
               OS{amostra.numeroOs}
             </p>
-            <LinhaSeparador marginTop={gap(2)} />
+            <LinhaSeparador layout={layout} marginTop={gap(2)} />
           </div>
         ) : null}
       </div>

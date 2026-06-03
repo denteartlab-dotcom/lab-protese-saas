@@ -15,6 +15,7 @@ import {
   OS_REQUISICAO_LINHA_DIVISAO_COR,
   OS_REQUISICAO_LINHA_INTERNA_MM,
   OS_REQUISICAO_MARGEM_CONTEUDO_MM,
+  OS_REQUISICAO_TOPO_MM,
 } from "@/lib/os-modelo1-layout";
 
 export type PdfCabecalhoApi = {
@@ -101,7 +102,7 @@ export function desenharCabecalhoRequisicaoPdf(
   const tableRight = pageWidth - margin;
   const linhaEsq = opts.linhaEsq ?? margin;
   const linhaDir = opts.linhaDir ?? tableRight;
-  const topo = 14 + pxCabecalhoParaMm(cab.logoMargemTopo);
+  const topo = OS_REQUISICAO_TOPO_MM + pxCabecalhoParaMm(cab.logoMargemTopo);
   const marginLogoX = margin + pxCabecalhoParaMm(cab.logoMargemEsquerda);
 
   const exibirLogo = opts.exibirLogo !== false;

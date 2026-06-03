@@ -118,6 +118,12 @@ export function normalizarCorBorda(valor?: string): string {
 /** Margem externa da folha A4 até a borda da requisição (mm). */
 export const OS_MODELO1_BORDA_MARGEM_MM = 10;
 
+/** Início vertical do conteúdo na folha (mm). */
+export const OS_REQUISICAO_TOPO_MM = 10;
+
+/** Folga entre o conteúdo e a moldura externa (mm), acima e abaixo. */
+export const OS_REQUISICAO_BORDA_PADDING_MM = 1;
+
 /** Margem horizontal do texto — não muda ao ligar/desligar borda. */
 export const OS_REQUISICAO_MARGEM_CONTEUDO_MM = 15;
 
@@ -167,10 +173,13 @@ export function estiloBordaRequisicaoPreview(cor: string) {
 export const OS_REQUISICAO_PREVIEW_INSET_MM =
   OS_REQUISICAO_MARGEM_CONTEUDO_MM - OS_MODELO1_BORDA_MARGEM_MM;
 
-/** Página A4 do preview: texto sempre a 15 mm da folha. */
+/** Página A4 do preview: topo compacto, laterais fixas em 15 mm. */
 export function estiloPaginaRequisicaoPreview() {
   return {
-    padding: `${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm`,
+    paddingTop: `${OS_REQUISICAO_TOPO_MM}mm`,
+    paddingLeft: `${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm`,
+    paddingRight: `${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm`,
+    paddingBottom: `${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm`,
     boxSizing: "border-box" as const,
   };
 }
@@ -195,14 +204,23 @@ export function estiloWrapperConteudoRequisicaoPreview(
   };
 }
 
-/** Linha divisória de ponta a ponta (encontra a borda quando ativa). */
-export function estiloLinhaFullBleedPreview(lay: Pick<OsModelo1Layout, "exibirBordas">) {
+/** Expande elemento até as laterais da moldura (10 mm) quando borda ativa. */
+export function estiloAteBordaPreview(lay: Pick<OsModelo1Layout, "exibirBordas">) {
   if (!lay.exibirBordas) return {};
   const inset = OS_REQUISICAO_PREVIEW_INSET_MM;
   return {
     marginLeft: `-${inset}mm`,
     marginRight: `-${inset}mm`,
     width: `calc(100% + ${inset * 2}mm)`,
+  };
+}
+
+/** Linha divisória horizontal até encontrar a moldura. */
+export function estiloLinhaDivisoriaAteBordaPreview(lay: Pick<OsModelo1Layout, "exibirBordas">) {
+  return {
+    ...estiloLinhaRequisicaoPreview(),
+    width: "100%",
+    ...estiloAteBordaPreview(lay),
   };
 }
 

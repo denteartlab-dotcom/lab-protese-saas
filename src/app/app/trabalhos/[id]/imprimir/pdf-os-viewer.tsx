@@ -26,9 +26,11 @@ import {
   margensLinhaRequisicao,
   OS_MODELO1_BORDA_MARGEM_MM,
   OS_REQUISICAO_BORDA_EXTERNA_MM,
+  OS_REQUISICAO_BORDA_PADDING_MM,
   OS_REQUISICAO_LINHA_DIVISAO_COR,
   OS_REQUISICAO_LINHA_INTERNA_MM,
   OS_REQUISICAO_MARGEM_CONTEUDO_MM,
+  OS_REQUISICAO_TOPO_MM,
   type OsModelo1Layout,
 } from "@/lib/os-modelo1-layout";
 import { normalizarOsModelo2Layout } from "@/lib/os-modelo2-layout";
@@ -317,15 +319,20 @@ function desenharMarcadoresUrgenciaRepeticao(pdf: PdfRenderApi, data: PdfOsData,
   pdf.setFontSize(9);
 }
 
+function yTopoBordaRequisicaoPdf() {
+  return OS_REQUISICAO_TOPO_MM - OS_REQUISICAO_BORDA_PADDING_MM;
+}
+
 function desenharBordaRequisicaoPdf(
   pdf: PdfRenderApi,
   corHex: string,
-  yTop: number,
-  yBottom: number
+  yFimConteudo: number
 ) {
   const { r, g, b } = hexParaRgb(corHex);
   const pw = pdf.internal.pageSize.getWidth();
   const m = OS_MODELO1_BORDA_MARGEM_MM;
+  const yTop = yTopoBordaRequisicaoPdf();
+  const yBottom = yFimConteudo + OS_REQUISICAO_BORDA_PADDING_MM;
   const altura = Math.max(20, yBottom - yTop);
   pdf.setDrawColor(r, g, b);
   pdf.setLineWidth(OS_REQUISICAO_BORDA_EXTERNA_MM);
@@ -371,7 +378,6 @@ function renderModeloProducao(
   const pageWidth = pdf.internal.pageSize.getWidth();
   const m = margensLinhaRequisicao(pageWidth, lay);
   const g = (mm: number) => gapRequisicaoMm(lay, mm);
-  const yBordaTop = lay.exibirBordas ? OS_MODELO1_BORDA_MARGEM_MM : 0;
   const colDir = 110;
   let y = desenharCabecalhoRequisicaoPdf(pdf, {
     lab: data.lab,
@@ -590,11 +596,10 @@ function renderModeloProducao(
     pdf.text(barcodeValue, m.conteudoEsq, y + 12);
     y += g(12);
     linhaRequisicaoPdf(pdf, lay, y, pageWidth);
-    y += g(1);
   }
 
   if (lay.exibirBordas) {
-    desenharBordaRequisicaoPdf(pdf, lay.bordas, yBordaTop, y + 1);
+    desenharBordaRequisicaoPdf(pdf, lay.bordas, y);
   }
 }
 
@@ -653,7 +658,6 @@ function renderModeloComprovante(
   const pageWidth = pdf.internal.pageSize.getWidth();
   const m = margensLinhaRequisicao(pageWidth, lay);
   const g = (mm: number) => gapRequisicaoMm(lay, mm);
-  const yBordaTop = lay.exibirBordas ? OS_MODELO1_BORDA_MARGEM_MM : 0;
   const colDir = 110;
   let y = desenharCabecalhoRequisicaoPdf(pdf, {
     lab: data.lab,
@@ -876,11 +880,10 @@ function renderModeloComprovante(
     pdf.text(barcodeValue, m.conteudoEsq, assinaturaY + 10);
     yFimConteudo = assinaturaY + 14;
     linhaRequisicaoPdf(pdf, lay, yFimConteudo, pageWidth);
-    yFimConteudo += g(1);
   }
 
   if (lay.exibirBordas) {
-    desenharBordaRequisicaoPdf(pdf, lay.bordas, yBordaTop, yFimConteudo + 1);
+    desenharBordaRequisicaoPdf(pdf, lay.bordas, yFimConteudo);
   }
 }
 
