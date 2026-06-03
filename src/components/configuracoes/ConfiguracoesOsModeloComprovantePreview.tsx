@@ -11,6 +11,7 @@ import { configParaLabImpressao, escalaLogoMultiplicador } from "@/lib/lab-logo"
 import {
   estiloLimiteLinhasPaginaPreview,
   estiloLinhaDivisoriaLimitePaginaPreview,
+  estiloTabelaMargemColunasPreview,
   estiloLinhaInferiorRequisicaoPreview,
   estiloLinhaRequisicaoPreview,
   estiloMolduraOverlayRequisicaoPreview,
@@ -197,7 +198,7 @@ export function PreviewOsModeloComprovante({
         <div style={{ marginTop: gap(2), ...estiloLimiteLinhasPaginaPreview() }}>
         <table
           className="w-full border-collapse"
-          style={{ fontSize: `${fsSmall}px` }}
+          style={{ fontSize: `${fsSmall}px`, ...estiloTabelaMargemColunasPreview() }}
         >
           <thead>
             <tr style={estiloLinhaInferiorRequisicaoPreview()}>

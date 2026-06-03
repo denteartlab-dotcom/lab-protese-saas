@@ -27,6 +27,7 @@ import {
   CAMPOS_MODELO1_PARES,
   estiloLimiteLinhasPaginaPreview,
   estiloLinhaDivisoriaLimitePaginaPreview,
+  estiloTabelaMargemColunasPreview,
   estiloLinhaInferiorRequisicaoPreview,
   estiloLinhaRequisicaoPreview,
   estiloMolduraOverlayRequisicaoPreview,
@@ -300,7 +301,7 @@ function PreviewOsModeloProducao({
       <div style={{ marginTop: gap(2), ...estiloLimiteLinhasPaginaPreview() }}>
       <table
         className="w-full border-collapse"
-        style={{ fontSize: `${fsSmall}px` }}
+        style={{ fontSize: `${fsSmall}px`, ...estiloTabelaMargemColunasPreview() }}
       >
         <thead>
           <tr style={estiloLinhaInferiorRequisicaoPreview()}>

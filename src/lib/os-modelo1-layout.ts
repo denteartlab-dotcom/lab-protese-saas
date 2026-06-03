@@ -42,7 +42,7 @@ export type OsModelo1Layout = {
 };
 
 export const OS_MODELO1_LAYOUT_PADRAO: OsModelo1Layout = {
-  exibirBordas: true,
+  exibirBordas: false,
   bordas: "#bdbdbd",
   mensagem: "",
   infoLab: true,
@@ -122,7 +122,10 @@ export const OS_MODELO1_BORDA_MARGEM_MM = 10;
 export const OS_REQUISICAO_TOPO_MM = 10;
 
 /** Folga entre o conteúdo e a moldura externa (mm), acima e abaixo. */
-export const OS_REQUISICAO_BORDA_PADDING_MM = 1;
+export const OS_REQUISICAO_BORDA_PADDING_MM = 3;
+
+/** Recuo de Qtd/Subtotal em relação às linhas laterais (mm). */
+export const OS_REQUISICAO_COLUNA_MARGEM_MM = 2.5;
 
 /** Margem horizontal do texto — não muda ao ligar/desligar borda. */
 export const OS_REQUISICAO_MARGEM_CONTEUDO_MM = 15;
@@ -201,7 +204,7 @@ export function estiloMolduraOverlayRequisicaoPreview(
   const inset = OS_REQUISICAO_PREVIEW_INSET_MM;
   return {
     position: "absolute" as const,
-    top: 0,
+    top: `-${OS_REQUISICAO_BORDA_PADDING_MM}mm`,
     left: `-${inset}mm`,
     right: `-${inset}mm`,
     bottom: `-${OS_REQUISICAO_BORDA_PADDING_MM}mm`,
@@ -259,7 +262,24 @@ export function margensLinhaRequisicao(pageWidthMm: number) {
   const conteudoDir = pageWidthMm - OS_REQUISICAO_MARGEM_CONTEUDO_MM;
   const linhaEsq = OS_MODELO1_BORDA_MARGEM_MM;
   const linhaDir = pageWidthMm - OS_MODELO1_BORDA_MARGEM_MM;
-  return { linhaEsq, linhaDir, conteudoEsq, conteudoDir };
+  const pad = OS_REQUISICAO_COLUNA_MARGEM_MM;
+  return {
+    linhaEsq,
+    linhaDir,
+    conteudoEsq,
+    conteudoDir,
+    tabelaEsq: linhaEsq + pad,
+    tabelaDir: linhaDir - pad,
+  };
+}
+
+/** Preview: afasta Qtd e Subtotal das linhas laterais. */
+export function estiloTabelaMargemColunasPreview() {
+  return {
+    paddingLeft: `${OS_REQUISICAO_COLUNA_MARGEM_MM}mm`,
+    paddingRight: `${OS_REQUISICAO_COLUNA_MARGEM_MM}mm`,
+    boxSizing: "border-box" as const,
+  };
 }
 
 export function hexParaRgb(hex: string): { r: number; g: number; b: number } {
@@ -301,7 +321,7 @@ export function normalizarOsModelo1Layout(
     } else if (key === "bordas" || key === "mensagem") {
       /* já tratados */
     } else if (key === "exibirBordas") {
-      base.exibirBordas = valor.exibirBordas !== false;
+      base.exibirBordas = Boolean(valor.exibirBordas);
     } else if (key in valor) {
       base[key] = Boolean(valor[key]);
     }

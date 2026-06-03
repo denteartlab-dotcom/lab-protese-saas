@@ -438,16 +438,15 @@ function renderModeloProducao(
   linhaRequisicaoPdf(pdf, lay, y, pageWidth);
   y += g(4);
 
-  const tableLeft = m.conteudoEsq;
-  const tableRight = m.conteudoDir;
-  const colQtd = tableLeft;
+  const colQtd = m.tabelaEsq;
   const colDesc = 28;
   let colDente = 112;
   let colCor = 132;
   let colUnit = 158;
-  let colDescPct = tableRight;
+  let colDescPct = m.tabelaDir;
+  const colSubtotalDir = m.tabelaDir;
   if (lay.subtotal) {
-    colDescPct = tableRight - 22;
+    colDescPct = m.tabelaDir - 22;
     colUnit = colDescPct - 26;
     colCor = colUnit - 26;
     colDente = colCor - 20;
@@ -461,7 +460,7 @@ function renderModeloProducao(
   if (lay.corDente) pdf.text("Cor", colCor, y, { align: "center" });
   if (lay.valorUnit) pdf.text("Unitário", colUnit, y, { align: "right" });
   if (lay.desconto) pdf.text("Desc", colDescPct, y, { align: "right" });
-  if (lay.subtotal) pdf.text("Subtotal", tableRight, y, { align: "right" });
+  if (lay.subtotal) pdf.text("Subtotal", colSubtotalDir, y, { align: "right" });
   y += g(2);
   linhaRequisicaoPdf(pdf, lay, y, pageWidth);
   y += g(4);
@@ -486,7 +485,7 @@ function renderModeloProducao(
     if (lay.valorUnit) pdf.text(unitarioTabela(item.unitario), colUnit, y, { align: "right" });
     if (lay.desconto) pdf.text(descontoCelula(item.desconto), colDescPct, y, { align: "right" });
     if (lay.subtotal) {
-      pdf.text(unitarioTabela(subtotalItem(item)), tableRight, y, { align: "right" });
+      pdf.text(unitarioTabela(subtotalItem(item)), colSubtotalDir, y, { align: "right" });
     }
     y += Math.max(g(4), descricaoLinhas.length * 4.2 * escalaEspacamentoRequisicao(lay));
 
@@ -529,7 +528,7 @@ function renderModeloProducao(
     linhaRequisicaoPdf(pdf, lay, y, pageWidth);
     y += g(3);
     pdf.setFont("helvetica", "bold");
-    pdf.text(`TOTAL ${money(data.valor)}`, m.conteudoDir, y, { align: "right" });
+    pdf.text(`TOTAL ${money(data.valor)}`, m.tabelaDir, y, { align: "right" });
     y += g(6);
   }
 
@@ -723,15 +722,15 @@ function renderModeloComprovante(
   linhaRequisicaoPdf(pdf, lay, y, pageWidth);
   y += g(4);
 
-  const colQtd = m.conteudoEsq;
+  const colQtd = m.tabelaEsq;
   const colDesc = 28;
   let colDente = 100;
   let colCor = 118;
   let colUnit = 148;
   let colDescPct = 168;
-  let colSubtotal = m.conteudoDir;
+  let colSubtotal = m.tabelaDir;
   if (lay.subtotal) {
-    colDescPct = m.conteudoDir - 22;
+    colDescPct = m.tabelaDir - 22;
     colUnit = colDescPct - 26;
     colCor = colUnit - 26;
     colDente = colCor - 20;
@@ -826,13 +825,13 @@ function renderModeloComprovante(
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(fontBase + 1);
     pdf.text("TOTAL SERVIÇOS", blocoTotalX, y);
-    pdf.text(money(totalServicos), m.conteudoDir, y, { align: "right" });
+    pdf.text(money(totalServicos), m.tabelaDir, y, { align: "right" });
     y += g(4);
     pdf.text("(-) DESCONTOS", blocoTotalX, y);
-    pdf.text(money(totalDescontos), m.conteudoDir, y, { align: "right" });
+    pdf.text(money(totalDescontos), m.tabelaDir, y, { align: "right" });
     y += g(4);
     pdf.text("(=) TOTAL", blocoTotalX, y);
-    pdf.text(money(totalFinal > 0 ? totalFinal : data.valor), m.conteudoDir, y, { align: "right" });
+    pdf.text(money(totalFinal > 0 ? totalFinal : data.valor), m.tabelaDir, y, { align: "right" });
     y += g(4);
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(fontBase);
