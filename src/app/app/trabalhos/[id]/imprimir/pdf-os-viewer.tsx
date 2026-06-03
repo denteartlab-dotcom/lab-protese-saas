@@ -350,7 +350,7 @@ function linhaRequisicaoPdf(
   y: number,
   pageWidth: number
 ) {
-  const { linhaEsq, linhaDir } = margensLinhaRequisicao(pageWidth, lay);
+  const { linhaEsq, linhaDir } = margensLinhaRequisicao(pageWidth);
   const h = OS_REQUISICAO_LINHA_INTERNA_MM;
   const { r, g, b } = hexParaRgb(OS_REQUISICAO_LINHA_DIVISAO_COR);
   pdf.setFillColor(r, g, b);
@@ -378,7 +378,7 @@ function renderModeloProducao(
   const lay = normalizarOsModelo1Layout(layoutOverride ?? data.layoutModelo1);
   const fontBase = Math.max(7, lay.tamanhoFonte * 0.53);
   const pageWidth = pdf.internal.pageSize.getWidth();
-  const m = margensLinhaRequisicao(pageWidth, lay);
+  const m = margensLinhaRequisicao(pageWidth);
   const g = (mm: number) => gapRequisicaoMm(lay, mm);
   const colDir = 110;
   let y = desenharCabecalhoRequisicaoPdf(pdf, {
@@ -658,7 +658,7 @@ function renderModeloComprovante(
   const lay = normalizarOsModelo3Layout(layoutOverride ?? data.layoutModelo3);
   const fontBase = Math.max(7, lay.tamanhoFonte * 0.53);
   const pageWidth = pdf.internal.pageSize.getWidth();
-  const m = margensLinhaRequisicao(pageWidth, lay);
+  const m = margensLinhaRequisicao(pageWidth);
   const g = (mm: number) => gapRequisicaoMm(lay, mm);
   const colDir = 110;
   let y = desenharCabecalhoRequisicaoPdf(pdf, {

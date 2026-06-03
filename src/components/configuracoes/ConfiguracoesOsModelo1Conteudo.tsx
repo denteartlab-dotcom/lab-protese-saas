@@ -25,8 +25,8 @@ import { configParaLabImpressao, escalaLogoMultiplicador } from "@/lib/lab-logo"
 import {
   CAMPOS_MODELO1_GERAL,
   CAMPOS_MODELO1_PARES,
-  estiloAteBordaPreview,
-  estiloLinhaDivisoriaAteBordaPreview,
+  estiloLimiteLinhasPaginaPreview,
+  estiloLinhaDivisoriaLimitePaginaPreview,
   estiloLinhaInferiorRequisicaoPreview,
   estiloLinhaRequisicaoPreview,
   estiloMolduraOverlayRequisicaoPreview,
@@ -139,11 +139,9 @@ function LinhaRotuloValor({
 }
 
 function LinhaSeparador({
-  layout,
   className,
   marginTop,
 }: {
-  layout: OsModelo1Layout;
   className?: string;
   marginTop?: string;
 }) {
@@ -151,7 +149,7 @@ function LinhaSeparador({
     <div
       className={cn(className)}
       style={{
-        ...estiloLinhaDivisoriaAteBordaPreview(layout),
+        ...estiloLinhaDivisoriaLimitePaginaPreview(),
         ...(marginTop ? { marginTop } : undefined),
       }}
     />
@@ -256,7 +254,7 @@ function PreviewOsModeloProducao({
         </div>
       </div>
 
-      <LinhaSeparador layout={layout} marginTop={gap(2)} />
+      <LinhaSeparador marginTop={gap(2)} />
 
       <div
         className="grid grid-cols-2 gap-x-8"
@@ -297,9 +295,9 @@ function PreviewOsModeloProducao({
         </div>
       </div>
 
-      <LinhaSeparador layout={layout} marginTop={gap(2)} />
+      <LinhaSeparador marginTop={gap(2)} />
 
-      <div style={{ marginTop: gap(2), ...estiloAteBordaPreview(layout) }}>
+      <div style={{ marginTop: gap(2), ...estiloLimiteLinhasPaginaPreview() }}>
       <table
         className="w-full border-collapse"
         style={{ fontSize: `${fsSmall}px` }}
@@ -394,7 +392,7 @@ function PreviewOsModeloProducao({
 
       {layout.total ? (
         <>
-          <LinhaSeparador layout={layout} marginTop={gap(2)} />
+          <LinhaSeparador marginTop={gap(2)} />
           <p className="text-right font-bold" style={{ marginTop: gap(1.5) }}>
             Total {money(amostra.total)}
           </p>
@@ -432,7 +430,7 @@ function PreviewOsModeloProducao({
       ) : null}
 
       {layout.assinatura ? (
-        <div className="text-center" style={{ fontSize: `${fsSmall - 1}px`, marginTop: gap(6), ...estiloAteBordaPreview(layout) }}>
+        <div className="text-center" style={{ fontSize: `${fsSmall - 1}px`, marginTop: gap(6), ...estiloLimiteLinhasPaginaPreview() }}>
           <div className="mx-auto w-48" style={estiloLinhaRequisicaoPreview()} />
           <p className="text-slate-600" style={{ marginTop: gap(1) }}>
             Assinatura
@@ -446,7 +444,7 @@ function PreviewOsModeloProducao({
           <p className="font-mono text-[9px] tracking-wide text-slate-800" style={{ marginTop: gap(0.5) }}>
             OS{amostra.numeroOs}
           </p>
-          <LinhaSeparador layout={layout} marginTop={gap(2)} />
+          <LinhaSeparador marginTop={gap(2)} />
         </div>
       ) : null}
       </div>

@@ -211,9 +211,8 @@ export function estiloMolduraOverlayRequisicaoPreview(
   };
 }
 
-/** Expande elemento até as laterais da moldura (10 mm) quando borda ativa. */
-export function estiloAteBordaPreview(lay: Pick<OsModelo1Layout, "exibirBordas">) {
-  if (!lay.exibirBordas) return {};
+/** Expande linhas até o limite lateral da folha (10 mm), onde a moldura será desenhada. */
+export function estiloLimiteLinhasPaginaPreview() {
   const inset = OS_REQUISICAO_PREVIEW_INSET_MM;
   return {
     marginLeft: `-${inset}mm`,
@@ -222,12 +221,11 @@ export function estiloAteBordaPreview(lay: Pick<OsModelo1Layout, "exibirBordas">
   };
 }
 
-/** Linha divisória horizontal até encontrar a moldura. */
-export function estiloLinhaDivisoriaAteBordaPreview(lay: Pick<OsModelo1Layout, "exibirBordas">) {
+/** Linha divisória no limite da página (não muda ao ligar/desligar borda). */
+export function estiloLinhaDivisoriaLimitePaginaPreview() {
   return {
+    ...estiloLimiteLinhasPaginaPreview(),
     ...estiloLinhaRequisicaoPreview(),
-    width: "100%",
-    ...estiloAteBordaPreview(lay),
   };
 }
 
@@ -256,14 +254,11 @@ export function gapRequisicaoPreviewMm(
   return `${(mm * escalaEspacamentoRequisicao(layout)).toFixed(2)}mm`;
 }
 
-export function margensLinhaRequisicao(
-  pageWidthMm: number,
-  lay: Pick<OsModelo1Layout, "exibirBordas">
-) {
+export function margensLinhaRequisicao(pageWidthMm: number) {
   const conteudoEsq = OS_REQUISICAO_MARGEM_CONTEUDO_MM;
   const conteudoDir = pageWidthMm - OS_REQUISICAO_MARGEM_CONTEUDO_MM;
-  const linhaEsq = lay.exibirBordas ? OS_MODELO1_BORDA_MARGEM_MM : conteudoEsq;
-  const linhaDir = lay.exibirBordas ? pageWidthMm - OS_MODELO1_BORDA_MARGEM_MM : conteudoDir;
+  const linhaEsq = OS_MODELO1_BORDA_MARGEM_MM;
+  const linhaDir = pageWidthMm - OS_MODELO1_BORDA_MARGEM_MM;
   return { linhaEsq, linhaDir, conteudoEsq, conteudoDir };
 }
 
