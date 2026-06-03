@@ -29,6 +29,7 @@ import {
   estiloLinhaDivisoriaAteBordaPreview,
   estiloLinhaInferiorRequisicaoPreview,
   estiloLinhaRequisicaoPreview,
+  estiloMolduraOverlayRequisicaoPreview,
   estiloPaginaRequisicaoPreview,
   estiloWrapperConteudoRequisicaoPreview,
   gapRequisicaoPreviewMm,
@@ -197,7 +198,8 @@ function PreviewOsModeloProducao({
         fontFamily: "Arial, Helvetica, sans-serif",
       }}
     >
-      <div style={estiloWrapperConteudoRequisicaoPreview(layout)}>
+      <div style={estiloWrapperConteudoRequisicaoPreview()}>
+        <div aria-hidden style={estiloMolduraOverlayRequisicaoPreview(layout)} />
       <div className="flex items-start gap-3">
         {layout.logo ? (
           <div className="shrink-0">

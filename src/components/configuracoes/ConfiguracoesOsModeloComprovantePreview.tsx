@@ -13,6 +13,7 @@ import {
   estiloLinhaDivisoriaAteBordaPreview,
   estiloLinhaInferiorRequisicaoPreview,
   estiloLinhaRequisicaoPreview,
+  estiloMolduraOverlayRequisicaoPreview,
   estiloPaginaRequisicaoPreview,
   estiloWrapperConteudoRequisicaoPreview,
   gapRequisicaoPreviewMm,
@@ -98,7 +99,8 @@ export function PreviewOsModeloComprovante({
         fontFamily: "Arial, Helvetica, sans-serif",
       }}
     >
-      <div style={estiloWrapperConteudoRequisicaoPreview(layout)}>
+      <div style={estiloWrapperConteudoRequisicaoPreview()}>
+        <div aria-hidden style={estiloMolduraOverlayRequisicaoPreview(layout)} />
         <div className="flex items-start gap-3">
           {layout.logo ? (
             <div className="shrink-0">

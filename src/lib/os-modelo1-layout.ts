@@ -161,14 +161,6 @@ export function estiloLinhaInferiorRequisicaoPreview() {
   };
 }
 
-/** Borda no preview sem deslocar o texto (outline, sem padding extra). */
-export function estiloBordaRequisicaoPreview(cor: string) {
-  return {
-    outline: `${OS_REQUISICAO_LINHA_PREVIEW_PX}px solid ${cor}`,
-    outlineOffset: 0,
-  };
-}
-
 /** Recuo entre margem do texto (15 mm) e a borda externa (10 mm). */
 export const OS_REQUISICAO_PREVIEW_INSET_MM =
   OS_REQUISICAO_MARGEM_CONTEUDO_MM - OS_MODELO1_BORDA_MARGEM_MM;
@@ -181,26 +173,38 @@ export function estiloPaginaRequisicaoPreview() {
     paddingRight: `${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm`,
     paddingBottom: `${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm`,
     boxSizing: "border-box" as const,
+    overflow: "visible" as const,
+  };
+}
+
+/** Container do conteúdo — mesma caixa com ou sem moldura. */
+export function estiloWrapperConteudoRequisicaoPreview() {
+  return {
+    position: "relative" as const,
+    width: "100%",
+    boxSizing: "border-box" as const,
   };
 }
 
 /**
- * Wrapper do conteúdo: com borda, expande até 10 mm sem mover o texto;
- * sem borda, ocupa só a área útil de 15 mm.
+ * Moldura no preview em camada absoluta: não altera largura nem posição do texto.
  */
-export function estiloWrapperConteudoRequisicaoPreview(
+export function estiloMolduraOverlayRequisicaoPreview(
   lay: Pick<OsModelo1Layout, "exibirBordas" | "bordas">
 ) {
-  const base = { boxSizing: "border-box" as const, width: "100%" };
-  if (!lay.exibirBordas) return base;
+  if (!lay.exibirBordas) {
+    return { display: "none" as const };
+  }
   const inset = OS_REQUISICAO_PREVIEW_INSET_MM;
   return {
-    ...base,
-    marginLeft: `-${inset}mm`,
-    marginRight: `-${inset}mm`,
-    paddingLeft: `${inset}mm`,
-    paddingRight: `${inset}mm`,
-    ...estiloBordaRequisicaoPreview(normalizarCorBorda(lay.bordas)),
+    position: "absolute" as const,
+    top: 0,
+    left: `-${inset}mm`,
+    right: `-${inset}mm`,
+    bottom: `-${OS_REQUISICAO_BORDA_PADDING_MM}mm`,
+    border: `${OS_REQUISICAO_LINHA_PREVIEW_PX}px solid ${normalizarCorBorda(lay.bordas)}`,
+    pointerEvents: "none" as const,
+    boxSizing: "border-box" as const,
   };
 }
 
