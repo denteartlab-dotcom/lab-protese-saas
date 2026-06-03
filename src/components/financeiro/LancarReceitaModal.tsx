@@ -192,8 +192,10 @@ export function LancarReceitaModal({
     texto: string;
   } | null>(null);
   const [portalPronto, setPortalPronto] = useState(false);
-  const [enviandoAnexos, setEnviandoAnexos] = useState(false);
+  const [cadastrando, setCadastrando] = useState(false);
+  const submitLockRef = useRef(false);
   const anexosRef = useRef<AnexosReciboCampoRef>(null);
+  const ocupado = cadastrando || salvando;
   const pastaAnexos = modo === "despesa" ? "despesas" : "receitas";
 
   useEffect(() => {
@@ -355,33 +357,35 @@ export function LancarReceitaModal({
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    let anexos: AnexoDespesa[] | undefined;
-    setEnviandoAnexos(true);
+    if (submitLockRef.current || ocupado) return;
+    submitLockRef.current = true;
+    setCadastrando(true);
     try {
+      let anexos: AnexoDespesa[] | undefined;
       const lista = await anexosRef.current?.resolverAnexos();
       if (lista?.length) anexos = lista;
+      await onSubmit({
+        clienteId,
+        tipoCliente,
+        categoria,
+        dataLancamento,
+        notaFiscalRef,
+        receitaFixa,
+        itens,
+        parcelas,
+        descontoTipo,
+        desconto,
+        observacoes,
+        valorBruto,
+        totalLiquido,
+        anexos,
+      });
     } catch (err) {
       alert(err instanceof Error ? err.message : "Falha ao enviar os arquivos.");
-      setEnviandoAnexos(false);
-      return;
+    } finally {
+      submitLockRef.current = false;
+      setCadastrando(false);
     }
-    setEnviandoAnexos(false);
-    await onSubmit({
-      clienteId,
-      tipoCliente,
-      categoria,
-      dataLancamento,
-      notaFiscalRef,
-      receitaFixa,
-      itens,
-      parcelas,
-      descontoTipo,
-      desconto,
-      observacoes,
-      valorBruto,
-      totalLiquido,
-      anexos,
-    });
   }
 
   if (!open || !portalPronto) return null;
@@ -394,7 +398,13 @@ export function LancarReceitaModal({
       aria-modal="true"
       aria-labelledby="lancar-receita-titulo"
     >
-      <div className="absolute inset-0" onClick={onClose} aria-hidden />
+      <div
+        className="absolute inset-0"
+        onClick={() => {
+          if (!ocupado) onClose();
+        }}
+        aria-hidden
+      />
       <div className="relative my-auto flex w-full max-w-[1060px] flex-col rounded border border-slate-200 bg-white shadow-[0_12px_40px_rgba(0,0,0,0.18)]">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
           <h2 id="lancar-receita-titulo" className="text-[14px] font-normal text-slate-800">
@@ -856,19 +866,19 @@ export function LancarReceitaModal({
             <button
               type="submit"
               disabled={
-                salvando ||
-                enviandoAnexos ||
+                ocupado ||
                 totalLiquido <= 0 ||
                 (modo === "receita" && !clienteId)
               }
-              className="h-10 rounded bg-[#4a90d9] text-[13px] font-normal text-white hover:bg-[#3d7fc4] disabled:opacity-50"
+              className="h-10 rounded bg-[#4a90d9] text-[13px] font-normal text-white hover:bg-[#3d7fc4] disabled:cursor-wait disabled:opacity-60"
             >
-              {salvando || enviandoAnexos ? "Cadastrando…" : "Cadastrar"}
+              {ocupado ? "Cadastrando…" : "Cadastrar"}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="h-10 rounded border border-slate-300 bg-white text-[13px] font-normal text-slate-700 hover:bg-slate-50"
+              disabled={ocupado}
+              className="h-10 rounded border border-slate-300 bg-white text-[13px] font-normal text-slate-700 hover:bg-slate-50 disabled:opacity-50"
             >
               Fechar
             </button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Check,
@@ -125,6 +125,7 @@ export function ContasPagarConteudo() {
   const [anexoAberto, setAnexoAberto] = useState<AnexoDespesa | null>(null);
   const [editando, setEditando] = useState<Lancamento | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const salvarDespesaEmAndamentoRef = useRef(false);
   const [fornecedores, setFornecedores] = useState<Array<{ id: string; nome: string }>>(
     []
   );
@@ -326,6 +327,9 @@ export function ContasPagarConteudo() {
   }
 
   async function salvarDespesaModal(payload: LancarReceitaPayload) {
+    if (salvarDespesaEmAndamentoRef.current) return;
+    salvarDespesaEmAndamentoRef.current = true;
+    setSalvando(true);
     const fornecedor =
       fornecedores.find((f) => f.id === payload.clienteId) ||
       fornecedores.find((f) => f.nome === payload.clienteId);
@@ -350,7 +354,6 @@ export function ContasPagarConteudo() {
       meta
     );
 
-    setSalvando(true);
     try {
       if (editando) {
         const parcela = payload.parcelas[0];
@@ -430,6 +433,7 @@ export function ContasPagarConteudo() {
       await load();
       notificarFinanceiroAtualizado();
     } finally {
+      salvarDespesaEmAndamentoRef.current = false;
       setSalvando(false);
     }
   }

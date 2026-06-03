@@ -102,6 +102,7 @@ type Props = {
   currency: (value: number) => string;
   formatDecimalInput: (value: string) => string;
   formatCurrencyInput: (value: string) => string;
+  salvando?: boolean;
 };
 
 function CampoMoedaOuPercentual({
@@ -208,10 +209,13 @@ export function LancarReceitaOsModal({
   currency,
   formatDecimalInput,
   formatCurrencyInput,
+  salvando = false,
 }: Props) {
   const [portalPronto, setPortalPronto] = useState(false);
-  const [enviandoAnexos, setEnviandoAnexos] = useState(false);
+  const [cadastrando, setCadastrando] = useState(false);
+  const submitLockRef = useRef(false);
   const anexosRef = useRef<AnexosReciboCampoRef>(null);
+  const ocupado = cadastrando || salvando;
   const [alterarEntregue, setAlterarEntregue] = useState(true);
   const [enviarControleEntrega, setEnviarControleEntrega] = useState(false);
   const [codigoBarras, setCodigoBarras] = useState("");
@@ -329,18 +333,20 @@ export function LancarReceitaOsModal({
 
   async function enviarFormulario(e: React.FormEvent) {
     e.preventDefault();
-    let anexos: AnexoDespesa[] | undefined;
-    setEnviandoAnexos(true);
+    if (submitLockRef.current || ocupado) return;
+    submitLockRef.current = true;
+    setCadastrando(true);
     try {
+      let anexos: AnexoDespesa[] | undefined;
       const lista = await anexosRef.current?.resolverAnexos();
       if (lista?.length) anexos = lista;
+      await onSubmit({ form, parcelas, imprimirRecibo, alterarEntregue, anexos });
     } catch (err) {
       alert(err instanceof Error ? err.message : "Falha ao enviar os arquivos.");
-      setEnviandoAnexos(false);
-      return;
+    } finally {
+      submitLockRef.current = false;
+      setCadastrando(false);
     }
-    setEnviandoAnexos(false);
-    await onSubmit({ form, parcelas, imprimirRecibo, alterarEntregue, anexos });
   }
 
   if (!open || !portalPronto) return null;
@@ -350,7 +356,13 @@ export function LancarReceitaOsModal({
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto bg-black/45 p-4 pt-6">
-      <div className="absolute inset-0" onClick={onClose} aria-hidden />
+      <div
+        className="absolute inset-0"
+        onClick={() => {
+          if (!ocupado) onClose();
+        }}
+        aria-hidden
+      />
       <div
         role="dialog"
         aria-modal="true"
@@ -364,7 +376,8 @@ export function LancarReceitaOsModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1 text-[#9ca3af] hover:bg-[#f3f4f6] hover:text-[#374151]"
+            disabled={ocupado}
+            className="rounded p-1 text-[#9ca3af] hover:bg-[#f3f4f6] hover:text-[#374151] disabled:opacity-40"
             aria-label="Fechar"
           >
             <X className="h-5 w-5" />
@@ -852,15 +865,16 @@ export function LancarReceitaOsModal({
           <div className="mt-5 grid grid-cols-2 gap-3 border-t border-[#f3f4f6] pt-4">
             <button
               type="submit"
-              disabled={enviandoAnexos}
-              className="h-10 rounded-sm bg-[#4a90d9] text-[13px] font-normal text-white hover:bg-[#3d7fc4] disabled:opacity-50"
+              disabled={ocupado}
+              className="h-10 rounded-sm bg-[#4a90d9] text-[13px] font-normal text-white hover:bg-[#3d7fc4] disabled:cursor-wait disabled:opacity-60"
             >
-              {enviandoAnexos ? "Enviando arquivos…" : "Cadastrar"}
+              {ocupado ? "Cadastrando…" : "Cadastrar"}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="h-10 rounded-sm border border-[#d1d5db] bg-white text-[13px] font-normal text-[#374151] hover:bg-[#f9fafb]"
+              disabled={ocupado}
+              className="h-10 rounded-sm border border-[#d1d5db] bg-white text-[13px] font-normal text-[#374151] hover:bg-[#f9fafb] disabled:opacity-50"
             >
               Fechar
             </button>

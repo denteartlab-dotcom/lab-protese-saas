@@ -263,6 +263,8 @@ function FinanceiroRouter() {
 function FinanceiroReceberConteudo() {
   const searchParams = useSearchParams();
   const notifDeepLinkFeito = useRef(false);
+  const saveEmAndamentoRef = useRef(false);
+  const [salvandoLancamento, setSalvandoLancamento] = useState(false);
   const [data, setData] = useState<{
     lancamentos: Lancamento[];
     resumo: {
@@ -796,6 +798,10 @@ function FinanceiroReceberConteudo() {
     alterarEntregue,
     anexos,
   }: LancarReceitaOsSubmit) {
+    if (saveEmAndamentoRef.current) return;
+    saveEmAndamentoRef.current = true;
+    setSalvandoLancamento(true);
+    try {
     setMensagemLancamento("");
     const descricaoBase = trabalhosSelecionados.length
       ? empacotarCobrancaOs(
@@ -945,7 +951,11 @@ function FinanceiroReceberConteudo() {
       recebido: false,
     });
     setOsSelecionadas([]);
-    load();
+    await load();
+    } finally {
+      saveEmAndamentoRef.current = false;
+      setSalvandoLancamento(false);
+    }
   }
 
   async function marcarPago(id: string) {
@@ -2599,6 +2609,7 @@ function FinanceiroReceberConteudo() {
         currency={currency}
         formatDecimalInput={formatDecimalInput}
         formatCurrencyInput={formatCurrencyInput}
+        salvando={salvandoLancamento}
       />
 
       <RelatorioContasReceberModal
