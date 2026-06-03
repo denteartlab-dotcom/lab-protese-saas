@@ -1,4 +1,5 @@
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
+import { lancamentoEfetivadoFinanceiro } from "@/lib/lancamento-financeiro-realizado";
 import {
   carregarPlanoContas,
   categoriaPadraoLancamento,
@@ -178,7 +179,7 @@ export function lancamentosDrilldownDre(
   plano: ItemPlanoContas[]
 ) {
   return lancamentos.filter((l) => {
-    if (l.status === "cancelado") return false;
+    if (!lancamentoEfetivadoFinanceiro(l)) return false;
     if (anoDaData(l.data) !== ano) return false;
     if (mesIndexDaData(l.data) !== mesIndex) return false;
     const bucket = classificarLancamentoDre(l, plano);
@@ -210,7 +211,7 @@ export function calcularMatrizDre(
   }));
 
   for (const l of lancamentos) {
-    if (l.status === "cancelado") continue;
+    if (!lancamentoEfetivadoFinanceiro(l)) continue;
     if (anoDaData(l.data) !== ano) continue;
     const m = mesIndexDaData(l.data);
     if (m < 0 || m > 11) continue;

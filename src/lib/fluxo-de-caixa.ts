@@ -5,6 +5,7 @@ import {
 } from "@/lib/conta-bancaria";
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
 import { parseBrDate } from "@/lib/datas-br";
+import { lancamentoEfetivadoFinanceiro } from "@/lib/lancamento-financeiro-realizado";
 import { ehDescricaoReceitaOs } from "@/lib/os-faturamento";
 
 export type LancamentoFluxo = {
@@ -126,7 +127,7 @@ function lancamentoIncluido(
   if (l.tipo === "receita" && ehDescricaoReceitaOs(l.descricao) && l.status !== "pago") {
     return false;
   }
-  if (situacao === "realizado") return l.status === "pago";
+  if (situacao === "realizado") return lancamentoEfetivadoFinanceiro(l);
   return l.status === "pago" || l.status === "pendente";
 }
 

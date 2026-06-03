@@ -24,6 +24,8 @@ import {
 import { carregarPlanoContas } from "@/lib/plano-contas";
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
 import { visualizarPdfUrl } from "@/lib/pdf-viewer";
+import { FINANCEIRO_ATUALIZADO_EVENT } from "@/lib/financeiro-events";
+import { lancamentoEfetivadoFinanceiro } from "@/lib/lancamento-financeiro-realizado";
 
 const LINHAS_CLICAVEIS = new Set<DreLinhaId>([
   "receita_bruta",
@@ -182,8 +184,13 @@ export function DreConteudo() {
   useEffect(() => {
     void recarregar();
     const onPlano = () => setPlanoContas(carregarPlanoContas());
+    const onFinanceiro = () => void recarregar();
     window.addEventListener("labProtesePlanoContasAtualizado", onPlano);
-    return () => window.removeEventListener("labProtesePlanoContasAtualizado", onPlano);
+    window.addEventListener(FINANCEIRO_ATUALIZADO_EVENT, onFinanceiro);
+    return () => {
+      window.removeEventListener("labProtesePlanoContasAtualizado", onPlano);
+      window.removeEventListener(FINANCEIRO_ATUALIZADO_EVENT, onFinanceiro);
+    };
   }, [recarregar]);
 
   const matriz = useMemo(
@@ -205,7 +212,7 @@ export function DreConteudo() {
       );
     }
     return lancamentos.filter((l) => {
-      if (l.status === "cancelado") return false;
+      if (!lancamentoEfetivadoFinanceiro(l)) return false;
       const d = new Date(l.data);
       return d.getFullYear() === ano && d.getMonth() === drilldown.mesIndex;
     });
@@ -447,8 +454,9 @@ export function DreConteudo() {
             </div>
 
             <div className="border-t border-[#bfdbfe] bg-[#eff6ff] px-5 py-3.5 text-[12px] leading-relaxed text-[#1d4ed8] print:hidden">
-              Para visualizar os lançamentos, clique tanto no Nome do mês, quanto nos
-              Valores!
+              A D.R.E. considera somente receitas já recebidas e despesas já pagas (status
+              Pago no Financeiro). Cobranças de OS pendentes não entram até o recebimento.
+              Para ver os lançamentos, clique no nome do mês ou nos valores.
             </div>
           </>
         ) : (
