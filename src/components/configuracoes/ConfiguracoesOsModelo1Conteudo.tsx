@@ -25,6 +25,9 @@ import { configParaLabImpressao, escalaLogoMultiplicador } from "@/lib/lab-logo"
 import {
   CAMPOS_MODELO1_GERAL,
   CAMPOS_MODELO1_PARES,
+  estiloBordaRequisicaoPreview,
+  estiloLinhaInferiorRequisicaoPreview,
+  estiloLinhaRequisicaoPreview,
   normalizarCorBorda,
   normalizarOsModelo1Layout,
   OS_MODELO1_BORDA_MARGEM_MM,
@@ -131,7 +134,7 @@ function LinhaRotuloValor({
 
 function LinhaSeparador({ cor, className }: { cor: string; className?: string }) {
   return (
-    <div className={cn("border-t", className)} style={{ borderColor: cor }} />
+    <div className={cn(className)} style={estiloLinhaRequisicaoPreview(cor)} />
   );
 }
 
@@ -180,10 +183,7 @@ function PreviewOsModeloProducao({
     >
       <div
         className="box-border w-full"
-        style={{
-          border: comBorda ? `2px solid ${corBorda}` : "none",
-          padding: "8mm 10mm",
-        }}
+        style={comBorda ? estiloBordaRequisicaoPreview(corBorda) : { padding: 0 }}
       >
       <div className="flex items-start gap-3">
         {layout.logo ? (
@@ -285,7 +285,7 @@ function PreviewOsModeloProducao({
         style={{ fontSize: `${fsSmall}px` }}
       >
         <thead>
-          <tr className="border-b" style={{ borderColor: corLinha }}>
+          <tr style={estiloLinhaRequisicaoPreview(corLinha)}>
             <th className="py-1 pr-2 text-left font-bold">Qtd</th>
             <th className="py-1 pr-2 text-left font-bold">Descrição</th>
             {layout.numDente ? (
@@ -303,10 +303,11 @@ function PreviewOsModeloProducao({
           {amostra.itens.map((item, indice) => (
             <tr
               key={item.descricao}
-              className={
-                indice < amostra.itens.length - 1 || !layout.total ? "border-b" : ""
+              style={
+                indice < amostra.itens.length - 1 || !layout.total
+                  ? estiloLinhaInferiorRequisicaoPreview(corLinha)
+                  : undefined
               }
-              style={{ borderColor: corLinha }}
             >
               <td className="py-1.5 pr-2 align-top">{item.qtd}</td>
               <td className="py-1.5 pr-2 align-top">{item.descricao}</td>
@@ -409,7 +410,7 @@ function PreviewOsModeloProducao({
 
       {layout.assinatura ? (
         <div className="mt-8 text-center" style={{ fontSize: `${fsSmall - 1}px` }}>
-          <div className="mx-auto w-48 border-t" style={{ borderColor: corLinha }} />
+          <div className="mx-auto w-48" style={estiloLinhaRequisicaoPreview(corLinha)} />
           <p className="mt-1 text-slate-600">Assinatura</p>
         </div>
       ) : null}
@@ -420,6 +421,7 @@ function PreviewOsModeloProducao({
           <p className="mt-0.5 font-mono text-[9px] tracking-wide text-slate-800">
             OS{amostra.numeroOs}
           </p>
+          <LinhaSeparador cor={corLinha} className="mt-2" />
         </div>
       ) : null}
       </div>

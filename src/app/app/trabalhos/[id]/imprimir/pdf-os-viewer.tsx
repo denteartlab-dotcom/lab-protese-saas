@@ -22,6 +22,8 @@ import {
   hexParaRgb,
   normalizarOsModelo1Layout,
   OS_MODELO1_BORDA_MARGEM_MM,
+  OS_REQUISICAO_BORDA_EXTERNA_MM,
+  OS_REQUISICAO_LINHA_INTERNA_MM,
   type OsModelo1Layout,
 } from "@/lib/os-modelo1-layout";
 import { normalizarOsModelo2Layout } from "@/lib/os-modelo2-layout";
@@ -321,7 +323,7 @@ function desenharBordaRequisicaoPdf(
   const m = OS_MODELO1_BORDA_MARGEM_MM;
   const altura = Math.max(20, yBottom - yTop);
   pdf.setDrawColor(r, g, b);
-  pdf.setLineWidth(0.55);
+  pdf.setLineWidth(OS_REQUISICAO_BORDA_EXTERNA_MM);
   pdf.rect(m, yTop, pw - m * 2, altura, "S");
 }
 
@@ -329,7 +331,18 @@ function desenharBordaRequisicaoPdf(
 function aplicarCorLinhaRequisicao(pdf: PdfRenderApi, lay: OsModelo1Layout) {
   const { r, g, b } = hexParaRgb(lay.bordas);
   pdf.setDrawColor(r, g, b);
-  pdf.setLineWidth(0.35);
+  pdf.setLineWidth(OS_REQUISICAO_LINHA_INTERNA_MM);
+}
+
+function linhaRequisicaoPdf(
+  pdf: PdfRenderApi,
+  lay: OsModelo1Layout,
+  x1: number,
+  y: number,
+  x2: number
+) {
+  aplicarCorLinhaRequisicao(pdf, lay);
+  pdf.line(x1, y, x2, y);
 }
 
 function renderModeloProducao(
@@ -393,8 +406,7 @@ function renderModeloProducao(
   }
 
   y += 3;
-  aplicarCorLinhaRequisicao(pdf, lay);
-  pdf.line(15, y, pageWidth - 15, y);
+  linhaRequisicaoPdf(pdf, lay, 15, y, pageWidth - 15);
   y += 5;
 
   const tableLeft = 15;
@@ -422,8 +434,7 @@ function renderModeloProducao(
   if (lay.desconto) pdf.text("Desc", colDescPct, y, { align: "right" });
   if (lay.subtotal) pdf.text("Subtotal", tableRight, y, { align: "right" });
   y += 3;
-  aplicarCorLinhaRequisicao(pdf, lay);
-  pdf.line(tableLeft, y, tableRight, y);
+  linhaRequisicaoPdf(pdf, lay, tableLeft, y, tableRight);
   y += 5;
 
   pdf.setFont("helvetica", "normal");
@@ -474,22 +485,19 @@ function renderModeloProducao(
     const isUltimoItem = indiceItem === totalItens - 1;
     if (!isUltimoItem) {
       y += 1.5;
-      aplicarCorLinhaRequisicao(pdf, lay);
-      pdf.line(tableLeft, y, tableRight, y);
+      linhaRequisicaoPdf(pdf, lay, tableLeft, y, tableRight);
       y += 5;
     } else {
       y += 1.5;
       if (!lay.total) {
-        aplicarCorLinhaRequisicao(pdf, lay);
-        pdf.line(tableLeft, y, tableRight, y);
+        linhaRequisicaoPdf(pdf, lay, tableLeft, y, tableRight);
         y += 5;
       }
     }
   });
 
   if (lay.total) {
-    aplicarCorLinhaRequisicao(pdf, lay);
-    pdf.line(tableLeft, y, tableRight, y);
+    linhaRequisicaoPdf(pdf, lay, tableLeft, y, tableRight);
     y += 4;
     pdf.setFont("helvetica", "bold");
     pdf.text(`TOTAL ${money(data.valor)}`, pageWidth - 15, y, { align: "right" });
@@ -543,8 +551,7 @@ function renderModeloProducao(
   }
   if (lay.assinatura) {
     y += 12;
-    aplicarCorLinhaRequisicao(pdf, lay);
-    pdf.line(15, y, 80, y);
+    linhaRequisicaoPdf(pdf, lay, 15, y, 80);
     pdf.setFontSize(fontBase - 1);
     pdf.text("Assinatura", 15, y + 4);
     y += 10;
@@ -560,12 +567,13 @@ function renderModeloProducao(
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(6);
     pdf.text(barcodeValue, 15, y + 12);
-    y += 16;
+    y += 14;
+    linhaRequisicaoPdf(pdf, lay, 15, y, pageWidth - 15);
+    y += 2;
   }
 
   if (lay.exibirBordas) {
-    const yFimBorda = y + 2;
-    desenharBordaRequisicaoPdf(pdf, lay.bordas, yBordaTop, yFimBorda);
+    desenharBordaRequisicaoPdf(pdf, lay.bordas, yBordaTop, y + 1);
   }
 }
 
@@ -684,8 +692,7 @@ function renderModeloComprovante(
 
   y += 3;
 
-  aplicarCorLinhaRequisicao(pdf, lay);
-  pdf.line(margin, y, tableRight, y);
+  linhaRequisicaoPdf(pdf, lay, margin, y, tableRight);
   y += 5;
 
   const colQtd = margin;
@@ -712,8 +719,7 @@ function renderModeloComprovante(
   if (lay.desconto) pdf.text("Desc", colDescPct, y, { align: "right" });
   if (lay.subtotal) pdf.text("Subtotal", colSubtotal, y, { align: "right" });
   y += 3;
-  aplicarCorLinhaRequisicao(pdf, lay);
-  pdf.line(margin, y, tableRight, y);
+  linhaRequisicaoPdf(pdf, lay, margin, y, tableRight);
   y += 5;
 
   pdf.setFont("helvetica", "normal");
@@ -783,8 +789,7 @@ function renderModeloComprovante(
   }
 
   y += 1;
-  aplicarCorLinhaRequisicao(pdf, lay);
-  pdf.line(margin, y, tableRight, y);
+  linhaRequisicaoPdf(pdf, lay, margin, y, tableRight);
   y += 7;
 
   const totalFinal = totalServicos - totalDescontos;
@@ -833,8 +838,7 @@ function renderModeloComprovante(
   if (lay.assinatura) {
     const assinaturaLargura = 90;
     const assinaturaX = (pageWidth - assinaturaLargura) / 2;
-    aplicarCorLinhaRequisicao(pdf, lay);
-    pdf.line(assinaturaX, assinaturaY, assinaturaX + assinaturaLargura, assinaturaY);
+    linhaRequisicaoPdf(pdf, lay, assinaturaX, assinaturaY, assinaturaX + assinaturaLargura);
     pdf.setFontSize(fontBase - 1);
     pdf.text("Recebi o(s) serviço(s) descritos acima", pageWidth / 2, assinaturaY + 3.5, {
       align: "center",
@@ -842,17 +846,19 @@ function renderModeloComprovante(
     assinaturaY += 8;
   }
 
+  let yFimConteudo = assinaturaY;
   if (lay.codBarras) {
     const barcodeValue = `OS${data.numeroOs}`;
     drawCode39(pdf, barcodeValue, margin, assinaturaY);
     pdf.setFontSize(6);
     pdf.text(barcodeValue, margin, assinaturaY + 10);
-    aplicarCorLinhaRequisicao(pdf, lay);
-    pdf.line(margin, assinaturaY + 14, tableRight, assinaturaY + 14);
+    yFimConteudo = assinaturaY + 14;
+    linhaRequisicaoPdf(pdf, lay, margin, yFimConteudo, tableRight);
+    yFimConteudo += 2;
   }
 
   if (lay.exibirBordas) {
-    desenharBordaRequisicaoPdf(pdf, lay.bordas, yBordaTop, assinaturaY + 18);
+    desenharBordaRequisicaoPdf(pdf, lay.bordas, yBordaTop, yFimConteudo + 1);
   }
 }
 

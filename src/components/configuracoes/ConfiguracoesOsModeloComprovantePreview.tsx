@@ -8,7 +8,14 @@ import {
 } from "@/lib/cabecalho-requisicao";
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
 import { configParaLabImpressao, escalaLogoMultiplicador } from "@/lib/lab-logo";
-import { normalizarCorBorda, type OsModelo1Layout } from "@/lib/os-modelo1-layout";
+import {
+  estiloBordaRequisicaoPreview,
+  estiloLinhaInferiorRequisicaoPreview,
+  estiloLinhaRequisicaoPreview,
+  normalizarCorBorda,
+  OS_MODELO1_BORDA_MARGEM_MM,
+  type OsModelo1Layout,
+} from "@/lib/os-modelo1-layout";
 import { PREVIEW_OS_MODELO3 } from "@/lib/os-modelo3-layout";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +38,7 @@ function LinhaRotuloValor({
 
 function LinhaSeparador({ cor, className }: { cor: string; className?: string }) {
   return (
-    <div className={cn("border-t", className)} style={{ borderColor: cor }} />
+    <div className={cn(className)} style={estiloLinhaRequisicaoPreview(cor)} />
   );
 }
 
@@ -75,7 +82,7 @@ export function PreviewOsModeloComprovante({
         width: "210mm",
         minHeight: "297mm",
         maxWidth: "100%",
-        padding: "10mm",
+        padding: `${OS_MODELO1_BORDA_MARGEM_MM}mm`,
         fontSize: `${fs}px`,
         fontFamily: "Arial, Helvetica, sans-serif",
         boxSizing: "border-box",
@@ -83,10 +90,7 @@ export function PreviewOsModeloComprovante({
     >
       <div
         className="box-border w-full"
-        style={{
-          border: comBorda ? `2px solid ${corBorda}` : "none",
-          padding: comBorda ? "8mm 10mm" : "0",
-        }}
+        style={comBorda ? estiloBordaRequisicaoPreview(corBorda) : { padding: 0 }}
       >
         <div className="flex items-start gap-3">
           {layout.logo ? (
@@ -188,7 +192,7 @@ export function PreviewOsModeloComprovante({
           style={{ fontSize: `${fsSmall}px` }}
         >
           <thead>
-            <tr className="border-b" style={{ borderColor: corLinha }}>
+            <tr style={estiloLinhaInferiorRequisicaoPreview(corLinha)}>
               <th className="py-1 pr-2 text-left font-bold">Qtd</th>
               <th className="py-1 pr-2 text-left font-bold">Descrição</th>
               {layout.numDente ? (
@@ -208,10 +212,11 @@ export function PreviewOsModeloComprovante({
             {amostra.itens.map((item, indice) => (
               <tr
                 key={item.descricao}
-                className={
-                  indice < amostra.itens.length - 1 || !layout.total ? "border-b" : ""
+                style={
+                  indice < amostra.itens.length - 1 || !layout.total
+                    ? estiloLinhaInferiorRequisicaoPreview(corLinha)
+                    : undefined
                 }
-                style={{ borderColor: corLinha }}
               >
                 <td className="py-1.5 pr-2 align-top">{item.qtd}</td>
                 <td className="py-1.5 pr-2 align-top">
@@ -318,7 +323,7 @@ export function PreviewOsModeloComprovante({
 
         {layout.assinatura ? (
           <div className="mt-10 text-center" style={{ fontSize: `${fsSmall - 1}px` }}>
-            <div className="mx-auto w-56 border-t" style={{ borderColor: corLinha }} />
+            <div className="mx-auto w-56" style={estiloLinhaRequisicaoPreview(corLinha)} />
             <p className="mt-1 text-slate-800">Recebi o(s) serviço(s) descritos acima</p>
           </div>
         ) : null}
@@ -329,10 +334,9 @@ export function PreviewOsModeloComprovante({
             <p className="mt-0.5 font-mono text-[9px] tracking-wide text-slate-800">
               OS{amostra.numeroOs}
             </p>
+            <LinhaSeparador cor={corLinha} className="mt-2" />
           </div>
         ) : null}
-
-        <LinhaSeparador cor={corLinha} className="mt-4" />
       </div>
     </div>
   );

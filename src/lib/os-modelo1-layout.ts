@@ -115,6 +115,45 @@ export function normalizarCorBorda(valor?: string): string {
 /** Margem externa da folha A4 até a borda da requisição (mm). */
 export const OS_MODELO1_BORDA_MARGEM_MM = 10;
 
+/** Padding entre a borda externa e o conteúdo da requisição (mm). */
+export const OS_REQUISICAO_BORDA_PADDING_MM = 8;
+
+/** Espessura das linhas divisórias internas no PDF (mm). */
+export const OS_REQUISICAO_LINHA_INTERNA_MM = 0.12;
+
+/** Espessura da borda externa da requisição no PDF (mm). */
+export const OS_REQUISICAO_BORDA_EXTERNA_MM = 0.15;
+
+/** Espessura das linhas no preview HTML (px). */
+export const OS_REQUISICAO_LINHA_PREVIEW_PX = 1;
+
+/** Estilo de linha horizontal no preview do editor. */
+export function estiloLinhaRequisicaoPreview(cor: string) {
+  return {
+    borderColor: cor,
+    borderTopWidth: OS_REQUISICAO_LINHA_PREVIEW_PX,
+    borderTopStyle: "solid" as const,
+  };
+}
+
+/** Linha divisória abaixo de uma seção (cabeçalho da tabela, linhas de item). */
+export function estiloLinhaInferiorRequisicaoPreview(cor: string) {
+  return {
+    borderColor: cor,
+    borderBottomWidth: OS_REQUISICAO_LINHA_PREVIEW_PX,
+    borderBottomStyle: "solid" as const,
+  };
+}
+
+/** Estilo da borda externa no preview do editor. */
+export function estiloBordaRequisicaoPreview(cor: string) {
+  return {
+    border: `${OS_REQUISICAO_LINHA_PREVIEW_PX}px solid ${cor}`,
+    padding: `${OS_REQUISICAO_BORDA_PADDING_MM}mm 10mm`,
+    boxSizing: "border-box" as const,
+  };
+}
+
 export function hexParaRgb(hex: string): { r: number; g: number; b: number } {
   const normalizado = normalizarCorBorda(hex).replace("#", "");
   const expandido =
