@@ -156,6 +156,94 @@ function labelValue(
   pdf.setFont("helvetica", "normal");
 }
 
+function textoPrazoRequisicao(data: PdfOsData) {
+  const direto = (data.prazo || data.prazoLaboratorio || "").trim();
+  if (direto) return direto;
+  const nota = data.itens.find((i) => i.notasAbaixo?.length)?.notasAbaixo?.[0] || data.prazoLinhaServico || "";
+  const match = nota.match(/Prazo:\s*(?:[^:]+:\s*)?(.+)$/i);
+  return match?.[1]?.trim() || "";
+}
+
+/** Prazo e Finalizado na mesma linha, como no preview da configuração. */
+function desenharPrazoFinalizadoRequisicao(
+  pdf: PdfRenderApi,
+  lay: OsModelo1Layout,
+  data: PdfOsData,
+  x: number,
+  y: number
+) {
+  const prazo = textoPrazoRequisicao(data);
+  const finalizado = (data.finalizado || "").trim();
+  let cursor = x;
+  pdf.setFont("helvetica", "normal");
+
+  if (lay.dataPrazo) {
+    pdf.text("Prazo: ", cursor, y);
+    cursor += pdf.getTextWidth("Prazo: ");
+    pdf.setFont("helvetica", "bold");
+    pdf.text(prazo || "—", cursor, y);
+    cursor += pdf.getTextWidth(prazo || "—") + 1.5;
+    pdf.setFont("helvetica", "normal");
+  }
+
+  if (lay.dataPrazo && lay.finalizado) {
+    pdf.text("|", cursor, y);
+    cursor += pdf.getTextWidth("|") + 1.5;
+  }
+
+  if (lay.finalizado) {
+    pdf.text("Finalizado: ", cursor, y);
+    cursor += pdf.getTextWidth("Finalizado: ");
+    pdf.setFont("helvetica", "bold");
+    pdf.text(finalizado || "—", cursor, y);
+    pdf.setFont("helvetica", "normal");
+  }
+}
+
+function desenharMetadadosServicoRequisicao(
+  pdf: PdfRenderApi,
+  lay: OsModelo1Layout,
+  data: PdfOsData,
+  colDesc: number,
+  yInicio: number,
+  g: (mm: number) => number
+) {
+  let y = yInicio;
+  const mostraPrazo = lay.dataPrazo || lay.finalizado;
+  const mostraColab = lay.colaborador;
+  const mostraProd = lay.producao && Boolean(data.producao?.trim());
+  const mostraObs = lay.obsServico;
+
+  if (!mostraPrazo && !mostraColab && !mostraProd && !mostraObs) {
+    return y;
+  }
+
+  if (mostraPrazo) {
+    desenharPrazoFinalizadoRequisicao(pdf, lay, data, colDesc, y);
+    y += g(4);
+  }
+  if (mostraColab) {
+    labelValue(pdf, "Colaborador: ", data.colaborador || "", colDesc, y);
+    y += g(4);
+  }
+  if (mostraProd) {
+    labelValue(pdf, "Produção: ", data.producao || "", colDesc, y);
+    y += g(4);
+  }
+  if (mostraObs) {
+    const texto = (data.observacoes || "").trim();
+    const linhasObs = pdf.splitTextToSize(texto || "—", 182 - colDesc);
+    labelValue(pdf, "Observação: ", linhasObs[0] || "", colDesc, y);
+    y += g(4);
+    if (linhasObs.length > 1) {
+      pdf.setFont("helvetica", "normal");
+      pdf.text(linhasObs.slice(1), colDesc, y);
+      y += (linhasObs.length - 1) * 3.8 * escalaEspacamentoRequisicao(lay) + g(2);
+    }
+  }
+  return y;
+}
+
 const code39: Record<string, string> = {
   "0": "nnnwwnwnn",
   "1": "wnnwnnnnw",
@@ -469,7 +557,6 @@ function renderModeloProducao(
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(fontBase);
-  let servicoIndex = 0;
   const totalItens = data.itens.length;
   data.itens.forEach((item, indiceItem) => {
     if (y > 265) {
@@ -477,8 +564,6 @@ function renderModeloProducao(
       y = OS_REQUISICAO_MARGEM_CONTEUDO_MM + 1;
     }
     const descricaoLinhas = pdf.splitTextToSize(String(item.descricao), lay.subtotal ? 58 : 68);
-    const ehProduto = /\(\s*Produto\s*\)/i.test(String(item.descricao));
-    const ehServico = !ehProduto && !/\(\s*Transporte\s*\)/i.test(String(item.descricao));
 
     pdf.text(String(item.qtd), colQtd, y);
     pdf.text(descricaoLinhas, colDesc, y);
@@ -491,88 +576,43 @@ function renderModeloProducao(
     }
     y += Math.max(g(4), descricaoLinhas.length * 4.2 * escalaEspacamentoRequisicao(lay));
 
-    const notasPrazo =
-      item.notasAbaixo?.filter(Boolean) ||
-      (ehServico &&
-      servicoIndex === 0 &&
-      data.prazoLinhaServico &&
-      !data.itens.some((i) => i.notasAbaixo?.length)
-        ? [data.prazoLinhaServico]
-        : []);
-    if (ehServico) servicoIndex += 1;
-
-    if (lay.dataPrazo && notasPrazo.length) {
-      notasPrazo.forEach((nota) => {
-        if (y > 265) {
-          pdf.addPage();
-          y = OS_REQUISICAO_MARGEM_CONTEUDO_MM + 1;
-        }
-        desenharLinhaPrazo(pdf, nota, colDesc, y);
-        y += g(4);
-      });
-    }
-
-    const isUltimoItem = indiceItem === totalItens - 1;
-    if (!isUltimoItem) {
+    if (indiceItem < totalItens - 1) {
       y += g(1);
       linhaRequisicaoPdf(pdf, lay, y, pageWidth);
       y += g(4);
     } else {
       y += g(1);
-      if (!lay.total) {
-        linhaRequisicaoPdf(pdf, lay, y, pageWidth);
-        y += g(4);
-      }
     }
   });
+
+  y = desenharMetadadosServicoRequisicao(pdf, lay, data, colDesc, y, g);
 
   if (lay.total) {
     linhaRequisicaoPdf(pdf, lay, y, pageWidth);
     y += g(3);
     pdf.setFont("helvetica", "bold");
-    pdf.text(`TOTAL ${money(data.valor)}`, m.tabelaDir, y, { align: "right" });
+    pdf.text(`Total ${money(data.valor)}`, m.tabelaDir, y, { align: "right" });
     y += g(6);
+  } else {
+    linhaRequisicaoPdf(pdf, lay, y, pageWidth);
+    y += g(4);
   }
 
   pdf.setFont("helvetica", "normal");
-  const prazosJaNoItem = data.itens.some((item) => item.notasAbaixo?.length);
-  if (!prazosJaNoItem && (lay.dataPrazo || lay.finalizado)) {
-    const partes: string[] = [];
-    if (lay.dataPrazo && data.prazo) partes.push(`Prazo: ${data.prazo}`);
-    if (lay.finalizado && data.finalizado) partes.push(`Finalizado: ${data.finalizado}`);
-    if (partes.length) {
-      pdf.text(partes.join(" | "), m.conteudoEsq, y);
-      y += g(4);
-    }
-  }
-  if (lay.colaborador && data.colaborador) {
-    pdf.text(`Colaborador: ${data.colaborador}`, m.conteudoEsq, y);
-    y += g(4);
-  }
   if (lay.materialRec && data.materiais) {
-    pdf.text(`Materiais: ${data.materiais}`.slice(0, 110), m.conteudoEsq, y);
+    labelValue(pdf, "Materiais: ", data.materiais.slice(0, 110), m.conteudoEsq, y);
     y += g(5);
   }
-  if (lay.obsServico && data.observacoes) {
-    const linhasObservacoes = pdf.splitTextToSize(data.observacoes, m.linhaDir - colDesc - 2);
-    labelValue(pdf, "Observação: ", linhasObservacoes[0] || "", colDesc, y);
-    y += g(4);
-    if (linhasObservacoes.length > 1) {
-      pdf.setFont("helvetica", "normal");
-      pdf.text(linhasObservacoes.slice(1), colDesc, y);
-      y += (linhasObservacoes.length - 1) * 3.8 * escalaEspacamentoRequisicao(lay) + g(2);
-    }
+  if (lay.obsFicha && data.obsFicha) {
+    labelValue(pdf, "Observação: ", data.obsFicha.slice(0, 110), m.conteudoEsq, y);
+    y += g(5);
   }
   if (lay.etapas && data.etapas) {
-    labelValue(pdf, "Etapas: ", data.etapas.slice(0, 110), colDesc, y);
-    y += g(5);
-  }
-  if (lay.producao && data.producao) {
-    labelValue(pdf, "Produção: ", data.producao.slice(0, 110), colDesc, y);
+    labelValue(pdf, "Etapas: ", data.etapas.slice(0, 110), m.conteudoEsq, y);
     y += g(5);
   }
   if (lay.pecas && data.pecas) {
-    pdf.text(`Peças: ${data.pecas}`.slice(0, 110), m.conteudoEsq, y);
+    labelValue(pdf, "Peças: ", data.pecas.slice(0, 110), m.conteudoEsq, y);
     y += g(5);
   }
   if (lay.mensagem?.trim()) {
