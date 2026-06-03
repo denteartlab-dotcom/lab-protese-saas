@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus, Search, Printer, Eye } from "lucide-react";
+import { LinkImprimirOs } from "@/components/LinkImprimirOs";
 import { BarraConfigListagem } from "@/components/listagem/BarraConfigListagem";
 import { Button, Card, Badge, Table } from "@/components/ui";
 import { useListagemPaginada } from "@/hooks/use-listagem-paginada";
@@ -147,11 +148,11 @@ export default function TrabalhosPage() {
                       <Eye className="h-4 w-4" />
                     </Button>
                   </Link>
-                  <Link href={`/app/trabalhos/${t.id}/imprimir`} target="_blank">
-                    <Button size="sm" variant="ghost">
+                  <LinkImprimirOs trabalho={t}>
+                    <Button size="sm" variant="ghost" type="button">
                       <Printer className="h-4 w-4" />
                     </Button>
-                  </Link>
+                  </LinkImprimirOs>
                 </div>
               </td>
             </tr>

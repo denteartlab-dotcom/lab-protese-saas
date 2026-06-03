@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Printer } from "lucide-react";
+import { LinkImprimirOs } from "@/components/LinkImprimirOs";
 import { Button, Card, Select, Badge } from "@/components/ui";
 import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
 import {
@@ -65,11 +66,11 @@ export default function TrabalhoDetailPage() {
         >
           <ArrowLeft className="h-4 w-4" /> Voltar
         </Link>
-        <Link href={`/app/trabalhos/${id}/imprimir`} target="_blank">
-          <Button>
+        <LinkImprimirOs trabalho={t}>
+          <Button type="button">
             <Printer className="h-4 w-4" /> Imprimir OS
           </Button>
-        </Link>
+        </LinkImprimirOs>
       </div>
 
       <div className="flex items-center gap-3">

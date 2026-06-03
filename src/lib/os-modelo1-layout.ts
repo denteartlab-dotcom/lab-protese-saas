@@ -127,6 +127,9 @@ export const OS_REQUISICAO_BORDA_PADDING_MM = 3;
 /** Recuo de Qtd/Subtotal em relação às linhas laterais (mm). */
 export const OS_REQUISICAO_COLUNA_MARGEM_MM = 2.5;
 
+/** Posição X (mm) da coluna Descrição no PDF A4 — alinha metadados do item ao texto da descrição. */
+export const OS_REQUISICAO_COL_DESCRICAO_MM = 28;
+
 /** Margem horizontal do texto — não muda ao ligar/desligar borda. */
 export const OS_REQUISICAO_MARGEM_CONTEUDO_MM = 15;
 

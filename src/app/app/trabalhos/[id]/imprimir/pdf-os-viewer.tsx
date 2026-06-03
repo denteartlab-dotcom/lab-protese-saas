@@ -17,6 +17,7 @@ import {
   carregarLayoutModelo3,
   carregarLayoutModelo4,
   carregarLayoutModelo5,
+  sincronizarConfiguracoesOsDoServidor,
 } from "@/lib/configuracoes-os";
 import {
   hexParaRgb,
@@ -29,6 +30,7 @@ import {
   OS_REQUISICAO_BORDA_PADDING_MM,
   OS_REQUISICAO_LINHA_DIVISAO_COR,
   OS_REQUISICAO_LINHA_INTERNA_MM,
+  OS_REQUISICAO_COL_DESCRICAO_MM,
   OS_REQUISICAO_MARGEM_CONTEUDO_MM,
   OS_REQUISICAO_TOPO_MM,
   type OsModelo1Layout,
@@ -552,20 +554,21 @@ function renderModeloProducao(
     y += g(5);
   }
   if (lay.obsServico && data.observacoes) {
-    pdf.setFont("helvetica", "bold");
-    pdf.text("Observações / Instruções técnicas:", m.conteudoEsq, y);
+    const linhasObservacoes = pdf.splitTextToSize(data.observacoes, m.linhaDir - colDesc - 2);
+    labelValue(pdf, "Observação: ", linhasObservacoes[0] || "", colDesc, y);
     y += g(4);
-    pdf.setFont("helvetica", "normal");
-    const linhasObservacoes = pdf.splitTextToSize(data.observacoes, 180);
-    pdf.text(linhasObservacoes, m.conteudoEsq, y);
-    y += linhasObservacoes.length * 3.8 * escalaEspacamentoRequisicao(lay) + g(2);
+    if (linhasObservacoes.length > 1) {
+      pdf.setFont("helvetica", "normal");
+      pdf.text(linhasObservacoes.slice(1), colDesc, y);
+      y += (linhasObservacoes.length - 1) * 3.8 * escalaEspacamentoRequisicao(lay) + g(2);
+    }
   }
   if (lay.etapas && data.etapas) {
-    pdf.text(`Etapas: ${data.etapas}`.slice(0, 110), m.conteudoEsq, y);
+    labelValue(pdf, "Etapas: ", data.etapas.slice(0, 110), colDesc, y);
     y += g(5);
   }
   if (lay.producao && data.producao) {
-    pdf.text(`Produção: ${data.producao}`.slice(0, 110), m.conteudoEsq, y);
+    labelValue(pdf, "Produção: ", data.producao.slice(0, 110), colDesc, y);
     y += g(5);
   }
   if (lay.pecas && data.pecas) {
@@ -1594,17 +1597,25 @@ export function PdfOsViewer({
   }));
   const [configOsPronta, setConfigOsPronta] = useState(false);
 
-  function atualizarLab() {
-    setDadosPdf(montarDadosPdf(data));
-    setConfigOsPronta(true);
-  }
-
   useEffect(() => {
-    atualizarLab();
+    let ativo = true;
+    setConfigOsPronta(false);
+    void sincronizarConfiguracoesOsDoServidor()
+      .catch(() => undefined)
+      .finally(() => {
+        if (!ativo) return;
+        setDadosPdf(montarDadosPdf(data));
+        setConfigOsPronta(true);
+      });
+    return () => {
+      ativo = false;
+    };
   }, [data]);
 
   useEffect(() => {
-    const handler = () => atualizarLab();
+    const handler = () => {
+      setDadosPdf(montarDadosPdf(data));
+    };
     window.addEventListener(LAB_CONFIG_ATUALIZADA_EVENT, handler);
     window.addEventListener(CONFIG_OS_ATUALIZADA_EVENT, handler);
     return () => {

@@ -351,45 +351,75 @@ function PreviewOsModeloProducao({
       </table>
       </div>
 
-      <div style={{ fontSize: `${fsSmall}px`, marginTop: gap(2), display: "flex", flexDirection: "column", gap: gap(0.5) }}>
-        {layout.dataPrazo || layout.finalizado ? (
-          <p>
-            {layout.dataPrazo ? (
-              <>
-                <span>Prazo: </span>
-                <span className="font-bold">{amostra.prazo}</span>
-              </>
-            ) : null}
-            {layout.dataPrazo && layout.finalizado ? (
-              <span className="mx-1 font-normal">|</span>
-            ) : null}
-            {layout.finalizado ? (
-              <>
-                <span>Finalizado: </span>
-                <span className="font-bold">{amostra.finalizado}</span>
-              </>
-            ) : null}
-          </p>
-        ) : null}
-        {layout.colaborador ? (
-          <p>
-            <span>Colaborador: </span>
-            <span className="font-bold">{amostra.colaborador}</span>
-          </p>
-        ) : null}
-        {layout.producao && amostra.producao ? (
-          <p>
-            <span>Produção: </span>
-            <span className="font-bold">{amostra.producao}</span>
-          </p>
-        ) : null}
-        {layout.obsServico ? (
-          <p>
-            <span>Observação: </span>
-            <span className="font-bold">{amostra.obsServico}</span>
-          </p>
-        ) : null}
-      </div>
+      {(layout.dataPrazo ||
+        layout.finalizado ||
+        layout.colaborador ||
+        (layout.producao && amostra.producao) ||
+        layout.obsServico) && (
+        <div style={{ marginTop: gap(2), ...estiloLimiteLinhasPaginaPreview() }}>
+          <table
+            className="w-full border-collapse"
+            style={{ fontSize: `${fsSmall}px`, ...estiloTabelaMargemColunasPreview() }}
+          >
+            <tbody>
+              <tr>
+                <td className="w-[1%] py-0 pr-2 align-top" />
+                <td
+                  className="py-0 align-top"
+                  colSpan={
+                    1 +
+                    (layout.numDente ? 1 : 0) +
+                    (layout.corDente ? 1 : 0) +
+                    (layout.valorUnit ? 1 : 0) +
+                    (layout.desconto ? 1 : 0) +
+                    (layout.subtotal ? 1 : 0)
+                  }
+                >
+                  <div style={{ display: "flex", flexDirection: "column", gap: gap(0.5) }}>
+                    {layout.dataPrazo || layout.finalizado ? (
+                      <p>
+                        {layout.dataPrazo ? (
+                          <>
+                            <span>Prazo: </span>
+                            <span className="font-bold">{amostra.prazo}</span>
+                          </>
+                        ) : null}
+                        {layout.dataPrazo && layout.finalizado ? (
+                          <span className="mx-1 font-normal">|</span>
+                        ) : null}
+                        {layout.finalizado ? (
+                          <>
+                            <span>Finalizado: </span>
+                            <span className="font-bold">{amostra.finalizado}</span>
+                          </>
+                        ) : null}
+                      </p>
+                    ) : null}
+                    {layout.colaborador ? (
+                      <p>
+                        <span>Colaborador: </span>
+                        <span className="font-bold">{amostra.colaborador}</span>
+                      </p>
+                    ) : null}
+                    {layout.producao && amostra.producao ? (
+                      <p>
+                        <span>Produção: </span>
+                        <span className="font-bold">{amostra.producao}</span>
+                      </p>
+                    ) : null}
+                    {layout.obsServico ? (
+                      <p>
+                        <span>Observação: </span>
+                        <span className="font-bold">{amostra.obsServico}</span>
+                      </p>
+                    ) : null}
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {layout.total ? (
         <>
