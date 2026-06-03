@@ -9,11 +9,11 @@ import {
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
 import { configParaLabImpressao, escalaLogoMultiplicador } from "@/lib/lab-logo";
 import {
-  estiloBordaRequisicaoPreview,
   estiloLinhaInferiorRequisicaoPreview,
   estiloLinhaRequisicaoPreview,
-  normalizarCorBorda,
-  OS_MODELO1_BORDA_MARGEM_MM,
+  estiloPaginaRequisicaoPreview,
+  estiloWrapperConteudoRequisicaoPreview,
+  gapRequisicaoPreviewMm,
   type OsModelo1Layout,
 } from "@/lib/os-modelo1-layout";
 import { PREVIEW_OS_MODELO3 } from "@/lib/os-modelo3-layout";
@@ -36,9 +36,15 @@ function LinhaRotuloValor({
   );
 }
 
-function LinhaSeparador({ cor, className }: { cor: string; className?: string }) {
+function LinhaSeparador({ marginTop }: { marginTop?: string }) {
   return (
-    <div className={cn(className)} style={estiloLinhaRequisicaoPreview(cor)} />
+    <div
+      style={{
+        ...estiloLinhaRequisicaoPreview(),
+        width: "100%",
+        ...(marginTop ? { marginTop } : undefined),
+      }}
+    />
   );
 }
 
@@ -64,9 +70,7 @@ export function PreviewOsModeloComprovante({
   const amostra = PREVIEW_OS_MODELO3;
   const fs = layout.tamanhoFonte;
   const fsSmall = Math.max(10, fs - 4);
-  const corBorda = normalizarCorBorda(layout.bordas);
-  const comBorda = layout.exibirBordas;
-  const corLinha = corBorda;
+  const gap = (mm: number) => gapRequisicaoPreviewMm(layout, mm);
 
   const money = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -77,21 +81,17 @@ export function PreviewOsModeloComprovante({
 
   return (
     <div
-      className="mx-auto box-border bg-white text-slate-900 shadow-md"
+      className="mx-auto bg-white text-slate-900 shadow-md"
       style={{
         width: "210mm",
         minHeight: "297mm",
         maxWidth: "100%",
-        padding: `${OS_MODELO1_BORDA_MARGEM_MM}mm`,
+        ...estiloPaginaRequisicaoPreview(),
         fontSize: `${fs}px`,
         fontFamily: "Arial, Helvetica, sans-serif",
-        boxSizing: "border-box",
       }}
     >
-      <div
-        className="box-border w-full"
-        style={comBorda ? estiloBordaRequisicaoPreview(corBorda) : { padding: 0 }}
-      >
+      <div style={estiloWrapperConteudoRequisicaoPreview(layout)}>
         <div className="flex items-start gap-3">
           {layout.logo ? (
             <div className="shrink-0">
@@ -148,13 +148,17 @@ export function PreviewOsModeloComprovante({
           </div>
         </div>
 
-        <LinhaSeparador cor={corLinha} className="mt-3" />
+        <LinhaSeparador marginTop={gap(2)} />
 
         <div
-          className="mt-2.5 grid grid-cols-2 gap-x-8 gap-y-0.5"
-          style={{ fontSize: `${fsSmall}px` }}
+          className="grid grid-cols-2 gap-x-8"
+          style={{
+            fontSize: `${fsSmall}px`,
+            marginTop: gap(2),
+            rowGap: gap(0.5),
+          }}
         >
-          <div className="space-y-0.5">
+          <div style={{ display: "flex", flexDirection: "column", gap: gap(0.5) }}>
             {layout.numOs ? (
               <LinhaRotuloValor rotulo="Num. OS:" valor={String(amostra.numeroOs)} />
             ) : null}
@@ -168,7 +172,7 @@ export function PreviewOsModeloComprovante({
               <LinhaRotuloValor rotulo="Paciente:" valor={amostra.paciente} />
             ) : null}
           </div>
-          <div className="space-y-0.5">
+          <div style={{ display: "flex", flexDirection: "column", gap: gap(0.5) }}>
             {layout.osExterna ? (
               <LinhaRotuloValor rotulo="OS Externa:" valor={amostra.osExterna} />
             ) : null}
@@ -185,26 +189,26 @@ export function PreviewOsModeloComprovante({
           </div>
         </div>
 
-        <LinhaSeparador cor={corLinha} className="mt-2.5" />
+        <LinhaSeparador marginTop={gap(2)} />
 
         <table
-          className="mt-2 w-full border-collapse"
-          style={{ fontSize: `${fsSmall}px` }}
+          className="w-full border-collapse"
+          style={{ fontSize: `${fsSmall}px`, marginTop: gap(2) }}
         >
           <thead>
-            <tr style={estiloLinhaInferiorRequisicaoPreview(corLinha)}>
-              <th className="py-1 pr-2 text-left font-bold">Qtd</th>
-              <th className="py-1 pr-2 text-left font-bold">Descrição</th>
+            <tr style={estiloLinhaInferiorRequisicaoPreview()}>
+              <th className="py-0.5 pr-2 text-left font-bold">Qtd</th>
+              <th className="py-0.5 pr-2 text-left font-bold">Descrição</th>
               {layout.numDente ? (
-                <th className="py-1 px-1 text-center font-bold">Número Dente</th>
+                <th className="py-0.5 px-1 text-center font-bold">Número Dente</th>
               ) : null}
-              {layout.corDente ? <th className="py-1 px-1 text-center font-bold">Cor</th> : null}
+              {layout.corDente ? <th className="py-0.5 px-1 text-center font-bold">Cor</th> : null}
               {layout.valorUnit ? (
-                <th className="py-1 px-1 text-right font-bold">Unitário</th>
+                <th className="py-0.5 px-1 text-right font-bold">Unitário</th>
               ) : null}
-              {layout.desconto ? <th className="py-1 pl-1 text-right font-bold">Desc</th> : null}
+              {layout.desconto ? <th className="py-0.5 pl-1 text-right font-bold">Desc</th> : null}
               {layout.subtotal ? (
-                <th className="py-1 pl-1 text-right font-bold">Subtotal</th>
+                <th className="py-0.5 pl-1 text-right font-bold">Subtotal</th>
               ) : null}
             </tr>
           </thead>
@@ -214,41 +218,49 @@ export function PreviewOsModeloComprovante({
                 key={item.descricao}
                 style={
                   indice < amostra.itens.length - 1 || !layout.total
-                    ? estiloLinhaInferiorRequisicaoPreview(corLinha)
+                    ? estiloLinhaInferiorRequisicaoPreview()
                     : undefined
                 }
               >
-                <td className="py-1.5 pr-2 align-top">{item.qtd}</td>
-                <td className="py-1.5 pr-2 align-top">
+                <td className="py-0.5 pr-2 align-top">{item.qtd}</td>
+                <td className="py-0.5 pr-2 align-top">
                   <div>{item.descricao}</div>
                   {indice === 0 ? (
-                    <p className="mt-0.5 text-[11px]">
+                    <p style={{ marginTop: gap(0.5), fontSize: `${fsSmall - 1}px` }}>
                       <span>Prazo: Produção: </span>
                       <span className="font-bold">{amostra.prazo}</span>
                     </p>
                   ) : null}
                 </td>
                 {layout.numDente ? (
-                  <td className="px-1 py-1.5 text-center align-top">{item.dente}</td>
+                  <td className="px-1 py-0.5 text-center align-top">{item.dente}</td>
                 ) : null}
                 {layout.corDente ? (
-                  <td className="px-1 py-1.5 text-center align-top">{item.cor}</td>
+                  <td className="px-1 py-0.5 text-center align-top">{item.cor}</td>
                 ) : null}
                 {layout.valorUnit ? (
-                  <td className="px-1 py-1.5 text-right align-top">{money(item.unitario)}</td>
+                  <td className="px-1 py-0.5 text-right align-top">{money(item.unitario)}</td>
                 ) : null}
                 {layout.desconto ? (
-                  <td className="py-1.5 pl-1 text-right align-top">{item.desconto}</td>
+                  <td className="py-0.5 pl-1 text-right align-top">{item.desconto}</td>
                 ) : null}
                 {layout.subtotal ? (
-                  <td className="py-1.5 pl-1 text-right align-top">{money(item.subtotal)}</td>
+                  <td className="py-0.5 pl-1 text-right align-top">{money(item.subtotal)}</td>
                 ) : null}
               </tr>
             ))}
           </tbody>
         </table>
 
-        <div className="mt-2 space-y-0.5" style={{ fontSize: `${fsSmall}px` }}>
+        <div
+          style={{
+            fontSize: `${fsSmall}px`,
+            marginTop: gap(2),
+            display: "flex",
+            flexDirection: "column",
+            gap: gap(0.5),
+          }}
+        >
           {layout.finalizado ? (
             <p>
               <span>Finalizado: </span>
@@ -283,8 +295,17 @@ export function PreviewOsModeloComprovante({
 
         {layout.total ? (
           <>
-            <LinhaSeparador cor={corLinha} className="mt-2" />
-            <div className="mt-1.5 space-y-0.5 text-right" style={{ fontSize: `${fsSmall}px` }}>
+            <LinhaSeparador marginTop={gap(2)} />
+            <div
+              className="text-right"
+              style={{
+                fontSize: `${fsSmall}px`,
+                marginTop: gap(1.5),
+                display: "flex",
+                flexDirection: "column",
+                gap: gap(0.5),
+              }}
+            >
               <p>
                 <span className="font-bold">Total Serviços </span>
                 {money(totalServicos)}
@@ -302,39 +323,41 @@ export function PreviewOsModeloComprovante({
         ) : null}
 
         {layout.materialRec ? (
-          <p className="mt-2" style={{ fontSize: `${fsSmall}px` }}>
+          <p style={{ fontSize: `${fsSmall}px`, marginTop: gap(2) }}>
             <span>Materiais: </span>
             <span className="font-bold">{amostra.materiais}</span>
           </p>
         ) : null}
 
         {layout.obsFicha ? (
-          <p className="mt-2" style={{ fontSize: `${fsSmall}px` }}>
+          <p style={{ fontSize: `${fsSmall}px`, marginTop: gap(1) }}>
             <span>Observação: </span>
             <span className="font-bold">{amostra.obsFicha}</span>
           </p>
         ) : null}
 
         {layout.mensagem.trim() ? (
-          <p className="mt-2 italic text-slate-700" style={{ fontSize: `${fsSmall}px` }}>
+          <p className="italic text-slate-700" style={{ fontSize: `${fsSmall}px`, marginTop: gap(2) }}>
             {layout.mensagem}
           </p>
         ) : null}
 
         {layout.assinatura ? (
-          <div className="mt-10 text-center" style={{ fontSize: `${fsSmall - 1}px` }}>
-            <div className="mx-auto w-56" style={estiloLinhaRequisicaoPreview(corLinha)} />
-            <p className="mt-1 text-slate-800">Recebi o(s) serviço(s) descritos acima</p>
+          <div className="text-center" style={{ fontSize: `${fsSmall - 1}px`, marginTop: gap(6) }}>
+            <div className="mx-auto w-56" style={estiloLinhaRequisicaoPreview()} />
+            <p className="text-slate-800" style={{ marginTop: gap(1) }}>
+              Recebi o(s) serviço(s) descritos acima
+            </p>
           </div>
         ) : null}
 
         {layout.codBarras ? (
-          <div className="mt-6">
+          <div style={{ marginTop: gap(4) }}>
             <Code39Barcode value={`OS${amostra.numeroOs}`} height={36} />
-            <p className="mt-0.5 font-mono text-[9px] tracking-wide text-slate-800">
+            <p className="font-mono text-[9px] tracking-wide text-slate-800" style={{ marginTop: gap(0.5) }}>
               OS{amostra.numeroOs}
             </p>
-            <LinhaSeparador cor={corLinha} className="mt-2" />
+            <LinhaSeparador marginTop={gap(2)} />
           </div>
         ) : null}
       </div>

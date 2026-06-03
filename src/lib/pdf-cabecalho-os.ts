@@ -10,12 +10,19 @@ import {
   type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
 import { LAB_IMPRESSAO_PADRAO, type LabImpressaoConfig } from "@/lib/lab-impressao";
+import {
+  hexParaRgb,
+  OS_REQUISICAO_LINHA_DIVISAO_COR,
+  OS_REQUISICAO_LINHA_INTERNA_MM,
+  OS_REQUISICAO_MARGEM_CONTEUDO_MM,
+} from "@/lib/os-modelo1-layout";
 
 export type PdfCabecalhoApi = {
   internal: { pageSize: { getWidth: () => number } };
   setFont: (fontName: string, fontStyle?: string) => void;
   setFontSize: (size: number) => void;
   setLineWidth: (width: number) => void;
+  setDrawColor: (r: number, g?: number, b?: number) => void;
   text: (
     text: string | string[],
     x: number,
@@ -70,6 +77,10 @@ export function desenharCabecalhoRequisicaoPdf(
     extrasDireita?: (y: number, margin: number, tableRight: number) => number;
     exibirLogo?: boolean;
     exibirInfoLab?: boolean;
+    /** Limites da linha sob o cabeçalho (encontra a borda quando ativa). */
+    linhaEsq?: number;
+    linhaDir?: number;
+    corLinha?: string;
   }
 ): number {
   const cfg =
@@ -86,8 +97,10 @@ export function desenharCabecalhoRequisicaoPdf(
   );
 
   const pageWidth = pdf.internal.pageSize.getWidth();
-  const margin = 15;
+  const margin = OS_REQUISICAO_MARGEM_CONTEUDO_MM;
   const tableRight = pageWidth - margin;
+  const linhaEsq = opts.linhaEsq ?? margin;
+  const linhaDir = opts.linhaDir ?? tableRight;
   const topo = 14 + pxCabecalhoParaMm(cab.logoMargemTopo);
   const marginLogoX = margin + pxCabecalhoParaMm(cab.logoMargemEsquerda);
 
@@ -138,7 +151,9 @@ export function desenharCabecalhoRequisicaoPdf(
   }
 
   const fimBloco = Math.max(topo + (logoH > 0 ? logoH + 2 : 0), yLab, yDir) + 4;
-  pdf.setLineWidth(0.4);
-  pdf.line(margin, fimBloco, tableRight, fimBloco);
+  const { r, g, b } = hexParaRgb(OS_REQUISICAO_LINHA_DIVISAO_COR);
+  pdf.setDrawColor(r, g, b);
+  pdf.setLineWidth(OS_REQUISICAO_LINHA_INTERNA_MM);
+  pdf.line(linhaEsq, fimBloco, linhaDir, fimBloco);
   return fimBloco + 6;
 }

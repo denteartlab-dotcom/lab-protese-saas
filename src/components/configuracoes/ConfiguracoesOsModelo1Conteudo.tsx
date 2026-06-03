@@ -25,12 +25,15 @@ import { configParaLabImpressao, escalaLogoMultiplicador } from "@/lib/lab-logo"
 import {
   CAMPOS_MODELO1_GERAL,
   CAMPOS_MODELO1_PARES,
-  estiloBordaRequisicaoPreview,
   estiloLinhaInferiorRequisicaoPreview,
   estiloLinhaRequisicaoPreview,
+  estiloPaginaRequisicaoPreview,
+  estiloWrapperConteudoRequisicaoPreview,
+  gapRequisicaoPreviewMm,
   normalizarCorBorda,
   normalizarOsModelo1Layout,
-  OS_MODELO1_BORDA_MARGEM_MM,
+  OS_REQUISICAO_ESPACAMENTO_MAX,
+  OS_REQUISICAO_ESPACAMENTO_MIN,
   PREVIEW_OS_MODELO1,
   type OsModelo1Layout,
 } from "@/lib/os-modelo1-layout";
@@ -132,9 +135,22 @@ function LinhaRotuloValor({
   );
 }
 
-function LinhaSeparador({ cor, className }: { cor: string; className?: string }) {
+function LinhaSeparador({
+  className,
+  marginTop,
+}: {
+  className?: string;
+  marginTop?: string;
+}) {
   return (
-    <div className={cn(className)} style={estiloLinhaRequisicaoPreview(cor)} />
+    <div
+      className={cn(className)}
+      style={{
+        ...estiloLinhaRequisicaoPreview(),
+        width: "100%",
+        ...(marginTop ? { marginTop } : undefined),
+      }}
+    />
   );
 }
 
@@ -161,30 +177,24 @@ function PreviewOsModeloProducao({
   const logoH = Math.round(logoW * 0.75);
   const fs = layout.tamanhoFonte;
   const fsSmall = Math.max(10, fs - 4);
-  const corBorda = normalizarCorBorda(layout.bordas);
-  const comBorda = layout.exibirBordas;
-  const corLinha = corBorda;
+  const gap = (mm: number) => gapRequisicaoPreviewMm(layout, mm);
 
   const money = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   return (
     <div
-      className="mx-auto box-border bg-white text-slate-900 shadow-md"
+      className="mx-auto bg-white text-slate-900 shadow-md"
       style={{
         width: "210mm",
         minHeight: "297mm",
         maxWidth: "100%",
-        padding: `${OS_MODELO1_BORDA_MARGEM_MM}mm`,
+        ...estiloPaginaRequisicaoPreview(),
         fontSize: `${fs}px`,
         fontFamily: "Arial, Helvetica, sans-serif",
-        boxSizing: "border-box",
       }}
     >
-      <div
-        className="box-border w-full"
-        style={comBorda ? estiloBordaRequisicaoPreview(corBorda) : { padding: 0 }}
-      >
+      <div style={estiloWrapperConteudoRequisicaoPreview(layout)}>
       <div className="flex items-start gap-3">
         {layout.logo ? (
           <div className="shrink-0">
@@ -241,13 +251,17 @@ function PreviewOsModeloProducao({
         </div>
       </div>
 
-      <LinhaSeparador cor={corLinha} className="mt-3" />
+      <LinhaSeparador marginTop={gap(2)} />
 
       <div
-        className="mt-2.5 grid grid-cols-2 gap-x-8 gap-y-0.5"
-        style={{ fontSize: `${fsSmall}px` }}
+        className="grid grid-cols-2 gap-x-8"
+        style={{
+          fontSize: `${fsSmall}px`,
+          marginTop: gap(2),
+          rowGap: gap(0.5),
+        }}
       >
-        <div className="space-y-0.5">
+        <div style={{ display: "flex", flexDirection: "column", gap: gap(0.5) }}>
           {layout.numOs ? (
             <LinhaRotuloValor rotulo="Num. OS:" valor={String(amostra.numeroOs)} />
           ) : null}
@@ -261,7 +275,7 @@ function PreviewOsModeloProducao({
             <LinhaRotuloValor rotulo="Paciente:" valor={amostra.paciente} />
           ) : null}
         </div>
-        <div className="space-y-0.5">
+        <div style={{ display: "flex", flexDirection: "column", gap: gap(0.5) }}>
           {layout.osExterna ? (
             <LinhaRotuloValor rotulo="OS Externa:" valor={amostra.osExterna} />
           ) : null}
@@ -278,16 +292,16 @@ function PreviewOsModeloProducao({
         </div>
       </div>
 
-      <LinhaSeparador cor={corLinha} className="mt-2.5" />
+      <LinhaSeparador marginTop={gap(2)} />
 
       <table
-        className="mt-2 w-full border-collapse"
-        style={{ fontSize: `${fsSmall}px` }}
+        className="w-full border-collapse"
+        style={{ fontSize: `${fsSmall}px`, marginTop: gap(2) }}
       >
         <thead>
-          <tr style={estiloLinhaRequisicaoPreview(corLinha)}>
-            <th className="py-1 pr-2 text-left font-bold">Qtd</th>
-            <th className="py-1 pr-2 text-left font-bold">Descrição</th>
+          <tr style={estiloLinhaRequisicaoPreview()}>
+            <th className="py-0.5 pr-2 text-left font-bold">Qtd</th>
+            <th className="py-0.5 pr-2 text-left font-bold">Descrição</th>
             {layout.numDente ? (
               <th className="py-1 px-1 text-center font-bold">Número Dente</th>
             ) : null}
@@ -305,12 +319,12 @@ function PreviewOsModeloProducao({
               key={item.descricao}
               style={
                 indice < amostra.itens.length - 1 || !layout.total
-                  ? estiloLinhaInferiorRequisicaoPreview(corLinha)
+                  ? estiloLinhaInferiorRequisicaoPreview()
                   : undefined
               }
             >
-              <td className="py-1.5 pr-2 align-top">{item.qtd}</td>
-              <td className="py-1.5 pr-2 align-top">{item.descricao}</td>
+              <td className="py-0.5 pr-2 align-top">{item.qtd}</td>
+              <td className="py-0.5 pr-2 align-top">{item.descricao}</td>
               {layout.numDente ? (
                 <td className="px-1 py-1.5 text-center align-top">{item.dente}</td>
               ) : null}
@@ -331,7 +345,7 @@ function PreviewOsModeloProducao({
         </tbody>
       </table>
 
-      <div className="mt-2 space-y-0.5" style={{ fontSize: `${fsSmall}px` }}>
+      <div style={{ fontSize: `${fsSmall}px`, marginTop: gap(2), display: "flex", flexDirection: "column", gap: gap(0.5) }}>
         {layout.dataPrazo || layout.finalizado ? (
           <p>
             {layout.dataPrazo ? (
@@ -373,13 +387,15 @@ function PreviewOsModeloProducao({
 
       {layout.total ? (
         <>
-          <LinhaSeparador cor={corLinha} className="mt-2" />
-          <p className="mt-1.5 text-right font-bold">Total {money(amostra.total)}</p>
+          <LinhaSeparador marginTop={gap(2)} />
+          <p className="text-right font-bold" style={{ marginTop: gap(1.5) }}>
+            Total {money(amostra.total)}
+          </p>
         </>
       ) : null}
 
       {layout.materialRec ? (
-        <p className="mt-2" style={{ fontSize: `${fsSmall}px` }}>
+        <p style={{ fontSize: `${fsSmall}px`, marginTop: gap(2) }}>
           <span>Materiais: </span>
           <span className="font-bold">{amostra.materiais}</span>
         </p>
@@ -403,25 +419,27 @@ function PreviewOsModeloProducao({
         </p>
       ) : null}
       {layout.mensagem.trim() ? (
-        <p className="mt-2 italic text-slate-700" style={{ fontSize: `${fsSmall}px` }}>
+        <p className="italic text-slate-700" style={{ fontSize: `${fsSmall}px`, marginTop: gap(2) }}>
           {layout.mensagem}
         </p>
       ) : null}
 
       {layout.assinatura ? (
-        <div className="mt-8 text-center" style={{ fontSize: `${fsSmall - 1}px` }}>
-          <div className="mx-auto w-48" style={estiloLinhaRequisicaoPreview(corLinha)} />
-          <p className="mt-1 text-slate-600">Assinatura</p>
+        <div className="text-center" style={{ fontSize: `${fsSmall - 1}px`, marginTop: gap(6) }}>
+          <div className="mx-auto w-48" style={estiloLinhaRequisicaoPreview()} />
+          <p className="text-slate-600" style={{ marginTop: gap(1) }}>
+            Assinatura
+          </p>
         </div>
       ) : null}
 
       {layout.codBarras ? (
-        <div className="mt-5">
+        <div style={{ marginTop: gap(4) }}>
           <Code39Barcode value={`OS${amostra.numeroOs}`} height={36} />
-          <p className="mt-0.5 font-mono text-[9px] tracking-wide text-slate-800">
+          <p className="font-mono text-[9px] tracking-wide text-slate-800" style={{ marginTop: gap(0.5) }}>
             OS{amostra.numeroOs}
           </p>
-          <LinhaSeparador cor={corLinha} className="mt-2" />
+          <LinhaSeparador marginTop={gap(2)} />
         </div>
       ) : null}
       </div>
@@ -562,7 +580,10 @@ export function ConfiguracoesOsModeloProducaoConteudo({
       <aside className="flex h-full w-full shrink-0 flex-col border-b border-slate-300 bg-[#d9dde3] lg:w-[360px] lg:border-b-0 lg:border-r">
         <div className="flex-1 space-y-3 overflow-y-auto p-4">
           <div>
-            <span className="mb-1 block text-[11px] font-semibold text-slate-700">Bordas</span>
+            <span className="mb-1 block text-[11px] font-semibold text-slate-700">
+              Bordas
+              <span className="ml-1 font-normal text-slate-500">(cor só da moldura)</span>
+            </span>
             <div className="flex items-center gap-2">
               <CheckboxCampo
                 label="Bordas"
@@ -603,6 +624,14 @@ export function ConfiguracoesOsModeloProducaoConteudo({
             label="Tamanho da Fonte"
             value={layout.tamanhoFonte}
             onChange={(v) => patchLayout({ tamanhoFonte: v })}
+          />
+
+          <CampoNumero
+            label="Espaçamento"
+            value={layout.espacamentoRequisicao}
+            min={OS_REQUISICAO_ESPACAMENTO_MIN}
+            max={OS_REQUISICAO_ESPACAMENTO_MAX}
+            onChange={(v) => patchLayout({ espacamentoRequisicao: v })}
           />
 
           <GridCheckboxes layout={layout} onPatch={patchLayout} camposPares={editor.camposPares} />

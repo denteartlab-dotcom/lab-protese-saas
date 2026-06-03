@@ -37,6 +37,8 @@ export type OsModelo1Layout = {
   pecas: boolean;
   assinatura: boolean;
   codBarras: boolean;
+  /** Espaçamento vertical da requisição (70–130, padrão 88 ≈ Smart). */
+  espacamentoRequisicao: number;
 };
 
 export const OS_MODELO1_LAYOUT_PADRAO: OsModelo1Layout = {
@@ -47,7 +49,7 @@ export const OS_MODELO1_LAYOUT_PADRAO: OsModelo1Layout = {
   logo: true,
   dataOs: true,
   usuario: true,
-  tamanhoFonte: 17,
+  tamanhoFonte: 13,
   numOs: true,
   osExterna: true,
   cliente: true,
@@ -75,6 +77,7 @@ export const OS_MODELO1_LAYOUT_PADRAO: OsModelo1Layout = {
   pecas: false,
   assinatura: true,
   codBarras: true,
+  espacamentoRequisicao: 88,
 };
 
 export const CAMPOS_MODELO1_GERAL: Array<{
@@ -115,8 +118,12 @@ export function normalizarCorBorda(valor?: string): string {
 /** Margem externa da folha A4 até a borda da requisição (mm). */
 export const OS_MODELO1_BORDA_MARGEM_MM = 10;
 
-/** Padding entre a borda externa e o conteúdo da requisição (mm). */
-export const OS_REQUISICAO_BORDA_PADDING_MM = 8;
+/** Margem horizontal do texto — não muda ao ligar/desligar borda. */
+export const OS_REQUISICAO_MARGEM_CONTEUDO_MM = 15;
+
+export const OS_REQUISICAO_ESPACAMENTO_MIN = 70;
+export const OS_REQUISICAO_ESPACAMENTO_MAX = 130;
+export const OS_REQUISICAO_ESPACAMENTO_PADRAO = 88;
 
 /** Espessura das linhas divisórias internas no PDF (mm). */
 export const OS_REQUISICAO_LINHA_INTERNA_MM = 0.12;
@@ -127,31 +134,112 @@ export const OS_REQUISICAO_BORDA_EXTERNA_MM = 0.15;
 /** Espessura das linhas no preview HTML (px). */
 export const OS_REQUISICAO_LINHA_PREVIEW_PX = 1;
 
-/** Estilo de linha horizontal no preview do editor. */
-export function estiloLinhaRequisicaoPreview(cor: string) {
+/** Cor fixa das linhas divisórias internas (independente do seletor de cor da borda). */
+export const OS_REQUISICAO_LINHA_DIVISAO_COR = "#000000";
+
+/** Estilo de linha horizontal divisória no preview do editor. */
+export function estiloLinhaRequisicaoPreview() {
   return {
-    borderColor: cor,
+    borderColor: OS_REQUISICAO_LINHA_DIVISAO_COR,
     borderTopWidth: OS_REQUISICAO_LINHA_PREVIEW_PX,
     borderTopStyle: "solid" as const,
   };
 }
 
 /** Linha divisória abaixo de uma seção (cabeçalho da tabela, linhas de item). */
-export function estiloLinhaInferiorRequisicaoPreview(cor: string) {
+export function estiloLinhaInferiorRequisicaoPreview() {
   return {
-    borderColor: cor,
+    borderColor: OS_REQUISICAO_LINHA_DIVISAO_COR,
     borderBottomWidth: OS_REQUISICAO_LINHA_PREVIEW_PX,
     borderBottomStyle: "solid" as const,
   };
 }
 
-/** Estilo da borda externa no preview do editor. */
+/** Borda no preview sem deslocar o texto (outline, sem padding extra). */
 export function estiloBordaRequisicaoPreview(cor: string) {
   return {
-    border: `${OS_REQUISICAO_LINHA_PREVIEW_PX}px solid ${cor}`,
-    padding: `${OS_REQUISICAO_BORDA_PADDING_MM}mm 10mm`,
+    outline: `${OS_REQUISICAO_LINHA_PREVIEW_PX}px solid ${cor}`,
+    outlineOffset: 0,
+  };
+}
+
+/** Recuo entre margem do texto (15 mm) e a borda externa (10 mm). */
+export const OS_REQUISICAO_PREVIEW_INSET_MM =
+  OS_REQUISICAO_MARGEM_CONTEUDO_MM - OS_MODELO1_BORDA_MARGEM_MM;
+
+/** Página A4 do preview: texto sempre a 15 mm da folha. */
+export function estiloPaginaRequisicaoPreview() {
+  return {
+    padding: `${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm`,
     boxSizing: "border-box" as const,
   };
+}
+
+/**
+ * Wrapper do conteúdo: com borda, expande até 10 mm sem mover o texto;
+ * sem borda, ocupa só a área útil de 15 mm.
+ */
+export function estiloWrapperConteudoRequisicaoPreview(
+  lay: Pick<OsModelo1Layout, "exibirBordas" | "bordas">
+) {
+  const base = { boxSizing: "border-box" as const, width: "100%" };
+  if (!lay.exibirBordas) return base;
+  const inset = OS_REQUISICAO_PREVIEW_INSET_MM;
+  return {
+    ...base,
+    marginLeft: `-${inset}mm`,
+    marginRight: `-${inset}mm`,
+    paddingLeft: `${inset}mm`,
+    paddingRight: `${inset}mm`,
+    ...estiloBordaRequisicaoPreview(normalizarCorBorda(lay.bordas)),
+  };
+}
+
+/** Linha divisória de ponta a ponta (encontra a borda quando ativa). */
+export function estiloLinhaFullBleedPreview(lay: Pick<OsModelo1Layout, "exibirBordas">) {
+  if (!lay.exibirBordas) return {};
+  const inset = OS_REQUISICAO_PREVIEW_INSET_MM;
+  return {
+    marginLeft: `-${inset}mm`,
+    marginRight: `-${inset}mm`,
+    width: `calc(100% + ${inset * 2}mm)`,
+  };
+}
+
+export function escalaEspacamentoRequisicao(layout: Pick<OsModelo1Layout, "espacamentoRequisicao">) {
+  const pct = clamp(
+    Number(layout.espacamentoRequisicao) || OS_REQUISICAO_ESPACAMENTO_PADRAO,
+    OS_REQUISICAO_ESPACAMENTO_MIN,
+    OS_REQUISICAO_ESPACAMENTO_MAX
+  );
+  return pct / 100;
+}
+
+/** Converte mm de espaçamento vertical para PDF conforme configuração. */
+export function gapRequisicaoMm(
+  layout: Pick<OsModelo1Layout, "espacamentoRequisicao">,
+  mm: number
+) {
+  return mm * escalaEspacamentoRequisicao(layout);
+}
+
+/** Espaçamento em mm para o preview HTML. */
+export function gapRequisicaoPreviewMm(
+  layout: Pick<OsModelo1Layout, "espacamentoRequisicao">,
+  mm: number
+) {
+  return `${(mm * escalaEspacamentoRequisicao(layout)).toFixed(2)}mm`;
+}
+
+export function margensLinhaRequisicao(
+  pageWidthMm: number,
+  lay: Pick<OsModelo1Layout, "exibirBordas">
+) {
+  const conteudoEsq = OS_REQUISICAO_MARGEM_CONTEUDO_MM;
+  const conteudoDir = pageWidthMm - OS_REQUISICAO_MARGEM_CONTEUDO_MM;
+  const linhaEsq = lay.exibirBordas ? OS_MODELO1_BORDA_MARGEM_MM : conteudoEsq;
+  const linhaDir = lay.exibirBordas ? pageWidthMm - OS_MODELO1_BORDA_MARGEM_MM : conteudoDir;
+  return { linhaEsq, linhaDir, conteudoEsq, conteudoDir };
 }
 
 export function hexParaRgb(hex: string): { r: number; g: number; b: number } {
@@ -184,6 +272,12 @@ export function normalizarOsModelo1Layout(
   for (const key of Object.keys(base) as Array<keyof OsModelo1Layout>) {
     if (key === "tamanhoFonte") {
       base.tamanhoFonte = clamp(Number(valor.tamanhoFonte) || 17, 8, 24);
+    } else if (key === "espacamentoRequisicao") {
+      base.espacamentoRequisicao = clamp(
+        Number(valor.espacamentoRequisicao) || OS_REQUISICAO_ESPACAMENTO_PADRAO,
+        OS_REQUISICAO_ESPACAMENTO_MIN,
+        OS_REQUISICAO_ESPACAMENTO_MAX
+      );
     } else if (key === "bordas" || key === "mensagem") {
       /* já tratados */
     } else if (key === "exibirBordas") {

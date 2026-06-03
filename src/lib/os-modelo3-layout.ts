@@ -45,6 +45,7 @@ export const OS_MODELO3_LAYOUT_PADRAO: OsModelo3Layout = {
   pecas: false,
   assinatura: true,
   codBarras: true,
+  espacamentoRequisicao: 88,
 };
 
 export const CAMPOS_MODELO3_GERAL: Array<{
@@ -91,7 +92,13 @@ export function normalizarOsModelo3Layout(
   base.exibirBordas = Boolean(valor.exibirBordas);
   base.mensagem = String(valor.mensagem ?? "").trim();
   for (const key of Object.keys(OS_MODELO3_LAYOUT_PADRAO) as Array<keyof OsModelo3Layout>) {
-    if (key in valor && key !== "tamanhoFonte" && key !== "bordas" && key !== "mensagem") {
+    if (
+      key in valor &&
+      key !== "tamanhoFonte" &&
+      key !== "bordas" &&
+      key !== "mensagem" &&
+      key !== "espacamentoRequisicao"
+    ) {
       base[key] = Boolean(valor[key]);
     }
   }

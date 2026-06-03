@@ -93,7 +93,13 @@ export function normalizarOsModelo5Layout(
   base.tamanhoFonte = Math.min(18, Math.max(8, Number(valor?.tamanhoFonte) || 12));
 
   for (const key of Object.keys(BASE_MODELO5) as Array<keyof OsModelo1Layout>) {
-    if (key in (valor ?? {}) && key !== "tamanhoFonte" && key !== "bordas" && key !== "mensagem") {
+    if (
+      key in (valor ?? {}) &&
+      key !== "tamanhoFonte" &&
+      key !== "bordas" &&
+      key !== "mensagem" &&
+      key !== "espacamentoRequisicao"
+    ) {
       base[key] = Boolean(valor![key]);
     }
   }
