@@ -261,6 +261,16 @@ export function estiloLinhaDivisoriaFaturaPreview() {
   };
 }
 
+/** Linha cinza entre blocos (totais, pagamento, rodapé) — Smart Prótese. */
+export function estiloLinhaDivisoriaCinzaFaturaPreview() {
+  return {
+    ...estiloLimiteLinhasFaturaPreview(),
+    borderTopWidth: OS_REQUISICAO_LINHA_PREVIEW_PX,
+    borderTopStyle: "solid" as const,
+    borderColor: "#bdbdbd",
+  };
+}
+
 export function estiloLinhaInferiorFaturaPreview() {
   return {
     borderColor: "#000000",
@@ -305,8 +315,8 @@ export const PREVIEW_FATURA_AMOSTRA = {
       subtotal: "R$ 229,50",
     },
   ],
-  totalServicos: "R$ 229,50",
-  descontoServicos: "R$ 0,00",
+  totalServicos: "R$ 255,00",
+  descontoServicos: "R$ 25,50",
   descontoFatura: "R$ 0,00",
   total: "R$ 229,50",
   parcelas: [

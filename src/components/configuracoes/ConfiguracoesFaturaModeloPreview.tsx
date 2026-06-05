@@ -10,8 +10,8 @@ import {
   normalizarCabecalhoRequisicao,
 } from "@/lib/cabecalho-requisicao";
 import {
+  estiloLinhaDivisoriaCinzaFaturaPreview,
   estiloLinhaDivisoriaFaturaPreview,
-  estiloLinhaInferiorFaturaPreview,
   estiloLimiteLinhasFaturaPreview,
   estiloMolduraFaturaPreview,
   estiloPaginaFaturaPreview,
@@ -28,8 +28,18 @@ type Props = {
   termica?: boolean;
 };
 
+const ESTILO_CELULA_SEM_BORDA = {
+  border: "none" as const,
+  borderTop: "none" as const,
+  borderBottom: "none" as const,
+};
+
 function LinhaSeparador({ marginTop }: { marginTop?: string }) {
   return <div style={{ ...estiloLinhaDivisoriaFaturaPreview(), marginTop }} />;
+}
+
+function LinhaSeparadorCinza({ marginTop }: { marginTop?: string }) {
+  return <div style={{ ...estiloLinhaDivisoriaCinzaFaturaPreview(), marginTop }} />;
 }
 
 function LinhaRotuloValor({ rotulo, valor }: { rotulo: string; valor: string }) {
@@ -39,17 +49,6 @@ function LinhaRotuloValor({ rotulo, valor }: { rotulo: string; valor: string }) 
       {valor}
     </p>
   );
-}
-
-function estiloCelulaBordaInferior() {
-  return estiloLinhaInferiorFaturaPreview();
-}
-
-function estiloCelulaSemBorda() {
-  return {
-    borderTop: "none" as const,
-    borderBottom: "none" as const,
-  };
 }
 
 export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props) {
@@ -201,253 +200,256 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
             </div>
           </div>
 
-          <LinhaSeparador marginTop="2mm" />
-
+          {/* Bloco itens — Smart: linha em cima, dados sem borda interna, linha embaixo */}
           <div style={{ marginTop: "2mm", ...estiloLimiteLinhasFaturaPreview() }}>
-            <table
-              className="w-full border-collapse"
-              style={{ fontSize: `${fsSmall}px`, ...estiloTabelaMargemFaturaPreview() }}
-            >
-              <thead>
-                <tr>
-                  {layout.numOs ? (
-                    <th
-                      className="py-0.5 pr-1 text-left font-bold"
-                      style={estiloCelulaBordaInferior()}
-                    >
-                      OS
-                    </th>
-                  ) : null}
-                  {layout.qtd ? (
-                    <th
-                      className="py-0.5 pr-1 text-center font-bold"
-                      style={estiloCelulaBordaInferior()}
-                    >
-                      Qtd
-                    </th>
-                  ) : null}
-                  {layout.servico ? (
-                    <th
-                      className="py-0.5 pr-1 text-left font-bold"
-                      style={estiloCelulaBordaInferior()}
-                    >
-                      Serviços/Produtos
-                    </th>
-                  ) : null}
-                  {layout.numDente ? (
-                    <th
-                      className="px-1 py-0.5 text-left font-bold"
-                      style={estiloCelulaBordaInferior()}
-                    >
-                      Num Dente
-                    </th>
-                  ) : null}
-                  {layout.paciente ? (
-                    <th
-                      className="px-1 py-0.5 text-left font-bold"
-                      style={estiloCelulaBordaInferior()}
-                    >
-                      Paciente
-                    </th>
-                  ) : null}
-                  {layout.valorUnit ? (
-                    <th
-                      className="px-1 py-0.5 text-right font-bold"
-                      style={estiloCelulaBordaInferior()}
-                    >
-                      Unitário
-                    </th>
-                  ) : null}
-                  {layout.desconto ? (
-                    <th
-                      className="px-1 py-0.5 text-right font-bold"
-                      style={estiloCelulaBordaInferior()}
-                    >
-                      Desc
-                    </th>
-                  ) : null}
-                  {layout.subtotal ? (
-                    <th
-                      className="py-0.5 pl-1 text-right font-bold"
-                      style={estiloCelulaBordaInferior()}
-                    >
-                      Subtotal
-                    </th>
-                  ) : null}
-                </tr>
-              </thead>
-              <tbody>
-                {amostra.linhas.map((linha) => {
-                  const estiloTdPrincipal = exibirMetaLinha
-                    ? estiloCelulaSemBorda()
-                    : estiloCelulaBordaInferior();
-
-                  return (
-                  <Fragment key={linha.os}>
-                    <tr>
-                      {layout.numOs ? (
-                        <td
-                          className="py-0.5 pr-1 align-top font-medium"
-                          style={estiloTdPrincipal}
-                        >
-                          {linha.os}
-                        </td>
-                      ) : null}
-                      {layout.qtd ? (
-                        <td
-                          className="py-0.5 pr-1 text-center align-top"
-                          style={estiloTdPrincipal}
-                        >
-                          {linha.qtd}
-                        </td>
-                      ) : null}
-                      {layout.servico ? (
-                        <td className="py-0.5 pr-1 align-top" style={estiloTdPrincipal}>
-                          {linha.servico}
-                        </td>
-                      ) : null}
-                      {layout.numDente ? (
-                        <td className="px-1 py-0.5 align-top" style={estiloTdPrincipal}>
-                          {linha.dentes}
-                        </td>
-                      ) : null}
-                      {layout.paciente ? (
-                        <td className="px-1 py-0.5 align-top" style={estiloTdPrincipal}>
-                          {linha.paciente}
-                        </td>
-                      ) : null}
-                      {layout.valorUnit ? (
-                        <td className="px-1 py-0.5 text-right align-top" style={estiloTdPrincipal}>
-                          {linha.unitario}
-                        </td>
-                      ) : null}
-                      {layout.desconto ? (
-                        <td className="px-1 py-0.5 text-right align-top" style={estiloTdPrincipal}>
-                          {linha.desconto}
-                        </td>
-                      ) : null}
-                      {layout.subtotal ? (
-                        <td className="py-0.5 pl-1 text-right align-top" style={estiloTdPrincipal}>
-                          {linha.subtotal}
-                        </td>
-                      ) : null}
-                    </tr>
-                    {exibirMetaLinha ? (
-                      <tr>
-                        <td
-                          colSpan={colunasTabela}
-                          className="pb-1 pt-0 text-slate-700"
-                          style={{
-                            borderTop: "none",
-                            ...estiloCelulaBordaInferior(),
-                            fontSize: `${fsMetaLinha}px`,
-                          }}
-                        >
-                          {layout.data ? (
-                            <span className="mr-3">
-                              <span className="font-bold">Data: </span>
-                              {linha.dataOs}
-                            </span>
-                          ) : null}
-                          {layout.finalizado ? (
-                            <span className="mr-3">
-                              <span className="font-bold">Finalizado: </span>
-                              {linha.finalizado}
-                            </span>
-                          ) : null}
-                          {layout.osExterna ? (
-                            <span className="mr-3">
-                              <span className="font-bold">OS Externa: </span>
-                              {linha.osExterna}
-                            </span>
-                          ) : null}
-                          {layout.corDente ? (
-                            <span>
-                              <span className="font-bold">Cor: </span>
-                              {linha.cor}
-                            </span>
-                          ) : null}
-                        </td>
-                      </tr>
+            <LinhaSeparador />
+            <div style={{ ...estiloTabelaMargemFaturaPreview(), fontSize: `${fsSmall}px` }}>
+              <table
+                className="w-full"
+                style={{ borderCollapse: "collapse", border: "none" }}
+              >
+                <thead>
+                  <tr>
+                    {layout.numOs ? (
+                      <th className="py-0.5 pr-1 text-left font-bold" style={ESTILO_CELULA_SEM_BORDA}>
+                        OS
+                      </th>
                     ) : null}
-                  </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
+                    {layout.qtd ? (
+                      <th
+                        className="py-0.5 pr-1 text-center font-bold"
+                        style={ESTILO_CELULA_SEM_BORDA}
+                      >
+                        Qtd
+                      </th>
+                    ) : null}
+                    {layout.servico ? (
+                      <th className="py-0.5 pr-1 text-left font-bold" style={ESTILO_CELULA_SEM_BORDA}>
+                        Serviços/Produtos
+                      </th>
+                    ) : null}
+                    {layout.numDente ? (
+                      <th className="px-1 py-0.5 text-left font-bold" style={ESTILO_CELULA_SEM_BORDA}>
+                        Num Dente
+                      </th>
+                    ) : null}
+                    {layout.paciente ? (
+                      <th className="px-1 py-0.5 text-left font-bold" style={ESTILO_CELULA_SEM_BORDA}>
+                        Paciente
+                      </th>
+                    ) : null}
+                    {layout.valorUnit ? (
+                      <th className="px-1 py-0.5 text-right font-bold" style={ESTILO_CELULA_SEM_BORDA}>
+                        Unitário
+                      </th>
+                    ) : null}
+                    {layout.desconto ? (
+                      <th className="px-1 py-0.5 text-right font-bold" style={ESTILO_CELULA_SEM_BORDA}>
+                        Desc
+                      </th>
+                    ) : null}
+                    {layout.subtotal ? (
+                      <th className="py-0.5 pl-1 text-right font-bold" style={ESTILO_CELULA_SEM_BORDA}>
+                        Subtotal
+                      </th>
+                    ) : null}
+                  </tr>
+                </thead>
+                <tbody>
+                  {amostra.linhas.map((linha) => (
+                    <Fragment key={linha.os}>
+                      <tr>
+                        {layout.numOs ? (
+                          <td
+                            className="py-0.5 pr-1 align-top font-medium"
+                            style={ESTILO_CELULA_SEM_BORDA}
+                          >
+                            {linha.os}
+                          </td>
+                        ) : null}
+                        {layout.qtd ? (
+                          <td
+                            className="py-0.5 pr-1 text-center align-top"
+                            style={ESTILO_CELULA_SEM_BORDA}
+                          >
+                            {linha.qtd}
+                          </td>
+                        ) : null}
+                        {layout.servico ? (
+                          <td className="py-0.5 pr-1 align-top" style={ESTILO_CELULA_SEM_BORDA}>
+                            {linha.servico}
+                          </td>
+                        ) : null}
+                        {layout.numDente ? (
+                          <td className="px-1 py-0.5 align-top" style={ESTILO_CELULA_SEM_BORDA}>
+                            {linha.dentes}
+                          </td>
+                        ) : null}
+                        {layout.paciente ? (
+                          <td className="px-1 py-0.5 align-top" style={ESTILO_CELULA_SEM_BORDA}>
+                            {linha.paciente}
+                          </td>
+                        ) : null}
+                        {layout.valorUnit ? (
+                          <td className="px-1 py-0.5 text-right align-top" style={ESTILO_CELULA_SEM_BORDA}>
+                            {linha.unitario}
+                          </td>
+                        ) : null}
+                        {layout.desconto ? (
+                          <td className="px-1 py-0.5 text-right align-top" style={ESTILO_CELULA_SEM_BORDA}>
+                            {linha.desconto}
+                          </td>
+                        ) : null}
+                        {layout.subtotal ? (
+                          <td className="py-0.5 pl-1 text-right align-top" style={ESTILO_CELULA_SEM_BORDA}>
+                            {linha.subtotal}
+                          </td>
+                        ) : null}
+                      </tr>
+                      {exibirMetaLinha ? (
+                        <tr>
+                          <td
+                            colSpan={colunasTabela}
+                            className="pb-0.5 pt-0 text-slate-900"
+                            style={{ ...ESTILO_CELULA_SEM_BORDA, fontSize: `${fsMetaLinha}px` }}
+                          >
+                            {layout.data ? (
+                              <span className="mr-3">
+                                <span>Data: </span>
+                                <span className="font-bold">{linha.dataOs}</span>
+                              </span>
+                            ) : null}
+                            {layout.finalizado ? (
+                              <span className="mr-3">
+                                <span>Finalizado: </span>
+                                <span className="font-bold">{linha.finalizado}</span>
+                              </span>
+                            ) : null}
+                            {layout.osExterna ? (
+                              <span className="mr-3">
+                                <span>OS Externa: </span>
+                                <span className="font-bold">{linha.osExterna}</span>
+                              </span>
+                            ) : null}
+                            {layout.corDente ? (
+                              <span>
+                                <span>Cor: </span>
+                                <span className="font-bold">{linha.cor}</span>
+                              </span>
+                            ) : null}
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <LinhaSeparador />
           </div>
 
           {(layout.totalServicos ||
             layout.descontoServicos ||
             layout.descontoFatura ||
             layout.total) && (
-            <div
-              className="ml-auto mt-2 w-[270px] text-right"
-              style={{ fontSize: `${fsSmall}px`, ...estiloLimiteLinhasFaturaPreview() }}
-            >
-              {layout.totalServicos ? (
-                <div className="grid grid-cols-[1fr_90px] border-b py-0.5" style={{ borderColor: "#000" }}>
-                  <span>Total Serviços (+)</span>
-                  <strong>{amostra.totalServicos}</strong>
-                </div>
-              ) : null}
-              {layout.descontoServicos ? (
-                <div className="grid grid-cols-[1fr_90px] border-b py-0.5" style={{ borderColor: "#000" }}>
-                  <span>Desconto Serviços (-)</span>
-                  <span>{amostra.descontoServicos}</span>
-                </div>
-              ) : null}
-              {layout.descontoFatura ? (
-                <div className="grid grid-cols-[1fr_90px] border-b py-0.5" style={{ borderColor: "#000" }}>
-                  <span>Desconto Fatura (-)</span>
-                  <span>{amostra.descontoFatura}</span>
-                </div>
-              ) : null}
-              {layout.total ? (
-                <div className="grid grid-cols-[1fr_90px] py-0.5 font-bold">
-                  <span>Total (=)</span>
-                  <strong>{amostra.total}</strong>
-                </div>
-              ) : null}
-            </div>
+            <>
+              <div
+                className="ml-auto mt-2 w-[270px] text-right"
+                style={{ fontSize: `${fsSmall}px`, ...estiloLimiteLinhasFaturaPreview() }}
+              >
+                {layout.totalServicos ? (
+                  <div className="grid grid-cols-[1fr_90px] py-0.5">
+                    <span>Total Serviços (=)</span>
+                    <strong>{amostra.totalServicos}</strong>
+                  </div>
+                ) : null}
+                {layout.descontoServicos ? (
+                  <div className="grid grid-cols-[1fr_90px] py-0.5">
+                    <span>Desconto Serviços (-)</span>
+                    <span>{amostra.descontoServicos}</span>
+                  </div>
+                ) : null}
+                {layout.descontoFatura ? (
+                  <div className="grid grid-cols-[1fr_90px] py-0.5">
+                    <span>Desconto Fatura (-)</span>
+                    <span>{amostra.descontoFatura}</span>
+                  </div>
+                ) : null}
+                {layout.total ? (
+                  <div className="grid grid-cols-[1fr_90px] py-0.5 font-bold">
+                    <span>Total (=)</span>
+                    <strong>{amostra.total}</strong>
+                  </div>
+                ) : null}
+              </div>
+              <LinhaSeparadorCinza marginTop="2mm" />
+            </>
           )}
 
           {layout.condicaoPagamento ? (
-            <div
-              className="mt-4"
-              style={{ fontSize: `${fsSmall}px`, ...estiloLimiteLinhasFaturaPreview() }}
-            >
-              <p className="mb-1 font-bold">Condição de Pagamento</p>
-              <table className="w-full border-collapse" style={estiloTabelaMargemFaturaPreview()}>
-                <thead>
-                  <tr style={estiloLinhaInferiorFaturaPreview()}>
-                    <th className="py-0.5 text-left font-bold">Parcela</th>
-                    <th className="py-0.5 text-left font-bold">Vencimento</th>
-                    {layout.formaPgto ? <th className="py-0.5 text-left font-bold">Forma Pgto</th> : null}
-                    <th className="py-0.5 text-left font-bold">Valor</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {amostra.parcelas.map((p) => (
-                    <tr key={p.parcela} style={estiloLinhaInferiorFaturaPreview()}>
-                      <td className="py-0.5">{p.parcela}</td>
-                      <td className="py-0.5">{p.vencimento}</td>
-                      {layout.formaPgto ? <td className="py-0.5">{p.forma}</td> : null}
-                      <td className="py-0.5">{p.valor}</td>
+            <>
+              <div
+                className="mt-2"
+                style={{ fontSize: `${fsSmall}px`, ...estiloLimiteLinhasFaturaPreview() }}
+              >
+                <p className="mb-1 font-bold">Condição de Pagamento</p>
+                <table
+                  className="w-full"
+                  style={{ borderCollapse: "collapse", ...estiloTabelaMargemFaturaPreview() }}
+                >
+                  <thead>
+                    <tr>
+                      <th className="py-0.5 text-left font-bold" style={ESTILO_CELULA_SEM_BORDA}>
+                        Parcela
+                      </th>
+                      <th className="py-0.5 text-left font-bold" style={ESTILO_CELULA_SEM_BORDA}>
+                        Vencimento
+                      </th>
+                      {layout.formaPgto ? (
+                        <th className="py-0.5 text-left font-bold" style={ESTILO_CELULA_SEM_BORDA}>
+                          Forma Pgto
+                        </th>
+                      ) : null}
+                      <th className="py-0.5 text-left font-bold" style={ESTILO_CELULA_SEM_BORDA}>
+                        Valor
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {amostra.parcelas.map((p) => (
+                      <tr key={p.parcela}>
+                        <td className="py-0.5" style={ESTILO_CELULA_SEM_BORDA}>
+                          {p.parcela}
+                        </td>
+                        <td className="py-0.5" style={ESTILO_CELULA_SEM_BORDA}>
+                          {p.vencimento}
+                        </td>
+                        {layout.formaPgto ? (
+                          <td className="py-0.5" style={ESTILO_CELULA_SEM_BORDA}>
+                            {p.forma}
+                          </td>
+                        ) : null}
+                        <td className="py-0.5" style={ESTILO_CELULA_SEM_BORDA}>
+                          {p.valor}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <LinhaSeparadorCinza marginTop="2mm" />
+            </>
           ) : null}
 
           {layout.observacao ? (
             <div
-              className="mt-3"
+              className="mt-2"
               style={{ fontSize: `${fsSmall}px`, ...estiloLimiteLinhasFaturaPreview() }}
             >
-              <p className="font-bold">Observação:</p>
-              <p className="mt-1">{amostra.observacao}</p>
+              <p>
+                <span className="font-bold">Observação: </span>
+                {amostra.observacao}
+              </p>
             </div>
           ) : null}
 
@@ -461,11 +463,11 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
           ) : null}
 
           <div
-            className="mt-6 flex items-end justify-between gap-4"
+            className="mt-4 flex items-center justify-between gap-4"
             style={{ fontSize: `${fsSmall}px`, ...estiloLimiteLinhasFaturaPreview() }}
           >
             {layout.pix ? (
-              <div className="flex flex-col items-center">
+              <div className="flex items-center gap-3">
                 {layout.pixQrImagem?.startsWith("data:image") ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -489,9 +491,7 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
                     QR PIX
                   </div>
                 )}
-                <span className="mt-1" style={{ fontSize: `${layout.pixQrFonte}px` }}>
-                  Pagar com PIX
-                </span>
+                <span style={{ fontSize: `${layout.pixQrFonte}px` }}>Pagar com PIX</span>
               </div>
             ) : (
               <div />
@@ -503,6 +503,8 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
               </div>
             ) : null}
           </div>
+
+          <LinhaSeparadorCinza marginTop="3mm" />
         </div>
       </div>
     </div>
