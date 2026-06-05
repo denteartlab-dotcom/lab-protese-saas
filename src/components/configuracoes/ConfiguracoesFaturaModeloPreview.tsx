@@ -12,7 +12,6 @@ import {
 import {
   estiloLinhaDivisoriaCinzaFaturaPreview,
   estiloLinhaDivisoriaFaturaPreview,
-  estiloLimiteLinhasFaturaPreview,
   estiloMolduraFaturaPreview,
   estiloPaginaFaturaPreview,
   estiloTabelaMargemFaturaPreview,
@@ -201,7 +200,7 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
           </div>
 
           {/* Bloco itens — Smart: linha em cima, dados sem borda interna, linha embaixo */}
-          <div style={{ marginTop: "2mm", ...estiloLimiteLinhasFaturaPreview() }}>
+          <div style={{ marginTop: "2mm", width: "100%" }}>
             <LinhaSeparador />
             <div style={{ ...estiloTabelaMargemFaturaPreview(), fontSize: `${fsSmall}px` }}>
               <table
@@ -355,7 +354,7 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
             <>
               <div
                 className="ml-auto mt-2 w-[270px] text-right"
-                style={{ fontSize: `${fsSmall}px`, ...estiloLimiteLinhasFaturaPreview() }}
+                style={{ fontSize: `${fsSmall}px` }}
               >
                 {layout.totalServicos ? (
                   <div className="grid grid-cols-[1fr_90px] py-0.5">
@@ -390,7 +389,7 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
             <>
               <div
                 className="mt-2"
-                style={{ fontSize: `${fsSmall}px`, ...estiloLimiteLinhasFaturaPreview() }}
+                style={{ fontSize: `${fsSmall}px` }}
               >
                 <p className="mb-1 font-bold">Condição de Pagamento</p>
                 <table
@@ -444,7 +443,7 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
           {layout.observacao ? (
             <div
               className="mt-2"
-              style={{ fontSize: `${fsSmall}px`, ...estiloLimiteLinhasFaturaPreview() }}
+              style={{ fontSize: `${fsSmall}px` }}
             >
               <p>
                 <span className="font-bold">Observação: </span>
@@ -456,7 +455,7 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
           {layout.mensagem ? (
             <p
               className="mt-3 text-center italic text-slate-600"
-              style={{ fontSize: `${fsSmall}px`, ...estiloLimiteLinhasFaturaPreview() }}
+              style={{ fontSize: `${fsSmall}px` }}
             >
               {layout.mensagem}
             </p>
@@ -464,7 +463,7 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
 
           <div
             className="mt-4 flex items-center justify-between gap-4"
-            style={{ fontSize: `${fsSmall}px`, ...estiloLimiteLinhasFaturaPreview() }}
+            style={{ fontSize: `${fsSmall}px` }}
           >
             {layout.pix ? (
               <div className="flex items-center gap-3">

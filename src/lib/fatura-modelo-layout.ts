@@ -254,9 +254,11 @@ export function estiloLinhaFaturaPreview() {
   };
 }
 
+/** Linha divisória dentro da área de conteúdo (não ultrapassa a moldura A4). */
 export function estiloLinhaDivisoriaFaturaPreview() {
   return {
-    ...estiloLimiteLinhasFaturaPreview(),
+    width: "100%",
+    boxSizing: "border-box" as const,
     ...estiloLinhaFaturaPreview(),
   };
 }
@@ -264,7 +266,8 @@ export function estiloLinhaDivisoriaFaturaPreview() {
 /** Linha cinza entre blocos (totais, pagamento, rodapé) — Smart Prótese. */
 export function estiloLinhaDivisoriaCinzaFaturaPreview() {
   return {
-    ...estiloLimiteLinhasFaturaPreview(),
+    width: "100%",
+    boxSizing: "border-box" as const,
     borderTopWidth: OS_REQUISICAO_LINHA_PREVIEW_PX,
     borderTopStyle: "solid" as const,
     borderColor: "#bdbdbd",
