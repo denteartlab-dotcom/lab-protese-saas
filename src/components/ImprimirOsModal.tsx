@@ -19,6 +19,16 @@ import {
   type ConfiguracoesOs,
   type ModeloOsId,
 } from "@/lib/configuracoes-os";
+import {
+  carregarConfiguracoesEtiquetas,
+  CONFIG_ETIQUETAS_ATUALIZADA_EVENT,
+  MODELOS_ETIQUETA,
+  modeloPadraoEtiqueta,
+  nomeModeloEtiqueta,
+  sincronizarConfiguracoesEtiquetasDoServidor,
+  type ConfiguracoesEtiquetas,
+  type ModeloEtiquetaId,
+} from "@/lib/configuracoes-etiquetas";
 
 export type FormatoImpressaoOs = "a4" | "termica" | "etiquetas";
 
@@ -55,19 +65,27 @@ export function montarUrlImpressaoOs(
   if (opcoes.formato === "termica" && opcoes.modelo !== "modelo4") {
     params.set("modelo", opcoes.modelo);
   }
+  if (opcoes.formato === "etiquetas") {
+    params.set("modelo", opcoes.modelo);
+  }
   if (opcoes.duasVias) params.set("vias", "2");
   const qs = params.toString();
   return `/app/trabalhos/${trabalhoId}/imprimir${qs ? `?${qs}` : ""}`;
 }
 
-function aplicarConfigNoModal(cfg: ConfiguracoesOs, multiplosSegmentos: boolean) {
-  const modelo = cfg.modeloPadrao;
+function aplicarConfigNoModal(
+  cfgOs: ConfiguracoesOs,
+  cfgEtiquetas: ConfiguracoesEtiquetas,
+  multiplosSegmentos: boolean
+) {
+  const modelo = cfgOs.modeloPadrao;
   const formato = formatoPorModeloOs(modelo);
   return {
     formato,
     modelo,
+    modeloEtiqueta: modeloPadraoEtiqueta(cfgEtiquetas),
     somenteItem: multiplosSegmentos ? "sim" : "nao",
-    duasVias: cfg.duasVias[modelo] ? "sim" : "nao",
+    duasVias: cfgOs.duasVias[modelo] ? "sim" : "nao",
   };
 }
 
@@ -85,22 +103,32 @@ export function ImprimirOsModal({
   multiplosSegmentos,
 }: ImprimirOsModalProps) {
   const [configOs, setConfigOs] = useState<ConfiguracoesOs>(() => carregarConfiguracoesOs());
+  const [configEtiquetas, setConfigEtiquetas] = useState<ConfiguracoesEtiquetas>(() =>
+    carregarConfiguracoesEtiquetas()
+  );
   const [sincronizando, setSincronizando] = useState(false);
   const [formato, setFormato] = useState<FormatoImpressaoOs>("a4");
   const [modelo, setModelo] = useState<ModeloOsId>("modelo1");
+  const [modeloEtiqueta, setModeloEtiqueta] = useState<ModeloEtiquetaId>("slk-54x101");
   const [somenteItem, setSomenteItem] = useState("sim");
   const [duasVias, setDuasVias] = useState("nao");
 
   const recarregarConfig = useCallback(async () => {
     setSincronizando(true);
     try {
-      const cfg = await sincronizarConfiguracoesOsDoServidor();
-      setConfigOs(cfg);
-      return cfg;
+      const [cfgOs, cfgEtiquetas] = await Promise.all([
+        sincronizarConfiguracoesOsDoServidor(),
+        sincronizarConfiguracoesEtiquetasDoServidor(),
+      ]);
+      setConfigOs(cfgOs);
+      setConfigEtiquetas(cfgEtiquetas);
+      return { cfgOs, cfgEtiquetas };
     } catch {
-      const cfg = carregarConfiguracoesOs();
-      setConfigOs(cfg);
-      return cfg;
+      const cfgOs = carregarConfiguracoesOs();
+      const cfgEtiquetas = carregarConfiguracoesEtiquetas();
+      setConfigOs(cfgOs);
+      setConfigEtiquetas(cfgEtiquetas);
+      return { cfgOs, cfgEtiquetas };
     } finally {
       setSincronizando(false);
     }
@@ -109,11 +137,12 @@ export function ImprimirOsModal({
   useEffect(() => {
     if (!open) return;
     let ativo = true;
-    void recarregarConfig().then((cfg) => {
+    void recarregarConfig().then(({ cfgOs, cfgEtiquetas }) => {
       if (!ativo) return;
-      const estado = aplicarConfigNoModal(cfg, multiplosSegmentos);
+      const estado = aplicarConfigNoModal(cfgOs, cfgEtiquetas, multiplosSegmentos);
       setFormato(estado.formato);
       setModelo(estado.modelo);
+      setModeloEtiqueta(estado.modeloEtiqueta);
       setSomenteItem(estado.somenteItem);
       setDuasVias(estado.duasVias);
     });
@@ -124,12 +153,14 @@ export function ImprimirOsModal({
 
   useEffect(() => {
     if (!open) return;
-    const handler = () => {
-      const cfg = carregarConfiguracoesOs();
-      setConfigOs(cfg);
+    const handlerOs = () => setConfigOs(carregarConfiguracoesOs());
+    const handlerEtiquetas = () => setConfigEtiquetas(carregarConfiguracoesEtiquetas());
+    window.addEventListener(CONFIG_OS_ATUALIZADA_EVENT, handlerOs);
+    window.addEventListener(CONFIG_ETIQUETAS_ATUALIZADA_EVENT, handlerEtiquetas);
+    return () => {
+      window.removeEventListener(CONFIG_OS_ATUALIZADA_EVENT, handlerOs);
+      window.removeEventListener(CONFIG_ETIQUETAS_ATUALIZADA_EVENT, handlerEtiquetas);
     };
-    window.addEventListener(CONFIG_OS_ATUALIZADA_EVENT, handler);
-    return () => window.removeEventListener(CONFIG_OS_ATUALIZADA_EVENT, handler);
   }, [open]);
 
   const modelosA4 = useMemo(() => modelosOsPorFormato("a4"), []);
@@ -137,7 +168,12 @@ export function ImprimirOsModal({
 
   function aoMudarFormato(novo: FormatoImpressaoOs) {
     setFormato(novo);
-    if (novo === "etiquetas") return;
+    if (novo === "etiquetas") {
+      const padrao = modeloPadraoEtiqueta(configEtiquetas);
+      setModeloEtiqueta(padrao);
+      setDuasVias(configEtiquetas.duasVias[padrao] ? "sim" : "nao");
+      return;
+    }
     const fmt = novo as "a4" | "termica";
     const proximo = modeloPadraoParaFormato(configOs, fmt);
     setModelo(proximo);
@@ -149,19 +185,26 @@ export function ImprimirOsModal({
     setModelo(id);
     setDuasVias(configOs.duasVias[id] ? "sim" : "nao");
     const fmtModelo = formatoPorModeloOs(id);
-    if (formato !== "etiquetas" && fmtModelo !== formato) {
+    if (fmtModelo !== formato) {
       setFormato(fmtModelo);
     }
   }
 
+  function aoMudarModeloEtiqueta(novo: string) {
+    const id = novo as ModeloEtiquetaId;
+    setModeloEtiqueta(id);
+    setDuasVias(configEtiquetas.duasVias[id] ? "sim" : "nao");
+  }
+
   function imprimir() {
     if (!trabalho) return;
+    const modeloImpressao = formato === "etiquetas" ? modeloEtiqueta : modelo;
     const url = montarUrlImpressaoOs(trabalho.id, {
       somenteItemSelecionado: somenteItem === "sim",
       multiplosSegmentos,
       segmentoEfetivo: segmentoEfetivoTrabalho(trabalho),
       formato,
-      modelo,
+      modelo: modeloImpressao,
       duasVias: duasVias === "sim",
     });
     window.open(url, "_blank", "noopener,noreferrer");
@@ -179,6 +222,11 @@ export function ImprimirOsModal({
   function rotuloOpcaoModelo(id: ModeloOsId) {
     const nome = nomeModeloOs(id);
     return id === configOs.modeloPadrao ? `${nome} (padrão)` : nome;
+  }
+
+  function rotuloOpcaoEtiqueta(id: ModeloEtiquetaId) {
+    const nome = nomeModeloEtiqueta(id);
+    return id === configEtiquetas.modeloPadrao ? `${nome} (padrão)` : nome;
   }
 
   return (
@@ -232,7 +280,20 @@ export function ImprimirOsModal({
           </div>
 
           <div className="grid gap-3 md:grid-cols-3">
-            {formato === "a4" || formato === "termica" ? (
+            {formato === "etiquetas" ? (
+              <Select
+                label="Modelo OS"
+                value={modeloEtiqueta}
+                onChange={(e) => aoMudarModeloEtiqueta(e.target.value)}
+                disabled={sincronizando}
+              >
+                {MODELOS_ETIQUETA.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {rotuloOpcaoEtiqueta(m.id)}
+                  </option>
+                ))}
+              </Select>
+            ) : formato === "a4" || formato === "termica" ? (
               <Select
                 label={formato === "a4" ? "Modelo OS (A4)" : "Modelo OS (Térmica 80mm)"}
                 value={modelo}
@@ -245,14 +306,7 @@ export function ImprimirOsModal({
                   </option>
                 ))}
               </Select>
-            ) : (
-              <div className="space-y-1">
-                <span className="block text-sm font-medium text-slate-700">Modelo OS</span>
-                <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
-                  Disponível em Folha A4 ou Térmica 80mm
-                </p>
-              </div>
-            )}
+            ) : null}
 
             {multiplosSegmentos ? (
               <Select
@@ -295,7 +349,11 @@ export function ImprimirOsModal({
                 </>
               ) : null}
             </p>
-          ) : null}
+          ) : (
+            <p className="text-center text-xs text-slate-500">
+              Tamanhos de etiqueta SLP — Seiko Smart Label Printer
+            </p>
+          )}
 
           {multiplosSegmentos ? (
             <p className="text-center text-xs text-slate-500">
@@ -310,7 +368,7 @@ export function ImprimirOsModal({
               type="button"
               className="bg-emerald-600 hover:bg-emerald-700"
               onClick={imprimir}
-              disabled={sincronizando || (formato !== "etiquetas" && !modelo)}
+              disabled={sincronizando}
             >
               <Printer className="h-4 w-4" />
               Imprimir

@@ -43,6 +43,12 @@ import { normalizarOsModelo4Layout, type OsModelo4Layout } from "@/lib/os-modelo
 import { normalizarOsModelo5Layout, type OsModelo5Layout } from "@/lib/os-modelo5-layout";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
 import { desenharCabecalhoRequisicaoPdf } from "@/lib/pdf-cabecalho-os";
+import {
+  dimensoesModeloEtiqueta,
+  modeloEtiquetaValido,
+  nomeModeloEtiqueta,
+  type ModeloEtiquetaId,
+} from "@/lib/configuracoes-etiquetas";
 
 type PdfItem = {
   qtd: string;
@@ -1593,6 +1599,136 @@ function renderTermicaModelo5(
   return y + 2;
 }
 
+type EscalaEtiquetaOs = {
+  margem: number;
+  fsTexto: number;
+  fsOs: number;
+  barcodeAltura: number;
+  barcodeEstreito: number;
+  espacoLinha: number;
+  gapAposBarcode: number;
+};
+
+function escalaEtiquetaOs(larguraMm: number): EscalaEtiquetaOs {
+  const r = larguraMm / 54;
+  return {
+    margem: Math.max(1, 2 * r),
+    fsTexto: Math.max(4, 7.5 * r),
+    fsOs: Math.max(5, 11 * r),
+    barcodeAltura: Math.max(3.5, 7 * r),
+    barcodeEstreito: Math.max(0.12, 0.24 * r),
+    espacoLinha: Math.max(2.1, 3.6 * r),
+    gapAposBarcode: Math.max(0.8, 1.8 * r),
+  };
+}
+
+function larguraCode39(value: string, estreito: number) {
+  const content = `*${value.toUpperCase().replace(/[^0-9A-Z-. ]/g, "")}*`;
+  const wide = estreito * 3;
+  let cursor = 0;
+  for (const char of content) {
+    const pattern = code39[char] || code39["-"];
+    pattern.split("").forEach((part, index) => {
+      const width = part === "w" ? wide : estreito;
+      if (index % 2 === 0) {
+        cursor += width;
+      }
+    });
+    cursor += estreito;
+  }
+  return cursor;
+}
+
+function drawCode39Etiqueta(
+  pdf: {
+    rect: (x: number, y: number, w: number, h: number, style?: string) => void;
+    setFillColor: (r: number, g?: number, b?: number) => void;
+  },
+  value: string,
+  x: number,
+  y: number,
+  estreito: number,
+  altura: number
+) {
+  const content = `*${value.toUpperCase().replace(/[^0-9A-Z-. ]/g, "")}*`;
+  const wide = estreito * 3;
+  let cursor = x;
+
+  pdf.setFillColor(0, 0, 0);
+  for (const char of content) {
+    const pattern = code39[char] || code39["-"];
+    pattern.split("").forEach((part, index) => {
+      const width = part === "w" ? wide : estreito;
+      if (index % 2 === 0) {
+        pdf.rect(cursor, y, width, altura, "F");
+      }
+      cursor += width;
+    });
+    cursor += estreito;
+  }
+}
+
+function textoEtiquetaOs(
+  pdf: PdfRenderApi,
+  texto: string,
+  x: number,
+  y: number,
+  larguraUtil: number,
+  fs: number,
+  alturaMax: number
+) {
+  pdf.setFontSize(fs);
+  pdf.setFont("helvetica", "normal");
+  const partes = pdf.splitTextToSize(texto, larguraUtil);
+  for (const parte of partes) {
+    if (y > alturaMax) return y;
+    pdf.text(parte, x, y);
+    y += fs * 0.42 + 0.35;
+  }
+  return y;
+}
+
+function renderEtiquetaOs(
+  pdf: PdfRenderApi,
+  data: PdfOsData,
+  modeloEtiqueta: ModeloEtiquetaId
+) {
+  const { larguraMm, alturaMm } = dimensoesModeloEtiqueta(modeloEtiqueta);
+  const esc = escalaEtiquetaOs(larguraMm);
+  const margem = esc.margem;
+  const larguraUtil = larguraMm - margem * 2;
+  const alturaMax = alturaMm - margem;
+  const item = data.itens[0];
+  const codigoBarras = String(data.numeroOs);
+
+  const barcodeY = margem;
+  drawCode39Etiqueta(pdf, codigoBarras, margem, barcodeY, esc.barcodeEstreito, esc.barcodeAltura);
+
+  const barcodeW = larguraCode39(codigoBarras, esc.barcodeEstreito);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(esc.fsOs);
+  const osX = margem + barcodeW + Math.max(0.6, 1.2 * (larguraMm / 54));
+  pdf.text(codigoBarras, osX, margem + esc.barcodeAltura * 0.82);
+
+  let y = margem + esc.barcodeAltura + esc.gapAposBarcode;
+
+  const linhas: string[] = [];
+  if (data.cliente) linhas.push(`Cliente: ${data.cliente}`);
+  if (data.paciente) linhas.push(`Paciente: ${data.paciente}`);
+  if (item?.descricao) {
+    const qtd = item.qtd?.trim() || "1";
+    linhas.push(`${qtd} ${item.descricao}`.trim());
+  }
+  if (data.prazo) linhas.push(`Prazo: ${data.prazo}`);
+
+  for (const linha of linhas) {
+    y = textoEtiquetaOs(pdf, linha, margem, y, larguraUtil, esc.fsTexto, alturaMax);
+    y += esc.espacoLinha * 0.12;
+  }
+
+  return y;
+}
+
 function renderTermicaPorModelo(modelo: string) {
   if (modelo === "modelo4") {
     return (pdf: PdfRenderApi, data: PdfOsData) =>
@@ -1696,6 +1832,24 @@ export function PdfOsViewer({
         return;
       }
 
+      if (formato === "etiquetas") {
+        const modeloEtiqueta: ModeloEtiquetaId = modeloEtiquetaValido(modelo)
+          ? modelo
+          : "slk-54x101";
+        const { larguraMm, alturaMm } = dimensoesModeloEtiqueta(modeloEtiqueta);
+        const pdf = new jsPDF({ unit: "mm", format: [larguraMm, alturaMm] });
+        const api = pdf as unknown as PdfRenderApi;
+        renderEtiquetaOs(api, dadosPdf, modeloEtiqueta);
+        if (duasVias) {
+          pdf.addPage([larguraMm, alturaMm]);
+          renderEtiquetaOs(api, dadosPdf, modeloEtiqueta);
+        }
+        const blob = pdf.output("blob");
+        url = URL.createObjectURL(blob);
+        setPdfUrl(url);
+        return;
+      }
+
       const layoutModelo2 = normalizarOsModelo2Layout(dadosPdf.layoutModelo2);
       const layoutModelo3 = normalizarOsModelo3Layout(dadosPdf.layoutModelo3);
       const pdf = new jsPDF({ unit: "mm", format: criarPdf(formato) });
@@ -1759,7 +1913,9 @@ export function PdfOsViewer({
         <div>
           <h1 className="text-sm font-semibold">OS {data.numeroOs} — PDF</h1>
           <p className="text-xs text-slate-300">
-            {formato === "a4" && modelo === "modelo3"
+            {formato === "etiquetas"
+              ? `Etiqueta — ${nomeModeloEtiqueta(modeloEtiquetaValido(modelo) ? modelo : "slk-54x101")}`
+              : formato === "a4" && modelo === "modelo3"
               ? "Comprovante de entrega (A4) — Modelo 3"
               : formato === "termica" && modelo === "modelo4"
                 ? "Comprovante de entrega — Térmica 80mm (Modelo 4)"

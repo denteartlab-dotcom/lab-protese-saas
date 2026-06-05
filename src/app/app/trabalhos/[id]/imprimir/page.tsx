@@ -134,17 +134,21 @@ async function ImprimirOSConteudo({
   const formato = String(Array.isArray(sp.formato) ? sp.formato[0] : sp.formato || "a4");
   const modeloRaw = String(Array.isArray(sp.modelo) ? sp.modelo[0] : sp.modelo || "");
   const modelo =
-    formato === "termica"
-      ? modeloRaw === "modelo5"
-        ? "modelo5"
-        : modeloRaw === "modelo4"
-          ? "modelo4"
-          : "modelo4"
-      : modeloRaw === "modelo3" || modeloRaw === "comprovante"
-        ? "modelo3"
-        : modeloRaw === "modelo2"
-          ? "modelo2"
-          : "modelo1";
+    formato === "etiquetas"
+      ? ["slk-54x101", "2rle-36x89", "2rlh-28x89", "mrl-20x51"].includes(modeloRaw)
+        ? modeloRaw
+        : "slk-54x101"
+      : formato === "termica"
+        ? modeloRaw === "modelo5"
+          ? "modelo5"
+          : modeloRaw === "modelo4"
+            ? "modelo4"
+            : "modelo4"
+        : modeloRaw === "modelo3" || modeloRaw === "comprovante"
+          ? "modelo3"
+          : modeloRaw === "modelo2"
+            ? "modelo2"
+            : "modelo1";
   const segmentoParam = String(Array.isArray(sp.segmento) ? sp.segmento[0] : sp.segmento || "");
 
   /** Só campos usados no PDF — evita falha se o Neon estiver sem colunas novas do schema. */
