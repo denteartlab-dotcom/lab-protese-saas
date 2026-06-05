@@ -1476,9 +1476,10 @@ function FinanceiroReceberConteudo() {
     const lab = labImpressaoFromConfig();
     const cabecalhoLab = htmlCabecalhoLab(lab);
     return `<!doctype html><html><head><title>Fatura</title><style>
+      @page{size:A4;margin:0}
       *{box-sizing:border-box}
-      body{font-family:Arial,Helvetica,sans-serif;background:#fff;color:#111;font-size:9px;margin:0;padding:24px}
-      .page{width:760px;margin:0 auto}
+      html,body{font-family:Arial,Helvetica,sans-serif;background:#fff;color:#111;font-size:9px;margin:0;padding:0}
+      .page{width:210mm;min-height:297mm;margin:0 auto;padding:12mm 14mm}
       .actions{text-align:right;margin-bottom:8px}
       .header{display:grid;grid-template-columns:118px 1fr 150px;gap:18px;align-items:center;margin:20px 0 22px}
       .header:not(:has(.logo)){grid-template-columns:1fr 150px}
@@ -1493,7 +1494,7 @@ function FinanceiroReceberConteudo() {
       .totals div{display:grid;grid-template-columns:1fr 86px;padding:2px 0}.totals strong{font-weight:bold}
       .payment{margin-top:18px;border-top:1px solid #777;padding-top:8px}.payment-title{font-weight:bold;margin-bottom:6px}
       .payment table th,.payment table td{padding:4px 6px;text-align:left}.obs{margin-top:14px;border-top:1px solid #ddd;padding-top:8px}
-      @media print{body{padding:0}.actions{display:none}.page{width:100%;padding:0 18px}}
+      @media print{body{padding:0;margin:0}.actions{display:none}.page{width:210mm;min-height:297mm;padding:12mm 14mm}}
     </style></head><body>
       <div class="page">
         <div class="actions"><button onclick="window.print()">Imprimir</button></div>
@@ -2601,7 +2602,7 @@ function FinanceiroReceberConteudo() {
             <iframe
               title="Fatura"
               srcDoc={faturaHtml(notaCliente)}
-              className="h-[720px] w-full rounded border border-slate-200 bg-white"
+              className="h-[min(297mm,80vh)] w-full max-w-[210mm] rounded border border-slate-200 bg-white"
             />
           </div>
         )}

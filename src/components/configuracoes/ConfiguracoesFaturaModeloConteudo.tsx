@@ -22,7 +22,7 @@ import {
   type ModeloFaturaId,
 } from "@/lib/configuracoes-faturas";
 import {
-  CAMPOS_FATURA_GERAL,
+  CAMPOS_FATURA_CABECALHO,
   CAMPOS_FATURA_PARES,
   normalizarFaturaModeloLayout,
   type FaturaModeloLayout,
@@ -183,39 +183,102 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
     );
   }
 
-  const corLinha = normalizarCorBorda(layout.bordas);
+  const corBorda = normalizarCorBorda(layout.bordas);
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden lg:flex-row">
       <aside className="flex h-full w-full shrink-0 flex-col border-b border-slate-300 bg-[#d9dde3] lg:w-[360px] lg:border-b-0 lg:border-r">
         <div className="flex-1 space-y-3 overflow-y-auto p-4">
           {!termica ? (
-            <div className="grid grid-cols-2 gap-2">
+            <>
+              <div>
+                <span className="mb-1 block text-[11px] font-semibold text-slate-700">
+                  Cabeçalho
+                </span>
+                <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                  {CAMPOS_FATURA_CABECALHO.map(({ key, label }) => (
+                    <CheckboxCampo
+                      key={key}
+                      label={label}
+                      checked={Boolean(layout[key])}
+                      onChange={(v) => patchLayout({ [key]: v })}
+                    />
+                  ))}
+                </div>
+              </div>
+
               <CampoNumero
-                label="Margem Sup"
-                value={layout.margemSuperior}
-                onChange={(v) => patchLayout({ margemSuperior: v })}
-                max={40}
+                label="Tamanho da Fonte"
+                value={layout.tamanhoFonte}
+                onChange={(v) => patchLayout({ tamanhoFonte: v })}
+                min={8}
+                max={20}
               />
-              <CampoNumero
-                label="Margem Inf"
-                value={layout.margemInferior}
-                onChange={(v) => patchLayout({ margemInferior: v })}
-                max={40}
-              />
-              <CampoNumero
-                label="Margem Esq"
-                value={layout.margemEsquerda}
-                onChange={(v) => patchLayout({ margemEsquerda: v })}
-                max={40}
-              />
-              <CampoNumero
-                label="Margem Dir"
-                value={layout.margemDireita}
-                onChange={(v) => patchLayout({ margemDireita: v })}
-                max={40}
-              />
-            </div>
+
+              <div className="space-y-1">
+                {CAMPOS_FATURA_PARES.map(([esq, dir], indice) => (
+                  <div key={indice} className="grid grid-cols-2 gap-x-2">
+                    <CheckboxCampo
+                      label={esq.label}
+                      checked={Boolean(layout[esq.key])}
+                      onChange={(v) => patchLayout({ [esq.key]: v })}
+                    />
+                    {dir ? (
+                      <CheckboxCampo
+                        label={dir.label}
+                        checked={Boolean(layout[dir.key])}
+                        onChange={(v) => patchLayout({ [dir.key]: v })}
+                      />
+                    ) : (
+                      <span />
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <span className="mb-1 block text-[11px] font-semibold text-slate-700">
+                  Mensagens
+                </span>
+                <textarea
+                  value={layout.mensagem}
+                  onChange={(e) => patchLayout({ mensagem: e.target.value })}
+                  rows={3}
+                  placeholder="Texto opcional exibido na fatura"
+                  className="w-full resize-y rounded border border-slate-300 bg-white px-2 py-1.5 text-[12px] outline-none focus:border-[#4a90d9]"
+                />
+              </div>
+
+              <div>
+                <span className="mb-1 block text-[11px] font-semibold text-slate-700">
+                  Bordas
+                  <span className="ml-1 font-normal text-slate-500">(cor só da moldura)</span>
+                </span>
+                <div className="flex items-center gap-2">
+                  <CheckboxCampo
+                    label="Bordas"
+                    checked={layout.exibirBordas}
+                    onChange={(v) => patchLayout({ exibirBordas: v })}
+                  />
+                  <input
+                    type="color"
+                    value={corBorda.length === 7 ? corBorda : "#bdbdbd"}
+                    onChange={(e) => patchLayout({ bordas: e.target.value })}
+                    disabled={!layout.exibirBordas}
+                    className="h-8 w-10 shrink-0 cursor-pointer rounded border border-slate-300 bg-white p-0.5 disabled:cursor-not-allowed disabled:opacity-40"
+                    title="Cor da borda da página"
+                  />
+                  <input
+                    type="text"
+                    value={layout.bordas}
+                    onChange={(e) => patchLayout({ bordas: e.target.value })}
+                    disabled={!layout.exibirBordas}
+                    placeholder="#bdbdbd"
+                    className="h-8 min-w-0 flex-1 rounded border border-slate-300 bg-white px-2 text-[12px] outline-none focus:border-[#4a90d9] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60"
+                  />
+                </div>
+              </div>
+            </>
           ) : (
             <>
               <CampoNumero
@@ -239,110 +302,35 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
                   max={40}
                 />
               </div>
+              <CampoNumero
+                label="Tamanho da Fonte"
+                value={layout.tamanhoFonte}
+                onChange={(v) => patchLayout({ tamanhoFonte: v })}
+                min={7}
+                max={14}
+              />
+              <div className="space-y-1 border-t border-slate-300/80 pt-2">
+                {CAMPOS_FATURA_PARES.map(([esq, dir], indice) => (
+                  <div key={indice} className="grid grid-cols-2 gap-x-2">
+                    <CheckboxCampo
+                      label={esq.label}
+                      checked={Boolean(layout[esq.key])}
+                      onChange={(v) => patchLayout({ [esq.key]: v })}
+                    />
+                    {dir ? (
+                      <CheckboxCampo
+                        label={dir.label}
+                        checked={Boolean(layout[dir.key])}
+                        onChange={(v) => patchLayout({ [dir.key]: v })}
+                      />
+                    ) : (
+                      <span />
+                    )}
+                  </div>
+                ))}
+              </div>
             </>
           )}
-
-          <CampoNumero
-            label="Tamanho da Fonte"
-            value={layout.tamanhoFonte}
-            onChange={(v) => patchLayout({ tamanhoFonte: v })}
-            min={7}
-            max={14}
-          />
-
-          <div>
-            <span className="mb-1 block text-[11px] font-semibold text-slate-700">
-              Cor das linhas
-            </span>
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={corLinha.length === 7 ? corLinha : "#111111"}
-                onChange={(e) => patchLayout({ bordas: e.target.value })}
-                className="h-8 w-10 shrink-0 cursor-pointer rounded border border-slate-300 bg-white p-0.5"
-                title="Cor das linhas"
-              />
-              <input
-                type="text"
-                value={layout.bordas}
-                onChange={(e) => patchLayout({ bordas: e.target.value })}
-                placeholder="#111111"
-                className="h-8 min-w-0 flex-1 rounded border border-slate-300 bg-white px-2 text-[12px] outline-none focus:border-[#4a90d9]"
-              />
-            </div>
-          </div>
-
-          <CheckboxCampo
-            label="Bordas"
-            checked={layout.exibirBordas}
-            onChange={(v) => patchLayout({ exibirBordas: v })}
-          />
-
-          <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-            {CAMPOS_FATURA_GERAL.map(({ key, label }) => (
-              <CheckboxCampo
-                key={key}
-                label={label}
-                checked={Boolean(layout[key])}
-                onChange={(v) => patchLayout({ [key]: v })}
-              />
-            ))}
-          </div>
-
-          <div className="space-y-1 border-t border-slate-300/80 pt-2">
-            {CAMPOS_FATURA_PARES.map(([esq, dir], indice) => (
-              <div key={indice} className="grid grid-cols-2 gap-x-2">
-                <CheckboxCampo
-                  label={esq.label}
-                  checked={Boolean(layout[esq.key])}
-                  onChange={(v) => patchLayout({ [esq.key]: v })}
-                />
-                {dir ? (
-                  <CheckboxCampo
-                    label={dir.label}
-                    checked={Boolean(layout[dir.key])}
-                    onChange={(v) => patchLayout({ [dir.key]: v })}
-                  />
-                ) : (
-                  <span />
-                )}
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-2 gap-x-2 border-t border-slate-300/80 pt-2">
-            <CheckboxCampo
-              label="Modelo padrão"
-              checked={config.modeloPadrao === modeloId}
-              onChange={(v) =>
-                setConfig((atual) => {
-                  if (!atual) return atual;
-                  return {
-                    ...atual,
-                    modeloPadrao: v
-                      ? modeloId
-                      : atual.modeloPadrao === modeloId
-                        ? "modelo1"
-                        : atual.modeloPadrao,
-                  };
-                })
-              }
-            />
-            <CheckboxCampo
-              label="Duas vias"
-              checked={config.duasVias[modeloId]}
-              onChange={(v) =>
-                setConfig((atual) =>
-                  atual
-                    ? {
-                        ...atual,
-                        duasVias: { ...atual.duasVias, [modeloId]: v },
-                      }
-                    : atual
-                )
-              }
-            />
-          </div>
         </div>
 
         <div className="shrink-0 border-t border-slate-300 bg-[#d9dde3] p-4">
