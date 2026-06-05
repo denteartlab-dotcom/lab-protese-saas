@@ -41,6 +41,17 @@ function LinhaRotuloValor({ rotulo, valor }: { rotulo: string; valor: string }) 
   );
 }
 
+function estiloCelulaBordaInferior() {
+  return estiloLinhaInferiorFaturaPreview();
+}
+
+function estiloCelulaSemBorda() {
+  return {
+    borderTop: "none" as const,
+    borderBottom: "none" as const,
+  };
+}
+
 export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props) {
   const lab = configParaLabImpressao(cfg);
   const amostra = PREVIEW_FATURA_AMOSTRA;
@@ -49,6 +60,16 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
   const fsMetaLinha = Math.max(9, fs - 3);
   const exibirMetaLinha =
     layout.data || layout.finalizado || layout.osExterna || layout.corDente;
+  const colunasTabela = [
+    layout.numOs,
+    layout.qtd,
+    layout.servico,
+    layout.numDente,
+    layout.paciente,
+    layout.valorUnit,
+    layout.desconto,
+    layout.subtotal,
+  ].filter(Boolean).length;
   const cab = normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao);
   const textos = montarTextosCabecalhoRequisicao(cfg, lab, cab);
   const escalaLogo = escalaLogoMultiplicador(cfg.logoTamanho);
@@ -188,79 +209,139 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
               style={{ fontSize: `${fsSmall}px`, ...estiloTabelaMargemFaturaPreview() }}
             >
               <thead>
-                <tr style={estiloLinhaInferiorFaturaPreview()}>
-                  {layout.numOs ? <th className="py-0.5 pr-1 text-left font-bold">OS</th> : null}
-                  {layout.qtd ? <th className="py-0.5 pr-1 text-center font-bold">Qtd</th> : null}
+                <tr>
+                  {layout.numOs ? (
+                    <th
+                      className="py-0.5 pr-1 text-left font-bold"
+                      style={estiloCelulaBordaInferior()}
+                    >
+                      OS
+                    </th>
+                  ) : null}
+                  {layout.qtd ? (
+                    <th
+                      className="py-0.5 pr-1 text-center font-bold"
+                      style={estiloCelulaBordaInferior()}
+                    >
+                      Qtd
+                    </th>
+                  ) : null}
                   {layout.servico ? (
-                    <th className="py-0.5 pr-1 text-left font-bold">Serviços/Produtos</th>
+                    <th
+                      className="py-0.5 pr-1 text-left font-bold"
+                      style={estiloCelulaBordaInferior()}
+                    >
+                      Serviços/Produtos
+                    </th>
                   ) : null}
                   {layout.numDente ? (
-                    <th className="px-1 py-0.5 text-left font-bold">Num Dente</th>
+                    <th
+                      className="px-1 py-0.5 text-left font-bold"
+                      style={estiloCelulaBordaInferior()}
+                    >
+                      Num Dente
+                    </th>
                   ) : null}
                   {layout.paciente ? (
-                    <th className="px-1 py-0.5 text-left font-bold">Paciente</th>
+                    <th
+                      className="px-1 py-0.5 text-left font-bold"
+                      style={estiloCelulaBordaInferior()}
+                    >
+                      Paciente
+                    </th>
                   ) : null}
                   {layout.valorUnit ? (
-                    <th className="px-1 py-0.5 text-right font-bold">Unitário</th>
+                    <th
+                      className="px-1 py-0.5 text-right font-bold"
+                      style={estiloCelulaBordaInferior()}
+                    >
+                      Unitário
+                    </th>
                   ) : null}
-                  {layout.desconto ? <th className="px-1 py-0.5 text-right font-bold">Desc</th> : null}
+                  {layout.desconto ? (
+                    <th
+                      className="px-1 py-0.5 text-right font-bold"
+                      style={estiloCelulaBordaInferior()}
+                    >
+                      Desc
+                    </th>
+                  ) : null}
                   {layout.subtotal ? (
-                    <th className="py-0.5 pl-1 text-right font-bold">Subtotal</th>
+                    <th
+                      className="py-0.5 pl-1 text-right font-bold"
+                      style={estiloCelulaBordaInferior()}
+                    >
+                      Subtotal
+                    </th>
                   ) : null}
                 </tr>
               </thead>
               <tbody>
-                {amostra.linhas.map((linha, indice) => (
+                {amostra.linhas.map((linha) => {
+                  const estiloTdPrincipal = exibirMetaLinha
+                    ? estiloCelulaSemBorda()
+                    : estiloCelulaBordaInferior();
+
+                  return (
                   <Fragment key={linha.os}>
-                    <tr
-                      style={
-                        !exibirMetaLinha && indice < amostra.linhas.length - 1
-                          ? estiloLinhaInferiorFaturaPreview()
-                          : undefined
-                      }
-                    >
+                    <tr>
                       {layout.numOs ? (
-                        <td className="py-0.5 pr-1 align-top font-medium">{linha.os}</td>
+                        <td
+                          className="py-0.5 pr-1 align-top font-medium"
+                          style={estiloTdPrincipal}
+                        >
+                          {linha.os}
+                        </td>
                       ) : null}
                       {layout.qtd ? (
-                        <td className="py-0.5 pr-1 text-center align-top">{linha.qtd}</td>
+                        <td
+                          className="py-0.5 pr-1 text-center align-top"
+                          style={estiloTdPrincipal}
+                        >
+                          {linha.qtd}
+                        </td>
                       ) : null}
                       {layout.servico ? (
-                        <td className="py-0.5 pr-1 align-top">{linha.servico}</td>
+                        <td className="py-0.5 pr-1 align-top" style={estiloTdPrincipal}>
+                          {linha.servico}
+                        </td>
                       ) : null}
                       {layout.numDente ? (
-                        <td className="px-1 py-0.5 align-top">{linha.dentes}</td>
+                        <td className="px-1 py-0.5 align-top" style={estiloTdPrincipal}>
+                          {linha.dentes}
+                        </td>
                       ) : null}
                       {layout.paciente ? (
-                        <td className="px-1 py-0.5 align-top">{linha.paciente}</td>
+                        <td className="px-1 py-0.5 align-top" style={estiloTdPrincipal}>
+                          {linha.paciente}
+                        </td>
                       ) : null}
                       {layout.valorUnit ? (
-                        <td className="px-1 py-0.5 text-right align-top">{linha.unitario}</td>
+                        <td className="px-1 py-0.5 text-right align-top" style={estiloTdPrincipal}>
+                          {linha.unitario}
+                        </td>
                       ) : null}
                       {layout.desconto ? (
-                        <td className="px-1 py-0.5 text-right align-top">{linha.desconto}</td>
+                        <td className="px-1 py-0.5 text-right align-top" style={estiloTdPrincipal}>
+                          {linha.desconto}
+                        </td>
                       ) : null}
                       {layout.subtotal ? (
-                        <td className="py-0.5 pl-1 text-right align-top">{linha.subtotal}</td>
+                        <td className="py-0.5 pl-1 text-right align-top" style={estiloTdPrincipal}>
+                          {linha.subtotal}
+                        </td>
                       ) : null}
                     </tr>
                     {exibirMetaLinha ? (
-                      <tr style={estiloLinhaInferiorFaturaPreview()}>
+                      <tr>
                         <td
-                          colSpan={
-                            [
-                              layout.numOs,
-                              layout.qtd,
-                              layout.servico,
-                              layout.numDente,
-                              layout.paciente,
-                              layout.valorUnit,
-                              layout.desconto,
-                              layout.subtotal,
-                            ].filter(Boolean).length
-                          }
-                          className="py-0.5 text-slate-700"
-                          style={{ fontSize: `${fsMetaLinha}px` }}
+                          colSpan={colunasTabela}
+                          className="pb-1 pt-0 text-slate-700"
+                          style={{
+                            borderTop: "none",
+                            ...estiloCelulaBordaInferior(),
+                            fontSize: `${fsMetaLinha}px`,
+                          }}
                         >
                           {layout.data ? (
                             <span className="mr-3">
@@ -290,7 +371,8 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
                       </tr>
                     ) : null}
                   </Fragment>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
