@@ -376,57 +376,9 @@ function ConfiguracoesConteudo() {
               ) : null}
             </>
           ) : aba === "os" ? (
-            <>
-              <ConfiguracoesOsTab
-                onMensagem={(texto, tipo = "info") => {
-                  setMensagem(texto);
-                  setMensagemTipo(tipo);
-                  if (tipo === "sucesso" || tipo === "info") {
-                    window.setTimeout(() => setMensagem(""), 4000);
-                  }
-                }}
-              />
-              {mensagem ? (
-                <p
-                  role="alert"
-                  className={`mt-4 text-sm font-medium ${
-                    mensagemTipo === "sucesso"
-                      ? "text-emerald-600"
-                      : mensagemTipo === "erro"
-                        ? "text-red-600"
-                        : "text-slate-600"
-                  }`}
-                >
-                  {mensagem}
-                </p>
-              ) : null}
-            </>
+            <ConfiguracoesOsTab />
           ) : aba === "faturas" ? (
-            <>
-              <ConfiguracoesFaturasTab
-                onMensagem={(texto, tipo = "info") => {
-                  setMensagem(texto);
-                  setMensagemTipo(tipo);
-                  if (tipo === "sucesso" || tipo === "info") {
-                    window.setTimeout(() => setMensagem(""), 4000);
-                  }
-                }}
-              />
-              {mensagem ? (
-                <p
-                  role="alert"
-                  className={`mt-4 text-sm font-medium ${
-                    mensagemTipo === "sucesso"
-                      ? "text-emerald-600"
-                      : mensagemTipo === "erro"
-                        ? "text-red-600"
-                        : "text-slate-600"
-                  }`}
-                >
-                  {mensagem}
-                </p>
-              ) : null}
-            </>
+            <ConfiguracoesFaturasTab />
           ) : aba === "usuarios" ? (
             <MeusUsuariosTab />
           ) : aba === "backup" ? (

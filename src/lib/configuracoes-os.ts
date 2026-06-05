@@ -214,7 +214,6 @@ export function salvarConfiguracoesOs(config: ConfiguracoesOs) {
 }
 
 export async function sincronizarConfiguracoesOsDoServidor(): Promise<ConfiguracoesOs> {
-  const local = lerConfigOsDoStorage();
   try {
     const res = await fetch(
       `/api/json-store/${encodeURIComponent(CONFIG_OS_STORAGE_KEY)}`,
@@ -223,8 +222,11 @@ export async function sincronizarConfiguracoesOsDoServidor(): Promise<Configurac
     if (!res.ok) return carregarConfiguracoesOs();
     const remoto = (await res.json()) as Partial<ConfiguracoesOs> | null;
     if (!remoto || typeof remoto !== "object") return carregarConfiguracoesOs();
-    /** Local por último: não deixa o servidor reativar “Bordas” sem você salvar no editor. */
-    const mesclado = normalizarConfiguracoesOs({ ...remoto, ...local });
+    /** Local por último: lê após o fetch para não sobrescrever cliques recentes. */
+    const mesclado = normalizarConfiguracoesOs({
+      ...remoto,
+      ...lerConfigOsDoStorage(),
+    });
     const { config, alterou } = aplicarMigracaoBordaDesligadaModelos123(mesclado);
     salvarConfiguracoesOs(config);
     if (alterou) {

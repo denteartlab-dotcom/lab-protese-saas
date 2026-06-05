@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Settings } from "lucide-react";
-import type { TipoMensagemForm } from "@/components/DadosLaboratorioForm";
 import {
   MODELOS_OS,
+  MODELOS_OS_IDS,
   carregarConfiguracoesOs,
+  normalizarConfiguracoesOs,
   persistirConfiguracoesOsServidor,
   salvarConfiguracoesOs,
   sincronizarConfiguracoesOsDoServidor,
@@ -15,33 +16,25 @@ import {
 } from "@/lib/configuracoes-os";
 import { cn } from "@/lib/utils";
 
-type Props = {
-  onMensagem?: (texto: string, tipo?: TipoMensagemForm) => void;
-};
-
 function ToggleSimNao({
   valor,
   onClick,
-  disabled,
   titulo,
 }: {
   valor: boolean;
   onClick: () => void;
-  disabled?: boolean;
   titulo: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled}
       title={titulo}
       className={cn(
         "inline-flex min-w-[2.75rem] justify-center rounded px-2.5 py-1 text-[11px] font-semibold leading-none transition",
         valor
           ? "bg-[#5cb85c] text-white hover:bg-[#4cae4c]"
-          : "bg-[#d9edf7] text-[#31708f] hover:bg-[#c4e3f3]",
-        disabled && "cursor-not-allowed opacity-60"
+          : "bg-[#d9edf7] text-[#31708f] hover:bg-[#c4e3f3]"
       )}
     >
       {valor ? "Sim" : "Não"}
@@ -57,11 +50,10 @@ const ROTAS_MODELO_OS: Record<ModeloOsId, string> = {
   modelo5: "/app/configuracoes/os/modelo5",
 };
 
-export function ConfiguracoesOsTab({ onMensagem }: Props) {
+export function ConfiguracoesOsTab() {
   const router = useRouter();
   const [config, setConfig] = useState<ConfiguracoesOs>(() => carregarConfiguracoesOs());
   const [carregando, setCarregando] = useState(true);
-  const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
     let ativo = true;
@@ -76,39 +68,27 @@ export function ConfiguracoesOsTab({ onMensagem }: Props) {
     };
   }, []);
 
-  async function persistir(novaConfig: ConfiguracoesOs) {
-    setSalvando(true);
-    setConfig(novaConfig);
+  function aplicar(novaConfig: ConfiguracoesOs) {
+    const normalizado = normalizarConfiguracoesOs(novaConfig);
+    setConfig(normalizado);
     salvarConfiguracoesOs(novaConfig);
-    try {
-      await persistirConfiguracoesOsServidor(novaConfig);
-      onMensagem?.("Configuração salva com sucesso.", "sucesso");
-    } catch {
-      onMensagem?.(
-        "Salvo neste navegador, mas não foi possível gravar no servidor. Tente novamente.",
-        "erro"
-      );
-    } finally {
-      setSalvando(false);
-    }
+    void persistirConfiguracoesOsServidor(novaConfig).catch(() => undefined);
   }
 
   function abrirConfigurar(id: ModeloOsId) {
     router.push(ROTAS_MODELO_OS[id]);
   }
 
-  async function alternarPadrao(id: ModeloOsId) {
-    if (salvando) return;
-    const jaPadrao = config.modeloPadrao === id;
-    await persistir({
-      ...config,
-      modeloPadrao: jaPadrao ? "modelo1" : id,
-    });
+  function alternarPadrao(id: ModeloOsId) {
+    const ehPadrao = config.modeloPadrao === id;
+    const novoPadrao: ModeloOsId = ehPadrao
+      ? (MODELOS_OS_IDS.find((m) => m !== id) ?? "modelo1")
+      : id;
+    aplicar({ ...config, modeloPadrao: novoPadrao });
   }
 
-  async function alternarDuasVias(id: ModeloOsId) {
-    if (salvando) return;
-    await persistir({
+  function alternarDuasVias(id: ModeloOsId) {
+    aplicar({
       ...config,
       duasVias: {
         ...config.duasVias,
@@ -150,25 +130,15 @@ export function ConfiguracoesOsTab({ onMensagem }: Props) {
               <td className="px-4 py-3.5 text-center">
                 <ToggleSimNao
                   valor={config.modeloPadrao === modelo.id}
-                  onClick={() => void alternarPadrao(modelo.id)}
-                  disabled={salvando}
-                  titulo={
-                    config.modeloPadrao === modelo.id
-                      ? "Clique para remover como modelo padrão"
-                      : "Clique para definir como modelo padrão"
-                  }
+                  onClick={() => alternarPadrao(modelo.id)}
+                  titulo="Definir como modelo padrão"
                 />
               </td>
               <td className="px-4 py-3.5 text-center">
                 <ToggleSimNao
                   valor={config.duasVias[modelo.id]}
-                  onClick={() => void alternarDuasVias(modelo.id)}
-                  disabled={salvando}
-                  titulo={
-                    config.duasVias[modelo.id]
-                      ? "Clique para desativar impressão em duas vias"
-                      : "Clique para ativar impressão em duas vias"
-                  }
+                  onClick={() => alternarDuasVias(modelo.id)}
+                  titulo="Imprimir em duas vias"
                 />
               </td>
               <td className="px-4 py-3.5 text-center">

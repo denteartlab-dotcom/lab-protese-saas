@@ -213,7 +213,6 @@ export function salvarConfiguracoesFaturas(config: ConfiguracoesFaturas) {
 }
 
 export async function sincronizarConfiguracoesFaturasDoServidor(): Promise<ConfiguracoesFaturas> {
-  const local = lerConfigFaturasDoStorage();
   try {
     const res = await fetch(
       `/api/json-store/${encodeURIComponent(CONFIG_FATURAS_STORAGE_KEY)}`,
@@ -222,7 +221,10 @@ export async function sincronizarConfiguracoesFaturasDoServidor(): Promise<Confi
     if (!res.ok) return carregarConfiguracoesFaturas();
     const remoto = (await res.json()) as Partial<ConfiguracoesFaturas> | null;
     if (!remoto || typeof remoto !== "object") return carregarConfiguracoesFaturas();
-    const mesclado = normalizarConfiguracoesFaturas({ ...remoto, ...local });
+    const mesclado = normalizarConfiguracoesFaturas({
+      ...remoto,
+      ...lerConfigFaturasDoStorage(),
+    });
     salvarConfiguracoesFaturas(mesclado);
     return mesclado;
   } catch {
