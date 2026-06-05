@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Minus, Plus } from "lucide-react";
+import { Minus, Plus, Settings } from "lucide-react";
 import { Button } from "@/components/ui";
+import { cn } from "@/lib/utils";
 import { ConfiguracoesFaturaModeloPreview } from "@/components/configuracoes/ConfiguracoesFaturaModeloPreview";
 import {
   carregarConfigLaboratorio,
@@ -15,7 +17,6 @@ import {
   layoutKeyModeloFatura,
   lerLayoutFaturaA4Compartilhado,
   MODELOS_FATURA,
-  nomeModeloFatura,
   persistirConfiguracoesFaturasServidor,
   salvarConfiguracoesFaturas,
   sincronizarConfiguracoesFaturasDoServidor,
@@ -187,17 +188,18 @@ function PixQrConfiguracao({
 }
 
 export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
+  const router = useRouter();
   const [cfg, setCfg] = useState<ConfigLaboratorio | null>(null);
   const [config, setConfig] = useState<ConfiguracoesFaturas | null>(null);
   const [layout, setLayout] = useState<FaturaModeloLayout | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [carregando, setCarregando] = useState(true);
+  const [menuEdicaoAberto, setMenuEdicaoAberto] = useState(true);
 
   const modeloValido = MODELOS_FATURA.some((m) => m.id === modeloId);
   const termica = formatoPorModeloFatura(modeloId) === "termica";
   const layoutKey = layoutKeyModeloFatura(modeloId);
-  const nomeModelo = nomeModeloFatura(modeloId);
 
   useEffect(() => {
     let ativo = true;
@@ -226,6 +228,12 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
     setLayout((atual) => (atual ? normalizarFaturaModeloLayout({ ...atual, ...patch }) : atual));
   }
 
+  function trocarModelo(id: ModeloFaturaId) {
+    if (id === modeloId) return;
+    setCarregando(true);
+    router.replace(`/app/configuracoes/faturas/${id}`);
+  }
+
   async function salvar() {
     if (!config || !layout) return;
     setSalvando(true);
@@ -250,21 +258,64 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
     }
   }
 
+  const barraSuperior = (
+    <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[#3d4248] bg-[#4a4f56] px-4 py-2.5">
+      <button
+        type="button"
+        onClick={() => setMenuEdicaoAberto((aberto) => !aberto)}
+        className={cn(
+          "inline-flex items-center gap-2 rounded px-3 py-2 text-[12px] text-white transition-colors",
+          menuEdicaoAberto ? "bg-[#5a6068]" : "bg-[#5cb85c] hover:bg-[#4cae4c]"
+        )}
+      >
+        <Settings className="h-4 w-4" />
+        Personalizar
+      </button>
+
+      <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+        <select
+          value={modeloId}
+          onChange={(e) => trocarModelo(e.target.value as ModeloFaturaId)}
+          className="max-w-full truncate rounded border border-[#5a6068] bg-white px-3 py-2 text-[12px] text-slate-800 outline-none focus:border-[#4a90d9]"
+          aria-label="Selecionar modelo de fatura"
+        >
+          {MODELOS_FATURA.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.nome}
+            </option>
+          ))}
+        </select>
+        <Link
+          href="/app/configuracoes?aba=faturas"
+          className="shrink-0 rounded bg-[#5a6068] px-5 py-2 text-[12px] text-white hover:bg-[#6a7078]"
+        >
+          Voltar
+        </Link>
+      </div>
+    </header>
+  );
+
   if (!modeloValido) {
     return (
-      <p className="p-6 text-sm text-slate-600">
-        Modelo não encontrado.{" "}
-        <Link href="/app/configuracoes?aba=faturas" className="text-[#4a90d9] hover:underline">
-          Voltar para Faturas
-        </Link>
-      </p>
+      <div className="flex h-screen w-full flex-col overflow-hidden">
+        {barraSuperior}
+        <p className="p-6 text-sm text-slate-600">
+          Modelo não encontrado.{" "}
+          <Link href="/app/configuracoes?aba=faturas" className="text-[#4a90d9] hover:underline">
+            Voltar para Faturas
+          </Link>
+        </p>
+      </div>
     );
   }
 
   if (carregando || !cfg || !config || !layout) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#4a4f56]">
-        <p className="text-sm text-slate-300">Carregando…</p>
+      <div className="flex h-screen w-full flex-col overflow-hidden">
+        {barraSuperior}
+        <div className="flex min-h-0 flex-1 items-center justify-center bg-[#4a4f56]">
+          <p className="text-sm text-slate-300">Carregando…</p>
+        </div>
       </div>
     );
   }
@@ -272,8 +323,22 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
   const corBorda = normalizarCorBorda(layout.bordas);
 
   return (
-    <div className="flex h-screen w-full flex-col overflow-hidden lg:flex-row">
-      <aside className="flex h-full w-full shrink-0 flex-col border-b border-slate-300 bg-[#d9dde3] lg:w-[360px] lg:border-b-0 lg:border-r">
+    <div className="flex h-screen w-full flex-col overflow-hidden">
+      {barraSuperior}
+
+      {mensagem ? (
+        <div className="shrink-0 bg-[#5cb85c] px-4 py-2.5 text-center text-[13px] font-medium text-white">
+          {mensagem}
+        </div>
+      ) : null}
+
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+      <aside
+        className={cn(
+          "flex h-full w-full shrink-0 flex-col border-b border-slate-300 bg-[#d9dde3] lg:w-[360px] lg:border-b-0 lg:border-r",
+          !menuEdicaoAberto && "hidden"
+        )}
+      >
         <div className="flex-1 space-y-3 overflow-y-auto p-4">
           {!termica ? (
             <>
@@ -435,25 +500,15 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
       </aside>
 
       <div className="flex min-h-0 flex-1 flex-col bg-[#4a4f56]">
-        {mensagem ? (
-          <div className="shrink-0 bg-[#5cb85c] px-4 py-2.5 text-center text-[13px] font-medium text-white">
-            {mensagem}
-          </div>
-        ) : null}
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[#3d4248] bg-[#4a4f56] px-4 py-2.5">
-          <span className="rounded border border-[#5a6068] bg-[#5a6068] px-3 py-1.5 text-[12px] text-white">
-            {nomeModelo}
-          </span>
-          <Link
-            href="/app/configuracoes?aba=faturas"
-            className="rounded bg-[#5a6068] px-5 py-2 text-[12px] text-white hover:bg-[#6a7078]"
-          >
-            Voltar
-          </Link>
-        </div>
         <div className="min-h-0 flex-1 overflow-auto p-6">
-          <ConfiguracoesFaturaModeloPreview cfg={cfg} layout={layout} termica={termica} />
+          <ConfiguracoesFaturaModeloPreview
+            cfg={cfg}
+            layout={layout}
+            modeloId={modeloId}
+            termica={termica}
+          />
         </div>
+      </div>
       </div>
     </div>
   );

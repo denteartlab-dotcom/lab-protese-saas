@@ -19,11 +19,13 @@ import {
   PREVIEW_FATURA_AMOSTRA,
   type FaturaModeloLayout,
 } from "@/lib/fatura-modelo-layout";
+import type { ModeloFaturaId } from "@/lib/configuracoes-faturas";
 import { configParaLabImpressao, escalaLogoMultiplicador } from "@/lib/lab-logo";
 
 type Props = {
   cfg: ConfigLaboratorio;
   layout: FaturaModeloLayout;
+  modeloId?: ModeloFaturaId;
   termica?: boolean;
 };
 
@@ -50,12 +52,18 @@ function LinhaRotuloValor({ rotulo, valor }: { rotulo: string; valor: string }) 
   );
 }
 
-export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props) {
+export function ConfiguracoesFaturaModeloPreview({
+  cfg,
+  layout,
+  modeloId = "modelo1",
+  termica,
+}: Props) {
   const lab = configParaLabImpressao(cfg);
   const amostra = PREVIEW_FATURA_AMOSTRA;
   const fs = layout.tamanhoFonte;
   const fsSmall = Math.max(7, fs - 2);
   const fsMetaLinha = Math.max(9, fs - 3);
+  const saldoAnteriorNosTotais = modeloId === "modelo3" && layout.saldoAnterior;
   const exibirMetaLinha =
     layout.data || layout.finalizado || layout.osExterna || layout.corDente;
   const colunasTabela = [
@@ -185,7 +193,7 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
               {layout.ultimoPgto ? (
                 <LinhaRotuloValor rotulo="Último Pgto:" valor={amostra.ultimoPgto} />
               ) : null}
-              {layout.saldoAnterior ? (
+              {layout.saldoAnterior && !saldoAnteriorNosTotais ? (
                 <LinhaRotuloValor rotulo="Saldo Anterior:" valor={amostra.saldoAnterior} />
               ) : null}
             </div>
@@ -358,7 +366,8 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
           {(layout.totalServicos ||
             layout.descontoServicos ||
             layout.descontoFatura ||
-            layout.total) && (
+            layout.total ||
+            saldoAnteriorNosTotais) && (
             <>
               <div
                 className="ml-auto mt-2 w-[270px] text-right"
@@ -366,8 +375,16 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
               >
                 {layout.totalServicos ? (
                   <div className="grid grid-cols-[1fr_90px] py-0.5">
-                    <span>Total Serviços (=)</span>
+                    <span>
+                      Total Serviços {modeloId === "modelo3" ? "(=)" : "(+)"}
+                    </span>
                     <strong>{amostra.totalServicos}</strong>
+                  </div>
+                ) : null}
+                {saldoAnteriorNosTotais ? (
+                  <div className="grid grid-cols-[1fr_90px] py-0.5">
+                    <span>Saldo Anterior (+)</span>
+                    <span>{amostra.saldoAnterior}</span>
                   </div>
                 ) : null}
                 {layout.descontoServicos ? (
