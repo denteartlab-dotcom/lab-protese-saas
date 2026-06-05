@@ -17,6 +17,7 @@ import {
   layoutKeyModeloFatura,
   lerLayoutFaturaA4Compartilhado,
   MODELOS_FATURA,
+  normalizarLayoutFaturaTermica,
   persistirConfiguracoesFaturasServidor,
   salvarConfiguracoesFaturas,
   sincronizarConfiguracoesFaturasDoServidor,
@@ -28,7 +29,6 @@ import {
   CAMPOS_FATURA_PARES,
   CAMPOS_FATURA_TERMICA_CABECALHO,
   CAMPOS_FATURA_TERMICA_PARES,
-  normalizarFaturaModelo4Layout,
   normalizarFaturaModeloLayout,
   type FaturaModeloLayout,
 } from "@/lib/fatura-modelo-layout";
@@ -217,7 +217,7 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
       const layoutCarregado = lerLayoutFaturaA4Compartilhado(cfgFaturas, modeloId);
       setLayout(
         termica
-          ? normalizarFaturaModelo4Layout(layoutCarregado)
+          ? normalizarLayoutFaturaTermica(modeloId, layoutCarregado)
           : normalizarFaturaModeloLayout(layoutCarregado)
       );
       setCarregando(false);
@@ -231,7 +231,13 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
   }, [modeloId]);
 
   function patchLayout(patch: Partial<FaturaModeloLayout>) {
-    setLayout((atual) => (atual ? normalizarFaturaModeloLayout({ ...atual, ...patch }) : atual));
+    setLayout((atual) =>
+      atual
+        ? termica
+          ? normalizarLayoutFaturaTermica(modeloId, { ...atual, ...patch })
+          : normalizarFaturaModeloLayout({ ...atual, ...patch })
+        : atual
+    );
   }
 
   function trocarModelo(id: ModeloFaturaId) {
@@ -245,7 +251,7 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
     setSalvando(true);
     setMensagem("");
     const layoutNorm = termica
-      ? normalizarFaturaModelo4Layout(layout)
+      ? normalizarLayoutFaturaTermica(modeloId, layout)
       : normalizarFaturaModeloLayout(layout);
     const novaConfig: ConfiguracoesFaturas = termica
       ? { ...config, [layoutKey]: layoutNorm }

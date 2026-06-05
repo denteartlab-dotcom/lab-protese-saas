@@ -86,7 +86,7 @@ export function ConfiguracoesFaturaModeloPreview({
   if (termica) {
     return (
       <div className="mx-auto flex justify-center">
-        <PreviewFaturaModelo4Termica cfg={cfg} layout={layout} />
+        <PreviewFaturaModelo4Termica cfg={cfg} layout={layout} modeloId={modeloId} />
       </div>
     );
   }

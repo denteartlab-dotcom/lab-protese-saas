@@ -157,7 +157,7 @@ export const CAMPOS_FATURA_TERMICA_PARES: Array<[CampoCheckbox, CampoCheckbox | 
   [{ key: "clienteTel", label: "Cliente Tel" }, { key: "clienteEnd", label: "Cliente End" }],
   [{ key: "saldoAnterior", label: "Saldo Anterior" }, { key: "dentista", label: "Dentista" }],
   [{ key: "osExterna", label: "OS Externa" }, { key: "numDente", label: "Nome Dente" }],
-  [{ key: "valorUnit", label: "Valor Unit" }, { key: "subtotal", label: "Subtotal" }],
+  [{ key: "valorUnit", label: "Valor Unit" }, null],
   [{ key: "data", label: "Data" }, { key: "formaPgto", label: "Forma Pgto" }],
   [{ key: "assinatura", label: "Assinatura" }, { key: "corDente", label: "Cor Dente" }],
   [{ key: "desconto", label: "Desconto" }, { key: "ultimoPgto", label: "Última Pgto" }],
@@ -186,7 +186,7 @@ export const FATURA_MODELO4_LAYOUT_PADRAO: Partial<FaturaModeloLayout> = {
   osExterna: true,
   numDente: true,
   valorUnit: true,
-  subtotal: true,
+  subtotal: false,
   formaPgto: true,
   assinatura: true,
   corDente: true,
@@ -206,6 +206,11 @@ export const FATURA_MODELO4_LAYOUT_PADRAO: Partial<FaturaModeloLayout> = {
   condicaoPagamento: true,
   pixQrTamanhoPx: 120,
   pixQrFonte: 10,
+};
+
+/** Padrão Smart — Modelo Fatura 5 térmica 80mm (igual ao 4, Saldo Anterior nos totais). */
+export const FATURA_MODELO5_LAYOUT_PADRAO: Partial<FaturaModeloLayout> = {
+  ...FATURA_MODELO4_LAYOUT_PADRAO,
 };
 
 const LEGADO_FATURA_MAP: Record<string, keyof FaturaModeloLayout> = {
@@ -267,6 +272,16 @@ export function normalizarFaturaModelo4Layout(
   return normalizarFaturaModeloLayout({
     ...FATURA_MODELO_LAYOUT_PADRAO,
     ...FATURA_MODELO4_LAYOUT_PADRAO,
+    ...(valor ?? {}),
+  });
+}
+
+export function normalizarFaturaModelo5Layout(
+  valor?: Partial<FaturaModeloLayout> & Record<string, unknown> | null
+): FaturaModeloLayout {
+  return normalizarFaturaModeloLayout({
+    ...FATURA_MODELO_LAYOUT_PADRAO,
+    ...FATURA_MODELO5_LAYOUT_PADRAO,
     ...(valor ?? {}),
   });
 }

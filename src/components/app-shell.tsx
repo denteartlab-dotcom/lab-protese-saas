@@ -130,7 +130,8 @@ function AppShellInner({
     pathname.startsWith("/app/configuracoes/faturas/modelo1") ||
     pathname.startsWith("/app/configuracoes/faturas/modelo2") ||
     pathname.startsWith("/app/configuracoes/faturas/modelo3") ||
-    pathname.startsWith("/app/configuracoes/faturas/modelo4");
+    pathname.startsWith("/app/configuracoes/faturas/modelo4") ||
+    pathname.startsWith("/app/configuracoes/faturas/modelo5");
   const isModuloColaborador = pathname === "/app/producao/modulo";
   const isDashboard = pathname === "/app";
   const [darkMode, setDarkMode] = useState(false);

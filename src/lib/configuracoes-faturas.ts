@@ -1,6 +1,8 @@
 import {
   FATURA_MODELO4_LAYOUT_PADRAO,
+  FATURA_MODELO5_LAYOUT_PADRAO,
   normalizarFaturaModelo4Layout,
+  normalizarFaturaModelo5Layout,
   normalizarFaturaModeloLayout,
   type FaturaModeloLayout,
 } from "@/lib/fatura-modelo-layout";
@@ -13,13 +15,14 @@ import {
 export const CONFIG_FATURAS_STORAGE_KEY = "labProteseConfiguracoesFaturas";
 export const CONFIG_FATURAS_ATUALIZADA_EVENT = "lab-config-faturas-atualizada";
 
-export type ModeloFaturaId = "modelo1" | "modelo2" | "modelo3" | "modelo4";
+export type ModeloFaturaId = "modelo1" | "modelo2" | "modelo3" | "modelo4" | "modelo5";
 
 export const MODELOS_FATURA_IDS: ModeloFaturaId[] = [
   "modelo1",
   "modelo2",
   "modelo3",
   "modelo4",
+  "modelo5",
 ];
 
 export const MODELOS_FATURA: Array<{ id: ModeloFaturaId; nome: string }> = [
@@ -30,6 +33,10 @@ export const MODELOS_FATURA: Array<{ id: ModeloFaturaId; nome: string }> = [
     id: "modelo4",
     nome: "Modelo Fatura 4 - (Impressora térmica 80mm - Epson T20)",
   },
+  {
+    id: "modelo5",
+    nome: "Modelo Fatura 5 - (Impressora térmica 80mm - Epson T20)",
+  },
 ];
 
 export type ConfiguracoesFaturas = {
@@ -39,6 +46,7 @@ export type ConfiguracoesFaturas = {
   layoutModelo2: FaturaModeloLayout;
   layoutModelo3: FaturaModeloLayout;
   layoutModelo4: FaturaModeloLayout;
+  layoutModelo5: FaturaModeloLayout;
 };
 
 export const CONFIG_FATURAS_PADRAO: ConfiguracoesFaturas = {
@@ -48,27 +56,43 @@ export const CONFIG_FATURAS_PADRAO: ConfiguracoesFaturas = {
     modelo2: false,
     modelo3: false,
     modelo4: false,
+    modelo5: false,
   },
   layoutModelo1: normalizarFaturaModeloLayout(null),
   layoutModelo2: normalizarFaturaModeloLayout(null),
   layoutModelo3: normalizarFaturaModeloLayout(null),
   layoutModelo4: normalizarFaturaModelo4Layout(FATURA_MODELO4_LAYOUT_PADRAO),
+  layoutModelo5: normalizarFaturaModelo5Layout(FATURA_MODELO5_LAYOUT_PADRAO),
 };
 
 export function formatoPorModeloFatura(id: ModeloFaturaId): "a4" | "termica" {
-  return id === "modelo4" ? "termica" : "a4";
+  return id === "modelo4" || id === "modelo5" ? "termica" : "a4";
 }
 
 export function layoutKeyModeloFatura(
   id: ModeloFaturaId
 ): keyof Pick<
   ConfiguracoesFaturas,
-  "layoutModelo1" | "layoutModelo2" | "layoutModelo3" | "layoutModelo4"
+  | "layoutModelo1"
+  | "layoutModelo2"
+  | "layoutModelo3"
+  | "layoutModelo4"
+  | "layoutModelo5"
 > {
   if (id === "modelo1") return "layoutModelo1";
   if (id === "modelo2") return "layoutModelo2";
   if (id === "modelo3") return "layoutModelo3";
-  return "layoutModelo4";
+  if (id === "modelo4") return "layoutModelo4";
+  return "layoutModelo5";
+}
+
+export function normalizarLayoutFaturaTermica(
+  id: ModeloFaturaId,
+  layout?: Partial<FaturaModeloLayout> & Record<string, unknown> | null
+): FaturaModeloLayout {
+  return id === "modelo5"
+    ? normalizarFaturaModelo5Layout(layout)
+    : normalizarFaturaModelo4Layout(layout);
 }
 
 export function lerLayoutModeloFatura(
@@ -112,7 +136,8 @@ export function normalizarConfiguracoesFaturas(
       layoutModelo1: normalizarFaturaModeloLayout(null),
       layoutModelo2: normalizarFaturaModeloLayout(null),
       layoutModelo3: normalizarFaturaModeloLayout(null),
-      layoutModelo4: normalizarFaturaModeloLayout(CONFIG_FATURAS_PADRAO.layoutModelo4),
+      layoutModelo4: normalizarFaturaModelo4Layout(CONFIG_FATURAS_PADRAO.layoutModelo4),
+      layoutModelo5: normalizarFaturaModelo5Layout(CONFIG_FATURAS_PADRAO.layoutModelo5),
     };
   }
 
@@ -140,6 +165,9 @@ export function normalizarConfiguracoesFaturas(
   const layout4 =
     valor.layoutModelo4 ??
     (legadoLayouts.layouts?.modelo4 as Partial<FaturaModeloLayout> | undefined);
+  const layout5 =
+    valor.layoutModelo5 ??
+    (legadoLayouts.layouts?.modelo5 as Partial<FaturaModeloLayout> | undefined);
 
   const base: ConfiguracoesFaturas = {
     modeloPadrao,
@@ -149,6 +177,9 @@ export function normalizarConfiguracoesFaturas(
     layoutModelo3: normalizarFaturaModeloLayout(layout3),
     layoutModelo4: normalizarFaturaModelo4Layout(
       layout4 ?? CONFIG_FATURAS_PADRAO.layoutModelo4
+    ),
+    layoutModelo5: normalizarFaturaModelo5Layout(
+      layout5 ?? CONFIG_FATURAS_PADRAO.layoutModelo5
     ),
   };
 

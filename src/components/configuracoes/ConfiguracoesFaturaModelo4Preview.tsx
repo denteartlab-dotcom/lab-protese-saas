@@ -4,6 +4,7 @@ import { Fragment, useMemo } from "react";
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
 import { configParaLabImpressao } from "@/lib/lab-logo";
 import { normalizarCorBorda } from "@/lib/os-modelo1-layout";
+import type { ModeloFaturaId } from "@/lib/configuracoes-faturas";
 import {
   FATURA_TERMICA_LARGURA_MM,
   PREVIEW_FATURA_TERMICA_AMOSTRA,
@@ -34,13 +35,15 @@ function LinhaSeparador({ cor, className }: { cor: string; className?: string })
   );
 }
 
-/** Preview térmica 80mm — Fatura Modelo 4 (Smart / Epson T20). */
+/** Preview térmica 80mm — Fatura Modelos 4 e 5 (Smart / Epson T20). */
 export function PreviewFaturaModelo4Termica({
   cfg,
   layout,
+  modeloId = "modelo4",
 }: {
   cfg: ConfigLaboratorio;
   layout: FaturaModeloLayout;
+  modeloId?: ModeloFaturaId;
 }) {
   const lab = useMemo(() => configParaLabImpressao(cfg), [cfg]);
   const amostra = PREVIEW_FATURA_TERMICA_AMOSTRA;
@@ -48,6 +51,7 @@ export function PreviewFaturaModelo4Termica({
   const fsSmall = Math.max(9, fs - 2);
   const corLinha = normalizarCorBorda(layout.bordas || "#000000");
   const exibirItens = layout.qtd || layout.servico || layout.valorUnit || layout.desconto;
+  const saldoAnteriorNosTotais = modeloId === "modelo5" && layout.saldoAnterior;
   const exibirMetaItem =
     layout.numOs ||
     layout.paciente ||
@@ -138,7 +142,7 @@ export function PreviewFaturaModelo4Termica({
         {layout.ultimoPgto ? (
           <LinhaRotuloValor rotulo="Última Pgto:" valor={amostra.ultimoPgto} />
         ) : null}
-        {layout.saldoAnterior ? (
+        {layout.saldoAnterior && !saldoAnteriorNosTotais ? (
           <LinhaRotuloValor rotulo="Saldo Anterior:" valor={amostra.saldoAnterior} />
         ) : null}
         {layout.usuario ? (
@@ -273,25 +277,25 @@ export function PreviewFaturaModelo4Termica({
         </>
       ) : null}
 
-      {(layout.subtotal ||
-        layout.totalServicos ||
+      {(layout.totalServicos ||
         layout.descontoServicos ||
         layout.descontoFatura ||
-        layout.total) && (
+        layout.total ||
+        saldoAnteriorNosTotais) && (
         <div
           className="mt-1.5 space-y-0.5 text-right"
           style={{ fontSize: `${fsSmall}px` }}
         >
-          {layout.subtotal ? (
-            <p>
-              <span className="font-bold">Subtotal: </span>
-              {amostra.subtotal}
-            </p>
-          ) : null}
           {layout.totalServicos ? (
             <p>
               <span className="font-bold">Total Serviços(+): </span>
               {amostra.totalServicos}
+            </p>
+          ) : null}
+          {saldoAnteriorNosTotais ? (
+            <p>
+              <span className="font-bold">Saldo Anterior(+): </span>
+              {amostra.saldoAnterior}
             </p>
           ) : null}
           {layout.descontoServicos ? (
