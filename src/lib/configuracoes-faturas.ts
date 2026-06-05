@@ -1,4 +1,6 @@
 import {
+  FATURA_MODELO4_LAYOUT_PADRAO,
+  normalizarFaturaModelo4Layout,
   normalizarFaturaModeloLayout,
   type FaturaModeloLayout,
 } from "@/lib/fatura-modelo-layout";
@@ -26,7 +28,7 @@ export const MODELOS_FATURA: Array<{ id: ModeloFaturaId; nome: string }> = [
   { id: "modelo3", nome: "Modelo Fatura 3" },
   {
     id: "modelo4",
-    nome: "Modelo Fatura 4 - (Impressora térmica 60mm - Epson T20)",
+    nome: "Modelo Fatura 4 - (Impressora térmica 80mm - Epson T20)",
   },
 ];
 
@@ -50,14 +52,7 @@ export const CONFIG_FATURAS_PADRAO: ConfiguracoesFaturas = {
   layoutModelo1: normalizarFaturaModeloLayout(null),
   layoutModelo2: normalizarFaturaModeloLayout(null),
   layoutModelo3: normalizarFaturaModeloLayout(null),
-  layoutModelo4: normalizarFaturaModeloLayout({
-    tamanhoFonte: 8,
-    logoTamanhoPx: 70,
-    margemSuperior: 4,
-    margemInferior: 4,
-    margemEsquerda: 4,
-    margemDireita: 4,
-  }),
+  layoutModelo4: normalizarFaturaModelo4Layout(FATURA_MODELO4_LAYOUT_PADRAO),
 };
 
 export function formatoPorModeloFatura(id: ModeloFaturaId): "a4" | "termica" {
@@ -152,7 +147,7 @@ export function normalizarConfiguracoesFaturas(
     layoutModelo1: normalizarFaturaModeloLayout(layout1),
     layoutModelo2: normalizarFaturaModeloLayout(layout2),
     layoutModelo3: normalizarFaturaModeloLayout(layout3),
-    layoutModelo4: normalizarFaturaModeloLayout(
+    layoutModelo4: normalizarFaturaModelo4Layout(
       layout4 ?? CONFIG_FATURAS_PADRAO.layoutModelo4
     ),
   };

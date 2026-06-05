@@ -26,6 +26,9 @@ import {
 import {
   CAMPOS_FATURA_CABECALHO,
   CAMPOS_FATURA_PARES,
+  CAMPOS_FATURA_TERMICA_CABECALHO,
+  CAMPOS_FATURA_TERMICA_PARES,
+  normalizarFaturaModelo4Layout,
   normalizarFaturaModeloLayout,
   type FaturaModeloLayout,
 } from "@/lib/fatura-modelo-layout";
@@ -211,8 +214,11 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
       if (!ativo) return;
       setCfg(carregarConfigLaboratorio());
       setConfig(cfgFaturas);
+      const layoutCarregado = lerLayoutFaturaA4Compartilhado(cfgFaturas, modeloId);
       setLayout(
-        normalizarFaturaModeloLayout(lerLayoutFaturaA4Compartilhado(cfgFaturas, modeloId))
+        termica
+          ? normalizarFaturaModelo4Layout(layoutCarregado)
+          : normalizarFaturaModeloLayout(layoutCarregado)
       );
       setCarregando(false);
     })();
@@ -238,7 +244,9 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
     if (!config || !layout) return;
     setSalvando(true);
     setMensagem("");
-    const layoutNorm = normalizarFaturaModeloLayout(layout);
+    const layoutNorm = termica
+      ? normalizarFaturaModelo4Layout(layout)
+      : normalizarFaturaModeloLayout(layout);
     const novaConfig: ConfiguracoesFaturas = termica
       ? { ...config, [layoutKey]: layoutNorm }
       : aplicarLayoutFaturaA4Compartilhado(config, layoutNorm);
@@ -434,12 +442,28 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
             </>
           ) : (
             <>
+              <div>
+                <span className="mb-1 block text-[11px] font-semibold text-slate-700">
+                  Cabeçalho
+                </span>
+                <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                  {CAMPOS_FATURA_TERMICA_CABECALHO.map(({ key, label }) => (
+                    <CheckboxCampo
+                      key={key}
+                      label={label}
+                      checked={Boolean(layout[key])}
+                      onChange={(v) => patchLayout({ [key]: v })}
+                    />
+                  ))}
+                </div>
+              </div>
+
               <CampoNumero
                 label="Tamanho da Logo (px)"
                 value={layout.logoTamanhoPx}
                 onChange={(v) => patchLayout({ logoTamanhoPx: v })}
                 min={40}
-                max={160}
+                max={200}
               />
               <div className="grid grid-cols-2 gap-2">
                 <CampoNumero
@@ -459,11 +483,11 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
                 label="Tamanho da Fonte"
                 value={layout.tamanhoFonte}
                 onChange={(v) => patchLayout({ tamanhoFonte: v })}
-                min={7}
-                max={14}
+                min={8}
+                max={18}
               />
               <div className="space-y-1 border-t border-slate-300/80 pt-2">
-                {CAMPOS_FATURA_PARES.map(([esq, dir], indice) => (
+                {CAMPOS_FATURA_TERMICA_PARES.map(([esq, dir], indice) => (
                   <div key={indice} className="grid grid-cols-2 gap-x-2">
                     <CheckboxCampo
                       label={esq.label}
@@ -482,7 +506,21 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
                   </div>
                 ))}
               </div>
+
               <PixQrConfiguracao layout={layout} patchLayout={patchLayout} />
+
+              <div>
+                <span className="mb-1 block text-[11px] font-semibold text-slate-700">
+                  Mensagem
+                </span>
+                <textarea
+                  value={layout.mensagem}
+                  onChange={(e) => patchLayout({ mensagem: e.target.value })}
+                  rows={3}
+                  placeholder="Texto opcional exibido na fatura"
+                  className="w-full resize-y rounded border border-slate-300 bg-white px-2 py-1.5 text-[12px] outline-none focus:border-[#4a90d9]"
+                />
+              </div>
             </>
           )}
         </div>

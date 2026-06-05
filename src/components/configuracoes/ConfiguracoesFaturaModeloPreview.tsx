@@ -20,6 +20,7 @@ import {
   type FaturaModeloLayout,
 } from "@/lib/fatura-modelo-layout";
 import type { ModeloFaturaId } from "@/lib/configuracoes-faturas";
+import { PreviewFaturaModelo4Termica } from "@/components/configuracoes/ConfiguracoesFaturaModelo4Preview";
 import { configParaLabImpressao, escalaLogoMultiplicador } from "@/lib/lab-logo";
 
 type Props = {
@@ -85,20 +86,7 @@ export function ConfiguracoesFaturaModeloPreview({
   if (termica) {
     return (
       <div className="mx-auto flex justify-center">
-        <div
-          className="bg-white text-[#111] shadow-md"
-          style={{
-            width: "226px",
-            fontSize: `${Math.max(8, fs - 2)}px`,
-            padding: "4mm",
-            boxSizing: "border-box",
-          }}
-        >
-          <p className="text-center font-bold">Modelo térmico 60mm</p>
-          <p className="mt-2 text-center text-[10px] text-slate-500">
-            Pré-visualização resumida do cupom térmico.
-          </p>
-        </div>
+        <PreviewFaturaModelo4Termica cfg={cfg} layout={layout} />
       </div>
     );
   }

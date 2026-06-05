@@ -55,11 +55,14 @@ export type FaturaModeloLayout = {
   descontoFatura: boolean;
   total: boolean;
   condicaoPagamento: boolean;
-  /** Modelo térmico 60mm */
+  /** Modelo térmico 80mm */
   logoTamanhoPx: number;
   logoMargemEsq: number;
   logoMargemTopo: number;
 };
+
+/** Largura da folha — impressora térmica 80mm Epson T20. */
+export const FATURA_TERMICA_LARGURA_MM = 80;
 
 export const FATURA_MODELO_LAYOUT_PADRAO: FaturaModeloLayout = {
   exibirBordas: true,
@@ -137,6 +140,74 @@ export const CAMPOS_FATURA_PARES: Array<[CampoCheckbox, CampoCheckbox | null]> =
   [{ key: "total", label: "Total" }, { key: "condicaoPagamento", label: "Condição Pagamento" }],
 ];
 
+/** Cabeçalho — Smart Prótese Fatura Modelo 4 térmica 80mm. */
+export const CAMPOS_FATURA_TERMICA_CABECALHO: Array<{
+  key: keyof FaturaModeloLayout;
+  label: string;
+}> = [
+  { key: "infoLab", label: "Laboratório" },
+  { key: "logo", label: "Logo" },
+  { key: "data", label: "Data OS" },
+  { key: "usuario", label: "Usuário" },
+];
+
+/** Pares no menu lateral — ordem Smart Prótese Fatura Modelo 4 térmica. */
+export const CAMPOS_FATURA_TERMICA_PARES: Array<[CampoCheckbox, CampoCheckbox | null]> = [
+  [{ key: "cliente", label: "Cliente" }, { key: "clienteEmail", label: "Cliente Email" }],
+  [{ key: "clienteTel", label: "Cliente Tel" }, { key: "clienteEnd", label: "Cliente End" }],
+  [{ key: "saldoAnterior", label: "Saldo Anterior" }, { key: "dentista", label: "Dentista" }],
+  [{ key: "osExterna", label: "OS Externa" }, { key: "numDente", label: "Nome Dente" }],
+  [{ key: "valorUnit", label: "Valor Unit" }, { key: "subtotal", label: "Subtotal" }],
+  [{ key: "data", label: "Data" }, { key: "formaPgto", label: "Forma Pgto" }],
+  [{ key: "assinatura", label: "Assinatura" }, { key: "corDente", label: "Cor Dente" }],
+  [{ key: "desconto", label: "Desconto" }, { key: "ultimoPgto", label: "Última Pgto" }],
+  [{ key: "finalizado", label: "Entregue" }, { key: "observacao", label: "Observações" }],
+  [{ key: "pix", label: "Pix" }, null],
+];
+
+/** Padrão Smart — Modelo Fatura 4 térmica 80mm Epson T20. */
+export const FATURA_MODELO4_LAYOUT_PADRAO: Partial<FaturaModeloLayout> = {
+  exibirBordas: false,
+  tamanhoFonte: 12,
+  logoTamanhoPx: 120,
+  logoMargemEsq: 0,
+  logoMargemTopo: 0,
+  infoLab: true,
+  logo: true,
+  data: true,
+  usuario: true,
+  dadosOs: true,
+  cliente: true,
+  clienteEmail: true,
+  clienteTel: true,
+  clienteEnd: true,
+  saldoAnterior: true,
+  dentista: true,
+  osExterna: true,
+  numDente: true,
+  valorUnit: true,
+  subtotal: true,
+  formaPgto: true,
+  assinatura: true,
+  corDente: true,
+  desconto: true,
+  ultimoPgto: true,
+  finalizado: true,
+  observacao: true,
+  pix: true,
+  qtd: true,
+  servico: true,
+  numOs: true,
+  paciente: true,
+  totalServicos: true,
+  descontoServicos: true,
+  descontoFatura: true,
+  total: true,
+  condicaoPagamento: true,
+  pixQrTamanhoPx: 120,
+  pixQrFonte: 10,
+};
+
 const LEGADO_FATURA_MAP: Record<string, keyof FaturaModeloLayout> = {
   numFatura: "dadosOs",
   dataFatura: "data",
@@ -188,6 +259,16 @@ export function normalizarFaturaModeloLayout(
   base.pixQrFonte = clampNumero(base.pixQrFonte, 7, 20, FATURA_MODELO_LAYOUT_PADRAO.pixQrFonte);
 
   return base;
+}
+
+export function normalizarFaturaModelo4Layout(
+  valor?: Partial<FaturaModeloLayout> & Record<string, unknown> | null
+): FaturaModeloLayout {
+  return normalizarFaturaModeloLayout({
+    ...FATURA_MODELO_LAYOUT_PADRAO,
+    ...FATURA_MODELO4_LAYOUT_PADRAO,
+    ...(valor ?? {}),
+  });
 }
 
 function clampNumero(valor: number, min: number, max: number, padrao: number) {
@@ -328,4 +409,45 @@ export const PREVIEW_FATURA_AMOSTRA = {
     { parcela: "3 / 3", vencimento: "10/07/2022", forma: "Boleto", valor: "R$ 76,50" },
   ],
   observacao: "Observação de exemplo para a fatura.",
+};
+
+/** Amostra Smart — Fatura Modelo 4 térmica 80mm. */
+export const PREVIEW_FATURA_TERMICA_AMOSTRA = {
+  numFatura: 194,
+  data: "05/06/2022",
+  usuario: "Fernanda",
+  cliente: "Lab Ana Carla Atiah",
+  dentista: "Carlos Almeida",
+  telefones: "(33) 1111-0000 / (33) 98888-0000",
+  email: "lab@anaatiah.com",
+  endereco: "AV. Juscelino de Freitas, 0000 Centro",
+  ultimoPgto: "R$ 1.230,00 em 12/10/2021",
+  saldoAnterior: "R$ 450,00",
+  linhas: [
+    {
+      os: "10",
+      osExterna: "11111",
+      dataOs: "05/06/2022",
+      finalizado: "05/06/2022",
+      cor: "A3 - Vita",
+      servico: "Elemento Metalo Cerâmica",
+      dentes: "23, 24, 25, 27, 32, 34",
+      paciente: "Ana Clara Batistela",
+      qtd: "1",
+      unitario: "R$ 250,00",
+      desconto: "% 10,00",
+      subtotal: "R$ 225,00",
+    },
+  ],
+  subtotal: "R$ 225,00",
+  totalServicos: "R$ 250,00",
+  descontoServicos: "R$ 25,00",
+  descontoFatura: "R$ 0,00",
+  total: "R$ 225,00",
+  parcelas: [
+    { parcela: "1 / 3", vencimento: "10/06/2022", forma: "Boleto", valor: "R$ 75,00" },
+    { parcela: "2 / 3", vencimento: "10/07/2022", forma: "Boleto", valor: "R$ 75,00" },
+    { parcela: "3 / 3", vencimento: "10/08/2022", forma: "Boleto", valor: "R$ 75,00" },
+  ],
+  observacao: "Aqui vai as informações de faturamento",
 };
