@@ -245,7 +245,7 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
                       ) : null}
                     </tr>
                     {exibirMetaLinha ? (
-                      <tr>
+                      <tr style={estiloLinhaInferiorFaturaPreview()}>
                         <td
                           colSpan={
                             [
