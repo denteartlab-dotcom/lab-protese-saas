@@ -254,19 +254,19 @@ export function estiloLinhaFaturaPreview() {
   };
 }
 
-/** Linha divisória dentro da área de conteúdo (não ultrapassa a moldura A4). */
+/** Linha divisória até a moldura lateral (10 mm da folha), igual OS Modelo 1. */
 export function estiloLinhaDivisoriaFaturaPreview() {
   return {
-    width: "100%",
+    ...estiloLimiteLinhasFaturaPreview(),
     boxSizing: "border-box" as const,
     ...estiloLinhaFaturaPreview(),
   };
 }
 
-/** Linha cinza entre blocos (totais, pagamento, rodapé) — Smart Prótese. */
+/** Linha cinza entre blocos — mesma largura das divisórias pretas. */
 export function estiloLinhaDivisoriaCinzaFaturaPreview() {
   return {
-    width: "100%",
+    ...estiloLimiteLinhasFaturaPreview(),
     boxSizing: "border-box" as const,
     borderTopWidth: OS_REQUISICAO_LINHA_PREVIEW_PX,
     borderTopStyle: "solid" as const,
