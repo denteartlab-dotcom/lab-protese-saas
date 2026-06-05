@@ -10,9 +10,10 @@ import {
   type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
 import {
+  aplicarLayoutFaturaA4Compartilhado,
   formatoPorModeloFatura,
   layoutKeyModeloFatura,
-  lerLayoutModeloFatura,
+  lerLayoutFaturaA4Compartilhado,
   MODELOS_FATURA,
   nomeModeloFatura,
   persistirConfiguracoesFaturasServidor,
@@ -208,7 +209,9 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
       if (!ativo) return;
       setCfg(carregarConfigLaboratorio());
       setConfig(cfgFaturas);
-      setLayout(normalizarFaturaModeloLayout(lerLayoutModeloFatura(cfgFaturas, modeloId)));
+      setLayout(
+        normalizarFaturaModeloLayout(lerLayoutFaturaA4Compartilhado(cfgFaturas, modeloId))
+      );
       setCarregando(false);
     })();
     const recarregarLab = () => setCfg(carregarConfigLaboratorio());
@@ -228,10 +231,9 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
     setSalvando(true);
     setMensagem("");
     const layoutNorm = normalizarFaturaModeloLayout(layout);
-    const novaConfig: ConfiguracoesFaturas = {
-      ...config,
-      [layoutKey]: layoutNorm,
-    };
+    const novaConfig: ConfiguracoesFaturas = termica
+      ? { ...config, [layoutKey]: layoutNorm }
+      : aplicarLayoutFaturaA4Compartilhado(config, layoutNorm);
     setConfig(novaConfig);
     setLayout(layoutNorm);
     salvarConfiguracoesFaturas(novaConfig);

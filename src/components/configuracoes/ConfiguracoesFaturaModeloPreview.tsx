@@ -199,7 +199,7 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
             </div>
           </div>
 
-          {/* Bloco itens — Smart: linha em cima, dados sem borda interna, linha embaixo */}
+          {/* Bloco itens — Smart: linha em cima, cabeçalhos, linha, dados, linha embaixo */}
           <div style={{ marginTop: "2mm", width: "100%" }}>
             <LinhaSeparador />
             <div style={{ ...estiloTabelaMargemFaturaPreview(), fontSize: `${fsSmall}px` }}>
@@ -254,6 +254,14 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
                     ) : null}
                   </tr>
                 </thead>
+              </table>
+            </div>
+            <LinhaSeparador />
+            <div style={{ ...estiloTabelaMargemFaturaPreview(), fontSize: `${fsSmall}px` }}>
+              <table
+                className="w-full"
+                style={{ borderCollapse: "collapse", border: "none" }}
+              >
                 <tbody>
                   {amostra.linhas.map((linha) => (
                     <Fragment key={linha.os}>
@@ -461,47 +469,55 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
             </p>
           ) : null}
 
-          <div
-            className="mt-4 flex items-center justify-between gap-4"
-            style={{ fontSize: `${fsSmall}px` }}
-          >
-            {layout.pix ? (
-              <div className="flex items-center gap-3">
-                {layout.pixQrImagem?.startsWith("data:image") ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={layout.pixQrImagem}
-                    alt="QR Code PIX"
-                    style={{
-                      width: layout.pixQrTamanhoPx,
-                      height: layout.pixQrTamanhoPx,
-                      objectFit: "contain",
-                    }}
-                  />
-                ) : (
-                  <div
-                    className="flex items-center justify-center border border-dashed border-slate-400 bg-slate-100 text-slate-500"
-                    style={{
-                      width: layout.pixQrTamanhoPx,
-                      height: layout.pixQrTamanhoPx,
-                      fontSize: Math.max(7, layout.pixQrFonte - 2),
-                    }}
-                  >
-                    QR PIX
-                  </div>
-                )}
-                <span style={{ fontSize: `${layout.pixQrFonte}px` }}>Pagar com PIX</span>
+          {(layout.pix || layout.assinatura) && (
+            <div
+              className="relative mt-4 grid grid-cols-3 items-end"
+              style={{
+                fontSize: `${fsSmall}px`,
+                minHeight: layout.pix ? `${layout.pixQrTamanhoPx}px` : undefined,
+              }}
+            >
+              <div className="flex items-center justify-start gap-3 self-end">
+                {layout.pix ? (
+                  <>
+                    {layout.pixQrImagem?.startsWith("data:image") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={layout.pixQrImagem}
+                        alt="QR Code PIX"
+                        style={{
+                          width: layout.pixQrTamanhoPx,
+                          height: layout.pixQrTamanhoPx,
+                          objectFit: "contain",
+                        }}
+                      />
+                    ) : (
+                      <div
+                        className="flex items-center justify-center border border-dashed border-slate-400 bg-slate-100 text-slate-500"
+                        style={{
+                          width: layout.pixQrTamanhoPx,
+                          height: layout.pixQrTamanhoPx,
+                          fontSize: Math.max(7, layout.pixQrFonte - 2),
+                        }}
+                      >
+                        QR PIX
+                      </div>
+                    )}
+                    <span style={{ fontSize: `${layout.pixQrFonte}px` }}>Pagar com PIX</span>
+                  </>
+                ) : null}
               </div>
-            ) : (
+              {layout.assinatura ? (
+                <div className="justify-self-center text-center">
+                  <div className="mx-auto mb-1 w-48 border-t border-black" />
+                  <p>Recebi o(s) serviço(s) descritos acima</p>
+                </div>
+              ) : (
+                <div />
+              )}
               <div />
-            )}
-            {layout.assinatura ? (
-              <div className="flex-1 text-center">
-                <div className="mx-auto mb-1 w-48 border-t border-black" />
-                <p>Recebi o(s) serviço(s) descritos acima</p>
-              </div>
-            ) : null}
-          </div>
+            </div>
+          )}
 
           <LinhaSeparadorCinza marginTop="3mm" />
         </div>

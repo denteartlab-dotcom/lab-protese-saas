@@ -83,6 +83,30 @@ export function lerLayoutModeloFatura(
   return config[layoutKeyModeloFatura(id)];
 }
 
+/** Modelos A4 1–3 compartilham o mesmo layout visual (base: Modelo 1). */
+export function lerLayoutFaturaA4Compartilhado(
+  config: ConfiguracoesFaturas,
+  id: ModeloFaturaId
+): FaturaModeloLayout {
+  if (formatoPorModeloFatura(id) === "termica") {
+    return lerLayoutModeloFatura(config, id);
+  }
+  return normalizarFaturaModeloLayout(config.layoutModelo1);
+}
+
+export function aplicarLayoutFaturaA4Compartilhado(
+  config: ConfiguracoesFaturas,
+  layout: FaturaModeloLayout
+): ConfiguracoesFaturas {
+  const norm = normalizarFaturaModeloLayout(layout);
+  return {
+    ...config,
+    layoutModelo1: norm,
+    layoutModelo2: { ...norm },
+    layoutModelo3: { ...norm },
+  };
+}
+
 export function normalizarConfiguracoesFaturas(
   valor?: Partial<ConfiguracoesFaturas> | null
 ): ConfiguracoesFaturas {
@@ -122,7 +146,7 @@ export function normalizarConfiguracoesFaturas(
     valor.layoutModelo4 ??
     (legadoLayouts.layouts?.modelo4 as Partial<FaturaModeloLayout> | undefined);
 
-  return {
+  const base: ConfiguracoesFaturas = {
     modeloPadrao,
     duasVias,
     layoutModelo1: normalizarFaturaModeloLayout(layout1),
@@ -132,6 +156,8 @@ export function normalizarConfiguracoesFaturas(
       layout4 ?? CONFIG_FATURAS_PADRAO.layoutModelo4
     ),
   };
+
+  return aplicarLayoutFaturaA4Compartilhado(base, base.layoutModelo1);
 }
 
 function lerConfigFaturasDoStorage(): ConfiguracoesFaturas {
