@@ -1,0 +1,383 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { Minus, Plus } from "lucide-react";
+import { Button } from "@/components/ui";
+import { ConfiguracoesFaturaModeloPreview } from "@/components/configuracoes/ConfiguracoesFaturaModeloPreview";
+import {
+  carregarConfigLaboratorio,
+  type ConfigLaboratorio,
+} from "@/lib/configuracoes-lab";
+import {
+  formatoPorModeloFatura,
+  layoutKeyModeloFatura,
+  lerLayoutModeloFatura,
+  MODELOS_FATURA,
+  nomeModeloFatura,
+  persistirConfiguracoesFaturasServidor,
+  salvarConfiguracoesFaturas,
+  sincronizarConfiguracoesFaturasDoServidor,
+  type ConfiguracoesFaturas,
+  type ModeloFaturaId,
+} from "@/lib/configuracoes-faturas";
+import {
+  CAMPOS_FATURA_GERAL,
+  CAMPOS_FATURA_PARES,
+  normalizarFaturaModeloLayout,
+  type FaturaModeloLayout,
+} from "@/lib/fatura-modelo-layout";
+import { normalizarCorBorda } from "@/lib/os-modelo1-layout";
+
+type Props = {
+  modeloId: ModeloFaturaId;
+};
+
+function CampoNumero({
+  label,
+  value,
+  onChange,
+  min = 0,
+  max = 200,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+}) {
+  return (
+    <div>
+      <span className="mb-1 block text-[11px] text-slate-600">{label}</span>
+      <div className="flex overflow-hidden rounded border border-slate-300 bg-white">
+        <button
+          type="button"
+          className="flex h-8 w-8 items-center justify-center border-r border-slate-200 text-slate-600 hover:bg-slate-50"
+          onClick={() => onChange(Math.max(min, value - 1))}
+          aria-label={`Diminuir ${label}`}
+        >
+          <Minus className="h-3.5 w-3.5" />
+        </button>
+        <input
+          type="number"
+          min={min}
+          max={max}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value) || min)}
+          className="h-8 w-full min-w-0 border-0 px-2 text-center text-[12px] outline-none"
+        />
+        <button
+          type="button"
+          className="flex h-8 w-8 items-center justify-center border-l border-slate-200 text-slate-600 hover:bg-slate-50"
+          onClick={() => onChange(Math.min(max, value + 1))}
+          aria-label={`Aumentar ${label}`}
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CheckboxCampo({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center gap-2 py-0.5 text-[12px] text-slate-800">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-3.5 w-3.5 rounded border-slate-300 accent-[#5cb85c]"
+      />
+      {label}
+    </label>
+  );
+}
+
+export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
+  const [cfg, setCfg] = useState<ConfigLaboratorio | null>(null);
+  const [config, setConfig] = useState<ConfiguracoesFaturas | null>(null);
+  const [layout, setLayout] = useState<FaturaModeloLayout | null>(null);
+  const [salvando, setSalvando] = useState(false);
+  const [mensagem, setMensagem] = useState("");
+  const [carregando, setCarregando] = useState(true);
+
+  const modeloValido = MODELOS_FATURA.some((m) => m.id === modeloId);
+  const termica = formatoPorModeloFatura(modeloId) === "termica";
+  const layoutKey = layoutKeyModeloFatura(modeloId);
+  const nomeModelo = nomeModeloFatura(modeloId);
+
+  useEffect(() => {
+    let ativo = true;
+    void (async () => {
+      await import("@/lib/lab-config-sync").then((m) =>
+        m.sincronizarConfigLaboratorioDoServidor()
+      );
+      const cfgFaturas = await sincronizarConfiguracoesFaturasDoServidor();
+      if (!ativo) return;
+      setCfg(carregarConfigLaboratorio());
+      setConfig(cfgFaturas);
+      setLayout(normalizarFaturaModeloLayout(lerLayoutModeloFatura(cfgFaturas, modeloId)));
+      setCarregando(false);
+    })();
+    const recarregarLab = () => setCfg(carregarConfigLaboratorio());
+    window.addEventListener("lab-config-atualizada", recarregarLab);
+    return () => {
+      ativo = false;
+      window.removeEventListener("lab-config-atualizada", recarregarLab);
+    };
+  }, [modeloId]);
+
+  function patchLayout(patch: Partial<FaturaModeloLayout>) {
+    setLayout((atual) => (atual ? normalizarFaturaModeloLayout({ ...atual, ...patch }) : atual));
+  }
+
+  async function salvar() {
+    if (!config || !layout) return;
+    setSalvando(true);
+    setMensagem("");
+    const layoutNorm = normalizarFaturaModeloLayout(layout);
+    const novaConfig: ConfiguracoesFaturas = {
+      ...config,
+      [layoutKey]: layoutNorm,
+    };
+    setConfig(novaConfig);
+    setLayout(layoutNorm);
+    salvarConfiguracoesFaturas(novaConfig);
+    try {
+      await persistirConfiguracoesFaturasServidor(novaConfig);
+      setMensagem("Configuração salva com sucesso.");
+    } catch {
+      setMensagem(
+        "Salvo neste navegador, mas não foi possível gravar no servidor. Tente novamente."
+      );
+    } finally {
+      setSalvando(false);
+      window.setTimeout(() => setMensagem(""), 5000);
+    }
+  }
+
+  if (!modeloValido) {
+    return (
+      <p className="p-6 text-sm text-slate-600">
+        Modelo não encontrado.{" "}
+        <Link href="/app/configuracoes?aba=faturas" className="text-[#4a90d9] hover:underline">
+          Voltar para Faturas
+        </Link>
+      </p>
+    );
+  }
+
+  if (carregando || !cfg || !config || !layout) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#4a4f56]">
+        <p className="text-sm text-slate-300">Carregando…</p>
+      </div>
+    );
+  }
+
+  const corLinha = normalizarCorBorda(layout.bordas);
+
+  return (
+    <div className="flex h-screen w-full flex-col overflow-hidden lg:flex-row">
+      <aside className="flex h-full w-full shrink-0 flex-col border-b border-slate-300 bg-[#d9dde3] lg:w-[360px] lg:border-b-0 lg:border-r">
+        <div className="flex-1 space-y-3 overflow-y-auto p-4">
+          {!termica ? (
+            <div className="grid grid-cols-2 gap-2">
+              <CampoNumero
+                label="Margem Sup"
+                value={layout.margemSuperior}
+                onChange={(v) => patchLayout({ margemSuperior: v })}
+                max={40}
+              />
+              <CampoNumero
+                label="Margem Inf"
+                value={layout.margemInferior}
+                onChange={(v) => patchLayout({ margemInferior: v })}
+                max={40}
+              />
+              <CampoNumero
+                label="Margem Esq"
+                value={layout.margemEsquerda}
+                onChange={(v) => patchLayout({ margemEsquerda: v })}
+                max={40}
+              />
+              <CampoNumero
+                label="Margem Dir"
+                value={layout.margemDireita}
+                onChange={(v) => patchLayout({ margemDireita: v })}
+                max={40}
+              />
+            </div>
+          ) : (
+            <>
+              <CampoNumero
+                label="Tamanho da Logo (px)"
+                value={layout.logoTamanhoPx}
+                onChange={(v) => patchLayout({ logoTamanhoPx: v })}
+                min={40}
+                max={160}
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <CampoNumero
+                  label="Logo Margem Esq"
+                  value={layout.logoMargemEsq}
+                  onChange={(v) => patchLayout({ logoMargemEsq: v })}
+                  max={40}
+                />
+                <CampoNumero
+                  label="Logo Margem Topo"
+                  value={layout.logoMargemTopo}
+                  onChange={(v) => patchLayout({ logoMargemTopo: v })}
+                  max={40}
+                />
+              </div>
+            </>
+          )}
+
+          <CampoNumero
+            label="Tamanho da Fonte"
+            value={layout.tamanhoFonte}
+            onChange={(v) => patchLayout({ tamanhoFonte: v })}
+            min={7}
+            max={14}
+          />
+
+          <div>
+            <span className="mb-1 block text-[11px] font-semibold text-slate-700">
+              Cor das linhas
+            </span>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={corLinha.length === 7 ? corLinha : "#111111"}
+                onChange={(e) => patchLayout({ bordas: e.target.value })}
+                className="h-8 w-10 shrink-0 cursor-pointer rounded border border-slate-300 bg-white p-0.5"
+                title="Cor das linhas"
+              />
+              <input
+                type="text"
+                value={layout.bordas}
+                onChange={(e) => patchLayout({ bordas: e.target.value })}
+                placeholder="#111111"
+                className="h-8 min-w-0 flex-1 rounded border border-slate-300 bg-white px-2 text-[12px] outline-none focus:border-[#4a90d9]"
+              />
+            </div>
+          </div>
+
+          <CheckboxCampo
+            label="Bordas"
+            checked={layout.exibirBordas}
+            onChange={(v) => patchLayout({ exibirBordas: v })}
+          />
+
+          <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+            {CAMPOS_FATURA_GERAL.map(({ key, label }) => (
+              <CheckboxCampo
+                key={key}
+                label={label}
+                checked={Boolean(layout[key])}
+                onChange={(v) => patchLayout({ [key]: v })}
+              />
+            ))}
+          </div>
+
+          <div className="space-y-1 border-t border-slate-300/80 pt-2">
+            {CAMPOS_FATURA_PARES.map(([esq, dir], indice) => (
+              <div key={indice} className="grid grid-cols-2 gap-x-2">
+                <CheckboxCampo
+                  label={esq.label}
+                  checked={Boolean(layout[esq.key])}
+                  onChange={(v) => patchLayout({ [esq.key]: v })}
+                />
+                {dir ? (
+                  <CheckboxCampo
+                    label={dir.label}
+                    checked={Boolean(layout[dir.key])}
+                    onChange={(v) => patchLayout({ [dir.key]: v })}
+                  />
+                ) : (
+                  <span />
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-2 border-t border-slate-300/80 pt-2">
+            <CheckboxCampo
+              label="Modelo padrão"
+              checked={config.modeloPadrao === modeloId}
+              onChange={(v) =>
+                setConfig((atual) => {
+                  if (!atual) return atual;
+                  return {
+                    ...atual,
+                    modeloPadrao: v
+                      ? modeloId
+                      : atual.modeloPadrao === modeloId
+                        ? "modelo1"
+                        : atual.modeloPadrao,
+                  };
+                })
+              }
+            />
+            <CheckboxCampo
+              label="Duas vias"
+              checked={config.duasVias[modeloId]}
+              onChange={(v) =>
+                setConfig((atual) =>
+                  atual
+                    ? {
+                        ...atual,
+                        duasVias: { ...atual.duasVias, [modeloId]: v },
+                      }
+                    : atual
+                )
+              }
+            />
+          </div>
+        </div>
+
+        <div className="shrink-0 border-t border-slate-300 bg-[#d9dde3] p-4">
+          <Button
+            type="button"
+            onClick={() => void salvar()}
+            disabled={salvando}
+            className="w-full rounded bg-[#5cb85c] py-2.5 text-sm font-normal text-white hover:bg-[#4cae4c]"
+          >
+            {salvando ? "Salvando…" : "Salvar Alterações"}
+          </Button>
+        </div>
+      </aside>
+
+      <div className="flex min-h-0 flex-1 flex-col bg-[#4a4f56]">
+        {mensagem ? (
+          <div className="shrink-0 bg-[#5cb85c] px-4 py-2.5 text-center text-[13px] font-medium text-white">
+            {mensagem}
+          </div>
+        ) : null}
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[#3d4248] bg-[#4a4f56] px-4 py-2.5">
+          <span className="rounded border border-[#5a6068] bg-[#5a6068] px-3 py-1.5 text-[12px] text-white">
+            {nomeModelo}
+          </span>
+          <Link
+            href="/app/configuracoes?aba=faturas"
+            className="rounded bg-[#5a6068] px-5 py-2 text-[12px] text-white hover:bg-[#6a7078]"
+          >
+            Voltar
+          </Link>
+        </div>
+        <div className="min-h-0 flex-1 overflow-auto p-6">
+          <ConfiguracoesFaturaModeloPreview cfg={cfg} layout={layout} termica={termica} />
+        </div>
+      </div>
+    </div>
+  );
+}

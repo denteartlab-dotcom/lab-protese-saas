@@ -46,6 +46,7 @@ export const CHAVES_ARMAZENAMENTO_LAB = [
   "labProteseHorarioFuncionamento",
   "labProteseConfiguracoesGerais",
   "labProteseConfiguracoesOs",
+  "labProteseConfiguracoesFaturas",
   "labProteseOsBordaDesligada_v3",
   "labProteseLabTelefone",
   "labProteseControleProdutos",
