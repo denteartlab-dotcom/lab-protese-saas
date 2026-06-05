@@ -101,6 +101,90 @@ function CheckboxCampo({
   );
 }
 
+function PixQrConfiguracao({
+  layout,
+  patchLayout,
+}: {
+  layout: FaturaModeloLayout;
+  patchLayout: (patch: Partial<FaturaModeloLayout>) => void;
+}) {
+  if (!layout.pix) return null;
+
+  function escolherImagem(file: File | undefined) {
+    if (!file || !file.type.startsWith("image/")) return;
+    if (file.size > 500_000) {
+      window.alert("Imagem muito grande. Use um arquivo de até 500 KB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = typeof reader.result === "string" ? reader.result : "";
+      patchLayout({ pixQrImagem: url });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  const previewPx = Math.min(layout.pixQrTamanhoPx, 120);
+
+  return (
+    <div className="space-y-2 rounded border border-slate-300/80 bg-white/60 p-3">
+      <span className="block text-[11px] font-semibold text-slate-700">PIX — QR Code</span>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="cursor-pointer rounded border border-slate-300 bg-white px-3 py-1.5 text-[11px] text-slate-700 hover:bg-slate-50">
+          Escolher imagem
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              escolherImagem(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
+        </label>
+        {layout.pixQrImagem ? (
+          <button
+            type="button"
+            className="text-[11px] text-red-600 hover:underline"
+            onClick={() => patchLayout({ pixQrImagem: "" })}
+          >
+            Remover
+          </button>
+        ) : null}
+      </div>
+      {layout.pixQrImagem?.startsWith("data:image") ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={layout.pixQrImagem}
+          alt="Prévia QR PIX"
+          className="border border-slate-200 bg-white"
+          style={{
+            width: previewPx,
+            height: previewPx,
+            objectFit: "contain",
+          }}
+        />
+      ) : (
+        <p className="text-[10px] text-slate-500">Nenhuma imagem selecionada.</p>
+      )}
+      <CampoNumero
+        label="Tamanho da imagem (px)"
+        value={layout.pixQrTamanhoPx}
+        onChange={(v) => patchLayout({ pixQrTamanhoPx: v })}
+        min={32}
+        max={240}
+      />
+      <CampoNumero
+        label="Tamanho da fonte (legenda)"
+        value={layout.pixQrFonte}
+        onChange={(v) => patchLayout({ pixQrFonte: v })}
+        min={7}
+        max={20}
+      />
+    </div>
+  );
+}
+
 export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
   const [cfg, setCfg] = useState<ConfigLaboratorio | null>(null);
   const [config, setConfig] = useState<ConfiguracoesFaturas | null>(null);
@@ -236,6 +320,8 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
                 ))}
               </div>
 
+              <PixQrConfiguracao layout={layout} patchLayout={patchLayout} />
+
               <div>
                 <span className="mb-1 block text-[11px] font-semibold text-slate-700">
                   Mensagens
@@ -329,6 +415,7 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
                   </div>
                 ))}
               </div>
+              <PixQrConfiguracao layout={layout} patchLayout={patchLayout} />
             </>
           )}
         </div>

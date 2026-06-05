@@ -46,6 +46,9 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
   const amostra = PREVIEW_FATURA_AMOSTRA;
   const fs = layout.tamanhoFonte;
   const fsSmall = Math.max(7, fs - 2);
+  const fsMetaLinha = Math.max(9, fs - 3);
+  const exibirMetaLinha =
+    layout.data || layout.finalizado || layout.osExterna || layout.corDente;
   const cab = normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao);
   const textos = montarTextosCabecalhoRequisicao(cfg, lab, cab);
   const escalaLogo = escalaLogoMultiplicador(cfg.logoTamanho);
@@ -211,7 +214,7 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
                   <Fragment key={linha.os}>
                     <tr
                       style={
-                        indice < amostra.linhas.length - 1
+                        !exibirMetaLinha && indice < amostra.linhas.length - 1
                           ? estiloLinhaInferiorFaturaPreview()
                           : undefined
                       }
@@ -241,8 +244,8 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
                         <td className="py-0.5 pl-1 text-right align-top">{linha.subtotal}</td>
                       ) : null}
                     </tr>
-                    {(layout.data || layout.finalizado || layout.osExterna || layout.corDente) && (
-                      <tr style={estiloLinhaInferiorFaturaPreview()}>
+                    {exibirMetaLinha ? (
+                      <tr>
                         <td
                           colSpan={
                             [
@@ -256,7 +259,8 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
                               layout.subtotal,
                             ].filter(Boolean).length
                           }
-                          className="py-1 text-[8px] text-slate-700"
+                          className="py-0.5 text-slate-700"
+                          style={{ fontSize: `${fsMetaLinha}px` }}
                         >
                           {layout.data ? (
                             <span className="mr-3">
@@ -284,7 +288,7 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
                           ) : null}
                         </td>
                       </tr>
-                    )}
+                    ) : null}
                   </Fragment>
                 ))}
               </tbody>
@@ -380,10 +384,32 @@ export function ConfiguracoesFaturaModeloPreview({ cfg, layout, termica }: Props
           >
             {layout.pix ? (
               <div className="flex flex-col items-center">
-                <div className="flex h-16 w-16 items-center justify-center border border-slate-400 bg-slate-100 text-[8px] text-slate-500">
-                  QR PIX
-                </div>
-                <span className="mt-1">Pagar com PIX</span>
+                {layout.pixQrImagem?.startsWith("data:image") ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={layout.pixQrImagem}
+                    alt="QR Code PIX"
+                    style={{
+                      width: layout.pixQrTamanhoPx,
+                      height: layout.pixQrTamanhoPx,
+                      objectFit: "contain",
+                    }}
+                  />
+                ) : (
+                  <div
+                    className="flex items-center justify-center border border-dashed border-slate-400 bg-slate-100 text-slate-500"
+                    style={{
+                      width: layout.pixQrTamanhoPx,
+                      height: layout.pixQrTamanhoPx,
+                      fontSize: Math.max(7, layout.pixQrFonte - 2),
+                    }}
+                  >
+                    QR PIX
+                  </div>
+                )}
+                <span className="mt-1" style={{ fontSize: `${layout.pixQrFonte}px` }}>
+                  Pagar com PIX
+                </span>
               </div>
             ) : (
               <div />

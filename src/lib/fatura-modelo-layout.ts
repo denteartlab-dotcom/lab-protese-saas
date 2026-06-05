@@ -42,6 +42,12 @@ export type FaturaModeloLayout = {
   observacao: boolean;
   assinatura: boolean;
   pix: boolean;
+  /** Imagem do QR Code PIX (data URL). */
+  pixQrImagem: string;
+  /** Largura/altura do QR Code em pixels. */
+  pixQrTamanhoPx: number;
+  /** Tamanho da fonte da legenda «Pagar com PIX». */
+  pixQrFonte: number;
   qtd: boolean;
   servico: boolean;
   totalServicos: boolean;
@@ -85,6 +91,9 @@ export const FATURA_MODELO_LAYOUT_PADRAO: FaturaModeloLayout = {
   observacao: true,
   assinatura: true,
   pix: true,
+  pixQrImagem: "",
+  pixQrTamanhoPx: 64,
+  pixQrFonte: 10,
   qtd: true,
   servico: true,
   totalServicos: true,
@@ -169,9 +178,22 @@ export function normalizarFaturaModeloLayout(
       base.bordas = normalizarCorBorda(String(raw));
     } else if (key === "mensagem") {
       base.mensagem = String(raw ?? "");
+    } else if (key === "pixQrImagem") {
+      const url = String(raw ?? "");
+      base.pixQrImagem = url.startsWith("data:image") ? url : "";
     }
   }
+
+  base.pixQrTamanhoPx = clampNumero(base.pixQrTamanhoPx, 32, 240, FATURA_MODELO_LAYOUT_PADRAO.pixQrTamanhoPx);
+  base.pixQrFonte = clampNumero(base.pixQrFonte, 7, 20, FATURA_MODELO_LAYOUT_PADRAO.pixQrFonte);
+
   return base;
+}
+
+function clampNumero(valor: number, min: number, max: number, padrao: number) {
+  const n = Number(valor);
+  if (!Number.isFinite(n)) return padrao;
+  return Math.min(max, Math.max(min, n));
 }
 
 /** Estilos de borda/página — mesma lógica do OS Modelo 1. */
