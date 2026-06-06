@@ -49,6 +49,8 @@ import {
   nomeModeloEtiqueta,
   type ModeloEtiquetaId,
 } from "@/lib/configuracoes-etiquetas";
+import { extrairDataPrazoBr } from "@/lib/os-itens-impressao";
+import { gerarPngCode39DataUrl } from "@/lib/code39-barcode";
 
 type PdfItem = {
   qtd: string;
@@ -1604,68 +1606,81 @@ type EscalaEtiquetaOs = {
   fsTexto: number;
   fsOs: number;
   barcodeAltura: number;
-  barcodeEstreito: number;
   espacoLinha: number;
   gapAposBarcode: number;
+  barcodeNarrowPx: number;
+  barcodeHeightPx: number;
 };
 
 function escalaEtiquetaOs(larguraMm: number): EscalaEtiquetaOs {
   const r = larguraMm / 54;
   return {
-    margem: Math.max(1, 2 * r),
-    fsTexto: Math.max(4, 7.5 * r),
-    fsOs: Math.max(5, 11 * r),
-    barcodeAltura: Math.max(3.5, 7 * r),
-    barcodeEstreito: Math.max(0.12, 0.24 * r),
-    espacoLinha: Math.max(2.1, 3.6 * r),
-    gapAposBarcode: Math.max(0.8, 1.8 * r),
+    margem: Math.max(1.2, 3 * r),
+    fsTexto: Math.max(5, 9 * r),
+    fsOs: Math.max(7, 13 * r),
+    barcodeAltura: Math.max(6, 11 * r),
+    espacoLinha: Math.max(2.8, 4.5 * r),
+    gapAposBarcode: Math.max(1.5, 3 * r),
+    barcodeNarrowPx: Math.max(3, Math.round(5 * r)),
+    barcodeHeightPx: Math.max(80, Math.round(160 * r)),
   };
 }
 
-function larguraCode39(value: string, estreito: number) {
-  const content = `*${value.toUpperCase().replace(/[^0-9A-Z-. ]/g, "")}*`;
-  const wide = estreito * 3;
-  let cursor = 0;
-  for (const char of content) {
-    const pattern = code39[char] || code39["-"];
-    pattern.split("").forEach((part, index) => {
-      const width = part === "w" ? wide : estreito;
-      if (index % 2 === 0) {
-        cursor += width;
-      }
-    });
-    cursor += estreito;
-  }
-  return cursor;
+function gapLinhaEtiqueta(y: number, fs: number, esc: EscalaEtiquetaOs) {
+  return y + Math.max(0.5, esc.espacoLinha - fs * 0.38);
 }
 
-function drawCode39Etiqueta(
-  pdf: {
-    rect: (x: number, y: number, w: number, h: number, style?: string) => void;
-    setFillColor: (r: number, g?: number, b?: number) => void;
-  },
-  value: string,
+function prazoEtiquetaOs(data: PdfOsData) {
+  const fontes = [
+    data.prazo,
+    data.prazoLaboratorio,
+    data.prazoDentista,
+    data.prazoLinhaServico,
+    data.finalizado,
+    data.dataEntrada,
+  ];
+  for (const fonte of fontes) {
+    const dataFmt = extrairDataPrazoBr(fonte);
+    if (dataFmt) return dataFmt;
+  }
+  const nota = data.itens.find((item) => item.notasAbaixo?.length)?.notasAbaixo?.[0];
+  return extrairDataPrazoBr(nota);
+}
+
+function linhaEtiquetaRotulo(
+  pdf: PdfRenderApi,
+  rotulo: string,
+  valor: string,
   x: number,
   y: number,
-  estreito: number,
-  altura: number
+  larguraUtil: number,
+  fs: number,
+  alturaMax: number
 ) {
-  const content = `*${value.toUpperCase().replace(/[^0-9A-Z-. ]/g, "")}*`;
-  const wide = estreito * 3;
-  let cursor = x;
+  if (y > alturaMax) return y;
 
-  pdf.setFillColor(0, 0, 0);
-  for (const char of content) {
-    const pattern = code39[char] || code39["-"];
-    pattern.split("").forEach((part, index) => {
-      const width = part === "w" ? wide : estreito;
-      if (index % 2 === 0) {
-        pdf.rect(cursor, y, width, altura, "F");
-      }
-      cursor += width;
-    });
-    cursor += estreito;
+  pdf.setFontSize(fs);
+  pdf.setFont("helvetica", "bold");
+  pdf.text(rotulo, x, y);
+  const rotuloW = pdf.getTextWidth(rotulo);
+
+  pdf.setFont("helvetica", "normal");
+  const texto = valor.trim();
+  if (!texto) {
+    return y + fs * 0.45;
   }
+
+  const partes = pdf.splitTextToSize(texto, Math.max(4, larguraUtil - rotuloW));
+  pdf.text(partes[0] || "", x + rotuloW, y);
+  y += fs * 0.45;
+
+  for (let i = 1; i < partes.length; i++) {
+    if (y > alturaMax) break;
+    pdf.text(partes[i], x, y);
+    y += fs * 0.45;
+  }
+
+  return y;
 }
 
 function textoEtiquetaOs(
@@ -1683,12 +1698,12 @@ function textoEtiquetaOs(
   for (const parte of partes) {
     if (y > alturaMax) return y;
     pdf.text(parte, x, y);
-    y += fs * 0.42 + 0.35;
+    y += fs * 0.45;
   }
   return y;
 }
 
-function renderEtiquetaOs(
+async function renderEtiquetaOs(
   pdf: PdfRenderApi,
   data: PdfOsData,
   modeloEtiqueta: ModeloEtiquetaId
@@ -1700,31 +1715,89 @@ function renderEtiquetaOs(
   const alturaMax = alturaMm - margem;
   const item = data.itens[0];
   const codigoBarras = String(data.numeroOs);
-
   const barcodeY = margem;
-  drawCode39Etiqueta(pdf, codigoBarras, margem, barcodeY, esc.barcodeEstreito, esc.barcodeAltura);
 
-  const barcodeW = larguraCode39(codigoBarras, esc.barcodeEstreito);
+  const barcodeImg = gerarPngCode39DataUrl(codigoBarras, {
+    narrowPx: esc.barcodeNarrowPx,
+    heightPx: esc.barcodeHeightPx,
+  });
+
+  let barcodeW = 0;
+  if (barcodeImg) {
+    barcodeW = (barcodeImg.widthPx / barcodeImg.heightPx) * esc.barcodeAltura;
+    pdf.addImage(
+      barcodeImg.dataUrl,
+      "PNG",
+      margem,
+      barcodeY,
+      barcodeW,
+      esc.barcodeAltura
+    );
+  } else {
+    drawCode39(pdf, codigoBarras, margem, barcodeY);
+    barcodeW = 28 * (larguraMm / 54);
+  }
+
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(esc.fsOs);
-  const osX = margem + barcodeW + Math.max(0.6, 1.2 * (larguraMm / 54));
-  pdf.text(codigoBarras, osX, margem + esc.barcodeAltura * 0.82);
+  const osX = margem + barcodeW + Math.max(0.8, 1.5 * (larguraMm / 54));
+  pdf.text(codigoBarras, osX, margem + esc.barcodeAltura * 0.78);
 
   let y = margem + esc.barcodeAltura + esc.gapAposBarcode;
 
-  const linhas: string[] = [];
-  if (data.cliente) linhas.push(`Cliente: ${data.cliente}`);
-  if (data.paciente) linhas.push(`Paciente: ${data.paciente}`);
+  if (data.cliente) {
+    y = linhaEtiquetaRotulo(
+      pdf,
+      "Cliente: ",
+      data.cliente,
+      margem,
+      y,
+      larguraUtil,
+      esc.fsTexto,
+      alturaMax
+    );
+    y = gapLinhaEtiqueta(y, esc.fsTexto, esc);
+  }
+
+  if (data.paciente) {
+    y = linhaEtiquetaRotulo(
+      pdf,
+      "Paciente: ",
+      data.paciente,
+      margem,
+      y,
+      larguraUtil,
+      esc.fsTexto,
+      alturaMax
+    );
+    y = gapLinhaEtiqueta(y, esc.fsTexto, esc);
+  }
+
   if (item?.descricao) {
     const qtd = item.qtd?.trim() || "1";
-    linhas.push(`${qtd} ${item.descricao}`.trim());
+    y = textoEtiquetaOs(
+      pdf,
+      `${qtd} ${item.descricao}`.trim(),
+      margem,
+      y,
+      larguraUtil,
+      esc.fsTexto,
+      alturaMax
+    );
+    y = gapLinhaEtiqueta(y, esc.fsTexto, esc);
   }
-  if (data.prazo) linhas.push(`Prazo: ${data.prazo}`);
 
-  for (const linha of linhas) {
-    y = textoEtiquetaOs(pdf, linha, margem, y, larguraUtil, esc.fsTexto, alturaMax);
-    y += esc.espacoLinha * 0.12;
-  }
+  const prazo = prazoEtiquetaOs(data);
+  linhaEtiquetaRotulo(
+    pdf,
+    "Prazo: ",
+    prazo,
+    margem,
+    y,
+    larguraUtil,
+    esc.fsTexto,
+    alturaMax
+  );
 
   return y;
 }
@@ -1839,10 +1912,10 @@ export function PdfOsViewer({
         const { larguraMm, alturaMm } = dimensoesModeloEtiqueta(modeloEtiqueta);
         const pdf = new jsPDF({ unit: "mm", format: [larguraMm, alturaMm] });
         const api = pdf as unknown as PdfRenderApi;
-        renderEtiquetaOs(api, dadosPdf, modeloEtiqueta);
+        await renderEtiquetaOs(api, dadosPdf, modeloEtiqueta);
         if (duasVias) {
           pdf.addPage([larguraMm, alturaMm]);
-          renderEtiquetaOs(api, dadosPdf, modeloEtiqueta);
+          await renderEtiquetaOs(api, dadosPdf, modeloEtiqueta);
         }
         const blob = pdf.output("blob");
         url = URL.createObjectURL(blob);
