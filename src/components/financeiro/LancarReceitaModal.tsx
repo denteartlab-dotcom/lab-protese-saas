@@ -7,7 +7,14 @@ import {
   AnexosReciboCampo,
   type AnexosReciboCampoRef,
 } from "@/components/financeiro/AnexosReciboCampo";
-import { ANEXOS_FINANCEIRO_VAZIOS, type AnexoDespesa } from "@/lib/lancamento-despesa";
+import {
+  ANEXOS_FINANCEIRO_VAZIOS,
+  carregarEntidadesDespesaLocal,
+  labelNomeEntidadeDespesa,
+  TIPOS_FORNECEDOR_DESPESA,
+  type AnexoDespesa,
+  type EntidadeDespesa,
+} from "@/lib/lancamento-despesa";
 import { CampoDataBr } from "@/components/ui";
 import { dateToBrShort } from "@/lib/datas-br";
 import { parseNotaFiscalArquivo } from "@/lib/nfe-import";
@@ -44,6 +51,7 @@ export type ParcelaReceitaLinha = {
 
 export type LancarReceitaPayload = {
   clienteId: string;
+  entidadeNome?: string;
   tipoCliente: string;
   categoria: string;
   dataLancamento: string;
@@ -140,13 +148,7 @@ const cfgModo = {
     tipoPadrao: "fornecedores",
     categoriaPadrao: "Guia de Simples Nacional",
     dataModal: "lancar-despesa-smart",
-    tiposEntidade: [
-      { value: "fornecedores", label: "Fornecedores" },
-      { value: "colaboradores", label: "Colaboradores" },
-      { value: "prestadores", label: "Prestadores" },
-      { value: "entregadores", label: "Entregadores" },
-      { value: "clientes", label: "Clientes" },
-    ],
+    tiposEntidade: TIPOS_FORNECEDOR_DESPESA,
   },
 } as const;
 
@@ -192,6 +194,7 @@ export function LancarReceitaModal({
     texto: string;
   } | null>(null);
   const [portalPronto, setPortalPronto] = useState(false);
+  const [entidadesDespesa, setEntidadesDespesa] = useState<ClienteOpt[]>([]);
   const [cadastrando, setCadastrando] = useState(false);
   const submitLockRef = useRef(false);
   const anexosRef = useRef<AnexosReciboCampoRef>(null);
@@ -224,6 +227,48 @@ export function LancarReceitaModal({
     setFeedbackNota(null);
   }, [open, cfg.tipoPadrao, cfg.categoriaPadrao, secaoPlano, modo]);
 
+  useEffect(() => {
+    if (!open || modo !== "despesa") return;
+    setClienteId("");
+    let cancelado = false;
+
+    async function carregarEntidades() {
+      if (tipoCliente === "clientes") {
+        try {
+          const res = await fetch("/api/clientes");
+          const data = await res.json();
+          if (cancelado) return;
+          const lista = Array.isArray(data)
+            ? data
+                .map((item: { id?: string; nome?: string }) => ({
+                  id: String(item.id || ""),
+                  nome: String(item.nome || "").trim(),
+                }))
+                .filter((item) => item.id && item.nome)
+            : [];
+          setEntidadesDespesa(lista);
+        } catch {
+          if (!cancelado) setEntidadesDespesa([]);
+        }
+        return;
+      }
+
+      const tipo = tipoCliente as Exclude<EntidadeDespesa, "todos">;
+      if (!cancelado) {
+        setEntidadesDespesa(carregarEntidadesDespesaLocal(tipo));
+      }
+    }
+
+    void carregarEntidades();
+    return () => {
+      cancelado = true;
+    };
+  }, [open, modo, tipoCliente]);
+
+  const entidadesLista = modo === "despesa" ? entidadesDespesa : entidades;
+  const labelNomeEntidade =
+    modo === "despesa" ? labelNomeEntidadeDespesa(tipoCliente) : cfg.nome;
+
   async function importarArquivoNotaFiscal(file: File | null) {
     setArquivoNota(file);
     setFeedbackNota(null);
@@ -243,7 +288,10 @@ export function LancarReceitaModal({
         const listaMatch =
           cadastro.length > 0
             ? cadastro
-            : entidades.map((e) => ({ id: e.id, nome: e.nome }));
+            : carregarEntidadesDespesaLocal("fornecedores").map((e) => ({
+                id: e.id,
+                nome: e.nome,
+              }));
         fornecedorVinculado = encontrarFornecedorPorNfe(
           dados.emitenteNome,
           dados.emitenteCnpj,
@@ -364,8 +412,10 @@ export function LancarReceitaModal({
       let anexos: AnexoDespesa[] | undefined;
       const lista = await anexosRef.current?.resolverAnexos();
       if (lista?.length) anexos = lista;
+      const selecionada = entidadesLista.find((item) => item.id === clienteId);
       await onSubmit({
         clienteId,
+        entidadeNome: selecionada?.nome || clienteId,
         tipoCliente,
         categoria,
         dataLancamento,
@@ -520,7 +570,10 @@ export function LancarReceitaModal({
               <label className={labelClass}>{cfg.tipo}</label>
               <select
                 value={tipoCliente}
-                onChange={(e) => setTipoCliente(e.target.value)}
+                onChange={(e) => {
+                  setTipoCliente(e.target.value);
+                  setClienteId("");
+                }}
                 className={selectClass}
               >
                 {cfg.tiposEntidade.map((t) => (
@@ -531,7 +584,7 @@ export function LancarReceitaModal({
               </select>
             </div>
             <div className="col-span-12 md:col-span-6">
-              <label className={labelClass}>{cfg.nome}</label>
+              <label className={labelClass}>{labelNomeEntidade}</label>
               <select
                 value={clienteId}
                 onChange={(e) => setClienteId(e.target.value)}
@@ -539,7 +592,7 @@ export function LancarReceitaModal({
                 required={modo === "receita"}
               >
                 <option value="">Selecione</option>
-                {entidades.map((c) => (
+                {entidadesLista.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.nome}
                   </option>

@@ -1,3 +1,4 @@
+import { carregarEntregadoresCadastro } from "@/lib/entregadores-cadastro";
 import { readStorage } from "@/lib/persisted-storage";
 
 /** Metadados de despesa embutidos na descrição (Contas a Pagar). */
@@ -10,6 +11,27 @@ export type EntidadeDespesa =
   | "prestadores"
   | "entregadores"
   | "clientes";
+
+export type EntidadeDespesaOpcao = { id: string; nome: string; cnpj?: string };
+
+export const TIPOS_FORNECEDOR_DESPESA: {
+  value: Exclude<EntidadeDespesa, "todos">;
+  label: string;
+}[] = [
+  { value: "fornecedores", label: "Fornecedor" },
+  { value: "prestadores", label: "Prestador de Serviço" },
+  { value: "colaboradores", label: "Colaborador" },
+  { value: "clientes", label: "Cliente" },
+  { value: "entregadores", label: "Entregador" },
+];
+
+export function labelNomeEntidadeDespesa(tipo: string) {
+  if (tipo === "clientes") return "Nome do Cliente";
+  if (tipo === "colaboradores") return "Nome do Colaborador";
+  if (tipo === "prestadores") return "Nome do Prestador de Serviço";
+  if (tipo === "entregadores") return "Nome do Entregador";
+  return "Nome do Fornecedor";
+}
 
 export type AnexoDespesa = {
   name: string;
@@ -154,6 +176,44 @@ export function lerFornecedoresStorage(): Array<{ id: string; nome: string }> {
   }
 }
 
+function lerEntidadesStorage(key: string): EntidadeDespesaOpcao[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const lista = readStorage<
+      Array<{ id?: string; nome?: string; razaoSocial?: string; cnpj?: string }>
+    >(key, []);
+    if (!Array.isArray(lista)) return [];
+    const result: EntidadeDespesaOpcao[] = [];
+    lista.forEach((item, index) => {
+      const nome = (item.nome || item.razaoSocial || "").trim();
+      if (!nome) return;
+      result.push({
+        id: String(item.id || `${key}-${index}-${nome}`),
+        nome,
+        ...(item.cnpj ? { cnpj: item.cnpj } : {}),
+      });
+    });
+    return result.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  } catch {
+    return [];
+  }
+}
+
+export function carregarEntidadesDespesaLocal(
+  tipo: Exclude<EntidadeDespesa, "todos">
+): EntidadeDespesaOpcao[] {
+  if (tipo === "fornecedores") return lerFornecedoresStorage();
+  if (tipo === "colaboradores") return lerEntidadesStorage("labProteseColaboradores");
+  if (tipo === "prestadores") return lerEntidadesStorage("labProtesePrestadores");
+  if (tipo === "entregadores") {
+    return carregarEntregadoresCadastro().map((item) => ({
+      id: item.id,
+      nome: item.nome,
+    }));
+  }
+  return [];
+}
+
 export function lerNomesStorage(key: string): string[] {
   if (typeof window === "undefined") return [];
   try {
@@ -165,6 +225,199 @@ export function lerNomesStorage(key: string): string[] {
   } catch {
     return [];
   }
+}
+
+export type LancamentoDespesaDetalhe = {
+  id: string;
+  descricao: string;
+  valor: number;
+  data: string;
+  status: string;
+  formaPagamento?: string | null;
+  cliente?: { nome?: string } | null;
+  trabalho?: { numeroOs?: number } | null;
+};
+
+export type ItemDespesaVisualizacao = {
+  id: string;
+  produto: string;
+  descricao: string;
+  quantidade: string;
+  custoUnitario: string;
+};
+
+export type ParcelaDespesaVisualizacao = {
+  parcela: string;
+  formaPagamento: string;
+  conta: string;
+  vencimento: string;
+  codigoBarrasPix: string;
+  valor: string;
+  pago: boolean;
+};
+
+export type DadosVisualizacaoDespesa = {
+  tipoFornecedor: Exclude<EntidadeDespesa, "todos">;
+  nomeEntidade: string;
+  categoria: string;
+  dataLancamento: string;
+  notaFiscalRef: string;
+  itens: ItemDespesaVisualizacao[];
+  observacoes: string;
+  valorBruto: number;
+  totalLiquido: number;
+  numParcelas: number;
+  parcelas: ParcelaDespesaVisualizacao[];
+  anexos: AnexoDespesa[];
+};
+
+function moneyBr(value: number) {
+  return value.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function descricaoSemParcela(texto: string) {
+  return texto.replace(/\s*\(\d+\s*\/\s*\d+\)\s*$/, "").trim();
+}
+
+function parseItensDespesaSalva(texto: string, valorTotal: number) {
+  const partes = texto.split("|").map((p) => p.trim()).filter(Boolean);
+  let observacoes = "";
+  let corpo = texto;
+  if (partes.length > 1) {
+    observacoes = partes[partes.length - 1];
+    corpo = partes.slice(0, -1).join(" | ");
+  }
+
+  const segmentos = corpo.split(";").map((s) => s.trim()).filter(Boolean);
+  if (!segmentos.length) {
+    return {
+      itens: [
+        {
+          id: "item-0",
+          produto: "",
+          descricao: texto.trim() || "—",
+          quantidade: "1",
+          custoUnitario: moneyBr(valorTotal),
+        },
+      ],
+      observacoes,
+    };
+  }
+
+  const itens = segmentos.map((seg, index) => {
+    const dashIdx = seg.indexOf(" - ");
+    if (dashIdx >= 0) {
+      return {
+        id: `item-${index}`,
+        produto: seg.slice(0, dashIdx).trim(),
+        descricao: seg.slice(dashIdx + 3).trim(),
+        quantidade: "1",
+        custoUnitario:
+          segmentos.length === 1 ? moneyBr(valorTotal) : "0,00",
+      };
+    }
+    return {
+      id: `item-${index}`,
+      produto: "",
+      descricao: seg,
+      quantidade: "1",
+      custoUnitario: segmentos.length === 1 ? moneyBr(valorTotal) : "0,00",
+    };
+  });
+
+  const somaItens = itens.reduce((sum, item) => {
+    const qtd = Number(item.quantidade.replace(",", ".")) || 0;
+    const unit =
+      Number(
+        item.custoUnitario.replace(/\./g, "").replace(",", ".")
+      ) || 0;
+    return sum + qtd * unit;
+  }, 0);
+
+  if (somaItens <= 0 && valorTotal > 0 && itens.length === 1) {
+    itens[0].custoUnitario = moneyBr(valorTotal);
+  }
+
+  return { itens, observacoes };
+}
+
+function rotuloParcelaDespesa(texto: string, parcelaMeta: string) {
+  const match = texto.match(/\((\d+)\s*\/\s*(\d+)\)/);
+  if (match) {
+    return {
+      parcela: `${match[1]}/${match[2]}`,
+      numParcelas: Number(match[2]) || 1,
+    };
+  }
+  const total = Number.parseInt(parcelaMeta, 10);
+  if (Number.isFinite(total) && total > 1) {
+    return { parcela: `1/${total}`, numParcelas: total };
+  }
+  return { parcela: "1/1", numParcelas: 1 };
+}
+
+export function extrairDadosVisualizacaoDespesa(
+  lancamento: LancamentoDespesaDetalhe,
+  refOs?: string
+): DadosVisualizacaoDespesa {
+  const pack = desempacotarDespesa(lancamento.descricao);
+  const textoBase = descricaoSemParcela(pack.texto);
+  const { itens, observacoes } = parseItensDespesaSalva(textoBase, lancamento.valor);
+  const { parcela, numParcelas } = rotuloParcelaDespesa(pack.texto, pack.parcela);
+
+  const referencia =
+    refOs ||
+    (pack.referencia !== "—"
+      ? pack.referencia
+      : lancamento.trabalho?.numeroOs != null
+        ? `OS ${lancamento.trabalho.numeroOs}`
+        : "");
+
+  const notaFiscalRef =
+    referencia && !/^OS\s+\d+/i.test(referencia) ? referencia : "";
+
+  const valorBruto = itens.reduce((sum, item) => {
+    const qtd = Number(item.quantidade.replace(",", ".")) || 0;
+    const unit =
+      Number(
+        item.custoUnitario.replace(/\./g, "").replace(",", ".")
+      ) || 0;
+    return sum + qtd * unit;
+  }, 0);
+
+  const totalLiquido = valorBruto > 0 ? valorBruto : lancamento.valor;
+  const entidade = (pack.meta.entidade || "fornecedores") as Exclude<
+    EntidadeDespesa,
+    "todos"
+  >;
+
+  return {
+    tipoFornecedor: entidade,
+    nomeEntidade: lancamento.cliente?.nome?.trim() || pack.nome,
+    categoria: pack.categoria === "—" ? "" : pack.categoria,
+    dataLancamento: lancamento.data,
+    notaFiscalRef,
+    itens,
+    observacoes,
+    valorBruto: totalLiquido,
+    totalLiquido,
+    numParcelas,
+    parcelas: [
+      {
+        parcela,
+        formaPagamento: lancamento.formaPagamento?.trim() || "",
+        conta: pack.conta === "—" ? "Caixa Principal" : pack.conta,
+        vencimento: lancamento.data,
+        codigoBarrasPix: "",
+        valor: moneyBr(lancamento.valor),
+        pago: lancamento.status === "pago",
+      },
+    ],
+    anexos: pack.meta.anexos ?? [],
+  };
 }
 
 export function classificarEntidadeDespesa(
