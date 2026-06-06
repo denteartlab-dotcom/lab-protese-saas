@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Edit3, Eye, List, Plus, Printer, Search, Trash2 } from "lucide-react";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
+import { GerenciarEtiquetasCategoriaModal } from "@/components/GerenciarEtiquetasCategoriaModal";
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { compararNumero } from "@/lib/listagem-config";
@@ -20,8 +21,34 @@ import {
   registrarMovimentoEstoque,
   type MovimentoEstoque,
 } from "@/lib/estoque";
+import {
+  carregarEtiquetasCategoria,
+  corEtiquetaPorNome,
+  ETIQUETAS_CATEGORIA_EVENT,
+  type EtiquetaCategoria,
+} from "@/lib/etiquetas-categoria";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { formatCurrency } from "@/lib/utils";
+
+function EtiquetaCategoriaBadge({
+  nome,
+  etiquetas,
+}: {
+  nome?: string | null;
+  etiquetas: EtiquetaCategoria[];
+}) {
+  const termo = (nome || "").trim();
+  if (!termo) return null;
+  const cor = corEtiquetaPorNome(termo, etiquetas);
+  return (
+    <span
+      className="inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold text-white"
+      style={{ backgroundColor: cor }}
+    >
+      {termo}
+    </span>
+  );
+}
 
 function IndicadorVariacaoCusto({ delta }: { delta?: number }) {
   if (delta === undefined || delta === 0 || Math.abs(delta) < 0.005) return null;
@@ -168,6 +195,8 @@ function ProdutosConteudo() {
   );
   const [lucroFormato, setLucroFormato] = useState<"percentual" | "valor">("percentual");
   const [modalExcluidosAberto, setModalExcluidosAberto] = useState(false);
+  const [modalEtiquetasAberto, setModalEtiquetasAberto] = useState(false);
+  const [etiquetasCategoria, setEtiquetasCategoria] = useState<EtiquetaCategoria[]>([]);
   const [buscaExcluidos, setBuscaExcluidos] = useState("");
   const [produtosExcluidos, setProdutosExcluidos] = useState<string[]>([]);
   const [snapshotsExcluidos, setSnapshotsExcluidos] = useState<Record<string, Produto>>({});
@@ -237,6 +266,15 @@ function ProdutosConteudo() {
     setExtrasCarregados(true);
     persistenciaPronta.current = true;
   }
+
+  useEffect(() => {
+    function atualizarEtiquetasCategoria() {
+      setEtiquetasCategoria(carregarEtiquetasCategoria());
+    }
+    atualizarEtiquetasCategoria();
+    window.addEventListener(ETIQUETAS_CATEGORIA_EVENT, atualizarEtiquetasCategoria);
+    return () => window.removeEventListener(ETIQUETAS_CATEGORIA_EVENT, atualizarEtiquetasCategoria);
+  }, []);
 
   useEffect(() => {
     async function iniciar() {
@@ -935,6 +973,14 @@ function ProdutosConteudo() {
               <Trash2 className="h-3.5 w-3.5" />
               Ver Excluídos
             </button>
+            <button
+              type="button"
+              onClick={() => setModalEtiquetasAberto(true)}
+              className="inline-flex h-7 items-center gap-1 rounded-sm bg-emerald-500 px-3 text-[10px] font-semibold text-white hover:bg-emerald-600"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Etiqueta (Categoria)
+            </button>
           </div>
           <div className="flex w-full max-w-xl items-center gap-1">
             <div className="relative flex-1">
@@ -1010,7 +1056,9 @@ function ProdutosConteudo() {
                       <td className="px-3 py-2"><input type="checkbox" className="h-3 w-3" /></td>
                       <td className="px-3 py-2 text-slate-500">{produto.codigoBarras || ""}</td>
                       <td className="px-3 py-2 font-medium text-slate-700">{produto.nome}</td>
-                      <td className="px-3 py-2">{produto.etiqueta || ""}</td>
+                      <td className="px-3 py-2">
+                        <EtiquetaCategoriaBadge nome={produto.etiqueta} etiquetas={etiquetasCategoria} />
+                      </td>
                       <td className="px-3 py-2">{produto.marca || ""}</td>
                       <td className="px-3 py-2 text-center">
                         {formatQuantidade(produto.estoque || 0, produto.unidadeMedida || "un (Unitário)")}
@@ -1263,6 +1311,11 @@ function ProdutosConteudo() {
         detalhe={produtoParaExcluirPermanente?.nome}
         onClose={() => setProdutoParaExcluirPermanente(null)}
         onConfirm={confirmarExclusaoPermanente}
+      />
+
+      <GerenciarEtiquetasCategoriaModal
+        open={modalEtiquetasAberto}
+        onClose={() => setModalEtiquetasAberto(false)}
       />
 
       <Modal
