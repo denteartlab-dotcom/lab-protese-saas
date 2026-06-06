@@ -4,12 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { debounceCallback } from "@/lib/debounce-callback";
 import {
   AlertTriangle,
+  Check,
   ChevronsUpDown,
   FileSpreadsheet,
   Filter,
-  Flag,
-  List,
   Eye,
+  List,
   Pencil,
   Plus,
   Printer,
@@ -22,7 +22,7 @@ import {
   X,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { Button, CampoDataBr, Select } from "@/components/ui";
+import { Button, CampoDataBr } from "@/components/ui";
 import type { LancarReceitaPayload } from "@/components/financeiro/LancarReceitaModal";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { RelatorioDespesasModal } from "@/components/financeiro/RelatorioDespesasModal";
@@ -123,7 +123,11 @@ function exibirFormaPagamento(forma?: string | null) {
       </span>
     );
   }
-  return valor;
+  return (
+    <span className="inline-block rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+      {valor}
+    </span>
+  );
 }
 
 function exibirParcela(pack: { parcela: string; texto: string }) {
@@ -140,7 +144,7 @@ export function ContasPagarConteudo() {
   const [entidadeAtiva, setEntidadeAtiva] = useState<EntidadeDespesa>("todos");
   const [tipoDespesa, setTipoDespesa] = useState("a_pagar");
   const [erroLista, setErroLista] = useState("");
-  const [periodo, setPeriodo] = useState("mes");
+  const [periodo, setPeriodo] = useState("todos");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFinal, setDataFinal] = useState("");
   const [busca, setBusca] = useState("");
@@ -215,7 +219,7 @@ export function ContasPagarConteudo() {
       entregadores: lerNomesStorage("labProteseEntregadores"),
     });
     setFornecedores(lerFornecedoresStorage());
-    aplicarPeriodo("mes");
+    aplicarPeriodo("todos");
   }, []);
 
   function aplicarPeriodo(value: string) {
@@ -349,7 +353,7 @@ export function ContasPagarConteudo() {
   function limparFiltros() {
     setBusca("");
     setTipoDespesa("a_pagar");
-    aplicarPeriodo("mes");
+    aplicarPeriodo("todos");
     setEntidadeAtiva("todos");
   }
 
@@ -510,9 +514,9 @@ export function ContasPagarConteudo() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 text-[11px] text-slate-700">
       <div className="grid gap-3 md:grid-cols-3">
-        <div className="rounded border border-slate-100 bg-white p-4 shadow-sm">
+        <div className="rounded border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xl font-semibold text-slate-800">
@@ -520,25 +524,34 @@ export function ContasPagarConteudo() {
               </p>
               <p className="text-[11px] text-slate-500">A Pagar</p>
             </div>
-            <span className="rounded-full bg-orange-50 p-2 text-orange-400">
-              <Flag className="h-4 w-4" />
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded bg-orange-400 text-xs font-bold text-white">
+              P
             </span>
           </div>
         </div>
-        <div className="rounded border border-slate-100 bg-white p-4 shadow-sm">
+        <div className="rounded border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xl font-semibold text-slate-800">
                 {money(resumo.atraso)}
               </p>
-              <p className="text-[11px] text-slate-500">Contas em Atraso</p>
+              <p className="text-[11px] text-slate-500">
+                Contas em Atraso{" "}
+                <button
+                  type="button"
+                  onClick={() => setTipoDespesa("atraso")}
+                  className="rounded bg-[#4a90d9] px-1.5 py-0.5 text-[9px] font-normal text-white hover:bg-[#3b7bc4]"
+                >
+                  Ver
+                </button>
+              </p>
             </div>
             <span className="rounded-full bg-rose-50 p-2 text-rose-500">
               <AlertTriangle className="h-4 w-4" />
             </span>
           </div>
         </div>
-        <div className="rounded border border-slate-100 bg-white p-4 shadow-sm">
+        <div className="rounded border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xl font-semibold text-slate-800">
@@ -547,104 +560,104 @@ export function ContasPagarConteudo() {
               <p className="text-[11px] text-slate-500">Contas Pagas</p>
             </div>
             <span className="rounded-full bg-emerald-50 p-2 text-emerald-500">
-              <AlertTriangle className="h-4 w-4" />
+              <Check className="h-4 w-4" />
             </span>
           </div>
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            size="sm"
-            className="inline-flex items-center gap-1.5 rounded bg-[#4cae4c] px-4 py-2 text-[13px] font-normal text-white hover:bg-[#449d44]"
-            onClick={abrirNovo}
-          >
-            <Plus className="h-4 w-4" />
-            Lançar Despesa
-          </Button>
-          <Button
-            size="sm"
-            className="inline-flex items-center gap-1.5 rounded bg-[#4a90d9] px-4 py-2 text-[13px] font-normal text-white hover:bg-[#3d7fc4]"
-            onClick={() => setRelatorioAberto(true)}
-          >
-            <Printer className="h-4 w-4" />
-            Relatório
-          </Button>
-          <button
-            type="button"
-            className="inline-flex h-8 w-8 items-center justify-center rounded bg-[#4a90d9] text-white hover:bg-[#3d7fc4]"
-            title="Atualizar lista"
-            onClick={() => void load()}
-          >
-            <List className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            className="inline-flex h-8 w-8 items-center justify-center rounded bg-[#4cae4c] text-white hover:bg-[#449d44]"
-            title="Exportar"
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="flex flex-wrap gap-0 rounded border border-slate-200 bg-white shadow-sm">
-          {abasEntidade.map((aba) => {
-            const Icon = aba.icon;
-            const ativa = entidadeAtiva === aba.id;
-            return (
-              <button
-                key={aba.id}
-                type="button"
-                onClick={() => setEntidadeAtiva(aba.id)}
-                className={cn(
-                  "inline-flex items-center gap-1.5 border-r border-slate-200 px-3 py-2 text-[12px] font-normal transition last:border-r-0",
-                  ativa
-                    ? "bg-[#4a90d9] text-white"
-                    : "bg-white text-slate-600 hover:bg-slate-50"
-                )}
-              >
-                <Icon className="h-3.5 w-3.5 shrink-0" />
-                {aba.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">
-        <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
-          <div className="w-[160px] shrink-0">
-            <span className={filtroLabelClass}>Tipo Despesa</span>
-            <div className="relative">
-              <select
-                value={tipoDespesa}
-                onChange={(e) => setTipoDespesa(e.target.value)}
-                className={cn(filtroInputClass, "appearance-none pr-8")}
-              >
-                <option value="a_pagar">A Pagar</option>
-                <option value="pagas">Pagas</option>
-                <option value="atraso">Em Atraso</option>
-                <option value="todas">Todas</option>
-              </select>
-              {tipoDespesa !== "todas" ? (
-                <button
-                  type="button"
-                  onClick={() => setTipoDespesa("todas")}
-                  className="absolute right-7 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  title="Limpar filtro"
-                  aria-label="Limpar tipo despesa"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              ) : null}
-              <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400">
-                ▾
-              </span>
-            </div>
+      <div className="overflow-hidden rounded border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-3 py-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              className="inline-flex items-center gap-1.5 rounded bg-[#4cae4c] px-4 py-2 text-[13px] font-normal text-white hover:bg-[#449d44]"
+              onClick={abrirNovo}
+            >
+              <Plus className="h-4 w-4" />
+              Lançar Despesa
+            </Button>
+            <Button
+              size="sm"
+              className="inline-flex items-center gap-1.5 rounded bg-[#4a90d9] px-4 py-2 text-[13px] font-normal text-white hover:bg-[#3d7fc4]"
+              onClick={() => setRelatorioAberto(true)}
+            >
+              <Printer className="h-4 w-4" />
+              Relatório
+            </Button>
+            <button
+              type="button"
+              className="inline-flex h-8 w-8 items-center justify-center rounded bg-[#4a90d9] text-white hover:bg-[#3d7fc4]"
+              title="Imprimir"
+              onClick={() => setRelatorioAberto(true)}
+            >
+              <Printer className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              className="inline-flex h-8 w-8 items-center justify-center rounded bg-[#4cae4c] text-white hover:bg-[#449d44]"
+              title="Exportar"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+            </button>
           </div>
 
-          <div className="flex min-w-0 flex-1 flex-wrap items-end gap-2 lg:max-w-[500px]">
+          <div className="flex shrink-0 flex-wrap gap-0 rounded border border-slate-200 bg-white">
+            {abasEntidade.map((aba) => {
+              const Icon = aba.icon;
+              const ativa = entidadeAtiva === aba.id;
+              return (
+                <button
+                  key={aba.id}
+                  type="button"
+                  onClick={() => setEntidadeAtiva(aba.id)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 border-r border-slate-200 px-3 py-2 text-[12px] font-normal transition last:border-r-0",
+                    ativa
+                      ? "bg-[#4a90d9] text-white"
+                      : "bg-white text-slate-600 hover:bg-slate-50"
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5 shrink-0" />
+                  {aba.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="border-b border-slate-200 px-3 py-3">
+          <div className="flex flex-wrap items-end gap-x-3 gap-y-3">
+            <div className="w-[148px] shrink-0">
+              <span className={filtroLabelClass}>Tipo Despesa</span>
+              <div className="relative">
+                <select
+                  value={tipoDespesa}
+                  onChange={(e) => setTipoDespesa(e.target.value)}
+                  className={cn(filtroInputClass, "appearance-none pr-8")}
+                >
+                  <option value="a_pagar">A Pagar</option>
+                  <option value="pagas">Pagas</option>
+                  <option value="atraso">Em Atraso</option>
+                  <option value="todas">Todas</option>
+                </select>
+                {tipoDespesa !== "todas" ? (
+                  <button
+                    type="button"
+                    onClick={() => setTipoDespesa("todas")}
+                    className="absolute right-7 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    title="Limpar filtro"
+                    aria-label="Limpar tipo despesa"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+                <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400">
+                  ▾
+                </span>
+              </div>
+            </div>
+
             <div className="w-[132px] shrink-0">
               <span className={filtroLabelClass}>Período</span>
               <select
@@ -656,58 +669,66 @@ export function ContasPagarConteudo() {
                 <option value="semana">Esta Semana</option>
                 <option value="mes">Este Mês</option>
                 <option value="todos">Mostrar Todos</option>
+                <option value="outro">Outro Período</option>
               </select>
             </div>
-            <div className="w-[118px] shrink-0">
+
+            <div className="w-[108px] shrink-0">
+              <span className={filtroLabelClass}>Data</span>
               <CampoDataBr
                 value={dataInicio}
                 onChange={setDataInicio}
                 onValueChange={() => setPeriodo("outro")}
+                placeholder="dd/mm/aa"
+                iconPosition="left"
                 className="space-y-0"
-                inputClassName="h-9 w-full rounded border border-slate-300 bg-white px-2.5 text-sm text-slate-800 shadow-none outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]"
+                inputClassName="h-9 w-full rounded border border-slate-300 bg-white pl-8 pr-2.5 text-[12px] text-slate-800 shadow-none outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]"
               />
             </div>
-            <div className="w-[118px] shrink-0">
+            <div className="w-[108px] shrink-0">
+              <span className={filtroLabelClass}>Data</span>
               <CampoDataBr
                 value={dataFinal}
                 onChange={setDataFinal}
                 onValueChange={() => setPeriodo("outro")}
+                placeholder="dd/mm/aa"
+                iconPosition="left"
                 className="space-y-0"
-                inputClassName="h-9 w-full rounded border border-slate-300 bg-white px-2.5 text-sm text-slate-800 shadow-none outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]"
+                inputClassName="h-9 w-full rounded border border-slate-300 bg-white pl-8 pr-2.5 text-[12px] text-slate-800 shadow-none outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]"
               />
             </div>
-          </div>
 
-          <div className="min-w-[220px] flex-1">
-            <span className={filtroLabelClass}>Procurar</span>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                placeholder="Procurar"
-                className="h-9 w-full rounded border border-slate-300 bg-white py-1 pl-8 pr-[72px] text-sm text-slate-800 outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]"
-              />
-              <button
-                type="button"
-                onClick={() => setBusca("")}
-                className="absolute right-0 top-0 h-9 rounded-r border border-slate-300 border-l-0 bg-slate-500 px-4 text-[11px] font-semibold text-white hover:bg-slate-600"
-              >
-                Limpar
-              </button>
+            <div className="min-w-[200px] flex-1">
+              <span className={filtroLabelClass}>Procurar</span>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  placeholder="Procurar"
+                  className="h-9 w-full rounded border border-slate-300 bg-white py-1 pl-8 pr-[72px] text-[12px] text-slate-800 outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setBusca("")}
+                  className="absolute right-0 top-0 h-9 rounded-r border border-l-0 border-slate-300 bg-slate-500 px-4 text-[11px] font-semibold text-white hover:bg-slate-600"
+                >
+                  Limpar
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="mt-3 overflow-x-auto">
+        <div className="overflow-x-auto">
           <table className="w-full min-w-[960px] border-collapse text-[12px]">
             <thead>
               <tr>
                 <th className={thClass}>{thComOrdenacao("Vencimento")}</th>
                 <th className={`${thClass} w-16`}>{thComOrdenacao("Parc.")}</th>
                 <th className={thClass}>{thComOrdenacao("Nome")}</th>
-                <th className={thClass}>{thComOrdenacao("Referência")}</th>
+                <th className={thClass}>{thComOrdenacao("Referencia")}</th>
                 <th className={thClass}>{thComOrdenacao("Categoria")}</th>
                 <th className={thClass}>{thComOrdenacao("Forma Pagamento")}</th>
                 <th className={`${thClass} text-right`}>{thComOrdenacao("Valor")}</th>
@@ -759,7 +780,9 @@ export function ContasPagarConteudo() {
                         <td className="px-3 py-2 font-medium text-slate-800">
                           {lancamento.cliente?.nome || pack.nome}
                         </td>
-                        <td className="px-3 py-2 text-slate-600">{ref}</td>
+                        <td className="px-3 py-2 text-slate-600">
+                          {ref?.trim() ? ref : "—"}
+                        </td>
                         <td className="px-3 py-2 text-slate-600">{pack.categoria}</td>
                         <td className="px-3 py-2 text-slate-600">
                           {exibirFormaPagamento(lancamento.formaPagamento)}
