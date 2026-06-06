@@ -1,4 +1,8 @@
 import { dateToBrShort, parseBrDate } from "@/lib/datas-br";
+import {
+  carregarNomesEntregadores,
+  garantirEntregadorCadastro,
+} from "@/lib/entregadores-cadastro";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 
 export const ENTREGAS_STORAGE_KEY = "labProteseControleEntregas";
@@ -7,7 +11,8 @@ export const ENTREGAS_EVENT = "labProteseControleEntregasAtualizado";
 
 export type SituacaoEntrega = "pendente" | "em_rota" | "entregue";
 
-export type TipoDestinatarioEntrega = "prestador" | "cliente" | "colaborador" | "outro";
+export type TipoDestinatarioEntrega = "cliente" | "fornecedor" | "prestador";
+export type TipoDestinatarioEntregaForm = TipoDestinatarioEntrega | "";
 
 export type EntregaControle = {
   id: string;
@@ -35,11 +40,14 @@ export type EntregaControle = {
   observacao?: string;
 };
 
-export const TIPOS_DESTINATARIO_ENTREGA: { value: TipoDestinatarioEntrega; label: string }[] = [
+export const TIPOS_DESTINATARIO_ENTREGA: {
+  value: TipoDestinatarioEntregaForm;
+  label: string;
+}[] = [
+  { value: "", label: "Selecione um Destinatário" },
+  { value: "cliente", label: "Cliente" },
+  { value: "fornecedor", label: "Fornecedor" },
   { value: "prestador", label: "Prestador de Serviço" },
-  { value: "cliente", label: "Cliente (Dentista)" },
-  { value: "colaborador", label: "Colaborador" },
-  { value: "outro", label: "Outro" },
 ];
 
 export const TIPOS_ENTREGADOR = [
@@ -86,22 +94,17 @@ export function salvarEntregas(lista: EntregaControle[]) {
 }
 
 export function carregarEntregadores(): string[] {
-  const salvos = readStorage<string[]>(ENTREGADORES_STORAGE_KEY, []);
-  const base = Array.isArray(salvos) ? salvos.filter(Boolean) : [];
+  const cadastro = carregarNomesEntregadores();
   const dasEntregas = carregarEntregas()
     .map((item) => item.entregador.trim())
     .filter(Boolean);
-  return Array.from(new Set([...base, ...dasEntregas])).sort((a, b) =>
+  return Array.from(new Set([...cadastro, ...dasEntregas])).sort((a, b) =>
     a.localeCompare(b, "pt-BR")
   );
 }
 
 export function registrarEntregador(nome: string) {
-  const termo = nome.trim();
-  if (!termo) return;
-  const atuais = carregarEntregadores();
-  if (atuais.includes(termo)) return;
-  writeStorage(ENTREGADORES_STORAGE_KEY, [...atuais, termo].sort((a, b) => a.localeCompare(b, "pt-BR")));
+  garantirEntregadorCadastro(nome);
 }
 
 function normalizarEntrega(item: Partial<EntregaControle>): EntregaControle | null {
@@ -112,12 +115,7 @@ function normalizarEntrega(item: Partial<EntregaControle>): EntregaControle | nu
   const situacao =
     item.situacao === "em_rota" || item.situacao === "entregue" ? item.situacao : "pendente";
 
-  const tipoDestinatario =
-    item.tipoDestinatario === "cliente" ||
-    item.tipoDestinatario === "colaborador" ||
-    item.tipoDestinatario === "outro"
-      ? item.tipoDestinatario
-      : "prestador";
+  const tipoDestinatario = normalizarTipoDestinatario(item.tipoDestinatario);
 
   return {
     id,
@@ -153,11 +151,18 @@ function extrairHoraEntrega(dataIso?: string) {
   return data.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
-export function labelNomeDestinatario(tipo: TipoDestinatarioEntrega) {
+function normalizarTipoDestinatario(raw?: string | null): TipoDestinatarioEntrega {
+  if (raw === "cliente" || raw === "fornecedor" || raw === "prestador") return raw;
+  if (raw === "colaborador") return "prestador";
+  if (raw === "outro") return "cliente";
+  return "prestador";
+}
+
+export function labelNomeDestinatario(tipo: TipoDestinatarioEntregaForm) {
   if (tipo === "cliente") return "Nome do Cliente";
-  if (tipo === "colaborador") return "Nome do Colaborador";
-  if (tipo === "outro") return "Nome do Destinatário";
-  return "Nome do Prestador de Serviço";
+  if (tipo === "fornecedor") return "Nome do Fornecedor";
+  if (tipo === "prestador") return "Nome do Prestador de Serviço";
+  return "Nome do Destinatário";
 }
 
 export function formatarCepEntrega(value: string) {
@@ -176,7 +181,7 @@ export function montarDataPedidoEntrega(dataBr: string, hora: string) {
 
 export type FormRotaEntrega = {
   numeroOs: string;
-  tipoDestinatario: TipoDestinatarioEntrega;
+  tipoDestinatario: TipoDestinatarioEntregaForm;
   nomeDestinatario: string;
   cep: string;
   rua: string;
@@ -199,7 +204,7 @@ export function formRotaEntregaPadrao(): FormRotaEntrega {
   const agora = new Date();
   return {
     numeroOs: "",
-    tipoDestinatario: "prestador",
+    tipoDestinatario: "",
     nomeDestinatario: "",
     cep: "",
     rua: "",
@@ -260,7 +265,7 @@ export function formRotaParaEntrega(
     valor: parseValor(form.valor),
     dataFinalizado: form.situacao === "entregue" ? new Date().toISOString() : null,
     numeroOs: form.numeroOs.trim(),
-    tipoDestinatario: form.tipoDestinatario,
+    tipoDestinatario: normalizarTipoDestinatario(form.tipoDestinatario),
     nomeDestinatario: nome,
     cep: form.cep.trim(),
     rua: form.rua.trim(),

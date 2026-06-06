@@ -19,6 +19,15 @@ import { useListagemPaginada } from "@/hooks/use-listagem-paginada";
 import { compararTextoBr } from "@/lib/listagem-config";
 import { buscarEnderecoPorCep as buscarCepApi } from "@/lib/cep-lookup";
 import { formatCepInput } from "@/lib/documento-br";
+import {
+  custoEntregaCliente,
+  entregadorCliente,
+  formatarCustoEntregaCliente,
+  mesclarObservacoesComEntregaCliente,
+  tipoEntregadorCliente,
+} from "@/lib/cliente-entrega";
+import { carregarEntregadores, TIPOS_ENTREGADOR } from "@/lib/controle-entregas";
+import { ENTREGADORES_CADASTRO_EVENT } from "@/lib/entregadores-cadastro";
 
 type Cliente = {
   id: string;
@@ -75,6 +84,7 @@ const empty = {
   bairro: "",
   complemento: "",
   entregador: "",
+  tipoEntregador: "",
   custoEntrega: "0,00",
   tabelaPreco: "Tabela Principal",
   descontoGeral: "0,00",
@@ -100,6 +110,7 @@ export default function ClientesPage() {
   const [enviandoWhatsAppId, setEnviandoWhatsAppId] = useState<string | null>(null);
   const [tabelasPreco, setTabelasPreco] = useState<string[]>(["Tabela Principal"]);
   const [buscandoCep, setBuscandoCep] = useState(false);
+  const [entregadores, setEntregadores] = useState<string[]>([]);
   const ultimoCepBuscado = useRef("");
 
   const recarregarTabelasPreco = async () => {
@@ -203,6 +214,14 @@ export default function ClientesPage() {
   }, [q, mostrarExcluidos]);
 
   useEffect(() => {
+    if (!open) return;
+    const atualizar = () => setEntregadores(carregarEntregadores());
+    atualizar();
+    window.addEventListener(ENTREGADORES_CADASTRO_EVENT, atualizar);
+    return () => window.removeEventListener(ENTREGADORES_CADASTRO_EVENT, atualizar);
+  }, [open]);
+
+  useEffect(() => {
     const local = carregarNomesTabelasPreco();
     if (local.length) setTabelasPreco(local);
     void recarregarTabelasPreco();
@@ -277,8 +296,9 @@ export default function ClientesPage() {
       numero: "",
       bairro: "",
       complemento: "",
-      entregador: "",
-      custoEntrega: "0,00",
+      entregador: entregadorCliente(c.observacoes),
+      tipoEntregador: tipoEntregadorCliente(c.observacoes),
+      custoEntrega: formatarCustoEntregaCliente(custoEntregaCliente(c.observacoes)),
       tabelaPreco: configValue(c.observacoes, "Tabela de Preço:") || "Tabela Principal",
       descontoGeral: configValue(c.observacoes, "Desconto Geral:") || "0,00",
       limiteSaldoDevedor: configValue(c.observacoes, "Limite Saldo Devedor:") || "0,00",
@@ -309,21 +329,28 @@ export default function ClientesPage() {
       uf: form.uf,
       cep: form.cep,
       observacoes: mesclarObservacoesComDataNascimento(
-        [
-          form.observacoes,
-          form.tipoCliente ? `Tipo de Cliente: ${form.tipoCliente}` : "",
-        form.abreviacao ? `Abreviação: ${form.abreviacao}` : "",
-        form.contato ? `Contato: ${form.contato}` : "",
-        form.contatoTelefoneComercial ? `Telefone Contato: ${form.contatoTelefoneComercial}` : "",
-        form.contatoWhatsapp ? `WhatsApp Contato: ${form.contatoWhatsapp}` : "",
-        form.representante ? `Representante: ${form.representante}` : "",
-        form.tabelaPreco ? `Tabela de Preço: ${form.tabelaPreco}` : "",
-        form.descontoGeral ? `Desconto Geral: ${form.descontoGeral}` : "",
-        form.limiteSaldoDevedor ? `Limite Saldo Devedor: ${form.limiteSaldoDevedor}` : "",
-        form.diaCobranca ? `Dia da Cobrança: ${form.diaCobranca}` : "",
-        ]
-          .filter(Boolean)
-          .join("\n"),
+        mesclarObservacoesComEntregaCliente(
+          [
+            form.observacoes,
+            form.tipoCliente ? `Tipo de Cliente: ${form.tipoCliente}` : "",
+            form.abreviacao ? `Abreviação: ${form.abreviacao}` : "",
+            form.contato ? `Contato: ${form.contato}` : "",
+            form.contatoTelefoneComercial ? `Telefone Contato: ${form.contatoTelefoneComercial}` : "",
+            form.contatoWhatsapp ? `WhatsApp Contato: ${form.contatoWhatsapp}` : "",
+            form.representante ? `Representante: ${form.representante}` : "",
+            form.tabelaPreco ? `Tabela de Preço: ${form.tabelaPreco}` : "",
+            form.descontoGeral ? `Desconto Geral: ${form.descontoGeral}` : "",
+            form.limiteSaldoDevedor ? `Limite Saldo Devedor: ${form.limiteSaldoDevedor}` : "",
+            form.diaCobranca ? `Dia da Cobrança: ${form.diaCobranca}` : "",
+          ]
+            .filter(Boolean)
+            .join("\n"),
+          {
+            entregador: form.entregador,
+            tipoEntregador: form.tipoEntregador,
+            custoEntrega: form.custoEntrega,
+          }
+        ),
         form.dataNascimento
       ),
     };
@@ -757,23 +784,50 @@ export default function ClientesPage() {
                   <Input label="Complemento" value={form.complemento} onChange={(e) => setForm({ ...form, complemento: e.target.value })} />
                 </div>
 
-                <div className="space-y-1 md:col-span-6">
+                <div className="space-y-1 md:col-span-4">
                   <label className="block text-[11px] text-slate-600">Entregador</label>
-                  <select
+                  <input
+                    list="entregadores-cliente"
                     value={form.entregador}
                     onChange={(e) => setForm({ ...form, entregador: e.target.value })}
+                    placeholder="Selecione ou digite"
+                    className="h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs outline-none focus:border-primary-500"
+                  />
+                  <datalist id="entregadores-cliente">
+                    {entregadores.map((nome) => (
+                      <option key={nome} value={nome} />
+                    ))}
+                  </datalist>
+                </div>
+                <div className="space-y-1 md:col-span-4">
+                  <label className="block text-[11px] text-slate-600">Tipo Entregador</label>
+                  <select
+                    value={form.tipoEntregador}
+                    onChange={(e) => setForm({ ...form, tipoEntregador: e.target.value })}
                     className="h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs outline-none focus:border-primary-500"
                   >
                     <option value="">Selecione...</option>
-                    <option>Entregador padrão</option>
+                    {TIPOS_ENTREGADOR.map((tipo) => (
+                      <option key={tipo} value={tipo}>
+                        {tipo}
+                      </option>
+                    ))}
                   </select>
                 </div>
-                <div className="md:col-span-4">
-                  <Input
-                    label="Custo de Entrega"
-                    value={form.custoEntrega}
-                    onChange={(e) => setForm({ ...form, custoEntrega: e.target.value })}
-                  />
+                <div className="space-y-1 md:col-span-4">
+                  <label className="block text-[11px] text-slate-600">Custo de Entrega</label>
+                  <div className="flex h-9 overflow-hidden rounded border border-slate-300 bg-white">
+                    <span className="flex w-9 items-center justify-center border-r border-slate-200 text-xs text-slate-500">
+                      R$
+                    </span>
+                    <input
+                      value={form.custoEntrega}
+                      onChange={(e) =>
+                        setForm({ ...form, custoEntrega: formatDecimalInput(e.target.value) })
+                      }
+                      className="w-full px-2 text-xs outline-none"
+                    />
+                  </div>
                 </div>
               </div>
 

@@ -4,7 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { MapPin, Truck, User } from "lucide-react";
 import { Modal } from "@/components/ui";
 import { CampoDataBr } from "@/components/campo-data-br";
-import { carregarColaboradoresListagem } from "@/lib/colaboradores-listagem";
+import {
+  custoEntregaCliente,
+  entregadorCliente,
+  tipoEntregadorCliente,
+} from "@/lib/cliente-entrega";
+import { readStorage } from "@/lib/persisted-storage";
 import {
   atualizarEntrega,
   criarEntrega,
@@ -13,13 +18,17 @@ import {
   formRotaEntregaPadrao,
   formRotaParaEntrega,
   formatarCepEntrega,
+  formatarMoedaEntrega,
   labelNomeDestinatario,
   TIPOS_DESTINATARIO_ENTREGA,
   TIPOS_ENTREGADOR,
   type EntregaControle,
   type FormRotaEntrega,
+  type TipoDestinatarioEntregaForm,
 } from "@/lib/controle-entregas";
 import { carregarPrestadoresListagem } from "@/lib/prestadores-listagem";
+
+const FORNECEDORES_STORAGE_KEY = "labProteseFornecedores";
 
 type ClienteApi = {
   id: string;
@@ -28,6 +37,7 @@ type ClienteApi = {
   cidade?: string | null;
   uf?: string | null;
   cep?: string | null;
+  observacoes?: string | null;
 };
 
 type TrabalhoApi = {
@@ -35,6 +45,17 @@ type TrabalhoApi = {
   tipoProtese?: string | null;
   cliente?: { nome?: string | null; endereco?: string | null; cidade?: string | null; uf?: string | null; cep?: string | null };
   paciente?: { nome?: string | null };
+};
+
+type FornecedorApi = {
+  nome: string;
+  cep?: string;
+  rua?: string;
+  numero?: string;
+  cidade?: string;
+  uf?: string;
+  bairro?: string;
+  complemento?: string;
 };
 
 type Props = {
@@ -90,7 +111,22 @@ export function FormularioRotaEntregaModal({
   const [buscandoCep, setBuscandoCep] = useState(false);
 
   const prestadores = useMemo(() => carregarPrestadoresListagem(), [open]);
-  const colaboradores = useMemo(() => carregarColaboradoresListagem(), [open]);
+  const fornecedores = useMemo(() => {
+    const lista = readStorage<FornecedorApi[]>(FORNECEDORES_STORAGE_KEY, []);
+    return (Array.isArray(lista) ? lista : [])
+      .map((item) => ({
+        nome: item.nome?.trim() || "",
+        cep: item.cep,
+        rua: item.rua,
+        numero: item.numero,
+        cidade: item.cidade,
+        uf: item.uf,
+        bairro: item.bairro,
+        complemento: item.complemento,
+      }))
+      .filter((item) => item.nome)
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -105,14 +141,14 @@ export function FormularioRotaEntregaModal({
     if (form.tipoDestinatario === "cliente") {
       return clientes.map((item) => item.nome).filter(Boolean);
     }
-    if (form.tipoDestinatario === "colaborador") {
-      return colaboradores.map((item) => item.nome);
+    if (form.tipoDestinatario === "fornecedor") {
+      return fornecedores.map((item) => item.nome);
     }
     if (form.tipoDestinatario === "prestador") {
       return prestadores.map((item) => item.nome);
     }
     return [];
-  }, [form.tipoDestinatario, clientes, colaboradores, prestadores]);
+  }, [form.tipoDestinatario, clientes, fornecedores, prestadores]);
 
   const descricoesSugeridas = useMemo(() => {
     const extras = editando?.descricao ? [editando.descricao] : [];
@@ -125,23 +161,63 @@ export function FormularioRotaEntregaModal({
     setForm((atual) => ({ ...atual, [chave]: valor }));
   }
 
-  function preencherEnderecoCliente(cliente?: ClienteApi | null) {
-    if (!cliente) return;
+  function preencherEndereco(
+    origem?: {
+      cep?: string | null;
+      rua?: string | null;
+      endereco?: string | null;
+      numero?: string | null;
+      cidade?: string | null;
+      uf?: string | null;
+      bairro?: string | null;
+      complemento?: string | null;
+    } | null
+  ) {
+    if (!origem) return;
     setForm((atual) => ({
       ...atual,
-      cep: cliente.cep ? formatarCepEntrega(cliente.cep) : atual.cep,
-      rua: cliente.endereco || atual.rua,
-      cidade: cliente.cidade || atual.cidade,
-      uf: cliente.uf || atual.uf,
+      cep: origem.cep ? formatarCepEntrega(origem.cep) : atual.cep,
+      rua: origem.rua || origem.endereco || atual.rua,
+      numeroEndereco: origem.numero || atual.numeroEndereco,
+      cidade: origem.cidade || atual.cidade,
+      uf: origem.uf || atual.uf,
+      bairro: origem.bairro || atual.bairro,
+      complemento: origem.complemento || atual.complemento,
     }));
   }
 
+  function aplicarEntregaCliente(observacoes?: string | null) {
+    if (!observacoes) return {};
+    const entregador = entregadorCliente(observacoes);
+    const tipoEntregador = tipoEntregadorCliente(observacoes);
+    const custo = custoEntregaCliente(observacoes);
+    return {
+      ...(entregador ? { entregador } : {}),
+      ...(tipoEntregador ? { tipoEntregador } : {}),
+      ...(custo > 0 ? { valor: formatarMoedaEntrega(custo) } : {}),
+    };
+  }
+
   function aoSelecionarDestinatario(nome: string) {
-    atualizar("nomeDestinatario", nome);
     if (form.tipoDestinatario === "cliente") {
       const cliente = clientes.find((item) => item.nome === nome);
-      preencherEnderecoCliente(cliente);
+      setForm((atual) => ({
+        ...atual,
+        nomeDestinatario: nome,
+        ...(cliente?.cep ? { cep: formatarCepEntrega(cliente.cep) } : {}),
+        ...(cliente?.endereco ? { rua: cliente.endereco } : {}),
+        ...(cliente?.cidade ? { cidade: cliente.cidade } : {}),
+        ...(cliente?.uf ? { uf: cliente.uf } : {}),
+        ...aplicarEntregaCliente(cliente?.observacoes),
+      }));
+      return;
     }
+    if (form.tipoDestinatario === "fornecedor") {
+      preencherEndereco(fornecedores.find((item) => item.nome === nome));
+      atualizar("nomeDestinatario", nome);
+      return;
+    }
+    atualizar("nomeDestinatario", nome);
   }
 
   async function buscarOs() {
@@ -156,17 +232,22 @@ export function FormularioRotaEntregaModal({
         alert("OS não encontrada.");
         return;
       }
-      setForm((atual) => ({
-        ...atual,
-        numeroOs: String(trabalho.numeroOs),
-        tipoDestinatario: "cliente",
-        nomeDestinatario: trabalho.cliente?.nome || atual.nomeDestinatario,
-        descricao: trabalho.tipoProtese || atual.descricao,
-        cep: trabalho.cliente?.cep ? formatarCepEntrega(trabalho.cliente.cep) : atual.cep,
-        rua: trabalho.cliente?.endereco || atual.rua,
-        cidade: trabalho.cliente?.cidade || atual.cidade,
-        uf: trabalho.cliente?.uf || atual.uf,
-      }));
+      setForm((atual) => {
+        const nomeCliente = trabalho.cliente?.nome || atual.nomeDestinatario;
+        const cliente = clientes.find((item) => item.nome === nomeCliente);
+        return {
+          ...atual,
+          numeroOs: String(trabalho.numeroOs),
+          tipoDestinatario: "cliente",
+          nomeDestinatario: nomeCliente,
+          descricao: trabalho.tipoProtese || atual.descricao,
+          cep: cliente?.cep ? formatarCepEntrega(cliente.cep) : atual.cep,
+          rua: cliente?.endereco || atual.rua,
+          cidade: cliente?.cidade || atual.cidade,
+          uf: cliente?.uf || atual.uf,
+          ...aplicarEntregaCliente(cliente?.observacoes),
+        };
+      });
     } finally {
       setBuscandoOs(false);
     }
@@ -198,6 +279,7 @@ export function FormularioRotaEntregaModal({
 
   function salvar(event: React.FormEvent) {
     event.preventDefault();
+    if (!form.tipoDestinatario) return;
     if (!form.nomeDestinatario.trim()) return;
     if (!form.dataEntrega.trim()) return;
     if (!form.descricao.trim()) return;
@@ -256,7 +338,7 @@ export function FormularioRotaEntregaModal({
               <select
                 value={form.tipoDestinatario}
                 onChange={(e) => {
-                  const tipo = e.target.value as FormRotaEntrega["tipoDestinatario"];
+                  const tipo = e.target.value as TipoDestinatarioEntregaForm;
                   setForm((atual) => ({
                     ...atual,
                     tipoDestinatario: tipo,
@@ -266,7 +348,7 @@ export function FormularioRotaEntregaModal({
                 className={selectClassName()}
               >
                 {TIPOS_DESTINATARIO_ENTREGA.map((item) => (
-                  <option key={item.value} value={item.value}>
+                  <option key={item.value || "placeholder"} value={item.value}>
                     {item.label}
                   </option>
                 ))}
@@ -274,26 +356,19 @@ export function FormularioRotaEntregaModal({
             </div>
             <div>
               {labelCampo(labelNomeDestinatario(form.tipoDestinatario))}
-              {form.tipoDestinatario === "outro" ? (
-                <input
-                  value={form.nomeDestinatario}
-                  onChange={(e) => atualizar("nomeDestinatario", e.target.value)}
-                  className={inputClassName()}
-                />
-              ) : (
-                <select
-                  value={form.nomeDestinatario}
-                  onChange={(e) => aoSelecionarDestinatario(e.target.value)}
-                  className={selectClassName()}
-                >
-                  <option value="">Selecione</option>
-                  {nomesDestinatario.map((nome) => (
-                    <option key={nome} value={nome}>
-                      {nome}
-                    </option>
-                  ))}
-                </select>
-              )}
+              <select
+                value={form.nomeDestinatario}
+                onChange={(e) => aoSelecionarDestinatario(e.target.value)}
+                className={selectClassName()}
+                disabled={!form.tipoDestinatario}
+              >
+                <option value="">Selecione</option>
+                {nomesDestinatario.map((nome) => (
+                  <option key={nome} value={nome}>
+                    {nome}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </section>
