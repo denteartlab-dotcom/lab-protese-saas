@@ -77,14 +77,15 @@ export function removerEtiquetaDosProdutos(nome: string, produtos: ProdutoEtique
   let alterou = false;
 
   for (const produto of produtos) {
-    const etiquetaAtual = (extras[produto.id]?.etiqueta ?? produto.etiqueta ?? "").trim();
+    const etiquetaExtra = extras[produto.id]?.etiqueta;
+    const etiquetaAtual = String(etiquetaExtra ?? produto.etiqueta ?? "").trim();
     if (etiquetaAtual !== termo) continue;
     extras[produto.id] = { ...extras[produto.id], etiqueta: "" };
     alterou = true;
   }
 
   for (const chave of Object.keys(extras)) {
-    if ((extras[chave]?.etiqueta || "").trim() === termo) {
+    if (String(extras[chave]?.etiqueta ?? "").trim() === termo) {
       extras[chave] = { ...extras[chave], etiqueta: "" };
       alterou = true;
     }

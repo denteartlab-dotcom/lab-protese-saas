@@ -31,6 +31,7 @@ export function GerenciarEtiquetasCategoriaModal({
   onClose,
   onEtiquetaSalva,
   onEtiquetaExcluida,
+  produtos = [],
   layerClassName = "z-50",
 }: Props) {
   const [etiquetas, setEtiquetas] = useState<EtiquetaCategoria[]>([]);
