@@ -118,13 +118,22 @@ function exibirFormaPagamento(forma?: string | null) {
   const valor = forma?.trim();
   if (!valor) {
     return (
-      <span className="inline-block rounded border border-slate-200 bg-[#f5f6f8] px-2 py-0.5 text-[11px] text-slate-500">
+      <span className="inline-block whitespace-nowrap rounded bg-slate-100 px-2.5 py-1 text-[11px] text-slate-600">
         Não Informado
       </span>
     );
   }
   return (
-    <span className="inline-block rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+    <span className="inline-block whitespace-nowrap rounded bg-emerald-100 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+      {valor}
+    </span>
+  );
+}
+
+function exibirConta(conta?: string | null) {
+  const valor = conta?.trim() && conta !== "—" ? conta : "Caixa Principal";
+  return (
+    <span className="inline-block whitespace-nowrap rounded bg-cyan-50 px-2.5 py-1 text-[11px] font-medium text-cyan-600">
       {valor}
     </span>
   );
@@ -787,18 +796,18 @@ export function ContasPagarConteudo() {
                         <td className="px-3 py-2 text-slate-600">
                           {exibirFormaPagamento(lancamento.formaPagamento)}
                         </td>
-                        <td className="px-3 py-2 text-right font-medium text-slate-800">
+                        <td className="px-3 py-2 text-right text-slate-800">
                           {money(lancamento.valor)}
                         </td>
-                        <td className="px-3 py-2 font-medium text-[#4a90d9]">{pack.conta}</td>
+                        <td className="px-3 py-2">{exibirConta(pack.conta)}</td>
                         <td className="px-3 py-2">
-                          <div className="flex items-center justify-center gap-1">
+                          <div className="flex items-center justify-center gap-1.5">
                             {lancamento.status === "pendente" ? (
                               <button
                                 type="button"
                                 title="Marcar como pago"
                                 onClick={() => void marcarPago(lancamento)}
-                                className="rounded bg-[#4a90d9] px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-[#3d7fc4]"
+                                className="rounded bg-[#4a90d9] px-3 py-1 text-[11px] font-normal text-white hover:bg-[#3d7fc4]"
                               >
                                 Pagar
                               </button>
@@ -809,30 +818,25 @@ export function ContasPagarConteudo() {
                               onClick={() =>
                                 setDespesaAberta({ lancamento, ref })
                               }
-                              className={cn(
-                                "rounded p-1 hover:bg-slate-100",
-                                aberta
-                                  ? "text-[#4a90d9] bg-slate-100"
-                                  : "text-slate-500 hover:text-[#4a90d9]"
-                              )}
+                              className="rounded p-0.5 text-slate-400 hover:text-slate-600"
                             >
-                              <Eye className="h-3.5 w-3.5" />
+                              <Eye className="h-4 w-4 stroke-[1.5]" />
                             </button>
                             <button
                               type="button"
                               title="Editar"
                               onClick={() => abrirEdicao(lancamento)}
-                              className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-[#4a90d9]"
+                              className="rounded p-0.5 text-slate-400 hover:text-slate-600"
                             >
-                              <Pencil className="h-3.5 w-3.5" />
+                              <Pencil className="h-4 w-4 stroke-[1.5]" />
                             </button>
                             <button
                               type="button"
                               title="Excluir"
                               onClick={() => setDespesaParaExcluir(lancamento)}
-                              className="rounded p-1 text-red-500 hover:bg-red-50 hover:text-red-600"
+                              className="rounded p-0.5 text-red-500 hover:text-red-600"
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <Trash2 className="h-4 w-4 stroke-[1.5]" />
                             </button>
                           </div>
                         </td>
