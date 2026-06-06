@@ -1127,7 +1127,10 @@ function ProdutosConteudo() {
                             </div>
                             <div className="grid gap-x-8 gap-y-3 border-b border-slate-100 pb-3 md:grid-cols-4">
                               <p><span className="font-semibold text-slate-700">Código de Barras:</span> {produto.codigoBarras || ""}</p>
-                              <p><span className="font-semibold text-slate-700">Etiqueta:</span> {produto.etiqueta || ""}</p>
+                              <p className="flex flex-wrap items-center gap-1.5">
+                                <span className="font-semibold text-slate-700">Etiqueta:</span>
+                                <EtiquetaCategoriaBadge nome={produto.etiqueta} etiquetas={etiquetasCategoria} />
+                              </p>
                               <p><span className="font-semibold text-slate-700">Marca:</span> {produto.marca || ""}</p>
                               <p>
                                 <span className="font-semibold text-slate-700">Estoque:</span>{" "}
@@ -1221,11 +1224,31 @@ function ProdutosConteudo() {
                 onChange={(e) => setForm({ ...form, marca: e.target.value })}
               />
               <div className="grid gap-3 md:grid-cols-2">
-                <Input
-                  label="Etiqueta"
-                  value={form.etiqueta}
-                  onChange={(e) => setForm({ ...form, etiqueta: e.target.value })}
-                />
+                <div className="space-y-1">
+                  <Select
+                    label="Etiqueta"
+                    value={form.etiqueta}
+                    onChange={(e) => setForm({ ...form, etiqueta: e.target.value })}
+                  >
+                    <option value="">Selecione...</option>
+                    {etiquetasCategoria.map((etiqueta) => (
+                      <option key={etiqueta.id} value={etiqueta.nome}>
+                        {etiqueta.nome}
+                      </option>
+                    ))}
+                    {form.etiqueta &&
+                      !etiquetasCategoria.some((etiqueta) => etiqueta.nome === form.etiqueta) && (
+                        <option value={form.etiqueta}>{form.etiqueta}</option>
+                      )}
+                  </Select>
+                  <button
+                    type="button"
+                    onClick={() => setModalEtiquetasAberto(true)}
+                    className="text-[10px] font-semibold text-emerald-600 hover:text-emerald-700 hover:underline"
+                  >
+                    + adicionar etiqueta
+                  </button>
+                </div>
                 <Select
                   label="Unidade de Medida"
                   value={form.unidadeMedida}
@@ -1316,6 +1339,8 @@ function ProdutosConteudo() {
       <GerenciarEtiquetasCategoriaModal
         open={modalEtiquetasAberto}
         onClose={() => setModalEtiquetasAberto(false)}
+        onEtiquetaSalva={(nome) => setForm((atual) => ({ ...atual, etiqueta: nome }))}
+        layerClassName="z-[60]"
       />
 
       <Modal

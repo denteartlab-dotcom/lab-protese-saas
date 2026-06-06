@@ -15,13 +15,20 @@ import {
 type Props = {
   open: boolean;
   onClose: () => void;
+  onEtiquetaSalva?: (nome: string) => void;
+  layerClassName?: string;
 };
 
 function novoFormulario() {
   return { nome: "", cor: COR_ETIQUETA_PADRAO, editandoId: "" };
 }
 
-export function GerenciarEtiquetasCategoriaModal({ open, onClose }: Props) {
+export function GerenciarEtiquetasCategoriaModal({
+  open,
+  onClose,
+  onEtiquetaSalva,
+  layerClassName = "z-50",
+}: Props) {
   const [etiquetas, setEtiquetas] = useState<EtiquetaCategoria[]>([]);
   const [form, setForm] = useState(novoFormulario);
 
@@ -82,6 +89,7 @@ export function GerenciarEtiquetasCategoriaModal({ open, onClose }: Props) {
     }
 
     setForm(novoFormulario());
+    onEtiquetaSalva?.(nome);
   }
 
   function editarEtiqueta(etiqueta: EtiquetaCategoria) {
@@ -98,7 +106,13 @@ export function GerenciarEtiquetasCategoriaModal({ open, onClose }: Props) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Gerenciar Etiquetas Categoria" size="lg">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Gerenciar Etiquetas Categoria"
+      size="lg"
+      layerClassName={layerClassName}
+    >
       <div className="space-y-5 text-[11px] text-slate-600">
         <div className="space-y-3">
           <div className="space-y-1">
