@@ -5,7 +5,9 @@ import Link from "next/link";
 import { Eye, Printer, Search } from "lucide-react";
 import { BadgeSegmentoOs } from "@/components/BadgeSegmentoOs";
 import { ControleProducaoToolbar } from "@/components/ControleProducaoToolbar";
+import { ImprimirOsModal } from "@/components/ImprimirOsModal";
 import { Button, Input, Select } from "@/components/ui";
+import { grupoOsTemMultiplosSegmentos } from "@/lib/trabalho-os-segmento";
 import { formatDate, STATUS_TRABALHO } from "@/lib/utils";
 import {
   caixaAgenda,
@@ -21,10 +23,15 @@ import { prazoTrabalho } from "@/lib/controle-producao-prazos";
 
 type Trabalho = TrabalhoAgenda & {
   segmentoFaturamento?: string | null;
+  grupoOsId?: string | null;
   dentes?: string | null;
   escala?: string | null;
   cliente?: { nome?: string | null; cro?: string | null };
 };
+
+function chaveGrupoOs(trabalho: Trabalho) {
+  return trabalho.grupoOsId || trabalho.id;
+}
 
 function isAtrasado(trabalho: Trabalho) {
   return trabalhoAtrasadoAgenda(trabalho);
@@ -102,6 +109,7 @@ export default function AgendaPage() {
   const [busca, setBusca] = useState("");
   const [filtroAgenda, setFiltroAgenda] = useState("todos");
   const [semanaOffset, setSemanaOffset] = useState(0);
+  const [imprimirOs, setImprimirOs] = useState<Trabalho | null>(null);
 
   async function load() {
     const params = new URLSearchParams();
@@ -163,7 +171,20 @@ export default function AgendaPage() {
       <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">
         <ControleProducaoToolbar viewAtiva="agenda" />
 
-        <div className="grid gap-2 md:grid-cols-[1fr_1fr_1fr_1.4fr_auto_auto]">
+        <div className="mt-2">
+          <Link href={montarUrlImprimirAgenda()} target="_blank" rel="noopener noreferrer">
+            <Button
+              type="button"
+              size="sm"
+              className="gap-1.5 bg-[#4a90d9] text-white hover:bg-[#3d7fc4]"
+            >
+              <Printer className="h-4 w-4" />
+              Imprimir Agenda
+            </Button>
+          </Link>
+        </div>
+
+        <div className="mt-3 grid gap-2 md:grid-cols-[1fr_1fr_1fr_1.4fr_auto]">
           <Select label="Situação" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="">Todas</option>
             {Object.entries(STATUS_TRABALHO).map(([key, value]) => (
@@ -190,12 +211,6 @@ export default function AgendaPage() {
             <Search className="h-4 w-4" />
             Buscar
           </Button>
-          <Link href={montarUrlImprimirAgenda()} target="_blank" rel="noopener noreferrer">
-            <Button className="mt-6" size="sm" variant="outline">
-              <Printer className="h-4 w-4" />
-              Imprimir Agenda
-            </Button>
-          </Link>
         </div>
 
         <div className="mt-3 flex items-stretch justify-center overflow-x-auto rounded border border-slate-400 bg-white text-[10px]">
@@ -339,9 +354,14 @@ export default function AgendaPage() {
                         <Link href={`/app/producao/controle?q=${trabalho.numeroOs}`} className="rounded p-1 text-slate-500 hover:bg-white hover:text-primary-700">
                           <Eye className="h-4 w-4" />
                         </Link>
-                        <Link href={`/app/trabalhos/${trabalho.id}/imprimir`} target="_blank" className="rounded p-1 text-slate-500 hover:bg-white hover:text-primary-700">
+                        <button
+                          type="button"
+                          onClick={() => setImprimirOs(trabalho)}
+                          title="Imprimir OS"
+                          className="rounded p-1 text-red-500 hover:bg-white hover:text-red-600"
+                        >
                           <Printer className="h-4 w-4" />
-                        </Link>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -358,6 +378,19 @@ export default function AgendaPage() {
           </table>
         </div>
       </div>
+
+      <ImprimirOsModal
+        open={!!imprimirOs}
+        onClose={() => setImprimirOs(null)}
+        trabalho={imprimirOs}
+        multiplosSegmentos={
+          imprimirOs
+            ? grupoOsTemMultiplosSegmentos(
+                trabalhos.filter((item) => chaveGrupoOs(item) === chaveGrupoOs(imprimirOs))
+              )
+            : false
+        }
+      />
     </div>
   );
 }
