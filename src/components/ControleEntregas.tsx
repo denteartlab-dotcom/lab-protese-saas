@@ -16,14 +16,13 @@ import {
 } from "lucide-react";
 import { ControleProducaoToolbar } from "@/components/ControleProducaoToolbar";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
-import { Button, Input, Modal, Select } from "@/components/ui";
+import { FormularioRotaEntregaModal } from "@/components/FormularioRotaEntregaModal";
+import { Button, Modal } from "@/components/ui";
 import { CampoDataBr } from "@/components/campo-data-br";
 import {
-  atualizarEntrega,
   carregarEntregadores,
   carregarEntregas,
   contarPorSituacao,
-  criarEntrega,
   dataBrHoje,
   dataBrInicioMesAtual,
   ENTREGAS_EVENT,
@@ -82,17 +81,6 @@ function CardResumoEntrega({
   );
 }
 
-function parseCurrencyInput(value: string) {
-  return Number(value.replace(/\D/g, "")) / 100;
-}
-
-function formatCurrencyInput(value: string) {
-  return parseCurrencyInput(value).toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
-}
-
 export function ControleEntregas() {
   const [entregas, setEntregas] = useState<EntregaControle[]>([]);
   const [entregadores, setEntregadores] = useState<string[]>([]);
@@ -108,14 +96,6 @@ export function ControleEntregas() {
   const [editando, setEditando] = useState<EntregaControle | null>(null);
   const [visualizando, setVisualizando] = useState<EntregaControle | null>(null);
   const [excluindo, setExcluindo] = useState<EntregaControle | null>(null);
-  const [form, setForm] = useState({
-    destinatario: "",
-    entregador: "",
-    descricao: "",
-    nomeRecebedor: "",
-    situacao: "pendente" as SituacaoEntrega,
-    valor: "R$ 0,00",
-  });
 
   function recarregar() {
     setEntregas(carregarEntregas());
@@ -170,57 +150,17 @@ export function ControleEntregas() {
 
   function abrirNovaEntrega() {
     setEditando(null);
-    setForm({
-      destinatario: "",
-      entregador: "",
-      descricao: "",
-      nomeRecebedor: "",
-      situacao: "pendente",
-      valor: "R$ 0,00",
-    });
     setModalAberto(true);
   }
 
   function abrirEdicao(entrega: EntregaControle) {
     setEditando(entrega);
-    setForm({
-      destinatario: entrega.destinatario,
-      entregador: entrega.entregador,
-      descricao: entrega.descricao,
-      nomeRecebedor: entrega.nomeRecebedor || "",
-      situacao: entrega.situacao,
-      valor: formatarMoedaEntrega(entrega.valor),
-    });
     setModalAberto(true);
   }
 
-  function salvarEntrega(event: React.FormEvent) {
-    event.preventDefault();
-    const valor = parseCurrencyInput(form.valor);
-    const payload = {
-      destinatario: form.destinatario.trim(),
-      entregador: form.entregador.trim(),
-      descricao: form.descricao.trim(),
-      nomeRecebedor: form.nomeRecebedor.trim(),
-      situacao: form.situacao,
-      valor,
-      dataFinalizado:
-        form.situacao === "entregue"
-          ? editando?.dataFinalizado || new Date().toISOString()
-          : null,
-    };
-
-    if (!payload.destinatario) return;
-
-    if (editando) {
-      atualizarEntrega(editando.id, payload);
-    } else {
-      criarEntrega(payload);
-    }
-
+  function fecharModalRota() {
     setModalAberto(false);
     setEditando(null);
-    recarregar();
   }
 
   function confirmarExclusao() {
@@ -493,86 +433,13 @@ export function ControleEntregas() {
         </div>
       </div>
 
-      <Modal
+      <FormularioRotaEntregaModal
         open={modalAberto}
-        onClose={() => {
-          setModalAberto(false);
-          setEditando(null);
-        }}
-        title={editando ? `Editar Entrega: ${editando.destinatario}` : "Nova Entrega"}
-        size="lg"
-      >
-        <form onSubmit={salvarEntrega} className="space-y-4 text-[11px] text-slate-600">
-          <div className="grid gap-3 md:grid-cols-2">
-            <Input
-              label="Destinatário"
-              value={form.destinatario}
-              onChange={(e) => setForm({ ...form, destinatario: e.target.value })}
-              required
-            />
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-slate-700">Entregador</label>
-              <input
-                list="entregadores-entrega"
-                value={form.entregador}
-                onChange={(e) => setForm({ ...form, entregador: e.target.value })}
-                placeholder="Selecione ou digite o entregador"
-                className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm text-slate-700 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-              />
-              <datalist id="entregadores-entrega">
-                {entregadores.map((nome) => (
-                  <option key={nome} value={nome} />
-                ))}
-              </datalist>
-            </div>
-            <Input
-              label="Descrição"
-              value={form.descricao}
-              onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-            />
-            <Input
-              label="Nome Recebedor"
-              value={form.nomeRecebedor}
-              onChange={(e) => setForm({ ...form, nomeRecebedor: e.target.value })}
-            />
-            <Select
-              label="Situação"
-              value={form.situacao}
-              onChange={(e) =>
-                setForm({ ...form, situacao: e.target.value as SituacaoEntrega })
-              }
-            >
-              {Object.entries(SITUACOES_ENTREGA).map(([key, value]) => (
-                <option key={key} value={key}>
-                  {value.label}
-                </option>
-              ))}
-            </Select>
-            <Input
-              label="Valor"
-              selectOnFocus
-              value={form.valor}
-              onChange={(e) => setForm({ ...form, valor: formatCurrencyInput(e.target.value) })}
-            />
-          </div>
-          <div className="flex justify-start gap-2 border-t border-slate-100 pt-4">
-            <Button type="submit" size="sm">
-              {editando ? "Salvar" : "Cadastrar"}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setModalAberto(false);
-                setEditando(null);
-              }}
-            >
-              Fechar
-            </Button>
-          </div>
-        </form>
-      </Modal>
+        editando={editando}
+        entregadores={entregadores}
+        onClose={fecharModalRota}
+        onSalvo={recarregar}
+      />
 
       <Modal
         open={Boolean(visualizando)}
@@ -581,7 +448,12 @@ export function ControleEntregas() {
         size="md"
       >
         {visualizando ? (
-          <div className="space-y-2 text-[11px] text-slate-600">
+          <div className="space-y-3 text-[11px] text-slate-600">
+            {visualizando.numeroOs ? (
+              <p>
+                <span className="font-semibold text-slate-700">OS:</span> {visualizando.numeroOs}
+              </p>
+            ) : null}
             <p>
               <span className="font-semibold text-slate-700">Data/Hora Pedido:</span>{" "}
               {formatarDataHoraEntrega(visualizando.dataPedido)}
@@ -590,14 +462,36 @@ export function ControleEntregas() {
               <span className="font-semibold text-slate-700">Destinatário:</span>{" "}
               {visualizando.destinatario}
             </p>
+            {visualizando.rua || visualizando.cep ? (
+              <p>
+                <span className="font-semibold text-slate-700">Endereço:</span>{" "}
+                {[
+                  visualizando.rua,
+                  visualizando.numeroEndereco,
+                  visualizando.bairro,
+                  visualizando.cidade,
+                  visualizando.uf,
+                  visualizando.cep,
+                ]
+                  .filter(Boolean)
+                  .join(", ") || "—"}
+              </p>
+            ) : null}
             <p>
               <span className="font-semibold text-slate-700">Entregador:</span>{" "}
               {visualizando.entregador || "—"}
+              {visualizando.tipoEntregador ? ` (${visualizando.tipoEntregador})` : ""}
             </p>
             <p>
               <span className="font-semibold text-slate-700">Descrição:</span>{" "}
               {visualizando.descricao || "—"}
             </p>
+            {visualizando.observacao ? (
+              <p>
+                <span className="font-semibold text-slate-700">Observação:</span>{" "}
+                {visualizando.observacao}
+              </p>
+            ) : null}
             <p>
               <span className="font-semibold text-slate-700">Data Finalizado:</span>{" "}
               {formatarDataEntrega(visualizando.dataFinalizado)}

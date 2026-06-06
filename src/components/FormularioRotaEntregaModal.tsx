@@ -1,0 +1,495 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { MapPin, Truck, User } from "lucide-react";
+import { Modal } from "@/components/ui";
+import { CampoDataBr } from "@/components/campo-data-br";
+import { carregarColaboradoresListagem } from "@/lib/colaboradores-listagem";
+import {
+  atualizarEntrega,
+  criarEntrega,
+  DESCRICOES_ENTREGA_PADRAO,
+  entregaParaFormRota,
+  formRotaEntregaPadrao,
+  formRotaParaEntrega,
+  formatarCepEntrega,
+  labelNomeDestinatario,
+  TIPOS_DESTINATARIO_ENTREGA,
+  TIPOS_ENTREGADOR,
+  type EntregaControle,
+  type FormRotaEntrega,
+} from "@/lib/controle-entregas";
+import { carregarPrestadoresListagem } from "@/lib/prestadores-listagem";
+
+type ClienteApi = {
+  id: string;
+  nome: string;
+  endereco?: string | null;
+  cidade?: string | null;
+  uf?: string | null;
+  cep?: string | null;
+};
+
+type TrabalhoApi = {
+  numeroOs: number;
+  tipoProtese?: string | null;
+  cliente?: { nome?: string | null; endereco?: string | null; cidade?: string | null; uf?: string | null; cep?: string | null };
+  paciente?: { nome?: string | null };
+};
+
+type Props = {
+  open: boolean;
+  editando: EntregaControle | null;
+  entregadores: string[];
+  onClose: () => void;
+  onSalvo: () => void;
+};
+
+function labelCampo(texto: string) {
+  return <span className="mb-0.5 block text-[11px] text-slate-600">{texto}</span>;
+}
+
+function inputClassName() {
+  return "h-8 w-full rounded border border-[#d1d5db] bg-white px-2 text-[11px] text-slate-700 focus:border-blue-500 focus:outline-none";
+}
+
+function selectClassName() {
+  return inputClassName();
+}
+
+function tituloSecao(icon: React.ReactNode, texto: string) {
+  return (
+    <h3 className="flex items-center gap-2 border-b border-slate-100 pb-2 text-xs font-semibold text-slate-700">
+      {icon}
+      {texto}
+    </h3>
+  );
+}
+
+function parseCurrencyInput(value: string) {
+  return Number(value.replace(/\D/g, "")) / 100;
+}
+
+function formatCurrencyInput(value: string) {
+  return parseCurrencyInput(value).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+export function FormularioRotaEntregaModal({
+  open,
+  editando,
+  entregadores,
+  onClose,
+  onSalvo,
+}: Props) {
+  const [form, setForm] = useState<FormRotaEntrega>(formRotaEntregaPadrao());
+  const [clientes, setClientes] = useState<ClienteApi[]>([]);
+  const [buscandoOs, setBuscandoOs] = useState(false);
+  const [buscandoCep, setBuscandoCep] = useState(false);
+
+  const prestadores = useMemo(() => carregarPrestadoresListagem(), [open]);
+  const colaboradores = useMemo(() => carregarColaboradoresListagem(), [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    setForm(editando ? entregaParaFormRota(editando) : formRotaEntregaPadrao());
+    void fetch("/api/clientes")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setClientes(Array.isArray(data) ? data : []))
+      .catch(() => setClientes([]));
+  }, [open, editando]);
+
+  const nomesDestinatario = useMemo(() => {
+    if (form.tipoDestinatario === "cliente") {
+      return clientes.map((item) => item.nome).filter(Boolean);
+    }
+    if (form.tipoDestinatario === "colaborador") {
+      return colaboradores.map((item) => item.nome);
+    }
+    if (form.tipoDestinatario === "prestador") {
+      return prestadores.map((item) => item.nome);
+    }
+    return [];
+  }, [form.tipoDestinatario, clientes, colaboradores, prestadores]);
+
+  const descricoesSugeridas = useMemo(() => {
+    const extras = editando?.descricao ? [editando.descricao] : [];
+    return Array.from(new Set([...DESCRICOES_ENTREGA_PADRAO, ...extras])).sort((a, b) =>
+      a.localeCompare(b, "pt-BR")
+    );
+  }, [editando]);
+
+  function atualizar<K extends keyof FormRotaEntrega>(chave: K, valor: FormRotaEntrega[K]) {
+    setForm((atual) => ({ ...atual, [chave]: valor }));
+  }
+
+  function preencherEnderecoCliente(cliente?: ClienteApi | null) {
+    if (!cliente) return;
+    setForm((atual) => ({
+      ...atual,
+      cep: cliente.cep ? formatarCepEntrega(cliente.cep) : atual.cep,
+      rua: cliente.endereco || atual.rua,
+      cidade: cliente.cidade || atual.cidade,
+      uf: cliente.uf || atual.uf,
+    }));
+  }
+
+  function aoSelecionarDestinatario(nome: string) {
+    atualizar("nomeDestinatario", nome);
+    if (form.tipoDestinatario === "cliente") {
+      const cliente = clientes.find((item) => item.nome === nome);
+      preencherEnderecoCliente(cliente);
+    }
+  }
+
+  async function buscarOs() {
+    const termo = form.numeroOs.trim();
+    if (!termo) return;
+    setBuscandoOs(true);
+    try {
+      const res = await fetch(`/api/trabalhos?q=${encodeURIComponent(termo)}`);
+      const data = await res.json();
+      const trabalho = (Array.isArray(data) ? data[0] : null) as TrabalhoApi | null;
+      if (!trabalho) {
+        alert("OS não encontrada.");
+        return;
+      }
+      setForm((atual) => ({
+        ...atual,
+        numeroOs: String(trabalho.numeroOs),
+        tipoDestinatario: "cliente",
+        nomeDestinatario: trabalho.cliente?.nome || atual.nomeDestinatario,
+        descricao: trabalho.tipoProtese || atual.descricao,
+        cep: trabalho.cliente?.cep ? formatarCepEntrega(trabalho.cliente.cep) : atual.cep,
+        rua: trabalho.cliente?.endereco || atual.rua,
+        cidade: trabalho.cliente?.cidade || atual.cidade,
+        uf: trabalho.cliente?.uf || atual.uf,
+      }));
+    } finally {
+      setBuscandoOs(false);
+    }
+  }
+
+  async function buscarCep() {
+    const cep = form.cep.replace(/\D/g, "");
+    if (cep.length !== 8) return;
+    setBuscandoCep(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await res.json();
+      if (data.erro) {
+        alert("CEP não encontrado.");
+        return;
+      }
+      setForm((atual) => ({
+        ...atual,
+        rua: data.logradouro || atual.rua,
+        bairro: data.bairro || atual.bairro,
+        cidade: data.localidade || atual.cidade,
+        uf: data.uf || atual.uf,
+        complemento: data.complemento || atual.complemento,
+      }));
+    } finally {
+      setBuscandoCep(false);
+    }
+  }
+
+  function salvar(event: React.FormEvent) {
+    event.preventDefault();
+    if (!form.nomeDestinatario.trim()) return;
+    if (!form.dataEntrega.trim()) return;
+    if (!form.descricao.trim()) return;
+    if (!form.entregador.trim()) return;
+
+    const payload = formRotaParaEntrega(form, parseCurrencyInput);
+    if (editando) {
+      atualizarEntrega(editando.id, {
+        ...payload,
+        dataFinalizado:
+          editando.situacao === "entregue"
+            ? editando.dataFinalizado || payload.dataFinalizado
+            : payload.dataFinalizado,
+      });
+    } else {
+      criarEntrega(payload);
+    }
+    onSalvo();
+    onClose();
+  }
+
+  const destinatarioRodape = form.nomeDestinatario.trim() || "—";
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={editando ? "Editar Rota de Entrega" : "Cadastrar Rota de Entrega"}
+      size="xl"
+    >
+      <form onSubmit={salvar} className="space-y-5 text-[11px] text-slate-600">
+        <section className="space-y-3">
+          {tituloSecao(<User className="h-3.5 w-3.5" />, "Cadastrar Rota de Entrega")}
+          <div className="grid gap-3 md:grid-cols-[1.2fr_0.8fr_1fr]">
+            <div>
+              {labelCampo("Número da OS (opcional)")}
+              <div className="flex gap-1">
+                <input
+                  value={form.numeroOs}
+                  onChange={(e) => atualizar("numeroOs", e.target.value)}
+                  placeholder="Buscar informações pela OS"
+                  className={inputClassName()}
+                />
+                <button
+                  type="button"
+                  onClick={() => void buscarOs()}
+                  disabled={buscandoOs}
+                  className="h-8 shrink-0 rounded border border-slate-300 bg-slate-100 px-3 text-[10px] font-semibold text-slate-600 hover:bg-slate-200 disabled:opacity-60"
+                >
+                  {buscandoOs ? "..." : "Buscar"}
+                </button>
+              </div>
+            </div>
+            <div>
+              {labelCampo("Tipo Destinatário")}
+              <select
+                value={form.tipoDestinatario}
+                onChange={(e) => {
+                  const tipo = e.target.value as FormRotaEntrega["tipoDestinatario"];
+                  setForm((atual) => ({
+                    ...atual,
+                    tipoDestinatario: tipo,
+                    nomeDestinatario: "",
+                  }));
+                }}
+                className={selectClassName()}
+              >
+                {TIPOS_DESTINATARIO_ENTREGA.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              {labelCampo(labelNomeDestinatario(form.tipoDestinatario))}
+              {form.tipoDestinatario === "outro" ? (
+                <input
+                  value={form.nomeDestinatario}
+                  onChange={(e) => atualizar("nomeDestinatario", e.target.value)}
+                  className={inputClassName()}
+                />
+              ) : (
+                <select
+                  value={form.nomeDestinatario}
+                  onChange={(e) => aoSelecionarDestinatario(e.target.value)}
+                  className={selectClassName()}
+                >
+                  <option value="">Selecione</option>
+                  {nomesDestinatario.map((nome) => (
+                    <option key={nome} value={nome}>
+                      {nome}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          {tituloSecao(<MapPin className="h-3.5 w-3.5" />, "Endereço")}
+          <div className="grid gap-3 md:grid-cols-[0.9fr_1.6fr_0.5fr]">
+            <div>
+              {labelCampo("CEP")}
+              <div className="flex gap-1">
+                <input
+                  value={form.cep}
+                  onChange={(e) => atualizar("cep", formatarCepEntrega(e.target.value))}
+                  placeholder="00000-000"
+                  className={inputClassName()}
+                />
+                <button
+                  type="button"
+                  onClick={() => void buscarCep()}
+                  disabled={buscandoCep}
+                  className="h-8 shrink-0 rounded border border-slate-300 bg-slate-100 px-2 text-[9px] font-semibold text-slate-600 hover:bg-slate-200 disabled:opacity-60"
+                >
+                  {buscandoCep ? "..." : "Buscar Endereço"}
+                </button>
+              </div>
+            </div>
+            <div>
+              {labelCampo("Rua")}
+              <input
+                value={form.rua}
+                onChange={(e) => atualizar("rua", e.target.value)}
+                className={inputClassName()}
+              />
+            </div>
+            <div>
+              {labelCampo("Número")}
+              <input
+                value={form.numeroEndereco}
+                onChange={(e) => atualizar("numeroEndereco", e.target.value)}
+                className={inputClassName()}
+              />
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-4">
+            <div>
+              {labelCampo("Cidade")}
+              <input
+                value={form.cidade}
+                onChange={(e) => atualizar("cidade", e.target.value)}
+                className={inputClassName()}
+              />
+            </div>
+            <div>
+              {labelCampo("UF")}
+              <input
+                value={form.uf}
+                onChange={(e) => atualizar("uf", e.target.value.toUpperCase().slice(0, 2))}
+                className={inputClassName()}
+              />
+            </div>
+            <div>
+              {labelCampo("Bairro")}
+              <input
+                value={form.bairro}
+                onChange={(e) => atualizar("bairro", e.target.value)}
+                className={inputClassName()}
+              />
+            </div>
+            <div>
+              {labelCampo("Complemento")}
+              <input
+                value={form.complemento}
+                onChange={(e) => atualizar("complemento", e.target.value)}
+                className={inputClassName()}
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          {tituloSecao(<Truck className="h-3.5 w-3.5" />, "Entregador")}
+          <div className="grid gap-3 md:grid-cols-4">
+            <div>
+              {labelCampo("Nome do Entregador*")}
+              <input
+                list="entregadores-rota"
+                value={form.entregador}
+                onChange={(e) => atualizar("entregador", e.target.value)}
+                className={inputClassName()}
+                required
+              />
+              <datalist id="entregadores-rota">
+                {entregadores.map((nome) => (
+                  <option key={nome} value={nome} />
+                ))}
+              </datalist>
+            </div>
+            <div>
+              <CampoDataBr
+                label="Data*"
+                value={form.dataEntrega}
+                onChange={(valor) => atualizar("dataEntrega", valor)}
+                placeholder="dd/mm/aaaa"
+                inputClassName="h-8 text-[11px]"
+                className="[&_label]:text-[11px]"
+              />
+            </div>
+            <div>
+              {labelCampo("Hora")}
+              <input
+                type="time"
+                value={form.hora}
+                onChange={(e) => atualizar("hora", e.target.value)}
+                className={inputClassName()}
+              />
+            </div>
+            <div>
+              {labelCampo("Valor")}
+              <div className="flex h-8 items-center overflow-hidden rounded border border-[#d1d5db] bg-white">
+                <span className="border-r border-slate-200 bg-slate-50 px-2 text-[11px] text-slate-500">
+                  R$
+                </span>
+                <input
+                  value={form.valor.replace(/^R\$\s?/, "")}
+                  onChange={(e) =>
+                    atualizar("valor", formatCurrencyInput(`R$ ${e.target.value.replace(/\D/g, "")}`))
+                  }
+                  className="h-full w-full px-2 text-[11px] text-slate-700 focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <div>
+              {labelCampo("Tipo Entregador")}
+              <select
+                value={form.tipoEntregador}
+                onChange={(e) => atualizar("tipoEntregador", e.target.value)}
+                className={selectClassName()}
+              >
+                <option value="">Selecione</option>
+                {TIPOS_ENTREGADOR.map((tipo) => (
+                  <option key={tipo} value={tipo}>
+                    {tipo}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              {labelCampo("Descrição*")}
+              <input
+                list="descricoes-rota"
+                value={form.descricao}
+                onChange={(e) => atualizar("descricao", e.target.value)}
+                placeholder="Selecione na lista ou digite"
+                className={inputClassName()}
+                required
+              />
+              <datalist id="descricoes-rota">
+                {descricoesSugeridas.map((item) => (
+                  <option key={item} value={item} />
+                ))}
+              </datalist>
+            </div>
+            <div>
+              {labelCampo("Observação")}
+              <input
+                value={form.observacao}
+                onChange={(e) => atualizar("observacao", e.target.value)}
+                className={inputClassName()}
+              />
+            </div>
+          </div>
+        </section>
+
+        <div className="space-y-3 border-t border-slate-100 pt-4">
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="submit"
+              className="rounded bg-[#4a90d9] px-4 py-2 text-[11px] font-semibold text-white hover:bg-[#3d7fc4]"
+            >
+              Gravar Alterações
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded border border-slate-300 bg-white px-4 py-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              Fechar
+            </button>
+          </div>
+          <p className="text-[11px] text-slate-500">
+            Destinatário: <span className="font-medium text-slate-700">{destinatarioRodape}</span>
+          </p>
+        </div>
+      </form>
+    </Modal>
+  );
+}

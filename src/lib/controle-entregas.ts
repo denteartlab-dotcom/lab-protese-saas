@@ -7,6 +7,8 @@ export const ENTREGAS_EVENT = "labProteseControleEntregasAtualizado";
 
 export type SituacaoEntrega = "pendente" | "em_rota" | "entregue";
 
+export type TipoDestinatarioEntrega = "prestador" | "cliente" | "colaborador" | "outro";
+
 export type EntregaControle = {
   id: string;
   dataPedido: string;
@@ -17,7 +19,44 @@ export type EntregaControle = {
   nomeRecebedor?: string;
   situacao: SituacaoEntrega;
   valor: number;
+  numeroOs?: string;
+  tipoDestinatario?: TipoDestinatarioEntrega;
+  nomeDestinatario?: string;
+  cep?: string;
+  rua?: string;
+  numeroEndereco?: string;
+  cidade?: string;
+  uf?: string;
+  bairro?: string;
+  complemento?: string;
+  dataEntrega?: string;
+  hora?: string;
+  tipoEntregador?: string;
+  observacao?: string;
 };
+
+export const TIPOS_DESTINATARIO_ENTREGA: { value: TipoDestinatarioEntrega; label: string }[] = [
+  { value: "prestador", label: "Prestador de Serviço" },
+  { value: "cliente", label: "Cliente (Dentista)" },
+  { value: "colaborador", label: "Colaborador" },
+  { value: "outro", label: "Outro" },
+];
+
+export const TIPOS_ENTREGADOR = [
+  "Motoboy",
+  "Entregador Próprio",
+  "Transportadora",
+  "Correios",
+  "Outro",
+];
+
+export const DESCRICOES_ENTREGA_PADRAO = [
+  "Entrega de prótese",
+  "Coleta de moldagem",
+  "Entrega de trabalho",
+  "Retirada no laboratório",
+  "Entrega de produto",
+];
 
 export const SITUACOES_ENTREGA: Record<
   SituacaoEntrega,
@@ -73,6 +112,13 @@ function normalizarEntrega(item: Partial<EntregaControle>): EntregaControle | nu
   const situacao =
     item.situacao === "em_rota" || item.situacao === "entregue" ? item.situacao : "pendente";
 
+  const tipoDestinatario =
+    item.tipoDestinatario === "cliente" ||
+    item.tipoDestinatario === "colaborador" ||
+    item.tipoDestinatario === "outro"
+      ? item.tipoDestinatario
+      : "prestador";
+
   return {
     id,
     dataPedido: item.dataPedido || new Date().toISOString(),
@@ -83,6 +129,150 @@ function normalizarEntrega(item: Partial<EntregaControle>): EntregaControle | nu
     nomeRecebedor: String(item.nomeRecebedor || "").trim(),
     situacao,
     valor: Number(item.valor) || 0,
+    numeroOs: String(item.numeroOs || "").trim(),
+    tipoDestinatario,
+    nomeDestinatario: String(item.nomeDestinatario || destinatario).trim(),
+    cep: String(item.cep || "").trim(),
+    rua: String(item.rua || "").trim(),
+    numeroEndereco: String(item.numeroEndereco || "").trim(),
+    cidade: String(item.cidade || "").trim(),
+    uf: String(item.uf || "").trim(),
+    bairro: String(item.bairro || "").trim(),
+    complemento: String(item.complemento || "").trim(),
+    dataEntrega: item.dataEntrega || item.dataPedido || new Date().toISOString(),
+    hora: String(item.hora || extrairHoraEntrega(item.dataPedido)).trim(),
+    tipoEntregador: String(item.tipoEntregador || "").trim(),
+    observacao: String(item.observacao || "").trim(),
+  };
+}
+
+function extrairHoraEntrega(dataIso?: string) {
+  if (!dataIso) return "";
+  const data = new Date(dataIso);
+  if (Number.isNaN(data.getTime())) return "";
+  return data.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
+export function labelNomeDestinatario(tipo: TipoDestinatarioEntrega) {
+  if (tipo === "cliente") return "Nome do Cliente";
+  if (tipo === "colaborador") return "Nome do Colaborador";
+  if (tipo === "outro") return "Nome do Destinatário";
+  return "Nome do Prestador de Serviço";
+}
+
+export function formatarCepEntrega(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 5) return digits;
+  return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+}
+
+export function montarDataPedidoEntrega(dataBr: string, hora: string) {
+  const data = parseBrDate(dataBr);
+  if (!data) return new Date().toISOString();
+  const [h, m] = (hora || "00:00").split(":").map((parte) => Number(parte) || 0);
+  data.setHours(h, m, 0, 0);
+  return data.toISOString();
+}
+
+export type FormRotaEntrega = {
+  numeroOs: string;
+  tipoDestinatario: TipoDestinatarioEntrega;
+  nomeDestinatario: string;
+  cep: string;
+  rua: string;
+  numeroEndereco: string;
+  cidade: string;
+  uf: string;
+  bairro: string;
+  complemento: string;
+  entregador: string;
+  dataEntrega: string;
+  hora: string;
+  valor: string;
+  tipoEntregador: string;
+  descricao: string;
+  observacao: string;
+  situacao: SituacaoEntrega;
+};
+
+export function formRotaEntregaPadrao(): FormRotaEntrega {
+  const agora = new Date();
+  return {
+    numeroOs: "",
+    tipoDestinatario: "prestador",
+    nomeDestinatario: "",
+    cep: "",
+    rua: "",
+    numeroEndereco: "",
+    cidade: "",
+    uf: "",
+    bairro: "",
+    complemento: "",
+    entregador: "",
+    dataEntrega: dataBrHoje(),
+    hora: agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false }),
+    valor: "R$ 0,00",
+    tipoEntregador: "",
+    descricao: "",
+    observacao: "",
+    situacao: "pendente",
+  };
+}
+
+export function entregaParaFormRota(entrega: EntregaControle): FormRotaEntrega {
+  const data = entrega.dataEntrega || entrega.dataPedido;
+  const dataObj = new Date(data);
+  return {
+    numeroOs: entrega.numeroOs || "",
+    tipoDestinatario: entrega.tipoDestinatario || "prestador",
+    nomeDestinatario: entrega.nomeDestinatario || entrega.destinatario,
+    cep: entrega.cep || "",
+    rua: entrega.rua || "",
+    numeroEndereco: entrega.numeroEndereco || "",
+    cidade: entrega.cidade || "",
+    uf: entrega.uf || "",
+    bairro: entrega.bairro || "",
+    complemento: entrega.complemento || "",
+    entregador: entrega.entregador || "",
+    dataEntrega: Number.isNaN(dataObj.getTime()) ? dataBrHoje() : dateToBrShort(dataObj),
+    hora: entrega.hora || extrairHoraEntrega(entrega.dataPedido),
+    valor: formatarMoedaEntrega(entrega.valor),
+    tipoEntregador: entrega.tipoEntregador || "",
+    descricao: entrega.descricao || "",
+    observacao: entrega.observacao || "",
+    situacao: entrega.situacao,
+  };
+}
+
+export function formRotaParaEntrega(
+  form: FormRotaEntrega,
+  parseValor: (value: string) => number
+): Omit<EntregaControle, "id"> & { dataPedido?: string } {
+  const nome = form.nomeDestinatario.trim();
+  const dataPedido = montarDataPedidoEntrega(form.dataEntrega, form.hora);
+  return {
+    dataPedido,
+    destinatario: nome,
+    entregador: form.entregador.trim(),
+    descricao: form.descricao.trim(),
+    nomeRecebedor: "",
+    situacao: form.situacao,
+    valor: parseValor(form.valor),
+    dataFinalizado: form.situacao === "entregue" ? new Date().toISOString() : null,
+    numeroOs: form.numeroOs.trim(),
+    tipoDestinatario: form.tipoDestinatario,
+    nomeDestinatario: nome,
+    cep: form.cep.trim(),
+    rua: form.rua.trim(),
+    numeroEndereco: form.numeroEndereco.trim(),
+    cidade: form.cidade.trim(),
+    uf: form.uf.trim(),
+    bairro: form.bairro.trim(),
+    complemento: form.complemento.trim(),
+    dataEntrega: dataPedido,
+    hora: form.hora.trim(),
+    tipoEntregador: form.tipoEntregador.trim(),
+    observacao: form.observacao.trim(),
   };
 }
 
