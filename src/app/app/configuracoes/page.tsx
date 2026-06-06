@@ -19,6 +19,7 @@ import { BackupLaboratorioTab } from "@/components/configuracoes/BackupLaborator
 import { ConfiguracoesGeraisTab } from "@/components/configuracoes/ConfiguracoesGeraisTab";
 import { ConfiguracoesOsTab } from "@/components/configuracoes/ConfiguracoesOsTab";
 import { ConfiguracoesFaturasTab } from "@/components/configuracoes/ConfiguracoesFaturasTab";
+import { ConfiguracoesEtiquetasTab } from "@/components/configuracoes/ConfiguracoesEtiquetasTab";
 import { LogoLaboratorioTab } from "@/components/LogoLaboratorioTab";
 import { useI18n } from "@/components/i18n-provider";
 import {
@@ -40,7 +41,6 @@ const abasPagina: Array<{ id: string; labelKey: MessageKey; href?: string }> = [
   { id: "nfse", labelKey: "settings.nfse" },
   { id: "boletos", labelKey: "settings.boletos" },
   { id: "gerais", labelKey: "settings.gerais" },
-  { id: "mensagens", labelKey: "settings.mensagens" },
   { id: "os", labelKey: "settings.os" },
   { id: "faturas", labelKey: "settings.faturas" },
   { id: "etiquetas", labelKey: "settings.etiquetas" },
@@ -57,7 +57,6 @@ const abaPermissaoId: Record<string, string> = {
   nfse: "configuracoes-nfse",
   boletos: "configuracoes-boletos",
   gerais: "configuracoes-gerais",
-  mensagens: "configuracoes-mensagens",
   os: "configuracoes-os",
   faturas: "configuracoes-faturas",
   etiquetas: "configuracoes-etiquetas",
@@ -74,7 +73,6 @@ const titulosAbaKeys: Record<string, MessageKey> = {
   cabecalho: "settings.cabecalho",
   gerais: "settings.gerais",
   boletos: "settings.boletos",
-  mensagens: "settings.mensagens",
   os: "settings.os",
   faturas: "settings.faturas",
   etiquetas: "settings.etiquetas",
@@ -379,6 +377,8 @@ function ConfiguracoesConteudo() {
             <ConfiguracoesOsTab />
           ) : aba === "faturas" ? (
             <ConfiguracoesFaturasTab />
+          ) : aba === "etiquetas" ? (
+            <ConfiguracoesEtiquetasTab />
           ) : aba === "usuarios" ? (
             <MeusUsuariosTab />
           ) : aba === "backup" ? (

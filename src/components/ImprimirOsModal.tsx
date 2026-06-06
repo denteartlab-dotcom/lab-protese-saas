@@ -22,6 +22,7 @@ import {
 import {
   carregarConfiguracoesEtiquetas,
   CONFIG_ETIQUETAS_ATUALIZADA_EVENT,
+  etiquetasImpressaoDisponivel,
   MODELOS_ETIQUETA,
   modeloPadraoEtiqueta,
   nomeModeloEtiqueta,
@@ -83,7 +84,7 @@ function aplicarConfigNoModal(
   return {
     formato,
     modelo,
-    modeloEtiqueta: modeloPadraoEtiqueta(cfgEtiquetas),
+    modeloEtiqueta: modeloPadraoEtiqueta(cfgEtiquetas) ?? "slk-54x101",
     somenteItem: multiplosSegmentos ? "sim" : "nao",
     duasVias: cfgOs.duasVias[modelo] ? "sim" : "nao",
   };
@@ -166,12 +167,24 @@ export function ImprimirOsModal({
   const modelosA4 = useMemo(() => modelosOsPorFormato("a4"), []);
   const modelosTermica = useMemo(() => modelosOsPorFormato("termica"), []);
 
+  const etiquetasAtivas = etiquetasImpressaoDisponivel(configEtiquetas);
+
+  useEffect(() => {
+    if (!open || formato !== "etiquetas" || etiquetasAtivas) return;
+    const proximo = modeloPadraoParaFormato(configOs, "a4");
+    setFormato("a4");
+    setModelo(proximo);
+    setDuasVias(configOs.duasVias[proximo] ? "sim" : "nao");
+  }, [open, formato, etiquetasAtivas, configOs]);
+
   function aoMudarFormato(novo: FormatoImpressaoOs) {
     setFormato(novo);
     if (novo === "etiquetas") {
       const padrao = modeloPadraoEtiqueta(configEtiquetas);
-      setModeloEtiqueta(padrao);
-      setDuasVias(configEtiquetas.duasVias[padrao] ? "sim" : "nao");
+      if (padrao) {
+        setModeloEtiqueta(padrao);
+        setDuasVias(configEtiquetas.duasVias[padrao] ? "sim" : "nao");
+      }
       return;
     }
     const fmt = novo as "a4" | "termica";
@@ -198,6 +211,7 @@ export function ImprimirOsModal({
 
   function imprimir() {
     if (!trabalho) return;
+    if (formato === "etiquetas" && !etiquetasAtivas) return;
     const modeloImpressao = formato === "etiquetas" ? modeloEtiqueta : modelo;
     const url = montarUrlImpressaoOs(trabalho.id, {
       somenteItemSelecionado: somenteItem === "sim",
@@ -267,12 +281,22 @@ export function ImprimirOsModal({
               />
               Térmica 80mm
             </label>
-            <label className="flex cursor-pointer items-center gap-2">
+            <label
+              className={`flex items-center gap-2 ${
+                etiquetasAtivas ? "cursor-pointer" : "cursor-not-allowed opacity-50"
+              }`}
+              title={
+                etiquetasAtivas
+                  ? undefined
+                  : "Defina uma etiqueta padrão em Configurações → Etiquetas"
+              }
+            >
               <input
                 type="radio"
                 name="formato-os"
                 checked={formato === "etiquetas"}
                 onChange={() => aoMudarFormato("etiquetas")}
+                disabled={!etiquetasAtivas}
                 className="accent-primary-600"
               />
               Etiquetas
@@ -349,9 +373,23 @@ export function ImprimirOsModal({
                 </>
               ) : null}
             </p>
-          ) : (
+          ) : etiquetasAtivas ? (
             <p className="text-center text-xs text-slate-500">
               Tamanhos de etiqueta SLP — Seiko Smart Label Printer
+              {configEtiquetas.modeloPadrao ? (
+                <>
+                  {" "}
+                  · padrão:{" "}
+                  <span className="font-medium">
+                    {nomeModeloEtiqueta(configEtiquetas.modeloPadrao)}
+                  </span>
+                </>
+              ) : null}
+            </p>
+          ) : (
+            <p className="text-center text-xs text-amber-700">
+              Impressão de etiquetas desativada. Defina um modelo padrão em{" "}
+              <span className="font-medium">Configurações → Etiquetas</span>.
             </p>
           )}
 
@@ -368,7 +406,7 @@ export function ImprimirOsModal({
               type="button"
               className="bg-emerald-600 hover:bg-emerald-700"
               onClick={imprimir}
-              disabled={sincronizando}
+              disabled={sincronizando || (formato === "etiquetas" && !etiquetasAtivas)}
             >
               <Printer className="h-4 w-4" />
               Imprimir

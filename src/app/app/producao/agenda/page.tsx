@@ -2,52 +2,32 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, Eye, Printer, Search } from "lucide-react";
+import { Eye, Printer, Search } from "lucide-react";
 import { BadgeSegmentoOs } from "@/components/BadgeSegmentoOs";
 import { ControleProducaoToolbar } from "@/components/ControleProducaoToolbar";
 import { Button, Input, Select } from "@/components/ui";
 import { formatDate, STATUS_TRABALHO } from "@/lib/utils";
+import {
+  caixaAgenda,
+  colaboradorAgenda,
+  etapaAtualAgenda,
+  filtrarTrabalhosAgenda,
+  prazoTextoAgenda,
+  qtdAgenda,
+  trabalhoAtrasadoAgenda,
+  type TrabalhoAgenda,
+} from "@/lib/agenda-producao";
+import { prazoTrabalho } from "@/lib/controle-producao-prazos";
 
-type Trabalho = {
-  id: string;
-  numeroOs: number;
+type Trabalho = TrabalhoAgenda & {
   segmentoFaturamento?: string | null;
-  tipoProtese: string;
   dentes?: string | null;
   escala?: string | null;
-  status: string;
-  dataEntrada: string;
-  dataPrevista?: string | null;
-  instrucoes?: string | null;
   cliente?: { nome?: string | null; cro?: string | null };
-  paciente?: { nome?: string | null };
 };
 
-function localDate(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function brDateToDate(value: string) {
-  const [day, month, year] = value.split("/");
-  if (!day || !month || !year) return null;
-  const fullYear = year.length === 2 ? `20${year}` : year;
-  return new Date(Number(fullYear), Number(month) - 1, Number(day));
-}
-
-function prazoFromInstructions(instrucoes?: string | null) {
-  const text = instrucoes || "";
-  const match =
-    text.match(/Data laboratório:\s*(\d{2}\/\d{2}\/\d{2,4})/) ||
-    text.match(/Data dentista:\s*(\d{2}\/\d{2}\/\d{2,4})/);
-  return match ? brDateToDate(match[1]) : null;
-}
-
 function isAtrasado(trabalho: Trabalho) {
-  if (["finalizado", "entregue", "cancelado"].includes(trabalho.status)) return false;
-  const prazo = prazoDate(trabalho);
-  if (!prazo) return false;
-  const hoje = localDate(new Date());
-  return prazo < hoje;
+  return trabalhoAtrasadoAgenda(trabalho);
 }
 
 function clienteNome(trabalho: Trabalho) {
@@ -58,19 +38,8 @@ function pacienteNome(trabalho: Trabalho) {
   return trabalho.paciente?.nome || "";
 }
 
-function caixaOs(trabalho: Trabalho) {
-  const line = (trabalho.instrucoes || "")
-    .split("\n")
-    .find((item) => item.trim().startsWith("Caixa:"));
-  return line?.replace(/^Caixa:\s*/i, "").trim() || "";
-}
-
 function prazoDate(trabalho: Trabalho) {
-  const date = trabalho.dataPrevista
-    ? new Date(trabalho.dataPrevista)
-    : prazoFromInstructions(trabalho.instrucoes) || new Date(trabalho.dataEntrada);
-  if (!date || Number.isNaN(date.getTime())) return null;
-  return localDate(date);
+  return prazoTrabalho(trabalho, "lab");
 }
 
 function osBadge(numeroOs: number) {
@@ -155,14 +124,19 @@ export default function AgendaPage() {
   );
   const atrasados = baseFiltrada.filter(isAtrasado);
   const diasAgenda = useMemo(() => semanaAgenda(semanaOffset), [semanaOffset]);
-  const filtrados = useMemo(() => {
-    if (filtroAgenda === "atrasados") return baseFiltrada.filter(isAtrasado);
-    if (filtroAgenda.startsWith("data-")) {
-      const data = filtroAgenda.replace("data-", "");
-      return baseFiltrada.filter((trabalho) => prazoKey(trabalho) === data);
-    }
-    return baseFiltrada;
-  }, [baseFiltrada, filtroAgenda]);
+  const filtrados = useMemo(
+    () => filtrarTrabalhosAgenda(baseFiltrada, filtroAgenda),
+    [baseFiltrada, filtroAgenda]
+  );
+
+  function montarUrlImprimirAgenda() {
+    const params = new URLSearchParams();
+    params.set("filtro", filtroAgenda);
+    if (status) params.set("status", status);
+    if (cliente) params.set("cliente", cliente);
+    if (busca) params.set("q", busca);
+    return `/app/producao/agenda/imprimir?${params.toString()}`;
+  }
 
   function countData(data: string, somenteAtrasado = false) {
     return baseFiltrada.filter((trabalho) => {
@@ -189,7 +163,7 @@ export default function AgendaPage() {
       <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">
         <ControleProducaoToolbar viewAtiva="agenda" />
 
-        <div className="grid gap-2 md:grid-cols-[1fr_1fr_1fr_1.4fr_auto]">
+        <div className="grid gap-2 md:grid-cols-[1fr_1fr_1fr_1.4fr_auto_auto]">
           <Select label="Situação" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="">Todas</option>
             {Object.entries(STATUS_TRABALHO).map(([key, value]) => (
@@ -216,6 +190,12 @@ export default function AgendaPage() {
             <Search className="h-4 w-4" />
             Buscar
           </Button>
+          <Link href={montarUrlImprimirAgenda()} target="_blank" rel="noopener noreferrer">
+            <Button className="mt-6" size="sm" variant="outline">
+              <Printer className="h-4 w-4" />
+              Imprimir Agenda
+            </Button>
+          </Link>
         </div>
 
         <div className="mt-3 flex items-stretch justify-center overflow-x-auto rounded border border-slate-400 bg-white text-[10px]">
@@ -340,15 +320,15 @@ export default function AgendaPage() {
                         <BadgeSegmentoOs trabalho={trabalho} />
                       </span>
                     </td>
-                    <td className="px-3 py-2">{caixaOs(trabalho)}</td>
+                    <td className="px-3 py-2">{caixaAgenda(trabalho.instrucoes)}</td>
                     <td className="px-3 py-2">{formatDate(trabalho.dataEntrada)}</td>
-                    <td className="px-3 py-2">{formatDate(prazoDate(trabalho))}</td>
-                    <td className="px-3 py-2">1</td>
+                    <td className="px-3 py-2">{prazoTextoAgenda(trabalho)}</td>
+                    <td className="px-3 py-2">{qtdAgenda(trabalho.instrucoes)}</td>
                     <td className="px-3 py-2">{trabalho.tipoProtese}</td>
                     <td className="px-3 py-2">{clienteNome(trabalho)}</td>
                     <td className="px-3 py-2">{pacienteNome(trabalho)}</td>
-                    <td className="px-3 py-2">-</td>
-                    <td className="px-3 py-2">Produção</td>
+                    <td className="px-3 py-2">{colaboradorAgenda(trabalho.instrucoes) || "-"}</td>
+                    <td className="px-3 py-2">{etapaAtualAgenda(trabalho.instrucoes)}</td>
                     <td className="px-3 py-2">
                       <span className={`rounded px-2 py-1 text-[10px] font-semibold ${STATUS_TRABALHO[trabalho.status]?.color || "bg-slate-100 text-slate-700"}`}>
                         {STATUS_TRABALHO[trabalho.status]?.label || trabalho.status}

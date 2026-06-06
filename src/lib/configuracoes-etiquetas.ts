@@ -23,13 +23,13 @@ export const MODELOS_ETIQUETA: Array<{
   alturaMm: number;
 }> = [
   { id: "slk-54x101", nome: "SLP SLR 54mm x 101mm", larguraMm: 54, alturaMm: 101 },
-  { id: "2rle-36x89", nome: "SLP 2RLE 36mm x 89mm", larguraMm: 36, alturaMm: 89 },
-  { id: "2rlh-28x89", nome: "SLP 2RLH 28mm x 89mm", larguraMm: 28, alturaMm: 89 },
-  { id: "mrl-20x51", nome: "SLP MRL 20mm x 51mm", larguraMm: 20, alturaMm: 51 },
+  { id: "2rle-36x89", nome: "SLP - 2RLE 38mm x 89mm", larguraMm: 36, alturaMm: 89 },
+  { id: "2rlh-28x89", nome: "SLP - 2RLM 28mm x 89mm", larguraMm: 28, alturaMm: 89 },
+  { id: "mrl-20x51", nome: "SLP MRL 28mm x 51mm", larguraMm: 20, alturaMm: 51 },
 ];
 
 export type ConfiguracoesEtiquetas = {
-  modeloPadrao: ModeloEtiquetaId;
+  modeloPadrao: ModeloEtiquetaId | null;
   duasVias: Record<ModeloEtiquetaId, boolean>;
 };
 
@@ -133,9 +133,17 @@ export function normalizarConfiguracoesEtiquetas(
     };
   }
 
-  const modeloPadrao: ModeloEtiquetaId = modeloEtiquetaValido(valor.modeloPadrao ?? "")
-    ? (valor.modeloPadrao as ModeloEtiquetaId)
-    : CONFIG_ETIQUETAS_PADRAO.modeloPadrao;
+  let modeloPadrao: ModeloEtiquetaId | null;
+  const padraoRaw = valor.modeloPadrao;
+  if (padraoRaw === null) {
+    modeloPadrao = null;
+  } else if (typeof padraoRaw === "string" && padraoRaw && modeloEtiquetaValido(padraoRaw)) {
+    modeloPadrao = padraoRaw;
+  } else if (padraoRaw === undefined) {
+    modeloPadrao = CONFIG_ETIQUETAS_PADRAO.modeloPadrao;
+  } else {
+    modeloPadrao = CONFIG_ETIQUETAS_PADRAO.modeloPadrao;
+  }
 
   const duasVias = { ...CONFIG_ETIQUETAS_PADRAO.duasVias };
   if (valor.duasVias && typeof valor.duasVias === "object") {
@@ -214,6 +222,10 @@ export async function persistirConfiguracoesEtiquetasServidor(
   }
 }
 
-export function modeloPadraoEtiqueta(cfg: ConfiguracoesEtiquetas): ModeloEtiquetaId {
+export function modeloPadraoEtiqueta(cfg: ConfiguracoesEtiquetas): ModeloEtiquetaId | null {
   return cfg.modeloPadrao;
+}
+
+export function etiquetasImpressaoDisponivel(cfg: ConfiguracoesEtiquetas): boolean {
+  return cfg.modeloPadrao !== null && modeloEtiquetaValido(cfg.modeloPadrao);
 }
