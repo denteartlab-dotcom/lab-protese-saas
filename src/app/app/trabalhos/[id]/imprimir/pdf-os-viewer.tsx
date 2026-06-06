@@ -47,7 +47,9 @@ import {
   dimensoesModeloEtiqueta,
   modeloEtiquetaValido,
   nomeModeloEtiqueta,
+  tipografiaEtiquetaOs,
   type ModeloEtiquetaId,
+  type TipografiaEtiquetaOs,
 } from "@/lib/configuracoes-etiquetas";
 import { extrairDataPrazoBr } from "@/lib/os-itens-impressao";
 import { gerarPngCode39DataUrl } from "@/lib/code39-barcode";
@@ -1601,33 +1603,8 @@ function renderTermicaModelo5(
   return y + 2;
 }
 
-type EscalaEtiquetaOs = {
-  margem: number;
-  fsTexto: number;
-  fsOs: number;
-  barcodeAltura: number;
-  espacoLinha: number;
-  gapAposBarcode: number;
-  barcodeNarrowPx: number;
-  barcodeHeightPx: number;
-};
-
-function escalaEtiquetaOs(larguraMm: number): EscalaEtiquetaOs {
-  const r = larguraMm / 54;
-  return {
-    margem: Math.max(1.2, 3 * r),
-    fsTexto: Math.max(5, 9 * r),
-    fsOs: Math.max(7, 13 * r),
-    barcodeAltura: Math.max(6, 11 * r),
-    espacoLinha: Math.max(2.8, 4.5 * r),
-    gapAposBarcode: Math.max(1.5, 3 * r),
-    barcodeNarrowPx: Math.max(3, Math.round(5 * r)),
-    barcodeHeightPx: Math.max(80, Math.round(160 * r)),
-  };
-}
-
-function gapLinhaEtiqueta(y: number, fs: number, esc: EscalaEtiquetaOs) {
-  return y + Math.max(0.5, esc.espacoLinha - fs * 0.38);
+function gapLinhaEtiqueta(y: number, fs: number, tip: TipografiaEtiquetaOs) {
+  return y + Math.max(0.5, tip.espacoLinhaMm - fs * 0.38);
 }
 
 function prazoEtiquetaOs(data: PdfOsData) {
@@ -1709,8 +1686,8 @@ async function renderEtiquetaOs(
   modeloEtiqueta: ModeloEtiquetaId
 ) {
   const { larguraMm, alturaMm } = dimensoesModeloEtiqueta(modeloEtiqueta);
-  const esc = escalaEtiquetaOs(larguraMm);
-  const margem = esc.margem;
+  const tip = tipografiaEtiquetaOs(modeloEtiqueta);
+  const margem = tip.margemMm;
   const larguraUtil = larguraMm - margem * 2;
   const alturaMax = alturaMm - margem;
   const item = data.itens[0];
@@ -1718,20 +1695,20 @@ async function renderEtiquetaOs(
   const barcodeY = margem;
 
   const barcodeImg = gerarPngCode39DataUrl(codigoBarras, {
-    narrowPx: esc.barcodeNarrowPx,
-    heightPx: esc.barcodeHeightPx,
+    narrowPx: tip.barcodeNarrowPx,
+    heightPx: tip.barcodeHeightPx,
   });
 
   let barcodeW = 0;
   if (barcodeImg) {
-    barcodeW = (barcodeImg.widthPx / barcodeImg.heightPx) * esc.barcodeAltura;
+    barcodeW = (barcodeImg.widthPx / barcodeImg.heightPx) * tip.barcodeAlturaMm;
     pdf.addImage(
       barcodeImg.dataUrl,
       "PNG",
       margem,
       barcodeY,
       barcodeW,
-      esc.barcodeAltura
+      tip.barcodeAlturaMm
     );
   } else {
     drawCode39(pdf, codigoBarras, margem, barcodeY);
@@ -1739,11 +1716,11 @@ async function renderEtiquetaOs(
   }
 
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(esc.fsOs);
-  const osX = margem + barcodeW + Math.max(0.8, 1.5 * (larguraMm / 54));
-  pdf.text(codigoBarras, osX, margem + esc.barcodeAltura * 0.78);
+  pdf.setFontSize(tip.fsOs);
+  const osX = margem + barcodeW + tip.gapNumeroOsMm;
+  pdf.text(codigoBarras, osX, margem + tip.barcodeAlturaMm * 0.78);
 
-  let y = margem + esc.barcodeAltura + esc.gapAposBarcode;
+  let y = margem + tip.barcodeAlturaMm + tip.gapAposBarcodeMm;
 
   if (data.cliente) {
     y = linhaEtiquetaRotulo(
@@ -1753,10 +1730,10 @@ async function renderEtiquetaOs(
       margem,
       y,
       larguraUtil,
-      esc.fsTexto,
+      tip.fsTexto,
       alturaMax
     );
-    y = gapLinhaEtiqueta(y, esc.fsTexto, esc);
+    y = gapLinhaEtiqueta(y, tip.fsTexto, tip);
   }
 
   if (data.paciente) {
@@ -1767,10 +1744,10 @@ async function renderEtiquetaOs(
       margem,
       y,
       larguraUtil,
-      esc.fsTexto,
+      tip.fsTexto,
       alturaMax
     );
-    y = gapLinhaEtiqueta(y, esc.fsTexto, esc);
+    y = gapLinhaEtiqueta(y, tip.fsTexto, tip);
   }
 
   if (item?.descricao) {
@@ -1781,10 +1758,10 @@ async function renderEtiquetaOs(
       margem,
       y,
       larguraUtil,
-      esc.fsTexto,
+      tip.fsTexto,
       alturaMax
     );
-    y = gapLinhaEtiqueta(y, esc.fsTexto, esc);
+    y = gapLinhaEtiqueta(y, tip.fsTexto, tip);
   }
 
   const prazo = prazoEtiquetaOs(data);
@@ -1795,7 +1772,7 @@ async function renderEtiquetaOs(
     margem,
     y,
     larguraUtil,
-    esc.fsTexto,
+    tip.fsTexto,
     alturaMax
   );
 

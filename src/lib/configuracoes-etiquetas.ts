@@ -59,6 +59,70 @@ export function dimensoesModeloEtiqueta(id: ModeloEtiquetaId) {
   };
 }
 
+export type TipografiaEtiquetaOs = {
+  margemMm: number;
+  fsTexto: number;
+  fsOs: number;
+  barcodeAlturaMm: number;
+  espacoLinhaMm: number;
+  gapAposBarcodeMm: number;
+  gapNumeroOsMm: number;
+  barcodeNarrowPx: number;
+  barcodeHeightPx: number;
+};
+
+/** Tipografia calibrada por tamanho SLP — número da OS menor que o texto em todos os modelos. */
+export const TIPOGRAFIA_ETIQUETA_OS: Record<ModeloEtiquetaId, TipografiaEtiquetaOs> = {
+  "slk-54x101": {
+    margemMm: 3,
+    fsTexto: 9,
+    fsOs: 8,
+    barcodeAlturaMm: 11,
+    espacoLinhaMm: 4.5,
+    gapAposBarcodeMm: 3,
+    gapNumeroOsMm: 1.5,
+    barcodeNarrowPx: 5,
+    barcodeHeightPx: 160,
+  },
+  "2rle-36x89": {
+    margemMm: 2,
+    fsTexto: 6.5,
+    fsOs: 5.5,
+    barcodeAlturaMm: 7.5,
+    espacoLinhaMm: 3.2,
+    gapAposBarcodeMm: 2,
+    gapNumeroOsMm: 1,
+    barcodeNarrowPx: 4,
+    barcodeHeightPx: 120,
+  },
+  "2rlh-28x89": {
+    margemMm: 1.6,
+    fsTexto: 5.5,
+    fsOs: 4.5,
+    barcodeAlturaMm: 6,
+    espacoLinhaMm: 2.8,
+    gapAposBarcodeMm: 1.6,
+    gapNumeroOsMm: 0.8,
+    barcodeNarrowPx: 3,
+    barcodeHeightPx: 100,
+  },
+  "mrl-20x51": {
+    margemMm: 1.2,
+    fsTexto: 5,
+    fsOs: 4,
+    barcodeAlturaMm: 4.5,
+    espacoLinhaMm: 2.5,
+    gapAposBarcodeMm: 1.2,
+    gapNumeroOsMm: 0.5,
+    barcodeNarrowPx: 2,
+    barcodeHeightPx: 80,
+  },
+};
+
+export function tipografiaEtiquetaOs(id: ModeloEtiquetaId): TipografiaEtiquetaOs {
+  return TIPOGRAFIA_ETIQUETA_OS[id] ?? TIPOGRAFIA_ETIQUETA_OS["slk-54x101"];
+}
+
 export function normalizarConfiguracoesEtiquetas(
   valor?: Partial<ConfiguracoesEtiquetas> | null
 ): ConfiguracoesEtiquetas {
