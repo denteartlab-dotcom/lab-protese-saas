@@ -1,3 +1,4 @@
+import { getProdutosEstoqueExtras, setProdutosEstoqueExtras } from "@/lib/estoque";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 
 export const ETIQUETAS_CATEGORIA_STORAGE_KEY = "labProteseEtiquetasCategoria";
@@ -50,4 +51,22 @@ export function corEtiquetaPorNome(nome: string | undefined | null, lista?: Etiq
   if (!termo) return COR_ETIQUETA_PADRAO;
   const etiquetas = lista ?? carregarEtiquetasCategoria();
   return etiquetas.find((item) => item.nome === termo)?.cor ?? COR_ETIQUETA_PADRAO;
+}
+
+/** Remove a etiqueta dos produtos quando a categoria é excluída. */
+export function removerEtiquetaDosProdutos(nome: string) {
+  const termo = nome.trim();
+  if (!termo) return;
+
+  const extras = getProdutosEstoqueExtras();
+  let alterou = false;
+
+  for (const chave of Object.keys(extras)) {
+    if (extras[chave]?.etiqueta === termo) {
+      extras[chave] = { ...extras[chave], etiqueta: "" };
+      alterou = true;
+    }
+  }
+
+  if (alterou) setProdutosEstoqueExtras(extras);
 }

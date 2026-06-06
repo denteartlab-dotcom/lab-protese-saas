@@ -23,7 +23,6 @@ import {
 } from "@/lib/estoque";
 import {
   carregarEtiquetasCategoria,
-  corEtiquetaPorNome,
   ETIQUETAS_CATEGORIA_EVENT,
   type EtiquetaCategoria,
 } from "@/lib/etiquetas-categoria";
@@ -39,11 +38,12 @@ function EtiquetaCategoriaBadge({
 }) {
   const termo = (nome || "").trim();
   if (!termo) return null;
-  const cor = corEtiquetaPorNome(termo, etiquetas);
+  const etiqueta = etiquetas.find((item) => item.nome === termo);
+  if (!etiqueta) return null;
   return (
     <span
       className="inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold text-white"
-      style={{ backgroundColor: cor }}
+      style={{ backgroundColor: etiqueta.cor }}
     >
       {termo}
     </span>
@@ -1340,6 +1340,9 @@ function ProdutosConteudo() {
         open={modalEtiquetasAberto}
         onClose={() => setModalEtiquetasAberto(false)}
         onEtiquetaSalva={(nome) => setForm((atual) => ({ ...atual, etiqueta: nome }))}
+        onEtiquetaExcluida={(nome) =>
+          setForm((atual) => (atual.etiqueta === nome ? { ...atual, etiqueta: "" } : atual))
+        }
         layerClassName="z-[60]"
       />
 

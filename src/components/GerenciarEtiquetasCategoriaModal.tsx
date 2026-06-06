@@ -8,6 +8,7 @@ import {
   COR_ETIQUETA_PADRAO,
   carregarEtiquetasCategoria,
   normalizarCorEtiqueta,
+  removerEtiquetaDosProdutos,
   salvarEtiquetasCategoria,
   type EtiquetaCategoria,
 } from "@/lib/etiquetas-categoria";
@@ -16,6 +17,7 @@ type Props = {
   open: boolean;
   onClose: () => void;
   onEtiquetaSalva?: (nome: string) => void;
+  onEtiquetaExcluida?: (nome: string) => void;
   layerClassName?: string;
 };
 
@@ -27,6 +29,7 @@ export function GerenciarEtiquetasCategoriaModal({
   open,
   onClose,
   onEtiquetaSalva,
+  onEtiquetaExcluida,
   layerClassName = "z-50",
 }: Props) {
   const [etiquetas, setEtiquetas] = useState<EtiquetaCategoria[]>([]);
@@ -101,7 +104,12 @@ export function GerenciarEtiquetasCategoriaModal({
   }
 
   function excluirEtiqueta(id: string) {
+    const removida = etiquetas.find((item) => item.id === id);
     persistir(etiquetas.filter((item) => item.id !== id));
+    if (removida) {
+      removerEtiquetaDosProdutos(removida.nome);
+      onEtiquetaExcluida?.(removida.nome);
+    }
     if (form.editandoId === id) setForm(novoFormulario());
   }
 
