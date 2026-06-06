@@ -23,6 +23,7 @@ import {
 } from "@/lib/estoque";
 import {
   carregarEtiquetasCategoria,
+  etiquetaCategoriaAtiva,
   ETIQUETAS_CATEGORIA_EVENT,
   type EtiquetaCategoria,
 } from "@/lib/etiquetas-categoria";
@@ -270,6 +271,7 @@ function ProdutosConteudo() {
   useEffect(() => {
     function atualizarEtiquetasCategoria() {
       setEtiquetasCategoria(carregarEtiquetasCategoria());
+      setExtras(getProdutosEstoqueExtras());
     }
     atualizarEtiquetasCategoria();
     window.addEventListener(ETIQUETAS_CATEGORIA_EVENT, atualizarEtiquetasCategoria);
@@ -370,11 +372,22 @@ function ProdutosConteudo() {
           ? extras[produto.id]?.valorCustoDelta
           : undefined,
       marca: extras[produto.id]?.marca ?? produto.marca ?? "",
-      etiqueta: extras[produto.id]?.etiqueta ?? produto.etiqueta ?? "",
+      etiqueta: etiquetaCategoriaAtiva(
+        extras[produto.id]?.etiqueta ?? produto.etiqueta ?? "",
+        etiquetasCategoria
+      ),
       codigoBarras: extras[produto.id]?.codigoBarras ?? produto.codigoBarras ?? "",
       unidadeMedida: extras[produto.id]?.unidadeMedida ?? produto.unidadeMedida ?? "un (Unitário)",
     }));
-  }, [produtos, extras, produtosRemovidosPermanentemente]);
+  }, [produtos, extras, produtosRemovidosPermanentemente, etiquetasCategoria]);
+
+  useEffect(() => {
+    setForm((atual) => {
+      const etiquetaValida = etiquetaCategoriaAtiva(atual.etiqueta, etiquetasCategoria);
+      if (etiquetaValida === (atual.etiqueta || "")) return atual;
+      return { ...atual, etiqueta: etiquetaValida };
+    });
+  }, [etiquetasCategoria]);
 
   useEffect(() => {
     notifProdutoFeito.current = false;
@@ -1227,7 +1240,7 @@ function ProdutosConteudo() {
                 <div className="space-y-1">
                   <Select
                     label="Etiqueta"
-                    value={form.etiqueta}
+                    value={etiquetaCategoriaAtiva(form.etiqueta, etiquetasCategoria)}
                     onChange={(e) => setForm({ ...form, etiqueta: e.target.value })}
                   >
                     <option value="">Selecione...</option>
@@ -1236,10 +1249,6 @@ function ProdutosConteudo() {
                         {etiqueta.nome}
                       </option>
                     ))}
-                    {form.etiqueta &&
-                      !etiquetasCategoria.some((etiqueta) => etiqueta.nome === form.etiqueta) && (
-                        <option value={form.etiqueta}>{form.etiqueta}</option>
-                      )}
                   </Select>
                   <button
                     type="button"
@@ -1339,6 +1348,7 @@ function ProdutosConteudo() {
       <GerenciarEtiquetasCategoriaModal
         open={modalEtiquetasAberto}
         onClose={() => setModalEtiquetasAberto(false)}
+        produtos={produtosComEstoque}
         onEtiquetaSalva={(nome) => setForm((atual) => ({ ...atual, etiqueta: nome }))}
         onEtiquetaExcluida={(nome) =>
           setForm((atual) => (atual.etiqueta === nome ? { ...atual, etiqueta: "" } : atual))

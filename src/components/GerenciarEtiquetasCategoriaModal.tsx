@@ -18,6 +18,7 @@ type Props = {
   onClose: () => void;
   onEtiquetaSalva?: (nome: string) => void;
   onEtiquetaExcluida?: (nome: string) => void;
+  produtos?: Array<{ id: string; etiqueta?: string | null }>;
   layerClassName?: string;
 };
 
@@ -107,7 +108,7 @@ export function GerenciarEtiquetasCategoriaModal({
     const removida = etiquetas.find((item) => item.id === id);
     persistir(etiquetas.filter((item) => item.id !== id));
     if (removida) {
-      removerEtiquetaDosProdutos(removida.nome);
+      removerEtiquetaDosProdutos(removida.nome, produtos);
       onEtiquetaExcluida?.(removida.nome);
     }
     if (form.editandoId === id) setForm(novoFormulario());

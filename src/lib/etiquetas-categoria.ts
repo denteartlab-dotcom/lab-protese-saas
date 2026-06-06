@@ -53,16 +53,38 @@ export function corEtiquetaPorNome(nome: string | undefined | null, lista?: Etiq
   return etiquetas.find((item) => item.nome === termo)?.cor ?? COR_ETIQUETA_PADRAO;
 }
 
+export function etiquetaCategoriaAtiva(
+  nome: string | undefined | null,
+  etiquetas?: EtiquetaCategoria[]
+) {
+  const termo = (nome || "").trim();
+  if (!termo) return "";
+  const lista = etiquetas ?? carregarEtiquetasCategoria();
+  return lista.some((item) => item.nome === termo) ? termo : "";
+}
+
+type ProdutoEtiquetaRef = {
+  id: string;
+  etiqueta?: string | null;
+};
+
 /** Remove a etiqueta dos produtos quando a categoria é excluída. */
-export function removerEtiquetaDosProdutos(nome: string) {
+export function removerEtiquetaDosProdutos(nome: string, produtos: ProdutoEtiquetaRef[] = []) {
   const termo = nome.trim();
   if (!termo) return;
 
   const extras = getProdutosEstoqueExtras();
   let alterou = false;
 
+  for (const produto of produtos) {
+    const etiquetaAtual = (extras[produto.id]?.etiqueta ?? produto.etiqueta ?? "").trim();
+    if (etiquetaAtual !== termo) continue;
+    extras[produto.id] = { ...extras[produto.id], etiqueta: "" };
+    alterou = true;
+  }
+
   for (const chave of Object.keys(extras)) {
-    if (extras[chave]?.etiqueta === termo) {
+    if ((extras[chave]?.etiqueta || "").trim() === termo) {
       extras[chave] = { ...extras[chave], etiqueta: "" };
       alterou = true;
     }
