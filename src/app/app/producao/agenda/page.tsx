@@ -169,7 +169,7 @@ export default function AgendaPage() {
       </div>
 
       <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">
-        <ControleProducaoToolbar viewAtiva="agenda" />
+        <ControleProducaoToolbar viewAtiva="agenda" somenteNavegacao />
 
         <div className="mt-2">
           <Link href={montarUrlImprimirAgenda()} target="_blank" rel="noopener noreferrer">

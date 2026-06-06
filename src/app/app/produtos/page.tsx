@@ -3,7 +3,7 @@
 import { Fragment, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Edit3, Eye, List, Plus, Search, Trash2 } from "lucide-react";
+import { Edit3, Eye, List, Plus, Printer, Search, Trash2 } from "lucide-react";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
@@ -856,6 +856,14 @@ function ProdutosConteudo() {
     setFiltroEstoque((atual) => (atual === filtro ? "todos" : filtro));
   }
 
+  function montarUrlImprimirProdutos() {
+    const params = new URLSearchParams();
+    if (filtroEstoque !== "todos") params.set("estoque", filtroEstoque);
+    if (busca.trim()) params.set("q", busca.trim());
+    const query = params.toString();
+    return query ? `/app/produtos/imprimir?${query}` : "/app/produtos/imprimir";
+  }
+
   function lucroProduto(produto: Produto) {
     const custo = produto.valorCusto || 0;
     const venda = produto.valor || 0;
@@ -907,9 +915,15 @@ function ProdutosConteudo() {
               <Plus className="h-3.5 w-3.5" />
               Produto
             </button>
-            <button type="button" className="h-7 rounded-sm bg-blue-500 px-2 text-[10px] font-semibold text-white">
-              OP
-            </button>
+            <Link
+              href={montarUrlImprimirProdutos()}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Imprimir relatório de produtos"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-sm bg-blue-500 text-white hover:bg-blue-600"
+            >
+              <Printer className="h-3.5 w-3.5" />
+            </Link>
             <button
               type="button"
               onClick={() => {
