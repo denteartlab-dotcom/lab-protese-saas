@@ -1,36 +1,55 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   Edit3,
   Eye,
   FileSpreadsheet,
+  MapPin,
   Plus,
   Printer,
   Save,
   Search,
   Trash2,
-  Truck,
+  User,
 } from "lucide-react";
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { compararTextoBr } from "@/lib/listagem-config";
-import { Button, Input, Modal } from "@/components/ui";
+import { Modal } from "@/components/ui";
 import { usePageReady } from "@/hooks/use-page-ready";
+import { formatarCepEntrega, TIPOS_ENTREGADOR } from "@/lib/controle-entregas";
 import {
   carregarEntregadoresCadastro,
   carregarEntregadoresExcluidos,
+  formularioEntregadorVazio,
   salvarEntregadoresCadastro,
   salvarEntregadoresExcluidos,
   type EntregadorCadastro,
 } from "@/lib/entregadores-cadastro";
 
-const formularioVazio = {
-  nome: "",
-  celular: "",
-  whatsapp: "",
-  email: "",
-};
+type FormEntregador = Omit<EntregadorCadastro, "id">;
+
+function labelCampo(texto: string) {
+  return <span className="mb-0.5 block text-[11px] text-slate-600">{texto}</span>;
+}
+
+function inputClassName() {
+  return "h-8 w-full rounded border border-[#d1d5db] bg-white px-2 text-[11px] text-slate-700 focus:border-blue-500 focus:outline-none";
+}
+
+function selectClassName() {
+  return inputClassName();
+}
+
+function tituloSecao(icon: React.ReactNode, texto: string) {
+  return (
+    <h3 className="flex items-center gap-2 border-b border-slate-100 pb-2 text-xs font-semibold text-slate-700">
+      {icon}
+      {texto}
+    </h3>
+  );
+}
 
 export default function EntregadoresPage() {
   const [busca, setBusca] = useState("");
@@ -40,8 +59,10 @@ export default function EntregadoresPage() {
   const [modalAberto, setModalAberto] = useState(false);
   const [visualizando, setVisualizando] = useState<EntregadorCadastro | null>(null);
   const [editando, setEditando] = useState<EntregadorCadastro | null>(null);
-  const [form, setForm] = useState(formularioVazio);
+  const [form, setForm] = useState<FormEntregador>(formularioEntregadorVazio);
+  const [buscandoCep, setBuscandoCep] = useState(false);
   const [persistenciaPronta, setPersistenciaPronta] = useState(false);
+  const ultimoCepBuscado = useRef("");
 
   const paginaPronta = usePageReady(() => {
     setEntregadores(carregarEntregadoresCadastro());
@@ -59,6 +80,14 @@ export default function EntregadoresPage() {
     salvarEntregadoresExcluidos(entregadoresExcluidos);
   }, [entregadoresExcluidos, persistenciaPronta]);
 
+  useEffect(() => {
+    if (!modalAberto) return;
+    const cep = form.cep.replace(/\D/g, "");
+    if (cep.length === 8 && cep !== ultimoCepBuscado.current) {
+      void buscarEnderecoPorCep(form.cep);
+    }
+  }, [form.cep, modalAberto]);
+
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     const lista = mostrarExcluidos ? entregadoresExcluidos : entregadores;
@@ -73,47 +102,96 @@ export default function EntregadoresPage() {
 
   function abrirNovo() {
     setEditando(null);
-    setForm(formularioVazio);
+    ultimoCepBuscado.current = "";
+    setForm(formularioEntregadorVazio());
     setModalAberto(true);
   }
 
   function abrirEdicao(entregador: EntregadorCadastro) {
     setEditando(entregador);
+    ultimoCepBuscado.current = (entregador.cep || "").replace(/\D/g, "");
     setForm({
       nome: entregador.nome,
+      tipoEntregador: entregador.tipoEntregador || "Motoboy",
+      cpf: entregador.cpf,
+      cnpj: entregador.cnpj,
+      email: entregador.email,
+      telefoneResidencial: entregador.telefoneResidencial,
+      telefoneComercial: entregador.telefoneComercial,
       celular: entregador.celular,
       whatsapp: entregador.whatsapp,
-      email: entregador.email,
+      cep: entregador.cep,
+      rua: entregador.rua,
+      numero: entregador.numero,
+      cidade: entregador.cidade,
+      uf: entregador.uf,
+      bairro: entregador.bairro,
+      complemento: entregador.complemento,
     });
     setModalAberto(true);
+  }
+
+  async function buscarEnderecoPorCep(cepInformado = form.cep) {
+    const cep = cepInformado.replace(/\D/g, "");
+    if (cep.length !== 8) return;
+
+    ultimoCepBuscado.current = cep;
+    setBuscandoCep(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await res.json();
+      if (data.erro) {
+        alert("CEP não encontrado.");
+        return;
+      }
+      setForm((atual) => ({
+        ...atual,
+        rua: data.logradouro || atual.rua,
+        bairro: data.bairro || atual.bairro,
+        cidade: data.localidade || atual.cidade,
+        uf: data.uf || atual.uf,
+        complemento: data.complemento || atual.complemento,
+      }));
+    } finally {
+      setBuscandoCep(false);
+    }
   }
 
   function salvarEntregador(event: React.FormEvent) {
     event.preventDefault();
     if (!form.nome.trim()) return;
 
+    const payload: EntregadorCadastro = {
+      id: editando?.id || `ent-${Date.now()}`,
+      nome: form.nome.trim(),
+      tipoEntregador: form.tipoEntregador.trim() || "Motoboy",
+      cpf: form.cpf.trim(),
+      cnpj: form.cnpj.trim(),
+      email: form.email.trim(),
+      telefoneResidencial: form.telefoneResidencial.trim(),
+      telefoneComercial: form.telefoneComercial.trim(),
+      celular: form.celular.trim(),
+      whatsapp: form.whatsapp.trim(),
+      cep: form.cep.trim(),
+      rua: form.rua.trim(),
+      numero: form.numero.trim(),
+      cidade: form.cidade.trim(),
+      uf: form.uf.trim(),
+      bairro: form.bairro.trim(),
+      complemento: form.complemento.trim(),
+    };
+
     if (editando) {
       setEntregadores((atuais) =>
-        atuais.map((entregador) =>
-          entregador.id === editando.id ? { ...entregador, ...form, nome: form.nome.trim() } : entregador
-        )
+        atuais.map((entregador) => (entregador.id === editando.id ? payload : entregador))
       );
     } else {
-      setEntregadores((atuais) => [
-        ...atuais,
-        {
-          id: `ent-${Date.now()}`,
-          nome: form.nome.trim(),
-          celular: form.celular.trim(),
-          whatsapp: form.whatsapp.trim(),
-          email: form.email.trim(),
-        },
-      ]);
+      setEntregadores((atuais) => [...atuais, payload]);
     }
 
     setModalAberto(false);
     setEditando(null);
-    setForm(formularioVazio);
+    setForm(formularioEntregadorVazio());
   }
 
   function excluirEntregador(id: string) {
@@ -310,6 +388,10 @@ export default function EntregadoresPage() {
                                       {entregador.nome}
                                     </p>
                                     <p>
+                                      <span className="font-semibold text-slate-700">Tipo:</span>{" "}
+                                      {entregador.tipoEntregador || "—"}
+                                    </p>
+                                    <p>
                                       <span className="font-semibold text-slate-700">Celular:</span>{" "}
                                       {entregador.celular || "—"}
                                     </p>
@@ -320,6 +402,12 @@ export default function EntregadoresPage() {
                                     <p>
                                       <span className="font-semibold text-slate-700">Email:</span>{" "}
                                       {entregador.email || "—"}
+                                    </p>
+                                    <p className="md:col-span-2">
+                                      <span className="font-semibold text-slate-700">Endereço:</span>{" "}
+                                      {[entregador.rua, entregador.numero, entregador.bairro, entregador.cidade, entregador.uf]
+                                        .filter(Boolean)
+                                        .join(", ") || "—"}
                                     </p>
                                   </div>
                                   <button
@@ -357,44 +445,188 @@ export default function EntregadoresPage() {
         open={modalAberto}
         onClose={() => setModalAberto(false)}
         title={editando ? "Editar Entregador" : "Cadastrar Entregador"}
-        size="lg"
+        size="xl"
       >
-        <form onSubmit={salvarEntregador} className="space-y-4 text-[11px] text-slate-600">
-          <h3 className="flex items-center gap-2 border-b border-slate-100 pb-2 text-xs font-semibold text-slate-700">
-            <Truck className="h-3.5 w-3.5" />
-            Dados do Entregador
-          </h3>
-          <div className="grid gap-3 md:grid-cols-2">
-            <Input
-              label="Nome *"
-              value={form.nome}
-              onChange={(e) => setForm({ ...form, nome: e.target.value })}
-              required
-            />
-            <Input
-              label="Celular"
-              value={form.celular}
-              onChange={(e) => setForm({ ...form, celular: e.target.value })}
-            />
-            <Input
-              label="WhatsApp"
-              value={form.whatsapp}
-              onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
-            />
-            <Input
-              label="Email"
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-          </div>
-          <div className="flex justify-start gap-2 border-t border-slate-100 pt-4">
-            <Button type="submit" size="sm">
+        <form onSubmit={salvarEntregador} className="space-y-5 text-[11px] text-slate-600">
+          <section className="space-y-3">
+            {tituloSecao(<User className="h-3.5 w-3.5" />, "Dados do Entregador")}
+            <div className="grid gap-3 md:grid-cols-[1.6fr_0.8fr]">
+              <div>
+                {labelCampo("Nome do Entregador")}
+                <input
+                  value={form.nome}
+                  onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                  className={inputClassName()}
+                  required
+                />
+              </div>
+              <div>
+                {labelCampo("Tipo Entregador")}
+                <select
+                  value={form.tipoEntregador}
+                  onChange={(e) => setForm({ ...form, tipoEntregador: e.target.value })}
+                  className={selectClassName()}
+                >
+                  {TIPOS_ENTREGADOR.map((tipo) => (
+                    <option key={tipo} value={tipo}>
+                      {tipo}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              <div>
+                {labelCampo("CPF")}
+                <input
+                  value={form.cpf}
+                  onChange={(e) => setForm({ ...form, cpf: e.target.value })}
+                  className={inputClassName()}
+                />
+              </div>
+              <div>
+                {labelCampo("CNPJ")}
+                <input
+                  value={form.cnpj}
+                  onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
+                  className={inputClassName()}
+                />
+              </div>
+              <div>
+                {labelCampo("Email")}
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  className={inputClassName()}
+                />
+              </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-4">
+              <div>
+                {labelCampo("Telefone Residencial")}
+                <input
+                  value={form.telefoneResidencial}
+                  onChange={(e) => setForm({ ...form, telefoneResidencial: e.target.value })}
+                  className={inputClassName()}
+                />
+              </div>
+              <div>
+                {labelCampo("Telefone Comercial")}
+                <input
+                  value={form.telefoneComercial}
+                  onChange={(e) => setForm({ ...form, telefoneComercial: e.target.value })}
+                  className={inputClassName()}
+                />
+              </div>
+              <div>
+                {labelCampo("Celular")}
+                <input
+                  value={form.celular}
+                  onChange={(e) => setForm({ ...form, celular: e.target.value })}
+                  className={inputClassName()}
+                />
+              </div>
+              <div>
+                {labelCampo("WhatsApp")}
+                <input
+                  value={form.whatsapp}
+                  onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
+                  className={inputClassName()}
+                />
+              </div>
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            {tituloSecao(<MapPin className="h-3.5 w-3.5" />, "Endereço")}
+            <div className="grid gap-3 md:grid-cols-[0.9fr_1.6fr_0.5fr]">
+              <div>
+                {labelCampo("CEP")}
+                <div className="flex gap-1">
+                  <input
+                    value={form.cep}
+                    onChange={(e) => setForm({ ...form, cep: formatarCepEntrega(e.target.value) })}
+                    placeholder="00000-000"
+                    className={inputClassName()}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void buscarEnderecoPorCep()}
+                    disabled={buscandoCep}
+                    className="h-8 shrink-0 rounded border border-blue-500 bg-white px-2 text-[9px] font-semibold text-blue-600 hover:bg-blue-50 disabled:opacity-60"
+                  >
+                    {buscandoCep ? "..." : "Buscar Endereço"}
+                  </button>
+                </div>
+              </div>
+              <div>
+                {labelCampo("Rua")}
+                <input
+                  value={form.rua}
+                  onChange={(e) => setForm({ ...form, rua: e.target.value })}
+                  className={inputClassName()}
+                />
+              </div>
+              <div>
+                {labelCampo("Número")}
+                <input
+                  value={form.numero}
+                  onChange={(e) => setForm({ ...form, numero: e.target.value })}
+                  className={inputClassName()}
+                />
+              </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-4">
+              <div>
+                {labelCampo("Cidade")}
+                <input
+                  value={form.cidade}
+                  onChange={(e) => setForm({ ...form, cidade: e.target.value })}
+                  className={inputClassName()}
+                />
+              </div>
+              <div>
+                {labelCampo("UF")}
+                <input
+                  value={form.uf}
+                  onChange={(e) => setForm({ ...form, uf: e.target.value.toUpperCase().slice(0, 2) })}
+                  className={inputClassName()}
+                />
+              </div>
+              <div>
+                {labelCampo("Bairro")}
+                <input
+                  value={form.bairro}
+                  onChange={(e) => setForm({ ...form, bairro: e.target.value })}
+                  className={inputClassName()}
+                />
+              </div>
+              <div>
+                {labelCampo("Complemento")}
+                <input
+                  value={form.complemento}
+                  onChange={(e) => setForm({ ...form, complemento: e.target.value })}
+                  className={inputClassName()}
+                />
+              </div>
+            </div>
+          </section>
+
+          <div className="flex gap-2 border-t border-slate-100 pt-4">
+            <button
+              type="submit"
+              className="rounded bg-[#4a90d9] px-4 py-2 text-[11px] font-semibold text-white hover:bg-[#3d7fc4]"
+            >
               {editando ? "Salvar" : "Cadastrar"}
-            </Button>
-            <Button type="button" size="sm" variant="outline" onClick={() => setModalAberto(false)}>
+            </button>
+            <button
+              type="button"
+              onClick={() => setModalAberto(false)}
+              className="rounded border border-slate-300 bg-white px-4 py-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+            >
               Fechar
-            </Button>
+            </button>
           </div>
         </form>
       </Modal>

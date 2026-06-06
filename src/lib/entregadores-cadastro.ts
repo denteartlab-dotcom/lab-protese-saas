@@ -7,20 +7,66 @@ export const ENTREGADORES_CADASTRO_EVENT = "labProteseEntregadoresCadastroAtuali
 export type EntregadorCadastro = {
   id: string;
   nome: string;
+  tipoEntregador: string;
+  cpf: string;
+  cnpj: string;
+  email: string;
+  telefoneResidencial: string;
+  telefoneComercial: string;
   celular: string;
   whatsapp: string;
-  email: string;
+  cep: string;
+  rua: string;
+  numero: string;
+  cidade: string;
+  uf: string;
+  bairro: string;
+  complemento: string;
 };
+
+export function formularioEntregadorVazio(): Omit<EntregadorCadastro, "id"> {
+  return {
+    nome: "",
+    tipoEntregador: "Motoboy",
+    cpf: "",
+    cnpj: "",
+    email: "",
+    telefoneResidencial: "",
+    telefoneComercial: "",
+    celular: "",
+    whatsapp: "",
+    cep: "",
+    rua: "",
+    numero: "",
+    cidade: "",
+    uf: "",
+    bairro: "",
+    complemento: "",
+  };
+}
 
 function normalizarEntregador(item: Partial<EntregadorCadastro>): EntregadorCadastro | null {
   const nome = String(item.nome || "").trim();
   if (!nome) return null;
+  const base = formularioEntregadorVazio();
   return {
     id: String(item.id || `ent-${nome.toLowerCase().replace(/\s+/g, "-")}`),
     nome,
+    tipoEntregador: String(item.tipoEntregador || base.tipoEntregador).trim(),
+    cpf: String(item.cpf || "").trim(),
+    cnpj: String(item.cnpj || "").trim(),
+    email: String(item.email || "").trim(),
+    telefoneResidencial: String(item.telefoneResidencial || "").trim(),
+    telefoneComercial: String(item.telefoneComercial || "").trim(),
     celular: String(item.celular || "").trim(),
     whatsapp: String(item.whatsapp || "").trim(),
-    email: String(item.email || "").trim(),
+    cep: String(item.cep || "").trim(),
+    rua: String(item.rua || "").trim(),
+    numero: String(item.numero || "").trim(),
+    cidade: String(item.cidade || "").trim(),
+    uf: String(item.uf || "").trim(),
+    bairro: String(item.bairro || "").trim(),
+    complemento: String(item.complemento || "").trim(),
   };
 }
 
@@ -80,12 +126,6 @@ export function garantirEntregadorCadastro(nome: string) {
   if (lista.some((item) => item.nome.toLowerCase() === termo.toLowerCase())) return;
   salvarEntregadoresCadastro([
     ...lista,
-    {
-      id: `ent-${Date.now()}`,
-      nome: termo,
-      celular: "",
-      whatsapp: "",
-      email: "",
-    },
+    normalizarEntregador({ id: `ent-${Date.now()}`, nome: termo })!,
   ]);
 }
