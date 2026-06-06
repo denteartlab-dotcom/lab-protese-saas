@@ -31,26 +31,42 @@ type ColunaPdf = {
   destaqueBaixo?: boolean;
 };
 
-const COLUNAS: ColunaPdf[] = [
-  { chave: "codigo", rotulo: "Cód Barras", largura: 18 },
-  { chave: "produto", rotulo: "Produto", largura: 30 },
-  { chave: "marca", rotulo: "Marca", largura: 18 },
-  { chave: "estoqueAtual", rotulo: "Estoque Atual", largura: 16, align: "right", destaqueBaixo: true },
-  { chave: "unidade", rotulo: "Unidade", largura: 12 },
-  { chave: "minimo", rotulo: "Mínimo", largura: 12, align: "right" },
-  { chave: "maximo", rotulo: "Máximo", largura: 12, align: "right" },
-  { chave: "custoFmt", rotulo: "Custo", largura: 16, align: "right" },
-  { chave: "vendaFmt", rotulo: "Venda", largura: 16, align: "right" },
-  { chave: "totalFmt", rotulo: "Total", largura: 18, align: "right" },
+/** Pesos relativos — largura final preenche a página inteira entre as margens. */
+const COLUNAS_BASE: Array<Omit<ColunaPdf, "largura">> = [
+  { chave: "codigo", rotulo: "Cód Barras" },
+  { chave: "produto", rotulo: "Produto" },
+  { chave: "marca", rotulo: "Marca" },
+  { chave: "estoqueAtual", rotulo: "Estoque Atual", align: "right", destaqueBaixo: true },
+  { chave: "unidade", rotulo: "Unidade" },
+  { chave: "minimo", rotulo: "Mínimo", align: "right" },
+  { chave: "maximo", rotulo: "Máximo", align: "right" },
+  { chave: "custoFmt", rotulo: "Custo", align: "right" },
+  { chave: "vendaFmt", rotulo: "Venda", align: "right" },
+  { chave: "totalFmt", rotulo: "Total", align: "right" },
 ];
 
-const MARGEM = 10;
-const FS_CABECALHO = 8.5;
-const FS_TITULO = 11;
-const FS_TABELA = 7;
-const ALTURA_LINHA = 4.2;
+const PESOS_COLUNAS = [12, 22, 14, 11, 9, 9, 9, 11, 11, 12];
+
+const MARGEM = 8;
+const FS_CABECALHO = 9.5;
+const FS_TITULO = 13;
+const FS_TABELA = 8.5;
+const ALTURA_LINHA = 5;
 const COR_CABECALHO_TABELA: [number, number, number] = [220, 220, 220];
 const COR_ESTOQUE_BAIXO: [number, number, number] = [255, 165, 0];
+
+function larguraUtil(pdf: PdfApi) {
+  return pdf.internal.pageSize.getWidth() - MARGEM * 2;
+}
+
+function montarColunas(pdf: PdfApi): ColunaPdf[] {
+  const util = larguraUtil(pdf);
+  const pesoTotal = PESOS_COLUNAS.reduce((s, peso) => s + peso, 0);
+  return COLUNAS_BASE.map((col, index) => ({
+    ...col,
+    largura: (PESOS_COLUNAS[index] / pesoTotal) * util,
+  }));
+}
 
 function formatarGeradoEm(date: Date) {
   const data = date.toLocaleDateString("pt-BR", {
@@ -104,7 +120,7 @@ function desenharCabecalhoPagina(
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(FS_CABECALHO + 1);
   pdf.text(lab.responsavel || lab.marca, textoX, textoY);
-  textoY += 4.2;
+  textoY += 4.8;
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(FS_CABECALHO);
@@ -113,11 +129,11 @@ function desenharCabecalhoPagina(
     [lab.enderecoLinha1, lab.enderecoLinha2].filter(Boolean).join(" ");
   if (endereco) {
     pdf.text(endereco, textoX, textoY);
-    textoY += 3.6;
+    textoY += 4.2;
   }
   if (lab.telefones) {
     pdf.text(lab.telefones, textoX, textoY);
-    textoY += 3.6;
+    textoY += 4.2;
   }
   if (lab.email) {
     pdf.text(lab.email, textoX, textoY);
@@ -126,17 +142,17 @@ function desenharCabecalhoPagina(
   pdf.setFontSize(FS_CABECALHO);
   pdf.text(formatarGeradoEm(geradoEm), dir, MARGEM + 2, { align: "right" });
 
-  const baseY = Math.max(textoY, y + logoH) + 4;
+  const baseY = Math.max(textoY, y + logoH) + 5;
   pdf.setDrawColor(0, 0, 0);
   pdf.setLineWidth(0.2);
   pdf.line(MARGEM, baseY, larguraPagina - MARGEM, baseY);
 
-  const tituloY = baseY + 8;
+  const tituloY = baseY + 9;
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(FS_TITULO);
   pdf.text(titulo, larguraPagina / 2, tituloY, { align: "center" });
 
-  return tituloY + 6;
+  return tituloY + 7;
 }
 
 function valorCelula(linha: LinhaControleProduto, col: ColunaPdf) {
@@ -156,36 +172,42 @@ function valorCelula(linha: LinhaControleProduto, col: ColunaPdf) {
 }
 
 function alturaCelula(pdf: PdfApi, texto: string, largura: number) {
-  const partes = pdf.splitTextToSize(texto || "", largura - 0.5);
-  return Math.max(ALTURA_LINHA, partes.length * 3.2);
+  const partes = pdf.splitTextToSize(texto || "", largura - 1);
+  return Math.max(ALTURA_LINHA, partes.length * 3.8);
 }
 
-function desenharCabecalhoTabela(pdf: PdfApi, y: number) {
-  const larguraPagina = pdf.internal.pageSize.getWidth();
-  const larguraTabela = COLUNAS.reduce((s, col) => s + col.largura, 0);
+function desenharCabecalhoTabela(pdf: PdfApi, colunas: ColunaPdf[], y: number) {
+  const larguraTabela = larguraUtil(pdf);
   let x = MARGEM;
 
   pdf.setFillColor(...COR_CABECALHO_TABELA);
-  pdf.rect(MARGEM, y - 3.2, larguraTabela, 5.5, "F");
+  pdf.rect(MARGEM, y - 3.8, larguraTabela, 6.5, "F");
 
   pdf.setDrawColor(0, 0, 0);
   pdf.setLineWidth(0.2);
-  pdf.line(MARGEM, y - 3.2, larguraPagina - MARGEM, y - 3.2);
+  pdf.line(MARGEM, y - 3.8, MARGEM + larguraTabela, y - 3.8);
 
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(FS_TABELA);
-  for (const col of COLUNAS) {
-    pdf.text(col.rotulo, x, y);
+  for (const col of colunas) {
+    const textoX = col.align === "right" ? x + col.largura - 1 : x;
+    pdf.text(col.rotulo, textoX, y, col.align === "right" ? { align: "right" } : undefined);
     x += col.largura;
   }
 
-  y += 2.2;
+  y += 2.6;
   pdf.line(MARGEM, y, MARGEM + larguraTabela, y);
-  return y + 3.2;
+  return y + 3.6;
 }
 
-function desenharLinhaTabela(pdf: PdfApi, linha: LinhaControleProduto, y: number) {
-  const alturas = COLUNAS.map((col) =>
+function desenharLinhaTabela(
+  pdf: PdfApi,
+  colunas: ColunaPdf[],
+  linha: LinhaControleProduto,
+  y: number
+) {
+  const larguraTabela = larguraUtil(pdf);
+  const alturas = colunas.map((col) =>
     alturaCelula(pdf, valorCelula(linha, col), col.largura)
   );
   const altura = Math.max(...alturas, ALTURA_LINHA);
@@ -194,60 +216,58 @@ function desenharLinhaTabela(pdf: PdfApi, linha: LinhaControleProduto, y: number
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(FS_TABELA);
 
-  for (const col of COLUNAS) {
+  for (const col of colunas) {
     const valor = valorCelula(linha, col);
-    const partes = pdf.splitTextToSize(valor, col.largura - 0.5);
+    const partes = pdf.splitTextToSize(valor, col.largura - 1);
 
     if (col.destaqueBaixo && linha.situacao === "Baixo") {
       pdf.setFillColor(...COR_ESTOQUE_BAIXO);
-      pdf.rect(x, y - 2.6, col.largura, altura, "F");
+      pdf.rect(x, y - 3, col.largura, altura, "F");
       pdf.setDrawColor(0, 0, 0);
     }
 
-    const textoX =
-      col.align === "right" ? x + col.largura - 0.5 : x;
+    const textoX = col.align === "right" ? x + col.largura - 1 : x;
     pdf.text(partes, textoX, y, col.align === "right" ? { align: "right" } : undefined);
     x += col.largura;
   }
 
-  const yLinha = y + altura - 1.2;
+  const yLinha = y + altura - 1.4;
   pdf.setDrawColor(180, 180, 180);
   pdf.setLineWidth(0.15);
-  pdf.line(MARGEM, yLinha, pdf.internal.pageSize.getWidth() - MARGEM, yLinha);
+  pdf.line(MARGEM, yLinha, MARGEM + larguraTabela, yLinha);
 
-  return yLinha + 2.4;
+  return yLinha + 2.8;
 }
 
 function desenharRodapeTabela(
   pdf: PdfApi,
+  colunas: ColunaPdf[],
   y: number,
   totalEstoque: number,
   totalGeral: number
 ) {
-  const larguraPagina = pdf.internal.pageSize.getWidth();
-  const larguraTabela = COLUNAS.reduce((s, col) => s + col.largura, 0);
+  const larguraTabela = larguraUtil(pdf);
   let x = MARGEM;
 
   pdf.setDrawColor(0, 0, 0);
   pdf.setLineWidth(0.2);
   pdf.line(MARGEM, y, MARGEM + larguraTabela, y);
-  y += 4;
+  y += 5;
 
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(FS_TABELA);
 
-  for (const col of COLUNAS) {
+  for (const col of colunas) {
     if (col.chave === "estoqueAtual") {
       pdf.text(`Total Estoque: ${totalEstoque}`, x, y);
     } else if (col.chave === "totalFmt") {
-      pdf.text(`R$ ${moneyRelatorioEstoque(totalGeral)}`, x + col.largura - 0.5, y, {
+      pdf.text(`R$ ${moneyRelatorioEstoque(totalGeral)}`, x + col.largura - 1, y, {
         align: "right",
       });
     }
     x += col.largura;
   }
 
-  void larguraPagina;
   return y + 4;
 }
 
@@ -261,24 +281,26 @@ export async function gerarPdfRelatorioProdutos(opts: {
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   const api = pdf as unknown as PdfApi;
+  const colunas = montarColunas(api);
   const geradoEm = opts.geradoEm ?? new Date();
   const titulo = opts.titulo ?? "Relatório de Produtos";
   const alturaPagina = api.internal.pageSize.getHeight();
   const totalEstoque = opts.linhas.reduce((s, linha) => s + linha.estoqueAtual, 0);
+  const larguraProduto = colunas.find((col) => col.chave === "produto")?.largura ?? 40;
 
   let y = desenharCabecalhoPagina(api, opts.lab, titulo, geradoEm);
-  y = desenharCabecalhoTabela(api, y);
+  y = desenharCabecalhoTabela(api, colunas, y);
 
   for (const linha of opts.linhas) {
-    const proximaAltura = alturaCelula(api, linha.produto, 30) + 4;
+    const proximaAltura = alturaCelula(api, linha.produto, larguraProduto) + 5;
     if (y + proximaAltura > alturaPagina - MARGEM - 10) {
       api.addPage();
       y = desenharCabecalhoPagina(api, opts.lab, titulo, geradoEm);
-      y = desenharCabecalhoTabela(api, y);
+      y = desenharCabecalhoTabela(api, colunas, y);
     }
-    y = desenharLinhaTabela(api, linha, y);
+    y = desenharLinhaTabela(api, colunas, linha, y);
   }
 
-  desenharRodapeTabela(api, y, totalEstoque, opts.totalGeral);
+  desenharRodapeTabela(api, colunas, y, totalEstoque, opts.totalGeral);
   return api.output("blob");
 }
