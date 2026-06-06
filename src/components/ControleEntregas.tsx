@@ -1,0 +1,634 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Edit3,
+  Eye,
+  FileSpreadsheet,
+  MapPin,
+  Plus,
+  Printer,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
+import { ControleProducaoToolbar } from "@/components/ControleProducaoToolbar";
+import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
+import { Button, Input, Modal, Select } from "@/components/ui";
+import { CampoDataBr } from "@/components/campo-data-br";
+import {
+  atualizarEntrega,
+  carregarEntregadores,
+  carregarEntregas,
+  contarPorSituacao,
+  criarEntrega,
+  dataBrHoje,
+  dataBrInicioMesAtual,
+  ENTREGAS_EVENT,
+  excluirEntrega,
+  filtrarEntregas,
+  formatarDataEntrega,
+  formatarDataHoraEntrega,
+  formatarMoedaEntrega,
+  SITUACOES_ENTREGA,
+  type EntregaControle,
+  type SituacaoEntrega,
+} from "@/lib/controle-entregas";
+
+function labelFiltro(texto: string) {
+  return <span className="mb-0.5 block text-[11px] text-slate-600">{texto}</span>;
+}
+
+function selectClassName() {
+  return "h-8 w-full rounded border border-[#d1d5db] bg-white px-2 text-[11px] text-slate-700 focus:border-blue-500 focus:outline-none";
+}
+
+function CardResumoEntrega({
+  valor,
+  titulo,
+  icone,
+  ativo,
+  onVer,
+}: {
+  valor: number;
+  titulo: string;
+  icone: React.ReactNode;
+  ativo: boolean;
+  onVer: () => void;
+}) {
+  return (
+    <div
+      className={`flex min-w-[180px] flex-1 items-center justify-between rounded border bg-white px-4 py-3 shadow-sm ${
+        ativo ? "border-blue-300 ring-1 ring-blue-100" : "border-slate-200"
+      }`}
+    >
+      <div>
+        <p className="text-[22px] font-normal leading-none text-slate-700">{valor}</p>
+        <p className="mt-2 text-[12px] text-slate-500">
+          {titulo}{" "}
+          <button
+            type="button"
+            onClick={onVer}
+            className="ml-1 rounded bg-blue-500 px-1.5 py-0.5 text-[9px] font-semibold text-white hover:bg-blue-600"
+          >
+            Ver
+          </button>
+        </p>
+      </div>
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center">{icone}</div>
+    </div>
+  );
+}
+
+function parseCurrencyInput(value: string) {
+  return Number(value.replace(/\D/g, "")) / 100;
+}
+
+function formatCurrencyInput(value: string) {
+  return parseCurrencyInput(value).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+export function ControleEntregas() {
+  const [entregas, setEntregas] = useState<EntregaControle[]>([]);
+  const [entregadores, setEntregadores] = useState<string[]>([]);
+  const [entregador, setEntregador] = useState("");
+  const [periodo, setPeriodo] = useState<"pedido" | "finalizado">("pedido");
+  const [dataInicio, setDataInicio] = useState(dataBrInicioMesAtual);
+  const [dataFim, setDataFim] = useState(dataBrHoje);
+  const [situacao, setSituacao] = useState("");
+  const [filtroCard, setFiltroCard] = useState<SituacaoEntrega | "todos">("todos");
+  const [busca, setBusca] = useState("");
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [modalAberto, setModalAberto] = useState(false);
+  const [editando, setEditando] = useState<EntregaControle | null>(null);
+  const [visualizando, setVisualizando] = useState<EntregaControle | null>(null);
+  const [excluindo, setExcluindo] = useState<EntregaControle | null>(null);
+  const [form, setForm] = useState({
+    destinatario: "",
+    entregador: "",
+    descricao: "",
+    nomeRecebedor: "",
+    situacao: "pendente" as SituacaoEntrega,
+    valor: "R$ 0,00",
+  });
+
+  function recarregar() {
+    setEntregas(carregarEntregas());
+    setEntregadores(carregarEntregadores());
+  }
+
+  useEffect(() => {
+    recarregar();
+    window.addEventListener(ENTREGAS_EVENT, recarregar);
+    return () => window.removeEventListener(ENTREGAS_EVENT, recarregar);
+  }, []);
+
+  const entregasFiltradas = useMemo(
+    () =>
+      filtrarEntregas(entregas, {
+        entregador,
+        situacaoCard: filtroCard,
+        situacao,
+        periodo,
+        dataInicio,
+        dataFim,
+        busca,
+      }),
+    [entregas, entregador, filtroCard, situacao, periodo, dataInicio, dataFim, busca]
+  );
+
+  const totais = useMemo(() => contarPorSituacao(entregas), [entregas]);
+
+  const todosSelecionados =
+    entregasFiltradas.length > 0 && entregasFiltradas.every((item) => selecionados.has(item.id));
+
+  function alternarFiltroCard(filtro: SituacaoEntrega) {
+    setFiltroCard((atual) => (atual === filtro ? "todos" : filtro));
+  }
+
+  function toggleLinha(id: string) {
+    setSelecionados((atual) => {
+      const next = new Set(atual);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleTodos() {
+    if (todosSelecionados) {
+      setSelecionados(new Set());
+      return;
+    }
+    setSelecionados(new Set(entregasFiltradas.map((item) => item.id)));
+  }
+
+  function abrirNovaEntrega() {
+    setEditando(null);
+    setForm({
+      destinatario: "",
+      entregador: "",
+      descricao: "",
+      nomeRecebedor: "",
+      situacao: "pendente",
+      valor: "R$ 0,00",
+    });
+    setModalAberto(true);
+  }
+
+  function abrirEdicao(entrega: EntregaControle) {
+    setEditando(entrega);
+    setForm({
+      destinatario: entrega.destinatario,
+      entregador: entrega.entregador,
+      descricao: entrega.descricao,
+      nomeRecebedor: entrega.nomeRecebedor || "",
+      situacao: entrega.situacao,
+      valor: formatarMoedaEntrega(entrega.valor),
+    });
+    setModalAberto(true);
+  }
+
+  function salvarEntrega(event: React.FormEvent) {
+    event.preventDefault();
+    const valor = parseCurrencyInput(form.valor);
+    const payload = {
+      destinatario: form.destinatario.trim(),
+      entregador: form.entregador.trim(),
+      descricao: form.descricao.trim(),
+      nomeRecebedor: form.nomeRecebedor.trim(),
+      situacao: form.situacao,
+      valor,
+      dataFinalizado:
+        form.situacao === "entregue"
+          ? editando?.dataFinalizado || new Date().toISOString()
+          : null,
+    };
+
+    if (!payload.destinatario) return;
+
+    if (editando) {
+      atualizarEntrega(editando.id, payload);
+    } else {
+      criarEntrega(payload);
+    }
+
+    setModalAberto(false);
+    setEditando(null);
+    recarregar();
+  }
+
+  function confirmarExclusao() {
+    if (!excluindo) return;
+    excluirEntrega(excluindo.id);
+    setExcluindo(null);
+    recarregar();
+  }
+
+  const barraEsquerda = (
+    <>
+      <button
+        type="button"
+        className="rounded bg-[#3b82f6] px-4 py-1.5 text-[11px] font-medium text-white hover:bg-blue-600"
+      >
+        Relatórios
+      </button>
+      <button
+        type="button"
+        onClick={abrirNovaEntrega}
+        className="inline-flex items-center gap-1 rounded bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-600"
+      >
+        <Plus className="h-3.5 w-3.5" />
+        Nova Entrega
+      </button>
+      <button
+        type="button"
+        title="Exportar"
+        className="flex h-8 w-8 items-center justify-center rounded border border-[#86efac] bg-[#dcfce7] text-[#16a34a] hover:bg-[#bbf7d0]"
+      >
+        <FileSpreadsheet className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        title="Imprimir"
+        className="flex h-8 w-8 items-center justify-center rounded border border-[#93c5fd] bg-[#dbeafe] text-[#2563eb] hover:bg-[#bfdbfe]"
+      >
+        <Printer className="h-4 w-4" />
+      </button>
+    </>
+  );
+
+  return (
+    <div className="space-y-3 text-[11px] text-slate-700">
+      <div className="text-sm text-slate-500">
+        <span>Produção</span>
+        <span className="mx-1">/</span>
+        <span className="font-medium text-slate-700">Controle de Entregas</span>
+      </div>
+
+      <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">
+        <ControleProducaoToolbar viewAtiva="entregas" barraEsquerda={barraEsquerda} />
+
+        <div className="mb-3 flex flex-wrap gap-3">
+          <CardResumoEntrega
+            valor={totais.pendente}
+            titulo="Pendentes"
+            ativo={filtroCard === "pendente"}
+            onVer={() => alternarFiltroCard("pendente")}
+            icone={<AlertTriangle className="h-6 w-6 text-red-500" />}
+          />
+          <CardResumoEntrega
+            valor={totais.em_rota}
+            titulo="Em Rota"
+            ativo={filtroCard === "em_rota"}
+            onVer={() => alternarFiltroCard("em_rota")}
+            icone={<MapPin className="h-6 w-6 text-blue-500" />}
+          />
+          <CardResumoEntrega
+            valor={totais.entregue}
+            titulo="Entregues"
+            ativo={filtroCard === "entregue"}
+            onVer={() => alternarFiltroCard("entregue")}
+            icone={<CheckCircle2 className="h-6 w-6 text-emerald-500" />}
+          />
+        </div>
+
+        <div className="mb-3 grid gap-2 md:grid-cols-[1.3fr_1.4fr_0.8fr_1fr]">
+          <div>
+            {labelFiltro("Selecione um Entregador")}
+            <select
+              value={entregador}
+              onChange={(e) => setEntregador(e.target.value)}
+              className={selectClassName()}
+            >
+              <option value="">Todos</option>
+              {entregadores.map((nome) => (
+                <option key={nome} value={nome}>
+                  {nome}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            {labelFiltro("Período")}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <select
+                value={periodo}
+                onChange={(e) => setPeriodo(e.target.value as "pedido" | "finalizado")}
+                className={`${selectClassName()} max-w-[130px]`}
+              >
+                <option value="pedido">Data Pedido</option>
+                <option value="finalizado">Data Finalizado</option>
+              </select>
+              <CampoDataBr
+                value={dataInicio}
+                onChange={setDataInicio}
+                placeholder="dd/mm/aaaa"
+                inputClassName="h-8 text-[11px]"
+                className="min-w-[110px] flex-1 [&_label]:hidden"
+              />
+              <span className="text-slate-400">a</span>
+              <CampoDataBr
+                value={dataFim}
+                onChange={setDataFim}
+                placeholder="dd/mm/aaaa"
+                inputClassName="h-8 text-[11px]"
+                className="min-w-[110px] flex-1 [&_label]:hidden"
+              />
+            </div>
+          </div>
+
+          <div>
+            {labelFiltro("Situação")}
+            <div className="relative">
+              <select
+                value={situacao}
+                onChange={(e) => setSituacao(e.target.value)}
+                className={`${selectClassName()} pr-7`}
+              >
+                <option value="">Todos</option>
+                {Object.entries(SITUACOES_ENTREGA).map(([key, value]) => (
+                  <option key={key} value={key}>
+                    {value.label}
+                  </option>
+                ))}
+              </select>
+              {situacao ? (
+                <button
+                  type="button"
+                  onClick={() => setSituacao("")}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                  aria-label="Limpar situação"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          <div>
+            {labelFiltro("Busca")}
+            <div className="flex items-center gap-1">
+              <div className="relative flex-1">
+                <Search className="absolute left-2 top-1.5 h-3.5 w-3.5 text-slate-300" />
+                <input
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  placeholder="destinatário, descrição e nome recebedor"
+                  className="h-8 w-full rounded border border-[#d1d5db] bg-white pl-7 pr-2 text-[11px] text-slate-700 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setBusca("")}
+                className="h-8 shrink-0 rounded bg-slate-500 px-3 text-[10px] font-semibold text-white hover:bg-slate-600"
+              >
+                Limpar
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto rounded border border-slate-200">
+          <table className="w-full min-w-[1180px] text-[11px]">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                <th className="w-8 px-2 py-2">
+                  <input
+                    type="checkbox"
+                    checked={todosSelecionados}
+                    onChange={toggleTodos}
+                    className="h-3.5 w-3.5 rounded border-slate-300"
+                    aria-label="Selecionar todos"
+                  />
+                </th>
+                <th className="px-2 py-2 text-left">Data/Hora Pedido</th>
+                <th className="px-2 py-2 text-left">Destinatário</th>
+                <th className="px-2 py-2 text-left">Entregador</th>
+                <th className="px-2 py-2 text-left">Descrição</th>
+                <th className="px-2 py-2 text-left">Data Finalizado</th>
+                <th className="px-2 py-2 text-left">Nome Recebedor</th>
+                <th className="px-2 py-2 text-left">Situação</th>
+                <th className="px-2 py-2 text-right">Valor</th>
+                <th className="px-2 py-2 text-center">Opções</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {entregasFiltradas.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="px-4 py-10 text-center text-slate-500">
+                    Nenhuma entrega encontrada para os filtros selecionados.
+                  </td>
+                </tr>
+              ) : (
+                entregasFiltradas.map((entrega) => (
+                  <tr key={entrega.id} className="hover:bg-slate-50">
+                    <td className="px-2 py-2">
+                      <input
+                        type="checkbox"
+                        checked={selecionados.has(entrega.id)}
+                        onChange={() => toggleLinha(entrega.id)}
+                        className="h-3.5 w-3.5 rounded border-slate-300"
+                      />
+                    </td>
+                    <td className="px-2 py-2 whitespace-nowrap">
+                      {formatarDataHoraEntrega(entrega.dataPedido)}
+                    </td>
+                    <td className="px-2 py-2">{entrega.destinatario}</td>
+                    <td className="px-2 py-2">{entrega.entregador || "—"}</td>
+                    <td className="px-2 py-2">{entrega.descricao || "—"}</td>
+                    <td className="px-2 py-2 whitespace-nowrap">
+                      {formatarDataEntrega(entrega.dataFinalizado)}
+                    </td>
+                    <td className="px-2 py-2">{entrega.nomeRecebedor || "—"}</td>
+                    <td className="px-2 py-2">
+                      <span
+                        className={`inline-flex rounded px-2 py-0.5 text-[10px] font-semibold ${
+                          SITUACOES_ENTREGA[entrega.situacao].badge
+                        }`}
+                      >
+                        {SITUACOES_ENTREGA[entrega.situacao].label}
+                      </span>
+                    </td>
+                    <td className="px-2 py-2 text-right">{formatarMoedaEntrega(entrega.valor)}</td>
+                    <td className="px-2 py-2">
+                      <div className="flex items-center justify-center gap-1 text-slate-500">
+                        <button
+                          type="button"
+                          onClick={() => setVisualizando(entrega)}
+                          className="rounded p-1 hover:bg-blue-50 hover:text-blue-600"
+                          title="Visualizar"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => abrirEdicao(entrega)}
+                          className="rounded p-1 hover:bg-slate-100 hover:text-blue-600"
+                          title="Editar"
+                        >
+                          <Edit3 className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setExcluindo(entrega)}
+                          className="rounded p-1 text-red-500 hover:bg-red-50"
+                          title="Excluir"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <Modal
+        open={modalAberto}
+        onClose={() => {
+          setModalAberto(false);
+          setEditando(null);
+        }}
+        title={editando ? `Editar Entrega: ${editando.destinatario}` : "Nova Entrega"}
+        size="lg"
+      >
+        <form onSubmit={salvarEntrega} className="space-y-4 text-[11px] text-slate-600">
+          <div className="grid gap-3 md:grid-cols-2">
+            <Input
+              label="Destinatário"
+              value={form.destinatario}
+              onChange={(e) => setForm({ ...form, destinatario: e.target.value })}
+              required
+            />
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-slate-700">Entregador</label>
+              <input
+                list="entregadores-entrega"
+                value={form.entregador}
+                onChange={(e) => setForm({ ...form, entregador: e.target.value })}
+                placeholder="Selecione ou digite o entregador"
+                className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm text-slate-700 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+              />
+              <datalist id="entregadores-entrega">
+                {entregadores.map((nome) => (
+                  <option key={nome} value={nome} />
+                ))}
+              </datalist>
+            </div>
+            <Input
+              label="Descrição"
+              value={form.descricao}
+              onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+            />
+            <Input
+              label="Nome Recebedor"
+              value={form.nomeRecebedor}
+              onChange={(e) => setForm({ ...form, nomeRecebedor: e.target.value })}
+            />
+            <Select
+              label="Situação"
+              value={form.situacao}
+              onChange={(e) =>
+                setForm({ ...form, situacao: e.target.value as SituacaoEntrega })
+              }
+            >
+              {Object.entries(SITUACOES_ENTREGA).map(([key, value]) => (
+                <option key={key} value={key}>
+                  {value.label}
+                </option>
+              ))}
+            </Select>
+            <Input
+              label="Valor"
+              selectOnFocus
+              value={form.valor}
+              onChange={(e) => setForm({ ...form, valor: formatCurrencyInput(e.target.value) })}
+            />
+          </div>
+          <div className="flex justify-start gap-2 border-t border-slate-100 pt-4">
+            <Button type="submit" size="sm">
+              {editando ? "Salvar" : "Cadastrar"}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setModalAberto(false);
+                setEditando(null);
+              }}
+            >
+              Fechar
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(visualizando)}
+        onClose={() => setVisualizando(null)}
+        title={visualizando ? `Entrega: ${visualizando.destinatario}` : "Entrega"}
+        size="md"
+      >
+        {visualizando ? (
+          <div className="space-y-2 text-[11px] text-slate-600">
+            <p>
+              <span className="font-semibold text-slate-700">Data/Hora Pedido:</span>{" "}
+              {formatarDataHoraEntrega(visualizando.dataPedido)}
+            </p>
+            <p>
+              <span className="font-semibold text-slate-700">Destinatário:</span>{" "}
+              {visualizando.destinatario}
+            </p>
+            <p>
+              <span className="font-semibold text-slate-700">Entregador:</span>{" "}
+              {visualizando.entregador || "—"}
+            </p>
+            <p>
+              <span className="font-semibold text-slate-700">Descrição:</span>{" "}
+              {visualizando.descricao || "—"}
+            </p>
+            <p>
+              <span className="font-semibold text-slate-700">Data Finalizado:</span>{" "}
+              {formatarDataEntrega(visualizando.dataFinalizado)}
+            </p>
+            <p>
+              <span className="font-semibold text-slate-700">Nome Recebedor:</span>{" "}
+              {visualizando.nomeRecebedor || "—"}
+            </p>
+            <p>
+              <span className="font-semibold text-slate-700">Situação:</span>{" "}
+              {SITUACOES_ENTREGA[visualizando.situacao].label}
+            </p>
+            <p>
+              <span className="font-semibold text-slate-700">Valor:</span>{" "}
+              {formatarMoedaEntrega(visualizando.valor)}
+            </p>
+            <Button type="button" size="sm" variant="outline" onClick={() => setVisualizando(null)}>
+              Fechar
+            </Button>
+          </div>
+        ) : null}
+      </Modal>
+
+      <ConfirmacaoExclusaoModal
+        open={Boolean(excluindo)}
+        titulo="Excluir Entrega"
+        mensagem="Deseja realmente excluir esta entrega?"
+        detalhe={excluindo?.destinatario}
+        onClose={() => setExcluindo(null)}
+        onConfirm={confirmarExclusao}
+      />
+    </div>
+  );
+}

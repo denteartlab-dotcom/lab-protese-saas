@@ -1,11 +1,5 @@
-import { ProducaoSimplePage } from "@/components/producao-simple-page";
+import { ControleEntregas } from "@/components/ControleEntregas";
 
 export default function EntregasPage() {
-  return (
-    <ProducaoSimplePage
-      title="Controle de Entregas"
-      description="Acompanhe serviços prontos, retirados e pendentes."
-      viewAtiva="entregas"
-    />
-  );
+  return <ControleEntregas />;
 }
