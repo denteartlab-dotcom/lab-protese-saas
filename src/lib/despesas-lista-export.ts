@@ -181,42 +181,98 @@ export async function gerarPdfListaDespesas(linhas: LinhaListaDespesa[]): Promis
   return pdf.output("blob");
 }
 
-function escCsv(valor: string) {
-  if (/[;"\n]/.test(valor)) return `"${valor.replace(/"/g, '""')}"`;
-  return valor;
+function escXml(valor: string) {
+  return valor
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function celulaTexto(valor: string, styleId = "Texto") {
+  return `<Cell ss:StyleID="${styleId}"><Data ss:Type="String">${escXml(valor)}</Data></Cell>`;
+}
+
+function celulaMoeda(valor: number) {
+  return `<Cell ss:StyleID="Moeda"><Data ss:Type="Number">${valor.toFixed(2)}</Data></Cell>`;
+}
+
+const COLUNAS_EXCEL = [
+  { titulo: "Vencimento", largura: 72 },
+  { titulo: "Parcela", largura: 48 },
+  { titulo: "Nome", largura: 140 },
+  { titulo: "Referência", largura: 72 },
+  { titulo: "Categoria", largura: 120 },
+  { titulo: "Forma", largura: 72 },
+  { titulo: "situacao", largura: 72 },
+  { titulo: "Valor", largura: 64 },
+] as const;
+
+function montarXmlListaDespesas(linhas: LinhaListaDespesa[]) {
+  const colunasXml = COLUNAS_EXCEL.map(
+    (col) => `<Column ss:Width="${col.largura}"/>`
+  ).join("");
+
+  const headerXml = `<Row>${COLUNAS_EXCEL.map((col) => celulaTexto(col.titulo, "Cabecalho")).join("")}</Row>`;
+
+  const linhasXml = linhas
+    .map(
+      (linha) =>
+        `<Row>${[
+          celulaTexto(linha.vencimento),
+          celulaTexto(linha.parcela),
+          celulaTexto(linha.nome),
+          celulaTexto(linha.referencia),
+          celulaTexto(linha.categoria),
+          celulaTexto(linha.forma),
+          celulaTexto(linha.situacao),
+          celulaMoeda(linha.valor),
+        ].join("")}</Row>`
+    )
+    .join("");
+
+  const total = linhas.reduce((s, l) => s + l.valor, 0);
+  const totalXml = `<Row>${[
+    celulaTexto(""),
+    celulaTexto(""),
+    celulaTexto(""),
+    celulaTexto(""),
+    celulaTexto(""),
+    celulaTexto(""),
+    celulaTexto("Total", "Cabecalho"),
+    celulaMoeda(total),
+  ].join("")}</Row>`;
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Styles>
+  <Style ss:ID="Cabecalho">
+   <Font ss:Bold="1"/>
+  </Style>
+  <Style ss:ID="Texto">
+   <NumberFormat ss:Format="@"/>
+  </Style>
+  <Style ss:ID="Moeda">
+   <NumberFormat ss:Format="#,##0.00"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="Despesas">
+  <Table>
+   ${colunasXml}
+   ${headerXml}
+   ${linhasXml}
+   ${totalXml}
+  </Table>
+ </Worksheet>
+</Workbook>`;
 }
 
 export function exportarListaDespesasExcel(linhas: LinhaListaDespesa[]) {
-  const header = [
-    "Vencimento",
-    "Parcela",
-    "Nome",
-    "Referência",
-    "Categoria",
-    "Forma",
-    "situacao",
-    "Valor",
-  ].join(";");
-
-  const rows = linhas.map((linha) =>
-    [
-      escCsv(linha.vencimento),
-      escCsv(linha.parcela),
-      escCsv(linha.nome),
-      escCsv(linha.referencia),
-      escCsv(linha.categoria),
-      escCsv(linha.forma),
-      escCsv(linha.situacao),
-      escCsv(moneyBr(linha.valor)),
-    ].join(";")
-  );
-
-  const total = linhas.reduce((s, l) => s + l.valor, 0);
-  rows.push(
-    ["", "", "", "", "", "", escCsv("Total"), escCsv(moneyBr(total))].join(";")
-  );
-
-  const conteudo = ["\uFEFF", header, ...rows].join("\n");
+  const conteudo = montarXmlListaDespesas(linhas);
   const blob = new Blob([conteudo], {
     type: "application/vnd.ms-excel;charset=utf-8",
   });

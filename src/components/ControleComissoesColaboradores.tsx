@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { ControleProducaoToolbar } from "@/components/ControleProducaoToolbar";
+import { RelatorioComissaoColaboradoresModal } from "@/components/RelatorioComissaoColaboradoresModal";
 import { CampoDataBr } from "@/components/ui";
 import {
   formatarMoedaComissao,
@@ -104,6 +105,7 @@ export function ControleComissoesColaboradores() {
   const [etapa, setEtapa] = useState("todos");
   const [comissaoZero, setComissaoZero] = useState(false);
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [relatorioAberto, setRelatorioAberto] = useState(false);
 
   useEffect(() => {
     try {
@@ -216,6 +218,7 @@ export function ControleComissoesColaboradores() {
     <>
       <button
         type="button"
+        onClick={() => setRelatorioAberto(true)}
         className="rounded bg-[#3b82f6] px-4 py-1.5 text-[11px] font-medium text-white hover:bg-blue-600"
       >
         Relatórios
@@ -397,6 +400,20 @@ export function ControleComissoesColaboradores() {
           </table>
         </div>
       </div>
+
+      <RelatorioComissaoColaboradoresModal
+        open={relatorioAberto}
+        onClose={() => setRelatorioAberto(false)}
+        linhas={linhasBase}
+        trabalhos={trabalhos.map((t) => ({
+          id: t.id,
+          numeroOs: t.numeroOs,
+          grupoOsId: t.grupoOsId,
+        }))}
+        colaboradores={colaboradoresCadastro}
+        etapas={etapasCadastro}
+        idsSelecionados={selecionados}
+      />
     </div>
   );
 }
