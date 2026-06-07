@@ -10,6 +10,11 @@ function lerMapa(): MapaEtapas {
   return parsed && typeof parsed === "object" ? parsed : {};
 }
 
+/** Mapa de etapas concluídas por chave `trabalhoId:itemId`. */
+export function lerMapaEtapasConcluidasModulo(): MapaEtapas {
+  return lerMapa();
+}
+
 export function etapasConcluidasModulo(chave: string): Set<number> {
   const mapa = lerMapa();
   const lista = mapa[chave];

@@ -1,11 +1,16 @@
 import { carregarColaboradoresListagem } from "@/lib/colaboradores-listagem";
 import {
   colaboradoresParaExibicaoControle,
+  nomeEtapaSemSetor,
+  normalizarNomeEtapaCadastro,
   parseComplementosInstrucoesGrupo,
   type ColaboradorOsLinha,
+  type EtapaOsLinha,
 } from "@/lib/etapas-os";
 import { parseCurrencyBr } from "@/lib/cliente-financeiro";
-import { itensDaOsModulo, type TrabalhoModuloOs } from "@/lib/modulo-producao-os";
+import { itensDaOsModulo, type ItemModuloOs, type TrabalhoModuloOs } from "@/lib/modulo-producao-os";
+import { lerMapaEtapasConcluidasModulo } from "@/lib/modulo-producao-etapas";
+import { classificarItemOs } from "@/lib/trabalho-os-segmento";
 import { STATUS_TRABALHO, formatCurrency, formatDate } from "@/lib/utils";
 
 export type TrabalhoComissao = TrabalhoModuloOs & {
@@ -81,8 +86,67 @@ function descricaoItem(trabalho: TrabalhoComissao, servico: string) {
   return servico;
 }
 
-function situacaoEtapaLabel(etapa: string) {
-  return etapa.trim() || "—";
+const SITUACOES_SERVICO_FINALIZADO = new Set(["finalizado", "entregue"]);
+
+function servicoFinalizado(situacaoKey: string) {
+  return SITUACOES_SERVICO_FINALIZADO.has(situacaoKey);
+}
+
+function itemElegivelComissao(item: ItemModuloOs) {
+  if (item.tipo === "produto" || item.tipo === "frete") return false;
+  return classificarItemOs({ servico: item.descricao }) === "servico";
+}
+
+function segmentoElegivelComissao(segmento?: string | null) {
+  const valor = (segmento || "servico").trim().toLowerCase();
+  return valor === "servico";
+}
+
+function etapaColaboradorFinalizada(
+  chaveItem: string,
+  nomeEtapaColaborador: string,
+  etapas: EtapaOsLinha[],
+  mapaConcluidas: Record<string, number[]>
+) {
+  const nome = nomeEtapaColaborador.trim();
+  if (!nome) return false;
+
+  const alvo = nomeEtapaSemSetor(nome).toLowerCase();
+  const etapa = etapas.find((item) => {
+    const cadastro = normalizarNomeEtapaCadastro(item.nome).toLowerCase();
+    const semSetor = nomeEtapaSemSetor(item.nome).toLowerCase();
+    return cadastro === alvo || semSetor === alvo || item.nome.trim().toLowerCase() === alvo;
+  });
+  if (!etapa) return false;
+
+  const concluidas = mapaConcluidas[chaveItem];
+  return Array.isArray(concluidas) && concluidas.includes(etapa.indice);
+}
+
+function elegivelComissaoColaborador(
+  situacaoKey: string,
+  chaveItem: string,
+  colaborador: ColaboradorOsLinha,
+  etapas: EtapaOsLinha[],
+  mapaConcluidas: Record<string, number[]>
+) {
+  return (
+    servicoFinalizado(situacaoKey) ||
+    etapaColaboradorFinalizada(chaveItem, colaborador.etapa, etapas, mapaConcluidas)
+  );
+}
+
+function situacaoEtapaLabel(
+  chaveItem: string,
+  nomeEtapa: string,
+  etapas: EtapaOsLinha[],
+  mapaConcluidas: Record<string, number[]>
+) {
+  const nome = nomeEtapa.trim();
+  if (!nome) return "—";
+  return etapaColaboradorFinalizada(chaveItem, nome, etapas, mapaConcluidas)
+    ? "Finalizada"
+    : "Pendente";
 }
 
 export function montarLinhasComissaoColaboradores(
@@ -99,6 +163,7 @@ export function montarLinhasComissaoColaboradores(
   }
 
   const linhas: LinhaComissaoColaborador[] = [];
+  const mapaEtapasConcluidas = lerMapaEtapasConcluidasModulo();
 
   for (const grupo of grupos.values()) {
     const textos = grupo.map((t) => t.instrucoes || "");
@@ -113,28 +178,40 @@ export function montarLinhasComissaoColaboradores(
     const numeroOs = referencia.numeroOs;
 
     for (const trabalho of grupo) {
-      const itens = itensDaOsModulo(trabalho).filter((i) => i.tipo === "trabalho");
+      if (!segmentoElegivelComissao(trabalho.segmentoFaturamento)) continue;
+
+      const itens = itensDaOsModulo(trabalho).filter(itemElegivelComissao);
       const listaItens =
         itens.length > 0
           ? itens
-          : [
-              {
-                id: `${trabalho.id}-principal`,
-                descricao: trabalho.tipoProtese,
-                qtd: "1",
-                situacao: trabalho.status,
-                tipo: "trabalho" as const,
-              },
-            ];
+          : classificarItemOs({ servico: trabalho.tipoProtese }) === "servico"
+            ? [
+                {
+                  id: `${trabalho.id}-principal`,
+                  descricao: trabalho.tipoProtese,
+                  qtd: "1",
+                  situacao: trabalho.status,
+                  tipo: "trabalho" as const,
+                },
+              ]
+            : [];
 
       for (const item of listaItens) {
         const valorServico =
           valorItemLinha(trabalho.instrucoes || "", item.descricao) || trabalho.valor || 0;
+        const situacaoKey = item.situacao || trabalho.status;
+        const chaveItem = `${trabalho.id}:${item.id}`;
 
         for (const colaborador of colaboradores) {
           const pct = percentualColaborador(colaborador, cadastro);
-          const comissaoValor = (valorServico * pct) / 100;
-          const situacaoKey = item.situacao || trabalho.status;
+          const geraComissao = elegivelComissaoColaborador(
+            situacaoKey,
+            chaveItem,
+            colaborador,
+            complementos.etapas,
+            mapaEtapasConcluidas
+          );
+          const comissaoValor = geraComissao ? (valorServico * pct) / 100 : 0;
 
           linhas.push({
             id: `${trabalho.id}-${item.id}-${colaborador.nome}`,
@@ -149,7 +226,12 @@ export function montarLinhasComissaoColaboradores(
             paciente: trabalho.paciente?.nome?.trim() || "—",
             colaborador: colaborador.nome,
             etapa: colaborador.etapa,
-            situacaoEtapa: situacaoEtapaLabel(colaborador.etapa),
+            situacaoEtapa: situacaoEtapaLabel(
+              chaveItem,
+              colaborador.etapa,
+              complementos.etapas,
+              mapaEtapasConcluidas
+            ),
             situacao: STATUS_TRABALHO[situacaoKey]?.label || situacaoKey,
             situacaoKey,
             comissaoPercentual: pct,
