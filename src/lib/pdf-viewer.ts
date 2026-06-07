@@ -17,7 +17,7 @@ export function prepararAbaPdf(): Window | null {
 function criarAbaPdfCarregando(): Window | null {
   if (typeof window === "undefined") return null;
   try {
-    const w = window.open("about:blank", "_blank");
+    const w = window.open("about:blank", "_blank", "popup=yes");
     if (!w) return null;
     w.document.title = "Carregando PDF...";
     w.document.body.innerHTML =
@@ -127,7 +127,6 @@ export async function abrirPdfGerando(
   } catch (err) {
     fecharJanela(janela);
     console.error("gerar PDF", err);
-    alert("Não foi possível gerar o PDF.");
-    return null;
+    throw err;
   }
 }

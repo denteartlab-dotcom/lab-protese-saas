@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
 import { dateToBrShort } from "@/lib/datas-br";
-import { abrirPdfGerando } from "@/lib/pdf-viewer";
+import { PdfViewerOverlay } from "@/components/PdfViewerOverlay";
 import {
   filtrarLinhasRelatorio,
   gerarRelatorioDespesasBlob,
@@ -133,6 +133,7 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
     null
   );
   const [gerandoPdf, setGerandoPdf] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
   useEffect(() => {
     setPortalPronto(true);
@@ -150,7 +151,13 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
     setPeriodoCampo("data_lancamento");
     setModelo("despesas-modelo-1");
     setCalendarioAberto(null);
+    setPdfUrl(null);
   }, [open]);
+
+  function fecharPdfViewer() {
+    if (pdfUrl?.startsWith("blob:")) URL.revokeObjectURL(pdfUrl);
+    setPdfUrl(null);
+  }
 
   const linhasBase = useMemo(
     () => linhasRelatorioFromLancamentos(lancamentos),
@@ -188,22 +195,23 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
     const periodoLabel = `${periodoCampo === "data_lancamento" ? "Data Lançamento" : "Data Vencimento"}: ${dataInicio} a ${dataFinal}`;
 
     setGerandoPdf(true);
-    void abrirPdfGerando(
-      () =>
-        gerarRelatorioDespesasBlob(ordenadas, modeloLabel, periodoLabel, {
+    void (async () => {
+      try {
+        const blob = await gerarRelatorioDespesasBlob(ordenadas, modeloLabel, periodoLabel, {
           modelo,
           periodoCampo,
           dataInicio,
           dataFinal,
-        }),
-      "relatorio-despesas.pdf",
-      modeloLabel
-    )
-      .catch((err) => {
+        });
+        if (pdfUrl?.startsWith("blob:")) URL.revokeObjectURL(pdfUrl);
+        setPdfUrl(URL.createObjectURL(blob));
+      } catch (err) {
         console.error("relatorio despesas pdf", err);
         alert("Não foi possível gerar o PDF do relatório de despesas.");
-      })
-      .finally(() => setGerandoPdf(false));
+      } finally {
+        setGerandoPdf(false);
+      }
+    })();
   }
 
   if (!open || !portalPronto) return null;
@@ -370,5 +378,17 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
     </div>
   );
 
-  return createPortal(conteudo, document.body);
+  return (
+    <>
+      {open ? createPortal(conteudo, document.body) : null}
+      {pdfUrl ? (
+        <PdfViewerOverlay
+          url={pdfUrl}
+          titulo={modeloLabel}
+          nomeArquivo="relatorio-despesas.pdf"
+          onClose={fecharPdfViewer}
+        />
+      ) : null}
+    </>
+  );
 }

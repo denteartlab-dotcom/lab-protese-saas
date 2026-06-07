@@ -32,9 +32,15 @@ function qtdParcelasDaLinha(parcela?: string) {
   return 1;
 }
 
+function asDate(valor: Date | string | number) {
+  if (valor instanceof Date) return valor;
+  const d = new Date(valor);
+  return d;
+}
+
 function formatarDataEmissao(linha: LinhaRelatorioDespesa) {
-  const d = linha.dataOrdenacao;
-  if (!(d instanceof Date) || Number.isNaN(d.getTime())) return "—";
+  const d = asDate(linha.dataOrdenacao);
+  if (Number.isNaN(d.getTime())) return "—";
   const day = String(d.getDate()).padStart(2, "0");
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const year = d.getFullYear();
@@ -130,5 +136,6 @@ export async function gerarRelatorioDespesasModelo1Pdf(
     4
   );
 
-  return pdf.output("blob");
+  const buffer = pdf.output("arraybuffer");
+  return new Blob([buffer], { type: "application/pdf" });
 }
