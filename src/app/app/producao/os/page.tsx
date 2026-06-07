@@ -58,6 +58,8 @@ import {
   carregarEtapasCadastro,
   deduplicarColaboradores,
   deduplicarEtapas,
+  exibirComissaoPercentual,
+  formatarComissaoPercentInput,
   formatarLinhaColaborador,
   formatarLinhaEtapaComTempo,
   nomeEtapaSemSetor,
@@ -722,7 +724,7 @@ export default function OrdemServicoPage() {
       setColaboradores(
         complementos.colaboradores.map((item) => ({
           nome: item.nome,
-          comissao: item.comissao,
+          comissao: exibirComissaoPercentual(item.comissao),
           etapa: item.etapa,
         }))
       );
@@ -3454,11 +3456,16 @@ export default function OrdemServicoPage() {
                           onChange={(e) =>
                             setColaboradores((atuais) =>
                               atuais.map((item, i) =>
-                                i === index ? { ...item, comissao: e.target.value } : item
+                                i === index
+                                  ? {
+                                      ...item,
+                                      comissao: formatarComissaoPercentInput(e.target.value),
+                                    }
+                                  : item
                               )
                             )
                           }
-                          placeholder="0,00"
+                          placeholder="0,00%"
                         />
                         {modelosEtapasOs.length > 0 ? (
                           <Select

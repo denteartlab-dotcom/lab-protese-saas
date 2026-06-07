@@ -358,9 +358,39 @@ export function parseColaboradoresInstrucoes(instrucoes?: string | null): Colabo
     .filter((item): item is ColaboradorOsLinha => item !== null && Boolean(item.nome));
 }
 
+export function comissaoPercentualSemSufixo(value: string) {
+  return (value || "").replace(/%/g, "").trim();
+}
+
+/** Exibe comissão sempre com sufixo % (ex.: 10,00%). */
+export function exibirComissaoPercentual(value: string) {
+  const limpo = comissaoPercentualSemSufixo(value);
+  if (!limpo) return "";
+  const numero = Number(limpo.replace(/\./g, "").replace(",", "."));
+  if (!Number.isFinite(numero)) return "";
+  return (
+    numero.toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }) + "%"
+  );
+}
+
+/** Máscara de digitação para campo de comissão em %. */
+export function formatarComissaoPercentInput(value: string) {
+  const centavos = Number(String(value).replace(/\D/g, "")) || 0;
+  const amount = centavos / 100;
+  return (
+    amount.toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }) + "%"
+  );
+}
+
 export function formatarLinhaColaborador(colaborador: ColaboradorOsLinha) {
   if (!colaborador.nome.trim()) return "";
-  const comissao = (colaborador.comissao || "0").replace(/%/g, "").trim();
+  const comissao = comissaoPercentualSemSufixo(colaborador.comissao || "0");
   const etapaParte = colaborador.etapa.trim() ? ` - etapa ${colaborador.etapa.trim()}` : "";
   return `Colaborador ${colaborador.nome.trim()}: comissão ${comissao}%${etapaParte}`;
 }

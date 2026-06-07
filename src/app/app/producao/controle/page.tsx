@@ -75,6 +75,8 @@ import {
   colaboradoresParaExibicaoControle,
   deduplicarColaboradores,
   deduplicarTerceirizados,
+  exibirComissaoPercentual,
+  formatarComissaoPercentInput,
   formatarLinhaColaborador,
   formatarLinhaEtapa,
   nomeEtapaSemSetor,
@@ -1174,7 +1176,7 @@ export default function ControlePage() {
     setColaboradoresEdicao(
       complementos.colaboradores.map((item) => ({
         nome: item.nome,
-        comissao: item.comissao,
+        comissao: exibirComissaoPercentual(item.comissao),
         etapa: item.etapa,
       }))
     );
@@ -1188,10 +1190,11 @@ export default function ControlePage() {
   }
 
   function comissaoColaboradorCadastroControle(cadastro: ColaboradorListagem) {
-    if (form?.repeticao && cadastro.comissaoRepeticao?.replace(/[^\d]/g, "") !== "000") {
-      return cadastro.comissaoRepeticao;
-    }
-    return cadastro.comissaoPercentual || "0,00";
+    const bruto =
+      form?.repeticao && cadastro.comissaoRepeticao?.replace(/[^\d]/g, "") !== "000"
+        ? cadastro.comissaoRepeticao
+        : cadastro.comissaoPercentual || "0,00";
+    return exibirComissaoPercentual(bruto) || "0,00%";
   }
 
   function selecionarColaboradorEdicao(index: number, nome: string) {
@@ -3285,11 +3288,16 @@ export default function ControlePage() {
                                   onChange={(e) =>
                                     setColaboradoresEdicao((atuais) =>
                                       atuais.map((item, i) =>
-                                        i === index ? { ...item, comissao: e.target.value } : item
+                                        i === index
+                                          ? {
+                                              ...item,
+                                              comissao: formatarComissaoPercentInput(e.target.value),
+                                            }
+                                          : item
                                       )
                                     )
                                   }
-                                  placeholder="0,00"
+                                  placeholder="0,00%"
                                 />
                                 {modelosEtapasOs.length > 0 ? (
                                   <Select
