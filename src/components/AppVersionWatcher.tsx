@@ -2,10 +2,16 @@
 
 import { useEffect } from "react";
 import { APP_BUILD_ID, isBuildIdProducao } from "@/lib/app-build-id";
-import { revalidarArmazenamentoLaboratorio } from "@/lib/armazenamento-laboratorio";
+import {
+  ARMAZENAMENTO_LAB_PRONTO_EVENT,
+  armazenamentoLaboratorioPronto,
+  revalidarArmazenamentoLaboratorio,
+} from "@/lib/armazenamento-laboratorio";
 
 const STORAGE_KEY = "labProteseBuildId";
+const STORAGE_RELOAD_AT = "labProteseReloadAt";
 const INTERVALO_MS = 3 * 60 * 1000;
+const COOLDOWN_RECARGA_MS = 30_000;
 
 async function buildIdServidor() {
   const res = await fetch("/api/version", {
@@ -17,9 +23,20 @@ async function buildIdServidor() {
   return json.buildId?.trim() || null;
 }
 
+function podeRecarregarAgora() {
+  try {
+    const ultima = Number(sessionStorage.getItem(STORAGE_RELOAD_AT) || "0");
+    return Date.now() - ultima > COOLDOWN_RECARGA_MS;
+  } catch {
+    return true;
+  }
+}
+
 function recarregarComNovaVersao(novaBuildId: string) {
+  if (!podeRecarregarAgora()) return;
   try {
     sessionStorage.setItem(STORAGE_KEY, novaBuildId);
+    sessionStorage.setItem(STORAGE_RELOAD_AT, String(Date.now()));
   } catch {
     /* ignore */
   }
@@ -30,36 +47,30 @@ export function AppVersionWatcher() {
   useEffect(() => {
     if (!isBuildIdProducao()) return;
 
-    const buildLocal = APP_BUILD_ID;
-
-    try {
-      const salvo = sessionStorage.getItem(STORAGE_KEY);
-      if (salvo && salvo !== buildLocal) {
-        recarregarComNovaVersao(buildLocal);
-        return;
-      }
-      sessionStorage.setItem(STORAGE_KEY, buildLocal);
-    } catch {
-      /* ignore */
-    }
-
+    let intervalo: number | null = null;
     let verificando = false;
 
-    async function verificar(novaVersaoRecarrega = true) {
+    async function verificar() {
       if (verificando) return;
       verificando = true;
       try {
         const remoto = await buildIdServidor();
         if (!remoto) return;
 
-        if (remoto !== buildLocal) {
-          if (novaVersaoRecarrega) {
-            recarregarComNovaVersao(remoto);
-          }
+        if (remoto !== APP_BUILD_ID) {
+          recarregarComNovaVersao(remoto);
           return;
         }
 
-        await revalidarArmazenamentoLaboratorio();
+        try {
+          sessionStorage.setItem(STORAGE_KEY, remoto);
+        } catch {
+          /* ignore */
+        }
+
+        if (armazenamentoLaboratorioPronto()) {
+          await revalidarArmazenamentoLaboratorio();
+        }
       } catch {
         /* offline */
       } finally {
@@ -67,18 +78,30 @@ export function AppVersionWatcher() {
       }
     }
 
+    function iniciarMonitoramento() {
+      void verificar();
+      intervalo = window.setInterval(() => void verificar(), INTERVALO_MS);
+    }
+
     const onVisibilidade = () => {
       if (document.visibilityState === "visible") {
-        void verificar(true);
+        void verificar();
       }
     };
 
     document.addEventListener("visibilitychange", onVisibilidade);
-    const intervalo = window.setInterval(() => void verificar(true), INTERVALO_MS);
+
+    if (armazenamentoLaboratorioPronto()) {
+      iniciarMonitoramento();
+    } else {
+      window.addEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, iniciarMonitoramento, {
+        once: true,
+      });
+    }
 
     return () => {
       document.removeEventListener("visibilitychange", onVisibilidade);
-      window.clearInterval(intervalo);
+      if (intervalo) window.clearInterval(intervalo);
     };
   }, []);
 

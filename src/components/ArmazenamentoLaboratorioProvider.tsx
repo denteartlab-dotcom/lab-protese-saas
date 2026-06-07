@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { inicializarArmazenamentoLaboratorio } from "@/lib/armazenamento-laboratorio";
+
+const TIMEOUT_INICIALIZACAO_MS = 25_000;
 
 type Props = {
   children: React.ReactNode;
@@ -10,21 +12,39 @@ type Props = {
 export function ArmazenamentoLaboratorioProvider({ children }: Props) {
   const [pronto, setPronto] = useState(false);
   const [erro, setErro] = useState("");
+  const prontoRef = useRef(false);
 
   useEffect(() => {
     let ativo = true;
+
+    const timeout = window.setTimeout(() => {
+      if (!ativo || prontoRef.current) return;
+      setErro(
+        "O carregamento demorou mais que o esperado. A página será exibida com dados locais."
+      );
+      prontoRef.current = true;
+      setPronto(true);
+    }, TIMEOUT_INICIALIZACAO_MS);
+
     void inicializarArmazenamentoLaboratorio()
       .then(() => {
-        if (ativo) setPronto(true);
+        if (!ativo || prontoRef.current) return;
+        prontoRef.current = true;
+        setPronto(true);
       })
       .catch(() => {
-        if (ativo) {
-          setErro("Não foi possível carregar os dados do servidor. Recarregue a página.");
-          setPronto(true);
-        }
+        if (!ativo || prontoRef.current) return;
+        setErro("Não foi possível carregar os dados do servidor. Recarregue a página.");
+        prontoRef.current = true;
+        setPronto(true);
+      })
+      .finally(() => {
+        window.clearTimeout(timeout);
       });
+
     return () => {
       ativo = false;
+      window.clearTimeout(timeout);
     };
   }, []);
 
@@ -38,8 +58,10 @@ export function ArmazenamentoLaboratorioProvider({ children }: Props) {
 
   if (erro) {
     return (
-      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-2 p-8 text-center text-sm text-red-600">
-        <p>{erro}</p>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-[12px] text-amber-800">
+          {erro}
+        </div>
         {children}
       </div>
     );

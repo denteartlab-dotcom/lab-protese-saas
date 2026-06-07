@@ -140,10 +140,22 @@ export async function aplicarArmazenamentoLaboratorioCliente(
   await flushSalvarPendentes();
 }
 
+const BOOTSTRAP_TIMEOUT_MS = 20_000;
+
+async function fetchComTimeout(url: string, init?: RequestInit, timeoutMs = BOOTSTRAP_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
 async function enviarMigracaoLocal(entradas: Record<string, unknown>) {
   if (Object.keys(entradas).length === 0) return;
   try {
-    await fetch("/api/armazenamento/migrar", {
+    await fetchComTimeout("/api/armazenamento/migrar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "same-origin",
@@ -151,7 +163,7 @@ async function enviarMigracaoLocal(entradas: Record<string, unknown>) {
       body: JSON.stringify({ entradas }),
     });
   } catch {
-    /* offline */
+    /* offline ou timeout */
   }
 }
 
@@ -193,7 +205,7 @@ function agendarSalvar(key: string, valor: unknown) {
 
 async function carregarBootstrapServidor(legado: Record<string, unknown>) {
   try {
-    const res = await fetch("/api/armazenamento/bootstrap", {
+    const res = await fetchComTimeout("/api/armazenamento/bootstrap", {
       credentials: "same-origin",
       cache: "no-store",
     });
@@ -204,8 +216,8 @@ async function carregarBootstrapServidor(legado: Record<string, unknown>) {
         return;
       }
     }
-  } catch {
-    /* sem rede */
+  } catch (err) {
+    console.warn("[armazenamento-laboratorio] bootstrap indisponível", err);
   }
   aplicarBootstrap(legado);
 }
@@ -217,11 +229,17 @@ export async function inicializarArmazenamentoLaboratorio() {
   if (hidratando) return hidratando;
 
   hidratando = (async () => {
-    const legado = coletarMigracaoLocal();
-    await enviarMigracaoLocal(legado);
-    await carregarBootstrapServidor(legado);
-    hidratado = true;
-    dispararPronto();
+    try {
+      const legado = coletarMigracaoLocal();
+      await enviarMigracaoLocal(legado);
+      await carregarBootstrapServidor(legado);
+    } catch (err) {
+      console.error("[armazenamento-laboratorio] falha na inicialização", err);
+      aplicarBootstrap({});
+    } finally {
+      hidratado = true;
+      dispararPronto();
+    }
   })().finally(() => {
     hidratando = null;
   });
