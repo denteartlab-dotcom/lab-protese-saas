@@ -6,6 +6,13 @@ import { X } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
 import { dateToBrShort } from "@/lib/datas-br";
 import {
+  abrirPdfViewerNovaAba,
+  criarIdPdfViewer,
+  marcarPdfViewerErro,
+  publicarPdfNaAba,
+  salvarPdfViewerSession,
+} from "@/lib/pdf-viewer-aba";
+import {
   filtrarLinhasRelatorio,
   gerarRelatorioDespesasBlob,
   linhasRelatorioFromLancamentos,
@@ -30,7 +37,6 @@ type Props = {
   open: boolean;
   onClose: () => void;
   lancamentos: Lancamento[];
-  onPdfGerado?: (url: string, titulo: string) => void;
 };
 
 const labelClass = "mb-1 block text-[11px] font-medium text-slate-600";
@@ -114,12 +120,7 @@ function CampoSelect({
   );
 }
 
-export function RelatorioDespesasModal({
-  open,
-  onClose,
-  lancamentos,
-  onPdfGerado,
-}: Props) {
+export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
   const { inicio: inicioPadrao, fim: fimPadrao } = periodoMesAtual();
   const [portalPronto, setPortalPronto] = useState(false);
 
@@ -194,8 +195,23 @@ export function RelatorioDespesasModal({
     const ordenadas = ordenarLinhasRelatorio(filtradas, ordenarPor);
     const periodoLabel = `${periodoCampo === "data_lancamento" ? "Data Lançamento" : "Data Vencimento"}: ${dataInicio} a ${dataFinal}`;
 
+    const pdfId = criarIdPdfViewer();
+    salvarPdfViewerSession(pdfId, {
+      status: "loading",
+      titulo: modeloLabel,
+      nomeArquivo: "relatorio-despesas.pdf",
+    });
+
+    const novaAba = abrirPdfViewerNovaAba(pdfId);
+    if (!novaAba) {
+      setErroPdf("Não foi possível abrir a nova aba. Verifique se pop-ups estão permitidos.");
+      return;
+    }
+
     setGerandoPdf(true);
     setErroPdf("");
+    onClose();
+
     void (async () => {
       try {
         const blob = await gerarRelatorioDespesasBlob(ordenadas, modeloLabel, periodoLabel, {
@@ -204,12 +220,10 @@ export function RelatorioDespesasModal({
           dataInicio,
           dataFinal,
         });
-        const url = URL.createObjectURL(blob);
-        onPdfGerado?.(url, modeloLabel);
-        onClose();
+        await publicarPdfNaAba(pdfId, blob, modeloLabel, "relatorio-despesas.pdf");
       } catch (err) {
         console.error("relatorio despesas pdf", err);
-        setErroPdf("Não foi possível gerar o PDF. Tente novamente.");
+        marcarPdfViewerErro(pdfId, "Não foi possível gerar o PDF do relatório de despesas.", modeloLabel);
       } finally {
         setGerandoPdf(false);
       }

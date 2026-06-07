@@ -26,7 +26,6 @@ import dynamic from "next/dynamic";
 import { Button, CampoDataBr } from "@/components/ui";
 import type { LancarReceitaPayload } from "@/components/financeiro/LancarReceitaModal";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
-import { PdfViewerOverlay } from "@/components/PdfViewerOverlay";
 import { RelatorioDespesasModal } from "@/components/financeiro/RelatorioDespesasModal";
 import { DespesaDetalheModal } from "@/components/financeiro/DespesaDetalheModal";
 import { AdicionarImagensComprovanteModal } from "@/components/financeiro/AdicionarImagensComprovanteModal";
@@ -323,10 +322,6 @@ export function ContasPagarConteudo() {
   });
   const [modalAberto, setModalAberto] = useState(false);
   const [relatorioAberto, setRelatorioAberto] = useState(false);
-  const [pdfRelatorioDespesas, setPdfRelatorioDespesas] = useState<{
-    url: string;
-    titulo: string;
-  } | null>(null);
   const [despesaParaExcluir, setDespesaParaExcluir] = useState<Lancamento | null>(null);
   const [despesaAberta, setDespesaAberta] = useState<{
     lancamento: Lancamento;
@@ -1337,25 +1332,7 @@ export function ContasPagarConteudo() {
         open={relatorioAberto}
         onClose={() => setRelatorioAberto(false)}
         lancamentos={lancamentos}
-        onPdfGerado={(url, titulo) => {
-          setRelatorioAberto(false);
-          setPdfRelatorioDespesas({ url, titulo });
-        }}
       />
-
-      {pdfRelatorioDespesas ? (
-        <PdfViewerOverlay
-          url={pdfRelatorioDespesas.url}
-          titulo={pdfRelatorioDespesas.titulo}
-          nomeArquivo="relatorio-despesas.pdf"
-          onClose={() => {
-            if (pdfRelatorioDespesas.url.startsWith("blob:")) {
-              URL.revokeObjectURL(pdfRelatorioDespesas.url);
-            }
-            setPdfRelatorioDespesas(null);
-          }}
-        />
-      ) : null}
 
       {modalAberto ? (
         <LancarDespesaModal
