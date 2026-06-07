@@ -300,10 +300,15 @@ export function ContasPagarConteudo() {
         return;
       }
 
-      const lista = carregarEntidadesDespesaLocal(
-        entidadeAtiva as Exclude<EntidadeDespesa, "todos" | "clientes">
-      );
-      if (!cancelado) setEntidadesVinculo(lista);
+      if (
+        entidadeAtiva === "fornecedores" ||
+        entidadeAtiva === "colaboradores" ||
+        entidadeAtiva === "prestadores" ||
+        entidadeAtiva === "entregadores"
+      ) {
+        const lista = carregarEntidadesDespesaLocal(entidadeAtiva);
+        if (!cancelado) setEntidadesVinculo(lista);
+      }
     }
 
     void carregarVinculos();
