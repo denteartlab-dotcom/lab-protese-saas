@@ -67,11 +67,23 @@ import {
   type CategoriaTabelaPrecoOs,
 } from "@/lib/tabela-precos-os";
 import {
+  carregarColaboradoresListagem,
+  type ColaboradorListagem,
+} from "@/lib/colaboradores-listagem";
+import {
   carregarEtapasCadastro,
   colaboradoresParaExibicaoControle,
+  deduplicarColaboradores,
+  deduplicarTerceirizados,
+  formatarLinhaColaborador,
+  formatarLinhaEtapa,
+  nomeEtapaSemSetor,
   parseComplementosInstrucoesGrupo,
+  parseEtapasInstrucoes,
   removerComplementosOsDoCorpo,
   resumoColaboradorControle,
+  type ColaboradorOsLinha,
+  type TerceirizadoOsLinha,
 } from "@/lib/etapas-os";
 import {
   filtrarTrabalhosAtrasados,
@@ -152,6 +164,26 @@ const OPCOES_ORDENACAO_CONTROLE = [
   { valor: "cliente" as const, label: "Cliente" },
   { valor: "paciente" as const, label: "Paciente" },
 ];
+
+const FORNECEDORES_STORAGE_KEY = "labProteseFornecedores";
+const PRESTADORES_STORAGE_KEY = "labProtesePrestadores";
+
+type TerceirizadoOpcao = {
+  id: string;
+  nome: string;
+  origem: "fornecedor" | "prestador";
+  valorComissao?: string;
+  valorComissaoRepeticao?: string;
+  tipoServico?: string;
+};
+
+type TerceirizadoStorage = {
+  id?: string;
+  nome?: string;
+  valorComissao?: string;
+  valorComissaoRepeticao?: string;
+  tipoServico?: string;
+};
 
 const COMPARADORES_CONTROLE: Record<
   CampoOrdenacaoControle,
@@ -268,23 +300,82 @@ function valorItensControle(itens: EditItem[]) {
   );
 }
 
+function montarLinhasComplementosOs(
+  colaboradores: ColaboradorOsLinha[],
+  terceirizados: TerceirizadoOsLinha[]
+) {
+  const linhasColaboradores = deduplicarColaboradores(colaboradores)
+    .filter((colaborador) => colaborador.nome.trim())
+    .map((colaborador) => formatarLinhaColaborador(colaborador))
+    .filter(Boolean);
+  const linhasTerceirizados = deduplicarTerceirizados(terceirizados)
+    .filter((terceiro) => terceiro.nome.trim() || terceiro.servico.trim() || terceiro.custo.trim())
+    .map(
+      (terceiro) =>
+        `Terceirizado ${terceiro.nome || "-"}: ${terceiro.servico || "serviço"}${
+          terceiro.custo ? ` - custo ${terceiro.custo}` : ""
+        }`
+    );
+  return [...linhasColaboradores, ...linhasTerceirizados].join("\n");
+}
+
 function montarInstrucoesSegmentoControle(
   itens: EditItem[],
   corpoSemEtapas: string,
   linhasEtapas: string,
-  segmento: SegmentoFaturamento
+  segmento: SegmentoFaturamento,
+  linhasComplementos?: string
 ) {
   let corpo: string;
   if (segmento === "servico") {
-    const base = linhasEtapas
-      ? removerComplementosOsDoCorpo(corpoSemEtapas)
-      : corpoSemEtapas;
-    corpo = [base, linhasEtapas].filter(Boolean).join("\n");
+    const base =
+      linhasEtapas || linhasComplementos
+        ? removerComplementosOsDoCorpo(corpoSemEtapas)
+        : corpoSemEtapas;
+    corpo = [base, linhasEtapas, linhasComplementos].filter(Boolean).join("\n");
   } else {
     corpo = removerComplementosOsDoCorpo(corpoSemEtapas);
   }
   const linhas = itens.map(formatarLinhaItemEdicao).join("\n");
   return [corpo, linhas].filter(Boolean).join("\n");
+}
+
+function parsePercentualControle(value = "") {
+  return Number(value.replace("%", "").replace(/\./g, "").replace(",", ".")) || 0;
+}
+
+function carregarOpcoesTerceirizadosControle(): TerceirizadoOpcao[] {
+  try {
+    const fornecedores = readStorage<TerceirizadoStorage[]>(FORNECEDORES_STORAGE_KEY, []);
+    const prestadores = readStorage<TerceirizadoStorage[]>(PRESTADORES_STORAGE_KEY, []);
+    const fornecedoresAtivos: TerceirizadoOpcao[] = Array.isArray(fornecedores)
+      ? fornecedores
+          .filter((item) => item?.nome?.trim())
+          .map((item) => ({
+            id: item.id || item.nome || "",
+            nome: item.nome!.trim(),
+            origem: "fornecedor" as const,
+            valorComissao: item.valorComissao,
+            valorComissaoRepeticao: item.valorComissaoRepeticao,
+            tipoServico: item.tipoServico,
+          }))
+      : [];
+    const prestadoresAtivos: TerceirizadoOpcao[] = Array.isArray(prestadores)
+      ? prestadores
+          .filter((item) => item?.nome?.trim())
+          .map((item) => ({
+            id: item.id || item.nome || "",
+            nome: item.nome!.trim(),
+            origem: "prestador" as const,
+            valorComissao: item.valorComissao,
+            valorComissaoRepeticao: item.valorComissaoRepeticao,
+            tipoServico: item.tipoServico,
+          }))
+      : [];
+    return [...prestadoresAtivos, ...fornecedoresAtivos];
+  } catch {
+    return [];
+  }
 }
 
 type EditItem = {
@@ -710,10 +801,23 @@ export default function ControlePage() {
   const [produtosOs, setProdutosOs] = useState<ProdutoOsEdicao[]>([]);
   const [grupoOsRegistros, setGrupoOsRegistros] = useState<RegistroGrupoOs[]>([]);
   const [etapasEdicao, setEtapasEdicao] = useState<EtapaOsFormLinha[]>([]);
+  const [colaboradoresEdicao, setColaboradoresEdicao] = useState<
+    { nome: string; comissao: string; etapa: string }[]
+  >([]);
+  const [terceirizadosEdicao, setTerceirizadosEdicao] = useState<
+    { nome: string; servico: string; custo: string }[]
+  >([]);
+  const [colaboradoresOpcoes, setColaboradoresOpcoes] = useState<ColaboradorListagem[]>([]);
+  const [opcoesTerceirizados, setOpcoesTerceirizados] = useState<TerceirizadoOpcao[]>([]);
   const [categoriasTabelaPreco, setCategoriasTabelaPreco] = useState<CategoriaTabelaPrecoOs[]>([]);
   const [lancamentosFatura, setLancamentosFatura] = useState<LancamentoFaturaOs[]>([]);
 
   const painelEdicaoVisivel = Boolean(itemSelecionadoId || adicionandoServico);
+  const modelosEtapasOs = useMemo(() => carregarEtapasCadastro(), [editando]);
+  const linhasComplementosEdicao = useMemo(
+    () => montarLinhasComplementosOs(colaboradoresEdicao, terceirizadosEdicao),
+    [colaboradoresEdicao, terceirizadosEdicao]
+  );
 
   const osFaturada = useMemo(() => {
     if (!editando) return false;
@@ -860,6 +964,8 @@ export default function ControlePage() {
     const porTabela = carregarCategoriasPorTabelaPreco();
     const tabela = "Tabela Principal";
     setCategoriasTabelaPreco(porTabela[tabela] || Object.values(porTabela)[0] || []);
+    setColaboradoresOpcoes(carregarColaboradoresListagem());
+    setOpcoesTerceirizados(carregarOpcoesTerceirizadosControle());
   }, [editando]);
 
   const editIdPorGrupo = useMemo(() => {
@@ -900,6 +1006,30 @@ export default function ControlePage() {
       ),
     [editItems]
   );
+
+  useEffect(() => {
+    if (!editando || !form) return;
+    setTerceirizadosEdicao((atuais) => {
+      let changed = false;
+      const atualizados = atuais.map((item) => {
+        const opcao = opcoesTerceirizados.find(
+          (terceirizado) => terceirizado.nome === item.nome && terceirizado.origem === "prestador"
+        );
+        if (!opcao) return item;
+        const percentual = parsePercentualControle(
+          form.repeticao ? opcao.valorComissaoRepeticao : opcao.valorComissao
+        );
+        const custo = (totalItensEdicao * (percentual / 100)).toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+        });
+        if (item.custo === custo) return item;
+        changed = true;
+        return { ...item, custo };
+      });
+      return changed ? atualizados : atuais;
+    });
+  }, [totalItensEdicao, form?.repeticao, opcoesTerceirizados, editando]);
 
   const clientes = Array.from(
     new Set(trabalhos.map(clienteNome).filter(Boolean))
@@ -1030,9 +1160,101 @@ export default function ControlePage() {
     setAdicionandoServico(false);
     setProdutosOs([]);
     setEtapasEdicao([]);
+    setColaboradoresEdicao([]);
+    setTerceirizadosEdicao([]);
+    setColaboradoresOpcoes([]);
+    setOpcoesTerceirizados([]);
     setTipoDenticao("permanente");
     setDentesEdicao([]);
     setLancamentosFatura([]);
+  }
+
+  function carregarComplementosNaEdicao(trabalho: Trabalho) {
+    const complementos = complementosEdicaoTrabalho(trabalho, trabalhos);
+    setColaboradoresEdicao(
+      complementos.colaboradores.map((item) => ({
+        nome: item.nome,
+        comissao: item.comissao,
+        etapa: item.etapa,
+      }))
+    );
+    setTerceirizadosEdicao(
+      complementos.terceirizados.map((item) => ({
+        nome: item.nome,
+        servico: item.servico,
+        custo: item.custo,
+      }))
+    );
+  }
+
+  function comissaoColaboradorCadastroControle(cadastro: ColaboradorListagem) {
+    if (form?.repeticao && cadastro.comissaoRepeticao?.replace(/[^\d]/g, "") !== "000") {
+      return cadastro.comissaoRepeticao;
+    }
+    return cadastro.comissaoPercentual || "0,00";
+  }
+
+  function selecionarColaboradorEdicao(index: number, nome: string) {
+    if (nome) {
+      const duplicata = colaboradoresEdicao.findIndex((item, i) => i !== index && item.nome === nome);
+      if (duplicata >= 0) {
+        setColaboradoresEdicao((atuais) => atuais.filter((_, i) => i !== index));
+        return;
+      }
+    }
+    const cadastro = colaboradoresOpcoes.find((item) => item.nome === nome);
+    setColaboradoresEdicao((atuais) =>
+      atuais.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              nome,
+              comissao: cadastro ? comissaoColaboradorCadastroControle(cadastro) : item.comissao,
+            }
+          : item
+      )
+    );
+  }
+
+  function adicionarLinhaColaboradorEdicao() {
+    setAbaServicoEdicao("colaboradores");
+    const ultima = colaboradoresEdicao[colaboradoresEdicao.length - 1];
+    if (ultima && !ultima.nome.trim() && !ultima.comissao.trim() && !ultima.etapa.trim()) return;
+    setColaboradoresEdicao((atuais) => [...atuais, { nome: "", comissao: "", etapa: "" }]);
+  }
+
+  function valorComissaoTerceirizadoControle(opcao: TerceirizadoOpcao) {
+    const percentual = parsePercentualControle(
+      form?.repeticao ? opcao.valorComissaoRepeticao : opcao.valorComissao
+    );
+    return totalItensEdicao * (percentual / 100);
+  }
+
+  function selecionarTerceirizadoEdicao(index: number, nome: string) {
+    const opcao = opcoesTerceirizados.find((item) => item.nome === nome);
+    setTerceirizadosEdicao((atuais) =>
+      atuais.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              nome,
+              servico: opcao?.tipoServico || item.servico,
+              custo:
+                opcao?.origem === "prestador"
+                  ? valorComissaoTerceirizadoControle(opcao).toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    })
+                  : item.custo,
+            }
+          : item
+      )
+    );
+  }
+
+  function adicionarLinhaTerceirizadoEdicao() {
+    setAbaServicoEdicao("terceiros");
+    setTerceirizadosEdicao((atuais) => [...atuais, { nome: "", servico: "", custo: "" }]);
   }
 
   function carregarEtapasNaEdicao(trabalho: Trabalho) {
@@ -1155,11 +1377,29 @@ export default function ControlePage() {
       dentes: numeroDenteResumoControle(dentesIniciais, denticaoInicial),
     });
     const primeiroServico = itens.find((item) => classificarItemOs(item) === "servico");
+    carregarComplementosNaEdicao(alvo);
     if (primeiroServico) {
       carregarEtapasDoItemServico(primeiroServico, alvo);
     } else {
       carregarEtapasNaEdicao(alvo);
     }
+
+    if (primeiroServico && trabalhoGrupoFaturado(alvo)) {
+      setItemSelecionadoId(primeiroServico.id);
+      setPainelEdicaoItem("servico");
+      setAbaServicoEdicao("colaboradores");
+    }
+  }
+
+  function abrirAbaComissoesEdicao(aba: "colaboradores" | "terceiros") {
+    if (!itemSelecionadoId && !adicionandoServico) {
+      const primeiroServico = editItems.find((item) => classificarItemOs(item) === "servico");
+      if (primeiroServico) {
+        selecionarItemEdicao(primeiroServico);
+      }
+    }
+    setPainelEdicaoItem("servico");
+    setAbaServicoEdicao(aba);
   }
 
   function selecionarItemEdicao(item: EditItem) {
@@ -1476,13 +1716,49 @@ export default function ControlePage() {
     setSalvandoEdicao(true);
     try {
     if (osFaturada) {
-      const res = await fetch(`/api/trabalhos/${editando.id}`, {
+      const registros =
+        grupoOsRegistros.length > 0
+          ? grupoOsRegistros
+          : [
+              {
+                id: editando.id,
+                segmentoFaturamento: (editando.segmentoFaturamento ||
+                  "servico") as SegmentoFaturamento,
+                instrucoes: editando.instrucoes,
+                tipoProtese: editando.tipoProtese,
+              },
+            ];
+      const servicoReg =
+        registros.find((item) => (item.segmentoFaturamento || "servico") === "servico") ||
+        registros[0];
+      const instrucoesAtual = servicoReg.instrucoes || "";
+      const corpoBase = removerComplementosOsDoCorpo(
+        instrucoesCorpoSemItens(instrucoesSemAnexos(instrucoesAtual))
+      );
+      const etapasLinhas = parseEtapasInstrucoes(instrucoesAtual)
+        .map((etapa) => formatarLinhaEtapa(etapa))
+        .filter(Boolean)
+        .join("\n");
+      const corpoComComplementos = [corpoBase, etapasLinhas, linhasComplementosEdicao]
+        .filter(Boolean)
+        .join("\n");
+      const itensServico = editItems.filter((item) => classificarItemOs(item) === "servico");
+      const instrucoes = montarInstrucoesSegmentoControle(
+        itensServico.length > 0 ? itensServico : editItems,
+        corpoComComplementos,
+        "",
+        "servico"
+      );
+      const res = await fetch(`/api/trabalhos/${servicoReg.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ observacoes: form.observacoes }),
+        body: JSON.stringify({
+          observacoes: form.observacoes ?? null,
+          instrucoes: instrucoes || null,
+        }),
       });
       if (!res.ok) {
-        alert("Não foi possível gravar a observação.");
+        alert("Não foi possível gravar observação e comissões.");
         return;
       }
       fecharEdicaoOs();
@@ -1573,7 +1849,8 @@ export default function ControlePage() {
                   prazoGeral: form!.dataLaboratorio,
                   quantidadeDentes: dentesEdicao.length || 1,
                 }),
-              segmento
+              segmento,
+              segmento === "servico" ? linhasComplementosEdicao : undefined
             ) || null,
         }),
       });
@@ -1669,7 +1946,8 @@ export default function ControlePage() {
                   bloco.itens,
                   corpoSemEtapas,
                   linhasEtapas,
-                  bloco.segmento
+                  bloco.segmento,
+                  bloco.segmento === "servico" ? linhasComplementosEdicao : undefined
                 ),
               })
             ),
@@ -1997,7 +2275,7 @@ export default function ControlePage() {
                       className="max-w-[160px] truncate px-2 py-2"
                       title={
                         resumoColaborador
-                          ? "Colaboradores da ordem de serviço (edite na OS)"
+                          ? "Colaboradores da ordem de serviço (edite pelo ícone de lápis)"
                           : undefined
                       }
                     >
@@ -2326,8 +2604,9 @@ export default function ControlePage() {
                       Faturado
                     </span>
                     Esta ordem de serviço já foi faturada em{" "}
-                    <strong>Contas a Receber</strong>. Os serviços estão bloqueados para edição.
-                    Cancele ou exclua o lançamento da fatura no financeiro para liberar a alteração.
+                    <strong>Contas a Receber</strong>. Os serviços estão bloqueados para edição,
+                    mas você ainda pode alterar <strong>observação interna</strong> e{" "}
+                    <strong>comissões</strong> (colaboradores e terceirizados).
                   </div>
                 )}
                 <div
@@ -2423,16 +2702,17 @@ export default function ControlePage() {
 
               {painelEdicaoVisivel && (
               <section className="border-t border-slate-100 bg-slate-50/50 p-4">
-                <div
-                  className={cn(
-                    "rounded border border-slate-200 bg-white p-4",
-                    osFaturada && "pointer-events-none select-none opacity-55"
-                  )}
-                >
+                <div className="rounded border border-slate-200 bg-white p-4">
                   {(painelEdicaoItem === "servico" || adicionandoServico) && (
                     <>
-                    {abaServicoEdicao !== "produtos" && (
-                    <>
+                    {abaServicoEdicao !== "produtos" &&
+                    abaServicoEdicao !== "colaboradores" &&
+                    abaServicoEdicao !== "terceiros" && (
+                    <div
+                      className={cn(
+                        osFaturada && "pointer-events-none select-none opacity-55"
+                      )}
+                    >
                     <div className="mb-3 flex flex-wrap items-center gap-3">
                       <span className="text-[11px] text-slate-500">
                         Data Lançamento:{" "}
@@ -2785,7 +3065,7 @@ export default function ControlePage() {
                         />
                       </div>
                     </div>
-                    </>
+                    </div>
                     )}
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <button
@@ -2814,26 +3094,28 @@ export default function ControlePage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
-                            setPainelEdicaoItem("servico");
-                            setAbaServicoEdicao("colaboradores");
-                          }}
+                          onClick={() => abrirAbaComissoesEdicao("colaboradores")}
                           className={classeAbaEdicao("colaboradores")}
                         >
                           Colaboradores / Comissões
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
-                            setPainelEdicaoItem("servico");
-                            setAbaServicoEdicao("terceiros");
-                          }}
+                          onClick={() => abrirAbaComissoesEdicao("terceiros")}
                           className={classeAbaEdicao("terceiros")}
                         >
                           Serviços Terceirizados / Comissões
                         </button>
                       </div>
-                      <div className="mt-3 rounded border border-slate-200 bg-slate-50 p-3 text-left">
+                      <div
+                        className={cn(
+                          "mt-3 rounded border border-slate-200 bg-slate-50 p-3 text-left",
+                          osFaturada &&
+                            abaServicoEdicao !== "colaboradores" &&
+                            abaServicoEdicao !== "terceiros" &&
+                            "pointer-events-none select-none opacity-55"
+                        )}
+                      >
                         {abaServicoEdicao === "etapas" && (
                           <EtapasOsEditor
                             etapas={etapasEdicao}
@@ -2947,14 +3229,232 @@ export default function ControlePage() {
                           </div>
                         )}
                         {abaServicoEdicao === "colaboradores" && (
-                          <p className="text-center text-[11px] text-slate-500">
-                            Colaboradores e comissões na tela Ordem de Serviço.
-                          </p>
+                          <div className="space-y-3">
+                            <p className="text-[10px] text-slate-500">
+                              Comissões por colaborador nesta ordem de serviço. As alterações
+                              permanecem disponíveis mesmo após a OS concluída no controle.
+                            </p>
+                            {colaboradoresEdicao.length === 0 && (
+                              <button
+                                type="button"
+                                onClick={adicionarLinhaColaboradorEdicao}
+                                className="w-full rounded bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
+                              >
+                                + Adicionar Colaborador
+                              </button>
+                            )}
+                            {colaboradoresEdicao.map((colaborador, index) => (
+                              <div
+                                key={`${colaborador.nome}-${index}`}
+                                className="grid gap-3 rounded border border-slate-200 bg-white p-3 md:grid-cols-[1fr_1fr_1fr_auto]"
+                              >
+                                {colaboradoresOpcoes.length > 0 ? (
+                                  <Select
+                                    label="Colaborador"
+                                    value={colaborador.nome}
+                                    onChange={(e) =>
+                                      selecionarColaboradorEdicao(index, e.target.value)
+                                    }
+                                  >
+                                    <option value="">Selecione um colaborador</option>
+                                    {colaborador.nome &&
+                                      !colaboradoresOpcoes.some(
+                                        (c) => c.nome === colaborador.nome
+                                      ) && (
+                                        <option value={colaborador.nome}>{colaborador.nome}</option>
+                                      )}
+                                    {colaboradoresOpcoes.map((opcao) => (
+                                      <option key={opcao.id} value={opcao.nome}>
+                                        {opcao.nome}
+                                      </option>
+                                    ))}
+                                  </Select>
+                                ) : (
+                                  <Input
+                                    label="Colaborador"
+                                    value={colaborador.nome}
+                                    onChange={(e) =>
+                                      selecionarColaboradorEdicao(index, e.target.value)
+                                    }
+                                    placeholder="Nome do colaborador"
+                                  />
+                                )}
+                                <Input
+                                  label="Comissão (%)"
+                                  value={colaborador.comissao}
+                                  onChange={(e) =>
+                                    setColaboradoresEdicao((atuais) =>
+                                      atuais.map((item, i) =>
+                                        i === index ? { ...item, comissao: e.target.value } : item
+                                      )
+                                    )
+                                  }
+                                  placeholder="0,00"
+                                />
+                                {modelosEtapasOs.length > 0 ? (
+                                  <Select
+                                    label="Etapa"
+                                    value={colaborador.etapa}
+                                    onChange={(e) =>
+                                      setColaboradoresEdicao((atuais) =>
+                                        atuais.map((item, i) =>
+                                          i === index ? { ...item, etapa: e.target.value } : item
+                                        )
+                                      )
+                                    }
+                                  >
+                                    <option value="">Selecione uma etapa</option>
+                                    {colaborador.etapa &&
+                                      !modelosEtapasOs.some((m) => m.nome === colaborador.etapa) && (
+                                        <option value={colaborador.etapa}>
+                                          {nomeEtapaSemSetor(colaborador.etapa)}
+                                        </option>
+                                      )}
+                                    {modelosEtapasOs.map((modelo) => (
+                                      <option key={modelo.id} value={modelo.nome}>
+                                        {modelo.nome}
+                                      </option>
+                                    ))}
+                                  </Select>
+                                ) : (
+                                  <Input
+                                    label="Etapa"
+                                    value={colaborador.etapa}
+                                    onChange={(e) =>
+                                      setColaboradoresEdicao((atuais) =>
+                                        atuais.map((item, i) =>
+                                          i === index ? { ...item, etapa: e.target.value } : item
+                                        )
+                                      )
+                                    }
+                                    placeholder="Produção, prova, finalizado..."
+                                  />
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setColaboradoresEdicao((atuais) =>
+                                      atuais.filter((_, i) => i !== index)
+                                    )
+                                  }
+                                  className="mt-6 inline-flex h-10 items-center justify-center rounded border border-red-200 px-3 text-red-600 hover:bg-red-50"
+                                  title="Excluir colaborador"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            ))}
+                            {colaboradoresEdicao.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={adicionarLinhaColaboradorEdicao}
+                                className="w-full rounded bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
+                              >
+                                + Adicionar Colaborador
+                              </button>
+                            )}
+                          </div>
                         )}
                         {abaServicoEdicao === "terceiros" && (
-                          <p className="text-center text-[11px] text-slate-500">
-                            Terceirizados na tela Ordem de Serviço.
-                          </p>
+                          <div className="space-y-3">
+                            <p className="text-[10px] text-slate-500">
+                              Serviços terceirizados e comissões/custos desta ordem de serviço.
+                            </p>
+                            {terceirizadosEdicao.length === 0 && (
+                              <button
+                                type="button"
+                                onClick={adicionarLinhaTerceirizadoEdicao}
+                                className="w-full rounded bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
+                              >
+                                + Adicionar Terceirizado
+                              </button>
+                            )}
+                            {terceirizadosEdicao.map((terceiro, index) => (
+                              <div
+                                key={`${terceiro.nome}-${index}`}
+                                className="grid gap-3 rounded border border-slate-200 bg-white p-3 md:grid-cols-[1fr_1fr_1fr_auto]"
+                              >
+                                {opcoesTerceirizados.length > 0 ? (
+                                  <Select
+                                    label="Terceirizado"
+                                    value={terceiro.nome}
+                                    onChange={(e) =>
+                                      selecionarTerceirizadoEdicao(index, e.target.value)
+                                    }
+                                  >
+                                    <option value="">Selecione um prestador/fornecedor</option>
+                                    {opcoesTerceirizados.map((opcao) => (
+                                      <option key={opcao.id} value={opcao.nome}>
+                                        {opcao.nome}
+                                        {opcao.origem === "prestador"
+                                          ? " - Prestador"
+                                          : " - Fornecedor"}
+                                      </option>
+                                    ))}
+                                  </Select>
+                                ) : (
+                                  <Input
+                                    label="Terceirizado"
+                                    value={terceiro.nome}
+                                    onChange={(e) =>
+                                      selecionarTerceirizadoEdicao(index, e.target.value)
+                                    }
+                                    placeholder="Nome do prestador ou fornecedor"
+                                  />
+                                )}
+                                <Input
+                                  label="Serviço"
+                                  value={terceiro.servico}
+                                  onChange={(e) =>
+                                    setTerceirizadosEdicao((atuais) =>
+                                      atuais.map((item, i) =>
+                                        i === index ? { ...item, servico: e.target.value } : item
+                                      )
+                                    )
+                                  }
+                                  placeholder="Serviço terceirizado"
+                                />
+                                <Input
+                                  label="Comissão / Custo"
+                                  value={terceiro.custo}
+                                  onChange={(e) =>
+                                    setTerceirizadosEdicao((atuais) =>
+                                      atuais.map((item, i) =>
+                                        i === index
+                                          ? {
+                                              ...item,
+                                              custo: formatCurrencyInputControle(e.target.value),
+                                            }
+                                          : item
+                                      )
+                                    )
+                                  }
+                                  placeholder="R$ 0,00"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setTerceirizadosEdicao((atuais) =>
+                                      atuais.filter((_, i) => i !== index)
+                                    )
+                                  }
+                                  className="mt-6 inline-flex h-10 items-center justify-center rounded border border-red-200 px-3 text-red-600 hover:bg-red-50"
+                                  title="Excluir serviço terceirizado"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            ))}
+                            {terceirizadosEdicao.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={adicionarLinhaTerceirizadoEdicao}
+                                className="w-full rounded bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
+                              >
+                                + Adicionar Terceirizado
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
                     </>
@@ -3141,7 +3641,7 @@ export default function ControlePage() {
                 {salvandoEdicao
                   ? "Salvando..."
                   : osFaturada
-                    ? "Gravar somente observação interna"
+                    ? "Gravar observação e comissões"
                     : "Gravar Alterações Ordem de Serviço"}
               </Button>
             </div>
