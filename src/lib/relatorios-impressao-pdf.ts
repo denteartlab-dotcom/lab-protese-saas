@@ -286,11 +286,30 @@ export async function gerarRelatorioContasReceberPdf(
   });
 }
 
+export type OpcoesGerarRelatorioDespesasPdf = {
+  modelo: string;
+  periodoCampo: "data_lancamento" | "vencimento";
+  dataInicio: string;
+  dataFinal: string;
+};
+
 export async function gerarRelatorioDespesasPdf(
   linhas: LinhaRelatorioDespesa[],
   tituloModelo: string,
-  periodoLabel: string
+  periodoLabel: string,
+  opcoes?: OpcoesGerarRelatorioDespesasPdf
 ) {
+  if (opcoes?.modelo === "despesas-modelo-1") {
+    const { gerarRelatorioDespesasModelo1Pdf } = await import(
+      "@/lib/pdf-relatorio-despesas-modelo1"
+    );
+    return gerarRelatorioDespesasModelo1Pdf(linhas, {
+      periodoCampo: opcoes.periodoCampo,
+      dataInicio: opcoes.dataInicio,
+      dataFinal: opcoes.dataFinal,
+    });
+  }
+
   const total = linhas.reduce((s, l) => s + l.valor, 0);
   return gerarRelatorioTabelaPdf({
     tituloRelatorio: `Relatório Despesas — ${tituloModelo}`,

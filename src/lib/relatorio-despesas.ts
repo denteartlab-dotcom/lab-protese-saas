@@ -153,16 +153,24 @@ function money(value: number) {
   });
 }
 
+export type OpcoesImpressaoRelatorioDespesas = {
+  modelo: string;
+  periodoCampo: FiltroRelatorioDespesas["periodoCampo"];
+  dataInicio: string;
+  dataFinal: string;
+};
+
 export async function imprimirRelatorioDespesas(
   linhas: LinhaRelatorioDespesa[],
   tituloModelo: string,
   periodoLabel: string,
-  janelaReservada?: Window | null
+  janelaReservada?: Window | null,
+  opcoes?: OpcoesImpressaoRelatorioDespesas
 ) {
   const janela = janelaReservada ?? null;
   try {
     const { gerarRelatorioDespesasPdf } = await import("@/lib/relatorios-impressao-pdf");
-    const blob = await gerarRelatorioDespesasPdf(linhas, tituloModelo, periodoLabel);
+    const blob = await gerarRelatorioDespesasPdf(linhas, tituloModelo, periodoLabel, opcoes);
     abrirPdfNoVisualizador(blob, "relatorio-despesas.pdf", undefined, janela);
   } catch (err) {
     janela?.close();

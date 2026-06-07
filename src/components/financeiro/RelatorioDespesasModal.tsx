@@ -186,11 +186,14 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
     const filtradas = filtrarLinhasRelatorio(linhasBase, filtro);
     const ordenadas = ordenarLinhasRelatorio(filtradas, ordenarPor);
     const periodoLabel = `${periodoCampo === "data_lancamento" ? "Data Lançamento" : "Data Vencimento"}: ${dataInicio} a ${dataFinal}`;
-    void imprimirRelatorioDespesas(ordenadas, modeloLabel, periodoLabel, janela).catch(
-      () => {
-        alert("Não foi possível gerar o PDF. Permita pop-ups para este site.");
-      }
-    );
+    void imprimirRelatorioDespesas(ordenadas, modeloLabel, periodoLabel, janela, {
+      modelo,
+      periodoCampo,
+      dataInicio,
+      dataFinal,
+    }).catch(() => {
+      alert("Não foi possível gerar o PDF. Permita pop-ups para este site.");
+    });
   }
 
   if (!open || !portalPronto) return null;
