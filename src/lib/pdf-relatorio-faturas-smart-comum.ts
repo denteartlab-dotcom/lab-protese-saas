@@ -2,6 +2,7 @@ import { desenharCabecalhoLabRelatorioPdf } from "@/lib/pdf-lab-cabecalho";
 import type { jsPDF } from "jspdf";
 
 export const VERDE_VALORES: [number, number, number] = [0, 100, 0];
+export const VERDE_CLARO_LINHA: [number, number, number] = [198, 239, 206];
 export const PRETO: [number, number, number] = [0, 0, 0];
 export const VERMELHO_OBS: [number, number, number] = [220, 38, 38];
 
@@ -89,14 +90,17 @@ function desenharCelula(
   colIndex: number,
   texto: string,
   altura: number,
-  opts?: { header?: boolean; verde?: boolean; fill?: boolean }
+  opts?: { header?: boolean; verde?: boolean; fill?: boolean; fillVerde?: boolean }
 ) {
   const col = ctx.colunas[colIndex];
   const x = ctx.colX[colIndex];
   const w = col.larguraMm;
   ctx.pdf.setDrawColor(0, 0, 0);
   ctx.pdf.setLineWidth(0.2);
-  if (opts?.fill) {
+  if (opts?.fillVerde) {
+    ctx.pdf.setFillColor(...VERDE_CLARO_LINHA);
+    ctx.pdf.rect(x, ctx.y, w, altura, "FD");
+  } else if (opts?.fill) {
     ctx.pdf.setFillColor(238, 238, 238);
     ctx.pdf.rect(x, ctx.y, w, altura, "FD");
   } else {
@@ -120,13 +124,19 @@ function desenharCelula(
 export function desenharLinhaTabelaFaturasSmart(
   ctx: ContextoTabelaFaturasSmart,
   valores: string[],
-  opts?: { header?: boolean; verdeCols?: boolean[]; fillHeader?: boolean }
+  opts?: {
+    header?: boolean;
+    verdeCols?: boolean[];
+    fillHeader?: boolean;
+    linhaVerde?: boolean;
+  }
 ) {
   const altura = opts?.header ? ctx.headerH : ctx.rowH;
   ctx.colunas.forEach((col, i) => {
     desenharCelula(ctx, i, valores[i] ?? "", altura, {
       header: opts?.header,
       fill: opts?.header && opts?.fillHeader,
+      fillVerde: !opts?.header && opts?.linhaVerde,
       verde: !opts?.header && (opts?.verdeCols?.[i] ?? col.verde),
     });
   });

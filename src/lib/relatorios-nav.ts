@@ -4,7 +4,6 @@ import {
   ClipboardList,
   FileText,
   LineChart,
-  Mail,
   Package,
   PieChart,
   Receipt,
@@ -69,11 +68,6 @@ export const relatoriosNav: RelatorioNavItem[] = [
     icon: ScrollText,
   },
   {
-    href: "/app/relatorios/logs-email",
-    labelKey: "nav.relatorio.logsEmail",
-    icon: Mail,
-  },
-  {
     href: "/app/relatorios/dashboard-gerencial",
     labelKey: "nav.relatorio.dashboardGerencial",
     icon: BarChart3,
@@ -90,7 +84,6 @@ export const relatoriosSlugs = [
   "estoque",
   "recibos-emitidos",
   "logs-auditoria",
-  "logs-email",
   "dashboard-gerencial",
 ] as const;
 
@@ -106,7 +99,6 @@ const slugParaLabelKey: Record<RelatorioSlug, MessageKey> = {
   estoque: "nav.relatorio.estoque",
   "recibos-emitidos": "nav.relatorio.recibosEmitidos",
   "logs-auditoria": "nav.relatorio.logsAuditoria",
-  "logs-email": "nav.relatorio.logsEmail",
   "dashboard-gerencial": "nav.relatorio.dashboardGerencial",
 };
 

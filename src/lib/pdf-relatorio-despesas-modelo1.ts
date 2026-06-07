@@ -108,7 +108,7 @@ export function gerarRelatorioDespesasModelo1Pdf(
         moneyBr(pago),
         moneyBr(saldo),
       ],
-      { verdeCols: [paga, false, false, false, false, false, false, false] }
+      { linhaVerde: paga }
     );
   });
 
