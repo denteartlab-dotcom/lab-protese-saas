@@ -5,7 +5,8 @@ import { debounceCallback } from "@/lib/debounce-callback";
 import {
   AlertTriangle,
   Check,
-  ChevronsUpDown,
+  ChevronDown,
+  ChevronUp,
   FileSpreadsheet,
   Filter,
   Eye,
@@ -141,11 +142,115 @@ const filtroLabelClass = "mb-1 block text-[11px] font-medium text-slate-600";
 const filtroInputClass =
   "h-9 w-full rounded border border-slate-300 bg-white px-2.5 text-sm text-slate-800 outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]";
 
-function thComOrdenacao(titulo: string) {
+type ColunaOrdenacaoDespesa =
+  | "vencimento"
+  | "parcela"
+  | "nome"
+  | "referencia"
+  | "categoria"
+  | "formaPagamento"
+  | "valor"
+  | "conta";
+
+type DirecaoOrdenacao = "asc" | "desc";
+
+type LinhaDespesa = {
+  lancamento: Lancamento;
+  pack: ReturnType<typeof desempacotarDespesa>;
+  entidade: EntidadeDespesa;
+  ref: string;
+};
+
+function numeroParcelaOrdenacao(pack: LinhaDespesa["pack"]) {
+  const noTexto = pack.texto.match(/\((\d+)\s*\/\s*(\d+)\)/);
+  if (noTexto) return Number(noTexto[1]) || 1;
+  const total = Number.parseInt(pack.parcela, 10);
+  return Number.isFinite(total) && total > 1 ? 1 : Number.parseInt(pack.parcela, 10) || 1;
+}
+
+function compararLinhasDespesa(
+  a: LinhaDespesa,
+  b: LinhaDespesa,
+  coluna: ColunaOrdenacaoDespesa
+) {
+  switch (coluna) {
+    case "vencimento":
+      return dateOnly(a.lancamento.data).getTime() - dateOnly(b.lancamento.data).getTime();
+    case "parcela":
+      return numeroParcelaOrdenacao(a.pack) - numeroParcelaOrdenacao(b.pack);
+    case "nome":
+      return (a.lancamento.cliente?.nome || a.pack.nome).localeCompare(
+        b.lancamento.cliente?.nome || b.pack.nome,
+        "pt-BR"
+      );
+    case "referencia":
+      return (a.ref || "").localeCompare(b.ref || "", "pt-BR");
+    case "categoria":
+      return a.pack.categoria.localeCompare(b.pack.categoria, "pt-BR");
+    case "formaPagamento":
+      return (a.lancamento.formaPagamento || "").localeCompare(
+        b.lancamento.formaPagamento || "",
+        "pt-BR"
+      );
+    case "valor":
+      return a.lancamento.valor - b.lancamento.valor;
+    case "conta":
+      return a.pack.conta.localeCompare(b.pack.conta, "pt-BR");
+    default:
+      return 0;
+  }
+}
+
+function ThOrdenavel({
+  titulo,
+  coluna,
+  colunaAtiva,
+  direcao,
+  onOrdenar,
+  alinhamento = "left",
+}: {
+  titulo: string;
+  coluna: ColunaOrdenacaoDespesa;
+  colunaAtiva: ColunaOrdenacaoDespesa;
+  direcao: DirecaoOrdenacao;
+  onOrdenar: (coluna: ColunaOrdenacaoDespesa) => void;
+  alinhamento?: "left" | "right";
+}) {
+  const ativa = colunaAtiva === coluna;
   return (
-    <span className="inline-flex items-center gap-1">
-      {titulo}
-      <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-40" />
+    <button
+      type="button"
+      onClick={() => onOrdenar(coluna)}
+      className={cn(
+        "inline-flex w-full items-center gap-1 font-semibold uppercase tracking-wide text-slate-500 transition hover:text-slate-700",
+        alinhamento === "right" ? "justify-end" : "justify-start"
+      )}
+    >
+      <span>{titulo}</span>
+      <span className="inline-flex shrink-0 flex-col leading-none">
+        <ChevronUp
+          className={cn(
+            "h-2.5 w-2.5",
+            ativa && direcao === "asc" ? "text-slate-600" : "text-slate-300"
+          )}
+          strokeWidth={2.5}
+        />
+        <ChevronDown
+          className={cn(
+            "-mt-0.5 h-2.5 w-2.5",
+            ativa && direcao === "desc" ? "text-slate-600" : "text-slate-300"
+          )}
+          strokeWidth={2.5}
+        />
+      </span>
+    </button>
+  );
+}
+
+function BadgePago() {
+  return (
+    <span className="inline-block whitespace-nowrap rounded bg-[#4cae4c] px-2.5 py-1 text-[11px] font-medium text-white">
+      Pago
     </span>
   );
 }
@@ -188,6 +293,10 @@ export function ContasPagarConteudo() {
   const [carregando, setCarregando] = useState(true);
   const [entidadeAtiva, setEntidadeAtiva] = useState<EntidadeDespesa>("todos");
   const [tipoDespesa, setTipoDespesa] = useState("a_pagar");
+  const [colunaOrdenacao, setColunaOrdenacao] =
+    useState<ColunaOrdenacaoDespesa>("vencimento");
+  const [direcaoOrdenacao, setDirecaoOrdenacao] =
+    useState<DirecaoOrdenacao>("asc");
   const [erroLista, setErroLista] = useState("");
   const [periodo, setPeriodo] = useState("mes");
   const [dataInicio, setDataInicio] = useState(() => {
@@ -440,6 +549,24 @@ export function ContasPagarConteudo() {
     busca,
     listasNomes,
   ]);
+
+  const linhasOrdenadas = useMemo(() => {
+    const copia = [...linhas];
+    copia.sort((a, b) => {
+      const diff = compararLinhasDespesa(a, b, colunaOrdenacao);
+      return direcaoOrdenacao === "asc" ? diff : -diff;
+    });
+    return copia;
+  }, [linhas, colunaOrdenacao, direcaoOrdenacao]);
+
+  function alternarOrdenacao(coluna: ColunaOrdenacaoDespesa) {
+    if (colunaOrdenacao === coluna) {
+      setDirecaoOrdenacao((atual) => (atual === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setColunaOrdenacao(coluna);
+    setDirecaoOrdenacao("asc");
+  }
 
   const linhasResumo = useMemo(() => {
     const inicio = dataInicio ? parseBrDate(dataInicio) : null;
@@ -933,19 +1060,78 @@ export function ContasPagarConteudo() {
             <thead>
               <tr>
                 <th className={cn(thClass, "pl-3 pr-2")}>
-                  {thComOrdenacao("Vencimento")}
+                  <ThOrdenavel
+                    titulo={tipoDespesa === "pagas" ? "Pagamento" : "Vencimento"}
+                    coluna="vencimento"
+                    colunaAtiva={colunaOrdenacao}
+                    direcao={direcaoOrdenacao}
+                    onOrdenar={alternarOrdenacao}
+                  />
                 </th>
-                <th className={cn(thClass, "px-1")}>{thComOrdenacao("Parc.")}</th>
-                <th className={cn(thClass, "px-2")}>{thComOrdenacao("Nome")}</th>
-                <th className={cn(thClass, "px-2")}>{thComOrdenacao("Referencia")}</th>
-                <th className={cn(thClass, "px-3")}>{thComOrdenacao("Categoria")}</th>
+                <th className={cn(thClass, "px-1")}>
+                  <ThOrdenavel
+                    titulo="Parc."
+                    coluna="parcela"
+                    colunaAtiva={colunaOrdenacao}
+                    direcao={direcaoOrdenacao}
+                    onOrdenar={alternarOrdenacao}
+                  />
+                </th>
                 <th className={cn(thClass, "px-2")}>
-                  {thComOrdenacao("Forma Pagamento")}
+                  <ThOrdenavel
+                    titulo="Nome"
+                    coluna="nome"
+                    colunaAtiva={colunaOrdenacao}
+                    direcao={direcaoOrdenacao}
+                    onOrdenar={alternarOrdenacao}
+                  />
+                </th>
+                <th className={cn(thClass, "px-2")}>
+                  <ThOrdenavel
+                    titulo="Referencia"
+                    coluna="referencia"
+                    colunaAtiva={colunaOrdenacao}
+                    direcao={direcaoOrdenacao}
+                    onOrdenar={alternarOrdenacao}
+                  />
+                </th>
+                <th className={cn(thClass, "px-3")}>
+                  <ThOrdenavel
+                    titulo="Categoria"
+                    coluna="categoria"
+                    colunaAtiva={colunaOrdenacao}
+                    direcao={direcaoOrdenacao}
+                    onOrdenar={alternarOrdenacao}
+                  />
+                </th>
+                <th className={cn(thClass, "px-2")}>
+                  <ThOrdenavel
+                    titulo="Forma Pagamento"
+                    coluna="formaPagamento"
+                    colunaAtiva={colunaOrdenacao}
+                    direcao={direcaoOrdenacao}
+                    onOrdenar={alternarOrdenacao}
+                  />
                 </th>
                 <th className={cn(thClass, "px-2 text-right")}>
-                  {thComOrdenacao("Valor")}
+                  <ThOrdenavel
+                    titulo="Valor"
+                    coluna="valor"
+                    colunaAtiva={colunaOrdenacao}
+                    direcao={direcaoOrdenacao}
+                    onOrdenar={alternarOrdenacao}
+                    alinhamento="right"
+                  />
                 </th>
-                <th className={cn(thClass, "px-2")}>{thComOrdenacao("Conta")}</th>
+                <th className={cn(thClass, "px-2")}>
+                  <ThOrdenavel
+                    titulo="Conta"
+                    coluna="conta"
+                    colunaAtiva={colunaOrdenacao}
+                    direcao={direcaoOrdenacao}
+                    onOrdenar={alternarOrdenacao}
+                  />
+                </th>
                 <th className={cn(thClass, "px-2 pr-3 text-right")}>Opções</th>
               </tr>
             </thead>
@@ -976,7 +1162,7 @@ export function ContasPagarConteudo() {
                   </td>
                 </tr>
               ) : (
-                linhas.map(({ lancamento, pack, ref }) => {
+                linhasOrdenadas.map(({ lancamento, pack, ref }) => {
                   const aberta = despesaAberta?.lancamento.id === lancamento.id;
                   return (
                     <tr
@@ -1000,7 +1186,9 @@ export function ContasPagarConteudo() {
                         <td className={tdConta}>{exibirConta(pack.conta)}</td>
                         <td className={tdOpc}>
                           <div className="inline-flex items-center justify-end gap-1.5">
-                            {lancamento.status === "pendente" ? (
+                            {lancamento.status === "pago" ? (
+                              <BadgePago />
+                            ) : (
                               <button
                                 type="button"
                                 title="Marcar como pago"
@@ -1011,7 +1199,7 @@ export function ContasPagarConteudo() {
                               >
                                 Pagar
                               </button>
-                            ) : null}
+                            )}
                             <button
                               type="button"
                               title="Ver detalhes"
