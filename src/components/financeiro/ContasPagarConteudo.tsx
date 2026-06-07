@@ -27,6 +27,7 @@ import type { LancarReceitaPayload } from "@/components/financeiro/LancarReceita
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { RelatorioDespesasModal } from "@/components/financeiro/RelatorioDespesasModal";
 import { DespesaDetalheModal } from "@/components/financeiro/DespesaDetalheModal";
+import { PagarDespesaModal } from "@/components/financeiro/PagarDespesaModal";
 import { VisualizadorAnexoDespesa } from "@/components/financeiro/VisualizadorAnexoDespesa";
 import {
   ANEXOS_FINANCEIRO_VAZIOS,
@@ -200,6 +201,10 @@ export function ContasPagarConteudo() {
   const [relatorioAberto, setRelatorioAberto] = useState(false);
   const [despesaParaExcluir, setDespesaParaExcluir] = useState<Lancamento | null>(null);
   const [despesaAberta, setDespesaAberta] = useState<{
+    lancamento: Lancamento;
+    ref: string;
+  } | null>(null);
+  const [despesaPagar, setDespesaPagar] = useState<{
     lancamento: Lancamento;
     ref: string;
   } | null>(null);
@@ -617,18 +622,6 @@ export function ContasPagarConteudo() {
     }
   }
 
-  async function marcarPago(l: Lancamento) {
-    setLancamentos((lista) =>
-      lista.map((item) => (item.id === l.id ? { ...item, status: "pago" } : item))
-    );
-    await fetch(`/api/financeiro/${l.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "pago" }),
-    });
-    notificarFinanceiroAtualizado();
-  }
-
   async function confirmarExclusaoDespesa() {
     if (!despesaParaExcluir) return;
     const id = despesaParaExcluir.id;
@@ -962,7 +955,9 @@ export function ContasPagarConteudo() {
                               <button
                                 type="button"
                                 title="Marcar como pago"
-                                onClick={() => void marcarPago(lancamento)}
+                                onClick={() =>
+                                  setDespesaPagar({ lancamento, ref })
+                                }
                                 className="rounded bg-[#4a90d9] px-3 py-1 text-[11px] font-normal text-white hover:bg-[#3d7fc4]"
                               >
                                 Pagar
@@ -1006,6 +1001,18 @@ export function ContasPagarConteudo() {
       </div>
 
       <VisualizadorAnexoDespesa anexo={anexoAberto} onClose={() => setAnexoAberto(null)} />
+
+      <PagarDespesaModal
+        open={!!despesaPagar}
+        lancamento={despesaPagar?.lancamento ?? null}
+        refOs={despesaPagar?.ref}
+        todosLancamentos={lancamentos}
+        onClose={() => setDespesaPagar(null)}
+        onConfirmado={() => {
+          setDespesaPagar(null);
+          notificarFinanceiroAtualizado();
+        }}
+      />
 
       <DespesaDetalheModal
         open={!!despesaAberta}

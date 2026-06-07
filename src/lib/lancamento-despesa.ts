@@ -420,6 +420,156 @@ export function extrairDadosVisualizacaoDespesa(
   };
 }
 
+export type ParcelaPagarDespesa = ParcelaDespesaVisualizacao & {
+  lancamentoId: string | null;
+  numero: number;
+  pagarAgora: boolean;
+};
+
+export type DadosPagarDespesa = DadosVisualizacaoDespesa & {
+  parcelasGrupo: ParcelaPagarDespesa[];
+  valorDevido: number;
+};
+
+function parseMoneyBr(value: string) {
+  return (
+    Number(
+      value
+        .replace(/[^\d,.-]/g, "")
+        .replace(/\./g, "")
+        .replace(",", ".")
+    ) || 0
+  );
+}
+
+function parcelaNumeros(texto: string, parcelaMeta: string) {
+  const match = texto.match(/\((\d+)\s*\/\s*(\d+)\)/);
+  if (match) {
+    return { numero: Number(match[1]) || 1, total: Number(match[2]) || 1 };
+  }
+  const total = Number.parseInt(parcelaMeta, 10);
+  if (Number.isFinite(total) && total > 1) {
+    return { numero: 1, total };
+  }
+  return { numero: 1, total: 1 };
+}
+
+export function chaveGrupoDespesa(descricao: string) {
+  const pack = desempacotarDespesa(descricao);
+  const texto = descricaoSemParcela(pack.texto);
+  return `${pack.nome}::${texto}`;
+}
+
+function somarMesesData(iso: string, meses: number) {
+  const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const base = match
+    ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+    : new Date(iso);
+  base.setMonth(base.getMonth() + meses);
+  const y = base.getFullYear();
+  const m = String(base.getMonth() + 1).padStart(2, "0");
+  const d = String(base.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+export function extrairDadosPagarDespesa(
+  lancamento: LancamentoDespesaDetalhe,
+  refOs?: string,
+  todosLancamentos: LancamentoDespesaDetalhe[] = []
+): DadosPagarDespesa {
+  const dados = extrairDadosVisualizacaoDespesa(lancamento, refOs);
+  const chave = chaveGrupoDespesa(lancamento.descricao);
+  const irmaos = todosLancamentos.filter(
+    (item) => item.id !== lancamento.id && chaveGrupoDespesa(item.descricao) === chave
+  );
+  const grupo = [lancamento, ...irmaos];
+
+  let parcelasGrupo: ParcelaPagarDespesa[] = [];
+
+  if (grupo.length > 1) {
+    parcelasGrupo = grupo
+      .map((item) => {
+        const pack = desempacotarDespesa(item.descricao);
+        const { numero, total } = parcelaNumeros(pack.texto, pack.parcela);
+        return {
+          item,
+          numero,
+          total,
+          pack,
+        };
+      })
+      .sort((a, b) => a.numero - b.numero)
+      .map(({ item, numero, total, pack }) => ({
+        parcela: `${numero}/${total}`,
+        formaPagamento: item.formaPagamento?.trim() || "",
+        conta: pack.conta === "—" ? "" : pack.conta,
+        vencimento: item.data,
+        codigoBarrasPix: "",
+        valor: moneyBr(item.valor),
+        pago: item.status === "pago",
+        lancamentoId: item.id,
+        numero,
+        pagarAgora: item.id === lancamento.id && item.status !== "pago",
+      }));
+  } else {
+    const pack = desempacotarDespesa(lancamento.descricao);
+    const { numero: numAtual, total } = parcelaNumeros(pack.texto, pack.parcela);
+
+    if (total > 1) {
+      const valorParcela = lancamento.valor;
+      for (let n = 1; n <= total; n++) {
+        const isAtual = n === numAtual;
+        parcelasGrupo.push({
+          parcela: `${n}/${total}`,
+          formaPagamento: isAtual
+            ? lancamento.formaPagamento?.trim() || ""
+            : "",
+          conta: isAtual ? (pack.conta === "—" ? "" : pack.conta) : "",
+          vencimento: isAtual
+            ? lancamento.data
+            : somarMesesData(lancamento.data, n - numAtual),
+          codigoBarrasPix: "",
+          valor: moneyBr(valorParcela),
+          pago: isAtual && lancamento.status === "pago",
+          lancamentoId: isAtual ? lancamento.id : null,
+          numero: n,
+          pagarAgora: isAtual && lancamento.status !== "pago",
+        });
+      }
+    } else {
+      parcelasGrupo = [
+        {
+          parcela: "1/1",
+          formaPagamento: lancamento.formaPagamento?.trim() || "",
+          conta: pack.conta === "—" ? "" : pack.conta,
+          vencimento: lancamento.data,
+          codigoBarrasPix: "",
+          valor: moneyBr(lancamento.valor),
+          pago: lancamento.status === "pago",
+          lancamentoId: lancamento.id,
+          numero: 1,
+          pagarAgora: lancamento.status !== "pago",
+        },
+      ];
+    }
+  }
+
+  const totalLiquido = parcelasGrupo.reduce(
+    (sum, parcela) => sum + parseMoneyBr(parcela.valor),
+    0
+  );
+  const valorDevido = parcelasGrupo
+    .filter((parcela) => !parcela.pago)
+    .reduce((sum, parcela) => sum + parseMoneyBr(parcela.valor), 0);
+
+  return {
+    ...dados,
+    totalLiquido: totalLiquido > 0 ? totalLiquido : dados.totalLiquido,
+    parcelasGrupo,
+    valorDevido,
+  };
+}
+
 export function classificarEntidadeDespesa(
   nome: string,
   temCliente: boolean,
