@@ -6,16 +6,24 @@ import {
 import { parseBrDate } from "@/lib/datas-br";
 import { abrirPdfNoVisualizador } from "@/lib/pdf-viewer";
 import { gerarRelatorioDespesasModelo1Pdf } from "@/lib/pdf-relatorio-despesas-modelo1";
+import type { OpcoesPeriodoRelatorioFaturas } from "@/lib/pdf-relatorio-faturas-smart-comum";
 import { formatDate } from "@/lib/utils";
+
+function periodoCampoPdf(
+  campo: FiltroRelatorioDespesas["periodoCampo"]
+): OpcoesPeriodoRelatorioFaturas["periodoCampo"] {
+  return campo === "data_pagamento" ? "data_lancamento" : campo;
+}
 
 export type FiltroRelatorioDespesas = {
   ordenarPor: "data_lancamento" | "nome" | "valor" | "vencimento";
   situacao: "todos" | "a_pagar" | "pagas" | "atraso";
   categoria: string;
   nome: string;
-  periodoCampo: "data_lancamento" | "vencimento";
+  periodoCampo: "data_lancamento" | "vencimento" | "data_pagamento";
   dataInicio: string;
   dataFinal: string;
+  conta: string;
 };
 
 export type LinhaRelatorioDespesa = {
@@ -31,6 +39,7 @@ export type LinhaRelatorioDespesa = {
   conta: string;
   status: string;
   dataOrdenacao: Date;
+  dataPagamento: Date | null;
 };
 
 const ENTIDADES_RELATORIO: EntidadeDespesa[] = [
@@ -97,6 +106,7 @@ export function linhasRelatorioFromLancamentos(
         conta: pack.conta,
         status: l.status,
         dataOrdenacao: dataLanc,
+        dataPagamento: l.status === "pago" ? dataLanc : null,
       };
     });
 }
@@ -113,7 +123,14 @@ export function filtrarLinhasRelatorio(
   hoje.setHours(0, 0, 0, 0);
 
   return linhas.filter((linha) => {
-    const dataRef = linha.dataOrdenacao;
+    if (filtro.periodoCampo === "data_pagamento") {
+      if (linha.status !== "pago") return false;
+    }
+
+    const dataRef =
+      filtro.periodoCampo === "data_pagamento"
+        ? linha.dataPagamento ?? linha.dataOrdenacao
+        : linha.dataOrdenacao;
     if (inicio && dataRef < inicio) return false;
     if (fim && dataRef > fim) return false;
 
@@ -131,6 +148,12 @@ export function filtrarLinhasRelatorio(
       }
     }
     if (filtro.nome !== "todos" && linha.nome !== filtro.nome) return false;
+
+    if (filtro.conta !== "todos") {
+      const contaLinha =
+        !linha.conta || linha.conta === "—" ? "Caixa Principal" : linha.conta;
+      if (contaLinha !== filtro.conta) return false;
+    }
 
     return true;
   });
@@ -161,6 +184,7 @@ export type OpcoesImpressaoRelatorioDespesas = {
   periodoCampo: FiltroRelatorioDespesas["periodoCampo"];
   dataInicio: string;
   dataFinal: string;
+  conta?: string;
   lancamentos?: LancamentoRelatorio[];
 };
 
@@ -172,7 +196,7 @@ export async function gerarRelatorioDespesasBlob(
 ) {
   if (opcoes?.modelo === "despesas-modelo-1") {
     return gerarRelatorioDespesasModelo1Pdf(linhas, {
-      periodoCampo: opcoes.periodoCampo,
+      periodoCampo: periodoCampoPdf(opcoes.periodoCampo),
       dataInicio: opcoes.dataInicio,
       dataFinal: opcoes.dataFinal,
     });
@@ -183,7 +207,7 @@ export async function gerarRelatorioDespesasBlob(
       "@/lib/pdf-relatorio-despesas-modelo2"
     );
     return gerarRelatorioDespesasModelo2Pdf({
-      periodoCampo: opcoes.periodoCampo,
+      periodoCampo: periodoCampoPdf(opcoes.periodoCampo),
       dataInicio: opcoes.dataInicio,
       dataFinal: opcoes.dataFinal,
       lancamentos: opcoes.lancamentos,
@@ -196,7 +220,7 @@ export async function gerarRelatorioDespesasBlob(
       "@/lib/pdf-relatorio-despesas-modelo3"
     );
     return gerarRelatorioDespesasModelo3Pdf({
-      periodoCampo: opcoes.periodoCampo,
+      periodoCampo: periodoCampoPdf(opcoes.periodoCampo),
       dataInicio: opcoes.dataInicio,
       dataFinal: opcoes.dataFinal,
       lancamentos: opcoes.lancamentos,
@@ -209,7 +233,7 @@ export async function gerarRelatorioDespesasBlob(
       "@/lib/pdf-relatorio-parcelas-a-pagar-modelo1"
     );
     return gerarRelatorioParcelasAPagarModelo1Pdf(linhas, {
-      periodoCampo: opcoes.periodoCampo,
+      periodoCampo: periodoCampoPdf(opcoes.periodoCampo),
       dataInicio: opcoes.dataInicio,
       dataFinal: opcoes.dataFinal,
     });
@@ -220,7 +244,7 @@ export async function gerarRelatorioDespesasBlob(
       "@/lib/pdf-relatorio-parcelas-a-pagar-modelo2"
     );
     return gerarRelatorioParcelasAPagarModelo2Pdf({
-      periodoCampo: opcoes.periodoCampo,
+      periodoCampo: periodoCampoPdf(opcoes.periodoCampo),
       dataInicio: opcoes.dataInicio,
       dataFinal: opcoes.dataFinal,
       lancamentos: opcoes.lancamentos,
@@ -228,8 +252,20 @@ export async function gerarRelatorioDespesasBlob(
     });
   }
 
+  if (opcoes?.modelo === "parcelas-pagas" && opcoes.lancamentos) {
+    const { gerarRelatorioParcelasPagasPdf } = await import(
+      "@/lib/pdf-relatorio-parcelas-pagas"
+    );
+    return gerarRelatorioParcelasPagasPdf({
+      lancamentos: opcoes.lancamentos,
+      idsIncluidos: new Set(linhas.map((l) => l.id)),
+    });
+  }
+
   const { gerarRelatorioDespesasPdf } = await import("@/lib/relatorios-impressao-pdf");
-  return gerarRelatorioDespesasPdf(linhas, tituloModelo, periodoLabel, opcoes);
+  return gerarRelatorioDespesasPdf(linhas, tituloModelo, periodoLabel, opcoes
+    ? { ...opcoes, periodoCampo: periodoCampoPdf(opcoes.periodoCampo) }
+    : undefined);
 }
 
 export async function imprimirRelatorioDespesas(
