@@ -20,13 +20,18 @@ type FormaPagamentoLinha = {
   juros: string;
 };
 
+export type PagarDespesaConfirmadoDetail = {
+  anexarComprovante?: boolean;
+  lancamentoIds?: string[];
+};
+
 type Props = {
   open: boolean;
   lancamento: LancamentoDespesaDetalhe | null;
   refOs?: string;
   todosLancamentos: LancamentoDespesaDetalhe[];
   onClose: () => void;
-  onConfirmado: () => void;
+  onConfirmado: (detail?: PagarDespesaConfirmadoDetail) => void;
 };
 
 const labelClass =
@@ -230,10 +235,11 @@ export function PagarDespesaModal({
           return;
         }
       }
-      if (anexarComprovante) {
-        alert("Pagamento confirmado. Você pode anexar o comprovante ao editar a despesa.");
-      }
-      onConfirmado();
+      onConfirmado(
+        anexarComprovante
+          ? { anexarComprovante: true, lancamentoIds: ids }
+          : undefined
+      );
       onClose();
     } finally {
       setSalvando(false);

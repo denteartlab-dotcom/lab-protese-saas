@@ -27,6 +27,7 @@ import type { LancarReceitaPayload } from "@/components/financeiro/LancarReceita
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { RelatorioDespesasModal } from "@/components/financeiro/RelatorioDespesasModal";
 import { DespesaDetalheModal } from "@/components/financeiro/DespesaDetalheModal";
+import { AdicionarImagensComprovanteModal } from "@/components/financeiro/AdicionarImagensComprovanteModal";
 import { PagarDespesaModal } from "@/components/financeiro/PagarDespesaModal";
 import { VisualizadorAnexoDespesa } from "@/components/financeiro/VisualizadorAnexoDespesa";
 import {
@@ -209,6 +210,9 @@ export function ContasPagarConteudo() {
     ref: string;
   } | null>(null);
   const [anexoAberto, setAnexoAberto] = useState<AnexoDespesa | null>(null);
+  const [anexosAposPagamento, setAnexosAposPagamento] = useState<string[] | null>(
+    null
+  );
   const [editando, setEditando] = useState<Lancamento | null>(null);
   const [salvando, setSalvando] = useState(false);
   const salvarDespesaEmAndamentoRef = useRef(false);
@@ -1008,8 +1012,22 @@ export function ContasPagarConteudo() {
         refOs={despesaPagar?.ref}
         todosLancamentos={lancamentos}
         onClose={() => setDespesaPagar(null)}
-        onConfirmado={() => {
+        onConfirmado={(detail) => {
           setDespesaPagar(null);
+          notificarFinanceiroAtualizado();
+          if (detail?.anexarComprovante && detail.lancamentoIds?.length) {
+            setAnexosAposPagamento(detail.lancamentoIds);
+          }
+        }}
+      />
+
+      <AdicionarImagensComprovanteModal
+        open={!!anexosAposPagamento?.length}
+        lancamentoIds={anexosAposPagamento ?? []}
+        lancamentos={lancamentos}
+        onClose={() => setAnexosAposPagamento(null)}
+        onSalvo={() => {
+          setAnexosAposPagamento(null);
           notificarFinanceiroAtualizado();
         }}
       />
