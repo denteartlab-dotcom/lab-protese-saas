@@ -41,7 +41,7 @@ const dataInputClass =
 
 const MODELOS_RELATORIO = [
   { value: "despesas-modelo-1", label: "Despesas - Modelo 1" },
-  { value: "despesas-modelo-2", label: "Despesas - Modelo 2 (período)" },
+  { value: "despesas-modelo-2", label: "Despesas - Modelo 2 (parcelas)" },
   { value: "despesas-modelo-3", label: "Despesas - Modelo 3 (completo)" },
   { value: "parcelas-a-pagar-1", label: "Parcelas (A Pagar) Modelo 1" },
   { value: "parcelas-a-pagar-2", label: "Parcelas (A Pagar) Modelo 2" },
@@ -212,6 +212,7 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
             periodoCampo,
             dataInicio,
             dataFinal,
+            lancamentos,
           }
         );
         onClose();

@@ -19,6 +19,7 @@ export type FiltroRelatorioDespesas = {
 };
 
 export type LinhaRelatorioDespesa = {
+  id: string;
   vencimento: string;
   parcela: string;
   nome: string;
@@ -84,6 +85,7 @@ export function linhasRelatorioFromLancamentos(
           entregadores: [],
         });
       return {
+        id: l.id,
         vencimento: formatDate(l.data),
         parcela: pack.parcela,
         nome: l.cliente?.nome || pack.nome,
@@ -159,6 +161,7 @@ export type OpcoesImpressaoRelatorioDespesas = {
   periodoCampo: FiltroRelatorioDespesas["periodoCampo"];
   dataInicio: string;
   dataFinal: string;
+  lancamentos?: LancamentoRelatorio[];
 };
 
 export async function gerarRelatorioDespesasBlob(
@@ -172,6 +175,19 @@ export async function gerarRelatorioDespesasBlob(
       periodoCampo: opcoes.periodoCampo,
       dataInicio: opcoes.dataInicio,
       dataFinal: opcoes.dataFinal,
+    });
+  }
+
+  if (opcoes?.modelo === "despesas-modelo-2" && opcoes.lancamentos) {
+    const { gerarRelatorioDespesasModelo2Pdf } = await import(
+      "@/lib/pdf-relatorio-despesas-modelo2"
+    );
+    return gerarRelatorioDespesasModelo2Pdf({
+      periodoCampo: opcoes.periodoCampo,
+      dataInicio: opcoes.dataInicio,
+      dataFinal: opcoes.dataFinal,
+      lancamentos: opcoes.lancamentos,
+      idsIncluidos: new Set(linhas.map((l) => l.id)),
     });
   }
 
