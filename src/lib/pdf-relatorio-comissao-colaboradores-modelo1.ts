@@ -88,8 +88,8 @@ function montarColunas(
 
   if (filtro.mostrarValorServico) {
     colunas.push({
-      titulo: "Valor Serviço/Etapa",
-      larguraMm: 22,
+      titulo: "Valor",
+      larguraMm: 20,
       align: "right",
       valor: (l) => moneyBr(l.valorServico),
     });
@@ -106,6 +106,20 @@ function montarColunas(
   );
 
   return colunas;
+}
+
+/** A4 retrato: 210 mm de largura — escala colunas para ocupar a área útil. */
+function escalarColunasParaPaginaA4(
+  colunas: ColunaComissaoPdf[],
+  larguraUtilMm: number
+): ColunaComissaoPdf[] {
+  const soma = colunas.reduce((total, col) => total + col.larguraMm, 0);
+  if (soma <= 0 || Math.abs(soma - larguraUtilMm) < 0.5) return colunas;
+  const fator = larguraUtilMm / soma;
+  return colunas.map((col) => ({
+    ...col,
+    larguraMm: Math.round(col.larguraMm * fator * 10) / 10,
+  }));
 }
 
 function criarCtx(
@@ -297,8 +311,10 @@ export async function gerarRelatorioComissaoColaboradoresModelo1Pdf(
   >
 ): Promise<Blob> {
   const { jsPDF } = await import("jspdf");
-  const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
-  const colunas = montarColunas(filtro);
+  const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+  const margin = 10;
+  const larguraUtil = pdf.internal.pageSize.getWidth() - margin * 2;
+  const colunas = escalarColunasParaPaginaA4(montarColunas(filtro), larguraUtil);
   const ctx = criarCtx(pdf, colunas);
   const titulo = tituloRelatorioComissaoModelo1(filtro.periodoCampo);
 
