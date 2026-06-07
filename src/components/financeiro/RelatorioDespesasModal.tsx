@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
 import { dateToBrShort } from "@/lib/datas-br";
@@ -12,6 +13,7 @@ import {
   ordenarLinhasRelatorio,
   type FiltroRelatorioDespesas,
 } from "@/lib/relatorio-despesas";
+import { cn } from "@/lib/utils";
 
 type Lancamento = {
   id: string;
@@ -31,10 +33,11 @@ type Props = {
   lancamentos: Lancamento[];
 };
 
-const selectClass =
-  "h-9 w-full rounded border border-slate-300 bg-white px-2.5 text-sm text-slate-800 outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]";
-
 const labelClass = "mb-1 block text-[11px] font-medium text-slate-600";
+const selectClass =
+  "h-9 w-full appearance-none rounded-sm border border-slate-300 bg-white px-2.5 pr-8 text-[12px] text-slate-800 outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]";
+const dataInputClass =
+  "h-9 w-full rounded-sm border border-slate-300 bg-white pl-8 pr-2 text-[12px] text-slate-800 shadow-none outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]";
 
 function periodoMesAtual() {
   const hoje = new Date();
@@ -46,8 +49,54 @@ function periodoMesAtual() {
   return { inicio: dateToBrShort(inicio), fim: dateToBrShort(fim) };
 }
 
+function CampoSelect({
+  label,
+  value,
+  onChange,
+  children,
+  onLimpar,
+  mostrarLimpar = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  children: ReactNode;
+  onLimpar?: () => void;
+  mostrarLimpar?: boolean;
+}) {
+  return (
+    <div>
+      <label className={labelClass}>{label}</label>
+      <div className="relative">
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={cn(selectClass, mostrarLimpar && "pr-12")}
+        >
+          {children}
+        </select>
+        {mostrarLimpar && onLimpar ? (
+          <button
+            type="button"
+            onClick={onLimpar}
+            className="absolute right-7 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            title="Limpar"
+            aria-label={`Limpar ${label}`}
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
+        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] text-slate-400">
+          ▾
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
   const { inicio: inicioPadrao, fim: fimPadrao } = periodoMesAtual();
+  const [portalPronto, setPortalPronto] = useState(false);
 
   const [modelo, setModelo] = useState("despesas-modelo-1");
   const [ordenarPor, setOrdenarPor] =
@@ -60,6 +109,10 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
     useState<FiltroRelatorioDespesas["periodoCampo"]>("data_lancamento");
   const [dataInicio, setDataInicio] = useState(inicioPadrao);
   const [dataFinal, setDataFinal] = useState(fimPadrao);
+
+  useEffect(() => {
+    setPortalPronto(true);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -118,175 +171,146 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
     );
   }
 
-  if (!open) return null;
+  if (!open || !portalPronto) return null;
 
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+  const conteudo = (
+    <div
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/45 p-4"
+      data-modal="relatorio-despesas-smart"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="relatorio-despesas-titulo"
+    >
+      <div className="absolute inset-0" onClick={onClose} aria-hidden />
       <div
-        className="absolute inset-0 bg-black/40"
-        onClick={onClose}
-        aria-hidden
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="relatorio-despesas-titulo"
-        className="relative w-full max-w-[720px] rounded-md bg-white shadow-2xl"
+        className="relative w-full max-w-[700px] rounded-sm border border-slate-200 bg-white shadow-[0_8px_32px_rgba(0,0,0,0.15)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3.5">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
           <h2
             id="relatorio-despesas-titulo"
-            className="text-[15px] font-medium text-slate-700"
+            className="text-[15px] font-normal text-slate-800"
           >
             Relatório Despesas
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600"
+            className="text-[18px] leading-none text-slate-400 hover:text-slate-600"
             aria-label="Fechar"
           >
-            <X className="h-5 w-5" />
+            ✕
           </button>
         </div>
 
-        <div className="space-y-4 px-5 py-4">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div>
-              <label className={labelClass}>Modelo Relatório</label>
-              <select
-                value={modelo}
-                onChange={(e) => setModelo(e.target.value)}
-                className={selectClass}
-              >
-                <option value="despesas-modelo-1">Despesas - Modelo 1</option>
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>Ordenar Por</label>
-              <select
-                value={ordenarPor}
-                onChange={(e) =>
-                  setOrdenarPor(e.target.value as FiltroRelatorioDespesas["ordenarPor"])
-                }
-                className={selectClass}
-              >
-                <option value="data_lancamento">Data Lançamento</option>
-                <option value="vencimento">Data Vencimento</option>
-                <option value="nome">Nome</option>
-                <option value="valor">Valor</option>
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>Situação Financeira</label>
-              <div className="relative">
-                <select
-                  value={situacao}
-                  onChange={(e) =>
-                    setSituacao(e.target.value as FiltroRelatorioDespesas["situacao"])
-                  }
-                  className={selectClass}
-                >
-                  <option value="todos">Todos</option>
-                  <option value="a_pagar">A Pagar</option>
-                  <option value="pagas">Pagas</option>
-                  <option value="atraso">Em Atraso</option>
-                </select>
-                {situacao !== "todos" && (
-                  <button
-                    type="button"
-                    onClick={() => setSituacao("todos")}
-                    className="absolute right-7 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    title="Limpar"
-                    aria-label="Limpar situação"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-            </div>
+        <div className="px-5 py-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <CampoSelect
+              label="Modelo Relatório"
+              value={modelo}
+              onChange={setModelo}
+            >
+              <option value="despesas-modelo-1">Despesas - Modelo 1</option>
+            </CampoSelect>
+
+            <CampoSelect
+              label="Ordenar Por"
+              value={ordenarPor}
+              onChange={(value) =>
+                setOrdenarPor(value as FiltroRelatorioDespesas["ordenarPor"])
+              }
+            >
+              <option value="data_lancamento">Data Lançamento</option>
+              <option value="vencimento">Data Vencimento</option>
+              <option value="nome">Nome</option>
+              <option value="valor">Valor</option>
+            </CampoSelect>
+
+            <CampoSelect
+              label="Situação Financeira"
+              value={situacao}
+              onChange={(value) =>
+                setSituacao(value as FiltroRelatorioDespesas["situacao"])
+              }
+              mostrarLimpar={situacao !== "todos"}
+              onLimpar={() => setSituacao("todos")}
+            >
+              <option value="todos">Todos</option>
+              <option value="a_pagar">A Pagar</option>
+              <option value="pagas">Pagas</option>
+              <option value="atraso">Em Atraso</option>
+            </CampoSelect>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className={labelClass}>Categoria</label>
-              <select
-                value={categoria}
-                onChange={(e) => setCategoria(e.target.value)}
-                className={selectClass}
-              >
-                {categorias.map((c) => (
-                  <option key={c} value={c}>
-                    {c === "todos" ? "Todos" : c}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>Nome</label>
-              <select
-                value={nome}
-                onChange={(e) => setNome(e.target.value)}
-                className={selectClass}
-              >
-                {nomes.map((n) => (
-                  <option key={n} value={n}>
-                    {n === "todos" ? "Todos" : n}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <CampoSelect
+              label="Categoria"
+              value={categoria}
+              onChange={setCategoria}
+            >
+              {categorias.map((c) => (
+                <option key={c} value={c}>
+                  {c === "todos" ? "Todos" : c}
+                </option>
+              ))}
+            </CampoSelect>
+
+            <CampoSelect label="Nome" value={nome} onChange={setNome}>
+              {nomes.map((n) => (
+                <option key={n} value={n}>
+                  {n === "todos" ? "Todos" : n}
+                </option>
+              ))}
+            </CampoSelect>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div>
-              <label className={labelClass}>Período</label>
-              <select
-                value={periodoCampo}
-                onChange={(e) =>
-                  setPeriodoCampo(
-                    e.target.value as FiltroRelatorioDespesas["periodoCampo"]
-                  )
-                }
-                className={selectClass}
-              >
-                <option value="data_lancamento">Data Lançamento</option>
-                <option value="vencimento">Data Vencimento</option>
-              </select>
-            </div>
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <CampoSelect
+              label="Período"
+              value={periodoCampo}
+              onChange={(value) =>
+                setPeriodoCampo(value as FiltroRelatorioDespesas["periodoCampo"])
+              }
+            >
+              <option value="data_lancamento">Data Lançamento</option>
+              <option value="vencimento">Data Vencimento</option>
+            </CampoSelect>
+
             <div>
               <label className={labelClass}>Data Início</label>
               <CampoDataBr
                 value={dataInicio}
                 onChange={setDataInicio}
+                iconPosition="left"
                 className="space-y-0"
-                inputClassName="h-9 rounded border-slate-300 py-1.5 text-sm shadow-none"
+                inputClassName={dataInputClass}
               />
             </div>
+
             <div>
               <label className={labelClass}>Data Final</label>
               <CampoDataBr
                 value={dataFinal}
                 onChange={setDataFinal}
+                iconPosition="left"
                 className="space-y-0"
-                inputClassName="h-9 rounded border-slate-300 py-1.5 text-sm shadow-none"
+                inputClassName={dataInputClass}
               />
             </div>
           </div>
 
-          <div className="space-y-2 pt-1">
+          <div className="mt-5 space-y-2 border-t border-slate-100 pt-4">
             <button
               type="button"
               onClick={imprimir}
-              className="h-10 w-full rounded bg-[#4a90d9] text-[13px] font-normal text-white hover:bg-[#3d7fc4]"
+              className="h-10 w-full rounded-sm bg-[#4a90d9] text-[13px] font-normal text-white hover:bg-[#3d7fc4]"
             >
               Imprimir
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="h-10 w-full rounded border border-slate-300 bg-white text-[13px] font-normal text-slate-700 hover:bg-slate-50"
+              className="h-10 w-full rounded-sm border border-slate-300 bg-white text-[13px] font-normal text-slate-700 hover:bg-slate-50"
             >
               Fechar
             </button>
@@ -295,4 +319,6 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
       </div>
     </div>
   );
+
+  return createPortal(conteudo, document.body);
 }
