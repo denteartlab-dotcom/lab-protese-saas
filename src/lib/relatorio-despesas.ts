@@ -215,6 +215,19 @@ export async function gerarRelatorioDespesasBlob(
     });
   }
 
+  if (opcoes?.modelo === "parcelas-a-pagar-2" && opcoes.lancamentos) {
+    const { gerarRelatorioParcelasAPagarModelo2Pdf } = await import(
+      "@/lib/pdf-relatorio-parcelas-a-pagar-modelo2"
+    );
+    return gerarRelatorioParcelasAPagarModelo2Pdf({
+      periodoCampo: opcoes.periodoCampo,
+      dataInicio: opcoes.dataInicio,
+      dataFinal: opcoes.dataFinal,
+      lancamentos: opcoes.lancamentos,
+      idsIncluidos: new Set(linhas.map((l) => l.id)),
+    });
+  }
+
   const { gerarRelatorioDespesasPdf } = await import("@/lib/relatorios-impressao-pdf");
   return gerarRelatorioDespesasPdf(linhas, tituloModelo, periodoLabel, opcoes);
 }
