@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
-import { dateToBrShort } from "@/lib/datas-br";
 import { carregarContasBancarias } from "@/lib/conta-bancaria";
 import { prepararAbaPdf } from "@/lib/pdf-viewer";
 import {
@@ -60,14 +59,10 @@ const CATEGORIAS_ENTIDADE = [
 
 const Z_CALENDARIO_MODAL = 10050;
 
-function periodoMesAtual() {
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
-  const inicio = new Date(hoje);
-  inicio.setDate(1);
-  const fim = new Date(hoje);
-  fim.setMonth(hoje.getMonth() + 1, 0);
-  return { inicio: dateToBrShort(inicio), fim: dateToBrShort(fim) };
+function labelPeriodoCampo(campo: FiltroRelatorioDespesas["periodoCampo"]) {
+  if (campo === "data_lancamento") return "Data Lançamento";
+  if (campo === "data_pagamento") return "Data Pagamento";
+  return "Data Vencimento";
 }
 
 function CampoSelect({
@@ -116,7 +111,6 @@ function CampoSelect({
 }
 
 export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
-  const { inicio: inicioPadrao, fim: fimPadrao } = periodoMesAtual();
   const [portalPronto, setPortalPronto] = useState(false);
 
   const [modelo, setModelo] = useState("despesas-modelo-1");
@@ -132,8 +126,8 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
   const [contasBancarias, setContasBancarias] = useState<
     ReturnType<typeof carregarContasBancarias>
   >([]);
-  const [dataInicio, setDataInicio] = useState(inicioPadrao);
-  const [dataFinal, setDataFinal] = useState(fimPadrao);
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFinal, setDataFinal] = useState("");
   const [calendarioAberto, setCalendarioAberto] = useState<"inicio" | "final" | null>(
     null
   );
@@ -146,9 +140,8 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
 
   useEffect(() => {
     if (!open) return;
-    const { inicio, fim } = periodoMesAtual();
-    setDataInicio(inicio);
-    setDataFinal(fim);
+    setDataInicio("");
+    setDataFinal("");
     setSituacao("todos");
     setCategoria("todos");
     setNome("todos");
@@ -163,12 +156,12 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
     );
   }, [open]);
 
-  useEffect(() => {
-    if (modelo !== "parcelas-pagas") return;
-    setPeriodoCampo("data_pagamento");
-    setSituacao("pagas");
-    setConta("todos");
-  }, [modelo]);
+  function alterarModelo(value: string) {
+    setModelo(value);
+    if (value === "parcelas-pagas") {
+      setPeriodoCampo("data_pagamento");
+    }
+  }
 
   const linhasBase = useMemo(
     () => linhasRelatorioFromLancamentos(lancamentos),
@@ -190,24 +183,25 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
 
   const modeloLabel =
     MODELOS_RELATORIO.find((item) => item.value === modelo)?.label ?? modelo;
-  const ehParcelasPagas = modelo === "parcelas-pagas";
 
   function imprimir() {
     const filtro: FiltroRelatorioDespesas = {
       ordenarPor,
-      situacao: ehParcelasPagas ? "pagas" : situacao,
+      situacao,
       categoria,
       nome,
-      periodoCampo: ehParcelasPagas ? "data_pagamento" : periodoCampo,
+      periodoCampo,
       dataInicio,
       dataFinal,
-      conta: ehParcelasPagas ? conta : "todos",
+      conta,
     };
     const filtradas = filtrarLinhasRelatorio(linhasBase, filtro);
     const ordenadas = ordenarLinhasRelatorio(filtradas, ordenarPor);
-    const periodoLabel = ehParcelasPagas
-      ? `Data Pagamento: ${dataInicio} a ${dataFinal}`
-      : `${periodoCampo === "data_lancamento" ? "Data Lançamento" : "Data Vencimento"}: ${dataInicio} a ${dataFinal}`;
+    const periodoTipo = labelPeriodoCampo(periodoCampo);
+    const periodoLabel =
+      dataInicio || dataFinal
+        ? `${periodoTipo}: ${dataInicio || "—"} a ${dataFinal || "—"}`
+        : `${periodoTipo}: todos`;
 
     const janela = prepararAbaPdf();
     if (!janela) {
@@ -229,10 +223,10 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
           janela,
           {
             modelo,
-            periodoCampo: filtro.periodoCampo,
+            periodoCampo,
             dataInicio,
             dataFinal,
-            conta: filtro.conta,
+            conta,
             lancamentos,
           }
         );
@@ -281,11 +275,7 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
 
         <div className="px-5 py-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <CampoSelect
-              label="Modelo Relatório"
-              value={modelo}
-              onChange={setModelo}
-            >
+            <CampoSelect label="Modelo Relatório" value={modelo} onChange={alterarModelo}>
               {MODELOS_RELATORIO.map((item) => (
                 <option key={item.value} value={item.value}>
                   {item.label}
@@ -293,164 +283,107 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
               ))}
             </CampoSelect>
 
-            {!ehParcelasPagas ? (
-              <>
-                <CampoSelect
-                  label="Ordenar Por"
-                  value={ordenarPor}
-                  onChange={(value) =>
-                    setOrdenarPor(value as FiltroRelatorioDespesas["ordenarPor"])
-                  }
-                >
-                  <option value="data_lancamento">Data Lançamento</option>
-                  <option value="vencimento">Data Vencimento</option>
-                  <option value="nome">Nome</option>
-                  <option value="valor">Valor</option>
-                </CampoSelect>
+            <CampoSelect
+              label="Ordenar Por"
+              value={ordenarPor}
+              onChange={(value) =>
+                setOrdenarPor(value as FiltroRelatorioDespesas["ordenarPor"])
+              }
+            >
+              <option value="data_lancamento">Data Lançamento</option>
+              <option value="vencimento">Data Vencimento</option>
+              <option value="nome">Nome</option>
+              <option value="valor">Valor</option>
+            </CampoSelect>
 
-                <CampoSelect
-                  label="Situação Financeira"
-                  value={situacao}
-                  onChange={(value) =>
-                    setSituacao(value as FiltroRelatorioDespesas["situacao"])
-                  }
-                  mostrarLimpar={situacao !== "todos"}
-                  onLimpar={() => setSituacao("todos")}
-                >
-                  <option value="todos">Todos</option>
-                  <option value="a_pagar">A Pagar</option>
-                  <option value="pagas">Pagas</option>
-                  <option value="atraso">Em Atraso</option>
-                </CampoSelect>
-              </>
-            ) : null}
+            <CampoSelect
+              label="Situação Financeira"
+              value={situacao}
+              onChange={(value) =>
+                setSituacao(value as FiltroRelatorioDespesas["situacao"])
+              }
+              mostrarLimpar={situacao !== "todos"}
+              onLimpar={() => setSituacao("todos")}
+            >
+              <option value="todos">Todos</option>
+              <option value="a_pagar">A Pagar</option>
+              <option value="pagas">Pagas</option>
+              <option value="atraso">Em Atraso</option>
+            </CampoSelect>
           </div>
 
-          {!ehParcelasPagas ? (
-            <>
-              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <CampoSelect
-                  label="Categoria"
-                  value={categoria}
-                  onChange={setCategoria}
-                >
-                  {CATEGORIAS_ENTIDADE.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {item.label}
-                    </option>
-                  ))}
-                </CampoSelect>
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <CampoSelect label="Categoria" value={categoria} onChange={setCategoria}>
+              {CATEGORIAS_ENTIDADE.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </CampoSelect>
 
-                <CampoSelect label="Nome" value={nome} onChange={setNome}>
-                  {nomes.map((n) => (
-                    <option key={n} value={n}>
-                      {n === "todos" ? "Todos" : n}
-                    </option>
-                  ))}
-                </CampoSelect>
-              </div>
+            <CampoSelect label="Nome" value={nome} onChange={setNome}>
+              {nomes.map((n) => (
+                <option key={n} value={n}>
+                  {n === "todos" ? "Todos" : n}
+                </option>
+              ))}
+            </CampoSelect>
+          </div>
 
-              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <CampoSelect
-                  label="Período"
-                  value={periodoCampo}
-                  onChange={(value) =>
-                    setPeriodoCampo(
-                      value as FiltroRelatorioDespesas["periodoCampo"]
-                    )
-                  }
-                >
-                  <option value="data_lancamento">Data Lançamento</option>
-                  <option value="vencimento">Data Vencimento</option>
-                </CampoSelect>
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-4">
+            <CampoSelect
+              label="Período"
+              value={periodoCampo}
+              onChange={(value) =>
+                setPeriodoCampo(value as FiltroRelatorioDespesas["periodoCampo"])
+              }
+            >
+              <option value="data_lancamento">Data Lançamento</option>
+              <option value="vencimento">Data Vencimento</option>
+              <option value="data_pagamento">Data Pagamento</option>
+            </CampoSelect>
 
-                <div>
-                  <label className={labelClass}>Data Início</label>
-                  <CampoDataBr
-                    value={dataInicio}
-                    onChange={setDataInicio}
-                    iconPosition="left"
-                    className="space-y-0"
-                    inputClassName={dataInputClass}
-                    calendarZIndex={Z_CALENDARIO_MODAL}
-                    forceClose={calendarioAberto === "final"}
-                    onCalendarOpenChange={(aberto) =>
-                      setCalendarioAberto(aberto ? "inicio" : null)
-                    }
-                  />
-                </div>
-
-                <div>
-                  <label className={labelClass}>Data Final</label>
-                  <CampoDataBr
-                    value={dataFinal}
-                    onChange={setDataFinal}
-                    iconPosition="left"
-                    className="space-y-0"
-                    inputClassName={dataInputClass}
-                    calendarZIndex={Z_CALENDARIO_MODAL}
-                    forceClose={calendarioAberto === "inicio"}
-                    onCalendarOpenChange={(aberto) =>
-                      setCalendarioAberto(aberto ? "final" : null)
-                    }
-                  />
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-4">
-              <CampoSelect
-                label="Período"
-                value={periodoCampo}
-                onChange={(value) =>
-                  setPeriodoCampo(value as FiltroRelatorioDespesas["periodoCampo"])
+            <div>
+              <label className={labelClass}>Data Início</label>
+              <CampoDataBr
+                value={dataInicio}
+                onChange={setDataInicio}
+                iconPosition="left"
+                className="space-y-0"
+                inputClassName={dataInputClass}
+                calendarZIndex={Z_CALENDARIO_MODAL}
+                forceClose={calendarioAberto === "final"}
+                onCalendarOpenChange={(aberto) =>
+                  setCalendarioAberto(aberto ? "inicio" : null)
                 }
-              >
-                <option value="data_pagamento">Data Pagamento</option>
-              </CampoSelect>
-
-              <div>
-                <label className={labelClass}>Data Início</label>
-                <CampoDataBr
-                  value={dataInicio}
-                  onChange={setDataInicio}
-                  iconPosition="left"
-                  className="space-y-0"
-                  inputClassName={dataInputClass}
-                  calendarZIndex={Z_CALENDARIO_MODAL}
-                  forceClose={calendarioAberto === "final"}
-                  onCalendarOpenChange={(aberto) =>
-                    setCalendarioAberto(aberto ? "inicio" : null)
-                  }
-                />
-              </div>
-
-              <div>
-                <label className={labelClass}>Data Final</label>
-                <CampoDataBr
-                  value={dataFinal}
-                  onChange={setDataFinal}
-                  iconPosition="left"
-                  className="space-y-0"
-                  inputClassName={dataInputClass}
-                  calendarZIndex={Z_CALENDARIO_MODAL}
-                  forceClose={calendarioAberto === "inicio"}
-                  onCalendarOpenChange={(aberto) =>
-                    setCalendarioAberto(aberto ? "final" : null)
-                  }
-                />
-              </div>
-
-              <CampoSelect label="Conta" value={conta} onChange={setConta}>
-                <option value="todos">Todos</option>
-                {contasBancarias.map((item) => (
-                  <option key={item.id} value={item.nome}>
-                    {item.nome}
-                  </option>
-                ))}
-              </CampoSelect>
+              />
             </div>
-          )}
+
+            <div>
+              <label className={labelClass}>Data Final</label>
+              <CampoDataBr
+                value={dataFinal}
+                onChange={setDataFinal}
+                iconPosition="left"
+                className="space-y-0"
+                inputClassName={dataInputClass}
+                calendarZIndex={Z_CALENDARIO_MODAL}
+                forceClose={calendarioAberto === "inicio"}
+                onCalendarOpenChange={(aberto) =>
+                  setCalendarioAberto(aberto ? "final" : null)
+                }
+              />
+            </div>
+
+            <CampoSelect label="Conta" value={conta} onChange={setConta}>
+              <option value="todos">Todos</option>
+              {contasBancarias.map((item) => (
+                <option key={item.id} value={item.nome}>
+                  {item.nome}
+                </option>
+              ))}
+            </CampoSelect>
+          </div>
 
           {erroPdf ? (
             <p className="mt-3 rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">

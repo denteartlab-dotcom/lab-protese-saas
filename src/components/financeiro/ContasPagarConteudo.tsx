@@ -60,6 +60,12 @@ import {
   type EntidadeDespesa,
   type DespesaMeta,
 } from "@/lib/lancamento-despesa";
+import {
+  exportarListaDespesasExcel,
+  gerarPdfListaDespesas,
+  linhasListaDespesaFromFiltradas,
+} from "@/lib/despesas-lista-export";
+import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
 import { cn, formatDate } from "@/lib/utils";
 
 type Lancamento = {
@@ -322,6 +328,7 @@ export function ContasPagarConteudo() {
   });
   const [modalAberto, setModalAberto] = useState(false);
   const [relatorioAberto, setRelatorioAberto] = useState(false);
+  const [exportandoLista, setExportandoLista] = useState(false);
   const [despesaParaExcluir, setDespesaParaExcluir] = useState<Lancamento | null>(null);
   const [despesaAberta, setDespesaAberta] = useState<{
     lancamento: Lancamento;
@@ -798,6 +805,37 @@ export function ContasPagarConteudo() {
     }
   }
 
+  async function imprimirListaDespesas() {
+    const janela = prepararAbaPdf();
+    if (!janela) {
+      alert("Não foi possível abrir a nova aba. Permita pop-ups para este site.");
+      return;
+    }
+
+    setExportandoLista(true);
+    try {
+      const dados = linhasListaDespesaFromFiltradas(linhasOrdenadas);
+      const blob = await gerarPdfListaDespesas(dados);
+      abrirPdfNoVisualizador(blob, "despesas.pdf", undefined, janela);
+    } catch (err) {
+      console.error("imprimir lista despesas", err);
+      janela.close();
+      alert("Não foi possível gerar o PDF da lista de despesas.");
+    } finally {
+      setExportandoLista(false);
+    }
+  }
+
+  function exportarListaDespesas() {
+    setExportandoLista(true);
+    try {
+      const dados = linhasListaDespesaFromFiltradas(linhasOrdenadas);
+      exportarListaDespesasExcel(dados);
+    } finally {
+      setExportandoLista(false);
+    }
+  }
+
   async function confirmarExclusaoDespesa() {
     if (!despesaParaExcluir) return;
     const id = despesaParaExcluir.id;
@@ -906,16 +944,19 @@ export function ContasPagarConteudo() {
             </Button>
             <button
               type="button"
-              className="inline-flex h-8 w-8 items-center justify-center rounded bg-[#4a90d9] text-white hover:bg-[#3d7fc4]"
-              title="Imprimir"
-              onClick={() => setRelatorioAberto(true)}
+              className="inline-flex h-8 w-8 items-center justify-center rounded bg-[#4a90d9] text-white hover:bg-[#3d7fc4] disabled:opacity-60"
+              title="Imprimir lista"
+              disabled={exportandoLista}
+              onClick={() => void imprimirListaDespesas()}
             >
               <Printer className="h-4 w-4" />
             </button>
             <button
               type="button"
-              className="inline-flex h-8 w-8 items-center justify-center rounded bg-[#4cae4c] text-white hover:bg-[#449d44]"
-              title="Exportar"
+              className="inline-flex h-8 w-8 items-center justify-center rounded bg-[#4cae4c] text-white hover:bg-[#449d44] disabled:opacity-60"
+              title="Exportar para Excel"
+              disabled={exportandoLista}
+              onClick={exportarListaDespesas}
             >
               <FileSpreadsheet className="h-4 w-4" />
             </button>
