@@ -17,7 +17,7 @@ export function prepararAbaPdf(): Window | null {
 function criarAbaPdfCarregando(): Window | null {
   if (typeof window === "undefined") return null;
   try {
-    const w = window.open("about:blank", "_blank", "popup=yes");
+    const w = window.open("about:blank", "_blank");
     if (!w) return null;
     w.document.title = "Carregando PDF...";
     w.document.body.innerHTML =

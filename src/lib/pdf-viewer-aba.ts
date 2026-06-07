@@ -64,12 +64,20 @@ export function base64ParaBlobUrl(base64: string, mime = "application/pdf") {
   return URL.createObjectURL(blob);
 }
 
-/** Abre a rota do visualizador em nova aba (mesma origem — não é bloqueado como pop-up). */
+/** Abre a rota do visualizador em nova aba reservada (nunca navega a aba atual). */
 export function abrirPdfViewerNovaAba(id: string): Window | null {
   if (typeof window === "undefined") return null;
-  const url = `/app/financeiro/relatorio-pdf?id=${encodeURIComponent(id)}`;
+  const path = `/app/financeiro/relatorio-pdf?id=${encodeURIComponent(id)}`;
+  const url = `${window.location.origin}${path}`;
+
   try {
-    return window.open(url, "_blank");
+    const janela = window.open("about:blank", "_blank");
+    if (!janela) return null;
+    janela.document.title = "Carregando PDF...";
+    janela.document.body.innerHTML =
+      "<div style='font-family:system-ui,sans-serif;padding:32px;color:#334155'>Carregando PDF...</div>";
+    janela.location.replace(url);
+    return janela;
   } catch {
     return null;
   }

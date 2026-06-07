@@ -44,10 +44,8 @@ export function PdfViewerPagina({ id }: Props) {
         concluido = true;
         if (urlLocal.startsWith("blob:")) URL.revokeObjectURL(urlLocal);
         urlLocal = base64ParaBlobUrl(payload.base64);
-        setPdfUrl(urlLocal);
-        setCarregando(false);
-        setErro("");
         removerPdfViewerSession(id);
+        window.location.replace(urlLocal);
         return;
       }
 

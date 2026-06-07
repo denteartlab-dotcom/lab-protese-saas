@@ -5,16 +5,10 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
 import { dateToBrShort } from "@/lib/datas-br";
-import {
-  abrirPdfViewerNovaAba,
-  criarIdPdfViewer,
-  marcarPdfViewerErro,
-  publicarPdfNaAba,
-  salvarPdfViewerSession,
-} from "@/lib/pdf-viewer-aba";
+import { prepararAbaPdf } from "@/lib/pdf-viewer";
 import {
   filtrarLinhasRelatorio,
-  gerarRelatorioDespesasBlob,
+  imprimirRelatorioDespesas,
   linhasRelatorioFromLancamentos,
   ordenarLinhasRelatorio,
   type FiltroRelatorioDespesas,
@@ -195,35 +189,36 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
     const ordenadas = ordenarLinhasRelatorio(filtradas, ordenarPor);
     const periodoLabel = `${periodoCampo === "data_lancamento" ? "Data Lançamento" : "Data Vencimento"}: ${dataInicio} a ${dataFinal}`;
 
-    const pdfId = criarIdPdfViewer();
-    salvarPdfViewerSession(pdfId, {
-      status: "loading",
-      titulo: modeloLabel,
-      nomeArquivo: "relatorio-despesas.pdf",
-    });
-
-    const novaAba = abrirPdfViewerNovaAba(pdfId);
-    if (!novaAba) {
-      setErroPdf("Não foi possível abrir a nova aba. Verifique se pop-ups estão permitidos.");
+    const janela = prepararAbaPdf();
+    if (!janela) {
+      setErroPdf(
+        "Não foi possível abrir a nova aba. Verifique se pop-ups estão permitidos."
+      );
       return;
     }
 
     setGerandoPdf(true);
     setErroPdf("");
-    onClose();
 
     void (async () => {
       try {
-        const blob = await gerarRelatorioDespesasBlob(ordenadas, modeloLabel, periodoLabel, {
-          modelo,
-          periodoCampo,
-          dataInicio,
-          dataFinal,
-        });
-        await publicarPdfNaAba(pdfId, blob, modeloLabel, "relatorio-despesas.pdf");
+        await imprimirRelatorioDespesas(
+          ordenadas,
+          modeloLabel,
+          periodoLabel,
+          janela,
+          {
+            modelo,
+            periodoCampo,
+            dataInicio,
+            dataFinal,
+          }
+        );
+        onClose();
       } catch (err) {
         console.error("relatorio despesas pdf", err);
-        marcarPdfViewerErro(pdfId, "Não foi possível gerar o PDF do relatório de despesas.", modeloLabel);
+        janela.close();
+        setErroPdf("Não foi possível gerar o PDF do relatório de despesas.");
       } finally {
         setGerandoPdf(false);
       }
