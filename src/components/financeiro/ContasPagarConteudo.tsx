@@ -188,9 +188,21 @@ export function ContasPagarConteudo() {
   const [entidadeAtiva, setEntidadeAtiva] = useState<EntidadeDespesa>("todos");
   const [tipoDespesa, setTipoDespesa] = useState("a_pagar");
   const [erroLista, setErroLista] = useState("");
-  const [periodo, setPeriodo] = useState("todos");
-  const [dataInicio, setDataInicio] = useState("");
-  const [dataFinal, setDataFinal] = useState("");
+  const [periodo, setPeriodo] = useState("mes");
+  const [dataInicio, setDataInicio] = useState(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const inicio = new Date(hoje);
+    inicio.setDate(1);
+    return dateToBrShort(inicio);
+  });
+  const [dataFinal, setDataFinal] = useState(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const fim = new Date(hoje);
+    fim.setMonth(hoje.getMonth() + 1, 0);
+    return dateToBrShort(fim);
+  });
   const [busca, setBusca] = useState("");
   const [listasNomes, setListasNomes] = useState({
     fornecedores: [] as string[],
@@ -379,9 +391,9 @@ export function ContasPagarConteudo() {
         return { lancamento: l, pack, entidade, ref };
       })
       .filter(({ lancamento, pack, entidade, ref }) => {
-        const dataLanc = dateOnly(lancamento.data);
-        if (inicio && dataLanc < inicio) return false;
-        if (fim && dataLanc > fim) return false;
+        const dataVencimento = dateOnly(lancamento.data);
+        if (inicio && dataVencimento < inicio) return false;
+        if (fim && dataVencimento > fim) return false;
 
         if (entidadeAtiva !== "todos" && entidade !== entidadeAtiva) return false;
 
@@ -400,7 +412,7 @@ export function ContasPagarConteudo() {
         if (tipoDespesa === "a_pagar" && lancamento.status !== "pendente") return false;
         if (tipoDespesa === "pagas" && lancamento.status !== "pago") return false;
         if (tipoDespesa === "atraso") {
-          if (lancamento.status !== "pendente" || dataLanc >= hoje) return false;
+          if (lancamento.status !== "pendente" || dataVencimento >= hoje) return false;
         }
 
         if (!termo) return true;
@@ -435,9 +447,9 @@ export function ContasPagarConteudo() {
     if (fim) fim.setHours(23, 59, 59, 999);
 
     return lancamentos.filter((lancamento) => {
-      const dataLanc = dateOnly(lancamento.data);
-      if (inicio && dataLanc < inicio) return false;
-      if (fim && dataLanc > fim) return false;
+      const dataVencimento = dateOnly(lancamento.data);
+      if (inicio && dataVencimento < inicio) return false;
+      if (fim && dataVencimento > fim) return false;
       if (entidadeAtiva === "todos") return true;
       const pack = desempacotarDespesa(lancamento.descricao);
       const entidade =
@@ -486,7 +498,7 @@ export function ContasPagarConteudo() {
   function limparFiltros() {
     setBusca("");
     setTipoDespesa("a_pagar");
-    aplicarPeriodo("todos");
+    aplicarPeriodo("mes");
     setEntidadeAtiva("todos");
     setVinculoSelecionado("");
   }

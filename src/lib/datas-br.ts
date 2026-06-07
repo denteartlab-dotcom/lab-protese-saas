@@ -50,3 +50,25 @@ export function brShortToIso(value: string) {
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
+
+/** Soma dias a uma data dd/mm/aaaa e devolve no mesmo formato. */
+export function somarDiasBr(value: string, dias: number) {
+  const date = parseBrDate(value);
+  if (!date) return value;
+  date.setDate(date.getDate() + dias);
+  return dateToBrShort(date);
+}
+
+/** Soma dias a uma data ISO yyyy-mm-dd. */
+export function somarDiasIso(iso: string, dias: number) {
+  const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const base = match
+    ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+    : new Date(iso);
+  if (Number.isNaN(base.getTime())) return iso;
+  base.setDate(base.getDate() + dias);
+  const y = base.getFullYear();
+  const m = String(base.getMonth() + 1).padStart(2, "0");
+  const d = String(base.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}

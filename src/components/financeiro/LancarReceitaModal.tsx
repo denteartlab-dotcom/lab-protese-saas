@@ -16,7 +16,7 @@ import {
   type EntidadeDespesa,
 } from "@/lib/lancamento-despesa";
 import { CampoDataBr } from "@/components/ui";
-import { dateToBrShort } from "@/lib/datas-br";
+import { dateToBrShort, somarDiasBr } from "@/lib/datas-br";
 import { parseNotaFiscalArquivo } from "@/lib/nfe-import";
 import {
   encontrarFornecedorPorNfe,
@@ -198,6 +198,7 @@ export function LancarReceitaModal({
   const [cadastrando, setCadastrando] = useState(false);
   const submitLockRef = useRef(false);
   const anexosRef = useRef<AnexosReciboCampoRef>(null);
+  const parcelasGeracaoRef = useRef({ numParcelas: 1, dataLancamento: "" });
   const ocupado = cadastrando || salvando;
   const pastaAnexos = modo === "despesa" ? "despesas" : "receitas";
 
@@ -221,6 +222,7 @@ export function LancarReceitaModal({
     setDescontoTipo("percentual");
     setDesconto("0,00");
     setNumParcelas(1);
+    parcelasGeracaoRef.current = { numParcelas: 0, dataLancamento: "" };
     setObservacoes("");
     setArquivoNota(null);
     setParseandoNota(false);
@@ -369,7 +371,13 @@ export function LancarReceitaModal({
   }, [open]);
 
   useEffect(() => {
+    if (!open) return;
     const valorParcela = numParcelas > 0 ? totalLiquido / numParcelas : 0;
+    const recalcularVencimentos =
+      parcelasGeracaoRef.current.numParcelas !== numParcelas ||
+      parcelasGeracaoRef.current.dataLancamento !== dataLancamento;
+    parcelasGeracaoRef.current = { numParcelas, dataLancamento };
+
     setParcelas((atual) => {
       return Array.from({ length: numParcelas }, (_, i) => {
         const existente = atual[i];
@@ -377,14 +385,16 @@ export function LancarReceitaModal({
           parcela: `${i + 1}/${numParcelas}`,
           formaPagamento: existente?.formaPagamento ?? "",
           conta: existente?.conta ?? "Caixa Principal",
-          vencimento: existente?.vencimento ?? dateToBrShort(new Date()),
+          vencimento: recalcularVencimentos
+            ? somarDiasBr(dataLancamento, i * 30)
+            : (existente?.vencimento ?? somarDiasBr(dataLancamento, i * 30)),
           codigoBarrasPix: existente?.codigoBarrasPix ?? "",
           valor: money(valorParcela),
           pago: existente?.pago ?? false,
         };
       });
     });
-  }, [numParcelas, totalLiquido]);
+  }, [numParcelas, totalLiquido, dataLancamento, open]);
 
   function atualizarItem(id: string, patch: Partial<ItemReceitaLinha>) {
     setItens((lista) =>

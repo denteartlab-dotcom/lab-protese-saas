@@ -1,5 +1,8 @@
+import { somarDiasIso } from "@/lib/datas-br";
 import { carregarEntregadoresCadastro } from "@/lib/entregadores-cadastro";
 import { readStorage } from "@/lib/persisted-storage";
+
+const INTERVALO_DIAS_PARCELA = 30;
 
 /** Metadados de despesa embutidos na descrição (Contas a Pagar). */
 export const DESPESA_META_SEP = "\n@@CAP@@\n";
@@ -460,18 +463,6 @@ export function chaveGrupoDespesa(descricao: string) {
   return `${pack.nome}::${texto}`;
 }
 
-function somarMesesData(iso: string, meses: number) {
-  const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  const base = match
-    ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
-    : new Date(iso);
-  base.setMonth(base.getMonth() + meses);
-  const y = base.getFullYear();
-  const m = String(base.getMonth() + 1).padStart(2, "0");
-  const d = String(base.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
 export function extrairDadosPagarDespesa(
   lancamento: LancamentoDespesaDetalhe,
   refOs?: string,
@@ -494,13 +485,11 @@ export function extrairDadosPagarDespesa(
         return { item, numero, total, pack };
       })
       .sort((a, b) => a.numero - b.numero);
-    const baseData = ordenado[0]?.item.data || lancamento.data;
-
     parcelasGrupo = ordenado.map(({ item, numero, total }) => ({
       parcela: `${numero}/${total}`,
       formaPagamento: "",
       conta: "",
-      vencimento: somarMesesData(baseData, numero - 1),
+      vencimento: item.data,
       codigoBarrasPix: "",
       valor: moneyBr(item.valor),
       pago: item.status === "pago",
@@ -520,7 +509,7 @@ export function extrairDadosPagarDespesa(
           parcela: `${n}/${total}`,
           formaPagamento: "",
           conta: "",
-          vencimento: somarMesesData(lancamento.data, n - 1),
+          vencimento: somarDiasIso(lancamento.data, (n - 1) * INTERVALO_DIAS_PARCELA),
           codigoBarrasPix: "",
           valor: moneyBr(valorParcela),
           pago: isAtual && lancamento.status === "pago",
