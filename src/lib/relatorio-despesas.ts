@@ -204,6 +204,17 @@ export async function gerarRelatorioDespesasBlob(
     });
   }
 
+  if (opcoes?.modelo === "parcelas-a-pagar-1") {
+    const { gerarRelatorioParcelasAPagarModelo1Pdf } = await import(
+      "@/lib/pdf-relatorio-parcelas-a-pagar-modelo1"
+    );
+    return gerarRelatorioParcelasAPagarModelo1Pdf(linhas, {
+      periodoCampo: opcoes.periodoCampo,
+      dataInicio: opcoes.dataInicio,
+      dataFinal: opcoes.dataFinal,
+    });
+  }
+
   const { gerarRelatorioDespesasPdf } = await import("@/lib/relatorios-impressao-pdf");
   return gerarRelatorioDespesasPdf(linhas, tituloModelo, periodoLabel, opcoes);
 }
