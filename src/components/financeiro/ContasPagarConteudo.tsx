@@ -46,6 +46,7 @@ const LancarDespesaModal = dynamic(
 );
 import { brShortToIso, dateToBrShort, parseBrDate } from "@/lib/datas-br";
 import {
+  carregarEntidadesDespesaLocal,
   classificarEntidadeDespesa,
   desempacotarDespesa,
   descricaoDespesaComParcela,
@@ -97,6 +98,27 @@ const abasEntidade: Array<{
   { id: "entregadores", label: "Entregadores", icon: Truck },
   { id: "clientes", label: "Clientes", icon: User },
 ];
+
+const rotuloVinculoEntidade: Record<Exclude<EntidadeDespesa, "todos">, string> = {
+  fornecedores: "Fornecedor",
+  colaboradores: "Colaborador",
+  prestadores: "Prestador",
+  entregadores: "Entregador",
+  clientes: "Cliente",
+};
+
+function despesaCorrespondeVinculo(
+  lancamento: Lancamento,
+  pack: { nome: string },
+  vinculoId: string,
+  opcoes: Array<{ id: string; nome: string }>
+) {
+  const opcao = opcoes.find((item) => item.id === vinculoId);
+  if (!opcao) return true;
+  if (lancamento.cliente?.id && lancamento.cliente.id === opcao.id) return true;
+  const nomeLanc = (lancamento.cliente?.nome || pack.nome || "").trim().toLowerCase();
+  return nomeLanc === opcao.nome.trim().toLowerCase();
+}
 
 const thClass =
   "border-b border-slate-200 bg-[#f5f6f8] py-2.5 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500";
@@ -188,6 +210,10 @@ export function ContasPagarConteudo() {
   const [fornecedores, setFornecedores] = useState<Array<{ id: string; nome: string }>>(
     []
   );
+  const [vinculoSelecionado, setVinculoSelecionado] = useState("");
+  const [entidadesVinculo, setEntidadesVinculo] = useState<
+    Array<{ id: string; nome: string }>
+  >([]);
 
   const load = useCallback(async (opts?: { silencioso?: boolean }) => {
     if (!opts?.silencioso) {
@@ -241,6 +267,48 @@ export function ContasPagarConteudo() {
     setFornecedores(lerFornecedoresStorage());
     aplicarPeriodo("todos");
   }, []);
+
+  useEffect(() => {
+    setVinculoSelecionado("");
+    if (entidadeAtiva === "todos") {
+      setEntidadesVinculo([]);
+      return;
+    }
+
+    let cancelado = false;
+
+    async function carregarVinculos() {
+      if (entidadeAtiva === "clientes") {
+        try {
+          const res = await fetch("/api/clientes");
+          const data = await res.json();
+          if (cancelado) return;
+          const lista = Array.isArray(data)
+            ? data
+                .map((item: { id?: string; nome?: string }) => ({
+                  id: String(item.id || ""),
+                  nome: String(item.nome || "").trim(),
+                }))
+                .filter((item) => item.id && item.nome)
+            : [];
+          setEntidadesVinculo(
+            lista.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+          );
+        } catch {
+          if (!cancelado) setEntidadesVinculo([]);
+        }
+        return;
+      }
+
+      const lista = carregarEntidadesDespesaLocal(entidadeAtiva);
+      if (!cancelado) setEntidadesVinculo(lista);
+    }
+
+    void carregarVinculos();
+    return () => {
+      cancelado = true;
+    };
+  }, [entidadeAtiva]);
 
   function aplicarPeriodo(value: string) {
     setPeriodo(value);
@@ -301,6 +369,18 @@ export function ContasPagarConteudo() {
 
         if (entidadeAtiva !== "todos" && entidade !== entidadeAtiva) return false;
 
+        if (
+          vinculoSelecionado &&
+          !despesaCorrespondeVinculo(
+            lancamento,
+            pack,
+            vinculoSelecionado,
+            entidadesVinculo
+          )
+        ) {
+          return false;
+        }
+
         if (tipoDespesa === "a_pagar" && lancamento.status !== "pendente") return false;
         if (tipoDespesa === "pagas" && lancamento.status !== "pago") return false;
         if (tipoDespesa === "atraso") {
@@ -325,6 +405,8 @@ export function ContasPagarConteudo() {
     dataInicio,
     dataFinal,
     entidadeAtiva,
+    vinculoSelecionado,
+    entidadesVinculo,
     tipoDespesa,
     busca,
     listasNomes,
@@ -349,9 +431,24 @@ export function ContasPagarConteudo() {
           Boolean(lancamento.cliente?.id),
           listasNomes
         );
-      return entidade === entidadeAtiva;
+      if (entidade !== entidadeAtiva) return false;
+      if (!vinculoSelecionado) return true;
+      return despesaCorrespondeVinculo(
+        lancamento,
+        pack,
+        vinculoSelecionado,
+        entidadesVinculo
+      );
     });
-  }, [lancamentos, dataInicio, dataFinal, entidadeAtiva, listasNomes]);
+  }, [
+    lancamentos,
+    dataInicio,
+    dataFinal,
+    entidadeAtiva,
+    vinculoSelecionado,
+    entidadesVinculo,
+    listasNomes,
+  ]);
 
   const resumo = useMemo(() => {
     const hoje = new Date();
@@ -375,6 +472,7 @@ export function ContasPagarConteudo() {
     setTipoDespesa("a_pagar");
     aplicarPeriodo("todos");
     setEntidadeAtiva("todos");
+    setVinculoSelecionado("");
   }
 
   function abrirNovo() {
@@ -630,7 +728,10 @@ export function ContasPagarConteudo() {
                 <button
                   key={aba.id}
                   type="button"
-                  onClick={() => setEntidadeAtiva(aba.id)}
+                  onClick={() => {
+                    setEntidadeAtiva(aba.id);
+                    setVinculoSelecionado("");
+                  }}
                   className={cn(
                     "inline-flex items-center gap-1.5 border-r border-slate-200 px-3 py-2 text-[12px] font-normal transition last:border-r-0",
                     ativa
@@ -677,6 +778,36 @@ export function ContasPagarConteudo() {
                 </span>
               </div>
             </div>
+
+            {entidadeAtiva !== "todos" ? (
+              <div className="w-[160px] shrink-0">
+                <span className={filtroLabelClass}>
+                  {rotuloVinculoEntidade[entidadeAtiva]}
+                </span>
+                <select
+                  value={vinculoSelecionado}
+                  onChange={(e) => setVinculoSelecionado(e.target.value)}
+                  className={cn(filtroInputClass, "appearance-none")}
+                >
+                  <option value="">
+                    {entidadeAtiva === "fornecedores"
+                      ? "Fornecedores"
+                      : entidadeAtiva === "colaboradores"
+                        ? "Colaboradores"
+                        : entidadeAtiva === "prestadores"
+                          ? "Prestadores"
+                          : entidadeAtiva === "entregadores"
+                            ? "Entregadores"
+                            : "Clientes"}
+                  </option>
+                  {entidadesVinculo.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
 
             <div className="w-[132px] shrink-0">
               <span className={filtroLabelClass}>Período</span>
