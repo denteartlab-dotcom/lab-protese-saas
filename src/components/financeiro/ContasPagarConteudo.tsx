@@ -801,9 +801,34 @@ export function ContasPagarConteudo() {
   async function confirmarExclusaoDespesa() {
     if (!despesaParaExcluir) return;
     const id = despesaParaExcluir.id;
+
+    if (despesaParaExcluir.status === "pago") {
+      const res = await fetch(`/api/financeiro/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "pendente" }),
+      });
+      if (!res.ok) {
+        const json = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(json.error || "Não foi possível desmarcar o pagamento.");
+      }
+      setLancamentos((lista) =>
+        lista.map((item) =>
+          item.id === id ? { ...item, status: "pendente" } : item
+        )
+      );
+      setDespesaParaExcluir(null);
+      notificarFinanceiroAtualizado();
+      return;
+    }
+
     setLancamentos((lista) => lista.filter((item) => item.id !== id));
     setDespesaParaExcluir(null);
-    await fetch(`/api/financeiro/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/financeiro/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(json.error || "Não foi possível excluir a despesa.");
+    }
     notificarFinanceiroAtualizado();
   }
 
@@ -1280,13 +1305,25 @@ export function ContasPagarConteudo() {
 
       <ConfirmacaoExclusaoModal
         open={!!despesaParaExcluir}
-        titulo="Excluir Despesa"
-        mensagem="Deseja realmente excluir essa despesa?"
+        titulo={
+          despesaParaExcluir?.status === "pago"
+            ? "Desmarcar pagamento"
+            : "Excluir Despesa"
+        }
+        mensagem={
+          despesaParaExcluir?.status === "pago"
+            ? "Esta despesa está paga. Deseja desmarcar e voltar para A Pagar?"
+            : "Deseja realmente excluir essa despesa?"
+        }
         detalhe={
           despesaParaExcluir
             ? desempacotarDespesa(despesaParaExcluir.descricao).nome
             : undefined
         }
+        tipoConfirmacao={
+          despesaParaExcluir?.status === "pago" ? "primario" : "exclusao"
+        }
+        labelConfirmar={despesaParaExcluir?.status === "pago" ? "Desmarcar" : "Sim"}
         onClose={() => setDespesaParaExcluir(null)}
         onConfirm={confirmarExclusaoDespesa}
       />
