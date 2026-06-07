@@ -76,10 +76,17 @@ export function visualizarPdfUrl(
   opcoes?: PdfViewerOpcoes
 ) {
   void nomeArquivo;
-  void titulo;
 
   const revogarAoFechar = opcoes?.revogarAoFechar ?? url.startsWith("blob:");
   const janelaReservada = consumirJanelaReservada(opcoes?.janela);
+
+  if (titulo && janelaReservada && !janelaReservada.closed) {
+    try {
+      janelaReservada.document.title = titulo;
+    } catch {
+      /* ignore */
+    }
+  }
 
   if (navegarAbaPdf(janelaReservada, url)) {
     if (revogarAoFechar) agendarRevogarUrl(url);

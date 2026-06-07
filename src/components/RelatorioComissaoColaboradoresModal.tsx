@@ -224,7 +224,12 @@ export function RelatorioComissaoColaboradoresModal({
       }
 
       const blob = await gerarRelatorioComissaoColaboradoresModelo1Pdf(ordenadas, filtro);
-      abrirPdfNoVisualizador(blob, "relatorio-comissao.pdf", undefined, janela);
+      abrirPdfNoVisualizador(
+        blob,
+        "relatorio-comissao.pdf",
+        "Comissões Colaboradores",
+        janela
+      );
       onClose();
     } catch (err) {
       console.error("relatorio comissao pdf", err);
