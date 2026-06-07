@@ -10,10 +10,12 @@ import {
 import {
   ANEXOS_FINANCEIRO_VAZIOS,
   carregarEntidadesDespesaLocal,
+  extrairDadosEdicaoDespesa,
   labelNomeEntidadeDespesa,
   TIPOS_FORNECEDOR_DESPESA,
   type AnexoDespesa,
   type EntidadeDespesa,
+  type LancamentoDespesaDetalhe,
 } from "@/lib/lancamento-despesa";
 import { CampoDataBr } from "@/components/ui";
 import { dateToBrShort, somarDiasBr } from "@/lib/datas-br";
@@ -123,6 +125,9 @@ type Props = {
   tituloEdicao?: string;
   /** Arquivos já salvos (edição). */
   anexosIniciais?: AnexoDespesa[];
+  /** Despesa em edição (Contas a Pagar). */
+  lancamentoEdicao?: LancamentoDespesaDetalhe | null;
+  todosLancamentosEdicao?: LancamentoDespesaDetalhe[];
 };
 
 const cfgModo = {
@@ -161,6 +166,8 @@ export function LancarReceitaModal({
   salvando = false,
   tituloEdicao,
   anexosIniciais = ANEXOS_FINANCEIRO_VAZIOS,
+  lancamentoEdicao = null,
+  todosLancamentosEdicao = [],
 }: Props) {
   const cfg = cfgModo[modo];
   const secaoPlano = modo === "receita" ? "receitas" : "despesas";
@@ -199,6 +206,7 @@ export function LancarReceitaModal({
   const submitLockRef = useRef(false);
   const anexosRef = useRef<AnexosReciboCampoRef>(null);
   const parcelasGeracaoRef = useRef({ numParcelas: 1, dataLancamento: "" });
+  const nomeEntidadeEdicaoRef = useRef("");
   const ocupado = cadastrando || salvando;
   const pastaAnexos = modo === "despesa" ? "despesas" : "receitas";
 
@@ -208,8 +216,11 @@ export function LancarReceitaModal({
 
   useEffect(() => {
     if (!open) return;
+    if (lancamentoEdicao && modo === "despesa") return;
+
     setTipoCliente(cfg.tipoPadrao);
     setClienteId("");
+    nomeEntidadeEdicaoRef.current = "";
     const plano = carregarPlanoContas();
     setCategoria(
       categoriaPadraoLancamento(plano, secaoPlano) || cfg.categoriaPadrao
@@ -227,11 +238,62 @@ export function LancarReceitaModal({
     setArquivoNota(null);
     setParseandoNota(false);
     setFeedbackNota(null);
-  }, [open, cfg.tipoPadrao, cfg.categoriaPadrao, secaoPlano, modo]);
+  }, [open, cfg.tipoPadrao, cfg.categoriaPadrao, secaoPlano, modo, lancamentoEdicao]);
+
+  useEffect(() => {
+    if (!open || modo !== "despesa" || !lancamentoEdicao) return;
+
+    const dados = extrairDadosEdicaoDespesa(
+      lancamentoEdicao,
+      todosLancamentosEdicao
+    );
+    const dataBr =
+      dados.parcelas[0]?.vencimento ||
+      dateToBrShort(new Date(lancamentoEdicao.data));
+
+    nomeEntidadeEdicaoRef.current = dados.nomeEntidade;
+    setTipoCliente(dados.tipoFornecedor);
+    setCategoria(dados.categoria || cfg.categoriaPadrao);
+    setDataLancamento(dataBr);
+    setNotaFiscalRef(dados.notaFiscalRef);
+    setItens(
+      dados.itens.length
+        ? dados.itens.map((item) => ({
+            id: item.id,
+            produto: item.produto,
+            descricao: item.descricao,
+            quantidade: item.quantidade,
+            custoUnitario: item.custoUnitario,
+          }))
+        : [novoItem()]
+    );
+    setObservacoes(dados.observacoes);
+    setDescontoTipo("percentual");
+    setDesconto("0,00");
+    setNumParcelas(dados.numParcelas);
+    setParcelas(
+      dados.parcelas.map((parcela) => ({
+        parcela: parcela.parcela,
+        formaPagamento: parcela.formaPagamento,
+        conta: parcela.conta,
+        vencimento: parcela.vencimento,
+        codigoBarrasPix: parcela.codigoBarrasPix,
+        valor: parcela.valor,
+        pago: parcela.pago,
+      }))
+    );
+    parcelasGeracaoRef.current = {
+      numParcelas: dados.numParcelas,
+      dataLancamento: dataBr,
+    };
+    setArquivoNota(null);
+    setParseandoNota(false);
+    setFeedbackNota(null);
+  }, [open, modo, lancamentoEdicao, todosLancamentosEdicao, cfg.categoriaPadrao]);
 
   useEffect(() => {
     if (!open || modo !== "despesa") return;
-    setClienteId("");
+    if (!lancamentoEdicao) setClienteId("");
     let cancelado = false;
 
     async function carregarEntidades() {
@@ -265,7 +327,17 @@ export function LancarReceitaModal({
     return () => {
       cancelado = true;
     };
-  }, [open, modo, tipoCliente]);
+  }, [open, modo, tipoCliente, lancamentoEdicao]);
+
+  useEffect(() => {
+    if (!open || modo !== "despesa" || !lancamentoEdicao) return;
+    const nome = nomeEntidadeEdicaoRef.current.trim();
+    if (!nome) return;
+    const match = entidadesDespesa.find(
+      (item) => item.nome.trim().toLowerCase() === nome.toLowerCase()
+    );
+    if (match) setClienteId(match.id);
+  }, [open, modo, lancamentoEdicao, entidadesDespesa]);
 
   const entidadesLista = modo === "despesa" ? entidadesDespesa : entidades;
   const labelNomeEntidade =
@@ -366,9 +438,9 @@ export function LancarReceitaModal({
   const totalLiquido = Math.max(0, valorBruto - descontoValor);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || lancamentoEdicao) return;
     setDataLancamento(dateToBrShort(new Date()));
-  }, [open]);
+  }, [open, lancamentoEdicao]);
 
   useEffect(() => {
     if (!open) return;
@@ -389,7 +461,9 @@ export function LancarReceitaModal({
             ? somarDiasBr(dataLancamento, i * 30)
             : (existente?.vencimento ?? somarDiasBr(dataLancamento, i * 30)),
           codigoBarrasPix: existente?.codigoBarrasPix ?? "",
-          valor: money(valorParcela),
+          valor: recalcularVencimentos
+            ? money(valorParcela)
+            : (existente?.valor ?? money(valorParcela)),
           pago: existente?.pago ?? false,
         };
       });
@@ -425,7 +499,8 @@ export function LancarReceitaModal({
       const selecionada = entidadesLista.find((item) => item.id === clienteId);
       await onSubmit({
         clienteId,
-        entidadeNome: selecionada?.nome || clienteId,
+        entidadeNome:
+          selecionada?.nome || nomeEntidadeEdicaoRef.current || clienteId,
         tipoCliente,
         categoria,
         dataLancamento,
@@ -935,7 +1010,13 @@ export function LancarReceitaModal({
               }
               className="h-10 rounded bg-[#4a90d9] text-[13px] font-normal text-white hover:bg-[#3d7fc4] disabled:cursor-wait disabled:opacity-60"
             >
-              {ocupado ? "Cadastrando…" : "Cadastrar"}
+              {ocupado
+                ? tituloEdicao
+                  ? "Salvando…"
+                  : "Cadastrando…"
+                : tituloEdicao
+                  ? "Salvar"
+                  : "Cadastrar"}
             </button>
             <button
               type="button"

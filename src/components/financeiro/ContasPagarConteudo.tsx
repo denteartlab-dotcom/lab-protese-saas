@@ -49,6 +49,7 @@ const LancarDespesaModal = dynamic(
 import { brShortToIso, dateToBrShort, parseBrDate } from "@/lib/datas-br";
 import {
   carregarEntidadesDespesaLocal,
+  chaveGrupoDespesa,
   classificarEntidadeDespesa,
   desempacotarDespesa,
   descricaoDespesaComParcela,
@@ -540,27 +541,59 @@ export function ContasPagarConteudo() {
 
     try {
       if (editando) {
-        const parcela = payload.parcelas[0];
-        const valor = Number(
-          (parcela?.valor || "0").replace(/\./g, "").replace(",", ".")
+        const chave = chaveGrupoDespesa(editando.descricao);
+        const irmaos = lancamentos.filter(
+          (item) =>
+            item.id !== editando.id &&
+            chaveGrupoDespesa(item.descricao) === chave
         );
-        const res = await fetch(`/api/financeiro/${editando.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            descricao: descricaoBase,
-            valor: valor || payload.totalLiquido,
-            data: brShortToIso(parcela?.vencimento || payload.dataLancamento),
-            status: parcela?.pago ? "pago" : "pendente",
-            formaPagamento: parcela?.formaPagamento || "Pix",
-          }),
+        const registrosGrupo = [editando, ...irmaos].sort((a, b) => {
+          const pa = desempacotarDespesa(a.descricao).texto.match(
+            /\((\d+)\s*\/\s*(\d+)\)/
+          );
+          const pb = desempacotarDespesa(b.descricao).texto.match(
+            /\((\d+)\s*\/\s*(\d+)\)/
+          );
+          return (Number(pa?.[1]) || 1) - (Number(pb?.[1]) || 1);
         });
-        if (!res.ok) {
-          const json = (await res.json().catch(() => ({}))) as { error?: string };
-          alert(json.error || "Não foi possível salvar a despesa.");
-          return;
+        const alvos =
+          registrosGrupo.length > 1
+            ? registrosGrupo
+            : [editando];
+
+        for (let i = 0; i < payload.parcelas.length; i++) {
+          const parcela = payload.parcelas[i];
+          const alvo = alvos[i] ?? alvos[0];
+          if (!alvo) continue;
+          const valor = Number(
+            (parcela?.valor || "0").replace(/\./g, "").replace(",", ".")
+          );
+          const res = await fetch(`/api/financeiro/${alvo.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              descricao: descricaoDespesaComParcela(
+                descricaoBase,
+                parcela.parcela
+              ),
+              valor: valor || payload.totalLiquido / payload.parcelas.length,
+              data: brShortToIso(parcela?.vencimento || payload.dataLancamento),
+              status: parcela?.pago ? "pago" : "pendente",
+              formaPagamento: parcela?.formaPagamento || "Pix",
+            }),
+          });
+          if (!res.ok) {
+            const json = (await res.json().catch(() => ({}))) as { error?: string };
+            alert(json.error || "Não foi possível salvar a despesa.");
+            return;
+          }
         }
-        setTipoDespesa(parcela?.pago ? "pagas" : "a_pagar");
+
+        const temPago = payload.parcelas.some((p) => p.pago);
+        const temPendente = payload.parcelas.some((p) => !p.pago);
+        if (temPago && !temPendente) setTipoDespesa("pagas");
+        else if (temPendente && !temPago) setTipoDespesa("a_pagar");
+        else setTipoDespesa("todas");
       } else {
         const parcelasApi = payload.parcelas
           .map((parcela) => {
@@ -1088,6 +1121,8 @@ export function ContasPagarConteudo() {
           entidades={fornecedores}
           salvando={salvando}
           tituloEdicao={editando ? "Editar Despesa" : undefined}
+          lancamentoEdicao={editando}
+          todosLancamentosEdicao={lancamentos}
           anexosIniciais={
             editando
               ? desempacotarDespesa(editando.descricao).meta.anexos ||

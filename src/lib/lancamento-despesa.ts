@@ -362,6 +362,123 @@ function rotuloParcelaDespesa(texto: string, parcelaMeta: string) {
   return { parcela: "1/1", numParcelas: 1 };
 }
 
+function dataIsoParaBr(iso: string) {
+  const match = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return "";
+  return `${match[3]}/${match[2]}/${match[1]}`;
+}
+
+function parcelaParaEdicao(
+  item: LancamentoDespesaDetalhe,
+  numero: number,
+  total: number
+): ParcelaDespesaVisualizacao {
+  const pack = desempacotarDespesa(item.descricao);
+  return {
+    parcela: `${numero}/${total}`,
+    formaPagamento: item.formaPagamento?.trim() || "",
+    conta: pack.conta === "—" ? "Caixa Principal" : pack.conta,
+    vencimento: dataIsoParaBr(item.data),
+    codigoBarrasPix: "",
+    valor: moneyBr(item.valor),
+    pago: item.status === "pago",
+  };
+}
+
+/** Dados do formulário ao editar despesa (inclui todas as parcelas do grupo). */
+export function extrairDadosEdicaoDespesa(
+  lancamento: LancamentoDespesaDetalhe,
+  todosLancamentos: LancamentoDespesaDetalhe[] = [],
+  refOs?: string
+): DadosVisualizacaoDespesa {
+  const base = extrairDadosVisualizacaoDespesa(lancamento, refOs);
+  const chave = chaveGrupoDespesa(lancamento.descricao);
+  const irmaos = todosLancamentos.filter(
+    (item) =>
+      item.id !== lancamento.id && chaveGrupoDespesa(item.descricao) === chave
+  );
+  const grupo = [lancamento, ...irmaos];
+
+  if (grupo.length > 1) {
+    const ordenado = grupo
+      .map((item) => {
+        const pack = desempacotarDespesa(item.descricao);
+        const match = pack.texto.match(/\((\d+)\s*\/\s*(\d+)\)/);
+        const numero = match ? Number(match[1]) || 1 : 1;
+        const total = match ? Number(match[2]) || grupo.length : grupo.length;
+        return { item, numero, total };
+      })
+      .sort((a, b) => a.numero - b.numero);
+    const total = ordenado[0]?.total || ordenado.length;
+    const parcelas = ordenado.map(({ item, numero }) =>
+      parcelaParaEdicao(item, numero, total)
+    );
+    const totalLiquido = parcelas.reduce(
+      (sum, p) =>
+        sum +
+        (Number(p.valor.replace(/\./g, "").replace(",", ".")) || 0),
+      0
+    );
+
+    return {
+      ...base,
+      dataLancamento: ordenado[0]?.item.data || lancamento.data,
+      numParcelas: total,
+      parcelas,
+      valorBruto: totalLiquido > 0 ? totalLiquido : base.valorBruto,
+      totalLiquido: totalLiquido > 0 ? totalLiquido : base.totalLiquido,
+    };
+  }
+
+  const pack = desempacotarDespesa(lancamento.descricao);
+  const { parcela, numParcelas } = rotuloParcelaDespesa(pack.texto, pack.parcela);
+  const match = parcela.match(/^(\d+)\s*\/\s*(\d+)$/);
+  const numAtual = match ? Number(match[1]) || 1 : 1;
+
+  if (numParcelas > 1) {
+    const parcelas: ParcelaDespesaVisualizacao[] = [];
+    for (let n = 1; n <= numParcelas; n++) {
+      const isAtual = n === numAtual;
+      parcelas.push({
+        parcela: `${n}/${numParcelas}`,
+        formaPagamento: isAtual
+          ? lancamento.formaPagamento?.trim() || ""
+          : "",
+        conta: pack.conta === "—" ? "Caixa Principal" : pack.conta,
+        vencimento: dataIsoParaBr(
+          somarDiasIso(lancamento.data, (n - 1) * INTERVALO_DIAS_PARCELA)
+        ),
+        codigoBarrasPix: "",
+        valor: moneyBr(lancamento.valor),
+        pago: isAtual && lancamento.status === "pago",
+      });
+    }
+    const totalLiquido = lancamento.valor * numParcelas;
+    return {
+      ...base,
+      numParcelas,
+      parcelas,
+      valorBruto: totalLiquido,
+      totalLiquido,
+    };
+  }
+
+  return {
+    ...base,
+    parcelas: [
+      {
+        parcela,
+        formaPagamento: lancamento.formaPagamento?.trim() || "",
+        conta: pack.conta === "—" ? "Caixa Principal" : pack.conta,
+        vencimento: dataIsoParaBr(lancamento.data),
+        codigoBarrasPix: "",
+        valor: moneyBr(lancamento.valor),
+        pago: lancamento.status === "pago",
+      },
+    ],
+  };
+}
+
 export function extrairDadosVisualizacaoDespesa(
   lancamento: LancamentoDespesaDetalhe,
   refOs?: string
