@@ -99,7 +99,18 @@ const abasEntidade: Array<{
 ];
 
 const thClass =
-  "border-b border-slate-200 bg-[#f5f6f8] px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500";
+  "border-b border-slate-200 bg-[#f5f6f8] py-2.5 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500";
+
+const tdVenc =
+  "px-2 py-2 pl-3 text-left text-slate-800 whitespace-nowrap";
+const tdParc = "px-1 py-2 text-left text-slate-700 whitespace-nowrap";
+const tdNome = "px-2 py-2 text-left text-slate-800 truncate";
+const tdRef = "px-2 py-2 text-left text-slate-600";
+const tdCat = "px-3 py-2 text-left text-slate-600";
+const tdForma = "px-2 py-2 text-left";
+const tdValor = "px-2 py-2 text-right text-slate-800 whitespace-nowrap";
+const tdConta = "px-2 py-2 text-left";
+const tdOpc = "px-2 py-2 pr-3 text-right whitespace-nowrap";
 
 const filtroLabelClass = "mb-1 block text-[11px] font-medium text-slate-600";
 const filtroInputClass =
@@ -731,18 +742,35 @@ export function ContasPagarConteudo() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[960px] border-collapse text-[12px]">
+          <table className="w-full table-fixed border-collapse text-[12px]">
+            <colgroup>
+              <col className="w-[8%]" />
+              <col className="w-[5%]" />
+              <col className="w-[12%]" />
+              <col className="w-[9%]" />
+              <col className="w-[27%]" />
+              <col className="w-[13%]" />
+              <col className="w-[7%]" />
+              <col className="w-[10%]" />
+              <col className="w-[9%]" />
+            </colgroup>
             <thead>
               <tr>
-                <th className={thClass}>{thComOrdenacao("Vencimento")}</th>
-                <th className={`${thClass} w-16`}>{thComOrdenacao("Parc.")}</th>
-                <th className={thClass}>{thComOrdenacao("Nome")}</th>
-                <th className={thClass}>{thComOrdenacao("Referencia")}</th>
-                <th className={thClass}>{thComOrdenacao("Categoria")}</th>
-                <th className={thClass}>{thComOrdenacao("Forma Pagamento")}</th>
-                <th className={`${thClass} text-right`}>{thComOrdenacao("Valor")}</th>
-                <th className={thClass}>{thComOrdenacao("Conta")}</th>
-                <th className={`${thClass} text-center`}>Opções</th>
+                <th className={cn(thClass, "pl-3 pr-2")}>
+                  {thComOrdenacao("Vencimento")}
+                </th>
+                <th className={cn(thClass, "px-1")}>{thComOrdenacao("Parc.")}</th>
+                <th className={cn(thClass, "px-2")}>{thComOrdenacao("Nome")}</th>
+                <th className={cn(thClass, "px-2")}>{thComOrdenacao("Referencia")}</th>
+                <th className={cn(thClass, "px-3")}>{thComOrdenacao("Categoria")}</th>
+                <th className={cn(thClass, "px-2")}>
+                  {thComOrdenacao("Forma Pagamento")}
+                </th>
+                <th className={cn(thClass, "px-2 text-right")}>
+                  {thComOrdenacao("Valor")}
+                </th>
+                <th className={cn(thClass, "px-2")}>{thComOrdenacao("Conta")}</th>
+                <th className={cn(thClass, "px-2 pr-3 text-right")}>Opções</th>
               </tr>
             </thead>
             <tbody>
@@ -782,26 +810,20 @@ export function ContasPagarConteudo() {
                         aberta && "bg-slate-50"
                       )}
                     >
-                        <td className="px-3 py-2 text-slate-800">
-                          {formatDate(lancamento.data)}
-                        </td>
-                        <td className="px-3 py-2 text-slate-700">{exibirParcela(pack)}</td>
-                        <td className="px-3 py-2 font-medium text-slate-800">
+                        <td className={tdVenc}>{formatDate(lancamento.data)}</td>
+                        <td className={tdParc}>{exibirParcela(pack)}</td>
+                        <td className={tdNome} title={lancamento.cliente?.nome || pack.nome}>
                           {lancamento.cliente?.nome || pack.nome}
                         </td>
-                        <td className="px-3 py-2 text-slate-600">
-                          {ref?.trim() ? ref : "—"}
-                        </td>
-                        <td className="px-3 py-2 text-slate-600">{pack.categoria}</td>
-                        <td className="px-3 py-2 text-slate-600">
+                        <td className={tdRef}>{ref?.trim() || ""}</td>
+                        <td className={tdCat}>{pack.categoria}</td>
+                        <td className={tdForma}>
                           {exibirFormaPagamento(lancamento.formaPagamento)}
                         </td>
-                        <td className="px-3 py-2 text-right text-slate-800">
-                          {money(lancamento.valor)}
-                        </td>
-                        <td className="px-3 py-2">{exibirConta(pack.conta)}</td>
-                        <td className="px-3 py-2">
-                          <div className="flex items-center justify-center gap-1.5">
+                        <td className={tdValor}>{money(lancamento.valor)}</td>
+                        <td className={tdConta}>{exibirConta(pack.conta)}</td>
+                        <td className={tdOpc}>
+                          <div className="inline-flex items-center justify-end gap-1.5">
                             {lancamento.status === "pendente" ? (
                               <button
                                 type="button"
