@@ -9,6 +9,11 @@ import {
   modeloEhExtratoIndividual,
   type ModeloRelatorioReceitas,
 } from "@/lib/relatorio-receitas-modelos";
+import {
+  agruparPorEntregador,
+  type LinhaRelatorioEntrega,
+  type ModeloRelatorioEntregas,
+} from "@/lib/relatorio-entregas";
 import type { LinhaRelatorioProducao } from "@/lib/relatorio-producao";
 import { gerarRelatorioTabelaPdf } from "@/lib/pdf-relatorio-tabela";
 
@@ -310,6 +315,108 @@ export async function gerarRelatorioDespesasPdf(
       indiceRotulo: 3,
       rotulo: "Total",
       celulas: [null, null, null, null, money(total), null],
+    },
+  });
+}
+
+export async function gerarRelatorioEntregasPdf(
+  linhas: LinhaRelatorioEntrega[],
+  tituloModelo: string,
+  periodoLabel: string,
+  modelo: ModeloRelatorioEntregas
+) {
+  const total = linhas.reduce((s, l) => s + l.valor, 0);
+
+  if (modelo === "entregas-modelo-3") {
+    return gerarRelatorioTabelaPdf({
+      tituloRelatorio: `Relatório Entregas — ${tituloModelo}`,
+      periodoTexto: periodoLabel,
+      colunas: [
+        { titulo: "Data Pedido", larguraMm: 22, alinhamento: "left" },
+        { titulo: "Destinatário", larguraMm: 28, alinhamento: "left" },
+        { titulo: "Entregador", larguraMm: 22, alinhamento: "left" },
+        { titulo: "OS", larguraMm: 12, alinhamento: "center" },
+        { titulo: "Sit. OS", larguraMm: 18, alinhamento: "center" },
+        { titulo: "Cliente OS", larguraMm: 24, alinhamento: "left" },
+        { titulo: "Situação", larguraMm: 18, alinhamento: "center" },
+        { titulo: "Valor", larguraMm: 20, alinhamento: "right" },
+      ],
+      linhas: linhas.map((l) => [
+        l.dataPedido,
+        l.destinatario,
+        l.entregador,
+        l.numeroOs,
+        l.situacaoOs || "—",
+        l.clienteOs || "—",
+        l.situacaoLabel,
+        money(l.valor),
+      ]),
+      linhaTotal: {
+        indiceRotulo: 6,
+        rotulo: "Total",
+        celulas: [null, null, null, null, null, null, "Total", money(total)],
+      },
+    });
+  }
+
+  if (modelo === "entregas-modelo-2") {
+    const rowsPdf: string[][] = [];
+    for (const [entregador, grupo] of agruparPorEntregador(linhas)) {
+      rowsPdf.push([`Entregador: ${entregador}`, "", "", "", "", ""]);
+      for (const linha of grupo) {
+        rowsPdf.push([
+          linha.dataPedido,
+          linha.destinatario,
+          linha.descricao,
+          linha.situacaoLabel,
+          money(linha.valor),
+          linha.numeroOs,
+        ]);
+      }
+    }
+    return gerarRelatorioTabelaPdf({
+      tituloRelatorio: `Relatório Entregas — ${tituloModelo}`,
+      periodoTexto: periodoLabel,
+      colunas: [
+        { titulo: "Data Pedido", larguraMm: 28, alinhamento: "left" },
+        { titulo: "Destinatário", larguraMm: 32, alinhamento: "left" },
+        { titulo: "Descrição", larguraMm: 36, alinhamento: "left" },
+        { titulo: "Situação", larguraMm: 22, alinhamento: "center" },
+        { titulo: "Valor", larguraMm: 24, alinhamento: "right" },
+        { titulo: "OS", larguraMm: 16, alinhamento: "center" },
+      ],
+      linhas: rowsPdf,
+      linhaTotal: {
+        indiceRotulo: 3,
+        rotulo: "Total",
+        celulas: [null, null, null, "Total", money(total), null],
+      },
+    });
+  }
+
+  return gerarRelatorioTabelaPdf({
+    tituloRelatorio: `Relatório Entregas — ${tituloModelo}`,
+    periodoTexto: periodoLabel,
+    colunas: [
+      { titulo: "Data Pedido", larguraMm: 28, alinhamento: "left" },
+      { titulo: "Destinatário", larguraMm: 32, alinhamento: "left" },
+      { titulo: "Entregador", larguraMm: 28, alinhamento: "left" },
+      { titulo: "Descrição", larguraMm: 36, alinhamento: "left" },
+      { titulo: "Situação", larguraMm: 22, alinhamento: "center" },
+      { titulo: "Valor", larguraMm: 24, alinhamento: "right" },
+    ],
+    linhas: linhas.map((l) => [
+      l.dataPedido,
+      l.destinatario,
+      l.entregador,
+      l.descricao,
+      l.situacaoLabel,
+      money(l.valor),
+    ]),
+    linhaTotal: {
+      indiceRotulo: 4,
+      rotulo: "Total",
+      celulas: [null, null, null, null, "Total", money(total)],
     },
   });
 }

@@ -17,6 +17,7 @@ import {
 import { ControleProducaoToolbar } from "@/components/ControleProducaoToolbar";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { FormularioRotaEntregaModal } from "@/components/FormularioRotaEntregaModal";
+import { RelatorioEntregasModal } from "@/components/relatorios/RelatorioEntregasModal";
 import { Button, Modal } from "@/components/ui";
 import { CampoDataBr } from "@/components/campo-data-br";
 import {
@@ -35,6 +36,14 @@ import {
   type EntregaControle,
   type SituacaoEntrega,
 } from "@/lib/controle-entregas";
+import { prepararAbaPdf } from "@/lib/pdf-viewer";
+import {
+  carregarTrabalhosParaRelatorioEntregas,
+  exportarRelatorioEntregasCsv,
+  filtroRelatorioFromTela,
+  gerarLinhasRelatorioEntregas,
+  imprimirRelatorioEntregas,
+} from "@/lib/relatorio-entregas";
 
 function labelFiltro(texto: string) {
   return <span className="mb-0.5 block text-[11px] text-slate-600">{texto}</span>;
@@ -96,6 +105,8 @@ export function ControleEntregas() {
   const [editando, setEditando] = useState<EntregaControle | null>(null);
   const [visualizando, setVisualizando] = useState<EntregaControle | null>(null);
   const [excluindo, setExcluindo] = useState<EntregaControle | null>(null);
+  const [relatorioAberto, setRelatorioAberto] = useState(false);
+  const [exportandoRelatorio, setExportandoRelatorio] = useState(false);
 
   function recarregar() {
     setEntregas(carregarEntregas());
@@ -123,6 +134,54 @@ export function ControleEntregas() {
   );
 
   const totais = useMemo(() => contarPorSituacao(entregas), [entregas]);
+
+  const filtroRelatorioTela = useMemo(
+    () =>
+      filtroRelatorioFromTela({
+        entregador,
+        situacao,
+        filtroCard,
+        periodo,
+        dataInicio,
+        dataFim,
+        busca,
+      }),
+    [entregador, situacao, filtroCard, periodo, dataInicio, dataFim, busca]
+  );
+
+  async function exportarRelatorioTela() {
+    setExportandoRelatorio(true);
+    try {
+      const trabalhos = await carregarTrabalhosParaRelatorioEntregas();
+      const linhas = gerarLinhasRelatorioEntregas(
+        entregas,
+        filtroRelatorioTela,
+        trabalhos
+      );
+      exportarRelatorioEntregasCsv(linhas, filtroRelatorioTela.modelo);
+    } finally {
+      setExportandoRelatorio(false);
+    }
+  }
+
+  async function imprimirRelatorioTela() {
+    const janela = prepararAbaPdf();
+    setExportandoRelatorio(true);
+    try {
+      const trabalhos = await carregarTrabalhosParaRelatorioEntregas();
+      const linhas = gerarLinhasRelatorioEntregas(
+        entregas,
+        filtroRelatorioTela,
+        trabalhos
+      );
+      await imprimirRelatorioEntregas(linhas, filtroRelatorioTela, janela);
+    } catch {
+      janela?.close();
+      alert("Não foi possível gerar o PDF. Permita pop-ups para este site.");
+    } finally {
+      setExportandoRelatorio(false);
+    }
+  }
 
   const todosSelecionados =
     entregasFiltradas.length > 0 && entregasFiltradas.every((item) => selecionados.has(item.id));
@@ -174,6 +233,7 @@ export function ControleEntregas() {
     <>
       <button
         type="button"
+        onClick={() => setRelatorioAberto(true)}
         className="rounded bg-[#3b82f6] px-4 py-1.5 text-[11px] font-medium text-white hover:bg-blue-600"
       >
         Relatórios
@@ -189,14 +249,18 @@ export function ControleEntregas() {
       <button
         type="button"
         title="Exportar"
-        className="flex h-8 w-8 items-center justify-center rounded border border-[#86efac] bg-[#dcfce7] text-[#16a34a] hover:bg-[#bbf7d0]"
+        disabled={exportandoRelatorio}
+        onClick={() => void exportarRelatorioTela()}
+        className="flex h-8 w-8 items-center justify-center rounded border border-[#86efac] bg-[#dcfce7] text-[#16a34a] hover:bg-[#bbf7d0] disabled:opacity-60"
       >
         <FileSpreadsheet className="h-4 w-4" />
       </button>
       <button
         type="button"
         title="Imprimir"
-        className="flex h-8 w-8 items-center justify-center rounded border border-[#93c5fd] bg-[#dbeafe] text-[#2563eb] hover:bg-[#bfdbfe]"
+        disabled={exportandoRelatorio}
+        onClick={() => void imprimirRelatorioTela()}
+        className="flex h-8 w-8 items-center justify-center rounded border border-[#93c5fd] bg-[#dbeafe] text-[#2563eb] hover:bg-[#bfdbfe] disabled:opacity-60"
       >
         <Printer className="h-4 w-4" />
       </button>
@@ -522,6 +586,14 @@ export function ControleEntregas() {
         detalhe={excluindo?.destinatario}
         onClose={() => setExcluindo(null)}
         onConfirm={confirmarExclusao}
+      />
+
+      <RelatorioEntregasModal
+        open={relatorioAberto}
+        onClose={() => setRelatorioAberto(false)}
+        entregas={entregas}
+        entregadores={entregadores}
+        filtrosIniciais={filtroRelatorioTela}
       />
     </div>
   );
