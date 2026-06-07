@@ -26,18 +26,24 @@ const COLUNAS: ColunaRelatorioFaturasSmart[] = [
   { titulo: "Saldo", larguraMm: 20, align: "right" },
 ];
 
-function qtdParcelasDaLinha(parcela: string) {
-  const match = parcela.match(/\/\s*(\d+)\s*$/);
+function qtdParcelasDaLinha(parcela?: string) {
+  const match = String(parcela || "").match(/\/\s*(\d+)\s*$/);
   if (match) return Number(match[1]) || 1;
   return 1;
 }
 
 function formatarDataEmissao(linha: LinhaRelatorioDespesa) {
   const d = linha.dataOrdenacao;
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) return "—";
   const day = String(d.getDate()).padStart(2, "0");
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const year = d.getFullYear();
   return `${day}/${month}/${year}`;
+}
+
+function textoCelula(valor?: string | number | null) {
+  if (valor == null) return "";
+  return String(valor);
 }
 
 function valoresLinhaDespesa(linha: LinhaRelatorioDespesa) {
@@ -89,9 +95,9 @@ export async function gerarRelatorioDespesasModelo1Pdf(
       [
         formatarDataEmissao(linha),
         String(qtdParcelasDaLinha(linha.parcela)),
-        linha.referencia?.trim() || "",
-        linha.nome,
-        moneyBr(linha.valor),
+        textoCelula(linha.referencia === "—" ? "" : linha.referencia),
+        textoCelula(linha.nome),
+        moneyBr(Number(linha.valor) || 0),
         moneyBr(juros),
         moneyBr(pago),
         moneyBr(saldo),

@@ -57,6 +57,17 @@ function agendarRevogarUrl(url: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
 }
 
+function baixarPdfUrl(url: string, nomeArquivo: string) {
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = nomeArquivo;
+  link.rel = "noopener";
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
 /** Abre o PDF no visualizador nativo do navegador (uma única nova aba). */
 export function visualizarPdfUrl(
   url: string,
@@ -81,8 +92,8 @@ export function visualizarPdfUrl(
 
   const nova = window.open(url, "_blank");
   if (!nova) {
-    URL.revokeObjectURL(url);
-    alert("Permita pop-ups para visualizar o PDF neste site.");
+    baixarPdfUrl(url, nomeArquivo);
+    if (revogarAoFechar) agendarRevogarUrl(url);
     return url;
   }
 

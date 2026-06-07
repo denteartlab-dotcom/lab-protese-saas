@@ -160,6 +160,27 @@ export type OpcoesImpressaoRelatorioDespesas = {
   dataFinal: string;
 };
 
+export async function gerarRelatorioDespesasBlob(
+  linhas: LinhaRelatorioDespesa[],
+  tituloModelo: string,
+  periodoLabel: string,
+  opcoes?: OpcoesImpressaoRelatorioDespesas
+) {
+  if (opcoes?.modelo === "despesas-modelo-1") {
+    const { gerarRelatorioDespesasModelo1Pdf } = await import(
+      "@/lib/pdf-relatorio-despesas-modelo1"
+    );
+    return gerarRelatorioDespesasModelo1Pdf(linhas, {
+      periodoCampo: opcoes.periodoCampo,
+      dataInicio: opcoes.dataInicio,
+      dataFinal: opcoes.dataFinal,
+    });
+  }
+
+  const { gerarRelatorioDespesasPdf } = await import("@/lib/relatorios-impressao-pdf");
+  return gerarRelatorioDespesasPdf(linhas, tituloModelo, periodoLabel, opcoes);
+}
+
 export async function imprimirRelatorioDespesas(
   linhas: LinhaRelatorioDespesa[],
   tituloModelo: string,
@@ -169,8 +190,12 @@ export async function imprimirRelatorioDespesas(
 ) {
   const janela = janelaReservada ?? null;
   try {
-    const { gerarRelatorioDespesasPdf } = await import("@/lib/relatorios-impressao-pdf");
-    const blob = await gerarRelatorioDespesasPdf(linhas, tituloModelo, periodoLabel, opcoes);
+    const blob = await gerarRelatorioDespesasBlob(
+      linhas,
+      tituloModelo,
+      periodoLabel,
+      opcoes
+    );
     abrirPdfNoVisualizador(blob, "relatorio-despesas.pdf", undefined, janela);
   } catch (err) {
     janela?.close();

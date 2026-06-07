@@ -5,10 +5,10 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
 import { dateToBrShort } from "@/lib/datas-br";
-import { prepararAbaPdf } from "@/lib/pdf-viewer";
+import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import {
   filtrarLinhasRelatorio,
-  imprimirRelatorioDespesas,
+  gerarRelatorioDespesasBlob,
   linhasRelatorioFromLancamentos,
   ordenarLinhasRelatorio,
   type FiltroRelatorioDespesas,
@@ -132,6 +132,7 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
   const [calendarioAberto, setCalendarioAberto] = useState<"inicio" | "final" | null>(
     null
   );
+  const [gerandoPdf, setGerandoPdf] = useState(false);
 
   useEffect(() => {
     setPortalPronto(true);
@@ -173,7 +174,6 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
     MODELOS_RELATORIO.find((item) => item.value === modelo)?.label ?? modelo;
 
   function imprimir() {
-    const janela = prepararAbaPdf();
     const filtro: FiltroRelatorioDespesas = {
       ordenarPor,
       situacao,
@@ -186,14 +186,24 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
     const filtradas = filtrarLinhasRelatorio(linhasBase, filtro);
     const ordenadas = ordenarLinhasRelatorio(filtradas, ordenarPor);
     const periodoLabel = `${periodoCampo === "data_lancamento" ? "Data Lançamento" : "Data Vencimento"}: ${dataInicio} a ${dataFinal}`;
-    void imprimirRelatorioDespesas(ordenadas, modeloLabel, periodoLabel, janela, {
-      modelo,
-      periodoCampo,
-      dataInicio,
-      dataFinal,
-    }).catch(() => {
-      alert("Não foi possível gerar o PDF. Permita pop-ups para este site.");
-    });
+
+    setGerandoPdf(true);
+    void abrirPdfGerando(
+      () =>
+        gerarRelatorioDespesasBlob(ordenadas, modeloLabel, periodoLabel, {
+          modelo,
+          periodoCampo,
+          dataInicio,
+          dataFinal,
+        }),
+      "relatorio-despesas.pdf",
+      modeloLabel
+    )
+      .catch((err) => {
+        console.error("relatorio despesas pdf", err);
+        alert("Não foi possível gerar o PDF do relatório de despesas.");
+      })
+      .finally(() => setGerandoPdf(false));
   }
 
   if (!open || !portalPronto) return null;
@@ -342,9 +352,10 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
             <button
               type="button"
               onClick={imprimir}
-              className="h-10 w-full rounded-sm bg-[#4a90d9] text-[13px] font-normal text-white hover:bg-[#3d7fc4]"
+              disabled={gerandoPdf}
+              className="h-10 w-full rounded-sm bg-[#4a90d9] text-[13px] font-normal text-white hover:bg-[#3d7fc4] disabled:opacity-60"
             >
-              Imprimir
+              {gerandoPdf ? "Gerando PDF..." : "Imprimir"}
             </button>
             <button
               type="button"
