@@ -300,7 +300,9 @@ export function ContasPagarConteudo() {
         return;
       }
 
-      const lista = carregarEntidadesDespesaLocal(entidadeAtiva);
+      const lista = carregarEntidadesDespesaLocal(
+        entidadeAtiva as Exclude<EntidadeDespesa, "todos" | "clientes">
+      );
       if (!cancelado) setEntidadesVinculo(lista);
     }
 
