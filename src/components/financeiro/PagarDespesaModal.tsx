@@ -29,12 +29,14 @@ type Props = {
   onConfirmado: () => void;
 };
 
-const labelClass = "mb-1 block text-[11px] font-medium text-slate-600";
+const labelClass =
+  "mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-slate-500";
 const inputClass =
-  "h-9 w-full rounded border border-slate-300 bg-white px-2.5 text-[12px] text-slate-800 outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]";
+  "h-8 w-full rounded-sm border border-slate-300 bg-white px-2 text-[12px] text-slate-800 outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]";
 const selectClass = inputClass;
 const thClass =
-  "border-b border-slate-200 bg-[#f5f6f8] px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500";
+  "border-b border-slate-200 bg-[#f5f6f8] px-2.5 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500";
+const tdClass = "border-b border-slate-100 px-2.5 py-2 text-[12px] text-slate-800";
 
 function money(value: number) {
   return value.toLocaleString("pt-BR", {
@@ -74,16 +76,15 @@ function subtotalItem(item: { quantidade: string; custoUnitario: string }) {
   return qtd * unit;
 }
 
-function badgeFormaPagamento(forma?: string) {
+function formatVencimentoParcela(iso: string) {
+  const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) return `${match[3]}/${match[2]}`;
+  return formatDate(iso);
+}
+
+function textoFormaPagamentoParcela(forma?: string) {
   const valor = forma?.trim();
-  if (!valor) {
-    return (
-      <span className="inline-block whitespace-nowrap rounded bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
-        Não Informado
-      </span>
-    );
-  }
-  return valor;
+  return valor || "Não Informado";
 }
 
 function Toggle({
@@ -103,7 +104,7 @@ function Toggle({
       disabled={disabled}
       onClick={onChange}
       className={cn(
-        "relative mx-auto inline-flex h-5 w-9 rounded-full transition",
+        "relative mx-auto inline-flex h-5 w-9 shrink-0 rounded-full transition",
         checked ? "bg-[#4cae4c]" : "bg-slate-300",
         disabled && "cursor-default opacity-80"
       )}
@@ -241,50 +242,52 @@ export function PagarDespesaModal({
 
   const conteudo = (
     <div
-      className="fixed inset-0 z-[10000] flex items-start justify-center overflow-y-auto bg-black/45 p-4 pt-8"
+      className="fixed inset-0 z-[10000] flex items-start justify-center overflow-y-auto bg-black/45 p-4 pt-6"
       data-modal="pagar-despesa-smart"
       role="dialog"
       aria-modal="true"
       aria-labelledby="pagar-despesa-titulo"
     >
       <div className="absolute inset-0" onClick={onClose} aria-hidden />
-      <div className="relative my-auto flex w-full max-w-[1060px] flex-col rounded border border-slate-200 bg-white shadow-[0_12px_40px_rgba(0,0,0,0.18)]">
-        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
-          <h2 id="pagar-despesa-titulo" className="text-[14px] font-normal text-slate-800">
+      <div className="relative my-auto flex w-full max-w-[1080px] flex-col rounded-sm border border-slate-200 bg-white shadow-[0_8px_32px_rgba(0,0,0,0.15)]">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+          <h2 id="pagar-despesa-titulo" className="text-[15px] font-normal text-slate-800">
             Pagar Despesa
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-lg text-slate-400 hover:text-slate-600"
+            className="text-[18px] leading-none text-slate-400 hover:text-slate-600"
             aria-label="Fechar"
           >
             ✕
           </button>
         </div>
 
-        <div className="max-h-[calc(100vh-6rem)] overflow-y-auto px-4 py-3 text-[11px] text-slate-700">
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <p className="text-[12px] text-slate-700">
-              <span className="font-medium text-slate-600">Data de Lançamento:</span>{" "}
-              {formatDateTime(dados.dataLancamento) || formatDate(dados.dataLancamento)}
+        <div className="max-h-[calc(100vh-5rem)] overflow-y-auto px-5 py-4 text-[12px] text-slate-700">
+          <div className="flex flex-wrap gap-x-6 gap-y-1 border-b border-slate-100 pb-3">
+            <p>
+              <span className="text-slate-600">Data de Lançamento:</span>{" "}
+              <span className="text-slate-800">
+                {formatDateTime(dados.dataLancamento) || formatDate(dados.dataLancamento)}
+              </span>
             </p>
-            <p className="text-[12px] text-slate-700">
-              <span className="font-medium text-slate-600">Nota Fiscal/Referência:</span>{" "}
-              {notaRef || ""}
+            <p>
+              <span className="text-slate-600">Nota Fiscal/Referência:</span>{" "}
+              <span className="text-slate-800">{notaRef || ""}</span>
             </p>
-            <p className="text-[12px] text-slate-700">
-              <span className="font-medium text-slate-600">Fornecedor:</span>{" "}
-              {dados.nomeEntidade}
+            <p>
+              <span className="text-slate-600">Fornecedor:</span>{" "}
+              <span className="text-slate-800">{dados.nomeEntidade}</span>
             </p>
-            <p className="text-[12px] text-slate-700">
-              <span className="font-medium text-slate-600">Categoria:</span>{" "}
-              {dados.categoria}
+            <p>
+              <span className="text-slate-600">Categoria:</span>{" "}
+              <span className="text-slate-800">{dados.categoria}</span>
             </p>
           </div>
 
-          <div className="mt-4 overflow-x-auto rounded border border-slate-200">
-            <table className="w-full min-w-[640px] border-collapse text-[12px]">
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full min-w-[640px] border-collapse">
               <thead>
                 <tr>
                   <th className={thClass}>Produto</th>
@@ -296,16 +299,14 @@ export function PagarDespesaModal({
               </thead>
               <tbody>
                 {dados.itens.map((item) => (
-                  <tr key={item.id} className="border-t border-slate-100">
-                    <td className="px-2 py-2 text-slate-800">{item.produto}</td>
-                    <td className="px-2 py-2 text-slate-800">{item.descricao}</td>
-                    <td className="px-2 py-2 text-slate-700">
+                  <tr key={item.id}>
+                    <td className={tdClass}>{item.produto}</td>
+                    <td className={tdClass}>{item.descricao}</td>
+                    <td className={cn(tdClass, "text-slate-700")}>
                       {exibirQuantidade(item.quantidade)}
                     </td>
-                    <td className="px-2 py-2 text-right text-slate-800">
-                      {item.custoUnitario}
-                    </td>
-                    <td className="px-2 py-2 text-right font-medium text-slate-800">
+                    <td className={cn(tdClass, "text-right")}>{item.custoUnitario}</td>
+                    <td className={cn(tdClass, "text-right font-medium")}>
                       {money(subtotalItem(item))}
                     </td>
                   </tr>
@@ -313,39 +314,37 @@ export function PagarDespesaModal({
               </tbody>
             </table>
           </div>
-          <div className="mt-1 flex justify-end text-[12px]">
+          <div className="mt-1 flex justify-end pr-1 text-[12px]">
             <span className="font-semibold text-[#4a90d9]">
               Total Líquido {money(dados.totalLiquido)}
             </span>
           </div>
 
-          <div className="mt-4 overflow-x-auto rounded border border-slate-200">
-            <table className="w-full min-w-[760px] border-collapse text-[12px]">
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[760px] border-collapse">
               <thead>
                 <tr>
-                  <th className={cn(thClass, "w-16")}>Parcela</th>
+                  <th className={cn(thClass, "w-14")}>Parcela</th>
                   <th className={thClass}>Forma Pagamento</th>
                   <th className={thClass}>Conta</th>
                   <th className={thClass}>Vencimento</th>
                   <th className={cn(thClass, "text-right")}>Valor</th>
-                  <th className={cn(thClass, "text-center w-20")}>Pagamento</th>
+                  <th className={cn(thClass, "w-20 text-center")}>Pagamento</th>
                 </tr>
               </thead>
               <tbody>
                 {parcelas.map((parcela, index) => {
                   const ativa = parcela.pago || parcela.pagarAgora;
                   return (
-                    <tr key={`${parcela.parcela}-${index}`} className="border-t border-slate-100">
-                      <td className="px-2 py-2 text-slate-800">{parcela.parcela}</td>
-                      <td className="px-2 py-2">
-                        {badgeFormaPagamento(parcela.formaPagamento)}
+                    <tr key={`${parcela.parcela}-${index}`}>
+                      <td className={tdClass}>{parcela.parcela}</td>
+                      <td className={cn(tdClass, "text-slate-600")}>
+                        {textoFormaPagamentoParcela(parcela.formaPagamento)}
                       </td>
-                      <td className="px-2 py-2 text-slate-700">{parcela.conta}</td>
-                      <td className="px-2 py-2 text-slate-800">
-                        {formatDate(parcela.vencimento)}
-                      </td>
-                      <td className="px-2 py-2 text-right text-slate-800">{parcela.valor}</td>
-                      <td className="px-2 py-2 text-center">
+                      <td className={tdClass}>{parcela.conta}</td>
+                      <td className={tdClass}>{formatVencimentoParcela(parcela.vencimento)}</td>
+                      <td className={cn(tdClass, "text-right")}>{parcela.valor}</td>
+                      <td className={cn(tdClass, "text-center")}>
                         <Toggle
                           checked={ativa}
                           disabled={parcela.pago || !parcela.lancamentoId}
@@ -358,15 +357,15 @@ export function PagarDespesaModal({
               </tbody>
             </table>
           </div>
-          <div className="mt-1 flex justify-end text-[12px]">
+          <div className="mt-1 flex justify-end pr-1 text-[12px]">
             <span className="font-semibold text-red-600">
               Valor Devido {money(dados.valorDevido)}
             </span>
           </div>
 
-          <div className="mt-4">
-            <span className={labelClass}>Data Pagamento</span>
-            <div className="max-w-[160px]">
+          <div className="mt-5 border-t border-slate-100 pt-4">
+            <div className="mb-3 w-[150px]">
+              <span className={labelClass}>Data Pagamento</span>
               <CampoDataBr
                 value={dataPagamento}
                 onChange={setDataPagamento}
@@ -374,116 +373,113 @@ export function PagarDespesaModal({
                 inputClassName={inputClass}
               />
             </div>
-          </div>
 
-          {formas.map((forma) => {
-            const totalLinha = parseMoney(forma.valor) + parseMoney(forma.juros);
-            return (
-              <div
-                key={forma.id}
-                className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-5"
+            {formas.map((forma) => {
+              const totalLinha = parseMoney(forma.valor) + parseMoney(forma.juros);
+              return (
+                <div
+                  key={forma.id}
+                  className="grid grid-cols-5 gap-2"
+                >
+                  <div>
+                    <span className={labelClass}>Forma Pagamento</span>
+                    <select
+                      value={forma.forma}
+                      onChange={(e) =>
+                        atualizarForma(forma.id, { forma: e.target.value })
+                      }
+                      className={selectClass}
+                    >
+                      <option value="" />
+                      <option value="Pix">Pix</option>
+                      <option value="Dinheiro">Dinheiro</option>
+                      <option value="Cartão de Crédito">Cartão de Crédito</option>
+                      <option value="Cartão de Débito">Cartão de Débito</option>
+                      <option value="Boleto">Boleto</option>
+                      <option value="Transferência">Transferência</option>
+                    </select>
+                  </div>
+                  <div>
+                    <span className={labelClass}>Conta</span>
+                    <select
+                      value={forma.conta}
+                      onChange={(e) =>
+                        atualizarForma(forma.id, { conta: e.target.value })
+                      }
+                      className={selectClass}
+                    >
+                      <option>Caixa Principal</option>
+                      <option>Conta Bancária</option>
+                    </select>
+                  </div>
+                  <div>
+                    <span className={labelClass}>Valor</span>
+                    <input
+                      type="text"
+                      value={forma.valor}
+                      onChange={(e) =>
+                        atualizarForma(forma.id, {
+                          valor: formatMoneyInput(e.target.value),
+                        })
+                      }
+                      className={cn(inputClass, "text-right")}
+                    />
+                  </div>
+                  <div>
+                    <span className={labelClass}>Juros</span>
+                    <input
+                      type="text"
+                      value={forma.juros}
+                      onChange={(e) =>
+                        atualizarForma(forma.id, {
+                          juros: formatMoneyInput(e.target.value),
+                        })
+                      }
+                      className={cn(inputClass, "text-right")}
+                    />
+                  </div>
+                  <div>
+                    <span className={labelClass}>Total Pagamento</span>
+                    <input
+                      type="text"
+                      readOnly
+                      value={money(totalLinha)}
+                      className={cn(inputClass, "bg-slate-50 text-right")}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+
+            <div className="mt-3 flex items-center justify-between gap-4">
+              <button
+                type="button"
+                onClick={() =>
+                  setFormas((lista) => [...lista, novaFormaPagamento("0,00")])
+                }
+                className="inline-flex items-center gap-1 rounded-sm border border-[#4cae4c] bg-[#4cae4c] px-3 py-1.5 text-[12px] font-normal text-white hover:bg-[#449d44]"
               >
-                <div>
-                  <span className={labelClass}>Forma Pagamento</span>
-                  <select
-                    value={forma.forma}
-                    onChange={(e) =>
-                      atualizarForma(forma.id, { forma: e.target.value })
-                    }
-                    className={selectClass}
-                  >
-                    <option value="">Selecione</option>
-                    <option value="Pix">Pix</option>
-                    <option value="Dinheiro">Dinheiro</option>
-                    <option value="Cartão de Crédito">Cartão de Crédito</option>
-                    <option value="Cartão de Débito">Cartão de Débito</option>
-                    <option value="Boleto">Boleto</option>
-                    <option value="Transferência">Transferência</option>
-                  </select>
-                </div>
-                <div>
-                  <span className={labelClass}>Conta</span>
-                  <select
-                    value={forma.conta}
-                    onChange={(e) =>
-                      atualizarForma(forma.id, { conta: e.target.value })
-                    }
-                    className={selectClass}
-                  >
-                    <option>Caixa Principal</option>
-                    <option>Conta Bancária</option>
-                  </select>
-                </div>
-                <div>
-                  <span className={labelClass}>Valor</span>
-                  <input
-                    type="text"
-                    value={forma.valor}
-                    onChange={(e) =>
-                      atualizarForma(forma.id, {
-                        valor: formatMoneyInput(e.target.value),
-                      })
-                    }
-                    className={cn(inputClass, "text-right")}
-                  />
-                </div>
-                <div>
-                  <span className={labelClass}>Juros</span>
-                  <input
-                    type="text"
-                    value={forma.juros}
-                    onChange={(e) =>
-                      atualizarForma(forma.id, {
-                        juros: formatMoneyInput(e.target.value),
-                      })
-                    }
-                    className={cn(inputClass, "text-right")}
-                  />
-                </div>
-                <div>
-                  <span className={labelClass}>Total Pagamento</span>
-                  <input
-                    type="text"
-                    readOnly
-                    value={money(totalLinha)}
-                    className={cn(inputClass, "bg-slate-50 text-right")}
-                  />
-                </div>
+                <Plus className="h-3.5 w-3.5" />
+                Adicionar Forma de Pagamento
+              </button>
+              <div className="flex items-center gap-2">
+                <Toggle
+                  checked={anexarComprovante}
+                  onChange={() => setAnexarComprovante((v) => !v)}
+                />
+                <span className="text-[12px] text-slate-600">
+                  Deseja anexar comprovante após pagar?
+                </span>
               </div>
-            );
-          })}
-
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={() =>
-                setFormas((lista) => [
-                  ...lista,
-                  novaFormaPagamento("0,00"),
-                ])
-              }
-              className="inline-flex items-center gap-1.5 rounded border border-[#4cae4c] bg-[#4cae4c] px-3 py-1.5 text-[12px] font-normal text-white hover:bg-[#449d44]"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Adicionar Forma de Pagamento
-            </button>
-            <div className="flex items-center gap-2">
-              <Toggle
-                checked={anexarComprovante}
-                onChange={() => setAnexarComprovante((v) => !v)}
-              />
-              <span className="text-[12px] text-slate-600">
-                Deseja anexar comprovante após pagar?
-              </span>
             </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4">
+          <div className="mt-5 grid grid-cols-2 gap-3 pt-1">
             <button
               type="button"
               disabled={salvando}
               onClick={() => void confirmarPagamento()}
-              className="h-10 rounded bg-[#4a90d9] text-[13px] font-normal text-white hover:bg-[#3d7fc4] disabled:opacity-60"
+              className="h-10 rounded-sm bg-[#4a90d9] text-[13px] font-normal text-white hover:bg-[#3d7fc4] disabled:opacity-60"
             >
               {salvando ? "Confirmando…" : "Confirmar Pagamento"}
             </button>
@@ -491,7 +487,7 @@ export function PagarDespesaModal({
               type="button"
               disabled={salvando}
               onClick={onClose}
-              className="h-10 rounded border border-slate-300 bg-white text-[13px] font-normal text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              className="h-10 rounded-sm border border-slate-300 bg-white text-[13px] font-normal text-slate-700 hover:bg-slate-50 disabled:opacity-60"
             >
               Cancelar
             </button>

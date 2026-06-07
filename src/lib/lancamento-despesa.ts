@@ -487,30 +487,27 @@ export function extrairDadosPagarDespesa(
   let parcelasGrupo: ParcelaPagarDespesa[] = [];
 
   if (grupo.length > 1) {
-    parcelasGrupo = grupo
+    const ordenado = grupo
       .map((item) => {
         const pack = desempacotarDespesa(item.descricao);
         const { numero, total } = parcelaNumeros(pack.texto, pack.parcela);
-        return {
-          item,
-          numero,
-          total,
-          pack,
-        };
+        return { item, numero, total, pack };
       })
-      .sort((a, b) => a.numero - b.numero)
-      .map(({ item, numero, total, pack }) => ({
-        parcela: `${numero}/${total}`,
-        formaPagamento: item.formaPagamento?.trim() || "",
-        conta: pack.conta === "—" ? "" : pack.conta,
-        vencimento: item.data,
-        codigoBarrasPix: "",
-        valor: moneyBr(item.valor),
-        pago: item.status === "pago",
-        lancamentoId: item.id,
-        numero,
-        pagarAgora: item.id === lancamento.id && item.status !== "pago",
-      }));
+      .sort((a, b) => a.numero - b.numero);
+    const baseData = ordenado[0]?.item.data || lancamento.data;
+
+    parcelasGrupo = ordenado.map(({ item, numero, total }) => ({
+      parcela: `${numero}/${total}`,
+      formaPagamento: "",
+      conta: "",
+      vencimento: somarMesesData(baseData, numero - 1),
+      codigoBarrasPix: "",
+      valor: moneyBr(item.valor),
+      pago: item.status === "pago",
+      lancamentoId: item.id,
+      numero,
+      pagarAgora: item.id === lancamento.id && item.status !== "pago",
+    }));
   } else {
     const pack = desempacotarDespesa(lancamento.descricao);
     const { numero: numAtual, total } = parcelaNumeros(pack.texto, pack.parcela);
@@ -521,13 +518,9 @@ export function extrairDadosPagarDespesa(
         const isAtual = n === numAtual;
         parcelasGrupo.push({
           parcela: `${n}/${total}`,
-          formaPagamento: isAtual
-            ? lancamento.formaPagamento?.trim() || ""
-            : "",
-          conta: isAtual ? (pack.conta === "—" ? "" : pack.conta) : "",
-          vencimento: isAtual
-            ? lancamento.data
-            : somarMesesData(lancamento.data, n - numAtual),
+          formaPagamento: "",
+          conta: "",
+          vencimento: somarMesesData(lancamento.data, n - 1),
           codigoBarrasPix: "",
           valor: moneyBr(valorParcela),
           pago: isAtual && lancamento.status === "pago",
@@ -541,7 +534,7 @@ export function extrairDadosPagarDespesa(
         {
           parcela: "1/1",
           formaPagamento: lancamento.formaPagamento?.trim() || "",
-          conta: pack.conta === "—" ? "" : pack.conta,
+          conta: "",
           vencimento: lancamento.data,
           codigoBarrasPix: "",
           valor: moneyBr(lancamento.valor),
