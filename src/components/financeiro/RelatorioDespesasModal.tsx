@@ -5,7 +5,6 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
 import { dateToBrShort } from "@/lib/datas-br";
-import { PdfViewerOverlay } from "@/components/PdfViewerOverlay";
 import {
   filtrarLinhasRelatorio,
   gerarRelatorioDespesasBlob,
@@ -31,6 +30,7 @@ type Props = {
   open: boolean;
   onClose: () => void;
   lancamentos: Lancamento[];
+  onPdfGerado?: (url: string, titulo: string) => void;
 };
 
 const labelClass = "mb-1 block text-[11px] font-medium text-slate-600";
@@ -114,7 +114,12 @@ function CampoSelect({
   );
 }
 
-export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
+export function RelatorioDespesasModal({
+  open,
+  onClose,
+  lancamentos,
+  onPdfGerado,
+}: Props) {
   const { inicio: inicioPadrao, fim: fimPadrao } = periodoMesAtual();
   const [portalPronto, setPortalPronto] = useState(false);
 
@@ -133,7 +138,7 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
     null
   );
   const [gerandoPdf, setGerandoPdf] = useState(false);
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [erroPdf, setErroPdf] = useState("");
 
   useEffect(() => {
     setPortalPronto(true);
@@ -151,13 +156,8 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
     setPeriodoCampo("data_lancamento");
     setModelo("despesas-modelo-1");
     setCalendarioAberto(null);
-    setPdfUrl(null);
+    setErroPdf("");
   }, [open]);
-
-  function fecharPdfViewer() {
-    if (pdfUrl?.startsWith("blob:")) URL.revokeObjectURL(pdfUrl);
-    setPdfUrl(null);
-  }
 
   const linhasBase = useMemo(
     () => linhasRelatorioFromLancamentos(lancamentos),
@@ -195,6 +195,7 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
     const periodoLabel = `${periodoCampo === "data_lancamento" ? "Data Lançamento" : "Data Vencimento"}: ${dataInicio} a ${dataFinal}`;
 
     setGerandoPdf(true);
+    setErroPdf("");
     void (async () => {
       try {
         const blob = await gerarRelatorioDespesasBlob(ordenadas, modeloLabel, periodoLabel, {
@@ -203,11 +204,12 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
           dataInicio,
           dataFinal,
         });
-        if (pdfUrl?.startsWith("blob:")) URL.revokeObjectURL(pdfUrl);
-        setPdfUrl(URL.createObjectURL(blob));
+        const url = URL.createObjectURL(blob);
+        onPdfGerado?.(url, modeloLabel);
+        onClose();
       } catch (err) {
         console.error("relatorio despesas pdf", err);
-        alert("Não foi possível gerar o PDF do relatório de despesas.");
+        setErroPdf("Não foi possível gerar o PDF. Tente novamente.");
       } finally {
         setGerandoPdf(false);
       }
@@ -356,6 +358,12 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
             </div>
           </div>
 
+          {erroPdf ? (
+            <p className="mt-3 rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+              {erroPdf}
+            </p>
+          ) : null}
+
           <div className="mt-5 space-y-2 border-t border-slate-100 pt-4">
             <button
               type="button"
@@ -378,17 +386,5 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
     </div>
   );
 
-  return (
-    <>
-      {open ? createPortal(conteudo, document.body) : null}
-      {pdfUrl ? (
-        <PdfViewerOverlay
-          url={pdfUrl}
-          titulo={modeloLabel}
-          nomeArquivo="relatorio-despesas.pdf"
-          onClose={fecharPdfViewer}
-        />
-      ) : null}
-    </>
-  );
+  return createPortal(conteudo, document.body);
 }

@@ -5,6 +5,7 @@ import {
 } from "@/lib/lancamento-despesa";
 import { parseBrDate } from "@/lib/datas-br";
 import { abrirPdfNoVisualizador } from "@/lib/pdf-viewer";
+import { gerarRelatorioDespesasModelo1Pdf } from "@/lib/pdf-relatorio-despesas-modelo1";
 import { formatDate } from "@/lib/utils";
 
 export type FiltroRelatorioDespesas = {
@@ -167,9 +168,6 @@ export async function gerarRelatorioDespesasBlob(
   opcoes?: OpcoesImpressaoRelatorioDespesas
 ) {
   if (opcoes?.modelo === "despesas-modelo-1") {
-    const { gerarRelatorioDespesasModelo1Pdf } = await import(
-      "@/lib/pdf-relatorio-despesas-modelo1"
-    );
     return gerarRelatorioDespesasModelo1Pdf(linhas, {
       periodoCampo: opcoes.periodoCampo,
       dataInicio: opcoes.dataInicio,

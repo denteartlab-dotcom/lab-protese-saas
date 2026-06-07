@@ -1,3 +1,4 @@
+import { jsPDF } from "jspdf";
 import type { LinhaRelatorioDespesa } from "@/lib/relatorio-despesas";
 import { desenharCabecalhoLabRelatorioPdf } from "@/lib/pdf-lab-cabecalho";
 import {
@@ -71,11 +72,10 @@ function desenharCabecalhoDespesasModelo1(ctx: ContextoTabelaFaturasSmart, titul
   ctx.y += 10;
 }
 
-export async function gerarRelatorioDespesasModelo1Pdf(
+export function gerarRelatorioDespesasModelo1Pdf(
   linhas: LinhaRelatorioDespesa[],
   opcoes: OpcoesRelatorioDespesasModelo1
-): Promise<Blob> {
-  const { jsPDF } = await import("jspdf");
+): Blob {
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
   const ctx = criarContextoTabelaFaturasSmart(pdf, COLUNAS);
 
