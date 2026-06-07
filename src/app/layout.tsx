@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { AppVersionWatcher } from "@/components/AppVersionWatcher";
 import { LabConfigProvider } from "@/components/LabConfigProvider";
 import { LabDocumentHead } from "@/components/LabDocumentHead";
 import { SiteTopoMarca } from "@/components/SiteTopoMarca";
@@ -82,6 +83,7 @@ export default async function RootLayout({
         />
       </head>
       <body>
+        <AppVersionWatcher />
         <LabConfigProvider lab={lab} configLaboratorio={configLaboratorio}>
           <LabDocumentHead />
           <div className="flex min-h-screen flex-col">

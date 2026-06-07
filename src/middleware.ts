@@ -67,12 +67,8 @@ export function middleware(request: NextRequest) {
 
   if (!needsAuth) {
     const res = NextResponse.next();
-    if (
-      pathname.startsWith("/_next/static") ||
-      pathname.startsWith("/uploads/") ||
-      pathname.match(/\.(png|jpg|jpeg|gif|webp|svg|ico|woff2?)$/i)
-    ) {
-      res.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    if (pathname.match(/\.(png|jpg|jpeg|gif|webp|svg|ico|woff2?)$/i)) {
+      res.headers.set("Cache-Control", "public, max-age=86400, must-revalidate");
     }
     return res;
   }
@@ -89,6 +85,10 @@ export function middleware(request: NextRequest) {
 
   const res = NextResponse.next();
   res.headers.set("X-Content-Type-Options", "nosniff");
+  if (pathname.startsWith("/api")) {
+    res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.headers.set("Pragma", "no-cache");
+  }
   return res;
 }
 

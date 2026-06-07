@@ -1,3 +1,5 @@
+import { APP_BUILD_ID } from "@/lib/app-build-id";
+
 export const DENTES_DECIDUOS_SUPERIORES = [
   "55",
   "54",
@@ -42,8 +44,9 @@ export function tipoDenticaoFromNumerosDentes(valores: string[]): "permanente" |
 }
 
 export function urlImagemDente(numero: string, tipoDenticao: "permanente" | "deciduos") {
+  const versao = APP_BUILD_ID !== "dev" ? `?v=${APP_BUILD_ID}` : "";
   if (tipoDenticao === "deciduos") {
-    return `/dentes-deciduos/dente-${numero}.png`;
+    return `/dentes-deciduos/dente-${numero}.png${versao}`;
   }
-  return `/dentes/dente-${numero}.png`;
+  return `/dentes/dente-${numero}.png${versao}`;
 }

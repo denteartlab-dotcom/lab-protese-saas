@@ -19,7 +19,7 @@ export async function GET(_request: Request, { params }: Params) {
     headers: {
       "Content-Type": arquivo.mimeType,
       "Content-Length": String(arquivo.tamanho),
-      "Cache-Control": "private, max-age=31536000, immutable",
+      "Cache-Control": "private, no-cache, must-revalidate",
       "Content-Disposition": `inline; filename="${encodeURIComponent(arquivo.nome)}"`,
     },
   });

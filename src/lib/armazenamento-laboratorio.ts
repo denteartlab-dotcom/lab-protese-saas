@@ -147,6 +147,7 @@ async function enviarMigracaoLocal(entradas: Record<string, unknown>) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "same-origin",
+      cache: "no-store",
       body: JSON.stringify({ entradas }),
     });
   } catch {
@@ -170,6 +171,7 @@ async function flushSalvarPendentes() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "same-origin",
+      cache: "no-store",
       body: JSON.stringify({ entradas, sobrescrever: true }),
     });
   } catch (err) {
@@ -189,6 +191,25 @@ function agendarSalvar(key: string, valor: unknown) {
   }, 280);
 }
 
+async function carregarBootstrapServidor(legado: Record<string, unknown>) {
+  try {
+    const res = await fetch("/api/armazenamento/bootstrap", {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    if (res.ok) {
+      const json = (await res.json()) as { data?: Record<string, unknown> };
+      if (json.data && typeof json.data === "object") {
+        aplicarBootstrap(json.data);
+        return;
+      }
+    }
+  } catch {
+    /* sem rede */
+  }
+  aplicarBootstrap(legado);
+}
+
 /** Carrega dados do banco e migra resquícios do localStorage (uma vez). */
 export async function inicializarArmazenamentoLaboratorio() {
   if (typeof window === "undefined") return;
@@ -198,23 +219,7 @@ export async function inicializarArmazenamentoLaboratorio() {
   hidratando = (async () => {
     const legado = coletarMigracaoLocal();
     await enviarMigracaoLocal(legado);
-
-    try {
-      const res = await fetch("/api/armazenamento/bootstrap", {
-        credentials: "same-origin",
-        cache: "no-store",
-      });
-      if (res.ok) {
-        const json = (await res.json()) as { data?: Record<string, unknown> };
-        if (json.data && typeof json.data === "object") {
-          aplicarBootstrap(json.data);
-        }
-      }
-    } catch {
-      /* sem rede: usa só o que foi migrado nesta sessão */
-      aplicarBootstrap(legado);
-    }
-
+    await carregarBootstrapServidor(legado);
     hidratado = true;
     dispararPronto();
   })().finally(() => {
@@ -222,6 +227,12 @@ export async function inicializarArmazenamentoLaboratorio() {
   });
 
   return hidratando;
+}
+
+/** Atualiza o cache em memória com dados mais recentes do servidor. */
+export async function revalidarArmazenamentoLaboratorio() {
+  if (typeof window === "undefined" || !hidratado) return;
+  await carregarBootstrapServidor({});
 }
 
 export function lerArmazenamentoCache<T>(key: string, fallback: T): T {
