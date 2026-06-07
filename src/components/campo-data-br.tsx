@@ -72,6 +72,9 @@ export function CampoDataBr({
   inputClassName,
   onValueChange,
   disabled = false,
+  calendarZIndex = 9999,
+  onCalendarOpenChange,
+  forceClose = false,
 }: {
   label?: string;
   value: string;
@@ -85,6 +88,11 @@ export function CampoDataBr({
   /** Chamado após alterar o valor (digitação, seleção ou limpar). */
   onValueChange?: (value: string) => void;
   disabled?: boolean;
+  /** z-index do painel do calendário em portal (acima de modais). */
+  calendarZIndex?: number;
+  onCalendarOpenChange?: (open: boolean) => void;
+  /** Fecha o calendário quando outro campo de data abre no mesmo formulário. */
+  forceClose?: boolean;
 }) {
   const [aberto, setAberto] = useState(false);
   const [mesCalendario, setMesCalendario] = useState(new Date());
@@ -103,16 +111,26 @@ export function CampoDataBr({
     setPosicao(calcularPosicaoCalendario(anchorRef.current));
   }, []);
 
+  function definirAberto(proximo: boolean) {
+    setAberto(proximo);
+    onCalendarOpenChange?.(proximo);
+  }
+
   function abrirCalendario() {
     const date = parseBrDate(value);
     setMesCalendario(date || new Date());
     if (!aberto) {
       atualizarPosicao();
-      setAberto(true);
+      definirAberto(true);
     } else {
-      setAberto(false);
+      definirAberto(false);
     }
   }
+
+  useEffect(() => {
+    if (forceClose && aberto) definirAberto(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só reage a forceClose
+  }, [forceClose]);
 
   useEffect(() => {
     if (!aberto || !usarPortal) return;
@@ -127,13 +145,16 @@ export function CampoDataBr({
 
   function selecionarData(date: Date) {
     aplicarValor(dateToBrShort(date));
-    setAberto(false);
+    definirAberto(false);
   }
 
   function limparData() {
     aplicarValor("");
-    setAberto(false);
+    definirAberto(false);
   }
+
+  const zPainel = calendarZIndex;
+  const zBackdrop = calendarZIndex - 1;
 
   const dataSelecionada = parseBrDate(value);
 
@@ -247,13 +268,14 @@ export function CampoDataBr({
               <>
                 <button
                   type="button"
-                  className="fixed inset-0 z-[9998] cursor-default bg-transparent"
+                  className="fixed inset-0 cursor-default bg-transparent"
+                  style={{ zIndex: zBackdrop }}
                   aria-label="Fechar calendário"
-                  onClick={() => setAberto(false)}
+                  onClick={() => definirAberto(false)}
                 />
                 <div
-                  className="fixed z-[9999]"
-                  style={{ top: posicao.top, left: posicao.left }}
+                  className="fixed"
+                  style={{ top: posicao.top, left: posicao.left, zIndex: zPainel }}
                   role="dialog"
                   aria-label="Calendário"
                 >

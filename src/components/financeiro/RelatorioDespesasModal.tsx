@@ -39,6 +39,26 @@ const selectClass =
 const dataInputClass =
   "h-9 w-full rounded-sm border border-slate-300 bg-white pl-8 pr-2 text-[12px] text-slate-800 shadow-none outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]";
 
+const MODELOS_RELATORIO = [
+  { value: "despesas-modelo-1", label: "Despesas - Modelo 1" },
+  { value: "despesas-modelo-2", label: "Despesas - Modelo 2 (período)" },
+  { value: "despesas-modelo-3", label: "Despesas - Modelo 3 (completo)" },
+  { value: "parcelas-a-pagar-1", label: "Parcelas (A Pagar) Modelo 1" },
+  { value: "parcelas-a-pagar-2", label: "Parcelas (A Pagar) Modelo 2" },
+  { value: "parcelas-pagas", label: "Parcelas (Pagas)" },
+] as const;
+
+const CATEGORIAS_ENTIDADE = [
+  { value: "todos", label: "Todos" },
+  { value: "fornecedores", label: "Fornecedores" },
+  { value: "colaboradores", label: "Colaboradores" },
+  { value: "prestadores", label: "Prestadores" },
+  { value: "entregadores", label: "Entregadores" },
+  { value: "clientes", label: "Clientes" },
+] as const;
+
+const Z_CALENDARIO_MODAL = 10050;
+
 function periodoMesAtual() {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
@@ -109,6 +129,9 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
     useState<FiltroRelatorioDespesas["periodoCampo"]>("data_lancamento");
   const [dataInicio, setDataInicio] = useState(inicioPadrao);
   const [dataFinal, setDataFinal] = useState(fimPadrao);
+  const [calendarioAberto, setCalendarioAberto] = useState<"inicio" | "final" | null>(
+    null
+  );
 
   useEffect(() => {
     setPortalPronto(true);
@@ -125,6 +148,7 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
     setOrdenarPor("data_lancamento");
     setPeriodoCampo("data_lancamento");
     setModelo("despesas-modelo-1");
+    setCalendarioAberto(null);
   }, [open]);
 
   const linhasBase = useMemo(
@@ -132,21 +156,21 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
     [lancamentos]
   );
 
-  const categorias = useMemo(() => {
-    const set = new Set<string>();
-    for (const l of linhasBase) {
-      if (l.categoria && l.categoria !== "—") set.add(l.categoria);
-    }
-    return ["todos", ...Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"))];
-  }, [linhasBase]);
-
   const nomes = useMemo(() => {
     const set = new Set<string>();
     for (const l of linhasBase) {
+      if (categoria !== "todos" && l.entidade !== categoria) continue;
       if (l.nome && l.nome !== "—") set.add(l.nome);
     }
     return ["todos", ...Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"))];
-  }, [linhasBase]);
+  }, [linhasBase, categoria]);
+
+  useEffect(() => {
+    if (nome !== "todos" && !nomes.includes(nome)) setNome("todos");
+  }, [nome, nomes]);
+
+  const modeloLabel =
+    MODELOS_RELATORIO.find((item) => item.value === modelo)?.label ?? modelo;
 
   function imprimir() {
     const janela = prepararAbaPdf();
@@ -161,8 +185,6 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
     };
     const filtradas = filtrarLinhasRelatorio(linhasBase, filtro);
     const ordenadas = ordenarLinhasRelatorio(filtradas, ordenarPor);
-    const modeloLabel =
-      modelo === "despesas-modelo-1" ? "Despesas - Modelo 1" : modelo;
     const periodoLabel = `${periodoCampo === "data_lancamento" ? "Data Lançamento" : "Data Vencimento"}: ${dataInicio} a ${dataFinal}`;
     void imprimirRelatorioDespesas(ordenadas, modeloLabel, periodoLabel, janela).catch(
       () => {
@@ -210,7 +232,11 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
               value={modelo}
               onChange={setModelo}
             >
-              <option value="despesas-modelo-1">Despesas - Modelo 1</option>
+              {MODELOS_RELATORIO.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
             </CampoSelect>
 
             <CampoSelect
@@ -248,9 +274,9 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
               value={categoria}
               onChange={setCategoria}
             >
-              {categorias.map((c) => (
-                <option key={c} value={c}>
-                  {c === "todos" ? "Todos" : c}
+              {CATEGORIAS_ENTIDADE.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
                 </option>
               ))}
             </CampoSelect>
@@ -284,6 +310,11 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
                 iconPosition="left"
                 className="space-y-0"
                 inputClassName={dataInputClass}
+                calendarZIndex={Z_CALENDARIO_MODAL}
+                forceClose={calendarioAberto === "final"}
+                onCalendarOpenChange={(aberto) =>
+                  setCalendarioAberto(aberto ? "inicio" : null)
+                }
               />
             </div>
 
@@ -295,6 +326,11 @@ export function RelatorioDespesasModal({ open, onClose, lancamentos }: Props) {
                 iconPosition="left"
                 className="space-y-0"
                 inputClassName={dataInputClass}
+                calendarZIndex={Z_CALENDARIO_MODAL}
+                forceClose={calendarioAberto === "inicio"}
+                onCalendarOpenChange={(aberto) =>
+                  setCalendarioAberto(aberto ? "final" : null)
+                }
               />
             </div>
           </div>

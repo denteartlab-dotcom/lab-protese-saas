@@ -1,4 +1,8 @@
-import { desempacotarDespesa } from "@/lib/lancamento-despesa";
+import {
+  classificarEntidadeDespesa,
+  desempacotarDespesa,
+  type EntidadeDespesa,
+} from "@/lib/lancamento-despesa";
 import { parseBrDate } from "@/lib/datas-br";
 import { abrirPdfNoVisualizador } from "@/lib/pdf-viewer";
 import { formatDate } from "@/lib/utils";
@@ -19,12 +23,25 @@ export type LinhaRelatorioDespesa = {
   nome: string;
   referencia: string;
   categoria: string;
+  entidade: EntidadeDespesa;
   formaPagamento: string;
   valor: number;
   conta: string;
   status: string;
   dataOrdenacao: Date;
 };
+
+const ENTIDADES_RELATORIO: EntidadeDespesa[] = [
+  "fornecedores",
+  "colaboradores",
+  "prestadores",
+  "entregadores",
+  "clientes",
+];
+
+export function entidadeRelatorioValida(value: string): value is EntidadeDespesa {
+  return ENTIDADES_RELATORIO.includes(value as EntidadeDespesa);
+}
 
 type LancamentoRelatorio = {
   id: string;
@@ -34,7 +51,7 @@ type LancamentoRelatorio = {
   data: string;
   status: string;
   formaPagamento?: string | null;
-  cliente?: { nome: string } | null;
+  cliente?: { id?: string; nome: string } | null;
   trabalho?: { numeroOs: number } | null;
 };
 
@@ -57,12 +74,21 @@ export function linhasRelatorioFromLancamentos(
       const ref =
         l.trabalho?.numeroOs != null ? `OS ${l.trabalho.numeroOs}` : pack.referencia;
       const dataLanc = dateOnly(l.data);
+      const entidade =
+        pack.meta.entidade ||
+        classificarEntidadeDespesa(pack.nome, Boolean(l.cliente?.id), {
+          fornecedores: [],
+          colaboradores: [],
+          prestadores: [],
+          entregadores: [],
+        });
       return {
         vencimento: formatDate(l.data),
         parcela: pack.parcela,
         nome: l.cliente?.nome || pack.nome,
         referencia: ref,
         categoria: pack.categoria,
+        entidade,
         formaPagamento: l.formaPagamento || "—",
         valor: l.valor,
         conta: pack.conta,
@@ -94,8 +120,12 @@ export function filtrarLinhasRelatorio(
       if (linha.status !== "pendente" || dataRef >= hoje) return false;
     }
 
-    if (filtro.categoria !== "todos" && linha.categoria !== filtro.categoria) {
-      return false;
+    if (filtro.categoria !== "todos") {
+      if (entidadeRelatorioValida(filtro.categoria)) {
+        if (linha.entidade !== filtro.categoria) return false;
+      } else if (linha.categoria !== filtro.categoria) {
+        return false;
+      }
     }
     if (filtro.nome !== "todos" && linha.nome !== filtro.nome) return false;
 
