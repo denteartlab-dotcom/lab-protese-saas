@@ -755,14 +755,14 @@ export function ContasPagarConteudo() {
         </div>
 
         <div className="border-b border-slate-200 px-3 py-3">
-          <div className="flex flex-wrap items-end gap-x-3 gap-y-3">
-            <div className="w-[148px] shrink-0">
+          <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+            <div className="w-[140px] shrink-0">
               <span className={filtroLabelClass}>Tipo Despesa</span>
               <div className="relative">
                 <select
                   value={tipoDespesa}
                   onChange={(e) => setTipoDespesa(e.target.value)}
-                  className={cn(filtroInputClass, "appearance-none pr-8")}
+                  className={cn(filtroInputClass, "appearance-none pr-8 text-[12px]")}
                 >
                   <option value="a_pagar">A Pagar</option>
                   <option value="pagas">Pagas</option>
@@ -787,85 +787,81 @@ export function ContasPagarConteudo() {
             </div>
 
             {entidadeAtiva !== "todos" ? (
-              <div className="w-[160px] shrink-0">
+              <div className="w-[155px] shrink-0">
                 <span className={filtroLabelClass}>
                   {rotuloVinculoEntidade[entidadeAtiva]}
                 </span>
-                <select
-                  value={vinculoSelecionado}
-                  onChange={(e) => setVinculoSelecionado(e.target.value)}
-                  className={cn(filtroInputClass, "appearance-none")}
-                >
-                  <option value="">
-                    {entidadeAtiva === "fornecedores"
-                      ? "Fornecedores"
-                      : entidadeAtiva === "colaboradores"
-                        ? "Colaboradores"
-                        : entidadeAtiva === "prestadores"
-                          ? "Prestadores"
-                          : entidadeAtiva === "entregadores"
-                            ? "Entregadores"
-                            : "Clientes"}
-                  </option>
-                  {entidadesVinculo.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.nome}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    value={vinculoSelecionado}
+                    onChange={(e) => setVinculoSelecionado(e.target.value)}
+                    className={cn(filtroInputClass, "appearance-none pr-6 text-[12px]")}
+                  >
+                    <option value="" />
+                    {entidadesVinculo.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.nome}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400">
+                    ▾
+                  </span>
+                </div>
               </div>
             ) : null}
 
-            <div className="w-[132px] shrink-0">
+            <div className="shrink-0">
               <span className={filtroLabelClass}>Período</span>
-              <select
-                value={periodo}
-                onChange={(e) => aplicarPeriodo(e.target.value)}
-                className={filtroInputClass}
-              >
-                <option value="hoje">Hoje</option>
-                <option value="semana">Esta Semana</option>
-                <option value="mes">Este Mês</option>
-                <option value="todos">Mostrar Todos</option>
-                <option value="outro">Outro Período</option>
-              </select>
+              <div className="flex items-center gap-1.5">
+                <select
+                  value={periodo}
+                  onChange={(e) => aplicarPeriodo(e.target.value)}
+                  className={cn(filtroInputClass, "w-[118px] shrink-0 text-[12px]")}
+                >
+                  <option value="hoje">Hoje</option>
+                  <option value="semana">Esta Semana</option>
+                  <option value="mes">Este Mês</option>
+                  <option value="todos">Mostrar Todos</option>
+                  <option value="outro">Outro Período</option>
+                </select>
+                <div className="w-[108px] shrink-0">
+                  <CampoDataBr
+                    value={dataInicio}
+                    onChange={setDataInicio}
+                    onValueChange={() => setPeriodo("outro")}
+                    placeholder="dd/mm/aa"
+                    iconPosition="left"
+                    className="space-y-0"
+                    inputClassName="h-9 w-full rounded border border-slate-300 bg-white pl-8 pr-2 text-[12px] text-slate-800 shadow-none outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]"
+                  />
+                </div>
+                <div className="w-[108px] shrink-0">
+                  <CampoDataBr
+                    value={dataFinal}
+                    onChange={setDataFinal}
+                    onValueChange={() => setPeriodo("outro")}
+                    placeholder="dd/mm/aa"
+                    iconPosition="left"
+                    className="space-y-0"
+                    inputClassName="h-9 w-full rounded border border-slate-300 bg-white pl-8 pr-2 text-[12px] text-slate-800 shadow-none outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]"
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="w-[108px] shrink-0">
-              <span className={filtroLabelClass}>Data</span>
-              <CampoDataBr
-                value={dataInicio}
-                onChange={setDataInicio}
-                onValueChange={() => setPeriodo("outro")}
-                placeholder="dd/mm/aa"
-                iconPosition="left"
-                className="space-y-0"
-                inputClassName="h-9 w-full rounded border border-slate-300 bg-white pl-8 pr-2.5 text-[12px] text-slate-800 shadow-none outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]"
-              />
-            </div>
-            <div className="w-[108px] shrink-0">
-              <span className={filtroLabelClass}>Data</span>
-              <CampoDataBr
-                value={dataFinal}
-                onChange={setDataFinal}
-                onValueChange={() => setPeriodo("outro")}
-                placeholder="dd/mm/aa"
-                iconPosition="left"
-                className="space-y-0"
-                inputClassName="h-9 w-full rounded border border-slate-300 bg-white pl-8 pr-2.5 text-[12px] text-slate-800 shadow-none outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]"
-              />
-            </div>
-
-            <div className="min-w-[200px] flex-1">
-              <span className={filtroLabelClass}>Procurar</span>
+            <div className="min-w-[220px] flex-1">
+              <span className={cn(filtroLabelClass, "inline-flex items-center gap-1")}>
+                <Search className="h-3 w-3 text-slate-500" />
+                Procurar
+              </span>
               <div className="relative">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
                   placeholder="Procurar"
-                  className="h-9 w-full rounded border border-slate-300 bg-white py-1 pl-8 pr-[72px] text-[12px] text-slate-800 outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]"
+                  className="h-9 w-full rounded border border-slate-300 bg-white py-1 pl-2.5 pr-[72px] text-[12px] text-slate-800 outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]"
                 />
                 <button
                   type="button"
