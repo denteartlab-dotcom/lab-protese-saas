@@ -191,6 +191,19 @@ export async function gerarRelatorioDespesasBlob(
     });
   }
 
+  if (opcoes?.modelo === "despesas-modelo-3" && opcoes.lancamentos) {
+    const { gerarRelatorioDespesasModelo3Pdf } = await import(
+      "@/lib/pdf-relatorio-despesas-modelo3"
+    );
+    return gerarRelatorioDespesasModelo3Pdf({
+      periodoCampo: opcoes.periodoCampo,
+      dataInicio: opcoes.dataInicio,
+      dataFinal: opcoes.dataFinal,
+      lancamentos: opcoes.lancamentos,
+      idsIncluidos: new Set(linhas.map((l) => l.id)),
+    });
+  }
+
   const { gerarRelatorioDespesasPdf } = await import("@/lib/relatorios-impressao-pdf");
   return gerarRelatorioDespesasPdf(linhas, tituloModelo, periodoLabel, opcoes);
 }

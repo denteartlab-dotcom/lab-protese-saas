@@ -51,13 +51,13 @@ function formatarParcelaLabel(numero: number, total: number) {
   return `${numero} / ${total}`;
 }
 
-function dataBrDeIso(iso: string) {
+export function dataBrDeIso(iso: string) {
   const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (!match) return formatDate(iso);
   return `${match[3]}/${match[2]}/${match[1]}`;
 }
 
-function numeroDespesaDoGrupo(
+export function numeroDespesaDoGrupo(
   grupo: LancamentoDespesaGrupo[],
   indice: number
 ) {
@@ -71,7 +71,7 @@ function numeroDespesaDoGrupo(
   return String(indice + 1).padStart(3, "0");
 }
 
-function parcelasDoGrupo(grupo: LancamentoDespesaGrupo[]): ParcelaDespesaModelo2[] {
+export function parcelasDoGrupo(grupo: LancamentoDespesaGrupo[]): ParcelaDespesaModelo2[] {
   if (grupo.length > 1) {
     return grupo
       .map((item) => {
