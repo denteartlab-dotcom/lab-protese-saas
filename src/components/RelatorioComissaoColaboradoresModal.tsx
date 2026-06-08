@@ -7,6 +7,7 @@ import { CampoDataBr } from "@/components/campo-data-br";
 import type { LinhaComissaoColaborador } from "@/lib/comissoes-colaboradores";
 import { gerarRelatorioComissaoColaboradoresModelo1Pdf } from "@/lib/pdf-relatorio-comissao-colaboradores-modelo1";
 import { gerarRelatorioComissaoColaboradoresModelo2Pdf } from "@/lib/pdf-relatorio-comissao-colaboradores-modelo2";
+import { gerarRelatorioComissaoColaboradoresModeloAgrupadoServicoPdf } from "@/lib/pdf-relatorio-comissao-colaboradores-modelo-agrupado-servico";
 import { prepararAbaPdf, abrirPdfNoVisualizador } from "@/lib/pdf-viewer";
 import {
   filtrarLinhasRelatorioComissao,
@@ -49,6 +50,7 @@ const Z_CALENDARIO_MODAL = 10050;
 const MODELOS_RELATORIO: { value: ModeloRelatorioComissao; label: string }[] = [
   { value: "modelo-1", label: "Modelo 1" },
   { value: "modelo-2", label: "Modelo 2" },
+  { value: "modelo-agrupado-servico", label: "Modelo Agrupado por Serviço" },
 ];
 
 function CampoSelect({
@@ -221,7 +223,12 @@ export function RelatorioComissaoColaboradoresModal({
       const blob =
         filtro.modelo === "modelo-2"
           ? await gerarRelatorioComissaoColaboradoresModelo2Pdf(ordenadas, filtro)
-          : await gerarRelatorioComissaoColaboradoresModelo1Pdf(ordenadas, filtro);
+          : filtro.modelo === "modelo-agrupado-servico"
+            ? await gerarRelatorioComissaoColaboradoresModeloAgrupadoServicoPdf(
+                ordenadas,
+                filtro
+              )
+            : await gerarRelatorioComissaoColaboradoresModelo1Pdf(ordenadas, filtro);
       abrirPdfNoVisualizador(
         blob,
         "relatorio-comissao.pdf",
@@ -396,7 +403,7 @@ export function RelatorioComissaoColaboradoresModal({
           <div className="mt-3 flex flex-wrap items-end gap-4">
             <div className="min-w-[140px] flex-1 sm:max-w-[200px]">
               <CampoSelect
-                label="Modelo Relatórios"
+                label="Modelo Relatório"
                 value={modelo}
                 onChange={(value) => setModelo(value as ModeloRelatorioComissao)}
               >
