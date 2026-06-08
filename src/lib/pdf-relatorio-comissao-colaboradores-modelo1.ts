@@ -32,44 +32,54 @@ function tituloRelatorioComissaoModelo1(
   return `Relatório de Comissões - ${periodo} (Serviço)`;
 }
 
-function valorEntrega(data: string) {
-  return data === "—" ? "" : data;
+function textoCelula(valor: string) {
+  const limpo = (valor || "").trim();
+  return limpo === "—" || limpo === "-" ? "" : limpo;
 }
 
-/** Layout fixo do Smart Prótese — Modelo 1 (não altera colunas pelos checkboxes). */
+/** Proporções Smart Prótese — Modelo 1 (layout fixo da foto). */
 const COLUNAS_MODELO1: ColunaComissaoPdf[] = [
   { titulo: "Os", larguraMm: 10, align: "left", valor: (l) => String(l.numeroOs) },
   {
     titulo: "Lançamento",
-    larguraMm: 18,
+    larguraMm: 20,
     align: "left",
-    valor: (l) => l.dataLancamento,
+    valor: (l) => textoCelula(l.dataLancamento),
   },
-  { titulo: "Qtd", larguraMm: 10, align: "center", valor: (l) => l.qtd },
-  { titulo: "Descrição", larguraMm: 30, align: "left", valor: (l) => l.servico },
-  { titulo: "Paciente", larguraMm: 18, align: "left", valor: (l) => l.paciente },
+  { titulo: "Qtd", larguraMm: 10, align: "left", valor: (l) => textoCelula(l.qtd) },
+  {
+    titulo: "Descrição",
+    larguraMm: 32,
+    align: "left",
+    valor: (l) => textoCelula(l.servico),
+  },
+  {
+    titulo: "Paciente",
+    larguraMm: 22,
+    align: "left",
+    valor: (l) => textoCelula(l.paciente),
+  },
   {
     titulo: "Situação",
-    larguraMm: 16,
+    larguraMm: 18,
     align: "left",
-    valor: (l) => l.situacao,
+    valor: (l) => textoCelula(l.situacao),
   },
   {
     titulo: "Entregue",
-    larguraMm: 16,
+    larguraMm: 18,
     align: "left",
-    valor: (l) => valorEntrega(l.dataEntrega),
+    valor: (l) => textoCelula(l.dataEntrega),
   },
   { titulo: "Desc", larguraMm: 12, align: "right", valor: () => "" },
   {
     titulo: "Comissão",
-    larguraMm: 14,
+    larguraMm: 16,
     align: "right",
     valor: (l) => moneyBr(l.comissaoValor),
   },
 ];
 
-/** A4 retrato: 210 mm de largura — escala colunas para ocupar a área útil. */
 function escalarColunasParaPaginaA4(
   colunas: ColunaComissaoPdf[],
   larguraUtilMm: number
@@ -83,10 +93,7 @@ function escalarColunasParaPaginaA4(
   }));
 }
 
-function criarCtx(
-  pdf: import("jspdf").jsPDF,
-  colunas: ColunaComissaoPdf[]
-): PdfCtx {
+function criarCtx(pdf: import("jspdf").jsPDF, colunas: ColunaComissaoPdf[]): PdfCtx {
   const margin = 10;
   const colX: number[] = [margin];
   for (let i = 0; i < colunas.length - 1; i++) {
@@ -98,59 +105,54 @@ function criarCtx(
     pageW: pdf.internal.pageSize.getWidth(),
     pageH: pdf.internal.pageSize.getHeight(),
     y: margin,
-    rowH: 5.8,
-    headerH: 6.5,
+    rowH: 5.5,
+    headerH: 6,
     colunas,
     colX,
     tableW: colunas.reduce((s, c) => s + c.larguraMm, 0),
   };
 }
 
-function desenharCabecalhoPagina(
-  ctx: PdfCtx,
-  titulo: string,
-  apenasLinha = false
-) {
+function linhaHorizontal(ctx: PdfCtx, y: number) {
+  ctx.pdf.setDrawColor(0, 0, 0);
+  ctx.pdf.setLineWidth(0.2);
+  ctx.pdf.line(ctx.margin, y, ctx.pageW - ctx.margin, y);
+}
+
+function desenharCabecalhoPagina(ctx: PdfCtx, titulo: string) {
   const { pdf, margin, pageW } = ctx;
   const lab = labImpressaoFromConfig();
-  const yInicio = margin;
+  let y = margin + 4;
 
-  if (!apenasLinha) {
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(8);
-    pdf.setTextColor(...PRETO);
-    pdf.text(formatDateTime(new Date()), pageW - margin, yInicio + 3.5, {
-      align: "right",
-    });
+  const nomeLab = lab.marca?.trim() || lab.responsavel?.trim() || "Laboratório";
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(11);
+  pdf.setTextColor(...PRETO);
+  pdf.text(nomeLab, pageW / 2, y, { align: "center" });
+  y += 5;
 
-    const nomeLab = lab.marca?.trim() || lab.responsavel?.trim() || "Laboratório";
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(11);
-    pdf.text(nomeLab, pageW / 2, yInicio + 4, { align: "center" });
-
-    let yContato = yInicio + 9;
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(9);
-    if (lab.telefones?.trim()) {
-      pdf.text(lab.telefones.trim(), pageW / 2, yContato, { align: "center" });
-      yContato += 4.2;
-    }
-    if (lab.email?.trim()) {
-      pdf.text(lab.email.trim(), pageW / 2, yContato, { align: "center" });
-      yContato += 4.2;
-    }
-
-    ctx.y = yContato + 2;
-    pdf.setDrawColor(0, 0, 0);
-    pdf.setLineWidth(0.2);
-    pdf.line(margin, ctx.y, pageW - margin, ctx.y);
-    ctx.y += 5;
-
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(11);
-    pdf.text(titulo, pageW / 2, ctx.y, { align: "center" });
-    ctx.y += 8;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(9);
+  if (lab.telefones?.trim()) {
+    pdf.text(lab.telefones.trim(), pageW / 2, y, { align: "center" });
+    y += 4.2;
   }
+  if (lab.email?.trim()) {
+    pdf.text(lab.email.trim(), pageW / 2, y, { align: "center" });
+    y += 4.2;
+  }
+
+  pdf.setFontSize(8);
+  pdf.text(formatDateTime(new Date()), pageW - margin, y, { align: "right" });
+  y += 3;
+
+  linhaHorizontal(ctx, y);
+  y += 6;
+
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(11);
+  pdf.text(titulo, pageW / 2, y, { align: "center" });
+  ctx.y = y + 9;
 }
 
 function desenharCelula(
@@ -167,7 +169,7 @@ function desenharCelula(
   pdf.setFont("helvetica", opts?.header ? "bold" : "normal");
   pdf.setFontSize(7);
   pdf.setTextColor(...PRETO);
-  const pad = 1;
+  const pad = 0.5;
   const truncado = pdf.splitTextToSize(texto, w - pad * 2)[0] || texto;
   const tx =
     col.align === "right"
@@ -175,22 +177,16 @@ function desenharCelula(
       : col.align === "center"
         ? x + w / 2
         : x + pad;
-  pdf.text(truncado, tx, ctx.y + altura / 2 + 1.1, { align: col.align });
+  pdf.text(truncado, tx, ctx.y + altura / 2 + 1, { align: col.align });
 }
 
-function desenharLinhaCabecalhoTabela(ctx: PdfCtx) {
+function desenharCabecalhoTabela(ctx: PdfCtx) {
+  linhaHorizontal(ctx, ctx.y);
   const altura = ctx.headerH;
-  const yLinha = ctx.y;
-  ctx.pdf.setDrawColor(0, 0, 0);
-  ctx.pdf.setLineWidth(0.2);
-  ctx.pdf.line(ctx.margin, yLinha, ctx.margin + ctx.tableW, yLinha);
-
   ctx.colunas.forEach((col, i) => {
     desenharCelula(ctx, i, col.titulo, altura, { header: true });
   });
-
   ctx.y += altura;
-  ctx.pdf.line(ctx.margin, ctx.y, ctx.margin + ctx.tableW, ctx.y);
 }
 
 function desenharLinhaDados(ctx: PdfCtx, linha: LinhaComissaoColaborador) {
@@ -204,8 +200,7 @@ function desenharLinhaDados(ctx: PdfCtx, linha: LinhaComissaoColaborador) {
 function novaPaginaSePreciso(ctx: PdfCtx, altura: number, titulo: string) {
   if (ctx.y + altura > ctx.pageH - ctx.margin - 8) {
     ctx.pdf.addPage();
-    ctx.y = ctx.margin;
-    desenharCabecalhoPagina(ctx, titulo, true);
+    desenharCabecalhoPagina(ctx, titulo);
   }
 }
 
@@ -216,8 +211,7 @@ function desenharGrupoColaborador(
   linhas: LinhaComissaoColaborador[]
 ) {
   const total = linhas.reduce((s, l) => s + l.comissaoValor, 0);
-  const alturaBloco =
-    6 + ctx.headerH + linhas.length * ctx.rowH + ctx.rowH + 6;
+  const alturaBloco = 7 + ctx.headerH + linhas.length * ctx.rowH + 10;
 
   novaPaginaSePreciso(ctx, alturaBloco, titulo);
 
@@ -225,30 +219,32 @@ function desenharGrupoColaborador(
   ctx.pdf.setFontSize(9);
   ctx.pdf.setTextColor(...PRETO);
   ctx.pdf.text(colaborador, ctx.margin, ctx.y + 3);
-  ctx.y += 6;
+  ctx.y += 7;
 
-  desenharLinhaCabecalhoTabela(ctx);
+  desenharCabecalhoTabela(ctx);
 
   for (const linha of linhas) {
-    if (ctx.y + ctx.rowH > ctx.pageH - ctx.margin - 8) {
+    if (ctx.y + ctx.rowH > ctx.pageH - ctx.margin - 12) {
       ctx.pdf.addPage();
-      ctx.y = ctx.margin;
-      desenharLinhaCabecalhoTabela(ctx);
+      desenharCabecalhoPagina(ctx, titulo);
+      ctx.pdf.setFont("helvetica", "bold");
+      ctx.pdf.setFontSize(9);
+      ctx.pdf.text(colaborador, ctx.margin, ctx.y + 3);
+      ctx.y += 7;
+      desenharCabecalhoTabela(ctx);
     }
     desenharLinhaDados(ctx, linha);
   }
 
-  ctx.y += 2;
-  novaPaginaSePreciso(ctx, ctx.rowH, titulo);
+  linhaHorizontal(ctx, ctx.y);
+  ctx.y += 4;
+
   ctx.pdf.setFont("helvetica", "bold");
   ctx.pdf.setFontSize(8);
-  ctx.pdf.text(
-    `Total R$ ${moneyBr(total)}`,
-    ctx.margin + ctx.tableW,
-    ctx.y + 3,
-    { align: "right" }
-  );
-  ctx.y += 8;
+  ctx.pdf.text(`Total R$ ${moneyBr(total)}`, ctx.pageW - ctx.margin, ctx.y, {
+    align: "right",
+  });
+  ctx.y += 10;
 }
 
 function agruparPorColaborador(linhas: LinhaComissaoColaborador[]) {
