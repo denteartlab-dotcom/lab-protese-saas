@@ -2,13 +2,17 @@ import type { LinhaFinalizadorServico } from "@/lib/finalizadores-servicos";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
 import { moneyBr, PRETO } from "@/lib/pdf-relatorio-faturas-smart-comum";
 import type { FiltroRelatorioComissaoPrestadores } from "@/lib/relatorio-comissao-prestadores";
-import { formatDateTime } from "@/lib/utils";
 
-type ColunaComissaoPdf = {
+type ColunaAgrupadaPdf = {
   titulo: string;
   larguraMm: number;
   align: "left" | "center" | "right";
-  valor: (linha: LinhaFinalizadorServico) => string;
+};
+
+type LinhaAgrupadaServico = {
+  quantidade: number;
+  descricao: string;
+  valorComissao: number;
 };
 
 type PdfCtx = {
@@ -19,80 +23,47 @@ type PdfCtx = {
   y: number;
   rowH: number;
   headerH: number;
-  colunas: ColunaComissaoPdf[];
+  colunas: ColunaAgrupadaPdf[];
   colX: number[];
   tableW: number;
 };
+
+/** Layout fixo da foto de referência — 3 colunas. */
+const COLUNAS_AGRUPADO: ColunaAgrupadaPdf[] = [
+  { titulo: "Quantidade", larguraMm: 28, align: "center" },
+  { titulo: "Descrição", larguraMm: 100, align: "left" },
+  { titulo: "Valor Comissao", larguraMm: 40, align: "right" },
+];
 
 function tituloRelatorio(
   periodoCampo: FiltroRelatorioComissaoPrestadores["periodoCampo"]
 ) {
   const periodo =
-    periodoCampo === "data_entrega" ? "Data Entrega" : "Data Pedido";
-  return `Relatório de Comissões - ${periodo} (Serviço)`;
+    periodoCampo === "data_entrega" ? "Data Entrega" : "Data do Pedido";
+  return `Relatório de Comissões - ${periodo} (Serviços Terceirizado)`;
 }
 
-function textoCelula(valor: string) {
-  const limpo = (valor || "").trim();
-  return limpo === "—" || limpo === "-" ? "" : limpo;
+function parseQuantidade(valor: string) {
+  const limpo = (valor || "").trim().replace(/\./g, "").replace(",", ".");
+  const n = Number(limpo);
+  return Number.isFinite(n) && n > 0 ? n : 1;
 }
 
-const COLUNAS_MODELO2: ColunaComissaoPdf[] = [
-  { titulo: "Os", larguraMm: 10, align: "left", valor: (l) => String(l.numeroOs) },
-  {
-    titulo: "Lançamento",
-    larguraMm: 20,
-    align: "left",
-    valor: (l) => textoCelula(l.dataPedido),
-  },
-  { titulo: "Qtd", larguraMm: 10, align: "left", valor: (l) => textoCelula(l.qtd) },
-  {
-    titulo: "Descrição",
-    larguraMm: 32,
-    align: "left",
-    valor: (l) => textoCelula(l.servico),
-  },
-  {
-    titulo: "Paciente",
-    larguraMm: 22,
-    align: "left",
-    valor: (l) => textoCelula(l.paciente),
-  },
-  {
-    titulo: "Situação",
-    larguraMm: 18,
-    align: "left",
-    valor: (l) => textoCelula(l.situacaoPedido),
-  },
-  {
-    titulo: "Entregue",
-    larguraMm: 18,
-    align: "left",
-    valor: (l) => textoCelula(l.dataEntrega),
-  },
-  { titulo: "Desc", larguraMm: 12, align: "right", valor: () => "" },
-  {
-    titulo: "Comissão",
-    larguraMm: 16,
-    align: "right",
-    valor: (l) => moneyBr(l.comissaoValor),
-  },
-];
+function formatQuantidade(valor: number) {
+  if (Number.isInteger(valor)) return String(valor);
+  return valor.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+}
 
-function escalarColunasParaPaginaA4(
-  colunas: ColunaComissaoPdf[],
-  larguraUtilMm: number
-): ColunaComissaoPdf[] {
-  const soma = colunas.reduce((total, col) => total + col.larguraMm, 0);
-  if (soma <= 0 || Math.abs(soma - larguraUtilMm) < 0.5) return colunas;
+function escalarColunas(larguraUtilMm: number): ColunaAgrupadaPdf[] {
+  const soma = COLUNAS_AGRUPADO.reduce((total, col) => total + col.larguraMm, 0);
   const fator = larguraUtilMm / soma;
-  return colunas.map((col) => ({
+  return COLUNAS_AGRUPADO.map((col) => ({
     ...col,
     larguraMm: Math.round(col.larguraMm * fator * 10) / 10,
   }));
 }
 
-function criarCtx(pdf: import("jspdf").jsPDF, colunas: ColunaComissaoPdf[]): PdfCtx {
+function criarCtx(pdf: import("jspdf").jsPDF, colunas: ColunaAgrupadaPdf[]): PdfCtx {
   const margin = 10;
   const colX: number[] = [margin];
   for (let i = 0; i < colunas.length - 1; i++) {
@@ -121,24 +92,21 @@ function desenharCabecalhoPagina(ctx: PdfCtx, titulo: string) {
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(11);
   pdf.setTextColor(...PRETO);
-  pdf.text(nomeLab, pageW / 2, y, { align: "center" });
+  pdf.text(nomeLab, margin, y);
   y += 5;
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(9);
   if (lab.telefones?.trim()) {
-    pdf.text(lab.telefones.trim(), pageW / 2, y, { align: "center" });
+    pdf.text(lab.telefones.trim(), margin, y);
     y += 4.2;
   }
   if (lab.email?.trim()) {
-    pdf.text(lab.email.trim(), pageW / 2, y, { align: "center" });
+    pdf.text(lab.email.trim(), margin, y);
     y += 4.2;
   }
 
-  pdf.setFontSize(8);
-  pdf.text(formatDateTime(new Date()), pageW - margin, y, { align: "right" });
-  y += 3;
-
+  y += 2;
   pdf.setDrawColor(0, 0, 0);
   pdf.setLineWidth(0.2);
   pdf.line(margin, y, pageW - margin, y);
@@ -150,10 +118,11 @@ function desenharCabecalhoPagina(ctx: PdfCtx, titulo: string) {
   ctx.y = y + 8;
 }
 
-function desenharCelula(
+function desenharTextoCelula(
   ctx: PdfCtx,
   colIndex: number,
   texto: string,
+  yTop: number,
   altura: number,
   opts?: { header?: boolean }
 ) {
@@ -172,75 +141,29 @@ function desenharCelula(
       : col.align === "center"
         ? x + w / 2
         : x + pad;
-  pdf.text(truncado, tx, ctx.y + altura / 2 + 1.1, { align: col.align });
+  pdf.text(truncado, tx, yTop + altura / 2 + 1.1, { align: col.align });
 }
 
-function desenharCabecalhoTabela(ctx: PdfCtx) {
-  const altura = ctx.headerH;
-  const yLinha = ctx.y;
-  ctx.pdf.setDrawColor(0, 0, 0);
-  ctx.pdf.setLineWidth(0.2);
-  ctx.pdf.line(ctx.margin, yLinha, ctx.margin + ctx.tableW, yLinha);
-
-  ctx.colunas.forEach((col, i) => {
-    desenharCelula(ctx, i, col.titulo, altura, { header: true });
-  });
-
-  ctx.y += altura;
-  ctx.pdf.line(ctx.margin, ctx.y, ctx.margin + ctx.tableW, ctx.y);
-}
-
-function desenharLinhaDados(ctx: PdfCtx, linha: LinhaFinalizadorServico) {
-  const altura = ctx.rowH;
-  ctx.colunas.forEach((col, i) => {
-    desenharCelula(ctx, i, col.valor(linha), altura);
-  });
-  ctx.y += altura;
-}
-
-function novaPaginaSePreciso(ctx: PdfCtx, altura: number, titulo: string) {
-  if (ctx.y + altura > ctx.pageH - ctx.margin - 8) {
-    ctx.pdf.addPage();
-    ctx.y = ctx.margin;
-    desenharCabecalhoPagina(ctx, titulo);
-  }
-}
-
-function desenharGrupoPrestador(
+function desenharLinhaTabelaGrid(
   ctx: PdfCtx,
-  titulo: string,
-  prestador: string,
-  linhas: LinhaFinalizadorServico[]
+  textos: string[],
+  opts?: { header?: boolean }
 ) {
-  const total = linhas.reduce((s, l) => s + l.comissaoValor, 0);
-  const alturaBloco = 6 + ctx.headerH + linhas.length * ctx.rowH + 8;
+  const altura = opts?.header ? ctx.headerH : ctx.rowH;
+  const yTop = ctx.y;
+  const { pdf, colunas, colX } = ctx;
 
-  novaPaginaSePreciso(ctx, alturaBloco, titulo);
+  pdf.setDrawColor(0, 0, 0);
+  pdf.setLineWidth(0.2);
 
-  ctx.pdf.setFont("helvetica", "bold");
-  ctx.pdf.setFontSize(9);
-  ctx.pdf.setTextColor(...PRETO);
-  ctx.pdf.text(prestador, ctx.margin, ctx.y + 3);
-  ctx.y += 6;
-
-  desenharCabecalhoTabela(ctx);
-
-  for (const linha of linhas) {
-    if (ctx.y + ctx.rowH > ctx.pageH - ctx.margin - 10) {
-      ctx.pdf.addPage();
-      ctx.y = ctx.margin;
-      desenharCabecalhoTabela(ctx);
-    }
-    desenharLinhaDados(ctx, linha);
-  }
-
-  ctx.y += 2;
-  ctx.pdf.setFont("helvetica", "bold");
-  ctx.pdf.setFontSize(8);
-  ctx.pdf.text(`Total R$ ${moneyBr(total)}`, ctx.margin + ctx.tableW, ctx.y + 3, {
-    align: "right",
+  colunas.forEach((_, i) => {
+    const x = colX[i];
+    const w = colunas[i].larguraMm;
+    pdf.rect(x, yTop, w, altura, "S");
+    desenharTextoCelula(ctx, i, textos[i] ?? "", yTop, altura, opts);
   });
-  ctx.y += 8;
+
+  ctx.y += altura;
 }
 
 function agruparPorPrestador(linhas: LinhaFinalizadorServico[]) {
@@ -256,7 +179,83 @@ function agruparPorPrestador(linhas: LinhaFinalizadorServico[]) {
   );
 }
 
-export async function gerarRelatorioComissaoPrestadoresModelo2Pdf(
+function agruparPorServico(linhas: LinhaFinalizadorServico[]): LinhaAgrupadaServico[] {
+  const mapa = new Map<string, LinhaAgrupadaServico>();
+  for (const linha of linhas) {
+    const servico = linha.servico.trim() || linha.descricao.trim() || "—";
+    const chave = servico.toLowerCase();
+    const atual = mapa.get(chave) ?? {
+      quantidade: 0,
+      descricao: servico,
+      valorComissao: 0,
+    };
+    atual.quantidade += parseQuantidade(linha.qtd);
+    atual.valorComissao += linha.comissaoValor;
+    mapa.set(chave, atual);
+  }
+  return Array.from(mapa.values()).sort((a, b) =>
+    a.descricao.localeCompare(b.descricao, "pt-BR")
+  );
+}
+
+function novaPaginaSePreciso(ctx: PdfCtx, altura: number, titulo: string) {
+  if (ctx.y + altura > ctx.pageH - ctx.margin - 8) {
+    ctx.pdf.addPage();
+    ctx.y = ctx.margin;
+    desenharCabecalhoPagina(ctx, titulo);
+  }
+}
+
+function desenharGrupoPrestador(
+  ctx: PdfCtx,
+  titulo: string,
+  prestador: string,
+  linhasAgrupadas: LinhaAgrupadaServico[]
+) {
+  const total = linhasAgrupadas.reduce((s, l) => s + l.valorComissao, 0);
+  const alturaBloco = 6 + ctx.headerH + linhasAgrupadas.length * ctx.rowH + 8;
+
+  novaPaginaSePreciso(ctx, alturaBloco, titulo);
+
+  ctx.pdf.setFont("helvetica", "bold");
+  ctx.pdf.setFontSize(9);
+  ctx.pdf.setTextColor(...PRETO);
+  ctx.pdf.text(prestador, ctx.margin, ctx.y + 3);
+  ctx.y += 6;
+
+  desenharLinhaTabelaGrid(
+    ctx,
+    ctx.colunas.map((c) => c.titulo),
+    { header: true }
+  );
+
+  for (const linha of linhasAgrupadas) {
+    if (ctx.y + ctx.rowH > ctx.pageH - ctx.margin - 10) {
+      ctx.pdf.addPage();
+      ctx.y = ctx.margin;
+      desenharLinhaTabelaGrid(
+        ctx,
+        ctx.colunas.map((c) => c.titulo),
+        { header: true }
+      );
+    }
+    desenharLinhaTabelaGrid(ctx, [
+      formatQuantidade(linha.quantidade),
+      linha.descricao,
+      moneyBr(linha.valorComissao),
+    ]);
+  }
+
+  ctx.y += 2;
+  ctx.pdf.setFont("helvetica", "bold");
+  ctx.pdf.setFontSize(8);
+  ctx.pdf.text(`Total R$ ${moneyBr(total)}`, ctx.margin + ctx.tableW, ctx.y + 3, {
+    align: "right",
+  });
+  ctx.y += 8;
+}
+
+export async function gerarRelatorioComissaoPrestadoresModeloAgrupadoServicoPdf(
   linhas: LinhaFinalizadorServico[],
   filtro: Pick<FiltroRelatorioComissaoPrestadores, "periodoCampo">
 ): Promise<Blob> {
@@ -264,7 +263,7 @@ export async function gerarRelatorioComissaoPrestadoresModelo2Pdf(
   const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   const margin = 10;
   const larguraUtil = pdf.internal.pageSize.getWidth() - margin * 2;
-  const colunas = escalarColunasParaPaginaA4(COLUNAS_MODELO2, larguraUtil);
+  const colunas = escalarColunas(larguraUtil);
   const ctx = criarCtx(pdf, colunas);
   const titulo = tituloRelatorio(filtro.periodoCampo);
 
@@ -282,7 +281,8 @@ export async function gerarRelatorioComissaoPrestadoresModelo2Pdf(
     );
   } else {
     for (const [prestador, linhasGrupo] of grupos) {
-      desenharGrupoPrestador(ctx, titulo, prestador, linhasGrupo);
+      const linhasAgrupadas = agruparPorServico(linhasGrupo);
+      desenharGrupoPrestador(ctx, titulo, prestador, linhasAgrupadas);
     }
   }
 

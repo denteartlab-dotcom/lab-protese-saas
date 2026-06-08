@@ -15,7 +15,7 @@ export type OrdenarPorRelatorioComissaoPrestador =
   | "servico"
   | "comissao";
 
-export type ModeloRelatorioComissaoPrestador = "modelo-1" | "modelo-2";
+export type ModeloRelatorioComissaoPrestador = "modelo-1" | "modelo-agrupado-servico";
 
 export type FiltroRelatorioComissaoPrestadores = {
   ordenarPor: OrdenarPorRelatorioComissaoPrestador;

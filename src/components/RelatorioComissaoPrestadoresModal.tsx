@@ -6,7 +6,7 @@ import { X } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
 import type { LinhaFinalizadorServico } from "@/lib/finalizadores-servicos";
 import { gerarRelatorioComissaoPrestadoresModelo1Pdf } from "@/lib/pdf-relatorio-comissao-prestadores-modelo1";
-import { gerarRelatorioComissaoPrestadoresModelo2Pdf } from "@/lib/pdf-relatorio-comissao-prestadores-modelo2";
+import { gerarRelatorioComissaoPrestadoresModeloAgrupadoServicoPdf } from "@/lib/pdf-relatorio-comissao-prestadores-modelo-agrupado-servico";
 import { prepararAbaPdf, abrirPdfNoVisualizador } from "@/lib/pdf-viewer";
 import {
   filtrarLinhasRelatorioComissaoPrestadores,
@@ -46,7 +46,7 @@ const Z_CALENDARIO_MODAL = 10050;
 
 const MODELOS_RELATORIO: { value: ModeloRelatorioComissaoPrestador; label: string }[] = [
   { value: "modelo-1", label: "Modelo 1" },
-  { value: "modelo-2", label: "Modelo 2" },
+  { value: "modelo-agrupado-servico", label: "Modelo Agrupado por Serviço" },
 ];
 
 function CampoSelect({
@@ -213,8 +213,8 @@ export function RelatorioComissaoPrestadoresModal({
       );
 
       const blob =
-        filtro.modelo === "modelo-2"
-          ? await gerarRelatorioComissaoPrestadoresModelo2Pdf(ordenadas, filtro)
+        filtro.modelo === "modelo-agrupado-servico"
+          ? await gerarRelatorioComissaoPrestadoresModeloAgrupadoServicoPdf(ordenadas, filtro)
           : await gerarRelatorioComissaoPrestadoresModelo1Pdf(ordenadas, filtro);
 
       abrirPdfNoVisualizador(
@@ -395,25 +395,23 @@ export function RelatorioComissaoPrestadoresModal({
                 ))}
               </CampoSelect>
             </div>
-            {modelo === "modelo-2" ? (
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pb-1">
-                <CampoCheckbox
-                  label="Paciente"
-                  checked={mostrarPaciente}
-                  onChange={setMostrarPaciente}
-                />
-                <CampoCheckbox
-                  label="Cliente"
-                  checked={mostrarCliente}
-                  onChange={setMostrarCliente}
-                />
-                <CampoCheckbox
-                  label="Valor Serviço"
-                  checked={mostrarValorServico}
-                  onChange={setMostrarValorServico}
-                />
-              </div>
-            ) : null}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pb-1">
+              <CampoCheckbox
+                label="Paciente"
+                checked={mostrarPaciente}
+                onChange={setMostrarPaciente}
+              />
+              <CampoCheckbox
+                label="Cliente"
+                checked={mostrarCliente}
+                onChange={setMostrarCliente}
+              />
+              <CampoCheckbox
+                label="Valor Serviço"
+                checked={mostrarValorServico}
+                onChange={setMostrarValorServico}
+              />
+            </div>
           </div>
 
           {erroPdf ? (
