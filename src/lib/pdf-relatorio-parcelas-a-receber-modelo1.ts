@@ -12,6 +12,18 @@ import {
   PRETO,
 } from "@/lib/pdf-relatorio-faturas-smart-comum";
 
+export type OpcoesRelatorioParcelasAReceberModelo1 = OpcoesPeriodoRelatorioFaturas & {
+  somenteAReceber?: boolean;
+};
+
+function linhasFiltradas(
+  linhas: LinhaRelatorioContasReceber[],
+  opcoes: OpcoesRelatorioParcelasAReceberModelo1
+) {
+  if (opcoes.somenteAReceber === false) return linhas;
+  return linhas.filter((linha) => linha.saldo > 0.009);
+}
+
 const COLUNAS: ColunaRelatorioFaturasSmart[] = [
   { titulo: "Cliente", larguraMm: 78, align: "left" },
   { titulo: "Valor a Receber", larguraMm: 36, align: "right" },
@@ -86,7 +98,7 @@ function desenharLinhaTotal(
 /** Layout Smart Prótese — Parcelas (A Receber) Modelo 1: resumo por cliente. */
 export async function gerarRelatorioParcelasAReceberModelo1Pdf(
   linhas: LinhaRelatorioContasReceber[],
-  opcoes: OpcoesPeriodoRelatorioFaturas
+  opcoes: OpcoesRelatorioParcelasAReceberModelo1
 ): Promise<Blob> {
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
@@ -102,7 +114,7 @@ export async function gerarRelatorioParcelasAReceberModelo1Pdf(
   pdf.text(titulo, ctx.pageW / 2, ctx.y, { align: "center" });
   ctx.y += 10;
 
-  const porCliente = agruparPorCliente(linhas);
+  const porCliente = agruparPorCliente(linhasFiltradas(linhas, opcoes));
   const totalValor = porCliente.reduce((s, l) => s + l.valorAReceber, 0);
   const totalRecebido = porCliente.reduce((s, l) => s + l.recebido, 0);
   const totalSaldo = porCliente.reduce((s, l) => s + l.saldo, 0);

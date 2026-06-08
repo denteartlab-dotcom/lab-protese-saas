@@ -38,6 +38,9 @@ export type FiltroRelatorioContasReceber = {
   dataInicio: string;
   dataFinal: string;
   modelo: ModeloRelatorioReceitas;
+  /** Parcelas (A Receber) Modelo 1 e 2 — Smart */
+  parcelasSomenteAReceber?: boolean;
+  parcelasAgruparPorCliente?: boolean;
 };
 
 export type LinhaRelatorioContasReceber = {
@@ -214,7 +217,7 @@ export function linhasRelatorioFromLancamentos(
   const faturas = linhasFaturasFromLancamentos(lancamentos, trabalhos);
 
   if (modeloEhParcelasAReceber(modelo)) {
-    return faturas.filter((l) => l.saldo > 0.009);
+    return faturas;
   }
 
   return faturas;
@@ -293,6 +296,8 @@ export type OpcoesImpressaoRelatorioReceitas = {
   clienteIdExtrato?: string | null;
   lancamentos?: LancamentoRelatorio[];
   trabalhos?: TrabalhoRelatorioFatura[];
+  parcelasSomenteAReceber?: boolean;
+  parcelasAgruparPorCliente?: boolean;
 };
 
 export async function gerarRelatorioContasReceberBlob(

@@ -17,6 +17,7 @@ import {
   labelModeloRelatorioReceitas,
   MODELOS_RELATORIO_RECEITAS,
   modeloEhExtratoPorCliente,
+  modeloEhParcelasAReceber,
   type ModeloRelatorioReceitas,
 } from "@/lib/relatorio-receitas-modelos";
 
@@ -76,6 +77,8 @@ export function RelatorioContasReceberModal({
   const [dataInicio, setDataInicio] = useState(inicioPadrao);
   const [dataFinal, setDataFinal] = useState(fimPadrao);
   const [gerandoPdf, setGerandoPdf] = useState(false);
+  const [parcelasSomenteAReceber, setParcelasSomenteAReceber] = useState(true);
+  const [parcelasAgruparPorCliente, setParcelasAgruparPorCliente] = useState(true);
 
   useEffect(() => {
     if (!open) return;
@@ -87,6 +90,8 @@ export function RelatorioContasReceberModal({
     setPeriodoCampo("data_lancamento");
     setPeriodoAtivo(true);
     setModelo("faturas-modelo-1");
+    setParcelasSomenteAReceber(true);
+    setParcelasAgruparPorCliente(true);
   }, [open]);
 
   const linhasBase = useMemo(
@@ -115,6 +120,11 @@ export function RelatorioContasReceberModal({
       periodoAtivo,
       dataInicio,
       dataFinal,
+      parcelasSomenteAReceber: modeloEhParcelasAReceber(modelo)
+        ? parcelasSomenteAReceber
+        : undefined,
+      parcelasAgruparPorCliente:
+        modelo === "parcelas-a-receber-modelo-2" ? parcelasAgruparPorCliente : undefined,
     };
   }
 
@@ -167,6 +177,8 @@ export function RelatorioContasReceberModal({
             clienteIdExtrato,
             lancamentos,
             trabalhos,
+            parcelasSomenteAReceber: filtro.parcelasSomenteAReceber,
+            parcelasAgruparPorCliente: filtro.parcelasAgruparPorCliente,
           }
         ),
       "relatorio-receitas.pdf",
@@ -217,9 +229,17 @@ export function RelatorioContasReceberModal({
                 <label className={labelClass}>Modelo Relatório</label>
                 <select
                   value={modelo}
-                  onChange={(e) =>
-                    setModelo(e.target.value as ModeloRelatorioReceitas)
-                  }
+                  onChange={(e) => {
+                    const valor = e.target.value as ModeloRelatorioReceitas;
+                    setModelo(valor);
+                    if (modeloEhParcelasAReceber(valor)) {
+                      setPeriodoCampo("vencimento");
+                      setParcelasSomenteAReceber(true);
+                    }
+                    if (valor === "parcelas-a-receber-modelo-2") {
+                      setParcelasAgruparPorCliente(true);
+                    }
+                  }}
                   className={selectClass}
                 >
                   {MODELOS_RELATORIO_RECEITAS.map((m) => (
@@ -232,22 +252,54 @@ export function RelatorioContasReceberModal({
               <div className="min-w-0">
                 <label className={labelClass}>Ordenar Por</label>
                 <select
-                  value={ordenarPor}
+                  value={
+                    modelo === "parcelas-a-receber-modelo-1" ? "nao_disponivel" : ordenarPor
+                  }
                   onChange={(e) =>
                     setOrdenarPor(
                       e.target.value as FiltroRelatorioContasReceber["ordenarPor"]
                     )
                   }
+                  disabled={modelo === "parcelas-a-receber-modelo-1"}
                   className={selectClass}
                 >
-                  <option value="data_lancamento">Data Lançamento</option>
-                  <option value="vencimento">Data Vencimento</option>
-                  <option value="cliente">Cliente</option>
-                  <option value="valor">Valor</option>
-                  <option value="fatura">Nº Fatura</option>
+                  {modelo === "parcelas-a-receber-modelo-1" ? (
+                    <option value="nao_disponivel">Não disponível</option>
+                  ) : (
+                    <>
+                      <option value="data_lancamento">Data Lançamento</option>
+                      <option value="vencimento">Data Vencimento</option>
+                      <option value="cliente">Cliente</option>
+                      <option value="valor">Valor</option>
+                      <option value="fatura">Nº Fatura</option>
+                    </>
+                  )}
                 </select>
               </div>
             </div>
+
+            {modelo === "parcelas-a-receber-modelo-2" && (
+              <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
+                <label className="flex cursor-pointer items-center gap-2 text-[13px] text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={parcelasSomenteAReceber}
+                    onChange={(e) => setParcelasSomenteAReceber(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-[#4a90d9] focus:ring-[#4a90d9]"
+                  />
+                  Mostrar somente a receber
+                </label>
+                <label className="flex cursor-pointer items-center gap-2 text-[13px] text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={parcelasAgruparPorCliente}
+                    onChange={(e) => setParcelasAgruparPorCliente(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-[#4a90d9] focus:ring-[#4a90d9]"
+                  />
+                  Agrupar por cliente
+                </label>
+              </div>
+            )}
 
             <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-6">
               <div className="min-w-0">
@@ -263,6 +315,17 @@ export function RelatorioContasReceberModal({
                     </option>
                   ))}
                 </select>
+                {modelo === "parcelas-a-receber-modelo-1" && (
+                  <label className="mt-2.5 flex cursor-pointer items-center gap-2 text-[13px] text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={parcelasSomenteAReceber}
+                      onChange={(e) => setParcelasSomenteAReceber(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-[#4a90d9] focus:ring-[#4a90d9]"
+                    />
+                    Mostrar somente a receber
+                  </label>
+                )}
                 <button
                   type="button"
                   onClick={imprimir}

@@ -193,13 +193,20 @@ export async function gerarRelatorioContasReceberPdf(
       const { gerarRelatorioParcelasAReceberModelo1Pdf } = await import(
         "@/lib/pdf-relatorio-parcelas-a-receber-modelo1"
       );
-      return gerarRelatorioParcelasAReceberModelo1Pdf(linhas, periodoPdf);
+      return gerarRelatorioParcelasAReceberModelo1Pdf(linhas, {
+        ...periodoPdf,
+        somenteAReceber: opcoes.parcelasSomenteAReceber,
+      });
     }
     if (modelo === "parcelas-a-receber-modelo-2") {
       const { gerarRelatorioParcelasAReceberModelo2Pdf } = await import(
         "@/lib/pdf-relatorio-parcelas-a-receber-modelo2"
       );
-      return gerarRelatorioParcelasAReceberModelo2Pdf(linhas, periodoPdf);
+      return gerarRelatorioParcelasAReceberModelo2Pdf(linhas, {
+        ...periodoPdf,
+        somenteAReceber: opcoes.parcelasSomenteAReceber,
+        agruparPorCliente: opcoes.parcelasAgruparPorCliente,
+      });
     }
     if (modelo === "recebimentos") {
       const { gerarRelatorioRecebimentosSmartPdf } = await import(
