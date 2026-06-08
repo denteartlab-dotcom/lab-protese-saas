@@ -1,10 +1,10 @@
 import type { LinhaRelatorioContasReceber } from "@/lib/relatorio-contas-receber";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
 import { escalaLogoMultiplicador } from "@/lib/lab-logo";
+import { desenharCabecalhoLabRelatorioPdf } from "@/lib/pdf-lab-cabecalho";
 import {
   criarContextoTabelaFaturasSmart,
   desenharLinhaTabelaFaturasSmart,
-  desenharTotaisFaturasSmart,
   moneyBr,
   novaPaginaTabelaFaturasSmart,
   PRETO,
@@ -14,18 +14,17 @@ import {
 } from "@/lib/pdf-relatorio-faturas-smart-comum";
 import type { jsPDF } from "jspdf";
 
+const CINZA_FUNDO: [number, number, number] = [238, 238, 238];
+
 const COLUNAS: ColunaRelatorioFaturasSmart[] = [
-  { titulo: "Data Recebimento", larguraMm: 34, align: "center" },
-  { titulo: "Forma Pagamento", larguraMm: 96, align: "left" },
+  { titulo: "Data Recebimento", larguraMm: 40, align: "center" },
+  { titulo: "Forma Pagamento", larguraMm: 96, align: "center" },
   { titulo: "Valor", larguraMm: 46, align: "right" },
 ];
 
-const COLUNAS_TOTAIS: ColunaRelatorioFaturasSmart[] = [
-  { titulo: "Forma Pagamento", larguraMm: 130, align: "left" },
-  { titulo: "Valor", larguraMm: 46, align: "right" },
-];
-
-const CINZA_BARRA: [number, number, number] = [218, 218, 218];
+export type OpcoesRelatorioRecebimentosSmart = OpcoesPeriodoRelatorioFaturas & {
+  agruparPorCliente?: boolean;
+};
 
 type PdfApi = {
   internal: {
@@ -64,16 +63,21 @@ type PdfApi = {
   ) => void;
 };
 
-type GrupoCliente = {
-  cliente: string;
-  linhas: LinhaRelatorioContasReceber[];
-};
-
 function moneyRs(value: number) {
   return `R$ ${moneyBr(value)}`;
 }
 
-function agruparPorCliente(linhas: LinhaRelatorioContasReceber[]): GrupoCliente[] {
+function dataRecebimentoLinha(linha: LinhaRelatorioContasReceber) {
+  return linha.dataRecebimento ?? linha.vencimento;
+}
+
+function formaPagamentoLinha(linha: LinhaRelatorioContasReceber) {
+  return linha.formaRecebimento && linha.formaRecebimento !== "—"
+    ? linha.formaRecebimento
+    : "";
+}
+
+function agruparLinhasPorCliente(linhas: LinhaRelatorioContasReceber[]) {
   const mapa = new Map<string, LinhaRelatorioContasReceber[]>();
   for (const linha of linhas) {
     const chave = linha.cliente.trim() || "Sem cliente informado";
@@ -91,23 +95,7 @@ function agruparPorCliente(linhas: LinhaRelatorioContasReceber[]): GrupoCliente[
     .sort((a, b) => a.cliente.localeCompare(b.cliente, "pt-BR"));
 }
 
-function totaisPorForma(linhas: LinhaRelatorioContasReceber[]) {
-  const mapa = new Map<string, number>();
-  for (const linha of linhas) {
-    const forma = (linha.formaRecebimento || "—").trim();
-    mapa.set(forma, (mapa.get(forma) ?? 0) + linha.valor);
-  }
-  return Array.from(mapa.entries()).sort((a, b) =>
-    a[0].localeCompare(b[0], "pt-BR")
-  );
-}
-
-function larguraTabela(ctx: ContextoTabelaFaturasSmart) {
-  const ultima = ctx.colunas.length - 1;
-  return ctx.colX[ultima] + ctx.colunas[ultima].larguraMm - ctx.margin;
-}
-
-/** Logo + marca à esquerda; dados do lab à direita (igual Smart Recebimentos). */
+/** Cabeçalho Recebimentos (completo) — logo à esquerda, dados do lab à direita. */
 export function desenharCabecalhoRecebimentosSmart(
   pdf: PdfApi,
   margin: number,
@@ -174,155 +162,138 @@ export function desenharCabecalhoRecebimentosSmart(
   return y + 8;
 }
 
-function desenharTituloRelatorio(ctx: ContextoTabelaFaturasSmart) {
+function desenharCabecalhoPagina(ctx: ContextoTabelaFaturasSmart) {
+  ctx.y = desenharCabecalhoLabRelatorioPdf(ctx.api, ctx.margin, ctx.y);
   ctx.pdf.setFont("helvetica", "bold");
   ctx.pdf.setFontSize(12);
   ctx.pdf.setTextColor(...PRETO);
   ctx.pdf.text(
-    "Relatório de Parcelas Recebidas - Data Recebimento",
+    "Relatório de Parcelas Recebidas - (Data Recebimento)",
     ctx.pageW / 2,
     ctx.y,
     { align: "center" }
   );
-  ctx.y += 11;
+  ctx.y += 10;
 }
 
-function desenharValorTotalGeral(ctx: ContextoTabelaFaturasSmart, total: number) {
-  ctx.pdf.setFont("helvetica", "bold");
-  ctx.pdf.setFontSize(11);
-  ctx.pdf.setTextColor(...PRETO);
-  ctx.pdf.text(`Valor Total Geral: ${moneyBr(total)}`, ctx.margin, ctx.y);
-  ctx.y += 9;
-}
-
-function desenharBarraCliente(ctx: ContextoTabelaFaturasSmart, nomeCliente: string) {
-  const altura = 6.8;
-  novaPaginaTabelaFaturasSmart(ctx, altura + ctx.headerH + ctx.rowH * 3);
-  const largura = larguraTabela(ctx);
-  ctx.pdf.setFillColor(...CINZA_BARRA);
+function desenharBarraCliente(ctx: ContextoTabelaFaturasSmart, cliente: string) {
+  const largura = ctx.pageW - ctx.margin * 2;
+  const altura = ctx.headerH;
+  novaPaginaTabelaFaturasSmart(ctx, altura + 4);
+  ctx.pdf.setFillColor(...CINZA_FUNDO);
   ctx.pdf.setDrawColor(0, 0, 0);
   ctx.pdf.setLineWidth(0.2);
   ctx.pdf.rect(ctx.margin, ctx.y, largura, altura, "FD");
   ctx.pdf.setFont("helvetica", "bold");
-  ctx.pdf.setFontSize(8.5);
+  ctx.pdf.setFontSize(9);
   ctx.pdf.setTextColor(...PRETO);
-  ctx.pdf.text(nomeCliente.toUpperCase(), ctx.margin + 2.5, ctx.y + altura / 2 + 1.1);
+  ctx.pdf.text(cliente, ctx.margin + largura / 2, ctx.y + altura / 2 + 1.2, {
+    align: "center",
+  });
   ctx.y += altura;
 }
 
-function desenharCabecalhoTabela(
+function valoresLinhaRecebimento(linha: LinhaRelatorioContasReceber) {
+  return [
+    dataRecebimentoLinha(linha),
+    formaPagamentoLinha(linha),
+    moneyBr(linha.valor),
+  ];
+}
+
+function desenharLinhaTotalGrupo(ctx: ContextoTabelaFaturasSmart, total: number) {
+  const altura = ctx.rowH;
+  novaPaginaTabelaFaturasSmart(ctx, altura);
+  const valores = ["", "Total", moneyRs(total)];
+
+  ctx.colunas.forEach((col, i) => {
+    const x = ctx.colX[i];
+    const w = col.larguraMm;
+    ctx.pdf.setDrawColor(0, 0, 0);
+    ctx.pdf.setLineWidth(0.2);
+    ctx.pdf.rect(x, ctx.y, w, altura);
+    ctx.pdf.setFont("helvetica", "bold");
+    ctx.pdf.setFontSize(9);
+    ctx.pdf.setTextColor(...PRETO);
+    const pad = 2;
+    const texto = valores[i] ?? "";
+    const truncado = ctx.pdf.splitTextToSize(texto, w - pad * 2)[0] || texto;
+    const tx =
+      col.align === "right"
+        ? x + w - pad
+        : col.align === "center"
+          ? x + w / 2
+          : x + pad;
+    ctx.pdf.text(truncado, tx, ctx.y + altura / 2 + 1.2, { align: col.align });
+  });
+  ctx.y += altura;
+}
+
+function desenharTabelaRecebimentos(
   ctx: ContextoTabelaFaturasSmart,
-  colunas: ColunaRelatorioFaturasSmart[]
+  linhasGrupo: LinhaRelatorioContasReceber[],
+  opts?: { barraCliente?: string }
 ) {
-  const colsAnterior = ctx.colunas;
-  const colXAnterior = ctx.colX;
-  ctx.colunas = colunas;
-  ctx.colX = [ctx.margin];
-  for (let i = 0; i < colunas.length - 1; i++) {
-    ctx.colX.push(ctx.colX[i] + colunas[i].larguraMm);
+  if (opts?.barraCliente) {
+    desenharBarraCliente(ctx, opts.barraCliente);
   }
+
   desenharLinhaTabelaFaturasSmart(
     ctx,
-    colunas.map((c) => c.titulo),
+    COLUNAS.map((c) => c.titulo),
     { header: true, fillHeader: true }
   );
-  ctx.colunas = colsAnterior;
-  ctx.colX = colXAnterior;
-}
 
-function desenharBlocoCliente(ctx: ContextoTabelaFaturasSmart, grupo: GrupoCliente) {
-  desenharBarraCliente(ctx, grupo.cliente);
-  desenharCabecalhoTabela(ctx, COLUNAS);
-
-  for (const linha of grupo.linhas) {
+  for (const linha of linhasGrupo) {
     novaPaginaTabelaFaturasSmart(ctx, ctx.rowH);
-    desenharLinhaTabelaFaturasSmart(ctx, [
-      linha.vencimento,
-      linha.formaRecebimento,
-      moneyRs(linha.valor),
-    ]);
+    desenharLinhaTabelaFaturasSmart(ctx, valoresLinhaRecebimento(linha));
   }
 
-  const porForma = totaisPorForma(grupo.linhas);
-  const totalCliente = grupo.linhas.reduce((s, l) => s + l.valor, 0);
-  desenharTotaisFaturasSmart(
-    ctx,
-    [
-      ...porForma.map(([forma, valor]) => `${forma}: ${moneyRs(valor)}`),
-      `Total ${moneyRs(totalCliente)}`,
-    ],
-    2
-  );
-  ctx.y += 5;
+  const total = linhasGrupo.reduce((s, l) => s + l.valor, 0);
+  desenharLinhaTotalGrupo(ctx, total);
+  ctx.y += 4;
 }
 
-function desenharTabelaTotaisGeral(
-  ctx: ContextoTabelaFaturasSmart,
-  linhas: LinhaRelatorioContasReceber[]
-) {
-  const porForma = totaisPorForma(linhas);
-  const totalGeral = linhas.reduce((s, l) => s + l.valor, 0);
-
-  ctx.y += 4;
-  novaPaginaTabelaFaturasSmart(ctx, ctx.headerH + ctx.rowH * (porForma.length + 2));
-
-  const colXBackup = [...ctx.colX];
-  const colsBackup = ctx.colunas;
-  ctx.colunas = COLUNAS_TOTAIS;
-  ctx.colX = [ctx.margin];
-  for (let i = 0; i < COLUNAS_TOTAIS.length - 1; i++) {
-    ctx.colX.push(ctx.colX[i] + COLUNAS_TOTAIS[i].larguraMm);
+function desenharTotalRecebido(ctx: ContextoTabelaFaturasSmart, total: number) {
+  ctx.y += 2;
+  if (ctx.y + 10 > ctx.pageH - ctx.margin) {
+    ctx.pdf.addPage();
+    ctx.y = ctx.margin;
   }
-
   ctx.pdf.setFont("helvetica", "bold");
   ctx.pdf.setFontSize(10);
   ctx.pdf.setTextColor(...PRETO);
-  ctx.pdf.text("Totais", ctx.margin, ctx.y);
-  ctx.y += 6;
-
-  desenharLinhaTabelaFaturasSmart(
-    ctx,
-    COLUNAS_TOTAIS.map((c) => c.titulo),
-    { header: true, fillHeader: true }
-  );
-
-  for (const [forma, valor] of porForma) {
-    novaPaginaTabelaFaturasSmart(ctx, ctx.rowH);
-    desenharLinhaTabelaFaturasSmart(ctx, [forma, moneyRs(valor)]);
-  }
-
-  novaPaginaTabelaFaturasSmart(ctx, ctx.rowH);
-  desenharLinhaTabelaFaturasSmart(ctx, ["Total Geral", moneyRs(totalGeral)]);
-
-  ctx.colunas = colsBackup;
-  ctx.colX = colXBackup;
+  ctx.pdf.text(`TOTAL RECEBIDO ${moneyRs(total)}`, ctx.margin, ctx.y + 4);
+  ctx.y += 8;
 }
 
-/** Layout Smart Prótese — Recebimentos (cópia do relatório Parcelas Recebidas). */
+/** Layout Smart Prótese — Recebimentos (Parcelas Recebidas). */
 export async function gerarRelatorioRecebimentosSmartPdf(
   linhas: LinhaRelatorioContasReceber[],
-  _opcoes: OpcoesPeriodoRelatorioFaturas
+  opcoes: OpcoesRelatorioRecebimentosSmart
 ): Promise<Blob> {
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
-  const margin = 14;
-  const api = pdf as unknown as PdfApi;
   const ctx = criarContextoTabelaFaturasSmart(pdf as unknown as jsPDF, COLUNAS);
 
+  desenharCabecalhoPagina(ctx);
+
   const totalGeral = linhas.reduce((s, l) => s + l.valor, 0);
-  const grupos = agruparPorCliente(linhas);
+  const agruparCliente = opcoes.agruparPorCliente !== false;
 
-  ctx.y = desenharCabecalhoRecebimentosSmart(api, margin, margin);
-  desenharTituloRelatorio(ctx);
-
-  if (grupos.length === 0) {
-    desenharValorTotalGeral(ctx, totalGeral);
-  } else {
-    for (const grupo of grupos) {
-      desenharBlocoCliente(ctx, grupo);
+  if (linhas.length === 0) {
+    ctx.pdf.setFont("helvetica", "normal");
+    ctx.pdf.setFontSize(10);
+    ctx.pdf.text("Nenhum recebimento no período.", ctx.margin, ctx.y);
+  } else if (agruparCliente) {
+    for (const grupo of agruparLinhasPorCliente(linhas)) {
+      desenharTabelaRecebimentos(ctx, grupo.linhas, { barraCliente: grupo.cliente });
     }
-    desenharTabelaTotaisGeral(ctx, linhas);
+  } else {
+    desenharTabelaRecebimentos(ctx, linhas);
   }
+
+  desenharTotalRecebido(ctx, totalGeral);
 
   return pdf.output("blob");
 }

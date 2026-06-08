@@ -212,7 +212,10 @@ export async function gerarRelatorioContasReceberPdf(
       const { gerarRelatorioRecebimentosSmartPdf } = await import(
         "@/lib/pdf-relatorio-recebimentos-smart"
       );
-      return gerarRelatorioRecebimentosSmartPdf(linhas, periodoPdf);
+      return gerarRelatorioRecebimentosSmartPdf(linhas, {
+        ...periodoPdf,
+        agruparPorCliente: opcoes.recebimentosAgruparPorCliente,
+      });
     }
     if (modelo === "recebimentos-completo") {
       const { gerarRelatorioRecebimentosCompletoSmartPdf } = await import(

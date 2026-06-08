@@ -79,6 +79,7 @@ export function RelatorioContasReceberModal({
   const [gerandoPdf, setGerandoPdf] = useState(false);
   const [parcelasSomenteAReceber, setParcelasSomenteAReceber] = useState(true);
   const [parcelasAgruparPorCliente, setParcelasAgruparPorCliente] = useState(true);
+  const [recebimentosAgruparPorCliente, setRecebimentosAgruparPorCliente] = useState(true);
 
   useEffect(() => {
     if (!open) return;
@@ -92,6 +93,7 @@ export function RelatorioContasReceberModal({
     setModelo("faturas-modelo-1");
     setParcelasSomenteAReceber(true);
     setParcelasAgruparPorCliente(true);
+    setRecebimentosAgruparPorCliente(true);
   }, [open]);
 
   const linhasBase = useMemo(
@@ -179,6 +181,7 @@ export function RelatorioContasReceberModal({
             trabalhos,
             parcelasSomenteAReceber: filtro.parcelasSomenteAReceber,
             parcelasAgruparPorCliente: filtro.parcelasAgruparPorCliente,
+            recebimentosAgruparPorCliente: filtro.recebimentosAgruparPorCliente,
           }
         ),
       "relatorio-receitas.pdf",
@@ -239,6 +242,10 @@ export function RelatorioContasReceberModal({
                     if (valor === "parcelas-a-receber-modelo-2") {
                       setParcelasAgruparPorCliente(true);
                     }
+                    if (valor === "recebimentos") {
+                      setPeriodoCampo("vencimento");
+                      setRecebimentosAgruparPorCliente(true);
+                    }
                   }}
                   className={selectClass}
                 >
@@ -278,26 +285,40 @@ export function RelatorioContasReceberModal({
               </div>
             </div>
 
-            {modelo === "parcelas-a-receber-modelo-2" && (
+            {(modelo === "parcelas-a-receber-modelo-2" || modelo === "recebimentos") && (
               <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
-                <label className="flex cursor-pointer items-center gap-2 text-[13px] text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={parcelasSomenteAReceber}
-                    onChange={(e) => setParcelasSomenteAReceber(e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-[#4a90d9] focus:ring-[#4a90d9]"
-                  />
-                  Mostrar somente a receber
-                </label>
-                <label className="flex cursor-pointer items-center gap-2 text-[13px] text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={parcelasAgruparPorCliente}
-                    onChange={(e) => setParcelasAgruparPorCliente(e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-[#4a90d9] focus:ring-[#4a90d9]"
-                  />
-                  Agrupar por cliente
-                </label>
+                {modelo === "parcelas-a-receber-modelo-2" && (
+                  <label className="flex cursor-pointer items-center gap-2 text-[13px] text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={parcelasSomenteAReceber}
+                      onChange={(e) => setParcelasSomenteAReceber(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-[#4a90d9] focus:ring-[#4a90d9]"
+                    />
+                    Mostrar somente a receber
+                  </label>
+                )}
+                {(modelo === "parcelas-a-receber-modelo-2" || modelo === "recebimentos") && (
+                  <label className="flex cursor-pointer items-center gap-2 text-[13px] text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={
+                        modelo === "recebimentos"
+                          ? recebimentosAgruparPorCliente
+                          : parcelasAgruparPorCliente
+                      }
+                      onChange={(e) => {
+                        if (modelo === "recebimentos") {
+                          setRecebimentosAgruparPorCliente(e.target.checked);
+                        } else {
+                          setParcelasAgruparPorCliente(e.target.checked);
+                        }
+                      }}
+                      className="h-4 w-4 rounded border-slate-300 text-[#4a90d9] focus:ring-[#4a90d9]"
+                    />
+                    Agrupar por cliente
+                  </label>
+                )}
               </div>
             )}
 

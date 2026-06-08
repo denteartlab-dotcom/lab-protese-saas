@@ -41,6 +41,7 @@ export type FiltroRelatorioContasReceber = {
   /** Parcelas (A Receber) Modelo 1 e 2 — Smart */
   parcelasSomenteAReceber?: boolean;
   parcelasAgruparPorCliente?: boolean;
+  recebimentosAgruparPorCliente?: boolean;
 };
 
 export type LinhaRelatorioContasReceber = {
@@ -298,6 +299,7 @@ export type OpcoesImpressaoRelatorioReceitas = {
   trabalhos?: TrabalhoRelatorioFatura[];
   parcelasSomenteAReceber?: boolean;
   parcelasAgruparPorCliente?: boolean;
+  recebimentosAgruparPorCliente?: boolean;
 };
 
 export async function gerarRelatorioContasReceberBlob(
