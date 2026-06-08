@@ -19,9 +19,9 @@ const COLUNAS: ColunaRelatorioFaturasSmart[] = [
   { titulo: "Qtd Parcelas", larguraMm: 22, align: "center" },
   { titulo: "Data Emissão", larguraMm: 24, align: "center" },
   { titulo: "Cliente", larguraMm: 46, align: "left" },
-  { titulo: "Valor", larguraMm: 24, align: "right", verde: true },
-  { titulo: "Recebido", larguraMm: 24, align: "right", verde: true },
-  { titulo: "Saldo", larguraMm: 24, align: "right", verde: true },
+  { titulo: "Valor", larguraMm: 24, align: "right" },
+  { titulo: "Recebido", larguraMm: 24, align: "right" },
+  { titulo: "Saldo", larguraMm: 24, align: "right" },
 ];
 
 const OBS_MODELO1 =
@@ -31,6 +31,10 @@ function qtdParcelasDaLinha(parcela: string) {
   const match = parcela.match(/\/\s*(\d+)\s*$/);
   if (match) return Number(match[1]) || 1;
   return 1;
+}
+
+function linhaValorJaRecebido(linha: LinhaRelatorioContasReceber) {
+  return linha.recebido > 0.009 && linha.saldo <= 0.009;
 }
 
 function formatarDataEmissao(linha: LinhaRelatorioContasReceber) {
@@ -66,6 +70,7 @@ export async function gerarRelatorioFaturasModelo1Pdf(
 
   linhas.forEach((linha) => {
     novaPaginaTabelaFaturasSmart(ctx, ctx.rowH);
+    const verde = linhaValorJaRecebido(linha);
     desenharLinhaTabelaFaturasSmart(
       ctx,
       [
@@ -77,7 +82,7 @@ export async function gerarRelatorioFaturasModelo1Pdf(
         moneyBr(linha.recebido),
         moneyBr(linha.saldo),
       ],
-      { verdeCols: [false, false, false, false, true, true, true] }
+      { verdeCols: [false, false, false, false, verde, verde, verde] }
     );
   });
 
