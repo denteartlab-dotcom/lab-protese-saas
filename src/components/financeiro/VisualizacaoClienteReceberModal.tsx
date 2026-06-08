@@ -216,12 +216,12 @@ export function VisualizacaoClienteReceberModal({
   if (!open || !mounted || !cliente) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[65] flex items-center justify-center p-2 sm:p-4">
+    <div className="fixed inset-0 z-[65] flex p-2 sm:p-3">
       <div className="absolute inset-0 bg-black/45" onClick={onClose} aria-hidden />
       <div
         role="dialog"
         aria-modal="true"
-        className="relative flex max-h-[96vh] w-full max-w-[1180px] flex-col rounded-sm border border-[#d1d5db] bg-white shadow-2xl"
+        className="relative flex h-full w-full flex-col rounded-sm border border-[#d1d5db] bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="shrink-0 border-b border-[#e5e7eb] bg-[#f9fafb] px-4 py-3">
@@ -380,7 +380,7 @@ export function VisualizacaoClienteReceberModal({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-auto px-4 py-3">
+        <div className="min-h-0 flex-1 overflow-auto px-5 py-4">
           {(aba === "faturas" || aba === "fatura") && (
             <div className="overflow-x-auto border border-[#d1d5db]">
               {aba === "fatura" && (
@@ -396,7 +396,7 @@ export function VisualizacaoClienteReceberModal({
                   </button>
                 </div>
               )}
-              <table className="w-full min-w-[980px] border-collapse">
+              <table className="w-full min-w-full border-collapse">
                 <thead>
                   <tr>
                     <th className={thClass}>Vencimento</th>
@@ -523,7 +523,7 @@ export function VisualizacaoClienteReceberModal({
 
           {aba === "recebimentos" && (
             <div className="overflow-x-auto border border-[#d1d5db]">
-              <table className="w-full min-w-[720px] border-collapse">
+              <table className="w-full min-w-full border-collapse">
                 <thead>
                   <tr>
                     <th className={thClass}>Data</th>
