@@ -39,6 +39,11 @@ import {
   type ParcelaLinhaReceita,
 } from "@/components/financeiro/LancarReceitaOsModal";
 import { ImprimirReciboModal } from "@/components/financeiro/ImprimirReciboModal";
+import {
+  LancarRecebimentoModal,
+  type LancarRecebimentoConfirmacao,
+  type LancamentoRecebimento,
+} from "@/components/financeiro/LancarRecebimentoModal";
 import { PlanoContasConteudo } from "@/components/financeiro/PlanoContasConteudo";
 import { notificarFinanceiroAtualizado } from "@/lib/financeiro-events";
 import { empacotarDespesa, type AnexoDespesa } from "@/lib/lancamento-despesa";
@@ -314,10 +319,6 @@ function FinanceiroReceberConteudo() {
     status: "pendente",
   });
   const [osRemovidasEdicao, setOsRemovidasEdicao] = useState<string[]>([]);
-  const [faturasSelecionadas, setFaturasSelecionadas] = useState<string[]>([]);
-  const [recebimentoValor, setRecebimentoValor] = useState("R$ 0,00");
-  const [recebimentoForma, setRecebimentoForma] = useState("Pix Externo");
-  const [recebimentoData, setRecebimentoData] = useState(dateToBrShort(new Date()));
   const [periodo, setPeriodo] = useState("todos");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFinal, setDataFinal] = useState("");
@@ -692,7 +693,6 @@ function FinanceiroReceberConteudo() {
         setNotaCliente({ ...detalhes, lancamentos: [lanc] });
       } else if (acao === "receber") {
         setRecebendoCliente(detalhes);
-        setFaturasSelecionadas([lancamentoId]);
       } else {
         setDetalheCliente(detalhes);
       }
@@ -1192,28 +1192,31 @@ function FinanceiroReceberConteudo() {
     });
   }
 
-  async function receberCliente(cliente: ClienteReceber) {
-    const pendentes = cliente.lancamentos.filter(
-      (l) => l.status !== "pago" && l.tipo === "receita" && isFaturaContasReceber(l)
-    );
+  function receberCliente(cliente: ClienteReceber) {
     setRecebendoCliente(cliente);
-    setFaturasSelecionadas(pendentes.map((l) => l.id));
-    setRecebimentoValor(formatCurrencyInput(String(Math.round(pendentes.reduce((sum, l) => sum + l.valor, 0) * 100))));
-    setRecebimentoForma("Pix Externo");
-    setRecebimentoData(dateToBrShort(new Date()));
   }
 
-  async function confirmarRecebimento(imprimir = false) {
+  async function confirmarRecebimento(
+    payload: LancarRecebimentoConfirmacao,
+    imprimir = false
+  ) {
     if (!recebendoCliente) return;
-    const selecionados = recebendoCliente.lancamentos.filter((l) => faturasSelecionadas.includes(l.id));
+    const selecionados = recebendoCliente.lancamentos.filter((l) =>
+      payload.faturasSelecionadas.includes(l.id)
+    );
     if (selecionados.length === 0) return;
-    let valorDisponivel = parseMoney(recebimentoValor);
+
+    let valorDisponivel = payload.formas.reduce((sum, f) => sum + parseMoney(f.valor), 0);
+    const formaPrincipal =
+      payload.formas.find((f) => parseMoney(f.valor) > 0)?.forma ?? "Pix Externo";
     const faturasPagas: Lancamento[] = [];
 
     for (const l of selecionados) {
       if (valorDisponivel <= 0) break;
-      const valorPago = Math.min(valorDisponivel, l.valor);
-      const saldo = Math.max(l.valor - valorPago, 0);
+      const juros = payload.jurosPorFatura[l.id] ?? 0;
+      const devido = saldoFatura(l) + juros;
+      const valorPago = Math.min(valorDisponivel, devido);
+      const saldo = Math.max(devido - valorPago, 0);
 
       await fetch(`/api/financeiro/${l.id}`, {
         method: "PUT",
@@ -1221,12 +1224,19 @@ function FinanceiroReceberConteudo() {
         body: JSON.stringify({
           valor: valorPago,
           status: "pago",
-          formaPagamento: recebimentoForma,
+          formaPagamento: formaPrincipal,
+          data: brShortToIso(payload.dataRecebimento),
         }),
       });
-      faturasPagas.push({ ...l, valor: valorPago, status: "pago", formaPagamento: recebimentoForma });
+      faturasPagas.push({
+        ...l,
+        valor: valorPago,
+        status: "pago",
+        formaPagamento: formaPrincipal,
+        data: brShortToIso(payload.dataRecebimento),
+      });
 
-      if (saldo > 0) {
+      if (saldo > 0.009) {
         await fetch("/api/financeiro", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1236,7 +1246,7 @@ function FinanceiroReceberConteudo() {
             valor: saldo,
             data: l.data,
             status: "pendente",
-            formaPagamento: l.formaPagamento || recebimentoForma,
+            formaPagamento: l.formaPagamento || formaPrincipal,
             clienteId: l.cliente?.id,
             trabalhoId: l.trabalho?.id,
           }),
@@ -1254,9 +1264,9 @@ function FinanceiroReceberConteudo() {
           tipo: "receita",
           clienteId: recebendoCliente.clienteId || undefined,
           valor: valorDisponivel,
-          data: brShortToIso(recebimentoData),
+          data: brShortToIso(payload.dataRecebimento),
           status: "pago",
-          formaPagamento: recebimentoForma,
+          formaPagamento: formaPrincipal,
           descricao: "Adiantamento / Crédito cliente",
         }),
       });
@@ -1265,10 +1275,12 @@ function FinanceiroReceberConteudo() {
         tipo: "receita",
         descricao: "Adiantamento / Crédito cliente",
         valor: valorDisponivel,
-        data: brShortToIso(recebimentoData),
+        data: brShortToIso(payload.dataRecebimento),
         status: "pago",
-        formaPagamento: recebimentoForma,
-        cliente: recebendoCliente.clienteId ? { id: recebendoCliente.clienteId, nome: recebendoCliente.nome } : null,
+        formaPagamento: formaPrincipal,
+        cliente: recebendoCliente.clienteId
+          ? { id: recebendoCliente.clienteId, nome: recebendoCliente.nome }
+          : null,
       });
     }
 
@@ -1276,19 +1288,7 @@ function FinanceiroReceberConteudo() {
       abrirModalRecibo(recebendoCliente.nome, faturasPagas);
     }
     setRecebendoCliente(null);
-    setFaturasSelecionadas([]);
     void loadPosMutacao();
-  }
-
-  function toggleFatura(id: string) {
-    setFaturasSelecionadas((atuais) => {
-      const proximas = atuais.includes(id) ? atuais.filter((item) => item !== id) : [...atuais, id];
-      const total = (recebendoCliente?.lancamentos || [])
-        .filter((l) => proximas.includes(l.id))
-        .reduce((sum, l) => sum + l.valor, 0);
-      setRecebimentoValor(formatCurrencyInput(String(Math.round(total * 100))));
-      return proximas;
-    });
   }
 
   function numeroFatura(lancamento: Lancamento) {
@@ -2050,108 +2050,35 @@ function FinanceiroReceberConteudo() {
         }}
       />
 
-      <Modal
+      <LancarRecebimentoModal
         open={Boolean(recebendoCliente)}
         onClose={() => setRecebendoCliente(null)}
-        title="Lançar Recebimento"
-        size="xl"
-      >
-        {recebendoCliente && (
-          <div className="space-y-5 text-[11px]">
-            <div className="flex items-center justify-between">
-              <p>
-                Cliente: <strong>{recebendoCliente.nome}</strong>
-              </p>
-              <p>
-                Total Devido:{" "}
-                <strong className="text-red-600">
-                  {money(recebendoCliente.lancamentos.filter((l) => l.status !== "pago").reduce((sum, l) => sum + l.valor, 0))}
-                </strong>
-              </p>
-            </div>
-            <div className="overflow-x-auto rounded border border-slate-200">
-              <table className="w-full min-w-[820px] text-[11px]">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
-                    <th className="px-3 py-2 text-left">Nº Fatura</th>
-                    <th className="px-3 py-2 text-left">Parcela</th>
-                    <th className="px-3 py-2 text-left">Vencimento</th>
-                    <th className="px-3 py-2 text-left">Forma Recebimento</th>
-                    <th className="px-3 py-2 text-right">Valor</th>
-                    <th className="px-3 py-2 text-right">Juros</th>
-                    <th className="px-3 py-2 text-center">Selecionar Fatura</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {recebendoCliente.lancamentos
-                    .filter((l) => l.status !== "pago" && isFaturaContasReceber(l))
-                    .map((l) => (
-                    <tr key={l.id}>
-                      <td className="px-3 py-2">{numeroFatura(l)}</td>
-                      <td className="px-3 py-2">1 / 1</td>
-                      <td className="px-3 py-2">{formatDate(l.data)}</td>
-                      <td className="px-3 py-2">{l.formaPagamento || recebimentoForma}</td>
-                      <td className="px-3 py-2 text-right">{money(l.valor)}</td>
-                      <td className="px-3 py-2 text-right">0,00</td>
-                      <td className="px-3 py-2 text-center">
-                        <input
-                          type="checkbox"
-                          checked={faturasSelecionadas.includes(l.id)}
-                          onChange={() => toggleFatura(l.id)}
-                          className="h-4 w-4 accent-primary-600"
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="rounded border border-slate-200 p-3">
-              <div className="mb-3 flex items-center justify-between">
-                <strong>Lançar Recebimento</strong>
-                <label className="inline-flex items-center gap-2 text-slate-500">
-                  <input type="checkbox" /> Emitir Nota Fiscal
-                </label>
-              </div>
-              <div className="grid gap-3 md:grid-cols-4">
-                <Select value={recebimentoForma} onChange={(e) => setRecebimentoForma(e.target.value)}>
-                  <option>Pix Externo</option>
-                  <option>Dinheiro</option>
-                  <option>Cartão</option>
-                  <option>Boleto</option>
-                </Select>
-                <Select value="Caixa Principal" onChange={() => undefined}>
-                  <option>Caixa Principal</option>
-                  <option>Banco</option>
-                </Select>
-                <Input
-                  selectOnFocus
-                  value={recebimentoValor}
-                  onChange={(e) => setRecebimentoValor(formatCurrencyInput(e.target.value))}
-                  className="text-right"
-                  placeholder="Digite o valor recebido"
-                />
-                <Input
-                  value={recebimentoData}
-                  onChange={(e) => setRecebimentoData(formatDateInput(e.target.value))}
-                  placeholder="Data recebimento"
-                />
-              </div>
-            </div>
-            <div className="grid gap-3 md:grid-cols-3">
-              <Button type="button" onClick={() => confirmarRecebimento()}>
-                Confirmar Recebimento
-              </Button>
-              <Button type="button" className="bg-emerald-500 hover:bg-emerald-600" onClick={() => confirmarRecebimento(true)}>
-                Confirmar Recebimento e Imprimir Recibo
-              </Button>
-              <Button type="button" variant="outline" onClick={() => setRecebendoCliente(null)}>
-                Fechar
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
+        clienteNome={recebendoCliente?.nome ?? ""}
+        totalDevido={
+          recebendoCliente?.lancamentos
+            .filter((l) => l.status !== "pago" && isFaturaContasReceber(l))
+            .reduce((sum, l) => sum + saldoFatura(l), 0) ?? 0
+        }
+        faturas={
+          recebendoCliente?.lancamentos.filter(
+            (l) => l.status !== "pago" && isFaturaContasReceber(l)
+          ) ?? []
+        }
+        numeroFatura={numeroFatura}
+        saldoFatura={saldoFatura}
+        formatDate={formatDate}
+        money={money}
+        parseMoney={parseMoney}
+        formatCurrencyInput={formatCurrencyInput}
+        onConfirmar={(payload, imprimir) => void confirmarRecebimento(payload, imprimir)}
+        onVisualizar={(lancamento) => {
+          if (!recebendoCliente) return;
+          setDetalheRecebimento({
+            cliente: recebendoCliente,
+            lancamento: lancamento as Lancamento,
+          });
+        }}
+      />
 
       <Modal
         open={Boolean(detalheCliente)}
