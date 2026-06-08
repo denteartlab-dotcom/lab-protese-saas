@@ -5,7 +5,8 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
 import type { LinhaFinalizadorServico } from "@/lib/finalizadores-servicos";
-import { gerarRelatorioComissaoPrestadoresModelo1Pdf } from "@/lib/pdf-relatorio-comissao-prestadores-modelo2";
+import { gerarRelatorioComissaoPrestadoresModelo1Pdf } from "@/lib/pdf-relatorio-comissao-prestadores-modelo1";
+import { gerarRelatorioComissaoPrestadoresModelo2Pdf } from "@/lib/pdf-relatorio-comissao-prestadores-modelo2";
 import { prepararAbaPdf, abrirPdfNoVisualizador } from "@/lib/pdf-viewer";
 import {
   filtrarLinhasRelatorioComissaoPrestadores,
@@ -124,17 +125,19 @@ export function RelatorioComissaoPrestadoresModal({
   idsSelecionados,
 }: Props) {
   const [portalPronto, setPortalPronto] = useState(false);
-  const [ordenarPor, setOrdenarPor] = useState<OrdenarPorRelatorioComissaoPrestador>("paciente");
+  const [ordenarPor, setOrdenarPor] = useState<OrdenarPorRelatorioComissaoPrestador>("os");
   const [prestador, setPrestador] = useState("todos");
   const [periodoCampo, setPeriodoCampo] =
-    useState<FiltroRelatorioComissaoPrestadores["periodoCampo"]>("data_lancamento");
+    useState<FiltroRelatorioComissaoPrestadores["periodoCampo"]>("data_pedido");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFinal, setDataFinal] = useState("");
   const [situacaoFinanceira, setSituacaoFinanceira] =
     useState<FiltroRelatorioComissaoPrestadores["situacaoFinanceira"]>("nao_faturados");
-  const [situacao, setSituacao] = useState("");
+  const [situacao, setSituacao] = useState("todos");
   const [modelo, setModelo] = useState<ModeloRelatorioComissaoPrestador>("modelo-1");
-  const [incluirComissaoZero, setIncluirComissaoZero] = useState(true);
+  const [mostrarPaciente, setMostrarPaciente] = useState(true);
+  const [mostrarCliente, setMostrarCliente] = useState(false);
+  const [mostrarValorServico, setMostrarValorServico] = useState(false);
   const [calendarioAberto, setCalendarioAberto] = useState<"inicio" | "final" | null>(null);
   const [gerandoPdf, setGerandoPdf] = useState(false);
   const [erroPdf, setErroPdf] = useState("");
@@ -145,15 +148,17 @@ export function RelatorioComissaoPrestadoresModal({
 
   useEffect(() => {
     if (!open) return;
-    setOrdenarPor("paciente");
+    setOrdenarPor("os");
     setPrestador(idsSelecionados.size > 0 ? "selecionados" : "todos");
-    setPeriodoCampo("data_lancamento");
+    setPeriodoCampo("data_pedido");
     setDataInicio("");
     setDataFinal("");
     setSituacaoFinanceira("nao_faturados");
-    setSituacao("");
-    setModelo("modelo-2");
-    setIncluirComissaoZero(true);
+    setSituacao("todos");
+    setModelo("modelo-1");
+    setMostrarPaciente(true);
+    setMostrarCliente(false);
+    setMostrarValorServico(false);
     setCalendarioAberto(null);
     setErroPdf("");
   }, [open, idsSelecionados.size]);
@@ -169,7 +174,9 @@ export function RelatorioComissaoPrestadoresModal({
       situacaoFinanceira,
       situacao,
       modelo,
-      incluirComissaoZero,
+      mostrarPaciente,
+      mostrarCliente,
+      mostrarValorServico,
     };
   }
 
@@ -205,24 +212,22 @@ export function RelatorioComissaoPrestadoresModal({
         filtro.ordenarPor
       );
 
-      if (filtro.modelo === "modelo-2") {
-        janela.close();
-        setErroPdf("Modelo 2 em desenvolvimento. Selecione Modelo 1.");
-        return;
-      }
+      const blob =
+        filtro.modelo === "modelo-2"
+          ? await gerarRelatorioComissaoPrestadoresModelo2Pdf(ordenadas, filtro)
+          : await gerarRelatorioComissaoPrestadoresModelo1Pdf(ordenadas, filtro);
 
-      const blob = await gerarRelatorioComissaoPrestadoresModelo1Pdf(ordenadas, filtro);
       abrirPdfNoVisualizador(
         blob,
-        "relatorio-comissao-prestadores.pdf",
-        "Comissões Prestadores",
+        "relatorio-prestador.pdf",
+        "Relatório Prestador",
         janela
       );
       onClose();
     } catch (err) {
-      console.error("relatorio comissao prestadores pdf", err);
+      console.error("relatorio prestador pdf", err);
       janela.close();
-      setErroPdf("Não foi possível gerar o PDF do relatório de comissão.");
+      setErroPdf("Não foi possível gerar o PDF do relatório.");
     } finally {
       setGerandoPdf(false);
     }
@@ -233,10 +238,10 @@ export function RelatorioComissaoPrestadoresModal({
   const conteudo = (
     <div
       className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/45 p-4"
-      data-modal="relatorio-comissao-prestadores"
+      data-modal="relatorio-prestador"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="relatorio-comissao-prestadores-titulo"
+      aria-labelledby="relatorio-prestador-titulo"
     >
       <div className="absolute inset-0" onClick={onClose} aria-hidden />
       <div
@@ -245,10 +250,10 @@ export function RelatorioComissaoPrestadoresModal({
       >
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
           <h2
-            id="relatorio-comissao-prestadores-titulo"
+            id="relatorio-prestador-titulo"
             className="text-[15px] font-normal text-slate-800"
           >
-            Relatório Comissão Prestadores
+            Relatório Prestador
           </h2>
           <button
             type="button"
@@ -280,7 +285,7 @@ export function RelatorioComissaoPrestadoresModal({
 
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <CampoSelect label="Prestadores" value={prestador} onChange={setPrestador}>
-              <option value="todos">Todos</option>
+              <option value="todos">Todas</option>
               <option value="selecionados">selecionados</option>
               {prestadores.map((item) => (
                 <option key={item.id} value={item.nome}>
@@ -302,7 +307,7 @@ export function RelatorioComissaoPrestadoresModal({
                     }
                     className={selectClass}
                   >
-                    <option value="data_lancamento">Data Lançamento</option>
+                    <option value="data_pedido">Data Pedido</option>
                     <option value="data_entrega">Data Entrega</option>
                   </select>
                   <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] text-slate-400">
@@ -356,8 +361,14 @@ export function RelatorioComissaoPrestadoresModal({
               <option value="faturados">Faturados</option>
             </CampoSelect>
 
-            <CampoSelect label="Situação" value={situacao} onChange={setSituacao}>
-              <option value=""> </option>
+            <CampoSelect
+              label="Situação"
+              value={situacao}
+              onChange={setSituacao}
+              mostrarLimpar={situacao !== "todos"}
+              onLimpar={() => setSituacao("todos")}
+            >
+              <option value="todos">Todos</option>
               {Object.entries(STATUS_TRABALHO).map(([key, value]) => (
                 <option key={key} value={key}>
                   {value.label}
@@ -374,6 +385,8 @@ export function RelatorioComissaoPrestadoresModal({
                 onChange={(value) =>
                   setModelo(value as ModeloRelatorioComissaoPrestador)
                 }
+                mostrarLimpar={modelo !== "modelo-1"}
+                onLimpar={() => setModelo("modelo-1")}
               >
                 {MODELOS_RELATORIO.map((item) => (
                   <option key={item.value} value={item.value}>
@@ -382,11 +395,21 @@ export function RelatorioComissaoPrestadoresModal({
                 ))}
               </CampoSelect>
             </div>
-            <div className="pb-1">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pb-1">
               <CampoCheckbox
-                label="Comissão Zero"
-                checked={incluirComissaoZero}
-                onChange={setIncluirComissaoZero}
+                label="Paciente"
+                checked={mostrarPaciente}
+                onChange={setMostrarPaciente}
+              />
+              <CampoCheckbox
+                label="Cliente"
+                checked={mostrarCliente}
+                onChange={setMostrarCliente}
+              />
+              <CampoCheckbox
+                label="Valor Serviço"
+                checked={mostrarValorServico}
+                onChange={setMostrarValorServico}
               />
             </div>
           </div>

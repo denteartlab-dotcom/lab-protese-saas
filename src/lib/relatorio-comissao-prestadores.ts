@@ -21,13 +21,15 @@ export type FiltroRelatorioComissaoPrestadores = {
   ordenarPor: OrdenarPorRelatorioComissaoPrestador;
   prestador: string;
   idsSelecionados: Set<string>;
-  periodoCampo: "data_lancamento" | "data_entrega";
+  periodoCampo: "data_pedido" | "data_entrega";
   dataInicio: string;
   dataFinal: string;
   situacaoFinanceira: "todos" | "nao_faturados" | "faturados";
   situacao: string;
   modelo: ModeloRelatorioComissaoPrestador;
-  incluirComissaoZero: boolean;
+  mostrarPaciente: boolean;
+  mostrarCliente: boolean;
+  mostrarValorServico: boolean;
 };
 
 type TrabalhoFaturamento = {
@@ -54,9 +56,13 @@ export function filtrarLinhasRelatorioComissaoPrestadores(
       if (linha.prestador !== filtro.prestador) return false;
     }
 
-    if (filtro.situacao && linha.situacaoKey !== filtro.situacao) return false;
-
-    if (!filtro.incluirComissaoZero && linha.comissaoValor === 0) return false;
+    if (
+      filtro.situacao &&
+      filtro.situacao !== "todos" &&
+      linha.situacaoKey !== filtro.situacao
+    ) {
+      return false;
+    }
 
     if (filtro.situacaoFinanceira !== "todos" && lancamentos.length > 0) {
       const trabalho = trabalhos.find((t) => t.id === linha.trabalhoId);

@@ -37,7 +37,7 @@ function textoCelula(valor: string) {
   return limpo === "—" || limpo === "-" ? "" : limpo;
 }
 
-const COLUNAS_MODELO2: ColunaComissaoPdf[] = [
+const COLUNAS_MODELO1: ColunaComissaoPdf[] = [
   { titulo: "Os", larguraMm: 10, align: "left", valor: (l) => String(l.numeroOs) },
   {
     titulo: "Lançamento",
@@ -135,13 +135,14 @@ function desenharCabecalhoPagina(ctx: PdfCtx, titulo: string) {
     y += 4.2;
   }
 
-  pdf.setFontSize(8);
-  pdf.text(formatDateTime(new Date()), pageW - margin, y, { align: "right" });
-  y += 3;
-
+  y += 2;
   pdf.setDrawColor(0, 0, 0);
   pdf.setLineWidth(0.2);
   pdf.line(margin, y, pageW - margin, y);
+  y += 4;
+
+  pdf.setFontSize(8);
+  pdf.text(formatDateTime(new Date()), pageW - margin, y, { align: "right" });
   y += 5;
 
   pdf.setFont("helvetica", "bold");
@@ -256,7 +257,7 @@ function agruparPorPrestador(linhas: LinhaFinalizadorServico[]) {
   );
 }
 
-export async function gerarRelatorioComissaoPrestadoresModelo2Pdf(
+export async function gerarRelatorioComissaoPrestadoresModelo1Pdf(
   linhas: LinhaFinalizadorServico[],
   filtro: Pick<FiltroRelatorioComissaoPrestadores, "periodoCampo">
 ): Promise<Blob> {
@@ -264,7 +265,7 @@ export async function gerarRelatorioComissaoPrestadoresModelo2Pdf(
   const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   const margin = 10;
   const larguraUtil = pdf.internal.pageSize.getWidth() - margin * 2;
-  const colunas = escalarColunasParaPaginaA4(COLUNAS_MODELO2, larguraUtil);
+  const colunas = escalarColunasParaPaginaA4(COLUNAS_MODELO1, larguraUtil);
   const ctx = criarCtx(pdf, colunas);
   const titulo = tituloRelatorio(filtro.periodoCampo);
 
