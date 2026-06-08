@@ -9,6 +9,7 @@ import {
   Eye,
   FileSpreadsheet,
   Printer,
+  Trash2,
 } from "lucide-react";
 import { ControleProducaoToolbar } from "@/components/ControleProducaoToolbar";
 import { RelatorioComissaoPrestadoresModal } from "@/components/RelatorioComissaoPrestadoresModal";
@@ -21,7 +22,39 @@ import {
 } from "@/lib/finalizadores-servicos";
 import { carregarPrestadoresListagem } from "@/lib/prestadores-listagem";
 import { parseBrDate } from "@/lib/datas-br";
+import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { STATUS_TRABALHO } from "@/lib/utils";
+
+const STORAGE_COMISSAO_ZERO = "labProteseControlePrestadoresComissaoZero";
+
+function ToggleComissaoZero({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (valor: boolean) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center gap-2">
+      <span className="whitespace-nowrap text-[11px] text-slate-600">Comissão Zero</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+          checked ? "bg-emerald-500" : "bg-slate-300"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-all ${
+            checked ? "left-[18px]" : "left-0.5"
+          }`}
+        />
+      </button>
+    </label>
+  );
+}
 
 function CardResumo({
   titulo,
@@ -61,6 +94,11 @@ function selectClassName() {
   return "h-8 w-full rounded border border-[#d1d5db] bg-white px-2 text-[11px] text-slate-700 focus:border-blue-500 focus:outline-none";
 }
 
+function exibirData(valor: string) {
+  const limpo = (valor || "").trim();
+  return limpo === "—" || limpo === "-" ? "" : limpo;
+}
+
 export function ControleFinalizadoresServicos() {
   const [trabalhos, setTrabalhos] = useState<TrabalhoFinalizador[]>([]);
   const [prestador, setPrestador] = useState("");
@@ -68,9 +106,17 @@ export function ControleFinalizadoresServicos() {
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [situacao, setSituacao] = useState("");
-  const [busca, setBusca] = useState("");
+  const [comissaoZero, setComissaoZero] = useState(false);
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [relatorioAberto, setRelatorioAberto] = useState(false);
+
+  useEffect(() => {
+    try {
+      setComissaoZero(readStorage<string | null>(STORAGE_COMISSAO_ZERO, null) === "1");
+    } catch {
+      setComissaoZero(false);
+    }
+  }, []);
 
   async function load() {
     const res = await fetch("/api/trabalhos");
@@ -86,27 +132,13 @@ export function ControleFinalizadoresServicos() {
   const linhasBase = useMemo(() => montarLinhasFinalizadoresServicos(trabalhos), [trabalhos]);
 
   const linhasFiltradas = useMemo(() => {
-    const termo = busca.trim().toLowerCase();
     return linhasBase.filter((linha) => {
       if (prestador && linha.prestador !== prestador) return false;
       if (situacao && linha.situacaoKey !== situacao) return false;
-
-      if (termo) {
-        const haystack = [
-          String(linha.numeroOs),
-          linha.servico,
-          linha.descricao,
-          linha.cliente,
-          linha.paciente,
-          linha.prestador,
-        ]
-          .join(" ")
-          .toLowerCase();
-        if (!haystack.includes(termo)) return false;
-      }
+      if (comissaoZero && linha.comissaoValor > 0) return false;
 
       if (dataInicio || dataFim) {
-        const campoData = periodo === "prazo" ? linha.prazo : linha.dataPedido;
+        const campoData = periodo === "entrega" ? linha.dataEntrega : linha.dataPedido;
         if (campoData === "—") return false;
         const dataLinha = parseBrDate(campoData);
         if (!dataLinha) return false;
@@ -126,7 +158,7 @@ export function ControleFinalizadoresServicos() {
 
       return true;
     });
-  }, [linhasBase, prestador, situacao, busca, dataInicio, dataFim, periodo]);
+  }, [linhasBase, prestador, situacao, comissaoZero, dataInicio, dataFim, periodo]);
 
   const totalComissoes = useMemo(
     () => linhasFiltradas.reduce((s, l) => s + l.comissaoValor, 0),
@@ -143,6 +175,15 @@ export function ControleFinalizadoresServicos() {
 
   const todosSelecionados =
     linhasFiltradas.length > 0 && linhasFiltradas.every((l) => selecionados.has(l.id));
+
+  function alterarComissaoZero(valor: boolean) {
+    setComissaoZero(valor);
+    try {
+      writeStorage(STORAGE_COMISSAO_ZERO, valor ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }
 
   function toggleLinha(id: string) {
     setSelecionados((atual) => {
@@ -172,18 +213,20 @@ export function ControleFinalizadoresServicos() {
       </button>
       <button
         type="button"
-        title="Imprimir"
-        className="flex h-8 w-8 items-center justify-center rounded border border-[#d1d5db] bg-[#f3f4f6] text-[#6b7280] hover:bg-[#e5e7eb]"
-      >
-        <Printer className="h-4 w-4" />
-      </button>
-      <button
-        type="button"
         title="Exportar"
         className="flex h-8 w-8 items-center justify-center rounded border border-[#86efac] bg-[#dcfce7] text-[#16a34a] hover:bg-[#bbf7d0]"
       >
         <FileSpreadsheet className="h-4 w-4" />
       </button>
+      <button
+        type="button"
+        title="Imprimir"
+        onClick={() => setRelatorioAberto(true)}
+        className="flex h-8 w-8 items-center justify-center rounded border border-[#93c5fd] bg-[#dbeafe] text-[#2563eb] hover:bg-[#bfdbfe]"
+      >
+        <Printer className="h-4 w-4" />
+      </button>
+      <ToggleComissaoZero checked={comissaoZero} onChange={alterarComissaoZero} />
     </>
   );
 
@@ -211,7 +254,7 @@ export function ControleFinalizadoresServicos() {
           />
         </div>
 
-        <div className="mb-3 grid gap-2 md:grid-cols-[1.2fr_0.9fr_0.85fr_0.85fr_1fr_1.2fr]">
+        <div className="mb-3 grid gap-2 md:grid-cols-[1.2fr_0.9fr_0.85fr_0.85fr_1fr]">
           <div>
             {labelFiltro("Prestadores")}
             <select
@@ -235,7 +278,7 @@ export function ControleFinalizadoresServicos() {
               className={selectClassName()}
             >
               <option value="pedido">Data Pedido</option>
-              <option value="prazo">Prazo</option>
+              <option value="entrega">Data Entrega</option>
             </select>
           </div>
           <CampoDataBr
@@ -269,51 +312,33 @@ export function ControleFinalizadoresServicos() {
               ))}
             </select>
           </div>
-          <div>
-            {labelFiltro("Busca")}
-            <div className="relative">
-              <input
-                type="text"
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                placeholder="OS, cliente, paciente..."
-                className={`${selectClassName()} pr-14`}
-              />
-              {busca ? (
-                <button
-                  type="button"
-                  onClick={() => setBusca("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-blue-600 hover:underline"
-                >
-                  Limpar
-                </button>
-              ) : null}
-            </div>
-          </div>
         </div>
 
         <div className="overflow-x-auto rounded border border-slate-200">
-          <table className="w-full min-w-[1180px] text-[11px]">
+          <table className="w-full min-w-[1200px] text-[11px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                <th className="w-8 px-2 py-2">
-                  <input
-                    type="checkbox"
-                    checked={todosSelecionados}
-                    onChange={toggleTodos}
-                    className="h-3.5 w-3.5 rounded border-slate-300"
-                    aria-label="Selecionar todos"
-                  />
+                <th className="px-2 py-2 text-left">
+                  <label className="inline-flex cursor-pointer items-center gap-1.5">
+                    <input
+                      type="checkbox"
+                      checked={todosSelecionados}
+                      onChange={toggleTodos}
+                      className="h-3.5 w-3.5 rounded border-slate-300"
+                      aria-label="Selecionar todos"
+                    />
+                    <span>Todos</span>
+                  </label>
                 </th>
                 <th className="px-2 py-2 text-left">OS</th>
-                <th className="px-2 py-2 text-left">Data Pedido</th>
-                <th className="px-2 py-2 text-left">Prazo</th>
+                <th className="px-2 py-2 text-left">Data</th>
+                <th className="px-2 py-2 text-left">Entregue</th>
                 <th className="px-2 py-2 text-left">Qtd</th>
                 <th className="px-2 py-2 text-left">Serviço</th>
                 <th className="px-2 py-2 text-left">Descrição</th>
                 <th className="px-2 py-2 text-left">Cliente</th>
                 <th className="px-2 py-2 text-left">Paciente</th>
-                <th className="px-2 py-2 text-left">Situação Pedido</th>
+                <th className="px-2 py-2 text-left">Situação</th>
                 <th className="px-2 py-2 text-right">Comissão</th>
                 <th className="px-2 py-2 text-center">Opções</th>
               </tr>
@@ -322,7 +347,7 @@ export function ControleFinalizadoresServicos() {
               {linhasFiltradas.length === 0 ? (
                 <tr>
                   <td colSpan={12} className="px-4 py-10 text-center text-slate-500">
-                    Nenhum registro de terceirizado encontrado para os filtros selecionados.
+                    Nenhum registro de prestador encontrado para os filtros selecionados.
                   </td>
                 </tr>
               ) : (
@@ -379,8 +404,8 @@ function LinhaTabela({
         />
       </td>
       <td className="px-2 py-2">{osBadge(linha.numeroOs)}</td>
-      <td className="whitespace-nowrap px-2 py-2">{linha.dataPedido}</td>
-      <td className="whitespace-nowrap px-2 py-2">{linha.prazo}</td>
+      <td className="whitespace-nowrap px-2 py-2">{exibirData(linha.dataPedido)}</td>
+      <td className="whitespace-nowrap px-2 py-2">{exibirData(linha.dataEntrega)}</td>
       <td className="px-2 py-2">{linha.qtd}</td>
       <td className="max-w-[140px] truncate px-2 py-2" title={linha.servico}>
         {linha.servico}
@@ -418,6 +443,16 @@ function LinhaTabela({
           >
             <Edit3 className="h-4 w-4" />
           </Link>
+          <button
+            type="button"
+            title="Excluir"
+            className="rounded p-1 text-red-500 hover:bg-red-50 hover:text-red-600"
+            onClick={() => {
+              /* exclusão vinculada à OS no cadastro */
+            }}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         </div>
       </td>
     </tr>
