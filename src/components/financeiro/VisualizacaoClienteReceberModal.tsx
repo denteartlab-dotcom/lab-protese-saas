@@ -103,6 +103,14 @@ function observacaoLinha(descricao: string) {
   return partes.slice(1).join(" - ").replace(/\(\d+\s*\/\s*\d+\)\s*$/, "").trim();
 }
 
+function observacaoRecebimento(descricao: string) {
+  const obs = observacaoLinha(descricao);
+  if (obs) return obs;
+  const texto = descricao.replace(/@@trab:[a-zA-Z0-9_,-]+@@/g, "").trim();
+  if (texto.toLowerCase().startsWith("cobrança os")) return "";
+  return texto;
+}
+
 function parseDataMesAno(iso: string) {
   const match = iso.match(/^(\d{4})-(\d{2})/);
   if (!match) return { mes: new Date().getMonth(), ano: new Date().getFullYear() };
@@ -366,8 +374,14 @@ export function VisualizacaoClienteReceberModal({
     });
   }, [lancamentosFiltrados, isFaturaContasReceber, saldoFatura]);
 
+  const totalRecebimentosMes = useMemo(
+    () => recebimentosVisiveis.reduce((s, l) => s + l.valor, 0),
+    [recebimentosVisiveis]
+  );
+
   const totalLinhaAReceber = cliente?.aReceber ?? 0;
   const adiantamentosCliente = cliente?.adiantamentos ?? 0;
+  const mesLabel = MESES[mes];
   const chaveCliente = cliente?.clienteId ?? cliente?.nome ?? "";
 
   if (!open || !mounted || !cliente) return null;
@@ -734,68 +748,76 @@ export function VisualizacaoClienteReceberModal({
           )}
 
           {aba === "recebimentos" && (
-            <div className="overflow-x-auto border border-[#c5c9cf] bg-white">
-              <table className="w-full min-w-[720px] border-collapse">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] border-collapse text-[11px]">
                 <thead>
                   <tr>
-                    <th className={thClass}>Data</th>
-                    <th className={thClass}>Forma Pagamento</th>
-                    <th className={thClass}>Referência</th>
-                    <th className={cn(thClass, "text-right")}>Valor</th>
-                    <th className={cn(thClass, "text-center")}>Opções</th>
+                    <th className={thFaturasClass}>Data Recebimento</th>
+                    <th className={thFaturasClass}>Forma Pagamento</th>
+                    <th className={cn(thFaturasClass, "text-right")}>Valor</th>
+                    <th className={thFaturasClass}>Observação</th>
+                    <th className={cn(thFaturasClass, "text-right")}>Opções</th>
                   </tr>
                 </thead>
                 <tbody>
                   {recebimentosVisiveis.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className={cn(tdClass, "py-10 text-center text-[#9ca3af]")}>
+                      <td
+                        colSpan={5}
+                        className={cn(tdFaturasClass, "py-12 text-center text-[#9ca3af]")}
+                      >
                         Nenhum recebimento encontrado para o período selecionado.
                       </td>
                     </tr>
                   ) : (
-                    recebimentosVisiveis.map((l, index) => (
-                      <tr
-                        key={l.id}
-                        className={cn(
-                          index % 2 === 0 ? "bg-white" : "bg-[#f8fafc]",
-                          "hover:brightness-[0.98]"
-                        )}
-                      >
-                        <td className={tdClass}>{formatDate(l.data)}</td>
-                        <td className={tdClass}>
-                          <span className="font-medium text-[#2563eb]">
+                    recebimentosVisiveis.map((l) => (
+                      <tr key={l.id} className="bg-white hover:bg-[#fafafa]">
+                        <td className={tdFaturasClass}>{formatDate(l.data)}</td>
+                        <td className={tdFaturasClass}>
+                          <span className="cursor-pointer font-medium text-[#2563eb] hover:underline">
                             {l.formaPagamento || "—"}
                           </span>
                         </td>
-                        <td className={tdClass}>{referenciaLancamento(l)}</td>
-                        <td className={cn(tdClass, "text-right tabular-nums")}>
+                        <td className={cn(tdFaturasClass, "text-right tabular-nums")}>
                           {money(l.valor)}
                         </td>
-                        <td className={cn(tdClass, "text-center")}>
-                          <div className="flex items-center justify-center gap-0">
-                            <button
-                              type="button"
-                              title="Detalhes"
-                              onClick={() => onDetalheRecebimento(l)}
-                              className={cn(btnOpcaoClass, "text-[#4a90d9]")}
-                            >
-                              <Eye className="h-3.5 w-3.5" />
-                            </button>
+                        <td className={cn(tdFaturasClass, "max-w-[16rem] truncate text-[#6b7280]")}>
+                          {observacaoRecebimento(l.descricao)}
+                        </td>
+                        <td className={cn(tdFaturasClass, "text-right")}>
+                          <div className="flex items-center justify-end gap-1">
                             <button
                               type="button"
                               title="Imprimir recibo"
                               onClick={() => onImprimirRecibo(l)}
-                              className={cn(btnOpcaoClass, "text-[#4a90d9]")}
+                              className="inline-flex items-center gap-1 rounded bg-[#4a90d9] px-2.5 py-1 text-[10px] font-medium text-white hover:bg-[#3d7fc4]"
                             >
                               <Printer className="h-3.5 w-3.5" />
+                              Recibo
                             </button>
                             <button
                               type="button"
-                              title="Estornar"
+                              title="Visualizar"
+                              onClick={() => onDetalheRecebimento(l)}
+                              className={cn(btnOpcaoClass, "text-[#4a90d9]")}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              title="Editar"
+                              onClick={() => onDetalheRecebimento(l)}
+                              className={cn(btnOpcaoClass, "text-[#6b7280]")}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              title="Excluir"
                               onClick={() => onEstornarRecebimento(l)}
                               className={cn(btnOpcaoClass, "text-[#dc2626]")}
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
                         </td>
@@ -803,6 +825,17 @@ export function VisualizacaoClienteReceberModal({
                     ))
                   )}
                 </tbody>
+                {recebimentosVisiveis.length > 0 && (
+                  <tfoot>
+                    <tr className="bg-white font-semibold">
+                      <td className={tdFaturasClass} colSpan={2} />
+                      <td className={cn(tdFaturasClass, "text-right tabular-nums text-[#16a34a]")}>
+                        {money(totalRecebimentosMes)}
+                      </td>
+                      <td className={tdFaturasClass} colSpan={2} />
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           )}
