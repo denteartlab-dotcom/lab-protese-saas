@@ -43,7 +43,6 @@ import {
   buscarServicoNaTabela,
   carregarCategoriasPorTabelaPreco,
   categoriaDoServicoNaTabela,
-  etapaCadastradaNoServico,
   etapasFormParaItemServico,
   etapasIniciaisFormParaOsServico,
   modelosEtapasParaOsServico,
@@ -1350,6 +1349,41 @@ export default function OrdemServicoPage() {
     });
   }, [form.dataLancamento, form.horaLaboratorio, modelosEtapas]);
 
+  useEffect(() => {
+    setEtapas((atuais) => {
+      if (atuais.length === 0) return atuais;
+      const base = parseCurrency(form.valor) * Number(form.quantidade || 1);
+      let mudou = false;
+      const proximas = atuais.map((etapa) => {
+        if (!etapa.responsavel.trim()) return etapa;
+        if (etapa.comissaoModo === "reais" && etapa.comissaoReais?.trim()) {
+          const reaisNum = parseMoney(etapa.comissaoReais);
+          const pctNum = base > 0 ? (reaisNum / base) * 100 : 0;
+          const pctFmt = pctNum.toLocaleString("pt-BR", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          });
+          if (etapa.comissaoPercentual === pctFmt) return etapa;
+          mudou = true;
+          return { ...etapa, comissaoPercentual: pctFmt };
+        }
+        const pctNum =
+          parseMoney(etapa.comissaoPercentual || "0") ||
+          percentualComissaoEtapaOs(servicoOsAtual, etapa.responsavel);
+        const reaisNum = (base * pctNum) / 100;
+        const reaisFmt = formatComissaoReaisInput(String(Math.round(reaisNum * 100)));
+        const pctFmt = pctNum.toLocaleString("pt-BR", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+        if (etapa.comissaoReais === reaisFmt && etapa.comissaoPercentual === pctFmt) return etapa;
+        mudou = true;
+        return { ...etapa, comissaoReais: reaisFmt, comissaoPercentual: pctFmt };
+      });
+      return mudou ? proximas : atuais;
+    });
+  }, [form.valor, form.quantidade, form.repeticao, servicoOsAtual]);
+
   function tempoCalculadoEtapa(nome: string) {
     const modelo = modeloEtapa(nome);
     const tempoMedio = Number(modelo?.tempoMedio || 0);
@@ -1411,18 +1445,11 @@ export default function OrdemServicoPage() {
     servico = servicoOsAtual
   ) {
     const pctNumero = percentualComissaoEtapaOs(servico, etapa.responsavel);
-    const valorEtapaTabela = parseMoney(
-      etapaCadastradaNoServico(servico, etapa.nome)?.valorHora || "0"
-    );
-    let reaisNum = valorEtapaTabela;
-    if (reaisNum <= 0 && pctNumero > 0) {
-      reaisNum = (valorBaseComissaoEtapaOs() * pctNumero) / 100;
-    }
     const base = valorBaseComissaoEtapaOs();
-    const pctCalculado = base > 0 ? (reaisNum / base) * 100 : pctNumero;
+    const reaisNum = (base * pctNumero) / 100;
     return {
       comissaoReais: formatComissaoReaisInput(String(Math.round(reaisNum * 100))),
-      comissaoPercentual: pctCalculado.toLocaleString("pt-BR", {
+      comissaoPercentual: pctNumero.toLocaleString("pt-BR", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }),
@@ -1481,7 +1508,19 @@ export default function OrdemServicoPage() {
 
   function definirModoComissaoEtapa(index: number, modo: "reais" | "percentual") {
     setEtapas((atuais) =>
-      atuais.map((item, i) => (i === index ? { ...item, comissaoModo: modo } : item))
+      atuais.map((item, i) => {
+        if (i !== index) return item;
+        if (modo === "percentual" && item.responsavel.trim()) {
+          const padrao = valoresComissaoPadraoEtapa(item);
+          return {
+            ...item,
+            comissaoModo: modo,
+            comissaoPercentual: padrao.comissaoPercentual,
+            comissaoReais: padrao.comissaoReais,
+          };
+        }
+        return { ...item, comissaoModo: modo };
+      })
     );
   }
 
