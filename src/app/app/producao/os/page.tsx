@@ -142,13 +142,18 @@ type TrabalhoEdicao = {
   cliente?: { observacoes?: string | null };
   paciente?: { nome?: string | null };
 };
-type EtapaOsItemServico = {
+type EtapaOsForm = {
   nome: string;
   setor: string;
   responsavel: string;
   prazo: string;
   observacao: string;
+  comissaoModo?: "reais" | "percentual";
+  comissaoReais?: string;
+  comissaoPercentual?: string;
 };
+
+type EtapaOsItemServico = EtapaOsForm;
 
 type ItemAdicionado = {
   id: string;
@@ -325,9 +330,7 @@ export default function OrdemServicoPage() {
   const [modelosEtapas, setModelosEtapas] = useState<EtapaCadastro[]>([]);
   const [setoresCadastrados, setSetoresCadastrados] = useState<SetorCadastro[]>([]);
   const [colaboradoresOpcoes, setColaboradoresOpcoes] = useState<ColaboradorListagem[]>([]);
-  const [etapas, setEtapas] = useState<
-    Array<{ nome: string; setor: string; responsavel: string; prazo: string; observacao: string }>
-  >([]);
+  const [etapas, setEtapas] = useState<EtapaOsForm[]>([]);
   const [calendarioEtapaAberto, setCalendarioEtapaAberto] = useState<number | null>(null);
   const [produtosOs, setProdutosOs] = useState<
     Array<{ produtoId: string; quantidade: string; valor: string; observacao: string }>
@@ -719,13 +722,16 @@ export default function OrdemServicoPage() {
         grupo.map((item) => item.instrucoes || "")
       );
       setEtapas(
-        complementos.etapas.map((etapa) => ({
-          nome: etapa.nome,
-          setor: "",
-          responsavel: etapa.responsavel,
-          prazo: etapa.prazo,
-          observacao: etapa.observacao,
-        }))
+        complementos.etapas.map((etapa) =>
+          sincronizarComissaoEtapa({
+            nome: etapa.nome,
+            setor: "",
+            responsavel: etapa.responsavel,
+            prazo: etapa.prazo,
+            observacao: etapa.observacao,
+            comissaoModo: "reais",
+          })
+        )
       );
       setColaboradores(
         complementos.colaboradores.map((item) => ({
@@ -983,7 +989,7 @@ export default function OrdemServicoPage() {
           modelosEtapas,
           form.dataLancamento,
           form.horaLaboratorio
-        )
+        ).map((etapa) => sincronizarComissaoEtapa({ ...etapa, comissaoModo: "reais" }))
       );
       setAbaServico("etapas");
     } else {
@@ -1387,30 +1393,96 @@ export default function OrdemServicoPage() {
     return parseMoney(comissaoColaboradorCadastro(cadastro));
   }
 
-  function comissaoEtapaOs(
-    etapa: { nome: string; responsavel: string },
+  function formatComissaoReaisInput(value: string) {
+    const centavos = Number(String(value).replace(/\D/g, "")) || 0;
+    const amount = centavos / 100;
+    return amount.toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
+  function valorBaseComissaoEtapaOs() {
+    return parseCurrency(form.valor) * Number(form.quantidade || 1);
+  }
+
+  function valoresComissaoPadraoEtapa(
+    etapa: Pick<EtapaOsForm, "nome" | "responsavel">,
     servico = servicoOsAtual
   ) {
     const pctNumero = percentualComissaoEtapaOs(servico, etapa.responsavel);
-    const pct = exibirComissaoPercentual(
-      pctNumero.toLocaleString("pt-BR", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })
-    );
-
     const valorEtapaTabela = parseMoney(
       etapaCadastradaNoServico(servico, etapa.nome)?.valorHora || "0"
     );
-    let valorRs = valorEtapaTabela;
-    if (valorRs <= 0 && pctNumero > 0) {
-      valorRs = (parseMoney(form.valor) * pctNumero) / 100;
+    let reaisNum = valorEtapaTabela;
+    if (reaisNum <= 0 && pctNumero > 0) {
+      reaisNum = (valorBaseComissaoEtapaOs() * pctNumero) / 100;
     }
-
+    const base = valorBaseComissaoEtapaOs();
+    const pctCalculado = base > 0 ? (reaisNum / base) * 100 : pctNumero;
     return {
-      pct: pct || "0,00%",
-      valorRs: valorRs.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+      comissaoReais: formatComissaoReaisInput(String(Math.round(reaisNum * 100))),
+      comissaoPercentual: pctCalculado.toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
     };
+  }
+
+  function sincronizarComissaoEtapa(etapa: EtapaOsForm, servico = servicoOsAtual): EtapaOsForm {
+    const padrao = valoresComissaoPadraoEtapa(etapa, servico);
+    return {
+      ...etapa,
+      comissaoModo: etapa.comissaoModo || "reais",
+      comissaoReais: padrao.comissaoReais,
+      comissaoPercentual: padrao.comissaoPercentual,
+    };
+  }
+
+  function atualizarComissaoReaisEtapa(index: number, valorDigitado: string) {
+    const comissaoReais = formatComissaoReaisInput(valorDigitado);
+    const reaisNum = parseMoney(comissaoReais);
+    const base = valorBaseComissaoEtapaOs();
+    const pctNum = base > 0 ? (reaisNum / base) * 100 : 0;
+    setEtapas((atuais) =>
+      atuais.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              comissaoModo: "reais",
+              comissaoReais,
+              comissaoPercentual: pctNum.toLocaleString("pt-BR", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }),
+            }
+          : item
+      )
+    );
+  }
+
+  function atualizarComissaoPercentualEtapa(index: number, valorDigitado: string) {
+    const comissaoPercentual = formatarComissaoPercentInput(valorDigitado).replace(/%/g, "");
+    const pctNum = parseMoney(comissaoPercentual);
+    const reaisNum = (valorBaseComissaoEtapaOs() * pctNum) / 100;
+    setEtapas((atuais) =>
+      atuais.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              comissaoModo: "percentual",
+              comissaoPercentual,
+              comissaoReais: formatComissaoReaisInput(String(Math.round(reaisNum * 100))),
+            }
+          : item
+      )
+    );
+  }
+
+  function definirModoComissaoEtapa(index: number, modo: "reais" | "percentual") {
+    setEtapas((atuais) =>
+      atuais.map((item, i) => (i === index ? { ...item, comissaoModo: modo } : item))
+    );
   }
 
   function rotuloSetorEtapa(etapa: { nome: string; setor: string }) {
@@ -1560,10 +1632,15 @@ export default function OrdemServicoPage() {
       setAbaServico("etapas");
     }
     setEtapas(
-      etapasDoItem.map((etapa) => ({
-        ...etapa,
-        setor: etapa.setor || modeloEtapa(etapa.nome)?.setor || "",
-      }))
+      etapasDoItem.map((etapa) => {
+        const base: EtapaOsForm = {
+          ...etapa,
+          setor: etapa.setor || modeloEtapa(etapa.nome)?.setor || "",
+          comissaoModo: etapa.comissaoModo || "reais",
+        };
+        if (etapa.comissaoReais || etapa.comissaoPercentual) return base;
+        return sincronizarComissaoEtapa(base);
+      })
     );
   }
 
@@ -1781,7 +1858,16 @@ export default function OrdemServicoPage() {
     if (ultima && !ultima.nome.trim() && !ultima.responsavel.trim() && !ultima.prazo.trim()) return;
     setEtapas((atuais) => [
       ...atuais,
-      { nome: "", setor: "", responsavel: "", prazo: "", observacao: "" },
+      {
+        nome: "",
+        setor: "",
+        responsavel: "",
+        prazo: "",
+        observacao: "",
+        comissaoModo: "reais",
+        comissaoReais: "0,00",
+        comissaoPercentual: "0,00",
+      },
     ]);
   }
 
@@ -3323,7 +3409,12 @@ export default function OrdemServicoPage() {
                                 onChange={(e) =>
                                   setEtapas((atuais) =>
                                     atuais.map((item, i) =>
-                                      i === index ? { ...item, responsavel: e.target.value } : item
+                                      i === index
+                                        ? sincronizarComissaoEtapa({
+                                            ...item,
+                                            responsavel: e.target.value,
+                                          })
+                                        : item
                                     )
                                   )
                                 }
@@ -3346,20 +3437,70 @@ export default function OrdemServicoPage() {
                                 <label className="block text-[11px] font-medium text-slate-600">
                                   Valor Comissão
                                 </label>
-                                <Input
-                                  value={comissaoEtapaOs(etapa).valorRs}
-                                  readOnly
-                                  className="h-10"
-                                />
-                                <div className="flex h-10 items-center overflow-hidden rounded-lg border border-slate-300 bg-slate-50 shadow-sm">
-                                  <span className="flex w-9 shrink-0 items-center justify-center border-r border-slate-200 text-xs text-slate-500">
-                                    %
-                                  </span>
+                                <div
+                                  className={`flex h-10 overflow-hidden rounded-lg border bg-white shadow-sm ${
+                                    etapa.comissaoModo !== "percentual"
+                                      ? "border-primary-400 ring-1 ring-primary-200"
+                                      : "border-slate-300"
+                                  }`}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => definirModoComissaoEtapa(index, "reais")}
+                                    className={`flex w-10 shrink-0 items-center justify-center border-r text-xs font-semibold transition-colors ${
+                                      etapa.comissaoModo !== "percentual"
+                                        ? "border-primary-200 bg-primary-50 text-primary-700"
+                                        : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-primary-50 hover:text-primary-700"
+                                    }`}
+                                    title="Editar em reais"
+                                  >
+                                    R$
+                                  </button>
                                   <input
                                     type="text"
-                                    value={comissaoEtapaOs(etapa).pct}
-                                    readOnly
-                                    className="h-full w-full bg-transparent px-3 text-sm text-slate-700 outline-none"
+                                    inputMode="decimal"
+                                    value={etapa.comissaoReais || "0,00"}
+                                    onFocus={() => definirModoComissaoEtapa(index, "reais")}
+                                    onChange={(e) =>
+                                      atualizarComissaoReaisEtapa(index, e.target.value)
+                                    }
+                                    className="h-full w-full bg-transparent px-3 text-sm text-slate-800 outline-none"
+                                    {...propsInputComSelecaoAoFocar({})}
+                                  />
+                                </div>
+                                <div
+                                  className={`flex h-10 overflow-hidden rounded-lg border bg-white shadow-sm ${
+                                    etapa.comissaoModo === "percentual"
+                                      ? "border-primary-400 ring-1 ring-primary-200"
+                                      : "border-slate-300"
+                                  }`}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => definirModoComissaoEtapa(index, "percentual")}
+                                    className={`flex w-10 shrink-0 items-center justify-center border-r text-xs font-semibold transition-colors ${
+                                      etapa.comissaoModo === "percentual"
+                                        ? "border-primary-200 bg-primary-50 text-primary-700"
+                                        : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-primary-50 hover:text-primary-700"
+                                    }`}
+                                    title="Editar em porcentagem"
+                                  >
+                                    %
+                                  </button>
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={
+                                      etapa.comissaoPercentual
+                                        ? `${etapa.comissaoPercentual}%`
+                                        : "0,00%"
+                                    }
+                                    onFocus={() => definirModoComissaoEtapa(index, "percentual")}
+                                    onChange={(e) =>
+                                      atualizarComissaoPercentualEtapa(index, e.target.value)
+                                    }
+                                    className="h-full w-full bg-transparent px-3 text-sm text-slate-800 outline-none"
+                                    {...propsInputComSelecaoAoFocar({})}
                                   />
                                 </div>
                               </div>

@@ -155,8 +155,11 @@ export function CampoHoraBr({
           disabled={disabled}
           onChange={(e) => onChange(normalizarHora(e.target.value))}
           onBlur={() => {
-            if (value.trim()) aplicarHora(value);
-            else onChange("00:00");
+            if (!value.trim()) {
+              onChange("00:00");
+              return;
+            }
+            aplicarHora(value);
           }}
           placeholder={placeholder}
           className={cn(

@@ -63,12 +63,17 @@ export function montarPrazoEtapaOs(data: string, hora: string) {
   return `${dataFmt} ${horaFmt}`.trim();
 }
 
+export type ComissaoModoEtapaOs = "reais" | "percentual";
+
 export type EtapaOsLinhaVazia = {
   nome: string;
   setor: string;
   responsavel: string;
   prazo: string;
   observacao: string;
+  comissaoModo?: ComissaoModoEtapaOs;
+  comissaoReais?: string;
+  comissaoPercentual?: string;
 };
 
 export type EtapasFormParaItemServicoOpts = {
