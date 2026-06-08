@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AlertTriangle, Check, Eye, FileText, Pencil, Plus, Printer, RefreshCw, Search, Trash2 } from "lucide-react";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
@@ -1064,6 +1064,7 @@ function FinanceiroReceberConteudo() {
         setFaturaEditando(null);
         setDetalheRecebimento(null);
         setReciboRecebimento(null);
+        setClienteCollapseAberto(null);
         await Promise.all(
           idsParaExcluir.map((lancamentoId) =>
             fetch(`/api/financeiro/${lancamentoId}`, { method: "DELETE" })
@@ -1083,6 +1084,7 @@ function FinanceiroReceberConteudo() {
           await fetch(`/api/financeiro/${lancamento.id}`, { method: "DELETE" });
           setDetalheRecebimento(null);
           setReciboRecebimento(null);
+          setClienteCollapseAberto(null);
           void loadPosMutacao();
         },
       });
@@ -1097,6 +1099,7 @@ function FinanceiroReceberConteudo() {
           await fetch(`/api/financeiro/${lancamento.id}`, { method: "DELETE" });
           setDetalheRecebimento(null);
           setReciboRecebimento(null);
+          setClienteCollapseAberto(null);
           void loadPosMutacao();
         },
       });
@@ -1138,6 +1141,7 @@ function FinanceiroReceberConteudo() {
 
         setDetalheRecebimento(null);
         setReciboRecebimento(null);
+        setClienteCollapseAberto(null);
         void loadPosMutacao();
       },
     });
@@ -1786,55 +1790,255 @@ function FinanceiroReceberConteudo() {
             <tbody>
               {clientesReceber.map((cliente) => {
                 const chave = clienteKey(cliente);
+                const aberto = clienteCollapseAberto === chave;
                 const faturasContasReceber = cliente.lancamentos.filter(isFaturaContasReceber);
                 const temFatura = faturasContasReceber.length > 0;
+                const recebimentosCliente = cliente.lancamentos.filter((l) => l.status === "pago");
 
                 return (
-                  <tr
-                    key={chave}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => abrirClienteModal(cliente)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        abrirClienteModal(cliente);
-                      }
-                    }}
-                    className={cn(
-                      "cursor-pointer border-b border-slate-100",
-                      temFatura && clienteTemVencido(cliente)
-                        ? "bg-red-100/70"
-                        : temFatura && clienteTemAVencer(cliente)
-                          ? "bg-emerald-100/70"
-                          : "hover:bg-slate-50"
+                  <Fragment key={chave}>
+                    <tr
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => abrirClienteModal(cliente)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          abrirClienteModal(cliente);
+                        }
+                      }}
+                      className={cn(
+                        "cursor-pointer border-b border-slate-100",
+                        aberto && temFatura
+                          ? "bg-blue-50/70"
+                          : temFatura && clienteTemVencido(cliente)
+                            ? "bg-red-100/70"
+                            : temFatura && clienteTemAVencer(cliente)
+                              ? "bg-emerald-100/70"
+                              : "hover:bg-slate-50"
+                      )}
+                    >
+                      <td className="px-3 py-2">{cliente.nome}</td>
+                      <td className="px-3 py-2 text-right">{money(cliente.aReceber)}</td>
+                      <td className="px-3 py-2 text-right">{money(cliente.recebido)}</td>
+                      <td className="px-3 py-2 text-right">{money(cliente.adiantamentos)}</td>
+                      <td className="px-3 py-2 text-right">{money(cliente.naoFaturados)}</td>
+                      <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => receberCliente(cliente)}
+                            className="rounded bg-primary-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-primary-700"
+                          >
+                            Receber
+                          </button>
+                          <button
+                            type="button"
+                            title="Visualizar faturas"
+                            onClick={() => setClienteCollapseAberto(aberto ? null : chave)}
+                            className={cn(
+                              "rounded p-1 hover:bg-slate-100 hover:text-primary-700",
+                              aberto ? "bg-primary-50 text-primary-700" : "text-slate-500"
+                            )}
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {aberto && (
+                      <tr
+                        className={cn(
+                          "border-b",
+                          temFatura ? "border-blue-100 bg-blue-50/40" : "border-slate-100 bg-white"
+                        )}
+                      >
+                        <td colSpan={6} className="px-3 py-3">
+                          <div className="space-y-4">
+                            <div className="rounded border border-blue-200 bg-white p-3 shadow-sm">
+                              <div className="mb-3 flex items-center gap-2 text-primary-700">
+                                <FileText className="h-3.5 w-3.5" />
+                                <strong>Contas a Receber</strong>
+                              </div>
+                              <div className="overflow-x-auto">
+                                <table className="w-full min-w-[850px] text-[11px]">
+                                  <thead>
+                                    <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
+                                      <th className="px-2 py-2 text-left">Vencimento</th>
+                                      <th className="px-2 py-2 text-left">Nº Fatura</th>
+                                      <th className="px-2 py-2 text-left">Parcela</th>
+                                      <th className="px-2 py-2 text-left">Forma Recebimento</th>
+                                      <th className="px-2 py-2 text-right">Valor</th>
+                                      <th className="px-2 py-2 text-right">Recebido</th>
+                                      <th className="px-2 py-2 text-right">Saldo</th>
+                                      <th className="px-2 py-2 text-left">Situação</th>
+                                      <th className="px-2 py-2 text-center">Opções</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {faturasContasReceber.length === 0 && (
+                                      <tr>
+                                        <td colSpan={9} className="px-2 py-8 text-center text-slate-400">
+                                          Nenhuma fatura deste cliente dentro da Data Início e Data Final
+                                          selecionadas.
+                                        </td>
+                                      </tr>
+                                    )}
+                                    {faturasContasReceber.map((l) => {
+                                      const situacao = situacaoFatura(l);
+                                      return (
+                                        <tr key={l.id} className="border-b border-slate-100">
+                                          <td className="px-2 py-2">{formatDate(l.data)}</td>
+                                          <td className="px-2 py-2">{numeroFatura(l)}</td>
+                                          <td className="px-2 py-2">1 / 1</td>
+                                          <td className="px-2 py-2">{l.formaPagamento || "-"}</td>
+                                          <td className="px-2 py-2 text-right">{money(l.valor)}</td>
+                                          <td className="px-2 py-2 text-right">
+                                            {money(recebidoNaFatura(l))}
+                                          </td>
+                                          <td className="px-2 py-2 text-right">{money(saldoFatura(l))}</td>
+                                          <td className="px-2 py-2">
+                                            <span className={`rounded px-2 py-1 ${situacao.color}`}>
+                                              {situacao.label}
+                                            </span>
+                                          </td>
+                                          <td className="px-2 py-2">
+                                            <div className="flex items-center justify-center gap-1">
+                                              {l.cobrancaAsaas?.bankSlipUrl ? (
+                                                <a
+                                                  href={l.cobrancaAsaas.bankSlipUrl}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  title="Abrir boleto (PDF)"
+                                                  className="rounded p-1 text-emerald-600 hover:bg-emerald-50"
+                                                >
+                                                  <FileText className="h-3.5 w-3.5" />
+                                                </a>
+                                              ) : null}
+                                              <button
+                                                type="button"
+                                                title="Imprimir esta nota"
+                                                onClick={() =>
+                                                  setNotaCliente({ ...cliente, lancamentos: [l] })
+                                                }
+                                                className="rounded p-1 text-slate-500 hover:bg-blue-50 hover:text-blue-700"
+                                              >
+                                                <Printer className="h-3.5 w-3.5" />
+                                              </button>
+                                              <button
+                                                type="button"
+                                                title="Editar fatura"
+                                                onClick={() => abrirEdicaoFatura(l)}
+                                                className="rounded p-1 text-slate-500 hover:bg-amber-50 hover:text-amber-600"
+                                              >
+                                                <Pencil className="h-3.5 w-3.5" />
+                                              </button>
+                                              <button
+                                                type="button"
+                                                title="Excluir fatura"
+                                                onClick={() => remove(l.id)}
+                                                className="rounded p-1 text-slate-500 hover:bg-red-50 hover:text-red-600"
+                                              >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                              </button>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                            <div className="rounded border border-emerald-200 bg-white p-3 shadow-sm">
+                              <div className="mb-3 flex items-center gap-2 text-emerald-700">
+                                <Check className="h-3.5 w-3.5" />
+                                <strong>Recebimentos</strong>
+                              </div>
+                              <div className="overflow-x-auto">
+                                <table className="w-full min-w-[720px] text-[11px]">
+                                  <thead>
+                                    <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
+                                      <th className="px-2 py-2 text-left">Data</th>
+                                      <th className="px-2 py-2 text-left">Forma Pagamento</th>
+                                      <th className="px-2 py-2 text-left">Referência</th>
+                                      <th className="px-2 py-2 text-right">Valor</th>
+                                      <th className="px-2 py-2 text-center">Opções</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {recebimentosCliente.length === 0 && (
+                                      <tr>
+                                        <td colSpan={5} className="px-2 py-8 text-center text-slate-400">
+                                          Nenhum recebimento encontrado para este cliente no período
+                                          selecionado.
+                                        </td>
+                                      </tr>
+                                    )}
+                                    {recebimentosCliente.map((l) => (
+                                      <tr key={`recebimento-${l.id}`} className="border-b border-slate-100">
+                                        <td className="px-2 py-2">{formatDate(l.data)}</td>
+                                        <td className="px-2 py-2">
+                                          <span className="rounded bg-cyan-50 px-2 py-1 text-cyan-700">
+                                            {l.formaPagamento || "-"}
+                                          </span>
+                                        </td>
+                                        <td className="px-2 py-2">
+                                          <span
+                                            className={
+                                              isCreditoGerado(l)
+                                                ? "rounded bg-emerald-100 px-2 py-1 text-emerald-700"
+                                                : isCreditoUtilizado(l)
+                                                  ? "rounded bg-amber-100 px-2 py-1 text-amber-700"
+                                                  : "rounded bg-blue-50 px-2 py-1 text-blue-700"
+                                            }
+                                          >
+                                            {referenciaLancamento(l)}
+                                          </span>
+                                        </td>
+                                        <td className="px-2 py-2 text-right">{money(l.valor)}</td>
+                                        <td className="px-2 py-2">
+                                          <div className="flex items-center justify-center gap-1">
+                                            <button
+                                              type="button"
+                                              title="Estornar recebimento"
+                                              onClick={() => void estornarRecebimento(l)}
+                                              className="rounded p-1 text-slate-500 hover:bg-red-50 hover:text-red-600"
+                                            >
+                                              <Trash2 className="h-3.5 w-3.5" />
+                                            </button>
+                                            <button
+                                              type="button"
+                                              title="Imprimir recibo"
+                                              onClick={() => imprimirRecibo(l, cliente)}
+                                              className="inline-flex items-center gap-1 rounded p-1 text-emerald-600 hover:bg-emerald-50"
+                                            >
+                                              <Printer className="h-3.5 w-3.5" />
+                                              <span className="text-[10px]">Recibo</span>
+                                            </button>
+                                            <button
+                                              type="button"
+                                              title="Detalhes recebimento"
+                                              onClick={() =>
+                                                setDetalheRecebimento({ cliente, lancamento: l })
+                                              }
+                                              className="rounded p-1 text-slate-500 hover:bg-blue-50 hover:text-blue-700"
+                                            >
+                                              <Eye className="h-3.5 w-3.5" />
+                                            </button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
                     )}
-                  >
-                    <td className="px-3 py-2">{cliente.nome}</td>
-                    <td className="px-3 py-2 text-right">{money(cliente.aReceber)}</td>
-                    <td className="px-3 py-2 text-right">{money(cliente.recebido)}</td>
-                    <td className="px-3 py-2 text-right">{money(cliente.adiantamentos)}</td>
-                    <td className="px-3 py-2 text-right">{money(cliente.naoFaturados)}</td>
-                    <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => receberCliente(cliente)}
-                          className="rounded bg-primary-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-primary-700"
-                        >
-                          Receber
-                        </button>
-                        <button
-                          type="button"
-                          title="Visualizar faturas"
-                          onClick={() => abrirClienteModal(cliente)}
-                          className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-primary-700"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                  </Fragment>
                 );
               })}
               {clientesReceber.length === 0 && (
@@ -1926,7 +2130,7 @@ function FinanceiroReceberConteudo() {
         }}
         onVisualizarFatura={(l) => {
           if (!detalheCliente) return;
-          setDetalheRecebimento({ cliente: detalheCliente, lancamento: l as Lancamento });
+          setNotaCliente({ ...detalheCliente, lancamentos: [l as Lancamento] });
         }}
         onImprimirFatura={(l) => {
           if (!detalheCliente) return;
