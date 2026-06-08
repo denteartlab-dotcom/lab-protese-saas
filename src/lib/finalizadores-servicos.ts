@@ -30,6 +30,7 @@ export type LinhaFinalizadorServico = {
   prestador: string;
   situacaoPedido: string;
   situacaoKey: string;
+  valorServico: number;
   comissaoValor: number;
 };
 
@@ -152,6 +153,7 @@ export function montarLinhasFinalizadoresServicos(
             prestador: terceiro.nome,
             situacaoPedido: STATUS_TRABALHO[situacaoKey]?.label || situacaoKey,
             situacaoKey,
+            valorServico,
             comissaoValor: custoTerceirizado(terceiro, valorServico),
           });
         }
