@@ -1913,6 +1913,12 @@ function FinanceiroReceberConteudo() {
           setDetalheCliente(null);
           receberCliente(cliente);
         }}
+        onReceberFatura={() => {
+          if (!detalheCliente) return;
+          const cliente = detalheCliente;
+          setDetalheCliente(null);
+          receberCliente(cliente);
+        }}
         onImprimirNota={() => {
           if (!detalheCliente) return;
           const faturas = detalheCliente.lancamentos.filter(isFaturaContasReceber);
