@@ -851,15 +851,6 @@ export default function OrdemServicoPage() {
     return modelosEtapasParaOsServico(servicoOsAtual, modelosEtapas);
   }, [servicoOsAtual, modelosEtapas]);
 
-  const exibirAbaEtapas =
-    modelosEtapasOs.length > 0 || etapas.some((etapa) => etapa.nome.trim());
-
-  useEffect(() => {
-    if (!exibirAbaEtapas && abaServico === "etapas") {
-      setAbaServico("colaboradores");
-    }
-  }, [exibirAbaEtapas, abaServico]);
-
   useEffect(() => {
     if (!form.categoria) return;
     const categoriaValida = categoriasTabelaPreco.some(
@@ -3151,15 +3142,13 @@ export default function OrdemServicoPage() {
                 />
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                {exibirAbaEtapas && (
-                  <button
-                    type="button"
-                    onClick={() => setAbaServico("etapas")}
-                    className={classeAbaOs("etapas")}
-                  >
-                    Etapas
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setAbaServico("etapas")}
+                  className={classeAbaOs("etapas")}
+                >
+                  Etapas
+                </button>
                 <button
                   type="button"
                   onClick={() => setAbaServico("produtos")}
@@ -3184,7 +3173,7 @@ export default function OrdemServicoPage() {
               </div>
 
               <div className="mt-3 rounded border border-slate-200 bg-slate-50 p-3 text-left">
-                {abaServico === "etapas" && exibirAbaEtapas && (
+                {abaServico === "etapas" && (
                   <div className="space-y-2">
                     <p className="text-xs font-semibold text-slate-800">Etapas:</p>
                     <div className="max-h-[min(360px,48vh)] space-y-2 overflow-y-auto overflow-x-hidden pr-1">
