@@ -189,7 +189,7 @@ export function ControleFinalizadoresServicos() {
       <div className="text-sm text-slate-500">
         <span>Produção</span>
         <span className="mx-1">/</span>
-        <span className="font-medium text-slate-700">Finalizadores de Serviço</span>
+        <span className="font-medium text-slate-700">Prestadores De Serviços</span>
       </div>
 
       <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">

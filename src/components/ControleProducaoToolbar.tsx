@@ -247,7 +247,7 @@ export function ControleProducaoToolbar({
       />
       <NavLink
         href="/app/producao/finalizadores"
-        label="Terceirizados"
+        label="Prestadores De Serviços"
         ativo={viewAtiva === "terceirizados"}
         icon={<Send className={iconClass} />}
       />
