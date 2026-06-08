@@ -11,6 +11,7 @@ import {
   Printer,
 } from "lucide-react";
 import { ControleProducaoToolbar } from "@/components/ControleProducaoToolbar";
+import { RelatorioComissaoPrestadoresModal } from "@/components/RelatorioComissaoPrestadoresModal";
 import { CampoDataBr } from "@/components/ui";
 import {
   formatarMoedaFinalizador,
@@ -69,6 +70,7 @@ export function ControleFinalizadoresServicos() {
   const [situacao, setSituacao] = useState("");
   const [busca, setBusca] = useState("");
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [relatorioAberto, setRelatorioAberto] = useState(false);
 
   async function load() {
     const res = await fetch("/api/trabalhos");
@@ -163,6 +165,7 @@ export function ControleFinalizadoresServicos() {
     <>
       <button
         type="button"
+        onClick={() => setRelatorioAberto(true)}
         className="rounded bg-[#3b82f6] px-4 py-1.5 text-[11px] font-medium text-white hover:bg-blue-600"
       >
         Relatórios
@@ -336,6 +339,19 @@ export function ControleFinalizadoresServicos() {
           </table>
         </div>
       </div>
+
+      <RelatorioComissaoPrestadoresModal
+        open={relatorioAberto}
+        onClose={() => setRelatorioAberto(false)}
+        linhas={linhasBase}
+        trabalhos={trabalhos.map((t) => ({
+          id: t.id,
+          numeroOs: t.numeroOs,
+          grupoOsId: t.grupoOsId,
+        }))}
+        prestadores={prestadoresCadastro}
+        idsSelecionados={selecionados}
+      />
     </div>
   );
 }

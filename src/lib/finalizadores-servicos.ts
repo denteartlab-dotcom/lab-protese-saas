@@ -11,6 +11,7 @@ export type TrabalhoFinalizador = TrabalhoModuloOs & {
   numeroOs: number;
   grupoOsId?: string | null;
   dataPrevista?: string | null;
+  dataEntrega?: string | null;
   segmentoFaturamento?: string | null;
 };
 
@@ -19,6 +20,7 @@ export type LinhaFinalizadorServico = {
   trabalhoId: string;
   numeroOs: number;
   dataPedido: string;
+  dataEntrega: string;
   prazo: string;
   qtd: string;
   servico: string;
@@ -140,6 +142,7 @@ export function montarLinhasFinalizadoresServicos(
             trabalhoId: trabalho.id,
             numeroOs,
             dataPedido: formatDate(trabalho.dataEntrada || ""),
+            dataEntrega: trabalho.dataEntrega ? formatDate(trabalho.dataEntrega) : "—",
             prazo: prazoExibicao(trabalho),
             qtd: item.qtd || "1",
             servico: servicoLinha,
