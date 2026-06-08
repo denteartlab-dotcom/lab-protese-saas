@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, ImageUp, Plus, Save, Tag, Trash2 } from "lucide-react";
+import { AlertTriangle, Clock, ImageUp, Info, Plus, Save, Tag, Trash2 } from "lucide-react";
 import { PainelCarregando } from "@/components/ListaCarregando";
 import {
   ImprimirOsModal,
@@ -1348,6 +1348,35 @@ export default function OrdemServicoPage() {
     const porElemento = modelo?.calculoPorElemento?.toLowerCase() === "sim";
     const tempo = porElemento ? tempoMedio * quantidadeDentesSelecionados() : tempoMedio;
     return `${tempo} min`;
+  }
+
+  function partesPrazoEtapaOs(prazo: string) {
+    const partes = prazo.trim().split(/\s+/);
+    const data = partes[0] || "";
+    const hora =
+      partes.length > 1 && /^\d{1,2}:\d{2}/.test(partes[1]) ? partes.slice(1).join(" ") : "";
+    return { data, hora };
+  }
+
+  function atualizarPrazoEtapaOs(index: number, data: string, hora: string) {
+    const prazo = [data, hora].filter(Boolean).join(" ").trim();
+    setEtapas((atuais) =>
+      atuais.map((item, i) => (i === index ? { ...item, prazo } : item))
+    );
+  }
+
+  function valorComissaoEtapaOs(nomeResponsavel: string) {
+    if (!nomeResponsavel.trim()) return "R$ 0,00";
+    const cadastro = colaboradoresOpcoes.find((item) => item.nome === nomeResponsavel);
+    if (!cadastro) return "R$ 0,00";
+    const pct = parseMoney(comissaoColaboradorCadastro(cadastro));
+    const base = parseMoney(form.valor);
+    const valor = (base * pct) / 100;
+    return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+
+  function rotuloSetorEtapa(etapa: { nome: string; setor: string }) {
+    return etapa.setor.trim() || setorDaEtapa(etapa.nome)?.nome || "Setor não informado";
   }
 
   function dentesSelecionadosResumo() {
@@ -3172,74 +3201,138 @@ export default function OrdemServicoPage() {
                 </button>
               </div>
 
-              <div className="mt-3 rounded border border-slate-200 bg-slate-50 p-3 text-left">
+              <div
+                className={`mt-3 rounded border border-slate-200 p-3 text-left ${
+                  abaServico === "etapas" ? "bg-white" : "bg-slate-50"
+                }`}
+              >
                 {abaServico === "etapas" && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold text-slate-800">Etapas:</p>
-                    <div className="max-h-[min(360px,48vh)] space-y-2 overflow-y-auto overflow-x-hidden pr-1">
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-sm font-semibold text-slate-800">Etapas</span>
+                      <button
+                        type="button"
+                        className="rounded bg-emerald-600 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-emerald-700"
+                        title="Recurso em teste no Smart Prótese"
+                      >
+                        Buscar Melhor data e horário com IA (em teste)
+                      </button>
+                    </div>
+
+                    <div className="max-h-[min(420px,52vh)] space-y-3 overflow-y-auto overflow-x-hidden pr-1">
                       {etapas.map((etapa, index) => {
-                        const partesPrazo = etapa.prazo.trim().split(/\s+/);
-                        const dataEtapa = partesPrazo[0] || "";
-                        const horaEtapa =
-                          partesPrazo.length > 1 && /^\d{1,2}:\d{2}/.test(partesPrazo[1])
-                            ? partesPrazo.slice(1).join(" ")
-                            : "";
+                        const { data: dataEtapa, hora: horaEtapa } = partesPrazoEtapaOs(etapa.prazo);
+                        const setorRotulo = rotuloSetorEtapa(etapa);
                         return (
                           <div
                             key={`${etapa.nome}-${index}`}
-                            className="flex flex-wrap items-center gap-2 rounded border border-slate-200 bg-white px-3 py-2 text-xs"
+                            className="rounded border border-slate-200 bg-white p-3 shadow-sm"
                           >
-                            <input
-                              type="checkbox"
-                              disabled
-                              className="h-3.5 w-3.5 shrink-0 rounded border-slate-400"
-                              aria-label={`Etapa ${nomeEtapaSemSetor(etapa.nome)}`}
-                            />
-                            <Input
-                              value={dataEtapa}
-                              onChange={(e) => {
-                                const data = formatDateBr(e.target.value);
-                                const prazo = horaEtapa ? `${data} ${horaEtapa}`.trim() : data;
-                                setEtapas((atuais) =>
-                                  atuais.map((item, i) =>
-                                    i === index ? { ...item, prazo } : item
+                            <div className="mb-3 flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-sm font-semibold text-slate-800">
+                                  {nomeEtapaSemSetor(etapa.nome)}
+                                </span>
+                                <Info
+                                  className="h-4 w-4 shrink-0 text-primary-600"
+                                  aria-hidden
+                                />
+                              </div>
+                              <span className="text-xs font-medium text-primary-600">{setorRotulo}</span>
+                            </div>
+
+                            <div className="grid items-end gap-3 md:grid-cols-[minmax(9rem,1fr)_minmax(6rem,0.75fr)_minmax(12rem,1.6fr)_minmax(8rem,1fr)_auto]">
+                              <div>
+                                <label className="mb-1 block text-[11px] font-medium text-slate-600">
+                                  Prazo
+                                </label>
+                                <div className="flex h-10 items-center gap-2 rounded border border-slate-300 bg-white px-2">
+                                  <input
+                                    type="checkbox"
+                                    className="h-4 w-4 shrink-0 accent-primary-600"
+                                    aria-label={`Confirmar prazo de ${nomeEtapaSemSetor(etapa.nome)}`}
+                                  />
+                                  <input
+                                    type="text"
+                                    value={dataEtapa}
+                                    onChange={(e) =>
+                                      atualizarPrazoEtapaOs(
+                                        index,
+                                        formatDateBr(e.target.value),
+                                        horaEtapa
+                                      )
+                                    }
+                                    placeholder="dd/mm/aaaa"
+                                    className="min-w-0 flex-1 border-0 bg-transparent text-sm text-slate-800 outline-none"
+                                    {...propsInputComSelecaoAoFocar({})}
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="mb-1 block text-[11px] font-medium text-slate-600">
+                                  Hora
+                                </label>
+                                <div className="flex h-10 items-center gap-2 rounded border border-slate-300 bg-white px-2">
+                                  <Clock className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+                                  <input
+                                    type="text"
+                                    value={horaEtapa}
+                                    onChange={(e) => {
+                                      const hora = e.target.value.replace(/[^\d:]/g, "").slice(0, 5);
+                                      atualizarPrazoEtapaOs(
+                                        index,
+                                        dataEtapa || form.dataLancamento,
+                                        hora
+                                      );
+                                    }}
+                                    placeholder="hh:mm"
+                                    className="min-w-0 flex-1 border-0 bg-transparent text-sm text-slate-800 outline-none"
+                                    {...propsInputComSelecaoAoFocar({})}
+                                  />
+                                </div>
+                              </div>
+
+                              <Select
+                                label="Colaborador"
+                                value={etapa.responsavel}
+                                onChange={(e) =>
+                                  setEtapas((atuais) =>
+                                    atuais.map((item, i) =>
+                                      i === index ? { ...item, responsavel: e.target.value } : item
+                                    )
                                   )
-                                );
-                              }}
-                              placeholder="dd/mm/aaaa"
-                              className="w-[7.5rem] shrink-0"
-                            />
-                            <Input
-                              value={horaEtapa}
-                              onChange={(e) => {
-                                const hora = e.target.value.replace(/[^\d:]/g, "").slice(0, 5);
-                                const prazo = hora
-                                  ? `${dataEtapa || form.dataLancamento} ${hora}`.trim()
-                                  : dataEtapa;
-                                setEtapas((atuais) =>
-                                  atuais.map((item, i) =>
-                                    i === index ? { ...item, prazo } : item
-                                  )
-                                );
-                              }}
-                              placeholder="hh:mm"
-                              className="w-[4.5rem] shrink-0"
-                            />
-                            <span className="min-w-[5rem] shrink-0 font-bold text-slate-900">
-                              {nomeEtapaSemSetor(etapa.nome)}
-                            </span>
-                            <Input
-                              value={etapa.observacao}
-                              onChange={(e) =>
-                                setEtapas((atuais) =>
-                                  atuais.map((item, i) =>
-                                    i === index ? { ...item, observacao: e.target.value } : item
-                                  )
-                                )
-                              }
-                              placeholder="Observação da etapa"
-                              className="min-w-[10rem] flex-1"
-                            />
+                                }
+                              >
+                                <option value="">Selecione um colaborador</option>
+                                {etapa.responsavel &&
+                                  !colaboradoresOpcoes.some(
+                                    (colaborador) => colaborador.nome === etapa.responsavel
+                                  ) && (
+                                    <option value={etapa.responsavel}>{etapa.responsavel}</option>
+                                  )}
+                                {colaboradoresOpcoes.map((colaborador) => (
+                                  <option key={colaborador.id} value={colaborador.nome}>
+                                    {colaborador.nome}
+                                  </option>
+                                ))}
+                              </Select>
+
+                              <Input
+                                label="Valor Comissão"
+                                value={valorComissaoEtapaOs(etapa.responsavel)}
+                                readOnly
+                              />
+
+                              <button
+                                type="button"
+                                onClick={() => setEtapas((atuais) => atuais.filter((_, i) => i !== index))}
+                                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded bg-red-500 text-white hover:bg-red-600"
+                                title="Excluir etapa"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
                           </div>
                         );
                       })}
