@@ -20,12 +20,14 @@ import {
   type LinhaComissaoColaborador,
   type TrabalhoComissao,
 } from "@/lib/comissoes-colaboradores";
+import { gerarRelatorioComissaoColaboradoresModelo1Pdf } from "@/lib/pdf-relatorio-comissao-colaboradores-modelo1";
+import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
 import { carregarColaboradoresListagem } from "@/lib/colaboradores-listagem";
 import { carregarEtapasCadastro } from "@/lib/etapas-os";
 import { parseBrDate } from "@/lib/datas-br";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { TRABALHOS_ATUALIZADOS_EVENT } from "@/lib/trabalhos-events";
-import { STATUS_TRABALHO } from "@/lib/utils";
+import { cn, STATUS_TRABALHO } from "@/lib/utils";
 
 const STORAGE_COMISSAO_ZERO = "labProteseControleComissaoZero";
 
@@ -80,6 +82,76 @@ function CardResumo({
   );
 }
 
+function ToggleValorServicoEtapa({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (valor: boolean) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center gap-2">
+      <span className="whitespace-nowrap text-[10px] text-slate-600">Valor Serviço/Etapa</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+          checked ? "bg-slate-500" : "bg-slate-300"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-all ${
+            checked ? "left-[18px]" : "left-0.5"
+          }`}
+        />
+      </button>
+    </label>
+  );
+}
+
+function CardSelecionados({
+  valor,
+  mostrarValorServico,
+  onToggleValorServico,
+  onImprimir,
+  imprimindo,
+  temSelecionados,
+}: {
+  valor: string;
+  mostrarValorServico: boolean;
+  onToggleValorServico: (valor: boolean) => void;
+  onImprimir: () => void;
+  imprimindo: boolean;
+  temSelecionados: boolean;
+}) {
+  return (
+    <div className="flex min-w-[280px] flex-1 items-center justify-between rounded border border-[#e5e7eb] bg-white px-5 py-4 shadow-sm">
+      <div>
+        <p className="text-[22px] font-normal leading-none text-[#374151]">{valor}</p>
+        <p className="mt-2 text-[12px] text-[#6b7280]">Selecionados</p>
+      </div>
+      <div className="flex flex-col items-end gap-2">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onImprimir}
+            disabled={!temSelecionados || imprimindo}
+            className="rounded border border-[#3b82f6] bg-white px-3 py-1 text-[10px] font-medium text-[#3b82f6] hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {imprimindo ? "Gerando..." : "Imprimir Selecionados"}
+          </button>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
+            <Check className="h-4 w-4" strokeWidth={2.5} />
+          </div>
+        </div>
+        <ToggleValorServicoEtapa checked={mostrarValorServico} onChange={onToggleValorServico} />
+      </div>
+    </div>
+  );
+}
+
 function osBadge(numeroOs: number) {
   return (
     <span className="inline-flex min-w-9 items-center justify-center rounded bg-red-100 px-2 py-0.5 text-[12px] font-bold text-red-700">
@@ -106,7 +178,9 @@ export function ControleComissoesColaboradores() {
   const [etapa, setEtapa] = useState("todos");
   const [comissaoZero, setComissaoZero] = useState(false);
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [mostrarValorServicoEtapa, setMostrarValorServicoEtapa] = useState(false);
   const [relatorioAberto, setRelatorioAberto] = useState(false);
+  const [imprimindoSelecionados, setImprimindoSelecionados] = useState(false);
 
   useEffect(() => {
     try {
@@ -188,11 +262,17 @@ export function ControleComissoesColaboradores() {
     [linhasFiltradas]
   );
 
+  const linhasSelecionadas = useMemo(
+    () => linhasFiltradas.filter((l) => selecionados.has(l.id)),
+    [linhasFiltradas, selecionados]
+  );
+
   const totalSelecionados = useMemo(() => {
-    return linhasFiltradas
-      .filter((l) => selecionados.has(l.id))
-      .reduce((s, l) => s + l.comissaoValor, 0);
-  }, [linhasFiltradas, selecionados]);
+    return linhasSelecionadas.reduce(
+      (s, l) => s + (mostrarValorServicoEtapa ? l.valorServico : l.comissaoValor),
+      0
+    );
+  }, [linhasSelecionadas, mostrarValorServicoEtapa]);
 
   const todosSelecionados =
     linhasFiltradas.length > 0 && linhasFiltradas.every((l) => selecionados.has(l.id));
@@ -221,6 +301,31 @@ export function ControleComissoesColaboradores() {
       return;
     }
     setSelecionados(new Set(linhasFiltradas.map((l) => l.id)));
+  }
+
+  async function imprimirSelecionados() {
+    if (linhasSelecionadas.length === 0) return;
+
+    const janela = prepararAbaPdf();
+    if (!janela) return;
+
+    setImprimindoSelecionados(true);
+    try {
+      const blob = await gerarRelatorioComissaoColaboradoresModelo1Pdf(linhasSelecionadas, {
+        periodoCampo: periodo === "entrega" ? "data_entrega" : "data_lancamento",
+      });
+      abrirPdfNoVisualizador(
+        blob,
+        "relatorio-comissao-selecionados.pdf",
+        "Comissões Selecionados",
+        janela
+      );
+    } catch (err) {
+      console.error("imprimir comissao selecionados", err);
+      janela.close();
+    } finally {
+      setImprimindoSelecionados(false);
+    }
   }
 
   const barraEsquerda = (
@@ -268,10 +373,13 @@ export function ControleComissoesColaboradores() {
             valor={formatarMoedaComissao(totalComissoes)}
             icone={<DollarSign className="h-5 w-5" strokeWidth={2} />}
           />
-          <CardResumo
-            titulo="Selecionados"
+          <CardSelecionados
             valor={formatarMoedaComissao(totalSelecionados)}
-            icone={<Check className="h-5 w-5" strokeWidth={2.5} />}
+            mostrarValorServico={mostrarValorServicoEtapa}
+            onToggleValorServico={setMostrarValorServicoEtapa}
+            onImprimir={() => void imprimirSelecionados()}
+            imprimindo={imprimindoSelecionados}
+            temSelecionados={linhasSelecionadas.length > 0}
           />
         </div>
 
@@ -366,16 +474,19 @@ export function ControleComissoesColaboradores() {
           <table className="w-full min-w-[1200px] text-[11px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                <th className="w-8 px-2 py-2">
-                  <input
-                    type="checkbox"
-                    checked={todosSelecionados}
-                    onChange={toggleTodos}
-                    className="h-3.5 w-3.5 rounded border-slate-300"
-                    aria-label="Selecionar todos"
-                  />
+                <th className="px-2 py-2 text-left">
+                  <label className="inline-flex cursor-pointer items-center gap-1.5">
+                    <input
+                      type="checkbox"
+                      checked={todosSelecionados}
+                      onChange={toggleTodos}
+                      className="h-3.5 w-3.5 rounded border-slate-300"
+                      aria-label="Selecionar todos"
+                    />
+                    <span>Todos</span>
+                  </label>
                 </th>
-                <th className="px-2 py-2 text-left">Todos OS</th>
+                <th className="px-2 py-2 text-left">OS</th>
                 <th className="px-2 py-2 text-left">Data</th>
                 <th className="px-2 py-2 text-left">Entregue</th>
                 <th className="px-2 py-2 text-left">Qtd</th>
@@ -403,6 +514,7 @@ export function ControleComissoesColaboradores() {
                     linha={linha}
                     selecionado={selecionados.has(linha.id)}
                     onToggle={() => toggleLinha(linha.id)}
+                    onSelecionarLinha={() => toggleLinha(linha.id)}
                   />
                 ))
               )}
@@ -432,16 +544,24 @@ function LinhaTabela({
   linha,
   selecionado,
   onToggle,
+  onSelecionarLinha,
 }: {
   linha: LinhaComissaoColaborador;
   selecionado: boolean;
   onToggle: () => void;
+  onSelecionarLinha: () => void;
 }) {
   const statusInfo = STATUS_TRABALHO[linha.situacaoKey];
 
   return (
-    <tr className="hover:bg-slate-50">
-      <td className="px-2 py-2">
+    <tr
+      className={cn(
+        "cursor-pointer transition-colors",
+        selecionado ? "bg-[#e8f5e9] hover:bg-[#dff0e1]" : "hover:bg-slate-50"
+      )}
+      onClick={onSelecionarLinha}
+    >
+      <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
         <input
           type="checkbox"
           checked={selecionado}
@@ -475,7 +595,7 @@ function LinhaTabela({
       <td className="whitespace-nowrap px-2 py-2 text-right font-medium text-slate-800">
         {formatarMoedaComissao(linha.comissaoValor)}
       </td>
-      <td className="px-2 py-2">
+      <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-center gap-1 text-slate-500">
           <Link
             href={`/app/producao/os?os=${linha.numeroOs}`}
