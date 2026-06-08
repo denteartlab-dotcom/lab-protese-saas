@@ -1,4 +1,8 @@
-import type { EtapaCadastro } from "@/lib/etapas-os";
+import {
+  nomeEtapaSemSetor,
+  prazoVencimentoEtapaOs,
+  type EtapaCadastro,
+} from "@/lib/etapas-os";
 import { readStorage } from "@/lib/persisted-storage";
 
 export const TABELA_PRECOS_STORAGE_KEY = "labProteseTabelaPrecos";
@@ -104,18 +108,17 @@ export function nomesEtapasCadastradasNoServico(
   return [...new Set(dasLinhas)];
 }
 
-/**
- * Etapas a usar na OS:
- * - serviço com etapas na tabela → só essas;
- * - serviço sem etapas → todas do cadastro geral Etapas.
- */
+/** Serviço tem etapas cadastradas na aba Etapas da tabela de preços. */
+export function servicoTemEtapasNaTabela(servico?: ServicoTabelaPrecoOs | null) {
+  return nomesEtapasCadastradasNoServico(servico).length > 0;
+}
+
+/** Etapas da OS: somente as registradas no serviço na tabela de preços. */
 export function nomesEtapasParaOsServico(
   servico: ServicoTabelaPrecoOs | undefined,
-  todosCadastro: EtapaCadastro[]
+  _todosCadastro: EtapaCadastro[]
 ): string[] {
-  const doServico = nomesEtapasCadastradasNoServico(servico);
-  if (doServico.length > 0) return doServico;
-  return todosCadastro.map((etapa) => etapa.nome).filter(Boolean);
+  return nomesEtapasCadastradasNoServico(servico);
 }
 
 export function modelosEtapasParaOsServico(
@@ -147,6 +150,36 @@ export function linhasEtapasVaziasParaOs(
     prazo: "",
     observacao: "",
   }));
+}
+
+/** Preenche todas as etapas do serviço com prazos calculados (Entrada = data/hora de lançamento). */
+export function etapasIniciaisFormParaOsServico(
+  servico: ServicoTabelaPrecoOs,
+  todosCadastro: EtapaCadastro[],
+  dataLancamento: string,
+  horaLaboratorio = ""
+): EtapaOsLinhaVazia[] {
+  const mapaCadastro = new Map(
+    todosCadastro.map((modelo) => [normalizarTextoTabela(modelo.nome), modelo])
+  );
+
+  return linhasEtapasVaziasParaOs(servico, todosCadastro).map((linha, index) => {
+    const modelo = mapaCadastro.get(normalizarTextoTabela(linha.nome));
+    const isEntrada =
+      index === 0 || /^entrada$/i.test(nomeEtapaSemSetor(linha.nome));
+    let prazo = "";
+    if (isEntrada && dataLancamento.trim()) {
+      const hora = horaLaboratorio.trim();
+      prazo = hora ? `${dataLancamento.trim()} ${hora}` : dataLancamento.trim();
+    } else if (modelo?.prazoDias?.trim()) {
+      prazo = prazoVencimentoEtapaOs(dataLancamento, modelo.prazoDias);
+    }
+    return {
+      ...linha,
+      setor: linha.setor || modelo?.setor || "",
+      prazo,
+    };
+  });
 }
 
 /** Etapas do formulário da OS filtradas pelas etapas cadastradas no serviço (tabela de preços). */

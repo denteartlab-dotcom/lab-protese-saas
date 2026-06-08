@@ -44,7 +44,9 @@ import {
   carregarCategoriasPorTabelaPreco,
   categoriaDoServicoNaTabela,
   etapasFormParaItemServico,
+  etapasIniciaisFormParaOsServico,
   modelosEtapasParaOsServico,
+  servicoTemEtapasNaTabela,
   servicosDaCategoriaTabela,
   categoriasSelecionaveisNaOs,
   servicosSelecionaveisNaOs,
@@ -845,9 +847,18 @@ export default function OrdemServicoPage() {
   }, [form.tipoProtese, categoriasTabelaPreco]);
 
   const modelosEtapasOs = useMemo(() => {
-    if (!servicoOsAtual) return modelosEtapas;
+    if (!servicoOsAtual) return [];
     return modelosEtapasParaOsServico(servicoOsAtual, modelosEtapas);
   }, [servicoOsAtual, modelosEtapas]);
+
+  const exibirAbaEtapas =
+    modelosEtapasOs.length > 0 || etapas.some((etapa) => etapa.nome.trim());
+
+  useEffect(() => {
+    if (!exibirAbaEtapas && abaServico === "etapas") {
+      setAbaServico("colaboradores");
+    }
+  }, [exibirAbaEtapas, abaServico]);
 
   useEffect(() => {
     if (!form.categoria) return;
@@ -920,6 +931,7 @@ export default function OrdemServicoPage() {
       dataLaboratorio: "",
       dataDentista: "",
     }));
+    setEtapas([]);
     setAvisoAdicionarServico("");
   }
 
@@ -969,8 +981,19 @@ export default function OrdemServicoPage() {
       dataLaboratorio: prazos.dataLaboratorio,
       dataDentista: prazos.dataDentista,
     }));
-    setEtapas([{ nome: "", setor: "", responsavel: "", prazo: "", observacao: "" }]);
-    setAbaServico("etapas");
+    if (servicoTemEtapasNaTabela(servico)) {
+      setEtapas(
+        etapasIniciaisFormParaOsServico(
+          servico,
+          modelosEtapas,
+          form.dataLancamento,
+          form.horaLaboratorio
+        )
+      );
+      setAbaServico("etapas");
+    } else {
+      setEtapas([]);
+    }
     setAvisoAdicionarServico("");
   }
 
@@ -1303,9 +1326,20 @@ export default function OrdemServicoPage() {
   useEffect(() => {
     if (modelosEtapas.length === 0) return;
     setEtapas((atuais) => {
+      if (atuais.length === 0) return atuais;
       let mudou = false;
-      const proximas = atuais.map((etapa) => {
+      const proximas = atuais.map((etapa, index) => {
         if (!etapa.nome.trim()) return etapa;
+        const isEntrada = index === 0 || /^entrada$/i.test(nomeEtapaSemSetor(etapa.nome));
+        if (isEntrada && form.dataLancamento.trim()) {
+          const hora = form.horaLaboratorio.trim();
+          const prazoAuto = hora
+            ? `${form.dataLancamento.trim()} ${hora}`
+            : form.dataLancamento.trim();
+          if (etapa.prazo === prazoAuto) return etapa;
+          mudou = true;
+          return { ...etapa, prazo: prazoAuto };
+        }
         const prazoAuto = prazoCalculadoEtapa(etapa.nome);
         if (!prazoAuto || etapa.prazo === prazoAuto) return etapa;
         mudou = true;
@@ -1313,7 +1347,7 @@ export default function OrdemServicoPage() {
       });
       return mudou ? proximas : atuais;
     });
-  }, [form.dataLancamento, modelosEtapas]);
+  }, [form.dataLancamento, form.horaLaboratorio, modelosEtapas]);
 
   function tempoCalculadoEtapa(nome: string) {
     const modelo = modeloEtapa(nome);
@@ -1453,10 +1487,20 @@ export default function OrdemServicoPage() {
     }
 
     setProdutosOs([]);
-    setAbaServico("etapas");
+    const servicoItem = buscarServicoNaTabela(categoriasTabelaPreco, item.servico);
     const etapasDoItem = item.etapasServico?.length
       ? item.etapasServico
-      : [{ nome: "", setor: "", responsavel: "", prazo: "", observacao: "" }];
+      : servicoItem && servicoTemEtapasNaTabela(servicoItem)
+        ? etapasIniciaisFormParaOsServico(
+            servicoItem,
+            modelosEtapas,
+            form.dataLancamento,
+            form.horaLaboratorio
+          )
+        : [];
+    if (etapasDoItem.length > 0) {
+      setAbaServico("etapas");
+    }
     setEtapas(
       etapasDoItem.map((etapa) => ({
         ...etapa,
@@ -3107,13 +3151,15 @@ export default function OrdemServicoPage() {
                 />
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={() => setAbaServico("etapas")}
-                  className={classeAbaOs("etapas")}
-                >
-                  Etapas
-                </button>
+                {exibirAbaEtapas && (
+                  <button
+                    type="button"
+                    onClick={() => setAbaServico("etapas")}
+                    className={classeAbaOs("etapas")}
+                  >
+                    Etapas
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setAbaServico("produtos")}
@@ -3138,149 +3184,77 @@ export default function OrdemServicoPage() {
               </div>
 
               <div className="mt-3 rounded border border-slate-200 bg-slate-50 p-3 text-left">
-                {abaServico === "etapas" && (
-                  <div className="space-y-3">
-                    {etapas.length === 0 && (
-                      <button
-                        type="button"
-                        onClick={adicionarLinhaEtapa}
-                        className="w-full rounded bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
-                      >
-                        + Adicionar Etapa
-                      </button>
-                    )}
-                    <div className="max-h-[min(360px,48vh)] space-y-3 overflow-y-auto overflow-x-hidden pr-1">
-                    {etapas.map((etapa, index) => (
-                      <div
-                        key={`${etapa.nome}-${index}`}
-                        className="grid gap-2 rounded border border-slate-200 bg-white p-3 md:grid-cols-[1fr_0.75fr_1fr_0.8fr_1fr_1fr_auto]"
-                      >
-                        {modelosEtapasOs.length > 0 ? (
-                          <Select
-                            label={index === 0 ? "Entrada" : "Etapa"}
-                            value={etapa.nome}
-                            onChange={(e) => selecionarEtapaOs(index, e.target.value)}
+                {abaServico === "etapas" && exibirAbaEtapas && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-slate-800">Etapas:</p>
+                    <div className="max-h-[min(360px,48vh)] space-y-2 overflow-y-auto overflow-x-hidden pr-1">
+                      {etapas.map((etapa, index) => {
+                        const partesPrazo = etapa.prazo.trim().split(/\s+/);
+                        const dataEtapa = partesPrazo[0] || "";
+                        const horaEtapa =
+                          partesPrazo.length > 1 && /^\d{1,2}:\d{2}/.test(partesPrazo[1])
+                            ? partesPrazo.slice(1).join(" ")
+                            : "";
+                        return (
+                          <div
+                            key={`${etapa.nome}-${index}`}
+                            className="flex flex-wrap items-center gap-2 rounded border border-slate-200 bg-white px-3 py-2 text-xs"
                           >
-                            <option value="">
-                              {index === 0 ? "Selecione a etapa de entrada" : "Selecione uma etapa"}
-                            </option>
-                            {etapa.nome && !modelosEtapasOs.some((modelo) => modelo.nome === etapa.nome) && (
-                              <option value={etapa.nome}>{nomeEtapaSemSetor(etapa.nome)}</option>
-                            )}
-                            {modelosEtapasOs.map((modelo) => (
-                              <option key={modelo.id} value={modelo.nome}>
-                                {modelo.nome}
-                              </option>
-                            ))}
-                          </Select>
-                        ) : (
-                          <Input
-                            label={index === 0 ? "Entrada" : "Etapa"}
-                            value={etapa.nome}
-                            onChange={(e) => selecionarEtapaOs(index, e.target.value)}
-                            placeholder="Nome da etapa"
-                          />
-                        )}
-                        <Select
-                          label="Setor"
-                          value={etapa.setor || setorDaEtapa(etapa.nome)?.nome || ""}
-                          onChange={(e) =>
-                            setEtapas((atuais) =>
-                              atuais.map((item, i) =>
-                                i === index ? { ...item, setor: e.target.value } : item
-                              )
-                            )
-                          }
-                        >
-                          <option value="">Selecione um setor</option>
-                          {(etapa.setor || setorDaEtapa(etapa.nome)?.nome) &&
-                            !setoresCadastrados.some(
-                              (s) => s.nome === (etapa.setor || setorDaEtapa(etapa.nome)?.nome)
-                            ) && (
-                              <option value={etapa.setor || setorDaEtapa(etapa.nome)?.nome}>
-                                {etapa.setor || setorDaEtapa(etapa.nome)?.nome}
-                              </option>
-                            )}
-                          {setoresCadastrados.map((setor) => (
-                            <option key={setor.id} value={setor.nome}>
-                              {setor.nome}
-                            </option>
-                          ))}
-                        </Select>
-                        <Select
-                          label="Responsável"
-                          value={etapa.responsavel}
-                          onChange={(e) =>
-                            setEtapas((atuais) =>
-                              atuais.map((item, i) =>
-                                i === index ? { ...item, responsavel: e.target.value } : item
-                              )
-                            )
-                          }
-                        >
-                          <option value="">Selecione um colaborador</option>
-                          {etapa.responsavel && !colaboradoresOpcoes.some((colaborador) => colaborador.nome === etapa.responsavel) && (
-                            <option value={etapa.responsavel}>{etapa.responsavel}</option>
-                          )}
-                          {colaboradoresOpcoes.map((colaborador) => (
-                            <option key={colaborador.id} value={colaborador.nome}>
-                              {colaborador.nome}
-                            </option>
-                          ))}
-                        </Select>
-                        <Input
-                          label="Tempo"
-                          value={tempoCalculadoEtapa(etapa.nome)}
-                          readOnly
-                          placeholder="0 min"
-                        />
-                        <Input
-                          label="Prazo"
-                          value={etapa.prazo}
-                          onChange={(e) =>
-                            setEtapas((atuais) =>
-                              atuais.map((item, i) =>
-                                i === index ? { ...item, prazo: formatDateBr(e.target.value) } : item
-                              )
-                            )
-                          }
-                          placeholder="dd/mm/aaaa"
-                        />
-                        <Input
-                          label="Observação"
-                          value={etapa.observacao}
-                          onChange={(e) =>
-                            setEtapas((atuais) =>
-                              atuais.map((item, i) =>
-                                i === index ? { ...item, observacao: e.target.value } : item
-                              )
-                            )
-                          }
-                          placeholder="Detalhes da etapa"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const proximas = etapas.filter((_, i) => i !== index);
-                            setEtapas(proximas);
-                          }}
-                          className="mt-6 inline-flex h-10 items-center justify-center rounded border border-red-200 px-3 text-red-600 hover:bg-red-50"
-                          title="Excluir etapa"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
+                            <input
+                              type="checkbox"
+                              disabled
+                              className="h-3.5 w-3.5 shrink-0 rounded border-slate-400"
+                              aria-label={`Etapa ${nomeEtapaSemSetor(etapa.nome)}`}
+                            />
+                            <Input
+                              value={dataEtapa}
+                              onChange={(e) => {
+                                const data = formatDateBr(e.target.value);
+                                const prazo = horaEtapa ? `${data} ${horaEtapa}`.trim() : data;
+                                setEtapas((atuais) =>
+                                  atuais.map((item, i) =>
+                                    i === index ? { ...item, prazo } : item
+                                  )
+                                );
+                              }}
+                              placeholder="dd/mm/aaaa"
+                              className="w-[7.5rem] shrink-0"
+                            />
+                            <Input
+                              value={horaEtapa}
+                              onChange={(e) => {
+                                const hora = e.target.value.replace(/[^\d:]/g, "").slice(0, 5);
+                                const prazo = hora
+                                  ? `${dataEtapa || form.dataLancamento} ${hora}`.trim()
+                                  : dataEtapa;
+                                setEtapas((atuais) =>
+                                  atuais.map((item, i) =>
+                                    i === index ? { ...item, prazo } : item
+                                  )
+                                );
+                              }}
+                              placeholder="hh:mm"
+                              className="w-[4.5rem] shrink-0"
+                            />
+                            <span className="min-w-[5rem] shrink-0 font-bold text-slate-900">
+                              {nomeEtapaSemSetor(etapa.nome)}
+                            </span>
+                            <Input
+                              value={etapa.observacao}
+                              onChange={(e) =>
+                                setEtapas((atuais) =>
+                                  atuais.map((item, i) =>
+                                    i === index ? { ...item, observacao: e.target.value } : item
+                                  )
+                                )
+                              }
+                              placeholder="Observação da etapa"
+                              className="min-w-[10rem] flex-1"
+                            />
+                          </div>
+                        );
+                      })}
                     </div>
-                    {etapas.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={adicionarLinhaEtapa}
-                        className="w-full rounded bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
-                      >
-                        + Adicionar Etapa
-                      </button>
-                    )}
                   </div>
                 )}
 

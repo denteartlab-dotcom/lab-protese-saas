@@ -53,6 +53,11 @@ import {
 } from "@/lib/configuracoes-etiquetas";
 import { extrairDataPrazoBr } from "@/lib/os-itens-impressao";
 import { gerarPngCode39DataUrl } from "@/lib/code39-barcode";
+import {
+  formatarDataHoraEtapaImpressao,
+  nomeEtapaSemSetor,
+  type EtapaOsLinha,
+} from "@/lib/etapas-os";
 
 type PdfItem = {
   qtd: string;
@@ -97,6 +102,8 @@ type PdfOsData = {
   osExterna?: string;
   finalizado?: string;
   colaborador?: string;
+  /** Lista estruturada de etapas para impressão (checkbox + data/hora + nome + obs). */
+  etapasLista?: EtapaOsLinha[];
   etapas?: string;
   producao?: string;
   pecas?: string;
@@ -210,6 +217,70 @@ function desenharPrazoFinalizadoRequisicao(
     pdf.text(finalizado || "—", cursor, y);
     pdf.setFont("helvetica", "normal");
   }
+}
+
+function desenharCheckboxEtapaPdf(pdf: PdfRenderApi, x: number, y: number, tamanho = 3) {
+  pdf.setDrawColor(0, 0, 0);
+  pdf.setLineWidth(0.25);
+  pdf.rect(x, y - tamanho + 0.6, tamanho, tamanho);
+}
+
+/** Bloco Etapas igual ao Smart: [ ] data hora Nome observação */
+function desenharEtapasOsRequisicao(
+  pdf: PdfRenderApi,
+  lay: OsModelo1Layout,
+  data: PdfOsData,
+  x: number,
+  yInicio: number,
+  g: (mm: number) => number,
+  fontBase: number
+) {
+  const etapas = data.etapasLista || [];
+  if (!lay.etapas || etapas.length === 0) return yInicio;
+
+  let y = yInicio;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(fontBase);
+  pdf.text("Etapas:", x, y);
+  y += g(4);
+
+  const larguraUtil = 182 - x;
+  for (const etapa of etapas) {
+    const nome = nomeEtapaSemSetor(etapa.nome);
+    if (!nome) continue;
+
+    const checkbox = 3;
+    desenharCheckboxEtapaPdf(pdf, x, y, checkbox);
+    let cursor = x + checkbox + 2.5;
+
+    const dataHora = formatarDataHoraEtapaImpressao(etapa.prazo, data.dataEntrada);
+    if (dataHora) {
+      pdf.setFont("helvetica", "normal");
+      pdf.text(dataHora, cursor, y);
+      cursor += pdf.getTextWidth(dataHora) + 2;
+    }
+
+    pdf.setFont("helvetica", "bold");
+    pdf.text(nome, cursor, y);
+    cursor += pdf.getTextWidth(nome) + 2;
+
+    const obs = (etapa.observacao || "").trim();
+    if (obs) {
+      pdf.setFont("helvetica", "normal");
+      const espacoRestante = Math.max(8, larguraUtil - (cursor - x));
+      const linhasObs = pdf.splitTextToSize(obs, espacoRestante);
+      pdf.text(linhasObs[0] || "", cursor, y);
+      y += g(4);
+      for (let i = 1; i < linhasObs.length; i++) {
+        pdf.text(linhasObs[i], x + checkbox + 2.5, y);
+        y += g(3.5);
+      }
+    } else {
+      y += g(4);
+    }
+  }
+
+  return y;
 }
 
 function desenharMetadadosServicoRequisicao(
@@ -653,6 +724,7 @@ function renderModeloProducao(
   });
 
   y = desenharMetadadosServicoRequisicao(pdf, lay, data, colDesc, y, g);
+  y = desenharEtapasOsRequisicao(pdf, lay, data, m.conteudoEsq, y, g, fontBase);
 
   if (lay.total) {
     linhaRequisicaoPdf(pdf, lay, y, pageWidth);
@@ -672,10 +744,6 @@ function renderModeloProducao(
   }
   if (lay.obsFicha && data.obsFicha) {
     labelValue(pdf, "Observação: ", data.obsFicha.slice(0, 110), m.conteudoEsq, y);
-    y += g(5);
-  }
-  if (lay.etapas && data.etapas) {
-    labelValue(pdf, "Etapas: ", data.etapas.slice(0, 110), m.conteudoEsq, y);
     y += g(5);
   }
   if (lay.pecas && data.pecas) {

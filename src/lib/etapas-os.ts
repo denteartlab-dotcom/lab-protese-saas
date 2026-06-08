@@ -170,6 +170,13 @@ export function substituirEtapasInstrucoes(instrucoes: string, etapas: EtapaOsLi
   return [...semEtapas, ...linhasEtapas].join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
+/** Data/hora exibida na impressão da OS (ex.: 12/06/2024 18:00). */
+export function formatarDataHoraEtapaImpressao(prazo?: string, dataEntrada?: string) {
+  const limpo = (prazo || "").replace(/^prazo\s+/i, "").trim();
+  if (limpo) return limpo;
+  return (dataEntrada || "").trim();
+}
+
 export function resumoEtapasControle(etapas: EtapaOsLinha[]) {
   if (etapas.length === 0) return "";
   const nomes = [
