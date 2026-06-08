@@ -5,6 +5,7 @@ import {
   parseComplementosInstrucoesGrupo,
   type TerceirizadoOsLinha,
 } from "@/lib/etapas-os";
+import { normalizarChaveStatusOs } from "@/lib/status-os";
 import { formatCurrency, formatDate, STATUS_TRABALHO } from "@/lib/utils";
 
 export type TrabalhoFinalizador = TrabalhoModuloOs & {
@@ -135,7 +136,7 @@ export function montarLinhasFinalizadoresServicos(
           valorItemLinha(trabalho.instrucoes || "", item.descricao) || trabalho.valor || 0;
 
         for (const terceiro of terceirizados) {
-          const situacaoKey = item.situacao || trabalho.status;
+          const situacaoKey = normalizarChaveStatusOs(trabalho.status);
           const servicoLinha = terceiro.servico.trim() || item.descricao;
 
           linhas.push({

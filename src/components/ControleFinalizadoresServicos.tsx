@@ -23,6 +23,7 @@ import {
 import { carregarPrestadoresListagem } from "@/lib/prestadores-listagem";
 import { parseBrDate } from "@/lib/datas-br";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
+import { TRABALHOS_ATUALIZADOS_EVENT } from "@/lib/trabalhos-events";
 import { STATUS_TRABALHO } from "@/lib/utils";
 
 const STORAGE_COMISSAO_ZERO = "labProteseControlePrestadoresComissaoZero";
@@ -126,6 +127,14 @@ export function ControleFinalizadoresServicos() {
 
   useEffect(() => {
     void load();
+  }, []);
+
+  useEffect(() => {
+    const atualizar = () => {
+      void load();
+    };
+    window.addEventListener(TRABALHOS_ATUALIZADOS_EVENT, atualizar);
+    return () => window.removeEventListener(TRABALHOS_ATUALIZADOS_EVENT, atualizar);
   }, []);
 
   const prestadoresCadastro = useMemo(() => carregarPrestadoresListagem(), []);

@@ -10,6 +10,7 @@ import {
 import { parseCurrencyBr } from "@/lib/cliente-financeiro";
 import { itensDaOsModulo, type ItemModuloOs, type TrabalhoModuloOs } from "@/lib/modulo-producao-os";
 import { lerMapaEtapasConcluidasModulo } from "@/lib/modulo-producao-etapas";
+import { normalizarChaveStatusOs } from "@/lib/status-os";
 import { classificarItemOs } from "@/lib/trabalho-os-segmento";
 import { STATUS_TRABALHO, formatCurrency, formatDate } from "@/lib/utils";
 
@@ -199,7 +200,7 @@ export function montarLinhasComissaoColaboradores(
       for (const item of listaItens) {
         const valorServico =
           valorItemLinha(trabalho.instrucoes || "", item.descricao) || trabalho.valor || 0;
-        const situacaoKey = item.situacao || trabalho.status;
+        const situacaoKey = normalizarChaveStatusOs(trabalho.status);
         const chaveItem = `${trabalho.id}:${item.id}`;
 
         for (const colaborador of colaboradores) {

@@ -24,6 +24,7 @@ import { carregarColaboradoresListagem } from "@/lib/colaboradores-listagem";
 import { carregarEtapasCadastro } from "@/lib/etapas-os";
 import { parseBrDate } from "@/lib/datas-br";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
+import { TRABALHOS_ATUALIZADOS_EVENT } from "@/lib/trabalhos-events";
 import { STATUS_TRABALHO } from "@/lib/utils";
 
 const STORAGE_COMISSAO_ZERO = "labProteseControleComissaoZero";
@@ -123,6 +124,14 @@ export function ControleComissoesColaboradores() {
 
   useEffect(() => {
     void load();
+  }, []);
+
+  useEffect(() => {
+    const atualizar = () => {
+      void load();
+    };
+    window.addEventListener(TRABALHOS_ATUALIZADOS_EVENT, atualizar);
+    return () => window.removeEventListener(TRABALHOS_ATUALIZADOS_EVENT, atualizar);
   }, []);
 
   const colaboradoresCadastro = useMemo(() => carregarColaboradoresListagem(), []);
