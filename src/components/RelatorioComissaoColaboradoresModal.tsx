@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
 import type { LinhaComissaoColaborador } from "@/lib/comissoes-colaboradores";
 import { gerarRelatorioComissaoColaboradoresModelo1Pdf } from "@/lib/pdf-relatorio-comissao-colaboradores-modelo1";
+import { gerarRelatorioComissaoColaboradoresModelo2Pdf } from "@/lib/pdf-relatorio-comissao-colaboradores-modelo2";
 import { prepararAbaPdf, abrirPdfNoVisualizador } from "@/lib/pdf-viewer";
 import {
   filtrarLinhasRelatorioComissao,
@@ -217,13 +218,10 @@ export function RelatorioComissaoColaboradoresModal({
       );
       const ordenadas = ordenarLinhasRelatorioComissao(filtradas, filtro.ordenarPor);
 
-      if (filtro.modelo === "modelo-2") {
-        janela.close();
-        setErroPdf("Modelo 2 em desenvolvimento. Selecione Modelo 1.");
-        return;
-      }
-
-      const blob = await gerarRelatorioComissaoColaboradoresModelo1Pdf(ordenadas, filtro);
+      const blob =
+        filtro.modelo === "modelo-2"
+          ? await gerarRelatorioComissaoColaboradoresModelo2Pdf(ordenadas, filtro)
+          : await gerarRelatorioComissaoColaboradoresModelo1Pdf(ordenadas, filtro);
       abrirPdfNoVisualizador(
         blob,
         "relatorio-comissao.pdf",
