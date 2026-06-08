@@ -3,8 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Eye, FileText, Pencil, Printer, Trash2, X } from "lucide-react";
+import { parseBrDate } from "@/lib/datas-br";
 import { parseParcelaNaDescricao } from "@/lib/fatura-financeiro";
 import { cn } from "@/lib/utils";
+
+export type FiltrosPainelContasReceber = {
+  dataInicio: string;
+  dataFinal: string;
+  situacao: string;
+};
 
 export type LancamentoClienteModal = {
   id: string;
@@ -54,6 +61,7 @@ type Props = {
   onEstornarRecebimento: (l: LancamentoClienteModal) => void;
   onImprimirRecibo: (l: LancamentoClienteModal) => void;
   onDetalheRecebimento: (l: LancamentoClienteModal) => void;
+  filtrosPainel: FiltrosPainelContasReceber;
 };
 
 const MESES = [
@@ -96,6 +104,52 @@ function parseDataMesAno(iso: string) {
   return { mes: Number(match[2]) - 1, ano: Number(match[1]) };
 }
 
+function mesAnoDeBr(data: string) {
+  if (!data.trim()) return null;
+  const parsed = parseBrDate(data);
+  if (!parsed || Number.isNaN(parsed.getTime())) return null;
+  return { mes: parsed.getMonth(), ano: parsed.getFullYear() };
+}
+
+function situacaoModalDePainel(situacaoPainel: string) {
+  if (situacaoPainel === "receber") return "a_receber";
+  if (situacaoPainel === "atraso") return "atraso";
+  return "todos";
+}
+
+function mesAnoInicialSincronizado(
+  filtros: FiltrosPainelContasReceber,
+  lancamentos: LancamentoClienteModal[]
+) {
+  const ini = mesAnoDeBr(filtros.dataInicio);
+  const fim = mesAnoDeBr(filtros.dataFinal);
+  if (ini && fim && ini.mes === fim.mes && ini.ano === fim.ano) return ini;
+  if (ini) return ini;
+  if (fim) return fim;
+  if (lancamentos.length > 0) return parseDataMesAno(lancamentos[0].data);
+  const hoje = new Date();
+  return { mes: hoje.getMonth(), ano: hoje.getFullYear() };
+}
+
+function lancamentoNoPeriodoPainel(
+  dataIso: string,
+  filtros: FiltrosPainelContasReceber
+) {
+  if (!filtros.dataInicio && !filtros.dataFinal) return true;
+  const data = new Date(dataIso);
+  const inicio = filtros.dataInicio ? parseBrDate(filtros.dataInicio) : null;
+  const fim = filtros.dataFinal ? parseBrDate(filtros.dataFinal) : null;
+  if (inicio && !Number.isNaN(inicio.getTime())) {
+    inicio.setHours(0, 0, 0, 0);
+    if (data < inicio) return false;
+  }
+  if (fim && !Number.isNaN(fim.getTime())) {
+    fim.setHours(23, 59, 59, 999);
+    if (data > fim) return false;
+  }
+  return true;
+}
+
 export function VisualizacaoClienteReceberModal({
   open,
   onClose,
@@ -119,6 +173,7 @@ export function VisualizacaoClienteReceberModal({
   onEstornarRecebimento,
   onImprimirRecibo,
   onDetalheRecebimento,
+  filtrosPainel,
 }: Props) {
   const [mounted, setMounted] = useState(false);
   const [aba, setAba] = useState<"faturas" | "recebimentos" | "fatura">("faturas");
@@ -131,15 +186,25 @@ export function VisualizacaoClienteReceberModal({
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !cliente) return;
     setAba("faturas");
     setFormaPagamento("todos");
-    setSituacao("a_receber");
+    setSituacao(situacaoModalDePainel(filtrosPainel.situacao));
     setBusca("");
-    const hoje = new Date();
-    setMes(hoje.getMonth());
-    setAno(hoje.getFullYear());
-  }, [open, cliente?.clienteId, cliente?.nome]);
+    const { mes: mesIni, ano: anoIni } = mesAnoInicialSincronizado(
+      filtrosPainel,
+      cliente.lancamentos
+    );
+    setMes(mesIni);
+    setAno(anoIni);
+  }, [
+    open,
+    cliente?.clienteId,
+    cliente?.nome,
+    filtrosPainel.dataInicio,
+    filtrosPainel.dataFinal,
+    filtrosPainel.situacao,
+  ]);
 
   const anosDisponiveis = useMemo(() => {
     const set = new Set<number>([new Date().getFullYear()]);
@@ -162,12 +227,21 @@ export function VisualizacaoClienteReceberModal({
   const lancamentosFiltrados = useMemo(() => {
     if (!cliente) return [];
     const termo = busca.trim().toLowerCase();
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
     return cliente.lancamentos.filter((l) => {
+      if (!lancamentoNoPeriodoPainel(l.data, filtrosPainel)) return false;
       const { mes: lm, ano: la } = parseDataMesAno(l.data);
       if (lm !== mes || la !== ano) return false;
       if (formaPagamento !== "todos" && l.formaPagamento !== formaPagamento) return false;
       if (situacao === "a_receber" && (l.status === "pago" || saldoFatura(l) <= 0.009)) return false;
       if (situacao === "recebidas" && l.status !== "pago") return false;
+      if (situacao === "atraso") {
+        const venc = new Date(l.data);
+        venc.setHours(0, 0, 0, 0);
+        if (l.status === "pago" || saldoFatura(l) <= 0.009 || venc >= hoje) return false;
+      }
       if (termo) {
         const texto = [
           formatDate(l.data),
@@ -182,7 +256,18 @@ export function VisualizacaoClienteReceberModal({
       }
       return true;
     });
-  }, [cliente, mes, ano, formaPagamento, situacao, busca, formatDate, numeroFatura, saldoFatura]);
+  }, [
+    cliente,
+    mes,
+    ano,
+    formaPagamento,
+    situacao,
+    busca,
+    filtrosPainel,
+    formatDate,
+    numeroFatura,
+    saldoFatura,
+  ]);
 
   const faturasVisiveis = useMemo(
     () => lancamentosFiltrados.filter(isFaturaContasReceber),
@@ -209,6 +294,7 @@ export function VisualizacaoClienteReceberModal({
   const totalRecebidoFaturas = faturasVisiveis.reduce((s, l) => s + recebidoNaFatura(l), 0);
   const totalSaldoFaturas = faturasVisiveis.reduce((s, l) => s + saldoFatura(l), 0);
 
+  const totalLinhaAReceber = cliente?.aReceber ?? 0;
   const adiantamentosCliente = cliente?.adiantamentos ?? 0;
   const mesLabel = MESES[mes];
   const chaveCliente = cliente?.clienteId ?? cliente?.nome ?? "";
@@ -298,6 +384,7 @@ export function VisualizacaoClienteReceberModal({
               >
                 <option value="a_receber">A Receber</option>
                 <option value="recebidas">Recebidas</option>
+                <option value="atraso">Em atraso</option>
                 <option value="todos">Mostrar todos</option>
               </select>
             </div>
@@ -343,7 +430,7 @@ export function VisualizacaoClienteReceberModal({
                 Total a Receber (Adiantamentos: {money(adiantamentosCliente)})
               </p>
               <p className="text-[18px] font-bold text-[#2563eb]">
-                R$ {money(totalAReceber)}
+                R$ {money(totalLinhaAReceber)}
               </p>
             </div>
             <div className="min-w-[200px] rounded-sm border border-[#bbf7d0] bg-white px-3 py-2 shadow-sm">

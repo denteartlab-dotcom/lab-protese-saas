@@ -683,25 +683,31 @@ function FinanceiroReceberConteudo() {
 
     if (!cliente) return;
 
-    const detalhes = lancamentosDoCliente(cliente);
     setBusca(cliente.nome);
 
     if (lancamentoId) {
-      const lanc = detalhes.lancamentos.find((l) => l.id === lancamentoId);
+      const lanc = cliente.lancamentos.find((l) => l.id === lancamentoId);
       if (!lanc) return;
       if (acao === "nota") {
-        setNotaCliente({ ...detalhes, lancamentos: [lanc] });
+        setNotaCliente({ ...cliente, lancamentos: [lanc] });
       } else if (acao === "receber") {
-        setRecebendoCliente(detalhes);
+        setRecebendoCliente(cliente);
       } else {
-        setDetalheCliente(detalhes);
+        setDetalheCliente(cliente);
       }
       return;
     }
 
-    if (acao === "receber") setRecebendoCliente(detalhes);
-    else if (acao === "faturas" || acao === "nota") setDetalheCliente(detalhes);
+    if (acao === "receber") setRecebendoCliente(cliente);
+    else if (acao === "faturas" || acao === "nota") setDetalheCliente(cliente);
   }, [data, searchParams, clientesReceber]);
+
+  useEffect(() => {
+    if (!detalheCliente) return;
+    const chave = clienteKey(detalheCliente);
+    const atualizado = clientesReceber.find((c) => clienteKey(c) === chave);
+    if (atualizado) setDetalheCliente(atualizado);
+  }, [clientesReceber]);
 
   const resumoReceber = useMemo(() => {
     const hoje = new Date();
@@ -1363,39 +1369,6 @@ function FinanceiroReceberConteudo() {
     return Math.max(lancamento.valor - recebidoNaFatura(lancamento), 0);
   }
 
-  function lancamentosDoCliente(cliente: ClienteReceber) {
-    const inicio = dataInicio ? parseBrShortDate(dataInicio) : null;
-    const fim = dataFinal ? parseBrShortDate(dataFinal) : null;
-    if (inicio) inicio.setHours(0, 0, 0, 0);
-    if (fim) fim.setHours(23, 59, 59, 999);
-
-    const lancamentos = (data?.lancamentos || []).filter((lancamento) => {
-      if (lancamento.tipo !== "receita") return false;
-      const dataLancamento = new Date(lancamento.data);
-      if (inicio && dataLancamento < inicio) return false;
-      if (fim && dataLancamento > fim) return false;
-      if (cliente.clienteId) return lancamento.cliente?.id === cliente.clienteId;
-      return !lancamento.cliente?.id && (lancamento.cliente?.nome || "Sem cliente informado") === cliente.nome;
-    });
-
-    return {
-      ...cliente,
-      lancamentos,
-      aReceber: lancamentos
-        .filter((lancamento) => lancamento.status !== "pago")
-        .reduce((sum, lancamento) => sum + lancamento.valor, 0),
-      recebido: lancamentos
-        .filter((lancamento) => lancamento.status === "pago")
-        .reduce((sum, lancamento) => sum + lancamento.valor, 0),
-      adiantamentos: lancamentos
-        .filter((lancamento) => lancamento.formaPagamento?.toLowerCase().includes("adiant"))
-        .reduce((sum, lancamento) => sum + lancamento.valor, 0),
-      naoFaturados: lancamentos
-        .filter((lancamento) => lancamento.status !== "pago")
-        .reduce((sum, lancamento) => sum + lancamento.valor, 0),
-    };
-  }
-
   function clienteTemVencido(cliente: ClienteReceber) {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
@@ -1443,13 +1416,8 @@ function FinanceiroReceberConteudo() {
   }
 
   function abrirClienteModal(cliente: ClienteReceber) {
-    setDetalheCliente(lancamentosDoCliente(cliente));
+    setDetalheCliente(cliente);
   }
-
-  const clientesModalLista = useMemo(
-    () => clientesReceber.map((cliente) => lancamentosDoCliente(cliente)),
-    [clientesReceber, data, dataInicio, dataFinal]
-  );
 
   function faturaHtml(cliente: ClienteReceber) {
     const lancamentos = cliente.lancamentos.filter((l) => l.tipo === "receita");
@@ -1818,8 +1786,7 @@ function FinanceiroReceberConteudo() {
             <tbody>
               {clientesReceber.map((cliente) => {
                 const chave = clienteKey(cliente);
-                const detalhes = lancamentosDoCliente(cliente);
-                const faturasContasReceber = detalhes.lancamentos.filter(isFaturaContasReceber);
+                const faturasContasReceber = cliente.lancamentos.filter(isFaturaContasReceber);
                 const temFatura = faturasContasReceber.length > 0;
 
                 return (
@@ -1929,7 +1896,8 @@ function FinanceiroReceberConteudo() {
         open={Boolean(detalheCliente)}
         onClose={() => setDetalheCliente(null)}
         cliente={detalheCliente}
-        clientes={clientesModalLista}
+        clientes={clientesReceber}
+        filtrosPainel={{ dataInicio, dataFinal, situacao }}
         onClienteChange={(cliente) => setDetalheCliente(cliente as ClienteReceber)}
         money={money}
         formatDate={formatDate}
