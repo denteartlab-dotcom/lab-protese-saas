@@ -2,13 +2,11 @@ import type { LinhaFinalizadorServico } from "@/lib/finalizadores-servicos";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
 import { moneyBr, PRETO } from "@/lib/pdf-relatorio-faturas-smart-comum";
 import type { FiltroRelatorioComissaoPrestadores } from "@/lib/relatorio-comissao-prestadores";
-import { formatDateTime } from "@/lib/utils";
 
 type ColunaComissaoPdf = {
   titulo: string;
   larguraMm: number;
-  headerAlign: "left" | "center" | "right";
-  dataAlign: "left" | "center" | "right";
+  align: "left" | "center" | "right";
   valor: (linha: LinhaFinalizadorServico) => string;
 };
 
@@ -30,7 +28,7 @@ function tituloRelatorio(
 ) {
   const periodo =
     periodoCampo === "data_entrega" ? "Data Entrega" : "Data do Pedido";
-  return `Relatório de Comissões - ${periodo} (Serviços Terceirizados)`;
+  return `Relatório de Comissões - ${periodo} (Serviços Terceirizado)`;
 }
 
 function textoCelula(valor: string) {
@@ -38,64 +36,44 @@ function textoCelula(valor: string) {
   return limpo === "—" || limpo === "-" ? "" : limpo;
 }
 
-/** Layout fixo Smart — 10 colunas da foto de referência. */
+/** Layout fixo da foto de referência — 8 colunas. */
 const COLUNAS_MODELO1: ColunaComissaoPdf[] = [
-  { titulo: "Os", larguraMm: 9, headerAlign: "center", dataAlign: "center", valor: (l) => String(l.numeroOs) },
+  { titulo: "Os", larguraMm: 10, align: "left", valor: (l) => String(l.numeroOs) },
   {
     titulo: "Data Pedido",
-    larguraMm: 16,
-    headerAlign: "center",
-    dataAlign: "center",
+    larguraMm: 20,
+    align: "left",
     valor: (l) => textoCelula(l.dataPedido),
   },
-  { titulo: "Qtd", larguraMm: 8, headerAlign: "center", dataAlign: "center", valor: (l) => textoCelula(l.qtd) },
+  { titulo: "Qtd", larguraMm: 10, align: "left", valor: (l) => textoCelula(l.qtd) },
   {
     titulo: "Descrição",
-    larguraMm: 22,
-    headerAlign: "center",
-    dataAlign: "left",
+    larguraMm: 32,
+    align: "left",
     valor: (l) => textoCelula(l.servico),
   },
   {
-    titulo: "Cliente",
-    larguraMm: 18,
-    headerAlign: "center",
-    dataAlign: "left",
-    valor: (l) => textoCelula(l.cliente),
-  },
-  {
     titulo: "Paciente",
-    larguraMm: 18,
-    headerAlign: "center",
-    dataAlign: "left",
+    larguraMm: 22,
+    align: "left",
     valor: (l) => textoCelula(l.paciente),
   },
   {
     titulo: "Situação",
-    larguraMm: 14,
-    headerAlign: "center",
-    dataAlign: "center",
+    larguraMm: 18,
+    align: "left",
     valor: (l) => textoCelula(l.situacaoPedido),
   },
   {
     titulo: "Recebido",
-    larguraMm: 14,
-    headerAlign: "center",
-    dataAlign: "right",
+    larguraMm: 18,
+    align: "left",
     valor: () => "",
   },
   {
-    titulo: "Valor Serviço",
-    larguraMm: 16,
-    headerAlign: "center",
-    dataAlign: "right",
-    valor: (l) => moneyBr(l.valorServico),
-  },
-  {
     titulo: "Comissão",
-    larguraMm: 14,
-    headerAlign: "center",
-    dataAlign: "right",
+    larguraMm: 16,
+    align: "right",
     valor: (l) => moneyBr(l.comissaoValor),
   },
 ];
@@ -136,45 +114,39 @@ function criarCtx(pdf: import("jspdf").jsPDF, colunas: ColunaComissaoPdf[]): Pdf
 function desenharCabecalhoPagina(ctx: PdfCtx, titulo: string) {
   const { pdf, margin, pageW } = ctx;
   const lab = labImpressaoFromConfig();
-  const yInicio = margin + 4;
-
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(8);
-  pdf.setTextColor(...PRETO);
-  pdf.text(formatDateTime(new Date()), pageW - margin, yInicio + 3, {
-    align: "right",
-  });
+  let y = margin + 4;
 
   const nomeLab = lab.marca?.trim() || lab.responsavel?.trim() || "Laboratório";
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(11);
-  pdf.text(nomeLab, margin, yInicio + 4);
+  pdf.setTextColor(...PRETO);
+  pdf.text(nomeLab, margin, y);
+  y += 5;
 
-  let yContato = yInicio + 9;
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(9);
   if (lab.telefones?.trim()) {
-    pdf.text(lab.telefones.trim(), margin, yContato);
-    yContato += 4.2;
+    pdf.text(lab.telefones.trim(), margin, y);
+    y += 4.2;
   }
   if (lab.email?.trim()) {
-    pdf.text(lab.email.trim(), margin, yContato);
-    yContato += 4.2;
+    pdf.text(lab.email.trim(), margin, y);
+    y += 4.2;
   }
 
-  ctx.y = yContato + 2;
+  y += 2;
   pdf.setDrawColor(0, 0, 0);
   pdf.setLineWidth(0.2);
-  pdf.line(margin, ctx.y, pageW - margin, ctx.y);
-  ctx.y += 5;
+  pdf.line(margin, y, pageW - margin, y);
+  y += 5;
 
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(11);
-  pdf.text(titulo, pageW / 2, ctx.y, { align: "center" });
-  ctx.y += 8;
+  pdf.text(titulo, pageW / 2, y, { align: "center" });
+  ctx.y = y + 8;
 }
 
-function desenharTextoCelula(
+function desenharCelula(
   ctx: PdfCtx,
   colIndex: number,
   texto: string,
@@ -186,19 +158,18 @@ function desenharTextoCelula(
   const col = colunas[colIndex];
   const x = colX[colIndex];
   const w = col.larguraMm;
-  const align = opts?.header ? col.headerAlign : col.dataAlign;
   pdf.setFont("helvetica", opts?.header ? "bold" : "normal");
-  pdf.setFontSize(6.5);
+  pdf.setFontSize(7);
   pdf.setTextColor(...PRETO);
-  const pad = 0.8;
+  const pad = 1;
   const truncado = pdf.splitTextToSize(texto, w - pad * 2)[0] || texto;
   const tx =
-    align === "right"
+    col.align === "right"
       ? x + w - pad
-      : align === "center"
+      : col.align === "center"
         ? x + w / 2
         : x + pad;
-  pdf.text(truncado, tx, yTop + altura / 2 + 1.1, { align });
+  pdf.text(truncado, tx, yTop + altura / 2 + 1.1, { align: col.align });
 }
 
 function desenharLinhaTabelaGrid(
@@ -217,7 +188,7 @@ function desenharLinhaTabelaGrid(
     const x = colX[i];
     const w = colunas[i].larguraMm;
     pdf.rect(x, yTop, w, altura, "S");
-    desenharTextoCelula(ctx, i, textos[i] ?? "", yTop, altura, opts);
+    desenharCelula(ctx, i, textos[i] ?? "", yTop, altura, opts);
   });
 
   ctx.y += altura;

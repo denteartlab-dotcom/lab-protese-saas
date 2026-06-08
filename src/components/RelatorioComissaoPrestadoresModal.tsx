@@ -395,23 +395,25 @@ export function RelatorioComissaoPrestadoresModal({
                 ))}
               </CampoSelect>
             </div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pb-1">
-              <CampoCheckbox
-                label="Paciente"
-                checked={mostrarPaciente}
-                onChange={setMostrarPaciente}
-              />
-              <CampoCheckbox
-                label="Cliente"
-                checked={mostrarCliente}
-                onChange={setMostrarCliente}
-              />
-              <CampoCheckbox
-                label="Valor Serviço"
-                checked={mostrarValorServico}
-                onChange={setMostrarValorServico}
-              />
-            </div>
+            {modelo === "modelo-2" ? (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pb-1">
+                <CampoCheckbox
+                  label="Paciente"
+                  checked={mostrarPaciente}
+                  onChange={setMostrarPaciente}
+                />
+                <CampoCheckbox
+                  label="Cliente"
+                  checked={mostrarCliente}
+                  onChange={setMostrarCliente}
+                />
+                <CampoCheckbox
+                  label="Valor Serviço"
+                  checked={mostrarValorServico}
+                  onChange={setMostrarValorServico}
+                />
+              </div>
+            ) : null}
           </div>
 
           {erroPdf ? (
