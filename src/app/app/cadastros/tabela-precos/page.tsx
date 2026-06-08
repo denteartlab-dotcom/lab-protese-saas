@@ -278,6 +278,11 @@ export default function TabelaPrecosPage() {
     id: string;
     nome: string;
   } | null>(null);
+  const [modalEtapasServico, setModalEtapasServico] = useState<{
+    categoriaId: string;
+    servicoId: string;
+    nomeServico: string;
+  } | null>(null);
   const [modalCadastroEtapasServico, setModalCadastroEtapasServico] = useState(false);
   const [nomeNovaEtapaOpcao, setNomeNovaEtapaOpcao] = useState("");
   const [etapasCadastro, setEtapasCadastro] = useState<string[]>([]);
@@ -756,6 +761,48 @@ export default function TabelaPrecosPage() {
       etapas: servico.etapas || [],
       opcoesEtapas: opcoesEtapasDoServico(servico),
     });
+  }
+
+  function abrirModalEtapas(categoria: CategoriaPreco, servico: ServicoPreco) {
+    setFormServico((atual) => ({
+      ...atual,
+      etapas: servico.etapas || [],
+      opcoesEtapas: opcoesEtapasDoServico(servico),
+    }));
+    setModalEtapasServico({
+      categoriaId: categoria.id,
+      servicoId: servico.id,
+      nomeServico: servico.nome,
+    });
+  }
+
+  function fecharModalEtapas() {
+    setModalEtapasServico(null);
+  }
+
+  function salvarEtapasServicoModal() {
+    if (!modalEtapasServico) return;
+    const { categoriaId, servicoId } = modalEtapasServico;
+    atualizarCategorias((atuais) =>
+      atuais.map((categoria) =>
+        categoria.id === categoriaId
+          ? {
+              ...categoria,
+              servicos: categoria.servicos.map((servico) =>
+                servico.id === servicoId
+                  ? {
+                      ...servico,
+                      etapas: formServico.etapas,
+                      opcoesEtapas: formServico.opcoesEtapas,
+                      etapa: "Editar Etapas",
+                    }
+                  : servico
+              ),
+            }
+          : categoria
+      )
+    );
+    setModalEtapasServico(null);
   }
 
   function atualizarComissao(
@@ -1313,7 +1360,7 @@ export default function TabelaPrecosPage() {
                           type="button"
                           onClick={() => {
                             const original = categoria.servicos.find((item) => item.id === servico.id);
-                            if (original) editarItemCategoria(categoria, original);
+                            if (original) abrirModalEtapas(categoria, original);
                           }}
                           className="text-blue-600 hover:underline"
                         >
@@ -1399,7 +1446,7 @@ export default function TabelaPrecosPage() {
                         {item.tipo === "servico" ? (
                         <button
                           type="button"
-                          onClick={() => editarServico(categoria, item)}
+                          onClick={() => abrirModalEtapas(categoria, item)}
                           className="text-primary-700 hover:underline"
                         >
                           {item.etapa}
@@ -2256,6 +2303,126 @@ export default function TabelaPrecosPage() {
                   Fechar
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalEtapasServico && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 p-4">
+          <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col rounded bg-white shadow-2xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
+              <h2 className="text-sm font-semibold text-slate-700">
+                Etapas — {modalEtapasServico.nomeServico}
+              </h2>
+              <button
+                type="button"
+                onClick={fecharModalEtapas}
+                className="text-xl text-slate-400 hover:text-slate-700"
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-5 text-xs text-slate-600">
+              {etapasCadastro.length > 0 && (
+                <p className="mb-3 text-[10px] text-slate-500">
+                  Opções sincronizadas com{" "}
+                  <Link href="/app/cadastros/etapas" className="text-primary-700 underline">
+                    Cadastros → Etapas
+                  </Link>
+                  .
+                </p>
+              )}
+              <div className="max-h-[min(360px,50vh)] space-y-3 overflow-y-auto overflow-x-hidden pr-1">
+                {formServico.etapas.map((etapa, index) => (
+                  <div
+                    key={etapa.id}
+                    className="relative grid gap-3 rounded border border-blue-300 p-3 md:grid-cols-[1.2fr_0.8fr]"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => removerEtapa(etapa.id)}
+                      className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded border border-red-200 text-red-500 hover:bg-red-50"
+                      aria-label="Remover etapa"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                    <div className="space-y-1">
+                      <label className="block text-[11px] text-slate-600">
+                        {index === 0 ? "Entrada" : "Etapa"}
+                      </label>
+                      <select
+                        value={etapa.nome}
+                        onChange={(event) => atualizarEtapa(etapa.id, "nome", event.target.value)}
+                        className="h-9 w-full rounded border border-slate-300 bg-white px-3 text-xs outline-none focus:border-primary-500"
+                      >
+                        <option value="">
+                          {index === 0 ? "Selecione a etapa de entrada" : "Selecione uma etapa"}
+                        </option>
+                        {(etapasCadastro.length > 0 ? etapasCadastro : formServico.opcoesEtapas).map(
+                          (opcao) => (
+                            <option key={opcao} value={opcao}>
+                              {opcao}
+                            </option>
+                          )
+                        )}
+                        {etapa.nome &&
+                          !(etapasCadastro.length > 0 ? etapasCadastro : formServico.opcoesEtapas).includes(
+                            etapa.nome
+                          ) && <option value={etapa.nome}>{etapa.nome}</option>}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[11px] text-slate-600">Valor da Etapa</label>
+                      <div className="flex h-9 overflow-hidden rounded border border-slate-300 bg-white">
+                        <span className="flex w-9 items-center justify-center border-r border-slate-200 text-xs text-slate-500">
+                          $
+                        </span>
+                        <input
+                          value={etapa.valorHora}
+                          onChange={(event) =>
+                            atualizarEtapa(etapa.id, "valorHora", formatMoneyInput(event.target.value))
+                          }
+                          className="w-full px-3 text-xs outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={abrirModalCadastroEtapasServico}
+                  className="rounded bg-emerald-100 px-4 py-2 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-200"
+                >
+                  + adicionar etapas
+                </button>
+                <button
+                  type="button"
+                  onClick={adicionarEtapa}
+                  className="rounded bg-emerald-500 px-4 py-2 text-[11px] font-semibold text-white hover:bg-emerald-600"
+                >
+                  + Etapa
+                </button>
+              </div>
+            </div>
+            <div className="flex shrink-0 justify-end gap-3 border-t border-slate-100 px-5 py-4">
+              <button
+                type="button"
+                onClick={salvarEtapasServicoModal}
+                className="rounded bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700"
+              >
+                Salvar Etapas
+              </button>
+              <button
+                type="button"
+                onClick={fecharModalEtapas}
+                className="rounded border border-slate-300 bg-white px-4 py-2 text-xs text-slate-600 hover:bg-slate-50"
+              >
+                Fechar
+              </button>
             </div>
           </div>
         </div>
