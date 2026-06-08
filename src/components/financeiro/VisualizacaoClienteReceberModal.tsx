@@ -251,7 +251,7 @@ export function VisualizacaoClienteReceberModal({
   filtrosPainel,
 }: Props) {
   const [mounted, setMounted] = useState(false);
-  const [aba, setAba] = useState<"faturas" | "recebimentos" | "faturar">("faturas");
+  const [aba, setAba] = useState<"faturas" | "recebimentos" | "extrato">("faturas");
   const [mes, setMes] = useState(new Date().getMonth());
   const [ano, setAno] = useState(new Date().getFullYear());
   const [formaPagamento, setFormaPagamento] = useState("todos");
@@ -369,6 +369,23 @@ export function VisualizacaoClienteReceberModal({
   const totalRecebidoFaturas = faturasVisiveis.reduce((s, l) => s + recebidoNaFatura(l), 0);
   const totalSaldoFaturas = faturasVisiveis.reduce((s, l) => s + saldoFatura(l), 0);
 
+  const extratoLinhas = useMemo(() => {
+    const ordenados = [...lancamentosFiltrados].sort(
+      (a, b) => new Date(a.data).getTime() - new Date(b.data).getTime()
+    );
+    let saldo = 0;
+    return ordenados.map((l) => {
+      if (l.status === "pago") {
+        saldo -= l.valor;
+      } else if (isFaturaContasReceber(l)) {
+        saldo += saldoFatura(l);
+      } else {
+        saldo += l.valor;
+      }
+      return { lancamento: l, saldo };
+    });
+  }, [lancamentosFiltrados, isFaturaContasReceber, saldoFatura]);
+
   const totalLinhaAReceber = cliente?.aReceber ?? 0;
   const adiantamentosCliente = cliente?.adiantamentos ?? 0;
   const mesLabel = MESES[mes];
@@ -474,27 +491,28 @@ export function VisualizacaoClienteReceberModal({
           </div>
         </div>
 
-        <div className="flex shrink-0 border-b border-[#e5e7eb]">
+        <div className="grid shrink-0 grid-cols-3 bg-[#ececec] px-6 py-2.5">
           {(
             [
               ["faturas", "Faturas"],
               ["recebimentos", "Recebimentos"],
-              ["faturar", "Faturar"],
+              ["extrato", "Extrato"],
             ] as const
           ).map(([id, titulo]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setAba(id)}
-              className={cn(
-                "min-w-[7.5rem] border-r border-[#e5e7eb] px-6 py-2 text-[13px] font-medium transition last:border-r-0",
-                aba === id
-                  ? "bg-[#4a90d9] text-white"
-                  : "bg-[#f9fafb] text-[#6b7280] hover:bg-[#f3f4f6]"
-              )}
-            >
-              {titulo}
-            </button>
+            <div key={id} className="flex items-center justify-center">
+              <button
+                type="button"
+                onClick={() => setAba(id)}
+                className={cn(
+                  "min-w-[7rem] text-center text-[13px] font-medium transition",
+                  aba === id
+                    ? "rounded-md bg-[#4a90d9] px-10 py-1.5 text-white shadow-sm"
+                    : "bg-transparent px-4 py-1.5 text-[#1f2937] hover:text-[#111827]"
+                )}
+              >
+                {titulo}
+              </button>
+            </div>
           ))}
         </div>
 
@@ -543,23 +561,8 @@ export function VisualizacaoClienteReceberModal({
         </div>
 
         <div className="min-h-0 flex-1 overflow-auto bg-[#fafafa] px-4 py-3">
-          {(aba === "faturas" || aba === "faturar") && (
+          {aba === "faturas" && (
             <div className="overflow-x-auto border border-[#c5c9cf] bg-white">
-              {aba === "faturar" && (
-                <div className="flex items-center justify-between border-b border-[#d1d5db] bg-[#f3f4f6] px-3 py-2">
-                  <span className="text-[12px] font-medium text-[#374151]">
-                    Nota de cobrança do cliente
-                  </span>
-                  <button
-                    type="button"
-                    onClick={onImprimirNota}
-                    disabled={faturasVisiveis.length === 0}
-                    className="rounded-sm border border-[#4a90d9] bg-white px-3 py-1 text-[11px] font-medium text-[#4a90d9] hover:bg-[#eff6ff] disabled:opacity-50"
-                  >
-                    Gerar / Imprimir Nota de Cobrança
-                  </button>
-                </div>
-              )}
               <table className="w-full min-w-[980px] border-collapse text-[11px]">
                 <thead>
                   <tr>
@@ -714,6 +717,74 @@ export function VisualizacaoClienteReceberModal({
                     </tr>
                   </tfoot>
                 )}
+              </table>
+            </div>
+          )}
+
+          {aba === "extrato" && (
+            <div className="overflow-x-auto border border-[#c5c9cf] bg-white">
+              <div className="flex items-center justify-between border-b border-[#d1d5db] bg-[#f3f4f6] px-3 py-2">
+                <span className="text-[12px] font-medium text-[#374151]">
+                  Extrato financeiro do cliente
+                </span>
+                <button
+                  type="button"
+                  onClick={onImprimirNota}
+                  disabled={faturasVisiveis.length === 0}
+                  className="rounded-sm border border-[#4a90d9] bg-white px-3 py-1 text-[11px] font-medium text-[#4a90d9] hover:bg-[#eff6ff] disabled:opacity-50"
+                >
+                  Gerar / Imprimir Nota de Cobrança
+                </button>
+              </div>
+              <table className="w-full min-w-[820px] border-collapse text-[11px]">
+                <thead>
+                  <tr>
+                    <th className={thClass}>Data</th>
+                    <th className={thClass}>Referência</th>
+                    <th className={thClass}>Forma</th>
+                    <th className={cn(thClass, "text-right")}>Valor</th>
+                    <th className={cn(thClass, "text-right")}>Saldo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {extratoLinhas.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className={cn(tdClass, "py-10 text-center text-[#9ca3af]")}>
+                        Nenhuma movimentação encontrada para o período selecionado.
+                      </td>
+                    </tr>
+                  ) : (
+                    extratoLinhas.map(({ lancamento: l, saldo }, index) => (
+                      <tr
+                        key={l.id}
+                        className={cn(
+                          index % 2 === 0 ? "bg-white" : "bg-[#f8fafc]",
+                          "hover:brightness-[0.98]"
+                        )}
+                      >
+                        <td className={tdClass}>{formatDate(l.data)}</td>
+                        <td className={tdClass}>{referenciaLancamento(l)}</td>
+                        <td className={tdClass}>
+                          <span className="font-medium text-[#2563eb]">
+                            {l.formaPagamento || "—"}
+                          </span>
+                        </td>
+                        <td className={cn(tdClass, "text-right tabular-nums")}>
+                          {money(l.valor)}
+                        </td>
+                        <td
+                          className={cn(
+                            tdClass,
+                            "text-right font-semibold tabular-nums",
+                            saldo > 0.009 ? "text-[#16a34a]" : saldo < -0.009 ? "text-[#dc2626]" : ""
+                          )}
+                        >
+                          {money(saldo)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
               </table>
             </div>
           )}
