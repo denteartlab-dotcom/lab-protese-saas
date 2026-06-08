@@ -49,6 +49,14 @@ import {
   montarPrazoEtapaOs,
   valorMonetarioEtapaServico,
   servicoTemEtapasNaTabela,
+  servicoTemComissoesColaboradoresNaTabela,
+  servicoTemComissoesTerceirizadosNaTabela,
+  colaboradoresIniciaisFormParaOsServico,
+  terceirizadosIniciaisFormParaOsServico,
+  comissaoColaboradorNaTabelaServico,
+  comissoesColaboradoresDoServico,
+  comissoesTerceirizadosDoServico,
+  produtosOpcoesNaOs,
   servicosDaCategoriaTabela,
   categoriasSelecionaveisNaOs,
   servicosSelecionaveisNaOs,
@@ -148,9 +156,7 @@ type EtapaOsForm = {
   responsavel: string;
   prazo: string;
   observacao: string;
-  comissaoModo?: "reais" | "percentual";
   comissaoReais?: string;
-  comissaoPercentual?: string;
 };
 
 type EtapaOsItemServico = EtapaOsForm;
@@ -729,7 +735,6 @@ export default function OrdemServicoPage() {
             responsavel: etapa.responsavel,
             prazo: etapa.prazo,
             observacao: etapa.observacao,
-            comissaoModo: "reais",
           })
         )
       );
@@ -843,12 +848,16 @@ export default function OrdemServicoPage() {
     return Object.keys(categoriasPorTabelaPreco)[0] || "Tabela Principal";
   }, [clientes, form.clienteId, categoriasPorTabelaPreco, tabelaPrecoAtual]);
 
-  const categoriasTabelaPreco = categoriasSelecionaveisNaOs(
-    categoriasPorTabelaPreco[tabelaPrecoSelecionada] || []
-  );
+  const categoriasTabelaCompleta = categoriasPorTabelaPreco[tabelaPrecoSelecionada] || [];
+  const categoriasTabelaPreco = categoriasSelecionaveisNaOs(categoriasTabelaCompleta);
   const servicosDaCategoria = servicosSelecionaveisNaOs(
     servicosDaCategoriaTabela(categoriasTabelaPreco, form.categoria)
   );
+  const produtosTabelaPrecoOs = useMemo(
+    () => produtosOpcoesNaOs(categoriasTabelaCompleta),
+    [categoriasTabelaCompleta]
+  );
+  const exibeAbaProdutos = produtosTabelaPrecoOs.length > 0;
 
   const servicoOsAtual = useMemo(() => {
     const nome = form.tipoProtese.trim();
@@ -860,6 +869,93 @@ export default function OrdemServicoPage() {
     if (!servicoOsAtual) return [];
     return modelosEtapasParaOsServico(servicoOsAtual, modelosEtapas);
   }, [servicoOsAtual, modelosEtapas]);
+
+  const exibeAbaColaboradores = servicoTemComissoesColaboradoresNaTabela(servicoOsAtual);
+  const exibeAbaTerceirizados = servicoTemComissoesTerceirizadosNaTabela(servicoOsAtual);
+  const colaboradoresComissaoServico = useMemo(
+    () => comissoesColaboradoresDoServico(servicoOsAtual),
+    [servicoOsAtual]
+  );
+  const terceirizadosComissaoServico = useMemo(
+    () => comissoesTerceirizadosDoServico(servicoOsAtual),
+    [servicoOsAtual]
+  );
+
+  function valorBaseComissaoTerceirizadoOs() {
+    if (servicoOsAtual) {
+      return servicoOsAtual.valor * Number(form.quantidade || 1);
+    }
+    return parseCurrency(form.valor) * Number(form.quantidade || 1);
+  }
+
+  function aplicarComissoesServicoNaOs(servico: ServicoTabelaPrecoOs) {
+    if (servicoTemComissoesColaboradoresNaTabela(servico)) {
+      setColaboradores(colaboradoresIniciaisFormParaOsServico(servico, form.repeticao));
+    } else {
+      setColaboradores([]);
+    }
+
+    if (servicoTemComissoesTerceirizadosNaTabela(servico)) {
+      setTerceirizados(
+        terceirizadosIniciaisFormParaOsServico(
+          servico,
+          servico.valor * Number(form.quantidade || 1),
+          form.repeticao
+        )
+      );
+    } else {
+      setTerceirizados([]);
+    }
+  }
+
+  useEffect(() => {
+    if (abaServico === "produtos" && !exibeAbaProdutos) setAbaServico("etapas");
+    if (abaServico === "colaboradores" && !exibeAbaColaboradores) setAbaServico("etapas");
+    if (abaServico === "terceirizados" && !exibeAbaTerceirizados) setAbaServico("etapas");
+  }, [abaServico, exibeAbaProdutos, exibeAbaColaboradores, exibeAbaTerceirizados]);
+
+  useEffect(() => {
+    if (!servicoOsAtual || !servicoTemComissoesColaboradoresNaTabela(servicoOsAtual)) return;
+    setColaboradores((atuais) => {
+      if (atuais.length === 0) return atuais;
+      let mudou = false;
+      const proximos = atuais.map((item) => {
+        const comissao = comissaoColaboradorNaTabelaServico(
+          servicoOsAtual,
+          item.nome,
+          form.repeticao
+        );
+        if (!comissao || item.comissao === comissao) return item;
+        mudou = true;
+        return { ...item, comissao };
+      });
+      return mudou ? proximos : atuais;
+    });
+  }, [form.repeticao, servicoOsAtual]);
+
+  useEffect(() => {
+    if (!servicoOsAtual || !servicoTemComissoesTerceirizadosNaTabela(servicoOsAtual)) return;
+    setTerceirizados((atuais) => {
+      if (atuais.length === 0) return atuais;
+      const base = valorBaseComissaoTerceirizadoOs();
+      let mudou = false;
+      const proximos = atuais.map((item) => {
+        const linha = terceirizadosComissaoServico.find(
+          (terceiro) => terceiro.nome.trim() === item.nome.trim()
+        );
+        if (!linha) return item;
+        const percentual = parseMoney(
+          form.repeticao ? linha.valorRepeticao || "0" : linha.valor || "0"
+        );
+        const custo = (base * percentual) / 100;
+        const custoFmt = custo.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+        if (item.custo === custoFmt) return item;
+        mudou = true;
+        return { ...item, custo: custoFmt };
+      });
+      return mudou ? proximos : atuais;
+    });
+  }, [form.repeticao, form.quantidade, form.valor, servicoOsAtual, terceirizadosComissaoServico]);
 
   useEffect(() => {
     if (!form.categoria) return;
@@ -933,6 +1029,8 @@ export default function OrdemServicoPage() {
       dataDentista: "",
     }));
     setEtapas([]);
+    setColaboradores([]);
+    setTerceirizados([]);
     setAvisoAdicionarServico("");
   }
 
@@ -946,6 +1044,8 @@ export default function OrdemServicoPage() {
         dataDentista: "",
       }));
       setEtapas([]);
+      setColaboradores([]);
+      setTerceirizados([]);
       return;
     }
 
@@ -961,6 +1061,8 @@ export default function OrdemServicoPage() {
     if (tipo === "transporte") {
       setProdutosOs([]);
       setEtapas([]);
+      setColaboradores([]);
+      setTerceirizados([]);
       setForm((current) => ({
         ...current,
         tipoProtese: `Transporte: ${servico.nome}`,
@@ -989,7 +1091,7 @@ export default function OrdemServicoPage() {
           modelosEtapas,
           form.dataLancamento,
           form.horaLaboratorio
-        ).map((etapa) => sincronizarComissaoEtapa({ ...etapa, comissaoModo: "reais" }))
+        ).map((etapa) => sincronizarComissaoEtapa(etapa))
       );
       setAbaServico("etapas");
     } else {
@@ -1153,6 +1255,32 @@ export default function OrdemServicoPage() {
   }
 
   function selecionarTerceirizado(index: number, nome: string) {
+    const linhaTabela = terceirizadosComissaoServico.find(
+      (item) => item.nome.trim() === nome.trim()
+    );
+    if (linhaTabela && servicoOsAtual) {
+      const percentual = parseMoney(
+        form.repeticao ? linhaTabela.valorRepeticao || "0" : linhaTabela.valor || "0"
+      );
+      const custoNum = (valorBaseComissaoTerceirizadoOs() * percentual) / 100;
+      setTerceirizados((atuais) =>
+        atuais.map((item, i) =>
+          i === index
+            ? {
+                ...item,
+                nome,
+                servico: servicoOsAtual.nome,
+                custo: custoNum.toLocaleString("pt-BR", {
+                  style: "currency",
+                  currency: "BRL",
+                }),
+              }
+            : item
+        )
+      );
+      return;
+    }
+
     const opcao = opcoesTerceirizados.find((item) => item.nome === nome);
     setTerceirizados((atuais) =>
       atuais.map((item, i) =>
@@ -1419,10 +1547,6 @@ export default function OrdemServicoPage() {
     const reaisNum = (base * pctNumero) / 100;
     return {
       comissaoReais: formatComissaoReaisInput(String(Math.round(reaisNum * 100))),
-      comissaoPercentual: pctNumero.toLocaleString("pt-BR", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }),
     };
   }
 
@@ -1430,51 +1554,14 @@ export default function OrdemServicoPage() {
     const padrao = valoresComissaoPadraoEtapa(etapa, servico);
     return {
       ...etapa,
-      comissaoModo: etapa.comissaoModo || "reais",
       comissaoReais: padrao.comissaoReais,
-      comissaoPercentual: padrao.comissaoPercentual,
     };
   }
 
   function atualizarComissaoReaisEtapa(index: number, valorDigitado: string) {
-    const etapaAtual = etapas[index];
     const comissaoReais = formatComissaoReaisInput(valorDigitado);
-    const reaisNum = parseMoney(comissaoReais);
-    const base = valorBaseComissaoEtapaOs(etapaAtual);
-    const pctNum = base > 0 ? (reaisNum / base) * 100 : 0;
     setEtapas((atuais) =>
-      atuais.map((item, i) =>
-        i === index
-          ? {
-              ...item,
-              comissaoModo: "reais",
-              comissaoReais,
-              comissaoPercentual: pctNum.toLocaleString("pt-BR", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }),
-            }
-          : item
-      )
-    );
-  }
-
-  function atualizarComissaoPercentualEtapa(index: number, valorDigitado: string) {
-    const etapaAtual = etapas[index];
-    const comissaoPercentual = formatarComissaoPercentInput(valorDigitado).replace(/%/g, "");
-    const pctNum = parseMoney(comissaoPercentual);
-    const reaisNum = (valorBaseComissaoEtapaOs(etapaAtual) * pctNum) / 100;
-    setEtapas((atuais) =>
-      atuais.map((item, i) =>
-        i === index
-          ? {
-              ...item,
-              comissaoModo: "percentual",
-              comissaoPercentual,
-              comissaoReais: formatComissaoReaisInput(String(Math.round(reaisNum * 100))),
-            }
-          : item
-      )
+      atuais.map((item, i) => (i === index ? { ...item, comissaoReais } : item))
     );
   }
 
@@ -1484,52 +1571,14 @@ export default function OrdemServicoPage() {
       let mudou = false;
       const proximas = atuais.map((etapa) => {
         if (!etapa.responsavel.trim() || !etapa.nome.trim()) return etapa;
-        const base = valorMonetarioEtapaServico(servicoOsAtual, etapa.nome);
-        if (etapa.comissaoModo === "reais" && etapa.comissaoReais?.trim()) {
-          const reaisNum = parseMoney(etapa.comissaoReais);
-          const pctNum = base > 0 ? (reaisNum / base) * 100 : 0;
-          const pctFmt = pctNum.toLocaleString("pt-BR", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          });
-          if (etapa.comissaoPercentual === pctFmt) return etapa;
-          mudou = true;
-          return { ...etapa, comissaoPercentual: pctFmt };
-        }
-        const pctNum =
-          parseMoney(etapa.comissaoPercentual || "0") ||
-          percentualComissaoEtapaOs(servicoOsAtual, etapa.responsavel);
-        const reaisNum = (base * pctNum) / 100;
-        const reaisFmt = formatComissaoReaisInput(String(Math.round(reaisNum * 100)));
-        const pctFmt = pctNum.toLocaleString("pt-BR", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        });
-        if (etapa.comissaoReais === reaisFmt && etapa.comissaoPercentual === pctFmt) return etapa;
+        const padrao = valoresComissaoPadraoEtapa(etapa);
+        if (etapa.comissaoReais === padrao.comissaoReais) return etapa;
         mudou = true;
-        return { ...etapa, comissaoReais: reaisFmt, comissaoPercentual: pctFmt };
+        return { ...etapa, comissaoReais: padrao.comissaoReais };
       });
       return mudou ? proximas : atuais;
     });
   }, [form.repeticao, servicoOsAtual]);
-
-  function definirModoComissaoEtapa(index: number, modo: "reais" | "percentual") {
-    setEtapas((atuais) =>
-      atuais.map((item, i) => {
-        if (i !== index) return item;
-        if (modo === "percentual" && item.responsavel.trim()) {
-          const padrao = valoresComissaoPadraoEtapa(item);
-          return {
-            ...item,
-            comissaoModo: modo,
-            comissaoPercentual: padrao.comissaoPercentual,
-            comissaoReais: padrao.comissaoReais,
-          };
-        }
-        return { ...item, comissaoModo: modo };
-      })
-    );
-  }
 
   function rotuloSetorEtapa(etapa: { nome: string; setor: string }) {
     return etapa.setor.trim() || setorDaEtapa(etapa.nome)?.nome || "Setor não informado";
@@ -1600,7 +1649,11 @@ export default function OrdemServicoPage() {
 
   function produtoFromItem(item: ItemAdicionado) {
     const nome = item.servico.replace(/^Produto:\s*/i, "").trim();
-    return produtos.find((produto) => produto.id === item.produtoId || produto.nome === nome);
+    return (
+      produtosTabelaPrecoOs.find(
+        (produto) => produto.id === item.produtoId || produto.nome === nome
+      ) || produtos.find((produto) => produto.id === item.produtoId || produto.nome === nome)
+    );
   }
 
   function selecionarItem(item: ItemAdicionado) {
@@ -1674,20 +1727,45 @@ export default function OrdemServicoPage() {
             form.horaLaboratorio
           )
         : [];
-    if (etapasDoItem.length > 0) {
-      setAbaServico("etapas");
-    }
     setEtapas(
       etapasDoItem.map((etapa) => {
         const base: EtapaOsForm = {
           ...etapa,
           setor: etapa.setor || modeloEtapa(etapa.nome)?.setor || "",
-          comissaoModo: etapa.comissaoModo || "reais",
         };
-        if (etapa.comissaoReais || etapa.comissaoPercentual) return base;
+        if (etapa.comissaoReais) return base;
         return sincronizarComissaoEtapa(base);
       })
     );
+
+    if (servicoItem) {
+      setColaboradores((atuais) =>
+        atuais.length > 0
+          ? atuais
+          : servicoTemComissoesColaboradoresNaTabela(servicoItem)
+            ? colaboradoresIniciaisFormParaOsServico(servicoItem, form.repeticao)
+            : atuais
+      );
+      setTerceirizados((atuais) =>
+        atuais.length > 0
+          ? atuais
+          : servicoTemComissoesTerceirizadosNaTabela(servicoItem)
+            ? terceirizadosIniciaisFormParaOsServico(
+                servicoItem,
+                servicoItem.valor * Number(item.quantidade || 1),
+                form.repeticao
+              )
+            : atuais
+      );
+    }
+
+    if (etapasDoItem.length > 0) {
+      setAbaServico("etapas");
+    } else if (servicoItem && servicoTemComissoesColaboradoresNaTabela(servicoItem)) {
+      setAbaServico("colaboradores");
+    } else if (servicoItem && servicoTemComissoesTerceirizadosNaTabela(servicoItem)) {
+      setAbaServico("terceirizados");
+    }
   }
 
   function tipoItemAdicionado(item: ItemAdicionado) {
@@ -1713,7 +1791,9 @@ export default function OrdemServicoPage() {
           produto.produtoId || produto.observacao?.trim() || parseCurrency(produto.valor) > 0
       )[0];
       if (!produtoOs) return null;
-      const produto = produtos.find((p) => p.id === produtoOs.produtoId);
+      const produto =
+        produtosTabelaPrecoOs.find((p) => p.id === produtoOs.produtoId) ||
+        produtos.find((p) => p.id === produtoOs.produtoId);
       const nomeProduto = produto?.nome || produtoOs.observacao?.trim() || "Produto";
       const quantidade = produtoOs.quantidade || "1";
       return {
@@ -1802,7 +1882,9 @@ export default function OrdemServicoPage() {
     );
 
     const itensProdutos = produtosSelecionados.map((produtoOs, index) => {
-      const produto = produtos.find((item) => item.id === produtoOs.produtoId);
+      const produto =
+        produtosTabelaPrecoOs.find((item) => item.id === produtoOs.produtoId) ||
+        produtos.find((item) => item.id === produtoOs.produtoId);
       const nomeProduto = produto?.nome || produtoOs.observacao?.trim() || "Produto";
       const quantidade = produtoOs.quantidade || "1";
 
@@ -1910,9 +1992,7 @@ export default function OrdemServicoPage() {
         responsavel: "",
         prazo: "",
         observacao: "",
-        comissaoModo: "reais",
         comissaoReais: "0,00",
-        comissaoPercentual: "0,00",
       },
     ]);
   }
@@ -1939,6 +2019,7 @@ export default function OrdemServicoPage() {
         return;
       }
     }
+    const comissaoTabela = comissaoColaboradorNaTabelaServico(servicoOsAtual, nome, form.repeticao);
     const cadastro = colaboradoresOpcoes.find((item) => item.nome === nome);
     setColaboradores((atuais) =>
       atuais.map((item, i) =>
@@ -1946,7 +2027,9 @@ export default function OrdemServicoPage() {
           ? {
               ...item,
               nome,
-              comissao: cadastro ? comissaoColaboradorCadastro(cadastro) : item.comissao,
+              comissao:
+                comissaoTabela ||
+                (cadastro ? comissaoColaboradorCadastro(cadastro) : item.comissao),
             }
           : item
       )
@@ -3348,27 +3431,33 @@ export default function OrdemServicoPage() {
                 >
                   Etapas
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setAbaServico("produtos")}
-                  className={classeAbaOs("produtos")}
-                >
-                  {abaServico === "produtos" ? "Produtos" : "PRODUTOS"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAbaServico("colaboradores")}
-                  className={classeAbaOs("colaboradores")}
-                >
-                  Colaboradores / Comissões
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAbaServico("terceirizados")}
-                  className={classeAbaOs("terceirizados")}
-                >
-                  Serviços Terceirizados / Comissões
-                </button>
+                {exibeAbaProdutos && (
+                  <button
+                    type="button"
+                    onClick={() => setAbaServico("produtos")}
+                    className={classeAbaOs("produtos")}
+                  >
+                    {abaServico === "produtos" ? "Produtos" : "PRODUTOS"}
+                  </button>
+                )}
+                {exibeAbaColaboradores && (
+                  <button
+                    type="button"
+                    onClick={() => setAbaServico("colaboradores")}
+                    className={classeAbaOs("colaboradores")}
+                  >
+                    Colaboradores / Comissões
+                  </button>
+                )}
+                {exibeAbaTerceirizados && (
+                  <button
+                    type="button"
+                    onClick={() => setAbaServico("terceirizados")}
+                    className={classeAbaOs("terceirizados")}
+                  >
+                    Serviços Terceirizados / Comissões
+                  </button>
+                )}
               </div>
 
               <div
@@ -3483,69 +3572,18 @@ export default function OrdemServicoPage() {
                                 <label className="block text-[11px] font-medium text-slate-600">
                                   Valor Comissão
                                 </label>
-                                <div
-                                  className={`flex h-10 overflow-hidden rounded-lg border bg-white shadow-sm ${
-                                    etapa.comissaoModo !== "percentual"
-                                      ? "border-primary-400 ring-1 ring-primary-200"
-                                      : "border-slate-300"
-                                  }`}
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={() => definirModoComissaoEtapa(index, "reais")}
-                                    className={`flex w-10 shrink-0 items-center justify-center border-r text-xs font-semibold transition-colors ${
-                                      etapa.comissaoModo !== "percentual"
-                                        ? "border-primary-200 bg-primary-50 text-primary-700"
-                                        : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-primary-50 hover:text-primary-700"
-                                    }`}
-                                    title="Editar em reais"
-                                  >
+                                <div className="flex h-10 overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm">
+                                  <span className="flex w-10 shrink-0 items-center justify-center border-r border-slate-200 bg-slate-50 text-xs font-semibold text-slate-600">
                                     R$
-                                  </button>
+                                  </span>
                                   <input
                                     type="text"
                                     inputMode="decimal"
                                     value={etapa.comissaoReais || "0,00"}
-                                    onFocus={() => definirModoComissaoEtapa(index, "reais")}
                                     onChange={(e) =>
                                       atualizarComissaoReaisEtapa(index, e.target.value)
                                     }
-                                    className="h-full w-full bg-transparent px-3 text-sm text-slate-800 outline-none"
-                                    {...propsInputComSelecaoAoFocar({})}
-                                  />
-                                </div>
-                                <div
-                                  className={`flex h-10 overflow-hidden rounded-lg border bg-white shadow-sm ${
-                                    etapa.comissaoModo === "percentual"
-                                      ? "border-primary-400 ring-1 ring-primary-200"
-                                      : "border-slate-300"
-                                  }`}
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={() => definirModoComissaoEtapa(index, "percentual")}
-                                    className={`flex w-10 shrink-0 items-center justify-center border-r text-xs font-semibold transition-colors ${
-                                      etapa.comissaoModo === "percentual"
-                                        ? "border-primary-200 bg-primary-50 text-primary-700"
-                                        : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-primary-50 hover:text-primary-700"
-                                    }`}
-                                    title="Editar em porcentagem"
-                                  >
-                                    %
-                                  </button>
-                                  <input
-                                    type="text"
-                                    inputMode="decimal"
-                                    value={
-                                      etapa.comissaoPercentual
-                                        ? `${etapa.comissaoPercentual}%`
-                                        : "0,00%"
-                                    }
-                                    onFocus={() => definirModoComissaoEtapa(index, "percentual")}
-                                    onChange={(e) =>
-                                      atualizarComissaoPercentualEtapa(index, e.target.value)
-                                    }
-                                    className="h-full w-full bg-transparent px-3 text-sm text-slate-800 outline-none"
+                                    className="h-full w-full bg-transparent px-3 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-primary-500/20"
                                     {...propsInputComSelecaoAoFocar({})}
                                   />
                                 </div>
@@ -3587,7 +3625,9 @@ export default function OrdemServicoPage() {
                           label="Produto cadastrado"
                           value={produtoOs.produtoId}
                           onChange={(e) => {
-                            const produto = produtos.find((item) => item.id === e.target.value);
+                            const produto = produtosTabelaPrecoOs.find(
+                              (item) => item.id === e.target.value
+                            );
                             const valor =
                               produto?.valor !== undefined
                                 ? produto.valor.toLocaleString("pt-BR", {
@@ -3604,7 +3644,23 @@ export default function OrdemServicoPage() {
                           }}
                         >
                           <option value="">Selecione um produto</option>
-                          {produtos.map((produto) => (
+                          {produtoOs.produtoId &&
+                            !produtosTabelaPrecoOs.some(
+                              (produto) => produto.id === produtoOs.produtoId
+                            ) && (
+                              <option value={produtoOs.produtoId}>
+                                {produtoFromItem({
+                                  id: "",
+                                  servico: `Produto: ${produtoOs.observacao || produtoOs.produtoId}`,
+                                  numeroDente: "-",
+                                  corDente: "-",
+                                  quantidade: "1",
+                                  valor: 0,
+                                  produtoId: produtoOs.produtoId,
+                                })?.nome || produtoOs.produtoId}
+                              </option>
+                            )}
+                          {produtosTabelaPrecoOs.map((produto) => (
                             <option key={produto.id} value={produto.id}>
                               {produto.nome} -{" "}
                               {produto.valor.toLocaleString("pt-BR", {
@@ -3685,14 +3741,11 @@ export default function OrdemServicoPage() {
                   </div>
                 )}
 
-                {abaServico === "colaboradores" && (
+                {abaServico === "colaboradores" && exibeAbaColaboradores && (
                   <div className="space-y-3">
                     <p className="text-[10px] text-slate-500">
-                      Lista sincronizada com{" "}
-                      <a href="/app/cadastros/colaboradores" className="text-primary-700 underline">
-                        Cadastros → Colaboradores
-                      </a>
-                      . Ao salvar, o nome aparece no controle de produção.
+                      Colaboradores e comissões cadastrados na tabela de preços do serviço{" "}
+                      <span className="font-medium text-slate-700">{servicoOsAtual?.nome}</span>.
                     </p>
                     {colaboradores.length === 0 && (
                       <button
@@ -3708,31 +3761,22 @@ export default function OrdemServicoPage() {
                         key={`${colaborador.nome}-${index}`}
                         className="grid gap-3 rounded border border-slate-200 bg-white p-3 md:grid-cols-[1fr_1fr_1fr_auto]"
                       >
-                        {colaboradoresOpcoes.length > 0 ? (
-                          <Select
-                            label="Colaborador"
-                            value={colaborador.nome}
-                            onChange={(e) => selecionarColaboradorOs(index, e.target.value)}
-                          >
-                            <option value="">Selecione um colaborador</option>
-                            {colaborador.nome &&
-                              !colaboradoresOpcoes.some((c) => c.nome === colaborador.nome) && (
-                                <option value={colaborador.nome}>{colaborador.nome}</option>
-                              )}
-                            {colaboradoresOpcoes.map((opcao) => (
-                              <option key={opcao.id} value={opcao.nome}>
-                                {opcao.nome}
-                              </option>
-                            ))}
-                          </Select>
-                        ) : (
-                          <Input
-                            label="Colaborador"
-                            value={colaborador.nome}
-                            onChange={(e) => selecionarColaboradorOs(index, e.target.value)}
-                            placeholder="Nome do colaborador"
-                          />
-                        )}
+                        <Select
+                          label="Colaborador"
+                          value={colaborador.nome}
+                          onChange={(e) => selecionarColaboradorOs(index, e.target.value)}
+                        >
+                          <option value="">Selecione um colaborador</option>
+                          {colaborador.nome &&
+                            !colaboradoresComissaoServico.some((c) => c.nome === colaborador.nome) && (
+                              <option value={colaborador.nome}>{colaborador.nome}</option>
+                            )}
+                          {colaboradoresComissaoServico.map((opcao) => (
+                            <option key={opcao.id || opcao.nome} value={opcao.nome}>
+                              {opcao.nome}
+                            </option>
+                          ))}
+                        </Select>
                         <Input
                           label="Comissão (%)"
                           value={colaborador.comissao}
@@ -3812,8 +3856,12 @@ export default function OrdemServicoPage() {
                   </div>
                 )}
 
-                {abaServico === "terceirizados" && (
+                {abaServico === "terceirizados" && exibeAbaTerceirizados && (
                   <div className="space-y-3">
+                    <p className="text-[10px] text-slate-500">
+                      Serviços terceirizados cadastrados na tabela de preços do serviço{" "}
+                      <span className="font-medium text-slate-700">{servicoOsAtual?.nome}</span>.
+                    </p>
                     {terceirizados.length === 0 && (
                       <button
                         type="button"
@@ -3828,28 +3876,22 @@ export default function OrdemServicoPage() {
                         key={`${terceiro.nome}-${index}`}
                         className="grid gap-3 rounded border border-slate-200 bg-white p-3 md:grid-cols-[1fr_1fr_1fr_auto]"
                       >
-                        {opcoesTerceirizados.length > 0 ? (
-                          <Select
-                            label="Terceirizado"
-                            value={terceiro.nome}
-                            onChange={(e) => selecionarTerceirizado(index, e.target.value)}
-                          >
-                            <option value="">Selecione um prestador/fornecedor</option>
-                            {opcoesTerceirizados.map((opcao) => (
-                              <option key={opcao.id} value={opcao.nome}>
-                                {opcao.nome}
-                                {opcao.origem === "prestador" ? " - Prestador" : " - Fornecedor"}
-                              </option>
-                            ))}
-                          </Select>
-                        ) : (
-                          <Input
-                            label="Terceirizado"
-                            value={terceiro.nome}
-                            onChange={(e) => selecionarTerceirizado(index, e.target.value)}
-                            placeholder="Nome do prestador ou fornecedor"
-                          />
-                        )}
+                        <Select
+                          label="Terceirizado"
+                          value={terceiro.nome}
+                          onChange={(e) => selecionarTerceirizado(index, e.target.value)}
+                        >
+                          <option value="">Selecione um terceirizado</option>
+                          {terceiro.nome &&
+                            !terceirizadosComissaoServico.some((c) => c.nome === terceiro.nome) && (
+                              <option value={terceiro.nome}>{terceiro.nome}</option>
+                            )}
+                          {terceirizadosComissaoServico.map((opcao) => (
+                            <option key={opcao.id || opcao.nome} value={opcao.nome}>
+                              {opcao.nome}
+                            </option>
+                          ))}
+                        </Select>
                         <Input
                           label="Serviço"
                           value={terceiro.servico}

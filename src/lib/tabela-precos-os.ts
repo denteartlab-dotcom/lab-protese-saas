@@ -45,6 +45,26 @@ export type ServicoTabelaPrecoOs = {
   etapas?: EtapaServicoTabelaPrecoOs[];
   opcoesEtapas?: string[];
   comissoesColaboradores?: ComissaoColaboradorServicoOs[];
+  comissoesTerceirizados?: ComissaoColaboradorServicoOs[];
+};
+
+export type ProdutoOpcaoOs = {
+  id: string;
+  nome: string;
+  valor: number;
+  produtoId?: string;
+};
+
+export type ColaboradorComissaoOsForm = {
+  nome: string;
+  comissao: string;
+  etapa: string;
+};
+
+export type TerceirizadoComissaoOsForm = {
+  nome: string;
+  servico: string;
+  custo: string;
 };
 
 export function etapaCadastradaNoServico(
@@ -90,17 +110,13 @@ export function montarPrazoEtapaOs(data: string, hora: string) {
   return `${dataFmt} ${horaFmt}`.trim();
 }
 
-export type ComissaoModoEtapaOs = "reais" | "percentual";
-
 export type EtapaOsLinhaVazia = {
   nome: string;
   setor: string;
   responsavel: string;
   prazo: string;
   observacao: string;
-  comissaoModo?: ComissaoModoEtapaOs;
   comissaoReais?: string;
-  comissaoPercentual?: string;
 };
 
 export type EtapasFormParaItemServicoOpts = {
@@ -168,6 +184,99 @@ export function nomesEtapasCadastradasNoServico(
 /** Serviço tem etapas cadastradas na aba Etapas da tabela de preços. */
 export function servicoTemEtapasNaTabela(servico?: ServicoTabelaPrecoOs | null) {
   return nomesEtapasCadastradasNoServico(servico).length > 0;
+}
+
+export function itemEhProdutoNaTabela(item: ServicoTabelaPrecoOs) {
+  return (item.tipo || "servico") === "produto";
+}
+
+export function produtosCadastradosNaTabela(categorias: CategoriaTabelaPrecoOs[]) {
+  return categorias.flatMap((categoria) => categoria.servicos.filter(itemEhProdutoNaTabela));
+}
+
+export function tabelaPrecoTemProdutos(categorias: CategoriaTabelaPrecoOs[]) {
+  return produtosCadastradosNaTabela(categorias).length > 0;
+}
+
+export function produtosOpcoesNaOs(categorias: CategoriaTabelaPrecoOs[]): ProdutoOpcaoOs[] {
+  return produtosCadastradosNaTabela(categorias).map((item) => ({
+    id: item.produtoId || item.id,
+    nome: item.nome,
+    valor: item.valor,
+    produtoId: item.produtoId,
+  }));
+}
+
+export function comissoesColaboradoresDoServico(servico?: ServicoTabelaPrecoOs | null) {
+  return (servico?.comissoesColaboradores || []).filter((linha) => linha.nome?.trim());
+}
+
+export function comissoesTerceirizadosDoServico(servico?: ServicoTabelaPrecoOs | null) {
+  return (servico?.comissoesTerceirizados || []).filter((linha) => linha.nome?.trim());
+}
+
+export function servicoTemComissoesColaboradoresNaTabela(servico?: ServicoTabelaPrecoOs | null) {
+  return comissoesColaboradoresDoServico(servico).length > 0;
+}
+
+export function servicoTemComissoesTerceirizadosNaTabela(servico?: ServicoTabelaPrecoOs | null) {
+  return comissoesTerceirizadosDoServico(servico).length > 0;
+}
+
+function formatarPercentualComissaoTabela(value?: string | null) {
+  const numero = parseValorMonetarioTabela(value);
+  return numero.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function percentualComissaoLinhaTabela(
+  linha: ComissaoColaboradorServicoOs,
+  repeticao = false
+) {
+  const bruto = repeticao ? linha.valorRepeticao : linha.valor;
+  return parseValorMonetarioTabela(bruto);
+}
+
+export function comissaoColaboradorNaTabelaServico(
+  servico: ServicoTabelaPrecoOs | undefined,
+  nomeColaborador: string,
+  repeticao = false
+) {
+  const linha = comissoesColaboradoresDoServico(servico).find(
+    (item) => normalizarTextoTabela(item.nome) === normalizarTextoTabela(nomeColaborador)
+  );
+  if (!linha) return "";
+  const bruto = repeticao ? linha.valorRepeticao : linha.valor;
+  return formatarPercentualComissaoTabela(bruto);
+}
+
+export function colaboradoresIniciaisFormParaOsServico(
+  servico: ServicoTabelaPrecoOs,
+  repeticao = false
+): ColaboradorComissaoOsForm[] {
+  return comissoesColaboradoresDoServico(servico).map((linha) => ({
+    nome: linha.nome.trim(),
+    comissao: formatarPercentualComissaoTabela(repeticao ? linha.valorRepeticao : linha.valor),
+    etapa: "",
+  }));
+}
+
+export function terceirizadosIniciaisFormParaOsServico(
+  servico: ServicoTabelaPrecoOs,
+  baseValor: number,
+  repeticao = false
+): TerceirizadoComissaoOsForm[] {
+  return comissoesTerceirizadosDoServico(servico).map((linha) => {
+    const percentual = percentualComissaoLinhaTabela(linha, repeticao);
+    const custoNum = (baseValor * percentual) / 100;
+    return {
+      nome: linha.nome.trim(),
+      servico: servico.nome,
+      custo: custoNum.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+    };
+  });
 }
 
 /** Etapas da OS: somente as registradas no serviço na tabela de preços. */
