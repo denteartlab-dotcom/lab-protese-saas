@@ -909,12 +909,6 @@ export default function OrdemServicoPage() {
   }
 
   useEffect(() => {
-    if (abaServico === "produtos" && !exibeAbaProdutos) setAbaServico("etapas");
-    if (abaServico === "colaboradores" && !exibeAbaColaboradores) setAbaServico("etapas");
-    if (abaServico === "terceirizados" && !exibeAbaTerceirizados) setAbaServico("etapas");
-  }, [abaServico, exibeAbaProdutos, exibeAbaColaboradores, exibeAbaTerceirizados]);
-
-  useEffect(() => {
     if (!servicoOsAtual || !servicoTemComissoesColaboradoresNaTabela(servicoOsAtual)) return;
     setColaboradores((atuais) => {
       if (atuais.length === 0) return atuais;
@@ -3431,33 +3425,27 @@ export default function OrdemServicoPage() {
                 >
                   Etapas
                 </button>
-                {exibeAbaProdutos && (
-                  <button
-                    type="button"
-                    onClick={() => setAbaServico("produtos")}
-                    className={classeAbaOs("produtos")}
-                  >
-                    {abaServico === "produtos" ? "Produtos" : "PRODUTOS"}
-                  </button>
-                )}
-                {exibeAbaColaboradores && (
-                  <button
-                    type="button"
-                    onClick={() => setAbaServico("colaboradores")}
-                    className={classeAbaOs("colaboradores")}
-                  >
-                    Colaboradores / Comissões
-                  </button>
-                )}
-                {exibeAbaTerceirizados && (
-                  <button
-                    type="button"
-                    onClick={() => setAbaServico("terceirizados")}
-                    className={classeAbaOs("terceirizados")}
-                  >
-                    Serviços Terceirizados / Comissões
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setAbaServico("produtos")}
+                  className={classeAbaOs("produtos")}
+                >
+                  {abaServico === "produtos" ? "Produtos" : "PRODUTOS"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAbaServico("colaboradores")}
+                  className={classeAbaOs("colaboradores")}
+                >
+                  Colaboradores / Comissões
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAbaServico("terceirizados")}
+                  className={classeAbaOs("terceirizados")}
+                >
+                  Serviços Terceirizados / Comissões
+                </button>
               </div>
 
               <div
@@ -3607,6 +3595,13 @@ export default function OrdemServicoPage() {
 
                 {abaServico === "produtos" && (
                   <div className="space-y-3">
+                    <span className="text-sm font-semibold text-slate-800">Produtos</span>
+                    {!exibeAbaProdutos ? (
+                      <p className="text-[11px] text-slate-500">
+                        Nenhum produto cadastrado na tabela de preços.
+                      </p>
+                    ) : (
+                      <>
                     {produtosOs.length === 0 && (
                       <button
                         type="button"
@@ -3737,12 +3732,24 @@ export default function OrdemServicoPage() {
                         + Adicionar Produto
                       </button>
                     )}
-
+                      </>
+                    )}
                   </div>
                 )}
 
-                {abaServico === "colaboradores" && exibeAbaColaboradores && (
+                {abaServico === "colaboradores" && (
                   <div className="space-y-3">
+                    <span className="text-sm font-semibold text-slate-800">
+                      Colaboradores / Comissões
+                    </span>
+                    {!exibeAbaColaboradores ? (
+                      <p className="text-[11px] text-slate-500">
+                        {servicoOsAtual
+                          ? `Nenhum colaborador com comissão cadastrado na tabela de preços do serviço ${servicoOsAtual.nome}.`
+                          : "Selecione um serviço com colaboradores cadastrados na tabela de preços."}
+                      </p>
+                    ) : (
+                      <>
                     <p className="text-[10px] text-slate-500">
                       Colaboradores e comissões cadastrados na tabela de preços do serviço{" "}
                       <span className="font-medium text-slate-700">{servicoOsAtual?.nome}</span>.
@@ -3853,11 +3860,24 @@ export default function OrdemServicoPage() {
                         + Adicionar Colaborador
                       </button>
                     )}
+                      </>
+                    )}
                   </div>
                 )}
 
-                {abaServico === "terceirizados" && exibeAbaTerceirizados && (
+                {abaServico === "terceirizados" && (
                   <div className="space-y-3">
+                    <span className="text-sm font-semibold text-slate-800">
+                      Serviços Terceirizados / Comissões
+                    </span>
+                    {!exibeAbaTerceirizados ? (
+                      <p className="text-[11px] text-slate-500">
+                        {servicoOsAtual
+                          ? `Nenhum serviço terceirizado cadastrado na tabela de preços do serviço ${servicoOsAtual.nome}.`
+                          : "Selecione um serviço com terceirizados cadastrados na tabela de preços."}
+                      </p>
+                    ) : (
+                      <>
                     <p className="text-[10px] text-slate-500">
                       Serviços terceirizados cadastrados na tabela de preços do serviço{" "}
                       <span className="font-medium text-slate-700">{servicoOsAtual?.nome}</span>.
@@ -3939,6 +3959,8 @@ export default function OrdemServicoPage() {
                       >
                         + Adicionar Terceirizado
                       </button>
+                    )}
+                      </>
                     )}
                   </div>
                 )}
