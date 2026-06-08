@@ -56,6 +56,33 @@ export function etapaCadastradaNoServico(
   return servico.etapas.find((etapa) => normalizarTextoTabela(etapa.nome) === norm);
 }
 
+function parseValorMonetarioTabela(value?: string | null) {
+  return (
+    Number(
+      String(value || "0")
+        .replace(/[^\d,.-]/g, "")
+        .replace(/\./g, "")
+        .replace(",", ".")
+    ) || 0
+  );
+}
+
+export function quantidadeEtapaServico(etapa?: EtapaServicoTabelaPrecoOs | null) {
+  const raw = etapa?.qtd?.trim() || "1";
+  const match = raw.match(/(\d+(?:[.,]\d+)?)/);
+  return match ? Number(match[1].replace(",", ".")) : 1;
+}
+
+/** Valor da etapa cadastrado na tabela de preços (qtd × valor da etapa). */
+export function valorMonetarioEtapaServico(
+  servico: ServicoTabelaPrecoOs | undefined,
+  nomeEtapa: string
+) {
+  const etapa = etapaCadastradaNoServico(servico, nomeEtapa);
+  if (!etapa) return 0;
+  return parseValorMonetarioTabela(etapa.valorHora) * quantidadeEtapaServico(etapa);
+}
+
 export function montarPrazoEtapaOs(data: string, hora: string) {
   const horaFmt = (hora || "00:00").trim() || "00:00";
   const dataFmt = data.trim();
