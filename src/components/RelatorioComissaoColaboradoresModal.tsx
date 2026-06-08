@@ -47,7 +47,7 @@ const Z_CALENDARIO_MODAL = 10050;
 
 const MODELOS_RELATORIO: { value: ModeloRelatorioComissao; label: string }[] = [
   { value: "modelo-1", label: "Modelo 1" },
-  { value: "modelo-2", label: "Modelo 2" },
+  { value: "modelo-2", label: "Modelo 2 (em breve)" },
 ];
 
 function CampoSelect({

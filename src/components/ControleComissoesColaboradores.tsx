@@ -233,6 +233,7 @@ export function ControleComissoesColaboradores() {
       <button
         type="button"
         title="Imprimir"
+        onClick={() => setRelatorioAberto(true)}
         className="flex h-8 w-8 items-center justify-center rounded border border-[#93c5fd] bg-[#dbeafe] text-[#2563eb] hover:bg-[#bfdbfe]"
       >
         <Printer className="h-4 w-4" />

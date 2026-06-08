@@ -38,11 +38,11 @@ function valorEntrega(data: string) {
 
 /** Layout fixo do Smart Prótese — Modelo 1 (não altera colunas pelos checkboxes). */
 const COLUNAS_MODELO1: ColunaComissaoPdf[] = [
-  { titulo: "Os", larguraMm: 10, align: "center", valor: (l) => String(l.numeroOs) },
+  { titulo: "Os", larguraMm: 10, align: "left", valor: (l) => String(l.numeroOs) },
   {
     titulo: "Lançamento",
     larguraMm: 18,
-    align: "center",
+    align: "left",
     valor: (l) => l.dataLancamento,
   },
   { titulo: "Qtd", larguraMm: 10, align: "center", valor: (l) => l.qtd },
@@ -51,13 +51,13 @@ const COLUNAS_MODELO1: ColunaComissaoPdf[] = [
   {
     titulo: "Situação",
     larguraMm: 16,
-    align: "center",
+    align: "left",
     valor: (l) => l.situacao,
   },
   {
     titulo: "Entregue",
     larguraMm: 16,
-    align: "center",
+    align: "left",
     valor: (l) => valorEntrega(l.dataEntrega),
   },
   { titulo: "Desc", larguraMm: 12, align: "right", valor: () => "" },
