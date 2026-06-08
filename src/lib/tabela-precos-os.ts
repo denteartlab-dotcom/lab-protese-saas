@@ -25,6 +25,14 @@ export type EtapaServicoTabelaPrecoOs = {
   valorHora?: string;
 };
 
+export type ComissaoColaboradorServicoOs = {
+  id?: string;
+  nome: string;
+  valor?: string;
+  valorRepeticao?: string;
+  padrao?: string;
+};
+
 export type ServicoTabelaPrecoOs = {
   id: string;
   nome: string;
@@ -36,7 +44,24 @@ export type ServicoTabelaPrecoOs = {
   /** Linhas da aba Etapas do serviço na tabela de preços */
   etapas?: EtapaServicoTabelaPrecoOs[];
   opcoesEtapas?: string[];
+  comissoesColaboradores?: ComissaoColaboradorServicoOs[];
 };
+
+export function etapaCadastradaNoServico(
+  servico: ServicoTabelaPrecoOs | undefined,
+  nomeEtapa: string
+) {
+  if (!servico?.etapas?.length || !nomeEtapa.trim()) return undefined;
+  const norm = normalizarTextoTabela(nomeEtapa);
+  return servico.etapas.find((etapa) => normalizarTextoTabela(etapa.nome) === norm);
+}
+
+export function montarPrazoEtapaOs(data: string, hora: string) {
+  const horaFmt = (hora || "00:00").trim() || "00:00";
+  const dataFmt = data.trim();
+  if (!dataFmt) return horaFmt;
+  return `${dataFmt} ${horaFmt}`.trim();
+}
 
 export type EtapaOsLinhaVazia = {
   nome: string;
@@ -163,21 +188,22 @@ export function etapasIniciaisFormParaOsServico(
     todosCadastro.map((modelo) => [normalizarTextoTabela(modelo.nome), modelo])
   );
 
+  const horaPadrao = horaLaboratorio.trim() || "00:00";
+
   return linhasEtapasVaziasParaOs(servico, todosCadastro).map((linha, index) => {
     const modelo = mapaCadastro.get(normalizarTextoTabela(linha.nome));
     const isEntrada =
       index === 0 || /^entrada$/i.test(nomeEtapaSemSetor(linha.nome));
-    let prazo = "";
+    let dataPrazo = "";
     if (isEntrada && dataLancamento.trim()) {
-      const hora = horaLaboratorio.trim();
-      prazo = hora ? `${dataLancamento.trim()} ${hora}` : dataLancamento.trim();
+      dataPrazo = dataLancamento.trim();
     } else if (modelo?.prazoDias?.trim()) {
-      prazo = prazoVencimentoEtapaOs(dataLancamento, modelo.prazoDias);
+      dataPrazo = prazoVencimentoEtapaOs(dataLancamento, modelo.prazoDias);
     }
     return {
       ...linha,
       setor: linha.setor || modelo?.setor || "",
-      prazo,
+      prazo: montarPrazoEtapaOs(dataPrazo, horaPadrao),
     };
   });
 }

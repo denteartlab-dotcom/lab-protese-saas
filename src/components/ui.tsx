@@ -12,6 +12,7 @@ export {
   propsInputComSelecaoAoFocar,
 } from "@/lib/input-selecao";
 export { CampoDataBr } from "@/components/campo-data-br";
+export { CampoHoraBr } from "@/components/campo-hora-br";
 
 export function Button({
   className,

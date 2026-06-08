@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, Clock, ImageUp, Info, Plus, Save, Tag, Trash2 } from "lucide-react";
+import { AlertTriangle, ImageUp, Info, Plus, Save, Tag, Trash2 } from "lucide-react";
 import { PainelCarregando } from "@/components/ListaCarregando";
 import {
   ImprimirOsModal,
   type TrabalhoImpressaoOs,
 } from "@/components/ImprimirOsModal";
-import { Button, CampoDataBr, Input, Modal, Select, Textarea } from "@/components/ui";
+import { Button, CampoDataBr, CampoHoraBr, Input, Modal, Select, Textarea } from "@/components/ui";
 import { notificarUploadsAtualizados } from "@/lib/uploads-armazenamento";
 import { formatDateBr, parseBrDate } from "@/lib/datas-br";
 import { propsInputComSelecaoAoFocar } from "@/lib/input-selecao";
@@ -43,14 +43,17 @@ import {
   buscarServicoNaTabela,
   carregarCategoriasPorTabelaPreco,
   categoriaDoServicoNaTabela,
+  etapaCadastradaNoServico,
   etapasFormParaItemServico,
   etapasIniciaisFormParaOsServico,
   modelosEtapasParaOsServico,
+  montarPrazoEtapaOs,
   servicoTemEtapasNaTabela,
   servicosDaCategoriaTabela,
   categoriasSelecionaveisNaOs,
   servicosSelecionaveisNaOs,
   TABELA_PRECOS_STORAGE_KEY,
+  type ServicoTabelaPrecoOs,
 } from "@/lib/tabela-precos-os";
 import {
   carregarColaboradoresListagem,
@@ -325,6 +328,7 @@ export default function OrdemServicoPage() {
   const [etapas, setEtapas] = useState<
     Array<{ nome: string; setor: string; responsavel: string; prazo: string; observacao: string }>
   >([]);
+  const [calendarioEtapaAberto, setCalendarioEtapaAberto] = useState<number | null>(null);
   const [produtosOs, setProdutosOs] = useState<
     Array<{ produtoId: string; quantidade: string; valor: string; observacao: string }>
   >([]);
@@ -1351,28 +1355,62 @@ export default function OrdemServicoPage() {
   }
 
   function partesPrazoEtapaOs(prazo: string) {
-    const partes = prazo.trim().split(/\s+/);
-    const data = partes[0] || "";
-    const hora =
-      partes.length > 1 && /^\d{1,2}:\d{2}/.test(partes[1]) ? partes.slice(1).join(" ") : "";
-    return { data, hora };
+    const partes = prazo.trim().split(/\s+/).filter(Boolean);
+    const data =
+      partes.find((parte) => /^\d{2}\/\d{2}\/\d{4}$/.test(parte)) ||
+      (partes[0] && /^\d{2}\/\d{2}\/\d{4}$/.test(partes[0]) ? partes[0] : "");
+    const horaBruta = partes.find((parte) => /^\d{1,2}:\d{2}$/.test(parte));
+    return { data, hora: horaBruta || "00:00" };
   }
 
   function atualizarPrazoEtapaOs(index: number, data: string, hora: string) {
-    const prazo = [data, hora].filter(Boolean).join(" ").trim();
+    const prazo = montarPrazoEtapaOs(data, hora || "00:00");
     setEtapas((atuais) =>
       atuais.map((item, i) => (i === index ? { ...item, prazo } : item))
     );
   }
 
-  function valorComissaoEtapaOs(nomeResponsavel: string) {
-    if (!nomeResponsavel.trim()) return "R$ 0,00";
+  function percentualComissaoEtapaOs(
+    servico: ServicoTabelaPrecoOs | undefined,
+    nomeResponsavel: string
+  ) {
+    if (!nomeResponsavel.trim()) return 0;
+    const linhaServico = servico?.comissoesColaboradores?.find(
+      (item) => item.nome.trim() === nomeResponsavel.trim()
+    );
+    if (linhaServico) {
+      const bruto = form.repeticao ? linhaServico.valorRepeticao : linhaServico.valor;
+      return parseMoney(bruto || "0");
+    }
     const cadastro = colaboradoresOpcoes.find((item) => item.nome === nomeResponsavel);
-    if (!cadastro) return "R$ 0,00";
-    const pct = parseMoney(comissaoColaboradorCadastro(cadastro));
-    const base = parseMoney(form.valor);
-    const valor = (base * pct) / 100;
-    return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    if (!cadastro) return 0;
+    return parseMoney(comissaoColaboradorCadastro(cadastro));
+  }
+
+  function comissaoEtapaOs(
+    etapa: { nome: string; responsavel: string },
+    servico = servicoOsAtual
+  ) {
+    const pctNumero = percentualComissaoEtapaOs(servico, etapa.responsavel);
+    const pct = exibirComissaoPercentual(
+      pctNumero.toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+    );
+
+    const valorEtapaTabela = parseMoney(
+      etapaCadastradaNoServico(servico, etapa.nome)?.valorHora || "0"
+    );
+    let valorRs = valorEtapaTabela;
+    if (valorRs <= 0 && pctNumero > 0) {
+      valorRs = (parseMoney(form.valor) * pctNumero) / 100;
+    }
+
+    return {
+      pct: pct || "0,00%",
+      valorRs: valorRs.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+    };
   }
 
   function rotuloSetorEtapa(etapa: { nome: string; setor: string }) {
@@ -3241,57 +3279,43 @@ export default function OrdemServicoPage() {
                               <span className="text-xs font-medium text-primary-600">{setorRotulo}</span>
                             </div>
 
-                            <div className="grid items-end gap-3 md:grid-cols-[minmax(9rem,1fr)_minmax(6rem,0.75fr)_minmax(12rem,1.6fr)_minmax(8rem,1fr)_auto]">
+                            <div className="grid items-end gap-3 md:grid-cols-[minmax(9rem,1fr)_minmax(6rem,0.75fr)_minmax(12rem,1.6fr)_minmax(9rem,1.1fr)_auto]">
                               <div>
                                 <label className="mb-1 block text-[11px] font-medium text-slate-600">
                                   Prazo
                                 </label>
-                                <div className="flex h-10 items-center gap-2 rounded border border-slate-300 bg-white px-2">
+                                <div className="flex items-center gap-2 rounded border border-slate-300 bg-white px-2 py-0.5">
                                   <input
                                     type="checkbox"
                                     className="h-4 w-4 shrink-0 accent-primary-600"
                                     aria-label={`Confirmar prazo de ${nomeEtapaSemSetor(etapa.nome)}`}
                                   />
-                                  <input
-                                    type="text"
+                                  <CampoDataBr
                                     value={dataEtapa}
-                                    onChange={(e) =>
-                                      atualizarPrazoEtapaOs(
-                                        index,
-                                        formatDateBr(e.target.value),
-                                        horaEtapa
-                                      )
+                                    onChange={(data) =>
+                                      atualizarPrazoEtapaOs(index, data, horaEtapa)
                                     }
                                     placeholder="dd/mm/aaaa"
-                                    className="min-w-0 flex-1 border-0 bg-transparent text-sm text-slate-800 outline-none"
-                                    {...propsInputComSelecaoAoFocar({})}
+                                    className="min-w-0 flex-1 space-y-0"
+                                    inputClassName="h-8 border-0 px-1 py-1 pr-8 shadow-none focus:ring-0"
+                                    iconPosition="right"
+                                    forceClose={calendarioEtapaAberto !== index}
+                                    onCalendarOpenChange={(open) =>
+                                      setCalendarioEtapaAberto(open ? index : null)
+                                    }
                                   />
                                 </div>
                               </div>
 
-                              <div>
-                                <label className="mb-1 block text-[11px] font-medium text-slate-600">
-                                  Hora
-                                </label>
-                                <div className="flex h-10 items-center gap-2 rounded border border-slate-300 bg-white px-2">
-                                  <Clock className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
-                                  <input
-                                    type="text"
-                                    value={horaEtapa}
-                                    onChange={(e) => {
-                                      const hora = e.target.value.replace(/[^\d:]/g, "").slice(0, 5);
-                                      atualizarPrazoEtapaOs(
-                                        index,
-                                        dataEtapa || form.dataLancamento,
-                                        hora
-                                      );
-                                    }}
-                                    placeholder="hh:mm"
-                                    className="min-w-0 flex-1 border-0 bg-transparent text-sm text-slate-800 outline-none"
-                                    {...propsInputComSelecaoAoFocar({})}
-                                  />
-                                </div>
-                              </div>
+                              <CampoHoraBr
+                                label="Hora"
+                                value={horaEtapa}
+                                onChange={(hora) =>
+                                  atualizarPrazoEtapaOs(index, dataEtapa, hora)
+                                }
+                                placeholder="00:00"
+                                inputClassName="h-10 py-2"
+                              />
 
                               <Select
                                 label="Colaborador"
@@ -3318,11 +3342,27 @@ export default function OrdemServicoPage() {
                                 ))}
                               </Select>
 
-                              <Input
-                                label="Valor Comissão"
-                                value={valorComissaoEtapaOs(etapa.responsavel)}
-                                readOnly
-                              />
+                              <div className="space-y-1">
+                                <label className="block text-[11px] font-medium text-slate-600">
+                                  Valor Comissão
+                                </label>
+                                <Input
+                                  value={comissaoEtapaOs(etapa).valorRs}
+                                  readOnly
+                                  className="h-10"
+                                />
+                                <div className="flex h-10 items-center overflow-hidden rounded-lg border border-slate-300 bg-slate-50 shadow-sm">
+                                  <span className="flex w-9 shrink-0 items-center justify-center border-r border-slate-200 text-xs text-slate-500">
+                                    %
+                                  </span>
+                                  <input
+                                    type="text"
+                                    value={comissaoEtapaOs(etapa).pct}
+                                    readOnly
+                                    className="h-full w-full bg-transparent px-3 text-sm text-slate-700 outline-none"
+                                  />
+                                </div>
+                              </div>
 
                               <button
                                 type="button"
