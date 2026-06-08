@@ -36,77 +36,38 @@ function valorEntrega(data: string) {
   return data === "—" ? "" : data;
 }
 
-function montarColunas(
-  filtro: Pick<
-    FiltroRelatorioComissaoColaboradores,
-    "mostrarPaciente" | "mostrarCliente" | "mostrarValorServico"
-  >
-): ColunaComissaoPdf[] {
-  const colunas: ColunaComissaoPdf[] = [
-    { titulo: "Os", larguraMm: 10, align: "center", valor: (l) => String(l.numeroOs) },
-    {
-      titulo: "Lançamento",
-      larguraMm: 18,
-      align: "center",
-      valor: (l) => l.dataLancamento,
-    },
-    { titulo: "Qtd", larguraMm: 10, align: "center", valor: (l) => l.qtd },
-    { titulo: "Descrição", larguraMm: 30, align: "left", valor: (l) => l.servico },
-  ];
-
-  if (filtro.mostrarCliente) {
-    colunas.push({
-      titulo: "Cliente",
-      larguraMm: 18,
-      align: "left",
-      valor: (l) => l.cliente,
-    });
-  }
-  if (filtro.mostrarPaciente) {
-    colunas.push({
-      titulo: "Paciente",
-      larguraMm: 18,
-      align: "left",
-      valor: (l) => l.paciente,
-    });
-  }
-
-  colunas.push(
-    {
-      titulo: "Situação",
-      larguraMm: 16,
-      align: "center",
-      valor: (l) => l.situacao,
-    },
-    {
-      titulo: "Entregue",
-      larguraMm: 16,
-      align: "center",
-      valor: (l) => valorEntrega(l.dataEntrega),
-    }
-  );
-
-  if (filtro.mostrarValorServico) {
-    colunas.push({
-      titulo: "Valor",
-      larguraMm: 20,
-      align: "right",
-      valor: (l) => moneyBr(l.valorServico),
-    });
-  }
-
-  colunas.push(
-    { titulo: "Desc", larguraMm: 12, align: "right", valor: () => "" },
-    {
-      titulo: "Comissão",
-      larguraMm: 14,
-      align: "right",
-      valor: (l) => moneyBr(l.comissaoValor),
-    }
-  );
-
-  return colunas;
-}
+/** Layout fixo do Smart Prótese — Modelo 1 (não altera colunas pelos checkboxes). */
+const COLUNAS_MODELO1: ColunaComissaoPdf[] = [
+  { titulo: "Os", larguraMm: 10, align: "center", valor: (l) => String(l.numeroOs) },
+  {
+    titulo: "Lançamento",
+    larguraMm: 18,
+    align: "center",
+    valor: (l) => l.dataLancamento,
+  },
+  { titulo: "Qtd", larguraMm: 10, align: "center", valor: (l) => l.qtd },
+  { titulo: "Descrição", larguraMm: 30, align: "left", valor: (l) => l.servico },
+  { titulo: "Paciente", larguraMm: 18, align: "left", valor: (l) => l.paciente },
+  {
+    titulo: "Situação",
+    larguraMm: 16,
+    align: "center",
+    valor: (l) => l.situacao,
+  },
+  {
+    titulo: "Entregue",
+    larguraMm: 16,
+    align: "center",
+    valor: (l) => valorEntrega(l.dataEntrega),
+  },
+  { titulo: "Desc", larguraMm: 12, align: "right", valor: () => "" },
+  {
+    titulo: "Comissão",
+    larguraMm: 14,
+    align: "right",
+    valor: (l) => moneyBr(l.comissaoValor),
+  },
+];
 
 /** A4 retrato: 210 mm de largura — escala colunas para ocupar a área útil. */
 function escalarColunasParaPaginaA4(
@@ -260,7 +221,7 @@ function desenharGrupoColaborador(
 
   novaPaginaSePreciso(ctx, alturaBloco, titulo);
 
-  ctx.pdf.setFont("helvetica", "normal");
+  ctx.pdf.setFont("helvetica", "bold");
   ctx.pdf.setFontSize(9);
   ctx.pdf.setTextColor(...PRETO);
   ctx.pdf.text(colaborador, ctx.margin, ctx.y + 3);
@@ -305,16 +266,13 @@ function agruparPorColaborador(linhas: LinhaComissaoColaborador[]) {
 
 export async function gerarRelatorioComissaoColaboradoresModelo1Pdf(
   linhas: LinhaComissaoColaborador[],
-  filtro: Pick<
-    FiltroRelatorioComissaoColaboradores,
-    "mostrarPaciente" | "mostrarCliente" | "mostrarValorServico" | "periodoCampo"
-  >
+  filtro: Pick<FiltroRelatorioComissaoColaboradores, "periodoCampo">
 ): Promise<Blob> {
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   const margin = 10;
   const larguraUtil = pdf.internal.pageSize.getWidth() - margin * 2;
-  const colunas = escalarColunasParaPaginaA4(montarColunas(filtro), larguraUtil);
+  const colunas = escalarColunasParaPaginaA4(COLUNAS_MODELO1, larguraUtil);
   const ctx = criarCtx(pdf, colunas);
   const titulo = tituloRelatorioComissaoModelo1(filtro.periodoCampo);
 

@@ -254,7 +254,8 @@ function agruparPorPrestador(linhas: LinhaFinalizadorServico[]) {
   );
 }
 
-export async function gerarRelatorioComissaoPrestadoresModelo2Pdf(
+/** Layout Smart Prótese — usado como Modelo 1 de prestadores. */
+export async function gerarRelatorioComissaoPrestadoresModelo1Pdf(
   linhas: LinhaFinalizadorServico[],
   filtro: Pick<FiltroRelatorioComissaoPrestadores, "periodoCampo">
 ): Promise<Blob> {

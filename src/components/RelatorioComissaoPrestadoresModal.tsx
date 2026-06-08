@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
 import type { LinhaFinalizadorServico } from "@/lib/finalizadores-servicos";
-import { gerarRelatorioComissaoPrestadoresModelo2Pdf } from "@/lib/pdf-relatorio-comissao-prestadores-modelo2";
+import { gerarRelatorioComissaoPrestadoresModelo1Pdf } from "@/lib/pdf-relatorio-comissao-prestadores-modelo2";
 import { prepararAbaPdf, abrirPdfNoVisualizador } from "@/lib/pdf-viewer";
 import {
   filtrarLinhasRelatorioComissaoPrestadores,
@@ -133,7 +133,7 @@ export function RelatorioComissaoPrestadoresModal({
   const [situacaoFinanceira, setSituacaoFinanceira] =
     useState<FiltroRelatorioComissaoPrestadores["situacaoFinanceira"]>("nao_faturados");
   const [situacao, setSituacao] = useState("");
-  const [modelo, setModelo] = useState<ModeloRelatorioComissaoPrestador>("modelo-2");
+  const [modelo, setModelo] = useState<ModeloRelatorioComissaoPrestador>("modelo-1");
   const [incluirComissaoZero, setIncluirComissaoZero] = useState(true);
   const [calendarioAberto, setCalendarioAberto] = useState<"inicio" | "final" | null>(null);
   const [gerandoPdf, setGerandoPdf] = useState(false);
@@ -205,13 +205,13 @@ export function RelatorioComissaoPrestadoresModal({
         filtro.ordenarPor
       );
 
-      if (filtro.modelo === "modelo-1") {
+      if (filtro.modelo === "modelo-2") {
         janela.close();
-        setErroPdf("Modelo 1 em desenvolvimento. Selecione Modelo 2.");
+        setErroPdf("Modelo 2 em desenvolvimento. Selecione Modelo 1.");
         return;
       }
 
-      const blob = await gerarRelatorioComissaoPrestadoresModelo2Pdf(ordenadas, filtro);
+      const blob = await gerarRelatorioComissaoPrestadoresModelo1Pdf(ordenadas, filtro);
       abrirPdfNoVisualizador(
         blob,
         "relatorio-comissao-prestadores.pdf",
