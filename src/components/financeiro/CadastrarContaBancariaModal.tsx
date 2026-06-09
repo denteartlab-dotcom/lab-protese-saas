@@ -30,6 +30,9 @@ type Props = {
     extratoPendente?: ExtratoPendente
   ) => void;
   onExcluir?: () => void;
+  /** Pré-preenchimento (ex.: conciliação OFX). */
+  dadosIniciais?: DadosFormContaBancaria | null;
+  extratoInicial?: ExtratoPendente;
 };
 
 const TIPOS_CHAVE_PIX: { value: DadosFormContaBancaria["tipoChavePix"]; label: string }[] =
@@ -49,6 +52,8 @@ export function CadastrarContaBancariaModal({
   contaEdicao = null,
   onSalvarEdicao,
   onExcluir,
+  dadosIniciais = null,
+  extratoInicial = [],
 }: Props) {
   const [portalPronto, setPortalPronto] = useState(false);
   const [form, setForm] = useState<DadosFormContaBancaria>(FORM_CONTA_BANCARIA_VAZIO);
@@ -62,9 +67,14 @@ export function CadastrarContaBancariaModal({
 
   useEffect(() => {
     if (!open) return;
-    setForm(contaEdicao ? formFromConta(contaEdicao) : FORM_CONTA_BANCARIA_VAZIO);
-    setExtratoPendente([]);
-  }, [open, contaEdicao]);
+    if (dadosIniciais && !contaEdicao) {
+      setForm(dadosIniciais);
+      setExtratoPendente(extratoInicial);
+    } else {
+      setForm(contaEdicao ? formFromConta(contaEdicao) : FORM_CONTA_BANCARIA_VAZIO);
+      setExtratoPendente([]);
+    }
+  }, [open, contaEdicao, dadosIniciais, extratoInicial]);
 
   if (!open || !portalPronto) return null;
 

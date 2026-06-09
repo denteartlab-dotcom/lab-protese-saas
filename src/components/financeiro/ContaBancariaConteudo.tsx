@@ -5,21 +5,25 @@ import { createPortal } from "react-dom";
 import {
   ArrowLeftRight,
   ArrowUpFromLine,
-  DollarSign,
   Eye,
-  FileText,
   Pencil,
   Plus,
   X,
 } from "lucide-react";
 import { CadastrarContaBancariaModal } from "@/components/financeiro/CadastrarContaBancariaModal";
+import { ConciliacaoContaModal } from "@/components/financeiro/ConciliacaoContaModal";
 import { ExtratoBancarioModal } from "@/components/financeiro/ExtratoBancarioModal";
 import {
   calcularSaldoConta,
   carregarContasBancarias,
   carregarMovimentacoesConta,
+  classeBotaoAcaoConta,
   contaFromForm,
   contaFromFormEdicao,
+  contaPermiteEditarNaLista,
+  ID_CONTA_CAIXA,
+  ID_CONTA_CARTEIRA,
+  ID_CONTA_NF,
   labelAcaoConta,
   salvarContasBancarias,
   salvarMovimentacoesConta,
@@ -123,6 +127,10 @@ export function ContaBancariaConteudo() {
     acao: AcaoContaBancaria;
   } | null>(null);
   const [modalConciliar, setModalConciliar] = useState(false);
+  const [cadastroConciliacao, setCadastroConciliacao] = useState<{
+    form: DadosFormContaBancaria;
+    extrato: Omit<ExtratoMovimentacao, "contaId">[];
+  } | null>(null);
   const [modalExtrato, setModalExtrato] = useState<ContaBancaria | null>(null);
   const [valorMov, setValorMov] = useState("");
   const [descMov, setDescMov] = useState("");
@@ -288,7 +296,11 @@ export function ContaBancariaConteudo() {
   }
 
   const contaPodeExcluir = (conta: ContaBancaria) =>
-    !["cb-caixa", "cb-carteira", "cb-nf"].includes(conta.id);
+    ![
+      ID_CONTA_CAIXA,
+      ID_CONTA_CARTEIRA,
+      ID_CONTA_NF,
+    ].includes(conta.id);
 
   function excluirContaEditada() {
     if (!modalEditar || !contaPodeExcluir(modalEditar)) return;
@@ -417,7 +429,7 @@ export function ContaBancariaConteudo() {
                       "px-4 py-3 text-right tabular-nums",
                       saldo > 0
                         ? "text-[#4cae4c] dark:text-emerald-400"
-                        : "text-slate-800 dark:text-slate-200"
+                        : "text-slate-500 dark:text-slate-400"
                     )}
                   >
                     {money(saldo)}
@@ -436,20 +448,22 @@ export function ContaBancariaConteudo() {
                         <>
                           <button
                             type="button"
-                            title="Ver extrato"
+                            title="Visualizar"
                             onClick={() => setModalExtrato(conta)}
                             className="inline-flex h-8 w-8 items-center justify-center text-slate-500 hover:text-[#4a90d9] dark:text-slate-400 dark:hover:text-sky-300"
                           >
-                            <FileText className="h-4 w-4" />
+                            <Eye className="h-4 w-4" />
                           </button>
-                          <button
-                            type="button"
-                            title="Editar"
-                            onClick={() => setModalEditar(conta)}
-                            className="inline-flex h-8 w-8 items-center justify-center text-slate-500 hover:text-[#4a90d9] dark:text-slate-400 dark:hover:text-sky-300"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
+                          {contaPermiteEditarNaLista(conta) ? (
+                            <button
+                              type="button"
+                              title="Editar"
+                              onClick={() => setModalEditar(conta)}
+                              className="inline-flex h-8 w-8 items-center justify-center text-slate-500 hover:text-[#4a90d9] dark:text-slate-400 dark:hover:text-sky-300"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                          ) : null}
                           <button
                             type="button"
                             title="Transferir"
@@ -473,15 +487,10 @@ export function ContaBancariaConteudo() {
                               setDescMov("");
                             }}
                             className={cn(
-                              "inline-flex items-center gap-1 rounded px-3 py-1.5 text-[12px] text-white",
-                              conta.acaoPrincipal === "movimentar"
-                                ? "bg-[#4a90d9] hover:bg-[#3d7fc4]"
-                                : "bg-[#4cae4c] hover:bg-[#449d44]"
+                              "inline-flex items-center rounded px-3 py-1.5 text-[12px] font-normal text-white",
+                              classeBotaoAcaoConta(conta.acaoPrincipal)
                             )}
                           >
-                            {conta.acaoPrincipal === "adicionar_credito" ? (
-                              <DollarSign className="h-3.5 w-3.5" />
-                            ) : null}
                             {labelAcaoConta(conta.acaoPrincipal)}
                           </button>
                         </>
@@ -496,9 +505,17 @@ export function ContaBancariaConteudo() {
       </div>
 
       <CadastrarContaBancariaModal
-        open={modalAdicionar}
-        onClose={() => setModalAdicionar(false)}
-        onCadastrar={adicionarConta}
+        open={modalAdicionar || cadastroConciliacao !== null}
+        onClose={() => {
+          setModalAdicionar(false);
+          setCadastroConciliacao(null);
+        }}
+        onCadastrar={(dados, extrato) => {
+          adicionarConta(dados, extrato);
+          setCadastroConciliacao(null);
+        }}
+        dadosIniciais={cadastroConciliacao?.form ?? null}
+        extratoInicial={cadastroConciliacao?.extrato}
       />
 
       <CadastrarContaBancariaModal
@@ -625,33 +642,21 @@ export function ContaBancariaConteudo() {
         onContaAtualizada={atualizarContaNaLista}
       />
 
-      <ModalSimples
-        titulo="Conciliar"
+      <ConciliacaoContaModal
         open={modalConciliar}
         onClose={() => setModalConciliar(false)}
-        footer={
-          <button
-            type="button"
-            onClick={() => setModalConciliar(false)}
-            className="rounded bg-[#4a90d9] px-4 py-2 text-[13px] text-white"
-          >
-            Fechar
-          </button>
-        }
-      >
-        <p className="text-[13px] leading-relaxed text-slate-600">
-          Conciliação bancária: compare os lançamentos pagos do sistema com o
-          extrato da conta. Os saldos exibidos consideram receitas e despesas
-          pagas vinculadas a cada conta, além das movimentações manuais.
-        </p>
-        <button
-          type="button"
-          onClick={() => void carregarDados()}
-          className="mt-3 text-[12px] text-[#4a90d9] underline"
-        >
-          Atualizar saldos
-        </button>
-      </ModalSimples>
+        contas={contas}
+        onImportarExtrato={(contaId, movimentacoes) => {
+          salvarExtratoBancario(
+            mesclarExtrato(carregarExtratoBancario(), movimentacoes)
+          );
+          notificarFinanceiroAtualizado();
+        }}
+        onAbrirCadastro={(form, extrato) => {
+          setModalConciliar(false);
+          setCadastroConciliacao({ form, extrato });
+        }}
+      />
 
     </div>
   );

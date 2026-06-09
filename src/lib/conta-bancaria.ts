@@ -260,8 +260,23 @@ export function calcularSaldoConta(
   return saldo;
 }
 
+export const ID_CONTA_CAIXA = "cb-caixa";
+export const ID_CONTA_CARTEIRA = "cb-carteira";
+export const ID_CONTA_NF = "cb-nf";
+
+/** Carteira Digital não exibe editar na lista (Smart Prótese). */
+export function contaPermiteEditarNaLista(conta: ContaBancaria) {
+  return conta.id !== ID_CONTA_CARTEIRA;
+}
+
 export function labelAcaoConta(acao: AcaoContaBancaria) {
-  if (acao === "movimentar") return "movimentar";
-  if (acao === "baixar") return "baixar";
+  if (acao === "movimentar") return "Movimentar";
+  if (acao === "baixar") return "Retirar";
   return "Adicionar crédito";
+}
+
+export function classeBotaoAcaoConta(acao: AcaoContaBancaria) {
+  if (acao === "movimentar") return "bg-[#4a90d9] hover:bg-[#3d7fc4]";
+  if (acao === "baixar") return "bg-[#5cb85c] hover:bg-[#4cae4c]";
+  return "bg-[#4cae4c] hover:bg-[#449d44]";
 }
