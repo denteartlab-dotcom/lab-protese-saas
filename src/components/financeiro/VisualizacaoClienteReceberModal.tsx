@@ -2,9 +2,27 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Eye, Pencil, Printer, Trash2, X } from "lucide-react";
+import {
+  ChevronsUpDown,
+  Eye,
+  FileSpreadsheet,
+  Mail,
+  Pencil,
+  Printer,
+  RefreshCw,
+  Trash2,
+  X,
+} from "lucide-react";
 import { parseBrDate } from "@/lib/datas-br";
+import type { LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
+import {
+  montarExtratoIndividual,
+  type LinhaExtratoIndividualComSaldo,
+} from "@/lib/extrato-individual-dados";
 import { parseParcelaNaDescricao } from "@/lib/fatura-financeiro";
+import { abrirPdfGerando } from "@/lib/pdf-viewer";
+import type { TrabalhoRelatorioFatura } from "@/lib/relatorio-faturas-modelo3-dados";
+import { baixarCsv } from "@/lib/exportar-csv";
 import { cn } from "@/lib/utils";
 
 export type FiltrosPainelContasReceber = {
@@ -21,6 +39,7 @@ export type LancamentoClienteModal = {
   data: string;
   status: string;
   formaPagamento?: string | null;
+  cliente?: { id: string; nome: string } | null;
   cobrancaAsaas?: {
     id?: string;
     bankSlipUrl?: string | null;
@@ -43,6 +62,7 @@ type Props = {
   onClose: () => void;
   cliente: ClienteReceberModal | null;
   clientes: ClienteReceberModal[];
+  trabalhos?: TrabalhoRelatorioFatura[];
   onClienteChange: (cliente: ClienteReceberModal) => void;
   money: (value: number) => string;
   formatDate: (iso: string) => string;
@@ -65,6 +85,8 @@ type Props = {
   filtrosPainel: FiltrosPainelContasReceber;
 };
 
+type ExtratoModeloModal = "1" | "2" | "3";
+
 const MESES = [
   "Janeiro",
   "Fevereiro",
@@ -83,15 +105,28 @@ const MESES = [
 const labelClass = "mb-1 block text-[10px] font-medium uppercase tracking-wide text-[#6b7280]";
 const selectClass =
   "h-[32px] w-full rounded-sm border border-[#d1d5db] bg-white px-2 text-[12px] text-[#374151] outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]";
-const thClass =
+const thFaturasClass =
   "border-b border-[#e5e7eb] bg-[#f5f5f5] px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-[#9ca3af] whitespace-nowrap";
-const tdClass = "border-b border-[#f0f0f0] px-3 py-2.5 text-[11px] text-[#374151]";
-const thFaturasClass = thClass;
-const tdFaturasClass = tdClass;
+const tdFaturasClass = "border-b border-[#f0f0f0] px-3 py-2.5 text-[11px] text-[#374151]";
 const tdFaturasTotalClass =
   "border-t border-[#e5e7eb] bg-[#f5f5f5] px-3 py-2.5 text-[11px] font-semibold text-[#374151]";
+const thRecebClass =
+  "border-b border-[#d8dce8] bg-[#e8eaf0] px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wide text-[#4b5563] whitespace-nowrap";
+const thExtratoClass =
+  "border-b border-[#2d3340] bg-[#3b3b4f] px-2.5 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-white whitespace-nowrap";
 const btnOpcaoClass =
   "inline-flex h-7 w-7 items-center justify-center rounded transition hover:bg-[#f3f4f6]";
+
+function ThSort({ children, align = "left" }: { children: React.ReactNode; align?: "left" | "right" }) {
+  return (
+    <th className={cn(thRecebClass, align === "right" && "text-right")}>
+      <span className="inline-flex items-center gap-1">
+        {children}
+        <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-60" />
+      </span>
+    </th>
+  );
+}
 
 function parcelaLabel(descricao: string) {
   const p = parseParcelaNaDescricao(descricao);
@@ -165,13 +200,35 @@ function lancamentoNoPeriodoPainel(
   return true;
 }
 
+function periodoMesAno(mes: number, ano: number) {
+  const inicio = new Date(ano, mes, 1);
+  inicio.setHours(0, 0, 0, 0);
+  const fim = new Date(ano, mes + 1, 0);
+  fim.setHours(23, 59, 59, 999);
+  return { inicio, fim };
+}
+
 function badgeFormaPagamento(forma: string | null | undefined) {
   if (!forma) return <span className="text-[#9ca3af]">—</span>;
   return (
-    <span className="inline-block whitespace-nowrap rounded-full bg-[#dbeafe] px-2.5 py-0.5 text-[10px] font-medium capitalize text-[#1d4ed8]">
+    <span className="inline-block whitespace-nowrap rounded-full bg-[#dbeafe] px-2.5 py-0.5 text-[10px] font-medium text-[#1d4ed8]">
       {forma}
     </span>
   );
+}
+
+function descricaoExtratoModal(linha: LinhaExtratoIndividualComSaldo) {
+  if (linha.tipo === "pagamento" || linha.tipo === "desconto") {
+    const forma = (linha.servico || "")
+      .replace(/^Pagamento\s*/i, "")
+      .replace(/[()]/g, "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "_")
+      .replace(/^pix/, "px");
+    return `Recebimento ${forma || "externo"}`;
+  }
+  return linha.servico;
 }
 
 function badgeSituacaoFatura(
@@ -228,6 +285,7 @@ export function VisualizacaoClienteReceberModal({
   onClose,
   cliente,
   clientes,
+  trabalhos = [],
   onClienteChange,
   money,
   formatDate,
@@ -256,6 +314,9 @@ export function VisualizacaoClienteReceberModal({
   const [formaPagamento, setFormaPagamento] = useState("todos");
   const [situacao, setSituacao] = useState("a_receber");
   const [busca, setBusca] = useState("");
+  const [extratoModelo, setExtratoModelo] = useState<ExtratoModeloModal>("1");
+  const [buscaExtrato, setBuscaExtrato] = useState("");
+  const [gerandoExtrato, setGerandoExtrato] = useState(false);
 
   useEffect(() => setMounted(true), []);
 
@@ -265,6 +326,8 @@ export function VisualizacaoClienteReceberModal({
     setFormaPagamento("todos");
     setSituacao(situacaoModalDePainel(filtrosPainel.situacao));
     setBusca("");
+    setBuscaExtrato("");
+    setExtratoModelo("1");
     const { mes: mesIni, ano: anoIni } = mesAnoInicialSincronizado(
       filtrosPainel,
       cliente.lancamentos
@@ -298,17 +361,23 @@ export function VisualizacaoClienteReceberModal({
     return ["todos", ...Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"))];
   }, [cliente]);
 
-  const lancamentosFiltrados = useMemo(() => {
+  const lancamentosMes = useMemo(() => {
     if (!cliente) return [];
-    const termo = busca.trim().toLowerCase();
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-
     return cliente.lancamentos.filter((l) => {
       if (!lancamentoNoPeriodoPainel(l.data, filtrosPainel)) return false;
       const { mes: lm, ano: la } = parseDataMesAno(l.data);
       if (lm !== mes || la !== ano) return false;
       if (formaPagamento !== "todos" && l.formaPagamento !== formaPagamento) return false;
+      return true;
+    });
+  }, [cliente, mes, ano, formaPagamento, filtrosPainel]);
+
+  const lancamentosFiltrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    return lancamentosMes.filter((l) => {
       if (situacao === "a_receber" && (l.status === "pago" || saldoFatura(l) <= 0.009)) return false;
       if (situacao === "recebidas" && l.status !== "pago") return false;
       if (situacao === "atraso") {
@@ -330,18 +399,7 @@ export function VisualizacaoClienteReceberModal({
       }
       return true;
     });
-  }, [
-    cliente,
-    mes,
-    ano,
-    formaPagamento,
-    situacao,
-    busca,
-    filtrosPainel,
-    formatDate,
-    numeroFatura,
-    saldoFatura,
-  ]);
+  }, [lancamentosMes, situacao, busca, formatDate, numeroFatura, saldoFatura]);
 
   const faturasVisiveis = useMemo(
     () => lancamentosFiltrados.filter(isFaturaContasReceber),
@@ -350,10 +408,12 @@ export function VisualizacaoClienteReceberModal({
 
   const recebimentosVisiveis = useMemo(
     () =>
-      lancamentosFiltrados.filter(
-        (l) => l.status === "pago" && !l.descricao.toLowerCase().includes("crédito utilizado")
+      lancamentosMes.filter(
+        (l) =>
+          l.status === "pago" &&
+          !l.descricao.toLowerCase().includes("crédito utilizado")
       ),
-    [lancamentosFiltrados]
+    [lancamentosMes]
   );
 
   const totalAReceber = useMemo(
@@ -379,22 +439,42 @@ export function VisualizacaoClienteReceberModal({
     [faturasVisiveis, saldoFatura]
   );
 
-  const extratoLinhas = useMemo(() => {
-    const ordenados = [...lancamentosFiltrados].sort(
-      (a, b) => new Date(a.data).getTime() - new Date(b.data).getTime()
-    );
-    let saldo = 0;
-    return ordenados.map((l) => {
-      if (l.status === "pago") {
-        saldo -= l.valor;
-      } else if (isFaturaContasReceber(l)) {
-        saldo += saldoFatura(l);
-      } else {
-        saldo += l.valor;
+  const extratoDados = useMemo(() => {
+    if (!cliente) return { linhas: [] as LinhaExtratoIndividualComSaldo[], resumo: null };
+    const { inicio, fim } = periodoMesAno(mes, ano);
+    return montarExtratoIndividual(
+      cliente.lancamentos as LancamentoContasReceber[],
+      trabalhos,
+      cliente.nome,
+      {
+        dataInicio: inicio,
+        dataFinal: fim,
+        clienteId: cliente.clienteId,
       }
-      return { lancamento: l, saldo };
+    );
+  }, [cliente, trabalhos, mes, ano]);
+
+  const extratoLinhas = useMemo(() => {
+    const termo = buscaExtrato.trim().toLowerCase();
+    return extratoDados.linhas.filter((linha) => {
+      if (linha.tipo === "saldo_anterior") return false;
+      if (!termo) return true;
+      const texto = [
+        linha.dataFatura,
+        linha.numFatura,
+        linha.os,
+        linha.servico,
+        linha.paciente,
+        linha.numDente,
+      ]
+        .join(" ")
+        .toLowerCase();
+      return texto.includes(termo);
     });
-  }, [lancamentosFiltrados, isFaturaContasReceber, saldoFatura]);
+  }, [extratoDados.linhas, buscaExtrato]);
+
+  const saldoAnteriorExtrato = extratoDados.resumo?.saldoAnterior ?? 0;
+  const saldoFinalExtrato = extratoDados.resumo?.saldoTotal ?? 0;
 
   const totalRecebimentosMes = useMemo(
     () => recebimentosVisiveis.reduce((s, l) => s + l.valor, 0),
@@ -405,6 +485,99 @@ export function VisualizacaoClienteReceberModal({
   const adiantamentosCliente = cliente?.adiantamentos ?? 0;
   const mesLabel = MESES[mes];
   const chaveCliente = cliente?.clienteId ?? cliente?.nome ?? "";
+
+  async function imprimirExtratoPdf() {
+    if (!cliente) return;
+    setGerandoExtrato(true);
+    try {
+      const { inicio, fim } = periodoMesAno(mes, ano);
+      const opcoes = {
+        periodoAtivo: true,
+        dataInicio: inicio.toLocaleDateString("pt-BR"),
+        dataFinal: fim.toLocaleDateString("pt-BR"),
+        clienteId: cliente.clienteId,
+      };
+      const lancamentos = cliente.lancamentos as LancamentoContasReceber[];
+
+      if (extratoModelo === "3") {
+        const { gerarRelatorioExtrato3PacienteSmartPdf } = await import(
+          "@/lib/pdf-relatorio-extrato-3-paciente-smart"
+        );
+        await abrirPdfGerando(
+          () =>
+            gerarRelatorioExtrato3PacienteSmartPdf(
+              lancamentos,
+              trabalhos,
+              cliente.nome,
+              opcoes
+            ),
+          "extrato-cliente.pdf"
+        );
+      } else if (extratoModelo === "2") {
+        const { gerarRelatorioExtrato2IndividualSmartPdf } = await import(
+          "@/lib/pdf-relatorio-extrato-2-individual-smart"
+        );
+        await abrirPdfGerando(
+          () =>
+            gerarRelatorioExtrato2IndividualSmartPdf(
+              lancamentos,
+              trabalhos,
+              cliente.nome,
+              opcoes
+            ),
+          "extrato-cliente.pdf"
+        );
+      } else {
+        const { gerarRelatorioExtratoIndividualSmartPdf } = await import(
+          "@/lib/pdf-relatorio-extrato-individual-smart"
+        );
+        await abrirPdfGerando(
+          () =>
+            gerarRelatorioExtratoIndividualSmartPdf(
+              lancamentos,
+              trabalhos,
+              cliente.nome,
+              opcoes
+            ),
+          "extrato-cliente.pdf"
+        );
+      }
+    } finally {
+      setGerandoExtrato(false);
+    }
+  }
+
+  function exportarExtratoExcel() {
+    const linhas = extratoLinhas.map((l) => [
+      l.dataFatura,
+      l.numFatura,
+      l.os,
+      descricaoExtratoModal(l),
+      l.qtd,
+      l.paciente,
+      l.numDente,
+      l.tipo === "pagamento" || l.tipo === "desconto" ? -Math.abs(l.subtotal) : l.subtotal,
+      l.saldo,
+    ]);
+    baixarCsv(
+      "extrato-cliente.csv",
+      ["DATA", "FATURA", "OS", "DESCRIÇÃO", "QTD", "PACIENTE", "NUM DENTE", "VALOR", "SALDO"],
+      linhas
+    );
+  }
+
+  function exportarRecebimentosExcel() {
+    baixarCsv(
+      "recebimentos-cliente.csv",
+      ["DATA RECEBIMENTO", "FORMA PAGAMENTO", "VALOR", "OBSERVACAO"],
+      recebimentosVisiveis.map((l) => [
+        formatDate(l.data),
+        l.formaPagamento || "",
+        l.valor,
+        observacaoRecebimento(l.descricao),
+      ])
+    );
+  }
 
   if (!open || !mounted || !cliente) return null;
 
@@ -580,6 +753,90 @@ export function VisualizacaoClienteReceberModal({
           </div>
         )}
 
+        {aba === "recebimentos" && (
+          <div className="shrink-0 border-b border-[#e5e7eb] bg-white px-5 py-4">
+            <div className="inline-block min-w-[220px] rounded-md bg-[#f5f5f5] px-5 py-4">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <span className="text-[12px] font-medium text-[#6b7280]">Recebimentos</span>
+                <span className="rounded-full bg-[#22c55e] px-2.5 py-0.5 text-[10px] font-semibold text-white">
+                  {mesLabel} {ano}
+                </span>
+              </div>
+              <p className="text-[28px] font-bold leading-none text-[#22c55e]">
+                R$ {money(totalRecebimentosMes)}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {aba === "extrato" && (
+          <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-[#e5e7eb] bg-[#fafafa] px-4 py-2.5">
+            <div className="inline-flex items-center gap-1 rounded-sm border border-[#d1d5db] bg-white p-1">
+              <button
+                type="button"
+                title="Imprimir"
+                disabled={gerandoExtrato}
+                onClick={() => void imprimirExtratoPdf()}
+                className="flex h-8 w-8 items-center justify-center rounded-sm text-[#6b7280] hover:bg-[#f3f4f6] disabled:opacity-50"
+              >
+                <Printer className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                title="Enviar por e-mail"
+                className="flex h-8 w-8 items-center justify-center rounded-sm text-[#6b7280] hover:bg-[#f3f4f6]"
+              >
+                <Mail className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                title="Atualizar"
+                onClick={() => setBuscaExtrato("")}
+                className="flex h-8 w-8 items-center justify-center rounded-sm text-[#6b7280] hover:bg-[#f3f4f6]"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                title="PDF"
+                disabled={gerandoExtrato}
+                onClick={() => void imprimirExtratoPdf()}
+                className="flex h-8 items-center rounded-sm bg-[#9ca3af] px-2.5 text-[11px] font-semibold text-white hover:bg-[#6b7280] disabled:opacity-50"
+              >
+                PDF
+              </button>
+              <button
+                type="button"
+                title="Exportar Excel"
+                onClick={exportarExtratoExcel}
+                className="flex h-8 w-8 items-center justify-center rounded-sm text-[#6b7280] hover:bg-[#f3f4f6]"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 text-[11px] text-[#374151]">
+              {(
+                [
+                  ["1", "Extrato Modelo 1"],
+                  ["2", "Extrato Modelo 2"],
+                  ["3", "Extrato Modelo 3 (agrupado por paciente)"],
+                ] as const
+              ).map(([valor, rotulo]) => (
+                <label key={valor} className="inline-flex cursor-pointer items-center gap-1.5">
+                  <input
+                    type="radio"
+                    name="extrato-modelo"
+                    checked={extratoModelo === valor}
+                    onChange={() => setExtratoModelo(valor)}
+                    className="h-3.5 w-3.5 border-[#d1d5db] text-[#4a90d9] focus:ring-[#4a90d9]"
+                  />
+                  {rotulo}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="min-h-0 flex-1 overflow-auto bg-white px-5 py-2">
           {aba === "faturas" && (
             <div className="overflow-x-auto pb-3">
@@ -717,65 +974,45 @@ export function VisualizacaoClienteReceberModal({
             </div>
           )}
 
-          {aba === "extrato" && (
-            <div className="overflow-x-auto border border-[#c5c9cf] bg-white">
-              <div className="flex items-center justify-between border-b border-[#d1d5db] bg-[#f3f4f6] px-3 py-2">
-                <span className="text-[12px] font-medium text-[#374151]">
-                  Extrato financeiro do cliente
-                </span>
-                <button
-                  type="button"
-                  onClick={onImprimirNota}
-                  disabled={faturasVisiveis.length === 0}
-                  className="rounded-sm border border-[#4a90d9] bg-white px-3 py-1 text-[11px] font-medium text-[#4a90d9] hover:bg-[#eff6ff] disabled:opacity-50"
-                >
-                  Gerar / Imprimir Nota de Cobrança
-                </button>
-              </div>
-              <table className="w-full min-w-[820px] border-collapse text-[11px]">
+          {aba === "recebimentos" && (
+            <div className="overflow-x-auto pb-3">
+              <table className="w-full min-w-[720px] border-collapse text-[11px]">
                 <thead>
                   <tr>
-                    <th className={thClass}>Data</th>
-                    <th className={thClass}>Referência</th>
-                    <th className={thClass}>Forma</th>
-                    <th className={cn(thClass, "text-right")}>Valor</th>
-                    <th className={cn(thClass, "text-right")}>Saldo</th>
+                    <ThSort>Data Recebimento</ThSort>
+                    <ThSort>Forma Pagamento</ThSort>
+                    <ThSort align="right">Valor</ThSort>
+                    <ThSort>Observacao</ThSort>
                   </tr>
                 </thead>
                 <tbody>
-                  {extratoLinhas.length === 0 ? (
+                  {recebimentosVisiveis.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className={cn(tdClass, "py-10 text-center text-[#9ca3af]")}>
-                        Nenhuma movimentação encontrada para o período selecionado.
+                      <td
+                        colSpan={4}
+                        className="border-b border-[#f0f0f0] px-4 py-12 text-center text-[#9ca3af]"
+                      >
+                        Nenhum recebimento encontrado para o período selecionado.
                       </td>
                     </tr>
                   ) : (
-                    extratoLinhas.map(({ lancamento: l, saldo }, index) => (
+                    recebimentosVisiveis.map((l) => (
                       <tr
                         key={l.id}
-                        className={cn(
-                          index % 2 === 0 ? "bg-white" : "bg-[#f8fafc]",
-                          "hover:brightness-[0.98]"
-                        )}
+                        className="cursor-pointer bg-white hover:bg-[#fafafa]"
+                        onClick={() => onDetalheRecebimento(l)}
                       >
-                        <td className={tdClass}>{formatDate(l.data)}</td>
-                        <td className={tdClass}>{referenciaLancamento(l)}</td>
-                        <td className={tdClass}>
-                          <span className="font-medium text-[#2563eb]">
-                            {l.formaPagamento || "—"}
-                          </span>
+                        <td className="border-b border-[#f0f0f0] px-4 py-2.5 text-[11px] text-[#374151]">
+                          {formatDate(l.data)}
                         </td>
-                        <td className={cn(tdClass, "text-right tabular-nums")}>
+                        <td className="border-b border-[#f0f0f0] px-4 py-2.5">
+                          {badgeFormaPagamento(l.formaPagamento)}
+                        </td>
+                        <td className="border-b border-[#f0f0f0] px-4 py-2.5 text-right text-[11px] tabular-nums text-[#374151]">
                           {money(l.valor)}
                         </td>
-                        <td
-                          className={cn(
-                            tdClass,
-                            "text-right font-semibold tabular-nums",
-                            saldo > 0.009 ? "text-[#16a34a]" : saldo < -0.009 ? "text-[#dc2626]" : ""
-                          )}
-                        >
-                          {money(saldo)}
+                        <td className="border-b border-[#f0f0f0] px-4 py-2.5 text-[11px] text-[#6b7280]">
+                          {observacaoRecebimento(l.descricao)}
                         </td>
                       </tr>
                     ))
@@ -785,84 +1022,94 @@ export function VisualizacaoClienteReceberModal({
             </div>
           )}
 
-          {aba === "recebimentos" && (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] border-collapse text-[11px]">
+          {aba === "extrato" && (
+            <div className="overflow-x-auto border border-[#c5c9cf] bg-white">
+              <table className="w-full min-w-[980px] border-collapse text-[11px]">
                 <thead>
                   <tr>
-                    <th className={thFaturasClass}>Data Recebimento</th>
-                    <th className={thFaturasClass}>Forma Pagamento</th>
-                    <th className={cn(thFaturasClass, "text-right")}>Valor</th>
-                    <th className={thFaturasClass}>Observação</th>
-                    <th className={cn(thFaturasClass, "text-right")}>Opções</th>
+                    <th className={thExtratoClass}>Data</th>
+                    <th className={thExtratoClass}>Fatura</th>
+                    <th className={thExtratoClass}>OS</th>
+                    <th className={thExtratoClass}>Descrição</th>
+                    <th className={cn(thExtratoClass, "text-center")}>Qtd</th>
+                    <th className={thExtratoClass}>Paciente</th>
+                    <th className={thExtratoClass}>Num Dente</th>
+                    <th className={cn(thExtratoClass, "text-right")}>Valor</th>
+                    <th className={cn(thExtratoClass, "text-right")}>
+                      <div className="text-[9px] font-normal normal-case opacity-90">
+                        Saldo Anterior: R$ {money(saldoAnteriorExtrato)}
+                      </div>
+                      <div>Saldo</div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {recebimentosVisiveis.length === 0 ? (
+                  {extratoLinhas.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={5}
-                        className={cn(tdFaturasClass, "py-12 text-center text-[#9ca3af]")}
+                        colSpan={9}
+                        className="px-3 py-10 text-center text-[#9ca3af]"
                       >
-                        Nenhum recebimento encontrado para o período selecionado.
+                        Nenhuma movimentação encontrada para o período selecionado.
                       </td>
                     </tr>
                   ) : (
-                    recebimentosVisiveis.map((l) => (
-                      <tr key={l.id} className="bg-white hover:bg-[#fafafa]">
-                        <td className={tdFaturasClass}>{formatDate(l.data)}</td>
-                        <td className={tdFaturasClass}>
-                          <span className="cursor-pointer font-medium text-[#2563eb] hover:underline">
-                            {l.formaPagamento || "—"}
-                          </span>
-                        </td>
-                        <td className={cn(tdFaturasClass, "text-right tabular-nums")}>
-                          {money(l.valor)}
-                        </td>
-                        <td className={cn(tdFaturasClass, "max-w-[16rem] truncate text-[#6b7280]")}>
-                          {observacaoRecebimento(l.descricao)}
-                        </td>
-                        <td className={cn(tdFaturasClass, "text-right")}>
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              type="button"
-                              title="Imprimir recibo"
-                              onClick={() => onImprimirRecibo(l)}
-                              className="inline-flex items-center gap-1 rounded bg-[#4a90d9] px-2.5 py-1 text-[10px] font-medium text-white hover:bg-[#3d7fc4]"
-                            >
-                              <Printer className="h-3.5 w-3.5" />
-                              Recibo
-                            </button>
-                            <button
-                              type="button"
-                              title="Visualizar"
-                              onClick={() => onDetalheRecebimento(l)}
-                              className={cn(btnOpcaoClass, "text-[#4a90d9]")}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
-                              title="Editar"
-                              onClick={() => onDetalheRecebimento(l)}
-                              className={cn(btnOpcaoClass, "text-[#6b7280]")}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
-                              title="Excluir"
-                              onClick={() => onEstornarRecebimento(l)}
-                              className={cn(btnOpcaoClass, "text-[#dc2626]")}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                    extratoLinhas.map((linha, idx) => {
+                      const pagamento =
+                        linha.tipo === "pagamento" || linha.tipo === "desconto";
+                      const valor =
+                        pagamento ? -Math.abs(linha.subtotal) : linha.subtotal;
+                      const cor = pagamento ? "text-[#dc2626]" : "text-[#2563eb]";
+                      return (
+                        <tr
+                          key={`${linha.tipo}-${linha.dataFatura}-${linha.os}-${linha.servico}-${linha.saldo}`}
+                          className={idx % 2 === 0 ? "bg-white" : "bg-[#f5f5f5]"}
+                        >
+                          <td className={cn("px-2.5 py-2", cor)}>{linha.dataFatura}</td>
+                          <td className={cn("px-2.5 py-2", pagamento ? "text-[#374151]" : cor)}>
+                            {linha.numFatura}
+                          </td>
+                          <td className={cn("px-2.5 py-2", pagamento ? "text-[#374151]" : cor)}>
+                            {linha.os}
+                          </td>
+                          <td className={cn("px-2.5 py-2", cor)}>
+                            {descricaoExtratoModal(linha)}
+                          </td>
+                          <td
+                            className={cn(
+                              "px-2.5 py-2 text-center",
+                              pagamento ? "text-[#374151]" : cor
+                            )}
+                          >
+                            {linha.qtd}
+                          </td>
+                          <td className={cn("px-2.5 py-2", pagamento ? "text-[#374151]" : cor)}>
+                            {linha.paciente}
+                          </td>
+                          <td className={cn("px-2.5 py-2", pagamento ? "text-[#374151]" : cor)}>
+                            {linha.numDente}
+                          </td>
+                          <td className={cn("px-2.5 py-2 text-right tabular-nums", cor)}>
+                            {pagamento ? `-${money(Math.abs(valor))}` : money(valor)}
+                          </td>
+                          <td className="px-2.5 py-2 text-right tabular-nums text-[#111827]">
+                            {money(linha.saldo)}
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
+                {extratoLinhas.length > 0 && (
+                  <tfoot>
+                    <tr className="bg-[#3b3b4f] text-white">
+                      <td colSpan={8} />
+                      <td className="px-2.5 py-2.5 text-right text-[12px] font-bold tabular-nums">
+                        Saldo: R$ {money(saldoFinalExtrato)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           )}

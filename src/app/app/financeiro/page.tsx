@@ -2116,6 +2116,22 @@ function FinanceiroReceberConteudo() {
         onClose={() => setDetalheCliente(null)}
         cliente={detalheCliente}
         clientes={clientesReceber}
+        trabalhos={trabalhos.map((t) => ({
+          id: t.id,
+          numeroOs: t.numeroOs,
+          status: t.status,
+          paciente: t.paciente?.nome ?? null,
+          tipoProtese: t.tipoProtese,
+          valor: t.valor,
+          dentes: t.dentes,
+          cor: t.cor,
+          instrucoes: t.instrucoes,
+          dataEntrega: t.dataEntrega ?? null,
+          dataPrevista: t.dataPrevista ?? null,
+          cliente: t.cliente
+            ? { nome: t.cliente.nome, cro: t.cliente.cro }
+            : null,
+        }))}
         filtrosPainel={{ dataInicio, dataFinal, situacao }}
         onClienteChange={(cliente) => setDetalheCliente(cliente as ClienteReceber)}
         money={money}
