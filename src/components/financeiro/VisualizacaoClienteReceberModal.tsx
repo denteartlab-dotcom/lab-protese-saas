@@ -582,7 +582,11 @@ export function VisualizacaoClienteReceberModal({
                     faturasVisiveis.map((l) => {
                       const saldo = saldoFatura(l);
                       return (
-                        <tr key={l.id} className="bg-white hover:bg-[#fafafa]">
+                        <tr
+                          key={l.id}
+                          className="cursor-pointer bg-white hover:bg-[#fafafa]"
+                          onClick={() => onVisualizarFatura(l)}
+                        >
                           <td className={tdFaturasClass}>{formatDate(l.data)}</td>
                           <td className={cn(tdFaturasClass, "text-center")}>
                             {numeroFatura(l)}
@@ -613,11 +617,14 @@ export function VisualizacaoClienteReceberModal({
                           <td className={cn(tdFaturasClass, "text-center")}>
                             {badgeSituacaoFatura(l, situacaoFaturaLabel)}
                           </td>
-                          <td className={cn(tdFaturasClass, "text-right")}>
+                          <td
+                            className={cn(tdFaturasClass, "text-right")}
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <div className="flex items-center justify-end gap-0.5">
                               <button
                                 type="button"
-                                title="Visualizar"
+                                title="Visualizar itens"
                                 onClick={() => onVisualizarFatura(l)}
                                 className={cn(btnOpcaoClass, "text-[#4a90d9]")}
                               >
@@ -625,9 +632,9 @@ export function VisualizacaoClienteReceberModal({
                               </button>
                               <button
                                 type="button"
-                                title="Imprimir nota"
+                                title="Imprimir fatura"
                                 onClick={() => onImprimirFatura(l)}
-                                className={cn(btnOpcaoClass, "text-[#6b7280]")}
+                                className={cn(btnOpcaoClass, "text-[#2563eb]")}
                               >
                                 <Printer className="h-4 w-4" />
                               </button>

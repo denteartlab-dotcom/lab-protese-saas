@@ -44,7 +44,9 @@ import {
   type LancarRecebimentoConfirmacao,
   type LancamentoRecebimento,
 } from "@/components/financeiro/LancarRecebimentoModal";
+import { ItensFaturaModal } from "@/components/financeiro/ItensFaturaModal";
 import { VisualizacaoClienteReceberModal } from "@/components/financeiro/VisualizacaoClienteReceberModal";
+import { linhasItensFaturaFromTrabalhos } from "@/lib/itens-fatura-linhas";
 import { PlanoContasConteudo } from "@/components/financeiro/PlanoContasConteudo";
 import { notificarFinanceiroAtualizado } from "@/lib/financeiro-events";
 import { empacotarDespesa, type AnexoDespesa } from "@/lib/lancamento-despesa";
@@ -294,6 +296,7 @@ function FinanceiroReceberConteudo() {
   const [recebendoCliente, setRecebendoCliente] = useState<ClienteReceber | null>(null);
   const [detalheCliente, setDetalheCliente] = useState<ClienteReceber | null>(null);
   const [notaCliente, setNotaCliente] = useState<ClienteReceber | null>(null);
+  const [itensFatura, setItensFatura] = useState<Lancamento | null>(null);
   const [clienteCollapseAberto, setClienteCollapseAberto] = useState<string | null>(null);
   const [faturaEditando, setFaturaEditando] = useState<Lancamento | null>(null);
   const [detalheRecebimento, setDetalheRecebimento] = useState<{
@@ -2129,8 +2132,7 @@ function FinanceiroReceberConteudo() {
           void imprimirNota({ ...detalheCliente, lancamentos: faturas });
         }}
         onVisualizarFatura={(l) => {
-          if (!detalheCliente) return;
-          setNotaCliente({ ...detalheCliente, lancamentos: [l as Lancamento] });
+          setItensFatura(l as Lancamento);
         }}
         onImprimirFatura={(l) => {
           if (!detalheCliente) return;
@@ -2463,6 +2465,16 @@ function FinanceiroReceberConteudo() {
         onClose={() => setReciboRecebimento(null)}
         clienteNome={reciboRecebimento?.clienteNome ?? ""}
         linhas={reciboRecebimento?.linhas ?? []}
+      />
+
+      <ItensFaturaModal
+        open={Boolean(itensFatura)}
+        onClose={() => setItensFatura(null)}
+        linhas={
+          itensFatura
+            ? linhasItensFaturaFromTrabalhos(trabalhosDaFatura(itensFatura), formatDate)
+            : []
+        }
       />
 
       <Modal
