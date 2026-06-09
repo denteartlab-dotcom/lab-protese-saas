@@ -14,7 +14,6 @@ import {
 import {
   contaOfxCombina,
   dadosOfxParaFormCadastro,
-  parseOfxArquivo,
   resumirDescricaoOfx,
   type MovimentacaoOfx,
   type OfxParseResult,
@@ -31,6 +30,7 @@ import {
   montarConciliacaoInicial,
   salvarLancamentoProcedimento,
 } from "@/lib/conciliacao-lancamento";
+import { persistirContasBancariasApi } from "@/lib/conta-bancaria-api";
 
 type ExtratoPendente = Omit<ExtratoMovimentacao, "contaId">[];
 
@@ -148,6 +148,9 @@ export function ConciliacaoContaModal({
     useState<MovimentacaoOfx | null>(null);
   const [salvandoProcedimento, setSalvandoProcedimento] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [contaIdentificadaId, setContaIdentificadaId] = useState<string | null>(
+    null
+  );
   const inputRef = useRef<HTMLInputElement>(null);
   const arquivoRef = useRef<File | null>(null);
 
@@ -168,12 +171,15 @@ export function ConciliacaoContaModal({
 
   const contaEncontrada = useMemo(() => {
     if (!parseResult) return null;
+    if (contaIdentificadaId) {
+      const porId = contas.find((c) => c.id === contaIdentificadaId);
+      if (porId) return porId;
+    }
     return contas.find((c) => contaOfxCombina(c, parseResult.dadosConta)) ?? null;
-  }, [contas, parseResult]);
+  }, [contas, parseResult, contaIdentificadaId]);
 
-  const contaNaoCadastrada = Boolean(
-    parseResult && parseResult.dadosConta.numeroConta.trim() && !contaEncontrada
-  );
+  const numeroContaOfx = parseResult?.dadosConta.numeroConta.trim() ?? "";
+  const contaNaoCadastrada = Boolean(parseResult && numeroContaOfx && !contaEncontrada);
 
   const linhasTabela = useMemo(() => {
     if (!parseResult) return [] as MovimentacaoOfx[];
@@ -220,16 +226,36 @@ export function ConciliacaoContaModal({
       setProcedimentos({});
 
       try {
-        const texto = await file.text();
-        const resultado = parseOfxArquivo(texto);
+        const form = new FormData();
+        form.append("arquivo", file);
+        const res = await fetch("/api/contas-bancarias/ofx", {
+          method: "POST",
+          body: form,
+        });
+        const json = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          parseResult?: OfxParseResult;
+          contaEncontrada?: ContaBancaria | null;
+          contaNaoCadastrada?: boolean;
+        };
+
+        if (!res.ok) {
+          setErroLeitura(json.error || "Falha ao ler o arquivo OFX.");
+          return;
+        }
+
+        const resultado = json.parseResult;
         if (
-          resultado.movimentacoes.length === 0 &&
-          !resultado.dadosConta.numeroConta
+          !resultado ||
+          (resultado.movimentacoes.length === 0 &&
+            !resultado.dadosConta.numeroConta)
         ) {
           setErroLeitura("Não foi possível ler movimentações no arquivo OFX.");
           return;
         }
+
         setParseResult(resultado);
+        setContaIdentificadaId(json.contaEncontrada?.id ?? null);
         aplicarSugestoesProcedimento(resultado.movimentacoes);
       } catch {
         setErroLeitura("Falha ao ler o arquivo OFX.");
@@ -346,9 +372,12 @@ export function ConciliacaoContaModal({
       if (movimentacoes.length > 0) {
         const { mesclarExtrato, carregarExtratoBancario, salvarExtratoBancario } =
           await import("@/lib/extrato-bancario");
-        salvarExtratoBancario(
-          mesclarExtrato(carregarExtratoBancario(), movimentacoes)
+        const extrato = mesclarExtrato(
+          carregarExtratoBancario(),
+          movimentacoes
         );
+        salvarExtratoBancario(extrato);
+        await persistirContasBancariasApi({ extrato });
       }
 
       await onConciliacaoSalva();
@@ -478,21 +507,39 @@ export function ConciliacaoContaModal({
             {erroLeitura ? (
               <p className="mt-1.5 text-[12px] text-red-600">{erroLeitura}</p>
             ) : null}
-            {contaNaoCadastrada ? (
-              <div className="mt-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
-                <p>Conta não está cadastrada no sistema.</p>
+            {contaNaoCadastrada && dados ? (
+              <div
+                className="mt-3 rounded border border-amber-300 bg-amber-50 px-4 py-3 text-[12px] text-amber-950"
+                role="alert"
+              >
+                <p className="font-medium">
+                  Conta bancária não cadastrada no banco de dados
+                </p>
+                <p className="mt-1 text-amber-900">
+                  O extrato OFX pertence à conta{" "}
+                  <strong>
+                    {dados.codBanco ? `banco ${dados.codBanco}` : "—"}
+                    {dados.agencia ? ` · ag. ${dados.agencia}` : ""}
+                    {dados.numeroConta ? ` · nº ${dados.numeroConta}` : ""}
+                  </strong>
+                  , que ainda não está vinculada às contas cadastradas.
+                </p>
                 <button
                   type="button"
                   onClick={abrirCadastroPreenchido}
-                  className="mt-1 font-medium text-[#4a90d9] underline hover:text-[#3d7fc4]"
+                  className="mt-2 inline-flex items-center rounded border border-[#4a90d9] bg-[#4a90d9] px-3 py-1.5 text-[12px] font-medium text-white hover:bg-[#3d7fc4]"
                 >
-                  Cadastrar conta
+                  Cadastrar nova conta
                 </button>
               </div>
             ) : null}
             {parseResult && contaEncontrada ? (
-              <p className="mt-1.5 text-[12px] text-[#4cae4c]">
-                Conta Identificada: <strong>{contaEncontrada.nome}</strong>
+              <p className="mt-2 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-[12px] text-emerald-900">
+                Conta identificada no banco de dados:{" "}
+                <strong>{contaEncontrada.nome}</strong>
+                {contaEncontrada.numeroConta
+                  ? ` (nº ${contaEncontrada.numeroConta})`
+                  : ""}
               </p>
             ) : null}
           </div>

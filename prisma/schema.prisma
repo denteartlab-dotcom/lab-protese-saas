@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -227,4 +226,55 @@ model ArquivoUpload {
   criadoEm  DateTime @default(now())
 
   @@index([pasta])
+}
+
+/** Contas bancárias persistidas no SQLite (substitui JsonStore para não perder dados). */
+model ContaBancaria {
+  id              String                @id
+  nome            String
+  saldoInicial    Float                 @default(0)
+  excluida        Boolean               @default(false)
+  acaoPrincipal   String                @default("movimentar")
+  codBanco        String                @default("")
+  agencia         String                @default("")
+  numeroConta     String                @default("")
+  tipoChavePix    String                @default("")
+  chavePix        String                @default("")
+  modoVinculo     String                @default("manual")
+  openFinanceJson String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  movimentacoes   MovimentacaoConta[]
+  extrato         ExtratoMovimentacao[]
+
+  @@index([codBanco, agencia, numeroConta])
+}
+
+model MovimentacaoConta {
+  id        String        @id
+  contaId   String
+  conta     ContaBancaria @relation(fields: [contaId], references: [id], onDelete: Cascade)
+  tipo      String
+  valor     Float
+  descricao String
+  data      DateTime
+  createdAt DateTime      @default(now())
+
+  @@index([contaId])
+}
+
+model ExtratoMovimentacao {
+  id        String        @id
+  contaId   String
+  conta     ContaBancaria @relation(fields: [contaId], references: [id], onDelete: Cascade)
+  tipo      String
+  valor     Float
+  descricao String
+  data      DateTime
+  origem    String
+  idExterno String?
+  createdAt DateTime      @default(now())
+
+  @@unique([contaId, idExterno])
+  @@index([contaId])
 }

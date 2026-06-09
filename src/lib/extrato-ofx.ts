@@ -284,9 +284,20 @@ export function contaOfxCombina(
   const agConta = normalizarDigitos(conta.agencia ?? "");
   const numConta = normalizarDigitos(conta.numeroConta ?? "");
 
-  const okBanco = !bancoArq || !bancoConta || bancoArq === bancoConta;
-  const okAg = !agArq || !agConta || agArq === agConta;
-  const okNum = !numArq || !numConta || numArq === numConta;
+  if (!numArq) return false;
 
-  return okBanco && okAg && okNum && Boolean(bancoArq || agArq || numArq);
+  if (numConta && numArq === numConta) {
+    const okBanco = !bancoArq || !bancoConta || bancoArq === bancoConta;
+    const okAg = !agArq || !agConta || agArq === agConta;
+    return okBanco && okAg;
+  }
+
+  return false;
+}
+
+export function contaOfxCadastrada(
+  contas: { codBanco?: string; agencia?: string; numeroConta?: string; excluida?: boolean }[],
+  dados: DadosContaOfx
+) {
+  return contas.find((c) => contaOfxCombina(c, dados)) ?? null;
 }

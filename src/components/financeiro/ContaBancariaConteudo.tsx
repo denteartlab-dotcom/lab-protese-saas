@@ -39,6 +39,10 @@ import {
   salvarExtratoBancario,
   type ExtratoMovimentacao,
 } from "@/lib/extrato-bancario";
+import {
+  carregarContasBancariasApi,
+  persistirContasBancariasApi,
+} from "@/lib/conta-bancaria-api";
 import { cn } from "@/lib/utils";
 
 type LancamentoApi = {
@@ -143,8 +147,9 @@ export function ContaBancariaConteudo() {
   );
 
   const carregarDados = useCallback(async () => {
-    setContas(carregarContasBancarias());
-    setMovimentacoes(carregarMovimentacoesConta());
+    const dados = await carregarContasBancariasApi();
+    setContas(dados.contas);
+    setMovimentacoes(dados.movimentacoes);
     try {
       const res = await fetch("/api/financeiro");
       if (res.ok) {
@@ -181,12 +186,14 @@ export function ContaBancariaConteudo() {
   function persistirContas(novaLista: ContaBancaria[]) {
     setContas(novaLista);
     salvarContasBancarias(novaLista);
+    void persistirContasBancariasApi({ contas: novaLista });
     notificarFinanceiroAtualizado();
   }
 
   function persistirMovs(novaLista: MovimentacaoContaBancaria[]) {
     setMovimentacoes(novaLista);
     salvarMovimentacoesConta(novaLista);
+    void persistirContasBancariasApi({ movimentacoes: novaLista });
     notificarFinanceiroAtualizado();
   }
 
@@ -200,9 +207,9 @@ export function ContaBancariaConteudo() {
       contaId,
       id: m.id || `ext-${Date.now()}-${i}`,
     }));
-    salvarExtratoBancario(
-      mesclarExtrato(carregarExtratoBancario(), movs)
-    );
+    const extrato = mesclarExtrato(carregarExtratoBancario(), movs);
+    salvarExtratoBancario(extrato);
+    void persistirContasBancariasApi({ extrato });
   }
 
   function adicionarConta(
