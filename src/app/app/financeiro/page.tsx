@@ -45,6 +45,7 @@ import {
   type LancarRecebimentoConfirmacao,
   type LancamentoRecebimento,
 } from "@/components/financeiro/LancarRecebimentoModal";
+import { ImprimirFaturaModal } from "@/components/financeiro/ImprimirFaturaModal";
 import { ItensFaturaModal } from "@/components/financeiro/ItensFaturaModal";
 import { VisualizacaoClienteReceberModal } from "@/components/financeiro/VisualizacaoClienteReceberModal";
 import { linhasItensFaturaFromTrabalhos } from "@/lib/itens-fatura-linhas";
@@ -298,6 +299,10 @@ function FinanceiroReceberConteudo() {
   const [detalheCliente, setDetalheCliente] = useState<ClienteReceber | null>(null);
   const [notaCliente, setNotaCliente] = useState<ClienteReceber | null>(null);
   const [itensFatura, setItensFatura] = useState<Lancamento | null>(null);
+  const [faturaImprimindo, setFaturaImprimindo] = useState<{
+    cliente: ClienteReceber;
+    lancamento: Lancamento;
+  } | null>(null);
   const [clienteCollapseAberto, setClienteCollapseAberto] = useState<string | null>(null);
   const [faturaEditando, setFaturaEditando] = useState<Lancamento | null>(null);
   const [detalheRecebimento, setDetalheRecebimento] = useState<{
@@ -1429,6 +1434,10 @@ function FinanceiroReceberConteudo() {
     setDetalheCliente(cliente);
   }
 
+  function abrirImprimirFatura(cliente: ClienteReceber, lancamento: Lancamento) {
+    setFaturaImprimindo({ cliente, lancamento });
+  }
+
   function faturaHtml(cliente: ClienteReceber) {
     const lancamentos = cliente.lancamentos.filter((l) => l.tipo === "receita");
     const primeiraFatura = lancamentos[0];
@@ -1924,9 +1933,7 @@ function FinanceiroReceberConteudo() {
                                               <button
                                                 type="button"
                                                 title="Imprimir esta nota"
-                                                onClick={() =>
-                                                  setNotaCliente({ ...cliente, lancamentos: [l] })
-                                                }
+                                                onClick={() => abrirImprimirFatura(cliente, l)}
                                                 className="rounded p-1 text-slate-500 hover:bg-blue-50 hover:text-blue-700"
                                               >
                                                 <Printer className="h-3.5 w-3.5" />
@@ -2139,7 +2146,7 @@ function FinanceiroReceberConteudo() {
         }}
         onImprimirFatura={(l) => {
           if (!detalheCliente) return;
-          setNotaCliente({ ...detalheCliente, lancamentos: [l as Lancamento] });
+          abrirImprimirFatura(detalheCliente, l as Lancamento);
         }}
         onEditarFatura={(l) => abrirEdicaoFatura(l as Lancamento)}
         onExcluirFatura={(l) => remove(l.id)}
@@ -2477,6 +2484,24 @@ function FinanceiroReceberConteudo() {
           itensFatura
             ? linhasItensFaturaFromTrabalhos(trabalhosDaFatura(itensFatura), formatDate)
             : []
+        }
+      />
+
+      <ImprimirFaturaModal
+        open={Boolean(faturaImprimindo)}
+        onClose={() => setFaturaImprimindo(null)}
+        numeroFatura={
+          faturaImprimindo ? numeroFatura(faturaImprimindo.lancamento) : 0
+        }
+        clienteNome={faturaImprimindo?.cliente.nome ?? ""}
+        valorFatura={faturaImprimindo?.lancamento.valor}
+        gerarHtml={() =>
+          faturaImprimindo
+            ? faturaHtml({
+                ...faturaImprimindo.cliente,
+                lancamentos: [faturaImprimindo.lancamento],
+              })
+            : ""
         }
       />
 

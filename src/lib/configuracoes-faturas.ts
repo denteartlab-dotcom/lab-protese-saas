@@ -256,3 +256,18 @@ export async function persistirConfiguracoesFaturasServidor(
 export function nomeModeloFatura(id: ModeloFaturaId): string {
   return MODELOS_FATURA.find((m) => m.id === id)?.nome ?? id;
 }
+
+/** Modelos disponíveis no modal de impressão para o formato escolhido. */
+export function modelosFaturaPorFormato(formato: "a4" | "termica"): ModeloFaturaId[] {
+  return MODELOS_FATURA_IDS.filter((id) => formatoPorModeloFatura(id) === formato);
+}
+
+/** Modelo padrão da config, ou o primeiro do formato se o padrão for de outro formato. */
+export function modeloPadraoParaFormatoFatura(
+  cfg: ConfiguracoesFaturas,
+  formato: "a4" | "termica"
+): ModeloFaturaId {
+  const lista = modelosFaturaPorFormato(formato);
+  if (lista.includes(cfg.modeloPadrao)) return cfg.modeloPadrao;
+  return lista[0] ?? cfg.modeloPadrao;
+}
