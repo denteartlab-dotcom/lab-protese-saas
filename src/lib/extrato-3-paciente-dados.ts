@@ -153,8 +153,9 @@ function descCell(percent: string) {
 }
 
 function dataEntregaTrabalho(trabalho: TrabalhoRelatorioFatura) {
-  if (!trabalho.dataEntrega) return "—";
-  return formatDate(trabalho.dataEntrega);
+  if (trabalho.dataEntrega) return formatDate(trabalho.dataEntrega);
+  if (trabalho.dataPrevista) return formatDate(trabalho.dataPrevista);
+  return "—";
 }
 
 function descricaoBaseLancamento(l: LancamentoContasReceber) {
@@ -375,11 +376,12 @@ export function montarExtrato3Paciente(
     const t = a.dataOrdem.getTime() - b.dataOrdem.getTime();
     if (t !== 0) return t;
     const prio = (e: EventoExtrato3) => {
+      if (e.tipo === "bloco") return 1;
       if (e.tipo === "movimento") {
-        if (e.linha.tipo === "pagamento") return 1;
-        if (e.linha.tipo === "desconto") return 2;
+        if (e.linha.tipo === "pagamento") return 2;
+        if (e.linha.tipo === "desconto") return 3;
       }
-      return 3;
+      return 4;
     };
     return prio(a) - prio(b) || a.ordem - b.ordem;
   });
@@ -422,6 +424,7 @@ export function montarExtrato3Paciente(
           linhaVazia3("servico", {
             dataOrdem: bloco.dataOrdem,
             dataOrdemPeriodo: bloco.dataOrdemPeriodo,
+            os: i === 0 ? "" : item.os,
             qtd: i === 0 ? "" : item.qtd,
             servico: item.servico,
             entrega: item.entrega,
