@@ -2,24 +2,20 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import {
-  Check,
-  DollarSign,
-  Edit3,
-  Eye,
-  FileSpreadsheet,
-  Printer,
-  Trash2,
-} from "lucide-react";
+import { Check, DollarSign, Edit3, Eye, Trash2 } from "lucide-react";
+import { BotoesImprimirExportarToolbar } from "@/components/BotoesImprimirExportarToolbar";
 import { ControleProducaoToolbar } from "@/components/ControleProducaoToolbar";
 import { RelatorioComissaoPrestadoresModal } from "@/components/RelatorioComissaoPrestadoresModal";
 import { CampoDataBr } from "@/components/ui";
 import {
+  exportarFinalizadoresServicosCsv,
   formatarMoedaFinalizador,
   montarLinhasFinalizadoresServicos,
   type LinhaFinalizadorServico,
   type TrabalhoFinalizador,
 } from "@/lib/finalizadores-servicos";
+import { gerarRelatorioComissaoPrestadoresModelo1Pdf } from "@/lib/pdf-relatorio-comissao-prestadores-modelo1";
+import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
 import { carregarPrestadoresListagem } from "@/lib/prestadores-listagem";
 import { parseBrDate } from "@/lib/datas-br";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
@@ -110,6 +106,7 @@ export function ControleFinalizadoresServicos() {
   const [comissaoZero, setComissaoZero] = useState(false);
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [relatorioAberto, setRelatorioAberto] = useState(false);
+  const [exportandoTela, setExportandoTela] = useState(false);
 
   useEffect(() => {
     try {
@@ -211,6 +208,34 @@ export function ControleFinalizadoresServicos() {
     setSelecionados(new Set(linhasFiltradas.map((l) => l.id)));
   }
 
+  async function imprimirTela() {
+    const janela = prepararAbaPdf();
+    if (!janela) return;
+
+    setExportandoTela(true);
+    try {
+      const blob = await gerarRelatorioComissaoPrestadoresModelo1Pdf(linhasFiltradas, {
+        periodoCampo: periodo === "entrega" ? "data_entrega" : "data_pedido",
+      });
+      abrirPdfNoVisualizador(
+        blob,
+        "prestadores-servicos.pdf",
+        "Prestadores de Serviços",
+        janela
+      );
+    } catch (err) {
+      console.error("imprimir prestadores", err);
+      janela.close();
+      alert("Não foi possível gerar o PDF. Permita pop-ups para este site.");
+    } finally {
+      setExportandoTela(false);
+    }
+  }
+
+  function exportarExcelTela() {
+    exportarFinalizadoresServicosCsv(linhasFiltradas);
+  }
+
   const barraEsquerda = (
     <>
       <button
@@ -220,21 +245,11 @@ export function ControleFinalizadoresServicos() {
       >
         Relatórios
       </button>
-      <button
-        type="button"
-        title="Exportar"
-        className="flex h-8 w-8 items-center justify-center rounded border border-[#86efac] bg-[#dcfce7] text-[#16a34a] hover:bg-[#bbf7d0]"
-      >
-        <FileSpreadsheet className="h-4 w-4" />
-      </button>
-      <button
-        type="button"
-        title="Imprimir"
-        onClick={() => setRelatorioAberto(true)}
-        className="flex h-8 w-8 items-center justify-center rounded border border-[#93c5fd] bg-[#dbeafe] text-[#2563eb] hover:bg-[#bfdbfe]"
-      >
-        <Printer className="h-4 w-4" />
-      </button>
+      <BotoesImprimirExportarToolbar
+        onImprimir={() => void imprimirTela()}
+        onExportarExcel={exportarExcelTela}
+        processando={exportandoTela}
+      />
       <ToggleComissaoZero checked={comissaoZero} onChange={alterarComissaoZero} />
     </>
   );

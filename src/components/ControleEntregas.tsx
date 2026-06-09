@@ -6,14 +6,13 @@ import {
   CheckCircle2,
   Edit3,
   Eye,
-  FileSpreadsheet,
   MapPin,
   Plus,
-  Printer,
   Search,
   Trash2,
   X,
 } from "lucide-react";
+import { BotoesImprimirExportarToolbar } from "@/components/BotoesImprimirExportarToolbar";
 import { ControleProducaoToolbar } from "@/components/ControleProducaoToolbar";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { FormularioRotaEntregaModal } from "@/components/FormularioRotaEntregaModal";
@@ -238,6 +237,11 @@ export function ControleEntregas() {
       >
         Relatórios
       </button>
+      <BotoesImprimirExportarToolbar
+        onImprimir={() => void imprimirRelatorioTela()}
+        onExportarExcel={() => void exportarRelatorioTela()}
+        processando={exportandoRelatorio}
+      />
       <button
         type="button"
         onClick={abrirNovaEntrega}
@@ -245,24 +249,6 @@ export function ControleEntregas() {
       >
         <Plus className="h-3.5 w-3.5" />
         Nova Entrega
-      </button>
-      <button
-        type="button"
-        title="Exportar"
-        disabled={exportandoRelatorio}
-        onClick={() => void exportarRelatorioTela()}
-        className="flex h-8 w-8 items-center justify-center rounded border border-[#86efac] bg-[#dcfce7] text-[#16a34a] hover:bg-[#bbf7d0] disabled:opacity-60"
-      >
-        <FileSpreadsheet className="h-4 w-4" />
-      </button>
-      <button
-        type="button"
-        title="Imprimir"
-        disabled={exportandoRelatorio}
-        onClick={() => void imprimirRelatorioTela()}
-        className="flex h-8 w-8 items-center justify-center rounded border border-[#93c5fd] bg-[#dbeafe] text-[#2563eb] hover:bg-[#bfdbfe] disabled:opacity-60"
-      >
-        <Printer className="h-4 w-4" />
       </button>
     </>
   );

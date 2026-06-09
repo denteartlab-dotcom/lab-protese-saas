@@ -5,6 +5,7 @@ import {
   parseComplementosInstrucoesGrupo,
   type TerceirizadoOsLinha,
 } from "@/lib/etapas-os";
+import { baixarCsv } from "@/lib/exportar-csv";
 import { normalizarChaveStatusOs } from "@/lib/status-os";
 import { formatCurrency, formatDate, STATUS_TRABALHO } from "@/lib/utils";
 
@@ -170,4 +171,36 @@ export function montarLinhasFinalizadoresServicos(
 
 export function formatarMoedaFinalizador(valor: number) {
   return formatCurrency(valor);
+}
+
+export function exportarFinalizadoresServicosCsv(linhas: LinhaFinalizadorServico[]) {
+  baixarCsv(
+    "prestadores-servicos.csv",
+    [
+      "OS",
+      "Data",
+      "Entregue",
+      "Qtd",
+      "Serviço",
+      "Descrição",
+      "Cliente",
+      "Paciente",
+      "Prestador",
+      "Situação",
+      "Comissão",
+    ],
+    linhas.map((l) => [
+      l.numeroOs,
+      l.dataPedido,
+      l.dataEntrega,
+      l.qtd,
+      l.servico,
+      l.descricao,
+      l.cliente,
+      l.paciente,
+      l.prestador,
+      l.situacaoPedido,
+      formatarMoedaFinalizador(l.comissaoValor),
+    ])
+  );
 }

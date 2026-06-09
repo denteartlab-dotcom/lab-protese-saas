@@ -11,6 +11,7 @@ import { parseCurrencyBr } from "@/lib/cliente-financeiro";
 import { itensDaOsModulo, type ItemModuloOs, type TrabalhoModuloOs } from "@/lib/modulo-producao-os";
 import { lerMapaEtapasConcluidasModulo } from "@/lib/modulo-producao-etapas";
 import { normalizarChaveStatusOs } from "@/lib/status-os";
+import { baixarCsv } from "@/lib/exportar-csv";
 import { classificarItemOs } from "@/lib/trabalho-os-segmento";
 import { STATUS_TRABALHO, formatCurrency, formatDate } from "@/lib/utils";
 
@@ -252,4 +253,40 @@ export function montarLinhasComissaoColaboradores(
 
 export function formatarMoedaComissao(valor: number) {
   return formatCurrency(valor);
+}
+
+export function exportarComissaoColaboradoresCsv(linhas: LinhaComissaoColaborador[]) {
+  baixarCsv(
+    "comissao-colaboradores.csv",
+    [
+      "OS",
+      "Data",
+      "Entregue",
+      "Qtd",
+      "Serviço",
+      "Descrição",
+      "Cliente",
+      "Paciente",
+      "Colaborador",
+      "Etapa",
+      "Situação Etapa",
+      "Situação",
+      "Comissão",
+    ],
+    linhas.map((l) => [
+      l.numeroOs,
+      l.dataLancamento,
+      l.dataEntrega,
+      l.qtd,
+      l.servico,
+      l.descricao,
+      l.cliente,
+      l.paciente,
+      l.colaborador,
+      l.etapa,
+      l.situacaoEtapa,
+      l.situacao,
+      formatarMoedaComissao(l.comissaoValor),
+    ])
+  );
 }
