@@ -20,8 +20,9 @@ export type OpcoesExtrato3PacientePdf = {
 
 const VERMELHO: [number, number, number] = [220, 38, 38];
 const VERDE: [number, number, number] = [22, 163, 74];
+const VERDE_FUNDO: [number, number, number] = [236, 253, 245];
+const CINZA_PACIENTE: [number, number, number] = [225, 232, 240];
 const CINZA_LINHA: [number, number, number] = [190, 190, 190];
-const CINZA_BORDA: [number, number, number] = [160, 160, 160];
 
 type AlignCol = "left" | "center" | "right";
 
@@ -134,6 +135,11 @@ function avancarLinha(ctx: Ctx, altura = ctx.rowH) {
   ctx.y += altura;
 }
 
+function preencherFundoLinha(ctx: Ctx, altura: number, cor: [number, number, number]) {
+  ctx.pdf.setFillColor(...cor);
+  ctx.pdf.rect(ctx.margin, ctx.y, ctx.pageW - ctx.margin * 2, altura, "F");
+}
+
 function desenharDivisoriaRegistro(ctx: Ctx) {
   ctx.pdf.setDrawColor(...CINZA_LINHA);
   ctx.pdf.setLineWidth(0.15);
@@ -190,13 +196,17 @@ function desenharTituloExtrato(ctx: Ctx, nomeCliente: string) {
 }
 
 function desenharCabecalhoColunas(ctx: Ctx) {
+  ctx.pdf.setDrawColor(...CINZA_LINHA);
+  ctx.pdf.setLineWidth(0.25);
+  ctx.pdf.line(ctx.margin, ctx.y, ctx.pageW - ctx.margin, ctx.y);
+  ctx.y += 2.4;
+
   const y = yTexto(ctx);
   ctx.colunas.forEach((col, i) => {
     desenharCelula(ctx, i, col.titulo, y, { bold: true, fontSize: 8 });
   });
   avancarLinha(ctx);
 
-  ctx.pdf.setDrawColor(...CINZA_LINHA);
   ctx.pdf.setLineWidth(0.25);
   ctx.pdf.line(ctx.margin, ctx.y, ctx.pageW - ctx.margin, ctx.y);
   ctx.y += 2.4;
@@ -205,22 +215,26 @@ function desenharCabecalhoColunas(ctx: Ctx) {
 function desenharLinhaSaldoAnterior(ctx: Ctx, linha: LinhaExtrato3ComSaldo) {
   novaPagina(ctx, ctx.rowH + 2);
   const y = yTexto(ctx);
-  desenharCelula(ctx, IDX_VALOR, "Saldo Anterior", y, { bold: true, align: "right" });
-  desenharCelula(ctx, IDX_SALDO, moneyCell(linha.saldo), y, { bold: true, align: "right" });
+  const xDir = ctx.colX[IDX_SALDO] + ctx.colunas[IDX_SALDO].larguraMm - 0.8;
+  ctx.pdf.setFont("helvetica", "normal");
+  ctx.pdf.setFontSize(8);
+  ctx.pdf.setTextColor(...PRETO);
+  ctx.pdf.text(`Saldo Anterior ${moneyCell(linha.saldo)}`, xDir, y, { align: "right" });
   avancarLinha(ctx);
-  desenharDivisoriaRegistro(ctx);
 }
 
 function desenharLinhaPagamento(ctx: Ctx, linha: LinhaExtrato3ComSaldo) {
   novaPagina(ctx, ctx.rowH + 2);
+  preencherFundoLinha(ctx, ctx.rowH, VERDE_FUNDO);
   const y = yTexto(ctx);
   if (linha.dataFatura) {
-    desenharCelula(ctx, IDX_DATA, linha.dataFatura, y, { cor: VERDE });
+    desenharCelula(ctx, IDX_DATA, linha.dataFatura, y, { cor: VERDE, bold: true });
   }
-  desenharCelula(ctx, IDX_SERVICO, linha.servico, y, { cor: VERDE });
+  desenharCelula(ctx, IDX_SERVICO, linha.servico, y, { cor: VERDE, bold: true });
   desenharCelula(ctx, IDX_VALOR, valorNegativoCell(linha.valor), y, {
     align: "right",
     cor: VERDE,
+    bold: true,
   });
   desenharCelula(ctx, IDX_SALDO, moneyCell(linha.saldo), y, { align: "right" });
   avancarLinha(ctx);
@@ -239,6 +253,7 @@ function desenharLinhaFatura(ctx: Ctx, linha: LinhaExtrato3ComSaldo) {
 
 function desenharLinhaPaciente(ctx: Ctx, linha: LinhaExtrato3ComSaldo) {
   novaPagina(ctx, ctx.rowH + 2);
+  preencherFundoLinha(ctx, ctx.rowH, CINZA_PACIENTE);
   const y = yTexto(ctx);
   desenharCelula(ctx, IDX_SERVICO, linha.servico, y, { bold: true });
   avancarLinha(ctx);
@@ -250,13 +265,11 @@ function desenharLinhaServico(ctx: Ctx, linha: LinhaExtrato3ComSaldo) {
   if (linha.os) desenharCelula(ctx, IDX_OS, linha.os, y);
   if (linha.qtd) desenharCelula(ctx, IDX_QTD, linha.qtd, y);
   desenharCelula(ctx, IDX_SERVICO, linha.servico, y);
-  if (linha.entrega) desenharCelula(ctx, IDX_ENTREGA, linha.entrega, y);
+  desenharCelula(ctx, IDX_ENTREGA, linha.entrega || "—", y);
   if (linha.valorUn > 0) {
     desenharCelula(ctx, IDX_VALOR_UN, moneyCell(linha.valorUn), y, { align: "right" });
   }
-  if (linha.descPercent) {
-    desenharCelula(ctx, IDX_DESC, linha.descPercent, y, { align: "right" });
-  }
+  desenharCelula(ctx, IDX_DESC, linha.descPercent || "% 0,00", y, { align: "right" });
   desenharCelula(ctx, IDX_VALOR, moneyCell(linha.valor), y, { align: "right" });
   avancarLinha(ctx);
 }
@@ -270,7 +283,7 @@ function desenharLinhaSubtotal(ctx: Ctx, linha: LinhaExtrato3ComSaldo) {
     cor: VERMELHO,
     align: "right",
   });
-  desenharCelula(ctx, IDX_SALDO, moneyCell(linha.saldo), y, { bold: true, align: "right" });
+  desenharCelula(ctx, IDX_SALDO, moneyCell(linha.saldo), y, { align: "right" });
   avancarLinha(ctx);
   desenharDivisoriaRegistro(ctx);
 }
@@ -301,12 +314,11 @@ function desenharLinha(ctx: Ctx, linha: LinhaExtrato3ComSaldo) {
 
 function desenharResumo(ctx: Ctx, resumo: ResumoExtrato3) {
   ctx.y += 10;
-  novaPagina(ctx, 38);
+  novaPagina(ctx, 32);
 
-  const rowH = 6.2;
-  const labelW = 46;
-  const valorW = 30;
-  const x0 = ctx.margin;
+  const xLabel = ctx.margin;
+  const xValor = ctx.margin + 52;
+  const rowH = 5.5;
 
   const itens: [string, number, boolean][] = [
     ["(+) Saldo Anterior", resumo.saldoAnterior, false],
@@ -316,26 +328,15 @@ function desenharResumo(ctx: Ctx, resumo: ResumoExtrato3) {
     ["(=) Saldo Total", resumo.saldoTotal, true],
   ];
 
-  ctx.pdf.setDrawColor(...CINZA_BORDA);
-  ctx.pdf.setLineWidth(0.2);
-
   for (const [rotulo, valor, bold] of itens) {
-    novaPagina(ctx, rowH + 2);
-    const yTop = ctx.y;
-    const yText = ctx.y + 4.2;
-
-    ctx.pdf.rect(x0, yTop, labelW, rowH);
-    ctx.pdf.rect(x0 + labelW, yTop, valorW, rowH);
-
+    novaPagina(ctx, rowH + 1);
+    const y = yTexto(ctx);
     ctx.pdf.setFont("helvetica", bold ? "bold" : "normal");
     ctx.pdf.setFontSize(9);
     ctx.pdf.setTextColor(...PRETO);
-    ctx.pdf.text(rotulo, x0 + 2, yText);
-    ctx.pdf.text(`R$ ${moneyBr(valor)}`, x0 + labelW + valorW - 2, yText, {
-      align: "right",
-    });
-
-    ctx.y += rowH;
+    ctx.pdf.text(rotulo, xLabel, y);
+    ctx.pdf.text(`R$ ${moneyBr(valor)}`, xValor, y, { align: "right" });
+    avancarLinha(ctx, rowH);
   }
 }
 
