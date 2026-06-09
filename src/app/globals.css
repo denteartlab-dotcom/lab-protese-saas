@@ -24,6 +24,23 @@
   .gradient-hero {
     background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #0ea5e9 100%);
   }
+
+  .tv-dashboard .scrollbar-thin::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  .tv-dashboard .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .tv-dashboard .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, 0.45);
+    border-radius: 999px;
+  }
+
+  .tv-dashboard .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.55);
+  }
 }
 
 /* Login: cobre a tela sem distorcer; usa o PNG original de /public */

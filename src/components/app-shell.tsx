@@ -136,6 +136,8 @@ function AppShellInner({
     pathname.startsWith("/app/configuracoes/faturas/modelo4") ||
     pathname.startsWith("/app/configuracoes/faturas/modelo5");
   const isModuloColaborador = pathname === "/app/producao/modulo";
+  const isModuloTv = pathname.startsWith("/app/producao/modulo-tv");
+  const isModuloImersivo = isModuloColaborador || isModuloTv;
   const isDashboard = pathname === "/app";
   const [darkMode, setDarkMode] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -430,10 +432,14 @@ function AppShellInner({
     <div
       className={cn(
         "flex min-h-0 flex-1 flex-col transition-colors",
-        isModuloColaborador ? "bg-white" : "bg-[#f4f6f8] dark:bg-slate-950"
+        isModuloTv
+          ? "bg-[#050b14]"
+          : isModuloColaborador
+            ? "bg-white"
+            : "bg-[#f4f6f8] dark:bg-slate-950"
       )}
     >
-      {!isPrint && !isModuloColaborador && (
+      {!isPrint && !isModuloImersivo && (
         <>
         <AppMobileNav
           aberto={menuMobileAberto}
@@ -1210,7 +1216,7 @@ function AppShellInner({
       <main>
         <div
           className={cn(
-            isPrint || isModuloColaborador
+            isPrint || isModuloImersivo
               ? "h-screen min-h-0 overflow-hidden p-0"
               : "min-h-screen px-3 py-4 sm:px-5"
           )}
