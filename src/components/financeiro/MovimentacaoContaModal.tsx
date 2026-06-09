@@ -26,6 +26,12 @@ const labelClass = "mb-1 block text-[11px] text-slate-600";
 const inputClass =
   "h-9 w-full rounded border border-[#d4d4d4] bg-white px-2.5 text-[13px] text-slate-800 outline-none focus:border-[#4a90d9]";
 
+const TIPOS_MOVIMENTACAO = [
+  "Transferência",
+  "Ajuste Saldo (Creditar)",
+  "Ajuste Saldo (Debitar)",
+] as const;
+
 function money(value: number) {
   return value.toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
@@ -68,17 +74,10 @@ export function MovimentacaoContaModal({
 
   const tipoInicial =
     acao === "baixar"
-      ? "Saque"
+      ? "Ajuste Saldo (Debitar)"
       : acao === "adicionar_credito"
-        ? "Depósito"
+        ? "Ajuste Saldo (Creditar)"
         : "Transferência";
-
-  const opcoesTipo =
-    acao === "baixar"
-      ? ["Saque", "Ajuste de Saldo"]
-      : acao === "adicionar_credito"
-        ? ["Depósito", "Ajuste de Saldo"]
-        : ["Transferência", "Depósito", "Saque", "Ajuste de Saldo"];
 
   useEffect(() => {
     if (!open) return;
@@ -132,7 +131,15 @@ export function MovimentacaoContaModal({
         <form onSubmit={handleSubmit} className="px-4 py-4">
           <p className="mb-4 text-[13px] font-semibold uppercase text-slate-800">
             Saldo :{" "}
-            <span className={saldo > 0 ? "text-[#4cae4c]" : "text-slate-700"}>
+            <span
+              className={
+                saldo < 0
+                  ? "text-[#dc2626]"
+                  : saldo > 0
+                    ? "text-[#4cae4c]"
+                    : "text-slate-700"
+              }
+            >
               {money(saldo)}
             </span>
           </p>
@@ -169,7 +176,7 @@ export function MovimentacaoContaModal({
                 onChange={(e) => setTipo(e.target.value)}
                 className={inputClass}
               >
-                {opcoesTipo.map((opt) => (
+                {TIPOS_MOVIMENTACAO.map((opt) => (
                   <option key={opt} value={opt}>
                     {opt}
                   </option>

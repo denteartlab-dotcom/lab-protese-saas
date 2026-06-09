@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeftRight,
   ArrowUpFromLine,
+  Box,
   Eye,
   Pencil,
   Plus,
@@ -71,24 +72,18 @@ function money(value: number) {
   });
 }
 
+function classeSaldoConta(saldo: number) {
+  if (saldo < 0) return "text-[#dc2626] dark:text-red-400";
+  if (saldo > 0) return "text-[#4cae4c] dark:text-emerald-400";
+  return "text-slate-500 dark:text-slate-400";
+}
+
 const thClass =
   "border-b border-[#e0e0e0] bg-[#f5f6f8] px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300";
 
-const LABEL_TIPO_PIX: Record<string, string> = {
-  cpf: "CPF",
-  cnpj: "CNPJ",
-  email: "E-mail",
-  telefone: "Telefone",
-  aleatoria: "Chave aleatória",
-};
-
-function labelChavePix(conta: ContaBancaria) {
-  const tipo = conta.tipoChavePix
-    ? LABEL_TIPO_PIX[conta.tipoChavePix] || conta.tipoChavePix
-    : "";
-  const chave = conta.chavePix?.trim() || "";
-  if (tipo && chave) return `${tipo}: ${chave}`;
-  return chave || "—";
+function valorCampoConta(valor?: string) {
+  const limpo = valor?.trim();
+  return limpo || "—";
 }
 
 export function ContaBancariaConteudo() {
@@ -280,7 +275,7 @@ export function ContaBancariaConteudo() {
     descricao: string;
   }) {
     if (!modalAcao) return;
-    const { conta, acao } = modalAcao;
+    const { conta } = modalAcao;
     const desc =
       dados.descricao.trim() ||
       (dados.tipo === "Transferência"
@@ -308,12 +303,9 @@ export function ContaBancariaConteudo() {
         data: new Date().toISOString(),
       };
       persistirMovs([...movimentacoes, saida, entrada]);
-    } else if (
-      dados.tipo === "Saque" ||
-      (dados.tipo === "Ajuste de Saldo" && acao !== "adicionar_credito")
-    ) {
+    } else if (dados.tipo === "Ajuste Saldo (Debitar)") {
       registrarMovimentacao(conta, "saida", dados.valor, desc);
-    } else {
+    } else if (dados.tipo === "Ajuste Saldo (Creditar)") {
       registrarMovimentacao(conta, "entrada", dados.valor, desc);
     }
     setModalAcao(null);
@@ -433,7 +425,7 @@ export function ContaBancariaConteudo() {
                       className={cn(
                         "border-b border-[#ececec] text-[13px] dark:border-slate-700",
                         expandida
-                          ? "bg-[#f8fafc] dark:bg-slate-800/80"
+                          ? "bg-white dark:bg-slate-900"
                           : index % 2 === 1
                             ? "bg-[#fafafa] dark:bg-slate-800/60"
                             : "bg-white dark:bg-slate-900"
@@ -455,9 +447,7 @@ export function ContaBancariaConteudo() {
                       <td
                         className={cn(
                           "px-4 py-3 text-right tabular-nums",
-                          saldo > 0
-                            ? "text-[#4cae4c] dark:text-emerald-400"
-                            : "text-slate-500 dark:text-slate-400"
+                          classeSaldoConta(saldo)
                         )}
                       >
                         {money(saldo)}
@@ -485,7 +475,7 @@ export function ContaBancariaConteudo() {
                                 className={cn(
                                   "inline-flex h-8 w-8 items-center justify-center hover:text-[#4a90d9] dark:hover:text-sky-300",
                                   expandida
-                                    ? "text-[#4a90d9] dark:text-sky-300"
+                                    ? "rounded-sm bg-[#e8f2fc] text-[#4a90d9] dark:bg-slate-700 dark:text-sky-300"
                                     : "text-slate-500 dark:text-slate-400"
                                 )}
                               >
@@ -530,47 +520,74 @@ export function ContaBancariaConteudo() {
                       </td>
                     </tr>
                     {expandida ? (
-                      <tr className="border-b border-[#ececec] bg-[#f8fafc] dark:border-slate-700 dark:bg-slate-800/80">
-                        <td colSpan={3} className="px-4 py-3">
-                          <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-[12px] md:grid-cols-4">
-                            <div>
-                              <span className="font-semibold text-slate-600 dark:text-slate-300">
-                                Agência:
-                              </span>{" "}
-                              <span className="text-slate-800 dark:text-slate-100">
-                                {conta.agencia?.trim() || "—"}
+                      <tr className="border-b border-[#ececec] bg-white dark:border-slate-700 dark:bg-slate-900">
+                        <td colSpan={3} className="bg-white px-4 py-3 dark:bg-slate-900">
+                          <div className="rounded border border-[#e8e8e8] bg-white px-5 py-4 dark:border-slate-600 dark:bg-white">
+                            <div className="mb-4 flex items-center gap-2">
+                              <Box
+                                className="h-[18px] w-[18px] text-[#4cae4c]"
+                                strokeWidth={1.75}
+                              />
+                              <span className="text-[15px] font-bold leading-none text-[#4cae4c]">
+                                {conta.nome}
                               </span>
                             </div>
-                            <div>
-                              <span className="font-semibold text-slate-600 dark:text-slate-300">
-                                Número da Conta:
-                              </span>{" "}
-                              <span className="text-slate-800 dark:text-slate-100">
-                                {conta.numeroConta?.trim() || "—"}
-                              </span>
+
+                            <div className="grid grid-cols-1 gap-y-2 text-[12px] leading-relaxed text-slate-800 md:grid-cols-4 md:gap-x-6">
+                              <div className="min-w-0">
+                                <span className="font-bold uppercase tracking-wide text-slate-800">
+                                  NOME :
+                                </span>{" "}
+                                <span className="text-slate-700">{conta.nome}</span>
+                              </div>
+                              <div className="min-w-0 md:pl-2">
+                                <span className="font-semibold text-slate-800">
+                                  Agência:
+                                </span>{" "}
+                                <span className="text-slate-700">
+                                  {valorCampoConta(conta.agencia)}
+                                </span>
+                              </div>
+                              <div className="min-w-0 md:pl-2">
+                                <span className="font-semibold text-slate-800">
+                                  Número da Conta:
+                                </span>{" "}
+                                <span className="text-slate-700">
+                                  {valorCampoConta(conta.numeroConta)}
+                                </span>
+                              </div>
+                              <div className="min-w-0 md:pl-2">
+                                <span className="font-semibold text-slate-800">
+                                  Chave Pix:
+                                </span>{" "}
+                                <span className="text-slate-700">
+                                  {valorCampoConta(conta.chavePix)}
+                                </span>
+                              </div>
                             </div>
-                            <div>
-                              <span className="font-semibold text-slate-600 dark:text-slate-300">
-                                Chave Pix:
-                              </span>{" "}
-                              <span className="text-slate-800 dark:text-slate-100">
-                                {labelChavePix(conta)}
-                              </span>
-                            </div>
-                            <div>
-                              <span className="font-semibold uppercase text-slate-600 dark:text-slate-300">
-                                Saldo:
+
+                            <div className="mt-3 text-[12px] text-slate-800">
+                              <span className="font-bold uppercase tracking-wide">
+                                SALDO :
                               </span>{" "}
                               <span
                                 className={cn(
                                   "font-semibold tabular-nums",
-                                  saldo > 0
-                                    ? "text-[#4cae4c] dark:text-emerald-400"
-                                    : "text-slate-700 dark:text-slate-200"
+                                  classeSaldoConta(saldo)
                                 )}
                               >
                                 {money(saldo)}
                               </span>
+                            </div>
+
+                            <div className="mt-4">
+                              <button
+                                type="button"
+                                onClick={() => setContaVisualizada(null)}
+                                className="h-8 rounded border border-[#c8c8c8] bg-white px-4 text-[12px] font-normal text-slate-800 hover:bg-[#fafafa]"
+                              >
+                                Fechar Detalhes
+                              </button>
                             </div>
                           </div>
                         </td>
