@@ -10,7 +10,9 @@ export function SiteTopoMarca() {
   if (
     pathname === "/login" ||
     pathname.includes("/imprimir") ||
-    pathname.startsWith("/app")
+    pathname.startsWith("/app") ||
+    pathname.startsWith("/extrato/") ||
+    pathname.startsWith("/fatura/")
   ) {
     return null;
   }

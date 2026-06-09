@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { MessageCircle, X } from "lucide-react";
+import type { ExtratoPublicaConteudo } from "@/lib/extrato-publica-conteudo";
 import {
   mensagemWhatsappExtratoConferencia,
   publicarExtratoPublica,
@@ -16,6 +17,7 @@ type Props = {
   clienteNome: string;
   telefoneInicial?: string | null;
   gerarPdf: () => Promise<Blob>;
+  montarConteudo: () => ExtratoPublicaConteudo;
 };
 
 export function EnviarExtratoWhatsappModal({
@@ -24,6 +26,7 @@ export function EnviarExtratoWhatsappModal({
   clienteNome,
   telefoneInicial,
   gerarPdf,
+  montarConteudo,
 }: Props) {
   const [mounted, setMounted] = useState(false);
   const [telefone, setTelefone] = useState("");
@@ -58,6 +61,7 @@ export function EnviarExtratoWhatsappModal({
         clienteNome,
         nomeArquivo,
         titulo,
+        conteudo: montarConteudo(),
       });
       const texto = mensagemWhatsappExtratoConferencia({
         clienteNome,

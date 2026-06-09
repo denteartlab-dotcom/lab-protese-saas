@@ -15,6 +15,18 @@ const bodySchema = z.object({
   nomeArquivo: z.string().min(1).max(180),
   titulo: z.string().min(1).max(240),
   clienteNome: z.string().min(1).max(240),
+  conteudo: z
+    .object({
+      modelo: z.enum([
+        "extrato-individual",
+        "extrato-2-individual",
+        "extrato-3-agrupado-paciente",
+      ]),
+      clienteNome: z.string(),
+      periodoLabel: z.string(),
+    })
+    .passthrough()
+    .optional(),
 });
 
 export async function POST(request: Request) {

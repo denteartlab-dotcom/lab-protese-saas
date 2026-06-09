@@ -6,6 +6,7 @@ import { BotoesExtratoCompartilhar } from "@/components/financeiro/BotoesExtrato
 import { EnviarExtratoWhatsappModal } from "@/components/financeiro/EnviarExtratoWhatsappModal";
 import { CampoDataBr } from "@/components/campo-data-br";
 import { dateToBrShort } from "@/lib/datas-br";
+import { montarConteudoExtratoPublico } from "@/lib/extrato-publica-conteudo";
 import { exportarExtratoRelatorioExcel } from "@/lib/extrato-relatorio-export";
 import type { LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
@@ -250,6 +251,27 @@ export function RelatorioContasReceberModal({
       periodoLabel,
       modelo,
       opcoes
+    );
+  }
+
+  function montarConteudoExtrato() {
+    if (!clienteExtratoSelecionado?.nome) {
+      throw new Error("Cliente não selecionado");
+    }
+    const { periodoLabel, opcoes } = opcoesExtratoPdf();
+    return montarConteudoExtratoPublico(
+      modelo,
+      lancamentos as LancamentoContasReceber[],
+      trabalhos,
+      clienteExtratoSelecionado.nome,
+      {
+        periodoAtivo: opcoes.periodoAtivo,
+        dataInicio: opcoes.dataInicio,
+        dataFinal: opcoes.dataFinal,
+        periodoCampo: opcoes.periodoCampo,
+        clienteId: opcoes.clienteIdExtrato,
+        periodoLabel,
+      }
     );
   }
 
@@ -602,6 +624,7 @@ export function RelatorioContasReceberModal({
             clienteNome={clienteExtratoSelecionado.nome}
             telefoneInicial={clienteExtratoSelecionado.celular}
             gerarPdf={gerarPdfExtrato}
+            montarConteudo={montarConteudoExtrato}
           />
         ) : null}
     </div>

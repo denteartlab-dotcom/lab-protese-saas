@@ -1,13 +1,86 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Download, Printer } from "lucide-react";
-import { extratoPublicaPdfUrl } from "@/lib/extrato-publica";
+import { ExtratoPublicoHtml } from "@/components/financeiro/ExtratoPublicoHtml";
+import type { ExtratoPublicaConteudo } from "@/lib/extrato-publica-conteudo";
+
+type DadosExtratoPublico = {
+  titulo: string;
+  nomeArquivo: string;
+  clienteNome: string;
+  conteudo: ExtratoPublicaConteudo | null;
+  temPdf: boolean;
+};
 
 function ExtratoPublicaViewer() {
   const params = useParams<{ token: string }>();
   const token = params.token?.trim() ?? "";
+  const [dados, setDados] = useState<DadosExtratoPublico | null>(null);
+  const [erro, setErro] = useState("");
+  const [pdfUrl, setPdfUrl] = useState("");
+
+  useEffect(() => {
+    if (!token) return;
+    let ativo = true;
+
+    void (async () => {
+      try {
+        const res = await fetch(`/api/financeiro/extrato-publica/${token}/dados`);
+        const json = (await res.json().catch(() => ({}))) as DadosExtratoPublico & {
+          error?: string;
+        };
+        if (!res.ok) {
+          throw new Error(json.error || "Não foi possível carregar o extrato.");
+        }
+        if (!ativo) return;
+        setDados(json);
+
+        if (json.temPdf) {
+          const pdfRes = await fetch(`/api/financeiro/extrato-publica/${token}`);
+          if (pdfRes.ok) {
+            const blob = await pdfRes.blob();
+            if (blob.size > 0) {
+              setPdfUrl(URL.createObjectURL(blob));
+            }
+          }
+        }
+      } catch (err) {
+        if (!ativo) return;
+        setErro(err instanceof Error ? err.message : "Erro ao carregar extrato.");
+      }
+    })();
+
+    return () => {
+      ativo = false;
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- revoga URL ao desmontar
+  }, [token]);
+
+  useEffect(() => {
+    return () => {
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    };
+  }, [pdfUrl]);
+
+  function imprimir() {
+    if (dados?.conteudo) {
+      window.print();
+      return;
+    }
+    if (!pdfUrl) return;
+    const iframe = document.getElementById(
+      "extrato-publica-iframe"
+    ) as HTMLIFrameElement | null;
+    try {
+      iframe?.contentWindow?.focus();
+      iframe?.contentWindow?.print();
+    } catch {
+      window.open(pdfUrl, "_blank");
+    }
+  }
 
   if (!token) {
     return (
@@ -17,34 +90,35 @@ function ExtratoPublicaViewer() {
     );
   }
 
-  const pdfUrl =
-    typeof window !== "undefined"
-      ? extratoPublicaPdfUrl(token, window.location.origin)
-      : "";
-
-  function imprimir() {
-    const iframe = document.getElementById(
-      "extrato-publica-iframe"
-    ) as HTMLIFrameElement | null;
-    try {
-      iframe?.contentWindow?.focus();
-      iframe?.contentWindow?.print();
-    } catch {
-      if (pdfUrl) window.open(pdfUrl, "_blank");
-    }
+  if (erro) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center bg-[#525659] px-6 text-center text-white">
+        <p className="text-sm text-red-300">{erro}</p>
+      </div>
+    );
   }
 
+  if (!dados) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#525659] text-sm text-slate-200">
+        Carregando extrato...
+      </div>
+    );
+  }
+
+  const downloadHref = pdfUrl || `/api/financeiro/extrato-publica/${token}`;
+
   return (
-    <div className="flex h-screen flex-col bg-[#525659]">
-      <div className="flex items-center justify-between border-b border-slate-700 bg-[#3c3c3c] px-4 py-3 text-white">
+    <div className="flex min-h-screen flex-col bg-[#525659] print:bg-white">
+      <div className="flex shrink-0 items-center justify-between border-b border-slate-700 bg-[#3c3c3c] px-4 py-3 text-white print:hidden">
         <div>
-          <h1 className="text-sm font-semibold">Extrato Financeiro</h1>
+          <h1 className="text-sm font-semibold">{dados.titulo || "Extrato Financeiro"}</h1>
           <p className="text-xs text-slate-300">Visualização do extrato para conferência</p>
         </div>
         <div className="flex items-center gap-2">
           <a
-            href={pdfUrl}
-            download={`extrato-${token}.pdf`}
+            href={downloadHref}
+            download={dados.nomeArquivo || `extrato-${token}.pdf`}
             className="inline-flex items-center gap-1.5 rounded border border-slate-500 px-3 py-1.5 text-xs text-white hover:bg-slate-700"
           >
             <Download className="h-3.5 w-3.5" />
@@ -60,12 +134,23 @@ function ExtratoPublicaViewer() {
           </button>
         </div>
       </div>
-      <iframe
-        id="extrato-publica-iframe"
-        src={pdfUrl}
-        title="Extrato"
-        className="h-full w-full flex-1 border-0 bg-white"
-      />
+
+      {dados.conteudo ? (
+        <div className="flex-1 overflow-auto py-4 print:overflow-visible print:py-0">
+          <ExtratoPublicoHtml conteudo={dados.conteudo} />
+        </div>
+      ) : pdfUrl ? (
+        <iframe
+          id="extrato-publica-iframe"
+          src={pdfUrl}
+          title="Extrato"
+          className="h-full min-h-[70vh] w-full flex-1 border-0 bg-white"
+        />
+      ) : (
+        <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-slate-200">
+          Extrato publicado sem dados para exibição. Gere um novo link pelo laboratório.
+        </div>
+      )}
     </div>
   );
 }

@@ -25,6 +25,7 @@ import { parseParcelaNaDescricao } from "@/lib/fatura-financeiro";
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import type { TrabalhoRelatorioFatura } from "@/lib/relatorio-faturas-modelo3-dados";
 import { baixarCsv } from "@/lib/exportar-csv";
+import { montarConteudoExtratoPublico } from "@/lib/extrato-publica-conteudo";
 import { exportarExtratoRelatorioExcel } from "@/lib/extrato-relatorio-export";
 import type { ModeloRelatorioReceitas } from "@/lib/relatorio-receitas-modelos";
 import { cn } from "@/lib/utils";
@@ -563,6 +564,21 @@ export function VisualizacaoClienteReceberModal({
     if (extratoModelo === "3") return "extrato-3-agrupado-paciente";
     if (extratoModelo === "2") return "extrato-2-individual";
     return "extrato-individual";
+  }
+
+  function montarConteudoExtrato() {
+    if (!cliente) throw new Error("Cliente não selecionado");
+    const opcoes = opcoesExtratoModalPdf();
+    return montarConteudoExtratoPublico(
+      modeloExtratoRelatorio(),
+      cliente.lancamentos as LancamentoContasReceber[],
+      trabalhos,
+      cliente.nome,
+      {
+        ...opcoes,
+        periodoLabel: `${MESES[mes]}/${ano}`,
+      }
+    );
   }
 
   function exportarExtratoExcel() {
@@ -1149,6 +1165,7 @@ export function VisualizacaoClienteReceberModal({
           clienteNome={cliente.nome}
           telefoneInicial={clienteTelefone}
           gerarPdf={gerarExtratoPdfBlob}
+          montarConteudo={montarConteudoExtrato}
         />
       ) : null}
     </div>,
