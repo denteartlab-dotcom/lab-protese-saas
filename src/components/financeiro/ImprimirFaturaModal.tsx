@@ -129,10 +129,18 @@ export function ImprimirFaturaModal({
 
   useEffect(() => {
     if (!open) return;
-    const handler = () => setConfig(carregarConfiguracoesFaturas());
+    const handler = () => {
+      void recarregarConfig().then((cfg) => {
+        const fmt = formatoPorModeloFatura(cfg.modeloPadrao);
+        const mod = modeloPadraoParaFormatoFatura(cfg, fmt);
+        setFormato(fmt);
+        setModelo(mod);
+        setDuasVias(cfg.duasVias[mod] ? "sim" : "nao");
+      });
+    };
     window.addEventListener(CONFIG_FATURAS_ATUALIZADA_EVENT, handler);
     return () => window.removeEventListener(CONFIG_FATURAS_ATUALIZADA_EVENT, handler);
-  }, [open]);
+  }, [open, recarregarConfig]);
 
   useEffect(() => {
     if (!open) return;

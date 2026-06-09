@@ -29,6 +29,14 @@ import {
   type ItemOsLinha,
 } from "@/lib/trabalho-os-segmento";
 import { cn, formatDate, STATUS_TRABALHO } from "@/lib/utils";
+import { carregarConfigLaboratorio } from "@/lib/configuracoes-lab";
+import {
+  carregarConfiguracoesFaturas,
+} from "@/lib/configuracoes-faturas";
+import {
+  gerarHtmlFaturaImpressao,
+  montarDadosFaturaImpressao,
+} from "@/lib/fatura-impressao-html";
 import { htmlCabecalhoLab, labImpressaoFromConfig } from "@/lib/lab-logo";
 import { ContaBancariaConteudo } from "@/components/financeiro/ContaBancariaConteudo";
 import { ContasPagarConteudo } from "@/components/financeiro/ContasPagarConteudo";
@@ -2489,14 +2497,26 @@ function FinanceiroReceberConteudo() {
         }
         clienteNome={faturaImprimindo?.cliente.nome ?? ""}
         valorFatura={faturaImprimindo?.lancamento.valor}
-        gerarHtml={() =>
-          faturaImprimindo
-            ? faturaHtml({
-                ...faturaImprimindo.cliente,
-                lancamentos: [faturaImprimindo.lancamento],
-              })
-            : ""
-        }
+        gerarHtml={(opcoes) => {
+          if (!faturaImprimindo) return "";
+          const lancamento = faturaImprimindo.lancamento;
+          const dados = montarDadosFaturaImpressao({
+            numeroFatura: numeroFatura(lancamento),
+            clienteNome: faturaImprimindo.cliente.nome,
+            lancamento,
+            trabalhos: trabalhosDaFatura(lancamento),
+            creditoFatura: creditoUsadoNaFatura(lancamento),
+            formatDate,
+            money,
+          });
+          return gerarHtmlFaturaImpressao(
+            dados,
+            carregarConfigLaboratorio(),
+            carregarConfiguracoesFaturas(),
+            opcoes,
+            money
+          );
+        }}
       />
 
       <Modal
