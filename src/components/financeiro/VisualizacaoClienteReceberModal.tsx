@@ -353,10 +353,6 @@ export function VisualizacaoClienteReceberModal({
     [faturasVisiveis, saldoFatura]
   );
 
-  const totalValorFaturas = faturasVisiveis.reduce((s, l) => s + l.valor, 0);
-  const totalRecebidoFaturas = faturasVisiveis.reduce((s, l) => s + recebidoNaFatura(l), 0);
-  const totalSaldoFaturas = faturasVisiveis.reduce((s, l) => s + saldoFatura(l), 0);
-
   const extratoLinhas = useMemo(() => {
     const ordenados = [...lancamentosFiltrados].sort(
       (a, b) => new Date(a.data).getTime() - new Date(b.data).getTime()
@@ -658,23 +654,6 @@ export function VisualizacaoClienteReceberModal({
                     })
                   )}
                 </tbody>
-                {faturasVisiveis.length > 0 && (
-                  <tfoot>
-                    <tr className="bg-white font-semibold">
-                      <td className={tdFaturasClass} colSpan={5} />
-                      <td className={cn(tdFaturasClass, "text-right tabular-nums")}>
-                        {money(totalValorFaturas)}
-                      </td>
-                      <td className={cn(tdFaturasClass, "text-right tabular-nums")}>
-                        {money(totalRecebidoFaturas)}
-                      </td>
-                      <td className={cn(tdFaturasClass, "text-right tabular-nums text-[#16a34a]")}>
-                        {money(totalSaldoFaturas)}
-                      </td>
-                      <td className={tdFaturasClass} colSpan={2} />
-                    </tr>
-                  </tfoot>
-                )}
               </table>
             </div>
           )}
@@ -825,17 +804,6 @@ export function VisualizacaoClienteReceberModal({
                     ))
                   )}
                 </tbody>
-                {recebimentosVisiveis.length > 0 && (
-                  <tfoot>
-                    <tr className="bg-white font-semibold">
-                      <td className={tdFaturasClass} colSpan={2} />
-                      <td className={cn(tdFaturasClass, "text-right tabular-nums text-[#16a34a]")}>
-                        {money(totalRecebimentosMes)}
-                      </td>
-                      <td className={tdFaturasClass} colSpan={2} />
-                    </tr>
-                  </tfoot>
-                )}
               </table>
             </div>
           )}
