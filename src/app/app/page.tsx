@@ -202,8 +202,7 @@ export default function DashboardPage() {
     podeVer("/app/financeiro?tipo=receita") ||
     podeVer("/app/financeiro?tipo=despesa") ||
     podeVer("/app/financeiro?aba=plano-de-contas") ||
-    podeVer("/app/financeiro?aba=conta-bancaria") ||
-    podeVer("/app/financeiro?aba=nfse");
+    podeVer("/app/financeiro?aba=conta-bancaria");
   const podeClientes = podeVer("/app/clientes");
 
   return (

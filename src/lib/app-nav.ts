@@ -60,7 +60,6 @@ export const financeiroNav: AppNavItem[] = [
   { href: "/app/financeiro?tipo=despesa", labelKey: "nav.contasPagar", icon: TrendingDown },
   { href: "/app/financeiro?aba=plano-de-contas", labelKey: "nav.planoContas", icon: List },
   { href: "/app/financeiro?aba=conta-bancaria", labelKey: "nav.contaBancaria", icon: CreditCard },
-  { href: "/app/financeiro?aba=nfse", labelKey: "nav.nfse", icon: FileText },
 ];
 
 export const estoqueNav: AppNavItem[] = [
