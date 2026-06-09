@@ -13,7 +13,12 @@ import { ConciliacaoContaModal } from "@/components/financeiro/ConciliacaoContaM
 import { MovimentacaoContaModal } from "@/components/financeiro/MovimentacaoContaModal";
 import { TransferenciasAjustesSaldoModal } from "@/components/financeiro/TransferenciasAjustesSaldoModal";
 import {
+  armazenamentoLaboratorioPronto,
+  ARMAZENAMENTO_LAB_PRONTO_EVENT,
+} from "@/lib/armazenamento-laboratorio";
+import {
   calcularSaldoConta,
+  carregarContasBancarias,
   carregarMovimentacoesConta,
   classeBotaoAcaoConta,
   contaFromForm,
@@ -30,7 +35,15 @@ import {
   type DadosFormContaBancaria,
   type MovimentacaoContaBancaria,
 } from "@/lib/conta-bancaria";
-import { notificarFinanceiroAtualizado } from "@/lib/financeiro-events";
+import {
+  FINANCEIRO_ATUALIZADO_EVENT,
+  notificarFinanceiroAtualizado,
+} from "@/lib/financeiro-events";
+import {
+  carregarLancamentosFinanceiroCache,
+  salvarLancamentosFinanceiroCache,
+  type LancamentoFinanceiroCache,
+} from "@/lib/financeiro-lancamentos-cache";
 import {
   carregarExtratoBancario,
   mesclarExtrato,
@@ -43,14 +56,13 @@ import {
 } from "@/lib/conta-bancaria-api";
 import { cn } from "@/lib/utils";
 
-type LancamentoApi = {
-  id: string;
-  tipo: string;
-  descricao: string;
-  valor: number;
-  data: string;
-  status: string;
-};
+function hidratarDadosLocais() {
+  return {
+    contas: carregarContasBancarias(),
+    movimentacoes: carregarMovimentacoesConta(),
+    lancamentos: carregarLancamentosFinanceiroCache(),
+  };
+}
 
 function money(value: number) {
   return value.toLocaleString("pt-BR", {
@@ -80,11 +92,16 @@ function labelChavePix(conta: ContaBancaria) {
 }
 
 export function ContaBancariaConteudo() {
-  const [contas, setContas] = useState<ContaBancaria[]>([]);
-  const [movimentacoes, setMovimentacoes] = useState<MovimentacaoContaBancaria[]>(
-    []
+  const [contas, setContas] = useState<ContaBancaria[]>(() =>
+    typeof window !== "undefined" ? carregarContasBancarias() : []
   );
-  const [lancamentos, setLancamentos] = useState<LancamentoApi[]>([]);
+  const [movimentacoes, setMovimentacoes] = useState<MovimentacaoContaBancaria[]>(
+    () => (typeof window !== "undefined" ? carregarMovimentacoesConta() : [])
+  );
+  const [lancamentos, setLancamentos] = useState<LancamentoFinanceiroCache[]>(
+    () =>
+      typeof window !== "undefined" ? carregarLancamentosFinanceiroCache() : []
+  );
   const [busca, setBusca] = useState("");
   const [verExcluidos, setVerExcluidos] = useState(false);
   const [modalAdicionar, setModalAdicionar] = useState(false);
@@ -106,23 +123,67 @@ export function ContaBancariaConteudo() {
     []
   );
 
+  const aplicarDadosLocais = useCallback(() => {
+    const local = hidratarDadosLocais();
+    setContas(local.contas);
+    setMovimentacoes(local.movimentacoes);
+    if (local.lancamentos.length > 0) {
+      setLancamentos(local.lancamentos);
+    }
+  }, []);
+
   const carregarDados = useCallback(async () => {
-    const dados = await carregarContasBancariasApi();
+    const [dados, resFinanceiro] = await Promise.all([
+      carregarContasBancariasApi(),
+      fetch("/api/financeiro", { cache: "no-store" }).catch(() => null),
+    ]);
+
     setContas(dados.contas);
     setMovimentacoes(dados.movimentacoes);
-    try {
-      const res = await fetch("/api/financeiro");
-      if (res.ok) {
-        const json = await res.json();
-        setLancamentos(json.lancamentos || []);
+
+    if (resFinanceiro?.ok) {
+      try {
+        const json = (await resFinanceiro.json()) as {
+          lancamentos?: LancamentoFinanceiroCache[];
+        };
+        const lista = Array.isArray(json.lancamentos) ? json.lancamentos : [];
+        setLancamentos(lista);
+        salvarLancamentosFinanceiroCache(lista);
+      } catch {
+        /* mantém cache/local */
       }
-    } catch {
-      setLancamentos([]);
     }
   }, []);
 
   useEffect(() => {
+    aplicarDadosLocais();
+    if (!armazenamentoLaboratorioPronto()) {
+      window.addEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, aplicarDadosLocais);
+    }
     void carregarDados();
+
+    return () => {
+      window.removeEventListener(
+        ARMAZENAMENTO_LAB_PRONTO_EVENT,
+        aplicarDadosLocais
+      );
+    };
+  }, [aplicarDadosLocais, carregarDados]);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const atualizar = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        void carregarDados();
+      }, 480);
+    };
+    window.addEventListener(FINANCEIRO_ATUALIZADO_EVENT, atualizar);
+    return () => {
+      if (timer) clearTimeout(timer);
+      window.removeEventListener(FINANCEIRO_ATUALIZADO_EVENT, atualizar);
+    };
   }, [carregarDados]);
 
   const contasVisiveis = useMemo(() => {
@@ -585,7 +646,9 @@ export function ContaBancariaConteudo() {
         onLancamentoCriado={(lancamento) => {
           setLancamentos((atual) => {
             if (atual.some((l) => l.id === lancamento.id)) return atual;
-            return [...atual, lancamento];
+            const next = [...atual, lancamento];
+            salvarLancamentosFinanceiroCache(next);
+            return next;
           });
         }}
         onConciliacaoSalva={async () => {

@@ -17,6 +17,7 @@ export const CHAVES_ARMAZENAMENTO_LAB = [
   "labProteseContasBancarias",
   "labProteseContasBancariasVersion",
   "labProteseMovimentacoesConta",
+  "labProteseLancamentosFinanceiroCache",
   "labProteseExtratoBancario",
   "labProteseProdutosEstoqueExtras",
   "labProteseProdutosEstoqueMovimentos",
