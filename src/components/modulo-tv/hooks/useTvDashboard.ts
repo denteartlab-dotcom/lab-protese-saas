@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  AUTO_REFRESH_MS,
-  FRASES_MOTIVACIONAIS,
-} from "@/components/modulo-tv/constants";
+import { AUTO_REFRESH_MS } from "@/components/modulo-tv/constants";
+import { labelColuna } from "@/components/modulo-tv/mock-data";
 import { fetchTvChart, fetchTvOrdens, moverOrdemTv } from "@/components/modulo-tv/lib/tv-api";
 import { useTvDashboardStore } from "@/components/modulo-tv/store/tv-dashboard-store";
-import type { ColunaKanbanId, OrdemServicoTv } from "@/components/modulo-tv/types";
+import type {
+  ColunaKanbanId,
+  MaiorAtrasoTv,
+  OrdemServicoTv,
+} from "@/components/modulo-tv/types";
 import { TV_QUERY_KEYS, useTvSocket } from "@/components/modulo-tv/hooks/useTvSocket";
 import { playTvSound } from "@/components/modulo-tv/lib/tv-sounds";
 
@@ -29,18 +31,37 @@ function formatData(date: Date) {
   });
 }
 
+function diasAtraso(prazoIso: string) {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const prazo = new Date(prazoIso);
+  prazo.setHours(0, 0, 0, 0);
+  return Math.max(1, Math.round((hoje.getTime() - prazo.getTime()) / 86_400_000));
+}
+
+const STATS_VAZIO = {
+  totalProducao: 0,
+  atrasadas: 0,
+  prazoHoje: 0,
+  prazoAmanha: 0,
+  prazoAposAmanha: 0,
+  entregasHoje: 0,
+  entregasConcluidas: 0,
+  colaboradoresOnline: 0,
+  percentualConcluido: 0,
+};
+
 export function useTvDashboard() {
   const [agora, setAgora] = useState(() => new Date());
-  const [fraseIdx, setFraseIdx] = useState(0);
   const queryClient = useQueryClient();
 
   const {
     filtroColaborador,
     filtroPrioridade,
-    wsConectado,
     sonsAtivos,
     initKioskFromUrl,
   } = useTvDashboardStore();
+  const wsConectado = useTvDashboardStore((s) => s.wsConectado);
 
   useTvSocket();
 
@@ -50,7 +71,7 @@ export function useTvDashboard() {
     refetchInterval: AUTO_REFRESH_MS,
   });
 
-  const chartQuery = useQuery({
+  useQuery({
     queryKey: TV_QUERY_KEYS.chart,
     queryFn: fetchTvChart,
     refetchInterval: AUTO_REFRESH_MS,
@@ -74,9 +95,9 @@ export function useTvDashboard() {
                   coluna,
                   etapaDesde: new Date().toISOString(),
                   status:
-                    coluna === "pronto"
+                    coluna === "pronto_entrega"
                       ? "Pronto / Entrega"
-                      : `${coluna} — em andamento`,
+                      : `${labelColuna(coluna)} — em andamento`,
                 }
               : o
           ),
@@ -98,14 +119,7 @@ export function useTvDashboard() {
   });
 
   const ordensBrutas = ordensQuery.data?.ordens ?? [];
-  const colaboradores = ordensQuery.data?.colaboradores ?? [];
-  const stats = ordensQuery.data?.stats ?? {
-    totalProducao: 0,
-    atrasadas: 0,
-    entregasHoje: 0,
-    colaboradoresOnline: 0,
-    percentualConcluido: 0,
-  };
+  const stats = ordensQuery.data?.stats ?? STATS_VAZIO;
 
   const ordens = useMemo(() => {
     let list: OrdemServicoTv[] = ordensBrutas;
@@ -118,12 +132,13 @@ export function useTvDashboard() {
     return list;
   }, [ordensBrutas, filtroColaborador, filtroPrioridade]);
 
-  const avisosAtraso = useMemo(
+  const maioresAtrasos = useMemo<MaiorAtrasoTv[]>(
     () =>
       ordensBrutas
         .filter((o) => o.atrasada)
-        .slice(0, 4)
-        .map((o) => `OS ${o.numeroOs} — ${o.paciente} (${o.prazo})`),
+        .map((o) => ({ numeroOs: o.numeroOs, dias: diasAtraso(o.prazoIso) }))
+        .sort((a, b) => b.dias - a.dias)
+        .slice(0, 3),
     [ordensBrutas]
   );
 
@@ -159,19 +174,10 @@ export function useTvDashboard() {
   }, []);
 
   useEffect(() => {
-    const frase = window.setInterval(() => {
-      setFraseIdx((i) => (i + 1) % FRASES_MOTIVACIONAIS.length);
-    }, 18_000);
-    return () => window.clearInterval(frase);
-  }, []);
-
-  useEffect(() => {
-    if (!sonsAtivos || !avisosAtraso.length) return;
-    const t = window.setInterval(() => {
-      if (avisosAtraso.length) playTvSound("alerta");
-    }, 60_000);
+    if (!sonsAtivos || maioresAtrasos.length === 0) return;
+    const t = window.setInterval(() => playTvSound("alerta"), 60_000);
     return () => window.clearInterval(t);
-  }, [sonsAtivos, avisosAtraso.length]);
+  }, [sonsAtivos, maioresAtrasos.length]);
 
   return {
     agora,
@@ -179,14 +185,11 @@ export function useTvDashboard() {
     dataAtual: formatData(agora),
     ordens,
     ordensBrutas,
-    colaboradores,
     stats,
-    chartPontos: chartQuery.data?.pontos ?? [],
     carregando: ordensQuery.isLoading,
     wsConectado,
     ultimaAtualizacao,
-    fraseMotivacional: FRASES_MOTIVACIONAIS[fraseIdx],
-    avisosAtraso,
+    maioresAtrasos,
     recarregar,
     moverOrdem,
     movendo: moverMutation.isPending,

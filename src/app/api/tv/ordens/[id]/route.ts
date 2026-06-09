@@ -6,12 +6,12 @@ import type { ColunaKanbanId } from "@/components/modulo-tv/types";
 
 const schema = z.object({
   coluna: z.enum([
-    "recebido",
-    "escaneamento",
-    "design",
-    "impressao",
+    "entrada",
+    "plano_cera",
+    "montagem",
+    "acrilizacao",
     "acabamento",
-    "pronto",
+    "pronto_entrega",
   ]),
 });
 

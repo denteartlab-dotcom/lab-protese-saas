@@ -1,18 +1,19 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
-import { AlertCircle, RefreshCw, Sparkles } from "lucide-react";
+import { RefreshCw } from "lucide-react";
+import { FRASE_FOOTER } from "@/components/modulo-tv/constants";
 import { TV_GLASS_PANEL } from "@/components/modulo-tv/tv-styles";
+import type { MaiorAtrasoTv } from "@/components/modulo-tv/types";
 import { cn } from "@/lib/utils";
 
 type Props = {
   ultimaAtualizacao: Date;
-  fraseMotivacional: string;
-  avisosAtraso: string[];
+  totalAtrasadas: number;
+  maioresAtrasos: MaiorAtrasoTv[];
   wsConectado: boolean;
 };
 
-function formatUltimaAtualizacao(date: Date) {
+function formatHora(date: Date) {
   return date.toLocaleTimeString("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
@@ -22,66 +23,65 @@ function formatUltimaAtualizacao(date: Date) {
 
 export function TvFooter({
   ultimaAtualizacao,
-  fraseMotivacional,
-  avisosAtraso,
+  totalAtrasadas,
+  maioresAtrasos,
   wsConectado,
 }: Props) {
   return (
-    <footer
-      className={cn(
-        "relative shrink-0 overflow-hidden px-4 py-3 tv:px-6 tv:py-3.5 tv-4k:px-8 tv-4k:py-4",
-        TV_GLASS_PANEL
-      )}
-    >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-400/40 to-transparent" />
-
-      <div className="relative flex flex-wrap items-center justify-between gap-3 tv:gap-4">
-        <div className="flex items-center gap-2.5 text-[11px] text-slate-400 tv:text-xs tv-4k:text-sm">
-          <RefreshCw
-            className={cn(
-              "h-3.5 w-3.5 tv:h-4 tv:w-4",
-              wsConectado ? "text-cyan-400" : "animate-spin text-amber-400"
-            )}
-          />
-          <span>
-            Última atualização:{" "}
-            <strong className="font-tv-mono font-semibold text-slate-200">
-              {formatUltimaAtualizacao(ultimaAtualizacao)}
-            </strong>
-          </span>
-          <span className="hidden h-1 w-1 rounded-full bg-slate-600 sm:inline" />
-          <span className="hidden font-medium text-cyan-500/80 sm:inline">
-            Tempo real ativo
-          </span>
+    <footer className={cn("shrink-0 px-3 py-3 tv:px-5 tv:py-3.5 tv-4k:px-6 tv-4k:py-4", TV_GLASS_PANEL)}>
+      <div className="grid grid-cols-1 items-center gap-3 lg:grid-cols-[1fr_1.4fr_1fr] lg:gap-4">
+        {/* Esquerda — ATENÇÃO */}
+        <div className="rounded-lg border border-red-500/25 bg-red-500/8 px-4 py-3 tv:px-5 tv:py-3.5">
+          <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-red-400 tv:text-[10px]">
+            Atenção
+          </p>
+          <p className="mt-1 font-tv-mono text-sm font-bold uppercase text-red-300 tv:text-base tv-4k:text-lg">
+            {totalAtrasadas} {totalAtrasadas === 1 ? "Ordem Atrasada" : "Ordens Atrasadas"}
+          </p>
         </div>
 
-        <AnimatePresence mode="wait">
-          <motion.p
-            key={fraseMotivacional}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.45, ease: "easeOut" }}
-            className="flex max-w-xl items-center gap-2.5 text-center text-[11px] italic text-slate-400 tv:text-xs tv-4k:text-sm"
-          >
-            <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-400/90 tv:h-4 tv:w-4" />
-            {fraseMotivacional}
-          </motion.p>
-        </AnimatePresence>
+        {/* Centro — maiores atrasos + frase */}
+        <div className="text-center">
+          <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500 tv:text-[10px]">
+            Maiores Atrasos
+          </p>
+          <div className="mt-1.5 space-y-0.5">
+            {maioresAtrasos.length > 0 ? (
+              maioresAtrasos.map((a) => (
+                <p
+                  key={a.numeroOs}
+                  className="font-tv-mono text-[11px] font-semibold text-red-300/90 tv:text-xs"
+                >
+                  OS #{a.numeroOs} — {a.dias} {a.dias === 1 ? "dia" : "dias"}
+                </p>
+              ))
+            ) : (
+              <p className="text-[11px] text-emerald-400/80 tv:text-xs">
+                Nenhum atraso crítico
+              </p>
+            )}
+          </div>
+          <p className="mx-auto mt-3 max-w-lg text-[10px] italic leading-relaxed text-slate-500 tv:text-[11px] tv-4k:text-xs">
+            {FRASE_FOOTER}
+          </p>
+        </div>
 
-        <div className="flex max-w-md items-center gap-2 text-[11px] tv:text-xs tv-4k:text-sm">
-          {avisosAtraso.length > 0 ? (
-            <>
-              <AlertCircle className="h-4 w-4 shrink-0 text-red-400 tv:h-5 tv:w-5" />
-              <span className="truncate font-medium text-red-300/95">
-                {avisosAtraso.join(" · ")}
-              </span>
-            </>
-          ) : (
-            <span className="font-medium text-emerald-400/95">
-              Nenhum atraso crítico
+        {/* Direita — ÚLTIMA ATUALIZAÇÃO */}
+        <div className="rounded-lg border border-slate-600/40 bg-slate-800/40 px-4 py-3 text-right tv:px-5 tv:py-3.5">
+          <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500 tv:text-[10px]">
+            Última Atualização
+          </p>
+          <div className="mt-1 flex items-center justify-end gap-2">
+            <RefreshCw
+              className={cn(
+                "h-4 w-4 text-cyan-400 tv:h-5 tv:w-5",
+                !wsConectado && "animate-spin text-amber-400"
+              )}
+            />
+            <span className="font-tv-mono text-lg font-bold tabular-nums text-white tv:text-xl tv-4k:text-2xl">
+              {formatHora(ultimaAtualizacao)}
             </span>
-          )}
+          </div>
         </div>
       </div>
     </footer>

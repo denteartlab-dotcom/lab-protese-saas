@@ -5,6 +5,7 @@ import {
   calcularStats,
   criarNovaOsMock,
   criarPontoChart,
+  labelColuna,
 } from "@/components/modulo-tv/mock-data";
 import type {
   ColunaKanbanId,
@@ -76,9 +77,9 @@ export class TvOrdensStore {
     ordem.coluna = coluna;
     ordem.etapaDesde = new Date().toISOString();
     ordem.status =
-      coluna === "pronto"
+      coluna === "pronto_entrega"
         ? "Pronto / Entrega"
-        : `${coluna.charAt(0).toUpperCase()}${coluna.slice(1)} — em andamento`;
+        : `${labelColuna(coluna)} — em andamento`;
 
     this.state.ordens[idx] = ordem;
     this.touch();
@@ -88,7 +89,9 @@ export class TvOrdensStore {
   }
 
   avancarOrdemAleatoria(): OrdemServicoTv | null {
-    const candidatas = this.state.ordens.filter((o) => o.coluna !== "pronto");
+    const candidatas = this.state.ordens.filter(
+      (o) => o.coluna !== "pronto_entrega"
+    );
     if (!candidatas.length) return null;
 
     const ordem = candidatas[Math.floor(Math.random() * candidatas.length)];

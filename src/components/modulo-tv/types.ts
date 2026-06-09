@@ -1,12 +1,12 @@
 export type PrioridadeOs = "urgente" | "alta" | "normal" | "baixa";
 
 export type ColunaKanbanId =
-  | "recebido"
-  | "escaneamento"
-  | "design"
-  | "impressao"
+  | "entrada"
+  | "plano_cera"
+  | "montagem"
+  | "acrilizacao"
   | "acabamento"
-  | "pronto";
+  | "pronto_entrega";
 
 export type OrdemServicoTv = {
   id: string;
@@ -45,20 +45,29 @@ export type ColunaKanbanConfig = {
 export type TvDashboardStats = {
   totalProducao: number;
   atrasadas: number;
+  prazoHoje: number;
+  prazoAmanha: number;
+  prazoAposAmanha: number;
   entregasHoje: number;
+  entregasConcluidas: number;
   colaboradoresOnline: number;
   percentualConcluido: number;
+};
+
+export type MaiorAtrasoTv = {
+  numeroOs: number;
+  dias: number;
 };
 
 export type TvChartPoint = {
   timestamp: string;
   label: string;
-  recebido: number;
-  escaneamento: number;
-  design: number;
-  impressao: number;
+  entrada: number;
+  plano_cera: number;
+  montagem: number;
+  acrilizacao: number;
   acabamento: number;
-  pronto: number;
+  pronto_entrega: number;
   total: number;
 };
 
