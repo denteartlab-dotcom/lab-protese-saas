@@ -19,6 +19,8 @@ import {
   type ConfiguracoesFaturas,
   type ModeloFaturaId,
 } from "@/lib/configuracoes-faturas";
+import { gerarPdfDeHtmlDocumento } from "@/lib/html-para-pdf";
+import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import { cn } from "@/lib/utils";
 
 export type FormatoImpressaoFatura = "a4" | "termica";
@@ -55,68 +57,6 @@ function aplicarFormatoNoHtml(html: string, formato: FormatoImpressaoFatura, dua
   );
 }
 
-function dispararPrint(janela: Window) {
-  const imprimir = () => {
-    try {
-      janela.focus();
-      janela.print();
-    } catch {
-      /* ignore */
-    }
-  };
-  if (janela.document.readyState === "complete") imprimir();
-  else janela.onload = imprimir;
-}
-
-function abrirHtmlEmIframe(html: string, imprimir: boolean) {
-  const iframe = document.createElement("iframe");
-  iframe.setAttribute("title", "Fatura");
-  iframe.style.cssText =
-    "position:fixed;inset:0;width:100%;height:100%;border:none;z-index:99999;background:#fff";
-  document.body.appendChild(iframe);
-  const doc = iframe.contentDocument ?? iframe.contentWindow?.document;
-  if (!doc) {
-    iframe.remove();
-    return;
-  }
-  doc.open();
-  doc.write(html);
-  doc.close();
-  const janela = iframe.contentWindow;
-  if (!janela) {
-    iframe.remove();
-    return;
-  }
-  if (imprimir) {
-    dispararPrint(janela);
-    window.setTimeout(() => iframe.remove(), 60_000);
-  }
-}
-
-function abrirHtmlFatura(html: string, imprimir: boolean) {
-  // Sem noopener: com noopener o navegador retorna null e impede document.write.
-  const janela = window.open("about:blank", "_blank");
-  if (janela) {
-    janela.document.open();
-    janela.document.write(html);
-    janela.document.close();
-    janela.focus();
-    if (imprimir) dispararPrint(janela);
-    return;
-  }
-
-  const url = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
-  const viaBlob = window.open(url, "_blank");
-  if (viaBlob) {
-    if (imprimir) dispararPrint(viaBlob);
-    window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
-    return;
-  }
-
-  abrirHtmlEmIframe(html, imprimir);
-  window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
-}
-
 export function ImprimirFaturaModal({
   open,
   onClose,
@@ -130,6 +70,7 @@ export function ImprimirFaturaModal({
     carregarConfiguracoesFaturas()
   );
   const [sincronizando, setSincronizando] = useState(false);
+  const [gerandoPdf, setGerandoPdf] = useState(false);
   const [formato, setFormato] = useState<FormatoImpressaoFatura>("a4");
   const [modelo, setModelo] = useState<ModeloFaturaId>("modelo1");
   const [duasVias, setDuasVias] = useState("nao");
@@ -221,12 +162,31 @@ export function ImprimirFaturaModal({
     if (fmtModelo !== formato) setFormato(fmtModelo);
   }
 
+  function abrirNoVisualizadorPdf() {
+    if (gerandoPdf || sincronizando) return;
+    const html = htmlPreparado();
+    const nomeArquivo = `fatura-${numeroFatura}.pdf`;
+    const titulo = `Fatura ${numeroFatura} — ${clienteNome}`;
+
+    setGerandoPdf(true);
+    void abrirPdfGerando(
+      () => gerarPdfDeHtmlDocumento(html, formato),
+      nomeArquivo,
+      titulo
+    )
+      .catch((err) => {
+        console.error("[ImprimirFaturaModal] PDF", err);
+        window.alert("Não foi possível gerar o PDF da fatura. Tente novamente.");
+      })
+      .finally(() => setGerandoPdf(false));
+  }
+
   function imprimir() {
-    abrirHtmlFatura(htmlPreparado(), true);
+    abrirNoVisualizadorPdf();
   }
 
   function visualizarPdf() {
-    abrirHtmlFatura(htmlPreparado(), false);
+    abrirNoVisualizadorPdf();
   }
 
   function enviarWhatsapp() {
@@ -285,6 +245,12 @@ export function ImprimirFaturaModal({
           {sincronizando ? (
             <p className="mb-3 text-center text-xs text-[#9ca3af]">
               Sincronizando modelos da configuração…
+            </p>
+          ) : null}
+
+          {gerandoPdf ? (
+            <p className="mb-3 text-center text-xs text-[#6b7280]">
+              Gerando PDF e abrindo visualizador…
             </p>
           ) : null}
 
@@ -348,18 +314,18 @@ export function ImprimirFaturaModal({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              title="Imprimir"
+              title="Abrir PDF para imprimir"
               onClick={imprimir}
-              disabled={sincronizando}
+              disabled={sincronizando || gerandoPdf}
               className="flex h-9 w-9 items-center justify-center rounded-sm bg-[#4a90d9] text-white hover:bg-[#3d7fc4] disabled:opacity-50"
             >
               <Printer className="h-4 w-4" />
             </button>
             <button
               type="button"
-              title="Visualizar / PDF"
+              title="Visualizar PDF"
               onClick={visualizarPdf}
-              disabled={sincronizando}
+              disabled={sincronizando || gerandoPdf}
               className="flex h-9 w-9 items-center justify-center rounded-sm bg-[#1e3a5f] text-white hover:bg-[#152a45] disabled:opacity-50"
             >
               <FileText className="h-4 w-4" />
