@@ -9,12 +9,14 @@ import {
   Users,
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { TvRealtimeChart } from "@/components/modulo-tv/TvRealtimeChart";
 import { TV_GLASS_CARD, TV_TEXT_LABEL } from "@/components/modulo-tv/tv-styles";
-import type { TvDashboardStats } from "@/components/modulo-tv/types";
+import type { TvChartPoint, TvDashboardStats } from "@/components/modulo-tv/types";
 import { cn } from "@/lib/utils";
 
 type Props = {
   stats: TvDashboardStats;
+  chartPontos: TvChartPoint[];
 };
 
 const STAT_ACCENTS = [
@@ -82,7 +84,7 @@ function StatCard({
   );
 }
 
-export function TvSidebar({ stats }: Props) {
+export function TvSidebar({ stats, chartPontos }: Props) {
   const chartData = [
     { name: "Concluído", value: stats.percentualConcluido },
     { name: "Restante", value: 100 - stats.percentualConcluido },
@@ -112,7 +114,7 @@ export function TvSidebar({ stats }: Props) {
   ];
 
   return (
-    <aside className="flex w-[210px] shrink-0 flex-col gap-2.5 tv:w-[260px] tv:gap-3 tv-4k:w-[300px] tv-4k:gap-3.5">
+    <aside className="tv-scrollbar flex w-[210px] shrink-0 flex-col gap-2.5 overflow-y-auto tv:w-[260px] tv:gap-3 tv-4k:w-[300px] tv-4k:gap-3.5">
       {statItems.map((item, i) => (
         <StatCard
           key={item.label}
@@ -124,12 +126,14 @@ export function TvSidebar({ stats }: Props) {
         />
       ))}
 
+      <TvRealtimeChart pontos={chartPontos} />
+
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.28 }}
         className={cn(
-          "mt-0.5 flex flex-1 flex-col p-3.5 tv:p-4 tv-4k:p-5",
+          "flex flex-col p-3.5 tv:p-4 tv-4k:p-5",
           TV_GLASS_CARD,
           "shadow-[0_0_40px_rgba(59,130,246,0.08)]"
         )}

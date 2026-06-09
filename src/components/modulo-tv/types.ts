@@ -13,12 +13,21 @@ export type OrdemServicoTv = {
   numeroOs: number;
   paciente: string;
   dentista: string;
+  colaborador: string;
+  colaboradorId: string;
   prioridade: PrioridadeOs;
   prazo: string;
   prazoIso: string;
   status: string;
   coluna: ColunaKanbanId;
   atrasada: boolean;
+  etapaDesde: string;
+};
+
+export type ColaboradorTv = {
+  id: string;
+  nome: string;
+  online: boolean;
 };
 
 export type ColunaKanbanConfig = {
@@ -39,4 +48,27 @@ export type TvDashboardStats = {
   entregasHoje: number;
   colaboradoresOnline: number;
   percentualConcluido: number;
+};
+
+export type TvChartPoint = {
+  timestamp: string;
+  label: string;
+  recebido: number;
+  escaneamento: number;
+  design: number;
+  impressao: number;
+  acabamento: number;
+  pronto: number;
+  total: number;
+};
+
+export type TvOrdensResponse = {
+  ordens: OrdemServicoTv[];
+  colaboradores: ColaboradorTv[];
+  stats: TvDashboardStats;
+  ultimaAtualizacao: string;
+};
+
+export type TvChartResponse = {
+  pontos: TvChartPoint[];
 };

@@ -12,6 +12,7 @@ type Props = {
   wsConectado: boolean;
   fullscreen: boolean;
   onToggleFullscreen: () => void;
+  modoKiosk?: boolean;
 };
 
 export function TvHeader({
@@ -21,6 +22,7 @@ export function TvHeader({
   wsConectado,
   fullscreen,
   onToggleFullscreen,
+  modoKiosk = false,
 }: Props) {
   return (
     <header
@@ -46,9 +48,16 @@ export function TvHeader({
             </div>
           </div>
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-400/90 tv:text-[11px] tv-4k:text-xs">
-              Smart Prótese 2.0
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-400/90 tv:text-[11px] tv-4k:text-xs">
+                Smart Prótese 2.0
+              </p>
+              {modoKiosk ? (
+                <span className="rounded bg-violet-500/20 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-violet-200 ring-1 ring-violet-400/30 tv:text-[9px]">
+                  Kiosk
+                </span>
+              ) : null}
+            </div>
             <h1 className="text-lg font-bold tracking-tight text-white tv:text-2xl tv-4k:text-3xl">
               Painel de Produção
             </h1>

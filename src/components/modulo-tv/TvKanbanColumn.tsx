@@ -1,5 +1,6 @@
 "use client";
 
+import { useDroppable } from "@dnd-kit/core";
 import { AnimatePresence, motion } from "framer-motion";
 import { TvCardSkeleton } from "@/components/modulo-tv/ui/TvSkeleton";
 import { TvOsCard } from "@/components/modulo-tv/TvOsCard";
@@ -13,6 +14,11 @@ type Props = {
 };
 
 export function TvKanbanColumn({ coluna, ordens, carregando }: Props) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: coluna.id,
+    data: { coluna: coluna.id },
+  });
+
   return (
     <motion.section
       layout
@@ -20,15 +26,15 @@ export function TvKanbanColumn({ coluna, ordens, carregando }: Props) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
       className={cn(
-        "relative flex h-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-gradient-to-b p-2.5 tv:p-3 tv-4k:p-4",
+        "relative flex h-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-gradient-to-b p-2.5 transition-shadow duration-300 tv:p-3 tv-4k:p-4",
         coluna.border,
         coluna.accent,
         coluna.glow,
         coluna.ring,
-        "ring-1"
+        "ring-1",
+        isOver && "ring-2 ring-cyan-400/40 shadow-[0_0_40px_rgba(34,211,238,0.2)]"
       )}
     >
-      {/* Barra superior colorida */}
       <div
         className={cn(
           "absolute inset-x-0 top-0 h-1 bg-gradient-to-r",
@@ -62,7 +68,10 @@ export function TvKanbanColumn({ coluna, ordens, carregando }: Props) {
         </motion.span>
       </header>
 
-      <div className="tv-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-0.5">
+      <div
+        ref={setNodeRef}
+        className="tv-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-0.5"
+      >
         <div className="flex flex-col gap-2 pb-1 tv:gap-2.5 tv-4k:gap-3">
           {carregando
             ? Array.from({ length: Math.max(2, ordens.length) }).map((_, i) => (
