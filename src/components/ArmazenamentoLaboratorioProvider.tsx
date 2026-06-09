@@ -1,43 +1,58 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { inicializarArmazenamentoLaboratorio } from "@/lib/armazenamento-laboratorio";
+import {
+  ARMAZENAMENTO_LAB_PRONTO_EVENT,
+  armazenamentoLaboratorioPronto,
+  inicializarArmazenamentoLaboratorio,
+} from "@/lib/armazenamento-laboratorio";
 
-const TIMEOUT_INICIALIZACAO_MS = 25_000;
+const TIMEOUT_INICIALIZACAO_MS = 10_000;
 
 type Props = {
   children: React.ReactNode;
 };
 
 export function ArmazenamentoLaboratorioProvider({ children }: Props) {
-  const [pronto, setPronto] = useState(false);
+  const [pronto, setPronto] = useState(() =>
+    typeof window !== "undefined" ? armazenamentoLaboratorioPronto() : false
+  );
   const [erro, setErro] = useState("");
-  const prontoRef = useRef(false);
+  const prontoRef = useRef(pronto);
+
+  useEffect(() => {
+    prontoRef.current = pronto;
+  }, [pronto]);
 
   useEffect(() => {
     let ativo = true;
 
-    const timeout = window.setTimeout(() => {
+    const liberar = (mensagemErro?: string) => {
       if (!ativo || prontoRef.current) return;
-      setErro(
+      prontoRef.current = true;
+      if (mensagemErro) setErro(mensagemErro);
+      setPronto(true);
+    };
+
+    if (armazenamentoLaboratorioPronto()) {
+      liberar();
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      liberar(
         "O carregamento demorou mais que o esperado. A página será exibida com dados locais."
       );
-      prontoRef.current = true;
-      setPronto(true);
     }, TIMEOUT_INICIALIZACAO_MS);
 
+    const onPronto = () => liberar();
+    window.addEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, onPronto);
+
     void inicializarArmazenamentoLaboratorio()
-      .then(() => {
-        if (!ativo || prontoRef.current) return;
-        prontoRef.current = true;
-        setPronto(true);
-      })
-      .catch(() => {
-        if (!ativo || prontoRef.current) return;
-        setErro("Não foi possível carregar os dados do servidor. Recarregue a página.");
-        prontoRef.current = true;
-        setPronto(true);
-      })
+      .then(() => liberar())
+      .catch(() =>
+        liberar("Não foi possível carregar os dados do servidor. Recarregue a página.")
+      )
       .finally(() => {
         window.clearTimeout(timeout);
       });
@@ -45,6 +60,7 @@ export function ArmazenamentoLaboratorioProvider({ children }: Props) {
     return () => {
       ativo = false;
       window.clearTimeout(timeout);
+      window.removeEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, onPronto);
     };
   }, []);
 

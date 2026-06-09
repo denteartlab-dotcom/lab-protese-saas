@@ -140,7 +140,8 @@ export async function aplicarArmazenamentoLaboratorioCliente(
   await flushSalvarPendentes();
 }
 
-const BOOTSTRAP_TIMEOUT_MS = 20_000;
+const BOOTSTRAP_TIMEOUT_MS = 10_000;
+const INICIALIZACAO_TIMEOUT_MS = 12_000;
 
 async function fetchComTimeout(url: string, init?: RequestInit, timeoutMs = BOOTSTRAP_TIMEOUT_MS) {
   const controller = new AbortController();
@@ -222,27 +223,45 @@ async function carregarBootstrapServidor(legado: Record<string, unknown>) {
   aplicarBootstrap(legado);
 }
 
+function promessaComTimeout<T>(promessa: Promise<T>, ms: number, rotulo: string) {
+  return Promise.race([
+    promessa,
+    new Promise<T>((_, reject) => {
+      window.setTimeout(() => reject(new Error(`${rotulo} timeout`)), ms);
+    }),
+  ]);
+}
+
 /** Carrega dados do banco e migra resquícios do localStorage (uma vez). */
 export async function inicializarArmazenamentoLaboratorio() {
   if (typeof window === "undefined") return;
   if (hidratado) return;
   if (hidratando) return hidratando;
 
-  hidratando = (async () => {
-    try {
-      const legado = coletarMigracaoLocal();
-      await enviarMigracaoLocal(legado);
-      await carregarBootstrapServidor(legado);
-    } catch (err) {
-      console.error("[armazenamento-laboratorio] falha na inicialização", err);
-      aplicarBootstrap({});
-    } finally {
+  let legadoColetado: Record<string, unknown> = {};
+
+  hidratando = promessaComTimeout(
+    (async () => {
+      legadoColetado = coletarMigracaoLocal();
+      void enviarMigracaoLocal(legadoColetado);
+      await carregarBootstrapServidor(legadoColetado);
+    })(),
+    INICIALIZACAO_TIMEOUT_MS,
+    "armazenamento-init"
+  )
+    .catch((err) => {
+      console.warn("[armazenamento-laboratorio] init com fallback", err);
+      if (!hidratado) {
+        aplicarBootstrap(
+          Object.keys(legadoColetado).length > 0 ? legadoColetado : {}
+        );
+      }
+    })
+    .finally(() => {
       hidratado = true;
       dispararPronto();
-    }
-  })().finally(() => {
-    hidratando = null;
-  });
+      hidratando = null;
+    });
 
   return hidratando;
 }
