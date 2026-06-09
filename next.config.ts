@@ -26,9 +26,26 @@ function resolveAppBuildId() {
 
 const appBuildId = resolveAppBuildId();
 
+function resolveAssetPrefix() {
+  const raw = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (!raw || process.env.NODE_ENV !== "production") return undefined;
+  try {
+    const url = new URL(raw);
+    if (url.hostname === "denteartlab.com.br") {
+      url.hostname = "www.denteartlab.com.br";
+    }
+    return url.origin;
+  } catch {
+    return undefined;
+  }
+}
+
+const assetPrefix = resolveAssetPrefix();
+
 const nextConfig: NextConfig = {
   devIndicators: false,
   outputFileTracingRoot: projectRoot,
+  ...(assetPrefix ? { assetPrefix } : {}),
   env: {
     NEXT_PUBLIC_APP_BUILD_ID: appBuildId,
   },

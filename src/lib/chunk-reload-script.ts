@@ -1,10 +1,19 @@
 /** Script inline (beforeInteractive) — recupera HTML em cache após deploy. */
 export const CHUNK_RELOAD_SCRIPT = `
 (function () {
+  var HOST_CANONICO = "www.denteartlab.com.br";
   var KEY = "labChunkReloadAt";
   var TENTOS_KEY = "labChunkReloadTentativas";
-  var MAX_TENTOS = 5;
-  var COOLDOWN_MS = 3000;
+  var MAX_TENTOS = 8;
+  var COOLDOWN_MS = 1500;
+
+  if (window.location.hostname === "denteartlab.com.br") {
+    var canonico = new URL(window.location.href);
+    canonico.protocol = "https:";
+    canonico.hostname = HOST_CANONICO;
+    window.location.replace(canonico.toString());
+    return;
+  }
 
   function obterTentativas() {
     try {
@@ -26,6 +35,8 @@ export const CHUNK_RELOAD_SCRIPT = `
 
   function irParaNovaUrl() {
     var url = new URL(window.location.href);
+    url.protocol = "https:";
+    url.hostname = HOST_CANONICO;
     url.searchParams.set("_cb", String(Date.now()));
     window.location.replace(url.toString());
   }

@@ -32,7 +32,20 @@ function limparCookieSessao(response: NextResponse) {
   return response;
 }
 
+function redirecionarParaWww(request: NextRequest) {
+  const host = request.headers.get("host")?.split(":")[0]?.toLowerCase();
+  if (host !== "denteartlab.com.br") return null;
+
+  const url = request.nextUrl.clone();
+  url.protocol = "https:";
+  url.host = "www.denteartlab.com.br";
+  return NextResponse.redirect(url, 308);
+}
+
 export function middleware(request: NextRequest) {
+  const redirectWww = redirecionarParaWww(request);
+  if (redirectWww) return redirectWww;
+
   const { pathname } = request.nextUrl;
 
   if (
@@ -105,5 +118,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/image|favicon.ico).*)"],
 };
