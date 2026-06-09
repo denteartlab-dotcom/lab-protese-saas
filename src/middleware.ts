@@ -64,6 +64,22 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  if (pathname.startsWith("/api/financeiro/fatura-publica/")) {
+    return NextResponse.next();
+  }
+
+  if (pathname.startsWith("/api/financeiro/extrato-publica/")) {
+    return NextResponse.next();
+  }
+
+  if (pathname.startsWith("/fatura/")) {
+    return NextResponse.next();
+  }
+
+  if (pathname.startsWith("/extrato/")) {
+    return NextResponse.next();
+  }
+
   if (pathname.startsWith("/orcamento/")) {
     return NextResponse.next();
   }

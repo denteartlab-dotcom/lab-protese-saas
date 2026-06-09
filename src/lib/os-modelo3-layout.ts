@@ -41,7 +41,7 @@ export const OS_MODELO3_LAYOUT_PADRAO: OsModelo3Layout = {
   obsFicha: false,
   obsServico: false,
   materialRec: true,
-  etapas: false,
+  etapas: true,
   pecas: false,
   assinatura: true,
   codBarras: true,

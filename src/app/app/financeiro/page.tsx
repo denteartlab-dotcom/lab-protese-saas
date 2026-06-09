@@ -3,6 +3,7 @@
 import { Fragment, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AlertTriangle, Check, Eye, FileText, Pencil, Plus, Printer, RefreshCw, Search, Trash2 } from "lucide-react";
+import { BotoesImprimirExportarToolbar } from "@/components/BotoesImprimirExportarToolbar";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import {
   Button,
@@ -68,6 +69,10 @@ import {
   carregarPlanoContas,
   categoriaPadraoLancamento,
 } from "@/lib/plano-contas";
+import {
+  exportarContasReceberClientesCsv,
+  gerarContasReceberClientesPdf,
+} from "@/lib/contas-receber-clientes-export";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
 import { gerarRelatorioTabelaPdf } from "@/lib/pdf-relatorio-tabela";
 import type { LinhaReciboRecebimento } from "@/lib/recibo-recebimento";
@@ -98,6 +103,7 @@ type Cliente = {
   id: string;
   nome: string;
   cro?: string | null;
+  celular?: string | null;
 };
 
 type Trabalho = {
@@ -302,6 +308,7 @@ function FinanceiroReceberConteudo() {
   const [osSelecionadas, setOsSelecionadas] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
   const [relatorioAberto, setRelatorioAberto] = useState(false);
+  const [exportandoContasReceberTela, setExportandoContasReceberTela] = useState(false);
   const [modalNaoFaturados, setModalNaoFaturados] = useState(false);
   const [mensagemLancamento, setMensagemLancamento] = useState("");
   const [mensagemLancamentoTipo, setMensagemLancamentoTipo] = useState<
@@ -1419,16 +1426,18 @@ function FinanceiroReceberConteudo() {
     hoje.setHours(0, 0, 0, 0);
     const vencimento = dateOnly(lancamento.data);
     return vencimento < hoje
-      ? { label: "Vencido", color: "bg-red-100 text-red-700" }
+      ? { label: "Vencido", color: "bg-[#dc2626] text-white font-semibold" }
       : { label: "Em dia", color: "bg-emerald-100 text-emerald-700" };
   }
 
   function situacaoFaturaLabel(lancamento: Lancamento) {
     const situacao = situacaoFatura(lancamento);
     const aReceber = lancamento.status !== "pago" && saldoFatura(lancamento) > 0.009;
+    const vencido = aReceber && situacao.label === "Vencido";
     return {
-      label: aReceber ? "A RECEBER" : situacao.label.toUpperCase(),
-      aReceber,
+      label: vencido ? "VENCIDO" : aReceber ? "A RECEBER" : situacao.label.toUpperCase(),
+      aReceber: aReceber && !vencido,
+      vencido,
     };
   }
 
@@ -1600,6 +1609,43 @@ function FinanceiroReceberConteudo() {
     setBusca("");
   }
 
+  const linhasContasReceberTela = useMemo(
+    () =>
+      clientesReceber.map((cliente) => ({
+        nome: cliente.nome,
+        aReceber: cliente.aReceber,
+        recebido: cliente.recebido,
+        adiantamentos: cliente.adiantamentos,
+        naoFaturados: cliente.naoFaturados,
+      })),
+    [clientesReceber]
+  );
+
+  async function imprimirContasReceberTela() {
+    const janela = prepararAbaPdf();
+    if (!janela) return;
+
+    setExportandoContasReceberTela(true);
+    try {
+      const blob = await gerarContasReceberClientesPdf(
+        linhasContasReceberTela,
+        dataInicio,
+        dataFinal
+      );
+      abrirPdfNoVisualizador(blob, "contas-a-receber.pdf", "Contas a Receber", janela);
+    } catch (err) {
+      console.error("imprimir contas a receber", err);
+      janela.close();
+      alert("Não foi possível gerar o PDF. Permita pop-ups para este site.");
+    } finally {
+      setExportandoContasReceberTela(false);
+    }
+  }
+
+  function exportarContasReceberTela() {
+    exportarContasReceberClientesCsv(linhasContasReceberTela);
+  }
+
   function toggleOsReceita(id: string) {
     setOsSelecionadas((atuais) => {
       if (atuais.includes(id)) {
@@ -1745,6 +1791,11 @@ function FinanceiroReceberConteudo() {
           <FileText className="h-3.5 w-3.5" />
           Relatórios
         </Button>
+        <BotoesImprimirExportarToolbar
+          onImprimir={() => void imprimirContasReceberTela()}
+          onExportarExcel={exportarContasReceberTela}
+          processando={exportandoContasReceberTela}
+        />
         <button className="rounded bg-primary-600 p-2 text-white">
           <RefreshCw className="h-3.5 w-3.5" />
         </button>
@@ -2116,6 +2167,15 @@ function FinanceiroReceberConteudo() {
         onClose={() => setDetalheCliente(null)}
         cliente={detalheCliente}
         clientes={clientesReceber}
+        clienteTelefone={
+          detalheCliente
+            ? clientes.find(
+                (c) =>
+                  c.id === detalheCliente.clienteId ||
+                  c.nome.trim().toLowerCase() === detalheCliente.nome.trim().toLowerCase()
+              )?.celular
+            : undefined
+        }
         trabalhos={trabalhos.map((t) => ({
           id: t.id,
           numeroOs: t.numeroOs,
@@ -2512,6 +2572,16 @@ function FinanceiroReceberConteudo() {
           faturaImprimindo ? numeroFatura(faturaImprimindo.lancamento) : 0
         }
         clienteNome={faturaImprimindo?.cliente.nome ?? ""}
+        clienteTelefone={
+          faturaImprimindo
+            ? clientes.find(
+                (c) =>
+                  c.id ===
+                  (faturaImprimindo.cliente.clienteId ||
+                    faturaImprimindo.lancamento.cliente?.id)
+              )?.celular
+            : undefined
+        }
         valorFatura={faturaImprimindo?.lancamento.valor}
         gerarHtml={(opcoes) => {
           if (!faturaImprimindo) return "";
@@ -2600,6 +2670,11 @@ function FinanceiroReceberConteudo() {
         open={relatorioAberto}
         onClose={() => setRelatorioAberto(false)}
         lancamentos={data?.lancamentos ?? []}
+        contatosClientes={clientes.map((c) => ({
+          id: c.id,
+          nome: c.nome,
+          celular: c.celular,
+        }))}
         trabalhos={trabalhos.map((t) => ({
           id: t.id,
           numeroOs: t.numeroOs,

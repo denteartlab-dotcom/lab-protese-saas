@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FileText, MessageCircle, Printer, X } from "lucide-react";
 import { Select } from "@/components/ui";
 import {
-  carregarConfigLaboratorio,
-  telefoneWhatsappLaboratorio,
-} from "@/lib/configuracoes-lab";
+  mensagemWhatsappFaturaConferencia,
+  publicarFaturaPublica,
+} from "@/lib/fatura-publica";
+import { abrirWhatsAppFaturaConferencia } from "@/lib/whatsapp";
 import {
   CONFIG_FATURAS_ATUALIZADA_EVENT,
   carregarConfiguracoesFaturas,
@@ -36,6 +37,7 @@ type Props = {
   onClose: () => void;
   numeroFatura: number;
   clienteNome: string;
+  clienteTelefone?: string | null;
   valorFatura?: number;
   gerarHtml: (opcoes: OpcoesImpressaoFaturaModal) => string;
 };
@@ -62,6 +64,7 @@ export function ImprimirFaturaModal({
   onClose,
   numeroFatura,
   clienteNome,
+  clienteTelefone,
   valorFatura,
   gerarHtml,
 }: Props) {
@@ -71,9 +74,13 @@ export function ImprimirFaturaModal({
   );
   const [sincronizando, setSincronizando] = useState(false);
   const [gerandoPdf, setGerandoPdf] = useState(false);
+  const [enviandoWhatsapp, setEnviandoWhatsapp] = useState(false);
   const [formato, setFormato] = useState<FormatoImpressaoFatura>("a4");
   const [modelo, setModelo] = useState<ModeloFaturaId>("modelo1");
   const [duasVias, setDuasVias] = useState("nao");
+  const ultimoModeloPorFormato = useRef<Partial<Record<FormatoImpressaoFatura, ModeloFaturaId>>>(
+    {}
+  );
 
   const recarregarConfig = useCallback(async () => {
     setSincronizando(true);
@@ -99,6 +106,7 @@ export function ImprimirFaturaModal({
       if (!ativo) return;
       const fmt = formatoPorModeloFatura(cfg.modeloPadrao);
       const mod = modeloPadraoParaFormatoFatura(cfg, fmt);
+      ultimoModeloPorFormato.current = { [fmt]: mod };
       setFormato(fmt);
       setModelo(mod);
       setDuasVias(cfg.duasVias[mod] ? "sim" : "nao");
@@ -110,18 +118,10 @@ export function ImprimirFaturaModal({
 
   useEffect(() => {
     if (!open) return;
-    const handler = () => {
-      void recarregarConfig().then((cfg) => {
-        const fmt = formatoPorModeloFatura(cfg.modeloPadrao);
-        const mod = modeloPadraoParaFormatoFatura(cfg, fmt);
-        setFormato(fmt);
-        setModelo(mod);
-        setDuasVias(cfg.duasVias[mod] ? "sim" : "nao");
-      });
-    };
+    const handler = () => setConfig(carregarConfiguracoesFaturas());
     window.addEventListener(CONFIG_FATURAS_ATUALIZADA_EVENT, handler);
     return () => window.removeEventListener(CONFIG_FATURAS_ATUALIZADA_EVENT, handler);
-  }, [open, recarregarConfig]);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -132,7 +132,12 @@ export function ImprimirFaturaModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  const modelosDoFormato = useMemo(() => modelosFaturaPorFormato(formato), [formato]);
+  const modelosDoFormato = useMemo(() => {
+    const lista = modelosFaturaPorFormato(formato);
+    const padrao = config.modeloPadrao;
+    if (!lista.includes(padrao)) return lista;
+    return [padrao, ...lista.filter((id) => id !== padrao)];
+  }, [formato, config.modeloPadrao]);
 
   function opcoesAtuais(): OpcoesImpressaoFaturaModal {
     return {
@@ -147,18 +152,32 @@ export function ImprimirFaturaModal({
     return aplicarFormatoNoHtml(html, formato, duasVias === "sim");
   }
 
+  function modeloParaFormato(
+    cfg: ConfiguracoesFaturas,
+    fmt: FormatoImpressaoFatura,
+    preferido?: ModeloFaturaId
+  ) {
+    const lista = modelosFaturaPorFormato(fmt);
+    if (preferido && lista.includes(preferido)) return preferido;
+    const lembrado = ultimoModeloPorFormato.current[fmt];
+    if (lembrado && lista.includes(lembrado)) return lembrado;
+    return modeloPadraoParaFormatoFatura(cfg, fmt);
+  }
+
   function aoMudarFormato(novo: FormatoImpressaoFatura) {
+    const proximo = modeloParaFormato(config, novo);
+    ultimoModeloPorFormato.current[novo] = proximo;
     setFormato(novo);
-    const proximo = modeloPadraoParaFormatoFatura(config, novo);
     setModelo(proximo);
     setDuasVias(config.duasVias[proximo] ? "sim" : "nao");
   }
 
   function aoMudarModelo(novo: string) {
     const id = novo as ModeloFaturaId;
+    const fmtModelo = formatoPorModeloFatura(id);
+    ultimoModeloPorFormato.current[fmtModelo] = id;
     setModelo(id);
     setDuasVias(config.duasVias[id] ? "sim" : "nao");
-    const fmtModelo = formatoPorModeloFatura(id);
     if (fmtModelo !== formato) setFormato(fmtModelo);
   }
 
@@ -189,26 +208,46 @@ export function ImprimirFaturaModal({
     abrirNoVisualizadorPdf();
   }
 
-  function enviarWhatsapp() {
-    const cfg = carregarConfigLaboratorio();
-    const digits = (telefoneWhatsappLaboratorio(cfg) || cfg.whatsapp || "").replace(/\D/g, "");
-    const valor =
+  async function enviarWhatsapp() {
+    if (enviandoWhatsapp || gerandoPdf || sincronizando) return;
+
+    const valorFormatado =
       valorFatura != null
-        ? valorFatura.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        ? valorFatura.toLocaleString("pt-BR", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })
         : "";
-    const texto = encodeURIComponent(
-      [
-        `Fatura ${numeroFatura} — ${clienteNome}`,
-        valor ? `Valor: R$ ${valor}` : "",
-        "Solicito a fatura para conferência.",
-      ]
-        .filter(Boolean)
-        .join("\n")
-    );
-    const base = digits
-      ? `https://wa.me/55${digits.replace(/^55/, "")}`
-      : "https://wa.me/";
-    window.open(`${base}?text=${texto}`, "_blank", "noopener,noreferrer");
+    const nomeArquivo = `fatura-${numeroFatura}.pdf`;
+    const titulo = `Fatura ${numeroFatura} — ${clienteNome}`;
+
+    setEnviandoWhatsapp(true);
+    try {
+      const html = htmlPreparado();
+      const blob = await gerarPdfDeHtmlDocumento(html, formato);
+      const publicUrl = await publicarFaturaPublica({
+        blob,
+        numeroFatura,
+        clienteNome,
+        nomeArquivo,
+        titulo,
+      });
+      const texto = mensagemWhatsappFaturaConferencia({
+        numeroFatura,
+        clienteNome,
+        valorFormatado: valorFormatado || undefined,
+        publicUrl,
+      });
+      const abriu = abrirWhatsAppFaturaConferencia(clienteTelefone, texto);
+      if (!abriu) {
+        window.alert("Não foi possível abrir o WhatsApp. Verifique o bloqueio de pop-ups.");
+      }
+    } catch (err) {
+      console.error("[ImprimirFaturaModal] WhatsApp", err);
+      window.alert("Não foi possível gerar o link da fatura para o WhatsApp.");
+    } finally {
+      setEnviandoWhatsapp(false);
+    }
   }
 
   if (!open || !mounted) return null;
@@ -251,6 +290,12 @@ export function ImprimirFaturaModal({
           {gerandoPdf ? (
             <p className="mb-3 text-center text-xs text-[#6b7280]">
               Gerando PDF e abrindo visualizador…
+            </p>
+          ) : null}
+
+          {enviandoWhatsapp ? (
+            <p className="mb-3 text-center text-xs text-[#6b7280]">
+              Gerando PDF e preparando link para o WhatsApp…
             </p>
           ) : null}
 
@@ -333,8 +378,9 @@ export function ImprimirFaturaModal({
             <button
               type="button"
               title="Enviar por WhatsApp"
-              onClick={enviarWhatsapp}
-              className="flex h-9 w-9 items-center justify-center rounded-sm bg-[#5cb85c] text-white hover:bg-[#4cae4c]"
+              onClick={() => void enviarWhatsapp()}
+              disabled={sincronizando || gerandoPdf || enviandoWhatsapp}
+              className="flex h-9 w-9 items-center justify-center rounded-sm bg-[#5cb85c] text-white hover:bg-[#4cae4c] disabled:opacity-50"
             >
               <MessageCircle className="h-4 w-4" />
             </button>

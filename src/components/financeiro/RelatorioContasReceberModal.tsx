@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FileText, X } from "lucide-react";
+import { BotoesExtratoCompartilhar } from "@/components/financeiro/BotoesExtratoCompartilhar";
+import { EnviarExtratoWhatsappModal } from "@/components/financeiro/EnviarExtratoWhatsappModal";
 import { CampoDataBr } from "@/components/campo-data-br";
 import { dateToBrShort } from "@/lib/datas-br";
+import { exportarExtratoRelatorioExcel } from "@/lib/extrato-relatorio-export";
+import type { LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import { cn } from "@/lib/utils";
 import type { TrabalhoRelatorioFatura } from "@/lib/relatorio-faturas-modelo3-dados";
@@ -35,11 +39,18 @@ type Lancamento = {
   trabalho?: { id: string; numeroOs: number } | null;
 };
 
+type ContatoClienteRelatorio = {
+  id: string;
+  nome: string;
+  celular?: string | null;
+};
+
 type Props = {
   open: boolean;
   onClose: () => void;
   lancamentos: Lancamento[];
   trabalhos?: TrabalhoRelatorioFatura[];
+  contatosClientes?: ContatoClienteRelatorio[];
 };
 
 const labelClass = "mb-1.5 block text-xs font-medium text-slate-600";
@@ -65,6 +76,7 @@ export function RelatorioContasReceberModal({
   onClose,
   lancamentos,
   trabalhos = [],
+  contatosClientes = [],
 }: Props) {
   const { inicio: inicioPadrao, fim: fimPadrao } = periodoMesAtual();
 
@@ -81,6 +93,7 @@ export function RelatorioContasReceberModal({
   const [parcelasSomenteAReceber, setParcelasSomenteAReceber] = useState(true);
   const [parcelasAgruparPorCliente, setParcelasAgruparPorCliente] = useState(true);
   const [recebimentosAgruparPorCliente, setRecebimentosAgruparPorCliente] = useState(true);
+  const [whatsappExtratoAberto, setWhatsappExtratoAberto] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -104,7 +117,7 @@ export function RelatorioContasReceberModal({
 
   const extratoExigeCliente = modeloEhExtratoPorCliente(modelo);
 
-  const clientes = useMemo(() => {
+  const nomesClientes = useMemo(() => {
     const set = new Set<string>();
     for (const l of lancamentos) {
       if (l.tipo !== "receita") continue;
@@ -115,8 +128,9 @@ export function RelatorioContasReceberModal({
   }, [lancamentos]);
 
   const clientesNoSelect = useMemo(
-    () => (extratoExigeCliente ? clientes.filter((c) => c !== "todos") : clientes),
-    [clientes, extratoExigeCliente]
+    () =>
+      extratoExigeCliente ? nomesClientes.filter((c) => c !== "todos") : nomesClientes,
+    [nomesClientes, extratoExigeCliente]
   );
 
   useEffect(() => {
@@ -124,6 +138,23 @@ export function RelatorioContasReceberModal({
       setCliente("");
     }
   }, [extratoExigeCliente, modelo, cliente]);
+
+  const clienteExtratoSelecionado = useMemo(() => {
+    if (!extratoExigeCliente || !cliente || cliente === "todos") return null;
+    const nomeFiltro = cliente.trim().toLowerCase();
+    const contato =
+      contatosClientes.find((c) => c.nome.trim().toLowerCase() === nomeFiltro) ??
+      contatosClientes.find((c) => c.id === cliente);
+    const lancamentoCliente = lancamentos.find(
+      (l) =>
+        l.tipo === "receita" && l.cliente?.nome?.trim().toLowerCase() === nomeFiltro
+    );
+    return {
+      nome: cliente,
+      id: contato?.id ?? lancamentoCliente?.cliente?.id ?? null,
+      celular: contato?.celular ?? null,
+    };
+  }, [extratoExigeCliente, cliente, contatosClientes, lancamentos]);
 
   function montarFiltro(): FiltroRelatorioContasReceber {
     return {
@@ -142,6 +173,84 @@ export function RelatorioContasReceberModal({
       parcelasAgruparPorCliente:
         modelo === "parcelas-a-receber-modelo-2" ? parcelasAgruparPorCliente : undefined,
     };
+  }
+
+  const opcoesExtratoPdf = useCallback(() => {
+    const filtro = montarFiltro();
+    const filtradas = filtrarLinhasRelatorioContasReceber(linhasBase, filtro);
+    const ordenadas = ordenarLinhasRelatorioContasReceber(filtradas, ordenarPor, modelo);
+    const modeloLabel = labelModeloRelatorioReceitas(modelo);
+    const periodoLabel = filtro.periodoAtivo
+      ? `${dataInicio} à ${dataFinal}`
+      : "Período: todos";
+    const nomeClienteExtrato = clienteExtratoSelecionado?.nome;
+    const clienteIdExtrato = clienteExtratoSelecionado?.id ?? null;
+
+    return {
+      ordenadas,
+      modeloLabel,
+      periodoLabel,
+      opcoes: {
+        periodoCampo: filtro.periodoCampo,
+        dataInicio: filtro.dataInicio,
+        dataFinal: filtro.dataFinal,
+        periodoAtivo: filtro.periodoAtivo,
+        ordenarPor: filtro.ordenarPor,
+        nomeClienteExtrato,
+        clienteIdExtrato,
+        lancamentos: lancamentos as LancamentoContasReceber[],
+        trabalhos,
+      },
+    };
+  }, [
+    clienteExtratoSelecionado,
+    dataFinal,
+    dataInicio,
+    lancamentos,
+    linhasBase,
+    modelo,
+    ordenarPor,
+    periodoAtivo,
+    periodoCampo,
+    parcelasAgruparPorCliente,
+    parcelasSomenteAReceber,
+    cliente,
+    trabalhos,
+  ]);
+
+  function extratoPronto() {
+    return Boolean(clienteExtratoSelecionado?.nome);
+  }
+
+  function exportarExtratoExcel() {
+    if (!clienteExtratoSelecionado?.nome) {
+      alert("Selecione um cliente para exportar o extrato.");
+      return;
+    }
+    exportarExtratoRelatorioExcel(
+      modelo,
+      lancamentos as LancamentoContasReceber[],
+      trabalhos,
+      clienteExtratoSelecionado.nome,
+      {
+        periodoAtivo,
+        dataInicio,
+        dataFinal,
+        periodoCampo,
+        clienteId: clienteExtratoSelecionado.id,
+      }
+    );
+  }
+
+  function gerarPdfExtrato() {
+    const { ordenadas, modeloLabel, periodoLabel, opcoes } = opcoesExtratoPdf();
+    return gerarRelatorioContasReceberBlob(
+      ordenadas,
+      modeloLabel,
+      periodoLabel,
+      modelo,
+      opcoes
+    );
   }
 
   function imprimir() {
@@ -446,28 +555,55 @@ export function RelatorioContasReceberModal({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 pt-1">
-              <button
-                type="button"
-                onClick={imprimir}
-                disabled={
-                  gerandoPdf ||
-                  (extratoExigeCliente && (!cliente || cliente === "todos"))
-                }
-                className="h-11 rounded-sm bg-[#4a90d9] text-sm font-normal text-white hover:bg-[#3d7fc4] disabled:opacity-60"
-              >
-                {gerandoPdf ? "Gerando PDF..." : "Imprimir"}
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                className="h-11 rounded-sm border border-slate-500 bg-white text-sm font-normal text-slate-700 hover:bg-slate-50"
-              >
-                Fechar
-              </button>
+            <div className="space-y-3 pt-1">
+              {extratoExigeCliente ? (
+                <BotoesExtratoCompartilhar
+                  onExcel={exportarExtratoExcel}
+                  onWhatsapp={() => {
+                    if (!extratoPronto()) {
+                      alert("Selecione um cliente para enviar o extrato.");
+                      return;
+                    }
+                    setWhatsappExtratoAberto(true);
+                  }}
+                  disabled={!extratoPronto()}
+                  processando={gerandoPdf}
+                />
+              ) : null}
+
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={imprimir}
+                  disabled={
+                    gerandoPdf ||
+                    (extratoExigeCliente && (!cliente || cliente === "todos"))
+                  }
+                  className="h-11 rounded-sm bg-[#4a90d9] text-sm font-normal text-white hover:bg-[#3d7fc4] disabled:opacity-60"
+                >
+                  {gerandoPdf ? "Gerando PDF..." : "Imprimir"}
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="h-11 rounded-sm border border-slate-500 bg-white text-sm font-normal text-slate-700 hover:bg-slate-50"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
           </div>
         </div>
+
+        {clienteExtratoSelecionado ? (
+          <EnviarExtratoWhatsappModal
+            open={whatsappExtratoAberto}
+            onClose={() => setWhatsappExtratoAberto(false)}
+            clienteNome={clienteExtratoSelecionado.nome}
+            telefoneInicial={clienteExtratoSelecionado.celular}
+            gerarPdf={gerarPdfExtrato}
+          />
+        ) : null}
     </div>
   );
 }

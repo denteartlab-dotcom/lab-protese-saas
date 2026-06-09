@@ -13,7 +13,7 @@ export const OS_MODELO2_LAYOUT_PADRAO: OsModelo2Layout = {
   exibirBordas: false,
   tamanhoFonte: 16,
   produtos: false,
-  etapas: false,
+  etapas: true,
   producao: true,
   pecas: true,
 };
@@ -34,6 +34,7 @@ export const CAMPOS_MODELO2_PARES: Array<[CampoCheckbox, CampoCheckbox | null]> 
   [{ key: "colaborador", label: "Colaborador" }, { key: "producao", label: "Produção" }],
   [{ key: "obsFicha", label: "Obs Ficha" }, { key: "obsServico", label: "Obs Serviço" }],
   [{ key: "materialRec", label: "Material Rec" }, { key: "pecas", label: "Peças" }],
+  [{ key: "etapas", label: "Etapas" }, null],
   [{ key: "assinatura", label: "Assinatura" }, { key: "codBarras", label: "Cod Barras" }],
 ];
 

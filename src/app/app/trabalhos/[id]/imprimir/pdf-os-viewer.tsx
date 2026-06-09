@@ -54,8 +54,10 @@ import {
 import { extrairDataPrazoBr } from "@/lib/os-itens-impressao";
 import { gerarPngCode39DataUrl } from "@/lib/code39-barcode";
 import {
+  colaboradorDaEtapaImpressao,
   formatarDataHoraEtapaImpressao,
   nomeEtapaSemSetor,
+  type ColaboradorOsLinha,
   type EtapaOsLinha,
 } from "@/lib/etapas-os";
 
@@ -102,7 +104,9 @@ type PdfOsData = {
   osExterna?: string;
   finalizado?: string;
   colaborador?: string;
-  /** Lista estruturada de etapas para impressão (checkbox + data/hora + nome + obs). */
+  /** Colaboradores vinculados às etapas (aba OS). */
+  colaboradoresLista?: ColaboradorOsLinha[];
+  /** Lista estruturada de etapas para impressão (checkbox + data/hora + colaborador + nome + obs). */
   etapasLista?: EtapaOsLinha[];
   etapas?: string;
   producao?: string;
@@ -293,7 +297,8 @@ function desenharMetadadosServicoRequisicao(
 ) {
   let y = yInicio;
   const mostraPrazo = lay.dataPrazo || lay.finalizado;
-  const mostraColab = lay.colaborador;
+  const etapasComLista = lay.etapas && (data.etapasLista?.length ?? 0) > 0;
+  const mostraColab = lay.colaborador && !etapasComLista;
   const mostraProd = lay.producao && Boolean(data.producao?.trim());
   const mostraObs = lay.obsServico;
 
@@ -953,6 +958,7 @@ function renderModeloComprovante(
   });
 
   y = desenharMetadadosServicoRequisicao(pdf, lay, data, colDesc, y, g);
+  y = desenharEtapasOsRequisicao(pdf, lay, data, m.conteudoEsq, y, g, fontBase);
 
   y += g(1);
   linhaRequisicaoPdf(pdf, lay, y, pageWidth);

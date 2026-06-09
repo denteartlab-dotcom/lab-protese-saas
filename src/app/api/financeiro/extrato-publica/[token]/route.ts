@@ -1,0 +1,46 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import {
+  chaveExtratoPublica,
+  type ExtratoPublicaRegistro,
+  registroExtratoPublicaValido,
+} from "@/lib/extrato-publica";
+
+type Params = { params: Promise<{ token: string }> };
+
+export async function GET(_request: Request, { params }: Params) {
+  const { token } = await params;
+  const limpo = token?.trim();
+  if (!limpo) {
+    return NextResponse.json({ error: "Token inválido" }, { status: 400 });
+  }
+
+  const row = await prisma.jsonStore.findUnique({
+    where: { key: chaveExtratoPublica(limpo) },
+  });
+
+  if (!row) {
+    return NextResponse.json({ error: "Extrato não encontrado" }, { status: 404 });
+  }
+
+  let registro: ExtratoPublicaRegistro;
+  try {
+    registro = JSON.parse(row.payload) as ExtratoPublicaRegistro;
+  } catch {
+    return NextResponse.json({ error: "Registro inválido" }, { status: 500 });
+  }
+
+  if (!registroExtratoPublicaValido(registro)) {
+    return NextResponse.json({ error: "Link expirado" }, { status: 410 });
+  }
+
+  const body = Buffer.from(registro.base64, "base64");
+  return new NextResponse(body, {
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Length": String(body.length),
+      "Cache-Control": "public, max-age=3600",
+      "Content-Disposition": `inline; filename="${encodeURIComponent(registro.nomeArquivo || "extrato.pdf")}"`,
+    },
+  });
+}

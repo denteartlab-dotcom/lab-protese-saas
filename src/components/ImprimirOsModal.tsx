@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Printer, X } from "lucide-react";
 import { Button, Modal, Select } from "@/components/ui";
 import {
@@ -113,6 +113,9 @@ export function ImprimirOsModal({
   const [modeloEtiqueta, setModeloEtiqueta] = useState<ModeloEtiquetaId>("slk-54x101");
   const [somenteItem, setSomenteItem] = useState("sim");
   const [duasVias, setDuasVias] = useState("nao");
+  const ultimoModeloA4 = useRef<ModeloOsId | null>(null);
+  const ultimoModeloTermica = useRef<ModeloOsId | null>(null);
+  const ultimoModeloEtiquetaRef = useRef<ModeloEtiquetaId | null>(null);
 
   const recarregarConfig = useCallback(async () => {
     setSincronizando(true);
@@ -141,6 +144,11 @@ export function ImprimirOsModal({
     void recarregarConfig().then(({ cfgOs, cfgEtiquetas }) => {
       if (!ativo) return;
       const estado = aplicarConfigNoModal(cfgOs, cfgEtiquetas, multiplosSegmentos);
+      ultimoModeloA4.current =
+        formatoPorModeloOs(estado.modelo) === "a4" ? estado.modelo : null;
+      ultimoModeloTermica.current =
+        formatoPorModeloOs(estado.modelo) === "termica" ? estado.modelo : null;
+      ultimoModeloEtiquetaRef.current = estado.modeloEtiqueta;
       setFormato(estado.formato);
       setModelo(estado.modelo);
       setModeloEtiqueta(estado.modeloEtiqueta);
@@ -164,8 +172,22 @@ export function ImprimirOsModal({
     };
   }, [open]);
 
-  const modelosA4 = useMemo(() => modelosOsPorFormato("a4"), []);
-  const modelosTermica = useMemo(() => modelosOsPorFormato("termica"), []);
+  function ordenarModelosComPadraoPrimeiro(
+    lista: ModeloOsId[],
+    padrao: ModeloOsId
+  ): ModeloOsId[] {
+    if (!lista.includes(padrao)) return lista;
+    return [padrao, ...lista.filter((id) => id !== padrao)];
+  }
+
+  const modelosA4 = useMemo(
+    () => ordenarModelosComPadraoPrimeiro(modelosOsPorFormato("a4"), configOs.modeloPadrao),
+    [configOs.modeloPadrao]
+  );
+  const modelosTermica = useMemo(
+    () => ordenarModelosComPadraoPrimeiro(modelosOsPorFormato("termica"), configOs.modeloPadrao),
+    [configOs.modeloPadrao]
+  );
 
   const etiquetasAtivas = etiquetasImpressaoDisponivel(configEtiquetas);
 
@@ -177,27 +199,44 @@ export function ImprimirOsModal({
     setDuasVias(configOs.duasVias[proximo] ? "sim" : "nao");
   }, [open, formato, etiquetasAtivas, configOs]);
 
+  function modeloOsParaFormato(fmt: "a4" | "termica") {
+    const lista = modelosOsPorFormato(fmt);
+    const lembrado = fmt === "a4" ? ultimoModeloA4.current : ultimoModeloTermica.current;
+    if (lembrado && lista.includes(lembrado)) return lembrado;
+    if (lista.includes(modelo)) return modelo;
+    return modeloPadraoParaFormato(configOs, fmt);
+  }
+
+  function modeloEtiquetaParaImpressao() {
+    const lembrado = ultimoModeloEtiquetaRef.current;
+    if (lembrado && MODELOS_ETIQUETA.some((m) => m.id === lembrado)) return lembrado;
+    return modeloPadraoEtiqueta(configEtiquetas) ?? "slk-54x101";
+  }
+
   function aoMudarFormato(novo: FormatoImpressaoOs) {
     setFormato(novo);
     if (novo === "etiquetas") {
-      const padrao = modeloPadraoEtiqueta(configEtiquetas);
-      if (padrao) {
-        setModeloEtiqueta(padrao);
-        setDuasVias(configEtiquetas.duasVias[padrao] ? "sim" : "nao");
-      }
+      const proximo = modeloEtiquetaParaImpressao();
+      ultimoModeloEtiquetaRef.current = proximo;
+      setModeloEtiqueta(proximo);
+      setDuasVias(configEtiquetas.duasVias[proximo] ? "sim" : "nao");
       return;
     }
     const fmt = novo as "a4" | "termica";
-    const proximo = modeloPadraoParaFormato(configOs, fmt);
+    const proximo = modeloOsParaFormato(fmt);
+    if (fmt === "a4") ultimoModeloA4.current = proximo;
+    else ultimoModeloTermica.current = proximo;
     setModelo(proximo);
     setDuasVias(configOs.duasVias[proximo] ? "sim" : "nao");
   }
 
   function aoMudarModelo(novo: string) {
     const id = novo as ModeloOsId;
+    const fmtModelo = formatoPorModeloOs(id);
+    if (fmtModelo === "a4") ultimoModeloA4.current = id;
+    else ultimoModeloTermica.current = id;
     setModelo(id);
     setDuasVias(configOs.duasVias[id] ? "sim" : "nao");
-    const fmtModelo = formatoPorModeloOs(id);
     if (fmtModelo !== formato) {
       setFormato(fmtModelo);
     }
@@ -205,6 +244,7 @@ export function ImprimirOsModal({
 
   function aoMudarModeloEtiqueta(novo: string) {
     const id = novo as ModeloEtiquetaId;
+    ultimoModeloEtiquetaRef.current = id;
     setModeloEtiqueta(id);
     setDuasVias(configEtiquetas.duasVias[id] ? "sim" : "nao");
   }
@@ -311,11 +351,17 @@ export function ImprimirOsModal({
                 onChange={(e) => aoMudarModeloEtiqueta(e.target.value)}
                 disabled={sincronizando}
               >
-                {MODELOS_ETIQUETA.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {rotuloOpcaoEtiqueta(m.id)}
-                  </option>
-                ))}
+                {[...MODELOS_ETIQUETA]
+                  .sort((a, b) => {
+                    if (a.id === configEtiquetas.modeloPadrao) return -1;
+                    if (b.id === configEtiquetas.modeloPadrao) return 1;
+                    return 0;
+                  })
+                  .map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {rotuloOpcaoEtiqueta(m.id)}
+                    </option>
+                  ))}
               </Select>
             ) : formato === "a4" || formato === "termica" ? (
               <Select

@@ -54,6 +54,11 @@ import {
   PREVIEW_OS_MODELO3,
 } from "@/lib/os-modelo3-layout";
 import { PreviewOsModeloComprovante } from "@/components/configuracoes/ConfiguracoesOsModeloComprovantePreview";
+import { OsEtapasListaPreview } from "@/components/configuracoes/OsEtapasListaPreview";
+import {
+  PREVIEW_COLABORADORES_OS_LISTA,
+  PREVIEW_ETAPAS_OS_LISTA,
+} from "@/lib/etapas-os";
 import { cn } from "@/lib/utils";
 
 type CampoPar = Array<
@@ -185,6 +190,8 @@ function PreviewOsModeloProducao({
 
   const money = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  const mostraEtapasLista = layout.etapas && PREVIEW_ETAPAS_OS_LISTA.length > 0;
 
   return (
     <div
@@ -385,7 +392,7 @@ function PreviewOsModeloProducao({
                 ) : null}
               </p>
             ) : null}
-            {layout.colaborador ? (
+            {layout.colaborador && !mostraEtapasLista ? (
               <p>
                 <span>Colaborador: </span>
                 <span className="font-bold">{amostra.colaborador}</span>
@@ -407,6 +414,17 @@ function PreviewOsModeloProducao({
         </div>
       )}
 
+      {mostraEtapasLista ? (
+        <OsEtapasListaPreview
+          etapas={PREVIEW_ETAPAS_OS_LISTA}
+          colaboradores={PREVIEW_COLABORADORES_OS_LISTA}
+          dataEntrada={amostra.dataEntrada}
+          fontSize={fsSmall}
+          gapMm={`${gap(0.5)}mm`}
+          marginTop={`${gap(2)}mm`}
+        />
+      ) : null}
+
       {layout.total ? (
         <>
           <LinhaSeparador marginTop={gap(2)} />
@@ -426,12 +444,6 @@ function PreviewOsModeloProducao({
         <p style={{ fontSize: `${fsSmall}px` }}>
           <span>Observação: </span>
           <span className="font-bold">{amostra.obsFicha}</span>
-        </p>
-      ) : null}
-      {layout.etapas ? (
-        <p style={{ fontSize: `${fsSmall}px` }}>
-          <span>Etapas: </span>
-          <span className="font-bold">{amostra.etapas}</span>
         </p>
       ) : null}
       {layout.pecas && amostra.pecas ? (

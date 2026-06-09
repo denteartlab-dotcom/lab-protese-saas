@@ -21,6 +21,11 @@ import {
   type OsModelo1Layout,
 } from "@/lib/os-modelo1-layout";
 import { PREVIEW_OS_MODELO3 } from "@/lib/os-modelo3-layout";
+import { OsEtapasListaPreview } from "@/components/configuracoes/OsEtapasListaPreview";
+import {
+  PREVIEW_COLABORADORES_OS_LISTA,
+  PREVIEW_ETAPAS_OS_LISTA,
+} from "@/lib/etapas-os";
 import { cn } from "@/lib/utils";
 
 function LinhaRotuloValor({
@@ -81,6 +86,7 @@ export function PreviewOsModeloComprovante({
   const totalServicos = amostra.totalServicos;
   const totalDescontos = amostra.totalDescontos;
   const totalFinal = amostra.total;
+  const mostraEtapasLista = layout.etapas && PREVIEW_ETAPAS_OS_LISTA.length > 0;
 
   return (
     <div
@@ -291,13 +297,18 @@ export function PreviewOsModeloComprovante({
               <span className="font-bold">Em produção</span>
             </p>
           ) : null}
-          {layout.etapas ? (
-            <p>
-              <span>Etapas: </span>
-              <span className="font-bold">{amostra.etapas}</span>
-            </p>
-          ) : null}
         </div>
+
+        {mostraEtapasLista ? (
+          <OsEtapasListaPreview
+            etapas={PREVIEW_ETAPAS_OS_LISTA}
+            colaboradores={PREVIEW_COLABORADORES_OS_LISTA}
+            dataEntrada={amostra.dataEntrada}
+            fontSize={fsSmall}
+            gapMm={`${gap(0.5)}mm`}
+            marginTop={`${gap(2)}mm`}
+          />
+        ) : null}
 
         {layout.total ? (
           <>

@@ -2,18 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { debounceCallback } from "@/lib/debounce-callback";
+import { BotoesImprimirExportarToolbar } from "@/components/BotoesImprimirExportarToolbar";
 import {
   AlertTriangle,
   Check,
   ChevronDown,
   ChevronUp,
-  FileSpreadsheet,
   Filter,
   Eye,
   List,
   Pencil,
   Plus,
-  Printer,
   Search,
   ShoppingCart,
   Trash2,
@@ -939,27 +938,13 @@ export function ContasPagarConteudo() {
               className="inline-flex items-center gap-1.5 rounded bg-[#4a90d9] px-4 py-2 text-[13px] font-normal text-white hover:bg-[#3d7fc4]"
               onClick={() => setRelatorioAberto(true)}
             >
-              <Printer className="h-4 w-4" />
               Relatório
             </Button>
-            <button
-              type="button"
-              className="inline-flex h-8 w-8 items-center justify-center rounded bg-[#4a90d9] text-white hover:bg-[#3d7fc4] disabled:opacity-60"
-              title="Imprimir lista"
-              disabled={exportandoLista}
-              onClick={() => void imprimirListaDespesas()}
-            >
-              <Printer className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              className="inline-flex h-8 w-8 items-center justify-center rounded bg-[#4cae4c] text-white hover:bg-[#449d44] disabled:opacity-60"
-              title="Exportar para Excel"
-              disabled={exportandoLista}
-              onClick={exportarListaDespesas}
-            >
-              <FileSpreadsheet className="h-4 w-4" />
-            </button>
+            <BotoesImprimirExportarToolbar
+              onImprimir={() => void imprimirListaDespesas()}
+              onExportarExcel={exportarListaDespesas}
+              processando={exportandoLista}
+            />
           </div>
 
           <div className="flex shrink-0 flex-wrap gap-0 rounded border border-slate-200 bg-white">

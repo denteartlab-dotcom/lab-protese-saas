@@ -130,3 +130,21 @@ export function abrirWhatsAppAcompanhamentoCliente(
     buildWhatsAppSendUrl(phone, mensagemAcompanhamentoCliente(nomeCliente, publicUrl))
   );
 }
+
+export function buildFaturaConferenciaWhatsAppUrl(
+  phone: string | null | undefined,
+  texto: string
+) {
+  const digits = phone ? formatWhatsAppPhone(phone) : "";
+  if (!digits) {
+    return `https://api.whatsapp.com/send/?text=${encodeURIComponent(texto)}&type=phone_number&app_absent=0`;
+  }
+  return buildWhatsAppSendUrl(digits, texto);
+}
+
+export function abrirWhatsAppFaturaConferencia(
+  phone: string | null | undefined,
+  texto: string
+) {
+  return abrirWhatsAppUrl(buildFaturaConferenciaWhatsAppUrl(phone, texto));
+}

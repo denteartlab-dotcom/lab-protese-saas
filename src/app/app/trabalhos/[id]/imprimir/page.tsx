@@ -343,6 +343,7 @@ async function ImprimirOSConteudo({
         chavePed,
         finalizado: dateOrEmpty(trabalhoServico.dataEntrega),
         colaborador,
+        colaboradoresLista: parseColaboradoresInstrucoes(textoInstrucoesGrupo),
         etapasLista: parseEtapasInstrucoes(textoInstrucoesGrupo),
         etapas: lineValue(linhas, "Etapas:"),
         urgente,

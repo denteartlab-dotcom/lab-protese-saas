@@ -13,6 +13,8 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { BotoesExtratoCompartilhar } from "@/components/financeiro/BotoesExtratoCompartilhar";
+import { EnviarExtratoWhatsappModal } from "@/components/financeiro/EnviarExtratoWhatsappModal";
 import { parseBrDate } from "@/lib/datas-br";
 import type { LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
 import {
@@ -23,6 +25,8 @@ import { parseParcelaNaDescricao } from "@/lib/fatura-financeiro";
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import type { TrabalhoRelatorioFatura } from "@/lib/relatorio-faturas-modelo3-dados";
 import { baixarCsv } from "@/lib/exportar-csv";
+import { exportarExtratoRelatorioExcel } from "@/lib/extrato-relatorio-export";
+import type { ModeloRelatorioReceitas } from "@/lib/relatorio-receitas-modelos";
 import { cn } from "@/lib/utils";
 
 export type FiltrosPainelContasReceber = {
@@ -71,7 +75,11 @@ type Props = {
   recebidoNaFatura: (l: LancamentoClienteModal) => number;
   isFaturaContasReceber: (l: LancamentoClienteModal) => boolean;
   referenciaLancamento: (l: LancamentoClienteModal) => string;
-  situacaoFaturaLabel: (l: LancamentoClienteModal) => { label: string; aReceber: boolean };
+  situacaoFaturaLabel: (l: LancamentoClienteModal) => {
+    label: string;
+    aReceber: boolean;
+    vencido?: boolean;
+  };
   onReceber: () => void;
   onReceberFatura?: (l: LancamentoClienteModal) => void;
   onImprimirNota: () => void;
@@ -83,6 +91,7 @@ type Props = {
   onImprimirRecibo: (l: LancamentoClienteModal) => void;
   onDetalheRecebimento: (l: LancamentoClienteModal) => void;
   filtrosPainel: FiltrosPainelContasReceber;
+  clienteTelefone?: string | null;
 };
 
 type ExtratoModeloModal = "1" | "2" | "3";
@@ -233,10 +242,21 @@ function descricaoExtratoModal(linha: LinhaExtratoIndividualComSaldo) {
 
 function badgeSituacaoFatura(
   l: LancamentoClienteModal,
-  situacaoFaturaLabel: (l: LancamentoClienteModal) => { label: string; aReceber: boolean },
+  situacaoFaturaLabel: (l: LancamentoClienteModal) => {
+    label: string;
+    aReceber: boolean;
+    vencido?: boolean;
+  },
   onReceberFatura?: (l: LancamentoClienteModal) => void
 ) {
   const sit = situacaoFaturaLabel(l);
+  if (sit.vencido || sit.label.toUpperCase().includes("VENCID")) {
+    return (
+      <span className="inline-block whitespace-nowrap rounded bg-[#dc2626] px-3 py-1 text-[10px] font-semibold text-white">
+        Vencido
+      </span>
+    );
+  }
   if (sit.aReceber) {
     return (
       <button
@@ -252,13 +272,6 @@ function badgeSituacaoFatura(
     );
   }
   const label = sit.label;
-  if (label.toUpperCase().includes("VENCID")) {
-    return (
-      <span className="inline-block whitespace-nowrap rounded-full bg-[#fee2e2] px-3 py-0.5 text-[10px] font-semibold text-[#dc2626]">
-        Vencido
-      </span>
-    );
-  }
   if (label.toUpperCase().includes("RECEB")) {
     return (
       <span className="inline-block whitespace-nowrap rounded-full bg-[#dcfce7] px-3 py-0.5 text-[10px] font-semibold text-[#16a34a]">
@@ -306,6 +319,7 @@ export function VisualizacaoClienteReceberModal({
   onImprimirRecibo,
   onDetalheRecebimento,
   filtrosPainel,
+  clienteTelefone,
 }: Props) {
   const [mounted, setMounted] = useState(false);
   const [aba, setAba] = useState<"faturas" | "recebimentos" | "extrato">("faturas");
@@ -317,6 +331,7 @@ export function VisualizacaoClienteReceberModal({
   const [extratoModelo, setExtratoModelo] = useState<ExtratoModeloModal>("1");
   const [buscaExtrato, setBuscaExtrato] = useState("");
   const [gerandoExtrato, setGerandoExtrato] = useState(false);
+  const [whatsappExtratoAberto, setWhatsappExtratoAberto] = useState(false);
 
   useEffect(() => setMounted(true), []);
 
@@ -486,83 +501,84 @@ export function VisualizacaoClienteReceberModal({
   const mesLabel = MESES[mes];
   const chaveCliente = cliente?.clienteId ?? cliente?.nome ?? "";
 
+  function opcoesExtratoModalPdf() {
+    const { inicio, fim } = periodoMesAno(mes, ano);
+    return {
+      periodoAtivo: true,
+      dataInicio: inicio.toLocaleDateString("pt-BR"),
+      dataFinal: fim.toLocaleDateString("pt-BR"),
+      clienteId: cliente?.clienteId,
+    };
+  }
+
+  async function gerarExtratoPdfBlob() {
+    if (!cliente) throw new Error("Cliente não selecionado");
+    const opcoes = opcoesExtratoModalPdf();
+    const lancamentos = cliente.lancamentos as LancamentoContasReceber[];
+
+    if (extratoModelo === "3") {
+      const { gerarRelatorioExtrato3PacienteSmartPdf } = await import(
+        "@/lib/pdf-relatorio-extrato-3-paciente-smart"
+      );
+      return gerarRelatorioExtrato3PacienteSmartPdf(
+        lancamentos,
+        trabalhos,
+        cliente.nome,
+        opcoes
+      );
+    }
+    if (extratoModelo === "2") {
+      const { gerarRelatorioExtrato2IndividualSmartPdf } = await import(
+        "@/lib/pdf-relatorio-extrato-2-individual-smart"
+      );
+      return gerarRelatorioExtrato2IndividualSmartPdf(
+        lancamentos,
+        trabalhos,
+        cliente.nome,
+        opcoes
+      );
+    }
+    const { gerarRelatorioExtratoIndividualSmartPdf } = await import(
+      "@/lib/pdf-relatorio-extrato-individual-smart"
+    );
+    return gerarRelatorioExtratoIndividualSmartPdf(
+      lancamentos,
+      trabalhos,
+      cliente.nome,
+      opcoes
+    );
+  }
+
   async function imprimirExtratoPdf() {
     if (!cliente) return;
     setGerandoExtrato(true);
     try {
-      const { inicio, fim } = periodoMesAno(mes, ano);
-      const opcoes = {
-        periodoAtivo: true,
-        dataInicio: inicio.toLocaleDateString("pt-BR"),
-        dataFinal: fim.toLocaleDateString("pt-BR"),
-        clienteId: cliente.clienteId,
-      };
-      const lancamentos = cliente.lancamentos as LancamentoContasReceber[];
-
-      if (extratoModelo === "3") {
-        const { gerarRelatorioExtrato3PacienteSmartPdf } = await import(
-          "@/lib/pdf-relatorio-extrato-3-paciente-smart"
-        );
-        await abrirPdfGerando(
-          () =>
-            gerarRelatorioExtrato3PacienteSmartPdf(
-              lancamentos,
-              trabalhos,
-              cliente.nome,
-              opcoes
-            ),
-          "extrato-cliente.pdf"
-        );
-      } else if (extratoModelo === "2") {
-        const { gerarRelatorioExtrato2IndividualSmartPdf } = await import(
-          "@/lib/pdf-relatorio-extrato-2-individual-smart"
-        );
-        await abrirPdfGerando(
-          () =>
-            gerarRelatorioExtrato2IndividualSmartPdf(
-              lancamentos,
-              trabalhos,
-              cliente.nome,
-              opcoes
-            ),
-          "extrato-cliente.pdf"
-        );
-      } else {
-        const { gerarRelatorioExtratoIndividualSmartPdf } = await import(
-          "@/lib/pdf-relatorio-extrato-individual-smart"
-        );
-        await abrirPdfGerando(
-          () =>
-            gerarRelatorioExtratoIndividualSmartPdf(
-              lancamentos,
-              trabalhos,
-              cliente.nome,
-              opcoes
-            ),
-          "extrato-cliente.pdf"
-        );
-      }
+      await abrirPdfGerando(() => gerarExtratoPdfBlob(), "extrato-cliente.pdf");
     } finally {
       setGerandoExtrato(false);
     }
   }
 
+  function modeloExtratoRelatorio(): ModeloRelatorioReceitas {
+    if (extratoModelo === "3") return "extrato-3-agrupado-paciente";
+    if (extratoModelo === "2") return "extrato-2-individual";
+    return "extrato-individual";
+  }
+
   function exportarExtratoExcel() {
-    const linhas = extratoLinhas.map((l) => [
-      l.dataFatura,
-      l.numFatura,
-      l.os,
-      descricaoExtratoModal(l),
-      l.qtd,
-      l.paciente,
-      l.numDente,
-      l.tipo === "pagamento" || l.tipo === "desconto" ? -Math.abs(l.subtotal) : l.subtotal,
-      l.saldo,
-    ]);
-    baixarCsv(
-      "extrato-cliente.csv",
-      ["DATA", "FATURA", "OS", "DESCRIÇÃO", "QTD", "PACIENTE", "NUM DENTE", "VALOR", "SALDO"],
-      linhas
+    if (!cliente) return;
+    const { inicio, fim } = periodoMesAno(mes, ano);
+    exportarExtratoRelatorioExcel(
+      modeloExtratoRelatorio(),
+      cliente.lancamentos as LancamentoContasReceber[],
+      trabalhos,
+      cliente.nome,
+      {
+        periodoAtivo: true,
+        dataInicio: inicio.toLocaleDateString("pt-BR"),
+        dataFinal: fim.toLocaleDateString("pt-BR"),
+        clienteId: cliente.clienteId,
+      }
     );
   }
 
@@ -1114,7 +1130,27 @@ export function VisualizacaoClienteReceberModal({
             </div>
           )}
         </div>
+
+        {aba === "extrato" ? (
+          <div className="shrink-0 border-t border-[#e5e7eb] bg-white px-4 py-3">
+            <BotoesExtratoCompartilhar
+              onExcel={exportarExtratoExcel}
+              onWhatsapp={() => setWhatsappExtratoAberto(true)}
+              processando={gerandoExtrato}
+            />
+          </div>
+        ) : null}
       </div>
+
+      {cliente ? (
+        <EnviarExtratoWhatsappModal
+          open={whatsappExtratoAberto}
+          onClose={() => setWhatsappExtratoAberto(false)}
+          clienteNome={cliente.nome}
+          telefoneInicial={clienteTelefone}
+          gerarPdf={gerarExtratoPdfBlob}
+        />
+      ) : null}
     </div>,
     document.body
   );

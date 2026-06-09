@@ -427,3 +427,58 @@ export function resumoColaboradorControle(colaboradores: ColaboradorOsLinha[]) {
   const nomes = [...new Set(colaboradores.map((c) => c.nome.trim()).filter(Boolean))];
   return nomes.join(", ");
 }
+
+/** Nome do colaborador vinculado à etapa (resp. da etapa ou aba Colaborador com etapa). */
+export function colaboradorDaEtapaImpressao(
+  etapa: EtapaOsLinha,
+  colaboradores: ColaboradorOsLinha[] = []
+): string {
+  const responsavel = etapa.responsavel.trim();
+  if (responsavel) return responsavel;
+
+  const chaveEtapa = nomeEtapaSemSetor(etapa.nome).toLowerCase();
+  if (!chaveEtapa) return "";
+
+  const vinculado = colaboradores.find((colab) => {
+    const etapaColab = nomeEtapaSemSetor(colab.etapa).toLowerCase();
+    return etapaColab && etapaColab === chaveEtapa;
+  });
+  return vinculado?.nome.trim() || "";
+}
+
+/** Amostra para preview dos modelos 1–3 (checkbox + data + colaborador + etapa). */
+export const PREVIEW_ETAPAS_OS_LISTA: EtapaOsLinha[] = [
+  {
+    indice: 0,
+    nome: "Modelagem",
+    responsavel: "",
+    prazo: "19/02/2021 08:00",
+    observacao: "",
+  },
+  {
+    indice: 1,
+    nome: "Metal",
+    responsavel: "",
+    prazo: "",
+    observacao: "",
+  },
+  {
+    indice: 2,
+    nome: "Cerâmica",
+    responsavel: "Maria",
+    prazo: "",
+    observacao: "",
+  },
+  {
+    indice: 3,
+    nome: "Acabamento",
+    responsavel: "",
+    prazo: "",
+    observacao: "",
+  },
+];
+
+export const PREVIEW_COLABORADORES_OS_LISTA: ColaboradorOsLinha[] = [
+  { nome: "Funcionário", comissao: "10,00", etapa: "Metal" },
+  { nome: "Maria", comissao: "8,00", etapa: "Cerâmica" },
+];
