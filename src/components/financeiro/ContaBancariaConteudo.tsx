@@ -1,21 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeftRight,
   ArrowUpFromLine,
   Eye,
   Pencil,
   Plus,
-  X,
 } from "lucide-react";
 import { CadastrarContaBancariaModal } from "@/components/financeiro/CadastrarContaBancariaModal";
 import { ConciliacaoContaModal } from "@/components/financeiro/ConciliacaoContaModal";
-import { ExtratoBancarioModal } from "@/components/financeiro/ExtratoBancarioModal";
+import { MovimentacaoContaModal } from "@/components/financeiro/MovimentacaoContaModal";
+import { TransferenciasAjustesSaldoModal } from "@/components/financeiro/TransferenciasAjustesSaldoModal";
 import {
   calcularSaldoConta,
-  carregarContasBancarias,
   carregarMovimentacoesConta,
   classeBotaoAcaoConta,
   contaFromForm,
@@ -61,58 +59,24 @@ function money(value: number) {
   });
 }
 
-function parseMoneyBr(value: string) {
-  const n = Number(
-    value.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".")
-  );
-  return Number.isFinite(n) ? n : 0;
-}
-
 const thClass =
   "border-b border-[#e0e0e0] bg-[#f5f6f8] px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300";
 
-const inputClass =
-  "h-9 w-full rounded border border-[#d4d4d4] bg-white px-2.5 text-[13px] text-slate-800 outline-none focus:border-[#4a90d9] dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-[#4a90d9]";
+const LABEL_TIPO_PIX: Record<string, string> = {
+  cpf: "CPF",
+  cnpj: "CNPJ",
+  email: "E-mail",
+  telefone: "Telefone",
+  aleatoria: "Chave aleatória",
+};
 
-function ModalSimples({
-  titulo,
-  open,
-  onClose,
-  children,
-  footer,
-}: {
-  titulo: string;
-  open: boolean;
-  onClose: () => void;
-  children: React.ReactNode;
-  footer?: React.ReactNode;
-}) {
-  if (!open) return null;
-  return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/45 p-4 pt-12">
-      <div className="absolute inset-0" onClick={onClose} aria-hidden />
-      <div className="relative w-full max-w-md rounded border border-[#d4d4d4] bg-white shadow-xl dark:border-slate-600 dark:bg-slate-900">
-        <div className="flex items-center justify-between border-b border-[#e5e5e5] px-4 py-3 dark:border-slate-700">
-          <h2 className="text-[15px] font-normal text-slate-800 dark:text-slate-100">{titulo}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-            aria-label="Fechar"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        <div className="px-4 py-4">{children}</div>
-        {footer ? (
-          <div className="flex gap-2 border-t border-[#e5e5e5] px-4 py-3 dark:border-slate-700">
-            {footer}
-          </div>
-        ) : null}
-      </div>
-    </div>,
-    document.body
-  );
+function labelChavePix(conta: ContaBancaria) {
+  const tipo = conta.tipoChavePix
+    ? LABEL_TIPO_PIX[conta.tipoChavePix] || conta.tipoChavePix
+    : "";
+  const chave = conta.chavePix?.trim() || "";
+  if (tipo && chave) return `${tipo}: ${chave}`;
+  return chave || "—";
 }
 
 export function ContaBancariaConteudo() {
@@ -137,11 +101,7 @@ export function ContaBancariaConteudo() {
     form: DadosFormContaBancaria;
     extrato: Omit<ExtratoMovimentacao, "contaId">[];
   } | null>(null);
-  const [modalExtrato, setModalExtrato] = useState<ContaBancaria | null>(null);
-  const [valorMov, setValorMov] = useState("");
-  const [descMov, setDescMov] = useState("");
-  const [contaDestinoId, setContaDestinoId] = useState("");
-  const [valorTransf, setValorTransf] = useState("");
+  const [contaVisualizada, setContaVisualizada] = useState<string | null>(null);
   const [clientes, setClientes] = useState<{ id: string; nome: string }[]>(
     []
   );
@@ -235,11 +195,6 @@ export function ContaBancariaConteudo() {
     setModalEditar(null);
   }
 
-  function atualizarContaNaLista(conta: ContaBancaria) {
-    persistirContas(contas.map((c) => (c.id === conta.id ? conta : c)));
-    if (modalExtrato?.id === conta.id) setModalExtrato(conta);
-  }
-
   function registrarMovimentacao(
     conta: ContaBancaria,
     tipo: "entrada" | "saida",
@@ -257,54 +212,50 @@ export function ContaBancariaConteudo() {
     persistirMovs([...movimentacoes, mov]);
   }
 
-  function confirmarAcaoConta() {
+  function confirmarMovimentacao(dados: {
+    contaDestinoId: string;
+    tipo: string;
+    valor: number;
+    descricao: string;
+  }) {
     if (!modalAcao) return;
-    const valor = parseMoneyBr(valorMov);
-    if (valor <= 0) return;
     const { conta, acao } = modalAcao;
-    if (acao === "baixar") {
-      registrarMovimentacao(conta, "saida", valor, descMov || "Baixa");
+    const desc =
+      dados.descricao.trim() ||
+      (dados.tipo === "Transferência"
+        ? "Transferência"
+        : dados.tipo);
+
+    if (dados.tipo === "Transferência") {
+      const destino = contas.find((c) => c.id === dados.contaDestinoId);
+      if (!destino || destino.id === conta.id) return;
+      const ts = Date.now();
+      const saida: MovimentacaoContaBancaria = {
+        id: `mov-${ts}-s`,
+        contaId: conta.id,
+        tipo: "saida",
+        valor: dados.valor,
+        descricao: desc || `Transferência para ${destino.nome}`,
+        data: new Date().toISOString(),
+      };
+      const entrada: MovimentacaoContaBancaria = {
+        id: `mov-${ts}-e`,
+        contaId: destino.id,
+        tipo: "entrada",
+        valor: dados.valor,
+        descricao: desc || `Transferência de ${conta.nome}`,
+        data: new Date().toISOString(),
+      };
+      persistirMovs([...movimentacoes, saida, entrada]);
+    } else if (
+      dados.tipo === "Saque" ||
+      (dados.tipo === "Ajuste de Saldo" && acao !== "adicionar_credito")
+    ) {
+      registrarMovimentacao(conta, "saida", dados.valor, desc);
     } else {
-      registrarMovimentacao(
-        conta,
-        "entrada",
-        valor,
-        descMov ||
-          (acao === "adicionar_credito" ? "Crédito adicionado" : "Movimentação")
-      );
+      registrarMovimentacao(conta, "entrada", dados.valor, desc);
     }
-    setValorMov("");
-    setDescMov("");
     setModalAcao(null);
-  }
-
-  function confirmarTransferencia() {
-    if (!modalTransferir) return;
-    const valor = parseMoneyBr(valorTransf);
-    const destino = contas.find((c) => c.id === contaDestinoId);
-    if (!destino || valor <= 0 || destino.id === modalTransferir.id) return;
-
-    const ts = Date.now();
-    const saida: MovimentacaoContaBancaria = {
-      id: `mov-${ts}-s`,
-      contaId: modalTransferir.id,
-      tipo: "saida",
-      valor,
-      descricao: `Transferência para ${destino.nome}`,
-      data: new Date().toISOString(),
-    };
-    const entrada: MovimentacaoContaBancaria = {
-      id: `mov-${ts}-e`,
-      contaId: destino.id,
-      tipo: "entrada",
-      valor,
-      descricao: `Transferência de ${modalTransferir.nome}`,
-      data: new Date().toISOString(),
-    };
-    persistirMovs([...movimentacoes, saida, entrada]);
-    setModalTransferir(null);
-    setValorTransf("");
-    setContaDestinoId("");
   }
 
   const contaPodeExcluir = (conta: ContaBancaria) =>
@@ -413,104 +364,160 @@ export function ContaBancariaConteudo() {
                 </td>
               </tr>
             ) : (
-              linhas.map(({ conta, saldo }, index) => (
-                <tr
-                  key={conta.id}
-                  className={cn(
-                    "border-b border-[#ececec] text-[13px] dark:border-slate-700",
-                    index % 2 === 1
-                      ? "bg-[#fafafa] dark:bg-slate-800/60"
-                      : "bg-white dark:bg-slate-900"
-                  )}
-                >
-                  <td className="px-4 py-3 font-normal text-slate-800 dark:text-slate-100">
-                    <span>{conta.nome}</span>
-                    {conta.modoVinculo === "open_finance" &&
-                    conta.openFinance?.itemId ? (
-                      <span className="ml-2 rounded bg-[#e8f2fc] px-1.5 py-0.5 text-[10px] text-[#4a90d9] dark:bg-slate-700 dark:text-sky-300">
-                        Open Finance
-                      </span>
-                    ) : conta.modoVinculo === "extrato_arquivo" ? (
-                      <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500 dark:bg-slate-700 dark:text-slate-300">
-                        Extrato arquivo
-                      </span>
-                    ) : null}
-                  </td>
-                  <td
-                    className={cn(
-                      "px-4 py-3 text-right tabular-nums",
-                      saldo > 0
-                        ? "text-[#4cae4c] dark:text-emerald-400"
-                        : "text-slate-500 dark:text-slate-400"
-                    )}
-                  >
-                    {money(saldo)}
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex items-center justify-center gap-2">
-                      {verExcluidos ? (
-                        <button
-                          type="button"
-                          onClick={() => restaurarConta(conta)}
-                          className="rounded border border-[#4a90d9] px-3 py-1 text-[12px] text-[#4a90d9] hover:bg-[#f0f7ff] dark:border-sky-600 dark:text-sky-300 dark:hover:bg-slate-800"
-                        >
-                          Restaurar
-                        </button>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            title="Visualizar"
-                            onClick={() => setModalExtrato(conta)}
-                            className="inline-flex h-8 w-8 items-center justify-center text-slate-500 hover:text-[#4a90d9] dark:text-slate-400 dark:hover:text-sky-300"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                          {contaPermiteEditarNaLista(conta) ? (
+              linhas.map(({ conta, saldo }, index) => {
+                const expandida = contaVisualizada === conta.id;
+                return (
+                  <Fragment key={conta.id}>
+                    <tr
+                      className={cn(
+                        "border-b border-[#ececec] text-[13px] dark:border-slate-700",
+                        expandida
+                          ? "bg-[#f8fafc] dark:bg-slate-800/80"
+                          : index % 2 === 1
+                            ? "bg-[#fafafa] dark:bg-slate-800/60"
+                            : "bg-white dark:bg-slate-900"
+                      )}
+                    >
+                      <td className="px-4 py-3 font-normal text-slate-800 dark:text-slate-100">
+                        <span>{conta.nome}</span>
+                        {conta.modoVinculo === "open_finance" &&
+                        conta.openFinance?.itemId ? (
+                          <span className="ml-2 rounded bg-[#e8f2fc] px-1.5 py-0.5 text-[10px] text-[#4a90d9] dark:bg-slate-700 dark:text-sky-300">
+                            Open Finance
+                          </span>
+                        ) : conta.modoVinculo === "extrato_arquivo" ? (
+                          <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500 dark:bg-slate-700 dark:text-slate-300">
+                            Extrato arquivo
+                          </span>
+                        ) : null}
+                      </td>
+                      <td
+                        className={cn(
+                          "px-4 py-3 text-right tabular-nums",
+                          saldo > 0
+                            ? "text-[#4cae4c] dark:text-emerald-400"
+                            : "text-slate-500 dark:text-slate-400"
+                        )}
+                      >
+                        {money(saldo)}
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center justify-center gap-2">
+                          {verExcluidos ? (
                             <button
                               type="button"
-                              title="Editar"
-                              onClick={() => setModalEditar(conta)}
-                              className="inline-flex h-8 w-8 items-center justify-center text-slate-500 hover:text-[#4a90d9] dark:text-slate-400 dark:hover:text-sky-300"
+                              onClick={() => restaurarConta(conta)}
+                              className="rounded border border-[#4a90d9] px-3 py-1 text-[12px] text-[#4a90d9] hover:bg-[#f0f7ff] dark:border-sky-600 dark:text-sky-300 dark:hover:bg-slate-800"
                             >
-                              <Pencil className="h-4 w-4" />
+                              Restaurar
                             </button>
-                          ) : null}
-                          <button
-                            type="button"
-                            title="Transferir"
-                            onClick={() => {
-                              setModalTransferir(conta);
-                              setContaDestinoId("");
-                              setValorTransf("");
-                            }}
-                            className="inline-flex h-8 w-8 items-center justify-center text-slate-500 hover:text-[#4a90d9] dark:text-slate-400 dark:hover:text-sky-300"
-                          >
-                            <ArrowLeftRight className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setModalAcao({
-                                conta,
-                                acao: conta.acaoPrincipal,
-                              });
-                              setValorMov("");
-                              setDescMov("");
-                            }}
-                            className={cn(
-                              "inline-flex items-center rounded px-3 py-1.5 text-[12px] font-normal text-white",
-                              classeBotaoAcaoConta(conta.acaoPrincipal)
-                            )}
-                          >
-                            {labelAcaoConta(conta.acaoPrincipal)}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                title="Visualizar"
+                                onClick={() =>
+                                  setContaVisualizada((atual) =>
+                                    atual === conta.id ? null : conta.id
+                                  )
+                                }
+                                className={cn(
+                                  "inline-flex h-8 w-8 items-center justify-center hover:text-[#4a90d9] dark:hover:text-sky-300",
+                                  expandida
+                                    ? "text-[#4a90d9] dark:text-sky-300"
+                                    : "text-slate-500 dark:text-slate-400"
+                                )}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </button>
+                              {contaPermiteEditarNaLista(conta) ? (
+                                <button
+                                  type="button"
+                                  title="Editar"
+                                  onClick={() => setModalEditar(conta)}
+                                  className="inline-flex h-8 w-8 items-center justify-center text-slate-500 hover:text-[#4a90d9] dark:text-slate-400 dark:hover:text-sky-300"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </button>
+                              ) : null}
+                              <button
+                                type="button"
+                                title="Transferências e Ajustes"
+                                onClick={() => setModalTransferir(conta)}
+                                className="inline-flex h-8 w-8 items-center justify-center text-slate-500 hover:text-[#4a90d9] dark:text-slate-400 dark:hover:text-sky-300"
+                              >
+                                <ArrowLeftRight className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setModalAcao({
+                                    conta,
+                                    acao: conta.acaoPrincipal,
+                                  })
+                                }
+                                className={cn(
+                                  "inline-flex items-center rounded px-3 py-1.5 text-[12px] font-normal text-white",
+                                  classeBotaoAcaoConta(conta.acaoPrincipal)
+                                )}
+                              >
+                                {labelAcaoConta(conta.acaoPrincipal)}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                    {expandida ? (
+                      <tr className="border-b border-[#ececec] bg-[#f8fafc] dark:border-slate-700 dark:bg-slate-800/80">
+                        <td colSpan={3} className="px-4 py-3">
+                          <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-[12px] md:grid-cols-4">
+                            <div>
+                              <span className="font-semibold text-slate-600 dark:text-slate-300">
+                                Agência:
+                              </span>{" "}
+                              <span className="text-slate-800 dark:text-slate-100">
+                                {conta.agencia?.trim() || "—"}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="font-semibold text-slate-600 dark:text-slate-300">
+                                Número da Conta:
+                              </span>{" "}
+                              <span className="text-slate-800 dark:text-slate-100">
+                                {conta.numeroConta?.trim() || "—"}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="font-semibold text-slate-600 dark:text-slate-300">
+                                Chave Pix:
+                              </span>{" "}
+                              <span className="text-slate-800 dark:text-slate-100">
+                                {labelChavePix(conta)}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="font-semibold uppercase text-slate-600 dark:text-slate-300">
+                                Saldo:
+                              </span>{" "}
+                              <span
+                                className={cn(
+                                  "font-semibold tabular-nums",
+                                  saldo > 0
+                                    ? "text-[#4cae4c] dark:text-emerald-400"
+                                    : "text-slate-700 dark:text-slate-200"
+                                )}
+                              >
+                                {money(saldo)}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -543,115 +550,30 @@ export function ContaBancariaConteudo() {
         }
       />
 
-      <ModalSimples
-        titulo={`Transferir — ${modalTransferir?.nome ?? ""}`}
+      <TransferenciasAjustesSaldoModal
         open={modalTransferir !== null}
         onClose={() => setModalTransferir(null)}
-        footer={
-          <>
-            <button
-              type="button"
-              onClick={confirmarTransferencia}
-              className="rounded bg-[#4a90d9] px-4 py-2 text-[13px] text-white"
-            >
-              Transferir
-            </button>
-            <button
-              type="button"
-              onClick={() => setModalTransferir(null)}
-              className="rounded border px-4 py-2 text-[13px]"
-            >
-              Fechar
-            </button>
-          </>
-        }
-      >
-        <div className="space-y-3">
-          <div>
-            <label className="mb-1 block text-[12px]">Conta destino</label>
-            <select
-              value={contaDestinoId}
-              onChange={(e) => setContaDestinoId(e.target.value)}
-              className={inputClass}
-            >
-              <option value="">Selecione</option>
-              {contas
-                .filter((c) => !c.excluida && c.id !== modalTransferir?.id)
-                .map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome}
-                  </option>
-                ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-[12px]">Valor</label>
-            <input
-              type="text"
-              value={valorTransf}
-              onChange={(e) => setValorTransf(e.target.value)}
-              placeholder="0,00"
-              className={inputClass}
-            />
-          </div>
-        </div>
-      </ModalSimples>
+        contas={contas}
+        movimentacoes={movimentacoes}
+        contaInicial={modalTransferir}
+      />
 
-      <ModalSimples
-        titulo={
-          modalAcao
-            ? `${labelAcaoConta(modalAcao.acao)} — ${modalAcao.conta.nome}`
-            : ""
-        }
+      <MovimentacaoContaModal
         open={modalAcao !== null}
         onClose={() => setModalAcao(null)}
-        footer={
-          <>
-            <button
-              type="button"
-              onClick={confirmarAcaoConta}
-              className="rounded bg-[#4cae4c] px-4 py-2 text-[13px] text-white"
-            >
-              Confirmar
-            </button>
-            <button
-              type="button"
-              onClick={() => setModalAcao(null)}
-              className="rounded border px-4 py-2 text-[13px]"
-            >
-              Fechar
-            </button>
-          </>
+        conta={modalAcao?.conta ?? null}
+        saldo={
+          modalAcao
+            ? calcularSaldoConta(
+                modalAcao.conta,
+                lancamentos,
+                movimentacoes
+              )
+            : 0
         }
-      >
-        <div className="space-y-3">
-          <div>
-            <label className="mb-1 block text-[12px]">Valor</label>
-            <input
-              type="text"
-              value={valorMov}
-              onChange={(e) => setValorMov(e.target.value)}
-              placeholder="0,00"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-[12px]">Descrição</label>
-            <input
-              type="text"
-              value={descMov}
-              onChange={(e) => setDescMov(e.target.value)}
-              className={inputClass}
-            />
-          </div>
-        </div>
-      </ModalSimples>
-
-      <ExtratoBancarioModal
-        conta={modalExtrato}
-        open={modalExtrato !== null}
-        onClose={() => setModalExtrato(null)}
-        onContaAtualizada={atualizarContaNaLista}
+        contas={contas}
+        acao={modalAcao?.acao}
+        onConfirmar={confirmarMovimentacao}
       />
 
       <ConciliacaoContaModal

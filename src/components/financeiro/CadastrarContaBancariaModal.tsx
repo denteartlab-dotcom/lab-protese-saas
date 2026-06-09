@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Landmark } from "lucide-react";
+import { Landmark, Pencil } from "lucide-react";
 import { VinculoContaBancariaSection } from "@/components/financeiro/VinculoContaBancariaSection";
 import {
   FORM_CONTA_BANCARIA_VAZIO,
@@ -109,9 +109,16 @@ export function CadastrarContaBancariaModal({
         <div className="flex items-center justify-between border-b border-[#e5e5e5] px-4 py-3">
           <h2
             id="cadastrar-conta-titulo"
-            className="text-[15px] font-normal text-slate-800"
+            className="flex items-center gap-2 text-[15px] font-normal text-slate-800"
           >
-            {editando ? "Editar Conta" : "Cadastrar Conta"}
+            {editando ? (
+              <>
+                <Pencil className="h-4 w-4 text-slate-400" />
+                Editar Conta: {form.nome || contaEdicao?.nome}
+              </>
+            ) : (
+              "Cadastrar Conta"
+            )}
           </h2>
           <button
             type="button"
@@ -199,23 +206,27 @@ export function CadastrarContaBancariaModal({
                 className={inputClass}
               />
             </div>
-            <div className="col-span-12 md:col-span-3">
-              <label className={labelClass}>Saldo Inicial</label>
-              <input
-                type="text"
-                value={form.saldoInicial}
-                onChange={(e) => patch({ saldoInicial: e.target.value })}
-                className={inputClass}
-              />
-            </div>
+            {!editando ? (
+              <div className="col-span-12 md:col-span-3">
+                <label className={labelClass}>Saldo Inicial</label>
+                <input
+                  type="text"
+                  value={form.saldoInicial}
+                  onChange={(e) => patch({ saldoInicial: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+            ) : null}
           </div>
 
-          <VinculoContaBancariaSection
-            form={form}
-            onChange={patch}
-            contaIdPreview={contaEdicao?.id ?? "nova-conta"}
-            onExtratoArquivo={setExtratoPendente}
-          />
+          {!editando ? (
+            <VinculoContaBancariaSection
+              form={form}
+              onChange={patch}
+              contaIdPreview={contaEdicao?.id ?? "nova-conta"}
+              onExtratoArquivo={setExtratoPendente}
+            />
+          ) : null}
 
           <div className="mt-5 flex items-center gap-2 border-t border-[#e5e5e5] pt-4">
             <button
@@ -223,7 +234,7 @@ export function CadastrarContaBancariaModal({
               disabled={!form.nome.trim()}
               className="h-9 rounded border border-[#4a90d9] bg-[#4a90d9] px-5 text-[13px] text-white hover:bg-[#3d7fc4] disabled:opacity-50"
             >
-              {editando ? "Salvar" : "Cadastrar"}
+              Cadastrar
             </button>
             {editando && onExcluir ? (
               <button
