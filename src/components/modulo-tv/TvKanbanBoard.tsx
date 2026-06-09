@@ -11,7 +11,7 @@ type Props = {
 
 export function TvKanbanBoard({ ordens, carregando }: Props) {
   return (
-    <div className="flex h-full min-h-0 gap-2 overflow-hidden 2xl:gap-3">
+    <div className="flex h-full min-h-0 gap-2 overflow-hidden tv:gap-2.5 tv-4k:gap-3.5">
       {COLUNAS_KANBAN.map((coluna) => (
         <TvKanbanColumn
           key={coluna.id}

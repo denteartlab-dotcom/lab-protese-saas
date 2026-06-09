@@ -10,6 +10,10 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      screens: {
+        tv: "1920px",
+        "tv-4k": "2560px",
+      },
       colors: {
         primary: {
           50: "#eff6ff",
@@ -24,6 +28,27 @@ const config: Config = {
       },
       fontFamily: {
         sans: ['"Segoe UI"', "system-ui", "-apple-system", "sans-serif"],
+        tv: ["var(--font-tv-sans)", "system-ui", "sans-serif"],
+        "tv-mono": ["var(--font-tv-mono)", "ui-monospace", "monospace"],
+      },
+      animation: {
+        "tv-pulse-glow": "tv-pulse-glow 4s ease-in-out infinite",
+        "tv-shimmer": "tv-shimmer 2.2s ease-in-out infinite",
+        "tv-float": "tv-float 8s ease-in-out infinite",
+      },
+      keyframes: {
+        "tv-pulse-glow": {
+          "0%, 100%": { opacity: "0.45" },
+          "50%": { opacity: "0.85" },
+        },
+        "tv-shimmer": {
+          "0%": { backgroundPosition: "200% 0" },
+          "100%": { backgroundPosition: "-200% 0" },
+        },
+        "tv-float": {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-12px)" },
+        },
       },
     },
   },

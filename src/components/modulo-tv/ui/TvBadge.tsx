@@ -8,20 +8,22 @@ const ESTILOS: Record<
   urgente: {
     label: "URGENTE",
     className:
-      "bg-red-500/20 text-red-300 ring-1 ring-red-400/50 shadow-[0_0_12px_rgba(239,68,68,0.35)]",
+      "border border-red-400/30 bg-red-500/15 text-red-200 shadow-[0_0_16px_rgba(239,68,68,0.35)] backdrop-blur-sm",
   },
   alta: {
     label: "ALTA",
     className:
-      "bg-orange-500/20 text-orange-300 ring-1 ring-orange-400/40 shadow-[0_0_10px_rgba(249,115,22,0.25)]",
+      "border border-orange-400/30 bg-orange-500/15 text-orange-200 shadow-[0_0_14px_rgba(249,115,22,0.28)] backdrop-blur-sm",
   },
   normal: {
     label: "NORMAL",
-    className: "bg-sky-500/15 text-sky-300 ring-1 ring-sky-400/30",
+    className:
+      "border border-sky-400/25 bg-sky-500/12 text-sky-200 shadow-[0_0_10px_rgba(56,189,248,0.15)] backdrop-blur-sm",
   },
   baixa: {
     label: "BAIXA",
-    className: "bg-slate-500/20 text-slate-400 ring-1 ring-slate-500/30",
+    className:
+      "border border-slate-500/25 bg-slate-500/15 text-slate-300 backdrop-blur-sm",
   },
 };
 
@@ -35,7 +37,7 @@ export function TvBadge({ prioridade, className }: Props) {
   return (
     <span
       className={cn(
-        "inline-flex rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider 2xl:text-[11px]",
+        "inline-flex rounded-md px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] tv:text-[10px] tv-4k:text-[11px]",
         estilo.className,
         className
       )}

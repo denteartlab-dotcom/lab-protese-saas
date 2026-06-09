@@ -9,6 +9,7 @@ import {
   Users,
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { TV_GLASS_CARD, TV_TEXT_LABEL } from "@/components/modulo-tv/tv-styles";
 import type { TvDashboardStats } from "@/components/modulo-tv/types";
 import { cn } from "@/lib/utils";
 
@@ -16,32 +17,65 @@ type Props = {
   stats: TvDashboardStats;
 };
 
+const STAT_ACCENTS = [
+  {
+    bar: "from-cyan-400 to-blue-500",
+    glow: "shadow-[0_0_28px_rgba(34,211,238,0.1)]",
+    icon: "text-cyan-400",
+  },
+  {
+    bar: "from-red-400 to-rose-500",
+    glow: "shadow-[0_0_28px_rgba(239,68,68,0.12)]",
+    icon: "text-red-400",
+  },
+  {
+    bar: "from-emerald-400 to-teal-500",
+    glow: "shadow-[0_0_28px_rgba(16,185,129,0.1)]",
+    icon: "text-emerald-400",
+  },
+  {
+    bar: "from-violet-400 to-purple-500",
+    glow: "shadow-[0_0_28px_rgba(139,92,246,0.12)]",
+    icon: "text-violet-400",
+  },
+] as const;
+
 function StatCard({
   icon,
   label,
   value,
-  tone,
+  accent,
+  index,
 }: {
   icon: ReactNode;
   label: string;
   value: number;
-  tone: string;
+  accent: (typeof STAT_ACCENTS)[number];
+  index: number;
 }) {
   return (
     <motion.div
-      whileHover={{ scale: 1.02 }}
+      initial={{ opacity: 0, x: -12 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.45, delay: index * 0.06, ease: "easeOut" }}
+      whileHover={{ scale: 1.02, y: -2 }}
       className={cn(
-        "rounded-xl border border-slate-700/50 bg-slate-900/60 p-3 backdrop-blur-sm 2xl:p-4",
-        tone
+        "relative overflow-hidden p-3.5 tv:p-4 tv-4k:p-5",
+        TV_GLASS_CARD,
+        accent.glow
       )}
     >
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 2xl:text-[11px]">
-          {label}
-        </span>
-        <span className="text-slate-500">{icon}</span>
+      <div
+        className={cn(
+          "absolute left-0 top-0 h-full w-1 bg-gradient-to-b",
+          accent.bar
+        )}
+      />
+      <div className="mb-2.5 flex items-center justify-between pl-2">
+        <span className={TV_TEXT_LABEL}>{label}</span>
+        <span className={accent.icon}>{icon}</span>
       </div>
-      <p className="text-2xl font-bold tabular-nums text-white 2xl:text-3xl">
+      <p className="pl-2 font-tv-mono text-2xl font-bold tabular-nums tracking-tight text-white tv:text-3xl tv-4k:text-4xl">
         {value}
       </p>
     </motion.div>
@@ -54,38 +88,56 @@ export function TvSidebar({ stats }: Props) {
     { name: "Restante", value: 100 - stats.percentualConcluido },
   ];
 
-  return (
-    <aside className="flex w-[200px] shrink-0 flex-col gap-2 2xl:w-[240px] 3xl:w-[260px]">
-      <StatCard
-        icon={<ClipboardList className="h-4 w-4 text-cyan-400" />}
-        label="OS em produção"
-        value={stats.totalProducao}
-        tone="shadow-[inset_0_0_20px_rgba(34,211,238,0.06)]"
-      />
-      <StatCard
-        icon={<AlertTriangle className="h-4 w-4 text-red-400" />}
-        label="Atrasadas"
-        value={stats.atrasadas}
-        tone="shadow-[inset_0_0_20px_rgba(239,68,68,0.08)]"
-      />
-      <StatCard
-        icon={<CalendarCheck className="h-4 w-4 text-emerald-400" />}
-        label="Entregas hoje"
-        value={stats.entregasHoje}
-        tone="shadow-[inset_0_0_20px_rgba(16,185,129,0.08)]"
-      />
-      <StatCard
-        icon={<Users className="h-4 w-4 text-violet-400" />}
-        label="Colaboradores online"
-        value={stats.colaboradoresOnline}
-        tone="shadow-[inset_0_0_20px_rgba(139,92,246,0.08)]"
-      />
+  const statItems = [
+    {
+      icon: <ClipboardList className="h-4 w-4 tv:h-5 tv:w-5" />,
+      label: "OS em produção",
+      value: stats.totalProducao,
+    },
+    {
+      icon: <AlertTriangle className="h-4 w-4 tv:h-5 tv:w-5" />,
+      label: "Atrasadas",
+      value: stats.atrasadas,
+    },
+    {
+      icon: <CalendarCheck className="h-4 w-4 tv:h-5 tv:w-5" />,
+      label: "Entregas hoje",
+      value: stats.entregasHoje,
+    },
+    {
+      icon: <Users className="h-4 w-4 tv:h-5 tv:w-5" />,
+      label: "Colaboradores",
+      value: stats.colaboradoresOnline,
+    },
+  ];
 
-      <div className="mt-1 flex flex-1 flex-col rounded-xl border border-slate-700/50 bg-slate-900/60 p-3 2xl:p-4">
-        <p className="mb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+  return (
+    <aside className="flex w-[210px] shrink-0 flex-col gap-2.5 tv:w-[260px] tv:gap-3 tv-4k:w-[300px] tv-4k:gap-3.5">
+      {statItems.map((item, i) => (
+        <StatCard
+          key={item.label}
+          icon={item.icon}
+          label={item.label}
+          value={item.value}
+          accent={STAT_ACCENTS[i]}
+          index={i}
+        />
+      ))}
+
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.28 }}
+        className={cn(
+          "mt-0.5 flex flex-1 flex-col p-3.5 tv:p-4 tv-4k:p-5",
+          TV_GLASS_CARD,
+          "shadow-[0_0_40px_rgba(59,130,246,0.08)]"
+        )}
+      >
+        <p className={cn("mb-3 text-center", TV_TEXT_LABEL)}>
           Conclusão do dia
         </p>
-        <div className="relative mx-auto h-28 w-full 2xl:h-32">
+        <div className="relative mx-auto h-28 w-full tv:h-36 tv-4k:h-40">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -94,33 +146,39 @@ export function TvSidebar({ stats }: Props) {
                 cy="50%"
                 innerRadius="58%"
                 outerRadius="82%"
-                paddingAngle={2}
+                paddingAngle={3}
                 dataKey="value"
                 stroke="none"
               >
-                <Cell fill="#22d3ee" />
-                <Cell fill="#1e293b" />
+                <Cell fill="url(#tvPieGradient)" />
+                <Cell fill="rgba(30,41,59,0.8)" />
               </Pie>
+              <defs>
+                <linearGradient id="tvPieGradient" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#22d3ee" />
+                  <stop offset="100%" stopColor="#8b5cf6" />
+                </linearGradient>
+              </defs>
             </PieChart>
           </ResponsiveContainer>
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <span className="text-xl font-bold text-cyan-300 2xl:text-2xl">
+            <span className="font-tv-mono text-xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-cyan-300 to-violet-300 tv:text-2xl tv-4k:text-3xl">
               {stats.percentualConcluido}%
             </span>
           </div>
         </div>
 
-        <div className="mt-3 space-y-1.5 text-[10px] 2xl:text-[11px]">
-          <div className="flex items-center gap-2 text-slate-400">
-            <span className="h-2 w-2 rounded-full bg-cyan-400" />
+        <div className="mt-4 space-y-2 text-[10px] tv:text-[11px] tv-4k:text-xs">
+          <div className="flex items-center gap-2.5 text-slate-400">
+            <span className="h-2 w-2 rounded-full bg-gradient-to-r from-cyan-400 to-violet-400 shadow-[0_0_8px_rgba(34,211,238,0.6)]" />
             Concluídas
           </div>
-          <div className="flex items-center gap-2 text-slate-400">
-            <span className="h-2 w-2 rounded-full bg-slate-600" />
+          <div className="flex items-center gap-2.5 text-slate-400">
+            <span className="h-2 w-2 rounded-full bg-slate-600/80" />
             Em andamento
           </div>
         </div>
-      </div>
+      </motion.div>
     </aside>
   );
 }

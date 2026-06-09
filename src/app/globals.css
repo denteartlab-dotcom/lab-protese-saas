@@ -202,3 +202,48 @@
     display: none !important;
   }
 }
+
+/* ── Módulo TV — painel industrial premium ── */
+.tv-grid-bg {
+  background-image:
+    linear-gradient(rgba(56, 189, 248, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, black 20%, transparent 75%);
+}
+
+.tv-shimmer {
+  background-size: 200% 100%;
+  animation: tv-shimmer 2.2s ease-in-out infinite;
+}
+
+@keyframes tv-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.tv-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(56, 189, 248, 0.25) transparent;
+}
+
+.tv-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.tv-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tv-scrollbar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.35), rgba(139, 92, 246, 0.35));
+}
+
+.tv-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.55), rgba(139, 92, 246, 0.55));
+}

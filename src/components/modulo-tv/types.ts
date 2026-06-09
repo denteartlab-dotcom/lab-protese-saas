@@ -24,10 +24,13 @@ export type OrdemServicoTv = {
 export type ColunaKanbanConfig = {
   id: ColunaKanbanId;
   label: string;
+  dot: string;
+  bar: string;
   accent: string;
   glow: string;
   border: string;
   badge: string;
+  ring: string;
 };
 
 export type TvDashboardStats = {
