@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { FileText, Upload, User, X } from "lucide-react";
+import { Upload, User, X } from "lucide-react";
 import type { ContaBancaria } from "@/lib/conta-bancaria";
 import type { ExtratoMovimentacao } from "@/lib/extrato-bancario";
 import { salvarConciliacaoNaConta } from "@/lib/conciliacao-ofx-salvar";
