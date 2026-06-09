@@ -5,6 +5,7 @@ import { FileText, X } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
 import { dateToBrShort } from "@/lib/datas-br";
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
+import { cn } from "@/lib/utils";
 import type { TrabalhoRelatorioFatura } from "@/lib/relatorio-faturas-modelo3-dados";
 import {
   filtrarLinhasRelatorioContasReceber,
@@ -101,6 +102,8 @@ export function RelatorioContasReceberModal({
     [lancamentos, trabalhos, modelo]
   );
 
+  const extratoExigeCliente = modeloEhExtratoPorCliente(modelo);
+
   const clientes = useMemo(() => {
     const set = new Set<string>();
     for (const l of lancamentos) {
@@ -110,6 +113,17 @@ export function RelatorioContasReceberModal({
     }
     return ["todos", ...Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"))];
   }, [lancamentos]);
+
+  const clientesNoSelect = useMemo(
+    () => (extratoExigeCliente ? clientes.filter((c) => c !== "todos") : clientes),
+    [clientes, extratoExigeCliente]
+  );
+
+  useEffect(() => {
+    if (extratoExigeCliente && cliente === "todos") {
+      setCliente("");
+    }
+  }, [extratoExigeCliente, modelo, cliente]);
 
   function montarFiltro(): FiltroRelatorioContasReceber {
     return {
@@ -142,21 +156,23 @@ export function RelatorioContasReceberModal({
     const periodoLabel = filtro.periodoAtivo
       ? `${dataInicio} à ${dataFinal}`
       : "Período: todos";
-    const nomeClienteExtrato =
-      filtro.cliente !== "todos" ? filtro.cliente : ordenadas[0]?.cliente;
-    const nomeClienteFiltro = filtro.cliente.trim().toLowerCase();
-    const clienteIdExtrato =
-      filtro.cliente !== "todos"
-        ? lancamentos.find(
-            (l) =>
-              l.tipo === "receita" &&
-              l.cliente?.nome?.trim().toLowerCase() === nomeClienteFiltro
-          )?.cliente?.id ?? null
-        : ordenadas[0]
-          ? lancamentos.find((l) => l.id === ordenadas[0].lancamentoId)?.cliente?.id ?? null
-          : null;
+    if (extratoExigeCliente && (!filtro.cliente || filtro.cliente === "todos")) {
+      alert("Selecione um cliente para gerar o Extrato Financeiro.");
+      return;
+    }
 
-    if (modeloEhExtratoPorCliente(modelo) && !nomeClienteExtrato) {
+    const nomeClienteExtrato =
+      filtro.cliente !== "todos" ? filtro.cliente : undefined;
+    const nomeClienteFiltro = (nomeClienteExtrato ?? "").trim().toLowerCase();
+    const clienteIdExtrato = nomeClienteExtrato
+      ? lancamentos.find(
+          (l) =>
+            l.tipo === "receita" &&
+            l.cliente?.nome?.trim().toLowerCase() === nomeClienteFiltro
+        )?.cliente?.id ?? null
+      : null;
+
+    if (extratoExigeCliente && !nomeClienteExtrato) {
       alert("Selecione um cliente para gerar o Extrato Financeiro.");
       return;
     }
@@ -235,6 +251,9 @@ export function RelatorioContasReceberModal({
                   onChange={(e) => {
                     const valor = e.target.value as ModeloRelatorioReceitas;
                     setModelo(valor);
+                    if (modeloEhExtratoPorCliente(valor) && cliente === "todos") {
+                      setCliente("");
+                    }
                     if (modeloEhParcelasAReceber(valor)) {
                       setPeriodoCampo("vencimento");
                       setParcelasSomenteAReceber(true);
@@ -324,18 +343,40 @@ export function RelatorioContasReceberModal({
 
             <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-6">
               <div className="min-w-0">
-                <label className={labelClass}>Clientes</label>
+                <label className={labelClass}>
+                  Clientes
+                  {extratoExigeCliente ? (
+                    <span className="ml-1 text-red-500">*</span>
+                  ) : null}
+                </label>
                 <select
-                  value={cliente}
+                  value={extratoExigeCliente && cliente === "todos" ? "" : cliente}
                   onChange={(e) => setCliente(e.target.value)}
-                  className={selectClass}
+                  required={extratoExigeCliente}
+                  className={cn(
+                    selectClass,
+                    extratoExigeCliente && (!cliente || cliente === "todos")
+                      ? "border-amber-400 focus:border-amber-500 focus:ring-amber-500"
+                      : ""
+                  )}
                 >
-                  {clientes.map((c) => (
+                  {extratoExigeCliente && !clientesNoSelect.length ? (
+                    <option value="">Nenhum cliente disponível</option>
+                  ) : null}
+                  {extratoExigeCliente && clientesNoSelect.length > 0 ? (
+                    <option value="">Selecione um cliente</option>
+                  ) : null}
+                  {clientesNoSelect.map((c) => (
                     <option key={c} value={c}>
                       {c === "todos" ? "Todos" : c}
                     </option>
                   ))}
                 </select>
+                {extratoExigeCliente ? (
+                  <p className="mt-1 text-[11px] text-amber-700">
+                    Obrigatório escolher um cliente para o extrato.
+                  </p>
+                ) : null}
                 {modelo === "parcelas-a-receber-modelo-1" && (
                   <label className="mt-2.5 flex cursor-pointer items-center gap-2 text-[13px] text-slate-700">
                     <input
@@ -405,7 +446,10 @@ export function RelatorioContasReceberModal({
               <button
                 type="button"
                 onClick={imprimir}
-                disabled={gerandoPdf}
+                disabled={
+                  gerandoPdf ||
+                  (extratoExigeCliente && (!cliente || cliente === "todos"))
+                }
                 className="h-11 rounded-sm bg-[#4a90d9] text-sm font-normal text-white hover:bg-[#3d7fc4] disabled:opacity-60"
               >
                 {gerandoPdf ? "Gerando PDF..." : "Imprimir"}

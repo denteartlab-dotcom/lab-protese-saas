@@ -125,6 +125,13 @@ function novaPagina(ctx: Ctx, altura: number) {
   }
 }
 
+function desenharDivisoriaRegistro(ctx: Ctx) {
+  ctx.pdf.setDrawColor(...CINZA_LINHA);
+  ctx.pdf.setLineWidth(0.15);
+  ctx.pdf.line(ctx.margin, ctx.y, ctx.pageW - ctx.margin, ctx.y);
+  ctx.y += 2;
+}
+
 function desenharCabecalhoLabExtrato(ctx: Ctx) {
   const lab = labImpressaoFromConfig();
   const x = ctx.margin;
@@ -188,6 +195,7 @@ function desenharLinhaSaldoAnterior(ctx: Ctx, linha: LinhaExtratoIndividualComSa
   desenharTexto(ctx, IDX_VALOR, "Saldo Anterior", y, { bold: true, align: "right" });
   desenharTexto(ctx, IDX_SALDO, moneyCell(linha.saldo), y, { align: "right" });
   ctx.y += ctx.rowH;
+  desenharDivisoriaRegistro(ctx);
 }
 
 function desenharLinhaPagamento(ctx: Ctx, linha: LinhaExtratoIndividualComSaldo) {
@@ -203,6 +211,7 @@ function desenharLinhaPagamento(ctx: Ctx, linha: LinhaExtratoIndividualComSaldo)
   });
   desenharTexto(ctx, IDX_SALDO, moneyCell(linha.saldo), y, { align: "right" });
   ctx.y += ctx.rowH;
+  desenharDivisoriaRegistro(ctx);
 }
 
 function desenharLinhaServico(ctx: Ctx, linha: LinhaExtratoIndividualComSaldo) {
@@ -223,6 +232,7 @@ function desenharLinhaServico(ctx: Ctx, linha: LinhaExtratoIndividualComSaldo) {
   desenharTexto(ctx, IDX_SALDO, moneyCell(linha.saldo), y, { align: "right" });
 
   ctx.y += ctx.rowH;
+  desenharDivisoriaRegistro(ctx);
 }
 
 function desenharLinhaExtrato(ctx: Ctx, linha: LinhaExtratoIndividualComSaldo) {
