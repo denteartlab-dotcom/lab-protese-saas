@@ -21,16 +21,30 @@ import {
 } from "@/lib/extrato-ofx";
 import { cn } from "@/lib/utils";
 import type { DadosFormContaBancaria } from "@/lib/conta-bancaria";
+import {
+  LancarDespesaModal,
+  LancarReceitaModal,
+  type LancarReceitaPayload,
+} from "@/components/financeiro/LancarReceitaModal";
+import {
+  labelProcedimentoLinha,
+  montarConciliacaoInicial,
+  salvarLancamentoProcedimento,
+} from "@/lib/conciliacao-lancamento";
 
 type ExtratoPendente = Omit<ExtratoMovimentacao, "contaId">[];
+
+type ClienteOpt = { id: string; nome: string };
 
 type Props = {
   open: boolean;
   onClose: () => void;
   contas: ContaBancaria[];
   lancamentos: LancamentoConciliacao[];
+  clientes?: ClienteOpt[];
   onConciliacaoSalva: () => void | Promise<void>;
   onAbrirCadastro: (form: DadosFormContaBancaria, extrato: ExtratoPendente) => void;
+  onLancamentoCriado?: (lancamento: LancamentoConciliacao) => void;
 };
 
 function money(value: number) {
@@ -114,8 +128,10 @@ export function ConciliacaoContaModal({
   onClose,
   contas,
   lancamentos,
+  clientes = [],
   onConciliacaoSalva,
   onAbrirCadastro,
+  onLancamentoCriado,
 }: Props) {
   const [portalPronto, setPortalPronto] = useState(false);
   const [nomeArquivo, setNomeArquivo] = useState("");
@@ -125,6 +141,12 @@ export function ConciliacaoContaModal({
   const [resumirDescricao, setResumirDescricao] = useState(true);
   const [todasContas, setTodasContas] = useState(true);
   const [procedimentos, setProcedimentos] = useState<Record<string, string>>({});
+  const [procedimentoLabels, setProcedimentoLabels] = useState<
+    Record<string, string>
+  >({});
+  const [linhaProcedimento, setLinhaProcedimento] =
+    useState<MovimentacaoOfx | null>(null);
+  const [salvandoProcedimento, setSalvandoProcedimento] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const arquivoRef = useRef<File | null>(null);
@@ -139,6 +161,8 @@ export function ConciliacaoContaModal({
     setResumirDescricao(true);
     setTodasContas(true);
     setProcedimentos({});
+    setProcedimentoLabels({});
+    setLinhaProcedimento(null);
     arquivoRef.current = null;
   }, [open]);
 
@@ -247,6 +271,61 @@ export function ConciliacaoContaModal({
     onAbrirCadastro(form, extratoPendenteAtual());
   }
 
+  function abrirProcedimento(linha: MovimentacaoOfx) {
+    setLinhaProcedimento(linha);
+  }
+
+  async function salvarProcedimentoModal(payload: LancarReceitaPayload) {
+    if (!linhaProcedimento || salvandoProcedimento) return;
+    const contaNome =
+      contaEncontrada?.nome ||
+      conciliacaoInicialContaNome() ||
+      payload.parcelas[0]?.conta ||
+      "Conta Bancária";
+    const modo = linhaProcedimento.tipo === "credito" ? "receita" : "despesa";
+
+    setSalvandoProcedimento(true);
+    try {
+      const { id, label } = await salvarLancamentoProcedimento(
+        payload,
+        modo,
+        contaNome
+      );
+      setProcedimentos((atual) => ({
+        ...atual,
+        [linhaProcedimento.id]: id,
+      }));
+      setProcedimentoLabels((atual) => ({
+        ...atual,
+        [linhaProcedimento.id]: label,
+      }));
+      onLancamentoCriado?.({
+        id,
+        tipo: modo,
+        descricao: label,
+        valor: linhaProcedimento.valor,
+        data: linhaProcedimento.data,
+        status: "pago",
+      });
+      setLinhaProcedimento(null);
+    } catch (err) {
+      setErroLeitura(
+        err instanceof Error ? err.message : "Não foi possível salvar o lançamento."
+      );
+    } finally {
+      setSalvandoProcedimento(false);
+    }
+  }
+
+  function conciliacaoInicialContaNome() {
+    if (contaEncontrada) return contaEncontrada.nome;
+    if (!parseResult?.dadosConta.numeroConta) return "Conta Bancária";
+    const match = contas.find((c) =>
+      contaOfxCombina(c, parseResult.dadosConta)
+    );
+    return match?.nome || "Conta Bancária";
+  }
+
   async function confirmarCadastro() {
     if (!parseResult || salvando) return;
     if (!contaEncontrada) {
@@ -287,7 +366,47 @@ export function ConciliacaoContaModal({
 
   const dados = parseResult?.dadosConta;
 
-  return createPortal(
+  const modalProcedimento = linhaProcedimento ? (
+    linhaProcedimento.tipo === "credito" ? (
+      <LancarReceitaModal
+        open
+        onClose={() => setLinhaProcedimento(null)}
+        onSubmit={salvarProcedimentoModal}
+        entidades={clientes}
+        variante="conciliacao-smart"
+        conciliacaoInicial={montarConciliacaoInicial(
+          linhaProcedimento,
+          conciliacaoInicialContaNome(),
+          resumirDescricao
+        )}
+        contasBancarias={contas
+          .filter((c) => !c.excluida)
+          .map((c) => ({ nome: c.nome }))}
+        overlayZIndex={10001}
+        salvando={salvandoProcedimento}
+      />
+    ) : (
+      <LancarDespesaModal
+        open
+        onClose={() => setLinhaProcedimento(null)}
+        onSubmit={salvarProcedimentoModal}
+        entidades={clientes}
+        variante="conciliacao-smart"
+        conciliacaoInicial={montarConciliacaoInicial(
+          linhaProcedimento,
+          conciliacaoInicialContaNome(),
+          resumirDescricao
+        )}
+        contasBancarias={contas
+          .filter((c) => !c.excluida)
+          .map((c) => ({ nome: c.nome }))}
+        overlayZIndex={10001}
+        salvando={salvandoProcedimento}
+      />
+    )
+  ) : null;
+
+  const portalConciliacao = createPortal(
     <div
       className="fixed inset-0 z-[10000] flex items-start justify-center overflow-y-auto bg-black/45 p-4 pt-6"
       role="dialog"
@@ -296,7 +415,7 @@ export function ConciliacaoContaModal({
     >
       <div className="absolute inset-0" onClick={onClose} aria-hidden />
       <div
-        className="relative my-auto w-full max-w-[1140px] rounded border border-[#d4d4d4] bg-white shadow-[0_12px_40px_rgba(0,0,0,0.2)]"
+        className="relative my-auto flex min-h-[min(88vh,900px)] w-full max-w-[min(1480px,94vw)] flex-col rounded border border-[#d4d4d4] bg-white shadow-[0_12px_40px_rgba(0,0,0,0.2)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-[#e5e5e5] px-4 py-3">
@@ -316,7 +435,7 @@ export function ConciliacaoContaModal({
           </button>
         </div>
 
-        <div className="space-y-4 px-4 py-4">
+        <div className="flex flex-1 flex-col space-y-4 px-4 py-4">
           <div>
             <label className="mb-1.5 block text-[12px] text-slate-700">
               Extrato Bancário
@@ -433,7 +552,7 @@ export function ConciliacaoContaModal({
             </div>
           ) : null}
 
-          <div className="max-h-[380px] overflow-auto rounded border border-[#e5e5e5]">
+          <div className="min-h-0 flex-1 overflow-auto rounded border border-[#e5e5e5]">
             <table className="w-full min-w-[980px] border-collapse text-left">
               <thead className="sticky top-0 z-[1]">
                 <tr>
@@ -497,30 +616,62 @@ export function ConciliacaoContaModal({
                           </span>
                         </td>
                         <td className="px-2 py-1.5">
-                          <select
-                            value={procedimentos[linha.id] ?? ""}
-                            onChange={(e) =>
-                              setProcedimentos((atual) => ({
-                                ...atual,
-                                [linha.id]: e.target.value,
-                              }))
-                            }
-                            className="h-8 w-full min-w-[260px] rounded border border-[#d4d4d4] bg-white px-2 text-[11px] text-slate-700 outline-none focus:border-[#4a90d9]"
-                          >
-                            <option value="">
-                              {credito
-                                ? "Vincular receita..."
-                                : "Vincular despesa..."}
-                            </option>
-                            {montarOpcoesProcedimentoPorTipo(
-                              linha.tipo,
-                              lancamentos
-                            ).map((opt) => (
-                              <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="flex min-w-[300px] gap-1">
+                            <button
+                              type="button"
+                              onClick={() => abrirProcedimento(linha)}
+                              className="flex h-8 min-w-0 flex-1 items-center rounded border border-[#d4d4d4] bg-white px-2 text-left text-[11px] text-slate-700 hover:border-[#4a90d9] focus:border-[#4a90d9] focus:outline-none"
+                              title={
+                                credito
+                                  ? "Lançar ou vincular receita"
+                                  : "Lançar ou vincular despesa"
+                              }
+                            >
+                              <span className="truncate">
+                                {procedimentos[linha.id]
+                                  ? labelProcedimentoLinha(
+                                      linha.id,
+                                      procedimentos[linha.id],
+                                      linha.tipo,
+                                      lancamentos,
+                                      procedimentoLabels
+                                    )
+                                  : credito
+                                    ? "Vincular receita..."
+                                    : "Vincular despesa..."}
+                              </span>
+                            </button>
+                            <select
+                              value={procedimentos[linha.id] ?? ""}
+                              onChange={(e) => {
+                                const valor = e.target.value;
+                                setProcedimentos((atual) => ({
+                                  ...atual,
+                                  [linha.id]: valor,
+                                }));
+                                if (!valor) {
+                                  setProcedimentoLabels((atual) => {
+                                    const next = { ...atual };
+                                    delete next[linha.id];
+                                    return next;
+                                  });
+                                }
+                              }}
+                              className="h-8 w-8 shrink-0 cursor-pointer rounded border border-[#d4d4d4] bg-[#f5f6f8] px-0 text-center text-[10px] text-slate-500"
+                              title="Vincular lançamento existente"
+                              aria-label="Vincular lançamento existente"
+                            >
+                              <option value="">▼</option>
+                              {montarOpcoesProcedimentoPorTipo(
+                                linha.tipo,
+                                lancamentos
+                              ).map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -551,5 +702,12 @@ export function ConciliacaoContaModal({
       </div>
     </div>,
     document.body
+  );
+
+  return (
+    <>
+      {portalConciliacao}
+      {modalProcedimento}
+    </>
   );
 }

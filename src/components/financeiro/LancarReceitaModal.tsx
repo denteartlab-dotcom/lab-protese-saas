@@ -32,6 +32,7 @@ import {
   categoriaPadraoLancamento,
 } from "@/lib/plano-contas";
 import { cn } from "@/lib/utils";
+import type { ConciliacaoInicial } from "@/lib/conciliacao-lancamento";
 
 export type ItemReceitaLinha = {
   id: string;
@@ -128,6 +129,11 @@ type Props = {
   /** Despesa em edição (Contas a Pagar). */
   lancamentoEdicao?: LancamentoDespesaDetalhe | null;
   todosLancamentosEdicao?: LancamentoDespesaDetalhe[];
+  /** Layout Smart Prótese para conciliação OFX. */
+  variante?: "padrao" | "conciliacao-smart";
+  conciliacaoInicial?: ConciliacaoInicial | null;
+  contasBancarias?: { nome: string }[];
+  overlayZIndex?: number;
 };
 
 const cfgModo = {
@@ -168,7 +174,12 @@ export function LancarReceitaModal({
   anexosIniciais = ANEXOS_FINANCEIRO_VAZIOS,
   lancamentoEdicao = null,
   todosLancamentosEdicao = [],
+  variante = "padrao",
+  conciliacaoInicial = null,
+  contasBancarias = [],
+  overlayZIndex = 9999,
 }: Props) {
+  const ehConciliacao = variante === "conciliacao-smart";
   const cfg = cfgModo[modo];
   const secaoPlano = modo === "receita" ? "receitas" : "despesas";
   const [tipoCliente, setTipoCliente] = useState<string>(cfg.tipoPadrao);
@@ -194,6 +205,10 @@ export function LancarReceitaModal({
     },
   ]);
   const [observacoes, setObservacoes] = useState("");
+  const [semOs, setSemOs] = useState(true);
+  const [valorDireto, setValorDireto] = useState("0,00");
+  const [descricaoDireta, setDescricaoDireta] = useState("");
+  const [jurosParcela, setJurosParcela] = useState("0,00");
   const [arquivoNota, setArquivoNota] = useState<File | null>(null);
   const [parseandoNota, setParseandoNota] = useState(false);
   const [feedbackNota, setFeedbackNota] = useState<{
@@ -216,6 +231,7 @@ export function LancarReceitaModal({
 
   useEffect(() => {
     if (!open) return;
+    if (ehConciliacao && conciliacaoInicial) return;
     if (lancamentoEdicao && modo === "despesa") return;
 
     setTipoCliente(cfg.tipoPadrao);
@@ -238,7 +254,59 @@ export function LancarReceitaModal({
     setArquivoNota(null);
     setParseandoNota(false);
     setFeedbackNota(null);
-  }, [open, cfg.tipoPadrao, cfg.categoriaPadrao, secaoPlano, modo, lancamentoEdicao]);
+  }, [
+    open,
+    cfg.tipoPadrao,
+    cfg.categoriaPadrao,
+    secaoPlano,
+    modo,
+    lancamentoEdicao,
+    ehConciliacao,
+    conciliacaoInicial,
+  ]);
+
+  useEffect(() => {
+    if (!open || !ehConciliacao || !conciliacaoInicial) return;
+
+    const dataBr = dateToBrShort(new Date(conciliacaoInicial.data));
+    setSemOs(true);
+    setTipoCliente(cfg.tipoPadrao);
+    setClienteId("");
+    setCategoria(
+      conciliacaoInicial.categoria ||
+        categoriaPadraoLancamento(carregarPlanoContas(), secaoPlano) ||
+        cfg.categoriaPadrao
+    );
+    setDataLancamento(dataBr);
+    setValorDireto(money(conciliacaoInicial.valor));
+    setDescricaoDireta(conciliacaoInicial.descricao);
+    setObservacoes(conciliacaoInicial.observacoes);
+    setDescontoTipo("percentual");
+    setDesconto("0,00");
+    setJurosParcela("0,00");
+    setNumParcelas(1);
+    setItens([
+      {
+        id: `item-conc-${Date.now()}`,
+        produto: "",
+        descricao: conciliacaoInicial.descricao,
+        quantidade: "1",
+        custoUnitario: money(conciliacaoInicial.valor),
+      },
+    ]);
+    setParcelas([
+      {
+        parcela: "1/1",
+        formaPagamento: conciliacaoInicial.formaPagamento,
+        conta: conciliacaoInicial.contaNome,
+        vencimento: dataBr,
+        codigoBarrasPix: "",
+        valor: money(conciliacaoInicial.valor),
+        pago: true,
+      },
+    ]);
+    parcelasGeracaoRef.current = { numParcelas: 1, dataLancamento: dataBr };
+  }, [open, ehConciliacao, conciliacaoInicial, cfg.tipoPadrao, cfg.categoriaPadrao, secaoPlano]);
 
   useEffect(() => {
     if (!open || modo !== "despesa" || !lancamentoEdicao) return;
@@ -420,14 +488,15 @@ export function LancarReceitaModal({
     }
   }
 
-  const valorBruto = useMemo(
-    () =>
-      itens.reduce((sum, item) => {
-        const qtd = Number(item.quantidade.replace(",", ".")) || 0;
-        return sum + parseMoney(item.custoUnitario) * qtd;
-      }, 0),
-    [itens]
-  );
+  const valorBruto = useMemo(() => {
+    if (ehConciliacao) {
+      return parseMoney(valorDireto) + parseMoney(jurosParcela);
+    }
+    return itens.reduce((sum, item) => {
+      const qtd = Number(item.quantidade.replace(",", ".")) || 0;
+      return sum + parseMoney(item.custoUnitario) * qtd;
+    }, 0);
+  }, [ehConciliacao, valorDireto, jurosParcela, itens]);
 
   const descontoValor = useMemo(() => {
     const base = parseMoney(desconto);
@@ -443,7 +512,7 @@ export function LancarReceitaModal({
   }, [open, lancamentoEdicao]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || ehConciliacao) return;
     const valorParcela = numParcelas > 0 ? totalLiquido / numParcelas : 0;
     const recalcularVencimentos =
       parcelasGeracaoRef.current.numParcelas !== numParcelas ||
@@ -468,7 +537,15 @@ export function LancarReceitaModal({
         };
       });
     });
-  }, [numParcelas, totalLiquido, dataLancamento, open]);
+  }, [numParcelas, totalLiquido, dataLancamento, open, ehConciliacao]);
+
+  const opcoesConta = useMemo(() => {
+    const nomes = new Set<string>(["Caixa Principal"]);
+    for (const conta of contasBancarias) {
+      if (conta.nome.trim()) nomes.add(conta.nome.trim());
+    }
+    return Array.from(nomes);
+  }, [contasBancarias]);
 
   function atualizarItem(id: string, patch: Partial<ItemReceitaLinha>) {
     setItens((lista) =>
@@ -497,6 +574,23 @@ export function LancarReceitaModal({
       const lista = await anexosRef.current?.resolverAnexos();
       if (lista?.length) anexos = lista;
       const selecionada = entidadesLista.find((item) => item.id === clienteId);
+      const itensEnvio = ehConciliacao
+        ? [
+            {
+              id: itens[0]?.id || `item-conc-${Date.now()}`,
+              produto: "",
+              descricao: descricaoDireta,
+              quantidade: "1",
+              custoUnitario: valorDireto,
+            },
+          ]
+        : itens;
+      const parcelasEnvio = ehConciliacao
+        ? parcelas.map((p) => ({
+            ...p,
+            valor: money(totalLiquido),
+          }))
+        : parcelas;
       await onSubmit({
         clienteId,
         entidadeNome:
@@ -506,8 +600,8 @@ export function LancarReceitaModal({
         dataLancamento,
         notaFiscalRef,
         receitaFixa,
-        itens,
-        parcelas,
+        itens: itensEnvio,
+        parcelas: parcelasEnvio,
         descontoTipo,
         desconto,
         observacoes,
@@ -527,7 +621,8 @@ export function LancarReceitaModal({
 
   const conteudo = (
     <div
-      className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto bg-black/45 p-4 pt-8"
+      className="fixed inset-0 flex items-start justify-center overflow-y-auto bg-black/45 p-4 pt-6"
+      style={{ zIndex: overlayZIndex }}
       data-modal={cfg.dataModal}
       role="dialog"
       aria-modal="true"
@@ -540,7 +635,12 @@ export function LancarReceitaModal({
         }}
         aria-hidden
       />
-      <div className="relative my-auto flex w-full max-w-[1060px] flex-col rounded border border-slate-200 bg-white shadow-[0_12px_40px_rgba(0,0,0,0.18)]">
+      <div
+        className={cn(
+          "relative my-auto flex w-full flex-col rounded border border-slate-200 bg-white shadow-[0_12px_40px_rgba(0,0,0,0.18)]",
+          ehConciliacao ? "max-w-[min(1180px,92vw)]" : "max-w-[1060px]"
+        )}
+      >
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
           <h2 id="lancar-receita-titulo" className="text-[14px] font-normal text-slate-800">
             {tituloEdicao || cfg.titulo}
@@ -557,8 +657,281 @@ export function LancarReceitaModal({
 
         <form
           onSubmit={handleSubmit}
-          className="max-h-[calc(100vh-6rem)] overflow-y-auto px-4 py-3 text-[11px] text-slate-700"
+          className="max-h-[calc(100vh-5rem)] overflow-y-auto px-4 py-3 text-[11px] text-slate-700"
         >
+          {ehConciliacao ? (
+            <>
+              {modo === "receita" ? (
+                <label className="mb-3 flex cursor-pointer items-center gap-2 text-[12px] text-slate-700">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={semOs}
+                    onClick={() => setSemOs((v) => !v)}
+                    className={cn(
+                      "relative h-5 w-9 shrink-0 rounded-full transition",
+                      semOs ? "bg-[#4a90d9]" : "bg-slate-300"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition",
+                        semOs ? "left-[18px]" : "left-0.5"
+                      )}
+                    />
+                  </button>
+                  Lançar uma Cobrança ou Outras Receitas sem O.S.
+                </label>
+              ) : null}
+
+              <div className="mb-3">
+                <label className={labelClass}>Categorias</label>
+                <PlanoContasCategoriaSelect
+                  secao={secaoPlano}
+                  value={categoria}
+                  onChange={setCategoria}
+                  triggerClassName={selectClass}
+                  menuEmPortal
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-12 gap-3">
+                <div className="col-span-12 md:col-span-4">
+                  <label className={labelClass}>
+                    {modo === "receita" ? "Clientes" : "Fornecedores"}
+                  </label>
+                  <select
+                    value={clienteId}
+                    onChange={(e) => setClienteId(e.target.value)}
+                    className={selectClass}
+                  >
+                    <option value="">Selecione</option>
+                    {entidadesLista.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-span-6 md:col-span-2">
+                  <label className={labelClass}>Valor</label>
+                  <input
+                    type="text"
+                    value={valorDireto}
+                    onChange={(e) => {
+                      const fmt = formatMoneyInput(e.target.value);
+                      setValorDireto(fmt);
+                      setItens((lista) =>
+                        lista.map((item, i) =>
+                          i === 0 ? { ...item, custoUnitario: fmt } : item
+                        )
+                      );
+                      setParcelas((lista) =>
+                        lista.map((p, i) =>
+                          i === 0 ? { ...p, valor: fmt } : p
+                        )
+                      );
+                    }}
+                    className={cn(inputClass, "text-right")}
+                  />
+                </div>
+                <div className="col-span-6 md:col-span-6">
+                  <label className={labelClass}>Descrição</label>
+                  <input
+                    type="text"
+                    value={descricaoDireta}
+                    onChange={(e) => {
+                      setDescricaoDireta(e.target.value);
+                      setItens((lista) =>
+                        lista.map((item, i) =>
+                          i === 0 ? { ...item, descricao: e.target.value } : item
+                        )
+                      );
+                    }}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-3 flex justify-end">
+                <div className="w-full max-w-xs space-y-2 text-[12px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-600">Valor Total</span>
+                    <span className="font-medium text-slate-800">
+                      {money(parseMoney(valorDireto))}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-slate-600">Desconto</span>
+                    <div className="flex items-center gap-1">
+                      <select
+                        value={descontoTipo}
+                        onChange={(e) =>
+                          setDescontoTipo(e.target.value as "percentual" | "valor")
+                        }
+                        className="h-8 w-12 rounded border border-slate-300 text-center text-[11px]"
+                      >
+                        <option value="percentual">%</option>
+                        <option value="valor">=</option>
+                      </select>
+                      <input
+                        type="text"
+                        value={desconto}
+                        onChange={(e) =>
+                          setDesconto(
+                            descontoTipo === "valor"
+                              ? formatMoneyInput(e.target.value)
+                              : e.target.value.replace(/[^\d,.]/g, "")
+                          )
+                        }
+                        className={cn(inputClass, "h-8 w-24 text-right")}
+                      />
+                      <span className="text-slate-500">{money(descontoValor)}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-slate-200 pt-2">
+                    <span className="font-semibold text-[#4a90d9]">Total Líquido</span>
+                    <span className="text-[15px] font-bold text-[#4a90d9]">
+                      {money(totalLiquido)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded border border-[#b8d4f0] bg-[#f0f7ff] p-3">
+                <div className="grid grid-cols-12 gap-2">
+                  <div className="col-span-2 md:col-span-1">
+                    <label className={labelClass}>Parcela</label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={parcelas[0]?.parcela || "1/1"}
+                      className={cn(inputClass, "bg-white text-center")}
+                    />
+                  </div>
+                  <div className="col-span-5 md:col-span-2">
+                    <label className={labelClass}>
+                      {modo === "receita" ? "Forma Recebimento" : "Forma Pagamento"}
+                    </label>
+                    <select
+                      value={parcelas[0]?.formaPagamento || ""}
+                      onChange={(e) =>
+                        atualizarParcela(0, { formaPagamento: e.target.value })
+                      }
+                      className={selectClass}
+                    >
+                      <option value="">Forma Pagamento</option>
+                      <option value="Pix">Pix</option>
+                      <option value="Dinheiro">Dinheiro</option>
+                      <option value="Cartão">Cartão</option>
+                      <option value="Boleto">Boleto</option>
+                      <option value="Transferência">Transferência</option>
+                    </select>
+                  </div>
+                  <div className="col-span-5 md:col-span-2">
+                    <label className={labelClass}>Conta</label>
+                    <select
+                      value={parcelas[0]?.conta || ""}
+                      onChange={(e) => atualizarParcela(0, { conta: e.target.value })}
+                      className={selectClass}
+                    >
+                      {opcoesConta.map((nome) => (
+                        <option key={nome} value={nome}>
+                          {nome}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-4 md:col-span-2">
+                    <label className={labelClass}>Vencimento</label>
+                    <CampoDataBr
+                      value={parcelas[0]?.vencimento || dataLancamento}
+                      onChange={(v) => atualizarParcela(0, { vencimento: v })}
+                      className="space-y-0"
+                      inputClassName={inputClass}
+                      calendarPosition="relative"
+                    />
+                  </div>
+                  <div className="col-span-4 md:col-span-2">
+                    <label className={labelClass}>Valor</label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={money(totalLiquido)}
+                      className={cn(inputClass, "bg-white text-right")}
+                    />
+                  </div>
+                  <div className="col-span-4 md:col-span-2">
+                    <label className={labelClass}>Juros</label>
+                    <input
+                      type="text"
+                      value={jurosParcela}
+                      onChange={(e) =>
+                        setJurosParcela(formatMoneyInput(e.target.value))
+                      }
+                      className={cn(inputClass, "text-right")}
+                    />
+                  </div>
+                  <div className="col-span-12 flex items-end justify-center md:col-span-1">
+                    <div className="pb-1 text-center">
+                      <label className="mb-1 block text-[10px] font-medium text-slate-600">
+                        {modo === "receita" ? "Recebido" : "Pago"}
+                      </label>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={parcelas[0]?.pago ?? true}
+                        onClick={() =>
+                          atualizarParcela(0, { pago: !parcelas[0]?.pago })
+                        }
+                        className={cn(
+                          "relative mx-auto inline-flex h-5 w-9 rounded-full transition",
+                          parcelas[0]?.pago ? "bg-[#4cae4c]" : "bg-slate-300"
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition",
+                            parcelas[0]?.pago ? "left-[18px]" : "left-0.5"
+                          )}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <label className={labelClass}>Observações</label>
+                <textarea
+                  value={observacoes}
+                  onChange={(e) => setObservacoes(e.target.value)}
+                  rows={4}
+                  className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-[12px] outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]"
+                />
+              </div>
+
+              <div className="mt-5 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4">
+                <button
+                  type="submit"
+                  disabled={ocupado || totalLiquido <= 0}
+                  className="h-10 rounded bg-[#4a90d9] text-[13px] font-normal text-white hover:bg-[#3d7fc4] disabled:cursor-wait disabled:opacity-60"
+                >
+                  {ocupado ? "Cadastrando…" : "Cadastrar"}
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={ocupado}
+                  className="h-10 rounded border border-slate-300 bg-white text-[13px] font-normal text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Fechar
+                </button>
+              </div>
+            </>
+          ) : (
+          <>
           <div className="grid grid-cols-12 items-end gap-x-3 gap-y-2">
             <div className="col-span-12 md:col-span-5">
               <label className={labelClass}>
@@ -1027,6 +1400,8 @@ export function LancarReceitaModal({
               Fechar
             </button>
           </div>
+          </>
+          )}
         </form>
       </div>
     </div>

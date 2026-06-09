@@ -41,7 +41,8 @@ export async function salvarConciliacaoNaConta(input: {
 
     if (procId) {
       const lanc = mapaLanc.get(procId);
-      if (!lanc) continue;
+      const tipoLanc =
+        lanc?.tipo ?? (linha.tipo === "credito" ? "receita" : "despesa");
 
       const payload: Record<string, unknown> = {
         status: "pago",
@@ -49,13 +50,13 @@ export async function salvarConciliacaoNaConta(input: {
         formaPagamento: formaPagamentoDaLinha(linha.forma),
       };
 
-      if (lanc.tipo === "despesa") {
+      if (tipoLanc === "despesa" && lanc) {
         const pack = desempacotarDespesa(lanc.descricao);
         payload.descricao = empacotarDespesa(pack.texto, {
           ...pack.meta,
           conta: conta.nome,
         });
-      } else {
+      } else if (tipoLanc === "receita" && lanc) {
         payload.descricao = empacotarReceitaConta(lanc.descricao, conta.nome);
       }
 

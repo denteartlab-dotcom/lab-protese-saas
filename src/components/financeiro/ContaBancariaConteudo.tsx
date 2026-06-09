@@ -138,6 +138,9 @@ export function ContaBancariaConteudo() {
   const [descMov, setDescMov] = useState("");
   const [contaDestinoId, setContaDestinoId] = useState("");
   const [valorTransf, setValorTransf] = useState("");
+  const [clientes, setClientes] = useState<{ id: string; nome: string }[]>(
+    []
+  );
 
   const carregarDados = useCallback(async () => {
     setContas(carregarContasBancarias());
@@ -649,6 +652,13 @@ export function ContaBancariaConteudo() {
         onClose={() => setModalConciliar(false)}
         contas={contas}
         lancamentos={lancamentos}
+        clientes={clientes}
+        onLancamentoCriado={(lancamento) => {
+          setLancamentos((atual) => {
+            if (atual.some((l) => l.id === lancamento.id)) return atual;
+            return [...atual, lancamento];
+          });
+        }}
         onConciliacaoSalva={async () => {
           await carregarDados();
           notificarFinanceiroAtualizado();
