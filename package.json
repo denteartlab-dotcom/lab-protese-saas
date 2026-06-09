@@ -12,7 +12,8 @@
     "setup": "prisma generate && prisma db push && tsx prisma/seed.ts",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
-    "db:publicar-neon": "tsx scripts/publicar-banco-neon.ts"
+    "db:publicar-neon": "tsx scripts/publicar-banco-neon.ts",
+    "db:migrar-financeiro": "tsx scripts/migrar-financeiro-neon.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.6.0",

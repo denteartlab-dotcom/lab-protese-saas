@@ -77,93 +77,132 @@ function contaParaRow(conta: ContaBancaria) {
   };
 }
 
-async function migrarJsonStoreSeNecessario() {
-  const flag = await prisma.jsonStore.findUnique({ where: { key: MIGRADO_KEY } });
-  if (flag?.payload === "1") return;
-
-  const total = await prisma.contaBancaria.count();
-  if (total > 0) {
-    await prisma.jsonStore.upsert({
-      where: { key: MIGRADO_KEY },
-      create: { key: MIGRADO_KEY, payload: "1" },
-      update: { payload: "1" },
-    });
-    return;
-  }
-
-  const contasJson =
-    (await lerJsonStoreServidor<ContaBancaria[]>(CONTAS_BANCARIAS_STORAGE_KEY)) ||
-    CONTAS_BANCARIAS_PADRAO;
-  const movsJson =
-    (await lerJsonStoreServidor<MovimentacaoContaBancaria[]>(
-      MOVIMENTACOES_CONTA_STORAGE_KEY
-    )) || [];
-  const extratoJson =
-    (await lerJsonStoreServidor<ExtratoMovimentacao[]>(
-      EXTRATO_BANCARIO_STORAGE_KEY
-    )) || [];
-
-  await prisma.$transaction(async (tx) => {
-    for (const conta of contasJson) {
-      await tx.contaBancaria.upsert({
-        where: { id: conta.id },
-        create: contaParaRow(conta),
-        update: contaParaRow(conta),
-      });
-    }
-    for (const mov of movsJson) {
-      await tx.movimentacaoConta.upsert({
-        where: { id: mov.id },
-        create: {
-          id: mov.id,
-          contaId: mov.contaId,
-          tipo: mov.tipo,
-          valor: mov.valor,
-          descricao: mov.descricao,
-          data: parseDataIso(mov.data),
-        },
-        update: {
-          contaId: mov.contaId,
-          tipo: mov.tipo,
-          valor: mov.valor,
-          descricao: mov.descricao,
-          data: parseDataIso(mov.data),
-        },
-      });
-    }
-    for (const item of extratoJson) {
-      const idExterno = item.idExterno ?? null;
-      const existente = idExterno
-        ? await tx.extratoMovimentacao.findFirst({
-            where: { contaId: item.contaId, idExterno },
-          })
-        : await tx.extratoMovimentacao.findUnique({ where: { id: item.id } });
-      const dados = {
-        contaId: item.contaId,
-        tipo: item.tipo,
-        valor: item.valor,
-        descricao: item.descricao,
-        data: parseDataIso(item.data),
-        origem: item.origem,
-        idExterno,
-      };
-      if (existente) {
-        await tx.extratoMovimentacao.update({
-          where: { id: existente.id },
-          data: dados,
-        });
-      } else {
-        await tx.extratoMovimentacao.create({
-          data: { id: item.id, ...dados },
-        });
-      }
-    }
-    await tx.jsonStore.upsert({
-      where: { key: MIGRADO_KEY },
-      create: { key: MIGRADO_KEY, payload: "1" },
-      update: { payload: "1" },
-    });
+async function marcarMigracaoConcluida() {
+  await prisma.jsonStore.upsert({
+    where: { key: MIGRADO_KEY },
+    create: { key: MIGRADO_KEY, payload: "1" },
+    update: { payload: "1" },
   });
+}
+
+async function migrarContasDoJsonStore(contasJson: ContaBancaria[]) {
+  for (const conta of contasJson) {
+    await prisma.contaBancaria.upsert({
+      where: { id: conta.id },
+      create: contaParaRow(conta),
+      update: contaParaRow(conta),
+    });
+  }
+}
+
+async function migrarMovimentacoesDoJsonStore(
+  movsJson: MovimentacaoContaBancaria[],
+  contaIds: Set<string>
+) {
+  for (const mov of movsJson) {
+    if (!contaIds.has(mov.contaId)) continue;
+    await prisma.movimentacaoConta.upsert({
+      where: { id: mov.id },
+      create: {
+        id: mov.id,
+        contaId: mov.contaId,
+        tipo: mov.tipo,
+        valor: mov.valor,
+        descricao: mov.descricao,
+        data: parseDataIso(mov.data),
+      },
+      update: {
+        contaId: mov.contaId,
+        tipo: mov.tipo,
+        valor: mov.valor,
+        descricao: mov.descricao,
+        data: parseDataIso(mov.data),
+      },
+    });
+  }
+}
+
+async function migrarExtratoDoJsonStore(
+  extratoJson: ExtratoMovimentacao[],
+  contaIds: Set<string>
+) {
+  for (const item of extratoJson) {
+    if (!contaIds.has(item.contaId)) continue;
+    const idExterno = item.idExterno ?? null;
+    const existente = idExterno
+      ? await prisma.extratoMovimentacao.findFirst({
+          where: { contaId: item.contaId, idExterno },
+        })
+      : await prisma.extratoMovimentacao.findUnique({ where: { id: item.id } });
+    const dados = {
+      contaId: item.contaId,
+      tipo: item.tipo,
+      valor: item.valor,
+      descricao: item.descricao,
+      data: parseDataIso(item.data),
+      origem: item.origem,
+      idExterno,
+    };
+    if (existente) {
+      await prisma.extratoMovimentacao.update({
+        where: { id: existente.id },
+        data: dados,
+      });
+    } else {
+      await prisma.extratoMovimentacao.upsert({
+        where: { id: item.id },
+        create: { id: item.id, ...dados },
+        update: dados,
+      });
+    }
+  }
+}
+
+async function migrarJsonStoreSeNecessario() {
+  try {
+    const flag = await prisma.jsonStore.findUnique({
+      where: { key: MIGRADO_KEY },
+    });
+    if (flag?.payload === "1") return;
+
+    const total = await prisma.contaBancaria.count();
+    if (total > 0) {
+      await marcarMigracaoConcluida();
+      return;
+    }
+
+    const contasJson =
+      (await lerJsonStoreServidor<ContaBancaria[]>(
+        CONTAS_BANCARIAS_STORAGE_KEY
+      )) || CONTAS_BANCARIAS_PADRAO;
+    const movsJson =
+      (await lerJsonStoreServidor<MovimentacaoContaBancaria[]>(
+        MOVIMENTACOES_CONTA_STORAGE_KEY
+      )) || [];
+    const extratoJson =
+      (await lerJsonStoreServidor<ExtratoMovimentacao[]>(
+        EXTRATO_BANCARIO_STORAGE_KEY
+      )) || [];
+
+    await migrarContasDoJsonStore(contasJson);
+    const contaIds = new Set(contasJson.map((c) => c.id));
+
+    try {
+      await migrarMovimentacoesDoJsonStore(movsJson, contaIds);
+    } catch (err) {
+      console.error("[migrar movimentacoes conta]", err);
+    }
+
+    try {
+      await migrarExtratoDoJsonStore(extratoJson, contaIds);
+    } catch (err) {
+      console.error("[migrar extrato bancario]", err);
+    }
+
+    await marcarMigracaoConcluida();
+  } catch (err) {
+    console.error("[migrar financeiro contas]", err);
+  }
 }
 
 export async function listarContasBancariasServidor(): Promise<ContaBancaria[]> {
@@ -189,9 +228,11 @@ export async function salvarContasBancariasServidor(contas: ContaBancaria[]) {
   await migrarJsonStoreSeNecessario();
   const ids = contas.map((c) => c.id);
   await prisma.$transaction(async (tx) => {
-    await tx.contaBancaria.deleteMany({
-      where: { id: { notIn: ids } },
-    });
+    if (ids.length > 0) {
+      await tx.contaBancaria.deleteMany({
+        where: { id: { notIn: ids } },
+      });
+    }
     for (const conta of contas) {
       await tx.contaBancaria.upsert({
         where: { id: conta.id },
@@ -225,9 +266,11 @@ export async function salvarMovimentacoesContaServidor(
   await migrarJsonStoreSeNecessario();
   const ids = movs.map((m) => m.id);
   await prisma.$transaction(async (tx) => {
-    await tx.movimentacaoConta.deleteMany({
-      where: { id: { notIn: ids } },
-    });
+    if (ids.length > 0) {
+      await tx.movimentacaoConta.deleteMany({
+        where: { id: { notIn: ids } },
+      });
+    }
     for (const mov of movs) {
       await tx.movimentacaoConta.upsert({
         where: { id: mov.id },
@@ -274,9 +317,11 @@ export async function salvarExtratoBancarioServidor(itens: ExtratoMovimentacao[]
   await migrarJsonStoreSeNecessario();
   const ids = itens.map((i) => i.id);
   await prisma.$transaction(async (tx) => {
-    await tx.extratoMovimentacao.deleteMany({
-      where: { id: { notIn: ids } },
-    });
+    if (ids.length > 0) {
+      await tx.extratoMovimentacao.deleteMany({
+        where: { id: { notIn: ids } },
+      });
+    }
     for (const item of itens) {
       const idExterno = item.idExterno ?? null;
       const existente = idExterno

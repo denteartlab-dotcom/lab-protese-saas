@@ -13,6 +13,9 @@ import type { ExtratoMovimentacao } from "@/lib/extrato-bancario";
 import type { MovimentacaoContaBancaria } from "@/lib/conta-bancaria";
 import { z } from "zod";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const contaSchema = z.object({
   id: z.string(),
   nome: z.string(),
