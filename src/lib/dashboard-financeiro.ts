@@ -79,36 +79,14 @@ function isCreditoUtilizado(lancamento: LancamentoFinanceiroResumo) {
   );
 }
 
-function trabalhosDaFatura(
-  lancamento: LancamentoFinanceiroResumo,
-  trabalhos: TrabalhoFinanceiroRef[]
-) {
-  const numerosOs = numerosOsDoLancamento(lancamento);
-  return trabalhos.filter(
-    (t) => t.id === lancamento.trabalhoId || numerosOs.includes(t.numeroOs)
-  );
-}
-
-function faturaSomenteComOsFinalizadas(
-  lancamento: LancamentoFinanceiroResumo,
-  trabalhos: TrabalhoFinanceiroRef[]
-) {
-  const descricao = lancamento.descricao.toLowerCase();
-  if (!descricao.startsWith("cobrança os")) return true;
-  const relacionados = trabalhosDaFatura(lancamento, trabalhos);
-  if (relacionados.length === 0) return true;
-  return relacionados.every((t) => ["entregue", "finalizado"].includes(t.status));
-}
-
 function isFaturaContasReceber(
   lancamento: LancamentoFinanceiroResumo,
-  trabalhos: TrabalhoFinanceiroRef[],
+  _trabalhos: TrabalhoFinanceiroRef[],
   todosLancamentos: LancamentoFinanceiroResumo[]
 ) {
   if (isCreditoGerado(lancamento) || isCreditoUtilizado(lancamento)) return false;
   if (!lancamento.descricao.toLowerCase().startsWith("cobrança os")) return false;
   if (lancamento.formaPagamento?.toLowerCase().includes("crédito")) return false;
-  if (!faturaSomenteComOsFinalizadas(lancamento, trabalhos)) return false;
 
   const creditoUsado = todosLancamentos
     .filter(

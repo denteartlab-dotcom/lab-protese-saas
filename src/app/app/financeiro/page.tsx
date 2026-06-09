@@ -577,16 +577,6 @@ function FinanceiroReceberConteudo() {
     );
   }
 
-  function faturaSomenteComOsFinalizadas(lancamento: Lancamento) {
-    const descricao = lancamento.descricao.toLowerCase();
-    if (!descricao.startsWith("cobrança os")) return true;
-    const trabalhosRelacionados = trabalhosDaFatura(lancamento);
-    if (trabalhosRelacionados.length === 0) return true;
-    return trabalhosRelacionados.every((trabalho) =>
-      ["entregue", "finalizado"].includes(trabalho.status)
-    );
-  }
-
   function complementoDescricaoCobranca(descricao: string) {
     const texto = desempacotarDespesa(descricao).texto
       .replace(/@@trab:[a-zA-Z0-9_,-]+@@/gi, "")
@@ -1346,7 +1336,6 @@ function FinanceiroReceberConteudo() {
     if (isCreditoGerado(lancamento) || isCreditoUtilizado(lancamento)) return false;
     if (!lancamento.descricao.toLowerCase().startsWith("cobrança os")) return false;
     if (lancamento.formaPagamento?.toLowerCase().includes("crédito")) return false;
-    if (!faturaSomenteComOsFinalizadas(lancamento)) return false;
     const creditoQuitouFatura =
       creditoUsadoNaFatura(lancamento) > 0 &&
       Math.round(saldoFatura(lancamento) * 100) <= 0;

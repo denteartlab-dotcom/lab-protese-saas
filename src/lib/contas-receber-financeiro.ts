@@ -88,28 +88,14 @@ export function trabalhosDaFatura(
   );
 }
 
-export function faturaSomenteComOsFinalizadas(
-  lancamento: LancamentoContasReceber,
-  trabalhos: TrabalhoContasReceber[]
-) {
-  const descricao = lancamento.descricao.toLowerCase();
-  if (!descricao.startsWith("cobrança os")) return true;
-  const trabalhosRelacionados = trabalhosDaFatura(lancamento, trabalhos);
-  if (trabalhosRelacionados.length === 0) return true;
-  return trabalhosRelacionados.every((trabalho) =>
-    ["entregue", "finalizado"].includes(trabalho.status)
-  );
-}
-
 export function isFaturaContasReceber(
   lancamento: LancamentoContasReceber,
   lancamentos: LancamentoContasReceber[],
-  trabalhos: TrabalhoContasReceber[]
+  _trabalhos: TrabalhoContasReceber[]
 ) {
   if (isCreditoGerado(lancamento) || isCreditoUtilizado(lancamento)) return false;
   if (!lancamento.descricao.toLowerCase().startsWith("cobrança os")) return false;
   if (lancamento.formaPagamento?.toLowerCase().includes("crédito")) return false;
-  if (!faturaSomenteComOsFinalizadas(lancamento, trabalhos)) return false;
   const creditoQuitouFatura =
     creditoUsadoNaFatura(lancamento, lancamentos) > 0 &&
     Math.round(saldoFatura(lancamento, lancamentos) * 100) <= 0;
