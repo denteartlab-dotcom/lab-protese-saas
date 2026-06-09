@@ -15,6 +15,12 @@ export const SITE_PAGES: SitePageEntry[] = [
   { href: "/app/producao/controle", labelKey: "nav.controleProducao", sectionKey: "nav.producao" },
   { href: "/app/producao/agenda", labelKey: "nav.agendaProducao", sectionKey: "nav.producao" },
   { href: "/app/producao/modulo", labelKey: "nav.moduloProducao", sectionKey: "nav.producao" },
+  {
+    href: "/app/producao/modulo-tv",
+    labelKey: "nav.moduloTv",
+    sectionKey: "nav.producao",
+    keywords: ["tv", "televisao", "painel"],
+  },
   { href: "/app/producao/comissao", labelKey: "nav.comissao", sectionKey: "nav.producao" },
   { href: "/app/producao/finalizadores", labelKey: "nav.finalizadores", sectionKey: "nav.producao" },
   { href: "/app/producao/entregas", labelKey: "nav.entregas", sectionKey: "nav.producao" },
