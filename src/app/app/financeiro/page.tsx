@@ -51,7 +51,11 @@ import { VisualizacaoClienteReceberModal } from "@/components/financeiro/Visuali
 import { linhasItensFaturaFromTrabalhos } from "@/lib/itens-fatura-linhas";
 import { PlanoContasConteudo } from "@/components/financeiro/PlanoContasConteudo";
 import { notificarFinanceiroAtualizado } from "@/lib/financeiro-events";
-import { empacotarDespesa, type AnexoDespesa } from "@/lib/lancamento-despesa";
+import {
+  desempacotarDespesa,
+  empacotarDespesa,
+  type AnexoDespesa,
+} from "@/lib/lancamento-despesa";
 import {
   carregarPlanoContas,
   categoriaPadraoLancamento,
@@ -584,9 +588,11 @@ function FinanceiroReceberConteudo() {
   }
 
   function complementoDescricaoCobranca(descricao: string) {
-    if (!descricao.toLowerCase().startsWith("cobrança os")) return descricao;
-    return descricao
-      .replace(/@@trab:[a-zA-Z0-9_,-]+@@/g, "")
+    const texto = desempacotarDespesa(descricao).texto
+      .replace(/@@trab:[a-zA-Z0-9_,-]+@@/gi, "")
+      .trim();
+    if (!texto.toLowerCase().startsWith("cobrança os")) return texto;
+    return texto
       .split(" - ")
       .slice(1)
       .join(" - ")
@@ -1162,7 +1168,7 @@ function FinanceiroReceberConteudo() {
     setFaturaEditando(lancamento);
     setOsRemovidasEdicao([]);
     setFormEdicaoFatura({
-      descricao: lancamento.descricao,
+      descricao: complementoDescricaoCobranca(lancamento.descricao),
       data: dateToBrShort(new Date(lancamento.data)),
       valor: formatCurrencyInput(String(Math.round(lancamento.valor * 100))),
       formaPagamento: lancamento.formaPagamento || "Pix Externo",
@@ -1202,7 +1208,6 @@ function FinanceiroReceberConteudo() {
         setFormEdicaoFatura((current) => ({
           ...current,
           valor: formatCurrencyInput(String(Math.round(novoValor * 100))),
-          descricao: descricaoCobrancaEditada(restantes, current.descricao),
         }));
       }
       return atualizados;
