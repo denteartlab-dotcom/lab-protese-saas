@@ -2,11 +2,7 @@
 
 import { useEffect } from "react";
 import { APP_BUILD_ID, isBuildIdProducao } from "@/lib/app-build-id";
-import {
-  ARMAZENAMENTO_LAB_PRONTO_EVENT,
-  armazenamentoLaboratorioPronto,
-  revalidarArmazenamentoLaboratorio,
-} from "@/lib/armazenamento-laboratorio";
+import { armazenamentoLaboratorioPronto, revalidarArmazenamentoLaboratorio } from "@/lib/armazenamento-laboratorio";
 
 const STORAGE_KEY = "labProteseBuildId";
 const STORAGE_RELOAD_AT = "labProteseReloadAt";
@@ -90,14 +86,7 @@ export function AppVersionWatcher() {
     };
 
     document.addEventListener("visibilitychange", onVisibilidade);
-
-    if (armazenamentoLaboratorioPronto()) {
-      iniciarMonitoramento();
-    } else {
-      window.addEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, iniciarMonitoramento, {
-        once: true,
-      });
-    }
+    iniciarMonitoramento();
 
     return () => {
       document.removeEventListener("visibilitychange", onVisibilidade);

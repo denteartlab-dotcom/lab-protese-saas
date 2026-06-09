@@ -4,6 +4,8 @@ import { AppVersionWatcher } from "@/components/AppVersionWatcher";
 import { LabConfigProvider } from "@/components/LabConfigProvider";
 import { LabDocumentHead } from "@/components/LabDocumentHead";
 import { SiteTopoMarca } from "@/components/SiteTopoMarca";
+import { APP_BUILD_ID } from "@/lib/app-build-id";
+import { CHUNK_RELOAD_SCRIPT } from "@/lib/chunk-reload-script";
 import {
   FAVICON_PADRAO,
   montarTituloDocumento,
@@ -32,6 +34,12 @@ export default async function RootLayout({
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
+        <meta name="app-build-id" content={APP_BUILD_ID} />
+        <Script
+          id="recarregar-chunks-antigos"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: CHUNK_RELOAD_SCRIPT }}
+        />
         <Script
           id="remove-cursor-test-attrs"
           strategy="beforeInteractive"
