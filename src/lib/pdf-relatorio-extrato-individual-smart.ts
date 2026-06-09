@@ -4,7 +4,7 @@ import {
   type LinhaExtratoIndividualComSaldo,
   type ResumoExtratoIndividual,
 } from "@/lib/extrato-individual-dados";
-import { desenharCabecalhoLabRelatorioPdf } from "@/lib/pdf-lab-cabecalho";
+import { labImpressaoFromConfig } from "@/lib/lab-logo";
 import { moneyBr, PRETO } from "@/lib/pdf-relatorio-faturas-smart-comum";
 import type { TrabalhoRelatorioFatura } from "@/lib/relatorio-faturas-modelo3-dados";
 import { parseBrDate } from "@/lib/datas-br";
@@ -20,7 +20,6 @@ export type OpcoesExtratoIndividualPdf = {
 
 const VERMELHO: [number, number, number] = [220, 38, 38];
 const AZUL_VALOR: [number, number, number] = [37, 99, 168];
-const CINZA_LINHA: [number, number, number] = [190, 190, 190];
 
 type ColDef = {
   titulo: string;
@@ -28,28 +27,26 @@ type ColDef = {
   align: "left" | "right";
 };
 
-/** 9 colunas — layout idêntico ao Smart Prótese (referência). */
+/** 9 colunas — layout Smart Prótese Extrato Individual (referência). */
 const COLUNAS_BASE: ColDef[] = [
-  { titulo: "Data Fatura", larguraMm: 18, align: "left" },
-  { titulo: "Núm Fatura", larguraMm: 14, align: "left" },
+  { titulo: "Data", larguraMm: 18, align: "left" },
+  { titulo: "Núm Fatura", larguraMm: 16, align: "left" },
   { titulo: "OS", larguraMm: 11, align: "left" },
-  { titulo: "Serviço / Produto", larguraMm: 42, align: "left" },
+  { titulo: "Serviço/Produto", larguraMm: 38, align: "left" },
   { titulo: "Qtd", larguraMm: 10, align: "right" },
-  { titulo: "Valor Un", larguraMm: 18, align: "right" },
-  { titulo: "Desconto", larguraMm: 17, align: "right" },
-  { titulo: "Subtotal", larguraMm: 18, align: "right" },
-  { titulo: "Saldo", larguraMm: 18, align: "right" },
+  { titulo: "Paciente", larguraMm: 28, align: "left" },
+  { titulo: "Núm Dente", larguraMm: 18, align: "left" },
+  { titulo: "Valor", larguraMm: 20, align: "right" },
+  { titulo: "Saldo", larguraMm: 20, align: "right" },
 ];
 
 const IDX_SERVICO = 3;
-const IDX_SUBTOTAL = 7;
+const IDX_PACIENTE = 5;
+const IDX_VALOR = 7;
 const IDX_SALDO = 8;
-
-type PdfApi = Parameters<typeof desenharCabecalhoLabRelatorioPdf>[0];
 
 type Ctx = {
   pdf: jsPDF;
-  api: PdfApi;
   margin: number;
   pageW: number;
   pageH: number;
@@ -57,19 +54,13 @@ type Ctx = {
   colX: number[];
   y: number;
   rowH: number;
-  subRowH: number;
 };
 
 function moneyCell(value: number) {
   return moneyBr(value);
 }
 
-function descontoCell(valor: number) {
-  if (valor <= 0.009) return "- 0,00";
-  return `- ${moneyBr(valor)}`;
-}
-
-function subtotalNegativoCell(value: number) {
+function valorNegativoCell(value: number) {
   return `- ${moneyBr(Math.abs(value))}`;
 }
 
@@ -89,47 +80,14 @@ function criarCtx(pdf: jsPDF): Ctx {
   }
   return {
     pdf,
-    api: pdf as unknown as PdfApi,
     margin,
     pageW,
     pageH: pdf.internal.pageSize.getHeight(),
     colunas,
     colX,
     y: margin,
-    rowH: 5.4,
-    subRowH: 4.4,
+    rowH: 5.2,
   };
-}
-
-function alinharColuna(colIndex: number): ColDef["align"] {
-  return colIndex <= 3 ? "left" : "right";
-}
-
-function aplicarTracejado(ctx: Ctx, tracejado: boolean) {
-  const pdf = ctx.pdf as jsPDF & {
-    setLineDashPattern?: (pattern: number[], phase: number) => void;
-  };
-  if (typeof pdf.setLineDashPattern === "function") {
-    pdf.setLineDashPattern(tracejado ? [1.1, 1.1] : [], 0);
-  }
-}
-
-function desenharLinhaDivisoria(ctx: Ctx) {
-  const yLine = ctx.y;
-  ctx.pdf.setDrawColor(...CINZA_LINHA);
-  ctx.pdf.setLineWidth(0.15);
-  aplicarTracejado(ctx, true);
-  ctx.pdf.line(ctx.margin, yLine, ctx.pageW - ctx.margin, yLine);
-  aplicarTracejado(ctx, false);
-  ctx.y += 1.4;
-}
-
-function novaPagina(ctx: Ctx, altura: number) {
-  if (ctx.y + altura > ctx.pageH - ctx.margin - 24) {
-    ctx.pdf.addPage();
-    ctx.y = ctx.margin;
-    desenharCabecalhoColunas(ctx);
-  }
 }
 
 function desenharTexto(
@@ -147,137 +105,116 @@ function desenharTexto(
   const col = ctx.colunas[colIndex];
   const x = ctx.colX[colIndex];
   const w = col.larguraMm;
-  const align = opts?.align ?? alinharColuna(colIndex);
+  const align = opts?.align ?? col.align;
   ctx.pdf.setFont("helvetica", opts?.bold ? "bold" : "normal");
-  ctx.pdf.setFontSize(opts?.fontSize ?? 7.5);
+  ctx.pdf.setFontSize(opts?.fontSize ?? 8);
   ctx.pdf.setTextColor(...(opts?.cor ?? PRETO));
-  const pad = 1;
+  const pad = 0.8;
   const truncado = ctx.pdf.splitTextToSize(texto, Math.max(w - pad * 2, 2))[0] || texto;
-  const tx =
-    align === "right" ? x + w - pad : x + pad;
+  const tx = align === "right" ? x + w - pad : x + pad;
   ctx.pdf.text(truncado, tx, y, { align });
+}
+
+function novaPagina(ctx: Ctx, altura: number) {
+  if (ctx.y + altura > ctx.pageH - ctx.margin - 28) {
+    ctx.pdf.addPage();
+    ctx.y = ctx.margin;
+    desenharCabecalhoColunas(ctx);
+  }
+}
+
+/** Cabeçalho simples Smart: nome, telefone, e-mail e linha. */
+function desenharCabecalhoLabExtrato(ctx: Ctx) {
+  const lab = labImpressaoFromConfig();
+  const x = ctx.margin;
+  let y = ctx.y + 4;
+
+  ctx.pdf.setFont("helvetica", "bold");
+  ctx.pdf.setFontSize(11);
+  ctx.pdf.setTextColor(51, 51, 51);
+  ctx.pdf.text(lab.responsavel || "", x, y);
+  y += 5;
+
+  ctx.pdf.setFont("helvetica", "normal");
+  ctx.pdf.setFontSize(9);
+  if (lab.telefones) {
+    ctx.pdf.text(lab.telefones, x, y);
+    y += 4.2;
+  }
+  if (lab.email) {
+    ctx.pdf.text(lab.email, x, y);
+    y += 4.2;
+  }
+
+  y += 2;
+  ctx.pdf.setDrawColor(0, 0, 0);
+  ctx.pdf.setLineWidth(0.35);
+  ctx.pdf.line(ctx.margin, y, ctx.pageW - ctx.margin, y);
+  ctx.y = y + 7;
 }
 
 function desenharCabecalhoColunas(ctx: Ctx) {
   ctx.pdf.setDrawColor(0, 0, 0);
-  ctx.pdf.setLineWidth(0.65);
+  ctx.pdf.setLineWidth(0.35);
   ctx.pdf.line(ctx.margin, ctx.y, ctx.pageW - ctx.margin, ctx.y);
-  ctx.y += 2.2;
+  ctx.y += 2.4;
 
-  const yText = ctx.y + 3.2;
+  const yText = ctx.y + 3.4;
   ctx.colunas.forEach((col, i) => {
     desenharTexto(ctx, i, col.titulo, yText, {
       bold: true,
-      fontSize: 7.5,
-      align: alinharColuna(i),
+      fontSize: 8,
+      align: col.align,
     });
   });
   ctx.y += ctx.rowH;
 
-  ctx.pdf.setLineWidth(0.28);
+  ctx.pdf.setLineWidth(0.25);
   ctx.pdf.line(ctx.margin, ctx.y, ctx.pageW - ctx.margin, ctx.y);
-  ctx.y += 2;
-}
-
-function desenharDetalhePaciente(ctx: Ctx, texto: string) {
-  const y = ctx.y + 3.1;
-  let x = ctx.colX[IDX_SERVICO] + 1;
-  const maxX = ctx.pageW - ctx.margin;
-  const partes = texto.split(" / ");
-
-  ctx.pdf.setFontSize(7);
-
-  for (let p = 0; p < partes.length; p++) {
-    const parte = partes[p].trim();
-    const colon = parte.indexOf(":");
-    if (colon < 0) continue;
-
-    const rotulo = parte.slice(0, colon + 1);
-    const valor = parte.slice(colon + 1).trim();
-    const sep = p > 0 ? " / " : "";
-
-    if (sep) {
-      ctx.pdf.setFont("helvetica", "normal");
-      ctx.pdf.setTextColor(...PRETO);
-      const wSep = ctx.pdf.getTextWidth(sep);
-      if (x + wSep > maxX) break;
-      ctx.pdf.text(sep, x, y);
-      x += wSep;
-    }
-
-    ctx.pdf.setFont("helvetica", "bold");
-    ctx.pdf.setTextColor(...PRETO);
-    const wRot = ctx.pdf.getTextWidth(rotulo);
-    if (x + wRot > maxX) break;
-    ctx.pdf.text(rotulo, x, y);
-    x += wRot;
-
-    const valorTxt = valor ? ` ${valor}` : "";
-    ctx.pdf.setFont("helvetica", "normal");
-    const wVal = ctx.pdf.getTextWidth(valorTxt);
-    if (x + wVal > maxX) break;
-    ctx.pdf.text(valorTxt, x, y);
-    x += wVal;
-  }
-
-  ctx.y += ctx.subRowH;
+  ctx.y += 2.2;
 }
 
 function desenharLinhaSaldoAnterior(ctx: Ctx, linha: LinhaExtratoIndividualComSaldo) {
   novaPagina(ctx, ctx.rowH + 2);
-  const y = ctx.y + 3.9;
-  desenharTexto(ctx, IDX_SUBTOTAL, "Saldo Anterior", y, { align: "right", bold: true });
-  desenharTexto(ctx, IDX_SALDO, moneyCell(linha.saldo), y, { align: "right", bold: true });
+  const y = ctx.y + 3.6;
+  desenharTexto(ctx, IDX_SERVICO, "Saldo Anterior", y, { bold: true });
+  desenharTexto(ctx, IDX_SALDO, moneyCell(linha.saldo), y, { align: "right" });
   ctx.y += ctx.rowH;
-  desenharLinhaDivisoria(ctx);
 }
 
 function desenharLinhaPagamento(ctx: Ctx, linha: LinhaExtratoIndividualComSaldo) {
   novaPagina(ctx, ctx.rowH + 2);
-  const y = ctx.y + 3.9;
+  const y = ctx.y + 3.6;
   if (linha.dataFatura) {
     desenharTexto(ctx, 0, linha.dataFatura, y);
   }
   desenharTexto(ctx, IDX_SERVICO, linha.servico, y, { cor: VERMELHO });
-  desenharTexto(ctx, IDX_SUBTOTAL, subtotalNegativoCell(linha.subtotal), y, {
+  desenharTexto(ctx, IDX_VALOR, valorNegativoCell(linha.subtotal), y, {
     align: "right",
     cor: VERMELHO,
   });
   desenharTexto(ctx, IDX_SALDO, moneyCell(linha.saldo), y, { align: "right" });
   ctx.y += ctx.rowH;
-  desenharLinhaDivisoria(ctx);
 }
 
 function desenharLinhaServico(ctx: Ctx, linha: LinhaExtratoIndividualComSaldo) {
-  const altura = ctx.rowH + (linha.detalhePaciente ? ctx.subRowH : 0) + 1;
-  novaPagina(ctx, altura);
-  const y = ctx.y + 3.9;
+  novaPagina(ctx, ctx.rowH + 2);
+  const y = ctx.y + 3.6;
 
   desenharTexto(ctx, 0, linha.dataFatura, y);
   desenharTexto(ctx, 1, linha.numFatura, y);
   desenharTexto(ctx, 2, linha.os, y);
   desenharTexto(ctx, 3, linha.servico, y);
   desenharTexto(ctx, 4, linha.qtd, y, { align: "right" });
-  desenharTexto(ctx, 5, linha.valorUn > 0 ? moneyCell(linha.valorUn) : "", y, {
-    align: "right",
-  });
-  desenharTexto(ctx, 6, descontoCell(linha.desconto), y, {
-    align: "right",
-    cor: AZUL_VALOR,
-  });
-  desenharTexto(ctx, 7, moneyCell(linha.subtotal), y, {
+  desenharTexto(ctx, IDX_PACIENTE, linha.paciente, y);
+  desenharTexto(ctx, 6, linha.numDente, y);
+  desenharTexto(ctx, IDX_VALOR, moneyCell(linha.subtotal), y, {
     align: "right",
     cor: AZUL_VALOR,
   });
-  desenharTexto(ctx, 8, moneyCell(linha.saldo), y, { align: "right" });
+  desenharTexto(ctx, IDX_SALDO, moneyCell(linha.saldo), y, { align: "right" });
 
   ctx.y += ctx.rowH;
-
-  if (linha.detalhePaciente) {
-    desenharDetalhePaciente(ctx, linha.detalhePaciente);
-  }
-
-  desenharLinhaDivisoria(ctx);
 }
 
 function desenharLinhaExtrato(ctx: Ctx, linha: LinhaExtratoIndividualComSaldo) {
@@ -293,11 +230,11 @@ function desenharLinhaExtrato(ctx: Ctx, linha: LinhaExtratoIndividualComSaldo) {
 }
 
 function desenharResumo(ctx: Ctx, resumo: ResumoExtratoIndividual) {
-  ctx.y += 4;
-  novaPagina(ctx, 30);
+  ctx.y += 10;
+  novaPagina(ctx, 32);
 
-  const xLabel = ctx.colX[IDX_SUBTOTAL] - 50;
-  const xValor = ctx.colX[IDX_SUBTOTAL] + ctx.colunas[IDX_SUBTOTAL].larguraMm;
+  const xLabel = ctx.margin;
+  const xValor = ctx.margin + 72;
 
   const itens: [string, number][] = [
     ["(+) Saldo Anterior", resumo.saldoAnterior],
@@ -309,18 +246,18 @@ function desenharResumo(ctx: Ctx, resumo: ResumoExtratoIndividual) {
 
   for (const [rotulo, valor] of itens) {
     novaPagina(ctx, 6);
-    const y = ctx.y + 3.5;
+    const y = ctx.y + 3.8;
     const bold = rotulo.startsWith("(=)");
     ctx.pdf.setFont("helvetica", bold ? "bold" : "normal");
     ctx.pdf.setFontSize(9);
     ctx.pdf.setTextColor(...PRETO);
     ctx.pdf.text(rotulo, xLabel, y);
     ctx.pdf.text(`R$ ${moneyBr(valor)}`, xValor, y, { align: "right" });
-    ctx.y += 5.2;
+    ctx.y += 5.4;
   }
 }
 
-/** Layout Smart Prótese — Extrato Financeiro Individual (cópia da referência). */
+/** Layout Smart Prótese — Extrato Financeiro Individual. */
 export async function gerarRelatorioExtratoIndividualSmartPdf(
   lancamentos: LancamentoContasReceber[],
   trabalhos: TrabalhoRelatorioFatura[],
@@ -347,7 +284,7 @@ export async function gerarRelatorioExtratoIndividualSmartPdf(
     clienteId: opcoes?.clienteId,
   });
 
-  ctx.y = desenharCabecalhoLabRelatorioPdf(ctx.api, ctx.margin, ctx.margin);
+  desenharCabecalhoLabExtrato(ctx);
 
   ctx.pdf.setFont("helvetica", "bold");
   ctx.pdf.setFontSize(12);
@@ -355,7 +292,7 @@ export async function gerarRelatorioExtratoIndividualSmartPdf(
   ctx.pdf.text(`Extrato Financeiro (${nomeCliente})`, ctx.pageW / 2, ctx.y, {
     align: "center",
   });
-  ctx.y += 8;
+  ctx.y += 9;
 
   desenharCabecalhoColunas(ctx);
 

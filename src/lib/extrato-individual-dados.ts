@@ -25,11 +25,11 @@ export type LinhaExtratoIndividual = {
   os: string;
   servico: string;
   qtd: string;
+  paciente: string;
+  numDente: string;
   valorUn: number;
   desconto: number;
   subtotal: number;
-  /** Sublinha: Paciente / Num Dente / Entregue */
-  detalhePaciente?: string;
 };
 
 export type LinhaExtratoIndividualComSaldo = LinhaExtratoIndividual & {
@@ -127,22 +127,6 @@ function descontoItem(qtd: string, valorUn: number, subtotal: number) {
   return Math.max(0, parseQtd(qtd) * valorUn - subtotal);
 }
 
-function dataEntregaTrabalho(trabalho: TrabalhoRelatorioFatura) {
-  if (!trabalho.dataEntrega) return "—";
-  return formatDate(trabalho.dataEntrega);
-}
-
-function detalhePacienteLinha(
-  paciente: string,
-  numDente: string,
-  entregue: string
-) {
-  const partes = [`Paciente: ${paciente}`];
-  if (numDente && numDente !== "—") partes.push(`Núm Dente: ${numDente}`);
-  partes.push(`Entregue: ${entregue}`);
-  return partes.join(" / ");
-}
-
 /** Apenas dígitos da OS (sem prefixo "OS" / "OS #"). */
 export function numeroOsExtrato(valor: string | number | null | undefined): string {
   if (valor == null || valor === "") return "";
@@ -186,6 +170,8 @@ function linhaServicoCobrancaFallback(
       descricaoBaseReceita(l).split("\n")[0]?.trim() || "Cobrança OS"
     ),
     qtd: "1",
+    paciente: "—",
+    numDente: "",
     valorUn: subtotal,
     desconto: 0,
     subtotal,
@@ -246,6 +232,8 @@ export function montarExtratoIndividual(
         os: "",
         servico: "Desconto com crédito",
         qtd: "",
+        paciente: "",
+        numDente: "",
         valorUn: 0,
         desconto: 0,
         subtotal: -Math.abs(valor),
@@ -265,6 +253,8 @@ export function montarExtratoIndividual(
         os: "",
         servico: textoPagamento(l),
         qtd: "",
+        paciente: "",
+        numDente: "",
         valorUn: 0,
         desconto: 0,
         subtotal: -Math.abs(valor),
@@ -288,6 +278,8 @@ export function montarExtratoIndividual(
         os: osNum,
         servico: descricaoServicoExtrato(pack.texto.split("\n")[0]?.trim() || "Receita"),
         qtd: "1",
+        paciente: "—",
+        numDente: "",
         valorUn: subtotal,
         desconto: 0,
         subtotal,
@@ -309,7 +301,6 @@ export function montarExtratoIndividual(
 
     if (relacionados.length > 0) {
       for (const t of relacionados) {
-        const entregue = dataEntregaTrabalho(t);
         for (const item of itensDoTrabalho(t)) {
           itensAdicionados += 1;
           linhasBrutas.push({
@@ -321,10 +312,11 @@ export function montarExtratoIndividual(
             os: numeroOsExtrato(item.os),
             servico: descricaoServicoExtrato(item.descricao),
             qtd: item.qtd,
+            paciente: item.paciente || "—",
+            numDente: item.numDente && item.numDente !== "—" ? item.numDente : "",
             valorUn: item.valorUn,
             desconto: descontoItem(item.qtd, item.valorUn, item.subtotal),
             subtotal: item.subtotal,
-            detalhePaciente: detalhePacienteLinha(item.paciente, item.numDente, entregue),
           });
         }
       }
@@ -370,6 +362,8 @@ export function montarExtratoIndividual(
       os: "",
       servico: "Saldo Anterior",
       qtd: "",
+      paciente: "",
+      numDente: "",
       valorUn: 0,
       desconto: 0,
       subtotal: 0,
