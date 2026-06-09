@@ -57,7 +57,7 @@ export function ConfirmacaoExclusaoModal({
 
   return (
     <div
-      className="fixed inset-0 z-[95] flex items-center justify-center bg-black/45 p-4"
+      className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/45 p-4"
       onClick={onClose}
     >
       <div

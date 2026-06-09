@@ -8,7 +8,9 @@ import {
   Eye,
   Pencil,
   Plus,
+  Trash2,
 } from "lucide-react";
+import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { CadastrarContaBancariaModal } from "@/components/financeiro/CadastrarContaBancariaModal";
 import { ConciliacaoContaModal } from "@/components/financeiro/ConciliacaoContaModal";
 import { MovimentacaoContaModal } from "@/components/financeiro/MovimentacaoContaModal";
@@ -115,6 +117,8 @@ export function ContaBancariaConteudo() {
     extrato: Omit<ExtratoMovimentacao, "contaId">[];
   } | null>(null);
   const [contaVisualizada, setContaVisualizada] = useState<string | null>(null);
+  const [contaExcluirConfirmacao, setContaExcluirConfirmacao] =
+    useState<ContaBancaria | null>(null);
   const [clientes, setClientes] = useState<{ id: string; nome: string }[]>(
     []
   );
@@ -364,14 +368,21 @@ export function ContaBancariaConteudo() {
       ID_CONTA_NF,
     ].includes(conta.id);
 
-  function excluirContaEditada() {
-    if (!modalEditar || !contaPodeExcluir(modalEditar)) return;
+  function solicitarExclusaoConta(conta: ContaBancaria) {
+    if (!contaPodeExcluir(conta)) return;
+    setModalEditar((atual) => (atual?.id === conta.id ? null : atual));
+    setContaVisualizada((atual) => (atual === conta.id ? null : atual));
+    setContaExcluirConfirmacao(conta);
+  }
+
+  function confirmarExclusaoConta() {
+    if (!contaExcluirConfirmacao) return;
     persistirContas(
       contas.map((c) =>
-        c.id === modalEditar.id ? { ...c, excluida: true } : c
+        c.id === contaExcluirConfirmacao.id ? { ...c, excluida: true } : c
       )
     );
-    setModalEditar(null);
+    setContaExcluirConfirmacao(null);
   }
 
   function restaurarConta(conta: ContaBancaria) {
@@ -545,6 +556,16 @@ export function ContaBancariaConteudo() {
                               >
                                 <ArrowLeftRight className="h-4 w-4" />
                               </button>
+                              {contaPodeExcluir(conta) ? (
+                                <button
+                                  type="button"
+                                  title="Excluir"
+                                  onClick={() => solicitarExclusaoConta(conta)}
+                                  className="inline-flex h-8 w-8 items-center justify-center text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              ) : null}
                               <button
                                 type="button"
                                 onClick={() =>
@@ -669,9 +690,24 @@ export function ContaBancariaConteudo() {
         onSalvarEdicao={salvarEdicao}
         onExcluir={
           modalEditar && contaPodeExcluir(modalEditar)
-            ? excluirContaEditada
+            ? () => solicitarExclusaoConta(modalEditar)
             : undefined
         }
+      />
+
+      <ConfirmacaoExclusaoModal
+        open={contaExcluirConfirmacao !== null}
+        titulo="Excluir Conta Bancária"
+        mensagem={
+          contaExcluirConfirmacao
+            ? `Deseja realmente excluir a conta "${contaExcluirConfirmacao.nome}"?`
+            : ""
+        }
+        aviso="A conta será movida para a lista de excluídos. Você pode restaurá-la em Ver Excluídos."
+        onClose={() => setContaExcluirConfirmacao(null)}
+        onConfirm={confirmarExclusaoConta}
+        labelConfirmar="Sim, excluir"
+        labelCancelar="Não"
       />
 
       <TransferenciasAjustesSaldoModal
