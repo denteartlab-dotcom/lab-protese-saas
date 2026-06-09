@@ -35,7 +35,7 @@ export async function PATCH(request: Request, { params }: Params) {
   }
 
   const store = getTvOrdensStore();
-  const ordem = store.moverOrdem(id, parsed.data.coluna as ColunaKanbanId);
+  const ordem = await store.moverOrdem(id, parsed.data.coluna as ColunaKanbanId);
 
   if (!ordem) {
     return NextResponse.json({ error: "OS não encontrada" }, { status: 404 });

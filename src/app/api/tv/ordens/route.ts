@@ -9,5 +9,6 @@ export async function GET() {
   }
 
   const store = getTvOrdensStore();
-  return NextResponse.json(store.getSnapshot());
+  const snapshot = await store.refreshFromDb();
+  return NextResponse.json(snapshot);
 }

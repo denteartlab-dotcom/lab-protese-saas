@@ -9,5 +9,8 @@ export async function GET() {
   }
 
   const store = getTvOrdensStore();
+  if (store.getChart().length === 0) {
+    await store.refreshFromDb();
+  }
   return NextResponse.json({ pontos: store.getChart() });
 }

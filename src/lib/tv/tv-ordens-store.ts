@@ -1,12 +1,3 @@
-import {
-  COLABORADORES_TV,
-  COLUNAS_ORDEM,
-  ORDENS_MOCK_INICIAL,
-  calcularStats,
-  criarNovaOsMock,
-  criarPontoChart,
-  labelColuna,
-} from "@/components/modulo-tv/mock-data";
 import type {
   ColunaKanbanId,
   OrdemServicoTv,
@@ -14,39 +5,70 @@ import type {
   TvOrdensResponse,
 } from "@/components/modulo-tv/types";
 import { emitTvEvent } from "@/lib/tv/tv-socket-io";
+import {
+  carregarOrdensTv,
+  moverTrabalhoTvColuna,
+  snapshotParaChart,
+} from "@/lib/tv/tv-trabalhos-servidor";
 
-const MAX_ORDENS = 28;
 const MAX_CHART_POINTS = 24;
+const REFRESH_INTERVAL_MS = 30_000;
 
 type TvStoreState = {
-  ordens: OrdemServicoTv[];
+  snapshot: TvOrdensResponse;
   chart: TvChartPoint[];
-  ultimaAtualizacao: Date;
 };
 
 const globalForTv = globalThis as typeof globalThis & {
   __tvOrdensStore?: TvOrdensStore;
-  __tvSimuladorTimer?: ReturnType<typeof setInterval>;
+  __tvRefreshTimer?: ReturnType<typeof setInterval>;
 };
 
 export class TvOrdensStore {
   private state: TvStoreState;
 
   constructor() {
-    const ordens = ORDENS_MOCK_INICIAL.map((o) => ({ ...o }));
     this.state = {
-      ordens,
-      chart: [criarPontoChart(ordens)],
-      ultimaAtualizacao: new Date(),
+      snapshot: {
+        ordens: [],
+        colaboradores: [],
+        stats: {
+          totalProducao: 0,
+          atrasadas: 0,
+          prazoHoje: 0,
+          prazoAmanha: 0,
+          prazoAposAmanha: 0,
+          entregasHoje: 0,
+          entregasConcluidas: 0,
+          colaboradoresOnline: 0,
+          percentualConcluido: 0,
+        },
+        ultimaAtualizacao: new Date().toISOString(),
+      },
+      chart: [],
     };
+  }
+
+  private appendChart(ordens: OrdemServicoTv[]) {
+    this.state.chart = [
+      ...this.state.chart,
+      snapshotParaChart(ordens),
+    ].slice(-MAX_CHART_POINTS);
+  }
+
+  async refreshFromDb(): Promise<TvOrdensResponse> {
+    const snapshot = await carregarOrdensTv();
+    this.state.snapshot = snapshot;
+    this.appendChart(snapshot.ordens);
+    return snapshot;
   }
 
   getSnapshot(): TvOrdensResponse {
     return {
-      ordens: this.state.ordens.map((o) => ({ ...o })),
-      colaboradores: COLABORADORES_TV.map((c) => ({ ...c })),
-      stats: calcularStats(this.state.ordens),
-      ultimaAtualizacao: this.state.ultimaAtualizacao.toISOString(),
+      ordens: this.state.snapshot.ordens.map((o) => ({ ...o })),
+      colaboradores: this.state.snapshot.colaboradores.map((c) => ({ ...c })),
+      stats: { ...this.state.snapshot.stats },
+      ultimaAtualizacao: this.state.snapshot.ultimaAtualizacao,
     };
   }
 
@@ -54,71 +76,26 @@ export class TvOrdensStore {
     return this.state.chart.map((p) => ({ ...p }));
   }
 
-  private touch() {
-    this.state.ultimaAtualizacao = new Date();
-    this.state.chart = [...this.state.chart, criarPontoChart(this.state.ordens)].slice(
-      -MAX_CHART_POINTS
-    );
-  }
-
-  private broadcastUpdate() {
+  syncBroadcast() {
     const snapshot = this.getSnapshot();
     emitTvEvent("tv:ordens:update", snapshot);
     emitTvEvent("tv:chart:update", { pontos: this.getChart() });
   }
 
-  moverOrdem(id: string, coluna: ColunaKanbanId): OrdemServicoTv | null {
-    const idx = this.state.ordens.findIndex((o) => o.id === id);
-    if (idx < 0) return null;
+  async moverOrdem(
+    id: string,
+    coluna: ColunaKanbanId
+  ): Promise<OrdemServicoTv | null> {
+    const resultado = await moverTrabalhoTvColuna(id, coluna);
+    if (!resultado) return null;
 
-    const ordem = { ...this.state.ordens[idx] };
-    if (ordem.coluna === coluna) return ordem;
+    this.state.snapshot = resultado;
+    this.appendChart(resultado.ordens);
 
-    ordem.coluna = coluna;
-    ordem.etapaDesde = new Date().toISOString();
-    ordem.status =
-      coluna === "pronto_entrega"
-        ? "Pronto / Entrega"
-        : `${labelColuna(coluna)} — em andamento`;
-
-    this.state.ordens[idx] = ordem;
-    this.touch();
-    this.broadcastUpdate();
-    emitTvEvent("tv:ordem:moved", { ordem: { ...ordem } });
+    const ordem = resultado.ordens.find((o) => o.id === id) ?? null;
+    this.syncBroadcast();
+    if (ordem) emitTvEvent("tv:ordem:moved", { ordem: { ...ordem } });
     return ordem;
-  }
-
-  avancarOrdemAleatoria(): OrdemServicoTv | null {
-    const candidatas = this.state.ordens.filter(
-      (o) => o.coluna !== "pronto_entrega"
-    );
-    if (!candidatas.length) return null;
-
-    const ordem = candidatas[Math.floor(Math.random() * candidatas.length)];
-    const colIdx = COLUNAS_ORDEM.indexOf(ordem.coluna);
-    if (colIdx < 0 || colIdx >= COLUNAS_ORDEM.length - 1) return null;
-
-    return this.moverOrdem(ordem.id, COLUNAS_ORDEM[colIdx + 1]);
-  }
-
-  adicionarOrdem(nova?: OrdemServicoTv): OrdemServicoTv {
-    const ordem = nova ?? criarNovaOsMock(this.state.ordens);
-    this.state.ordens = [ordem, ...this.state.ordens].slice(0, MAX_ORDENS);
-    this.touch();
-    this.broadcastUpdate();
-    emitTvEvent("tv:ordem:nova", { ordem: { ...ordem } });
-    return ordem;
-  }
-
-  simularTick() {
-    if (Math.random() > 0.55) {
-      this.avancarOrdemAleatoria();
-    } else if (Math.random() > 0.45) {
-      this.adicionarOrdem();
-    } else {
-      this.touch();
-      this.broadcastUpdate();
-    }
   }
 }
 
@@ -129,18 +106,23 @@ export function getTvOrdensStore(): TvOrdensStore {
   return globalForTv.__tvOrdensStore;
 }
 
-export function getTvOrdensSnapshot() {
+export async function getTvOrdensSnapshot() {
   const store = getTvOrdensStore();
+  await store.refreshFromDb();
   return {
     ...store.getSnapshot(),
     chart: store.getChart(),
   };
 }
 
-export function iniciarTvSimulador() {
-  if (globalForTv.__tvSimuladorTimer) return;
+/** Sincronização periódica com o banco — substitui simulador mock. */
+export function iniciarTvRefreshAutomatico() {
+  if (globalForTv.__tvRefreshTimer) return;
 
-  globalForTv.__tvSimuladorTimer = setInterval(() => {
-    getTvOrdensStore().simularTick();
-  }, 12_000);
+  const store = getTvOrdensStore();
+  void store.refreshFromDb().then(() => store.syncBroadcast());
+
+  globalForTv.__tvRefreshTimer = setInterval(() => {
+    void store.refreshFromDb().then(() => store.syncBroadcast());
+  }, REFRESH_INTERVAL_MS);
 }

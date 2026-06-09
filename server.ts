@@ -5,7 +5,7 @@ import { Server as SocketIOServer } from "socket.io";
 import { TV_SOCKET_PATH } from "./src/lib/tv/tv-socket-events";
 import {
   getTvOrdensSnapshot,
-  iniciarTvSimulador,
+  iniciarTvRefreshAutomatico,
 } from "./src/lib/tv/tv-ordens-store";
 import { setTvSocketIo } from "./src/lib/tv/tv-socket-io";
 
@@ -31,13 +31,17 @@ app.prepare().then(() => {
   setTvSocketIo(io);
 
   io.on("connection", (socket) => {
-    socket.emit("tv:sync", getTvOrdensSnapshot());
+    void getTvOrdensSnapshot().then((payload) => {
+      socket.emit("tv:sync", payload);
+    });
     socket.on("tv:subscribe", () => {
-      socket.emit("tv:sync", getTvOrdensSnapshot());
+      void getTvOrdensSnapshot().then((payload) => {
+        socket.emit("tv:sync", payload);
+      });
     });
   });
 
-  iniciarTvSimulador();
+  iniciarTvRefreshAutomatico();
 
   httpServer.listen(port, () => {
     console.log(`> Smart Prótese pronto em http://${hostname}:${port}`);
