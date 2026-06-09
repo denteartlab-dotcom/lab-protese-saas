@@ -34,12 +34,20 @@ export function TvHeader({
       <div className="flex items-center justify-between gap-4">
         {/* Esquerda */}
         <div className="flex min-w-0 items-center gap-3 tv:gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 shadow-[0_0_20px_rgba(59,130,246,0.25)] tv:h-12 tv:w-12 tv-4k:h-14 tv-4k:w-14">
-            <span className="text-base font-black text-white tv:text-lg">SP</span>
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg shadow-[0_0_20px_rgba(59,130,246,0.25)] tv:h-12 tv:w-12 tv-4k:h-14 tv-4k:w-14">
+            <img
+              src="/favicon.svg"
+              alt="LaboPrótese"
+              width={56}
+              height={56}
+              className="h-full w-full object-cover"
+              decoding="async"
+              fetchPriority="high"
+            />
           </div>
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-400 tv:text-[11px]">
-              Smart Prótese 2.0
+              LaboPrótese
               {modoKiosk ? (
                 <span className="ml-2 rounded bg-violet-500/20 px-1.5 py-0.5 text-[8px] text-violet-200">
                   KIOSK

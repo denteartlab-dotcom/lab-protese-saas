@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/db";
 import { calcularStats, criarPontoChart } from "@/components/modulo-tv/mock-data";
+import { COLUNAS_KANBAN } from "@/components/modulo-tv/constants";
 import type {
   ColaboradorTv,
   ColunaKanbanId,
   OrdemServicoTv,
   PrioridadeOs,
   TvOrdensResponse,
+  TvOsResumo,
 } from "@/components/modulo-tv/types";
 import {
   parseComplementosInstrucoesGrupo,
@@ -16,6 +18,7 @@ import { lerJsonStoreServidor } from "@/lib/json-store-servidor";
 import {
   flagsUrgenciaTrabalho,
   itensDaOsModulo,
+  itensDoGrupoOs,
   type TrabalhoModuloOs,
 } from "@/lib/modulo-producao-os";
 import { labelStatusOs } from "@/lib/status-os";
@@ -391,4 +394,177 @@ export async function moverTrabalhoTvColuna(
 
 export function snapshotParaChart(ordens: OrdemServicoTv[]) {
   return criarPontoChart(ordens);
+}
+
+function labelColunaKanban(coluna: ColunaKanbanId) {
+  return COLUNAS_KANBAN.find((c) => c.id === coluna)?.label ?? coluna;
+}
+
+export async function carregarResumoOsTv(
+  trabalhoId: string
+): Promise<TvOsResumo | null> {
+  const trabalho = await prisma.trabalho.findUnique({
+    where: { id: trabalhoId },
+    include: {
+      cliente: { select: { nome: true } },
+      paciente: { select: { nome: true } },
+    },
+  });
+
+  if (!trabalho) return null;
+
+  const grupo = await prisma.trabalho.findMany({
+    where: {
+      OR: [
+        { id: trabalhoId },
+        ...(trabalho.grupoOsId
+          ? [{ grupoOsId: trabalho.grupoOsId }]
+          : [{ numeroOs: trabalho.numeroOs }]),
+      ],
+    },
+    include: {
+      cliente: { select: { nome: true } },
+      paciente: { select: { nome: true } },
+    },
+    orderBy: { segmentoFaturamento: "asc" },
+  });
+
+  const principal =
+    grupo.find((t) => t.segmentoFaturamento === "servico") ?? grupo[0];
+  const instrucoesGrupo = grupo.map((t) => t.instrucoes || "");
+  const { etapas } = parseComplementosInstrucoesGrupo(instrucoesGrupo);
+
+  const mapa =
+    (await lerJsonStoreServidor<MapaEtapasConcluidas>(
+      "labProteseModuloProducaoEtapas"
+    )) ?? {};
+
+  const colaboradores =
+    (await lerJsonStoreServidor<ColaboradorCadastro[]>(
+      "labProteseColaboradores"
+    )) ?? [];
+
+  const principalTv: TrabalhoTvRow = {
+    id: principal.id,
+    numeroOs: principal.numeroOs,
+    segmentoFaturamento: principal.segmentoFaturamento,
+    grupoOsId: principal.grupoOsId,
+    tipoProtese: principal.tipoProtese,
+    status: principal.status,
+    instrucoes: principal.instrucoes,
+    dataEntrada: principal.dataEntrada,
+    dataPrevista: principal.dataPrevista,
+    updatedAt: principal.updatedAt,
+    cliente: principal.cliente,
+    paciente: principal.paciente,
+  };
+
+  const { coluna, etapaAtual, itemChave } = resolverColunaAtual(
+    principalTv,
+    etapas,
+    mapa
+  );
+
+  const concluidas = new Set(mapa[itemChave] ?? []);
+  const indiceAtual = etapaAtual?.indice ?? null;
+
+  const moduloOs: TrabalhoModuloOs = {
+    id: principal.id,
+    numeroOs: principal.numeroOs,
+    tipoProtese: principal.tipoProtese,
+    valor: principal.valor,
+    status: principal.status,
+    dentes: principal.dentes,
+    cor: principal.cor,
+    material: principal.material,
+    observacoes: principal.observacoes,
+    instrucoes: principal.instrucoes,
+    dataEntrada: principal.dataEntrada.toISOString(),
+    dataPrevista: principal.dataPrevista?.toISOString() ?? null,
+    cliente: principal.cliente,
+    paciente: principal.paciente,
+  };
+
+  const { urgente, repeticao } = flagsUrgenciaTrabalho(moduloOs);
+  const prioridade = prioridadeDeTrabalho(moduloOs);
+  const atrasada = isTrabalhoAtrasado({
+    status: principal.status,
+    dataEntrada: principal.dataEntrada,
+    dataPrevista: principal.dataPrevista?.toISOString() ?? null,
+    instrucoes: principal.instrucoes,
+  });
+
+  const nomeResp = etapaAtual?.responsavel?.trim() || "";
+  const colab =
+    colaboradores.find(
+      (c) => c.nome.trim().toLowerCase() === nomeResp.toLowerCase()
+    ) ??
+    (nomeResp
+      ? { id: `resp-${nomeResp}`, nome: nomeResp }
+      : { id: "sem-resp", nome: "—" });
+
+  const statusLabel = etapaAtual
+    ? `${etapaAtual.nome}${etapaAtual.responsavel ? ` · ${etapaAtual.responsavel}` : ""}`
+    : labelStatusOs(principal.status);
+
+  const trabalhosModulo: TrabalhoModuloOs[] = grupo.map((t) => ({
+    id: t.id,
+    numeroOs: t.numeroOs,
+    tipoProtese: t.tipoProtese,
+    valor: t.valor,
+    status: t.status,
+    dentes: t.dentes,
+    cor: t.cor,
+    material: t.material,
+    observacoes: t.observacoes,
+    instrucoes: t.instrucoes,
+    dataEntrada: t.dataEntrada.toISOString(),
+    dataPrevista: t.dataPrevista?.toISOString() ?? null,
+    cliente: t.cliente,
+    paciente: t.paciente,
+  }));
+
+  const itens = itensDoGrupoOs(trabalhosModulo).map((item) => ({
+    descricao: item.descricao,
+    qtd: item.qtd,
+    situacao: item.situacao,
+  }));
+
+  return {
+    id: principal.id,
+    numeroOs: principal.numeroOs,
+    paciente: principal.paciente.nome,
+    dentista: principal.cliente.nome,
+    tipoProtese: principal.tipoProtese,
+    dentes: principal.dentes?.trim() || "—",
+    cor: principal.cor?.trim() || "—",
+    material: principal.material?.trim() || "—",
+    prioridade,
+    atrasada,
+    urgente,
+    repeticao,
+    coluna,
+    colunaLabel: labelColunaKanban(coluna),
+    status: statusLabel,
+    statusOs: labelStatusOs(principal.status),
+    colaborador: colab.nome,
+    prazo: formatarPrazoBr(
+      principal.dataPrevista,
+      principal.dataEntrada
+    ),
+    dataEntrada: principal.dataEntrada.toLocaleDateString("pt-BR"),
+    dataPrevista: principal.dataPrevista
+      ? principal.dataPrevista.toLocaleDateString("pt-BR")
+      : null,
+    observacoes: principal.observacoes?.trim() || "",
+    itens,
+    etapas: etapas.map((etapa) => ({
+      indice: etapa.indice,
+      nome: etapa.nome,
+      responsavel: etapa.responsavel?.trim() || "—",
+      prazo: etapa.prazo?.trim() || "—",
+      concluida: concluidas.has(etapa.indice),
+      atual: indiceAtual === etapa.indice,
+    })),
+  };
 }

@@ -1,7 +1,8 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
 import { RefreshCw } from "lucide-react";
-import { FRASE_FOOTER } from "@/components/modulo-tv/constants";
+import { useFraseMotivacional } from "@/components/modulo-tv/hooks/useFraseMotivacional";
 import { TV_GLASS_PANEL } from "@/components/modulo-tv/tv-styles";
 import type { MaiorAtrasoTv } from "@/components/modulo-tv/types";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,8 @@ export function TvFooter({
   maioresAtrasos,
   wsConectado,
 }: Props) {
+  const fraseMotivacional = useFraseMotivacional(ultimaAtualizacao);
+
   return (
     <footer className={cn("shrink-0 px-3 py-3 tv:px-5 tv:py-3.5 tv-4k:px-6 tv-4k:py-4", TV_GLASS_PANEL)}>
       <div className="grid grid-cols-1 items-center gap-3 lg:grid-cols-[1fr_1.4fr_1fr] lg:gap-4">
@@ -61,9 +64,20 @@ export function TvFooter({
               </p>
             )}
           </div>
-          <p className="mx-auto mt-3 max-w-lg text-[10px] italic leading-relaxed text-slate-500 tv:text-[11px] tv-4k:text-xs">
-            {FRASE_FOOTER}
-          </p>
+          <div className="mx-auto mt-3 min-h-[2.75rem] max-w-lg tv:min-h-[3rem]">
+            <AnimatePresence mode="wait">
+              <motion.p
+                key={fraseMotivacional}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.45 }}
+                className="text-[10px] italic leading-relaxed text-slate-500 tv:text-[11px] tv-4k:text-xs"
+              >
+                {fraseMotivacional}
+              </motion.p>
+            </AnimatePresence>
+          </div>
         </div>
 
         {/* Direita — ÚLTIMA ATUALIZAÇÃO */}

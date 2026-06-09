@@ -12,9 +12,15 @@ type Props = {
   coluna: ColunaKanbanConfig;
   ordens: OrdemServicoTv[];
   carregando: boolean;
+  onAbrirResumo?: (ordem: OrdemServicoTv) => void;
 };
 
-export function TvKanbanColumn({ coluna, ordens, carregando }: Props) {
+export function TvKanbanColumn({
+  coluna,
+  ordens,
+  carregando,
+  onAbrirResumo,
+}: Props) {
   const { setNodeRef, isOver } = useDroppable({
     id: coluna.id,
     data: { coluna: coluna.id },
@@ -69,7 +75,12 @@ export function TvKanbanColumn({ coluna, ordens, carregando }: Props) {
           {!carregando ? (
             <AnimatePresence mode="popLayout">
               {ordens.map((ordem, index) => (
-                <TvOsCard key={ordem.id} ordem={ordem} index={index} />
+                <TvOsCard
+                  key={ordem.id}
+                  ordem={ordem}
+                  index={index}
+                  onAbrirResumo={onAbrirResumo}
+                />
               ))}
             </AnimatePresence>
           ) : null}

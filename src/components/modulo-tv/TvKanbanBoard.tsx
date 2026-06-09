@@ -14,6 +14,7 @@ import {
 import { COLUNAS_KANBAN } from "@/components/modulo-tv/constants";
 import { TvKanbanColumn } from "@/components/modulo-tv/TvKanbanColumn";
 import { TvOsCard } from "@/components/modulo-tv/TvOsCard";
+import { TvOsResumoModal } from "@/components/modulo-tv/TvOsResumoModal";
 import type { ColunaKanbanId, OrdemServicoTv } from "@/components/modulo-tv/types";
 
 type Props = {
@@ -24,6 +25,7 @@ type Props = {
 
 export function TvKanbanBoard({ ordens, carregando, onMoverOrdem }: Props) {
   const [ordemAtiva, setOrdemAtiva] = useState<OrdemServicoTv | null>(null);
+  const [ordemResumo, setOrdemResumo] = useState<OrdemServicoTv | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -63,6 +65,7 @@ export function TvKanbanBoard({ ordens, carregando, onMoverOrdem }: Props) {
             coluna={coluna}
             ordens={ordens.filter((o) => o.coluna === coluna.id)}
             carregando={carregando}
+            onAbrirResumo={setOrdemResumo}
           />
         ))}
       </div>
@@ -74,6 +77,11 @@ export function TvKanbanBoard({ ordens, carregando, onMoverOrdem }: Props) {
           </div>
         ) : null}
       </DragOverlay>
+
+      <TvOsResumoModal
+        ordem={ordemResumo}
+        onClose={() => setOrdemResumo(null)}
+      />
     </DndContext>
   );
 }

@@ -1,3 +1,4 @@
+import { diffDiasPrazo } from "@/components/modulo-tv/lib/prazo-categoria";
 import type {
   ColaboradorTv,
   ColunaKanbanId,
@@ -108,12 +109,6 @@ function inicioDia(d = new Date()) {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
   return x;
-}
-
-function diffDiasPrazo(prazoIso: string) {
-  const hoje = inicioDia();
-  const prazo = inicioDia(new Date(prazoIso));
-  return Math.round((prazo.getTime() - hoje.getTime()) / 86_400_000);
 }
 
 export function calcularStats(ordens: OrdemServicoTv[]): TvDashboardStats {

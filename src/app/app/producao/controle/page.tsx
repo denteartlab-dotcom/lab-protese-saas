@@ -60,10 +60,14 @@ import {
   buscarServicoNaTabela,
   carregarCategoriasPorTabelaPreco,
   categoriaDoServicoNaTabela,
+  comissoesColaboradoresDoServico,
+  comissoesTerceirizadosDoServico,
   etapasFormParaItemServico,
   categoriasSelecionaveisNaOs,
   servicosDaCategoriaTabela,
   servicosSelecionaveisNaOs,
+  servicoTemComissoesColaboradoresNaTabela,
+  servicoTemComissoesTerceirizadosNaTabela,
   type CategoriaTabelaPrecoOs,
 } from "@/lib/tabela-precos-os";
 import {
@@ -833,6 +837,22 @@ export default function ControlePage() {
   const servicosDaCategoriaEdicao = useMemo(
     () => servicosSelecionaveisNaOs(servicosDaCategoriaTabela(categoriasTabelaPreco, form?.categoria || "")),
     [categoriasTabelaPreco, form?.categoria]
+  );
+
+  const servicoOsAtualEdicao = useMemo(() => {
+    const nome = form?.tipoProtese?.trim() || "";
+    if (!nome || /^(transporte|frete|produto)\s*:/i.test(nome)) return undefined;
+    return buscarServicoNaTabela(categoriasTabelaPreco, nome);
+  }, [form?.tipoProtese, categoriasTabelaPreco]);
+
+  const comissoesColaboradoresServicoEdicao = useMemo(
+    () => comissoesColaboradoresDoServico(servicoOsAtualEdicao),
+    [servicoOsAtualEdicao]
+  );
+
+  const comissoesTerceirizadosServicoEdicao = useMemo(
+    () => comissoesTerceirizadosDoServico(servicoOsAtualEdicao),
+    [servicoOsAtualEdicao]
   );
   const [anexoAberto, setAnexoAberto] = useState<AnexoOs | null>(null);
   const [osExcluindo, setOsExcluindo] = useState<Trabalho | null>(null);
@@ -2708,12 +2728,12 @@ export default function ControlePage() {
                 <div className="rounded border border-slate-200 bg-white p-4">
                   {(painelEdicaoItem === "servico" || adicionandoServico) && (
                     <>
-                    {abaServicoEdicao !== "produtos" &&
-                    abaServicoEdicao !== "colaboradores" &&
-                    abaServicoEdicao !== "terceiros" && (
                     <div
                       className={cn(
-                        osFaturada && "pointer-events-none select-none opacity-55"
+                        osFaturada &&
+                          abaServicoEdicao !== "colaboradores" &&
+                          abaServicoEdicao !== "terceiros" &&
+                          "pointer-events-none select-none opacity-55"
                       )}
                     >
                     <div className="mb-3 flex flex-wrap items-center gap-3">
@@ -3069,7 +3089,6 @@ export default function ControlePage() {
                       </div>
                     </div>
                     </div>
-                    )}
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <button
                           type="button"
@@ -3112,7 +3131,8 @@ export default function ControlePage() {
                       </div>
                       <div
                         className={cn(
-                          "mt-3 rounded border border-slate-200 bg-slate-50 p-3 text-left",
+                          "mt-3 rounded border border-slate-200 p-3 text-left",
+                          abaServicoEdicao === "etapas" ? "bg-white" : "bg-slate-50",
                           osFaturada &&
                             abaServicoEdicao !== "colaboradores" &&
                             abaServicoEdicao !== "terceiros" &&
@@ -3125,11 +3145,15 @@ export default function ControlePage() {
                             onChange={setEtapasEdicao}
                             quantidadeDentes={dentesEdicao.length || 1}
                             dataLancamento={editando ? formatDate(editando.dataEntrada) : ""}
+                            horaLaboratorio={form?.horaLaboratorio || ""}
                             desabilitado={osFaturada}
+                            servico={servicoOsAtualEdicao}
+                            repeticao={Boolean(form?.repeticao)}
                           />
                         )}
                         {abaServicoEdicao === "produtos" && (
                           <div className="space-y-3">
+                            <span className="text-sm font-semibold text-slate-800">Produtos</span>
                             {produtosOs.length === 0 && (
                               <button
                                 type="button"
@@ -3233,9 +3257,23 @@ export default function ControlePage() {
                         )}
                         {abaServicoEdicao === "colaboradores" && (
                           <div className="space-y-3">
+                            <span className="text-sm font-semibold text-slate-800">
+                              Colaboradores / Comissões
+                            </span>
+                            {!servicoTemComissoesColaboradoresNaTabela(servicoOsAtualEdicao) ? (
+                              <p className="text-[11px] text-slate-500">
+                                {servicoOsAtualEdicao
+                                  ? `Nenhum colaborador com comissão cadastrado na tabela de preços do serviço ${servicoOsAtualEdicao.nome}.`
+                                  : "Selecione um serviço com colaboradores cadastrados na tabela de preços."}
+                              </p>
+                            ) : (
+                              <>
                             <p className="text-[10px] text-slate-500">
-                              Comissões por colaborador nesta ordem de serviço. As alterações
-                              permanecem disponíveis mesmo após a OS concluída no controle.
+                              Colaboradores e comissões cadastrados na tabela de preços do serviço{" "}
+                              <span className="font-medium text-slate-700">
+                                {servicoOsAtualEdicao?.nome}
+                              </span>
+                              .
                             </p>
                             {colaboradoresEdicao.length === 0 && (
                               <button
@@ -3261,16 +3299,25 @@ export default function ControlePage() {
                                   >
                                     <option value="">Selecione um colaborador</option>
                                     {colaborador.nome &&
+                                      !comissoesColaboradoresServicoEdicao.some(
+                                        (c) => c.nome === colaborador.nome
+                                      ) &&
                                       !colaboradoresOpcoes.some(
                                         (c) => c.nome === colaborador.nome
                                       ) && (
                                         <option value={colaborador.nome}>{colaborador.nome}</option>
                                       )}
-                                    {colaboradoresOpcoes.map((opcao) => (
-                                      <option key={opcao.id} value={opcao.nome}>
-                                        {opcao.nome}
-                                      </option>
-                                    ))}
+                                    {comissoesColaboradoresServicoEdicao.length > 0
+                                      ? comissoesColaboradoresServicoEdicao.map((opcao) => (
+                                          <option key={opcao.id || opcao.nome} value={opcao.nome}>
+                                            {opcao.nome}
+                                          </option>
+                                        ))
+                                      : colaboradoresOpcoes.map((opcao) => (
+                                          <option key={opcao.id} value={opcao.nome}>
+                                            {opcao.nome}
+                                          </option>
+                                        ))}
                                   </Select>
                                 ) : (
                                   <Input
@@ -3361,12 +3408,29 @@ export default function ControlePage() {
                                 + Adicionar Colaborador
                               </button>
                             )}
+                              </>
+                            )}
                           </div>
                         )}
                         {abaServicoEdicao === "terceiros" && (
                           <div className="space-y-3">
+                            <span className="text-sm font-semibold text-slate-800">
+                              Serviços Terceirizados / Comissões
+                            </span>
+                            {!servicoTemComissoesTerceirizadosNaTabela(servicoOsAtualEdicao) ? (
+                              <p className="text-[11px] text-slate-500">
+                                {servicoOsAtualEdicao
+                                  ? `Nenhum serviço terceirizado cadastrado na tabela de preços do serviço ${servicoOsAtualEdicao.nome}.`
+                                  : "Selecione um serviço com terceirizados cadastrados na tabela de preços."}
+                              </p>
+                            ) : (
+                              <>
                             <p className="text-[10px] text-slate-500">
-                              Serviços terceirizados e comissões/custos desta ordem de serviço.
+                              Serviços terceirizados cadastrados na tabela de preços do serviço{" "}
+                              <span className="font-medium text-slate-700">
+                                {servicoOsAtualEdicao?.nome}
+                              </span>
+                              .
                             </p>
                             {terceirizadosEdicao.length === 0 && (
                               <button
@@ -3382,7 +3446,8 @@ export default function ControlePage() {
                                 key={`${terceiro.nome}-${index}`}
                                 className="grid gap-3 rounded border border-slate-200 bg-white p-3 md:grid-cols-[1fr_1fr_1fr_auto]"
                               >
-                                {opcoesTerceirizados.length > 0 ? (
+                                {comissoesTerceirizadosServicoEdicao.length > 0 ||
+                                opcoesTerceirizados.length > 0 ? (
                                   <Select
                                     label="Terceirizado"
                                     value={terceiro.nome}
@@ -3390,15 +3455,28 @@ export default function ControlePage() {
                                       selecionarTerceirizadoEdicao(index, e.target.value)
                                     }
                                   >
-                                    <option value="">Selecione um prestador/fornecedor</option>
-                                    {opcoesTerceirizados.map((opcao) => (
-                                      <option key={opcao.id} value={opcao.nome}>
-                                        {opcao.nome}
-                                        {opcao.origem === "prestador"
-                                          ? " - Prestador"
-                                          : " - Fornecedor"}
-                                      </option>
-                                    ))}
+                                    <option value="">Selecione um terceirizado</option>
+                                    {terceiro.nome &&
+                                      !comissoesTerceirizadosServicoEdicao.some(
+                                        (c) => c.nome === terceiro.nome
+                                      ) &&
+                                      !opcoesTerceirizados.some((c) => c.nome === terceiro.nome) && (
+                                        <option value={terceiro.nome}>{terceiro.nome}</option>
+                                      )}
+                                    {comissoesTerceirizadosServicoEdicao.length > 0
+                                      ? comissoesTerceirizadosServicoEdicao.map((opcao) => (
+                                          <option key={opcao.id || opcao.nome} value={opcao.nome}>
+                                            {opcao.nome}
+                                          </option>
+                                        ))
+                                      : opcoesTerceirizados.map((opcao) => (
+                                          <option key={opcao.id} value={opcao.nome}>
+                                            {opcao.nome}
+                                            {opcao.origem === "prestador"
+                                              ? " - Prestador"
+                                              : " - Fornecedor"}
+                                          </option>
+                                        ))}
                                   </Select>
                                 ) : (
                                   <Input
@@ -3461,6 +3539,8 @@ export default function ControlePage() {
                               >
                                 + Adicionar Terceirizado
                               </button>
+                            )}
+                              </>
                             )}
                           </div>
                         )}

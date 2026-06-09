@@ -83,7 +83,7 @@ export function TvDashboard() {
       <div className="relative z-10 flex h-full min-h-0 flex-col gap-3 p-3 tv:gap-3.5 tv:p-4 tv-4k:gap-4 tv-4k:p-5">
         {!modoKiosk ? (
           <Link
-            href="/app/producao/os"
+            href="/app"
             className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-slate-700/50 bg-slate-900/50 px-3 py-1.5 text-[11px] text-slate-400 transition hover:text-white tv:text-xs"
           >
             <ArrowLeft className="h-3.5 w-3.5" />

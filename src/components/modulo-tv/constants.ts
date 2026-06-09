@@ -1,4 +1,7 @@
+import { FRASES_MOTIVACIONAIS_TV } from "@/components/modulo-tv/lib/frases-motivacionais";
 import type { ColunaKanbanConfig } from "@/components/modulo-tv/types";
+
+export { FRASES_MOTIVACIONAIS_TV };
 
 export const COLUNAS_KANBAN: ColunaKanbanConfig[] = [
   {
@@ -69,7 +72,6 @@ export const COLUNAS_KANBAN: ColunaKanbanConfig[] = [
   },
 ];
 
-export const FRASE_FOOTER =
-  "Disciplina é fazer o que precisa ser feito, mesmo quando você não quer fazer. Excelência é o nosso padrão!";
+export const FRASE_FOOTER = FRASES_MOTIVACIONAIS_TV[0];
 
 export const AUTO_REFRESH_MS = 28_000;
