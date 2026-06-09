@@ -14,6 +14,7 @@ import {
 import { brShortToIso, dateToBrShort, formatDateBr, parseBrDate } from "@/lib/datas-br";
 import {
   empacotarCobrancaOs,
+  idsTrabalhosFaturadosNoLancamento,
   lancamentoFaturaOsAtivo,
   trabalhoEstaFaturado,
 } from "@/lib/os-faturamento";
@@ -557,9 +558,11 @@ function FinanceiroReceberConteudo() {
   );
 
   function trabalhosDaFatura(lancamento: Lancamento) {
+    const idsFaturados = idsTrabalhosFaturadosNoLancamento(lancamento);
     const numerosOs = numerosOsDoLancamento(lancamento);
     return trabalhos.filter(
       (trabalho) =>
+        idsFaturados.includes(trabalho.id) ||
         trabalho.id === lancamento.trabalho?.id ||
         numerosOs.includes(trabalho.numeroOs)
     );

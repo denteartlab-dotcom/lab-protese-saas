@@ -13,8 +13,8 @@ type Props = {
 };
 
 const thClass =
-  "border-b border-[#e5e7eb] px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wide text-[#9ca3af] whitespace-nowrap";
-const tdClass = "border-b border-[#f0f0f0] px-3 py-2.5 text-[12px] text-[#374151]";
+  "border-b border-[#e5e7eb] bg-[#f5f5f5] px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-[#6b7280] whitespace-nowrap";
+const tdClass = "border-b border-[#f0f0f0] px-3 py-2 text-[11px] text-[#374151]";
 
 function badgeSituacao(linha: LinhaItemFatura) {
   const entregue = linha.situacaoLabel.toLowerCase() === "entregue";
@@ -51,31 +51,31 @@ export function ItensFaturaModal({ open, onClose, linhas }: Props) {
   if (!open || !mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[75] flex items-start justify-center bg-black/45 p-4 pt-16">
+    <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/40 p-4 pt-20 sm:pt-24">
       <div className="absolute inset-0" onClick={onClose} aria-hidden />
       <div
-        className="relative w-full max-w-[920px] overflow-hidden rounded-sm border border-[#e5e7eb] bg-white shadow-2xl"
+        className="relative w-full max-w-[960px] overflow-hidden rounded-md border border-[#e5e7eb] bg-white shadow-[0_8px_30px_rgba(0,0,0,0.12)]"
         role="dialog"
         aria-modal="true"
         aria-labelledby="itens-fatura-titulo"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-[#e5e7eb] px-5 py-3.5">
-          <h2 id="itens-fatura-titulo" className="text-[15px] font-normal text-[#374151]">
+        <div className="flex items-center justify-between px-5 py-3">
+          <h2 id="itens-fatura-titulo" className="text-[13px] font-normal text-[#6b7280]">
             Itens Fatura
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1 text-[#9ca3af] hover:bg-[#f3f4f6] hover:text-[#374151]"
+            className="rounded p-0.5 text-[#9ca3af] hover:bg-[#f3f4f6] hover:text-[#374151]"
             aria-label="Fechar"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="max-h-[min(70vh,520px)] overflow-auto px-5 py-4">
-          <table className="w-full min-w-[760px] border-collapse">
+        <div className="max-h-[min(72vh,540px)] overflow-auto px-5 pb-5">
+          <table className="w-full min-w-[800px] border-collapse">
             <thead>
               <tr>
                 <th className={thClass}>OS</th>

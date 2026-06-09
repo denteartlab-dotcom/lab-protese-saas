@@ -84,10 +84,12 @@ const labelClass = "mb-1 block text-[10px] font-medium uppercase tracking-wide t
 const selectClass =
   "h-[32px] w-full rounded-sm border border-[#d1d5db] bg-white px-2 text-[12px] text-[#374151] outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]";
 const thClass =
-  "border-b border-[#e5e7eb] bg-[#f5f5f5] px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-[#6b7280] whitespace-nowrap";
-const tdClass = "border-b border-[#f0f0f0] px-3 py-2 text-[11px] text-[#374151]";
+  "border-b border-[#e5e7eb] bg-[#f5f5f5] px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-[#9ca3af] whitespace-nowrap";
+const tdClass = "border-b border-[#f0f0f0] px-3 py-2.5 text-[11px] text-[#374151]";
 const thFaturasClass = thClass;
 const tdFaturasClass = tdClass;
+const tdFaturasTotalClass =
+  "border-t border-[#e5e7eb] bg-[#f5f5f5] px-3 py-2.5 text-[11px] font-semibold text-[#374151]";
 const btnOpcaoClass =
   "inline-flex h-7 w-7 items-center justify-center rounded transition hover:bg-[#f3f4f6]";
 
@@ -164,23 +166,32 @@ function lancamentoNoPeriodoPainel(
 }
 
 function badgeFormaPagamento(forma: string | null | undefined) {
+  if (!forma) return <span className="text-[#9ca3af]">—</span>;
   return (
-    <span className="inline-block whitespace-nowrap rounded-full bg-[#dbeafe] px-2.5 py-0.5 text-[10px] font-medium text-[#2563eb]">
-      {forma || "—"}
+    <span className="inline-block whitespace-nowrap rounded-full bg-[#dbeafe] px-2.5 py-0.5 text-[10px] font-medium capitalize text-[#1d4ed8]">
+      {forma}
     </span>
   );
 }
 
 function badgeSituacaoFatura(
   l: LancamentoClienteModal,
-  situacaoFaturaLabel: (l: LancamentoClienteModal) => { label: string; aReceber: boolean }
+  situacaoFaturaLabel: (l: LancamentoClienteModal) => { label: string; aReceber: boolean },
+  onReceberFatura?: (l: LancamentoClienteModal) => void
 ) {
   const sit = situacaoFaturaLabel(l);
   if (sit.aReceber) {
     return (
-      <span className="inline-block whitespace-nowrap rounded-full bg-[#dbeafe] px-3 py-0.5 text-[10px] font-semibold text-[#1d4ed8]">
-        A Receber
-      </span>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onReceberFatura?.(l);
+        }}
+        className="text-[11px] font-semibold capitalize text-[#2563eb] hover:underline"
+      >
+        A receber
+      </button>
     );
   }
   const label = sit.label;
@@ -353,6 +364,21 @@ export function VisualizacaoClienteReceberModal({
     [faturasVisiveis, saldoFatura]
   );
 
+  const totalValorFaturas = useMemo(
+    () => faturasVisiveis.reduce((s, l) => s + l.valor, 0),
+    [faturasVisiveis]
+  );
+
+  const totalRecebidoFaturas = useMemo(
+    () => faturasVisiveis.reduce((s, l) => s + recebidoNaFatura(l), 0),
+    [faturasVisiveis, recebidoNaFatura]
+  );
+
+  const totalSaldoFaturas = useMemo(
+    () => faturasVisiveis.reduce((s, l) => s + saldoFatura(l), 0),
+    [faturasVisiveis, saldoFatura]
+  );
+
   const extratoLinhas = useMemo(() => {
     const ordenados = [...lancamentosFiltrados].sort(
       (a, b) => new Date(a.data).getTime() - new Date(b.data).getTime()
@@ -506,27 +532,31 @@ export function VisualizacaoClienteReceberModal({
         </div>
 
         {aba === "faturas" && (
-          <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-[#e5e7eb] bg-white px-5 py-4">
-            <div className="flex flex-wrap items-start gap-8">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-[#e5e7eb] bg-[#fafafa] px-5 py-4">
+            <div className="flex flex-wrap items-start gap-10">
               <div>
-                <div className="mb-1 flex flex-wrap items-center gap-2">
-                  <span className="text-[11px] font-medium text-[#374151]">Total a Receber</span>
-                  <span className="rounded-full bg-[#dbeafe] px-2 py-0.5 text-[10px] font-medium text-[#2563eb]">
-                    Adiantamentos {money(adiantamentosCliente)}
+                <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-medium text-[#4b5563]">Total a Receber</span>
+                  <span className="rounded-full bg-[#dbeafe] px-2.5 py-0.5 text-[10px] font-medium text-[#2563eb]">
+                    Adiantamentos
+                  </span>
+                  <span className="text-[10px] font-medium text-[#2563eb]">
+                    {money(adiantamentosCliente)}
                   </span>
                 </div>
-                <p className="text-[24px] font-bold leading-none text-[#2563eb]">
+                <p className="text-[26px] font-bold leading-none tracking-tight text-[#2563eb]">
                   R$ {money(totalLinhaAReceber)}
                 </p>
               </div>
               <div>
-                <div className="mb-1 flex flex-wrap items-center gap-2">
-                  <span className="text-[11px] font-medium text-[#374151]">A Receber Faturas</span>
-                  <span className="rounded-full bg-[#dcfce7] px-2 py-0.5 text-[10px] font-medium text-[#16a34a]">
-                    Juros {money(0)}
+                <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-medium text-[#4b5563]">A Receber Faturas</span>
+                  <span className="rounded-full bg-[#dcfce7] px-2.5 py-0.5 text-[10px] font-medium text-[#16a34a]">
+                    Juros
                   </span>
+                  <span className="text-[10px] font-medium text-[#16a34a]">{money(0)}</span>
                 </div>
-                <p className="text-[24px] font-bold leading-none text-[#16a34a]">
+                <p className="text-[26px] font-bold leading-none tracking-tight text-[#16a34a]">
                   R$ {money(totalAReceber)}
                 </p>
               </div>
@@ -552,7 +582,7 @@ export function VisualizacaoClienteReceberModal({
 
         <div className="min-h-0 flex-1 overflow-auto bg-white px-5 py-2">
           {aba === "faturas" && (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto pb-3">
               <table className="w-full min-w-[1050px] border-collapse text-[11px]">
                 <thead>
                   <tr>
@@ -615,7 +645,7 @@ export function VisualizacaoClienteReceberModal({
                             {money(saldo)}
                           </td>
                           <td className={cn(tdFaturasClass, "text-center")}>
-                            {badgeSituacaoFatura(l, situacaoFaturaLabel)}
+                            {badgeSituacaoFatura(l, situacaoFaturaLabel, onReceberFatura)}
                           </td>
                           <td
                             className={cn(tdFaturasClass, "text-right")}
@@ -624,7 +654,7 @@ export function VisualizacaoClienteReceberModal({
                             <div className="flex items-center justify-end gap-0.5">
                               <button
                                 type="button"
-                                title="Visualizar itens"
+                                title="Itens da fatura"
                                 onClick={() => onVisualizarFatura(l)}
                                 className={cn(btnOpcaoClass, "text-[#4a90d9]")}
                               >
@@ -634,7 +664,7 @@ export function VisualizacaoClienteReceberModal({
                                 type="button"
                                 title="Imprimir fatura"
                                 onClick={() => onImprimirFatura(l)}
-                                className={cn(btnOpcaoClass, "text-[#2563eb]")}
+                                className={cn(btnOpcaoClass, "text-[#6b7280]")}
                               >
                                 <Printer className="h-4 w-4" />
                               </button>
@@ -661,6 +691,28 @@ export function VisualizacaoClienteReceberModal({
                     })
                   )}
                 </tbody>
+                {faturasVisiveis.length > 0 && (
+                  <tfoot>
+                    <tr>
+                      <td className={tdFaturasTotalClass} colSpan={5} />
+                      <td className={cn(tdFaturasTotalClass, "text-right tabular-nums")}>
+                        {money(totalValorFaturas)}
+                      </td>
+                      <td className={cn(tdFaturasTotalClass, "text-right tabular-nums")}>
+                        {money(totalRecebidoFaturas)}
+                      </td>
+                      <td
+                        className={cn(
+                          tdFaturasTotalClass,
+                          "text-right tabular-nums text-[#16a34a]"
+                        )}
+                      >
+                        {money(totalSaldoFaturas)}
+                      </td>
+                      <td className={tdFaturasTotalClass} colSpan={2} />
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           )}
