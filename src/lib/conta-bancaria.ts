@@ -1,4 +1,5 @@
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
+import { contaReceitaLancamento } from "@/lib/receita-conta-bancaria";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 
 export type AcaoContaBancaria = "movimentar" | "baixar" | "adicionar_credito";
@@ -233,7 +234,7 @@ export function contaDeLancamento(
   if (lancamento.tipo === "despesa") {
     return desempacotarDespesa(lancamento.descricao).conta || nomePadrao;
   }
-  return nomePadrao;
+  return contaReceitaLancamento(lancamento.descricao, nomePadrao);
 }
 
 export function calcularSaldoConta(

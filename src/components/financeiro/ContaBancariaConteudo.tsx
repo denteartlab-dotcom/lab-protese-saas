@@ -42,9 +42,11 @@ import {
 import { cn } from "@/lib/utils";
 
 type LancamentoApi = {
+  id: string;
   tipo: string;
   descricao: string;
   valor: number;
+  data: string;
   status: string;
 };
 
@@ -646,10 +648,9 @@ export function ContaBancariaConteudo() {
         open={modalConciliar}
         onClose={() => setModalConciliar(false)}
         contas={contas}
-        onImportarExtrato={(contaId, movimentacoes) => {
-          salvarExtratoBancario(
-            mesclarExtrato(carregarExtratoBancario(), movimentacoes)
-          );
+        lancamentos={lancamentos}
+        onConciliacaoSalva={async () => {
+          await carregarDados();
           notificarFinanceiroAtualizado();
         }}
         onAbrirCadastro={(form, extrato) => {

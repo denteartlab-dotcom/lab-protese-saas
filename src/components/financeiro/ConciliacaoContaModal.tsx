@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Upload, User } from "lucide-react";
+import { FileText, Upload, User, X } from "lucide-react";
 import type { ContaBancaria } from "@/lib/conta-bancaria";
 import type { ExtratoMovimentacao } from "@/lib/extrato-bancario";
+import { salvarConciliacaoNaConta } from "@/lib/conciliacao-ofx-salvar";
+import {
+  montarOpcoesProcedimentoPorTipo,
+  sugerirProcedimento,
+  type LancamentoConciliacao,
+} from "@/lib/conciliacao-ofx-procedimento";
 import {
   contaOfxCombina,
   dadosOfxParaFormCadastro,
-  movimentacoesOfxParaExtrato,
   parseOfxArquivo,
   resumirDescricaoOfx,
   type MovimentacaoOfx,
@@ -23,7 +28,8 @@ type Props = {
   open: boolean;
   onClose: () => void;
   contas: ContaBancaria[];
-  onImportarExtrato: (contaId: string, movimentacoes: ExtratoMovimentacao[]) => void;
+  lancamentos: LancamentoConciliacao[];
+  onConciliacaoSalva: () => void | Promise<void>;
   onAbrirCadastro: (form: DadosFormContaBancaria, extrato: ExtratoPendente) => void;
 };
 
@@ -75,6 +81,31 @@ function Toggle({
   );
 }
 
+function CelulaForma({ forma }: { forma: string }) {
+  if (forma === "PIX") {
+    return (
+      <span
+        className="inline-flex h-6 min-w-[1.75rem] items-center justify-center rounded bg-[#32bcad] px-1 text-[8px] font-bold uppercase tracking-tight text-white"
+        title="PIX"
+      >
+        pix
+      </span>
+    );
+  }
+  if (/^\d+$/.test(forma)) {
+    return (
+      <span className="text-[11px] tabular-nums text-slate-600" title={forma}>
+        {forma}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex h-6 w-6 items-center justify-center text-slate-400" title={forma}>
+      <FileText className="h-4 w-4" />
+    </span>
+  );
+}
+
 const thClass =
   "border-b border-[#e0e0e0] bg-[#f5f6f8] px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500";
 
@@ -82,40 +113,42 @@ export function ConciliacaoContaModal({
   open,
   onClose,
   contas,
-  onImportarExtrato,
+  lancamentos,
+  onConciliacaoSalva,
   onAbrirCadastro,
 }: Props) {
   const [portalPronto, setPortalPronto] = useState(false);
-  const [arquivo, setArquivo] = useState<File | null>(null);
+  const [nomeArquivo, setNomeArquivo] = useState("");
   const [parseResult, setParseResult] = useState<OfxParseResult | null>(null);
   const [erroLeitura, setErroLeitura] = useState("");
   const [lendo, setLendo] = useState(false);
   const [resumirDescricao, setResumirDescricao] = useState(true);
   const [todasContas, setTodasContas] = useState(true);
+  const [procedimentos, setProcedimentos] = useState<Record<string, string>>({});
+  const [salvando, setSalvando] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const arquivoRef = useRef<File | null>(null);
 
   useEffect(() => setPortalPronto(true), []);
 
   useEffect(() => {
     if (!open) return;
-    setArquivo(null);
+    setNomeArquivo("");
     setParseResult(null);
     setErroLeitura("");
     setResumirDescricao(true);
     setTodasContas(true);
+    setProcedimentos({});
+    arquivoRef.current = null;
   }, [open]);
 
   const contaEncontrada = useMemo(() => {
     if (!parseResult) return null;
-    return (
-      contas.find((c) => contaOfxCombina(c, parseResult.dadosConta)) ?? null
-    );
+    return contas.find((c) => contaOfxCombina(c, parseResult.dadosConta)) ?? null;
   }, [contas, parseResult]);
 
   const contaNaoCadastrada = Boolean(
-    parseResult &&
-      parseResult.dadosConta.numeroConta.trim() &&
-      !contaEncontrada
+    parseResult && parseResult.dadosConta.numeroConta.trim() && !contaEncontrada
   );
 
   const linhasTabela = useMemo(() => {
@@ -136,6 +169,53 @@ export function ConciliacaoContaModal({
     return movs;
   }, [parseResult, todasContas]);
 
+  const aplicarSugestoesProcedimento = useCallback(
+    (linhas: MovimentacaoOfx[]) => {
+      const sugestoes: Record<string, string> = {};
+      for (const linha of linhas) {
+        const sugerido = sugerirProcedimento(linha, lancamentos);
+        if (sugerido) sugestoes[linha.id] = sugerido;
+      }
+      setProcedimentos(sugestoes);
+    },
+    [lancamentos]
+  );
+
+  const lerArquivoOfx = useCallback(
+    async (file: File) => {
+      const nome = file.name.toLowerCase();
+      if (!nome.endsWith(".ofx") && !nome.endsWith(".qfx")) {
+        setErroLeitura("Somente arquivos OFX são aceitos.");
+        setParseResult(null);
+        return;
+      }
+
+      setLendo(true);
+      setErroLeitura("");
+      setParseResult(null);
+      setProcedimentos({});
+
+      try {
+        const texto = await file.text();
+        const resultado = parseOfxArquivo(texto);
+        if (
+          resultado.movimentacoes.length === 0 &&
+          !resultado.dadosConta.numeroConta
+        ) {
+          setErroLeitura("Não foi possível ler movimentações no arquivo OFX.");
+          return;
+        }
+        setParseResult(resultado);
+        aplicarSugestoesProcedimento(resultado.movimentacoes);
+      } catch {
+        setErroLeitura("Falha ao ler o arquivo OFX.");
+      } finally {
+        setLendo(false);
+      }
+    },
+    [aplicarSugestoesProcedimento]
+  );
+
   function extratoPendenteAtual(): ExtratoPendente {
     if (!parseResult) return [];
     return linhasTabela.map((linha) => ({
@@ -151,34 +231,11 @@ export function ConciliacaoContaModal({
     }));
   }
 
-  async function processarArquivo() {
-    if (!arquivo) {
-      setErroLeitura("Selecione o arquivo OFX.");
-      return;
-    }
-    const nome = arquivo.name.toLowerCase();
-    if (!nome.endsWith(".ofx") && !nome.endsWith(".qfx")) {
-      setErroLeitura("Somente arquivos OFX são aceitos.");
-      return;
-    }
-
-    setLendo(true);
-    setErroLeitura("");
-    setParseResult(null);
-
-    try {
-      const texto = await arquivo.text();
-      const resultado = parseOfxArquivo(texto);
-      if (resultado.movimentacoes.length === 0 && !resultado.dadosConta.numeroConta) {
-        setErroLeitura("Não foi possível ler movimentações no arquivo OFX.");
-        return;
-      }
-      setParseResult(resultado);
-    } catch {
-      setErroLeitura("Falha ao ler o arquivo OFX.");
-    } finally {
-      setLendo(false);
-    }
+  async function handleSelecionarArquivo(file: File | null) {
+    if (!file) return;
+    arquivoRef.current = file;
+    setNomeArquivo(file.name);
+    await lerArquivoOfx(file);
   }
 
   function abrirCadastroPreenchido() {
@@ -190,22 +247,40 @@ export function ConciliacaoContaModal({
     onAbrirCadastro(form, extratoPendenteAtual());
   }
 
-  function confirmarCadastro() {
-    if (!parseResult) return;
-    if (contaEncontrada) {
-      const movs = movimentacoesOfxParaExtrato(linhasTabela, contaEncontrada.id).map(
-        (m) => ({
-          ...m,
-          descricao: resumirDescricao
-            ? resumirDescricaoOfx(m.descricao)
-            : m.descricao,
-        })
-      );
-      onImportarExtrato(contaEncontrada.id, movs);
-      onClose();
+  async function confirmarCadastro() {
+    if (!parseResult || salvando) return;
+    if (!contaEncontrada) {
+      abrirCadastroPreenchido();
       return;
     }
-    abrirCadastroPreenchido();
+
+    setSalvando(true);
+    try {
+      const movimentacoes = await salvarConciliacaoNaConta({
+        conta: contaEncontrada,
+        linhas: linhasTabela,
+        procedimentos,
+        lancamentos,
+        resumirDescricao,
+      });
+
+      if (movimentacoes.length > 0) {
+        const { mesclarExtrato, carregarExtratoBancario, salvarExtratoBancario } =
+          await import("@/lib/extrato-bancario");
+        salvarExtratoBancario(
+          mesclarExtrato(carregarExtratoBancario(), movimentacoes)
+        );
+      }
+
+      await onConciliacaoSalva();
+      onClose();
+    } catch (err) {
+      setErroLeitura(
+        err instanceof Error ? err.message : "Não foi possível salvar a conciliação."
+      );
+    } finally {
+      setSalvando(false);
+    }
   }
 
   if (!open || !portalPronto) return null;
@@ -221,16 +296,24 @@ export function ConciliacaoContaModal({
     >
       <div className="absolute inset-0" onClick={onClose} aria-hidden />
       <div
-        className="relative my-auto w-full max-w-[1100px] rounded border border-[#d4d4d4] bg-white shadow-[0_12px_40px_rgba(0,0,0,0.2)]"
+        className="relative my-auto w-full max-w-[1140px] rounded border border-[#d4d4d4] bg-white shadow-[0_12px_40px_rgba(0,0,0,0.2)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="border-b border-[#e5e5e5] px-4 py-3">
+        <div className="flex items-center justify-between border-b border-[#e5e5e5] px-4 py-3">
           <h2
             id="conciliacao-conta-titulo"
             className="text-[15px] font-normal text-slate-800"
           >
             Conciliação de Conta
           </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600"
+            aria-label="Fechar"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
         <div className="space-y-4 px-4 py-4">
@@ -246,23 +329,27 @@ export function ConciliacaoContaModal({
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0] ?? null;
-                  setArquivo(file);
-                  setParseResult(null);
-                  setErroLeitura("");
+                  void handleSelecionarArquivo(file);
                   e.target.value = "";
                 }}
               />
-              <button
-                type="button"
+              <input
+                type="text"
+                readOnly
+                value={lendo ? "Lendo arquivo OFX..." : nomeArquivo || "Selecione o arquivo OFX"}
                 onClick={() => inputRef.current?.click()}
-                className="min-w-0 flex-1 truncate px-3 py-2.5 text-left text-[13px] text-slate-500 hover:bg-slate-50"
-              >
-                {arquivo?.name ?? "Selecione o arquivo OFX"}
-              </button>
+                className="min-w-0 flex-1 cursor-pointer border-0 bg-white px-3 py-2.5 text-[13px] text-slate-700 outline-none"
+              />
               <button
                 type="button"
-                onClick={() => void processarArquivo()}
-                disabled={lendo || !arquivo}
+                onClick={() => {
+                  if (arquivoRef.current) {
+                    void lerArquivoOfx(arquivoRef.current);
+                  } else {
+                    inputRef.current?.click();
+                  }
+                }}
+                disabled={lendo}
                 className="inline-flex shrink-0 items-center gap-1.5 border-l border-[#d4d4d4] bg-white px-4 py-2.5 text-[13px] text-slate-700 hover:bg-slate-50 disabled:opacity-50"
               >
                 <Upload className="h-4 w-4" />
@@ -286,7 +373,7 @@ export function ConciliacaoContaModal({
             ) : null}
             {parseResult && contaEncontrada ? (
               <p className="mt-1.5 text-[12px] text-[#4cae4c]">
-                Conta identificada: <strong>{contaEncontrada.nome}</strong>
+                Conta Identificada: <strong>{contaEncontrada.nome}</strong>
               </p>
             ) : null}
           </div>
@@ -311,7 +398,7 @@ export function ConciliacaoContaModal({
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-2 px-3 py-3 text-[12px] md:grid-cols-5">
+              <div className="flex flex-wrap items-end gap-x-8 gap-y-2 px-3 py-3 text-[12px]">
                 <div>
                   <span className="text-slate-500">Nome</span>
                   <p className="font-medium text-slate-800">
@@ -338,7 +425,7 @@ export function ConciliacaoContaModal({
                 </div>
                 <div>
                   <span className="text-slate-500">SALDO</span>
-                  <p className="font-semibold text-[#4cae4c]">
+                  <p className="text-[13px] font-semibold text-[#4cae4c]">
                     {money(dados.saldo)}
                   </p>
                 </div>
@@ -346,16 +433,16 @@ export function ConciliacaoContaModal({
             </div>
           ) : null}
 
-          <div className="max-h-[340px] overflow-auto rounded border border-[#e5e5e5]">
-            <table className="w-full min-w-[900px] border-collapse text-left">
+          <div className="max-h-[380px] overflow-auto rounded border border-[#e5e5e5]">
+            <table className="w-full min-w-[980px] border-collapse text-left">
               <thead className="sticky top-0 z-[1]">
                 <tr>
                   <th className={thClass}>Data</th>
                   <th className={thClass}>Descrição</th>
-                  <th className={thClass}>Forma</th>
+                  <th className={cn(thClass, "w-16 text-center")}>Forma</th>
                   <th className={cn(thClass, "text-right")}>Valor</th>
-                  <th className={thClass}>Tipo</th>
-                  <th className={thClass}>Procedimento</th>
+                  <th className={cn(thClass, "w-24 text-center")}>Tipo</th>
+                  <th className={cn(thClass, "min-w-[280px]")}>Procedimento</th>
                 </tr>
               </thead>
               <tbody>
@@ -367,41 +454,74 @@ export function ConciliacaoContaModal({
                     >
                       {parseResult
                         ? "Nenhuma movimentação encontrada no arquivo."
-                        : "Faça o upload de um arquivo OFX para visualizar as movimentações."}
+                        : "Selecione um arquivo OFX para visualizar as movimentações."}
                     </td>
                   </tr>
                 ) : (
-                  linhasTabela.map((linha) => {
+                  linhasTabela.map((linha, index) => {
                     const descricao = resumirDescricao
                       ? resumirDescricaoOfx(linha.descricao)
                       : linha.descricao;
+                    const credito = linha.tipo === "credito";
                     return (
                       <tr
                         key={linha.id}
-                        className="border-b border-[#f0f0f0] text-[12px] text-slate-700"
+                        className={cn(
+                          "border-b border-[#ececec] text-[12px] text-slate-700",
+                          index % 2 === 1 ? "bg-[#fafafa]" : "bg-white"
+                        )}
                       >
                         <td className="whitespace-nowrap px-3 py-2">
                           {formatData(linha.data)}
                         </td>
-                        <td className="max-w-[280px] px-3 py-2">{descricao}</td>
-                        <td className="whitespace-nowrap px-3 py-2">
-                          {linha.forma}
+                        <td className="max-w-[300px] px-3 py-2">{descricao}</td>
+                        <td className="px-3 py-2 text-center">
+                          <CelulaForma forma={linha.forma} />
                         </td>
                         <td
                           className={cn(
-                            "px-3 py-2 text-right tabular-nums",
-                            linha.tipo === "credito"
-                              ? "text-[#4cae4c]"
-                              : "text-red-600"
+                            "px-3 py-2 text-right font-medium tabular-nums",
+                            credito ? "text-[#4cae4c]" : "text-[#dc2626]"
                           )}
                         >
-                          {linha.tipo === "debito" ? "-" : ""}
                           {money(linha.valor)}
                         </td>
-                        <td className="px-3 py-2">
-                          {linha.tipo === "credito" ? "Crédito" : "Débito"}
+                        <td className="px-3 py-2 text-center">
+                          <span
+                            className={cn(
+                              "inline-block rounded px-2 py-0.5 text-[10px] font-semibold text-white",
+                              credito ? "bg-[#4cae4c]" : "bg-[#dc2626]"
+                            )}
+                          >
+                            {linha.tipoBadge}
+                          </span>
                         </td>
-                        <td className="px-3 py-2 text-slate-400">—</td>
+                        <td className="px-2 py-1.5">
+                          <select
+                            value={procedimentos[linha.id] ?? ""}
+                            onChange={(e) =>
+                              setProcedimentos((atual) => ({
+                                ...atual,
+                                [linha.id]: e.target.value,
+                              }))
+                            }
+                            className="h-8 w-full min-w-[260px] rounded border border-[#d4d4d4] bg-white px-2 text-[11px] text-slate-700 outline-none focus:border-[#4a90d9]"
+                          >
+                            <option value="">
+                              {credito
+                                ? "Vincular receita..."
+                                : "Vincular despesa..."}
+                            </option>
+                            {montarOpcoesProcedimentoPorTipo(
+                              linha.tipo,
+                              lancamentos
+                            ).map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
                       </tr>
                     );
                   })
@@ -414,11 +534,11 @@ export function ConciliacaoContaModal({
         <div className="flex gap-2 border-t border-[#e5e5e5] px-4 py-3">
           <button
             type="button"
-            onClick={confirmarCadastro}
-            disabled={!parseResult}
+            onClick={() => void confirmarCadastro()}
+            disabled={!parseResult || lendo || salvando}
             className="h-9 rounded border border-[#4a90d9] bg-[#4a90d9] px-5 text-[13px] text-white hover:bg-[#3d7fc4] disabled:opacity-50"
           >
-            Cadastrar
+            {salvando ? "Salvando..." : "Cadastrar"}
           </button>
           <button
             type="button"

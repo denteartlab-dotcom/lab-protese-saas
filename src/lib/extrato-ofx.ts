@@ -15,6 +15,7 @@ export type MovimentacaoOfx = {
   forma: string;
   valor: number;
   tipo: "credito" | "debito";
+  tipoBadge: "CREDIT" | "DEBIT";
   trntype: string;
   fitid?: string;
   contaBanco?: string;
@@ -50,10 +51,11 @@ function normalizarDigitos(valor: string) {
   return valor.replace(/\D/g, "");
 }
 
-function inferirForma(memo: string, checknum: string, trntype: string) {
-  if (checknum.trim()) return checknum.trim();
+function inferirForma(memo: string, checknum: string, trntype: string, fitid?: string) {
   const upper = memo.toUpperCase();
   if (upper.includes("PIX")) return "PIX";
+  if (checknum.trim()) return checknum.trim();
+  if (fitid?.trim()) return fitid.trim();
   if (upper.includes("TED")) return "TED";
   if (upper.includes("DOC")) return "DOC";
   if (upper.includes("BOLETO")) return "Boleto";
@@ -71,14 +73,27 @@ function extrairSaldoOfx(conteudo: string) {
 }
 
 function extrairDadosContaOfx(conteudo: string): DadosContaOfx {
-  const bankFrom = conteudo.match(/<BANKACCTFROM>([\s\S]*?)<\/BANKACCTFROM>/i)?.[1] ?? conteudo;
+  const stmtrs = conteudo.match(/<STMTRS>([\s\S]*?)<\/STMTRS>/i)?.[1] ?? conteudo;
+  const bankFrom =
+    stmtrs.match(/<BANKACCTFROM>([\s\S]*?)<\/BANKACCTFROM>/i)?.[1] ??
+    conteudo.match(/<BANKACCTFROM>([\s\S]*?)<\/BANKACCTFROM>/i)?.[1] ??
+    conteudo;
   const codBanco =
     tagOfx(bankFrom, "BANKID") ||
+    tagOfx(stmtrs, "BANKID") ||
     tagOfx(conteudo, "BANKID") ||
     tagOfx(conteudo, "INTU.BID");
-  const agencia = tagOfx(bankFrom, "BRANCHID") || tagOfx(conteudo, "BRANCHID");
-  const numeroConta = tagOfx(bankFrom, "ACCTID") || tagOfx(conteudo, "ACCTID");
+  const agencia =
+    tagOfx(bankFrom, "BRANCHID") ||
+    tagOfx(stmtrs, "BRANCHID") ||
+    tagOfx(conteudo, "BRANCHID");
+  const numeroConta =
+    tagOfx(bankFrom, "ACCTID") ||
+    tagOfx(stmtrs, "ACCTID") ||
+    tagOfx(conteudo, "ACCTID");
   const nomeTitular =
+    tagOfx(stmtrs, "ACCTNAME") ||
+    tagOfx(bankFrom, "ACCTNAME") ||
     tagOfx(conteudo, "ORG") ||
     tagOfx(conteudo, "ACCTNAME") ||
     tagOfx(conteudo, "DESC");
@@ -145,9 +160,10 @@ export function parseOfxArquivo(conteudo: string): OfxParseResult {
       id: fitid || `ofx-${dtposted}-${trnamt}-${movimentacoes.length}`,
       data: parseOfxDate(dtposted),
       descricao: memo,
-      forma: inferirForma(memo, checknum, trntype),
+      forma: inferirForma(memo, checknum, trntype, fitid),
       valor,
       tipo: credito ? "credito" : "debito",
+      tipoBadge: credito ? "CREDIT" : "DEBIT",
       trntype,
       fitid,
       ...contaInfo,
