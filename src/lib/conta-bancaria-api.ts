@@ -17,6 +17,20 @@ export type DadosContasBancariasApi = {
   extrato: ExtratoMovimentacao[];
 };
 
+/** Evita perder movimentações locais quando o GET chega antes do PUT concluir. */
+export function mesclarMovimentacoesConta(
+  local: MovimentacaoContaBancaria[],
+  servidor: MovimentacaoContaBancaria[]
+): MovimentacaoContaBancaria[] {
+  const mapa = new Map(servidor.map((m) => [m.id, m]));
+  for (const mov of local) {
+    if (!mapa.has(mov.id)) mapa.set(mov.id, mov);
+  }
+  return Array.from(mapa.values()).sort(
+    (a, b) => new Date(b.data).getTime() - new Date(a.data).getTime()
+  );
+}
+
 export async function carregarContasBancariasApi(): Promise<DadosContasBancariasApi> {
   try {
     const res = await fetch("/api/contas-bancarias", { cache: "no-store" });

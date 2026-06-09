@@ -53,6 +53,7 @@ import {
 } from "@/lib/extrato-bancario";
 import {
   carregarContasBancariasApi,
+  mesclarMovimentacoesConta,
   persistirContasBancariasApi,
 } from "@/lib/conta-bancaria-api";
 import { cn } from "@/lib/utils";
@@ -127,6 +128,21 @@ export function ContaBancariaConteudo() {
     }
   }, []);
 
+  const carregarLancamentos = useCallback(async () => {
+    try {
+      const res = await fetch("/api/financeiro", { cache: "no-store" });
+      if (!res.ok) return;
+      const json = (await res.json()) as {
+        lancamentos?: LancamentoFinanceiroCache[];
+      };
+      const lista = Array.isArray(json.lancamentos) ? json.lancamentos : [];
+      setLancamentos(lista);
+      salvarLancamentosFinanceiroCache(lista);
+    } catch {
+      /* mantém cache/local */
+    }
+  }, []);
+
   const carregarDados = useCallback(async () => {
     const [dados, resFinanceiro] = await Promise.all([
       carregarContasBancariasApi(),
@@ -134,7 +150,11 @@ export function ContaBancariaConteudo() {
     ]);
 
     setContas(dados.contas);
-    setMovimentacoes(dados.movimentacoes);
+    setMovimentacoes((atual) => {
+      const mesclado = mesclarMovimentacoesConta(atual, dados.movimentacoes);
+      salvarMovimentacoesConta(mesclado);
+      return mesclado;
+    });
 
     if (resFinanceiro?.ok) {
       try {
@@ -167,19 +187,25 @@ export function ContaBancariaConteudo() {
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const atualizar = () => {
+    const atualizarLancamentosAtrasado = () => {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         timer = null;
-        void carregarDados();
+        void carregarLancamentos();
       }, 480);
     };
-    window.addEventListener(FINANCEIRO_ATUALIZADO_EVENT, atualizar);
+    window.addEventListener(
+      FINANCEIRO_ATUALIZADO_EVENT,
+      atualizarLancamentosAtrasado
+    );
     return () => {
       if (timer) clearTimeout(timer);
-      window.removeEventListener(FINANCEIRO_ATUALIZADO_EVENT, atualizar);
+      window.removeEventListener(
+        FINANCEIRO_ATUALIZADO_EVENT,
+        atualizarLancamentosAtrasado
+      );
     };
-  }, [carregarDados]);
+  }, [carregarLancamentos]);
 
   const contasVisiveis = useMemo(() => {
     const lista = contas.filter((c) =>
@@ -199,18 +225,24 @@ export function ContaBancariaConteudo() {
     [contasVisiveis, lancamentos, movimentacoes]
   );
 
+  async function sincronizarMovimentacoesServidor(
+    novaLista: MovimentacaoContaBancaria[]
+  ) {
+    const resultado = await persistirContasBancariasApi({
+      movimentacoes: novaLista,
+    });
+    if (resultado?.movimentacoes) {
+      setMovimentacoes(resultado.movimentacoes);
+      salvarMovimentacoesConta(resultado.movimentacoes);
+    }
+  }
+
   function persistirContas(novaLista: ContaBancaria[]) {
     setContas(novaLista);
     salvarContasBancarias(novaLista);
-    void persistirContasBancariasApi({ contas: novaLista });
-    notificarFinanceiroAtualizado();
-  }
-
-  function persistirMovs(novaLista: MovimentacaoContaBancaria[]) {
-    setMovimentacoes(novaLista);
-    salvarMovimentacoesConta(novaLista);
-    void persistirContasBancariasApi({ movimentacoes: novaLista });
-    notificarFinanceiroAtualizado();
+    void persistirContasBancariasApi({ contas: novaLista }).then(() => {
+      notificarFinanceiroAtualizado();
+    });
   }
 
   function aplicarExtratoPendente(
@@ -265,7 +297,14 @@ export function ContaBancariaConteudo() {
       descricao,
       data: new Date().toISOString(),
     };
-    persistirMovs([...movimentacoes, mov]);
+    setMovimentacoes((atual) => {
+      const novaLista = [...atual, mov];
+      salvarMovimentacoesConta(novaLista);
+      void sincronizarMovimentacoesServidor(novaLista).then(() => {
+        notificarFinanceiroAtualizado();
+      });
+      return novaLista;
+    });
   }
 
   function confirmarMovimentacao(dados: {
@@ -302,7 +341,14 @@ export function ContaBancariaConteudo() {
         descricao: desc || `Transferência de ${conta.nome}`,
         data: new Date().toISOString(),
       };
-      persistirMovs([...movimentacoes, saida, entrada]);
+      setMovimentacoes((atual) => {
+        const novaLista = [...atual, saida, entrada];
+        salvarMovimentacoesConta(novaLista);
+        void sincronizarMovimentacoesServidor(novaLista).then(() => {
+          notificarFinanceiroAtualizado();
+        });
+        return novaLista;
+      });
     } else if (dados.tipo === "Ajuste Saldo (Debitar)") {
       registrarMovimentacao(conta, "saida", dados.valor, desc);
     } else if (dados.tipo === "Ajuste Saldo (Creditar)") {
