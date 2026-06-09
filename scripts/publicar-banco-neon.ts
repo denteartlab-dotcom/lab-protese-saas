@@ -105,28 +105,6 @@ async function copiarSqliteParaNeon() {
   }
 }
 
-function schemaPostgresqlTemporario() {
-  const schemaPath = path.join(process.cwd(), "prisma", "schema.prisma");
-  const original = fs.readFileSync(schemaPath, "utf8");
-  if (!original.includes('provider = "sqlite"')) {
-    return { restaurar: () => undefined };
-  }
-  const patched = original
-    .replace('provider = "sqlite"', 'provider = "postgresql"')
-    .replace(
-      'url      = env("DATABASE_URL")',
-      'url       = env("DATABASE_URL")\n  directUrl = env("DIRECT_URL")'
-    );
-  fs.writeFileSync(schemaPath, patched);
-  execSync("npx prisma generate", { stdio: "inherit" });
-  return {
-    restaurar: () => {
-      fs.writeFileSync(schemaPath, original);
-      execSync("npx prisma generate", { stdio: "inherit" });
-    },
-  };
-}
-
 async function main() {
   const url = process.env.DATABASE_URL || "";
   if (!url.includes("postgres")) {
@@ -146,16 +124,11 @@ async function main() {
   console.log("=== Publicar banco no Neon (substituir tudo) ===\n");
   console.log("Passo 1/2: Recriar tabelas no Neon (apaga dados antigos)...");
 
-  const schema = schemaPostgresqlTemporario();
-  try {
-    const urlPush = process.env.DIRECT_URL || process.env.DATABASE_URL;
-    execSync("npx prisma db push --force-reset --accept-data-loss", {
-      stdio: "inherit",
-      env: { ...process.env, DATABASE_URL: urlPush },
-    });
-  } finally {
-    schema.restaurar();
-  }
+  const urlPush = process.env.DIRECT_URL || process.env.DATABASE_URL;
+  execSync("npx prisma db push --force-reset --accept-data-loss", {
+    stdio: "inherit",
+    env: { ...process.env, DATABASE_URL: urlPush },
+  });
 
   console.log("\nPasso 2/2: Copiar SQLite local → Neon");
   await copiarSqliteParaNeon();

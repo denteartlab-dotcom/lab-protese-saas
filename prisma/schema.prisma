@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -228,7 +229,7 @@ model ArquivoUpload {
   @@index([pasta])
 }
 
-/** Contas bancárias persistidas no SQLite (substitui JsonStore para não perder dados). */
+/** Contas bancárias persistidas no PostgreSQL (substitui JsonStore para não perder dados). */
 model ContaBancaria {
   id              String                @id
   nome            String

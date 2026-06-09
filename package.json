@@ -11,7 +11,6 @@
     "db:generate": "prisma generate",
     "setup": "prisma generate && prisma db push && tsx prisma/seed.ts",
     "db:push": "prisma db push",
-    "db:local": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:publicar-neon": "tsx scripts/publicar-banco-neon.ts"
   },

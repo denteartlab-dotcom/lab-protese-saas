@@ -13,7 +13,7 @@ import {
   type ExtratoMovimentacao,
 } from "@/lib/extrato-bancario";
 
-const MIGRADO_KEY = "labProteseFinanceiroSqliteMigrado";
+const MIGRADO_KEY = "labProteseFinanceiroDbMigrado";
 
 function parseDataIso(value: string) {
   const d = new Date(value);
