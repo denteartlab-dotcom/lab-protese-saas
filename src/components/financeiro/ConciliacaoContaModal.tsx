@@ -95,8 +95,26 @@ function Toggle({
   );
 }
 
+const FORMAS_CONHECIDAS = new Set([
+  "PIX",
+  "TED",
+  "DOC",
+  "Boleto",
+  "Dinheiro",
+  "Cartão",
+  "Transferência",
+]);
+
 function CelulaForma({ forma }: { forma: string }) {
-  if (forma === "PIX") {
+  const valor = forma.trim();
+  if (!valor || !FORMAS_CONHECIDAS.has(valor)) {
+    return (
+      <span className="text-[11px] text-slate-400" title="Sem forma de pagamento">
+        —
+      </span>
+    );
+  }
+  if (valor === "PIX") {
     return (
       <span
         className="inline-flex h-6 min-w-[1.75rem] items-center justify-center rounded bg-[#32bcad] px-1 text-[8px] font-bold uppercase tracking-tight text-white"
@@ -106,16 +124,9 @@ function CelulaForma({ forma }: { forma: string }) {
       </span>
     );
   }
-  if (/^\d+$/.test(forma)) {
-    return (
-      <span className="text-[11px] tabular-nums text-slate-600" title={forma}>
-        {forma}
-      </span>
-    );
-  }
   return (
-    <span className="inline-flex h-6 w-6 items-center justify-center text-slate-400" title={forma}>
-      <FileText className="h-4 w-4" />
+    <span className="text-[11px] text-slate-600" title={valor}>
+      {valor}
     </span>
   );
 }

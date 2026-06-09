@@ -51,17 +51,16 @@ function normalizarDigitos(valor: string) {
   return valor.replace(/\D/g, "");
 }
 
-function inferirForma(memo: string, checknum: string, trntype: string, fitid?: string) {
+function inferirForma(memo: string, _checknum: string, _trntype: string, _fitid?: string) {
   const upper = memo.toUpperCase();
   if (upper.includes("PIX")) return "PIX";
-  if (checknum.trim()) return checknum.trim();
-  if (fitid?.trim()) return fitid.trim();
   if (upper.includes("TED")) return "TED";
   if (upper.includes("DOC")) return "DOC";
   if (upper.includes("BOLETO")) return "Boleto";
-  if (trntype === "CREDIT" || trntype === "DEP") return "Crédito";
-  if (trntype === "DEBIT" || trntype === "PAYMENT" || trntype === "XFER") return "Débito";
-  return trntype || "—";
+  if (upper.includes("DINHEIRO")) return "Dinheiro";
+  if (upper.includes("CARTAO") || upper.includes("CARTÃO")) return "Cartão";
+  if (upper.includes("TRANSF")) return "Transferência";
+  return "";
 }
 
 function extrairSaldoOfx(conteudo: string) {
