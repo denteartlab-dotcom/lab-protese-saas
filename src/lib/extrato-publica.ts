@@ -1,4 +1,4 @@
-import { orcamentoPublicBaseUrl } from "@/lib/whatsapp";
+import { garantirUrlPublicaAbsoluta, orcamentoPublicBaseUrl } from "@/lib/whatsapp";
 
 export type ExtratoPublicaRegistro = {
   base64: string;
@@ -91,5 +91,5 @@ export async function publicarExtratoPublica(input: {
   if (!res.ok || !json.url) {
     throw new Error(json.error || "Não foi possível publicar o extrato.");
   }
-  return json.url;
+  return garantirUrlPublicaAbsoluta(json.url);
 }

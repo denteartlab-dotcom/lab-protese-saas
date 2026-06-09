@@ -1,4 +1,4 @@
-import { orcamentoPublicBaseUrl } from "@/lib/whatsapp";
+import { garantirUrlPublicaAbsoluta, orcamentoPublicBaseUrl } from "@/lib/whatsapp";
 
 export type FaturaPublicaRegistro = {
   base64: string;
@@ -102,5 +102,5 @@ export async function publicarFaturaPublica(input: {
   if (!res.ok || !json.url) {
     throw new Error(json.error || "Não foi possível publicar a fatura.");
   }
-  return json.url;
+  return garantirUrlPublicaAbsoluta(json.url);
 }

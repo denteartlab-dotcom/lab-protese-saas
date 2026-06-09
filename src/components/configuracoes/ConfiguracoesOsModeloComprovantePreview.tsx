@@ -23,6 +23,8 @@ import {
 import { PREVIEW_OS_MODELO3 } from "@/lib/os-modelo3-layout";
 import { OsEtapasListaPreview } from "@/components/configuracoes/OsEtapasListaPreview";
 import {
+  colaboradorExibirNoTopoImpressao,
+  colaboradorMetadadosImpressao,
   PREVIEW_COLABORADORES_OS_LISTA,
   PREVIEW_ETAPAS_OS_LISTA,
 } from "@/lib/etapas-os";
@@ -87,6 +89,16 @@ export function PreviewOsModeloComprovante({
   const totalDescontos = amostra.totalDescontos;
   const totalFinal = amostra.total;
   const mostraEtapasLista = layout.etapas && PREVIEW_ETAPAS_OS_LISTA.length > 0;
+  const mostraColaboradorTopo = colaboradorExibirNoTopoImpressao(
+    layout.colaborador,
+    layout.etapas,
+    PREVIEW_ETAPAS_OS_LISTA
+  );
+  const textoColaboradorTopo = colaboradorMetadadosImpressao({
+    explicito: amostra.colaborador,
+    colaboradores: PREVIEW_COLABORADORES_OS_LISTA,
+    etapas: PREVIEW_ETAPAS_OS_LISTA,
+  });
 
   return (
     <div
@@ -279,10 +291,10 @@ export function PreviewOsModeloComprovante({
               <span className="font-bold">{amostra.finalizado}</span>
             </p>
           ) : null}
-          {layout.colaborador ? (
+          {mostraColaboradorTopo ? (
             <p>
               <span>Colaborador: </span>
-              <span className="font-bold">{amostra.colaborador}</span>
+              <span className="font-bold">{textoColaboradorTopo || "—"}</span>
             </p>
           ) : null}
           {layout.produtos && amostra.produtos ? (
@@ -307,6 +319,7 @@ export function PreviewOsModeloComprovante({
             fontSize={fsSmall}
             gapMm={`${gap(0.5)}mm`}
             marginTop={`${gap(2)}mm`}
+            exibirColaborador={layout.colaborador}
           />
         ) : null}
 

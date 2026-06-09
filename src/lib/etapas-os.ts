@@ -428,6 +428,43 @@ export function resumoColaboradorControle(colaboradores: ColaboradorOsLinha[]) {
   return nomes.join(", ");
 }
 
+/** Texto da linha Colaborador: (topo) quando etapas não estão em lista. */
+export function colaboradorMetadadosImpressao(opts: {
+  explicito?: string | null;
+  colaboradores?: ColaboradorOsLinha[];
+  etapas?: EtapaOsLinha[];
+}): string {
+  const linha = (opts.explicito || "").trim();
+  if (linha) return linha;
+  return resumoColaboradorControle(
+    colaboradoresParaExibicaoControle(opts.colaboradores || [], opts.etapas || [])
+  );
+}
+
+/** Colaborador no topo só quando etapas (lista) não substituem a exibição. */
+export function colaboradorExibirNoTopoImpressao(
+  exibirColaborador: boolean,
+  exibirEtapas: boolean,
+  etapasLista: EtapaOsLinha[]
+): boolean {
+  return exibirColaborador && !(exibirEtapas && etapasLista.length > 0);
+}
+
+export function colaboradorParaImpressao(instrucoes?: string | null) {
+  const linhas = (instrucoes || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const explicito =
+    linhas.find((line) => line.startsWith("Colaborador:"))?.replace(/^Colaborador:\s*/i, "").trim() ||
+    "";
+  return colaboradorMetadadosImpressao({
+    explicito,
+    colaboradores: parseColaboradoresInstrucoes(instrucoes),
+    etapas: parseEtapasInstrucoes(instrucoes),
+  });
+}
+
 /** Nome do colaborador vinculado à etapa (resp. da etapa ou aba Colaborador com etapa). */
 export function colaboradorDaEtapaImpressao(
   etapa: EtapaOsLinha,

@@ -56,6 +56,8 @@ import {
 import { PreviewOsModeloComprovante } from "@/components/configuracoes/ConfiguracoesOsModeloComprovantePreview";
 import { OsEtapasListaPreview } from "@/components/configuracoes/OsEtapasListaPreview";
 import {
+  colaboradorExibirNoTopoImpressao,
+  colaboradorMetadadosImpressao,
   PREVIEW_COLABORADORES_OS_LISTA,
   PREVIEW_ETAPAS_OS_LISTA,
 } from "@/lib/etapas-os";
@@ -192,6 +194,16 @@ function PreviewOsModeloProducao({
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   const mostraEtapasLista = layout.etapas && PREVIEW_ETAPAS_OS_LISTA.length > 0;
+  const mostraColaboradorTopo = colaboradorExibirNoTopoImpressao(
+    layout.colaborador,
+    layout.etapas,
+    PREVIEW_ETAPAS_OS_LISTA
+  );
+  const textoColaboradorTopo = colaboradorMetadadosImpressao({
+    explicito: amostra.colaborador,
+    colaboradores: PREVIEW_COLABORADORES_OS_LISTA,
+    etapas: PREVIEW_ETAPAS_OS_LISTA,
+  });
 
   return (
     <div
@@ -392,10 +404,10 @@ function PreviewOsModeloProducao({
                 ) : null}
               </p>
             ) : null}
-            {layout.colaborador && !mostraEtapasLista ? (
+            {mostraColaboradorTopo ? (
               <p>
                 <span>Colaborador: </span>
-                <span className="font-bold">{amostra.colaborador}</span>
+                <span className="font-bold">{textoColaboradorTopo || "—"}</span>
               </p>
             ) : null}
             {layout.producao ? (
@@ -422,6 +434,7 @@ function PreviewOsModeloProducao({
           fontSize={fsSmall}
           gapMm={`${gap(0.5)}mm`}
           marginTop={`${gap(2)}mm`}
+          exibirColaborador={layout.colaborador}
         />
       ) : null}
 

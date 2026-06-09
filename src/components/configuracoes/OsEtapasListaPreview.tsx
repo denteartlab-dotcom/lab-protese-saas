@@ -15,6 +15,7 @@ export function OsEtapasListaPreview({
   fontSize = 11,
   gapMm = "1.5mm",
   marginTop,
+  exibirColaborador = true,
 }: {
   etapas: EtapaOsLinha[];
   colaboradores?: ColaboradorOsLinha[];
@@ -22,6 +23,7 @@ export function OsEtapasListaPreview({
   fontSize?: number;
   gapMm?: string;
   marginTop?: string;
+  exibirColaborador?: boolean;
 }) {
   const lista = etapas.filter((e) => nomeEtapaSemSetor(e.nome));
   if (lista.length === 0) return null;
@@ -40,7 +42,9 @@ export function OsEtapasListaPreview({
       {lista.map((etapa) => {
         const nome = nomeEtapaSemSetor(etapa.nome);
         const dataHora = formatarDataHoraEtapaImpressao(etapa.prazo, dataEntrada);
-        const colaborador = colaboradorDaEtapaImpressao(etapa, colaboradores);
+        const colaborador = exibirColaborador
+          ? colaboradorDaEtapaImpressao(etapa, colaboradores)
+          : "";
         return (
           <div key={`${etapa.indice}-${nome}`} className="flex items-start gap-2 leading-snug">
             <span

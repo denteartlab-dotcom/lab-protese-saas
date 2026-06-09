@@ -55,6 +55,8 @@ import { extrairDataPrazoBr } from "@/lib/os-itens-impressao";
 import { gerarPngCode39DataUrl } from "@/lib/code39-barcode";
 import {
   colaboradorDaEtapaImpressao,
+  colaboradorExibirNoTopoImpressao,
+  colaboradorMetadadosImpressao,
   formatarDataHoraEtapaImpressao,
   nomeEtapaSemSetor,
   type ColaboradorOsLinha,
@@ -264,6 +266,15 @@ function desenharEtapasOsRequisicao(
       cursor += pdf.getTextWidth(dataHora) + 2;
     }
 
+    const colaborador = lay.colaborador
+      ? colaboradorDaEtapaImpressao(etapa, data.colaboradoresLista || [])
+      : "";
+    if (colaborador) {
+      pdf.setFont("helvetica", "bold");
+      pdf.text(colaborador, cursor, y);
+      cursor += pdf.getTextWidth(colaborador) + 2;
+    }
+
     pdf.setFont("helvetica", "bold");
     pdf.text(nome, cursor, y);
     cursor += pdf.getTextWidth(nome) + 2;
@@ -287,6 +298,47 @@ function desenharEtapasOsRequisicao(
   return y;
 }
 
+function desenharEtapasOsTermica(
+  pdf: PdfRenderApi,
+  lay: OsModelo1Layout,
+  data: PdfOsData,
+  mx: number,
+  yInicio: number,
+  larguraCampo: number,
+  fsSmall: number
+) {
+  const etapas = data.etapasLista || [];
+  if (!lay.etapas || etapas.length === 0) return yInicio;
+
+  let y = yInicio;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(fsSmall - 0.5);
+  pdf.text("Etapas:", mx, y);
+  y += 3.6;
+
+  for (const etapa of etapas) {
+    const nome = nomeEtapaSemSetor(etapa.nome);
+    if (!nome) continue;
+
+    const dataHora = formatarDataHoraEtapaImpressao(etapa.prazo, data.dataEntrada);
+    const colaborador = lay.colaborador
+      ? colaboradorDaEtapaImpressao(etapa, data.colaboradoresLista || [])
+      : "";
+    const partes = ["[ ]"];
+    if (dataHora) partes.push(dataHora);
+    if (colaborador) partes.push(colaborador);
+    partes.push(nome);
+    const obs = (etapa.observacao || "").trim();
+    if (obs) partes.push(obs);
+
+    const linhas = pdf.splitTextToSize(partes.join(" "), larguraCampo);
+    pdf.text(linhas, mx + 1, y);
+    y += Math.max(3.6, linhas.length * 3.3);
+  }
+
+  return y + 0.5;
+}
+
 function desenharMetadadosServicoRequisicao(
   pdf: PdfRenderApi,
   lay: OsModelo1Layout,
@@ -297,8 +349,8 @@ function desenharMetadadosServicoRequisicao(
 ) {
   let y = yInicio;
   const mostraPrazo = lay.dataPrazo || lay.finalizado;
-  const etapasComLista = lay.etapas && (data.etapasLista?.length ?? 0) > 0;
-  const mostraColab = lay.colaborador && !etapasComLista;
+  const etapasLista = data.etapasLista || [];
+  const mostraColab = colaboradorExibirNoTopoImpressao(lay.colaborador, lay.etapas, etapasLista);
   const mostraProd = lay.producao && Boolean(data.producao?.trim());
   const mostraObs = lay.obsServico;
 
@@ -311,7 +363,17 @@ function desenharMetadadosServicoRequisicao(
     y += g(4);
   }
   if (mostraColab) {
-    labelValue(pdf, "Colaborador: ", data.colaborador || "", colDesc, y);
+    labelValue(
+      pdf,
+      "Colaborador: ",
+      colaboradorMetadadosImpressao({
+        explicito: data.colaborador,
+        colaboradores: data.colaboradoresLista,
+        etapas: etapasLista,
+      }),
+      colDesc,
+      y
+    );
     y += g(4);
   }
   if (mostraProd) {
@@ -1283,6 +1345,17 @@ function renderTermicaModelo4(
     pdf.setFont("helvetica", "normal");
     let totalServicos = 0;
     let totalDescontos = 0;
+    const etapasLista = data.etapasLista || [];
+    const mostraColabItem = colaboradorExibirNoTopoImpressao(
+      lay.colaborador,
+      lay.etapas,
+      etapasLista
+    );
+    const textoColaboradorTopo = colaboradorMetadadosImpressao({
+      explicito: data.colaborador,
+      colaboradores: data.colaboradoresLista,
+      etapas: etapasLista,
+    });
 
     for (const item of data.itens) {
       const bruto = valorBrutoItem(item);
@@ -1332,8 +1405,15 @@ function renderTermicaModelo4(
         }
         y += 3.6;
       }
-      if (lay.colaborador && data.colaborador) {
-        y = campoTermica(pdf, "Colaborador:", data.colaborador, mx + 1, y, larguraCampo);
+      if (mostraColabItem) {
+        y = campoTermica(
+          pdf,
+          "Colaborador:",
+          textoColaboradorTopo || "-",
+          mx + 1,
+          y,
+          larguraCampo
+        );
       }
       const obsServ = item.notasAbaixo?.find((n) => /observ/i.test(n)) || "";
       if (lay.obsServico) {
@@ -1346,6 +1426,8 @@ function renderTermicaModelo4(
       pdf.setFontSize(fsSmall);
       y += 0.5;
     }
+
+    y = desenharEtapasOsTermica(pdf, lay, data, mx, y, larguraCampo, fsSmall);
 
     linhaTermica(pdf, y, pageWidth, corLinha);
     y += 3.5;
@@ -1530,6 +1612,17 @@ function renderTermicaModelo5(
     pdf.setFont("helvetica", "normal");
     let totalServicos = 0;
     let totalDescontos = 0;
+    const etapasLista = data.etapasLista || [];
+    const mostraColabItem = colaboradorExibirNoTopoImpressao(
+      lay.colaborador,
+      lay.etapas,
+      etapasLista
+    );
+    const textoColaboradorTopo = colaboradorMetadadosImpressao({
+      explicito: data.colaborador,
+      colaboradores: data.colaboradoresLista,
+      etapas: etapasLista,
+    });
 
     for (const item of data.itens) {
       const bruto = valorBrutoItem(item);
@@ -1584,8 +1677,15 @@ function renderTermicaModelo5(
         }
         y += 3.6;
       }
-      if (lay.colaborador && data.colaborador) {
-        y = campoTermica(pdf, "Colaborador:", data.colaborador, mx + 1, y, larguraCampo);
+      if (mostraColabItem) {
+        y = campoTermica(
+          pdf,
+          "Colaborador:",
+          textoColaboradorTopo || "-",
+          mx + 1,
+          y,
+          larguraCampo
+        );
       }
       const obsServ = item.notasAbaixo?.find((n) => /observ/i.test(n)) || "";
       if (lay.obsServico) {
@@ -1598,6 +1698,8 @@ function renderTermicaModelo5(
       pdf.setFontSize(fsSmall);
       y += 0.5;
     }
+
+    y = desenharEtapasOsTermica(pdf, lay, data, mx, y, larguraCampo, fsSmall);
 
     linhaTermica(pdf, y, pageWidth, corLinha);
     y += 3.5;

@@ -25,6 +25,31 @@ export function orcamentoPublicBaseUrl(origin?: string) {
   return base;
 }
 
+/** Origem pública para links em APIs (env, proxy ou URL da requisição). */
+export function publicOriginFromRequest(request: Request) {
+  const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (fromEnv) return fromEnv.replace(/\/$/, "");
+
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  if (forwardedHost) {
+    const proto = (request.headers.get("x-forwarded-proto") || "https").split(",")[0].trim();
+    return `${proto}://${forwardedHost.split(",")[0].trim()}`.replace(/\/$/, "");
+  }
+
+  return new URL(request.url).origin.replace(/\/$/, "");
+}
+
+/** Garante URL absoluta para WhatsApp reconhecer o link (https://dominio/...). */
+export function garantirUrlPublicaAbsoluta(url: string, origin?: string) {
+  const limpo = url.trim();
+  if (/^https?:\/\//i.test(limpo)) return limpo;
+  const base = orcamentoPublicBaseUrl(
+    origin || (typeof window !== "undefined" ? window.location.origin : undefined)
+  );
+  if (!base) return limpo;
+  return `${base}${limpo.startsWith("/") ? "" : "/"}${limpo}`;
+}
+
 export function orcamentoPublicUrl(token: string, origin?: string) {
   const base = orcamentoPublicBaseUrl(origin);
   return `${base}/orcamento/${token}`;

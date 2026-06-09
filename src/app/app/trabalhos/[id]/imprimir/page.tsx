@@ -9,11 +9,10 @@ import {
 } from "@/lib/trabalho-os-segmento";
 import { telefoneWhatsappCliente } from "@/lib/cliente-observacoes";
 import {
-  colaboradoresParaExibicaoControle,
+  colaboradorParaImpressao,
   instrucoesTextoLivre,
   parseColaboradoresInstrucoes,
   parseEtapasInstrucoes,
-  resumoColaboradorControle,
 } from "@/lib/etapas-os";
 import {
   anexarPrazosServicoPorTrabalho,
@@ -73,17 +72,6 @@ function linesFrom(instrucoes?: string | null) {
 
 function lineValue(lines: string[], prefix: string) {
   return lines.find((line) => line.startsWith(prefix))?.replace(prefix, "").trim() || "";
-}
-
-function colaboradorParaImpressao(instrucoes?: string | null) {
-  const linhas = linesFrom(instrucoes);
-  const explicito = lineValue(linhas, "Colaborador:");
-  if (explicito) return explicito;
-  const colaboradores = parseColaboradoresInstrucoes(instrucoes || "");
-  const etapas = parseEtapasInstrucoes(instrucoes || "");
-  return resumoColaboradorControle(
-    colaboradoresParaExibicaoControle(colaboradores, etapas)
-  );
 }
 
 function clienteNomeComAbreviacao(cliente: Trabalho["cliente"]) {
@@ -252,7 +240,7 @@ async function ImprimirOSConteudo({
     lineValue(linhas, "OS Externa:") ||
     lineValue(linhas, "OS externa:");
   const chavePed = lineValue(linhas, "Chave Ped:") || lineValue(linhas, "Chave ped:");
-  const colaborador = colaboradorParaImpressao(trabalhoServico.instrucoes);
+  const colaborador = colaboradorParaImpressao(textoInstrucoesGrupo);
   const dentistaNome =
     lineValue(linhas, "Dentista:") || lineValue(linhas, "Dentista convidado:");
   const observacoesUsuario = somenteItem
