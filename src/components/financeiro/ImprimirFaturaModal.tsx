@@ -55,26 +55,66 @@ function aplicarFormatoNoHtml(html: string, formato: FormatoImpressaoFatura, dua
   );
 }
 
-function abrirHtmlFatura(html: string, imprimir: boolean) {
-  const janela = window.open("", "_blank", "noopener,noreferrer");
-  if (!janela) {
-    alert("Permita pop-ups para visualizar ou imprimir a fatura.");
+function dispararPrint(janela: Window) {
+  const imprimir = () => {
+    try {
+      janela.focus();
+      janela.print();
+    } catch {
+      /* ignore */
+    }
+  };
+  if (janela.document.readyState === "complete") imprimir();
+  else janela.onload = imprimir;
+}
+
+function abrirHtmlEmIframe(html: string, imprimir: boolean) {
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("title", "Fatura");
+  iframe.style.cssText =
+    "position:fixed;inset:0;width:100%;height:100%;border:none;z-index:99999;background:#fff";
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument ?? iframe.contentWindow?.document;
+  if (!doc) {
+    iframe.remove();
     return;
   }
-  janela.document.write(html);
-  janela.document.close();
-  janela.focus();
-  if (imprimir) {
-    const disparar = () => {
-      try {
-        janela.print();
-      } catch {
-        /* ignore */
-      }
-    };
-    if (janela.document.readyState === "complete") disparar();
-    else janela.onload = disparar;
+  doc.open();
+  doc.write(html);
+  doc.close();
+  const janela = iframe.contentWindow;
+  if (!janela) {
+    iframe.remove();
+    return;
   }
+  if (imprimir) {
+    dispararPrint(janela);
+    window.setTimeout(() => iframe.remove(), 60_000);
+  }
+}
+
+function abrirHtmlFatura(html: string, imprimir: boolean) {
+  // Sem noopener: com noopener o navegador retorna null e impede document.write.
+  const janela = window.open("about:blank", "_blank");
+  if (janela) {
+    janela.document.open();
+    janela.document.write(html);
+    janela.document.close();
+    janela.focus();
+    if (imprimir) dispararPrint(janela);
+    return;
+  }
+
+  const url = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
+  const viaBlob = window.open(url, "_blank");
+  if (viaBlob) {
+    if (imprimir) dispararPrint(viaBlob);
+    window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
+    return;
+  }
+
+  abrirHtmlEmIframe(html, imprimir);
+  window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
 }
 
 export function ImprimirFaturaModal({

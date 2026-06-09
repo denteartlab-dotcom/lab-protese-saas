@@ -172,10 +172,10 @@ export function LancarRecebimentoModal({
     setSelecionadas([]);
     setJurosPorFatura({});
     setJurosEditando(null);
-    setFormas([]);
+    setFormas([{ ...novaFormaEntrada(), valor: formatCurrencyInput("0") }]);
     setDataRecebimento(dateToBrShort(new Date()));
     setEmitirNotaFiscal(emitirNotaFiscalPadrao);
-  }, [open, emitirNotaFiscalPadrao]);
+  }, [open, emitirNotaFiscalPadrao, formatCurrencyInput]);
 
   const valorComJuros = (id: string, saldo: number) => saldo + (jurosPorFatura[id] ?? 0);
 
@@ -187,6 +187,19 @@ export function LancarRecebimentoModal({
     [linhas, selecionadas, jurosPorFatura]
   );
 
+  useEffect(() => {
+    if (!open) return;
+    const valorFmt = formatCurrencyInput(String(Math.round(valorSelecionado * 100)));
+    setFormas((atual) => {
+      if (atual.length === 0) {
+        return [{ ...novaFormaEntrada(), valor: valorFmt }];
+      }
+      const copia = [...atual];
+      copia[0] = { ...copia[0], valor: valorFmt };
+      return copia;
+    });
+  }, [open, valorSelecionado, formatCurrencyInput]);
+
   const totalReceber = useMemo(
     () => formas.reduce((s, f) => s + parseMoney(f.valor), 0),
     [formas, parseMoney]
@@ -195,55 +208,14 @@ export function LancarRecebimentoModal({
   function aplicarSelecaoAutomatica(ativa: boolean) {
     setSelecaoAutomatica(ativa);
     if (ativa) {
-      const ids = linhas.map((l) => l.id);
-      setSelecionadas(ids);
-      const total = linhas.reduce((s, l) => s + valorComJuros(l.id, l.saldo), 0);
-      if (formas.length === 0) {
-        setFormas([
-          {
-            ...novaFormaEntrada(),
-            valor: formatCurrencyInput(String(Math.round(total * 100))),
-          },
-        ]);
-      } else {
-        setFormas((atual) => {
-          const copia = [...atual];
-          copia[0] = {
-            ...copia[0],
-            valor: formatCurrencyInput(String(Math.round(total * 100))),
-          };
-          return copia;
-        });
-      }
+      setSelecionadas(linhas.map((l) => l.id));
     }
   }
 
   function toggleFatura(id: string) {
-    setSelecionadas((atual) => {
-      const proximas = atual.includes(id) ? atual.filter((x) => x !== id) : [...atual, id];
-      if (selecaoAutomatica) {
-        const total = linhas
-          .filter((l) => proximas.includes(l.id))
-          .reduce((s, l) => s + valorComJuros(l.id, l.saldo), 0);
-        setFormas((formasAtual) => {
-          if (formasAtual.length === 0) {
-            return [
-              {
-                ...novaFormaEntrada(),
-                valor: formatCurrencyInput(String(Math.round(total * 100))),
-              },
-            ];
-          }
-          const copia = [...formasAtual];
-          copia[0] = {
-            ...copia[0],
-            valor: formatCurrencyInput(String(Math.round(total * 100))),
-          };
-          return copia;
-        });
-      }
-      return proximas;
-    });
+    setSelecionadas((atual) =>
+      atual.includes(id) ? atual.filter((x) => x !== id) : [...atual, id]
+    );
   }
 
   function atualizarJuros(id: string, valor: string) {
