@@ -697,23 +697,58 @@ export function LancarReceitaModal({
               </div>
 
               <div className="grid grid-cols-12 gap-3">
-                <div className="col-span-12 md:col-span-4">
-                  <label className={labelClass}>
-                    {modo === "receita" ? "Clientes" : "Fornecedores"}
-                  </label>
-                  <select
-                    value={clienteId}
-                    onChange={(e) => setClienteId(e.target.value)}
-                    className={selectClass}
-                  >
-                    <option value="">Selecione</option>
-                    {entidadesLista.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.nome}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {modo === "despesa" ? (
+                  <>
+                    <div className="col-span-12 md:col-span-3">
+                      <label className={labelClass}>{cfg.tipo}</label>
+                      <select
+                        value={tipoCliente}
+                        onChange={(e) => {
+                          setTipoCliente(e.target.value);
+                          setClienteId("");
+                        }}
+                        className={selectClass}
+                      >
+                        {cfg.tiposEntidade.map((t) => (
+                          <option key={t.value} value={t.value}>
+                            {t.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-span-12 md:col-span-4">
+                      <label className={labelClass}>{labelNomeEntidade}</label>
+                      <select
+                        value={clienteId}
+                        onChange={(e) => setClienteId(e.target.value)}
+                        className={selectClass}
+                      >
+                        <option value="">Selecione</option>
+                        {entidadesLista.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                ) : (
+                  <div className="col-span-12 md:col-span-4">
+                    <label className={labelClass}>Clientes</label>
+                    <select
+                      value={clienteId}
+                      onChange={(e) => setClienteId(e.target.value)}
+                      className={selectClass}
+                    >
+                      <option value="">Selecione</option>
+                      {entidadesLista.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div className="col-span-6 md:col-span-2">
                   <label className={labelClass}>Valor</label>
                   <input
@@ -736,7 +771,12 @@ export function LancarReceitaModal({
                     className={cn(inputClass, "text-right")}
                   />
                 </div>
-                <div className="col-span-6 md:col-span-6">
+                <div
+                  className={cn(
+                    "col-span-6",
+                    modo === "despesa" ? "md:col-span-3" : "md:col-span-6"
+                  )}
+                >
                   <label className={labelClass}>Descrição</label>
                   <input
                     type="text"
