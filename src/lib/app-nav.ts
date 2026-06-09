@@ -3,7 +3,6 @@ import {
   CalendarDays,
   ClipboardList,
   CreditCard,
-  DollarSign,
   FileText,
   HandCoins,
   Home,
@@ -61,7 +60,6 @@ export const financeiroNav: AppNavItem[] = [
   { href: "/app/financeiro?tipo=despesa", labelKey: "nav.contasPagar", icon: TrendingDown },
   { href: "/app/financeiro?aba=plano-de-contas", labelKey: "nav.planoContas", icon: List },
   { href: "/app/financeiro?aba=conta-bancaria", labelKey: "nav.contaBancaria", icon: CreditCard },
-  { href: "/app/financeiro?aba=cheques", labelKey: "nav.cheques", icon: DollarSign },
   { href: "/app/financeiro?aba=nfse", labelKey: "nav.nfse", icon: FileText },
 ];
 

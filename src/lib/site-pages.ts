@@ -22,7 +22,6 @@ export const SITE_PAGES: SitePageEntry[] = [
   { href: "/app/financeiro?tipo=despesa", labelKey: "nav.contasPagar", sectionKey: "nav.financeiro" },
   { href: "/app/financeiro?aba=plano-de-contas", labelKey: "nav.planoContas", sectionKey: "nav.financeiro" },
   { href: "/app/financeiro?aba=conta-bancaria", labelKey: "nav.contaBancaria", sectionKey: "nav.financeiro" },
-  { href: "/app/financeiro?aba=cheques", labelKey: "nav.cheques", sectionKey: "nav.financeiro" },
   { href: "/app/financeiro?aba=nfse", labelKey: "nav.nfse", sectionKey: "nav.financeiro" },
   { href: "/app/clientes", labelKey: "nav.clientes", sectionKey: "nav.cadastros" },
   { href: "/app/cadastros/colaboradores", labelKey: "nav.colaboradores", sectionKey: "nav.cadastros" },
