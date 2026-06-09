@@ -391,8 +391,12 @@ export function RelatorioContasReceberModal({
                 <button
                   type="button"
                   onClick={imprimir}
+                  disabled={
+                    gerandoPdf ||
+                    (extratoExigeCliente && (!cliente || cliente === "todos"))
+                  }
                   title="Visualizar relatório em PDF"
-                  className="mt-2.5 flex h-[34px] w-[34px] items-center justify-center rounded border border-[#4a90d9] bg-white text-[#4a90d9] hover:bg-blue-50"
+                  className="mt-2.5 flex h-[34px] w-[34px] items-center justify-center rounded border border-[#4a90d9] bg-white text-[#4a90d9] hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <FileText className="h-4 w-4" />
                 </button>

@@ -27,6 +27,7 @@ export type LinhaExtratoIndividual = {
   qtd: string;
   paciente: string;
   numDente: string;
+  dataEntrega: string;
   valorUn: number;
   desconto: number;
   subtotal: number;
@@ -123,6 +124,12 @@ function parseQtd(qtd: string) {
   return Number(qtd.replace(",", ".")) || 1;
 }
 
+function dataEntregaTrabalho(trabalho: TrabalhoRelatorioFatura) {
+  if (trabalho.dataEntrega) return formatDate(trabalho.dataEntrega);
+  if (trabalho.dataPrevista) return formatDate(trabalho.dataPrevista);
+  return "";
+}
+
 function descontoItem(qtd: string, valorUn: number, subtotal: number) {
   return Math.max(0, parseQtd(qtd) * valorUn - subtotal);
 }
@@ -172,6 +179,7 @@ function linhaServicoCobrancaFallback(
     qtd: "1",
     paciente: "—",
     numDente: "",
+    dataEntrega: "",
     valorUn: subtotal,
     desconto: 0,
     subtotal,
@@ -234,6 +242,7 @@ export function montarExtratoIndividual(
         qtd: "",
         paciente: "",
         numDente: "",
+        dataEntrega: "",
         valorUn: 0,
         desconto: 0,
         subtotal: -Math.abs(valor),
@@ -255,6 +264,7 @@ export function montarExtratoIndividual(
         qtd: "",
         paciente: "",
         numDente: "",
+        dataEntrega: "",
         valorUn: 0,
         desconto: 0,
         subtotal: -Math.abs(valor),
@@ -280,6 +290,7 @@ export function montarExtratoIndividual(
         qtd: "1",
         paciente: "—",
         numDente: "",
+        dataEntrega: "",
         valorUn: subtotal,
         desconto: 0,
         subtotal,
@@ -314,6 +325,7 @@ export function montarExtratoIndividual(
             qtd: item.qtd,
             paciente: item.paciente || "—",
             numDente: item.numDente && item.numDente !== "—" ? item.numDente : "",
+            dataEntrega: dataEntregaTrabalho(t),
             valorUn: item.valorUn,
             desconto: descontoItem(item.qtd, item.valorUn, item.subtotal),
             subtotal: item.subtotal,
@@ -364,6 +376,7 @@ export function montarExtratoIndividual(
       qtd: "",
       paciente: "",
       numDente: "",
+      dataEntrega: "",
       valorUn: 0,
       desconto: 0,
       subtotal: 0,

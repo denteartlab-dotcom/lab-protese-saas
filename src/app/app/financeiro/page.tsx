@@ -2595,6 +2595,7 @@ function FinanceiroReceberConteudo() {
           cor: t.cor,
           instrucoes: t.instrucoes,
           dataEntrega: t.dataEntrega ?? null,
+          dataPrevista: t.dataPrevista ?? null,
           cliente: t.cliente
             ? { nome: t.cliente.nome, cro: t.cliente.cro }
             : null,

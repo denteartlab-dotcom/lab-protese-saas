@@ -4,6 +4,7 @@ import type { ModeloRelatorioReceitas } from "@/lib/relatorio-receitas-modelos";
 import {
   modeloEhExtrato,
   modeloEhExtrato3Paciente,
+  modeloEhExtrato2Individual,
   modeloEhExtratoIndividual,
   modeloEhParcelasAReceber,
   modeloEhRecebimentos,
@@ -309,25 +310,37 @@ export async function gerarRelatorioContasReceberBlob(
   modelo: ModeloRelatorioReceitas,
   opcoes?: OpcoesImpressaoRelatorioReceitas
 ) {
-  if (modeloEhExtratoIndividual(modelo)) {
-    const { gerarRelatorioExtratoIndividualSmartPdf } = await import(
-      "@/lib/pdf-relatorio-extrato-individual-smart"
-    );
+  if (modeloEhExtratoIndividual(modelo) || modeloEhExtrato2Individual(modelo)) {
     const nomeCliente =
       opcoes?.nomeClienteExtrato?.trim() ||
       linhas[0]?.cliente?.trim() ||
       "Cliente";
+    const opcoesPdf = {
+      periodoAtivo: opcoes?.periodoAtivo,
+      dataInicio: opcoes?.dataInicio,
+      dataFinal: opcoes?.dataFinal,
+      periodoCampo: opcoes?.periodoCampo,
+      clienteId: opcoes?.clienteIdExtrato,
+    };
+    if (modeloEhExtrato2Individual(modelo)) {
+      const { gerarRelatorioExtrato2IndividualSmartPdf } = await import(
+        "@/lib/pdf-relatorio-extrato-2-individual-smart"
+      );
+      return gerarRelatorioExtrato2IndividualSmartPdf(
+        opcoes?.lancamentos ?? [],
+        opcoes?.trabalhos ?? [],
+        nomeCliente,
+        opcoesPdf
+      );
+    }
+    const { gerarRelatorioExtratoIndividualSmartPdf } = await import(
+      "@/lib/pdf-relatorio-extrato-individual-smart"
+    );
     return gerarRelatorioExtratoIndividualSmartPdf(
       opcoes?.lancamentos ?? [],
       opcoes?.trabalhos ?? [],
       nomeCliente,
-      {
-        periodoAtivo: opcoes?.periodoAtivo,
-        dataInicio: opcoes?.dataInicio,
-        dataFinal: opcoes?.dataFinal,
-        periodoCampo: opcoes?.periodoCampo,
-        clienteId: opcoes?.clienteIdExtrato,
-      }
+      opcoesPdf
     );
   }
 

@@ -42,7 +42,11 @@ export function modeloEhRecebimentos(modelo: ModeloRelatorioReceitas) {
 }
 
 export function modeloEhExtratoIndividual(modelo: ModeloRelatorioReceitas) {
-  return modelo === "extrato-individual" || modelo === "extrato-2-individual";
+  return modelo === "extrato-individual";
+}
+
+export function modeloEhExtrato2Individual(modelo: ModeloRelatorioReceitas) {
+  return modelo === "extrato-2-individual";
 }
 
 export function modeloEhExtrato3Paciente(modelo: ModeloRelatorioReceitas) {
@@ -51,7 +55,11 @@ export function modeloEhExtrato3Paciente(modelo: ModeloRelatorioReceitas) {
 
 /** Extratos financeiros por cliente (exigem cliente selecionado). */
 export function modeloEhExtratoPorCliente(modelo: ModeloRelatorioReceitas) {
-  return modeloEhExtratoIndividual(modelo) || modeloEhExtrato3Paciente(modelo);
+  return (
+    modeloEhExtratoIndividual(modelo) ||
+    modeloEhExtrato2Individual(modelo) ||
+    modeloEhExtrato3Paciente(modelo)
+  );
 }
 
 export function modeloEhExtrato(modelo: ModeloRelatorioReceitas) {

@@ -6,6 +6,7 @@ import type {
 } from "@/lib/relatorio-contas-receber";
 import {
   modeloEhExtrato3Paciente,
+  modeloEhExtrato2Individual,
   modeloEhExtratoIndividual,
   type ModeloRelatorioReceitas,
 } from "@/lib/relatorio-receitas-modelos";
@@ -117,26 +118,39 @@ async function pdfExtratoFinanceiroPorPaciente(
 
 async function pdfExtratoFinanceiroIndividual(
   linhas: LinhaRelatorioContasReceber[],
-  opcoes?: OpcoesImpressaoRelatorioReceitas
+  opcoes?: OpcoesImpressaoRelatorioReceitas,
+  modelo: ModeloRelatorioReceitas = "extrato-individual"
 ) {
-  const { gerarRelatorioExtratoIndividualSmartPdf } = await import(
-    "@/lib/pdf-relatorio-extrato-individual-smart"
-  );
   const nomeCliente =
     opcoes?.nomeClienteExtrato?.trim() ||
     linhas[0]?.cliente?.trim() ||
     "Cliente";
+  const opcoesPdf = {
+    periodoAtivo: opcoes?.periodoAtivo,
+    dataInicio: opcoes?.dataInicio,
+    dataFinal: opcoes?.dataFinal,
+    periodoCampo: opcoes?.periodoCampo,
+    clienteId: opcoes?.clienteIdExtrato,
+  };
+  if (modeloEhExtrato2Individual(modelo)) {
+    const { gerarRelatorioExtrato2IndividualSmartPdf } = await import(
+      "@/lib/pdf-relatorio-extrato-2-individual-smart"
+    );
+    return gerarRelatorioExtrato2IndividualSmartPdf(
+      opcoes?.lancamentos ?? [],
+      opcoes?.trabalhos ?? [],
+      nomeCliente,
+      opcoesPdf
+    );
+  }
+  const { gerarRelatorioExtratoIndividualSmartPdf } = await import(
+    "@/lib/pdf-relatorio-extrato-individual-smart"
+  );
   return gerarRelatorioExtratoIndividualSmartPdf(
     opcoes?.lancamentos ?? [],
     opcoes?.trabalhos ?? [],
     nomeCliente,
-    {
-      periodoAtivo: opcoes?.periodoAtivo,
-      dataInicio: opcoes?.dataInicio,
-      dataFinal: opcoes?.dataFinal,
-      periodoCampo: opcoes?.periodoCampo,
-      clienteId: opcoes?.clienteIdExtrato,
-    }
+    opcoesPdf
   );
 }
 
@@ -147,8 +161,8 @@ export async function gerarRelatorioContasReceberPdf(
   modelo: ModeloRelatorioReceitas,
   opcoes?: OpcoesImpressaoRelatorioReceitas
 ) {
-  if (modeloEhExtratoIndividual(modelo)) {
-    return pdfExtratoFinanceiroIndividual(linhas, opcoes);
+  if (modeloEhExtratoIndividual(modelo) || modeloEhExtrato2Individual(modelo)) {
+    return pdfExtratoFinanceiroIndividual(linhas, opcoes, modelo);
   }
 
   if (modeloEhExtrato3Paciente(modelo)) {

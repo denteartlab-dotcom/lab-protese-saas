@@ -19,6 +19,7 @@ export type TrabalhoRelatorioFatura = TrabalhoContasReceber & {
   cor?: string | null;
   instrucoes?: string | null;
   dataEntrega?: string | null;
+  dataPrevista?: string | null;
   cliente?: { nome?: string | null; cro?: string | null } | null;
 };
 
