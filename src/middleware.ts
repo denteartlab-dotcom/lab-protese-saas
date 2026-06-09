@@ -35,7 +35,11 @@ function limparCookieSessao(response: NextResponse) {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (pathname.startsWith("/api/auth") || pathname.startsWith("/api/setup")) {
+  if (
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/setup") ||
+    pathname === "/api/version"
+  ) {
     return NextResponse.next();
   }
 
@@ -60,7 +64,15 @@ export function middleware(request: NextRequest) {
   }
 
   if (PUBLIC.includes(pathname)) {
-    return NextResponse.next();
+    const res = NextResponse.next();
+    res.headers.set(
+      "Cache-Control",
+      "private, no-store, no-cache, max-age=0, must-revalidate"
+    );
+    res.headers.set("CDN-Cache-Control", "no-store");
+    res.headers.set("Vercel-CDN-Cache-Control", "no-store");
+    res.headers.set("Pragma", "no-cache");
+    return res;
   }
 
   const needsAuth = pathname.startsWith("/app") || pathname.startsWith("/api");

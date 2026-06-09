@@ -58,33 +58,40 @@ function LoginForm() {
     setLoading(true);
     setError("");
 
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: email.trim(),
-        password,
-        remember: lembrarSenha,
-      }),
-    });
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        cache: "no-store",
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+          remember: lembrarSenha,
+        }),
+      });
 
-    setLoading(false);
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(data.error || "Erro ao entrar");
+        return;
+      }
 
-    if (!res.ok) {
-      const data = await res.json();
-      setError(data.error || "Erro ao entrar");
-      return;
+      if (lembrarSenha) {
+        salvarLembrarLogin({ email: email.trim() });
+      } else {
+        limparLembrarLogin();
+      }
+
+      marcarUsuarioJaEntrou();
+      window.location.assign(redirectDestino);
+    } catch {
+      setError(
+        "Não foi possível conectar ao servidor. Recarregue a página (Ctrl+Shift+R) e tente de novo."
+      );
+    } finally {
+      setLoading(false);
     }
-
-    if (lembrarSenha) {
-      salvarLembrarLogin({ email: email.trim() });
-    } else {
-      limparLembrarLogin();
-    }
-
-    marcarUsuarioJaEntrou();
-    // Navegação direta: mais rápido que router.push + refresh (evita 2ª ida ao servidor).
-    window.location.assign(redirectDestino);
   }
 
   const logoLogin = dimensoesLogoPx(lab, { largura: 120, altura: 72 });

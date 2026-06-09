@@ -35,10 +35,10 @@ export default async function RootLayout({
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
         <meta name="app-build-id" content={APP_BUILD_ID} />
-        <Script
+        <script
           id="recarregar-chunks-antigos"
-          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: CHUNK_RELOAD_SCRIPT }}
+          suppressHydrationWarning
         />
         <Script
           id="remove-cursor-test-attrs"
