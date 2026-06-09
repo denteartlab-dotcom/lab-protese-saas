@@ -1,4 +1,3 @@
-import type { ExtratoPublicaConteudo } from "@/lib/extrato-publica-conteudo";
 import { garantirUrlPublicaAbsoluta, orcamentoPublicBaseUrl } from "@/lib/whatsapp";
 
 export type ExtratoPublicaRegistro = {
@@ -8,8 +7,6 @@ export type ExtratoPublicaRegistro = {
   clienteNome: string;
   criadoEm: string;
   expiraEm: string;
-  /** Dados para renderizar o extrato na página pública (modelos 1, 2 e 3). */
-  conteudo?: ExtratoPublicaConteudo;
 };
 
 const PREFIXO_JSON_STORE = "extrato-publica:";
@@ -41,7 +38,6 @@ export function montarRegistroExtratoPublica(input: {
   nomeArquivo: string;
   titulo: string;
   clienteNome: string;
-  conteudo?: ExtratoPublicaConteudo;
 }): ExtratoPublicaRegistro {
   const criadoEm = new Date();
   const expiraEm = new Date(criadoEm);
@@ -74,7 +70,6 @@ export async function publicarExtratoPublica(input: {
   clienteNome: string;
   nomeArquivo: string;
   titulo: string;
-  conteudo?: ExtratoPublicaConteudo;
 }) {
   const { blobParaBase64 } = await import("@/lib/pdf-viewer-aba");
   const base64 = await blobParaBase64(input.blob);
@@ -86,7 +81,6 @@ export async function publicarExtratoPublica(input: {
       clienteNome: input.clienteNome,
       nomeArquivo: input.nomeArquivo,
       titulo: input.titulo,
-      conteudo: input.conteudo,
     }),
   });
   const json = (await res.json().catch(() => ({}))) as {

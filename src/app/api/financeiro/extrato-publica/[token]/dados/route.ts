@@ -38,7 +38,6 @@ export async function GET(_request: Request, { params }: Params) {
     titulo: registro.titulo,
     nomeArquivo: registro.nomeArquivo,
     clienteNome: registro.clienteNome,
-    conteudo: registro.conteudo ?? null,
     temPdf: Boolean(registro.base64),
   });
 }
