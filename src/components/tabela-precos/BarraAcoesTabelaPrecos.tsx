@@ -9,13 +9,15 @@ import {
   Settings,
   Trash2,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type Props = {
   onEmail: () => void;
   onExportarExcel: () => void;
   onExportarPdf: () => void;
   onConfiguracoes: () => void;
-  onExpandir: () => void;
+  modoArrastar: boolean;
+  onAlternarModoArrastar: () => void;
   onImprimir: () => void;
   onPercentual: () => void;
   onExcluir: () => void;
@@ -28,7 +30,8 @@ export function BarraAcoesTabelaPrecos({
   onExportarExcel,
   onExportarPdf,
   onConfiguracoes,
-  onExpandir,
+  modoArrastar,
+  onAlternarModoArrastar,
   onImprimir,
   onPercentual,
   onExcluir,
@@ -77,10 +80,19 @@ export function BarraAcoesTabelaPrecos({
       </button>
       <button
         type="button"
-        title="Expandir ou recolher categorias"
+        title={
+          modoArrastar
+            ? "Desativar arrastar tabelas"
+            : "Arrastar e reorganizar tabelas"
+        }
         disabled={bloqueado}
-        onClick={onExpandir}
-        className="rounded p-1.5 hover:bg-[#4a4a4a] disabled:cursor-not-allowed disabled:opacity-50"
+        onClick={onAlternarModoArrastar}
+        className={cn(
+          "rounded p-1.5 disabled:cursor-not-allowed disabled:opacity-50",
+          modoArrastar
+            ? "bg-emerald-600 text-white hover:bg-emerald-700"
+            : "hover:bg-[#4a4a4a]"
+        )}
       >
         <Move className="h-3.5 w-3.5" />
       </button>
