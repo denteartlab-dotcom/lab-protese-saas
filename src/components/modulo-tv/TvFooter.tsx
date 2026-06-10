@@ -64,7 +64,19 @@ export function TvFooter({
               </p>
             )}
           </div>
-          <div className="mx-auto mt-3 min-h-[2.75rem] max-w-lg tv:min-h-[3rem]">
+          <div className="relative mx-auto mt-3 min-h-[3.25rem] max-w-2xl px-10 py-1 tv:min-h-[3.75rem] tv:px-12 tv-4k:min-h-[4.25rem]">
+            <span
+              className="pointer-events-none absolute left-1 top-0 select-none font-serif text-4xl leading-none text-slate-500/30 tv:left-2 tv:text-5xl tv-4k:text-6xl"
+              aria-hidden
+            >
+              “
+            </span>
+            <span
+              className="pointer-events-none absolute bottom-0 right-1 select-none font-serif text-4xl leading-none text-slate-500/30 tv:right-2 tv:text-5xl tv-4k:text-6xl"
+              aria-hidden
+            >
+              ”
+            </span>
             <AnimatePresence mode="wait">
               <motion.p
                 key={fraseMotivacional}
@@ -72,7 +84,7 @@ export function TvFooter({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.45 }}
-                className="text-[10px] italic leading-relaxed text-slate-500 tv:text-[11px] tv-4k:text-xs"
+                className="relative z-10 px-1 text-center text-[10px] leading-relaxed text-slate-200 tv:text-[11px] tv-4k:text-xs"
               >
                 {fraseMotivacional}
               </motion.p>
