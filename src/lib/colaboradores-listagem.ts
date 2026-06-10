@@ -47,7 +47,7 @@ function normalizarColaborador(colaborador: ColaboradorStorage): ColaboradorList
   };
 }
 
-/** Lista colaboradores do cadastro (localStorage), ordenados por nome. */
+/** Lista colaboradores do cadastro (banco), ordenados por nome. */
 export function carregarColaboradoresListagem(): ColaboradorListagem[] {
   const lista = readStorage<ColaboradorStorage[]>(COLABORADORES_STORAGE_KEY, colaboradoresPadrao);
   return lista

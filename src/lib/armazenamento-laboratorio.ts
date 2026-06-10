@@ -10,8 +10,6 @@ import {
 const cache = new Map<string, unknown>();
 const chavesDoServidor = new Set<string>();
 const snapshotServidor = new Map<string, string>();
-const hidratadoPorChave = new Set<string>();
-const snapshotHidratacaoCliente = new Map<string, string>();
 let hidratado = false;
 let bootstrapOk = false;
 let hidratando: Promise<void> | null = null;
@@ -21,7 +19,7 @@ let timerSalvar: ReturnType<typeof setTimeout> | null = null;
 export const ARMAZENAMENTO_LAB_PRONTO_EVENT = "lab-armazenamento-pronto";
 
 export type OpcoesGravarArmazenamento = {
-  /** Grava no banco mesmo quando a chave ainda não existia no servidor. */
+  /** Use `{ forcar: false }` apenas para atualizar cache local sem gravar no banco. */
   forcar?: boolean;
 };
 
@@ -151,40 +149,21 @@ function aplicarBootstrap(data: Record<string, unknown>) {
   cache.clear();
   chavesDoServidor.clear();
   snapshotServidor.clear();
-  hidratadoPorChave.clear();
-  snapshotHidratacaoCliente.clear();
   for (const [key, valor] of Object.entries(data)) {
     cache.set(key, valor);
     atualizarSnapshotServidor(key, valor);
   }
 }
 
+/** Toda alteração no cache deve ir para o PostgreSQL (JsonStore). */
 function devePersistirGravacao(
   key: string,
   valor: unknown,
   opcoes?: OpcoesGravarArmazenamento
 ) {
-  if (opcoes?.forcar) return true;
-
+  if (opcoes?.forcar === false) return false;
   const novo = serializarValor(valor);
-  const antigoServidor = snapshotServidor.get(key);
-
-  if (!hidratadoPorChave.has(key)) {
-    hidratadoPorChave.add(key);
-    snapshotHidratacaoCliente.set(key, novo);
-    if (!chavesDoServidor.has(key)) {
-      return false;
-    }
-    return antigoServidor !== novo;
-  }
-
-  if (antigoServidor === novo) return false;
-
-  if (!chavesDoServidor.has(key)) {
-    return snapshotHidratacaoCliente.get(key) !== novo;
-  }
-
-  return true;
+  return snapshotServidor.get(key) !== novo;
 }
 
 /** Aplica valores de limpeza/restauração no cache e persiste no servidor. */
@@ -201,16 +180,12 @@ export async function aplicarArmazenamentoLaboratorioCliente(
     cache.delete(key);
     chavesDoServidor.delete(key);
     snapshotServidor.delete(key);
-    hidratadoPorChave.delete(key);
-    snapshotHidratacaoCliente.delete(key);
     filaSalvar.set(key, null);
   }
   if (prefixosRemover.some((p) => p.startsWith(LISTAGEM_CONFIG_PREFIX))) {
     cache.delete(LISTAGEM_CONFIGS_KEY);
     chavesDoServidor.delete(LISTAGEM_CONFIGS_KEY);
     snapshotServidor.delete(LISTAGEM_CONFIGS_KEY);
-    hidratadoPorChave.delete(LISTAGEM_CONFIGS_KEY);
-    snapshotHidratacaoCliente.delete(LISTAGEM_CONFIGS_KEY);
     filaSalvar.set(LISTAGEM_CONFIGS_KEY, {});
   }
   await flushSalvarPendentes();
@@ -248,12 +223,59 @@ async function flushSalvarPendentes() {
   if (filaSalvar.size === 0) return;
   const entradas = Object.fromEntries(filaSalvar.entries());
   filaSalvar.clear();
+  if (timerSalvar) {
+    clearTimeout(timerSalvar);
+    timerSalvar = null;
+  }
+
+  for (let tentativa = 1; tentativa <= 3; tentativa += 1) {
+    try {
+      const res = await fetch("/api/armazenamento/migrar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        cache: "no-store",
+        body: JSON.stringify({ entradas, sobrescrever: true }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      for (const [key, valor] of Object.entries(entradas)) {
+        if (valor === null) {
+          chavesDoServidor.delete(key);
+          snapshotServidor.delete(key);
+          continue;
+        }
+        atualizarSnapshotServidor(key, valor);
+      }
+      return;
+    } catch (err) {
+      console.error(
+        `[armazenamento-laboratorio] falha ao salvar (tentativa ${tentativa}/3)`,
+        err
+      );
+      if (tentativa === 3) {
+        for (const [k, v] of Object.entries(entradas)) {
+          filaSalvar.set(k, v);
+        }
+      }
+    }
+  }
+}
+
+function flushSalvarPendentesKeepalive() {
+  if (filaSalvar.size === 0) return;
+  const entradas = Object.fromEntries(filaSalvar.entries());
+  filaSalvar.clear();
+  if (timerSalvar) {
+    clearTimeout(timerSalvar);
+    timerSalvar = null;
+  }
   try {
-    await fetch("/api/armazenamento/migrar", {
+    void fetch("/api/armazenamento/migrar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "same-origin",
       cache: "no-store",
+      keepalive: true,
       body: JSON.stringify({ entradas, sobrescrever: true }),
     });
     for (const [key, valor] of Object.entries(entradas)) {
@@ -264,8 +286,7 @@ async function flushSalvarPendentes() {
       }
       atualizarSnapshotServidor(key, valor);
     }
-  } catch (err) {
-    console.error("[armazenamento-laboratorio] falha ao salvar", err);
+  } catch {
     for (const [k, v] of Object.entries(entradas)) {
       filaSalvar.set(k, v);
     }
@@ -339,6 +360,7 @@ export async function inicializarArmazenamentoLaboratorio() {
       hidratado = true;
       dispararPronto();
       hidratando = null;
+      void flushSalvarPendentes();
     });
 
   return hidratando;
@@ -361,15 +383,19 @@ export function gravarArmazenamentoCache<T>(
   opcoes?: OpcoesGravarArmazenamento
 ) {
   cache.set(key, valor);
-  if (typeof window === "undefined" || !hidratado) return;
+  if (typeof window === "undefined") return;
   if (!devePersistirGravacao(key, valor, opcoes)) return;
-  atualizarSnapshotServidor(key, valor);
+
+  if (!hidratado) {
+    filaSalvar.set(key, valor);
+    return;
+  }
+
   agendarSalvar(key, valor);
 }
 
 export async function persistirArmazenamentoImediato(key: string, valor: unknown) {
   cache.set(key, valor);
-  hidratadoPorChave.add(key);
   atualizarSnapshotServidor(key, valor);
   filaSalvar.delete(key);
   await fetch("/api/armazenamento/migrar", {
@@ -378,5 +404,14 @@ export async function persistirArmazenamentoImediato(key: string, valor: unknown
     credentials: "same-origin",
     cache: "no-store",
     body: JSON.stringify({ entradas: { [key]: valor }, sobrescrever: true }),
+  });
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", flushSalvarPendentesKeepalive);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      void flushSalvarPendentes();
+    }
   });
 }

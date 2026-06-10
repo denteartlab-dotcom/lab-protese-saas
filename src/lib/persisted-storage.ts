@@ -1,6 +1,7 @@
 /**
  * Armazenamento do laboratório — fonte de verdade no PostgreSQL (JsonStore).
- * Cache em memória após inicializarArmazenamentoLaboratorio() no AppShell.
+ * O navegador mantém apenas cache em memória; limpar cache/cookies não apaga cadastros.
+ * Toda gravação via writeStorage é sincronizada com o banco automaticamente.
  */
 import {
   chaveExisteNoServidor,
@@ -23,7 +24,7 @@ export function readStorage<T>(key: string, fallback: T): T {
 
 /**
  * Lê lista do banco quando a chave existe no servidor; caso contrário usa fallback
- * apenas para exibição (não será gravado automaticamente).
+ * até o primeiro cadastro ser gravado.
  */
 export function readStorageArray<T>(key: string, fallbackExibicao: T[]): T[] {
   if (!chaveExisteNoServidor(key)) {

@@ -1,10 +1,10 @@
 /** Prefixo de chaves persistidas no JsonStore (PostgreSQL). */
 export const ARMAZENAMENTO_LAB_PREFIX = "labProtese";
 
-/** Listagens (substitui labProteseListaConfig:* no localStorage). */
+/** Listagens de colunas das telas (JsonStore). */
 export const LISTAGEM_CONFIGS_KEY = "labProteseListaConfigs";
 
-/** Prefixo legado de listagem no navegador — só para migração. */
+/** Prefixo legado de listagem no navegador — migrado uma vez para o banco. */
 export const LISTAGEM_CONFIG_PREFIX = "labProteseListaConfig:";
 
 /**
@@ -62,7 +62,18 @@ export const CHAVES_ARMAZENAMENTO_LAB = [
   "labProtesePrefsUi",
   "labProteseTheme",
   "labProteseControleComissaoZero",
+  "labProteseControlePrestadoresComissaoZero",
+  "labProteseControleProdutor",
+  "labProteseControleEntregas",
   "labProteseModuloProducaoEtapas",
+  "labProteseConfiguracoesEtiquetas",
+  "labProteseEtiquetasCategoria",
+  "labProteseNotifNotaVencidaEnvios",
+  "labProteseOrcamentos",
+  "labProteseFinanceiroDbMigrado",
+  "labProtesePalavraChaveRestaurar",
+  "labProteseTentativasSenhaRestaurar",
+  "labProteseUrgenciasCliente",
   LISTAGEM_CONFIGS_KEY,
 ] as const;
 
