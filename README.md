@@ -1,6 +1,6 @@
 # Lab Prótese — SaaS para Laboratório de Prótese Dentária
 
-Sistema completo de gestão inspirado no [Smart Prótese](https://smartprotese.app), com landing page, login, cadastro de clientes e pacientes, ordens de serviço (OS) com impressão e módulo financeiro.
+Sistema completo de gestão laboratorial, com landing page, login, cadastro de clientes e pacientes, ordens de serviço (OS) com impressão e módulo financeiro.
 
 ## Funcionalidades
 
