@@ -43,7 +43,7 @@ app.prepare().then(() => {
   });
 
   iniciarTvRefreshAutomatico();
-  iniciarBackupAutomaticoDiario();
+  void iniciarBackupAutomaticoDiario();
 
   httpServer.listen(port, () => {
     console.log(`> Smart Prótese pronto em http://${hostname}:${port}`);

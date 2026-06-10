@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, Upload, AlertTriangle, RotateCcw } from "lucide-react";
+import { Clock, Download, Upload, AlertTriangle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui";
 import { useI18n } from "@/components/i18n-provider";
 import { RestaurarPadraoModal } from "@/components/configuracoes/RestaurarPadraoModal";
@@ -11,6 +11,37 @@ type Props = {
   onMensagem?: (texto: string, tipo?: "info" | "sucesso" | "erro") => void;
 };
 
+type StatusBackupAutomatico = {
+  config: {
+    ativo: boolean;
+    diaSemana: number | null;
+    hora: number;
+    minuto: number;
+    ultimoBackupEm: string | null;
+    proximoBackupEm: string | null;
+    ultimoArquivo: string | null;
+  };
+  servidorHabilitado: boolean;
+  arquivoPadrao: string;
+  arquivoExiste: boolean;
+  ultimoBackupFormatado: string | null;
+  proximoBackupFormatado: string | null;
+};
+
+const DIAS_SEMANA_KEYS = [
+  "settings.backupAutoDiaDom",
+  "settings.backupAutoDiaSeg",
+  "settings.backupAutoDiaTer",
+  "settings.backupAutoDiaQua",
+  "settings.backupAutoDiaQui",
+  "settings.backupAutoDiaSex",
+  "settings.backupAutoDiaSab",
+] as const;
+
+function horarioParaInput(hora: number, minuto: number) {
+  return `${String(hora).padStart(2, "0")}:${String(minuto).padStart(2, "0")}`;
+}
+
 export function BackupLaboratorioTab({ onMensagem }: Props) {
   const { t } = useI18n();
   const [exportando, setExportando] = useState(false);
@@ -19,15 +50,78 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [modalPadraoAberto, setModalPadraoAberto] = useState(false);
   const [ehProprietario, setEhProprietario] = useState(false);
+  const [statusAuto, setStatusAuto] = useState<StatusBackupAutomatico | null>(null);
+  const [carregandoAuto, setCarregandoAuto] = useState(false);
+  const [salvandoAuto, setSalvandoAuto] = useState(false);
+  const [autoAtivo, setAutoAtivo] = useState(true);
+  const [autoDia, setAutoDia] = useState<string>("todos");
+  const [autoHorario, setAutoHorario] = useState("00:00");
+
+  async function carregarStatusAutomatico() {
+    setCarregandoAuto(true);
+    try {
+      const res = await fetch("/api/backup/automatico", { credentials: "same-origin" });
+      if (!res.ok) return;
+      const data = (await res.json()) as StatusBackupAutomatico;
+      setStatusAuto(data);
+      setAutoAtivo(data.config.ativo);
+      setAutoDia(
+        data.config.diaSemana === null ? "todos" : String(data.config.diaSemana)
+      );
+      setAutoHorario(horarioParaInput(data.config.hora, data.config.minuto));
+    } finally {
+      setCarregandoAuto(false);
+    }
+  }
 
   useEffect(() => {
     void (async () => {
       const res = await fetch("/api/backup/seguranca-restaurar", {
         credentials: "same-origin",
       });
-      setEhProprietario(res.ok);
+      const proprietario = res.ok;
+      setEhProprietario(proprietario);
+      if (proprietario) {
+        await carregarStatusAutomatico();
+      }
     })();
   }, []);
+
+  async function salvarAgendamentoAutomatico() {
+    const [horaTexto, minutoTexto] = autoHorario.split(":");
+    const hora = Number(horaTexto);
+    const minuto = Number(minutoTexto);
+    if (!Number.isFinite(hora) || !Number.isFinite(minuto)) {
+      onMensagem?.(t("settings.backupAutoHorarioInvalido"), "erro");
+      return;
+    }
+
+    setSalvandoAuto(true);
+    try {
+      const res = await fetch("/api/backup/automatico", {
+        method: "PUT",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ativo: autoAtivo,
+          diaSemana: autoDia === "todos" ? null : Number(autoDia),
+          hora,
+          minuto,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        onMensagem?.(data.error || t("settings.backupAutoErro"), "erro");
+        return;
+      }
+      setStatusAuto(data as StatusBackupAutomatico);
+      onMensagem?.(t("settings.backupAutoSalvo"), "sucesso");
+    } catch {
+      onMensagem?.(t("settings.backupAutoErro"), "erro");
+    } finally {
+      setSalvandoAuto(false);
+    }
+  }
 
   async function exportar() {
     setExportando(true);
@@ -111,6 +205,110 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
         </h2>
         <p className="mt-1 text-xs text-slate-600">{t("settings.backupDescricao")}</p>
       </div>
+
+      {ehProprietario && (
+        <section className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-5">
+          <div className="flex items-start gap-3">
+            <Clock className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
+            <div className="flex-1 space-y-4">
+              <div>
+                <h3 className="text-sm font-medium text-emerald-950">
+                  {t("settings.backupAutoTitulo")}
+                </h3>
+                <p className="mt-1 text-xs text-emerald-900/90">
+                  {t("settings.backupAutoDesc")}
+                </p>
+              </div>
+
+              {carregandoAuto ? (
+                <p className="text-xs text-emerald-800">{t("settings.backupAutoCarregando")}</p>
+              ) : (
+                <>
+                  <div className="rounded border border-emerald-200 bg-white/90 px-3 py-3 text-xs text-emerald-950">
+                    {statusAuto?.ultimoBackupFormatado ? (
+                      <p>
+                        <span className="font-semibold">{t("settings.backupAutoUltimoLabel")}</span>{" "}
+                        {statusAuto.ultimoBackupFormatado}
+                      </p>
+                    ) : (
+                      <p className="text-emerald-800">{t("settings.backupAutoUltimoNunca")}</p>
+                    )}
+                    <p className="mt-1.5">
+                      <span className="font-semibold">{t("settings.backupAutoProximoLabel")}</span>{" "}
+                      {statusAuto?.config.ativo && statusAuto.proximoBackupFormatado
+                        ? statusAuto.proximoBackupFormatado
+                        : t("settings.backupAutoProximoDesativado")}
+                    </p>
+                    {statusAuto?.arquivoPadrao && (
+                      <p className="mt-1.5 text-[11px] text-emerald-800">
+                        {t("settings.backupAutoArquivo").replace(
+                          "{caminho}",
+                          statusAuto.arquivoPadrao
+                        )}
+                        {statusAuto.arquivoExiste
+                          ? ` (${t("settings.backupAutoArquivoOk")})`
+                          : ` (${t("settings.backupAutoArquivoPendente")})`}
+                      </p>
+                    )}
+                  </div>
+
+                  <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-emerald-950">
+                    <input
+                      type="checkbox"
+                      checked={autoAtivo}
+                      onChange={(evento) => setAutoAtivo(evento.target.checked)}
+                      className="h-3.5 w-3.5 accent-emerald-600"
+                      disabled={salvandoAuto}
+                    />
+                    {t("settings.backupAutoAtivo")}
+                  </label>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block text-xs font-medium text-emerald-950">
+                      {t("settings.backupAutoDia")}
+                      <select
+                        value={autoDia}
+                        onChange={(evento) => setAutoDia(evento.target.value)}
+                        disabled={salvandoAuto || !autoAtivo}
+                        className="mt-1 h-9 w-full rounded border border-emerald-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                      >
+                        <option value="todos">{t("settings.backupAutoDiaTodos")}</option>
+                        {DIAS_SEMANA_KEYS.map((key, indice) => (
+                          <option key={key} value={String(indice)}>
+                            {t(key)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="block text-xs font-medium text-emerald-950">
+                      {t("settings.backupAutoHorario")}
+                      <input
+                        type="time"
+                        value={autoHorario}
+                        onChange={(evento) => setAutoHorario(evento.target.value)}
+                        disabled={salvandoAuto || !autoAtivo}
+                        className="mt-1 h-9 w-full rounded border border-emerald-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                      />
+                    </label>
+                  </div>
+
+                  <Button
+                    type="button"
+                    disabled={salvandoAuto}
+                    onClick={() => void salvarAgendamentoAutomatico()}
+                    className="rounded bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700 disabled:opacity-60"
+                  >
+                    {salvandoAuto
+                      ? t("settings.backupAutoSalvando")
+                      : t("settings.backupAutoSalvar")}
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="rounded-lg border border-slate-200 bg-slate-50/80 p-5">
         <div className="flex items-start gap-3">

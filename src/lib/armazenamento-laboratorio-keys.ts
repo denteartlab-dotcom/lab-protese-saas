@@ -74,6 +74,7 @@ export const CHAVES_ARMAZENAMENTO_LAB = [
   "labProtesePalavraChaveRestaurar",
   "labProteseTentativasSenhaRestaurar",
   "labProteseUrgenciasCliente",
+  "labProteseBackupAutomatico",
   LISTAGEM_CONFIGS_KEY,
 ] as const;
 
