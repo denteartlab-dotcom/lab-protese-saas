@@ -4,6 +4,14 @@ import {
   telefoneWhatsappLaboratorio,
 } from "@/lib/configuracoes-lab";
 import { baixarExcel } from "@/lib/exportar-excel";
+import {
+  alinhamentoPdfImpressao,
+  configPadraoImpressaoTabelaPrecos,
+  fontePdfImpressao,
+  hexParaRgb,
+  pxParaMm,
+  type ConfigImpressaoTabelaPrecos,
+} from "@/lib/tabela-precos-impressao-config";
 
 export type ItemTabelaPrecoExport = {
   nome: string;
@@ -100,8 +108,10 @@ function cabecalhoPdfTabela(tabela: string) {
 
 export async function gerarPdfTabelaPrecos(
   tabela: string,
-  categorias: CategoriaTabelaPrecoExport[]
+  categorias: CategoriaTabelaPrecoExport[],
+  config?: ConfigImpressaoTabelaPrecos | null
 ): Promise<Blob> {
+  const cfg = config ?? configPadraoImpressaoTabelaPrecos(tabela);
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = pdf.internal.pageSize.getWidth();
@@ -111,31 +121,55 @@ export async function gerarPdfTabelaPrecos(
   const contentW = pageW - margin * 2;
   let y = 20;
 
+  const fontePdf = fontePdfImpressao(cfg.tipoFonte);
+  const tamanhoCategoria = cfg.tamanhoFonte * 0.75;
+  const tamanhoServico = Math.max(6, (cfg.tamanhoFonte - 2) * 0.75);
+  const rowH = Math.max(6, pxParaMm(cfg.espacamentoServicos));
+  const gapCategoria = pxParaMm(cfg.espacamentoCategorias);
+  const [rCat, gCat, bCat] = hexParaRgb(cfg.corCategorias);
+  const [rSrv, gSrv, bSrv] = hexParaRgb(cfg.corServicos);
+  const [rBord, gBord, bBord] = hexParaRgb(cfg.corBordas);
+  const alinhamento = alinhamentoPdfImpressao(cfg.alinhamentoCategoria);
+
+  function xCategoria() {
+    if (alinhamento === "left") return margin;
+    if (alinhamento === "right") return pageW - margin;
+    return centerX;
+  }
+
   const cab = cabecalhoPdfTabela(tabela);
 
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(14);
-  pdf.text(cab.nome, centerX, y, { align: "center" });
-  y += 7;
+  if (cfg.mostrarCabecalho) {
+    pdf.setFont(fontePdf, "bold");
+    pdf.setFontSize(tamanhoCategoria);
+    pdf.setTextColor(0, 0, 0);
+    pdf.text(cab.nome, centerX, y, { align: "center" });
+    y += 7;
 
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(10);
-  if (cab.telefone) {
-    pdf.text(cab.telefone, centerX, y, { align: "center" });
-    y += 5;
+    pdf.setFont(fontePdf, "normal");
+    pdf.setFontSize(tamanhoServico);
+    if (cab.telefone) {
+      pdf.text(cab.telefone, centerX, y, { align: "center" });
+      y += 5;
+    }
+    if (cab.email) {
+      pdf.text(cab.email, centerX, y, { align: "center" });
+      y += 5;
+    }
+
+    y += 3;
+    pdf.setDrawColor(rBord, gBord, bBord);
+    pdf.line(margin, y, pageW - margin, y);
+    y += 8;
   }
-  if (cab.email) {
-    pdf.text(cab.email, centerX, y, { align: "center" });
-    y += 5;
+
+  if (cfg.titulo.trim()) {
+    pdf.setFont(fontePdf, "normal");
+    pdf.setFontSize(tamanhoCategoria);
+    pdf.setTextColor(rCat, gCat, bCat);
+    pdf.text(cfg.titulo.trim().toUpperCase(), centerX, y, { align: "center" });
+    y += gapCategoria + 2;
   }
-
-  y += 3;
-  pdf.setDrawColor(190, 190, 190);
-  pdf.line(margin, y, pageW - margin, y);
-  y += 10;
-
-  const rowH = 7;
-  const gapCategoria = 8;
 
   function novaPaginaSeNecessario(altura: number) {
     if (y + altura > pageH - margin) {
@@ -148,28 +182,52 @@ export async function gerarPdfTabelaPrecos(
     const itens = categoria.servicos.filter((servico) => !servico.oculto);
     if (itens.length === 0) continue;
 
-    novaPaginaSeNecessario(14);
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(12);
-    pdf.text(categoria.nome, centerX, y, { align: "center" });
+    novaPaginaSeNecessario(gapCategoria + rowH);
+    pdf.setFont(fontePdf, "normal");
+    pdf.setFontSize(tamanhoCategoria);
+    pdf.setTextColor(rCat, gCat, bCat);
+    pdf.text(categoria.nome, xCategoria(), y, { align: alinhamento });
     y += gapCategoria;
 
     for (const servico of itens) {
       novaPaginaSeNecessario(rowH + 2);
       pdf.setFillColor(248, 248, 248);
-      pdf.setDrawColor(225, 225, 225);
+      pdf.setDrawColor(rBord, gBord, bBord);
       pdf.rect(margin, y - 5, contentW, rowH, "FD");
 
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(10);
+      pdf.setFont(fontePdf, "normal");
+      pdf.setFontSize(tamanhoServico);
+      pdf.setTextColor(rSrv, gSrv, bSrv);
       const nomeLinha =
         pdf.splitTextToSize(servico.nome, contentW - 40)[0] || servico.nome;
       pdf.text(nomeLinha, margin + 3, y);
-      pdf.text(money(servico.valor), pageW - margin - 3, y, { align: "right" });
+      pdf.text(`R$ ${money(servico.valor)}`, pageW - margin - 3, y, {
+        align: "right",
+      });
       y += rowH + 1.5;
     }
 
-    y += 4;
+    y += pxParaMm(4);
+  }
+
+  const observacoes = [
+    cfg.observacao1,
+    cfg.observacao2,
+    cfg.observacao3,
+    cfg.observacao4,
+  ].filter((texto) => texto.trim());
+
+  if (observacoes.length > 0) {
+    y += 6;
+    novaPaginaSeNecessario(observacoes.length * 5 + 4);
+    pdf.setFont(fontePdf, "normal");
+    pdf.setFontSize(tamanhoServico);
+    pdf.setTextColor(rSrv, gSrv, bSrv);
+    for (const texto of observacoes) {
+      novaPaginaSeNecessario(6);
+      pdf.text(texto, margin, y);
+      y += 5;
+    }
   }
 
   return pdf.output("blob");

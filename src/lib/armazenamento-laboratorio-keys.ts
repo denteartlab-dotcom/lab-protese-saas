@@ -27,6 +27,7 @@ export const CHAVES_ARMAZENAMENTO_LAB = [
   "labProteseProdutosExcluidosSnapshots",
   "labProteseProdutosRemovidosPermanentemente",
   "labProteseTabelaPrecos",
+  "labProteseTabelaPrecosImpressao",
   "labProteseItensCustoCadastro",
   "labProteseEtapas",
   "labProteseEtapasExcluidas",

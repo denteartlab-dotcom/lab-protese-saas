@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Box,
@@ -174,6 +175,7 @@ const initialCategorias: CategoriaPreco[] = [
 ];
 
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
+import { carregarConfigImpressaoTabelaPrecos } from "@/lib/tabela-precos-impressao-config";
 import {
   baixarPdfTabelaPrecos,
   exportarTabelaPrecosExcel,
@@ -234,6 +236,7 @@ function novaEtapaServico(): EtapaServico {
 }
 
 export default function TabelaPrecosPage() {
+  const router = useRouter();
   const [tabela, setTabela] = useState("");
   const [tabelas, setTabelas] = useState<string[]>([]);
   const [categoriasPorTabela, setCategoriasPorTabela] = useState<Record<string, CategoriaPreco[]>>({});
@@ -412,6 +415,11 @@ export default function TabelaPrecosPage() {
   function abrirEditarTabela() {
     setNomeTabelaEditando(tabela);
     setModalEditarTabela(true);
+  }
+
+  function abrirConfigImpressao() {
+    const params = new URLSearchParams({ tabela });
+    router.push(`/app/cadastros/tabela-precos/impressao?${params.toString()}`);
   }
 
   function salvarTabelaEditada() {
@@ -1150,7 +1158,12 @@ export default function TabelaPrecosPage() {
     }
     setProcessandoAcoes(true);
     try {
-      const blob = await gerarPdfTabelaPrecos(tabela, categoriasParaExportacao());
+      const config = await carregarConfigImpressaoTabelaPrecos(tabela);
+      const blob = await gerarPdfTabelaPrecos(
+        tabela,
+        categoriasParaExportacao(),
+        config
+      );
       const data = new Date().toLocaleDateString("pt-BR").replace(/\//g, "-");
       baixarPdfTabelaPrecos(blob, `tabela-precos-${data}.pdf`);
     } catch {
@@ -1167,8 +1180,9 @@ export default function TabelaPrecosPage() {
     }
     setProcessandoAcoes(true);
     try {
+      const config = await carregarConfigImpressaoTabelaPrecos(tabela);
       await abrirPdfGerando(
-        () => gerarPdfTabelaPrecos(tabela, categoriasParaExportacao()),
+        () => gerarPdfTabelaPrecos(tabela, categoriasParaExportacao(), config),
         "tabela-precos.pdf",
         `Tabela de Preços — ${tabela}`
       );
@@ -1320,7 +1334,7 @@ export default function TabelaPrecosPage() {
             onEmail={enviarTabelaPorEmail}
             onExportarExcel={() => void exportarTabelaExcel()}
             onExportarPdf={() => void baixarTabelaPdf()}
-            onConfiguracoes={abrirEditarTabela}
+            onConfiguracoes={abrirConfigImpressao}
             onExpandir={alternarExpandirCategorias}
             onImprimir={() => void imprimirTabela()}
             onPercentual={aplicarReajustePercentual}

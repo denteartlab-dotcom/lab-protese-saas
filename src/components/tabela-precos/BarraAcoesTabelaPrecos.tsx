@@ -68,7 +68,7 @@ export function BarraAcoesTabelaPrecos({
       </button>
       <button
         type="button"
-        title="Configurações da tabela"
+        title="Configuração de impressão"
         disabled={bloqueado}
         onClick={onConfiguracoes}
         className="rounded p-1.5 hover:bg-[#4a4a4a] disabled:cursor-not-allowed disabled:opacity-50"
