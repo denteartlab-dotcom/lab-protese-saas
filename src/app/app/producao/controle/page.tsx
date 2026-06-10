@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
+  AlertTriangle,
   Camera,
   Edit3,
   Eye,
@@ -909,6 +910,7 @@ export default function ControlePage() {
   const [filtroFichasSemServicos, setFiltroFichasSemServicos] = useState(false);
   const [imprimirOs, setImprimirOs] = useState<Trabalho | null>(null);
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+  const [avisoConfirmarItem, setAvisoConfirmarItem] = useState("");
 
   async function load() {
     const params = new URLSearchParams();
@@ -1214,6 +1216,7 @@ export default function ControlePage() {
   }
 
   function fecharEdicaoOs() {
+    setAvisoConfirmarItem("");
     setEditando(null);
     setForm(null);
     setEditItems([]);
@@ -1585,6 +1588,38 @@ export default function ControlePage() {
     }));
   }
 
+  function itemEdicaoEquivalente(a: EditItem, b: EditItem) {
+    return (
+      a.servico === b.servico &&
+      (a.categoria || "") === (b.categoria || "") &&
+      a.numeroDente === b.numeroDente &&
+      a.corDente === b.corDente &&
+      a.quantidade === b.quantidade &&
+      Math.abs(a.valor - b.valor) < 0.01 &&
+      (a.descontoTipo || "") === (b.descontoTipo || "") &&
+      (a.desconto || "") === (b.desconto || "") &&
+      (a.situacao || "") === (b.situacao || "") &&
+      Boolean(a.urgente) === Boolean(b.urgente) &&
+      Boolean(a.repeticao) === Boolean(b.repeticao) &&
+      (a.observacao || "") === (b.observacao || "") &&
+      (a.produtoId || "") === (b.produtoId || "")
+    );
+  }
+
+  function temAlteracoesPendentesItemEdicao() {
+    if (!itemSelecionadoId || !form) return false;
+    const base = editItems.find((item) => item.id === itemSelecionadoId);
+    if (!base) return false;
+    const atualizado = montarItemEdicaoAtual();
+    if (!atualizado) return false;
+    return !itemEdicaoEquivalente(base, atualizado);
+  }
+
+  function formularioNovoServicoPendente() {
+    if (!adicionandoServico || !form) return false;
+    return Boolean(form.tipoProtese.trim()) || dentesEdicao.length > 0;
+  }
+
   function montarItemEdicaoAtual(): EditItem | null {
     if (!itemSelecionadoId || !form) return null;
     const base = editItems.find((item) => item.id === itemSelecionadoId);
@@ -1654,6 +1689,7 @@ export default function ControlePage() {
     setEditItems((itens) =>
       itens.map((item) => (item.id === itemSelecionadoId ? atualizado : item))
     );
+    setAvisoConfirmarItem("");
   }
 
   function novoItemProdutoEdicao(): EditItem | null {
@@ -1692,6 +1728,7 @@ export default function ControlePage() {
 
   function confirmarEdicaoItem() {
     if (osFaturada) return;
+    const limparAvisoItem = () => setAvisoConfirmarItem("");
     if (itemSelecionadoId) {
       const itemSelecionado = editItems.find((item) => item.id === itemSelecionadoId);
       const selecionadoEhServico = itemSelecionado
@@ -1704,6 +1741,7 @@ export default function ControlePage() {
         if (!novoProduto) return;
         setEditItems((atuais) => [...atuais, novoProduto]);
         selecionarItemEdicao(novoProduto);
+        limparAvisoItem();
         return;
       }
 
@@ -1716,6 +1754,7 @@ export default function ControlePage() {
         if (!novoTransporte) return;
         setEditItems((atuais) => [...atuais, novoTransporte]);
         selecionarItemEdicao(novoTransporte);
+        limparAvisoItem();
         return;
       }
 
@@ -1729,6 +1768,7 @@ export default function ControlePage() {
       setAdicionandoServico(false);
       setProdutosOs([]);
       setAbaServicoEdicao("etapas");
+      limparAvisoItem();
       return;
     }
     if (!form) return;
@@ -1753,6 +1793,7 @@ export default function ControlePage() {
       setEditItems((atuais) => [...atuais, novo]);
       setAdicionandoServico(false);
       setForm((atual) => (atual ? { ...atual, observacaoServico: "" } : atual));
+      limparAvisoItem();
       return;
     }
     if (painelEdicaoItem === "produto") {
@@ -1760,6 +1801,7 @@ export default function ControlePage() {
       if (!novo) return;
       setEditItems((atuais) => [...atuais, novo]);
       selecionarItemEdicao(novo);
+      limparAvisoItem();
       return;
     }
     if (painelEdicaoItem === "transporte") {
@@ -1767,6 +1809,7 @@ export default function ControlePage() {
       if (!novo) return;
       setEditItems((atuais) => [...atuais, novo]);
       selecionarItemEdicao(novo);
+      limparAvisoItem();
     }
   }
 
@@ -1816,6 +1859,18 @@ export default function ControlePage() {
 
   async function salvarEdicao() {
     if (!editando || !form || salvandoEdicao) return;
+
+    if (!osFaturada) {
+      if (formularioNovoServicoPendente()) {
+        setAvisoConfirmarItem("Clique em + Adicionar Serviço antes de gravar.");
+        return;
+      }
+      if (temAlteracoesPendentesItemEdicao()) {
+        setAvisoConfirmarItem("Clique em Atualizar Item Selecionado antes de gravar.");
+        return;
+      }
+    }
+    setAvisoConfirmarItem("");
 
     setSalvandoEdicao(true);
     try {
@@ -1870,21 +1925,7 @@ export default function ControlePage() {
       return;
     }
 
-    let itensSalvar = [...editItems];
-    if (itemSelecionadoId && form) {
-      const atualizado = montarItemEdicaoAtual();
-      if (atualizado) {
-        itensSalvar = editItems.map((item) =>
-          item.id === itemSelecionadoId ? atualizado : item
-        );
-      }
-    } else if (form) {
-      itensSalvar = itensSalvar.map((item) =>
-        classificarItemOs(item) === "servico" && itemUsaCamposOdontologicos(item)
-          ? { ...item, urgente: form.urgente, repeticao: form.repeticao }
-          : item
-      );
-    }
+    const itensSalvar = [...editItems];
 
     const blocosSalvar = planejarBlocosSalvarOs(itensSalvar);
     const dividir = blocosSalvar.length > 1 || deveDividirOs(itensSalvar);
@@ -3781,17 +3822,23 @@ export default function ControlePage() {
                     type="button"
                     onClick={confirmarEdicaoItem}
                     disabled={osFaturada}
-                    className="mt-4 flex w-full items-center justify-center gap-2 rounded bg-emerald-500 px-3 py-2 text-xs font-medium text-white shadow-sm hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+                    className={`mt-4 flex w-full items-center justify-center gap-2 rounded px-3 py-2 text-xs font-medium text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-50 ${
+                      avisoConfirmarItem
+                        ? "bg-red-600 hover:bg-red-700"
+                        : "bg-emerald-500 hover:bg-emerald-600"
+                    }`}
                   >
-                    {itemSelecionadoId
-                      ? "Atualizar Item Selecionado"
-                      : adicionandoServico && abaServicoEdicao === "produtos"
-                        ? "+ Adicionar Produto"
-                        : painelEdicaoItem === "produto"
+                    {avisoConfirmarItem ? <AlertTriangle className="h-4 w-4" /> : null}
+                    {avisoConfirmarItem ||
+                      (itemSelecionadoId
+                        ? "Atualizar Item Selecionado"
+                        : adicionandoServico && abaServicoEdicao === "produtos"
                           ? "+ Adicionar Produto"
-                          : painelEdicaoItem === "transporte"
-                            ? "+ Adicionar Transporte"
-                            : "+ Adicionar Serviço"}
+                          : painelEdicaoItem === "produto"
+                            ? "+ Adicionar Produto"
+                            : painelEdicaoItem === "transporte"
+                              ? "+ Adicionar Transporte"
+                              : "+ Adicionar Serviço")}
                   </button>
                 </div>
               </section>

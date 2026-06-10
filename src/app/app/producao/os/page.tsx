@@ -1829,6 +1829,32 @@ export default function OrdemServicoPage() {
     return itensAdicionados.find((item) => item.id === itemSelecionadoId) || null;
   }
 
+  function itemAdicionadoEquivalente(a: ItemAdicionado, b: ItemAdicionado) {
+    return (
+      a.servico === b.servico &&
+      (a.categoria || "") === (b.categoria || "") &&
+      a.numeroDente === b.numeroDente &&
+      a.corDente === b.corDente &&
+      a.quantidade === b.quantidade &&
+      Math.abs(a.valor - b.valor) < 0.01 &&
+      (a.descontoTipo || "") === (b.descontoTipo || "") &&
+      (a.desconto || "") === (b.desconto || "") &&
+      (a.situacao || "") === (b.situacao || "") &&
+      Boolean(a.urgente) === Boolean(b.urgente) &&
+      Boolean(a.repeticao) === Boolean(b.repeticao) &&
+      (a.observacao || "") === (b.observacao || "") &&
+      (a.produtoId || "") === (b.produtoId || "")
+    );
+  }
+
+  function temAlteracoesPendentesItemOs() {
+    const item = itemSelecionadoAtual();
+    if (!item) return false;
+    const doFormulario = itemUnicoDoFormulario(item);
+    if (!doFormulario) return false;
+    return !itemAdicionadoEquivalente(item, doFormulario);
+  }
+
   function itemUnicoDoFormulario(itemBase: ItemAdicionado): ItemAdicionado | null {
     const numeroDente = numeroDenteServico();
     const descontoCampos = { descontoTipo: form.descontoTipo, desconto: form.desconto };
@@ -2502,12 +2528,33 @@ export default function OrdemServicoPage() {
       }
     }
 
+    if (!editId && itensAdicionados.length === 0) {
+      setAvisoAdicionarServico(
+        temConteudoParaAdicionar()
+          ? "Clique em + Adicionar Serviço para incluir o serviço na lista antes de salvar."
+          : "Adicione ao menos um serviço ou produto clicando em + Adicionar Serviço."
+      );
+      return;
+    }
+
+    if (itemSelecionadoId && temAlteracoesPendentesItemOs()) {
+      setAvisoAdicionarServico("Clique em Atualizar Item Selecionado antes de salvar.");
+      return;
+    }
+
+    if (!itemSelecionadoId && temConteudoParaAdicionar()) {
+      setAvisoAdicionarServico(
+        editId
+          ? "Clique em + Adicionar Serviço antes de salvar."
+          : "Clique em + Adicionar Serviço para incluir o serviço na lista antes de salvar."
+      );
+      return;
+    }
+
+    setAvisoAdicionarServico("");
     setSalvando(true);
     const arquivosEnviados = await uploadArquivosSelecionados();
-    const itensNaLista = itensComMarcadoresAtualizados();
-    const itensExtrasForm = itensDoFormulario();
-    let itensParaSalvar = itensNaLista.length > 0 ? itensNaLista : itensExtrasForm;
-    itensParaSalvar = prepararItensParaSalvarOs(itensParaSalvar);
+    const itensParaSalvar = prepararItensParaSalvarOs([...itensAdicionados]);
 
     if (itensParaSalvar.length === 0) {
       setSalvando(false);
