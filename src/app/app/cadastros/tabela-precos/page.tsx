@@ -10,16 +10,14 @@ import {
   Copy,
   Edit3,
   Eye,
-  FileDown,
-  FileText,
   Gem,
   Plus,
-  Printer,
   Trash2,
   X,
 } from "lucide-react";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { PainelCarregando } from "@/components/ListaCarregando";
+import { BarraAcoesTabelaPrecos } from "@/components/tabela-precos/BarraAcoesTabelaPrecos";
 import { usePageReady } from "@/hooks/use-page-ready";
 import {
   carregarColaboradoresListagem,
@@ -175,6 +173,14 @@ const initialCategorias: CategoriaPreco[] = [
   },
 ];
 
+import { abrirPdfGerando } from "@/lib/pdf-viewer";
+import {
+  baixarPdfTabelaPrecos,
+  exportarTabelaPrecosExcel,
+  gerarPdfTabelaPrecos,
+  textoEmailTabelaPrecos,
+  type CategoriaTabelaPrecoExport,
+} from "@/lib/tabela-precos-lista-export";
 import {
   sincronizarTabelaPrecosServidor,
   TABELA_PRECOS_STORAGE_KEY,
@@ -278,6 +284,8 @@ export default function TabelaPrecosPage() {
     id: string;
     nome: string;
   } | null>(null);
+  const [tabelaParaExcluir, setTabelaParaExcluir] = useState<string | null>(null);
+  const [processandoAcoes, setProcessandoAcoes] = useState(false);
   const [modalEtapasServico, setModalEtapasServico] = useState<{
     categoriaId: string;
     servicoId: string;
@@ -1095,6 +1103,141 @@ export default function TabelaPrecosPage() {
     setServicosEdicaoRapida([]);
   }
 
+  function categoriasParaExportacao(): CategoriaTabelaPrecoExport[] {
+    return categorias.map((categoria) => ({
+      nome: categoria.nome,
+      servicos: categoria.servicos.map((servico) => ({
+        nome: servico.nome,
+        valor: servico.valor,
+        tipo: servico.tipo,
+        prazo: servico.prazo,
+        prazoDentista: servico.prazoDentista,
+        descontoRepeticao: servico.descontoRepeticao,
+        oculto: servico.oculto,
+      })),
+    }));
+  }
+
+  function enviarTabelaPorEmail() {
+    if (!totalServicos) {
+      alert("Não há itens na tabela para enviar.");
+      return;
+    }
+    const assunto = encodeURIComponent(`Tabela de Preços — ${tabela}`);
+    const corpo = encodeURIComponent(textoEmailTabelaPrecos(tabela, categoriasParaExportacao()));
+    window.location.href = `mailto:?subject=${assunto}&body=${corpo}`;
+  }
+
+  async function exportarTabelaExcel() {
+    if (!totalServicos) {
+      alert("Não há itens na tabela para exportar.");
+      return;
+    }
+    setProcessandoAcoes(true);
+    try {
+      await exportarTabelaPrecosExcel(tabela, categoriasParaExportacao());
+    } catch {
+      alert("Não foi possível exportar a planilha.");
+    } finally {
+      setProcessandoAcoes(false);
+    }
+  }
+
+  async function baixarTabelaPdf() {
+    if (!totalServicos) {
+      alert("Não há itens na tabela para exportar.");
+      return;
+    }
+    setProcessandoAcoes(true);
+    try {
+      const blob = await gerarPdfTabelaPrecos(tabela, categoriasParaExportacao());
+      const data = new Date().toLocaleDateString("pt-BR").replace(/\//g, "-");
+      baixarPdfTabelaPrecos(blob, `tabela-precos-${data}.pdf`);
+    } catch {
+      alert("Não foi possível gerar o PDF.");
+    } finally {
+      setProcessandoAcoes(false);
+    }
+  }
+
+  async function imprimirTabela() {
+    if (!totalServicos) {
+      alert("Não há itens na tabela para imprimir.");
+      return;
+    }
+    setProcessandoAcoes(true);
+    try {
+      await abrirPdfGerando(
+        () => gerarPdfTabelaPrecos(tabela, categoriasParaExportacao()),
+        "tabela-precos.pdf",
+        `Tabela de Preços — ${tabela}`
+      );
+    } catch {
+      alert("Não foi possível gerar a impressão.");
+    } finally {
+      setProcessandoAcoes(false);
+    }
+  }
+
+  function alternarExpandirCategorias() {
+    if (categorias.length === 0) return;
+    if (categoriasRecolhidas.size > 0) {
+      setCategoriasRecolhidas(new Set());
+      return;
+    }
+    setCategoriasRecolhidas(new Set(categorias.map((categoria) => categoria.id)));
+  }
+
+  function aplicarReajustePercentual() {
+    if (!totalServicos) {
+      alert("Não há itens na tabela para reajustar.");
+      return;
+    }
+    const entrada = window.prompt(
+      "Informe o percentual de reajuste nos valores (ex.: 10 para +10%, -5 para -5%):"
+    );
+    if (entrada === null) return;
+    const percentual = Number(entrada.replace(",", ".").trim());
+    if (!Number.isFinite(percentual)) {
+      alert("Percentual inválido.");
+      return;
+    }
+    const fator = 1 + percentual / 100;
+    setCategoriasPorTabela((atuais) => ({
+      ...atuais,
+      [tabela]: (atuais[tabela] || []).map((categoria) => ({
+        ...categoria,
+        servicos: categoria.servicos.map((servico) => ({
+          ...servico,
+          valor: Math.round(servico.valor * fator * 100) / 100,
+        })),
+      })),
+    }));
+  }
+
+  function solicitarExcluirTabela() {
+    if (tabelas.length <= 1) {
+      alert("Não é possível excluir a única tabela cadastrada.");
+      return;
+    }
+    setTabelaParaExcluir(tabela);
+  }
+
+  function confirmarExcluirTabela() {
+    if (!tabelaParaExcluir) return;
+    const nome = tabelaParaExcluir;
+    const restantes = tabelas.filter((item) => item !== nome);
+    setTabelas(restantes);
+    setCategoriasPorTabela((atuais) => {
+      const { [nome]: _removida, ...resto } = atuais;
+      return resto;
+    });
+    if (tabela === nome) {
+      setTabela(restantes[0] || "");
+    }
+    setTabelaParaExcluir(null);
+  }
+
   if (!paginaPronta) {
     return (
       <div className="space-y-4 text-xs text-slate-600">
@@ -1173,13 +1316,17 @@ export default function TabelaPrecosPage() {
             )}
           </div>
 
-          <div className="flex items-center gap-1 rounded bg-slate-500 px-2 py-1 text-white">
-            {[Eye, FileText, FileDown, Printer, Copy, CheckSquare].map((Icon, index) => (
-              <button key={index} type="button" className="rounded p-1 hover:bg-slate-600">
-                <Icon className="h-3.5 w-3.5" />
-              </button>
-            ))}
-          </div>
+          <BarraAcoesTabelaPrecos
+            onEmail={enviarTabelaPorEmail}
+            onExportarExcel={() => void exportarTabelaExcel()}
+            onExportarPdf={() => void baixarTabelaPdf()}
+            onConfiguracoes={abrirEditarTabela}
+            onExpandir={alternarExpandirCategorias}
+            onImprimir={() => void imprimirTabela()}
+            onPercentual={aplicarReajustePercentual}
+            onExcluir={solicitarExcluirTabela}
+            processando={processandoAcoes}
+          />
         </div>
 
         <button
@@ -2713,6 +2860,16 @@ export default function TabelaPrecosPage() {
         detalhe={categoriaParaRemover?.nome}
         onClose={() => setCategoriaParaRemover(null)}
         onConfirm={confirmarRemoverCategoria}
+      />
+
+      <ConfirmacaoExclusaoModal
+        open={!!tabelaParaExcluir}
+        titulo="Excluir tabela"
+        mensagem="Deseja realmente excluir esta tabela de preços?"
+        aviso="Atenção!! Esta ação não pode ser desfeita."
+        detalhe={tabelaParaExcluir ?? undefined}
+        onClose={() => setTabelaParaExcluir(null)}
+        onConfirm={confirmarExcluirTabela}
       />
 
       {modalTransporte && (
