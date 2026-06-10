@@ -177,7 +177,14 @@ export async function registrarExecucaoBackupAutomatico(
 export function formatarDataBackup(iso: string | null, fuso = FUSO_BACKUP_PADRAO) {
   if (!iso) return null;
   try {
-    return new Date(iso).toLocaleString("pt-BR", { timeZone: fuso });
+    return new Date(iso).toLocaleString("pt-BR", {
+      timeZone: fuso,
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   } catch {
     return null;
   }

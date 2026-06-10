@@ -137,6 +137,8 @@ export const messages = {
     "settings.backupAutoDiaSex": "Sexta-feira",
     "settings.backupAutoDiaSab": "Sábado",
     "settings.backupAutoHorario": "Horário",
+    "settings.backupAutoHora": "Hora",
+    "settings.backupAutoMinuto": "Minuto",
     "settings.backupAutoHorarioInvalido": "Informe um horário válido.",
     "settings.backupAutoSalvar": "Salvar agendamento",
     "settings.backupAutoSalvando": "Salvando...",
