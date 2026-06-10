@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Minus, Plus, Save } from "lucide-react";
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { cn } from "@/lib/utils";
 import {
   OPCOES_FONTE_IMPRESSAO,
@@ -104,17 +104,26 @@ export function PainelConfigImpressaoTabelaPrecos({
   onSalvar,
   salvando,
 }: Props) {
-  const { register, watch, setValue, handleSubmit } =
+  const { register, watch, setValue, handleSubmit, control } =
     useForm<ConfigImpressaoTabelaPrecos>({
       resolver: zodResolver(schemaConfigImpressaoTabelaPrecos),
       defaultValues: valoresIniciais,
     });
 
-  const valores = watch();
+  const mostrarCabecalho = useWatch({ control, name: "mostrarCabecalho" });
+  const tamanhoFonte = useWatch({ control, name: "tamanhoFonte" });
+  const espacamentoCategorias = useWatch({ control, name: "espacamentoCategorias" });
+  const espacamentoServicos = useWatch({ control, name: "espacamentoServicos" });
 
   useEffect(() => {
-    onAlteracao(valores);
-  }, [valores, onAlteracao]);
+    onAlteracao(valoresIniciais);
+    const subscription = watch((data) => {
+      onAlteracao(data as ConfigImpressaoTabelaPrecos);
+    });
+    return () => subscription.unsubscribe();
+    // O formulário remonta via key={nomeTabela} na página pai.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <form
@@ -125,7 +134,7 @@ export function PainelConfigImpressaoTabelaPrecos({
         <div className="flex items-center justify-between gap-2">
           <CampoRotulo>Mostrar Cabeçalho</CampoRotulo>
           <SwitchImpressao
-            ligado={valores.mostrarCabecalho}
+            ligado={Boolean(mostrarCabecalho)}
             onChange={(valor) =>
               setValue("mostrarCabecalho", valor, { shouldDirty: true })
             }
@@ -185,7 +194,7 @@ export function PainelConfigImpressaoTabelaPrecos({
         <div className="flex items-center justify-between gap-2">
           <CampoRotulo>Tamanho da Fonte</CampoRotulo>
           <StepperNumerico
-            valor={valores.tamanhoFonte}
+            valor={tamanhoFonte ?? valoresIniciais.tamanhoFonte}
             min={8}
             max={32}
             onChange={(valor) =>
@@ -209,7 +218,7 @@ export function PainelConfigImpressaoTabelaPrecos({
         <div className="flex items-center justify-between gap-2">
           <CampoRotulo>Espaçamento Categorias (px)</CampoRotulo>
           <StepperNumerico
-            valor={valores.espacamentoCategorias}
+            valor={espacamentoCategorias ?? valoresIniciais.espacamentoCategorias}
             min={0}
             max={80}
             onChange={(valor) =>
@@ -221,7 +230,7 @@ export function PainelConfigImpressaoTabelaPrecos({
         <div className="flex items-center justify-between gap-2">
           <CampoRotulo>Espaçamento Serviços</CampoRotulo>
           <StepperNumerico
-            valor={valores.espacamentoServicos}
+            valor={espacamentoServicos ?? valoresIniciais.espacamentoServicos}
             min={0}
             max={80}
             onChange={(valor) =>

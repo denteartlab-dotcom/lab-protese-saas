@@ -16,7 +16,6 @@ type Props = {
   config: ConfigImpressaoTabelaPrecos;
   categorias: CategoriaTabelaPrecoExport[];
   nomeTabela: string;
-  filtro?: string;
 };
 
 function money(value: number) {
@@ -45,9 +44,7 @@ export function PreviewImpressaoTabelaPrecos({
   config,
   categorias,
   nomeTabela,
-  filtro = "",
 }: Props) {
-  const termo = filtro.trim().toLowerCase();
   const cab = cabecalhoLab(nomeTabela);
   const alinhamento = alinhamentoCssImpressao(config.alinhamentoCategoria);
   const fontFamily = fonteCssImpressao(config.tipoFonte);
@@ -62,20 +59,13 @@ export function PreviewImpressaoTabelaPrecos({
   const categoriasVisiveis = categorias
     .map((categoria) => ({
       ...categoria,
-      servicos: categoria.servicos.filter((servico) => {
-        if (servico.oculto) return false;
-        if (!termo) return true;
-        return (
-          servico.nome.toLowerCase().includes(termo) ||
-          categoria.nome.toLowerCase().includes(termo)
-        );
-      }),
+      servicos: categoria.servicos.filter((servico) => !servico.oculto),
     }))
     .filter((categoria) => categoria.servicos.length > 0);
 
   return (
     <div
-      className="mx-auto w-[210mm] min-h-[297mm] bg-white px-[15mm] py-[20mm] shadow-[0_4px_24px_rgba(0,0,0,0.12)]"
+      className="w-[210mm] shrink-0 min-h-[297mm] bg-white px-[15mm] py-[20mm] shadow-[0_4px_24px_rgba(0,0,0,0.12)]"
       style={{ fontFamily, fontSize: `${config.tamanhoFonte}px` }}
     >
       {config.mostrarCabecalho && (
