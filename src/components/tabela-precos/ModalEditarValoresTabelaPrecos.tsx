@@ -48,10 +48,30 @@ function formatarValorInput(value: string) {
   });
 }
 
+const PERCENTUAL_MAXIMO = 100;
+
 function parsePercentual(value: string) {
   const limpo = value.replace(/\./g, "").replace(",", ".").trim();
   const numero = Number(limpo);
   return Number.isFinite(numero) ? numero : NaN;
+}
+
+function parsePercentualInput(value: string) {
+  const centesimos = Number(value.replace(/\D/g, "")) / 100;
+  if (!Number.isFinite(centesimos)) return 0;
+  return Math.min(PERCENTUAL_MAXIMO, Math.max(0, centesimos));
+}
+
+function formatarPercentualInput(value: string) {
+  return parsePercentualInput(value).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function percentualDigitosExcedemLimite(value: string) {
+  const centesimos = Number(value.replace(/\D/g, ""));
+  return Number.isFinite(centesimos) && centesimos > PERCENTUAL_MAXIMO * 100;
 }
 
 export function ModalEditarValoresTabelaPrecos({
@@ -65,6 +85,7 @@ export function ModalEditarValoresTabelaPrecos({
   const [expandidas, setExpandidas] = useState<Set<string>>(new Set());
   const [tipoCalculo, setTipoCalculo] = useState<"acrescimo" | "desconto">("acrescimo");
   const [percentual, setPercentual] = useState("0,00");
+  const [percentualExcedeuLimite, setPercentualExcedeuLimite] = useState(false);
 
   useEffect(() => {
     if (!aberto) return;
@@ -74,7 +95,17 @@ export function ModalEditarValoresTabelaPrecos({
     setExpandidas(new Set(copia.map((categoria) => categoria.id)));
     setTipoCalculo("acrescimo");
     setPercentual("0,00");
+    setPercentualExcedeuLimite(false);
   }, [aberto, categorias]);
+
+  const percentualNumero = useMemo(() => parsePercentual(percentual), [percentual]);
+
+  const percentualInvalido = useMemo(() => {
+    if (!Number.isFinite(percentualNumero)) return true;
+    return percentualNumero < 0 || percentualNumero > PERCENTUAL_MAXIMO;
+  }, [percentualNumero]);
+
+  const mostrarAvisoPercentual = percentualInvalido || percentualExcedeuLimite;
 
   const todasSelecionadas = useMemo(() => {
     if (categoriasLocal.length === 0) return false;
@@ -125,20 +156,17 @@ export function ModalEditarValoresTabelaPrecos({
     );
   }
 
+  function atualizarPercentual(valorDigitado: string) {
+    setPercentualExcedeuLimite(percentualDigitosExcedemLimite(valorDigitado));
+    setPercentual(formatarPercentualInput(valorDigitado));
+  }
+
   function calcularValores() {
     if (selecionadas.size === 0) {
       alert("Marque ao menos uma categoria para calcular.");
       return;
     }
-    const percentualNumero = parsePercentual(percentual);
-    if (!Number.isFinite(percentualNumero) || percentualNumero < 0) {
-      alert("Informe um percentual válido.");
-      return;
-    }
-    if (tipoCalculo === "desconto" && percentualNumero > 100) {
-      alert("O desconto não pode ser maior que 100%.");
-      return;
-    }
+    if (percentualInvalido || percentualExcedeuLimite) return;
     const fator =
       tipoCalculo === "acrescimo"
         ? 1 + percentualNumero / 100
@@ -181,7 +209,7 @@ export function ModalEditarValoresTabelaPrecos({
           Marque as categorias que você deseja calcular os valores.
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-200 px-5 py-3">
+        <div className="flex shrink-0 flex-wrap items-start gap-2 border-b border-slate-200 px-5 py-3">
           <select
             value={tipoCalculo}
             onChange={(evento) =>
@@ -192,25 +220,38 @@ export function ModalEditarValoresTabelaPrecos({
             <option value="acrescimo">Acréscimo</option>
             <option value="desconto">Desconto</option>
           </select>
-          <input
-            type="text"
-            inputMode="decimal"
-            value={percentual}
-            onChange={(evento) => {
-              const texto = evento.target.value.replace(/[^\d,]/g, "");
-              const partes = texto.split(",");
-              const normalizado =
-                partes.length <= 1 ? partes[0] : `${partes[0]},${partes.slice(1).join("")}`;
-              setPercentual(normalizado);
-            }}
-            className="h-8 w-24 rounded border border-slate-300 px-2 text-right text-xs text-slate-700 outline-none focus:border-blue-400"
-            aria-label="Percentual"
-            placeholder="0,00"
-          />
+          <div className="flex min-w-[148px] flex-col gap-0.5">
+            <div className="relative">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={percentual}
+                onChange={(evento) => atualizarPercentual(evento.target.value)}
+                className={cn(
+                  "h-8 w-28 rounded border px-2 pr-6 text-right text-xs text-slate-700 outline-none",
+                  mostrarAvisoPercentual
+                    ? "border-red-500 focus:border-red-500"
+                    : "border-slate-300 focus:border-blue-400"
+                )}
+                aria-label="Percentual"
+                aria-invalid={mostrarAvisoPercentual}
+                placeholder="0,00"
+              />
+              <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">
+                %
+              </span>
+            </div>
+            {mostrarAvisoPercentual && (
+              <p className="text-[10px] font-medium leading-tight text-red-600">
+                A porcentagem deve ser de 0 a 100%.
+              </p>
+            )}
+          </div>
           <button
             type="button"
             onClick={calcularValores}
-            className="h-8 rounded border border-slate-300 bg-white px-4 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            disabled={mostrarAvisoPercentual}
+            className="h-8 rounded border border-slate-300 bg-white px-4 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Calcular
           </button>
