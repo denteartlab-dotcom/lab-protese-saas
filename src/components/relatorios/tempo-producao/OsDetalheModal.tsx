@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import {
   CheckCircle2,
   Circle,
@@ -11,6 +10,7 @@ import {
   Loader2,
   X,
 } from "lucide-react";
+import { LinkImprimirOs } from "@/components/LinkImprimirOs";
 import type { DetalheTempoProducaoOs } from "@/lib/tempo-producao-detalhe";
 import {
   PRIORIDADE_TEMPO_PRODUCAO,
@@ -262,13 +262,16 @@ export function OsDetalheModal({ trabalhoId, onClose }: Props) {
 
         {resumo ? (
           <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-slate-200 px-4 py-3 dark:border-slate-700 sm:px-6">
-            <Link
-              href={`/app/trabalhos/${resumo.id}`}
+            <LinkImprimirOs
+              trabalho={{
+                id: resumo.id,
+                tipoProtese: resumo.tipoServico,
+              }}
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
             >
               <ExternalLink className="h-4 w-4" />
               Abrir OS completa
-            </Link>
+            </LinkImprimirOs>
             <button
               type="button"
               onClick={onClose}
