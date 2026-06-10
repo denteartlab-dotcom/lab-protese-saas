@@ -27,8 +27,7 @@ export function ReportFilters({ filtros, opcoes, onChange }: Props) {
   }
 
   return (
-    <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800/90">
-      <p className="mb-3 text-sm font-semibold text-slate-800 dark:text-slate-100">Filtros</p>
+    <div className="space-y-1">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
         <CampoDataBr
           label="Período — início"

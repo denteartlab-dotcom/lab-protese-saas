@@ -149,6 +149,7 @@ function trabalhoParaLinha(
     ultimaMovimentacaoBr: format(ultimaMov, "dd/MM/yyyy HH:mm", { locale: ptBR }),
     responsavelPeloAtraso: "",
     paradoMuitoTempo: false,
+    tempoMedioColaborador: 0,
   };
 }
 

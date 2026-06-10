@@ -239,5 +239,6 @@ export function criarLinhaResumoDeTrabalho(
     ultimaMovimentacaoBr: format(principal.updatedAt, "dd/MM/yyyy HH:mm", { locale: ptBR }),
     responsavelPeloAtraso: "",
     paradoMuitoTempo: false,
+    tempoMedioColaborador: 0,
   };
 }

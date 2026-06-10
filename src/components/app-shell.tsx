@@ -137,7 +137,8 @@ function AppShellInner({
     pathname.startsWith("/app/configuracoes/faturas/modelo5");
   const isModuloColaborador = pathname === "/app/producao/modulo";
   const isModuloTv = pathname.startsWith("/app/producao/modulo-tv");
-  const isModuloImersivo = isModuloColaborador || isModuloTv;
+  const isRelatorioTempoPremium = pathname === "/app/relatorios/tempo-producao";
+  const isModuloImersivo = isModuloColaborador || isModuloTv || isRelatorioTempoPremium;
   const isDashboard = pathname === "/app";
   const [darkMode, setDarkMode] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);

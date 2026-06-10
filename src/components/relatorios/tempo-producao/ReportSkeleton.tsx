@@ -2,37 +2,30 @@
 
 export function ReportSkeleton() {
   return (
-    <div className="animate-pulse space-y-5" aria-hidden>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-        {Array.from({ length: 7 }).map((_, i) => (
+    <div className="animate-pulse space-y-6" aria-hidden>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+        {Array.from({ length: 6 }).map((_, i) => (
           <div
             key={i}
-            className="overflow-hidden rounded-xl border border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-800"
+            className="rounded-2xl border border-[#e8ecf2] bg-white p-5 shadow-sm"
           >
-            <div className="h-10 bg-slate-200 dark:bg-slate-700" />
-            <div className="space-y-2 px-3 py-3">
-              <div className="h-6 w-2/3 rounded bg-slate-100 dark:bg-slate-700" />
-            </div>
+            <div className="h-11 w-11 rounded-2xl bg-slate-100" />
+            <div className="mt-4 h-3 w-24 rounded bg-slate-100" />
+            <div className="mt-3 h-8 w-20 rounded bg-slate-200" />
+            <div className="mt-2 h-3 w-32 rounded bg-slate-100" />
           </div>
         ))}
       </div>
-
-      <div className="grid gap-4 xl:grid-cols-3">
-        <div className="h-72 rounded-xl border border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-800 xl:col-span-2" />
-        <div className="h-72 rounded-xl border border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-800" />
+      <div className="rounded-2xl border border-[#e8ecf2] bg-white p-6 shadow-sm">
+        <div className="mb-6 h-6 w-64 rounded bg-slate-200" />
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="mb-3 h-12 rounded-xl bg-slate-50" />
+        ))}
       </div>
-
-      <div className="h-64 rounded-xl border border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-800" />
-
-      <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-800">
-        <div className="border-b border-slate-100 px-4 py-3 dark:border-slate-700">
-          <div className="h-4 w-40 rounded bg-slate-100 dark:bg-slate-700" />
-        </div>
-        <div className="space-y-2 p-4">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="h-8 rounded bg-slate-50 dark:bg-slate-700/60" />
-          ))}
-        </div>
+      <div className="grid gap-5 xl:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="h-80 rounded-2xl border border-[#e8ecf2] bg-white shadow-sm" />
+        ))}
       </div>
     </div>
   );
