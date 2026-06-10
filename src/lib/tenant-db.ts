@@ -70,6 +70,7 @@ export async function buscarClientePublicoPorToken(token: string) {
       id: true,
       nome: true,
       razaoSocial: true,
+      observacoes: true,
       cro: true,
       cnpjCpf: true,
       email: true,

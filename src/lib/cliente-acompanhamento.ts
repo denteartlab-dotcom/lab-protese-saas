@@ -8,6 +8,7 @@ import {
   indiceEtapaAtualDeConcluidas,
   situacaoEtapaServico,
 } from "@/lib/modulo-producao-etapas";
+import { clienteNomeComAbreviacao } from "@/lib/cliente-observacoes";
 import { metaStatusOs } from "@/lib/status-os";
 
 export function gerarTokenAcompanhamentoCliente() {
@@ -36,7 +37,7 @@ export type TrabalhoAcompanhamentoPublico = {
 };
 
 export type ClienteAcompanhamentoPublico = {
-  cliente: { nome: string; razaoSocial: string | null };
+  cliente: { nome: string; nomeExibicao: string; razaoSocial: string | null };
   labNome: string;
   atualizadoEm: string;
   trabalhos: TrabalhoAcompanhamentoPublico[];
@@ -74,7 +75,7 @@ function etapasComSituacao(
 }
 
 export function montarAcompanhamentoPublico(
-  cliente: { nome: string; razaoSocial: string | null },
+  cliente: { nome: string; razaoSocial: string | null; observacoes?: string | null },
   trabalhos: TrabalhoDb[],
   labNome: string,
   mapaEtapas: Record<string, number[]> = {}
@@ -144,6 +145,7 @@ export function montarAcompanhamentoPublico(
   return {
     cliente: {
       nome: cliente.nome,
+      nomeExibicao: clienteNomeComAbreviacao(cliente),
       razaoSocial: cliente.razaoSocial,
     },
     labNome,

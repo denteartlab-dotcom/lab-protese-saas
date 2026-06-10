@@ -19,7 +19,11 @@ export async function GET(_request: Request, { params }: Params) {
   const { cliente, trabalhos, labNome, mapaEtapas } = resultado;
 
   const payload = montarAcompanhamentoPublico(
-    { nome: cliente.nome, razaoSocial: cliente.razaoSocial },
+    {
+      nome: cliente.nome,
+      razaoSocial: cliente.razaoSocial,
+      observacoes: cliente.observacoes,
+    },
     trabalhos,
     labNome,
     mapaEtapas

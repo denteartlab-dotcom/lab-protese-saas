@@ -1,5 +1,32 @@
 import { configValueFromObservacoes } from "@/lib/cliente-financeiro";
 
+export function abreviacaoCliente(observacoes: string | null | undefined): string {
+  return configValueFromObservacoes(observacoes, "Abreviação:");
+}
+
+export function tipoClienteCadastro(observacoes: string | null | undefined): string {
+  return configValueFromObservacoes(observacoes, "Tipo de Cliente:");
+}
+
+/** Nome do cliente com Dr., Dra., Clínica etc. conforme cadastro. */
+export function clienteNomeComAbreviacao(cliente: {
+  nome: string;
+  observacoes?: string | null;
+}): string {
+  const nome = (cliente.nome || "").trim();
+  if (!nome) return "";
+
+  let prefixo = abreviacaoCliente(cliente.observacoes);
+  if (!prefixo) {
+    const tipo = tipoClienteCadastro(cliente.observacoes);
+    if (tipo === "Clínica") prefixo = "Clínica";
+  }
+
+  if (!prefixo) return nome;
+  if (nome.toLowerCase().startsWith(prefixo.toLowerCase())) return nome;
+  return `${prefixo} ${nome}`;
+}
+
 /** WhatsApp do cliente na impressão (não lista telefone comercial). */
 export function telefoneWhatsappCliente(cliente: {
   celular?: string | null;

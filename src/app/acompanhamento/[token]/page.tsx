@@ -86,7 +86,9 @@ export default function AcompanhamentoClientePage() {
         <h1 className="mt-1 text-lg font-medium text-slate-800">
           Acompanhamento de produção
         </h1>
-        <p className="mt-1 text-sm text-slate-600">{dados.cliente.nome}</p>
+        <p className="mt-1 text-sm text-slate-600">
+          {dados.cliente.nomeExibicao || dados.cliente.nome}
+        </p>
         {ultimaAtualizacao ? (
           <p className="mt-2 text-[11px] text-slate-400">
             Atualizado automaticamente às{" "}
