@@ -30,6 +30,8 @@ import Link from "next/link";
 import { PainelAnotacoesDashboard } from "@/components/dashboard/PainelAnotacoesDashboard";
 import { DashboardInicioSkeleton } from "@/components/dashboard/DashboardInicioSkeleton";
 import { PainelServicosDashboard } from "@/components/dashboard/PainelServicosDashboard";
+import { PainelUrgenciasClienteDashboard } from "@/components/dashboard/PainelUrgenciasClienteDashboard";
+import type { UrgenteClienteDashboardItem } from "@/lib/urgencia-cliente";
 import { hrefControlePainel } from "@/lib/notificacao-links";
 import { usePermissoesApp } from "@/components/PermissoesAppProvider";
 import { permissaoIdPorHref } from "@/lib/usuarios-menu-permissoes";
@@ -58,6 +60,7 @@ type Dashboard = {
   aniversariantesMes?: AniversarianteMesItem[];
   clientesSemServico?: ClienteSemServicoItem[];
   uploadsResumo?: UploadsResumoUi;
+  urgentesCliente?: UrgenteClienteDashboardItem[];
 };
 
 const resumoProducaoVazio: ResumoProducaoDashboard = {
@@ -286,6 +289,14 @@ export default function DashboardPage() {
           labelBaixo={t("dashboard.estoqueBaixo")}
           labelZerado={t("dashboard.estoqueZerado")}
           labelOrcamento={t("dashboard.solicitarOrcamento")}
+        />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <PainelUrgenciasClienteDashboard
+          titulo={t("dashboard.urgentesCliente")}
+          lista={dashboard.urgentesCliente ?? []}
+          labelVisualizar={t("dashboard.visualizar")}
         />
       </div>
 

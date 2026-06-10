@@ -237,6 +237,7 @@ export const messages = {
     "dashboard.inicio": "Início",
     "dashboard.servicosVencendo": "Serviços Vencendo",
     "dashboard.servicosAtrasados": "Serviços Atrasados",
+    "dashboard.urgentesCliente": "Urgentes sinalizados pelo cliente",
     "dashboard.estoque": "Estoque",
     "dashboard.visualizar": "Visualizar",
     "dashboard.imprimir": "Imprimir",
@@ -287,6 +288,7 @@ export const messages = {
     "notif.titulo.cobranca_dia": "Lembrete de cobrança",
     "notif.titulo.servico_vencendo": "Serviço vencendo",
     "notif.titulo.servico_atrasado": "Serviço atrasado",
+    "notif.titulo.urgente_cliente": "Urgência do cliente",
     "notif.titulo.anotacao_lembrete": "Lembrete",
     "notif.titulo.geral": "Aviso",
     "notif.estoque_zerado": "Produto \"{produto}\" está com estoque zerado.",
@@ -300,6 +302,8 @@ export const messages = {
     "notif.cobranca_dia": "Hoje é dia {dia} de cobrança de {cliente}. Saldo em aberto: {saldo}.",
     "notif.servico_vencendo": "OS {numeroOs} vence em {prazo}: {servico} (Paciente: {paciente}).",
     "notif.servico_atrasado": "OS {numeroOs} atrasada desde {prazo}: {servico} (Paciente: {paciente}).",
+    "notif.urgente_cliente":
+      "{cliente} sinalizou OS {numeroOs} como urgente: {servico} (Paciente: {paciente}).",
     "notif.anotacao_lembrete": "{texto}",
   },
   en: {
@@ -534,6 +538,7 @@ export const messages = {
     "dashboard.inicio": "Home",
     "dashboard.servicosVencendo": "Due Services",
     "dashboard.servicosAtrasados": "Overdue Services",
+    "dashboard.urgentesCliente": "Client-marked urgent work orders",
     "dashboard.estoque": "Inventory",
     "dashboard.visualizar": "View",
     "dashboard.imprimir": "Print",
@@ -584,6 +589,7 @@ export const messages = {
     "notif.titulo.cobranca_dia": "Billing reminder",
     "notif.titulo.servico_vencendo": "Service due soon",
     "notif.titulo.servico_atrasado": "Overdue service",
+    "notif.titulo.urgente_cliente": "Client urgent request",
     "notif.titulo.anotacao_lembrete": "Reminder",
     "notif.titulo.geral": "Alert",
     "notif.estoque_zerado": "Product \"{produto}\" is out of stock.",
@@ -597,6 +603,8 @@ export const messages = {
     "notif.cobranca_dia": "Today is billing day {dia} for {cliente}. Open balance: {saldo}.",
     "notif.servico_vencendo": "WO {numeroOs} due on {prazo}: {servico} (Patient: {paciente}).",
     "notif.servico_atrasado": "WO {numeroOs} overdue since {prazo}: {servico} (Patient: {paciente}).",
+    "notif.urgente_cliente":
+      "{cliente} marked WO {numeroOs} as urgent: {servico} (Patient: {paciente}).",
     "notif.anotacao_lembrete": "{texto}",
   },
   es: {
@@ -831,6 +839,7 @@ export const messages = {
     "dashboard.inicio": "Inicio",
     "dashboard.servicosVencendo": "Servicios por Vencer",
     "dashboard.servicosAtrasados": "Servicios Atrasados",
+    "dashboard.urgentesCliente": "Urgentes señalados por el cliente",
     "dashboard.estoque": "Inventario",
     "dashboard.visualizar": "Ver",
     "dashboard.imprimir": "Imprimir",
@@ -881,6 +890,7 @@ export const messages = {
     "notif.titulo.cobranca_dia": "Recordatorio de cobro",
     "notif.titulo.servico_vencendo": "Servicio por vencer",
     "notif.titulo.servico_atrasado": "Servicio atrasado",
+    "notif.titulo.urgente_cliente": "Urgencia del cliente",
     "notif.titulo.anotacao_lembrete": "Recordatorio",
     "notif.titulo.geral": "Aviso",
     "notif.estoque_zerado": "Producto \"{produto}\" sin stock.",
@@ -894,6 +904,8 @@ export const messages = {
     "notif.cobranca_dia": "Hoy es el día {dia} de cobro de {cliente}. Saldo pendiente: {saldo}.",
     "notif.servico_vencendo": "OS {numeroOs} vence el {prazo}: {servico} (Paciente: {paciente}).",
     "notif.servico_atrasado": "OS {numeroOs} atrasada desde {prazo}: {servico} (Paciente: {paciente}).",
+    "notif.urgente_cliente":
+      "{cliente} señaló OS {numeroOs} como urgente: {servico} (Paciente: {paciente}).",
     "notif.anotacao_lembrete": "{texto}",
   },
 } as const;

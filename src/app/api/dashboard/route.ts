@@ -16,6 +16,10 @@ import {
 } from "@/lib/dashboard-clientes-servico";
 import { calcularResumoProducaoDashboard } from "@/lib/dashboard-producao";
 import { resumoArmazenamentoVazio } from "@/lib/uploads-armazenamento-server";
+import {
+  carregarStoreUrgenciasCliente,
+  montarUrgentesClienteDashboard,
+} from "@/lib/urgencia-cliente";
 
 export async function GET(request: Request) {
   try {
@@ -157,6 +161,18 @@ export async function GET(request: Request) {
     diasSemServico
   );
 
+  const storeUrgencias = await carregarStoreUrgenciasCliente();
+  const mapaTrabalhosUrgencia = new Map(
+    trabalhosControle.map((t) => [
+      t.id,
+      { status: t.status, tipoProtese: t.tipoProtese, instrucoes: t.instrucoes },
+    ])
+  );
+  const urgentesCliente = montarUrgentesClienteDashboard(
+    storeUrgencias.eventos,
+    mapaTrabalhosUrgencia
+  );
+
   const financeiroResumo = calcularResumoFinanceiroDashboard(
     lancamentos.map((l) => ({
       id: l.id,
@@ -194,6 +210,7 @@ export async function GET(request: Request) {
     clientesSemServico,
     diasSemServico,
     uploadsResumo: resumoArmazenamentoVazio(),
+    urgentesCliente,
     mes,
     ano,
   });

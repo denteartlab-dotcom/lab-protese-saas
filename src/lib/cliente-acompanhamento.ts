@@ -3,13 +3,19 @@ import {
   parseComplementosInstrucoesGrupo,
   type EtapaOsLinha,
 } from "@/lib/etapas-os";
-import { itensDaOsModulo } from "@/lib/modulo-producao-os";
+import { flagsUrgenciaTrabalho, itensDaOsModulo } from "@/lib/modulo-producao-os";
 import {
   indiceEtapaAtualDeConcluidas,
   situacaoEtapaServico,
 } from "@/lib/modulo-producao-etapas";
 import { clienteNomeComAbreviacao } from "@/lib/cliente-observacoes";
 import { metaStatusOs } from "@/lib/status-os";
+import {
+  calcularLimitesUrgenciaCliente,
+  trabalhoAtivoUrgencia,
+  type EventoUrgenciaCliente,
+  type LimitesUrgenciaCliente,
+} from "@/lib/urgencia-cliente";
 
 export function gerarTokenAcompanhamentoCliente() {
   return randomBytes(16).toString("hex");
@@ -34,12 +40,15 @@ export type TrabalhoAcompanhamentoPublico = {
   etapaAtual: string;
   etapas: EtapaAcompanhamentoPublico[];
   atualizadoEm: string;
+  urgente: boolean;
+  podeSolicitarUrgente: boolean;
 };
 
 export type ClienteAcompanhamentoPublico = {
   cliente: { nome: string; nomeExibicao: string; razaoSocial: string | null };
   labNome: string;
   atualizadoEm: string;
+  limitesUrgencia: LimitesUrgenciaCliente;
   trabalhos: TrabalhoAcompanhamentoPublico[];
 };
 
@@ -75,11 +84,30 @@ function etapasComSituacao(
 }
 
 export function montarAcompanhamentoPublico(
-  cliente: { nome: string; razaoSocial: string | null; observacoes?: string | null },
+  cliente: {
+    id: string;
+    nome: string;
+    razaoSocial: string | null;
+    observacoes?: string | null;
+  },
   trabalhos: TrabalhoDb[],
   labNome: string,
-  mapaEtapas: Record<string, number[]> = {}
+  mapaEtapas: Record<string, number[]> = {},
+  eventosUrgencia: EventoUrgenciaCliente[] = []
 ): ClienteAcompanhamentoPublico {
+  const limitesUrgencia = calcularLimitesUrgenciaCliente(
+    eventosUrgencia,
+    trabalhos.map((t) => ({
+      id: t.id,
+      clienteId: cliente.id,
+      status: t.status,
+      tipoProtese: t.tipoProtese,
+      instrucoes: t.instrucoes,
+      numeroOs: t.numeroOs,
+    })),
+    cliente.id
+  );
+
   const grupos = new Map<string, TrabalhoDb[]>();
 
   for (const t of trabalhos) {
@@ -119,6 +147,16 @@ export function montarAcompanhamentoPublico(
       (max, t) => (t.updatedAt > max ? t.updatedAt : max),
       lista[0].updatedAt
     );
+    const instrucoesGrupo = textos.join("\n");
+    const urgente = flagsUrgenciaTrabalho({
+      tipoProtese: principal.tipoProtese,
+      instrucoes: instrucoesGrupo,
+    }).urgente;
+    const ativo = trabalhoAtivoUrgencia(principal.status);
+    const limiteDia = limitesUrgencia.hoje >= limitesUrgencia.maxPorDia;
+    const limiteAtivo = limitesUrgencia.ativos >= limitesUrgencia.maxAtivos;
+    const podeSolicitarUrgente =
+      ativo && !urgente && !limiteDia && !limiteAtivo;
 
     publicos.push({
       id: principal.id,
@@ -135,6 +173,8 @@ export function montarAcompanhamentoPublico(
       etapaAtual,
       etapas: etapasPublicas,
       atualizadoEm: atualizadoEm.toISOString(),
+      urgente,
+      podeSolicitarUrgente,
     });
   }
 
@@ -150,6 +190,7 @@ export function montarAcompanhamentoPublico(
     },
     labNome,
     atualizadoEm,
+    limitesUrgencia,
     trabalhos: publicos,
   };
 }

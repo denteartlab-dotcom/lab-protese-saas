@@ -29,6 +29,8 @@ export default function AcompanhamentoClientePage() {
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
+  const [urgenteEnviando, setUrgenteEnviando] = useState<string | null>(null);
+  const [urgenteMsg, setUrgenteMsg] = useState<string | null>(null);
 
   const carregar = useCallback(async (silencioso = false) => {
     if (!silencioso) setCarregando(true);
@@ -58,6 +60,32 @@ export default function AcompanhamentoClientePage() {
     const id = window.setInterval(() => void carregar(true), POLL_MS);
     return () => window.clearInterval(id);
   }, [carregar]);
+
+  const solicitarUrgente = useCallback(
+    async (trabalhoId: string) => {
+      setUrgenteEnviando(trabalhoId);
+      setUrgenteMsg(null);
+      try {
+        const res = await fetch(`/api/clientes/public/${token}/urgente`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ trabalhoId }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          setUrgenteMsg(json.message || "Não foi possível sinalizar como urgente.");
+          return;
+        }
+        setUrgenteMsg(json.message || "Trabalho sinalizado como urgente.");
+        await carregar(true);
+      } catch {
+        setUrgenteMsg("Não foi possível sinalizar como urgente.");
+      } finally {
+        setUrgenteEnviando(null);
+      }
+    },
+    [token, carregar]
+  );
 
   if (carregando && !dados) {
     return (
@@ -102,6 +130,17 @@ export default function AcompanhamentoClientePage() {
       </header>
 
       <main className="mx-auto max-w-2xl space-y-4 p-4 pb-10">
+        {urgenteMsg ? (
+          <p className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-[12px] text-sky-800">
+            {urgenteMsg}
+          </p>
+        ) : null}
+        {dados.trabalhos.length > 0 ? (
+          <p className="text-[11px] text-slate-500">
+            Urgências: {dados.limitesUrgencia.ativos}/{dados.limitesUrgencia.maxAtivos}{" "}
+            ativas · {dados.limitesUrgencia.hoje}/{dados.limitesUrgencia.maxPorDia} hoje
+          </p>
+        ) : null}
         {dados.trabalhos.length === 0 ? (
           <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
             Nenhum trabalho em andamento no momento.
@@ -127,14 +166,21 @@ export default function AcompanhamentoClientePage() {
                     </p>
                   ) : null}
                 </div>
-                <span
-                  className={cn(
-                    "rounded-full px-2.5 py-1 text-[11px] font-semibold",
-                    t.statusColor
-                  )}
-                >
-                  {t.statusLabel}
-                </span>
+                <div className="flex flex-col items-end gap-1">
+                  {t.urgente ? (
+                    <span className="rounded-full bg-red-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-red-700">
+                      Urgente
+                    </span>
+                  ) : null}
+                  <span
+                    className={cn(
+                      "rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                      t.statusColor
+                    )}
+                  >
+                    {t.statusLabel}
+                  </span>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2 border-b border-slate-100 px-4 py-3 text-[11px] text-slate-600">
@@ -207,9 +253,26 @@ export default function AcompanhamentoClientePage() {
                 </p>
               )}
 
-              <p className="border-t border-slate-100 px-4 py-2 text-[10px] text-slate-400">
-                Última alteração: {formatarDataHora(t.atualizadoEm)}
-              </p>
+              <div className="relative border-t border-slate-100 px-4 py-2">
+                <p className="text-[10px] text-slate-400">
+                  Última alteração: {formatarDataHora(t.atualizadoEm)}
+                </p>
+                {t.podeSolicitarUrgente ? (
+                  <button
+                    type="button"
+                    disabled={urgenteEnviando === t.id}
+                    onClick={() => void solicitarUrgente(t.id)}
+                    className="absolute bottom-2 right-3 flex items-center gap-1 rounded-full border border-red-300 bg-red-50 px-3 py-1.5 text-[11px] font-semibold text-red-700 shadow-sm transition hover:bg-red-100 disabled:opacity-60"
+                    title="Sinalizar este trabalho como urgente"
+                  >
+                    {urgenteEnviando === t.id ? "Enviando…" : "⚡ Urgente"}
+                  </button>
+                ) : t.urgente ? (
+                  <span className="absolute bottom-2 right-3 text-[10px] font-semibold uppercase text-red-600">
+                    Sinalizado urgente
+                  </span>
+                ) : null}
+              </div>
             </article>
           ))
         )}

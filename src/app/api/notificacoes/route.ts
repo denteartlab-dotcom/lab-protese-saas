@@ -24,7 +24,12 @@ import {
   hrefLancamentoVencido,
   hrefOrcamento,
   hrefOsSemNota,
+  hrefOsEditar,
 } from "@/lib/notificacao-links";
+import {
+  carregarStoreUrgenciasCliente,
+  montarUrgentesClienteDashboard,
+} from "@/lib/urgencia-cliente";
 
 function vencimentoBr(data: Date) {
   return data.toLocaleDateString("pt-BR", {
@@ -45,7 +50,8 @@ export type NotificacaoApi = {
     | "os_sem_nota"
     | "cobranca_dia"
     | "servico_vencendo"
-    | "servico_atrasado";
+    | "servico_atrasado"
+    | "urgente_cliente";
   href: string;
   params: Record<string, string | number>;
   criadoEm: string;
@@ -59,8 +65,6 @@ export async function GET() {
 
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
-
-  ;
 
   const [lancamentos, clientes, orcamentos, trabalhosAtivos] = await Promise.all([
     prisma.lancamento.findMany({
@@ -285,6 +289,32 @@ export async function GET() {
         prazo: prazo ? formatDiaMesBr(prazo) : "—",
       },
       criadoEm: new Date().toISOString(),
+    });
+  }
+
+  const storeUrgencias = await carregarStoreUrgenciasCliente();
+  const mapaTrabalhosUrgencia = new Map(
+    trabalhosAtivos.map((t) => [
+      t.id,
+      { status: t.status, tipoProtese: t.tipoProtese, instrucoes: t.instrucoes },
+    ])
+  );
+  const urgentesCliente = montarUrgentesClienteDashboard(
+    storeUrgencias.eventos,
+    mapaTrabalhosUrgencia
+  );
+  for (const u of urgentesCliente) {
+    lista.push({
+      id: `urgente-cliente-${u.trabalhoId}`,
+      kind: "urgente_cliente",
+      href: hrefOsEditar(u.trabalhoId),
+      params: {
+        numeroOs: u.numeroOs,
+        cliente: u.clienteNome,
+        paciente: u.pacienteNome,
+        servico: u.tipoProtese,
+      },
+      criadoEm: u.criadoEm,
     });
   }
 
