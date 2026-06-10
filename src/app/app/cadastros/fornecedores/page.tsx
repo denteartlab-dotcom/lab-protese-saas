@@ -2,9 +2,16 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Edit3, Eye, MapPin, Plus, Trash2, UserRound } from "lucide-react";
+import { BotoesListagemFornecedores } from "@/components/fornecedores/BotoesListagemFornecedores";
+import { ImportarFornecedoresExcelModal } from "@/components/fornecedores/ImportarFornecedoresExcelModal";
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { compararTextoBr } from "@/lib/listagem-config";
+import {
+  exportarFornecedoresExcel,
+  gerarListaFornecedoresPdf,
+} from "@/lib/fornecedores-lista-export";
+import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import { Button, Input, Modal } from "@/components/ui";
 import { usePageReady } from "@/hooks/use-page-ready";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
@@ -117,6 +124,8 @@ export default function FornecedoresPage() {
   const [modalCategoriaAberto, setModalCategoriaAberto] = useState(false);
   const [novaCategoria, setNovaCategoria] = useState("");
   const [persistenciaPronta, setPersistenciaPronta] = useState(false);
+  const [importarAberto, setImportarAberto] = useState(false);
+  const [processandoLista, setProcessandoLista] = useState(false);
   const ultimoCepBuscado = useRef("");
 
   const paginaPronta = usePageReady(() => {
@@ -293,6 +302,46 @@ export default function FornecedoresPage() {
     }));
   }
 
+  async function imprimirListaFornecedores() {
+    if (!filtrados.length) {
+      alert("Não há fornecedores para imprimir.");
+      return;
+    }
+    setProcessandoLista(true);
+    try {
+      await abrirPdfGerando(
+        () => gerarListaFornecedoresPdf(filtrados),
+        "lista-fornecedores.pdf",
+        "Lista de Fornecedores Cadastrados"
+      );
+    } catch {
+      alert("Não foi possível gerar a impressão.");
+    } finally {
+      setProcessandoLista(false);
+    }
+  }
+
+  async function exportarListaFornecedores() {
+    if (!filtrados.length) {
+      alert("Não há fornecedores para exportar.");
+      return;
+    }
+    setProcessandoLista(true);
+    try {
+      await exportarFornecedoresExcel(filtrados);
+    } catch {
+      alert("Não foi possível exportar a planilha.");
+    } finally {
+      setProcessandoLista(false);
+    }
+  }
+
+  function importarFornecedores(
+    novos: Array<Fornecedor & { id: string }>
+  ) {
+    setFornecedores((atuais) => [...atuais, ...novos]);
+  }
+
   return (
     <div className="space-y-4 text-xs text-slate-600">
       <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -319,15 +368,13 @@ export default function FornecedoresPage() {
             >
               {mostrarExcluidos ? "Ver Ativos" : "Ver Excluídos"}
             </button>
-            <button type="button" className="h-7 w-7 rounded-sm bg-blue-500 text-[10px] font-bold text-white">
-              P
-            </button>
-            <button type="button" className="h-7 w-7 rounded-sm bg-blue-400 text-[10px] font-bold text-white">
-              E
-            </button>
-            <button type="button" className="h-7 w-7 rounded-sm bg-emerald-500 text-[10px] font-bold text-white">
-              X
-            </button>
+            <BotoesListagemFornecedores
+              onImprimir={() => void imprimirListaFornecedores()}
+              onImportar={() => setImportarAberto(true)}
+              onExportarExcel={() => void exportarListaFornecedores()}
+              disabled={mostrarExcluidos}
+              processando={processandoLista}
+            />
           </div>
 
           <div className="flex w-full max-w-xl items-center gap-1">
@@ -693,6 +740,13 @@ export default function FornecedoresPage() {
           </div>
         </form>
       </Modal>
+
+      <ImportarFornecedoresExcelModal
+        aberto={importarAberto}
+        onFechar={() => setImportarAberto(false)}
+        onImportado={importarFornecedores}
+        nomesExistentes={fornecedores.map((fornecedor) => fornecedor.nome)}
+      />
     </div>
   );
 }
