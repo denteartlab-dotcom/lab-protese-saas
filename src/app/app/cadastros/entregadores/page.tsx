@@ -1,24 +1,19 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Edit3,
-  Eye,
-  FileSpreadsheet,
-  MapPin,
-  Plus,
-  Printer,
-  Save,
-  Search,
-  Trash2,
-  User,
-} from "lucide-react";
+import { Edit3, Eye, MapPin, Plus, Search, Trash2, User } from "lucide-react";
+import { BotoesListagemEntregadores } from "@/components/entregadores/BotoesListagemEntregadores";
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { compararTextoBr } from "@/lib/listagem-config";
 import { Modal } from "@/components/ui";
 import { usePageReady } from "@/hooks/use-page-ready";
 import { formatarCepEntrega, TIPOS_ENTREGADOR } from "@/lib/controle-entregas";
+import {
+  exportarEntregadoresExcel,
+  gerarListaEntregadoresPdf,
+} from "@/lib/entregadores-lista-export";
+import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import {
   carregarEntregadoresCadastro,
   carregarEntregadoresExcluidos,
@@ -62,6 +57,7 @@ export default function EntregadoresPage() {
   const [form, setForm] = useState<FormEntregador>(formularioEntregadorVazio);
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [persistenciaPronta, setPersistenciaPronta] = useState(false);
+  const [processandoLista, setProcessandoLista] = useState(false);
   const ultimoCepBuscado = useRef("");
 
   const paginaPronta = usePageReady(() => {
@@ -214,6 +210,40 @@ export default function EntregadoresPage() {
     if (visualizando?.id === id) setVisualizando(null);
   }
 
+  async function imprimirListaEntregadores() {
+    if (!filtrados.length) {
+      alert("Não há entregadores para imprimir.");
+      return;
+    }
+    setProcessandoLista(true);
+    try {
+      await abrirPdfGerando(
+        () => gerarListaEntregadoresPdf(filtrados),
+        "lista-entregadores.pdf",
+        "Lista de Entregadores Cadastrados"
+      );
+    } catch {
+      alert("Não foi possível gerar a impressão.");
+    } finally {
+      setProcessandoLista(false);
+    }
+  }
+
+  async function exportarListaEntregadores() {
+    if (!filtrados.length) {
+      alert("Não há entregadores para exportar.");
+      return;
+    }
+    setProcessandoLista(true);
+    try {
+      await exportarEntregadoresExcel(filtrados);
+    } catch {
+      alert("Não foi possível exportar a planilha.");
+    } finally {
+      setProcessandoLista(false);
+    }
+  }
+
   return (
     <div className="space-y-4 text-xs text-slate-600">
       <div className="flex items-center gap-2">
@@ -241,27 +271,12 @@ export default function EntregadoresPage() {
               <Eye className="h-3.5 w-3.5" />
               {mostrarExcluidos ? "Ver Ativos" : "Ver Excluídos"}
             </button>
-            <button
-              type="button"
-              title="Salvar"
-              className="flex h-8 w-8 items-center justify-center rounded border border-[#93c5fd] bg-[#dbeafe] text-[#2563eb] hover:bg-[#bfdbfe]"
-            >
-              <Save className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              title="Exportar"
-              className="flex h-8 w-8 items-center justify-center rounded border border-[#86efac] bg-[#dcfce7] text-[#16a34a] hover:bg-[#bbf7d0]"
-            >
-              <FileSpreadsheet className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              title="Imprimir"
-              className="flex h-8 w-8 items-center justify-center rounded border border-[#93c5fd] bg-[#dbeafe] text-[#2563eb] hover:bg-[#bfdbfe]"
-            >
-              <Printer className="h-4 w-4" />
-            </button>
+            <BotoesListagemEntregadores
+              onImprimir={() => void imprimirListaEntregadores()}
+              onExportarExcel={() => void exportarListaEntregadores()}
+              disabled={mostrarExcluidos}
+              processando={processandoLista}
+            />
           </div>
 
           <div className="flex min-w-[320px] max-w-lg flex-1 justify-end">
