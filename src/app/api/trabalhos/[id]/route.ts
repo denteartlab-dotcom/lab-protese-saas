@@ -15,6 +15,10 @@ import {
 } from "@/lib/os-faturamento";
 import { grupoOsIdOf, whereGrupoOs } from "@/lib/trabalho-os-segmento";
 import { STATUS_TRABALHO } from "@/lib/utils";
+import {
+  liberarUrgenciaTrabalhoFinalizado,
+  trabalhoAtivoUrgencia,
+} from "@/lib/urgencia-cliente";
 import { z } from "zod";
 
 const schema = z.object({
@@ -108,6 +112,15 @@ export async function PUT(
       data: payload,
       include: { cliente: true, paciente: true },
     });
+
+    const novoStatus = String(payload.status ?? atual.status);
+    if (
+      novoStatus !== atual.status &&
+      !trabalhoAtivoUrgencia(novoStatus) &&
+      trabalhoAtivoUrgencia(atual.status)
+    ) {
+      await liberarUrgenciaTrabalhoFinalizado(atual.numeroOs);
+    }
 
     const detalhes: DetalheAlteracaoAuditoria[] = [];
     const rotulo = (campo: string, antes: unknown, depois: unknown) => {

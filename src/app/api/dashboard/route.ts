@@ -17,8 +17,9 @@ import {
 import { calcularResumoProducaoDashboard } from "@/lib/dashboard-producao";
 import { resumoArmazenamentoVazio } from "@/lib/uploads-armazenamento-server";
 import {
-  carregarStoreUrgenciasCliente,
+  enriquecerLinksAcompanhamentoUrgentes,
   montarUrgentesClienteDashboard,
+  podarEventosUrgenciaInativos,
 } from "@/lib/urgencia-cliente";
 
 export async function GET(request: Request) {
@@ -161,16 +162,15 @@ export async function GET(request: Request) {
     diasSemServico
   );
 
-  const storeUrgencias = await carregarStoreUrgenciasCliente();
+  const storeUrgencias = await podarEventosUrgenciaInativos();
   const mapaTrabalhosUrgencia = new Map(
     trabalhosControle.map((t) => [
       t.id,
       { status: t.status, tipoProtese: t.tipoProtese, instrucoes: t.instrucoes },
     ])
   );
-  const urgentesCliente = montarUrgentesClienteDashboard(
-    storeUrgencias.eventos,
-    mapaTrabalhosUrgencia
+  const urgentesCliente = await enriquecerLinksAcompanhamentoUrgentes(
+    montarUrgentesClienteDashboard(storeUrgencias.eventos, mapaTrabalhosUrgencia)
   );
 
   const financeiroResumo = calcularResumoFinanceiroDashboard(

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { hrefOsEditar } from "@/lib/notificacao-links";
 import type { UrgenteClienteDashboardItem } from "@/lib/urgencia-cliente";
 
 type Props = {
@@ -88,13 +87,17 @@ export function PainelUrgenciasClienteDashboard({
                     Sinalizado em {formatarDataHora(item.criadoEm)}
                   </p>
                 </div>
-                <Link
-                  href={hrefOsEditar(item.trabalhoId)}
-                  className="rounded border border-red-300 px-2.5 py-1 text-[11px] font-medium text-red-700 hover:bg-red-50"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {labelVisualizar}
-                </Link>
+                {item.linkAcompanhamento ? (
+                  <Link
+                    href={item.linkAcompanhamento}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded border border-red-300 px-2.5 py-1 text-[11px] font-medium text-red-700 hover:bg-red-50"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {labelVisualizar}
+                  </Link>
+                ) : null}
               </li>
             ))}
           </ul>

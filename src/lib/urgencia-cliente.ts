@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db";
+import { gerarTokenAcompanhamentoCliente } from "@/lib/cliente-acompanhamento";
 import { flagsUrgenciaTrabalho } from "@/lib/modulo-producao-os";
+import { hrefAcompanhamentoClienteOs } from "@/lib/whatsapp";
 
 export const LIMITE_URGENCIAS_ATIVAS_CLIENTE = 5;
 export const LIMITE_URGENCIAS_DIA_CLIENTE = 2;
@@ -25,11 +27,13 @@ type StoreUrgenciasCliente = {
 export type UrgenteClienteDashboardItem = {
   id: string;
   trabalhoId: string;
+  clienteId: string;
   numeroOs: number;
   clienteNome: string;
   pacienteNome: string;
   tipoProtese: string;
   criadoEm: string;
+  linkAcompanhamento?: string;
 };
 
 export type LimitesUrgenciaCliente = {
@@ -107,6 +111,21 @@ export function marcarInstrucoesUrgente(
   }
 
   return alterou ? linhas.join("\n") : texto;
+}
+
+/** Remove marcação de urgência nas instruções (ao finalizar/entregar). */
+export function removerMarcacaoUrgenteInstrucoes(
+  instrucoes: string | null | undefined
+): string {
+  const linhas = (instrucoes || "")
+    .split("\n")
+    .filter((l) => !l.includes("Urgência solicitada pelo cliente"))
+    .map((line) =>
+      line
+        .replace(/ - urgente - obs /gi, " - obs ")
+        .replace(/ - urgente(?= -|$)/gi, "")
+    );
+  return linhas.join("\n").trimEnd();
 }
 
 export function inicioDiaBr(date = new Date()) {
@@ -257,6 +276,7 @@ export function montarUrgentesClienteDashboard(
     lista.push({
       id: e.id,
       trabalhoId: e.trabalhoId,
+      clienteId: e.clienteId,
       numeroOs: e.numeroOs,
       clienteNome: e.clienteNome,
       pacienteNome: e.pacienteNome,
@@ -266,6 +286,91 @@ export function montarUrgentesClienteDashboard(
   }
 
   return lista;
+}
+
+/** Remove eventos de OS finalizadas/entregues do histórico de urgências. */
+export async function podarEventosUrgenciaInativos() {
+  const store = await carregarStoreUrgenciasCliente();
+  if (!store.eventos.length) return store;
+
+  const ids = [...new Set(store.eventos.map((e) => e.trabalhoId))];
+  const trabalhos = await prisma.trabalho.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, status: true },
+  });
+  const statusPorId = new Map(trabalhos.map((t) => [t.id, t.status]));
+  const eventos = store.eventos.filter((e) => {
+    const status = statusPorId.get(e.trabalhoId);
+    if (!status) return false;
+    return trabalhoAtivoUrgencia(status);
+  });
+
+  if (eventos.length !== store.eventos.length) {
+    const atualizado = { eventos };
+    await salvarStoreUrgenciasCliente(atualizado);
+    return atualizado;
+  }
+  return store;
+}
+
+/** Limpa urgência da OS e do registro quando finalizada ou entregue. */
+export async function liberarUrgenciaTrabalhoFinalizado(numeroOs: number) {
+  const trabalhos = await prisma.trabalho.findMany({
+    where: { numeroOs },
+    select: { id: true, instrucoes: true },
+  });
+  if (!trabalhos.length) return;
+
+  const ids = new Set(trabalhos.map((t) => t.id));
+  await prisma.$transaction(
+    trabalhos.map((t) =>
+      prisma.trabalho.update({
+        where: { id: t.id },
+        data: { instrucoes: removerMarcacaoUrgenteInstrucoes(t.instrucoes) },
+      })
+    )
+  );
+
+  const store = await carregarStoreUrgenciasCliente();
+  const eventos = store.eventos.filter((e) => !ids.has(e.trabalhoId));
+  if (eventos.length !== store.eventos.length) {
+    await salvarStoreUrgenciasCliente({ eventos });
+  }
+}
+
+export async function enriquecerLinksAcompanhamentoUrgentes(
+  itens: UrgenteClienteDashboardItem[]
+): Promise<UrgenteClienteDashboardItem[]> {
+  if (!itens.length) return itens;
+
+  const clienteIds = [...new Set(itens.map((i) => i.clienteId))];
+  const clientes = await prisma.cliente.findMany({
+    where: { id: { in: clienteIds } },
+    select: { id: true, tokenAcompanhamento: true },
+  });
+
+  const tokenPorCliente = new Map<string, string>();
+  for (const cliente of clientes) {
+    let token = cliente.tokenAcompanhamento;
+    if (!token) {
+      token = gerarTokenAcompanhamentoCliente();
+      await prisma.cliente.update({
+        where: { id: cliente.id },
+        data: { tokenAcompanhamento: token },
+      });
+    }
+    tokenPorCliente.set(cliente.id, token);
+  }
+
+  return itens.map((item) => {
+    const token = tokenPorCliente.get(item.clienteId);
+    return {
+      ...item,
+      linkAcompanhamento: token
+        ? hrefAcompanhamentoClienteOs(token, item.numeroOs)
+        : undefined,
+    };
+  });
 }
 
 type TrabalhoVisivelAcompanhamento = {

@@ -60,6 +60,22 @@ export function clienteAcompanhamentoPublicUrl(token: string, origin?: string) {
   return `${base}/acompanhamento/${token}`;
 }
 
+export function clienteAcompanhamentoOsUrl(
+  token: string,
+  numeroOs: number,
+  origin?: string
+) {
+  const base = clienteAcompanhamentoPublicUrl(token, origin);
+  const q = new URLSearchParams({ os: String(numeroOs) });
+  return `${base}?${q}`;
+}
+
+/** Caminho relativo para uso interno no painel do laboratório. */
+export function hrefAcompanhamentoClienteOs(token: string, numeroOs: number) {
+  const q = new URLSearchParams({ os: String(numeroOs) });
+  return `/acompanhamento/${token}?${q}`;
+}
+
 export function mensagemAcompanhamentoCliente(
   nomeCliente: string,
   publicUrl: string

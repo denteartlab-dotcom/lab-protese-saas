@@ -27,8 +27,9 @@ import {
   hrefOsEditar,
 } from "@/lib/notificacao-links";
 import {
-  carregarStoreUrgenciasCliente,
+  enriquecerLinksAcompanhamentoUrgentes,
   montarUrgentesClienteDashboard,
+  podarEventosUrgenciaInativos,
 } from "@/lib/urgencia-cliente";
 
 function vencimentoBr(data: Date) {
@@ -292,22 +293,21 @@ export async function GET() {
     });
   }
 
-  const storeUrgencias = await carregarStoreUrgenciasCliente();
+  const storeUrgencias = await podarEventosUrgenciaInativos();
   const mapaTrabalhosUrgencia = new Map(
     trabalhosAtivos.map((t) => [
       t.id,
       { status: t.status, tipoProtese: t.tipoProtese, instrucoes: t.instrucoes },
     ])
   );
-  const urgentesCliente = montarUrgentesClienteDashboard(
-    storeUrgencias.eventos,
-    mapaTrabalhosUrgencia
+  const urgentesCliente = await enriquecerLinksAcompanhamentoUrgentes(
+    montarUrgentesClienteDashboard(storeUrgencias.eventos, mapaTrabalhosUrgencia)
   );
   for (const u of urgentesCliente) {
     lista.push({
       id: `urgente-cliente-${u.trabalhoId}`,
       kind: "urgente_cliente",
-      href: hrefOsEditar(u.trabalhoId),
+      href: u.linkAcompanhamento || hrefOsEditar(u.trabalhoId),
       params: {
         numeroOs: u.numeroOs,
         cliente: u.clienteNome,

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import type { ClienteAcompanhamentoPublico } from "@/lib/cliente-acompanhamento";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -24,6 +24,7 @@ function formatarDataHora(iso: string) {
 
 export default function AcompanhamentoClientePage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const token = String(params.token || "");
 
   const [dados, setDados] = useState<ClienteAcompanhamentoPublico | null>(null);
@@ -63,6 +64,11 @@ export default function AcompanhamentoClientePage() {
     const id = window.setInterval(() => void carregar(true), POLL_MS);
     return () => window.clearInterval(id);
   }, [carregar]);
+
+  useEffect(() => {
+    const os = searchParams.get("os")?.trim();
+    if (os) setBusca(os);
+  }, [searchParams]);
 
   const solicitarUrgente = useCallback(
     async (trabalhoId: string) => {
