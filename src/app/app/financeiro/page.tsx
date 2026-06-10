@@ -624,7 +624,7 @@ function FinanceiroReceberConteudo() {
     const grupos = new Map<string, ClienteReceber>();
 
     receitasFiltradas.forEach((lancamento) => {
-      const nome = lancamento.cliente?.nome || "Sem cliente informado";
+      const nome = lancamento.cliente?.nome?.trim() || "Sem vínculo de cliente";
       const chave = lancamento.cliente?.id || `sem-cliente-${nome}`;
       const grupo = grupos.get(chave) || {
         clienteId: lancamento.cliente?.id,
@@ -659,7 +659,7 @@ function FinanceiroReceberConteudo() {
     });
 
     trabalhosNaoFaturados.forEach((trabalho) => {
-      const nome = trabalho.cliente?.nome || "Sem cliente informado";
+      const nome = trabalho.cliente?.nome?.trim() || "Sem vínculo de cliente";
       const chave = trabalho.cliente?.id || `sem-cliente-${nome}`;
       const grupo = grupos.get(chave) || {
         clienteId: trabalho.cliente?.id,

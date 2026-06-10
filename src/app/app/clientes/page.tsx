@@ -20,6 +20,7 @@ import { BarraConfigListagem } from "@/components/listagem/BarraConfigListagem";
 import { useListagemPaginada } from "@/hooks/use-listagem-paginada";
 import { compararTextoBr } from "@/lib/listagem-config";
 import { buscarEnderecoPorCep as buscarCepApi } from "@/lib/cep-lookup";
+import { validarNomeCliente } from "@/lib/cliente-validacao";
 import { formatCepInput } from "@/lib/documento-br";
 import {
   custoEntregaCliente,
@@ -324,9 +325,14 @@ export default function ClientesPage() {
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
+    const nomeValidado = validarNomeCliente(form.nome);
+    if (!nomeValidado.ok) {
+      alert(nomeValidado.message);
+      return;
+    }
     const url = editing ? `/api/clientes/${editing.id}` : "/api/clientes";
     const payload = {
-      nome: form.nome,
+      nome: nomeValidado.nome,
       razaoSocial: form.razaoSocial,
       cnpjCpf: form.cnpjCpf || form.cpf,
       cro: form.cro,
@@ -363,11 +369,16 @@ export default function ClientesPage() {
         form.dataNascimento
       ),
     };
-    await fetch(url, {
+    const res = await fetch(url, {
       method: editing ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      alert(data.error || "Não foi possível salvar o cliente.");
+      return;
+    }
     setOpen(false);
     load();
   }

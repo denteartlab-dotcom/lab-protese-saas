@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { gerarTokenAcompanhamentoCliente } from "@/lib/cliente-acompanhamento";
+import { schemaNomeCliente } from "@/lib/cliente-validacao";
 import { z } from "zod";
 
 const schema = z.object({
-  nome: z.string().min(2),
+  nome: schemaNomeCliente,
   razaoSocial: z.string().optional(),
   cnpjCpf: z.string().optional(),
   cro: z.string().optional(),
@@ -57,11 +58,18 @@ export async function POST(request: Request) {
     const cliente = await prisma.cliente.create({
       data: {
         ...data,
+        nome: data.nome,
         tokenAcompanhamento: gerarTokenAcompanhamentoCliente(),
       },
     });
     return NextResponse.json(cliente, { status: 201 });
-  } catch {
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: error.issues[0]?.message || "Dados inválidos" },
+        { status: 400 }
+      );
+    }
     return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
   }
 }

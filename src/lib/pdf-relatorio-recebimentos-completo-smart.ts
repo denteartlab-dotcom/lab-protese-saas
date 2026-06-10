@@ -50,7 +50,7 @@ function novaPaginaSePreciso(ctx: ContextoTabelaFaturasSmart, altura: number) {
 function agruparPorCliente(linhas: LinhaRelatorioContasReceber[]): GrupoCliente[] {
   const mapa = new Map<string, LinhaRelatorioContasReceber[]>();
   for (const linha of linhas) {
-    const chave = linha.cliente.trim() || "Sem cliente informado";
+    const chave = linha.cliente.trim() || "Sem vínculo de cliente";
     const lista = mapa.get(chave) ?? [];
     lista.push(linha);
     mapa.set(chave, lista);

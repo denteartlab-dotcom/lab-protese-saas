@@ -108,7 +108,7 @@ function linhaBase(
     vencimento: formatDate(l.data),
     numeroFatura: numeroFaturaDeLancamento(l, receitas),
     parcela: textoParcelaLancamento(l),
-    cliente: l.cliente?.nome || "Sem cliente informado",
+    cliente: l.cliente?.nome?.trim() || "Sem vínculo de cliente",
     os: numerosOsTexto(l),
     formaRecebimento: l.formaPagamento || "—",
     valor: l.valor,

@@ -110,7 +110,7 @@ function filtrarReceitasCliente(
   return lancamentos.filter((l) => {
     if (l.tipo !== "receita" || l.status === "cancelado") return false;
     if (clienteId && l.cliente?.id) return l.cliente.id === clienteId;
-    const nome = (l.cliente?.nome || "Sem cliente informado").trim();
+    const nome = (l.cliente?.nome?.trim() || "Sem vínculo de cliente").trim();
     return nome.toLowerCase() === nomeNorm;
   });
 }

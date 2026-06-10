@@ -3,9 +3,10 @@ import { z } from "zod";
 import { getSession } from "@/lib/auth";
 import { gerarTokenAcompanhamentoCliente } from "@/lib/cliente-acompanhamento";
 import { prisma } from "@/lib/db";
+import { schemaNomeCliente } from "@/lib/cliente-validacao";
 
 const clienteImportSchema = z.object({
-  nome: z.string().min(2),
+  nome: schemaNomeCliente,
   razaoSocial: z.string().optional(),
   cnpjCpf: z.string().optional(),
   cro: z.string().optional(),
@@ -35,11 +36,12 @@ export async function POST(request: Request) {
     let ignorados = 0;
 
     for (const cliente of data.clientes) {
-      const nome = cliente.nome.trim();
-      if (nome.length < 2) {
+      const parsedNome = schemaNomeCliente.safeParse(cliente.nome);
+      if (!parsedNome.success) {
         ignorados += 1;
         continue;
       }
+      const nome = parsedNome.data;
 
       await prisma.cliente.create({
         data: {

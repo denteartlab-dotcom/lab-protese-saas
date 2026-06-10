@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { schemaNomeCliente } from "@/lib/cliente-validacao";
 import { z } from "zod";
 
 const schema = z.object({
-  nome: z.string().min(2).optional(),
+  nome: schemaNomeCliente.optional(),
   razaoSocial: z.string().optional().nullable(),
   cnpjCpf: z.string().optional().nullable(),
   cro: z.string().optional().nullable(),
@@ -60,9 +61,21 @@ export async function PUT(
     if (!existente) {
       return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
     }
-    const cliente = await prisma.cliente.update({ where: { id }, data });
+    const cliente = await prisma.cliente.update({
+      where: { id },
+      data: {
+        ...data,
+        ...(data.nome !== undefined ? { nome: data.nome } : {}),
+      },
+    });
     return NextResponse.json(cliente);
-  } catch {
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: error.issues[0]?.message || "Dados inválidos" },
+        { status: 400 }
+      );
+    }
     return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
   }
 }
