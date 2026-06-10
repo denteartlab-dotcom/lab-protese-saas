@@ -3,6 +3,7 @@ import { ptBR } from "date-fns/locale";
 import { parseBrDate } from "@/lib/datas-br";
 import { baixarCsv } from "@/lib/exportar-csv";
 import { baixarExcel } from "@/lib/exportar-excel";
+import { normalizarColaborador } from "@/lib/utils";
 
 /** Dias parados na etapa atual para destacar visualmente na tabela. */
 export const LIMIAR_DIAS_PARADO_DESTAQUE = 5;
@@ -166,24 +167,27 @@ export function calcularResponsavelPeloAtraso(linha: {
   diasNaEtapaAtual: number;
   colaborador: string;
 }) {
-  const colab = linha.colaborador?.trim();
-  if (!colab || colab === "—") return "Não definido";
+  const colab = normalizarColaborador(linha.colaborador);
+  if (!colab) return "";
   if (linha.diasAtraso > 0 || linha.diasNaEtapaAtual >= LIMIAR_DIAS_PARADO_DESTAQUE) {
     return colab;
   }
-  return "—";
+  return "";
 }
 
 export function enriquecerLinhaTempoProducao(
   linha: LinhaTempoProducao,
   mediaPorColaborador?: Map<string, number>
 ): LinhaTempoProducao {
-  const colab = linha.colaborador?.trim() || "";
+  const colab = normalizarColaborador(linha.colaborador);
   return {
     ...linha,
+    colaborador: colab,
     responsavelPeloAtraso: calcularResponsavelPeloAtraso(linha),
     paradoMuitoTempo: linha.diasNaEtapaAtual >= LIMIAR_DIAS_PARADO_DESTAQUE,
-    tempoMedioColaborador: mediaPorColaborador?.get(colab) ?? linha.tempoMedioColaborador ?? 0,
+    tempoMedioColaborador: colab
+      ? (mediaPorColaborador?.get(colab) ?? linha.tempoMedioColaborador ?? 0)
+      : 0,
   };
 }
 
@@ -276,7 +280,8 @@ export function calcularResumoTempoProducao(linhas: LinhaTempoProducao[]): Resum
 
   const porColaborador = new Map<string, number>();
   for (const l of atrasadas) {
-    const nome = l.colaborador || "Sem responsável";
+    const nome = normalizarColaborador(l.colaborador);
+    if (!nome) continue;
     porColaborador.set(nome, (porColaborador.get(nome) ?? 0) + l.diasAtraso);
   }
   const colaboradorMaiorAtraso = [...porColaborador.entries()]
@@ -343,16 +348,20 @@ export function calcularGraficosTempoProducao(linhas: LinhaTempoProducao[]): Gra
 
   for (const l of linhas) {
     const etapa = l.etapaAtual || "Sem etapa";
-    const colab = l.colaborador || "Sem responsável";
+    const colab = normalizarColaborador(l.colaborador);
 
     if (l.diasAtraso > 0) {
       const ae = atrasoEtapa.get(etapa) ?? { dias: 0, os: 0 };
       atrasoEtapa.set(etapa, { dias: ae.dias + l.diasAtraso, os: ae.os + 1 });
-      colabAtraso.set(colab, (colabAtraso.get(colab) ?? 0) + 1);
+      if (colab) {
+        colabAtraso.set(colab, (colabAtraso.get(colab) ?? 0) + 1);
+      }
     }
 
-    const tc = tempoColab.get(colab) ?? { total: 0, count: 0 };
-    tempoColab.set(colab, { total: tc.total + l.diasNaEtapaAtual, count: tc.count + 1 });
+    if (colab) {
+      const tc = tempoColab.get(colab) ?? { total: 0, count: 0 };
+      tempoColab.set(colab, { total: tc.total + l.diasNaEtapaAtual, count: tc.count + 1 });
+    }
 
     statusCount.set(l.status, (statusCount.get(l.status) ?? 0) + 1);
 
@@ -459,7 +468,7 @@ export function opcoesFiltroTempoProducao(linhas: LinhaTempoProducao[]) {
     [...new Set(vals.filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
   return {
     dentistas: uniq(linhas.map((l) => l.dentista)),
-    colaboradores: uniq(linhas.map((l) => l.colaborador)),
+    colaboradores: uniq(linhas.map((l) => normalizarColaborador(l.colaborador))),
     etapas: uniq(linhas.map((l) => l.etapaAtual)),
     tiposServico: uniq(linhas.map((l) => l.tipoServico)),
   };

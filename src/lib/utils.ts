@@ -21,6 +21,15 @@ export function exibirTexto(value?: string | null) {
   return texto;
 }
 
+/** Nome de colaborador/responsável normalizado (vazio se não cadastrado). */
+export function normalizarColaborador(value?: string | null) {
+  return exibirTexto(value);
+}
+
+export function temColaborador(value?: string | null) {
+  return Boolean(normalizarColaborador(value));
+}
+
 function parseDateInput(date: Date | string): Date {
   if (date instanceof Date) return date;
   const match = date.match(/^(\d{4})-(\d{2})-(\d{2})/);

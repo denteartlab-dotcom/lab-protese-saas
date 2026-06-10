@@ -20,7 +20,7 @@ import {
   textoServicoLog,
   TIPOS_ALTERACAO_LOG,
 } from "@/lib/logs-auditoria";
-import { cn } from "@/lib/utils";
+import { cn, exibirTexto } from "@/lib/utils";
 
 const labelClass = "mb-1 block text-[11px] font-normal text-[#6b7280]";
 const selectClass =
@@ -275,7 +275,7 @@ export function RelatorioLogsAuditoriaConteudo() {
                             </td>
                             <td className={tdClass}>{linha.etapa || "—"}</td>
                             <td className={cn(tdClass, "max-w-[160px] truncate")}>
-                              {linha.colaborador || "—"}
+                              {exibirTexto(linha.colaborador)}
                             </td>
                           </>
                         )}

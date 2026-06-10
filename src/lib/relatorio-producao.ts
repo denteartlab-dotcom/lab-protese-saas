@@ -14,7 +14,7 @@ import {
 } from "@/lib/tabela-precos-os";
 import { flagsUrgenciaTrabalho } from "@/lib/modulo-producao-os";
 import { metaStatusOs } from "@/lib/status-os";
-import { STATUS_TRABALHO } from "@/lib/utils";
+import { normalizarColaborador, STATUS_TRABALHO } from "@/lib/utils";
 
 /** Opções do Smart Prótese — Relatório de Produção */
 export const OPCOES_RELATORIO_PRODUCAO = [
@@ -559,7 +559,7 @@ function gerarColaboradoresLista(trabalhos: TrabalhoRelatorioProducao[]) {
       etapas
     );
     if (cols.length === 0) {
-      linhas.push(baseLinha(t, { colaborador: "—" }));
+      linhas.push(baseLinha(t, { colaborador: "" }));
       continue;
     }
     const valorCol = (Number(t.valor) || 0) / cols.length;

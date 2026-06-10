@@ -2,6 +2,7 @@ import type { LinhaComissaoColaborador } from "@/lib/comissoes-colaboradores";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
 import { moneyBr, PRETO } from "@/lib/pdf-relatorio-faturas-smart-comum";
 import type { FiltroRelatorioComissaoColaboradores } from "@/lib/relatorio-comissao-colaboradores";
+import { normalizarColaborador } from "@/lib/utils";
 import { formatDateTime } from "@/lib/utils";
 
 type ColunaAgrupadaPdf = {
@@ -175,7 +176,7 @@ function desenharLinhaTabelaGrid(
 function agruparPorColaborador(linhas: LinhaComissaoColaborador[]) {
   const mapa = new Map<string, LinhaComissaoColaborador[]>();
   for (const linha of linhas) {
-    const chave = linha.colaborador.trim() || "—";
+    const chave = normalizarColaborador(linha.colaborador);
     const lista = mapa.get(chave) ?? [];
     lista.push(linha);
     mapa.set(chave, lista);
@@ -227,8 +228,11 @@ function desenharGrupoColaborador(
   ctx.pdf.setFont("helvetica", "bold");
   ctx.pdf.setFontSize(9);
   ctx.pdf.setTextColor(...PRETO);
-  ctx.pdf.text(colaborador, ctx.margin, ctx.y + 3);
-  ctx.y += 6;
+  const nomeColab = normalizarColaborador(colaborador);
+  if (nomeColab) {
+    ctx.pdf.text(nomeColab, ctx.margin, ctx.y + 3);
+    ctx.y += 6;
+  }
 
   desenharLinhaTabelaGrid(
     ctx,

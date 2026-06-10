@@ -294,7 +294,7 @@ export function PreviewOsModeloComprovante({
           {mostraColaboradorTopo ? (
             <p>
               <span>Colaborador: </span>
-              <span className="font-bold">{textoColaboradorTopo || "—"}</span>
+              <span className="font-bold">{textoColaboradorTopo || ""}</span>
             </p>
           ) : null}
           {layout.produtos && amostra.produtos ? (

@@ -8,7 +8,7 @@ import {
   iniciaisAvatar,
   labelStatusPremium,
 } from "@/lib/tempo-producao-premium";
-import { cn } from "@/lib/utils";
+import { cn, temColaborador } from "@/lib/utils";
 
 type Props = {
   linhas: LinhaTempoProducao[];
@@ -140,17 +140,19 @@ export function ReportPremiumTable({
                       )}
                     </td>
                     <td className="px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={cn(
-                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white",
-                            corAvatar(linha.colaborador)
-                          )}
-                        >
-                          {iniciaisAvatar(linha.colaborador)}
-                        </span>
-                        <span className="text-sm font-medium text-slate-700">{linha.colaborador}</span>
-                      </div>
+                      {temColaborador(linha.colaborador) ? (
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={cn(
+                              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white",
+                              corAvatar(linha.colaborador)
+                            )}
+                          >
+                            {iniciaisAvatar(linha.colaborador)}
+                          </span>
+                          <span className="text-sm font-medium text-slate-700">{linha.colaborador}</span>
+                        </div>
+                      ) : null}
                     </td>
                     <td className="px-4 py-4 text-sm font-medium text-slate-600">
                       {linha.tempoMedioColaborador > 0

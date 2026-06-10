@@ -12,7 +12,7 @@ import {
 import { TvBadge } from "@/components/modulo-tv/ui/TvBadge";
 import { TV_OS_CARD } from "@/components/modulo-tv/tv-styles";
 import type { OrdemServicoTv } from "@/components/modulo-tv/types";
-import { cn } from "@/lib/utils";
+import { cn, temColaborador } from "@/lib/utils";
 
 type Props = {
   ordem: OrdemServicoTv;
@@ -104,9 +104,11 @@ export function TvOsCard({
         <p className="font-tv-mono text-[10px] text-violet-300/80 tv:text-[11px]">
           {tempoEtapa} na etapa
         </p>
-        <p className="text-slate-500">
-          Resp. <span className="text-slate-300">{ordem.colaborador}</span>
-        </p>
+        {temColaborador(ordem.colaborador) ? (
+          <p className="text-slate-500">
+            Resp. <span className="text-slate-300">{ordem.colaborador}</span>
+          </p>
+        ) : null}
       </button>
 
       <p className="mt-2.5 truncate rounded-md bg-slate-800/60 px-2 py-1 text-[10px] text-slate-400 tv:text-[11px]">

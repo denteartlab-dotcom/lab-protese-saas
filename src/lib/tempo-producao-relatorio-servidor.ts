@@ -16,6 +16,7 @@ import {
   type TrabalhoModuloOs,
 } from "@/lib/modulo-producao-os";
 import { prisma } from "@/lib/db";
+import { normalizarColaborador } from "@/lib/utils";
 import { trabalhoParaDetalheTempoProducao } from "@/lib/tempo-producao-detalhe";
 import {
   calcularMetricasTempoProducao,
@@ -132,7 +133,7 @@ function trabalhoParaLinha(
     dentista: principal.cliente.nome,
     tipoServico: principal.tipoProtese,
     etapaAtual: etapaAtual?.nome ?? "Sem etapa definida",
-    colaborador: etapaAtual?.responsavel?.trim() || "—",
+    colaborador: normalizarColaborador(etapaAtual?.responsavel),
     dataEntradaLab: principal.dataEntrada.toISOString(),
     dataEntradaLabBr: formatarDataBr(principal.dataEntrada.toISOString()),
     dataEntradaEtapa: principal.updatedAt.toISOString(),

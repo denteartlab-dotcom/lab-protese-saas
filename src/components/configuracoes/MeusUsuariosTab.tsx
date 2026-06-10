@@ -8,7 +8,7 @@ import {
   rotuloTipoUsuario,
   type UsuarioListagem,
 } from "@/lib/usuarios-sistema";
-import { cn } from "@/lib/utils";
+import { cn, exibirTexto } from "@/lib/utils";
 
 const thClass =
   "px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]";
@@ -228,7 +228,7 @@ export function MeusUsuariosTab() {
                     </td>
                     <td className={cn(tdClass, "font-medium")}>{usuario.name}</td>
                     <td className={tdClass}>{usuario.email}</td>
-                    <td className={tdClass}>{usuario.colaboradorNome || "—"}</td>
+                    <td className={tdClass}>{exibirTexto(usuario.colaboradorNome)}</td>
                     <td className={cn(tdClass, "font-medium", corTipoUsuario(usuario.role))}>
                       {rotuloTipoUsuario(usuario.role)}
                     </td>

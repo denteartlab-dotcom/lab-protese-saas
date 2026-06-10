@@ -22,6 +22,7 @@ import {
   type TrabalhoModuloOs,
 } from "@/lib/modulo-producao-os";
 import { labelStatusOs } from "@/lib/status-os";
+import { normalizarColaborador } from "@/lib/utils";
 
 const STATUS_ATIVOS_EXCLUIDOS = ["cancelado", "entregue", "finalizado"];
 
@@ -168,17 +169,20 @@ function trabalhoParaOrdem(
     instrucoes: trabalho.instrucoes,
   });
 
-  const nomeResp = etapaAtual?.responsavel?.trim() || "";
-  const colab =
-    colaboradoresCadastro.find(
-      (c) => c.nome.trim().toLowerCase() === nomeResp.toLowerCase()
-    ) ??
-    (nomeResp
+  const nomeResp = normalizarColaborador(etapaAtual?.responsavel);
+  const colabCadastro = nomeResp
+    ? colaboradoresCadastro.find(
+        (c) => c.nome.trim().toLowerCase() === nomeResp.toLowerCase()
+      )
+    : undefined;
+  const colab = colabCadastro
+    ? { id: colabCadastro.id, nome: colabCadastro.nome }
+    : nomeResp
       ? { id: `resp-${nomeResp}`, nome: nomeResp }
-      : { id: "sem-resp", nome: "—" });
+      : { id: "", nome: "" };
 
   const statusLabel = etapaAtual
-    ? `${etapaAtual.nome}${etapaAtual.responsavel ? ` · ${etapaAtual.responsavel}` : ""}`
+    ? `${etapaAtual.nome}${nomeResp ? ` · ${nomeResp}` : ""}`
     : labelStatusOs(trabalho.status);
 
   return {
@@ -494,17 +498,20 @@ export async function carregarResumoOsTv(
     instrucoes: principal.instrucoes,
   });
 
-  const nomeResp = etapaAtual?.responsavel?.trim() || "";
-  const colab =
-    colaboradores.find(
-      (c) => c.nome.trim().toLowerCase() === nomeResp.toLowerCase()
-    ) ??
-    (nomeResp
+  const nomeResp = normalizarColaborador(etapaAtual?.responsavel);
+  const colabCadastro = nomeResp
+    ? colaboradores.find(
+        (c) => c.nome.trim().toLowerCase() === nomeResp.toLowerCase()
+      )
+    : undefined;
+  const colab = colabCadastro
+    ? { id: colabCadastro.id, nome: colabCadastro.nome }
+    : nomeResp
       ? { id: `resp-${nomeResp}`, nome: nomeResp }
-      : { id: "sem-resp", nome: "—" });
+      : { id: "", nome: "" };
 
   const statusLabel = etapaAtual
-    ? `${etapaAtual.nome}${etapaAtual.responsavel ? ` · ${etapaAtual.responsavel}` : ""}`
+    ? `${etapaAtual.nome}${nomeResp ? ` · ${nomeResp}` : ""}`
     : labelStatusOs(principal.status);
 
   const trabalhosModulo: TrabalhoModuloOs[] = grupo.map((t) => ({
@@ -561,7 +568,7 @@ export async function carregarResumoOsTv(
     etapas: etapas.map((etapa) => ({
       indice: etapa.indice,
       nome: etapa.nome,
-      responsavel: etapa.responsavel?.trim() || "—",
+      responsavel: normalizarColaborador(etapa.responsavel),
       prazo: etapa.prazo?.trim() || "—",
       concluida: concluidas.has(etapa.indice),
       atual: indiceAtual === etapa.indice,

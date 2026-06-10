@@ -7,6 +7,7 @@ import {
 } from "@/lib/etapas-os";
 import { indiceEtapaAtualDeConcluidas } from "@/lib/modulo-producao-etapas";
 import { anexosFromInstrucoes } from "@/lib/os-anexos";
+import { normalizarColaborador } from "@/lib/utils";
 import {
   calcularMetricasTempoProducao,
   formatarDataBr,
@@ -125,7 +126,7 @@ export function montarTimelineEtapasOs(opts: {
       indice: etapa.indice,
       nome: etapa.nome,
       situacao,
-      responsavel: etapa.responsavel?.trim() || "—",
+      responsavel: normalizarColaborador(etapa.responsavel),
       entradaIso: entrada?.toISOString() ?? null,
       entradaBr: formatarDataHoraBr(entrada?.toISOString() ?? null),
       saidaIso: saida?.toISOString() ?? null,
@@ -222,7 +223,7 @@ export function criarLinhaResumoDeTrabalho(
     dentista: principal.cliente.nome,
     tipoServico: principal.tipoProtese,
     etapaAtual: etapaAtual?.nome ?? "Sem etapa definida",
-    colaborador: etapaAtual?.responsavel?.trim() || "—",
+    colaborador: normalizarColaborador(etapaAtual?.responsavel),
     dataEntradaLab: principal.dataEntrada.toISOString(),
     dataEntradaLabBr: formatarDataBr(principal.dataEntrada.toISOString()),
     dataEntradaEtapa: principal.updatedAt.toISOString(),

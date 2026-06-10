@@ -342,7 +342,7 @@ export default function AgendaPage() {
                     <td className="px-3 py-2">{trabalho.tipoProtese}</td>
                     <td className="px-3 py-2">{clienteNome(trabalho)}</td>
                     <td className="px-3 py-2">{pacienteNome(trabalho)}</td>
-                    <td className="px-3 py-2">{colaboradorAgenda(trabalho.instrucoes) || "-"}</td>
+                    <td className="px-3 py-2">{colaboradorAgenda(trabalho.instrucoes)}</td>
                     <td className="px-3 py-2">{etapaAtualAgenda(trabalho.instrucoes)}</td>
                     <td className="px-3 py-2">
                       <span className={`rounded px-2 py-1 text-[10px] font-semibold ${STATUS_TRABALHO[trabalho.status]?.color || "bg-slate-100 text-slate-700"}`}>

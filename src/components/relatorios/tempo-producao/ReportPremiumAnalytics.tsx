@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import type { GraficosTempoProducao } from "@/lib/tempo-producao-relatorio";
 import { corAvatar, corEtapaPremium, iniciaisAvatar } from "@/lib/tempo-producao-premium";
-import { cn } from "@/lib/utils";
+import { cn, temColaborador } from "@/lib/utils";
 
 type Props = { graficos: GraficosTempoProducao };
 
@@ -144,17 +144,19 @@ export function ReportPremiumAnalytics({ graficos }: Props) {
               {ranking.map((row) => (
                 <tr key={row.colaborador} className="group hover:bg-slate-50/80">
                   <td className="py-3 pr-2">
-                    <div className="flex items-center gap-2.5">
-                      <span
-                        className={cn(
-                          "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white",
-                          corAvatar(row.colaborador)
-                        )}
-                      >
-                        {iniciaisAvatar(row.colaborador)}
-                      </span>
-                      <span className="font-medium text-slate-800">{row.colaborador}</span>
-                    </div>
+                    {temColaborador(row.colaborador) ? (
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          className={cn(
+                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white",
+                            corAvatar(row.colaborador)
+                          )}
+                        >
+                          {iniciaisAvatar(row.colaborador)}
+                        </span>
+                        <span className="font-medium text-slate-800">{row.colaborador}</span>
+                      </div>
+                    ) : null}
                   </td>
                   <td className="px-2 py-3 text-center font-semibold text-slate-700">
                     {row.osEntregues}

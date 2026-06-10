@@ -22,6 +22,7 @@ import {
   type LinhaTempoProducao,
 } from "@/lib/tempo-producao-relatorio";
 import { gerarRelatorioTabelaPdf } from "@/lib/pdf-relatorio-tabela";
+import { normalizarColaborador } from "@/lib/utils";
 
 function money(value: number) {
   return value.toLocaleString("pt-BR", {
@@ -522,8 +523,8 @@ export async function gerarTempoProducaoPdf(
       String(l.numeroOs),
       l.paciente,
       l.etapaAtual,
-      l.colaborador,
-      l.responsavelPeloAtraso,
+      normalizarColaborador(l.colaborador),
+      normalizarColaborador(l.responsavelPeloAtraso),
       String(l.diasNoLaboratorio),
       `${l.diasNaEtapaAtual}d`,
       l.diasAtraso > 0 ? `${l.diasAtraso}d` : "—",

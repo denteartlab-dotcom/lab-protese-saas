@@ -6,7 +6,7 @@ import { Check, Loader2, X } from "lucide-react";
 import { TvBadge } from "@/components/modulo-tv/ui/TvBadge";
 import { TV_GLASS_PANEL, TV_TEXT_LABEL } from "@/components/modulo-tv/tv-styles";
 import type { OrdemServicoTv, TvOsResumo } from "@/components/modulo-tv/types";
-import { cn } from "@/lib/utils";
+import { cn, exibirTexto } from "@/lib/utils";
 
 type Props = {
   ordem: OrdemServicoTv | null;
@@ -153,7 +153,7 @@ export function TvOsResumoModal({ ordem, onClose }: Props) {
                   <section className="grid grid-cols-2 gap-4 tv:grid-cols-3 tv:gap-5">
                     <CampoResumo label="Paciente" valor={resumo.paciente} destaque />
                     <CampoResumo label="Dentista" valor={resumo.dentista} />
-                    <CampoResumo label="Responsável" valor={resumo.colaborador} />
+                    <CampoResumo label="Responsável" valor={exibirTexto(resumo.colaborador)} />
                     <CampoResumo label="Etapa atual" valor={resumo.colunaLabel} />
                     <CampoResumo
                       label="Prazo"

@@ -124,7 +124,7 @@ export function OsDetalheModal({ trabalhoId, onClose }: Props) {
                 <Metrica label="Dias no laboratório" valor={`${resumo?.diasNoLaboratorio ?? 0}d`} />
                 <Metrica label="Parado na etapa" valor={`${resumo?.diasNaEtapaAtual ?? 0}d`} highlight />
                 <Metrica label="Prazo" valor={resumo?.prazoCombinadoBr ?? "—"} />
-                <Metrica label="Resp. pelo atraso" valor={resumo?.responsavelPeloAtraso ?? "—"} alert />
+                <Metrica label="Resp. pelo atraso" valor={resumo?.responsavelPeloAtraso ?? ""} alert />
               </div>
 
               <section>

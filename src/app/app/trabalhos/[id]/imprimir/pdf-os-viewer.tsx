@@ -1409,7 +1409,7 @@ function renderTermicaModelo4(
         y = campoTermica(
           pdf,
           "Colaborador:",
-          textoColaboradorTopo || "-",
+          textoColaboradorTopo || "",
           mx + 1,
           y,
           larguraCampo
@@ -1681,7 +1681,7 @@ function renderTermicaModelo5(
         y = campoTermica(
           pdf,
           "Colaborador:",
-          textoColaboradorTopo || "-",
+          textoColaboradorTopo || "",
           mx + 1,
           y,
           larguraCampo

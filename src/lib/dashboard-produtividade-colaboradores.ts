@@ -10,8 +10,6 @@ import {
 } from "@/lib/dashboard-producao-setores";
 import { readStorage } from "@/lib/persisted-storage";
 
-export const COLABORADOR_PRODUTIVIDADE_OUTROS = "Sem colaborador";
-
 export type SerieColaboradorProdutividade = {
   nome: string;
   cor: string;
@@ -84,13 +82,7 @@ export function montarGraficoProdutividadeColaboradores(
       );
       const mapa = contagemPorMes[m];
 
-      if (!cols.length) {
-        mapa.set(
-          COLABORADOR_PRODUTIVIDADE_OUTROS,
-          (mapa.get(COLABORADOR_PRODUTIVIDADE_OUTROS) || 0) + 1
-        );
-        continue;
-      }
+      if (!cols.length) continue;
 
       const nomes = new Set(cols.map((c) => c.nome.trim()).filter(Boolean));
       for (const nome of nomes) {
@@ -115,10 +107,7 @@ export function montarGraficoProdutividadeColaboradores(
   const series: SerieColaboradorProdutividade[] = nomesOrdenados.map((nome, index) => ({
     nome,
     dataKey: slugDataKey(nome, index),
-    cor:
-      nome === COLABORADOR_PRODUTIVIDADE_OUTROS
-        ? "#f39c12"
-        : cores.get(nome.toLowerCase()) || PALETA_COLABORADOR[index % PALETA_COLABORADOR.length],
+    cor: cores.get(nome.toLowerCase()) || PALETA_COLABORADOR[index % PALETA_COLABORADOR.length],
   }));
 
   let maxValor = 0;
