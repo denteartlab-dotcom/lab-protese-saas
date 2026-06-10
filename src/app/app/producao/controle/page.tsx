@@ -117,6 +117,12 @@ import {
   urlImagemDente,
 } from "@/lib/dentes-imagens";
 import { cn, exibirTexto, formatCurrency, formatDate, STATUS_TRABALHO } from "@/lib/utils";
+import {
+  etapasConcluidasModulo,
+  indiceEtapaAtualDeConcluidas,
+  persistirEtapaAtualOs,
+} from "@/lib/modulo-producao-etapas";
+import { itensDaOsModulo } from "@/lib/modulo-producao-os";
 
 type CampoOrdenacaoControle = "numeroOs" | "dataEntrada" | "cliente" | "paciente";
 
@@ -778,6 +784,41 @@ function renderDentesSelecionadosControle(resumo: string) {
   );
 }
 
+function itemIdEtapasControle(
+  trabalho: Pick<
+    Trabalho,
+    | "id"
+    | "numeroOs"
+    | "tipoProtese"
+    | "valor"
+    | "status"
+    | "instrucoes"
+    | "dataEntrada"
+    | "dataPrevista"
+  >,
+  editItemId?: string | null
+) {
+  const itens = itensDaOsModulo({
+    id: trabalho.id,
+    numeroOs: trabalho.numeroOs,
+    tipoProtese: trabalho.tipoProtese,
+    valor: trabalho.valor ?? 0,
+    status: trabalho.status,
+    instrucoes: trabalho.instrucoes,
+    dataEntrada: trabalho.dataEntrada,
+    dataPrevista: trabalho.dataPrevista,
+  });
+  if (editItemId) {
+    const hit = itens.find((item) => item.id === editItemId);
+    if (hit) return hit.id;
+  }
+  return (
+    itens.find((item) => item.tipo === "trabalho")?.id ??
+    itens[0]?.id ??
+    `${trabalho.id}-principal`
+  );
+}
+
 export default function ControlePage() {
   const searchParams = useSearchParams();
   const painelInicial = searchParams.get("painel");
@@ -807,6 +848,7 @@ export default function ControlePage() {
   const [produtosOs, setProdutosOs] = useState<ProdutoOsEdicao[]>([]);
   const [grupoOsRegistros, setGrupoOsRegistros] = useState<RegistroGrupoOs[]>([]);
   const [etapasEdicao, setEtapasEdicao] = useState<EtapaOsFormLinha[]>([]);
+  const [indiceEtapaAtualEdicao, setIndiceEtapaAtualEdicao] = useState(0);
   const [colaboradoresEdicao, setColaboradoresEdicao] = useState<
     { nome: string; comissao: string; etapa: string }[]
   >([]);
@@ -1182,6 +1224,7 @@ export default function ControlePage() {
     setAdicionandoServico(false);
     setProdutosOs([]);
     setEtapasEdicao([]);
+    setIndiceEtapaAtualEdicao(0);
     setColaboradoresEdicao([]);
     setTerceirizadosEdicao([]);
     setColaboradoresOpcoes([]);
@@ -1189,6 +1232,43 @@ export default function ControlePage() {
     setTipoDenticao("permanente");
     setDentesEdicao([]);
     setLancamentosFatura([]);
+  }
+
+  function sincronizarIndiceEtapaAtualEdicao(
+    trabalho: Trabalho,
+    totalEtapas: number,
+    editItemId?: string | null
+  ) {
+    if (totalEtapas <= 0) {
+      setIndiceEtapaAtualEdicao(0);
+      return;
+    }
+    const chave = `${trabalho.id}:${itemIdEtapasControle(trabalho, editItemId)}`;
+    const concluidas = etapasConcluidasModulo(chave);
+    setIndiceEtapaAtualEdicao(indiceEtapaAtualDeConcluidas(concluidas, totalEtapas));
+  }
+
+  async function persistirEtapaAtualEdicaoOs() {
+    if (!editando || etapasEdicao.length === 0) return;
+    const itemServico = itemSelecionadoId
+      ? editItems.find(
+          (item) => item.id === itemSelecionadoId && classificarItemOs(item) === "servico"
+        )
+      : editItems.find((item) => classificarItemOs(item) === "servico");
+    const registroServico =
+      grupoOsRegistros.find((item) => (item.segmentoFaturamento || "servico") === "servico") ||
+      grupoOsRegistros[0];
+    const trabalhoRef: Trabalho = {
+      ...editando,
+      id: registroServico?.id ?? editando.id,
+      instrucoes: registroServico?.instrucoes ?? editando.instrucoes,
+      tipoProtese: registroServico?.tipoProtese ?? editando.tipoProtese,
+    };
+    await persistirEtapaAtualOs({
+      trabalhoId: trabalhoRef.id,
+      itemId: itemIdEtapasControle(trabalhoRef, itemServico?.id ?? itemSelecionadoId),
+      indiceAtual: Math.min(indiceEtapaAtualEdicao, etapasEdicao.length),
+    });
   }
 
   function carregarComplementosNaEdicao(trabalho: Trabalho) {
@@ -1283,12 +1363,12 @@ export default function ControlePage() {
   function carregarEtapasNaEdicao(trabalho: Trabalho) {
     const complementos = complementosEdicaoTrabalho(trabalho, trabalhos);
     const modelos = carregarEtapasCadastro();
-    setEtapasEdicao(
-      etapasOsLinhaParaForm(complementos.etapas).map((etapa) => ({
-        ...etapa,
-        setor: modelos.find((m) => m.nome === etapa.nome)?.setor || "",
-      }))
-    );
+    const etapasForm = etapasOsLinhaParaForm(complementos.etapas).map((etapa) => ({
+      ...etapa,
+      setor: modelos.find((m) => m.nome === etapa.nome)?.setor || "",
+    }));
+    setEtapasEdicao(etapasForm);
+    sincronizarIndiceEtapaAtualEdicao(trabalho, etapasForm.length, itemSelecionadoId);
   }
 
   function linhasEtapasItemControle(item: EditItem) {
@@ -1321,14 +1401,15 @@ export default function ControlePage() {
     const etapasForm = etapasOsLinhaParaForm(complementos.etapas).filter((e) =>
       e.nome.trim()
     );
-    setEtapasEdicao(
+    const etapasCarregadas =
       etapasForm.length > 0
         ? etapasForm.map((etapa) => ({
             ...etapa,
             setor: modelos.find((m) => m.nome === etapa.nome)?.setor || etapa.setor || "",
           }))
-        : [{ nome: "", setor: "", responsavel: "", prazo: "", observacao: "" }]
-    );
+        : [{ nome: "", setor: "", responsavel: "", prazo: "", observacao: "" }];
+    setEtapasEdicao(etapasCarregadas);
+    sincronizarIndiceEtapaAtualEdicao(base, etapasCarregadas.length, item.id);
   }
 
   function classeAbaEdicao(aba: AbaServicoEdicao) {
@@ -2014,6 +2095,7 @@ export default function ControlePage() {
       return;
     }
 
+    await persistirEtapaAtualEdicaoOs();
     notificarTrabalhosAtualizados({ trabalhoId: editando.id });
     fecharEdicaoOs();
     void load();
@@ -3149,6 +3231,8 @@ export default function ControlePage() {
                             desabilitado={osFaturada}
                             servico={servicoOsAtualEdicao}
                             repeticao={Boolean(form?.repeticao)}
+                            indiceEtapaAtual={indiceEtapaAtualEdicao}
+                            onIndiceEtapaAtualChange={setIndiceEtapaAtualEdicao}
                           />
                         )}
                         {abaServicoEdicao === "produtos" && (

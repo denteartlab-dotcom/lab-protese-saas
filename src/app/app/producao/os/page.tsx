@@ -84,7 +84,15 @@ import {
 } from "@/lib/etapas-os";
 import { carregarSetoresCadastro, type SetorCadastro } from "@/lib/setores-cadastro";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
-import { exibirTexto, STATUS_TRABALHO } from "@/lib/utils";
+import { cn, exibirTexto, STATUS_TRABALHO } from "@/lib/utils";
+import {
+  etapasConcluidasModulo,
+  indiceEtapaAtualDeConcluidas,
+  persistirEtapaAtualOs,
+  situacaoEtapaServico,
+  type SituacaoEtapaServico,
+} from "@/lib/modulo-producao-etapas";
+import { itensDaOsModulo } from "@/lib/modulo-producao-os";
 import { bodyTrabalhoSemNull } from "@/lib/trabalho-api-body";
 import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
 import {
@@ -337,6 +345,7 @@ export default function OrdemServicoPage() {
   const [setoresCadastrados, setSetoresCadastrados] = useState<SetorCadastro[]>([]);
   const [colaboradoresOpcoes, setColaboradoresOpcoes] = useState<ColaboradorListagem[]>([]);
   const [etapas, setEtapas] = useState<EtapaOsForm[]>([]);
+  const [indiceEtapaAtual, setIndiceEtapaAtual] = useState(0);
   const [calendarioEtapaAberto, setCalendarioEtapaAberto] = useState<number | null>(null);
   const [produtosOs, setProdutosOs] = useState<
     Array<{ produtoId: string; quantidade: string; valor: string; observacao: string }>
@@ -727,17 +736,27 @@ export default function OrdemServicoPage() {
       const complementos = parseComplementosInstrucoesGrupo(
         grupo.map((item) => item.instrucoes || "")
       );
-      setEtapas(
-        complementos.etapas.map((etapa) =>
-          sincronizarComissaoEtapa({
-            nome: etapa.nome,
-            setor: "",
-            responsavel: etapa.responsavel,
-            prazo: etapa.prazo,
-            observacao: etapa.observacao,
-          })
-        )
+      const etapasCarregadas = complementos.etapas.map((etapa) =>
+        sincronizarComissaoEtapa({
+          nome: etapa.nome,
+          setor: "",
+          responsavel: etapa.responsavel,
+          prazo: etapa.prazo,
+          observacao: etapa.observacao,
+        })
       );
+      setEtapas(etapasCarregadas);
+      const itemId =
+        itensDaOsModulo({
+          id: trabalho.id,
+          numeroOs: trabalho.numeroOs,
+          tipoProtese: trabalho.tipoProtese,
+          valor: trabalho.valor ?? 0,
+          status: trabalho.status,
+          instrucoes: trabalho.instrucoes,
+        })[0]?.id ?? `${trabalho.id}-principal`;
+      const concluidas = etapasConcluidasModulo(`${trabalho.id}:${itemId}`);
+      setIndiceEtapaAtual(indiceEtapaAtualDeConcluidas(concluidas, etapasCarregadas.length));
       setColaboradores(
         complementos.colaboradores.map((item) => ({
           nome: item.nome,
@@ -1023,6 +1042,7 @@ export default function OrdemServicoPage() {
       dataDentista: "",
     }));
     setEtapas([]);
+    setIndiceEtapaAtual(0);
     setColaboradores([]);
     setTerceirizados([]);
     setAvisoAdicionarServico("");
@@ -1038,6 +1058,7 @@ export default function OrdemServicoPage() {
         dataDentista: "",
       }));
       setEtapas([]);
+      setIndiceEtapaAtual(0);
       setColaboradores([]);
       setTerceirizados([]);
       return;
@@ -1055,6 +1076,7 @@ export default function OrdemServicoPage() {
     if (tipo === "transporte") {
       setProdutosOs([]);
       setEtapas([]);
+      setIndiceEtapaAtual(0);
       setColaboradores([]);
       setTerceirizados([]);
       setForm((current) => ({
@@ -1087,11 +1109,45 @@ export default function OrdemServicoPage() {
           form.horaLaboratorio
         ).map((etapa) => sincronizarComissaoEtapa(etapa))
       );
+      setIndiceEtapaAtual(0);
       setAbaServico("etapas");
     } else {
       setEtapas([]);
+      setIndiceEtapaAtual(0);
     }
     setAvisoAdicionarServico("");
+  }
+
+  function atualizarSituacaoEtapaOs(index: number, situacao: SituacaoEtapaServico) {
+    if (situacao === "atual") {
+      setIndiceEtapaAtual(index);
+      return;
+    }
+    if (situacao === "concluida") {
+      setIndiceEtapaAtual(Math.min(index + 1, etapas.length));
+      return;
+    }
+    if (index === indiceEtapaAtual) {
+      setIndiceEtapaAtual(Math.min(index + 1, Math.max(0, etapas.length - 1)));
+    }
+  }
+
+  async function persistirEtapaAtualFormOs(trabalhoId: string, instrucoes?: string | null) {
+    if (etapas.length === 0) return;
+    const itemId =
+      itensDaOsModulo({
+        id: trabalhoId,
+        numeroOs: Number(form.numeroOs) || 0,
+        tipoProtese: form.tipoProtese,
+        valor: parseCurrency(form.valor),
+        status: form.situacao,
+        instrucoes: instrucoes ?? form.instrucoes,
+      })[0]?.id ?? `${trabalhoId}-principal`;
+    await persistirEtapaAtualOs({
+      trabalhoId,
+      itemId,
+      indiceAtual: Math.min(indiceEtapaAtual, etapas.length),
+    });
   }
 
   function formatPercentInput(value: string) {
@@ -2629,6 +2685,7 @@ export default function OrdemServicoPage() {
         setSalvando(false);
         if (!falha) {
           const idEstoque = editIdPreferidoGrupo(registros) || editId;
+          await persistirEtapaAtualFormOs(idEstoque);
           sincronizarMovimentosOs(idEstoque, movimentosEstoqueDaOs(idEstoque, itensParaSalvar));
           notificarTrabalhosAtualizados({ trabalhoId: idEstoque });
           const regPrincipal = registros.find((r) => r.id === idEstoque) || registros[0];
@@ -2673,6 +2730,7 @@ export default function OrdemServicoPage() {
         });
         setSalvando(false);
         if (res.ok) {
+          await persistirEtapaAtualFormOs(alvo.id, alvo.instrucoes);
           sincronizarMovimentosOs(alvo.id, movimentosEstoqueDaOs(alvo.id, itensParaSalvar));
           notificarTrabalhosAtualizados({ trabalhoId: alvo.id });
           abrirModalImpressaoAposSalvar(
@@ -2810,6 +2868,7 @@ export default function OrdemServicoPage() {
 
     setSalvando(false);
     if (trabalhoPrincipal) {
+      await persistirEtapaAtualFormOs(trabalhoPrincipal.id);
       notificarTrabalhosAtualizados({ trabalhoId: trabalhoPrincipal.id });
       sincronizarMovimentosOs(
         trabalhoPrincipal.id,
@@ -3470,10 +3529,16 @@ export default function OrdemServicoPage() {
                       {etapas.map((etapa, index) => {
                         const { data: dataEtapa, hora: horaEtapa } = partesPrazoEtapaOs(etapa.prazo);
                         const setorRotulo = rotuloSetorEtapa(etapa);
+                        const situacao = situacaoEtapaServico(index, indiceEtapaAtual);
                         return (
                           <div
                             key={`${etapa.nome}-${index}`}
-                            className="rounded border border-slate-200 bg-white p-3 shadow-sm"
+                            className={cn(
+                              "rounded border bg-white p-3 shadow-sm",
+                              situacao === "atual"
+                                ? "border-primary-500 ring-1 ring-primary-200"
+                                : "border-slate-200"
+                            )}
                           >
                             <div className="mb-3 flex items-center justify-between gap-2">
                               <div className="flex items-center gap-1.5">
@@ -3488,7 +3553,22 @@ export default function OrdemServicoPage() {
                               <span className="text-xs font-medium text-primary-600">{setorRotulo}</span>
                             </div>
 
-                            <div className="grid items-end gap-3 md:grid-cols-[minmax(9rem,1fr)_minmax(6rem,0.75fr)_minmax(12rem,1.6fr)_minmax(9rem,1.1fr)_auto]">
+                            <div className="grid items-end gap-3 md:grid-cols-[minmax(9.5rem,1.1fr)_minmax(9rem,1fr)_minmax(6rem,0.75fr)_minmax(12rem,1.6fr)_minmax(9rem,1.1fr)_auto]">
+                              <Select
+                                label="Etapa do serviço"
+                                value={situacao}
+                                onChange={(e) =>
+                                  atualizarSituacaoEtapaOs(
+                                    index,
+                                    e.target.value as SituacaoEtapaServico
+                                  )
+                                }
+                              >
+                                <option value="concluida">Concluída</option>
+                                <option value="atual">Etapa atual</option>
+                                <option value="aguardando">Aguardando</option>
+                              </Select>
+
                               <div>
                                 <label className="mb-1 block text-[11px] font-medium text-slate-600">
                                   Prazo
@@ -3579,7 +3659,16 @@ export default function OrdemServicoPage() {
 
                               <button
                                 type="button"
-                                onClick={() => setEtapas((atuais) => atuais.filter((_, i) => i !== index))}
+                                onClick={() => {
+                                  setEtapas((atuais) => atuais.filter((_, i) => i !== index));
+                                  if (index < indiceEtapaAtual) {
+                                    setIndiceEtapaAtual(indiceEtapaAtual - 1);
+                                  } else if (index === indiceEtapaAtual) {
+                                    setIndiceEtapaAtual(
+                                      Math.min(indiceEtapaAtual, Math.max(0, etapas.length - 2))
+                                    );
+                                  }
+                                }}
                                 className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded bg-red-500 text-white hover:bg-red-600"
                                 title="Excluir etapa"
                               >

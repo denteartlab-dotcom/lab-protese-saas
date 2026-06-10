@@ -12,6 +12,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { COLUNAS_KANBAN } from "@/components/modulo-tv/constants";
+import { ordenarOrdensColunaTv } from "@/components/modulo-tv/lib/ordenar-ordens-tv";
 import { TvKanbanColumn } from "@/components/modulo-tv/TvKanbanColumn";
 import { TvOsCard } from "@/components/modulo-tv/TvOsCard";
 import { TvOsResumoModal } from "@/components/modulo-tv/TvOsResumoModal";
@@ -63,7 +64,9 @@ export function TvKanbanBoard({ ordens, carregando, onMoverOrdem }: Props) {
           <TvKanbanColumn
             key={coluna.id}
             coluna={coluna}
-            ordens={ordens.filter((o) => o.coluna === coluna.id)}
+            ordens={ordenarOrdensColunaTv(
+              ordens.filter((o) => o.coluna === coluna.id)
+            )}
             carregando={carregando}
             onAbrirResumo={setOrdemResumo}
           />

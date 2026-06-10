@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Info, Trash2 } from "lucide-react";
 import { CampoDataBr, CampoHoraBr, Select } from "@/components/ui";
+import { cn } from "@/lib/utils";
 import { propsInputComSelecaoAoFocar } from "@/lib/input-selecao";
 import {
   carregarColaboradoresListagem,
@@ -19,6 +20,10 @@ import {
   type EtapaOsLinha,
 } from "@/lib/etapas-os";
 import { carregarSetoresCadastro, type SetorCadastro } from "@/lib/setores-cadastro";
+import {
+  situacaoEtapaServico,
+  type SituacaoEtapaServico,
+} from "@/lib/modulo-producao-etapas";
 import {
   comissaoColaboradorNaTabelaServico,
   montarPrazoEtapaOs,
@@ -44,6 +49,9 @@ type Props = {
   desabilitado?: boolean;
   servico?: ServicoTabelaPrecoOs;
   repeticao?: boolean;
+  /** Índice da etapa em que o serviço está (exibida no Módulo TV). */
+  indiceEtapaAtual?: number;
+  onIndiceEtapaAtualChange?: (indice: number) => void;
 };
 
 function parseMoneyEtapa(value: string) {
@@ -134,6 +142,8 @@ export function EtapasOsEditor({
   desabilitado = false,
   servico,
   repeticao = false,
+  indiceEtapaAtual = 0,
+  onIndiceEtapaAtualChange,
 }: Props) {
   const [modelosEtapas, setModelosEtapas] = useState<EtapaCadastro[]>([]);
   const [setoresCadastrados, setSetoresCadastrados] = useState<SetorCadastro[]>([]);
@@ -215,6 +225,32 @@ export function EtapasOsEditor({
     onChange(etapas.map((item, i) => (i === index ? { ...item, comissaoReais } : item)));
   }
 
+  function atualizarSituacaoEtapa(index: number, situacao: SituacaoEtapaServico) {
+    if (desabilitado || !onIndiceEtapaAtualChange) return;
+    if (situacao === "atual") {
+      onIndiceEtapaAtualChange(index);
+      return;
+    }
+    if (situacao === "concluida") {
+      onIndiceEtapaAtualChange(Math.min(index + 1, etapas.length));
+      return;
+    }
+    if (index === indiceEtapaAtual) {
+      onIndiceEtapaAtualChange(Math.min(index + 1, Math.max(0, etapas.length - 1)));
+    }
+  }
+
+  function removerEtapa(index: number) {
+    if (desabilitado) return;
+    onChange(etapas.filter((_, i) => i !== index));
+    if (!onIndiceEtapaAtualChange) return;
+    if (index < indiceEtapaAtual) {
+      onIndiceEtapaAtualChange(indiceEtapaAtual - 1);
+    } else if (index === indiceEtapaAtual) {
+      onIndiceEtapaAtualChange(Math.min(indiceEtapaAtual, Math.max(0, etapas.length - 2)));
+    }
+  }
+
   useEffect(() => {
     if (!dataLancamento.trim() || modelosEtapas.length === 0 || desabilitado) return;
     let mudou = false;
@@ -271,10 +307,16 @@ export function EtapasOsEditor({
           {etapas.map((etapa, index) => {
             const { data: dataEtapa, hora: horaEtapa } = partesPrazoEtapaOs(etapa.prazo);
             const setorRotulo = rotuloSetorEtapa(etapa);
+            const situacao = situacaoEtapaServico(index, indiceEtapaAtual);
             return (
               <div
                 key={`${etapa.nome}-${index}`}
-                className="rounded border border-slate-200 bg-white p-3 shadow-sm"
+                className={cn(
+                  "rounded border bg-white p-3 shadow-sm",
+                  situacao === "atual"
+                    ? "border-primary-500 ring-1 ring-primary-200"
+                    : "border-slate-200"
+                )}
               >
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
@@ -286,7 +328,22 @@ export function EtapasOsEditor({
                   <span className="text-xs font-medium text-primary-600">{setorRotulo}</span>
                 </div>
 
-                <div className="grid items-end gap-3 md:grid-cols-[minmax(9rem,1fr)_minmax(6rem,0.75fr)_minmax(12rem,1.6fr)_minmax(9rem,1.1fr)_auto]">
+                <div className="grid items-end gap-3 md:grid-cols-[minmax(9.5rem,1.1fr)_minmax(9rem,1fr)_minmax(6rem,0.75fr)_minmax(12rem,1.6fr)_minmax(9rem,1.1fr)_auto]">
+                  {onIndiceEtapaAtualChange && (
+                    <Select
+                      label="Etapa do serviço"
+                      value={situacao}
+                      disabled={desabilitado}
+                      onChange={(e) =>
+                        atualizarSituacaoEtapa(index, e.target.value as SituacaoEtapaServico)
+                      }
+                    >
+                      <option value="concluida">Concluída</option>
+                      <option value="atual">Etapa atual</option>
+                      <option value="aguardando">Aguardando</option>
+                    </Select>
+                  )}
+
                   <div>
                     <label className="mb-1 block text-[11px] font-medium text-slate-600">
                       Prazo
@@ -374,7 +431,7 @@ export function EtapasOsEditor({
                   <button
                     type="button"
                     disabled={desabilitado}
-                    onClick={() => onChange(etapas.filter((_, i) => i !== index))}
+                    onClick={() => removerEtapa(index)}
                     className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded bg-red-500 text-white hover:bg-red-600 disabled:opacity-50"
                     title="Excluir etapa"
                   >
