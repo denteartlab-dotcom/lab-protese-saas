@@ -9,6 +9,7 @@ import {
   List,
   Send,
   Truck,
+  Tv,
   Users,
 } from "lucide-react";
 
@@ -256,6 +257,12 @@ export function ControleProducaoToolbar({
         label="Controle de Entregas"
         ativo={viewAtiva === "entregas"}
         icon={<Truck className={iconClass} />}
+      />
+      <NavLink
+        href="/app/producao/modulo-tv"
+        label="Módulo TV"
+        ativo={false}
+        icon={<Tv className={iconClass} />}
       />
     </div>
   );

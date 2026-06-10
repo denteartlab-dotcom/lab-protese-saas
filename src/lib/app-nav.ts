@@ -51,10 +51,10 @@ export const producaoNav: AppNavItem[] = [
   { href: "/app/producao/controle", labelKey: "nav.controleProducao", icon: Settings },
   { href: "/app/producao/agenda", labelKey: "nav.agendaProducao", icon: CalendarDays },
   { href: "/app/producao/modulo", labelKey: "nav.moduloProducao", icon: Users },
-  { href: "/app/producao/modulo-tv", labelKey: "nav.moduloTv", icon: Tv },
   { href: "/app/producao/comissao", labelKey: "nav.comissao", icon: HandCoins },
   { href: "/app/producao/finalizadores", labelKey: "nav.finalizadores", icon: Send },
   { href: "/app/producao/entregas", labelKey: "nav.entregas", icon: Package },
+  { href: "/app/producao/modulo-tv", labelKey: "nav.moduloTv", icon: Tv },
 ];
 
 export const financeiroNav: AppNavItem[] = [
