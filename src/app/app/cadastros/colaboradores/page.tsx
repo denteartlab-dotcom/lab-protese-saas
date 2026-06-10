@@ -2,10 +2,16 @@
 
 import { BriefcaseBusiness, CreditCard, Download, Edit3, Eye, Home, MapPin, Percent, Printer, Trash2, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState, Fragment } from "react";
+import { CargaHorariaColaboradorModal } from "@/components/colaboradores/CargaHorariaColaboradorModal";
+import { CampoDataBr } from "@/components/campo-data-br";
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { compararTextoBr } from "@/lib/listagem-config";
 import { usePageReady } from "@/hooks/use-page-ready";
+import {
+  clonarHorarioFuncionamento,
+  type HorarioFuncionamentoConfig,
+} from "@/lib/horario-funcionamento";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 
 type Colaborador = {
@@ -18,6 +24,7 @@ type Colaborador = {
   setorCor: string;
   comissaoPercentual: string;
   dados?: Record<string, string>;
+  cargaHoraria?: HorarioFuncionamentoConfig;
 };
 
 type Setor = {
@@ -55,7 +62,9 @@ const formularioVazio = {
   conta: "",
   chavePix: "",
   valorComissao: "0,00",
+  tipoValorComissao: "%",
   comissaoRepeticao: "0,00",
+  tipoValorComissaoRepeticao: "%",
   descricaoComissao: "Não",
   cep: "",
   rua: "",
@@ -80,8 +89,53 @@ function formatPercentInput(value: string) {
   });
 }
 
+const formatMoneyInput = formatPercentInput;
+
 function parsePercent(value: string) {
   return Number(value.replace(/\./g, "").replace(",", ".")) || 0;
+}
+
+function CampoValorComissao({
+  label,
+  valor,
+  tipo,
+  onValorChange,
+  onTipoChange,
+}: {
+  label: string;
+  valor: string;
+  tipo: string;
+  onValorChange: (valor: string) => void;
+  onTipoChange: (tipo: string) => void;
+}) {
+  const labelClass = "mb-1 block text-[9px] text-slate-500";
+  return (
+    <div>
+      <label className={labelClass}>{label}</label>
+      <div className="flex h-8 overflow-hidden rounded border border-slate-300 bg-white">
+        <select
+          value={tipo}
+          onChange={(event) => onTipoChange(event.target.value)}
+          className="w-9 shrink-0 border-r border-slate-200 bg-white text-center text-[10px] text-slate-500 outline-none"
+          aria-label={`Unidade de ${label}`}
+        >
+          <option value="%">%</option>
+          <option value="R$">R$</option>
+        </select>
+        <input
+          value={valor}
+          onChange={(event) =>
+            onValorChange(
+              tipo === "R$"
+                ? formatMoneyInput(event.target.value)
+                : formatPercentInput(event.target.value)
+            )
+          }
+          className="w-full px-2 text-[10px] text-slate-600 outline-none"
+        />
+      </div>
+    </div>
+  );
 }
 
 function money(value: number) {
@@ -140,6 +194,10 @@ export default function ColaboradoresPage() {
   const [modalSetorAberto, setModalSetorAberto] = useState(false);
   const [novoSetor, setNovoSetor] = useState({ nome: "", cor: "#5b5ce2" });
   const [pdfColaboradoresUrl, setPdfColaboradoresUrl] = useState<string | null>(null);
+  const [modalCargaHorariaAberto, setModalCargaHorariaAberto] = useState(false);
+  const [cargaHoraria, setCargaHoraria] = useState<HorarioFuncionamentoConfig>(() =>
+    clonarHorarioFuncionamento()
+  );
 
   const paginaPronta = usePageReady(() => {
     setColaboradores(carregarLista(COLABORADORES_STORAGE_KEY, colaboradoresIniciais));
@@ -329,12 +387,14 @@ export default function ColaboradoresPage() {
                 setorCor: setorSelecionado?.cor || colaborador.setorCor,
                 comissaoPercentual: form.valorComissao,
                 dados: { ...form },
+                cargaHoraria: clonarHorarioFuncionamento(cargaHoraria),
               }
             : colaborador
         )
       );
       setForm(formularioVazio);
       setColaboradorEditando(null);
+      setCargaHoraria(clonarHorarioFuncionamento());
       setModalAberto(false);
       return;
     }
@@ -351,24 +411,34 @@ export default function ColaboradoresPage() {
         setorCor: setorSelecionado?.cor || "#3b82f6",
         comissaoPercentual: form.valorComissao,
         dados: { ...form },
+        cargaHoraria: clonarHorarioFuncionamento(cargaHoraria),
       },
     ]);
     setForm(formularioVazio);
+    setCargaHoraria(clonarHorarioFuncionamento());
     setModalAberto(false);
   }
 
   function abrirEdicaoColaborador(colaborador: Colaborador) {
     setColaboradorEditando(colaborador);
+    const dados = colaborador.dados || {};
+    const tipoRemuneracao =
+      dados.tipoContratacao === "Terceirizado" ? "Salário + Comissão" : dados.tipoContratacao;
     setForm({
       ...formularioVazio,
-      ...colaborador.dados,
+      ...dados,
       nome: colaborador.nome,
       email: colaborador.email,
       celular: colaborador.celular,
       whatsapp: colaborador.whatsapp,
       setor: colaborador.setorAtuacao,
       valorComissao: colaborador.comissaoPercentual,
+      tipoContratacao: tipoRemuneracao || formularioVazio.tipoContratacao,
+      tipoValorComissao: dados.tipoValorComissao || formularioVazio.tipoValorComissao,
+      tipoValorComissaoRepeticao:
+        dados.tipoValorComissaoRepeticao || formularioVazio.tipoValorComissaoRepeticao,
     });
+    setCargaHoraria(clonarHorarioFuncionamento(colaborador.cargaHoraria));
     setModalAberto(true);
   }
 
@@ -376,6 +446,8 @@ export default function ColaboradoresPage() {
     setModalAberto(false);
     setColaboradorEditando(null);
     setForm(formularioVazio);
+    setCargaHoraria(clonarHorarioFuncionamento());
+    setModalCargaHorariaAberto(false);
   }
 
   function cadastrarSetor() {
@@ -430,8 +502,14 @@ export default function ColaboradoresPage() {
 
   const inputClass = "h-8 w-full rounded border border-slate-300 bg-white px-2 text-[10px] text-slate-600 outline-none focus:border-blue-400";
   const labelClass = "mb-1 block text-[9px] text-slate-500";
-  const exemploComissao = 1000 * (parsePercent(form.valorComissao) / 100);
-  const exemploComissaoRepeticao = 1000 * (parsePercent(form.comissaoRepeticao) / 100);
+  const exemploComissao =
+    form.tipoValorComissao === "R$"
+      ? parsePercent(form.valorComissao)
+      : 1000 * (parsePercent(form.valorComissao) / 100);
+  const exemploComissaoRepeticao =
+    form.tipoValorComissaoRepeticao === "R$"
+      ? parsePercent(form.comissaoRepeticao)
+      : 1000 * (parsePercent(form.comissaoRepeticao) / 100);
 
   return (
     <div className="min-h-[calc(100vh-90px)] bg-slate-50 px-3 py-4 text-[11px] text-slate-600">
@@ -451,6 +529,7 @@ export default function ColaboradoresPage() {
             onClick={() => {
               setColaboradorEditando(null);
               setForm(formularioVazio);
+              setCargaHoraria(clonarHorarioFuncionamento());
               setModalAberto(true);
             }}
             className="h-7 rounded bg-emerald-500 px-3 text-[10px] font-semibold text-white shadow-sm hover:bg-emerald-600"
@@ -735,8 +814,16 @@ export default function ColaboradoresPage() {
                     <input value={form.email} onChange={(event) => setCampo("email", event.target.value)} className={inputClass} />
                   </div>
                   <div>
-                    <label className={labelClass}>Data de Nascimento</label>
-                    <input value={form.dataNascimento} onChange={(event) => setCampo("dataNascimento", event.target.value)} className={inputClass} />
+                    <CampoDataBr
+                      label="Data de Nascimento"
+                      value={form.dataNascimento}
+                      onChange={(valor) => setCampo("dataNascimento", valor)}
+                      placeholder="dd/mm/aaaa"
+                      iconPosition="left"
+                      calendarZIndex={9999}
+                      inputClassName="h-8 rounded border-slate-300 px-2 pl-8 text-[10px] text-slate-600 shadow-none focus:border-blue-400 focus:ring-0"
+                      className="[&_label]:mb-1 [&_label]:block [&_label]:text-[9px] [&_label]:font-normal [&_label]:text-slate-500"
+                    />
                   </div>
                   <div>
                     <label className={labelClass}>RG</label>
@@ -769,11 +856,11 @@ export default function ColaboradoresPage() {
                     Ativo
                   </label>
                   <div>
-                    <label className={labelClass}>Tipo de Contratação</label>
+                    <label className={labelClass}>Tipo de Remuneração</label>
                     <select value={form.tipoContratacao} onChange={(event) => setCampo("tipoContratacao", event.target.value)} className={inputClass}>
                       <option>Salário</option>
                       <option>Comissão</option>
-                      <option>Terceirizado</option>
+                      <option>Salário + Comissão</option>
                     </select>
                   </div>
                   <div>
@@ -835,7 +922,11 @@ export default function ColaboradoresPage() {
                       </div>
                     )}
                   </div>
-                  <button type="button" className="mt-4 h-8 rounded bg-blue-500 px-3 text-[10px] font-semibold text-white hover:bg-blue-600">
+                  <button
+                    type="button"
+                    onClick={() => setModalCargaHorariaAberto(true)}
+                    className="mt-4 h-8 rounded bg-blue-500 px-3 text-[10px] font-semibold text-white hover:bg-blue-600"
+                  >
                     Configurar Carga Horária
                   </button>
                 </div>
@@ -874,39 +965,38 @@ export default function ColaboradoresPage() {
                 </h3>
                 <p className="text-[10px] text-slate-400">
                   A comissão normal será aplicada em trabalhos comuns. Quando o trabalho for marcado como repetição,
-                  será usada a porcentagem de repetição. Exemplo: em um trabalho de {money(1000)}, ele recebe{" "}
-                  {money(exemploComissao)} no comum e {money(exemploComissaoRepeticao)} na repetição.
+                  será usado o valor de repetição. Exemplo: em um trabalho de {money(1000)}, ele recebe{" "}
+                  {form.tipoValorComissao === "R$"
+                    ? money(exemploComissao)
+                    : `${form.valorComissao}% (${money(exemploComissao)})`}{" "}
+                  no comum e{" "}
+                  {form.tipoValorComissaoRepeticao === "R$"
+                    ? money(exemploComissaoRepeticao)
+                    : `${form.comissaoRepeticao}% (${money(exemploComissaoRepeticao)})`}{" "}
+                  na repetição.
                 </p>
                 <div className="grid gap-3 md:grid-cols-3">
+                  <CampoValorComissao
+                    label="Valor da Comissão"
+                    valor={form.valorComissao}
+                    tipo={form.tipoValorComissao}
+                    onValorChange={(valor) => setCampo("valorComissao", valor)}
+                    onTipoChange={(tipo) => setCampo("tipoValorComissao", tipo)}
+                  />
                   <div>
-                    <label className={labelClass}>Valor da Comissão</label>
-                    <div className="flex h-8 overflow-hidden rounded border border-slate-300 bg-white">
-                      <span className="flex w-8 items-center justify-center border-r border-slate-200 text-[10px] text-slate-500">%</span>
-                      <input
-                        value={form.valorComissao}
-                        onChange={(event) => setCampo("valorComissao", formatPercentInput(event.target.value))}
-                        className="w-full px-2 text-[10px] text-slate-600 outline-none"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className={labelClass}>Comissão com repetição</label>
+                    <label className={labelClass}>Desconto na comissão</label>
                     <select value={form.descricaoComissao} onChange={(event) => setCampo("descricaoComissao", event.target.value)} className={inputClass}>
                       <option>Não</option>
                       <option>Sim</option>
                     </select>
                   </div>
-                  <div>
-                    <label className={labelClass}>Valor da Comissão (Repetição)</label>
-                    <div className="flex h-8 overflow-hidden rounded border border-slate-300 bg-white">
-                      <span className="flex w-8 items-center justify-center border-r border-slate-200 text-[10px] text-slate-500">%</span>
-                      <input
-                        value={form.comissaoRepeticao}
-                        onChange={(event) => setCampo("comissaoRepeticao", formatPercentInput(event.target.value))}
-                        className="w-full px-2 text-[10px] text-slate-600 outline-none"
-                      />
-                    </div>
-                  </div>
+                  <CampoValorComissao
+                    label="Valor da Comissão (Repetição)"
+                    valor={form.comissaoRepeticao}
+                    tipo={form.tipoValorComissaoRepeticao}
+                    onValorChange={(valor) => setCampo("comissaoRepeticao", valor)}
+                    onTipoChange={(tipo) => setCampo("tipoValorComissaoRepeticao", tipo)}
+                  />
                 </div>
               </section>
 
@@ -1026,6 +1116,14 @@ export default function ColaboradoresPage() {
           </div>
         </div>
       )}
+
+      <CargaHorariaColaboradorModal
+        open={modalCargaHorariaAberto}
+        onClose={() => setModalCargaHorariaAberto(false)}
+        colaboradorNome={form.nome}
+        valorInicial={cargaHoraria}
+        onSave={setCargaHoraria}
+      />
 
       {pdfColaboradoresUrl && (
         <div className="fixed inset-0 z-[90] bg-slate-900/70 p-4">

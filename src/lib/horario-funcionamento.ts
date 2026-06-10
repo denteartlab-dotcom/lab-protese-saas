@@ -105,3 +105,12 @@ export function salvarHorarioFuncionamento(config: HorarioFuncionamentoConfig) {
 export function criarIntervalo(inicio?: string, fim?: string): IntervaloDia {
   return novoIntervalo(inicio, fim);
 }
+
+export function clonarHorarioFuncionamento(
+  base?: HorarioFuncionamentoConfig | null
+): HorarioFuncionamentoConfig {
+  const src = base
+    ? { dias: normalizarDias(base.dias), feriados: Array.isArray(base.feriados) ? base.feriados : [] }
+    : HORARIO_FUNCIONAMENTO_PADRAO;
+  return JSON.parse(JSON.stringify(src)) as HorarioFuncionamentoConfig;
+}
