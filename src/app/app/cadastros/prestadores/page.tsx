@@ -2,12 +2,18 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Edit3, Eye, MapPin, Percent, Plus, Trash2, UserRound } from "lucide-react";
+import { BotoesListagemPrestadores } from "@/components/prestadores/BotoesListagemPrestadores";
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { compararTextoBr } from "@/lib/listagem-config";
+import {
+  exportarPrestadoresExcel,
+  gerarListaPrestadoresPdf,
+} from "@/lib/prestadores-lista-export";
+import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import { Button, Input, Modal, Select } from "@/components/ui";
 import { usePageReady } from "@/hooks/use-page-ready";
-import { readStorage, writeStorage } from "@/lib/persisted-storage";
+import { readStorageArray, writeStorage } from "@/lib/persisted-storage";
 
 type Prestador = {
   id: string;
@@ -74,8 +80,7 @@ function formatPercentInput(value: string) {
 
 function carregarLista<T>(key: string): T[] {
   if (typeof window === "undefined") return [];
-  const parsed = readStorage<T[]>(key, []);
-  return Array.isArray(parsed) ? parsed : [];
+  return readStorageArray(key, []);
 }
 
 export default function PrestadoresPage() {
@@ -89,6 +94,7 @@ export default function PrestadoresPage() {
   const [form, setForm] = useState(formularioVazio);
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [persistenciaPronta, setPersistenciaPronta] = useState(false);
+  const [processandoLista, setProcessandoLista] = useState(false);
   const ultimoCepBuscado = useRef("");
 
   const paginaPronta = usePageReady(() => {
@@ -207,6 +213,40 @@ export default function PrestadoresPage() {
     setPrestadoresExcluidos((atuais) => atuais.filter((item) => item.id !== id));
   }
 
+  async function imprimirListaPrestadores() {
+    if (!filtrados.length) {
+      alert("Não há prestadores para imprimir.");
+      return;
+    }
+    setProcessandoLista(true);
+    try {
+      await abrirPdfGerando(
+        () => gerarListaPrestadoresPdf(filtrados),
+        "lista-prestadores.pdf",
+        "Lista de Prestadores de Serviço Cadastrados"
+      );
+    } catch {
+      alert("Não foi possível gerar a impressão.");
+    } finally {
+      setProcessandoLista(false);
+    }
+  }
+
+  async function exportarListaPrestadores() {
+    if (!filtrados.length) {
+      alert("Não há prestadores para exportar.");
+      return;
+    }
+    setProcessandoLista(true);
+    try {
+      await exportarPrestadoresExcel(filtrados);
+    } catch {
+      alert("Não foi possível exportar a planilha.");
+    } finally {
+      setProcessandoLista(false);
+    }
+  }
+
   return (
     <div className="space-y-4 text-xs text-slate-600">
       <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -233,6 +273,12 @@ export default function PrestadoresPage() {
             >
               {mostrarExcluidos ? "Ver Ativos" : "Ver Excluídos"}
             </button>
+            <BotoesListagemPrestadores
+              onImprimir={() => void imprimirListaPrestadores()}
+              onExportarExcel={() => void exportarListaPrestadores()}
+              disabled={mostrarExcluidos}
+              processando={processandoLista}
+            />
           </div>
 
           <div className="flex w-full max-w-xl items-center gap-1">
