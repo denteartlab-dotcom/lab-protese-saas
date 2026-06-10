@@ -178,12 +178,13 @@ export function listarFaturasInadimplentes(
 
     const saldo = saldoFatura(l, lancamentos);
     if (saldo <= 0.005) continue;
+    if (!l.clienteId || !l.clienteNome?.trim()) continue;
 
     const numerosOs = numerosOsDoLancamento(l);
     lista.push({
       id: l.id,
       clienteId: l.clienteId || "",
-      clienteNome: l.clienteNome?.trim() || "Cliente",
+      clienteNome: l.clienteNome.trim(),
       descricao: l.descricao,
       valor: saldo,
       data: typeof l.data === "string" ? l.data : l.data.toISOString(),

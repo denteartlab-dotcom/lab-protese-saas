@@ -83,9 +83,9 @@ function filtrarReceitasCliente(
   const nomeNorm = nomeCliente.trim().toLowerCase();
   return lancamentos.filter((l) => {
     if (l.tipo !== "receita" || l.status === "cancelado") return false;
-    if (clienteId && l.cliente?.id) return l.cliente.id === clienteId;
-    const nome = (l.cliente?.nome?.trim() || "Sem vínculo de cliente").trim();
-    return nome.toLowerCase() === nomeNorm;
+    if (!l.cliente?.id || !l.cliente.nome?.trim()) return false;
+    if (clienteId) return l.cliente.id === clienteId;
+    return l.cliente.nome.trim().toLowerCase() === nomeNorm;
   });
 }
 

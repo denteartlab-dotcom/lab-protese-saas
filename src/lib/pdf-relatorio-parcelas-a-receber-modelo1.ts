@@ -41,7 +41,8 @@ type LinhaCliente = {
 function agruparPorCliente(linhas: LinhaRelatorioContasReceber[]): LinhaCliente[] {
   const mapa = new Map<string, LinhaCliente>();
   for (const linha of linhas) {
-    const chave = linha.cliente.trim() || "Sem vínculo de cliente";
+    const chave = linha.cliente.trim();
+    if (!chave) continue;
     const atual = mapa.get(chave) ?? {
       cliente: chave,
       valorAReceber: 0,

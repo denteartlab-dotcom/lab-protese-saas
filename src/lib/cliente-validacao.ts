@@ -21,5 +21,12 @@ export function validarNomeCliente(
   return { ok: true, nome: parsed.data };
 }
 
-/** Rótulo para lançamentos/OS sem cliente vinculado (não é cadastro). */
-export const ROTULO_SEM_VINCULO_CLIENTE = "Sem vínculo de cliente";
+/** Lançamento/OS com cliente cadastrado e nome preenchido. */
+export function temVinculoCliente(reg: {
+  clienteId?: string | null;
+  cliente?: { id?: string | null; nome?: string | null } | null;
+}): boolean {
+  const id = reg.cliente?.id || reg.clienteId;
+  const nome = reg.cliente?.nome?.trim();
+  return Boolean(id && nome);
+}

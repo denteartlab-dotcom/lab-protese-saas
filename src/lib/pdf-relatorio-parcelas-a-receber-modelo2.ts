@@ -57,7 +57,8 @@ function linhasFiltradas(
 function agruparLinhasPorCliente(linhas: LinhaRelatorioContasReceber[]) {
   const mapa = new Map<string, LinhaRelatorioContasReceber[]>();
   for (const linha of linhas) {
-    const chave = linha.cliente.trim() || "Sem vínculo de cliente";
+    const chave = linha.cliente.trim();
+    if (!chave) continue;
     const lista = mapa.get(chave) ?? [];
     lista.push(linha);
     mapa.set(chave, lista);

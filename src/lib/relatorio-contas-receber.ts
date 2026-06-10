@@ -108,7 +108,7 @@ function linhaBase(
     vencimento: formatDate(l.data),
     numeroFatura: numeroFaturaDeLancamento(l, receitas),
     parcela: textoParcelaLancamento(l),
-    cliente: l.cliente?.nome?.trim() || "Sem vínculo de cliente",
+    cliente: l.cliente!.nome!.trim(),
     os: numerosOsTexto(l),
     formaRecebimento: l.formaPagamento || "—",
     valor: l.valor,
@@ -129,7 +129,12 @@ export function linhasFaturasFromLancamentos(
 ): LinhaRelatorioContasReceber[] {
   const receitas = lancamentos.filter((l) => l.tipo === "receita");
   return receitas
-    .filter((l) => isFaturaContasReceber(l, receitas, trabalhos))
+    .filter(
+      (l) =>
+        l.cliente?.id &&
+        l.cliente.nome?.trim() &&
+        isFaturaContasReceber(l, receitas, trabalhos)
+    )
     .map((l) => linhaBase(l, receitas, trabalhos));
 }
 
@@ -156,6 +161,8 @@ export function linhasRecebimentosFromLancamentos(
   return receitas
     .filter(
       (l) =>
+        l.cliente?.id &&
+        l.cliente.nome?.trim() &&
         l.status === "pago" &&
         !isCreditoGerado(l) &&
         !isCreditoUtilizado(l)
