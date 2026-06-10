@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Ban,
   Box,
   CheckSquare,
   ChevronDown,
@@ -24,6 +25,10 @@ import {
   CategoriaPrecoArrastavel,
   ListaCategoriasPrecoDnd,
 } from "@/components/tabela-precos/CategoriaPrecoArrastavel";
+import {
+  ModalEditarValoresTabelaPrecos,
+  type CategoriaEdicaoValores,
+} from "@/components/tabela-precos/ModalEditarValoresTabelaPrecos";
 import { usePageReady } from "@/hooks/use-page-ready";
 import {
   carregarColaboradoresListagem,
@@ -54,6 +59,7 @@ type ServicoPreco = {
   tipo: TipoItemPreco;
   destaque: boolean;
   oculto: boolean;
+  excluido?: boolean;
   descontoRepeticao?: number;
   prazo?: string;
   prazoDentista?: string;
@@ -119,8 +125,19 @@ function normalizarServico(servico: ServicoPreco): ServicoPreco {
     tipo: servico.tipo ?? "servico",
     destaque: servico.destaque ?? false,
     oculto: servico.oculto ?? false,
+    excluido: servico.excluido ?? false,
     opcoesEtapas: opcoesEtapasDoServico(servico),
   };
+}
+
+function servicoEstaExcluido(servico: ServicoPreco) {
+  return servico.excluido ?? false;
+}
+
+function filtrarServicosPorModoLixeira(servicos: ServicoPreco[], mostrarExcluidos: boolean) {
+  return servicos.filter((servico) =>
+    mostrarExcluidos ? servicoEstaExcluido(servico) : !servicoEstaExcluido(servico)
+  );
 }
 
 function normalizarCategorias(categorias: CategoriaPreco[]): CategoriaPreco[] {
@@ -295,6 +312,8 @@ export default function TabelaPrecosPage() {
   const [tabelaParaExcluir, setTabelaParaExcluir] = useState<string | null>(null);
   const [processandoAcoes, setProcessandoAcoes] = useState(false);
   const [modoArrastarCategorias, setModoArrastarCategorias] = useState(false);
+  const [mostrarServicosExcluidos, setMostrarServicosExcluidos] = useState(false);
+  const [modalEditarValores, setModalEditarValores] = useState(false);
   const [modalEtapasServico, setModalEtapasServico] = useState<{
     categoriaId: string;
     servicoId: string;
@@ -375,7 +394,22 @@ export default function TabelaPrecosPage() {
   }
 
   const totalServicos = useMemo(
-    () => categorias.reduce((sum, categoria) => sum + categoria.servicos.length, 0),
+    () =>
+      categorias.reduce(
+        (sum, categoria) =>
+          sum + categoria.servicos.filter((servico) => !servicoEstaExcluido(servico)).length,
+        0
+      ),
+    [categorias]
+  );
+
+  const totalServicosExcluidos = useMemo(
+    () =>
+      categorias.reduce(
+        (sum, categoria) =>
+          sum + categoria.servicos.filter((servico) => servicoEstaExcluido(servico)).length,
+        0
+      ),
     [categorias]
   );
 
@@ -1047,10 +1081,45 @@ export default function TabelaPrecosPage() {
     atualizarCategorias((atuais) =>
       atuais.map((categoria) =>
         categoria.id === categoriaId
-          ? { ...categoria, servicos: categoria.servicos.filter((servico) => servico.id !== servicoId) }
+          ? {
+              ...categoria,
+              servicos: categoria.servicos.map((servico) =>
+                servico.id === servicoId ? { ...servico, excluido: true } : servico
+              ),
+            }
           : categoria
       )
     );
+  }
+
+  function restaurarServico(categoriaId: string, servicoId: string) {
+    atualizarCategorias((atuais) =>
+      atuais.map((categoria) =>
+        categoria.id === categoriaId
+          ? {
+              ...categoria,
+              servicos: categoria.servicos.map((servico) =>
+                servico.id === servicoId ? { ...servico, excluido: false } : servico
+              ),
+            }
+          : categoria
+      )
+    );
+  }
+
+  function alternarModoServicosExcluidos() {
+    setMostrarServicosExcluidos((ativo) => {
+      if (!ativo) {
+        if (totalServicosExcluidos === 0) {
+          alert("Não há serviços excluídos nesta tabela.");
+          return false;
+        }
+        setModoArrastarCategorias(false);
+        setCategoriaEdicaoRapida(null);
+        setServicosEdicaoRapida([]);
+      }
+      return !ativo;
+    });
   }
 
   function toggleOculto(categoriaId: string, servicoId: string) {
@@ -1071,7 +1140,7 @@ export default function TabelaPrecosPage() {
   function abrirEdicaoRapida(categoria: CategoriaPreco) {
     setCategoriaEdicaoRapida(categoria.id);
     setServicosEdicaoRapida(
-      categoria.servicos.map((servico) => ({
+      categoria.servicos.filter((servico) => !servicoEstaExcluido(servico)).map((servico) => ({
         id: servico.id,
         nome: servico.nome,
         valor: money(servico.valor),
@@ -1120,7 +1189,9 @@ export default function TabelaPrecosPage() {
   function categoriasParaExportacao(): CategoriaTabelaPrecoExport[] {
     return categorias.map((categoria) => ({
       nome: categoria.nome,
-      servicos: categoria.servicos.map((servico) => ({
+      servicos: categoria.servicos
+        .filter((servico) => !servicoEstaExcluido(servico))
+        .map((servico) => ({
         nome: servico.nome,
         valor: servico.valor,
         tipo: servico.tipo,
@@ -1217,31 +1288,32 @@ export default function TabelaPrecosPage() {
     });
   }
 
-  function aplicarReajustePercentual() {
+  function abrirModalEditarValores() {
     if (!totalServicos) {
       alert("Não há itens na tabela para reajustar.");
       return;
     }
-    const entrada = window.prompt(
-      "Informe o percentual de reajuste nos valores (ex.: 10 para +10%, -5 para -5%):"
-    );
-    if (entrada === null) return;
-    const percentual = Number(entrada.replace(",", ".").trim());
-    if (!Number.isFinite(percentual)) {
-      alert("Percentual inválido.");
-      return;
+    setModalEditarValores(true);
+  }
+
+  function gravarValoresModal(categoriasAtualizadas: CategoriaEdicaoValores[]) {
+    const valoresPorServico = new Map<string, number>();
+    for (const categoria of categoriasAtualizadas) {
+      for (const servico of categoria.servicos) {
+        valoresPorServico.set(servico.id, servico.valor);
+      }
     }
-    const fator = 1 + percentual / 100;
-    setCategoriasPorTabela((atuais) => ({
-      ...atuais,
-      [tabela]: (atuais[tabela] || []).map((categoria) => ({
+    atualizarCategorias((atuais) =>
+      atuais.map((categoria) => ({
         ...categoria,
-        servicos: categoria.servicos.map((servico) => ({
-          ...servico,
-          valor: Math.round(servico.valor * fator * 100) / 100,
-        })),
-      })),
-    }));
+        servicos: categoria.servicos.map((servico) =>
+          valoresPorServico.has(servico.id)
+            ? { ...servico, valor: valoresPorServico.get(servico.id)! }
+            : servico
+        ),
+      }))
+    );
+    setModalEditarValores(false);
   }
 
   function solicitarExcluirTabela() {
@@ -1341,6 +1413,18 @@ export default function TabelaPrecosPage() {
                     </button>
                   );
                 })}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDropdownTabelaAberto(false);
+                    solicitarExcluirTabela();
+                  }}
+                  disabled={tabelas.length <= 1}
+                  className="flex w-full items-center gap-2 border-t border-slate-100 px-3 py-2 text-left font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Excluir tabela atual
+                </button>
               </div>
             )}
           </div>
@@ -1351,10 +1435,16 @@ export default function TabelaPrecosPage() {
             onExportarPdf={() => void baixarTabelaPdf()}
             onConfiguracoes={abrirConfigImpressao}
             modoArrastar={modoArrastarCategorias}
-            onAlternarModoArrastar={() => setModoArrastarCategorias((ativo) => !ativo)}
+            onAlternarModoArrastar={() => {
+              setModoArrastarCategorias((ativo) => {
+                if (!ativo) setMostrarServicosExcluidos(false);
+                return !ativo;
+              });
+            }}
             onImprimir={() => void imprimirTabela()}
-            onPercentual={aplicarReajustePercentual}
-            onExcluir={solicitarExcluirTabela}
+            onPercentual={abrirModalEditarValores}
+            modoExcluidos={mostrarServicosExcluidos}
+            onAlternarModoExcluidos={alternarModoServicosExcluidos}
             processando={processandoAcoes}
           />
         </div>
@@ -1462,14 +1552,29 @@ export default function TabelaPrecosPage() {
               Modo arrastar ativo — use o ícone verde no cabeçalho de cada categoria (REF, REMOVÍVEL…) para mudar a ordem.
             </div>
           )}
+          {mostrarServicosExcluidos && (
+            <div className="mb-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-medium text-red-800">
+              Lixeira ativa — exibindo serviços excluídos em vermelho. Clique na lixeira novamente para voltar à lista normal.
+            </div>
+          )}
           <ListaCategoriasPrecoDnd
             ids={categorias.map((categoria) => categoria.id)}
             ativo={modoArrastarCategorias}
             onReorder={reordenarCategoriasPorIds}
           >
-            {categorias.map((categoria) => {
+            {categorias
+              .filter(
+                (categoria) =>
+                  !mostrarServicosExcluidos ||
+                  filtrarServicosPorModoLixeira(categoria.servicos, true).length > 0
+              )
+              .map((categoria) => {
               const editandoRapido = categoriaEdicaoRapida === categoria.id;
               const servicosRapidos = editandoRapido ? servicosEdicaoRapida : [];
+              const servicosVisiveis = filtrarServicosPorModoLixeira(
+                categoria.servicos,
+                mostrarServicosExcluidos
+              );
               const recolhida = categoriasRecolhidas.has(categoria.id);
               const tipoCategoria = tipoDominanteCategoria(categoria);
               const botoesAdicao = botoesAdicaoVisiveis(tipoCategoria);
@@ -1631,18 +1736,24 @@ export default function TabelaPrecosPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {categoria.servicos.map((servico) => {
+                  {servicosVisiveis.map((servico) => {
                     const item = normalizarServico(servico);
+                    const excluido = servicoEstaExcluido(item);
                     return (
                     <tr key={servico.id} className="hover:bg-slate-50">
-                      <td className="px-3 py-1.5 text-slate-600">{item.nome}</td>
-                      <td className="px-3 py-1.5 text-right text-slate-700">{money(item.valor)}</td>
+                      <td className={cn("px-3 py-1.5", excluido ? "text-red-600" : "text-slate-600")}>
+                        {item.nome}
+                      </td>
+                      <td className={cn("px-3 py-1.5 text-right", excluido ? "text-red-600" : "text-slate-700")}>
+                        {money(item.valor)}
+                      </td>
                       <td className="px-3 py-1.5 text-center">
                         {item.tipo === "servico" ? (
                         <button
                           type="button"
                           onClick={() => abrirModalEtapas(categoria, item)}
                           className="text-primary-700 hover:underline"
+                          disabled={excluido}
                         >
                           {item.etapa}
                         </button>
@@ -1651,6 +1762,11 @@ export default function TabelaPrecosPage() {
                         )}
                       </td>
                       <td className="px-3 py-1.5 text-center">
+                        {excluido ? (
+                          <span className="inline-flex rounded-sm p-1.5 text-red-500" title="Indisponível para serviço excluído">
+                            <Ban className="h-3.5 w-3.5" strokeWidth={1.75} />
+                          </span>
+                        ) : (
                         <button
                           type="button"
                           onClick={() => abrirModalCustos(categoria.id, item)}
@@ -1659,6 +1775,7 @@ export default function TabelaPrecosPage() {
                         >
                           <Gem className="h-3.5 w-3.5" strokeWidth={1.75} />
                         </button>
+                        )}
                       </td>
                       <td className="px-3 py-1.5 text-center">
                         <input
@@ -1666,9 +1783,21 @@ export default function TabelaPrecosPage() {
                           checked={servico.oculto}
                           onChange={() => toggleOculto(categoria.id, servico.id)}
                           className="h-3.5 w-3.5 accent-primary-600"
+                          disabled={excluido}
                         />
                       </td>
                       <td className="px-3 py-1.5">
+                        {excluido ? (
+                          <div className="flex justify-center">
+                            <button
+                              type="button"
+                              onClick={() => restaurarServico(categoria.id, servico.id)}
+                              className="text-[11px] font-semibold text-red-600 hover:underline"
+                            >
+                              Restaurar
+                            </button>
+                          </div>
+                        ) : (
                         <div className="flex justify-center gap-2">
                           <button
                             type="button"
@@ -1687,14 +1816,17 @@ export default function TabelaPrecosPage() {
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
+                        )}
                       </td>
                     </tr>
                     );
                   })}
-                  {categoria.servicos.length === 0 && (
+                  {servicosVisiveis.length === 0 && (
                     <tr>
                       <td colSpan={6} className="px-3 py-8 text-center text-slate-400">
-                        Nenhum serviço cadastrado nesta categoria.
+                        {mostrarServicosExcluidos
+                          ? "Nenhum serviço excluído nesta categoria."
+                          : "Nenhum serviço cadastrado nesta categoria."}
                       </td>
                     </tr>
                   )}
@@ -1995,8 +2127,8 @@ export default function TabelaPrecosPage() {
               );
             })()}
 
-            {!recolhida && !editandoRapido && (
-            <div className="flex flex-wrap gap-2 border-t border-slate-100 px-3 py-2">
+            {!recolhida && !editandoRapido && !mostrarServicosExcluidos && (
+            <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-3 py-2">
               {botoesAdicao.servico && (
               <button
                 type="button"
@@ -2027,6 +2159,13 @@ export default function TabelaPrecosPage() {
                 Transporte
               </button>
               )}
+              <button
+                type="button"
+                onClick={() => solicitarRemoverCategoria(categoria.id)}
+                className="ml-auto text-[10px] font-semibold text-red-500 hover:underline"
+              >
+                Excluir categoria
+              </button>
             </div>
             )}
               </CategoriaPrecoArrastavel>
@@ -2918,6 +3057,23 @@ export default function TabelaPrecosPage() {
         detalhe={tabelaParaExcluir ?? undefined}
         onClose={() => setTabelaParaExcluir(null)}
         onConfirm={confirmarExcluirTabela}
+      />
+
+      <ModalEditarValoresTabelaPrecos
+        aberto={modalEditarValores}
+        categorias={categorias.map((categoria) => ({
+          id: categoria.id,
+          nome: categoria.nome,
+          servicos: categoria.servicos
+            .filter((servico) => !servicoEstaExcluido(servico))
+            .map((servico) => ({
+            id: servico.id,
+            nome: servico.nome,
+            valor: servico.valor,
+          })),
+        }))}
+        onFechar={() => setModalEditarValores(false)}
+        onGravar={gravarValoresModal}
       />
 
       {modalTransporte && (

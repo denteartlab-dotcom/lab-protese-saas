@@ -20,7 +20,8 @@ type Props = {
   onAlternarModoArrastar: () => void;
   onImprimir: () => void;
   onPercentual: () => void;
-  onExcluir: () => void;
+  modoExcluidos: boolean;
+  onAlternarModoExcluidos: () => void;
   disabled?: boolean;
   processando?: boolean;
 };
@@ -34,7 +35,8 @@ export function BarraAcoesTabelaPrecos({
   onAlternarModoArrastar,
   onImprimir,
   onPercentual,
-  onExcluir,
+  modoExcluidos,
+  onAlternarModoExcluidos,
   disabled,
   processando,
 }: Props) {
@@ -107,7 +109,7 @@ export function BarraAcoesTabelaPrecos({
       </button>
       <button
         type="button"
-        title="Reajustar valores em percentual"
+        title="Edição Rápida Serviços"
         disabled={bloqueado}
         onClick={onPercentual}
         className="rounded px-1.5 py-1 text-[11px] font-bold hover:bg-[#4a4a4a] disabled:cursor-not-allowed disabled:opacity-50"
@@ -116,10 +118,19 @@ export function BarraAcoesTabelaPrecos({
       </button>
       <button
         type="button"
-        title="Excluir tabela"
+        title={
+          modoExcluidos
+            ? "Ocultar serviços excluídos"
+            : "Ver serviços excluídos"
+        }
         disabled={bloqueado}
-        onClick={onExcluir}
-        className="rounded p-1.5 hover:bg-[#4a4a4a] disabled:cursor-not-allowed disabled:opacity-50"
+        onClick={onAlternarModoExcluidos}
+        className={cn(
+          "rounded p-1.5 disabled:cursor-not-allowed disabled:opacity-50",
+          modoExcluidos
+            ? "bg-red-600 text-white hover:bg-red-700"
+            : "hover:bg-[#4a4a4a]"
+        )}
       >
         <Trash2 className="h-3.5 w-3.5" />
       </button>
