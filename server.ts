@@ -3,6 +3,7 @@ import { parse } from "url";
 import next from "next";
 import { Server as SocketIOServer } from "socket.io";
 import { TV_SOCKET_PATH } from "./src/lib/tv/tv-socket-events";
+import { iniciarBackupAutomaticoDiario } from "./src/lib/backup-automatico";
 import {
   getTvOrdensSnapshot,
   iniciarTvRefreshAutomatico,
@@ -42,6 +43,7 @@ app.prepare().then(() => {
   });
 
   iniciarTvRefreshAutomatico();
+  iniciarBackupAutomaticoDiario();
 
   httpServer.listen(port, () => {
     console.log(`> Smart Prótese pronto em http://${hostname}:${port}`);
