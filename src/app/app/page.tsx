@@ -216,6 +216,12 @@ export default function DashboardPage() {
         <span className="font-medium text-slate-700">{t("dashboard.inicio")}</span>
       </div>
 
+      <PainelUrgenciasClienteDashboard
+        titulo={t("dashboard.urgentesCliente")}
+        lista={dashboard.urgentesCliente ?? []}
+        labelVisualizar={t("dashboard.visualizar")}
+      />
+
       <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
         <PainelServicosDashboard
           titulo={t("dashboard.servicosVencendo")}
@@ -289,14 +295,6 @@ export default function DashboardPage() {
           labelBaixo={t("dashboard.estoqueBaixo")}
           labelZerado={t("dashboard.estoqueZerado")}
           labelOrcamento={t("dashboard.solicitarOrcamento")}
-        />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <PainelUrgenciasClienteDashboard
-          titulo={t("dashboard.urgentesCliente")}
-          lista={dashboard.urgentesCliente ?? []}
-          labelVisualizar={t("dashboard.visualizar")}
         />
       </div>
 
