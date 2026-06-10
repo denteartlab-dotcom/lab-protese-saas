@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
   ClipboardList,
+  Clock,
   FileText,
   LineChart,
   Package,
@@ -43,6 +44,11 @@ export const relatoriosNav: RelatorioNavItem[] = [
     icon: ClipboardList,
   },
   {
+    href: "/app/relatorios/tempo-producao",
+    labelKey: "nav.relatorio.tempoProducao",
+    icon: Clock,
+  },
+  {
     href: "/app/relatorios/curva-abc-clientes",
     labelKey: "nav.relatorio.curvaAbcClientes",
     icon: Users,
@@ -79,6 +85,7 @@ export const relatoriosSlugs = [
   "dre",
   "margem-contribuicao",
   "producao",
+  "tempo-producao",
   "curva-abc-clientes",
   "controle-entregas",
   "estoque",
@@ -94,6 +101,7 @@ const slugParaLabelKey: Record<RelatorioSlug, MessageKey> = {
   dre: "nav.relatorio.dre",
   "margem-contribuicao": "nav.relatorio.margemContribuicao",
   producao: "nav.relatorio.producao",
+  "tempo-producao": "nav.relatorio.tempoProducao",
   "curva-abc-clientes": "nav.relatorio.curvaAbcClientes",
   "controle-entregas": "nav.relatorio.controleEntregas",
   estoque: "nav.relatorio.estoque",

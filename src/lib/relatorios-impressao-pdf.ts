@@ -16,6 +16,11 @@ import {
   type ModeloRelatorioEntregas,
 } from "@/lib/relatorio-entregas";
 import type { LinhaRelatorioProducao } from "@/lib/relatorio-producao";
+import {
+  STATUS_TEMPO_PRODUCAO,
+  PRIORIDADE_TEMPO_PRODUCAO,
+  type LinhaTempoProducao,
+} from "@/lib/tempo-producao-relatorio";
 import { gerarRelatorioTabelaPdf } from "@/lib/pdf-relatorio-tabela";
 
 function money(value: number) {
@@ -490,6 +495,40 @@ export async function gerarMargemContribuicaoPdf(
       money(l.valor),
       money(l.custo),
       money(l.margem),
+    ]),
+  });
+}
+
+export async function gerarTempoProducaoPdf(
+  linhas: LinhaTempoProducao[],
+  periodoTexto?: string
+) {
+  return gerarRelatorioTabelaPdf({
+    tituloRelatorio: "Tempo de Produção",
+    periodoTexto,
+    colunas: [
+      { titulo: "OS", larguraMm: 12, alinhamento: "center" },
+      { titulo: "Paciente", larguraMm: 28, alinhamento: "left" },
+      { titulo: "Etapa", larguraMm: 24, alinhamento: "left" },
+      { titulo: "Colab.", larguraMm: 20, alinhamento: "left" },
+      { titulo: "Resp.", larguraMm: 20, alinhamento: "left" },
+      { titulo: "Lab.", larguraMm: 10, alinhamento: "center" },
+      { titulo: "Parado", larguraMm: 10, alinhamento: "center" },
+      { titulo: "Atraso", larguraMm: 10, alinhamento: "center" },
+      { titulo: "Status", larguraMm: 20, alinhamento: "center" },
+      { titulo: "Prior.", larguraMm: 16, alinhamento: "center" },
+    ],
+    linhas: linhas.map((l) => [
+      String(l.numeroOs),
+      l.paciente,
+      l.etapaAtual,
+      l.colaborador,
+      l.responsavelPeloAtraso,
+      String(l.diasNoLaboratorio),
+      `${l.diasNaEtapaAtual}d`,
+      l.diasAtraso > 0 ? `${l.diasAtraso}d` : "—",
+      STATUS_TEMPO_PRODUCAO[l.status].label,
+      PRIORIDADE_TEMPO_PRODUCAO[l.prioridade].label,
     ]),
   });
 }

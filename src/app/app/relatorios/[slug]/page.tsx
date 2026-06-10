@@ -11,6 +11,7 @@ const SLUGS_COM_PAGINA_DEDICADA = new Set([
   "dre",
   "margem-contribuicao",
   "producao",
+  "tempo-producao",
   "curva-abc-clientes",
   "estoque",
   "recibos-emitidos",
