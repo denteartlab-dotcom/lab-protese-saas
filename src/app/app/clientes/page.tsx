@@ -1,7 +1,9 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { Eye, FileText, MessageCircle, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Eye, MessageCircle, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { BotoesListagemClientes } from "@/components/clientes/BotoesListagemClientes";
+import { ImportarClientesExcelModal } from "@/components/clientes/ImportarClientesExcelModal";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { Button, Input, Modal } from "@/components/ui";
 import { abrirWhatsAppAcompanhamentoCliente } from "@/lib/whatsapp";
@@ -28,6 +30,11 @@ import {
 } from "@/lib/cliente-entrega";
 import { carregarEntregadores, TIPOS_ENTREGADOR } from "@/lib/controle-entregas";
 import { ENTREGADORES_CADASTRO_EVENT } from "@/lib/entregadores-cadastro";
+import {
+  exportarClientesExcel,
+  gerarListaClientesPdf,
+} from "@/lib/clientes-lista-export";
+import { abrirPdfGerando } from "@/lib/pdf-viewer";
 
 type Cliente = {
   id: string;
@@ -111,6 +118,8 @@ export default function ClientesPage() {
   const [tabelasPreco, setTabelasPreco] = useState<string[]>(["Tabela Principal"]);
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [entregadores, setEntregadores] = useState<string[]>([]);
+  const [importarAberto, setImportarAberto] = useState(false);
+  const [processandoLista, setProcessandoLista] = useState(false);
   const ultimoCepBuscado = useRef("");
 
   const recarregarTabelasPreco = async () => {
@@ -401,6 +410,33 @@ export default function ClientesPage() {
     await load();
   }
 
+  async function imprimirListaClientes() {
+    if (!list.length) {
+      alert("Não há clientes para imprimir.");
+      return;
+    }
+    setProcessandoLista(true);
+    try {
+      await abrirPdfGerando(
+        () => gerarListaClientesPdf(list),
+        "lista-clientes.pdf",
+        "Lista de Clientes Cadastrados"
+      );
+    } catch {
+      alert("Não foi possível gerar a impressão.");
+    } finally {
+      setProcessandoLista(false);
+    }
+  }
+
+  function exportarListaClientes() {
+    if (!list.length) {
+      alert("Não há clientes para exportar.");
+      return;
+    }
+    exportarClientesExcel(list);
+  }
+
   async function enviarAcompanhamentoWhatsApp(cliente: Cliente) {
     const telefone = (cliente.celular || cliente.telefone || "").trim();
     if (!telefone) {
@@ -462,16 +498,13 @@ export default function ClientesPage() {
               <Trash2 className="h-3.5 w-3.5 text-red-400" />
               {mostrarExcluidos ? "Ver Ativos" : "Lixeira"}
             </button>
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 rounded border border-blue-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-blue-600 hover:bg-blue-50"
-            >
-              <FileText className="h-3.5 w-3.5" />
-              Ver Certificado
-            </button>
-            <button type="button" className="rounded bg-blue-500 px-2 py-1.5 text-[11px] font-bold text-white">F</button>
-            <button type="button" className="rounded bg-sky-500 px-2 py-1.5 text-[11px] font-bold text-white">E</button>
-            <button type="button" className="rounded bg-emerald-500 px-2 py-1.5 text-[11px] font-bold text-white">E</button>
+            <BotoesListagemClientes
+              onImprimir={() => void imprimirListaClientes()}
+              onImportar={() => setImportarAberto(true)}
+              onExportarExcel={exportarListaClientes}
+              processando={processandoLista}
+              disabled={mostrarExcluidos}
+            />
           </div>
 
           <div className="flex min-w-[320px] max-w-lg flex-1 justify-end">
@@ -942,6 +975,12 @@ export default function ClientesPage() {
           </div>
         </form>
       </Modal>
+
+      <ImportarClientesExcelModal
+        aberto={importarAberto}
+        onFechar={() => setImportarAberto(false)}
+        onImportado={() => void load()}
+      />
 
       <ConfirmacaoExclusaoModal
         open={!!clienteParaExcluir}
