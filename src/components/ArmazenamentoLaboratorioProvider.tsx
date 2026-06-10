@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ARMAZENAMENTO_LAB_PRONTO_EVENT,
+  armazenamentoLaboratorioBootstrapOk,
   armazenamentoLaboratorioPronto,
   inicializarArmazenamentoLaboratorio,
+  reinicializarArmazenamentoLaboratorio,
 } from "@/lib/armazenamento-laboratorio";
-
-const TIMEOUT_INICIALIZACAO_MS = 10_000;
 
 type Props = {
   children: React.ReactNode;
@@ -17,49 +17,59 @@ export function ArmazenamentoLaboratorioProvider({ children }: Props) {
   const [pronto, setPronto] = useState(() =>
     typeof window !== "undefined" ? armazenamentoLaboratorioPronto() : false
   );
+  const [bootstrapOk, setBootstrapOk] = useState(() =>
+    typeof window !== "undefined" ? armazenamentoLaboratorioBootstrapOk() : false
+  );
   const [erro, setErro] = useState("");
+  const [tentando, setTentando] = useState(false);
   const prontoRef = useRef(pronto);
 
   useEffect(() => {
     prontoRef.current = pronto;
   }, [pronto]);
 
-  useEffect(() => {
-    let ativo = true;
-
-    const liberar = (mensagemErro?: string) => {
-      if (!ativo || prontoRef.current) return;
-      prontoRef.current = true;
-      if (mensagemErro) setErro(mensagemErro);
+  async function carregar(forcar = false) {
+    setTentando(true);
+    setErro("");
+    try {
+      if (forcar) {
+        await reinicializarArmazenamentoLaboratorio();
+      } else {
+        await inicializarArmazenamentoLaboratorio();
+      }
+      const ok = armazenamentoLaboratorioBootstrapOk();
+      setBootstrapOk(ok);
+      if (!ok) {
+        setErro(
+          "Não foi possível carregar os dados do servidor. Verifique a conexão e tente novamente."
+        );
+      }
       setPronto(true);
-    };
+    } catch {
+      setErro(
+        "Não foi possível carregar os dados do servidor. Verifique a conexão e tente novamente."
+      );
+      setPronto(true);
+    } finally {
+      setTentando(false);
+    }
+  }
 
+  useEffect(() => {
     if (armazenamentoLaboratorioPronto()) {
-      liberar();
+      setPronto(true);
+      setBootstrapOk(armazenamentoLaboratorioBootstrapOk());
       return;
     }
 
-    const timeout = window.setTimeout(() => {
-      liberar(
-        "O carregamento demorou mais que o esperado. A página será exibida com dados locais."
-      );
-    }, TIMEOUT_INICIALIZACAO_MS);
-
-    const onPronto = () => liberar();
+    const onPronto = () => {
+      setPronto(true);
+      setBootstrapOk(armazenamentoLaboratorioBootstrapOk());
+    };
     window.addEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, onPronto);
-
-    void inicializarArmazenamentoLaboratorio()
-      .then(() => liberar())
-      .catch(() =>
-        liberar("Não foi possível carregar os dados do servidor. Recarregue a página.")
-      )
-      .finally(() => {
-        window.clearTimeout(timeout);
-      });
+    void carregar();
 
     return () => {
-      ativo = false;
-      window.clearTimeout(timeout);
       window.removeEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, onPronto);
     };
   }, []);
@@ -72,13 +82,18 @@ export function ArmazenamentoLaboratorioProvider({ children }: Props) {
     );
   }
 
-  if (erro) {
+  if (!bootstrapOk) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-[12px] text-amber-800">
-          {erro}
-        </div>
-        {children}
+      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 p-8 text-center text-sm text-slate-600">
+        <p>{erro || "Não foi possível carregar os dados do servidor."}</p>
+        <button
+          type="button"
+          disabled={tentando}
+          onClick={() => void carregar(true)}
+          className="rounded-sm bg-blue-600 px-4 py-2 text-[13px] font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+        >
+          {tentando ? "Carregando…" : "Tentar novamente"}
+        </button>
       </div>
     );
   }

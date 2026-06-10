@@ -8,15 +8,43 @@ import {
 } from "@/lib/armazenamento-laboratorio-keys";
 
 const cache = new Map<string, unknown>();
+const chavesDoServidor = new Set<string>();
+const snapshotServidor = new Map<string, string>();
+const hidratadoPorChave = new Set<string>();
+const snapshotHidratacaoCliente = new Map<string, string>();
 let hidratado = false;
+let bootstrapOk = false;
 let hidratando: Promise<void> | null = null;
 const filaSalvar = new Map<string, unknown>();
 let timerSalvar: ReturnType<typeof setTimeout> | null = null;
 
 export const ARMAZENAMENTO_LAB_PRONTO_EVENT = "lab-armazenamento-pronto";
 
+export type OpcoesGravarArmazenamento = {
+  /** Grava no banco mesmo quando a chave ainda não existia no servidor. */
+  forcar?: boolean;
+};
+
 export function armazenamentoLaboratorioPronto() {
   return hidratado;
+}
+
+export function armazenamentoLaboratorioBootstrapOk() {
+  return bootstrapOk;
+}
+
+/** Indica se a chave já foi carregada do PostgreSQL (JsonStore). */
+export function chaveExisteNoServidor(key: string) {
+  return chavesDoServidor.has(key);
+}
+
+function serializarValor(valor: unknown) {
+  return JSON.stringify(valor);
+}
+
+function atualizarSnapshotServidor(key: string, valor: unknown) {
+  snapshotServidor.set(key, serializarValor(valor));
+  chavesDoServidor.add(key);
 }
 
 function dispararPronto() {
@@ -119,6 +147,46 @@ function coletarMigracaoLocal(): Record<string, unknown> {
   return entradas;
 }
 
+function aplicarBootstrap(data: Record<string, unknown>) {
+  cache.clear();
+  chavesDoServidor.clear();
+  snapshotServidor.clear();
+  hidratadoPorChave.clear();
+  snapshotHidratacaoCliente.clear();
+  for (const [key, valor] of Object.entries(data)) {
+    cache.set(key, valor);
+    atualizarSnapshotServidor(key, valor);
+  }
+}
+
+function devePersistirGravacao(
+  key: string,
+  valor: unknown,
+  opcoes?: OpcoesGravarArmazenamento
+) {
+  if (opcoes?.forcar) return true;
+
+  const novo = serializarValor(valor);
+  const antigoServidor = snapshotServidor.get(key);
+
+  if (!hidratadoPorChave.has(key)) {
+    hidratadoPorChave.add(key);
+    snapshotHidratacaoCliente.set(key, novo);
+    if (!chavesDoServidor.has(key)) {
+      return false;
+    }
+    return antigoServidor !== novo;
+  }
+
+  if (antigoServidor === novo) return false;
+
+  if (!chavesDoServidor.has(key)) {
+    return snapshotHidratacaoCliente.get(key) !== novo;
+  }
+
+  return true;
+}
+
 /** Aplica valores de limpeza/restauração no cache e persiste no servidor. */
 export async function aplicarArmazenamentoLaboratorioCliente(
   keysRemover: string[],
@@ -126,22 +194,30 @@ export async function aplicarArmazenamentoLaboratorioCliente(
   valores: Record<string, unknown>
 ) {
   for (const [key, valor] of Object.entries(valores)) {
-    gravarArmazenamentoCache(key, valor);
+    gravarArmazenamentoCache(key, valor, { forcar: true });
   }
   for (const key of keysRemover) {
     if (key in valores) continue;
     cache.delete(key);
+    chavesDoServidor.delete(key);
+    snapshotServidor.delete(key);
+    hidratadoPorChave.delete(key);
+    snapshotHidratacaoCliente.delete(key);
     filaSalvar.set(key, null);
   }
   if (prefixosRemover.some((p) => p.startsWith(LISTAGEM_CONFIG_PREFIX))) {
     cache.delete(LISTAGEM_CONFIGS_KEY);
+    chavesDoServidor.delete(LISTAGEM_CONFIGS_KEY);
+    snapshotServidor.delete(LISTAGEM_CONFIGS_KEY);
+    hidratadoPorChave.delete(LISTAGEM_CONFIGS_KEY);
+    snapshotHidratacaoCliente.delete(LISTAGEM_CONFIGS_KEY);
     filaSalvar.set(LISTAGEM_CONFIGS_KEY, {});
   }
   await flushSalvarPendentes();
 }
 
-const BOOTSTRAP_TIMEOUT_MS = 10_000;
-const INICIALIZACAO_TIMEOUT_MS = 12_000;
+const BOOTSTRAP_TIMEOUT_MS = 15_000;
+const BOOTSTRAP_TENTATIVAS = 3;
 
 async function fetchComTimeout(url: string, init?: RequestInit, timeoutMs = BOOTSTRAP_TIMEOUT_MS) {
   const controller = new AbortController();
@@ -168,13 +244,6 @@ async function enviarMigracaoLocal(entradas: Record<string, unknown>) {
   }
 }
 
-function aplicarBootstrap(data: Record<string, unknown>) {
-  cache.clear();
-  for (const [key, valor] of Object.entries(data)) {
-    cache.set(key, valor);
-  }
-}
-
 async function flushSalvarPendentes() {
   if (filaSalvar.size === 0) return;
   const entradas = Object.fromEntries(filaSalvar.entries());
@@ -187,6 +256,14 @@ async function flushSalvarPendentes() {
       cache: "no-store",
       body: JSON.stringify({ entradas, sobrescrever: true }),
     });
+    for (const [key, valor] of Object.entries(entradas)) {
+      if (valor === null) {
+        chavesDoServidor.delete(key);
+        snapshotServidor.delete(key);
+        continue;
+      }
+      atualizarSnapshotServidor(key, valor);
+    }
   } catch (err) {
     console.error("[armazenamento-laboratorio] falha ao salvar", err);
     for (const [k, v] of Object.entries(entradas)) {
@@ -204,32 +281,36 @@ function agendarSalvar(key: string, valor: unknown) {
   }, 280);
 }
 
-async function carregarBootstrapServidor(legado: Record<string, unknown>) {
-  try {
-    const res = await fetchComTimeout("/api/armazenamento/bootstrap", {
-      credentials: "same-origin",
-      cache: "no-store",
-    });
-    if (res.ok) {
+async function carregarBootstrapServidor(): Promise<boolean> {
+  for (let tentativa = 1; tentativa <= BOOTSTRAP_TENTATIVAS; tentativa += 1) {
+    try {
+      const res = await fetchComTimeout("/api/armazenamento/bootstrap", {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      if (!res.ok) continue;
       const json = (await res.json()) as { data?: Record<string, unknown> };
       if (json.data && typeof json.data === "object") {
         aplicarBootstrap(json.data);
-        return;
+        return true;
       }
+    } catch (err) {
+      console.warn(
+        `[armazenamento-laboratorio] bootstrap tentativa ${tentativa}/${BOOTSTRAP_TENTATIVAS}`,
+        err
+      );
     }
-  } catch (err) {
-    console.warn("[armazenamento-laboratorio] bootstrap indisponível", err);
   }
-  aplicarBootstrap(legado);
+  return false;
 }
 
-function promessaComTimeout<T>(promessa: Promise<T>, ms: number, rotulo: string) {
-  return Promise.race([
-    promessa,
-    new Promise<T>((_, reject) => {
-      window.setTimeout(() => reject(new Error(`${rotulo} timeout`)), ms);
-    }),
-  ]);
+/** Força nova carga do banco (ex.: botão "Tentar novamente"). */
+export async function reinicializarArmazenamentoLaboratorio() {
+  if (typeof window === "undefined") return;
+  hidratado = false;
+  bootstrapOk = false;
+  hidratando = null;
+  return inicializarArmazenamentoLaboratorio();
 }
 
 /** Carrega dados do banco e migra resquícios do localStorage (uma vez). */
@@ -238,24 +319,21 @@ export async function inicializarArmazenamentoLaboratorio() {
   if (hidratado) return;
   if (hidratando) return hidratando;
 
-  let legadoColetado: Record<string, unknown> = {};
+  hidratando = (async () => {
+    const legadoColetado = coletarMigracaoLocal();
+    if (Object.keys(legadoColetado).length > 0) {
+      await enviarMigracaoLocal(legadoColetado);
+    }
 
-  hidratando = promessaComTimeout(
-    (async () => {
-      legadoColetado = coletarMigracaoLocal();
-      void enviarMigracaoLocal(legadoColetado);
-      await carregarBootstrapServidor(legadoColetado);
-    })(),
-    INICIALIZACAO_TIMEOUT_MS,
-    "armazenamento-init"
-  )
+    bootstrapOk = await carregarBootstrapServidor();
+    if (!bootstrapOk && Object.keys(legadoColetado).length > 0) {
+      aplicarBootstrap(legadoColetado);
+      bootstrapOk = true;
+    }
+  })()
     .catch((err) => {
-      console.warn("[armazenamento-laboratorio] init com fallback", err);
-      if (!hidratado) {
-        aplicarBootstrap(
-          Object.keys(legadoColetado).length > 0 ? legadoColetado : {}
-        );
-      }
+      console.error("[armazenamento-laboratorio] falha na inicialização", err);
+      bootstrapOk = false;
     })
     .finally(() => {
       hidratado = true;
@@ -269,7 +347,7 @@ export async function inicializarArmazenamentoLaboratorio() {
 /** Atualiza o cache em memória com dados mais recentes do servidor. */
 export async function revalidarArmazenamentoLaboratorio() {
   if (typeof window === "undefined" || !hidratado) return;
-  await carregarBootstrapServidor({});
+  bootstrapOk = await carregarBootstrapServidor();
 }
 
 export function lerArmazenamentoCache<T>(key: string, fallback: T): T {
@@ -277,20 +355,28 @@ export function lerArmazenamentoCache<T>(key: string, fallback: T): T {
   return fallback;
 }
 
-export function gravarArmazenamentoCache<T>(key: string, valor: T) {
+export function gravarArmazenamentoCache<T>(
+  key: string,
+  valor: T,
+  opcoes?: OpcoesGravarArmazenamento
+) {
   cache.set(key, valor);
-  if (typeof window !== "undefined" && hidratado) {
-    agendarSalvar(key, valor);
-  }
+  if (typeof window === "undefined" || !hidratado) return;
+  if (!devePersistirGravacao(key, valor, opcoes)) return;
+  atualizarSnapshotServidor(key, valor);
+  agendarSalvar(key, valor);
 }
 
 export async function persistirArmazenamentoImediato(key: string, valor: unknown) {
   cache.set(key, valor);
+  hidratadoPorChave.add(key);
+  atualizarSnapshotServidor(key, valor);
   filaSalvar.delete(key);
   await fetch("/api/armazenamento/migrar", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "same-origin",
+    cache: "no-store",
     body: JSON.stringify({ entradas: { [key]: valor }, sobrescrever: true }),
   });
 }

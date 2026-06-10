@@ -6,7 +6,7 @@ import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { Button, Input, Modal } from "@/components/ui";
 import { usePageReady } from "@/hooks/use-page-ready";
-import { readStorage, writeStorage } from "@/lib/persisted-storage";
+import { readStorageArray, writeStorage } from "@/lib/persisted-storage";
 
 type Setor = {
   id: string;
@@ -29,8 +29,7 @@ const formularioVazio = {
 
 function carregarLista(key: string, fallback: Setor[] = []) {
   if (typeof window === "undefined") return fallback;
-  const parsed = readStorage<Setor[]>(key, fallback);
-  return Array.isArray(parsed) ? parsed : fallback;
+  return readStorageArray(key, fallback);
 }
 
 export default function SetoresPage() {

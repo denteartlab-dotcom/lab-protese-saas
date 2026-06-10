@@ -14,7 +14,11 @@ import {
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import { Button, Input, Modal } from "@/components/ui";
 import { usePageReady } from "@/hooks/use-page-ready";
-import { readStorage, writeStorage } from "@/lib/persisted-storage";
+import {
+  persistirArmazenamentoImediato,
+  readStorageArray,
+  writeStorage,
+} from "@/lib/persisted-storage";
 
 type Fornecedor = {
   id: string;
@@ -94,20 +98,17 @@ function formatCepInput(value: string) {
 
 function carregarFornecedores() {
   if (typeof window === "undefined") return fornecedoresIniciais;
-  const parsed = readStorage<Fornecedor[] | null>(STORAGE_KEY, null);
-  return Array.isArray(parsed) && parsed.length > 0 ? parsed : fornecedoresIniciais;
+  return readStorageArray(STORAGE_KEY, fornecedoresIniciais);
 }
 
 function carregarFornecedoresExcluidos() {
   if (typeof window === "undefined") return [];
-  const parsed = readStorage<Fornecedor[]>(EXCLUIDOS_STORAGE_KEY, []);
-  return Array.isArray(parsed) ? parsed : [];
+  return readStorageArray(EXCLUIDOS_STORAGE_KEY, []);
 }
 
 function carregarCategorias() {
   if (typeof window === "undefined") return categoriasIniciais;
-  const parsed = readStorage<string[] | null>(CATEGORIAS_STORAGE_KEY, null);
-  return Array.isArray(parsed) && parsed.length > 0 ? parsed : categoriasIniciais;
+  return readStorageArray(CATEGORIAS_STORAGE_KEY, categoriasIniciais);
 }
 
 export default function FornecedoresPage() {
@@ -336,10 +337,12 @@ export default function FornecedoresPage() {
     }
   }
 
-  function importarFornecedores(
-    novos: Array<Fornecedor & { id: string }>
-  ) {
-    setFornecedores((atuais) => [...atuais, ...novos]);
+  function importarFornecedores(novos: Array<Fornecedor & { id: string }>) {
+    setFornecedores((atuais) => {
+      const atualizados = [...atuais, ...novos];
+      void persistirArmazenamentoImediato(STORAGE_KEY, atualizados);
+      return atualizados;
+    });
   }
 
   return (

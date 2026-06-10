@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  armazenamentoLaboratorioBootstrapOk,
   armazenamentoLaboratorioPronto,
   inicializarArmazenamentoLaboratorio,
 } from "@/lib/armazenamento-laboratorio";
@@ -21,6 +22,7 @@ export function usePageReady(init: () => void | Promise<void>) {
       if (!armazenamentoLaboratorioPronto()) {
         await inicializarArmazenamentoLaboratorio();
       }
+      if (!armazenamentoLaboratorioBootstrapOk()) return;
       await initRef.current();
       if (!cancelled) setReady(true);
     }

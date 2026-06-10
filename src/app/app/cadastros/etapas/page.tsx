@@ -8,7 +8,7 @@ import { compararTextoBr } from "@/lib/listagem-config";
 import { Button, Input, Modal, Select } from "@/components/ui";
 import { usePageReady } from "@/hooks/use-page-ready";
 import { corFundoEtapa, corTextoSobreFundo } from "@/lib/etapas-os";
-import { readStorage, writeStorage } from "@/lib/persisted-storage";
+import { readStorageArray, writeStorage } from "@/lib/persisted-storage";
 
 type Setor = {
   id?: string;
@@ -78,15 +78,7 @@ function normalizarEtapa(etapa: Etapa, setores: Setor[]): Etapa {
 
 function carregarLista<T>(key: string, fallback: T[]) {
   if (typeof window === "undefined") return fallback;
-  const saved = window.localStorage.getItem(key);
-  if (!saved) return fallback;
-
-  try {
-    const parsed = JSON.parse(saved);
-    return Array.isArray(parsed) ? parsed : fallback;
-  } catch {
-    return fallback;
-  }
+  return readStorageArray(key, fallback);
 }
 
 export default function EtapasPage() {
