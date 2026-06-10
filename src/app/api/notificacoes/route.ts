@@ -27,6 +27,13 @@ import {
   hrefOsEditar,
 } from "@/lib/notificacao-links";
 import {
+  carregarEnviosNotaVencida,
+  deveNotificarNotaVencida,
+  diasAtrasoVencimento,
+  idNotificacaoNotaVencida,
+  salvarEnviosNotaVencida,
+} from "@/lib/nota-vencida-notificacao";
+import {
   enriquecerLinksAcompanhamentoUrgentes,
   montarUrgentesClienteDashboard,
   podarEventosUrgenciaInativos,
@@ -93,6 +100,10 @@ export async function GET() {
   ]);
 
   const lista: NotificacaoApi[] = [];
+  const enviosNotaVencida = await carregarEnviosNotaVencida();
+  const enviosAtualizados = { ...enviosNotaVencida };
+  let enviosAlterados = false;
+  const idsReceitasVencidasPendentes = new Set<string>();
 
   function diasAteVencimento(vencimento: Date) {
     const venc = new Date(vencimento);
@@ -125,25 +136,45 @@ export async function GET() {
 
   for (const l of lancamentos) {
     if (l.tipo !== "receita" || l.status !== "pendente") continue;
-    const venc = new Date(l.data);
-    venc.setHours(0, 0, 0, 0);
-    if (venc < hoje) {
-      lista.push({
-        id: `nota-vencida-${l.id}`,
-        kind: "nota_vencida",
-        href: hrefLancamentoVencido({
-          id: l.id,
-          clienteId: l.clienteId,
-          descricao: l.descricao,
-        }),
-        params: {
-          cliente: l.cliente?.nome || "Cliente",
-          valor: l.valor,
-          dias: diasDesde(l.data),
-        },
-        criadoEm: l.updatedAt.toISOString(),
-      });
+    const diasAtraso = diasAtrasoVencimento(l.data, hoje);
+    if (diasAtraso <= 0) continue;
+
+    idsReceitasVencidasPendentes.add(l.id);
+
+    if (!deveNotificarNotaVencida(diasAtraso, enviosAtualizados[l.id], hoje)) {
+      continue;
     }
+
+    const enviadoEm = hoje.toISOString();
+    enviosAtualizados[l.id] = enviadoEm;
+    enviosAlterados = true;
+
+    lista.push({
+      id: idNotificacaoNotaVencida(l.id, hoje),
+      kind: "nota_vencida",
+      href: hrefLancamentoVencido({
+        id: l.id,
+        clienteId: l.clienteId,
+        descricao: l.descricao,
+      }),
+      params: {
+        cliente: l.cliente?.nome || "Cliente",
+        valor: l.valor,
+        dias: diasAtraso,
+      },
+      criadoEm: enviadoEm,
+    });
+  }
+
+  for (const lancamentoId of Object.keys(enviosAtualizados)) {
+    if (!idsReceitasVencidasPendentes.has(lancamentoId)) {
+      delete enviosAtualizados[lancamentoId];
+      enviosAlterados = true;
+    }
+  }
+
+  if (enviosAlterados) {
+    await salvarEnviosNotaVencida(enviosAtualizados);
   }
 
   const lancamentosResumo = lancamentos.map((l) => ({
