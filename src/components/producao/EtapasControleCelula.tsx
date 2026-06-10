@@ -6,29 +6,37 @@ import {
   etapasUnicasComCor,
   type EtapaOsLinha,
 } from "@/lib/etapas-os";
+import { etapaAtualLinhaOs } from "@/lib/modulo-producao-etapas";
+import { TRABALHOS_ATUALIZADOS_EVENT } from "@/lib/trabalhos-events";
 
 type Props = {
   etapas: EtapaOsLinha[];
+  trabalhoId: string;
+  itemId: string;
   className?: string;
 };
 
-export function EtapasControleCelula({ etapas, className }: Props) {
+export function EtapasControleCelula({ etapas, trabalhoId, itemId, className }: Props) {
   const [versao, setVersao] = useState(0);
 
   useEffect(() => {
     const atualizar = () => setVersao((v) => v + 1);
     window.addEventListener("focus", atualizar);
     window.addEventListener("storage", atualizar);
+    window.addEventListener(TRABALHOS_ATUALIZADOS_EVENT, atualizar);
     return () => {
       window.removeEventListener("focus", atualizar);
       window.removeEventListener("storage", atualizar);
+      window.removeEventListener(TRABALHOS_ATUALIZADOS_EVENT, atualizar);
     };
   }, []);
 
   const badges = useMemo(() => {
     void versao;
-    return etapasUnicasComCor(etapas, carregarEtapasCadastro());
-  }, [etapas, versao]);
+    const etapaAtual = etapaAtualLinhaOs(etapas, trabalhoId, itemId);
+    if (!etapaAtual) return [];
+    return etapasUnicasComCor([etapaAtual], carregarEtapasCadastro());
+  }, [etapas, trabalhoId, itemId, versao]);
 
   if (!badges.length) return null;
 

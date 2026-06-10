@@ -2394,7 +2394,11 @@ export default function ControlePage() {
                           : undefined
                       }
                     >
-                      <EtapasControleCelula etapas={etapasOs} />
+                      <EtapasControleCelula
+                        etapas={etapasOs}
+                        trabalhoId={trabalho.id}
+                        itemId={primeiroItem?.id ?? `${trabalho.id}-principal`}
+                      />
                     </td>
                     <td className="px-2 py-2">
                       <CelulaSituacaoControle

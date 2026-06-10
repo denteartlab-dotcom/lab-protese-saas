@@ -1,3 +1,4 @@
+import type { EtapaOsLinha } from "@/lib/etapas-os";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 
 export const MODULO_PRODUCAO_ETAPAS_STORAGE_KEY = "labProteseModuloProducaoEtapas";
@@ -76,6 +77,25 @@ function lerMapa(): MapaEtapas {
 /** Mapa de etapas concluídas por chave `trabalhoId:itemId`. */
 export function lerMapaEtapasConcluidasModulo(): MapaEtapas {
   return lerMapa();
+}
+
+export function indiceEtapaAtualModulo(chave: string, totalEtapas: number): number {
+  if (totalEtapas <= 0) return 0;
+  return indiceEtapaAtualDeConcluidas(etapasConcluidasModulo(chave), totalEtapas);
+}
+
+/** Etapa em andamento da OS (mesma regra do Módulo TV). */
+export function etapaAtualLinhaOs(
+  etapas: EtapaOsLinha[],
+  trabalhoId: string,
+  itemId: string
+): EtapaOsLinha | undefined {
+  if (!etapas.length) return undefined;
+  const indice = indiceEtapaAtualModulo(
+    chaveEtapasModuloOs(trabalhoId, itemId),
+    etapas.length
+  );
+  return etapas[Math.min(indice, etapas.length - 1)];
 }
 
 export function etapasConcluidasModulo(chave: string): Set<number> {
