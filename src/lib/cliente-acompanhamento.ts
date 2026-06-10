@@ -3,11 +3,20 @@ import {
   parseComplementosInstrucoesGrupo,
   type EtapaOsLinha,
 } from "@/lib/etapas-os";
-import { STATUS_TRABALHO } from "@/lib/utils";
+import { itensDaOsModulo } from "@/lib/modulo-producao-os";
+import {
+  indiceEtapaAtualDeConcluidas,
+  situacaoEtapaServico,
+} from "@/lib/modulo-producao-etapas";
+import { metaStatusOs } from "@/lib/status-os";
 
 export function gerarTokenAcompanhamentoCliente() {
   return randomBytes(16).toString("hex");
 }
+
+export type EtapaAcompanhamentoPublico = EtapaOsLinha & {
+  situacao: "concluida" | "atual" | "aguardando";
+};
 
 export type TrabalhoAcompanhamentoPublico = {
   id: string;
@@ -21,7 +30,8 @@ export type TrabalhoAcompanhamentoPublico = {
   dataEntrada: string;
   dataPrevista: string | null;
   dataEntrega: string | null;
-  etapas: EtapaOsLinha[];
+  etapaAtual: string;
+  etapas: EtapaAcompanhamentoPublico[];
   atualizadoEm: string;
 };
 
@@ -48,17 +58,26 @@ type TrabalhoDb = {
 };
 
 function statusMeta(status: string) {
-  const meta = STATUS_TRABALHO[status];
-  return {
-    label: meta?.label || status,
-    color: meta?.color || "bg-slate-100 text-slate-600",
-  };
+  const meta = metaStatusOs(status);
+  return { label: meta.label, color: meta.color };
+}
+
+function etapasComSituacao(
+  etapas: EtapaOsLinha[],
+  concluidas: number[]
+): EtapaAcompanhamentoPublico[] {
+  const indiceAtual = indiceEtapaAtualDeConcluidas(concluidas, etapas.length);
+  return etapas.map((etapa, index) => ({
+    ...etapa,
+    situacao: situacaoEtapaServico(index, indiceAtual),
+  }));
 }
 
 export function montarAcompanhamentoPublico(
   cliente: { nome: string; razaoSocial: string | null },
   trabalhos: TrabalhoDb[],
-  labNome: string
+  labNome: string,
+  mapaEtapas: Record<string, number[]> = {}
 ): ClienteAcompanhamentoPublico {
   const grupos = new Map<string, TrabalhoDb[]>();
 
@@ -76,6 +95,24 @@ export function montarAcompanhamentoPublico(
       lista.find((t) => t.segmentoFaturamento === "servico") || lista[0];
     const textos = lista.map((t) => t.instrucoes || "");
     const { etapas } = parseComplementosInstrucoesGrupo(textos);
+    const moduloOs = {
+      id: principal.id,
+      numeroOs: principal.numeroOs,
+      tipoProtese: principal.tipoProtese,
+      valor: 0,
+      status: principal.status,
+      instrucoes: textos.join("\n"),
+      dataEntrada: principal.dataEntrada.toISOString(),
+      dataPrevista: principal.dataPrevista?.toISOString() ?? null,
+      cliente: { nome: cliente.nome },
+      paciente: { nome: principal.paciente.nome },
+    };
+    const item = itensDaOsModulo(moduloOs)[0];
+    const chaveEtapas = `${principal.id}:${item.id}`;
+    const concluidas = mapaEtapas[chaveEtapas] ?? [];
+    const etapasPublicas = etapasComSituacao(etapas, concluidas);
+    const indiceAtual = indiceEtapaAtualDeConcluidas(concluidas, etapas.length);
+    const etapaAtual = etapas[indiceAtual]?.nome?.trim() || "Em produção";
     const { label, color } = statusMeta(principal.status);
     const atualizadoEm = lista.reduce(
       (max, t) => (t.updatedAt > max ? t.updatedAt : max),
@@ -94,7 +131,8 @@ export function montarAcompanhamentoPublico(
       dataEntrada: principal.dataEntrada.toISOString(),
       dataPrevista: principal.dataPrevista?.toISOString() ?? null,
       dataEntrega: principal.dataEntrega?.toISOString() ?? null,
-      etapas,
+      etapaAtual,
+      etapas: etapasPublicas,
       atualizadoEm: atualizadoEm.toISOString(),
     });
   }

@@ -16,12 +16,13 @@ export async function GET(_request: Request, { params }: Params) {
     );
   }
 
-  const { cliente, labNome } = resultado;
+  const { cliente, trabalhos, labNome, mapaEtapas } = resultado;
 
   const payload = montarAcompanhamentoPublico(
     { nome: cliente.nome, razaoSocial: cliente.razaoSocial },
-    cliente.trabalhos,
-    labNome
+    trabalhos,
+    labNome,
+    mapaEtapas
   );
 
   return NextResponse.json(payload);

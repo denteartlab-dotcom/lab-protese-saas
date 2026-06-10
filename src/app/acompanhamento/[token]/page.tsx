@@ -119,6 +119,11 @@ export default function AcompanhamentoClientePage() {
                     {t.pacienteNome}
                   </p>
                   <p className="text-[12px] text-slate-500">{t.tipoProtese}</p>
+                  {t.etapaAtual ? (
+                    <p className="mt-1 text-[11px] font-medium text-[#4a90d9]">
+                      Etapa atual: {t.etapaAtual}
+                    </p>
+                  ) : null}
                 </div>
                 <span
                   className={cn(
@@ -158,9 +163,27 @@ export default function AcompanhamentoClientePage() {
                     {t.etapas.map((etapa, idx) => (
                       <li
                         key={`${etapa.nome}-${idx}`}
-                        className="rounded border border-slate-100 bg-slate-50/50 px-3 py-2 text-[12px]"
+                        className={cn(
+                          "rounded border px-3 py-2 text-[12px]",
+                          etapa.situacao === "atual"
+                            ? "border-[#4a90d9]/40 bg-[#4a90d9]/5"
+                            : etapa.situacao === "concluida"
+                              ? "border-emerald-100 bg-emerald-50/50"
+                              : "border-slate-100 bg-slate-50/50"
+                        )}
                       >
-                        <p className="font-medium text-slate-800">{etapa.nome}</p>
+                        <p className="font-medium text-slate-800">
+                          {etapa.nome}
+                          {etapa.situacao === "atual" ? (
+                            <span className="ml-2 text-[10px] font-semibold uppercase text-[#4a90d9]">
+                              Agora
+                            </span>
+                          ) : etapa.situacao === "concluida" ? (
+                            <span className="ml-2 text-[10px] font-semibold uppercase text-emerald-600">
+                              Concluída
+                            </span>
+                          ) : null}
+                        </p>
                         {etapa.responsavel ? (
                           <p className="text-slate-500">
                             Responsável: {etapa.responsavel}
