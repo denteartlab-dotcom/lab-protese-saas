@@ -1,3 +1,8 @@
+import {
+  cabecalhoRelatorioLaboratorio,
+  carregarConfigLaboratorio,
+  telefoneWhatsappLaboratorio,
+} from "@/lib/configuracoes-lab";
 import { baixarExcel } from "@/lib/exportar-excel";
 
 export type ItemTabelaPrecoExport = {
@@ -75,11 +80,23 @@ export async function exportarTabelaPrecosExcel(
   );
 }
 
-const COLUNAS_PDF = [
-  { titulo: "Categoria", larguraMm: 42 },
-  { titulo: "Nome", larguraMm: 72 },
-  { titulo: "Valor", larguraMm: 28 },
-] as const;
+function cabecalhoPdfTabela(tabela: string) {
+  if (typeof window === "undefined") {
+    return { nome: tabela, telefone: "", email: "" };
+  }
+  const cab = cabecalhoRelatorioLaboratorio();
+  const cfg = carregarConfigLaboratorio();
+  const telefone =
+    telefoneWhatsappLaboratorio(cfg) ||
+    cfg.telefoneComercial?.trim() ||
+    cfg.celular?.trim() ||
+    cab.telefones;
+  return {
+    nome: cab.nome || tabela,
+    telefone,
+    email: cab.email,
+  };
+}
 
 export async function gerarPdfTabelaPrecos(
   tabela: string,
@@ -87,16 +104,38 @@ export async function gerarPdfTabelaPrecos(
 ): Promise<Blob> {
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
-  const margin = 10;
+  const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
-  const rowH = 6.5;
-  const headerH = 7;
-  const colX: number[] = [margin];
-  for (let i = 0; i < COLUNAS_PDF.length - 1; i++) {
-    colX.push(colX[i] + COLUNAS_PDF[i].larguraMm);
+  const centerX = pageW / 2;
+  const margin = 15;
+  const contentW = pageW - margin * 2;
+  let y = 20;
+
+  const cab = cabecalhoPdfTabela(tabela);
+
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(14);
+  pdf.text(cab.nome, centerX, y, { align: "center" });
+  y += 7;
+
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(10);
+  if (cab.telefone) {
+    pdf.text(cab.telefone, centerX, y, { align: "center" });
+    y += 5;
+  }
+  if (cab.email) {
+    pdf.text(cab.email, centerX, y, { align: "center" });
+    y += 5;
   }
 
-  let y = margin;
+  y += 3;
+  pdf.setDrawColor(190, 190, 190);
+  pdf.line(margin, y, pageW - margin, y);
+  y += 10;
+
+  const rowH = 7;
+  const gapCategoria = 8;
 
   function novaPaginaSeNecessario(altura: number) {
     if (y + altura > pageH - margin) {
@@ -105,49 +144,32 @@ export async function gerarPdfTabelaPrecos(
     }
   }
 
-  const hoje = new Date().toLocaleDateString("pt-BR");
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(11);
-  pdf.text(`Tabela de Preços — ${tabela}`, 105, y + 4, { align: "center" });
-  y += 8;
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(8);
-  pdf.text(hoje, 105, y, { align: "center" });
-  y += 8;
-
-  novaPaginaSeNecessario(headerH);
-  pdf.setFillColor(241, 245, 249);
-  pdf.setDrawColor(226, 232, 240);
-  pdf.rect(
-    margin,
-    y,
-    colX[colX.length - 1] + COLUNAS_PDF[COLUNAS_PDF.length - 1].larguraMm - margin,
-    headerH,
-    "FD"
-  );
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(7);
-  COLUNAS_PDF.forEach((col, i) => {
-    pdf.text(col.titulo, colX[i] + 1.5, y + 4.5);
-  });
-  y += headerH;
-
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(6.5);
-
   for (const categoria of categorias) {
-    for (const servico of categoria.servicos) {
-      if (servico.oculto) continue;
-      novaPaginaSeNecessario(rowH);
-      const valores = [categoria.nome, servico.nome, money(servico.valor)];
-      pdf.setDrawColor(241, 245, 249);
-      pdf.line(margin, y + rowH, margin + 142, y + rowH);
-      valores.forEach((valor, i) => {
-        const textoCelula = pdf.splitTextToSize(valor, COLUNAS_PDF[i].larguraMm - 3)[0] || "";
-        pdf.text(textoCelula, colX[i] + 1.5, y + 4.2);
-      });
-      y += rowH;
+    const itens = categoria.servicos.filter((servico) => !servico.oculto);
+    if (itens.length === 0) continue;
+
+    novaPaginaSeNecessario(14);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(12);
+    pdf.text(categoria.nome, centerX, y, { align: "center" });
+    y += gapCategoria;
+
+    for (const servico of itens) {
+      novaPaginaSeNecessario(rowH + 2);
+      pdf.setFillColor(248, 248, 248);
+      pdf.setDrawColor(225, 225, 225);
+      pdf.rect(margin, y - 5, contentW, rowH, "FD");
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(10);
+      const nomeLinha =
+        pdf.splitTextToSize(servico.nome, contentW - 40)[0] || servico.nome;
+      pdf.text(nomeLinha, margin + 3, y);
+      pdf.text(money(servico.valor), pageW - margin - 3, y, { align: "right" });
+      y += rowH + 1.5;
     }
+
+    y += 4;
   }
 
   return pdf.output("blob");
