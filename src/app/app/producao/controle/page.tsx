@@ -2397,7 +2397,7 @@ export default function ControlePage() {
                       <EtapasControleCelula
                         etapas={etapasOs}
                         trabalhoId={trabalho.id}
-                        itemId={primeiroItem?.id ?? `${trabalho.id}-principal`}
+                        itemId={itemIdEtapasControle(trabalho)}
                       />
                     </td>
                     <td className="px-2 py-2">

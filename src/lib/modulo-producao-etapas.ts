@@ -91,11 +91,11 @@ export function etapaAtualLinhaOs(
   itemId: string
 ): EtapaOsLinha | undefined {
   if (!etapas.length) return undefined;
-  const indice = indiceEtapaAtualModulo(
-    chaveEtapasModuloOs(trabalhoId, itemId),
-    etapas.length
-  );
-  return etapas[Math.min(indice, etapas.length - 1)];
+  const concluidas = etapasConcluidasModulo(chaveEtapasModuloOs(trabalhoId, itemId));
+  for (const etapa of etapas) {
+    if (!concluidas.has(etapa.indice)) return etapa;
+  }
+  return etapas[etapas.length - 1];
 }
 
 export function etapasConcluidasModulo(chave: string): Set<number> {
