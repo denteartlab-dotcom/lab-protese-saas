@@ -260,7 +260,7 @@ export function ControleProducaoToolbar({
       />
       <NavLink
         href="/app/producao/modulo-tv"
-        label="Módulo TV"
+        label="Produção Módulo TV"
         ativo={false}
         icon={<Tv className={iconClass} />}
       />

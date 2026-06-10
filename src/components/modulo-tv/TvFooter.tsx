@@ -64,31 +64,33 @@ export function TvFooter({
               </p>
             )}
           </div>
-          <div className="mx-auto mt-3 flex min-h-[3rem] max-w-xl items-start justify-center gap-1 tv:min-h-[3.25rem] tv:gap-1.5 tv-4k:min-h-[3.5rem]">
-            <span
-              className="mt-0.5 shrink-0 select-none font-serif text-2xl leading-none text-slate-500/35 tv:text-3xl tv-4k:text-4xl"
-              aria-hidden
-            >
-              “
-            </span>
-            <AnimatePresence mode="wait">
-              <motion.p
-                key={fraseMotivacional}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.45 }}
-                className="min-w-0 flex-1 text-center text-[10px] leading-relaxed text-slate-200 tv:text-[11px] tv-4k:text-xs"
+          <div className="mx-auto mt-3 flex justify-center">
+            <div className="relative inline-block max-w-md px-5 py-0.5 tv:max-w-lg tv:px-6">
+              <span
+                className="pointer-events-none absolute left-0 top-0 select-none font-serif text-xl leading-none text-slate-500/40 tv:text-2xl tv-4k:text-3xl"
+                aria-hidden
               >
-                {fraseMotivacional}
-              </motion.p>
-            </AnimatePresence>
-            <span
-              className="shrink-0 self-end select-none font-serif text-2xl leading-none text-slate-500/35 tv:text-3xl tv-4k:text-4xl"
-              aria-hidden
-            >
-              ”
-            </span>
+                “
+              </span>
+              <span
+                className="pointer-events-none absolute bottom-0 right-0 select-none font-serif text-xl leading-none text-slate-500/40 tv:text-2xl tv-4k:text-3xl"
+                aria-hidden
+              >
+                ”
+              </span>
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={fraseMotivacional}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.45 }}
+                  className="text-center text-[10px] leading-relaxed text-slate-200 tv:text-[11px] tv-4k:text-xs"
+                >
+                  {fraseMotivacional}
+                </motion.p>
+              </AnimatePresence>
+            </div>
           </div>
         </div>
 
