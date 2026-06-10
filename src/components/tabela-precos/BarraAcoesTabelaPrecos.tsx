@@ -82,8 +82,8 @@ export function BarraAcoesTabelaPrecos({
         type="button"
         title={
           modoArrastar
-            ? "Desativar arrastar tabelas"
-            : "Arrastar e reorganizar tabelas"
+            ? "Desativar arrastar categorias"
+            : "Arrastar e reorganizar categorias"
         }
         disabled={bloqueado}
         onClick={onAlternarModoArrastar}

@@ -12,7 +12,6 @@ import {
   Edit3,
   Eye,
   Gem,
-  Move,
   Plus,
   Trash2,
   X,
@@ -20,7 +19,11 @@ import {
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { PainelCarregando } from "@/components/ListaCarregando";
 import { BarraAcoesTabelaPrecos } from "@/components/tabela-precos/BarraAcoesTabelaPrecos";
-import { ListaTabelasArrastavel } from "@/components/tabela-precos/ListaTabelasArrastavel";
+import {
+  AlcaArrastarCategoria,
+  CategoriaPrecoArrastavel,
+  ListaCategoriasPrecoDnd,
+} from "@/components/tabela-precos/CategoriaPrecoArrastavel";
 import { usePageReady } from "@/hooks/use-page-ready";
 import {
   carregarColaboradoresListagem,
@@ -291,7 +294,7 @@ export default function TabelaPrecosPage() {
   } | null>(null);
   const [tabelaParaExcluir, setTabelaParaExcluir] = useState<string | null>(null);
   const [processandoAcoes, setProcessandoAcoes] = useState(false);
-  const [modoArrastarTabelas, setModoArrastarTabelas] = useState(false);
+  const [modoArrastarCategorias, setModoArrastarCategorias] = useState(false);
   const [modalEtapasServico, setModalEtapasServico] = useState<{
     categoriaId: string;
     servicoId: string;
@@ -1205,6 +1208,15 @@ export default function TabelaPrecosPage() {
     setCategoriasRecolhidas(new Set(categorias.map((categoria) => categoria.id)));
   }
 
+  function reordenarCategoriasPorIds(idsOrdenados: string[]) {
+    atualizarCategorias((atuais) => {
+      const mapa = new Map(atuais.map((categoria) => [categoria.id, categoria]));
+      return idsOrdenados
+        .map((id) => mapa.get(id))
+        .filter((categoria): categoria is CategoriaPreco => Boolean(categoria));
+    });
+  }
+
   function aplicarReajustePercentual() {
     if (!totalServicos) {
       alert("Não há itens na tabela para reajustar.");
@@ -1308,54 +1320,27 @@ export default function TabelaPrecosPage() {
                 >
                   + Adicionar Tabela
                 </button>
-                {modoArrastarTabelas ? (
-                  <div className="space-y-1 p-2">
-                    <ListaTabelasArrastavel
-                      tabelas={tabelas}
-                      tabelaAtiva={tabela}
-                      onReorder={setTabelas}
-                      onSelect={(nome) => {
-                        setTabela(nome);
+                {tabelas.map((item) => {
+                  const selected = item === tabela;
+                  return (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => {
+                        setTabela(item);
                         setDropdownTabelaAberto(false);
                       }}
-                    />
-                  </div>
-                ) : (
-                  tabelas.map((item) => {
-                    const selected = item === tabela;
-                    return (
-                      <button
-                        key={item}
-                        type="button"
-                        onClick={() => {
-                          setTabela(item);
-                          setDropdownTabelaAberto(false);
-                        }}
-                        className={`flex w-full items-center justify-between px-3 py-2 text-left ${
-                          selected
-                            ? "bg-blue-600 font-semibold text-white"
-                            : "text-slate-600 hover:bg-slate-50"
-                        }`}
-                      >
-                        <span>{item}</span>
-                        {selected && <span>✓</span>}
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            )}
-            {modoArrastarTabelas && (
-              <div className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2">
-                <p className="mb-2 text-[10px] font-medium text-emerald-800">
-                  Modo arrastar ativo — segure o ícone e arraste para mudar a ordem das tabelas.
-                </p>
-                <ListaTabelasArrastavel
-                  tabelas={tabelas}
-                  tabelaAtiva={tabela}
-                  onReorder={setTabelas}
-                  onSelect={setTabela}
-                />
+                      className={`flex w-full items-center justify-between px-3 py-2 text-left ${
+                        selected
+                          ? "bg-blue-600 font-semibold text-white"
+                          : "text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span>{item}</span>
+                      {selected && <span>✓</span>}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1365,8 +1350,8 @@ export default function TabelaPrecosPage() {
             onExportarExcel={() => void exportarTabelaExcel()}
             onExportarPdf={() => void baixarTabelaPdf()}
             onConfiguracoes={abrirConfigImpressao}
-            modoArrastar={modoArrastarTabelas}
-            onAlternarModoArrastar={() => setModoArrastarTabelas((ativo) => !ativo)}
+            modoArrastar={modoArrastarCategorias}
+            onAlternarModoArrastar={() => setModoArrastarCategorias((ativo) => !ativo)}
             onImprimir={() => void imprimirTabela()}
             onPercentual={aplicarReajustePercentual}
             onExcluir={solicitarExcluirTabela}
@@ -1388,19 +1373,6 @@ export default function TabelaPrecosPage() {
 
       {visualizacao === "minhas" && (
         <div className="rounded border border-slate-200 bg-white shadow-sm">
-          {modoArrastarTabelas && (
-            <div className="border-b border-emerald-200 bg-emerald-50 px-3 py-3">
-              <p className="mb-2 text-[10px] font-medium text-emerald-800">
-                Modo arrastar ativo — reorganize a ordem das tabelas abaixo.
-              </p>
-              <ListaTabelasArrastavel
-                tabelas={tabelas}
-                tabelaAtiva={tabela}
-                onReorder={setTabelas}
-                onSelect={setTabela}
-              />
-            </div>
-          )}
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-3 py-2">
             <div className="flex items-center gap-2">
               <button
@@ -1409,23 +1381,6 @@ export default function TabelaPrecosPage() {
                 className="rounded bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-600"
               >
                 + Adicionar Tabela
-              </button>
-              <button
-                type="button"
-                title={
-                  modoArrastarTabelas
-                    ? "Desativar arrastar tabelas"
-                    : "Arrastar e reorganizar tabelas"
-                }
-                onClick={() => setModoArrastarTabelas((ativo) => !ativo)}
-                className={cn(
-                  "rounded p-1.5",
-                  modoArrastarTabelas
-                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                    : "border border-slate-300 text-slate-500 hover:bg-slate-50"
-                )}
-              >
-                <Move className="h-3.5 w-3.5" />
               </button>
               <button
                 type="button"
@@ -1502,7 +1457,16 @@ export default function TabelaPrecosPage() {
 
       {visualizacao === "precos" && (
         <>
-          <div className="space-y-4">
+          {modoArrastarCategorias && (
+            <div className="mb-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-medium text-emerald-800">
+              Modo arrastar ativo — use o ícone verde no cabeçalho de cada categoria (REF, REMOVÍVEL…) para mudar a ordem.
+            </div>
+          )}
+          <ListaCategoriasPrecoDnd
+            ids={categorias.map((categoria) => categoria.id)}
+            ativo={modoArrastarCategorias}
+            onReorder={reordenarCategoriasPorIds}
+          >
             {categorias.map((categoria) => {
               const editandoRapido = categoriaEdicaoRapida === categoria.id;
               const servicosRapidos = editandoRapido ? servicosEdicaoRapida : [];
@@ -1511,13 +1475,22 @@ export default function TabelaPrecosPage() {
               const botoesAdicao = botoesAdicaoVisiveis(tipoCategoria);
 
               return (
-              <section key={categoria.id} className="rounded border border-primary-300 bg-white shadow-sm">
+              <CategoriaPrecoArrastavel
+                key={categoria.id}
+                id={categoria.id}
+                ativo={modoArrastarCategorias}
+              >
             <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2">
-              <h2 className="text-xs font-bold uppercase text-slate-600">{categoria.nome}</h2>
+              <div className="flex items-center gap-2">
+                <AlcaArrastarCategoria />
+                <h2 className="text-xs font-bold uppercase text-slate-600">{categoria.nome}</h2>
+              </div>
               <div className="flex items-center gap-2 text-slate-400">
+                {!modoArrastarCategorias && (
                 <button type="button" title="Selecionar" className="hover:text-primary-700">
                   <CheckSquare className="h-3.5 w-3.5" />
                 </button>
+                )}
                 <button type="button" title="Visualizar" className="hover:text-primary-700">
                   <Eye className="h-3.5 w-3.5" />
                 </button>
@@ -2056,10 +2029,10 @@ export default function TabelaPrecosPage() {
               )}
             </div>
             )}
-              </section>
+              </CategoriaPrecoArrastavel>
               );
             })}
-          </div>
+          </ListaCategoriasPrecoDnd>
 
           <div className="text-right text-[11px] text-slate-400">
             Total de serviços: {totalServicos}
