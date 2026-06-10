@@ -279,7 +279,7 @@ export function ProductionTimeReportPage() {
                 setPagina(1);
               }}
               onExportarCsv={() => exportarTempoProducaoCsv(linhas)}
-              onExportarExcel={() => exportarTempoProducaoExcel(linhas)}
+              onExportarExcel={() => void exportarTempoProducaoExcel(linhas)}
               onExportarPdf={() => void exportarPdf()}
               onImprimir={imprimirA4}
               onAbrirDetalhe={setDetalheId}

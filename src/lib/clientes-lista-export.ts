@@ -79,12 +79,16 @@ function linhaExportCliente(c: ClienteListagemExport) {
   ];
 }
 
-export function exportarClientesExcel(clientes: ClienteListagemExport[]) {
+export async function exportarClientesExcel(clientes: ClienteListagemExport[]) {
   const data = new Date().toLocaleDateString("pt-BR").replace(/\//g, "-");
-  baixarExcel(
+  await baixarExcel(
     `clientes-${data}`,
     [...COLUNAS_EXPORT],
-    clientes.map(linhaExportCliente)
+    clientes.map(linhaExportCliente),
+    {
+      nomeAba: "Clientes",
+      colunasTexto: [1, 2, 3, 6, 11],
+    }
   );
 }
 

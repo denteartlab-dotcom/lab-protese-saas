@@ -429,12 +429,19 @@ export default function ClientesPage() {
     }
   }
 
-  function exportarListaClientes() {
+  async function exportarListaClientes() {
     if (!list.length) {
       alert("Não há clientes para exportar.");
       return;
     }
-    exportarClientesExcel(list);
+    setProcessandoLista(true);
+    try {
+      await exportarClientesExcel(list);
+    } catch {
+      alert("Não foi possível exportar a planilha.");
+    } finally {
+      setProcessandoLista(false);
+    }
   }
 
   async function enviarAcompanhamentoWhatsApp(cliente: Cliente) {
@@ -501,7 +508,7 @@ export default function ClientesPage() {
             <BotoesListagemClientes
               onImprimir={() => void imprimirListaClientes()}
               onImportar={() => setImportarAberto(true)}
-              onExportarExcel={exportarListaClientes}
+              onExportarExcel={() => void exportarListaClientes()}
               processando={processandoLista}
               disabled={mostrarExcluidos}
             />

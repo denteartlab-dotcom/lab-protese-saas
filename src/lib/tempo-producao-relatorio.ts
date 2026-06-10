@@ -522,11 +522,12 @@ export function exportarTempoProducaoCsv(linhas: LinhaTempoProducao[]) {
   );
 }
 
-export function exportarTempoProducaoExcel(linhas: LinhaTempoProducao[]) {
-  baixarExcel(
-    `tempo-producao-${format(new Date(), "yyyy-MM-dd")}.xls`,
+export async function exportarTempoProducaoExcel(linhas: LinhaTempoProducao[]) {
+  await baixarExcel(
+    `tempo-producao-${format(new Date(), "yyyy-MM-dd")}`,
     [...COLUNAS_EXPORT_TEMPO_PRODUCAO],
-    linhasExportTempoProducao(linhas)
+    linhasExportTempoProducao(linhas),
+    { nomeAba: "Tempo de Produção" }
   );
 }
 
