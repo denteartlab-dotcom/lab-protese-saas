@@ -105,7 +105,8 @@ export function montarAcompanhamentoPublico(
       instrucoes: t.instrucoes,
       numeroOs: t.numeroOs,
     })),
-    cliente.id
+    cliente.id,
+    true
   );
 
   const grupos = new Map<string, TrabalhoDb[]>();

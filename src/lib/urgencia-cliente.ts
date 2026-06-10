@@ -173,14 +173,17 @@ type TrabalhoUrgencia = {
   numeroOs?: number;
 };
 
-export function contarUrgenciasAtivasCliente(
-  trabalhos: TrabalhoUrgencia[],
-  clienteId: string
+export function contarUrgenciasAtivasOs(
+  trabalhos: Array<{
+    status: string;
+    tipoProtese: string;
+    instrucoes?: string | null;
+    numeroOs?: number;
+  }>
 ) {
   const numerosOs = new Set<number>();
   let count = 0;
   for (const t of trabalhos) {
-    if (t.clienteId !== clienteId) continue;
     if (!trabalhoAtivoUrgencia(t.status)) continue;
     if (!flagsUrgenciaTrabalho(t).urgente) continue;
     const os = t.numeroOs;
@@ -193,17 +196,38 @@ export function contarUrgenciasAtivasCliente(
   return count;
 }
 
+export function contarUrgenciasAtivasCliente(
+  trabalhos: TrabalhoUrgencia[],
+  clienteId: string
+) {
+  return contarUrgenciasAtivasOs(
+    trabalhos.filter((t) => t.clienteId === clienteId)
+  );
+}
+
 export function calcularLimitesUrgenciaCliente(
   eventos: EventoUrgenciaCliente[],
   trabalhos: TrabalhoUrgencia[],
-  clienteId: string
+  clienteId: string,
+  acompanhamento = false
 ): LimitesUrgenciaCliente {
   return {
     maxAtivos: LIMITE_URGENCIAS_ATIVAS_CLIENTE,
     maxPorDia: LIMITE_URGENCIAS_DIA_CLIENTE,
-    ativos: contarUrgenciasAtivasCliente(trabalhos, clienteId),
+    ativos: acompanhamento
+      ? contarUrgenciasAtivasOs(trabalhos)
+      : contarUrgenciasAtivasCliente(trabalhos, clienteId),
     hoje: contarUrgenciasHojeCliente(eventos, clienteId),
   };
+}
+
+export function trabalhoVisivelNoAcompanhamento(
+  trabalho: { id: string; numeroOs: number },
+  visiveis: Array<{ id: string; numeroOs: number }>
+) {
+  return visiveis.some(
+    (t) => t.id === trabalho.id || t.numeroOs === trabalho.numeroOs
+  );
 }
 
 export function montarUrgentesClienteDashboard(
@@ -244,9 +268,18 @@ export function montarUrgentesClienteDashboard(
   return lista;
 }
 
+type TrabalhoVisivelAcompanhamento = {
+  id: string;
+  numeroOs: number;
+  status: string;
+  tipoProtese: string;
+  instrucoes: string | null;
+};
+
 export async function solicitarUrgenciaCliente(params: {
   cliente: { id: string; nome: string };
   trabalhoId: string;
+  trabalhosVisiveis: TrabalhoVisivelAcompanhamento[];
 }) {
   const trabalho = await prisma.trabalho.findUnique({
     where: { id: params.trabalhoId },
@@ -261,7 +294,9 @@ export async function solicitarUrgenciaCliente(params: {
     };
   }
 
-  if (trabalho.clienteId !== params.cliente.id) {
+  if (
+    !trabalhoVisivelNoAcompanhamento(trabalho, params.trabalhosVisiveis)
+  ) {
     return {
       ok: false as const,
       code: "nao_autorizado",
@@ -280,18 +315,6 @@ export async function solicitarUrgenciaCliente(params: {
   const jaUrgente = flagsUrgenciaTrabalho(trabalho).urgente;
   const store = await carregarStoreUrgenciasCliente();
 
-  const todosTrabalhosCliente = await prisma.trabalho.findMany({
-    where: { clienteId: params.cliente.id },
-    select: {
-      id: true,
-      clienteId: true,
-      status: true,
-      tipoProtese: true,
-      instrucoes: true,
-      numeroOs: true,
-    },
-  });
-
   if (!jaUrgente) {
     const hoje = contarUrgenciasHojeCliente(store.eventos, params.cliente.id);
     if (hoje >= LIMITE_URGENCIAS_DIA_CLIENTE) {
@@ -302,7 +325,7 @@ export async function solicitarUrgenciaCliente(params: {
       };
     }
 
-    const ativos = contarUrgenciasAtivasCliente(todosTrabalhosCliente, params.cliente.id);
+    const ativos = contarUrgenciasAtivasOs(params.trabalhosVisiveis);
     if (ativos >= LIMITE_URGENCIAS_ATIVAS_CLIENTE) {
       return {
         ok: false as const,
@@ -312,10 +335,12 @@ export async function solicitarUrgenciaCliente(params: {
     }
   }
 
-  const doGrupo = todosTrabalhosCliente.filter(
-    (t) => t.numeroOs === trabalho.numeroOs && trabalhoAtivoUrgencia(t.status)
-  );
-  const alvos = doGrupo.length ? doGrupo : [trabalho];
+  const alvos = await prisma.trabalho.findMany({
+    where: {
+      numeroOs: trabalho.numeroOs,
+      status: { notIn: STATUS_FINALIZADOS },
+    },
+  });
 
   await prisma.$transaction(
     alvos.map((t) => {

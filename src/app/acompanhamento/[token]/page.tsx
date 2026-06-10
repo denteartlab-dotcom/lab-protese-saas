@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Search } from "lucide-react";
 import { useParams } from "next/navigation";
 import type { ClienteAcompanhamentoPublico } from "@/lib/cliente-acompanhamento";
 import { cn, formatDate } from "@/lib/utils";
@@ -31,6 +32,8 @@ export default function AcompanhamentoClientePage() {
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
   const [urgenteEnviando, setUrgenteEnviando] = useState<string | null>(null);
   const [urgenteMsg, setUrgenteMsg] = useState<string | null>(null);
+  const [urgenteErro, setUrgenteErro] = useState(false);
+  const [busca, setBusca] = useState("");
 
   const carregar = useCallback(async (silencioso = false) => {
     if (!silencioso) setCarregando(true);
@@ -65,6 +68,7 @@ export default function AcompanhamentoClientePage() {
     async (trabalhoId: string) => {
       setUrgenteEnviando(trabalhoId);
       setUrgenteMsg(null);
+      setUrgenteErro(false);
       try {
         const res = await fetch(`/api/clientes/public/${token}/urgente`, {
           method: "POST",
@@ -73,12 +77,15 @@ export default function AcompanhamentoClientePage() {
         });
         const json = await res.json();
         if (!res.ok) {
+          setUrgenteErro(true);
           setUrgenteMsg(json.message || "Não foi possível sinalizar como urgente.");
           return;
         }
+        setUrgenteErro(false);
         setUrgenteMsg(json.message || "Trabalho sinalizado como urgente.");
         await carregar(true);
       } catch {
+        setUrgenteErro(true);
         setUrgenteMsg("Não foi possível sinalizar como urgente.");
       } finally {
         setUrgenteEnviando(null);
@@ -86,6 +93,19 @@ export default function AcompanhamentoClientePage() {
     },
     [token, carregar]
   );
+
+  const trabalhosFiltrados = useMemo(() => {
+    if (!dados) return [];
+    const termo = busca.trim().toLowerCase();
+    if (!termo) return dados.trabalhos;
+    const soNumero = termo.replace(/\D/g, "");
+    return dados.trabalhos.filter((t) => {
+      const paciente = t.pacienteNome.toLowerCase();
+      if (paciente.includes(termo)) return true;
+      if (soNumero && String(t.numeroOs).includes(soNumero)) return true;
+      return String(t.numeroOs).includes(termo);
+    });
+  }, [dados, busca]);
 
   if (carregando && !dados) {
     return (
@@ -131,22 +151,45 @@ export default function AcompanhamentoClientePage() {
 
       <main className="mx-auto max-w-2xl space-y-4 p-4 pb-10">
         {urgenteMsg ? (
-          <p className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-[12px] text-sky-800">
+          <p
+            className={cn(
+              "rounded-lg border px-4 py-2 text-[12px]",
+              urgenteErro
+                ? "border-red-200 bg-red-50 text-red-800"
+                : "border-emerald-200 bg-emerald-50 text-emerald-800"
+            )}
+          >
             {urgenteMsg}
           </p>
         ) : null}
         {dados.trabalhos.length > 0 ? (
-          <p className="text-[11px] text-slate-500">
-            Urgências: {dados.limitesUrgencia.ativos}/{dados.limitesUrgencia.maxAtivos}{" "}
-            ativas · {dados.limitesUrgencia.hoje}/{dados.limitesUrgencia.maxPorDia} hoje
-          </p>
+          <>
+            <p className="text-[11px] text-slate-500">
+              Urgências: {dados.limitesUrgencia.ativos}/{dados.limitesUrgencia.maxAtivos}{" "}
+              ativas · {dados.limitesUrgencia.hoje}/{dados.limitesUrgencia.maxPorDia} hoje
+            </p>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar por paciente ou número da OS…"
+                className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-800 shadow-sm outline-none placeholder:text-slate-400 focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]/30"
+              />
+            </div>
+          </>
         ) : null}
         {dados.trabalhos.length === 0 ? (
           <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
             Nenhum trabalho em andamento no momento.
           </div>
+        ) : trabalhosFiltrados.length === 0 ? (
+          <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+            Nenhum trabalho encontrado para &quot;{busca.trim()}&quot;.
+          </div>
         ) : (
-          dados.trabalhos.map((t) => (
+          trabalhosFiltrados.map((t) => (
             <article
               key={t.id}
               className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"

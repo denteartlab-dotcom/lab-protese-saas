@@ -33,10 +33,17 @@ export async function POST(request: Request, { params }: Params) {
     );
   }
 
-  const { cliente } = resultado;
+  const { cliente, trabalhos } = resultado;
   const res = await solicitarUrgenciaCliente({
     cliente: { id: cliente.id, nome: cliente.nome },
     trabalhoId,
+    trabalhosVisiveis: trabalhos.map((t) => ({
+      id: t.id,
+      numeroOs: t.numeroOs,
+      status: t.status,
+      tipoProtese: t.tipoProtese,
+      instrucoes: t.instrucoes,
+    })),
   });
 
   if (!res.ok) {
