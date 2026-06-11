@@ -16,7 +16,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:publicar-neon": "tsx scripts/publicar-banco-neon.ts",
     "db:migrar-financeiro": "tsx scripts/migrar-financeiro-neon.ts",
-    "backup:diario": "tsx scripts/backup-diario.ts"
+    "backup:diario": "tsx scripts/backup-diario.ts",
+    "db:zerar": "tsx scripts/zerar-sistema-virgem.ts --confirmar=ZERAR"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
