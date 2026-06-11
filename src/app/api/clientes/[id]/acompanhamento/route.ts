@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { montarUrlPublica } from "@/lib/app-url";
 import { gerarTokenAcompanhamentoCliente } from "@/lib/cliente-acompanhamento";
-import { clienteAcompanhamentoPublicUrl } from "@/lib/whatsapp";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -33,8 +33,7 @@ export async function GET(
     });
   }
 
-  const origin = new URL(request.url).origin;
-  const publicUrl = clienteAcompanhamentoPublicUrl(token, origin);
+  const publicUrl = montarUrlPublica(`/acompanhamento/${token}`);
 
   return NextResponse.json({ token, publicUrl });
 }

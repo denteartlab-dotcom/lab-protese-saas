@@ -1,3 +1,7 @@
+import { montarUrlPublica } from "@/lib/app-url";
+
+export { publicOriginFromRequest } from "@/lib/app-url";
+
 export function formatWhatsAppPhone(raw: string) {
   const digits = raw.replace(/\D/g, "");
   if (!digits) return "";
@@ -18,54 +22,23 @@ export function formatWhatsappInput(raw: string) {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 }
 
-/** Base pública do app (produção). Em dev usa window.location.origin. */
-export function orcamentoPublicBaseUrl(origin?: string) {
-  const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  const base = (fromEnv || origin || "").replace(/\/$/, "");
-  return base;
-}
-
-/** Origem pública para links em APIs (env, proxy ou URL da requisição). */
-export function publicOriginFromRequest(request: Request) {
-  const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (fromEnv) return fromEnv.replace(/\/$/, "");
-
-  const forwardedHost = request.headers.get("x-forwarded-host");
-  if (forwardedHost) {
-    const proto = (request.headers.get("x-forwarded-proto") || "https").split(",")[0].trim();
-    return `${proto}://${forwardedHost.split(",")[0].trim()}`.replace(/\/$/, "");
-  }
-
-  return new URL(request.url).origin.replace(/\/$/, "");
-}
-
 /** Garante URL absoluta para WhatsApp reconhecer o link (https://dominio/...). */
-export function garantirUrlPublicaAbsoluta(url: string, origin?: string) {
+export function garantirUrlPublicaAbsoluta(url: string) {
   const limpo = url.trim();
   if (/^https?:\/\//i.test(limpo)) return limpo;
-  const base = orcamentoPublicBaseUrl(
-    origin || (typeof window !== "undefined" ? window.location.origin : undefined)
-  );
-  if (!base) return limpo;
-  return `${base}${limpo.startsWith("/") ? "" : "/"}${limpo}`;
+  return montarUrlPublica(limpo);
 }
 
-export function orcamentoPublicUrl(token: string, origin?: string) {
-  const base = orcamentoPublicBaseUrl(origin);
-  return `${base}/orcamento/${token}`;
+export function orcamentoPublicUrl(token: string) {
+  return montarUrlPublica(`/orcamento/${token}`);
 }
 
-export function clienteAcompanhamentoPublicUrl(token: string, origin?: string) {
-  const base = orcamentoPublicBaseUrl(origin);
-  return `${base}/acompanhamento/${token}`;
+export function clienteAcompanhamentoPublicUrl(token: string) {
+  return montarUrlPublica(`/acompanhamento/${token}`);
 }
 
-export function clienteAcompanhamentoOsUrl(
-  token: string,
-  numeroOs: number,
-  origin?: string
-) {
-  const base = clienteAcompanhamentoPublicUrl(token, origin);
+export function clienteAcompanhamentoOsUrl(token: string, numeroOs: number) {
+  const base = clienteAcompanhamentoPublicUrl(token);
   const q = new URLSearchParams({ os: String(numeroOs) });
   return `${base}?${q}`;
 }

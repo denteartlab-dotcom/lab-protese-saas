@@ -1,4 +1,5 @@
-import { garantirUrlPublicaAbsoluta, orcamentoPublicBaseUrl } from "@/lib/whatsapp";
+import { montarUrlPublica } from "@/lib/app-url";
+import { garantirUrlPublicaAbsoluta } from "@/lib/whatsapp";
 
 export type FaturaPublicaRegistro = {
   base64: string;
@@ -24,14 +25,12 @@ export function criarTokenFaturaPublica() {
   return `fp${Date.now()}${Math.random().toString(36).slice(2, 12)}`;
 }
 
-export function faturaPublicaUrl(token: string, origin?: string) {
-  const base = orcamentoPublicBaseUrl(origin);
-  return `${base}/fatura/${token}`;
+export function faturaPublicaUrl(token: string) {
+  return montarUrlPublica(`/fatura/${token}`);
 }
 
-export function faturaPublicaPdfUrl(token: string, origin?: string) {
-  const base = orcamentoPublicBaseUrl(origin);
-  return `${base}/api/financeiro/fatura-publica/${token}`;
+export function faturaPublicaPdfUrl(token: string) {
+  return montarUrlPublica(`/api/financeiro/fatura-publica/${token}`);
 }
 
 export function montarRegistroFaturaPublica(input: {

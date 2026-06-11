@@ -18,9 +18,7 @@ function FaturaPublicaViewer() {
   }
 
   const pdfUrl =
-    typeof window !== "undefined"
-      ? faturaPublicaPdfUrl(token, window.location.origin)
-      : "";
+    typeof window !== "undefined" ? faturaPublicaPdfUrl(token) : "";
 
   function imprimir() {
     const iframe = document.getElementById(

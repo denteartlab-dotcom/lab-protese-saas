@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { sessaoCookieSecure } from "@/lib/cookie-secure";
+import { requisicaoTvSocket } from "@/lib/tv/tv-socket-client";
 
 const COOKIE_NAME = "lab-protese-session";
 const PUBLIC = ["/login"];
@@ -70,6 +71,10 @@ export function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith("/api/financeiro/extrato-publica/")) {
+    return NextResponse.next();
+  }
+
+  if (requisicaoTvSocket(pathname)) {
     return NextResponse.next();
   }
 

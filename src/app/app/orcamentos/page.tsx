@@ -422,7 +422,7 @@ export default function OrcamentosPage() {
   }
 
   function copiarLink(orcamento: Orcamento) {
-    const url = orcamentoPublicUrl(orcamento.token, window.location.origin);
+    const url = orcamentoPublicUrl(orcamento.token);
     void navigator.clipboard.writeText(url);
     alert("Link copiado!");
   }
@@ -446,7 +446,7 @@ export default function OrcamentosPage() {
 
       await recarregarOrcamentos();
 
-      const url = orcamentoPublicUrl(data.token, window.location.origin);
+      const url = orcamentoPublicUrl(data.token);
       window.open(url, "_blank", "noopener,noreferrer");
 
       const telefone = data.whatsappEnvio?.trim();

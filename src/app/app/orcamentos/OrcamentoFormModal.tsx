@@ -381,10 +381,7 @@ export function OrcamentoFormModal({
       });
 
       if (resultado?.whatsappEnvio && resultado.token) {
-        const publicUrl = orcamentoPublicUrl(
-          resultado.token,
-          window.location.origin
-        );
+        const publicUrl = orcamentoPublicUrl(resultado.token);
         abrirWhatsAppOrcamento(resultado.whatsappEnvio, publicUrl);
       }
     } finally {

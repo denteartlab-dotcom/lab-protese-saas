@@ -1,4 +1,5 @@
-import { garantirUrlPublicaAbsoluta, orcamentoPublicBaseUrl } from "@/lib/whatsapp";
+import { montarUrlPublica } from "@/lib/app-url";
+import { garantirUrlPublicaAbsoluta } from "@/lib/whatsapp";
 
 export type ExtratoPublicaRegistro = {
   base64: string;
@@ -23,14 +24,12 @@ export function criarTokenExtratoPublica() {
   return `ep${Date.now()}${Math.random().toString(36).slice(2, 12)}`;
 }
 
-export function extratoPublicaUrl(token: string, origin?: string) {
-  const base = orcamentoPublicBaseUrl(origin);
-  return `${base}/extrato/${token}`;
+export function extratoPublicaUrl(token: string) {
+  return montarUrlPublica(`/extrato/${token}`);
 }
 
-export function extratoPublicaPdfUrl(token: string, origin?: string) {
-  const base = orcamentoPublicBaseUrl(origin);
-  return `${base}/api/financeiro/extrato-publica/${token}`;
+export function extratoPublicaPdfUrl(token: string) {
+  return montarUrlPublica(`/api/financeiro/extrato-publica/${token}`);
 }
 
 export function montarRegistroExtratoPublica(input: {

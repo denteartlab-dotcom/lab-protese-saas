@@ -6,6 +6,7 @@ import {
   ASAAS_CONFIG_PADRAO,
   type AsaasConfig,
 } from "@/lib/asaas-config";
+import { APP_URL } from "@/lib/app-url";
 import { urlBaseAsaas, type AsaasAmbiente } from "@/lib/asaas-config";
 
 async function lerConfig(): Promise<AsaasConfig> {
@@ -32,17 +33,13 @@ export async function GET() {
   }
 
   const config = await lerConfig();
-  const origin =
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
-    "http://localhost:3000";
-
   return NextResponse.json({
     config: {
       ambiente: config.ambiente,
       apiKeyConfigurada: Boolean(config.apiKey),
       webhookTokenConfigurado: Boolean(config.webhookToken),
     },
-    webhookUrl: `${origin}/api/asaas/webhook`,
+    webhookUrl: `${APP_URL}/api/asaas/webhook`,
     urlBase: urlBaseAsaas(config.ambiente),
   });
 }

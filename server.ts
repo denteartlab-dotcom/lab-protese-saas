@@ -2,6 +2,7 @@ import { createServer } from "http";
 import { parse } from "url";
 import next from "next";
 import { Server as SocketIOServer } from "socket.io";
+import { requisicaoTvSocket } from "./src/lib/tv/tv-socket-client";
 import { TV_SOCKET_PATH } from "./src/lib/tv/tv-socket-events";
 import { iniciarBackupAutomaticoDiario } from "./src/lib/backup-automatico";
 import {
@@ -30,6 +31,9 @@ app
   .then(() => {
     const httpServer = createServer((req, res) => {
       const parsedUrl = parse(req.url ?? "", true);
+      const pathname = parsedUrl.pathname ?? "";
+      // Socket.IO atende /api/tv/socket.io — não enviar ao Next (evita 404 no handshake).
+      if (requisicaoTvSocket(pathname)) return;
       handle(req, res, parsedUrl);
     });
 

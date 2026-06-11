@@ -81,9 +81,23 @@ export function TvHeader({
         {/* Direita */}
         <div className="flex shrink-0 items-center gap-2.5 tv:gap-3">
           <div className="hidden flex-col items-end gap-1.5 md:flex">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-[10px] font-semibold text-emerald-300 tv:text-[11px]">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
-              Sistema Online
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-semibold tv:text-[11px]",
+                wsConectado
+                  ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300"
+                  : "border-amber-500/25 bg-amber-500/10 text-amber-300"
+              )}
+            >
+              <span
+                className={cn(
+                  "h-1.5 w-1.5 rounded-full",
+                  wsConectado
+                    ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]"
+                    : "animate-pulse bg-amber-400"
+                )}
+              />
+              {wsConectado ? "Sistema Online" : "Reconectando"}
             </span>
             <span
               className={cn(
@@ -92,8 +106,10 @@ export function TvHeader({
               )}
             >
               <Wifi className="h-3 w-3" />
-              {wsConectado ? "WebSocket" : "Reconectando"}
-              <Activity className="h-2.5 w-2.5 animate-pulse" />
+              {wsConectado ? "Tempo real ativo" : "Aguardando conexão"}
+              <Activity
+                className={cn("h-2.5 w-2.5", !wsConectado && "animate-pulse")}
+              />
             </span>
           </div>
           <button

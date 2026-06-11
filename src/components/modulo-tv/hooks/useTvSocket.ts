@@ -3,7 +3,10 @@
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { io, type Socket } from "socket.io-client";
-import { TV_SOCKET_PATH } from "@/lib/tv/tv-socket-events";
+import {
+  opcoesClienteTvSocket,
+  resolverOrigemTvSocket,
+} from "@/lib/tv/tv-socket-client";
 import type { TvOrdensResponse } from "@/components/modulo-tv/types";
 import { useTvDashboardStore } from "@/components/modulo-tv/store/tv-dashboard-store";
 import { playTvSound } from "@/components/modulo-tv/lib/tv-sounds";
@@ -22,20 +25,17 @@ export function useTvSocket() {
   sonsRef.current = sonsAtivos;
 
   useEffect(() => {
-    const socket = io({
-      path: TV_SOCKET_PATH,
-      transports: ["websocket", "polling"],
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 1500,
-    });
+    const socket = io(resolverOrigemTvSocket(), opcoesClienteTvSocket());
 
     socketRef.current = socket;
 
-    socket.on("connect", () => {
+    const marcarOnline = () => {
       setWsConectado(true);
       socket.emit("tv:subscribe");
-    });
+    };
+
+    socket.on("connect", marcarOnline);
+    socket.io.on("reconnect", marcarOnline);
 
     socket.on("disconnect", () => setWsConectado(false));
     socket.on("connect_error", () => setWsConectado(false));
@@ -82,8 +82,11 @@ export function useTvSocket() {
     });
 
     return () => {
+      socket.off("connect", marcarOnline);
+      socket.io.off("reconnect", marcarOnline);
       socket.disconnect();
       socketRef.current = null;
+      setWsConectado(false);
     };
   }, [queryClient, setWsConectado, marcarOsNova]);
 }

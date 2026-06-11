@@ -8,7 +8,6 @@ import {
   faturaPublicaUrl,
   montarRegistroFaturaPublica,
 } from "@/lib/fatura-publica";
-import { publicOriginFromRequest } from "@/lib/whatsapp";
 
 const bodySchema = z.object({
   base64: z.string().min(1),
@@ -48,9 +47,8 @@ export async function POST(request: Request) {
     update: { payload: JSON.stringify(registro) },
   });
 
-  const origin = publicOriginFromRequest(request);
   return NextResponse.json({
     token,
-    url: faturaPublicaUrl(token, origin),
+    url: faturaPublicaUrl(token),
   });
 }
