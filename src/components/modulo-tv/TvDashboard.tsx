@@ -25,6 +25,7 @@ export function TvDashboard() {
     stats,
     carregando,
     wsConectado,
+    sistemaOnline,
     ultimaAtualizacao,
     maioresAtrasos,
     moverOrdem,
@@ -96,6 +97,7 @@ export function TvDashboard() {
           relogio={relogio}
           dataAtual={dataAtual}
           wsConectado={wsConectado}
+          sistemaOnline={sistemaOnline}
           fullscreen={fullscreen}
           onToggleFullscreen={toggleFullscreen}
           modoKiosk={modoKiosk}

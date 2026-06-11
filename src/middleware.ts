@@ -74,7 +74,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (requisicaoTvSocket(pathname)) {
+  if (requisicaoTvSocket(pathname) || pathname === "/api/tv/socket-health") {
     return NextResponse.next();
   }
 

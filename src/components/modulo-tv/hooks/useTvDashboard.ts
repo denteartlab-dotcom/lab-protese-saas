@@ -179,6 +179,9 @@ export function useTvDashboard() {
     return () => window.clearInterval(t);
   }, [sonsAtivos, maioresAtrasos.length]);
 
+  const dadosCarregados = ordensQuery.isSuccess;
+  const sistemaOnline = wsConectado || dadosCarregados;
+
   return {
     agora,
     relogio: formatRelogio(agora),
@@ -188,6 +191,8 @@ export function useTvDashboard() {
     stats,
     carregando: ordensQuery.isLoading,
     wsConectado,
+    dadosCarregados,
+    sistemaOnline,
     ultimaAtualizacao,
     maioresAtrasos,
     recarregar,

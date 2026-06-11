@@ -29,18 +29,14 @@ const handle = app.getRequestHandler();
 app
   .prepare()
   .then(() => {
-    const httpServer = createServer((req, res) => {
-      const parsedUrl = parse(req.url ?? "", true);
-      const pathname = parsedUrl.pathname ?? "";
-      // Socket.IO atende /api/tv/socket.io — não enviar ao Next (evita 404 no handshake).
-      if (requisicaoTvSocket(pathname)) return;
-      handle(req, res, parsedUrl);
-    });
+    const httpServer = createServer();
 
     const io = new SocketIOServer(httpServer, {
       path: TV_SOCKET_PATH,
       cors: { origin: true, credentials: true },
-      transports: ["websocket", "polling"],
+      transports: ["polling", "websocket"],
+      pingTimeout: 60_000,
+      pingInterval: 25_000,
     });
 
     setTvSocketIo(io);
@@ -54,6 +50,13 @@ app
           socket.emit("tv:sync", payload);
         });
       });
+    });
+
+    httpServer.on("request", (req, res) => {
+      const parsedUrl = parse(req.url ?? "", true);
+      const pathname = parsedUrl.pathname ?? "";
+      if (requisicaoTvSocket(pathname)) return;
+      handle(req, res, parsedUrl);
     });
 
     iniciarTvRefreshAutomatico();

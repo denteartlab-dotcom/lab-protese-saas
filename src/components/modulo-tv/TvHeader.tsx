@@ -10,6 +10,7 @@ type Props = {
   relogio: string;
   dataAtual: string;
   wsConectado: boolean;
+  sistemaOnline?: boolean;
   fullscreen: boolean;
   onToggleFullscreen: () => void;
   modoKiosk?: boolean;
@@ -20,10 +21,22 @@ export function TvHeader({
   relogio,
   dataAtual,
   wsConectado,
+  sistemaOnline = wsConectado,
   fullscreen,
   onToggleFullscreen,
   modoKiosk = false,
 }: Props) {
+  const statusLabel = wsConectado
+    ? "Sistema Online"
+    : sistemaOnline
+      ? "Modo automático"
+      : "Reconectando";
+  const statusHint = wsConectado
+    ? "Tempo real ativo"
+    : sistemaOnline
+      ? "Atualização periódica"
+      : "Aguardando conexão";
+
   return (
     <header
       className={cn(
@@ -84,7 +97,7 @@ export function TvHeader({
             <span
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-semibold tv:text-[11px]",
-                wsConectado
+                sistemaOnline
                   ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300"
                   : "border-amber-500/25 bg-amber-500/10 text-amber-300"
               )}
@@ -92,23 +105,23 @@ export function TvHeader({
               <span
                 className={cn(
                   "h-1.5 w-1.5 rounded-full",
-                  wsConectado
+                  sistemaOnline
                     ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]"
                     : "animate-pulse bg-amber-400"
                 )}
               />
-              {wsConectado ? "Sistema Online" : "Reconectando"}
+              {statusLabel}
             </span>
             <span
               className={cn(
                 "inline-flex items-center gap-1 text-[10px] tv:text-[11px]",
-                wsConectado ? "text-cyan-400" : "text-amber-400"
+                sistemaOnline ? "text-cyan-400" : "text-amber-400"
               )}
             >
               <Wifi className="h-3 w-3" />
-              {wsConectado ? "Tempo real ativo" : "Aguardando conexão"}
+              {statusHint}
               <Activity
-                className={cn("h-2.5 w-2.5", !wsConectado && "animate-pulse")}
+                className={cn("h-2.5 w-2.5", !sistemaOnline && "animate-pulse")}
               />
             </span>
           </div>

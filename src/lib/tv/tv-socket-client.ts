@@ -5,20 +5,10 @@ function normalizarOrigin(valor: string) {
   return valor.replace(/\/+$/, "");
 }
 
-/** Origem do Socket.IO: mesma do navegador ou NEXT_PUBLIC_APP_URL em produção. */
+/** Origem do Socket.IO — sempre a mesma da página (evita www vs apex e CORS). */
 export function resolverOrigemTvSocket(): string {
   if (typeof window === "undefined") return "";
-
-  const env = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (env) {
-    try {
-      return normalizarOrigin(new URL(env).origin);
-    } catch {
-      /* fallback abaixo */
-    }
-  }
-
-  return window.location.origin;
+  return normalizarOrigin(window.location.origin);
 }
 
 export function opcoesClienteTvSocket(): Partial<ManagerOptions & SocketOptions> {
@@ -27,7 +17,7 @@ export function opcoesClienteTvSocket(): Partial<ManagerOptions & SocketOptions>
 
   return {
     path: TV_SOCKET_PATH,
-    transports: ["websocket", "polling"],
+    transports: ["polling", "websocket"],
     withCredentials: true,
     reconnection: true,
     reconnectionAttempts: Infinity,
