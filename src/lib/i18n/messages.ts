@@ -146,12 +146,22 @@ export const messages = {
     "settings.backupAutoErro": "Não foi possível salvar o agendamento.",
     "settings.backupAutoAbrirPasta": "Abrir pasta de backups",
     "settings.backupAutoAbrirPastaTitulo": "Pasta de backups",
+    "settings.backupAutoAbrirPastaTituloConteudo": "Conteúdo da pasta de backups",
     "settings.backupAutoAbrirPastaDesc":
-      "Informe a senha do administrador para abrir a pasta onde os backups automáticos são gravados no servidor.",
+      "Informe a senha da sua conta para visualizar a pasta onde os backups automáticos são gravados no servidor.",
+    "settings.backupAutoAbrirPastaDescConteudo":
+      "A senha foi confirmada. Confira o caminho e os arquivos de backup abaixo.",
+    "settings.backupAutoAbrirPastaSenhaLogin": "Senha da sua conta",
+    "settings.backupAutoAbrirPastaSenhaDica":
+      "Use a mesma senha que você utiliza para entrar no sistema.",
+    "settings.backupAutoAbrirPastaInformeSenha": "Informe a senha da sua conta.",
     "settings.backupAutoAbrirPastaConfirmar": "Abrir pasta",
     "settings.backupAutoAbrirPastaAbrindo": "Verificando...",
     "settings.backupAutoAbrirPastaSucesso": "Pasta de backups aberta no servidor.",
     "settings.backupAutoAbrirPastaListaPronta": "Acesso liberado. Confira o caminho e os arquivos abaixo.",
+    "settings.backupAutoAbrirPastaAcessoOk": "Senha correta. A pasta de backups está disponível abaixo.",
+    "settings.backupAutoAbrirPastaAcessoOkExplorer":
+      "Senha correta. A pasta foi aberta no servidor e os arquivos estão listados abaixo.",
     "settings.backupAutoAbrirPastaErro": "Não foi possível acessar a pasta de backups.",
     "settings.backupAutoAbrirPastaCaminho": "Caminho no servidor",
     "settings.backupAutoAbrirPastaArquivos": "Arquivos na pasta",
@@ -492,12 +502,22 @@ export const messages = {
     "settings.backupAutoErro": "Could not save the schedule.",
     "settings.backupAutoAbrirPasta": "Open backup folder",
     "settings.backupAutoAbrirPastaTitulo": "Backup folder",
+    "settings.backupAutoAbrirPastaTituloConteudo": "Backup folder contents",
     "settings.backupAutoAbrirPastaDesc":
-      "Enter the administrator password to open the folder where automatic backups are stored on the server.",
+      "Enter your account password to view the folder where automatic backups are stored on the server.",
+    "settings.backupAutoAbrirPastaDescConteudo":
+      "Password confirmed. See the path and backup files below.",
+    "settings.backupAutoAbrirPastaSenhaLogin": "Your account password",
+    "settings.backupAutoAbrirPastaSenhaDica":
+      "Use the same password you use to sign in to the system.",
+    "settings.backupAutoAbrirPastaInformeSenha": "Enter your account password.",
     "settings.backupAutoAbrirPastaConfirmar": "Open folder",
     "settings.backupAutoAbrirPastaAbrindo": "Verifying...",
     "settings.backupAutoAbrirPastaSucesso": "Backup folder opened on the server.",
     "settings.backupAutoAbrirPastaListaPronta": "Access granted. See the path and files below.",
+    "settings.backupAutoAbrirPastaAcessoOk": "Correct password. The backup folder is available below.",
+    "settings.backupAutoAbrirPastaAcessoOkExplorer":
+      "Correct password. The folder was opened on the server and the files are listed below.",
     "settings.backupAutoAbrirPastaErro": "Could not access the backup folder.",
     "settings.backupAutoAbrirPastaCaminho": "Server path",
     "settings.backupAutoAbrirPastaArquivos": "Files in folder",
@@ -836,12 +856,22 @@ export const messages = {
     "settings.backupAutoErro": "No se pudo guardar la programación.",
     "settings.backupAutoAbrirPasta": "Abrir carpeta de respaldos",
     "settings.backupAutoAbrirPastaTitulo": "Carpeta de respaldos",
+    "settings.backupAutoAbrirPastaTituloConteudo": "Contenido de la carpeta de respaldos",
     "settings.backupAutoAbrirPastaDesc":
-      "Ingrese la contraseña del administrador para abrir la carpeta donde se guardan los respaldos automáticos en el servidor.",
+      "Ingrese la contraseña de su cuenta para ver la carpeta donde se guardan los respaldos automáticos en el servidor.",
+    "settings.backupAutoAbrirPastaDescConteudo":
+      "Contraseña confirmada. Consulte la ruta y los archivos de respaldo abajo.",
+    "settings.backupAutoAbrirPastaSenhaLogin": "Contraseña de su cuenta",
+    "settings.backupAutoAbrirPastaSenhaDica":
+      "Use la misma contraseña que utiliza para entrar al sistema.",
+    "settings.backupAutoAbrirPastaInformeSenha": "Ingrese la contraseña de su cuenta.",
     "settings.backupAutoAbrirPastaConfirmar": "Abrir carpeta",
     "settings.backupAutoAbrirPastaAbrindo": "Verificando...",
     "settings.backupAutoAbrirPastaSucesso": "Carpeta de respaldos abierta en el servidor.",
     "settings.backupAutoAbrirPastaListaPronta": "Acceso concedido. Consulte la ruta y los archivos abajo.",
+    "settings.backupAutoAbrirPastaAcessoOk": "Contraseña correcta. La carpeta de respaldos está disponible abajo.",
+    "settings.backupAutoAbrirPastaAcessoOkExplorer":
+      "Contraseña correcta. La carpeta se abrió en el servidor y los archivos se listan abajo.",
     "settings.backupAutoAbrirPastaErro": "No se pudo acceder a la carpeta de respaldos.",
     "settings.backupAutoAbrirPastaCaminho": "Ruta en el servidor",
     "settings.backupAutoAbrirPastaArquivos": "Archivos en la carpeta",

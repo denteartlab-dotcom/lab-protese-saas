@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { FolderOpen, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CheckCircle2, FolderOpen, X } from "lucide-react";
 import { Button } from "@/components/ui";
 import { useI18n } from "@/components/i18n-provider";
 import { formatarTamanhoArmazenamento } from "@/lib/uploads-armazenamento";
@@ -21,64 +21,43 @@ type Props = {
 export function ModalAbrirPastaBackup({ open, onClose, onMensagem }: Props) {
   const { t } = useI18n();
   const [senha, setSenha] = useState("");
-  const [palavraChave, setPalavraChave] = useState("");
-  const [exigePalavraChave, setExigePalavraChave] = useState(false);
-  const [referenciaPalavraChave, setReferenciaPalavraChave] = useState<string | null>(
-    null
-  );
-  const [palavraChaveCadastrada, setPalavraChaveCadastrada] = useState(false);
-  const [tentativasSenha, setTentativasSenha] = useState(0);
+  const [erroInline, setErroInline] = useState<string | null>(null);
   const [processando, setProcessando] = useState(false);
   const [pasta, setPasta] = useState("");
   const [arquivos, setArquivos] = useState<ArquivoBackup[]>([]);
   const [acessoLiberado, setAcessoLiberado] = useState(false);
   const [mensagemExplorer, setMensagemExplorer] = useState<string | null>(null);
-
-  const carregarSeguranca = useCallback(async () => {
-    const res = await fetch("/api/backup/seguranca-restaurar", {
-      credentials: "same-origin",
-    });
-    if (!res.ok) return;
-    const data = (await res.json()) as {
-      exigePalavraChave?: boolean;
-      referencia?: string | null;
-      palavraChaveCadastrada?: boolean;
-      tentativasSenha?: number;
-    };
-    setExigePalavraChave(Boolean(data.exigePalavraChave));
-    setReferenciaPalavraChave(data.referencia ?? null);
-    setPalavraChaveCadastrada(Boolean(data.palavraChaveCadastrada));
-    setTentativasSenha(data.tentativasSenha ?? 0);
-  }, []);
+  const [explorerAberto, setExplorerAberto] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setSenha("");
-    setPalavraChave("");
+    setErroInline(null);
     setPasta("");
     setArquivos([]);
     setAcessoLiberado(false);
     setMensagemExplorer(null);
-    void carregarSeguranca();
-  }, [open, carregarSeguranca]);
+    setExplorerAberto(false);
+  }, [open]);
 
   async function abrirPasta() {
+    const senhaInformada = senha.trim();
+    if (!senhaInformada) {
+      setErroInline(t("settings.backupAutoAbrirPastaInformeSenha"));
+      return;
+    }
+
     setProcessando(true);
+    setErroInline(null);
     try {
       const res = await fetch("/api/backup/abrir-pasta", {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          senha: exigePalavraChave ? undefined : senha,
-          palavraChave: exigePalavraChave ? palavraChave : undefined,
-        }),
+        body: JSON.stringify({ senha: senhaInformada }),
       });
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
-        tentativasSenha?: number;
-        exigePalavraChave?: boolean;
-        palavraChaveCadastrada?: boolean;
         pasta?: string;
         arquivos?: ArquivoBackup[];
         aberto?: boolean;
@@ -86,22 +65,16 @@ export function ModalAbrirPastaBackup({ open, onClose, onMensagem }: Props) {
       };
 
       if (!res.ok) {
-        if (typeof data.tentativasSenha === "number") {
-          setTentativasSenha(data.tentativasSenha);
-        }
-        if (typeof data.exigePalavraChave === "boolean") {
-          setExigePalavraChave(data.exigePalavraChave);
-        }
-        if (typeof data.palavraChaveCadastrada === "boolean") {
-          setPalavraChaveCadastrada(data.palavraChaveCadastrada);
-        }
-        onMensagem?.(data.error || t("settings.backupAutoAbrirPastaErro"), "erro");
+        const mensagemErro = data.error || t("settings.backupAutoAbrirPastaErro");
+        setErroInline(mensagemErro);
+        onMensagem?.(mensagemErro, "erro");
         return;
       }
 
       setAcessoLiberado(true);
       setPasta(data.pasta || "");
       setArquivos(data.arquivos || []);
+      setExplorerAberto(Boolean(data.aberto));
       setMensagemExplorer(
         data.aberto
           ? null
@@ -114,7 +87,9 @@ export function ModalAbrirPastaBackup({ open, onClose, onMensagem }: Props) {
         data.aberto ? "sucesso" : "info"
       );
     } catch {
-      onMensagem?.(t("settings.backupAutoAbrirPastaErro"), "erro");
+      const mensagemErro = t("settings.backupAutoAbrirPastaErro");
+      setErroInline(mensagemErro);
+      onMensagem?.(mensagemErro, "erro");
     } finally {
       setProcessando(false);
     }
@@ -142,10 +117,14 @@ export function ModalAbrirPastaBackup({ open, onClose, onMensagem }: Props) {
                 id="abrir-pasta-backup-titulo"
                 className="text-base font-semibold text-emerald-950"
               >
-                {t("settings.backupAutoAbrirPastaTitulo")}
+                {acessoLiberado
+                  ? t("settings.backupAutoAbrirPastaTituloConteudo")
+                  : t("settings.backupAutoAbrirPastaTitulo")}
               </h2>
               <p className="mt-1 text-xs text-emerald-900/90">
-                {t("settings.backupAutoAbrirPastaDesc")}
+                {acessoLiberado
+                  ? t("settings.backupAutoAbrirPastaDescConteudo")
+                  : t("settings.backupAutoAbrirPastaDesc")}
               </p>
             </div>
           </div>
@@ -162,59 +141,47 @@ export function ModalAbrirPastaBackup({ open, onClose, onMensagem }: Props) {
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {!acessoLiberado ? (
-            <>
-              {exigePalavraChave ? (
-                <div className="space-y-3 rounded border border-amber-300 bg-amber-50 p-3">
-                  <p className="text-xs font-medium text-amber-900">
-                    {t("settings.restaurarPadraoBloqueadoSenha")}
-                  </p>
-                  {referenciaPalavraChave ? (
-                    <p className="text-[11px] text-amber-800">
-                      {t("settings.restaurarPadraoReferenciaLembrete")}:{" "}
-                      <strong>{referenciaPalavraChave}</strong>
-                    </p>
-                  ) : null}
-                  <label className="block text-xs font-medium text-slate-700">
-                    {t("settings.restaurarPadraoPalavraChaveCampo")}
-                    <input
-                      type="password"
-                      value={palavraChave}
-                      onChange={(evento) => setPalavraChave(evento.target.value)}
-                      className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
-                      disabled={processando}
-                      autoComplete="off"
-                    />
-                  </label>
-                  {!palavraChaveCadastrada ? (
-                    <p className="text-[11px] text-red-700">
-                      {t("settings.restaurarPadraoCadastrePalavraChave")}
-                    </p>
-                  ) : null}
-                </div>
-              ) : (
-                <label className="block text-xs font-medium text-slate-700">
-                  {t("settings.restaurarPadraoSenhaProprietario")}
-                  <input
-                    type="password"
-                    value={senha}
-                    onChange={(evento) => setSenha(evento.target.value)}
-                    className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
-                    disabled={processando}
-                    autoComplete="current-password"
-                  />
-                  {tentativasSenha > 0 ? (
-                    <span className="mt-1 block text-[11px] text-amber-700">
-                      {t("settings.restaurarPadraoTentativasSenha").replace(
-                        "{n}",
-                        String(tentativasSenha)
-                      )}
-                    </span>
-                  ) : null}
-                </label>
-              )}
-            </>
+            <div className="space-y-3">
+              <label className="block text-xs font-medium text-slate-700">
+                {t("settings.backupAutoAbrirPastaSenhaLogin")}
+                <input
+                  type="password"
+                  value={senha}
+                  onChange={(evento) => {
+                    setSenha(evento.target.value);
+                    if (erroInline) setErroInline(null);
+                  }}
+                  onKeyDown={(evento) => {
+                    if (evento.key === "Enter") {
+                      evento.preventDefault();
+                      void abrirPasta();
+                    }
+                  }}
+                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  disabled={processando}
+                  autoComplete="current-password"
+                />
+              </label>
+              <p className="text-[11px] text-slate-500">
+                {t("settings.backupAutoAbrirPastaSenhaDica")}
+              </p>
+              {erroInline ? (
+                <p className="rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {erroInline}
+                </p>
+              ) : null}
+            </div>
           ) : (
             <div className="space-y-4">
+              <div className="flex items-start gap-2 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-950">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                <p>
+                  {explorerAberto
+                    ? t("settings.backupAutoAbrirPastaAcessoOkExplorer")
+                    : t("settings.backupAutoAbrirPastaAcessoOk")}
+                </p>
+              </div>
+
               <div className="rounded border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-xs text-emerald-950">
                 <span className="font-semibold">
                   {t("settings.backupAutoAbrirPastaCaminho")}:
@@ -235,7 +202,7 @@ export function ModalAbrirPastaBackup({ open, onClose, onMensagem }: Props) {
                     {t("settings.backupAutoAbrirPastaVazia")}
                   </p>
                 ) : (
-                  <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto rounded border border-slate-200">
+                  <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto rounded border border-slate-200">
                     {arquivos.map((arquivo) => (
                       <li
                         key={arquivo.nome}
@@ -268,10 +235,7 @@ export function ModalAbrirPastaBackup({ open, onClose, onMensagem }: Props) {
           {!acessoLiberado ? (
             <Button
               type="button"
-              disabled={
-                processando ||
-                (exigePalavraChave ? !palavraChave.trim() : !senha.trim())
-              }
+              disabled={processando || !senha.trim()}
               onClick={() => void abrirPasta()}
               className="rounded bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700 disabled:opacity-50"
             >
