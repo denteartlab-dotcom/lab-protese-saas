@@ -891,6 +891,11 @@ export default function OrdemServicoPage() {
     return modelosEtapasParaOsServico(servicoOsAtual, modelosEtapas);
   }, [servicoOsAtual, modelosEtapas]);
 
+  const exibeLinhasEtapasOs = Boolean(
+    servicoOsAtual &&
+      servicoTemEtapasNaTabela(servicoOsAtual) &&
+      etapas.some((etapa) => etapa.nome.trim())
+  );
   const exibeAbaColaboradores = servicoTemComissoesColaboradoresNaTabela(servicoOsAtual);
   const exibeAbaTerceirizados = servicoTemComissoesTerceirizadosNaTabela(servicoOsAtual);
   const colaboradoresComissaoServico = useMemo(
@@ -2191,7 +2196,7 @@ export default function OrdemServicoPage() {
     setDentes([]);
     setProdutosOs([]);
     setAbaServico("etapas");
-    setEtapas([{ nome: "", setor: "", responsavel: "", prazo: "", observacao: "" }]);
+    setEtapas([]);
     setForm((current) => ({
       ...current,
       produtoId: "",
@@ -3608,17 +3613,21 @@ export default function OrdemServicoPage() {
                   <div className="space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-sm font-semibold text-slate-800">Etapas</span>
-                      <button
-                        type="button"
-                        className="rounded bg-emerald-600 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-emerald-700"
-                        title="Recurso em teste no Smart Prótese"
-                      >
-                        Buscar Melhor data e horário com IA (em teste)
-                      </button>
+                      {exibeLinhasEtapasOs && (
+                        <button
+                          type="button"
+                          className="rounded bg-emerald-600 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-emerald-700"
+                          title="Recurso em teste no Smart Prótese"
+                        >
+                          Buscar Melhor data e horário com IA (em teste)
+                        </button>
+                      )}
                     </div>
 
+                    {exibeLinhasEtapasOs && (
                     <div className="max-h-[min(420px,52vh)] space-y-3 overflow-y-auto overflow-x-hidden pr-1">
                       {etapas.map((etapa, index) => {
+                        if (!etapa.nome.trim()) return null;
                         const { data: dataEtapa, hora: horaEtapa } = partesPrazoEtapaOs(etapa.prazo);
                         const setorRotulo = rotuloSetorEtapa(etapa);
                         const situacao = situacaoEtapaServico(index, indiceEtapaAtual);
@@ -3771,6 +3780,7 @@ export default function OrdemServicoPage() {
                         );
                       })}
                     </div>
+                    )}
                   </div>
                 )}
 
