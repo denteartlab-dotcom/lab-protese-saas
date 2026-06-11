@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { schemaNomeCliente } from "@/lib/cliente-validacao";
+import { garantirTokenAcompanhamentoCliente } from "@/lib/cliente-acompanhamento";
 import { z } from "zod";
 
 const schema = z.object({
@@ -60,6 +61,9 @@ export async function PUT(
     });
     if (!existente) {
       return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
+    }
+    if (!existente.tokenAcompanhamento) {
+      await garantirTokenAcompanhamentoCliente(id, null);
     }
     const cliente = await prisma.cliente.update({
       where: { id },

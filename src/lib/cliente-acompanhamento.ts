@@ -1,4 +1,5 @@
 import { randomBytes } from "crypto";
+import { prisma } from "@/lib/db";
 import {
   parseComplementosInstrucoesGrupo,
   type EtapaOsLinha,
@@ -19,6 +20,35 @@ import {
 
 export function gerarTokenAcompanhamentoCliente() {
   return randomBytes(16).toString("hex");
+}
+
+export const MENSAGEM_LINK_ACOMPANHAMENTO_INVALIDO =
+  "Link de acompanhamento inválido.";
+
+/** Gera token apenas na primeira vez; nunca substitui um token existente. */
+export async function garantirTokenAcompanhamentoCliente(
+  clienteId: string,
+  tokenExistente?: string | null
+): Promise<string> {
+  if (tokenExistente) return tokenExistente;
+
+  const token = gerarTokenAcompanhamentoCliente();
+  await prisma.cliente.update({
+    where: { id: clienteId },
+    data: { tokenAcompanhamento: token },
+  });
+  return token;
+}
+
+/** Preenche tokens ausentes em clientes legados (link permanente por cliente). */
+export async function preencherTokensAcompanhamentoAusentes() {
+  const semToken = await prisma.cliente.findMany({
+    where: { tokenAcompanhamento: null },
+    select: { id: true },
+  });
+  for (const cliente of semToken) {
+    await garantirTokenAcompanhamentoCliente(cliente.id, null);
+  }
 }
 
 export type EtapaAcompanhamentoPublico = EtapaOsLinha & {

@@ -65,7 +65,7 @@ async function buscarTrabalhosAcompanhamentoCliente(cliente: ClienteAcompanhamen
 
 export async function buscarClientePublicoPorToken(token: string) {
   const cliente = await prisma.cliente.findFirst({
-    where: { tokenAcompanhamento: token, ativo: true },
+    where: { tokenAcompanhamento: token },
     select: {
       id: true,
       nome: true,

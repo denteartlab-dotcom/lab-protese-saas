@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { buscarClientePublicoPorToken } from "@/lib/tenant-db";
-import { montarAcompanhamentoPublico } from "@/lib/cliente-acompanhamento";
+import {
+  MENSAGEM_LINK_ACOMPANHAMENTO_INVALIDO,
+  montarAcompanhamentoPublico,
+} from "@/lib/cliente-acompanhamento";
 import { carregarStoreUrgenciasCliente } from "@/lib/urgencia-cliente";
 
 type Params = { params: Promise<{ token: string }> };
@@ -12,7 +15,7 @@ export async function GET(_request: Request, { params }: Params) {
 
   if (!resultado) {
     return NextResponse.json(
-      { error: "link_invalido", message: "Link de acompanhamento inválido ou expirado." },
+      { error: "link_invalido", message: MENSAGEM_LINK_ACOMPANHAMENTO_INVALIDO },
       { status: 404 }
     );
   }

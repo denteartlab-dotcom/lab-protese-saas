@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { gerarTokenAcompanhamentoCliente } from "@/lib/cliente-acompanhamento";
+import { garantirTokenAcompanhamentoCliente } from "@/lib/cliente-acompanhamento";
 import { flagsUrgenciaTrabalho } from "@/lib/modulo-producao-os";
 import { hrefAcompanhamentoClienteOs } from "@/lib/whatsapp";
 
@@ -346,14 +346,10 @@ export async function enriquecerLinksAcompanhamentoUrgentes(
 
   const tokenPorCliente = new Map<string, string>();
   for (const cliente of clientes) {
-    let token = cliente.tokenAcompanhamento;
-    if (!token) {
-      token = gerarTokenAcompanhamentoCliente();
-      await prisma.cliente.update({
-        where: { id: cliente.id },
-        data: { tokenAcompanhamento: token },
-      });
-    }
+    const token = await garantirTokenAcompanhamentoCliente(
+      cliente.id,
+      cliente.tokenAcompanhamento
+    );
     tokenPorCliente.set(cliente.id, token);
   }
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { gerarTokenAcompanhamentoCliente } from "@/lib/cliente-acompanhamento";
+import { gerarTokenAcompanhamentoCliente, garantirTokenAcompanhamentoCliente, preencherTokensAcompanhamentoAusentes } from "@/lib/cliente-acompanhamento";
 import { schemaNomeCliente } from "@/lib/cliente-validacao";
 import { z } from "zod";
 
@@ -44,6 +44,8 @@ export async function GET(request: Request) {
     orderBy: { nome: "asc" },
     include: { _count: { select: { pacientes: true, trabalhos: true } } },
   });
+
+  void preencherTokensAcompanhamentoAusentes().catch(() => {});
 
   return NextResponse.json(clientes);
 }
