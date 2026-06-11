@@ -1,0 +1,20 @@
+# Systemd — /etc/systemd/system/lab-protese.service
+# systemctl daemon-reload && systemctl enable lab-protese && systemctl restart lab-protese
+
+[Unit]
+Description=Lab Prótese (Next.js + Socket.IO TV)
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/lab-protese-saas
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOSTNAME=0.0.0.0
+ExecStart=/usr/bin/npm run start
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
