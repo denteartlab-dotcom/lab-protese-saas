@@ -69,8 +69,8 @@ function resolverEtapaAtual(
   const item = itensDaOsModulo(moduloOs)[0];
   const chave = chaveItemModulo(trabalho.id, item.id);
   const concluidas = new Set(mapaConcluidas[chave] ?? []);
-  for (const etapa of etapas) {
-    if (!concluidas.has(etapa.indice)) return etapa;
+  for (let i = 0; i < etapas.length; i++) {
+    if (!concluidas.has(i)) return etapas[i];
   }
   return etapas[etapas.length - 1];
 }

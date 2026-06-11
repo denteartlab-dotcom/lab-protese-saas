@@ -69,6 +69,30 @@ export function complementosDaOs(trabalhos: { instrucoes?: string | null }[]) {
   );
 }
 
+type TrabalhoComSegmento = TrabalhoModuloOs & {
+  segmentoFaturamento?: string | null;
+};
+
+export function escolherTrabalhoServicoGrupoOs<T extends { segmentoFaturamento?: string | null }>(
+  grupo: T[]
+): T {
+  return grupo.find((t) => t.segmentoFaturamento === "servico") ?? grupo[0];
+}
+
+/** Etapas e chave de progresso alinhadas ao Módulo TV (serviço principal do grupo OS). */
+export function contextoEtapasModuloOsGrupo(grupo: TrabalhoComSegmento[]) {
+  const principal = escolherTrabalhoServicoGrupoOs(grupo);
+  const { etapas } = parseComplementosInstrucoesGrupo(
+    grupo.map((t) => t.instrucoes || "")
+  );
+  const itens = itensDaOsModulo(principal);
+  const itemId =
+    itens.find((item) => item.tipo === "trabalho")?.id ??
+    itens[0]?.id ??
+    `${principal.id}-principal`;
+  return { etapas, trabalhoId: principal.id, itemId, principal };
+}
+
 export function itensDaOsModulo(trabalho: TrabalhoModuloOs): ItemModuloOs[] {
   const linhas = (trabalho.instrucoes || "")
     .split("\n")

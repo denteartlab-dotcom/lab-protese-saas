@@ -123,7 +123,7 @@ import {
   indiceEtapaAtualDeConcluidas,
   persistirEtapaAtualOs,
 } from "@/lib/modulo-producao-etapas";
-import { itensDaOsModulo } from "@/lib/modulo-producao-os";
+import { contextoEtapasModuloOsGrupo, itensDaOsModulo } from "@/lib/modulo-producao-os";
 
 type CampoOrdenacaoControle = "numeroOs" | "dataEntrada" | "cliente" | "paciente";
 
@@ -998,6 +998,16 @@ export default function ControlePage() {
     },
     comparadores: COMPARADORES_CONTROLE,
   });
+
+  const gruposPorNumeroOs = useMemo(() => {
+    const mapa = new Map<number, Trabalho[]>();
+    for (const t of trabalhos) {
+      const lista = mapa.get(t.numeroOs) ?? [];
+      lista.push(t);
+      mapa.set(t.numeroOs, lista);
+    }
+    return mapa;
+  }, [trabalhos]);
 
   useEffect(() => {
     if (searchParams.get("imprimir") !== "1") return;
@@ -2392,10 +2402,24 @@ export default function ControlePage() {
                 const exibicaoLinha = situacaoExibicaoTrabalho(trabalho, primeiroItem);
                 const linhaProdutoOuTransporte =
                   exibicaoLinha.kind === "produto" || exibicaoLinha.kind === "transporte";
-                const complementosOs = parseComplementosInstrucoesGrupo([
-                  trabalho.instrucoes || "",
-                ]);
-                const etapasOs = linhaProdutoOuTransporte ? [] : complementosOs.etapas;
+                const grupoOs = gruposPorNumeroOs.get(trabalho.numeroOs) ?? [trabalho];
+                const contextoEtapas = contextoEtapasModuloOsGrupo(
+                  grupoOs.map((registro) => ({
+                    id: registro.id,
+                    numeroOs: registro.numeroOs,
+                    tipoProtese: registro.tipoProtese,
+                    valor: registro.valor ?? 0,
+                    status: registro.status,
+                    instrucoes: registro.instrucoes,
+                    dataEntrada: registro.dataEntrada,
+                    dataPrevista: registro.dataPrevista,
+                    segmentoFaturamento: registro.segmentoFaturamento,
+                  }))
+                );
+                const complementosOs = parseComplementosInstrucoesGrupo(
+                  grupoOs.map((registro) => registro.instrucoes || "")
+                );
+                const etapasOs = linhaProdutoOuTransporte ? [] : contextoEtapas.etapas;
                 const colaboradoresOs = colaboradoresParaExibicaoControle(
                   complementosOs.colaboradores,
                   etapasOs
@@ -2441,8 +2465,8 @@ export default function ControlePage() {
                     >
                       <EtapasControleCelula
                         etapas={etapasOs}
-                        trabalhoId={trabalho.id}
-                        itemId={itemIdEtapasControle(trabalho)}
+                        trabalhoId={contextoEtapas.trabalhoId}
+                        itemId={contextoEtapas.itemId}
                       />
                     </td>
                     <td className="px-2 py-2">

@@ -620,17 +620,17 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
                           </tr>
                         </thead>
                         <tbody>
-                          {etapasOs.map((etapa) => {
-                            const ok = etapasOk.has(etapa.indice);
+                          {etapasOs.map((etapa, indiceEtapa) => {
+                            const ok = etapasOk.has(indiceEtapa);
                             return (
                               <tr
-                                key={`${etapa.indice}-${etapa.nome}`}
+                                key={`${indiceEtapa}-${etapa.nome}`}
                                 className="border-b border-[#f3f4f6] hover:bg-[#f9fafb]"
                               >
                                 <td className="px-2 py-2 text-center">
                                   <button
                                     type="button"
-                                    onClick={() => alternarEtapa(etapa.indice)}
+                                    onClick={() => alternarEtapa(indiceEtapa)}
                                     className={cn(
                                       "inline-flex h-5 w-5 items-center justify-center border",
                                       ok

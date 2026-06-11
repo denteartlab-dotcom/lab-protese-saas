@@ -289,12 +289,13 @@ export function removerComplementosOsDoCorpo(corpo: string) {
 
 export function deduplicarEtapas(etapas: EtapaOsLinha[]) {
   const vistas = new Set<string>();
-  return etapas.filter((etapa) => {
+  const filtradas = etapas.filter((etapa) => {
     const chave = etapa.nome.trim().toLowerCase();
     if (!chave || vistas.has(chave)) return false;
     vistas.add(chave);
     return true;
   });
+  return filtradas.map((etapa, indice) => ({ ...etapa, indice }));
 }
 
 export function parseTerceirizadosInstrucoes(instrucoes?: string | null): TerceirizadoOsLinha[] {

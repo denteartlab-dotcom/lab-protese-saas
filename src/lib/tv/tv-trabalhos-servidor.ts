@@ -16,11 +16,14 @@ import {
 import { isTrabalhoAtrasado } from "@/lib/controle-producao-prazos";
 import { lerJsonStoreServidor } from "@/lib/json-store-servidor";
 import {
+  contextoEtapasModuloOsGrupo,
+  escolherTrabalhoServicoGrupoOs,
   flagsUrgenciaTrabalho,
   itensDaOsModulo,
   itensDoGrupoOs,
   type TrabalhoModuloOs,
 } from "@/lib/modulo-producao-os";
+import { indiceEtapaAtualDeConcluidas } from "@/lib/modulo-producao-etapas";
 import { labelStatusOs } from "@/lib/status-os";
 import { normalizarColaborador } from "@/lib/utils";
 
@@ -55,14 +58,45 @@ function normalizarTexto(s: string) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-export function mapearNomeEtapaParaColuna(nome: string): ColunaKanbanId {
+const ORDEM_COLUNAS_KANBAN: ColunaKanbanId[] = [
+  "entrada",
+  "plano_cera",
+  "montagem",
+  "acrilizacao",
+  "acabamento",
+  "pronto_entrega",
+];
+
+export function mapearNomeEtapaParaColuna(
+  nome: string,
+  opts?: { indice?: number; totalEtapas?: number }
+): ColunaKanbanId {
   const n = normalizarTexto(nome);
+
+  for (const col of COLUNAS_KANBAN) {
+    const label = normalizarTexto(col.label).replace(/\s*\/\s*/g, " ");
+    if (n.includes(label) || label.includes(n)) return col.id;
+    const tokens = label.split(/\s+/).filter((token) => token.length > 2);
+    if (tokens.some((token) => n.includes(token))) return col.id;
+  }
+
   if (/entrada|receb|triagem|pedido/.test(n)) return "entrada";
   if (/plano|cera|modelo|wax|individual|planej/.test(n)) return "plano_cera";
   if (/montagem/.test(n)) return "montagem";
   if (/acriliz|acrilic|polimer|caracteriz/.test(n)) return "acrilizacao";
   if (/acabamento|polimento|pigment|revisao|prova/.test(n)) return "acabamento";
   if (/pronto|entrega|final|retirada/.test(n)) return "pronto_entrega";
+
+  if (opts?.indice != null) {
+    const total = opts.totalEtapas ?? 0;
+    if (total > 1) {
+      const ratio = opts.indice / (total - 1);
+      const slot = Math.round(ratio * (ORDEM_COLUNAS_KANBAN.length - 1));
+      return ORDEM_COLUNAS_KANBAN[Math.min(Math.max(slot, 0), ORDEM_COLUNAS_KANBAN.length - 1)];
+    }
+    return ORDEM_COLUNAS_KANBAN[Math.min(opts.indice, ORDEM_COLUNAS_KANBAN.length - 1)];
+  }
+
   return "entrada";
 }
 
@@ -111,8 +145,11 @@ function resolverColunaAtual(
   };
 
   const itens = itensDaOsModulo(moduloOs);
-  const item = itens[0];
-  const itemChave = chaveItemModulo(trabalho.id, item.id);
+  const itemId =
+    itens.find((item) => item.tipo === "trabalho")?.id ??
+    itens[0]?.id ??
+    `${trabalho.id}-principal`;
+  const itemChave = chaveItemModulo(trabalho.id, itemId);
   const concluidas = new Set(mapaConcluidas[itemChave] ?? []);
 
   if (trabalho.status === "saiu_entrega") {
@@ -123,10 +160,14 @@ function resolverColunaAtual(
     return { coluna: colunaPorStatus(trabalho.status), itemChave };
   }
 
-  for (const etapa of etapas) {
-    if (!concluidas.has(etapa.indice)) {
+  for (let i = 0; i < etapas.length; i++) {
+    const etapa = etapas[i];
+    if (!concluidas.has(i)) {
       return {
-        coluna: mapearNomeEtapaParaColuna(etapa.nome),
+        coluna: mapearNomeEtapaParaColuna(etapa.nome, {
+          indice: i,
+          totalEtapas: etapas.length,
+        }),
         etapaAtual: etapa,
         itemChave,
       };
@@ -203,8 +244,7 @@ function trabalhoParaOrdem(
 }
 
 function escolherTrabalhoPrincipal(grupo: TrabalhoTvRow[]) {
-  const servico = grupo.find((t) => t.segmentoFaturamento === "servico");
-  return servico ?? grupo[0];
+  return escolherTrabalhoServicoGrupoOs(grupo);
 }
 
 export async function carregarColaboradoresTv(): Promise<ColaboradorTv[]> {
@@ -304,14 +344,18 @@ function indicesEtapasAteColuna(
 ): number[] {
   if (colunaAlvo === "entrada") return [];
   if (colunaAlvo === "pronto_entrega") {
-    return etapas.map((e) => e.indice);
+    return etapas.map((_, i) => i);
   }
 
   const indices: number[] = [];
-  for (const etapa of etapas) {
-    const col = mapearNomeEtapaParaColuna(etapa.nome);
+  for (let i = 0; i < etapas.length; i++) {
+    const etapa = etapas[i];
+    const col = mapearNomeEtapaParaColuna(etapa.nome, {
+      indice: i,
+      totalEtapas: etapas.length,
+    });
     if (col === colunaAlvo) break;
-    indices.push(etapa.indice);
+    indices.push(i);
   }
   return indices;
 }
@@ -341,24 +385,21 @@ export async function moverTrabalhoTvColuna(
     },
   });
 
-  const instrucoesGrupo = grupo.map((t) => t.instrucoes || "");
-  const { etapas } = parseComplementosInstrucoesGrupo(instrucoesGrupo);
+  const trabalhosGrupo: TrabalhoModuloOs[] = grupo.map((t) => ({
+    id: t.id,
+    numeroOs: t.numeroOs,
+    tipoProtese: t.tipoProtese,
+    valor: t.valor,
+    status: t.status,
+    instrucoes: t.instrucoes,
+    dataEntrada: t.dataEntrada.toISOString(),
+    dataPrevista: t.dataPrevista?.toISOString() ?? null,
+    segmentoFaturamento: t.segmentoFaturamento,
+  }));
 
-  const moduloOs: TrabalhoModuloOs = {
-    id: trabalho.id,
-    numeroOs: trabalho.numeroOs,
-    tipoProtese: trabalho.tipoProtese,
-    valor: trabalho.valor,
-    status: trabalho.status,
-    instrucoes: trabalho.instrucoes,
-    dataEntrada: trabalho.dataEntrada.toISOString(),
-    dataPrevista: trabalho.dataPrevista?.toISOString() ?? null,
-    cliente: trabalho.cliente,
-    paciente: trabalho.paciente,
-  };
-
-  const item = itensDaOsModulo(moduloOs)[0];
-  const chave = chaveItemModulo(trabalho.id, item.id);
+  const { etapas, trabalhoId: idServicoPrincipal, itemId } =
+    contextoEtapasModuloOsGrupo(trabalhosGrupo);
+  const chave = chaveItemModulo(idServicoPrincipal, itemId);
 
   const mapa =
     (await lerJsonStoreServidor<MapaEtapasConcluidas>(
@@ -470,7 +511,10 @@ export async function carregarResumoOsTv(
   );
 
   const concluidas = new Set(mapa[itemChave] ?? []);
-  const indiceAtual = etapaAtual?.indice ?? null;
+  const indiceAtual =
+    etapas.length > 0
+      ? indiceEtapaAtualDeConcluidas(concluidas, etapas.length)
+      : null;
 
   const moduloOs: TrabalhoModuloOs = {
     id: principal.id,
@@ -565,13 +609,13 @@ export async function carregarResumoOsTv(
       : null,
     observacoes: principal.observacoes?.trim() || "",
     itens,
-    etapas: etapas.map((etapa) => ({
-      indice: etapa.indice,
+    etapas: etapas.map((etapa, i) => ({
+      indice: i,
       nome: etapa.nome,
       responsavel: normalizarColaborador(etapa.responsavel),
       prazo: etapa.prazo?.trim() || "—",
-      concluida: concluidas.has(etapa.indice),
-      atual: indiceAtual === etapa.indice,
+      concluida: concluidas.has(i),
+      atual: indiceAtual === i,
     })),
   };
 }

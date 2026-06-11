@@ -114,15 +114,15 @@ function etapaColaboradorFinalizada(
   if (!nome) return false;
 
   const alvo = nomeEtapaSemSetor(nome).toLowerCase();
-  const etapa = etapas.find((item) => {
+  const indiceEtapa = etapas.findIndex((item) => {
     const cadastro = normalizarNomeEtapaCadastro(item.nome).toLowerCase();
     const semSetor = nomeEtapaSemSetor(item.nome).toLowerCase();
     return cadastro === alvo || semSetor === alvo || item.nome.trim().toLowerCase() === alvo;
   });
-  if (!etapa) return false;
+  if (indiceEtapa < 0) return false;
 
   const concluidas = mapaConcluidas[chaveItem];
-  return Array.isArray(concluidas) && concluidas.includes(etapa.indice);
+  return Array.isArray(concluidas) && concluidas.includes(indiceEtapa);
 }
 
 function elegivelComissaoColaborador(
