@@ -43,11 +43,15 @@ import {
   ARMAZENAMENTO_LAB_PRONTO_EVENT,
 } from "@/lib/armazenamento-laboratorio";
 import {
+  buscarItemNaCategoriaTabela,
   buscarServicoNaTabela,
   carregarDadosTabelaPrecoOs,
   categoriaDoServicoNaTabela,
   encontrarCategoriaTabela,
   encontrarChaveTabelaPreco,
+  itensSelecionaveisCategoriaNaOs,
+  rotulosCampoItemOs,
+  tipoDominanteCategoriaOs,
   etapasFormParaItemServico,
   etapasIniciaisFormParaOsServico,
   modelosEtapasParaOsServico,
@@ -63,9 +67,7 @@ import {
   comissoesTerceirizadosDoServico,
   produtosOpcoesNaOs,
   produtosVisiveisNaOs,
-  servicosDaCategoriaTabela,
   categoriasSelecionaveisNaOs,
-  servicosSelecionaveisNaOs,
   TABELA_PRECOS_EVENT,
   type ServicoTabelaPrecoOs,
 } from "@/lib/tabela-precos-os";
@@ -855,8 +857,15 @@ export default function OrdemServicoPage() {
 
   const categoriasTabelaCompleta = categoriasPorTabelaPreco[tabelaPrecoSelecionada] || [];
   const categoriasTabelaPreco = categoriasSelecionaveisNaOs(categoriasTabelaCompleta);
-  const servicosDaCategoria = servicosSelecionaveisNaOs(
-    servicosDaCategoriaTabela(categoriasTabelaPreco, form.categoria)
+  const categoriaAtualOs = useMemo(
+    () => encontrarCategoriaTabela(categoriasTabelaPreco, form.categoria),
+    [categoriasTabelaPreco, form.categoria]
+  );
+  const tipoItemCategoriaOs = tipoDominanteCategoriaOs(categoriaAtualOs);
+  const rotulosItemOs = rotulosCampoItemOs(tipoItemCategoriaOs);
+  const itensDaCategoria = useMemo(
+    () => itensSelecionaveisCategoriaNaOs(categoriaAtualOs),
+    [categoriaAtualOs]
   );
   const produtosTabelaPrecoOs = useMemo(() => {
     if (!form.categoria) return produtosOpcoesNaOs(categoriasTabelaCompleta);
@@ -1016,26 +1025,24 @@ export default function OrdemServicoPage() {
     return servico ? calcularDatasPrazoServico(servico, basePrazo) : { dataLaboratorio: "", dataDentista: "" };
   }
 
-  /** Valor do select Serviço (opções usam só o nome; transporte grava com prefixo). */
+  /** Valor do select principal (opções usam só o nome; produto/transporte gravam com prefixo). */
   function valorSelectServico() {
     const texto = form.tipoProtese.trim();
     if (/^(transporte|frete)\s*:/i.test(texto)) {
       return texto.replace(/^(transporte|frete)\s*:/i, "").trim();
     }
+    if (/^produto:\s*/i.test(texto)) {
+      return texto.replace(/^produto:\s*/i, "").trim();
+    }
     return texto;
   }
 
   function selecionarCategoriaServico(categoriaNome: string) {
-    const categoria = encontrarCategoriaTabela(categoriasTabelaPreco, categoriaNome);
-    const somenteProdutos =
-      Boolean(categoria) &&
-      servicosSelecionaveisNaOs(categoria?.servicos || []).length === 0 &&
-      produtosVisiveisNaOs(categoria?.servicos || []).length > 0;
-
     setForm((current) => ({
       ...current,
       categoria: categoriaNome,
       tipoProtese: "",
+      produtoId: "",
       valor: "R$ 0,00",
       dataLaboratorio: "",
       dataDentista: "",
@@ -1044,8 +1051,9 @@ export default function OrdemServicoPage() {
     setIndiceEtapaAtual(0);
     setColaboradores([]);
     setTerceirizados([]);
+    setProdutosOs([]);
     setAvisoAdicionarServico("");
-    if (somenteProdutos) setAbaServico("produtos");
+    setAbaServico("etapas");
   }
 
   function selecionarServicoTabela(servicoRef: string) {
@@ -1053,6 +1061,7 @@ export default function OrdemServicoPage() {
       setForm((current) => ({
         ...current,
         tipoProtese: "",
+        produtoId: "",
         valor: "R$ 0,00",
         dataLaboratorio: "",
         dataDentista: "",
@@ -1061,10 +1070,15 @@ export default function OrdemServicoPage() {
       setIndiceEtapaAtual(0);
       setColaboradores([]);
       setTerceirizados([]);
+      setProdutosOs([]);
       return;
     }
 
-    const servico = buscarServicoNaTabela(categoriasTabelaPreco, servicoRef);
+    const servico = buscarItemNaCategoriaTabela(
+      categoriasTabelaPreco,
+      form.categoria,
+      servicoRef
+    );
     if (!servico) return;
 
     const tipo = servico.tipo || "servico";
@@ -1082,6 +1096,26 @@ export default function OrdemServicoPage() {
       setForm((current) => ({
         ...current,
         tipoProtese: `Transporte: ${servico.nome}`,
+        produtoId: "",
+        valor: valorFmt,
+        quantidade: "1",
+        dataLaboratorio: "",
+        dataDentista: "",
+      }));
+      setAvisoAdicionarServico("");
+      return;
+    }
+
+    if (tipo === "produto") {
+      setEtapas([]);
+      setIndiceEtapaAtual(0);
+      setColaboradores([]);
+      setTerceirizados([]);
+      setProdutosOs([]);
+      setForm((current) => ({
+        ...current,
+        tipoProtese: `Produto: ${servico.nome}`,
+        produtoId: servico.produtoId || servico.id,
         valor: valorFmt,
         quantidade: "1",
         dataLaboratorio: "",
@@ -1096,6 +1130,7 @@ export default function OrdemServicoPage() {
     setForm((current) => ({
       ...current,
       tipoProtese: servico.nome,
+      produtoId: "",
       valor: valorFmt,
       dataLaboratorio: prazos.dataLaboratorio,
       dataDentista: prazos.dataDentista,
@@ -1981,19 +2016,23 @@ export default function OrdemServicoPage() {
 
     const nomeServico = form.tipoProtese.trim();
     const isTransporteNoCampoServico = /^(transporte|frete)\s*:/i.test(nomeServico);
+    const isProdutoNoCampoServico = /^produto:\s*/i.test(nomeServico);
     const itemServico: ItemAdicionado | null =
       nomeServico && !isTransporteNoCampoServico
         ? {
             id: `${Date.now()}-servico`,
             servico: nomeServico,
             categoria: form.categoria,
-            numeroDente,
-            corDente: form.escalaCor || "-",
+            numeroDente: isProdutoNoCampoServico ? "-" : numeroDente,
+            corDente: isProdutoNoCampoServico ? "-" : form.escalaCor || "-",
             quantidade: form.quantidade || "1",
             valor: parseCurrency(form.valor) * Number(form.quantidade || 1),
             ...descontoCampos,
-            situacao: form.situacao,
-            etapasServico: capturarEtapasParaServico(nomeServico),
+            produtoId: isProdutoNoCampoServico ? form.produtoId || undefined : undefined,
+            situacao: isProdutoNoCampoServico ? undefined : form.situacao,
+            etapasServico: isProdutoNoCampoServico
+              ? undefined
+              : capturarEtapasParaServico(nomeServico),
             ...flagsUrgencia,
           }
         : null;
@@ -3291,7 +3330,9 @@ export default function OrdemServicoPage() {
         </section>
 
         <section className="border-t border-slate-100 bg-slate-50/70 p-4">
-          <h2 className="mb-4 text-center text-base font-medium text-slate-700">Serviço</h2>
+          <h2 className="mb-4 text-center text-base font-medium text-slate-700">
+            {form.categoria ? rotulosItemOs.secao : "Serviço"}
+          </h2>
           <div className="rounded border border-slate-200 bg-white p-4">
             {itemSelecionadoId && (
               <div className="mb-3 flex items-center justify-between rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
@@ -3349,7 +3390,7 @@ export default function OrdemServicoPage() {
                 </label>
               </div>
               <div className="flex items-center gap-2 text-sm text-primary-700">
-                <span>Total Serviço:</span>
+                <span>{form.categoria ? rotulosItemOs.total : "Total Serviço"}:</span>
               <input
                 className="w-40 rounded border border-slate-200 px-3 py-2 text-right text-slate-700"
                 value={total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
@@ -3380,7 +3421,10 @@ export default function OrdemServicoPage() {
                 </Select>
               </div>
               <Select
-                label={requiredLabel("Serviço", exigeCamposServicoForm && Boolean(avisoAdicionarServico))}
+                label={requiredLabel(
+                  form.categoria ? rotulosItemOs.item : "Serviço",
+                  exigeCamposServicoForm && Boolean(avisoAdicionarServico)
+                )}
                 value={valorSelectServico()}
                 onChange={(e) => selecionarServicoTabela(e.target.value)}
                 required={exigeCamposServicoForm}
@@ -3389,14 +3433,13 @@ export default function OrdemServicoPage() {
                 <option value="">
                   {!form.categoria
                     ? "Selecione uma categoria"
-                    : servicosDaCategoria.length === 0
-                      ? "Nenhum serviço nesta categoria"
-                      : "Selecione um Serviço"}
+                    : itensDaCategoria.length === 0
+                      ? rotulosItemOs.vazio
+                      : rotulosItemOs.placeholder}
                 </option>
-                {servicosDaCategoria.map((servico) => (
-                  <option key={servico.id} value={servico.nome}>
-                    {servico.nome}
-                    {servico.tipo === "transporte" ? " (Transporte)" : ""}
+                {itensDaCategoria.map((item) => (
+                  <option key={item.id} value={item.nome}>
+                    {item.nome}
                   </option>
                 ))}
               </Select>
@@ -3454,6 +3497,7 @@ export default function OrdemServicoPage() {
               <Input label="Escala/Cor" value={form.escalaCor} onChange={(e) => setForm({ ...form, escalaCor: e.target.value })} />
             </div>
 
+            {tipoItemCategoriaOs === "servico" && (
             <div className="mt-5 text-center">
               <div className="mb-2 text-[11px] text-slate-500">Selecione os dentes do trabalho</div>
               <div className="mb-3 flex justify-center gap-5 text-[11px] text-slate-600">
@@ -3507,12 +3551,15 @@ export default function OrdemServicoPage() {
                 </div>
               </div>
             </div>
+            )}
 
             <div className="mt-5">
-              <div className="mb-3 text-left text-[11px] font-semibold text-emerald-600">
-                Dentes Selecionados:{" "}
-                {renderDentesSelecionados()}
-              </div>
+              {tipoItemCategoriaOs === "servico" && (
+                <div className="mb-3 text-left text-[11px] font-semibold text-emerald-600">
+                  Dentes Selecionados:{" "}
+                  {renderDentesSelecionados()}
+                </div>
+              )}
               <div className="mb-5">
                 <Textarea
                   label="Observações / Instruções técnicas"

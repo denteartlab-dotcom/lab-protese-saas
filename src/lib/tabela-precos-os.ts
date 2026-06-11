@@ -179,6 +179,80 @@ export function produtosVisiveisNaOs(servicos: ServicoTabelaPrecoOs[]) {
   );
 }
 
+export type TipoCampoItemOs = "servico" | "produto" | "transporte";
+
+/** Tipo homogêneo da categoria (serviço, produto ou transporte). */
+export function tipoDominanteCategoriaOs(
+  categoria?: CategoriaTabelaPrecoOs | null
+): TipoCampoItemOs | null {
+  if (!categoria?.servicos?.length) return null;
+  const visiveis = categoria.servicos.filter(itemVisivelNaOs);
+  if (!visiveis.length) return null;
+  return (visiveis[0].tipo || "servico") as TipoCampoItemOs;
+}
+
+/** Itens exibidos no select principal da OS conforme o tipo da categoria. */
+export function itensSelecionaveisCategoriaNaOs(
+  categoria?: CategoriaTabelaPrecoOs | null
+): ServicoTabelaPrecoOs[] {
+  if (!categoria) return [];
+  const tipo = tipoDominanteCategoriaOs(categoria);
+  const servicos = categoria.servicos || [];
+  if (tipo === "produto") return produtosVisiveisNaOs(servicos);
+  if (tipo === "transporte") {
+    return servicos.filter(
+      (item) => itemVisivelNaOs(item) && (item.tipo || "servico") === "transporte"
+    );
+  }
+  return servicos.filter(
+    (item) => itemVisivelNaOs(item) && (item.tipo || "servico") === "servico"
+  );
+}
+
+export function rotulosCampoItemOs(tipo: TipoCampoItemOs | null) {
+  if (tipo === "produto") {
+    return {
+      secao: "Produto",
+      item: "Produto",
+      total: "Total Produto",
+      placeholder: "Selecione um Produto",
+      vazio: "Nenhum produto nesta categoria",
+    };
+  }
+  if (tipo === "transporte") {
+    return {
+      secao: "Transporte",
+      item: "Transporte",
+      total: "Total Transporte",
+      placeholder: "Selecione um Transporte",
+      vazio: "Nenhum transporte nesta categoria",
+    };
+  }
+  return {
+    secao: "Serviço",
+    item: "Serviço",
+    total: "Total Serviço",
+    placeholder: "Selecione um Serviço",
+    vazio: "Nenhum serviço nesta categoria",
+  };
+}
+
+export function buscarItemNaCategoriaTabela(
+  categorias: CategoriaTabelaPrecoOs[],
+  categoriaRef: string,
+  nomeOuId: string
+) {
+  if (!nomeOuId) return undefined;
+  const norm = normalizarTextoTabela(nomeOuId);
+  const categoria = encontrarCategoriaTabela(categorias, categoriaRef);
+  const lista = categoria?.servicos || [];
+  const encontrado = lista.find(
+    (item) => item.id === nomeOuId || normalizarTextoTabela(item.nome) === norm
+  );
+  if (encontrado) return encontrado;
+  return buscarServicoNaTabela(categorias, nomeOuId);
+}
+
 /** Categorias com serviço, transporte ou produto visível na tabela de preços. */
 export function categoriasSelecionaveisNaOs(categorias: CategoriaTabelaPrecoOs[]) {
   return categorias.filter((categoria) => {
