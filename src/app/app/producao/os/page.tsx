@@ -82,7 +82,10 @@ import {
   prazoVencimentoEtapaOs,
   type EtapaCadastro,
 } from "@/lib/etapas-os";
-import { carregarMateriaisDentistaCadastro } from "@/lib/materiais-dentista-cadastro";
+import {
+  carregarMateriaisDentistaCadastro,
+  MATERIAIS_DENTISTA_STORAGE_KEY,
+} from "@/lib/materiais-dentista-cadastro";
 import { carregarSetoresCadastro, type SetorCadastro } from "@/lib/setores-cadastro";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { cn, exibirTexto, STATUS_TRABALHO } from "@/lib/utils";
