@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { fusoBackupAutomatico } from "@/lib/backup-automatico-servidor";
 import {
   lerJsonStoreServidor,
   salvarJsonStoreServidor,
@@ -39,7 +40,7 @@ const schemaConfig = z.object({
 });
 
 function partesDataHora(data: Date, fuso: string) {
-  const partes = new Intl.DateTimeFormat("pt-BR", {
+  const partes = new Intl.DateTimeFormat("en-US", {
     timeZone: fuso,
     weekday: "short",
     hour: "2-digit",
@@ -48,8 +49,11 @@ function partesDataHora(data: Date, fuso: string) {
     hour12: false,
   }).formatToParts(data);
 
-  const ler = (tipo: Intl.DateTimeFormatPartTypes) =>
-    parseInt(partes.find((parte) => parte.type === tipo)?.value ?? "0", 10);
+  const ler = (tipo: Intl.DateTimeFormatPartTypes) => {
+    const bruto = partes.find((parte) => parte.type === tipo)?.value ?? "0";
+    const numero = parseInt(bruto, 10);
+    return Number.isFinite(numero) ? numero : 0;
+  };
 
   const weekday = new Intl.DateTimeFormat("en-US", {
     timeZone: fuso,
@@ -66,12 +70,18 @@ function partesDataHora(data: Date, fuso: string) {
     Sat: 6,
   };
 
+  const hora = ler("hour") % 24;
+
   return {
     diaSemana: mapaDia[weekday] ?? 0,
-    hora: ler("hour") % 24,
+    hora,
     minuto: ler("minute"),
     segundo: ler("second"),
   };
+}
+
+function fusoEfetivoBackup(fuso?: string) {
+  return fuso?.trim() || fusoBackupAutomatico() || FUSO_BACKUP_PADRAO;
 }
 
 export function msAteProximoAgendamento(
@@ -129,13 +139,36 @@ export function normalizarConfigBackupAutomatico(
     ultimoArquivo: parsed.data.ultimoArquivo ?? null,
   };
 
-  base.proximoBackupEm = calcularProximoBackupEm(base);
+  base.proximoBackupEm = calcularProximoBackupEm(base, fusoEfetivoBackup());
   return base;
+}
+
+/** Remove registro de último backup se o arquivo não existir mais no disco. */
+export async function sincronizarRegistroUltimoBackup(
+  config: BackupAutomaticoConfig
+): Promise<BackupAutomaticoConfig> {
+  if (!config.ultimoBackupEm && !config.ultimoArquivo) return config;
+  if (!config.ultimoArquivo) return config;
+
+  try {
+    const { access } = await import("fs/promises");
+    await access(config.ultimoArquivo);
+    return config;
+  } catch {
+    const limpo: BackupAutomaticoConfig = {
+      ...config,
+      ultimoBackupEm: null,
+      ultimoArquivo: null,
+    };
+    await salvarJsonStoreServidor(BACKUP_AUTOMATICO_CONFIG_KEY, limpo);
+    return limpo;
+  }
 }
 
 export async function carregarConfigBackupAutomatico(): Promise<BackupAutomaticoConfig> {
   const remoto = await lerJsonStoreServidor<unknown>(BACKUP_AUTOMATICO_CONFIG_KEY);
-  return normalizarConfigBackupAutomatico(remoto);
+  const normalizado = normalizarConfigBackupAutomatico(remoto);
+  return sincronizarRegistroUltimoBackup(normalizado);
 }
 
 export async function salvarConfigBackupAutomatico(
@@ -148,12 +181,15 @@ export async function salvarConfigBackupAutomatico(
     diaSemana: entrada.diaSemana,
     hora: entrada.hora,
     minuto: entrada.minuto,
-    proximoBackupEm: calcularProximoBackupEm({
-      ativo: entrada.ativo,
-      diaSemana: entrada.diaSemana,
-      hora: entrada.hora,
-      minuto: entrada.minuto,
-    }),
+    proximoBackupEm: calcularProximoBackupEm(
+      {
+        ativo: entrada.ativo,
+        diaSemana: entrada.diaSemana,
+        hora: entrada.hora,
+        minuto: entrada.minuto,
+      },
+      fusoEfetivoBackup()
+    ),
   };
   await salvarJsonStoreServidor(BACKUP_AUTOMATICO_CONFIG_KEY, proximo);
   return proximo;
@@ -168,13 +204,16 @@ export async function registrarExecucaoBackupAutomatico(
     ...atual,
     ultimoBackupEm: exportedAt,
     ultimoArquivo: arquivo,
-    proximoBackupEm: calcularProximoBackupEm(atual, FUSO_BACKUP_PADRAO, Date.now()),
+    proximoBackupEm: calcularProximoBackupEm(atual, fusoEfetivoBackup(), Date.now()),
   };
   await salvarJsonStoreServidor(BACKUP_AUTOMATICO_CONFIG_KEY, proximo);
   return proximo;
 }
 
-export function formatarDataBackup(iso: string | null, fuso = FUSO_BACKUP_PADRAO) {
+export function formatarDataBackup(
+  iso: string | null,
+  fuso = fusoEfetivoBackup()
+) {
   if (!iso) return null;
   try {
     return new Date(iso).toLocaleString("pt-BR", {

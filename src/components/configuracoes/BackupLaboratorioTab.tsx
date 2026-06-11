@@ -28,6 +28,7 @@ type StatusBackupAutomatico = {
   arquivoPadrao: string;
   ultimoArquivoNome: string | null;
   arquivoExiste: boolean;
+  fusoHorario?: string;
   ultimoBackupFormatado: string | null;
   proximoBackupFormatado: string | null;
 };
@@ -264,6 +265,14 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                           )
                         : t("settings.backupAutoUltimoArquivoPendente")}
                     </p>
+                    {statusAuto?.fusoHorario && (
+                      <p className="mt-1 text-[11px] text-emerald-800/90">
+                        {t("settings.backupAutoFuso").replace(
+                          "{fuso}",
+                          statusAuto.fusoHorario
+                        )}
+                      </p>
+                    )}
                   </div>
 
                   <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-emerald-950">

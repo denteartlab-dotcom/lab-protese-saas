@@ -1,4 +1,4 @@
-import { writeFile } from "fs/promises";
+import { access, writeFile } from "fs/promises";
 import { prisma } from "@/lib/db";
 import { exportarBackupLaboratorio } from "@/lib/backup-laboratorio";
 import {
@@ -23,7 +23,7 @@ let configAtual: BackupAutomaticoConfig | null = null;
 
 export { BACKUP_ARQUIVO_PADRAO } from "@/lib/backup-automatico-servidor";
 
-/** Gera backup completo na pasta `backups/` com nome contendo a data do dia. */
+/** Gera backup completo na pasta `backups/` com nome contendo a data do dia (horário de Brasília). */
 export async function executarBackupAutomatico() {
   if (executando) {
     console.warn("[backup-automatico] execução já em andamento, ignorando.");
@@ -31,17 +31,30 @@ export async function executarBackupAutomatico() {
   }
 
   executando = true;
+  const fuso = fusoBackupAutomatico();
+  const agora = new Date();
+
   try {
-    const fuso = fusoBackupAutomatico();
     await garantirPastaBackup();
-    const destino = caminhoArquivoBackupAutomatico(new Date(), fuso);
+    const destino = caminhoArquivoBackupAutomatico(agora, fuso);
     const backup = await exportarBackupLaboratorio(prisma);
-    await writeFile(destino, JSON.stringify(backup, null, 2), "utf8");
+    const conteudo = JSON.stringify(backup, null, 2);
+    await writeFile(destino, conteudo, "utf8");
+
+    try {
+      await access(destino);
+    } catch {
+      throw new Error(`Arquivo de backup não encontrado após gravação: ${destino}`);
+    }
+
     configAtual = await registrarExecucaoBackupAutomatico(backup.exportedAt, destino);
     console.log(
-      `[backup-automatico] backup gravado em ${destino} (${backup.exportedAt})`
+      `[backup-automatico] backup gravado em ${destino} (${backup.exportedAt}) fuso=${fuso}`
     );
     return { destino, exportedAt: backup.exportedAt };
+  } catch (erro) {
+    console.error("[backup-automatico] falha ao gerar backup:", erro);
+    return null;
   } finally {
     executando = false;
   }
@@ -71,14 +84,20 @@ function agendarProximoBackup() {
 
   const proximo = calcularProximoBackupEm(configAtual, fuso);
   const proximoTexto = formatarDataBackup(proximo, fuso) ?? "—";
-  console.log(`[backup-automatico] próximo backup: ${proximoTexto} (${fuso})`);
+  console.log(
+    `[backup-automatico] próximo backup: ${proximoTexto} (${fuso}, em ${Math.round(atraso / 1000)}s)`
+  );
 }
 
 /** Recarrega configuração do banco e reagenda o próximo backup. */
 export async function reagendarBackupAutomatico() {
   if (!backupAutomaticoHabilitadoNoServidor()) return;
-  configAtual = await carregarConfigBackupAutomatico();
-  agendarProximoBackup();
+  try {
+    configAtual = await carregarConfigBackupAutomatico();
+    agendarProximoBackup();
+  } catch (erro) {
+    console.error("[backup-automatico] falha ao reagendar:", erro);
+  }
 }
 
 /** Agenda backup conforme dia/horário configurados em Configurações → Backup. */
@@ -88,9 +107,13 @@ export async function iniciarBackupAutomaticoDiario() {
     return;
   }
 
-  const pasta = await garantirPastaBackup();
-  console.log(
-    `[backup-automatico] pasta: ${pasta} (${caminhoRelativoPastaBackup()}/lab-protese-backup-AAAA-MM-DD.json)`
-  );
-  await reagendarBackupAutomatico();
+  try {
+    const pasta = await garantirPastaBackup();
+    console.log(
+      `[backup-automatico] pasta: ${pasta} (${caminhoRelativoPastaBackup()}/lab-protese-backup-AAAA-MM-DD.json) fuso=${fusoBackupAutomatico()}`
+    );
+    await reagendarBackupAutomatico();
+  } catch (erro) {
+    console.error("[backup-automatico] falha ao iniciar agendamento:", erro);
+  }
 }

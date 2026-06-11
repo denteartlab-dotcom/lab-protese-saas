@@ -15,6 +15,7 @@ import {
   formatarDataBackup,
   salvarConfigBackupAutomatico,
 } from "@/lib/backup-automatico-config";
+import { fusoBackupAutomatico } from "@/lib/backup-automatico-servidor";
 import { exigirProprietario } from "@/lib/exigir-proprietario";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +33,7 @@ function servidorBackupHabilitado() {
 }
 
 async function montarStatus() {
+  const fuso = fusoBackupAutomatico();
   const config = await carregarConfigBackupAutomatico();
   await garantirPastaBackup();
 
@@ -39,7 +41,7 @@ async function montarStatus() {
     ? caminhoRelativoPastaBackup()
     : path.dirname(BACKUP_ARQUIVO_PADRAO);
 
-  const padraoNomeArquivo = nomeArquivoBackupAutomatico();
+  const padraoNomeArquivo = nomeArquivoBackupAutomatico(new Date(), fuso);
   let arquivoExiste = false;
   let ultimoArquivoNome: string | null = null;
 
@@ -69,8 +71,9 @@ async function montarStatus() {
     arquivoPadrao: `${pastaPadrao}/${padraoNomeArquivo}`,
     ultimoArquivoNome,
     arquivoExiste,
-    ultimoBackupFormatado: formatarDataBackup(config.ultimoBackupEm),
-    proximoBackupFormatado: formatarDataBackup(config.proximoBackupEm),
+    fusoHorario: fuso,
+    ultimoBackupFormatado: formatarDataBackup(config.ultimoBackupEm, fuso),
+    proximoBackupFormatado: formatarDataBackup(config.proximoBackupEm, fuso),
   };
 }
 
