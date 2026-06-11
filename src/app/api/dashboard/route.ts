@@ -80,6 +80,7 @@ export async function GET(request: Request) {
       select: {
         id: true,
         numeroOs: true,
+        grupoOsId: true,
         status: true,
         dataEntrada: true,
         segmentoFaturamento: true,
@@ -138,6 +139,8 @@ export async function GET(request: Request) {
   const producaoResumo = calcularResumoProducaoDashboard(
     trabalhosProducao.map((t) => ({
       id: t.id,
+      numeroOs: t.numeroOs,
+      grupoOsId: t.grupoOsId,
       status: t.status,
       dataEntrada: t.dataEntrada,
       segmentoFaturamento: t.segmentoFaturamento,

@@ -41,6 +41,8 @@ export type ServicoTabelaPrecoOs = {
   prazoDentista?: string;
   tipo?: TipoItemTabelaPrecoOs;
   produtoId?: string;
+  oculto?: boolean;
+  excluido?: boolean;
   /** Linhas da aba Etapas do serviço na tabela de preços */
   etapas?: EtapaServicoTabelaPrecoOs[];
   opcoesEtapas?: string[];
@@ -158,17 +160,34 @@ export function servicosDaCategoriaTabela(
   return encontrarCategoriaTabela(categorias, categoriaRef)?.servicos || [];
 }
 
+export function itemVisivelNaOs(item: ServicoTabelaPrecoOs) {
+  return !item.excluido && !item.oculto;
+}
+
 /** Itens da tabela de preços exibidos no select Serviço da OS (produtos vão na aba Produtos). */
 export function servicosSelecionaveisNaOs(servicos: ServicoTabelaPrecoOs[]) {
   return servicos.filter((item) => {
+    if (!itemVisivelNaOs(item)) return false;
     const tipo = item.tipo || "servico";
     return tipo === "servico" || tipo === "transporte";
   });
 }
 
-/** Categorias que têm ao menos um serviço ou transporte (oculta categorias só de produto). */
+export function produtosVisiveisNaOs(servicos: ServicoTabelaPrecoOs[]) {
+  return servicos.filter(
+    (item) => itemVisivelNaOs(item) && (item.tipo || "servico") === "produto"
+  );
+}
+
+/** Categorias com serviço, transporte ou produto visível na tabela de preços. */
 export function categoriasSelecionaveisNaOs(categorias: CategoriaTabelaPrecoOs[]) {
-  return categorias.filter((categoria) => servicosSelecionaveisNaOs(categoria.servicos).length > 0);
+  return categorias.filter((categoria) => {
+    const servicos = categoria.servicos || [];
+    return (
+      servicosSelecionaveisNaOs(servicos).length > 0 ||
+      produtosVisiveisNaOs(servicos).length > 0
+    );
+  });
 }
 
 /** Nomes das etapas cadastradas nas linhas do serviço (aba Etapas na tabela de preços). */
@@ -191,7 +210,9 @@ export function itemEhProdutoNaTabela(item: ServicoTabelaPrecoOs) {
 }
 
 export function produtosCadastradosNaTabela(categorias: CategoriaTabelaPrecoOs[]) {
-  return categorias.flatMap((categoria) => categoria.servicos.filter(itemEhProdutoNaTabela));
+  return categorias.flatMap((categoria) =>
+    produtosVisiveisNaOs(categoria.servicos || [])
+  );
 }
 
 export function tabelaPrecoTemProdutos(categorias: CategoriaTabelaPrecoOs[]) {
@@ -405,12 +426,58 @@ export function categoriaDoServicoNaTabela(
   return categoria?.nome || "";
 }
 
-export function carregarCategoriasPorTabelaPreco(): Record<string, CategoriaTabelaPrecoOs[]> {
+function normalizarCategoriasTabelaPrecoOs(
+  categorias: CategoriaTabelaPrecoOs[]
+): CategoriaTabelaPrecoOs[] {
+  return (categorias || []).map((categoria) => ({
+    ...categoria,
+    servicos: (categoria.servicos || []).map((item) => ({
+      ...item,
+      tipo: item.tipo || "servico",
+      valor: Number(item.valor) || 0,
+    })),
+  }));
+}
+
+export function encontrarChaveTabelaPreco(
+  mapa: Record<string, CategoriaTabelaPrecoOs[]>,
+  nome?: string | null
+) {
+  if (!nome?.trim()) return undefined;
+  const norm = normalizarTextoTabela(nome);
+  const exata = Object.keys(mapa).find((chave) => chave === nome);
+  if (exata) return exata;
+  return Object.keys(mapa).find((chave) => normalizarTextoTabela(chave) === norm);
+}
+
+export type DadosTabelaPrecoOsCarregados = {
+  tabela: string;
+  tabelas: string[];
+  categoriasPorTabela: Record<string, CategoriaTabelaPrecoOs[]>;
+};
+
+export function carregarDadosTabelaPrecoOs(): DadosTabelaPrecoOsCarregados {
   const saved = readStorage<DadosTabelaPrecosStorage | null>(
     TABELA_PRECOS_STORAGE_KEY,
     null
   );
-  return saved?.categoriasPorTabela || {};
+  const tabelas = extrairNomesTabelasPreco(saved);
+  const categoriasRaw = saved?.categoriasPorTabela || {};
+  const categoriasPorTabela = Object.fromEntries(
+    Object.entries(categoriasRaw).map(([nomeTabela, categorias]) => [
+      nomeTabela,
+      normalizarCategoriasTabelaPrecoOs(categorias),
+    ])
+  );
+  return {
+    tabela: saved?.tabela?.trim() || tabelas[0] || "Tabela Principal",
+    tabelas,
+    categoriasPorTabela,
+  };
+}
+
+export function carregarCategoriasPorTabelaPreco(): Record<string, CategoriaTabelaPrecoOs[]> {
+  return carregarDadosTabelaPrecoOs().categoriasPorTabela;
 }
 
 export function extrairNomesTabelasPreco(

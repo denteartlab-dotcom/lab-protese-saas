@@ -4,6 +4,8 @@ import { segmentoEfetivoTrabalho } from "@/lib/trabalho-os-segmento";
 
 export type TrabalhoProducaoResumo = {
   id: string;
+  numeroOs?: number;
+  grupoOsId?: string | null;
   status: string;
   dataEntrada: string | Date;
   segmentoFaturamento?: string | null;
@@ -53,6 +55,27 @@ function noMes(
   return d.getMonth() === mes && d.getFullYear() === ano;
 }
 
+/** Mesma OS (número igual) conta uma única vez no gráfico de produção. */
+function chaveOsProducao(t: TrabalhoProducaoResumo) {
+  if (Number.isFinite(t.numeroOs) && (t.numeroOs ?? 0) > 0) {
+    return `os-${t.numeroOs}`;
+  }
+  if (t.grupoOsId) return t.grupoOsId;
+  return t.id;
+}
+
+function escolherTrabalhoRepresentanteOs(lista: TrabalhoProducaoResumo[]) {
+  const servico =
+    lista.find(
+      (t) =>
+        segmentoEfetivoTrabalho({
+          segmentoFaturamento: t.segmentoFaturamento,
+          instrucoes: t.instrucoes,
+        }) === "servico"
+    ) || lista[0];
+  return servico;
+}
+
 export function calcularResumoProducaoDashboard(
   trabalhos: TrabalhoProducaoResumo[],
   mes: number,
@@ -69,10 +92,20 @@ export function calcularResumoProducaoDashboard(
     pedido: 0,
   };
 
+  const grupos = new Map<string, TrabalhoProducaoResumo[]>();
+
   for (const t of trabalhos) {
     if (t.status === "cancelado") continue;
     if (!trabalhoContaNoGraficoProducao(t)) continue;
     if (filtrarPorMes && !noMes(t.dataEntrada, mes, ano)) continue;
+    const chave = chaveOsProducao(t);
+    const lista = grupos.get(chave) || [];
+    lista.push(t);
+    grupos.set(chave, lista);
+  }
+
+  for (const lista of grupos.values()) {
+    const t = escolherTrabalhoRepresentanteOs(lista);
     if (t.status in porStatus) {
       porStatus[t.status as keyof ContagemProducaoStatus] += 1;
     }

@@ -40,9 +40,14 @@ import {
 } from "@/lib/trabalho-os-segmento";
 import { calcularDatasPrazoServico } from "@/lib/prazos-servico";
 import {
+  ARMAZENAMENTO_LAB_PRONTO_EVENT,
+} from "@/lib/armazenamento-laboratorio";
+import {
   buscarServicoNaTabela,
-  carregarCategoriasPorTabelaPreco,
+  carregarDadosTabelaPrecoOs,
   categoriaDoServicoNaTabela,
+  encontrarCategoriaTabela,
+  encontrarChaveTabelaPreco,
   etapasFormParaItemServico,
   etapasIniciaisFormParaOsServico,
   modelosEtapasParaOsServico,
@@ -57,10 +62,11 @@ import {
   comissoesColaboradoresDoServico,
   comissoesTerceirizadosDoServico,
   produtosOpcoesNaOs,
+  produtosVisiveisNaOs,
   servicosDaCategoriaTabela,
   categoriasSelecionaveisNaOs,
   servicosSelecionaveisNaOs,
-  TABELA_PRECOS_STORAGE_KEY,
+  TABELA_PRECOS_EVENT,
   type ServicoTabelaPrecoOs,
 } from "@/lib/tabela-precos-os";
 import {
@@ -395,17 +401,11 @@ export default function OrdemServicoPage() {
     if (typeof window === "undefined") return;
 
     try {
-      const parsed = readStorage<{
-        tabela?: string;
-        categoriasPorTabela?: Record<string, CategoriaTabelaPreco[]>;
-      } | null>(TABELA_PRECOS_STORAGE_KEY, null);
-      if (parsed) {
-        if (parsed.tabela) setTabelaPrecoAtual(parsed.tabela);
-        if (parsed.categoriasPorTabela) {
-          setCategoriasPorTabelaPreco(parsed.categoriasPorTabela);
-        } else {
-          setCategoriasPorTabelaPreco({ "Tabela Principal": categoriasTabelaPrecoPadrao });
-        }
+      const dados = carregarDadosTabelaPrecoOs();
+      const chaves = Object.keys(dados.categoriasPorTabela);
+      if (chaves.length > 0) {
+        setTabelaPrecoAtual(dados.tabela);
+        setCategoriasPorTabelaPreco(dados.categoriasPorTabela);
       } else {
         setCategoriasPorTabelaPreco({ "Tabela Principal": categoriasTabelaPrecoPadrao });
       }
@@ -576,22 +576,21 @@ export default function OrdemServicoPage() {
     if (!paginaPronta || typeof window === "undefined") return;
 
     function sincronizarTabelaPrecos() {
-      const salvo = carregarCategoriasPorTabelaPreco();
-      if (Object.keys(salvo).length > 0) {
-        setCategoriasPorTabelaPreco((atual) => ({ ...atual, ...salvo }));
-      }
-      try {
-        const parsed = readStorage<{ tabela?: string } | null>(TABELA_PRECOS_STORAGE_KEY, null);
-        if (parsed?.tabela) setTabelaPrecoAtual(parsed.tabela);
-      } catch {
-        // ignora JSON inválido
+      const dados = carregarDadosTabelaPrecoOs();
+      if (Object.keys(dados.categoriasPorTabela).length > 0) {
+        setCategoriasPorTabelaPreco(dados.categoriasPorTabela);
+        setTabelaPrecoAtual(dados.tabela);
       }
     }
 
     sincronizarTabelaPrecos();
-    window.addEventListener("storage", sincronizarTabelaPrecos);
+    window.addEventListener(TABELA_PRECOS_EVENT, sincronizarTabelaPrecos);
+    window.addEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, sincronizarTabelaPrecos);
+    window.addEventListener("focus", sincronizarTabelaPrecos);
     return () => {
-      window.removeEventListener("storage", sincronizarTabelaPrecos);
+      window.removeEventListener(TABELA_PRECOS_EVENT, sincronizarTabelaPrecos);
+      window.removeEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, sincronizarTabelaPrecos);
+      window.removeEventListener("focus", sincronizarTabelaPrecos);
     };
   }, [paginaPronta]);
 
@@ -844,9 +843,14 @@ export default function OrdemServicoPage() {
 
   const tabelaPrecoSelecionada = useMemo(() => {
     const tabelaDoCliente = form.clienteId ? clienteConfig(form.clienteId).tabelaPreco : "";
-    if (tabelaDoCliente && categoriasPorTabelaPreco[tabelaDoCliente]) return tabelaDoCliente;
-    if (tabelaPrecoAtual && categoriasPorTabelaPreco[tabelaPrecoAtual]) return tabelaPrecoAtual;
-    return Object.keys(categoriasPorTabelaPreco)[0] || "Tabela Principal";
+    const chaveCliente = encontrarChaveTabelaPreco(categoriasPorTabelaPreco, tabelaDoCliente);
+    if (chaveCliente) return chaveCliente;
+    const chaveAtual = encontrarChaveTabelaPreco(categoriasPorTabelaPreco, tabelaPrecoAtual);
+    if (chaveAtual) return chaveAtual;
+    const primeiraComItens = Object.entries(categoriasPorTabelaPreco).find(
+      ([, categorias]) => categoriasSelecionaveisNaOs(categorias).length > 0
+    )?.[0];
+    return primeiraComItens || Object.keys(categoriasPorTabelaPreco)[0] || "Tabela Principal";
   }, [clientes, form.clienteId, categoriasPorTabelaPreco, tabelaPrecoAtual]);
 
   const categoriasTabelaCompleta = categoriasPorTabelaPreco[tabelaPrecoSelecionada] || [];
@@ -854,10 +858,17 @@ export default function OrdemServicoPage() {
   const servicosDaCategoria = servicosSelecionaveisNaOs(
     servicosDaCategoriaTabela(categoriasTabelaPreco, form.categoria)
   );
-  const produtosTabelaPrecoOs = useMemo(
-    () => produtosOpcoesNaOs(categoriasTabelaCompleta),
-    [categoriasTabelaCompleta]
-  );
+  const produtosTabelaPrecoOs = useMemo(() => {
+    if (!form.categoria) return produtosOpcoesNaOs(categoriasTabelaCompleta);
+    const categoria = encontrarCategoriaTabela(categoriasTabelaCompleta, form.categoria);
+    if (!categoria) return produtosOpcoesNaOs(categoriasTabelaCompleta);
+    return produtosVisiveisNaOs(categoria.servicos).map((item) => ({
+      id: item.produtoId || item.id,
+      nome: item.nome,
+      valor: item.valor,
+      produtoId: item.produtoId,
+    }));
+  }, [categoriasTabelaCompleta, form.categoria]);
   const exibeAbaProdutos = produtosTabelaPrecoOs.length > 0;
 
   const servicoOsAtual = useMemo(() => {
@@ -1015,6 +1026,12 @@ export default function OrdemServicoPage() {
   }
 
   function selecionarCategoriaServico(categoriaNome: string) {
+    const categoria = encontrarCategoriaTabela(categoriasTabelaPreco, categoriaNome);
+    const somenteProdutos =
+      Boolean(categoria) &&
+      servicosSelecionaveisNaOs(categoria?.servicos || []).length === 0 &&
+      produtosVisiveisNaOs(categoria?.servicos || []).length > 0;
+
     setForm((current) => ({
       ...current,
       categoria: categoriaNome,
@@ -1028,6 +1045,7 @@ export default function OrdemServicoPage() {
     setColaboradores([]);
     setTerceirizados([]);
     setAvisoAdicionarServico("");
+    if (somenteProdutos) setAbaServico("produtos");
   }
 
   function selecionarServicoTabela(servicoRef: string) {

@@ -206,6 +206,7 @@ import {
   type CategoriaTabelaPrecoExport,
 } from "@/lib/tabela-precos-lista-export";
 import {
+  notificarTabelasPrecoAtualizadas,
   sincronizarTabelaPrecosServidor,
   TABELA_PRECOS_STORAGE_KEY,
 } from "@/lib/tabela-precos-os";
@@ -359,6 +360,7 @@ export default function TabelaPrecosPage() {
     if (!persistenciaPronta) return;
     const payload = { tabela, tabelas, categoriasPorTabela };
     writeStorage(TABELA_PRECOS_STORAGE_KEY, payload);
+    notificarTabelasPrecoAtualizadas();
     void sincronizarTabelaPrecosServidor(payload);
   }, [tabela, tabelas, categoriasPorTabela, persistenciaPronta]);
 
