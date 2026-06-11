@@ -1,10 +1,8 @@
 {
-  "redirects": [
+  "crons": [
     {
-      "source": "/:path*",
-      "has": [{ "type": "host", "value": "denteartlab.com.br" }],
-      "destination": "https://www.denteartlab.com.br/:path*",
-      "permanent": true
+      "path": "/api/backup/cron",
+      "schedule": "0 3 * * *"
     }
   ]
 }

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { executarBackupAutomatico } from "@/lib/backup-automatico";
+import { carregarConfigBackupAutomatico } from "@/lib/backup-automatico-config";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 function autorizado(request: Request) {
   const segredo = process.env.CRON_SECRET?.trim();
@@ -21,6 +23,15 @@ export async function GET(request: Request) {
   }
 
   try {
+    const config = await carregarConfigBackupAutomatico();
+    if (!config.ativo) {
+      return NextResponse.json({
+        ok: true,
+        ignorado: true,
+        motivo: "Backup automático desativado nas configurações.",
+      });
+    }
+
     const resultado = await executarBackupAutomatico();
     if (!resultado) {
       return NextResponse.json(

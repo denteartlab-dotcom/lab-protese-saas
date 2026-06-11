@@ -123,6 +123,9 @@ export const messages = {
     "settings.backupAutoUltimoNunca": "Nenhum backup automático realizado ainda.",
     "settings.backupAutoProximoLabel": "Próximo backup:",
     "settings.backupAutoProximoDesativado": "Desativado",
+    "settings.backupAutoProximoPendente": "Salve o agendamento para calcular",
+    "settings.backupAutoAvisoVercel":
+      "Site na Vercel: o horário da tela é referência. O backup automático roda pelo agendador da Vercel (cron diário). Use também «Baixar backup» para guardar uma cópia no seu computador.",
     "settings.backupAutoArquivo": "Arquivo no servidor: {caminho}",
     "settings.backupAutoArquivoOk": "arquivo existente",
     "settings.backupAutoArquivoPendente": "ainda não gerado",
@@ -484,6 +487,9 @@ export const messages = {
     "settings.backupAutoUltimoNunca": "No automatic backup has been run yet.",
     "settings.backupAutoProximoLabel": "Next backup:",
     "settings.backupAutoProximoDesativado": "Disabled",
+    "settings.backupAutoProximoPendente": "Save the schedule to calculate",
+    "settings.backupAutoAvisoVercel":
+      "Hosted on Vercel: the time shown is a reference. Automatic backup runs via Vercel cron (daily). Also use «Download backup» to keep a copy on your computer.",
     "settings.backupAutoArquivo": "Server file: {caminho}",
     "settings.backupAutoArquivoOk": "file exists",
     "settings.backupAutoArquivoPendente": "not generated yet",
@@ -843,6 +849,9 @@ export const messages = {
     "settings.backupAutoUltimoNunca": "Aún no se realizó ningún respaldo automático.",
     "settings.backupAutoProximoLabel": "Próximo respaldo:",
     "settings.backupAutoProximoDesativado": "Desactivado",
+    "settings.backupAutoProximoPendente": "Guarde la programación para calcular",
+    "settings.backupAutoAvisoVercel":
+      "Sitio en Vercel: el horario de la pantalla es referencia. El respaldo automático corre por el cron de Vercel (diario). Use también «Descargar respaldo» para guardar una copia en su computadora.",
     "settings.backupAutoArquivo": "Archivo en el servidor: {caminho}",
     "settings.backupAutoArquivoOk": "archivo existente",
     "settings.backupAutoArquivoPendente": "aún no generado",

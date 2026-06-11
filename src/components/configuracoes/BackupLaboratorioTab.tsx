@@ -23,6 +23,8 @@ type StatusBackupAutomatico = {
     ultimoArquivo: string | null;
   };
   servidorHabilitado: boolean;
+  hospedagemVercel?: boolean;
+  agendadorInternoAtivo?: boolean;
   pastaPadrao: string;
   padraoNomeArquivo: string;
   arquivoPadrao: string;
@@ -237,10 +239,16 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                     )}
                     <p className="mt-1.5">
                       <span className="font-semibold">{t("settings.backupAutoProximoLabel")}</span>{" "}
-                      {statusAuto?.config.ativo && statusAuto.proximoBackupFormatado
-                        ? statusAuto.proximoBackupFormatado
-                        : t("settings.backupAutoProximoDesativado")}
+                      {!statusAuto?.config.ativo
+                        ? t("settings.backupAutoProximoDesativado")
+                        : statusAuto.proximoBackupFormatado ||
+                          t("settings.backupAutoProximoPendente")}
                     </p>
+                    {statusAuto?.hospedagemVercel && statusAuto.config.ativo && (
+                      <p className="mt-2 rounded border border-amber-300 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900">
+                        {t("settings.backupAutoAvisoVercel")}
+                      </p>
+                    )}
                     {statusAuto?.pastaPadrao && (
                       <p className="mt-1.5 text-[11px] text-emerald-800">
                         {t("settings.backupAutoPasta").replace(

@@ -11,6 +11,7 @@ import {
   nomeArquivoBackupAutomatico,
 } from "@/lib/backup-automatico-servidor";
 import {
+  calcularProximoBackupEm,
   carregarConfigBackupAutomatico,
   formatarDataBackup,
   salvarConfigBackupAutomatico,
@@ -32,10 +33,48 @@ function servidorBackupHabilitado() {
   return flag !== "0" && flag !== "false";
 }
 
+function hospedagemVercel() {
+  return process.env.VERCEL === "1";
+}
+
+function formatarProximoBackup(
+  config: Awaited<ReturnType<typeof carregarConfigBackupAutomatico>>,
+  fuso: string
+) {
+  if (!config.ativo) return null;
+
+  let proximoEm = config.proximoBackupEm;
+  if (!proximoEm) {
+    proximoEm = calcularProximoBackupEm(config, fuso);
+  }
+
+  const formatado = formatarDataBackup(proximoEm, fuso);
+  if (formatado) return formatado;
+
+  if (!proximoEm) return null;
+  try {
+    return new Date(proximoEm).toLocaleString("pt-BR", {
+      timeZone: fuso,
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return null;
+  }
+}
+
 async function montarStatus() {
   const fuso = fusoBackupAutomatico();
   const config = await carregarConfigBackupAutomatico();
-  await garantirPastaBackup();
+
+  try {
+    await garantirPastaBackup();
+  } catch (erro) {
+    console.warn("[backup/automatico] pasta local indisponível:", erro);
+  }
 
   const pastaPadrao = process.env.BACKUP_AUTOMATICO_PATH?.trim()
     ? caminhoRelativoPastaBackup()
@@ -66,6 +105,8 @@ async function montarStatus() {
   return {
     config,
     servidorHabilitado: servidorBackupHabilitado(),
+    hospedagemVercel: hospedagemVercel(),
+    agendadorInternoAtivo: !hospedagemVercel() && servidorBackupHabilitado(),
     pastaPadrao,
     padraoNomeArquivo,
     arquivoPadrao: `${pastaPadrao}/${padraoNomeArquivo}`,
@@ -73,7 +114,7 @@ async function montarStatus() {
     arquivoExiste,
     fusoHorario: fuso,
     ultimoBackupFormatado: formatarDataBackup(config.ultimoBackupEm, fuso),
-    proximoBackupFormatado: formatarDataBackup(config.proximoBackupEm, fuso),
+    proximoBackupFormatado: formatarProximoBackup(config, fuso),
   };
 }
 
