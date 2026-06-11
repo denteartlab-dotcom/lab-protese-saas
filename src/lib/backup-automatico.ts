@@ -1,5 +1,4 @@
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
+import { writeFile } from "fs/promises";
 import { prisma } from "@/lib/db";
 import { exportarBackupLaboratorio } from "@/lib/backup-laboratorio";
 import {
@@ -12,8 +11,10 @@ import {
 } from "@/lib/backup-automatico-config";
 import {
   backupAutomaticoHabilitadoNoServidor,
-  caminhoBackupResolvido,
+  caminhoArquivoBackupAutomatico,
+  caminhoRelativoPastaBackup,
   fusoBackupAutomatico,
+  garantirPastaBackup,
 } from "@/lib/backup-automatico-servidor";
 
 let timerBackup: ReturnType<typeof setTimeout> | null = null;
@@ -22,7 +23,7 @@ let configAtual: BackupAutomaticoConfig | null = null;
 
 export { BACKUP_ARQUIVO_PADRAO } from "@/lib/backup-automatico-servidor";
 
-/** Gera backup completo e sobrescreve o arquivo único (sem histórico). */
+/** Gera backup completo na pasta `backups/` com nome contendo a data do dia. */
 export async function executarBackupAutomatico() {
   if (executando) {
     console.warn("[backup-automatico] execução já em andamento, ignorando.");
@@ -31,8 +32,9 @@ export async function executarBackupAutomatico() {
 
   executando = true;
   try {
-    const destino = caminhoBackupResolvido();
-    await mkdir(path.dirname(destino), { recursive: true });
+    const fuso = fusoBackupAutomatico();
+    await garantirPastaBackup();
+    const destino = caminhoArquivoBackupAutomatico(new Date(), fuso);
     const backup = await exportarBackupLaboratorio(prisma);
     await writeFile(destino, JSON.stringify(backup, null, 2), "utf8");
     configAtual = await registrarExecucaoBackupAutomatico(backup.exportedAt, destino);
@@ -86,7 +88,9 @@ export async function iniciarBackupAutomaticoDiario() {
     return;
   }
 
-  const destino = caminhoBackupResolvido();
-  console.log(`[backup-automatico] arquivo único: ${destino}`);
+  const pasta = await garantirPastaBackup();
+  console.log(
+    `[backup-automatico] pasta: ${pasta} (${caminhoRelativoPastaBackup()}/lab-protese-backup-AAAA-MM-DD.json)`
+  );
   await reagendarBackupAutomatico();
 }

@@ -1,8 +1,15 @@
 import { access } from "fs/promises";
+import path from "path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { reagendarBackupAutomatico } from "@/lib/backup-automatico";
-import { BACKUP_ARQUIVO_PADRAO, caminhoBackupResolvido } from "@/lib/backup-automatico-servidor";
+import {
+  BACKUP_ARQUIVO_PADRAO,
+  caminhoRelativoPastaBackup,
+  garantirPastaBackup,
+  listarArquivosPastaBackup,
+  nomeArquivoBackupAutomatico,
+} from "@/lib/backup-automatico-servidor";
 import {
   carregarConfigBackupAutomatico,
   formatarDataBackup,
@@ -26,19 +33,41 @@ function servidorBackupHabilitado() {
 
 async function montarStatus() {
   const config = await carregarConfigBackupAutomatico();
-  const arquivo = caminhoBackupResolvido();
+  await garantirPastaBackup();
+
+  const pastaPadrao = process.env.BACKUP_AUTOMATICO_PATH?.trim()
+    ? caminhoRelativoPastaBackup()
+    : path.dirname(BACKUP_ARQUIVO_PADRAO);
+
+  const padraoNomeArquivo = nomeArquivoBackupAutomatico();
   let arquivoExiste = false;
-  try {
-    await access(arquivo);
-    arquivoExiste = true;
-  } catch {
-    arquivoExiste = false;
+  let ultimoArquivoNome: string | null = null;
+
+  if (config.ultimoArquivo) {
+    try {
+      await access(config.ultimoArquivo);
+      arquivoExiste = true;
+      ultimoArquivoNome = path.basename(config.ultimoArquivo);
+    } catch {
+      arquivoExiste = false;
+    }
+  }
+
+  if (!arquivoExiste) {
+    const arquivos = await listarArquivosPastaBackup();
+    if (arquivos.length > 0) {
+      arquivoExiste = true;
+      ultimoArquivoNome = arquivos[0].nome;
+    }
   }
 
   return {
     config,
     servidorHabilitado: servidorBackupHabilitado(),
-    arquivoPadrao: process.env.BACKUP_AUTOMATICO_PATH || BACKUP_ARQUIVO_PADRAO,
+    pastaPadrao,
+    padraoNomeArquivo,
+    arquivoPadrao: `${pastaPadrao}/${padraoNomeArquivo}`,
+    ultimoArquivoNome,
     arquivoExiste,
     ultimoBackupFormatado: formatarDataBackup(config.ultimoBackupEm),
     proximoBackupFormatado: formatarDataBackup(config.proximoBackupEm),

@@ -23,7 +23,10 @@ type StatusBackupAutomatico = {
     ultimoArquivo: string | null;
   };
   servidorHabilitado: boolean;
+  pastaPadrao: string;
+  padraoNomeArquivo: string;
   arquivoPadrao: string;
+  ultimoArquivoNome: string | null;
   arquivoExiste: boolean;
   ultimoBackupFormatado: string | null;
   proximoBackupFormatado: string | null;
@@ -237,17 +240,30 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                         ? statusAuto.proximoBackupFormatado
                         : t("settings.backupAutoProximoDesativado")}
                     </p>
-                    {statusAuto?.arquivoPadrao && (
+                    {statusAuto?.pastaPadrao && (
                       <p className="mt-1.5 text-[11px] text-emerald-800">
-                        {t("settings.backupAutoArquivo").replace(
+                        {t("settings.backupAutoPasta").replace(
                           "{caminho}",
-                          statusAuto.arquivoPadrao
+                          statusAuto.pastaPadrao
                         )}
-                        {statusAuto.arquivoExiste
-                          ? ` (${t("settings.backupAutoArquivoOk")})`
-                          : ` (${t("settings.backupAutoArquivoPendente")})`}
                       </p>
                     )}
+                    {statusAuto?.padraoNomeArquivo && (
+                      <p className="mt-1 text-[11px] text-emerald-800">
+                        {t("settings.backupAutoNomeArquivo").replace(
+                          "{nome}",
+                          statusAuto.padraoNomeArquivo
+                        )}
+                      </p>
+                    )}
+                    <p className="mt-1 text-[11px] text-emerald-800">
+                      {statusAuto?.ultimoArquivoNome
+                        ? t("settings.backupAutoUltimoArquivo").replace(
+                            "{nome}",
+                            statusAuto.ultimoArquivoNome
+                          )
+                        : t("settings.backupAutoUltimoArquivoPendente")}
+                    </p>
                   </div>
 
                   <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-emerald-950">
