@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Clock, Download, Upload, AlertTriangle, RotateCcw } from "lucide-react";
+import { Clock, Download, Upload, AlertTriangle, RotateCcw, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui";
 import { useI18n } from "@/components/i18n-provider";
+import { ModalAbrirPastaBackup } from "@/components/configuracoes/ModalAbrirPastaBackup";
 import { RestaurarPadraoModal } from "@/components/configuracoes/RestaurarPadraoModal";
 import { PalavraChaveRestaurarSection } from "@/components/configuracoes/PalavraChaveRestaurarSection";
 
@@ -59,6 +60,7 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
   const [autoDia, setAutoDia] = useState<string>("todos");
   const [autoHora, setAutoHora] = useState(0);
   const [autoMinuto, setAutoMinuto] = useState(0);
+  const [modalPastaBackupAberto, setModalPastaBackupAberto] = useState(false);
 
   async function carregarStatusAutomatico() {
     setCarregandoAuto(true);
@@ -311,16 +313,28 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                     </div>
                   </div>
 
-                  <Button
-                    type="button"
-                    disabled={salvandoAuto}
-                    onClick={() => void salvarAgendamentoAutomatico()}
-                    className="rounded bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700 disabled:opacity-60"
-                  >
-                    {salvandoAuto
-                      ? t("settings.backupAutoSalvando")
-                      : t("settings.backupAutoSalvar")}
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button
+                      type="button"
+                      disabled={salvandoAuto}
+                      onClick={() => void salvarAgendamentoAutomatico()}
+                      className="rounded bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700 disabled:opacity-60"
+                    >
+                      {salvandoAuto
+                        ? t("settings.backupAutoSalvando")
+                        : t("settings.backupAutoSalvar")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={salvandoAuto}
+                      onClick={() => setModalPastaBackupAberto(true)}
+                      className="inline-flex items-center gap-2 rounded border-emerald-300 bg-white px-4 py-2 text-sm text-emerald-900 hover:bg-emerald-50"
+                    >
+                      <FolderOpen className="h-4 w-4" />
+                      {t("settings.backupAutoAbrirPasta")}
+                    </Button>
+                  </div>
                 </>
               )}
             </div>
@@ -435,6 +449,12 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
       ) : (
         <p className="text-xs text-slate-500">{t("settings.restaurarPadraoAcessoNegado")}</p>
       )}
+
+      <ModalAbrirPastaBackup
+        open={modalPastaBackupAberto}
+        onClose={() => setModalPastaBackupAberto(false)}
+        onMensagem={onMensagem}
+      />
 
       <RestaurarPadraoModal
         open={modalPadraoAberto}

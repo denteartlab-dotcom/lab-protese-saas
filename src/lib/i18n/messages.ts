@@ -144,6 +144,20 @@ export const messages = {
     "settings.backupAutoSalvando": "Salvando...",
     "settings.backupAutoSalvo": "Agendamento de backup salvo.",
     "settings.backupAutoErro": "Não foi possível salvar o agendamento.",
+    "settings.backupAutoAbrirPasta": "Abrir pasta de backups",
+    "settings.backupAutoAbrirPastaTitulo": "Pasta de backups",
+    "settings.backupAutoAbrirPastaDesc":
+      "Informe a senha do administrador para abrir a pasta onde os backups automáticos são gravados no servidor.",
+    "settings.backupAutoAbrirPastaConfirmar": "Abrir pasta",
+    "settings.backupAutoAbrirPastaAbrindo": "Verificando...",
+    "settings.backupAutoAbrirPastaSucesso": "Pasta de backups aberta no servidor.",
+    "settings.backupAutoAbrirPastaListaPronta": "Acesso liberado. Confira o caminho e os arquivos abaixo.",
+    "settings.backupAutoAbrirPastaErro": "Não foi possível acessar a pasta de backups.",
+    "settings.backupAutoAbrirPastaCaminho": "Caminho no servidor",
+    "settings.backupAutoAbrirPastaArquivos": "Arquivos na pasta",
+    "settings.backupAutoAbrirPastaVazia": "Nenhum arquivo de backup encontrado ainda.",
+    "settings.backupAutoAbrirPastaSemExplorer":
+      "Não foi possível abrir o gerenciador de arquivos. Use o caminho acima para acessar a pasta no servidor.",
     "settings.restaurarPadraoSecaoTitulo": "Restaurar padrão do site",
     "settings.restaurarPadraoSecaoDesc":
       "Apague dados por módulo (banco, anexos e navegador). Só é possível recuperar com um backup exportado antes. Exige senha do proprietário.",
@@ -476,6 +490,20 @@ export const messages = {
     "settings.backupAutoSalvando": "Saving...",
     "settings.backupAutoSalvo": "Backup schedule saved.",
     "settings.backupAutoErro": "Could not save the schedule.",
+    "settings.backupAutoAbrirPasta": "Open backup folder",
+    "settings.backupAutoAbrirPastaTitulo": "Backup folder",
+    "settings.backupAutoAbrirPastaDesc":
+      "Enter the administrator password to open the folder where automatic backups are stored on the server.",
+    "settings.backupAutoAbrirPastaConfirmar": "Open folder",
+    "settings.backupAutoAbrirPastaAbrindo": "Verifying...",
+    "settings.backupAutoAbrirPastaSucesso": "Backup folder opened on the server.",
+    "settings.backupAutoAbrirPastaListaPronta": "Access granted. See the path and files below.",
+    "settings.backupAutoAbrirPastaErro": "Could not access the backup folder.",
+    "settings.backupAutoAbrirPastaCaminho": "Server path",
+    "settings.backupAutoAbrirPastaArquivos": "Files in folder",
+    "settings.backupAutoAbrirPastaVazia": "No backup files found yet.",
+    "settings.backupAutoAbrirPastaSemExplorer":
+      "Could not open the file manager. Use the path above to access the folder on the server.",
     "settings.restaurarPadraoSecaoTitulo": "Restore site defaults",
     "settings.restaurarPadraoSecaoDesc":
       "Erase data by module (database, attachments, and browser). Recovery is only possible from a previously exported backup. Requires owner password.",
@@ -806,6 +834,20 @@ export const messages = {
     "settings.backupAutoSalvando": "Guardando...",
     "settings.backupAutoSalvo": "Programación de respaldo guardada.",
     "settings.backupAutoErro": "No se pudo guardar la programación.",
+    "settings.backupAutoAbrirPasta": "Abrir carpeta de respaldos",
+    "settings.backupAutoAbrirPastaTitulo": "Carpeta de respaldos",
+    "settings.backupAutoAbrirPastaDesc":
+      "Ingrese la contraseña del administrador para abrir la carpeta donde se guardan los respaldos automáticos en el servidor.",
+    "settings.backupAutoAbrirPastaConfirmar": "Abrir carpeta",
+    "settings.backupAutoAbrirPastaAbrindo": "Verificando...",
+    "settings.backupAutoAbrirPastaSucesso": "Carpeta de respaldos abierta en el servidor.",
+    "settings.backupAutoAbrirPastaListaPronta": "Acceso concedido. Consulte la ruta y los archivos abajo.",
+    "settings.backupAutoAbrirPastaErro": "No se pudo acceder a la carpeta de respaldos.",
+    "settings.backupAutoAbrirPastaCaminho": "Ruta en el servidor",
+    "settings.backupAutoAbrirPastaArquivos": "Archivos en la carpeta",
+    "settings.backupAutoAbrirPastaVazia": "Aún no se encontraron archivos de respaldo.",
+    "settings.backupAutoAbrirPastaSemExplorer":
+      "No se pudo abrir el administrador de archivos. Use la ruta de arriba para acceder a la carpeta en el servidor.",
     "settings.restaurarPadraoSecaoTitulo": "Restaurar estándar del sitio",
     "settings.restaurarPadraoSecaoDesc":
       "Borre datos por módulo (base de datos, adjuntos y navegador). Solo puede recuperar con una copia de seguridad exportada antes. Requiere contraseña del propietario.",
