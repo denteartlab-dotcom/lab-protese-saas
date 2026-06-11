@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { sessaoCookieSecure } from "@/lib/cookie-secure";
 
 const COOKIE_NAME = "lab-protese-session";
 const PUBLIC = ["/login"];
@@ -24,7 +25,7 @@ function sessionTokenAceito(token: string): boolean {
 function limparCookieSessao(response: NextResponse) {
   response.cookies.set(COOKIE_NAME, "", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: sessaoCookieSecure(),
     sameSite: "lax",
     path: "/",
     maxAge: 0,

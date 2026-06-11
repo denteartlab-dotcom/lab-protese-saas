@@ -6,33 +6,11 @@ import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { Button, Input, Modal } from "@/components/ui";
 import { usePageReady } from "@/hooks/use-page-ready";
-import { readStorage, writeStorage } from "@/lib/persisted-storage";
-
-const STORAGE_KEY = "labProteseMateriaisDentista";
-
-const materiaisPadrao = [
-  "Antagonista",
-  "Articulador",
-  "Barra Protocolo",
-  "Componente Protético",
-  "Dente",
-  "Estrutura Metálica (PPR)",
-  "Modelo de Gesso",
-  "Mordida em cera",
-  "Muralha de silicone",
-  "Outros",
-  "Parafuso Implante",
-  "Ucla Personalizada",
-  "Modelo De Trabalho",
-  "Moldeira Sup",
-  "Moldeira Inf",
-];
-
-function carregarMateriais() {
-  if (typeof window === "undefined") return materiaisPadrao;
-  const parsed = readStorage<string[] | null>(STORAGE_KEY, null);
-  return Array.isArray(parsed) && parsed.length > 0 ? parsed : materiaisPadrao;
-}
+import {
+  carregarMateriaisDentistaCadastro,
+  MATERIAIS_DENTISTA_STORAGE_KEY,
+} from "@/lib/materiais-dentista-cadastro";
+import { persistirArmazenamentoImediato, writeStorage } from "@/lib/persisted-storage";
 
 export default function MaterialDentistaPage() {
   const [busca, setBusca] = useState("");
@@ -43,26 +21,19 @@ export default function MaterialDentistaPage() {
   const [nomeMaterial, setNomeMaterial] = useState("");
 
   const paginaPronta = usePageReady(() => {
-    setMateriais(carregarMateriais());
+    setMateriais(carregarMateriaisDentistaCadastro());
     setMateriaisCarregados(true);
   });
 
   useEffect(() => {
-    if (!paginaPronta) return;
-
-    function carregar() {
-      setMateriais(carregarMateriais());
-      setMateriaisCarregados(true);
-    }
-
-    window.addEventListener("focus", carregar);
-    return () => window.removeEventListener("focus", carregar);
-  }, [paginaPronta]);
-
-  useEffect(() => {
     if (!materiaisCarregados) return;
-    writeStorage(STORAGE_KEY, materiais);
+    writeStorage(MATERIAIS_DENTISTA_STORAGE_KEY, materiais);
   }, [materiais, materiaisCarregados]);
+
+  async function persistirMateriais(lista: string[]) {
+    writeStorage(MATERIAIS_DENTISTA_STORAGE_KEY, lista);
+    await persistirArmazenamentoImediato(MATERIAIS_DENTISTA_STORAGE_KEY, lista);
+  }
 
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
@@ -92,20 +63,22 @@ export default function MaterialDentistaPage() {
     const nome = nomeMaterial.trim();
     if (!nome) return;
 
-    setMateriais((atuais) => {
-      const semDuplicidade = atuais.filter(
-        (material) =>
-          material !== editando && material.toLowerCase() !== nome.toLowerCase()
-      );
-      return editando ? semDuplicidade.concat(nome) : [...semDuplicidade, nome];
-    });
+    const semDuplicidade = materiais.filter(
+      (material) =>
+        material !== editando && material.toLowerCase() !== nome.toLowerCase()
+    );
+    const proxima = editando ? semDuplicidade.concat(nome) : [...semDuplicidade, nome];
+    setMateriais(proxima);
+    void persistirMateriais(proxima);
     setModalAberto(false);
     setEditando(null);
     setNomeMaterial("");
   }
 
   function excluirMaterial(material: string) {
-    setMateriais((atuais) => atuais.filter((item) => item !== material));
+    const proxima = materiais.filter((item) => item !== material);
+    setMateriais(proxima);
+    void persistirMateriais(proxima);
   }
 
   return (

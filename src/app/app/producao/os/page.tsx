@@ -82,6 +82,7 @@ import {
   prazoVencimentoEtapaOs,
   type EtapaCadastro,
 } from "@/lib/etapas-os";
+import { carregarMateriaisDentistaCadastro } from "@/lib/materiais-dentista-cadastro";
 import { carregarSetoresCadastro, type SetorCadastro } from "@/lib/setores-cadastro";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { cn, exibirTexto, STATUS_TRABALHO } from "@/lib/utils";
@@ -198,7 +199,6 @@ const produtosPadrao: Produto[] = [
 
 const FORNECEDORES_STORAGE_KEY = "labProteseFornecedores";
 const PRESTADORES_STORAGE_KEY = "labProtesePrestadores";
-const MATERIAIS_DENTISTA_STORAGE_KEY = "labProteseMateriaisDentista";
 const ETAPAS_STORAGE_KEY = "labProteseEtapas";
 const SETORES_STORAGE_KEY = "labProteseSetores";
 const COLABORADORES_STORAGE_KEY = "labProteseColaboradores";
@@ -223,24 +223,6 @@ const categoriasTabelaPrecoPadrao: CategoriaTabelaPreco[] = [
       { id: "17", nome: "Protocolo", valor: 900 },
     ],
   },
-];
-
-const materiaisPadrao = [
-  "Antagonista",
-  "Análogo",
-  "Barra Protocolo",
-  "Componente Protético",
-  "Dente",
-  "Estrutura Metálica (PPR)",
-  "Modelo de Trabalho",
-  "Modelo de Gesso",
-  "Moldeira Inf",
-  "Moldeira Sup",
-  "Mordida em cera",
-  "Muralha de silicone",
-  "Parafuso",
-  "Transferente",
-  "Cicatrizador",
 ];
 
 const dentesSuperiores = ["18", "17", "16", "15", "14", "13", "12", "11", "21", "22", "23", "24", "25", "26", "27", "28"];
@@ -458,11 +440,9 @@ export default function OrdemServicoPage() {
     }
 
     try {
-      const parsed = readStorage<string[] | null>(MATERIAIS_DENTISTA_STORAGE_KEY, null);
-      const lista = Array.isArray(parsed) && parsed.length > 0 ? parsed : materiaisPadrao;
-      setMateriais(lista);
+      setMateriais(carregarMateriaisDentistaCadastro());
     } catch {
-      setMateriais(materiaisPadrao);
+      setMateriais([]);
     }
     setMateriaisCarregados(true);
 
@@ -566,8 +546,7 @@ export default function OrdemServicoPage() {
 
     function carregarMateriaisDentista() {
       try {
-        const parsed = readStorage<string[] | null>(MATERIAIS_DENTISTA_STORAGE_KEY, null);
-        const lista = Array.isArray(parsed) && parsed.length > 0 ? parsed : materiaisPadrao;
+        const lista = carregarMateriaisDentistaCadastro();
         setMateriais(lista);
         setMateriaisSelecionados((selecionados) => {
           const atualizados = selecionados.filter((material) => lista.includes(material));
@@ -581,7 +560,7 @@ export default function OrdemServicoPage() {
           return atualizados;
         });
       } catch {
-        setMateriais(materiaisPadrao);
+        setMateriais([]);
       } finally {
         setMateriaisCarregados(true);
       }

@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
+import { sessaoCookieSecure } from "@/lib/cookie-secure";
 
 const COOKIE_NAME = "lab-protese-session";
 
@@ -52,7 +53,7 @@ export async function createSession(
   const cookieStore = await cookies();
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: sessaoCookieSecure(),
     sameSite: "lax",
     path: "/",
     maxAge,
@@ -63,7 +64,7 @@ export async function destroySession() {
   const cookieStore = await cookies();
   cookieStore.set(COOKIE_NAME, "", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: sessaoCookieSecure(),
     sameSite: "lax",
     path: "/",
     maxAge: 0,
