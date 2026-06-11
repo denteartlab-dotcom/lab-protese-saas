@@ -121,6 +121,8 @@ export default function ClientesPage() {
   const [entregadores, setEntregadores] = useState<string[]>([]);
   const [importarAberto, setImportarAberto] = useState(false);
   const [processandoLista, setProcessandoLista] = useState(false);
+  const [idsSelecionados, setIdsSelecionados] = useState<Set<string>>(() => new Set());
+  const [exclusaoMultiplaAberta, setExclusaoMultiplaAberta] = useState(false);
   const ultimoCepBuscado = useRef("");
 
   const recarregarTabelasPreco = async () => {
@@ -221,7 +223,16 @@ export default function ClientesPage() {
 
   useEffect(() => {
     void load();
+    limparSelecao();
   }, [q, mostrarExcluidos]);
+
+  useEffect(() => {
+    setIdsSelecionados((atual) => {
+      const idsValidos = new Set(list.map((c) => c.id));
+      const proximo = new Set([...atual].filter((id) => idsValidos.has(id)));
+      return proximo.size === atual.size ? atual : proximo;
+    });
+  }, [list]);
 
   useEffect(() => {
     if (!open) return;
@@ -264,6 +275,46 @@ export default function ClientesPage() {
       email: (a, b) => compararTextoBr(a.email || "", b.email || ""),
     },
   });
+
+  const idsPaginaAtual = useMemo(
+    () => listagem.itensPagina.map((c) => c.id),
+    [listagem.itensPagina]
+  );
+
+  const quantidadeSelecionados = idsSelecionados.size;
+
+  const todosPaginaSelecionados =
+    idsPaginaAtual.length > 0 &&
+    idsPaginaAtual.every((id) => idsSelecionados.has(id));
+
+  const algumPaginaSelecionado = idsPaginaAtual.some((id) =>
+    idsSelecionados.has(id)
+  );
+
+  function alternarSelecao(id: string) {
+    setIdsSelecionados((atual) => {
+      const proximo = new Set(atual);
+      if (proximo.has(id)) proximo.delete(id);
+      else proximo.add(id);
+      return proximo;
+    });
+  }
+
+  function alternarSelecaoPaginaAtual() {
+    setIdsSelecionados((atual) => {
+      const proximo = new Set(atual);
+      if (todosPaginaSelecionados) {
+        idsPaginaAtual.forEach((id) => proximo.delete(id));
+      } else {
+        idsPaginaAtual.forEach((id) => proximo.add(id));
+      }
+      return proximo;
+    });
+  }
+
+  function limparSelecao() {
+    setIdsSelecionados(new Set());
+  }
 
   function openNew() {
     const tabelasLocal = carregarNomesTabelasPreco();
@@ -381,6 +432,37 @@ export default function ClientesPage() {
     }
     setOpen(false);
     load();
+  }
+
+  async function confirmarExclusaoMultipla() {
+    const ids = [...idsSelecionados];
+    if (!ids.length) return;
+    const idsSet = new Set(ids);
+
+    setExclusaoMultiplaAberta(false);
+    setList((lista) => lista.filter((c) => !idsSet.has(c.id)));
+    limparSelecao();
+
+    const erros: string[] = [];
+    for (const id of ids) {
+      try {
+        const url = mostrarExcluidos
+          ? `/api/clientes/${id}?permanente=1`
+          : `/api/clientes/${id}`;
+        const res = await fetch(url, { method: "DELETE" });
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        if (!res.ok) {
+          erros.push(data.error || "Falha ao excluir um cliente.");
+        }
+      } catch {
+        erros.push("Falha ao excluir um cliente.");
+      }
+    }
+
+    await load();
+    if (erros.length) {
+      alert(erros[0]);
+    }
   }
 
   async function confirmarExclusaoCliente() {
@@ -520,6 +602,13 @@ export default function ClientesPage() {
               onImprimir={() => void imprimirListaClientes()}
               onImportar={() => setImportarAberto(true)}
               onExportarExcel={() => void exportarListaClientes()}
+              quantidadeSelecionados={quantidadeSelecionados}
+              onExcluirSelecionados={() => setExclusaoMultiplaAberta(true)}
+              tituloExcluirSelecionados={
+                mostrarExcluidos
+                  ? "Excluir definitivamente os selecionados"
+                  : "Enviar selecionados para a lixeira"
+              }
               processando={processandoLista}
               disabled={mostrarExcluidos}
             />
@@ -571,7 +660,18 @@ export default function ClientesPage() {
           <table className="w-full min-w-[980px] border-collapse text-[11px]">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-slate-500">
-                <th className="w-8 px-3 py-2 text-left font-semibold">TODOS</th>
+                <th className="w-8 px-3 py-2 text-left font-semibold">
+                  <input
+                    type="checkbox"
+                    className="h-3.5 w-3.5 accent-primary-600"
+                    checked={todosPaginaSelecionados}
+                    ref={(el) => {
+                      if (el) el.indeterminate = algumPaginaSelecionado && !todosPaginaSelecionados;
+                    }}
+                    onChange={alternarSelecaoPaginaAtual}
+                    aria-label="Selecionar todos desta página"
+                  />
+                </th>
                 <th className="px-3 py-2 text-left font-semibold">NOME</th>
                 <th className="px-3 py-2 text-left font-semibold">CONTATO</th>
                 <th className="px-3 py-2 text-left font-semibold">CELULAR</th>
@@ -583,11 +683,26 @@ export default function ClientesPage() {
             <tbody className="divide-y divide-slate-100">
               {listagem.itensPagina.map((c) => {
                 const aberto = detalhe?.id === c.id;
+                const selecionado = idsSelecionados.has(c.id);
                 return (
                   <Fragment key={c.id}>
-                    <tr className={aberto ? "bg-blue-50/40" : "hover:bg-slate-50"}>
+                    <tr
+                      className={
+                        selecionado
+                          ? "bg-red-50/80"
+                          : aberto
+                            ? "bg-blue-50/40"
+                            : "hover:bg-slate-50"
+                      }
+                    >
                       <td className="px-3 py-2">
-                        <input type="checkbox" className="h-3.5 w-3.5 accent-primary-600" />
+                        <input
+                          type="checkbox"
+                          className="h-3.5 w-3.5 accent-primary-600"
+                          checked={selecionado}
+                          onChange={() => alternarSelecao(c.id)}
+                          aria-label={`Selecionar ${c.nome}`}
+                        />
                       </td>
                       <td className="px-3 py-2 font-medium text-slate-600">{c.nome}</td>
                       <td className="px-3 py-2 text-slate-500">{c.telefone || ""}</td>
@@ -998,6 +1113,27 @@ export default function ClientesPage() {
         aberto={importarAberto}
         onFechar={() => setImportarAberto(false)}
         onImportado={() => void load()}
+      />
+
+      <ConfirmacaoExclusaoModal
+        open={exclusaoMultiplaAberta}
+        titulo={
+          mostrarExcluidos
+            ? "Excluir clientes definitivamente"
+            : "Enviar clientes para a lixeira"
+        }
+        mensagem={
+          mostrarExcluidos
+            ? `Deseja remover ${quantidadeSelecionados} cliente(s) do sistema? Só é possível se não houver OS, pacientes ou lançamentos vinculados.`
+            : `Deseja enviar ${quantidadeSelecionados} cliente(s) para a lixeira? Eles sairão da lista de ativos, mas OS e histórico permanecem.`
+        }
+        aviso={
+          mostrarExcluidos
+            ? "Se ainda existir vínculo, o cadastro continuará apenas inativo."
+            : "Clientes com OS ou pacientes ficam inativos (não apagam o histórico)."
+        }
+        onClose={() => setExclusaoMultiplaAberta(false)}
+        onConfirm={confirmarExclusaoMultipla}
       />
 
       <ConfirmacaoExclusaoModal

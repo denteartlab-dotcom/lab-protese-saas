@@ -137,15 +137,16 @@ function ConfiguracoesConteudo() {
   async function salvar() {
     if (!form) return;
     setSalvando(true);
-    salvarConfigLaboratorio(form);
     try {
       await persistirConfigLaboratorioServidor(form);
+      salvarConfigLaboratorio(form);
       setInicial({ ...form });
       setMensagem(t("common.sucessoGravado"));
       setMensagemTipo("sucesso");
+      router.refresh();
     } catch {
       setMensagem(
-        "Salvo neste navegador, mas não foi possível gravar no servidor. Tente novamente."
+        "Não foi possível gravar no servidor. Verifique a conexão e tente novamente."
       );
       setMensagemTipo("erro");
     } finally {
@@ -272,16 +273,17 @@ function ConfiguracoesConteudo() {
                 if (!form) return;
                 const merged = { ...form, ...patch };
                 setForm(merged);
-                salvarConfigLaboratorio(merged);
                 try {
                   await persistirConfigLaboratorioServidor(merged);
+                  salvarConfigLaboratorio(merged);
                   setInicial(merged);
-                  window.dispatchEvent(new Event("lab-config-atualizada"));
+                  router.refresh();
                 } catch {
                   setMensagem(
-                    "Imagem salva neste navegador, mas falhou ao gravar no servidor. Clique em Gravar Imagem novamente."
+                    "Não foi possível gravar no servidor. Clique em Gravar Imagem novamente."
                   );
                   setMensagemTipo("erro");
+                  throw new Error("falha ao gravar logo");
                 }
               }}
               onMensagem={(texto, tipo = "info") => {

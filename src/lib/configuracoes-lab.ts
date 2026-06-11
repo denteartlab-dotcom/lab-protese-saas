@@ -303,3 +303,10 @@ export function salvarConfigLaboratorio(config: ConfigLaboratorio) {
   window.dispatchEvent(new Event(LAB_CONFIG_ATUALIZADA_EVENT));
 }
 
+/** Preenche o cache local sem regravar no servidor (hidratação SSR / bootstrap). */
+export function hidratarConfigLaboratorioCache(config: ConfigLaboratorio) {
+  if (typeof window === "undefined") return;
+  const preparado = prepararConfigParaSalvar(config);
+  writeStorage(chaveStorageLaboratorio(), preparado, { forcar: false });
+}
+

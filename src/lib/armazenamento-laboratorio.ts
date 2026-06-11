@@ -396,15 +396,21 @@ export function gravarArmazenamentoCache<T>(
 
 export async function persistirArmazenamentoImediato(key: string, valor: unknown) {
   cache.set(key, valor);
-  atualizarSnapshotServidor(key, valor);
   filaSalvar.delete(key);
-  await fetch("/api/armazenamento/migrar", {
+
+  const res = await fetch("/api/armazenamento/migrar", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "same-origin",
     cache: "no-store",
     body: JSON.stringify({ entradas: { [key]: valor }, sobrescrever: true }),
   });
+
+  if (!res.ok) {
+    throw new Error(`Falha ao gravar ${key} no servidor (${res.status})`);
+  }
+
+  atualizarSnapshotServidor(key, valor);
 }
 
 if (typeof window !== "undefined") {

@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLabConfigServidor } from "@/components/LabConfigProvider";
 import {
+  ARMAZENAMENTO_LAB_PRONTO_EVENT,
+  armazenamentoLaboratorioPronto,
+} from "@/lib/armazenamento-laboratorio";
+import {
   carregarConfigLaboratorio,
+  LAB_CONFIG_ATUALIZADA_EVENT,
   nomeExibicaoLaboratorio,
 } from "@/lib/configuracoes-lab";
-import { LAB_CONFIG_ATUALIZADA_EVENT } from "@/lib/configuracoes-lab";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
 import { LAB_IMPRESSAO_PADRAO, type LabImpressaoConfig } from "@/lib/lab-impressao";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
@@ -15,46 +19,50 @@ type Props = {
   initialLab?: LabImpressaoConfig;
 };
 
-function resolverNomeLaboratorio(
-  servidor: { nomeLaboratorio: string } | null,
-  lab: LabImpressaoConfig
-): string {
-  if (typeof window !== "undefined") {
-    const nome = nomeExibicaoLaboratorio(carregarConfigLaboratorio());
-    if (nome) return nome;
-  }
-  if (servidor?.nomeLaboratorio?.trim()) return servidor.nomeLaboratorio.trim();
-  return lab.responsavel?.trim() || NOME_LAB_PADRAO;
-}
-
-/** Config do lab no cliente — prioriza dados do servidor (LabConfigProvider). */
+/** Config do lab no cliente — após bootstrap, prioriza cache/banco sobre SSR. */
 export function useLabConfigClient({ initialLab }: Props = {}) {
   const servidor = useLabConfigServidor();
   const labInicial = servidor?.lab ?? initialLab ?? LAB_IMPRESSAO_PADRAO;
+
   const [lab, setLab] = useState<LabImpressaoConfig>(labInicial);
-  const [nomeLaboratorio, setNomeLaboratorio] = useState(() =>
-    resolverNomeLaboratorio(servidor, labInicial)
+  const [nomeLaboratorio, setNomeLaboratorio] = useState(
+    () =>
+      nomeExibicaoLaboratorio(carregarConfigLaboratorio()) ||
+      servidor?.nomeLaboratorio?.trim() ||
+      labInicial.responsavel?.trim() ||
+      NOME_LAB_PADRAO
   );
   const montado = Boolean(servidor ?? initialLab);
 
+  const atualizarDoCache = useCallback(() => {
+    const cfg = carregarConfigLaboratorio();
+    setLab(labImpressaoFromConfig());
+    setNomeLaboratorio(
+      nomeExibicaoLaboratorio(cfg) ||
+        servidor?.nomeLaboratorio?.trim() ||
+        NOME_LAB_PADRAO
+    );
+  }, [servidor?.nomeLaboratorio]);
+
   useEffect(() => {
-    if (servidor) {
-      setLab(servidor.lab);
-      setNomeLaboratorio(resolverNomeLaboratorio(servidor, servidor.lab));
-      return;
-    }
-    if (!initialLab) {
-      setLab(labImpressaoFromConfig());
-    }
-    const atualizar = () => {
-      const nextLab = labImpressaoFromConfig();
-      setLab(nextLab);
-      setNomeLaboratorio(resolverNomeLaboratorio(null, nextLab));
+    atualizarDoCache();
+
+    window.addEventListener(LAB_CONFIG_ATUALIZADA_EVENT, atualizarDoCache);
+    window.addEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, atualizarDoCache);
+
+    return () => {
+      window.removeEventListener(LAB_CONFIG_ATUALIZADA_EVENT, atualizarDoCache);
+      window.removeEventListener(
+        ARMAZENAMENTO_LAB_PRONTO_EVENT,
+        atualizarDoCache
+      );
     };
-    atualizar();
-    window.addEventListener(LAB_CONFIG_ATUALIZADA_EVENT, atualizar);
-    return () => window.removeEventListener(LAB_CONFIG_ATUALIZADA_EVENT, atualizar);
-  }, [servidor, initialLab]);
+  }, [atualizarDoCache]);
+
+  useEffect(() => {
+    if (!armazenamentoLaboratorioPronto()) return;
+    atualizarDoCache();
+  }, [atualizarDoCache]);
 
   return { montado, lab, nomeLaboratorio };
 }

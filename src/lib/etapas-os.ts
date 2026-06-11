@@ -1,5 +1,6 @@
 import { readStorage } from "@/lib/persisted-storage";
 import { calcularDataVencimentoPorDias } from "@/lib/prazos-servico";
+import { isLinhaAuditoriaUrgenciaCliente } from "@/lib/urgencia-cliente";
 
 export const ETAPAS_STORAGE_KEY = "labProteseEtapas";
 
@@ -263,6 +264,7 @@ export function instrucoesTextoLivre(instrucoes?: string | null) {
   return (instrucoes || "")
     .split("\n")
     .filter((line) => !linhaEstruturadaOs(line))
+    .filter((line) => !isLinhaAuditoriaUrgenciaCliente(line))
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();

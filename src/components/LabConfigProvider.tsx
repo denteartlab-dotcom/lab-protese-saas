@@ -9,10 +9,10 @@ import {
   type ReactNode,
 } from "react";
 import {
+  hidratarConfigLaboratorioCache,
   nomeExibicaoLaboratorio,
   type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
-import { aplicarConfigLaboratorioNoCliente } from "@/lib/lab-config-sync";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
 import type { LabImpressaoConfig } from "@/lib/lab-impressao";
 
@@ -48,7 +48,7 @@ export function LabConfigProvider({ lab, configLaboratorio, children }: Props) {
   useEffect(() => {
     if (hidratado.current) return;
     hidratado.current = true;
-    aplicarConfigLaboratorioNoCliente(configLaboratorio);
+    hidratarConfigLaboratorioCache(configLaboratorio);
   }, [configLaboratorio]);
 
   return (

@@ -7,6 +7,11 @@ export const LIMITE_URGENCIAS_ATIVAS_CLIENTE = 5;
 export const LIMITE_URGENCIAS_DIA_CLIENTE = 2;
 export const JSON_STORE_URGENCIAS_CLIENTE = "labProteseUrgenciasCliente";
 
+/** Linha de auditoria gravada em instruções (legado — não exibir na observação da OS). */
+export function isLinhaAuditoriaUrgenciaCliente(linha: string) {
+  return linha.includes("Urgência solicitada pelo cliente");
+}
+
 const STATUS_FINALIZADOS = ["cancelado", "entregue", "finalizado"];
 
 export type EventoUrgenciaCliente = {
@@ -100,16 +105,6 @@ export function marcarInstrucoesUrgente(
     alterou = true;
   }
 
-  const stamp = new Date().toLocaleString("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
-  const audit = `Urgência solicitada pelo cliente em ${stamp}`;
-  if (!linhas.some((l) => l.includes("Urgência solicitada pelo cliente"))) {
-    linhas.push(audit);
-    alterou = true;
-  }
-
   return alterou ? linhas.join("\n") : texto;
 }
 
@@ -119,7 +114,7 @@ export function removerMarcacaoUrgenteInstrucoes(
 ): string {
   const linhas = (instrucoes || "")
     .split("\n")
-    .filter((l) => !l.includes("Urgência solicitada pelo cliente"))
+    .filter((l) => !isLinhaAuditoriaUrgenciaCliente(l))
     .map((line) =>
       line
         .replace(/ - urgente - obs /gi, " - obs ")

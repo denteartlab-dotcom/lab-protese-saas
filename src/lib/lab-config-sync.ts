@@ -3,6 +3,7 @@ import {
   CONFIG_LAB_STORAGE_KEY,
   LAB_CONFIG_ATUALIZADA_EVENT,
   carregarConfigLaboratorio,
+  hidratarConfigLaboratorioCache,
   normalizarTipoPessoa,
   prepararConfigParaSalvar,
   salvarConfigLaboratorio,
@@ -113,8 +114,8 @@ export async function sincronizarConfigLaboratorioDoServidor(): Promise<void> {
   }
 }
 
-/** Grava no navegador a config já validada no servidor (sem flash de dados antigos). */
+/** Atualiza cache local após leitura do servidor (sem regravar no banco). */
 export function aplicarConfigLaboratorioNoCliente(config: ConfigLaboratorio) {
-  salvarConfigLaboratorio(config);
+  hidratarConfigLaboratorioCache(config);
   window.dispatchEvent(new Event(LAB_CONFIG_ATUALIZADA_EVENT));
 }
