@@ -13,6 +13,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { SelectPesquisavel } from "@/components/SelectPesquisavel";
 import { BotoesExtratoCompartilhar } from "@/components/financeiro/BotoesExtratoCompartilhar";
 import { EnviarExtratoWhatsappModal } from "@/components/financeiro/EnviarExtratoWhatsappModal";
 import { parseBrDate } from "@/lib/datas-br";
@@ -609,23 +610,22 @@ export function VisualizacaoClienteReceberModal({
         <div className="shrink-0 border-b border-[#e5e7eb] bg-[#f9fafb] px-4 py-3">
           <div className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] items-end gap-3">
             <div>
-              <label className={labelClass}>Cliente</label>
-              <select
+              <SelectPesquisavel
+                label="Cliente"
                 value={chaveCliente}
-                onChange={(e) => {
+                onChange={(valor) => {
                   const escolhido = clientes.find(
-                    (c) => (c.clienteId ?? c.nome) === e.target.value
+                    (c) => (c.clienteId ?? c.nome) === valor
                   );
                   if (escolhido) onClienteChange(escolhido);
                 }}
-                className={selectClass}
-              >
-                {clientes.map((c) => (
-                  <option key={c.clienteId ?? c.nome} value={c.clienteId ?? c.nome}>
-                    {c.nome}
-                  </option>
-                ))}
-              </select>
+                inputClassName={selectClass}
+                menuEmPortal
+                options={clientes.map((c) => ({
+                  value: c.clienteId ?? c.nome,
+                  label: c.nome,
+                }))}
+              />
             </div>
             <div>
               <label className={labelClass}>Período</label>

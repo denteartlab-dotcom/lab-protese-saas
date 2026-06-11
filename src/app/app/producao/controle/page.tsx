@@ -52,7 +52,7 @@ import {
 } from "@/lib/trabalho-os-segmento";
 import { bodyTrabalhoSemNull } from "@/lib/trabalho-api-body";
 import { ConfiguracaoListaGear } from "@/components/listagem/ConfiguracaoListaGear";
-import { Button, CampoDataBr, Input, Select, Textarea } from "@/components/ui";
+import { Button, CampoDataBr, Input, Select, SelectPesquisavel, Textarea } from "@/components/ui";
 import { parseCurrencyBr } from "@/lib/cliente-financeiro";
 import { brShortToIso, parseBrDate } from "@/lib/datas-br";
 import { propsInputComSelecaoAoFocar } from "@/lib/input-selecao";
@@ -2329,12 +2329,16 @@ export default function ControlePage() {
             onChange={setDataEntrada}
             placeholder="dd/mm/aaaa"
           />
-          <Select label="Cliente" value={cliente} onChange={(e) => setCliente(e.target.value)}>
-            <option value="">Todos</option>
-            {clientes.map((nome) => (
-              <option key={nome}>{nome}</option>
-            ))}
-          </Select>
+          <SelectPesquisavel
+            label="Cliente"
+            value={cliente}
+            onChange={setCliente}
+            placeholder="Todos"
+            options={[
+              { value: "", label: "Todos" },
+              ...clientes.map((nome) => ({ value: nome, label: nome })),
+            ]}
+          />
           <Input
             label="Buscar"
             value={busca}

@@ -66,6 +66,10 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  if (pathname === "/api/lab/branding") {
+    return NextResponse.next();
+  }
+
   if (pathname.startsWith("/api/financeiro/fatura-publica/")) {
     return NextResponse.next();
   }

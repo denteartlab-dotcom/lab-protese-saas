@@ -60,7 +60,17 @@ export async function GET(request: Request) {
         status: { notIn: ["finalizado", "entregue", "cancelado"] },
       },
       orderBy: { dataPrevista: "asc" },
-      include: {
+      select: {
+        id: true,
+        numeroOs: true,
+        grupoOsId: true,
+        segmentoFaturamento: true,
+        tipoProtese: true,
+        status: true,
+        dataEntrada: true,
+        dataPrevista: true,
+        escala: true,
+        instrucoes: true,
         cliente: { select: { nome: true } },
         paciente: { select: { nome: true } },
       },

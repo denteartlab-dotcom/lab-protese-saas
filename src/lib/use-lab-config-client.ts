@@ -10,9 +10,10 @@ import {
   carregarConfigLaboratorio,
   LAB_CONFIG_ATUALIZADA_EVENT,
   nomeExibicaoLaboratorio,
+  temConfigLaboratorioSalva,
 } from "@/lib/configuracoes-lab";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
-import { LAB_IMPRESSAO_PADRAO, type LabImpressaoConfig } from "@/lib/lab-impressao";
+import type { LabImpressaoConfig } from "@/lib/lab-impressao";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
 
 type Props = {
@@ -22,27 +23,37 @@ type Props = {
 /** Config do lab no cliente — após bootstrap, prioriza cache/banco sobre SSR. */
 export function useLabConfigClient({ initialLab }: Props = {}) {
   const servidor = useLabConfigServidor();
-  const labInicial = servidor?.lab ?? initialLab ?? LAB_IMPRESSAO_PADRAO;
 
-  const [lab, setLab] = useState<LabImpressaoConfig>(labInicial);
-  const [nomeLaboratorio, setNomeLaboratorio] = useState(
-    () =>
-      nomeExibicaoLaboratorio(carregarConfigLaboratorio()) ||
-      servidor?.nomeLaboratorio?.trim() ||
-      labInicial.responsavel?.trim() ||
-      NOME_LAB_PADRAO
-  );
+  const resolver = useCallback(() => {
+    if (servidor && !temConfigLaboratorioSalva()) {
+      return {
+        lab: servidor.lab,
+        nomeLaboratorio:
+          servidor.nomeLaboratorio?.trim() ||
+          servidor.lab.responsavel?.trim() ||
+          NOME_LAB_PADRAO,
+      };
+    }
+    const cfg = carregarConfigLaboratorio();
+    return {
+      lab: labImpressaoFromConfig(),
+      nomeLaboratorio:
+        nomeExibicaoLaboratorio(cfg) ||
+        servidor?.nomeLaboratorio?.trim() ||
+        NOME_LAB_PADRAO,
+    };
+  }, [servidor]);
+
+  const inicial = resolver();
+  const [lab, setLab] = useState<LabImpressaoConfig>(inicial.lab);
+  const [nomeLaboratorio, setNomeLaboratorio] = useState(inicial.nomeLaboratorio);
   const montado = Boolean(servidor ?? initialLab);
 
   const atualizarDoCache = useCallback(() => {
-    const cfg = carregarConfigLaboratorio();
-    setLab(labImpressaoFromConfig());
-    setNomeLaboratorio(
-      nomeExibicaoLaboratorio(cfg) ||
-        servidor?.nomeLaboratorio?.trim() ||
-        NOME_LAB_PADRAO
-    );
-  }, [servidor?.nomeLaboratorio]);
+    const next = resolver();
+    setLab(next.lab);
+    setNomeLaboratorio(next.nomeLaboratorio);
+  }, [resolver]);
 
   useEffect(() => {
     atualizarDoCache();

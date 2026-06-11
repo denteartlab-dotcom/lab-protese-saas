@@ -308,5 +308,6 @@ export function hidratarConfigLaboratorioCache(config: ConfigLaboratorio) {
   if (typeof window === "undefined") return;
   const preparado = prepararConfigParaSalvar(config);
   writeStorage(chaveStorageLaboratorio(), preparado, { forcar: false });
+  window.dispatchEvent(new Event(LAB_CONFIG_ATUALIZADA_EVENT));
 }
 

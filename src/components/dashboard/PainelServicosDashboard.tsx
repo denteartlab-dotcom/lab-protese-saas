@@ -1,50 +1,31 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
-import {
-  caixaDeInstrucoes,
-  formatDiaMesBr,
-  prazoTrabalho,
-  type TipoPrazoProducao,
-} from "@/lib/controle-producao-prazos";
-import { hrefControleServico } from "@/lib/notificacao-links";
-import { STATUS_TRABALHO } from "@/lib/utils";
-
-export type TrabalhoPainelServicos = {
-  id: string;
-  numeroOs: number;
-  tipoProtese: string;
-  status: string;
-  dataEntrada: string;
-  dataPrevista: string | null;
-  instrucoes?: string | null;
-  paciente: { nome: string };
-};
+import type { TipoPrazoProducao } from "@/lib/controle-producao-prazos";
+import type { GrupoOsPainelServicos } from "@/lib/painel-servicos-dashboard";
 
 type Props = {
   titulo: string;
   valor: number;
   tom: "warning" | "danger";
   filtros: React.ReactNode;
-  trabalhos: TrabalhoPainelServicos[];
+  grupos: GrupoOsPainelServicos[];
   tipoPrazo: TipoPrazoProducao;
   expandido: boolean;
   onToggleExpandir: () => void;
   labelVisualizar: string;
   labelImprimir: string;
-  linkImprimir: string;
-  periodoDia?: string;
+  linkImprimir?: string;
+  onImprimir?: () => void;
 };
 
 type CampoOrdenacao = "os" | "data";
 type DirecaoOrdenacao = "asc" | "desc";
 
-function ordenarTrabalhosPainel(
-  lista: TrabalhoPainelServicos[],
+function ordenarGruposPainel(
+  lista: GrupoOsPainelServicos[],
   campo: CampoOrdenacao,
-  direcao: DirecaoOrdenacao,
-  tipoPrazo: TipoPrazoProducao
+  direcao: DirecaoOrdenacao
 ) {
   const copia = [...lista];
   copia.sort((a, b) => {
@@ -52,9 +33,9 @@ function ordenarTrabalhosPainel(
     if (campo === "os") {
       diff = a.numeroOs - b.numeroOs;
     } else {
-      const pa = prazoTrabalho(a, tipoPrazo)?.getTime() ?? 0;
-      const pb = prazoTrabalho(b, tipoPrazo)?.getTime() ?? 0;
-      diff = pa - pb;
+      const pa = a.dataExibicao === "—" ? "" : a.dataExibicao;
+      const pb = b.dataExibicao === "—" ? "" : b.dataExibicao;
+      diff = pa.localeCompare(pb, "pt-BR");
     }
     return direcao === "desc" ? -diff : diff;
   });
@@ -66,13 +47,13 @@ export function PainelServicosDashboard({
   valor,
   tom,
   filtros,
-  trabalhos,
-  tipoPrazo,
+  grupos,
   expandido,
   onToggleExpandir,
   labelVisualizar,
   labelImprimir,
   linkImprimir,
+  onImprimir,
 }: Props) {
   const outline =
     tom === "warning"
@@ -91,10 +72,19 @@ export function PainelServicosDashboard({
     campo: CampoOrdenacao;
     direcao: DirecaoOrdenacao;
   }>({ campo: "os", direcao: "desc" });
+  const [osSelecionada, setOsSelecionada] = useState<string | null>(null);
 
   const ordenados = useMemo(
-    () => ordenarTrabalhosPainel(trabalhos, ordenacao.campo, ordenacao.direcao, tipoPrazo),
-    [trabalhos, ordenacao, tipoPrazo]
+    () => ordenarGruposPainel(grupos, ordenacao.campo, ordenacao.direcao),
+    [grupos, ordenacao]
+  );
+
+  const visiveis = useMemo(
+    () =>
+      osSelecionada
+        ? ordenados.filter((grupo) => grupo.chave === osSelecionada)
+        : ordenados,
+    [ordenados, osSelecionada]
   );
 
   function alternarOrdenacao(campo: CampoOrdenacao) {
@@ -103,6 +93,15 @@ export function PainelServicosDashboard({
         ? { campo, direcao: atual.direcao === "desc" ? "asc" : "desc" }
         : { campo, direcao: "desc" }
     );
+  }
+
+  function alternarOs(chave: string) {
+    setOsSelecionada((atual) => (atual === chave ? null : chave));
+  }
+
+  function handleToggleExpandir() {
+    if (expandido) setOsSelecionada(null);
+    onToggleExpandir();
   }
 
   return (
@@ -120,73 +119,95 @@ export function PainelServicosDashboard({
         <div className="mt-3 flex gap-2">
           <button
             type="button"
-            onClick={onToggleExpandir}
+            onClick={handleToggleExpandir}
             className={`rounded border px-3 py-1 text-[11px] font-medium ${outline} ${
               expandido ? "ring-1 ring-offset-1" : ""
             } ${tom === "warning" ? (expandido ? "ring-amber-300" : "") : expandido ? "ring-red-300" : ""}`}
           >
             {labelVisualizar}
           </button>
-          <Link
-            href={linkImprimir}
-            className={`rounded border px-3 py-1 text-[11px] font-medium ${solid}`}
-          >
-            {labelImprimir}
-          </Link>
+          {onImprimir ? (
+            <button
+              type="button"
+              onClick={onImprimir}
+              className={`rounded border px-3 py-1 text-[11px] font-medium ${solid}`}
+            >
+              {labelImprimir}
+            </button>
+          ) : linkImprimir ? (
+            <a
+              href={linkImprimir}
+              className={`rounded border px-3 py-1 text-[11px] font-medium ${solid}`}
+            >
+              {labelImprimir}
+            </a>
+          ) : null}
         </div>
       </div>
 
       {expandido && (
         <div className="border-t border-slate-100 px-3 pb-3">
-          <div className="mb-1 flex justify-end gap-3 pr-1 pt-2 text-[10px]">
-            <BotaoOrdenacao
-              label="OS"
-              ativo={ordenacao.campo === "os"}
-              direcao={ordenacao.direcao}
-              onClick={() => alternarOrdenacao("os")}
-            />
-            <BotaoOrdenacao
-              label="Data"
-              ativo={ordenacao.campo === "data"}
-              direcao={ordenacao.direcao}
-              onClick={() => alternarOrdenacao("data")}
-            />
-          </div>
+          {osSelecionada ? (
+            <div className="flex items-center justify-between px-1 pt-2">
+              <p className="text-[10px] text-slate-500">Exibindo OS selecionada</p>
+              <button
+                type="button"
+                onClick={() => setOsSelecionada(null)}
+                className="text-[10px] font-medium text-[#4a90d9] hover:underline"
+              >
+                Ver todas
+              </button>
+            </div>
+          ) : (
+            <div className="mb-1 flex justify-end gap-3 pr-1 pt-2 text-[10px]">
+              <BotaoOrdenacao
+                label="OS"
+                ativo={ordenacao.campo === "os"}
+                direcao={ordenacao.direcao}
+                onClick={() => alternarOrdenacao("os")}
+              />
+              <BotaoOrdenacao
+                label="Data"
+                ativo={ordenacao.campo === "data"}
+                direcao={ordenacao.direcao}
+                onClick={() => alternarOrdenacao("data")}
+              />
+            </div>
+          )}
           <div className="max-h-[min(42vh,300px)] overflow-y-auto">
-            {ordenados.length === 0 ? (
+            {visiveis.length === 0 ? (
               <p className="py-8 text-center text-[12px] text-slate-400">Nenhum serviço neste filtro.</p>
             ) : (
               <ul>
-                {ordenados.map((trabalho) => (
-                  <li key={trabalho.id} className="border-b border-slate-100 last:border-0">
-                    <Link
-                      href={hrefControleServico(
-                        trabalho.id,
-                        tom === "warning" ? "vencendo" : "atrasados",
-                        { prazo: tipoPrazo }
-                      )}
-                      className="grid grid-cols-[52px_1fr] gap-3 py-2.5 transition hover:bg-slate-50/80"
-                    >
-                      <span
-                        className={`flex h-9 w-9 items-center justify-center rounded text-[13px] font-bold ${badgeOs}`}
+                {visiveis.map((grupo) => (
+                  <li key={grupo.chave} className="border-b border-slate-100 last:border-0">
+                    <div className="grid grid-cols-[52px_1fr] gap-3 py-2.5">
+                      <button
+                        type="button"
+                        onClick={() => alternarOs(grupo.chave)}
+                        className={`flex h-9 w-9 items-center justify-center rounded text-[13px] font-bold transition hover:opacity-80 ${badgeOs} ${
+                          osSelecionada === grupo.chave ? "ring-2 ring-offset-1 ring-slate-400" : ""
+                        }`}
+                        title="Ver somente esta OS"
                       >
-                        {trabalho.numeroOs}
-                      </span>
+                        {grupo.numeroOs}
+                      </button>
                       <div className="min-w-0 text-[11px] leading-snug text-slate-600">
                         <p className="font-semibold text-slate-700">
                           {[
-                            dataPrazoExibicao(trabalho, tipoPrazo),
-                            caixaDeInstrucoes(trabalho.instrucoes)
-                              ? `Caixa: ${caixaDeInstrucoes(trabalho.instrucoes)}`
-                              : "Caixa:",
-                            STATUS_TRABALHO[trabalho.status]?.label || trabalho.status,
+                            grupo.dataExibicao,
+                            grupo.caixa ? `Caixa: ${grupo.caixa}` : "Caixa:",
+                            grupo.situacao,
                           ].join(" | ")}
                         </p>
                         <p className="mt-0.5 truncate">
-                          {trabalho.tipoProtese} | Paciente: {trabalho.paciente?.nome || "—"}
+                          {grupo.servicos.join(" | ")} | Paciente: {grupo.pacienteNome}
                         </p>
+                        {grupo.clienteNome !== "—" ? (
+                          <p className="mt-0.5 truncate text-slate-500">Cliente: {grupo.clienteNome}</p>
+                        ) : null}
                       </div>
-                    </Link>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -222,13 +243,4 @@ function BotaoOrdenacao({
       {ativo ? (direcao === "desc" ? " ↓" : " ↑") : ""}
     </button>
   );
-}
-
-function dataPrazoExibicao(trabalho: TrabalhoPainelServicos, tipo: TipoPrazoProducao) {
-  const prazo = prazoTrabalho(trabalho, tipo);
-  if (prazo) return formatDiaMesBr(prazo);
-  if (trabalho.dataPrevista) {
-    return formatDiaMesBr(new Date(trabalho.dataPrevista));
-  }
-  return "—";
 }

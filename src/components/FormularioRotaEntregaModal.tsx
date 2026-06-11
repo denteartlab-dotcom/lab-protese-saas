@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { MapPin, Truck, User } from "lucide-react";
-import { Modal } from "@/components/ui";
+import { Modal, SelectPesquisavel } from "@/components/ui";
 import { CampoDataBr } from "@/components/campo-data-br";
 import {
   custoEntregaCliente,
@@ -355,20 +355,16 @@ export function FormularioRotaEntregaModal({
               </select>
             </div>
             <div>
-              {labelCampo(labelNomeDestinatario(form.tipoDestinatario))}
-              <select
+              <SelectPesquisavel
+                label={labelNomeDestinatario(form.tipoDestinatario)}
                 value={form.nomeDestinatario}
-                onChange={(e) => aoSelecionarDestinatario(e.target.value)}
-                className={selectClassName()}
+                onChange={aoSelecionarDestinatario}
+                placeholder="Selecione"
                 disabled={!form.tipoDestinatario}
-              >
-                <option value="">Selecione</option>
-                {nomesDestinatario.map((nome) => (
-                  <option key={nome} value={nome}>
-                    {nome}
-                  </option>
-                ))}
-              </select>
+                inputClassName={selectClassName()}
+                menuEmPortal
+                options={nomesDestinatario.map((nome) => ({ value: nome, label: nome }))}
+              />
             </div>
           </div>
         </section>

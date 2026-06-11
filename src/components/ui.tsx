@@ -13,6 +13,7 @@ export {
 } from "@/lib/input-selecao";
 export { CampoDataBr } from "@/components/campo-data-br";
 export { CampoHoraBr } from "@/components/campo-hora-br";
+export { SelectPesquisavel, type OpcaoSelectPesquisavel } from "@/components/SelectPesquisavel";
 
 export function Button({
   className,

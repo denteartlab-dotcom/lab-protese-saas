@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Barcode, Minus, Plus, X } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
+import { SelectPesquisavel } from "@/components/SelectPesquisavel";
 import { PlanoContasCategoriaSelect } from "@/components/financeiro/PlanoContasCategoriaSelect";
 import { SituacaoOsBadgeReceita } from "@/components/financeiro/SituacaoOsBadgeReceita";
 import { dateToBrShort } from "@/lib/datas-br";
@@ -405,22 +406,18 @@ export function LancarReceitaOsModal({
 
           <div className="mt-4 grid gap-3 md:grid-cols-4">
             <div>
-              <label className={labelClass}>Cliente</label>
-              <select
+              <SelectPesquisavel
+                label="Cliente"
                 value={form.clienteId}
-                onChange={(e) => {
-                  setForm((f) => ({ ...f, clienteId: e.target.value }));
+                onChange={(clienteId) => {
+                  setForm((f) => ({ ...f, clienteId }));
                   onLimparOsSelecionadas();
                 }}
-                className={fieldClass}
-              >
-                <option value="">Selecione</option>
-                {clientes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome}
-                  </option>
-                ))}
-              </select>
+                placeholder="Selecione"
+                inputClassName={fieldClass}
+                menuEmPortal
+                options={clientes.map((c) => ({ value: c.id, label: c.nome }))}
+              />
             </div>
             <div>
               <label className={labelClass}>Conveniado</label>

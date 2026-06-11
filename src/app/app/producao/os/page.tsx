@@ -9,7 +9,7 @@ import {
   ImprimirOsModal,
   type TrabalhoImpressaoOs,
 } from "@/components/ImprimirOsModal";
-import { Button, CampoDataBr, CampoHoraBr, Input, Modal, Select, Textarea } from "@/components/ui";
+import { Button, CampoDataBr, CampoHoraBr, Input, Modal, Select, SelectPesquisavel, Textarea } from "@/components/ui";
 import { notificarUploadsAtualizados } from "@/lib/uploads-armazenamento";
 import { formatDateBr, parseBrDate } from "@/lib/datas-br";
 import { propsInputComSelecaoAoFocar } from "@/lib/input-selecao";
@@ -3076,19 +3076,17 @@ export default function OrdemServicoPage() {
           />
 
           <div className="space-y-1">
-            <Select
+            <SelectPesquisavel
               label={requiredLabel("Selecione um Cliente", Boolean(avisoAdicionarServico))}
               value={form.clienteId}
-              onChange={(e) => aplicarConfiguracaoCliente(e.target.value)}
+              onChange={aplicarConfiguracaoCliente}
+              placeholder="Selecione..."
               required
-            >
-              <option value="">Selecione...</option>
-              {clientes.map((cliente) => (
-                <option key={cliente.id} value={cliente.id}>
-                  {cliente.nome}
-                </option>
-              ))}
-            </Select>
+              options={clientes.map((cliente) => ({
+                value: cliente.id,
+                label: cliente.nome,
+              }))}
+            />
             {form.clienteId ? (
               <p className="text-[12px] font-medium leading-snug text-[#4a90d9]">
                 Tabela Utilizada{" "}

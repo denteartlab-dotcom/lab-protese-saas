@@ -30,9 +30,16 @@ import Link from "next/link";
 import { PainelAnotacoesDashboard } from "@/components/dashboard/PainelAnotacoesDashboard";
 import { DashboardInicioSkeleton } from "@/components/dashboard/DashboardInicioSkeleton";
 import { PainelServicosDashboard } from "@/components/dashboard/PainelServicosDashboard";
+import { PdfViewerModal } from "@/components/dashboard/PdfViewerModal";
 import { PainelUrgenciasClienteDashboard } from "@/components/dashboard/PainelUrgenciasClienteDashboard";
 import type { UrgenteClienteDashboardItem } from "@/lib/urgencia-cliente";
 import { hrefControlePainel } from "@/lib/notificacao-links";
+import {
+  agruparTrabalhosPainelServicos,
+  rotuloFimPeriodoVencendo,
+} from "@/lib/painel-servicos-dashboard";
+import { gerarPdfServicosVencendo } from "@/lib/pdf-servicos-vencendo";
+import { useLabConfigClient } from "@/lib/use-lab-config-client";
 import { usePermissoesApp } from "@/components/PermissoesAppProvider";
 import { permissaoIdPorHref } from "@/lib/usuarios-menu-permissoes";
 
@@ -89,6 +96,8 @@ const resumoFinanceiroVazio: ResumoFinanceiroDashboard = {
 type TrabalhoPainel = {
   id: string;
   numeroOs: number;
+  grupoOsId?: string | null;
+  segmentoFaturamento?: string | null;
   tipoProtese: string;
   status: string;
   dataEntrada: string;
@@ -101,6 +110,7 @@ type TrabalhoPainel = {
 
 export default function DashboardPage() {
   const { t, locale } = useI18n();
+  const { lab } = useLabConfigClient();
   const [data, setData] = useState<Dashboard | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [clientePronto, setClientePronto] = useState(false);
@@ -115,6 +125,7 @@ export default function DashboardPage() {
   const [anoFiltro, setAnoFiltro] = useState(new Date().getFullYear());
   const [diasSemServico, setDiasSemServico] = useState(15);
   const [uploadsResumo, setUploadsResumo] = useState<UploadsResumoUi | null>(null);
+  const [pdfVencendoUrl, setPdfVencendoUrl] = useState<string | null>(null);
   const { acessoTotal, permissoesModulos } = usePermissoesApp();
   const dataRef = useRef<Dashboard | null>(data);
   dataRef.current = data;
@@ -178,6 +189,34 @@ export default function DashboardPage() {
     () => filtrarTrabalhosAtrasados(trabalhosControle, prazoAtrasados),
     [trabalhosControle, prazoAtrasados]
   );
+  const vencendoGrupos = useMemo(
+    () => agruparTrabalhosPainelServicos(vencendoLista, prazoVencendo),
+    [vencendoLista, prazoVencendo]
+  );
+  const atrasadosGrupos = useMemo(
+    () => agruparTrabalhosPainelServicos(atrasadosLista, prazoAtrasados),
+    [atrasadosLista, prazoAtrasados]
+  );
+
+  async function imprimirServicosVencendo() {
+    try {
+      const blob = await gerarPdfServicosVencendo({
+        lab,
+        grupos: vencendoGrupos,
+        tituloPeriodo: rotuloFimPeriodoVencendo(periodoVencendo),
+      });
+      const url = URL.createObjectURL(blob);
+      if (pdfVencendoUrl) URL.revokeObjectURL(pdfVencendoUrl);
+      setPdfVencendoUrl(url);
+    } catch {
+      /* falha silenciosa — usuário pode tentar de novo */
+    }
+  }
+
+  function fecharPdfVencendo() {
+    if (pdfVencendoUrl) URL.revokeObjectURL(pdfVencendoUrl);
+    setPdfVencendoUrl(null);
+  }
 
   if (carregando && !data) {
     return <DashboardInicioSkeleton />;
@@ -192,8 +231,8 @@ export default function DashboardPage() {
   }
 
   const dashboard = data;
-  const vencendo = vencendoLista.length;
-  const atrasados = atrasadosLista.length;
+  const vencendo = vencendoGrupos.length;
+  const atrasados = atrasadosGrupos.length;
   const producaoResumo = dashboard.producaoResumo ?? resumoProducaoVazio;
   const financeiroResumo = dashboard.financeiroResumo ?? resumoFinanceiroVazio;
   const podeVer = (href: string) => {
@@ -227,7 +266,7 @@ export default function DashboardPage() {
           titulo={t("dashboard.servicosVencendo")}
           valor={vencendo}
           tom="warning"
-          trabalhos={vencendoLista}
+          grupos={vencendoGrupos}
           tipoPrazo={prazoVencendo}
           expandido={painelExpandido === "vencendo"}
           onToggleExpandir={() =>
@@ -252,11 +291,7 @@ export default function DashboardPage() {
               />
             </>
           }
-          linkImprimir={hrefControlePainel("vencendo", {
-            prazo: prazoVencendo,
-            dia: periodoVencendo,
-            imprimir: true,
-          })}
+          onImprimir={() => void imprimirServicosVencendo()}
           labelVisualizar={t("dashboard.visualizar")}
           labelImprimir={t("dashboard.imprimir")}
         />
@@ -264,7 +299,7 @@ export default function DashboardPage() {
           titulo={t("dashboard.servicosAtrasados")}
           valor={atrasados}
           tom="danger"
-          trabalhos={atrasadosLista}
+          grupos={atrasadosGrupos}
           tipoPrazo={prazoAtrasados}
           expandido={painelExpandido === "atrasados"}
           onToggleExpandir={() =>
@@ -367,6 +402,15 @@ export default function DashboardPage() {
         />
       </div>
 
+      {pdfVencendoUrl ? (
+        <PdfViewerModal
+          titulo={`Serviços vencendo até ${rotuloFimPeriodoVencendo(periodoVencendo)}`}
+          pdfUrl={pdfVencendoUrl}
+          nomeArquivo={`servicos-vencendo-${periodoVencendo}.pdf`}
+          iframeTitle="PDF serviços vencendo"
+          onFechar={fecharPdfVencendo}
+        />
+      ) : null}
     </div>
   );
 }

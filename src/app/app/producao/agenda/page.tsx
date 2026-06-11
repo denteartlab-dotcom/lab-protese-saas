@@ -6,7 +6,7 @@ import { Eye, Printer, Search } from "lucide-react";
 import { BadgeSegmentoOs } from "@/components/BadgeSegmentoOs";
 import { ControleProducaoToolbar } from "@/components/ControleProducaoToolbar";
 import { ImprimirOsModal } from "@/components/ImprimirOsModal";
-import { Button, Input, Select } from "@/components/ui";
+import { Button, Input, Select, SelectPesquisavel } from "@/components/ui";
 import { grupoOsTemMultiplosSegmentos } from "@/lib/trabalho-os-segmento";
 import { formatDate, STATUS_TRABALHO } from "@/lib/utils";
 import {
@@ -191,12 +191,16 @@ export default function AgendaPage() {
               <option key={key} value={key}>{value.label}</option>
             ))}
           </Select>
-          <Select label="Cliente" value={cliente} onChange={(e) => setCliente(e.target.value)}>
-            <option value="">Todos</option>
-            {clientes.map((nome) => (
-              <option key={nome}>{nome}</option>
-            ))}
-          </Select>
+          <SelectPesquisavel
+            label="Cliente"
+            value={cliente}
+            onChange={setCliente}
+            placeholder="Todos"
+            options={[
+              { value: "", label: "Todos" },
+              ...clientes.map((nome) => ({ value: nome, label: nome })),
+            ]}
+          />
           <Select label="Colaborador" value={colaborador} onChange={(e) => setColaborador(e.target.value)}>
             <option value="">Todos</option>
             <option>Sem colaborador</option>

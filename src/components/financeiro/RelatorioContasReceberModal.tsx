@@ -5,6 +5,7 @@ import { FileText, X } from "lucide-react";
 import { BotoesExtratoCompartilhar } from "@/components/financeiro/BotoesExtratoCompartilhar";
 import { EnviarExtratoWhatsappModal } from "@/components/financeiro/EnviarExtratoWhatsappModal";
 import { CampoDataBr } from "@/components/campo-data-br";
+import { SelectPesquisavel } from "@/components/SelectPesquisavel";
 import { dateToBrShort } from "@/lib/datas-br";
 import { exportarExtratoRelatorioExcel } from "@/lib/extrato-relatorio-export";
 import type { LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
@@ -452,35 +453,38 @@ export function RelatorioContasReceberModal({
 
             <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-6">
               <div className="min-w-0">
-                <label className={labelClass}>
-                  Clientes
-                  {extratoExigeCliente ? (
-                    <span className="ml-1 text-red-500">*</span>
-                  ) : null}
-                </label>
-                <select
+                <SelectPesquisavel
+                  label={
+                    <>
+                      Clientes
+                      {extratoExigeCliente ? (
+                        <span className="ml-1 text-red-500">*</span>
+                      ) : null}
+                    </>
+                  }
                   value={extratoExigeCliente && cliente === "todos" ? "" : cliente}
-                  onChange={(e) => setCliente(e.target.value)}
+                  onChange={setCliente}
                   required={extratoExigeCliente}
-                  className={cn(
+                  placeholder={
+                    extratoExigeCliente && clientesNoSelect.length > 0
+                      ? "Selecione um cliente"
+                      : extratoExigeCliente && !clientesNoSelect.length
+                        ? "Nenhum cliente disponível"
+                        : "Todos"
+                  }
+                  disabled={extratoExigeCliente && !clientesNoSelect.length}
+                  inputClassName={cn(
                     selectClass,
                     extratoExigeCliente && (!cliente || cliente === "todos")
                       ? "border-amber-400 focus:border-amber-500 focus:ring-amber-500"
                       : ""
                   )}
-                >
-                  {extratoExigeCliente && !clientesNoSelect.length ? (
-                    <option value="">Nenhum cliente disponível</option>
-                  ) : null}
-                  {extratoExigeCliente && clientesNoSelect.length > 0 ? (
-                    <option value="">Selecione um cliente</option>
-                  ) : null}
-                  {clientesNoSelect.map((c) => (
-                    <option key={c} value={c}>
-                      {c === "todos" ? "Todos" : c}
-                    </option>
-                  ))}
-                </select>
+                  menuEmPortal
+                  options={clientesNoSelect.map((c) => ({
+                    value: c,
+                    label: c === "todos" ? "Todos" : c,
+                  }))}
+                />
                 {extratoExigeCliente ? (
                   <p className="mt-1 text-[11px] text-amber-700">
                     Obrigatório escolher um cliente para o extrato.

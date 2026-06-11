@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui";
+import { Button, SelectPesquisavel } from "@/components/ui";
 import type { TipoMensagemForm } from "@/components/DadosLaboratorioForm";
 import {
   carregarConfigLaboratorio,
@@ -365,20 +365,17 @@ export function ConfiguracoesNfseTab({ onMensagem }: Props) {
         <h3 className="text-sm font-semibold text-slate-800">Emitir nota fiscal</h3>
         <div className="grid max-w-xl gap-3">
           <div>
-            <label className={labelClass}>Cliente (tomador)</label>
-            <select
+            <SelectPesquisavel
+              label="Cliente (tomador)"
               value={clienteId}
-              onChange={(e) => setClienteId(e.target.value)}
-              className={inputClass}
-            >
-              <option value="">Selecione</option>
-              {clientes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nome}
-                  {c.cnpjCpf ? ` — ${c.cnpjCpf}` : ""}
-                </option>
-              ))}
-            </select>
+              onChange={setClienteId}
+              placeholder="Selecione"
+              inputClassName={inputClass}
+              options={clientes.map((c) => ({
+                value: c.id,
+                label: c.cnpjCpf ? `${c.nome} — ${c.cnpjCpf}` : c.nome,
+              }))}
+            />
           </div>
           <div>
             <label className={labelClass}>Valor do serviço (R$)</label>

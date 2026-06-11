@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { BarraConfigListagem } from "@/components/listagem/BarraConfigListagem";
-import { Button, Card, Input, Modal, Select, Table } from "@/components/ui";
+import { Button, Card, Input, Modal, SelectPesquisavel, Table } from "@/components/ui";
 import { useListagemPaginada } from "@/hooks/use-listagem-paginada";
 import { compararTextoBr } from "@/lib/listagem-config";
 
@@ -184,19 +184,15 @@ export default function PacientesPage() {
         title={editing ? "Editar paciente" : "Novo paciente"}
       >
         <form onSubmit={save} className="space-y-4">
-          <Select
+          <SelectPesquisavel
             label="Cliente (dentista/clínica) *"
             value={form.clienteId}
-            onChange={(e) => setForm({ ...form, clienteId: e.target.value })}
+            onChange={(clienteId) => setForm({ ...form, clienteId })}
+            placeholder="Selecione..."
             required
-          >
-            <option value="">Selecione...</option>
-            {clientes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nome}
-              </option>
-            ))}
-          </Select>
+            menuEmPortal
+            options={clientes.map((c) => ({ value: c.id, label: c.nome }))}
+          />
           <Input
             label="Nome do paciente *"
             value={form.nome}

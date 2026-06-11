@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { Button, Card, Input, Select, Textarea } from "@/components/ui";
+import { Button, Card, Input, Select, SelectPesquisavel, Textarea } from "@/components/ui";
 import { TIPOS_PROTESE } from "@/lib/utils";
 
 type Cliente = { id: string; nome: string };
@@ -69,35 +69,23 @@ export default function NovaOSPage() {
       <h1 className="text-2xl font-bold">Nova Ordem de Serviço</h1>
       <Card title="Requisição de trabalho">
         <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
-          <Select
+          <SelectPesquisavel
             label="Cliente *"
             value={form.clienteId}
-            onChange={(e) =>
-              setForm({ ...form, clienteId: e.target.value, pacienteId: "" })
-            }
+            onChange={(clienteId) => setForm({ ...form, clienteId, pacienteId: "" })}
+            placeholder="Selecione o dentista/clínica"
             required
-          >
-            <option value="">Selecione o dentista/clínica</option>
-            {clientes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nome}
-              </option>
-            ))}
-          </Select>
-          <Select
+            options={clientes.map((c) => ({ value: c.id, label: c.nome }))}
+          />
+          <SelectPesquisavel
             label="Paciente *"
             value={form.pacienteId}
-            onChange={(e) => setForm({ ...form, pacienteId: e.target.value })}
+            onChange={(pacienteId) => setForm({ ...form, pacienteId })}
+            placeholder="Selecione o paciente"
             required
             disabled={!form.clienteId}
-          >
-            <option value="">Selecione o paciente</option>
-            {pacientes.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nome}
-              </option>
-            ))}
-          </Select>
+            options={pacientes.map((p) => ({ value: p.id, label: p.nome }))}
+          />
           <Select
             label="Tipo de prótese *"
             value={form.tipoProtese}

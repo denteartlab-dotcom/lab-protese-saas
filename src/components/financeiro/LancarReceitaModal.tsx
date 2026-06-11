@@ -18,6 +18,7 @@ import {
   type LancamentoDespesaDetalhe,
 } from "@/lib/lancamento-despesa";
 import { CampoDataBr } from "@/components/ui";
+import { SelectPesquisavel } from "@/components/SelectPesquisavel";
 import { dateToBrShort, somarDiasBr } from "@/lib/datas-br";
 import { parseNotaFiscalArquivo } from "@/lib/nfe-import";
 import {
@@ -1082,20 +1083,16 @@ export function LancarReceitaModal({
               </select>
             </div>
             <div className="col-span-12 md:col-span-6">
-              <label className={labelClass}>{labelNomeEntidade}</label>
-              <select
+              <SelectPesquisavel
+                label={labelNomeEntidade}
                 value={clienteId}
-                onChange={(e) => setClienteId(e.target.value)}
-                className={selectClass}
+                onChange={setClienteId}
+                placeholder="Selecione"
                 required={modo === "receita"}
-              >
-                <option value="">Selecione</option>
-                {entidadesLista.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome}
-                  </option>
-                ))}
-              </select>
+                inputClassName={selectClass}
+                menuEmPortal
+                options={entidadesLista.map((c) => ({ value: c.id, label: c.nome }))}
+              />
             </div>
             <div className="col-span-12 md:col-span-3">
               <label className={labelClass}>Categoria</label>

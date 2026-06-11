@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ChevronDown,
   FileSpreadsheet,
   FileText,
   Home,
   Printer,
 } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
+import { SelectPesquisavel } from "@/components/SelectPesquisavel";
 import { ImprimirReciboModal } from "@/components/financeiro/ImprimirReciboModal";
 import { PainelCarregando } from "@/components/ListaCarregando";
 import { dateToBrShort } from "@/lib/datas-br";
@@ -146,22 +146,17 @@ export function RelatorioRecibosEmitidosConteudo() {
           <div className="space-y-3 px-4 py-4">
             <div className="grid gap-3 lg:grid-cols-2">
               <div>
-                <label className={labelClass}>Clientes</label>
-                <div className="relative">
-                  <select
-                    className={cn(selectClass, "appearance-none pr-8")}
-                    value={clienteId}
-                    onChange={(e) => setClienteId(e.target.value)}
-                  >
-                    <option value="todos">Todos</option>
-                    {opcoesCliente.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.nome}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9ca3af]" />
-                </div>
+                <SelectPesquisavel
+                  label="Clientes"
+                  value={clienteId}
+                  onChange={setClienteId}
+                  placeholder="Todos"
+                  inputClassName={selectClass}
+                  options={[
+                    { value: "todos", label: "Todos" },
+                    ...opcoesCliente.map((c) => ({ value: c.id, label: c.nome })),
+                  ]}
+                />
               </div>
               <div>
                 <label className={labelClass}>Data de Recebimento</label>
