@@ -1,9 +1,10 @@
 "use client";
 
-import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  LIMITE_CLIENTES_SERVICO_PAINEL,
   OPCOES_DIAS_SEM_SERVICO,
+  ordenarClientesSemServicoPorMenosTempo,
   type ClienteSemServicoItem,
 } from "@/lib/dashboard-clientes-servico";
 import { formatDate } from "@/lib/utils";
@@ -21,7 +22,8 @@ function montarHtmlImpressaoClientesServicos(
   diasMinimos: number,
   lista: ClienteSemServicoItem[]
 ) {
-  const linhas = lista
+  const ordenada = ordenarClientesSemServicoPorMenosTempo(lista);
+  const linhas = ordenada
     .map((cliente) => {
       const data = cliente.ultimoServicoEm ? formatDate(cliente.ultimoServicoEm) : "—";
       return `<div class="linha">
@@ -58,9 +60,7 @@ function montarHtmlImpressaoClientesServicos(
       color: #374151;
       text-align: center;
     }
-    .tabela {
-      width: 100%;
-    }
+    .tabela { width: 100%; }
     .cabecalho {
       display: flex;
       align-items: center;
@@ -88,15 +88,10 @@ function montarHtmlImpressaoClientesServicos(
       font-size: 15px;
       line-height: 1.35;
     }
-    .nome {
-      flex: 1;
-      min-width: 0;
-      font-weight: 400;
-    }
+    .nome { flex: 1; min-width: 0; }
     .data {
       flex-shrink: 0;
       min-width: 96px;
-      color: #111827;
       text-align: right;
       white-space: nowrap;
     }
@@ -138,15 +133,36 @@ export function PainelClientesServicosDashboard({
   onDiasChange: (dias: number) => void;
   carregarListaImpressao?: () => Promise<ClienteSemServicoItem[]>;
 }) {
+  const [expandido, setExpandido] = useState(false);
   const [imprimindo, setImprimindo] = useState(false);
+
+  useEffect(() => {
+    setExpandido(false);
+  }, [diasMinimos]);
+
+  const ordenada = useMemo(
+    () => ordenarClientesSemServicoPorMenosTempo(lista),
+    [lista]
+  );
+
+  const visiveis = useMemo(
+    () =>
+      expandido
+        ? ordenada
+        : ordenada.slice(0, LIMITE_CLIENTES_SERVICO_PAINEL),
+    [ordenada, expandido]
+  );
+
+  const temMais = ordenada.length > LIMITE_CLIENTES_SERVICO_PAINEL;
 
   async function imprimir() {
     if (imprimindo) return;
     setImprimindo(true);
     try {
-      const listaImpressao = carregarListaImpressao
+      const bruta = carregarListaImpressao
         ? await carregarListaImpressao()
         : lista;
+      const listaImpressao = ordenarClientesSemServicoPorMenosTempo(bruta);
       const html = montarHtmlImpressaoClientesServicos(
         titulo,
         diasMinimos,
@@ -157,8 +173,14 @@ export function PainelClientesServicosDashboard({
       janela.document.open();
       janela.document.write(html);
       janela.document.close();
-      janela.focus();
-      janela.print();
+      janela.onload = () => {
+        janela.focus();
+        janela.print();
+      };
+      if (janela.document.readyState === "complete") {
+        janela.focus();
+        janela.print();
+      }
     } finally {
       setImprimindo(false);
     }
@@ -189,23 +211,24 @@ export function PainelClientesServicosDashboard({
           <span>Cliente</span>
           <span>Data último</span>
         </div>
-        <div className="max-h-36 space-y-0 overflow-y-auto">
-          {lista.length === 0 ? (
+        <div
+          className={`space-y-0 overflow-y-auto ${
+            expandido ? "max-h-52" : ""
+          }`}
+        >
+          {visiveis.length === 0 ? (
             <p className="py-4 text-center text-[11px] text-slate-400">
               Nenhum cliente inativo neste período.
             </p>
           ) : (
-            lista.map((c) => (
+            visiveis.map((c) => (
               <div
                 key={c.id}
                 className="grid grid-cols-[1fr_auto] gap-2 border-b border-slate-50 py-2 last:border-0"
               >
-                <Link
-                  href={`/app/clientes`}
-                  className="truncate font-medium text-slate-700 hover:text-primary-600"
-                >
+                <span className="truncate font-medium text-slate-700">
                   {c.nome}
-                </Link>
+                </span>
                 <span className="shrink-0 text-[11px] text-slate-500">
                   {c.ultimoServicoEm ? formatDate(c.ultimoServicoEm) : "—"}
                 </span>
@@ -214,17 +237,20 @@ export function PainelClientesServicosDashboard({
           )}
         </div>
         <div className="mt-4 flex gap-2">
-          <Link
-            href="/app/clientes"
-            className="rounded border border-primary-200 bg-primary-50 px-3 py-1 text-[11px] font-medium text-primary-700 hover:bg-primary-100"
-          >
-            Ver Mais
-          </Link>
+          {temMais ? (
+            <button
+              type="button"
+              onClick={() => setExpandido((atual) => !atual)}
+              className="rounded border border-primary-600 px-3 py-1 text-[11px] font-medium text-primary-600 hover:bg-primary-50"
+            >
+              {expandido ? "Ver menos" : "Ver Mais"}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => void imprimir()}
-            disabled={imprimindo}
-            className="rounded border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+            disabled={imprimindo || ordenada.length === 0}
+            className="rounded border border-primary-600 bg-primary-600 px-3 py-1 text-[11px] font-medium text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {imprimindo ? "Gerando..." : "Imprimir"}
           </button>
