@@ -253,10 +253,10 @@ export default function AcompanhamentoClientePage() {
 
               {t.etapas.length > 0 ? (
                 <div className="px-4 py-2.5">
-                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                     Etapas de produção
                   </p>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-2">
                     {t.etapas.map((etapa, idx) => (
                       <div
                         key={`${etapa.nome}-${idx}`}
@@ -270,7 +270,7 @@ export default function AcompanhamentoClientePage() {
                           .filter(Boolean)
                           .join(" · ")}
                         className={cn(
-                          "inline-flex min-w-[5.5rem] max-w-[9.5rem] flex-col rounded-md border px-2 py-1 text-[10px] leading-snug",
+                          "inline-flex min-w-[6.5rem] max-w-[11rem] flex-col rounded-md border px-2.5 py-1.5 text-[12px] leading-snug",
                           etapa.situacao === "atual"
                             ? "border-[#4a90d9]/45 bg-[#4a90d9]/8 shadow-sm"
                             : etapa.situacao === "concluida"
@@ -283,21 +283,21 @@ export default function AcompanhamentoClientePage() {
                         </span>
                         <span className="mt-0.5 flex items-center gap-1">
                           {etapa.situacao === "atual" ? (
-                            <span className="text-[8px] font-bold uppercase tracking-wide text-[#4a90d9]">
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-[#4a90d9]">
                               Agora
                             </span>
                           ) : etapa.situacao === "concluida" ? (
-                            <span className="text-[8px] font-bold uppercase tracking-wide text-emerald-600">
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-emerald-600">
                               Ok
                             </span>
                           ) : (
-                            <span className="text-[8px] uppercase tracking-wide text-slate-400">
+                            <span className="text-[10px] uppercase tracking-wide text-slate-400">
                               Pendente
                             </span>
                           )}
                         </span>
                         {etapa.prazo ? (
-                          <span className="mt-0.5 truncate text-[9px] text-slate-400">
+                          <span className="mt-0.5 truncate text-[11px] text-slate-500">
                             {etapa.prazo}
                           </span>
                         ) : null}

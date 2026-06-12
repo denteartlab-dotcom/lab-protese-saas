@@ -64,19 +64,13 @@ export function TvFooter({
               </p>
             )}
           </div>
-          <div className="mt-2 w-full px-2 tv-hd:mt-3 tv-hd:px-3">
-            <div className="relative w-full px-3 py-0.5 tv-hd:px-4">
+          <div className="mt-2 flex justify-center px-1 tv-hd:mt-2.5">
+            <div className="inline-flex max-w-full items-start gap-1 tv-hd:gap-1.5">
               <span
-                className="pointer-events-none absolute left-0 top-0 select-none font-serif text-xl leading-none text-slate-500/40 tv:text-2xl tv-4k:text-3xl"
+                className="mt-0.5 shrink-0 select-none font-serif text-[15px] leading-none text-slate-500/50 tv-hd:text-[16px] tv:text-[18px]"
                 aria-hidden
               >
                 “
-              </span>
-              <span
-                className="pointer-events-none absolute bottom-0 right-0 select-none font-serif text-xl leading-none text-slate-500/40 tv:text-2xl tv-4k:text-3xl"
-                aria-hidden
-              >
-                ”
               </span>
               <AnimatePresence mode="wait">
                 <motion.p
@@ -85,11 +79,17 @@ export function TvFooter({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -6 }}
                   transition={{ duration: 0.45 }}
-                  className="text-center text-[10px] leading-relaxed text-slate-200 tv:text-[11px] tv-4k:text-xs"
+                  className="max-w-[40ch] text-center text-[13px] leading-snug text-slate-200 tv-hd:text-[13px] tv:text-[14px]"
                 >
                   {fraseMotivacional}
                 </motion.p>
               </AnimatePresence>
+              <span
+                className="mt-auto shrink-0 select-none pb-0.5 font-serif text-[15px] leading-none text-slate-500/50 tv-hd:text-[16px] tv:text-[18px]"
+                aria-hidden
+              >
+                ”
+              </span>
             </div>
           </div>
         </div>
