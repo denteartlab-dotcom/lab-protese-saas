@@ -41,6 +41,13 @@ import {
   gerarPdfServicosAtrasados,
   gerarPdfServicosVencendo,
 } from "@/lib/pdf-servicos-vencendo";
+import {
+  abrirPdfViewerNovaAba,
+  criarIdPdfViewer,
+  marcarPdfViewerErro,
+  publicarPdfNaAba,
+  salvarPdfViewerSession,
+} from "@/lib/pdf-viewer-aba";
 import { useLabConfigClient } from "@/lib/use-lab-config-client";
 import { usePermissoesApp } from "@/components/PermissoesAppProvider";
 import { permissaoIdPorHref } from "@/lib/usuarios-menu-permissoes";
@@ -128,7 +135,6 @@ export default function DashboardPage() {
   const [diasSemServico, setDiasSemServico] = useState(15);
   const [uploadsResumo, setUploadsResumo] = useState<UploadsResumoUi | null>(null);
   const [pdfVencendoUrl, setPdfVencendoUrl] = useState<string | null>(null);
-  const [pdfAtrasadosUrl, setPdfAtrasadosUrl] = useState<string | null>(null);
   const { acessoTotal, permissoesModulos } = usePermissoesApp();
   const dataRef = useRef<Dashboard | null>(data);
   dataRef.current = data;
@@ -222,22 +228,26 @@ export default function DashboardPage() {
   }
 
   async function imprimirServicosAtrasados() {
+    const titulo = `Serviços Atrasados (${atrasadosGrupos.length})`;
+    const id = criarIdPdfViewer();
+    salvarPdfViewerSession(id, {
+      status: "loading",
+      titulo,
+      nomeArquivo: "servicos-atrasados.pdf",
+    });
+
+    const janela = abrirPdfViewerNovaAba(id);
+    if (!janela) return;
+
     try {
       const blob = await gerarPdfServicosAtrasados({
         lab,
         grupos: atrasadosGrupos,
       });
-      const url = URL.createObjectURL(blob);
-      if (pdfAtrasadosUrl) URL.revokeObjectURL(pdfAtrasadosUrl);
-      setPdfAtrasadosUrl(url);
+      await publicarPdfNaAba(id, blob, titulo, "servicos-atrasados.pdf");
     } catch {
-      /* falha silenciosa — usuário pode tentar de novo */
+      marcarPdfViewerErro(id, "Não foi possível gerar o PDF.", titulo);
     }
-  }
-
-  function fecharPdfAtrasados() {
-    if (pdfAtrasadosUrl) URL.revokeObjectURL(pdfAtrasadosUrl);
-    setPdfAtrasadosUrl(null);
   }
 
   if (carregando && !data) {
@@ -428,16 +438,6 @@ export default function DashboardPage() {
           nomeArquivo={`servicos-vencendo-${periodoVencendo}.pdf`}
           iframeTitle="PDF serviços vencendo"
           onFechar={fecharPdfVencendo}
-        />
-      ) : null}
-
-      {pdfAtrasadosUrl ? (
-        <PdfViewerModal
-          titulo={`Serviços Atrasados (${atrasados})`}
-          pdfUrl={pdfAtrasadosUrl}
-          nomeArquivo="servicos-atrasados.pdf"
-          iframeTitle="PDF serviços atrasados"
-          onFechar={fecharPdfAtrasados}
         />
       ) : null}
     </div>

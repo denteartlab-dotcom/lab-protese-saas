@@ -1,3 +1,4 @@
+import type { jsPDF } from "jspdf";
 import type { LabImpressaoConfig } from "@/lib/lab-impressao";
 import {
   LOGO_PDF_CABECALHO_OS_ALTURA_MM,
@@ -17,19 +18,33 @@ type GerarPdfServicosVencendoOpts = {
   tituloPeriodo: string;
 };
 
-const COLUNAS = [
-  { chave: "os", titulo: "OS", largura: 12 },
-  { chave: "cliente", titulo: "Cliente", largura: 28 },
-  { chave: "servicos", titulo: "Serviços", largura: 38 },
-  { chave: "paciente", titulo: "Paciente", largura: 28 },
-  { chave: "situacao", titulo: "Situação", largura: 22 },
-  { chave: "colaborador", titulo: "Colaborador", largura: 28 },
-  { chave: "prazoLab", titulo: "Prazo Lab.", largura: 18 },
-  { chave: "prazoDent", titulo: "Prazo Dent.", largura: 18 },
-] as const;
+type ColunaPdf = {
+  chave: keyof ReturnType<typeof linhaGrupoPdf>;
+  titulo: string;
+  peso: number;
+  alinhar?: "left" | "center" | "right";
+};
+
+const MARGEM_MM = 10;
+const ALTURA_LINHA_TEXTO = 3.4;
+const PADDING_CELULA = 1.6;
+const FONTE_CORPO = 7;
+const FONTE_CABECALHO_TABELA = 7.5;
+
+const COLUNAS: ColunaPdf[] = [
+  { chave: "os", titulo: "OS", peso: 8, alinhar: "center" },
+  { chave: "cliente", titulo: "Cliente", peso: 18, alinhar: "left" },
+  { chave: "servicos", titulo: "Serviços", peso: 28, alinhar: "left" },
+  { chave: "paciente", titulo: "Paciente", peso: 16, alinhar: "left" },
+  { chave: "situacao", titulo: "Situação", peso: 12, alinhar: "left" },
+  { chave: "colaborador", titulo: "Colaborador", peso: 14, alinhar: "left" },
+  { chave: "prazoLab", titulo: "Prazo Lab.", peso: 12, alinhar: "center" },
+  { chave: "prazoDent", titulo: "Prazo Dent.", peso: 12, alinhar: "center" },
+];
 
 function truncar(texto: string, max = 120) {
   const limpo = texto.replace(/\s+/g, " ").trim();
+  if (!limpo || limpo === "—") return "—";
   if (limpo.length <= max) return limpo;
   return `${limpo.slice(0, max - 1)}…`;
 }
@@ -37,14 +52,167 @@ function truncar(texto: string, max = 120) {
 function linhaGrupoPdf(grupo: GrupoOsPainelServicos) {
   return {
     os: String(grupo.numeroOs),
-    cliente: truncar(grupo.clienteNome, 40),
-    servicos: truncar(grupo.servicos.join(", "), 70),
+    cliente: truncar(grupo.clienteNome, 48),
+    servicos: truncar(grupo.servicos.join(", "), 90),
     paciente: truncar(grupo.pacienteNome, 40),
-    situacao: truncar(grupo.situacao, 30),
-    colaborador: truncar(grupo.colaborador, 40),
-    prazoLab: grupo.prazoLab,
-    prazoDent: grupo.prazoDent,
+    situacao: truncar(grupo.situacao, 28),
+    colaborador: truncar(grupo.colaborador, 36),
+    prazoLab: grupo.prazoLab === "—" ? "—" : grupo.prazoLab,
+    prazoDent: grupo.prazoDent === "—" ? "—" : grupo.prazoDent,
   };
+}
+
+function largurasColunas(tableW: number) {
+  const pesoTotal = COLUNAS.reduce((s, c) => s + c.peso, 0);
+  return COLUNAS.map((col) => (col.peso / pesoTotal) * tableW);
+}
+
+function linhasCelula(doc: jsPDF, texto: string, largura: number) {
+  const limpo = String(texto || "—").trim() || "—";
+  return doc.splitTextToSize(limpo, Math.max(4, largura - PADDING_CELULA * 2));
+}
+
+function alturaLinhaTabela(doc: jsPDF, linha: ReturnType<typeof linhaGrupoPdf>, larguras: number[]) {
+  let maxLinhas = 1;
+  COLUNAS.forEach((col, i) => {
+    const qtd = linhasCelula(doc, String(linha[col.chave]), larguras[i]).length;
+    maxLinhas = Math.max(maxLinhas, qtd);
+  });
+  return maxLinhas * ALTURA_LINHA_TEXTO + PADDING_CELULA * 2;
+}
+
+function desenharCabecalhoLaboratorio(doc: jsPDF, lab: LabImpressaoConfig, y: number) {
+  const pageW = doc.internal.pageSize.getWidth();
+  const logo = lab.logoDataUrl?.trim();
+
+  if (logo?.startsWith("data:image")) {
+    try {
+      const formato = logo.includes("image/png") ? "PNG" : "JPEG";
+      doc.addImage(
+        logo,
+        formato,
+        MARGEM_MM,
+        y,
+        LOGO_PDF_CABECALHO_OS_LARGURA_MM,
+        LOGO_PDF_CABECALHO_OS_ALTURA_MM
+      );
+    } catch {
+      /* ignora logo inválido */
+    }
+  }
+
+  const infoX = MARGEM_MM + LOGO_PDF_CABECALHO_OS_LARGURA_MM + 4;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text(lab.responsavel || lab.marca || "Laboratório", infoX, y + 5);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.text(lab.endereco || lab.enderecoLinha1 || "", infoX, y + 10);
+  doc.text(lab.telefones || "", infoX, y + 14);
+  doc.text(lab.email || "", infoX, y + 18);
+
+  y += LOGO_PDF_CABECALHO_OS_ALTURA_MM + 4;
+  doc.setDrawColor(0);
+  doc.setLineWidth(0.35);
+  doc.line(MARGEM_MM, y, pageW - MARGEM_MM, y);
+  return y + 8;
+}
+
+function desenharTituloRelatorio(doc: jsPDF, titulo: string, y: number) {
+  const pageW = doc.internal.pageSize.getWidth();
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text(titulo, pageW / 2, y, { align: "center" });
+  y += 5;
+  doc.setDrawColor(0);
+  doc.setLineWidth(0.25);
+  doc.line(MARGEM_MM, y, pageW - MARGEM_MM, y);
+  return y + 4;
+}
+
+function desenharLinhaGrade(
+  doc: jsPDF,
+  x0: number,
+  y: number,
+  larguras: number[],
+  altura: number,
+  espessura = 0.15
+) {
+  const tableW = larguras.reduce((s, w) => s + w, 0);
+  doc.setDrawColor(180, 180, 180);
+  doc.setLineWidth(espessura);
+  doc.rect(x0, y, tableW, altura);
+
+  let x = x0;
+  for (let i = 0; i < larguras.length - 1; i++) {
+    x += larguras[i];
+    doc.line(x, y, x, y + altura);
+  }
+}
+
+function desenharCabecalhoTabela(doc: jsPDF, x0: number, y: number, larguras: number[]) {
+  const altura = ALTURA_LINHA_TEXTO + PADDING_CELULA * 2;
+  desenharLinhaGrade(doc, x0, y, larguras, altura, 0.2);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(FONTE_CABECALHO_TABELA);
+
+  let x = x0;
+  for (let i = 0; i < COLUNAS.length; i++) {
+    const col = COLUNAS[i];
+    const w = larguras[i];
+    const textoX =
+      col.alinhar === "center"
+        ? x + w / 2
+        : col.alinhar === "right"
+          ? x + w - PADDING_CELULA
+          : x + PADDING_CELULA;
+    doc.text(col.titulo, textoX, y + PADDING_CELULA + ALTURA_LINHA_TEXTO * 0.85, {
+      align: col.alinhar ?? "left",
+    });
+    x += w;
+  }
+
+  return y + altura;
+}
+
+function desenharLinhaDados(
+  doc: jsPDF,
+  linha: ReturnType<typeof linhaGrupoPdf>,
+  x0: number,
+  y: number,
+  larguras: number[]
+) {
+  const altura = alturaLinhaTabela(doc, linha, larguras);
+  desenharLinhaGrade(doc, x0, y, larguras, altura);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(FONTE_CORPO);
+
+  let x = x0;
+  for (let i = 0; i < COLUNAS.length; i++) {
+    const col = COLUNAS[i];
+    const w = larguras[i];
+    const linhas = linhasCelula(doc, String(linha[col.chave]), w);
+    const blocoH = linhas.length * ALTURA_LINHA_TEXTO;
+    const offsetY = (altura - blocoH) / 2;
+
+    linhas.forEach((texto: string, idx: number) => {
+      const textoX =
+        col.alinhar === "center"
+          ? x + w / 2
+          : col.alinhar === "right"
+            ? x + w - PADDING_CELULA
+            : x + PADDING_CELULA;
+      doc.text(texto, textoX, y + offsetY + ALTURA_LINHA_TEXTO * (idx + 0.85), {
+        align: col.alinhar ?? "left",
+      });
+    });
+
+    x += w;
+  }
+
+  return y + altura;
 }
 
 export async function gerarPdfServicosVencendo({
@@ -77,91 +245,57 @@ async function gerarPdfServicosPainel({
   titulo,
 }: GerarPdfServicosPainelOpts): Promise<Blob> {
   const { default: jsPDF } = await import("jspdf");
-  const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
+  const doc = new jsPDF({
+    unit: "mm",
+    format: "a4",
+    orientation: "landscape",
+  });
+
   const pageW = doc.internal.pageSize.getWidth();
-  const margin = 12;
-  let y = margin;
+  const pageH = doc.internal.pageSize.getHeight();
+  const tableW = pageW - MARGEM_MM * 2;
+  const larguras = largurasColunas(tableW);
+  const x0 = MARGEM_MM;
 
-  const logo = lab.logoDataUrl?.trim();
-
-  if (logo?.startsWith("data:image")) {
-    try {
-      const formato = logo.includes("image/png") ? "PNG" : "JPEG";
-      doc.addImage(
-        logo,
-        formato,
-        margin,
-        y,
-        LOGO_PDF_CABECALHO_OS_LARGURA_MM,
-        LOGO_PDF_CABECALHO_OS_ALTURA_MM
-      );
-    } catch {
-      /* ignora logo inválido */
-    }
-  }
-
-  const infoX = margin + LOGO_PDF_CABECALHO_OS_LARGURA_MM + 4;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text(lab.responsavel || lab.marca || "Laboratório", infoX, y + 5);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.text(lab.endereco || lab.enderecoLinha1 || "", infoX, y + 10);
-  doc.text(lab.telefones || "", infoX, y + 14);
-  doc.text(lab.email || "", infoX, y + 18);
-
-  y += LOGO_PDF_CABECALHO_OS_ALTURA_MM + 4;
-  doc.setDrawColor(0);
-  doc.setLineWidth(0.4);
-  doc.line(margin, y, pageW - margin, y);
-  y += 8;
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.text(titulo, pageW / 2, y, { align: "center" });
-  y += 6;
-
-  doc.line(margin, y, pageW - margin, y);
-  y += 5;
-
-  const larguraTotal = COLUNAS.reduce((s, c) => s + c.largura, 0);
-  const escala = (pageW - margin * 2) / larguraTotal;
-  let x = margin;
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
-  for (const col of COLUNAS) {
-    const w = col.largura * escala;
-    doc.text(col.titulo, x + 1, y);
-    x += w;
-  }
-  y += 2;
-  doc.line(margin, y, pageW - margin, y);
-  y += 4;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
+  let y = desenharCabecalhoLaboratorio(doc, lab, MARGEM_MM);
+  y = desenharTituloRelatorio(doc, titulo, y);
+  y = desenharCabecalhoTabela(doc, x0, y, larguras);
 
   const linhas = grupos.map(linhaGrupoPdf);
-  const alturaLinha = 5;
 
   for (const linha of linhas) {
-    if (y > doc.internal.pageSize.getHeight() - margin - alturaLinha) {
+    const altura = alturaLinhaTabela(doc, linha, larguras);
+    if (y + altura > pageH - MARGEM_MM) {
       doc.addPage();
-      y = margin;
+      y = MARGEM_MM;
+      y = desenharCabecalhoTabela(doc, x0, y, larguras);
     }
+    y = desenharLinhaDados(doc, linha, x0, y, larguras);
+  }
 
-    x = margin;
-    for (const col of COLUNAS) {
-      const w = col.largura * escala;
-      const valor = linha[col.chave as keyof typeof linha] || "—";
-      doc.text(String(valor), x + 1, y, { maxWidth: w - 2 });
-      x += w;
+  if (linhas.length === 0) {
+    const altura = alturaLinhaTabela(
+      doc,
+      {
+        os: "—",
+        cliente: "Nenhum serviço neste filtro.",
+        servicos: "—",
+        paciente: "—",
+        situacao: "—",
+        colaborador: "—",
+        prazoLab: "—",
+        prazoDent: "—",
+      },
+      larguras
+    );
+    if (y + altura > pageH - MARGEM_MM) {
+      doc.addPage();
+      y = MARGEM_MM;
     }
-    y += alturaLinha;
-    doc.setDrawColor(210, 210, 210);
-    doc.setLineWidth(0.15);
-    doc.line(margin, y - 1.5, pageW - margin, y - 1.5);
+    desenharLinhaGrade(doc, x0, y, larguras, altura);
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(FONTE_CORPO);
+    doc.text("Nenhum serviço neste filtro.", x0 + PADDING_CELULA, y + altura / 2 + 1);
   }
 
   return doc.output("blob");
