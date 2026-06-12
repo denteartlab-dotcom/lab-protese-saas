@@ -155,7 +155,7 @@ export default function AcompanhamentoClientePage() {
         ) : null}
       </header>
 
-      <main className="mx-auto max-w-2xl space-y-4 p-4 pb-10">
+      <main className="mx-auto max-w-3xl space-y-4 p-4 pb-10">
         {urgenteMsg ? (
           <p
             className={cn(
@@ -252,49 +252,58 @@ export default function AcompanhamentoClientePage() {
               </div>
 
               {t.etapas.length > 0 ? (
-                <div className="px-4 py-3">
-                  <p className="mb-2 text-[11px] font-semibold uppercase text-slate-500">
+                <div className="px-4 py-2.5">
+                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
                     Etapas de produção
                   </p>
-                  <ul className="space-y-2">
+                  <div className="flex flex-wrap gap-1.5">
                     {t.etapas.map((etapa, idx) => (
-                      <li
+                      <div
                         key={`${etapa.nome}-${idx}`}
+                        title={[
+                          etapa.responsavel
+                            ? `Responsável: ${etapa.responsavel}`
+                            : null,
+                          etapa.prazo ? `Prazo: ${etapa.prazo}` : null,
+                          etapa.observacao,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
                         className={cn(
-                          "rounded border px-3 py-2 text-[12px]",
+                          "inline-flex min-w-[5.5rem] max-w-[9.5rem] flex-col rounded-md border px-2 py-1 text-[10px] leading-snug",
                           etapa.situacao === "atual"
-                            ? "border-[#4a90d9]/40 bg-[#4a90d9]/5"
+                            ? "border-[#4a90d9]/45 bg-[#4a90d9]/8 shadow-sm"
                             : etapa.situacao === "concluida"
-                              ? "border-emerald-100 bg-emerald-50/50"
-                              : "border-slate-100 bg-slate-50/50"
+                              ? "border-emerald-200/70 bg-emerald-50/50"
+                              : "border-slate-200/80 bg-slate-50/40"
                         )}
                       >
-                        <p className="font-medium text-slate-800">
+                        <span className="truncate font-medium text-slate-700">
                           {etapa.nome}
+                        </span>
+                        <span className="mt-0.5 flex items-center gap-1">
                           {etapa.situacao === "atual" ? (
-                            <span className="ml-2 text-[10px] font-semibold uppercase text-[#4a90d9]">
+                            <span className="text-[8px] font-bold uppercase tracking-wide text-[#4a90d9]">
                               Agora
                             </span>
                           ) : etapa.situacao === "concluida" ? (
-                            <span className="ml-2 text-[10px] font-semibold uppercase text-emerald-600">
-                              Concluída
+                            <span className="text-[8px] font-bold uppercase tracking-wide text-emerald-600">
+                              Ok
                             </span>
-                          ) : null}
-                        </p>
-                        {etapa.responsavel ? (
-                          <p className="text-slate-500">
-                            Responsável: {etapa.responsavel}
-                          </p>
-                        ) : null}
+                          ) : (
+                            <span className="text-[8px] uppercase tracking-wide text-slate-400">
+                              Pendente
+                            </span>
+                          )}
+                        </span>
                         {etapa.prazo ? (
-                          <p className="text-slate-500">Prazo: {etapa.prazo}</p>
+                          <span className="mt-0.5 truncate text-[9px] text-slate-400">
+                            {etapa.prazo}
+                          </span>
                         ) : null}
-                        {etapa.observacao ? (
-                          <p className="text-slate-500">{etapa.observacao}</p>
-                        ) : null}
-                      </li>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               ) : (
                 <p className="px-4 py-3 text-[12px] text-slate-400">
