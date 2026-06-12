@@ -60,16 +60,22 @@ import { propsInputComSelecaoAoFocar } from "@/lib/input-selecao";
 import { calcularDatasPrazoServico } from "@/lib/prazos-servico";
 import {
   buscarServicoNaTabela,
-  carregarCategoriasPorTabelaPreco,
+  carregarDadosTabelaPrecoOs,
   categoriaDoServicoNaTabela,
+  colaboradoresIniciaisFormParaOsServico,
+  comissaoColaboradorNaTabelaServico,
   comissoesColaboradoresDoServico,
   comissoesTerceirizadosDoServico,
+  encontrarChaveTabelaPreco,
   etapasFormParaItemServico,
+  etapasIniciaisFormParaOsServico,
   categoriasSelecionaveisNaOs,
   servicosDaCategoriaTabela,
   servicosSelecionaveisNaOs,
   servicoTemComissoesColaboradoresNaTabela,
   servicoTemComissoesTerceirizadosNaTabela,
+  servicoTemEtapasNaTabela,
+  terceirizadosIniciaisFormParaOsServico,
   type CategoriaTabelaPrecoOs,
 } from "@/lib/tabela-precos-os";
 import {
@@ -92,6 +98,7 @@ import {
   removerComplementosOsDoCorpo,
   resumoColaboradorControle,
   type ColaboradorOsLinha,
+  type EtapaCadastro,
   type TerceirizadoOsLinha,
 } from "@/lib/etapas-os";
 import {
@@ -114,6 +121,7 @@ import {
 } from "@/lib/os-faturamento";
 import {
   anexosParaLinhasInstrucoes,
+  clienteTabelaPrecoDeObservacoes,
   linhaInstrucaoOs,
   montarCorpoCabecalhoInstrucoes,
 } from "@/lib/cabecalho-os-form";
@@ -154,7 +162,7 @@ type Trabalho = {
   dataEntrega?: string | null;
   observacoes?: string | null;
   instrucoes?: string | null;
-  cliente?: { id?: string; nome?: string | null; cro?: string | null };
+  cliente?: { id?: string; nome?: string | null; cro?: string | null; observacoes?: string | null };
   paciente?: { id?: string; nome?: string | null };
 };
 
@@ -254,6 +262,8 @@ type ClienteCatalogo = {
   nome: string;
   observacoes?: string | null;
 };
+
+type EtapaOsItemEdicao = EtapaOsFormLinha;
 
 type AbaServicoEdicao = "etapas" | "produtos" | "colaboradores" | "terceiros";
 type PainelEdicaoItem = "servico" | "produto" | "transporte";
@@ -427,7 +437,46 @@ type EditItem = {
   repeticao?: boolean;
   produtoId?: string;
   observacao?: string;
+  /** Etapas preenchidas para este serviço (uma OS com vários serviços). */
+  etapasServico?: EtapaOsItemEdicao[];
 };
+
+function etapasServicoDeRegistroGrupo(
+  item: EditItem,
+  grupo: Trabalho[],
+  categorias: CategoriaTabelaPrecoOs[],
+  modelos: EtapaCadastro[],
+  dataLancamento: string,
+  horaLaboratorio: string
+): EtapaOsItemEdicao[] {
+  const nomeItem = item.servico.trim().toLowerCase();
+  const registro =
+    grupo.find(
+      (t) =>
+        segmentoEfetivoTrabalho(t) === "servico" &&
+        (t.tipoProtese || "").trim().toLowerCase() === nomeItem
+    ) ||
+    grupo.find((t) => segmentoEfetivoTrabalho(t) === "servico");
+  if (!registro) return [];
+
+  const complementos = parseComplementosInstrucoesGrupo([registro.instrucoes || ""]);
+  const servico = buscarServicoNaTabela(categorias, item.servico);
+  let etapasForm = etapasOsLinhaParaForm(complementos.etapas).filter((etapa) => etapa.nome.trim());
+
+  if (etapasForm.length === 0 && servico && servicoTemEtapasNaTabela(servico)) {
+    etapasForm = etapasIniciaisFormParaOsServico(
+      servico,
+      modelos,
+      dataLancamento,
+      horaLaboratorio
+    );
+  }
+
+  return etapasForm.map((etapa) => ({
+    ...etapa,
+    setor: etapa.setor || modelos.find((modelo) => modelo.nome === etapa.nome)?.setor || "",
+  }));
+}
 
 function formatCurrencyInputControle(value: string) {
   const centavos = Number(String(value).replace(/\D/g, "")) || 0;
@@ -883,6 +932,9 @@ export default function ControlePage() {
   >([]);
   const [colaboradoresOpcoes, setColaboradoresOpcoes] = useState<ColaboradorListagem[]>([]);
   const [opcoesTerceirizados, setOpcoesTerceirizados] = useState<TerceirizadoOpcao[]>([]);
+  const [categoriasPorTabelaPreco, setCategoriasPorTabelaPreco] = useState<
+    Record<string, CategoriaTabelaPrecoOs[]>
+  >({});
   const [categoriasTabelaPreco, setCategoriasTabelaPreco] = useState<CategoriaTabelaPrecoOs[]>([]);
   const [lancamentosFatura, setLancamentosFatura] = useState<LancamentoFaturaOs[]>([]);
 
@@ -1096,15 +1148,42 @@ export default function ControlePage() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const dados = carregarDadosTabelaPrecoOs();
+      if (Object.keys(dados.categoriasPorTabela).length > 0) {
+        setCategoriasPorTabelaPreco(dados.categoriasPorTabela);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const tabelaPrecoSelecionada = useMemo(() => {
+    const clienteId = form?.clienteId || editando?.clienteId || editando?.cliente?.id || "";
+    const observacoesCliente =
+      clientesCatalogo.find((item) => item.id === clienteId)?.observacoes ||
+      editando?.cliente?.observacoes;
+    const tabelaDoCliente = clienteId ? clienteTabelaPrecoDeObservacoes(observacoesCliente) : "";
+    const chaveCliente = encontrarChaveTabelaPreco(categoriasPorTabelaPreco, tabelaDoCliente);
+    if (chaveCliente) return chaveCliente;
+    const primeiraComItens = Object.entries(categoriasPorTabelaPreco).find(
+      ([, categorias]) => categoriasSelecionaveisNaOs(categorias).length > 0
+    )?.[0];
+    return primeiraComItens || Object.keys(categoriasPorTabelaPreco)[0] || "Tabela Principal";
+  }, [form?.clienteId, editando, clientesCatalogo, categoriasPorTabelaPreco]);
+
+  useEffect(() => {
+    const categorias = categoriasPorTabelaPreco[tabelaPrecoSelecionada] || [];
+    setCategoriasTabelaPreco(categoriasSelecionaveisNaOs(categorias));
+  }, [categoriasPorTabelaPreco, tabelaPrecoSelecionada]);
+
+  useEffect(() => {
     if (!editando) return;
     fetch("/api/produtos")
       .then((res) => res.json())
       .then((data) => setProdutosCadastro(Array.isArray(data) ? data : []))
       .catch(() => setProdutosCadastro([]));
-
-    const porTabela = carregarCategoriasPorTabelaPreco();
-    const tabela = "Tabela Principal";
-    setCategoriasTabelaPreco(porTabela[tabela] || Object.values(porTabela)[0] || []);
     setColaboradoresOpcoes(carregarColaboradoresListagem());
     setOpcoesTerceirizados(carregarOpcoesTerceirizadosControle());
   }, [editando]);
@@ -1171,6 +1250,61 @@ export default function ControlePage() {
       return changed ? atualizados : atuais;
     });
   }, [totalItensEdicao, form?.repeticao, opcoesTerceirizados, editando]);
+
+  useEffect(() => {
+    if (!editando || !servicoOsAtualEdicao) return;
+    if (!servicoTemComissoesColaboradoresNaTabela(servicoOsAtualEdicao)) return;
+    setColaboradoresEdicao((atuais) => {
+      if (atuais.length === 0) return atuais;
+      let mudou = false;
+      const proximos = atuais.map((item) => {
+        const comissao = comissaoColaboradorNaTabelaServico(
+          servicoOsAtualEdicao,
+          item.nome,
+          Boolean(form?.repeticao)
+        );
+        if (!comissao || item.comissao === comissao) return item;
+        mudou = true;
+        return { ...item, comissao };
+      });
+      return mudou ? proximos : atuais;
+    });
+  }, [editando, form?.repeticao, servicoOsAtualEdicao]);
+
+  useEffect(() => {
+    if (!editando || !servicoOsAtualEdicao) return;
+    if (!servicoTemComissoesTerceirizadosNaTabela(servicoOsAtualEdicao)) return;
+    setTerceirizadosEdicao((atuais) => {
+      if (atuais.length === 0) return atuais;
+      const base =
+        servicoOsAtualEdicao.valor * (Number(form?.quantidade || 1) || 1);
+      let mudou = false;
+      const proximos = atuais.map((item) => {
+        const linha = comissoesTerceirizadosServicoEdicao.find(
+          (terceiro) => terceiro.nome.trim() === item.nome.trim()
+        );
+        if (!linha) return item;
+        const percentual = parsePercentualControle(
+          form?.repeticao ? linha.valorRepeticao : linha.valor
+        );
+        const custo = (base * percentual) / 100;
+        const custoFmt = custo.toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+        });
+        if (item.custo === custoFmt) return item;
+        mudou = true;
+        return { ...item, custo: custoFmt };
+      });
+      return mudou ? proximos : atuais;
+    });
+  }, [
+    editando,
+    form?.repeticao,
+    form?.quantidade,
+    servicoOsAtualEdicao,
+    comissoesTerceirizadosServicoEdicao,
+  ]);
 
   const clientes = Array.from(
     new Set(trabalhos.map(clienteNome).filter(Boolean))
@@ -1308,6 +1442,36 @@ export default function ControlePage() {
           }
         : atual
     );
+    if (servicoTemEtapasNaTabela(servico)) {
+      setEtapasEdicao(
+        etapasIniciaisFormParaOsServico(
+          servico,
+          modelosEtapasOs,
+          form.dataLancamento,
+          form.horaLaboratorio
+        ).map((etapa) => ({
+          ...etapa,
+          setor: etapa.setor || modelosEtapasOs.find((m) => m.nome === etapa.nome)?.setor || "",
+        }))
+      );
+      setIndiceEtapaAtualEdicao(0);
+      setAbaServicoEdicao("etapas");
+    } else {
+      setEtapasEdicao([]);
+      setIndiceEtapaAtualEdicao(0);
+    }
+    if (servicoTemComissoesColaboradoresNaTabela(servico)) {
+      setColaboradoresEdicao(colaboradoresIniciaisFormParaOsServico(servico, Boolean(form.repeticao)));
+    }
+    if (servicoTemComissoesTerceirizadosNaTabela(servico)) {
+      setTerceirizadosEdicao(
+        terceirizadosIniciaisFormParaOsServico(
+          servico,
+          servico.valor * (Number(form.quantidade || 1) || 1),
+          Boolean(form.repeticao)
+        )
+      );
+    }
   }
 
   function fecharEdicaoOs() {
@@ -1412,6 +1576,11 @@ export default function ControlePage() {
         return;
       }
     }
+    const comissaoTabela = comissaoColaboradorNaTabelaServico(
+      servicoOsAtualEdicao,
+      nome,
+      Boolean(form?.repeticao)
+    );
     const cadastro = colaboradoresOpcoes.find((item) => item.nome === nome);
     setColaboradoresEdicao((atuais) =>
       atuais.map((item, i) =>
@@ -1419,7 +1588,9 @@ export default function ControlePage() {
           ? {
               ...item,
               nome,
-              comissao: cadastro ? comissaoColaboradorCadastroControle(cadastro) : item.comissao,
+              comissao:
+                comissaoTabela ||
+                (cadastro ? comissaoColaboradorCadastroControle(cadastro) : item.comissao),
             }
           : item
       )
@@ -1474,49 +1645,122 @@ export default function ControlePage() {
       ...etapa,
       setor: modelos.find((m) => m.nome === etapa.nome)?.setor || "",
     }));
-    setEtapasEdicao(etapasForm);
+    setEtapasEdicao(
+      etapasForm.length > 0
+        ? etapasForm
+        : [{ nome: "", setor: "", responsavel: "", prazo: "", observacao: "" }]
+    );
     sincronizarIndiceEtapaAtualEdicao(trabalho, etapasForm.length, itemSelecionadoId);
+  }
+
+  function capturarEtapasParaServicoEdicao(
+    nomeServico: string,
+    etapasForm = etapasEdicao
+  ): EtapaOsItemEdicao[] {
+    return etapasFormParaItemServico(
+      nomeServico,
+      etapasForm,
+      categoriasTabelaPreco,
+      modelosEtapasOs,
+      { somentePreenchidasNoForm: true }
+    );
+  }
+
+  function etapasFonteItemControle(item: EditItem): EtapaOsItemEdicao[] {
+    if (item.etapasServico?.length) return item.etapasServico;
+    if (itemSelecionadoId === item.id && etapasEdicao.length > 0) return etapasEdicao;
+    if (!editando) return [];
+    const grupo = trabalhosDoMesmoGrupoOsId(editando, trabalhos);
+    return etapasServicoDeRegistroGrupo(
+      item,
+      grupo,
+      categoriasTabelaPreco,
+      modelosEtapasOs,
+      form?.dataLancamento || formatDate(editando.dataEntrada),
+      form?.horaLaboratorio || ""
+    );
   }
 
   function linhasEtapasItemControle(item: EditItem) {
     const filtradas = etapasFormParaItemServico(
       item.servico,
-      etapasEdicao,
+      etapasFonteItemControle(item),
       categoriasTabelaPreco,
-      carregarEtapasCadastro(),
+      modelosEtapasOs,
       { somentePreenchidasNoForm: true }
+    );
+    const dentesItem = dentesFromResumoControle(
+      item.numeroDente === "-" ? "" : item.numeroDente
     );
     return etapasFormParaLinhasInstrucoes(filtradas, {
       prazoGeral: form?.dataLaboratorio,
-      quantidadeDentes: dentesEdicao.length || 1,
+      quantidadeDentes: dentesItem.length || 1,
     });
   }
 
   function carregarEtapasDoItemServico(item: EditItem, trabalhoRef?: Trabalho) {
     const base = trabalhoRef ?? editando;
     if (!base) return;
+    const dataLanc = form?.dataLancamento || formatDate(base.dataEntrada);
+    const horaLab = form?.horaLaboratorio || "";
+    const servicoItem = buscarServicoNaTabela(categoriasTabelaPreco, item.servico);
     const grupo = trabalhosDoMesmoGrupoOsId(base, trabalhos);
-    const nomeItem = item.servico.trim().toLowerCase();
-    const registro =
-      grupo.find(
-        (t) =>
-          segmentoEfetivoTrabalho(t) === "servico" &&
-          (t.tipoProtese || "").trim().toLowerCase() === nomeItem
-      ) || base;
-    const complementos = parseComplementosInstrucoesGrupo([registro.instrucoes || ""]);
-    const modelos = carregarEtapasCadastro();
-    const etapasForm = etapasOsLinhaParaForm(complementos.etapas).filter((e) =>
-      e.nome.trim()
-    );
+    const etapasDoItem = item.etapasServico?.length
+      ? item.etapasServico
+      : etapasServicoDeRegistroGrupo(
+          item,
+          grupo,
+          categoriasTabelaPreco,
+          modelosEtapasOs,
+          dataLanc,
+          horaLab
+        );
     const etapasCarregadas =
-      etapasForm.length > 0
-        ? etapasForm.map((etapa) => ({
-            ...etapa,
-            setor: modelos.find((m) => m.nome === etapa.nome)?.setor || etapa.setor || "",
-          }))
-        : [{ nome: "", setor: "", responsavel: "", prazo: "", observacao: "" }];
+      etapasDoItem.length > 0
+        ? etapasDoItem
+        : servicoItem && servicoTemEtapasNaTabela(servicoItem)
+          ? etapasIniciaisFormParaOsServico(servicoItem, modelosEtapasOs, dataLanc, horaLab).map(
+              (etapa) => ({
+                ...etapa,
+                setor: etapa.setor || modelosEtapasOs.find((m) => m.nome === etapa.nome)?.setor || "",
+              })
+            )
+          : [{ nome: "", setor: "", responsavel: "", prazo: "", observacao: "" }];
     setEtapasEdicao(etapasCarregadas);
     sincronizarIndiceEtapaAtualEdicao(base, etapasCarregadas.length, item.id);
+  }
+
+  function persistirEtapasNoItemAtual() {
+    if (!itemSelecionadoId || painelEdicaoItem !== "servico") return;
+    const item = editItems.find((entry) => entry.id === itemSelecionadoId);
+    if (!item || classificarItemOs(item) !== "servico") return;
+    const etapasCapturadas = capturarEtapasParaServicoEdicao(item.servico);
+    setEditItems((itens) =>
+      itens.map((entry) =>
+        entry.id === itemSelecionadoId ? { ...entry, etapasServico: etapasCapturadas } : entry
+      )
+    );
+  }
+
+  function prepararItensParaSalvarControle(itens: EditItem[]): EditItem[] {
+    const servicos = itens.filter((item) => classificarItemOs(item) === "servico");
+    return itens.map((item) => {
+      if (classificarItemOs(item) !== "servico") return item;
+      if (item.id === itemSelecionadoId && painelEdicaoItem === "servico") {
+        return {
+          ...item,
+          etapasServico: capturarEtapasParaServicoEdicao(item.servico),
+        };
+      }
+      if (item.etapasServico !== undefined) return item;
+      if (servicos.length === 1 && servicos[0]?.id === item.id) {
+        return {
+          ...item,
+          etapasServico: capturarEtapasParaServicoEdicao(item.servico),
+        };
+      }
+      return { ...item, etapasServico: [] };
+    });
   }
 
   function classeAbaEdicao(aba: AbaServicoEdicao) {
@@ -1564,7 +1808,19 @@ export default function ControlePage() {
     const idAlvo = editIdTrabalho(trabalho);
     const alvo = lista.find((item) => item.id === idAlvo) || trabalho;
     const grupo = trabalhosDoMesmoGrupoOsId(alvo, lista);
-    const itens = grupo.flatMap((t) => parseItens(t));
+    const dataLanc = formatDate(alvo.dataEntrada);
+    const itens = grupo.flatMap((t) => parseItens(t)).map((item) => {
+      if (classificarItemOs(item) !== "servico" || item.etapasServico?.length) return item;
+      const etapas = etapasServicoDeRegistroGrupo(
+        item,
+        grupo,
+        categoriasTabelaPreco,
+        modelosEtapasOs,
+        dataLanc,
+        ""
+      );
+      return etapas.length > 0 ? { ...item, etapasServico: etapas } : item;
+    });
     setGrupoOsRegistros(
       grupo.map((item) => ({
         id: item.id,
@@ -1618,6 +1874,7 @@ export default function ControlePage() {
   }
 
   function selecionarItemEdicao(item: EditItem) {
+    persistirEtapasNoItemAtual();
     const painel = tipoPainelEdicaoItem(item);
     setAdicionandoServico(false);
     setItemSelecionadoId(item.id);
@@ -1668,6 +1925,27 @@ export default function ControlePage() {
     setAbaServicoEdicao("etapas");
     setProdutosOs([]);
     carregarEtapasDoItemServico(item);
+    const servicoItem = buscarServicoNaTabela(categoriasTabelaPreco, item.servico);
+    if (servicoItem) {
+      setColaboradoresEdicao((atuais) =>
+        atuais.length > 0
+          ? atuais
+          : servicoTemComissoesColaboradoresNaTabela(servicoItem)
+            ? colaboradoresIniciaisFormParaOsServico(servicoItem, Boolean(form?.repeticao))
+            : atuais
+      );
+      setTerceirizadosEdicao((atuais) =>
+        atuais.length > 0
+          ? atuais
+          : servicoTemComissoesTerceirizadosNaTabela(servicoItem)
+            ? terceirizadosIniciaisFormParaOsServico(
+                servicoItem,
+                servicoItem.valor * qtd,
+                Boolean(form?.repeticao)
+              )
+            : atuais
+      );
+    }
     const resumoDentes = item.numeroDente === "-" ? "" : item.numeroDente;
     const dentesItem = dentesFromResumoControle(resumoDentes);
     const denticaoItem = tipoDenticaoFromDentesControle(dentesItem);
@@ -1773,9 +2051,10 @@ export default function ControlePage() {
     }
 
     const qtd = Number(form.quantidade || 1) || 1;
+    const nomeServico = form.tipoProtese;
     return {
       ...base,
-      servico: form.tipoProtese,
+      servico: nomeServico,
       categoria: form.categoria,
       numeroDente: form.dentes || "-",
       corDente: form.escalaCor || form.cor || "-",
@@ -1787,6 +2066,7 @@ export default function ControlePage() {
       urgente: form.urgente,
       repeticao: form.repeticao,
       observacao: form.observacaoServico.trim() || undefined,
+      etapasServico: capturarEtapasParaServicoEdicao(nomeServico),
     };
   }
 
@@ -1883,9 +2163,10 @@ export default function ControlePage() {
     if (adicionandoServico && painelEdicaoItem === "servico") {
       if (!form.tipoProtese.trim() && dentesEdicao.length === 0) return;
       const quantidade = form.quantidade || "1";
+      const nomeServico = form.tipoProtese.trim() || "Novo serviço";
       const novo: EditItem = {
         id: `${Date.now()}`,
-        servico: form.tipoProtese.trim() || "Novo serviço",
+        servico: nomeServico,
         categoria: form.categoria,
         numeroDente: form.dentes || "-",
         corDente: form.escalaCor || form.cor || "-",
@@ -1897,6 +2178,7 @@ export default function ControlePage() {
         urgente: form.urgente,
         repeticao: form.repeticao,
         observacao: form.observacaoServico.trim() || undefined,
+        etapasServico: capturarEtapasParaServicoEdicao(nomeServico),
       };
       setEditItems((atuais) => [...atuais, novo]);
       setAdicionandoServico(false);
@@ -2121,7 +2403,7 @@ export default function ControlePage() {
       return;
     }
 
-    const itensSalvar = [...editItems];
+    const itensSalvar = prepararItensParaSalvarControle([...editItems]);
 
     const blocosSalvar = planejarBlocosSalvarOs(itensSalvar);
     const dividir = blocosSalvar.length > 1 || deveDividirOs(itensSalvar);
@@ -2186,10 +2468,12 @@ export default function ControlePage() {
               itens,
               corpoSemEtapas,
               opts?.linhasEtapas ??
-                etapasFormParaLinhasInstrucoes(etapasEdicao, {
-                  prazoGeral: form!.dataLaboratorio,
-                  quantidadeDentes: dentesEdicao.length || 1,
-                }),
+                (itens.length === 1 && classificarItemOs(itens[0]) === "servico"
+                  ? linhasEtapasItemControle(itens[0])
+                  : etapasFormParaLinhasInstrucoes(etapasEdicao, {
+                      prazoGeral: form!.dataLaboratorio,
+                      quantidadeDentes: dentesEdicao.length || 1,
+                    })),
               segmento,
               segmento === "servico" ? linhasComplementosEdicao : undefined
             ) || null,
