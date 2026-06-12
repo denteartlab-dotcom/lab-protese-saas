@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { debounceCallback } from "@/lib/debounce-callback";
 import { BotoesImprimirExportarToolbar } from "@/components/BotoesImprimirExportarToolbar";
 import {
@@ -294,6 +295,8 @@ function exibirParcela(pack: { parcela: string; texto: string }) {
 }
 
 export function ContasPagarConteudo() {
+  const searchParams = useSearchParams();
+  const deepLinkFeito = useRef(false);
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [entidadeAtiva, setEntidadeAtiva] = useState<EntidadeDespesa>("todos");
@@ -404,6 +407,47 @@ export function ContasPagarConteudo() {
     setFornecedores(lerFornecedoresStorage());
     aplicarPeriodo("todos");
   }, []);
+
+  useEffect(() => {
+    if (deepLinkFeito.current) return;
+
+    const aba = searchParams.get("aba");
+    const tipo = searchParams.get("tipo");
+    const acao = searchParams.get("acao");
+    const tipoDespesaParam = searchParams.get("tipoDespesa");
+    const veioDoDashboard =
+      aba === "pagar" ||
+      tipo === "despesa" ||
+      tipo === "vencidas" ||
+      acao === "pagar" ||
+      tipoDespesaParam === "atraso" ||
+      tipoDespesaParam === "a_pagar";
+
+    if (!veioDoDashboard) return;
+
+    deepLinkFeito.current = true;
+    aplicarPeriodo("todos");
+
+    if (
+      tipoDespesaParam === "atraso" ||
+      tipo === "vencidas" ||
+      tipo === "atraso"
+    ) {
+      setTipoDespesa("atraso");
+      return;
+    }
+
+    if (
+      tipoDespesaParam === "pagas" ||
+      tipoDespesaParam === "todas" ||
+      tipoDespesaParam === "a_pagar"
+    ) {
+      setTipoDespesa(tipoDespesaParam);
+      return;
+    }
+
+    setTipoDespesa("a_pagar");
+  }, [searchParams]);
 
   useEffect(() => {
     setVinculoSelecionado("");

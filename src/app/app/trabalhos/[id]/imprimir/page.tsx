@@ -244,10 +244,8 @@ async function ImprimirOSConteudo({
   const dentistaNome =
     lineValue(linhas, "Dentista:") || lineValue(linhas, "Dentista convidado:");
   const observacoesUsuario = somenteItem
-    ? [empty(t.observacoes), instrucoesTextoLivre(t.instrucoes)].filter(Boolean).join("\n")
-    : [empty(trabalhoServico.observacoes), instrucoesTextoLivre(trabalhoServico.instrucoes)]
-        .filter(Boolean)
-        .join("\n");
+    ? instrucoesTextoLivre(t.instrucoes)
+    : instrucoesTextoLivre(trabalhoServico.instrucoes);
   const cliente = t.cliente || {
     nome: "",
     cro: "",
@@ -338,7 +336,7 @@ async function ImprimirOSConteudo({
         repeticao,
         producao: STATUS_TRABALHO[statusServico]?.label || statusServico || "",
         pecas: empty(t.dentes),
-        obsFicha: empty(trabalhoServico.observacoes),
+        obsFicha: "",
         itens,
       }}
     />

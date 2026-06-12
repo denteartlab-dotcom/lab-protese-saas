@@ -1,51 +1,51 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Eye, Printer, Search } from "lucide-react";
-import { BadgeSegmentoOs } from "@/components/BadgeSegmentoOs";
+import { Edit3, Eye, Printer, Search, Trash2 } from "lucide-react";
+import { AgendaEditarOsModal } from "@/components/producao/AgendaEditarOsModal";
+import { AgendaOsDetalheExpandido } from "@/components/producao/AgendaOsDetalheExpandido";
+import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { ControleProducaoToolbar } from "@/components/ControleProducaoToolbar";
 import { ImprimirOsModal } from "@/components/ImprimirOsModal";
 import { Button, Input, Select, SelectPesquisavel } from "@/components/ui";
-import { grupoOsTemMultiplosSegmentos } from "@/lib/trabalho-os-segmento";
-import { formatDate, STATUS_TRABALHO } from "@/lib/utils";
 import {
-  caixaAgenda,
-  colaboradorAgenda,
-  etapaAtualAgenda,
+  agruparTrabalhosAgenda,
+  caixaAgendaGrupo,
+  colaboradorAgendaGrupo,
+  etapaAtualAgendaGrupo,
+  prazoTextoAgendaGrupo,
+  qtdTextoAgendaGrupo,
+  servicosTextoAgenda,
+  type LinhaAgendaGrupoOs,
+  type TrabalhoAgendaGrupo,
+} from "@/lib/agenda-producao-grupo";
+import { editIdPreferidoGrupo, grupoOsTemMultiplosSegmentos } from "@/lib/trabalho-os-segmento";
+import {
+  TRABALHOS_ATUALIZADOS_EVENT,
+  notificarTrabalhosAtualizados,
+} from "@/lib/trabalhos-events";
+import {
   filtrarTrabalhosAgenda,
-  prazoTextoAgenda,
-  qtdAgenda,
   trabalhoAtrasadoAgenda,
-  type TrabalhoAgenda,
 } from "@/lib/agenda-producao";
 import { prazoTrabalho } from "@/lib/controle-producao-prazos";
+import {
+  grupoOsEstaFaturado,
+  MENSAGEM_OS_FATURADA_NAO_EXCLUI,
+  type LancamentoFaturaOs,
+} from "@/lib/os-faturamento";
+import { formatDate, STATUS_TRABALHO } from "@/lib/utils";
 
-type Trabalho = TrabalhoAgenda & {
-  segmentoFaturamento?: string | null;
-  grupoOsId?: string | null;
-  dentes?: string | null;
-  escala?: string | null;
-  cliente?: { nome?: string | null; cro?: string | null };
-};
-
-function chaveGrupoOs(trabalho: Trabalho) {
-  return trabalho.grupoOsId || trabalho.id;
-}
-
-function isAtrasado(trabalho: Trabalho) {
-  return trabalhoAtrasadoAgenda(trabalho);
-}
-
-function clienteNome(trabalho: Trabalho) {
+function clienteNome(trabalho: TrabalhoAgendaGrupo) {
   return trabalho.cliente?.nome || "";
 }
 
-function pacienteNome(trabalho: Trabalho) {
+function pacienteNome(trabalho: TrabalhoAgendaGrupo) {
   return trabalho.paciente?.nome || "";
 }
 
-function prazoDate(trabalho: Trabalho) {
+function prazoDate(trabalho: TrabalhoAgendaGrupo) {
   return prazoTrabalho(trabalho, "lab");
 }
 
@@ -74,8 +74,8 @@ function dateKey(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function prazoKey(trabalho: Trabalho) {
-  const prazo = prazoDate(trabalho);
+function prazoKeyLinha(linha: LinhaAgendaGrupoOs) {
+  const prazo = prazoDate(linha.principal);
   return prazo ? dateKey(prazo) : "";
 }
 
@@ -101,41 +101,106 @@ function semanaAgenda(semanaOffset: number) {
   });
 }
 
+function isAtrasadoLinha(linha: LinhaAgendaGrupoOs) {
+  return trabalhoAtrasadoAgenda(linha.principal);
+}
+
 export default function AgendaPage() {
-  const [trabalhos, setTrabalhos] = useState<Trabalho[]>([]);
+  const [trabalhos, setTrabalhos] = useState<TrabalhoAgendaGrupo[]>([]);
+  const [lancamentosFatura, setLancamentosFatura] = useState<LancamentoFaturaOs[]>([]);
   const [status, setStatus] = useState("");
   const [cliente, setCliente] = useState("");
   const [colaborador, setColaborador] = useState("");
   const [busca, setBusca] = useState("");
   const [filtroAgenda, setFiltroAgenda] = useState("todos");
   const [semanaOffset, setSemanaOffset] = useState(0);
-  const [imprimirOs, setImprimirOs] = useState<Trabalho | null>(null);
+  const [imprimirOs, setImprimirOs] = useState<TrabalhoAgendaGrupo | null>(null);
+  const [osAberta, setOsAberta] = useState<string | null>(null);
+  const [osExcluindo, setOsExcluindo] = useState<LinhaAgendaGrupoOs | null>(null);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [anexoAberto, setAnexoAberto] = useState<{
+    name: string;
+    type: string;
+    url: string;
+  } | null>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     const params = new URLSearchParams();
     if (status) params.set("status", status);
     if (busca) params.set("q", busca);
     const res = await fetch(`/api/trabalhos?${params.toString()}`);
     const data = await res.json();
     setTrabalhos(Array.isArray(data) ? data : []);
-  }
-
-  useEffect(() => {
-    const timer = window.setTimeout(load, 250);
-    return () => window.clearTimeout(timer);
   }, [status, busca]);
 
-  const clientes = Array.from(new Set(trabalhos.map(clienteNome).filter(Boolean)));
-  const baseFiltrada = useMemo(
-    () => trabalhos.filter((trabalho) => (cliente ? clienteNome(trabalho) === cliente : true)),
-    [trabalhos, cliente]
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [load]);
+
+  useEffect(() => {
+    function onTrabalhosAtualizados() {
+      void load();
+    }
+    window.addEventListener(TRABALHOS_ATUALIZADOS_EVENT, onTrabalhosAtualizados);
+    return () =>
+      window.removeEventListener(TRABALHOS_ATUALIZADOS_EVENT, onTrabalhosAtualizados);
+  }, [load]);
+
+  useEffect(() => {
+    fetch("/api/financeiro?tipo=receita", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : { lancamentos: [] }))
+      .then((data) =>
+        setLancamentosFatura(Array.isArray(data?.lancamentos) ? data.lancamentos : [])
+      )
+      .catch(() => setLancamentosFatura([]));
+  }, []);
+
+  const linhasAgrupadas = useMemo(
+    () => agruparTrabalhosAgenda(trabalhos),
+    [trabalhos]
   );
-  const atrasados = baseFiltrada.filter(isAtrasado);
+
+  const clientes = Array.from(
+    new Set(trabalhos.map(clienteNome).filter(Boolean))
+  );
+
+  const baseFiltrada = useMemo(() => {
+    return linhasAgrupadas.filter((linha) => {
+      if (cliente && clienteNome(linha.principal) !== cliente) return false;
+      if (colaborador) {
+        const colab = colaboradorAgendaGrupo(linha);
+        if (colaborador === "Sem colaborador") {
+          if (colab.trim()) return false;
+        } else if (!colab.toLowerCase().includes(colaborador.toLowerCase())) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [linhasAgrupadas, cliente, colaborador]);
+
+  const atrasados = baseFiltrada.filter(isAtrasadoLinha);
   const diasAgenda = useMemo(() => semanaAgenda(semanaOffset), [semanaOffset]);
-  const filtrados = useMemo(
-    () => filtrarTrabalhosAgenda(baseFiltrada, filtroAgenda),
-    [baseFiltrada, filtroAgenda]
-  );
+
+  const filtrados = useMemo(() => {
+    if (filtroAgenda === "atrasados") {
+      return baseFiltrada.filter(isAtrasadoLinha);
+    }
+    if (filtroAgenda.startsWith("data-")) {
+      const data = filtroAgenda.replace("data-", "");
+      return baseFiltrada.filter((linha) => prazoKeyLinha(linha) === data);
+    }
+    if (filtroAgenda === "todos") return baseFiltrada;
+    return filtrarTrabalhosAgenda(
+      baseFiltrada.map((l) => l.principal),
+      filtroAgenda
+    )
+      .map((t) => baseFiltrada.find((l) => l.principal.id === t.id))
+      .filter(Boolean) as LinhaAgendaGrupoOs[];
+  }, [baseFiltrada, filtroAgenda]);
 
   function montarUrlImprimirAgenda() {
     const params = new URLSearchParams();
@@ -147,17 +212,56 @@ export default function AgendaPage() {
   }
 
   function countData(data: string, somenteAtrasado = false) {
-    return baseFiltrada.filter((trabalho) => {
-      if (prazoKey(trabalho) !== data) return false;
-      return somenteAtrasado ? isAtrasado(trabalho) : !isAtrasado(trabalho);
+    return baseFiltrada.filter((linha) => {
+      if (prazoKeyLinha(linha) !== data) return false;
+      return somenteAtrasado ? isAtrasadoLinha(linha) : !isAtrasadoLinha(linha);
     }).length;
   }
 
-  function filtroClass(ativo: boolean, danger = false) {
-    if (ativo) return danger ? "border-red-400 bg-red-500 text-white" : "border-primary-500 bg-primary-600 text-white";
-    return danger
-      ? "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
-      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50";
+  function editIdLinha(linha: LinhaAgendaGrupoOs) {
+    return (
+      editIdPreferidoGrupo(linha.grupoCompleto) || linha.principal.id
+    );
+  }
+
+  function linhaGrupoFaturada(linha: LinhaAgendaGrupoOs) {
+    return grupoOsEstaFaturado(linha.principal, trabalhos, lancamentosFatura);
+  }
+
+  function abrirEdicao(linha: LinhaAgendaGrupoOs) {
+    setEditandoId(editIdLinha(linha));
+  }
+
+  function fecharEdicao() {
+    setEditandoId(null);
+    void load();
+  }
+
+  async function confirmarExclusaoOs() {
+    const linha = osExcluindo;
+    if (!linha) return;
+    if (linhaGrupoFaturada(linha)) {
+      window.alert(MENSAGEM_OS_FATURADA_NAO_EXCLUI);
+      setOsExcluindo(null);
+      return;
+    }
+    const id = editIdLinha(linha);
+    setOsExcluindo(null);
+    if (osAberta === linha.chaveGrupo) setOsAberta(null);
+    try {
+      const res = await fetch(`/api/trabalhos/${id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        window.alert(
+          typeof data.error === "string" ? data.error : MENSAGEM_OS_FATURADA_NAO_EXCLUI
+        );
+      } else {
+        notificarTrabalhosAtualizados({ trabalhoId: id });
+      }
+    } catch {
+      window.alert("Não foi possível excluir a ordem de serviço.");
+    }
+    void load();
   }
 
   return (
@@ -203,7 +307,7 @@ export default function AgendaPage() {
           />
           <Select label="Colaborador" value={colaborador} onChange={(e) => setColaborador(e.target.value)}>
             <option value="">Todos</option>
-            <option>Sem colaborador</option>
+            <option value="Sem colaborador">Sem colaborador</option>
           </Select>
           <Input
             label="Busca"
@@ -326,49 +430,93 @@ export default function AgendaPage() {
               </tr>
             </thead>
             <tbody>
-              {filtrados.map((trabalho) => {
-                const atrasado = isAtrasado(trabalho);
+              {filtrados.map((linha) => {
+                const { principal } = linha;
+                const atrasado = isAtrasadoLinha(linha);
+                const expandida = osAberta === linha.chaveGrupo;
                 return (
-                  <tr
-                    key={trabalho.id}
-                    className={`border-b border-slate-100 ${atrasado ? "bg-red-100/80 text-red-950" : "hover:bg-slate-50"}`}
-                  >
-                    <td className="px-3 py-2">
-                      <span className="inline-flex items-center">
-                        {osBadge(trabalho.numeroOs)}
-                        <BadgeSegmentoOs trabalho={trabalho} />
-                      </span>
-                    </td>
-                    <td className="px-3 py-2">{caixaAgenda(trabalho.instrucoes)}</td>
-                    <td className="px-3 py-2">{formatDate(trabalho.dataEntrada)}</td>
-                    <td className="px-3 py-2">{prazoTextoAgenda(trabalho)}</td>
-                    <td className="px-3 py-2">{qtdAgenda(trabalho.instrucoes)}</td>
-                    <td className="px-3 py-2">{trabalho.tipoProtese}</td>
-                    <td className="px-3 py-2">{clienteNome(trabalho)}</td>
-                    <td className="px-3 py-2">{pacienteNome(trabalho)}</td>
-                    <td className="px-3 py-2">{colaboradorAgenda(trabalho.instrucoes)}</td>
-                    <td className="px-3 py-2">{etapaAtualAgenda(trabalho.instrucoes)}</td>
-                    <td className="px-3 py-2">
-                      <span className={`rounded px-2 py-1 text-[10px] font-semibold ${STATUS_TRABALHO[trabalho.status]?.color || "bg-slate-100 text-slate-700"}`}>
-                        {STATUS_TRABALHO[trabalho.status]?.label || trabalho.status}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="flex justify-center gap-1">
-                        <Link href={`/app/producao/controle?q=${trabalho.numeroOs}`} className="rounded p-1 text-slate-500 hover:bg-white hover:text-primary-700">
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => setImprimirOs(trabalho)}
-                          title="Imprimir OS"
-                          className="rounded p-1 text-red-500 hover:bg-white hover:text-red-600"
+                  <Fragment key={linha.chaveGrupo}>
+                    <tr
+                      className={`border-b border-slate-100 ${atrasado ? "bg-red-100/80 text-red-950" : "hover:bg-slate-50"}`}
+                    >
+                      <td className="px-3 py-2">{osBadge(principal.numeroOs)}</td>
+                      <td className="px-3 py-2">{caixaAgendaGrupo(linha)}</td>
+                      <td className="px-3 py-2">{formatDate(principal.dataEntrada)}</td>
+                      <td className="px-3 py-2">{prazoTextoAgendaGrupo(linha)}</td>
+                      <td className="px-3 py-2">{qtdTextoAgendaGrupo(linha)}</td>
+                      <td className="px-3 py-2">{servicosTextoAgenda(linha)}</td>
+                      <td className="px-3 py-2">{clienteNome(principal)}</td>
+                      <td className="px-3 py-2">{pacienteNome(principal)}</td>
+                      <td className="px-3 py-2">{colaboradorAgendaGrupo(linha)}</td>
+                      <td className="px-3 py-2">{etapaAtualAgendaGrupo(linha)}</td>
+                      <td className="px-3 py-2">
+                        <span
+                          className={`rounded px-2 py-1 text-[10px] font-semibold ${STATUS_TRABALHO[principal.status]?.color || "bg-slate-100 text-slate-700"}`}
                         >
-                          <Printer className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                          {STATUS_TRABALHO[principal.status]?.label || principal.status}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setOsAberta(expandida ? null : linha.chaveGrupo)
+                            }
+                            title="Ver detalhes"
+                            className={`rounded p-1 hover:bg-white ${
+                              expandida
+                                ? "text-primary-700"
+                                : "text-slate-500 hover:text-primary-700"
+                            }`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => abrirEdicao(linha)}
+                            title="Editar OS"
+                            className="rounded p-1 text-slate-500 hover:bg-white hover:text-primary-700"
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setImprimirOs(principal)}
+                            title="Imprimir OS"
+                            className="rounded p-1 text-red-500 hover:bg-white hover:text-red-600"
+                          >
+                            <Printer className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (linhaGrupoFaturada(linha)) {
+                                window.alert(MENSAGEM_OS_FATURADA_NAO_EXCLUI);
+                                return;
+                              }
+                              setOsExcluindo(linha);
+                            }}
+                            title="Excluir OS"
+                            className="rounded p-1 text-slate-500 hover:bg-red-50 hover:text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {expandida && (
+                      <tr>
+                        <td colSpan={12} className="bg-slate-50 p-0">
+                          <AgendaOsDetalheExpandido
+                            linha={linha}
+                            anexoAberto={anexoAberto}
+                            onAnexoAberto={setAnexoAberto}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
               {filtrados.length === 0 && (
@@ -383,6 +531,15 @@ export default function AgendaPage() {
         </div>
       </div>
 
+      <ConfirmacaoExclusaoModal
+        open={!!osExcluindo}
+        titulo="Excluir Ordem de Serviço"
+        mensagem="Deseja realmente excluir essa Ordem de Serviço?"
+        aviso="Atenção!! Todas as comissões serão excluídas exceto comissões já faturadas. Se a OS já foi faturada em Contas a Receber, exclua o lançamento no Financeiro antes."
+        onClose={() => setOsExcluindo(null)}
+        onConfirm={confirmarExclusaoOs}
+      />
+
       <ImprimirOsModal
         open={!!imprimirOs}
         onClose={() => setImprimirOs(null)}
@@ -390,11 +547,15 @@ export default function AgendaPage() {
         multiplosSegmentos={
           imprimirOs
             ? grupoOsTemMultiplosSegmentos(
-                trabalhos.filter((item) => chaveGrupoOs(item) === chaveGrupoOs(imprimirOs))
+                trabalhos.filter((item) => item.numeroOs === imprimirOs.numeroOs)
               )
             : false
         }
       />
+
+      {editandoId && (
+        <AgendaEditarOsModal trabalhoId={editandoId} onClose={fecharEdicao} />
+      )}
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
   salvarLembrarLogin,
   usuarioJaEntrou,
 } from "@/lib/auth-client";
+import { registrarAtividadeSessao } from "@/lib/sessao-inatividade";
 import { LAB_CONFIG_ATUALIZADA_EVENT } from "@/lib/configuracoes-lab";
 import type { LabBrandingPublico } from "@/lib/lab-branding";
 import type { LabImpressaoConfig } from "@/lib/lab-impressao";
@@ -160,6 +161,7 @@ export function LoginForm({ brandingInicial }: Props) {
       }
 
       marcarUsuarioJaEntrou();
+      registrarAtividadeSessao();
       window.location.assign(redirectDestino);
     } catch {
       setError(
@@ -178,13 +180,13 @@ export function LoginForm({ brandingInicial }: Props) {
     "h-8 w-full rounded border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15";
 
   return (
-    <div className="login-hero relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[#0a2f6e] px-4">
+    <div className="login-hero relative flex flex-1 items-center justify-center overflow-hidden bg-[#0a2f6e] px-4">
       <img
         src="/images/login-background.png"
         alt=""
         fetchPriority="high"
         decoding="async"
-        className="login-hero__bg pointer-events-none absolute left-1/2 top-1/2 max-h-none max-w-none -translate-x-1/2 -translate-y-1/2 select-none"
+        className="login-hero__bg pointer-events-none select-none"
       />
 
       <div className="relative z-10 w-full max-w-[300px] rounded-xl bg-white p-6 shadow-2xl">

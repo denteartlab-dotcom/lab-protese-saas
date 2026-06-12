@@ -97,7 +97,7 @@ export function PainelFinanceiroDashboard({
           subtitle="a Pagar"
           value={formatCurrency(resumo.despesasAPagar)}
           tone="cyan"
-          href="/app/financeiro?aba=pagar"
+          href="/app/financeiro?tipo=despesa"
         />
         <FinanceRow
           icon={TrendingDown}
@@ -105,7 +105,7 @@ export function PainelFinanceiroDashboard({
           subtitle="Contas Vencidas"
           value={formatCurrency(resumo.despesasVencidas)}
           tone="amber"
-          href="/app/financeiro?aba=pagar&tipo=vencidas"
+          href="/app/financeiro?tipo=despesa&tipoDespesa=atraso"
         />
       </div>
     </section>

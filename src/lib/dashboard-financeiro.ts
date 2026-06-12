@@ -101,7 +101,15 @@ function isFaturaContasReceber(
   return saldo > 0.005;
 }
 
-function saldoFatura(
+export function ehCobrancaOsReceita(lancamento: LancamentoFinanceiroResumo) {
+  if (lancamento.tipo !== "receita" || lancamento.status === "cancelado") {
+    return false;
+  }
+  if (isCreditoGerado(lancamento) || isCreditoUtilizado(lancamento)) return false;
+  return lancamento.descricao.toLowerCase().startsWith("cobrança os");
+}
+
+export function saldoFaturaCobrancaOs(
   lancamento: LancamentoFinanceiroResumo,
   todosLancamentos: LancamentoFinanceiroResumo[]
 ) {
@@ -115,6 +123,13 @@ function saldoFatura(
     )
     .reduce((sum, item) => sum + item.valor, 0);
   return Math.max(lancamento.valor - Math.min(creditoUsado, lancamento.valor), 0);
+}
+
+function saldoFatura(
+  lancamento: LancamentoFinanceiroResumo,
+  todosLancamentos: LancamentoFinanceiroResumo[]
+) {
+  return saldoFaturaCobrancaOs(lancamento, todosLancamentos);
 }
 
 export function calcularResumoFinanceiroDashboard(

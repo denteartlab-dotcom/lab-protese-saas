@@ -1,5 +1,7 @@
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { I18nProvider } from "@/components/i18n-provider";
+import { getSession } from "@/lib/auth";
 import { carregarBrandingLaboratorio } from "@/lib/lab-branding";
 import { carregarConfigLaboratorioServidor } from "@/lib/lab-config-servidor";
 import { configParaLabImpressao } from "@/lib/lab-logo";
@@ -8,7 +10,21 @@ import { LoginForm } from "./LoginForm";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export default async function LoginPage() {
+type Props = {
+  searchParams: Promise<{ redirect?: string }>;
+};
+
+export default async function LoginPage({ searchParams }: Props) {
+  const session = await getSession();
+  if (session) {
+    const params = await searchParams;
+    const destino =
+      params.redirect && params.redirect.startsWith("/app")
+        ? params.redirect
+        : "/app";
+    redirect(destino);
+  }
+
   const [configLaboratorio, branding] = await Promise.all([
     carregarConfigLaboratorioServidor(),
     carregarBrandingLaboratorio(),
@@ -18,7 +34,7 @@ export default async function LoginPage() {
   return (
     <I18nProvider>
       <Suspense>
-        <div className="flex min-h-0 flex-1 flex-col">
+        <div className="login-hero-shell flex flex-1 flex-col">
           <LoginForm
             brandingInicial={{
               lab: {

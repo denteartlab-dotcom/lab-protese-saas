@@ -3,12 +3,18 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --site-zoom: 0.9;
+  }
+
   html {
-    zoom: 0.8;
+    zoom: var(--site-zoom);
   }
 
   body {
     @apply bg-slate-50 text-slate-900 antialiased;
+    min-height: calc(100vh / var(--site-zoom));
+    min-height: calc(100dvh / var(--site-zoom));
   }
 
   .dark body {
@@ -71,11 +77,21 @@
     mix-blend-mode: multiply;
   }
 
+  .login-hero-shell {
+    min-height: calc(100vh / var(--site-zoom));
+    min-height: calc(100dvh / var(--site-zoom));
+  }
+
+  .login-hero {
+    min-height: calc(100vh / var(--site-zoom));
+    min-height: calc(100dvh / var(--site-zoom));
+  }
+
   .login-hero__bg {
-    min-width: 100%;
-    min-height: 100%;
-    width: auto;
-    height: auto;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     object-fit: cover;
     object-position: center center;
     image-rendering: auto;
@@ -178,11 +194,16 @@
 }
 
 @media print {
+  html {
+    zoom: 1 !important;
+  }
+
   html,
   body {
     margin: 0 !important;
     padding: 0 !important;
     background: #fff !important;
+    min-height: auto !important;
   }
 
   body * {

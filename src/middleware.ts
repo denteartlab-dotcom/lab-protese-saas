@@ -103,6 +103,18 @@ export function middleware(request: NextRequest) {
   }
 
   if (PUBLIC.includes(pathname)) {
+    if (pathname === "/login") {
+      const token = request.cookies.get(COOKIE_NAME)?.value;
+      if (token && sessionTokenAceito(token)) {
+        const redirectParam = request.nextUrl.searchParams.get("redirect");
+        const destino =
+          redirectParam && redirectParam.startsWith("/app")
+            ? redirectParam
+            : "/app";
+        return NextResponse.redirect(new URL(destino, request.url));
+      }
+    }
+
     const res = NextResponse.next();
     res.headers.set(
       "Cache-Control",

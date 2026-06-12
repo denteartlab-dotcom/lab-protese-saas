@@ -44,7 +44,9 @@ import {
   etapasConcluidasModulo,
   salvarEtapasConcluidasModulo,
 } from "@/lib/modulo-producao-etapas";
+import { useSessaoInatividade } from "@/hooks/use-sessao-inatividade";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
+import { limparUltimaAtividadeSessao } from "@/lib/sessao-inatividade";
 import { useLabConfigClient } from "@/lib/use-lab-config-client";
 
 type AbaModulo = "etapas" | "anotacoes" | "imagens" | "detalhes";
@@ -86,11 +88,23 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
   const logoPerfil = dimensoesLogoPx(lab, { largura: 36, altura: 36 });
   const temLogo = montado && Boolean(lab.logoDataUrl?.startsWith("data:image"));
   const temLogoPerfil = temLogo;
+  const logoutPorInatividade = useCallback(async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+    } finally {
+      limparUltimaAtividadeSessao();
+      window.location.href = "/login";
+    }
+  }, []);
+
+  useSessaoInatividade(() => void logoutPorInatividade());
+
   async function logout() {
     setUserMenuOpen(false);
     try {
       await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
     } finally {
+      limparUltimaAtividadeSessao();
       window.location.href = "/login";
     }
   }
@@ -487,9 +501,7 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
                     </p>
                     <p>
                       <span className="font-semibold">Observação Interna:</span>{" "}
-                      {osSelecionada.observacoes?.trim() ||
-                        valorLinhaInstrucao(instrucoesGrupo, "Observação") ||
-                        "—"}
+                      {osSelecionada.observacoes?.trim() || "—"}
                     </p>
                   </div>
                   <div className="space-y-1">

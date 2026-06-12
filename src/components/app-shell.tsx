@@ -28,8 +28,11 @@ import {
 } from "@/lib/app-nav";
 import type { MessageKey } from "@/lib/i18n";
 import { ArmazenamentoLaboratorioProvider } from "@/components/ArmazenamentoLaboratorioProvider";
+import { useSessaoInatividade } from "@/hooks/use-sessao-inatividade";
 import { rotuloPapelUsuario } from "@/lib/auth-client";
+import { limparUltimaAtividadeSessao } from "@/lib/sessao-inatividade";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
+import { instrucoesTextoLivre } from "@/lib/etapas-os";
 import { cn, STATUS_TRABALHO } from "@/lib/utils";
 import {
   BarChart3,
@@ -234,6 +237,20 @@ function AppShellInner({
     });
   }
 
+  const logoutPorInatividade = useCallback(async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+    } finally {
+      limparUltimaAtividadeSessao();
+      window.location.href = "/login";
+    }
+  }, []);
+
+  useSessaoInatividade(() => void logoutPorInatividade());
+
   async function logout() {
     setUserMenuOpen(false);
     try {
@@ -242,6 +259,7 @@ function AppShellInner({
         credentials: "same-origin",
       });
     } finally {
+      limparUltimaAtividadeSessao();
       window.location.href = "/login";
     }
   }
@@ -1081,7 +1099,11 @@ function AppShellInner({
                       </div>
                       <div className="space-y-1">
                         <label className="block text-[10px] text-slate-500">Observação Serviço</label>
-                        <textarea readOnly value={osSelecionada.instrucoes || ""} className="min-h-20 w-full rounded border border-slate-300 bg-white px-2 py-2 text-[10px]" />
+                        <textarea
+                          readOnly
+                          value={instrucoesTextoLivre(osSelecionada.instrucoes)}
+                          className="min-h-20 w-full rounded border border-slate-300 bg-white px-2 py-2 text-[10px]"
+                        />
                       </div>
                     </div>
                     )}

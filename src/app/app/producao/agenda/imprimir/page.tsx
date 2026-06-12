@@ -1,11 +1,12 @@
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import {
-  filtrarTrabalhosAgenda,
-  mapearLinhaAgendaPdf,
-  ordenarLinhasAgenda,
-  tituloAgendaPdf,
-} from "@/lib/agenda-producao";
+  agruparTrabalhosAgenda,
+  filtrarLinhasAgendaGrupo,
+  mapearLinhaAgendaPdfGrupo,
+  type TrabalhoAgendaGrupo,
+} from "@/lib/agenda-producao-grupo";
+import { ordenarLinhasAgenda, tituloAgendaPdf } from "@/lib/agenda-producao";
 import { PdfAgendaViewer } from "@/components/PdfAgendaViewer";
 import Link from "next/link";
 
@@ -65,8 +66,13 @@ export default async function ImprimirAgendaPage({
   const cliente = String(Array.isArray(sp.cliente) ? sp.cliente[0] : sp.cliente || "");
 
   const trabalhos = await buscarTrabalhosAgenda(sp);
-  const filtrados = filtrarTrabalhosAgenda(trabalhos, filtro, cliente || undefined);
-  const linhas = ordenarLinhasAgenda(filtrados.map(mapearLinhaAgendaPdf));
+  const linhasAgrupadas = agruparTrabalhosAgenda(trabalhos as TrabalhoAgendaGrupo[]);
+  const filtrados = filtrarLinhasAgendaGrupo(
+    linhasAgrupadas,
+    filtro,
+    cliente || undefined
+  );
+  const linhas = ordenarLinhasAgenda(filtrados.map(mapearLinhaAgendaPdfGrupo));
   const titulo = tituloAgendaPdf(filtro);
 
   return <PdfAgendaViewer titulo={titulo} linhas={linhas} />;

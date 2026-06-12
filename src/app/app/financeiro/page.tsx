@@ -274,6 +274,18 @@ function dateOnly(value: string) {
 const formatDateInput = formatDateBr;
 const parseBrShortDate = parseBrDate;
 
+function ehRotaContasPagar(searchParams: URLSearchParams) {
+  const aba = searchParams.get("aba");
+  const tipo = searchParams.get("tipo");
+  const acao = searchParams.get("acao");
+  return (
+    aba === "pagar" ||
+    tipo === "despesa" ||
+    tipo === "vencidas" ||
+    acao === "pagar"
+  );
+}
+
 function FinanceiroRouter() {
   const searchParams = useSearchParams();
   if (searchParams.get("aba") === "plano-de-contas") {
@@ -282,7 +294,7 @@ function FinanceiroRouter() {
   if (searchParams.get("aba") === "conta-bancaria") {
     return <ContaBancariaConteudo />;
   }
-  if (searchParams.get("tipo") === "despesa") {
+  if (ehRotaContasPagar(searchParams)) {
     return <ContasPagarConteudo />;
   }
   return <FinanceiroReceberConteudo />;

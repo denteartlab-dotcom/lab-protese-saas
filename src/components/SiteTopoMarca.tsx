@@ -2,10 +2,12 @@
 
 import { usePathname } from "next/navigation";
 import { AppFaixaTopo } from "@/components/AppFaixaTopo";
+import { useSessaoAutenticada } from "@/hooks/use-sessao-autenticada";
 
 /** Login e páginas públicas — mesma faixa cinza estreita da referência. */
 export function SiteTopoMarca() {
   const pathname = usePathname() ?? "";
+  const autenticado = useSessaoAutenticada();
 
   if (
     pathname === "/login" ||
@@ -17,5 +19,8 @@ export function SiteTopoMarca() {
     return null;
   }
 
-  return <AppFaixaTopo esquerda={null} direita={null} logoHref="/login" />;
+  const logoHref =
+    autenticado === null ? "/login" : autenticado ? "/app" : "/login";
+
+  return <AppFaixaTopo esquerda={null} direita={null} logoHref={logoHref} />;
 }

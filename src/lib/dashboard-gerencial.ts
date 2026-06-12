@@ -9,7 +9,9 @@ import { calcularMatrizDre, type LancamentoDre } from "@/lib/dre";
 import {
   calcularResumoFinanceiroDashboard,
   contarClientesInadimplentes,
+  ehCobrancaOsReceita,
   listarFaturasInadimplentes,
+  saldoFaturaCobrancaOs,
   type FaturaInadimplente,
   type LancamentoFinanceiroResumo,
   type TrabalhoFinanceiroRef,
@@ -215,10 +217,6 @@ function isDespesaRealizada(l: LancamentoDre) {
   return l.tipo === "despesa" && l.status === "pago";
 }
 
-function isReceitaPendente(l: LancamentoDre) {
-  return l.tipo === "receita" && l.status !== "pago" && l.status !== "cancelado";
-}
-
 function contarServicosAtrasadosAtual(trabalhos: TrabalhoDashboardGerencial[]) {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
@@ -292,15 +290,24 @@ export function calcularDashboardGerencial(input: {
     pedidos[m].valor += 1;
   }
 
+  for (const l of lancamentosFinanceiro) {
+    if (!ehCobrancaOsReceita(l)) continue;
+    if (anoData(l.data) !== ano) continue;
+    const m = mesIndex(l.data);
+    if (l.status === "pago") {
+      contasReceber[m].recebido += Math.abs(l.valor);
+    } else {
+      const saldo = saldoFaturaCobrancaOs(l, lancamentosFinanceiro);
+      if (saldo > 0.005) contasReceber[m].aReceber += saldo;
+    }
+  }
+
   for (const l of lancamentos) {
     if (l.status === "cancelado") continue;
     if (anoData(l.data) !== ano) continue;
     const m = mesIndex(l.data);
     if (isReceitaPaga(l)) {
-      contasReceber[m].recebido += Math.abs(l.valor);
       receitasDespesas[m].receitas += Math.abs(l.valor);
-    } else if (isReceitaPendente(l)) {
-      contasReceber[m].aReceber += Math.abs(l.valor);
     } else if (isDespesaRealizada(l)) {
       receitasDespesas[m].despesas += Math.abs(l.valor);
     }

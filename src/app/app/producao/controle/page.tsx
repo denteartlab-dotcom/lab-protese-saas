@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
   Camera,
@@ -85,6 +85,7 @@ import {
   formatarLinhaColaborador,
   formatarLinhaEtapa,
   nomeEtapaSemSetor,
+  instrucoesTextoLivre,
   parseComplementosInstrucoesGrupo,
   parseEtapasInstrucoes,
   removerComplementosOsDoCorpo,
@@ -821,7 +822,11 @@ function itemIdEtapasControle(
 }
 
 export default function ControlePage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const editarIdUrl = searchParams.get("editar");
+  const retornoAgenda = searchParams.get("from") === "agenda";
+  const embedAgenda = searchParams.get("embed") === "1";
   const painelInicial = searchParams.get("painel");
   const prazoInicial: TipoPrazoProducao =
     searchParams.get("prazo") === "dentista" ? "dentista" : "lab";
@@ -911,6 +916,7 @@ export default function ControlePage() {
   const [imprimirOs, setImprimirOs] = useState<Trabalho | null>(null);
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
   const [avisoConfirmarItem, setAvisoConfirmarItem] = useState("");
+  const editarUrlAbertoRef = useRef(false);
 
   async function load() {
     const params = new URLSearchParams();
@@ -1020,6 +1026,14 @@ export default function ControlePage() {
     const alvo = trabalhos.find((t) => t.id === painelDestaque);
     if (alvo) setOsAberta(alvo.id);
   }, [painelDestaque, trabalhos]);
+
+  useEffect(() => {
+    if (!editarIdUrl || trabalhos.length === 0 || editarUrlAbertoRef.current) return;
+    const alvo = trabalhos.find((t) => t.id === editarIdUrl);
+    if (!alvo) return;
+    editarUrlAbertoRef.current = true;
+    abrirEdicao(alvo);
+  }, [editarIdUrl, trabalhos]);
 
   useEffect(() => {
     fetch("/api/financeiro?tipo=receita", { cache: "no-store" })
@@ -1245,6 +1259,13 @@ export default function ControlePage() {
     setTipoDenticao("permanente");
     setDentesEdicao([]);
     setLancamentosFatura([]);
+    if (embedAgenda && typeof window !== "undefined") {
+      window.parent.postMessage({ type: "agenda-os-edit-close" }, "*");
+      return;
+    }
+    if (retornoAgenda) {
+      router.push("/app/producao/agenda");
+    }
   }
 
   function sincronizarIndiceEtapaAtualEdicao(
@@ -2262,7 +2283,9 @@ export default function ControlePage() {
   }
 
   return (
-    <div className="space-y-3 text-[11px] text-slate-700">
+    <div className={embedAgenda ? "" : "space-y-3 text-[11px] text-slate-700"}>
+      {!embedAgenda && (
+      <>
       <div className="flex items-center gap-2 text-sm text-slate-500">
         <span>Produção</span>
         <span>/</span>
@@ -2556,8 +2579,16 @@ export default function ControlePage() {
                           <Detail label="Número do Dente" value={exibirTexto(trabalho.dentes)} />
                           <Detail label="Cor do Dente" value={exibirTexto(trabalho.cor)} />
                           <Detail label="Material enviado" value={trabalho.material || ""} />
-                          <Detail label="Observação Serviço" value={trabalho.observacoes || ""} emptyValue="" />
-                          <Detail label="Observação Interna / Técnica" value={instrucoesSemAnexos(trabalho.instrucoes)} />
+                          <Detail
+                            label="Observação Serviço"
+                            value={instrucoesTextoLivre(trabalho.instrucoes)}
+                            emptyValue=""
+                          />
+                          <Detail
+                            label="Observação Interna / Técnica"
+                            value={trabalho.observacoes?.trim() || ""}
+                            emptyValue=""
+                          />
                         </div>
                         <div className="mt-3 flex gap-2">
                           <Button
@@ -2650,9 +2681,16 @@ export default function ControlePage() {
           </div>
         </div>
       )}
+      </>
+      )}
 
+      {embedAgenda && !editando && (
+        <div className="flex min-h-screen items-center justify-center text-sm text-slate-500">
+          Carregando edição...
+        </div>
+      )}
 
-      {statusEditando && (
+      {statusEditando && !embedAgenda && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="max-h-[90vh] w-full max-w-xl overflow-auto rounded bg-white p-4 shadow-xl">
             <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-2">
@@ -2726,10 +2764,31 @@ export default function ControlePage() {
       )}
 
       {editando && form && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-2 md:p-4">
-          <div className="flex max-h-[94vh] w-full max-w-[96vw] flex-col overflow-hidden rounded border border-slate-200 bg-white shadow-xl">
+        <div
+          className={
+            embedAgenda
+              ? "fixed inset-0 z-50 flex flex-col bg-white"
+              : "fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-2 md:p-4"
+          }
+        >
+          <div
+            className={
+              embedAgenda
+                ? "flex h-full w-full flex-col overflow-hidden bg-white"
+                : "flex max-h-[94vh] w-full max-w-[96vw] flex-col overflow-hidden rounded border border-slate-200 bg-white shadow-xl"
+            }
+          >
             <div className="relative shrink-0 border-b border-slate-100 px-4 py-3">
               <p className="text-left text-xs font-medium text-slate-500">Editar Entrada</p>
+              {(retornoAgenda || embedAgenda) && (
+                <button
+                  type="button"
+                  onClick={fecharEdicaoOs}
+                  className="absolute left-4 top-3 text-xs font-medium text-primary-700 hover:underline"
+                >
+                  ← Voltar para Agenda
+                </button>
+              )}
               <h2 className="text-center text-sm font-medium text-slate-700">
                 Ordem de Serviço {editando.numeroOs}
               </h2>
@@ -3900,6 +3959,7 @@ export default function ControlePage() {
         </div>
       )}
 
+      {!embedAgenda && (
       <ImprimirOsModal
         open={!!imprimirOs}
         onClose={() => setImprimirOs(null)}
@@ -3912,6 +3972,7 @@ export default function ControlePage() {
             : false
         }
       />
+      )}
     </div>
   );
 }

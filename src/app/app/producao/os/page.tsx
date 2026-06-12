@@ -3267,24 +3267,38 @@ export default function OrdemServicoPage() {
             )}
           </div>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,video/*"
-            multiple
-            className="hidden"
-            onChange={adicionarArquivosSelecionados}
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={arquivos.length >= LIMITE_ARQUIVOS_OS}
-            className="rounded border border-slate-300 px-3 py-2 text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <ImageUp className="mr-2 inline h-4 w-4" /> Selecione Imagens ou Vídeos ({arquivos.length}/{LIMITE_ARQUIVOS_OS})
-          </button>
+          <div className="flex flex-col gap-3 md:col-span-5 lg:flex-row lg:items-end">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              className="hidden"
+              onChange={adicionarArquivosSelecionados}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={arquivos.length >= LIMITE_ARQUIVOS_OS}
+              className="shrink-0 rounded border border-slate-300 px-3 py-2 text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <ImageUp className="mr-2 inline h-4 w-4" /> Selecione Imagens ou Vídeos ({arquivos.length}/{LIMITE_ARQUIVOS_OS})
+            </button>
+            <div className="min-w-0 flex-1">
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Observação Interna
+              </label>
+              <input
+                type="text"
+                value={form.observacoes}
+                onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+                placeholder="Somente para o laboratório (não aparece na OS impressa)"
+                className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+              />
+            </div>
+          </div>
           {arquivos.length > 0 && (
-            <div className="md:col-span-4 rounded border border-emerald-200 bg-emerald-50 p-3 text-emerald-800">
+            <div className="md:col-span-5 rounded border border-emerald-200 bg-emerald-50 p-3 text-emerald-800">
               <p className="mb-2 font-medium">Arquivos selecionados ({arquivos.length}/{LIMITE_ARQUIVOS_OS}):</p>
               <div className="grid gap-2 sm:grid-cols-3 md:grid-cols-5">
                 {previews.map((preview, index) => (

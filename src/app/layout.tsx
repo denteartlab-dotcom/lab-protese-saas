@@ -94,7 +94,7 @@ export default async function RootLayout({
         <AppVersionWatcher />
         <LabConfigProvider lab={lab} configLaboratorio={configLaboratorio}>
           <LabDocumentHead />
-          <div className="flex min-h-screen flex-col">
+          <div className="flex min-h-[calc(100dvh/var(--site-zoom,0.9))] flex-col">
             <SiteTopoMarca />
             <div className="flex min-h-0 flex-1 flex-col">{children}</div>
           </div>
