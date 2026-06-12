@@ -19,6 +19,7 @@ import {
   ControleProducaoToolbar,
 } from "@/components/ControleProducaoToolbar";
 import { CabecalhoFormularioOs } from "@/components/producao/CabecalhoFormularioOs";
+import { EscalaCorCamposOs } from "@/components/producao/EscalaCorCamposOs";
 import { EtapasControleCelula } from "@/components/producao/EtapasControleCelula";
 import {
   EtapasOsEditor,
@@ -235,8 +236,8 @@ type EditForm = {
   categoria: string;
   tipoProtese: string;
   dentes: string;
+  escala: string;
   cor: string;
-  escalaCor: string;
   material: string;
   status: string;
   valor: string;
@@ -1178,6 +1179,18 @@ export default function ControlePage() {
     setCategoriasTabelaPreco(categoriasSelecionaveisNaOs(categorias));
   }, [categoriasPorTabelaPreco, tabelaPrecoSelecionada]);
 
+  const categoriasCompletasTabela = useMemo(
+    () => categoriasPorTabelaPreco[tabelaPrecoSelecionada] || [],
+    [categoriasPorTabelaPreco, tabelaPrecoSelecionada]
+  );
+
+  function recarregarTabelaPrecoControle() {
+    const dados = carregarDadosTabelaPrecoOs();
+    if (Object.keys(dados.categoriasPorTabela).length > 0) {
+      setCategoriasPorTabelaPreco(dados.categoriasPorTabela);
+    }
+  }
+
   useEffect(() => {
     if (!editando) return;
     fetch("/api/produtos")
@@ -1337,11 +1350,11 @@ export default function ControlePage() {
       dentista:
         linhaInstrucaoOs(instrucoesTexto, "Dentista:") ||
         linhaInstrucaoOs(instrucoesTexto, "Dentista convidado:"),
-      categoria: trabalho.escala || "",
+      categoria: "",
       tipoProtese: trabalho.tipoProtese,
       dentes: trabalho.dentes || "",
+      escala: trabalho.escala || "",
       cor: trabalho.cor || "",
-      escalaCor: trabalho.escala || trabalho.cor || "",
       material: trabalho.material || "",
       status: trabalho.status,
       valor: (trabalho.valor || 0).toLocaleString("pt-BR", {
@@ -1954,15 +1967,11 @@ export default function ControlePage() {
     const descontoItem = item.desconto || "0,00";
     setForm((atual) => ({
       ...(atual || formVazioEdicao(editando!)),
-      categoria:
-        item.categoria ||
-        categoriaDoServicoNaTabela(categoriasTabelaPreco, item.servico) ||
-        editando!.escala ||
-        "",
+      categoria: categoriaDoServicoNaTabela(categoriasTabelaPreco, item.servico) || "",
+      escala: item.categoria || editando!.escala || "",
       tipoProtese: item.servico,
       dentes: numeroDenteResumoControle(dentesItem, denticaoItem) || resumoDentes,
       cor: item.corDente === "-" ? "" : item.corDente,
-      escalaCor: item.corDente === "-" ? "" : item.corDente,
       quantidade: item.quantidade || "1",
       valor: unitario.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
       descontoTipo: item.descontoTipo || (descontoItem.startsWith("R$") ? "valor" : "percentual"),
@@ -2055,9 +2064,9 @@ export default function ControlePage() {
     return {
       ...base,
       servico: nomeServico,
-      categoria: form.categoria,
+      categoria: form.escala,
       numeroDente: form.dentes || "-",
-      corDente: form.escalaCor || form.cor || "-",
+      corDente: form.cor || "-",
       quantidade: form.quantidade || "1",
       valor: parseCurrencyBr(form.valor) * qtd,
       descontoTipo: form.descontoTipo,
@@ -2167,9 +2176,9 @@ export default function ControlePage() {
       const novo: EditItem = {
         id: `${Date.now()}`,
         servico: nomeServico,
-        categoria: form.categoria,
+        categoria: form.escala,
         numeroDente: form.dentes || "-",
-        corDente: form.escalaCor || form.cor || "-",
+        corDente: form.cor || "-",
         quantidade,
         valor: parseCurrencyBr(form.valor) * (Number(quantidade) || 1),
         descontoTipo: form.descontoTipo,
@@ -2217,8 +2226,8 @@ export default function ControlePage() {
       categoria: "",
       tipoProtese: "",
       dentes: "",
+      escala: "",
       cor: "",
-      escalaCor: "",
       quantidade: "1",
       valor: "R$ 0,00",
       descontoTipo: "percentual",
@@ -2412,7 +2421,7 @@ export default function ControlePage() {
 
     const payloadPutCompartilhado = {
       dentes: form.dentes || null,
-      cor: form.escalaCor || form.cor || null,
+      cor: form.cor || null,
       material: form.material || null,
       status: form.status,
       dataPrevista: dataPrevistaIso,
@@ -2422,7 +2431,7 @@ export default function ControlePage() {
     const payloadPostCompartilhado = bodyTrabalhoSemNull({
       status: form.status,
       ...(form.dentes ? { dentes: form.dentes } : {}),
-      ...((form.escalaCor || form.cor) ? { cor: form.escalaCor || form.cor } : {}),
+      ...(form.cor ? { cor: form.cor } : {}),
       ...(form.material ? { material: form.material } : {}),
       ...(dataPrevistaIso ? { dataPrevista: dataPrevistaIso } : {}),
       ...(form.observacoes ? { observacoes: form.observacoes } : {}),
@@ -3592,12 +3601,14 @@ export default function ControlePage() {
                         value={form.horaDentista}
                         onChange={(e) => setForm({ ...form, horaDentista: e.target.value })}
                       />
-                      <Input
-                        label="Escala/Cor"
-                        value={form.escalaCor}
-                        onChange={(e) =>
-                          setForm({ ...form, escalaCor: e.target.value, cor: e.target.value })
-                        }
+                      <EscalaCorCamposOs
+                        escala={form.escala}
+                        cor={form.cor}
+                        onEscalaChange={(valor) => setForm({ ...form, escala: valor })}
+                        onCorChange={(valor) => setForm({ ...form, cor: valor })}
+                        categoriasTabela={categoriasCompletasTabela}
+                        nomeTabelaPreco={tabelaPrecoSelecionada}
+                        onTabelaPrecoAlterada={recarregarTabelaPrecoControle}
                       />
                     </div>
 

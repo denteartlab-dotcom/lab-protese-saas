@@ -3,7 +3,7 @@ import {
   prazoVencimentoEtapaOs,
   type EtapaCadastro,
 } from "@/lib/etapas-os";
-import { readStorage } from "@/lib/persisted-storage";
+import { readStorage, writeStorage } from "@/lib/persisted-storage";
 
 export const TABELA_PRECOS_STORAGE_KEY = "labProteseTabelaPrecos";
 export const TABELA_PRECOS_EVENT = "labProteseTabelaPrecosAtualizada";
@@ -291,6 +291,68 @@ export function servicoTemEtapasNaTabela(servico?: ServicoTabelaPrecoOs | null) 
 
 export function itemEhProdutoNaTabela(item: ServicoTabelaPrecoOs) {
   return (item.tipo || "servico") === "produto";
+}
+
+export const CATEGORIA_ESCALA_OS = "DENTES";
+
+export function encontrarCategoriaEscalaOs(categorias: CategoriaTabelaPrecoOs[]) {
+  return categorias.find(
+    (categoria) =>
+      normalizarTextoTabela(categoria.nome) ===
+      normalizarTextoTabela(CATEGORIA_ESCALA_OS)
+  );
+}
+
+/** Produtos visíveis da coluna/categoria DENTES na tabela de preços. */
+export function produtosEscalaOs(categorias: CategoriaTabelaPrecoOs[]) {
+  const categoria = encontrarCategoriaEscalaOs(categorias);
+  if (!categoria) return [];
+  return produtosVisiveisNaOs(categoria.servicos || []);
+}
+
+/** Marca produto da categoria DENTES como excluído na tabela de preços. */
+export function excluirProdutoEscalaOs(
+  nomeTabela: string,
+  produtoId: string
+): boolean {
+  if (typeof window === "undefined" || !produtoId) return false;
+  const saved = readStorage<DadosTabelaPrecosStorage | null>(
+    TABELA_PRECOS_STORAGE_KEY,
+    null
+  );
+  if (!saved?.categoriasPorTabela) return false;
+
+  let alterou = false;
+  const categoriasPorTabela = Object.fromEntries(
+    Object.entries(saved.categoriasPorTabela).map(([tabela, categorias]) => {
+      if (tabela !== nomeTabela) return [tabela, categorias];
+      const proximas = categorias.map((categoria) => {
+        if (
+          normalizarTextoTabela(categoria.nome) !==
+          normalizarTextoTabela(CATEGORIA_ESCALA_OS)
+        ) {
+          return categoria;
+        }
+        const servicos = (categoria.servicos || []).map((item) => {
+          if (item.id !== produtoId) return item;
+          alterou = true;
+          return { ...item, excluido: true };
+        });
+        return { ...categoria, servicos };
+      });
+      return [tabela, proximas];
+    })
+  );
+
+  if (!alterou) return false;
+
+  const payload: DadosTabelaPrecosStorage = {
+    ...saved,
+    categoriasPorTabela,
+  };
+  writeStorage(TABELA_PRECOS_STORAGE_KEY, payload);
+  void sincronizarTabelaPrecosServidor(payload);
+  return true;
 }
 
 export function produtosCadastradosNaTabela(categorias: CategoriaTabelaPrecoOs[]) {
