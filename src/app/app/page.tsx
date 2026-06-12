@@ -144,7 +144,6 @@ export default function DashboardPage() {
       mes: String(mesFiltro),
       ano: String(anoFiltro),
       diasSemServico: String(diasSemServico),
-      clientesSemServicoLimite: "0",
       mesAniversario: String(new Date().getMonth()),
     });
     if (!dataRef.current) setCarregando(true);
@@ -413,17 +412,6 @@ export default function DashboardPage() {
             lista={dashboard.clientesSemServico ?? []}
             diasMinimos={diasSemServico}
             onDiasChange={setDiasSemServico}
-            carregarListaImpressao={async () => {
-              const params = new URLSearchParams({
-                mes: String(mesFiltro),
-                ano: String(anoFiltro),
-                diasSemServico: String(diasSemServico),
-                clientesSemServicoLimite: "0",
-                mesAniversario: String(new Date().getMonth()),
-              });
-              const dash = await apiFetch<Dashboard>(`/api/dashboard?${params}`);
-              return dash.clientesSemServico ?? [];
-            }}
           />
         ) : null}
 

@@ -34,11 +34,6 @@ export async function GET(request: Request) {
     1,
     Number(searchParams.get("diasSemServico") ?? 15) || 15
   );
-  const limiteClientesServicoParam = searchParams.get("clientesSemServicoLimite");
-  const limiteClientesServico =
-    limiteClientesServicoParam === "0"
-      ? 0
-      : Math.max(1, Number(limiteClientesServicoParam ?? 25) || 25);
   const mesAniversario = Number(
     searchParams.get("mesAniversario") ?? new Date().getMonth()
   );
@@ -177,8 +172,7 @@ export async function GET(request: Request) {
   const clientesSemServico = calcularClientesSemServico(
     clientesAtivos,
     trabalhosProducao,
-    diasSemServico,
-    limiteClientesServico
+    diasSemServico
   );
 
   const storeUrgencias = await podarEventosUrgenciaInativos();

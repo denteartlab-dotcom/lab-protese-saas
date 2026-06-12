@@ -29,22 +29,11 @@ export type TrabalhoUltimoServicoCliente = {
 };
 
 export const OPCOES_DIAS_SEM_SERVICO = [
-  { value: 15, label: "15 dias" },
-  { value: 30, label: "30 dias" },
-  { value: 60, label: "60 dias" },
-  { value: 90, label: "90 dias" },
+  { value: 15, label: "15 d.m." },
+  { value: 30, label: "30 d.m." },
+  { value: 60, label: "60 d.m." },
+  { value: 90, label: "90 d.m." },
 ] as const;
-
-export const LIMITE_CLIENTES_SERVICO_PAINEL = 3;
-
-/** Menor tempo sem serviço = último serviço mais recente (aparece primeiro). */
-export function ordenarClientesSemServicoPorMenosTempo(lista: ClienteSemServicoItem[]) {
-  return [...lista].sort((a, b) => {
-    const ta = a.ultimoServicoEm ? new Date(a.ultimoServicoEm).getTime() : 0;
-    const tb = b.ultimoServicoEm ? new Date(b.ultimoServicoEm).getTime() : 0;
-    return tb - ta;
-  });
-}
 
 /** Mesma base do Controle de Produção: serviço odontológico lançado (não produto/transporte/ficha vazia). */
 export function trabalhoContaComoUltimoServicoCliente(
@@ -72,7 +61,7 @@ export function calcularClientesSemServico(
   clientes: Array<{ id: string; nome: string; ativo: boolean }>,
   trabalhos: TrabalhoUltimoServicoCliente[],
   diasMinimos: number,
-  limite?: number
+  limite = 25
 ): ClienteSemServicoItem[] {
   const hoje = inicioDoDia(new Date());
 
@@ -102,8 +91,11 @@ export function calcularClientesSemServico(
     });
   }
 
-  const ordenada = ordenarClientesSemServicoPorMenosTempo(lista);
-
-  if (limite == null || limite <= 0) return ordenada;
-  return ordenada.slice(0, limite);
+  return lista
+    .sort((a, b) => {
+      const ta = a.ultimoServicoEm ? new Date(a.ultimoServicoEm).getTime() : 0;
+      const tb = b.ultimoServicoEm ? new Date(b.ultimoServicoEm).getTime() : 0;
+      return ta - tb;
+    })
+    .slice(0, limite);
 }
