@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import type { HistoricoEtapaRow } from "@/lib/historico-etapas";
+import { listarHistoricoEtapas } from "@/lib/historico-etapas";
 import { calcularRelatorioClientesPrejuizo } from "@/lib/relatorio-clientes-prejuizo-servidor";
 import type { PeriodoClientesPrejuizo } from "@/lib/relatorio-clientes-prejuizo";
 
@@ -17,10 +17,8 @@ export async function GET(request: Request) {
   const dataFim = searchParams.get("dataFim") || "";
 
   try {
-    const [historicoRaw, trabalhosRaw] = await Promise.all([
-      prisma.historicoEtapa.findMany({
-        orderBy: { dataEntrada: "asc" },
-      }),
+    const [historico, trabalhosRaw] = await Promise.all([
+      listarHistoricoEtapas(),
       prisma.trabalho.findMany({
         where: { status: { not: "cancelado" } },
         select: {
@@ -33,21 +31,6 @@ export async function GET(request: Request) {
         },
       }),
     ]);
-
-    const historico: HistoricoEtapaRow[] = historicoRaw.map((h) => ({
-      id: h.id,
-      trabalhoId: h.trabalhoId,
-      numeroOs: h.numeroOs,
-      clienteId: h.clienteId,
-      etapa: h.etapa,
-      colaboradorId: h.colaboradorId,
-      colaboradorNome: h.colaboradorNome,
-      dataEntrada: h.dataEntrada,
-      dataSaida: h.dataSaida,
-      observacao: h.observacao,
-      motivoRetorno: h.motivoRetorno,
-      itemId: h.itemId,
-    }));
 
     const trabalhos = trabalhosRaw.map((t) => ({
       id: t.id,

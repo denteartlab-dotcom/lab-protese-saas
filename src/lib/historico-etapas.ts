@@ -6,19 +6,50 @@ import {
 } from "@/lib/etapas-os";
 import { indiceEtapaAtualDeConcluidas } from "@/lib/modulo-producao-etapas";
 
-export type RegistrarTransicaoEtapaOpts = {
-  trabalhoId: string;
-  numeroOs: number;
-  clienteId: string;
-  itemId?: string | null;
-  etapaAnterior?: string | null;
-  etapaNova: string;
-  colaboradorId?: string | null;
-  colaboradorNome?: string | null;
-  observacao?: string | null;
-  motivoRetorno?: string | null;
-  dataEntrada?: Date;
-};
+let tabelaHistoricoGarantida = false;
+
+/** Cria a tabela historico_etapas no PostgreSQL se ainda não existir (deploy sem db push). */
+export async function garantirTabelaHistoricoEtapas() {
+  if (tabelaHistoricoGarantida) return;
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "historico_etapas" (
+        "id" TEXT NOT NULL,
+        "trabalhoId" TEXT NOT NULL,
+        "numeroOs" INTEGER NOT NULL,
+        "clienteId" TEXT NOT NULL,
+        "etapa" TEXT NOT NULL,
+        "colaboradorId" TEXT,
+        "colaboradorNome" TEXT,
+        "dataEntrada" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "dataSaida" TIMESTAMP(3),
+        "observacao" TEXT,
+        "motivoRetorno" TEXT,
+        "itemId" TEXT,
+        CONSTRAINT "historico_etapas_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "historico_etapas_trabalhoId_idx" ON "historico_etapas"("trabalhoId")`
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "historico_etapas_clienteId_idx" ON "historico_etapas"("clienteId")`
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "historico_etapas_numeroOs_idx" ON "historico_etapas"("numeroOs")`
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "historico_etapas_etapa_idx" ON "historico_etapas"("etapa")`
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "historico_etapas_dataEntrada_idx" ON "historico_etapas"("dataEntrada")`
+    );
+    tabelaHistoricoGarantida = true;
+  } catch (error) {
+    console.error("[historico-etapas] garantir tabela:", error);
+    throw error;
+  }
+}
 
 export type HistoricoEtapaRow = {
   id: string;
@@ -33,6 +64,41 @@ export type HistoricoEtapaRow = {
   observacao: string | null;
   motivoRetorno: string | null;
   itemId: string | null;
+};
+
+export async function listarHistoricoEtapas(): Promise<HistoricoEtapaRow[]> {
+  await garantirTabelaHistoricoEtapas();
+  const rows = await prisma.historicoEtapa.findMany({
+    orderBy: { dataEntrada: "asc" },
+  });
+  return rows.map((h) => ({
+    id: h.id,
+    trabalhoId: h.trabalhoId,
+    numeroOs: h.numeroOs,
+    clienteId: h.clienteId,
+    etapa: h.etapa,
+    colaboradorId: h.colaboradorId,
+    colaboradorNome: h.colaboradorNome,
+    dataEntrada: h.dataEntrada,
+    dataSaida: h.dataSaida,
+    observacao: h.observacao,
+    motivoRetorno: h.motivoRetorno,
+    itemId: h.itemId,
+  }));
+}
+
+export type RegistrarTransicaoEtapaOpts = {
+  trabalhoId: string;
+  numeroOs: number;
+  clienteId: string;
+  itemId?: string | null;
+  etapaAnterior?: string | null;
+  etapaNova: string;
+  colaboradorId?: string | null;
+  colaboradorNome?: string | null;
+  observacao?: string | null;
+  motivoRetorno?: string | null;
+  dataEntrada?: Date;
 };
 
 export type RepeticaoPorOs = {
@@ -84,6 +150,7 @@ export async function fecharEtapaAberta(
   itemId?: string | null,
   dataSaida = new Date()
 ) {
+  await garantirTabelaHistoricoEtapas();
   const where: {
     trabalhoId: string;
     dataSaida: null;
