@@ -5,6 +5,12 @@ import {
 } from "@/lib/lab-impressao";
 import type { GrupoOsPainelServicos } from "@/lib/painel-servicos-dashboard";
 
+type GerarPdfServicosPainelOpts = {
+  lab: LabImpressaoConfig;
+  grupos: GrupoOsPainelServicos[];
+  titulo: string;
+};
+
 type GerarPdfServicosVencendoOpts = {
   lab: LabImpressaoConfig;
   grupos: GrupoOsPainelServicos[];
@@ -46,6 +52,30 @@ export async function gerarPdfServicosVencendo({
   grupos,
   tituloPeriodo,
 }: GerarPdfServicosVencendoOpts): Promise<Blob> {
+  return gerarPdfServicosPainel({
+    lab,
+    grupos,
+    titulo: `Serviços vencendo até ${tituloPeriodo}`,
+  });
+}
+
+export async function gerarPdfServicosAtrasados({
+  lab,
+  grupos,
+}: Omit<GerarPdfServicosPainelOpts, "titulo">): Promise<Blob> {
+  const ordenados = [...grupos].sort((a, b) => a.numeroOs - b.numeroOs);
+  return gerarPdfServicosPainel({
+    lab,
+    grupos: ordenados,
+    titulo: `Serviços Atrasados (${ordenados.length})`,
+  });
+}
+
+async function gerarPdfServicosPainel({
+  lab,
+  grupos,
+  titulo,
+}: GerarPdfServicosPainelOpts): Promise<Blob> {
   const { default: jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
   const pageW = doc.internal.pageSize.getWidth();
@@ -88,7 +118,7 @@ export async function gerarPdfServicosVencendo({
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.text(`Serviços vencendo até ${tituloPeriodo}`, pageW / 2, y, { align: "center" });
+  doc.text(titulo, pageW / 2, y, { align: "center" });
   y += 6;
 
   doc.line(margin, y, pageW - margin, y);
@@ -129,6 +159,9 @@ export async function gerarPdfServicosVencendo({
       x += w;
     }
     y += alturaLinha;
+    doc.setDrawColor(210, 210, 210);
+    doc.setLineWidth(0.15);
+    doc.line(margin, y - 1.5, pageW - margin, y - 1.5);
   }
 
   return doc.output("blob");

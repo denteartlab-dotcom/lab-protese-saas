@@ -33,12 +33,14 @@ import { PainelServicosDashboard } from "@/components/dashboard/PainelServicosDa
 import { PdfViewerModal } from "@/components/dashboard/PdfViewerModal";
 import { PainelUrgenciasClienteDashboard } from "@/components/dashboard/PainelUrgenciasClienteDashboard";
 import type { UrgenteClienteDashboardItem } from "@/lib/urgencia-cliente";
-import { hrefControlePainel } from "@/lib/notificacao-links";
 import {
   agruparTrabalhosPainelServicos,
   rotuloFimPeriodoVencendo,
 } from "@/lib/painel-servicos-dashboard";
-import { gerarPdfServicosVencendo } from "@/lib/pdf-servicos-vencendo";
+import {
+  gerarPdfServicosAtrasados,
+  gerarPdfServicosVencendo,
+} from "@/lib/pdf-servicos-vencendo";
 import { useLabConfigClient } from "@/lib/use-lab-config-client";
 import { usePermissoesApp } from "@/components/PermissoesAppProvider";
 import { permissaoIdPorHref } from "@/lib/usuarios-menu-permissoes";
@@ -126,6 +128,7 @@ export default function DashboardPage() {
   const [diasSemServico, setDiasSemServico] = useState(15);
   const [uploadsResumo, setUploadsResumo] = useState<UploadsResumoUi | null>(null);
   const [pdfVencendoUrl, setPdfVencendoUrl] = useState<string | null>(null);
+  const [pdfAtrasadosUrl, setPdfAtrasadosUrl] = useState<string | null>(null);
   const { acessoTotal, permissoesModulos } = usePermissoesApp();
   const dataRef = useRef<Dashboard | null>(data);
   dataRef.current = data;
@@ -216,6 +219,25 @@ export default function DashboardPage() {
   function fecharPdfVencendo() {
     if (pdfVencendoUrl) URL.revokeObjectURL(pdfVencendoUrl);
     setPdfVencendoUrl(null);
+  }
+
+  async function imprimirServicosAtrasados() {
+    try {
+      const blob = await gerarPdfServicosAtrasados({
+        lab,
+        grupos: atrasadosGrupos,
+      });
+      const url = URL.createObjectURL(blob);
+      if (pdfAtrasadosUrl) URL.revokeObjectURL(pdfAtrasadosUrl);
+      setPdfAtrasadosUrl(url);
+    } catch {
+      /* falha silenciosa — usuário pode tentar de novo */
+    }
+  }
+
+  function fecharPdfAtrasados() {
+    if (pdfAtrasadosUrl) URL.revokeObjectURL(pdfAtrasadosUrl);
+    setPdfAtrasadosUrl(null);
   }
 
   if (carregando && !data) {
@@ -316,10 +338,7 @@ export default function DashboardPage() {
               ]}
             />
           }
-          linkImprimir={hrefControlePainel("atrasados", {
-            prazo: prazoAtrasados,
-            imprimir: true,
-          })}
+          onImprimir={() => void imprimirServicosAtrasados()}
           labelVisualizar={t("dashboard.visualizar")}
           labelImprimir={t("dashboard.imprimir")}
         />
@@ -409,6 +428,16 @@ export default function DashboardPage() {
           nomeArquivo={`servicos-vencendo-${periodoVencendo}.pdf`}
           iframeTitle="PDF serviços vencendo"
           onFechar={fecharPdfVencendo}
+        />
+      ) : null}
+
+      {pdfAtrasadosUrl ? (
+        <PdfViewerModal
+          titulo={`Serviços Atrasados (${atrasados})`}
+          pdfUrl={pdfAtrasadosUrl}
+          nomeArquivo="servicos-atrasados.pdf"
+          iframeTitle="PDF serviços atrasados"
+          onFechar={fecharPdfAtrasados}
         />
       ) : null}
     </div>
