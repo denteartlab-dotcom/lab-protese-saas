@@ -140,7 +140,9 @@ function AppShellInner({
     pathname.startsWith("/app/configuracoes/faturas/modelo5");
   const isModuloColaborador = pathname === "/app/producao/modulo";
   const isModuloTv = pathname.startsWith("/app/producao/modulo-tv");
-  const isModuloImersivo = isModuloColaborador || isModuloTv;
+  const isRelatorioClientesPrejuizo = pathname.startsWith("/app/relatorios/clientes-prejuizo");
+  const isModuloImersivo =
+    isModuloColaborador || isModuloTv || isRelatorioClientesPrejuizo;
   const isDashboard = pathname === "/app";
   const [darkMode, setDarkMode] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -452,9 +454,11 @@ function AppShellInner({
         "flex min-h-0 flex-1 flex-col transition-colors",
         isModuloTv
           ? "h-[100vh] w-[100vw] max-w-none overflow-hidden bg-[#070b12]"
-          : isModuloColaborador
-            ? "bg-white"
-            : "bg-[#f4f6f8] dark:bg-slate-950"
+          : isRelatorioClientesPrejuizo
+            ? "min-h-[100vh] w-full bg-[#f4f6f8]"
+            : isModuloColaborador
+              ? "bg-white"
+              : "bg-[#f4f6f8] dark:bg-slate-950"
       )}
     >
       {!isPrint && !isModuloImersivo && (
@@ -1235,11 +1239,18 @@ function AppShellInner({
         onCodigoLido={(numero) => void buscarOrdemServico(numero)}
       />
 
-      <main className={cn(isModuloTv && "h-full min-h-0 w-full max-w-none flex-1 overflow-hidden")}>
+      <main
+        className={cn(
+          (isModuloTv || isRelatorioClientesPrejuizo) &&
+            "h-full min-h-0 w-full max-w-none flex-1 overflow-auto"
+        )}
+      >
         <div
           className={cn(
             isPrint || isModuloImersivo
-              ? "h-[100vh] w-[100vw] max-w-none min-h-0 overflow-hidden p-0 m-0"
+              ? isRelatorioClientesPrejuizo
+                ? "h-full min-h-[100vh] w-full max-w-none overflow-auto p-0 m-0"
+                : "h-[100vh] w-[100vw] max-w-none min-h-0 overflow-hidden p-0 m-0"
               : "min-h-screen px-3 py-4 sm:px-5"
           )}
         >

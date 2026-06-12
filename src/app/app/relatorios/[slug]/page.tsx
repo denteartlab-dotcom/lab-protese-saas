@@ -18,6 +18,7 @@ const SLUGS_COM_PAGINA_DEDICADA = new Set([
   "logs-auditoria",
   "dashboard-gerencial",
   "relatorio-financeiro-geral",
+  "clientes-prejuizo",
 ]);
 
 const SLUGS_REDIRECIONAR: Record<string, string> = {

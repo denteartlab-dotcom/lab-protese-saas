@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  AlertTriangle,
   BarChart3,
   ClipboardList,
   Clock,
@@ -84,6 +85,11 @@ export const relatoriosNav: RelatorioNavItem[] = [
     labelKey: "nav.relatorio.financeiroGeral",
     icon: Wallet,
   },
+  {
+    href: "/app/relatorios/clientes-prejuizo",
+    labelKey: "nav.relatorio.clientesPrejuizo",
+    icon: AlertTriangle,
+  },
 ];
 
 export const relatoriosSlugs = [
@@ -99,6 +105,7 @@ export const relatoriosSlugs = [
   "logs-auditoria",
   "dashboard-gerencial",
   "relatorio-financeiro-geral",
+  "clientes-prejuizo",
 ] as const;
 
 export type RelatorioSlug = (typeof relatoriosSlugs)[number];
@@ -116,6 +123,7 @@ const slugParaLabelKey: Record<RelatorioSlug, MessageKey> = {
   "logs-auditoria": "nav.relatorio.logsAuditoria",
   "dashboard-gerencial": "nav.relatorio.dashboardGerencial",
   "relatorio-financeiro-geral": "nav.relatorio.financeiroGeral",
+  "clientes-prejuizo": "nav.relatorio.clientesPrejuizo",
 };
 
 export function labelKeyRelatorio(slug: string) {
