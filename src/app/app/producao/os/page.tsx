@@ -1198,6 +1198,7 @@ export default function OrdemServicoPage() {
       trabalhoId,
       itemId,
       indiceAtual: Math.min(indiceEtapaAtual, etapas.length),
+      registrarRepeticaoSeAtualizacao: Boolean(editId),
     });
   }
 

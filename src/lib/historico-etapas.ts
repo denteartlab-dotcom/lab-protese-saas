@@ -190,6 +190,41 @@ export async function registrarTransicaoEtapa(opts: RegistrarTransicaoEtapaOpts)
   });
 }
 
+export async function registrarRepeticaoPorAtualizacaoOs(opts: {
+  trabalhoId: string;
+  itemId?: string | null;
+  indiceAtual: number;
+  motivoRetorno?: string | null;
+  observacao?: string | null;
+}) {
+  const ctx = await carregarContextoTrabalhoEtapa(opts.trabalhoId);
+  if (!ctx || !ctx.etapas.length) return null;
+
+  const indice = Math.min(
+    Math.max(0, Math.floor(opts.indiceAtual)),
+    Math.max(0, ctx.etapas.length - 1)
+  );
+  const etapa = nomeEtapaPorIndice(ctx.etapas, indice);
+  if (!etapa) return null;
+
+  const etapaLinha = ctx.etapas[indice];
+
+  await fecharEtapaAberta(ctx.trabalho.id, opts.itemId);
+
+  return prisma.historicoEtapa.create({
+    data: {
+      trabalhoId: ctx.trabalho.id,
+      numeroOs: ctx.trabalho.numeroOs,
+      clienteId: ctx.trabalho.clienteId,
+      etapa,
+      colaboradorNome: etapaLinha?.responsavel ?? null,
+      observacao: opts.observacao ?? null,
+      motivoRetorno: opts.motivoRetorno ?? "Repetição por atualização da OS",
+      itemId: opts.itemId ?? null,
+    },
+  });
+}
+
 export async function carregarContextoTrabalhoEtapa(trabalhoId: string) {
   const trabalho = await prisma.trabalho.findUnique({
     where: { id: trabalhoId },

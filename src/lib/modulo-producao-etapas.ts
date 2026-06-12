@@ -38,10 +38,16 @@ export function situacaoEtapaServico(
   return "aguardando";
 }
 
+export function concluidasEtapasIguais(a: number[], b: number[]) {
+  if (a.length !== b.length) return false;
+  return a.every((valor, indice) => valor === b[indice]);
+}
+
 export async function persistirEtapaAtualOs(opts: {
   trabalhoId: string;
   itemId: string;
   indiceAtual: number;
+  registrarRepeticaoSeAtualizacao?: boolean;
 }) {
   if (typeof window === "undefined") return;
   const chave = chaveEtapasModuloOs(opts.trabalhoId, opts.itemId);
@@ -57,12 +63,27 @@ export async function persistirEtapaAtualOs(opts: {
         mapa = body as MapaEtapas;
       }
     }
+    const concluidasAntes = mapa[chave] ?? [];
+    const etapaInalterada = concluidasEtapasIguais(concluidasAntes, concluidas);
     mapa[chave] = concluidas;
     await fetch(`/api/json-store/${MODULO_PRODUCAO_ETAPAS_STORAGE_KEY}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(mapa),
     });
+
+    if (opts.registrarRepeticaoSeAtualizacao && etapaInalterada) {
+      void fetch("/api/historico-etapas/registrar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          trabalhoId: opts.trabalhoId,
+          itemId: opts.itemId,
+          indiceAtual: opts.indiceAtual,
+          repeticaoAtualizacao: true,
+        }),
+      }).catch(() => {});
+    }
   } catch {
     /* localStorage já atualizado; TV sincroniza na próxima leitura do servidor */
   }

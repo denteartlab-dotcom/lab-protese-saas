@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import {
   registrarMudancaIndiceEtapa,
+  registrarRepeticaoPorAtualizacaoOs,
   registrarTransicaoEtapa,
 } from "@/lib/historico-etapas";
 
@@ -24,10 +25,23 @@ export async function POST(request: Request) {
       colaboradorNome?: string;
       motivoRetorno?: string;
       observacao?: string;
+      repeticaoAtualizacao?: boolean;
+      indiceAtual?: number;
     };
 
     if (!body.trabalhoId) {
       return NextResponse.json({ error: "trabalhoId obrigatório." }, { status: 400 });
+    }
+
+    if (body.repeticaoAtualizacao && typeof body.indiceAtual === "number") {
+      const registro = await registrarRepeticaoPorAtualizacaoOs({
+        trabalhoId: body.trabalhoId,
+        itemId: body.itemId,
+        indiceAtual: body.indiceAtual,
+        motivoRetorno: body.motivoRetorno,
+        observacao: body.observacao,
+      });
+      return NextResponse.json({ ok: true, id: registro?.id ?? null });
     }
 
     if (

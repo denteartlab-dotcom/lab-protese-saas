@@ -1553,6 +1553,7 @@ export default function ControlePage() {
       trabalhoId: trabalhoRef.id,
       itemId: itemIdEtapasControle(trabalhoRef, itemServico?.id ?? itemSelecionadoId),
       indiceAtual: Math.min(indiceEtapaAtualEdicao, etapasEdicao.length),
+      registrarRepeticaoSeAtualizacao: true,
     });
   }
 
