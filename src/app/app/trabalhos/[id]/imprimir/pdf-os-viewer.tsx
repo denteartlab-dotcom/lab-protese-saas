@@ -231,7 +231,90 @@ function desenharCheckboxEtapaPdf(pdf: PdfRenderApi, x: number, y: number, taman
   pdf.rect(x, y - tamanho + 0.6, tamanho, tamanho);
 }
 
-/** Bloco Etapas igual ao Smart: [ ] data hora Nome observação */
+type EtapaImpressaoHorizontal = {
+  nome: string;
+  dataHora: string;
+  colaborador: string;
+  obs: string;
+};
+
+function infoEtapaImpressaoHorizontal(
+  etapa: EtapaOsLinha,
+  data: PdfOsData,
+  lay: OsModelo1Layout
+): EtapaImpressaoHorizontal | null {
+  const nome = nomeEtapaSemSetor(etapa.nome);
+  if (!nome) return null;
+  return {
+    nome,
+    dataHora: formatarDataHoraEtapaImpressao(etapa.prazo, data.dataEntrada),
+    colaborador: lay.colaborador
+      ? colaboradorDaEtapaImpressao(etapa, data.colaboradoresLista || [])
+      : "",
+    obs: (etapa.observacao || "").trim(),
+  };
+}
+
+function larguraEtapaHorizontalPdf(
+  pdf: PdfRenderApi,
+  info: EtapaImpressaoHorizontal,
+  fontBase: number,
+  checkbox: number
+) {
+  let largura = checkbox + 2.5;
+  pdf.setFontSize(fontBase);
+  pdf.setFont("helvetica", "normal");
+  if (info.dataHora) largura += pdf.getTextWidth(info.dataHora) + 1.5;
+  if (info.colaborador) {
+    pdf.setFont("helvetica", "bold");
+    largura += pdf.getTextWidth(info.colaborador) + 1.5;
+  }
+  pdf.setFont("helvetica", "bold");
+  largura += pdf.getTextWidth(info.nome);
+  if (info.obs) {
+    pdf.setFont("helvetica", "normal");
+    largura += 1.5 + pdf.getTextWidth(info.obs);
+  }
+  return largura + 5;
+}
+
+function desenharEtapaHorizontalPdf(
+  pdf: PdfRenderApi,
+  info: EtapaImpressaoHorizontal,
+  x: number,
+  y: number,
+  fontBase: number,
+  checkbox: number
+) {
+  desenharCheckboxEtapaPdf(pdf, x, y, checkbox);
+  let cursor = x + checkbox + 2.5;
+  pdf.setFontSize(fontBase);
+
+  if (info.dataHora) {
+    pdf.setFont("helvetica", "normal");
+    pdf.text(info.dataHora, cursor, y);
+    cursor += pdf.getTextWidth(info.dataHora) + 1.5;
+  }
+
+  if (info.colaborador) {
+    pdf.setFont("helvetica", "bold");
+    pdf.text(info.colaborador, cursor, y);
+    cursor += pdf.getTextWidth(info.colaborador) + 1.5;
+  }
+
+  pdf.setFont("helvetica", "bold");
+  pdf.text(info.nome, cursor, y);
+  cursor += pdf.getTextWidth(info.nome) + 1.5;
+
+  if (info.obs) {
+    pdf.setFont("helvetica", "normal");
+    pdf.text(info.obs, cursor, y);
+  }
+
+  pdf.setFont("helvetica", "normal");
+}
+
+/** Bloco Etapas: checkbox + data/hora + colaborador + nome lado a lado (com quebra de linha se necessário). */
 function desenharEtapasOsRequisicao(
   pdf: PdfRenderApi,
   lay: OsModelo1Layout,
@@ -244,6 +327,11 @@ function desenharEtapasOsRequisicao(
   const etapas = data.etapasLista || [];
   if (!lay.etapas || etapas.length === 0) return yInicio;
 
+  const infos = etapas
+    .map((etapa) => infoEtapaImpressaoHorizontal(etapa, data, lay))
+    .filter(Boolean) as EtapaImpressaoHorizontal[];
+  if (infos.length === 0) return yInicio;
+
   let y = yInicio;
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(fontBase);
@@ -251,51 +339,22 @@ function desenharEtapasOsRequisicao(
   y += g(4);
 
   const larguraUtil = 182 - x;
-  for (const etapa of etapas) {
-    const nome = nomeEtapaSemSetor(etapa.nome);
-    if (!nome) continue;
+  const checkbox = 3;
+  const alturaLinha = g(4);
+  let cursorX = x;
+  let rowY = y;
 
-    const checkbox = 3;
-    desenharCheckboxEtapaPdf(pdf, x, y, checkbox);
-    let cursor = x + checkbox + 2.5;
-
-    const dataHora = formatarDataHoraEtapaImpressao(etapa.prazo, data.dataEntrada);
-    if (dataHora) {
-      pdf.setFont("helvetica", "normal");
-      pdf.text(dataHora, cursor, y);
-      cursor += pdf.getTextWidth(dataHora) + 2;
+  for (const info of infos) {
+    const larguraEtapa = larguraEtapaHorizontalPdf(pdf, info, fontBase, checkbox);
+    if (cursorX > x && cursorX + larguraEtapa - 5 > x + larguraUtil) {
+      cursorX = x;
+      rowY += alturaLinha;
     }
-
-    const colaborador = lay.colaborador
-      ? colaboradorDaEtapaImpressao(etapa, data.colaboradoresLista || [])
-      : "";
-    if (colaborador) {
-      pdf.setFont("helvetica", "bold");
-      pdf.text(colaborador, cursor, y);
-      cursor += pdf.getTextWidth(colaborador) + 2;
-    }
-
-    pdf.setFont("helvetica", "bold");
-    pdf.text(nome, cursor, y);
-    cursor += pdf.getTextWidth(nome) + 2;
-
-    const obs = (etapa.observacao || "").trim();
-    if (obs) {
-      pdf.setFont("helvetica", "normal");
-      const espacoRestante = Math.max(8, larguraUtil - (cursor - x));
-      const linhasObs = pdf.splitTextToSize(obs, espacoRestante);
-      pdf.text(linhasObs[0] || "", cursor, y);
-      y += g(4);
-      for (let i = 1; i < linhasObs.length; i++) {
-        pdf.text(linhasObs[i], x + checkbox + 2.5, y);
-        y += g(3.5);
-      }
-    } else {
-      y += g(4);
-    }
+    desenharEtapaHorizontalPdf(pdf, info, cursorX, rowY, fontBase, checkbox);
+    cursorX += larguraEtapa;
   }
 
-  return y;
+  return rowY + alturaLinha + g(1);
 }
 
 function desenharEtapasOsTermica(
@@ -310,33 +369,34 @@ function desenharEtapasOsTermica(
   const etapas = data.etapasLista || [];
   if (!lay.etapas || etapas.length === 0) return yInicio;
 
+  const infos = etapas
+    .map((etapa) => infoEtapaImpressaoHorizontal(etapa, data, lay))
+    .filter(Boolean) as EtapaImpressaoHorizontal[];
+  if (infos.length === 0) return yInicio;
+
   let y = yInicio;
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(fsSmall - 0.5);
   pdf.text("Etapas:", mx, y);
   y += 3.6;
 
-  for (const etapa of etapas) {
-    const nome = nomeEtapaSemSetor(etapa.nome);
-    if (!nome) continue;
+  pdf.setFontSize(fsSmall - 0.5);
+  const checkbox = 2.5;
+  const alturaLinha = 3.6;
+  let cursorX = mx;
+  let rowY = y;
 
-    const dataHora = formatarDataHoraEtapaImpressao(etapa.prazo, data.dataEntrada);
-    const colaborador = lay.colaborador
-      ? colaboradorDaEtapaImpressao(etapa, data.colaboradoresLista || [])
-      : "";
-    const partes = ["[ ]"];
-    if (dataHora) partes.push(dataHora);
-    if (colaborador) partes.push(colaborador);
-    partes.push(nome);
-    const obs = (etapa.observacao || "").trim();
-    if (obs) partes.push(obs);
-
-    const linhas = pdf.splitTextToSize(partes.join(" "), larguraCampo);
-    pdf.text(linhas, mx + 1, y);
-    y += Math.max(3.6, linhas.length * 3.3);
+  for (const info of infos) {
+    const larguraEtapa = larguraEtapaHorizontalPdf(pdf, info, fsSmall - 0.5, checkbox);
+    if (cursorX > mx && cursorX + larguraEtapa - 3 > mx + larguraCampo) {
+      cursorX = mx;
+      rowY += alturaLinha;
+    }
+    desenharEtapaHorizontalPdf(pdf, info, cursorX, rowY, fsSmall - 0.5, checkbox);
+    cursorX += larguraEtapa;
   }
 
-  return y + 0.5;
+  return rowY + alturaLinha + 0.5;
 }
 
 function desenharMetadadosServicoRequisicao(
