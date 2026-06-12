@@ -4,6 +4,7 @@ import {
   telefoneWhatsappLaboratorio,
 } from "@/lib/configuracoes-lab";
 import { baixarExcel } from "@/lib/exportar-excel";
+import { labImpressaoFromConfig, escalaLogoMultiplicador } from "@/lib/lab-logo";
 import {
   alinhamentoPdfImpressao,
   configPadraoImpressaoTabelaPrecos,
@@ -117,58 +118,29 @@ export async function gerarPdfTabelaPrecos(
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
   const centerX = pageW / 2;
-  const margin = 15;
+  const margin = 14;
   const contentW = pageW - margin * 2;
-  let y = 20;
+  const colValorW = 32;
+  const colServicoW = contentW - colValorW;
+  const colDivX = margin + colServicoW;
+  let y = 16;
 
   const fontePdf = fontePdfImpressao(cfg.tipoFonte);
-  const tamanhoCategoria = cfg.tamanhoFonte * 0.75;
-  const tamanhoServico = Math.max(6, (cfg.tamanhoFonte - 2) * 0.75);
-  const rowH = Math.max(6, pxParaMm(cfg.espacamentoServicos));
-  const gapCategoria = pxParaMm(cfg.espacamentoCategorias);
+  const tamanhoTituloTabela = Math.max(9, cfg.tamanhoFonte * 0.65);
+  const tamanhoCategoria = Math.max(7.5, cfg.tamanhoFonte * 0.58);
+  const tamanhoServico = Math.max(7, (cfg.tamanhoFonte - 2) * 0.55);
+  const rowH = Math.max(5.5, pxParaMm(cfg.espacamentoServicos));
+  const catHeaderH = Math.max(7, tamanhoCategoria + 3);
+  const gapEntreTabelas = Math.max(4, pxParaMm(cfg.espacamentoCategorias));
   const [rCat, gCat, bCat] = hexParaRgb(cfg.corCategorias);
   const [rSrv, gSrv, bSrv] = hexParaRgb(cfg.corServicos);
   const [rBord, gBord, bBord] = hexParaRgb(cfg.corBordas);
   const alinhamento = alinhamentoPdfImpressao(cfg.alinhamentoCategoria);
 
   function xCategoria() {
-    if (alinhamento === "left") return margin;
-    if (alinhamento === "right") return pageW - margin;
+    if (alinhamento === "left") return margin + 2;
+    if (alinhamento === "right") return pageW - margin - 2;
     return centerX;
-  }
-
-  const cab = cabecalhoPdfTabela(tabela);
-
-  if (cfg.mostrarCabecalho) {
-    pdf.setFont(fontePdf, "bold");
-    pdf.setFontSize(tamanhoCategoria);
-    pdf.setTextColor(0, 0, 0);
-    pdf.text(cab.nome, centerX, y, { align: "center" });
-    y += 7;
-
-    pdf.setFont(fontePdf, "normal");
-    pdf.setFontSize(tamanhoServico);
-    if (cab.telefone) {
-      pdf.text(cab.telefone, centerX, y, { align: "center" });
-      y += 5;
-    }
-    if (cab.email) {
-      pdf.text(cab.email, centerX, y, { align: "center" });
-      y += 5;
-    }
-
-    y += 3;
-    pdf.setDrawColor(rBord, gBord, bBord);
-    pdf.line(margin, y, pageW - margin, y);
-    y += 8;
-  }
-
-  if (cfg.titulo.trim()) {
-    pdf.setFont(fontePdf, "normal");
-    pdf.setFontSize(tamanhoCategoria);
-    pdf.setTextColor(rCat, gCat, bCat);
-    pdf.text(cfg.titulo.trim().toUpperCase(), centerX, y, { align: "center" });
-    y += gapCategoria + 2;
   }
 
   function novaPaginaSeNecessario(altura: number) {
@@ -178,36 +150,133 @@ export async function gerarPdfTabelaPrecos(
     }
   }
 
-  for (const categoria of categorias) {
-    const itens = categoria.servicos.filter((servico) => !servico.oculto);
-    if (itens.length === 0) continue;
+  function linhaHorizontal(yPos: number) {
+    pdf.setDrawColor(rBord, gBord, bBord);
+    pdf.setLineWidth(0.15);
+    pdf.line(margin, yPos, margin + contentW, yPos);
+  }
 
-    novaPaginaSeNecessario(gapCategoria + rowH);
+  function desenharCabecalhoSmart() {
+    const lab = labImpressaoFromConfig();
+    const cab = cabecalhoPdfTabela(tabela);
+    const nomeLab = lab.marca?.trim() || cab.nome;
+    const telefone =
+      lab.telefones?.trim() ||
+      cab.telefone ||
+      telefoneWhatsappLaboratorio(carregarConfigLaboratorio());
+    const email = lab.email?.trim() || cab.email;
+
+    const dataUrl = lab.logoDataUrl?.trim();
+    if (dataUrl?.startsWith("data:image")) {
+      const s = escalaLogoMultiplicador(lab.logoTamanho);
+      const logoW = 22 * s;
+      const logoH = 16 * s;
+      const fmt = dataUrl.includes("image/png") ? "PNG" : "JPEG";
+      try {
+        pdf.addImage(dataUrl, fmt, centerX - logoW / 2, y, logoW, logoH);
+        y += logoH + 3;
+      } catch {
+        /* sem logo */
+      }
+    }
+
+    pdf.setFont(fontePdf, "bold");
+    pdf.setFontSize(tamanhoTituloTabela + 1);
+    pdf.setTextColor(30, 30, 30);
+    pdf.text(nomeLab, centerX, y, { align: "center" });
+    y += 5;
+
+    if (lab.marcaSubtitulo?.trim()) {
+      pdf.setFont(fontePdf, "normal");
+      pdf.setFontSize(tamanhoServico);
+      pdf.setTextColor(90, 90, 90);
+      pdf.text(lab.marcaSubtitulo.trim(), centerX, y, { align: "center" });
+      y += 4.5;
+    }
+
     pdf.setFont(fontePdf, "normal");
+    pdf.setFontSize(tamanhoServico);
+    pdf.setTextColor(60, 60, 60);
+    if (telefone) {
+      pdf.text(telefone, centerX, y, { align: "center" });
+      y += 4;
+    }
+    if (email) {
+      pdf.text(email, centerX, y, { align: "center" });
+      y += 4;
+    }
+
+    y += 2;
+    linhaHorizontal(y);
+    y += 6;
+  }
+
+  if (cfg.mostrarCabecalho) {
+    desenharCabecalhoSmart();
+  }
+
+  const tituloDoc = (cfg.titulo.trim() || tabela).toUpperCase();
+  pdf.setFont(fontePdf, "bold");
+  pdf.setFontSize(tamanhoTituloTabela);
+  pdf.setTextColor(rCat, gCat, bCat);
+  pdf.text(tituloDoc, centerX, y, { align: "center" });
+  y += 5;
+  linhaHorizontal(y);
+  y += gapEntreTabelas;
+
+  function desenharBlocoCategoria(categoria: CategoriaTabelaPrecoExport) {
+    const itens = categoria.servicos.filter((servico) => !servico.oculto);
+    if (itens.length === 0) return;
+
+    const blockH = catHeaderH + itens.length * rowH;
+    novaPaginaSeNecessario(blockH + gapEntreTabelas);
+    const blockTop = y;
+
+    pdf.setDrawColor(rBord, gBord, bBord);
+    pdf.setLineWidth(0.2);
+
+    pdf.setFillColor(248, 248, 248);
+    pdf.rect(margin, blockTop, contentW, catHeaderH, "FD");
+    linhaHorizontal(blockTop + catHeaderH);
+
+    pdf.setFont(fontePdf, "bold");
     pdf.setFontSize(tamanhoCategoria);
     pdf.setTextColor(rCat, gCat, bCat);
-    pdf.text(categoria.nome, xCategoria(), y, { align: alinhamento });
-    y += gapCategoria;
+    const nomeCategoria = categoria.nome.trim().toUpperCase();
+    pdf.text(nomeCategoria, xCategoria(), blockTop + catHeaderH / 2 + 1, {
+      align: alinhamento,
+    });
 
+    let rowY = blockTop + catHeaderH;
     for (const servico of itens) {
-      novaPaginaSeNecessario(rowH + 2);
-      pdf.setFillColor(248, 248, 248);
-      pdf.setDrawColor(rBord, gBord, bBord);
-      pdf.rect(margin, y - 5, contentW, rowH, "FD");
+      pdf.setFillColor(255, 255, 255);
+      pdf.rect(margin, rowY, contentW, rowH, "F");
 
       pdf.setFont(fontePdf, "normal");
       pdf.setFontSize(tamanhoServico);
       pdf.setTextColor(rSrv, gSrv, bSrv);
+
       const nomeLinha =
-        pdf.splitTextToSize(servico.nome, contentW - 40)[0] || servico.nome;
-      pdf.text(nomeLinha, margin + 3, y);
-      pdf.text(`R$ ${money(servico.valor)}`, pageW - margin - 3, y, {
+        pdf.splitTextToSize(servico.nome, colServicoW - 6)[0] || servico.nome;
+      pdf.text(nomeLinha, margin + 2.5, rowY + rowH / 2 + 1);
+      pdf.text(`R$ ${money(servico.valor)}`, margin + contentW - 2.5, rowY + rowH / 2 + 1, {
         align: "right",
       });
-      y += rowH + 1.5;
+
+      rowY += rowH;
+      linhaHorizontal(rowY);
     }
 
-    y += pxParaMm(4);
+    pdf.setDrawColor(rBord, gBord, bBord);
+    pdf.setLineWidth(0.2);
+    pdf.rect(margin, blockTop, contentW, blockH, "S");
+    pdf.line(colDivX, blockTop, colDivX, blockTop + blockH);
+
+    y = blockTop + blockH + gapEntreTabelas;
+  }
+
+  for (const categoria of categorias) {
+    desenharBlocoCategoria(categoria);
   }
 
   const observacoes = [
@@ -218,7 +287,7 @@ export async function gerarPdfTabelaPrecos(
   ].filter((texto) => texto.trim());
 
   if (observacoes.length > 0) {
-    y += 6;
+    y += 2;
     novaPaginaSeNecessario(observacoes.length * 5 + 4);
     pdf.setFont(fontePdf, "normal");
     pdf.setFontSize(tamanhoServico);

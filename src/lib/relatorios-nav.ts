@@ -12,6 +12,7 @@ import {
   TrendingUp,
   Truck,
   Users,
+  Wallet,
 } from "lucide-react";
 import type { MessageKey } from "@/lib/i18n";
 
@@ -78,6 +79,11 @@ export const relatoriosNav: RelatorioNavItem[] = [
     labelKey: "nav.relatorio.dashboardGerencial",
     icon: BarChart3,
   },
+  {
+    href: "/app/relatorios/relatorio-financeiro-geral",
+    labelKey: "nav.relatorio.financeiroGeral",
+    icon: Wallet,
+  },
 ];
 
 export const relatoriosSlugs = [
@@ -92,6 +98,7 @@ export const relatoriosSlugs = [
   "recibos-emitidos",
   "logs-auditoria",
   "dashboard-gerencial",
+  "relatorio-financeiro-geral",
 ] as const;
 
 export type RelatorioSlug = (typeof relatoriosSlugs)[number];
@@ -108,6 +115,7 @@ const slugParaLabelKey: Record<RelatorioSlug, MessageKey> = {
   "recibos-emitidos": "nav.relatorio.recibosEmitidos",
   "logs-auditoria": "nav.relatorio.logsAuditoria",
   "dashboard-gerencial": "nav.relatorio.dashboardGerencial",
+  "relatorio-financeiro-geral": "nav.relatorio.financeiroGeral",
 };
 
 export function labelKeyRelatorio(slug: string) {

@@ -43,7 +43,7 @@ export function configPadraoImpressaoTabelaPrecos(
   titulo = ""
 ): ConfigImpressaoTabelaPrecos {
   return {
-    mostrarCabecalho: false,
+    mostrarCabecalho: true,
     titulo,
     corCategorias: "#000000",
     corServicos: "#000000",
