@@ -17,7 +17,6 @@ import {
   type LinhaMargemContribuicao,
   type OrdenacaoMargemContribuicao,
 } from "@/lib/margem-contribuicao";
-import { PRODUTOS_ESTOQUE_EVENT } from "@/lib/estoque";
 import {
   carregarNomesTabelasPrecoRemoto,
   TABELA_PRECOS_EVENT,
@@ -148,12 +147,10 @@ export function MargemContribuicaoConteudo() {
     void recarregar();
     const onAtualizar = () => void recarregar();
     window.addEventListener(TABELA_PRECOS_EVENT, onAtualizar);
-    window.addEventListener(PRODUTOS_ESTOQUE_EVENT, onAtualizar);
     window.addEventListener("focus", onAtualizar);
     window.addEventListener("storage", onAtualizar);
     return () => {
       window.removeEventListener(TABELA_PRECOS_EVENT, onAtualizar);
-      window.removeEventListener(PRODUTOS_ESTOQUE_EVENT, onAtualizar);
       window.removeEventListener("focus", onAtualizar);
       window.removeEventListener("storage", onAtualizar);
     };

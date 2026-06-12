@@ -41,13 +41,11 @@ import {
   type ProdutoListagem,
 } from "@/lib/produtos-listagem";
 import {
-  custoUnitarioItemCusto,
-  formatMoneyCustoServico,
-  normalizarCustosServicoLegado,
-  totalCustosItensServico,
-  totalItemCustoServico,
-  type ItemCustoServico,
-} from "@/lib/custos-servico-tabela-precos";
+  higienizarItensCustoCadastro,
+  ITENS_CUSTO_CADASTRO_EVENT,
+  removerItemCustoCadastro,
+  salvarItemCustoCadastro,
+} from "@/lib/itens-custo-cadastro";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { cn } from "@/lib/utils";
 
@@ -72,7 +70,6 @@ type ServicoPreco = {
   opcoesEtapas?: string[];
   produtoId?: string;
   valorCusto?: number;
-  itensCusto?: ItemCustoServico[];
 };
 
 const ETAPAS_OPCOES_PADRAO = ["Entrada", "Produção", "Finalização"];
@@ -295,14 +292,15 @@ export default function TabelaPrecosPage() {
     tipo: TipoItemPreco;
   } | null>(null);
   const [formCustoItem, setFormCustoItem] = useState({ custo: "0,00" });
-  const [formCustoProduto, setFormCustoProduto] = useState({
-    produtoId: "",
+  const [formCustoEtapa, setFormCustoEtapa] = useState({
+    nome: "",
     qtd: "1",
     custo: "0,00",
   });
-  const [buscaProdutoCusto, setBuscaProdutoCusto] = useState("");
-  const [selectProdutoCustoAberto, setSelectProdutoCustoAberto] = useState(false);
-  const [migracaoCustosFeita, setMigracaoCustosFeita] = useState(false);
+  const [modalNovoItemCusto, setModalNovoItemCusto] = useState(false);
+  const [nomeNovoItemCusto, setNomeNovoItemCusto] = useState("");
+  const [itensCustoCadastro, setItensCustoCadastro] = useState<string[]>([]);
+  const [selectItemCustoAberto, setSelectItemCustoAberto] = useState(false);
   const [formTransporte, setFormTransporte] = useState({
     nome: "",
     valor: "0,00",
@@ -371,12 +369,22 @@ export default function TabelaPrecosPage() {
     function recarregarEtapas() {
       setEtapasCadastro(nomesEtapasCadastro());
     }
+    function recarregarItensCusto() {
+      setItensCustoCadastro(higienizarItensCustoCadastro());
+    }
     recarregarEtapas();
+    recarregarItensCusto();
     window.addEventListener("focus", recarregarEtapas);
     window.addEventListener("storage", recarregarEtapas);
+    window.addEventListener(ITENS_CUSTO_CADASTRO_EVENT, recarregarItensCusto);
+    window.addEventListener("focus", recarregarItensCusto);
+    window.addEventListener("storage", recarregarItensCusto);
     return () => {
       window.removeEventListener("focus", recarregarEtapas);
       window.removeEventListener("storage", recarregarEtapas);
+      window.removeEventListener(ITENS_CUSTO_CADASTRO_EVENT, recarregarItensCusto);
+      window.removeEventListener("focus", recarregarItensCusto);
+      window.removeEventListener("storage", recarregarItensCusto);
     };
   }, [paginaPronta]);
 
@@ -416,21 +424,6 @@ export default function TabelaPrecosPage() {
         (produto.marca || "").toLowerCase().includes(termo)
     );
   }, [produtosEstoque, buscaProdutoEstoque]);
-
-  const produtosFiltradosCusto = useMemo(() => {
-    const termo = buscaProdutoCusto.trim().toLowerCase();
-    return produtosEstoque.filter(
-      (produto) =>
-        !termo ||
-        produto.nome.toLowerCase().includes(termo) ||
-        (produto.marca || "").toLowerCase().includes(termo)
-    );
-  }, [produtosEstoque, buscaProdutoCusto]);
-
-  const produtoCustoSelecionado = useMemo(
-    () => produtosEstoque.find((produto) => produto.id === formCustoProduto.produtoId),
-    [produtosEstoque, formCustoProduto.produtoId]
-  );
 
   function adicionarCategoria() {
     const nome = window.prompt("Nome da categoria");
@@ -533,12 +526,7 @@ export default function TabelaPrecosPage() {
   }, []);
 
   useEffect(() => {
-    if (!paginaPronta) return;
-    void recarregarProdutosEstoque();
-  }, [paginaPronta, recarregarProdutosEstoque]);
-
-  useEffect(() => {
-    if (!modalProdutosCategoriaId && !modalCustos) return;
+    if (!modalProdutosCategoriaId) return;
     void recarregarProdutosEstoque();
     const atualizar = () => void recarregarProdutosEstoque();
     window.addEventListener(PRODUTOS_ESTOQUE_EVENT, atualizar);
@@ -547,32 +535,7 @@ export default function TabelaPrecosPage() {
       window.removeEventListener(PRODUTOS_ESTOQUE_EVENT, atualizar);
       window.removeEventListener("focus", atualizar);
     };
-  }, [modalProdutosCategoriaId, modalCustos, recarregarProdutosEstoque]);
-
-  useEffect(() => {
-    if (!persistenciaPronta || migracaoCustosFeita || produtosEstoque.length === 0) return;
-    const produtosPorNome = new Map(
-      produtosEstoque.map((produto) => [produto.nome.trim().toLowerCase(), produto])
-    );
-    setCategoriasPorTabela((atuais) => {
-      let alterou = false;
-      const proximo = Object.fromEntries(
-        Object.entries(atuais).map(([nomeTabela, categoriasAtuais]) => [
-          nomeTabela,
-          categoriasAtuais.map((categoria) => ({
-            ...categoria,
-            servicos: categoria.servicos.map((servico) => {
-              const normalizado = normalizarCustosServicoLegado(servico, produtosPorNome);
-              if (JSON.stringify(normalizado) !== JSON.stringify(servico)) alterou = true;
-              return normalizado;
-            }),
-          })),
-        ])
-      );
-      return alterou ? proximo : atuais;
-    });
-    setMigracaoCustosFeita(true);
-  }, [persistenciaPronta, migracaoCustosFeita, produtosEstoque]);
+  }, [modalProdutosCategoriaId, recarregarProdutosEstoque]);
 
   function abrirCadastroServico(categoriaId: string) {
     const categoria = categorias.find((item) => item.id === categoriaId) || null;
@@ -934,15 +897,24 @@ export default function TabelaPrecosPage() {
   }
 
   function totalCustosServico(servico: ServicoPreco) {
-    return totalCustosItensServico(servico.itensCusto);
+    const etapas = servico.etapas || [];
+    return etapas.reduce((s, e) => {
+      const raw = String(e.qtd ?? "1");
+      const match = raw.match(/(\d+(?:[.,]\d+)?)/);
+      const qtd = match ? Number(match[1].replace(",", ".")) : 1;
+      const custo = parseMoney(e.valorHora || "0,00");
+      return s + qtd * custo;
+    }, 0);
   }
 
   function abrirModalCustos(categoriaId: string, item: ServicoPreco) {
     setModalCustos({ categoriaId, itemId: item.id, tipo: item.tipo });
     if (item.tipo === "servico") {
-      setFormCustoProduto({ produtoId: "", qtd: "1", custo: "0,00" });
-      setBuscaProdutoCusto("");
-      setSelectProdutoCustoAberto(false);
+      setItensCustoCadastro(higienizarItensCustoCadastro());
+      setFormCustoEtapa({ nome: "", qtd: "", custo: "0,00" });
+      setModalNovoItemCusto(false);
+      setNomeNovoItemCusto("");
+      setSelectItemCustoAberto(false);
       return;
     }
     setFormCustoItem({ custo: money(item.valorCusto || 0) });
@@ -951,20 +923,10 @@ export default function TabelaPrecosPage() {
   function fecharModalCustos() {
     setModalCustos(null);
     setFormCustoItem({ custo: "0,00" });
-    setFormCustoProduto({ produtoId: "", qtd: "1", custo: "0,00" });
-    setBuscaProdutoCusto("");
-    setSelectProdutoCustoAberto(false);
-  }
-
-  function selecionarProdutoCusto(produto: ProdutoListagem) {
-    const custo = Number(produto.valorCusto) || 0;
-    setFormCustoProduto({
-      produtoId: produto.id,
-      qtd: "1",
-      custo: formatMoneyCustoServico(custo),
-    });
-    setSelectProdutoCustoAberto(false);
-    setBuscaProdutoCusto("");
+    setFormCustoEtapa({ nome: "", qtd: "", custo: "0,00" });
+    setModalNovoItemCusto(false);
+    setNomeNovoItemCusto("");
+    setSelectItemCustoAberto(false);
   }
 
   function servicoNoModalCustos(): { categoria: CategoriaPreco; servico: ServicoPreco } | null {
@@ -975,16 +937,18 @@ export default function TabelaPrecosPage() {
     return { categoria, servico: normalizarServico(servico) };
   }
 
-  function adicionarCustoProduto() {
+  function adicionarCustoEtapa() {
     const current = servicoNoModalCustos();
     if (!current) return;
-    const produto = produtosEstoque.find((item) => item.id === formCustoProduto.produtoId);
-    if (!produto) return;
-    const qtdTexto = formCustoProduto.qtd.trim() || "1";
+    const nome = formCustoEtapa.nome.trim();
+    if (!nome) return;
+    const qtdTexto = formCustoEtapa.qtd.trim() || "1";
     const match = qtdTexto.match(/(\d+(?:[.,]\d+)?)/);
     const qtdNum = match ? Number(match[1].replace(",", ".")) : 1;
     if (qtdNum <= 0) return;
-    const custo = formatMoneyInput(formCustoProduto.custo);
+    const custo = formatMoneyInput(formCustoEtapa.custo);
+    const proximoItens = salvarItemCustoCadastro(nome);
+    setItensCustoCadastro(proximoItens);
     atualizarCategorias((atuais) =>
       atuais.map((categoria) => {
         if (categoria.id !== modalCustos?.categoriaId) return categoria;
@@ -992,17 +956,16 @@ export default function TabelaPrecosPage() {
           ...categoria,
           servicos: categoria.servicos.map((s) => {
             if (s.id !== modalCustos?.itemId) return s;
-            const itensCusto = s.itensCusto || [];
+            const etapas = (s.etapas || []).map((e) => ({ ...e, qtd: e.qtd ?? "1" }));
             return {
               ...s,
-              itensCusto: [
-                ...itensCusto,
+              etapas: [
+                ...etapas,
                 {
                   id: `${Date.now()}-${Math.random()}`,
-                  produtoId: produto.id,
-                  nome: produto.nome,
+                  nome,
                   qtd: qtdTexto,
-                  valorUnitario: custo,
+                  valorHora: custo,
                 },
               ],
             };
@@ -1010,10 +973,46 @@ export default function TabelaPrecosPage() {
         };
       })
     );
-    setFormCustoProduto({ produtoId: "", qtd: "1", custo: "0,00" });
+    setFormCustoEtapa({ nome: "", qtd: "", custo: "0,00" });
   }
 
-  function removerCustoProduto(id: string) {
+  function adicionarOpcaoCustoServico(nome: string) {
+    const valor = nome.trim();
+    if (!valor || !modalCustos) return;
+    atualizarCategorias((atuais) =>
+      atuais.map((categoria) => {
+        if (categoria.id !== modalCustos.categoriaId) return categoria;
+        return {
+          ...categoria,
+          servicos: categoria.servicos.map((s) => {
+            if (s.id !== modalCustos.itemId) return s;
+            const atuaisOpcoes = s.opcoesEtapas || [];
+            if (atuaisOpcoes.some((o) => o.toLowerCase() === valor.toLowerCase())) return s;
+            return { ...s, opcoesEtapas: [...atuaisOpcoes, valor] };
+          }),
+        };
+      })
+    );
+  }
+
+  function cadastrarNovoItemCusto() {
+    const nome = nomeNovoItemCusto.trim();
+    if (!nome) return;
+    const proximo = salvarItemCustoCadastro(nome);
+    setItensCustoCadastro(proximo);
+    adicionarOpcaoCustoServico(nome);
+    setFormCustoEtapa((s) => ({ ...s, nome }));
+    setNomeNovoItemCusto("");
+    setModalNovoItemCusto(false);
+    setSelectItemCustoAberto(false);
+  }
+
+  function excluirItemCustoCadastro(nome: string) {
+    const proximo = removerItemCustoCadastro(nome);
+    setItensCustoCadastro(proximo);
+    if (formCustoEtapa.nome === nome) {
+      setFormCustoEtapa((s) => ({ ...s, nome: "" }));
+    }
     atualizarCategorias((atuais) =>
       atuais.map((categoria) => {
         if (categoria.id !== modalCustos?.categoriaId) return categoria;
@@ -1021,10 +1020,23 @@ export default function TabelaPrecosPage() {
           ...categoria,
           servicos: categoria.servicos.map((s) => {
             if (s.id !== modalCustos?.itemId) return s;
-            return {
-              ...s,
-              itensCusto: (s.itensCusto || []).filter((item) => item.id !== id),
-            };
+            const opcoes = (s.opcoesEtapas || []).filter((o) => o !== nome);
+            return { ...s, opcoesEtapas: opcoes };
+          }),
+        };
+      })
+    );
+  }
+
+  function removerCustoEtapa(id: string) {
+    atualizarCategorias((atuais) =>
+      atuais.map((categoria) => {
+        if (categoria.id !== modalCustos?.categoriaId) return categoria;
+        return {
+          ...categoria,
+          servicos: categoria.servicos.map((s) => {
+            if (s.id !== modalCustos?.itemId) return s;
+            return { ...s, etapas: (s.etapas || []).filter((e) => e.id !== id) };
           }),
         };
       })
@@ -1049,6 +1061,7 @@ export default function TabelaPrecosPage() {
   }
 
   function salvarCustosServico() {
+    // Custos do serviço são persistidos ao adicionar/remover etapas.
     fecharModalCustos();
   }
 
@@ -1760,7 +1773,7 @@ export default function TabelaPrecosPage() {
                           type="button"
                           onClick={() => abrirModalCustos(categoria.id, item)}
                           className="inline-flex rounded-sm p-1.5 text-red-500 hover:bg-red-50 hover:text-red-600"
-                          title={item.tipo === "servico" ? "Gerenciar custos com produtos do estoque" : "Editar custo do item"}
+                          title={item.tipo === "servico" ? "Gerenciar custos por etapa" : "Editar custo do item"}
                         >
                           <Gem className="h-3.5 w-3.5" strokeWidth={1.75} />
                         </button>
@@ -1828,7 +1841,8 @@ export default function TabelaPrecosPage() {
               const data = servicoNoModalCustos();
               if (!data) return null;
               const item = data.servico;
-              const listaCustos = item.itensCusto || [];
+              const opcoesCustosSelecao = itensCustoCadastro;
+              const listaEtapas = (item.etapas || []).map((e) => ({ ...e, qtd: e.qtd ?? "1" }));
               const total = item.tipo === "servico" ? totalCustosServico(item) : (item.valorCusto || 0);
 
               return (
@@ -1849,87 +1863,135 @@ export default function TabelaPrecosPage() {
                     </div>
 
                     <div className="p-4">
+                      {modalNovoItemCusto ? (
+                        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 p-4">
+                          <div className="w-full max-w-sm rounded-md border border-slate-200 bg-white shadow-xl">
+                            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                              <h3 className="text-sm font-semibold text-slate-700">Cadastrar Novo Item</h3>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setModalNovoItemCusto(false);
+                                  setNomeNovoItemCusto("");
+                                }}
+                                className="text-slate-400 hover:text-slate-700"
+                                aria-label="Fechar"
+                              >
+                                <X className="h-5 w-5" />
+                              </button>
+                            </div>
+                            <div className="space-y-3 p-4">
+                              <div className="space-y-1">
+                                <label className="block text-[11px] text-slate-600">Nome do custo</label>
+                                <input
+                                  value={nomeNovoItemCusto}
+                                  onChange={(e) => setNomeNovoItemCusto(e.target.value)}
+                                  className="h-9 w-full rounded-sm border border-slate-200 bg-white px-2 text-[12px] text-slate-700 outline-none focus:border-blue-400"
+                                  autoFocus
+                                />
+                              </div>
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setModalNovoItemCusto(false);
+                                    setNomeNovoItemCusto("");
+                                  }}
+                                  className="h-9 rounded-sm border border-slate-200 bg-white px-4 text-[12px] font-semibold text-slate-600 hover:bg-slate-50"
+                                >
+                                  Cancelar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cadastrarNovoItemCusto}
+                                  className="h-9 rounded-sm bg-blue-600 px-4 text-[12px] font-semibold text-white hover:bg-blue-700"
+                                >
+                                  Cadastrar
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
                       {item.tipo === "servico" ? (
                         <>
-                          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                            <p className="text-[11px] text-slate-500">
-                              Produtos cadastrados no estoque
-                            </p>
-                            <Link
-                              href="/app/produtos"
-                              className="rounded bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-blue-700"
-                            >
-                              Cadastrar Produto Estoque
-                            </Link>
-                          </div>
                           <div className="grid grid-cols-12 items-end gap-3">
                             <div className="col-span-6">
                               <label className="mb-1 block text-[11px] text-slate-600">
-                                Produto do estoque
+                                Item ou Serviço
                               </label>
                               <div className="relative">
                                 <button
                                   type="button"
-                                  onClick={() => setSelectProdutoCustoAberto((aberto) => !aberto)}
+                                  onClick={() => setSelectItemCustoAberto((aberto) => !aberto)}
                                   className={cn(
                                     "flex h-9 w-full items-center justify-between rounded-sm border border-slate-200 bg-white px-2 text-left text-[12px] outline-none focus:border-blue-400",
-                                    produtoCustoSelecionado ? "text-slate-700" : "text-slate-400"
+                                    formCustoEtapa.nome ? "text-slate-700" : "text-slate-400"
                                   )}
                                 >
                                   <span className="truncate">
-                                    {produtoCustoSelecionado?.nome || "Selecione o produto"}
+                                    {formCustoEtapa.nome || "Selecione o item"}
                                   </span>
                                   <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
                                 </button>
-                                {selectProdutoCustoAberto && (
+                                {selectItemCustoAberto && (
                                   <>
                                     <button
                                       type="button"
                                       className="fixed inset-0 z-[100]"
                                       aria-label="Fechar lista"
-                                      onClick={() => setSelectProdutoCustoAberto(false)}
+                                      onClick={() => setSelectItemCustoAberto(false)}
                                     />
-                                    <div className="absolute left-0 right-0 top-full z-[101] mt-1 overflow-hidden rounded-sm border border-slate-200 bg-white shadow-lg">
-                                      <div className="border-b border-slate-100 p-2">
-                                        <input
-                                          value={buscaProdutoCusto}
-                                          onChange={(e) => setBuscaProdutoCusto(e.target.value)}
-                                          placeholder="Buscar produto..."
-                                          className="h-8 w-full rounded-sm border border-slate-200 px-2 text-[12px] outline-none focus:border-blue-400"
-                                          autoFocus
-                                        />
-                                      </div>
-                                      <ul className="max-h-48 overflow-auto py-1">
-                                        {carregandoProdutosEstoque && (
-                                          <li className="px-3 py-2 text-[12px] text-slate-400">
-                                            Carregando produtos...
-                                          </li>
-                                        )}
-                                        {!carregandoProdutosEstoque &&
-                                          produtosFiltradosCusto.map((produto) => (
-                                            <li key={produto.id}>
-                                              <button
-                                                type="button"
-                                                className={cn(
-                                                  "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[12px] hover:bg-slate-50",
-                                                  formCustoProduto.produtoId === produto.id && "bg-slate-50 font-medium"
-                                                )}
-                                                onClick={() => selecionarProdutoCusto(produto)}
-                                              >
-                                                <span className="truncate text-slate-700">{produto.nome}</span>
-                                                <span className="shrink-0 text-slate-500">
-                                                  {money(Number(produto.valorCusto) || 0)}
-                                                </span>
-                                              </button>
-                                            </li>
-                                          ))}
-                                        {!carregandoProdutosEstoque && produtosFiltradosCusto.length === 0 && (
-                                          <li className="px-3 py-2 text-[12px] text-slate-400">
-                                            Nenhum produto encontrado no estoque.
-                                          </li>
-                                        )}
-                                      </ul>
-                                    </div>
+                                    <ul className="absolute left-0 right-0 top-full z-[101] mt-1 max-h-48 overflow-auto rounded-sm border border-slate-200 bg-white py-1 shadow-lg">
+                                      <li>
+                                        <button
+                                          type="button"
+                                          className="w-full px-3 py-2 text-left text-[12px] font-semibold text-emerald-600 hover:bg-slate-50"
+                                          onClick={() => {
+                                            setSelectItemCustoAberto(false);
+                                            setModalNovoItemCusto(true);
+                                            setNomeNovoItemCusto("");
+                                          }}
+                                        >
+                                          + Cadastrar Novo Item
+                                        </button>
+                                      </li>
+                                      {opcoesCustosSelecao.map((nome) => (
+                                        <li
+                                          key={nome}
+                                          className={cn(
+                                            "flex items-center gap-1 px-2 py-1 hover:bg-slate-50",
+                                            formCustoEtapa.nome === nome && "bg-slate-50"
+                                          )}
+                                        >
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              excluirItemCustoCadastro(nome);
+                                            }}
+                                            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-red-600 hover:bg-red-50"
+                                            title={`Excluir ${nome}`}
+                                            aria-label={`Excluir ${nome}`}
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className={cn(
+                                              "min-w-0 flex-1 py-1.5 text-left text-[12px] text-slate-700",
+                                              formCustoEtapa.nome === nome && "font-medium"
+                                            )}
+                                            onClick={() => {
+                                              setFormCustoEtapa((s) => ({ ...s, nome }));
+                                              setSelectItemCustoAberto(false);
+                                            }}
+                                          >
+                                            {nome}
+                                          </button>
+                                        </li>
+                                      ))}
+                                    </ul>
                                   </>
                                 )}
                               </div>
@@ -1937,10 +1999,8 @@ export default function TabelaPrecosPage() {
                             <div className="col-span-2">
                               <label className="mb-1 block text-[11px] text-slate-600">Qtd (Unid)</label>
                               <input
-                                value={formCustoProduto.qtd}
-                                onChange={(e) =>
-                                  setFormCustoProduto((s) => ({ ...s, qtd: e.target.value }))
-                                }
+                                value={formCustoEtapa.qtd}
+                                onChange={(e) => setFormCustoEtapa((s) => ({ ...s, qtd: e.target.value }))}
                                 className="h-9 w-full rounded-sm border border-slate-200 bg-white px-2 text-[12px] text-slate-700 outline-none focus:border-blue-400"
                                 placeholder="Ex: 20g"
                               />
@@ -1953,9 +2013,9 @@ export default function TabelaPrecosPage() {
                                     R$
                                   </span>
                                   <input
-                                    value={formCustoProduto.custo}
+                                    value={formCustoEtapa.custo}
                                     onChange={(e) =>
-                                      setFormCustoProduto((s) => ({
+                                      setFormCustoEtapa((s) => ({
                                         ...s,
                                         custo: formatMoneyInput(e.target.value),
                                       }))
@@ -1966,8 +2026,8 @@ export default function TabelaPrecosPage() {
                                 </div>
                                 <button
                                   type="button"
-                                  onClick={adicionarCustoProduto}
-                                  disabled={!formCustoProduto.produtoId}
+                                  onClick={adicionarCustoEtapa}
+                                  disabled={!formCustoEtapa.nome.trim()}
                                   className="h-9 shrink-0 rounded-sm bg-blue-600 px-3 text-[11px] font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                   + Adicionar
@@ -1977,42 +2037,45 @@ export default function TabelaPrecosPage() {
                           </div>
 
                           <div className="mt-4 min-h-[200px] rounded-md border border-slate-100 bg-white">
-                            {listaCustos.length === 0 ? (
+                            {listaEtapas.length === 0 ? (
                               <div className="flex h-[200px] flex-col items-center justify-center gap-2 text-slate-300">
                                 <Box className="h-10 w-10" />
                                 <p className="text-[12px]">Nada adicionado ainda...</p>
                               </div>
                             ) : (
                               <ul className="divide-y divide-slate-100 py-1">
-                                {listaCustos.map((custoItem) => {
-                                  const custoUnit = custoUnitarioItemCusto(custoItem);
-                                  const tot = totalItemCustoServico(custoItem);
+                                {listaEtapas.map((e) => {
+                                  const raw = String(e.qtd ?? "1");
+                                  const match = raw.match(/(\d+(?:[.,]\d+)?)/);
+                                  const qtd = match ? Number(match[1].replace(",", ".")) : 1;
+                                  const custo = parseMoney(e.valorHora || "0,00");
+                                  const tot = qtd * custo;
                                   return (
                                     <li
-                                      key={custoItem.id}
+                                      key={e.id}
                                       className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2.5 hover:bg-slate-50"
                                     >
                                       <div className="flex min-w-[160px] items-center gap-2">
                                         <button
                                           type="button"
-                                          onClick={() => removerCustoProduto(custoItem.id)}
+                                          onClick={() => removerCustoEtapa(e.id)}
                                           className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-red-600 hover:bg-red-50"
                                           title="Remover"
-                                          aria-label={`Remover ${custoItem.nome}`}
+                                          aria-label={`Remover ${e.nome}`}
                                         >
                                           <Trash2 className="h-4 w-4" />
                                         </button>
                                         <span className="text-[12px] font-medium text-slate-700">
-                                          {custoItem.nome || "—"}
+                                          {e.nome || "—"}
                                         </span>
                                       </div>
                                       <span className="text-[11px] text-slate-500">
                                         Qtd:{" "}
-                                        <span className="text-slate-700">{String(custoItem.qtd ?? "1")}</span>
+                                        <span className="text-slate-700">{String(e.qtd ?? "1")}</span>
                                       </span>
                                       <span className="text-[11px] text-slate-500">
                                         Custo:{" "}
-                                        <span className="text-slate-700">{money(custoUnit)}</span>
+                                        <span className="text-slate-700">{money(custo)}</span>
                                       </span>
                                       <span className="text-[11px] text-slate-500">
                                         Total:{" "}

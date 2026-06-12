@@ -3,10 +3,6 @@
 @tailwind utilities;
 
 @layer base {
-  html {
-    zoom: 0.8;
-  }
-
   body {
     @apply bg-slate-50 text-slate-900 antialiased;
   }
