@@ -10,6 +10,7 @@ import {
   removerCorOsCadastro,
 } from "@/lib/cores-os-cadastro";
 import {
+  adicionarProdutoEscalaOs,
   excluirProdutoEscalaOs,
   produtosEscalaOs,
   TABELA_PRECOS_EVENT,
@@ -146,12 +147,6 @@ function OsSelectOpcoesLista({
             })
           )}
 
-          {value && !opcoes.some((opcao) => opcao.nome === value) ? (
-            <div className="flex min-h-[36px] items-center border-t border-slate-100 bg-slate-50 pr-1">
-              <span className="inline-block w-8 shrink-0" aria-hidden />
-              <span className="flex-1 py-2 pl-0 pr-2 text-sm text-slate-600">{value}</span>
-            </div>
-          ) : null}
         </div>
       ) : null}
     </div>
@@ -182,7 +177,9 @@ export function EscalaCorCamposOs({
   const [produtosEscala, setProdutosEscala] = useState<ServicoTabelaPrecoOs[]>([]);
   const [cores, setCores] = useState<string[]>([]);
   const [modalCorAberto, setModalCorAberto] = useState(false);
+  const [modalEscalaAberto, setModalEscalaAberto] = useState(false);
   const [novaCor, setNovaCor] = useState("");
+  const [novaEscala, setNovaEscala] = useState("");
 
   const recarregarEscala = useCallback(() => {
     setProdutosEscala(produtosEscalaOs(categoriasTabela));
@@ -254,6 +251,22 @@ export function EscalaCorCamposOs({
     setModalCorAberto(false);
   }
 
+  function salvarNovaEscala(event: React.FormEvent) {
+    event.preventDefault();
+    const nome = novaEscala.trim();
+    if (!nome) return;
+    const criado = adicionarProdutoEscalaOs(nomeTabelaPreco, nome);
+    if (!criado) {
+      alert("Esta escala já existe na categoria DENTES.");
+      return;
+    }
+    recarregarEscala();
+    onTabelaPrecoAlterada?.();
+    onEscalaChange(nome);
+    setNovaEscala("");
+    setModalEscalaAberto(false);
+  }
+
   return (
     <>
       <div className={cn("contents", className)}>
@@ -265,6 +278,13 @@ export function EscalaCorCamposOs({
           placeholder="Selecione a escala"
           vazio="Cadastre produtos na categoria DENTES da tabela de preços"
           onExcluir={excluirEscala}
+          acaoAdicionar={{
+            label: "+ adicionar escala",
+            onClick: () => {
+              setNovaEscala("");
+              setModalEscalaAberto(true);
+            },
+          }}
         />
         <OsSelectOpcoesLista
           label="Cor"
@@ -283,6 +303,31 @@ export function EscalaCorCamposOs({
           }}
         />
       </div>
+
+      <Modal
+        open={modalEscalaAberto}
+        onClose={() => setModalEscalaAberto(false)}
+        title="Adicionar escala"
+      >
+        <form onSubmit={salvarNovaEscala} className="space-y-4">
+          <Input
+            label="Escala"
+            value={novaEscala}
+            onChange={(e) => setNovaEscala(e.target.value)}
+            placeholder="Ex.: Trilux, Vitapan…"
+            autoFocus
+          />
+          <p className="text-[12px] text-slate-500">
+            A escala será salva na categoria DENTES da tabela de preços.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setModalEscalaAberto(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit">Salvar</Button>
+          </div>
+        </form>
+      </Modal>
 
       <Modal
         open={modalCorAberto}

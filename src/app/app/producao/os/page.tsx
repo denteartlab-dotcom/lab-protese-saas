@@ -10,6 +10,7 @@ import {
   type TrabalhoImpressaoOs,
 } from "@/components/ImprimirOsModal";
 import { Button, CampoDataBr, CampoHoraBr, Input, Modal, Select, SelectPesquisavel, Textarea } from "@/components/ui";
+import { EscalaCorCamposOs } from "@/components/producao/EscalaCorCamposOs";
 import { notificarUploadsAtualizados } from "@/lib/uploads-armazenamento";
 import { formatDateBr, parseBrDate } from "@/lib/datas-br";
 import { propsInputComSelecaoAoFocar } from "@/lib/input-selecao";
@@ -57,6 +58,7 @@ import {
   modelosEtapasParaOsServico,
   montarPrazoEtapaOs,
   valorMonetarioEtapaServico,
+  normalizarEscalaOs,
   servicoTemEtapasNaTabela,
   servicoTemComissoesColaboradoresNaTabela,
   servicoTemComissoesTerceirizadosNaTabela,
@@ -391,7 +393,8 @@ export default function OrdemServicoPage() {
     horaLaboratorio: "",
     dataDentista: "",
     horaDentista: "",
-    escalaCor: "",
+    escala: "",
+    cor: "",
     situacao: "producao",
     urgente: false,
     repeticao: false,
@@ -779,7 +782,8 @@ export default function OrdemServicoPage() {
         dataLancamento: new Date(trabalho.dataEntrada).toLocaleDateString("pt-BR"),
         dataLaboratorio: trabalho.dataPrevista ? new Date(trabalho.dataPrevista).toLocaleDateString("pt-BR") : "",
         dataDentista: trabalho.dataPrevista ? new Date(trabalho.dataPrevista).toLocaleDateString("pt-BR") : "",
-        escalaCor: trabalho.cor || "",
+        escala: normalizarEscalaOs(categoriasTabelaCompleta, trabalho.escala),
+        cor: trabalho.cor || "",
         materialEnviado: trabalho.material || "",
         situacao: trabalho.status,
         urgente: Boolean(primeiroItem?.urgente),
@@ -857,6 +861,13 @@ export default function OrdemServicoPage() {
 
   const categoriasTabelaCompleta = categoriasPorTabelaPreco[tabelaPrecoSelecionada] || [];
   const categoriasTabelaPreco = categoriasSelecionaveisNaOs(categoriasTabelaCompleta);
+
+  function recarregarTabelaPrecoOs() {
+    const dados = carregarDadosTabelaPrecoOs();
+    if (Object.keys(dados.categoriasPorTabela).length > 0) {
+      setCategoriasPorTabelaPreco(dados.categoriasPorTabela);
+    }
+  }
   const categoriaAtualOs = useMemo(
     () => encontrarCategoriaTabela(categoriasTabelaPreco, form.categoria),
     [categoriasTabelaPreco, form.categoria]
@@ -1335,7 +1346,7 @@ export default function OrdemServicoPage() {
         ? parseCurrency(form.desconto)
         : subtotal * (Math.min(Math.max(Number(form.desconto.replace(",", ".") || 0), 0), 100) / 100);
     return subtotalItens ? subtotal : Math.max(subtotal - desconto, 0);
-  }, [form.valor, form.quantidade, form.descontoTipo, form.desconto, form.tipoProtese, form.escalaCor, form.situacao, produtosOs, itensAdicionados, itemSelecionadoId, dentes]);
+  }, [form.valor, form.quantidade, form.descontoTipo, form.desconto, form.tipoProtese, form.cor, form.situacao, produtosOs, itensAdicionados, itemSelecionadoId, dentes]);
 
   function valorComissaoTerceirizado(opcao: TerceirizadoOpcao) {
     const percentual = parsePercentual(
@@ -1752,8 +1763,10 @@ export default function OrdemServicoPage() {
     const quantidade = Number(item.quantidade || 1) || 1;
     const unitario = item.valor / quantidade;
     const produto = produtoFromItem(item);
-    const categoriaItem =
-      item.categoria || (item.servico.startsWith("Produto:") ? "" : categoriaDoServico(item.servico));
+    const categoriaServico = item.servico.startsWith("Produto:")
+      ? ""
+      : categoriaDoServicoNaTabela(categoriasTabelaPreco, item.servico) ||
+        categoriaDoServico(item.servico);
     const dentesItemExplicitos = item.numeroDente
       .split(",")
       .map((dente) => dente.trim())
@@ -1765,13 +1778,14 @@ export default function OrdemServicoPage() {
     setDentes(dentesFromResumo(item.numeroDente, denticaoItem));
     setForm((current) => ({
       ...current,
-      categoria: categoriaItem || current.categoria,
+      categoria: categoriaServico || current.categoria,
+      escala: normalizarEscalaOs(categoriasTabelaCompleta, item.categoria),
       tipoProtese: item.servico.startsWith("Produto:") ? current.tipoProtese : item.servico,
       quantidade: item.quantidade || "1",
       valor: unitario.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
       desconto: item.desconto || "0,00",
       descontoTipo: item.descontoTipo || (item.desconto?.startsWith("R$") ? "valor" : "percentual"),
-      escalaCor: item.corDente === "-" ? "" : item.corDente,
+      cor: item.corDente === "-" ? "" : item.corDente,
       situacao: item.situacao || current.situacao,
       urgente: Boolean(item.urgente),
       repeticao: Boolean(item.repeticao),
@@ -1781,7 +1795,7 @@ export default function OrdemServicoPage() {
       setProdutosOs([]);
       setForm((current) => ({
         ...current,
-        categoria: categoriaItem || current.categoria,
+        categoria: categoriaServico || current.categoria,
         tipoProtese: item.servico,
         quantidade: item.quantidade || "1",
         valor: unitario.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
@@ -1952,9 +1966,9 @@ export default function OrdemServicoPage() {
     return {
       id: itemBase.id,
       servico: nomeServico,
-      categoria: form.categoria,
+      categoria: form.escala,
       numeroDente,
-      corDente: form.escalaCor || "-",
+      corDente: form.cor || "-",
       quantidade: form.quantidade || "1",
       valor: parseCurrency(form.valor) * Number(form.quantidade || 1),
       ...descontoCampos,
@@ -2027,9 +2041,9 @@ export default function OrdemServicoPage() {
         ? {
             id: `${Date.now()}-servico`,
             servico: nomeServico,
-            categoria: form.categoria,
+            categoria: form.escala,
             numeroDente: isProdutoNoCampoServico ? "-" : numeroDente,
-            corDente: isProdutoNoCampoServico ? "-" : form.escalaCor || "-",
+            corDente: isProdutoNoCampoServico ? "-" : form.cor || "-",
             quantidade: form.quantidade || "1",
             valor: parseCurrency(form.valor) * Number(form.quantidade || 1),
             ...descontoCampos,
@@ -2204,7 +2218,8 @@ export default function OrdemServicoPage() {
       categoria: "",
       quantidade: "1",
       valor: "R$ 0,00",
-      escalaCor: "",
+      escala: "",
+      cor: "",
       dataLaboratorio: "",
       dataDentista: "",
       horaLaboratorio: "",
@@ -2346,7 +2361,8 @@ export default function OrdemServicoPage() {
       horaLaboratorio: "",
       dataDentista: "",
       horaDentista: "",
-      escalaCor: "",
+      escala: "",
+      cor: "",
       situacao: "producao",
       urgente: false,
       repeticao: false,
@@ -2614,7 +2630,7 @@ export default function OrdemServicoPage() {
     /** PUT: null limpa campos no banco; POST: omitir vazios (API não aceita null em .optional()). */
     const payloadPutCompartilhado = {
       dentes: dentesResumo || null,
-      cor: form.escalaCor || null,
+      cor: form.cor || null,
       material: form.materialEnviado || null,
       dataPrevista: dataPrevistaIso ?? null,
       status: form.situacao || "pedido",
@@ -2623,7 +2639,7 @@ export default function OrdemServicoPage() {
     const payloadPostCompartilhado = bodyTrabalhoSemNull({
       status: form.situacao || "pedido",
       ...(dentesResumo ? { dentes: dentesResumo } : {}),
-      ...(form.escalaCor ? { cor: form.escalaCor } : {}),
+      ...(form.cor ? { cor: form.cor } : {}),
       ...(form.materialEnviado ? { material: form.materialEnviado } : {}),
       ...(dataPrevistaIso ? { dataPrevista: dataPrevistaIso } : {}),
       ...(form.observacoes ? { observacoes: form.observacoes } : {}),
@@ -2876,7 +2892,7 @@ export default function OrdemServicoPage() {
           servicoUnico && item.numeroDente !== "-"
             ? item.numeroDente
             : dentesSelecionadosResumo(),
-        cor: form.escalaCor,
+        cor: form.cor,
         material: form.materialEnviado,
         escala: escalaOsParaSalvar(itens),
         dataEntrada: brDateToIso(form.dataLancamento) || undefined,
@@ -3513,7 +3529,15 @@ export default function OrdemServicoPage() {
               <Input label="Hora Laboratório" type="time" value={form.horaLaboratorio} onChange={(e) => setForm({ ...form, horaLaboratorio: e.target.value })} />
               {dateField("Prazo Dentista", "dataDentista")}
               <Input label="Hora Dentista" type="time" value={form.horaDentista} onChange={(e) => setForm({ ...form, horaDentista: e.target.value })} />
-              <Input label="Escala/Cor" value={form.escalaCor} onChange={(e) => setForm({ ...form, escalaCor: e.target.value })} />
+              <EscalaCorCamposOs
+                escala={form.escala}
+                cor={form.cor}
+                onEscalaChange={(valor) => setForm({ ...form, escala: valor })}
+                onCorChange={(valor) => setForm({ ...form, cor: valor })}
+                categoriasTabela={categoriasTabelaCompleta}
+                nomeTabelaPreco={tabelaPrecoSelecionada}
+                onTabelaPrecoAlterada={recarregarTabelaPrecoOs}
+              />
             </div>
 
             {tipoItemCategoriaOs === "servico" && (

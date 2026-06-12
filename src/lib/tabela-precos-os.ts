@@ -310,6 +310,17 @@ export function produtosEscalaOs(categorias: CategoriaTabelaPrecoOs[]) {
   return produtosVisiveisNaOs(categoria.servicos || []);
 }
 
+/** Retorna o nome se existir na categoria DENTES; caso contrário, string vazia. */
+export function normalizarEscalaOs(categorias: CategoriaTabelaPrecoOs[], nome?: string | null) {
+  const texto = nome?.trim() || "";
+  if (!texto) return "";
+  const norm = normalizarTextoTabela(texto);
+  const produto = produtosEscalaOs(categorias).find(
+    (item) => normalizarTextoTabela(item.nome) === norm
+  );
+  return produto?.nome || "";
+}
+
 /** Marca produto da categoria DENTES como excluído na tabela de preços. */
 export function excluirProdutoEscalaOs(
   nomeTabela: string,
@@ -353,6 +364,70 @@ export function excluirProdutoEscalaOs(
   writeStorage(TABELA_PRECOS_STORAGE_KEY, payload);
   void sincronizarTabelaPrecosServidor(payload);
   return true;
+}
+
+/** Inclui produto na categoria DENTES da tabela de preços (cria a categoria se não existir). */
+export function adicionarProdutoEscalaOs(
+  nomeTabela: string,
+  nomeProduto: string
+): ServicoTabelaPrecoOs | null {
+  const nome = nomeProduto.trim();
+  if (!nome || typeof window === "undefined") return null;
+
+  const saved = readStorage<DadosTabelaPrecosStorage | null>(
+    TABELA_PRECOS_STORAGE_KEY,
+    null
+  );
+  const categoriasPorTabela = { ...(saved?.categoriasPorTabela || {}) };
+  const categorias = [...(categoriasPorTabela[nomeTabela] || [])];
+
+  let indiceDentes = categorias.findIndex(
+    (categoria) =>
+      normalizarTextoTabela(categoria.nome) ===
+      normalizarTextoTabela(CATEGORIA_ESCALA_OS)
+  );
+
+  if (indiceDentes === -1) {
+    categorias.push({
+      id: `cat-dentes-${Date.now()}`,
+      nome: CATEGORIA_ESCALA_OS,
+      servicos: [],
+    });
+    indiceDentes = categorias.length - 1;
+  }
+
+  const categoriaDentes = categorias[indiceDentes];
+  const jaExiste = (categoriaDentes.servicos || []).some(
+    (item) =>
+      !item.excluido &&
+      normalizarTextoTabela(item.nome) === normalizarTextoTabela(nome)
+  );
+  if (jaExiste) return null;
+
+  const novo: ServicoTabelaPrecoOs = {
+    id: `escala-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    nome,
+    valor: 0,
+    tipo: "produto",
+    oculto: false,
+    excluido: false,
+  };
+
+  categorias[indiceDentes] = {
+    ...categoriaDentes,
+    servicos: [...(categoriaDentes.servicos || []), novo],
+  };
+
+  categoriasPorTabela[nomeTabela] = categorias;
+  const payload: DadosTabelaPrecosStorage = {
+    ...saved,
+    categoriasPorTabela,
+    tabela: saved?.tabela?.trim() || nomeTabela,
+  };
+  writeStorage(TABELA_PRECOS_STORAGE_KEY, payload);
+  void sincronizarTabelaPrecosServidor(payload);
+  notificarTabelasPrecoAtualizadas();
+  return novo;
 }
 
 export function produtosCadastradosNaTabela(categorias: CategoriaTabelaPrecoOs[]) {
