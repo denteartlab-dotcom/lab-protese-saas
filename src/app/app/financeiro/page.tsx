@@ -2,7 +2,7 @@
 
 import { Fragment, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { AlertTriangle, Check, Eye, FileText, Pencil, Plus, Printer, RefreshCw, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, Eye, FileText, Pencil, Plus, Printer, Search, Trash2 } from "lucide-react";
 import { BotoesImprimirExportarToolbar } from "@/components/BotoesImprimirExportarToolbar";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import {
@@ -1800,12 +1800,6 @@ function FinanceiroReceberConteudo() {
           onExportarExcel={exportarContasReceberTela}
           processando={exportandoContasReceberTela}
         />
-        <button className="rounded bg-primary-600 p-2 text-white">
-          <RefreshCw className="h-3.5 w-3.5" />
-        </button>
-        <button className="rounded bg-emerald-500 p-2 text-white">
-          <Check className="h-3.5 w-3.5" />
-        </button>
       </div>
 
       <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">
