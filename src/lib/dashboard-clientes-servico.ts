@@ -1,7 +1,7 @@
 import {
-  trabalhoContaNoGraficoProducao,
-  type TrabalhoProducaoResumo,
-} from "@/lib/dashboard-producao";
+  segmentoEfetivoTrabalho,
+  trabalhoEhFichaSemServico,
+} from "@/lib/trabalho-os-segmento";
 
 export type ClienteSemServicoItem = {
   id: string;
@@ -19,6 +19,15 @@ export type AniversarianteMesItem = {
   telefone?: string | null;
 };
 
+export type TrabalhoUltimoServicoCliente = {
+  clienteId: string;
+  status: string;
+  dataEntrada: string | Date;
+  segmentoFaturamento?: string | null;
+  instrucoes?: string | null;
+  tipoProtese?: string | null;
+};
+
 export const OPCOES_DIAS_SEM_SERVICO = [
   { value: 15, label: "15 d.m." },
   { value: 30, label: "30 d.m." },
@@ -26,19 +35,41 @@ export const OPCOES_DIAS_SEM_SERVICO = [
   { value: 90, label: "90 d.m." },
 ] as const;
 
+/** Mesma base do Controle de Produção: serviço odontológico lançado (não produto/transporte/ficha vazia). */
+export function trabalhoContaComoUltimoServicoCliente(
+  trabalho: TrabalhoUltimoServicoCliente
+): boolean {
+  if (trabalho.status === "cancelado") return false;
+  if (segmentoEfetivoTrabalho(trabalho) !== "servico") return false;
+  if (trabalhoEhFichaSemServico(trabalho)) return false;
+  return true;
+}
+
+function inicioDoDia(date: Date) {
+  const d = new Date(date);
+  d.setHours(12, 0, 0, 0);
+  return d;
+}
+
+function diasEntreDatas(inicio: Date, fim: Date) {
+  return Math.floor(
+    (inicioDoDia(fim).getTime() - inicioDoDia(inicio).getTime()) / (1000 * 60 * 60 * 24)
+  );
+}
+
 export function calcularClientesSemServico(
   clientes: Array<{ id: string; nome: string; ativo: boolean }>,
-  trabalhos: Array<TrabalhoProducaoResumo & { clienteId: string }>,
+  trabalhos: TrabalhoUltimoServicoCliente[],
   diasMinimos: number,
   limite = 25
 ): ClienteSemServicoItem[] {
-  const hoje = new Date();
-  hoje.setHours(12, 0, 0, 0);
+  const hoje = inicioDoDia(new Date());
 
   const ultimoPorCliente = new Map<string, Date>();
   for (const t of trabalhos) {
-    if (!trabalhoContaNoGraficoProducao(t)) continue;
+    if (!trabalhoContaComoUltimoServicoCliente(t)) continue;
     const d = new Date(t.dataEntrada);
+    if (Number.isNaN(d.getTime())) continue;
     const prev = ultimoPorCliente.get(t.clienteId);
     if (!prev || d > prev) ultimoPorCliente.set(t.clienteId, d);
   }
@@ -47,21 +78,15 @@ export function calcularClientesSemServico(
   for (const c of clientes) {
     if (!c.ativo) continue;
     const ultimo = ultimoPorCliente.get(c.id);
-    let diasSemServico: number;
-    if (!ultimo) {
-      diasSemServico = diasMinimos + 1;
-    } else {
-      const ref = new Date(ultimo);
-      ref.setHours(12, 0, 0, 0);
-      diasSemServico = Math.floor(
-        (hoje.getTime() - ref.getTime()) / (1000 * 60 * 60 * 24)
-      );
-    }
+    if (!ultimo) continue;
+
+    const diasSemServico = diasEntreDatas(ultimo, hoje);
     if (diasSemServico <= diasMinimos) continue;
+
     lista.push({
       id: c.id,
       nome: c.nome,
-      ultimoServicoEm: ultimo ? ultimo.toISOString() : null,
+      ultimoServicoEm: ultimo.toISOString(),
       diasSemServico,
     });
   }

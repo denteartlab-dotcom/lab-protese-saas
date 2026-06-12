@@ -37,7 +37,7 @@ export function PainelClientesServicosDashboard({
       </div>
       <div className="p-4">
         <p className="mb-3 text-[11px] text-slate-500">
-          Não solicita serviço há mais de {diasMinimos} dias
+          Não enviam serviços há mais de {diasMinimos} dias
         </p>
         <div className="mb-1 grid grid-cols-[1fr_auto] gap-2 border-b border-slate-100 pb-1 text-[10px] font-medium uppercase tracking-wide text-slate-400">
           <span>Cliente</span>
