@@ -85,12 +85,12 @@ function PreviewCabecalho({
 
   return (
     <div className="relative w-full bg-white px-10 py-8" style={{ minHeight: "100%" }}>
-      <div className="flex gap-4">
+      <div className="flex items-center gap-4">
         <div
+          className="flex shrink-0 items-center self-center"
           style={{
             marginLeft: cab.logoMargemEsquerda,
             marginTop: cab.logoMargemTopo,
-            flexShrink: 0,
           }}
         >
           {cfg.logoDataUrl?.startsWith("data:image") ? (

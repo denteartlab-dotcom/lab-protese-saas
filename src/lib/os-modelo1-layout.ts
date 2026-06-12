@@ -71,7 +71,7 @@ export const OS_MODELO1_LAYOUT_PADRAO: OsModelo1Layout = {
   produtos: true,
   producao: false,
   obsFicha: true,
-  obsServico: true,
+  obsServico: false,
   materialRec: true,
   etapas: true,
   pecas: false,
@@ -344,6 +344,7 @@ export function normalizarOsModelo1Layout(
       base[key] = Boolean(valor[key]);
     }
   }
+  base.obsServico = false;
   return base;
 }
 

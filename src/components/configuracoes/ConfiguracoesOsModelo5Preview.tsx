@@ -224,12 +224,6 @@ export function PreviewOsModelo5Termica({
                 <span className="font-bold">{amostra.colaborador}</span>
               </p>
             ) : null}
-            {layout.obsServico ? (
-              <p>
-                <span>Observação: </span>
-                <span className="font-bold">{amostra.obsServico}</span>
-              </p>
-            ) : null}
           </div>
           <LinhaSeparador cor={corLinha} className="mt-1.5" />
         </>

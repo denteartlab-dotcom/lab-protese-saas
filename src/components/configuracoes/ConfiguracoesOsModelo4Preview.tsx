@@ -203,12 +203,6 @@ export function PreviewOsModelo4Termica({
                           <span className="font-bold">{amostra.colaborador}</span>
                         </p>
                       ) : null}
-                      {layout.obsServico ? (
-                        <p>
-                          <span>Observação: </span>
-                          <span className="font-bold">{amostra.obsServico}</span>
-                        </p>
-                      ) : null}
                     </div>
                   </td>
                   {layout.valorUnit ? (

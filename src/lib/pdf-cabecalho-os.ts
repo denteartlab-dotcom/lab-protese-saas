@@ -110,16 +110,17 @@ export function desenharCabecalhoRequisicaoPdf(
   const exibirLogo = opts.exibirLogo !== false;
   const exibirInfoLab = opts.exibirInfoLab !== false;
 
-  const { largura: logoW, altura: logoH } = exibirLogo
-    ? desenharLogoLab(pdf, lab, cab, marginLogoX, topo)
-    : { largura: 0, altura: 0 };
-
   const infoOffsetX = pxCabecalhoParaMm(cab.infoMargemEsquerda);
   const infoOffsetY = pxCabecalhoParaMm(cab.infoMargemTopo);
+  const dimLogo = exibirLogo
+    ? dimensoesLogoCabecalhoPdf(cab, lab.logoTamanho)
+    : { largura: 0, altura: 0 };
+  const logoW = dimLogo.largura;
+  const logoH = dimLogo.altura;
   const labX = marginLogoX + (logoW > 0 ? logoW + 10 : 0) + infoOffsetX;
   const colDirInicio = tableRight - 82;
   const larguraColEsq = Math.max(35, colDirInicio - labX - 4);
-  const linha1 = topo + 5 + infoOffsetY;
+  const linha1 = topo + 4 + infoOffsetY;
 
   const fonteNomePdf = Math.max(9, cab.fonteNomePt * 0.65);
   const fonteInfoPdf = Math.max(7, cab.fonteInfoPt * 0.47);
@@ -127,8 +128,30 @@ export function desenharCabecalhoRequisicaoPdf(
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(fonteNomePdf);
   let linhasNome: string[] = [];
+  let alturaInfo = 0;
   if (exibirInfoLab) {
     linhasNome = pdf.splitTextToSize(textos.nome || "", larguraColEsq);
+    alturaInfo = linhasNome.length * (fonteNomePdf * 0.42) + 2;
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(fonteInfoPdf);
+    for (const linha of textos.linhas) {
+      const linhasBloco = pdf.splitTextToSize(linha, larguraColEsq);
+      alturaInfo += linhasBloco.length * (fonteInfoPdf * 0.52);
+    }
+  }
+
+  const logoY =
+    exibirLogo && logoH > 0 && exibirInfoLab && alturaInfo > 0
+      ? linha1 - fonteNomePdf * 0.32 + Math.max(0, (alturaInfo - logoH) / 2)
+      : topo;
+
+  if (exibirLogo && logoW > 0) {
+    desenharLogoLab(pdf, lab, cab, marginLogoX, logoY);
+  }
+
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(fonteNomePdf);
+  if (exibirInfoLab) {
     pdf.text(linhasNome, labX, linha1);
   }
 
@@ -153,7 +176,7 @@ export function desenharCabecalhoRequisicaoPdf(
     yDir = opts.extrasDireita(yDir, margin, tableRight);
   }
 
-  const fimBloco = Math.max(topo + (logoH > 0 ? logoH + 2 : 0), yLab, yDir) + 4;
+  const fimBloco = Math.max(logoY + logoH + 2, yLab, yDir) + 4;
   const { r, g, b } = hexParaRgb(OS_REQUISICAO_LINHA_DIVISAO_COR);
   const hLinha = OS_REQUISICAO_LINHA_INTERNA_MM;
   pdf.setFillColor(r, g, b);

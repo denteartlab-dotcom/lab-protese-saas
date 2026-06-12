@@ -114,9 +114,9 @@ export function PreviewOsModeloComprovante({
     >
       <div style={estiloWrapperConteudoRequisicaoPreview()}>
         <div aria-hidden style={estiloMolduraOverlayRequisicaoPreview(layout)} />
-        <div className="flex items-start gap-3">
+        <div className="flex items-center gap-3">
           {layout.logo ? (
-            <div className="shrink-0">
+            <div className="flex shrink-0 items-center self-center">
               {cfg.logoDataUrl?.startsWith("data:image") ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -136,7 +136,7 @@ export function PreviewOsModeloComprovante({
           ) : null}
 
           {layout.infoLab ? (
-            <div className="min-w-0 flex-1 pt-0.5">
+            <div className="min-w-0 flex-1">
               <p className="font-bold leading-tight" style={{ fontSize: `${fs + 1}px` }}>
                 {textos.nome || "Mateus Bonfim"}
               </p>

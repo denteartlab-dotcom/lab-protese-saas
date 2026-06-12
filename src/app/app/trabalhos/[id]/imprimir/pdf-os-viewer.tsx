@@ -412,9 +412,8 @@ function desenharMetadadosServicoRequisicao(
   const etapasLista = data.etapasLista || [];
   const mostraColab = colaboradorExibirNoTopoImpressao(lay.colaborador, lay.etapas, etapasLista);
   const mostraProd = lay.producao && Boolean(data.producao?.trim());
-  const mostraObs = lay.obsServico;
 
-  if (!mostraPrazo && !mostraColab && !mostraProd && !mostraObs) {
+  if (!mostraPrazo && !mostraColab && !mostraProd) {
     return y;
   }
 
@@ -439,17 +438,6 @@ function desenharMetadadosServicoRequisicao(
   if (mostraProd) {
     labelValue(pdf, "Produção: ", data.producao || "", colDesc, y);
     y += g(4);
-  }
-  if (mostraObs) {
-    const texto = (data.observacoes || "").trim();
-    const linhasObs = pdf.splitTextToSize(texto || "—", 182 - colDesc);
-    labelValue(pdf, "Observação: ", linhasObs[0] || "", colDesc, y);
-    y += g(4);
-    if (linhasObs.length > 1) {
-      pdf.setFont("helvetica", "normal");
-      pdf.text(linhasObs.slice(1), colDesc, y);
-      y += (linhasObs.length - 1) * 3.8 * escalaEspacamentoRequisicao(lay) + g(2);
-    }
   }
   return y;
 }
@@ -1475,14 +1463,6 @@ function renderTermicaModelo4(
           larguraCampo
         );
       }
-      const obsServ = item.notasAbaixo?.find((n) => /observ/i.test(n)) || "";
-      if (lay.obsServico) {
-        const obsTexto =
-          obsServ.replace(/^observ[aã]o:\s*/i, "") || data.observacoes?.slice(0, 200) || "";
-        if (obsTexto) {
-          y = campoTermica(pdf, "Observação:", obsTexto, mx + 1, y, larguraCampo);
-        }
-      }
       pdf.setFontSize(fsSmall);
       y += 0.5;
     }
@@ -1746,14 +1726,6 @@ function renderTermicaModelo5(
           y,
           larguraCampo
         );
-      }
-      const obsServ = item.notasAbaixo?.find((n) => /observ/i.test(n)) || "";
-      if (lay.obsServico) {
-        const obsTexto =
-          obsServ.replace(/^observ[aã]o:\s*/i, "") || data.observacoes?.slice(0, 200) || "";
-        if (obsTexto) {
-          y = campoTermica(pdf, "Observação:", obsTexto, mx + 1, y, larguraCampo);
-        }
       }
       pdf.setFontSize(fsSmall);
       y += 0.5;
