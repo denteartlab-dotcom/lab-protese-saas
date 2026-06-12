@@ -22,6 +22,8 @@ import {
 import { z } from "zod";
 
 const schema = z.object({
+  clienteId: z.string().nullish(),
+  pacienteId: z.string().nullish(),
   segmentoFaturamento: z.enum(["servico", "produto", "transporte"]).nullish(),
   tipoProtese: z.string().nullish(),
   dentes: z.string().nullish(),
@@ -86,6 +88,12 @@ export async function PUT(
 
     const payload: Record<string, unknown> = {};
 
+    if (data.clienteId != null && data.clienteId !== "") {
+      payload.clienteId = data.clienteId;
+    }
+    if (data.pacienteId != null && data.pacienteId !== "") {
+      payload.pacienteId = data.pacienteId;
+    }
     if (data.segmentoFaturamento != null) {
       payload.segmentoFaturamento = data.segmentoFaturamento;
     }
@@ -168,6 +176,12 @@ export async function PUT(
     }
 
     const camposCompartilhados: Record<string, unknown> = {};
+    if (data.clienteId != null && data.clienteId !== "") {
+      camposCompartilhados.clienteId = data.clienteId;
+    }
+    if (data.pacienteId != null && data.pacienteId !== "") {
+      camposCompartilhados.pacienteId = data.pacienteId;
+    }
     if (data.status !== undefined) camposCompartilhados.status = data.status;
     if (data.observacoes !== undefined) camposCompartilhados.observacoes = data.observacoes;
     if (payload.dataPrevista !== undefined) camposCompartilhados.dataPrevista = payload.dataPrevista;

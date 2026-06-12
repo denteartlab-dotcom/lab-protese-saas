@@ -18,6 +18,7 @@ import {
   ControleProducaoFiltrosLista,
   ControleProducaoToolbar,
 } from "@/components/ControleProducaoToolbar";
+import { CabecalhoFormularioOs } from "@/components/producao/CabecalhoFormularioOs";
 import { EtapasControleCelula } from "@/components/producao/EtapasControleCelula";
 import {
   EtapasOsEditor,
@@ -111,7 +112,13 @@ import {
   MENSAGEM_OS_FATURADA_NAO_EXCLUI,
   type LancamentoFaturaOs,
 } from "@/lib/os-faturamento";
+import {
+  anexosParaLinhasInstrucoes,
+  linhaInstrucaoOs,
+  montarCorpoCabecalhoInstrucoes,
+} from "@/lib/cabecalho-os-form";
 import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
+import { notificarUploadsAtualizados } from "@/lib/uploads-armazenamento";
 import {
   DENTES_DECIDUOS_INFERIORES,
   DENTES_DECIDUOS_SUPERIORES,
@@ -210,6 +217,13 @@ const COMPARADORES_CONTROLE: Record<
 };
 
 type EditForm = {
+  clienteId: string;
+  pacienteNome: string;
+  pacienteId: string;
+  dataLancamento: string;
+  caixa: string;
+  casoUrgente: string;
+  dentista: string;
   categoria: string;
   tipoProtese: string;
   dentes: string;
@@ -233,6 +247,12 @@ type EditForm = {
   instrucoesCorpo: string;
   urgente: boolean;
   repeticao: boolean;
+};
+
+type ClienteCatalogo = {
+  id: string;
+  nome: string;
+  observacoes?: string | null;
 };
 
 type AbaServicoEdicao = "etapas" | "produtos" | "colaboradores" | "terceiros";
@@ -916,6 +936,9 @@ export default function ControlePage() {
   const [imprimirOs, setImprimirOs] = useState<Trabalho | null>(null);
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
   const [avisoConfirmarItem, setAvisoConfirmarItem] = useState("");
+  const [clientesCatalogo, setClientesCatalogo] = useState<ClienteCatalogo[]>([]);
+  const [arquivosEdicao, setArquivosEdicao] = useState<File[]>([]);
+  const [anexosEdicao, setAnexosEdicao] = useState<AnexoOs[]>([]);
   const editarUrlAbertoRef = useRef(false);
 
   async function load() {
@@ -1153,13 +1176,33 @@ export default function ControlePage() {
     new Set(trabalhos.map(clienteNome).filter(Boolean))
   );
 
+  useEffect(() => {
+    if (!editando) return;
+    fetch("/api/clientes")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setClientesCatalogo(Array.isArray(data) ? data : []))
+      .catch(() => setClientesCatalogo([]));
+  }, [editando]);
+
   function formVazioEdicao(trabalho: Trabalho, todos: Trabalho[] = trabalhos): EditForm {
     const complementos = complementosEdicaoTrabalho(trabalho, todos);
+    const instrucoesTexto = instrucoesConsolidadas(trabalho, todos);
     const corpo = instrucoesCorpoSemEtapas(
-      instrucoesCorpoSemItens(instrucoesConsolidadas(trabalho, todos))
+      instrucoesCorpoSemItens(instrucoesTexto)
     );
     const dataBr = formatDate(trabalho.dataPrevista);
     return {
+      clienteId: trabalho.clienteId || trabalho.cliente?.id || "",
+      pacienteNome: trabalho.paciente?.nome || "",
+      pacienteId: trabalho.pacienteId || trabalho.paciente?.id || "",
+      dataLancamento: formatDate(trabalho.dataEntrada),
+      caixa: caixaOs(trabalho) || linhaInstrucaoOs(instrucoesTexto, "Caixa:"),
+      casoUrgente:
+        linhaInstrucaoOs(instrucoesTexto, "Caso odontológico:") ||
+        linhaInstrucaoOs(instrucoesTexto, "Caso clínico:"),
+      dentista:
+        linhaInstrucaoOs(instrucoesTexto, "Dentista:") ||
+        linhaInstrucaoOs(instrucoesTexto, "Dentista convidado:"),
       categoria: trabalho.escala || "",
       tipoProtese: trabalho.tipoProtese,
       dentes: trabalho.dentes || "",
@@ -1287,6 +1330,8 @@ export default function ControlePage() {
     setTipoDenticao("permanente");
     setDentesEdicao([]);
     setLancamentosFatura([]);
+    setArquivosEdicao([]);
+    setAnexosEdicao([]);
     if (embedAgenda && typeof window !== "undefined") {
       window.parent.postMessage({ type: "agenda-os-edit-close" }, "*");
       return;
@@ -1539,10 +1584,13 @@ export default function ControlePage() {
     setProdutosOs([]);
     setTipoDenticao(denticaoInicial);
     setDentesEdicao(dentesIniciais);
+    const formInicial = formVazioEdicao(alvo, lista);
     setForm({
-      ...formVazioEdicao(alvo, lista),
+      ...formInicial,
       dentes: numeroDenteResumoControle(dentesIniciais, denticaoInicial),
     });
+    setAnexosEdicao(anexosFromInstrucoes(instrucoesConsolidadas(alvo, lista)));
+    setArquivosEdicao([]);
     const primeiroServico = itens.find((item) => classificarItemOs(item) === "servico");
     carregarComplementosNaEdicao(alvo);
     if (primeiroServico) {
@@ -1917,6 +1965,90 @@ export default function ControlePage() {
     carregarEtapasNaEdicao(editando);
   }
 
+  async function uploadArquivosEdicaoSelecionados(): Promise<AnexoOs[]> {
+    if (arquivosEdicao.length === 0) return [];
+    const formData = new FormData();
+    arquivosEdicao.forEach((arquivo) => formData.append("files", arquivo));
+    const response = await fetch("/api/uploads", { method: "POST", body: formData });
+    if (!response.ok) return [];
+    const uploaded = await response.json();
+    notificarUploadsAtualizados();
+    return Array.isArray(uploaded) ? uploaded : [];
+  }
+
+  async function sincronizarCabecalhoMetaEdicao() {
+    if (!editando || !form) return;
+
+    if (
+      form.clienteId &&
+      form.clienteId !== (editando.clienteId || editando.cliente?.id || "")
+    ) {
+      const grupo = trabalhosDoMesmoGrupoOsId(editando, trabalhos);
+      await Promise.all(
+        grupo.map((item) =>
+          fetch(`/api/trabalhos/${item.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ clienteId: form.clienteId }),
+          })
+        )
+      );
+    }
+
+    const pacienteId = form.pacienteId || editando.pacienteId || editando.paciente?.id || "";
+    const nomeAtual = editando.paciente?.nome || "";
+    if (pacienteId && form.pacienteNome.trim() && form.pacienteNome.trim() !== nomeAtual) {
+      await fetch(`/api/pacientes/${pacienteId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome: form.pacienteNome.trim(),
+          ...(form.clienteId ? { clienteId: form.clienteId } : {}),
+        }),
+      });
+      return;
+    }
+
+    if (!pacienteId && form.pacienteNome.trim() && form.clienteId) {
+      const criado = await fetch("/api/pacientes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome: form.pacienteNome.trim(),
+          clienteId: form.clienteId,
+        }),
+      }).then((res) => (res.ok ? res.json() : null));
+
+      if (criado?.id) {
+        const grupo = trabalhosDoMesmoGrupoOsId(editando, trabalhos);
+        await Promise.all(
+          grupo.map((item) =>
+            fetch(`/api/trabalhos/${item.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ pacienteId: criado.id }),
+            })
+          )
+        );
+      }
+    }
+  }
+
+  function corpoCabecalhoEdicaoAtual(anexosExtras: AnexoOs[] = []) {
+    if (!form) return "";
+    const todosAnexos = [...anexosEdicao, ...anexosExtras];
+    return montarCorpoCabecalhoInstrucoes(
+      form.instrucoesCorpo,
+      {
+        caixa: form.caixa,
+        dentista: form.dentista,
+        casoUrgente: form.casoUrgente,
+        material: form.material,
+      },
+      anexosParaLinhasInstrucoes(todosAnexos)
+    );
+  }
+
   async function salvarEdicao() {
     if (!editando || !form || salvandoEdicao) return;
 
@@ -1934,6 +2066,10 @@ export default function ControlePage() {
 
     setSalvandoEdicao(true);
     try {
+    const anexosUpload = await uploadArquivosEdicaoSelecionados();
+    await sincronizarCabecalhoMetaEdicao();
+    const corpoCabecalho = corpoCabecalhoEdicaoAtual(anexosUpload);
+
     if (osFaturada) {
       const registros =
         grupoOsRegistros.length > 0
@@ -1952,7 +2088,7 @@ export default function ControlePage() {
         registros[0];
       const instrucoesAtual = servicoReg.instrucoes || "";
       const corpoBase = removerComplementosOsDoCorpo(
-        instrucoesCorpoSemItens(instrucoesSemAnexos(instrucoesAtual))
+        instrucoesCorpoSemItens(instrucoesSemAnexos(corpoCabecalho || instrucoesAtual))
       );
       const etapasLinhas = parseEtapasInstrucoes(instrucoesAtual)
         .map((etapa) => formatarLinhaEtapa(etapa))
@@ -1989,7 +2125,7 @@ export default function ControlePage() {
 
     const blocosSalvar = planejarBlocosSalvarOs(itensSalvar);
     const dividir = blocosSalvar.length > 1 || deveDividirOs(itensSalvar);
-    const corpoSemEtapas = instrucoesCorpoSemEtapas(form.instrucoesCorpo);
+    const corpoSemEtapas = instrucoesCorpoSemEtapas(corpoCabecalho);
     const dataPrevistaIso = brShortToIso(form.dataLaboratorio) || form.dataPrevista || null;
 
     const payloadPutCompartilhado = {
@@ -2818,31 +2954,33 @@ export default function ControlePage() {
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto text-xs text-slate-700">
-              <section className="grid gap-3 p-4 md:grid-cols-4">
-                <Input label="Data Lançamento Ficha" value={formatDate(editando.dataEntrada)} readOnly />
-                <Input label="OS Externa" value="" readOnly />
-                <Input label="Caixa Organizadora" value={caixaOs(editando)} readOnly />
-                <Input label="Paciente" value={pacienteNome(editando)} readOnly />
-                <Input label="Selecione um Cliente *" value={clienteNome(editando)} readOnly />
-                <Input label="Dentista Conveniado" value="" readOnly />
-                <div className="md:col-span-2">
-                  <Input
-                    label="Material Enviado pelo Dentista"
-                    value={exibirTexto(form.material)}
-                    readOnly
-                  />
-                </div>
-                <div className="md:col-span-4">
-                  <TextareaObservacaoInterna
-                    label="Observação Interna"
-                    value={form.observacoes}
-                    onChange={(observacoes) => setForm({ ...form, observacoes })}
-                  />
-                </div>
-                <p className="md:col-span-4 text-xs text-primary-600">
-                  Tabela Utilizada: Tabela Principal
-                </p>
-              </section>
+              <CabecalhoFormularioOs
+                value={{
+                  dataLancamento: form.dataLancamento,
+                  numeroOs: String(editando.numeroOs),
+                  caixa: form.caixa,
+                  casoUrgente: form.casoUrgente,
+                  pacienteNome: form.pacienteNome,
+                  clienteId: form.clienteId,
+                  dentista: form.dentista,
+                  material: form.material,
+                  observacoes: form.observacoes,
+                }}
+                onChange={(patch) => setForm((atual) => (atual ? { ...atual, ...patch } : atual))}
+                clientes={clientesCatalogo}
+                anexosExistentes={anexosEdicao}
+                onRemoverAnexoExistente={(anexo) =>
+                  setAnexosEdicao((atuais) =>
+                    atuais.filter(
+                      (item) => item.url !== anexo.url || item.name !== anexo.name
+                    )
+                  )
+                }
+                arquivosNovos={arquivosEdicao}
+                onArquivosNovosChange={setArquivosEdicao}
+                desabilitado={osFaturada}
+                observacaoEditavel
+              />
 
               <section
                 className={cn(
