@@ -217,6 +217,7 @@ async function ImprimirOSConteudo({
       tipoProtese: t.tipoProtese,
       dentes: t.dentes,
       cor: t.cor,
+      escala: trabalhoServico.escala ?? t.escala,
       valor: t.valor,
     },
     {},

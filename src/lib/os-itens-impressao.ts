@@ -44,6 +44,22 @@ function descontoImpressao(desconto?: string) {
   return texto.includes("%") ? texto : `% ${texto}`;
 }
 
+/** Ex.: `Trilux - A2` quando há escala e cor na OS. */
+export function formatarCorEscalaImpressaoOs(
+  escala?: string | null,
+  cor?: string | null
+): string {
+  const escalaTexto = (escala || "").trim();
+  const corTexto = (cor || "").trim();
+  const escalaValida = escalaTexto && escalaTexto !== "-";
+  const corValida = corTexto && corTexto !== "-";
+
+  if (escalaValida && corValida) return `${escalaTexto} - ${corTexto}`;
+  if (corValida) return corTexto;
+  if (escalaValida) return escalaTexto;
+  return "";
+}
+
 function descricaoImpressao(item: ItemOsLinha): { tipo: TipoItemImpressaoOs; descricao: string } {
   const nome = nomeExibicaoItemOs(item);
   if (itemExibeBadgeTransporte(item)) {
@@ -55,7 +71,10 @@ function descricaoImpressao(item: ItemOsLinha): { tipo: TipoItemImpressaoOs; des
   return { tipo: "servico", descricao: nome || item.servico.trim() };
 }
 
-function parseLinhaItemAdicionado(line: string): ItemImpressaoOs | null {
+function parseLinhaItemAdicionado(
+  line: string,
+  escalaPadrao?: string | null
+): ItemImpressaoOs | null {
   const match = line.match(
     /^Item adicionado:\s*(.*?)\s*-\s*dentes\s*(.*?)\s*-\s*cor\s*(.*?)\s*-\s*qtd\s*(.*?)\s*-\s*valor\s*(.*)$/i
   );
@@ -66,7 +85,12 @@ function parseLinhaItemAdicionado(line: string): ItemImpressaoOs | null {
   const itemLinha: ItemOsLinha = { servico, produtoId: produtoId || undefined };
 
   const dente = match[2]?.trim() || "";
-  const cor = match[3]?.trim() || "";
+  const corLinha = match[3]?.trim() || "";
+  const escalaLinha =
+    line.match(
+      / - categoria (.*?)(?: - desc| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
+    )?.[1]?.trim() || "";
+  const escalaEfetiva = escalaLinha || escalaPadrao || "";
   const qtd = match[4]?.trim() || "1";
   const valorText =
     line.match(
@@ -87,7 +111,7 @@ function parseLinhaItemAdicionado(line: string): ItemImpressaoOs | null {
     qtd,
     descricao,
     dente: odontologico && dente !== "-" ? dente : "",
-    cor: odontologico && cor !== "-" ? cor : "",
+    cor: odontologico ? formatarCorEscalaImpressaoOs(escalaEfetiva, corLinha) : "",
     unitario: quantidade > 0 ? total / quantidade : total,
     desconto: tipo === "servico" ? descontoImpressao(descontoRaw) : "",
     tipo,
@@ -303,6 +327,7 @@ export function extrairItensImpressaoOs(
     tipoProtese: string;
     dentes?: string | null;
     cor?: string | null;
+    escala?: string | null;
     valor: number;
   },
   ctxPrazos: ContextoPrazosImpressao = {},
@@ -315,7 +340,7 @@ export function extrairItensImpressaoOs(
     .filter((l) => l.startsWith("Item adicionado:"));
 
   const itens = linhas
-    .map(parseLinhaItemAdicionado)
+    .map((line) => parseLinhaItemAdicionado(line, fallback?.escala))
     .filter((item): item is ItemImpressaoOs => item !== null);
 
   const unicos = new Map<string, ItemImpressaoOs>();
@@ -339,7 +364,7 @@ export function extrairItensImpressaoOs(
           qtd: "1",
           descricao: classificarItemOs(itemFallback) === "servico" ? descricao : `${descricao}`,
           dente: fallback.dentes || "",
-          cor: fallback.cor || "",
+          cor: formatarCorEscalaImpressaoOs(fallback.escala, fallback.cor),
           unitario: fallback.valor,
           desconto: "",
           tipo,

@@ -821,7 +821,7 @@ function renderModeloProducao(
     pdf.text(String(item.qtd), colQtd, y);
     pdf.text(descricaoLinhas, colDesc, y);
     if (lay.numDente) pdf.text(String(item.dente).slice(0, 12), colDente, y, { align: "center" });
-    if (lay.corDente) pdf.text(String(item.cor).slice(0, 10), colCor, y, { align: "center" });
+    if (lay.corDente) pdf.text(String(item.cor).slice(0, 16), colCor, y, { align: "center" });
     if (lay.valorUnit) pdf.text(unitarioTabela(item.unitario), colUnit, y, { align: "right" });
     if (lay.desconto) pdf.text(descontoCelula(item.desconto), colDescPct, y, { align: "right" });
     if (lay.subtotal) {
@@ -1055,7 +1055,7 @@ function renderModeloComprovante(
     pdf.text(String(item.qtd), colQtd, y);
     pdf.text(descricaoLinhas, colDesc, y);
     if (lay.numDente) pdf.text(String(item.dente).slice(0, 12), colDente, y, { align: "center" });
-    if (lay.corDente) pdf.text(String(item.cor).slice(0, 10), colCor, y, { align: "center" });
+    if (lay.corDente) pdf.text(String(item.cor).slice(0, 16), colCor, y, { align: "center" });
     if (lay.valorUnit) pdf.text(unitarioTabela(item.unitario), colUnit, y, { align: "right" });
     if (lay.desconto) {
       pdf.text(descontoCelula(item.desconto).replace(".", ","), colDescPct, y, { align: "right" });
