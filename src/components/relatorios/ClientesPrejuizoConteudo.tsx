@@ -36,7 +36,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const inputDataClass =
-  "h-[36px] w-full rounded-lg border border-[#e5e7eb] bg-white px-3 text-[12px] text-[#374151] shadow-none outline-none focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]/20";
+  "h-[36px] w-full rounded-lg border border-[#e5e7eb] bg-white pl-8 pr-3 text-[12px] text-[#374151] shadow-none outline-none focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]/20";
 
 function BadgeStatus({ status }: { status: StatusCriticidadeCliente }) {
   return (
@@ -265,7 +265,7 @@ export function ClientesPrejuizoConteudo() {
           <div className="flex flex-wrap items-end gap-2">
             {periodo === "personalizado" ? (
               <>
-                <div className="w-[130px]">
+                <div className="w-[138px]">
                   <CampoDataBr
                     value={dataInicio}
                     onChange={setDataInicio}
@@ -276,7 +276,7 @@ export function ClientesPrejuizoConteudo() {
                   />
                 </div>
                 <span className="pb-2 text-[12px] text-[#9ca3af]">—</span>
-                <div className="w-[130px]">
+                <div className="w-[138px]">
                   <CampoDataBr
                     value={dataFim}
                     onChange={setDataFim}

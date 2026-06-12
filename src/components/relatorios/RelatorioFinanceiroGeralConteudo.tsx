@@ -68,7 +68,7 @@ const labelClass = "mb-1 block text-[11px] font-medium text-[#6b7280]";
 const selectClass =
   "h-[36px] w-full rounded-lg border border-[#e5e7eb] bg-white px-3 text-[12px] text-[#374151] outline-none focus:border-[#3498db] focus:ring-1 focus:ring-[#3498db]/20";
 const inputClass =
-  "h-[36px] w-full rounded-lg border border-[#e5e7eb] bg-white px-3 text-[12px] text-[#374151] shadow-none outline-none focus:border-[#3498db] focus:ring-1 focus:ring-[#3498db]/20";
+  "h-[36px] w-full rounded-lg border border-[#e5e7eb] bg-white pl-8 pr-3 text-[12px] text-[#374151] shadow-none outline-none focus:border-[#3498db] focus:ring-1 focus:ring-[#3498db]/20";
 
 function primeiroDiaAnoBr() {
   const hoje = new Date();

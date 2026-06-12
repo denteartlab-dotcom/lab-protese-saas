@@ -241,9 +241,9 @@ export function CampoDataBr({
           placeholder={placeholder}
           className={cn(
             "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20",
-            iconPosition === "left" ? "pl-8 pr-2" : "pr-9",
             disabled && "cursor-not-allowed bg-slate-50 text-slate-500",
-            inputClassName
+            inputClassName,
+            iconPosition === "left" ? "pl-8 pr-2" : "pr-9"
           )}
         />
         <button
