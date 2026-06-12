@@ -16,14 +16,21 @@ export function criarIdPdfViewer() {
   return `pdf-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function storagePdfViewer() {
+  if (typeof window === "undefined") return null;
+  return window.localStorage;
+}
+
 export function salvarPdfViewerSession(id: string, payload: PdfViewerSessionPayload) {
-  if (typeof window === "undefined") return;
-  sessionStorage.setItem(chavePdfViewerSession(id), JSON.stringify(payload));
+  const storage = storagePdfViewer();
+  if (!storage) return;
+  storage.setItem(chavePdfViewerSession(id), JSON.stringify(payload));
 }
 
 export function lerPdfViewerSession(id: string): PdfViewerSessionPayload | null {
-  if (typeof window === "undefined") return null;
-  const raw = sessionStorage.getItem(chavePdfViewerSession(id));
+  const storage = storagePdfViewer();
+  if (!storage) return null;
+  const raw = storage.getItem(chavePdfViewerSession(id));
   if (!raw) return null;
   try {
     return JSON.parse(raw) as PdfViewerSessionPayload;
@@ -33,8 +40,9 @@ export function lerPdfViewerSession(id: string): PdfViewerSessionPayload | null 
 }
 
 export function removerPdfViewerSession(id: string) {
-  if (typeof window === "undefined") return;
-  sessionStorage.removeItem(chavePdfViewerSession(id));
+  const storage = storagePdfViewer();
+  if (!storage) return;
+  storage.removeItem(chavePdfViewerSession(id));
 }
 
 export function blobParaBase64(blob: Blob): Promise<string> {

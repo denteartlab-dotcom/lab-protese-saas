@@ -45,7 +45,9 @@ export function PdfViewerPagina({ id }: Props) {
         if (urlLocal.startsWith("blob:")) URL.revokeObjectURL(urlLocal);
         urlLocal = base64ParaBlobUrl(payload.base64);
         removerPdfViewerSession(id);
-        window.location.replace(urlLocal);
+        setPdfUrl(urlLocal);
+        setCarregando(false);
+        setErro("");
         return;
       }
 
@@ -63,7 +65,7 @@ export function PdfViewerPagina({ id }: Props) {
     }, 250);
 
     const onStorage = (event: StorageEvent) => {
-      if (event.storageArea !== sessionStorage) return;
+      if (event.storageArea !== localStorage) return;
       if (event.key !== storageKey) return;
       const payload = lerPdfViewerSession(id);
       if (payload) aplicarPayload(payload);
