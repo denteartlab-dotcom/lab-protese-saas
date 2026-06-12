@@ -189,6 +189,29 @@ model LogAuditoria {
   @@index([dataAlteracao])
 }
 
+/** Histórico de passagem por etapas de produção (retrabalho / repetição). */
+model HistoricoEtapa {
+  id              String    @id @default(cuid())
+  trabalhoId      String
+  numeroOs        Int
+  clienteId       String
+  etapa           String
+  colaboradorId   String?
+  colaboradorNome String?
+  dataEntrada     DateTime  @default(now())
+  dataSaida       DateTime?
+  observacao      String?
+  motivoRetorno   String?
+  itemId          String?
+
+  @@index([trabalhoId])
+  @@index([clienteId])
+  @@index([numeroOs])
+  @@index([etapa])
+  @@index([dataEntrada])
+  @@map("historico_etapas")
+}
+
 model Orcamento {
   id                 String    @id @default(cuid())
   numeroPedido       Int       @unique

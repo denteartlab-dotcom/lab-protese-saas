@@ -5,12 +5,23 @@ import Link from "next/link";
 import {
   AlertTriangle,
   ArrowLeft,
+  BarChart3,
   CalendarDays,
   DollarSign,
   RefreshCw,
+  Repeat,
   Shield,
   Users,
 } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { CampoDataBr } from "@/components/campo-data-br";
 import { PainelCarregando } from "@/components/ListaCarregando";
 import { dateToBrShort } from "@/lib/datas-br";
@@ -134,6 +145,59 @@ function TabelaSimples({
         ))}
       </tbody>
     </table>
+  );
+}
+
+const COR_GRAFICO = {
+  vermelho: "#ef4444",
+  laranja: "#f97316",
+  azul: "#4a90d9",
+  grid: "#e8e8e8",
+  texto: "#6b7280",
+} as const;
+
+function GraficoBarrasHorizontais({
+  titulo,
+  dados,
+  corBarra,
+}: {
+  titulo: string;
+  dados: { nome: string; valor: number }[];
+  corBarra: string;
+}) {
+  if (!dados.length) {
+    return (
+      <div className="flex h-full min-h-[220px] items-center justify-center text-[12px] text-[#9ca3af]">
+        Sem dados no período selecionado.
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-[260px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={dados}
+          layout="vertical"
+          margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke={COR_GRAFICO.grid} horizontal={false} />
+          <XAxis type="number" tick={{ fontSize: 11, fill: COR_GRAFICO.texto }} />
+          <YAxis
+            type="category"
+            dataKey="nome"
+            width={110}
+            tick={{ fontSize: 10, fill: COR_GRAFICO.texto }}
+          />
+          <Tooltip
+            formatter={(valor) => [Number(valor ?? 0), "Repetições"]}
+            contentStyle={{ fontSize: 12, borderRadius: 8 }}
+          />
+          <Bar dataKey="valor" fill={corBarra} radius={[0, 4, 4, 0]} barSize={16} />
+        </BarChart>
+      </ResponsiveContainer>
+      <p className="sr-only">{titulo}</p>
+    </div>
   );
 }
 
@@ -294,7 +358,82 @@ export function ClientesPrejuizoConteudo() {
               />
             </div>
 
+            <div>
+              <h2 className="mb-3 text-[14px] font-semibold text-[#374151]">
+                Análise de Repetição de Etapas
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <CardKpi
+                  titulo="Total de Repetições"
+                  valor={String(dados.repeticoesResumo.totalRepeticoes)}
+                  icone={<Repeat className="h-5 w-5" />}
+                  corValor="#ef4444"
+                  corIcone="#ef4444"
+                  corFundoIcone="#fee2e2"
+                />
+                <CardKpi
+                  titulo="Serviços com Retrabalho"
+                  valor={String(dados.repeticoesResumo.servicosComRetrabalho)}
+                  icone={<RefreshCw className="h-5 w-5" />}
+                  corValor="#f97316"
+                  corIcone="#f97316"
+                  corFundoIcone="#ffedd5"
+                />
+                <CardKpi
+                  titulo="Etapa Mais Repetida"
+                  valor={dados.repeticoesResumo.etapaMaisRepetida}
+                  icone={<BarChart3 className="h-5 w-5" />}
+                  corValor="#8b5cf6"
+                  corIcone="#8b5cf6"
+                  corFundoIcone="#ede9fe"
+                />
+                <CardKpi
+                  titulo="Cliente Mais Crítico"
+                  valor={dados.repeticoesResumo.clienteMaisCritico}
+                  icone={<AlertTriangle className="h-5 w-5" />}
+                  corValor="#dc2626"
+                  corIcone="#dc2626"
+                  corFundoIcone="#fee2e2"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <CardTabela titulo="Top 10 Clientes com Mais Retrabalho">
+                <GraficoBarrasHorizontais
+                  titulo="Top 10 clientes"
+                  dados={dados.graficoTop10Clientes}
+                  corBarra={COR_GRAFICO.vermelho}
+                />
+              </CardTabela>
+              <CardTabela titulo="Etapas Mais Repetidas do Laboratório">
+                <GraficoBarrasHorizontais
+                  titulo="Etapas repetidas"
+                  dados={dados.graficoEtapasRepetidas}
+                  corBarra={COR_GRAFICO.azul}
+                />
+              </CardTabela>
+            </div>
+
             <div className="grid gap-4 lg:grid-cols-3">
+              <CardTabela titulo="Clientes que Mais Repetem Etapas" linkVerTodos>
+                <TabelaSimples
+                  colunas={[
+                    "Cliente",
+                    "Serviços",
+                    "Repetições",
+                    "Etapa",
+                    "Status",
+                  ]}
+                  linhas={dados.clientesRepetemEtapas.map((c) => [
+                    c.cliente,
+                    String(c.servicosComRepeticao),
+                    String(c.totalRepeticoes),
+                    c.etapaMaisRepetida,
+                    <BadgeStatus key={c.cliente} status={c.status} />,
+                  ])}
+                />
+              </CardTabela>
               <CardTabela titulo="Clientes que Mais Retornam Serviços" linkVerTodos>
                 <TabelaSimples
                   colunas={["Cliente", "Retrabalhos", "Garantias", "Status"]}
@@ -302,7 +441,7 @@ export function ClientesPrejuizoConteudo() {
                     c.cliente,
                     String(c.retrabalhos),
                     String(c.garantias),
-                    <BadgeStatus key={c.cliente} status={c.status} />,
+                    <BadgeStatus key={`ret-${c.cliente}`} status={c.status} />,
                   ])}
                 />
               </CardTabela>
@@ -315,6 +454,9 @@ export function ClientesPrejuizoConteudo() {
                   ])}
                 />
               </CardTabela>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-3">
               <CardTabela titulo="Clientes que Mais Devolvem Trabalhos" linkVerTodos>
                 <TabelaSimples
                   colunas={["Cliente", "Devoluções"]}
@@ -324,9 +466,6 @@ export function ClientesPrejuizoConteudo() {
                   ])}
                 />
               </CardTabela>
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-3">
               <CardTabela titulo="Motivos Mais Frequentes" linkVerTodos>
                 <TabelaSimples
                   colunas={["Motivo", "Quantidade"]}

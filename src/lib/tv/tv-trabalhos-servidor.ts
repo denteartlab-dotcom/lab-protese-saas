@@ -24,6 +24,7 @@ import {
   type TrabalhoModuloOs,
 } from "@/lib/modulo-producao-os";
 import { indiceEtapaAtualDeConcluidas } from "@/lib/modulo-producao-etapas";
+import { registrarMudancaIndiceEtapa } from "@/lib/historico-etapas";
 import { labelStatusOs } from "@/lib/status-os";
 import { normalizarColaborador } from "@/lib/utils";
 
@@ -406,9 +407,18 @@ export async function moverTrabalhoTvColuna(
       "labProteseModuloProducaoEtapas"
     )) ?? {};
 
+  const concluidasAnteriores = mapa[chave] ?? [];
+  const indiceAnterior = etapas.length
+    ? indiceEtapaAtualDeConcluidas(concluidasAnteriores, etapas.length)
+    : 0;
+
   if (etapas.length > 0) {
     mapa[chave] = indicesEtapasAteColuna(etapas, coluna);
   }
+
+  const indiceNovo = etapas.length
+    ? indiceEtapaAtualDeConcluidas(mapa[chave] ?? [], etapas.length)
+    : 0;
 
   const novoStatus =
     coluna === "pronto_entrega"
@@ -432,6 +442,17 @@ export async function moverTrabalhoTvColuna(
       where: { id: trabalhoId },
       data: { status: novoStatus },
     }),
+    indiceAnterior !== indiceNovo
+      ? registrarMudancaIndiceEtapa({
+          trabalhoId: idServicoPrincipal,
+          itemId,
+          indiceAnterior,
+          indiceNovo,
+          colaboradorNome: etapas[indiceNovo]?.responsavel ?? null,
+          motivoRetorno:
+            indiceNovo < indiceAnterior ? "Retorno de etapa (TV)" : null,
+        })
+      : Promise.resolve(),
   ]);
 
   return carregarOrdensTv();

@@ -42,6 +42,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   etapasConcluidasModulo,
+  indiceEtapaAtualDeConcluidas,
   salvarEtapasConcluidasModulo,
 } from "@/lib/modulo-producao-etapas";
 import { useSessaoInatividade } from "@/hooks/use-sessao-inatividade";
@@ -240,9 +241,11 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
     if (!chaveEtapasConcluidas || !osSelecionada) return;
     const etapa = etapasOs.find((e) => e.indice === indice);
     const concluidaAntes = etapasOk.has(indice);
+    const indiceAnterior = indiceEtapaAtualDeConcluidas(etapasOk, etapasOs.length);
     const next = new Set(etapasOk);
     if (next.has(indice)) next.delete(indice);
     else next.add(indice);
+    const indiceNovo = indiceEtapaAtualDeConcluidas(next, etapasOs.length);
     setEtapasOk(next);
     salvarEtapasConcluidasModulo(chaveEtapasConcluidas, next);
 
@@ -266,6 +269,21 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
         ],
       }),
     }).catch(() => {});
+
+    if (indiceAnterior !== indiceNovo) {
+      void fetch("/api/historico-etapas/registrar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          trabalhoId: osSelecionada.id,
+          itemId: itemAtivo?.id,
+          indiceAnterior,
+          indiceNovo,
+          colaboradorNome: etapa?.responsavel || undefined,
+          motivoRetorno: indiceNovo < indiceAnterior ? "Retorno de etapa" : undefined,
+        }),
+      }).catch(() => {});
+    }
   }
 
   async function salvarAnotacoes() {
