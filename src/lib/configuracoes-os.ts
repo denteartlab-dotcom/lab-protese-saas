@@ -77,6 +77,14 @@ export const MODELOS_OS: Array<{ id: ModeloOsId; nome: string }> = [
   },
 ];
 
+export const ROTAS_MODELO_OS: Record<ModeloOsId, string> = {
+  modelo1: "/app/configuracoes/os/modelo1",
+  modelo2: "/app/configuracoes/os/modelo2",
+  modelo3: "/app/configuracoes/os/modelo3",
+  modelo4: "/app/configuracoes/os/modelo4",
+  modelo5: "/app/configuracoes/os/modelo5",
+};
+
 export type ConfiguracoesOs = {
   modeloPadrao: ModeloOsId;
   duasVias: Record<ModeloOsId, boolean>;

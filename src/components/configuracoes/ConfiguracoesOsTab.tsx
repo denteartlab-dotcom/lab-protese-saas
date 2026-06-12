@@ -6,6 +6,7 @@ import { Settings } from "lucide-react";
 import {
   MODELOS_OS,
   MODELOS_OS_IDS,
+  ROTAS_MODELO_OS,
   carregarConfiguracoesOs,
   normalizarConfiguracoesOs,
   persistirConfiguracoesOsServidor,
@@ -41,14 +42,6 @@ function ToggleSimNao({
     </button>
   );
 }
-
-const ROTAS_MODELO_OS: Record<ModeloOsId, string> = {
-  modelo1: "/app/configuracoes/os/modelo1",
-  modelo2: "/app/configuracoes/os/modelo2",
-  modelo3: "/app/configuracoes/os/modelo3",
-  modelo4: "/app/configuracoes/os/modelo4",
-  modelo5: "/app/configuracoes/os/modelo5",
-};
 
 export function ConfiguracoesOsTab() {
   const router = useRouter();

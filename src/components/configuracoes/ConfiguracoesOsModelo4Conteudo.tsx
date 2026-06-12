@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui";
@@ -23,6 +22,7 @@ import {
   type OsModelo4Layout,
 } from "@/lib/os-modelo4-layout";
 import { PreviewOsModelo4Termica } from "@/components/configuracoes/ConfiguracoesOsModelo4Preview";
+import { ConfiguracoesOsBarraEditor } from "@/components/configuracoes/ConfiguracoesOsBarraEditor";
 
 function CampoNumero({
   label,
@@ -304,17 +304,7 @@ export function ConfiguracoesOsModelo4Conteudo() {
             {mensagem}
           </div>
         ) : null}
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[#3d4248] bg-[#4a4f56] px-4 py-2.5">
-          <span className="rounded border border-[#5a6068] bg-[#5a6068] px-3 py-1.5 text-[12px] text-white">
-            Modelo 4 - (Impressora térmica 80mm - Epson T20)
-          </span>
-          <Link
-            href="/app/configuracoes?aba=os"
-            className="rounded bg-[#5a6068] px-5 py-2 text-[12px] text-white hover:bg-[#6a7078]"
-          >
-            Voltar
-          </Link>
-        </div>
+        <ConfiguracoesOsBarraEditor modeloAtivo="modelo4" />
         <div className="min-h-0 flex-1 overflow-auto p-6">
           <PreviewOsModelo4Termica cfg={cfg} layout={layout} />
         </div>

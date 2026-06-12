@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui";
@@ -54,6 +53,7 @@ import {
   PREVIEW_OS_MODELO3,
 } from "@/lib/os-modelo3-layout";
 import { PreviewOsModeloComprovante } from "@/components/configuracoes/ConfiguracoesOsModeloComprovantePreview";
+import { ConfiguracoesOsBarraEditor } from "@/components/configuracoes/ConfiguracoesOsBarraEditor";
 import { OsEtapasListaPreview } from "@/components/configuracoes/OsEtapasListaPreview";
 import {
   colaboradorExibirNoTopoImpressao,
@@ -726,17 +726,7 @@ export function ConfiguracoesOsModeloProducaoConteudo({
             {mensagem}
           </div>
         ) : null}
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[#3d4248] bg-[#4a4f56] px-4 py-2.5">
-          <span className="rounded border border-[#5a6068] bg-[#5a6068] px-3 py-1.5 text-[12px] text-white">
-            {editor.tituloBarra}
-          </span>
-          <Link
-            href="/app/configuracoes?aba=os"
-            className="rounded bg-[#5a6068] px-5 py-2 text-[12px] text-white hover:bg-[#6a7078]"
-          >
-            Voltar
-          </Link>
-        </div>
+        <ConfiguracoesOsBarraEditor modeloAtivo={editor.modeloId} />
         <div className="min-h-0 flex-1 overflow-auto p-6">
           {editor.tipoPreview === "comprovante" ? (
             <PreviewOsModeloComprovante cfg={cfg} layout={layout} />
