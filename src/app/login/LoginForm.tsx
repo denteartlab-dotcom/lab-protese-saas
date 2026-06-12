@@ -98,24 +98,32 @@ export function LoginForm({ brandingInicial }: Props) {
 
   useEffect(() => {
     void (async () => {
+      let emailServidor: string | null = null;
+      let jaEntrouServidor = false;
+
       try {
         const res = await fetch("/api/auth/prefs-lembrete", { cache: "no-store" });
         if (res.ok) {
           const data = (await res.json()) as { email?: string | null; jaEntrou?: boolean };
-          setJaEntrou(Boolean(data.jaEntrou));
-          if (data.email) {
-            setEmail(data.email);
-            setLembrarSenha(true);
-            return;
-          }
+          jaEntrouServidor = Boolean(data.jaEntrou);
+          emailServidor = data.email?.trim() || null;
         }
       } catch {
         /* fallback cache local pós-login */
       }
-      setJaEntrou(usuarioJaEntrou());
+
+      setJaEntrou(jaEntrouServidor || usuarioJaEntrou());
+
       const salvo = lerLembrarLogin();
-      if (salvo) {
+      if (salvo?.email) {
         setEmail(salvo.email);
+        if (salvo.password) setPassword(salvo.password);
+        setLembrarSenha(true);
+        return;
+      }
+
+      if (emailServidor) {
+        setEmail(emailServidor);
         setLembrarSenha(true);
       }
     })();
@@ -146,7 +154,7 @@ export function LoginForm({ brandingInicial }: Props) {
       }
 
       if (lembrarSenha) {
-        salvarLembrarLogin({ email: email.trim() });
+        salvarLembrarLogin({ email: email.trim(), password });
       } else {
         limparLembrarLogin();
       }
@@ -165,13 +173,12 @@ export function LoginForm({ brandingInicial }: Props) {
   const { lab, nomeLaboratorio, marcaSubtitulo } = branding;
   const logoLogin = dimensoesLogoPx(lab, { largura: 120, altura: 72 });
   const logoSrc = lab.logoDataUrl?.trim();
-  const logoPainel = dimensoesLogoPx(lab, { largura: 160, altura: 96 });
 
   const inputCls =
     "h-8 w-full rounded border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15";
 
   return (
-    <div className="login-hero relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[#0a2f6e] px-4 lg:justify-end lg:pr-[8%]">
+    <div className="login-hero relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[#0a2f6e] px-4">
       <img
         src="/images/login-background.png"
         alt=""
@@ -179,21 +186,6 @@ export function LoginForm({ brandingInicial }: Props) {
         decoding="async"
         className="login-hero__bg pointer-events-none absolute left-1/2 top-1/2 max-h-none max-w-none -translate-x-1/2 -translate-y-1/2 select-none"
       />
-
-      {logoSrc ? (
-        <div className="pointer-events-none absolute left-[7%] top-[10%] z-[5] hidden max-w-[220px] lg:block">
-          <img
-            src={logoSrc}
-            alt={`Logo ${nomeLaboratorio}`}
-            className="object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
-            style={{
-              width: logoPainel.largura,
-              height: logoPainel.altura,
-              maxWidth: "100%",
-            }}
-          />
-        </div>
-      ) : null}
 
       <div className="relative z-10 w-full max-w-[300px] rounded-xl bg-white p-6 shadow-2xl">
         <div className="mb-5 flex flex-col items-center gap-1.5 text-center">
