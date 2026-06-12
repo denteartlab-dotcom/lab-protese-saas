@@ -33,6 +33,14 @@ export type ComissaoColaboradorServicoOs = {
   padrao?: string;
 };
 
+export type ItemCustoServicoTabelaPrecoOs = {
+  id: string;
+  produtoId: string;
+  nome: string;
+  qtd: string;
+  valorUnitario: string;
+};
+
 export type ServicoTabelaPrecoOs = {
   id: string;
   nome: string;
@@ -43,6 +51,8 @@ export type ServicoTabelaPrecoOs = {
   produtoId?: string;
   oculto?: boolean;
   excluido?: boolean;
+  /** Produtos do estoque vinculados ao custo do serviço */
+  itensCusto?: ItemCustoServicoTabelaPrecoOs[];
   /** Linhas da aba Etapas do serviço na tabela de preços */
   etapas?: EtapaServicoTabelaPrecoOs[];
   opcoesEtapas?: string[];

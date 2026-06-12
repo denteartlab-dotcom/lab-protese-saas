@@ -1,3 +1,8 @@
+import {
+  listarItensCustoMargemServico,
+  totalCustosItensServico,
+  type ItemCustoServico,
+} from "@/lib/custos-servico-tabela-precos";
 import { readStorage } from "@/lib/persisted-storage";
 import { TABELA_PRECOS_STORAGE_KEY } from "@/lib/tabela-precos-os";
 
@@ -27,7 +32,7 @@ type ServicoMargemStorage = {
   valor: number;
   tipo?: string;
   oculto?: boolean;
-  etapas?: EtapaCusto[];
+  itensCusto?: ItemCustoServico[];
   valorCusto?: number;
 };
 
@@ -68,16 +73,6 @@ export type TotaisMargemContribuicao = {
   margemPct: number;
 };
 
-function parseMoney(value: string) {
-  return Number(value.replace(/\D/g, "")) / 100;
-}
-
-function qtdNumerica(rawQtd: string) {
-  const raw = String(rawQtd);
-  const match = raw.match(/(\d+(?:[.,]\d+)?)/);
-  return match ? Number(match[1].replace(",", ".")) : 1;
-}
-
 export function listarItensCustoServico(
   servico: ServicoMargemStorage
 ): ItemCustoMargem[] {
@@ -87,26 +82,14 @@ export function listarItensCustoServico(
     return [{ item: servico.nome || "Custo", quantidade: "1", valor }];
   }
 
-  return (servico.etapas || [])
-    .map((etapa) => {
-      const quantidade = String(etapa.qtd ?? "");
-      const custoUnit = parseMoney(etapa.valorHora || "0,00");
-      const valor = qtdNumerica(quantidade.trim() === "" ? "1" : quantidade) * custoUnit;
-      return {
-        item: etapa.nome?.trim() || "—",
-        quantidade: quantidade.trim() === "" ? "1" : quantidade,
-        valor,
-      };
-    })
-    .filter((item) => item.valor > 0 || item.item !== "—");
+  return listarItensCustoMargemServico(servico.itensCusto);
 }
 
 export function custoTotalServico(servico: ServicoMargemStorage) {
-  const itens = listarItensCustoServico(servico);
-  if (itens.length > 0) {
-    return itens.reduce((s, item) => s + item.valor, 0);
+  if (servico.tipo && servico.tipo !== "servico") {
+    return Number(servico.valorCusto) || 0;
   }
-  return 0;
+  return totalCustosItensServico(servico.itensCusto);
 }
 
 export function carregarDadosTabelaMargem(): DadosTabelaMargem | null {
