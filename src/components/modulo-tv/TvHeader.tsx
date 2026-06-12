@@ -40,7 +40,7 @@ export function TvHeader({
   return (
     <header
       className={cn(
-        "relative shrink-0 px-4 py-3 tv:px-5 tv:py-3.5 tv-4k:px-6 tv-4k:py-4",
+        "relative w-full max-w-none shrink-0 px-3 py-2 tv-hd:px-4 tv-hd:py-2.5 tv:px-5 tv:py-3",
         TV_GLASS_PANEL
       )}
     >

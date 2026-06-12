@@ -11,6 +11,7 @@ const config: Config = {
   theme: {
     extend: {
       screens: {
+        "tv-hd": "1366px",
         tv: "1920px",
         "tv-4k": "2560px",
       },

@@ -33,7 +33,7 @@ export function TvKanbanColumn({
       animate={{ opacity: 1 }}
       transition={{ duration: 0.35 }}
       className={cn(
-        "flex h-full min-w-0 flex-1 flex-col overflow-hidden p-2 tv:p-2.5 tv-4k:p-3",
+        "flex h-full min-w-0 w-full flex-col overflow-hidden p-1.5 tv-hd:p-2 tv:p-2.5",
         TV_COLUMN,
         coluna.border,
         coluna.glow,

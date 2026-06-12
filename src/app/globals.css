@@ -304,3 +304,39 @@
 .tv-kiosk {
   user-select: none;
 }
+
+/* Painel TV — tela cheia real (1366×768, 1920×1080 e TVs antigas) */
+html.modo-tv-producao {
+  zoom: 1 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  overflow: hidden !important;
+}
+
+html.modo-tv-producao body {
+  zoom: 1 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  background: #070b12 !important;
+}
+
+html.modo-tv-producao body > div {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.tv-dashboard-root {
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}

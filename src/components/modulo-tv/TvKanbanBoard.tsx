@@ -59,7 +59,7 @@ export function TvKanbanBoard({ ordens, carregando, onMoverOrdem }: Props) {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex h-full min-h-0 gap-2 overflow-x-hidden overflow-y-hidden tv:gap-2.5 tv-4k:gap-3">
+      <div className="grid h-full min-h-0 w-full max-w-none grid-cols-6 gap-1.5 overflow-hidden tv-hd:gap-2 tv:gap-2.5">
         {COLUNAS_KANBAN.map((coluna) => (
           <TvKanbanColumn
             key={coluna.id}

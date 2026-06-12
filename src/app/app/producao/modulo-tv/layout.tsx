@@ -19,7 +19,7 @@ export default function ModuloTvLayout({
 }) {
   return (
     <div
-      className={`${inter.variable} ${jetbrainsMono.variable} font-tv h-full antialiased`}
+      className={`${inter.variable} ${jetbrainsMono.variable} font-tv h-[100vh] w-[100vw] max-w-none overflow-hidden antialiased`}
     >
       {children}
     </div>

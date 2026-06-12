@@ -31,8 +31,8 @@ export function TvFooter({
   const fraseMotivacional = useFraseMotivacional(ultimaAtualizacao);
 
   return (
-    <footer className={cn("shrink-0 px-3 py-3 tv:px-5 tv:py-3.5 tv-4k:px-6 tv-4k:py-4", TV_GLASS_PANEL)}>
-      <div className="grid grid-cols-1 items-center gap-3 lg:grid-cols-[1fr_1.4fr_1fr] lg:gap-4">
+    <footer className={cn("w-full max-w-none shrink-0 px-2 py-2 tv-hd:px-3 tv-hd:py-2.5 tv:px-4 tv:py-3", TV_GLASS_PANEL)}>
+      <div className="grid w-full grid-cols-1 items-center gap-2 tv-hd:grid-cols-3 tv-hd:gap-3">
         {/* Esquerda — ATENÇÃO */}
         <div className="rounded-lg border border-red-500/25 bg-red-500/8 px-4 py-3 tv:px-5 tv:py-3.5">
           <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-red-400 tv:text-[10px]">
@@ -64,8 +64,8 @@ export function TvFooter({
               </p>
             )}
           </div>
-          <div className="mx-auto mt-3 flex justify-center">
-            <div className="relative inline-block max-w-md px-5 py-0.5 tv:max-w-lg tv:px-6">
+          <div className="mt-2 w-full px-2 tv-hd:mt-3 tv-hd:px-3">
+            <div className="relative w-full px-3 py-0.5 tv-hd:px-4">
               <span
                 className="pointer-events-none absolute left-0 top-0 select-none font-serif text-xl leading-none text-slate-500/40 tv:text-2xl tv-4k:text-3xl"
                 aria-hidden

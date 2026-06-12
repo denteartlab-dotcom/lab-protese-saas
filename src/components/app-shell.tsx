@@ -451,7 +451,7 @@ function AppShellInner({
       className={cn(
         "flex min-h-0 flex-1 flex-col transition-colors",
         isModuloTv
-          ? "bg-[#050b14]"
+          ? "h-[100vh] w-[100vw] max-w-none overflow-hidden bg-[#070b12]"
           : isModuloColaborador
             ? "bg-white"
             : "bg-[#f4f6f8] dark:bg-slate-950"
@@ -1235,11 +1235,11 @@ function AppShellInner({
         onCodigoLido={(numero) => void buscarOrdemServico(numero)}
       />
 
-      <main>
+      <main className={cn(isModuloTv && "h-full min-h-0 w-full max-w-none flex-1 overflow-hidden")}>
         <div
           className={cn(
             isPrint || isModuloImersivo
-              ? "h-screen min-h-0 overflow-hidden p-0"
+              ? "h-[100vh] w-[100vw] max-w-none min-h-0 overflow-hidden p-0 m-0"
               : "min-h-screen px-3 py-4 sm:px-5"
           )}
         >

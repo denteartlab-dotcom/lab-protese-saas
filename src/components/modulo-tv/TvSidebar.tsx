@@ -31,7 +31,7 @@ export function TvSidebar({ stats }: Props) {
       : [{ name: "Ativas", value: 1, fill: "#3b82f6" }];
 
   return (
-    <aside className="tv-scrollbar flex w-[220px] shrink-0 flex-col gap-3 overflow-y-auto tv:w-[272px] tv:gap-3.5 tv-4k:w-[300px] tv-4k:gap-4">
+    <aside className="tv-scrollbar flex w-[17vw] min-w-[168px] max-w-[220px] shrink-0 flex-col gap-2 overflow-y-auto tv-hd:min-w-[180px] tv-hd:max-w-[240px] tv-hd:gap-2.5 tv:w-[15vw] tv:max-w-[280px] tv:gap-3">
       {/* CARD 1 — RESUMO GERAL */}
       <motion.div
         initial={{ opacity: 0, x: -10 }}

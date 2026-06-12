@@ -16,7 +16,7 @@ export function TvDashboard() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const { nomeLaboratorio } = useLabConfigClient();
-  const { modoKiosk, fullscreenAuto } = useTvDashboardStore();
+  const { modoKiosk } = useTvDashboardStore();
 
   const {
     relogio,
@@ -54,14 +54,18 @@ export function TvDashboard() {
   }, []);
 
   useEffect(() => {
-    if (!fullscreenAuto && !modoKiosk) return;
+    document.documentElement.classList.add("modo-tv-producao");
+    return () => document.documentElement.classList.remove("modo-tv-producao");
+  }, []);
+
+  useEffect(() => {
     const t = window.setTimeout(() => {
       const el = containerRef.current;
       if (!el || document.fullscreenElement) return;
       void el.requestFullscreen().catch(() => undefined);
-    }, 1200);
+    }, 800);
     return () => window.clearTimeout(t);
-  }, [fullscreenAuto, modoKiosk]);
+  }, []);
 
   useEffect(() => {
     if (!modoKiosk) return;
@@ -74,20 +78,20 @@ export function TvDashboard() {
     <div
       ref={containerRef}
       className={cn(
-        "tv-dashboard relative flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-[#070b12] text-slate-100",
+        "tv-dashboard tv-dashboard-root fixed inset-0 z-40 flex h-[100vh] w-[100vw] max-w-none flex-col overflow-hidden bg-[#070b12] text-slate-100",
         modoKiosk && "tv-kiosk"
       )}
     >
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,rgba(30,58,138,0.15),transparent_55%)]" />
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(88,28,135,0.08),transparent_50%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(30,58,138,0.15),transparent_55%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(88,28,135,0.08),transparent_50%)]" />
 
-      <div className="relative z-10 flex h-full min-h-0 flex-col gap-3 p-3 tv:gap-3.5 tv:p-4 tv-4k:gap-4 tv-4k:p-5">
+      <div className="relative z-10 flex h-full min-h-0 w-full max-w-none flex-1 flex-col gap-2 p-2 tv-hd:gap-2.5 tv-hd:p-2.5 tv:gap-3 tv:p-3">
         {!modoKiosk ? (
           <Link
             href="/app"
-            className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-slate-700/50 bg-slate-900/50 px-3 py-1.5 text-[11px] text-slate-400 transition hover:text-white tv:text-xs"
+            className="absolute left-2 top-2 z-20 inline-flex w-fit items-center gap-1.5 rounded-lg border border-slate-700/50 bg-slate-900/80 px-2.5 py-1 text-[10px] text-slate-400 backdrop-blur-sm transition hover:text-white tv-hd:text-[11px] tv:text-xs"
           >
-            <ArrowLeft className="h-3.5 w-3.5" />
+            <ArrowLeft className="h-3 w-3 tv-hd:h-3.5 tv-hd:w-3.5" />
             Sair do painel TV
           </Link>
         ) : null}
@@ -103,9 +107,9 @@ export function TvDashboard() {
           modoKiosk={modoKiosk}
         />
 
-        <div className="flex min-h-0 flex-1 gap-3 overflow-hidden tv:gap-4 tv-4k:gap-5">
+        <div className="flex min-h-0 w-full max-w-none flex-1 gap-2 overflow-hidden tv-hd:gap-2.5 tv:gap-3">
           <TvSidebar stats={stats} />
-          <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
+          <main className="min-h-0 min-w-0 w-full max-w-none flex-1 overflow-hidden">
             <TvKanbanBoard
               ordens={ordens}
               carregando={carregando}
