@@ -930,9 +930,10 @@ export default function ControlePage() {
   }
 
   useEffect(() => {
+    if (embedAgenda) return;
     const timer = window.setTimeout(load, 250);
     return () => window.clearTimeout(timer);
-  }, [busca, status, dataEntrada]);
+  }, [busca, status, dataEntrada, embedAgenda]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1028,12 +1029,39 @@ export default function ControlePage() {
   }, [painelDestaque, trabalhos]);
 
   useEffect(() => {
-    if (!editarIdUrl || trabalhos.length === 0 || editarUrlAbertoRef.current) return;
-    const alvo = trabalhos.find((t) => t.id === editarIdUrl);
-    if (!alvo) return;
-    editarUrlAbertoRef.current = true;
-    abrirEdicao(alvo);
-  }, [editarIdUrl, trabalhos]);
+    if (!editarIdUrl || editarUrlAbertoRef.current) return;
+    let cancelado = false;
+
+    void (async () => {
+      try {
+        const res = await fetch(`/api/trabalhos/${editarIdUrl}`);
+        if (!res.ok || cancelado) return;
+        const data = await res.json();
+        const grupo: Trabalho[] =
+          Array.isArray(data.grupo) && data.grupo.length > 0 ? data.grupo : [data];
+        setTrabalhos((atual) =>
+          embedAgenda
+            ? grupo
+            : (() => {
+                const ids = new Set(grupo.map((item) => item.id));
+                return [...atual.filter((item) => !ids.has(item.id)), ...grupo];
+              })()
+        );
+        const alvo = grupo.find((item) => item.id === editarIdUrl) ?? grupo[0];
+        if (!alvo || cancelado) return;
+        editarUrlAbertoRef.current = true;
+        abrirEdicao(alvo, grupo);
+      } catch {
+        if (embedAgenda && !cancelado && typeof window !== "undefined") {
+          window.parent.postMessage({ type: "agenda-os-edit-close" }, "*");
+        }
+      }
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [embedAgenda, editarIdUrl]);
 
   useEffect(() => {
     fetch("/api/financeiro?tipo=receita", { cache: "no-store" })
@@ -1486,10 +1514,11 @@ export default function ControlePage() {
     sincronizarDentesNoFormulario([], tipo);
   }
 
-  function abrirEdicao(trabalho: Trabalho) {
+  function abrirEdicao(trabalho: Trabalho, trabalhosFonte?: Trabalho[]) {
+    const lista = trabalhosFonte ?? trabalhos;
     const idAlvo = editIdTrabalho(trabalho);
-    const alvo = trabalhos.find((item) => item.id === idAlvo) || trabalho;
-    const grupo = trabalhosDoMesmoGrupoOsId(alvo, trabalhos);
+    const alvo = lista.find((item) => item.id === idAlvo) || trabalho;
+    const grupo = trabalhosDoMesmoGrupoOsId(alvo, lista);
     const itens = grupo.flatMap((t) => parseItens(t));
     setGrupoOsRegistros(
       grupo.map((item) => ({
@@ -1511,7 +1540,7 @@ export default function ControlePage() {
     setTipoDenticao(denticaoInicial);
     setDentesEdicao(dentesIniciais);
     setForm({
-      ...formVazioEdicao(alvo, trabalhos),
+      ...formVazioEdicao(alvo, lista),
       dentes: numeroDenteResumoControle(dentesIniciais, denticaoInicial),
     });
     const primeiroServico = itens.find((item) => classificarItemOs(item) === "servico");
@@ -2684,12 +2713,6 @@ export default function ControlePage() {
       </>
       )}
 
-      {embedAgenda && !editando && (
-        <div className="flex min-h-screen items-center justify-center text-sm text-slate-500">
-          Carregando edição...
-        </div>
-      )}
-
       {statusEditando && !embedAgenda && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="max-h-[90vh] w-full max-w-xl overflow-auto rounded bg-white p-4 shadow-xl">
@@ -2778,24 +2801,16 @@ export default function ControlePage() {
                 : "flex max-h-[94vh] w-full max-w-[96vw] flex-col overflow-hidden rounded border border-slate-200 bg-white shadow-xl"
             }
           >
-            <div className="relative shrink-0 border-b border-slate-100 px-4 py-3">
-              <p className="text-left text-xs font-medium text-slate-500">Editar Entrada</p>
-              {(retornoAgenda || embedAgenda) && (
-                <button
-                  type="button"
-                  onClick={fecharEdicaoOs}
-                  className="absolute left-4 top-3 text-xs font-medium text-primary-700 hover:underline"
-                >
-                  ← Voltar para Agenda
-                </button>
-              )}
-              <h2 className="text-center text-sm font-medium text-slate-700">
-                Ordem de Serviço {editando.numeroOs}
-              </h2>
+            <div className="relative shrink-0 border-b border-slate-100 px-4 py-3 text-center">
+              <h1 className="text-sm font-medium text-slate-900">
+                {embedAgenda
+                  ? "Editar Agenda"
+                  : `Editar Ordem de Serviço ${editando.numeroOs}`}
+              </h1>
               <button
                 type="button"
                 onClick={fecharEdicaoOs}
-                className="absolute right-4 top-3 text-lg text-slate-400 hover:text-slate-700"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-lg text-slate-400 hover:text-slate-700"
                 aria-label="Fechar"
               >
                 ×
