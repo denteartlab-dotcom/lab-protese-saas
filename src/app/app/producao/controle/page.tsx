@@ -43,6 +43,7 @@ import {
   nomeExibicaoItemOs,
   planejarBlocosSalvarOs,
   segmentoEfetivoTrabalho,
+  servicosMesmaOs,
   situacaoExibicaoTrabalho,
   tituloSegmentoOs,
   tituloTrabalhoServicoItem,
@@ -141,7 +142,8 @@ import {
   indiceEtapaAtualDeConcluidas,
   persistirEtapaAtualOs,
 } from "@/lib/modulo-producao-etapas";
-import { contextoEtapasModuloOsGrupo, itensDaOsModulo } from "@/lib/modulo-producao-os";
+import { contextoEtapasModuloOsGrupo, flagsUrgenciaTrabalho, itensDaOsModulo } from "@/lib/modulo-producao-os";
+import { removerMarcacaoUrgenteInstrucoes } from "@/lib/urgencia-cliente";
 import {
   OPCOES_TIPO_REPETICAO_OS,
   tipoRepeticaoIncluiEtapa,
@@ -194,6 +196,31 @@ function dadosPostGrupoOsDeTrabalho(trabalho: Trabalho): DadosPostGrupoOs | null
     grupoOsId: trabalho.grupoOsId || trabalho.id,
     dataEntrada: trabalho.dataEntrada,
   };
+}
+
+function idsServicosMesmaOs(trabalho: Trabalho, lista: Trabalho[]) {
+  return new Set(
+    servicosMesmaOs(lista, trabalho.numeroOs).map((item) => item.id)
+  );
+}
+
+function aplicarMudancaStatusLocal(
+  lista: Trabalho[],
+  trabalho: Trabalho,
+  patch: Pick<Trabalho, "status"> & Partial<Pick<Trabalho, "dataPrevista" | "observacoes" | "instrucoes">>
+) {
+  const ids = idsServicosMesmaOs(trabalho, lista);
+  ids.add(trabalho.id);
+  const statusMudou = patch.status !== trabalho.status;
+
+  return lista.map((item) => {
+    if (!ids.has(item.id)) return item;
+    const atualizado = { ...item, ...patch };
+    if (statusMudou && flagsUrgenciaTrabalho(item).urgente) {
+      atualizado.instrucoes = removerMarcacaoUrgenteInstrucoes(atualizado.instrucoes);
+    }
+    return atualizado;
+  });
 }
 
 const OPCOES_ORDENACAO_CONTROLE = [
@@ -2760,9 +2787,7 @@ export default function ControlePage() {
 
   async function atualizarStatus(trabalho: Trabalho, novoStatus: string) {
     setTrabalhos((atuais) =>
-      atuais.map((item) =>
-        item.id === trabalho.id ? { ...item, status: novoStatus } : item
-      )
+      aplicarMudancaStatusLocal(atuais, trabalho, { status: novoStatus })
     );
 
     const res = await fetch(`/api/trabalhos/${trabalho.id}`, {
@@ -2791,19 +2816,35 @@ export default function ControlePage() {
   async function salvarStatusRapido() {
     if (!statusEditando) return;
 
-    setTrabalhos((atuais) =>
-      atuais.map((item) =>
-        item.id === statusEditando.id
-          ? {
-              ...item,
-              status: statusForm.status,
-              dataPrevista: statusForm.dataPrevista || null,
-              observacoes: statusForm.observacoes,
-              instrucoes: statusForm.instrucoes,
-            }
-          : item
-      )
-    );
+    setTrabalhos((atuais) => {
+      const ids = idsServicosMesmaOs(statusEditando, atuais);
+      ids.add(statusEditando.id);
+      const statusMudou = statusForm.status !== statusEditando.status;
+
+      return atuais.map((item) => {
+        if (item.id === statusEditando.id) {
+          const atualizado = {
+            ...item,
+            status: statusForm.status,
+            dataPrevista: statusForm.dataPrevista || null,
+            observacoes: statusForm.observacoes,
+            instrucoes: statusForm.instrucoes,
+          };
+          if (statusMudou && flagsUrgenciaTrabalho(item).urgente) {
+            atualizado.instrucoes = removerMarcacaoUrgenteInstrucoes(atualizado.instrucoes);
+          }
+          return atualizado;
+        }
+        if (ids.has(item.id)) {
+          const atualizado = { ...item, status: statusForm.status };
+          if (statusMudou && flagsUrgenciaTrabalho(item).urgente) {
+            atualizado.instrucoes = removerMarcacaoUrgenteInstrucoes(item.instrucoes);
+          }
+          return atualizado;
+        }
+        return item;
+      });
+    });
 
     const res = await fetch(`/api/trabalhos/${statusEditando.id}`, {
       method: "PUT",

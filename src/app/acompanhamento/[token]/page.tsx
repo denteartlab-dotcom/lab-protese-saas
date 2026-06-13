@@ -32,6 +32,7 @@ export default function AcompanhamentoClientePage() {
   const [carregando, setCarregando] = useState(true);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
   const [urgenteEnviando, setUrgenteEnviando] = useState<string | null>(null);
+  const [urgenteRemovendo, setUrgenteRemovendo] = useState<string | null>(null);
   const [urgenteMsg, setUrgenteMsg] = useState<string | null>(null);
   const [urgenteErro, setUrgenteErro] = useState(false);
   const [busca, setBusca] = useState("");
@@ -95,6 +96,36 @@ export default function AcompanhamentoClientePage() {
         setUrgenteMsg("Não foi possível sinalizar como urgente.");
       } finally {
         setUrgenteEnviando(null);
+      }
+    },
+    [token, carregar]
+  );
+
+  const removerUrgente = useCallback(
+    async (trabalhoId: string) => {
+      setUrgenteRemovendo(trabalhoId);
+      setUrgenteMsg(null);
+      setUrgenteErro(false);
+      try {
+        const res = await fetch(`/api/clientes/public/${token}/remover-urgente`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ trabalhoId }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          setUrgenteErro(true);
+          setUrgenteMsg(json.message || "Não foi possível remover a urgência.");
+          return;
+        }
+        setUrgenteErro(false);
+        setUrgenteMsg(json.message || "Urgência removida.");
+        await carregar(true);
+      } catch {
+        setUrgenteErro(true);
+        setUrgenteMsg("Não foi possível remover a urgência.");
+      } finally {
+        setUrgenteRemovendo(null);
       }
     },
     [token, carregar]
@@ -324,6 +355,16 @@ export default function AcompanhamentoClientePage() {
                     title="Sinalizar este trabalho como urgente"
                   >
                     {urgenteEnviando === t.id ? "Enviando…" : "⚡ Urgente"}
+                  </button>
+                ) : t.podeRemoverUrgente ? (
+                  <button
+                    type="button"
+                    disabled={urgenteRemovendo === t.id}
+                    onClick={() => void removerUrgente(t.id)}
+                    className="absolute bottom-2 right-3 flex items-center gap-1 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
+                    title="Remover a marcação de urgência deste trabalho"
+                  >
+                    {urgenteRemovendo === t.id ? "Removendo…" : "Remover urgência"}
                   </button>
                 ) : t.urgente ? (
                   <span className="absolute bottom-2 right-3 text-[10px] font-semibold uppercase text-red-600">

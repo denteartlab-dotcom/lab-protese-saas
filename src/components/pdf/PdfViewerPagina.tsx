@@ -110,7 +110,7 @@ export function PdfViewerPagina({ id }: Props) {
       <div className="flex items-center justify-between border-b border-slate-700 bg-[#3c3c3c] px-4 py-3 text-white">
         <div>
           <h1 className="text-sm font-semibold">{titulo}</h1>
-          <p className="text-xs text-slate-300">Visualização do PDF</p>
+          <p className="text-xs text-slate-300">Visualização do PDF · Folha A4</p>
         </div>
         <div className="flex items-center gap-2">
           {pdfUrl ? (

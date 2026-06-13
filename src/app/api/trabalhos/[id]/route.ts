@@ -13,11 +13,13 @@ import {
   MENSAGEM_OS_FATURADA_NAO_EXCLUI,
   osEstaFaturadaContasReceber,
 } from "@/lib/os-faturamento";
-import { grupoOsIdOf, whereGrupoOs } from "@/lib/trabalho-os-segmento";
+import { grupoOsIdOf, segmentoEfetivoTrabalho, whereGrupoOs } from "@/lib/trabalho-os-segmento";
 import { STATUS_TRABALHO } from "@/lib/utils";
 import {
-  liberarUrgenciaTrabalhoFinalizado,
-  trabalhoAtivoUrgencia,
+  flagsUrgenciaTrabalho,
+} from "@/lib/modulo-producao-os";
+import {
+  removerUrgenciaOs,
 } from "@/lib/urgencia-cliente";
 import { z } from "zod";
 
@@ -122,12 +124,42 @@ export async function PUT(
     });
 
     const novoStatus = String(payload.status ?? atual.status);
-    if (
-      novoStatus !== atual.status &&
-      !trabalhoAtivoUrgencia(novoStatus) &&
-      trabalhoAtivoUrgencia(atual.status)
-    ) {
-      await liberarUrgenciaTrabalhoFinalizado(atual.numeroOs);
+    const statusMudou = data.status != null && data.status !== atual.status;
+
+    if (statusMudou) {
+      const tinhaUrgencia =
+        flagsUrgenciaTrabalho(atual).urgente ||
+        (
+          await prisma.trabalho.findMany({
+            where: { numeroOs: atual.numeroOs },
+            select: { tipoProtese: true, instrucoes: true },
+          })
+        ).some((t) => flagsUrgenciaTrabalho(t).urgente);
+
+      if (tinhaUrgencia) {
+        await removerUrgenciaOs(atual.numeroOs);
+      }
+
+      const outrosServicos = await prisma.trabalho.findMany({
+        where: {
+          numeroOs: atual.numeroOs,
+          NOT: { id },
+        },
+        select: {
+          id: true,
+          segmentoFaturamento: true,
+          instrucoes: true,
+        },
+      });
+      const idsSync = outrosServicos
+        .filter((t) => segmentoEfetivoTrabalho(t) === "servico")
+        .map((t) => t.id);
+      if (idsSync.length > 0) {
+        await prisma.trabalho.updateMany({
+          where: { id: { in: idsSync } },
+          data: { status: novoStatus },
+        });
+      }
     }
 
     const detalhes: DetalheAlteracaoAuditoria[] = [];

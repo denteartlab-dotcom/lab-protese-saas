@@ -257,6 +257,16 @@ export function filtrarTrabalhoPorSituacaoFaturamento(
   return efetivo === "servico" && trabalho.status === situacaoOs;
 }
 
+/** Registros de serviço da mesma OS (numeroOs) — vários serviços no mesmo protocolo. */
+export function servicosMesmaOs<
+  T extends { numeroOs: number; segmentoFaturamento?: string | null; instrucoes?: string | null },
+>(trabalhos: T[], numeroOs: number) {
+  return trabalhos.filter(
+    (trabalho) =>
+      trabalho.numeroOs === numeroOs && segmentoEfetivoTrabalho(trabalho) === "servico"
+  );
+}
+
 /** Segmentos produto da mesma OS (numeroOs), exceto frete legado no segmento produto. */
 export function produtosMesmaOs<T extends { numeroOs: number; segmentoFaturamento?: string | null; instrucoes?: string | null }>(
   trabalhos: T[],

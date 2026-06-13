@@ -30,7 +30,6 @@ import Link from "next/link";
 import { PainelAnotacoesDashboard } from "@/components/dashboard/PainelAnotacoesDashboard";
 import { DashboardInicioSkeleton } from "@/components/dashboard/DashboardInicioSkeleton";
 import { PainelServicosDashboard } from "@/components/dashboard/PainelServicosDashboard";
-import { PdfViewerModal } from "@/components/dashboard/PdfViewerModal";
 import { PainelUrgenciasClienteDashboard } from "@/components/dashboard/PainelUrgenciasClienteDashboard";
 import type { UrgenteClienteDashboardItem } from "@/lib/urgencia-cliente";
 import {
@@ -433,25 +432,6 @@ export default function DashboardPage() {
         />
       </div>
 
-      {pdfVencendoUrl ? (
-        <PdfViewerModal
-          titulo={`Serviços vencendo até ${rotuloFimPeriodoVencendo(periodoVencendo)}`}
-          pdfUrl={pdfVencendoUrl}
-          nomeArquivo={`servicos-vencendo-${periodoVencendo}.pdf`}
-          iframeTitle="PDF serviços vencendo"
-          onFechar={fecharPdfVencendo}
-        />
-      ) : null}
-
-      {pdfAtrasadosUrl ? (
-        <PdfViewerModal
-          titulo={`Serviços Atrasados (${atrasadosGrupos.length})`}
-          pdfUrl={pdfAtrasadosUrl}
-          nomeArquivo="servicos-atrasados.pdf"
-          iframeTitle="PDF serviços atrasados"
-          onFechar={fecharPdfAtrasados}
-        />
-      ) : null}
     </div>
   );
 }

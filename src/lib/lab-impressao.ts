@@ -18,6 +18,13 @@ export const LOGO_TAMANHO_MIN = 0;
 export const LOGO_TAMANHO_MAX = 100;
 export const LOGO_TAMANHO_PADRAO = 0;
 
+/** Formato padrão de impressão em folha A4 (retrato). */
+export const PDF_JSPDF_FOLHA_A4 = {
+  unit: "mm" as const,
+  format: "a4" as const,
+  orientation: "portrait" as const,
+};
+
 /** Logo no cabeçalho da requisição OS (PDF A4) — mm no jsPDF. */
 export const LOGO_PDF_CABECALHO_OS_LARGURA_MM = 32;
 export const LOGO_PDF_CABECALHO_OS_ALTURA_MM = 24;

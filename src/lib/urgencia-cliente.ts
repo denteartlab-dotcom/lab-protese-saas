@@ -308,8 +308,8 @@ export async function podarEventosUrgenciaInativos() {
   return store;
 }
 
-/** Limpa urgência da OS e do registro quando finalizada ou entregue. */
-export async function liberarUrgenciaTrabalhoFinalizado(numeroOs: number) {
+/** Remove marcação de urgência de todos os trabalhos da OS e do histórico de eventos. */
+export async function removerUrgenciaOs(numeroOs: number) {
   const trabalhos = await prisma.trabalho.findMany({
     where: { numeroOs },
     select: { id: true, instrucoes: true },
@@ -472,3 +472,51 @@ export async function solicitarUrgenciaCliente(params: {
 
   return { ok: true as const, jaExistia: true };
 }
+
+export async function removerUrgenciaCliente(params: {
+  cliente: { id: string };
+  trabalhoId: string;
+  trabalhosVisiveis: TrabalhoVisivelAcompanhamento[];
+}) {
+  const trabalho = await prisma.trabalho.findUnique({
+    where: { id: params.trabalhoId },
+  });
+
+  if (!trabalho) {
+    return {
+      ok: false as const,
+      code: "nao_encontrado",
+      message: "Trabalho não encontrado.",
+    };
+  }
+
+  if (!trabalhoVisivelNoAcompanhamento(trabalho, params.trabalhosVisiveis)) {
+    return {
+      ok: false as const,
+      code: "nao_autorizado",
+      message: "Este trabalho não pertence ao cliente.",
+    };
+  }
+
+  if (!trabalhoAtivoUrgencia(trabalho.status)) {
+    return {
+      ok: false as const,
+      code: "finalizado",
+      message: "Este trabalho já foi finalizado.",
+    };
+  }
+
+  if (!flagsUrgenciaTrabalho(trabalho).urgente) {
+    return {
+      ok: false as const,
+      code: "nao_urgente",
+      message: "Este trabalho não está marcado como urgente.",
+    };
+  }
+
+  await removerUrgenciaOs(trabalho.numeroOs);
+  return { ok: true as const };
+}
+
+/** @deprecated Use removerUrgenciaOs */
+export const liberarUrgenciaTrabalhoFinalizado = removerUrgenciaOs;

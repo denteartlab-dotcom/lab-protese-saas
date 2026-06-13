@@ -72,6 +72,7 @@ export type TrabalhoAcompanhamentoPublico = {
   atualizadoEm: string;
   urgente: boolean;
   podeSolicitarUrgente: boolean;
+  podeRemoverUrgente: boolean;
 };
 
 export type ClienteAcompanhamentoPublico = {
@@ -188,6 +189,7 @@ export function montarAcompanhamentoPublico(
     const limiteAtivo = limitesUrgencia.ativos >= limitesUrgencia.maxAtivos;
     const podeSolicitarUrgente =
       ativo && !urgente && !limiteDia && !limiteAtivo;
+    const podeRemoverUrgente = ativo && urgente;
 
     publicos.push({
       id: principal.id,
@@ -206,6 +208,7 @@ export function montarAcompanhamentoPublico(
       atualizadoEm: atualizadoEm.toISOString(),
       urgente,
       podeSolicitarUrgente,
+      podeRemoverUrgente,
     });
   }
 
