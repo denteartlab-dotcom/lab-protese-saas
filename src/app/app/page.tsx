@@ -30,6 +30,7 @@ import Link from "next/link";
 import { PainelAnotacoesDashboard } from "@/components/dashboard/PainelAnotacoesDashboard";
 import { DashboardInicioSkeleton } from "@/components/dashboard/DashboardInicioSkeleton";
 import { PainelServicosDashboard } from "@/components/dashboard/PainelServicosDashboard";
+import { PdfViewerModal } from "@/components/dashboard/PdfViewerModal";
 import { PainelUrgenciasClienteDashboard } from "@/components/dashboard/PainelUrgenciasClienteDashboard";
 import type { UrgenteClienteDashboardItem } from "@/lib/urgencia-cliente";
 import {
@@ -201,19 +202,36 @@ export default function DashboardPage() {
     [atrasadosLista, prazoAtrasados]
   );
 
-  async function imprimirServicosVencendo() {
+  async function abrirPdfServicosPainel(
+    gerar: () => Promise<Blob>,
+    atualizarUrl: (url: string) => void,
+    urlAtual: string | null
+  ) {
     try {
-      const blob = await gerarPdfServicosVencendo({
-        lab,
-        grupos: vencendoGrupos,
-        tituloPeriodo: rotuloFimPeriodoVencendo(periodoVencendo),
-      });
+      const blob = await gerar();
+      if (!blob || blob.size === 0) {
+        window.alert("Não foi possível gerar o PDF. Tente novamente.");
+        return;
+      }
       const url = URL.createObjectURL(blob);
-      if (pdfVencendoUrl) URL.revokeObjectURL(pdfVencendoUrl);
-      setPdfVencendoUrl(url);
+      if (urlAtual) URL.revokeObjectURL(urlAtual);
+      atualizarUrl(url);
     } catch {
-      /* falha silenciosa — usuário pode tentar de novo */
+      window.alert("Não foi possível gerar o PDF. Tente novamente.");
     }
+  }
+
+  function imprimirServicosVencendo() {
+    void abrirPdfServicosPainel(
+      () =>
+        gerarPdfServicosVencendo({
+          lab,
+          grupos: vencendoGrupos,
+          tituloPeriodo: rotuloFimPeriodoVencendo(periodoVencendo),
+        }),
+      setPdfVencendoUrl,
+      pdfVencendoUrl
+    );
   }
 
   function fecharPdfVencendo() {
@@ -221,18 +239,16 @@ export default function DashboardPage() {
     setPdfVencendoUrl(null);
   }
 
-  async function imprimirServicosAtrasados() {
-    try {
-      const blob = await gerarPdfServicosAtrasados({
-        lab,
-        grupos: atrasadosGrupos,
-      });
-      const url = URL.createObjectURL(blob);
-      if (pdfAtrasadosUrl) URL.revokeObjectURL(pdfAtrasadosUrl);
-      setPdfAtrasadosUrl(url);
-    } catch {
-      /* falha silenciosa — usuário pode tentar de novo */
-    }
+  function imprimirServicosAtrasados() {
+    void abrirPdfServicosPainel(
+      () =>
+        gerarPdfServicosAtrasados({
+          lab,
+          grupos: atrasadosGrupos,
+        }),
+      setPdfAtrasadosUrl,
+      pdfAtrasadosUrl
+    );
   }
 
   function fecharPdfAtrasados() {
@@ -432,6 +448,25 @@ export default function DashboardPage() {
         />
       </div>
 
+      {pdfVencendoUrl ? (
+        <PdfViewerModal
+          titulo={`Serviços vencendo até ${rotuloFimPeriodoVencendo(periodoVencendo)}`}
+          pdfUrl={pdfVencendoUrl}
+          nomeArquivo={`servicos-vencendo-${periodoVencendo}.pdf`}
+          iframeTitle="PDF serviços vencendo"
+          onFechar={fecharPdfVencendo}
+        />
+      ) : null}
+
+      {pdfAtrasadosUrl ? (
+        <PdfViewerModal
+          titulo={`Serviços Atrasados (${atrasadosGrupos.length})`}
+          pdfUrl={pdfAtrasadosUrl}
+          nomeArquivo="servicos-atrasados.pdf"
+          iframeTitle="PDF serviços atrasados"
+          onFechar={fecharPdfAtrasados}
+        />
+      ) : null}
     </div>
   );
 }
