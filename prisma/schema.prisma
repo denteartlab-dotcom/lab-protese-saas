@@ -203,6 +203,9 @@ model HistoricoEtapa {
   observacao      String?
   motivoRetorno   String?
   itemId          String?
+  tipoRepeticao   String?
+  valorPrejuizo   Float     @default(0)
+  descricaoItem   String?
 
   @@index([trabalhoId])
   @@index([clienteId])

@@ -142,6 +142,13 @@ import {
   persistirEtapaAtualOs,
 } from "@/lib/modulo-producao-etapas";
 import { contextoEtapasModuloOsGrupo, itensDaOsModulo } from "@/lib/modulo-producao-os";
+import {
+  OPCOES_TIPO_REPETICAO_OS,
+  tipoRepeticaoIncluiEtapa,
+  tipoRepeticaoIncluiProduto,
+  tipoRepeticaoIncluiServico,
+  type TipoRepeticaoOs,
+} from "@/lib/tipo-repeticao-os";
 
 type CampoOrdenacaoControle = "numeroOs" | "dataEntrada" | "cliente" | "paciente";
 
@@ -257,6 +264,8 @@ type EditForm = {
   instrucoesCorpo: string;
   urgente: boolean;
   repeticao: boolean;
+  /** Marcação manual de repetição para relatório de prejuízo (registrada ao salvar). */
+  tipoRepeticaoOs: TipoRepeticaoOs;
 };
 
 type ClienteCatalogo = {
@@ -1241,6 +1250,39 @@ export default function ControlePage() {
     [editItems]
   );
 
+  const previewRepeticaoOs = useMemo(() => {
+    if (!form?.tipoRepeticaoOs) return null;
+    const tipo = form.tipoRepeticaoOs;
+    const partes: string[] = [];
+    if (tipoRepeticaoIncluiEtapa(tipo)) {
+      const nome = etapasEdicao[indiceEtapaAtualEdicao]?.nome;
+      partes.push(
+        `Etapa repetida: ${nomeEtapaSemSetor(nome || "") || "—"}`
+      );
+    }
+    if (tipoRepeticaoIncluiProduto(tipo)) {
+      const valor = editItems
+        .filter((item) => classificarItemOs(item) === "produto")
+        .reduce(
+          (sum, item) =>
+            sum + valorComDescontoControle(item.valor, item.descontoTipo, item.desconto),
+          0
+        );
+      partes.push(`Prejuízo de produtos: ${formatCurrency(valor)}`);
+    }
+    if (tipoRepeticaoIncluiServico(tipo)) {
+      const valor = editItems
+        .filter((item) => classificarItemOs(item) === "servico")
+        .reduce(
+          (sum, item) =>
+            sum + valorComDescontoControle(item.valor, item.descontoTipo, item.desconto),
+          0
+        );
+      partes.push(`Prejuízo do serviço: ${formatCurrency(valor)}`);
+    }
+    return partes.join(" · ");
+  }, [form?.tipoRepeticaoOs, etapasEdicao, indiceEtapaAtualEdicao, editItems]);
+
   useEffect(() => {
     if (!editando || !form) return;
     setTerceirizadosEdicao((atuais) => {
@@ -1375,6 +1417,7 @@ export default function ControlePage() {
       instrucoesCorpo: complementos.textoLivre || corpo,
       urgente: false,
       repeticao: false,
+      tipoRepeticaoOs: "",
     };
   }
 
@@ -1553,8 +1596,72 @@ export default function ControlePage() {
       trabalhoId: trabalhoRef.id,
       itemId: itemIdEtapasControle(trabalhoRef, itemServico?.id ?? itemSelecionadoId),
       indiceAtual: Math.min(indiceEtapaAtualEdicao, etapasEdicao.length),
-      registrarRepeticaoSeAtualizacao: true,
     });
+  }
+
+  function valorItensPorSegmentoEdicao(segmento: "produto" | "servico") {
+    return editItems
+      .filter((item) => classificarItemOs(item) === segmento)
+      .reduce(
+        (sum, item) =>
+          sum + valorComDescontoControle(item.valor, item.descontoTipo, item.desconto),
+        0
+      );
+  }
+
+  function descricaoItensPorSegmentoEdicao(segmento: "produto" | "servico") {
+    return editItems
+      .filter((item) => classificarItemOs(item) === segmento)
+      .map((item) => nomeExibicaoItemOs(item))
+      .filter(Boolean)
+      .join(", ");
+  }
+
+  async function registrarRepeticaoManualEdicaoOs() {
+    if (!editando || !form?.tipoRepeticaoOs) return;
+
+    const tipo = form.tipoRepeticaoOs;
+    const itemServico = itemSelecionadoId
+      ? editItems.find(
+          (item) => item.id === itemSelecionadoId && classificarItemOs(item) === "servico"
+        )
+      : editItems.find((item) => classificarItemOs(item) === "servico");
+    const registroServico =
+      grupoOsRegistros.find((item) => (item.segmentoFaturamento || "servico") === "servico") ||
+      grupoOsRegistros[0];
+    const trabalhoRef: Trabalho = {
+      ...editando,
+      id: registroServico?.id ?? editando.id,
+      instrucoes: registroServico?.instrucoes ?? editando.instrucoes,
+      tipoProtese: registroServico?.tipoProtese ?? editando.tipoProtese,
+    };
+
+    const res = await fetch("/api/historico-etapas/registrar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        trabalhoId: trabalhoRef.id,
+        itemId: itemIdEtapasControle(trabalhoRef, itemServico?.id ?? itemSelecionadoId),
+        tipoRepeticao: tipo,
+        indiceEtapaAtual: indiceEtapaAtualEdicao,
+        valorProdutos: tipoRepeticaoIncluiProduto(tipo)
+          ? valorItensPorSegmentoEdicao("produto")
+          : undefined,
+        valorServico: tipoRepeticaoIncluiServico(tipo)
+          ? valorItensPorSegmentoEdicao("servico")
+          : undefined,
+        descricaoProdutos: tipoRepeticaoIncluiProduto(tipo)
+          ? descricaoItensPorSegmentoEdicao("produto")
+          : undefined,
+        descricaoServico: tipoRepeticaoIncluiServico(tipo)
+          ? descricaoItensPorSegmentoEdicao("servico")
+          : undefined,
+      }),
+    });
+
+    if (!res.ok) {
+      console.error("[controle] registrar repetição manual");
+    }
   }
 
   function carregarComplementosNaEdicao(trabalho: Trabalho) {
@@ -2628,6 +2735,9 @@ export default function ControlePage() {
     }
 
     await persistirEtapaAtualEdicaoOs();
+    if (form?.tipoRepeticaoOs) {
+      await registrarRepeticaoManualEdicaoOs();
+    }
     notificarTrabalhosAtualizados({ trabalhoId: editando.id });
     fecharEdicaoOs();
     void load();
@@ -3276,6 +3386,42 @@ export default function ControlePage() {
                 desabilitado={osFaturada}
                 observacaoEditavel
               />
+
+              <section className="grid gap-2 border-t border-slate-100 px-4 py-3 md:grid-cols-2">
+                <Select
+                  label="Repetição (etapa / produto / serviço)"
+                  value={form.tipoRepeticaoOs}
+                  onChange={(e) => {
+                    const tipoRepeticaoOs = e.target.value as TipoRepeticaoOs;
+                    setForm((atual) =>
+                      atual
+                        ? {
+                            ...atual,
+                            tipoRepeticaoOs,
+                            repeticao:
+                              tipoRepeticaoIncluiServico(tipoRepeticaoOs) || atual.repeticao,
+                          }
+                        : atual
+                    );
+                  }}
+                  disabled={osFaturada}
+                >
+                  {OPCOES_TIPO_REPETICAO_OS.map((opcao) => (
+                    <option key={opcao.value || "nenhuma"} value={opcao.value}>
+                      {opcao.label}
+                    </option>
+                  ))}
+                </Select>
+                {previewRepeticaoOs ? (
+                  <p className="self-end text-[11px] leading-relaxed text-amber-800">
+                    Ao salvar: {previewRepeticaoOs}
+                  </p>
+                ) : (
+                  <p className="self-end text-[11px] text-slate-400">
+                    Selecione o tipo de repetição para registrar no relatório de prejuízo.
+                  </p>
+                )}
+              </section>
 
               <section
                 className={cn(

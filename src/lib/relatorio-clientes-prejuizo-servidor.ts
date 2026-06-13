@@ -73,20 +73,6 @@ function inicioPeriodo(
   return { inicio, fim, label: "Últimos 30 dias" };
 }
 
-function contarEtapasInstrucoes(instrucoes: string | null) {
-  if (!instrucoes) return 1;
-  const linhas = instrucoes
-    .split("\n")
-    .filter((l) => /^Etapa\s+/i.test(l.trim()));
-  return Math.max(1, linhas.length);
-}
-
-function estimarCustoRepeticao(valor: number, numEtapas: number, repeticoes: number) {
-  if (repeticoes <= 0 || valor <= 0) return 0;
-  const custoEtapa = valor / Math.max(1, numEtapas);
-  return custoEtapa * repeticoes;
-}
-
 export function calcularRelatorioClientesPrejuizo(
   historico: HistoricoEtapaRow[],
   trabalhos: TrabalhoPrejuizoInput[],
@@ -103,7 +89,6 @@ export function calcularRelatorioClientesPrejuizo(
     (h) => h.dataEntrada >= inicio && h.dataEntrada <= fim
   );
 
-  const mapaTrabalhos = new Map(trabalhos.map((t) => [t.id, t]));
   const mapaClientes = new Map<string, string>();
   for (const t of trabalhos) {
     mapaClientes.set(t.clienteId, t.clienteNome);
@@ -166,11 +151,6 @@ export function calcularRelatorioClientesPrejuizo(
     agg.totalRepeticoes += a.totalRepeticoes;
     if (a.temRepeticao) agg.servicosComRepeticao.add(a.trabalhoId);
 
-    const trabalho = mapaTrabalhos.get(a.trabalhoId);
-    const numEtapas = contarEtapasInstrucoes(trabalho?.instrucoes ?? null);
-    const valor = trabalho?.valor ?? 0;
-    agg.prejuizo += estimarCustoRepeticao(valor, numEtapas, a.totalRepeticoes);
-
     for (const e of a.etapasRepetidas) {
       agg.etapas.set(e.etapa, (agg.etapas.get(e.etapa) ?? 0) + e.repeticoes);
     }
@@ -178,6 +158,9 @@ export function calcularRelatorioClientesPrejuizo(
 
   for (const h of historicoPeriodo) {
     const agg = obterAgg(h.clienteId);
+    if ((h.valorPrejuizo ?? 0) > 0) {
+      agg.prejuizo += h.valorPrejuizo ?? 0;
+    }
     agg.tempoParadoMs += duracaoMsHistorico(h.dataEntrada, h.dataSaida);
 
     if (h.motivoRetorno) {

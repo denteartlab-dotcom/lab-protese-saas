@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import {
   registrarMudancaIndiceEtapa,
-  registrarRepeticaoPorAtualizacaoOs,
+  registrarRepeticaoManualOs,
   registrarTransicaoEtapa,
 } from "@/lib/historico-etapas";
+import type { TipoRepeticaoOs } from "@/lib/tipo-repeticao-os";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -25,21 +26,28 @@ export async function POST(request: Request) {
       colaboradorNome?: string;
       motivoRetorno?: string;
       observacao?: string;
-      repeticaoAtualizacao?: boolean;
-      indiceAtual?: number;
+      tipoRepeticao?: Exclude<TipoRepeticaoOs, "">;
+      indiceEtapaAtual?: number;
+      valorProdutos?: number;
+      valorServico?: number;
+      descricaoProdutos?: string;
+      descricaoServico?: string;
     };
 
     if (!body.trabalhoId) {
       return NextResponse.json({ error: "trabalhoId obrigatório." }, { status: 400 });
     }
 
-    if (body.repeticaoAtualizacao && typeof body.indiceAtual === "number") {
-      const registro = await registrarRepeticaoPorAtualizacaoOs({
+    if (body.tipoRepeticao) {
+      const registro = await registrarRepeticaoManualOs({
         trabalhoId: body.trabalhoId,
         itemId: body.itemId,
-        indiceAtual: body.indiceAtual,
-        motivoRetorno: body.motivoRetorno,
-        observacao: body.observacao,
+        tipoRepeticao: body.tipoRepeticao,
+        indiceEtapaAtual: body.indiceEtapaAtual ?? 0,
+        valorProdutos: body.valorProdutos,
+        valorServico: body.valorServico,
+        descricaoProdutos: body.descricaoProdutos,
+        descricaoServico: body.descricaoServico,
       });
       return NextResponse.json({ ok: true, id: registro?.id ?? null });
     }

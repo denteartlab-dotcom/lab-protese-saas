@@ -6,6 +6,14 @@ import {
 } from "@/lib/etapas-os";
 import { indiceEtapaAtualDeConcluidas } from "@/lib/modulo-producao-etapas";
 
+import {
+  labelMotivoRepeticaoManual,
+  tipoRepeticaoIncluiEtapa,
+  tipoRepeticaoIncluiProduto,
+  tipoRepeticaoIncluiServico,
+  type TipoRepeticaoOs,
+} from "@/lib/tipo-repeticao-os";
+
 let tabelaHistoricoGarantida = false;
 
 /** Cria a tabela historico_etapas no PostgreSQL se ainda não existir (deploy sem db push). */
@@ -26,6 +34,9 @@ export async function garantirTabelaHistoricoEtapas() {
         "observacao" TEXT,
         "motivoRetorno" TEXT,
         "itemId" TEXT,
+        "tipoRepeticao" TEXT,
+        "valorPrejuizo" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "descricaoItem" TEXT,
         CONSTRAINT "historico_etapas_pkey" PRIMARY KEY ("id")
       )
     `);
@@ -43,6 +54,15 @@ export async function garantirTabelaHistoricoEtapas() {
     );
     await prisma.$executeRawUnsafe(
       `CREATE INDEX IF NOT EXISTS "historico_etapas_dataEntrada_idx" ON "historico_etapas"("dataEntrada")`
+    );
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "historico_etapas" ADD COLUMN IF NOT EXISTS "tipoRepeticao" TEXT`
+    );
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "historico_etapas" ADD COLUMN IF NOT EXISTS "valorPrejuizo" DOUBLE PRECISION NOT NULL DEFAULT 0`
+    );
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "historico_etapas" ADD COLUMN IF NOT EXISTS "descricaoItem" TEXT`
     );
     tabelaHistoricoGarantida = true;
   } catch (error) {
@@ -64,6 +84,9 @@ export type HistoricoEtapaRow = {
   observacao: string | null;
   motivoRetorno: string | null;
   itemId: string | null;
+  tipoRepeticao: string | null;
+  valorPrejuizo: number;
+  descricaoItem: string | null;
 };
 
 export async function listarHistoricoEtapas(): Promise<HistoricoEtapaRow[]> {
@@ -84,6 +107,9 @@ export async function listarHistoricoEtapas(): Promise<HistoricoEtapaRow[]> {
     observacao: h.observacao,
     motivoRetorno: h.motivoRetorno,
     itemId: h.itemId,
+    tipoRepeticao: h.tipoRepeticao ?? null,
+    valorPrejuizo: h.valorPrejuizo ?? 0,
+    descricaoItem: h.descricaoItem ?? null,
   }));
 }
 
@@ -190,24 +216,59 @@ export async function registrarTransicaoEtapa(opts: RegistrarTransicaoEtapaOpts)
   });
 }
 
-export async function registrarRepeticaoPorAtualizacaoOs(opts: {
+export async function registrarRepeticaoManualOs(opts: {
   trabalhoId: string;
   itemId?: string | null;
-  indiceAtual: number;
-  motivoRetorno?: string | null;
-  observacao?: string | null;
+  tipoRepeticao: Exclude<TipoRepeticaoOs, "">;
+  indiceEtapaAtual?: number;
+  valorProdutos?: number;
+  valorServico?: number;
+  descricaoProdutos?: string;
+  descricaoServico?: string;
 }) {
+  await garantirTabelaHistoricoEtapas();
   const ctx = await carregarContextoTrabalhoEtapa(opts.trabalhoId);
-  if (!ctx || !ctx.etapas.length) return null;
+  if (!ctx) return null;
 
-  const indice = Math.min(
-    Math.max(0, Math.floor(opts.indiceAtual)),
-    Math.max(0, ctx.etapas.length - 1)
-  );
-  const etapa = nomeEtapaPorIndice(ctx.etapas, indice);
-  if (!etapa) return null;
+  const incluiEtapa = tipoRepeticaoIncluiEtapa(opts.tipoRepeticao);
+  const incluiProduto = tipoRepeticaoIncluiProduto(opts.tipoRepeticao);
+  const incluiServico = tipoRepeticaoIncluiServico(opts.tipoRepeticao);
 
-  const etapaLinha = ctx.etapas[indice];
+  let etapaNome = "—";
+  let colaboradorNome: string | null = null;
+
+  if (ctx.etapas.length > 0) {
+    const indice = Math.min(
+      Math.max(0, Math.floor(opts.indiceEtapaAtual ?? 0)),
+      ctx.etapas.length - 1
+    );
+    const linha = ctx.etapas[indice];
+    if (incluiEtapa) {
+      etapaNome = nomeEtapaPorIndice(ctx.etapas, indice) ?? "—";
+      colaboradorNome = linha?.responsavel ?? null;
+    }
+  }
+
+  let valorPrejuizo = 0;
+  const partesDescricao: string[] = [];
+
+  if (incluiEtapa && etapaNome !== "—") {
+    partesDescricao.push(`Etapa: ${etapaNome}`);
+  }
+  if (incluiProduto) {
+    const valor = Math.max(0, opts.valorProdutos ?? 0);
+    valorPrejuizo += valor;
+    if (opts.descricaoProdutos?.trim()) {
+      partesDescricao.push(`Produto: ${opts.descricaoProdutos.trim()}`);
+    }
+  }
+  if (incluiServico) {
+    const valor = Math.max(0, opts.valorServico ?? 0);
+    valorPrejuizo += valor;
+    if (opts.descricaoServico?.trim()) {
+      partesDescricao.push(`Serviço: ${opts.descricaoServico.trim()}`);
+    }
+  }
 
   await fecharEtapaAberta(ctx.trabalho.id, opts.itemId);
 
@@ -216,10 +277,12 @@ export async function registrarRepeticaoPorAtualizacaoOs(opts: {
       trabalhoId: ctx.trabalho.id,
       numeroOs: ctx.trabalho.numeroOs,
       clienteId: ctx.trabalho.clienteId,
-      etapa,
-      colaboradorNome: etapaLinha?.responsavel ?? null,
-      observacao: opts.observacao ?? null,
-      motivoRetorno: opts.motivoRetorno ?? "Repetição por atualização da OS",
+      etapa: etapaNome,
+      colaboradorNome,
+      tipoRepeticao: opts.tipoRepeticao,
+      valorPrejuizo,
+      descricaoItem: partesDescricao.length ? partesDescricao.join(" | ") : null,
+      motivoRetorno: labelMotivoRepeticaoManual(opts.tipoRepeticao),
       itemId: opts.itemId ?? null,
     },
   });
@@ -343,6 +406,14 @@ export async function sincronizarHistoricoMapaEtapas(
   }
 }
 
+/** Registros que contam para repetição de etapa (transições automáticas ou marcação manual). */
+export function registroContaRepeticaoEtapa(registro: HistoricoEtapaRow) {
+  if (!registro.tipoRepeticao) return true;
+  return (
+    registro.tipoRepeticao === "etapa" || registro.tipoRepeticao === "etapa_produto"
+  );
+}
+
 /** Analisa repetições: mesma etapa mais de uma vez na mesma OS = repetição. */
 export function analisarRepeticoesPorOs(
   registros: HistoricoEtapaRow[]
@@ -359,8 +430,10 @@ export function analisarRepeticoesPorOs(
   for (const [trabalhoId, lista] of porOs) {
     lista.sort((a, b) => a.dataEntrada.getTime() - b.dataEntrada.getTime());
 
+    const registrosEtapas = lista.filter(registroContaRepeticaoEtapa);
+
     const contagem = new Map<string, number>();
-    for (const r of lista) {
+    for (const r of registrosEtapas) {
       const etapa = normalizarEtapaHistorico(r.etapa);
       contagem.set(etapa, (contagem.get(etapa) ?? 0) + 1);
     }
@@ -380,6 +453,12 @@ export function analisarRepeticoesPorOs(
         ocorrencias,
         repeticoes,
       });
+    }
+
+    for (const r of lista) {
+      if (r.tipoRepeticao === "produto" || r.tipoRepeticao === "servico") {
+        totalRepeticoes += 1;
+      }
     }
 
     etapasRepetidas.sort((a, b) => b.repeticoes - a.repeticoes);
