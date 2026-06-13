@@ -4,6 +4,8 @@ import type { PrismaClient } from "@prisma/client";
 import { CONFIG_LAB_PADRAO, CONFIG_LAB_STORAGE_KEY } from "@/lib/configuracoes-lab";
 import { ASAAS_CONFIG_KEY, ASAAS_CONFIG_PADRAO } from "@/lib/asaas-config";
 import { NFSE_CONFIG_KEY, NFSE_CONFIG_PADRAO } from "@/lib/nfse-config";
+import { garantirTabelaHistoricoEtapas } from "@/lib/historico-etapas";
+import { MODULO_PRODUCAO_ETAPAS_STORAGE_KEY } from "@/lib/modulo-producao-etapas";
 import type { PastaUpload } from "@/lib/upload-arquivo-server";
 
 export type ModuloLimpezaId =
@@ -21,7 +23,9 @@ export type ModuloLimpezaId =
   | "usuarios"
   | "auditoria"
   | "anexos"
-  | "inicio";
+  | "inicio"
+  | "clientes_negativos"
+  | "relatorio_financeiro_geral";
 
 export type ModuloLimpezaDef = {
   id: ModuloLimpezaId;
@@ -60,6 +64,22 @@ export const MODULOS_LIMPEZA: ModuloLimpezaDef[] = [
     ordemExclusao: 20,
     localStorageKeys: ["labProteseProdutosEstoqueOsMovimentos"],
     uploadPastas: ["os"],
+  },
+  {
+    id: "clientes_negativos",
+    label: "Relatório Clientes Negativos",
+    descricao:
+      "Histórico de repetições de etapa, produto e serviço (retrabalho e prejuízo).",
+    ordemExclusao: 21,
+    localStorageKeys: [],
+  },
+  {
+    id: "relatorio_financeiro_geral",
+    label: "Relatório Financeiro Geral",
+    descricao:
+      "Mapa de etapas concluídas das OS usado no relatório. Valores e serviços vêm das ordens de serviço (módulo Produção).",
+    ordemExclusao: 22,
+    localStorageKeys: [MODULO_PRODUCAO_ETAPAS_STORAGE_KEY],
   },
   {
     id: "orcamentos",
@@ -245,6 +265,29 @@ export async function contarRegistrosModulos(
   const jsonLab = await prisma.jsonStore.findUnique({
     where: { key: CONFIG_LAB_STORAGE_KEY },
   });
+  const jsonEtapasModulo = await prisma.jsonStore.findUnique({
+    where: { key: MODULO_PRODUCAO_ETAPAS_STORAGE_KEY },
+  });
+
+  let historicoEtapas = 0;
+  try {
+    await garantirTabelaHistoricoEtapas();
+    historicoEtapas = await prisma.historicoEtapa.count();
+  } catch {
+    historicoEtapas = 0;
+  }
+
+  let etapasRelatorioFinanceiro = 0;
+  if (jsonEtapasModulo?.payload?.trim()) {
+    try {
+      const parsed = JSON.parse(jsonEtapasModulo.payload) as Record<string, unknown>;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        etapasRelatorioFinanceiro = Object.keys(parsed).length;
+      }
+    } catch {
+      etapasRelatorioFinanceiro = 0;
+    }
+  }
 
   const integracoes =
     (jsonNfse?.payload?.trim() ? 1 : 0) + (jsonAsaas?.payload?.trim() ? 1 : 0);
@@ -253,6 +296,8 @@ export async function contarRegistrosModulos(
   return {
     financeiro: lancamentos + cobrancas + nfse,
     producao: trabalhos + (sequenciaOs > 0 ? 1 : 0),
+    clientes_negativos: historicoEtapas,
+    relatorio_financeiro_geral: etapasRelatorioFinanceiro,
     clientes: clientes + pacientes,
     orcamentos,
     produtos,
@@ -332,6 +377,25 @@ export async function limparModulosSelecionados(
         const c1 = await prisma.trabalho.deleteMany();
         await prisma.sequenciaNumerica.deleteMany({ where: { chave: "numero_os" } });
         apagados.producao = c1.count;
+        break;
+      }
+      case "clientes_negativos": {
+        await garantirTabelaHistoricoEtapas();
+        const c = await prisma.historicoEtapa.deleteMany();
+        apagados.clientes_negativos = c.count;
+        break;
+      }
+      case "relatorio_financeiro_geral": {
+        localStorageSet[MODULO_PRODUCAO_ETAPAS_STORAGE_KEY] = "{}";
+        await prisma.jsonStore.upsert({
+          where: { key: MODULO_PRODUCAO_ETAPAS_STORAGE_KEY },
+          create: {
+            key: MODULO_PRODUCAO_ETAPAS_STORAGE_KEY,
+            payload: "{}",
+          },
+          update: { payload: "{}" },
+        });
+        apagados.relatorio_financeiro_geral = 1;
         break;
       }
       case "orcamentos": {
