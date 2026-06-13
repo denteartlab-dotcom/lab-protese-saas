@@ -6,6 +6,7 @@ import {
   Clock,
   FileText,
   LineChart,
+  ListTodo,
   Package,
   PieChart,
   Receipt,
@@ -90,6 +91,11 @@ export const relatoriosNav: RelatorioNavItem[] = [
     labelKey: "nav.relatorio.clientesPrejuizo",
     icon: AlertTriangle,
   },
+  {
+    href: "/app/relatorios/servicos-nao-concluidos",
+    labelKey: "nav.relatorio.servicosNaoConcluidos",
+    icon: ListTodo,
+  },
 ];
 
 export const relatoriosSlugs = [
@@ -106,6 +112,7 @@ export const relatoriosSlugs = [
   "dashboard-gerencial",
   "relatorio-financeiro-geral",
   "clientes-prejuizo",
+  "servicos-nao-concluidos",
 ] as const;
 
 export type RelatorioSlug = (typeof relatoriosSlugs)[number];
@@ -124,6 +131,7 @@ const slugParaLabelKey: Record<RelatorioSlug, MessageKey> = {
   "dashboard-gerencial": "nav.relatorio.dashboardGerencial",
   "relatorio-financeiro-geral": "nav.relatorio.financeiroGeral",
   "clientes-prejuizo": "nav.relatorio.clientesPrejuizo",
+  "servicos-nao-concluidos": "nav.relatorio.servicosNaoConcluidos",
 };
 
 export function labelKeyRelatorio(slug: string) {
