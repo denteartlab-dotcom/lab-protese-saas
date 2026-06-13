@@ -1,21 +1,32 @@
-/** Logout automático após 3 horas sem interação no sistema (/app). */
-export const SESSAO_INATIVIDADE_MS = 3 * 60 * 60 * 1000;
+/** Logout automático após 2 horas sem interação (conta mesmo com o site fechado). */
+export const SESSAO_INATIVIDADE_MS = 2 * 60 * 60 * 1000;
 
 export const SESSAO_ULTIMA_ATIVIDADE_KEY = "labProteseUltimaAtividade";
 
-export function registrarAtividadeSessao() {
-  if (typeof window === "undefined") return;
+function storageAtividade() {
+  if (typeof window === "undefined") return null;
   try {
-    sessionStorage.setItem(SESSAO_ULTIMA_ATIVIDADE_KEY, String(Date.now()));
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+export function registrarAtividadeSessao() {
+  const storage = storageAtividade();
+  if (!storage) return;
+  try {
+    storage.setItem(SESSAO_ULTIMA_ATIVIDADE_KEY, String(Date.now()));
   } catch {
     /* ignore */
   }
 }
 
 export function lerUltimaAtividadeSessao(): number | null {
-  if (typeof window === "undefined") return null;
+  const storage = storageAtividade();
+  if (!storage) return null;
   try {
-    const raw = sessionStorage.getItem(SESSAO_ULTIMA_ATIVIDADE_KEY);
+    const raw = storage.getItem(SESSAO_ULTIMA_ATIVIDADE_KEY);
     if (!raw) return null;
     const valor = Number(raw);
     return Number.isFinite(valor) ? valor : null;
@@ -31,9 +42,10 @@ export function sessaoExpiradaPorInatividade(agora = Date.now()): boolean {
 }
 
 export function limparUltimaAtividadeSessao() {
-  if (typeof window === "undefined") return;
+  const storage = storageAtividade();
+  if (!storage) return;
   try {
-    sessionStorage.removeItem(SESSAO_ULTIMA_ATIVIDADE_KEY);
+    storage.removeItem(SESSAO_ULTIMA_ATIVIDADE_KEY);
   } catch {
     /* ignore */
   }

@@ -17,19 +17,23 @@ const EVENTOS_ATIVIDADE = [
 const INTERVALO_VERIFICACAO_MS = 60_000;
 
 /**
- * Encerra a sessão após 3h sem interação (somente enquanto o hook estiver montado — telas /app).
+ * Encerra a sessão após 2h sem interação. O tempo continua contando com o site fechado
+ * (última atividade gravada em localStorage).
  */
 export function useSessaoInatividade(onInativo: () => void) {
   const onInativoRef = useRef(onInativo);
   onInativoRef.current = onInativo;
 
   useEffect(() => {
-    if (sessaoExpiradaPorInatividade()) {
-      onInativoRef.current();
-      return;
-    }
+    const verificarExpiracao = () => {
+      if (sessaoExpiradaPorInatividade()) {
+        onInativoRef.current();
+        return true;
+      }
+      return false;
+    };
 
-    registrarAtividadeSessao();
+    if (verificarExpiracao()) return;
 
     let ultimoRegistro = Date.now();
     const registrar = () => {
@@ -45,26 +49,24 @@ export function useSessaoInatividade(onInativo: () => void) {
 
     const onVisivel = () => {
       if (document.visibilityState === "visible") {
-        if (sessaoExpiradaPorInatividade()) {
-          onInativoRef.current();
-          return;
-        }
-        registrarAtividadeSessao();
+        verificarExpiracao();
       }
     };
     document.addEventListener("visibilitychange", onVisivel);
 
-    const intervalo = window.setInterval(() => {
-      if (sessaoExpiradaPorInatividade()) {
-        onInativoRef.current();
-      }
-    }, INTERVALO_VERIFICACAO_MS);
+    const onPageShow = () => {
+      verificarExpiracao();
+    };
+    window.addEventListener("pageshow", onPageShow);
+
+    const intervalo = window.setInterval(verificarExpiracao, INTERVALO_VERIFICACAO_MS);
 
     return () => {
       for (const evento of EVENTOS_ATIVIDADE) {
         window.removeEventListener(evento, registrar);
       }
       document.removeEventListener("visibilitychange", onVisivel);
+      window.removeEventListener("pageshow", onPageShow);
       window.clearInterval(intervalo);
     };
   }, []);
