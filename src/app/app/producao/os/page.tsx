@@ -4260,6 +4260,7 @@ export default function OrdemServicoPage() {
         onClose={() => void fecharModalImpressaoAposSalvar()}
         trabalho={imprimirOsAposSalvar?.trabalho ?? null}
         multiplosSegmentos={imprimirOsAposSalvar?.multiplosSegmentos ?? false}
+        permitirSomenteItem={false}
       />
     </div>
   );

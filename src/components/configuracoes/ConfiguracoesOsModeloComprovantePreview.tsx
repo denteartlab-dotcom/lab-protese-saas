@@ -320,6 +320,7 @@ export function PreviewOsModeloComprovante({
             gapMm={`${gap(0.5)}mm`}
             marginTop={`${gap(2)}mm`}
             exibirColaborador={layout.colaborador}
+            exibirDatas={layout.etapasComDatas}
           />
         ) : null}
 

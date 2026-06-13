@@ -61,6 +61,7 @@ import {
   nomeEtapaSemSetor,
   type ColaboradorOsLinha,
   type EtapaOsLinha,
+  type EtapasPorServicoOs,
 } from "@/lib/etapas-os";
 
 type PdfItem = {
@@ -110,6 +111,8 @@ type PdfOsData = {
   colaboradoresLista?: ColaboradorOsLinha[];
   /** Lista estruturada de etapas para impressão (checkbox + data/hora + colaborador + nome + obs). */
   etapasLista?: EtapaOsLinha[];
+  /** Etapas separadas por serviço quando a OS tem mais de um trabalho de serviço. */
+  etapasPorServico?: EtapasPorServicoOs[];
   etapas?: string;
   producao?: string;
   pecas?: string;
@@ -247,12 +250,33 @@ function infoEtapaImpressaoHorizontal(
   if (!nome) return null;
   return {
     nome,
-    dataHora: formatarDataHoraEtapaImpressao(etapa.prazo, data.dataEntrada),
+    dataHora: lay.etapasComDatas
+      ? formatarDataHoraEtapaImpressao(etapa.prazo, data.dataEntrada)
+      : "",
     colaborador: lay.colaborador
       ? colaboradorDaEtapaImpressao(etapa, data.colaboradoresLista || [])
       : "",
     obs: (etapa.observacao || "").trim(),
   };
+}
+
+type BlocoEtapasImpressaoPdf = {
+  tituloServico?: string;
+  etapas: EtapaOsLinha[];
+};
+
+function blocosEtapasImpressaoPdf(data: PdfOsData): BlocoEtapasImpressaoPdf[] {
+  const porServico = (data.etapasPorServico || []).filter((bloco) => bloco.etapas.length > 0);
+  if (porServico.length > 0) {
+    const multiplos = porServico.length > 1;
+    return porServico.map((bloco) => ({
+      tituloServico: multiplos ? bloco.titulo : undefined,
+      etapas: bloco.etapas,
+    }));
+  }
+  const etapas = data.etapasLista || [];
+  if (etapas.length === 0) return [];
+  return [{ etapas }];
 }
 
 function larguraEtapaHorizontalPdf(
@@ -324,37 +348,46 @@ function desenharEtapasOsRequisicao(
   g: (mm: number) => number,
   fontBase: number
 ) {
-  const etapas = data.etapasLista || [];
-  if (!lay.etapas || etapas.length === 0) return yInicio;
-
-  const infos = etapas
-    .map((etapa) => infoEtapaImpressaoHorizontal(etapa, data, lay))
-    .filter(Boolean) as EtapaImpressaoHorizontal[];
-  if (infos.length === 0) return yInicio;
-
-  let y = yInicio;
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(fontBase);
-  pdf.text("Etapas:", x, y);
-  y += g(4);
+  const blocos = blocosEtapasImpressaoPdf(data);
+  if (!lay.etapas || blocos.length === 0) return yInicio;
 
   const larguraUtil = 182 - x;
   const checkbox = 3;
   const alturaLinha = g(4);
-  let cursorX = x;
-  let rowY = y;
+  let y = yInicio;
 
-  for (const info of infos) {
-    const larguraEtapa = larguraEtapaHorizontalPdf(pdf, info, fontBase, checkbox);
-    if (cursorX > x && cursorX + larguraEtapa - 5 > x + larguraUtil) {
-      cursorX = x;
-      rowY += alturaLinha;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(fontBase);
+
+  for (const bloco of blocos) {
+    const infos = bloco.etapas
+      .map((etapa) => infoEtapaImpressaoHorizontal(etapa, data, lay))
+      .filter(Boolean) as EtapaImpressaoHorizontal[];
+    if (infos.length === 0) continue;
+
+    const rotulo = bloco.tituloServico
+      ? `${bloco.tituloServico} — Etapas:`
+      : "Etapas:";
+    pdf.text(rotulo, x, y);
+    y += g(4);
+
+    let cursorX = x;
+    let rowY = y;
+
+    for (const info of infos) {
+      const larguraEtapa = larguraEtapaHorizontalPdf(pdf, info, fontBase, checkbox);
+      if (cursorX > x && cursorX + larguraEtapa - 5 > x + larguraUtil) {
+        cursorX = x;
+        rowY += alturaLinha;
+      }
+      desenharEtapaHorizontalPdf(pdf, info, cursorX, rowY, fontBase, checkbox);
+      cursorX += larguraEtapa;
     }
-    desenharEtapaHorizontalPdf(pdf, info, cursorX, rowY, fontBase, checkbox);
-    cursorX += larguraEtapa;
+
+    y = rowY + alturaLinha + g(1.5);
   }
 
-  return rowY + alturaLinha + g(1);
+  return y;
 }
 
 function desenharEtapasOsTermica(
@@ -366,37 +399,45 @@ function desenharEtapasOsTermica(
   larguraCampo: number,
   fsSmall: number
 ) {
-  const etapas = data.etapasLista || [];
-  if (!lay.etapas || etapas.length === 0) return yInicio;
+  const blocos = blocosEtapasImpressaoPdf(data);
+  if (!lay.etapas || blocos.length === 0) return yInicio;
 
-  const infos = etapas
-    .map((etapa) => infoEtapaImpressaoHorizontal(etapa, data, lay))
-    .filter(Boolean) as EtapaImpressaoHorizontal[];
-  if (infos.length === 0) return yInicio;
-
-  let y = yInicio;
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(fsSmall - 0.5);
-  pdf.text("Etapas:", mx, y);
-  y += 3.6;
-
-  pdf.setFontSize(fsSmall - 0.5);
   const checkbox = 2.5;
   const alturaLinha = 3.6;
-  let cursorX = mx;
-  let rowY = y;
+  let y = yInicio;
 
-  for (const info of infos) {
-    const larguraEtapa = larguraEtapaHorizontalPdf(pdf, info, fsSmall - 0.5, checkbox);
-    if (cursorX > mx && cursorX + larguraEtapa - 3 > mx + larguraCampo) {
-      cursorX = mx;
-      rowY += alturaLinha;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(fsSmall - 0.5);
+
+  for (const bloco of blocos) {
+    const infos = bloco.etapas
+      .map((etapa) => infoEtapaImpressaoHorizontal(etapa, data, lay))
+      .filter(Boolean) as EtapaImpressaoHorizontal[];
+    if (infos.length === 0) continue;
+
+    const rotulo = bloco.tituloServico
+      ? `${bloco.tituloServico} — Etapas:`
+      : "Etapas:";
+    pdf.text(rotulo, mx, y);
+    y += 3.6;
+
+    let cursorX = mx;
+    let rowY = y;
+
+    for (const info of infos) {
+      const larguraEtapa = larguraEtapaHorizontalPdf(pdf, info, fsSmall - 0.5, checkbox);
+      if (cursorX > mx && cursorX + larguraEtapa - 3 > mx + larguraCampo) {
+        cursorX = mx;
+        rowY += alturaLinha;
+      }
+      desenharEtapaHorizontalPdf(pdf, info, cursorX, rowY, fsSmall - 0.5, checkbox);
+      cursorX += larguraEtapa;
     }
-    desenharEtapaHorizontalPdf(pdf, info, cursorX, rowY, fsSmall - 0.5, checkbox);
-    cursorX += larguraEtapa;
+
+    y = rowY + alturaLinha + 1;
   }
 
-  return rowY + alturaLinha + 0.5;
+  return y;
 }
 
 function desenharMetadadosServicoRequisicao(

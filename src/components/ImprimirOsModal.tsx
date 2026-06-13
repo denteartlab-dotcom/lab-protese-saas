@@ -77,7 +77,8 @@ export function montarUrlImpressaoOs(
 function aplicarConfigNoModal(
   cfgOs: ConfiguracoesOs,
   cfgEtiquetas: ConfiguracoesEtiquetas,
-  multiplosSegmentos: boolean
+  multiplosSegmentos: boolean,
+  permitirSomenteItem: boolean
 ) {
   const modelo = cfgOs.modeloPadrao;
   const formato = formatoPorModeloOs(modelo);
@@ -85,7 +86,8 @@ function aplicarConfigNoModal(
     formato,
     modelo,
     modeloEtiqueta: modeloPadraoEtiqueta(cfgEtiquetas) ?? "slk-54x101",
-    somenteItem: multiplosSegmentos ? "sim" : "nao",
+    somenteItem:
+      permitirSomenteItem && multiplosSegmentos ? "sim" : "nao",
     duasVias: cfgOs.duasVias[modelo] ? "sim" : "nao",
   };
 }
@@ -95,6 +97,8 @@ type ImprimirOsModalProps = {
   onClose: () => void;
   trabalho: TrabalhoImpressaoOs | null;
   multiplosSegmentos: boolean;
+  /** Controle/agenda: permite imprimir só o item. Na tela de OS, sempre imprime todos os serviços. */
+  permitirSomenteItem?: boolean;
 };
 
 export function ImprimirOsModal({
@@ -102,6 +106,7 @@ export function ImprimirOsModal({
   onClose,
   trabalho,
   multiplosSegmentos,
+  permitirSomenteItem = true,
 }: ImprimirOsModalProps) {
   const [configOs, setConfigOs] = useState<ConfiguracoesOs>(() => carregarConfiguracoesOs());
   const [configEtiquetas, setConfigEtiquetas] = useState<ConfiguracoesEtiquetas>(() =>
@@ -143,7 +148,12 @@ export function ImprimirOsModal({
     let ativo = true;
     void recarregarConfig().then(({ cfgOs, cfgEtiquetas }) => {
       if (!ativo) return;
-      const estado = aplicarConfigNoModal(cfgOs, cfgEtiquetas, multiplosSegmentos);
+      const estado = aplicarConfigNoModal(
+        cfgOs,
+        cfgEtiquetas,
+        multiplosSegmentos,
+        permitirSomenteItem
+      );
       ultimoModeloA4.current =
         formatoPorModeloOs(estado.modelo) === "a4" ? estado.modelo : null;
       ultimoModeloTermica.current =
@@ -158,7 +168,7 @@ export function ImprimirOsModal({
     return () => {
       ativo = false;
     };
-  }, [open, multiplosSegmentos, trabalho?.id, recarregarConfig]);
+  }, [open, multiplosSegmentos, permitirSomenteItem, trabalho?.id, recarregarConfig]);
 
   useEffect(() => {
     if (!open) return;
@@ -254,7 +264,7 @@ export function ImprimirOsModal({
     if (formato === "etiquetas" && !etiquetasAtivas) return;
     const modeloImpressao = formato === "etiquetas" ? modeloEtiqueta : modelo;
     const url = montarUrlImpressaoOs(trabalho.id, {
-      somenteItemSelecionado: somenteItem === "sim",
+      somenteItemSelecionado: permitirSomenteItem && somenteItem === "sim",
       multiplosSegmentos,
       segmentoEfetivo: segmentoEfetivoTrabalho(trabalho),
       formato,
@@ -289,7 +299,7 @@ export function ImprimirOsModal({
         <div className="space-y-4">
           <div className="rounded-md border border-sky-200 bg-sky-50 px-4 py-3 text-center text-sm font-semibold text-sky-900">
             Ordem de Serviço {trabalho.numeroOs}
-            {multiplosSegmentos && somenteItem === "sim" ? (
+            {permitirSomenteItem && multiplosSegmentos && somenteItem === "sim" ? (
               <span className="mt-1 block text-xs font-normal text-sky-800">
                 Item: {itemAtual}
               </span>
@@ -439,11 +449,15 @@ export function ImprimirOsModal({
             </p>
           )}
 
-          {multiplosSegmentos ? (
+          {permitirSomenteItem && multiplosSegmentos ? (
             <p className="text-center text-xs text-slate-500">
               Com <strong>Sim</strong>, a requisição inclui apenas o item desta linha (
               {segmentoLabel}). Com <strong>Não</strong>, inclui serviço, produto e transporte da
               mesma OS.
+            </p>
+          ) : !permitirSomenteItem && multiplosSegmentos ? (
+            <p className="text-center text-xs text-slate-500">
+              A requisição incluirá todos os serviços, produtos e transporte desta OS.
             </p>
           ) : null}
 

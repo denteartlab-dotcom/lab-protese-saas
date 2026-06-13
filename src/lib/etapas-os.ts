@@ -45,6 +45,11 @@ export type EtapaOsLinha = {
   tempo?: string;
 };
 
+export type EtapasPorServicoOs = {
+  titulo: string;
+  etapas: EtapaOsLinha[];
+};
+
 const etapasPadrao: EtapaCadastro[] = [
   { id: "modelo-individual", nome: "Modelo Individual", setor: "Resina" },
   { id: "montagem", nome: "Montagem", setor: "Resina" },
@@ -341,6 +346,27 @@ export function parseComplementosInstrucoesGrupo(textos: string[]) {
     terceirizados: deduplicarTerceirizados(parseTerceirizadosInstrucoes(texto)),
     textoLivre: instrucoesTextoLivre(texto),
   };
+}
+
+/** Etapas agrupadas por trabalho de serviço (evita misturar etapas de serviços distintos na impressão). */
+export function etapasPorServicoImpressao(
+  trabalhos: Array<{
+    tipoProtese?: string | null;
+    instrucoes?: string | null;
+    segmentoFaturamento?: string | null;
+  }>,
+  segmentoEfetivo: (trabalho: {
+    segmentoFaturamento?: string | null;
+    instrucoes?: string | null;
+  }) => "servico" | "produto" | "transporte"
+): EtapasPorServicoOs[] {
+  return trabalhos
+    .filter((row) => segmentoEfetivo(row) === "servico")
+    .map((row) => ({
+      titulo: (row.tipoProtese || "").trim() || "Serviço",
+      etapas: parseEtapasInstrucoes(row.instrucoes),
+    }))
+    .filter((bloco) => bloco.etapas.length > 0);
 }
 
 export type ColaboradorOsLinha = {

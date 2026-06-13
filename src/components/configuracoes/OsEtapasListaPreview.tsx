@@ -16,6 +16,8 @@ export function OsEtapasListaPreview({
   gapMm = "1.5mm",
   marginTop,
   exibirColaborador = true,
+  exibirDatas = true,
+  tituloServico,
 }: {
   etapas: EtapaOsLinha[];
   colaboradores?: ColaboradorOsLinha[];
@@ -24,9 +26,14 @@ export function OsEtapasListaPreview({
   gapMm?: string;
   marginTop?: string;
   exibirColaborador?: boolean;
+  exibirDatas?: boolean;
+  /** Quando há mais de um serviço na OS (ex.: "Prótese Total — Etapas:"). */
+  tituloServico?: string;
 }) {
   const lista = etapas.filter((e) => nomeEtapaSemSetor(e.nome));
   if (lista.length === 0) return null;
+
+  const rotulo = tituloServico ? `${tituloServico} — Etapas:` : "Etapas:";
 
   return (
     <div
@@ -35,7 +42,7 @@ export function OsEtapasListaPreview({
         ...(marginTop ? { marginTop } : undefined),
       }}
     >
-      <p>Etapas:</p>
+      <p>{rotulo}</p>
       <div
         style={{
           display: "flex",
@@ -47,7 +54,9 @@ export function OsEtapasListaPreview({
       >
         {lista.map((etapa) => {
           const nome = nomeEtapaSemSetor(etapa.nome);
-          const dataHora = formatarDataHoraEtapaImpressao(etapa.prazo, dataEntrada);
+          const dataHora = exibirDatas
+            ? formatarDataHoraEtapaImpressao(etapa.prazo, dataEntrada)
+            : "";
           const colaborador = exibirColaborador
             ? colaboradorDaEtapaImpressao(etapa, colaboradores)
             : "";

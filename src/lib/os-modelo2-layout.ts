@@ -14,6 +14,7 @@ export const OS_MODELO2_LAYOUT_PADRAO: OsModelo2Layout = {
   tamanhoFonte: 16,
   produtos: false,
   etapas: true,
+  etapasComDatas: true,
   producao: true,
   pecas: true,
 };
@@ -54,6 +55,7 @@ export function normalizarOsModelo2Layout(
   if ("pecas" in valor) base.pecas = Boolean(valor.pecas);
   if ("produtos" in valor) base.produtos = Boolean(valor.produtos);
   if ("etapas" in valor) base.etapas = Boolean(valor.etapas);
+  if ("etapasComDatas" in valor) base.etapasComDatas = Boolean(valor.etapasComDatas);
   base.exibirBordas = valor.exibirBordas === true;
   return base;
 }

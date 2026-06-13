@@ -79,6 +79,8 @@ export type ModeloProducaoEditorConfig = {
   tipoPreview: "producao" | "comprovante";
   camposGeral: Array<{ key: keyof OsModelo1Layout; label: string }>;
   camposPares: CampoPar;
+  /** Exibe opção "Etapas com datas" no painel lateral (Modelos 1 e 2). */
+  exibirOpcaoEtapasComDatas?: boolean;
   amostraPreview: PreviewAmostra;
   normalizarLayout: (valor?: Partial<OsModelo1Layout> | null) => OsModelo1Layout;
   lerLayout: (config: ConfiguracoesOs) => OsModelo1Layout;
@@ -428,6 +430,7 @@ function PreviewOsModeloProducao({
           gapMm={`${gap(0.5)}mm`}
           marginTop={`${gap(2)}mm`}
           exibirColaborador={layout.colaborador}
+          exibirDatas={layout.etapasComDatas}
         />
       ) : null}
 
@@ -673,6 +676,14 @@ export function ConfiguracoesOsModeloProducaoConteudo({
 
           <GridCheckboxes layout={layout} onPatch={patchLayout} camposPares={editor.camposPares} />
 
+          {editor.exibirOpcaoEtapasComDatas ? (
+            <CheckboxCampo
+              label="Etapas com datas"
+              checked={layout.etapasComDatas}
+              onChange={(v) => patchLayout({ etapasComDatas: v })}
+            />
+          ) : null}
+
           <label className="block">
             <span className="mb-1 block text-[11px] font-semibold text-slate-700">Mensagem</span>
             <textarea
@@ -746,6 +757,7 @@ const EDITOR_MODELO1: ModeloProducaoEditorConfig = {
   tipoPreview: "producao",
   camposGeral: CAMPOS_MODELO1_GERAL,
   camposPares: CAMPOS_MODELO1_PARES,
+  exibirOpcaoEtapasComDatas: true,
   amostraPreview: PREVIEW_OS_MODELO1,
   normalizarLayout: normalizarOsModelo1Layout,
   lerLayout: (config) => config.layoutModelo1,
@@ -758,6 +770,7 @@ const EDITOR_MODELO2: ModeloProducaoEditorConfig = {
   tipoPreview: "producao",
   camposGeral: CAMPOS_MODELO1_GERAL,
   camposPares: CAMPOS_MODELO2_PARES,
+  exibirOpcaoEtapasComDatas: true,
   amostraPreview: PREVIEW_OS_MODELO2,
   normalizarLayout: normalizarOsModelo2Layout,
   lerLayout: (config) => config.layoutModelo2,

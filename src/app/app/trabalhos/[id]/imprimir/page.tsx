@@ -10,6 +10,7 @@ import {
 import { telefoneWhatsappCliente } from "@/lib/cliente-observacoes";
 import {
   colaboradorParaImpressao,
+  etapasPorServicoImpressao,
   instrucoesTextoLivre,
   parseColaboradoresInstrucoes,
   parseEtapasInstrucoes,
@@ -302,6 +303,12 @@ async function ImprimirOSConteudo({
       nomeUsuarioSessao.trim();
   }
 
+  const etapasPorServico = somenteItem
+    ? segmentoEfetivoTrabalho(t) === "servico"
+      ? etapasPorServicoImpressao([t], segmentoEfetivoTrabalho)
+      : []
+    : etapasPorServicoImpressao(grupo, segmentoEfetivoTrabalho);
+
   return (
     <PdfOsViewer
       formato={formato}
@@ -332,6 +339,7 @@ async function ImprimirOSConteudo({
         colaborador,
         colaboradoresLista: parseColaboradoresInstrucoes(textoInstrucoesGrupo),
         etapasLista: parseEtapasInstrucoes(textoInstrucoesGrupo),
+        etapasPorServico,
         etapas: lineValue(linhas, "Etapas:"),
         urgente,
         repeticao,

@@ -34,6 +34,8 @@ export type OsModelo1Layout = {
   obsServico: boolean;
   materialRec: boolean;
   etapas: boolean;
+  /** Exibir data/hora antes de cada etapa na lista (Modelo 1: padrão sem datas; Modelo 2: com datas). */
+  etapasComDatas: boolean;
   pecas: boolean;
   assinatura: boolean;
   codBarras: boolean;
@@ -74,6 +76,7 @@ export const OS_MODELO1_LAYOUT_PADRAO: OsModelo1Layout = {
   obsServico: false,
   materialRec: true,
   etapas: true,
+  etapasComDatas: false,
   pecas: false,
   assinatura: true,
   codBarras: true,
