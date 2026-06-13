@@ -41,12 +41,15 @@ import {
   itemExibeBadgeTransporte,
   itemUsaCamposOdontologicos,
   nomeExibicaoItemOs,
+  parseDescontoTipoLinhaItem,
   planejarBlocosSalvarOs,
   segmentoEfetivoTrabalho,
   servicosMesmaOs,
   situacaoExibicaoTrabalho,
   tituloSegmentoOs,
   tituloTrabalhoServicoItem,
+  trechoDescontoLinhaItemOs,
+  valorLiquidoItemOs,
   deveExibirTrabalhoNoControleProducao,
   expandirControleProducaoComServicoDoGrupo,
   trabalhosDoMesmoGrupoOsId,
@@ -124,6 +127,7 @@ import {
 } from "@/lib/os-faturamento";
 import {
   anexosParaLinhasInstrucoes,
+  clienteDescontoGeralDeObservacoes,
   clienteTabelaPrecoDeObservacoes,
   linhaInstrucaoOs,
   montarCorpoCabecalhoInstrucoes,
@@ -548,9 +552,9 @@ function formatarLinhaItemEdicao(item: EditItem) {
   return `Item adicionado: ${item.servico} - dentes ${item.numeroDente} - cor ${item.corDente} - qtd ${item.quantidade} - valor ${item.valor.toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",
-  })}${incluirCategoria ? ` - categoria ${item.categoria}` : ""}${
-    itemUsaCamposOdontologicos(item) && item.desconto ? ` - desc ${item.desconto}` : ""
-  }${itemUsaCamposOdontologicos(item) && item.situacao ? ` - situação ${item.situacao}` : ""}${
+  })}${incluirCategoria ? ` - categoria ${item.categoria}` : ""}${trechoDescontoLinhaItemOs(item)}${
+    itemUsaCamposOdontologicos(item) && item.situacao ? ` - situação ${item.situacao}` : ""
+  }${
     item.produtoId ? ` - produtoId ${item.produtoId}` : ""
   }${item.urgente ? " - urgente" : ""}${item.repeticao ? " - repetição" : ""}${
     item.observacao ? ` - obs ${item.observacao}` : ""
@@ -714,8 +718,14 @@ function parseItens(trabalho: Trabalho): EditItem[] {
         ),
         desconto:
           line.match(
-            / - desc (.*?)(?: - categoria| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
+            / - desc (.*?)(?: - descTipo| - categoria| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
           )?.[1]?.trim() || "0,00",
+        descontoTipo: parseDescontoTipoLinhaItem(
+          line,
+          line.match(
+            / - desc (.*?)(?: - descTipo| - categoria| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
+          )?.[1]?.trim() || "0,00"
+        ),
         situacao:
           line.match(/ - situação (.*?)(?: - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i)?.[1]?.trim() ||
           trabalho.status,
@@ -1493,8 +1503,8 @@ export default function ControlePage() {
     if (!servico) return;
 
     const valorFmt = servico.valor.toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL",
+            style: "currency",
+            currency: "BRL",
     });
 
     if (servico.tipo === "transporte") {
@@ -2232,7 +2242,7 @@ export default function ControlePage() {
     const nome = produto?.nome || produtoOs.observacao?.trim() || "Produto";
     const quantidade = produtoOs.quantidade || "1";
     return {
-      id: `${Date.now()}`,
+        id: `${Date.now()}`,
       servico: `Produto: ${nome}`,
       numeroDente: "-",
       corDente: "-",
@@ -2298,9 +2308,7 @@ export default function ControlePage() {
       const novo = novoItemProdutoEdicao();
       if (!novo) return;
       setEditItems((atuais) => [...atuais, novo]);
-      setAdicionandoServico(false);
-      setProdutosOs([]);
-      setAbaServicoEdicao("etapas");
+      resetFormularioServicoEdicao();
       limparAvisoItem();
       return;
     }
@@ -2326,8 +2334,7 @@ export default function ControlePage() {
         etapasServico: capturarEtapasParaServicoEdicao(nomeServico),
       };
       setEditItems((atuais) => [...atuais, novo]);
-      setAdicionandoServico(false);
-      setForm((atual) => (atual ? { ...atual, observacaoServico: "" } : atual));
+      resetFormularioServicoEdicao();
       limparAvisoItem();
       return;
     }
@@ -2348,6 +2355,53 @@ export default function ControlePage() {
     }
   }
 
+  function resetFormularioServicoEdicao() {
+    if (!editando || !form) return;
+    setItemSelecionadoId(null);
+    setAdicionandoServico(false);
+    setPainelEdicaoItem("servico");
+    setAbaServicoEdicao("etapas");
+    setProdutosOs([]);
+    setTipoDenticao("permanente");
+    setDentesEdicao([]);
+    setEtapasEdicao([]);
+    setColaboradoresEdicao([]);
+    setTerceirizadosEdicao([]);
+    const descontoCliente = form.clienteId
+      ? clienteDescontoGeralDeObservacoes(
+          clientesCatalogo.find((item) => item.id === form.clienteId)?.observacoes
+        )
+      : "";
+    setForm({
+      ...formVazioEdicao(editando, trabalhos),
+      clienteId: form.clienteId,
+      pacienteNome: form.pacienteNome,
+      pacienteId: form.pacienteId,
+      dataLancamento: form.dataLancamento,
+      caixa: form.caixa,
+      casoUrgente: form.casoUrgente,
+      dentista: form.dentista,
+      material: form.material,
+      observacoes: form.observacoes,
+      instrucoesCorpo: form.instrucoesCorpo,
+      tipoRepeticaoOs: form.tipoRepeticaoOs,
+      status: form.status,
+      dataPrevista: form.dataPrevista,
+      categoria: "",
+      tipoProtese: "",
+      dentes: "",
+      escala: "",
+      cor: "",
+      quantidade: "1",
+      valor: "R$ 0,00",
+      descontoTipo: "percentual",
+      desconto: descontoCliente || "0,00",
+      observacaoServico: "",
+      urgente: false,
+      repeticao: false,
+    });
+  }
+
   function abrirAdicionarServico() {
     if (!editando || osFaturada) return;
     setAdicionandoServico(true);
@@ -2364,7 +2418,7 @@ export default function ControlePage() {
       dentes: "",
       escala: "",
       cor: "",
-      quantidade: "1",
+        quantidade: "1",
       valor: "R$ 0,00",
       descontoTipo: "percentual",
       desconto: "0,00",
@@ -2824,11 +2878,11 @@ export default function ControlePage() {
       return atuais.map((item) => {
         if (item.id === statusEditando.id) {
           const atualizado = {
-            ...item,
-            status: statusForm.status,
-            dataPrevista: statusForm.dataPrevista || null,
-            observacoes: statusForm.observacoes,
-            instrucoes: statusForm.instrucoes,
+              ...item,
+              status: statusForm.status,
+              dataPrevista: statusForm.dataPrevista || null,
+              observacoes: statusForm.observacoes,
+              instrucoes: statusForm.instrucoes,
           };
           if (statusMudou && flagsUrgenciaTrabalho(item).urgente) {
             atualizado.instrucoes = removerMarcacaoUrgenteInstrucoes(atualizado.instrucoes);
@@ -2870,7 +2924,7 @@ export default function ControlePage() {
     if (!trabalho) return;
     if (trabalhoGrupoFaturado(trabalho)) {
       window.alert(MENSAGEM_OS_FATURADA_NAO_EXCLUI);
-      setOsExcluindo(null);
+    setOsExcluindo(null);
       return;
     }
     const id = trabalho.id;
@@ -2908,14 +2962,14 @@ export default function ControlePage() {
 
         <div className="grid gap-2 md:grid-cols-[1fr_1.2fr_1fr_1.2fr_auto]">
           <div>
-            <Select label="Situação" value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="todos">Todos</option>
-              {Object.entries(STATUS_TRABALHO).map(([key, value]) => (
+          <Select label="Situação" value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="todos">Todos</option>
+            {Object.entries(STATUS_TRABALHO).map(([key, value]) => (
                 <option key={key} value={key}>
                   {value.label}
                 </option>
-              ))}
-            </Select>
+            ))}
+          </Select>
             <ControleProducaoFiltrosLista
               produtos={filtroProdutos}
               fichasSemServicos={filtroFichasSemServicos}
@@ -3412,7 +3466,20 @@ export default function ControlePage() {
                   material: form.material,
                   observacoes: form.observacoes,
                 }}
-                onChange={(patch) => setForm((atual) => (atual ? { ...atual, ...patch } : atual))}
+                onChange={(patch) =>
+                  setForm((atual) => {
+                    if (!atual) return atual;
+                    const next = { ...atual, ...patch };
+                    if (patch.clienteId && patch.clienteId !== atual.clienteId) {
+                      const observacoes = clientesCatalogo.find(
+                        (item) => item.id === patch.clienteId
+                      )?.observacoes;
+                      next.descontoTipo = "percentual";
+                      next.desconto = clienteDescontoGeralDeObservacoes(observacoes) || "0,00";
+                    }
+                    return next;
+                  })
+                }
                 clientes={clientesCatalogo}
                 anexosExistentes={anexosEdicao}
                 onRemoverAnexoExistente={(anexo) =>
@@ -3479,7 +3546,7 @@ export default function ControlePage() {
                     <strong>Contas a Receber</strong>. Os serviços estão bloqueados para edição,
                     mas você ainda pode alterar <strong>observação interna</strong> e{" "}
                     <strong>comissões</strong> (colaboradores e terceirizados).
-                  </div>
+              </div>
                 )}
                 <div
                   className={cn(
@@ -3499,7 +3566,7 @@ export default function ControlePage() {
                     >
                       <Plus className="h-3.5 w-3.5" />
                       Adicionar Serviço
-                    </button>
+              </button>
                     <span className="text-[11px] text-slate-600">
                       Total Serviços: {formatCurrency(totalItensEdicao)}
                     </span>
@@ -3550,7 +3617,7 @@ export default function ControlePage() {
                               {itemUsaCamposOdontologicos(item) ? exibirTexto(item.corDente) : ""}
                             </td>
                             <td className="px-3 py-2 text-slate-600">{item.quantidade}</td>
-                            <td className="px-3 py-2 text-slate-700">{formatCurrency(item.valor)}</td>
+                            <td className="px-3 py-2 text-slate-700">{formatCurrency(valorLiquidoItemOs(item))}</td>
                             <td className="px-3 py-2 text-center">
                               <button
                                 type="button"
@@ -3562,15 +3629,15 @@ export default function ControlePage() {
                                 title="Excluir serviço"
                               >
                                 <Trash2 className="h-4 w-4" />
-                              </button>
+              </button>
                             </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                </div>
-              </section>
+              </div>
+            </section>
 
               {painelEdicaoVisivel && (
               <section className="border-t border-slate-100 bg-slate-50/50 p-4">
@@ -3597,7 +3664,7 @@ export default function ControlePage() {
                           Faturado
                         </span>
                       )}
-                    </div>
+              </div>
                     <h3 className="mb-4 text-center text-base font-medium text-slate-700">Serviço</h3>
                     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                       <div className="flex gap-5">
@@ -3673,9 +3740,9 @@ export default function ControlePage() {
                           !categoriasTabelaPreco.some((c) => c.nome === form.categoria) && (
                             <option value={form.categoria}>{form.categoria}</option>
                           )}
-                      </Select>
-                      <Select
-                        label="Serviço"
+                </Select>
+                <Select
+                  label="Serviço"
                         value={valorSelectServicoEdicao()}
                         onChange={(e) => selecionarServicoTabelaEdicao(e.target.value)}
                         disabled={!form.categoria}
@@ -3700,19 +3767,19 @@ export default function ControlePage() {
                             {servico.nome}
                             {servico.tipo === "transporte" ? " (Transporte)" : ""}
                           </option>
-                        ))}
-                      </Select>
-                      <Input
-                        label="Qtd"
+                  ))}
+                </Select>
+                <Input
+                  label="Qtd"
                         type="number"
                         min="1"
                         value={form.quantidade}
                         onChange={(e) => setForm({ ...form, quantidade: e.target.value })}
-                      />
-                      <Input
+                />
+                <Input
                         label="Valor Un."
                         selectOnFocus
-                        value={form.valor}
+                  value={form.valor}
                         onChange={(e) =>
                           setForm({ ...form, valor: formatCurrencyInputControle(e.target.value) })
                         }
@@ -3749,19 +3816,19 @@ export default function ControlePage() {
                             className="w-full px-3 py-2 text-sm outline-none"
                             {...propsInputComSelecaoAoFocar({})}
                           />
-                        </div>
+              </div>
                       </div>
                       <Select
                         label="Situação"
                         value={form.status}
                         onChange={(e) => setForm({ ...form, status: e.target.value })}
                       >
-                        {Object.entries(STATUS_TRABALHO).map(([key, value]) => (
+                  {Object.entries(STATUS_TRABALHO).map(([key, value]) => (
                           <option key={key} value={key}>
                             {value.label}
                           </option>
-                        ))}
-                      </Select>
+                  ))}
+                </Select>
                       <CampoDataBr
                         label="Prazo Laboratório"
                         value={form.dataLaboratorio}
@@ -3773,7 +3840,7 @@ export default function ControlePage() {
                           })
                         }
                       />
-                      <Input
+                <Input
                         label="Hora Laboratório"
                         type="time"
                         value={form.horaLaboratorio}
@@ -3783,8 +3850,8 @@ export default function ControlePage() {
                         label="Prazo Dentista"
                         value={form.dataDentista}
                         onChange={(value) => setForm({ ...form, dataDentista: value })}
-                      />
-                      <Input
+                />
+                <Input
                         label="Hora Dentista"
                         type="time"
                         value={form.horaDentista}
@@ -3798,11 +3865,11 @@ export default function ControlePage() {
                         categoriasTabela={categoriasCompletasTabela}
                         nomeTabelaPreco={tabelaPrecoSelecionada}
                         onTabelaPrecoAlterada={recarregarTabelaPrecoControle}
-                      />
-                    </div>
+                />
+              </div>
 
-                    <div className="mt-5 text-center">
-                      <div className="mb-2 text-[11px] text-slate-500">Selecione os dentes do trabalho</div>
+              <div className="mt-5 text-center">
+                <div className="mb-2 text-[11px] text-slate-500">Selecione os dentes do trabalho</div>
                       <div className="mb-3 flex justify-center gap-5 text-[11px] text-slate-600">
                         <label className="inline-flex cursor-pointer items-center gap-1.5">
                           <input
@@ -3825,8 +3892,8 @@ export default function ControlePage() {
                           Decíduos
                         </label>
                       </div>
-                      <div className="mx-auto max-w-3xl rounded bg-white px-3 py-2">
-                        <div className="flex items-end justify-center gap-2">
+                <div className="mx-auto max-w-3xl rounded bg-white px-3 py-2">
+                  <div className="flex items-end justify-center gap-2">
                           <button
                             type="button"
                             onClick={() => selecionarArcadaEdicao("sup")}
@@ -3834,13 +3901,13 @@ export default function ControlePage() {
                           >
                             SUP
                           </button>
-                          <div className="flex flex-wrap justify-center gap-0.5 border-b border-dashed border-slate-300 pb-1">
+                    <div className="flex flex-wrap justify-center gap-0.5 border-b border-dashed border-slate-300 pb-1">
                             {dentesPorDenticaoControle(tipoDenticao).superiores.map((dente) => {
                               const selected = dentesEdicao.includes(dente);
                               const imagemDente = urlImagemDente(dente, tipoDenticao);
                               return (
                                 <button
-                                  key={dente}
+                          key={dente}
                                   type="button"
                                   onClick={() => toggleDenteEdicao(dente)}
                                   className={`group flex w-7 flex-col items-center gap-0.5 rounded px-0.5 py-1 transition ${
@@ -3864,16 +3931,16 @@ export default function ControlePage() {
                                   <span
                                     className={`text-[11px] leading-none ${
                                       selected ? "font-bold text-emerald-600" : "text-slate-500"
-                                    }`}
-                                  >
-                                    {dente}
-                                  </span>
+                          }`}
+                        >
+                          {dente}
+                        </span>
                                 </button>
                               );
                             })}
-                          </div>
-                        </div>
-                        <div className="flex items-start justify-center gap-2">
+                    </div>
+                  </div>
+                  <div className="flex items-start justify-center gap-2">
                           <button
                             type="button"
                             onClick={() => selecionarArcadaEdicao("inf")}
@@ -3881,13 +3948,13 @@ export default function ControlePage() {
                           >
                             INF
                           </button>
-                          <div className="flex flex-wrap justify-center gap-0.5 pt-1">
+                    <div className="flex flex-wrap justify-center gap-0.5 pt-1">
                             {dentesPorDenticaoControle(tipoDenticao).inferiores.map((dente) => {
                               const selected = dentesEdicao.includes(dente);
                               const imagemDente = urlImagemDente(dente, tipoDenticao);
                               return (
                                 <button
-                                  key={dente}
+                          key={dente}
                                   type="button"
                                   onClick={() => toggleDenteEdicao(dente)}
                                   className={`group flex w-7 flex-col items-center gap-0.5 rounded px-0.5 py-1 transition ${
@@ -3911,22 +3978,22 @@ export default function ControlePage() {
                                   <span
                                     className={`text-[11px] leading-none ${
                                       selected ? "font-bold text-emerald-600" : "text-slate-500"
-                                    }`}
-                                  >
-                                    {dente}
-                                  </span>
+                          }`}
+                        >
+                          {dente}
+                        </span>
                                 </button>
                               );
                             })}
-                          </div>
-                        </div>
-                      </div>
                     </div>
+                  </div>
+                </div>
+              </div>
 
-                    <div className="mt-5">
-                      <div className="mb-3 text-left text-[11px] font-semibold text-emerald-600">
+              <div className="mt-5">
+                <div className="mb-3 text-left text-[11px] font-semibold text-emerald-600">
                         Dentes Selecionados: {renderDentesSelecionadosControle(form.dentes)}
-                      </div>
+                </div>
                       <div className="mb-5">
                         <Textarea
                           label="Observação Serviço"
@@ -3937,7 +4004,7 @@ export default function ControlePage() {
                           placeholder="Descreva todos os detalhes do trabalho, ajustes, material, cor, acabamento, prova, entrega..."
                           className="min-h-16"
                         />
-                      </div>
+              </div>
                     </div>
                     </div>
                       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -3949,8 +4016,8 @@ export default function ControlePage() {
                           }}
                           className={classeAbaEdicao("etapas")}
                         >
-                          Etapas
-                        </button>
+                  Etapas
+                </button>
                         <button
                           type="button"
                           onClick={() => {
@@ -3964,22 +4031,22 @@ export default function ControlePage() {
                           className={classeAbaEdicao("produtos")}
                         >
                           {abaServicoEdicao === "produtos" ? "Produtos" : "PRODUTOS"}
-                        </button>
+                </button>
                         <button
                           type="button"
                           onClick={() => abrirAbaComissoesEdicao("colaboradores")}
                           className={classeAbaEdicao("colaboradores")}
                         >
-                          Colaboradores / Comissões
-                        </button>
+                  Colaboradores / Comissões
+                </button>
                         <button
                           type="button"
                           onClick={() => abrirAbaComissoesEdicao("terceiros")}
                           className={classeAbaEdicao("terceiros")}
                         >
-                          Serviços Terceirizados / Comissões
-                        </button>
-                      </div>
+                  Serviços Terceirizados / Comissões
+                </button>
+              </div>
                       <div
                         className={cn(
                           "mt-3 rounded border border-slate-200 p-3 text-left",
@@ -4008,13 +4075,13 @@ export default function ControlePage() {
                           <div className="space-y-3">
                             <span className="text-sm font-semibold text-slate-800">Produtos</span>
                             {produtosOs.length === 0 && (
-                              <button
-                                type="button"
+              <button
+                type="button"
                                 onClick={adicionarLinhaProdutoEdicao}
                                 className="w-full rounded bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
-                              >
+              >
                                 + Adicionar Produto
-                              </button>
+              </button>
                             )}
                             {produtosOs.map((produtoOs, index) => (
                               <div
@@ -4095,7 +4162,7 @@ export default function ControlePage() {
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </button>
-                              </div>
+                </div>
                             ))}
                             {produtosOs.length > 0 && (
                               <button
@@ -4106,7 +4173,7 @@ export default function ControlePage() {
                                 + Adicionar Produto
                               </button>
                             )}
-                          </div>
+                </div>
                         )}
                         {abaServicoEdicao === "colaboradores" && (
                           <div className="space-y-3">
@@ -4129,8 +4196,8 @@ export default function ControlePage() {
                               .
                             </p>
                             {colaboradoresEdicao.length === 0 && (
-                              <button
-                                type="button"
+                            <button
+                              type="button"
                                 onClick={adicionarLinhaColaboradorEdicao}
                                 className="w-full rounded bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
                               >
@@ -4247,9 +4314,9 @@ export default function ControlePage() {
                                   }
                                   className="mt-6 inline-flex h-10 items-center justify-center rounded border border-red-200 px-3 text-red-600 hover:bg-red-50"
                                   title="Excluir colaborador"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
                               </div>
                             ))}
                             {colaboradoresEdicao.length > 0 && (
@@ -4263,7 +4330,7 @@ export default function ControlePage() {
                             )}
                               </>
                             )}
-                          </div>
+                </div>
                         )}
                         {abaServicoEdicao === "terceiros" && (
                           <div className="space-y-3">
@@ -4382,7 +4449,7 @@ export default function ControlePage() {
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </button>
-                              </div>
+              </div>
                             ))}
                             {terceirizadosEdicao.length > 0 && (
                               <button
@@ -4564,8 +4631,8 @@ export default function ControlePage() {
                               ? "+ Adicionar Transporte"
                               : "+ Adicionar Serviço")}
                   </button>
-                </div>
-              </section>
+            </div>
+            </section>
               )}
             </div>
 

@@ -59,6 +59,14 @@ export function clienteTabelaPrecoDeObservacoes(observacoes?: string | null) {
   return linha?.replace("Tabela de Preço:", "").trim() || "Tabela Principal";
 }
 
+export function clienteDescontoGeralDeObservacoes(observacoes?: string | null) {
+  const texto = observacoes || "";
+  const linha = texto
+    .split("\n")
+    .find((item) => item.startsWith("Desconto Geral:"));
+  return linha?.replace("Desconto Geral:", "").trim() || "";
+}
+
 export function montarCorpoCabecalhoInstrucoes(
   instrucoesCorpo: string,
   cabecalho: Pick<

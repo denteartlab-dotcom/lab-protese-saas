@@ -1,3 +1,5 @@
+import { parseCurrencyBr } from "@/lib/cliente-financeiro";
+
 export type SegmentoFaturamento = "servico" | "produto" | "transporte";
 
 export type ItemOsLinha = {
@@ -32,6 +34,35 @@ export function nomeExibicaoItemOs(item: ItemOsLinha) {
     .replace(/^Produto:\s*/i, "")
     .replace(/^(frete|transporte):\s*/i, "")
     .trim();
+}
+
+export function valorLiquidoItemOs(item: {
+  valor: number;
+  desconto?: string;
+  descontoTipo?: string;
+}) {
+  const descontoTexto = item.desconto || "0,00";
+  const descontoValor =
+    item.descontoTipo === "valor" || descontoTexto.trim().startsWith("R$")
+      ? parseCurrencyBr(descontoTexto)
+      : item.valor *
+        (Math.min(Math.max(Number(descontoTexto.replace(",", ".") || 0), 0), 100) / 100);
+
+  return Math.max(item.valor - descontoValor, 0);
+}
+
+export function trechoDescontoLinhaItemOs(
+  item: ItemOsLinha & { desconto?: string; descontoTipo?: string }
+) {
+  if (!itemUsaCamposOdontologicos(item) || !item.desconto) return "";
+  const tipo = item.descontoTipo === "valor" ? "valor" : "percentual";
+  return ` - desc ${item.desconto} - descTipo ${tipo}`;
+}
+
+export function parseDescontoTipoLinhaItem(line: string, desconto: string) {
+  const match = line.match(/ - descTipo (percentual|valor)(?: -|$)/i);
+  if (match) return match[1].toLowerCase();
+  return desconto.startsWith("R$") ? "valor" : "percentual";
 }
 
 export function formatarDescontoItemOs(item: ItemOsLinha & {

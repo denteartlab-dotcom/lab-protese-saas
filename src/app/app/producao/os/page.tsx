@@ -34,11 +34,15 @@ import {
   itemSomenteFrete,
   itemUsaCamposOdontologicos,
   nomeExibicaoItemOs,
+  parseDescontoTipoLinhaItem,
   planejarBlocosSalvarOs,
   tituloSegmentoOs,
   tituloTrabalhoServicoItem,
+  trechoDescontoLinhaItemOs,
+  valorLiquidoItemOs,
   type SegmentoFaturamento,
 } from "@/lib/trabalho-os-segmento";
+import { clienteDescontoGeralDeObservacoes } from "@/lib/cabecalho-os-form";
 import { calcularDatasPrazoServico } from "@/lib/prazos-servico";
 import {
   ARMAZENAMENTO_LAB_PRONTO_EVENT,
@@ -259,6 +263,61 @@ function parseMoney(value: string) {
   return Number(normalized) || 0;
 }
 
+type ProdutoOsLinha = {
+  produtoId: string;
+  quantidade: string;
+  valorUnitario: string;
+  valor: string;
+  observacao: string;
+};
+
+function valorUnitarioProdutoOsLinha(produtoOs: ProdutoOsLinha) {
+  return parseMoney(produtoOs.valorUnitario || produtoOs.valor || "R$ 0,00");
+}
+
+function valorTotalLinhaProdutoOsLinha(produtoOs: ProdutoOsLinha) {
+  const qtd = Number(produtoOs.quantidade || 1) || 1;
+  return valorUnitarioProdutoOsLinha(produtoOs) * qtd;
+}
+
+function produtoOsLinhaVazio(): ProdutoOsLinha {
+  return {
+    produtoId: "",
+    quantidade: "1",
+    valorUnitario: "R$ 0,00",
+    valor: "R$ 0,00",
+    observacao: "",
+  };
+}
+
+function atualizarProdutoOsLinhaQuantidade(item: ProdutoOsLinha, quantidade: string): ProdutoOsLinha {
+  const qtd = Number(quantidade) || 1;
+  return {
+    ...item,
+    quantidade,
+    valor: (valorUnitarioProdutoOsLinha(item) * qtd).toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }),
+  };
+}
+
+function atualizarProdutoOsLinhaSelecao(
+  item: ProdutoOsLinha,
+  produto: { valor: number } | undefined,
+  produtoId: string
+): ProdutoOsLinha {
+  const qtd = Number(item.quantidade || 1) || 1;
+  const unit = produto?.valor ?? valorUnitarioProdutoOsLinha(item);
+  const valorUnitario = unit.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return {
+    ...item,
+    produtoId,
+    valorUnitario,
+    valor: (unit * qtd).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+  };
+}
+
 function itensFromTrabalho(trabalho: TrabalhoEdicao): ItemAdicionado[] {
   const itens = (trabalho.instrucoes || "")
     .split("\n")
@@ -280,8 +339,14 @@ function itensFromTrabalho(trabalho: TrabalhoEdicao): ItemAdicionado[] {
         valor: parseMoney(line.match(/ - valor (.*?)(?: - categoria| - desc| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i)?.[1] || match[5] || ""),
         desconto:
           line.match(
-            / - desc (.*?)(?: - categoria| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
+            / - desc (.*?)(?: - descTipo| - categoria| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
           )?.[1]?.trim() || "0,00",
+        descontoTipo: parseDescontoTipoLinhaItem(
+          line,
+          line.match(
+            / - desc (.*?)(?: - descTipo| - categoria| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
+          )?.[1]?.trim() || "0,00"
+        ),
         situacao: line.match(/ - situação (.*?)(?: - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i)?.[1]?.trim() || trabalho.status,
         produtoId: line.match(/ - produtoId (.*?)(?: - urgente| - repetição| - repeticao| - obs|$)/i)?.[1]?.trim() || "",
         observacao: line.match(/ - obs (.*)$/i)?.[1]?.trim() || "",
@@ -342,9 +407,7 @@ export default function OrdemServicoPage() {
   const [etapas, setEtapas] = useState<EtapaOsForm[]>([]);
   const [indiceEtapaAtual, setIndiceEtapaAtual] = useState(0);
   const [calendarioEtapaAberto, setCalendarioEtapaAberto] = useState<number | null>(null);
-  const [produtosOs, setProdutosOs] = useState<
-    Array<{ produtoId: string; quantidade: string; valor: string; observacao: string }>
-  >([]);
+  const [produtosOs, setProdutosOs] = useState<ProdutoOsLinha[]>([]);
   const [colaboradores, setColaboradores] = useState<
     Array<{ nome: string; comissao: string; etapa: string }>
   >([]);
@@ -837,7 +900,7 @@ export default function OrdemServicoPage() {
 
     return {
       tabelaPreco: value("Tabela de Preço:"),
-      descontoGeral: value("Desconto Geral:"),
+      descontoGeral: clienteDescontoGeralDeObservacoes(observacoes),
       limiteSaldoDevedor: value("Limite Saldo Devedor:"),
     };
   }
@@ -1330,29 +1393,44 @@ export default function OrdemServicoPage() {
     ];
   }
 
-  const total = useMemo(() => {
-    const itensCalculados = itensParaCalculo();
-    const subtotalItens = itensCalculados.reduce((sum, item) => {
-      const linha = valorComDesconto(item.valor, item.descontoTipo, item.desconto);
-      return sum + (Number.isFinite(linha) ? linha : 0);
-    }, 0);
-    const subtotalProdutos = produtosOs.reduce((sum, produto) => {
-      return sum + parseCurrency(produto.valor) * Number(produto.quantidade || 1);
-    }, 0);
-    const subtotalServico = parseCurrency(form.valor) * Number(form.quantidade || 1);
-    const subtotal = subtotalItens || subtotalServico + subtotalProdutos;
-    const desconto =
-      form.descontoTipo === "valor"
-        ? parseCurrency(form.desconto)
-        : subtotal * (Math.min(Math.max(Number(form.desconto.replace(",", ".") || 0), 0), 100) / 100);
-    return subtotalItens ? subtotal : Math.max(subtotal - desconto, 0);
-  }, [form.valor, form.quantidade, form.descontoTipo, form.desconto, form.tipoProtese, form.cor, form.situacao, produtosOs, itensAdicionados, itemSelecionadoId, dentes]);
+  const totalItensOs = useMemo(
+    () =>
+      itensAdicionados.reduce(
+        (sum, item) => sum + valorComDesconto(item.valor, item.descontoTipo, item.desconto),
+        0
+      ),
+    [itensAdicionados]
+  );
+
+  const totalLinhaServico = useMemo(() => {
+    const produtosSelecionados = produtosOs.filter(
+      (produto) =>
+        produto.produtoId || produto.observacao?.trim() || parseCurrency(produto.valor) > 0
+    );
+    if (produtosSelecionados.length > 0) {
+      return produtosSelecionados.reduce(
+        (sum, produto) => sum + valorTotalLinhaProdutoOsLinha(produto),
+        0
+      );
+    }
+    if (!form.tipoProtese.trim()) return 0;
+    const subtotal = parseCurrency(form.valor) * Number(form.quantidade || 1);
+    return valorComDesconto(subtotal, form.descontoTipo, form.desconto);
+  }, [
+    form.valor,
+    form.quantidade,
+    form.descontoTipo,
+    form.desconto,
+    form.tipoProtese,
+    produtosOs,
+  ]);
 
   function valorComissaoTerceirizado(opcao: TerceirizadoOpcao) {
     const percentual = parsePercentual(
       form.repeticao ? opcao.valorComissaoRepeticao : opcao.valorComissao
     );
-    return total * (percentual / 100);
+    const base = totalLinhaServico > 0 ? totalLinhaServico : totalItensOs;
+    return base * (percentual / 100);
   }
 
   function selecionarTerceirizado(index: number, nome: string) {
@@ -1423,7 +1501,7 @@ export default function OrdemServicoPage() {
 
       return changed ? atualizados : atuais;
     });
-  }, [total, form.repeticao, opcoesTerceirizados]);
+  }, [totalItensOs, totalLinhaServico, form.repeticao, opcoesTerceirizados]);
 
   const previews = useMemo(
     () =>
@@ -1812,7 +1890,8 @@ export default function OrdemServicoPage() {
         {
           produtoId: produto?.id || item.produtoId || "",
           quantidade: item.quantidade || "1",
-          valor: unitario.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+          valorUnitario: unitario.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+          valor: item.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
           observacao: item.observacao || nomeExibicaoItemOs(item),
         },
       ]);
@@ -1933,7 +2012,7 @@ export default function OrdemServicoPage() {
         numeroDente: "-",
         corDente: "-",
         quantidade,
-        valor: parseCurrency(produtoOs.valor) * Number(quantidade || 1),
+        valor: valorTotalLinhaProdutoOsLinha(produtoOs),
         ...descontoCampos,
         produtoId: produtoOs.produtoId || undefined,
         observacao: produtoOs.observacao,
@@ -2025,7 +2104,7 @@ export default function OrdemServicoPage() {
         numeroDente: "-",
         corDente: "-",
         quantidade,
-        valor: parseCurrency(produtoOs.valor) * Number(quantidade || 1),
+        valor: valorTotalLinhaProdutoOsLinha(produtoOs),
         ...descontoCampos,
         produtoId: produtoOs.produtoId || undefined,
         observacao: produtoOs.observacao,
@@ -2108,10 +2187,7 @@ export default function OrdemServicoPage() {
 
   function adicionarLinhaProduto() {
     setAbaServico("produtos");
-    setProdutosOs((atuais) => [
-      ...atuais,
-      { produtoId: "", quantidade: "1", valor: "R$ 0,00", observacao: "" },
-    ]);
+    setProdutosOs((atuais) => [...atuais, produtoOsLinhaVazio()]);
   }
 
   function adicionarLinhaEtapa() {
@@ -2211,6 +2287,9 @@ export default function OrdemServicoPage() {
     setProdutosOs([]);
     setAbaServico("etapas");
     setEtapas([]);
+    setIndiceEtapaAtual(0);
+    setColaboradores([]);
+    setTerceirizados([]);
     setForm((current) => ({
       ...current,
       produtoId: "",
@@ -2218,8 +2297,13 @@ export default function OrdemServicoPage() {
       categoria: "",
       quantidade: "1",
       valor: "R$ 0,00",
+      descontoTipo: "percentual",
+      desconto: current.clienteId
+        ? clienteConfig(current.clienteId).descontoGeral || "0,00"
+        : "0,00",
       escala: "",
       cor: "",
+      situacao: "producao",
       dataLaboratorio: "",
       dataDentista: "",
       horaLaboratorio: "",
@@ -2436,9 +2520,7 @@ export default function OrdemServicoPage() {
     return `Item adicionado: ${item.servico} - dentes ${item.numeroDente} - cor ${item.corDente} - qtd ${item.quantidade} - valor ${item.valor.toLocaleString("pt-BR", {
       style: "currency",
       currency: "BRL",
-    })}${incluirCategoria ? ` - categoria ${item.categoria}` : ""}${
-      itemUsaCamposOdontologicos(item) && item.desconto ? ` - desc ${item.desconto}` : ""
-    }${
+    })}${incluirCategoria ? ` - categoria ${item.categoria}` : ""}${trechoDescontoLinhaItemOs(item)}${
       itemUsaCamposOdontologicos(item) && item.situacao ? ` - situação ${item.situacao}` : ""
     }${item.produtoId ? ` - produtoId ${item.produtoId}` : ""}${item.urgente ? " - urgente" : ""}${item.repeticao ? " - repetição" : ""}${item.observacao ? ` - obs ${item.observacao}` : ""}`;
   }
@@ -3004,7 +3086,7 @@ export default function OrdemServicoPage() {
         <div className="mb-2 flex justify-end text-[11px] text-slate-600">
           <span>
             Total Serviços:{" "}
-            {total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+            {totalItensOs.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
           </span>
         </div>
         <div className="overflow-x-auto">
@@ -3082,7 +3164,7 @@ export default function OrdemServicoPage() {
                     )}
                   </td>
                   <td className="px-3 py-2 text-slate-700">
-                    {item.valor.toLocaleString("pt-BR", {
+                    {valorLiquidoItemOs(item).toLocaleString("pt-BR", {
                       style: "currency",
                       currency: "BRL",
                     })}
@@ -3428,7 +3510,7 @@ export default function OrdemServicoPage() {
                 <span>{form.categoria ? rotulosItemOs.total : "Total Serviço"}:</span>
               <input
                 className="w-40 rounded border border-slate-200 px-3 py-2 text-right text-slate-700"
-                value={total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                value={totalLinhaServico.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                 readOnly
               />
               </div>
@@ -3852,17 +3934,12 @@ export default function OrdemServicoPage() {
                             const produto = produtosTabelaPrecoOs.find(
                               (item) => item.id === e.target.value
                             );
-                            const valor =
-                              produto?.valor !== undefined
-                                ? produto.valor.toLocaleString("pt-BR", {
-                                    style: "currency",
-                                    currency: "BRL",
-                                  })
-                                : produtoOs.valor;
 
                             setProdutosOs((atuais) =>
                               atuais.map((item, i) =>
-                                i === index ? { ...item, produtoId: e.target.value, valor } : item
+                                i === index
+                                  ? atualizarProdutoOsLinhaSelecao(item, produto, e.target.value)
+                                  : item
                               )
                             );
                           }}
@@ -3902,7 +3979,9 @@ export default function OrdemServicoPage() {
                           onChange={(e) =>
                             setProdutosOs((atuais) =>
                               atuais.map((item, i) =>
-                                i === index ? { ...item, quantidade: e.target.value } : item
+                                i === index
+                                  ? atualizarProdutoOsLinhaQuantidade(item, e.target.value)
+                                  : item
                               )
                             )
                           }
