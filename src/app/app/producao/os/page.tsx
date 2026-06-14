@@ -42,7 +42,10 @@ import {
   valorLiquidoItemOs,
   type SegmentoFaturamento,
 } from "@/lib/trabalho-os-segmento";
-import { clienteDescontoGeralDeObservacoes } from "@/lib/cabecalho-os-form";
+import {
+  clienteDescontoGeralDeObservacoes,
+  descontoItemComFallbackCliente,
+} from "@/lib/cabecalho-os-form";
 import { calcularDatasPrazoServico } from "@/lib/prazos-servico";
 import {
   ARMAZENAMENTO_LAB_PRONTO_EVENT,
@@ -771,10 +774,7 @@ export default function OrdemServicoPage() {
 
       const descontoCliente = clienteConfigFromObservacoes(trabalho.cliente?.observacoes).descontoGeral;
       const descontoItem = primeiroItem?.desconto || "0,00";
-      const descontoEdicao =
-        descontoItem.replace(/[^\d]/g, "") === "000" || descontoItem.replace(/[^\d]/g, "") === ""
-          ? descontoCliente || descontoItem
-          : descontoItem;
+      const descontoEdicao = descontoItemComFallbackCliente(descontoItem, descontoCliente);
 
       setTipoDenticao(denticaoCarregada);
       setDentes(Array.from(new Set(dentesCarregados)));
@@ -1090,6 +1090,29 @@ export default function OrdemServicoPage() {
       desconto: config.descontoGeral || "0,00",
     }));
   }
+
+  function descontoGeralDoClienteSelecionado(clienteId = form.clienteId) {
+    if (!clienteId) return "0,00";
+    return clienteConfig(clienteId).descontoGeral || "0,00";
+  }
+
+  useEffect(() => {
+    if (!form.clienteId || itemSelecionadoId) return;
+    const descontoCliente = descontoGeralDoClienteSelecionado(form.clienteId);
+    setForm((current) => {
+      if (
+        current.desconto === descontoCliente &&
+        current.descontoTipo === "percentual"
+      ) {
+        return current;
+      }
+      return {
+        ...current,
+        descontoTipo: "percentual",
+        desconto: descontoCliente,
+      };
+    });
+  }, [form.clienteId, clientes, itemSelecionadoId]);
 
   function formatCurrencyInput(value: string) {
     return parseCurrency(value).toLocaleString("pt-BR", {
@@ -1854,6 +1877,10 @@ export default function OrdemServicoPage() {
     setItemSelecionadoId(item.id);
     setTipoDenticao(denticaoItem);
     setDentes(dentesFromResumo(item.numeroDente, denticaoItem));
+    const descontoResolvido = descontoItemComFallbackCliente(
+      item.desconto,
+      descontoGeralDoClienteSelecionado()
+    );
     setForm((current) => ({
       ...current,
       categoria: categoriaServico || current.categoria,
@@ -1861,7 +1888,7 @@ export default function OrdemServicoPage() {
       tipoProtese: item.servico.startsWith("Produto:") ? current.tipoProtese : item.servico,
       quantidade: item.quantidade || "1",
       valor: unitario.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
-      desconto: item.desconto || "0,00",
+      desconto: descontoResolvido,
       descontoTipo: item.descontoTipo || (item.desconto?.startsWith("R$") ? "valor" : "percentual"),
       cor: item.corDente === "-" ? "" : item.corDente,
       situacao: item.situacao || current.situacao,
@@ -1877,7 +1904,7 @@ export default function OrdemServicoPage() {
         tipoProtese: item.servico,
         quantidade: item.quantidade || "1",
         valor: unitario.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
-        desconto: item.desconto || "0,00",
+        desconto: descontoResolvido,
         descontoTipo: item.descontoTipo || "percentual",
       }));
       return;
@@ -2298,9 +2325,7 @@ export default function OrdemServicoPage() {
       quantidade: "1",
       valor: "R$ 0,00",
       descontoTipo: "percentual",
-      desconto: current.clienteId
-        ? clienteConfig(current.clienteId).descontoGeral || "0,00"
-        : "0,00",
+      desconto: descontoGeralDoClienteSelecionado(current.clienteId),
       escala: "",
       cor: "",
       situacao: "producao",
@@ -3576,7 +3601,10 @@ export default function OrdemServicoPage() {
                       setForm({
                         ...form,
                         descontoTipo: e.target.value,
-                        desconto: e.target.value === "valor" ? "R$ 0,00" : "0,00",
+                        desconto:
+                          e.target.value === "valor"
+                            ? "R$ 0,00"
+                            : descontoGeralDoClienteSelecionado(),
                       })
                     }
                     className="w-14 border-r border-slate-300 bg-white px-2 text-sm text-slate-600 focus:outline-none"

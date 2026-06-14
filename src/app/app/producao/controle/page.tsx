@@ -129,6 +129,7 @@ import {
   anexosParaLinhasInstrucoes,
   clienteDescontoGeralDeObservacoes,
   clienteTabelaPrecoDeObservacoes,
+  descontoItemComFallbackCliente,
   linhaInstrucaoOs,
   montarCorpoCabecalhoInstrucoes,
 } from "@/lib/cabecalho-os-form";
@@ -304,6 +305,18 @@ type ClienteCatalogo = {
   nome: string;
   observacoes?: string | null;
 };
+
+function descontoGeralClienteControle(
+  clienteId: string | undefined,
+  clientesCatalogo: ClienteCatalogo[],
+  trabalho?: Trabalho | null
+) {
+  if (!clienteId) return "0,00";
+  const observacoes =
+    clientesCatalogo.find((item) => item.id === clienteId)?.observacoes ||
+    trabalho?.cliente?.observacoes;
+  return clienteDescontoGeralDeObservacoes(observacoes) || "0,00";
+}
 
 type EtapaOsItemEdicao = EtapaOsFormLinha;
 
@@ -1411,6 +1424,29 @@ export default function ControlePage() {
       .catch(() => setClientesCatalogo([]));
   }, [editando]);
 
+  useEffect(() => {
+    if (!editando || !form?.clienteId || itemSelecionadoId) return;
+    const descontoCliente = descontoGeralClienteControle(
+      form.clienteId,
+      clientesCatalogo,
+      editando
+    );
+    setForm((atual) => {
+      if (!atual) return atual;
+      if (
+        atual.desconto === descontoCliente &&
+        atual.descontoTipo === "percentual"
+      ) {
+        return atual;
+      }
+      return {
+        ...atual,
+        descontoTipo: "percentual",
+        desconto: descontoCliente,
+      };
+    });
+  }, [editando, form?.clienteId, clientesCatalogo, itemSelecionadoId]);
+
   function formVazioEdicao(trabalho: Trabalho, todos: Trabalho[] = trabalhos): EditForm {
     const complementos = complementosEdicaoTrabalho(trabalho, todos);
     const instrucoesTexto = instrucoesConsolidadas(trabalho, todos);
@@ -2000,9 +2036,16 @@ export default function ControlePage() {
     setTipoDenticao(denticaoInicial);
     setDentesEdicao(dentesIniciais);
     const formInicial = formVazioEdicao(alvo, lista);
+    const descontoCliente = descontoGeralClienteControle(
+      formInicial.clienteId,
+      clientesCatalogo,
+      alvo
+    );
     setForm({
       ...formInicial,
       dentes: numeroDenteResumoControle(dentesIniciais, denticaoInicial),
+      descontoTipo: "percentual",
+      desconto: descontoCliente,
     });
     setAnexosEdicao(anexosFromInstrucoes(instrucoesConsolidadas(alvo, lista)));
     setArquivosEdicao([]);
@@ -2111,6 +2154,10 @@ export default function ControlePage() {
     setTipoDenticao(denticaoItem);
     setDentesEdicao(dentesItem);
     const descontoItem = item.desconto || "0,00";
+    const descontoResolvido = descontoItemComFallbackCliente(
+      descontoItem,
+      descontoGeralClienteControle(form?.clienteId || editando!.clienteId, clientesCatalogo, editando)
+    );
     setForm((atual) => ({
       ...(atual || formVazioEdicao(editando!)),
       categoria: categoriaDoServicoNaTabela(categoriasTabelaPreco, item.servico) || "",
@@ -2121,7 +2168,7 @@ export default function ControlePage() {
       quantidade: item.quantidade || "1",
       valor: unitario.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
       descontoTipo: item.descontoTipo || (descontoItem.startsWith("R$") ? "valor" : "percentual"),
-      desconto: descontoItem,
+      desconto: descontoResolvido,
       status: item.situacao || editando!.status,
       urgente: Boolean(item.urgente),
       repeticao: Boolean(item.repeticao),
@@ -2367,11 +2414,11 @@ export default function ControlePage() {
     setEtapasEdicao([]);
     setColaboradoresEdicao([]);
     setTerceirizadosEdicao([]);
-    const descontoCliente = form.clienteId
-      ? clienteDescontoGeralDeObservacoes(
-          clientesCatalogo.find((item) => item.id === form.clienteId)?.observacoes
-        )
-      : "";
+    const descontoCliente = descontoGeralClienteControle(
+      form.clienteId,
+      clientesCatalogo,
+      editando
+    );
     setForm({
       ...formVazioEdicao(editando, trabalhos),
       clienteId: form.clienteId,
@@ -2395,7 +2442,7 @@ export default function ControlePage() {
       quantidade: "1",
       valor: "R$ 0,00",
       descontoTipo: "percentual",
-      desconto: descontoCliente || "0,00",
+      desconto: descontoCliente,
       observacaoServico: "",
       urgente: false,
       repeticao: false,
@@ -2411,6 +2458,11 @@ export default function ControlePage() {
     setProdutosOs([]);
     setTipoDenticao("permanente");
     setDentesEdicao([]);
+    const descontoCliente = descontoGeralClienteControle(
+      form?.clienteId || editando.clienteId || editando.cliente?.id,
+      clientesCatalogo,
+      editando
+    );
     setForm({
       ...formVazioEdicao(editando, trabalhos),
       categoria: "",
@@ -2421,7 +2473,7 @@ export default function ControlePage() {
         quantidade: "1",
       valor: "R$ 0,00",
       descontoTipo: "percentual",
-      desconto: "0,00",
+      desconto: descontoCliente,
       observacaoServico: "",
       urgente: false,
       repeticao: false,
@@ -3793,7 +3845,14 @@ export default function ControlePage() {
                               setForm({
                                 ...form,
                                 descontoTipo: e.target.value,
-                                desconto: e.target.value === "valor" ? "R$ 0,00" : "0,00",
+                                desconto:
+                                  e.target.value === "valor"
+                                    ? "R$ 0,00"
+                                    : descontoGeralClienteControle(
+                                        form.clienteId,
+                                        clientesCatalogo,
+                                        editando
+                                      ),
                               })
                             }
                             className="w-14 border-r border-slate-300 bg-white px-2 text-sm text-slate-600 focus:outline-none"

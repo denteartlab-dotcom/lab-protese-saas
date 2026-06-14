@@ -4,10 +4,11 @@ export function configValueFromObservacoes(
   prefix: string
 ): string {
   if (!observacoes) return "";
-  const line = observacoes
+  const linhas = observacoes
     .split("\n")
     .map((l) => l.trim())
-    .find((l) => l.toLowerCase().startsWith(prefix.toLowerCase()));
+    .filter((l) => l.toLowerCase().startsWith(prefix.toLowerCase()));
+  const line = linhas[linhas.length - 1];
   if (!line) return "";
   return line.slice(prefix.length).trim();
 }

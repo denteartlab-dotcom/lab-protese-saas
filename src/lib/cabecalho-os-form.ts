@@ -51,20 +51,27 @@ export function formatMateriaisEnviadosTexto(
     .join(", ");
 }
 
+import { configValueFromObservacoes } from "@/lib/cliente-financeiro";
+
 export function clienteTabelaPrecoDeObservacoes(observacoes?: string | null) {
-  const texto = observacoes || "";
-  const linha = texto
-    .split("\n")
-    .find((item) => item.startsWith("Tabela de Preço:"));
-  return linha?.replace("Tabela de Preço:", "").trim() || "Tabela Principal";
+  return configValueFromObservacoes(observacoes, "Tabela de Preço:") || "Tabela Principal";
 }
 
 export function clienteDescontoGeralDeObservacoes(observacoes?: string | null) {
-  const texto = observacoes || "";
-  const linha = texto
-    .split("\n")
-    .find((item) => item.startsWith("Desconto Geral:"));
-  return linha?.replace("Desconto Geral:", "").trim() || "";
+  return configValueFromObservacoes(observacoes, "Desconto Geral:");
+}
+
+/** Usa o desconto do item; se zerado, aplica o desconto geral do cliente. */
+export function descontoItemComFallbackCliente(
+  descontoItem: string | undefined,
+  descontoCliente: string
+) {
+  const item = descontoItem || "0,00";
+  const digitos = item.replace(/[^\d]/g, "");
+  if (!digitos || digitos === "000") {
+    return descontoCliente || "0,00";
+  }
+  return item;
 }
 
 export function montarCorpoCabecalhoInstrucoes(

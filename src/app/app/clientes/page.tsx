@@ -9,7 +9,9 @@ import { Button, Input, Modal } from "@/components/ui";
 import { abrirWhatsAppAcompanhamentoCliente } from "@/lib/whatsapp";
 import {
   dataNascimentoCliente,
+  descontoGeralClienteObservacoes,
   mesclarObservacoesComDataNascimento,
+  observacoesTextoLivreCliente,
 } from "@/lib/cliente-observacoes";
 import {
   carregarNomesTabelasPreco,
@@ -35,6 +37,7 @@ import {
   exportarClientesExcel,
   gerarListaClientesPdf,
 } from "@/lib/clientes-lista-export";
+import { configValueFromObservacoes } from "@/lib/cliente-financeiro";
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
 
 type Cliente = {
@@ -161,11 +164,7 @@ export default function ClientesPage() {
   }
 
   function configValue(observacoes: string | null | undefined, prefix: string) {
-    return (observacoes || "")
-      .split("\n")
-      .find((line) => line.startsWith(prefix))
-      ?.replace(prefix, "")
-      .trim() || "";
+    return configValueFromObservacoes(observacoes, prefix);
   }
 
   function aplicarEnderecoCep(
@@ -361,14 +360,14 @@ export default function ClientesPage() {
       tipoEntregador: tipoEntregadorCliente(c.observacoes),
       custoEntrega: formatarCustoEntregaCliente(custoEntregaCliente(c.observacoes)),
       tabelaPreco: configValue(c.observacoes, "Tabela de Preço:") || "Tabela Principal",
-      descontoGeral: configValue(c.observacoes, "Desconto Geral:") || "0,00",
+      descontoGeral: descontoGeralClienteObservacoes(c.observacoes) || "0,00",
       limiteSaldoDevedor: configValue(c.observacoes, "Limite Saldo Devedor:") || "0,00",
       diaCobranca: configValue(c.observacoes, "Dia da Cobrança:"),
       endereco: c.endereco || "",
       cidade: c.cidade || "",
       uf: c.uf || "",
       cep: c.cep || "",
-      observacoes: c.observacoes || "",
+      observacoes: observacoesTextoLivreCliente(c.observacoes),
     });
     setAbaModal("dados");
     setOpen(true);
@@ -397,7 +396,7 @@ export default function ClientesPage() {
       observacoes: mesclarObservacoesComDataNascimento(
         mesclarObservacoesComEntregaCliente(
           [
-            form.observacoes,
+            observacoesTextoLivreCliente(form.observacoes),
             form.tipoCliente ? `Tipo de Cliente: ${form.tipoCliente}` : "",
             form.abreviacao ? `Abreviação: ${form.abreviacao}` : "",
             form.contato ? `Contato: ${form.contato}` : "",
@@ -405,7 +404,7 @@ export default function ClientesPage() {
             form.contatoWhatsapp ? `WhatsApp Contato: ${form.contatoWhatsapp}` : "",
             form.representante ? `Representante: ${form.representante}` : "",
             form.tabelaPreco ? `Tabela de Preço: ${form.tabelaPreco}` : "",
-            form.descontoGeral ? `Desconto Geral: ${form.descontoGeral}` : "",
+            `Desconto Geral: ${form.descontoGeral || "0,00"}`,
             form.limiteSaldoDevedor ? `Limite Saldo Devedor: ${form.limiteSaldoDevedor}` : "",
             form.diaCobranca ? `Dia da Cobrança: ${form.diaCobranca}` : "",
           ]

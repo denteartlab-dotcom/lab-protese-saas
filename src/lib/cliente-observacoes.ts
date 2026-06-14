@@ -1,5 +1,41 @@
 import { configValueFromObservacoes } from "@/lib/cliente-financeiro";
 
+export const PREFIXOS_CONFIG_CLIENTE = [
+  "Tipo de Cliente:",
+  "Abreviação:",
+  "Contato:",
+  "Telefone Contato:",
+  "WhatsApp Contato:",
+  "Representante:",
+  "Tabela de Preço:",
+  "Desconto Geral:",
+  "Limite Saldo Devedor:",
+  "Dia da Cobrança:",
+  "Data de Nascimento:",
+  "Entregador:",
+  "Tipo Entregador:",
+  "Custo de Entrega:",
+] as const;
+
+/** Remove linhas de configuração estruturada — evita duplicar ao salvar o cadastro. */
+export function observacoesTextoLivreCliente(observacoes: string | null | undefined) {
+  return (observacoes || "")
+    .split("\n")
+    .map((linha) => linha.trim())
+    .filter(
+      (linha) =>
+        linha &&
+        !PREFIXOS_CONFIG_CLIENTE.some((prefixo) =>
+          linha.toLowerCase().startsWith(prefixo.toLowerCase())
+        )
+    )
+    .join("\n");
+}
+
+export function descontoGeralClienteObservacoes(observacoes: string | null | undefined) {
+  return configValueFromObservacoes(observacoes, "Desconto Geral:");
+}
+
 export function abreviacaoCliente(observacoes: string | null | undefined): string {
   return configValueFromObservacoes(observacoes, "Abreviação:");
 }
