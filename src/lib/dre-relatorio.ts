@@ -5,6 +5,7 @@ import {
   type LancamentoDre,
   MESES_DRE,
 } from "@/lib/dre";
+import { lancamentoEfetivadoFinanceiro } from "@/lib/lancamento-financeiro-realizado";
 import type { ItemPlanoContas } from "@/lib/plano-contas";
 import {
   calcularPontoEquilibrioMensal,
@@ -59,7 +60,7 @@ export function agregarValoresPorCodigoPlano(
   for (const item of plano) porCodigo[item.codigo] = 0;
 
   for (const l of lancamentos) {
-    if (l.status === "cancelado") continue;
+    if (!lancamentoEfetivadoFinanceiro(l)) continue;
     if (anoDaData(l.data) !== ano) continue;
     if (mesIndexDaData(l.data) !== mesIndex) continue;
     const codigo = codigoPlanoDaCategoria(

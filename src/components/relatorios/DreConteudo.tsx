@@ -170,7 +170,7 @@ export function DreConteudo() {
   const recarregar = useCallback(async (silencioso = false) => {
     if (!silencioso) setCarregando(true);
     try {
-      const res = await fetch("/api/financeiro");
+      const res = await fetch("/api/financeiro", { cache: "no-store" });
       const data = await res.json();
       setLancamentos(Array.isArray(data.lancamentos) ? data.lancamentos : []);
       setPlanoContas(carregarPlanoContas());
@@ -192,12 +192,24 @@ export function DreConteudo() {
         void recarregar(true);
       }, 320);
     };
+    const onVisivel = () => {
+      if (document.visibilityState === "visible") {
+        void recarregar(true);
+      }
+    };
+    const onPageshow = (event: PageTransitionEvent) => {
+      if (event.persisted) void recarregar(true);
+    };
     window.addEventListener("labProtesePlanoContasAtualizado", onPlano);
     window.addEventListener(FINANCEIRO_ATUALIZADO_EVENT, onFinanceiro);
+    document.addEventListener("visibilitychange", onVisivel);
+    window.addEventListener("pageshow", onPageshow);
     return () => {
       if (financeiroTimer) clearTimeout(financeiroTimer);
       window.removeEventListener("labProtesePlanoContasAtualizado", onPlano);
       window.removeEventListener(FINANCEIRO_ATUALIZADO_EVENT, onFinanceiro);
+      document.removeEventListener("visibilitychange", onVisivel);
+      window.removeEventListener("pageshow", onPageshow);
     };
   }, [recarregar]);
 
@@ -225,6 +237,11 @@ export function DreConteudo() {
       return d.getFullYear() === ano && d.getMonth() === drilldown.mesIndex;
     });
   }, [drilldown, lancamentos, ano, planoContas]);
+
+  useEffect(() => {
+    if (!drilldown || lancamentosDrill.length > 0) return;
+    setDrilldown(null);
+  }, [drilldown, lancamentosDrill.length]);
 
   function abrirDrilldownMes(mesIndex: number) {
     setDrilldown({
