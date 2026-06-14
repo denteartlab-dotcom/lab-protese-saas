@@ -3,6 +3,7 @@
 import { BriefcaseBusiness, CreditCard, Download, Edit3, Eye, Home, MapPin, Percent, Printer, Trash2, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState, Fragment } from "react";
 import { CargaHorariaColaboradorModal } from "@/components/colaboradores/CargaHorariaColaboradorModal";
+import { PdfViewerModal } from "@/components/dashboard/PdfViewerModal";
 import { CampoDataBr } from "@/components/campo-data-br";
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
@@ -1125,50 +1126,15 @@ export default function ColaboradoresPage() {
         onSave={setCargaHoraria}
       />
 
-      {pdfColaboradoresUrl && (
-        <div className="fixed inset-0 z-[90] bg-slate-900/70 p-4">
-          <div className="mx-auto flex h-full max-w-6xl flex-col overflow-hidden rounded bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-              <h2 className="text-sm font-semibold text-slate-700">Lista de Colaboradores Cadastrados</h2>
-              <div className="flex items-center gap-2">
-                <a
-                  href={pdfColaboradoresUrl}
-                  download="colaboradores.pdf"
-                  className="inline-flex h-8 items-center gap-2 rounded bg-blue-600 px-3 text-[11px] font-semibold text-white hover:bg-blue-700"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Baixar PDF
-                </a>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const iframe = document.querySelector(
-                      'iframe[title="PDF colaboradores"]'
-                    ) as HTMLIFrameElement | null;
-                    try {
-                      iframe?.contentWindow?.print();
-                    } catch {
-                      /* ignorar */
-                    }
-                  }}
-                  className="inline-flex h-8 items-center gap-2 rounded bg-emerald-500 px-3 text-[11px] font-semibold text-white hover:bg-emerald-600"
-                >
-                  <Printer className="h-3.5 w-3.5" />
-                  Imprimir
-                </button>
-                <button
-                  type="button"
-                  onClick={fecharPdfColaboradores}
-                  className="h-8 rounded border border-slate-300 bg-white px-3 text-[11px] text-slate-600 hover:bg-slate-50"
-                >
-                  Fechar
-                </button>
-              </div>
-            </div>
-            <iframe src={pdfColaboradoresUrl} className="h-full w-full bg-slate-200" title="PDF colaboradores" />
-          </div>
-        </div>
-      )}
+      {pdfColaboradoresUrl ? (
+        <PdfViewerModal
+          titulo="Lista de Colaboradores Cadastrados"
+          pdfUrl={pdfColaboradoresUrl}
+          nomeArquivo="colaboradores.pdf"
+          iframeTitle="PDF colaboradores"
+          onFechar={fecharPdfColaboradores}
+        />
+      ) : null}
     </div>
   );
 }

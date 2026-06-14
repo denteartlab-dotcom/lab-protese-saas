@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 import { Download, Printer, X } from "lucide-react";
+import { PdfViewerIframe } from "@/components/pdf/PdfViewerIframe";
+import { PDF_VIEWER_TELA_CHEIA_CLASSES } from "@/lib/pdf-viewer-iframe";
 
 type Props = {
   open: boolean;
@@ -44,28 +46,27 @@ export function PdfDreViewerModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-slate-100">
-      <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
+    <div className={PDF_VIEWER_TELA_CHEIA_CLASSES}>
+      <div className="flex shrink-0 items-center justify-between border-b border-slate-700 bg-[#3c3c3c] px-4 py-3 text-white">
         <div>
-          <h2 className="text-sm font-semibold text-slate-700">{titulo}</h2>
-          <p className="text-xs text-slate-500">Visualizador PDF — Smart Prótese</p>
+          <h2 className="text-sm font-semibold text-white">{titulo}</h2>
+          <p className="text-xs text-slate-300">Visualizador PDF — Smart Prótese</p>
         </div>
         <div className="flex items-center gap-2">
           {pdfUrl ? (
             <>
-              <a href={pdfUrl} download="relatorio-dre.pdf">
-                <button
-                  type="button"
-                  className="flex h-[32px] items-center gap-1.5 rounded-sm border border-[#d1d5db] bg-white px-3 text-[11px] text-[#374151] hover:bg-[#f9fafb]"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Baixar PDF
-                </button>
+              <a
+                href={pdfUrl}
+                download="relatorio-dre.pdf"
+                className="inline-flex items-center gap-1.5 rounded border border-slate-500 px-3 py-1.5 text-xs text-white hover:bg-slate-700"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Baixar PDF
               </a>
               <button
                 type="button"
                 onClick={imprimirPdf}
-                className="flex h-[32px] items-center gap-1.5 rounded-sm bg-[#4a90d9] px-3 text-[11px] font-medium text-white hover:bg-[#3d7fc4]"
+                className="inline-flex items-center gap-1.5 rounded border border-slate-500 px-3 py-1.5 text-xs text-white hover:bg-slate-700"
               >
                 <Printer className="h-3.5 w-3.5" />
                 Imprimir
@@ -75,36 +76,31 @@ export function PdfDreViewerModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1.5 text-slate-500 hover:bg-slate-100"
+            className="inline-flex h-8 w-8 items-center justify-center rounded text-slate-300 hover:bg-slate-700 hover:text-white"
             aria-label="Fechar"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
       </div>
 
       {erro ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-          <p className="text-sm font-medium text-red-600">{erro}</p>
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center text-white">
+          <p className="text-sm font-medium text-red-300">{erro}</p>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-sm bg-[#4a90d9] px-4 py-2 text-[12px] text-white"
+            className="rounded border border-slate-500 px-4 py-2 text-xs text-white hover:bg-slate-700"
           >
             Fechar
           </button>
         </div>
       ) : carregando || !pdfUrl ? (
-        <div className="flex flex-1 items-center justify-center text-sm text-slate-500">
+        <div className="flex flex-1 items-center justify-center text-sm text-slate-300">
           Gerando PDF do relatório...
         </div>
       ) : (
-        <iframe
-          id="pdf-dre-viewer"
-          title={titulo}
-          src={pdfUrl}
-          className="h-full w-full flex-1 border-0"
-        />
+        <PdfViewerIframe id="pdf-dre-viewer" title={titulo} pdfUrl={pdfUrl} />
       )}
     </div>
   );

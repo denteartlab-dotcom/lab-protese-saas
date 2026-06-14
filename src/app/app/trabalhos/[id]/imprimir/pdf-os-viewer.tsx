@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Download, ExternalLink, Printer } from "lucide-react";
 import { Button } from "@/components/ui";
+import { PdfViewerIframe } from "@/components/pdf/PdfViewerIframe";
+import { PDF_VIEWER_PAGINA_CLASSES } from "@/lib/pdf-viewer-iframe";
 import { prepararAbaPdf, visualizarPdfUrl } from "@/lib/pdf-viewer";
 import { LAB_IMPRESSAO_PADRAO, type LabImpressaoConfig } from "@/lib/lab-impressao";
 import {
@@ -2207,7 +2209,7 @@ export function PdfOsViewer({
   }
 
   return (
-    <div className="flex h-screen flex-col bg-[#525659]">
+    <div className={PDF_VIEWER_PAGINA_CLASSES}>
       <div className="flex items-center justify-between border-b border-slate-700 bg-[#3c3c3c] px-4 py-3 text-white">
         <div>
           <h1 className="text-sm font-semibold">OS {data.numeroOs} — PDF</h1>
@@ -2270,11 +2272,10 @@ export function PdfOsViewer({
           </Button>
         </div>
       ) : pdfUrl ? (
-        <iframe
+        <PdfViewerIframe
           id="pdf-os-viewer"
           title={`OS ${data.numeroOs}`}
-          src={pdfUrl}
-          className="h-full w-full flex-1 border-0"
+          pdfUrl={pdfUrl}
         />
       ) : (
         <div className="flex flex-1 items-center justify-center text-sm text-slate-300">

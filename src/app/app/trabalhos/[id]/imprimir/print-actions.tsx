@@ -2,6 +2,7 @@
 
 import { Download, Printer } from "lucide-react";
 import { Button } from "@/components/ui";
+import { srcIframePdfViewer } from "@/lib/pdf-viewer-iframe";
 
 export function PrintActions({
   numeroOs,
@@ -47,7 +48,7 @@ export function PrintActions({
         <iframe
           id="pdf-os-print-actions"
           title={`OS ${numeroOs}`}
-          src={pdfUrl}
+          src={srcIframePdfViewer(pdfUrl)}
           className="pointer-events-none fixed -left-[9999px] h-0 w-0 border-0 opacity-0"
         />
       ) : null}

@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Download, ExternalLink, Printer } from "lucide-react";
 import { Button } from "@/components/ui";
+import { PdfViewerIframe } from "@/components/pdf/PdfViewerIframe";
+import { PDF_VIEWER_PAGINA_CLASSES } from "@/lib/pdf-viewer-iframe";
 import { prepararAbaPdf, visualizarPdfUrl } from "@/lib/pdf-viewer";
 import { gerarPdfAgendaProducao } from "@/lib/pdf-agenda-producao";
 import type { LinhaAgendaPdf } from "@/lib/agenda-producao";
@@ -86,7 +88,7 @@ export function PdfAgendaViewer({ titulo, linhas }: PdfAgendaViewerProps) {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-[#525659]">
+    <div className={PDF_VIEWER_PAGINA_CLASSES}>
       <div className="flex items-center justify-between border-b border-slate-700 bg-[#3c3c3c] px-4 py-3 text-white">
         <div>
           <h1 className="text-sm font-semibold">{titulo}</h1>
@@ -135,12 +137,7 @@ export function PdfAgendaViewer({ titulo, linhas }: PdfAgendaViewerProps) {
           </Button>
         </div>
       ) : pdfUrl ? (
-        <iframe
-          id="pdf-agenda-viewer"
-          title={titulo}
-          src={pdfUrl}
-          className="h-full w-full flex-1 border-0"
-        />
+        <PdfViewerIframe id="pdf-agenda-viewer" title={titulo} pdfUrl={pdfUrl} />
       ) : (
         <div className="flex flex-1 items-center justify-center text-sm text-slate-300">
           Gerando PDF da agenda...

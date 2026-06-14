@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Download, Printer, X } from "lucide-react";
+import { PdfViewerIframe } from "@/components/pdf/PdfViewerIframe";
+import { PDF_VIEWER_TELA_CHEIA_CLASSES } from "@/lib/pdf-viewer-iframe";
 
 type Props = {
   url: string;
@@ -44,8 +46,8 @@ export function PdfViewerOverlay({
   if (!portalPronto) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[10050] flex flex-col bg-[#525659]">
-      <div className="flex items-center justify-between border-b border-slate-700 bg-[#3c3c3c] px-4 py-3 text-white">
+    <div className={PDF_VIEWER_TELA_CHEIA_CLASSES}>
+      <div className="flex shrink-0 items-center justify-between border-b border-slate-700 bg-[#3c3c3c] px-4 py-3 text-white">
         <div>
           <h2 className="text-sm font-semibold">{titulo}</h2>
           <p className="text-xs text-slate-300">Visualização do PDF</p>
@@ -77,12 +79,7 @@ export function PdfViewerOverlay({
           </button>
         </div>
       </div>
-      <iframe
-        id="pdf-viewer-overlay-iframe"
-        src={url}
-        title={titulo}
-        className="h-full w-full flex-1 border-0 bg-white"
-      />
+      <PdfViewerIframe id="pdf-viewer-overlay-iframe" title={titulo} pdfUrl={url} />
     </div>,
     document.body
   );

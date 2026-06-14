@@ -1,3 +1,5 @@
+import { srcIframePdfViewer } from "@/lib/pdf-viewer-iframe";
+
 export type PdfViewerOpcoes = {
   revogarAoFechar?: boolean;
   janela?: Window | null;
@@ -88,7 +90,9 @@ export function visualizarPdfUrl(
     }
   }
 
-  if (navegarAbaPdf(janelaReservada, url)) {
+  const urlVisualizador = srcIframePdfViewer(url);
+
+  if (navegarAbaPdf(janelaReservada, urlVisualizador)) {
     if (revogarAoFechar) agendarRevogarUrl(url);
     return url;
   }
@@ -97,7 +101,7 @@ export function visualizarPdfUrl(
 
   if (typeof window === "undefined") return url;
 
-  const nova = window.open(url, "_blank");
+  const nova = window.open(urlVisualizador, "_blank");
   if (!nova) {
     baixarPdfUrl(url, nomeArquivo);
     if (revogarAoFechar) agendarRevogarUrl(url);

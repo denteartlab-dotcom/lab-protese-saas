@@ -1,8 +1,10 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
 import { Download, Printer } from "lucide-react";
+import { useParams } from "next/navigation";
+import { PdfViewerIframe } from "@/components/pdf/PdfViewerIframe";
+import { PDF_VIEWER_PAGINA_CLASSES } from "@/lib/pdf-viewer-iframe";
 
 type DadosExtratoPublico = {
   titulo: string;
@@ -103,7 +105,7 @@ function ExtratoPublicaViewer() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-[#525659]">
+    <div className={PDF_VIEWER_PAGINA_CLASSES}>
       <div className="flex shrink-0 items-center justify-between border-b border-slate-700 bg-[#3c3c3c] px-4 py-3 text-white">
         <div>
           <h1 className="text-sm font-semibold">{dados.titulo || "Extrato Financeiro"}</h1>
@@ -128,11 +130,10 @@ function ExtratoPublicaViewer() {
           </button>
         </div>
       </div>
-      <iframe
+      <PdfViewerIframe
         id="extrato-publica-iframe"
-        src={pdfUrl}
         title={dados.titulo || "Extrato Financeiro"}
-        className="h-full w-full flex-1 border-0 bg-white"
+        pdfUrl={pdfUrl}
       />
     </div>
   );

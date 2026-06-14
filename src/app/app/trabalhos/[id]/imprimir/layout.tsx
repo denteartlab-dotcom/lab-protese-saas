@@ -4,5 +4,9 @@ export default function ImprimirLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return (
+    <div className="fixed inset-0 z-[9999] flex h-[100dvh] w-screen flex-col overflow-hidden bg-[#525659]">
+      {children}
+    </div>
+  );
 }

@@ -2,7 +2,8 @@
 
 import { useEffect } from "react";
 import { Download, Printer, X } from "lucide-react";
-import { Button } from "@/components/ui";
+import { PdfViewerIframe } from "@/components/pdf/PdfViewerIframe";
+import { PDF_VIEWER_TELA_CHEIA_CLASSES } from "@/lib/pdf-viewer-iframe";
 
 export type PdfViewerOverlayProps = {
   open: boolean;
@@ -47,56 +48,61 @@ export function PdfViewerOverlay({
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-slate-100">
-      <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
+    <div className={PDF_VIEWER_TELA_CHEIA_CLASSES}>
+      <div className="flex shrink-0 items-center justify-between border-b border-slate-700 bg-[#3c3c3c] px-4 py-3 text-white">
         <div>
-          <h2 className="text-sm font-semibold text-slate-700">{titulo}</h2>
-          <p className="text-xs text-slate-500">Visualize, imprima ou baixe o PDF</p>
+          <h2 className="text-sm font-semibold text-white">{titulo}</h2>
+          <p className="text-xs text-slate-300">Visualize, imprima ou baixe o PDF</p>
         </div>
         <div className="flex items-center gap-2">
           {pdfUrl ? (
             <>
-              <a href={pdfUrl} download={nomeArquivo}>
-                <Button type="button" variant="outline" className="gap-1.5 text-xs">
-                  <Download className="h-3.5 w-3.5" />
-                  Baixar PDF
-                </Button>
+              <a
+                href={pdfUrl}
+                download={nomeArquivo}
+                className="inline-flex h-8 items-center gap-2 rounded border border-slate-500 px-3 text-[11px] font-semibold text-white hover:bg-slate-700"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Baixar PDF
               </a>
-              <Button type="button" className="gap-1.5 text-xs" onClick={imprimirPdf}>
+              <button
+                type="button"
+                onClick={imprimirPdf}
+                className="inline-flex h-8 items-center gap-2 rounded border border-slate-500 px-3 text-[11px] font-semibold text-white hover:bg-slate-700"
+              >
                 <Printer className="h-3.5 w-3.5" />
                 Imprimir
-              </Button>
+              </button>
             </>
           ) : null}
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1.5 text-slate-500 hover:bg-slate-100"
+            className="inline-flex h-8 w-8 items-center justify-center rounded border border-slate-500 text-slate-300 hover:bg-slate-700 hover:text-white"
             aria-label="Fechar"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
       </div>
 
       {erro ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-          <p className="text-sm font-medium text-red-600">{erro}</p>
-          <Button type="button" onClick={onClose}>
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center text-white">
+          <p className="text-sm font-medium text-red-300">{erro}</p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded border border-slate-500 px-4 py-2 text-sm text-white hover:bg-slate-700"
+          >
             Fechar
-          </Button>
+          </button>
         </div>
       ) : carregando || !pdfUrl ? (
         <div className="flex flex-1 items-center justify-center text-sm text-slate-500">
           Gerando PDF...
         </div>
       ) : (
-        <iframe
-          id={iframeId}
-          title={titulo}
-          src={pdfUrl}
-          className="h-full w-full flex-1 border-0"
-        />
+        <PdfViewerIframe id={iframeId} title={titulo} pdfUrl={pdfUrl} />
       )}
     </div>
   );

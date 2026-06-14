@@ -1,6 +1,9 @@
 "use client";
 
 import type { AnexoDespesa } from "@/lib/lancamento-despesa";
+import { Download, X } from "lucide-react";
+import { PdfViewerIframe } from "@/components/pdf/PdfViewerIframe";
+import { PDF_VIEWER_TELA_CHEIA_CLASSES } from "@/lib/pdf-viewer-iframe";
 
 type Props = {
   anexo: AnexoDespesa | null;
@@ -14,47 +17,43 @@ export function VisualizadorAnexoDespesa({ anexo, onClose }: Props) {
     anexo.type === "application/pdf" || anexo.name.toLowerCase().endsWith(".pdf");
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4">
-      <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-          <div className="min-w-0">
-            <h2 className="truncate text-sm font-semibold text-slate-700">{anexo.name}</h2>
-            <p className="text-xs text-slate-400">{anexo.type || "Comprovante"}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <a
-              href={anexo.url}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded border border-[#4a90d9]/30 px-3 py-2 text-xs font-medium text-[#4a90d9] hover:bg-[#4a90d9]/5"
-            >
-              Abrir em nova aba
-            </a>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
-            >
-              Fechar
-            </button>
-          </div>
+    <div className={PDF_VIEWER_TELA_CHEIA_CLASSES}>
+      <div className="flex shrink-0 items-center justify-between border-b border-slate-700 bg-[#3c3c3c] px-4 py-3 text-white">
+        <div className="min-w-0">
+          <h2 className="truncate text-sm font-semibold">{anexo.name}</h2>
+          <p className="text-xs text-slate-300">{anexo.type || "Comprovante"}</p>
         </div>
-        <div className="flex flex-1 items-center justify-center overflow-auto bg-slate-950 p-4">
-          {isPdf ? (
-            <iframe
-              src={anexo.url}
-              title={anexo.name}
-              className="h-[78vh] w-full max-w-4xl rounded bg-white"
-            />
-          ) : (
-            <img
-              src={anexo.url}
-              alt={anexo.name}
-              className="max-h-[78vh] max-w-full rounded bg-white object-contain"
-            />
-          )}
+        <div className="flex items-center gap-2">
+          <a
+            href={anexo.url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded border border-slate-500 px-3 py-1.5 text-xs text-white hover:bg-slate-700"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Abrir em nova aba
+          </a>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-8 w-8 items-center justify-center rounded text-slate-300 hover:bg-slate-700 hover:text-white"
+            aria-label="Fechar"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
       </div>
+      {isPdf ? (
+        <PdfViewerIframe title={anexo.name} pdfUrl={anexo.url} />
+      ) : (
+        <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-[#525659] p-4">
+          <img
+            src={anexo.url}
+            alt={anexo.name}
+            className="max-h-full max-w-full object-contain"
+          />
+        </div>
+      )}
     </div>
   );
 }

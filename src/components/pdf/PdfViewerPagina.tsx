@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Download, Printer, X } from "lucide-react";
+import { PdfViewerIframe } from "@/components/pdf/PdfViewerIframe";
+import { PDF_VIEWER_PAGINA_CLASSES } from "@/lib/pdf-viewer-iframe";
 import {
   base64ParaBlobUrl,
   chavePdfViewerSession,
@@ -106,11 +108,11 @@ export function PdfViewerPagina({ id }: Props) {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-[#525659]">
+    <div className={PDF_VIEWER_PAGINA_CLASSES}>
       <div className="flex items-center justify-between border-b border-slate-700 bg-[#3c3c3c] px-4 py-3 text-white">
         <div>
           <h1 className="text-sm font-semibold">{titulo}</h1>
-          <p className="text-xs text-slate-300">Visualização do PDF · Folha A4</p>
+          <p className="text-xs text-slate-300">Visualização do PDF · Folha A4 paisagem</p>
         </div>
         <div className="flex items-center gap-2">
           {pdfUrl ? (
@@ -160,11 +162,10 @@ export function PdfViewerPagina({ id }: Props) {
           Gerando PDF...
         </div>
       ) : (
-        <iframe
+        <PdfViewerIframe
           id="pdf-viewer-pagina-iframe"
-          src={pdfUrl}
           title={titulo}
-          className="h-full w-full flex-1 border-0 bg-white"
+          pdfUrl={pdfUrl}
         />
       )}
     </div>
