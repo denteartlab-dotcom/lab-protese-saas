@@ -3,8 +3,9 @@ import type {
   TvChartPoint,
   TvOrdensResponse,
 } from "@/components/modulo-tv/types";
+import { TV_SOCKET_PATH } from "@/lib/tv/tv-socket-path";
 
-export const TV_SOCKET_PATH = "/api/tv/socket.io";
+export { TV_SOCKET_PATH };
 
 export type TvSocketServerEvents = {
   "tv:sync": TvOrdensResponse & { chart: TvChartPoint[] };

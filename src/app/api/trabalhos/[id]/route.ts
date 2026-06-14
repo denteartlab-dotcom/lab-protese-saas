@@ -21,6 +21,7 @@ import {
 import {
   removerUrgenciaOs,
 } from "@/lib/urgencia-cliente";
+import { notificarTvOrdensAtualizadas } from "@/lib/tv/notificar-tv-ordens";
 import { z } from "zod";
 
 const schema = z.object({
@@ -232,6 +233,8 @@ export async function PUT(
       });
     }
 
+    void notificarTvOrdensAtualizadas();
+
     return NextResponse.json(trabalho);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -313,5 +316,6 @@ export async function DELETE(
   } catch {
     return NextResponse.json({ ok: true });
   }
+  void notificarTvOrdensAtualizadas();
   return NextResponse.json({ ok: true });
 }

@@ -24,12 +24,32 @@ export function TvDashboard() {
     ordens,
     stats,
     carregando,
+    erroCarregamento,
     wsConectado,
     sistemaOnline,
     ultimaAtualizacao,
     maioresAtrasos,
     moverOrdem,
+    recarregar,
   } = useTvDashboard();
+
+  const [socketServidorAtivo, setSocketServidorAtivo] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let ativo = true;
+    void fetch("/api/tv/socket-health", { credentials: "same-origin" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { socketIoAtivo?: boolean } | null) => {
+        if (!ativo) return;
+        setSocketServidorAtivo(Boolean(data?.socketIoAtivo));
+      })
+      .catch(() => {
+        if (ativo) setSocketServidorAtivo(false);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, []);
 
   const toggleFullscreen = useCallback(async () => {
     const el = containerRef.current;
@@ -59,13 +79,14 @@ export function TvDashboard() {
   }, []);
 
   useEffect(() => {
+    if (!modoKiosk) return;
     const t = window.setTimeout(() => {
       const el = containerRef.current;
       if (!el || document.fullscreenElement) return;
       void el.requestFullscreen().catch(() => undefined);
     }, 800);
     return () => window.clearTimeout(t);
-  }, []);
+  }, [modoKiosk]);
 
   useEffect(() => {
     if (!modoKiosk) return;
@@ -106,6 +127,30 @@ export function TvDashboard() {
           onToggleFullscreen={toggleFullscreen}
           modoKiosk={modoKiosk}
         />
+
+        {socketServidorAtivo === false ? (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-center text-[11px] text-amber-200 tv:text-xs">
+            Tempo real indisponível: o servidor está em modo <strong>next start</strong>. Reinicie
+            com <strong>npm run dev</strong> ou <strong>npm run start</strong> para ativar o
+            Socket.IO.
+          </div>
+        ) : null}
+
+        {erroCarregamento ? (
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-[11px] text-red-200 tv:text-xs">
+            <span>
+              Não foi possível carregar as ordens do painel TV. Verifique se o servidor está
+              rodando com <strong>npm run dev</strong> e se você está logado.
+            </span>
+            <button
+              type="button"
+              onClick={() => void recarregar()}
+              className="shrink-0 rounded-md border border-red-400/40 px-2.5 py-1 font-semibold text-red-100 transition hover:bg-red-500/20"
+            >
+              Tentar de novo
+            </button>
+          </div>
+        ) : null}
 
         <div className="flex min-h-0 w-full max-w-none flex-1 gap-2 overflow-hidden tv-hd:gap-2.5 tv:gap-3">
           <TvSidebar stats={stats} />

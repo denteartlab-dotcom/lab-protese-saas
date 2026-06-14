@@ -2,14 +2,16 @@
 
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { io, type Socket } from "socket.io-client";
-import {
-  opcoesClienteTvSocket,
-  resolverOrigemTvSocket,
-} from "@/lib/tv/tv-socket-client";
-import type { TvOrdensResponse } from "@/components/modulo-tv/types";
+import type { TvChartPoint, TvOrdensResponse } from "@/components/modulo-tv/types";
 import { useTvDashboardStore } from "@/components/modulo-tv/store/tv-dashboard-store";
 import { playTvSound } from "@/components/modulo-tv/lib/tv-sounds";
+import {
+  liberarTvSocket,
+  onTvSocketConnect,
+  onTvSocketDisconnect,
+  onTvSocketEvent,
+  referenciarTvSocket,
+} from "@/lib/tv/tv-socket-singleton";
 
 export const TV_QUERY_KEYS = {
   ordens: ["tv", "ordens"] as const,
@@ -18,74 +20,69 @@ export const TV_QUERY_KEYS = {
 
 export function useTvSocket() {
   const queryClient = useQueryClient();
-  const socketRef = useRef<Socket | null>(null);
   const { setWsConectado, marcarOsNova } = useTvDashboardStore();
   const sonsAtivos = useTvDashboardStore((s) => s.sonsAtivos);
   const sonsRef = useRef(sonsAtivos);
   sonsRef.current = sonsAtivos;
 
   useEffect(() => {
-    const socket = io(resolverOrigemTvSocket(), opcoesClienteTvSocket());
+    referenciarTvSocket();
 
-    socketRef.current = socket;
+    const offConnect = onTvSocketConnect(() => setWsConectado(true));
+    const offDisconnect = onTvSocketDisconnect(() => setWsConectado(false));
 
-    const marcarOnline = () => {
-      setWsConectado(true);
-      socket.emit("tv:subscribe");
-    };
-
-    socket.on("connect", marcarOnline);
-    socket.io.on("reconnect", marcarOnline);
-
-    socket.on("disconnect", () => setWsConectado(false));
-    socket.on("connect_error", () => setWsConectado(false));
-
-    socket.on("tv:sync", (payload) => {
-      queryClient.setQueryData(TV_QUERY_KEYS.ordens, {
-        ordens: payload.ordens,
-        colaboradores: payload.colaboradores,
-        stats: payload.stats,
-        ultimaAtualizacao: payload.ultimaAtualizacao,
-      });
-      queryClient.setQueryData(TV_QUERY_KEYS.chart, { pontos: payload.chart });
-    });
-
-    socket.on("tv:ordens:update", (payload: TvOrdensResponse) => {
-      queryClient.setQueryData(TV_QUERY_KEYS.ordens, payload);
-    });
-
-    socket.on("tv:chart:update", (payload) => {
-      queryClient.setQueryData(TV_QUERY_KEYS.chart, payload);
-    });
-
-    socket.on("tv:ordem:nova", ({ ordem }) => {
-      marcarOsNova(ordem.id);
-      if (sonsRef.current) playTvSound("nova");
-      queryClient.setQueryData<TvOrdensResponse>(TV_QUERY_KEYS.ordens, (old) => {
-        if (!old) return old;
-        const exists = old.ordens.some((o) => o.id === ordem.id);
-        return exists
-          ? old
-          : { ...old, ordens: [ordem, ...old.ordens] };
-      });
-    });
-
-    socket.on("tv:ordem:moved", ({ ordem }) => {
-      if (sonsRef.current) playTvSound("movida");
-      queryClient.setQueryData<TvOrdensResponse>(TV_QUERY_KEYS.ordens, (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          ordens: old.ordens.map((o) => (o.id === ordem.id ? ordem : o)),
+    const unsubs = [
+      offConnect,
+      offDisconnect,
+      onTvSocketEvent("tv:sync", (payload) => {
+        const data = payload as TvOrdensResponse & {
+          chart?: TvChartPoint[] | { pontos?: TvChartPoint[] };
         };
-      });
-    });
+        queryClient.setQueryData(TV_QUERY_KEYS.ordens, {
+          ordens: data.ordens,
+          colaboradores: data.colaboradores,
+          stats: data.stats,
+          ultimaAtualizacao: data.ultimaAtualizacao,
+        });
+        if (data.chart) {
+          const pontos = Array.isArray(data.chart)
+            ? data.chart
+            : (data.chart.pontos ?? []);
+          queryClient.setQueryData(TV_QUERY_KEYS.chart, { pontos });
+        }
+      }),
+      onTvSocketEvent("tv:ordens:update", (payload) => {
+        queryClient.setQueryData(TV_QUERY_KEYS.ordens, payload);
+      }),
+      onTvSocketEvent("tv:chart:update", (payload) => {
+        queryClient.setQueryData(TV_QUERY_KEYS.chart, payload);
+      }),
+      onTvSocketEvent("tv:ordem:nova", (payload) => {
+        const { ordem } = payload as { ordem: TvOrdensResponse["ordens"][number] };
+        marcarOsNova(ordem.id);
+        if (sonsRef.current) playTvSound("nova");
+        queryClient.setQueryData<TvOrdensResponse>(TV_QUERY_KEYS.ordens, (old) => {
+          if (!old) return old;
+          const exists = old.ordens.some((o) => o.id === ordem.id);
+          return exists ? old : { ...old, ordens: [ordem, ...old.ordens] };
+        });
+      }),
+      onTvSocketEvent("tv:ordem:moved", (payload) => {
+        const { ordem } = payload as { ordem: TvOrdensResponse["ordens"][number] };
+        if (sonsRef.current) playTvSound("movida");
+        queryClient.setQueryData<TvOrdensResponse>(TV_QUERY_KEYS.ordens, (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            ordens: old.ordens.map((o) => (o.id === ordem.id ? ordem : o)),
+          };
+        });
+      }),
+    ];
 
     return () => {
-      socket.off("connect", marcarOnline);
-      socket.io.off("reconnect", marcarOnline);
-      socket.disconnect();
-      socketRef.current = null;
+      for (const off of unsubs) off();
+      liberarTvSocket();
       setWsConectado(false);
     };
   }, [queryClient, setWsConectado, marcarOsNova]);

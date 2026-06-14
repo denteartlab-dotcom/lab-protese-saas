@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { sessaoCookieSecure } from "@/lib/cookie-secure";
-import { requisicaoTvSocket } from "@/lib/tv/tv-socket-client";
+import { requisicaoTvSocket } from "@/lib/tv/tv-socket-path";
 
 const COOKIE_NAME = "lab-protese-session";
 const PUBLIC = ["/login"];

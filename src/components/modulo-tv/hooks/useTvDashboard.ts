@@ -68,13 +68,13 @@ export function useTvDashboard() {
   const ordensQuery = useQuery({
     queryKey: TV_QUERY_KEYS.ordens,
     queryFn: fetchTvOrdens,
-    refetchInterval: AUTO_REFRESH_MS,
+    refetchInterval: wsConectado ? false : AUTO_REFRESH_MS,
   });
 
   useQuery({
     queryKey: TV_QUERY_KEYS.chart,
     queryFn: fetchTvChart,
-    refetchInterval: AUTO_REFRESH_MS,
+    refetchInterval: wsConectado ? false : AUTO_REFRESH_MS,
   });
 
   const moverMutation = useMutation({
@@ -180,7 +180,12 @@ export function useTvDashboard() {
   }, [sonsAtivos, maioresAtrasos.length]);
 
   const dadosCarregados = ordensQuery.isSuccess;
-  const sistemaOnline = wsConectado || dadosCarregados;
+  const sistemaOnline = wsConectado;
+  const erroCarregamento = ordensQuery.isError
+    ? ordensQuery.error instanceof Error
+      ? ordensQuery.error.message
+      : "Falha ao carregar o painel TV"
+    : null;
 
   return {
     agora,
@@ -190,6 +195,7 @@ export function useTvDashboard() {
     ordensBrutas,
     stats,
     carregando: ordensQuery.isLoading,
+    erroCarregamento,
     wsConectado,
     dadosCarregados,
     sistemaOnline,

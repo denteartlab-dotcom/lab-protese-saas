@@ -1,8 +1,9 @@
 import { createServer } from "http";
+import { execSync } from "node:child_process";
 import { parse } from "url";
 import next from "next";
 import { Server as SocketIOServer } from "socket.io";
-import { requisicaoTvSocket } from "./src/lib/tv/tv-socket-client";
+import { requisicaoTvSocket } from "./src/lib/tv/tv-socket-path";
 import { TV_SOCKET_PATH } from "./src/lib/tv/tv-socket-events";
 import { iniciarBackupAutomaticoDiario } from "./src/lib/backup-automatico";
 import {
@@ -61,14 +62,57 @@ app
 
     iniciarTvRefreshAutomatico();
 
-    httpServer.listen(port, () => {
-      console.log(`> Smart Prótese pronto em http://${hostname}:${port}`);
-      console.log(`> Socket.io TV: ${TV_SOCKET_PATH}`);
+    const iniciarHttp = (tentativa = 1) => {
+      httpServer.once("error", (erro: NodeJS.ErrnoException) => {
+        if (erro.code === "EADDRINUSE" && tentativa < 4) {
+          console.warn(
+            `> Porta ${port} ocupada (tentativa ${tentativa}/3). Liberando e tentando de novo...`
+          );
+          try {
+            if (process.platform === "win32") {
+              const ps = execSync(
+                `powershell -NoProfile -Command "(Get-NetTCPConnection -LocalPort ${port} -State Listen -ErrorAction SilentlyContinue).OwningProcess"`,
+                { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }
+              );
+              for (const linha of ps.split(/\r?\n/)) {
+                const pid = linha.trim();
+                if (pid && /^\d+$/.test(pid) && pid !== String(process.pid)) {
+                  execSync(`taskkill /PID ${pid} /F`, { stdio: "ignore" });
+                }
+              }
+            } else {
+              const saida = execSync(`lsof -ti tcp:${port}`, {
+                encoding: "utf8",
+                stdio: ["pipe", "pipe", "ignore"],
+              });
+              for (const linha of saida.split(/\s+/)) {
+                const pid = linha.trim();
+                if (pid && /^\d+$/.test(pid) && pid !== String(process.pid)) {
+                  process.kill(Number(pid), "SIGKILL");
+                }
+              }
+            }
+          } catch {
+            /* ignore */
+          }
+          setTimeout(() => iniciarHttp(tentativa + 1), 600);
+          return;
+        }
+        console.error("Falha ao escutar na porta", port, erro);
+        process.exit(1);
+      });
 
-      setTimeout(() => {
-        void iniciarBackupAutomaticoDiario();
-      }, 15_000);
-    });
+      httpServer.listen(port, () => {
+        console.log(`> Smart Prótese pronto em http://${hostname}:${port}`);
+        console.log(`> Socket.io TV: ${TV_SOCKET_PATH}`);
+
+        setTimeout(() => {
+          void iniciarBackupAutomaticoDiario();
+        }, 15_000);
+      });
+    };
+
+    iniciarHttp();
   })
   .catch((erro) => {
     console.error("Falha ao iniciar o servidor Next.js:", erro);

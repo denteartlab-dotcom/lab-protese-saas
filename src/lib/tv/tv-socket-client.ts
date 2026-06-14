@@ -1,5 +1,19 @@
-import type { ManagerOptions, SocketOptions } from "socket.io-client";
-import { TV_SOCKET_PATH } from "@/lib/tv/tv-socket-events";
+import { TV_SOCKET_PATH } from "@/lib/tv/tv-socket-path";
+
+export { TV_SOCKET_PATH, requisicaoTvSocket } from "@/lib/tv/tv-socket-path";
+
+type TvSocketClientOptions = {
+  path?: string;
+  transports?: string[];
+  withCredentials?: boolean;
+  reconnection?: boolean;
+  reconnectionAttempts?: number;
+  reconnectionDelay?: number;
+  reconnectionDelayMax?: number;
+  timeout?: number;
+  secure?: boolean;
+  autoConnect?: boolean;
+};
 
 function normalizarOrigin(valor: string) {
   return valor.replace(/\/+$/, "");
@@ -11,7 +25,7 @@ export function resolverOrigemTvSocket(): string {
   return normalizarOrigin(window.location.origin);
 }
 
-export function opcoesClienteTvSocket(): Partial<ManagerOptions & SocketOptions> {
+export function opcoesClienteTvSocket(): TvSocketClientOptions {
   const https =
     typeof window !== "undefined" && window.location.protocol === "https:";
 
@@ -27,8 +41,4 @@ export function opcoesClienteTvSocket(): Partial<ManagerOptions & SocketOptions>
     secure: https,
     autoConnect: true,
   };
-}
-
-export function requisicaoTvSocket(pathname: string) {
-  return pathname === TV_SOCKET_PATH || pathname.startsWith(`${TV_SOCKET_PATH}/`);
 }

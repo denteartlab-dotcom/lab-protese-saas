@@ -7,6 +7,7 @@ import {
   registrarLogAuditoria,
 } from "@/lib/logs-auditoria";
 import { proximoNumeroOsDisponivel, registrarNumeroOsUtilizado } from "@/lib/os-sequencia";
+import { notificarTvOrdensAtualizadas } from "@/lib/tv/notificar-tv-ordens";
 import { z } from "zod";
 
 const schema = z.object({
@@ -190,6 +191,8 @@ export async function POST(request: Request) {
       usuarioId: session.id,
       usuarioNome: session.name,
     });
+
+    void notificarTvOrdensAtualizadas();
 
     return NextResponse.json(trabalho, { status: 201 });
   } catch (error) {
