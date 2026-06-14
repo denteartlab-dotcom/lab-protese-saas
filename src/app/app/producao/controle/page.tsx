@@ -130,7 +130,9 @@ import {
   clienteDescontoGeralDeObservacoes,
   clienteDescontoGeralTipoDeObservacoes,
   clienteTabelaPrecoDeObservacoes,
-  descontoItemComFallbackCliente,
+  descontoFormularioParaValorUn,
+  descontoItemResolvidoParaValor,
+  descontoZeradoPorTipo,
   linhaInstrucaoOs,
   montarCorpoCabecalhoInstrucoes,
 } from "@/lib/cabecalho-os-form";
@@ -557,6 +559,9 @@ function formatPercentInputControle(value: string) {
 }
 
 function valorComDescontoControle(valor: number, descontoTipo?: string, desconto?: string) {
+  if (!Number.isFinite(valor) || valor <= 0.009) {
+    return 0;
+  }
   const descontoTexto = desconto || "0,00";
   const descontoValor =
     descontoTipo === "valor" || descontoTexto.trim().startsWith("R$")
@@ -1440,10 +1445,16 @@ export default function ControlePage() {
     );
     setForm((atual) => {
       if (!atual) return atual;
-      if (atual.desconto === desconto && atual.descontoTipo === descontoTipo) {
+      const nextDesconto = descontoFormularioParaValorUn(
+        parseCurrencyBr(atual.valor),
+        descontoTipo,
+        desconto,
+        desconto
+      );
+      if (atual.desconto === nextDesconto && atual.descontoTipo === descontoTipo) {
         return atual;
       }
-      return { ...atual, descontoTipo, desconto };
+      return { ...atual, descontoTipo, desconto: nextDesconto };
     });
   }, [editando, form?.clienteId, clientesCatalogo, itemSelecionadoId]);
 
@@ -2154,13 +2165,17 @@ export default function ControlePage() {
     setTipoDenticao(denticaoItem);
     setDentesEdicao(dentesItem);
     const descontoItem = item.desconto || "0,00";
-    const descontoResolvido = descontoItemComFallbackCliente(
+    const descontoTipoItem =
+      item.descontoTipo || (descontoItem.startsWith("R$") ? "valor" : "percentual");
+    const descontoResolvido = descontoItemResolvidoParaValor(
+      unitario,
       descontoItem,
       descontoGeralClienteControle(
         form?.clienteId || editando!.clienteId,
         clientesCatalogo,
         editando
-      ).desconto
+      ).desconto,
+      descontoTipoItem
     );
     setForm((atual) => ({
       ...(atual || formVazioEdicao(editando!)),
@@ -2257,6 +2272,18 @@ export default function ControlePage() {
     }
 
     const qtd = Number(form.quantidade || 1) || 1;
+    const valorUnitario = parseCurrencyBr(form.valor);
+    const descontoCliente = descontoGeralClienteControle(
+      form.clienteId,
+      clientesCatalogo,
+      editando
+    );
+    const desconto = descontoFormularioParaValorUn(
+      valorUnitario,
+      form.descontoTipo,
+      form.desconto,
+      descontoCliente.desconto
+    );
     const nomeServico = form.tipoProtese;
     return {
       ...base,
@@ -2265,9 +2292,9 @@ export default function ControlePage() {
       numeroDente: form.dentes || "-",
       corDente: form.cor || "-",
       quantidade: form.quantidade || "1",
-      valor: parseCurrencyBr(form.valor) * qtd,
+      valor: valorUnitario * qtd,
       descontoTipo: form.descontoTipo,
-      desconto: form.desconto,
+      desconto,
       situacao: form.status,
       urgente: form.urgente,
       repeticao: form.repeticao,
@@ -2367,6 +2394,18 @@ export default function ControlePage() {
     if (adicionandoServico && painelEdicaoItem === "servico") {
       if (!form.tipoProtese.trim() && dentesEdicao.length === 0) return;
       const quantidade = form.quantidade || "1";
+      const valorUnitario = parseCurrencyBr(form.valor);
+      const descontoCliente = descontoGeralClienteControle(
+        form.clienteId,
+        clientesCatalogo,
+        editando
+      );
+      const desconto = descontoFormularioParaValorUn(
+        valorUnitario,
+        form.descontoTipo,
+        form.desconto,
+        descontoCliente.desconto
+      );
       const nomeServico = form.tipoProtese.trim() || "Novo serviço";
       const novo: EditItem = {
         id: `${Date.now()}`,
@@ -2375,9 +2414,9 @@ export default function ControlePage() {
         numeroDente: form.dentes || "-",
         corDente: form.cor || "-",
         quantidade,
-        valor: parseCurrencyBr(form.valor) * (Number(quantidade) || 1),
+        valor: valorUnitario * (Number(quantidade) || 1),
         descontoTipo: form.descontoTipo,
-        desconto: form.desconto,
+        desconto,
         situacao: form.status,
         urgente: form.urgente,
         repeticao: form.repeticao,
@@ -2446,7 +2485,7 @@ export default function ControlePage() {
       quantidade: "1",
       valor: "R$ 0,00",
       descontoTipo,
-      desconto,
+      desconto: descontoZeradoPorTipo(descontoTipo),
       observacaoServico: "",
       urgente: false,
       repeticao: false,
@@ -2477,7 +2516,7 @@ export default function ControlePage() {
         quantidade: "1",
       valor: "R$ 0,00",
       descontoTipo,
-      desconto,
+      desconto: descontoZeradoPorTipo(descontoTipo),
       observacaoServico: "",
       urgente: false,
       repeticao: false,
@@ -3836,9 +3875,25 @@ export default function ControlePage() {
                         label="Valor Un."
                         selectOnFocus
                   value={form.valor}
-                        onChange={(e) =>
-                          setForm({ ...form, valor: formatCurrencyInputControle(e.target.value) })
-                        }
+                        onChange={(e) => {
+                          const valor = formatCurrencyInputControle(e.target.value);
+                          const valorNumero = parseCurrencyBr(valor);
+                          const descontoCliente = descontoGeralClienteControle(
+                            form.clienteId,
+                            clientesCatalogo,
+                            editando
+                          );
+                          setForm({
+                            ...form,
+                            valor,
+                            desconto: descontoFormularioParaValorUn(
+                              valorNumero,
+                              form.descontoTipo,
+                              form.desconto,
+                              descontoCliente.desconto
+                            ),
+                          });
+                        }}
                       />
                       <div className="space-y-1">
                         <label className="block text-sm font-medium text-slate-700">Desc.</label>
@@ -3852,13 +3907,16 @@ export default function ControlePage() {
                                 clientesCatalogo,
                                 editando
                               );
+                              const valorNumero = parseCurrencyBr(form.valor);
                               setForm({
                                 ...form,
                                 descontoTipo,
                                 desconto:
-                                  descontoTipo === "valor"
-                                    ? "R$ 0,00"
-                                    : descontoCliente.desconto,
+                                  valorNumero <= 0.009
+                                    ? descontoZeradoPorTipo(descontoTipo)
+                                    : descontoTipo === "valor"
+                                      ? "R$ 0,00"
+                                      : descontoCliente.desconto,
                               });
                             }}
                             className="w-14 border-r border-slate-300 bg-white px-2 text-sm text-slate-600 focus:outline-none"

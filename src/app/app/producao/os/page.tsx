@@ -50,7 +50,9 @@ import {
 import {
   clienteDescontoGeralDeObservacoes,
   clienteDescontoGeralTipoDeObservacoes,
-  descontoItemComFallbackCliente,
+  descontoFormularioParaValorUn,
+  descontoItemResolvidoParaValor,
+  descontoZeradoPorTipo,
 } from "@/lib/cabecalho-os-form";
 import { calcularDatasPrazoServico } from "@/lib/prazos-servico";
 import {
@@ -783,7 +785,16 @@ export default function OrdemServicoPage() {
 
       const descontoCliente = clienteConfigFromObservacoes(trabalho.cliente?.observacoes).descontoGeral;
       const descontoItem = primeiroItem?.desconto || "0,00";
-      const descontoEdicao = descontoItemComFallbackCliente(descontoItem, descontoCliente);
+      const valorUnitarioEdicao =
+        primeiroItem && Number(primeiroItem.quantidade || 1) > 0
+          ? primeiroItem.valor / Number(primeiroItem.quantidade || 1)
+          : 0;
+      const descontoEdicao = descontoItemResolvidoParaValor(
+        valorUnitarioEdicao,
+        descontoItem,
+        descontoCliente,
+        primeiroItem?.descontoTipo
+      );
 
       setTipoDenticao(denticaoCarregada);
       setDentes(Array.from(new Set(dentesCarregados)));
@@ -850,7 +861,7 @@ export default function OrdemServicoPage() {
         quantidade: "1",
         valor: "R$ 0,00",
         descontoTipo: "percentual",
-        desconto: descontoEdicao,
+        desconto: "0,00",
         dataLancamento: new Date(trabalho.dataEntrada).toLocaleDateString("pt-BR"),
         dataLaboratorio: trabalho.dataPrevista ? new Date(trabalho.dataPrevista).toLocaleDateString("pt-BR") : "",
         dataDentista: trabalho.dataPrevista ? new Date(trabalho.dataPrevista).toLocaleDateString("pt-BR") : "",
@@ -1108,11 +1119,19 @@ export default function OrdemServicoPage() {
 
   function aplicarConfiguracaoCliente(clienteId: string) {
     const config = clienteConfig(clienteId);
+    const descontoTipo = config.descontoGeralTipo || "percentual";
+    const descontoCliente =
+      config.descontoGeral || (descontoTipo === "valor" ? "R$ 0,00" : "0,00");
     setForm((current) => ({
       ...current,
       clienteId,
-      descontoTipo: config.descontoGeralTipo || "percentual",
-      desconto: config.descontoGeral || (config.descontoGeralTipo === "valor" ? "R$ 0,00" : "0,00"),
+      descontoTipo,
+      desconto: descontoFormularioParaValorUn(
+        parseCurrency(current.valor),
+        descontoTipo,
+        descontoCliente,
+        descontoCliente
+      ),
     }));
   }
 
@@ -1129,10 +1148,16 @@ export default function OrdemServicoPage() {
     if (!form.clienteId || itemSelecionadoId) return;
     const { desconto, descontoTipo } = descontoGeralDoClienteSelecionado(form.clienteId);
     setForm((current) => {
-      if (current.desconto === desconto && current.descontoTipo === descontoTipo) {
+      const nextDesconto = descontoFormularioParaValorUn(
+        parseCurrency(current.valor),
+        descontoTipo,
+        desconto,
+        desconto
+      );
+      if (current.desconto === nextDesconto && current.descontoTipo === descontoTipo) {
         return current;
       }
-      return { ...current, descontoTipo, desconto };
+      return { ...current, descontoTipo, desconto: nextDesconto };
     });
   }, [form.clienteId, clientes, itemSelecionadoId]);
 
@@ -1206,10 +1231,18 @@ export default function OrdemServicoPage() {
     if (!servico) return;
 
     const tipo = servico.tipo || "servico";
+    const valorNumero = servico.valor ?? 0;
     const valorFmt =
       servico.valor !== undefined
-        ? servico.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+        ? valorNumero.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
         : "R$ 0,00";
+    const descontoCliente = descontoGeralDoClienteSelecionado();
+    const descontoServico = descontoFormularioParaValorUn(
+      valorNumero,
+      descontoCliente.descontoTipo,
+      descontoCliente.desconto,
+      descontoCliente.desconto
+    );
 
     if (tipo === "transporte") {
       setProdutosOs([]);
@@ -1222,6 +1255,7 @@ export default function OrdemServicoPage() {
         tipoProtese: `Transporte: ${servico.nome}`,
         produtoId: "",
         valor: valorFmt,
+        desconto: descontoServico,
         quantidade: "1",
         dataLaboratorio: "",
         dataDentista: "",
@@ -1241,6 +1275,7 @@ export default function OrdemServicoPage() {
         tipoProtese: `Produto: ${servico.nome}`,
         produtoId: servico.produtoId || servico.id,
         valor: valorFmt,
+        desconto: descontoServico,
         quantidade: "1",
         dataLaboratorio: "",
         dataDentista: "",
@@ -1256,6 +1291,7 @@ export default function OrdemServicoPage() {
       tipoProtese: servico.nome,
       produtoId: "",
       valor: valorFmt,
+      desconto: descontoServico,
       dataLaboratorio: prazos.dataLaboratorio,
       dataDentista: prazos.dataDentista,
     }));
@@ -1413,6 +1449,9 @@ export default function OrdemServicoPage() {
   );
 
   function valorComDesconto(valor: number, descontoTipo?: string, desconto?: string) {
+    if (!Number.isFinite(valor) || valor <= 0.009) {
+      return 0;
+    }
     const descontoTexto = desconto || "0,00";
     const descontoValor =
       descontoTipo === "valor" || descontoTexto.trim().startsWith("R$")
@@ -1899,9 +1938,11 @@ export default function OrdemServicoPage() {
     setItemSelecionadoId(item.id);
     setTipoDenticao(denticaoItem);
     setDentes(dentesFromResumo(item.numeroDente, denticaoItem));
-    const descontoResolvido = descontoItemComFallbackCliente(
+    const descontoResolvido = descontoItemResolvidoParaValor(
+      unitario,
       item.desconto,
-      descontoGeralDoClienteSelecionado().desconto
+      descontoGeralDoClienteSelecionado().desconto,
+      item.descontoTipo || (item.desconto?.startsWith("R$") ? "valor" : "percentual")
     );
     setForm((current) => ({
       ...current,
@@ -2039,7 +2080,14 @@ export default function OrdemServicoPage() {
 
   function itemUnicoDoFormulario(itemBase: ItemAdicionado): ItemAdicionado | null {
     const numeroDente = numeroDenteServico();
-    const descontoCampos = { descontoTipo: form.descontoTipo, desconto: form.desconto };
+    const valorUnitario = parseCurrency(form.valor);
+    const desconto = descontoFormularioParaValorUn(
+      valorUnitario,
+      form.descontoTipo,
+      form.desconto,
+      descontoGeralDoClienteSelecionado().desconto
+    );
+    const descontoCampos = { descontoTipo: form.descontoTipo, desconto };
     const flagsUrgencia = { urgente: form.urgente, repeticao: form.repeticao };
     const tipo = tipoItemAdicionado(itemBase);
 
@@ -2114,7 +2162,14 @@ export default function OrdemServicoPage() {
     }
 
     const numeroDente = numeroDenteServico();
-    const descontoCampos = { descontoTipo: form.descontoTipo, desconto: form.desconto };
+    const valorUnitario = parseCurrency(form.valor);
+    const desconto = descontoFormularioParaValorUn(
+      valorUnitario,
+      form.descontoTipo,
+      form.desconto,
+      descontoGeralDoClienteSelecionado().desconto
+    );
+    const descontoCampos = { descontoTipo: form.descontoTipo, desconto };
     const flagsUrgencia = { urgente: form.urgente, repeticao: form.repeticao };
 
     const montarTransporte = (nome: string, quantidade: string, valorStr: string): ItemAdicionado => ({
@@ -2347,7 +2402,9 @@ export default function OrdemServicoPage() {
       quantidade: "1",
       valor: "R$ 0,00",
       descontoTipo: descontoGeralDoClienteSelecionado(current.clienteId).descontoTipo,
-      desconto: descontoGeralDoClienteSelecionado(current.clienteId).desconto,
+      desconto: descontoZeradoPorTipo(
+        descontoGeralDoClienteSelecionado(current.clienteId).descontoTipo
+      ),
       escala: "",
       cor: "",
       situacao: "producao",
@@ -3613,23 +3670,42 @@ export default function OrdemServicoPage() {
                 label="Valor Un."
                 selectOnFocus
                 value={form.valor}
-                onChange={(e) => setForm({ ...form, valor: formatCurrencyInput(e.target.value) })}
+                onChange={(e) => {
+                  const valor = formatCurrencyInput(e.target.value);
+                  const valorNumero = parseCurrency(valor);
+                  const descontoCliente = descontoGeralDoClienteSelecionado();
+                  setForm({
+                    ...form,
+                    valor,
+                    desconto: descontoFormularioParaValorUn(
+                      valorNumero,
+                      form.descontoTipo,
+                      form.desconto,
+                      descontoCliente.desconto
+                    ),
+                  });
+                }}
               />
               <div className="space-y-1">
                 <label className="block text-sm font-medium text-slate-700">Desc.</label>
                 <div className="flex overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20">
                   <select
                     value={form.descontoTipo}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const descontoTipo = e.target.value;
+                      const descontoCliente = descontoGeralDoClienteSelecionado();
+                      const valorNumero = parseCurrency(form.valor);
                       setForm({
                         ...form,
-                        descontoTipo: e.target.value,
+                        descontoTipo,
                         desconto:
-                          e.target.value === "valor"
-                            ? "R$ 0,00"
-                            : descontoGeralDoClienteSelecionado().desconto,
-                      })
-                    }
+                          valorNumero <= 0.009
+                            ? descontoZeradoPorTipo(descontoTipo)
+                            : descontoTipo === "valor"
+                              ? "R$ 0,00"
+                              : descontoCliente.desconto,
+                      });
+                    }}
                     className="w-14 border-r border-slate-300 bg-white px-2 text-sm text-slate-600 focus:outline-none"
                   >
                     <option value="percentual">%</option>

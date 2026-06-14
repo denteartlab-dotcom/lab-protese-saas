@@ -79,6 +79,35 @@ export function descontoItemComFallbackCliente(
   return item;
 }
 
+export function descontoZeradoPorTipo(descontoTipo?: string) {
+  return descontoTipo === "valor" ? "R$ 0,00" : "0,00";
+}
+
+/** Com valor zerado, desconto fica 0% ou R$ 0,00 conforme o tipo. */
+export function descontoItemResolvidoParaValor(
+  valor: number,
+  descontoItem: string | undefined,
+  descontoCliente: string,
+  descontoTipo?: string
+) {
+  if (!Number.isFinite(valor) || valor <= 0.009) {
+    return descontoZeradoPorTipo(descontoTipo);
+  }
+  return descontoItemComFallbackCliente(descontoItem, descontoCliente);
+}
+
+export function descontoFormularioParaValorUn(
+  valor: number,
+  descontoTipo: string | undefined,
+  descontoAtual: string | undefined,
+  descontoCliente: string
+) {
+  if (!Number.isFinite(valor) || valor <= 0.009) {
+    return descontoZeradoPorTipo(descontoTipo);
+  }
+  return descontoAtual || descontoCliente || descontoZeradoPorTipo(descontoTipo);
+}
+
 export function montarCorpoCabecalhoInstrucoes(
   instrucoesCorpo: string,
   cabecalho: Pick<

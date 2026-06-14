@@ -41,6 +41,9 @@ export function valorLiquidoItemOs(item: {
   desconto?: string;
   descontoTipo?: string;
 }) {
+  if (!Number.isFinite(item.valor) || item.valor <= 0.009) {
+    return 0;
+  }
   const descontoTexto = item.desconto || "0,00";
   const descontoValor =
     item.descontoTipo === "valor" || descontoTexto.trim().startsWith("R$")
@@ -52,10 +55,18 @@ export function valorLiquidoItemOs(item: {
 }
 
 export function trechoDescontoLinhaItemOs(
-  item: ItemOsLinha & { desconto?: string; descontoTipo?: string }
+  item: ItemOsLinha & { desconto?: string; descontoTipo?: string; valor?: number }
 ) {
   if (!itemUsaCamposOdontologicos(item) || !item.desconto) return "";
+  if (item.valor !== undefined && item.valor <= 0.009) return "";
   const tipo = item.descontoTipo === "valor" ? "valor" : "percentual";
+  if (
+    item.desconto === "0" ||
+    item.desconto === "0,00" ||
+    item.desconto === "R$ 0,00"
+  ) {
+    return "";
+  }
   return ` - desc ${item.desconto} - descTipo ${tipo}`;
 }
 
