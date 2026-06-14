@@ -353,7 +353,9 @@ export function ImprimirOsModal({
             </label>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
+          <div
+            className={`grid gap-3 ${permitirSomenteItem ? "md:grid-cols-3" : "md:grid-cols-2"}`}
+          >
             {formato === "etiquetas" ? (
               <Select
                 label="Modelo OS"
@@ -388,25 +390,27 @@ export function ImprimirOsModal({
               </Select>
             ) : null}
 
-            {multiplosSegmentos ? (
-              <Select
-                label="Somente Item Selecionado"
-                value={somenteItem}
-                onChange={(e) => setSomenteItem(e.target.value)}
-              >
-                <option value="sim">Sim</option>
-                <option value="nao">Não</option>
-              </Select>
-            ) : (
-              <div className="space-y-1">
-                <span className="block text-sm font-medium text-slate-700">
-                  Somente Item Selecionado
-                </span>
-                <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
-                  Não — único segmento nesta OS
-                </p>
-              </div>
-            )}
+            {permitirSomenteItem ? (
+              multiplosSegmentos ? (
+                <Select
+                  label="Somente Item Selecionado"
+                  value={somenteItem}
+                  onChange={(e) => setSomenteItem(e.target.value)}
+                >
+                  <option value="sim">Sim</option>
+                  <option value="nao">Não</option>
+                </Select>
+              ) : (
+                <div className="space-y-1">
+                  <span className="block text-sm font-medium text-slate-700">
+                    Somente Item Selecionado
+                  </span>
+                  <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                    Não — único segmento nesta OS
+                  </p>
+                </div>
+              )
+            ) : null}
 
             <Select
               label="Imprimir em 2 vias"
