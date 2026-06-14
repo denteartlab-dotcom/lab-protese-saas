@@ -8,7 +8,20 @@ const schema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
   remember: z.boolean().optional(),
+  empresaSlug: z.string().min(1).optional(),
 });
+
+const selectUsuarioLogin = {
+  id: true,
+  name: true,
+  email: true,
+  password: true,
+  role: true,
+  permissoesJson: true,
+  excluidoEm: true,
+  empresaId: true,
+  empresa: { select: { id: true, nome: true, slug: true, status: true } },
+} as const;
 
 export async function POST(request: Request) {
   if (!process.env.JWT_SECRET?.trim()) {
@@ -33,25 +46,49 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "E-mail ou senha inválidos." }, { status: 400 });
   }
 
-  const { email, password, remember } = parsed.data;
+  const { email, password, remember, empresaSlug } = parsed.data;
+  const emailNorm = email.trim().toLowerCase();
+  const slugInformado = empresaSlug?.trim().toLowerCase();
 
   try {
-    const user = await prisma.user.findUnique({
-      where: { email: email.trim().toLowerCase() },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        password: true,
-        role: true,
-        permissoesJson: true,
-        excluidoEm: true,
+    const candidatos = await prisma.user.findMany({
+      where: {
+        email: emailNorm,
+        excluidoEm: null,
+        ...(slugInformado
+          ? { empresa: { slug: slugInformado, status: "ativo" } }
+          : { empresa: { status: "ativo" } }),
       },
+      select: selectUsuarioLogin,
+      orderBy: { createdAt: "asc" },
     });
-    if (!user || user.excluidoEm) {
+
+    if (candidatos.length === 0) {
       return NextResponse.json(
         { error: "E-mail ou senha inválidos." },
         { status: 401 }
+      );
+    }
+
+    if (!slugInformado && candidatos.length > 1) {
+      return NextResponse.json(
+        {
+          error: "Este e-mail está em mais de um laboratório. Escolha qual deseja acessar.",
+          code: "MULTIPLAS_CONTAS",
+          empresas: candidatos.map((item) => ({
+            slug: item.empresa.slug,
+            nome: item.empresa.nome,
+          })),
+        },
+        { status: 409 }
+      );
+    }
+
+    const user = candidatos[0];
+    if (!user.empresa || user.empresa.status !== "ativo") {
+      return NextResponse.json(
+        { error: "Laboratório indisponível. Contate o suporte." },
+        { status: 403 }
       );
     }
     if (parsePermissoesUsuario(user.permissoesJson).situacao === "inativo") {
@@ -73,6 +110,9 @@ export async function POST(request: Request) {
         name: user.name,
         email: user.email,
         role: user.role,
+        empresaId: user.empresaId,
+        empresaSlug: user.empresa.slug,
+        empresaNome: user.empresa.nome,
       },
       { remember: remember === true }
     );
@@ -82,6 +122,8 @@ export async function POST(request: Request) {
         id: user.id,
         name: user.name,
         email: user.email,
+        empresaSlug: user.empresa.slug,
+        empresaNome: user.empresa.nome,
       },
     });
   } catch (err) {

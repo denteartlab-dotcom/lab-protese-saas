@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { CheckCircle2, FolderOpen, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { CheckCircle2, Download, FolderOpen, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui";
 import { useI18n } from "@/components/i18n-provider";
 import { formatarTamanhoArmazenamento } from "@/lib/uploads-armazenamento";
@@ -23,11 +23,17 @@ export function ModalAbrirPastaBackup({ open, onClose, onMensagem }: Props) {
   const [senha, setSenha] = useState("");
   const [erroInline, setErroInline] = useState<string | null>(null);
   const [processando, setProcessando] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
+  const [baixando, setBaixando] = useState<string | null>(null);
   const [pasta, setPasta] = useState("");
   const [arquivos, setArquivos] = useState<ArquivoBackup[]>([]);
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [acessoLiberado, setAcessoLiberado] = useState(false);
-  const [mensagemExplorer, setMensagemExplorer] = useState<string | null>(null);
-  const [explorerAberto, setExplorerAberto] = useState(false);
+
+  const todosSelecionados = useMemo(
+    () => arquivos.length > 0 && selecionados.size === arquivos.length,
+    [arquivos.length, selecionados.size]
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -35,9 +41,10 @@ export function ModalAbrirPastaBackup({ open, onClose, onMensagem }: Props) {
     setErroInline(null);
     setPasta("");
     setArquivos([]);
+    setSelecionados(new Set());
     setAcessoLiberado(false);
-    setMensagemExplorer(null);
-    setExplorerAberto(false);
+    setExcluindo(false);
+    setBaixando(null);
   }, [open]);
 
   async function abrirPasta() {
@@ -60,8 +67,6 @@ export function ModalAbrirPastaBackup({ open, onClose, onMensagem }: Props) {
         error?: string;
         pasta?: string;
         arquivos?: ArquivoBackup[];
-        aberto?: boolean;
-        mensagem?: string | null;
       };
 
       if (!res.ok) {
@@ -74,18 +79,8 @@ export function ModalAbrirPastaBackup({ open, onClose, onMensagem }: Props) {
       setAcessoLiberado(true);
       setPasta(data.pasta || "");
       setArquivos(data.arquivos || []);
-      setExplorerAberto(Boolean(data.aberto));
-      setMensagemExplorer(
-        data.aberto
-          ? null
-          : data.mensagem || t("settings.backupAutoAbrirPastaSemExplorer")
-      );
-      onMensagem?.(
-        data.aberto
-          ? t("settings.backupAutoAbrirPastaSucesso")
-          : t("settings.backupAutoAbrirPastaListaPronta"),
-        data.aberto ? "sucesso" : "info"
-      );
+      setSelecionados(new Set());
+      onMensagem?.(t("settings.backupAutoAbrirPastaListaPronta"), "sucesso");
     } catch {
       const mensagemErro = t("settings.backupAutoAbrirPastaErro");
       setErroInline(mensagemErro);
@@ -95,12 +90,111 @@ export function ModalAbrirPastaBackup({ open, onClose, onMensagem }: Props) {
     }
   }
 
+  async function baixarArquivo(nome: string) {
+    setBaixando(nome);
+    setErroInline(null);
+    try {
+      const res = await fetch(
+        `/api/backup/baixar-arquivo?arquivo=${encodeURIComponent(nome)}`,
+        { credentials: "same-origin" }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(
+          (data as { error?: string }).error || t("settings.backupAutoBaixarArquivoErro")
+        );
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = nome;
+      a.click();
+      URL.revokeObjectURL(url);
+      onMensagem?.(
+        t("settings.backupAutoBaixarArquivoSucesso").replace("{nome}", nome),
+        "sucesso"
+      );
+    } catch (erro) {
+      const mensagemErro =
+        erro instanceof Error ? erro.message : t("settings.backupAutoBaixarArquivoErro");
+      setErroInline(mensagemErro);
+      onMensagem?.(mensagemErro, "erro");
+    } finally {
+      setBaixando(null);
+    }
+  }
+
+  function alternarSelecao(nome: string) {
+    setSelecionados((atual) => {
+      const next = new Set(atual);
+      if (next.has(nome)) next.delete(nome);
+      else next.add(nome);
+      return next;
+    });
+  }
+
+  function alternarTodos() {
+    if (todosSelecionados) {
+      setSelecionados(new Set());
+      return;
+    }
+    setSelecionados(new Set(arquivos.map((a) => a.nome)));
+  }
+
+  async function excluirArquivos(nomes: string[]) {
+    const senhaInformada = senha.trim();
+    if (!senhaInformada) {
+      setErroInline(t("settings.backupAutoAbrirPastaInformeSenha"));
+      return;
+    }
+    if (nomes.length === 0) return;
+
+    setExcluindo(true);
+    setErroInline(null);
+    try {
+      const res = await fetch("/api/backup/excluir-arquivos", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ senha: senhaInformada, arquivos: nomes }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        excluidos?: string[];
+        arquivos?: ArquivoBackup[];
+      };
+
+      if (!res.ok) {
+        const mensagemErro =
+          data.error || t("settings.backupAutoExcluirArquivoErro");
+        setErroInline(mensagemErro);
+        onMensagem?.(mensagemErro, "erro");
+        return;
+      }
+
+      setArquivos(data.arquivos || []);
+      setSelecionados(new Set());
+      const qtd = data.excluidos?.length ?? nomes.length;
+      onMensagem?.(
+        t("settings.backupAutoExcluirArquivoSucesso").replace("{n}", String(qtd)),
+        "sucesso"
+      );
+    } catch {
+      const mensagemErro = t("settings.backupAutoExcluirArquivoErro");
+      setErroInline(mensagemErro);
+      onMensagem?.(mensagemErro, "erro");
+    } finally {
+      setExcluindo(false);
+    }
+  }
+
   if (!open) return null;
 
   return (
     <div
       className="fixed inset-0 z-[96] flex items-center justify-center bg-black/50 p-4"
-      onClick={() => !processando && onClose()}
+      onClick={() => !processando && !excluindo && !baixando && onClose()}
     >
       <div
         role="dialog"
@@ -131,7 +225,7 @@ export function ModalAbrirPastaBackup({ open, onClose, onMensagem }: Props) {
           <button
             type="button"
             onClick={onClose}
-            disabled={processando}
+            disabled={processando || excluindo || Boolean(baixando)}
             className="absolute right-3 top-3 rounded p-1 text-slate-500 hover:bg-emerald-100 disabled:opacity-50"
             aria-label="Fechar"
           >
@@ -175,11 +269,7 @@ export function ModalAbrirPastaBackup({ open, onClose, onMensagem }: Props) {
             <div className="space-y-4">
               <div className="flex items-start gap-2 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-950">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                <p>
-                  {explorerAberto
-                    ? t("settings.backupAutoAbrirPastaAcessoOkExplorer")
-                    : t("settings.backupAutoAbrirPastaAcessoOk")}
-                </p>
+                <p>{t("settings.backupAutoAbrirPastaAcessoOk")}</p>
               </div>
 
               <div className="rounded border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-xs text-emerald-950">
@@ -189,14 +279,28 @@ export function ModalAbrirPastaBackup({ open, onClose, onMensagem }: Props) {
                 <span className="break-all font-mono">{pasta}</span>
               </div>
 
-              {mensagemExplorer ? (
-                <p className="text-xs text-amber-800">{mensagemExplorer}</p>
-              ) : null}
+              <p className="text-[11px] text-slate-500">
+                {t("settings.backupAutoAbrirPastaAvisoModal")}
+              </p>
 
               <div>
-                <p className="text-xs font-semibold text-slate-700">
-                  {t("settings.backupAutoAbrirPastaArquivos")}
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-slate-700">
+                    {t("settings.backupAutoAbrirPastaArquivos")}
+                  </p>
+                  {arquivos.length > 0 ? (
+                    <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-slate-600">
+                      <input
+                        type="checkbox"
+                        checked={todosSelecionados}
+                        onChange={alternarTodos}
+                        disabled={excluindo || Boolean(baixando)}
+                        className="h-3.5 w-3.5 accent-emerald-600"
+                      />
+                      {t("settings.backupAutoSelecionarTodosArquivos")}
+                    </label>
+                  ) : null}
+                </div>
                 {arquivos.length === 0 ? (
                   <p className="mt-2 text-xs text-slate-500">
                     {t("settings.backupAutoAbrirPastaVazia")}
@@ -206,9 +310,37 @@ export function ModalAbrirPastaBackup({ open, onClose, onMensagem }: Props) {
                     {arquivos.map((arquivo) => (
                       <li
                         key={arquivo.nome}
-                        className="flex items-center justify-between gap-2 border-b border-slate-100 px-3 py-2 text-xs last:border-b-0"
+                        className="flex items-center gap-1.5 border-b border-slate-100 px-2 py-2 text-xs last:border-b-0"
                       >
-                        <span className="min-w-0 truncate font-medium text-slate-800">
+                        <input
+                          type="checkbox"
+                          checked={selecionados.has(arquivo.nome)}
+                          onChange={() => alternarSelecao(arquivo.nome)}
+                          disabled={excluindo || Boolean(baixando)}
+                          className="h-3.5 w-3.5 shrink-0 accent-emerald-600"
+                          aria-label={arquivo.nome}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void baixarArquivo(arquivo.nome)}
+                          disabled={excluindo || baixando === arquivo.nome}
+                          className="shrink-0 rounded p-1 text-[#4a90d9] hover:bg-blue-50 hover:text-[#3d7fc4] disabled:opacity-50"
+                          title={t("settings.backupAutoBaixarArquivo")}
+                          aria-label={t("settings.backupAutoBaixarArquivo")}
+                        >
+                          <Download className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void excluirArquivos([arquivo.nome])}
+                          disabled={excluindo || Boolean(baixando)}
+                          className="shrink-0 rounded p-1 text-red-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+                          title={t("settings.backupAutoRemoverArquivo")}
+                          aria-label={t("settings.backupAutoRemoverArquivo")}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                        <span className="min-w-0 flex-1 truncate font-medium text-slate-800">
                           {arquivo.nome}
                         </span>
                         <span className="shrink-0 text-slate-500">
@@ -219,16 +351,39 @@ export function ModalAbrirPastaBackup({ open, onClose, onMensagem }: Props) {
                   </ul>
                 )}
               </div>
+
+              {erroInline ? (
+                <p className="rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {erroInline}
+                </p>
+              ) : null}
             </div>
           )}
         </div>
 
         <div className="flex shrink-0 justify-end gap-3 border-t border-slate-200 bg-white px-5 py-4">
+          {acessoLiberado && selecionados.size > 0 ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={excluindo || Boolean(baixando)}
+              onClick={() => void excluirArquivos([...selecionados])}
+              className="mr-auto inline-flex items-center gap-2 rounded border-red-300 text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="h-4 w-4" />
+              {excluindo
+                ? t("settings.backupAutoExcluindoArquivos")
+                : t("settings.backupAutoExcluirSelecionados").replace(
+                    "{n}",
+                    String(selecionados.size)
+                  )}
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="outline"
             onClick={onClose}
-            disabled={processando}
+            disabled={processando || excluindo || Boolean(baixando)}
           >
             {t("common.cancelar")}
           </Button>

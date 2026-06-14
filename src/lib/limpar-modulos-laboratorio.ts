@@ -6,6 +6,7 @@ import { ASAAS_CONFIG_KEY, ASAAS_CONFIG_PADRAO } from "@/lib/asaas-config";
 import { NFSE_CONFIG_KEY, NFSE_CONFIG_PADRAO } from "@/lib/nfse-config";
 import { garantirTabelaHistoricoEtapas } from "@/lib/historico-etapas";
 import { MODULO_PRODUCAO_ETAPAS_STORAGE_KEY } from "@/lib/modulo-producao-etapas";
+import { lerJsonStoreTenant, salvarJsonStoreTenant } from "@/lib/json-store-tenant";
 import type { PastaUpload } from "@/lib/upload-arquivo-server";
 
 export type ModuloLimpezaId =
@@ -25,7 +26,8 @@ export type ModuloLimpezaId =
   | "anexos"
   | "inicio"
   | "clientes_negativos"
-  | "relatorio_financeiro_geral";
+  | "relatorio_financeiro_geral"
+  | "dre";
 
 export type ModuloLimpezaDef = {
   id: ModuloLimpezaId;
@@ -56,6 +58,14 @@ export const MODULOS_LIMPEZA: ModuloLimpezaDef[] = [
       "labProteseExtratoBancario",
     ],
     uploadPastas: ["despesas", "receitas"],
+  },
+  {
+    id: "dre",
+    label: "D.R.E.",
+    descricao:
+      "Receitas e despesas já recebidas ou pagas (status Pago) usadas na D.R.E. Lançamentos pendentes são mantidos.",
+    ordemExclusao: 11,
+    localStorageKeys: [],
   },
   {
     id: "producao",
@@ -228,12 +238,16 @@ export function chavesLocalStorageModulos(ids: ModuloLimpezaId[]): string[] {
   return [...chaves, ...prefixos];
 }
 
-/** Contagens no servidor (banco + arquivos em disco). */
+/** Contagens no servidor (banco + arquivos em disco) — escopo de uma empresa. */
 export async function contarRegistrosModulos(
-  prisma: PrismaClient
+  prisma: PrismaClient,
+  empresaId: string
 ): Promise<Record<ModuloLimpezaId, number>> {
+  const whereEmpresa = { empresaId };
+
   const [
     lancamentos,
+    lancamentosPagos,
     cobrancas,
     nfse,
     trabalhos,
@@ -246,55 +260,47 @@ export async function contarRegistrosModulos(
     anexos,
     sequenciaOs,
   ] = await Promise.all([
-    prisma.lancamento.count(),
-    prisma.cobrancaAsaas.count(),
-    prisma.nfseEmissao.count(),
-    prisma.trabalho.count(),
-    prisma.orcamento.count(),
-    prisma.cliente.count(),
-    prisma.paciente.count(),
-    prisma.produto.count(),
-    prisma.logAuditoria.count(),
-    prisma.user.count(),
-    prisma.arquivoUpload.count(),
-    prisma.sequenciaNumerica.count({ where: { chave: "numero_os" } }),
+    prisma.lancamento.count({ where: whereEmpresa }),
+    prisma.lancamento.count({ where: { ...whereEmpresa, status: "pago" } }),
+    prisma.cobrancaAsaas.count({ where: { lancamento: whereEmpresa } }),
+    prisma.nfseEmissao.count({ where: whereEmpresa }),
+    prisma.trabalho.count({ where: whereEmpresa }),
+    prisma.orcamento.count({ where: whereEmpresa }),
+    prisma.cliente.count({ where: whereEmpresa }),
+    prisma.paciente.count({ where: { cliente: whereEmpresa } }),
+    prisma.produto.count({ where: whereEmpresa }),
+    prisma.logAuditoria.count({ where: whereEmpresa }),
+    prisma.user.count({ where: whereEmpresa }),
+    prisma.arquivoUpload.count({ where: whereEmpresa }),
+    prisma.sequenciaNumerica.count({ where: { empresaId, chave: "numero_os" } }),
   ]);
 
-  const jsonNfse = await prisma.jsonStore.findUnique({ where: { key: NFSE_CONFIG_KEY } });
-  const jsonAsaas = await prisma.jsonStore.findUnique({ where: { key: ASAAS_CONFIG_KEY } });
-  const jsonLab = await prisma.jsonStore.findUnique({
-    where: { key: CONFIG_LAB_STORAGE_KEY },
-  });
-  const jsonEtapasModulo = await prisma.jsonStore.findUnique({
-    where: { key: MODULO_PRODUCAO_ETAPAS_STORAGE_KEY },
-  });
+  const [jsonNfse, jsonAsaas, jsonLab, jsonEtapasModulo] = await Promise.all([
+    lerJsonStoreTenant(empresaId, NFSE_CONFIG_KEY),
+    lerJsonStoreTenant(empresaId, ASAAS_CONFIG_KEY),
+    lerJsonStoreTenant(empresaId, CONFIG_LAB_STORAGE_KEY),
+    lerJsonStoreTenant<Record<string, unknown>>(empresaId, MODULO_PRODUCAO_ETAPAS_STORAGE_KEY),
+  ]);
 
   let historicoEtapas = 0;
   try {
     await garantirTabelaHistoricoEtapas();
-    historicoEtapas = await prisma.historicoEtapa.count();
+    historicoEtapas = await prisma.historicoEtapa.count({ where: whereEmpresa });
   } catch {
     historicoEtapas = 0;
   }
 
   let etapasRelatorioFinanceiro = 0;
-  if (jsonEtapasModulo?.payload?.trim()) {
-    try {
-      const parsed = JSON.parse(jsonEtapasModulo.payload) as Record<string, unknown>;
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        etapasRelatorioFinanceiro = Object.keys(parsed).length;
-      }
-    } catch {
-      etapasRelatorioFinanceiro = 0;
-    }
+  if (jsonEtapasModulo && typeof jsonEtapasModulo === "object" && !Array.isArray(jsonEtapasModulo)) {
+    etapasRelatorioFinanceiro = Object.keys(jsonEtapasModulo).length;
   }
 
-  const integracoes =
-    (jsonNfse?.payload?.trim() ? 1 : 0) + (jsonAsaas?.payload?.trim() ? 1 : 0);
-  const configuracoes = jsonLab?.payload?.trim() ? 1 : 0;
+  const integracoes = (jsonNfse ? 1 : 0) + (jsonAsaas ? 1 : 0);
+  const configuracoes = jsonLab ? 1 : 0;
 
   return {
     financeiro: lancamentos + cobrancas + nfse,
+    dre: lancamentosPagos,
     producao: trabalhos + (sequenciaOs > 0 ? 1 : 0),
     clientes_negativos: historicoEtapas,
     relatorio_financeiro_geral: etapasRelatorioFinanceiro,
@@ -325,11 +331,12 @@ async function excluirPastaUploads(pasta: PastaUpload) {
 
 async function excluirUploadsPastasComPrisma(
   prisma: PrismaClient,
-  pastas: PastaUpload[]
+  pastas: PastaUpload[],
+  empresaId: string
 ) {
   const unicas = [...new Set(pastas)];
   for (const pasta of unicas) {
-    await prisma.arquivoUpload.deleteMany({ where: { pasta } });
+    await prisma.arquivoUpload.deleteMany({ where: { pasta, empresaId } });
     await excluirPastaUploads(pasta);
   }
 }
@@ -345,8 +352,10 @@ export type ResultadoLimpezaModulos = {
 export async function limparModulosSelecionados(
   prisma: PrismaClient,
   ids: ModuloLimpezaId[],
-  opts: { usuarioIdManter: string }
+  opts: { usuarioIdManter: string; empresaId: string }
 ): Promise<ResultadoLimpezaModulos> {
+  const empresaId = opts.empresaId;
+  const whereEmpresa = { empresaId };
   const ordenados = [...ids].sort(
     (a, b) =>
       (moduloPorId(a)?.ordemExclusao ?? 0) - (moduloPorId(b)?.ordemExclusao ?? 0)
@@ -367,63 +376,68 @@ export async function limparModulosSelecionados(
   for (const id of ordenados) {
     switch (id) {
       case "financeiro": {
-        const c1 = await prisma.cobrancaAsaas.deleteMany();
-        const c2 = await prisma.nfseEmissao.deleteMany();
-        const c3 = await prisma.lancamento.deleteMany();
+        const c1 = await prisma.cobrancaAsaas.deleteMany({
+          where: { lancamento: whereEmpresa },
+        });
+        const c2 = await prisma.nfseEmissao.deleteMany({ where: whereEmpresa });
+        const c3 = await prisma.lancamento.deleteMany({ where: whereEmpresa });
         apagados.financeiro = c1.count + c2.count + c3.count;
         break;
       }
+      case "dre": {
+        const c = await prisma.lancamento.deleteMany({
+          where: { empresaId, status: "pago" },
+        });
+        apagados.dre = c.count;
+        break;
+      }
       case "producao": {
-        const c1 = await prisma.trabalho.deleteMany();
-        await prisma.sequenciaNumerica.deleteMany({ where: { chave: "numero_os" } });
+        const c1 = await prisma.trabalho.deleteMany({ where: whereEmpresa });
+        await prisma.sequenciaNumerica.deleteMany({
+          where: { empresaId, chave: "numero_os" },
+        });
         apagados.producao = c1.count;
         break;
       }
       case "clientes_negativos": {
         await garantirTabelaHistoricoEtapas();
-        const c = await prisma.historicoEtapa.deleteMany();
+        const c = await prisma.historicoEtapa.deleteMany({ where: whereEmpresa });
         apagados.clientes_negativos = c.count;
         break;
       }
       case "relatorio_financeiro_geral": {
         localStorageSet[MODULO_PRODUCAO_ETAPAS_STORAGE_KEY] = "{}";
-        await prisma.jsonStore.upsert({
-          where: { key: MODULO_PRODUCAO_ETAPAS_STORAGE_KEY },
-          create: {
-            key: MODULO_PRODUCAO_ETAPAS_STORAGE_KEY,
-            payload: "{}",
-          },
-          update: { payload: "{}" },
-        });
+        await salvarJsonStoreTenant(empresaId, MODULO_PRODUCAO_ETAPAS_STORAGE_KEY, {});
         apagados.relatorio_financeiro_geral = 1;
         break;
       }
       case "orcamentos": {
-        const c = await prisma.orcamento.deleteMany();
+        const c = await prisma.orcamento.deleteMany({ where: whereEmpresa });
         apagados.orcamentos = c.count;
         break;
       }
       case "auditoria": {
-        const c = await prisma.logAuditoria.deleteMany();
+        const c = await prisma.logAuditoria.deleteMany({ where: whereEmpresa });
         apagados.auditoria = c.count;
         break;
       }
       case "clientes": {
-        const trabalhos = await prisma.trabalho.count();
+        const trabalhos = await prisma.trabalho.count({ where: whereEmpresa });
         const lancComCliente = await prisma.lancamento.count({
-          where: { clienteId: { not: null } },
+          where: { empresaId, clienteId: { not: null } },
         });
         if (trabalhos > 0 || lancComCliente > 0) {
           throw new Error(
             "Não é possível limpar clientes enquanto existirem OS ou lançamentos financeiros vinculados. Selecione também Produção e/ou Financeiro."
           );
         }
-        const c = await prisma.cliente.deleteMany();
+        await prisma.paciente.deleteMany({ where: { cliente: whereEmpresa } });
+        const c = await prisma.cliente.deleteMany({ where: whereEmpresa });
         apagados.clientes = c.count;
         break;
       }
       case "produtos": {
-        const c = await prisma.produto.deleteMany();
+        const c = await prisma.produto.deleteMany({ where: whereEmpresa });
         apagados.produtos = c.count;
         localStorageSet.labProteseProdutosExcluidos = "[]";
         localStorageSet.labProteseProdutosExcluidosSnapshots = "{}";
@@ -449,11 +463,7 @@ export async function limparModulosSelecionados(
         });
         localStorageSet.labProteseTabelaPrecos = payloadTabelaVazia;
         localStorageSet.labProteseItensCustoCadastro = "[]";
-        await prisma.jsonStore.upsert({
-          where: { key: "labProteseTabelaPrecos" },
-          create: { key: "labProteseTabelaPrecos", payload: payloadTabelaVazia },
-          update: { payload: payloadTabelaVazia },
-        });
+        await salvarJsonStoreTenant(empresaId, "labProteseTabelaPrecos", JSON.parse(payloadTabelaVazia));
         break;
       }
       case "etapas":
@@ -478,47 +488,29 @@ export async function limparModulosSelecionados(
         localStorageSet.labProteseMateriaisDentista = "[]";
         break;
       case "integracoes": {
-        await prisma.jsonStore.upsert({
-          where: { key: NFSE_CONFIG_KEY },
-          create: {
-            key: NFSE_CONFIG_KEY,
-            payload: JSON.stringify(NFSE_CONFIG_PADRAO),
-          },
-          update: { payload: JSON.stringify(NFSE_CONFIG_PADRAO) },
-        });
-        await prisma.jsonStore.upsert({
-          where: { key: ASAAS_CONFIG_KEY },
-          create: {
-            key: ASAAS_CONFIG_KEY,
-            payload: JSON.stringify(ASAAS_CONFIG_PADRAO),
-          },
-          update: { payload: JSON.stringify(ASAAS_CONFIG_PADRAO) },
-        });
+        await salvarJsonStoreTenant(empresaId, NFSE_CONFIG_KEY, NFSE_CONFIG_PADRAO);
+        await salvarJsonStoreTenant(empresaId, ASAAS_CONFIG_KEY, ASAAS_CONFIG_PADRAO);
         apagados.integracoes = 2;
         break;
       }
       case "configuracoes": {
-        const payload = JSON.stringify({
+        const payload = {
           ...CONFIG_LAB_PADRAO,
           tipoPessoa: "Jurídica",
-        });
-        await prisma.jsonStore.upsert({
-          where: { key: CONFIG_LAB_STORAGE_KEY },
-          create: { key: CONFIG_LAB_STORAGE_KEY, payload },
-          update: { payload },
-        });
+        };
+        await salvarJsonStoreTenant(empresaId, CONFIG_LAB_STORAGE_KEY, payload);
         apagados.configuracoes = 1;
         break;
       }
       case "usuarios": {
         const c = await prisma.user.deleteMany({
-          where: { id: { not: opts.usuarioIdManter } },
+          where: { empresaId, id: { not: opts.usuarioIdManter } },
         });
         apagados.usuarios = c.count;
         break;
       }
       case "anexos": {
-        const c = await prisma.arquivoUpload.deleteMany();
+        const c = await prisma.arquivoUpload.deleteMany({ where: whereEmpresa });
         apagados.anexos = c.count;
         for (const pasta of ["os", "despesas", "receitas"] as PastaUpload[]) {
           await excluirPastaUploads(pasta);
@@ -534,7 +526,7 @@ export async function limparModulosSelecionados(
   }
 
   if (pastasUpload.length > 0 && !ordenados.includes("anexos")) {
-    await excluirUploadsPastasComPrisma(prisma, pastasUpload);
+    await excluirUploadsPastasComPrisma(prisma, pastasUpload, empresaId);
   }
 
   const lsKeys = chavesLocalStorageModulos(ids);

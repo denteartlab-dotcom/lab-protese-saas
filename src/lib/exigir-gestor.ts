@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import { obterPapelUsuarioDb } from "@/lib/auth-acesso";
 import { podeGerenciarUsuarios } from "@/lib/usuarios-sistema";
 
 export async function exigirGestorUsuarios() {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return { erro: NextResponse.json({ error: "Não autorizado." }, { status: 401 }) };
   }
 
-  const roleDb = await obterPapelUsuarioDb(session.id);
-  const role = roleDb ?? session.role;
+  const roleDb = await obterPapelUsuarioDb(ctx.user.id);
+  const role = roleDb ?? ctx.user.role;
 
   if (!podeGerenciarUsuarios(role)) {
     return {
@@ -21,5 +22,5 @@ export async function exigirGestorUsuarios() {
     };
   }
 
-  return { session: { ...session, role } };
+  return { session: { ...ctx.user, role, empresaId: ctx.empresaId } };
 }

@@ -8,10 +8,35 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+model Empresa {
+  id        String   @id @default(cuid())
+  nome      String
+  slug      String   @unique
+  plano     String   @default("basico")
+  status    String   @default("ativo")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users      User[]
+  clientes   Cliente[]
+  trabalhos  Trabalho[]
+  produtos   Produto[]
+  lancamentos Lancamento[]
+  orcamentos Orcamento[]
+  contas     ContaBancaria[]
+  uploads    ArquivoUpload[]
+  sequencias SequenciaNumerica[]
+  logsAuditoria  LogAuditoria[]
+  historicoEtapas HistoricoEtapa[]
+  nfseEmissoes   NfseEmissao[]
+}
+
 model User {
   id              String    @id @default(cuid())
+  empresaId       String
+  empresa         Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   name            String
-  email           String    @unique
+  email           String
   password        String
   role            String    @default("usuario")
   colaboradorId   String?
@@ -21,10 +46,15 @@ model User {
   excluidoEm      DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @default(now()) @updatedAt
+
+  @@unique([empresaId, email])
+  @@index([empresaId])
 }
 
 model Cliente {
   id                  String     @id @default(cuid())
+  empresaId           String
+  empresa             Empresa    @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   nome                String
   razaoSocial         String?
   cnpjCpf             String?
@@ -46,6 +76,8 @@ model Cliente {
   trabalhos           Trabalho[]
   lancamentos         Lancamento[]
   nfseEmissoes        NfseEmissao[]
+
+  @@index([empresaId])
 }
 
 model Paciente {
@@ -64,6 +96,8 @@ model Paciente {
 
 model Trabalho {
   id                  String   @id @default(cuid())
+  empresaId           String
+  empresa             Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   numeroOs            Int
   segmentoFaturamento String   @default("servico")
   grupoOsId           String?
@@ -88,13 +122,16 @@ model Trabalho {
   lancamentos         Lancamento[]
 
   /** Vários serviços na mesma OS: unicidade por número + segmento + título do serviço. */
-  @@unique([numeroOs, segmentoFaturamento, tipoProtese])
+  @@unique([empresaId, numeroOs, segmentoFaturamento, tipoProtese])
   @@index([numeroOs])
   @@index([grupoOsId])
+  @@index([empresaId])
 }
 
 model Produto {
   id          String   @id @default(cuid())
+  empresaId   String
+  empresa     Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   nome        String
   categoria   String?
   valor       Float    @default(0)
@@ -102,10 +139,14 @@ model Produto {
   observacoes String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([empresaId])
 }
 
 model Lancamento {
   id             String    @id @default(cuid())
+  empresaId      String
+  empresa        Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   tipo           String
   descricao      String
   valor          Float
@@ -119,10 +160,16 @@ model Lancamento {
   cobrancaAsaas  CobrancaAsaas?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+
+  @@index([empresaId])
+  @@index([tipo])
+  @@index([data])
 }
 
 model NfseEmissao {
   id                String   @id @default(cuid())
+  empresaId         String?
+  empresa           Empresa? @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   clienteId         String?
   cliente           Cliente? @relation(fields: [clienteId], references: [id])
   lancamentoId      String?
@@ -136,6 +183,8 @@ model NfseEmissao {
   mensagemErro      String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+
+  @@index([empresaId])
 }
 
 model CobrancaAsaas {
@@ -152,8 +201,12 @@ model CobrancaAsaas {
 }
 
 model SequenciaNumerica {
-  chave String @id
-  valor Int    @default(0)
+  empresaId String
+  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  chave     String
+  valor     Int     @default(0)
+
+  @@id([empresaId, chave])
 }
 
 model JsonStore {
@@ -164,6 +217,8 @@ model JsonStore {
 
 model LogAuditoria {
   id            String   @id @default(cuid())
+  empresaId     String?
+  empresa       Empresa? @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   categoria     String
   tipoAlteracao String
   numeroOs      Int?
@@ -181,6 +236,7 @@ model LogAuditoria {
   dataAlteracao DateTime @default(now())
   detalhesJson  String?
 
+  @@index([empresaId])
   @@index([categoria])
   @@index([tipoAlteracao])
   @@index([numeroOs])
@@ -192,6 +248,8 @@ model LogAuditoria {
 /** Histórico de passagem por etapas de produção (retrabalho / repetição). */
 model HistoricoEtapa {
   id              String    @id @default(cuid())
+  empresaId       String?
+  empresa         Empresa?  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   trabalhoId      String
   numeroOs        Int
   clienteId       String
@@ -207,6 +265,7 @@ model HistoricoEtapa {
   valorPrejuizo   Float     @default(0)
   descricaoItem   String?
 
+  @@index([empresaId])
   @@index([trabalhoId])
   @@index([clienteId])
   @@index([numeroOs])
@@ -217,7 +276,9 @@ model HistoricoEtapa {
 
 model Orcamento {
   id                 String    @id @default(cuid())
-  numeroPedido       Int       @unique
+  empresaId          String
+  empresa            Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  numeroPedido       Int
   token              String    @unique
   data               DateTime  @default(now())
   dataResposta       DateTime?
@@ -240,11 +301,16 @@ model Orcamento {
   linkAtivo          Boolean   @default(true)
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
+
+  @@unique([empresaId, numeroPedido])
+  @@index([empresaId])
 }
 
 /** Anexos (despesas, receitas, OS) — persistidos no banco em produção (Vercel). */
 model ArquivoUpload {
   id        String   @id @default(cuid())
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   pasta     String
   nome      String
   mimeType  String   @default("application/octet-stream")
@@ -252,12 +318,15 @@ model ArquivoUpload {
   dados     Bytes
   criadoEm  DateTime @default(now())
 
+  @@index([empresaId])
   @@index([pasta])
 }
 
 /** Contas bancárias persistidas no PostgreSQL (substitui JsonStore para não perder dados). */
 model ContaBancaria {
   id              String                @id
+  empresaId       String
+  empresa         Empresa               @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   nome            String
   saldoInicial    Float                 @default(0)
   excluida        Boolean               @default(false)
@@ -274,6 +343,7 @@ model ContaBancaria {
   movimentacoes   MovimentacaoConta[]
   extrato         ExtratoMovimentacao[]
 
+  @@index([empresaId])
   @@index([codBanco, agencia, numeroConta])
 }
 

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { caminhoRelativoPastaBackupEmpresa } from "@/lib/backup-empresa-pasta";
 import {
+  excluirArquivosPastaBackupEmpresa,
   listarArquivosPastaBackupEmpresa,
+  nomeArquivoBackupValido,
 } from "@/lib/backup-automatico-servidor";
 import { exigirProprietario } from "@/lib/exigir-proprietario";
 import { verificarSenhaProprietario } from "@/lib/seguranca-restaurar-padrao";
@@ -11,6 +12,7 @@ export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
   senha: z.string().min(1, "Informe a senha da sua conta."),
+  arquivos: z.array(z.string().min(1)).min(1, "Selecione ao menos um arquivo."),
 });
 
 export async function POST(request: Request) {
@@ -46,30 +48,29 @@ export async function POST(request: Request) {
     );
   }
 
-  const { empresaSlug, empresaNome } = auth.session!;
-  const pastaRelativa = caminhoRelativoPastaBackupEmpresa(empresaSlug, empresaNome);
-  let arquivos: Awaited<ReturnType<typeof listarArquivosPastaBackupEmpresa>> = [];
-
-  try {
-    arquivos = await listarArquivosPastaBackupEmpresa(empresaSlug, empresaNome);
-  } catch (erro) {
-    console.error("[backup/abrir-pasta] listar arquivos", erro);
+  const nomes = parsed.data.arquivos.filter(nomeArquivoBackupValido);
+  if (nomes.length === 0) {
     return NextResponse.json(
-      {
-        error:
-          "Senha confirmada, mas não foi possível listar os arquivos da pasta no servidor.",
-      },
-      { status: 500 }
+      { error: "Nenhum arquivo de backup válido foi informado." },
+      { status: 400 }
     );
   }
 
-  return NextResponse.json({
-    ok: true,
-    aberto: false,
-    pasta: pastaRelativa,
-    empresaSlug,
-    empresaNome,
-    mensagem: null,
-    arquivos,
-  });
+  const { empresaSlug, empresaNome } = auth.session!;
+
+  try {
+    const excluidos = await excluirArquivosPastaBackupEmpresa(
+      empresaSlug,
+      nomes,
+      empresaNome
+    );
+    const arquivos = await listarArquivosPastaBackupEmpresa(empresaSlug, empresaNome);
+    return NextResponse.json({ ok: true, excluidos, arquivos });
+  } catch (err) {
+    console.error("[backup/excluir-arquivos]", err);
+    return NextResponse.json(
+      { error: "Não foi possível excluir os arquivos selecionados." },
+      { status: 500 }
+    );
+  }
 }

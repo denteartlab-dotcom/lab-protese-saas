@@ -1,14 +1,24 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 import { exigirGestorUsuarios } from "@/lib/exigir-gestor";
 import { prisma } from "@/lib/db";
+import {
+  lerArquivoBackupPastaEmpresa,
+  nomeArquivoBackupValido,
+} from "@/lib/backup-automatico-servidor";
 import {
   backupPertenceAEmpresa,
   importarBackupEmpresa,
   validarBackupLaboratorio,
 } from "@/lib/backup-laboratorio";
 
-const MAX_BYTES = 80 * 1024 * 1024;
+export const dynamic = "force-dynamic";
+
+const bodySchema = z.object({
+  arquivo: z.string().min(1),
+  excluirDre: z.boolean().optional(),
+});
 
 export async function POST(request: Request) {
   const auth = await exigirGestorUsuarios();
@@ -32,22 +42,47 @@ export async function POST(request: Request) {
 
   let body: unknown;
   try {
-    const texto = await request.text();
-    if (texto.length > MAX_BYTES) {
-      return NextResponse.json(
-        { error: "Arquivo de backup muito grande (máx. 80 MB)." },
-        { status: 413 }
-      );
-    }
-    body = JSON.parse(texto);
+    body = await request.json();
   } catch {
+    return NextResponse.json({ error: "Dados inválidos." }, { status: 400 });
+  }
+
+  const parsed = bodySchema.safeParse(body);
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "Arquivo JSON inválido." },
+      { error: parsed.error.errors[0]?.message || "Dados inválidos." },
       { status: 400 }
     );
   }
 
-  const backup = validarBackupLaboratorio(body);
+  if (!nomeArquivoBackupValido(parsed.data.arquivo)) {
+    return NextResponse.json({ error: "Arquivo de backup inválido." }, { status: 400 });
+  }
+
+  const { empresaSlug, empresaNome } = ctx;
+
+  let texto: string;
+  try {
+    texto = await lerArquivoBackupPastaEmpresa(
+      empresaSlug,
+      parsed.data.arquivo,
+      empresaNome
+    );
+  } catch {
+    return NextResponse.json(
+      { error: "Arquivo de backup não encontrado na pasta automática." },
+      { status: 404 }
+    );
+  }
+
+  let payload: unknown;
+  try {
+    payload = JSON.parse(texto);
+  } catch {
+    return NextResponse.json({ error: "Arquivo JSON inválido." }, { status: 400 });
+  }
+
+  const backup = validarBackupLaboratorio(payload);
   if (!backup) {
     return NextResponse.json(
       {
@@ -68,19 +103,19 @@ export async function POST(request: Request) {
   }
 
   try {
-    const excluirDre = request.headers.get("x-backup-excluir-dre") === "1";
     const resultado = await importarBackupEmpresa(prisma, backup, ctx.empresaId, {
-      excluirDre,
+      excluirDre: parsed.data.excluirDre,
     });
     return NextResponse.json({
       ok: true,
+      arquivo: parsed.data.arquivo,
       exportedAt: backup.exportedAt,
       empresaSlug: backup.empresaSlug,
       contagens: resultado.contagens,
-      excluirDre,
+      excluirDre: Boolean(parsed.data.excluirDre),
     });
   } catch (err) {
-    console.error("[backup/import]", err);
+    console.error("[backup/import-pasta]", err);
     const msg =
       err instanceof Error && err.message === "BACKUP_OUTRA_EMPRESA"
         ? "Este backup não pertence à sua empresa."

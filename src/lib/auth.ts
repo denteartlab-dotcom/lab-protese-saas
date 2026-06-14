@@ -1,28 +1,16 @@
-import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 import { sessaoCookieSecure } from "@/lib/cookie-secure";
+import {
+  COOKIE_NAME,
+  criarTokenSessao,
+  getSessionFromCookieHeader,
+  verifySessionToken,
+  type SessionUser,
+} from "@/lib/auth-token";
 
-const COOKIE_NAME = "lab-protese-session";
-
-function getSecret() {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) throw new Error("JWT_SECRET não configurado");
-  return new TextEncoder().encode(secret);
-}
-
-function getSecretOrNull() {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) return null;
-  return new TextEncoder().encode(secret);
-}
-
-export type SessionUser = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-};
+export type { SessionUser } from "@/lib/auth-token";
+export { COOKIE_NAME, getSessionFromCookieHeader, verifySessionToken } from "@/lib/auth-token";
 
 export async function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
@@ -38,17 +26,7 @@ export async function createSession(
 ) {
   const dias = options?.remember ? 30 : 7;
   const maxAge = 60 * 60 * 24 * dias;
-
-  const token = await new SignJWT({
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-  })
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime(`${dias}d`)
-    .sign(getSecret());
+  const token = await criarTokenSessao(user, options);
 
   const cookieStore = await cookies();
   cookieStore.set(COOKIE_NAME, token, {
@@ -75,21 +53,7 @@ export async function getSession(): Promise<SessionUser | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
-
-  const secret = getSecretOrNull();
-  if (!secret) return null;
-
-  try {
-    const { payload } = await jwtVerify(token, secret);
-    return {
-      id: payload.id as string,
-      name: payload.name as string,
-      email: payload.email as string,
-      role: payload.role as string,
-    };
-  } catch {
-    return null;
-  }
+  return verifySessionToken(token);
 }
 
 export async function requireSession() {

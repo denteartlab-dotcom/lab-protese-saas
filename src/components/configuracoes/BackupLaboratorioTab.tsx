@@ -67,6 +67,13 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
   const [autoHora, setAutoHora] = useState(0);
   const [autoMinuto, setAutoMinuto] = useState(0);
   const [modalPastaBackupAberto, setModalPastaBackupAberto] = useState(false);
+  const [fonteImportacao, setFonteImportacao] = useState<"arquivo" | "pasta">("arquivo");
+  const [arquivosPastaAutomatica, setArquivosPastaAutomatica] = useState<
+    { nome: string; bytes: number; modificadoEm: string }[]
+  >([]);
+  const [carregandoArquivosPasta, setCarregandoArquivosPasta] = useState(false);
+  const [arquivoPastaSelecionado, setArquivoPastaSelecionado] = useState("");
+  const [excluirDreNaImportacao, setExcluirDreNaImportacao] = useState(false);
 
   async function carregarStatusAutomatico() {
     setCarregandoAuto(true);
@@ -94,10 +101,33 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
       const proprietario = res.ok;
       setEhProprietario(proprietario);
       if (proprietario) {
-        await carregarStatusAutomatico();
+        await Promise.all([carregarStatusAutomatico(), carregarArquivosPastaAutomatica()]);
       }
     })();
   }, []);
+
+  async function carregarArquivosPastaAutomatica() {
+    setCarregandoArquivosPasta(true);
+    try {
+      const res = await fetch("/api/backup/arquivos-automaticos", {
+        credentials: "same-origin",
+      });
+      if (!res.ok) {
+        setArquivosPastaAutomatica([]);
+        return;
+      }
+      const data = (await res.json()) as {
+        arquivos?: { nome: string; bytes: number; modificadoEm: string }[];
+      };
+      const lista = data.arquivos || [];
+      setArquivosPastaAutomatica(lista);
+      setArquivoPastaSelecionado((atual) =>
+        atual && lista.some((a) => a.nome === atual) ? atual : lista[0]?.nome || ""
+      );
+    } finally {
+      setCarregandoArquivosPasta(false);
+    }
+  }
 
   async function salvarAgendamentoAutomatico() {
     setSalvandoAuto(true);
@@ -155,8 +185,12 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
   }
 
   async function importar() {
-    if (!arquivo) {
+    if (fonteImportacao === "arquivo" && !arquivo) {
       onMensagem?.(t("settings.backupSelecioneArquivo"), "erro");
+      return;
+    }
+    if (fonteImportacao === "pasta" && !arquivoPastaSelecionado) {
+      onMensagem?.(t("settings.backupSelecioneArquivoPasta"), "erro");
       return;
     }
     if (!confirmarSubstituir) {
@@ -166,16 +200,40 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
 
     setImportando(true);
     try {
-      const texto = await arquivo.text();
-      const res = await fetch("/api/backup/import", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-backup-confirmar": "substituir-tudo",
-        },
-        credentials: "same-origin",
-        body: texto,
-      });
+      const headers: Record<string, string> = {
+        "x-backup-confirmar": "substituir-tudo",
+      };
+      if (excluirDreNaImportacao) {
+        headers["x-backup-excluir-dre"] = "1";
+      }
+
+      let res: Response;
+      if (fonteImportacao === "pasta") {
+        res = await fetch("/api/backup/import-pasta", {
+          method: "POST",
+          headers: {
+            ...headers,
+            "Content-Type": "application/json",
+          },
+          credentials: "same-origin",
+          body: JSON.stringify({
+            arquivo: arquivoPastaSelecionado,
+            excluirDre: excluirDreNaImportacao,
+          }),
+        });
+      } else {
+        const texto = await arquivo!.text();
+        res = await fetch("/api/backup/import", {
+          method: "POST",
+          headers: {
+            ...headers,
+            "Content-Type": "application/json",
+          },
+          credentials: "same-origin",
+          body: texto,
+        });
+      }
+
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         onMensagem?.(data.error || t("settings.backupErroImportar"), "erro");
@@ -191,6 +249,10 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
       );
       setArquivo(null);
       setConfirmarSubstituir(false);
+      setExcluirDreNaImportacao(false);
+      if (fonteImportacao === "pasta") {
+        void carregarArquivosPastaAutomatica();
+      }
       window.setTimeout(() => {
         window.location.href = "/app";
       }, 2000);
@@ -415,32 +477,117 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
               </p>
             </div>
 
-            <label className="mt-4 block text-xs font-medium text-slate-700">
-              {t("settings.backupArquivo")}
-              <input
-                type="file"
-                accept=".json,application/json"
-                className="mt-1 block w-full text-xs text-slate-600 file:mr-3 file:rounded file:border-0 file:bg-[#4a90d9] file:px-3 file:py-1.5 file:text-xs file:text-white"
-                onChange={(e) => setArquivo(e.target.files?.[0] ?? null)}
-                disabled={importando}
-              />
-            </label>
+            <fieldset className="mt-4 rounded-lg border border-amber-200 bg-white/70 p-4">
+              <legend className="px-1 text-xs font-semibold text-slate-800">
+                {t("settings.backupFonteImportacao")}
+              </legend>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-4">
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-700">
+                  <input
+                    type="radio"
+                    name="fonte-importacao-backup"
+                    checked={fonteImportacao === "arquivo"}
+                    onChange={() => setFonteImportacao("arquivo")}
+                    disabled={importando}
+                  />
+                  {t("settings.backupFonteArquivo")}
+                </label>
+                {ehProprietario ? (
+                  <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-700">
+                    <input
+                      type="radio"
+                      name="fonte-importacao-backup"
+                      checked={fonteImportacao === "pasta"}
+                      onChange={() => setFonteImportacao("pasta")}
+                      disabled={importando}
+                    />
+                    {t("settings.backupFontePastaAutomatica")}
+                  </label>
+                ) : null}
+              </div>
+            </fieldset>
 
-            <label className="mt-3 flex cursor-pointer items-start gap-2 text-xs text-slate-700">
-              <input
-                type="checkbox"
-                checked={confirmarSubstituir}
-                onChange={(e) => setConfirmarSubstituir(e.target.checked)}
-                className="mt-0.5"
-                disabled={importando}
-              />
-              {t("settings.backupConfirmarCheckbox")}
-            </label>
+            {fonteImportacao === "arquivo" ? (
+              <label className="mt-4 block text-xs font-medium text-slate-700">
+                {t("settings.backupArquivo")}
+                <input
+                  type="file"
+                  accept=".json,application/json"
+                  className="mt-1 block w-full text-xs text-slate-600 file:mr-3 file:rounded file:border-0 file:bg-[#4a90d9] file:px-3 file:py-1.5 file:text-xs file:text-white"
+                  onChange={(e) => setArquivo(e.target.files?.[0] ?? null)}
+                  disabled={importando}
+                />
+              </label>
+            ) : (
+              <div className="mt-4 space-y-2 rounded-lg border border-amber-200 bg-white/70 p-4">
+                <label className="block text-xs font-medium text-slate-700">
+                  {t("settings.backupArquivoPastaAutomatica")}
+                  <select
+                    value={arquivoPastaSelecionado}
+                    onChange={(e) => setArquivoPastaSelecionado(e.target.value)}
+                    disabled={importando || carregandoArquivosPasta}
+                    className="mt-1 h-9 w-full rounded border border-amber-300 bg-white px-2 text-xs text-slate-700 outline-none focus:border-amber-500"
+                  >
+                    {carregandoArquivosPasta ? (
+                      <option value="">{t("settings.backupAutoCarregando")}</option>
+                    ) : arquivosPastaAutomatica.length === 0 ? (
+                      <option value="">{t("settings.backupAutoAbrirPastaVazia")}</option>
+                    ) : (
+                      arquivosPastaAutomatica.map((item) => (
+                        <option key={item.nome} value={item.nome}>
+                          {item.nome}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </label>
+                <p className="text-[11px] leading-relaxed text-amber-900/90">
+                  {t("settings.backupFontePastaAutomaticaDesc")}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={importando || carregandoArquivosPasta}
+                  onClick={() => void carregarArquivosPastaAutomatica()}
+                  className="rounded border-amber-400 bg-white px-3 py-1.5 text-xs text-amber-900 hover:bg-amber-100"
+                >
+                  {t("settings.backupSincronizarPasta")}
+                </Button>
+              </div>
+            )}
+
+            <div className="mt-4 space-y-3 rounded-lg border border-amber-200/80 bg-white/60 p-4">
+              <label className="flex cursor-pointer items-start gap-2 text-xs leading-relaxed text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={excluirDreNaImportacao}
+                  onChange={(e) => setExcluirDreNaImportacao(e.target.checked)}
+                  className="mt-0.5"
+                  disabled={importando}
+                />
+                <span>{t("settings.backupExcluirDreImportacao")}</span>
+              </label>
+
+              <label className="flex cursor-pointer items-start gap-2 text-xs leading-relaxed text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={confirmarSubstituir}
+                  onChange={(e) => setConfirmarSubstituir(e.target.checked)}
+                  className="mt-0.5"
+                  disabled={importando}
+                />
+                <span>{t("settings.backupConfirmarCheckbox")}</span>
+              </label>
+            </div>
 
             <Button
               type="button"
               variant="outline"
-              disabled={importando || !arquivo}
+              disabled={
+                importando ||
+                !confirmarSubstituir ||
+                (fonteImportacao === "arquivo" ? !arquivo : !arquivoPastaSelecionado)
+              }
               onClick={() => void importar()}
               className="mt-4 rounded border-amber-600 bg-white px-4 py-2 text-sm text-amber-900 hover:bg-amber-100"
             >

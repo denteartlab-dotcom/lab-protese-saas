@@ -1,16 +1,15 @@
 import { z } from "zod";
 import { fusoBackupAutomatico } from "@/lib/backup-automatico-servidor";
 import {
-  lerJsonStoreServidor,
-  salvarJsonStoreServidor,
-} from "@/lib/json-store-servidor";
+  lerJsonStoreTenant,
+  salvarJsonStoreTenant,
+} from "@/lib/json-store-tenant";
 
 export const BACKUP_AUTOMATICO_CONFIG_KEY = "labProteseBackupAutomatico";
 export const FUSO_BACKUP_PADRAO = "America/Sao_Paulo";
 
 export type BackupAutomaticoConfig = {
   ativo: boolean;
-  /** 0=domingo … 6=sábado; null = todos os dias */
   diaSemana: number | null;
   hora: number;
   minuto: number;
@@ -143,8 +142,8 @@ export function normalizarConfigBackupAutomatico(
   return base;
 }
 
-/** Remove registro de último backup se o arquivo não existir mais no disco. */
 export async function sincronizarRegistroUltimoBackup(
+  empresaId: string,
   config: BackupAutomaticoConfig
 ): Promise<BackupAutomaticoConfig> {
   if (!config.ultimoBackupEm && !config.ultimoArquivo) return config;
@@ -160,21 +159,27 @@ export async function sincronizarRegistroUltimoBackup(
       ultimoBackupEm: null,
       ultimoArquivo: null,
     };
-    await salvarJsonStoreServidor(BACKUP_AUTOMATICO_CONFIG_KEY, limpo);
+    await salvarJsonStoreTenant(empresaId, BACKUP_AUTOMATICO_CONFIG_KEY, limpo);
     return limpo;
   }
 }
 
-export async function carregarConfigBackupAutomatico(): Promise<BackupAutomaticoConfig> {
-  const remoto = await lerJsonStoreServidor<unknown>(BACKUP_AUTOMATICO_CONFIG_KEY);
+export async function carregarConfigBackupAutomatico(
+  empresaId: string
+): Promise<BackupAutomaticoConfig> {
+  const remoto = await lerJsonStoreTenant<unknown>(
+    empresaId,
+    BACKUP_AUTOMATICO_CONFIG_KEY
+  );
   const normalizado = normalizarConfigBackupAutomatico(remoto);
-  return sincronizarRegistroUltimoBackup(normalizado);
+  return sincronizarRegistroUltimoBackup(empresaId, normalizado);
 }
 
 export async function salvarConfigBackupAutomatico(
+  empresaId: string,
   entrada: Pick<BackupAutomaticoConfig, "ativo" | "diaSemana" | "hora" | "minuto">
 ): Promise<BackupAutomaticoConfig> {
-  const atual = await carregarConfigBackupAutomatico();
+  const atual = await carregarConfigBackupAutomatico(empresaId);
   const proximo: BackupAutomaticoConfig = {
     ...atual,
     ativo: entrada.ativo,
@@ -191,22 +196,23 @@ export async function salvarConfigBackupAutomatico(
       fusoEfetivoBackup()
     ),
   };
-  await salvarJsonStoreServidor(BACKUP_AUTOMATICO_CONFIG_KEY, proximo);
+  await salvarJsonStoreTenant(empresaId, BACKUP_AUTOMATICO_CONFIG_KEY, proximo);
   return proximo;
 }
 
 export async function registrarExecucaoBackupAutomatico(
+  empresaId: string,
   exportedAt: string,
   arquivo: string
 ): Promise<BackupAutomaticoConfig> {
-  const atual = await carregarConfigBackupAutomatico();
+  const atual = await carregarConfigBackupAutomatico(empresaId);
   const proximo: BackupAutomaticoConfig = {
     ...atual,
     ultimoBackupEm: exportedAt,
     ultimoArquivo: arquivo,
     proximoBackupEm: calcularProximoBackupEm(atual, fusoEfetivoBackup(), Date.now()),
   };
-  await salvarJsonStoreServidor(BACKUP_AUTOMATICO_CONFIG_KEY, proximo);
+  await salvarJsonStoreTenant(empresaId, BACKUP_AUTOMATICO_CONFIG_KEY, proximo);
   return proximo;
 }
 

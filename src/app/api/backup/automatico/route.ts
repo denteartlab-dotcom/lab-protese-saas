@@ -2,12 +2,12 @@ import { access } from "fs/promises";
 import path from "path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { caminhoRelativoPastaBackupEmpresa } from "@/lib/backup-empresa-pasta";
 import { reagendarBackupAutomatico } from "@/lib/backup-automatico";
 import {
-  BACKUP_ARQUIVO_PADRAO,
-  caminhoRelativoPastaBackup,
-  garantirPastaBackup,
-  listarArquivosPastaBackup,
+  fusoBackupAutomatico,
+  garantirPastaBackupEmpresa,
+  listarArquivosPastaBackupEmpresa,
   nomeArquivoBackupAutomatico,
 } from "@/lib/backup-automatico-servidor";
 import {
@@ -16,7 +16,6 @@ import {
   formatarDataBackup,
   salvarConfigBackupAutomatico,
 } from "@/lib/backup-automatico-config";
-import { fusoBackupAutomatico } from "@/lib/backup-automatico-servidor";
 import { exigirProprietario } from "@/lib/exigir-proprietario";
 
 export const dynamic = "force-dynamic";
@@ -66,25 +65,26 @@ function formatarProximoBackup(
   }
 }
 
-async function montarStatus() {
+async function montarStatus(empresaId: string, slug: string, nome: string) {
   const fuso = fusoBackupAutomatico();
-  const config = await carregarConfigBackupAutomatico();
+  const config = await carregarConfigBackupAutomatico(empresaId);
 
   try {
-    await garantirPastaBackup();
+    await garantirPastaBackupEmpresa(slug, nome);
   } catch (erro) {
     console.warn("[backup/automatico] pasta local indisponível:", erro);
   }
 
-  const pastaPadrao = process.env.BACKUP_AUTOMATICO_PATH?.trim()
-    ? caminhoRelativoPastaBackup()
-    : path.dirname(BACKUP_ARQUIVO_PADRAO);
-
+  const pastaRelativa = caminhoRelativoPastaBackupEmpresa(slug, nome);
   const padraoNomeArquivo = nomeArquivoBackupAutomatico(new Date(), fuso);
   let arquivoExiste = false;
   let ultimoArquivoNome: string | null = null;
 
-  if (config.ultimoArquivo) {
+  const pastaNome = pastaRelativa.split("/").pop() ?? slug;
+  if (
+    config.ultimoArquivo?.includes(path.sep + pastaNome + path.sep) ||
+    config.ultimoArquivo?.includes(`/${pastaNome}/`)
+  ) {
     try {
       await access(config.ultimoArquivo);
       arquivoExiste = true;
@@ -95,7 +95,7 @@ async function montarStatus() {
   }
 
   if (!arquivoExiste) {
-    const arquivos = await listarArquivosPastaBackup();
+    const arquivos = await listarArquivosPastaBackupEmpresa(slug, nome);
     if (arquivos.length > 0) {
       arquivoExiste = true;
       ultimoArquivoNome = arquivos[0].nome;
@@ -104,12 +104,14 @@ async function montarStatus() {
 
   return {
     config,
+    empresaSlug: slug,
+    empresaNome: nome,
     servidorHabilitado: servidorBackupHabilitado(),
     hospedagemVercel: hospedagemVercel(),
     agendadorInternoAtivo: !hospedagemVercel() && servidorBackupHabilitado(),
-    pastaPadrao,
+    pastaPadrao: pastaRelativa,
     padraoNomeArquivo,
-    arquivoPadrao: `${pastaPadrao}/${padraoNomeArquivo}`,
+    arquivoPadrao: `${pastaRelativa}/${padraoNomeArquivo}`,
     ultimoArquivoNome,
     arquivoExiste,
     fusoHorario: fuso,
@@ -123,7 +125,13 @@ export async function GET() {
   if (auth.erro) return auth.erro;
 
   try {
-    return NextResponse.json(await montarStatus());
+    return NextResponse.json(
+      await montarStatus(
+        auth.session!.empresaId,
+        auth.session!.empresaSlug,
+        auth.session!.empresaNome
+      )
+    );
   } catch (erro) {
     console.error("[backup/automatico GET]", erro);
     return NextResponse.json(
@@ -150,9 +158,15 @@ export async function PUT(request: Request) {
   }
 
   try {
-    await salvarConfigBackupAutomatico(parsed.data);
+    await salvarConfigBackupAutomatico(auth.session!.empresaId, parsed.data);
     await reagendarBackupAutomatico();
-    return NextResponse.json(await montarStatus());
+    return NextResponse.json(
+      await montarStatus(
+        auth.session!.empresaId,
+        auth.session!.empresaSlug,
+        auth.session!.empresaNome
+      )
+    );
   } catch (erro) {
     console.error("[backup/automatico PUT]", erro);
     return NextResponse.json(

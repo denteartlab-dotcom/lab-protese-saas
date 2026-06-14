@@ -1,15 +1,21 @@
 import { NextResponse } from "next/server";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import { exigirGestorUsuarios } from "@/lib/exigir-gestor";
 import { prisma } from "@/lib/db";
-import { exportarBackupLaboratorio } from "@/lib/backup-laboratorio";
+import { exportarBackupEmpresa } from "@/lib/backup-laboratorio";
 
 export async function GET() {
   const auth = await exigirGestorUsuarios();
   if (auth.erro) return auth.erro;
 
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
+    return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+  }
+
   try {
-    const backup = await exportarBackupLaboratorio(prisma);
-    const nomeArquivo = `backup-lab-protese-${new Date().toISOString().slice(0, 10)}.json`;
+    const backup = await exportarBackupEmpresa(prisma, ctx.empresaId);
+    const nomeArquivo = `backup-${ctx.empresaSlug}-${new Date().toISOString().slice(0, 10)}.json`;
 
     return new NextResponse(JSON.stringify(backup, null, 2), {
       status: 200,

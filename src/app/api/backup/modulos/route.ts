@@ -12,7 +12,7 @@ export async function GET() {
   if (auth.erro) return auth.erro;
 
   try {
-    const contagens = await contarRegistrosModulos(prisma);
+    const contagens = await contarRegistrosModulos(prisma, auth.session!.empresaId);
     const modulos = MODULOS_LIMPEZA.map((mod) => {
       const registros = contagens[mod.id as ModuloLimpezaId] ?? 0;
       const somenteNavegador =

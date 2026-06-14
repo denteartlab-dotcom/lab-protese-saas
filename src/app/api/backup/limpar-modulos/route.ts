@@ -72,6 +72,7 @@ export async function POST(request: Request) {
   try {
     const resultado = await limparModulosSelecionados(prisma, ids, {
       usuarioIdManter: auth.session!.id,
+      empresaId: auth.session!.empresaId,
     });
     return NextResponse.json({
       ok: true,

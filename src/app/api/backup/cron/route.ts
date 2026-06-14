@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
 import { executarBackupAutomatico } from "@/lib/backup-automatico";
 import { carregarConfigBackupAutomatico } from "@/lib/backup-automatico-config";
 
@@ -16,34 +17,58 @@ function autorizado(request: Request) {
   return query === segredo;
 }
 
-/** Dispara backup manualmente (cron externo, GitHub Actions, etc.). */
+/** Dispara backup de todas as empresas ativas (cron externo). */
 export async function GET(request: Request) {
   if (!autorizado(request)) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   try {
-    const config = await carregarConfigBackupAutomatico();
-    if (!config.ativo) {
-      return NextResponse.json({
+    const empresas = await prisma.empresa.findMany({
+      where: { status: "ativo" },
+      select: { id: true, slug: true, nome: true },
+    });
+
+    const resultados: Array<{
+      slug: string;
+      ok: boolean;
+      destino?: string;
+      motivo?: string;
+    }> = [];
+
+    for (const empresa of empresas) {
+      const config = await carregarConfigBackupAutomatico(empresa.id);
+      if (!config.ativo) {
+        resultados.push({
+          slug: empresa.slug,
+          ok: false,
+          motivo: "Backup automático desativado.",
+        });
+        continue;
+      }
+
+      const resultado = await executarBackupAutomatico(
+        empresa.id,
+        empresa.slug,
+        empresa.nome
+      );
+      if (!resultado) {
+        resultados.push({
+          slug: empresa.slug,
+          ok: false,
+          motivo: "Execução em andamento ou falha.",
+        });
+        continue;
+      }
+
+      resultados.push({
+        slug: empresa.slug,
         ok: true,
-        ignorado: true,
-        motivo: "Backup automático desativado nas configurações.",
+        destino: resultado.destino,
       });
     }
 
-    const resultado = await executarBackupAutomatico();
-    if (!resultado) {
-      return NextResponse.json(
-        { error: "Backup já em execução." },
-        { status: 409 }
-      );
-    }
-    return NextResponse.json({
-      ok: true,
-      destino: resultado.destino,
-      exportedAt: resultado.exportedAt,
-    });
+    return NextResponse.json({ ok: true, empresas: resultados });
   } catch (erro) {
     console.error("[backup/cron]", erro);
     return NextResponse.json(
