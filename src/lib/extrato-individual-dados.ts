@@ -1,5 +1,6 @@
 import {
   chaveAgrupamentoFatura,
+  filtrarTrabalhosCliente,
   itensDoTrabalho,
   trabalhosDaFatura,
   type TrabalhoRelatorioFatura,
@@ -157,35 +158,6 @@ export function descricaoServicoExtrato(texto: string): string {
   return t || "—";
 }
 
-/** Monta linhas do extrato individual Smart (serviços + pagamentos + descontos). */
-function linhaServicoCobrancaFallback(
-  l: LancamentoContasReceber,
-  texto: string,
-  ordem: Date,
-  numFat: string,
-  dataOrdemPeriodo: Date
-): LinhaExtratoIndividual {
-  const subtotal = valorNumerico(l.valor);
-  return {
-    tipo: "servico",
-    dataFatura: texto,
-    dataOrdem: ordem,
-    dataOrdemPeriodo,
-    numFatura: numFat,
-    os: l.trabalho?.numeroOs ? numeroOsExtrato(l.trabalho.numeroOs) : "",
-    servico: descricaoServicoExtrato(
-      descricaoBaseReceita(l).split("\n")[0]?.trim() || "Cobrança OS"
-    ),
-    qtd: "1",
-    paciente: "—",
-    numDente: "",
-    dataEntrega: "",
-    valorUn: subtotal,
-    desconto: 0,
-    subtotal,
-  };
-}
-
 export function montarExtratoIndividual(
   lancamentos: LancamentoContasReceber[],
   trabalhos: TrabalhoRelatorioFatura[],
@@ -207,6 +179,11 @@ export function montarExtratoIndividual(
     nomeCliente,
     opcoes?.clienteId
   );
+  const trabalhosCliente = filtrarTrabalhosCliente(
+    trabalhos,
+    opcoes?.clienteId,
+    nomeCliente
+  );
 
   const numerosFatura = new Map<string, number>();
   for (const l of receitas) {
@@ -227,6 +204,18 @@ export function montarExtratoIndividual(
 
   for (const l of receitas) {
     if (isCreditoGerado(l)) continue;
+
+    if (ehCobrancaOs(l) && trabalhosDaFatura(l, trabalhosCliente).length === 0) {
+      continue;
+    }
+
+    if (
+      !ehCobrancaOs(l) &&
+      l.trabalho?.id &&
+      !trabalhosCliente.some((t) => t.id === l.trabalho?.id)
+    ) {
+      continue;
+    }
 
     if (isCreditoUtilizado(l)) {
       const { texto, ordem } = dataFaturaLancamento(l);
@@ -307,37 +296,28 @@ export function montarExtratoIndividual(
     const numFat = String(
       faturaPorGrupo.get(chaveGrupo) ?? numerosFatura.get(l.id) ?? ""
     );
-    const relacionados = trabalhosDaFatura(l, trabalhos);
-    let itensAdicionados = 0;
+    const relacionados = trabalhosDaFatura(l, trabalhosCliente);
+    if (relacionados.length === 0) continue;
 
-    if (relacionados.length > 0) {
-      for (const t of relacionados) {
-        for (const item of itensDoTrabalho(t)) {
-          itensAdicionados += 1;
-          linhasBrutas.push({
-            tipo: "servico",
-            dataFatura: texto,
-            dataOrdem: ordem,
-            dataOrdemPeriodo,
-            numFatura: numFat,
-            os: numeroOsExtrato(item.os),
-            servico: descricaoServicoExtrato(item.descricao),
-            qtd: item.qtd,
-            paciente: item.paciente || "—",
-            numDente: item.numDente && item.numDente !== "—" ? item.numDente : "",
-            dataEntrega: dataEntregaTrabalho(t),
-            valorUn: item.valorUn,
-            desconto: descontoItem(item.qtd, item.valorUn, item.subtotal),
-            subtotal: item.subtotal,
-          });
-        }
+    for (const t of relacionados) {
+      for (const item of itensDoTrabalho(t)) {
+        linhasBrutas.push({
+          tipo: "servico",
+          dataFatura: texto,
+          dataOrdem: ordem,
+          dataOrdemPeriodo,
+          numFatura: numFat,
+          os: numeroOsExtrato(item.os),
+          servico: descricaoServicoExtrato(item.descricao),
+          qtd: item.qtd,
+          paciente: item.paciente || "—",
+          numDente: item.numDente && item.numDente !== "—" ? item.numDente : "",
+          dataEntrega: dataEntregaTrabalho(t),
+          valorUn: item.valorUn,
+          desconto: descontoItem(item.qtd, item.valorUn, item.subtotal),
+          subtotal: item.subtotal,
+        });
       }
-    }
-
-    if (itensAdicionados === 0) {
-      linhasBrutas.push(
-        linhaServicoCobrancaFallback(l, texto, ordem, numFat, dataOrdemPeriodo)
-      );
     }
   }
 

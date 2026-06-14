@@ -25,6 +25,7 @@ import {
 import { parseParcelaNaDescricao } from "@/lib/fatura-financeiro";
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import type { TrabalhoRelatorioFatura } from "@/lib/relatorio-faturas-modelo3-dados";
+import { filtrarTrabalhosCliente } from "@/lib/relatorio-faturas-modelo3-dados";
 import { baixarCsv } from "@/lib/exportar-csv";
 import { exportarExtratoRelatorioExcel } from "@/lib/extrato-relatorio-export";
 import type { ModeloRelatorioReceitas } from "@/lib/relatorio-receitas-modelos";
@@ -455,12 +456,22 @@ export function VisualizacaoClienteReceberModal({
     [faturasVisiveis, saldoFatura]
   );
 
+  const trabalhosCliente = useMemo(
+    () =>
+      filtrarTrabalhosCliente(
+        trabalhos,
+        cliente?.clienteId,
+        cliente?.nome
+      ),
+    [trabalhos, cliente?.clienteId, cliente?.nome]
+  );
+
   const extratoDados = useMemo(() => {
     if (!cliente) return { linhas: [] as LinhaExtratoIndividualComSaldo[], resumo: null };
     const { inicio, fim } = periodoMesAno(mes, ano);
     return montarExtratoIndividual(
       cliente.lancamentos as LancamentoContasReceber[],
-      trabalhos,
+      trabalhosCliente,
       cliente.nome,
       {
         dataInicio: inicio,
@@ -468,7 +479,7 @@ export function VisualizacaoClienteReceberModal({
         clienteId: cliente.clienteId,
       }
     );
-  }, [cliente, trabalhos, mes, ano]);
+  }, [cliente, trabalhosCliente, mes, ano]);
 
   const extratoLinhas = useMemo(() => {
     const termo = buscaExtrato.trim().toLowerCase();
@@ -523,7 +534,7 @@ export function VisualizacaoClienteReceberModal({
       );
       return gerarRelatorioExtrato3PacienteSmartPdf(
         lancamentos,
-        trabalhos,
+        trabalhosCliente,
         cliente.nome,
         opcoes
       );
@@ -534,7 +545,7 @@ export function VisualizacaoClienteReceberModal({
       );
       return gerarRelatorioExtrato2IndividualSmartPdf(
         lancamentos,
-        trabalhos,
+        trabalhosCliente,
         cliente.nome,
         opcoes
       );
@@ -544,7 +555,7 @@ export function VisualizacaoClienteReceberModal({
     );
     return gerarRelatorioExtratoIndividualSmartPdf(
       lancamentos,
-      trabalhos,
+      trabalhosCliente,
       cliente.nome,
       opcoes
     );
@@ -572,7 +583,7 @@ export function VisualizacaoClienteReceberModal({
     exportarExtratoRelatorioExcel(
       modeloExtratoRelatorio(),
       cliente.lancamentos as LancamentoContasReceber[],
-      trabalhos,
+      trabalhosCliente,
       cliente.nome,
       {
         periodoAtivo: true,

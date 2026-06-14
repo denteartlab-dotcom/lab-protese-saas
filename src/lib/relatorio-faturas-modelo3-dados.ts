@@ -20,7 +20,7 @@ export type TrabalhoRelatorioFatura = TrabalhoContasReceber & {
   instrucoes?: string | null;
   dataEntrega?: string | null;
   dataPrevista?: string | null;
-  cliente?: { nome?: string | null; cro?: string | null } | null;
+  cliente?: { id?: string | null; nome?: string | null; cro?: string | null } | null;
 };
 
 export type ItemFaturaModelo3 = {
@@ -170,15 +170,44 @@ export function chaveAgrupamentoFatura(lancamento: LancamentoContasReceber) {
   return `${lancamento.cliente?.id ?? lancamento.cliente?.nome ?? ""}|${desc}`;
 }
 
+export function trabalhoPertenceAoCliente(
+  trabalho: TrabalhoRelatorioFatura,
+  clienteId?: string | null,
+  clienteNome?: string | null
+) {
+  const nomeNorm = clienteNome?.trim().toLowerCase();
+  const tId = trabalho.cliente?.id;
+  const tNome = trabalho.cliente?.nome?.trim().toLowerCase();
+  if (clienteId && tId) return clienteId === tId;
+  if (nomeNorm && tNome) return nomeNorm === tNome;
+  return false;
+}
+
+export function filtrarTrabalhosCliente(
+  trabalhos: TrabalhoRelatorioFatura[],
+  clienteId?: string | null,
+  clienteNome?: string | null
+) {
+  if (!clienteId && !clienteNome?.trim()) return trabalhos;
+  return trabalhos.filter((t) => trabalhoPertenceAoCliente(t, clienteId, clienteNome));
+}
+
 export function trabalhosDaFatura(
   lancamento: LancamentoContasReceber,
   trabalhos: TrabalhoRelatorioFatura[]
 ) {
   const ids = new Set(idsTrabalhosFaturadosNoLancamento(lancamento));
   const numeros = numerosOsDoLancamentoFatura(lancamento);
-  return trabalhos.filter(
-    (t) => ids.has(t.id) || numeros.includes(t.numeroOs)
-  );
+  const temMetaIds = /@@trab:[^@]+@@/i.test(lancamento.descricao);
+  const clienteId = lancamento.cliente?.id;
+  const clienteNome = lancamento.cliente?.nome;
+
+  return trabalhos.filter((t) => {
+    if (!trabalhoPertenceAoCliente(t, clienteId, clienteNome)) return false;
+    if (ids.has(t.id)) return true;
+    if (temMetaIds) return false;
+    return numeros.includes(t.numeroOs);
+  });
 }
 
 function dataEmissaoLancamento(lancamento: LancamentoContasReceber) {

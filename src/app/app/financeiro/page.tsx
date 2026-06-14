@@ -2199,7 +2199,7 @@ function FinanceiroReceberConteudo() {
           dataEntrega: t.dataEntrega ?? null,
           dataPrevista: t.dataPrevista ?? null,
           cliente: t.cliente
-            ? { nome: t.cliente.nome, cro: t.cliente.cro }
+            ? { id: t.cliente.id, nome: t.cliente.nome, cro: t.cliente.cro }
             : null,
         }))}
         filtrosPainel={{ dataInicio, dataFinal, situacao }}
@@ -2698,7 +2698,7 @@ function FinanceiroReceberConteudo() {
           dataEntrega: t.dataEntrega ?? null,
           dataPrevista: t.dataPrevista ?? null,
           cliente: t.cliente
-            ? { nome: t.cliente.nome, cro: t.cliente.cro }
+            ? { id: t.cliente.id, nome: t.cliente.nome, cro: t.cliente.cro }
             : null,
         }))}
       />

@@ -1,5 +1,6 @@
 import {
   chaveAgrupamentoFatura,
+  filtrarTrabalhosCliente,
   itensDoTrabalho,
   nomePacienteTrabalho,
   trabalhosDaFatura,
@@ -158,10 +159,6 @@ function dataEntregaTrabalho(trabalho: TrabalhoRelatorioFatura) {
   return "—";
 }
 
-function descricaoBaseLancamento(l: LancamentoContasReceber) {
-  return desempacotarDespesa(l.descricao).texto.split("\n")[0]?.trim() || "Cobrança OS";
-}
-
 function linhaVazia3(
   tipo: TipoLinhaExtrato3,
   partial: Partial<LinhaExtrato3> & Pick<LinhaExtrato3, "dataOrdem" | "valor">
@@ -195,6 +192,11 @@ export function montarExtrato3Paciente(
 ): { linhas: LinhaExtrato3ComSaldo[]; resumo: ResumoExtrato3 } {
   const periodoCampo = opcoes?.periodoCampo ?? "data_lancamento";
   const receitas = filtrarReceitasCliente(lancamentos, nomeCliente, opcoes?.clienteId);
+  const trabalhosCliente = filtrarTrabalhosCliente(
+    trabalhos,
+    opcoes?.clienteId,
+    nomeCliente
+  );
 
   const faturaPorGrupo = new Map<string, number>();
   for (const l of receitas) {
@@ -211,6 +213,18 @@ export function montarExtrato3Paciente(
 
   for (const l of receitas) {
     if (isCreditoGerado(l)) continue;
+
+    if (ehCobrancaOs(l) && trabalhosDaFatura(l, trabalhosCliente).length === 0) {
+      continue;
+    }
+
+    if (
+      !ehCobrancaOs(l) &&
+      l.trabalho?.id &&
+      !trabalhosCliente.some((t) => t.id === l.trabalho?.id)
+    ) {
+      continue;
+    }
 
     if (isCreditoUtilizado(l)) {
       const { texto, ordem } = dataFaturaLancamento(l);
@@ -252,7 +266,8 @@ export function montarExtrato3Paciente(
       const { texto, ordem } = dataFaturaLancamento(l);
       const pack = desempacotarDespesa(l.descricao);
       const subtotal = valorNumerico(l.valor);
-      const tRef = trabalhos.find((t) => t.id === l.trabalho?.id);
+      const tRef = trabalhosCliente.find((t) => t.id === l.trabalho?.id);
+      if (l.trabalho?.id && !tRef) continue;
       const paciente = tRef ? nomePacienteTrabalho(tRef) : "—";
       const bloco: BlocoFatura3 = {
         dataOrdem: ordem,
@@ -290,7 +305,9 @@ export function montarExtrato3Paciente(
 
     const { texto, ordem } = dataFaturaLancamento(l);
     const numFat = String(faturaPorGrupo.get(chaveGrupo) ?? "");
-    const relacionados = trabalhosDaFatura(l, trabalhos);
+    const relacionados = trabalhosDaFatura(l, trabalhosCliente);
+    if (relacionados.length === 0) continue;
+
     const porPaciente = new Map<string, ItemServico3[]>();
 
     for (const t of relacionados) {
@@ -313,28 +330,6 @@ export function montarExtrato3Paciente(
         });
         porPaciente.set(pac, lista);
       }
-    }
-
-    if (porPaciente.size === 0) {
-      const subtotal = valorNumerico(l.valor);
-      let nomePac = "—";
-      if (relacionados.length > 0) {
-        nomePac = nomePacienteTrabalho(relacionados[0]);
-      } else if (l.trabalho?.id) {
-        const t = trabalhos.find((x) => x.id === l.trabalho?.id);
-        if (t) nomePac = nomePacienteTrabalho(t);
-      }
-      porPaciente.set(nomePac, [
-        {
-          os: l.trabalho?.numeroOs ? numeroOsExtrato(l.trabalho.numeroOs) : "",
-          qtd: "1",
-          servico: descricaoServicoExtrato(descricaoBaseLancamento(l)),
-          entrega: "—",
-          valorUn: subtotal,
-          descPercent: "0,00",
-          valor: subtotal,
-        },
-      ]);
     }
 
     const pacientes = Array.from(porPaciente.entries())
