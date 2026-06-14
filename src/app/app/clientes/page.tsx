@@ -8,11 +8,13 @@ import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal"
 import { Button, Input, Modal } from "@/components/ui";
 import { abrirWhatsAppAcompanhamentoCliente } from "@/lib/whatsapp";
 import {
+  abreviacaoCliente,
   dataNascimentoCliente,
   descontoGeralClienteObservacoes,
   descontoGeralTipoClienteObservacoes,
   mesclarObservacoesComDataNascimento,
   observacoesTextoLivreCliente,
+  tipoClienteCadastro,
 } from "@/lib/cliente-observacoes";
 import {
   carregarNomesTabelasPreco,
@@ -343,8 +345,8 @@ export default function ClientesPage() {
     setEditing(c);
     ultimoCepBuscado.current = (c.cep || "").replace(/\D/g, "");
     setForm({
-      tipoCliente: "Dentista",
-      abreviacao: "",
+      tipoCliente: tipoClienteCadastro(c.observacoes) || "Dentista",
+      abreviacao: abreviacaoCliente(c.observacoes),
       nome: c.nome,
       razaoSocial: c.razaoSocial || "",
       cnpjCpf: c.cnpjCpf || "",
@@ -1100,6 +1102,10 @@ export default function ClientesPage() {
                       className="w-full px-2 text-xs outline-none"
                     />
                   </div>
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    Ao atingir este limite com títulos em aberto há mais de 30 dias, novas ordens de
+                    serviço para este cliente serão bloqueadas.
+                  </p>
                 </div>
 
                 <div className="space-y-1">

@@ -43,6 +43,11 @@ import {
   type SegmentoFaturamento,
 } from "@/lib/trabalho-os-segmento";
 import {
+  clienteBloqueadoNovaOsPorSaldoDevedor,
+  mensagemBloqueioSaldoDevedorOs,
+  type LancamentoResumo,
+} from "@/lib/cliente-financeiro";
+import {
   clienteDescontoGeralDeObservacoes,
   clienteDescontoGeralTipoDeObservacoes,
   descontoItemComFallbackCliente,
@@ -155,7 +160,10 @@ type LancamentoFinanceiro = {
   tipo: string;
   status: string;
   valor: number;
+  data?: Date | string;
+  clienteId?: string | null;
   cliente?: { id?: string | null } | null;
+  descricao?: string;
 };
 type ArquivoOs = { name: string; type: string; url: string };
 type TrabalhoEdicao = {
@@ -1077,11 +1085,26 @@ export default function OrdemServicoPage() {
     return categoriaDoServicoNaTabela(Object.values(categoriasPorTabelaPreco).flat(), nomeServico);
   }
 
-  function saldoDevedorCliente(clienteId: string) {
-    return lancamentosFinanceiros
-      .filter((lancamento) => lancamento.tipo === "receita" && lancamento.status !== "pago" && lancamento.cliente?.id === clienteId)
-      .reduce((sum, lancamento) => sum + lancamento.valor, 0);
+  function lancamentosResumoOs(): LancamentoResumo[] {
+    return lancamentosFinanceiros.map((lancamento) => ({
+      tipo: lancamento.tipo,
+      status: lancamento.status,
+      valor: lancamento.valor,
+      data: lancamento.data ?? new Date().toISOString(),
+      clienteId: lancamento.clienteId ?? lancamento.cliente?.id ?? null,
+      descricao: lancamento.descricao ?? "",
+    }));
   }
+
+  const bloqueioSaldoDevedorOs = useMemo(() => {
+    if (editId || !form.clienteId) return null;
+    const cliente = clientes.find((item) => item.id === form.clienteId);
+    return clienteBloqueadoNovaOsPorSaldoDevedor(
+      form.clienteId,
+      lancamentosResumoOs(),
+      cliente?.observacoes
+    );
+  }, [editId, form.clienteId, clientes, lancamentosFinanceiros]);
 
   function aplicarConfiguracaoCliente(clienteId: string) {
     const config = clienteConfig(clienteId);
@@ -2677,19 +2700,14 @@ export default function OrdemServicoPage() {
     }
 
     if (!editId) {
-      const config = clienteConfig(form.clienteId);
-      const limite = parseCurrency(config.limiteSaldoDevedor || "0,00");
-      const saldo = saldoDevedorCliente(form.clienteId);
-      if (limite > 0 && saldo >= limite) {
-        alert(
-          `Este cliente atingiu o limite de saldo devedor (${limite.toLocaleString("pt-BR", {
-            style: "currency",
-            currency: "BRL",
-          })}). Saldo atual: ${saldo.toLocaleString("pt-BR", {
-            style: "currency",
-            currency: "BRL",
-          })}. Não é possível criar nova OS.`
-        );
+      const cliente = clientes.find((item) => item.id === form.clienteId);
+      const bloqueio = clienteBloqueadoNovaOsPorSaldoDevedor(
+        form.clienteId,
+        lancamentosResumoOs(),
+        cliente?.observacoes
+      );
+      if (bloqueio.bloqueado) {
+        alert(mensagemBloqueioSaldoDevedorOs(bloqueio));
         return;
       }
     }
@@ -3275,6 +3293,12 @@ export default function OrdemServicoPage() {
               <p className="text-[12px] font-medium leading-snug text-[#4a90d9]">
                 Tabela Utilizada{" "}
                 <span className="font-semibold">{tabelaPrecoSelecionada}</span>
+              </p>
+            ) : null}
+            {bloqueioSaldoDevedorOs?.bloqueado ? (
+              <p className="flex items-start gap-1.5 text-[12px] font-medium leading-snug text-red-600">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                {mensagemBloqueioSaldoDevedorOs(bloqueioSaldoDevedorOs)}
               </p>
             ) : null}
           </div>
@@ -4323,7 +4347,7 @@ export default function OrdemServicoPage() {
           <Button type="button" variant="outline" onClick={() => router.push("/app/producao/controle")}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={salvando}>
+          <Button type="submit" disabled={salvando || Boolean(bloqueioSaldoDevedorOs?.bloqueado)}>
             {salvando ? <Plus className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             {salvando ? "Salvando..." : editId ? "Salvar Alterações" : "Salvar Ordem de Serviço"}
           </Button>

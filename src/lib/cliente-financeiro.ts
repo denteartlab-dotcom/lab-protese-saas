@@ -76,3 +76,58 @@ export function diasDesde(data: Date | string): number {
   ref.setHours(12, 0, 0, 0);
   return Math.floor((hoje.getTime() - ref.getTime()) / (1000 * 60 * 60 * 24));
 }
+
+export const DIAS_BLOQUEIO_OS_SALDO_DEVEDOR = 30;
+
+/** Maior atraso (em dias) entre receitas pendentes do cliente. */
+export function diasAtrasoSaldoDevedorCliente(
+  clienteId: string,
+  lancamentos: LancamentoResumo[]
+): number {
+  const pendentes = lancamentos.filter(
+    (l) =>
+      l.tipo === "receita" &&
+      l.status === "pendente" &&
+      l.clienteId === clienteId
+  );
+  if (pendentes.length === 0) return 0;
+  return Math.max(...pendentes.map((l) => diasDesde(l.data)));
+}
+
+export type BloqueioSaldoDevedorOs = {
+  bloqueado: boolean;
+  saldo: number;
+  limite: number;
+  diasAtraso: number;
+};
+
+/** Bloqueia nova OS quando o limite de saldo devedor foi atingido e há títulos com mais de 30 dias. */
+export function clienteBloqueadoNovaOsPorSaldoDevedor(
+  clienteId: string,
+  lancamentos: LancamentoResumo[],
+  observacoes?: string | null
+): BloqueioSaldoDevedorOs {
+  const limite = limiteSaldoDevedorCliente(observacoes);
+  const saldo = saldoDevedorCliente(clienteId, lancamentos);
+  const diasAtraso = diasAtrasoSaldoDevedorCliente(clienteId, lancamentos);
+
+  const bloqueado =
+    limite > 0 &&
+    saldo > 0 &&
+    saldo >= limite &&
+    diasAtraso > DIAS_BLOQUEIO_OS_SALDO_DEVEDOR;
+
+  return { bloqueado, saldo, limite, diasAtraso };
+}
+
+export function mensagemBloqueioSaldoDevedorOs(info: BloqueioSaldoDevedorOs): string {
+  const saldoFmt = info.saldo.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+  const limiteFmt = info.limite.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+  return `Este cliente atingiu o limite de saldo devedor (${limiteFmt}). Saldo atual: ${saldoFmt}, com títulos em atraso há ${info.diasAtraso} dias. Não é possível criar nova ordem de serviço após ${DIAS_BLOQUEIO_OS_SALDO_DEVEDOR} dias de atraso.`;
+}
