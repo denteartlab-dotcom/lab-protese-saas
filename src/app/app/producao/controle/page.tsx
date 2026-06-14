@@ -128,6 +128,7 @@ import {
 import {
   anexosParaLinhasInstrucoes,
   clienteDescontoGeralDeObservacoes,
+  clienteDescontoGeralTipoDeObservacoes,
   clienteTabelaPrecoDeObservacoes,
   descontoItemComFallbackCliente,
   linhaInstrucaoOs,
@@ -311,11 +312,17 @@ function descontoGeralClienteControle(
   clientesCatalogo: ClienteCatalogo[],
   trabalho?: Trabalho | null
 ) {
-  if (!clienteId) return "0,00";
+  if (!clienteId) {
+    return { desconto: "0,00", descontoTipo: "percentual" as const };
+  }
   const observacoes =
     clientesCatalogo.find((item) => item.id === clienteId)?.observacoes ||
     trabalho?.cliente?.observacoes;
-  return clienteDescontoGeralDeObservacoes(observacoes) || "0,00";
+  const descontoTipo = clienteDescontoGeralTipoDeObservacoes(observacoes);
+  const desconto =
+    clienteDescontoGeralDeObservacoes(observacoes) ||
+    (descontoTipo === "valor" ? "R$ 0,00" : "0,00");
+  return { desconto, descontoTipo };
 }
 
 type EtapaOsItemEdicao = EtapaOsFormLinha;
@@ -1426,24 +1433,17 @@ export default function ControlePage() {
 
   useEffect(() => {
     if (!editando || !form?.clienteId || itemSelecionadoId) return;
-    const descontoCliente = descontoGeralClienteControle(
+    const { desconto, descontoTipo } = descontoGeralClienteControle(
       form.clienteId,
       clientesCatalogo,
       editando
     );
     setForm((atual) => {
       if (!atual) return atual;
-      if (
-        atual.desconto === descontoCliente &&
-        atual.descontoTipo === "percentual"
-      ) {
+      if (atual.desconto === desconto && atual.descontoTipo === descontoTipo) {
         return atual;
       }
-      return {
-        ...atual,
-        descontoTipo: "percentual",
-        desconto: descontoCliente,
-      };
+      return { ...atual, descontoTipo, desconto };
     });
   }, [editando, form?.clienteId, clientesCatalogo, itemSelecionadoId]);
 
@@ -2036,7 +2036,7 @@ export default function ControlePage() {
     setTipoDenticao(denticaoInicial);
     setDentesEdicao(dentesIniciais);
     const formInicial = formVazioEdicao(alvo, lista);
-    const descontoCliente = descontoGeralClienteControle(
+    const { desconto, descontoTipo } = descontoGeralClienteControle(
       formInicial.clienteId,
       clientesCatalogo,
       alvo
@@ -2044,8 +2044,8 @@ export default function ControlePage() {
     setForm({
       ...formInicial,
       dentes: numeroDenteResumoControle(dentesIniciais, denticaoInicial),
-      descontoTipo: "percentual",
-      desconto: descontoCliente,
+      descontoTipo,
+      desconto,
     });
     setAnexosEdicao(anexosFromInstrucoes(instrucoesConsolidadas(alvo, lista)));
     setArquivosEdicao([]);
@@ -2156,7 +2156,11 @@ export default function ControlePage() {
     const descontoItem = item.desconto || "0,00";
     const descontoResolvido = descontoItemComFallbackCliente(
       descontoItem,
-      descontoGeralClienteControle(form?.clienteId || editando!.clienteId, clientesCatalogo, editando)
+      descontoGeralClienteControle(
+        form?.clienteId || editando!.clienteId,
+        clientesCatalogo,
+        editando
+      ).desconto
     );
     setForm((atual) => ({
       ...(atual || formVazioEdicao(editando!)),
@@ -2414,7 +2418,7 @@ export default function ControlePage() {
     setEtapasEdicao([]);
     setColaboradoresEdicao([]);
     setTerceirizadosEdicao([]);
-    const descontoCliente = descontoGeralClienteControle(
+    const { desconto, descontoTipo } = descontoGeralClienteControle(
       form.clienteId,
       clientesCatalogo,
       editando
@@ -2441,8 +2445,8 @@ export default function ControlePage() {
       cor: "",
       quantidade: "1",
       valor: "R$ 0,00",
-      descontoTipo: "percentual",
-      desconto: descontoCliente,
+      descontoTipo,
+      desconto,
       observacaoServico: "",
       urgente: false,
       repeticao: false,
@@ -2458,7 +2462,7 @@ export default function ControlePage() {
     setProdutosOs([]);
     setTipoDenticao("permanente");
     setDentesEdicao([]);
-    const descontoCliente = descontoGeralClienteControle(
+    const { desconto, descontoTipo } = descontoGeralClienteControle(
       form?.clienteId || editando.clienteId || editando.cliente?.id,
       clientesCatalogo,
       editando
@@ -2472,8 +2476,8 @@ export default function ControlePage() {
       cor: "",
         quantidade: "1",
       valor: "R$ 0,00",
-      descontoTipo: "percentual",
-      desconto: descontoCliente,
+      descontoTipo,
+      desconto,
       observacaoServico: "",
       urgente: false,
       repeticao: false,
@@ -3841,20 +3845,22 @@ export default function ControlePage() {
                         <div className="flex overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20">
                           <select
                             value={form.descontoTipo}
-                            onChange={(e) =>
+                            onChange={(e) => {
+                              const descontoTipo = e.target.value;
+                              const descontoCliente = descontoGeralClienteControle(
+                                form.clienteId,
+                                clientesCatalogo,
+                                editando
+                              );
                               setForm({
                                 ...form,
-                                descontoTipo: e.target.value,
+                                descontoTipo,
                                 desconto:
-                                  e.target.value === "valor"
+                                  descontoTipo === "valor"
                                     ? "R$ 0,00"
-                                    : descontoGeralClienteControle(
-                                        form.clienteId,
-                                        clientesCatalogo,
-                                        editando
-                                      ),
-                              })
-                            }
+                                    : descontoCliente.desconto,
+                              });
+                            }}
                             className="w-14 border-r border-slate-300 bg-white px-2 text-sm text-slate-600 focus:outline-none"
                           >
                             <option value="percentual">%</option>

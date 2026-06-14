@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Download, Printer, X } from "lucide-react";
+import { PdfViewerAmbiente } from "@/components/pdf/PdfViewerAmbiente";
 import { PdfViewerIframe } from "@/components/pdf/PdfViewerIframe";
 import { PDF_VIEWER_TELA_CHEIA_CLASSES } from "@/lib/pdf-viewer-iframe";
 
@@ -46,7 +47,8 @@ export function PdfViewerOverlay({
   if (!portalPronto) return null;
 
   return createPortal(
-    <div className={PDF_VIEWER_TELA_CHEIA_CLASSES}>
+    <PdfViewerAmbiente>
+      <div className={PDF_VIEWER_TELA_CHEIA_CLASSES}>
       <div className="flex shrink-0 items-center justify-between border-b border-slate-700 bg-[#3c3c3c] px-4 py-3 text-white">
         <div>
           <h2 className="text-sm font-semibold">{titulo}</h2>
@@ -79,8 +81,9 @@ export function PdfViewerOverlay({
           </button>
         </div>
       </div>
-      <PdfViewerIframe id="pdf-viewer-overlay-iframe" title={titulo} pdfUrl={url} />
-    </div>,
+        <PdfViewerIframe id="pdf-viewer-overlay-iframe" title={titulo} pdfUrl={url} />
+      </div>
+    </PdfViewerAmbiente>,
     document.body
   );
 }

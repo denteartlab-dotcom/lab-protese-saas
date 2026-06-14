@@ -5,6 +5,8 @@ import {
   itemExibeBadgeTransporte,
   itemUsaCamposOdontologicos,
   nomeExibicaoItemOs,
+  parseDescontoTipoLinhaItem,
+  formatarDescontoImpressaoOs,
   segmentoEfetivoTrabalho,
   type ItemOsLinha,
   type SegmentoFaturamento,
@@ -19,10 +21,15 @@ export type ItemImpressaoOs = {
   cor: string;
   unitario: number;
   desconto: string;
+  descontoTipo?: string;
   tipo: TipoItemImpressaoOs;
   /** Linhas extras abaixo do item (ex.: prazos do serviço). */
   notasAbaixo?: string[];
 };
+
+function descontoImpressao(desconto?: string, descontoTipo?: string) {
+  return formatarDescontoImpressaoOs(desconto, descontoTipo);
+}
 
 function parseMoney(value: string) {
   const normalized = value
@@ -30,18 +37,6 @@ function parseMoney(value: string) {
     .replace(/\./g, "")
     .replace(",", ".");
   return Number(normalized) || 0;
-}
-
-function descontoImpressao(desconto?: string) {
-  const texto = (desconto || "").trim();
-  if (!texto || texto === "0" || texto === "0,00" || texto === "R$ 0,00") return "% 0.00";
-  if (texto.startsWith("R$")) return texto;
-  const numerico = texto.replace("%", "").replace(",", ".").trim();
-  const valor = Number(numerico);
-  if (Number.isFinite(valor)) {
-    return `% ${valor.toFixed(2)}`;
-  }
-  return texto.includes("%") ? texto : `% ${texto}`;
 }
 
 /** Ex.: `Trilux - A2` quando há escala e cor na OS. */
@@ -100,9 +95,12 @@ function parseLinhaItemAdicionado(
     "R$ 0,00";
   const total = parseMoney(valorText);
   const quantidade = Number(String(qtd).replace(",", ".")) || 1;
-  const descontoRaw = line.match(
-    / - desc (.*?)(?: - categoria| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
-  )?.[1];
+  const descontoRaw = line
+    .match(
+      / - desc (.*?)(?: - descTipo| - categoria| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
+    )?.[1]
+    ?.trim();
+  const descontoTipo = parseDescontoTipoLinhaItem(line, descontoRaw || "");
 
   const { tipo, descricao } = descricaoImpressao(itemLinha);
   const odontologico = itemUsaCamposOdontologicos(itemLinha);
@@ -113,7 +111,8 @@ function parseLinhaItemAdicionado(
     dente: odontologico && dente !== "-" ? dente : "",
     cor: odontologico ? formatarCorEscalaImpressaoOs(escalaEfetiva, corLinha) : "",
     unitario: quantidade > 0 ? total / quantidade : total,
-    desconto: tipo === "servico" ? descontoImpressao(descontoRaw) : "",
+    desconto: tipo === "servico" ? descontoImpressao(descontoRaw, descontoTipo) : "",
+    descontoTipo: tipo === "servico" ? descontoTipo : undefined,
     tipo,
   };
 }

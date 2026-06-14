@@ -1,8 +1,7 @@
-/** Parâmetros do visualizador nativo do navegador para preencher a largura da tela. */
+/** URL do PDF sem forçar zoom — o visualizador nativo do navegador centraliza o A4. */
 export function srcIframePdfViewer(pdfUrl: string) {
   if (!pdfUrl.trim()) return "";
-  const base = pdfUrl.split("#")[0] ?? pdfUrl;
-  return `${base}#view=FitH&zoom=page-width`;
+  return pdfUrl.split("#")[0] ?? pdfUrl;
 }
 
 export const PDF_VIEWER_TELA_CHEIA_CLASSES =

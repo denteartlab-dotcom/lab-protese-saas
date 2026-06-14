@@ -65,6 +65,30 @@ export function parseDescontoTipoLinhaItem(line: string, desconto: string) {
   return desconto.startsWith("R$") ? "valor" : "percentual";
 }
 
+/** Formato na requisição impressa: `% 5.00` ou `R$ 5,00` (referência Smart Prótese). */
+export function formatarDescontoImpressaoOs(desconto?: string, descontoTipo?: string) {
+  const texto = (desconto || "").trim();
+  if (!texto || texto === "0" || texto === "0,00" || texto === "R$ 0,00") {
+    return "% 0.00";
+  }
+  const tipo =
+    descontoTipo === "valor" || texto.startsWith("R$") ? "valor" : "percentual";
+  if (tipo === "valor") {
+    const valor = parseCurrencyBr(texto);
+    return `R$ ${valor.toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }
+  const numerico = texto.replace("%", "").replace(",", ".").trim();
+  const pct = Number(numerico);
+  if (Number.isFinite(pct)) {
+    return `% ${pct.toFixed(2)}`;
+  }
+  if (texto.startsWith("%")) return texto;
+  return `% ${texto}`;
+}
+
 export function formatarDescontoItemOs(item: ItemOsLinha & {
   desconto?: string;
   descontoTipo?: string;
@@ -76,10 +100,7 @@ export function formatarDescontoItemOs(item: ItemOsLinha & {
   if (!desconto || desconto === "0" || desconto === "0,00" || desconto === "R$ 0,00") {
     return "";
   }
-  if (item.descontoTipo === "valor" || desconto.startsWith("R$")) {
-    return desconto.startsWith("R$") ? desconto : `R$ ${desconto}`;
-  }
-  return desconto.includes("%") ? desconto : `${desconto}%`;
+  return formatarDescontoImpressaoOs(desconto, item.descontoTipo);
 }
 
 export function itemUsaCamposOdontologicos(item: ItemOsLinha) {

@@ -9,6 +9,7 @@ export const PREFIXOS_CONFIG_CLIENTE = [
   "Representante:",
   "Tabela de Preço:",
   "Desconto Geral:",
+  "Desconto Geral Tipo:",
   "Limite Saldo Devedor:",
   "Dia da Cobrança:",
   "Data de Nascimento:",
@@ -34,6 +35,11 @@ export function observacoesTextoLivreCliente(observacoes: string | null | undefi
 
 export function descontoGeralClienteObservacoes(observacoes: string | null | undefined) {
   return configValueFromObservacoes(observacoes, "Desconto Geral:");
+}
+
+export function descontoGeralTipoClienteObservacoes(observacoes: string | null | undefined) {
+  const tipo = configValueFromObservacoes(observacoes, "Desconto Geral Tipo:");
+  return tipo === "valor" ? "valor" : "percentual";
 }
 
 export function abreviacaoCliente(observacoes: string | null | undefined): string {

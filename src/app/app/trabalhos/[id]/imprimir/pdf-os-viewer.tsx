@@ -53,7 +53,9 @@ import {
   type ModeloEtiquetaId,
   type TipografiaEtiquetaOs,
 } from "@/lib/configuracoes-etiquetas";
+import { parseCurrencyBr } from "@/lib/cliente-financeiro";
 import { extrairDataPrazoBr } from "@/lib/os-itens-impressao";
+import { formatarDescontoImpressaoOs } from "@/lib/trabalho-os-segmento";
 import { gerarPngCode39DataUrl } from "@/lib/code39-barcode";
 import {
   colaboradorDaEtapaImpressao,
@@ -73,6 +75,7 @@ type PdfItem = {
   cor: string;
   unitario: number;
   desconto: string;
+  descontoTipo?: string;
   notasAbaixo?: string[];
 };
 
@@ -137,10 +140,11 @@ function unitarioTabela(value: number) {
   });
 }
 
-function descontoCelula(desconto: string) {
+function descontoCelula(desconto: string, descontoTipo?: string) {
   const texto = (desconto || "").trim();
   if (!texto) return "% 0.00";
-  return texto;
+  if (texto.startsWith("%") || texto.startsWith("R$")) return texto;
+  return formatarDescontoImpressaoOs(desconto, descontoTipo);
 }
 
 function desenharLinhaPrazo(
@@ -866,7 +870,7 @@ function renderModeloProducao(
     if (lay.numDente) pdf.text(String(item.dente).slice(0, 12), colDente, y, { align: "center" });
     if (lay.corDente) pdf.text(String(item.cor).slice(0, 16), colCor, y, { align: "center" });
     if (lay.valorUnit) pdf.text(unitarioTabela(item.unitario), colUnit, y, { align: "right" });
-    if (lay.desconto) pdf.text(descontoCelula(item.desconto), colDescPct, y, { align: "right" });
+    if (lay.desconto) pdf.text(descontoCelula(item.desconto, item.descontoTipo), colDescPct, y, { align: "right" });
     if (lay.subtotal) {
       pdf.text(unitarioTabela(subtotalItem(item)), colSubtotalDir, y, { align: "right" });
     }
@@ -949,7 +953,11 @@ function valorBrutoItem(item: PdfItem) {
 
 function subtotalItem(item: PdfItem) {
   const bruto = valorBrutoItem(item);
-  const pct = parseDescontoPct(item.desconto);
+  const descontoTexto = (item.desconto || "").trim();
+  if (item.descontoTipo === "valor" || descontoTexto.startsWith("R$")) {
+    return Math.max(bruto - parseCurrencyBr(descontoTexto), 0);
+  }
+  const pct = parseDescontoPct(descontoTexto);
   return bruto * (1 - pct / 100);
 }
 
@@ -1309,12 +1317,8 @@ function renderTermicaModelo3(pdf: PdfRenderApi, data: PdfOsData): number {
   return y + 2;
 }
 
-function descTermicaPct(desconto: string) {
-  const pct = parseDescontoPct(desconto);
-  if (pct > 0) return `${pct.toFixed(2).replace(".", ",")}%`;
-  const texto = (desconto || "").trim().replace(".", ",");
-  if (texto.includes("%")) return texto;
-  return "0,00%";
+function descTermicaPct(desconto: string, descontoTipo?: string) {
+  return formatarDescontoImpressaoOs(desconto, descontoTipo);
 }
 
 function totalTermicaDireita(
@@ -1464,7 +1468,7 @@ function renderTermicaModelo4(
         pdf.text(money(item.unitario), colValorUn, y, { align: "right" });
       }
       if (lay.desconto) {
-        pdf.text(descTermicaPct(item.desconto), colDescPct, y, { align: "right" });
+        pdf.text(descTermicaPct(item.desconto, item.descontoTipo), colDescPct, y, { align: "right" });
       }
       y += Math.max(3.8, descricaoLinhas.length * 3.3) + 0.5;
 
@@ -1727,7 +1731,7 @@ function renderTermicaModelo5(
           pdf.text(money(item.unitario), colValorUn, y, { align: "right" });
         }
         if (lay.desconto) {
-          pdf.text(descTermicaPct(item.desconto), colDescPct, y, { align: "right" });
+          pdf.text(descTermicaPct(item.desconto, item.descontoTipo), colDescPct, y, { align: "right" });
         }
         y += 3.6;
       }

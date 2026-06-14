@@ -10,6 +10,7 @@ import { abrirWhatsAppAcompanhamentoCliente } from "@/lib/whatsapp";
 import {
   dataNascimentoCliente,
   descontoGeralClienteObservacoes,
+  descontoGeralTipoClienteObservacoes,
   mesclarObservacoesComDataNascimento,
   observacoesTextoLivreCliente,
 } from "@/lib/cliente-observacoes";
@@ -99,6 +100,7 @@ const empty = {
   custoEntrega: "0,00",
   tabelaPreco: "Tabela Principal",
   descontoGeral: "0,00",
+  descontoGeralTipo: "percentual" as "percentual" | "valor",
   limiteSaldoDevedor: "0,00",
   diaCobranca: "",
   endereco: "",
@@ -160,6 +162,14 @@ export default function ClientesPage() {
     return amount.toLocaleString("pt-BR", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
+    });
+  }
+
+  function formatCurrencyInput(value: string) {
+    const amount = Number(value.replace(/\D/g, "")) / 100;
+    return amount.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
     });
   }
 
@@ -361,6 +371,7 @@ export default function ClientesPage() {
       custoEntrega: formatarCustoEntregaCliente(custoEntregaCliente(c.observacoes)),
       tabelaPreco: configValue(c.observacoes, "Tabela de Preço:") || "Tabela Principal",
       descontoGeral: descontoGeralClienteObservacoes(c.observacoes) || "0,00",
+      descontoGeralTipo: descontoGeralTipoClienteObservacoes(c.observacoes),
       limiteSaldoDevedor: configValue(c.observacoes, "Limite Saldo Devedor:") || "0,00",
       diaCobranca: configValue(c.observacoes, "Dia da Cobrança:"),
       endereco: c.endereco || "",
@@ -405,6 +416,7 @@ export default function ClientesPage() {
             form.representante ? `Representante: ${form.representante}` : "",
             form.tabelaPreco ? `Tabela de Preço: ${form.tabelaPreco}` : "",
             `Desconto Geral: ${form.descontoGeral || "0,00"}`,
+            `Desconto Geral Tipo: ${form.descontoGeralTipo || "percentual"}`,
             form.limiteSaldoDevedor ? `Limite Saldo Devedor: ${form.limiteSaldoDevedor}` : "",
             form.diaCobranca ? `Dia da Cobrança: ${form.diaCobranca}` : "",
           ]
@@ -1047,10 +1059,32 @@ export default function ClientesPage() {
                 <div className="space-y-1">
                   <label className="block text-[11px] text-slate-600">Desconto Geral</label>
                   <div className="flex h-9 overflow-hidden rounded border border-slate-300 bg-white">
-                    <span className="flex w-9 items-center justify-center border-r border-slate-200 text-xs text-slate-500">%</span>
+                    <select
+                      value={form.descontoGeralTipo}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          descontoGeralTipo: e.target.value as "percentual" | "valor",
+                          descontoGeral:
+                            e.target.value === "valor" ? "R$ 0,00" : "0,00",
+                        })
+                      }
+                      className="w-11 border-r border-slate-200 bg-white px-1 text-center text-xs text-slate-600 outline-none"
+                    >
+                      <option value="percentual">%</option>
+                      <option value="valor">$</option>
+                    </select>
                     <input
                       value={form.descontoGeral}
-                      onChange={(e) => setForm({ ...form, descontoGeral: formatDecimalInput(e.target.value) })}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          descontoGeral:
+                            form.descontoGeralTipo === "valor"
+                              ? formatCurrencyInput(e.target.value)
+                              : formatDecimalInput(e.target.value),
+                        })
+                      }
                       className="w-full px-2 text-xs outline-none"
                     />
                   </div>

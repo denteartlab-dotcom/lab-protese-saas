@@ -61,6 +61,11 @@ export function clienteDescontoGeralDeObservacoes(observacoes?: string | null) {
   return configValueFromObservacoes(observacoes, "Desconto Geral:");
 }
 
+export function clienteDescontoGeralTipoDeObservacoes(observacoes?: string | null) {
+  const tipo = configValueFromObservacoes(observacoes, "Desconto Geral Tipo:");
+  return tipo === "valor" ? "valor" : "percentual";
+}
+
 /** Usa o desconto do item; se zerado, aplica o desconto geral do cliente. */
 export function descontoItemComFallbackCliente(
   descontoItem: string | undefined,

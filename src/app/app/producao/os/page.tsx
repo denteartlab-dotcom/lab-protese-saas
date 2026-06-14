@@ -44,6 +44,7 @@ import {
 } from "@/lib/trabalho-os-segmento";
 import {
   clienteDescontoGeralDeObservacoes,
+  clienteDescontoGeralTipoDeObservacoes,
   descontoItemComFallbackCliente,
 } from "@/lib/cabecalho-os-form";
 import { calcularDatasPrazoServico } from "@/lib/prazos-servico";
@@ -901,6 +902,7 @@ export default function OrdemServicoPage() {
     return {
       tabelaPreco: value("Tabela de Preço:"),
       descontoGeral: clienteDescontoGeralDeObservacoes(observacoes),
+      descontoGeralTipo: clienteDescontoGeralTipoDeObservacoes(observacoes),
       limiteSaldoDevedor: value("Limite Saldo Devedor:"),
     };
   }
@@ -1086,31 +1088,28 @@ export default function OrdemServicoPage() {
     setForm((current) => ({
       ...current,
       clienteId,
-      descontoTipo: "percentual",
-      desconto: config.descontoGeral || "0,00",
+      descontoTipo: config.descontoGeralTipo || "percentual",
+      desconto: config.descontoGeral || (config.descontoGeralTipo === "valor" ? "R$ 0,00" : "0,00"),
     }));
   }
 
   function descontoGeralDoClienteSelecionado(clienteId = form.clienteId) {
-    if (!clienteId) return "0,00";
-    return clienteConfig(clienteId).descontoGeral || "0,00";
+    if (!clienteId) return { desconto: "0,00", descontoTipo: "percentual" as const };
+    const config = clienteConfig(clienteId);
+    return {
+      desconto: config.descontoGeral || (config.descontoGeralTipo === "valor" ? "R$ 0,00" : "0,00"),
+      descontoTipo: config.descontoGeralTipo || ("percentual" as const),
+    };
   }
 
   useEffect(() => {
     if (!form.clienteId || itemSelecionadoId) return;
-    const descontoCliente = descontoGeralDoClienteSelecionado(form.clienteId);
+    const { desconto, descontoTipo } = descontoGeralDoClienteSelecionado(form.clienteId);
     setForm((current) => {
-      if (
-        current.desconto === descontoCliente &&
-        current.descontoTipo === "percentual"
-      ) {
+      if (current.desconto === desconto && current.descontoTipo === descontoTipo) {
         return current;
       }
-      return {
-        ...current,
-        descontoTipo: "percentual",
-        desconto: descontoCliente,
-      };
+      return { ...current, descontoTipo, desconto };
     });
   }, [form.clienteId, clientes, itemSelecionadoId]);
 
@@ -1879,7 +1878,7 @@ export default function OrdemServicoPage() {
     setDentes(dentesFromResumo(item.numeroDente, denticaoItem));
     const descontoResolvido = descontoItemComFallbackCliente(
       item.desconto,
-      descontoGeralDoClienteSelecionado()
+      descontoGeralDoClienteSelecionado().desconto
     );
     setForm((current) => ({
       ...current,
@@ -2324,8 +2323,8 @@ export default function OrdemServicoPage() {
       categoria: "",
       quantidade: "1",
       valor: "R$ 0,00",
-      descontoTipo: "percentual",
-      desconto: descontoGeralDoClienteSelecionado(current.clienteId),
+      descontoTipo: descontoGeralDoClienteSelecionado(current.clienteId).descontoTipo,
+      desconto: descontoGeralDoClienteSelecionado(current.clienteId).desconto,
       escala: "",
       cor: "",
       situacao: "producao",
@@ -3604,7 +3603,7 @@ export default function OrdemServicoPage() {
                         desconto:
                           e.target.value === "valor"
                             ? "R$ 0,00"
-                            : descontoGeralDoClienteSelecionado(),
+                            : descontoGeralDoClienteSelecionado().desconto,
                       })
                     }
                     className="w-14 border-r border-slate-300 bg-white px-2 text-sm text-slate-600 focus:outline-none"
