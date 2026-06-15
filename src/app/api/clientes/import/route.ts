@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import { gerarTokenAcompanhamentoCliente } from "@/lib/cliente-acompanhamento";
 import { prisma } from "@/lib/db";
 import { schemaNomeCliente } from "@/lib/cliente-validacao";
@@ -25,8 +25,8 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   try {
     const body = await request.json();
@@ -45,6 +45,7 @@ export async function POST(request: Request) {
 
       await prisma.cliente.create({
         data: {
+          empresaId: ctx.empresaId,
           nome,
           razaoSocial: cliente.razaoSocial?.trim() || null,
           cnpjCpf: cliente.cnpjCpf?.trim() || null,
