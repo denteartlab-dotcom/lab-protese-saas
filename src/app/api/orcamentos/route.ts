@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import { prisma } from "@/lib/db";
 import {
   calcularTotaisItens,
@@ -14,13 +14,13 @@ import {
 } from "@/lib/orcamentos-db";
 
 export async function GET() {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
-  ;
   const rows = await prisma.orcamento.findMany({
+    where: { empresaId: ctx.empresaId },
     orderBy: { numeroPedido: "desc" },
   });
 
@@ -43,8 +43,8 @@ type BodyCriar = {
 };
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
@@ -67,12 +67,12 @@ export async function POST(request: Request) {
     descontoPercentual
   );
 
-  const numeroPedido = await proximoNumeroPedido();
+  const numeroPedido = await proximoNumeroPedido(ctx.empresaId);
   const token = gerarTokenOrcamento();
 
-  ;
   const row = await prisma.orcamento.create({
     data: {
+      empresaId: ctx.empresaId,
       numeroPedido,
       token,
       fornecedorId: body.fornecedorId || null,
@@ -85,9 +85,9 @@ export async function POST(request: Request) {
       observacoes: body.observacoes || null,
       emailEnvio: body.emailEnvio || null,
       whatsappEnvio: body.whatsappEnvio || null,
-      labNome: body.labNome || session.name,
+      labNome: body.labNome || ctx.user.name,
       labTelefone: body.labTelefone || null,
-      labEmail: body.labEmail || session.email,
+      labEmail: body.labEmail || ctx.user.email,
       itensJson: JSON.stringify(itensLab),
       linkAtivo: true,
     },

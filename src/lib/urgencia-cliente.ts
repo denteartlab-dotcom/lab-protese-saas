@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { lerJsonStoreTenant, salvarJsonStoreTenant } from "@/lib/json-store-tenant";
 import { garantirTokenAcompanhamentoCliente } from "@/lib/cliente-acompanhamento";
 import { flagsUrgenciaTrabalho } from "@/lib/modulo-producao-os";
 import { hrefAcompanhamentoClienteOs } from "@/lib/whatsapp";
@@ -141,27 +142,22 @@ export function eventoNoDia(criadoEm: string, ref = new Date()) {
   return d >= inicioDiaBr(ref) && d <= fimDiaBr(ref);
 }
 
-export async function carregarStoreUrgenciasCliente(): Promise<StoreUrgenciasCliente> {
-  const row = await prisma.jsonStore.findUnique({
-    where: { key: JSON_STORE_URGENCIAS_CLIENTE },
-  });
-  if (!row?.payload) return { eventos: [] };
-  try {
-    const parsed = JSON.parse(row.payload) as StoreUrgenciasCliente;
-    if (parsed?.eventos && Array.isArray(parsed.eventos)) return parsed;
-  } catch {
-    /* ignora payload inválido */
-  }
+export async function carregarStoreUrgenciasCliente(
+  empresaId: string
+): Promise<StoreUrgenciasCliente> {
+  const parsed = await lerJsonStoreTenant<StoreUrgenciasCliente>(
+    empresaId,
+    JSON_STORE_URGENCIAS_CLIENTE
+  );
+  if (parsed?.eventos && Array.isArray(parsed.eventos)) return parsed;
   return { eventos: [] };
 }
 
-export async function salvarStoreUrgenciasCliente(store: StoreUrgenciasCliente) {
-  const payload = JSON.stringify(store);
-  await prisma.jsonStore.upsert({
-    where: { key: JSON_STORE_URGENCIAS_CLIENTE },
-    create: { key: JSON_STORE_URGENCIAS_CLIENTE, payload },
-    update: { payload },
-  });
+export async function salvarStoreUrgenciasCliente(
+  empresaId: string,
+  store: StoreUrgenciasCliente
+) {
+  await salvarJsonStoreTenant(empresaId, JSON_STORE_URGENCIAS_CLIENTE, store);
 }
 
 export function contarUrgenciasHojeCliente(
@@ -284,13 +280,13 @@ export function montarUrgentesClienteDashboard(
 }
 
 /** Remove eventos de OS finalizadas/entregues do histórico de urgências. */
-export async function podarEventosUrgenciaInativos() {
-  const store = await carregarStoreUrgenciasCliente();
+export async function podarEventosUrgenciaInativos(empresaId: string) {
+  const store = await carregarStoreUrgenciasCliente(empresaId);
   if (!store.eventos.length) return store;
 
   const ids = [...new Set(store.eventos.map((e) => e.trabalhoId))];
   const trabalhos = await prisma.trabalho.findMany({
-    where: { id: { in: ids } },
+    where: { id: { in: ids }, empresaId },
     select: { id: true, status: true },
   });
   const statusPorId = new Map(trabalhos.map((t) => [t.id, t.status]));
@@ -302,16 +298,16 @@ export async function podarEventosUrgenciaInativos() {
 
   if (eventos.length !== store.eventos.length) {
     const atualizado = { eventos };
-    await salvarStoreUrgenciasCliente(atualizado);
+    await salvarStoreUrgenciasCliente(empresaId, atualizado);
     return atualizado;
   }
   return store;
 }
 
 /** Remove marcação de urgência de todos os trabalhos da OS e do histórico de eventos. */
-export async function removerUrgenciaOs(numeroOs: number) {
+export async function removerUrgenciaOs(numeroOs: number, empresaId: string) {
   const trabalhos = await prisma.trabalho.findMany({
-    where: { numeroOs },
+    where: { numeroOs, empresaId },
     select: { id: true, instrucoes: true },
   });
   if (!trabalhos.length) return;
@@ -326,10 +322,10 @@ export async function removerUrgenciaOs(numeroOs: number) {
     )
   );
 
-  const store = await carregarStoreUrgenciasCliente();
+  const store = await carregarStoreUrgenciasCliente(empresaId);
   const eventos = store.eventos.filter((e) => !ids.has(e.trabalhoId));
   if (eventos.length !== store.eventos.length) {
-    await salvarStoreUrgenciasCliente({ eventos });
+    await salvarStoreUrgenciasCliente(empresaId, { eventos });
   }
 }
 
@@ -409,7 +405,7 @@ export async function solicitarUrgenciaCliente(params: {
   }
 
   const jaUrgente = flagsUrgenciaTrabalho(trabalho).urgente;
-  const store = await carregarStoreUrgenciasCliente();
+  const store = await carregarStoreUrgenciasCliente(trabalho.empresaId);
 
   if (!jaUrgente) {
     const hoje = contarUrgenciasHojeCliente(store.eventos, params.cliente.id);
@@ -433,6 +429,7 @@ export async function solicitarUrgenciaCliente(params: {
 
   const alvos = await prisma.trabalho.findMany({
     where: {
+      empresaId: trabalho.empresaId,
       numeroOs: trabalho.numeroOs,
       status: { notIn: STATUS_FINALIZADOS },
     },
@@ -466,7 +463,7 @@ export async function solicitarUrgenciaCliente(params: {
     if (store.eventos.length > 500) {
       store.eventos = store.eventos.slice(-500);
     }
-    await salvarStoreUrgenciasCliente(store);
+    await salvarStoreUrgenciasCliente(trabalho.empresaId, store);
     return { ok: true as const, evento, jaExistia: false };
   }
 
@@ -514,7 +511,7 @@ export async function removerUrgenciaCliente(params: {
     };
   }
 
-  await removerUrgenciaOs(trabalho.numeroOs);
+  await removerUrgenciaOs(trabalho.numeroOs, trabalho.empresaId);
   return { ok: true as const };
 }
 

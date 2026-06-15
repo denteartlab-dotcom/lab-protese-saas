@@ -34,16 +34,28 @@ type OrcamentoRow = {
   linkAtivo: boolean;
 };
 
+const CHAVE_SEQ_ORCAMENTO = "numero_pedido_orcamento";
+
 export function gerarTokenOrcamento() {
   return randomBytes(16).toString("hex");
 }
 
-export async function proximoNumeroPedido() {
-  const last = await prisma.orcamento.findFirst({
-    orderBy: { numeroPedido: "desc" },
-    select: { numeroPedido: true },
+export async function proximoNumeroPedido(empresaId: string) {
+  const row = await prisma.sequenciaNumerica.upsert({
+    where: {
+      empresaId_chave: { empresaId, chave: CHAVE_SEQ_ORCAMENTO },
+    },
+    create: { empresaId, chave: CHAVE_SEQ_ORCAMENTO, valor: 0 },
+    update: {},
   });
-  return (last?.numeroPedido ?? 0) + 1;
+  const proximo = row.valor + 1;
+  await prisma.sequenciaNumerica.update({
+    where: {
+      empresaId_chave: { empresaId, chave: CHAVE_SEQ_ORCAMENTO },
+    },
+    data: { valor: proximo },
+  });
+  return proximo;
 }
 
 function parseItens(json: string): ItemOrcamento[] {
@@ -88,9 +100,10 @@ export function statusInvalidaLink(status: StatusOrcamento) {
   return !linkOrcamentoAtivo(status, true);
 }
 
-export async function invalidarLinkOrcamento(id: string) {
-  await prisma.orcamento.update({
-    where: { id },
+export async function invalidarLinkOrcamento(id: string, empresaId?: string) {
+  const where = empresaId ? { id, empresaId } : { id };
+  await prisma.orcamento.updateMany({
+    where,
     data: {
       linkAtivo: false,
       updatedAt: new Date(),

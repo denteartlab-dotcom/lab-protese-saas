@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { lerJsonStoreTenant, salvarJsonStoreTenant } from "@/lib/json-store-tenant";
 
 export const NOTIF_NOTA_VENCIDA_ENVIOS_KEY = "labProteseNotifNotaVencidaEnvios";
 
@@ -30,28 +30,22 @@ export function diasDesdeData(isoOuData: Date | string, ref = new Date()) {
   return Math.round((hoje.getTime() - origem.getTime()) / 86400000);
 }
 
-export async function carregarEnviosNotaVencida(): Promise<EnviosNotaVencidaStore> {
-  const row = await prisma.jsonStore.findUnique({
-    where: { key: NOTIF_NOTA_VENCIDA_ENVIOS_KEY },
-  });
-  if (!row) return {};
-  try {
-    const parsed = JSON.parse(row.payload) as EnviosNotaVencidaStore;
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
+export async function carregarEnviosNotaVencida(
+  empresaId: string
+): Promise<EnviosNotaVencidaStore> {
+  const parsed = await lerJsonStoreTenant<EnviosNotaVencidaStore>(
+    empresaId,
+    NOTIF_NOTA_VENCIDA_ENVIOS_KEY
+  );
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+  return parsed;
 }
 
-export async function salvarEnviosNotaVencida(store: EnviosNotaVencidaStore) {
-  await prisma.jsonStore.upsert({
-    where: { key: NOTIF_NOTA_VENCIDA_ENVIOS_KEY },
-    create: {
-      key: NOTIF_NOTA_VENCIDA_ENVIOS_KEY,
-      payload: JSON.stringify(store),
-    },
-    update: { payload: JSON.stringify(store) },
-  });
+export async function salvarEnviosNotaVencida(
+  empresaId: string,
+  store: EnviosNotaVencidaStore
+) {
+  await salvarJsonStoreTenant(empresaId, NOTIF_NOTA_VENCIDA_ENVIOS_KEY, store);
 }
 
 /**

@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import {
-  chaveFaturaPublica,
-  type FaturaPublicaRegistro,
+  buscarRegistroFaturaPublicaPorToken,
   registroFaturaPublicaValido,
 } from "@/lib/fatura-publica";
 
@@ -15,19 +13,9 @@ export async function GET(_request: Request, { params }: Params) {
     return NextResponse.json({ error: "Token inválido" }, { status: 400 });
   }
 
-  const row = await prisma.jsonStore.findUnique({
-    where: { key: chaveFaturaPublica(limpo) },
-  });
-
-  if (!row) {
+  const registro = await buscarRegistroFaturaPublicaPorToken(limpo);
+  if (!registro) {
     return NextResponse.json({ error: "Fatura não encontrada" }, { status: 404 });
-  }
-
-  let registro: FaturaPublicaRegistro;
-  try {
-    registro = JSON.parse(row.payload) as FaturaPublicaRegistro;
-  } catch {
-    return NextResponse.json({ error: "Registro inválido" }, { status: 500 });
   }
 
   if (!registroFaturaPublicaValido(registro)) {

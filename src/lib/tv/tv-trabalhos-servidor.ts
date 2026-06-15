@@ -14,7 +14,10 @@ import {
   type EtapaOsLinha,
 } from "@/lib/etapas-os";
 import { isTrabalhoAtrasado } from "@/lib/controle-producao-prazos";
-import { lerJsonStoreServidor } from "@/lib/json-store-servidor";
+import {
+  lerJsonStoreTenant,
+  salvarJsonStoreTenant,
+} from "@/lib/json-store-tenant";
 import {
   contextoEtapasModuloOsGrupo,
   escolherTrabalhoServicoGrupoOs,
@@ -23,7 +26,10 @@ import {
   itensDoGrupoOs,
   type TrabalhoModuloOs,
 } from "@/lib/modulo-producao-os";
-import { indiceEtapaAtualDeConcluidas } from "@/lib/modulo-producao-etapas";
+import {
+  indiceEtapaAtualDeConcluidas,
+  MODULO_PRODUCAO_ETAPAS_STORAGE_KEY,
+} from "@/lib/modulo-producao-etapas";
 import { registrarMudancaIndiceEtapa } from "@/lib/historico-etapas";
 import { labelStatusOs } from "@/lib/status-os";
 import { normalizarColaborador } from "@/lib/utils";
@@ -248,11 +254,13 @@ function escolherTrabalhoPrincipal(grupo: TrabalhoTvRow[]) {
   return escolherTrabalhoServicoGrupoOs(grupo);
 }
 
-export async function carregarColaboradoresTv(): Promise<ColaboradorTv[]> {
+export async function carregarColaboradoresTv(
+  empresaId: string
+): Promise<ColaboradorTv[]> {
   const [cadastro, usuariosModulo] = await Promise.all([
-    lerJsonStoreServidor<ColaboradorCadastro[]>("labProteseColaboradores"),
+    lerJsonStoreTenant<ColaboradorCadastro[]>(empresaId, "labProteseColaboradores"),
     prisma.user.findMany({
-      where: { excluidoEm: null, moduloProducao: true },
+      where: { empresaId, excluidoEm: null, moduloProducao: true },
       select: { colaboradorId: true, colaboradorNome: true, name: true },
     }),
   ]);
@@ -286,20 +294,23 @@ export async function carregarColaboradoresTv(): Promise<ColaboradorTv[]> {
   }));
 }
 
-export async function carregarOrdensTv(): Promise<TvOrdensResponse> {
+export async function carregarOrdensTv(
+  empresaId: string
+): Promise<TvOrdensResponse> {
   const [trabalhos, mapaConcluidas, colaboradores] = await Promise.all([
     prisma.trabalho.findMany({
-      where: { status: { notIn: STATUS_ATIVOS_EXCLUIDOS } },
+      where: { empresaId, status: { notIn: STATUS_ATIVOS_EXCLUIDOS } },
       orderBy: [{ numeroOs: "desc" }, { createdAt: "desc" }],
       include: {
         cliente: { select: { nome: true } },
         paciente: { select: { nome: true } },
       },
     }) as Promise<TrabalhoTvRow[]>,
-    lerJsonStoreServidor<MapaEtapasConcluidas>(
-      "labProteseModuloProducaoEtapas"
+    lerJsonStoreTenant<MapaEtapasConcluidas>(
+      empresaId,
+      MODULO_PRODUCAO_ETAPAS_STORAGE_KEY
     ),
-    lerJsonStoreServidor<ColaboradorCadastro[]>("labProteseColaboradores"),
+    lerJsonStoreTenant<ColaboradorCadastro[]>(empresaId, "labProteseColaboradores"),
   ]);
 
   const mapa = mapaConcluidas ?? {};
@@ -326,7 +337,7 @@ export async function carregarOrdensTv(): Promise<TvOrdensResponse> {
 
   ordens.sort((a, b) => b.numeroOs - a.numeroOs);
 
-  const colaboradoresTv = await carregarColaboradoresTv();
+  const colaboradoresTv = await carregarColaboradoresTv(empresaId);
   const stats = calcularStats(ordens);
   stats.colaboradoresOnline = colaboradoresTv.filter((c) => c.online).length;
 
@@ -363,10 +374,11 @@ function indicesEtapasAteColuna(
 
 export async function moverTrabalhoTvColuna(
   trabalhoId: string,
-  coluna: ColunaKanbanId
+  coluna: ColunaKanbanId,
+  empresaId: string
 ): Promise<TvOrdensResponse | null> {
-  const trabalho = await prisma.trabalho.findUnique({
-    where: { id: trabalhoId },
+  const trabalho = await prisma.trabalho.findFirst({
+    where: { id: trabalhoId, empresaId },
     include: {
       cliente: { select: { nome: true } },
       paciente: { select: { nome: true } },
@@ -377,6 +389,7 @@ export async function moverTrabalhoTvColuna(
 
   const grupo = await prisma.trabalho.findMany({
     where: {
+      empresaId,
       OR: [
         { id: trabalhoId },
         ...(trabalho.grupoOsId
@@ -403,8 +416,9 @@ export async function moverTrabalhoTvColuna(
   const chave = chaveItemModulo(idServicoPrincipal, itemId);
 
   const mapa =
-    (await lerJsonStoreServidor<MapaEtapasConcluidas>(
-      "labProteseModuloProducaoEtapas"
+    (await lerJsonStoreTenant<MapaEtapasConcluidas>(
+      empresaId,
+      MODULO_PRODUCAO_ETAPAS_STORAGE_KEY
     )) ?? {};
 
   const concluidasAnteriores = mapa[chave] ?? [];
@@ -430,14 +444,7 @@ export async function moverTrabalhoTvColuna(
           : trabalho.status;
 
   await Promise.all([
-    prisma.jsonStore.upsert({
-      where: { key: "labProteseModuloProducaoEtapas" },
-      create: {
-        key: "labProteseModuloProducaoEtapas",
-        payload: JSON.stringify(mapa),
-      },
-      update: { payload: JSON.stringify(mapa) },
-    }),
+    salvarJsonStoreTenant(empresaId, MODULO_PRODUCAO_ETAPAS_STORAGE_KEY, mapa),
     prisma.trabalho.update({
       where: { id: trabalhoId },
       data: { status: novoStatus },
@@ -455,7 +462,7 @@ export async function moverTrabalhoTvColuna(
       : Promise.resolve(),
   ]);
 
-  return carregarOrdensTv();
+  return carregarOrdensTv(empresaId);
 }
 
 export function snapshotParaChart(ordens: OrdemServicoTv[]) {
@@ -467,10 +474,11 @@ function labelColunaKanban(coluna: ColunaKanbanId) {
 }
 
 export async function carregarResumoOsTv(
-  trabalhoId: string
+  trabalhoId: string,
+  empresaId: string
 ): Promise<TvOsResumo | null> {
-  const trabalho = await prisma.trabalho.findUnique({
-    where: { id: trabalhoId },
+  const trabalho = await prisma.trabalho.findFirst({
+    where: { id: trabalhoId, empresaId },
     include: {
       cliente: { select: { nome: true } },
       paciente: { select: { nome: true } },
@@ -481,6 +489,7 @@ export async function carregarResumoOsTv(
 
   const grupo = await prisma.trabalho.findMany({
     where: {
+      empresaId,
       OR: [
         { id: trabalhoId },
         ...(trabalho.grupoOsId
@@ -501,12 +510,14 @@ export async function carregarResumoOsTv(
   const { etapas } = parseComplementosInstrucoesGrupo(instrucoesGrupo);
 
   const mapa =
-    (await lerJsonStoreServidor<MapaEtapasConcluidas>(
-      "labProteseModuloProducaoEtapas"
+    (await lerJsonStoreTenant<MapaEtapasConcluidas>(
+      empresaId,
+      MODULO_PRODUCAO_ETAPAS_STORAGE_KEY
     )) ?? {};
 
   const colaboradores =
-    (await lerJsonStoreServidor<ColaboradorCadastro[]>(
+    (await lerJsonStoreTenant<ColaboradorCadastro[]>(
+      empresaId,
       "labProteseColaboradores"
     )) ?? [];
 

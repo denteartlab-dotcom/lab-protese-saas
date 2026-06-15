@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import { z } from "zod";
 
 const schema = z.object({
@@ -16,22 +16,22 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   const { id } = await params;
   try {
     const body = await request.json();
     const data = schema.parse(body);
     const existente = await prisma.paciente.findFirst({
-      where: { id },
+      where: { id, cliente: { empresaId: ctx.empresaId } },
     });
     if (!existente) {
       return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
     }
     if (data.clienteId) {
       const cliente = await prisma.cliente.findFirst({
-        where: { id: data.clienteId },
+        where: { id: data.clienteId, empresaId: ctx.empresaId },
       });
       if (!cliente) {
         return NextResponse.json({ error: "Cliente não encontrado" }, { status: 400 });
@@ -59,12 +59,12 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   const { id } = await params;
   const existente = await prisma.paciente.findFirst({
-    where: { id },
+    where: { id, cliente: { empresaId: ctx.empresaId } },
   });
   if (!existente) {
     return NextResponse.json({ error: "Não encontrado" }, { status: 404 });

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
   listarContasBancariasServidor,
   listarExtratoBancarioServidor,
@@ -71,16 +71,16 @@ const payloadSchema = z.object({
 });
 
 export async function GET() {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   try {
     const [contas, movimentacoes, extrato] = await Promise.all([
-      listarContasBancariasServidor(),
-      listarMovimentacoesContaServidor(),
-      listarExtratoBancarioServidor(),
+      listarContasBancariasServidor(ctx.empresaId),
+      listarMovimentacoesContaServidor(ctx.empresaId),
+      listarExtratoBancarioServidor(ctx.empresaId),
     ]);
     return NextResponse.json({ contas, movimentacoes, extrato });
   } catch (err) {
@@ -93,8 +93,8 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
@@ -103,21 +103,25 @@ export async function PUT(request: Request) {
     const data = payloadSchema.parse(body);
 
     if (data.contas) {
-      await salvarContasBancariasServidor(data.contas as ContaBancaria[]);
+      await salvarContasBancariasServidor(ctx.empresaId, data.contas as ContaBancaria[]);
     }
     if (data.movimentacoes) {
       await salvarMovimentacoesContaServidor(
+        ctx.empresaId,
         data.movimentacoes as MovimentacaoContaBancaria[]
       );
     }
     if (data.extrato) {
-      await salvarExtratoBancarioServidor(data.extrato as ExtratoMovimentacao[]);
+      await salvarExtratoBancarioServidor(
+        ctx.empresaId,
+        data.extrato as ExtratoMovimentacao[]
+      );
     }
 
     const [contas, movimentacoes, extrato] = await Promise.all([
-      listarContasBancariasServidor(),
-      listarMovimentacoesContaServidor(),
-      listarExtratoBancarioServidor(),
+      listarContasBancariasServidor(ctx.empresaId),
+      listarMovimentacoesContaServidor(ctx.empresaId),
+      listarExtratoBancarioServidor(ctx.empresaId),
     ]);
 
     return NextResponse.json({ contas, movimentacoes, extrato });

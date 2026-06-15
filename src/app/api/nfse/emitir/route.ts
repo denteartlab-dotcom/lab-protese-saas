@@ -15,10 +15,16 @@ export async function POST(request: Request) {
   if (!session) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
+  if (!session.empresaId) {
+    return NextResponse.json({ error: "Empresa não identificada." }, { status: 401 });
+  }
 
   try {
     const body = schema.parse(await request.json());
-    const nota = await emitirNfseParaCliente(body);
+    const nota = await emitirNfseParaCliente({
+      ...body,
+      empresaId: session.empresaId,
+    });
     return NextResponse.json(nota, { status: 201 });
   } catch (err) {
     if (err instanceof z.ZodError) {

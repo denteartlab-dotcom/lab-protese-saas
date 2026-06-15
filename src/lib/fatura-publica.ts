@@ -1,4 +1,5 @@
 import { montarUrlPublica } from "@/lib/app-url";
+import { buscarJsonStorePublicoPorToken } from "@/lib/json-store-tenant";
 import { garantirUrlPublicaAbsoluta } from "@/lib/whatsapp";
 
 export type FaturaPublicaRegistro = {
@@ -11,11 +12,18 @@ export type FaturaPublicaRegistro = {
   expiraEm: string;
 };
 
-const PREFIXO_JSON_STORE = "fatura-publica:";
+export const PREFIXO_JSON_STORE_FATURA_PUBLICA = "fatura-publica:";
 const DIAS_VALIDADE = 30;
 
 export function chaveFaturaPublica(token: string) {
-  return `${PREFIXO_JSON_STORE}${token}`;
+  return `${PREFIXO_JSON_STORE_FATURA_PUBLICA}${token}`;
+}
+
+export async function buscarRegistroFaturaPublicaPorToken(token: string) {
+  return buscarJsonStorePublicoPorToken<FaturaPublicaRegistro>(
+    token,
+    PREFIXO_JSON_STORE_FATURA_PUBLICA
+  );
 }
 
 export function criarTokenFaturaPublica() {

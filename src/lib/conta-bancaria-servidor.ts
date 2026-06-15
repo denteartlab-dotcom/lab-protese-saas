@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { lerJsonStoreServidor } from "@/lib/json-store-servidor";
+import { lerJsonStoreTenant } from "@/lib/json-store-tenant";
 import {
   CONTAS_BANCARIAS_PADRAO,
   CONTAS_BANCARIAS_STORAGE_KEY,
@@ -58,8 +58,9 @@ function rowParaConta(row: {
   };
 }
 
-function contaParaRow(conta: ContaBancaria) {
+function contaParaRow(conta: ContaBancaria, empresaId: string) {
   return {
+    empresaId,
     id: conta.id,
     nome: conta.nome,
     saldoInicial: conta.saldoInicial,
@@ -77,20 +78,20 @@ function contaParaRow(conta: ContaBancaria) {
   };
 }
 
-async function marcarMigracaoConcluida() {
+async function marcarMigracaoConcluida(empresaId: string) {
   await prisma.jsonStore.upsert({
-    where: { key: MIGRADO_KEY },
-    create: { key: MIGRADO_KEY, payload: "1" },
+    where: { key: `t:${empresaId}:${MIGRADO_KEY}` },
+    create: { key: `t:${empresaId}:${MIGRADO_KEY}`, payload: "1" },
     update: { payload: "1" },
   });
 }
 
-async function migrarContasDoJsonStore(contasJson: ContaBancaria[]) {
+async function migrarContasDoJsonStore(contasJson: ContaBancaria[], empresaId: string) {
   for (const conta of contasJson) {
     await prisma.contaBancaria.upsert({
       where: { id: conta.id },
-      create: contaParaRow(conta),
-      update: contaParaRow(conta),
+      create: contaParaRow(conta, empresaId),
+      update: contaParaRow(conta, empresaId),
     });
   }
 }
@@ -158,33 +159,36 @@ async function migrarExtratoDoJsonStore(
   }
 }
 
-async function migrarJsonStoreSeNecessario() {
+async function migrarJsonStoreSeNecessario(empresaId: string) {
   try {
     const flag = await prisma.jsonStore.findUnique({
-      where: { key: MIGRADO_KEY },
+      where: { key: `t:${empresaId}:${MIGRADO_KEY}` },
     });
     if (flag?.payload === "1") return;
 
-    const total = await prisma.contaBancaria.count();
+    const total = await prisma.contaBancaria.count({ where: { empresaId } });
     if (total > 0) {
-      await marcarMigracaoConcluida();
+      await marcarMigracaoConcluida(empresaId);
       return;
     }
 
     const contasJson =
-      (await lerJsonStoreServidor<ContaBancaria[]>(
+      (await lerJsonStoreTenant<ContaBancaria[]>(
+        empresaId,
         CONTAS_BANCARIAS_STORAGE_KEY
       )) || CONTAS_BANCARIAS_PADRAO;
     const movsJson =
-      (await lerJsonStoreServidor<MovimentacaoContaBancaria[]>(
+      (await lerJsonStoreTenant<MovimentacaoContaBancaria[]>(
+        empresaId,
         MOVIMENTACOES_CONTA_STORAGE_KEY
       )) || [];
     const extratoJson =
-      (await lerJsonStoreServidor<ExtratoMovimentacao[]>(
+      (await lerJsonStoreTenant<ExtratoMovimentacao[]>(
+        empresaId,
         EXTRATO_BANCARIO_STORAGE_KEY
       )) || [];
 
-    await migrarContasDoJsonStore(contasJson);
+    await migrarContasDoJsonStore(contasJson, empresaId);
     const contaIds = new Set(contasJson.map((c) => c.id));
 
     try {
@@ -199,24 +203,28 @@ async function migrarJsonStoreSeNecessario() {
       console.error("[migrar extrato bancario]", err);
     }
 
-    await marcarMigracaoConcluida();
+    await marcarMigracaoConcluida(empresaId);
   } catch (err) {
     console.error("[migrar financeiro contas]", err);
   }
 }
 
-export async function listarContasBancariasServidor(): Promise<ContaBancaria[]> {
-  await migrarJsonStoreSeNecessario();
+export async function listarContasBancariasServidor(
+  empresaId: string
+): Promise<ContaBancaria[]> {
+  await migrarJsonStoreSeNecessario(empresaId);
   const rows = await prisma.contaBancaria.findMany({
+    where: { empresaId },
     orderBy: { nome: "asc" },
   });
   if (rows.length === 0) {
     await prisma.$transaction(async (tx) => {
       for (const conta of CONTAS_BANCARIAS_PADRAO) {
-        await tx.contaBancaria.create({ data: contaParaRow(conta) });
+        await tx.contaBancaria.create({ data: contaParaRow(conta, empresaId) });
       }
     });
     const seeded = await prisma.contaBancaria.findMany({
+      where: { empresaId },
       orderBy: { nome: "asc" },
     });
     return seeded.map(rowParaConta);
@@ -224,30 +232,34 @@ export async function listarContasBancariasServidor(): Promise<ContaBancaria[]> 
   return rows.map(rowParaConta);
 }
 
-export async function salvarContasBancariasServidor(contas: ContaBancaria[]) {
-  await migrarJsonStoreSeNecessario();
+export async function salvarContasBancariasServidor(
+  empresaId: string,
+  contas: ContaBancaria[]
+) {
+  await migrarJsonStoreSeNecessario(empresaId);
   const ids = contas.map((c) => c.id);
   await prisma.$transaction(async (tx) => {
     if (ids.length > 0) {
       await tx.contaBancaria.deleteMany({
-        where: { id: { notIn: ids } },
+        where: { empresaId, id: { notIn: ids } },
       });
     }
     for (const conta of contas) {
       await tx.contaBancaria.upsert({
         where: { id: conta.id },
-        create: contaParaRow(conta),
-        update: contaParaRow(conta),
+        create: contaParaRow(conta, empresaId),
+        update: contaParaRow(conta, empresaId),
       });
     }
   });
 }
 
-export async function listarMovimentacoesContaServidor(): Promise<
-  MovimentacaoContaBancaria[]
-> {
-  await migrarJsonStoreSeNecessario();
+export async function listarMovimentacoesContaServidor(
+  empresaId: string
+): Promise<MovimentacaoContaBancaria[]> {
+  await migrarJsonStoreSeNecessario(empresaId);
   const rows = await prisma.movimentacaoConta.findMany({
+    where: { conta: { empresaId } },
     orderBy: { data: "desc" },
   });
   return rows.map((row) => ({
@@ -261,14 +273,15 @@ export async function listarMovimentacoesContaServidor(): Promise<
 }
 
 export async function salvarMovimentacoesContaServidor(
+  empresaId: string,
   movs: MovimentacaoContaBancaria[]
 ) {
-  await migrarJsonStoreSeNecessario();
+  await migrarJsonStoreSeNecessario(empresaId);
   const ids = movs.map((m) => m.id);
   await prisma.$transaction(async (tx) => {
     if (ids.length > 0) {
       await tx.movimentacaoConta.deleteMany({
-        where: { id: { notIn: ids } },
+        where: { id: { notIn: ids }, conta: { empresaId } },
       });
     }
     for (const mov of movs) {
@@ -294,11 +307,12 @@ export async function salvarMovimentacoesContaServidor(
   });
 }
 
-export async function listarExtratoBancarioServidor(): Promise<
-  ExtratoMovimentacao[]
-> {
-  await migrarJsonStoreSeNecessario();
+export async function listarExtratoBancarioServidor(
+  empresaId: string
+): Promise<ExtratoMovimentacao[]> {
+  await migrarJsonStoreSeNecessario(empresaId);
   const rows = await prisma.extratoMovimentacao.findMany({
+    where: { conta: { empresaId } },
     orderBy: { data: "desc" },
   });
   return rows.map((row) => ({
@@ -313,13 +327,16 @@ export async function listarExtratoBancarioServidor(): Promise<
   }));
 }
 
-export async function salvarExtratoBancarioServidor(itens: ExtratoMovimentacao[]) {
-  await migrarJsonStoreSeNecessario();
+export async function salvarExtratoBancarioServidor(
+  empresaId: string,
+  itens: ExtratoMovimentacao[]
+) {
+  await migrarJsonStoreSeNecessario(empresaId);
   const ids = itens.map((i) => i.id);
   await prisma.$transaction(async (tx) => {
     if (ids.length > 0) {
       await tx.extratoMovimentacao.deleteMany({
-        where: { id: { notIn: ids } },
+        where: { id: { notIn: ids }, conta: { empresaId } },
       });
     }
     for (const item of itens) {

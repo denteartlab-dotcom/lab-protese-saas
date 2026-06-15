@@ -1,4 +1,5 @@
 import { montarUrlPublica } from "@/lib/app-url";
+import { buscarJsonStorePublicoPorToken } from "@/lib/json-store-tenant";
 import { garantirUrlPublicaAbsoluta } from "@/lib/whatsapp";
 
 export type ExtratoPublicaRegistro = {
@@ -10,11 +11,18 @@ export type ExtratoPublicaRegistro = {
   expiraEm: string;
 };
 
-const PREFIXO_JSON_STORE = "extrato-publica:";
+export const PREFIXO_JSON_STORE_EXTRATO_PUBLICA = "extrato-publica:";
 const DIAS_VALIDADE = 30;
 
 export function chaveExtratoPublica(token: string) {
-  return `${PREFIXO_JSON_STORE}${token}`;
+  return `${PREFIXO_JSON_STORE_EXTRATO_PUBLICA}${token}`;
+}
+
+export async function buscarRegistroExtratoPublicaPorToken(token: string) {
+  return buscarJsonStorePublicoPorToken<ExtratoPublicaRegistro>(
+    token,
+    PREFIXO_JSON_STORE_EXTRATO_PUBLICA
+  );
 }
 
 export function criarTokenExtratoPublica() {

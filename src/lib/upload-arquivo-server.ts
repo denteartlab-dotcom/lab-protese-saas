@@ -1,6 +1,10 @@
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { prisma } from "@/lib/db";
+import {
+  garantirPastasUploadEmpresa,
+  normalizarSlugPastaUploads,
+} from "@/lib/uploads-armazenamento-server";
 
 export type PastaUpload = "os" | "despesas" | "receitas";
 
@@ -43,7 +47,9 @@ function mimeDeArquivo(file: File) {
 
 export async function salvarArquivosUpload(
   pasta: PastaUpload,
-  files: File[]
+  files: File[],
+  empresaId?: string,
+  empresaSlug?: string
 ): Promise<ArquivoEnviado[]> {
   if (!files.length) return [];
 
@@ -56,12 +62,16 @@ export async function salvarArquivosUpload(
   }
 
   if (uploadUsaBancoDados()) {
+    if (!empresaId) {
+      throw new Error("empresaId obrigatório para upload no banco.");
+    }
     const uploaded: ArquivoEnviado[] = [];
     for (const file of files) {
       const bytes = Buffer.from(await file.arrayBuffer());
       const mimeType = mimeDeArquivo(file);
       const registro = await prisma.arquivoUpload.create({
         data: {
+          empresaId,
           pasta,
           nome: file.name,
           mimeType,
@@ -78,8 +88,13 @@ export async function salvarArquivosUpload(
     return uploaded;
   }
 
-  const uploadDir = path.join(process.cwd(), "public", "uploads", pasta);
-  await mkdir(uploadDir, { recursive: true });
+  if (!empresaSlug?.trim()) {
+    throw new Error("empresaSlug obrigatório para upload em disco.");
+  }
+
+  const slug = normalizarSlugPastaUploads(empresaSlug);
+  await garantirPastasUploadEmpresa(slug);
+  const uploadDir = path.join(process.cwd(), "public", "uploads", slug, pasta);
 
   return Promise.all(
     files.map(async (file) => {
@@ -90,7 +105,7 @@ export async function salvarArquivosUpload(
       return {
         name: file.name,
         type: mimeType,
-        url: `/uploads/${pasta}/${filename}`,
+        url: `/uploads/${slug}/${pasta}/${filename}`,
       };
     })
   );
@@ -100,13 +115,17 @@ export async function lerArquivoUploadPorId(id: string) {
   return prisma.arquivoUpload.findUnique({ where: { id } });
 }
 
-export async function bytesTotalArquivosBanco() {
-  const agg = await prisma.arquivoUpload.aggregate({ _sum: { tamanho: true } });
+export async function bytesTotalArquivosBanco(empresaId?: string) {
+  const agg = await prisma.arquivoUpload.aggregate({
+    where: empresaId ? { empresaId } : undefined,
+    _sum: { tamanho: true },
+  });
   return agg._sum.tamanho ?? 0;
 }
 
-export async function listarArquivosBanco() {
+export async function listarArquivosBanco(empresaId?: string) {
   const rows = await prisma.arquivoUpload.findMany({
+    where: empresaId ? { empresaId } : undefined,
     select: { id: true, pasta: true, nome: true, tamanho: true, criadoEm: true },
     orderBy: { criadoEm: "desc" },
   });
@@ -118,6 +137,10 @@ export async function listarArquivosBanco() {
   }));
 }
 
-export async function excluirArquivoBancoPorId(id: string) {
+export async function excluirArquivoBancoPorId(id: string, empresaId?: string) {
+  if (empresaId) {
+    await prisma.arquivoUpload.deleteMany({ where: { id, empresaId } });
+    return;
+  }
   await prisma.arquivoUpload.delete({ where: { id } });
 }

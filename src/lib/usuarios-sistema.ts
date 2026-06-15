@@ -42,7 +42,7 @@ export type UsuarioListagem = {
 };
 
 export function usuarioEhProprietario(role: string) {
-  return role === "proprietario" || role === "admin";
+  return role === "proprietario" || role === "admin" || role === "admin_empresa";
 }
 
 export function podeGerenciarUsuarios(role: string) {
@@ -53,7 +53,8 @@ export function rotuloTipoUsuario(role: string) {
   switch (role) {
     case "proprietario":
     case "admin":
-      return "Proprietário";
+    case "admin_empresa":
+      return "Administrador";
     case "gerente":
       return "Gerente";
     case "financeiro":

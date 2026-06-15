@@ -32,16 +32,16 @@ export function despesaPertenceAoOrcamento(
   return pack.referencia === `Pedido ${numeroPedido}`;
 }
 
-export async function listarDespesasOrcamento(numeroPedido: number) {
+export async function listarDespesasOrcamento(empresaId: string, numeroPedido: number) {
   const despesas = await prisma.lancamento.findMany({
-    where: { tipo: "despesa" },
+    where: { empresaId, tipo: "despesa" },
     orderBy: { data: "asc" },
   });
   return despesas.filter((l) => despesaPertenceAoOrcamento(l.descricao, numeroPedido));
 }
 
-export async function removerDespesasOrcamento(numeroPedido: number) {
-  const existentes = await listarDespesasOrcamento(numeroPedido);
+export async function removerDespesasOrcamento(empresaId: string, numeroPedido: number) {
+  const existentes = await listarDespesasOrcamento(empresaId, numeroPedido);
   if (existentes.length === 0) return 0;
   await prisma.lancamento.deleteMany({
     where: { id: { in: existentes.map((l) => l.id) } },
@@ -49,13 +49,16 @@ export async function removerDespesasOrcamento(numeroPedido: number) {
   return existentes.length;
 }
 
-async function criarParcelasDespesaOrcamento(orcamento: {
-  numeroPedido: number;
-  fornecedorNome: string;
-  totalLiquido: number;
-  dataAprovacao: Date;
-  parcelas: number;
-}) {
+async function criarParcelasDespesaOrcamento(
+  empresaId: string,
+  orcamento: {
+    numeroPedido: number;
+    fornecedorNome: string;
+    totalLiquido: number;
+    dataAprovacao: Date;
+    parcelas: number;
+  }
+) {
   const parcelas = normalizarParcelas(orcamento.parcelas);
   const valores = dividirValorParcelas(orcamento.totalLiquido, parcelas);
   const criados = [];
@@ -78,6 +81,7 @@ async function criarParcelasDespesaOrcamento(orcamento: {
 
     const lancamento = await prisma.lancamento.create({
       data: {
+        empresaId,
         tipo: "despesa",
         descricao,
         valor: valores[i],
@@ -93,13 +97,16 @@ async function criarParcelasDespesaOrcamento(orcamento: {
 }
 
 /** Registra despesas ao aprovar orçamento (parcelas 30/30/30… ou lançamento único). */
-export async function registrarDespesaOrcamentoAprovado(orcamento: {
-  numeroPedido: number;
-  fornecedorNome: string;
-  totalLiquido: number;
-  dataAprovacao: Date;
-  condicoesPagamento: string | null;
-}) {
+export async function registrarDespesaOrcamentoAprovado(
+  empresaId: string,
+  orcamento: {
+    numeroPedido: number;
+    fornecedorNome: string;
+    totalLiquido: number;
+    dataAprovacao: Date;
+    condicoesPagamento: string | null;
+  }
+) {
   const valor = Number(orcamento.totalLiquido);
   if (!Number.isFinite(valor) || valor <= 0) {
     throw new Error(
@@ -108,13 +115,13 @@ export async function registrarDespesaOrcamentoAprovado(orcamento: {
   }
 
   const cond = parseCondicoesPagamento(orcamento.condicoesPagamento);
-  const existentes = await listarDespesasOrcamento(orcamento.numeroPedido);
+  const existentes = await listarDespesasOrcamento(empresaId, orcamento.numeroPedido);
 
   if (exigeParcelamento(cond.forma)) {
     const esperado = normalizarParcelas(cond.parcelas);
     if (existentes.length === esperado) return existentes;
-    await removerDespesasOrcamento(orcamento.numeroPedido);
-    return criarParcelasDespesaOrcamento({
+    await removerDespesasOrcamento(empresaId, orcamento.numeroPedido);
+    return criarParcelasDespesaOrcamento(empresaId, {
       numeroPedido: orcamento.numeroPedido,
       fornecedorNome: orcamento.fornecedorNome,
       totalLiquido: valor,
@@ -127,7 +134,7 @@ export async function registrarDespesaOrcamentoAprovado(orcamento: {
     return existentes;
   }
 
-  await removerDespesasOrcamento(orcamento.numeroPedido);
+  await removerDespesasOrcamento(empresaId, orcamento.numeroPedido);
 
   const formaPagamento = rotuloCondicoesPagamento(cond);
   const descricao = empacotarDespesa(
@@ -143,6 +150,7 @@ export async function registrarDespesaOrcamentoAprovado(orcamento: {
 
   const unico = await prisma.lancamento.create({
     data: {
+      empresaId,
       tipo: "despesa",
       descricao,
       valor,

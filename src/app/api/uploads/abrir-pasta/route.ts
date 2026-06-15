@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import { abrirPastaUploadsNoSistema } from "@/lib/uploads-armazenamento-server";
 
 export async function POST() {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
-  const resultado = await abrirPastaUploadsNoSistema();
+  const resultado = await abrirPastaUploadsNoSistema(ctx.empresaSlug);
   return NextResponse.json(resultado);
 }

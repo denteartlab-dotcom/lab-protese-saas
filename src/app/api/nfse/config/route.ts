@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import { carregarConfigNfse } from "@/lib/nfse/servico";
 import {
-  NFSE_CONFIG_KEY,
+  carregarConfigNfse,
+  salvarConfigNfse,
+} from "@/lib/nfse/servico";
+import {
   NFSE_CONFIG_PADRAO,
   nfseConfigurada,
   type NfseConfig,
@@ -15,8 +16,11 @@ export async function GET() {
   if (!session) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
+  if (!session.empresaId) {
+    return NextResponse.json({ error: "Empresa não identificada." }, { status: 401 });
+  }
 
-  const config = await carregarConfigNfse();
+  const config = await carregarConfigNfse(session.empresaId);
   return NextResponse.json({
     config: {
       provedor: config.provedor,
@@ -35,6 +39,9 @@ export async function PUT(request: Request) {
   if (!session) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
+  if (!session.empresaId) {
+    return NextResponse.json({ error: "Empresa não identificada." }, { status: 401 });
+  }
 
   try {
     const body = (await request.json()) as Partial<NfseConfig> & {
@@ -44,7 +51,7 @@ export async function PUT(request: Request) {
       manterSecret?: boolean;
       manterApiKey?: boolean;
     };
-    const atual = await carregarConfigNfse();
+    const atual = await carregarConfigNfse(session.empresaId);
 
     const provedor: NfseProvedor =
       body.provedor === "nuvemfiscal" || body.provedor === "plugnotas"
@@ -68,11 +75,7 @@ export async function PUT(request: Request) {
         body.descricaoServicoPadrao?.trim() || atual.descricaoServicoPadrao,
     };
 
-    await prisma.jsonStore.upsert({
-      where: { key: NFSE_CONFIG_KEY },
-      create: { key: NFSE_CONFIG_KEY, payload: JSON.stringify(config) },
-      update: { payload: JSON.stringify(config) },
-    });
+    await salvarConfigNfse(session.empresaId, config);
 
     return NextResponse.json({ ok: true });
   } catch {

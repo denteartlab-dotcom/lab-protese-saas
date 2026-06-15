@@ -1,12 +1,15 @@
 import { prisma } from "@/lib/db";
 import { nomeExibicaoLaboratorio } from "@/lib/configuracoes-lab";
 import { carregarConfigLaboratorioServidor } from "@/lib/lab-config-servidor";
+import { lerJsonStoreTenant } from "@/lib/json-store-tenant";
+import { MODULO_PRODUCAO_ETAPAS_STORAGE_KEY } from "@/lib/modulo-producao-etapas";
 
 /** Mesmos status ocultos no Módulo TV / relatórios de produção ativa. */
 const STATUS_EXCLUIDOS_ACOMPANHAMENTO = ["cancelado", "entregue", "finalizado"];
 
 type ClienteAcompanhamentoRow = {
   id: string;
+  empresaId: string;
   nome: string;
   razaoSocial: string | null;
   cro: string | null;
@@ -15,13 +18,14 @@ type ClienteAcompanhamentoRow = {
 };
 
 async function buscarTrabalhosAcompanhamentoCliente(cliente: ClienteAcompanhamentoRow) {
+  const empresaId = cliente.empresaId;
   const statusFilter = { notIn: STATUS_EXCLUIDOS_ACOMPANHAMENTO };
   const include = { paciente: { select: { nome: true } } };
   const orderBy = [{ numeroOs: "desc" as const }, { updatedAt: "desc" as const }];
   const take = 80;
 
   const porClienteId = await prisma.trabalho.findMany({
-    where: { clienteId: cliente.id, status: statusFilter },
+    where: { clienteId: cliente.id, empresaId, status: statusFilter },
     orderBy,
     take,
     include,
@@ -31,6 +35,7 @@ async function buscarTrabalhosAcompanhamentoCliente(cliente: ClienteAcompanhamen
 
   const or: Array<{
     cliente: {
+      empresaId: string;
       cro?: string;
       cnpjCpf?: string;
       nome?: { equals: string; mode: "insensitive" };
@@ -38,18 +43,18 @@ async function buscarTrabalhosAcompanhamentoCliente(cliente: ClienteAcompanhamen
   }> = [];
 
   const cro = cliente.cro?.trim();
-  if (cro) or.push({ cliente: { cro } });
+  if (cro) or.push({ cliente: { empresaId, cro } });
 
   const cnpjCpf = cliente.cnpjCpf?.trim();
-  if (cnpjCpf) or.push({ cliente: { cnpjCpf } });
+  if (cnpjCpf) or.push({ cliente: { empresaId, cnpjCpf } });
 
   const nome = cliente.nome.trim();
-  if (nome) or.push({ cliente: { nome: { equals: nome, mode: "insensitive" } } });
+  if (nome) or.push({ cliente: { empresaId, nome: { equals: nome, mode: "insensitive" } } });
 
   if (or.length === 0) return [];
 
   const porVinculo = await prisma.trabalho.findMany({
-    where: { status: statusFilter, OR: or },
+    where: { empresaId, status: statusFilter, OR: or },
     orderBy,
     take,
     include,
@@ -68,6 +73,7 @@ export async function buscarClientePublicoPorToken(token: string) {
     where: { tokenAcompanhamento: token },
     select: {
       id: true,
+      empresaId: true,
       nome: true,
       razaoSocial: true,
       observacoes: true,
@@ -79,23 +85,19 @@ export async function buscarClientePublicoPorToken(token: string) {
 
   if (!cliente) return null;
 
-  const [trabalhos, configLab, mapaEtapasRow] = await Promise.all([
+  const [trabalhos, configLab, mapaEtapasRaw] = await Promise.all([
     buscarTrabalhosAcompanhamentoCliente(cliente),
-    carregarConfigLaboratorioServidor(),
-    prisma.jsonStore.findUnique({
-      where: { key: "labProteseModuloProducaoEtapas" },
-    }),
+    carregarConfigLaboratorioServidor(cliente.empresaId),
+    lerJsonStoreTenant<Record<string, number[]>>(
+      cliente.empresaId,
+      MODULO_PRODUCAO_ETAPAS_STORAGE_KEY
+    ),
   ]);
 
-  let mapaEtapas: Record<string, number[]> = {};
-  if (mapaEtapasRow?.payload) {
-    try {
-      const parsed = JSON.parse(mapaEtapasRow.payload) as Record<string, number[]>;
-      if (parsed && typeof parsed === "object") mapaEtapas = parsed;
-    } catch {
-      /* ignora */
-    }
-  }
+  const mapaEtapas =
+    mapaEtapasRaw && typeof mapaEtapasRaw === "object" && !Array.isArray(mapaEtapasRaw)
+      ? mapaEtapasRaw
+      : {};
 
   const labNome = nomeExibicaoLaboratorio(configLab) || "Laboratório";
 

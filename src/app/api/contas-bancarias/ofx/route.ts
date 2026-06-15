@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import { listarContasBancariasServidor } from "@/lib/conta-bancaria-servidor";
 import { contaOfxCombina, parseOfxArquivo } from "@/lib/extrato-ofx";
 
@@ -7,8 +7,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
 
     const texto = await arquivo.text();
     const resultado = parseOfxArquivo(texto);
-    const contas = await listarContasBancariasServidor();
+    const contas = await listarContasBancariasServidor(ctx.empresaId);
 
     const contaEncontrada =
       contas.find((c) => contaOfxCombina(c, resultado.dadosConta)) ?? null;

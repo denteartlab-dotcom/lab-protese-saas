@@ -8,18 +8,39 @@ import {
   LIMITE_ARMAZENAMENTO_BYTES,
   LIMITE_GALERIA_GB,
 } from "@/lib/uploads-armazenamento";
+import type { PastaUpload } from "@/lib/upload-arquivo-server";
 import {
   bytesTotalArquivosBanco,
   excluirArquivoBancoPorId,
   listarArquivosBanco,
 } from "@/lib/upload-arquivo-server";
 
-export function caminhoPastaUploads() {
-  return path.join(process.cwd(), "public", "uploads");
+const PASTAS_UPLOAD: PastaUpload[] = ["os", "despesas", "receitas"];
+
+export function normalizarSlugPastaUploads(empresaSlug: string): string {
+  return empresaSlug
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
-function resolverArquivoUploads(relativePath: string) {
-  const base = path.resolve(caminhoPastaUploads());
+export function caminhoPastaUploads(empresaSlug?: string) {
+  const base = path.join(process.cwd(), "public", "uploads");
+  if (!empresaSlug?.trim()) return base;
+  return path.join(base, normalizarSlugPastaUploads(empresaSlug));
+}
+
+export async function garantirPastasUploadEmpresa(empresaSlug: string) {
+  const base = caminhoPastaUploads(empresaSlug);
+  await Promise.all(
+    PASTAS_UPLOAD.map((pasta) => mkdir(path.join(base, pasta), { recursive: true }))
+  );
+  return base;
+}
+
+function resolverArquivoUploads(relativePath: string, empresaSlug?: string) {
+  const base = path.resolve(caminhoPastaUploads(empresaSlug));
   const alvo = path.resolve(base, relativePath.replace(/^[/\\]+/, ""));
   if (alvo !== base && !alvo.startsWith(base + path.sep)) {
     throw new Error("Caminho inválido");
@@ -34,47 +55,66 @@ export type ArquivoGaleria = {
   url: string;
 };
 
-export async function listarArquivosGaleria(): Promise<ArquivoGaleria[]> {
-  const base = caminhoPastaUploads();
-  await mkdir(base, { recursive: true });
+export async function listarArquivosGaleria(
+  empresaId?: string,
+  empresaSlug?: string
+): Promise<ArquivoGaleria[]> {
   const lista: ArquivoGaleria[] = [];
+  const slugNorm = empresaSlug ? normalizarSlugPastaUploads(empresaSlug) : "";
 
-  async function walk(dir: string, prefix: string) {
-    const entries = await readdir(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        await walk(full, rel);
-      } else if (entry.isFile()) {
-        const info = await stat(full);
-        const urlPath = rel.split(path.sep).join("/");
-        lista.push({
-          relativePath: rel.replace(/\\/g, "/"),
-          nome: entry.name,
-          bytes: info.size,
-          url: `/uploads/${urlPath}`,
-        });
+  if (slugNorm) {
+    const base = caminhoPastaUploads(slugNorm);
+    await mkdir(base, { recursive: true });
+
+    async function walk(dir: string, prefix: string) {
+      let entries;
+      try {
+        entries = await readdir(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          await walk(full, rel);
+        } else if (entry.isFile()) {
+          const info = await stat(full);
+          const urlPath = [slugNorm, ...rel.split(path.sep)].join("/");
+          lista.push({
+            relativePath: rel.replace(/\\/g, "/"),
+            nome: entry.name,
+            bytes: info.size,
+            url: `/uploads/${urlPath}`,
+          });
+        }
       }
     }
+
+    await walk(base, "");
   }
 
-  await walk(base, "");
-  const doBanco = await listarArquivosBanco();
+  const doBanco = await listarArquivosBanco(empresaId);
   return [...lista, ...doBanco].sort((a, b) => b.bytes - a.bytes);
 }
 
-export async function excluirArquivoGaleria(relativePath: string) {
+export async function excluirArquivoGaleria(
+  relativePath: string,
+  empresaId?: string,
+  empresaSlug?: string
+) {
   if (relativePath.startsWith("db/")) {
-    await excluirArquivoBancoPorId(relativePath.slice(3));
+    await excluirArquivoBancoPorId(relativePath.slice(3), empresaId);
     return;
   }
-  const alvo = resolverArquivoUploads(relativePath);
+  const alvo = resolverArquivoUploads(relativePath, empresaSlug);
   await unlink(alvo);
 }
 
-export async function abrirPastaUploadsNoSistema() {
-  const pasta = caminhoPastaUploads();
+export async function abrirPastaUploadsNoSistema(empresaSlug?: string) {
+  const pasta = empresaSlug
+    ? await garantirPastasUploadEmpresa(empresaSlug)
+    : caminhoPastaUploads();
   await mkdir(pasta, { recursive: true });
   const pastaWin = pasta.replace(/\//g, "\\");
 
@@ -133,9 +173,16 @@ export function resumoArmazenamentoVazio() {
   };
 }
 
-export async function calcularArmazenamentoGaleria() {
-  const base = caminhoPastaUploads();
-  const bytesUsados = (await tamanhoDiretorio(base)) + (await bytesTotalArquivosBanco());
+export async function calcularArmazenamentoGaleria(
+  empresaId?: string,
+  empresaSlug?: string
+) {
+  if (empresaSlug) {
+    await garantirPastasUploadEmpresa(empresaSlug);
+  }
+  const pastaEmpresa = empresaSlug ? caminhoPastaUploads(empresaSlug) : caminhoPastaUploads();
+  const bytesDisco = empresaSlug ? await tamanhoDiretorio(pastaEmpresa) : 0;
+  const bytesUsados = bytesDisco + (await bytesTotalArquivosBanco(empresaId));
   const bytesLivres = Math.max(0, LIMITE_ARMAZENAMENTO_BYTES - bytesUsados);
   const percentualUsado =
     LIMITE_ARMAZENAMENTO_BYTES > 0

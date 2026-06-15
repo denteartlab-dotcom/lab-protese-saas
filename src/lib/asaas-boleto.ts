@@ -30,7 +30,7 @@ export async function tentarEmitirBoletoParaLancamento(lancamentoId: string) {
     return cobrancaExistente;
   }
 
-  const config = await obterConfigAsaas();
+  const config = await obterConfigAsaas(lancamento.empresaId);
   if (!asaasConfigurado(config)) {
     throw new Error("Configure a chave da API Asaas em Configurações → Boletos.");
   }

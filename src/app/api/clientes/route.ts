@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import { gerarTokenAcompanhamentoCliente, garantirTokenAcompanhamentoCliente, preencherTokensAcompanhamentoAusentes } from "@/lib/cliente-acompanhamento";
 import { schemaNomeCliente } from "@/lib/cliente-validacao";
 import { z } from "zod";
@@ -21,8 +21,12 @@ const schema = z.object({
 });
 
 export async function GET(request: Request) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  let ctx;
+  try {
+    ctx = await requireEmpresaContext();
+  } catch {
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  }
 
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q") || "";
@@ -30,6 +34,7 @@ export async function GET(request: Request) {
 
   const clientes = await prisma.cliente.findMany({
     where: {
+      empresaId: ctx.empresaId,
       ativo: excluidos ? false : true,
       ...(q
         ? {
@@ -51,8 +56,12 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  let ctx;
+  try {
+    ctx = await requireEmpresaContext();
+  } catch {
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  }
 
   try {
     const body = await request.json();
@@ -60,6 +69,7 @@ export async function POST(request: Request) {
     const cliente = await prisma.cliente.create({
       data: {
         ...data,
+        empresaId: ctx.empresaId,
         nome: data.nome,
         tokenAcompanhamento: gerarTokenAcompanhamentoCliente(),
       },

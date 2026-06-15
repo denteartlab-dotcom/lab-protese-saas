@@ -1,6 +1,6 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import { z } from "zod";
 
 const schema = z.object({
@@ -13,16 +13,16 @@ const schema = z.object({
 });
 
 export async function GET(request: Request) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
-  ;
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q") || "";
   const clienteId = searchParams.get("clienteId");
 
   const pacientes = await prisma.paciente.findMany({
     where: {
+      cliente: { empresaId: ctx.empresaId },
       ...(clienteId ? { clienteId } : {}),
       ...(q
         ? {
@@ -38,15 +38,14 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
-  ;
   try {
     const body = await request.json();
     const data = schema.parse(body);
     const cliente = await prisma.cliente.findFirst({
-      where: { id: data.clienteId },
+      where: { id: data.clienteId, empresaId: ctx.empresaId },
     });
     if (!cliente) {
       return NextResponse.json({ error: "Cliente não encontrado" }, { status: 400 });

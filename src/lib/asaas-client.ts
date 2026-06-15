@@ -6,6 +6,7 @@ import {
   type AsaasConfig,
 } from "@/lib/asaas-config";
 import { prisma } from "@/lib/db";
+import { lerJsonStoreTenant, salvarJsonStoreTenant } from "@/lib/json-store-tenant";
 
 export type AsaasCustomer = {
   id: string;
@@ -22,21 +23,65 @@ export type AsaasPayment = {
   dueDate?: string;
 };
 
-async function carregarConfigServidor(): Promise<AsaasConfig> {
-  const row = await prisma.jsonStore.findUnique({
+function parseConfigAsaas(parsed: Partial<AsaasConfig>): AsaasConfig {
+  return {
+    apiKey: parsed.apiKey?.trim() || "",
+    ambiente: parsed.ambiente === "producao" ? "producao" : "sandbox",
+    webhookToken: parsed.webhookToken?.trim() || "",
+  };
+}
+
+async function carregarConfigServidor(empresaId: string): Promise<AsaasConfig> {
+  const parsed = await lerJsonStoreTenant<Partial<AsaasConfig>>(empresaId, ASAAS_CONFIG_KEY);
+  if (!parsed) return { ...ASAAS_CONFIG_PADRAO };
+  return parseConfigAsaas(parsed);
+}
+
+export async function salvarConfigAsaas(empresaId: string, config: AsaasConfig) {
+  await salvarJsonStoreTenant(empresaId, ASAAS_CONFIG_KEY, config);
+}
+
+/** Tokens de webhook configurados (legado global + todos os tenants). */
+export async function listarWebhookTokensAsaas(): Promise<string[]> {
+  const tokens = new Set<string>();
+
+  const tokenPlataforma = process.env.ASAAS_PLATAFORMA_WEBHOOK_TOKEN?.trim();
+  if (tokenPlataforma) tokens.add(tokenPlataforma);
+
+  const legado = await prisma.jsonStore.findUnique({
     where: { key: ASAAS_CONFIG_KEY },
   });
-  if (!row) return { ...ASAAS_CONFIG_PADRAO };
-  try {
-    const parsed = JSON.parse(row.payload) as Partial<AsaasConfig>;
-    return {
-      apiKey: parsed.apiKey?.trim() || "",
-      ambiente: parsed.ambiente === "producao" ? "producao" : "sandbox",
-      webhookToken: parsed.webhookToken?.trim() || "",
-    };
-  } catch {
-    return { ...ASAAS_CONFIG_PADRAO };
+  if (legado?.payload) {
+    try {
+      const parsed = JSON.parse(legado.payload) as Partial<AsaasConfig>;
+      const token = parsed.webhookToken?.trim();
+      if (token) tokens.add(token);
+    } catch {
+      /* ignora */
+    }
   }
+
+  const tenants = await prisma.jsonStore.findMany({
+    where: { key: { endsWith: `:${ASAAS_CONFIG_KEY}` } },
+  });
+  for (const row of tenants) {
+    try {
+      const parsed = JSON.parse(row.payload) as Partial<AsaasConfig>;
+      const token = parsed.webhookToken?.trim();
+      if (token) tokens.add(token);
+    } catch {
+      /* ignora */
+    }
+  }
+
+  return [...tokens];
+}
+
+export async function validarWebhookTokenAsaas(tokenRecebido: string): Promise<boolean> {
+  const configurados = await listarWebhookTokensAsaas();
+  if (configurados.length === 0) return true;
+  if (!tokenRecebido) return false;
+  return configurados.includes(tokenRecebido);
 }
 
 async function asaasFetch<T>(
@@ -82,8 +127,8 @@ export function cpfCnpjValido(doc: string): boolean {
   return n.length === 11 || n.length === 14;
 }
 
-export async function obterConfigAsaas(): Promise<AsaasConfig> {
-  return carregarConfigServidor();
+export async function obterConfigAsaas(empresaId: string): Promise<AsaasConfig> {
+  return carregarConfigServidor(empresaId);
 }
 
 export async function criarOuBuscarClienteAsaas(params: {

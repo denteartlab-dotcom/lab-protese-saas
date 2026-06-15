@@ -14,15 +14,19 @@ export function parseParcelaNaDescricao(descricao: string) {
   return { numero, total };
 }
 
-export async function proximoNumeroFaturaReceita() {
+export async function proximoNumeroFaturaReceita(empresaId: string) {
   const row = await prisma.sequenciaNumerica.upsert({
-    where: { chave: CHAVE_NUMERO_FATURA_RECEITA },
-    create: { chave: CHAVE_NUMERO_FATURA_RECEITA, valor: 0 },
+    where: {
+      empresaId_chave: { empresaId, chave: CHAVE_NUMERO_FATURA_RECEITA },
+    },
+    create: { empresaId, chave: CHAVE_NUMERO_FATURA_RECEITA, valor: 0 },
     update: {},
   });
   const proximo = row.valor + 1;
   await prisma.sequenciaNumerica.update({
-    where: { chave: CHAVE_NUMERO_FATURA_RECEITA },
+    where: {
+      empresaId_chave: { empresaId, chave: CHAVE_NUMERO_FATURA_RECEITA },
+    },
     data: { valor: proximo },
   });
   return proximo;

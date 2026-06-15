@@ -340,17 +340,25 @@ export type FiltrosLogsAuditoria = {
   dataFim: string;
 };
 
-export async function listarLogsAuditoria(filtros: FiltrosLogsAuditoria) {
+export async function listarLogsAuditoria(
+  filtros: FiltrosLogsAuditoria,
+  empresaId?: string
+) {
   const { inicio, fim } = inicioFimPeriodo(filtros.periodo, filtros.dataInicio, filtros.dataFim);
   const layout = layoutTabelaLogsAuditoria(filtros.categoria);
 
   const where: {
+    empresaId?: string;
     categoria?: string;
     tipoAlteracao?: string;
     numeroOs?: number;
     referencia?: string | { contains: string };
     dataAlteracao?: { gte?: Date; lte?: Date };
   } = {};
+
+  if (empresaId) {
+    where.empresaId = empresaId;
+  }
 
   if (filtros.categoria && filtros.categoria !== "todos") {
     where.categoria = filtros.categoria;
@@ -431,6 +439,7 @@ export async function listarLogsAuditoria(filtros: FiltrosLogsAuditoria) {
 }
 
 export type RegistrarLogAuditoriaInput = {
+  empresaId?: string;
   categoria: string;
   tipoAlteracao: "alteracao" | "inclusao" | "exclusao";
   numeroOs?: number | null;
@@ -447,6 +456,38 @@ export type RegistrarLogAuditoriaInput = {
   usuarioNome: string;
   detalhes?: DetalheAlteracaoAuditoria[] | null;
 };
+
+async function resolverEmpresaIdLog(
+  input: RegistrarLogAuditoriaInput
+): Promise<string | null> {
+  if (input.empresaId) return input.empresaId;
+
+  if (input.usuarioId) {
+    const user = await prisma.user.findFirst({
+      where: { id: input.usuarioId },
+      select: { empresaId: true },
+    });
+    if (user?.empresaId) return user.empresaId;
+  }
+
+  if (input.trabalhoId) {
+    const trabalho = await prisma.trabalho.findFirst({
+      where: { id: input.trabalhoId },
+      select: { empresaId: true },
+    });
+    if (trabalho?.empresaId) return trabalho.empresaId;
+  }
+
+  if (input.lancamentoId) {
+    const lancamento = await prisma.lancamento.findFirst({
+      where: { id: input.lancamentoId },
+      select: { empresaId: true },
+    });
+    if (lancamento?.empresaId) return lancamento.empresaId;
+  }
+
+  return null;
+}
 
 export async function registrarLogAuditoria(input: RegistrarLogAuditoriaInput) {
   const etapa =
@@ -474,8 +515,14 @@ export async function registrarLogAuditoria(input: RegistrarLogAuditoriaInput) {
     usuarioNome = "Usuário";
   }
 
+  const empresaId = await resolverEmpresaIdLog(input);
+  if (!empresaId) {
+    throw new Error("EMPRESA_LOG_AUDITORIA");
+  }
+
   return prisma.logAuditoria.create({
     data: {
+      empresaId,
       categoria: input.categoria,
       tipoAlteracao: input.tipoAlteracao,
       numeroOs: input.numeroOs ?? null,

@@ -21,7 +21,7 @@ export async function GET(_request: Request, { params }: Params) {
   }
 
   const { cliente, trabalhos, labNome, mapaEtapas } = resultado;
-  const storeUrgencias = await carregarStoreUrgenciasCliente();
+  const storeUrgencias = await carregarStoreUrgenciasCliente(cliente.empresaId);
 
   const payload = montarAcompanhamentoPublico(
     {

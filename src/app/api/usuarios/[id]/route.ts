@@ -63,8 +63,8 @@ export async function GET(_request: Request, { params }: Params) {
   if ("erro" in auth && auth.erro) return auth.erro;
 
   const { id } = await params;
-  const user = await prisma.user.findUnique({
-    where: { id },
+  const user = await prisma.user.findFirst({
+    where: { id, empresaId: auth.session!.empresaId },
     select: selectUsuario,
   });
 
@@ -85,7 +85,9 @@ export async function PATCH(request: Request, { params }: Params) {
     const body = await request.json();
     const data = atualizarSchema.parse(body);
 
-    const atual = await prisma.user.findUnique({ where: { id } });
+    const atual = await prisma.user.findFirst({
+      where: { id, empresaId: auth.session!.empresaId },
+    });
     if (!atual) {
       return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
     }
@@ -110,6 +112,7 @@ export async function PATCH(request: Request, { params }: Params) {
     ) {
       const jaTem = await prisma.user.findFirst({
         where: {
+          empresaId: auth.session!.empresaId,
           id: { not: id },
           role: { in: ["proprietario", "admin"] },
           excluidoEm: null,
@@ -137,7 +140,9 @@ export async function PATCH(request: Request, { params }: Params) {
 
     const email = data.email?.trim().toLowerCase();
     if (email && email !== atual.email) {
-      const existe = await prisma.user.findUnique({ where: { email } });
+      const existe = await prisma.user.findFirst({
+        where: { empresaId: auth.session!.empresaId, email },
+      });
       if (existe && existe.id !== id) {
         return NextResponse.json({ error: "Este e-mail já está em uso." }, { status: 400 });
       }
@@ -208,7 +213,9 @@ export async function DELETE(_request: Request, { params }: Params) {
     );
   }
 
-  const atual = await prisma.user.findUnique({ where: { id } });
+  const atual = await prisma.user.findFirst({
+    where: { id, empresaId: auth.session!.empresaId },
+  });
   if (!atual) {
     return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
   }
@@ -216,6 +223,7 @@ export async function DELETE(_request: Request, { params }: Params) {
   if (usuarioEhProprietario(atual.role)) {
     const outros = await prisma.user.count({
       where: {
+        empresaId: auth.session!.empresaId,
         excluidoEm: null,
         role: { in: ["proprietario", "admin"] },
         id: { not: id },

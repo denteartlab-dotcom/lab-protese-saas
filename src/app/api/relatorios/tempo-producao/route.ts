@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import { carregarLinhasTempoProducaoServidor } from "@/lib/tempo-producao-relatorio-servidor";
 import {
   gerarLinhasMockTempoProducao,
@@ -10,8 +10,8 @@ import {
 } from "@/lib/tempo-producao-relatorio";
 
 export async function GET(request: Request) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   };
 
   try {
-    let linhasBase = await carregarLinhasTempoProducaoServidor();
+    let linhasBase = await carregarLinhasTempoProducaoServidor(ctx.empresaId);
     let fonte: "banco" | "mock" = "banco";
 
     if (searchParams.get("mock") === "1" || linhasBase.length === 0) {

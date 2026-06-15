@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
   calcularDashboardGerencial,
   type TrabalhoDashboardGerencial,
@@ -7,8 +7,8 @@ import {
 import { prisma } from "@/lib/db";
 
 export async function GET(request: Request) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
@@ -18,6 +18,7 @@ export async function GET(request: Request) {
   try {
     const [lancamentosRaw, trabalhosRaw, recebimentosRaw] = await Promise.all([
       prisma.lancamento.findMany({
+        where: { empresaId: ctx.empresaId },
         orderBy: { data: "desc" },
         select: {
           id: true,
@@ -34,7 +35,7 @@ export async function GET(request: Request) {
         },
       }),
       prisma.trabalho.findMany({
-        where: { status: { not: "cancelado" } },
+        where: { empresaId: ctx.empresaId, status: { not: "cancelado" } },
         select: {
           id: true,
           numeroOs: true,
@@ -51,7 +52,7 @@ export async function GET(request: Request) {
         },
       }),
       prisma.lancamento.findMany({
-        where: { tipo: "receita", status: "pago" },
+        where: { empresaId: ctx.empresaId, tipo: "receita", status: "pago" },
         orderBy: { data: "desc" },
         select: {
           id: true,

@@ -1,38 +1,25 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { prisma } from "@/lib/db";
 import {
-  ASAAS_CONFIG_KEY,
-  ASAAS_CONFIG_PADRAO,
   type AsaasConfig,
 } from "@/lib/asaas-config";
 import { APP_URL } from "@/lib/app-url";
 import { urlBaseAsaas, type AsaasAmbiente } from "@/lib/asaas-config";
-
-async function lerConfig(): Promise<AsaasConfig> {
-  const row = await prisma.jsonStore.findUnique({
-    where: { key: ASAAS_CONFIG_KEY },
-  });
-  if (!row) return { ...ASAAS_CONFIG_PADRAO };
-  try {
-    const parsed = JSON.parse(row.payload) as Partial<AsaasConfig>;
-    return {
-      apiKey: parsed.apiKey?.trim() || "",
-      ambiente: parsed.ambiente === "producao" ? "producao" : "sandbox",
-      webhookToken: parsed.webhookToken?.trim() || "",
-    };
-  } catch {
-    return { ...ASAAS_CONFIG_PADRAO };
-  }
-}
+import {
+  obterConfigAsaas,
+  salvarConfigAsaas,
+} from "@/lib/asaas-client";
 
 export async function GET() {
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
+  if (!session.empresaId) {
+    return NextResponse.json({ error: "Empresa não identificada." }, { status: 401 });
+  }
 
-  const config = await lerConfig();
+  const config = await obterConfigAsaas(session.empresaId);
   return NextResponse.json({
     config: {
       ambiente: config.ambiente,
@@ -49,6 +36,9 @@ export async function PUT(request: Request) {
   if (!session) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
+  if (!session.empresaId) {
+    return NextResponse.json({ error: "Empresa não identificada." }, { status: 401 });
+  }
 
   try {
     const body = (await request.json()) as Partial<AsaasConfig> & {
@@ -56,7 +46,7 @@ export async function PUT(request: Request) {
       manterApiKey?: boolean;
       manterWebhookToken?: boolean;
     };
-    const atual = await lerConfig();
+    const atual = await obterConfigAsaas(session.empresaId);
     const apiKey =
       body.apiKey?.trim() ||
       (body.manterApiKey ? atual.apiKey : "") ||
@@ -75,14 +65,7 @@ export async function PUT(request: Request) {
       webhookToken,
     };
 
-    await prisma.jsonStore.upsert({
-      where: { key: ASAAS_CONFIG_KEY },
-      create: {
-        key: ASAAS_CONFIG_KEY,
-        payload: JSON.stringify(config),
-      },
-      update: { payload: JSON.stringify(config) },
-    });
+    await salvarConfigAsaas(session.empresaId, config);
 
     return NextResponse.json({ ok: true });
   } catch {

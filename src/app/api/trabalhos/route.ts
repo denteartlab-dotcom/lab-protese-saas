@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
   formatClienteLogAuditoria,
   formatServicoLogAuditoria,
   registrarLogAuditoria,
 } from "@/lib/logs-auditoria";
 import { proximoNumeroOsDisponivel, registrarNumeroOsUtilizado } from "@/lib/os-sequencia";
-import { notificarTvOrdensAtualizadas } from "@/lib/tv/notificar-tv-ordens";
 import { z } from "zod";
 
 const schema = z.object({
@@ -39,8 +38,8 @@ function parseDateOnly(value: string) {
 }
 
 export async function GET(request: Request) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   const { searchParams } = new URL(request.url);
   const q = (searchParams.get("q") || "").trim();
@@ -54,9 +53,9 @@ export async function GET(request: Request) {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
-  ;
   const trabalhos = await prisma.trabalho.findMany({
     where: {
+      empresaId: ctx.empresaId,
       ...(status ? { status } : {}),
       ...(atrasados
         ? {
@@ -96,25 +95,25 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   try {
     const body = await request.json();
     const data = schema.parse(body);
     const segmentoFaturamento = data.segmentoFaturamento ?? "servico";
     const numeroOs =
-      data.numeroOs ?? (await proximoNumeroOsDisponivel());
+      data.numeroOs ?? (await proximoNumeroOsDisponivel(ctx.empresaId));
 
-    ;
     const [cliente, paciente] = await Promise.all([
       prisma.cliente.findFirst({
-        where: { id: data.clienteId },
+        where: { id: data.clienteId, empresaId: ctx.empresaId },
       }),
       prisma.paciente.findFirst({
         where: {
           id: data.pacienteId,
           clienteId: data.clienteId,
+          cliente: { empresaId: ctx.empresaId },
         },
       }),
     ]);
@@ -129,6 +128,7 @@ export async function POST(request: Request) {
 
     const trabalho = await prisma.trabalho.create({
       data: {
+        empresaId: ctx.empresaId,
         numeroOs,
         segmentoFaturamento,
         ...(data.grupoOsId ? { grupoOsId: data.grupoOsId } : {}),
@@ -169,6 +169,7 @@ export async function POST(request: Request) {
             : "";
       await prisma.lancamento.create({
         data: {
+          empresaId: ctx.empresaId,
           tipo: "receita",
           descricao: `OS #${trabalho.numeroOs}${sufixoSegmento} - ${trabalho.tipoProtese}`,
           valor: trabalho.valor,
@@ -179,20 +180,19 @@ export async function POST(request: Request) {
       });
     }
 
-    await registrarNumeroOsUtilizado(trabalho.numeroOs);
+    await registrarNumeroOsUtilizado(ctx.empresaId, trabalho.numeroOs);
 
     await registrarLogAuditoria({
+      empresaId: ctx.empresaId,
       categoria: "os",
       tipoAlteracao: "inclusao",
       numeroOs: trabalho.numeroOs,
       trabalhoId: trabalho.id,
       servico: formatServicoLogAuditoria(trabalho.tipoProtese, trabalho.id),
       clienteNome: formatClienteLogAuditoria(cliente.nome, trabalho.clienteId),
-      usuarioId: session.id,
-      usuarioNome: session.name,
+      usuarioId: ctx.user.id,
+      usuarioNome: ctx.user.name,
     });
-
-    void notificarTvOrdensAtualizadas();
 
     return NextResponse.json(trabalho, { status: 201 });
   } catch (error) {

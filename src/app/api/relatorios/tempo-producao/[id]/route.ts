@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import { gerarDetalheMockTempoProducao } from "@/lib/tempo-producao-detalhe";
 import { carregarDetalheTempoProducaoServidor } from "@/lib/tempo-producao-relatorio-servidor";
 import { gerarLinhasMockTempoProducao } from "@/lib/tempo-producao-relatorio";
@@ -8,15 +8,15 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
   const { id } = await params;
 
   try {
-    const detalhe = await carregarDetalheTempoProducaoServidor(id);
+    const detalhe = await carregarDetalheTempoProducaoServidor(id, ctx.empresaId);
     if (detalhe) {
       return NextResponse.json(detalhe);
     }

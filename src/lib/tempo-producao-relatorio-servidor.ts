@@ -9,7 +9,8 @@ import {
   parseComplementosInstrucoesGrupo,
   type EtapaOsLinha,
 } from "@/lib/etapas-os";
-import { lerJsonStoreServidor } from "@/lib/json-store-servidor";
+import { lerJsonStoreTenant } from "@/lib/json-store-tenant";
+import { MODULO_PRODUCAO_ETAPAS_STORAGE_KEY } from "@/lib/modulo-producao-etapas";
 import {
   flagsUrgenciaTrabalho,
   itensDaOsModulo,
@@ -154,17 +155,22 @@ function trabalhoParaLinha(
   };
 }
 
-export async function carregarLinhasTempoProducaoServidor(): Promise<LinhaTempoProducao[]> {
+export async function carregarLinhasTempoProducaoServidor(
+  empresaId: string
+): Promise<LinhaTempoProducao[]> {
   const [trabalhos, mapaConcluidas] = await Promise.all([
     prisma.trabalho.findMany({
-      where: { status: { notIn: STATUS_ATIVOS_EXCLUIDOS } },
+      where: { empresaId, status: { notIn: STATUS_ATIVOS_EXCLUIDOS } },
       orderBy: [{ numeroOs: "desc" }, { createdAt: "desc" }],
       include: {
         cliente: { select: { nome: true } },
         paciente: { select: { nome: true } },
       },
     }) as Promise<TrabalhoRow[]>,
-    lerJsonStoreServidor<MapaEtapasConcluidas>("labProteseModuloProducaoEtapas"),
+    lerJsonStoreTenant<MapaEtapasConcluidas>(
+      empresaId,
+      MODULO_PRODUCAO_ETAPAS_STORAGE_KEY
+    ),
   ]);
 
   const mapa = mapaConcluidas ?? {};
@@ -188,22 +194,28 @@ export async function carregarLinhasTempoProducaoServidor(): Promise<LinhaTempoP
   return linhas;
 }
 
-export async function carregarDetalheTempoProducaoServidor(trabalhoId: string) {
+export async function carregarDetalheTempoProducaoServidor(
+  trabalhoId: string,
+  empresaId: string
+) {
   const [trabalho, mapaConcluidas] = await Promise.all([
     prisma.trabalho.findFirst({
-      where: { id: trabalhoId },
+      where: { id: trabalhoId, empresaId },
       include: {
         cliente: { select: { nome: true } },
         paciente: { select: { nome: true } },
       },
     }) as Promise<TrabalhoRow | null>,
-    lerJsonStoreServidor<MapaEtapasConcluidas>("labProteseModuloProducaoEtapas"),
+    lerJsonStoreTenant<MapaEtapasConcluidas>(
+      empresaId,
+      MODULO_PRODUCAO_ETAPAS_STORAGE_KEY
+    ),
   ]);
 
   if (!trabalho) return null;
 
   const grupo = (await prisma.trabalho.findMany({
-    where: { numeroOs: trabalho.numeroOs },
+    where: { empresaId, numeroOs: trabalho.numeroOs },
     include: {
       cliente: { select: { nome: true } },
       paciente: { select: { nome: true } },

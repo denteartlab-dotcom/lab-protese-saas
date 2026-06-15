@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getSession } from "@/lib/auth";
-import {
-  migrarJsonStoreLaboratorio,
-  salvarJsonStoreServidor,
-} from "@/lib/json-store-servidor";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import { ARMAZENAMENTO_LAB_PREFIX } from "@/lib/armazenamento-laboratorio-keys";
+import {
+  migrarJsonStoreTenant,
+  salvarJsonStoreTenant,
+} from "@/lib/json-store-tenant";
 
 const schema = z.object({
   entradas: z.record(z.string(), z.unknown()),
@@ -13,8 +13,8 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
@@ -25,11 +25,11 @@ export async function POST(request: Request) {
     if (body.sobrescrever) {
       for (const [key, valor] of Object.entries(body.entradas)) {
         if (!key.startsWith(ARMAZENAMENTO_LAB_PREFIX)) continue;
-        await salvarJsonStoreServidor(key, valor);
+        await salvarJsonStoreTenant(ctx.empresaId, key, valor);
         gravadas.push(key);
       }
     } else {
-      const novas = await migrarJsonStoreLaboratorio(body.entradas);
+      const novas = await migrarJsonStoreTenant(ctx.empresaId, body.entradas);
       gravadas.push(...novas);
     }
 

@@ -64,6 +64,12 @@ export async function garantirTabelaHistoricoEtapas() {
     await prisma.$executeRawUnsafe(
       `ALTER TABLE "historico_etapas" ADD COLUMN IF NOT EXISTS "descricaoItem" TEXT`
     );
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "historico_etapas" ADD COLUMN IF NOT EXISTS "empresaId" TEXT`
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "historico_etapas_empresaId_idx" ON "historico_etapas"("empresaId")`
+    );
     tabelaHistoricoGarantida = true;
   } catch (error) {
     console.error("[historico-etapas] garantir tabela:", error);
@@ -73,6 +79,7 @@ export async function garantirTabelaHistoricoEtapas() {
 
 export type HistoricoEtapaRow = {
   id: string;
+  empresaId: string | null;
   trabalhoId: string;
   numeroOs: number;
   clienteId: string;
@@ -89,13 +96,18 @@ export type HistoricoEtapaRow = {
   descricaoItem: string | null;
 };
 
-export async function listarHistoricoEtapas(): Promise<HistoricoEtapaRow[]> {
+export async function listarHistoricoEtapas(empresaId?: string): Promise<HistoricoEtapaRow[]> {
   await garantirTabelaHistoricoEtapas();
+
+  const where = empresaId ? { empresaId } : {};
+
   const rows = await prisma.historicoEtapa.findMany({
+    where,
     orderBy: { dataEntrada: "asc" },
   });
   return rows.map((h) => ({
     id: h.id,
+    empresaId: h.empresaId,
     trabalhoId: h.trabalhoId,
     numeroOs: h.numeroOs,
     clienteId: h.clienteId,
@@ -114,6 +126,7 @@ export async function listarHistoricoEtapas(): Promise<HistoricoEtapaRow[]> {
 }
 
 export type RegistrarTransicaoEtapaOpts = {
+  empresaId: string;
   trabalhoId: string;
   numeroOs: number;
   clienteId: string;
@@ -202,6 +215,7 @@ export async function registrarTransicaoEtapa(opts: RegistrarTransicaoEtapaOpts)
 
   return prisma.historicoEtapa.create({
     data: {
+      empresaId: opts.empresaId,
       trabalhoId: opts.trabalhoId,
       numeroOs: opts.numeroOs,
       clienteId: opts.clienteId,
@@ -274,6 +288,7 @@ export async function registrarRepeticaoManualOs(opts: {
 
   return prisma.historicoEtapa.create({
     data: {
+      empresaId: ctx.trabalho.empresaId,
       trabalhoId: ctx.trabalho.id,
       numeroOs: ctx.trabalho.numeroOs,
       clienteId: ctx.trabalho.clienteId,
@@ -293,6 +308,7 @@ export async function carregarContextoTrabalhoEtapa(trabalhoId: string) {
     where: { id: trabalhoId },
     select: {
       id: true,
+      empresaId: true,
       numeroOs: true,
       clienteId: true,
       instrucoes: true,
@@ -341,6 +357,7 @@ export async function registrarMudancaIndiceEtapa(opts: {
   const etapaLinha = ctx.etapas[opts.indiceNovo];
 
   return registrarTransicaoEtapa({
+    empresaId: ctx.trabalho.empresaId,
     trabalhoId: ctx.trabalho.id,
     numeroOs: ctx.trabalho.numeroOs,
     clienteId: ctx.trabalho.clienteId,

@@ -93,12 +93,14 @@ function diffLancamento(
 }
 
 async function resolverNumeroFaturaReceita(
+  session: SessionUser,
   lancamento: LancamentoAudit,
   opts?: OpcoesAuditoriaLancamento
 ) {
   if (lancamento.tipo !== "receita") return null;
   if (opts?.numeroFatura) return opts.numeroFatura;
-  return proximoNumeroFaturaReceita();
+  if (!session.empresaId) return null;
+  return proximoNumeroFaturaReceita(session.empresaId);
 }
 
 export async function auditarCriacaoLancamento(
@@ -107,13 +109,14 @@ export async function auditarCriacaoLancamento(
   opts?: OpcoesAuditoriaLancamento
 ) {
   const parcela = resolverParcela(lancamento, opts);
-  const numeroFatura = await resolverNumeroFaturaReceita(lancamento, opts);
+  const numeroFatura = await resolverNumeroFaturaReceita(session, lancamento, opts);
   const categoria = categoriaPorTipoLancamento(lancamento.tipo, {
     ...opts,
     temParcelamento: parcela.temParcelamento,
   });
 
   await registrarLogAuditoria({
+    empresaId: session.empresaId,
     categoria,
     tipoAlteracao: "inclusao",
     lancamentoId: lancamento.id,
@@ -186,6 +189,7 @@ export async function auditarAlteracaoLancamento(
       : null;
 
   await registrarLogAuditoria({
+    empresaId: session.empresaId,
     categoria: categoriaPorTipoLancamento(depois.tipo, {
       boleto: opts?.boleto,
       temParcelamento: pagamentoDespesa || parcela.temParcelamento,
@@ -224,6 +228,7 @@ export async function auditarExclusaoLancamento(
       : null;
 
   await registrarLogAuditoria({
+    empresaId: session.empresaId,
     categoria: categoriaPorTipoLancamento(lancamento.tipo, {
       ...opts,
       temParcelamento: parcela.temParcelamento,
@@ -254,7 +259,8 @@ export async function auditarCriacaoReceitasParceladas(
   lancamentos: LancamentoAudit[]
 ) {
   if (!lancamentos.length) return;
-  const numeroFatura = await proximoNumeroFaturaReceita();
+  if (!session.empresaId) return;
+  const numeroFatura = await proximoNumeroFaturaReceita(session.empresaId);
   const usuarioNome = await nomeUsuarioParaLogAuditoria(session);
   const total = lancamentos.length;
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import { getTvOrdensStore } from "@/lib/tv/tv-ordens-store";
 import type { ColunaKanbanId } from "@/components/modulo-tv/types";
 
@@ -18,8 +18,8 @@ const schema = z.object({
 type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, { params }: Params) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
@@ -34,7 +34,7 @@ export async function PATCH(request: Request, { params }: Params) {
     );
   }
 
-  const store = getTvOrdensStore();
+  const store = getTvOrdensStore(ctx.empresaId);
   const ordem = await store.moverOrdem(id, parsed.data.coluna as ColunaKanbanId);
 
   if (!ordem) {

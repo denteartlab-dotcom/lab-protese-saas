@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import { z } from "zod";
 
 const schema = z.object({
@@ -11,12 +11,11 @@ const schema = z.object({
 });
 
 export async function GET() {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
-  ;
   const produtos = await prisma.produto.findMany({
-    where: { ativo: true },
+    where: { empresaId: ctx.empresaId, ativo: true },
     orderBy: { nome: "asc" },
   });
 
@@ -24,14 +23,14 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
-  ;
   try {
     const data = schema.parse(await request.json());
     const produto = await prisma.produto.create({
       data: {
+        empresaId: ctx.empresaId,
         nome: data.nome,
         categoria: data.categoria ?? null,
         valor: data.valor ?? 0,
@@ -45,15 +44,14 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   const id = new URL(request.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "ID obrigatório" }, { status: 400 });
 
-  ;
   const existente = await prisma.produto.findFirst({
-    where: { id },
+    where: { id, empresaId: ctx.empresaId },
   });
   if (!existente) {
     return NextResponse.json({ error: "Não encontrado" }, { status: 404 });

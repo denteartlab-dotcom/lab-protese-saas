@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
   formatClienteLogAuditoria,
   formatServicoLogAuditoria,
@@ -21,7 +21,7 @@ import {
 import {
   removerUrgenciaOs,
 } from "@/lib/urgencia-cliente";
-import { notificarTvOrdensAtualizadas } from "@/lib/tv/notificar-tv-ordens";
+import { notificarTvOrdensEmpresa } from "@/lib/tv/notificar-tv-ordens";
 import { z } from "zod";
 
 const schema = z.object({
@@ -51,12 +51,12 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   const { id } = await params;
   const trabalho = await prisma.trabalho.findFirst({
-    where: { id },
+    where: { id, empresaId: ctx.empresaId },
     include: { cliente: true, paciente: true },
   });
 
@@ -64,6 +64,7 @@ export async function GET(
 
   const grupo = await prisma.trabalho.findMany({
     where: {
+      empresaId: ctx.empresaId,
       grupoOsId: grupoOsIdOf(trabalho),
     },
     include: { cliente: true, paciente: true },
@@ -77,15 +78,15 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   const { id } = await params;
   try {
     const body = await request.json();
     const data = schema.parse(body);
     const atual = await prisma.trabalho.findFirst({
-      where: { id },
+      where: { id, empresaId: ctx.empresaId },
     });
     if (!atual) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
 
@@ -132,17 +133,18 @@ export async function PUT(
         flagsUrgenciaTrabalho(atual).urgente ||
         (
           await prisma.trabalho.findMany({
-            where: { numeroOs: atual.numeroOs },
+            where: { empresaId: ctx.empresaId, numeroOs: atual.numeroOs },
             select: { tipoProtese: true, instrucoes: true },
           })
         ).some((t) => flagsUrgenciaTrabalho(t).urgente);
 
       if (tinhaUrgencia) {
-        await removerUrgenciaOs(atual.numeroOs);
+        await removerUrgenciaOs(atual.numeroOs, ctx.empresaId);
       }
 
       const outrosServicos = await prisma.trabalho.findMany({
         where: {
+          empresaId: ctx.empresaId,
           numeroOs: atual.numeroOs,
           NOT: { id },
         },
@@ -193,6 +195,7 @@ export async function PUT(
 
     if (detalhes.length > 0) {
       await registrarLogAuditoria({
+        empresaId: ctx.empresaId,
         categoria: "os",
         clienteNome: formatClienteLogAuditoria(
           trabalho.cliente?.nome,
@@ -202,8 +205,8 @@ export async function PUT(
         numeroOs: atual.numeroOs,
         trabalhoId: atual.id,
         servico: formatServicoLogAuditoria(trabalho.tipoProtese, trabalho.id),
-        usuarioId: session.id,
-        usuarioNome: session.name,
+        usuarioId: ctx.user.id,
+        usuarioNome: ctx.user.name,
         detalhes,
       });
     }
@@ -226,6 +229,7 @@ export async function PUT(
     if (Object.keys(camposCompartilhados).length > 0 && atual.grupoOsId) {
       await prisma.trabalho.updateMany({
         where: {
+          empresaId: ctx.empresaId,
           grupoOsId: grupoOsIdOf(atual),
           NOT: { id },
         },
@@ -233,7 +237,7 @@ export async function PUT(
       });
     }
 
-    void notificarTvOrdensAtualizadas();
+    void notificarTvOrdensEmpresa(ctx.empresaId);
 
     return NextResponse.json(trabalho);
   } catch (error) {
@@ -255,13 +259,13 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   const { id } = await params;
   try {
     const atual = await prisma.trabalho.findFirst({
-      where: { id },
+      where: { id, empresaId: ctx.empresaId },
       include: { cliente: true },
     });
     if (!atual) return NextResponse.json({ ok: true });
@@ -291,6 +295,7 @@ export async function DELETE(
     }
 
     await registrarLogAuditoria({
+      empresaId: ctx.empresaId,
       categoria: "os",
       tipoAlteracao: "exclusao",
       numeroOs: atual.numeroOs,
@@ -300,13 +305,14 @@ export async function DELETE(
         atual.cliente?.nome,
         atual.clienteId
       ),
-      usuarioId: session.id,
-      usuarioNome: session.name,
+      usuarioId: ctx.user.id,
+      usuarioNome: ctx.user.name,
     });
 
     if (atual.grupoOsId) {
       await prisma.trabalho.deleteMany({
         where: {
+          empresaId: ctx.empresaId,
           grupoOsId: grupoOsIdOf(atual),
         },
       });
@@ -316,6 +322,6 @@ export async function DELETE(
   } catch {
     return NextResponse.json({ ok: true });
   }
-  void notificarTvOrdensAtualizadas();
+  void notificarTvOrdensEmpresa(ctx.empresaId);
   return NextResponse.json({ ok: true });
 }

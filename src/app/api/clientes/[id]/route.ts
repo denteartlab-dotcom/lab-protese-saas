@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import { schemaNomeCliente } from "@/lib/cliente-validacao";
 import { garantirTokenAcompanhamentoCliente } from "@/lib/cliente-acompanhamento";
 import { z } from "zod";
@@ -25,12 +25,12 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
+  const session = await requireEmpresaContext().catch(() => null);
   if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   const { id } = await params;
   const cliente = await prisma.cliente.findFirst({
-    where: { id },
+    where: { id, empresaId: session.empresaId },
     include: {
       pacientes: { orderBy: { nome: "asc" } },
       trabalhos: {
@@ -49,7 +49,7 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
+  const session = await requireEmpresaContext().catch(() => null);
   if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   const { id } = await params;
@@ -57,7 +57,7 @@ export async function PUT(
     const body = await request.json();
     const data = schema.parse(body);
     const existente = await prisma.cliente.findFirst({
-      where: { id },
+      where: { id, empresaId: session.empresaId },
     });
     if (!existente) {
       return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
@@ -88,14 +88,14 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
+  const session = await requireEmpresaContext().catch(() => null);
   if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   const { id } = await params;
   const permanente = new URL(request.url).searchParams.get("permanente") === "1";
 
   const existente = await prisma.cliente.findFirst({
-    where: { id },
+    where: { id, empresaId: session.empresaId },
     include: {
       _count: {
         select: {

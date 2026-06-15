@@ -50,7 +50,10 @@ export async function GET(request: Request) {
   const excluidos = searchParams.get("excluidos") === "1";
 
   const lista = await prisma.user.findMany({
-    where: excluidos ? { excluidoEm: { not: null } } : { excluidoEm: null },
+    where: {
+      empresaId: auth.session.empresaId,
+      ...(excluidos ? { excluidoEm: { not: null } } : { excluidoEm: null }),
+    },
     orderBy: [{ role: "asc" }, { name: "asc" }],
     select: {
       id: true,
@@ -82,6 +85,7 @@ export async function POST(request: Request) {
     if (usuarioEhProprietario(data.role)) {
       const jaTem = await prisma.user.findFirst({
         where: {
+          empresaId: auth.session.empresaId,
           role: { in: ["proprietario", "admin"] },
           excluidoEm: null,
         },
@@ -95,7 +99,9 @@ export async function POST(request: Request) {
     }
 
     const email = data.email.trim().toLowerCase();
-    const existe = await prisma.user.findUnique({ where: { email } });
+    const existe = await prisma.user.findFirst({
+      where: { empresaId: auth.session.empresaId, email },
+    });
     if (existe) {
       return NextResponse.json({ error: "Este e-mail já está em uso." }, { status: 400 });
     }
@@ -123,6 +129,7 @@ export async function POST(request: Request) {
 
     const criado = await prisma.user.create({
       data: {
+        empresaId: auth.session.empresaId!,
         name: data.name.trim(),
         email,
         password: await hashPassword(senha),

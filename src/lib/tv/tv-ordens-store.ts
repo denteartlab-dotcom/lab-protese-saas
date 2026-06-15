@@ -4,7 +4,7 @@ import type {
   TvChartPoint,
   TvOrdensResponse,
 } from "@/components/modulo-tv/types";
-import { emitTvEvent } from "@/lib/tv/tv-socket-io";
+import { emitTvEvent, salaTvEmpresa } from "@/lib/tv/tv-socket-io";
 import {
   carregarOrdensTv,
   moverTrabalhoTvColuna,
@@ -20,31 +20,38 @@ type TvStoreState = {
 };
 
 const globalForTv = globalThis as typeof globalThis & {
-  __tvOrdensStore?: TvOrdensStore;
+  __tvOrdensStores?: Map<string, TvOrdensStore>;
   __tvRefreshTimer?: ReturnType<typeof setInterval>;
 };
 
+function snapshotVazio(): TvOrdensResponse {
+  return {
+    ordens: [],
+    colaboradores: [],
+    stats: {
+      totalProducao: 0,
+      atrasadas: 0,
+      prazoHoje: 0,
+      prazoAmanha: 0,
+      prazoAposAmanha: 0,
+      entregasHoje: 0,
+      entregasConcluidas: 0,
+      colaboradoresOnline: 0,
+      percentualConcluido: 0,
+    },
+    ultimaAtualizacao: new Date().toISOString(),
+  };
+}
+
 export class TvOrdensStore {
+  readonly empresaId: string;
+
   private state: TvStoreState;
 
-  constructor() {
+  constructor(empresaId: string) {
+    this.empresaId = empresaId;
     this.state = {
-      snapshot: {
-        ordens: [],
-        colaboradores: [],
-        stats: {
-          totalProducao: 0,
-          atrasadas: 0,
-          prazoHoje: 0,
-          prazoAmanha: 0,
-          prazoAposAmanha: 0,
-          entregasHoje: 0,
-          entregasConcluidas: 0,
-          colaboradoresOnline: 0,
-          percentualConcluido: 0,
-        },
-        ultimaAtualizacao: new Date().toISOString(),
-      },
+      snapshot: snapshotVazio(),
       chart: [],
     };
   }
@@ -57,7 +64,7 @@ export class TvOrdensStore {
   }
 
   async refreshFromDb(): Promise<TvOrdensResponse> {
-    const snapshot = await carregarOrdensTv();
+    const snapshot = await carregarOrdensTv(this.empresaId);
     this.state.snapshot = snapshot;
     this.appendChart(snapshot.ordens);
     return snapshot;
@@ -78,15 +85,17 @@ export class TvOrdensStore {
 
   syncBroadcast() {
     const snapshot = this.getSnapshot();
-    emitTvEvent("tv:ordens:update", snapshot);
-    emitTvEvent("tv:chart:update", { pontos: this.getChart() });
+    emitTvEvent(this.empresaId, "tv:ordens:update", snapshot);
+    emitTvEvent(this.empresaId, "tv:chart:update", {
+      pontos: this.getChart(),
+    });
   }
 
   async moverOrdem(
     id: string,
     coluna: ColunaKanbanId
   ): Promise<OrdemServicoTv | null> {
-    const resultado = await moverTrabalhoTvColuna(id, coluna);
+    const resultado = await moverTrabalhoTvColuna(id, coluna, this.empresaId);
     if (!resultado) return null;
 
     this.state.snapshot = resultado;
@@ -94,20 +103,32 @@ export class TvOrdensStore {
 
     const ordem = resultado.ordens.find((o) => o.id === id) ?? null;
     this.syncBroadcast();
-    if (ordem) emitTvEvent("tv:ordem:moved", { ordem: { ...ordem } });
+    if (ordem) {
+      emitTvEvent(this.empresaId, "tv:ordem:moved", { ordem: { ...ordem } });
+    }
     return ordem;
   }
 }
 
-export function getTvOrdensStore(): TvOrdensStore {
-  if (!globalForTv.__tvOrdensStore) {
-    globalForTv.__tvOrdensStore = new TvOrdensStore();
+function mapaStores(): Map<string, TvOrdensStore> {
+  if (!globalForTv.__tvOrdensStores) {
+    globalForTv.__tvOrdensStores = new Map();
   }
-  return globalForTv.__tvOrdensStore;
+  return globalForTv.__tvOrdensStores;
 }
 
-export async function getTvOrdensSnapshot() {
-  const store = getTvOrdensStore();
+export function getTvOrdensStore(empresaId: string): TvOrdensStore {
+  const mapa = mapaStores();
+  let store = mapa.get(empresaId);
+  if (!store) {
+    store = new TvOrdensStore(empresaId);
+    mapa.set(empresaId, store);
+  }
+  return store;
+}
+
+export async function getTvOrdensSnapshot(empresaId: string) {
+  const store = getTvOrdensStore(empresaId);
   await store.refreshFromDb();
   return {
     ...store.getSnapshot(),
@@ -115,14 +136,23 @@ export async function getTvOrdensSnapshot() {
   };
 }
 
-/** Sincronização periódica com o banco — substitui simulador mock. */
+async function refreshTodasEmpresasAtivas() {
+  const mapa = mapaStores();
+  await Promise.all(
+    [...mapa.values()].map(async (store) => {
+      await store.refreshFromDb();
+      store.syncBroadcast();
+    })
+  );
+}
+
+/** Sincronização periódica com o banco — uma store por empresa. */
 export function iniciarTvRefreshAutomatico() {
   if (globalForTv.__tvRefreshTimer) return;
 
-  const store = getTvOrdensStore();
-  void store.refreshFromDb().then(() => store.syncBroadcast());
-
   globalForTv.__tvRefreshTimer = setInterval(() => {
-    void store.refreshFromDb().then(() => store.syncBroadcast());
+    void refreshTodasEmpresasAtivas();
   }, REFRESH_INTERVAL_MS);
 }
+
+export { salaTvEmpresa };

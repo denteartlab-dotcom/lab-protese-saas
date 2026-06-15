@@ -4,8 +4,10 @@ import { prisma } from "@/lib/db";
 
 const EMAIL_ADMIN = "admin@labprotese.com";
 const SENHA_PADRAO = "admin123";
+const SLUG_EMPRESA = "denteart";
+const NOME_EMPRESA = "DenteArt";
 
-/** Cria o usuário admin no banco (Neon) se ainda não existir ninguém. */
+/** Cria empresa padrão e usuário admin no banco se ainda não existir ninguém. */
 export async function GET() {
   if (!process.env.DATABASE_URL?.trim()) {
     return NextResponse.json(
@@ -24,7 +26,7 @@ export async function GET() {
   try {
     const total = await prisma.user.count();
     if (total > 0) {
-      const admin = await prisma.user.findUnique({
+      const admin = await prisma.user.findFirst({
         where: { email: EMAIL_ADMIN },
       });
       return NextResponse.json({
@@ -37,9 +39,21 @@ export async function GET() {
       });
     }
 
+    const empresa = await prisma.empresa.upsert({
+      where: { slug: SLUG_EMPRESA },
+      update: { nome: NOME_EMPRESA, status: "ativo" },
+      create: {
+        nome: NOME_EMPRESA,
+        slug: SLUG_EMPRESA,
+        plano: "basico",
+        status: "ativo",
+      },
+    });
+
     const password = await hashPassword(SENHA_PADRAO);
     await prisma.user.create({
       data: {
+        empresaId: empresa.id,
         name: "Administrador",
         email: EMAIL_ADMIN,
         password,
@@ -49,10 +63,11 @@ export async function GET() {
 
     return NextResponse.json({
       ok: true,
-      mensagem: "Administrador criado com sucesso.",
+      mensagem: "Empresa e administrador criados com sucesso.",
+      empresa: { nome: NOME_EMPRESA, slug: SLUG_EMPRESA },
       email: EMAIL_ADMIN,
       senha: SENHA_PADRAO,
-      proximoPasso: "Acesse /login e entre com esse e-mail e senha.",
+      proximoPasso: `Acesse /login e entre com esse e-mail e senha. URL do app: /app/${SLUG_EMPRESA}`,
     });
   } catch (err) {
     console.error("[setup/criar-admin]", err);

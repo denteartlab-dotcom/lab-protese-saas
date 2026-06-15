@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sessaoComPapelAtualizado } from "@/lib/auth-acesso";
+import { emailEhMasterAdmin } from "@/lib/exigir-master-admin";
 import { prisma } from "@/lib/db";
 import {
   parsePermissoesUsuario,
@@ -24,6 +25,8 @@ export async function GET() {
     session.role
   );
 
+  const isMasterAdmin = await emailEhMasterAdmin(session.email);
+
   return NextResponse.json({
     id: session.id,
     name: session.name,
@@ -35,5 +38,6 @@ export async function GET() {
     podeGerenciarUsuarios: podeGerenciarUsuarios(session.role),
     acessoTotal: usuarioEhProprietario(session.role),
     permissoes,
+    isMasterAdmin,
   });
 }

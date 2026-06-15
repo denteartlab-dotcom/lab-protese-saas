@@ -3,7 +3,7 @@ import type { LabImpressaoConfig } from "@/lib/lab-impressao";
 import {
   LOGO_PDF_CABECALHO_OS_ALTURA_MM,
   LOGO_PDF_CABECALHO_OS_LARGURA_MM,
-  PDF_JSPDF_FOLHA_A4,
+  PDF_JSPDF_FOLHA_A4_PAISAGEM,
 } from "@/lib/lab-impressao";
 import type { GrupoOsPainelServicos } from "@/lib/painel-servicos-dashboard";
 
@@ -246,7 +246,7 @@ async function gerarPdfServicosPainel({
   titulo,
 }: GerarPdfServicosPainelOpts): Promise<Blob> {
   const { default: jsPDF } = await import("jspdf");
-  const doc = new jsPDF(PDF_JSPDF_FOLHA_A4);
+  const doc = new jsPDF(PDF_JSPDF_FOLHA_A4_PAISAGEM);
 
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();

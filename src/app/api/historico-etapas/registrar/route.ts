@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext, verificarTrabalhoEmpresa } from "@/lib/empresa-context";
 import {
   registrarMudancaIndiceEtapa,
   registrarRepeticaoManualOs,
@@ -8,8 +8,8 @@ import {
 import type { TipoRepeticaoOs } from "@/lib/tipo-repeticao-os";
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
@@ -36,6 +36,11 @@ export async function POST(request: Request) {
 
     if (!body.trabalhoId) {
       return NextResponse.json({ error: "trabalhoId obrigatório." }, { status: 400 });
+    }
+
+    const trabalhoEmpresa = await verificarTrabalhoEmpresa(body.trabalhoId, ctx.empresaId);
+    if (!trabalhoEmpresa) {
+      return NextResponse.json({ error: "Trabalho não encontrado." }, { status: 404 });
     }
 
     if (body.tipoRepeticao) {
@@ -75,6 +80,7 @@ export async function POST(request: Request) {
     }
 
     const registro = await registrarTransicaoEtapa({
+      empresaId: ctx.empresaId,
       trabalhoId: body.trabalhoId,
       numeroOs: body.numeroOs,
       clienteId: body.clienteId,

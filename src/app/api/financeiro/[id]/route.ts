@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
   auditarAlteracaoLancamento,
   auditarExclusaoLancamento,
@@ -28,15 +28,15 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   const { id } = await params;
   try {
     const body = await request.json();
     const data = schema.parse(body);
     const existente = await prisma.lancamento.findFirst({
-      where: { id },
+      where: { id, empresaId: ctx.empresaId },
       include: {
         cliente: true,
         trabalho: { select: { numeroOs: true } },
@@ -57,20 +57,16 @@ export async function PUT(
       },
     });
     try {
-      await auditarAlteracaoLancamento(session, existente, lancamento);
+      await auditarAlteracaoLancamento(ctx.user, existente, lancamento);
     } catch (auditErr) {
       console.error("[financeiro PUT] auditoria", auditErr);
     }
     return NextResponse.json(lancamento);
   } catch (err) {
-    console.error("[financeiro PUT]", err);
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
     }
-    return NextResponse.json(
-      { error: "Não foi possível salvar o lançamento." },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Erro ao atualizar" }, { status: 500 });
   }
 }
 
@@ -78,28 +74,26 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   const { id } = await params;
-  try {
-    const existente = await prisma.lancamento.findFirst({
-      where: { id },
-      include: {
-        cliente: true,
-        trabalho: { select: { numeroOs: true } },
-      },
-    });
-    if (!existente) return NextResponse.json({ ok: true });
-    await auditarExclusaoLancamento(session, existente);
-    const lancamento = await prisma.lancamento.delete({
-      where: { id },
-      include: {
-        trabalho: { select: { id: true, numeroOs: true } },
-      },
-    });
-    return NextResponse.json({ ok: true, lancamento });
-  } catch {
-    return NextResponse.json({ ok: true });
+  const existente = await prisma.lancamento.findFirst({
+    where: { id, empresaId: ctx.empresaId },
+    include: {
+      cliente: true,
+      trabalho: { select: { numeroOs: true } },
+    },
+  });
+  if (!existente) {
+    return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
   }
+
+  await prisma.lancamento.delete({ where: { id } });
+  try {
+    await auditarExclusaoLancamento(ctx.user, existente);
+  } catch (auditErr) {
+    console.error("[financeiro DELETE] auditoria", auditErr);
+  }
+  return NextResponse.json({ ok: true });
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
   LIMITE_ARMAZENAMENTO_BYTES,
   LIMITE_GALERIA_GB,
@@ -11,15 +11,15 @@ import {
 } from "@/lib/upload-arquivo-server";
 
 export async function GET() {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-  const resumo = await calcularArmazenamentoGaleria();
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const resumo = await calcularArmazenamentoGaleria(ctx.empresaId, ctx.empresaSlug);
   return NextResponse.json(resumo);
 }
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   try {
     const formData = await request.formData();
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Nenhum arquivo enviado" }, { status: 400 });
     }
 
-    const { bytesUsados } = await calcularArmazenamentoGaleria();
+    const { bytesUsados } = await calcularArmazenamentoGaleria(ctx.empresaId, ctx.empresaSlug);
     const novosBytes = files.reduce((s, f) => s + f.size, 0);
     if (bytesUsados + novosBytes > LIMITE_ARMAZENAMENTO_BYTES) {
       return NextResponse.json(
@@ -42,27 +42,23 @@ export async function POST(request: Request) {
     }
 
     const pasta = pastaUploadValida(new URL(request.url).searchParams.get("pasta"));
-    const uploaded = await salvarArquivosUpload(pasta, files);
+    const uploaded = await salvarArquivosUpload(
+      pasta,
+      files,
+      ctx.empresaId,
+      ctx.empresaSlug
+    );
     return NextResponse.json(uploaded);
   } catch (err) {
     console.error("POST /api/uploads", err);
     const prismaCode =
       err && typeof err === "object" && "code" in err
-        ? String((err as { code?: string }).code)
+        ? String((err as { code: string }).code)
         : "";
-    if (prismaCode === "P2021") {
-      return NextResponse.json(
-        {
-          error:
-            "Armazenamento de anexos não configurado no banco. Execute o script prisma/scripts/criar-tabela-arquivo-upload.sql no Neon.",
-        },
-        { status: 503 }
-      );
-    }
-    const msg =
-      err instanceof Error
-        ? err.message
-        : "Não foi possível enviar os arquivos. Tente novamente.";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const msg = err instanceof Error ? err.message : "Erro ao enviar arquivos.";
+    return NextResponse.json(
+      { error: msg, code: prismaCode || undefined },
+      { status: 500 }
+    );
   }
 }

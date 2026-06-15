@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import { prisma } from "@/lib/db";
 import {
   calcularTotaisItens,
@@ -13,8 +13,8 @@ import { registrarDespesaOrcamentoAprovado } from "@/lib/orcamentos-financeiro";
 type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, { params }: Params) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
@@ -35,7 +35,7 @@ export async function PATCH(request: Request, { params }: Params) {
   };
 
   const atual = await prisma.orcamento.findFirst({
-    where: { id },
+    where: { id, empresaId: ctx.empresaId },
   });
   if (!atual) {
     return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
@@ -109,7 +109,7 @@ export async function PATCH(request: Request, { params }: Params) {
     (statusAnterior !== "aprovado" || body.forcarFinanceiro === true)
   ) {
     try {
-      const criados = await registrarDespesaOrcamentoAprovado({
+      const criados = await registrarDespesaOrcamentoAprovado(ctx.empresaId, {
         numeroPedido: row.numeroPedido,
         fornecedorNome: row.fornecedorNome,
         totalLiquido: row.totalLiquido,
@@ -137,14 +137,14 @@ export async function PATCH(request: Request, { params }: Params) {
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   const { id } = await params;
   const atual = await prisma.orcamento.findFirst({
-    where: { id },
+    where: { id, empresaId: ctx.empresaId },
   });
   if (!atual) {
     return NextResponse.json({ error: "Não encontrado" }, { status: 404 });

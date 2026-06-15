@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
   listarLogsAuditoria,
   registrarLogAuditoria,
@@ -44,8 +44,8 @@ const postSchema = z.object({
 });
 
 export async function GET(request: Request) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
@@ -61,7 +61,7 @@ export async function GET(request: Request) {
   };
 
   try {
-    const linhas = await listarLogsAuditoria(filtros);
+    const linhas = await listarLogsAuditoria(filtros, ctx.empresaId);
     return NextResponse.json({ linhas });
   } catch (err) {
     console.error("[logs-auditoria GET]", err);
@@ -70,8 +70,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
@@ -80,6 +80,7 @@ export async function POST(request: Request) {
     const data = postSchema.parse(body);
 
     const log = await registrarLogAuditoria({
+      empresaId: ctx.empresaId,
       categoria: data.categoria,
       tipoAlteracao: data.tipoAlteracao,
       numeroOs: data.numeroOs,
@@ -92,8 +93,8 @@ export async function POST(request: Request) {
       clienteNome: data.clienteNome,
       parcelaNumero: data.parcelaNumero,
       parcelaTotal: data.parcelaTotal,
-      usuarioId: session.id,
-      usuarioNome: session.name,
+      usuarioId: ctx.user.id,
+      usuarioNome: ctx.user.name,
       detalhes: data.detalhes,
     });
 

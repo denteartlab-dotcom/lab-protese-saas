@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import { tentarEmitirBoletoParaLancamento } from "@/lib/asaas-boleto";
 import { parseParcelaNaDescricao } from "@/lib/fatura-financeiro";
 import { descricaoDespesaComParcela } from "@/lib/lancamento-despesa";
@@ -49,12 +49,13 @@ function parseDateOnly(value?: string) {
   return parsed;
 }
 
-/** Campos aceitos pelo model Lancamento (evita enviar parcelaNumero etc. ao Prisma). */
 function dadosCreateLancamento(
+  empresaId: string,
   data: z.infer<typeof schema>,
   descricao: string
 ) {
   return {
+    empresaId,
     tipo: data.tipo,
     descricao,
     valor: data.valor,
@@ -67,8 +68,8 @@ function dadosCreateLancamento(
 }
 
 export async function GET(request: Request) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   const { searchParams } = new URL(request.url);
   const tipo = searchParams.get("tipo");
@@ -86,6 +87,7 @@ export async function GET(request: Request) {
   try {
     const lancamentos = await findLancamentosFinanceiro({
       where: {
+        empresaId: ctx.empresaId,
         ...(tipo ? { tipo } : {}),
         ...(status ? { status } : {}),
         ...dateFilter,
@@ -130,13 +132,14 @@ function montarRespostaFinanceiro(
 }
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   try {
     const body = await request.json();
     const data = schema.parse(body);
     const { emitirBoleto, parcelas: parcelasBody } = data;
+    const session = ctx.user;
 
     if (
       data.tipo === "despesa" &&
@@ -152,6 +155,7 @@ export async function POST(request: Request) {
           const total = parcelasBody.length;
           const lancamento = await tx.lancamento.create({
             data: {
+              empresaId: ctx.empresaId,
               tipo: "despesa",
               descricao: descricaoDespesaComParcela(
                 baseDescricao,
@@ -187,6 +191,7 @@ export async function POST(request: Request) {
         const total = parcelasBody.length;
         const lancamento = await prisma.lancamento.create({
           data: {
+            empresaId: ctx.empresaId,
             tipo: "receita",
             descricao: `${baseDescricao} (${n}/${total})`,
             valor: p.valor,
@@ -223,7 +228,7 @@ export async function POST(request: Request) {
     }
 
     const lancamento = await prisma.lancamento.create({
-      data: dadosCreateLancamento(data, descricao),
+      data: dadosCreateLancamento(ctx.empresaId, data, descricao),
       include: {
         cliente: true,
         trabalho: true,

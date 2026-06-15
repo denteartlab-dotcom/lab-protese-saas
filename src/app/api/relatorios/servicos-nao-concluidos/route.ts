@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import { prisma } from "@/lib/db";
+import { lerJsonStoreTenant } from "@/lib/json-store-tenant";
 import { MODULO_PRODUCAO_ETAPAS_STORAGE_KEY } from "@/lib/modulo-producao-etapas";
 import {
   calcularRelatorioServicosNaoConcluidos,
@@ -9,26 +10,20 @@ import {
 } from "@/lib/relatorio-servicos-nao-concluidos";
 import type { TrabalhoFinanceiroGeralInput } from "@/lib/relatorio-financeiro-geral";
 
-function parseMapaEtapas(payload: string | null | undefined): Record<string, number[]> {
-  if (!payload) return {};
-  try {
-    const parsed = JSON.parse(payload) as Record<string, unknown>;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-    const out: Record<string, number[]> = {};
-    for (const [chave, valor] of Object.entries(parsed)) {
-      if (Array.isArray(valor)) {
-        out[chave] = valor.filter((n): n is number => typeof n === "number");
-      }
+function parseMapaEtapas(valor: unknown): Record<string, number[]> {
+  if (!valor || typeof valor !== "object" || Array.isArray(valor)) return {};
+  const out: Record<string, number[]> = {};
+  for (const [chave, item] of Object.entries(valor as Record<string, unknown>)) {
+    if (Array.isArray(item)) {
+      out[chave] = item.filter((n): n is number => typeof n === "number");
     }
-    return out;
-  } catch {
-    return {};
   }
+  return out;
 }
 
 export async function GET(request: Request) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
@@ -40,9 +35,9 @@ export async function GET(request: Request) {
   };
 
   try {
-    const [trabalhosRaw, etapasRow] = await Promise.all([
+    const [trabalhosRaw, mapaRaw] = await Promise.all([
       prisma.trabalho.findMany({
-        where: { status: { not: "cancelado" } },
+        where: { empresaId: ctx.empresaId, status: { not: "cancelado" } },
         orderBy: [{ dataEntrada: "desc" }, { numeroOs: "desc" }],
         select: {
           id: true,
@@ -59,10 +54,7 @@ export async function GET(request: Request) {
           paciente: { select: { nome: true } },
         },
       }),
-      prisma.jsonStore.findUnique({
-        where: { key: MODULO_PRODUCAO_ETAPAS_STORAGE_KEY },
-        select: { payload: true },
-      }),
+      lerJsonStoreTenant(ctx.empresaId, MODULO_PRODUCAO_ETAPAS_STORAGE_KEY),
     ]);
 
     const trabalhos: TrabalhoFinanceiroGeralInput[] = trabalhosRaw.map((t) => ({
@@ -80,7 +72,7 @@ export async function GET(request: Request) {
       pacienteNome: t.paciente?.nome?.trim() || "—",
     }));
 
-    const mapaEtapas = parseMapaEtapas(etapasRow?.payload);
+    const mapaEtapas = parseMapaEtapas(mapaRaw);
     const payload = calcularRelatorioServicosNaoConcluidos(trabalhos, filtros, mapaEtapas);
 
     return NextResponse.json(payload);

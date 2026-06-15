@@ -1,6 +1,6 @@
 /** Constantes e formatação — seguro para importar no cliente. */
 
-export const LIMITE_GALERIA_GB = 80;
+export const LIMITE_GALERIA_GB = 20;
 export const LIMITE_ARMAZENAMENTO_BYTES = LIMITE_GALERIA_GB * 1024 ** 3;
 export const UPLOADS_ATUALIZADO_EVENT = "labProteseUploadsAtualizado";
 

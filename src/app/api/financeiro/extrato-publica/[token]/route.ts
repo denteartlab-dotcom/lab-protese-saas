@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import {
-  chaveExtratoPublica,
-  type ExtratoPublicaRegistro,
+  buscarRegistroExtratoPublicaPorToken,
   registroExtratoPublicaValido,
 } from "@/lib/extrato-publica";
 
@@ -15,19 +13,9 @@ export async function GET(_request: Request, { params }: Params) {
     return NextResponse.json({ error: "Token inválido" }, { status: 400 });
   }
 
-  const row = await prisma.jsonStore.findUnique({
-    where: { key: chaveExtratoPublica(limpo) },
-  });
-
-  if (!row) {
+  const registro = await buscarRegistroExtratoPublicaPorToken(limpo);
+  if (!registro) {
     return NextResponse.json({ error: "Extrato não encontrado" }, { status: 404 });
-  }
-
-  let registro: ExtratoPublicaRegistro;
-  try {
-    registro = JSON.parse(row.payload) as ExtratoPublicaRegistro;
-  } catch {
-    return NextResponse.json({ error: "Registro inválido" }, { status: 500 });
   }
 
   if (!registroExtratoPublicaValido(registro)) {

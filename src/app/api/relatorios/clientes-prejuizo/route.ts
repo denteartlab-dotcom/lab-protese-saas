@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import { prisma } from "@/lib/db";
 import { listarHistoricoEtapas } from "@/lib/historico-etapas";
 import { calcularRelatorioClientesPrejuizo } from "@/lib/relatorio-clientes-prejuizo-servidor";
 import type { PeriodoClientesPrejuizo } from "@/lib/relatorio-clientes-prejuizo";
 
 export async function GET(request: Request) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
@@ -18,9 +18,9 @@ export async function GET(request: Request) {
 
   try {
     const [historico, trabalhosRaw] = await Promise.all([
-      listarHistoricoEtapas(),
+      listarHistoricoEtapas(ctx.empresaId),
       prisma.trabalho.findMany({
-        where: { status: { not: "cancelado" } },
+        where: { empresaId: ctx.empresaId, status: { not: "cancelado" } },
         select: {
           id: true,
           numeroOs: true,

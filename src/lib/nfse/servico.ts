@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db";
-import { CONFIG_LAB_STORAGE_KEY, type ConfigLaboratorio } from "@/lib/configuracoes-lab";
+import { type ConfigLaboratorio } from "@/lib/configuracoes-lab";
+import { carregarConfigLaboratorioServidor } from "@/lib/lab-config-servidor";
+import { lerJsonStoreTenant, salvarJsonStoreTenant } from "@/lib/json-store-tenant";
 import {
   NFSE_CONFIG_KEY,
   NFSE_CONFIG_PADRAO,
@@ -10,57 +12,57 @@ import { emitirNfseNuvemFiscal } from "@/lib/nfse/nuvem-fiscal";
 import { emitirNfsePlugnotas } from "@/lib/nfse/plugnotas";
 import type { TomadorNfse } from "@/lib/nfse/types";
 
-export async function carregarConfigNfse(): Promise<NfseConfig> {
-  const row = await prisma.jsonStore.findUnique({
-    where: { key: NFSE_CONFIG_KEY },
-  });
-  if (!row) return { ...NFSE_CONFIG_PADRAO };
-  try {
-    const parsed = JSON.parse(row.payload) as Partial<NfseConfig>;
-    const provedor: NfseConfig["provedor"] =
-      parsed.provedor === "nuvemfiscal" || parsed.provedor === "plugnotas"
-        ? parsed.provedor
-        : parsed.clientId?.trim() && parsed.clientSecret?.trim()
-          ? "nuvemfiscal"
-          : NFSE_CONFIG_PADRAO.provedor;
-    return {
-      provedor,
-      apiKey: parsed.apiKey?.trim() || "",
-      clientId: parsed.clientId?.trim() || "",
-      clientSecret: parsed.clientSecret?.trim() || "",
-      ambiente: parsed.ambiente === "producao" ? "producao" : "homologacao",
-      codigoServicoNacional:
-        parsed.codigoServicoNacional?.trim() || NFSE_CONFIG_PADRAO.codigoServicoNacional,
-      codigoServicoMunicipal: parsed.codigoServicoMunicipal?.trim() || "",
-      aliquotaIss:
-        typeof parsed.aliquotaIss === "number" && parsed.aliquotaIss >= 0
-          ? parsed.aliquotaIss
-          : NFSE_CONFIG_PADRAO.aliquotaIss,
-      descricaoServicoPadrao:
-        parsed.descricaoServicoPadrao?.trim() || NFSE_CONFIG_PADRAO.descricaoServicoPadrao,
-    };
-  } catch {
-    return { ...NFSE_CONFIG_PADRAO };
-  }
+function parseConfigNfse(parsed: Partial<NfseConfig>): NfseConfig {
+  const provedor: NfseConfig["provedor"] =
+    parsed.provedor === "nuvemfiscal" || parsed.provedor === "plugnotas"
+      ? parsed.provedor
+      : parsed.clientId?.trim() && parsed.clientSecret?.trim()
+        ? "nuvemfiscal"
+        : NFSE_CONFIG_PADRAO.provedor;
+  return {
+    provedor,
+    apiKey: parsed.apiKey?.trim() || "",
+    clientId: parsed.clientId?.trim() || "",
+    clientSecret: parsed.clientSecret?.trim() || "",
+    ambiente: parsed.ambiente === "producao" ? "producao" : "homologacao",
+    codigoServicoNacional:
+      parsed.codigoServicoNacional?.trim() || NFSE_CONFIG_PADRAO.codigoServicoNacional,
+    codigoServicoMunicipal: parsed.codigoServicoMunicipal?.trim() || "",
+    aliquotaIss:
+      typeof parsed.aliquotaIss === "number" && parsed.aliquotaIss >= 0
+        ? parsed.aliquotaIss
+        : NFSE_CONFIG_PADRAO.aliquotaIss,
+    descricaoServicoPadrao:
+      parsed.descricaoServicoPadrao?.trim() || NFSE_CONFIG_PADRAO.descricaoServicoPadrao,
+  };
 }
 
-export async function carregarLabServidor(): Promise<ConfigLaboratorio> {
-  const row = await prisma.jsonStore.findUnique({
-    where: { key: CONFIG_LAB_STORAGE_KEY },
-  });
-  if (!row) {
+export async function carregarConfigNfse(empresaId: string): Promise<NfseConfig> {
+  const parsed = await lerJsonStoreTenant<Partial<NfseConfig>>(empresaId, NFSE_CONFIG_KEY);
+  if (!parsed) return { ...NFSE_CONFIG_PADRAO };
+  return parseConfigNfse(parsed);
+}
+
+export async function salvarConfigNfse(empresaId: string, config: NfseConfig) {
+  await salvarJsonStoreTenant(empresaId, NFSE_CONFIG_KEY, config);
+}
+
+export async function carregarLabServidor(empresaId: string): Promise<ConfigLaboratorio> {
+  const lab = await carregarConfigLaboratorioServidor(empresaId);
+  if (!lab.razaoSocial?.trim() && !lab.nomeFantasia?.trim()) {
     throw new Error("Configure os dados do laboratório antes de emitir NFS-e.");
   }
-  return JSON.parse(row.payload) as ConfigLaboratorio;
+  return lab;
 }
 
 export async function emitirNfseParaCliente(params: {
+  empresaId: string;
   clienteId: string;
   valor: number;
   descricao?: string;
   lancamentoId?: string;
 }) {
-  const config = await carregarConfigNfse();
+  const config = await carregarConfigNfse(params.empresaId);
   if (!nfseConfigurada(config)) {
     throw new Error(
       config.provedor === "plugnotas"
@@ -69,9 +71,9 @@ export async function emitirNfseParaCliente(params: {
     );
   }
 
-  const lab = await carregarLabServidor();
-  const cliente = await prisma.cliente.findUnique({
-    where: { id: params.clienteId },
+  const lab = await carregarLabServidor(params.empresaId);
+  const cliente = await prisma.cliente.findFirst({
+    where: { id: params.clienteId, empresaId: params.empresaId },
   });
   if (!cliente) throw new Error("Cliente não encontrado.");
 
@@ -87,6 +89,7 @@ export async function emitirNfseParaCliente(params: {
 
   const registro = await prisma.nfseEmissao.create({
     data: {
+      empresaId: params.empresaId,
       clienteId: cliente.id,
       lancamentoId: params.lancamentoId || null,
       valor: params.valor,

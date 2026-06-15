@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
   diaCobrancaCliente,
   diasDesde,
@@ -66,31 +66,35 @@ export type NotificacaoApi = {
 };
 
 export async function GET() {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
+  const { empresaId } = ctx;
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
   const [lancamentos, clientes, orcamentos, trabalhosAtivos] = await Promise.all([
     prisma.lancamento.findMany({
+      where: { empresaId },
       include: {
         cliente: { select: { id: true, nome: true, observacoes: true } },
         trabalho: { select: { id: true, numeroOs: true } },
       },
       orderBy: { data: "desc" },
     }),
-    prisma.cliente.findMany({ where: { ativo: true } }),
+    prisma.cliente.findMany({ where: { empresaId, ativo: true } }),
     prisma.orcamento.findMany({
       where: {
+        empresaId,
         status: { notIn: ["excluido", "cancelado"] },
       },
       orderBy: { updatedAt: "desc" },
     }),
     prisma.trabalho.findMany({
       where: {
+        empresaId,
         status: { notIn: ["finalizado", "entregue", "cancelado"] },
       },
       include: {
@@ -100,7 +104,7 @@ export async function GET() {
   ]);
 
   const lista: NotificacaoApi[] = [];
-  const enviosNotaVencida = await carregarEnviosNotaVencida();
+  const enviosNotaVencida = await carregarEnviosNotaVencida(empresaId);
   const enviosAtualizados = { ...enviosNotaVencida };
   let enviosAlterados = false;
   const idsReceitasVencidasPendentes = new Set<string>();
@@ -174,7 +178,7 @@ export async function GET() {
   }
 
   if (enviosAlterados) {
-    await salvarEnviosNotaVencida(enviosAtualizados);
+    await salvarEnviosNotaVencida(empresaId, enviosAtualizados);
   }
 
   const lancamentosResumo = lancamentos.map((l) => ({
@@ -324,7 +328,7 @@ export async function GET() {
     });
   }
 
-  const storeUrgencias = await podarEventosUrgenciaInativos();
+  const storeUrgencias = await podarEventosUrgenciaInativos(empresaId);
   const mapaTrabalhosUrgencia = new Map(
     trabalhosAtivos.map((t) => [
       t.id,

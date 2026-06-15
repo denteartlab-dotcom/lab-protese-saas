@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
   filtrarTrabalhosAtrasados,
   filtrarTrabalhosVencendoPeriodo,
@@ -24,8 +24,8 @@ import {
 
 export async function GET(request: Request) {
   try {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   const { searchParams } = new URL(request.url);
   const mes = Number(searchParams.get("mes") ?? new Date().getMonth());
@@ -43,6 +43,8 @@ export async function GET(request: Request) {
     searchParams.get("mesAniversario") ?? new Date().getMonth()
   );
 
+  const filtroEmpresa = { empresaId: ctx.empresaId };
+
   const [
     totalClientes,
     totalPacientes,
@@ -53,15 +55,17 @@ export async function GET(request: Request) {
     lancamentos,
     clientesAtivos,
   ] = await Promise.all([
-    prisma.cliente.count({ where: { ativo: true } }),
-    prisma.paciente.count(),
+    prisma.cliente.count({ where: { ...filtroEmpresa, ativo: true } }),
+    prisma.paciente.count({ where: { cliente: filtroEmpresa } }),
     prisma.trabalho.count({
       where: {
+        ...filtroEmpresa,
         status: { notIn: ["finalizado", "entregue", "cancelado"] },
       },
     }),
     prisma.trabalho.findMany({
       where: {
+        ...filtroEmpresa,
         status: { notIn: ["finalizado", "entregue", "cancelado"] },
       },
       orderBy: { dataPrevista: "asc" },
@@ -81,7 +85,7 @@ export async function GET(request: Request) {
       },
     }),
     prisma.trabalho.findMany({
-      where: { status: { not: "cancelado" } },
+      where: { ...filtroEmpresa, status: { not: "cancelado" } },
       select: {
         id: true,
         numeroOs: true,
@@ -95,6 +99,7 @@ export async function GET(request: Request) {
       },
     }),
     prisma.trabalho.findMany({
+      where: filtroEmpresa,
       take: 5,
       orderBy: { createdAt: "desc" },
       include: {
@@ -103,6 +108,7 @@ export async function GET(request: Request) {
       },
     }),
     prisma.lancamento.findMany({
+      where: { empresaId: ctx.empresaId },
       orderBy: { data: "desc" },
       include: {
         cliente: { select: { id: true, nome: true } },
@@ -110,7 +116,7 @@ export async function GET(request: Request) {
       },
     }),
     prisma.cliente.findMany({
-      where: { ativo: true },
+      where: { ...filtroEmpresa, ativo: true },
       select: {
         id: true,
         nome: true,
@@ -181,7 +187,7 @@ export async function GET(request: Request) {
     limiteClientesServico
   );
 
-  const storeUrgencias = await podarEventosUrgenciaInativos();
+  const storeUrgencias = await podarEventosUrgenciaInativos(ctx.empresaId);
   const mapaTrabalhosUrgencia = new Map(
     trabalhosControle.map((t) => [
       t.id,

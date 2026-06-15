@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import { lerArquivoUploadPorId } from "@/lib/upload-arquivo-server";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, { params }: Params) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   const { id } = await params;
   const arquivo = await lerArquivoUploadPorId(id);
-  if (!arquivo) {
+  if (!arquivo || arquivo.empresaId !== ctx.empresaId) {
     return NextResponse.json({ error: "Arquivo não encontrado" }, { status: 404 });
   }
 

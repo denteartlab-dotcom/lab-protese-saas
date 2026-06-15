@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import { getTvOrdensStore } from "@/lib/tv/tv-ordens-store";
 
 export async function GET() {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
-  const store = getTvOrdensStore();
+  const store = getTvOrdensStore(ctx.empresaId);
   const snapshot = await store.refreshFromDb();
   return NextResponse.json(snapshot);
 }

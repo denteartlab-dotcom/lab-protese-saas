@@ -7,9 +7,13 @@ export async function GET() {
   if (!session) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
+  if (!session.empresaId) {
+    return NextResponse.json({ error: "Empresa não identificada." }, { status: 401 });
+  }
 
   try {
     const notas = await prisma.nfseEmissao.findMany({
+      where: { empresaId: session.empresaId },
       orderBy: { createdAt: "desc" },
       take: 50,
       include: {
