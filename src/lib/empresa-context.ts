@@ -1,4 +1,8 @@
 import { getSession, requireSession, createSession, type SessionUser } from "@/lib/auth";
+import {
+  empresaPrecisaPaginaRenovacao,
+  empresaTemAcessoAssinatura,
+} from "@/lib/assinatura-empresa";
 import { prisma } from "@/lib/db";
 
 export type EmpresaContext = {
@@ -8,8 +12,8 @@ export type EmpresaContext = {
   user: SessionUser;
 };
 
-async function sincronizarSessaoEmpresa(session: SessionUser): Promise<SessionUser> {
-  const registro = await prisma.user.findUnique({
+async function carregarUsuarioEmpresa(session: SessionUser) {
+  return prisma.user.findUnique({
     where: { id: session.id },
     select: {
       name: true,
@@ -17,11 +21,28 @@ async function sincronizarSessaoEmpresa(session: SessionUser): Promise<SessionUs
       role: true,
       excluidoEm: true,
       empresaId: true,
-      empresa: { select: { id: true, nome: true, slug: true, status: true } },
+      empresa: {
+        select: {
+          id: true,
+          nome: true,
+          slug: true,
+          status: true,
+          dataVencimento: true,
+        },
+      },
     },
   });
+}
 
-  if (!registro || registro.excluidoEm || !registro.empresa || registro.empresa.status !== "ativo") {
+async function sincronizarSessaoEmpresa(session: SessionUser): Promise<SessionUser> {
+  const registro = await carregarUsuarioEmpresa(session);
+
+  if (
+    !registro ||
+    registro.excluidoEm ||
+    !registro.empresa ||
+    !empresaTemAcessoAssinatura(registro.empresa)
+  ) {
     throw new Error("SEM_EMPRESA");
   }
 
@@ -75,6 +96,48 @@ export async function requireEmpresaContext(): Promise<EmpresaContext> {
   };
 }
 
+/** APIs de renovação PIX — permite empresa com assinatura vencida. */
+export async function requireEmpresaContextRenovacao(): Promise<EmpresaContext> {
+  const session = await requireSession();
+  const registro = await carregarUsuarioEmpresa(session);
+
+  if (!registro || registro.excluidoEm || !registro.empresa) {
+    throw new Error("SEM_EMPRESA");
+  }
+
+  const podeRenovar =
+    empresaTemAcessoAssinatura(registro.empresa) ||
+    empresaPrecisaPaginaRenovacao(registro.empresa);
+  if (!podeRenovar) {
+    throw new Error("SEM_EMPRESA");
+  }
+
+  const atualizada: SessionUser = {
+    id: session.id,
+    name: registro.name,
+    email: registro.email,
+    role: registro.role,
+    empresaId: registro.empresaId,
+    empresaSlug: registro.empresa.slug,
+    empresaNome: registro.empresa.nome,
+  };
+
+  if (
+    session.empresaId !== atualizada.empresaId ||
+    session.empresaSlug !== atualizada.empresaSlug ||
+    session.empresaNome !== atualizada.empresaNome
+  ) {
+    await createSession(atualizada);
+  }
+
+  return {
+    empresaId: atualizada.empresaId!,
+    empresaSlug: atualizada.empresaSlug!,
+    empresaNome: atualizada.empresaNome ?? atualizada.empresaSlug!,
+    user: atualizada,
+  };
+}
+
 export function filtroEmpresaId(empresaId: string) {
   return { empresaId };
 }
@@ -99,7 +162,7 @@ export async function carregarEmpresaUsuario(userId: string) {
     where: { id: userId },
     select: {
       empresaId: true,
-      empresa: { select: { id: true, nome: true, slug: true, status: true } },
+      empresa: { select: { id: true, nome: true, slug: true, status: true, dataVencimento: true } },
     },
   });
 }

@@ -2,7 +2,7 @@ import { execSync } from "node:child_process";
 
 /**
  * Encerra processos que estejam escutando na porta informada.
- * Evita EADDRINUSE ao rodar `npm run dev` com servidor antigo ainda ativo.
+ * No Windows usa netstat primeiro (mais rápido que abrir outro PowerShell).
  */
 export function liberarPorta(port = 3000) {
   const alvo = Number(port);
@@ -15,44 +15,47 @@ export function liberarPorta(port = 3000) {
   liberarPortaUnix(alvo);
 }
 
-function liberarPortaWindows(port) {
+function coletarPidsWindows(port) {
   const pids = new Set();
+  const sufixo = `:${port}`;
+
+  try {
+    const saida = execSync("netstat -ano", {
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    });
+    for (const linha of saida.split(/\r?\n/)) {
+      if (!/LISTENING/i.test(linha)) continue;
+      const partes = linha.trim().split(/\s+/);
+      const local = partes[1];
+      const pid = partes.at(-1);
+      if (!local?.endsWith(sufixo)) continue;
+      if (pid && /^\d+$/.test(pid) && pid !== "0") pids.add(pid);
+    }
+  } catch {
+    /* ignore */
+  }
+
+  if (pids.size > 0) return pids;
 
   try {
     const ps = execSync(
       `powershell -NoProfile -Command "(Get-NetTCPConnection -LocalPort ${port} -State Listen -ErrorAction SilentlyContinue).OwningProcess"`,
-      { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }
+      { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"], timeout: 5000 }
     );
     for (const linha of ps.split(/\r?\n/)) {
       const pid = linha.trim();
       if (pid && /^\d+$/.test(pid) && pid !== "0") pids.add(pid);
     }
   } catch {
-    /* fallback netstat */
+    /* porta livre */
   }
 
-  if (pids.size === 0) {
-    try {
-      const saida = execSync("netstat -ano", {
-        encoding: "utf8",
-        stdio: ["pipe", "pipe", "ignore"],
-      });
-      const sufixo = `:${port}`;
+  return pids;
+}
 
-      for (const linha of saida.split(/\r?\n/)) {
-        if (!/LISTENING/i.test(linha)) continue;
-        const partes = linha.trim().split(/\s+/);
-        const local = partes[1];
-        const pid = partes.at(-1);
-        if (!local?.endsWith(sufixo)) continue;
-        if (pid && /^\d+$/.test(pid) && pid !== "0") pids.add(pid);
-      }
-    } catch {
-      /* porta livre */
-    }
-  }
-
-  encerrarPids(port, pids);
+function liberarPortaWindows(port) {
+  encerrarPids(port, coletarPidsWindows(port));
 }
 
 function liberarPortaUnix(port) {

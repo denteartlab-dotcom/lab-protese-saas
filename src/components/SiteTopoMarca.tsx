@@ -14,7 +14,9 @@ export function SiteTopoMarca() {
     pathname.includes("/imprimir") ||
     pathname.startsWith("/app") ||
     pathname.startsWith("/extrato/") ||
-    pathname.startsWith("/fatura/")
+    pathname.startsWith("/fatura/") ||
+    pathname.startsWith("/assinatura-vencida") ||
+    pathname.startsWith("/pagamento")
   ) {
     return null;
   }

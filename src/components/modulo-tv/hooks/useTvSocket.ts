@@ -69,12 +69,13 @@ export function useTvSocket() {
       }),
       onTvSocketEvent("tv:ordem:moved", (payload) => {
         const { ordem } = payload as { ordem: TvOrdensResponse["ordens"][number] };
+        const item = ordem;
         if (sonsRef.current) playTvSound("movida");
         queryClient.setQueryData<TvOrdensResponse>(TV_QUERY_KEYS.ordens, (old) => {
           if (!old) return old;
           return {
             ...old,
-            ordens: old.ordens.map((o) => (o.id === ordem.id ? ordem : o)),
+            ordens: old.ordens.map((o) => (o.id === item.id ? item : o)),
           };
         });
       }),

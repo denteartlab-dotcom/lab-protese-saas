@@ -1,4 +1,6 @@
 import { getSession } from "@/lib/auth";
+import { emailEhMasterAdmin } from "@/lib/exigir-master-admin";
+import { empresaTemAcessoAssinatura } from "@/lib/assinatura-empresa";
 import { carregarConfigLaboratorioServidor } from "@/lib/lab-config-servidor";
 import { nomeExibicaoLaboratorio } from "@/lib/configuracoes-lab";
 import { configParaLabImpressao } from "@/lib/lab-logo";
@@ -15,15 +17,23 @@ export type ContextoAppServidor = {
     email: string;
     role: string;
   };
+  empresa: {
+    id: string;
+    slug: string;
+    nome: string;
+    dataVencimento: string | null;
+  };
   lab: LabImpressaoConfig;
   nomeLaboratorio: string;
   acessoTotal: boolean;
   permissoesModulos: Record<string, PermissaoCrud>;
+  isMasterAdmin: boolean;
+  suporteWhatsapp: string | null;
 };
 
 export async function obterContextoAppServidor(): Promise<ContextoAppServidor | null> {
   const session = await getSession();
-  if (!session) return null;
+  if (!session?.empresaId || !session.empresaSlug) return null;
 
   const [user, configLab] = await Promise.all([
     prisma.user.findUnique({
@@ -32,12 +42,24 @@ export async function obterContextoAppServidor(): Promise<ContextoAppServidor | 
         role: true,
         permissoesJson: true,
         excluidoEm: true,
+        empresaId: true,
+        empresa: {
+          select: {
+            id: true,
+            nome: true,
+            slug: true,
+            status: true,
+            dataVencimento: true,
+          },
+        },
       },
     }),
-    carregarConfigLaboratorioServidor(),
+    carregarConfigLaboratorioServidor(session.empresaId),
   ]);
 
-  if (!user || user.excluidoEm) return null;
+  if (!user || user.excluidoEm || !user.empresa || !empresaTemAcessoAssinatura(user.empresa)) {
+    return null;
+  }
 
   const lab = configParaLabImpressao(configLab);
   const nomeLaboratorio = nomeExibicaoLaboratorio(configLab) || "Lab Prótese";
@@ -47,6 +69,8 @@ export async function obterContextoAppServidor(): Promise<ContextoAppServidor | 
     user.role
   );
 
+  const isMasterAdmin = await emailEhMasterAdmin(session.email);
+
   return {
     user: {
       id: session.id,
@@ -54,9 +78,17 @@ export async function obterContextoAppServidor(): Promise<ContextoAppServidor | 
       email: session.email,
       role: user.role,
     },
+    empresa: {
+      id: user.empresa.id,
+      slug: user.empresa.slug,
+      nome: user.empresa.nome,
+      dataVencimento: user.empresa.dataVencimento?.toISOString() ?? null,
+    },
     lab,
     nomeLaboratorio,
     acessoTotal: usuarioEhProprietario(user.role),
     permissoesModulos: permissoes.modulos ?? {},
+    isMasterAdmin,
+    suporteWhatsapp: process.env.SUPPORT_WHATSAPP?.trim() || null,
   };
 }

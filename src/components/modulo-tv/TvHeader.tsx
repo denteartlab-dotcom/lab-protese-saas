@@ -28,14 +28,10 @@ export function TvHeader({
 }: Props) {
   const statusLabel = wsConectado
     ? "Sistema Online"
-    : sistemaOnline
-      ? "Modo automático"
-      : "Reconectando";
+    : "Reconectando";
   const statusHint = wsConectado
     ? "Tempo real ativo"
-    : sistemaOnline
-      ? "Atualização periódica"
-      : "Aguardando conexão";
+    : "Atualização automática";
 
   return (
     <header

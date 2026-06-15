@@ -16,6 +16,7 @@ import type { LabImpressaoConfig } from "@/lib/lab-impressao";
 import { dimensoesLogoPx } from "@/lib/lab-logo";
 import { permissaoIdPorHref } from "@/lib/usuarios-menu-permissoes";
 import { AppFaixaTopo } from "@/components/AppFaixaTopo";
+import { AssinaturaFaixaRodape } from "@/components/AssinaturaFaixaRodape";
 import { useLabConfigClient } from "@/lib/use-lab-config-client";
 import {
   appNavPrincipal,
@@ -46,6 +47,7 @@ import {
   Package,
   ScanBarcode,
   Settings,
+  Shield,
   User,
   Users,
   Wallet,
@@ -89,18 +91,34 @@ type LancamentoBuscaOs = {
 export function AppShell({
   userName,
   userRole,
+  userEmail,
+  isMasterAdmin = false,
+  dataVencimentoAssinatura = null,
+  suporteWhatsapp = null,
   initialLab,
   children,
 }: {
   userName: string;
   userRole: string;
+  userEmail?: string;
+  isMasterAdmin?: boolean;
+  dataVencimentoAssinatura?: string | null;
+  suporteWhatsapp?: string | null;
   initialLab: LabImpressaoConfig;
   children: React.ReactNode;
 }) {
   return (
     <I18nProvider>
       <ArmazenamentoLaboratorioProvider>
-        <AppShellInner userName={userName} userRole={userRole} initialLab={initialLab}>
+        <AppShellInner
+          userName={userName}
+          userRole={userRole}
+          userEmail={userEmail}
+          isMasterAdmin={isMasterAdmin}
+          dataVencimentoAssinatura={dataVencimentoAssinatura}
+          suporteWhatsapp={suporteWhatsapp}
+          initialLab={initialLab}
+        >
           {children}
         </AppShellInner>
       </ArmazenamentoLaboratorioProvider>
@@ -111,11 +129,19 @@ export function AppShell({
 function AppShellInner({
   userName,
   userRole,
+  userEmail,
+  isMasterAdmin = false,
+  dataVencimentoAssinatura = null,
+  suporteWhatsapp = null,
   initialLab,
   children,
 }: {
   userName: string;
   userRole: string;
+  userEmail?: string;
+  isMasterAdmin?: boolean;
+  dataVencimentoAssinatura?: string | null;
+  suporteWhatsapp?: string | null;
   initialLab: LabImpressaoConfig;
   children: React.ReactNode;
 }) {
@@ -145,6 +171,8 @@ function AppShellInner({
     pathname.startsWith("/app/relatorios/servicos-nao-concluidos");
   const isModuloImersivo =
     isModuloColaborador || isModuloTv || isRelatorioImersivo;
+  const mostrarFaixaAssinatura =
+    !isPrint && !isModuloImersivo && Boolean(dataVencimentoAssinatura);
   const isDashboard = pathname === "/app";
   const [darkMode, setDarkMode] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -822,6 +850,21 @@ function AppShellInner({
                 })}
               </div>
             </div>
+            {isMasterAdmin && (
+              <Link
+                href="/admin-master"
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition",
+                  pathname.startsWith("/admin-master")
+                    ? "bg-violet-600 text-white"
+                    : "text-slate-600 hover:bg-violet-50 hover:text-violet-700"
+                )}
+                title={userEmail ?? "Master"}
+              >
+                <Shield className="h-3.5 w-3.5" />
+                Gerenciar Sistema
+              </Link>
+            )}
             {appNavPrincipal
               .filter((item) => !appNavSemDropdown.has(item.labelKey))
               .map((item) => {
@@ -1253,12 +1296,21 @@ function AppShellInner({
               ? isRelatorioImersivo
                 ? "h-full min-h-[100vh] w-full max-w-none overflow-auto p-0 m-0"
                 : "h-[100vh] w-[100vw] max-w-none min-h-0 overflow-hidden p-0 m-0"
-              : "min-h-screen px-3 py-4 sm:px-5"
+              : cn(
+                  "min-h-screen px-3 py-4 sm:px-5",
+                  mostrarFaixaAssinatura && "pb-16"
+                )
           )}
         >
           {children}
         </div>
       </main>
+      {mostrarFaixaAssinatura && (
+        <AssinaturaFaixaRodape
+          dataVencimento={dataVencimentoAssinatura}
+          whatsappSuporte={suporteWhatsapp}
+        />
+      )}
     </div>
   );
 }

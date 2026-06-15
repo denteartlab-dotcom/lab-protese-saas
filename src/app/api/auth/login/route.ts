@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createSession, verifyPassword } from "@/lib/auth";
+import {
+  empresaBloqueadaAguardandoAtivacao,
+  empresaPrecisaPaginaRenovacao,
+  empresaTemAcessoAssinatura,
+  mensagemBloqueioAssinatura,
+} from "@/lib/assinatura-empresa";
 import { parsePermissoesUsuario } from "@/lib/usuarios-sistema";
 import { z } from "zod";
 
@@ -20,7 +26,15 @@ const selectUsuarioLogin = {
   permissoesJson: true,
   excluidoEm: true,
   empresaId: true,
-  empresa: { select: { id: true, nome: true, slug: true, status: true } },
+  empresa: {
+    select: {
+      id: true,
+      nome: true,
+      slug: true,
+      status: true,
+      dataVencimento: true,
+    },
+  },
 } as const;
 
 export async function POST(request: Request) {
@@ -55,9 +69,7 @@ export async function POST(request: Request) {
       where: {
         email: emailNorm,
         excluidoEm: null,
-        ...(slugInformado
-          ? { empresa: { slug: slugInformado, status: "ativo" } }
-          : { empresa: { status: "ativo" } }),
+        ...(slugInformado ? { empresa: { slug: slugInformado } } : {}),
       },
       select: selectUsuarioLogin,
       orderBy: { createdAt: "asc" },
@@ -70,12 +82,26 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!slugInformado && candidatos.length > 1) {
+    const comSenhaValida: typeof candidatos = [];
+    for (const candidato of candidatos) {
+      if (await verifyPassword(password, candidato.password)) {
+        comSenhaValida.push(candidato);
+      }
+    }
+
+    if (comSenhaValida.length === 0) {
+      return NextResponse.json(
+        { error: "E-mail ou senha inválidos." },
+        { status: 401 }
+      );
+    }
+
+    if (!slugInformado && comSenhaValida.length > 1) {
       return NextResponse.json(
         {
           error: "Este e-mail está em mais de um laboratório. Escolha qual deseja acessar.",
           code: "MULTIPLAS_CONTAS",
-          empresas: candidatos.map((item) => ({
+          empresas: comSenhaValida.map((item) => ({
             slug: item.empresa.slug,
             nome: item.empresa.nome,
           })),
@@ -84,23 +110,41 @@ export async function POST(request: Request) {
       );
     }
 
-    const user = candidatos[0];
-    if (!user.empresa || user.empresa.status !== "ativo") {
+    const user = comSenhaValida[0];
+    if (!user.empresa) {
       return NextResponse.json(
         { error: "Laboratório indisponível. Contate o suporte." },
         { status: 403 }
       );
     }
+
     if (parsePermissoesUsuario(user.permissoesJson).situacao === "inativo") {
       return NextResponse.json(
         { error: "E-mail ou senha inválidos." },
         { status: 401 }
       );
     }
-    if (!(await verifyPassword(password, user.password))) {
+
+    if (empresaBloqueadaAguardandoAtivacao(user.empresa)) {
       return NextResponse.json(
-        { error: "E-mail ou senha inválidos." },
-        { status: 401 }
+        {
+          error: mensagemBloqueioAssinatura(user.empresa),
+          code: "ASSINATURA_INATIVA",
+        },
+        { status: 403 }
+      );
+    }
+
+    const precisaRenovacao = empresaPrecisaPaginaRenovacao(user.empresa);
+    const temAcesso = empresaTemAcessoAssinatura(user.empresa);
+
+    if (!precisaRenovacao && !temAcesso) {
+      return NextResponse.json(
+        {
+          error: mensagemBloqueioAssinatura(user.empresa),
+          code: "ASSINATURA_INATIVA",
+        },
+        { status: 403 }
       );
     }
 
@@ -125,6 +169,9 @@ export async function POST(request: Request) {
         empresaSlug: user.empresa.slug,
         empresaNome: user.empresa.nome,
       },
+      ...(precisaRenovacao
+        ? { code: "ASSINATURA_VENCIDA", redirect: "/assinatura-vencida" }
+        : {}),
     });
   } catch (err) {
     console.error("[auth/login]", err);

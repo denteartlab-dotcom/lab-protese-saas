@@ -2,49 +2,46 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { I18nProvider } from "@/components/i18n-provider";
 import { getSession } from "@/lib/auth";
-import { carregarBrandingLaboratorio } from "@/lib/lab-branding";
-import { carregarConfigLaboratorioServidor } from "@/lib/lab-config-servidor";
-import { configParaLabImpressao } from "@/lib/lab-logo";
+import { obterDestinoPosLogin } from "@/lib/contexto-assinatura-vencida";
+import { carregarBrandingLoginServidor } from "@/lib/login-branding-servidor";
 import { LoginForm } from "./LoginForm";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 type Props = {
-  searchParams: Promise<{ redirect?: string }>;
+  searchParams: Promise<{
+    redirect?: string;
+    lab?: string;
+    slug?: string;
+    cadastro?: string;
+  }>;
 };
 
 export default async function LoginPage({ searchParams }: Props) {
   const session = await getSession();
-  if (session) {
-    const params = await searchParams;
-    const destino =
-      params.redirect && params.redirect.startsWith("/app")
-        ? params.redirect
-        : "/app";
+  const params = await searchParams;
+
+  if (session?.empresaId) {
+    const padrao = await obterDestinoPosLogin(session.empresaId);
+    let destino = padrao;
+    if (padrao.startsWith("/app") && params.redirect?.startsWith("/app")) {
+      destino = params.redirect;
+    }
     redirect(destino);
   }
 
-  const [configLaboratorio, branding] = await Promise.all([
-    carregarConfigLaboratorioServidor(),
-    carregarBrandingLaboratorio(),
-  ]);
-  const lab = configParaLabImpressao(configLaboratorio);
+  const { brandingInicial, brandingLaboratorio, jaEntrou } =
+    await carregarBrandingLoginServidor(params);
 
   return (
     <I18nProvider>
       <Suspense>
         <div className="login-hero-shell flex flex-1 flex-col">
           <LoginForm
-            brandingInicial={{
-              lab: {
-                ...lab,
-                logoDataUrl: branding.logoDataUrl || lab.logoDataUrl,
-                logoTamanho: branding.logoTamanho ?? lab.logoTamanho,
-              },
-              nomeLaboratorio: branding.nomeLaboratorio,
-              marcaSubtitulo: branding.marcaSubtitulo || lab.marcaSubtitulo,
-            }}
+            brandingInicial={brandingInicial}
+            brandingLaboratorio={brandingLaboratorio}
+            jaEntrouInicial={jaEntrou}
           />
         </div>
       </Suspense>

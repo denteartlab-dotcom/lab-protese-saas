@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { FolderOpen, Trash2 } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { FileText, Trash2 } from "lucide-react";
 import { Modal } from "@/components/ui";
 import {
   formatarTamanhoArmazenamento,
@@ -24,6 +24,10 @@ type ArquivoGaleria = {
   url: string;
 };
 
+function ehImagem(nome: string) {
+  return /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(nome);
+}
+
 export function PainelUploadsDashboard({
   titulo,
   resumo,
@@ -38,22 +42,24 @@ export function PainelUploadsDashboard({
   const textoLivre = formatarTamanhoGb(resumo.bytesLivres);
 
   const [modalArquivos, setModalArquivos] = useState(false);
-  const [pastaServidor, setPastaServidor] = useState("");
   const [arquivos, setArquivos] = useState<ArquivoGaleria[]>([]);
   const [carregando, setCarregando] = useState(false);
-  const [excluindo, setExcluindo] = useState<string | null>(null);
+  const [excluindo, setExcluindo] = useState(false);
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+
+  const todosSelecionados = useMemo(
+    () => arquivos.length > 0 && selecionados.size === arquivos.length,
+    [arquivos.length, selecionados.size]
+  );
 
   const recarregarLista = useCallback(async () => {
     setCarregando(true);
     try {
       const res = await fetch("/api/uploads/arquivos", { cache: "no-store" });
       if (!res.ok) return;
-      const data = (await res.json()) as {
-        pasta: string;
-        arquivos: ArquivoGaleria[];
-      };
-      setPastaServidor(data.pasta || "");
+      const data = (await res.json()) as { arquivos: ArquivoGaleria[] };
       setArquivos(data.arquivos || []);
+      setSelecionados(new Set());
     } finally {
       setCarregando(false);
     }
@@ -64,45 +70,55 @@ export function PainelUploadsDashboard({
     await recarregarLista();
   }
 
-  async function liberarEspaco() {
-    try {
-      const res = await fetch("/api/uploads/abrir-pasta", { method: "POST" });
-      const data = (await res.json()) as {
-        aberto?: boolean;
-        pasta?: string;
-        mensagem?: string;
-      };
-      if (data.pasta) setPastaServidor(data.pasta);
-      if (data.aberto) {
-        window.setTimeout(() => {
-          onResumoAtualizado?.();
-          notificarUploadsAtualizados();
-        }, 2000);
-        return;
-      }
-    } catch {
-      /* abre modal */
-    }
-    await abrirModalArquivos();
+  function fecharModal() {
+    setModalArquivos(false);
+    setSelecionados(new Set());
   }
 
-  async function excluirArquivo(relativePath: string) {
-    if (!confirm("Excluir este arquivo da galeria?")) return;
-    setExcluindo(relativePath);
+  function alternarSelecao(relativePath: string) {
+    setSelecionados((atual) => {
+      const proximo = new Set(atual);
+      if (proximo.has(relativePath)) proximo.delete(relativePath);
+      else proximo.add(relativePath);
+      return proximo;
+    });
+  }
+
+  function alternarSelecionarTodos() {
+    if (todosSelecionados) {
+      setSelecionados(new Set());
+      return;
+    }
+    setSelecionados(new Set(arquivos.map((arq) => arq.relativePath)));
+  }
+
+  async function excluirArquivos(paths: string[]) {
+    if (paths.length === 0) return;
+    const msg =
+      paths.length === 1
+        ? "Excluir este arquivo da galeria?"
+        : `Excluir ${paths.length} arquivos selecionados?`;
+    if (!confirm(msg)) return;
+
+    setExcluindo(true);
     try {
-      const res = await fetch(
-        `/api/uploads/arquivos?path=${encodeURIComponent(relativePath)}`,
-        { method: "DELETE" }
-      );
-      if (!res.ok) {
-        alert("Não foi possível excluir o arquivo.");
-        return;
+      const res = await fetch("/api/uploads/arquivos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paths }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        excluidos?: number;
+        erros?: string[];
+      };
+      if (!res.ok || (data.erros?.length ?? 0) > 0) {
+        alert("Não foi possível excluir todos os arquivos.");
       }
       await recarregarLista();
       onResumoAtualizado?.();
       notificarUploadsAtualizados();
     } finally {
-      setExcluindo(null);
+      setExcluindo(false);
     }
   }
 
@@ -124,7 +140,7 @@ export function PainelUploadsDashboard({
             </span>
             <button
               type="button"
-              onClick={() => void liberarEspaco()}
+              onClick={() => void abrirModalArquivos()}
               className="shrink-0 font-medium text-[#4a90d9] hover:underline"
             >
               Liberar espaço
@@ -159,69 +175,93 @@ export function PainelUploadsDashboard({
 
       <Modal
         open={modalArquivos}
-        onClose={() => setModalArquivos(false)}
-        title="Galeria de uploads"
-        size="lg"
+        onClose={fecharModal}
+        title="Liberar espaço — galeria de uploads"
+        size="xl"
         layerClassName="z-[60]"
       >
         <div className="space-y-3 text-[12px] text-slate-600">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[11px] text-slate-500">
-              Pasta no servidor:
-              <br />
-              <code className="mt-1 block break-all rounded bg-slate-100 px-2 py-1 text-[10px] text-slate-700">
-                {pastaServidor || "public/uploads"}
-              </code>
-            </p>
+            <label className="inline-flex cursor-pointer items-center gap-2 text-[11px] text-slate-600">
+              <input
+                type="checkbox"
+                checked={todosSelecionados}
+                onChange={alternarSelecionarTodos}
+                disabled={carregando || arquivos.length === 0}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              Selecionar todos
+              {selecionados.size > 0 && (
+                <span className="text-slate-400">({selecionados.size} selecionado(s))</span>
+              )}
+            </label>
             <button
               type="button"
-              onClick={() => void liberarEspaco()}
-              className="inline-flex items-center gap-1.5 rounded border border-slate-200 px-3 py-1.5 text-[11px] font-medium hover:bg-slate-50"
+              disabled={excluindo || selecionados.size === 0}
+              onClick={() => void excluirArquivos([...selecionados])}
+              className="inline-flex items-center gap-1.5 rounded border border-red-200 bg-red-50 px-3 py-1.5 text-[11px] font-medium text-red-600 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <FolderOpen className="h-4 w-4" />
-              Abrir pasta no Windows
+              <Trash2 className="h-4 w-4" />
+              Excluir selecionados
             </button>
           </div>
 
           {carregando ? (
-            <p className="py-6 text-center text-slate-400">Carregando arquivos...</p>
+            <p className="py-10 text-center text-slate-400">Carregando arquivos...</p>
           ) : arquivos.length === 0 ? (
-            <p className="py-6 text-center text-slate-400">Nenhum arquivo na galeria.</p>
+            <p className="py-10 text-center text-slate-400">Nenhum arquivo na galeria.</p>
           ) : (
-            <div className="max-h-80 overflow-y-auto rounded border border-slate-200">
-              <table className="w-full text-[11px]">
-                <thead>
-                  <tr className="border-b bg-slate-50 text-left text-slate-500">
-                    <th className="px-3 py-2">Arquivo</th>
-                    <th className="px-3 py-2 text-right">Tamanho</th>
-                    <th className="w-10 px-2 py-2" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {arquivos.map((arq) => (
-                    <tr key={arq.relativePath} className="border-b border-slate-50">
-                      <td className="px-3 py-2">
-                        <p className="font-medium text-slate-700">{arq.nome}</p>
-                        <p className="text-[10px] text-slate-400">{arq.relativePath}</p>
-                      </td>
-                      <td className="px-3 py-2 text-right text-slate-600">
+            <div className="grid max-h-[60vh] grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+              {arquivos.map((arq) => {
+                const marcado = selecionados.has(arq.relativePath);
+                const imagem = ehImagem(arq.nome);
+                return (
+                  <div
+                    key={arq.relativePath}
+                    className={`relative overflow-hidden rounded-lg border bg-slate-50 transition ${
+                      marcado ? "border-sky-400 ring-2 ring-sky-200" : "border-slate-200"
+                    }`}
+                  >
+                    <label className="absolute left-2 top-2 z-10 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={marcado}
+                        onChange={() => alternarSelecao(arq.relativePath)}
+                        className="h-4 w-4 rounded border-slate-300 bg-white shadow"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      disabled={excluindo}
+                      onClick={() => void excluirArquivos([arq.relativePath])}
+                      className="absolute right-2 top-2 z-10 rounded bg-white/90 p-1 text-red-500 shadow hover:bg-red-50 disabled:opacity-40"
+                      title="Excluir arquivo"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                    <div className="flex aspect-square items-center justify-center bg-white p-2">
+                      {imagem ? (
+                        <img
+                          src={arq.url}
+                          alt={arq.nome}
+                          className="max-h-full max-w-full object-contain"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <FileText className="h-10 w-10 text-slate-300" />
+                      )}
+                    </div>
+                    <div className="border-t border-slate-100 px-2 py-1.5">
+                      <p className="truncate text-[10px] font-medium text-slate-700" title={arq.nome}>
+                        {arq.nome}
+                      </p>
+                      <p className="text-[10px] text-slate-400">
                         {formatarTamanhoArmazenamento(arq.bytes)}
-                      </td>
-                      <td className="px-2 py-2">
-                        <button
-                          type="button"
-                          disabled={excluindo === arq.relativePath}
-                          onClick={() => void excluirArquivo(arq.relativePath)}
-                          className="rounded p-1 text-red-500 hover:bg-red-50 disabled:opacity-40"
-                          title="Excluir arquivo"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

@@ -3,8 +3,17 @@ import { execSync } from "child_process";
 import path from "path";
 
 const projectRoot = path.resolve(__dirname);
+const projectRootPosix = projectRoot.replace(/\\/g, "/");
+
+function caminhoForaDoProjeto(watchPath: string): boolean {
+  const normalizado = path.resolve(watchPath).replace(/\\/g, "/");
+  return !normalizado.startsWith(projectRootPosix);
+}
 
 function resolveAppBuildId() {
+  if (process.env.NODE_ENV === "development") {
+    return "dev";
+  }
   if (process.env.NEXT_PUBLIC_APP_BUILD_ID?.trim()) {
     return process.env.NEXT_PUBLIC_APP_BUILD_ID.trim();
   }
@@ -84,16 +93,29 @@ const nextConfig: NextConfig = {
   },
   webpack: (config, { dev }) => {
     if (dev) {
-      // Webpack aceita RegExp único OU array só de strings (não mistura).
       config.watchOptions = {
         ...config.watchOptions,
+        followSymlinks: false,
         ignored: [
           "**/node_modules/**",
           "**/.git/**",
           "**/.next/**",
-          "**/pagefile.sys",
+          "**/System Volume Information/**",
           "**/hiberfil.sys",
           "**/swapfile.sys",
+          "**/pagefile.sys",
+          (watchPath: string) => {
+            const base = path.basename(watchPath);
+            if (
+              base === "hiberfil.sys" ||
+              base === "swapfile.sys" ||
+              base === "pagefile.sys"
+            ) {
+              return true;
+            }
+            if (watchPath.includes("System Volume Information")) return true;
+            return caminhoForaDoProjeto(watchPath);
+          },
         ],
       };
     }

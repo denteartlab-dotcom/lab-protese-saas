@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import {
   FAVICON_PADRAO,
@@ -46,11 +47,18 @@ function definirFavicon(href: string, tipo?: string) {
 
 /** Título da aba e ícone conforme dados do laboratório (localStorage). */
 export function LabDocumentHead() {
+  const pathname = usePathname() ?? "";
   const { montado, lab, nomeLaboratorio } = useLabConfigClient();
   const seq = useRef(0);
 
+  const paginaPublicaBranding =
+    pathname === "/login" ||
+    pathname === "/cadastro" ||
+    pathname.startsWith("/assinatura-vencida") ||
+    pathname.startsWith("/pagamento");
+
   useEffect(() => {
-    if (!montado) return;
+    if (!montado || paginaPublicaBranding) return;
 
     document.title = montarTituloDocumento(nomeLaboratorio);
 
@@ -70,7 +78,7 @@ export function LabDocumentHead() {
     } else {
       definirFavicon(FAVICON_PADRAO);
     }
-  }, [montado, nomeLaboratorio, lab.logoDataUrl]);
+  }, [montado, nomeLaboratorio, lab.logoDataUrl, paginaPublicaBranding]);
 
   return null;
 }

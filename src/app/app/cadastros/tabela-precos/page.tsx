@@ -1577,7 +1577,7 @@ export default function TabelaPrecosPage() {
             <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2">
               <div className="flex items-center gap-2">
                 <AlcaArrastarCategoria />
-                <h2 className="text-xs font-bold uppercase text-slate-600">{categoria.nome}</h2>
+              <h2 className="text-xs font-bold uppercase text-slate-600">{categoria.nome}</h2>
               </div>
               <div className="flex items-center gap-2 text-slate-400">
                 {!modoArrastarCategorias && (
@@ -2773,9 +2773,9 @@ export default function TabelaPrecosPage() {
                           <Plus className="h-3.5 w-3.5" />
                         </button>
                         <span className="truncate text-slate-700">
-                          {opcao}
-                          {padrao && <span className="ml-1 text-[10px] text-slate-400">(padrão)</span>}
-                        </span>
+                        {opcao}
+                        {padrao && <span className="ml-1 text-[10px] text-slate-400">(padrão)</span>}
+                      </span>
                       </div>
                       {!padrao && (
                         <button

@@ -25,6 +25,13 @@ export const PDF_JSPDF_FOLHA_A4 = {
   orientation: "portrait" as const,
 };
 
+/** Folha A4 paisagem — relatórios com tabelas largas no dashboard. */
+export const PDF_JSPDF_FOLHA_A4_PAISAGEM = {
+  unit: "mm" as const,
+  format: "a4" as const,
+  orientation: "landscape" as const,
+};
+
 /** Logo no cabeçalho da requisição OS (PDF A4) — mm no jsPDF. */
 export const LOGO_PDF_CABECALHO_OS_LARGURA_MM = 32;
 export const LOGO_PDF_CABECALHO_OS_ALTURA_MM = 24;

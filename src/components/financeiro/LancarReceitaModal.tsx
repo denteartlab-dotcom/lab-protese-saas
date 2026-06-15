@@ -494,8 +494,8 @@ export function LancarReceitaModal({
       return parseMoney(valorDireto) + parseMoney(jurosParcela);
     }
     return itens.reduce((sum, item) => {
-      const qtd = Number(item.quantidade.replace(",", ".")) || 0;
-      return sum + parseMoney(item.custoUnitario) * qtd;
+        const qtd = Number(item.quantidade.replace(",", ".")) || 0;
+        return sum + parseMoney(item.custoUnitario) * qtd;
     }, 0);
   }, [ehConciliacao, valorDireto, jurosParcela, itens]);
 
@@ -593,21 +593,21 @@ export function LancarReceitaModal({
           }))
         : parcelas;
       await onSubmit({
-        clienteId,
+      clienteId,
         entidadeNome:
           selecionada?.nome || nomeEntidadeEdicaoRef.current || clienteId,
-        tipoCliente,
-        categoria,
-        dataLancamento,
-        notaFiscalRef,
-        receitaFixa,
+      tipoCliente,
+      categoria,
+      dataLancamento,
+      notaFiscalRef,
+      receitaFixa,
         itens: itensEnvio,
         parcelas: parcelasEnvio,
-        descontoTipo,
-        desconto,
-        observacoes,
-        valorBruto,
-        totalLiquido,
+      descontoTipo,
+      desconto,
+      observacoes,
+      valorBruto,
+      totalLiquido,
         anexos,
       });
     } catch (err) {

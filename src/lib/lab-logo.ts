@@ -130,3 +130,5 @@ export async function arquivoParaLogoDataUrl(file: File): Promise<string> {
   const mime = file.type === "image/png" ? "image/png" : "image/jpeg";
   return canvas.toDataURL(mime, mime === "image/jpeg" ? 0.88 : undefined);
 }
+
+export { LAB_IMPRESSAO_PADRAO } from "@/lib/lab-impressao";

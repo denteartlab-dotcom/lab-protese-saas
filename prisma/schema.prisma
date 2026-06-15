@@ -10,10 +10,23 @@ datasource db {
 
 model Empresa {
   id        String   @id @default(cuid())
+  codigo    String?  @unique
   nome      String
   slug      String   @unique
-  plano     String   @default("basico")
+  responsavel     String?
+  cnpj            String?
+  telefone        String?
+  whatsapp        String?
+  email           String?
+  cidade          String?
+  estado          String?
+  plano           String   @default("basico")
+  limiteUsuarios  Int      @default(5)
+  limiteTrabalhos Int      @default(500)
+  dataVencimento  DateTime?
+  observacoes     String?
   status    String   @default("ativo")
+  asaasCustomerIdPlataforma String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -29,6 +42,7 @@ model Empresa {
   logsAuditoria  LogAuditoria[]
   historicoEtapas HistoricoEtapa[]
   nfseEmissoes   NfseEmissao[]
+  cobrancasAssinatura CobrancaAssinatura[]
 }
 
 model User {
@@ -374,4 +388,57 @@ model ExtratoMovimentacao {
 
   @@unique([contaId, idExterno])
   @@index([contaId])
+}
+
+model MasterUser {
+  id        String   @id @default(cuid())
+  nome      String
+  email     String   @unique
+  senhaHash String   @map("senha_hash")
+  role      String   @default("MASTER_ADMIN")
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  logs MasterAuditLog[]
+
+  @@map("master_users")
+}
+
+model MasterAuditLog {
+  id        String     @id @default(cuid())
+  masterId  String
+  master    MasterUser @relation(fields: [masterId], references: [id], onDelete: Cascade)
+  acao      String
+  detalhes  String?
+  empresaId String?
+  ip        String?
+  createdAt DateTime   @default(now())
+
+  @@index([masterId])
+  @@index([empresaId])
+  @@index([createdAt])
+  @@map("master_audit_logs")
+}
+
+model CobrancaAssinatura {
+  id             String    @id @default(cuid())
+  empresaId      String
+  empresa        Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  asaasPaymentId String    @unique
+  provedor       String    @default("asaas")
+  plano          String
+  valor          Float
+  diasRenovacao  Int       @default(30)
+  statusAsaas    String    @default("PENDING")
+  pixPayload     String?
+  pixExpiraEm    DateTime?
+  pagoEm         DateTime?
+  renovadoEm     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([empresaId])
+  @@index([statusAsaas])
+  @@map("cobrancas_assinatura")
 }

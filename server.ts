@@ -1,20 +1,25 @@
 import { createServer } from "http";
 import { execSync } from "node:child_process";
+import path from "path";
 import { parse } from "url";
 import next from "next";
 import { Server as SocketIOServer } from "socket.io";
-import { requisicaoTvSocket } from "./src/lib/tv/tv-socket-path";
+import { getSessionFromCookieHeader } from "./src/lib/auth-token";
+import { prisma } from "./src/lib/db";
+import { requisicaoTvSocket } from "./src/lib/tv/tv-socket-client";
 import { TV_SOCKET_PATH } from "./src/lib/tv/tv-socket-events";
 import { iniciarBackupAutomaticoDiario } from "./src/lib/backup-automatico";
 import {
   getTvOrdensSnapshot,
   iniciarTvRefreshAutomatico,
+  salaTvEmpresa,
 } from "./src/lib/tv/tv-ordens-store";
 import { setTvSocketIo } from "./src/lib/tv/tv-socket-io";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME || "0.0.0.0";
 const port = parseInt(process.env.PORT || "3000", 10);
+const projectDir = path.resolve(process.cwd());
 
 process.on("unhandledRejection", (motivo) => {
   console.error("[process] unhandledRejection:", motivo);
@@ -24,7 +29,7 @@ process.on("uncaughtException", (erro) => {
   console.error("[process] uncaughtException:", erro);
 });
 
-const app = next({ dev, hostname, port });
+const app = next({ dev, hostname, port, dir: projectDir });
 const handle = app.getRequestHandler();
 
 app
@@ -43,13 +48,28 @@ app
     setTvSocketIo(io);
 
     io.on("connection", (socket) => {
-      void getTvOrdensSnapshot().then((payload) => {
+      const enviarSyncEmpresa = async () => {
+        const cookie = socket.handshake.headers.cookie;
+        const session = await getSessionFromCookieHeader(cookie);
+        let empresaId = session?.empresaId;
+        if (!empresaId && session?.empresaSlug) {
+          const empresa = await prisma.empresa.findUnique({
+            where: { slug: session.empresaSlug },
+            select: { id: true },
+          });
+          empresaId = empresa?.id;
+        }
+        if (!empresaId) return;
+
+        await socket.join(salaTvEmpresa(empresaId));
+        const payload = await getTvOrdensSnapshot(empresaId);
         socket.emit("tv:sync", payload);
-      });
+      };
+
+      void enviarSyncEmpresa();
+
       socket.on("tv:subscribe", () => {
-        void getTvOrdensSnapshot().then((payload) => {
-          socket.emit("tv:sync", payload);
-        });
+        void enviarSyncEmpresa();
       });
     });
 
@@ -107,7 +127,9 @@ app
         console.log(`> Socket.io TV: ${TV_SOCKET_PATH}`);
 
         setTimeout(() => {
-          void iniciarBackupAutomaticoDiario();
+          if (process.env.BACKUP_AUTOMATICO_ENABLED === "1") {
+            void iniciarBackupAutomaticoDiario();
+          }
         }, 15_000);
       });
     };

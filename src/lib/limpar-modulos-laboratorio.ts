@@ -1,4 +1,4 @@
-import { rm } from "fs/promises";
+import { mkdir, rm } from "fs/promises";
 import path from "path";
 import type { PrismaClient } from "@prisma/client";
 import { CONFIG_LAB_PADRAO, CONFIG_LAB_STORAGE_KEY } from "@/lib/configuracoes-lab";
@@ -8,6 +8,7 @@ import { garantirTabelaHistoricoEtapas } from "@/lib/historico-etapas";
 import { MODULO_PRODUCAO_ETAPAS_STORAGE_KEY } from "@/lib/modulo-producao-etapas";
 import { lerJsonStoreTenant, salvarJsonStoreTenant } from "@/lib/json-store-tenant";
 import type { PastaUpload } from "@/lib/upload-arquivo-server";
+import { caminhoPastaUploads } from "@/lib/uploads-armazenamento-server";
 
 export type ModuloLimpezaId =
   | "financeiro"
@@ -320,10 +321,11 @@ export async function contarRegistrosModulos(
   };
 }
 
-async function excluirPastaUploads(pasta: PastaUpload) {
-  const dir = path.join(process.cwd(), "public", "uploads", pasta);
+async function excluirPastaUploads(pasta: PastaUpload, empresaSlug: string) {
+  const dir = path.join(caminhoPastaUploads(empresaSlug), pasta);
   try {
     await rm(dir, { recursive: true, force: true });
+    await mkdir(dir, { recursive: true });
   } catch {
     /* pasta pode não existir */
   }
@@ -332,12 +334,13 @@ async function excluirPastaUploads(pasta: PastaUpload) {
 async function excluirUploadsPastasComPrisma(
   prisma: PrismaClient,
   pastas: PastaUpload[],
-  empresaId: string
+  empresaId: string,
+  empresaSlug: string
 ) {
   const unicas = [...new Set(pastas)];
   for (const pasta of unicas) {
     await prisma.arquivoUpload.deleteMany({ where: { pasta, empresaId } });
-    await excluirPastaUploads(pasta);
+    await excluirPastaUploads(pasta, empresaSlug);
   }
 }
 
@@ -356,6 +359,11 @@ export async function limparModulosSelecionados(
 ): Promise<ResultadoLimpezaModulos> {
   const empresaId = opts.empresaId;
   const whereEmpresa = { empresaId };
+  const empresa = await prisma.empresa.findUnique({
+    where: { id: empresaId },
+    select: { slug: true },
+  });
+  const empresaSlug = empresa?.slug || empresaId;
   const ordenados = [...ids].sort(
     (a, b) =>
       (moduloPorId(a)?.ordemExclusao ?? 0) - (moduloPorId(b)?.ordemExclusao ?? 0)
@@ -513,7 +521,7 @@ export async function limparModulosSelecionados(
         const c = await prisma.arquivoUpload.deleteMany({ where: whereEmpresa });
         apagados.anexos = c.count;
         for (const pasta of ["os", "despesas", "receitas"] as PastaUpload[]) {
-          await excluirPastaUploads(pasta);
+          await excluirPastaUploads(pasta, empresaSlug);
         }
         break;
       }
@@ -526,7 +534,7 @@ export async function limparModulosSelecionados(
   }
 
   if (pastasUpload.length > 0 && !ordenados.includes("anexos")) {
-    await excluirUploadsPastasComPrisma(prisma, pastasUpload, empresaId);
+    await excluirUploadsPastasComPrisma(prisma, pastasUpload, empresaId, empresaSlug);
   }
 
   const lsKeys = chavesLocalStorageModulos(ids);

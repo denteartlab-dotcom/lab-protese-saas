@@ -74,4 +74,4 @@ export const COLUNAS_KANBAN: ColunaKanbanConfig[] = [
 
 export const FRASE_FOOTER = FRASES_MOTIVACIONAIS_TV[0];
 
-export const AUTO_REFRESH_MS = 28_000;
+export const AUTO_REFRESH_MS = 8_000;

@@ -2,25 +2,71 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { sessaoCookieSecure } from "@/lib/cookie-secure";
 import { requisicaoTvSocket } from "@/lib/tv/tv-socket-path";
+import {
+  analisarCaminhoApp,
+  caminhoInternoApp,
+  montarCaminhoAppComSlug,
+} from "@/lib/rotas-app";
+import { rotaLiberadaAssinaturaVencida } from "@/lib/rotas-assinatura-vencida";
 
 const COOKIE_NAME = "lab-protese-session";
-const PUBLIC = ["/login"];
+const MASTER_COOKIE_NAME = "lab-protese-master-session";
+const PUBLIC = [
+  "/login",
+  "/cadastro",
+  "/criar-conta",
+  "/admin-master/login",
+  "/suporte",
+];
+
+type PayloadSessao = {
+  exp?: number;
+  id?: string;
+  empresaSlug?: string;
+  master?: boolean;
+  role?: string;
+};
 
 /** Verificação leve no Edge (sem jose — evita erro de build na Vercel). */
-function sessionTokenAceito(token: string): boolean {
+function lerPayloadSessao(token: string): PayloadSessao | null {
   const parts = token.split(".");
-  if (parts.length !== 3) return false;
+  if (parts.length !== 3) return null;
   try {
     const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
     const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
-    const payload = JSON.parse(atob(padded)) as { exp?: number; id?: string };
-    if (typeof payload.exp === "number" && payload.exp * 1000 < Date.now()) {
-      return false;
-    }
-    return typeof payload.id === "string" && payload.id.length > 0;
+    return JSON.parse(atob(padded)) as PayloadSessao;
   } catch {
+    return null;
+  }
+}
+
+function sessionTokenAceito(token: string): boolean {
+  const payload = lerPayloadSessao(token);
+  if (!payload) return false;
+  if (typeof payload.exp === "number" && payload.exp * 1000 < Date.now()) {
     return false;
   }
+  return typeof payload.id === "string" && payload.id.length > 0;
+}
+
+function masterTokenAceito(token: string): boolean {
+  const payload = lerPayloadSessao(token);
+  if (!payload) return false;
+  if (typeof payload.exp === "number" && payload.exp * 1000 < Date.now()) {
+    return false;
+  }
+  return (
+    payload.master === true &&
+    payload.role === "MASTER_ADMIN" &&
+    typeof payload.id === "string" &&
+    payload.id.length > 0
+  );
+}
+
+function slugDaSessao(token: string): string | null {
+  const payload = lerPayloadSessao(token);
+  const slug = payload?.empresaSlug?.trim();
+  return slug || null;
 }
 
 function limparCookieSessao(response: NextResponse) {
@@ -44,6 +90,43 @@ function redirecionarParaWww(request: NextRequest) {
   return NextResponse.redirect(url, 308);
 }
 
+function processarRotaApp(
+  request: NextRequest,
+  pathname: string,
+  slugSessao: string | null
+): NextResponse | null {
+  if (!pathname.startsWith("/app")) return null;
+
+  if (!slugSessao) {
+    const login = new URL("/login", request.url);
+    login.searchParams.set("redirect", pathname);
+    return limparCookieSessao(NextResponse.redirect(login));
+  }
+
+  const { slug, restante, legado } = analisarCaminhoApp(pathname);
+  const search = request.nextUrl.search;
+
+  if (legado) {
+    const destino = montarCaminhoAppComSlug(slugSessao, restante) + search;
+    if (destino !== pathname + search) {
+      return NextResponse.redirect(new URL(destino, request.url));
+    }
+    return null;
+  }
+
+  if (slug !== slugSessao) {
+    const destino = montarCaminhoAppComSlug(slugSessao, restante) + search;
+    return NextResponse.redirect(new URL(destino, request.url));
+  }
+
+  const interno = caminhoInternoApp(restante);
+  if (interno === pathname) return null;
+
+  const url = request.nextUrl.clone();
+  url.pathname = interno;
+  return NextResponse.rewrite(url);
+}
+
 export function middleware(request: NextRequest) {
   const redirectWww = redirecionarParaWww(request);
   if (redirectWww) return redirectWww;
@@ -53,6 +136,8 @@ export function middleware(request: NextRequest) {
   if (
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/setup") ||
+    pathname.startsWith("/api/empresas/cadastro") ||
+    pathname === "/api/admin-master/auth/login" ||
     pathname === "/api/version"
   ) {
     return NextResponse.next();
@@ -102,16 +187,36 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
+  if (pathname.startsWith("/admin-master") || pathname.startsWith("/api/admin-master")) {
+    const masterPublico =
+      pathname === "/admin-master/login" || pathname === "/api/admin-master/auth/login";
+    if (masterPublico) {
+      const masterToken = request.cookies.get(MASTER_COOKIE_NAME)?.value;
+      if (masterToken && masterTokenAceito(masterToken)) {
+        return NextResponse.redirect(new URL("/admin-master", request.url));
+      }
+      return NextResponse.next();
+    }
+
+    const masterToken = request.cookies.get(MASTER_COOKIE_NAME)?.value;
+    if (!masterToken || !masterTokenAceito(masterToken)) {
+      if (pathname.startsWith("/api/admin-master")) {
+        return NextResponse.json({ error: "Acesso restrito ao proprietário." }, { status: 403 });
+      }
+      const login = new URL("/admin-master/login", request.url);
+      login.searchParams.set("redirect", pathname);
+      return NextResponse.redirect(login);
+    }
+
+    return NextResponse.next();
+  }
+
   if (PUBLIC.includes(pathname)) {
     if (pathname === "/login") {
       const token = request.cookies.get(COOKIE_NAME)?.value;
       if (token && sessionTokenAceito(token)) {
-        const redirectParam = request.nextUrl.searchParams.get("redirect");
-        const destino =
-          redirectParam && redirectParam.startsWith("/app")
-            ? redirectParam
-            : "/app";
-        return NextResponse.redirect(new URL(destino, request.url));
+        // Deixa a página de login decidir (assinatura vencida vs app).
+        return NextResponse.next();
       }
     }
 
@@ -126,9 +231,21 @@ export function middleware(request: NextRequest) {
     return res;
   }
 
-  const needsAuth = pathname.startsWith("/app") || pathname.startsWith("/api");
+  const rotasRenovacao = rotaLiberadaAssinaturaVencida(pathname);
 
-  if (!needsAuth) {
+  if (rotasRenovacao && !pathname.startsWith("/api")) {
+    const tokenRenovacao = request.cookies.get(COOKIE_NAME)?.value;
+    if (!tokenRenovacao || !sessionTokenAceito(tokenRenovacao)) {
+      const login = new URL("/login", request.url);
+      login.searchParams.set("redirect", pathname);
+      return limparCookieSessao(NextResponse.redirect(login));
+    }
+    return NextResponse.next();
+  }
+
+  const needsAuthLegacy = pathname.startsWith("/app") || pathname.startsWith("/api");
+
+  if (!needsAuthLegacy) {
     const res = NextResponse.next();
     if (pathname.match(/\.(png|jpg|jpeg|gif|webp|svg|ico|woff2?)$/i)) {
       res.headers.set("Cache-Control", "public, max-age=86400, must-revalidate");
@@ -144,6 +261,11 @@ export function middleware(request: NextRequest) {
     const login = new URL("/login", request.url);
     login.searchParams.set("redirect", pathname);
     return limparCookieSessao(NextResponse.redirect(login));
+  }
+
+  if (pathname.startsWith("/app")) {
+    const rotaApp = processarRotaApp(request, pathname, slugDaSessao(token));
+    if (rotaApp) return rotaApp;
   }
 
   const res = NextResponse.next();
