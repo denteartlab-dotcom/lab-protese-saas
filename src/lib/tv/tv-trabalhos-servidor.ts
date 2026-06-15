@@ -31,10 +31,10 @@ import {
   MODULO_PRODUCAO_ETAPAS_STORAGE_KEY,
 } from "@/lib/modulo-producao-etapas";
 import { registrarMudancaIndiceEtapa } from "@/lib/historico-etapas";
-import { labelStatusOs } from "@/lib/status-os";
+import { labelStatusOs, trabalhoVisivelModuloTv } from "@/lib/status-os";
 import { normalizarColaborador } from "@/lib/utils";
 
-const STATUS_ATIVOS_EXCLUIDOS = ["cancelado", "entregue", "finalizado"];
+const STATUS_VISIVEIS_TV = ["producao", "processando"] as const;
 
 type MapaEtapasConcluidas = Record<string, number[]>;
 
@@ -299,7 +299,10 @@ export async function carregarOrdensTv(
 ): Promise<TvOrdensResponse> {
   const [trabalhos, mapaConcluidas, colaboradores] = await Promise.all([
     prisma.trabalho.findMany({
-      where: { empresaId, status: { notIn: STATUS_ATIVOS_EXCLUIDOS } },
+      where: {
+        empresaId,
+        status: { in: [...STATUS_VISIVEIS_TV] },
+      },
       orderBy: [{ numeroOs: "desc" }, { createdAt: "desc" }],
       include: {
         cliente: { select: { nome: true } },
@@ -327,6 +330,8 @@ export async function carregarOrdensTv(
 
   for (const grupo of porNumero.values()) {
     const principal = escolherTrabalhoPrincipal(grupo);
+    if (!trabalhoVisivelModuloTv(principal.status)) continue;
+
     const instrucoesGrupo = grupo.map((t) => t.instrucoes || "");
     const { etapas } = parseComplementosInstrucoesGrupo(instrucoesGrupo);
 

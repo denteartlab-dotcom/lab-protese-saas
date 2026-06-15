@@ -7,6 +7,8 @@ import {
   registrarLogAuditoria,
 } from "@/lib/logs-auditoria";
 import { proximoNumeroOsDisponivel, registrarNumeroOsUtilizado } from "@/lib/os-sequencia";
+import { trabalhoVisivelModuloTv } from "@/lib/status-os";
+import { notificarTvOrdensEmpresa } from "@/lib/tv/notificar-tv-ordens";
 import { z } from "zod";
 
 const schema = z.object({
@@ -193,6 +195,10 @@ export async function POST(request: Request) {
       usuarioId: ctx.user.id,
       usuarioNome: ctx.user.name,
     });
+
+    if (trabalhoVisivelModuloTv(trabalho.status)) {
+      void notificarTvOrdensEmpresa(ctx.empresaId);
+    }
 
     return NextResponse.json(trabalho, { status: 201 });
   } catch (error) {

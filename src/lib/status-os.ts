@@ -29,3 +29,8 @@ export function metaStatusOs(status?: string | null) {
     color: meta?.color ?? "bg-slate-100 text-slate-700",
   };
 }
+
+/** Módulo TV: só exibe OS com situação Produção (etapa atual vem do mapa de etapas). */
+export function trabalhoVisivelModuloTv(status?: string | null): boolean {
+  return normalizarChaveStatusOs(status) === "producao";
+}
