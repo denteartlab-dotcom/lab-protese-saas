@@ -271,23 +271,51 @@ async function adicionarEmpresaIdOpcional(tabela: string, empresaId: string) {
   console.log(`${tabela}: empresaId opcional preenchido.`);
 }
 
+async function tabelaComEmpresaIdPendente(tabela: string) {
+  if (!(await tabelaExiste(tabela))) return false;
+  if (!(await colunaExiste(tabela, "empresaId"))) return true;
+  const rows = await prisma.$queryRawUnsafe<{ count: bigint }[]>(
+    `SELECT COUNT(*)::bigint AS count FROM "${tabela}" WHERE "empresaId" IS NULL`
+  );
+  return Number(rows[0]?.count ?? 0) > 0;
+}
+
+async function precisaPrepararLegado() {
+  if (!(await tabelaExiste("Empresa"))) return true;
+
+  const tabelasChecagem = [
+    "User",
+    "Cliente",
+    "Trabalho",
+    "Produto",
+    "Lancamento",
+    "Orcamento",
+    "ArquivoUpload",
+    "ContaBancaria",
+    "SequenciaNumerica",
+  ] as const;
+
+  for (const tabela of tabelasChecagem) {
+    if (await tabelaComEmpresaIdPendente(tabela)) return true;
+  }
+
+  return false;
+}
+
 async function main() {
   console.log("Preparando banco legado para multi-empresa...\n");
 
-  const jaMigrado =
-    (await tabelaExiste("Empresa")) &&
-    (await tabelaExiste("User")) &&
-    (await colunaExiste("User", "empresaId"));
+  if (!(await precisaPrepararLegado())) {
+    console.log("Banco já preparado (Empresa + empresaId em todas as tabelas).");
+    console.log("Se db:push ainda falhar, rode apenas: npm run db:push\n");
+    return;
+  }
 
-  if (jaMigrado) {
-    const pendentes = await prisma.$queryRaw<{ count: bigint }[]>`
-      SELECT COUNT(*)::bigint AS count FROM "User" WHERE "empresaId" IS NULL
-    `;
-    if (Number(pendentes[0]?.count ?? 0) === 0) {
-      console.log("Banco já parece migrado (Empresa + User.empresaId).");
-      console.log("Se db:push ainda falhar, rode apenas: npm run db:push\n");
-      return;
-    }
+  const jaParcial =
+    (await tabelaExiste("Empresa")) &&
+    (await colunaExiste("User", "empresaId"));
+  if (jaParcial) {
+    console.log("Migração parcial detectada — continuando preparação...\n");
   }
 
   await criarTabelaEmpresa();
