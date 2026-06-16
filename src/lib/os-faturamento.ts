@@ -78,6 +78,49 @@ export function idsTrabalhosFaturadosNoLancamento(lancamento: LancamentoFaturaOs
   return Array.from(ids);
 }
 
+export type TrabalhoRelacionadoFatura = {
+  id: string;
+  numeroOs: number;
+  clienteId?: string | null;
+  cliente?: { id?: string | null } | null;
+};
+
+/** Trabalhos/OS que entram na impressão de uma fatura (somente do cliente do lançamento). */
+export function trabalhosRelacionadosLancamentoFatura<T extends TrabalhoRelacionadoFatura>(
+  lancamento: LancamentoFaturaOs & { cliente?: { id?: string | null } | null },
+  todosTrabalhos: T[],
+  clienteIdContexto?: string | null
+): T[] {
+  const idsFaturados = idsTrabalhosFaturadosNoLancamento(lancamento);
+  const temMetaIds = META_TRABALHOS_COBRANCA.test(lancamento.descricao);
+  const clienteId =
+    lancamento.cliente?.id?.trim() ||
+    clienteIdContexto?.trim() ||
+    undefined;
+
+  const pertenceAoCliente = (trabalho: T) => {
+    if (!clienteId) return true;
+    const idTrabalho = trabalho.clienteId?.trim() || trabalho.cliente?.id?.trim();
+    return idTrabalho === clienteId;
+  };
+
+  if (temMetaIds && idsFaturados.length > 0) {
+    return todosTrabalhos.filter(
+      (trabalho) =>
+        idsFaturados.includes(trabalho.id) && pertenceAoCliente(trabalho)
+    );
+  }
+
+  const numerosOs = numerosOsDoLancamentoFatura(lancamento);
+  return todosTrabalhos.filter((trabalho) => {
+    if (!pertenceAoCliente(trabalho)) return false;
+    if (idsFaturados.includes(trabalho.id)) return true;
+    if (trabalho.id === lancamento.trabalho?.id) return true;
+    if (!numerosOs.length) return false;
+    return numerosOs.includes(trabalho.numeroOs);
+  });
+}
+
 /**
  * Linha já faturada em contas a receber.
  * Com @@trab: só as linhas listadas; sem meta (legado): todas as linhas do número de OS.

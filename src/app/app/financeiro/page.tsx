@@ -18,6 +18,7 @@ import {
   idsTrabalhosFaturadosNoLancamento,
   lancamentoFaturaOsAtivo,
   trabalhoEstaFaturado,
+  trabalhosRelacionadosLancamentoFatura,
 } from "@/lib/os-faturamento";
 import {
   filtrarTrabalhoPorSituacaoFaturamento,
@@ -593,14 +594,11 @@ function FinanceiroReceberConteudo() {
     osSelecionadas.includes(id)
   );
 
-  function trabalhosDaFatura(lancamento: Lancamento) {
-    const idsFaturados = idsTrabalhosFaturadosNoLancamento(lancamento);
-    const numerosOs = numerosOsDoLancamento(lancamento);
-    return trabalhos.filter(
-      (trabalho) =>
-        idsFaturados.includes(trabalho.id) ||
-        trabalho.id === lancamento.trabalho?.id ||
-        numerosOs.includes(trabalho.numeroOs)
+  function trabalhosDaFatura(lancamento: Lancamento, clienteIdContexto?: string) {
+    return trabalhosRelacionadosLancamentoFatura(
+      lancamento,
+      trabalhos,
+      clienteIdContexto || lancamento.cliente?.id
     );
   }
 
@@ -1465,29 +1463,28 @@ function FinanceiroReceberConteudo() {
     setFaturaImprimindo({ cliente, lancamento });
   }
 
-  function faturaHtml(cliente: ClienteReceber) {
-    const lancamentos = cliente.lancamentos.filter((l) => l.tipo === "receita");
+  function faturaHtml(cliente: ClienteReceber, lancamentoUnico?: Lancamento) {
+    const lancamentos = lancamentoUnico
+      ? [lancamentoUnico]
+      : cliente.lancamentos.filter((l) => l.tipo === "receita");
     const primeiraFatura = lancamentos[0];
     const credito = primeiraFatura ? creditoUsadoNaFatura(primeiraFatura) : 0;
     let totalServicos = 0;
     const linhas = lancamentos
       .flatMap((l) => {
-        const trabalho = trabalhos.find(
-          (item) =>
-            item.id === l.trabalho?.id ||
-            (l.trabalho?.numeroOs && item.numeroOs === l.trabalho.numeroOs)
-        );
-        if (!trabalho) {
+        const trabalhosRelacionados = trabalhosDaFatura(l, cliente.clienteId);
+        if (!trabalhosRelacionados.length) {
           const os = l.trabalho?.numeroOs || "-";
           totalServicos += l.valor;
           return [`<tr><td>${os}</td><td>${l.descricao}</td><td>-</td><td>-</td><td class="center">1</td><td class="right">${money(l.valor)}</td><td class="right">0,00 %</td><td class="right">${money(l.valor)}</td></tr>`];
         }
-        return itensNotaFromTrabalho(trabalho).map((item) => {
-          const quantidade = Number(String(item.quantidade).replace(",", ".")) || 1;
-          const subtotal = item.valor * quantidade;
-          totalServicos += subtotal;
-          const data = trabalho.dataPrevista ? formatDate(trabalho.dataPrevista) : formatDate(l.data);
-          return `<tr>
+        return trabalhosRelacionados.flatMap((trabalho) => {
+          return itensNotaFromTrabalho(trabalho).map((item) => {
+            const quantidade = Number(String(item.quantidade).replace(",", ".")) || 1;
+            const subtotal = item.valor * quantidade;
+            totalServicos += subtotal;
+            const data = trabalho.dataPrevista ? formatDate(trabalho.dataPrevista) : formatDate(l.data);
+            return `<tr>
             <td>${trabalho.numeroOs}<br/><span>Data: ${data}</span></td>
             <td>${item.servico}</td>
             <td>${item.dentes}</td>
@@ -1497,6 +1494,7 @@ function FinanceiroReceberConteudo() {
             <td class="right">0,00 %</td>
             <td class="right">${money(subtotal)}</td>
           </tr>`;
+          });
         });
       })
       .join("");
@@ -2600,7 +2598,10 @@ function FinanceiroReceberConteudo() {
             numeroFatura: numeroFatura(lancamento),
             clienteNome: faturaImprimindo.cliente.nome,
             lancamento,
-            trabalhos: trabalhosDaFatura(lancamento),
+            trabalhos: trabalhosDaFatura(
+              lancamento,
+              faturaImprimindo.cliente.clienteId
+            ),
             creditoFatura: creditoUsadoNaFatura(lancamento),
             formatDate,
             money,
@@ -2633,7 +2634,7 @@ function FinanceiroReceberConteudo() {
             </div>
             <iframe
               title="Fatura"
-              srcDoc={faturaHtml(notaCliente)}
+              srcDoc={faturaHtml(notaCliente, notaCliente.lancamentos[0])}
               className="h-[min(297mm,80vh)] w-full max-w-[210mm] rounded border border-slate-200 bg-white"
             />
           </div>
