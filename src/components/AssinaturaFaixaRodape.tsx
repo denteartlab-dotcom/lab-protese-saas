@@ -76,7 +76,7 @@ export function AssinaturaFaixaRodape({
             <span
               className={cn(
                 "inline-flex items-center gap-1.5",
-                urgente && "font-medium text-amber-700"
+                urgente && "font-medium text-red-700"
               )}
             >
               <span className="text-base leading-none" aria-hidden>
@@ -84,13 +84,15 @@ export function AssinaturaFaixaRodape({
               </span>
               Sua Assinatura expira em <strong className="text-slate-800">{dataFormatada}</strong>
             </span>
-            <button
-              type="button"
-              onClick={() => setModalPixAberto(true)}
-              className="rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-medium text-white hover:bg-emerald-700"
-            >
-              renovar
-            </button>
+            {urgente ? (
+              <button
+                type="button"
+                onClick={() => setModalPixAberto(true)}
+                className="rounded-full bg-red-100 px-3 py-1 text-[11px] font-medium text-red-700 hover:bg-red-200"
+              >
+                renovar
+              </button>
+            ) : null}
           </div>
         </div>
       </footer>
