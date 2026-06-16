@@ -1,6 +1,7 @@
 import {
   FATURA_MODELO4_LAYOUT_PADRAO,
   FATURA_MODELO5_LAYOUT_PADRAO,
+  layoutFaturaModelo1Smart,
   normalizarFaturaModelo4Layout,
   normalizarFaturaModelo5Layout,
   normalizarFaturaModeloLayout,
@@ -110,7 +111,8 @@ export function lerLayoutFaturaA4Compartilhado(
   if (formatoPorModeloFatura(id) === "termica") {
     return lerLayoutModeloFatura(config, id);
   }
-  return normalizarFaturaModeloLayout(config.layoutModelo1);
+  const base = normalizarFaturaModeloLayout(config.layoutModelo1);
+  return id === "modelo1" ? layoutFaturaModelo1Smart(base) : base;
 }
 
 export function aplicarLayoutFaturaA4Compartilhado(

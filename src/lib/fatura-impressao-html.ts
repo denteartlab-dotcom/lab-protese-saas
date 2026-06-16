@@ -15,6 +15,8 @@ import {
   FATURA_A4_ALTURA_MM,
   FATURA_A4_LARGURA_MM,
   FATURA_TERMICA_LARGURA_MM,
+  layoutFaturaModelo1Smart,
+  PREVIEW_FATURA_AMOSTRA,
   type FaturaModeloLayout,
 } from "@/lib/fatura-modelo-layout";
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
@@ -31,6 +33,8 @@ import {
 export type OpcoesHtmlFaturaImpressao = {
   formato: "a4" | "termica";
   modelo: ModeloFaturaId;
+  /** Oculta o botão «Imprimir» no HTML (pré-visualização em Configurações). */
+  ocultarBotaoImprimir?: boolean;
 };
 
 export type TrabalhoFaturaImpressao = {
@@ -238,6 +242,49 @@ export function montarDadosFaturaImpressao(params: {
   };
 }
 
+function parsePreviewMoney(valor: string) {
+  const normalized = valor.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
+  const n = Number(normalized);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Dados de amostra para pré-visualização do Modelo 1 em Configurações → Faturas. */
+export function montarDadosFaturaPreviewAmostra(): DadosFaturaImpressao {
+  const a = PREVIEW_FATURA_AMOSTRA;
+  return {
+    numeroFatura: a.numFatura,
+    clienteNome: a.cliente,
+    dentista: a.dentista,
+    observacao: a.observacao,
+    dataEmissao: `${a.data} 19:34`,
+    usuario: a.usuario,
+    creditoFatura: 0,
+    linhas: a.linhas.map((linha) => ({
+      os: linha.os,
+      osExterna: linha.osExterna,
+      dataOs: linha.dataOs,
+      finalizado: linha.finalizado,
+      cor: linha.cor,
+      servico: linha.servico,
+      dentes: linha.dentes,
+      paciente: linha.paciente,
+      qtd: linha.qtd,
+      unitario: linha.unitario.replace(/^R\$\s*/i, ""),
+      desconto: linha.desconto,
+      subtotal: linha.subtotal.replace(/^R\$\s*/i, ""),
+    })),
+    parcelas: a.parcelas.map((p) => ({
+      parcela: p.parcela,
+      vencimento: p.vencimento,
+      forma: p.forma,
+      valor: p.valor.replace(/^R\$\s*/i, ""),
+      pago: "0,00",
+    })),
+    totalServicos: parsePreviewMoney(a.totalServicos),
+    totalFinal: parsePreviewMoney(a.total),
+  };
+}
+
 function linhaRotuloValor(rotulo: string, valor: string) {
   return `<p><span style="font-weight:bold">${escapeHtml(rotulo)} </span>${escapeHtml(valor)}</p>`;
 }
@@ -268,26 +315,6 @@ function molduraHtml(layout: FaturaModeloLayout) {
   const inset = OS_REQUISICAO_PREVIEW_INSET_MM;
   const cor = normalizarCorBorda(layout.bordas);
   return `<div aria-hidden="true" style="position:absolute;top:-${OS_REQUISICAO_BORDA_PADDING_MM}mm;left:-${inset}mm;right:-${inset}mm;bottom:-${OS_REQUISICAO_BORDA_PADDING_MM}mm;border:${OS_REQUISICAO_LINHA_PREVIEW_PX}px solid ${cor};pointer-events:none;box-sizing:border-box"></div>`;
-}
-
-function aplicarLayoutSmartModelo1(
-  layout: FaturaModeloLayout,
-  modelo: ModeloFaturaId
-): FaturaModeloLayout {
-  if (modelo !== "modelo1") return layout;
-  return {
-    ...layout,
-    exibirBordas: false,
-    logo: false,
-    pix: false,
-    assinatura: false,
-    usuario: false,
-    dentista: false,
-    osExterna: false,
-    corDente: false,
-    ultimoPgto: false,
-    tamanhoFonte: 9,
-  };
 }
 
 function contarColunasItensFatura(layout: FaturaModeloLayout) {
@@ -501,9 +528,11 @@ function gerarHtmlFaturaA4(
   cfg: ConfigLaboratorio,
   layoutRaw: FaturaModeloLayout,
   modelo: ModeloFaturaId,
-  money: (n: number) => string
+  money: (n: number) => string,
+  ocultarBotaoImprimir = false
 ) {
-  const layout = aplicarLayoutSmartModelo1(layoutRaw, modelo);
+  const layout =
+    modelo === "modelo1" ? layoutFaturaModelo1Smart(layoutRaw) : layoutRaw;
   const smartModelo1 = modelo === "modelo1";
   const lab = configParaLabImpressao(cfg);
   const cab = normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao);
@@ -550,7 +579,7 @@ function gerarHtmlFaturaA4(
       : htmlPixAssinatura(layout, fsSmall);
 
   const corpo = `<div class="page">
-    <div class="actions"><button onclick="window.print()">Imprimir</button></div>
+    ${ocultarBotaoImprimir ? "" : '<div class="actions"><button onclick="window.print()">Imprimir</button></div>'}
     <div style="position:relative;width:100%">
       ${layout.exibirBordas ? molduraHtml(layout) : ""}
       ${cabecalho}
@@ -711,5 +740,12 @@ export function gerarHtmlFaturaImpressao(
 
   return termica
     ? gerarHtmlFaturaTermica(dados, cfgLab, layout, opcoes.modelo, money)
-    : gerarHtmlFaturaA4(dados, cfgLab, layout, opcoes.modelo, money);
+    : gerarHtmlFaturaA4(
+        dados,
+        cfgLab,
+        layout,
+        opcoes.modelo,
+        money,
+        opcoes.ocultarBotaoImprimir
+      );
 }

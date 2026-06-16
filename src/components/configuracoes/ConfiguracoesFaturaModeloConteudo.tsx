@@ -335,6 +335,20 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
   }
 
   const corBorda = normalizarCorBorda(layout.bordas);
+  const layoutSmartModelo1 = modeloId === "modelo1" && !termica;
+  const camposCabecalhoA4 = layoutSmartModelo1
+    ? CAMPOS_FATURA_CABECALHO.filter(({ key }) => key !== "logo")
+    : CAMPOS_FATURA_CABECALHO;
+  const camposParesA4 = layoutSmartModelo1
+    ? CAMPOS_FATURA_PARES.map(([esq, dir]) => {
+        const filtrar = (campo: (typeof CAMPOS_FATURA_PARES)[number][0] | null) =>
+          campo && !["assinatura", "pix"].includes(campo.key) ? campo : null;
+        return [filtrar(esq), filtrar(dir)] as [
+          (typeof CAMPOS_FATURA_PARES)[number][0] | null,
+          (typeof CAMPOS_FATURA_PARES)[number][1],
+        ];
+      }).filter(([esq, dir]) => esq || dir)
+    : CAMPOS_FATURA_PARES;
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden">
@@ -356,12 +370,19 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
         <div className="flex-1 space-y-3 overflow-y-auto p-4">
           {!termica ? (
             <>
+              {layoutSmartModelo1 ? (
+                <p className="rounded border border-slate-300 bg-white px-2 py-1.5 text-[11px] text-slate-600">
+                  Layout fixo Smart Prótese Modelo 1 — a pré-visualização e a impressão usam o
+                  mesmo formato.
+                </p>
+              ) : null}
+
               <div>
                 <span className="mb-1 block text-[11px] font-semibold text-slate-700">
                   Cabeçalho
                 </span>
                 <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-                  {CAMPOS_FATURA_CABECALHO.map(({ key, label }) => (
+                  {camposCabecalhoA4.map(({ key, label }) => (
                     <CheckboxCampo
                       key={key}
                       label={label}
@@ -381,13 +402,17 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
               />
 
               <div className="space-y-1">
-                {CAMPOS_FATURA_PARES.map(([esq, dir], indice) => (
+                {camposParesA4.map(([esq, dir], indice) => (
                   <div key={indice} className="grid grid-cols-2 gap-x-2">
-                    <CheckboxCampo
-                      label={esq.label}
-                      checked={Boolean(layout[esq.key])}
-                      onChange={(v) => patchLayout({ [esq.key]: v })}
-                    />
+                    {esq ? (
+                      <CheckboxCampo
+                        label={esq.label}
+                        checked={Boolean(layout[esq.key])}
+                        onChange={(v) => patchLayout({ [esq.key]: v })}
+                      />
+                    ) : (
+                      <span />
+                    )}
                     {dir ? (
                       <CheckboxCampo
                         label={dir.label}
@@ -401,7 +426,9 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
                 ))}
               </div>
 
-              <PixQrConfiguracao layout={layout} patchLayout={patchLayout} />
+              {!layoutSmartModelo1 ? (
+                <PixQrConfiguracao layout={layout} patchLayout={patchLayout} />
+              ) : null}
 
               <div>
                 <span className="mb-1 block text-[11px] font-semibold text-slate-700">

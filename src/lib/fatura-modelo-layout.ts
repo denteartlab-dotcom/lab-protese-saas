@@ -225,6 +225,23 @@ const LEGADO_FATURA_MAP: Record<string, keyof FaturaModeloLayout> = {
   jurosFatura: "total",
 };
 
+/** Layout fixo Smart Prótese — Fatura Modelo 1 A4 (impressão e pré-visualização). */
+export function layoutFaturaModelo1Smart(layout: FaturaModeloLayout): FaturaModeloLayout {
+  return {
+    ...layout,
+    exibirBordas: false,
+    logo: false,
+    pix: false,
+    assinatura: false,
+    usuario: false,
+    dentista: false,
+    osExterna: false,
+    corDente: false,
+    ultimoPgto: false,
+    tamanhoFonte: 9,
+  };
+}
+
 export function normalizarFaturaModeloLayout(
   valor?: Partial<FaturaModeloLayout> & Record<string, unknown> | null
 ): FaturaModeloLayout {
