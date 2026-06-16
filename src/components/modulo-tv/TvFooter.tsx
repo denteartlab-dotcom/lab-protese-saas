@@ -1,11 +1,15 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { RefreshCw } from "lucide-react";
 import { useFraseMotivacional } from "@/components/modulo-tv/hooks/useFraseMotivacional";
+import { useAnotacoesTvRodape } from "@/components/modulo-tv/hooks/useAnotacoesTvRodape";
 import { TV_GLASS_PANEL } from "@/components/modulo-tv/tv-styles";
 import type { MaiorAtrasoTv } from "@/components/modulo-tv/types";
 import { cn } from "@/lib/utils";
+
+const ROTACAO_ANOTACOES_MS = 8_000;
 
 type Props = {
   ultimaAtualizacao: Date;
@@ -29,6 +33,17 @@ export function TvFooter({
   wsConectado,
 }: Props) {
   const fraseMotivacional = useFraseMotivacional(ultimaAtualizacao);
+  const [indiceAnotacao, setIndiceAnotacao] = useState(0);
+  const { linhaAtual: linhaAnotacao, total: totalAnotacoes } =
+    useAnotacoesTvRodape(indiceAnotacao);
+
+  useEffect(() => {
+    if (totalAnotacoes <= 1) return;
+    const timer = window.setInterval(() => {
+      setIndiceAnotacao((i) => (i + 1) % totalAnotacoes);
+    }, ROTACAO_ANOTACOES_MS);
+    return () => window.clearInterval(timer);
+  }, [totalAnotacoes]);
 
   return (
     <footer className={cn("w-full max-w-none shrink-0 px-2 py-2 tv-hd:px-3 tv-hd:py-2.5 tv:px-4 tv:py-3", TV_GLASS_PANEL)}>
@@ -94,8 +109,28 @@ export function TvFooter({
           </div>
         </div>
 
-        {/* Direita — ÚLTIMA ATUALIZAÇÃO */}
+        {/* Direita — anotações + ÚLTIMA ATUALIZAÇÃO */}
         <div className="rounded-lg border border-slate-600/40 bg-slate-800/40 px-4 py-3 text-right tv:px-5 tv:py-3.5">
+          {linhaAnotacao ? (
+            <div className="mb-2 border-b border-slate-600/30 pb-2">
+              <p className="text-[8px] font-bold uppercase tracking-[0.14em] text-cyan-400/80 tv:text-[9px]">
+                Anotações
+              </p>
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={linhaAnotacao}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.35 }}
+                  className="mt-1 truncate text-[10px] leading-snug text-slate-200 tv:text-[11px]"
+                  title={linhaAnotacao}
+                >
+                  {linhaAnotacao}
+                </motion.p>
+              </AnimatePresence>
+            </div>
+          ) : null}
           <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500 tv:text-[10px]">
             Última Atualização
           </p>
