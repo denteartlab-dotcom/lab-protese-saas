@@ -21,6 +21,15 @@ function cuidLike() {
   return `c${randomBytes(12).toString("hex")}`;
 }
 
+/** Postgres via Prisma não aceita vários comandos no mesmo $executeRawUnsafe. */
+async function executarSql(...comandos: string[]) {
+  for (const sql of comandos) {
+    const limpo = sql.trim();
+    if (!limpo) continue;
+    await prisma.$executeRawUnsafe(limpo);
+  }
+}
+
 async function tabelaExiste(nome: string) {
   const rows = await prisma.$queryRaw<{ exists: boolean }[]>`
     SELECT EXISTS (
@@ -67,8 +76,8 @@ async function criarTabelaEmpresa() {
   if (await tabelaExiste("Empresa")) return;
 
   console.log("Criando tabela Empresa...");
-  await prisma.$executeRawUnsafe(`
-    CREATE TABLE "Empresa" (
+  await executarSql(
+    `CREATE TABLE "Empresa" (
       "id" TEXT NOT NULL,
       "codigo" TEXT,
       "nome" TEXT NOT NULL,
@@ -90,17 +99,17 @@ async function criarTabelaEmpresa() {
       "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT "Empresa_pkey" PRIMARY KEY ("id")
-    );
-    CREATE UNIQUE INDEX IF NOT EXISTS "Empresa_slug_key" ON "Empresa"("slug");
-    CREATE UNIQUE INDEX IF NOT EXISTS "Empresa_codigo_key" ON "Empresa"("codigo");
-  `);
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "Empresa_slug_key" ON "Empresa"("slug")`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "Empresa_codigo_key" ON "Empresa"("codigo")`
+  );
 }
 
 async function criarTabelasMaster() {
   if (!(await tabelaExiste("master_users"))) {
     console.log("Criando tabela master_users...");
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE "master_users" (
+    await executarSql(
+      `CREATE TABLE "master_users" (
         "id" TEXT NOT NULL,
         "nome" TEXT NOT NULL,
         "email" TEXT NOT NULL,
@@ -110,15 +119,15 @@ async function criarTabelasMaster() {
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT "master_users_pkey" PRIMARY KEY ("id")
-      );
-      CREATE UNIQUE INDEX IF NOT EXISTS "master_users_email_key" ON "master_users"("email");
-    `);
+      )`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "master_users_email_key" ON "master_users"("email")`
+    );
   }
 
   if (!(await tabelaExiste("master_audit_logs"))) {
     console.log("Criando tabela master_audit_logs...");
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE "master_audit_logs" (
+    await executarSql(
+      `CREATE TABLE "master_audit_logs" (
         "id" TEXT NOT NULL,
         "masterId" TEXT NOT NULL,
         "acao" TEXT NOT NULL,
@@ -127,17 +136,17 @@ async function criarTabelasMaster() {
         "ip" TEXT,
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT "master_audit_logs_pkey" PRIMARY KEY ("id")
-      );
-      CREATE INDEX IF NOT EXISTS "master_audit_logs_masterId_idx" ON "master_audit_logs"("masterId");
-      CREATE INDEX IF NOT EXISTS "master_audit_logs_empresaId_idx" ON "master_audit_logs"("empresaId");
-      CREATE INDEX IF NOT EXISTS "master_audit_logs_createdAt_idx" ON "master_audit_logs"("createdAt");
-    `);
+      )`,
+      `CREATE INDEX IF NOT EXISTS "master_audit_logs_masterId_idx" ON "master_audit_logs"("masterId")`,
+      `CREATE INDEX IF NOT EXISTS "master_audit_logs_empresaId_idx" ON "master_audit_logs"("empresaId")`,
+      `CREATE INDEX IF NOT EXISTS "master_audit_logs_createdAt_idx" ON "master_audit_logs"("createdAt")`
+    );
   }
 
   if (!(await tabelaExiste("cobrancas_assinatura"))) {
     console.log("Criando tabela cobrancas_assinatura...");
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE "cobrancas_assinatura" (
+    await executarSql(
+      `CREATE TABLE "cobrancas_assinatura" (
         "id" TEXT NOT NULL,
         "empresaId" TEXT NOT NULL,
         "asaasPaymentId" TEXT NOT NULL,
@@ -153,14 +162,14 @@ async function criarTabelasMaster() {
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT "cobrancas_assinatura_pkey" PRIMARY KEY ("id")
-      );
-      CREATE UNIQUE INDEX IF NOT EXISTS "cobrancas_assinatura_asaasPaymentId_key"
-        ON "cobrancas_assinatura"("asaasPaymentId");
-      CREATE INDEX IF NOT EXISTS "cobrancas_assinatura_empresaId_idx"
-        ON "cobrancas_assinatura"("empresaId");
-      CREATE INDEX IF NOT EXISTS "cobrancas_assinatura_statusAsaas_idx"
-        ON "cobrancas_assinatura"("statusAsaas");
-    `);
+      )`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "cobrancas_assinatura_asaasPaymentId_key"
+        ON "cobrancas_assinatura"("asaasPaymentId")`,
+      `CREATE INDEX IF NOT EXISTS "cobrancas_assinatura_empresaId_idx"
+        ON "cobrancas_assinatura"("empresaId")`,
+      `CREATE INDEX IF NOT EXISTS "cobrancas_assinatura_statusAsaas_idx"
+        ON "cobrancas_assinatura"("statusAsaas")`
+    );
   }
 }
 
