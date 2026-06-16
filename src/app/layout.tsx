@@ -14,6 +14,8 @@ import { carregarConfigLaboratorioServidor } from "@/lib/lab-config-servidor";
 import { configParaLabImpressao } from "@/lib/lab-logo";
 import "./globals.css";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: montarTituloDocumento(),
   description: "Sistema completo para laboratório de prótese dentária",
