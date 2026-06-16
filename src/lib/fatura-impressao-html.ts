@@ -91,6 +91,12 @@ export type DadosFaturaImpressao = {
   dataEmissao: string;
   usuario: string;
   creditoFatura: number;
+  clienteTelefones?: string;
+  clienteEmail?: string;
+  clienteEndereco?: string;
+  ultimoPgto?: string;
+  saldoAnterior?: string;
+  descontoServicos?: number;
   linhas: LinhaFaturaImpressao[];
   parcelas: ParcelaFaturaImpressao[];
   totalServicos: number;
@@ -103,6 +109,43 @@ function escapeHtml(texto: string) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function formatarMoedaReais(valor: string | number, money: (n: number) => string) {
+  if (typeof valor === "string") {
+    const texto = valor.trim();
+    if (/^R\$\s*/i.test(texto)) return texto;
+    const n = parseMoney(texto);
+    return `R$ ${money(n)}`;
+  }
+  return `R$ ${money(valor)}`;
+}
+
+function dataSomenteEmissao(dataEmissao: string) {
+  const parte = dataEmissao.trim().split(/\s+/)[0];
+  return parte || dataEmissao;
+}
+
+function contarColunasItensSmart(layout: FaturaModeloLayout) {
+  let n = 0;
+  if (layout.numOs) n += 1;
+  if (layout.qtd) n += 1;
+  if (layout.servico) n += 1;
+  if (layout.numDente) n += 1;
+  if (layout.paciente) n += 1;
+  if (layout.valorUnit) n += 1;
+  if (layout.desconto) n += 1;
+  if (layout.subtotal) n += 1;
+  return n;
+}
+
+function metaLinhaOsSmart(linha: LinhaFaturaImpressao, layout: FaturaModeloLayout) {
+  const partes: string[] = [];
+  if (layout.data) partes.push(`Data: ${linha.dataOs}`);
+  if (layout.finalizado) partes.push(`Finalizado: ${linha.finalizado}`);
+  if (layout.osExterna) partes.push(`OS Externa: ${linha.osExterna}`);
+  if (layout.corDente) partes.push(`Cor: ${linha.cor}`);
+  return partes.join(" ");
 }
 
 function parseMoney(value: string) {
@@ -259,6 +302,12 @@ export function montarDadosFaturaPreviewAmostra(): DadosFaturaImpressao {
     dataEmissao: `${a.data} 19:34`,
     usuario: a.usuario,
     creditoFatura: 0,
+    clienteTelefones: a.telefones,
+    clienteEmail: a.email,
+    clienteEndereco: a.endereco,
+    ultimoPgto: a.ultimoPgto,
+    saldoAnterior: a.saldoAnterior,
+    descontoServicos: parsePreviewMoney(a.descontoServicos),
     linhas: a.linhas.map((linha) => ({
       os: linha.os,
       osExterna: linha.osExterna,
@@ -341,10 +390,10 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
     .rule-thin{border-top:1px solid #777;margin:0}
     table{border-collapse:collapse;width:100%}
     th,td{border:none;padding:2px 4px;vertical-align:top}
-    .items th{font-size:8px;font-weight:bold;text-align:left;padding-bottom:4px}
+    .items th{font-size:${fs - 1}px;font-weight:bold;text-align:left;padding-bottom:4px}
     .items td{font-size:${fs}px;line-height:1.25}
     .items tr.meta-row td{padding-top:0;padding-bottom:5px}
-    .items tr.meta-row td span{font-size:8px;color:#111}
+    .items tr.meta-row td span{font-size:${Math.max(7, fs - 2)}px;color:#111}
     .right{text-align:right}
     .center{text-align:center}
     .totals{width:${smartModelo1 ? "248px" : "270px"};margin-left:auto;padding-top:2px}
@@ -372,7 +421,68 @@ function estilosBaseTermica(fs: number) {
   </style>`;
 }
 
-function htmlTabelaItensA4(dados: DadosFaturaImpressao, layout: FaturaModeloLayout, fs: number) {
+function htmlTabelaItensA4(
+  dados: DadosFaturaImpressao,
+  layout: FaturaModeloLayout,
+  fs: number,
+  smartModelo1 = false,
+  money: (n: number) => string = (n) =>
+    n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+) {
+  if (smartModelo1) {
+    const cabecalho = `<thead><tr>
+      ${layout.numOs ? "<th>OS</th>" : ""}
+      ${layout.qtd ? '<th class="center">Qtd</th>' : ""}
+      ${layout.servico ? "<th>Serviços/Produtos</th>" : ""}
+      ${layout.numDente ? "<th>Num Dente</th>" : ""}
+      ${layout.paciente ? "<th>Paciente</th>" : ""}
+      ${layout.valorUnit ? '<th class="right">Unitário</th>' : ""}
+      ${layout.desconto ? '<th class="right">Desc</th>' : ""}
+      ${layout.subtotal ? '<th class="right">Subtotal</th>' : ""}
+    </tr></thead>`;
+
+    let osAnterior = "";
+    const colunas = contarColunasItensSmart(layout);
+    const linhas = dados.linhas
+      .flatMap((linha) => {
+        const novaOs = linha.os !== osAnterior;
+        osAnterior = linha.os;
+        const trPrincipal = `<tr>
+          ${layout.numOs ? `<td>${novaOs ? escapeHtml(linha.os) : ""}</td>` : ""}
+          ${layout.qtd ? `<td class="center">${escapeHtml(linha.qtd)}</td>` : ""}
+          ${layout.servico ? `<td>${escapeHtml(linha.servico)}</td>` : ""}
+          ${layout.numDente ? `<td>${escapeHtml(linha.dentes)}</td>` : ""}
+          ${layout.paciente ? `<td>${escapeHtml(linha.paciente)}</td>` : ""}
+          ${layout.valorUnit ? `<td class="right">${escapeHtml(formatarMoedaReais(linha.unitario, money))}</td>` : ""}
+          ${layout.desconto ? `<td class="right">${escapeHtml(linha.desconto)}</td>` : ""}
+          ${layout.subtotal ? `<td class="right">${escapeHtml(formatarMoedaReais(linha.subtotal, money))}</td>` : ""}
+        </tr>`;
+
+        const meta = metaLinhaOsSmart(linha, layout);
+        if (!novaOs || !meta) return [trPrincipal];
+
+        const colspanMeta = layout.numOs ? Math.max(1, colunas - 1) : colunas;
+        const trMeta = `<tr class="meta-row">
+          ${layout.numOs ? "<td></td>" : ""}
+          <td colspan="${colspanMeta}"><span>${escapeHtml(meta)}</span></td>
+        </tr>`;
+        return [trPrincipal, trMeta];
+      })
+      .join("");
+
+    return `<div>
+      <div class="rule-thin" style="margin-bottom:2px"></div>
+      <table class="items" style="font-size:${fs}px">
+        ${cabecalho}
+      </table>
+      <div class="rule-thin" style="margin-bottom:2px"></div>
+      <table class="items" style="font-size:${fs}px">
+        <tbody>${linhas}</tbody>
+      </table>
+      <div class="rule-thin" style="margin-top:2px"></div>
+    </div>`;
+  }
+
   const cabecalho = `<thead><tr>
     ${layout.numOs ? '<th>Os</th>' : ""}
     ${layout.servico ? '<th>Serviço/Produto</th>' : ""}
@@ -432,38 +542,50 @@ function htmlTotaisA4(
   const partes: string[] = [];
   if (layout.totalServicos) {
     const rotulo =
-      modelo === "modelo1" || modelo === "modelo2"
-        ? "Total Serviços/Produtos (=)"
-        : modelo === "modelo3"
-          ? "Total Serviços (=)"
-          : "Total Serviços (+)";
+      modelo === "modelo1"
+        ? "Total Serviços (+)"
+        : modelo === "modelo2"
+          ? "Total Serviços/Produtos (=)"
+          : modelo === "modelo3"
+            ? "Total Serviços (=)"
+            : "Total Serviços (+)";
     partes.push(
-      `<div><span>${rotulo}</span><strong class="right">R$ ${escapeHtml(money(dados.totalServicos))}</strong></div>`
+      `<div><span>${rotulo}</span><strong class="right">${escapeHtml(formatarMoedaReais(dados.totalServicos, money))}</strong></div>`
     );
   }
   if (saldoAnteriorNosTotais) {
     partes.push(`<div><span>Saldo Anterior (+)</span><span class="right">R$ 0,00</span></div>`);
   }
   if (layout.descontoServicos) {
-    partes.push(`<div><span>Desconto Serviços (-)</span><span class="right">R$ 0,00</span></div>`);
+    const desconto =
+      dados.descontoServicos != null
+        ? formatarMoedaReais(dados.descontoServicos, money)
+        : "R$ 0,00";
+    partes.push(`<div><span>Desconto Serviços (-)</span><span class="right">${escapeHtml(desconto)}</span></div>`);
   }
   if (layout.descontoFatura) {
     partes.push(
-      `<div><span>Desconto Fatura (-)</span><span class="right">R$ ${escapeHtml(money(dados.creditoFatura))}</span></div>`
+      `<div><span>Desconto Fatura (-)</span><span class="right">${escapeHtml(formatarMoedaReais(dados.creditoFatura, money))}</span></div>`
     );
   }
-  if (modelo === "modelo1" || modelo === "modelo2") {
+  if (modelo === "modelo2") {
     partes.push(`<div><span>Juros Fatura (+)</span><span class="right">R$ 0,00</span></div>`);
   }
   if (layout.total) {
     partes.push(
-      `<div><strong>Total (=)</strong><strong class="right">R$ ${escapeHtml(money(dados.totalFinal))}</strong></div>`
+      `<div><strong>Total (=)</strong><strong class="right">${escapeHtml(formatarMoedaReais(dados.totalFinal, money))}</strong></div>`
     );
   }
   if (!partes.length) return "";
   return `<div class="totals" style="font-size:${fs}px;margin-top:4px">
     ${partes.join("")}
   </div>`;
+}
+
+function valorParcelaExibicao(valor: string, smartModelo1: boolean) {
+  const texto = valor.trim();
+  if (!smartModelo1) return texto;
+  return /^R\$\s*/i.test(texto) ? texto : `R$ ${texto}`;
 }
 
 function htmlCondicaoPagamento(
@@ -480,12 +602,13 @@ function htmlCondicaoPagamento(
         <td>${escapeHtml(p.parcela)}</td>
         <td>${escapeHtml(p.vencimento)}</td>
         ${layout.formaPgto ? `<td>${escapeHtml(p.forma)}</td>` : ""}
-        <td>${escapeHtml(p.valor)}</td>
-        ${!termica ? `<td>${escapeHtml(p.pago)}</td>` : ""}
+        <td>${escapeHtml(valorParcelaExibicao(p.valor, smartModelo1))}</td>
+        ${!termica && !smartModelo1 ? `<td>${escapeHtml(p.pago)}</td>` : ""}
       </tr>`
     )
     .join("");
-  const labelForma = smartModelo1 ? "Forma Pagto" : "Forma Pgto";
+  const labelForma = smartModelo1 ? "Forma Pgto" : "Forma Pgto";
+  const exibirPago = !termica && !smartModelo1;
   return `<div style="margin-top:${smartModelo1 ? 10 : 18}px;font-size:${fsSmall}px">
     <p style="font-weight:bold;margin:0 0 4px">Condição de Pagamento</p>
     <table>
@@ -495,7 +618,7 @@ function htmlCondicaoPagamento(
           <th>Vencimento</th>
           ${layout.formaPgto ? `<th>${labelForma}</th>` : ""}
           <th>Valor</th>
-          ${!termica ? "<th>Pago</th>" : ""}
+          ${exibirPago ? "<th>Pago</th>" : ""}
         </tr>
       </thead>
       <tbody>${linhas}</tbody>
@@ -541,7 +664,34 @@ function gerarHtmlFaturaA4(
   const fsSmall = Math.max(8, fs - 1);
   const saldoAnteriorNosTotais = modelo === "modelo3" && layout.saldoAnterior;
 
-  const cabecalho = `<div class="header" style="display:grid;grid-template-columns:1fr 132px;gap:12px;align-items:start;margin:0 0 10px">
+  const logoHtml = layout.logo ? htmlLogo(cfg, layout, false) : "";
+  const dataFatura = dataSomenteEmissao(dados.dataEmissao);
+
+  const cabecalho = smartModelo1
+    ? `<div class="header" style="display:grid;grid-template-columns:1fr 140px;gap:12px;align-items:start;margin:0 0 8px">
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          ${logoHtml}
+          ${
+            layout.infoLab
+              ? `<div class="lab" style="line-height:1.25">
+                  <strong style="display:block;font-size:${fs + 2}px;margin-bottom:2px">${escapeHtml(textos.nome || lab.marca)}</strong>
+                  ${textos.linhas.map((l) => `<span style="display:block;font-size:${fsSmall}px">${escapeHtml(l)}</span>`).join("")}
+                </div>`
+              : "<div></div>"
+          }
+        </div>
+        ${
+          layout.dadosOs
+            ? `<div class="invoice" style="text-align:right;line-height:1.35;font-size:${fs}px">
+                Fatura
+                <strong style="display:block;font-size:${fs + 7}px;line-height:1.05;margin-top:1px">${dados.numeroFatura}</strong>
+                ${layout.data ? `<span style="display:block;margin-top:4px;font-size:${fsSmall}px;font-weight:normal">Data: ${escapeHtml(dataFatura)}</span>` : ""}
+                ${layout.usuario ? `<span style="display:block;font-size:${fsSmall}px;font-weight:normal">Usuário: ${escapeHtml(dados.usuario)}</span>` : ""}
+              </div>`
+            : ""
+        }
+      </div>`
+    : `<div class="header" style="display:grid;grid-template-columns:1fr 132px;gap:12px;align-items:start;margin:0 0 10px">
     ${
       layout.infoLab
         ? `<div class="lab" style="line-height:1.2">
@@ -561,7 +711,20 @@ function gerarHtmlFaturaA4(
     }
   </div>`;
 
-  const infoCliente = `<div class="info" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;border-bottom:1px solid #777;padding-bottom:5px;margin-bottom:5px;line-height:1.35;font-size:${fsSmall}px">
+  const infoCliente = smartModelo1
+    ? `<div class="info" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:4px 0 6px;line-height:1.45;font-size:${fsSmall}px">
+        <div>
+          ${layout.cliente ? `<div><strong>Cliente:</strong> ${escapeHtml(dados.clienteNome)}</div>` : ""}
+          ${layout.clienteTel ? `<div><strong>Telefones:</strong> ${escapeHtml(dados.clienteTelefones || "—")}</div>` : ""}
+          ${layout.ultimoPgto ? `<div><strong>Último Pgto:</strong> ${escapeHtml(dados.ultimoPgto || "—")}</div>` : ""}
+          ${layout.saldoAnterior && !saldoAnteriorNosTotais ? `<div><strong>Saldo Anterior:</strong> ${escapeHtml(dados.saldoAnterior || "R$ 0,00")}</div>` : ""}
+        </div>
+        <div>
+          ${layout.clienteEmail ? `<div><strong>Email:</strong> ${escapeHtml(dados.clienteEmail || "—")}</div>` : ""}
+          ${layout.clienteEnd ? `<div><strong>Endereço:</strong> ${escapeHtml(dados.clienteEndereco || "—")}</div>` : ""}
+        </div>
+      </div>`
+    : `<div class="info" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;border-bottom:1px solid #777;padding-bottom:5px;margin-bottom:5px;line-height:1.35;font-size:${fsSmall}px">
     <div>
       ${layout.cliente ? `<strong>Cliente:</strong> ${escapeHtml(dados.clienteNome)}<br/>` : ""}
       ${layout.clienteTel ? `<strong>Telefones:</strong><br/>` : ""}
@@ -574,9 +737,7 @@ function gerarHtmlFaturaA4(
   </div>`;
 
   const pixAssinatura =
-    smartModelo1 || (!layout.pix && !layout.assinatura)
-      ? ""
-      : htmlPixAssinatura(layout, fsSmall);
+    layout.pix || layout.assinatura ? htmlPixAssinatura(layout, fsSmall) : "";
 
   const corpo = `<div class="page">
     ${ocultarBotaoImprimir ? "" : '<div class="actions"><button onclick="window.print()">Imprimir</button></div>'}
@@ -585,14 +746,14 @@ function gerarHtmlFaturaA4(
       ${cabecalho}
       <div class="rule"></div>
       ${infoCliente}
-      <div class="rule-thin" style="margin-bottom:3px"></div>
-      ${htmlTabelaItensA4(dados, layout, fs)}
-      <div class="rule-thin" style="margin-top:3px;margin-bottom:2px"></div>
+      ${smartModelo1 ? "" : '<div class="rule-thin" style="margin-bottom:3px"></div>'}
+      ${htmlTabelaItensA4(dados, layout, fs, smartModelo1, money)}
+      ${smartModelo1 ? "" : '<div class="rule-thin" style="margin-top:3px;margin-bottom:2px"></div>'}
       ${htmlTotaisA4(dados, layout, modelo, fsSmall, money)}
-      <div class="rule-thin" style="margin-top:2px"></div>
+      <div class="rule-thin" style="margin-top:${smartModelo1 ? 6 : 2}px"></div>
       ${htmlCondicaoPagamento(dados, layout, fsSmall, false, smartModelo1)}
-      ${smartModelo1 ? '<div class="rule-thin" style="margin-top:8px"></div>' : ""}
-      ${layout.observacao ? `<div class="obs" style="margin-top:${smartModelo1 ? 8 : 10}px;font-size:${fsSmall}px"><strong>Observação:</strong> ${escapeHtml(dados.observacao || "")}</div>` : ""}
+      ${smartModelo1 ? '<div class="rule-thin" style="margin-top:8px;margin-bottom:8px"></div>' : ""}
+      ${layout.observacao ? `<div class="obs" style="margin-top:${smartModelo1 ? 0 : 10}px;font-size:${fsSmall}px"><strong>Observação:</strong> ${escapeHtml(dados.observacao || "")}</div>` : ""}
       ${layout.mensagem ? `<p style="margin-top:12px;text-align:center;font-style:italic;color:#4b5563;font-size:${fsSmall}px">${escapeHtml(layout.mensagem)}</p>` : ""}
       ${pixAssinatura}
     </div>
