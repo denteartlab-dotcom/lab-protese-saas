@@ -270,26 +270,64 @@ function molduraHtml(layout: FaturaModeloLayout) {
   return `<div aria-hidden="true" style="position:absolute;top:-${OS_REQUISICAO_BORDA_PADDING_MM}mm;left:-${inset}mm;right:-${inset}mm;bottom:-${OS_REQUISICAO_BORDA_PADDING_MM}mm;border:${OS_REQUISICAO_LINHA_PREVIEW_PX}px solid ${cor};pointer-events:none;box-sizing:border-box"></div>`;
 }
 
-function estilosBaseA4(fs: number) {
+function aplicarLayoutSmartModelo1(
+  layout: FaturaModeloLayout,
+  modelo: ModeloFaturaId
+): FaturaModeloLayout {
+  if (modelo !== "modelo1") return layout;
+  return {
+    ...layout,
+    exibirBordas: false,
+    logo: false,
+    pix: false,
+    assinatura: false,
+    usuario: false,
+    dentista: false,
+    osExterna: false,
+    corDente: false,
+    ultimoPgto: false,
+    tamanhoFonte: 9,
+  };
+}
+
+function contarColunasItensFatura(layout: FaturaModeloLayout) {
+  let n = 0;
+  if (layout.numOs) n += 1;
+  if (layout.servico) n += 1;
+  if (layout.numDente) n += 1;
+  if (layout.paciente) n += 1;
+  if (layout.qtd) n += 1;
+  if (layout.valorUnit) n += 1;
+  if (layout.desconto) n += 1;
+  if (layout.subtotal) n += 1;
+  return n;
+}
+
+function estilosBaseA4(fs: number, smartModelo1: boolean) {
   return `<style>
-    @page{size:A4;margin:0}
+    @page{size:A4;margin:10mm 12mm}
     *{box-sizing:border-box}
     html,body{margin:0;padding:0;background:#fff;color:#111;font-family:Arial,Helvetica,sans-serif;font-size:${fs}px}
-    .page{width:${FATURA_A4_LARGURA_MM}mm;min-height:${FATURA_A4_ALTURA_MM}mm;margin:0 auto;padding:12mm 14mm}
+    .page{width:${FATURA_A4_LARGURA_MM}mm;margin:0 auto;padding:0;min-height:auto}
     .actions{text-align:right;margin-bottom:8px}
     .rule{border-top:2px solid #111;margin:0}
     .rule-thin{border-top:1px solid #777;margin:0}
     table{border-collapse:collapse;width:100%}
-    th,td{border:none;padding:3px 4px;vertical-align:top}
-    .items th{font-size:8px;font-weight:bold;text-align:left}
-    .items td{font-size:${fs}px}
-    .items td span{font-size:8px;color:#111}
+    th,td{border:none;padding:2px 4px;vertical-align:top}
+    .items th{font-size:8px;font-weight:bold;text-align:left;padding-bottom:4px}
+    .items td{font-size:${fs}px;line-height:1.25}
+    .items tr.meta-row td{padding-top:0;padding-bottom:5px}
+    .items tr.meta-row td span{font-size:8px;color:#111}
     .right{text-align:right}
     .center{text-align:center}
-    .totals{width:270px;margin-left:auto;border-top:1px solid #777;padding-top:4px}
-    .totals div{display:grid;grid-template-columns:1fr 86px;padding:2px 0}
+    .totals{width:${smartModelo1 ? "248px" : "270px"};margin-left:auto;padding-top:2px}
+    .totals div{display:grid;grid-template-columns:1fr 86px;padding:1px 0}
     .totals strong{font-weight:bold}
-    @media print{.actions{display:none}body{padding:0;margin:0}.page{width:210mm;min-height:297mm;padding:12mm 14mm}}
+    @media print{
+      .actions{display:none}
+      body{padding:0;margin:0}
+      .page{width:210mm;min-height:auto;height:auto;page-break-after:avoid}
+    }
   </style>`;
 }
 
@@ -320,19 +358,13 @@ function htmlTabelaItensA4(dados: DadosFaturaImpressao, layout: FaturaModeloLayo
   </tr></thead>`;
 
   let osAnterior = "";
+  const colunas = contarColunasItensFatura(layout);
   const linhas = dados.linhas
-    .map((linha) => {
+    .flatMap((linha) => {
       const novaOs = linha.os !== osAnterior;
       osAnterior = linha.os;
-      const metaOs =
-        novaOs && (layout.data || layout.finalizado)
-          ? `<br/><span>Data: ${escapeHtml(linha.dataOs)}${layout.finalizado ? ` Entregue: ${escapeHtml(linha.finalizado)}` : ""}</span>`
-          : "";
-      const celulaOs =
-        layout.numOs && novaOs ? `${escapeHtml(linha.os)}${metaOs}` : layout.numOs ? "" : "";
-
-      return `<tr>
-        ${layout.numOs ? `<td>${celulaOs}</td>` : ""}
+      const trPrincipal = `<tr>
+        ${layout.numOs ? `<td>${novaOs ? escapeHtml(linha.os) : ""}</td>` : ""}
         ${layout.servico ? `<td>${escapeHtml(linha.servico)}</td>` : ""}
         ${layout.numDente ? `<td>${escapeHtml(linha.dentes)}</td>` : ""}
         ${layout.paciente ? `<td>${escapeHtml(linha.paciente)}</td>` : ""}
@@ -341,6 +373,18 @@ function htmlTabelaItensA4(dados: DadosFaturaImpressao, layout: FaturaModeloLayo
         ${layout.desconto ? `<td class="right">% 0,00</td>` : ""}
         ${layout.subtotal ? `<td class="right">${escapeHtml(linha.subtotal)}</td>` : ""}
       </tr>`;
+
+      if (!novaOs || !(layout.data || layout.finalizado)) return [trPrincipal];
+
+      const metaTexto = `Data: ${escapeHtml(linha.dataOs)}${
+        layout.finalizado ? ` Entregue: ${escapeHtml(linha.finalizado)}` : ""
+      }`;
+      const colspanMeta = layout.numOs ? Math.max(1, colunas - 1) : colunas;
+      const trMeta = `<tr class="meta-row">
+        ${layout.numOs ? "<td></td>" : ""}
+        <td colspan="${colspanMeta}"><span>${metaTexto}</span></td>
+      </tr>`;
+      return [trPrincipal, trMeta];
     })
     .join("");
 
@@ -399,10 +443,10 @@ function htmlCondicaoPagamento(
   dados: DadosFaturaImpressao,
   layout: FaturaModeloLayout,
   fsSmall: number,
-  termica: boolean
+  termica: boolean,
+  smartModelo1 = false
 ) {
   if (!layout.condicaoPagamento) return "";
-  const cor = termica ? normalizarCorBorda(layout.bordas || "#000") : "#000";
   const linhas = dados.parcelas
     .map(
       (p) => `<tr>
@@ -414,14 +458,15 @@ function htmlCondicaoPagamento(
       </tr>`
     )
     .join("");
-  return `<div style="margin-top:18px;font-size:${fsSmall}px">
-    <p style="font-weight:bold;margin:0 0 6px">Condição de Pagamento</p>
+  const labelForma = smartModelo1 ? "Forma Pagto" : "Forma Pgto";
+  return `<div style="margin-top:${smartModelo1 ? 10 : 18}px;font-size:${fsSmall}px">
+    <p style="font-weight:bold;margin:0 0 4px">Condição de Pagamento</p>
     <table>
       <thead>
         <tr>
           <th>Parcela</th>
           <th>Vencimento</th>
-          ${layout.formaPgto ? "<th>Forma Pgto</th>" : ""}
+          ${layout.formaPgto ? `<th>${labelForma}</th>` : ""}
           <th>Valor</th>
           ${!termica ? "<th>Pago</th>" : ""}
         </tr>
@@ -454,41 +499,40 @@ function htmlPixAssinatura(layout: FaturaModeloLayout, fsSmall: number) {
 function gerarHtmlFaturaA4(
   dados: DadosFaturaImpressao,
   cfg: ConfigLaboratorio,
-  layout: FaturaModeloLayout,
+  layoutRaw: FaturaModeloLayout,
   modelo: ModeloFaturaId,
   money: (n: number) => string
 ) {
+  const layout = aplicarLayoutSmartModelo1(layoutRaw, modelo);
+  const smartModelo1 = modelo === "modelo1";
   const lab = configParaLabImpressao(cfg);
   const cab = normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao);
   const textos = montarTextosCabecalhoRequisicao(cfg, lab, cab);
   const fs = layout.tamanhoFonte;
   const fsSmall = Math.max(8, fs - 1);
-  const logoHtml = htmlLogo(cfg, layout, false);
   const saldoAnteriorNosTotais = modelo === "modelo3" && layout.saldoAnterior;
-  const temLogo = layout.logo && Boolean(logoHtml);
 
-  const cabecalho = `<div class="header" style="display:grid;grid-template-columns:${temLogo ? "91px 1fr 150px" : "1fr 150px"};gap:18px;align-items:center;margin:20px 0 22px">
-    ${temLogo ? `<div class="logo" style="display:flex;align-items:center;justify-content:flex-start;min-width:91px">${logoHtml}</div>` : ""}
+  const cabecalho = `<div class="header" style="display:grid;grid-template-columns:1fr 132px;gap:12px;align-items:start;margin:0 0 10px">
     ${
       layout.infoLab
-        ? `<div class="lab" style="line-height:1.05">
-            <strong style="display:block;font-size:18px;margin-bottom:4px">${escapeHtml(textos.nome || lab.marca)}</strong>
-            ${textos.linhas.map((l) => `<span style="display:block;font-size:14px">${escapeHtml(l)}</span>`).join("")}
+        ? `<div class="lab" style="line-height:1.2">
+            <strong style="display:block;font-size:16px;margin-bottom:3px">${escapeHtml(textos.nome || lab.marca)}</strong>
+            ${textos.linhas.map((l) => `<span style="display:block;font-size:13px">${escapeHtml(l)}</span>`).join("")}
           </div>`
         : "<div></div>"
     }
     ${
       layout.dadosOs
-        ? `<div class="invoice" style="text-align:center;font-size:22px;line-height:1.05">
+        ? `<div class="invoice" style="text-align:right;font-size:18px;line-height:1.1">
             Fatura
-            <strong style="display:block;font-size:24px;margin-top:4px">${dados.numeroFatura}</strong>
-            ${layout.data ? `<span style="display:block;margin-top:12px;font-size:8px">Data: ${escapeHtml(dados.dataEmissao)}</span>` : ""}
+            <strong style="display:block;font-size:22px;margin-top:2px">${dados.numeroFatura}</strong>
+            ${layout.data ? `<span style="display:block;margin-top:8px;font-size:8px;font-weight:normal">Data: ${escapeHtml(dados.dataEmissao)}</span>` : ""}
           </div>`
         : ""
     }
   </div>`;
 
-  const infoCliente = `<div class="info" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;border-bottom:1px solid #777;padding-bottom:4px;margin-bottom:4px;line-height:1.35;font-size:${fsSmall}px">
+  const infoCliente = `<div class="info" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;border-bottom:1px solid #777;padding-bottom:5px;margin-bottom:5px;line-height:1.35;font-size:${fsSmall}px">
     <div>
       ${layout.cliente ? `<strong>Cliente:</strong> ${escapeHtml(dados.clienteNome)}<br/>` : ""}
       ${layout.clienteTel ? `<strong>Telefones:</strong><br/>` : ""}
@@ -500,6 +544,11 @@ function gerarHtmlFaturaA4(
     </div>
   </div>`;
 
+  const pixAssinatura =
+    smartModelo1 || (!layout.pix && !layout.assinatura)
+      ? ""
+      : htmlPixAssinatura(layout, fsSmall);
+
   const corpo = `<div class="page">
     <div class="actions"><button onclick="window.print()">Imprimir</button></div>
     <div style="position:relative;width:100%">
@@ -507,19 +556,20 @@ function gerarHtmlFaturaA4(
       ${cabecalho}
       <div class="rule"></div>
       ${infoCliente}
-      <div class="rule-thin" style="margin-bottom:4px"></div>
+      <div class="rule-thin" style="margin-bottom:3px"></div>
       ${htmlTabelaItensA4(dados, layout, fs)}
-      <div class="rule-thin" style="margin-top:4px"></div>
+      <div class="rule-thin" style="margin-top:3px;margin-bottom:2px"></div>
       ${htmlTotaisA4(dados, layout, modelo, fsSmall, money)}
-      <div class="rule-thin"></div>
-      ${htmlCondicaoPagamento(dados, layout, fsSmall, false)}
-      ${layout.observacao ? `<div class="obs" style="margin-top:14px;border-top:1px solid #ddd;padding-top:8px;font-size:${fsSmall}px"><strong>Observação:</strong> ${escapeHtml(dados.observacao || "")}</div>` : ""}
+      <div class="rule-thin" style="margin-top:2px"></div>
+      ${htmlCondicaoPagamento(dados, layout, fsSmall, false, smartModelo1)}
+      ${smartModelo1 ? '<div class="rule-thin" style="margin-top:8px"></div>' : ""}
+      ${layout.observacao ? `<div class="obs" style="margin-top:${smartModelo1 ? 8 : 10}px;font-size:${fsSmall}px"><strong>Observação:</strong> ${escapeHtml(dados.observacao || "")}</div>` : ""}
       ${layout.mensagem ? `<p style="margin-top:12px;text-align:center;font-style:italic;color:#4b5563;font-size:${fsSmall}px">${escapeHtml(layout.mensagem)}</p>` : ""}
-      ${htmlPixAssinatura(layout, fsSmall)}
+      ${pixAssinatura}
     </div>
   </div>`;
 
-  return `<!doctype html><html><head><meta charset="utf-8"><title>Fatura ${dados.numeroFatura}</title>${estilosBaseA4(fs)}</head><body>${corpo}</body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Fatura ${dados.numeroFatura}</title>${estilosBaseA4(fs, smartModelo1)}</head><body>${corpo}</body></html>`;
 }
 
 function gerarHtmlFaturaTermica(
