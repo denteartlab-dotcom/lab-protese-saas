@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
 import { AssinaturaVencidaPainel } from "@/components/assinatura/AssinaturaVencidaPainel";
 import { getSession } from "@/lib/auth";
 import { obterContextoAssinaturaVencida, obterDestinoPosLogin } from "@/lib/contexto-assinatura-vencida";
+import { brandingPlataformaLogin } from "@/lib/lab-branding";
 
 export const dynamic = "force-dynamic";
 
@@ -17,5 +17,7 @@ export default async function AssinaturaVencidaPage() {
     redirect("/login");
   }
 
-  return <AssinaturaVencidaPainel contexto={ctx} />;
+  return (
+    <AssinaturaVencidaPainel contexto={ctx} branding={brandingPlataformaLogin()} />
+  );
 }

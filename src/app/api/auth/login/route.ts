@@ -7,6 +7,7 @@ import {
   empresaTemAcessoAssinatura,
   mensagemBloqueioAssinatura,
 } from "@/lib/assinatura-empresa";
+import { montarSessionUserComAssinatura } from "@/lib/sessao-assinatura";
 import { parsePermissoesUsuario } from "@/lib/usuarios-sistema";
 import { z } from "zod";
 
@@ -148,8 +149,8 @@ export async function POST(request: Request) {
       );
     }
 
-    await createSession(
-      {
+    const sessionUser =
+      (await montarSessionUserComAssinatura(user.id)) ?? {
         id: user.id,
         name: user.name,
         email: user.email,
@@ -157,9 +158,10 @@ export async function POST(request: Request) {
         empresaId: user.empresaId,
         empresaSlug: user.empresa.slug,
         empresaNome: user.empresa.nome,
-      },
-      { remember: remember === true }
-    );
+        assinaturaVencida: precisaRenovacao,
+      };
+
+    await createSession(sessionUser, { remember: remember === true });
 
     return NextResponse.json({
       user: {

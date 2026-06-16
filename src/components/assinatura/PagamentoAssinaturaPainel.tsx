@@ -28,6 +28,7 @@ type CobrancaPix = {
   pago: boolean;
   renovadoEm: string | null;
   novaDataVencimento: string | null;
+  empresaSlug: string | null;
 };
 
 export function PagamentoAssinaturaPainel() {
@@ -83,7 +84,8 @@ export function PagamentoAssinaturaPainel() {
             data.cobranca!.pixEncodedImage || atual?.pixEncodedImage || null,
         }));
         if (data.cobranca.pago && data.cobranca.renovadoEm) {
-          router.replace(`/app`);
+          const slug = data.cobranca.empresaSlug?.trim();
+          router.replace(slug ? `/app/${slug}` : "/app");
           router.refresh();
         }
       } catch {

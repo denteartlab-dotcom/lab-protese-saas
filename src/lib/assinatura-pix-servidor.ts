@@ -44,6 +44,7 @@ export type CobrancaPixAssinatura = {
   pago: boolean;
   renovadoEm: string | null;
   novaDataVencimento: string | null;
+  empresaSlug: string | null;
 };
 
 function cobrancaPendenteValida(cobranca: {
@@ -73,7 +74,7 @@ async function montarRespostaCobranca(
     pixExpiraEm: Date | null;
     pagoEm: Date | null;
     renovadoEm: Date | null;
-    empresa: { dataVencimento: Date | null };
+    empresa: { dataVencimento: Date | null; slug: string };
   },
   pixEncodedImage?: string | null
 ): Promise<CobrancaPixAssinatura> {
@@ -98,6 +99,7 @@ async function montarRespostaCobranca(
     pago,
     renovadoEm: cobranca.renovadoEm?.toISOString() ?? null,
     novaDataVencimento: cobranca.empresa.dataVencimento?.toISOString() ?? null,
+    empresaSlug: cobranca.empresa.slug,
   };
 }
 
@@ -135,7 +137,7 @@ async function gerarCobrancaMercadoPago(
       pixPayload: pagamento.pixPayload,
       pixExpiraEm: pagamento.pixExpiraEm ? new Date(pagamento.pixExpiraEm) : null,
     },
-    include: { empresa: { select: { dataVencimento: true } } },
+    include: { empresa: { select: { dataVencimento: true, slug: true } } },
   });
 
   return montarRespostaCobranca(cobranca, pagamento.pixEncodedImage);
@@ -177,7 +179,7 @@ async function gerarCobrancaAsaas(
       pixPayload: qr.payload || null,
       pixExpiraEm: qr.expirationDate ? new Date(qr.expirationDate) : null,
     },
-    include: { empresa: { select: { dataVencimento: true } } },
+    include: { empresa: { select: { dataVencimento: true, slug: true } } },
   });
 
   return montarRespostaCobranca(cobranca, qr.encodedImage || null);
@@ -220,7 +222,7 @@ export async function gerarCobrancaPixRenovacao(
       statusAsaas: provedor === "mercadopago" ? { in: ["pending", "in_process", "PENDING"] } : "PENDING",
     },
     orderBy: { createdAt: "desc" },
-    include: { empresa: { select: { dataVencimento: true } } },
+    include: { empresa: { select: { dataVencimento: true, slug: true } } },
   });
 
   if (pendente && cobrancaPendenteValida(pendente)) {
@@ -269,7 +271,7 @@ export async function consultarCobrancaPixAssinatura(
       id: cobrancaId,
       ...(empresaId ? { empresaId } : {}),
     },
-    include: { empresa: { select: { dataVencimento: true } } },
+    include: { empresa: { select: { dataVencimento: true, slug: true } } },
   });
   if (!cobranca) return null;
 

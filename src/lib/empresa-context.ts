@@ -4,6 +4,7 @@ import {
   empresaTemAcessoAssinatura,
 } from "@/lib/assinatura-empresa";
 import { prisma } from "@/lib/db";
+import { montarSessionUserComAssinatura } from "@/lib/sessao-assinatura";
 
 export type EmpresaContext = {
   empresaId: string;
@@ -54,12 +55,14 @@ async function sincronizarSessaoEmpresa(session: SessionUser): Promise<SessionUs
     empresaId: registro.empresaId,
     empresaSlug: registro.empresa.slug,
     empresaNome: registro.empresa.nome,
+    assinaturaVencida: false,
   };
 
   if (
     session.empresaId !== atualizada.empresaId ||
     session.empresaSlug !== atualizada.empresaSlug ||
-    session.empresaNome !== atualizada.empresaNome
+    session.empresaNome !== atualizada.empresaNome ||
+    session.assinaturaVencida !== atualizada.assinaturaVencida
   ) {
     await createSession(atualizada);
   }
@@ -112,20 +115,16 @@ export async function requireEmpresaContextRenovacao(): Promise<EmpresaContext> 
     throw new Error("SEM_EMPRESA");
   }
 
-  const atualizada: SessionUser = {
-    id: session.id,
-    name: registro.name,
-    email: registro.email,
-    role: registro.role,
-    empresaId: registro.empresaId,
-    empresaSlug: registro.empresa.slug,
-    empresaNome: registro.empresa.nome,
-  };
+  const atualizada = await montarSessionUserComAssinatura(session.id);
+  if (!atualizada) {
+    throw new Error("SEM_EMPRESA");
+  }
 
   if (
     session.empresaId !== atualizada.empresaId ||
     session.empresaSlug !== atualizada.empresaSlug ||
-    session.empresaNome !== atualizada.empresaNome
+    session.empresaNome !== atualizada.empresaNome ||
+    session.assinaturaVencida !== atualizada.assinaturaVencida
   ) {
     await createSession(atualizada);
   }

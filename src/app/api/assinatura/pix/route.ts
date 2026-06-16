@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSession } from "@/lib/auth";
 import { requireEmpresaContextRenovacao } from "@/lib/empresa-context";
 import { PLANOS_EMPRESA } from "@/lib/master-planos";
+import { atualizarSessaoAssinaturaUsuario } from "@/lib/sessao-assinatura";
 import {
   consultarCobrancaPixAssinatura,
   gerarCobrancaPixRenovacao,
@@ -76,6 +77,13 @@ export async function GET(request: Request) {
           (await consultarCobrancaPixAssinatura(cobrancaId, empresaId)) ?? cobranca;
       } catch {
         /* webhook ou próxima consulta */
+      }
+    }
+
+    if (cobranca.pago && cobranca.renovadoEm) {
+      const session = await getSession();
+      if (session?.id) {
+        await atualizarSessaoAssinaturaUsuario(session.id);
       }
     }
 

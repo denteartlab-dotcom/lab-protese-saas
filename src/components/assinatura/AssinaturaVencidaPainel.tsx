@@ -10,16 +10,21 @@ import {
   Crown,
   Diamond,
   Info,
+  Lock,
   LogOut,
+  MessageCircle,
   Plane,
-  ShieldAlert,
+  XCircle,
 } from "lucide-react";
 import type { ContextoAssinaturaVencida } from "@/lib/contexto-assinatura-vencida";
+import type { LabBrandingPublico } from "@/lib/lab-branding";
+import { dimensoesLogoPx } from "@/lib/lab-logo";
 import { RECURSOS_PLANOS_ASSINATURA } from "@/lib/master-planos";
 import { cn } from "@/lib/utils";
 
 type Props = {
   contexto: ContextoAssinaturaVencida;
+  branding: LabBrandingPublico;
 };
 
 const ICONES_PLANO = {
@@ -28,12 +33,28 @@ const ICONES_PLANO = {
   premium: Diamond,
 } as const;
 
-export function AssinaturaVencidaPainel({ contexto }: Props) {
+export function AssinaturaVencidaPainel({ contexto, branding }: Props) {
   const router = useRouter();
+  const logo = dimensoesLogoPx(
+    {
+      marca: branding.nomeLaboratorio,
+      marcaSubtitulo: branding.marcaSubtitulo,
+      responsavel: "",
+      endereco: "",
+      enderecoLinha1: "",
+      enderecoLinha2: "",
+      telefones: "",
+      email: "",
+      logoDataUrl: branding.logoDataUrl,
+      logoTamanho: branding.logoTamanho,
+    },
+    { largura: 40, altura: 40 }
+  );
+
   const whatsapp = (contexto.suporteWhatsapp || "").replace(/\D/g, "");
   const linkWhatsapp = whatsapp
     ? `https://wa.me/55${whatsapp}?text=${encodeURIComponent(
-        "Olá, preciso de ajuda para renovar minha assinatura do Lab Prótese."
+        "Olá, preciso de ajuda para renovar minha assinatura do DenteArt."
       )}`
     : null;
 
@@ -42,34 +63,55 @@ export function AssinaturaVencidaPainel({ contexto }: Props) {
     window.location.assign("/login");
   }
 
+  const statusRotulo =
+    contexto.empresa.statusPagamento === "VENCIDO" ? "Vencido" : "Bloqueado";
+
   return (
     <div className="min-h-screen bg-white">
       <header className="border-b border-slate-100 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-center gap-2 px-4 py-5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0066FF]/10 text-[#0066FF]">
-            <Building2 className="h-5 w-5" />
-          </div>
-          <div className="text-center">
-            <p className="text-sm font-bold text-slate-900">DenteArt</p>
-            <p className="text-[10px] uppercase tracking-wide text-slate-500">Laboratório</p>
+        <div className="mx-auto flex max-w-5xl items-center justify-center px-4 py-5">
+          <div className="flex items-center gap-3">
+            {branding.logoDataUrl?.trim() ? (
+              <img
+                src={branding.logoDataUrl}
+                alt=""
+                width={logo.largura}
+                height={logo.altura}
+                className="rounded-lg object-contain"
+              />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0066FF] text-lg text-white">
+                🦷
+              </div>
+            )}
+            <div className="text-left">
+              <p className="text-sm font-bold text-slate-900">
+                {branding.nomeLaboratorio || "DenteArt"}
+              </p>
+              <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                {branding.marcaSubtitulo || "Laboratório"}
+              </p>
+            </div>
           </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-red-500">
-            <AlertCircle className="h-7 w-7" />
+          <div className="mx-auto mb-4 flex items-center justify-center gap-2">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-600">
+              <AlertCircle className="h-6 w-6" />
+            </span>
+            <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Assinatura vencida</h1>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Assinatura vencida</h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="text-sm text-slate-600">
             Sua assinatura expirou. Escolha um plano para continuar usando o sistema.
           </p>
         </div>
 
-        <div className="mb-8 rounded-2xl border border-red-100 bg-red-50 px-4 py-4 sm:px-5">
+        <div className="mb-8 rounded-xl border border-red-200 bg-red-50 px-4 py-3.5 sm:px-5">
           <div className="flex items-start gap-3">
-            <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
+            <Lock className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
             <p className="text-sm text-red-800">
               Seu acesso ao sistema está temporariamente bloqueado até a regularização da
               assinatura.
@@ -77,39 +119,44 @@ export function AssinaturaVencidaPainel({ contexto }: Props) {
           </div>
         </div>
 
-        <section className="mb-8 grid gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-4">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-              Laboratório
-            </p>
-            <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-slate-800">
-              <Building2 className="h-4 w-4 text-slate-400" />
-              {contexto.empresa.nome}
-            </p>
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-              Plano atual
-            </p>
-            <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-slate-800">
-              <Crown className="h-4 w-4 text-slate-400" />
-              {contexto.empresa.planoRotulo}
-            </p>
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-              Data de vencimento
-            </p>
-            <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-slate-800">
-              <Calendar className="h-4 w-4 text-slate-400" />
-              {contexto.empresa.dataVencimentoFormatada}
-            </p>
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-              Status
-            </p>
-            <p className="mt-1 text-sm font-bold text-red-600">Vencido</p>
+        <section className="mb-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="grid divide-y divide-slate-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
+            <div className="px-4 py-4 sm:px-5">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                Laboratório
+              </p>
+              <p className="mt-1.5 flex items-center gap-2 text-sm font-semibold text-slate-800">
+                <Building2 className="h-4 w-4 text-slate-400" />
+                {contexto.empresa.nome}
+              </p>
+            </div>
+            <div className="px-4 py-4 sm:px-5">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                Plano atual
+              </p>
+              <p className="mt-1.5 flex items-center gap-2 text-sm font-semibold text-slate-800">
+                <Crown className="h-4 w-4 text-slate-400" />
+                {contexto.empresa.planoRotulo}
+              </p>
+            </div>
+            <div className="px-4 py-4 sm:px-5">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                Data de vencimento
+              </p>
+              <p className="mt-1.5 flex items-center gap-2 text-sm font-semibold text-red-600">
+                <Calendar className="h-4 w-4 text-red-400" />
+                {contexto.empresa.dataVencimentoFormatada}
+              </p>
+            </div>
+            <div className="px-4 py-4 sm:px-5">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                Status
+              </p>
+              <p className="mt-1.5 flex items-center gap-2 text-sm font-bold text-red-600">
+                <XCircle className="h-4 w-4" />
+                {statusRotulo}
+              </p>
+            </div>
           </div>
         </section>
 
@@ -124,13 +171,12 @@ export function AssinaturaVencidaPainel({ contexto }: Props) {
           <div className="grid gap-4 lg:grid-cols-3">
             {RECURSOS_PLANOS_ASSINATURA.map((plano) => {
               const Icone = ICONES_PLANO[plano.id];
-              const atual = contexto.empresa.plano === plano.id;
               return (
                 <div
                   key={plano.id}
                   className={cn(
                     "relative flex flex-col rounded-2xl border-2 bg-white p-5 shadow-sm",
-                    plano.destaque ? "border-[#0066FF]" : "border-slate-200"
+                    plano.destaque ? "border-[#0066FF] shadow-md" : "border-slate-200"
                   )}
                 >
                   {plano.destaque ? (
@@ -139,22 +185,15 @@ export function AssinaturaVencidaPainel({ contexto }: Props) {
                     </span>
                   ) : null}
 
-                  <div className="mb-4 flex items-start justify-between">
-                    <div>
-                      <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-[#0066FF]">
-                        <Icone className="h-5 w-5" />
-                      </div>
-                      <h3 className="text-base font-bold text-slate-900">{plano.nome}</h3>
-                      <p className="mt-1 text-xl font-bold text-slate-900">{plano.precoLabel}</p>
+                  <div className="mb-4">
+                    <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#0066FF]">
+                      <Icone className="h-5 w-5" />
                     </div>
-                    {atual ? (
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
-                        Atual
-                      </span>
-                    ) : null}
+                    <h3 className="text-base font-bold text-slate-900">{plano.nome}</h3>
+                    <p className="mt-2 text-2xl font-bold text-slate-900">{plano.precoLabel}</p>
                   </div>
 
-                  <ul className="mb-5 flex-1 space-y-2">
+                  <ul className="mb-5 flex-1 space-y-2.5">
                     {plano.itens.map((item) => (
                       <li key={item} className="flex items-start gap-2 text-sm text-slate-600">
                         <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#0066FF]" />
@@ -190,21 +229,21 @@ export function AssinaturaVencidaPainel({ contexto }: Props) {
           </div>
         </div>
 
-        <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <div className="flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
           {linkWhatsapp ? (
             <a
               href={linkWhatsapp}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+              className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg border border-[#25D366] bg-white px-5 text-sm font-semibold text-[#25D366] shadow-sm hover:bg-green-50 sm:max-w-xs"
             >
-              <span className="text-[#25D366]">WhatsApp</span>
+              <MessageCircle className="h-4 w-4" />
               Falar com suporte no WhatsApp
             </a>
           ) : (
             <Link
               href="/suporte"
-              className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+              className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 sm:max-w-xs"
             >
               Falar com suporte
             </Link>
@@ -212,7 +251,7 @@ export function AssinaturaVencidaPainel({ contexto }: Props) {
           <button
             type="button"
             onClick={() => void sair()}
-            className="inline-flex h-10 items-center gap-2 rounded-lg border border-red-100 bg-white px-5 text-sm font-medium text-red-600 shadow-sm hover:bg-red-50"
+            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-5 text-sm font-semibold text-red-600 shadow-sm hover:bg-red-50 sm:max-w-xs"
           >
             <LogOut className="h-4 w-4" />
             Sair da conta

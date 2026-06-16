@@ -22,6 +22,8 @@ export type SessionUser = {
   empresaId?: string;
   empresaSlug?: string;
   empresaNome?: string;
+  /** Empresa com assinatura vencida ou bloqueada — bloqueia /app no middleware. */
+  assinaturaVencida?: boolean;
 };
 
 export async function criarTokenSessao(
@@ -37,6 +39,7 @@ export async function criarTokenSessao(
     empresaId: user.empresaId,
     empresaSlug: user.empresaSlug,
     empresaNome: user.empresaNome,
+    assinaturaVencida: user.assinaturaVencida === true,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -60,6 +63,7 @@ export async function verifySessionToken(
       empresaId: payload.empresaId as string | undefined,
       empresaSlug: payload.empresaSlug as string | undefined,
       empresaNome: payload.empresaNome as string | undefined,
+      assinaturaVencida: payload.assinaturaVencida === true,
     };
   } catch {
     return null;

@@ -7,7 +7,7 @@ import {
   caminhoInternoApp,
   montarCaminhoAppComSlug,
 } from "@/lib/rotas-app";
-import { rotaLiberadaAssinaturaVencida } from "@/lib/rotas-assinatura-vencida";
+import { rotaLiberadaAssinaturaVencida, apiLiberadaAssinaturaVencida } from "@/lib/rotas-assinatura-vencida";
 
 const COOKIE_NAME = "lab-protese-session";
 const MASTER_COOKIE_NAME = "lab-protese-master-session";
@@ -16,7 +16,6 @@ const PUBLIC = [
   "/cadastro",
   "/criar-conta",
   "/admin-master/login",
-  "/suporte",
 ];
 
 type PayloadSessao = {
@@ -25,6 +24,7 @@ type PayloadSessao = {
   empresaSlug?: string;
   master?: boolean;
   role?: string;
+  assinaturaVencida?: boolean;
 };
 
 /** Verificação leve no Edge (sem jose — evita erro de build na Vercel). */
@@ -67,6 +67,11 @@ function slugDaSessao(token: string): string | null {
   const payload = lerPayloadSessao(token);
   const slug = payload?.empresaSlug?.trim();
   return slug || null;
+}
+
+function assinaturaVencidaNoToken(token: string): boolean {
+  const payload = lerPayloadSessao(token);
+  return payload?.assinaturaVencida === true;
 }
 
 function limparCookieSessao(response: NextResponse) {
@@ -261,6 +266,18 @@ export function middleware(request: NextRequest) {
     const login = new URL("/login", request.url);
     login.searchParams.set("redirect", pathname);
     return limparCookieSessao(NextResponse.redirect(login));
+  }
+
+  if (assinaturaVencidaNoToken(token)) {
+    if (pathname.startsWith("/app")) {
+      return NextResponse.redirect(new URL("/assinatura-vencida", request.url));
+    }
+    if (pathname.startsWith("/api") && !apiLiberadaAssinaturaVencida(pathname)) {
+      return NextResponse.json(
+        { error: "Assinatura vencida. Regularize em /assinatura-vencida." },
+        { status: 403 }
+      );
+    }
   }
 
   if (pathname.startsWith("/app")) {
