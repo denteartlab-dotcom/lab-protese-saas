@@ -220,7 +220,7 @@ export function montarDadosFaturaImpressao(params: {
     clienteNome,
     dentista: trabalhos[0]?.cliente?.nome?.trim() || clienteNome,
     observacao,
-    dataEmissao: agora.toLocaleDateString("pt-BR"),
+    dataEmissao: `${agora.toLocaleDateString("pt-BR")} ${agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
     usuario: "—",
     creditoFatura,
     linhas,
@@ -274,14 +274,22 @@ function estilosBaseA4(fs: number) {
   return `<style>
     @page{size:A4;margin:0}
     *{box-sizing:border-box}
-    html,body{margin:0;padding:0;background:#fff;color:#111;font-family:Arial,Helvetica,sans-serif}
-    .page{width:${FATURA_A4_LARGURA_MM}mm;min-height:${FATURA_A4_ALTURA_MM}mm;margin:0 auto;padding:${OS_REQUISICAO_TOPO_MM}mm ${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm ${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm;font-size:${fs}px}
+    html,body{margin:0;padding:0;background:#fff;color:#111;font-family:Arial,Helvetica,sans-serif;font-size:${fs}px}
+    .page{width:${FATURA_A4_LARGURA_MM}mm;min-height:${FATURA_A4_ALTURA_MM}mm;margin:0 auto;padding:12mm 14mm}
     .actions{text-align:right;margin-bottom:8px}
+    .rule{border-top:2px solid #111;margin:0}
+    .rule-thin{border-top:1px solid #777;margin:0}
     table{border-collapse:collapse;width:100%}
-    th,td{border:none;padding:2px 4px;vertical-align:top}
+    th,td{border:none;padding:3px 4px;vertical-align:top}
+    .items th{font-size:8px;font-weight:bold;text-align:left}
+    .items td{font-size:${fs}px}
+    .items td span{font-size:8px;color:#111}
     .right{text-align:right}
     .center{text-align:center}
-    @media print{.actions{display:none}}
+    .totals{width:270px;margin-left:auto;border-top:1px solid #777;padding-top:4px}
+    .totals div{display:grid;grid-template-columns:1fr 86px;padding:2px 0}
+    .totals strong{font-weight:bold}
+    @media print{.actions{display:none}body{padding:0;margin:0}.page{width:210mm;min-height:297mm;padding:12mm 14mm}}
   </style>`;
 }
 
@@ -299,98 +307,92 @@ function estilosBaseTermica(fs: number) {
   </style>`;
 }
 
-function htmlTabelaItensA4(dados: DadosFaturaImpressao, layout: FaturaModeloLayout, fsSmall: number, fsMeta: number) {
-  const colunas = [
-    layout.numOs,
-    layout.qtd,
-    layout.servico,
-    layout.numDente,
-    layout.paciente,
-    layout.valorUnit,
-    layout.desconto,
-    layout.subtotal,
-  ].filter(Boolean).length;
-  const exibirMeta = layout.data || layout.finalizado || layout.osExterna || layout.corDente;
-  const pad = "padding-left:2.5mm;padding-right:2.5mm";
-
+function htmlTabelaItensA4(dados: DadosFaturaImpressao, layout: FaturaModeloLayout, fs: number) {
   const cabecalho = `<thead><tr>
-    ${layout.numOs ? '<th style="text-align:left;font-weight:bold">OS</th>' : ""}
-    ${layout.qtd ? '<th style="text-align:center;font-weight:bold">Qtd</th>' : ""}
-    ${layout.servico ? '<th style="text-align:left;font-weight:bold">Serviços/Produtos</th>' : ""}
-    ${layout.numDente ? '<th style="text-align:left;font-weight:bold">Num Dente</th>' : ""}
-    ${layout.paciente ? '<th style="text-align:left;font-weight:bold">Paciente</th>' : ""}
-    ${layout.valorUnit ? '<th style="text-align:right;font-weight:bold">Unitário</th>' : ""}
-    ${layout.desconto ? '<th style="text-align:right;font-weight:bold">Desc</th>' : ""}
-    ${layout.subtotal ? '<th style="text-align:right;font-weight:bold">Subtotal</th>' : ""}
+    ${layout.numOs ? '<th>Os</th>' : ""}
+    ${layout.servico ? '<th>Serviço/Produto</th>' : ""}
+    ${layout.numDente ? '<th>Número Dente</th>' : ""}
+    ${layout.paciente ? '<th>Paciente</th>' : ""}
+    ${layout.qtd ? '<th class="center">Qtd</th>' : ""}
+    ${layout.valorUnit ? '<th class="right">Unitário</th>' : ""}
+    ${layout.desconto ? '<th class="right">Desc</th>' : ""}
+    ${layout.subtotal ? '<th class="right">Subtotal</th>' : ""}
   </tr></thead>`;
 
+  let osAnterior = "";
   const linhas = dados.linhas
     .map((linha) => {
-      const meta = exibirMeta
-        ? `<tr><td colspan="${colunas}" style="font-size:${fsMeta}px;padding-bottom:2px">
-          ${layout.data ? `<span style="margin-right:12px">Data: <strong>${escapeHtml(linha.dataOs)}</strong></span>` : ""}
-          ${layout.finalizado ? `<span style="margin-right:12px">Finalizado: <strong>${escapeHtml(linha.finalizado)}</strong></span>` : ""}
-          ${layout.osExterna ? `<span style="margin-right:12px">OS Externa: <strong>${escapeHtml(linha.osExterna)}</strong></span>` : ""}
-          ${layout.corDente ? `<span>Cor: <strong>${escapeHtml(linha.cor)}</strong></span>` : ""}
-        </td></tr>`
-        : "";
+      const novaOs = linha.os !== osAnterior;
+      osAnterior = linha.os;
+      const metaOs =
+        novaOs && (layout.data || layout.finalizado)
+          ? `<br/><span>Data: ${escapeHtml(linha.dataOs)}${layout.finalizado ? ` Entregue: ${escapeHtml(linha.finalizado)}` : ""}</span>`
+          : "";
+      const celulaOs =
+        layout.numOs && novaOs ? `${escapeHtml(linha.os)}${metaOs}` : layout.numOs ? "" : "";
+
       return `<tr>
-        ${layout.numOs ? `<td>${escapeHtml(linha.os)}</td>` : ""}
-        ${layout.qtd ? `<td class="center">${escapeHtml(linha.qtd)}</td>` : ""}
+        ${layout.numOs ? `<td>${celulaOs}</td>` : ""}
         ${layout.servico ? `<td>${escapeHtml(linha.servico)}</td>` : ""}
         ${layout.numDente ? `<td>${escapeHtml(linha.dentes)}</td>` : ""}
         ${layout.paciente ? `<td>${escapeHtml(linha.paciente)}</td>` : ""}
+        ${layout.qtd ? `<td class="center">${escapeHtml(linha.qtd)}</td>` : ""}
         ${layout.valorUnit ? `<td class="right">${escapeHtml(linha.unitario)}</td>` : ""}
-        ${layout.desconto ? `<td class="right">${escapeHtml(linha.desconto)}</td>` : ""}
+        ${layout.desconto ? `<td class="right">% 0,00</td>` : ""}
         ${layout.subtotal ? `<td class="right">${escapeHtml(linha.subtotal)}</td>` : ""}
-      </tr>${meta}`;
+      </tr>`;
     })
     .join("");
 
-  return `${linhaDivisoria()}
-    <div style="${pad};font-size:${fsSmall}px"><table>${cabecalho}</table></div>
-    ${linhaDivisoria()}
-    <div style="${pad};font-size:${fsSmall}px"><table><tbody>${linhas}</tbody></table></div>
-    ${linhaDivisoria()}`;
+  return `<table class="items" style="font-size:${fs}px">
+    ${cabecalho}
+    <tbody>${linhas}</tbody>
+  </table>`;
 }
 
 function htmlTotaisA4(
   dados: DadosFaturaImpressao,
   layout: FaturaModeloLayout,
   modelo: ModeloFaturaId,
-  fsSmall: number,
+  fs: number,
   money: (n: number) => string
 ) {
   const saldoAnteriorNosTotais = modelo === "modelo3" && layout.saldoAnterior;
   const partes: string[] = [];
   if (layout.totalServicos) {
-    const sinal = modelo === "modelo3" ? "(=)" : "(+)";
+    const rotulo =
+      modelo === "modelo1" || modelo === "modelo2"
+        ? "Total Serviços/Produtos (=)"
+        : modelo === "modelo3"
+          ? "Total Serviços (=)"
+          : "Total Serviços (+)";
     partes.push(
-      `<div style="display:grid;grid-template-columns:1fr 90px;padding:2px 0"><span>Total Serviços ${sinal}</span><strong style="text-align:right">${escapeHtml(money(dados.totalServicos))}</strong></div>`
+      `<div><span>${rotulo}</span><strong class="right">R$ ${escapeHtml(money(dados.totalServicos))}</strong></div>`
     );
   }
   if (saldoAnteriorNosTotais) {
-    partes.push(
-      `<div style="display:grid;grid-template-columns:1fr 90px;padding:2px 0"><span>Saldo Anterior (+)</span><span style="text-align:right">R$ 0,00</span></div>`
-    );
+    partes.push(`<div><span>Saldo Anterior (+)</span><span class="right">R$ 0,00</span></div>`);
   }
   if (layout.descontoServicos) {
-    partes.push(
-      `<div style="display:grid;grid-template-columns:1fr 90px;padding:2px 0"><span>Desconto Serviços (-)</span><span style="text-align:right">R$ 0,00</span></div>`
-    );
+    partes.push(`<div><span>Desconto Serviços (-)</span><span class="right">R$ 0,00</span></div>`);
   }
   if (layout.descontoFatura) {
     partes.push(
-      `<div style="display:grid;grid-template-columns:1fr 90px;padding:2px 0"><span>Desconto Fatura (-)</span><span style="text-align:right">R$ ${escapeHtml(money(dados.creditoFatura))}</span></div>`
+      `<div><span>Desconto Fatura (-)</span><span class="right">R$ ${escapeHtml(money(dados.creditoFatura))}</span></div>`
     );
+  }
+  if (modelo === "modelo1" || modelo === "modelo2") {
+    partes.push(`<div><span>Juros Fatura (+)</span><span class="right">R$ 0,00</span></div>`);
   }
   if (layout.total) {
     partes.push(
-      `<div style="display:grid;grid-template-columns:1fr 90px;padding:2px 0;font-weight:bold"><span>Total (=)</span><strong style="text-align:right">R$ ${escapeHtml(money(dados.totalFinal))}</strong></div>`
+      `<div><strong>Total (=)</strong><strong class="right">R$ ${escapeHtml(money(dados.totalFinal))}</strong></div>`
     );
   }
   if (!partes.length) return "";
-  return `<div style="margin-top:8px;margin-left:auto;width:270px;font-size:${fsSmall}px;text-align:right">${partes.join("")}</div>${linhaDivisoriaCinza()}`;
+  return `<div class="totals" style="font-size:${fs}px;margin-top:4px">
+    ${partes.join("")}
+  </div>`;
 }
 
 function htmlCondicaoPagamento(
@@ -412,21 +414,21 @@ function htmlCondicaoPagamento(
       </tr>`
     )
     .join("");
-  return `<div style="margin-top:8px;font-size:${fsSmall}px">
-    <p style="font-weight:bold;margin:0 0 4px">Condição de Pagamento</p>
+  return `<div style="margin-top:18px;font-size:${fsSmall}px">
+    <p style="font-weight:bold;margin:0 0 6px">Condição de Pagamento</p>
     <table>
       <thead>
-        <tr${termica ? ` style="border-bottom:1px solid ${cor}"` : ""}>
-          <th style="text-align:left;font-weight:bold">Parcela</th>
-          <th style="text-align:left;font-weight:bold">Vencimento</th>
-          ${layout.formaPgto ? '<th style="text-align:left;font-weight:bold">Forma Pgto</th>' : ""}
-          <th style="text-align:left;font-weight:bold">Valor</th>
-          ${!termica ? '<th style="text-align:left;font-weight:bold">Pago</th>' : ""}
+        <tr>
+          <th>Parcela</th>
+          <th>Vencimento</th>
+          ${layout.formaPgto ? "<th>Forma Pgto</th>" : ""}
+          <th>Valor</th>
+          ${!termica ? "<th>Pago</th>" : ""}
         </tr>
       </thead>
       <tbody>${linhas}</tbody>
     </table>
-  </div>${termica ? "" : linhaDivisoriaCinza()}`;
+  </div>`;
 }
 
 function htmlPixAssinatura(layout: FaturaModeloLayout, fsSmall: number) {
@@ -460,62 +462,58 @@ function gerarHtmlFaturaA4(
   const cab = normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao);
   const textos = montarTextosCabecalhoRequisicao(cfg, lab, cab);
   const fs = layout.tamanhoFonte;
-  const fsSmall = Math.max(7, fs - 2);
-  const fsMeta = Math.max(9, fs - 3);
+  const fsSmall = Math.max(8, fs - 1);
   const logoHtml = htmlLogo(cfg, layout, false);
   const saldoAnteriorNosTotais = modelo === "modelo3" && layout.saldoAnterior;
+  const temLogo = layout.logo && Boolean(logoHtml);
 
-  const cabecalho = `<div style="display:flex;align-items:flex-start;gap:12px">
-    ${layout.logo && logoHtml ? `<div style="flex-shrink:0">${logoHtml}</div>` : ""}
+  const cabecalho = `<div class="header" style="display:grid;grid-template-columns:${temLogo ? "91px 1fr 150px" : "1fr 150px"};gap:18px;align-items:center;margin:20px 0 22px">
+    ${temLogo ? `<div class="logo" style="display:flex;align-items:center;justify-content:flex-start;min-width:91px">${logoHtml}</div>` : ""}
     ${
       layout.infoLab
-        ? `<div style="flex:1;min-width:0;padding-top:2px">
-            <p style="font-weight:bold;font-size:${fs + 1}px;margin:0;line-height:1.1">${escapeHtml(textos.nome || dados.clienteNome)}</p>
-            ${textos.linhas.map((l) => `<p style="margin:0;font-size:${fsSmall}px;line-height:1.3">${escapeHtml(l)}</p>`).join("")}
+        ? `<div class="lab" style="line-height:1.05">
+            <strong style="display:block;font-size:18px;margin-bottom:4px">${escapeHtml(textos.nome || lab.marca)}</strong>
+            ${textos.linhas.map((l) => `<span style="display:block;font-size:14px">${escapeHtml(l)}</span>`).join("")}
           </div>`
-        : '<div style="flex:1"></div>'
+        : "<div></div>"
     }
     ${
-      layout.dadosOs || layout.usuario
-        ? `<div style="flex-shrink:0;text-align:right;font-size:${fsSmall}px">
-            ${
-              layout.dadosOs
-                ? `<p style="margin:0">Fatura</p>
-                   <p style="margin:0;font-weight:bold;font-size:${fs + 8}px;line-height:1">${dados.numeroFatura}</p>
-                   ${layout.data ? `<p style="margin-top:4px"><span style="font-weight:bold">Data: </span>${escapeHtml(dados.dataEmissao)}</p>` : ""}`
-                : ""
-            }
-            ${layout.usuario ? `<p><span style="font-weight:bold">Usuário: </span>${escapeHtml(dados.usuario)}</p>` : ""}
+      layout.dadosOs
+        ? `<div class="invoice" style="text-align:center;font-size:22px;line-height:1.05">
+            Fatura
+            <strong style="display:block;font-size:24px;margin-top:4px">${dados.numeroFatura}</strong>
+            ${layout.data ? `<span style="display:block;margin-top:12px;font-size:8px">Data: ${escapeHtml(dados.dataEmissao)}</span>` : ""}
           </div>`
         : ""
     }
   </div>`;
 
-  const infoCliente = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 32px;font-size:${fsSmall}px;margin-top:8px">
+  const infoCliente = `<div class="info" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;border-bottom:1px solid #777;padding-bottom:4px;margin-bottom:4px;line-height:1.35;font-size:${fsSmall}px">
     <div>
-      ${layout.cliente ? linhaRotuloValor("Cliente:", dados.clienteNome) : ""}
-      ${layout.dentista ? linhaRotuloValor("Dentista:", dados.dentista) : ""}
-      ${layout.clienteTel ? linhaRotuloValor("Telefone:", "—") : ""}
-      ${layout.ultimoPgto ? linhaRotuloValor("Último Pgto:", "—") : ""}
-      ${layout.saldoAnterior && !saldoAnteriorNosTotais ? linhaRotuloValor("Saldo Anterior:", "R$ 0,00") : ""}
+      ${layout.cliente ? `<strong>Cliente:</strong> ${escapeHtml(dados.clienteNome)}<br/>` : ""}
+      ${layout.clienteTel ? `<strong>Telefones:</strong><br/>` : ""}
+      ${layout.saldoAnterior && !saldoAnteriorNosTotais ? `<strong>Saldo Anterior:</strong> 0,00` : ""}
     </div>
     <div>
-      ${layout.clienteEmail ? linhaRotuloValor("Email:", "—") : ""}
-      ${layout.clienteEnd ? linhaRotuloValor("Endereço:", "—") : ""}
+      ${layout.clienteEmail ? `<strong>Email:</strong><br/>` : ""}
+      ${layout.clienteEnd ? `<strong>Endereço:</strong>` : ""}
     </div>
   </div>`;
 
   const corpo = `<div class="page">
     <div class="actions"><button onclick="window.print()">Imprimir</button></div>
     <div style="position:relative;width:100%">
-      ${molduraHtml(layout)}
+      ${layout.exibirBordas ? molduraHtml(layout) : ""}
       ${cabecalho}
-      ${linhaDivisoria()}
+      <div class="rule"></div>
       ${infoCliente}
-      <div style="margin-top:8px;width:100%">${htmlTabelaItensA4(dados, layout, fsSmall, fsMeta)}</div>
+      <div class="rule-thin" style="margin-bottom:4px"></div>
+      ${htmlTabelaItensA4(dados, layout, fs)}
+      <div class="rule-thin" style="margin-top:4px"></div>
       ${htmlTotaisA4(dados, layout, modelo, fsSmall, money)}
+      <div class="rule-thin"></div>
       ${htmlCondicaoPagamento(dados, layout, fsSmall, false)}
-      ${layout.observacao ? `<div style="margin-top:8px;font-size:${fsSmall}px"><p><span style="font-weight:bold">Observação: </span>${escapeHtml(dados.observacao || "—")}</p></div>` : ""}
+      ${layout.observacao ? `<div class="obs" style="margin-top:14px;border-top:1px solid #ddd;padding-top:8px;font-size:${fsSmall}px"><strong>Observação:</strong> ${escapeHtml(dados.observacao || "")}</div>` : ""}
       ${layout.mensagem ? `<p style="margin-top:12px;text-align:center;font-style:italic;color:#4b5563;font-size:${fsSmall}px">${escapeHtml(layout.mensagem)}</p>` : ""}
       ${htmlPixAssinatura(layout, fsSmall)}
     </div>
