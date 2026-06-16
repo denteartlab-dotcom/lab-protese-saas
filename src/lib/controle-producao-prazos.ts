@@ -1,3 +1,5 @@
+import { normalizarChaveStatusOs } from "@/lib/status-os";
+
 export type TipoPrazoProducao = "lab" | "dentista";
 
 export type TrabalhoComPrazo = {
@@ -52,12 +54,17 @@ export function trabalhoAtivo(status: string) {
   return !["finalizado", "entregue", "cancelado"].includes(status);
 }
 
+/** Só conta prazo vencendo/atrasado com situação Produção (ao mudar p/ Prova etc., sai da lista). */
+export function trabalhoElegivelPrazoVencimento(status: string) {
+  return trabalhoAtivo(status) && normalizarChaveStatusOs(status) === "producao";
+}
+
 export function isTrabalhoAtrasado(
   trabalho: TrabalhoComPrazo,
   tipo: TipoPrazoProducao = "lab",
   referencia = localDate(new Date())
 ) {
-  if (!trabalhoAtivo(trabalho.status)) return false;
+  if (!trabalhoElegivelPrazoVencimento(trabalho.status)) return false;
   const prazo = prazoTrabalho(trabalho, tipo);
   return prazo ? prazo < referencia : false;
 }
@@ -67,7 +74,7 @@ export function isTrabalhoVencendoNoDia(
   dia: Date,
   tipo: TipoPrazoProducao = "lab"
 ) {
-  if (!trabalhoAtivo(trabalho.status)) return false;
+  if (!trabalhoElegivelPrazoVencimento(trabalho.status)) return false;
   const prazo = prazoTrabalho(trabalho, tipo);
   if (!prazo) return false;
   return prazo.getTime() === localDate(dia).getTime();
@@ -133,7 +140,7 @@ export function filtrarTrabalhosVencendoPeriodo<T extends TrabalhoComPrazo>(
   const fimMs = fim.getTime();
 
   return trabalhos.filter((trabalho) => {
-    if (!trabalhoAtivo(trabalho.status)) return false;
+    if (!trabalhoElegivelPrazoVencimento(trabalho.status)) return false;
     const prazo = prazoTrabalho(trabalho, tipo);
     if (!prazo) return false;
     const prazoMs = prazo.getTime();

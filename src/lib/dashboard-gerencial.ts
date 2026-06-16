@@ -21,6 +21,7 @@ import {
   trabalhoContaNoGraficoProducao,
   type TrabalhoProducaoResumo,
 } from "@/lib/dashboard-producao";
+import { filtrarTrabalhosAtrasados } from "@/lib/controle-producao-prazos";
 export const MESES_DASHBOARD_GERENCIAL = [
   "Jan",
   "Fev",
@@ -218,21 +219,10 @@ function isDespesaRealizada(l: LancamentoDre) {
 }
 
 function contarServicosAtrasadosAtual(trabalhos: TrabalhoDashboardGerencial[]) {
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
-  let total = 0;
-
-  for (const t of trabalhos) {
-    if (t.status === "cancelado") continue;
-    if (!trabalhoContaNoGraficoProducao(t)) continue;
-    if (["entregue", "finalizado", "saiu_entrega"].includes(t.status)) continue;
-    const prevista = t.dataPrevista ? new Date(t.dataPrevista) : null;
-    if (!prevista) continue;
-    prevista.setHours(0, 0, 0, 0);
-    if (prevista < hoje) total += 1;
-  }
-
-  return total;
+  const base = trabalhos.filter(
+    (t) => t.status !== "cancelado" && trabalhoContaNoGraficoProducao(t)
+  );
+  return filtrarTrabalhosAtrasados(base, "lab").length;
 }
 
 export function calcularDashboardGerencial(input: {
