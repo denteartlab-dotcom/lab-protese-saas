@@ -30,6 +30,10 @@ else
 fi
 
 echo ""
+echo "==> Preparação banco legado (single-tenant → multi-empresa)..."
+npm run db:preparar-legado
+
+echo ""
 echo "==> Schema Postgres (prisma db push)..."
 npm run db:push
 

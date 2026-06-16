@@ -18,6 +18,7 @@
     "db:generate": "prisma generate",
     "setup": "prisma generate && prisma db push && tsx prisma/seed.ts",
     "db:push": "prisma db push",
+    "db:preparar-legado": "tsx scripts/preparar-banco-legado-vps.ts",
     "db:seed": "tsx prisma/seed.ts",
     "db:criar-master": "tsx scripts/criar-master.ts",
     "db:migrar-empresa": "tsx scripts/migrar-empresa-fase1.ts && tsx scripts/migrar-empresa-fase5.ts",
