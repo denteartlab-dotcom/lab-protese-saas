@@ -36,7 +36,10 @@ export const CHUNK_RELOAD_SCRIPT = `
   function irParaNovaUrl() {
     var url = new URL(window.location.href);
     url.protocol = "https:";
-    url.hostname = HOST_CANONICO;
+    // Beta/staging: recarrega na mesma origem. Só produção usa o host canônico www.
+    if (url.hostname === "www.denteartlab.com.br" || url.hostname === "denteartlab.com.br") {
+      url.hostname = HOST_CANONICO;
+    }
     url.searchParams.set("_cb", String(Date.now()));
     window.location.replace(url.toString());
   }

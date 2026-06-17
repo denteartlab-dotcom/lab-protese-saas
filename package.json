@@ -13,6 +13,8 @@
     "start:next": "next start -p 3000",
     "pm2:start": "pm2 start deploy/ecosystem.config.cjs",
     "pm2:restart": "pm2 restart lab-protese",
+    "pm2:beta": "pm2 start deploy/ecosystem-beta.config.cjs",
+    "pm2:beta:restart": "pm2 restart lab-protese-beta",
     "lint": "next lint",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
