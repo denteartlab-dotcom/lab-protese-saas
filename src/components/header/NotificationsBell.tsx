@@ -43,6 +43,7 @@ export function NotificationsBell() {
   const [descartadas, setDescartadas] = useState<string[]>([]);
   const [sistemaOn, setSistemaOn] = useState(true);
   const [carregando, setCarregando] = useState(false);
+  const [jaCarregou, setJaCarregou] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   const carregar = useCallback(async () => {
@@ -68,6 +69,7 @@ export function NotificationsBell() {
       setLidas(lerNotificacoesLidas());
       setDescartadas(lerNotificacoesDescartadas());
       setSistemaOn(notificacaoSistemaAtiva());
+      setJaCarregou(true);
     } catch {
       setLista([]);
     } finally {
@@ -76,18 +78,16 @@ export function NotificationsBell() {
   }, []);
 
   useEffect(() => {
-    void carregar();
+    if (!jaCarregou) return;
     const interval = window.setInterval(() => void carregar(), 120_000);
     window.addEventListener(PRODUTOS_ESTOQUE_EVENT, carregar);
     window.addEventListener(ANOTACOES_ATUALIZADO_EVENT, carregar);
-    window.addEventListener("focus", carregar);
     return () => {
       window.clearInterval(interval);
       window.removeEventListener(PRODUTOS_ESTOQUE_EVENT, carregar);
       window.removeEventListener(ANOTACOES_ATUALIZADO_EVENT, carregar);
-      window.removeEventListener("focus", carregar);
     };
-  }, [carregar]);
+  }, [carregar, jaCarregou]);
 
   useEffect(() => {
     if (!aberto) return;

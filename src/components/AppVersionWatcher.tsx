@@ -2,11 +2,10 @@
 
 import { useEffect } from "react";
 import { APP_BUILD_ID, isBuildIdProducao } from "@/lib/app-build-id";
-import { armazenamentoLaboratorioPronto, revalidarArmazenamentoLaboratorio } from "@/lib/armazenamento-laboratorio";
 
 const STORAGE_KEY = "labProteseBuildId";
 const STORAGE_RELOAD_AT = "labProteseReloadAt";
-const INTERVALO_MS = 3 * 60 * 1000;
+const INTERVALO_MS = 10 * 60 * 1000;
 const COOLDOWN_RECARGA_MS = 30_000;
 
 async function buildIdServidor() {
@@ -62,10 +61,6 @@ export function AppVersionWatcher() {
           sessionStorage.setItem(STORAGE_KEY, remoto);
         } catch {
           /* ignore */
-        }
-
-        if (armazenamentoLaboratorioPronto()) {
-          await revalidarArmazenamentoLaboratorio();
         }
       } catch {
         /* offline */

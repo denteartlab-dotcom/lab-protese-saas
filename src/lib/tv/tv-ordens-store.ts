@@ -151,6 +151,7 @@ export function iniciarTvRefreshAutomatico() {
   if (globalForTv.__tvRefreshTimer) return;
 
   globalForTv.__tvRefreshTimer = setInterval(() => {
+    if (mapaStores().size === 0) return;
     void refreshTodasEmpresasAtivas();
   }, REFRESH_INTERVAL_MS);
 }

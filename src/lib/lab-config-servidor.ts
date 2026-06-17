@@ -6,6 +6,7 @@ import {
 import { normalizarConfigLaboratorio } from "@/lib/configuracoes-lab-parse";
 import { lerJsonStoreTenant } from "@/lib/json-store-tenant";
 import { prisma } from "@/lib/db";
+import { cache } from "react";
 
 function configLaboratorioPadrao(): ConfigLaboratorio {
   return { ...CONFIG_LAB_PADRAO, tipoPessoa: "Jurídica" };
@@ -15,10 +16,11 @@ function emBuildProducaoNext() {
   return process.env.NEXT_PHASE === "phase-production-build";
 }
 
-/** Leitura da config do laboratório (sem React cache — compatível com server.ts + tsx). */
-export async function carregarConfigLaboratorioServidor(
-  empresaId?: string
-): Promise<ConfigLaboratorio> {
+/** Leitura da config do laboratório (cache por request no RSC). */
+export const carregarConfigLaboratorioServidor = cache(
+  async function carregarConfigLaboratorioServidor(
+    empresaId?: string
+  ): Promise<ConfigLaboratorio> {
   if (emBuildProducaoNext()) {
     return configLaboratorioPadrao();
   }
@@ -52,4 +54,5 @@ export async function carregarConfigLaboratorioServidor(
     );
     return configLaboratorioPadrao();
   }
-}
+  }
+);

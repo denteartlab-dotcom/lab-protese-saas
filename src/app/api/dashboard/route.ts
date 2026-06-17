@@ -45,6 +45,10 @@ export async function GET(request: Request) {
 
   const filtroEmpresa = { empresaId: ctx.empresaId };
 
+  const inicioMes = new Date(ano, mes, 1);
+  const fimMes = new Date(ano, mes + 1, 0, 23, 59, 59, 999);
+  const inicioFinanceiro = new Date(ano, mes - 23, 1);
+
   const [
     totalClientes,
     totalPacientes,
@@ -108,7 +112,10 @@ export async function GET(request: Request) {
       },
     }),
     prisma.lancamento.findMany({
-      where: { empresaId: ctx.empresaId },
+      where: {
+        empresaId: ctx.empresaId,
+        data: { gte: inicioFinanceiro, lte: fimMes },
+      },
       orderBy: { data: "desc" },
       include: {
         cliente: { select: { id: true, nome: true } },
@@ -128,9 +135,6 @@ export async function GET(request: Request) {
       orderBy: { nome: "asc" },
     }),
   ]);
-
-  const inicioMes = new Date(ano, mes, 1);
-  const fimMes = new Date(ano, mes + 1, 0, 23, 59, 59, 999);
 
   const lancamentosMes = lancamentos.filter((l) => {
     const d = new Date(l.data);
