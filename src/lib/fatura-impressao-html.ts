@@ -349,6 +349,10 @@ export function montarDadosFaturaPreviewAmostra(): DadosFaturaImpressao {
   };
 }
 
+function isFaturaA4Smart(modelo: ModeloFaturaId) {
+  return modelo === "modelo1" || modelo === "modelo2" || modelo === "modelo3";
+}
+
 function linhaRotuloValor(rotulo: string, valor: string) {
   return `<p><span style="font-weight:bold">${escapeHtml(rotulo)} </span>${escapeHtml(valor)}</p>`;
 }
@@ -701,7 +705,7 @@ function htmlCondicaoPagamento(
 
 function htmlAssinaturaSmart(fsSmall: number) {
   const fsAssinatura = Math.max(9, fsSmall - 1);
-  return `<div style="display:flex;justify-content:center">
+  return `<div style="display:flex;justify-content:center;margin-top:2mm">
     <div style="width:34%;min-width:150px;max-width:200px;text-align:center;font-size:${fsAssinatura}px;line-height:1.2">
       <div style="border-top:1px solid #000"></div>
       <div style="padding-top:3px">Recebi o(s) serviço(s) descritos acima</div>
@@ -709,21 +713,27 @@ function htmlAssinaturaSmart(fsSmall: number) {
   </div>`;
 }
 
-function htmlPixSmart(layout: FaturaModeloLayout) {
+function htmlPixSmart(layout: FaturaModeloLayout, aposAssinatura = false) {
   const qr = layout.pixQrImagem?.startsWith("data:image")
     ? `<img src="${layout.pixQrImagem}" alt="QR PIX" style="width:${layout.pixQrTamanhoPx}px;height:${layout.pixQrTamanhoPx}px;object-fit:contain;display:block" />`
     : `<div style="width:${layout.pixQrTamanhoPx}px;height:${layout.pixQrTamanhoPx}px;border:1px dashed #9ca3af;display:flex;align-items:center;justify-content:center;font-size:10px;color:#6b7280">QR PIX</div>`;
-  return `<div style="display:flex;align-items:flex-end;gap:10px;margin-top:8px">${qr}<span style="font-size:${layout.pixQrFonte}px;line-height:1.2">Pagar com PIX</span></div>`;
+  return `<div style="display:flex;align-items:flex-end;gap:10px;margin-top:${aposAssinatura ? "10mm" : "4mm"}">${qr}<span style="font-size:${layout.pixQrFonte}px;line-height:1.2">Pagar com PIX</span></div>`;
 }
 
-function htmlPixAssinatura(layout: FaturaModeloLayout, fsSmall: number, smartModelo1 = false) {
+function htmlPixAssinatura(
+  layout: FaturaModeloLayout,
+  fsSmall: number,
+  faturaA4Smart = false,
+  aposObservacao = false
+) {
   if (!layout.pix && !layout.assinatura) return "";
 
-  if (smartModelo1) {
+  if (faturaA4Smart) {
     const blocos: string[] = [];
     if (layout.assinatura) blocos.push(htmlAssinaturaSmart(fsSmall));
-    if (layout.pix) blocos.push(htmlPixSmart(layout));
-    return `<div style="margin-top:5mm">${blocos.join("")}</div>`;
+    if (layout.pix) blocos.push(htmlPixSmart(layout, layout.assinatura));
+    const margemTopo = aposObservacao ? "14mm" : "10mm";
+    return `<div style="margin-top:${margemTopo}">${blocos.join("")}</div>`;
   }
 
   const qr = layout.pix
@@ -753,20 +763,19 @@ function gerarHtmlFaturaA4(
   money: (n: number) => string,
   ocultarBotaoImprimir = false
 ) {
-  const layout =
-    modelo === "modelo1" ? layoutFaturaModelo1Smart(layoutRaw) : layoutRaw;
-  const smartModelo1 = modelo === "modelo1";
+  const layout = isFaturaA4Smart(modelo) ? layoutFaturaModelo1Smart(layoutRaw) : layoutRaw;
+  const faturaA4Smart = isFaturaA4Smart(modelo);
   const lab = configParaLabImpressao(cfg);
   const cab = normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao);
   const textos = montarTextosCabecalhoRequisicao(cfg, lab, cab);
   const fs = layout.tamanhoFonte;
-  const fsSmall = smartModelo1 ? Math.max(11, fs - 1) : Math.max(8, fs - 1);
+  const fsSmall = faturaA4Smart ? Math.max(11, fs - 1) : Math.max(8, fs - 1);
   const saldoAnteriorNosTotais = modelo === "modelo3" && layout.saldoAnterior;
 
   const logoHtml = layout.logo ? htmlLogo(cfg, layout, false) : "";
   const dataFatura = dataSomenteEmissao(dados.dataEmissao);
 
-  const cabecalho = smartModelo1
+  const cabecalho = faturaA4Smart
     ? `<div class="header" style="display:grid;grid-template-columns:1fr 140px;gap:12px;align-items:start;margin:0 0 8px">
         <div style="display:flex;gap:10px;align-items:flex-start;min-width:0">
           ${logoHtml}
@@ -810,7 +819,7 @@ function gerarHtmlFaturaA4(
     }
   </div>`;
 
-  const infoCliente = smartModelo1
+  const infoCliente = faturaA4Smart
     ? `<div class="info" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:6px 0 8px;line-height:1.5;font-size:${fsSmall}px">
         <div>
           ${layout.cliente ? `<div><strong>Cliente:</strong> ${escapeHtml(dados.clienteNome)}</div>` : ""}
@@ -837,28 +846,28 @@ function gerarHtmlFaturaA4(
 
   const pixAssinatura =
     layout.pix || layout.assinatura
-      ? htmlPixAssinatura(layout, fsSmall, smartModelo1)
+      ? htmlPixAssinatura(layout, fsSmall, faturaA4Smart, Boolean(layout.observacao))
       : "";
 
   const corpo = `<div class="page">
     ${ocultarBotaoImprimir ? "" : '<div class="actions"><button onclick="window.print()">Imprimir</button></div>'}
     <div style="position:relative;width:100%">
-      ${layout.exibirBordas ? molduraHtml(layout, smartModelo1 ? FATURA_SMART_INSET_LINHA_MM : OS_REQUISICAO_PREVIEW_INSET_MM) : ""}
+      ${layout.exibirBordas ? molduraHtml(layout, faturaA4Smart ? FATURA_SMART_INSET_LINHA_MM : OS_REQUISICAO_PREVIEW_INSET_MM) : ""}
       ${cabecalho}
-      ${smartModelo1 ? linhaDivisoriaSmart() : '<div class="rule"></div>'}
+      ${faturaA4Smart ? linhaDivisoriaSmart() : '<div class="rule"></div>'}
       ${infoCliente}
-      ${htmlTabelaItensA4(dados, layout, fs, smartModelo1, money)}
-      ${smartModelo1 ? "" : '<div class="rule-thin" style="margin-top:3px;margin-bottom:2px"></div>'}
+      ${htmlTabelaItensA4(dados, layout, fs, faturaA4Smart, money)}
+      ${faturaA4Smart ? "" : '<div class="rule-thin" style="margin-top:3px;margin-bottom:2px"></div>'}
       ${htmlTotaisA4(dados, layout, modelo, fsSmall, money)}
-      ${smartModelo1 ? linhaDivisoriaSmart() : '<div class="rule-thin" style="margin-top:2px;margin-bottom:2px"></div>'}
-      ${htmlCondicaoPagamento(dados, layout, fsSmall, false, smartModelo1)}
-      ${layout.observacao ? `<div class="obs" style="margin-top:10px;font-size:${fsSmall}px"><strong>Observação:</strong> ${escapeHtml(dados.observacao || "")}</div>` : ""}
+      ${faturaA4Smart ? linhaDivisoriaSmart() : '<div class="rule-thin" style="margin-top:2px;margin-bottom:2px"></div>'}
+      ${htmlCondicaoPagamento(dados, layout, fsSmall, false, faturaA4Smart)}
+      ${layout.observacao ? `<div class="obs" style="margin-top:10px;margin-bottom:${faturaA4Smart ? "6mm" : "0"};font-size:${fsSmall}px"><strong>Observação:</strong> ${escapeHtml(dados.observacao || "")}</div>` : ""}
       ${layout.mensagem ? `<p style="margin-top:12px;text-align:center;font-style:italic;color:#4b5563;font-size:${fsSmall}px">${escapeHtml(layout.mensagem)}</p>` : ""}
       ${pixAssinatura}
     </div>
   </div>`;
 
-  return `<!doctype html><html><head><meta charset="utf-8"><title>Fatura ${dados.numeroFatura}</title>${estilosBaseA4(fs, smartModelo1)}</head><body>${corpo}</body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Fatura ${dados.numeroFatura}</title>${estilosBaseA4(fs, faturaA4Smart)}</head><body>${corpo}</body></html>`;
 }
 
 function gerarHtmlFaturaTermica(

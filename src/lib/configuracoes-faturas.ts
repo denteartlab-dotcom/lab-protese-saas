@@ -103,7 +103,7 @@ export function lerLayoutModeloFatura(
   return config[layoutKeyModeloFatura(id)];
 }
 
-/** Modelos A4 1–3 compartilham o mesmo layout visual (base: Modelo 1). */
+/** Modelos A4 1–3 usam o mesmo layout visual Smart (base: Modelo 1). */
 export function lerLayoutFaturaA4Compartilhado(
   config: ConfiguracoesFaturas,
   id: ModeloFaturaId
@@ -112,7 +112,7 @@ export function lerLayoutFaturaA4Compartilhado(
     return lerLayoutModeloFatura(config, id);
   }
   const base = normalizarFaturaModeloLayout(config.layoutModelo1);
-  return id === "modelo1" ? layoutFaturaModelo1Smart(base) : base;
+  return layoutFaturaModelo1Smart(base);
 }
 
 export function aplicarLayoutFaturaA4Compartilhado(

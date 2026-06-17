@@ -266,7 +266,7 @@ export const FATURA_MODELO1_SMART_PADRAO: Partial<FaturaModeloLayout> = {
   dentista: false,
 };
 
-/** Mescla layout salvo com padrões Smart Modelo 1 (sem desligar campos do usuário). */
+/** Mescla layout salvo com padrões Smart — Faturas A4 modelos 1, 2 e 3. */
 export function layoutFaturaModelo1Smart(layout: FaturaModeloLayout): FaturaModeloLayout {
   return normalizarFaturaModeloLayout({
     ...FATURA_MODELO1_SMART_PADRAO,
