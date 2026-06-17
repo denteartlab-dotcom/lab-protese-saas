@@ -399,7 +399,20 @@ function contarColunasItensFatura(layout: FaturaModeloLayout) {
 function estilosBaseA4(fs: number, smartModelo1: boolean) {
   const fsTabela = smartModelo1 ? fs : Math.max(7, fs - 1);
   const fsCab = smartModelo1 ? fs : Math.max(7, fs - 2);
-  const thBg = smartModelo1 ? "transparent" : "#d9d9d9";
+  const thBg = smartModelo1 ? "#fff" : "#d9d9d9";
+  const smartTableCss = smartModelo1
+    ? `
+    table.items.smart,table.items.pay.smart{border-collapse:collapse}
+    table.items.smart th,table.items.pay.smart th{
+      background:#fff;
+      font-weight:bold;
+      border-bottom:1px solid #000;
+      padding:4px 3px;
+    }
+    table.items.smart td,table.items.pay.smart td{background:#fff}
+    table.items.smart thead tr,table.items.pay.smart thead tr{background:#fff}
+  `
+    : "";
   const pageCss = smartModelo1
     ? `width:${FATURA_A4_LARGURA_MM}mm;min-height:${FATURA_A4_ALTURA_MM}mm;max-width:${FATURA_A4_LARGURA_MM}mm;margin:0 auto;padding:${OS_REQUISICAO_TOPO_MM}mm ${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm ${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm;box-sizing:border-box`
     : "width:100%;max-width:190mm;margin:0 auto;padding:0;overflow:hidden";
@@ -425,6 +438,7 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
     .totals div{display:grid;grid-template-columns:1fr 92px;gap:8px;padding:2px 0;align-items:baseline}
     .totals .right{text-align:right;justify-self:end}
     .totals strong{font-weight:bold}
+    ${smartTableCss}
     @media print{
       .actions{display:none}
       html,body{width:100%;margin:0;padding:0}
@@ -501,7 +515,7 @@ function htmlTabelaItensA4(
 
     return `<div style="margin:2px 0 4px">
       ${linhaDivisoriaSmart()}
-      <table class="items">
+      <table class="items smart">
         ${colgroup}
         ${cabecalho}
         <tbody>${linhas}</tbody>
@@ -639,7 +653,7 @@ function htmlCondicaoPagamento(
   return `<div style="margin-top:${smartModelo1 ? 6 : 18}px;font-size:${fsSmall}px">
     <p style="font-weight:bold;margin:0 0 6px">Condição de Pagamento</p>
     ${smartModelo1 ? linhaDivisoriaSmart() : '<div class="rule-thin" style="margin-bottom:0"></div>'}
-    <table class="${smartModelo1 ? "items pay" : ""}">
+    <table class="${smartModelo1 ? "items pay smart" : ""}">
       <thead>
         <tr>
           <th>Parcela</th>
