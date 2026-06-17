@@ -38,7 +38,7 @@ fi
 echo ""
 echo "==> Dependências (com dev — prisma/esbuild)..."
 if [[ -f package-lock.json ]]; then
-  npm ci --include=dev
+  npm ci --include=dev || npm install --include=dev
 else
   npm install --include=dev
 fi
