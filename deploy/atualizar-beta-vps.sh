@@ -36,6 +36,10 @@ npm run db:push
 npm run build
 
 echo "==> PM2..."
+if [[ ! -f .next/dev-server.cjs ]]; then
+  echo "ERRO: .next/dev-server.cjs não foi gerado. O build falhou."
+  exit 1
+fi
 export APP_DIR
 pm2 delete lab-protese-beta 2>/dev/null || true
 pm2 start deploy/ecosystem-beta.config.cjs

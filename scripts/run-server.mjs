@@ -39,22 +39,46 @@ async function precisaRebuild(outfile, entrada) {
 
 async function empacotarServidor(outfile, entrada) {
   await mkdir(path.dirname(outfile), { recursive: true });
-  await esbuild.build({
-    entryPoints: [entrada],
-    bundle: true,
-    platform: "node",
-    format: "cjs",
-    packages: "external",
-    outfile,
-  });
+  try {
+    await esbuild.build({
+      entryPoints: [entrada],
+      bundle: true,
+      platform: "node",
+      format: "cjs",
+      packages: "external",
+      outfile,
+    });
+  } catch (erro) {
+    console.error("ERRO ao empacotar server.ts:", erro);
+    throw erro;
+  }
+}
+
+async function arquivoExiste(caminho) {
+  try {
+    await stat(caminho);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 liberarPorta(port);
 
 const outfile = path.join(root, ".next", "dev-server.cjs");
 const entrada = path.join(root, "server.ts");
+const producao = process.env.NODE_ENV === "production";
 
-if (await precisaRebuild(outfile, entrada)) {
+if (!(await arquivoExiste(outfile))) {
+  if (producao) {
+    console.error(
+      "ERRO: .next/dev-server.cjs não encontrado. Na VPS rode: npm run build"
+    );
+    process.exit(1);
+  }
+  await empacotarServidor(outfile, entrada);
+  console.log("> Servidor customizado gerado (.next/dev-server.cjs)");
+} else if (!producao && (await precisaRebuild(outfile, entrada))) {
   await empacotarServidor(outfile, entrada);
   console.log("> Servidor customizado gerado (.next/dev-server.cjs)");
 } else {

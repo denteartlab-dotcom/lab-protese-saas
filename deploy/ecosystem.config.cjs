@@ -1,4 +1,4 @@
-/** PM2 — tempo real do módulo TV exige npm run start (server.ts + Socket.IO), não next start. */
+/** PM2 — tempo real do módulo TV. Usa server empacotado no build (sem esbuild no start). */
 const appDir = process.env.APP_DIR || "/opt/lab-protese-saas";
 
 module.exports = {
@@ -6,8 +6,8 @@ module.exports = {
     {
       name: "lab-protese",
       cwd: appDir,
-      script: "npm",
-      args: "run start",
+      script: ".next/dev-server.cjs",
+      interpreter: "node",
       env: {
         NODE_ENV: "production",
         PORT: "3000",

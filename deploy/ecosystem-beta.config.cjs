@@ -1,4 +1,4 @@
-/** PM2 — ambiente beta (porta 3001). */
+/** PM2 — ambiente beta (porta 3001). Usa server empacotado no build (sem esbuild no start). */
 const appDir = process.env.APP_DIR || "/opt/lab-protese-beta";
 
 module.exports = {
@@ -6,8 +6,8 @@ module.exports = {
     {
       name: "lab-protese-beta",
       cwd: appDir,
-      script: "npm",
-      args: "run start",
+      script: ".next/dev-server.cjs",
+      interpreter: "node",
       env: {
         NODE_ENV: "production",
         PORT: "3001",
