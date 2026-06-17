@@ -64,7 +64,20 @@ export function AssinaturaVencidaPainel({ contexto, branding }: Props) {
   }
 
   const statusRotulo =
-    contexto.empresa.statusPagamento === "VENCIDO" ? "Vencido" : "Bloqueado";
+    contexto.empresa.statusPagamento === "VENCIDO"
+      ? "Vencido"
+      : contexto.empresa.statusPagamento === "PENDENTE"
+        ? "Pendente"
+        : "Bloqueado";
+
+  const ehNovaConta = contexto.empresa.statusPagamento === "PENDENTE";
+  const tituloPagina = ehNovaConta ? "Ative sua assinatura" : "Assinatura vencida";
+  const subtituloPagina = ehNovaConta
+    ? "Escolha um plano e pague com PIX para liberar o acesso ao sistema."
+    : "Sua assinatura expirou. Escolha um plano para continuar usando o sistema.";
+  const avisoBloqueio = ehNovaConta
+    ? "Seu acesso ao sistema será liberado automaticamente após a confirmação do pagamento."
+    : "Seu acesso ao sistema está temporariamente bloqueado até a regularização da assinatura.";
 
   return (
     <div className="min-h-screen bg-white">
@@ -102,20 +115,15 @@ export function AssinaturaVencidaPainel({ contexto, branding }: Props) {
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-600">
               <AlertCircle className="h-6 w-6" />
             </span>
-            <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Assinatura vencida</h1>
+            <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">{tituloPagina}</h1>
           </div>
-          <p className="text-sm text-slate-600">
-            Sua assinatura expirou. Escolha um plano para continuar usando o sistema.
-          </p>
+          <p className="text-sm text-slate-600">{subtituloPagina}</p>
         </div>
 
         <div className="mb-8 rounded-xl border border-red-200 bg-red-50 px-4 py-3.5 sm:px-5">
           <div className="flex items-start gap-3">
             <Lock className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
-            <p className="text-sm text-red-800">
-              Seu acesso ao sistema está temporariamente bloqueado até a regularização da
-              assinatura.
-            </p>
+            <p className="text-sm text-red-800">{avisoBloqueio}</p>
           </div>
         </div>
 
@@ -164,7 +172,9 @@ export function AssinaturaVencidaPainel({ contexto, branding }: Props) {
           <div className="mb-5 text-center">
             <h2 className="text-lg font-bold text-slate-900">Escolha seu plano</h2>
             <p className="mt-1 text-sm text-slate-600">
-              Renove agora e volte a usar o sistema sem interrupções.
+              {ehNovaConta
+                ? "Pague com PIX e comece a usar o sistema imediatamente."
+                : "Renove agora e volte a usar o sistema sem interrupções."}
             </p>
           </div>
 

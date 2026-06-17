@@ -21,8 +21,6 @@ import type { LabBrandingPublico } from "@/lib/lab-branding";
 import type { LabImpressaoConfig } from "@/lib/lab-impressao";
 import { dimensoesLogoPx } from "@/lib/lab-logo";
 import { analisarCaminhoApp } from "@/lib/rotas-app";
-import { RenovarAssinaturaPixModal } from "@/components/assinatura/RenovarAssinaturaPixModal";
-
 export type LoginBranding = {
   lab: LabImpressaoConfig;
   nomeLaboratorio: string;
@@ -76,9 +74,6 @@ export function LoginForm({
   );
   const [empresasDisponiveis, setEmpresasDisponiveis] = useState<EmpresaLogin[]>([]);
   const [empresaSlugSelecionado, setEmpresaSlugSelecionado] = useState("");
-  const [assinaturaInativa, setAssinaturaInativa] = useState(false);
-  const [modalPixAberto, setModalPixAberto] = useState(false);
-
   const redirectDestino = searchParams.get("redirect") || "/app";
   const cadastroOk = searchParams.get("cadastro") === "ok";
   const labSlugQuery =
@@ -229,7 +224,6 @@ export function LoginForm({
     e?.preventDefault();
     setLoading(true);
     setError("");
-    setAssinaturaInativa(false);
 
     const slugLogin =
       empresaSlugSelecionado.trim() ||
@@ -269,9 +263,6 @@ export function LoginForm({
       }
 
       if (!res.ok) {
-        if (data.code === "ASSINATURA_INATIVA") {
-          setAssinaturaInativa(true);
-        }
         setError(data.error || "Erro ao entrar");
         return;
       }
@@ -406,7 +397,7 @@ export function LoginForm({
               Conta criada com sucesso!
             </p>
             <p className="mt-0.5 text-[10px] text-emerald-700">
-              Aguarde a ativação da assinatura pelo administrador para acessar o sistema.
+              Faça login para escolher seu plano e ativar a assinatura.
             </p>
           </div>
         )}
@@ -474,21 +465,6 @@ export function LoginForm({
             <p className="rounded bg-red-50 px-2 py-1.5 text-[10px] text-red-700">{error}</p>
           )}
 
-          {assinaturaInativa && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-              <p className="text-[10px] text-amber-900">
-                Renove agora com PIX e o acesso é liberado automaticamente após o pagamento.
-              </p>
-              <button
-                type="button"
-                onClick={() => setModalPixAberto(true)}
-                className="mt-2 h-8 w-full rounded bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700"
-              >
-                Pagar renovação com PIX
-              </button>
-            </div>
-          )}
-
           {empresasDisponiveis.length > 1 ? (
             <div className="space-y-1 rounded border border-blue-100 bg-blue-50/80 p-3">
               <p className="text-[10px] font-medium text-slate-700">Laboratório</p>
@@ -527,24 +503,6 @@ export function LoginForm({
           </p>
         </form>
       </div>
-
-      <RenovarAssinaturaPixModal
-        aberto={modalPixAberto}
-        onFechar={() => setModalPixAberto(false)}
-        credenciais={{
-          email: email.trim(),
-          password,
-          empresaSlug:
-            empresaSlugSelecionado.trim() ||
-            empresaSlugRedirect ||
-            empresasDisponiveis[0]?.slug ||
-            "",
-        }}
-        onRenovado={() => {
-          setModalPixAberto(false);
-          void tentarEntrar();
-        }}
-      />
     </div>
   );
 }

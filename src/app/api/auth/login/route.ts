@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createSession, verifyPassword } from "@/lib/auth";
 import {
-  empresaBloqueadaAguardandoAtivacao,
   empresaPrecisaPaginaRenovacao,
   empresaTemAcessoAssinatura,
   mensagemBloqueioAssinatura,
@@ -123,16 +122,6 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "E-mail ou senha inválidos." },
         { status: 401 }
-      );
-    }
-
-    if (empresaBloqueadaAguardandoAtivacao(user.empresa)) {
-      return NextResponse.json(
-        {
-          error: mensagemBloqueioAssinatura(user.empresa),
-          code: "ASSINATURA_INATIVA",
-        },
-        { status: 403 }
       );
     }
 

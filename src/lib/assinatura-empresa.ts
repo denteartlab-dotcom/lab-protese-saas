@@ -41,7 +41,7 @@ export function empresaTemAcessoAssinatura(empresa: DadosAssinaturaEmpresa): boo
 
 /** Login permitido, mas usuário deve ir para /assinatura-vencida. */
 export function empresaPrecisaPaginaRenovacao(empresa: DadosAssinaturaEmpresa): boolean {
-  if (empresaBloqueadaAguardandoAtivacao(empresa)) return false;
+  if (empresaBloqueadaAguardandoAtivacao(empresa)) return true;
   if (empresa.status === "bloqueado") return true;
   const vencimento = normalizarDataAssinatura(empresa.dataVencimento);
   if (!vencimento) return false;
@@ -64,7 +64,7 @@ export function statusPagamentoAssinatura(empresa: DadosAssinaturaEmpresa): Stat
 
 export function mensagemBloqueioAssinatura(empresa: DadosAssinaturaEmpresa): string {
   if (empresaAguardandoAtivacao(empresa.status)) {
-    return "Sua conta foi criada, mas a assinatura ainda não foi ativada. Aguarde a liberação pelo administrador.";
+    return "Ative sua assinatura escolhendo um plano para continuar.";
   }
   if (empresa.status === "bloqueado") {
     return "Laboratório bloqueado. Entre em contato com o suporte.";
