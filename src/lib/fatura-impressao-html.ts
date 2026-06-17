@@ -145,7 +145,7 @@ function metaLinhaOsSmart(linha: LinhaFaturaImpressao, layout: FaturaModeloLayou
   if (layout.finalizado) partes.push(`Finalizado: ${linha.finalizado}`);
   if (layout.osExterna) partes.push(`OS Externa: ${linha.osExterna}`);
   if (layout.corDente) partes.push(`Cor: ${linha.cor}`);
-  return partes.join(" | ");
+  return partes.join(" ");
 }
 
 function colunasLarguraSmart(layout: FaturaModeloLayout) {
@@ -356,6 +356,10 @@ function linhaDivisoria(cor = "#000") {
   return `<div style="margin-left:-${inset}mm;margin-right:-${inset}mm;width:calc(100% + ${inset * 2}mm);border-top:${OS_REQUISICAO_LINHA_PREVIEW_PX}px solid ${cor};box-sizing:border-box"></div>`;
 }
 
+function linhaDivisoriaSmart() {
+  return linhaDivisoria("#000");
+}
+
 function linhaDivisoriaCinza() {
   return linhaDivisoria("#bdbdbd");
 }
@@ -393,26 +397,32 @@ function contarColunasItensFatura(layout: FaturaModeloLayout) {
 }
 
 function estilosBaseA4(fs: number, smartModelo1: boolean) {
-  const fsTabela = smartModelo1 ? Math.max(7, fs - 1) : fs;
-  const fsCab = smartModelo1 ? Math.max(7, fs - 2) : fs - 1;
+  const fsTabela = smartModelo1 ? fs : Math.max(7, fs - 1);
+  const fsCab = smartModelo1 ? fs : Math.max(7, fs - 2);
+  const pageCss = smartModelo1
+    ? `width:${FATURA_A4_LARGURA_MM}mm;min-height:${FATURA_A4_ALTURA_MM}mm;max-width:${FATURA_A4_LARGURA_MM}mm;margin:0 auto;padding:${OS_REQUISICAO_TOPO_MM}mm ${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm ${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm;box-sizing:border-box`
+    : "width:100%;max-width:190mm;margin:0 auto;padding:0;overflow:hidden";
   return `<style>
-    @page{size:A4 portrait;margin:8mm 10mm}
+    @page{size:A4 portrait;margin:${smartModelo1 ? "0" : "8mm 10mm"}}
     *{box-sizing:border-box}
     html,body{margin:0;padding:0;background:#fff;color:#111;font-family:Arial,Helvetica,sans-serif;font-size:${fs}px}
-    .page{width:100%;max-width:190mm;margin:0 auto;padding:0;overflow:hidden}
+    .page{${pageCss}}
     .actions{text-align:right;margin-bottom:8px}
     .rule{border-top:2px solid #111;margin:0}
     .rule-thin{border-top:1px solid #777;margin:0}
     table{border-collapse:collapse;width:100%;table-layout:fixed}
-    th,td{border:none;padding:1px 2px;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word}
-    .items th{font-size:${fsCab}px;font-weight:bold;text-align:left;padding:3px 2px;background:#d9d9d9}
-    .items td{font-size:${fsTabela}px;line-height:1.2}
-    .items tr.meta-row td{padding-top:0;padding-bottom:4px}
-    .items tr.meta-row td span{font-size:${Math.max(6, fsCab - 1)}px;color:#111}
+    th,td{border:none;padding:2px 3px;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word}
+    .items th{font-size:${fsCab}px;font-weight:bold;text-align:left;padding:4px 3px;background:#d9d9d9}
+    .items td{font-size:${fsTabela}px;line-height:1.25}
+    .items tr.meta-row td{padding-top:1px;padding-bottom:5px}
+    .items tr.meta-row td span{font-size:${Math.max(10, fs - 2)}px;color:#111}
+    .pay th{font-size:${fsCab}px;font-weight:bold;text-align:left;padding:4px 3px;background:#d9d9d9}
+    .pay td{font-size:${fsTabela}px;line-height:1.25}
     .right{text-align:right}
     .center{text-align:center}
-    .totals{width:${smartModelo1 ? "248px" : "270px"};max-width:100%;margin-left:auto;padding-top:2px}
-    .totals div{display:grid;grid-template-columns:1fr 86px;padding:1px 0}
+    .totals{width:${smartModelo1 ? "260px" : "270px"};max-width:100%;margin-left:auto;padding-top:4px}
+    .totals div{display:grid;grid-template-columns:1fr 92px;gap:8px;padding:2px 0;align-items:baseline}
+    .totals .right{text-align:right;justify-self:end}
     .totals strong{font-weight:bold}
     @media print{
       .actions{display:none}
@@ -488,18 +498,14 @@ function htmlTabelaItensA4(
       })
       .join("");
 
-    return `<div>
-      <div class="rule-thin" style="margin-bottom:2px"></div>
+    return `<div style="margin:2px 0 4px">
+      ${linhaDivisoriaSmart()}
       <table class="items">
         ${colgroup}
         ${cabecalho}
-      </table>
-      <div class="rule-thin" style="margin-bottom:2px"></div>
-      <table class="items">
-        ${colgroup}
         <tbody>${linhas}</tbody>
       </table>
-      <div class="rule-thin" style="margin-top:2px"></div>
+      ${linhaDivisoriaSmart()}
     </div>`;
   }
 
@@ -629,9 +635,10 @@ function htmlCondicaoPagamento(
     .join("");
   const labelForma = smartModelo1 ? "Forma Pgto" : "Forma Pgto";
   const exibirPago = !termica && !smartModelo1;
-  return `<div style="margin-top:${smartModelo1 ? 10 : 18}px;font-size:${fsSmall}px">
-    <p style="font-weight:bold;margin:0 0 4px">Condição de Pagamento</p>
-    <table>
+  return `<div style="margin-top:${smartModelo1 ? 6 : 18}px;font-size:${fsSmall}px">
+    <p style="font-weight:bold;margin:0 0 6px">Condição de Pagamento</p>
+    ${smartModelo1 ? linhaDivisoriaSmart() : '<div class="rule-thin" style="margin-bottom:0"></div>'}
+    <table class="${smartModelo1 ? "items pay" : ""}">
       <thead>
         <tr>
           <th>Parcela</th>
@@ -643,16 +650,40 @@ function htmlCondicaoPagamento(
       </thead>
       <tbody>${linhas}</tbody>
     </table>
+    ${smartModelo1 ? linhaDivisoriaSmart() : ""}
   </div>`;
 }
 
-function htmlPixAssinatura(layout: FaturaModeloLayout, fsSmall: number) {
+function htmlAssinaturaSmart(fsSmall: number) {
+  return `<div style="margin-top:20px;text-align:center;font-size:${fsSmall}px">
+    <div style="border-top:1px solid #000;width:100%"></div>
+    <div style="padding-top:4px">Recebi o(s) serviço(s) descritos acima</div>
+  </div>`;
+}
+
+function htmlPixSmart(layout: FaturaModeloLayout) {
+  const qr = layout.pixQrImagem?.startsWith("data:image")
+    ? `<img src="${layout.pixQrImagem}" alt="QR PIX" style="width:${layout.pixQrTamanhoPx}px;height:${layout.pixQrTamanhoPx}px;object-fit:contain;display:block" />`
+    : `<div style="width:${layout.pixQrTamanhoPx}px;height:${layout.pixQrTamanhoPx}px;border:1px dashed #9ca3af;display:flex;align-items:center;justify-content:center;font-size:10px;color:#6b7280">QR PIX</div>`;
+  return `<div style="display:flex;align-items:flex-end;gap:10px;margin-top:12px">${qr}<span style="font-size:${layout.pixQrFonte}px;line-height:1.2">Pagar com PIX</span></div>`;
+}
+
+function htmlPixAssinatura(layout: FaturaModeloLayout, fsSmall: number, smartModelo1 = false) {
   if (!layout.pix && !layout.assinatura) return "";
+
+  if (smartModelo1) {
+    const blocos: string[] = [];
+    if (layout.assinatura) blocos.push(htmlAssinaturaSmart(fsSmall));
+    if (layout.pix) blocos.push(htmlPixSmart(layout));
+    return blocos.join("");
+  }
+
   const qr = layout.pix
     ? layout.pixQrImagem?.startsWith("data:image")
-      ? `<img src="${layout.pixQrImagem}" alt="QR PIX" style="width:${layout.pixQrTamanhoPx}px;height:${layout.pixQrTamanhoPx}px;object-fit:contain" />`
+      ? `<img src="${layout.pixQrImagem}" alt="QR PIX" style="width:${layout.pixQrTamanhoPx}px;height:${layout.pixQrTamanhoPx}px;object-fit:contain;display:block" />`
       : `<div style="width:${layout.pixQrTamanhoPx}px;height:${layout.pixQrTamanhoPx}px;border:1px dashed #9ca3af;display:flex;align-items:center;justify-content:center;font-size:10px;color:#6b7280">QR PIX</div>`
     : "";
+
   return `<div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr 1fr;align-items:end;font-size:${fsSmall}px;min-height:${layout.pix ? layout.pixQrTamanhoPx : 0}px">
     <div style="display:flex;align-items:center;gap:12px">
       ${layout.pix ? `${qr}<span style="font-size:${layout.pixQrFonte}px">Pagar com PIX</span>` : ""}
@@ -681,20 +712,20 @@ function gerarHtmlFaturaA4(
   const cab = normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao);
   const textos = montarTextosCabecalhoRequisicao(cfg, lab, cab);
   const fs = layout.tamanhoFonte;
-  const fsSmall = Math.max(8, fs - 1);
+  const fsSmall = smartModelo1 ? Math.max(11, fs - 1) : Math.max(8, fs - 1);
   const saldoAnteriorNosTotais = modelo === "modelo3" && layout.saldoAnterior;
 
   const logoHtml = layout.logo ? htmlLogo(cfg, layout, false) : "";
   const dataFatura = dataSomenteEmissao(dados.dataEmissao);
 
   const cabecalho = smartModelo1
-    ? `<div class="header" style="display:grid;grid-template-columns:1fr 128px;gap:8px;align-items:start;margin:0 0 6px">
-        <div style="display:flex;gap:8px;align-items:flex-start;min-width:0">
+    ? `<div class="header" style="display:grid;grid-template-columns:1fr 140px;gap:12px;align-items:start;margin:0 0 8px">
+        <div style="display:flex;gap:10px;align-items:flex-start;min-width:0">
           ${logoHtml}
           ${
             layout.infoLab
-              ? `<div class="lab" style="line-height:1.2;min-width:0">
-                  <strong style="display:block;font-size:${fs + 1}px;margin-bottom:2px">${escapeHtml(textos.nome || lab.marca)}</strong>
+              ? `<div class="lab" style="line-height:1.3;min-width:0">
+                  <strong style="display:block;font-size:${fs + 2}px;margin-bottom:3px;font-weight:bold">${escapeHtml(textos.nome || lab.marca)}</strong>
                   ${textos.linhas.map((l) => `<span style="display:block;font-size:${fsSmall}px">${escapeHtml(l)}</span>`).join("")}
                 </div>`
               : "<div></div>"
@@ -702,10 +733,10 @@ function gerarHtmlFaturaA4(
         </div>
         ${
           layout.dadosOs
-            ? `<div class="invoice" style="text-align:right;line-height:1.3;font-size:${fs}px;white-space:nowrap">
-                Fatura
-                <strong style="display:block;font-size:${fs + 6}px;line-height:1.05;margin-top:1px">${dados.numeroFatura}</strong>
-                ${layout.data ? `<span style="display:block;margin-top:3px;font-size:${fsSmall}px;font-weight:normal">Data: ${escapeHtml(dataFatura)}</span>` : ""}
+            ? `<div class="invoice" style="text-align:right;line-height:1.35;font-size:${fs}px;white-space:nowrap">
+                <span style="font-weight:bold">Fatura</span>
+                <strong style="display:block;font-size:${fs + 8}px;line-height:1;font-weight:bold;margin:2px 0">${dados.numeroFatura}</strong>
+                ${layout.data ? `<span style="display:block;font-size:${fsSmall}px;font-weight:normal">Data: ${escapeHtml(dataFatura)}</span>` : ""}
                 ${layout.usuario ? `<span style="display:block;font-size:${fsSmall}px;font-weight:normal">Usuário: ${escapeHtml(dados.usuario)}</span>` : ""}
               </div>`
             : ""
@@ -732,7 +763,7 @@ function gerarHtmlFaturaA4(
   </div>`;
 
   const infoCliente = smartModelo1
-    ? `<div class="info" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:4px 0 6px;line-height:1.45;font-size:${fsSmall}px">
+    ? `<div class="info" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:6px 0 8px;line-height:1.5;font-size:${fsSmall}px">
         <div>
           ${layout.cliente ? `<div><strong>Cliente:</strong> ${escapeHtml(dados.clienteNome)}</div>` : ""}
           ${layout.clienteTel ? `<div><strong>Telefones:</strong> ${escapeHtml(dados.clienteTelefones || "—")}</div>` : ""}
@@ -757,23 +788,23 @@ function gerarHtmlFaturaA4(
   </div>`;
 
   const pixAssinatura =
-    layout.pix || layout.assinatura ? htmlPixAssinatura(layout, fsSmall) : "";
+    layout.pix || layout.assinatura
+      ? htmlPixAssinatura(layout, fsSmall, smartModelo1)
+      : "";
 
   const corpo = `<div class="page">
     ${ocultarBotaoImprimir ? "" : '<div class="actions"><button onclick="window.print()">Imprimir</button></div>'}
     <div style="position:relative;width:100%">
       ${layout.exibirBordas ? molduraHtml(layout) : ""}
       ${cabecalho}
-      <div class="rule"></div>
+      ${smartModelo1 ? linhaDivisoriaSmart() : '<div class="rule"></div>'}
       ${infoCliente}
-      ${smartModelo1 ? "" : '<div class="rule-thin" style="margin-bottom:3px"></div>'}
       ${htmlTabelaItensA4(dados, layout, fs, smartModelo1, money)}
       ${smartModelo1 ? "" : '<div class="rule-thin" style="margin-top:3px;margin-bottom:2px"></div>'}
       ${htmlTotaisA4(dados, layout, modelo, fsSmall, money)}
-      <div class="rule-thin" style="margin-top:${smartModelo1 ? 6 : 2}px"></div>
+      ${smartModelo1 ? linhaDivisoriaSmart() : '<div class="rule-thin" style="margin-top:2px;margin-bottom:2px"></div>'}
       ${htmlCondicaoPagamento(dados, layout, fsSmall, false, smartModelo1)}
-      ${smartModelo1 ? '<div class="rule-thin" style="margin-top:8px;margin-bottom:8px"></div>' : ""}
-      ${layout.observacao ? `<div class="obs" style="margin-top:${smartModelo1 ? 0 : 10}px;font-size:${fsSmall}px"><strong>Observação:</strong> ${escapeHtml(dados.observacao || "")}</div>` : ""}
+      ${layout.observacao ? `<div class="obs" style="margin-top:10px;font-size:${fsSmall}px"><strong>Observação:</strong> ${escapeHtml(dados.observacao || "")}</div>` : ""}
       ${layout.mensagem ? `<p style="margin-top:12px;text-align:center;font-style:italic;color:#4b5563;font-size:${fsSmall}px">${escapeHtml(layout.mensagem)}</p>` : ""}
       ${pixAssinatura}
     </div>

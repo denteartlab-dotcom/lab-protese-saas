@@ -11,6 +11,7 @@ import {
   montarDadosFaturaPreviewAmostra,
 } from "@/lib/fatura-impressao-html";
 import type { FaturaModeloLayout } from "@/lib/fatura-modelo-layout";
+import { FATURA_A4_ALTURA_MM, FATURA_A4_LARGURA_MM } from "@/lib/fatura-modelo-layout";
 import { PreviewFaturaModelo4Termica } from "@/components/configuracoes/ConfiguracoesFaturaModelo4Preview";
 
 type Props = {
@@ -20,7 +21,7 @@ type Props = {
   termica?: boolean;
 };
 
-const LARGURA_PREVIEW_MM = 190;
+const LARGURA_PREVIEW_MM = FATURA_A4_LARGURA_MM;
 
 export function ConfiguracoesFaturaModeloPreview({
   cfg,
@@ -70,9 +71,10 @@ export function ConfiguracoesFaturaModeloPreview({
           title="Pré-visualização da fatura"
           className="w-full border-0 bg-white"
           style={{
-            width: `${LARGURA_PREVIEW_MM}mm`,
-            height: "297mm",
-            minHeight: "800px",
+            width: "100%",
+            aspectRatio: `${FATURA_A4_LARGURA_MM} / ${FATURA_A4_ALTURA_MM}`,
+            height: "auto",
+            minHeight: "720px",
             display: "block",
           }}
         />
