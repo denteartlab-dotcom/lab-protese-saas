@@ -23,11 +23,17 @@ if [[ ! -f .env ]]; then
 fi
 
 echo ""
-echo "==> Código (branch main)..."
+echo "==> Código (força igual ao GitHub — apaga commits locais da VPS)..."
 git fetch origin main
 git checkout main
-git pull origin main
-echo "    Commit: $(git rev-parse --short HEAD)"
+git reset --hard origin/main
+COMMIT="$(git rev-parse --short HEAD)"
+echo "    Commit: $COMMIT"
+
+if [[ ! -f deploy/ecosystem-beta.config.cjs ]]; then
+  echo "ERRO: deploy/ecosystem-beta.config.cjs não encontrado após sync."
+  exit 1
+fi
 
 echo ""
 echo "==> Dependências..."
