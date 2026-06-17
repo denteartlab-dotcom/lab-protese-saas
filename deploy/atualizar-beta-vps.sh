@@ -26,11 +26,23 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
-echo "==> Dependências..."
-if [[ -f package-lock.json ]]; then npm ci; else npm install; fi
+echo "==> Dependências (com dev — prisma/esbuild)..."
+if [[ -f package-lock.json ]]; then
+  npm ci --include=dev
+else
+  npm install --include=dev
+fi
+if [[ ! -x node_modules/.bin/prisma ]]; then
+  echo "ERRO: prisma não instalado. Rode: npm ci --include=dev"
+  exit 1
+fi
 
 echo "==> Build..."
 rm -rf .next
+set -a
+# shellcheck disable=SC1091
+source .env
+set +a
 export NODE_ENV=production
 npm run db:push
 npm run build

@@ -36,21 +36,34 @@ if [[ ! -f deploy/ecosystem-beta.config.cjs ]]; then
 fi
 
 echo ""
-echo "==> Dependências..."
+echo "==> Dependências (com dev — prisma/esbuild)..."
 if [[ -f package-lock.json ]]; then
-  npm ci
+  npm ci --include=dev
 else
-  npm install
+  npm install --include=dev
+fi
+if [[ ! -x node_modules/.bin/prisma ]]; then
+  echo "ERRO: prisma não instalado."
+  exit 1
 fi
 
 echo ""
 echo "==> Schema (prisma db push)..."
+set -a
+# shellcheck disable=SC1091
+[[ -f .env ]] && source .env
+set +a
 npm run db:push
 
 echo ""
 echo "==> Build produção..."
 export NODE_ENV=production
 npm run build
+
+if [[ ! -f .next/dev-server.cjs ]]; then
+  echo "ERRO: .next/dev-server.cjs não foi gerado."
+  exit 1
+fi
 
 BUILD_ID=$(git rev-parse --short HEAD)
 echo "    Build ID esperado: ${BUILD_ID}"
