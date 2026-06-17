@@ -341,6 +341,15 @@ function clampNumero(valor: number, min: number, max: number, padrao: number) {
   return Math.min(max, Math.max(min, n));
 }
 
+/** Margem lateral do conteúdo — Fatura Modelo 1 Smart (alinhada à moldura 10 mm). */
+export const FATURA_SMART_MARGEM_LATERAL_MM = OS_MODELO1_BORDA_MARGEM_MM;
+
+/** Recuo das linhas até a moldura (0 quando margem = borda). */
+export const FATURA_SMART_INSET_LINHA_MM = Math.max(
+  0,
+  FATURA_SMART_MARGEM_LATERAL_MM - OS_MODELO1_BORDA_MARGEM_MM
+);
+
 /** Estilos de borda/página — mesma lógica do OS Modelo 1. */
 export function estiloPaginaFaturaPreview() {
   return {
@@ -348,8 +357,8 @@ export function estiloPaginaFaturaPreview() {
     minHeight: `${FATURA_A4_ALTURA_MM}mm`,
     maxWidth: "100%",
     paddingTop: `${OS_REQUISICAO_TOPO_MM}mm`,
-    paddingLeft: `${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm`,
-    paddingRight: `${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm`,
+    paddingLeft: `${FATURA_SMART_MARGEM_LATERAL_MM}mm`,
+    paddingRight: `${FATURA_SMART_MARGEM_LATERAL_MM}mm`,
     paddingBottom: `${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm`,
     boxSizing: "border-box" as const,
     overflow: "visible" as const,
@@ -369,12 +378,13 @@ export function estiloWrapperFaturaPreview() {
 
 export function estiloMolduraFaturaPreview(lay: Pick<FaturaModeloLayout, "exibirBordas" | "bordas">) {
   if (!lay.exibirBordas) return { display: "none" as const };
-  const inset = OS_REQUISICAO_PREVIEW_INSET_MM;
+  const inset = FATURA_SMART_INSET_LINHA_MM;
   return {
     position: "absolute" as const,
     top: `-${OS_REQUISICAO_BORDA_PADDING_MM}mm`,
-    left: `-${inset}mm`,
-    right: `-${inset}mm`,
+    left: inset > 0 ? `-${inset}mm` : "0",
+    right: inset > 0 ? `-${inset}mm` : "0",
+    width: inset > 0 ? `calc(100% + ${inset * 2}mm)` : "100%",
     bottom: `-${OS_REQUISICAO_BORDA_PADDING_MM}mm`,
     border: `${OS_REQUISICAO_LINHA_PREVIEW_PX}px solid ${normalizarCorBorda(lay.bordas)}`,
     pointerEvents: "none" as const,
@@ -383,7 +393,10 @@ export function estiloMolduraFaturaPreview(lay: Pick<FaturaModeloLayout, "exibir
 }
 
 export function estiloLimiteLinhasFaturaPreview() {
-  const inset = OS_REQUISICAO_PREVIEW_INSET_MM;
+  const inset = FATURA_SMART_INSET_LINHA_MM;
+  if (inset <= 0) {
+    return { width: "100%" };
+  }
   return {
     marginLeft: `-${inset}mm`,
     marginRight: `-${inset}mm`,

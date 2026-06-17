@@ -14,6 +14,8 @@ import { parseParcelaNaDescricao, textoParcelaLog } from "@/lib/fatura-financeir
 import {
   FATURA_A4_ALTURA_MM,
   FATURA_A4_LARGURA_MM,
+  FATURA_SMART_INSET_LINHA_MM,
+  FATURA_SMART_MARGEM_LATERAL_MM,
   FATURA_TERMICA_LARGURA_MM,
   layoutFaturaModelo1Smart,
   PREVIEW_FATURA_AMOSTRA,
@@ -351,13 +353,15 @@ function linhaRotuloValor(rotulo: string, valor: string) {
   return `<p><span style="font-weight:bold">${escapeHtml(rotulo)} </span>${escapeHtml(valor)}</p>`;
 }
 
-function linhaDivisoria(cor = "#000") {
-  const inset = OS_REQUISICAO_PREVIEW_INSET_MM;
-  return `<div style="margin-left:-${inset}mm;margin-right:-${inset}mm;width:calc(100% + ${inset * 2}mm);border-top:${OS_REQUISICAO_LINHA_PREVIEW_PX}px solid ${cor};box-sizing:border-box"></div>`;
+function linhaDivisoria(cor = "#000", insetMm = OS_REQUISICAO_PREVIEW_INSET_MM) {
+  if (insetMm <= 0) {
+    return `<div style="width:100%;border-top:${OS_REQUISICAO_LINHA_PREVIEW_PX}px solid ${cor};box-sizing:border-box"></div>`;
+  }
+  return `<div style="margin-left:-${insetMm}mm;margin-right:-${insetMm}mm;width:calc(100% + ${insetMm * 2}mm);border-top:${OS_REQUISICAO_LINHA_PREVIEW_PX}px solid ${cor};box-sizing:border-box"></div>`;
 }
 
-function linhaDivisoriaSmart() {
-  return linhaDivisoria("#000");
+function linhaDivisoriaSmart(insetMm = FATURA_SMART_INSET_LINHA_MM) {
+  return linhaDivisoria("#000", insetMm);
 }
 
 function linhaDivisoriaCinza() {
@@ -376,11 +380,14 @@ function htmlLogo(cfg: ConfigLaboratorio, layout: FaturaModeloLayout, termica: b
   return `<img src="${cfg.logoDataUrl}" alt="Logo" style="width:${logoW}px;height:${logoH}px;object-fit:contain" />`;
 }
 
-function molduraHtml(layout: FaturaModeloLayout) {
+function molduraHtml(layout: FaturaModeloLayout, insetMm = OS_REQUISICAO_PREVIEW_INSET_MM) {
   if (!layout.exibirBordas) return "";
-  const inset = OS_REQUISICAO_PREVIEW_INSET_MM;
   const cor = normalizarCorBorda(layout.bordas);
-  return `<div aria-hidden="true" style="position:absolute;top:-${OS_REQUISICAO_BORDA_PADDING_MM}mm;left:-${inset}mm;right:-${inset}mm;bottom:-${OS_REQUISICAO_BORDA_PADDING_MM}mm;border:${OS_REQUISICAO_LINHA_PREVIEW_PX}px solid ${cor};pointer-events:none;box-sizing:border-box"></div>`;
+  const lateral =
+    insetMm > 0
+      ? `left:-${insetMm}mm;right:-${insetMm}mm;width:calc(100% + ${insetMm * 2}mm)`
+      : "left:0;right:0;width:100%";
+  return `<div aria-hidden="true" style="position:absolute;top:-${OS_REQUISICAO_BORDA_PADDING_MM}mm;${lateral};bottom:-${OS_REQUISICAO_BORDA_PADDING_MM}mm;border:${OS_REQUISICAO_LINHA_PREVIEW_PX}px solid ${cor};pointer-events:none;box-sizing:border-box"></div>`;
 }
 
 function contarColunasItensFatura(layout: FaturaModeloLayout) {
@@ -406,7 +413,7 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
     table.items.smart th,table.items.pay.smart th{
       background:#fff;
       font-weight:bold;
-      border-bottom:1px solid #000;
+      border-bottom:none;
       padding:4px 3px;
     }
     table.items.smart td,table.items.pay.smart td{background:#fff}
@@ -414,7 +421,7 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
   `
     : "";
   const pageCss = smartModelo1
-    ? `width:${FATURA_A4_LARGURA_MM}mm;min-height:${FATURA_A4_ALTURA_MM}mm;max-width:${FATURA_A4_LARGURA_MM}mm;margin:0 auto;padding:${OS_REQUISICAO_TOPO_MM}mm ${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm ${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm;box-sizing:border-box`
+    ? `width:${FATURA_A4_LARGURA_MM}mm;min-height:${FATURA_A4_ALTURA_MM}mm;max-width:${FATURA_A4_LARGURA_MM}mm;margin:0 auto;padding:${OS_REQUISICAO_TOPO_MM}mm ${FATURA_SMART_MARGEM_LATERAL_MM}mm ${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm;box-sizing:border-box`
     : "width:100%;max-width:190mm;margin:0 auto;padding:0;overflow:hidden";
   return `<style>
     @page{size:A4 portrait;margin:${smartModelo1 ? "0" : "8mm 10mm"}}
@@ -515,9 +522,13 @@ function htmlTabelaItensA4(
 
     return `<div style="margin:2px 0 4px">
       ${linhaDivisoriaSmart()}
-      <table class="items smart">
+      <table class="items smart" style="margin-bottom:0">
         ${colgroup}
         ${cabecalho}
+      </table>
+      ${linhaDivisoriaSmart()}
+      <table class="items smart" style="margin-top:0">
+        ${colgroup}
         <tbody>${linhas}</tbody>
       </table>
       ${linhaDivisoriaSmart()}
@@ -650,22 +661,41 @@ function htmlCondicaoPagamento(
     .join("");
   const labelForma = smartModelo1 ? "Forma Pgto" : "Forma Pgto";
   const exibirPago = !termica && !smartModelo1;
-  return `<div style="margin-top:${smartModelo1 ? 6 : 18}px;font-size:${fsSmall}px">
-    <p style="font-weight:bold;margin:0 0 6px">Condição de Pagamento</p>
-    ${smartModelo1 ? linhaDivisoriaSmart() : '<div class="rule-thin" style="margin-bottom:0"></div>'}
-    <table class="${smartModelo1 ? "items pay smart" : ""}">
-      <thead>
-        <tr>
+  const colgroupPay = smartModelo1
+    ? `<colgroup>
+        <col style="width:14%" />
+        <col style="width:26%" />
+        ${layout.formaPgto ? '<col style="width:32%" />' : ""}
+        <col style="width:${layout.formaPgto ? "28%" : "60%"}" />
+      </colgroup>`
+    : "";
+  const theadPay = `<thead><tr>
           <th>Parcela</th>
           <th>Vencimento</th>
           ${layout.formaPgto ? `<th>${labelForma}</th>` : ""}
           <th>Valor</th>
           ${exibirPago ? "<th>Pago</th>" : ""}
-        </tr>
-      </thead>
+        </tr></thead>`;
+  const tabelaPay = smartModelo1
+    ? `${linhaDivisoriaSmart()}
+    <table class="items pay smart" style="margin-bottom:0">
+      ${colgroupPay}
+      ${theadPay}
+    </table>
+    ${linhaDivisoriaSmart()}
+    <table class="items pay smart" style="margin-top:0">
+      ${colgroupPay}
       <tbody>${linhas}</tbody>
     </table>
-    ${smartModelo1 ? linhaDivisoriaSmart() : ""}
+    ${linhaDivisoriaSmart()}`
+    : `<div class="rule-thin" style="margin-bottom:0"></div>
+    <table class="">
+      ${theadPay}
+      <tbody>${linhas}</tbody>
+    </table>`;
+  return `<div style="margin-top:${smartModelo1 ? 6 : 18}px;font-size:${fsSmall}px">
+    <p style="font-weight:bold;margin:0 0 6px">Condição de Pagamento</p>
+    ${tabelaPay}
   </div>`;
 }
 
@@ -813,7 +843,7 @@ function gerarHtmlFaturaA4(
   const corpo = `<div class="page">
     ${ocultarBotaoImprimir ? "" : '<div class="actions"><button onclick="window.print()">Imprimir</button></div>'}
     <div style="position:relative;width:100%">
-      ${layout.exibirBordas ? molduraHtml(layout) : ""}
+      ${layout.exibirBordas ? molduraHtml(layout, smartModelo1 ? FATURA_SMART_INSET_LINHA_MM : OS_REQUISICAO_PREVIEW_INSET_MM) : ""}
       ${cabecalho}
       ${smartModelo1 ? linhaDivisoriaSmart() : '<div class="rule"></div>'}
       ${infoCliente}
