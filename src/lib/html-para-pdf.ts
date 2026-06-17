@@ -22,7 +22,7 @@ function montarIframeHtml(html: string, formato: FormatoHtmlPdf) {
   iframe.setAttribute("title", "Gerar PDF");
   iframe.style.cssText =
     "position:fixed;left:-12000px;top:0;border:0;visibility:hidden;pointer-events:none;";
-  iframe.style.width = formato === "termica" ? "80mm" : "210mm";
+  iframe.style.width = formato === "termica" ? "80mm" : "190mm";
   document.body.appendChild(iframe);
 
   const doc = iframe.contentDocument ?? iframe.contentWindow?.document;
@@ -69,6 +69,7 @@ export async function gerarPdfDeHtmlDocumento(
     useCORS: true,
     logging: false,
     backgroundColor: "#ffffff",
+    width: alvo.scrollWidth,
     windowWidth: alvo.scrollWidth,
   });
 

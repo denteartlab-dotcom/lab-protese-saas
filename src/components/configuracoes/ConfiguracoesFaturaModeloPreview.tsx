@@ -10,10 +10,7 @@ import {
   gerarHtmlFaturaImpressao,
   montarDadosFaturaPreviewAmostra,
 } from "@/lib/fatura-impressao-html";
-import {
-  FATURA_A4_LARGURA_MM,
-  type FaturaModeloLayout,
-} from "@/lib/fatura-modelo-layout";
+import type { FaturaModeloLayout } from "@/lib/fatura-modelo-layout";
 import { PreviewFaturaModelo4Termica } from "@/components/configuracoes/ConfiguracoesFaturaModelo4Preview";
 
 type Props = {
@@ -23,6 +20,8 @@ type Props = {
   termica?: boolean;
 };
 
+const LARGURA_PREVIEW_MM = 190;
+
 export function ConfiguracoesFaturaModeloPreview({
   cfg,
   layout,
@@ -31,18 +30,22 @@ export function ConfiguracoesFaturaModeloPreview({
 }: Props) {
   const html = useMemo(() => {
     if (termica) return "";
-    const configPreview = {
-      ...CONFIG_FATURAS_PADRAO,
-      layoutModelo1: layout,
-      layoutModelo2: { ...layout },
-      layoutModelo3: { ...layout },
-    };
-    return gerarHtmlFaturaImpressao(
-      montarDadosFaturaPreviewAmostra(),
-      cfg,
-      configPreview,
-      { formato: "a4", modelo: modeloId, ocultarBotaoImprimir: true }
-    );
+    try {
+      const configPreview = {
+        ...CONFIG_FATURAS_PADRAO,
+        layoutModelo1: layout,
+        layoutModelo2: { ...layout },
+        layoutModelo3: { ...layout },
+      };
+      return gerarHtmlFaturaImpressao(
+        montarDadosFaturaPreviewAmostra(),
+        cfg,
+        configPreview,
+        { formato: "a4", modelo: modeloId, ocultarBotaoImprimir: true }
+      );
+    } catch {
+      return "<!doctype html><html><body><p>Erro ao gerar pré-visualização.</p></body></html>";
+    }
   }, [cfg, layout, modeloId, termica]);
 
   if (termica) {
@@ -54,19 +57,26 @@ export function ConfiguracoesFaturaModeloPreview({
   }
 
   return (
-    <div className="mx-auto flex w-full justify-center overflow-x-auto py-2">
-      <iframe
-        srcDoc={html}
-        title="Pré-visualização da fatura"
-        className="shadow-md bg-white"
+    <div className="flex w-full justify-center overflow-x-auto py-2">
+      <div
+        className="origin-top shadow-md"
         style={{
-          width: `${FATURA_A4_LARGURA_MM}mm`,
-          minWidth: `${FATURA_A4_LARGURA_MM}mm`,
-          height: "1120px",
-          border: "none",
-          display: "block",
+          width: `${LARGURA_PREVIEW_MM}mm`,
+          maxWidth: "100%",
         }}
-      />
+      >
+        <iframe
+          srcDoc={html}
+          title="Pré-visualização da fatura"
+          className="w-full border-0 bg-white"
+          style={{
+            width: `${LARGURA_PREVIEW_MM}mm`,
+            height: "297mm",
+            minHeight: "800px",
+            display: "block",
+          }}
+        />
+      </div>
     </div>
   );
 }

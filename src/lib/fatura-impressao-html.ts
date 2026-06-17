@@ -129,10 +129,10 @@ function dataSomenteEmissao(dataEmissao: string) {
 function contarColunasItensSmart(layout: FaturaModeloLayout) {
   let n = 0;
   if (layout.numOs) n += 1;
-  if (layout.qtd) n += 1;
   if (layout.servico) n += 1;
   if (layout.numDente) n += 1;
   if (layout.paciente) n += 1;
+  if (layout.qtd) n += 1;
   if (layout.valorUnit) n += 1;
   if (layout.desconto) n += 1;
   if (layout.subtotal) n += 1;
@@ -142,10 +142,21 @@ function contarColunasItensSmart(layout: FaturaModeloLayout) {
 function metaLinhaOsSmart(linha: LinhaFaturaImpressao, layout: FaturaModeloLayout) {
   const partes: string[] = [];
   if (layout.data) partes.push(`Data: ${linha.dataOs}`);
-  if (layout.finalizado) partes.push(`Finalizado: ${linha.finalizado}`);
-  if (layout.osExterna) partes.push(`OS Externa: ${linha.osExterna}`);
-  if (layout.corDente) partes.push(`Cor: ${linha.cor}`);
+  if (layout.finalizado) partes.push(`Entrega: ${linha.finalizado}`);
   return partes.join(" ");
+}
+
+function colunasLarguraSmart(layout: FaturaModeloLayout) {
+  const cols: string[] = [];
+  if (layout.numOs) cols.push("5%");
+  if (layout.servico) cols.push("24%");
+  if (layout.numDente) cols.push("11%");
+  if (layout.paciente) cols.push("13%");
+  if (layout.qtd) cols.push("5%");
+  if (layout.valorUnit) cols.push("13%");
+  if (layout.desconto) cols.push("9%");
+  if (layout.subtotal) cols.push("13%");
+  return cols.map((w) => `<col style="width:${w}" />`).join("");
 }
 
 function parseMoney(value: string) {
@@ -380,29 +391,33 @@ function contarColunasItensFatura(layout: FaturaModeloLayout) {
 }
 
 function estilosBaseA4(fs: number, smartModelo1: boolean) {
+  const fsTabela = smartModelo1 ? Math.max(7, fs - 1) : fs;
+  const fsCab = smartModelo1 ? Math.max(7, fs - 2) : fs - 1;
   return `<style>
-    @page{size:A4;margin:10mm 12mm}
+    @page{size:A4 portrait;margin:8mm 10mm}
     *{box-sizing:border-box}
     html,body{margin:0;padding:0;background:#fff;color:#111;font-family:Arial,Helvetica,sans-serif;font-size:${fs}px}
-    .page{width:${FATURA_A4_LARGURA_MM}mm;margin:0 auto;padding:0;min-height:auto}
+    .page{width:100%;max-width:190mm;margin:0 auto;padding:0;overflow:hidden}
     .actions{text-align:right;margin-bottom:8px}
     .rule{border-top:2px solid #111;margin:0}
     .rule-thin{border-top:1px solid #777;margin:0}
-    table{border-collapse:collapse;width:100%}
-    th,td{border:none;padding:2px 4px;vertical-align:top}
-    .items th{font-size:${fs - 1}px;font-weight:bold;text-align:left;padding-bottom:4px}
-    .items td{font-size:${fs}px;line-height:1.25}
-    .items tr.meta-row td{padding-top:0;padding-bottom:5px}
-    .items tr.meta-row td span{font-size:${Math.max(7, fs - 2)}px;color:#111}
+    table{border-collapse:collapse;width:100%;table-layout:fixed}
+    th,td{border:none;padding:1px 2px;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word}
+    .items th{font-size:${fsCab}px;font-weight:bold;text-align:left;padding-bottom:3px}
+    .items td{font-size:${fsTabela}px;line-height:1.2}
+    .items tr.meta-row td{padding-top:0;padding-bottom:4px}
+    .items tr.meta-row td span{font-size:${Math.max(6, fsCab - 1)}px;color:#111}
     .right{text-align:right}
     .center{text-align:center}
-    .totals{width:${smartModelo1 ? "248px" : "270px"};margin-left:auto;padding-top:2px}
+    .totals{width:${smartModelo1 ? "248px" : "270px"};max-width:100%;margin-left:auto;padding-top:2px}
     .totals div{display:grid;grid-template-columns:1fr 86px;padding:1px 0}
     .totals strong{font-weight:bold}
     @media print{
       .actions{display:none}
-      body{padding:0;margin:0}
-      .page{width:210mm;min-height:auto;height:auto;page-break-after:avoid}
+      html,body{width:100%;margin:0;padding:0}
+      .page{width:100%;max-width:100%;margin:0;overflow:visible}
+      table{page-break-inside:auto}
+      tr{page-break-inside:avoid;page-break-after:auto}
     }
   </style>`;
 }
@@ -430,12 +445,13 @@ function htmlTabelaItensA4(
     n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 ) {
   if (smartModelo1) {
+    const colgroup = `<colgroup>${colunasLarguraSmart(layout)}</colgroup>`;
     const cabecalho = `<thead><tr>
       ${layout.numOs ? "<th>OS</th>" : ""}
-      ${layout.qtd ? '<th class="center">Qtd</th>' : ""}
-      ${layout.servico ? "<th>Serviços/Produtos</th>" : ""}
-      ${layout.numDente ? "<th>Num Dente</th>" : ""}
+      ${layout.servico ? "<th>Serviço Produto</th>" : ""}
+      ${layout.numDente ? "<th>Número Dente</th>" : ""}
       ${layout.paciente ? "<th>Paciente</th>" : ""}
+      ${layout.qtd ? '<th class="center">Qtd</th>' : ""}
       ${layout.valorUnit ? '<th class="right">Unitário</th>' : ""}
       ${layout.desconto ? '<th class="right">Desc</th>' : ""}
       ${layout.subtotal ? '<th class="right">Subtotal</th>' : ""}
@@ -449,10 +465,10 @@ function htmlTabelaItensA4(
         osAnterior = linha.os;
         const trPrincipal = `<tr>
           ${layout.numOs ? `<td>${novaOs ? escapeHtml(linha.os) : ""}</td>` : ""}
-          ${layout.qtd ? `<td class="center">${escapeHtml(linha.qtd)}</td>` : ""}
           ${layout.servico ? `<td>${escapeHtml(linha.servico)}</td>` : ""}
           ${layout.numDente ? `<td>${escapeHtml(linha.dentes)}</td>` : ""}
           ${layout.paciente ? `<td>${escapeHtml(linha.paciente)}</td>` : ""}
+          ${layout.qtd ? `<td class="center">${escapeHtml(linha.qtd)}</td>` : ""}
           ${layout.valorUnit ? `<td class="right">${escapeHtml(formatarMoedaReais(linha.unitario, money))}</td>` : ""}
           ${layout.desconto ? `<td class="right">${escapeHtml(linha.desconto)}</td>` : ""}
           ${layout.subtotal ? `<td class="right">${escapeHtml(formatarMoedaReais(linha.subtotal, money))}</td>` : ""}
@@ -472,11 +488,13 @@ function htmlTabelaItensA4(
 
     return `<div>
       <div class="rule-thin" style="margin-bottom:2px"></div>
-      <table class="items" style="font-size:${fs}px">
+      <table class="items">
+        ${colgroup}
         ${cabecalho}
       </table>
       <div class="rule-thin" style="margin-bottom:2px"></div>
-      <table class="items" style="font-size:${fs}px">
+      <table class="items">
+        ${colgroup}
         <tbody>${linhas}</tbody>
       </table>
       <div class="rule-thin" style="margin-top:2px"></div>
@@ -543,7 +561,7 @@ function htmlTotaisA4(
   if (layout.totalServicos) {
     const rotulo =
       modelo === "modelo1"
-        ? "Total Serviços (+)"
+        ? "Total Serviços/Produtos (+)"
         : modelo === "modelo2"
           ? "Total Serviços/Produtos (=)"
           : modelo === "modelo3"
@@ -568,7 +586,7 @@ function htmlTotaisA4(
       `<div><span>Desconto Fatura (-)</span><span class="right">${escapeHtml(formatarMoedaReais(dados.creditoFatura, money))}</span></div>`
     );
   }
-  if (modelo === "modelo2") {
+  if (modelo === "modelo1" || modelo === "modelo2") {
     partes.push(`<div><span>Juros Fatura (+)</span><span class="right">R$ 0,00</span></div>`);
   }
   if (layout.total) {
@@ -665,16 +683,16 @@ function gerarHtmlFaturaA4(
   const saldoAnteriorNosTotais = modelo === "modelo3" && layout.saldoAnterior;
 
   const logoHtml = layout.logo ? htmlLogo(cfg, layout, false) : "";
-  const dataFatura = dataSomenteEmissao(dados.dataEmissao);
+  const dataFatura = dados.dataEmissao;
 
   const cabecalho = smartModelo1
-    ? `<div class="header" style="display:grid;grid-template-columns:1fr 140px;gap:12px;align-items:start;margin:0 0 8px">
-        <div style="display:flex;gap:10px;align-items:flex-start">
+    ? `<div class="header" style="display:grid;grid-template-columns:1fr 128px;gap:8px;align-items:start;margin:0 0 6px">
+        <div style="display:flex;gap:8px;align-items:flex-start;min-width:0">
           ${logoHtml}
           ${
             layout.infoLab
-              ? `<div class="lab" style="line-height:1.25">
-                  <strong style="display:block;font-size:${fs + 2}px;margin-bottom:2px">${escapeHtml(textos.nome || lab.marca)}</strong>
+              ? `<div class="lab" style="line-height:1.2;min-width:0">
+                  <strong style="display:block;font-size:${fs + 1}px;margin-bottom:2px">${escapeHtml(textos.nome || lab.marca)}</strong>
                   ${textos.linhas.map((l) => `<span style="display:block;font-size:${fsSmall}px">${escapeHtml(l)}</span>`).join("")}
                 </div>`
               : "<div></div>"
@@ -682,11 +700,10 @@ function gerarHtmlFaturaA4(
         </div>
         ${
           layout.dadosOs
-            ? `<div class="invoice" style="text-align:right;line-height:1.35;font-size:${fs}px">
+            ? `<div class="invoice" style="text-align:right;line-height:1.3;font-size:${fs}px;white-space:nowrap">
                 Fatura
-                <strong style="display:block;font-size:${fs + 7}px;line-height:1.05;margin-top:1px">${dados.numeroFatura}</strong>
-                ${layout.data ? `<span style="display:block;margin-top:4px;font-size:${fsSmall}px;font-weight:normal">Data: ${escapeHtml(dataFatura)}</span>` : ""}
-                ${layout.usuario ? `<span style="display:block;font-size:${fsSmall}px;font-weight:normal">Usuário: ${escapeHtml(dados.usuario)}</span>` : ""}
+                <strong style="display:block;font-size:${fs + 6}px;line-height:1.05;margin-top:1px">${dados.numeroFatura}</strong>
+                ${layout.data ? `<span style="display:block;margin-top:3px;font-size:${fsSmall}px;font-weight:normal">Data: ${escapeHtml(dataFatura)}</span>` : ""}
               </div>`
             : ""
         }
@@ -716,7 +733,7 @@ function gerarHtmlFaturaA4(
         <div>
           ${layout.cliente ? `<div><strong>Cliente:</strong> ${escapeHtml(dados.clienteNome)}</div>` : ""}
           ${layout.clienteTel ? `<div><strong>Telefones:</strong> ${escapeHtml(dados.clienteTelefones || "—")}</div>` : ""}
-          ${layout.ultimoPgto ? `<div><strong>Último Pgto:</strong> ${escapeHtml(dados.ultimoPgto || "—")}</div>` : ""}
+          ${layout.ultimoPgto ? `<div><strong>Último Pagto:</strong> ${escapeHtml(dados.ultimoPgto || "—")}</div>` : ""}
           ${layout.saldoAnterior && !saldoAnteriorNosTotais ? `<div><strong>Saldo Anterior:</strong> ${escapeHtml(dados.saldoAnterior || "R$ 0,00")}</div>` : ""}
         </div>
         <div>
