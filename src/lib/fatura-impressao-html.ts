@@ -129,10 +129,10 @@ function dataSomenteEmissao(dataEmissao: string) {
 function contarColunasItensSmart(layout: FaturaModeloLayout) {
   let n = 0;
   if (layout.numOs) n += 1;
+  if (layout.qtd) n += 1;
   if (layout.servico) n += 1;
   if (layout.numDente) n += 1;
   if (layout.paciente) n += 1;
-  if (layout.qtd) n += 1;
   if (layout.valorUnit) n += 1;
   if (layout.desconto) n += 1;
   if (layout.subtotal) n += 1;
@@ -142,17 +142,19 @@ function contarColunasItensSmart(layout: FaturaModeloLayout) {
 function metaLinhaOsSmart(linha: LinhaFaturaImpressao, layout: FaturaModeloLayout) {
   const partes: string[] = [];
   if (layout.data) partes.push(`Data: ${linha.dataOs}`);
-  if (layout.finalizado) partes.push(`Entrega: ${linha.finalizado}`);
-  return partes.join(" ");
+  if (layout.finalizado) partes.push(`Finalizado: ${linha.finalizado}`);
+  if (layout.osExterna) partes.push(`OS Externa: ${linha.osExterna}`);
+  if (layout.corDente) partes.push(`Cor: ${linha.cor}`);
+  return partes.join(" | ");
 }
 
 function colunasLarguraSmart(layout: FaturaModeloLayout) {
   const cols: string[] = [];
   if (layout.numOs) cols.push("5%");
-  if (layout.servico) cols.push("24%");
+  if (layout.qtd) cols.push("5%");
+  if (layout.servico) cols.push("22%");
   if (layout.numDente) cols.push("11%");
   if (layout.paciente) cols.push("13%");
-  if (layout.qtd) cols.push("5%");
   if (layout.valorUnit) cols.push("13%");
   if (layout.desconto) cols.push("9%");
   if (layout.subtotal) cols.push("13%");
@@ -310,7 +312,7 @@ export function montarDadosFaturaPreviewAmostra(): DadosFaturaImpressao {
     clienteNome: a.cliente,
     dentista: a.dentista,
     observacao: a.observacao,
-    dataEmissao: `${a.data} 19:34`,
+    dataEmissao: a.data,
     usuario: a.usuario,
     creditoFatura: 0,
     clienteTelefones: a.telefones,
@@ -403,7 +405,7 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
     .rule-thin{border-top:1px solid #777;margin:0}
     table{border-collapse:collapse;width:100%;table-layout:fixed}
     th,td{border:none;padding:1px 2px;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word}
-    .items th{font-size:${fsCab}px;font-weight:bold;text-align:left;padding-bottom:3px}
+    .items th{font-size:${fsCab}px;font-weight:bold;text-align:left;padding:3px 2px;background:#d9d9d9}
     .items td{font-size:${fsTabela}px;line-height:1.2}
     .items tr.meta-row td{padding-top:0;padding-bottom:4px}
     .items tr.meta-row td span{font-size:${Math.max(6, fsCab - 1)}px;color:#111}
@@ -448,10 +450,10 @@ function htmlTabelaItensA4(
     const colgroup = `<colgroup>${colunasLarguraSmart(layout)}</colgroup>`;
     const cabecalho = `<thead><tr>
       ${layout.numOs ? "<th>OS</th>" : ""}
-      ${layout.servico ? "<th>Serviço Produto</th>" : ""}
-      ${layout.numDente ? "<th>Número Dente</th>" : ""}
-      ${layout.paciente ? "<th>Paciente</th>" : ""}
       ${layout.qtd ? '<th class="center">Qtd</th>' : ""}
+      ${layout.servico ? "<th>Serviços/Produtos</th>" : ""}
+      ${layout.numDente ? "<th>Num Dente</th>" : ""}
+      ${layout.paciente ? "<th>Paciente</th>" : ""}
       ${layout.valorUnit ? '<th class="right">Unitário</th>' : ""}
       ${layout.desconto ? '<th class="right">Desc</th>' : ""}
       ${layout.subtotal ? '<th class="right">Subtotal</th>' : ""}
@@ -465,10 +467,10 @@ function htmlTabelaItensA4(
         osAnterior = linha.os;
         const trPrincipal = `<tr>
           ${layout.numOs ? `<td>${novaOs ? escapeHtml(linha.os) : ""}</td>` : ""}
+          ${layout.qtd ? `<td class="center">${escapeHtml(linha.qtd)}</td>` : ""}
           ${layout.servico ? `<td>${escapeHtml(linha.servico)}</td>` : ""}
           ${layout.numDente ? `<td>${escapeHtml(linha.dentes)}</td>` : ""}
           ${layout.paciente ? `<td>${escapeHtml(linha.paciente)}</td>` : ""}
-          ${layout.qtd ? `<td class="center">${escapeHtml(linha.qtd)}</td>` : ""}
           ${layout.valorUnit ? `<td class="right">${escapeHtml(formatarMoedaReais(linha.unitario, money))}</td>` : ""}
           ${layout.desconto ? `<td class="right">${escapeHtml(linha.desconto)}</td>` : ""}
           ${layout.subtotal ? `<td class="right">${escapeHtml(formatarMoedaReais(linha.subtotal, money))}</td>` : ""}
@@ -561,7 +563,7 @@ function htmlTotaisA4(
   if (layout.totalServicos) {
     const rotulo =
       modelo === "modelo1"
-        ? "Total Serviços/Produtos (+)"
+        ? "Total Serviços (+)"
         : modelo === "modelo2"
           ? "Total Serviços/Produtos (=)"
           : modelo === "modelo3"
@@ -586,7 +588,7 @@ function htmlTotaisA4(
       `<div><span>Desconto Fatura (-)</span><span class="right">${escapeHtml(formatarMoedaReais(dados.creditoFatura, money))}</span></div>`
     );
   }
-  if (modelo === "modelo1" || modelo === "modelo2") {
+  if (modelo === "modelo2") {
     partes.push(`<div><span>Juros Fatura (+)</span><span class="right">R$ 0,00</span></div>`);
   }
   if (layout.total) {
@@ -683,7 +685,7 @@ function gerarHtmlFaturaA4(
   const saldoAnteriorNosTotais = modelo === "modelo3" && layout.saldoAnterior;
 
   const logoHtml = layout.logo ? htmlLogo(cfg, layout, false) : "";
-  const dataFatura = dados.dataEmissao;
+  const dataFatura = dataSomenteEmissao(dados.dataEmissao);
 
   const cabecalho = smartModelo1
     ? `<div class="header" style="display:grid;grid-template-columns:1fr 128px;gap:8px;align-items:start;margin:0 0 6px">
@@ -704,6 +706,7 @@ function gerarHtmlFaturaA4(
                 Fatura
                 <strong style="display:block;font-size:${fs + 6}px;line-height:1.05;margin-top:1px">${dados.numeroFatura}</strong>
                 ${layout.data ? `<span style="display:block;margin-top:3px;font-size:${fsSmall}px;font-weight:normal">Data: ${escapeHtml(dataFatura)}</span>` : ""}
+                ${layout.usuario ? `<span style="display:block;font-size:${fsSmall}px;font-weight:normal">Usuário: ${escapeHtml(dados.usuario)}</span>` : ""}
               </div>`
             : ""
         }
@@ -733,7 +736,7 @@ function gerarHtmlFaturaA4(
         <div>
           ${layout.cliente ? `<div><strong>Cliente:</strong> ${escapeHtml(dados.clienteNome)}</div>` : ""}
           ${layout.clienteTel ? `<div><strong>Telefones:</strong> ${escapeHtml(dados.clienteTelefones || "—")}</div>` : ""}
-          ${layout.ultimoPgto ? `<div><strong>Último Pagto:</strong> ${escapeHtml(dados.ultimoPgto || "—")}</div>` : ""}
+          ${layout.ultimoPgto ? `<div><strong>Último Pgto:</strong> ${escapeHtml(dados.ultimoPgto || "—")}</div>` : ""}
           ${layout.saldoAnterior && !saldoAnteriorNosTotais ? `<div><strong>Saldo Anterior:</strong> ${escapeHtml(dados.saldoAnterior || "R$ 0,00")}</div>` : ""}
         </div>
         <div>

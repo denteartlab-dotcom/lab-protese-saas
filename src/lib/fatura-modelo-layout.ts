@@ -232,7 +232,7 @@ export const FATURA_MODELO1_SMART_PADRAO: Partial<FaturaModeloLayout> = {
   logo: false,
   dadosOs: true,
   usuario: true,
-  tamanhoFonte: 9,
+  tamanhoFonte: 15,
   numOs: true,
   osExterna: true,
   qtd: true,
@@ -253,7 +253,7 @@ export const FATURA_MODELO1_SMART_PADRAO: Partial<FaturaModeloLayout> = {
   corDente: true,
   formaPgto: true,
   observacao: true,
-  assinatura: true,
+  assinatura: false,
   pix: true,
   totalServicos: true,
   descontoServicos: true,
@@ -435,7 +435,7 @@ export function estiloTabelaMargemFaturaPreview() {
 
 export const PREVIEW_FATURA_AMOSTRA = {
   numFatura: 194,
-  data: "05/05/2022",
+  data: "30/05/2022",
   usuario: "Fernando",
   cliente: "Dr. Manoel Costa",
   dentista: "Dr. Manoel Costa",
@@ -466,9 +466,9 @@ export const PREVIEW_FATURA_AMOSTRA = {
   descontoFatura: "R$ 0,00",
   total: "R$ 229,50",
   parcelas: [
-    { parcela: "1 / 3", vencimento: "10/05/2022", forma: "Boleto", valor: "R$ 76,50" },
-    { parcela: "2 / 3", vencimento: "10/06/2022", forma: "Boleto", valor: "R$ 76,50" },
-    { parcela: "3 / 3", vencimento: "10/07/2022", forma: "Boleto", valor: "R$ 76,50" },
+    { parcela: "1", vencimento: "10/06/2022", forma: "Boleto", valor: "R$ 76,50" },
+    { parcela: "2", vencimento: "10/07/2022", forma: "Boleto", valor: "R$ 76,50" },
+    { parcela: "3", vencimento: "10/08/2022", forma: "Boleto", valor: "R$ 76,50" },
   ],
   observacao: "Aqui vai as informações do faturamento",
 };
