@@ -399,6 +399,7 @@ function contarColunasItensFatura(layout: FaturaModeloLayout) {
 function estilosBaseA4(fs: number, smartModelo1: boolean) {
   const fsTabela = smartModelo1 ? fs : Math.max(7, fs - 1);
   const fsCab = smartModelo1 ? fs : Math.max(7, fs - 2);
+  const thBg = smartModelo1 ? "transparent" : "#d9d9d9";
   const pageCss = smartModelo1
     ? `width:${FATURA_A4_LARGURA_MM}mm;min-height:${FATURA_A4_ALTURA_MM}mm;max-width:${FATURA_A4_LARGURA_MM}mm;margin:0 auto;padding:${OS_REQUISICAO_TOPO_MM}mm ${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm ${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm;box-sizing:border-box`
     : "width:100%;max-width:190mm;margin:0 auto;padding:0;overflow:hidden";
@@ -412,11 +413,11 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
     .rule-thin{border-top:1px solid #777;margin:0}
     table{border-collapse:collapse;width:100%;table-layout:fixed}
     th,td{border:none;padding:2px 3px;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word}
-    .items th{font-size:${fsCab}px;font-weight:bold;text-align:left;padding:4px 3px;background:#d9d9d9}
+    .items th{font-size:${fsCab}px;font-weight:bold;text-align:left;padding:4px 3px;background:${thBg}}
     .items td{font-size:${fsTabela}px;line-height:1.25}
     .items tr.meta-row td{padding-top:1px;padding-bottom:5px}
     .items tr.meta-row td span{font-size:${Math.max(10, fs - 2)}px;color:#111}
-    .pay th{font-size:${fsCab}px;font-weight:bold;text-align:left;padding:4px 3px;background:#d9d9d9}
+    .pay th{font-size:${fsCab}px;font-weight:bold;text-align:left;padding:4px 3px;background:${thBg}}
     .pay td{font-size:${fsTabela}px;line-height:1.25}
     .right{text-align:right}
     .center{text-align:center}
@@ -656,7 +657,7 @@ function htmlCondicaoPagamento(
 
 function htmlAssinaturaSmart(fsSmall: number) {
   const fsAssinatura = Math.max(9, fsSmall - 1);
-  return `<div style="margin-top:12px;display:flex;justify-content:center">
+  return `<div style="display:flex;justify-content:center">
     <div style="width:34%;min-width:150px;max-width:200px;text-align:center;font-size:${fsAssinatura}px;line-height:1.2">
       <div style="border-top:1px solid #000"></div>
       <div style="padding-top:3px">Recebi o(s) serviço(s) descritos acima</div>
@@ -668,7 +669,7 @@ function htmlPixSmart(layout: FaturaModeloLayout) {
   const qr = layout.pixQrImagem?.startsWith("data:image")
     ? `<img src="${layout.pixQrImagem}" alt="QR PIX" style="width:${layout.pixQrTamanhoPx}px;height:${layout.pixQrTamanhoPx}px;object-fit:contain;display:block" />`
     : `<div style="width:${layout.pixQrTamanhoPx}px;height:${layout.pixQrTamanhoPx}px;border:1px dashed #9ca3af;display:flex;align-items:center;justify-content:center;font-size:10px;color:#6b7280">QR PIX</div>`;
-  return `<div style="display:flex;align-items:flex-end;gap:10px;margin-top:12px">${qr}<span style="font-size:${layout.pixQrFonte}px;line-height:1.2">Pagar com PIX</span></div>`;
+  return `<div style="display:flex;align-items:flex-end;gap:10px;margin-top:8px">${qr}<span style="font-size:${layout.pixQrFonte}px;line-height:1.2">Pagar com PIX</span></div>`;
 }
 
 function htmlPixAssinatura(layout: FaturaModeloLayout, fsSmall: number, smartModelo1 = false) {
@@ -678,7 +679,7 @@ function htmlPixAssinatura(layout: FaturaModeloLayout, fsSmall: number, smartMod
     const blocos: string[] = [];
     if (layout.assinatura) blocos.push(htmlAssinaturaSmart(fsSmall));
     if (layout.pix) blocos.push(htmlPixSmart(layout));
-    return blocos.join("");
+    return `<div style="margin-top:5mm">${blocos.join("")}</div>`;
   }
 
   const qr = layout.pix

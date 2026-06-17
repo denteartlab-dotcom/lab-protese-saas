@@ -2591,7 +2591,7 @@ function FinanceiroReceberConteudo() {
             : undefined
         }
         valorFatura={faturaImprimindo?.lancamento.valor}
-        gerarHtml={(opcoes) => {
+        gerarHtml={(opcoes, configFaturas) => {
           if (!faturaImprimindo) return "";
           const lancamento = faturaImprimindo.lancamento;
           const dados = montarDadosFaturaImpressao({
@@ -2609,7 +2609,7 @@ function FinanceiroReceberConteudo() {
           return gerarHtmlFaturaImpressao(
             dados,
             carregarConfigLaboratorio(),
-            carregarConfiguracoesFaturas(),
+            configFaturas,
             opcoes,
             money
           );

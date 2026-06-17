@@ -39,7 +39,7 @@ type Props = {
   clienteNome: string;
   clienteTelefone?: string | null;
   valorFatura?: number;
-  gerarHtml: (opcoes: OpcoesImpressaoFaturaModal) => string;
+  gerarHtml: (opcoes: OpcoesImpressaoFaturaModal, config: ConfiguracoesFaturas) => string;
 };
 
 function aplicarFormatoNoHtml(html: string, formato: FormatoImpressaoFatura, duasVias: boolean) {
@@ -148,7 +148,7 @@ export function ImprimirFaturaModal({
   }
 
   function htmlPreparado() {
-    const html = gerarHtml(opcoesAtuais());
+    const html = gerarHtml(opcoesAtuais(), config);
     return aplicarFormatoNoHtml(html, formato, duasVias === "sim");
   }
 
