@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import * as esbuild from "esbuild";
 import { liberarPorta } from "./liberar-porta.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -36,32 +37,26 @@ async function precisaRebuild(outfile, entrada) {
   }
 }
 
+async function empacotarServidor(outfile, entrada) {
+  await mkdir(path.dirname(outfile), { recursive: true });
+  await esbuild.build({
+    entryPoints: [entrada],
+    bundle: true,
+    platform: "node",
+    format: "cjs",
+    packages: "external",
+    outfile,
+  });
+}
+
 liberarPorta(port);
 
 const outfile = path.join(root, ".next", "dev-server.cjs");
 const entrada = path.join(root, "server.ts");
 
-await mkdir(path.dirname(outfile), { recursive: true });
-
 if (await precisaRebuild(outfile, entrada)) {
-  const esbuildBin = path.join(root, "node_modules", "esbuild", "bin", "esbuild");
-  const build = spawn(
-    process.execPath,
-    [
-      esbuildBin,
-      entrada,
-      "--bundle",
-      "--platform=node",
-      "--format=cjs",
-      "--packages=external",
-      `--outfile=${outfile}`,
-    ],
-    { cwd: root, stdio: "inherit", env: envComMaisMemoria() }
-  );
-
-  await new Promise((resolve, reject) => {
-    build.on("exit", (code) => (code === 0 ? resolve() : reject(new Error("esbuild failed"))));
-  });
+  await empacotarServidor(outfile, entrada);
+  console.log("> Servidor customizado gerado (.next/dev-server.cjs)");
 } else {
   console.log("> Servidor customizado em cache (.next/dev-server.cjs)");
 }
