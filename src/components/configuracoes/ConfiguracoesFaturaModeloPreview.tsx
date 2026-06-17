@@ -60,7 +60,7 @@ export function ConfiguracoesFaturaModeloPreview({
   return (
     <div className="flex w-full justify-center overflow-x-auto py-2">
       <div
-        className="origin-top shadow-md"
+        className="origin-top"
         style={{
           width: `${LARGURA_PREVIEW_MM}mm`,
           maxWidth: "100%",

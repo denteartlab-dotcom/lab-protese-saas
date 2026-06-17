@@ -153,17 +153,17 @@ function AppShellInner({
     pathname.startsWith("/app/financeiro/relatorio-pdf") ||
     pathname.startsWith("/fatura/") ||
     pathname.startsWith("/app/visualizar-pdf") ||
-    pathname.startsWith("/app/configuracoes/cabecalho") ||
-    pathname.startsWith("/app/configuracoes/os/modelo1") ||
-    pathname.startsWith("/app/configuracoes/os/modelo2") ||
-    pathname.startsWith("/app/configuracoes/os/modelo3") ||
-    pathname.startsWith("/app/configuracoes/os/modelo4") ||
-    pathname.startsWith("/app/configuracoes/os/modelo5") ||
-    pathname.startsWith("/app/configuracoes/faturas/modelo1") ||
-    pathname.startsWith("/app/configuracoes/faturas/modelo2") ||
-    pathname.startsWith("/app/configuracoes/faturas/modelo3") ||
-    pathname.startsWith("/app/configuracoes/faturas/modelo4") ||
-    pathname.startsWith("/app/configuracoes/faturas/modelo5");
+    pathname.includes("/configuracoes/cabecalho") ||
+    pathname.includes("/configuracoes/os/modelo1") ||
+    pathname.includes("/configuracoes/os/modelo2") ||
+    pathname.includes("/configuracoes/os/modelo3") ||
+    pathname.includes("/configuracoes/os/modelo4") ||
+    pathname.includes("/configuracoes/os/modelo5") ||
+    pathname.includes("/configuracoes/faturas/modelo1") ||
+    pathname.includes("/configuracoes/faturas/modelo2") ||
+    pathname.includes("/configuracoes/faturas/modelo3") ||
+    pathname.includes("/configuracoes/faturas/modelo4") ||
+    pathname.includes("/configuracoes/faturas/modelo5");
   const isModuloColaborador = pathname === "/app/producao/modulo";
   const isModuloTv = pathname.startsWith("/app/producao/modulo-tv");
   const isRelatorioImersivo =

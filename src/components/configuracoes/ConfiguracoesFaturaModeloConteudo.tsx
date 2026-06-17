@@ -311,43 +311,37 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
 
   if (!modeloValido) {
     return (
-      <div className="flex h-screen w-full flex-col overflow-hidden">
-        {barraSuperior}
-        <p className="p-6 text-sm text-slate-600">
-          Modelo não encontrado.{" "}
-          <Link href="/app/configuracoes?aba=faturas" className="text-[#4a90d9] hover:underline">
-            Voltar para Faturas
-          </Link>
-        </p>
+      <div className="flex h-screen w-full flex-col overflow-hidden lg:flex-row">
+        <div className="flex min-h-0 flex-1 flex-col">
+          {barraSuperior}
+          <p className="p-6 text-sm text-slate-600">
+            Modelo não encontrado.{" "}
+            <Link href="/app/configuracoes?aba=faturas" className="text-[#4a90d9] hover:underline">
+              Voltar para Faturas
+            </Link>
+          </p>
+        </div>
       </div>
     );
   }
 
   if (carregando || !cfg || !config || !layout) {
     return (
-      <div className="flex h-screen w-full flex-col overflow-hidden">
-        {barraSuperior}
-        <div className="flex min-h-0 flex-1 items-center justify-center bg-[#4a4f56]">
-          <p className="text-sm text-slate-300">Carregando…</p>
+      <div className="flex h-screen w-full flex-col overflow-hidden lg:flex-row">
+        <div className="flex min-h-0 flex-1 flex-col">
+          {barraSuperior}
+          <div className="flex min-h-0 flex-1 items-center justify-center bg-[#e8eaed]">
+            <p className="text-sm text-slate-500">Carregando…</p>
+          </div>
         </div>
       </div>
     );
   }
 
   const corBorda = normalizarCorBorda(layout.bordas);
-  const modelo1A4 = modeloId === "modelo1" && !termica;
 
   return (
-    <div className="flex h-screen w-full flex-col overflow-hidden">
-      {barraSuperior}
-
-      {mensagem ? (
-        <div className="shrink-0 bg-[#5cb85c] px-4 py-2.5 text-center text-[13px] font-medium text-white">
-          {mensagem}
-        </div>
-      ) : null}
-
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+    <div className="flex h-screen w-full flex-col overflow-hidden lg:flex-row">
       <aside
         className={cn(
           "flex h-full w-full shrink-0 flex-col border-b border-slate-300 bg-[#d9dde3] lg:w-[360px] lg:border-b-0 lg:border-r",
@@ -357,12 +351,6 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
         <div className="flex-1 space-y-3 overflow-y-auto p-4">
           {!termica ? (
             <>
-              {modelo1A4 ? (
-                <p className="rounded border border-slate-300 bg-white px-2 py-1.5 text-[11px] text-slate-600">
-                  Modelo 1 — layout Smart Prótese. A pré-visualização é igual à impressão.
-                </p>
-              ) : null}
-
               <div>
                 <span className="mb-1 block text-[11px] font-semibold text-slate-700">
                   Cabeçalho
@@ -550,8 +538,14 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
         </div>
       </aside>
 
-      <div className="flex min-h-0 flex-1 flex-col bg-[#4a4f56]">
-        <div className="min-h-0 flex-1 overflow-auto p-6">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {mensagem ? (
+          <div className="shrink-0 bg-[#5cb85c] px-4 py-2.5 text-center text-[13px] font-medium text-white">
+            {mensagem}
+          </div>
+        ) : null}
+        {barraSuperior}
+        <div className="min-h-0 flex-1 overflow-auto bg-[#e8eaed] p-6">
           <ConfiguracoesFaturaModeloPreview
             cfg={cfg}
             layout={layout}
@@ -559,7 +553,6 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
             termica={termica}
           />
         </div>
-      </div>
       </div>
     </div>
   );

@@ -227,7 +227,8 @@ const LEGADO_FATURA_MAP: Record<string, keyof FaturaModeloLayout> = {
 
 /** Padrões Smart Prótese — Fatura Modelo 1 A4 (campos marcados na referência). */
 export const FATURA_MODELO1_SMART_PADRAO: Partial<FaturaModeloLayout> = {
-  exibirBordas: false,
+  exibirBordas: true,
+  bordas: "#d5d4d4",
   infoLab: true,
   logo: true,
   dadosOs: true,
@@ -256,7 +257,7 @@ export const FATURA_MODELO1_SMART_PADRAO: Partial<FaturaModeloLayout> = {
   assinatura: true,
   pix: true,
   pixQrTamanhoPx: 64,
-  pixQrFonte: 12,
+  pixQrFonte: 10,
   totalServicos: true,
   descontoServicos: true,
   descontoFatura: true,
@@ -270,7 +271,6 @@ export function layoutFaturaModelo1Smart(layout: FaturaModeloLayout): FaturaMode
   return normalizarFaturaModeloLayout({
     ...FATURA_MODELO1_SMART_PADRAO,
     ...layout,
-    exibirBordas: false,
   });
 }
 

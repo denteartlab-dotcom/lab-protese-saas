@@ -655,9 +655,12 @@ function htmlCondicaoPagamento(
 }
 
 function htmlAssinaturaSmart(fsSmall: number) {
-  return `<div style="margin-top:20px;text-align:center;font-size:${fsSmall}px">
-    <div style="border-top:1px solid #000;width:100%"></div>
-    <div style="padding-top:4px">Recebi o(s) serviço(s) descritos acima</div>
+  const fsAssinatura = Math.max(9, fsSmall - 1);
+  return `<div style="margin-top:12px;display:flex;justify-content:center">
+    <div style="width:34%;min-width:150px;max-width:200px;text-align:center;font-size:${fsAssinatura}px;line-height:1.2">
+      <div style="border-top:1px solid #000"></div>
+      <div style="padding-top:3px">Recebi o(s) serviço(s) descritos acima</div>
+    </div>
   </div>`;
 }
 
