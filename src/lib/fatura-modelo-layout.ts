@@ -344,6 +344,15 @@ function clampNumero(valor: number, min: number, max: number, padrao: number) {
 /** Margem lateral do conteúdo — Fatura Modelo 1 Smart (alinhada à moldura 10 mm). */
 export const FATURA_SMART_MARGEM_LATERAL_MM = OS_MODELO1_BORDA_MARGEM_MM;
 
+/** Espaço entre observação e bloco assinatura/PIX (Modelo 1 Smart). */
+export const FATURA_SMART_ESPACO_OBS_RODAPE_MM = 22;
+
+/** Espaço entre assinatura e QR PIX. */
+export const FATURA_SMART_ESPACO_ASSINATURA_PIX_MM = 14;
+
+/** Espaço antes do rodapé quando não há observação. */
+export const FATURA_SMART_ESPACO_RODAPE_MM = 14;
+
 /** Recuo das linhas até a moldura (0 quando margem = borda). */
 export const FATURA_SMART_INSET_LINHA_MM = Math.max(
   0,

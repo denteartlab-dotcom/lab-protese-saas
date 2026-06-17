@@ -16,6 +16,9 @@ import {
   FATURA_A4_LARGURA_MM,
   FATURA_SMART_INSET_LINHA_MM,
   FATURA_SMART_MARGEM_LATERAL_MM,
+  FATURA_SMART_ESPACO_ASSINATURA_PIX_MM,
+  FATURA_SMART_ESPACO_OBS_RODAPE_MM,
+  FATURA_SMART_ESPACO_RODAPE_MM,
   FATURA_TERMICA_LARGURA_MM,
   layoutFaturaModelo1Smart,
   PREVIEW_FATURA_AMOSTRA,
@@ -705,7 +708,7 @@ function htmlCondicaoPagamento(
 
 function htmlAssinaturaSmart(fsSmall: number) {
   const fsAssinatura = Math.max(9, fsSmall - 1);
-  return `<div style="display:flex;justify-content:center;margin-top:2mm">
+  return `<div style="display:flex;justify-content:center">
     <div style="width:34%;min-width:150px;max-width:200px;text-align:center;font-size:${fsAssinatura}px;line-height:1.2">
       <div style="border-top:1px solid #000"></div>
       <div style="padding-top:3px">Recebi o(s) serviço(s) descritos acima</div>
@@ -717,7 +720,8 @@ function htmlPixSmart(layout: FaturaModeloLayout, aposAssinatura = false) {
   const qr = layout.pixQrImagem?.startsWith("data:image")
     ? `<img src="${layout.pixQrImagem}" alt="QR PIX" style="width:${layout.pixQrTamanhoPx}px;height:${layout.pixQrTamanhoPx}px;object-fit:contain;display:block" />`
     : `<div style="width:${layout.pixQrTamanhoPx}px;height:${layout.pixQrTamanhoPx}px;border:1px dashed #9ca3af;display:flex;align-items:center;justify-content:center;font-size:10px;color:#6b7280">QR PIX</div>`;
-  return `<div style="display:flex;align-items:flex-end;gap:10px;margin-top:${aposAssinatura ? "10mm" : "4mm"}">${qr}<span style="font-size:${layout.pixQrFonte}px;line-height:1.2">Pagar com PIX</span></div>`;
+  const margemTopo = aposAssinatura ? `${FATURA_SMART_ESPACO_ASSINATURA_PIX_MM}mm` : "0";
+  return `<div style="display:flex;align-items:flex-end;gap:10px;margin-top:${margemTopo}">${qr}<span style="font-size:${layout.pixQrFonte}px;line-height:1.2">Pagar com PIX</span></div>`;
 }
 
 function htmlPixAssinatura(
@@ -732,8 +736,10 @@ function htmlPixAssinatura(
     const blocos: string[] = [];
     if (layout.assinatura) blocos.push(htmlAssinaturaSmart(fsSmall));
     if (layout.pix) blocos.push(htmlPixSmart(layout, layout.assinatura));
-    const margemTopo = aposObservacao ? "14mm" : "10mm";
-    return `<div style="margin-top:${margemTopo}">${blocos.join("")}</div>`;
+    const margemTopo = aposObservacao
+      ? `${FATURA_SMART_ESPACO_OBS_RODAPE_MM}mm`
+      : `${FATURA_SMART_ESPACO_RODAPE_MM}mm`;
+    return `<div class="rodape-fatura-smart" style="margin-top:${margemTopo}">${blocos.join("")}</div>`;
   }
 
   const qr = layout.pix
@@ -861,7 +867,7 @@ function gerarHtmlFaturaA4(
       ${htmlTotaisA4(dados, layout, modelo, fsSmall, money)}
       ${faturaA4Smart ? linhaDivisoriaSmart() : '<div class="rule-thin" style="margin-top:2px;margin-bottom:2px"></div>'}
       ${htmlCondicaoPagamento(dados, layout, fsSmall, false, faturaA4Smart)}
-      ${layout.observacao ? `<div class="obs" style="margin-top:10px;margin-bottom:${faturaA4Smart ? "6mm" : "0"};font-size:${fsSmall}px"><strong>Observação:</strong> ${escapeHtml(dados.observacao || "")}</div>` : ""}
+      ${layout.observacao ? `<div class="obs" style="margin-top:${faturaA4Smart ? "5mm" : "10px"};font-size:${fsSmall}px"><strong>Observação:</strong> ${escapeHtml(dados.observacao || "")}</div>` : ""}
       ${layout.mensagem ? `<p style="margin-top:12px;text-align:center;font-style:italic;color:#4b5563;font-size:${fsSmall}px">${escapeHtml(layout.mensagem)}</p>` : ""}
       ${pixAssinatura}
     </div>
