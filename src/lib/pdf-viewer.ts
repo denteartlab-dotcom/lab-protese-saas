@@ -59,7 +59,21 @@ function agendarRevogarUrl(url: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
 }
 
-function baixarPdfUrl(url: string, nomeArquivo: string) {
+/** Nome padrão para salvar PDF de ordem de serviço. */
+export function nomeArquivoOsPdf(numeroOs: number) {
+  return `OS ${numeroOs}.pdf`;
+}
+
+/** Blob URL com nome sugerido (melhora título/salvar no visualizador do navegador). */
+export function criarUrlPdfNomeada(blob: Blob, nomeArquivo: string) {
+  const file = new File([blob], nomeArquivo, {
+    type: blob.type || "application/pdf",
+  });
+  return URL.createObjectURL(file);
+}
+
+export function baixarPdfBlob(blob: Blob, nomeArquivo: string) {
+  const url = criarUrlPdfNomeada(blob, nomeArquivo);
   const link = document.createElement("a");
   link.href = url;
   link.download = nomeArquivo;
@@ -68,6 +82,13 @@ function baixarPdfUrl(url: string, nomeArquivo: string) {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  agendarRevogarUrl(url);
+}
+
+export async function baixarPdfUrl(url: string, nomeArquivo: string) {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  baixarPdfBlob(blob, nomeArquivo);
 }
 
 /** Abre o PDF no visualizador nativo do navegador (uma única nova aba). */
@@ -77,8 +98,6 @@ export function visualizarPdfUrl(
   titulo?: string,
   opcoes?: PdfViewerOpcoes
 ) {
-  void nomeArquivo;
-
   const revogarAoFechar = opcoes?.revogarAoFechar ?? url.startsWith("blob:");
   const janelaReservada = consumirJanelaReservada(opcoes?.janela);
 

@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Download, ExternalLink, Printer } from "lucide-react";
 import { Button } from "@/components/ui";
 import { PdfViewerIframe } from "@/components/pdf/PdfViewerIframe";
 import { PDF_VIEWER_PAGINA_CLASSES } from "@/lib/pdf-viewer-iframe";
-import { prepararAbaPdf, visualizarPdfUrl } from "@/lib/pdf-viewer";
+import { prepararAbaPdf, visualizarPdfUrl, baixarPdfBlob, baixarPdfUrl, criarUrlPdfNomeada, nomeArquivoOsPdf } from "@/lib/pdf-viewer";
 import { LAB_IMPRESSAO_PADRAO, type LabImpressaoConfig } from "@/lib/lab-impressao";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
 import {
@@ -2060,6 +2060,15 @@ export function PdfOsViewer({
 }) {
   const [pdfUrl, setPdfUrl] = useState("");
   const [erroPdf, setErroPdf] = useState("");
+  const pdfBlobRef = useRef<Blob | null>(null);
+  const nomeArquivoPdf = nomeArquivoOsPdf(data.numeroOs);
+
+  function publicarPdfGerado(blob: Blob) {
+    pdfBlobRef.current = blob;
+    const url = criarUrlPdfNomeada(blob, nomeArquivoPdf);
+    setPdfUrl(url);
+    return url;
+  }
   function montarDadosPdf(base: PdfOsData): PdfOsData {
     if (typeof window === "undefined") {
       return { ...base, lab: base.lab || LAB_IMPRESSAO_PADRAO };
@@ -2140,8 +2149,7 @@ export function PdfOsViewer({
           renderTermica(api, dadosPdf);
         }
         const blob = pdf.output("blob");
-        url = URL.createObjectURL(blob);
-        setPdfUrl(url);
+        url = publicarPdfGerado(blob);
         return;
       }
 
@@ -2158,8 +2166,7 @@ export function PdfOsViewer({
           await renderEtiquetaOs(api, dadosPdf, modeloEtiqueta);
         }
         const blob = pdf.output("blob");
-        url = URL.createObjectURL(blob);
-        setPdfUrl(url);
+        url = publicarPdfGerado(blob);
         return;
       }
 
@@ -2184,8 +2191,7 @@ export function PdfOsViewer({
       }
 
       const blob = pdf.output("blob");
-      url = URL.createObjectURL(blob);
-      setPdfUrl(url);
+      url = publicarPdfGerado(blob);
     }
 
     void buildPdf().catch((err) => {
@@ -2201,6 +2207,14 @@ export function PdfOsViewer({
     };
   }, [configOsPronta, dadosPdf, formato, modelo, duasVias]);
 
+  function baixarPdf() {
+    if (pdfBlobRef.current) {
+      baixarPdfBlob(pdfBlobRef.current, nomeArquivoPdf);
+      return;
+    }
+    if (pdfUrl) void baixarPdfUrl(pdfUrl, nomeArquivoPdf);
+  }
+
   function imprimirPdf() {
     if (!pdfUrl) return;
     const iframe = document.getElementById("pdf-os-viewer") as HTMLIFrameElement | null;
@@ -2214,7 +2228,11 @@ export function PdfOsViewer({
   function abrirEmNovaAba() {
     if (!pdfUrl) return;
     const janela = prepararAbaPdf();
-    visualizarPdfUrl(pdfUrl, `OS-${data.numeroOs}.pdf`, `OS ${data.numeroOs}`, {
+    const url =
+      pdfBlobRef.current != null
+        ? criarUrlPdfNomeada(pdfBlobRef.current, nomeArquivoPdf)
+        : pdfUrl;
+    visualizarPdfUrl(url, nomeArquivoPdf, `OS ${data.numeroOs}`, {
       janela,
       revogarAoFechar: false,
     });
@@ -2244,16 +2262,15 @@ export function PdfOsViewer({
         <div className="flex gap-2">
           {pdfUrl && (
             <>
-              <a href={pdfUrl} download={`OS-${data.numeroOs}.pdf`}>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="gap-1.5 border-slate-500 bg-transparent text-white"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Baixar
-                </Button>
-              </a>
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-1.5 border-slate-500 bg-transparent text-white"
+                onClick={baixarPdf}
+              >
+                <Download className="h-3.5 w-3.5" />
+                Baixar
+              </Button>
               <Button
                 type="button"
                 variant="outline"

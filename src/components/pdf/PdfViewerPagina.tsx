@@ -5,10 +5,9 @@ import { Download, ExternalLink, Printer } from "lucide-react";
 import { Button } from "@/components/ui";
 import { PdfViewerIframe } from "@/components/pdf/PdfViewerIframe";
 import { PDF_VIEWER_PAGINA_CLASSES } from "@/lib/pdf-viewer-iframe";
-import { prepararAbaPdf, visualizarPdfUrl } from "@/lib/pdf-viewer";
+import { prepararAbaPdf, visualizarPdfUrl, baixarPdfUrl, criarUrlPdfNomeada } from "@/lib/pdf-viewer";
 import {
   PDF_VIEWER_MSG_DADOS,
-  base64ParaBlobUrl,
   buscarPdfViewerSessaoServidor,
   chavePdfViewerSession,
   lerPdfViewerSession,
@@ -46,6 +45,11 @@ export function PdfViewerPagina({ id }: Props) {
     }
   }, [pdfUrl]);
 
+  function baixar() {
+    if (!pdfUrl) return;
+    void baixarPdfUrl(pdfUrl, nomeArquivo);
+  }
+
   function abrirEmNovaAba() {
     if (!pdfUrl) return;
     const janela = prepararAbaPdf();
@@ -82,7 +86,10 @@ export function PdfViewerPagina({ id }: Props) {
         setMimeType(mime);
         imprimirAoCarregarRef.current = Boolean(payload.imprimirAoCarregar);
         try {
-          urlLocalRef.current = base64ParaBlobUrl(payload.base64, mime);
+          const bytes = Uint8Array.from(atob(payload.base64), (c) => c.charCodeAt(0));
+          const blob = new Blob([bytes], { type: mime });
+          const arquivo = payload.nomeArquivo ?? "documento.pdf";
+          urlLocalRef.current = criarUrlPdfNomeada(blob, arquivo);
         } catch {
           setCarregando(false);
           setErro("Não foi possível montar o documento para visualização.");
@@ -196,16 +203,15 @@ export function PdfViewerPagina({ id }: Props) {
         <div className="flex gap-2">
           {pdfUrl ? (
             <>
-              <a href={pdfUrl} download={nomeArquivo}>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="gap-1.5 border-slate-500 bg-transparent text-white"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Baixar
-                </Button>
-              </a>
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-1.5 border-slate-500 bg-transparent text-white"
+                onClick={baixar}
+              >
+                <Download className="h-3.5 w-3.5" />
+                Baixar
+              </Button>
               <Button
                 type="button"
                 variant="outline"
