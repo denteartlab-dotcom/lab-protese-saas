@@ -1,8 +1,6 @@
 import { analisarCaminhoApp, montarCaminhoAppComSlug } from "@/lib/rotas-app";
 import type { FormatoHtmlPdf } from "@/lib/html-para-pdf";
 
-const PREFIX = "labProteseFaturaImpressao:";
-
 export type FaturaImpressaoSessao = {
   html: string;
   numeroFatura: number;
@@ -16,33 +14,31 @@ export function criarIdFaturaImpressao() {
   return `fatura-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-function chaveStorage(id: string) {
-  return `${PREFIX}${id}`;
-}
-
-/** localStorage é compartilhado entre abas (sessionStorage não funciona com noopener). */
-export function salvarFaturaImpressaoSessao(id: string, payload: FaturaImpressaoSessao) {
-  if (typeof window === "undefined") return;
-  const raw = JSON.stringify(payload);
-  localStorage.setItem(chaveStorage(id), raw);
-  // Compatibilidade com abas antigas que ainda liam sessionStorage
-  try {
-    sessionStorage.setItem(chaveStorage(id), raw);
-  } catch {
-    /* quota ou modo privado */
+/** Publica HTML no servidor antes de abrir a nova aba (igual fluxo confiável da OS). */
+export async function publicarFaturaImpressaoSessao(id: string, payload: FaturaImpressaoSessao) {
+  const res = await fetch("/api/fatura-impressao-sessao", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ id, payload }),
+  });
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(data.error || "Não foi possível preparar a fatura para impressão.");
   }
 }
 
-export function lerFaturaImpressaoSessao(id: string): FaturaImpressaoSessao | null {
-  if (typeof window === "undefined") return null;
-  const key = chaveStorage(id);
-  const raw = localStorage.getItem(key) ?? sessionStorage.getItem(key);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as FaturaImpressaoSessao;
-  } catch {
-    return null;
+export async function buscarFaturaImpressaoSessao(id: string): Promise<FaturaImpressaoSessao | null> {
+  const res = await fetch(`/api/fatura-impressao-sessao?id=${encodeURIComponent(id)}`, {
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(data.error || "Não foi possível carregar a fatura.");
   }
+  return (await res.json()) as FaturaImpressaoSessao;
 }
 
 export function montarUrlImpressaoFatura(id: string, opcoes?: { imprimir?: boolean }) {

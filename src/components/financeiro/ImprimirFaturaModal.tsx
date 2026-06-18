@@ -25,7 +25,7 @@ import { gerarPdfDeHtmlDocumento } from "@/lib/html-para-pdf";
 import {
   criarIdFaturaImpressao,
   montarUrlImpressaoFatura,
-  salvarFaturaImpressaoSessao,
+  publicarFaturaImpressaoSessao,
 } from "@/lib/fatura-impressao-sessao";
 import { cn } from "@/lib/utils";
 
@@ -215,7 +215,7 @@ export function ImprimirFaturaModal({
     try {
       const html = await prepararHtmlImpressao();
       const id = criarIdFaturaImpressao();
-      salvarFaturaImpressaoSessao(id, {
+      await publicarFaturaImpressaoSessao(id, {
         html,
         numeroFatura,
         clienteNome,
