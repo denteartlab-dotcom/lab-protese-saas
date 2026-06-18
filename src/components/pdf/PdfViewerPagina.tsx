@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Download, Printer, X } from "lucide-react";
+import { Download, ExternalLink, Printer } from "lucide-react";
+import { Button } from "@/components/ui";
 import { PdfViewerIframe } from "@/components/pdf/PdfViewerIframe";
 import { PDF_VIEWER_PAGINA_CLASSES } from "@/lib/pdf-viewer-iframe";
+import { prepararAbaPdf, visualizarPdfUrl } from "@/lib/pdf-viewer";
 import {
   PDF_VIEWER_MSG_DADOS,
   base64ParaBlobUrl,
@@ -22,10 +24,10 @@ type Props = {
 export function PdfViewerPagina({ id }: Props) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [titulo, setTitulo] = useState("Visualizador PDF");
+  const [subtitulo, setSubtitulo] = useState("Visualização do PDF");
   const [nomeArquivo, setNomeArquivo] = useState("documento.pdf");
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(true);
-  const [ehHtml, setEhHtml] = useState(false);
   const imprimirAoCarregarRef = useRef(false);
   const concluidoRef = useRef(false);
   const urlLocalRef = useRef("");
@@ -43,6 +45,15 @@ export function PdfViewerPagina({ id }: Props) {
     }
   }, [pdfUrl]);
 
+  function abrirEmNovaAba() {
+    if (!pdfUrl) return;
+    const janela = prepararAbaPdf();
+    visualizarPdfUrl(pdfUrl, nomeArquivo, titulo, {
+      janela,
+      revogarAoFechar: false,
+    });
+  }
+
   useEffect(() => {
     let ativo = true;
     const storageKey = chavePdfViewerSession(id);
@@ -51,6 +62,7 @@ export function PdfViewerPagina({ id }: Props) {
       if (!ativo || concluidoRef.current) return;
 
       if (payload.titulo) setTitulo(payload.titulo);
+      if (payload.subtitulo) setSubtitulo(payload.subtitulo);
       if (payload.nomeArquivo) setNomeArquivo(payload.nomeArquivo);
 
       if (payload.status === "error") {
@@ -66,7 +78,6 @@ export function PdfViewerPagina({ id }: Props) {
           URL.revokeObjectURL(urlLocalRef.current);
         }
         const mime = payload.mimeType ?? "application/pdf";
-        setEhHtml(mime.startsWith("text/html"));
         imprimirAoCarregarRef.current = Boolean(payload.imprimirAoCarregar);
         try {
           urlLocalRef.current = base64ParaBlobUrl(payload.base64, mime);
@@ -171,74 +182,67 @@ export function PdfViewerPagina({ id }: Props) {
     window.setTimeout(() => imprimir(), 150);
   }
 
-  function fechar() {
-    removerPdfViewerSession(id);
-    window.close();
-  }
-
   return (
     <div className={PDF_VIEWER_PAGINA_CLASSES}>
       <div className="flex items-center justify-between border-b border-slate-700 bg-[#3c3c3c] px-4 py-3 text-white">
         <div>
           <h1 className="text-sm font-semibold">{titulo}</h1>
-          <p className="text-xs text-slate-300">
-            {ehHtml ? "Visualize ou imprima o documento" : "Visualização do PDF · Folha A4 paisagem"}
-          </p>
+          <p className="text-xs text-slate-300">{subtitulo}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex gap-2">
           {pdfUrl ? (
             <>
-              <a
-                href={pdfUrl}
-                download={nomeArquivo}
-                className="inline-flex items-center gap-1.5 rounded border border-slate-500 px-3 py-1.5 text-xs text-white hover:bg-slate-700"
-              >
-                <Download className="h-3.5 w-3.5" />
-                Baixar
+              <a href={pdfUrl} download={nomeArquivo}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-1.5 border-slate-500 bg-transparent text-white"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Baixar
+                </Button>
               </a>
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                className="gap-1.5 border-slate-500 bg-transparent text-white"
                 onClick={imprimir}
-                className="inline-flex items-center gap-1.5 rounded border border-slate-500 px-3 py-1.5 text-xs text-white hover:bg-slate-700"
               >
                 <Printer className="h-3.5 w-3.5" />
                 Imprimir
-              </button>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-1.5 border-slate-500 bg-transparent text-white"
+                onClick={abrirEmNovaAba}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Nova aba
+              </Button>
             </>
           ) : null}
-          <button
-            type="button"
-            onClick={fechar}
-            className="inline-flex h-8 w-8 items-center justify-center rounded text-slate-300 hover:bg-slate-700 hover:text-white"
-            aria-label="Fechar aba"
-          >
-            <X className="h-4 w-4" />
-          </button>
         </div>
       </div>
 
       {erro ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center text-white">
-          <p className="text-sm text-red-300">{erro}</p>
-          <button
-            type="button"
-            onClick={fechar}
-            className="rounded border border-slate-500 px-4 py-2 text-sm hover:bg-slate-700"
-          >
-            Fechar
-          </button>
+          <p className="text-sm font-medium text-red-300">{erro}</p>
+          <Button type="button" onClick={() => window.location.reload()}>
+            Tentar novamente
+          </Button>
         </div>
-      ) : carregando || !pdfUrl ? (
-        <div className="flex flex-1 items-center justify-center text-sm text-slate-200">
-          Carregando documento...
-        </div>
-      ) : (
+      ) : pdfUrl ? (
         <PdfViewerIframe
           id="pdf-viewer-pagina-iframe"
           title={titulo}
           pdfUrl={pdfUrl}
           onLoad={aoCarregarIframe}
         />
+      ) : (
+        <div className="flex flex-1 items-center justify-center text-sm text-slate-300">
+          {carregando ? "Gerando PDF..." : "Carregando documento..."}
+        </div>
       )}
     </div>
   );

@@ -7,6 +7,7 @@ export const PDF_VIEWER_MSG_DADOS = "lab-protese-pdf-viewer-data";
 export type PdfViewerSessionPayload = {
   status: "loading" | "ready" | "error";
   titulo?: string;
+  subtitulo?: string;
   nomeArquivo?: string;
   base64?: string;
   mimeType?: string;
@@ -236,15 +237,18 @@ export async function publicarPdfNaAba(
   id: string,
   blob: Blob,
   titulo: string,
-  nomeArquivo = "documento.pdf"
+  nomeArquivo = "documento.pdf",
+  opcoes?: { imprimirAoCarregar?: boolean; subtitulo?: string }
 ): Promise<PdfViewerSessionPayload> {
   const base64 = await blobParaBase64(blob);
   const payload: PdfViewerSessionPayload = {
     status: "ready",
     titulo,
+    subtitulo: opcoes?.subtitulo,
     nomeArquivo,
     base64,
     mimeType: blob.type || "application/pdf",
+    imprimirAoCarregar: opcoes?.imprimirAoCarregar,
   };
   await persistirPdfViewerSession(id, payload);
   return payload;

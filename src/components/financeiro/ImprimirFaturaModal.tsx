@@ -23,8 +23,8 @@ import {
 import { sincronizarConfigLaboratorioDoServidor } from "@/lib/lab-config-sync";
 import { gerarPdfDeHtmlDocumento } from "@/lib/html-para-pdf";
 import {
-  abrirHtmlGerandoNoVisualizador,
-  abrirHtmlParaImpressao,
+  abrirPdfGerandoNoVisualizadorPagina,
+  abrirPdfParaImpressaoNoVisualizador,
 } from "@/lib/pdf-viewer";
 import { cn } from "@/lib/utils";
 
@@ -195,12 +195,30 @@ export function ImprimirFaturaModal({
     if (fmtModelo !== formato) setFormato(fmtModelo);
   }
 
+  function subtituloFatura() {
+    const modeloNome = nomeModeloFatura(modelo);
+    if (formato === "termica") {
+      return `Fatura — Térmica 80mm (${modeloNome})`;
+    }
+    return `Fatura — Folha A4 (${modeloNome})`;
+  }
+
+  async function gerarPdfFatura() {
+    const html = await prepararHtmlImpressao();
+    return gerarPdfDeHtmlDocumento(html, formato);
+  }
+
   function imprimir() {
     if (gerandoPdf || sincronizando) return;
     const titulo = `Fatura ${numeroFatura} — ${clienteNome}`;
 
     setGerandoPdf(true);
-    void abrirHtmlParaImpressao(() => prepararHtmlImpressao(), titulo, `fatura-${numeroFatura}.html`)
+    void abrirPdfParaImpressaoNoVisualizador(
+      () => gerarPdfFatura(),
+      titulo,
+      `fatura-${numeroFatura}.pdf`,
+      { subtitulo: subtituloFatura() }
+    )
       .catch((err) => {
         console.error("[ImprimirFaturaModal] imprimir", err);
         window.alert("Não foi possível abrir a impressão. Tente novamente.");
@@ -213,10 +231,11 @@ export function ImprimirFaturaModal({
     const titulo = `Fatura ${numeroFatura} — ${clienteNome}`;
 
     setGerandoPdf(true);
-    void abrirHtmlGerandoNoVisualizador(
-      () => prepararHtmlImpressao(),
+    void abrirPdfGerandoNoVisualizadorPagina(
+      () => gerarPdfFatura(),
       titulo,
-      `fatura-${numeroFatura}.html`
+      `fatura-${numeroFatura}.pdf`,
+      { subtitulo: subtituloFatura() }
     )
       .catch((err) => {
         console.error("[ImprimirFaturaModal] visualizar", err);
@@ -306,7 +325,7 @@ export function ImprimirFaturaModal({
 
           {gerandoPdf ? (
             <p className="mb-3 text-center text-xs text-[#6b7280]">
-              Abrindo fatura…
+              Gerando PDF da fatura…
             </p>
           ) : null}
 
