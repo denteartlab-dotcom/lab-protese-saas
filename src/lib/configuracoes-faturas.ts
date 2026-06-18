@@ -146,6 +146,21 @@ export function montarConfigPreviewFaturaModelo(
   return aplicarLayoutFaturaModelo(base, modeloId, layout);
 }
 
+/** Mescla config local com a do servidor — servidor prevalece (evita layout antigo no localStorage). */
+export function mesclarConfiguracoesFaturas(
+  local: Partial<ConfiguracoesFaturas> | null | undefined,
+  remoto: Partial<ConfiguracoesFaturas> | null | undefined
+): ConfiguracoesFaturas {
+  const loc = normalizarConfiguracoesFaturas(local ?? null);
+  if (!remoto || typeof remoto !== "object") return loc;
+  const rem = normalizarConfiguracoesFaturas(remoto);
+  return normalizarConfiguracoesFaturas({
+    ...loc,
+    ...rem,
+    duasVias: { ...loc.duasVias, ...rem.duasVias },
+  });
+}
+
 export function normalizarConfiguracoesFaturas(
   valor?: Partial<ConfiguracoesFaturas> | null
 ): ConfiguracoesFaturas {
@@ -241,10 +256,7 @@ export async function sincronizarConfiguracoesFaturasDoServidor(): Promise<Confi
     if (!res.ok) return carregarConfiguracoesFaturas();
     const remoto = (await res.json()) as Partial<ConfiguracoesFaturas> | null;
     if (!remoto || typeof remoto !== "object") return carregarConfiguracoesFaturas();
-    const mesclado = normalizarConfiguracoesFaturas({
-      ...remoto,
-      ...lerConfigFaturasDoStorage(),
-    });
+    const mesclado = mesclarConfiguracoesFaturas(lerConfigFaturasDoStorage(), remoto);
     salvarConfiguracoesFaturas(mesclado);
     return mesclado;
   } catch {

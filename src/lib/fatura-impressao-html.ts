@@ -432,6 +432,9 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
   const pageCss = smartModelo1
     ? `width:${FATURA_A4_LARGURA_MM}mm;min-height:${FATURA_A4_ALTURA_MM}mm;max-width:${FATURA_A4_LARGURA_MM}mm;margin:0 auto;padding:${FATURA_SMART_PADDING_TOPO_MM}mm ${FATURA_SMART_MARGEM_LATERAL_MM}mm ${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm;box-sizing:border-box`
     : "width:100%;max-width:190mm;margin:0 auto;padding:0;overflow:hidden";
+  const pagePrintCss = smartModelo1
+    ? `width:${FATURA_A4_LARGURA_MM}mm;min-height:${FATURA_A4_ALTURA_MM}mm;max-width:${FATURA_A4_LARGURA_MM}mm;margin:0 auto;padding:${FATURA_SMART_PADDING_TOPO_MM}mm ${FATURA_SMART_MARGEM_LATERAL_MM}mm ${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm;box-sizing:border-box;overflow:visible`
+    : "width:100%;max-width:190mm;margin:0 auto;padding:0;overflow:visible";
   return `<style>
     @page{size:A4 portrait;margin:${smartModelo1 ? "0" : "8mm 10mm"}}
     *{box-sizing:border-box}
@@ -458,7 +461,7 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
     @media print{
       .actions{display:none}
       html,body{width:100%;margin:0;padding:0}
-      .page{width:100%;max-width:100%;margin:0;overflow:visible}
+      .page{${pagePrintCss}}
       table{page-break-inside:auto}
       tr{page-break-inside:avoid;page-break-after:auto}
     }

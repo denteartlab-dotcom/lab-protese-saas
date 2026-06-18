@@ -28,6 +28,11 @@ if grep -q "readFileSync" src/lib/app-build-id.ts 2>/dev/null; then
   exit 1
 fi
 
+if [[ -f .env ]] && grep -qE '^NEXT_PUBLIC_APP_BUILD_ID=2$' .env 2>/dev/null; then
+  echo "==> Removendo NEXT_PUBLIC_APP_BUILD_ID=2 inválido do .env"
+  sed -i '/^NEXT_PUBLIC_APP_BUILD_ID=2$/d' .env
+fi
+
 echo "==> npm install"
 npm install --include=dev
 
