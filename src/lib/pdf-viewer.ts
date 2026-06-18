@@ -193,56 +193,18 @@ export async function abrirHtmlGerando(gerar: () => Promise<string>, titulo?: st
   }
 }
 
-function aguardarImagensDocumento(doc: Document): Promise<void> {
-  const imagens = Array.from(doc.images);
-  if (!imagens.length) return Promise.resolve();
-  return Promise.all(
-    imagens.map(
-      (img) =>
-        new Promise<void>((resolve) => {
-          if (img.complete) resolve();
-          else {
-            img.onload = () => resolve();
-            img.onerror = () => resolve();
-          }
-        })
-    )
-  ).then(() => undefined);
-}
-
-function escreverHtmlNaJanela(janela: Window, html: string, titulo: string) {
-  const doc = janela.document;
-  doc.open();
-  doc.write(html);
-  doc.close();
-  doc.title = titulo;
-}
-
-/** Abre o HTML e dispara impressão nativa — mesma renderização do preview (sem html2canvas). */
+/** Abre o HTML no visualizador do app e dispara impressão ao carregar. */
 export async function abrirHtmlParaImpressao(
   gerar: () => Promise<string>,
   titulo = "Documento",
-  _nomeArquivo = "documento.html"
+  nomeArquivo = "documento.html"
 ) {
   const janela = prepararAbaPdf();
   try {
-    const html = await gerar();
-    const alvo = consumirJanelaReservada(janela);
-    if (!alvo || alvo.closed) {
-      const blobUrl = abrirHtmlDocumentoNoVisualizador(html, titulo);
-      return blobUrl;
-    }
-
-    escreverHtmlNaJanela(alvo, html, titulo);
-    await aguardarImagensDocumento(alvo.document);
-    alvo.focus();
-    window.setTimeout(() => {
-      try {
-        alvo.print();
-      } catch {
-        abrirHtmlDocumentoNoVisualizador(html, titulo);
-      }
-    }, 300);
+    await abrirHtmlNoVisualizadorPagina(gerar, titulo, nomeArquivo, {
+      janela,
+      imprimirAoCarregar: true,
+    });
   } catch (err) {
     fecharJanela(janela);
     console.error("imprimir HTML", err);
@@ -316,7 +278,14 @@ export async function abrirHtmlNoVisualizadorPagina(
 export async function abrirHtmlGerandoNoVisualizador(
   gerar: () => Promise<string>,
   titulo?: string,
-  _nomeArquivo = "documento.html"
+  nomeArquivo = "documento.html"
 ) {
-  return abrirHtmlGerando(gerar, titulo);
+  const janela = prepararAbaPdf();
+  try {
+    await abrirHtmlNoVisualizadorPagina(gerar, titulo ?? "Documento", nomeArquivo, { janela });
+  } catch (err) {
+    fecharJanela(janela);
+    console.error("visualizador HTML", err);
+    throw err;
+  }
 }
