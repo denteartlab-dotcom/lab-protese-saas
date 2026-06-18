@@ -6,29 +6,35 @@ import { prisma } from "@/lib/db";
 import { rotuloTipoUsuario } from "@/lib/usuarios-sistema";
 import { formatCurrency } from "@/lib/utils";
 
+function normalizarTextoComparacao(texto: string) {
+  return texto.trim().normalize("NFC").toLowerCase();
+}
+
 const ROTULOS_TIPO_CONTA = new Set(
   [
     "Proprietário",
+    "Administrador",
     "Gerente",
     "Financeiro",
     "Produção",
     "Usuário",
     "proprietario",
+    "administrador",
     "gerente",
     "financeiro",
     "producao",
     "usuario",
     "admin",
-  ].map((s) => s.toLowerCase())
+  ].map((s) => normalizarTextoComparacao(s))
 );
 
 function nomePareceTipoConta(name: string, role: string) {
-  const n = name.trim().toLowerCase();
+  const n = normalizarTextoComparacao(name);
   if (!n) return false;
   if (ROTULOS_TIPO_CONTA.has(n)) return true;
   const porRole = [rotuloTipoUsuario(role), rotuloPapelUsuario(role)]
     .filter(Boolean)
-    .map((s) => s.toLowerCase());
+    .map((s) => normalizarTextoComparacao(s));
   return porRole.includes(n);
 }
 
@@ -46,15 +52,18 @@ export function nomeExibicaoUsuarioLog(user: {
   colaboradorNome?: string | null;
 }) {
   const colab = user.colaboradorNome?.trim();
-  if (colab) return colab;
+  if (colab && !nomePareceTipoConta(colab, user.role)) return colab;
 
   const name = user.name.trim();
   if (name && !nomePareceTipoConta(name, user.role)) return name;
 
   const doEmail = nomeAPartirDoEmail(user.email);
-  if (doEmail) return doEmail;
+  if (doEmail && !nomePareceTipoConta(doEmail, "")) return doEmail;
 
-  return name || "Usuário";
+  const emailLocal = user.email.split("@")[0]?.trim();
+  if (emailLocal && !nomePareceTipoConta(emailLocal, "")) return emailLocal;
+
+  return "Usuário";
 }
 
 export async function nomeUsuarioParaLogAuditoria(session: {
@@ -92,20 +101,30 @@ export async function nomeUsuarioImpressaoPorId(userId: string | null | undefine
   return user ? nomeExibicaoUsuarioLog(user) : "";
 }
 
+function nomeValidoImpressaoOs(nome: string | null | undefined, role = "") {
+  const texto = nome?.trim() || "";
+  if (!texto || nomePareceTipoConta(texto, role)) return "";
+  return texto;
+}
+
 /** Nome real do usuário para impressão da OS (nunca o tipo/papel da conta). */
 export async function nomeUsuarioParaImpressaoOs(input: {
   usuarioIdLog?: string | null;
   usuarioNomeLog?: string | null;
   usuarioSessao?: { id: string; name: string; email: string; role: string };
 }) {
-  const porIdLog = await nomeUsuarioImpressaoPorId(input.usuarioIdLog);
+  const porIdLog = nomeValidoImpressaoOs(await nomeUsuarioImpressaoPorId(input.usuarioIdLog));
   if (porIdLog) return porIdLog;
 
-  const nomeLog = input.usuarioNomeLog?.trim() || "";
-  if (nomeLog && !nomePareceTipoConta(nomeLog, "")) return nomeLog;
+  const nomeLog = nomeValidoImpressaoOs(input.usuarioNomeLog);
+  if (nomeLog) return nomeLog;
 
   if (input.usuarioSessao) {
-    return nomeUsuarioParaLogAuditoria(input.usuarioSessao);
+    const porSessao = nomeValidoImpressaoOs(
+      await nomeUsuarioParaLogAuditoria(input.usuarioSessao),
+      input.usuarioSessao.role
+    );
+    if (porSessao) return porSessao;
   }
 
   return "";

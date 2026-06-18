@@ -268,6 +268,7 @@ async function ImprimirOSConteudo({
   try {
     const logCriacao = await prisma.logAuditoria.findFirst({
       where: {
+        empresaId: t.empresaId,
         categoria: "os",
         tipoAlteracao: "inclusao",
         OR: [{ numeroOs: t.numeroOs }, { trabalhoId: t.id }],

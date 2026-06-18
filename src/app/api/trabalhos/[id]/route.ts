@@ -5,6 +5,7 @@ import {
   formatClienteLogAuditoria,
   formatServicoLogAuditoria,
   formatarValorCampoLog,
+  nomeUsuarioParaLogAuditoria,
   registrarLogAuditoria,
   type DetalheAlteracaoAuditoria,
 } from "@/lib/logs-auditoria";
@@ -206,7 +207,7 @@ export async function PUT(
         trabalhoId: atual.id,
         servico: formatServicoLogAuditoria(trabalho.tipoProtese, trabalho.id),
         usuarioId: ctx.user.id,
-        usuarioNome: ctx.user.name,
+        usuarioNome: await nomeUsuarioParaLogAuditoria(ctx.user),
         detalhes,
       });
     }
@@ -306,7 +307,7 @@ export async function DELETE(
         atual.clienteId
       ),
       usuarioId: ctx.user.id,
-      usuarioNome: ctx.user.name,
+      usuarioNome: await nomeUsuarioParaLogAuditoria(ctx.user),
     });
 
     if (atual.grupoOsId) {

@@ -4,6 +4,7 @@ import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
   formatClienteLogAuditoria,
   formatServicoLogAuditoria,
+  nomeUsuarioParaLogAuditoria,
   registrarLogAuditoria,
 } from "@/lib/logs-auditoria";
 import { proximoNumeroOsDisponivel, registrarNumeroOsUtilizado } from "@/lib/os-sequencia";
@@ -193,7 +194,7 @@ export async function POST(request: Request) {
       servico: formatServicoLogAuditoria(trabalho.tipoProtese, trabalho.id),
       clienteNome: formatClienteLogAuditoria(cliente.nome, trabalho.clienteId),
       usuarioId: ctx.user.id,
-      usuarioNome: ctx.user.name,
+      usuarioNome: await nomeUsuarioParaLogAuditoria(ctx.user),
     });
 
     if (trabalhoVisivelModuloTv(trabalho.status)) {
