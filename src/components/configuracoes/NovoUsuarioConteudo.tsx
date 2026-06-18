@@ -11,6 +11,7 @@ import {
   rotuloTipoUsuario,
   type RoleUsuario,
 } from "@/lib/usuarios-sistema";
+import type { CotasUsuariosEmpresa } from "@/lib/limite-usuarios-empresa";
 
 const labelClass = "mb-1 block text-[11px] font-normal text-[#6b7280]";
 const inputClass =
@@ -36,6 +37,7 @@ export function NovoUsuarioConteudo() {
   const inputImagemRef = useRef<HTMLInputElement>(null);
   const [verificando, setVerificando] = useState(true);
   const [podeGerenciar, setPodeGerenciar] = useState(false);
+  const [cotas, setCotas] = useState<CotasUsuariosEmpresa | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
   const [colaboradores, setColaboradores] = useState<{ id: string; nome: string }[]>([]);
@@ -62,11 +64,20 @@ export function NovoUsuarioConteudo() {
           const json = await me.json();
           if (json?.podeGerenciarUsuarios) {
             setPodeGerenciar(true);
+            const lista = await fetch("/api/usuarios?excluidos=0", { cache: "no-store" });
+            if (lista.ok) {
+              const dados = await lista.json();
+              setCotas(dados.cotas ?? null);
+            }
             return;
           }
         }
         const lista = await fetch("/api/usuarios?excluidos=0", { cache: "no-store" });
         setPodeGerenciar(lista.ok);
+        if (lista.ok) {
+          const dados = await lista.json();
+          setCotas(dados.cotas ?? null);
+        }
       } catch {
         setPodeGerenciar(false);
       } finally {
@@ -158,6 +169,29 @@ export function NovoUsuarioConteudo() {
     );
   }
 
+  if (cotas && !cotas.podeAdicionar && !cotas.ilimitado) {
+    return (
+      <div className="novo-usuario text-[12px] text-[#374151]">
+        <h1 className="text-[17px] font-normal text-slate-800">Configurações</h1>
+        <div className="mt-6 rounded-sm border border-[#f0ad4e] bg-[#fcf8e3] px-4 py-4 text-[12px] text-[#8a6d3b]">
+          <p className="font-semibold">Limite de usuários atingido</p>
+          <p className="mt-2">
+            Seu plano {cotas.planoLabel} permite até {cotas.limite} usuário
+            {cotas.limite === 1 ? "" : "s"} e você já possui {cotas.total} ativo
+            {cotas.total === 1 ? "" : "s"}. Faça upgrade do plano para cadastrar mais
+            usuários.
+          </p>
+          <Link
+            href="/app/configuracoes?aba=usuarios"
+            className="mt-4 inline-block text-[#4a90d9] hover:underline"
+          >
+            Voltar para Meus Usuários
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="novo-usuario text-[12px] text-[#374151]">
       <h1 className="text-[17px] font-normal text-slate-800">Configurações</h1>
@@ -180,6 +214,13 @@ export function NovoUsuarioConteudo() {
         <div className="mb-4 rounded-sm border border-[#f0ad4e] bg-[#fcf8e3] px-3 py-2.5 text-[12px] leading-snug text-[#8a6d3b]">
           <span className="font-semibold">Obs.:</span> A senha de acesso será gerada
           automaticamente e enviada para o e-mail informado! Utilize um e-mail válido
+          {cotas && !cotas.ilimitado && cotas.restantes != null ? (
+            <>
+              {" "}
+              · Você pode adicionar mais {cotas.restantes} usuário
+              {cotas.restantes === 1 ? "" : "s"} no plano {cotas.planoLabel}.
+            </>
+          ) : null}
         </div>
 
         <div className="mb-5 flex flex-wrap items-start gap-4">

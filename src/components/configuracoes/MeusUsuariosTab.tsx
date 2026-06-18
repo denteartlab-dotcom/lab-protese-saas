@@ -8,6 +8,7 @@ import {
   rotuloTipoUsuario,
   type UsuarioListagem,
 } from "@/lib/usuarios-sistema";
+import type { CotasUsuariosEmpresa } from "@/lib/limite-usuarios-empresa";
 import { cn, exibirTexto } from "@/lib/utils";
 
 const thClass =
@@ -18,6 +19,7 @@ export function MeusUsuariosTab() {
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [usuarios, setUsuarios] = useState<UsuarioListagem[]>([]);
+  const [cotas, setCotas] = useState<CotasUsuariosEmpresa | null>(null);
   const [busca, setBusca] = useState("");
   const [mostrarExcluidos, setMostrarExcluidos] = useState(false);
   const [podeGerenciar, setPodeGerenciar] = useState(false);
@@ -34,9 +36,11 @@ export function MeusUsuariosTab() {
       if (!res.ok) {
         setErro(data.error || "Não foi possível carregar os usuários.");
         setUsuarios([]);
+        setCotas(null);
         return;
       }
       setUsuarios(Array.isArray(data.usuarios) ? data.usuarios : []);
+      setCotas(data.cotas ?? null);
     } catch {
       setErro("Erro de conexão ao carregar usuários.");
       setUsuarios([]);
@@ -98,17 +102,33 @@ export function MeusUsuariosTab() {
 
   async function restaurar(usuario: UsuarioListagem) {
     setSalvando(true);
+    setErro("");
     try {
       const res = await fetch(`/api/usuarios/${usuario.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ restaurar: true }),
       });
-      if (res.ok) await carregarUsuarios();
+      const data = await res.json();
+      if (!res.ok) {
+        setErro(data.error || "Não foi possível restaurar o usuário.");
+        return;
+      }
+      await carregarUsuarios();
     } finally {
       setSalvando(false);
     }
   }
+
+  const textoCotas = cotas
+    ? cotas.ilimitado
+      ? `${cotas.total} usuários · plano ${cotas.planoLabel} (ilimitado)`
+      : `${cotas.total} / ${cotas.limite} usuários · plano ${cotas.planoLabel}${
+          cotas.restantes != null && cotas.restantes > 0
+            ? ` · pode adicionar mais ${cotas.restantes}`
+            : ""
+        }`
+    : null;
 
   if (!podeGerenciar) {
     return (
@@ -129,14 +149,24 @@ export function MeusUsuariosTab() {
       </p>
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href="/app/configuracoes/usuarios/novo"
-            className="inline-flex h-[34px] items-center gap-1.5 rounded-sm bg-[#5cb85c] px-4 text-[12px] font-normal text-white hover:bg-[#4cae4c]"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Adicionar Usuário
-          </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          {cotas?.podeAdicionar ? (
+            <Link
+              href="/app/configuracoes/usuarios/novo"
+              className="inline-flex h-[34px] items-center gap-1.5 rounded-sm bg-[#5cb85c] px-4 text-[12px] font-normal text-white hover:bg-[#4cae4c]"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Adicionar Usuário
+            </Link>
+          ) : (
+            <span
+              title="Limite de usuários do plano atingido"
+              className="inline-flex h-[34px] cursor-not-allowed items-center gap-1.5 rounded-sm bg-[#9ca3af] px-4 text-[12px] font-normal text-white"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Adicionar Usuário
+            </span>
+          )}
           <button
             type="button"
             onClick={() => {
@@ -154,6 +184,10 @@ export function MeusUsuariosTab() {
             {mostrarExcluidos ? "Ver Ativos" : "Ver Excluídos"}
           </button>
         </div>
+
+        {textoCotas ? (
+          <p className="w-full text-[11px] text-[#6b7280] sm:w-auto">{textoCotas}</p>
+        ) : null}
 
         <div className="flex items-center gap-2">
           <input
@@ -176,6 +210,13 @@ export function MeusUsuariosTab() {
       {erro ? (
         <p className="mb-3 text-sm text-red-600" role="alert">
           {erro}
+        </p>
+      ) : null}
+
+      {cotas && !cotas.podeAdicionar && !cotas.ilimitado ? (
+        <p className="mb-3 rounded-sm border border-[#f0ad4e] bg-[#fcf8e3] px-3 py-2 text-[12px] text-[#8a6d3b]">
+          Limite do plano {cotas.planoLabel} atingido ({cotas.limite} usuário
+          {cotas.limite === 1 ? "" : "s"}). Faça upgrade para adicionar mais usuários.
         </p>
       ) : null}
 
@@ -243,14 +284,23 @@ export function MeusUsuariosTab() {
                     </td>
                     <td className={cn(tdClass, "text-center")}>
                       {mostrarExcluidos ? (
-                        <button
-                          type="button"
-                          title="Restaurar"
-                          onClick={() => void restaurar(usuario)}
-                          className="text-[11px] text-[#4a90d9] hover:underline"
-                        >
-                          Restaurar
-                        </button>
+                        cotas?.podeAdicionar ? (
+                          <button
+                            type="button"
+                            title="Restaurar"
+                            onClick={() => void restaurar(usuario)}
+                            className="text-[11px] text-[#4a90d9] hover:underline"
+                          >
+                            Restaurar
+                          </button>
+                        ) : (
+                          <span
+                            title="Limite de usuários do plano atingido"
+                            className="cursor-not-allowed text-[11px] text-[#9ca3af]"
+                          >
+                            Restaurar
+                          </span>
+                        )
                       ) : (
                         <div className="flex items-center justify-center gap-1">
                           <Link

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { hashPassword } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { exigirGestorUsuarios } from "@/lib/exigir-gestor";
+import { exigirCotaUsuarioDisponivel } from "@/lib/limite-usuarios-empresa";
 import {
   mapUsuarioListagem,
   parsePermissoesUsuario,
@@ -93,6 +94,18 @@ export async function PATCH(request: Request, { params }: Params) {
     }
 
     if (data.restaurar) {
+      const cota = await exigirCotaUsuarioDisponivel(auth.session!.empresaId!);
+      if (cota.erro) {
+        return NextResponse.json(
+          {
+            error: cota.mensagem,
+            code: cota.erro,
+            cotas: cota.cotas,
+          },
+          { status: cota.erro === "LIMITE_USUARIOS" ? 403 : 404 }
+        );
+      }
+
       const atualizado = await prisma.user.update({
         where: { id },
         data: { excluidoEm: null },
