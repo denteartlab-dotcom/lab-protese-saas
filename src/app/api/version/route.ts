@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { APP_BUILD_ID } from "@/lib/app-build-id";
+import { obterAppBuildIdServidor } from "@/lib/app-build-id-servidor";
 
 export async function GET() {
   return NextResponse.json(
-    { buildId: APP_BUILD_ID },
+    { buildId: obterAppBuildIdServidor() },
     {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate",
