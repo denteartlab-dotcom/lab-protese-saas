@@ -2,6 +2,8 @@
 # Fase 6 — Deploy multi-empresa em VPS Linux local
 #
 # Uso (no servidor):
+#   bash deploy/atualizar-producao.sh
+#   — ou —
 #   chmod +x deploy/deploy-vps-local.sh
 #   APP_DIR=/opt/lab-protese-saas ./deploy/deploy-vps-local.sh
 #
@@ -24,9 +26,14 @@ fi
 echo ""
 echo "==> Dependências..."
 if [[ -f package-lock.json ]]; then
-  npm ci --include=dev
+  npm ci --include=dev || npm install --include=dev
 else
   npm install --include=dev
+fi
+
+if [[ ! -f node_modules/tsx/dist/cli.mjs ]]; then
+  echo "ERRO: tsx não instalado. Rode: npm install --include=dev"
+  exit 1
 fi
 
 echo ""

@@ -18,21 +18,21 @@
     "lint": "next lint",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
-    "setup": "prisma generate && prisma db push && tsx prisma/seed.ts",
+    "setup": "prisma generate && prisma db push && node node_modules/tsx/dist/cli.mjs prisma/seed.ts",
     "db:push": "prisma db push",
-    "db:preparar-legado": "tsx scripts/preparar-banco-legado-vps.ts",
-    "db:seed": "tsx prisma/seed.ts",
-    "db:criar-master": "tsx scripts/criar-master.ts",
-    "db:migrar-empresa": "tsx scripts/migrar-empresa-fase1.ts && tsx scripts/migrar-empresa-fase5.ts",
-    "db:migrar-empresa-fase5": "tsx scripts/migrar-empresa-fase5.ts",
-    "db:testar-isolamento": "tsx scripts/testar-isolamento-tenant.ts",
-    "db:reparar-usuarios-empresa": "tsx scripts/reparar-usuarios-empresa.ts",
-    "vps:validar": "tsx scripts/migrar-empresa-fase6.ts",
-    "vps:deploy": "bash deploy/deploy-vps-local.sh",
-    "db:publicar-neon": "tsx scripts/publicar-banco-neon.ts",
-    "db:migrar-financeiro": "tsx scripts/migrar-financeiro-neon.ts",
-    "backup:diario": "tsx scripts/backup-diario.ts",
-    "db:zerar": "tsx scripts/zerar-sistema-virgem.ts --confirmar=ZERAR"
+    "db:preparar-legado": "node node_modules/tsx/dist/cli.mjs scripts/preparar-banco-legado-vps.ts",
+    "db:seed": "node node_modules/tsx/dist/cli.mjs prisma/seed.ts",
+    "db:criar-master": "node node_modules/tsx/dist/cli.mjs scripts/criar-master.ts",
+    "db:migrar-empresa": "node node_modules/tsx/dist/cli.mjs scripts/migrar-empresa-fase1.ts && node node_modules/tsx/dist/cli.mjs scripts/migrar-empresa-fase5.ts",
+    "db:migrar-empresa-fase5": "node node_modules/tsx/dist/cli.mjs scripts/migrar-empresa-fase5.ts",
+    "db:testar-isolamento": "node node_modules/tsx/dist/cli.mjs scripts/testar-isolamento-tenant.ts",
+    "db:reparar-usuarios-empresa": "node node_modules/tsx/dist/cli.mjs scripts/reparar-usuarios-empresa.ts",
+    "vps:validar": "node node_modules/tsx/dist/cli.mjs scripts/migrar-empresa-fase6.ts",
+    "vps:deploy": "bash deploy/atualizar-producao.sh",
+    "db:publicar-neon": "node node_modules/tsx/dist/cli.mjs scripts/publicar-banco-neon.ts",
+    "db:migrar-financeiro": "node node_modules/tsx/dist/cli.mjs scripts/migrar-financeiro-neon.ts",
+    "backup:diario": "node node_modules/tsx/dist/cli.mjs scripts/backup-diario.ts",
+    "db:zerar": "node node_modules/tsx/dist/cli.mjs scripts/zerar-sistema-virgem.ts --confirmar=ZERAR"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -60,7 +60,9 @@
     "tailwind-merge": "^3.3.0",
     "xlsx": "^0.18.5",
     "zod": "^3.24.4",
-    "zustand": "^5.0.14"
+    "zustand": "^5.0.14",
+    "prisma": "^6.6.0",
+    "tsx": "^4.19.4"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -72,9 +74,7 @@
     "better-sqlite3": "^11.10.0",
     "esbuild": "^0.25.5",
     "postcss": "^8.5.3",
-    "prisma": "^6.6.0",
     "tailwindcss": "^3.4.17",
-    "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }
 }
