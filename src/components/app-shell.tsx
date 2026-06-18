@@ -9,6 +9,7 @@ import { ConfiguracoesGearMenu } from "@/components/ConfiguracoesGearMenu";
 import { LanguageMenu } from "@/components/header/LanguageMenu";
 import { NotificationsBell } from "@/components/header/NotificationsBell";
 import { LeitorCodigoBarrasModal } from "@/components/LeitorCodigoBarrasModal";
+import { extrairNumeroOsCodigo } from "@/lib/codigo-barras-os";
 import { SiteSearchBar, SiteSearchButton } from "@/components/header/SiteSearchBar";
 import { I18nProvider, useI18n } from "@/components/i18n-provider";
 import { usePermissoesApp } from "@/components/PermissoesAppProvider";
@@ -300,14 +301,14 @@ function AppShellInner({
   async function buscarOrdemServico(termoInformado?: string) {
     const bruto = (termoInformado ?? buscaOs).trim();
     if (!bruto) return;
-    const numeroLido = bruto.replace(/\D/g, "");
-    const query = numeroLido || bruto;
-    setBuscaOs(query);
+    const numero = extrairNumeroOsCodigo(bruto);
+    if (!numero) return;
+    setBuscaOs(numero);
 
     setBuscandoOs(true);
     setBuscaOsExecutada(true);
     try {
-      const response = await fetch(`/api/trabalhos?q=${encodeURIComponent(query)}`, { cache: "no-store" });
+      const response = await fetch(`/api/trabalhos?q=${encodeURIComponent(numero)}`, { cache: "no-store" });
       const data = await response.json();
       const resultados = Array.isArray(data) ? data : [];
       setResultadosOs(resultados);

@@ -120,8 +120,8 @@ export function LeitorCodigoBarrasModal({ open, onClose, onCodigoLido }: Props) 
         <div className="flex flex-col items-center rounded-lg border border-dashed border-blue-200 bg-blue-50/60 px-4 py-6">
           <ScanBarcode className="h-14 w-14 text-blue-600" strokeWidth={1.5} />
           <p className="mt-3 text-center text-[12px] leading-relaxed text-slate-600">
-            Passe o leitor na etiqueta da OS ou digite o código. Formatos aceitos:{" "}
-            <strong>OS7</strong>, <strong>7</strong> ou código de barras da requisição.
+            Passe o leitor na etiqueta da OS, na fatura impressa ou digite o código. Formatos
+            aceitos: <strong>OS7</strong>, <strong>*OS7*</strong> ou só o número.
           </p>
         </div>
 

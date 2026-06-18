@@ -102,6 +102,20 @@ export function gerarPngCode39DataUrl(
   };
 }
 
+/** SVG inline para HTML de impressão (fatura, nota, etc.). */
+export function svgCode39Html(value: string, height = 28): string {
+  const { barras, width } = gerarBarrasCode39(value);
+  if (!width) return "";
+
+  const rects = barras
+    .map((barra) => {
+      return `<rect x="${barra.x}" y="0" width="${barra.w}" height="${height}" fill="#000"/>`;
+    })
+    .join("");
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Código ${value}" style="display:block;max-width:100%">${rects}</svg>`;
+}
+
 export function Code39Barcode({
   value,
   height = 34,

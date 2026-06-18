@@ -41,6 +41,8 @@ export type FaturaModeloLayout = {
   formaPgto: boolean;
   observacao: boolean;
   assinatura: boolean;
+  /** Code39 com número da OS — leitura na busca rápida do Início. */
+  codBarras: boolean;
   pix: boolean;
   /** Imagem do QR Code PIX (data URL). */
   pixQrImagem: string;
@@ -93,6 +95,7 @@ export const FATURA_MODELO_LAYOUT_PADRAO: FaturaModeloLayout = {
   formaPgto: true,
   observacao: true,
   assinatura: true,
+  codBarras: true,
   pix: true,
   pixQrImagem: "",
   pixQrTamanhoPx: 64,
@@ -131,13 +134,14 @@ export const CAMPOS_FATURA_PARES: Array<[CampoCheckbox, CampoCheckbox | null]> =
   [{ key: "saldoAnterior", label: "Saldo Anterior" }, { key: "data", label: "Data" }],
   [{ key: "finalizado", label: "Finalizado" }, { key: "formaPgto", label: "Forma Pgto" }],
   [{ key: "observacao", label: "Observação" }, { key: "assinatura", label: "Assinatura" }],
-  [{ key: "pix", label: "Pix" }, { key: "qtd", label: "Qtd" }],
-  [{ key: "servico", label: "Serviços/Produtos" }, { key: "totalServicos", label: "Total Serviços" }],
+  [{ key: "codBarras", label: "Cod Barras OS" }, { key: "pix", label: "Pix" }],
+  [{ key: "qtd", label: "Qtd" }, { key: "servico", label: "Serviços/Produtos" }],
   [
     { key: "descontoServicos", label: "Desconto Serviços" },
     { key: "descontoFatura", label: "Desconto Fatura" },
   ],
-  [{ key: "total", label: "Total" }, { key: "condicaoPagamento", label: "Condição Pagamento" }],
+  [{ key: "totalServicos", label: "Total Serviços" }, { key: "total", label: "Total" }],
+  [{ key: "condicaoPagamento", label: "Condição Pagamento" }, null],
 ];
 
 /** Cabeçalho — Smart Prótese Fatura Modelo 4 térmica 80mm. */
@@ -159,7 +163,8 @@ export const CAMPOS_FATURA_TERMICA_PARES: Array<[CampoCheckbox, CampoCheckbox | 
   [{ key: "osExterna", label: "OS Externa" }, { key: "numDente", label: "Nome Dente" }],
   [{ key: "valorUnit", label: "Valor Unit" }, null],
   [{ key: "data", label: "Data" }, { key: "formaPgto", label: "Forma Pgto" }],
-  [{ key: "assinatura", label: "Assinatura" }, { key: "corDente", label: "Cor Dente" }],
+  [{ key: "assinatura", label: "Assinatura" }, { key: "codBarras", label: "Cod Barras OS" }],
+  [{ key: "corDente", label: "Cor Dente" }, null],
   [{ key: "desconto", label: "Desconto" }, { key: "ultimoPgto", label: "Última Pgto" }],
   [{ key: "finalizado", label: "Entregue" }, { key: "observacao", label: "Observações" }],
   [{ key: "pix", label: "Pix" }, null],
@@ -255,6 +260,7 @@ export const FATURA_MODELO1_SMART_PADRAO: Partial<FaturaModeloLayout> = {
   formaPgto: true,
   observacao: true,
   assinatura: true,
+  codBarras: true,
   pix: true,
   pixQrTamanhoPx: 64,
   pixQrFonte: 10,

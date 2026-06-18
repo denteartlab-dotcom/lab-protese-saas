@@ -25,6 +25,7 @@ import { NotificationsBell } from "@/components/header/NotificationsBell";
 import { SiteSearchBar, SiteSearchButton } from "@/components/header/SiteSearchBar";
 import { useI18n } from "@/components/i18n-provider";
 import { LeitorCodigoBarrasModal } from "@/components/LeitorCodigoBarrasModal";
+import { extrairNumeroOsCodigo } from "@/lib/codigo-barras-os";
 import type { MessageKey } from "@/lib/i18n";
 import { AppFaixaTopo } from "@/components/AppFaixaTopo";
 import { dimensoesLogoPx } from "@/lib/lab-logo";
@@ -123,12 +124,12 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
     async (termoInformado?: string) => {
       const bruto = (termoInformado ?? buscaOs).trim();
       if (!bruto) return;
-      const numeroLido = bruto.replace(/\D/g, "");
-      const query = numeroLido || bruto;
-      setBuscaOs(query);
+      const numero = extrairNumeroOsCodigo(bruto);
+      if (!numero) return;
+      setBuscaOs(numero);
       setBuscandoOs(true);
       try {
-        const response = await fetch(`/api/trabalhos?q=${encodeURIComponent(query)}`, {
+        const response = await fetch(`/api/trabalhos?q=${encodeURIComponent(numero)}`, {
           cache: "no-store",
         });
         const data = await response.json();

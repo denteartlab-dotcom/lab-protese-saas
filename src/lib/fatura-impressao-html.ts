@@ -38,6 +38,11 @@ import {
   OS_REQUISICAO_MARGEM_CONTEUDO_MM,
   OS_REQUISICAO_PREVIEW_INSET_MM,
 } from "@/lib/os-modelo1-layout";
+import {
+  numerosOsUnicosDasLinhas,
+  valorCodigoBarrasOs,
+} from "@/lib/codigo-barras-os";
+import { svgCode39Html } from "@/lib/code39-barcode";
 
 export type OpcoesHtmlFaturaImpressao = {
   formato: "a4" | "termica";
@@ -539,6 +544,49 @@ function estilosBaseTermica(fs: number) {
   </style>`;
 }
 
+function htmlCodigoBarrasOsInline(numeroOs: string, altura = 24): string {
+  const valor = valorCodigoBarrasOs(numeroOs);
+  if (!valor) return "";
+  const svg = svgCode39Html(valor, altura);
+  return `<div style="margin-top:3px">${svg}<div style="font-size:7px;text-align:left;letter-spacing:0.35px;margin-top:1px;color:#111">${escapeHtml(valor)}</div></div>`;
+}
+
+function celulaOsComCodigoBarras(
+  linha: LinhaFaturaImpressao,
+  novaOs: boolean,
+  layout: FaturaModeloLayout
+): string {
+  if (!layout.numOs) return "";
+  if (!novaOs) return "<td></td>";
+  const codigo = layout.codBarras ? htmlCodigoBarrasOsInline(linha.os) : "";
+  return `<td style="vertical-align:top">${escapeHtml(linha.os)}${codigo}</td>`;
+}
+
+function htmlRodapeCodigosBarrasFatura(
+  dados: DadosFaturaImpressao,
+  layout: FaturaModeloLayout,
+  smart = false
+): string {
+  if (!layout.codBarras || layout.numOs) return "";
+  const numeros = numerosOsUnicosDasLinhas(dados.linhas);
+  if (!numeros.length) return "";
+
+  const altura = smart ? 26 : 30;
+  const blocos = numeros
+    .map((numero) => {
+      const valor = valorCodigoBarrasOs(numero);
+      const svg = svgCode39Html(valor, altura);
+      return `<div style="display:inline-block;margin:4px 16px 4px 0;text-align:center;vertical-align:top">
+        <div style="font-size:8px;font-weight:bold;margin-bottom:2px">OS ${escapeHtml(numero)}</div>
+        ${svg}
+        <div style="font-size:7px;margin-top:2px;letter-spacing:0.35px">${escapeHtml(valor)}</div>
+      </div>`;
+    })
+    .join("");
+
+  return `<div style="margin-top:${smart ? 8 : 10}px;padding-top:6px;display:flex;flex-wrap:wrap;align-items:flex-start">${blocos}</div>`;
+}
+
 function htmlTabelaItensA4(
   dados: DadosFaturaImpressao,
   layout: FaturaModeloLayout,
@@ -567,7 +615,7 @@ function htmlTabelaItensA4(
         const novaOs = linha.os !== osAnterior;
         osAnterior = linha.os;
         const trPrincipal = `<tr>
-          ${layout.numOs ? `<td>${novaOs ? escapeHtml(linha.os) : ""}</td>` : ""}
+          ${layout.numOs ? celulaOsComCodigoBarras(linha, novaOs, layout) : ""}
           ${layout.qtd ? `<td class="center">${escapeHtml(linha.qtd)}</td>` : ""}
           ${layout.servico ? `<td>${escapeHtml(linha.servico)}</td>` : ""}
           ${layout.numDente ? `<td>${escapeHtml(linha.dentes)}</td>` : ""}
@@ -618,7 +666,7 @@ function htmlTabelaItensA4(
       const novaOs = linha.os !== osAnterior;
       osAnterior = linha.os;
       const trPrincipal = `<tr>
-        ${layout.numOs ? `<td>${novaOs ? escapeHtml(linha.os) : ""}</td>` : ""}
+        ${layout.numOs ? celulaOsComCodigoBarras(linha, novaOs, layout) : ""}
         ${layout.servico ? `<td>${escapeHtml(linha.servico)}</td>` : ""}
         ${layout.numDente ? `<td>${escapeHtml(linha.dentes)}</td>` : ""}
         ${layout.paciente ? `<td>${escapeHtml(linha.paciente)}</td>` : ""}
@@ -936,6 +984,7 @@ function gerarHtmlFaturaA4(
       ${htmlCondicaoPagamento(dados, layout, fsSmall, false, faturaA4Smart)}
       ${layout.observacao ? `<div class="obs" style="margin-top:${faturaA4Smart ? "5mm" : "10px"};font-size:${fsSmall}px"><strong>Observação:</strong> ${escapeHtml(dados.observacao || "")}</div>` : ""}
       ${layout.mensagem ? `<p style="margin-top:12px;text-align:center;font-style:italic;color:#4b5563;font-size:${fsSmall}px">${escapeHtml(layout.mensagem)}</p>` : ""}
+      ${htmlRodapeCodigosBarrasFatura(dados, layout, faturaA4Smart)}
       ${pixAssinatura}
     </div>
   </div>`;
@@ -1003,7 +1052,7 @@ function gerarHtmlFaturaTermica(
                 const meta =
                   exibirMeta && linha.segmento === "servico"
                     ? `<tr><td colspan="4" style="padding-bottom:6px">
-                      ${layout.numOs ? `<p style="margin:0">OS: <strong>${escapeHtml(linha.os)}</strong></p>` : ""}
+                      ${layout.numOs ? `<p style="margin:0">OS: <strong>${escapeHtml(linha.os)}</strong>${layout.codBarras ? htmlCodigoBarrasOsInline(linha.os, 20) : ""}</p>` : ""}
                       ${layout.paciente || layout.dentista ? `<p style="margin:0">${layout.paciente ? `Paciente: <strong>${escapeHtml(linha.paciente)}</strong>` : ""}${layout.paciente && layout.dentista ? " " : ""}${layout.dentista ? `Dr: <strong>${escapeHtml(dados.dentista)}</strong>` : ""}</p>` : ""}
                       ${layout.numDente || layout.corDente ? `<p style="margin:0">${layout.numDente ? `Mat/Dente: <strong>${escapeHtml(linha.dentes)}</strong>` : ""}${layout.numDente && layout.corDente ? " " : ""}${layout.corDente ? `Cor Dente: <strong>${escapeHtml(linha.cor)}</strong>` : ""}</p>` : ""}
                       ${metaPrazo}
@@ -1064,6 +1113,7 @@ function gerarHtmlFaturaTermica(
     ${htmlCondicaoPagamento(dados, layout, fsSmall, true)}
     ${layout.observacao ? `<p style="margin-top:8px;font-size:${fsSmall}px">Observação: <strong>${escapeHtml(dados.observacao || "—")}</strong></p>` : ""}
     ${layout.mensagem ? `<p style="margin-top:8px;text-align:center;font-style:italic;color:#4b5563;font-size:${fsSmall}px">${escapeHtml(layout.mensagem)}</p>` : ""}
+    ${htmlRodapeCodigosBarrasFatura(dados, layout, false)}
     ${layout.assinatura ? `<div style="margin-top:24px;text-align:center;font-size:${fsSmall - 1}px"><p style="margin:0;text-transform:lowercase">recebi o(s) serviço(s) descrito acima</p><div style="width:192px;margin:12px auto 0;border-top:1px solid ${cor}"></div></div>` : ""}
     ${rodapeLab}
     ${pix}
