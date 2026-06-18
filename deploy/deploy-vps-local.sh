@@ -47,8 +47,12 @@ npm run vps:validar
 
 echo ""
 echo "==> Build produção..."
+BUILD_ID="$(git rev-parse --short HEAD)"
+echo "$BUILD_ID" > .build-id
+export NEXT_PUBLIC_APP_BUILD_ID="$BUILD_ID"
 export NODE_ENV=production
 npm run build
+echo "    buildId: $BUILD_ID"
 
 echo ""
 echo "==> Pasta de backups..."
