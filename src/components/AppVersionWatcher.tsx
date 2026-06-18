@@ -2,11 +2,9 @@
 
 import { useEffect } from "react";
 import { APP_BUILD_ID, isBuildIdProducao } from "@/lib/app-build-id";
+import { recarregarAppSemCacheCompleto } from "@/lib/recarregar-app-sem-cache";
 
-const STORAGE_KEY = "labProteseBuildId";
-const STORAGE_RELOAD_AT = "labProteseReloadAt";
-const INTERVALO_MS = 10 * 60 * 1000;
-const COOLDOWN_RECARGA_MS = 30_000;
+const INTERVALO_MS = 5 * 60 * 1000;
 
 async function buildIdServidor() {
   const res = await fetch("/api/version", {
@@ -16,26 +14,6 @@ async function buildIdServidor() {
   if (!res.ok) return null;
   const json = (await res.json()) as { buildId?: string };
   return json.buildId?.trim() || null;
-}
-
-function podeRecarregarAgora() {
-  try {
-    const ultima = Number(sessionStorage.getItem(STORAGE_RELOAD_AT) || "0");
-    return Date.now() - ultima > COOLDOWN_RECARGA_MS;
-  } catch {
-    return true;
-  }
-}
-
-function recarregarComNovaVersao(novaBuildId: string) {
-  if (!podeRecarregarAgora()) return;
-  try {
-    sessionStorage.setItem(STORAGE_KEY, novaBuildId);
-    sessionStorage.setItem(STORAGE_RELOAD_AT, String(Date.now()));
-  } catch {
-    /* ignore */
-  }
-  window.location.reload();
 }
 
 export function AppVersionWatcher() {
@@ -50,18 +28,8 @@ export function AppVersionWatcher() {
       verificando = true;
       try {
         const remoto = await buildIdServidor();
-        if (!remoto) return;
-
-        if (remoto !== APP_BUILD_ID) {
-          recarregarComNovaVersao(remoto);
-          return;
-        }
-
-        try {
-          sessionStorage.setItem(STORAGE_KEY, remoto);
-        } catch {
-          /* ignore */
-        }
+        if (!remoto || remoto === APP_BUILD_ID) return;
+        await recarregarAppSemCacheCompleto(remoto);
       } catch {
         /* offline */
       } finally {
@@ -69,10 +37,8 @@ export function AppVersionWatcher() {
       }
     }
 
-    function iniciarMonitoramento() {
-      void verificar();
-      intervalo = window.setInterval(() => void verificar(), INTERVALO_MS);
-    }
+    void verificar();
+    intervalo = window.setInterval(() => void verificar(), INTERVALO_MS);
 
     const onVisibilidade = () => {
       if (document.visibilityState === "visible") {
@@ -81,7 +47,6 @@ export function AppVersionWatcher() {
     };
 
     document.addEventListener("visibilitychange", onVisibilidade);
-    iniciarMonitoramento();
 
     return () => {
       document.removeEventListener("visibilitychange", onVisibilidade);
