@@ -222,13 +222,32 @@ function escreverHtmlNaJanela(janela: Window, html: string, titulo: string) {
 export async function abrirHtmlParaImpressao(
   gerar: () => Promise<string>,
   titulo = "Documento",
-  nomeArquivo = "documento.html"
+  _nomeArquivo = "documento.html"
 ) {
   const janela = prepararAbaPdf();
-  return abrirHtmlNoVisualizadorPagina(gerar, titulo, nomeArquivo, {
-    janela,
-    imprimirAoCarregar: true,
-  });
+  try {
+    const html = await gerar();
+    const alvo = consumirJanelaReservada(janela);
+    if (!alvo || alvo.closed) {
+      const blobUrl = abrirHtmlDocumentoNoVisualizador(html, titulo);
+      return blobUrl;
+    }
+
+    escreverHtmlNaJanela(alvo, html, titulo);
+    await aguardarImagensDocumento(alvo.document);
+    alvo.focus();
+    window.setTimeout(() => {
+      try {
+        alvo.print();
+      } catch {
+        abrirHtmlDocumentoNoVisualizador(html, titulo);
+      }
+    }, 300);
+  } catch (err) {
+    fecharJanela(janela);
+    console.error("imprimir HTML", err);
+    throw err;
+  }
 }
 
 /** Abre HTML no visualizador do app (/app/financeiro/relatorio-pdf) — layout idêntico ao preview. */
@@ -297,8 +316,7 @@ export async function abrirHtmlNoVisualizadorPagina(
 export async function abrirHtmlGerandoNoVisualizador(
   gerar: () => Promise<string>,
   titulo?: string,
-  nomeArquivo = "documento.html"
+  _nomeArquivo = "documento.html"
 ) {
-  const janela = prepararAbaPdf();
-  return abrirHtmlNoVisualizadorPagina(gerar, titulo ?? "Documento", nomeArquivo, { janela });
+  return abrirHtmlGerando(gerar, titulo);
 }
