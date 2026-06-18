@@ -10,6 +10,7 @@ import { LAB_IMPRESSAO_PADRAO, type LabImpressaoConfig } from "@/lib/lab-impress
 import {
   carregarConfigLaboratorio,
   LAB_CONFIG_ATUALIZADA_EVENT,
+  nomeUsuarioDocumentosLaboratorio,
 } from "@/lib/configuracoes-lab";
 import { normalizarCabecalhoRequisicao, type CabecalhoRequisicaoConfig } from "@/lib/cabecalho-requisicao";
 import {
@@ -81,7 +82,7 @@ type PdfItem = {
 
 type PdfOsData = {
   numeroOs: number;
-  /** Usuário que criou a OS (log de auditoria). */
+  /** Nome do laboratório no campo Usuário (sincronizado com login/config). */
   usuarioCriou?: string;
   dataEntrada: string;
   status: string;
@@ -2066,6 +2067,7 @@ export function PdfOsViewer({
     const cfg = carregarConfigLaboratorio();
     return {
       ...base,
+      usuarioCriou: nomeUsuarioDocumentosLaboratorio(cfg) || base.usuarioCriou || "",
       lab: labImpressaoFromConfig(),
       cabecalhoRequisicao: normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao),
       layoutModelo1: carregarLayoutModelo1(),

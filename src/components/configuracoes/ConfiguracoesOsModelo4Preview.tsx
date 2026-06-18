@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { Code39Barcode } from "@/lib/code39-barcode";
 import { configParaLabImpressao } from "@/lib/lab-logo";
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
+import { nomeUsuarioDocumentosLaboratorio } from "@/lib/configuracoes-lab";
 import { normalizarCorBorda } from "@/lib/os-modelo1-layout";
 import { PREVIEW_OS_MODELO4, type OsModelo4Layout } from "@/lib/os-modelo4-layout";
 import { cn } from "@/lib/utils";
@@ -138,7 +139,7 @@ export function PreviewOsModelo4Termica({
           <LinhaRotuloValor rotulo="Chave Ped:" valor={amostra.chavePed} />
         ) : null}
         {layout.usuario ? (
-          <LinhaRotuloValor rotulo="Usuário:" valor={amostra.usuario} />
+          <LinhaRotuloValor rotulo="Usuário:" valor={nomeUsuarioDocumentosLaboratorio(cfg)} />
         ) : null}
       </div>
 

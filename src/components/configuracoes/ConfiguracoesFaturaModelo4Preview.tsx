@@ -2,6 +2,7 @@
 
 import { Fragment, useMemo } from "react";
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
+import { nomeUsuarioDocumentosLaboratorio } from "@/lib/configuracoes-lab";
 import { configParaLabImpressao } from "@/lib/lab-logo";
 import { normalizarCorBorda } from "@/lib/os-modelo1-layout";
 import type { ModeloFaturaId } from "@/lib/configuracoes-faturas";
@@ -146,7 +147,7 @@ export function PreviewFaturaModelo4Termica({
           <LinhaRotuloValor rotulo="Saldo Anterior:" valor={amostra.saldoAnterior} />
         ) : null}
         {layout.usuario ? (
-          <LinhaRotuloValor rotulo="Usuário:" valor={amostra.usuario} />
+          <LinhaRotuloValor rotulo="Usuário:" valor={nomeUsuarioDocumentosLaboratorio(cfg)} />
         ) : null}
       </div>
 

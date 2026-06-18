@@ -7,6 +7,7 @@ import {
   normalizarCabecalhoRequisicao,
 } from "@/lib/cabecalho-requisicao";
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
+import { nomeUsuarioDocumentosLaboratorio } from "@/lib/configuracoes-lab";
 import { configParaLabImpressao, escalaLogoMultiplicador } from "@/lib/lab-logo";
 import {
   estiloLimiteLinhasPaginaPreview,
@@ -164,7 +165,7 @@ export function PreviewOsModeloComprovante({
             {layout.usuario ? (
               <p>
                 <span className="font-bold">Usuário: </span>
-                {amostra.usuario}
+                {nomeUsuarioDocumentosLaboratorio(cfg)}
               </p>
             ) : null}
           </div>

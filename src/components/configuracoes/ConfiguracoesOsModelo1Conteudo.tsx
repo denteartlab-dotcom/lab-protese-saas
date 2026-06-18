@@ -11,6 +11,7 @@ import {
 import {
   carregarConfigLaboratorio,
   type ConfigLaboratorio,
+  nomeUsuarioDocumentosLaboratorio,
 } from "@/lib/configuracoes-lab";
 import {
   carregarConfiguracoesOs,
@@ -271,7 +272,7 @@ function PreviewOsModeloProducao({
           {layout.usuario ? (
             <p>
               <span className="font-bold">Usuário: </span>
-              {amostra.usuario}
+              {nomeUsuarioDocumentosLaboratorio(cfg)}
             </p>
           ) : null}
         </div>

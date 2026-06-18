@@ -21,7 +21,8 @@ import {
   extrairItensImpressaoOs,
   flagsUrgenteRepeticaoInstrucoes,
 } from "@/lib/os-itens-impressao";
-import { nomeUsuarioParaImpressaoOs } from "@/lib/logs-auditoria";
+import { nomeUsuarioDocumentosLaboratorio } from "@/lib/configuracoes-lab";
+import { carregarConfigLaboratorioServidor } from "@/lib/lab-config-servidor";
 import { PdfOsViewer } from "./pdf-os-viewer";
 
 type Trabalho = {
@@ -111,11 +112,9 @@ function ErroImpressao({
 async function ImprimirOSConteudo({
   id,
   sp,
-  usuarioSessao,
 }: {
   id: string;
   sp: Record<string, string | string[] | undefined>;
-  usuarioSessao: { id: string; name: string; email: string; role: string };
 }) {
   const somenteItem = searchFlag(sp.somenteItem);
   const duasVias = sp.vias === "2" || searchFlag(sp.duasVias);
@@ -264,27 +263,8 @@ async function ImprimirOSConteudo({
     segmentoSomenteItem
   );
 
-  let usuarioCriou = "";
-  try {
-    const logCriacao = await prisma.logAuditoria.findFirst({
-      where: {
-        empresaId: t.empresaId,
-        categoria: "os",
-        tipoAlteracao: "inclusao",
-        OR: [{ numeroOs: t.numeroOs }, { trabalhoId: t.id }],
-      },
-      orderBy: { dataAlteracao: "asc" },
-      select: { usuarioNome: true, usuarioId: true },
-    });
-    usuarioCriou = await nomeUsuarioParaImpressaoOs({
-      usuarioIdLog: logCriacao?.usuarioId,
-      usuarioNomeLog: logCriacao?.usuarioNome,
-      usuarioSessao,
-    });
-  } catch (err) {
-    console.error("imprimir: usuário criador OS", { id, err });
-    usuarioCriou = await nomeUsuarioParaImpressaoOs({ usuarioSessao }).catch(() => "");
-  }
+  const configLab = await carregarConfigLaboratorioServidor(t.empresaId);
+  const usuarioCriou = nomeUsuarioDocumentosLaboratorio(configLab);
 
   const etapasPorServico = somenteItem
     ? segmentoEfetivoTrabalho(t) === "servico"
@@ -359,12 +339,6 @@ export default async function ImprimirOSPage({
     return await ImprimirOSConteudo({
       id,
       sp,
-      usuarioSessao: {
-        id: session.id,
-        name: session.name || "",
-        email: session.email || "",
-        role: session.role || "",
-      },
     });
   } catch (err) {
     console.error("imprimir OS", { id, err });

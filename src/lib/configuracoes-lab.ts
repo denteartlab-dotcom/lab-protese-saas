@@ -160,6 +160,17 @@ export function cabecalhoRelatorioLaboratorio(config?: ConfigLaboratorio) {
   };
 }
 
+/** Campo "Usuário" em OS e faturas — mesmo nome exibido no login/perfil do laboratório. */
+export function nomeUsuarioDocumentosLaboratorio(
+  config?: Partial<ConfigLaboratorio> | null
+): string {
+  if (!config) {
+    if (typeof window === "undefined") return "";
+    return nomeExibicaoLaboratorio(carregarConfigLaboratorio());
+  }
+  return nomeExibicaoLaboratorio(normalizarConfigLaboratorio(config));
+}
+
 export function nomeExibicaoLaboratorio(config: ConfigLaboratorio): string {
   const principal = config.nomeLaboratorio?.trim();
   if (principal) return principal;

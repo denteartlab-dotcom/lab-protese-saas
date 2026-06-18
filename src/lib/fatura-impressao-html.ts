@@ -2,7 +2,7 @@ import {
   montarTextosCabecalhoRequisicao,
   normalizarCabecalhoRequisicao,
 } from "@/lib/cabecalho-requisicao";
-import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
+import { nomeExibicaoLaboratorio, type ConfigLaboratorio } from "@/lib/configuracoes-lab";
 import {
   formatoPorModeloFatura,
   resolverLayoutFaturaImpressao,
@@ -1034,6 +1034,10 @@ export function gerarHtmlFaturaImpressao(
   money: (n: number) => string = (n) =>
     n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 ) {
+  const dadosImpressao: DadosFaturaImpressao = {
+    ...dados,
+    usuario: nomeExibicaoLaboratorio(cfgLab) || dados.usuario,
+  };
   const termica = formatoPorModeloFatura(opcoes.modelo) === "termica" || opcoes.formato === "termica";
   const layout = resolverLayoutFaturaImpressao(
     cfgFaturas,
@@ -1042,9 +1046,9 @@ export function gerarHtmlFaturaImpressao(
   );
 
   return termica
-    ? gerarHtmlFaturaTermica(dados, cfgLab, layout, opcoes.modelo, money)
+    ? gerarHtmlFaturaTermica(dadosImpressao, cfgLab, layout, opcoes.modelo, money)
     : gerarHtmlFaturaA4(
-        dados,
+        dadosImpressao,
         cfgLab,
         layout,
         opcoes.modelo,
