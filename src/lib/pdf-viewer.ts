@@ -197,13 +197,15 @@ export async function abrirHtmlGerando(gerar: () => Promise<string>, titulo?: st
 export async function abrirHtmlParaImpressao(
   gerar: () => Promise<string>,
   titulo = "Documento",
-  nomeArquivo = "documento.html"
+  nomeArquivo = "documento.html",
+  opcoes?: { subtitulo?: string }
 ) {
   const janela = prepararAbaPdf();
   try {
     await abrirHtmlNoVisualizadorPagina(gerar, titulo, nomeArquivo, {
       janela,
       imprimirAoCarregar: true,
+      subtitulo: opcoes?.subtitulo,
     });
   } catch (err) {
     fecharJanela(janela);
@@ -340,7 +342,7 @@ export async function abrirHtmlNoVisualizadorPagina(
   gerar: () => Promise<string>,
   titulo: string,
   nomeArquivo = "documento.html",
-  opcoes?: { janela?: Window | null; imprimirAoCarregar?: boolean }
+  opcoes?: { janela?: Window | null; imprimirAoCarregar?: boolean; subtitulo?: string }
 ) {
   const {
     criarIdPdfViewer,
@@ -416,11 +418,15 @@ export async function abrirHtmlNoVisualizadorPagina(
 export async function abrirHtmlGerandoNoVisualizador(
   gerar: () => Promise<string>,
   titulo?: string,
-  nomeArquivo = "documento.html"
+  nomeArquivo = "documento.html",
+  opcoes?: { subtitulo?: string }
 ) {
   const janela = prepararAbaPdf();
   try {
-    await abrirHtmlNoVisualizadorPagina(gerar, titulo ?? "Documento", nomeArquivo, { janela });
+    await abrirHtmlNoVisualizadorPagina(gerar, titulo ?? "Documento", nomeArquivo, {
+      janela,
+      subtitulo: opcoes?.subtitulo,
+    });
   } catch (err) {
     fecharJanela(janela);
     console.error("visualizador HTML", err);

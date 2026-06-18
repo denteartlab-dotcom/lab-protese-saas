@@ -23,8 +23,8 @@ import {
 import { sincronizarConfigLaboratorioDoServidor } from "@/lib/lab-config-sync";
 import { gerarPdfDeHtmlDocumento } from "@/lib/html-para-pdf";
 import {
-  abrirPdfGerandoNoVisualizadorPagina,
-  abrirPdfParaImpressaoNoVisualizador,
+  abrirHtmlGerandoNoVisualizador,
+  abrirHtmlParaImpressao,
 } from "@/lib/pdf-viewer";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +45,10 @@ type Props = {
   valorFatura?: number;
   gerarHtml: (opcoes: OpcoesImpressaoFaturaModal, config: ConfiguracoesFaturas) => string;
 };
+
+function ocultarAcoesHtml(html: string) {
+  return html.replace(/<div class="actions">[\s\S]*?<\/div>\s*/g, "");
+}
 
 function aplicarFormatoNoHtml(html: string, formato: FormatoImpressaoFatura, duasVias: boolean) {
   let resultado = html;
@@ -163,7 +167,7 @@ export function ImprimirFaturaModal({
       recarregarConfig(),
       sincronizarConfigLaboratorioDoServidor().catch(() => undefined),
     ]);
-    return htmlPreparado(cfgFaturas);
+    return ocultarAcoesHtml(htmlPreparado(cfgFaturas));
   }
 
   function modeloParaFormato(
@@ -204,7 +208,11 @@ export function ImprimirFaturaModal({
   }
 
   async function gerarPdfFatura() {
-    const html = await prepararHtmlImpressao();
+    const [cfgFaturas] = await Promise.all([
+      recarregarConfig(),
+      sincronizarConfigLaboratorioDoServidor().catch(() => undefined),
+    ]);
+    const html = htmlPreparado(cfgFaturas);
     return gerarPdfDeHtmlDocumento(html, formato);
   }
 
@@ -213,10 +221,10 @@ export function ImprimirFaturaModal({
     const titulo = `Fatura ${numeroFatura} — ${clienteNome}`;
 
     setGerandoPdf(true);
-    void abrirPdfParaImpressaoNoVisualizador(
-      () => gerarPdfFatura(),
+    void abrirHtmlParaImpressao(
+      () => prepararHtmlImpressao(),
       titulo,
-      `fatura-${numeroFatura}.pdf`,
+      `fatura-${numeroFatura}.html`,
       { subtitulo: subtituloFatura() }
     )
       .catch((err) => {
@@ -231,10 +239,10 @@ export function ImprimirFaturaModal({
     const titulo = `Fatura ${numeroFatura} — ${clienteNome}`;
 
     setGerandoPdf(true);
-    void abrirPdfGerandoNoVisualizadorPagina(
-      () => gerarPdfFatura(),
+    void abrirHtmlGerandoNoVisualizador(
+      () => prepararHtmlImpressao(),
       titulo,
-      `fatura-${numeroFatura}.pdf`,
+      `fatura-${numeroFatura}.html`,
       { subtitulo: subtituloFatura() }
     )
       .catch((err) => {
@@ -325,7 +333,7 @@ export function ImprimirFaturaModal({
 
           {gerandoPdf ? (
             <p className="mb-3 text-center text-xs text-[#6b7280]">
-              Gerando PDF da fatura…
+              Abrindo visualizador da fatura…
             </p>
           ) : null}
 

@@ -259,13 +259,14 @@ export async function publicarHtmlNaAba(
   html: string,
   titulo: string,
   nomeArquivo = "documento.html",
-  opcoes?: { imprimirAoCarregar?: boolean }
+  opcoes?: { imprimirAoCarregar?: boolean; subtitulo?: string }
 ): Promise<PdfViewerSessionPayload> {
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
   const base64 = await blobParaBase64(blob);
   const payload: PdfViewerSessionPayload = {
     status: "ready",
     titulo,
+    subtitulo: opcoes?.subtitulo,
     nomeArquivo,
     base64,
     mimeType: "text/html;charset=utf-8",

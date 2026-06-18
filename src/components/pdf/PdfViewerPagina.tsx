@@ -23,6 +23,7 @@ type Props = {
 
 export function PdfViewerPagina({ id }: Props) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [mimeType, setMimeType] = useState("application/pdf");
   const [titulo, setTitulo] = useState("Visualizador PDF");
   const [subtitulo, setSubtitulo] = useState("Visualização do PDF");
   const [nomeArquivo, setNomeArquivo] = useState("documento.pdf");
@@ -78,6 +79,7 @@ export function PdfViewerPagina({ id }: Props) {
           URL.revokeObjectURL(urlLocalRef.current);
         }
         const mime = payload.mimeType ?? "application/pdf";
+        setMimeType(mime);
         imprimirAoCarregarRef.current = Boolean(payload.imprimirAoCarregar);
         try {
           urlLocalRef.current = base64ParaBlobUrl(payload.base64, mime);
@@ -182,6 +184,8 @@ export function PdfViewerPagina({ id }: Props) {
     window.setTimeout(() => imprimir(), 150);
   }
 
+  const ehHtml = mimeType.startsWith("text/html");
+
   return (
     <div className={PDF_VIEWER_PAGINA_CLASSES}>
       <div className="flex items-center justify-between border-b border-slate-700 bg-[#3c3c3c] px-4 py-3 text-white">
@@ -241,7 +245,11 @@ export function PdfViewerPagina({ id }: Props) {
         />
       ) : (
         <div className="flex flex-1 items-center justify-center text-sm text-slate-300">
-          {carregando ? "Gerando PDF..." : "Carregando documento..."}
+          {carregando
+            ? ehHtml
+              ? "Carregando documento..."
+              : "Gerando PDF..."
+            : "Carregando documento..."}
         </div>
       )}
     </div>

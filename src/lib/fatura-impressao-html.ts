@@ -160,6 +160,33 @@ function metaLinhaOsSmart(linha: LinhaFaturaImpressao, layout: FaturaModeloLayou
   return partes.join(" ");
 }
 
+function trMetaAbaixoServico(
+  meta: string,
+  layout: FaturaModeloLayout,
+  totalColunas: number,
+  qtdAntesServico: boolean
+) {
+  let colunasUsadas = 0;
+  let cells = "";
+  if (layout.numOs) {
+    cells += "<td></td>";
+    colunasUsadas += 1;
+  }
+  if (qtdAntesServico && layout.qtd) {
+    cells += '<td class="center"></td>';
+    colunasUsadas += 1;
+  }
+  if (layout.servico) {
+    cells += `<td><span>${escapeHtml(meta)}</span></td>`;
+    colunasUsadas += 1;
+    const restante = totalColunas - colunasUsadas;
+    if (restante > 0) cells += `<td colspan="${restante}"></td>`;
+    return `<tr class="meta-row">${cells}</tr>`;
+  }
+  const colspan = layout.numOs ? Math.max(1, totalColunas - 1) : totalColunas;
+  return `<tr class="meta-row">${layout.numOs ? "<td></td>" : ""}<td colspan="${colspan}"><span>${escapeHtml(meta)}</span></td></tr>`;
+}
+
 function colunasLarguraSmart(layout: FaturaModeloLayout) {
   const cols: string[] = [];
   if (layout.numOs) cols.push("5%");
@@ -485,10 +512,14 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
     ${smartTableCss}
     @media print{
       .actions{display:none}
-      html,body{width:100%;margin:0;padding:0}
+      html,body{width:100%;margin:0;padding:0;background:#fff}
       .page{${pagePrintCss}}
       table{page-break-inside:auto}
       tr{page-break-inside:avoid;page-break-after:auto}
+    }
+    @media screen{
+      html,body{background:#525659}
+      .page{background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2)}
     }
   </style>`;
 }
@@ -503,7 +534,8 @@ function estilosBaseTermica(fs: number) {
     table{border-collapse:collapse;width:100%}
     th,td{padding:1px 2px;vertical-align:top}
     .right{text-align:right}
-    @media print{.actions{display:none}}
+    @media print{.actions{display:none}html,body{background:#fff}}
+    @media screen{html,body{background:#525659}.page{background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2)}}
   </style>`;
 }
 
@@ -548,11 +580,7 @@ function htmlTabelaItensA4(
         const meta = metaLinhaOsSmart(linha, layout);
         if (!meta) return [trPrincipal];
 
-        const colspanMeta = layout.numOs ? Math.max(1, colunas - 1) : colunas;
-        const trMeta = `<tr class="meta-row">
-          ${layout.numOs ? "<td></td>" : ""}
-          <td colspan="${colspanMeta}"><span>${escapeHtml(meta)}</span></td>
-        </tr>`;
+        const trMeta = trMetaAbaixoServico(meta, layout, colunas, true);
         return [trPrincipal, trMeta];
       })
       .join("");
@@ -604,14 +632,10 @@ function htmlTabelaItensA4(
         return [trPrincipal];
       }
 
-      const metaTexto = `Data: ${escapeHtml(linha.dataOs)}${
-        layout.finalizado ? ` Entregue: ${escapeHtml(linha.finalizado)}` : ""
-      }`;
-      const colspanMeta = layout.numOs ? Math.max(1, colunas - 1) : colunas;
-      const trMeta = `<tr class="meta-row">
-        ${layout.numOs ? "<td></td>" : ""}
-        <td colspan="${colspanMeta}"><span>${metaTexto}</span></td>
-      </tr>`;
+      const partesMeta: string[] = [];
+      if (layout.data) partesMeta.push(`Data: ${linha.dataOs}`);
+      if (layout.finalizado) partesMeta.push(`Entregue: ${linha.finalizado}`);
+      const trMeta = trMetaAbaixoServico(partesMeta.join(" "), layout, colunas, false);
       return [trPrincipal, trMeta];
     })
     .join("");
