@@ -141,3 +141,102 @@ export async function abrirPdfGerando(
     throw err;
   }
 }
+
+/** Abre HTML em nova aba — mesma renderização do preview em Configurações (sem rasterizar). */
+export function abrirHtmlDocumentoNoVisualizador(
+  html: string,
+  titulo = "Documento",
+  janela?: Window | null
+) {
+  const alvo = consumirJanelaReservada(janela);
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  if (alvo && !alvo.closed) {
+    try {
+      alvo.document.title = titulo;
+    } catch {
+      /* ignore */
+    }
+    if (navegarAbaPdf(alvo, url)) {
+      agendarRevogarUrl(url);
+      return url;
+    }
+    fecharJanela(alvo);
+  }
+
+  if (typeof window === "undefined") return url;
+
+  const nova = window.open(url, "_blank");
+  if (!nova) {
+    URL.revokeObjectURL(url);
+    throw new Error("Não foi possível abrir a fatura. Verifique o bloqueio de pop-ups.");
+  }
+  try {
+    nova.document.title = titulo;
+  } catch {
+    /* ignore */
+  }
+  agendarRevogarUrl(url);
+  return url;
+}
+
+export async function abrirHtmlGerando(gerar: () => Promise<string>, titulo?: string) {
+  const janela = prepararAbaPdf();
+  try {
+    const html = await gerar();
+    return abrirHtmlDocumentoNoVisualizador(html, titulo, janela);
+  } catch (err) {
+    fecharJanela(janela);
+    console.error("gerar HTML", err);
+    throw err;
+  }
+}
+
+function aguardarImagensDocumento(doc: Document): Promise<void> {
+  const imagens = Array.from(doc.images);
+  if (!imagens.length) return Promise.resolve();
+  return Promise.all(
+    imagens.map(
+      (img) =>
+        new Promise<void>((resolve) => {
+          if (img.complete) resolve();
+          else {
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+          }
+        })
+    )
+  ).then(() => undefined);
+}
+
+function escreverHtmlNaJanela(janela: Window, html: string, titulo: string) {
+  const doc = janela.document;
+  doc.open();
+  doc.write(html);
+  doc.close();
+  doc.title = titulo;
+}
+
+/** Abre o HTML e dispara impressão nativa — mesma renderização do preview (sem html2canvas). */
+export async function abrirHtmlParaImpressao(
+  gerar: () => Promise<string>,
+  titulo = "Documento"
+) {
+  const janela = prepararAbaPdf();
+  try {
+    const html = await gerar();
+    const alvo = consumirJanelaReservada(janela);
+    if (!alvo || alvo.closed) {
+      return abrirHtmlDocumentoNoVisualizador(html, titulo);
+    }
+    escreverHtmlNaJanela(alvo, html, titulo);
+    await aguardarImagensDocumento(alvo.document);
+    alvo.focus();
+    alvo.print();
+  } catch (err) {
+    fecharJanela(janela);
+    console.error("imprimir HTML", err);
+    throw err;
+  }
+}

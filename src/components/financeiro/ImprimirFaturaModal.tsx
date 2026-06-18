@@ -22,7 +22,7 @@ import {
 } from "@/lib/configuracoes-faturas";
 import { sincronizarConfigLaboratorioDoServidor } from "@/lib/lab-config-sync";
 import { gerarPdfDeHtmlDocumento } from "@/lib/html-para-pdf";
-import { abrirPdfGerando } from "@/lib/pdf-viewer";
+import { abrirHtmlGerando, abrirHtmlParaImpressao } from "@/lib/pdf-viewer";
 import { cn } from "@/lib/utils";
 
 export type FormatoImpressaoFatura = "a4" | "termica";
@@ -192,30 +192,30 @@ export function ImprimirFaturaModal({
     if (fmtModelo !== formato) setFormato(fmtModelo);
   }
 
-  function abrirNoVisualizadorPdf() {
+  function imprimir() {
     if (gerandoPdf || sincronizando) return;
-    const nomeArquivo = `fatura-${numeroFatura}.pdf`;
     const titulo = `Fatura ${numeroFatura} — ${clienteNome}`;
 
     setGerandoPdf(true);
-    void abrirPdfGerando(
-      () => prepararHtmlImpressao().then((html) => gerarPdfDeHtmlDocumento(html, formato)),
-      nomeArquivo,
-      titulo
-    )
+    void abrirHtmlParaImpressao(() => prepararHtmlImpressao(), titulo)
       .catch((err) => {
-        console.error("[ImprimirFaturaModal] PDF", err);
-        window.alert("Não foi possível gerar o PDF da fatura. Tente novamente.");
+        console.error("[ImprimirFaturaModal] imprimir", err);
+        window.alert("Não foi possível abrir a impressão. Tente novamente.");
       })
       .finally(() => setGerandoPdf(false));
   }
 
-  function imprimir() {
-    abrirNoVisualizadorPdf();
-  }
-
   function visualizarPdf() {
-    abrirNoVisualizadorPdf();
+    if (gerandoPdf || sincronizando) return;
+    const titulo = `Fatura ${numeroFatura} — ${clienteNome}`;
+
+    setGerandoPdf(true);
+    void abrirHtmlGerando(() => prepararHtmlImpressao(), titulo)
+      .catch((err) => {
+        console.error("[ImprimirFaturaModal] visualizar", err);
+        window.alert("Não foi possível abrir a fatura. Tente novamente.");
+      })
+      .finally(() => setGerandoPdf(false));
   }
 
   async function enviarWhatsapp() {
@@ -299,7 +299,7 @@ export function ImprimirFaturaModal({
 
           {gerandoPdf ? (
             <p className="mb-3 text-center text-xs text-[#6b7280]">
-              Gerando PDF e abrindo visualizador…
+              Abrindo fatura…
             </p>
           ) : null}
 
@@ -369,7 +369,7 @@ export function ImprimirFaturaModal({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              title="Abrir PDF para imprimir"
+              title="Imprimir fatura"
               onClick={imprimir}
               disabled={sincronizando || gerandoPdf}
               className="flex h-9 w-9 items-center justify-center rounded-sm bg-[#4a90d9] text-white hover:bg-[#3d7fc4] disabled:opacity-50"
@@ -378,7 +378,7 @@ export function ImprimirFaturaModal({
             </button>
             <button
               type="button"
-              title="Visualizar PDF"
+              title="Visualizar fatura"
               onClick={visualizarPdf}
               disabled={sincronizando || gerandoPdf}
               className="flex h-9 w-9 items-center justify-center rounded-sm bg-[#1e3a5f] text-white hover:bg-[#152a45] disabled:opacity-50"
