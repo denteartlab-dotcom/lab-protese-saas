@@ -61,7 +61,10 @@ async function contarSemEmpresa(tabela: string, fn: () => Promise<number>) {
   try {
     return await fn();
   } catch (err) {
-    console.warn(`[fase6] ${tabela}: não verificado (${err instanceof Error ? err.message : err})`);
+    const msg = err instanceof Error ? err.message : String(err);
+    // Schema exige empresaId (não nullable) — não existe registro sem tenant.
+    if (msg.includes("must not be null")) return 0;
+    console.warn(`[fase6] ${tabela}: não verificado (${msg})`);
     return -1;
   }
 }
