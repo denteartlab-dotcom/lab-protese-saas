@@ -287,15 +287,6 @@ export function middleware(request: NextRequest) {
 
   const res = NextResponse.next();
   res.headers.set("X-Content-Type-Options", "nosniff");
-  if (pathname.startsWith("/app")) {
-    res.headers.set(
-      "Cache-Control",
-      "private, no-store, no-cache, max-age=0, must-revalidate"
-    );
-    res.headers.set("CDN-Cache-Control", "no-store");
-    res.headers.set("Vercel-CDN-Cache-Control", "no-store");
-    res.headers.set("Pragma", "no-cache");
-  }
   if (pathname.startsWith("/api")) {
     res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
     res.headers.set("Pragma", "no-cache");
