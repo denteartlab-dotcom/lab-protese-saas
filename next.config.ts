@@ -51,6 +51,8 @@ function resolveAssetPrefix() {
   if (!raw || process.env.NODE_ENV !== "production") return undefined;
   try {
     const url = new URL(raw);
+    // Nunca embutir URL de beta em build de produção (quebra www + modal de cache).
+    if (url.hostname.startsWith("beta.")) return undefined;
     if (url.hostname === "denteartlab.com.br") {
       url.hostname = "www.denteartlab.com.br";
     }
