@@ -6,8 +6,38 @@ export function contentDispositionPdf(nomeArquivo: string, download: boolean) {
   return `${tipo}; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
 
-export function urlPdfDocumentoServidor(id: string, download = false) {
+export function urlPdfDocumentoServidor(
+  id: string,
+  opcoes?: { download?: boolean; nomeArquivo?: string }
+) {
+  const nome = opcoes?.nomeArquivo?.trim() || "documento.pdf";
   const params = new URLSearchParams({ id });
-  if (download) params.set("download", "1");
-  return `/api/pdf-documento?${params.toString()}`;
+  if (opcoes?.download) params.set("download", "1");
+  const segmento = encodeURIComponent(nome);
+  return `/api/pdf-documento/${segmento}?${params.toString()}`;
+}
+
+/** Garante que o PDF está no cache do servidor antes do iframe carregar. */
+export async function garantirPdfDocumentoNoServidor(
+  id: string,
+  payload: {
+    base64: string;
+    nomeArquivo?: string;
+    mimeType?: string;
+  }
+) {
+  const res = await fetch("/api/pdf-documento", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id,
+      base64: payload.base64,
+      nomeArquivo: payload.nomeArquivo?.trim() || "documento.pdf",
+      mimeType: payload.mimeType?.trim() || "application/pdf",
+    }),
+  });
+  if (!res.ok) {
+    throw new Error("Não foi possível publicar o PDF no servidor.");
+  }
 }

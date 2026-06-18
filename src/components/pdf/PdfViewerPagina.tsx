@@ -6,7 +6,10 @@ import { Button } from "@/components/ui";
 import { PdfViewerIframe } from "@/components/pdf/PdfViewerIframe";
 import { PDF_VIEWER_PAGINA_CLASSES } from "@/lib/pdf-viewer-iframe";
 import { prepararAbaPdf, visualizarPdfUrl, baixarPdfUrl } from "@/lib/pdf-viewer";
-import { urlPdfDocumentoServidor } from "@/lib/pdf-documento-http";
+import {
+  garantirPdfDocumentoNoServidor,
+  urlPdfDocumentoServidor,
+} from "@/lib/pdf-documento-http";
 import {
   PDF_VIEWER_MSG_DADOS,
   buscarPdfViewerSessaoServidor,
@@ -32,6 +35,7 @@ export function PdfViewerPagina({ id }: Props) {
   const imprimirAoCarregarRef = useRef(false);
   const concluidoRef = useRef(false);
   const urlLocalRef = useRef("");
+  const ativoRef = useRef(true);
 
   const imprimir = useCallback(() => {
     if (!pdfUrl) return;
@@ -50,7 +54,7 @@ export function PdfViewerPagina({ id }: Props) {
     if (!pdfUrl) return;
     if (pdfUrl.includes("/api/pdf-documento")) {
       const link = document.createElement("a");
-      link.href = urlPdfDocumentoServidor(id, true);
+      link.href = urlPdfDocumentoServidor(id, { download: true, nomeArquivo });
       link.download = nomeArquivo;
       link.rel = "noopener";
       link.style.display = "none";
@@ -72,11 +76,24 @@ export function PdfViewerPagina({ id }: Props) {
   }
 
   useEffect(() => {
-    let ativo = true;
+    ativoRef.current = true;
     const storageKey = chavePdfViewerSession(id);
 
+    async function montarUrlPdf(payload: PdfViewerSessionPayload, arquivo: string) {
+      await garantirPdfDocumentoNoServidor(id, {
+        base64: payload.base64!,
+        nomeArquivo: arquivo,
+        mimeType: payload.mimeType,
+      });
+      if (!ativoRef.current || concluidoRef.current) return;
+      urlLocalRef.current = urlPdfDocumentoServidor(id, { nomeArquivo: arquivo });
+      setPdfUrl(urlLocalRef.current);
+      setCarregando(false);
+      setErro("");
+    }
+
     function aplicarPayload(payload: PdfViewerSessionPayload) {
-      if (!ativo || concluidoRef.current) return;
+      if (!ativoRef.current || concluidoRef.current) return;
 
       if (payload.titulo) setTitulo(payload.titulo);
       if (payload.subtitulo) setSubtitulo(payload.subtitulo);
@@ -95,6 +112,7 @@ export function PdfViewerPagina({ id }: Props) {
           URL.revokeObjectURL(urlLocalRef.current);
         }
         const mime = payload.mimeType ?? "application/pdf";
+        const arquivo = payload.nomeArquivo?.trim() || "documento.pdf";
         setMimeType(mime);
         imprimirAoCarregarRef.current = Boolean(payload.imprimirAoCarregar);
 
@@ -103,18 +121,21 @@ export function PdfViewerPagina({ id }: Props) {
             const bytes = Uint8Array.from(atob(payload.base64), (c) => c.charCodeAt(0));
             const blob = new Blob([bytes], { type: mime });
             urlLocalRef.current = URL.createObjectURL(blob);
+            setPdfUrl(urlLocalRef.current);
+            setCarregando(false);
+            setErro("");
           } catch {
             setCarregando(false);
             setErro("Não foi possível montar o documento para visualização.");
-            return;
           }
-        } else {
-          urlLocalRef.current = urlPdfDocumentoServidor(id);
+          return;
         }
 
-        setPdfUrl(urlLocalRef.current);
-        setCarregando(false);
-        setErro("");
+        void montarUrlPdf(payload, arquivo).catch(() => {
+          if (!ativoRef.current) return;
+          setCarregando(false);
+          setErro("Não foi possível publicar o PDF. Feche e tente novamente.");
+        });
         return;
       }
 
@@ -129,7 +150,7 @@ export function PdfViewerPagina({ id }: Props) {
     }
 
     async function tentarServidor() {
-      if (!ativo || concluidoRef.current) return;
+      if (!ativoRef.current || concluidoRef.current) return;
       const payload = await buscarPdfViewerSessaoServidor(id);
       if (payload) aplicarPayload(payload);
     }
@@ -181,13 +202,13 @@ export function PdfViewerPagina({ id }: Props) {
     void tentarServidor();
 
     const timeout = window.setTimeout(() => {
-      if (!ativo || concluidoRef.current) return;
+      if (!ativoRef.current || concluidoRef.current) return;
       setCarregando(false);
       setErro("Tempo esgotado ao aguardar o documento. Feche esta aba e tente novamente.");
     }, 120_000);
 
     return () => {
-      ativo = false;
+      ativoRef.current = false;
       window.clearInterval(intervalo);
       window.clearInterval(intervaloServidor);
       window.clearTimeout(timeout);

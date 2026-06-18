@@ -2072,7 +2072,7 @@ export function PdfOsViewer({
     try {
       await publicarPdfBlobNoServidor(blob, nomeArquivoPdf, id);
       pdfDocIdRef.current = id;
-      const url = urlPdfDocumentoServidor(id);
+      const url = urlPdfDocumentoServidor(id, { nomeArquivo: nomeArquivoPdf });
       setPdfUrl(url);
       return url;
     } catch (err) {
@@ -2224,7 +2224,10 @@ export function PdfOsViewer({
   function baixarPdf() {
     if (pdfDocIdRef.current) {
       const link = document.createElement("a");
-      link.href = urlPdfDocumentoServidor(pdfDocIdRef.current, true);
+      link.href = urlPdfDocumentoServidor(pdfDocIdRef.current, {
+        download: true,
+        nomeArquivo: nomeArquivoPdf,
+      });
       link.download = nomeArquivoPdf;
       link.rel = "noopener";
       link.style.display = "none";
@@ -2252,7 +2255,7 @@ export function PdfOsViewer({
 
   function abrirEmNovaAba() {
     const url = pdfDocIdRef.current
-      ? urlPdfDocumentoServidor(pdfDocIdRef.current)
+      ? urlPdfDocumentoServidor(pdfDocIdRef.current, { nomeArquivo: nomeArquivoPdf })
       : pdfUrl;
     if (!url) return;
     const janela = prepararAbaPdf();

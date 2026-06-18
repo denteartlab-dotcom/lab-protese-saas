@@ -220,7 +220,7 @@ export function ImprimirFaturaModal({
     void abrirPdfParaImpressaoNoVisualizador(
       () => gerarPdfFatura(),
       titulo,
-      `fatura-${numeroFatura}.pdf`,
+      `Fatura ${numeroFatura}.pdf`,
       { subtitulo: subtituloFatura() }
     )
       .catch((err) => {
@@ -238,7 +238,7 @@ export function ImprimirFaturaModal({
     void abrirPdfGerandoNoVisualizadorPagina(
       () => gerarPdfFatura(),
       titulo,
-      `fatura-${numeroFatura}.pdf`,
+      `Fatura ${numeroFatura}.pdf`,
       { subtitulo: subtituloFatura() }
     )
       .catch((err) => {
@@ -258,7 +258,7 @@ export function ImprimirFaturaModal({
             maximumFractionDigits: 2,
           })
         : "";
-    const nomeArquivo = `fatura-${numeroFatura}.pdf`;
+    const nomeArquivo = `Fatura ${numeroFatura}.pdf`;
     const titulo = `Fatura ${numeroFatura} — ${clienteNome}`;
 
     setEnviandoWhatsapp(true);

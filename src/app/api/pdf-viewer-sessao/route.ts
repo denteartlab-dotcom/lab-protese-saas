@@ -3,7 +3,6 @@ import { sessaoComPapelAtualizado } from "@/lib/auth-acesso";
 import type { PdfViewerSessionPayload } from "@/lib/pdf-viewer-aba";
 import {
   lerSessaoPdfViewerServidor,
-  removerSessaoPdfViewerServidor,
   salvarSessaoPdfViewerServidor,
 } from "@/lib/pdf-viewer-sessao-servidor";
 
@@ -30,6 +29,7 @@ export async function POST(request: Request) {
   return NextResponse.json({ ok: true });
 }
 
+/** Metadados da sessão — não remove o PDF (o iframe ainda precisa dele). */
 export async function GET(request: Request) {
   const session = await sessaoComPapelAtualizado();
   if (!session) {
@@ -46,6 +46,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Sessão não encontrada." }, { status: 404 });
   }
 
-  removerSessaoPdfViewerServidor(id);
   return NextResponse.json(payload);
 }
