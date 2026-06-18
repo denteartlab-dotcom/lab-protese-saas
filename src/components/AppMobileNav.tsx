@@ -12,6 +12,7 @@ import {
   type AppNavItem,
 } from "@/lib/app-nav";
 import { cn } from "@/lib/utils";
+import { ehPaginaInicioApp } from "@/lib/rotas-app";
 
 type Props = {
   aberto: boolean;
@@ -24,7 +25,7 @@ type Props = {
 
 function linkAtivo(pathname: string, href: string) {
   const base = href.split("?")[0];
-  if (base === "/app") return pathname === "/app";
+  if (base === "/app") return ehPaginaInicioApp(pathname);
   return pathname === base || pathname.startsWith(`${base}/`);
 }
 

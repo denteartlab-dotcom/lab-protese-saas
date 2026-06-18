@@ -35,6 +35,7 @@ import { limparUltimaAtividadeSessao } from "@/lib/sessao-inatividade";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { instrucoesTextoLivre } from "@/lib/etapas-os";
 import { cn, STATUS_TRABALHO } from "@/lib/utils";
+import { ehPaginaInicioApp } from "@/lib/rotas-app";
 import {
   BarChart3,
   CheckSquare,
@@ -173,7 +174,7 @@ function AppShellInner({
     isModuloColaborador || isModuloTv || isRelatorioImersivo;
   const mostrarFaixaAssinatura =
     !isPrint && !isModuloImersivo && Boolean(dataVencimentoAssinatura);
-  const isDashboard = pathname === "/app";
+  const isDashboard = ehPaginaInicioApp(pathname);
   const [darkMode, setDarkMode] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [buscaSiteAberta, setBuscaSiteAberta] = useState(false);
@@ -216,7 +217,7 @@ function AppShellInner({
   useEffect(() => {
     setUserMenuOpen(false);
     setMenuMobileAberto(false);
-    if (pathname !== "/app") {
+    if (!ehPaginaInicioApp(pathname)) {
       setBuscaOsAberta(false);
       setBuscaPacienteAberta(false);
     }
@@ -643,7 +644,7 @@ function AppShellInner({
           <header className="hidden border-b border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:block">
             <nav className="flex h-14 items-center justify-center gap-1 px-4">
             {appNavPrincipal.filter((item) => item.labelKey === "nav.inicio").map((item) => {
-              const active = pathname === item.href;
+              const active = ehPaginaInicioApp(pathname);
               return (
                 <Link
                   key={`${item.href}-${item.labelKey}`}

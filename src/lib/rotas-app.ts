@@ -54,6 +54,15 @@ export function caminhoInternoApp(restante: string): string {
   return `/app${restante.startsWith("/") ? restante : `/${restante}`}`;
 }
 
+/** Início do app: /app ou /app/{slug-da-empresa} */
+export function ehPaginaInicioApp(pathname: string): boolean {
+  const normalizado = pathname.replace(/\/+$/, "") || "/";
+  if (normalizado === "/app") return true;
+  const { slug, restante } = analisarCaminhoApp(normalizado);
+  if (!slug) return false;
+  return !restante || restante === "/";
+}
+
 export function normalizarSlugEmpresa(slug: string): string {
   return slug
     .trim()
