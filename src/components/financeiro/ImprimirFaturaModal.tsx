@@ -23,8 +23,8 @@ import {
 import { sincronizarConfigLaboratorioDoServidor } from "@/lib/lab-config-sync";
 import { gerarPdfDeHtmlDocumento } from "@/lib/html-para-pdf";
 import {
-  abrirHtmlGerandoNoVisualizador,
-  abrirHtmlParaImpressao,
+  abrirPdfGerandoNoVisualizadorPagina,
+  abrirPdfParaImpressaoNoVisualizador,
 } from "@/lib/pdf-viewer";
 import { cn } from "@/lib/utils";
 
@@ -208,11 +208,7 @@ export function ImprimirFaturaModal({
   }
 
   async function gerarPdfFatura() {
-    const [cfgFaturas] = await Promise.all([
-      recarregarConfig(),
-      sincronizarConfigLaboratorioDoServidor().catch(() => undefined),
-    ]);
-    const html = htmlPreparado(cfgFaturas);
+    const html = await prepararHtmlImpressao();
     return gerarPdfDeHtmlDocumento(html, formato);
   }
 
@@ -221,10 +217,10 @@ export function ImprimirFaturaModal({
     const titulo = `Fatura ${numeroFatura} — ${clienteNome}`;
 
     setGerandoPdf(true);
-    void abrirHtmlParaImpressao(
-      () => prepararHtmlImpressao(),
+    void abrirPdfParaImpressaoNoVisualizador(
+      () => gerarPdfFatura(),
       titulo,
-      `fatura-${numeroFatura}.html`,
+      `fatura-${numeroFatura}.pdf`,
       { subtitulo: subtituloFatura() }
     )
       .catch((err) => {
@@ -239,10 +235,10 @@ export function ImprimirFaturaModal({
     const titulo = `Fatura ${numeroFatura} — ${clienteNome}`;
 
     setGerandoPdf(true);
-    void abrirHtmlGerandoNoVisualizador(
-      () => prepararHtmlImpressao(),
+    void abrirPdfGerandoNoVisualizadorPagina(
+      () => gerarPdfFatura(),
       titulo,
-      `fatura-${numeroFatura}.html`,
+      `fatura-${numeroFatura}.pdf`,
       { subtitulo: subtituloFatura() }
     )
       .catch((err) => {
@@ -333,7 +329,7 @@ export function ImprimirFaturaModal({
 
           {gerandoPdf ? (
             <p className="mb-3 text-center text-xs text-[#6b7280]">
-              Abrindo visualizador da fatura…
+              Gerando PDF da fatura…
             </p>
           ) : null}
 

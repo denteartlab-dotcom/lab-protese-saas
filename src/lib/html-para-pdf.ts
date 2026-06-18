@@ -1,3 +1,5 @@
+import type { jsPDF } from "jspdf";
+
 export type FormatoHtmlPdf = "a4" | "termica";
 
 /** Largura A4 em px (96dpi) — igual ao preview em Configurações. */
@@ -20,6 +22,19 @@ function aguardarImagens(doc: Document) {
   ).then(() => undefined);
 }
 
+function aguardarLayout() {
+  return new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
+}
+
+/** Remove estilos de tela cheia do visualizador — não devem ir para o PDF. */
+function htmlLimpoParaPdf(html: string) {
+  return html
+    .replace(/@media screen\{[^}]*\}/g, "")
+    .replace(/<div class="actions">[\s\S]*?<\/div>\s*/g, "");
+}
+
 function montarIframeHtml(html: string, formato: FormatoHtmlPdf) {
   const iframe = document.createElement("iframe");
   iframe.setAttribute("title", "Gerar PDF");
@@ -35,10 +50,52 @@ function montarIframeHtml(html: string, formato: FormatoHtmlPdf) {
   }
 
   doc.open();
-  doc.write(html);
+  doc.write(htmlLimpoParaPdf(html));
   doc.close();
 
   return { iframe, doc };
+}
+
+function prepararElementoParaCaptura(el: HTMLElement, doc: Document) {
+  el.style.minHeight = "auto";
+  el.style.height = "auto";
+  el.style.maxHeight = "none";
+  el.style.boxShadow = "none";
+  el.style.margin = "0 auto";
+  doc.documentElement.style.background = "#ffffff";
+  doc.body.style.background = "#ffffff";
+  doc.body.style.margin = "0";
+  doc.body.style.padding = "0";
+}
+
+function adicionarCanvasNoPdf(pdf: jsPDF, canvas: HTMLCanvasElement, umaPagina: boolean) {
+  const larguraPdf = pdf.internal.pageSize.getWidth();
+  const alturaPdf = pdf.internal.pageSize.getHeight();
+  const alturaImagem = (canvas.height * larguraPdf) / canvas.width;
+  const imgData = canvas.toDataURL("image/jpeg", 0.95);
+
+  if (umaPagina || alturaImagem <= alturaPdf + 0.5) {
+    const escala = Math.min(1, alturaPdf / alturaImagem);
+    const largura = larguraPdf * escala;
+    const altura = alturaImagem * escala;
+    const offsetX = (larguraPdf - largura) / 2;
+    pdf.addImage(imgData, "JPEG", offsetX, 0, largura, altura);
+    return;
+  }
+
+  let posicaoY = 0;
+  let restante = alturaImagem;
+  const limiarMm = 4;
+
+  pdf.addImage(imgData, "JPEG", 0, posicaoY, larguraPdf, alturaImagem);
+  restante -= alturaPdf;
+
+  while (restante > limiarMm) {
+    posicaoY -= alturaPdf;
+    pdf.addPage();
+    pdf.addImage(imgData, "JPEG", 0, posicaoY, larguraPdf, alturaImagem);
+    restante -= alturaPdf;
+  }
 }
 
 /** Converte HTML de fatura (ou documento similar) em PDF para o visualizador do navegador. */
@@ -57,26 +114,16 @@ export async function gerarPdfDeHtmlDocumento(
     else iframe.onload = () => resolve();
   });
   await aguardarImagens(doc);
+  await aguardarLayout();
 
   doc.querySelectorAll(".actions").forEach((node) => {
     (node as HTMLElement).style.display = "none";
   });
 
-  const alvo = (doc.querySelector(".page") ?? doc.body) as HTMLElement;
+  const paginas = Array.from(doc.querySelectorAll(".page")) as HTMLElement[];
+  const alvos = paginas.length ? paginas : [(doc.body as HTMLElement)];
   const html2canvas = (await import("html2canvas")).default;
   const { jsPDF } = await import("jspdf");
-
-  const escala = 2;
-  const canvas = await html2canvas(alvo, {
-    scale: escala,
-    useCORS: true,
-    logging: false,
-    backgroundColor: "#ffffff",
-    width: alvo.scrollWidth,
-    windowWidth: alvo.scrollWidth,
-  });
-
-  iframe.remove();
 
   const termica = formato === "termica";
   const pdf = new jsPDF({
@@ -85,23 +132,25 @@ export async function gerarPdfDeHtmlDocumento(
     orientation: "portrait",
   });
 
-  const larguraPdf = pdf.internal.pageSize.getWidth();
-  const alturaPdf = pdf.internal.pageSize.getHeight();
-  const alturaImagem = (canvas.height * larguraPdf) / canvas.width;
-  const imgData = canvas.toDataURL("image/jpeg", 0.92);
+  for (let i = 0; i < alvos.length; i++) {
+    if (i > 0) pdf.addPage();
+    const alvo = alvos[i];
+    prepararElementoParaCaptura(alvo, doc);
 
-  let posicaoY = 0;
-  let restante = alturaImagem;
+    const canvas = await html2canvas(alvo, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: "#ffffff",
+      width: alvo.scrollWidth,
+      height: alvo.scrollHeight,
+      windowWidth: alvo.scrollWidth,
+      windowHeight: alvo.scrollHeight,
+    });
 
-  pdf.addImage(imgData, "JPEG", 0, posicaoY, larguraPdf, alturaImagem);
-  restante -= alturaPdf;
-
-  while (restante > 0) {
-    posicaoY -= alturaPdf;
-    pdf.addPage();
-    pdf.addImage(imgData, "JPEG", 0, posicaoY, larguraPdf, alturaImagem);
-    restante -= alturaPdf;
+    adicionarCanvasNoPdf(pdf, canvas, alvos.length === 1);
   }
 
+  iframe.remove();
   return pdf.output("blob");
 }
