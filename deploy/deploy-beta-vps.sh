@@ -29,7 +29,7 @@ if grep -q "readFileSync" src/lib/app-build-id.ts 2>/dev/null; then
 fi
 
 if [[ -f .env ]] && grep -qE '^NEXT_PUBLIC_APP_BUILD_ID=' .env 2>/dev/null; then
-  BAD="$(grep -E '^NEXT_PUBLIC_APP_BUILD_ID=' .env | head -1 | cut -d= -f2- | tr -d '\"' | tr -d \"'\")"
+  BAD="$(grep -E '^NEXT_PUBLIC_APP_BUILD_ID=' .env | head -1 | cut -d= -f2- | sed "s/[\"']//g" | tr -d '[:space:]')"
   if [[ ${#BAD} -lt 6 ]]; then
     echo "==> Removendo NEXT_PUBLIC_APP_BUILD_ID inválido (${BAD}) do .env"
     sed -i '/^NEXT_PUBLIC_APP_BUILD_ID=/d' .env
