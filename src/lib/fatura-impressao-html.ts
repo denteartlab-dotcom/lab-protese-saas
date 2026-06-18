@@ -22,7 +22,6 @@ import {
   FATURA_SMART_CONTEUDO_INSET_MM,
   FATURA_SMART_PADDING_TOPO_MM,
   FATURA_TERMICA_LARGURA_MM,
-  layoutFaturaModelo1Smart,
   PREVIEW_FATURA_AMOSTRA,
   type FaturaModeloLayout,
 } from "@/lib/fatura-modelo-layout";
