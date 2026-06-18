@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { sessaoComPapelAtualizado } from "@/lib/auth-acesso";
-import { contentDispositionPdf } from "@/lib/pdf-documento-http";
+import { respostaPdfBase64 } from "@/lib/pdf-documento-resposta";
 import { lerSessaoPdfViewerServidor } from "@/lib/pdf-viewer-sessao-servidor";
 
 type Params = { params: Promise<{ arquivo: string }> };
@@ -32,21 +32,14 @@ export async function GET(request: Request, { params }: Params) {
   const nomeArquivo = payload.nomeArquivo?.trim() || nomeUrl;
   const mimeType = payload.mimeType?.trim() || "application/pdf";
 
-  let bytes: Uint8Array;
-  try {
-    bytes = Uint8Array.from(Buffer.from(payload.base64, "base64"));
-  } catch {
+  const resposta = respostaPdfBase64(payload.base64, {
+    mimeType,
+    nomeArquivo,
+    download,
+  });
+  if (!resposta) {
     return NextResponse.json({ error: "Documento corrompido." }, { status: 500 });
   }
 
-  return new NextResponse(bytes, {
-    status: 200,
-    headers: {
-      "Content-Type": mimeType,
-      "Content-Disposition": contentDispositionPdf(nomeArquivo, download),
-      "Content-Length": String(bytes.length),
-      "Cache-Control": "private, max-age=600",
-      "X-Content-Type-Options": "nosniff",
-    },
-  });
+  return resposta;
 }
