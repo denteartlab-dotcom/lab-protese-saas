@@ -1,16 +1,40 @@
 "use client";
 
-import { Suspense, useMemo } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FaturaPdfViewer } from "@/components/financeiro/FaturaPdfViewer";
-import { lerFaturaImpressaoSessao } from "@/lib/fatura-impressao-sessao";
+import {
+  lerFaturaImpressaoSessao,
+  type FaturaImpressaoSessao,
+} from "@/lib/fatura-impressao-sessao";
 
 function ImprimirFaturaConteudo() {
   const params = useSearchParams();
   const id = params.get("id")?.trim() ?? "";
   const imprimir = params.get("imprimir") === "1";
+  const [payload, setPayload] = useState<FaturaImpressaoSessao | null>(null);
+  const [carregando, setCarregando] = useState(true);
 
-  const payload = useMemo(() => (id ? lerFaturaImpressaoSessao(id) : null), [id]);
+  useEffect(() => {
+    if (!id) {
+      setPayload(null);
+      setCarregando(false);
+      return;
+    }
+
+    setCarregando(true);
+    const dados = lerFaturaImpressaoSessao(id);
+    setPayload(dados);
+    setCarregando(false);
+  }, [id]);
+
+  if (carregando) {
+    return (
+      <div className="flex flex-1 items-center justify-center text-sm text-slate-300">
+        Carregando fatura...
+      </div>
+    );
+  }
 
   if (!id || !payload) {
     return (

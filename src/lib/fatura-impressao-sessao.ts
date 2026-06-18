@@ -16,14 +16,27 @@ export function criarIdFaturaImpressao() {
   return `fatura-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function chaveStorage(id: string) {
+  return `${PREFIX}${id}`;
+}
+
+/** localStorage é compartilhado entre abas (sessionStorage não funciona com noopener). */
 export function salvarFaturaImpressaoSessao(id: string, payload: FaturaImpressaoSessao) {
   if (typeof window === "undefined") return;
-  sessionStorage.setItem(`${PREFIX}${id}`, JSON.stringify(payload));
+  const raw = JSON.stringify(payload);
+  localStorage.setItem(chaveStorage(id), raw);
+  // Compatibilidade com abas antigas que ainda liam sessionStorage
+  try {
+    sessionStorage.setItem(chaveStorage(id), raw);
+  } catch {
+    /* quota ou modo privado */
+  }
 }
 
 export function lerFaturaImpressaoSessao(id: string): FaturaImpressaoSessao | null {
   if (typeof window === "undefined") return null;
-  const raw = sessionStorage.getItem(`${PREFIX}${id}`);
+  const key = chaveStorage(id);
+  const raw = localStorage.getItem(key) ?? sessionStorage.getItem(key);
   if (!raw) return null;
   try {
     return JSON.parse(raw) as FaturaImpressaoSessao;
