@@ -1,11 +1,12 @@
-/** Script inline (beforeInteractive) — recupera HTML/JS em cache após deploy. */
+/** Script inline (beforeInteractive) — atualiza JS em cache após deploy na aba normal. */
 export const CHUNK_RELOAD_SCRIPT = `
 (function () {
   var HOST_CANONICO = "www.denteartlab.com.br";
   var KEY = "labChunkReloadAt";
   var TENTOS_KEY = "labChunkReloadTentativas";
-  var MAX_TENTOS_AUTO = 6;
-  var COOLDOWN_MS = 1500;
+  var SYNC_KEY = "labBuildSincronizado";
+  var MAX_TENTOS = 2;
+  var COOLDOWN_MS = 2000;
 
   if (window.location.hostname === "denteartlab.com.br") {
     var canonico = new URL(window.location.href);
@@ -13,6 +14,10 @@ export const CHUNK_RELOAD_SCRIPT = `
     canonico.hostname = HOST_CANONICO;
     window.location.replace(canonico.toString());
     return;
+  }
+
+  function buildIdValido(id) {
+    return !!(id && id !== "dev" && String(id).length >= 6);
   }
 
   function obterTentativas() {
@@ -23,21 +28,10 @@ export const CHUNK_RELOAD_SCRIPT = `
     }
   }
 
-  function limparCaches(cb) {
-    var tarefas = [];
-    if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
-      tarefas.push(
-        navigator.serviceWorker.getRegistrations().then(function (regs) {
-          return Promise.all(
-            regs.map(function (r) {
-              return r.unregister();
-            })
-          );
-        })
-      );
-    }
+  function limparCachesNavegador() {
+    var passos = [];
     if (window.caches && window.caches.keys) {
-      tarefas.push(
+      passos.push(
         window.caches.keys().then(function (keys) {
           return Promise.all(
             keys.map(function (key) {
@@ -47,69 +41,55 @@ export const CHUNK_RELOAD_SCRIPT = `
         })
       );
     }
-    if (!tarefas.length) {
-      cb();
-      return;
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+      passos.push(
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          return Promise.all(
+            regs.map(function (reg) {
+              return reg.unregister();
+            })
+          );
+        })
+      );
     }
-    Promise.all(tarefas).finally(cb);
+    return Promise.all(passos);
   }
 
-  function podeRecarregarAuto() {
+  function podeRecarregar(forcar) {
+    if (forcar) return obterTentativas() < MAX_TENTOS;
     try {
       var ultima = Number(sessionStorage.getItem(KEY) || "0");
-      return Date.now() - ultima > COOLDOWN_MS && obterTentativas() < MAX_TENTOS_AUTO;
+      return Date.now() - ultima > COOLDOWN_MS && obterTentativas() < MAX_TENTOS;
     } catch (e) {
       return true;
     }
   }
 
-  function registrarTentativa() {
-    try {
-      sessionStorage.setItem(KEY, String(Date.now()));
-      sessionStorage.setItem(TENTOS_KEY, String(obterTentativas() + 1));
-    } catch (e) {}
-  }
-
-  function limparParametrosCacheDaUrl() {
+  function limparParamsCacheDaUrl() {
     try {
       var url = new URL(window.location.href);
-      if (!url.searchParams.has("_build") && !url.searchParams.has("_cb")) return;
-      url.searchParams.delete("_build");
-      url.searchParams.delete("_cb");
-      window.history.replaceState({}, "", url.toString());
-    } catch (e) {}
-  }
-
-  function irParaNovaUrl(buildRemoto) {
-    var url = new URL(window.location.href);
-    url.protocol = "https:";
-    if (url.hostname === "www.denteartlab.com.br" || url.hostname === "denteartlab.com.br") {
-      url.hostname = HOST_CANONICO;
-    }
-    if (buildRemoto) url.searchParams.set("_build", buildRemoto);
-    url.searchParams.set("_cb", String(Date.now()));
-    window.location.replace(url.toString());
-  }
-
-  function recarregarForcado(buildRemoto) {
-    try {
+      var mudou = false;
+      ["_build", "_cb", "_fresh"].forEach(function (nome) {
+        if (url.searchParams.has(nome)) {
+          url.searchParams.delete(nome);
+          mudou = true;
+        }
+      });
+      if (mudou) {
+        window.history.replaceState({}, "", url.toString());
+      }
       sessionStorage.removeItem(TENTOS_KEY);
       sessionStorage.removeItem(KEY);
     } catch (e) {}
-    limparCaches(function () {
-      irParaNovaUrl(buildRemoto);
-    });
   }
 
-  function recarregarAutomatico(buildRemoto) {
-    if (!podeRecarregarAuto()) {
-      mostrarAvisoCache(buildRemoto);
-      return;
-    }
-    registrarTentativa();
-    limparCaches(function () {
-      irParaNovaUrl(buildRemoto);
-    });
+  function marcarBuildSincronizado(buildId) {
+    try {
+      sessionStorage.setItem(SYNC_KEY, buildId);
+      sessionStorage.removeItem(TENTOS_KEY);
+      sessionStorage.removeItem(KEY);
+    } catch (e) {}
+    limparParamsCacheDaUrl();
   }
 
   function mostrarAvisoCache(buildRemoto) {
@@ -121,41 +101,98 @@ export const CHUNK_RELOAD_SCRIPT = `
       "position:fixed;inset:0;z-index:2147483646;background:rgba(15,23,42,.72);display:flex;align-items:center;justify-content:center;padding:16px";
     box.innerHTML =
       '<div style="max-width:420px;background:#fff;border-radius:12px;padding:20px 22px;font:14px/1.45 Arial,sans-serif;color:#111;box-shadow:0 12px 40px rgba(0,0,0,.25)">' +
-      "<strong style=\\"display:block;font-size:16px;margin-bottom:8px\\">Nova versão disponível</strong>" +
-      "<p style=\\"margin:0 0 12px\\">O sistema foi atualizado. Clique abaixo para carregar a versão mais recente — não precisa usar aba anônima.</p>" +
-      "<p style=\\"margin:0 0 16px;color:#475569;font-size:13px\\">Versão no servidor: <code>" +
-      (buildRemoto || "?") +
-      "</code></p>" +
+      "<strong style=\\"display:block;font-size:16px;margin-bottom:8px\\">Atualização do sistema</strong>" +
+      "<p style=\\"margin:0 0 16px\\">O navegador ainda está com arquivos antigos. Clique abaixo para carregar a versão atual.</p>" +
       '<button type=\\"button\\" id=\\"lab-cache-aviso-btn\\" style=\\"width:100%;border:0;border-radius:8px;padding:10px 14px;background:#0f766e;color:#fff;font-weight:600;cursor:pointer\\">Atualizar agora</button>' +
       "</div>";
     document.documentElement.appendChild(box);
     var btn = document.getElementById("lab-cache-aviso-btn");
     if (btn) {
       btn.addEventListener("click", function () {
-        recarregarForcado(buildRemoto);
+        try {
+          sessionStorage.removeItem(TENTOS_KEY);
+          sessionStorage.removeItem(KEY);
+          sessionStorage.removeItem(SYNC_KEY);
+        } catch (e) {}
+        limparCachesNavegador().finally(function () {
+          var url = new URL(window.location.href);
+          ["_build", "_cb", "_fresh"].forEach(function (n) {
+            url.searchParams.delete(n);
+          });
+          if (buildRemoto) url.searchParams.set("_build", buildRemoto);
+          url.searchParams.set("_fresh", String(Date.now()));
+          window.location.replace(url.toString());
+        });
       });
     }
+  }
+
+  function irParaNovaUrl(buildRemoto) {
+    var url = new URL(window.location.href);
+    url.protocol = "https:";
+    if (url.hostname === "www.denteartlab.com.br" || url.hostname === "denteartlab.com.br") {
+      url.hostname = HOST_CANONICO;
+    }
+    ["_build", "_cb", "_fresh"].forEach(function (n) {
+      url.searchParams.delete(n);
+    });
+    if (buildRemoto) url.searchParams.set("_build", buildRemoto);
+    url.searchParams.set("_cb", String(Date.now()));
+    window.location.replace(url.toString());
+  }
+
+  function recarregarPagina(forcar, buildRemoto) {
+    if (!podeRecarregar(forcar)) {
+      mostrarAvisoCache(buildRemoto);
+      return;
+    }
+    try {
+      sessionStorage.setItem(KEY, String(Date.now()));
+      sessionStorage.setItem(TENTOS_KEY, String(obterTentativas() + 1));
+    } catch (e) {}
+
+    limparCachesNavegador().finally(function () {
+      irParaNovaUrl(buildRemoto);
+    });
   }
 
   function verificarBuildDesatualizada() {
     var meta = document.querySelector('meta[name="app-build-id"]');
     var buildLocal = meta && meta.getAttribute("content");
-    if (!buildLocal) return;
+    if (!buildIdValido(buildLocal)) return;
+
+    try {
+      if (sessionStorage.getItem(SYNC_KEY) === buildLocal) return;
+    } catch (e) {}
 
     fetch("/api/version", { cache: "no-store", credentials: "same-origin" })
       .then(function (res) {
         return res.ok ? res.json() : null;
       })
       .then(function (data) {
-        if (!data || !data.buildId || data.buildId === buildLocal) {
+        if (!data || !buildIdValido(data.buildId)) return;
+
+        if (data.buildId === buildLocal) {
+          marcarBuildSincronizado(data.buildId);
+          return;
+        }
+
+        var urlAtual = new URL(window.location.href);
+        var jaTentouBuild = urlAtual.searchParams.get("_build") === data.buildId;
+
+        if (jaTentouBuild && obterTentativas() >= MAX_TENTOS) {
+          mostrarAvisoCache(data.buildId);
+          return;
+        }
+
+        if (!jaTentouBuild) {
           try {
             sessionStorage.removeItem(TENTOS_KEY);
             sessionStorage.removeItem(KEY);
           } catch (e) {}
-          limparParametrosCacheDaUrl();
-          return;
         }
-        recarregarAutomatico(data.buildId);
+
+        recarregarPagina(true, data.buildId);
       })
       .catch(function () {});
   }
@@ -177,7 +214,7 @@ export const CHUNK_RELOAD_SCRIPT = `
       var src = alvo.src || alvo.href || "";
       if (src.indexOf("/_next/static/") === -1) return;
       if (tag !== "SCRIPT" && !(tag === "LINK" && alvo.rel === "preload")) return;
-      recarregarAutomatico();
+      recarregarPagina(false, null);
     },
     true
   );
@@ -191,17 +228,8 @@ export const CHUNK_RELOAD_SCRIPT = `
         mensagem
       )
     ) {
-      recarregarAutomatico();
+      recarregarPagina(false, null);
     }
-  });
-
-  window.addEventListener("load", function () {
-    window.setTimeout(function () {
-      try {
-        sessionStorage.removeItem(TENTOS_KEY);
-        sessionStorage.removeItem(KEY);
-      } catch (e) {}
-    }, 8000);
   });
 })();
 `.trim();

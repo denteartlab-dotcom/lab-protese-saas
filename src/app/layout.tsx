@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { AppVersionWatcher } from "@/components/AppVersionWatcher";
 import { LabConfigProvider } from "@/components/LabConfigProvider";
 import { LabDocumentHead } from "@/components/LabDocumentHead";
 import { SiteTopoMarca } from "@/components/SiteTopoMarca";
-import { APP_BUILD_ID } from "@/lib/app-build-id";
+import { obterAppBuildIdServidor } from "@/lib/app-build-id-servidor";
 import { CHUNK_RELOAD_SCRIPT } from "@/lib/chunk-reload-script";
 import {
   FAVICON_PADRAO,
@@ -32,11 +31,12 @@ export default async function RootLayout({
 }) {
   const configLaboratorio = await carregarConfigLaboratorioServidor();
   const lab = configParaLabImpressao(configLaboratorio);
+  const buildId = obterAppBuildIdServidor();
 
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
-        <meta name="app-build-id" content={APP_BUILD_ID} />
+        <meta name="app-build-id" content={buildId} />
         <script
           id="recarregar-chunks-antigos"
           dangerouslySetInnerHTML={{ __html: CHUNK_RELOAD_SCRIPT }}
@@ -93,7 +93,6 @@ export default async function RootLayout({
         />
       </head>
       <body>
-        <AppVersionWatcher />
         <LabConfigProvider lab={lab} configLaboratorio={configLaboratorio}>
           <LabDocumentHead />
           <div className="flex min-h-[calc(100dvh/var(--site-zoom,0.9))] flex-col">

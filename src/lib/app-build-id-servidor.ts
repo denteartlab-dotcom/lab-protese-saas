@@ -25,5 +25,7 @@ function lerBuildIdArquivo(): string {
 
 /** Build id em rotas/API (lê .build-id gravado no deploy). */
 export function obterAppBuildIdServidor(): string {
-  return lerBuildIdArquivo() || buildIdDeEnv() || "dev";
+  const id = lerBuildIdArquivo() || buildIdDeEnv();
+  if (id && id.length >= 6) return id;
+  return "dev";
 }
