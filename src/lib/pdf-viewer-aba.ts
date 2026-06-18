@@ -5,6 +5,8 @@ export type PdfViewerSessionPayload = {
   titulo?: string;
   nomeArquivo?: string;
   base64?: string;
+  mimeType?: string;
+  imprimirAoCarregar?: boolean;
   message?: string;
 };
 
@@ -72,11 +74,16 @@ export function base64ParaBlobUrl(base64: string, mime = "application/pdf") {
   return URL.createObjectURL(blob);
 }
 
+export function urlPdfViewerPagina(id: string) {
+  const path = `/app/financeiro/relatorio-pdf?id=${encodeURIComponent(id)}`;
+  if (typeof window === "undefined") return path;
+  return `${window.location.origin}${path}`;
+}
+
 /** Abre a rota do visualizador em nova aba reservada (nunca navega a aba atual). */
 export function abrirPdfViewerNovaAba(id: string): Window | null {
   if (typeof window === "undefined") return null;
-  const path = `/app/financeiro/relatorio-pdf?id=${encodeURIComponent(id)}`;
-  const url = `${window.location.origin}${path}`;
+  const url = urlPdfViewerPagina(id);
 
   try {
     const janela = window.open("about:blank", "_blank");
@@ -103,6 +110,26 @@ export async function publicarPdfNaAba(
     titulo,
     nomeArquivo,
     base64,
+    mimeType: blob.type || "application/pdf",
+  });
+}
+
+export async function publicarHtmlNaAba(
+  id: string,
+  html: string,
+  titulo: string,
+  nomeArquivo = "documento.html",
+  opcoes?: { imprimirAoCarregar?: boolean }
+) {
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const base64 = await blobParaBase64(blob);
+  salvarPdfViewerSession(id, {
+    status: "ready",
+    titulo,
+    nomeArquivo,
+    base64,
+    mimeType: "text/html;charset=utf-8",
+    imprimirAoCarregar: opcoes?.imprimirAoCarregar,
   });
 }
 

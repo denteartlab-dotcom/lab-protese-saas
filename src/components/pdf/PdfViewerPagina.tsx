@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Download, Printer, X } from "lucide-react";
 import { PdfViewerIframe } from "@/components/pdf/PdfViewerIframe";
 import { PDF_VIEWER_PAGINA_CLASSES } from "@/lib/pdf-viewer-iframe";
@@ -22,6 +22,21 @@ export function PdfViewerPagina({ id }: Props) {
   const [nomeArquivo, setNomeArquivo] = useState("documento.pdf");
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(true);
+  const [ehHtml, setEhHtml] = useState(false);
+  const imprimirAoCarregarRef = useRef(false);
+
+  const imprimir = useCallback(() => {
+    if (!pdfUrl) return;
+    const iframe = document.getElementById(
+      "pdf-viewer-pagina-iframe"
+    ) as HTMLIFrameElement | null;
+    try {
+      iframe?.contentWindow?.focus();
+      iframe?.contentWindow?.print();
+    } catch {
+      window.open(pdfUrl, "_blank");
+    }
+  }, [pdfUrl]);
 
   useEffect(() => {
     let ativo = true;
@@ -38,14 +53,17 @@ export function PdfViewerPagina({ id }: Props) {
       if (payload.status === "error") {
         concluido = true;
         setCarregando(false);
-        setErro(payload.message || "Não foi possível carregar o PDF.");
+        setErro(payload.message || "Não foi possível carregar o documento.");
         return;
       }
 
       if (payload.status === "ready" && payload.base64) {
         concluido = true;
         if (urlLocal.startsWith("blob:")) URL.revokeObjectURL(urlLocal);
-        urlLocal = base64ParaBlobUrl(payload.base64);
+        const mime = payload.mimeType ?? "application/pdf";
+        setEhHtml(mime.startsWith("text/html"));
+        imprimirAoCarregarRef.current = Boolean(payload.imprimirAoCarregar);
+        urlLocal = base64ParaBlobUrl(payload.base64, mime);
         removerPdfViewerSession(id);
         setPdfUrl(urlLocal);
         setCarregando(false);
@@ -78,7 +96,7 @@ export function PdfViewerPagina({ id }: Props) {
     const timeout = window.setTimeout(() => {
       if (!ativo || concluido) return;
       setCarregando(false);
-      setErro("Tempo esgotado ao aguardar o PDF. Feche esta aba e tente novamente.");
+      setErro("Tempo esgotado ao aguardar o documento. Feche esta aba e tente novamente.");
     }, 120_000);
 
     return () => {
@@ -90,21 +108,14 @@ export function PdfViewerPagina({ id }: Props) {
     };
   }, [id]);
 
-  function fechar() {
-    window.close();
+  function aoCarregarIframe() {
+    if (!imprimirAoCarregarRef.current) return;
+    imprimirAoCarregarRef.current = false;
+    window.setTimeout(() => imprimir(), 150);
   }
 
-  function imprimir() {
-    if (!pdfUrl) return;
-    const iframe = document.getElementById(
-      "pdf-viewer-pagina-iframe"
-    ) as HTMLIFrameElement | null;
-    try {
-      iframe?.contentWindow?.focus();
-      iframe?.contentWindow?.print();
-    } catch {
-      window.open(pdfUrl, "_blank");
-    }
+  function fechar() {
+    window.close();
   }
 
   return (
@@ -112,7 +123,9 @@ export function PdfViewerPagina({ id }: Props) {
       <div className="flex items-center justify-between border-b border-slate-700 bg-[#3c3c3c] px-4 py-3 text-white">
         <div>
           <h1 className="text-sm font-semibold">{titulo}</h1>
-          <p className="text-xs text-slate-300">Visualização do PDF · Folha A4 paisagem</p>
+          <p className="text-xs text-slate-300">
+            {ehHtml ? "Visualize ou imprima o documento" : "Visualização do PDF · Folha A4 paisagem"}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {pdfUrl ? (
@@ -159,13 +172,14 @@ export function PdfViewerPagina({ id }: Props) {
         </div>
       ) : carregando || !pdfUrl ? (
         <div className="flex flex-1 items-center justify-center text-sm text-slate-200">
-          Gerando PDF...
+          Carregando documento...
         </div>
       ) : (
         <PdfViewerIframe
           id="pdf-viewer-pagina-iframe"
           title={titulo}
           pdfUrl={pdfUrl}
+          onLoad={aoCarregarIframe}
         />
       )}
     </div>

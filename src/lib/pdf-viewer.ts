@@ -221,22 +221,73 @@ function escreverHtmlNaJanela(janela: Window, html: string, titulo: string) {
 /** Abre o HTML e dispara impressão nativa — mesma renderização do preview (sem html2canvas). */
 export async function abrirHtmlParaImpressao(
   gerar: () => Promise<string>,
-  titulo = "Documento"
+  titulo = "Documento",
+  nomeArquivo = "documento.html"
 ) {
   const janela = prepararAbaPdf();
+  return abrirHtmlNoVisualizadorPagina(gerar, titulo, nomeArquivo, {
+    janela,
+    imprimirAoCarregar: true,
+  });
+}
+
+/** Abre HTML no visualizador do app (/app/financeiro/relatorio-pdf) — layout idêntico ao preview. */
+export async function abrirHtmlNoVisualizadorPagina(
+  gerar: () => Promise<string>,
+  titulo: string,
+  nomeArquivo = "documento.html",
+  opcoes?: { janela?: Window | null; imprimirAoCarregar?: boolean }
+) {
+  const {
+    criarIdPdfViewer,
+    urlPdfViewerPagina,
+    publicarHtmlNaAba,
+    salvarPdfViewerSession,
+    marcarPdfViewerErro,
+  } = await import("@/lib/pdf-viewer-aba");
+
+  const id = criarIdPdfViewer();
+  salvarPdfViewerSession(id, { status: "loading", titulo, nomeArquivo });
+  const url = urlPdfViewerPagina(id);
+  const janela = consumirJanelaReservada(opcoes?.janela);
+
+  if (janela && !janela.closed) {
+    try {
+      janela.document.title = "Carregando...";
+    } catch {
+      /* ignore */
+    }
+    if (!navegarAbaPdf(janela, url)) {
+      fecharJanela(janela);
+      const nova = window.open(url, "_blank");
+      if (!nova) {
+        throw new Error("Não foi possível abrir o visualizador. Verifique o bloqueio de pop-ups.");
+      }
+    }
+  } else if (typeof window !== "undefined") {
+    const nova = window.open(url, "_blank");
+    if (!nova) {
+      throw new Error("Não foi possível abrir o visualizador. Verifique o bloqueio de pop-ups.");
+    }
+  }
+
   try {
     const html = await gerar();
-    const alvo = consumirJanelaReservada(janela);
-    if (!alvo || alvo.closed) {
-      return abrirHtmlDocumentoNoVisualizador(html, titulo);
-    }
-    escreverHtmlNaJanela(alvo, html, titulo);
-    await aguardarImagensDocumento(alvo.document);
-    alvo.focus();
-    alvo.print();
+    await publicarHtmlNaAba(id, html, titulo, nomeArquivo, {
+      imprimirAoCarregar: opcoes?.imprimirAoCarregar,
+    });
   } catch (err) {
-    fecharJanela(janela);
-    console.error("imprimir HTML", err);
+    marcarPdfViewerErro(id, "Não foi possível carregar o documento.", titulo);
+    console.error("visualizador HTML", err);
     throw err;
   }
+}
+
+export async function abrirHtmlGerandoNoVisualizador(
+  gerar: () => Promise<string>,
+  titulo?: string,
+  nomeArquivo = "documento.html"
+) {
+  const janela = prepararAbaPdf();
+  return abrirHtmlNoVisualizadorPagina(gerar, titulo ?? "Documento", nomeArquivo, { janela });
 }

@@ -22,7 +22,10 @@ import {
 } from "@/lib/configuracoes-faturas";
 import { sincronizarConfigLaboratorioDoServidor } from "@/lib/lab-config-sync";
 import { gerarPdfDeHtmlDocumento } from "@/lib/html-para-pdf";
-import { abrirHtmlGerando, abrirHtmlParaImpressao } from "@/lib/pdf-viewer";
+import {
+  abrirHtmlGerandoNoVisualizador,
+  abrirHtmlParaImpressao,
+} from "@/lib/pdf-viewer";
 import { cn } from "@/lib/utils";
 
 export type FormatoImpressaoFatura = "a4" | "termica";
@@ -197,7 +200,7 @@ export function ImprimirFaturaModal({
     const titulo = `Fatura ${numeroFatura} — ${clienteNome}`;
 
     setGerandoPdf(true);
-    void abrirHtmlParaImpressao(() => prepararHtmlImpressao(), titulo)
+    void abrirHtmlParaImpressao(() => prepararHtmlImpressao(), titulo, `fatura-${numeroFatura}.html`)
       .catch((err) => {
         console.error("[ImprimirFaturaModal] imprimir", err);
         window.alert("Não foi possível abrir a impressão. Tente novamente.");
@@ -210,7 +213,11 @@ export function ImprimirFaturaModal({
     const titulo = `Fatura ${numeroFatura} — ${clienteNome}`;
 
     setGerandoPdf(true);
-    void abrirHtmlGerando(() => prepararHtmlImpressao(), titulo)
+    void abrirHtmlGerandoNoVisualizador(
+      () => prepararHtmlImpressao(),
+      titulo,
+      `fatura-${numeroFatura}.html`
+    )
       .catch((err) => {
         console.error("[ImprimirFaturaModal] visualizar", err);
         window.alert("Não foi possível abrir a fatura. Tente novamente.");
