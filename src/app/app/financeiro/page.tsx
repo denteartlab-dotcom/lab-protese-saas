@@ -39,6 +39,11 @@ import {
   gerarHtmlFaturaImpressao,
   montarDadosFaturaImpressao,
 } from "@/lib/fatura-impressao-html";
+import {
+  calcularCreditoDisponivelClienteFatura,
+  calcularSaldoAnteriorCreditoFatura,
+  calcularUltimoPagamentoClienteFatura,
+} from "@/lib/fatura-cliente-financeiro";
 import { htmlCabecalhoLab, labImpressaoFromConfig } from "@/lib/lab-logo";
 import { ContaBancariaConteudo } from "@/components/financeiro/ContaBancariaConteudo";
 import { ContasPagarConteudo } from "@/components/financeiro/ContasPagarConteudo";
@@ -2568,6 +2573,14 @@ function FinanceiroReceberConteudo() {
         gerarHtml={(opcoes, configFaturas) => {
           if (!faturaImprimindo) return "";
           const lancamento = faturaImprimindo.lancamento;
+          const clienteId =
+            faturaImprimindo.cliente.clienteId || lancamento.cliente?.id;
+          const lancamentosCliente = data?.lancamentos || [];
+          const creditoUsado = creditoUsadoNaFatura(lancamento);
+          const creditoDisponivel = calcularCreditoDisponivelClienteFatura(
+            lancamentosCliente,
+            clienteId
+          );
           const dados = montarDadosFaturaImpressao({
             numeroFatura: numeroFatura(lancamento),
             clienteNome: faturaImprimindo.cliente.nome,
@@ -2576,8 +2589,21 @@ function FinanceiroReceberConteudo() {
               lancamento,
               faturaImprimindo.cliente.clienteId
             ),
-            creditoFatura: creditoUsadoNaFatura(lancamento),
+            creditoFatura: creditoUsado,
             valorRecebido: recebidoNaFatura(lancamento),
+            ultimoPgto: calcularUltimoPagamentoClienteFatura({
+              lancamentos: lancamentosCliente,
+              clienteId,
+              excluirLancamentoId:
+                lancamento.status !== "pago" ? lancamento.id : undefined,
+              formatDate,
+              money,
+            }),
+            saldoAnterior: calcularSaldoAnteriorCreditoFatura(
+              creditoDisponivel,
+              creditoUsado,
+              money
+            ),
             formatDate,
             money,
           });

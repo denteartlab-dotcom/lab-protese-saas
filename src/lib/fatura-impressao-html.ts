@@ -266,6 +266,11 @@ export function montarDadosFaturaImpressao(params: {
   trabalhos: TrabalhoFaturaImpressao[];
   creditoFatura?: number;
   valorRecebido?: number;
+  ultimoPgto?: string;
+  saldoAnterior?: string;
+  clienteTelefones?: string;
+  clienteEmail?: string;
+  clienteEndereco?: string;
   formatDate: (iso: string) => string;
   money: (n: number) => string;
 }): DadosFaturaImpressao {
@@ -345,6 +350,11 @@ export function montarDadosFaturaImpressao(params: {
     dataEmissao: `${agora.toLocaleDateString("pt-BR")} ${agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
     usuario: "—",
     creditoFatura,
+    clienteTelefones: params.clienteTelefones,
+    clienteEmail: params.clienteEmail,
+    clienteEndereco: params.clienteEndereco,
+    ultimoPgto: params.ultimoPgto,
+    saldoAnterior: params.saldoAnterior,
     linhas,
     parcelas: [
       {
@@ -717,7 +727,13 @@ function htmlTotaisA4(
     );
   }
   if (saldoAnteriorNosTotais) {
-    partes.push(`<div><span>Saldo Anterior (+)</span><span class="right">R$ 0,00</span></div>`);
+    const saldo =
+      dados.saldoAnterior && dados.saldoAnterior !== "0,00"
+        ? dados.saldoAnterior.startsWith("-")
+          ? dados.saldoAnterior
+          : formatarMoedaReais(parsePreviewMoney(dados.saldoAnterior), money)
+        : "R$ 0,00";
+    partes.push(`<div><span>Saldo Anterior (+)</span><span class="right">${escapeHtml(saldo)}</span></div>`);
   }
   if (layout.descontoServicos) {
     const desconto =
@@ -958,7 +974,7 @@ function gerarHtmlFaturaA4(
     <div>
       ${layout.cliente ? `<strong>Cliente:</strong> ${escapeHtml(dados.clienteNome)}<br/>` : ""}
       ${layout.clienteTel ? `<strong>Telefones:</strong><br/>` : ""}
-      ${layout.saldoAnterior && !saldoAnteriorNosTotais ? `<strong>Saldo Anterior:</strong> 0,00` : ""}
+      ${layout.saldoAnterior && !saldoAnteriorNosTotais ? `<strong>Saldo Anterior:</strong> ${escapeHtml(dados.saldoAnterior || "0,00")}` : ""}
     </div>
     <div>
       ${layout.clienteEmail ? `<strong>Email:</strong><br/>` : ""}
@@ -1026,8 +1042,8 @@ function gerarHtmlFaturaTermica(
       ${layout.clienteTel ? linhaRotuloValor("Telefone:", "—") : ""}
       ${layout.clienteEmail ? linhaRotuloValor("Email:", "—") : ""}
       ${layout.clienteEnd ? linhaRotuloValor("Endereço:", "—") : ""}
-      ${layout.ultimoPgto ? linhaRotuloValor("Última Pgto:", "—") : ""}
-      ${layout.saldoAnterior && !saldoAnteriorNosTotais ? linhaRotuloValor("Saldo Anterior:", "R$ 0,00") : ""}
+      ${layout.ultimoPgto ? linhaRotuloValor("Última Pgto:", dados.ultimoPgto || "—") : ""}
+      ${layout.saldoAnterior && !saldoAnteriorNosTotais ? linhaRotuloValor("Saldo Anterior:", dados.saldoAnterior || "0,00") : ""}
       ${layout.usuario ? linhaRotuloValor("Usuário:", dados.usuario) : ""}
     </div>`;
 
@@ -1080,7 +1096,7 @@ function gerarHtmlFaturaTermica(
     saldoAnteriorNosTotais
       ? `<div style="margin-top:6px;text-align:right;font-size:${fsSmall}px">
           ${layout.totalServicos ? `<p style="margin:2px 0"><strong>Total Serviços(+): </strong>${escapeHtml(money(dados.totalServicos))}</p>` : ""}
-          ${saldoAnteriorNosTotais ? `<p style="margin:2px 0"><strong>Saldo Anterior(+): </strong>R$ 0,00</p>` : ""}
+          ${saldoAnteriorNosTotais ? `<p style="margin:2px 0"><strong>Saldo Anterior(+): </strong>${escapeHtml(dados.saldoAnterior || "0,00")}</p>` : ""}
           ${layout.descontoServicos ? `<p style="margin:2px 0"><strong>Desconto Serviços(-): </strong>R$ 0,00</p>` : ""}
           ${layout.descontoFatura ? `<p style="margin:2px 0"><strong>Desconto Fatura(-): </strong>R$ ${escapeHtml(money(dados.creditoFatura))}</p>` : ""}
           ${layout.total ? `<p style="margin:2px 0;font-weight:bold"><strong>Total(=): </strong>R$ ${escapeHtml(money(dados.totalFinal))}</p>` : ""}
