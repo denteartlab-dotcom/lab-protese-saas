@@ -27,11 +27,27 @@ export const carregarConfigLaboratorioServidor = cache(
 
   try {
     if (empresaId) {
-      const parsed = await lerJsonStoreTenant<Partial<ConfigLaboratorio>>(
-        empresaId,
-        CONFIG_LAB_STORAGE_KEY
-      );
-      if (parsed) return normalizarConfigLaboratorio(parsed);
+      const [parsed, empresa] = await Promise.all([
+        lerJsonStoreTenant<Partial<ConfigLaboratorio>>(empresaId, CONFIG_LAB_STORAGE_KEY),
+        prisma.empresa.findUnique({
+          where: { id: empresaId },
+          select: { nome: true },
+        }),
+      ]);
+      if (parsed) {
+        const config = normalizarConfigLaboratorio(parsed);
+        if (!config.nomeLaboratorio?.trim() && empresa?.nome?.trim()) {
+          return { ...config, nomeLaboratorio: empresa.nome.trim() };
+        }
+        return config;
+      }
+      if (empresa?.nome?.trim()) {
+        return {
+          ...configLaboratorioPadrao(),
+          nomeLaboratorio: empresa.nome.trim(),
+          marca: empresa.nome.trim(),
+        };
+      }
       return configLaboratorioPadrao();
     }
 

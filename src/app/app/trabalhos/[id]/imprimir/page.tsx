@@ -263,8 +263,14 @@ async function ImprimirOSConteudo({
     segmentoSomenteItem
   );
 
-  const configLab = await carregarConfigLaboratorioServidor(t.empresaId);
-  const usuarioCriou = nomeUsuarioDocumentosLaboratorio(configLab);
+  const [configLab, empresa] = await Promise.all([
+    carregarConfigLaboratorioServidor(t.empresaId),
+    prisma.empresa.findUnique({
+      where: { id: t.empresaId },
+      select: { nome: true },
+    }),
+  ]);
+  const usuarioCriou = nomeUsuarioDocumentosLaboratorio(configLab, empresa?.nome);
 
   const etapasPorServico = somenteItem
     ? segmentoEfetivoTrabalho(t) === "servico"

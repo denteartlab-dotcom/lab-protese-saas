@@ -7,6 +7,7 @@ import { PdfViewerIframe } from "@/components/pdf/PdfViewerIframe";
 import { PDF_VIEWER_PAGINA_CLASSES } from "@/lib/pdf-viewer-iframe";
 import { prepararAbaPdf, visualizarPdfUrl } from "@/lib/pdf-viewer";
 import { LAB_IMPRESSAO_PADRAO, type LabImpressaoConfig } from "@/lib/lab-impressao";
+import { labImpressaoFromConfig } from "@/lib/lab-logo";
 import {
   carregarConfigLaboratorio,
   LAB_CONFIG_ATUALIZADA_EVENT,
@@ -44,7 +45,6 @@ import { normalizarOsModelo2Layout } from "@/lib/os-modelo2-layout";
 import { normalizarOsModelo3Layout } from "@/lib/os-modelo3-layout";
 import { normalizarOsModelo4Layout, type OsModelo4Layout } from "@/lib/os-modelo4-layout";
 import { normalizarOsModelo5Layout, type OsModelo5Layout } from "@/lib/os-modelo5-layout";
-import { labImpressaoFromConfig } from "@/lib/lab-logo";
 import { desenharCabecalhoRequisicaoPdf } from "@/lib/pdf-cabecalho-os";
 import {
   dimensoesModeloEtiqueta,
@@ -2065,10 +2065,16 @@ export function PdfOsViewer({
       return { ...base, lab: base.lab || LAB_IMPRESSAO_PADRAO };
     }
     const cfg = carregarConfigLaboratorio();
+    const lab = labImpressaoFromConfig();
+    const usuarioLaboratorio =
+      nomeUsuarioDocumentosLaboratorio(cfg) ||
+      lab.responsavel?.trim() ||
+      base.usuarioCriou?.trim() ||
+      "";
     return {
       ...base,
-      usuarioCriou: nomeUsuarioDocumentosLaboratorio(cfg) || base.usuarioCriou || "",
-      lab: labImpressaoFromConfig(),
+      usuarioCriou: usuarioLaboratorio,
+      lab,
       cabecalhoRequisicao: normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao),
       layoutModelo1: carregarLayoutModelo1(),
       layoutModelo2: carregarLayoutModelo2(),
