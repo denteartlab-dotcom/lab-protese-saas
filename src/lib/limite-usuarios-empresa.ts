@@ -57,21 +57,28 @@ export function mensagemLimiteUsuariosAtingido(limite: number, planoLabel?: stri
   return `Limite${plano} atingido (${limite} usuário${plural}). Faça upgrade do plano para adicionar mais usuários.`;
 }
 
-export async function exigirCotaUsuarioDisponivel(empresaId: string) {
+export type ResultadoCotaUsuario =
+  | { erro: "EMPRESA_NAO_ENCONTRADA"; cotas: null; mensagem: string }
+  | { erro: "LIMITE_USUARIOS"; cotas: CotasUsuariosEmpresa; mensagem: string }
+  | { erro: null; cotas: CotasUsuariosEmpresa; mensagem: string };
+
+export async function exigirCotaUsuarioDisponivel(
+  empresaId: string
+): Promise<ResultadoCotaUsuario> {
   const cotas = await carregarCotasUsuariosEmpresa(empresaId);
   if (!cotas) {
     return {
-      erro: "EMPRESA_NAO_ENCONTRADA" as const,
+      erro: "EMPRESA_NAO_ENCONTRADA",
       cotas: null,
       mensagem: "Laboratório não encontrado.",
     };
   }
   if (!cotas.podeAdicionar) {
     return {
-      erro: "LIMITE_USUARIOS" as const,
+      erro: "LIMITE_USUARIOS",
       cotas,
       mensagem: mensagemLimiteUsuariosAtingido(cotas.limite, cotas.planoLabel),
     };
   }
-  return { erro: null as const, cotas, mensagem: "" };
+  return { erro: null, cotas, mensagem: "" };
 }
