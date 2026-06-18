@@ -6,3 +6,4 @@ prisma/*.db-journal
 *.log
 .DS_Store
 backups/
+.build-id

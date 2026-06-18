@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { execSync } from "child_process";
+import { readFileSync } from "fs";
 import path from "path";
 
 const projectRoot = path.resolve(__dirname);
@@ -14,8 +15,18 @@ function resolveAppBuildId() {
   if (process.env.NODE_ENV === "development") {
     return "dev";
   }
-  if (process.env.NEXT_PUBLIC_APP_BUILD_ID?.trim()) {
-    return process.env.NEXT_PUBLIC_APP_BUILD_ID.trim();
+  const doArquivo = (() => {
+    try {
+      const valor = readFileSync(path.join(projectRoot, ".build-id"), "utf8").trim();
+      return valor.length >= 6 ? valor : "";
+    } catch {
+      return "";
+    }
+  })();
+  if (doArquivo) return doArquivo;
+  const deEnv = process.env.NEXT_PUBLIC_APP_BUILD_ID?.trim();
+  if (deEnv && deEnv.length >= 6) {
+    return deEnv;
   }
   if (process.env.VERCEL_GIT_COMMIT_SHA?.trim()) {
     return process.env.VERCEL_GIT_COMMIT_SHA.trim().slice(0, 12);

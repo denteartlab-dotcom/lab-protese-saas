@@ -25,8 +25,12 @@ echo "==> npm install"
 npm install --include=dev
 
 echo "==> Build produção"
+BUILD_ID="$(git rev-parse --short HEAD)"
+echo "$BUILD_ID" > .build-id
+export NEXT_PUBLIC_APP_BUILD_ID="$BUILD_ID"
 export NODE_ENV=production
 npm run build
+echo "    buildId: $BUILD_ID"
 
 if [[ ! -f .next/dev-server.cjs ]]; then
   echo "ERRO: build incompleto (.next/dev-server.cjs ausente)"
