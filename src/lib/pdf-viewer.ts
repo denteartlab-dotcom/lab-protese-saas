@@ -259,6 +259,7 @@ export async function abrirPdfNoVisualizadorPagina(
 
   const id = criarIdPdfViewer();
   const janela = consumirJanelaReservada(opcoes?.janela);
+  const url = urlPdfViewerPagina(id);
 
   salvarPdfViewerSession(id, {
     status: "loading",
@@ -266,6 +267,21 @@ export async function abrirPdfNoVisualizadorPagina(
     subtitulo: opcoes?.subtitulo,
     nomeArquivo,
   });
+
+  let janelaAlvo: Window | null = janela;
+  if (janela && !janela.closed) {
+    try {
+      janela.document.title = titulo;
+    } catch {
+      /* ignore */
+    }
+    if (!navegarAbaPdf(janela, url)) {
+      fecharJanela(janela);
+      janelaAlvo = typeof window !== "undefined" ? window.open(url, "_blank") : null;
+    }
+  } else if (typeof window !== "undefined") {
+    janelaAlvo = window.open(url, "_blank");
+  }
 
   let payloadPronto: Awaited<ReturnType<typeof publicarPdfNaAba>> | null = null;
   let blobGerado: Blob | null = null;
@@ -275,45 +291,21 @@ export async function abrirPdfNoVisualizadorPagina(
       imprimirAoCarregar: opcoes?.imprimirAoCarregar,
       subtitulo: opcoes?.subtitulo,
     });
-    if (janela && !janela.closed) {
-      salvarPdfViewerSessionNaJanela(janela, id, payloadPronto);
+    if (janelaAlvo && !janelaAlvo.closed) {
+      salvarPdfViewerSessionNaJanela(janelaAlvo, id, payloadPronto);
     }
+    enviarPdfViewerParaJanela(janelaAlvo, id, payloadPronto);
   } catch (err) {
-    marcarPdfViewerErro(id, "Não foi possível carregar o documento.", titulo);
-    fecharJanela(janela);
+    const mensagem =
+      err instanceof Error ? err.message : "Não foi possível carregar o documento.";
+    marcarPdfViewerErro(id, mensagem, titulo);
+    enviarPdfViewerParaJanela(janelaAlvo, id, {
+      status: "error",
+      message: mensagem,
+      titulo,
+    });
     console.error("visualizador PDF", err);
     throw err;
-  }
-
-  const url = urlPdfViewerPagina(id);
-
-  if (janela && !janela.closed) {
-    try {
-      janela.document.title = titulo;
-    } catch {
-      /* ignore */
-    }
-    if (!navegarAbaPdf(janela, url)) {
-      fecharJanela(janela);
-      const nova = window.open(url, "_blank");
-      if (!nova) {
-        if (blobGerado) abrirPdfNoVisualizador(blobGerado, nomeArquivo, titulo, janela);
-      } else if (payloadPronto) {
-        enviarPdfViewerParaJanela(nova, id, payloadPronto);
-      }
-    } else if (payloadPronto) {
-      enviarPdfViewerParaJanela(janela, id, payloadPronto);
-    }
-    return;
-  }
-
-  if (typeof window === "undefined") return;
-
-  const nova = window.open(url, "_blank");
-  if (!nova) {
-    if (blobGerado) abrirPdfNoVisualizador(blobGerado, nomeArquivo, titulo);
-  } else if (payloadPronto) {
-    enviarPdfViewerParaJanela(nova, id, payloadPronto);
   }
 }
 
@@ -330,7 +322,6 @@ export async function abrirPdfGerandoNoVisualizadorPagina(
       subtitulo: opcoes?.subtitulo,
     });
   } catch (err) {
-    fecharJanela(janela);
     console.error("visualizador PDF", err);
     throw err;
   }
@@ -350,7 +341,6 @@ export async function abrirPdfParaImpressaoNoVisualizador(
       subtitulo: opcoes?.subtitulo,
     });
   } catch (err) {
-    fecharJanela(janela);
     console.error("imprimir PDF", err);
     throw err;
   }

@@ -107,6 +107,7 @@ export async function gerarPdfDeHtmlDocumento(
     throw new Error("Geração de PDF disponível apenas no navegador.");
   }
 
+  const gerar = async () => {
   const { iframe, doc } = montarIframeHtml(html, formato);
 
   await new Promise<void>((resolve) => {
@@ -140,6 +141,7 @@ export async function gerarPdfDeHtmlDocumento(
     const canvas = await html2canvas(alvo, {
       scale: 2,
       useCORS: true,
+      allowTaint: true,
       logging: false,
       backgroundColor: "#ffffff",
       width: alvo.scrollWidth,
@@ -153,4 +155,15 @@ export async function gerarPdfDeHtmlDocumento(
 
   iframe.remove();
   return pdf.output("blob");
+  };
+
+  return Promise.race([
+    gerar(),
+    new Promise<Blob>((_, reject) => {
+      window.setTimeout(
+        () => reject(new Error("Tempo esgotado ao gerar o PDF da fatura.")),
+        90_000
+      );
+    }),
+  ]);
 }

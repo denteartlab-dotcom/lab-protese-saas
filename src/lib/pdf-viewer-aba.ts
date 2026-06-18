@@ -299,7 +299,6 @@ async function persistirPdfViewerSession(id: string, payload: PdfViewerSessionPa
       });
     } catch (err) {
       console.warn("[pdf-viewer] publicar pdf-documento", err);
-      if (!localOk) throw err;
     }
   }
 

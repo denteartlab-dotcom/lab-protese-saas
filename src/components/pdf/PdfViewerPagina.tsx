@@ -5,7 +5,7 @@ import { Download, ExternalLink, Printer } from "lucide-react";
 import { Button } from "@/components/ui";
 import { PdfViewerIframe } from "@/components/pdf/PdfViewerIframe";
 import { PDF_VIEWER_PAGINA_CLASSES } from "@/lib/pdf-viewer-iframe";
-import { prepararAbaPdf, visualizarPdfUrl, baixarPdfUrl } from "@/lib/pdf-viewer";
+import { prepararAbaPdf, visualizarPdfUrl, baixarPdfUrl, criarUrlPdfNomeada } from "@/lib/pdf-viewer";
 import {
   garantirPdfDocumentoNoServidor,
   urlPdfDocumentoServidor,
@@ -80,13 +80,20 @@ export function PdfViewerPagina({ id }: Props) {
     const storageKey = chavePdfViewerSession(id);
 
     async function montarUrlPdf(payload: PdfViewerSessionPayload, arquivo: string) {
-      await garantirPdfDocumentoNoServidor(id, {
-        base64: payload.base64!,
-        nomeArquivo: arquivo,
-        mimeType: payload.mimeType,
-      });
+      try {
+        await garantirPdfDocumentoNoServidor(id, {
+          base64: payload.base64!,
+          nomeArquivo: arquivo,
+          mimeType: payload.mimeType,
+        });
+        if (!ativoRef.current || concluidoRef.current) return;
+        urlLocalRef.current = urlPdfDocumentoServidor(id, { nomeArquivo: arquivo });
+      } catch {
+        const bytes = Uint8Array.from(atob(payload.base64!), (c) => c.charCodeAt(0));
+        const blob = new Blob([bytes], { type: payload.mimeType ?? "application/pdf" });
+        urlLocalRef.current = criarUrlPdfNomeada(blob, arquivo);
+      }
       if (!ativoRef.current || concluidoRef.current) return;
-      urlLocalRef.current = urlPdfDocumentoServidor(id, { nomeArquivo: arquivo });
       setPdfUrl(urlLocalRef.current);
       setCarregando(false);
       setErro("");
@@ -133,8 +140,17 @@ export function PdfViewerPagina({ id }: Props) {
 
         void montarUrlPdf(payload, arquivo).catch(() => {
           if (!ativoRef.current) return;
-          setCarregando(false);
-          setErro("Não foi possível publicar o PDF. Feche e tente novamente.");
+          try {
+            const bytes = Uint8Array.from(atob(payload.base64!), (c) => c.charCodeAt(0));
+            const blob = new Blob([bytes], { type: mime });
+            urlLocalRef.current = criarUrlPdfNomeada(blob, arquivo);
+            setPdfUrl(urlLocalRef.current);
+            setCarregando(false);
+            setErro("");
+          } catch {
+            setCarregando(false);
+            setErro("Não foi possível exibir o PDF. Feche e tente novamente.");
+          }
         });
         return;
       }
