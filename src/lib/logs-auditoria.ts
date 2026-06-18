@@ -78,6 +78,39 @@ export async function nomeUsuarioParaLogAuditoria(session: {
   return nomeExibicaoUsuarioLog(session);
 }
 
+export async function nomeUsuarioImpressaoPorId(userId: string | null | undefined) {
+  if (!userId) return "";
+  const user = await prisma.user.findFirst({
+    where: { id: userId },
+    select: {
+      name: true,
+      email: true,
+      role: true,
+      colaboradorNome: true,
+    },
+  });
+  return user ? nomeExibicaoUsuarioLog(user) : "";
+}
+
+/** Nome real do usuário para impressão da OS (nunca o tipo/papel da conta). */
+export async function nomeUsuarioParaImpressaoOs(input: {
+  usuarioIdLog?: string | null;
+  usuarioNomeLog?: string | null;
+  usuarioSessao?: { id: string; name: string; email: string; role: string };
+}) {
+  const porIdLog = await nomeUsuarioImpressaoPorId(input.usuarioIdLog);
+  if (porIdLog) return porIdLog;
+
+  const nomeLog = input.usuarioNomeLog?.trim() || "";
+  if (nomeLog && !nomePareceTipoConta(nomeLog, "")) return nomeLog;
+
+  if (input.usuarioSessao) {
+    return nomeUsuarioParaLogAuditoria(input.usuarioSessao);
+  }
+
+  return "";
+}
+
 export const CATEGORIAS_LOG_AUDITORIA = [
   { value: "os", label: "Ordem de Serviço" },
   { value: "financeiro_receitas_parcelas", label: "Financeiro Receitas (parcelas)" },

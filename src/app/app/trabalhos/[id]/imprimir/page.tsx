@@ -21,6 +21,7 @@ import {
   extrairItensImpressaoOs,
   flagsUrgenteRepeticaoInstrucoes,
 } from "@/lib/os-itens-impressao";
+import { nomeUsuarioParaImpressaoOs } from "@/lib/logs-auditoria";
 import { PdfOsViewer } from "./pdf-os-viewer";
 
 type Trabalho = {
@@ -110,13 +111,11 @@ function ErroImpressao({
 async function ImprimirOSConteudo({
   id,
   sp,
-  nomeUsuarioSessao,
-  usuarioSessaoId,
+  usuarioSessao,
 }: {
   id: string;
   sp: Record<string, string | string[] | undefined>;
-  nomeUsuarioSessao: string;
-  usuarioSessaoId: string;
+  usuarioSessao: { id: string; name: string; email: string; role: string };
 }) {
   const somenteItem = searchFlag(sp.somenteItem);
   const duasVias = sp.vias === "2" || searchFlag(sp.duasVias);
@@ -276,31 +275,14 @@ async function ImprimirOSConteudo({
       orderBy: { dataAlteracao: "asc" },
       select: { usuarioNome: true, usuarioId: true },
     });
-    if (logCriacao?.usuarioId) {
-      const userCriador = await prisma.user.findUnique({
-        where: { id: logCriacao.usuarioId },
-        select: { name: true, colaboradorNome: true },
-      });
-      usuarioCriou =
-        userCriador?.name?.trim() ||
-        userCriador?.colaboradorNome?.trim() ||
-        logCriacao.usuarioNome?.trim() ||
-        "";
-    } else {
-      usuarioCriou = logCriacao?.usuarioNome?.trim() || "";
-    }
+    usuarioCriou = await nomeUsuarioParaImpressaoOs({
+      usuarioIdLog: logCriacao?.usuarioId,
+      usuarioNomeLog: logCriacao?.usuarioNome,
+      usuarioSessao,
+    });
   } catch (err) {
     console.error("imprimir: usuário criador OS", { id, err });
-  }
-  if (!usuarioCriou) {
-    const usuarioAtual = await prisma.user.findUnique({
-      where: { id: usuarioSessaoId },
-      select: { name: true, colaboradorNome: true },
-    });
-    usuarioCriou =
-      usuarioAtual?.name?.trim() ||
-      usuarioAtual?.colaboradorNome?.trim() ||
-      nomeUsuarioSessao.trim();
+    usuarioCriou = await nomeUsuarioParaImpressaoOs({ usuarioSessao }).catch(() => "");
   }
 
   const etapasPorServico = somenteItem
@@ -376,8 +358,12 @@ export default async function ImprimirOSPage({
     return await ImprimirOSConteudo({
       id,
       sp,
-      nomeUsuarioSessao: session.name || "",
-      usuarioSessaoId: session.id,
+      usuarioSessao: {
+        id: session.id,
+        name: session.name || "",
+        email: session.email || "",
+        role: session.role || "",
+      },
     });
   } catch (err) {
     console.error("imprimir OS", { id, err });
