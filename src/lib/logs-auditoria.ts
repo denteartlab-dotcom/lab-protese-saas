@@ -101,30 +101,28 @@ export async function nomeUsuarioImpressaoPorId(userId: string | null | undefine
   return user ? nomeExibicaoUsuarioLog(user) : "";
 }
 
-function nomeValidoImpressaoOs(nome: string | null | undefined, role = "") {
-  const texto = nome?.trim() || "";
-  if (!texto || nomePareceTipoConta(texto, role)) return "";
-  return texto;
-}
-
 /** Nome real do usuário para impressão da OS (nunca o tipo/papel da conta). */
 export async function nomeUsuarioParaImpressaoOs(input: {
   usuarioIdLog?: string | null;
   usuarioNomeLog?: string | null;
   usuarioSessao?: { id: string; name: string; email: string; role: string };
-}) {
-  const porIdLog = nomeValidoImpressaoOs(await nomeUsuarioImpressaoPorId(input.usuarioIdLog));
-  if (porIdLog) return porIdLog;
+}): Promise<string> {
+  if (input.usuarioIdLog) {
+    const nomeCriador = (await nomeUsuarioImpressaoPorId(input.usuarioIdLog)).trim();
+    if (nomeCriador) return nomeCriador;
+  }
 
-  const nomeLog = nomeValidoImpressaoOs(input.usuarioNomeLog);
-  if (nomeLog) return nomeLog;
+  const nomeLog = input.usuarioNomeLog?.trim() || "";
+  if (nomeLog && !nomePareceTipoConta(nomeLog, "")) return nomeLog;
 
   if (input.usuarioSessao) {
-    const porSessao = nomeValidoImpressaoOs(
-      await nomeUsuarioParaLogAuditoria(input.usuarioSessao),
-      input.usuarioSessao.role
-    );
-    if (porSessao) return porSessao;
+    const nomeSessaoDb = (await nomeUsuarioParaLogAuditoria(input.usuarioSessao)).trim();
+    if (nomeSessaoDb) return nomeSessaoDb;
+
+    const nomeSessao = input.usuarioSessao.name.trim();
+    if (nomeSessao && !nomePareceTipoConta(nomeSessao, input.usuarioSessao.role)) {
+      return nomeSessao;
+    }
   }
 
   return "";

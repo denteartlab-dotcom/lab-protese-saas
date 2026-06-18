@@ -684,8 +684,8 @@ function desenharMetaOsCabecalhoDireita(
   }
 
   const usuario = (data.usuarioCriou || "").trim();
-  if (lay.usuario && usuario) {
-    desenharRotuloValorDireita("Usuário: ", usuario, yDir);
+  if (lay.usuario) {
+    desenharRotuloValorDireita("Usuário: ", usuario || "—", yDir);
     yDir += 4.5;
   }
   return yDir;
@@ -1408,8 +1408,8 @@ function renderTermicaModelo4(
   if (lay.chavePed && data.chavePed) {
     y = campoTermica(pdf, "Chave Ped:", data.chavePed, mx, y, larguraCampo);
   }
-  if (lay.usuario && usuario) {
-    y = campoTermica(pdf, "Usuário:", usuario, mx, y, larguraCampo);
+  if (lay.usuario) {
+    y = campoTermica(pdf, "Usuário:", usuario || "—", mx, y, larguraCampo);
   }
   y += 1;
 
@@ -1667,8 +1667,8 @@ function renderTermicaModelo5(
   if (lay.clienteEnd) {
     y = campoTermica(pdf, "Endereço:", data.endereco, mx, y, larguraCampo);
   }
-  if (lay.usuario && usuario) {
-    y = campoTermica(pdf, "Usuário:", usuario, mx, y, larguraCampo);
+  if (lay.usuario) {
+    y = campoTermica(pdf, "Usuário:", usuario || "—", mx, y, larguraCampo);
   }
   y += 1;
 
