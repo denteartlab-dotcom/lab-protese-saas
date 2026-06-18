@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
 import {
   CONFIG_FATURAS_PADRAO,
-  montarConfigPreviewFaturaModelo,
   type ModeloFaturaId,
 } from "@/lib/configuracoes-faturas";
 import {
@@ -33,12 +32,16 @@ export function ConfiguracoesFaturaModeloPreview({
   const html = useMemo(() => {
     if (termica) return "";
     try {
-      const configPreview = montarConfigPreviewFaturaModelo(modeloId, layout, CONFIG_FATURAS_PADRAO);
       return gerarHtmlFaturaImpressao(
         montarDadosFaturaPreviewAmostra(),
         cfg,
-        configPreview,
-        { formato: "a4", modelo: modeloId, ocultarBotaoImprimir: true }
+        CONFIG_FATURAS_PADRAO,
+        {
+          formato: "a4",
+          modelo: modeloId,
+          ocultarBotaoImprimir: true,
+          layoutOverride: layout,
+        }
       );
     } catch {
       return "<!doctype html><html><body><p>Erro ao gerar pré-visualização.</p></body></html>";

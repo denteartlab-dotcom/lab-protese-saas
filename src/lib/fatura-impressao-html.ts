@@ -5,8 +5,7 @@ import {
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
 import {
   formatoPorModeloFatura,
-  lerLayoutFaturaA4Compartilhado,
-  lerLayoutModeloFatura,
+  resolverLayoutFaturaImpressao,
   type ConfiguracoesFaturas,
   type ModeloFaturaId,
 } from "@/lib/configuracoes-faturas";
@@ -42,6 +41,8 @@ export type OpcoesHtmlFaturaImpressao = {
   modelo: ModeloFaturaId;
   /** Oculta o botão «Imprimir» no HTML (pré-visualização em Configurações). */
   ocultarBotaoImprimir?: boolean;
+  /** Layout do editor (preview ao vivo) — impressão usa config salva se omitido. */
+  layoutOverride?: FaturaModeloLayout;
 };
 
 export type TrabalhoFaturaImpressao = {
@@ -773,7 +774,7 @@ function gerarHtmlFaturaA4(
   money: (n: number) => string,
   ocultarBotaoImprimir = false
 ) {
-  const layout = isFaturaA4Smart(modelo) ? layoutFaturaModelo1Smart(layoutRaw) : layoutRaw;
+  const layout = layoutRaw;
   const faturaA4Smart = isFaturaA4Smart(modelo);
   const lab = configParaLabImpressao(cfg);
   const cab = normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao);
@@ -1012,9 +1013,11 @@ export function gerarHtmlFaturaImpressao(
     n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 ) {
   const termica = formatoPorModeloFatura(opcoes.modelo) === "termica" || opcoes.formato === "termica";
-  const layout = termica
-    ? lerLayoutModeloFatura(cfgFaturas, opcoes.modelo)
-    : lerLayoutFaturaA4Compartilhado(cfgFaturas, opcoes.modelo);
+  const layout = resolverLayoutFaturaImpressao(
+    cfgFaturas,
+    opcoes.modelo,
+    opcoes.layoutOverride
+  );
 
   return termica
     ? gerarHtmlFaturaTermica(dados, cfgLab, layout, opcoes.modelo, money)

@@ -20,6 +20,7 @@ import {
   type ConfiguracoesFaturas,
   type ModeloFaturaId,
 } from "@/lib/configuracoes-faturas";
+import { sincronizarConfigLaboratorioDoServidor } from "@/lib/lab-config-sync";
 import { gerarPdfDeHtmlDocumento } from "@/lib/html-para-pdf";
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import { cn } from "@/lib/utils";
@@ -149,9 +150,17 @@ export function ImprimirFaturaModal({
     };
   }
 
-  function htmlPreparado() {
-    const html = gerarHtml(opcoesAtuais(), config);
+  function htmlPreparado(cfg: ConfiguracoesFaturas = config) {
+    const html = gerarHtml(opcoesAtuais(), cfg);
     return aplicarFormatoNoHtml(html, formato, duasVias === "sim");
+  }
+
+  async function prepararHtmlImpressao() {
+    const [cfgFaturas] = await Promise.all([
+      recarregarConfig(),
+      sincronizarConfigLaboratorioDoServidor().catch(() => undefined),
+    ]);
+    return htmlPreparado(cfgFaturas);
   }
 
   function modeloParaFormato(
@@ -185,13 +194,12 @@ export function ImprimirFaturaModal({
 
   function abrirNoVisualizadorPdf() {
     if (gerandoPdf || sincronizando) return;
-    const html = htmlPreparado();
     const nomeArquivo = `fatura-${numeroFatura}.pdf`;
     const titulo = `Fatura ${numeroFatura} — ${clienteNome}`;
 
     setGerandoPdf(true);
     void abrirPdfGerando(
-      () => gerarPdfDeHtmlDocumento(html, formato),
+      () => prepararHtmlImpressao().then((html) => gerarPdfDeHtmlDocumento(html, formato)),
       nomeArquivo,
       titulo
     )
@@ -225,7 +233,7 @@ export function ImprimirFaturaModal({
 
     setEnviandoWhatsapp(true);
     try {
-      const html = htmlPreparado();
+      const html = await prepararHtmlImpressao();
       const blob = await gerarPdfDeHtmlDocumento(html, formato);
       const publicUrl = await publicarFaturaPublica({
         blob,

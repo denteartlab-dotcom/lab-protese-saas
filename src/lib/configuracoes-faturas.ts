@@ -137,6 +137,22 @@ export function aplicarLayoutFaturaA4Compartilhado(
   return aplicarLayoutFaturaModelo(config, "modelo1", layout);
 }
 
+/** Layout efetivo para impressão/preview (mesma regra nos dois fluxos). */
+export function resolverLayoutFaturaImpressao(
+  config: ConfiguracoesFaturas,
+  modeloId: ModeloFaturaId,
+  layoutEdicao?: FaturaModeloLayout | null
+): FaturaModeloLayout {
+  if (layoutEdicao) {
+    const base = normalizarFaturaModeloLayout(layoutEdicao);
+    if (formatoPorModeloFatura(modeloId) === "termica") {
+      return normalizarLayoutFaturaTermica(modeloId, base);
+    }
+    return layoutFaturaModelo1Smart(base);
+  }
+  return lerLayoutFaturaA4Compartilhado(config, modeloId);
+}
+
 /** Monta config mínima para preview/impressão de um modelo. */
 export function montarConfigPreviewFaturaModelo(
   modeloId: ModeloFaturaId,
@@ -245,6 +261,10 @@ export function salvarConfiguracoesFaturas(config: ConfiguracoesFaturas) {
   writeStorage(CONFIG_FATURAS_STORAGE_KEY, normalizado);
   void persistirArmazenamentoImediato(CONFIG_FATURAS_STORAGE_KEY, normalizado);
   window.dispatchEvent(new Event(CONFIG_FATURAS_ATUALIZADA_EVENT));
+}
+
+export async function carregarConfiguracoesFaturasFresh(): Promise<ConfiguracoesFaturas> {
+  return sincronizarConfiguracoesFaturasDoServidor();
 }
 
 export async function sincronizarConfiguracoesFaturasDoServidor(): Promise<ConfiguracoesFaturas> {

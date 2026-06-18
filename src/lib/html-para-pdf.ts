@@ -1,5 +1,8 @@
 export type FormatoHtmlPdf = "a4" | "termica";
 
+/** Largura A4 em px (96dpi) — igual ao preview em Configurações. */
+const A4_LARGURA_PX = Math.round((210 / 25.4) * 96);
+
 function aguardarImagens(doc: Document) {
   const imagens = Array.from(doc.images);
   if (!imagens.length) return Promise.resolve();
@@ -22,7 +25,7 @@ function montarIframeHtml(html: string, formato: FormatoHtmlPdf) {
   iframe.setAttribute("title", "Gerar PDF");
   iframe.style.cssText =
     "position:fixed;left:-12000px;top:0;border:0;visibility:hidden;pointer-events:none;";
-  iframe.style.width = formato === "termica" ? "80mm" : "210mm";
+  iframe.style.width = formato === "termica" ? "80mm" : `${A4_LARGURA_PX}px`;
   document.body.appendChild(iframe);
 
   const doc = iframe.contentDocument ?? iframe.contentWindow?.document;

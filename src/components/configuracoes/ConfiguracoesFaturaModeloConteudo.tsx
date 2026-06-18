@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Minus, Plus, Settings } from "lucide-react";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -14,10 +14,10 @@ import {
 import {
   aplicarLayoutFaturaModelo,
   formatoPorModeloFatura,
-  lerLayoutFaturaA4Compartilhado,
   MODELOS_FATURA,
   normalizarLayoutFaturaTermica,
   persistirConfiguracoesFaturasServidor,
+  resolverLayoutFaturaImpressao,
   salvarConfiguracoesFaturas,
   sincronizarConfiguracoesFaturasDoServidor,
   type ConfiguracoesFaturas,
@@ -212,12 +212,7 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
       if (!ativo) return;
       setCfg(carregarConfigLaboratorio());
       setConfig(cfgFaturas);
-      const layoutCarregado = lerLayoutFaturaA4Compartilhado(cfgFaturas, modeloId);
-      setLayout(
-        termica
-          ? normalizarLayoutFaturaTermica(modeloId, layoutCarregado)
-          : normalizarFaturaModeloLayout(layoutCarregado)
-      );
+      setLayout(resolverLayoutFaturaImpressao(cfgFaturas, modeloId));
       setCarregando(false);
     })();
     const recarregarLab = () => setCfg(carregarConfigLaboratorio());
@@ -248,9 +243,7 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
     if (!config || !layout) return;
     setSalvando(true);
     setMensagem("");
-    const layoutNorm = termica
-      ? normalizarLayoutFaturaTermica(modeloId, layout)
-      : normalizarFaturaModeloLayout(layout);
+    const layoutNorm = resolverLayoutFaturaImpressao(config, modeloId, layout);
     const novaConfig: ConfiguracoesFaturas = aplicarLayoutFaturaModelo(
       config,
       modeloId,
@@ -339,6 +332,13 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
   }
 
   const corBorda = normalizarCorBorda(layout.bordas);
+
+  const alteracoesPendentes = useMemo(() => {
+    if (!config || !layout) return false;
+    const salvo = resolverLayoutFaturaImpressao(config, modeloId);
+    const editado = resolverLayoutFaturaImpressao(config, modeloId, layout);
+    return JSON.stringify(salvo) !== JSON.stringify(editado);
+  }, [config, layout, modeloId]);
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden lg:flex-row">
@@ -542,6 +542,11 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
         {mensagem ? (
           <div className="shrink-0 bg-[#5cb85c] px-4 py-2.5 text-center text-[13px] font-medium text-white">
             {mensagem}
+          </div>
+        ) : null}
+        {alteracoesPendentes ? (
+          <div className="shrink-0 bg-amber-500 px-4 py-2.5 text-center text-[12px] font-medium text-white">
+            Alterações não salvas — clique em &quot;Salvar Alterações&quot; para aplicar na impressão.
           </div>
         ) : null}
         {barraSuperior}
