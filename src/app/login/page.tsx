@@ -36,7 +36,13 @@ export default async function LoginPage({ searchParams }: Props) {
 
   return (
     <I18nProvider>
-      <Suspense>
+      <Suspense
+        fallback={
+          <div className="flex min-h-[50vh] flex-1 items-center justify-center bg-[#0a2f6e] text-sm text-white">
+            Carregando…
+          </div>
+        }
+      >
         <div className="login-hero-shell flex flex-1 flex-col">
           <LoginForm
             brandingInicial={brandingInicial}

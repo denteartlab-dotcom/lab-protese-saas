@@ -363,7 +363,7 @@ export function LoginForm({
                 maxWidth: "100%",
               }}
             />
-          ) : labIdentificado ? (
+          ) : labIdentificado && nomeLaboratorio ? (
             <div
               className="flex items-center justify-center rounded-xl bg-blue-50 font-bold text-blue-600"
               style={{
