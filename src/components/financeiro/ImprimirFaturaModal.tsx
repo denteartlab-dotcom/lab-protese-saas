@@ -51,14 +51,8 @@ function ocultarAcoesHtml(html: string) {
   return html.replace(/<div class="actions">[\s\S]*?<\/div>\s*/g, "");
 }
 
-function aplicarFormatoNoHtml(html: string, formato: FormatoImpressaoFatura, duasVias: boolean) {
-  let resultado = html;
-  if (formato === "termica") {
-    resultado = resultado
-      .replace(/@page\{size:A4;margin:0\}/g, "@page{size:80mm auto;margin:0}")
-      .replace(/width:210mm/g, "width:80mm")
-      .replace(/min-height:297mm/g, "min-height:auto");
-  }
+function aplicarFormatoNoHtml(html: string, _formato: FormatoImpressaoFatura, duasVias: boolean) {
+  const resultado = html;
   if (!duasVias) return resultado;
   const pagina = resultado.match(/<div class="page">[\s\S]*?<\/div>\s*(?=<\/body>)/);
   if (!pagina) return resultado;
@@ -323,7 +317,7 @@ export function ImprimirFaturaModal({
 
           {gerandoPdf ? (
             <p className="mb-3 text-center text-xs text-[#6b7280]">
-              Gerando PDF da fatura…
+              Abrindo visualizador da fatura…
             </p>
           ) : null}
 
