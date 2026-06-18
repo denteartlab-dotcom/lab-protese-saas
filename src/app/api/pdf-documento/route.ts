@@ -50,9 +50,9 @@ function responderPdf(
   const nomeArquivo = payload.nomeArquivo?.trim() || nomePreferido || "documento.pdf";
   const mimeType = payload.mimeType?.trim() || "application/pdf";
 
-  let bytes: Buffer;
+  let bytes: Uint8Array;
   try {
-    bytes = Buffer.from(payload.base64 ?? "", "base64");
+    bytes = Uint8Array.from(Buffer.from(payload.base64 ?? "", "base64"));
   } catch {
     return NextResponse.json({ error: "Documento corrompido." }, { status: 500 });
   }
