@@ -242,7 +242,8 @@ export function montarDadosFaturaImpressao(params: {
       const finalizado = trabalho.dataEntrega ? formatDate(trabalho.dataEntrega) : "-";
       for (const item of itensTrabalhoFatura(trabalho)) {
         const qtd = Number(String(item.quantidade).replace(",", ".")) || 1;
-        const subtotal = item.valor * qtd;
+        const subtotal = item.valor;
+        const valorUnitario = qtd > 0 ? item.valor / qtd : item.valor;
         totalServicos += subtotal;
         linhas.push({
           os: String(trabalho.numeroOs),
@@ -254,7 +255,7 @@ export function montarDadosFaturaImpressao(params: {
           dentes: item.dentes,
           paciente: trabalho.paciente?.nome?.trim() || "-",
           qtd: item.quantidade,
-          unitario: money(item.valor),
+          unitario: money(valorUnitario),
           desconto: "0,00 %",
           subtotal: money(subtotal),
         });
