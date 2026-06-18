@@ -12,9 +12,8 @@ import {
   type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
 import {
-  aplicarLayoutFaturaA4Compartilhado,
+  aplicarLayoutFaturaModelo,
   formatoPorModeloFatura,
-  layoutKeyModeloFatura,
   lerLayoutFaturaA4Compartilhado,
   MODELOS_FATURA,
   normalizarLayoutFaturaTermica,
@@ -202,7 +201,6 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
 
   const modeloValido = MODELOS_FATURA.some((m) => m.id === modeloId);
   const termica = formatoPorModeloFatura(modeloId) === "termica";
-  const layoutKey = layoutKeyModeloFatura(modeloId);
 
   useEffect(() => {
     let ativo = true;
@@ -253,9 +251,11 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
     const layoutNorm = termica
       ? normalizarLayoutFaturaTermica(modeloId, layout)
       : normalizarFaturaModeloLayout(layout);
-    const novaConfig: ConfiguracoesFaturas = termica
-      ? { ...config, [layoutKey]: layoutNorm }
-      : aplicarLayoutFaturaA4Compartilhado(config, layoutNorm);
+    const novaConfig: ConfiguracoesFaturas = aplicarLayoutFaturaModelo(
+      config,
+      modeloId,
+      layoutNorm
+    );
     setConfig(novaConfig);
     setLayout(layoutNorm);
     salvarConfiguracoesFaturas(novaConfig);

@@ -103,7 +103,7 @@ export function lerLayoutModeloFatura(
   return config[layoutKeyModeloFatura(id)];
 }
 
-/** Modelos A4 1–3 usam o mesmo layout visual Smart (base: Modelo 1). */
+/** Layout A4 Smart do modelo indicado (1, 2 ou 3 — cada um com sua config salva). */
 export function lerLayoutFaturaA4Compartilhado(
   config: ConfiguracoesFaturas,
   id: ModeloFaturaId
@@ -111,21 +111,39 @@ export function lerLayoutFaturaA4Compartilhado(
   if (formatoPorModeloFatura(id) === "termica") {
     return lerLayoutModeloFatura(config, id);
   }
-  const base = normalizarFaturaModeloLayout(config.layoutModelo1);
+  const base = normalizarFaturaModeloLayout(config[layoutKeyModeloFatura(id)]);
   return layoutFaturaModelo1Smart(base);
 }
 
+/** Grava layout apenas no modelo editado (não sobrescreve os outros). */
+export function aplicarLayoutFaturaModelo(
+  config: ConfiguracoesFaturas,
+  modeloId: ModeloFaturaId,
+  layout: FaturaModeloLayout
+): ConfiguracoesFaturas {
+  const key = layoutKeyModeloFatura(modeloId);
+  const norm =
+    formatoPorModeloFatura(modeloId) === "termica"
+      ? normalizarLayoutFaturaTermica(modeloId, layout)
+      : normalizarFaturaModeloLayout(layout);
+  return { ...config, [key]: norm };
+}
+
+/** @deprecated Use aplicarLayoutFaturaModelo — mantido para compatibilidade. */
 export function aplicarLayoutFaturaA4Compartilhado(
   config: ConfiguracoesFaturas,
   layout: FaturaModeloLayout
 ): ConfiguracoesFaturas {
-  const norm = normalizarFaturaModeloLayout(layout);
-  return {
-    ...config,
-    layoutModelo1: norm,
-    layoutModelo2: { ...norm },
-    layoutModelo3: { ...norm },
-  };
+  return aplicarLayoutFaturaModelo(config, "modelo1", layout);
+}
+
+/** Monta config mínima para preview/impressão de um modelo. */
+export function montarConfigPreviewFaturaModelo(
+  modeloId: ModeloFaturaId,
+  layout: FaturaModeloLayout,
+  base: ConfiguracoesFaturas = CONFIG_FATURAS_PADRAO
+): ConfiguracoesFaturas {
+  return aplicarLayoutFaturaModelo(base, modeloId, layout);
 }
 
 export function normalizarConfiguracoesFaturas(
@@ -185,7 +203,7 @@ export function normalizarConfiguracoesFaturas(
     ),
   };
 
-  return aplicarLayoutFaturaA4Compartilhado(base, base.layoutModelo1);
+  return base;
 }
 
 function lerConfigFaturasDoStorage(): ConfiguracoesFaturas {
