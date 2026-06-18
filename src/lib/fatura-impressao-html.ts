@@ -19,6 +19,8 @@ import {
   FATURA_SMART_ESPACO_ASSINATURA_PIX_MM,
   FATURA_SMART_ESPACO_OBS_RODAPE_MM,
   FATURA_SMART_ESPACO_RODAPE_MM,
+  FATURA_SMART_CABECALHO_INSET_MM,
+  FATURA_SMART_PADDING_TOPO_MM,
   FATURA_TERMICA_LARGURA_MM,
   layoutFaturaModelo1Smart,
   PREVIEW_FATURA_AMOSTRA,
@@ -32,7 +34,6 @@ import {
   OS_REQUISICAO_LINHA_PREVIEW_PX,
   OS_REQUISICAO_MARGEM_CONTEUDO_MM,
   OS_REQUISICAO_PREVIEW_INSET_MM,
-  OS_REQUISICAO_TOPO_MM,
 } from "@/lib/os-modelo1-layout";
 
 export type OpcoesHtmlFaturaImpressao = {
@@ -428,7 +429,7 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
   `
     : "";
   const pageCss = smartModelo1
-    ? `width:${FATURA_A4_LARGURA_MM}mm;min-height:${FATURA_A4_ALTURA_MM}mm;max-width:${FATURA_A4_LARGURA_MM}mm;margin:0 auto;padding:${OS_REQUISICAO_TOPO_MM}mm ${FATURA_SMART_MARGEM_LATERAL_MM}mm ${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm;box-sizing:border-box`
+    ? `width:${FATURA_A4_LARGURA_MM}mm;min-height:${FATURA_A4_ALTURA_MM}mm;max-width:${FATURA_A4_LARGURA_MM}mm;margin:0 auto;padding:${FATURA_SMART_PADDING_TOPO_MM}mm ${FATURA_SMART_MARGEM_LATERAL_MM}mm ${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm;box-sizing:border-box`
     : "width:100%;max-width:190mm;margin:0 auto;padding:0;overflow:hidden";
   return `<style>
     @page{size:A4 portrait;margin:${smartModelo1 ? "0" : "8mm 10mm"}}
@@ -782,7 +783,7 @@ function gerarHtmlFaturaA4(
   const dataFatura = dataSomenteEmissao(dados.dataEmissao);
 
   const cabecalho = faturaA4Smart
-    ? `<div class="header" style="display:grid;grid-template-columns:1fr 140px;gap:12px;align-items:start;margin:0 0 8px">
+    ? `<div class="header" style="display:grid;grid-template-columns:1fr 140px;gap:12px;align-items:start;margin:0 0 8px;padding:${FATURA_SMART_CABECALHO_INSET_MM}mm ${FATURA_SMART_CABECALHO_INSET_MM}mm 0 0">
         <div style="display:flex;gap:10px;align-items:flex-start;min-width:0">
           ${logoHtml}
           ${
@@ -826,7 +827,7 @@ function gerarHtmlFaturaA4(
   </div>`;
 
   const infoCliente = faturaA4Smart
-    ? `<div class="info" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:6px 0 8px;line-height:1.5;font-size:${fsSmall}px">
+    ? `<div class="info" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:${FATURA_SMART_CABECALHO_INSET_MM}mm 0 8px;line-height:1.5;font-size:${fsSmall}px">
         <div>
           ${layout.cliente ? `<div><strong>Cliente:</strong> ${escapeHtml(dados.clienteNome)}</div>` : ""}
           ${layout.clienteTel ? `<div><strong>Telefones:</strong> ${escapeHtml(dados.clienteTelefones || "—")}</div>` : ""}
@@ -865,7 +866,6 @@ function gerarHtmlFaturaA4(
       ${htmlTabelaItensA4(dados, layout, fs, faturaA4Smart, money)}
       ${faturaA4Smart ? "" : '<div class="rule-thin" style="margin-top:3px;margin-bottom:2px"></div>'}
       ${htmlTotaisA4(dados, layout, modelo, fsSmall, money)}
-      ${faturaA4Smart ? linhaDivisoriaSmart() : '<div class="rule-thin" style="margin-top:2px;margin-bottom:2px"></div>'}
       ${htmlCondicaoPagamento(dados, layout, fsSmall, false, faturaA4Smart)}
       ${layout.observacao ? `<div class="obs" style="margin-top:${faturaA4Smart ? "5mm" : "10px"};font-size:${fsSmall}px"><strong>Observação:</strong> ${escapeHtml(dados.observacao || "")}</div>` : ""}
       ${layout.mensagem ? `<p style="margin-top:12px;text-align:center;font-style:italic;color:#4b5563;font-size:${fsSmall}px">${escapeHtml(layout.mensagem)}</p>` : ""}

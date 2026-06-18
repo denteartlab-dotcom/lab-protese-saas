@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
 import {
   CONFIG_FATURAS_PADRAO,
+  aplicarLayoutFaturaA4Compartilhado,
   type ModeloFaturaId,
 } from "@/lib/configuracoes-faturas";
 import {
@@ -32,12 +33,7 @@ export function ConfiguracoesFaturaModeloPreview({
   const html = useMemo(() => {
     if (termica) return "";
     try {
-      const configPreview = {
-        ...CONFIG_FATURAS_PADRAO,
-        layoutModelo1: layout,
-        layoutModelo2: { ...layout },
-        layoutModelo3: { ...layout },
-      };
+      const configPreview = aplicarLayoutFaturaA4Compartilhado(CONFIG_FATURAS_PADRAO, layout);
       return gerarHtmlFaturaImpressao(
         montarDadosFaturaPreviewAmostra(),
         cfg,
