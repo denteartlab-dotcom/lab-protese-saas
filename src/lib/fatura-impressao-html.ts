@@ -685,8 +685,7 @@ function htmlCondicaoPagamento(
           ${exibirPago ? "<th>Pago</th>" : ""}
         </tr></thead>`;
   const tabelaPay = smartModelo1
-    ? `${linhaDivisoriaSmart()}
-    <table class="items pay smart" style="margin-bottom:0">
+    ? `<table class="items pay smart" style="margin-bottom:0">
       ${colgroupPay}
       ${theadPay}
     </table>
@@ -701,8 +700,8 @@ function htmlCondicaoPagamento(
       ${theadPay}
       <tbody>${linhas}</tbody>
     </table>`;
-  return `<div style="margin-top:${smartModelo1 ? 6 : 18}px;font-size:${fsSmall}px">
-    <p style="font-weight:bold;margin:0 0 6px">Condição de Pagamento</p>
+  return `<div style="margin-top:${smartModelo1 ? 10 : 18}px;font-size:${fsSmall}px">
+    <p style="font-weight:bold;margin:0 0 8px">Condição de Pagamento</p>
     ${tabelaPay}
   </div>`;
 }
@@ -858,7 +857,7 @@ function gerarHtmlFaturaA4(
 
   const corpo = `<div class="page">
     ${ocultarBotaoImprimir ? "" : '<div class="actions"><button onclick="window.print()">Imprimir</button></div>'}
-    <div style="position:relative;width:100%">
+    <div style="position:relative;width:100%;padding-right:${faturaA4Smart ? FATURA_SMART_CABECALHO_INSET_MM : 0}mm">
       ${layout.exibirBordas ? molduraHtml(layout, faturaA4Smart ? FATURA_SMART_INSET_LINHA_MM : OS_REQUISICAO_PREVIEW_INSET_MM) : ""}
       ${cabecalho}
       ${faturaA4Smart ? linhaDivisoriaSmart() : '<div class="rule"></div>'}
