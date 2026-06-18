@@ -12,7 +12,7 @@ export function respostaPdfBase64(
   const arrayBuffer = bytes.buffer.slice(
     bytes.byteOffset,
     bytes.byteOffset + bytes.byteLength
-  );
+  ) as ArrayBuffer;
 
   return new NextResponse(arrayBuffer, {
     status: 200,
