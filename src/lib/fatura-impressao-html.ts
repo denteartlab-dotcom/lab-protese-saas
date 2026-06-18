@@ -221,6 +221,7 @@ export function montarDadosFaturaImpressao(params: {
   lancamento: LancamentoFaturaImpressao;
   trabalhos: TrabalhoFaturaImpressao[];
   creditoFatura?: number;
+  valorRecebido?: number;
   formatDate: (iso: string) => string;
   money: (n: number) => string;
 }): DadosFaturaImpressao {
@@ -280,6 +281,13 @@ export function montarDadosFaturaImpressao(params: {
   const parcela = parseParcelaNaDescricao(lancamento.descricao);
   const parcelaTexto = textoParcelaLog(parcela?.numero ?? 1, parcela?.total ?? 1);
   const totalFinal = Math.max(totalServicos - creditoFatura, 0);
+  const recebidoInformado = params.valorRecebido ?? 0;
+  const valorPago =
+    lancamento.status === "pago"
+      ? totalFinal
+      : recebidoInformado > 0
+        ? Math.min(recebidoInformado, totalFinal)
+        : 0;
   const agora = new Date();
 
   return {
@@ -297,7 +305,7 @@ export function montarDadosFaturaImpressao(params: {
         vencimento: formatDate(lancamento.data),
         forma: lancamento.formaPagamento || "-",
         valor: money(totalFinal),
-        pago: lancamento.status === "pago" ? money(totalFinal) : money(0),
+        pago: money(valorPago),
       },
     ],
     totalServicos,
@@ -451,6 +459,7 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
     .items tr.meta-row td span{font-size:${Math.max(10, fs - 2)}px;color:#111}
     .pay th{font-size:${fsCab}px;font-weight:bold;text-align:left;padding:4px 3px;background:${thBg}}
     .pay td{font-size:${fsTabela}px;line-height:1.25}
+    .pay tr.pay-received td{color:#1a9e1a}
     .right{text-align:right}
     .center{text-align:center}
     .totals{width:${smartModelo1 ? "260px" : "270px"};max-width:100%;margin-left:auto;padding-top:4px}
@@ -646,10 +655,12 @@ function htmlTotaisA4(
   </div>`;
 }
 
-function valorParcelaExibicao(valor: string, smartModelo1: boolean) {
-  const texto = valor.trim();
-  if (!smartModelo1) return texto;
-  return /^R\$\s*/i.test(texto) ? texto : `R$ ${texto}`;
+function valorMonetarioSemPrefixo(valor: string) {
+  return valor.trim().replace(/^R\$\s*/i, "");
+}
+
+function parcelaFoiRecebida(p: ParcelaFaturaImpressao) {
+  return parseMoney(p.pago) > 0;
 }
 
 function htmlCondicaoPagamento(
@@ -660,27 +671,33 @@ function htmlCondicaoPagamento(
   smartModelo1 = false
 ) {
   if (!layout.condicaoPagamento) return "";
+  const exibirPago = !termica;
+  const labelForma = "Forma Pagto";
+
   const linhas = dados.parcelas
-    .map(
-      (p) => `<tr>
+    .map((p) => {
+      const recebida = parcelaFoiRecebida(p);
+      const classe = recebida ? ' class="pay-received"' : "";
+      return `<tr${classe}>
         <td>${escapeHtml(p.parcela)}</td>
         <td>${escapeHtml(p.vencimento)}</td>
         ${layout.formaPgto ? `<td>${escapeHtml(p.forma)}</td>` : ""}
-        <td>${escapeHtml(valorParcelaExibicao(p.valor, smartModelo1))}</td>
-        ${!termica && !smartModelo1 ? `<td>${escapeHtml(p.pago)}</td>` : ""}
-      </tr>`
-    )
+        <td>${escapeHtml(valorMonetarioSemPrefixo(p.valor))}</td>
+        ${exibirPago ? `<td>${escapeHtml(valorMonetarioSemPrefixo(p.pago))}</td>` : ""}
+      </tr>`;
+    })
     .join("");
-  const labelForma = smartModelo1 ? "Forma Pgto" : "Forma Pgto";
-  const exibirPago = !termica && !smartModelo1;
+
   const colgroupPay = smartModelo1
     ? `<colgroup>
-        <col style="width:14%" />
-        <col style="width:26%" />
-        ${layout.formaPgto ? '<col style="width:32%" />' : ""}
-        <col style="width:${layout.formaPgto ? "28%" : "60%"}" />
+        <col style="width:12%" />
+        <col style="width:22%" />
+        ${layout.formaPgto ? '<col style="width:28%" />' : ""}
+        <col style="width:${layout.formaPgto ? "19%" : "33%"}" />
+        ${exibirPago ? `<col style="width:${layout.formaPgto ? "19%" : "33%"}" />` : ""}
       </colgroup>`
     : "";
+
   const theadPay = `<thead><tr>
           <th>Parcela</th>
           <th>Vencimento</th>
@@ -688,24 +705,29 @@ function htmlCondicaoPagamento(
           <th>Valor</th>
           ${exibirPago ? "<th>Pago</th>" : ""}
         </tr></thead>`;
+
   const tabelaPay = smartModelo1
-    ? `<table class="items pay smart" style="margin-bottom:0">
+    ? `${linhaDivisoriaSmart()}
+    <p style="font-weight:bold;margin:8px 0 6px">Condição de Pagamento</p>
+    <table class="items pay smart" style="margin-bottom:0">
       ${colgroupPay}
       ${theadPay}
     </table>
     ${linhaDivisoriaSmart()}
-    <table class="items pay smart" style="margin-top:0">
+    <table class="items pay smart" style="margin-top:0;margin-bottom:0">
       ${colgroupPay}
       <tbody>${linhas}</tbody>
     </table>
     ${linhaDivisoriaSmart()}`
     : `<div class="rule-thin" style="margin-bottom:0"></div>
-    <table class="">
+    <p style="font-weight:bold;margin:8px 0 6px">Condição de Pagamento</p>
+    <table class="pay">
       ${theadPay}
       <tbody>${linhas}</tbody>
-    </table>`;
-  return `<div style="margin-top:${smartModelo1 ? 10 : 18}px;font-size:${fsSmall}px">
-    <p style="font-weight:bold;margin:0 0 8px">Condição de Pagamento</p>
+    </table>
+    <div class="rule-thin" style="margin-top:0"></div>`;
+
+  return `<div style="margin-top:${smartModelo1 ? 6 : 18}px;font-size:${fsSmall}px">
     ${tabelaPay}
   </div>`;
 }

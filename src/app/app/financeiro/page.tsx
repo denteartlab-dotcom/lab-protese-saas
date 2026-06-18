@@ -2603,6 +2603,7 @@ function FinanceiroReceberConteudo() {
               faturaImprimindo.cliente.clienteId
             ),
             creditoFatura: creditoUsadoNaFatura(lancamento),
+            valorRecebido: recebidoNaFatura(lancamento),
             formatDate,
             money,
           });
