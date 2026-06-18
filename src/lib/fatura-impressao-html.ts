@@ -20,6 +20,7 @@ import {
   FATURA_SMART_ESPACO_OBS_RODAPE_MM,
   FATURA_SMART_ESPACO_RODAPE_MM,
   FATURA_SMART_CABECALHO_INSET_MM,
+  FATURA_SMART_CONTEUDO_INSET_MM,
   FATURA_SMART_PADDING_TOPO_MM,
   FATURA_TERMICA_LARGURA_MM,
   layoutFaturaModelo1Smart,
@@ -782,7 +783,7 @@ function gerarHtmlFaturaA4(
   const dataFatura = dataSomenteEmissao(dados.dataEmissao);
 
   const cabecalho = faturaA4Smart
-    ? `<div class="header" style="display:grid;grid-template-columns:1fr 140px;gap:12px;align-items:start;margin:0 0 8px;padding:${FATURA_SMART_CABECALHO_INSET_MM}mm ${FATURA_SMART_CABECALHO_INSET_MM}mm 0 0">
+    ? `<div class="header" style="display:grid;grid-template-columns:1fr 140px;gap:12px;align-items:start;margin:0 0 8px;padding-top:${FATURA_SMART_CABECALHO_INSET_MM}mm">
         <div style="display:flex;gap:10px;align-items:flex-start;min-width:0">
           ${logoHtml}
           ${
@@ -826,7 +827,7 @@ function gerarHtmlFaturaA4(
   </div>`;
 
   const infoCliente = faturaA4Smart
-    ? `<div class="info" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:${FATURA_SMART_CABECALHO_INSET_MM}mm 0 8px;line-height:1.5;font-size:${fsSmall}px">
+    ? `<div class="info" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:4px 0 8px;line-height:1.5;font-size:${fsSmall}px">
         <div>
           ${layout.cliente ? `<div><strong>Cliente:</strong> ${escapeHtml(dados.clienteNome)}</div>` : ""}
           ${layout.clienteTel ? `<div><strong>Telefones:</strong> ${escapeHtml(dados.clienteTelefones || "—")}</div>` : ""}
@@ -857,8 +858,8 @@ function gerarHtmlFaturaA4(
 
   const corpo = `<div class="page">
     ${ocultarBotaoImprimir ? "" : '<div class="actions"><button onclick="window.print()">Imprimir</button></div>'}
-    <div style="position:relative;width:100%;padding-right:${faturaA4Smart ? FATURA_SMART_CABECALHO_INSET_MM : 0}mm">
-      ${layout.exibirBordas ? molduraHtml(layout, faturaA4Smart ? FATURA_SMART_INSET_LINHA_MM : OS_REQUISICAO_PREVIEW_INSET_MM) : ""}
+    <div style="position:relative;width:100%;padding-left:${faturaA4Smart ? FATURA_SMART_CONTEUDO_INSET_MM : 0}mm;padding-right:${faturaA4Smart ? FATURA_SMART_CONTEUDO_INSET_MM : 0}mm">
+      ${layout.exibirBordas ? molduraHtml(layout, faturaA4Smart ? 0 : OS_REQUISICAO_PREVIEW_INSET_MM) : ""}
       ${cabecalho}
       ${faturaA4Smart ? linhaDivisoriaSmart() : '<div class="rule"></div>'}
       ${infoCliente}

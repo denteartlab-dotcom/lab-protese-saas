@@ -353,17 +353,17 @@ export const FATURA_SMART_ESPACO_ASSINATURA_PIX_MM = 14;
 /** Espaço antes do rodapé quando não há observação. */
 export const FATURA_SMART_ESPACO_RODAPE_MM = 14;
 
-/** Recuo interno do cabeçalho em relação à moldura (topo e laterais). */
-export const FATURA_SMART_CABECALHO_INSET_MM = 5;
+/** Recuo interno do conteúdo em relação à moldura (esquerda e direita). */
+export const FATURA_SMART_CONTEUDO_INSET_MM = 5;
+
+/** Recuo interno do cabeçalho em relação à moldura (topo). */
+export const FATURA_SMART_CABECALHO_INSET_MM = FATURA_SMART_CONTEUDO_INSET_MM;
 
 /** Padding superior da página A4 Smart — afasta conteúdo da borda. */
 export const FATURA_SMART_PADDING_TOPO_MM = 16;
 
-/** Recuo das linhas até a moldura (0 quando margem = borda). */
-export const FATURA_SMART_INSET_LINHA_MM = Math.max(
-  0,
-  FATURA_SMART_MARGEM_LATERAL_MM - OS_MODELO1_BORDA_MARGEM_MM
-);
+/** Recuo das linhas até a moldura (compensa padding interno do conteúdo). */
+export const FATURA_SMART_INSET_LINHA_MM = FATURA_SMART_CONTEUDO_INSET_MM;
 
 /** Estilos de borda/página — mesma lógica do OS Modelo 1. */
 export function estiloPaginaFaturaPreview() {
