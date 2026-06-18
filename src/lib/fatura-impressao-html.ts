@@ -11,6 +11,10 @@ import {
 } from "@/lib/configuracoes-faturas";
 import { parseParcelaNaDescricao, textoParcelaLog } from "@/lib/fatura-financeiro";
 import {
+  classificarItemOs,
+  type SegmentoFaturamento,
+} from "@/lib/trabalho-os-segmento";
+import {
   FATURA_A4_ALTURA_MM,
   FATURA_A4_LARGURA_MM,
   FATURA_SMART_INSET_LINHA_MM,
@@ -80,6 +84,7 @@ export type LinhaFaturaImpressao = {
   unitario: string;
   desconto: string;
   subtotal: string;
+  segmento: SegmentoFaturamento;
 };
 
 export type ParcelaFaturaImpressao = {
@@ -147,11 +152,11 @@ function contarColunasItensSmart(layout: FaturaModeloLayout) {
 }
 
 function metaLinhaOsSmart(linha: LinhaFaturaImpressao, layout: FaturaModeloLayout) {
+  if (linha.segmento !== "servico") return "";
   const partes: string[] = [];
   if (layout.data) partes.push(`Data: ${linha.dataOs}`);
   if (layout.finalizado) partes.push(`Finalizado: ${linha.finalizado}`);
   if (layout.osExterna) partes.push(`OS Externa: ${linha.osExterna}`);
-  if (layout.corDente) partes.push(`Cor: ${linha.cor}`);
   return partes.join(" ");
 }
 
@@ -182,8 +187,10 @@ function itensTrabalhoFatura(trabalho: TrabalhoFaturaImpressao) {
         /^Item adicionado:\s*(.*?)\s*-\s*dentes\s*(.*?)\s*-\s*cor\s*(.*?)\s*-\s*qtd\s*(.*?)\s*-\s*valor\s*(.*)$/i
       );
       if (!match) return null;
+      const servico = match[1]?.trim() || trabalho.tipoProtese;
+      const produtoId = line.match(/ - produtoId ([^\s-]+)/i)?.[1]?.trim();
       return {
-        servico: match[1]?.trim() || trabalho.tipoProtese,
+        servico,
         dentes: match[2]?.trim() || trabalho.dentes || "-",
         cor: match[3]?.trim() || trabalho.cor || "-",
         quantidade: match[4]?.trim() || "1",
@@ -192,6 +199,8 @@ function itensTrabalhoFatura(trabalho: TrabalhoFaturaImpressao) {
             / - valor (.*?)(?: - categoria| - desc| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
           )?.[1] || match[5] || ""
         ),
+        produtoId,
+        segmento: classificarItemOs({ servico, produtoId }),
       };
     })
     .filter(Boolean) as Array<{
@@ -200,6 +209,8 @@ function itensTrabalhoFatura(trabalho: TrabalhoFaturaImpressao) {
     cor: string;
     quantidade: string;
     valor: number;
+    produtoId?: string;
+    segmento: SegmentoFaturamento;
   }>;
 
   return itens.length
@@ -211,6 +222,7 @@ function itensTrabalhoFatura(trabalho: TrabalhoFaturaImpressao) {
           cor: trabalho.cor || "-",
           quantidade: "1",
           valor: trabalho.valor || 0,
+          segmento: classificarItemOs({ servico: trabalho.tipoProtese }),
         },
       ];
 }
@@ -258,6 +270,7 @@ export function montarDadosFaturaImpressao(params: {
           unitario: money(valorUnitario),
           desconto: "0,00 %",
           subtotal: money(subtotal),
+          segmento: item.segmento,
         });
       }
     }
@@ -276,6 +289,7 @@ export function montarDadosFaturaImpressao(params: {
       unitario: money(lancamento.valor),
       desconto: "0,00 %",
       subtotal: money(lancamento.valor),
+      segmento: classificarItemOs({ servico: observacao || lancamento.descricao }),
     });
   }
 
@@ -350,6 +364,7 @@ export function montarDadosFaturaPreviewAmostra(): DadosFaturaImpressao {
       unitario: linha.unitario.replace(/^R\$\s*/i, ""),
       desconto: linha.desconto,
       subtotal: linha.subtotal.replace(/^R\$\s*/i, ""),
+      segmento: classificarItemOs({ servico: linha.servico }),
     })),
     parcelas: a.parcelas.map((p) => ({
       parcela: p.parcela,
@@ -531,7 +546,7 @@ function htmlTabelaItensA4(
         </tr>`;
 
         const meta = metaLinhaOsSmart(linha, layout);
-        if (!novaOs || !meta) return [trPrincipal];
+        if (!meta) return [trPrincipal];
 
         const colspanMeta = layout.numOs ? Math.max(1, colunas - 1) : colunas;
         const trMeta = `<tr class="meta-row">
@@ -585,7 +600,9 @@ function htmlTabelaItensA4(
         ${layout.subtotal ? `<td class="right">${escapeHtml(linha.subtotal)}</td>` : ""}
       </tr>`;
 
-      if (!novaOs || !(layout.data || layout.finalizado)) return [trPrincipal];
+      if (linha.segmento !== "servico" || !(layout.data || layout.finalizado)) {
+        return [trPrincipal];
+      }
 
       const metaTexto = `Data: ${escapeHtml(linha.dataOs)}${
         layout.finalizado ? ` Entregue: ${escapeHtml(linha.finalizado)}` : ""
@@ -955,14 +972,19 @@ function gerarHtmlFaturaTermica(
           <tbody>
             ${dados.linhas
               .map((linha) => {
-                const meta = exibirMeta
-                  ? `<tr><td colspan="4" style="padding-bottom:6px">
+                const metaPrazo =
+                  linha.segmento === "servico" && (layout.data || layout.finalizado)
+                    ? `<p style="margin:0">${layout.osExterna ? `OS Externa: <strong>${escapeHtml(linha.osExterna)}</strong> ` : ""}${layout.data ? `Data: <strong>${escapeHtml(linha.dataOs)}</strong> ` : ""}${layout.finalizado ? `Entregue: <strong>${escapeHtml(linha.finalizado)}</strong>` : ""}</p>`
+                    : "";
+                const meta =
+                  exibirMeta && linha.segmento === "servico"
+                    ? `<tr><td colspan="4" style="padding-bottom:6px">
                       ${layout.numOs ? `<p style="margin:0">OS: <strong>${escapeHtml(linha.os)}</strong></p>` : ""}
                       ${layout.paciente || layout.dentista ? `<p style="margin:0">${layout.paciente ? `Paciente: <strong>${escapeHtml(linha.paciente)}</strong>` : ""}${layout.paciente && layout.dentista ? " " : ""}${layout.dentista ? `Dr: <strong>${escapeHtml(dados.dentista)}</strong>` : ""}</p>` : ""}
                       ${layout.numDente || layout.corDente ? `<p style="margin:0">${layout.numDente ? `Mat/Dente: <strong>${escapeHtml(linha.dentes)}</strong>` : ""}${layout.numDente && layout.corDente ? " " : ""}${layout.corDente ? `Cor Dente: <strong>${escapeHtml(linha.cor)}</strong>` : ""}</p>` : ""}
-                      ${layout.osExterna || layout.data || layout.finalizado ? `<p style="margin:0">${layout.osExterna ? `OS Externa: <strong>${escapeHtml(linha.osExterna)}</strong> ` : ""}${layout.data ? `Data: <strong>${escapeHtml(linha.dataOs)}</strong> ` : ""}${layout.finalizado ? `Entregue: <strong>${escapeHtml(linha.finalizado)}</strong>` : ""}</p>` : ""}
+                      ${metaPrazo}
                     </td></tr>`
-                  : "";
+                    : "";
                 return `<tr>
                   ${layout.qtd ? `<td style="font-weight:bold">${escapeHtml(linha.qtd)}</td>` : ""}
                   ${layout.servico ? `<td>${escapeHtml(linha.servico)}</td>` : ""}
