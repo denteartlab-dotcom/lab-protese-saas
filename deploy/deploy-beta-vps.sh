@@ -21,6 +21,13 @@ if grep -R -n -E '<<<<<<<|=======|>>>>>>>' src 2>/dev/null; then
   exit 1
 fi
 
+if grep -q "readFileSync" src/lib/app-build-id.ts 2>/dev/null; then
+  echo "ERRO: src/lib/app-build-id.ts ainda importa fs (versão antiga)."
+  echo "      Rode: git fetch origin main && git reset --hard origin/main"
+  echo "      Commit necessário: 37bfba7 ou mais recente."
+  exit 1
+fi
+
 echo "==> npm install"
 npm install --include=dev
 
