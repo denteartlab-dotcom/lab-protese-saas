@@ -247,13 +247,32 @@ export async function abrirHtmlNoVisualizadorPagina(
   } = await import("@/lib/pdf-viewer-aba");
 
   const id = criarIdPdfViewer();
-  salvarPdfViewerSession(id, { status: "loading", titulo, nomeArquivo });
-  const url = urlPdfViewerPagina(id);
   const janela = consumirJanelaReservada(opcoes?.janela);
+
+  salvarPdfViewerSession(id, { status: "loading", titulo, nomeArquivo });
+
+  let html = "";
+  try {
+    html = await gerar();
+    await publicarHtmlNaAba(id, html, titulo, nomeArquivo, {
+      imprimirAoCarregar: opcoes?.imprimirAoCarregar,
+    });
+  } catch (err) {
+    marcarPdfViewerErro(id, "Não foi possível carregar o documento.", titulo);
+    fecharJanela(janela);
+    console.error("visualizador HTML", err);
+    if (html) {
+      abrirHtmlDocumentoNoVisualizador(html, titulo, janela);
+      return;
+    }
+    throw err;
+  }
+
+  const url = urlPdfViewerPagina(id);
 
   if (janela && !janela.closed) {
     try {
-      janela.document.title = "Carregando...";
+      janela.document.title = titulo;
     } catch {
       /* ignore */
     }
@@ -261,25 +280,17 @@ export async function abrirHtmlNoVisualizadorPagina(
       fecharJanela(janela);
       const nova = window.open(url, "_blank");
       if (!nova) {
-        throw new Error("Não foi possível abrir o visualizador. Verifique o bloqueio de pop-ups.");
+        abrirHtmlDocumentoNoVisualizador(html, titulo);
       }
     }
-  } else if (typeof window !== "undefined") {
-    const nova = window.open(url, "_blank");
-    if (!nova) {
-      throw new Error("Não foi possível abrir o visualizador. Verifique o bloqueio de pop-ups.");
-    }
+    return;
   }
 
-  try {
-    const html = await gerar();
-    await publicarHtmlNaAba(id, html, titulo, nomeArquivo, {
-      imprimirAoCarregar: opcoes?.imprimirAoCarregar,
-    });
-  } catch (err) {
-    marcarPdfViewerErro(id, "Não foi possível carregar o documento.", titulo);
-    console.error("visualizador HTML", err);
-    throw err;
+  if (typeof window === "undefined") return;
+
+  const nova = window.open(url, "_blank");
+  if (!nova) {
+    abrirHtmlDocumentoNoVisualizador(html, titulo);
   }
 }
 

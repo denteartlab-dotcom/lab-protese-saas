@@ -1,3 +1,5 @@
+import { analisarCaminhoApp, montarCaminhoAppComSlug } from "@/lib/rotas-app";
+
 export const PDF_VIEWER_SESSION_PREFIX = "labProtesePdfViewer:";
 
 export type PdfViewerSessionPayload = {
@@ -26,7 +28,17 @@ function storagePdfViewer() {
 export function salvarPdfViewerSession(id: string, payload: PdfViewerSessionPayload) {
   const storage = storagePdfViewer();
   if (!storage) return;
-  storage.setItem(chavePdfViewerSession(id), JSON.stringify(payload));
+  try {
+    storage.setItem(chavePdfViewerSession(id), JSON.stringify(payload));
+    if (typeof BroadcastChannel !== "undefined") {
+      const canal = new BroadcastChannel("lab-protese-pdf-viewer");
+      canal.postMessage({ id, payload });
+      canal.close();
+    }
+  } catch (err) {
+    console.error("[pdf-viewer] falha ao salvar sessão", err);
+    throw err;
+  }
 }
 
 export function lerPdfViewerSession(id: string): PdfViewerSessionPayload | null {
@@ -75,9 +87,15 @@ export function base64ParaBlobUrl(base64: string, mime = "application/pdf") {
 }
 
 export function urlPdfViewerPagina(id: string) {
-  const path = `/app/financeiro/relatorio-pdf?id=${encodeURIComponent(id)}`;
-  if (typeof window === "undefined") return path;
-  return `${window.location.origin}${path}`;
+  const query = `?id=${encodeURIComponent(id)}`;
+  if (typeof window === "undefined") {
+    return `/app/financeiro/relatorio-pdf${query}`;
+  }
+  const { slug, legado } = analisarCaminhoApp(window.location.pathname);
+  if (!legado && slug) {
+    return `${window.location.origin}${montarCaminhoAppComSlug(slug, `/financeiro/relatorio-pdf${query}`)}`;
+  }
+  return `${window.location.origin}/app/financeiro/relatorio-pdf${query}`;
 }
 
 /** Abre a rota do visualizador em nova aba reservada (nunca navega a aba atual). */

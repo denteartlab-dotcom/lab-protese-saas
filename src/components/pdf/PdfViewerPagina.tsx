@@ -63,7 +63,13 @@ export function PdfViewerPagina({ id }: Props) {
         const mime = payload.mimeType ?? "application/pdf";
         setEhHtml(mime.startsWith("text/html"));
         imprimirAoCarregarRef.current = Boolean(payload.imprimirAoCarregar);
-        urlLocal = base64ParaBlobUrl(payload.base64, mime);
+        try {
+          urlLocal = base64ParaBlobUrl(payload.base64, mime);
+        } catch {
+          setCarregando(false);
+          setErro("Não foi possível montar o documento para visualização.");
+          return;
+        }
         removerPdfViewerSession(id);
         setPdfUrl(urlLocal);
         setCarregando(false);
@@ -91,6 +97,17 @@ export function PdfViewerPagina({ id }: Props) {
       if (payload) aplicarPayload(payload);
     };
 
+    const canal =
+      typeof BroadcastChannel !== "undefined"
+        ? new BroadcastChannel("lab-protese-pdf-viewer")
+        : null;
+    const onBroadcast = (event: MessageEvent) => {
+      const data = event.data as { id?: string; payload?: PdfViewerSessionPayload } | null;
+      if (!data || data.id !== id || !data.payload) return;
+      aplicarPayload(data.payload);
+    };
+    canal?.addEventListener("message", onBroadcast);
+
     window.addEventListener("storage", onStorage);
 
     const timeout = window.setTimeout(() => {
@@ -104,6 +121,8 @@ export function PdfViewerPagina({ id }: Props) {
       window.clearInterval(intervalo);
       window.clearTimeout(timeout);
       window.removeEventListener("storage", onStorage);
+      canal?.removeEventListener("message", onBroadcast);
+      canal?.close();
       if (urlLocal.startsWith("blob:")) URL.revokeObjectURL(urlLocal);
     };
   }, [id]);

@@ -150,7 +150,7 @@ function AppShellInner({
   const router = useRouter();
   const isPrint =
     pathname.includes("/imprimir") ||
-    pathname.startsWith("/app/financeiro/relatorio-pdf") ||
+    pathname.includes("/financeiro/relatorio-pdf") ||
     pathname.startsWith("/fatura/") ||
     pathname.startsWith("/app/visualizar-pdf") ||
     pathname.includes("/configuracoes/cabecalho") ||
