@@ -292,6 +292,29 @@ async function persistirPdfViewerSession(id: string, payload: PdfViewerSessionPa
   }
 }
 
+/** Publica bytes do PDF no servidor para URL com nome correto no Chrome. */
+export async function publicarPdfBlobNoServidor(
+  blob: Blob,
+  nomeArquivo: string,
+  id: string
+) {
+  const base64 = await blobParaBase64(blob);
+  const res = await fetch("/api/pdf-documento", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id,
+      base64,
+      nomeArquivo,
+      mimeType: blob.type || "application/pdf",
+    }),
+  });
+  if (!res.ok) {
+    throw new Error("Não foi possível publicar o PDF no servidor.");
+  }
+}
+
 export function marcarPdfViewerErro(id: string, message: string, titulo?: string) {
   salvarPdfViewerSession(id, {
     status: "error",
