@@ -5,9 +5,12 @@ import { Download, Printer, X } from "lucide-react";
 import { PdfViewerIframe } from "@/components/pdf/PdfViewerIframe";
 import { PDF_VIEWER_PAGINA_CLASSES } from "@/lib/pdf-viewer-iframe";
 import {
+  PDF_VIEWER_MSG_DADOS,
   base64ParaBlobUrl,
+  buscarPdfViewerSessaoServidor,
   chavePdfViewerSession,
   lerPdfViewerSession,
+  pedirPdfViewerAoOpener,
   removerPdfViewerSession,
   type PdfViewerSessionPayload,
 } from "@/lib/pdf-viewer-aba";
@@ -24,6 +27,8 @@ export function PdfViewerPagina({ id }: Props) {
   const [carregando, setCarregando] = useState(true);
   const [ehHtml, setEhHtml] = useState(false);
   const imprimirAoCarregarRef = useRef(false);
+  const concluidoRef = useRef(false);
+  const urlLocalRef = useRef("");
 
   const imprimir = useCallback(() => {
     if (!pdfUrl) return;
@@ -40,38 +45,37 @@ export function PdfViewerPagina({ id }: Props) {
 
   useEffect(() => {
     let ativo = true;
-    let urlLocal = "";
-    let concluido = false;
     const storageKey = chavePdfViewerSession(id);
 
     function aplicarPayload(payload: PdfViewerSessionPayload) {
-      if (!ativo) return;
+      if (!ativo || concluidoRef.current) return;
 
       if (payload.titulo) setTitulo(payload.titulo);
       if (payload.nomeArquivo) setNomeArquivo(payload.nomeArquivo);
 
       if (payload.status === "error") {
-        concluido = true;
+        concluidoRef.current = true;
         setCarregando(false);
         setErro(payload.message || "Não foi possível carregar o documento.");
         return;
       }
 
       if (payload.status === "ready" && payload.base64) {
-        concluido = true;
-        if (urlLocal.startsWith("blob:")) URL.revokeObjectURL(urlLocal);
+        concluidoRef.current = true;
+        if (urlLocalRef.current.startsWith("blob:")) {
+          URL.revokeObjectURL(urlLocalRef.current);
+        }
         const mime = payload.mimeType ?? "application/pdf";
         setEhHtml(mime.startsWith("text/html"));
         imprimirAoCarregarRef.current = Boolean(payload.imprimirAoCarregar);
         try {
-          urlLocal = base64ParaBlobUrl(payload.base64, mime);
+          urlLocalRef.current = base64ParaBlobUrl(payload.base64, mime);
         } catch {
           setCarregando(false);
           setErro("Não foi possível montar o documento para visualização.");
           return;
         }
-        removerPdfViewerSession(id);
-        setPdfUrl(urlLocal);
+        setPdfUrl(urlLocalRef.current);
         setCarregando(false);
         setErro("");
         return;
@@ -81,20 +85,35 @@ export function PdfViewerPagina({ id }: Props) {
       setErro("");
     }
 
-    aplicarPayload(lerPdfViewerSession(id) ?? { status: "loading" });
-
-    const intervalo = window.setInterval(() => {
-      if (concluido) return;
-      const payload = lerPdfViewerSession(id);
-      if (!payload) return;
-      aplicarPayload(payload);
-    }, 250);
-
-    const onStorage = (event: StorageEvent) => {
-      if (event.storageArea !== localStorage) return;
-      if (event.key !== storageKey) return;
+    function tentarStorageLocal() {
       const payload = lerPdfViewerSession(id);
       if (payload) aplicarPayload(payload);
+      return payload;
+    }
+
+    async function tentarServidor() {
+      if (!ativo || concluidoRef.current) return;
+      const payload = await buscarPdfViewerSessaoServidor(id);
+      if (payload) aplicarPayload(payload);
+    }
+
+    tentarStorageLocal();
+    pedirPdfViewerAoOpener(id);
+
+    const intervalo = window.setInterval(() => {
+      if (concluidoRef.current) return;
+      tentarStorageLocal();
+    }, 250);
+
+    const intervaloServidor = window.setInterval(() => {
+      if (concluidoRef.current) return;
+      void tentarServidor();
+    }, 900);
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.storageArea !== localStorage && event.storageArea !== sessionStorage) return;
+      if (event.key !== storageKey) return;
+      tentarStorageLocal();
     };
 
     const canal =
@@ -106,12 +125,26 @@ export function PdfViewerPagina({ id }: Props) {
       if (!data || data.id !== id || !data.payload) return;
       aplicarPayload(data.payload);
     };
-    canal?.addEventListener("message", onBroadcast);
 
+    const onPostMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data as {
+        type?: string;
+        id?: string;
+        payload?: PdfViewerSessionPayload;
+      } | null;
+      if (data?.type !== PDF_VIEWER_MSG_DADOS || data.id !== id || !data.payload) return;
+      aplicarPayload(data.payload);
+    };
+
+    canal?.addEventListener("message", onBroadcast);
     window.addEventListener("storage", onStorage);
+    window.addEventListener("message", onPostMessage);
+
+    void tentarServidor();
 
     const timeout = window.setTimeout(() => {
-      if (!ativo || concluido) return;
+      if (!ativo || concluidoRef.current) return;
       setCarregando(false);
       setErro("Tempo esgotado ao aguardar o documento. Feche esta aba e tente novamente.");
     }, 120_000);
@@ -119,21 +152,27 @@ export function PdfViewerPagina({ id }: Props) {
     return () => {
       ativo = false;
       window.clearInterval(intervalo);
+      window.clearInterval(intervaloServidor);
       window.clearTimeout(timeout);
       window.removeEventListener("storage", onStorage);
+      window.removeEventListener("message", onPostMessage);
       canal?.removeEventListener("message", onBroadcast);
       canal?.close();
-      if (urlLocal.startsWith("blob:")) URL.revokeObjectURL(urlLocal);
+      if (urlLocalRef.current.startsWith("blob:")) {
+        URL.revokeObjectURL(urlLocalRef.current);
+      }
     };
   }, [id]);
 
   function aoCarregarIframe() {
+    removerPdfViewerSession(id);
     if (!imprimirAoCarregarRef.current) return;
     imprimirAoCarregarRef.current = false;
     window.setTimeout(() => imprimir(), 150);
   }
 
   function fechar() {
+    removerPdfViewerSession(id);
     window.close();
   }
 

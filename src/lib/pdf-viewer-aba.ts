@@ -1,6 +1,8 @@
 import { analisarCaminhoApp, montarCaminhoAppComSlug } from "@/lib/rotas-app";
 
 export const PDF_VIEWER_SESSION_PREFIX = "labProtesePdfViewer:";
+export const PDF_VIEWER_MSG_PEDIDO = "lab-protese-pdf-viewer-request";
+export const PDF_VIEWER_MSG_DADOS = "lab-protese-pdf-viewer-data";
 
 export type PdfViewerSessionPayload = {
   status: "loading" | "ready" | "error";
@@ -25,6 +27,40 @@ function storagePdfViewer() {
   return window.localStorage;
 }
 
+function storagesPdfViewer(): Storage[] {
+  if (typeof window === "undefined") return [];
+  return [window.sessionStorage, window.localStorage];
+}
+
+let repassadorOpenerRegistrado = false;
+
+/** Aba que abriu o visualizador responde pedidos de payload (fallback ao storage). */
+export function registrarRepassadorPdfViewerOpener() {
+  if (typeof window === "undefined" || repassadorOpenerRegistrado) return;
+  repassadorOpenerRegistrado = true;
+
+  window.addEventListener("message", (event) => {
+    if (event.origin !== window.location.origin) return;
+    const data = event.data as { type?: string; id?: string } | null;
+    if (data?.type !== PDF_VIEWER_MSG_PEDIDO || !data.id) return;
+
+    const payload = lerPdfViewerSession(data.id);
+    if (!payload || payload.status !== "ready") return;
+
+    const source = event.source;
+    if (!source || typeof (source as Window).postMessage !== "function") return;
+
+    try {
+      (source as Window).postMessage(
+        { type: PDF_VIEWER_MSG_DADOS, id: data.id, payload },
+        event.origin
+      );
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
 export function salvarPdfViewerSession(id: string, payload: PdfViewerSessionPayload) {
   const storage = storagePdfViewer();
   if (!storage) return;
@@ -41,22 +77,102 @@ export function salvarPdfViewerSession(id: string, payload: PdfViewerSessionPayl
   }
 }
 
-export function lerPdfViewerSession(id: string): PdfViewerSessionPayload | null {
-  const storage = storagePdfViewer();
-  if (!storage) return null;
-  const raw = storage.getItem(chavePdfViewerSession(id));
-  if (!raw) return null;
+/** Grava na aba do visualizador antes da navegação (sobrevive ao remount). */
+export function salvarPdfViewerSessionNaJanela(
+  janela: Window,
+  id: string,
+  payload: PdfViewerSessionPayload
+) {
   try {
-    return JSON.parse(raw) as PdfViewerSessionPayload;
+    janela.sessionStorage.setItem(chavePdfViewerSession(id), JSON.stringify(payload));
+  } catch (err) {
+    console.warn("[pdf-viewer] sessionStorage na janela do visualizador", err);
+  }
+}
+
+export async function publicarPdfViewerSessaoServidor(
+  id: string,
+  payload: PdfViewerSessionPayload
+) {
+  const res = await fetch("/api/pdf-viewer-sessao", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ id, payload }),
+  });
+  if (!res.ok) {
+    throw new Error("Não foi possível publicar a sessão do visualizador.");
+  }
+}
+
+export async function buscarPdfViewerSessaoServidor(
+  id: string
+): Promise<PdfViewerSessionPayload | null> {
+  try {
+    const res = await fetch(`/api/pdf-viewer-sessao?id=${encodeURIComponent(id)}`, {
+      credentials: "include",
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as PdfViewerSessionPayload;
   } catch {
     return null;
   }
 }
 
+export function enviarPdfViewerParaJanela(
+  janela: Window | null,
+  id: string,
+  payload: PdfViewerSessionPayload
+) {
+  if (!janela || janela.closed || typeof window === "undefined") return;
+  const mensagem = { type: PDF_VIEWER_MSG_DADOS, id, payload };
+  const enviar = () => {
+    try {
+      janela.postMessage(mensagem, window.location.origin);
+    } catch {
+      /* ignore */
+    }
+  };
+  enviar();
+  window.setTimeout(enviar, 400);
+  window.setTimeout(enviar, 1200);
+  window.setTimeout(enviar, 2500);
+}
+
+export function pedirPdfViewerAoOpener(id: string) {
+  if (typeof window === "undefined" || !window.opener || window.opener.closed) return;
+  const mensagem = { type: PDF_VIEWER_MSG_PEDIDO, id };
+  const pedir = () => {
+    try {
+      window.opener?.postMessage(mensagem, window.location.origin);
+    } catch {
+      /* ignore */
+    }
+  };
+  pedir();
+  window.setTimeout(pedir, 300);
+  window.setTimeout(pedir, 1000);
+}
+
+export function lerPdfViewerSession(id: string): PdfViewerSessionPayload | null {
+  const key = chavePdfViewerSession(id);
+  for (const storage of storagesPdfViewer()) {
+    const raw = storage.getItem(key);
+    if (!raw) continue;
+    try {
+      return JSON.parse(raw) as PdfViewerSessionPayload;
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
 export function removerPdfViewerSession(id: string) {
-  const storage = storagePdfViewer();
-  if (!storage) return;
-  storage.removeItem(chavePdfViewerSession(id));
+  const key = chavePdfViewerSession(id);
+  for (const storage of storagesPdfViewer()) {
+    storage.removeItem(key);
+  }
 }
 
 export function blobParaBase64(blob: Blob): Promise<string> {
@@ -121,15 +237,17 @@ export async function publicarPdfNaAba(
   blob: Blob,
   titulo: string,
   nomeArquivo = "documento.pdf"
-) {
+): Promise<PdfViewerSessionPayload> {
   const base64 = await blobParaBase64(blob);
-  salvarPdfViewerSession(id, {
+  const payload: PdfViewerSessionPayload = {
     status: "ready",
     titulo,
     nomeArquivo,
     base64,
     mimeType: blob.type || "application/pdf",
-  });
+  };
+  await persistirPdfViewerSession(id, payload);
+  return payload;
 }
 
 export async function publicarHtmlNaAba(
@@ -138,17 +256,35 @@ export async function publicarHtmlNaAba(
   titulo: string,
   nomeArquivo = "documento.html",
   opcoes?: { imprimirAoCarregar?: boolean }
-) {
+): Promise<PdfViewerSessionPayload> {
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
   const base64 = await blobParaBase64(blob);
-  salvarPdfViewerSession(id, {
+  const payload: PdfViewerSessionPayload = {
     status: "ready",
     titulo,
     nomeArquivo,
     base64,
     mimeType: "text/html;charset=utf-8",
     imprimirAoCarregar: opcoes?.imprimirAoCarregar,
-  });
+  };
+  await persistirPdfViewerSession(id, payload);
+  return payload;
+}
+
+async function persistirPdfViewerSession(id: string, payload: PdfViewerSessionPayload) {
+  let localOk = false;
+  try {
+    salvarPdfViewerSession(id, payload);
+    localOk = true;
+  } catch {
+    /* localStorage cheio ou indisponível */
+  }
+
+  try {
+    await publicarPdfViewerSessaoServidor(id, payload);
+  } catch (err) {
+    if (!localOk) throw err;
+  }
 }
 
 export function marcarPdfViewerErro(id: string, message: string, titulo?: string) {

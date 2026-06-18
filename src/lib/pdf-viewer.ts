@@ -224,8 +224,13 @@ export async function abrirHtmlNoVisualizadorPagina(
     urlPdfViewerPagina,
     publicarHtmlNaAba,
     salvarPdfViewerSession,
+    salvarPdfViewerSessionNaJanela,
+    enviarPdfViewerParaJanela,
+    registrarRepassadorPdfViewerOpener,
     marcarPdfViewerErro,
   } = await import("@/lib/pdf-viewer-aba");
+
+  registrarRepassadorPdfViewerOpener();
 
   const id = criarIdPdfViewer();
   const janela = consumirJanelaReservada(opcoes?.janela);
@@ -233,11 +238,15 @@ export async function abrirHtmlNoVisualizadorPagina(
   salvarPdfViewerSession(id, { status: "loading", titulo, nomeArquivo });
 
   let html = "";
+  let payloadPronto: Awaited<ReturnType<typeof publicarHtmlNaAba>> | null = null;
   try {
     html = await gerar();
-    await publicarHtmlNaAba(id, html, titulo, nomeArquivo, {
+    payloadPronto = await publicarHtmlNaAba(id, html, titulo, nomeArquivo, {
       imprimirAoCarregar: opcoes?.imprimirAoCarregar,
     });
+    if (janela && !janela.closed) {
+      salvarPdfViewerSessionNaJanela(janela, id, payloadPronto);
+    }
   } catch (err) {
     marcarPdfViewerErro(id, "Não foi possível carregar o documento.", titulo);
     fecharJanela(janela);
@@ -262,7 +271,11 @@ export async function abrirHtmlNoVisualizadorPagina(
       const nova = window.open(url, "_blank");
       if (!nova) {
         abrirHtmlDocumentoNoVisualizador(html, titulo);
+      } else if (payloadPronto) {
+        enviarPdfViewerParaJanela(nova, id, payloadPronto);
       }
+    } else if (payloadPronto) {
+      enviarPdfViewerParaJanela(janela, id, payloadPronto);
     }
     return;
   }
@@ -272,6 +285,8 @@ export async function abrirHtmlNoVisualizadorPagina(
   const nova = window.open(url, "_blank");
   if (!nova) {
     abrirHtmlDocumentoNoVisualizador(html, titulo);
+  } else if (payloadPronto) {
+    enviarPdfViewerParaJanela(nova, id, payloadPronto);
   }
 }
 
