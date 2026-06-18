@@ -223,6 +223,13 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
     };
   }, [modeloId]);
 
+  const alteracoesPendentes = useMemo(() => {
+    if (!config || !layout) return false;
+    const salvo = resolverLayoutFaturaImpressao(config, modeloId);
+    const editado = resolverLayoutFaturaImpressao(config, modeloId, layout);
+    return JSON.stringify(salvo) !== JSON.stringify(editado);
+  }, [config, layout, modeloId]);
+
   function patchLayout(patch: Partial<FaturaModeloLayout>) {
     setLayout((atual) =>
       atual
@@ -332,13 +339,6 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
   }
 
   const corBorda = normalizarCorBorda(layout.bordas);
-
-  const alteracoesPendentes = useMemo(() => {
-    if (!config || !layout) return false;
-    const salvo = resolverLayoutFaturaImpressao(config, modeloId);
-    const editado = resolverLayoutFaturaImpressao(config, modeloId, layout);
-    return JSON.stringify(salvo) !== JSON.stringify(editado);
-  }, [config, layout, modeloId]);
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden lg:flex-row">
