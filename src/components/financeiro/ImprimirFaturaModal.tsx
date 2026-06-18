@@ -23,9 +23,10 @@ import {
 import { sincronizarConfigLaboratorioDoServidor } from "@/lib/lab-config-sync";
 import { gerarPdfDeHtmlDocumento } from "@/lib/html-para-pdf";
 import {
-  abrirPdfGerandoNoVisualizadorPagina,
-  abrirPdfParaImpressaoNoVisualizador,
-} from "@/lib/pdf-viewer";
+  criarIdFaturaImpressao,
+  montarUrlImpressaoFatura,
+  salvarFaturaImpressaoSessao,
+} from "@/lib/fatura-impressao-sessao";
 import { cn } from "@/lib/utils";
 
 export type FormatoImpressaoFatura = "a4" | "termica";
@@ -207,45 +208,38 @@ export function ImprimirFaturaModal({
     return `Fatura — Folha A4 (${modeloNome})`;
   }
 
-  async function gerarPdfFatura() {
-    const html = await prepararHtmlImpressao();
-    return gerarPdfDeHtmlDocumento(html, formato);
+  async function abrirNoVisualizador(imprimirAoCarregar: boolean) {
+    if (gerandoPdf || sincronizando) return;
+
+    setGerandoPdf(true);
+    try {
+      const html = await prepararHtmlImpressao();
+      const id = criarIdFaturaImpressao();
+      salvarFaturaImpressaoSessao(id, {
+        html,
+        numeroFatura,
+        clienteNome,
+        subtitulo: subtituloFatura(),
+        formato,
+        imprimirAoCarregar,
+      });
+      const url = montarUrlImpressaoFatura(id, { imprimir: imprimirAoCarregar });
+      window.open(url, "_blank", "noopener,noreferrer");
+      onClose();
+    } catch (err) {
+      console.error("[ImprimirFaturaModal] visualizador", err);
+      window.alert("Não foi possível abrir a fatura. Tente novamente.");
+    } finally {
+      setGerandoPdf(false);
+    }
   }
 
   function imprimir() {
-    if (gerandoPdf || sincronizando) return;
-    const titulo = `Fatura ${numeroFatura} — ${clienteNome}`;
-
-    setGerandoPdf(true);
-    void abrirPdfParaImpressaoNoVisualizador(
-      () => gerarPdfFatura(),
-      titulo,
-      `Fatura ${numeroFatura}.pdf`,
-      { subtitulo: subtituloFatura() }
-    )
-      .catch((err) => {
-        console.error("[ImprimirFaturaModal] imprimir", err);
-        window.alert("Não foi possível abrir a impressão. Tente novamente.");
-      })
-      .finally(() => setGerandoPdf(false));
+    void abrirNoVisualizador(true);
   }
 
   function visualizarPdf() {
-    if (gerandoPdf || sincronizando) return;
-    const titulo = `Fatura ${numeroFatura} — ${clienteNome}`;
-
-    setGerandoPdf(true);
-    void abrirPdfGerandoNoVisualizadorPagina(
-      () => gerarPdfFatura(),
-      titulo,
-      `Fatura ${numeroFatura}.pdf`,
-      { subtitulo: subtituloFatura() }
-    )
-      .catch((err) => {
-        console.error("[ImprimirFaturaModal] visualizar", err);
-        window.alert("Não foi possível abrir a fatura. Tente novamente.");
-      })
-      .finally(() => setGerandoPdf(false));
+    void abrirNoVisualizador(false);
   }
 
   async function enviarWhatsapp() {

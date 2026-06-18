@@ -250,12 +250,6 @@ function numerosOsDoLancamento(lancamento: Lancamento) {
   return Array.from(numeros);
 }
 
-function lancamentoTemOs(lancamento: Lancamento, numerosOs: number[], trabalhoId?: string) {
-  if (trabalhoId && lancamento.trabalho?.id === trabalhoId) return true;
-  const numerosLancamento = numerosOsDoLancamento(lancamento);
-  return numerosLancamento.some((numero) => numerosOs.includes(numero));
-}
-
 function dateInputValue(value: Date) {
   const year = value.getFullYear();
   const month = String(value.getMonth() + 1).padStart(2, "0");
@@ -1030,53 +1024,39 @@ function FinanceiroReceberConteudo() {
     void loadPosMutacao();
   }
 
-  async function remove(id: string, contextoCliente?: ClienteReceber) {
-    const lancamento = data?.lancamentos.find((item) => item.id === id);
-    const numerosDiretos = lancamento ? numerosOsDoLancamento(lancamento) : [];
-    const contextoRelacionados =
-      lancamento && numerosDiretos.length === 0 && contextoCliente
-        ? contextoCliente.lancamentos.filter(
-            (item) =>
-              item.id !== lancamento.id &&
-              item.tipo === "receita" &&
-              item.descricao.toLowerCase().startsWith("cobrança os") &&
-              Math.abs(item.valor - lancamento.valor) < 0.01
-          )
-        : [];
-    const numerosOs = Array.from(
-      new Set([
-        ...numerosDiretos,
-        ...contextoRelacionados.flatMap((item) => numerosOsDoLancamento(item)),
-      ])
+  function saldosRestanteDoLancamento(lancamento: Lancamento) {
+    const descricaoBase = lancamento.descricao.replace(/ - Saldo restante$/i, "").trim();
+    const prefixoSaldo = `${descricaoBase} - Saldo restante`;
+    return (data?.lancamentos || []).filter(
+      (item) =>
+        item.id !== lancamento.id &&
+        item.tipo === "receita" &&
+        item.status !== "pago" &&
+        item.descricao.trim() === prefixoSaldo
     );
-    const relacionados = lancamento
-      ? (data?.lancamentos || []).filter(
-          (item) =>
-            item.id !== lancamento.id &&
-            item.tipo === "receita" &&
-            item.descricao.toLowerCase().startsWith("cobrança os") &&
-            (lancamentoTemOs(item, numerosOs, lancamento.trabalho?.id) ||
-              contextoRelacionados.some((relacionado) => relacionado.id === item.id))
-        )
-      : [];
-    const creditosUtilizados = lancamento
-      ? [
-          ...creditosUtilizadosDaFatura(lancamento),
-          ...relacionados.flatMap((item) => creditosUtilizadosDaFatura(item)),
-        ]
-      : [];
+  }
+
+  async function remove(id: string) {
+    const lancamento = data?.lancamentos.find((item) => item.id === id);
+    const numerosOs = lancamento ? numerosOsDoLancamento(lancamento) : [];
+    const saldosRestante = lancamento ? saldosRestanteDoLancamento(lancamento) : [];
+    const creditosUtilizados = lancamento ? creditosUtilizadosDaFatura(lancamento) : [];
     const idsParaExcluir = Array.from(
-      new Set([id, ...relacionados.map((item) => item.id), ...creditosUtilizados.map((item) => item.id)])
+      new Set([
+        id,
+        ...saldosRestante.map((item) => item.id),
+        ...creditosUtilizados.map((item) => item.id),
+      ])
     );
     const avisos: string[] = [];
     if (numerosOs.length > 0 || lancamento?.trabalho?.numeroOs) {
       avisos.push(
-        "Atenção!! As OS voltarão para Entregues | Finalizados não faturados."
+        "Atenção!! As OS desta fatura voltarão para Entregues | Finalizados não faturados."
       );
     }
-    if (relacionados.length) {
+    if (saldosRestante.length) {
       avisos.push(
-        `Também serão excluídos ${relacionados.length} lançamento(s) financeiro(s) relacionado(s) a essas OS.`
+        `O saldo restante vinculado a esta fatura (${saldosRestante.length}) também será excluído.`
       );
     }
     if (creditosUtilizados.length) {
@@ -1142,17 +1122,8 @@ function FinanceiroReceberConteudo() {
       return;
     }
 
-    const numerosOs = numerosOsDoLancamento(lancamento);
     const creditosUtilizados = creditosUtilizadosDaFatura(lancamento);
-    const saldosRelacionados = (data?.lancamentos || []).filter(
-      (item) =>
-        item.id !== lancamento.id &&
-        item.tipo === "receita" &&
-        item.status !== "pago" &&
-        item.descricao.toLowerCase().startsWith("cobrança os") &&
-        item.descricao.toLowerCase().includes("saldo restante") &&
-        lancamentoTemOs(item, numerosOs, lancamento.trabalho?.id)
-    );
+    const saldosRelacionados = saldosRestanteDoLancamento(lancamento);
     const valorTotal = lancamento.valor + saldosRelacionados.reduce((sum, item) => sum + item.valor, 0);
 
     setConfirmacaoExclusao({
@@ -1389,12 +1360,15 @@ function FinanceiroReceberConteudo() {
   }
 
   function creditosUtilizadosDaFatura(lancamento: Lancamento) {
+    const descricao = lancamento.descricao.trim();
     return (data?.lancamentos || [])
       .filter(
         (item) =>
           isCreditoUtilizado(item) &&
           item.cliente?.id === lancamento.cliente?.id &&
-          item.descricao.includes(lancamento.descricao)
+          (item.descricao.trim() === `Desconto com crédito - ${descricao}` ||
+            item.descricao.trim() === `Crédito utilizado - ${descricao}` ||
+            item.descricao.trim().endsWith(` - ${descricao}`))
       );
   }
 
