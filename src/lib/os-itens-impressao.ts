@@ -1,4 +1,4 @@
-import { parseEtapasInstrucoes } from "@/lib/etapas-os";
+import { parseEtapasInstrucoes } from "@/lib/etapas-os-impressao";
 import {
   classificarItemOs,
   itemExibeBadgeProduto,

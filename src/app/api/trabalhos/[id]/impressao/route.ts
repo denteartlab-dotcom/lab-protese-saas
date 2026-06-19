@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
-import {
-  carregarDadosImpressaoOs,
-  mensagemErroImpressaoOs,
-} from "@/lib/impressao-os-dados";
 
 function searchParamsRecord(url: string) {
   const params = new URL(url).searchParams;
@@ -36,6 +32,9 @@ export async function GET(
   const sp = searchParamsRecord(request.url);
 
   try {
+    const { carregarDadosImpressaoOs, mensagemErroImpressaoOs } = await import(
+      "@/lib/impressao-os-dados"
+    );
     const resultado = await carregarDadosImpressaoOs({
       id,
       empresaId: ctx.empresaId,
@@ -57,10 +56,18 @@ export async function GET(
     });
   } catch (err) {
     console.error("api imprimir OS", { id, empresaId: ctx.empresaId, err });
+    let detalhe =
+      "Não foi possível gerar a requisição. Atualize a página (Ctrl+F5) e tente novamente.";
+    try {
+      const { mensagemErroImpressaoOs } = await import("@/lib/impressao-os-dados");
+      detalhe = mensagemErroImpressaoOs(err);
+    } catch {
+      /* fallback acima */
+    }
     return NextResponse.json(
       {
         error: "Erro ao abrir a impressão.",
-        detalhe: mensagemErroImpressaoOs(err),
+        detalhe,
       },
       { status: 500 }
     );

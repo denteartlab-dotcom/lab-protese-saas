@@ -1,17 +1,14 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import { Button } from "@/components/ui";
 
-const PdfOsViewer = dynamic(
-  () => import("./pdf-os-viewer").then((m) => m.PdfOsViewer),
-  { ssr: false, loading: () => (
-    <div className="flex flex-1 items-center justify-center text-sm text-slate-300">
-      Gerando PDF da OS...
-    </div>
-  ) }
-);
+type PdfOsViewerProps = {
+  formato: string;
+  modelo: string;
+  duasVias: boolean;
+  data: DadosImpressaoOsPdf;
+};
 
 function ErroImpressao({
   titulo,
@@ -81,6 +78,10 @@ export function ImprimirOsLoader({
   queryString: string;
 }) {
   const [estado, setEstado] = useState<Estado>({ status: "loading" });
+  const [PdfViewer, setPdfViewer] = useState<ComponentType<PdfOsViewerProps> | null>(
+    null
+  );
+  const [carregandoViewer, setCarregandoViewer] = useState(false);
 
   useEffect(() => {
     let ativo = true;
@@ -132,6 +133,45 @@ export function ImprimirOsLoader({
     };
   }, [trabalhoId, queryString]);
 
+  useEffect(() => {
+    if (estado.status !== "ok") {
+      setPdfViewer(null);
+      setCarregandoViewer(false);
+      return;
+    }
+
+    let ativo = true;
+    setCarregandoViewer(true);
+    void import("./pdf-os-viewer")
+      .then((mod) => {
+        if (!ativo) return;
+        setPdfViewer(() => mod.PdfOsViewer);
+        setCarregandoViewer(false);
+      })
+      .catch((err) => {
+        if (!ativo) return;
+        setCarregandoViewer(false);
+        setEstado({
+          status: "erro",
+          titulo: "Erro ao abrir a impressão.",
+          detalhe:
+            err instanceof Error
+              ? err.message
+              : "Não foi possível carregar o visualizador da OS.",
+        });
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [
+    estado.status === "ok" ? estado.dados.numeroOs : null,
+    estado.status === "ok" ? estado.formato : null,
+    estado.status === "ok" ? estado.modelo : null,
+    estado.status === "ok" ? estado.duasVias : null,
+    estado.status,
+  ]);
+
   if (estado.status === "loading") {
     return (
       <div className="flex flex-1 items-center justify-center text-sm text-slate-300">
@@ -144,8 +184,17 @@ export function ImprimirOsLoader({
     return <ErroImpressao titulo={estado.titulo} detalhe={estado.detalhe} />;
   }
 
+  if (carregandoViewer || !PdfViewer) {
+    return (
+      <div className="flex flex-1 items-center justify-center text-sm text-slate-300">
+        Gerando PDF da OS...
+      </div>
+    );
+  }
+
+  const Viewer = PdfViewer;
   return (
-    <PdfOsViewer
+    <Viewer
       formato={estado.formato}
       modelo={estado.modelo}
       duasVias={estado.duasVias}

@@ -12,7 +12,7 @@ import {
   instrucoesTextoLivre,
   parseColaboradoresInstrucoes,
   parseEtapasInstrucoes,
-} from "@/lib/etapas-os";
+} from "@/lib/etapas-os-impressao";
 import {
   anexarPrazosServicoPorTrabalho,
   extrairDataPrazoBr,

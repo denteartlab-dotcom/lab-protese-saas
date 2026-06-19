@@ -789,7 +789,6 @@ function FinanceiroReceberConteudo() {
       ? jurosBase
       : Math.max(valorBruto - desconto, 0) * (Math.max(jurosBase, 0) / 100);
   const totalLiquido = Math.max(0, valorBruto - desconto + jurosValor);
-  const creditoDisponivelReceita = creditoDisponivelCliente(form.clienteId);
 
   function formaSelecionadaEhBoleto() {
     return (form.formaPagamento || "").toLowerCase().includes("boleto");
@@ -856,7 +855,6 @@ function FinanceiroReceberConteudo() {
     parcelas,
     imprimirRecibo,
     alterarEntregue,
-    abaterCredito,
     anexos,
   }: LancarReceitaOsSubmit) {
     if (saveEmAndamentoRef.current) return;
@@ -864,13 +862,7 @@ function FinanceiroReceberConteudo() {
     setSalvandoLancamento(true);
     try {
     setMensagemLancamento("");
-    const creditoDisponivel = creditoDisponivelCliente(form.clienteId);
-    const creditoAplicado =
-      abaterCredito && creditoDisponivel > 0
-        ? Math.min(creditoDisponivel, totalLiquido)
-        : 0;
-    const totalAReceberComCredito = Math.max(0, totalLiquido - creditoAplicado);
-    const deveCriarFaturaReceber = Math.round(totalAReceberComCredito * 100) > 0;
+    const deveCriarFaturaReceber = Math.round(totalLiquido * 100) > 0;
     const descricaoBase = trabalhosSelecionados.length
       ? empacotarCobrancaOs(
           `Cobrança OS ${trabalhosSelecionados.map((trabalho) => trabalho.numeroOs).join(", ")}${
@@ -886,7 +878,7 @@ function FinanceiroReceberConteudo() {
 
     if (deveCriarFaturaReceber) {
       const basePorParcela =
-        parcelas.length > 0 ? totalAReceberComCredito / parcelas.length : totalAReceberComCredito;
+        parcelas.length > 0 ? totalLiquido / parcelas.length : totalLiquido;
 
       if (parcelas.length > 1) {
         const res = await fetch("/api/financeiro", {
@@ -921,8 +913,8 @@ function FinanceiroReceberConteudo() {
       } else {
         const p = parcelas[0];
         const valorLancamento = p
-          ? valorParcelaNumerico(p, totalAReceberComCredito)
-          : totalAReceberComCredito;
+          ? valorParcelaNumerico(p, totalLiquido)
+          : totalLiquido;
         const res = await fetch("/api/financeiro", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -959,30 +951,8 @@ function FinanceiroReceberConteudo() {
         }
       }
     }
-    if (creditoAplicado > 0) {
-      await fetch("/api/financeiro", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tipo: "receita",
-          clienteId: form.clienteId || undefined,
-          valor: creditoAplicado,
-          data: brShortToIso(form.vencimento || form.data),
-          status: "pago",
-          formaPagamento: FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
-          descricao: descricaoReceitaComPlano(
-            `Desconto com crédito - ${descricaoBase}`,
-            anexos
-          ),
-        }),
-      });
-    }
     if (!mensagemLancamento || mensagemLancamentoTipo !== "erro") {
-      if (
-        alterarEntregue &&
-        trabalhosSelecionados.length > 0 &&
-        (deveCriarFaturaReceber || creditoAplicado > 0)
-      ) {
+      if (alterarEntregue && trabalhosSelecionados.length > 0 && deveCriarFaturaReceber) {
         await marcarOsFaturadasComoEntregues();
       }
       const clienteNome =
@@ -2841,7 +2811,6 @@ function FinanceiroReceberConteudo() {
         algumasReceitaSelecionadas={algumasReceitaSelecionadas}
         valorOsSelecionadas={valorOsSelecionadas}
         totalLiquido={totalLiquido}
-        creditoDisponivel={creditoDisponivelReceita}
         mensagemLancamento={mensagemLancamento}
         mensagemLancamentoTipo={mensagemLancamentoTipo}
         formaSelecionadaEhBoleto={formaSelecionadaEhBoleto}

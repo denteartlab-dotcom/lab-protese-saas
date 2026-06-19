@@ -57,9 +57,7 @@ import {
   type TipografiaEtiquetaOs,
 } from "@/lib/configuracoes-etiquetas";
 import { parseCurrencyBr } from "@/lib/cliente-financeiro";
-import { extrairDataPrazoBr } from "@/lib/os-itens-impressao";
-import { formatarDescontoImpressaoOs } from "@/lib/trabalho-os-segmento";
-import { gerarPngCode39DataUrl } from "@/lib/code39-barcode-core";
+import { gerarBarrasCode39, gerarPngCode39DataUrl } from "@/lib/code39-barcode-core";
 import {
   colaboradorDaEtapaImpressao,
   colaboradorExibirNoTopoImpressao,
@@ -69,7 +67,55 @@ import {
   type ColaboradorOsLinha,
   type EtapaOsLinha,
   type EtapasPorServicoOs,
-} from "@/lib/etapas-os";
+} from "@/lib/etapas-os-impressao";
+
+function drawCode39(
+  pdf: {
+    rect: (x: number, y: number, w: number, h: number, style?: string) => void;
+    setFillColor: (r: number, g?: number, b?: number) => void;
+  },
+  value: string,
+  x: number,
+  y: number
+) {
+  const narrow = 0.26;
+  const height = 8;
+  const { barras } = gerarBarrasCode39(value, narrow);
+  pdf.setFillColor(0, 0, 0);
+  for (const barra of barras) {
+    pdf.rect(x + barra.x, y, barra.w, height, "F");
+  }
+}
+
+function extrairDataPrazoBr(texto?: string | null) {
+  const valor = (texto || "").trim();
+  if (!valor) return "";
+  const match = valor.match(/\d{2}\/\d{2}\/\d{4}/);
+  return match ? match[0] : valor;
+}
+
+function formatarDescontoImpressaoOs(desconto?: string, descontoTipo?: string) {
+  const texto = (desconto || "").trim();
+  if (!texto || texto === "0" || texto === "0,00" || texto === "R$ 0,00") {
+    return "% 0.00";
+  }
+  const tipo =
+    descontoTipo === "valor" || texto.startsWith("R$") ? "valor" : "percentual";
+  if (tipo === "valor") {
+    const valor = parseCurrencyBr(texto);
+    return `R$ ${valor.toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }
+  const numerico = texto.replace("%", "").replace(",", ".").trim();
+  const pct = Number(numerico);
+  if (Number.isFinite(pct)) {
+    return `% ${pct.toFixed(2)}`;
+  }
+  if (texto.startsWith("%")) return texto;
+  return `% ${texto}`;
+}
 
 type PdfItem = {
   qtd: string;
@@ -545,78 +591,6 @@ function desenharRodapeRequisicaoA4(
   }
 
   return y;
-}
-
-const code39: Record<string, string> = {
-  "0": "nnnwwnwnn",
-  "1": "wnnwnnnnw",
-  "2": "nnwwnnnnw",
-  "3": "wnwwnnnnn",
-  "4": "nnnwwnnnw",
-  "5": "wnnwwnnnn",
-  "6": "nnwwwnnnn",
-  "7": "nnnwnnwnw",
-  "8": "wnnwnnwnn",
-  "9": "nnwwnnwnn",
-  A: "wnnnnwnnw",
-  B: "nnwnnwnnw",
-  C: "wnwnnwnnn",
-  D: "nnnnwwnnw",
-  E: "wnnnwwnnn",
-  F: "nnwnwwnnn",
-  G: "nnnnnwwnw",
-  H: "wnnnnwwnn",
-  I: "nnwnnwwnn",
-  J: "nnnnwwwnn",
-  K: "wnnnnnnww",
-  L: "nnwnnnnww",
-  M: "wnwnnnnwn",
-  N: "nnnnwnnww",
-  O: "wnnnwnnwn",
-  P: "nnwnwnnwn",
-  Q: "nnnnnnwww",
-  R: "wnnnnnwwn",
-  S: "nnwnnnwwn",
-  T: "nnnnwnwwn",
-  U: "wwnnnnnnw",
-  V: "nwwnnnnnw",
-  W: "wwwnnnnnn",
-  X: "nwnnwnnnw",
-  Y: "wwnnwnnnn",
-  Z: "nwwnwnnnn",
-  "-": "nwnnnnwnw",
-  ".": "wwnnnnwnn",
-  " ": "nwwnnnwnn",
-  "*": "nwnnwnwnn",
-};
-
-function drawCode39(
-  pdf: {
-    rect: (x: number, y: number, w: number, h: number, style?: string) => void;
-    setFillColor: (r: number, g?: number, b?: number) => void;
-  },
-  value: string,
-  x: number,
-  y: number
-) {
-  const content = `*${value.toUpperCase().replace(/[^0-9A-Z-. ]/g, "")}*`;
-  const narrow = 0.26;
-  const wide = narrow * 3;
-  const height = 8;
-  let cursor = x;
-
-  pdf.setFillColor(0, 0, 0);
-  for (const char of content) {
-    const pattern = code39[char] || code39["-"];
-    pattern.split("").forEach((part, index) => {
-      const width = part === "w" ? wide : narrow;
-      if (index % 2 === 0) {
-        pdf.rect(cursor, y, width, height, "F");
-      }
-      cursor += width;
-    });
-    cursor += narrow;
-  }
 }
 
 function criarPdf(formato: string) {
