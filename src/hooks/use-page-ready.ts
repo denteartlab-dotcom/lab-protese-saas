@@ -1,14 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  armazenamentoLaboratorioBootstrapOk,
-  armazenamentoLaboratorioPronto,
-  inicializarArmazenamentoLaboratorio,
-} from "@/lib/armazenamento-laboratorio";
 
 /**
- * Aguarda hidratar dados do servidor (JsonStore) antes de exibir listas.
+ * Executa init após montagem (bootstrap do JsonStore já concluído pelo provider).
  */
 export function usePageReady(init: () => void | Promise<void>) {
   const [ready, setReady] = useState(false);
@@ -17,17 +12,9 @@ export function usePageReady(init: () => void | Promise<void>) {
 
   useEffect(() => {
     let cancelled = false;
-
-    async function run() {
-      if (!armazenamentoLaboratorioPronto()) {
-        await inicializarArmazenamentoLaboratorio();
-      }
-      if (!armazenamentoLaboratorioBootstrapOk()) return;
-      await initRef.current();
+    void Promise.resolve(initRef.current()).then(() => {
       if (!cancelled) setReady(true);
-    }
-
-    void run();
+    });
     return () => {
       cancelled = true;
     };

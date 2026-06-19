@@ -15,6 +15,11 @@ import {
 } from "@/lib/configuracoes-lab";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
 import type { LabImpressaoConfig } from "@/lib/lab-impressao";
+import {
+  ARMAZENAMENTO_LAB_PRONTO_EVENT,
+  armazenamentoLaboratorioBootstrapOk,
+  armazenamentoLaboratorioPronto,
+} from "@/lib/armazenamento-laboratorio";
 
 type LabConfigContextValue = {
   lab: LabImpressaoConfig;
@@ -46,9 +51,20 @@ export function LabConfigProvider({ lab, configLaboratorio, children }: Props) {
   );
 
   useEffect(() => {
-    if (hidratado.current) return;
-    hidratado.current = true;
-    hidratarConfigLaboratorioCache(configLaboratorio);
+    function tentarHidratar() {
+      if (hidratado.current) return;
+      if (!armazenamentoLaboratorioPronto() || !armazenamentoLaboratorioBootstrapOk()) {
+        return;
+      }
+      hidratado.current = true;
+      hidratarConfigLaboratorioCache(configLaboratorio);
+    }
+
+    tentarHidratar();
+    window.addEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, tentarHidratar);
+    return () => {
+      window.removeEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, tentarHidratar);
+    };
   }, [configLaboratorio]);
 
   return (

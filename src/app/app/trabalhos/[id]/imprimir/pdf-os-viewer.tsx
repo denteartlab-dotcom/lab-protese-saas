@@ -2064,7 +2064,6 @@ export function PdfOsViewer({
       import("@/lib/lab-logo"),
       import("@/lib/lab-config-sync"),
     ]);
-    await labSyncMod.sincronizarConfigLaboratorioDoServidor().catch(() => undefined);
 
     let cfg = labMod.carregarConfigLaboratorio();
     if (base.configLaboratorio) {
@@ -2072,7 +2071,6 @@ export function PdfOsViewer({
         cfg,
         base.configLaboratorio as Partial<ConfigLaboratorio>
       );
-      labSyncMod.aplicarConfigLaboratorioNoCliente(cfg);
     }
 
     const lab = logoMod.configParaLabImpressao(cfg);
@@ -2105,9 +2103,6 @@ export function PdfOsViewer({
     let ativo = true;
     setConfigOsPronta(false);
     void (async () => {
-      const osMod = await import("@/lib/configuracoes-os");
-      await osMod.sincronizarConfiguracoesOsDoServidor().catch(() => undefined);
-      if (!ativo) return;
       const montado = await montarDadosPdf(data);
       if (!ativo) return;
       setDadosPdf(montado);

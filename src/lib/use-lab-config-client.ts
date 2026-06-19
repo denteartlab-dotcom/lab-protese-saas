@@ -4,35 +4,50 @@ import { useCallback, useEffect, useState } from "react";
 import { useLabConfigServidor } from "@/components/LabConfigProvider";
 import {
   ARMAZENAMENTO_LAB_PRONTO_EVENT,
+  armazenamentoLaboratorioBootstrapOk,
   armazenamentoLaboratorioPronto,
 } from "@/lib/armazenamento-laboratorio";
 import {
   carregarConfigLaboratorio,
   LAB_CONFIG_ATUALIZADA_EVENT,
   nomeExibicaoLaboratorio,
-  temConfigLaboratorioSalva,
 } from "@/lib/configuracoes-lab";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
-import type { LabImpressaoConfig } from "@/lib/lab-impressao";
+import { LAB_IMPRESSAO_PADRAO, type LabImpressaoConfig } from "@/lib/lab-impressao";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
 
 type Props = {
   initialLab?: LabImpressaoConfig;
 };
 
-/** Config do lab no cliente — após bootstrap, prioriza cache/banco sobre SSR. */
+function storageSincronizado() {
+  return (
+    typeof window !== "undefined" &&
+    armazenamentoLaboratorioPronto() &&
+    armazenamentoLaboratorioBootstrapOk()
+  );
+}
+
+function dadosDoServidor(
+  servidor: ReturnType<typeof useLabConfigServidor>,
+  initialLab?: LabImpressaoConfig
+) {
+  const lab = servidor?.lab ?? initialLab ?? LAB_IMPRESSAO_PADRAO;
+  const nomeLaboratorio =
+    servidor?.nomeLaboratorio?.trim() ||
+    lab.responsavel?.trim() ||
+    NOME_LAB_PADRAO;
+  return { lab, nomeLaboratorio };
+}
+
+/** Config do lab no cliente — só usa cache local após bootstrap do banco. */
 export function useLabConfigClient({ initialLab }: Props = {}) {
   const servidor = useLabConfigServidor();
+  const [cachePronto, setCachePronto] = useState(storageSincronizado);
 
   const resolver = useCallback(() => {
-    if (servidor && !temConfigLaboratorioSalva()) {
-      return {
-        lab: servidor.lab,
-        nomeLaboratorio:
-          servidor.nomeLaboratorio?.trim() ||
-          servidor.lab.responsavel?.trim() ||
-          NOME_LAB_PADRAO,
-      };
+    if (!cachePronto) {
+      return dadosDoServidor(servidor, initialLab);
     }
     const cfg = carregarConfigLaboratorio();
     return {
@@ -42,38 +57,44 @@ export function useLabConfigClient({ initialLab }: Props = {}) {
         servidor?.nomeLaboratorio?.trim() ||
         NOME_LAB_PADRAO,
     };
-  }, [servidor]);
+  }, [cachePronto, servidor, initialLab]);
 
   const inicial = resolver();
   const [lab, setLab] = useState<LabImpressaoConfig>(inicial.lab);
   const [nomeLaboratorio, setNomeLaboratorio] = useState(inicial.nomeLaboratorio);
-  const montado = Boolean(servidor ?? initialLab);
 
-  const atualizarDoCache = useCallback(() => {
+  const atualizar = useCallback(() => {
     const next = resolver();
     setLab(next.lab);
     setNomeLaboratorio(next.nomeLaboratorio);
   }, [resolver]);
 
   useEffect(() => {
-    atualizarDoCache();
-
-    window.addEventListener(LAB_CONFIG_ATUALIZADA_EVENT, atualizarDoCache);
-    window.addEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, atualizarDoCache);
-
-    return () => {
-      window.removeEventListener(LAB_CONFIG_ATUALIZADA_EVENT, atualizarDoCache);
-      window.removeEventListener(
-        ARMAZENAMENTO_LAB_PRONTO_EVENT,
-        atualizarDoCache
-      );
+    const onStoragePronto = () => {
+      if (storageSincronizado()) setCachePronto(true);
     };
-  }, [atualizarDoCache]);
+    window.addEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, onStoragePronto);
+    onStoragePronto();
+    return () => {
+      window.removeEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, onStoragePronto);
+    };
+  }, []);
 
   useEffect(() => {
-    if (!armazenamentoLaboratorioPronto()) return;
-    atualizarDoCache();
-  }, [atualizarDoCache]);
+    atualizar();
+  }, [atualizar, cachePronto]);
 
-  return { montado, lab, nomeLaboratorio };
+  useEffect(() => {
+    if (!cachePronto) return;
+    window.addEventListener(LAB_CONFIG_ATUALIZADA_EVENT, atualizar);
+    return () => {
+      window.removeEventListener(LAB_CONFIG_ATUALIZADA_EVENT, atualizar);
+    };
+  }, [atualizar, cachePronto]);
+
+  return {
+    montado: cachePronto,
+    lab,
+    nomeLaboratorio,
+  };
 }
