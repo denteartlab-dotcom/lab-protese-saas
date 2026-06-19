@@ -9,22 +9,7 @@ import { prepararAbaPdf, visualizarPdfUrl, baixarPdfBlob, baixarPdfUrl, criarUrl
 import { urlPdfDocumentoServidor } from "@/lib/pdf-documento-http";
 import { criarIdPdfViewer, publicarPdfBlobNoServidor } from "@/lib/pdf-viewer-aba";
 import { LAB_IMPRESSAO_PADRAO, type LabImpressaoConfig } from "@/lib/lab-impressao";
-import { labImpressaoFromConfig } from "@/lib/lab-logo";
-import {
-  carregarConfigLaboratorio,
-  LAB_CONFIG_ATUALIZADA_EVENT,
-  nomeUsuarioDocumentosLaboratorio,
-} from "@/lib/configuracoes-lab";
 import { normalizarCabecalhoRequisicao, type CabecalhoRequisicaoConfig } from "@/lib/cabecalho-requisicao";
-import {
-  CONFIG_OS_ATUALIZADA_EVENT,
-  carregarLayoutModelo1,
-  carregarLayoutModelo2,
-  carregarLayoutModelo3,
-  carregarLayoutModelo4,
-  carregarLayoutModelo5,
-  sincronizarConfiguracoesOsDoServidor,
-} from "@/lib/configuracoes-os";
 import {
   hexParaRgb,
   normalizarOsModelo1Layout,
@@ -2057,14 +2042,19 @@ export function PdfOsViewer({
       return url;
     }
   }
-  function montarDadosPdf(base: PdfOsData): PdfOsData {
+  async function montarDadosPdf(base: PdfOsData): Promise<PdfOsData> {
     if (typeof window === "undefined") {
       return { ...base, lab: base.lab || LAB_IMPRESSAO_PADRAO };
     }
-    const cfg = carregarConfigLaboratorio();
-    const lab = labImpressaoFromConfig();
+    const [labMod, osMod, logoMod] = await Promise.all([
+      import("@/lib/configuracoes-lab"),
+      import("@/lib/configuracoes-os"),
+      import("@/lib/lab-logo"),
+    ]);
+    const cfg = labMod.carregarConfigLaboratorio();
+    const lab = logoMod.labImpressaoFromConfig();
     const usuarioLaboratorio =
-      nomeUsuarioDocumentosLaboratorio(cfg) ||
+      labMod.nomeUsuarioDocumentosLaboratorio(cfg) ||
       lab.responsavel?.trim() ||
       base.usuarioCriou?.trim() ||
       "";
@@ -2073,11 +2063,11 @@ export function PdfOsViewer({
       usuarioCriou: usuarioLaboratorio,
       lab,
       cabecalhoRequisicao: normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao),
-      layoutModelo1: carregarLayoutModelo1(),
-      layoutModelo2: carregarLayoutModelo2(),
-      layoutModelo3: carregarLayoutModelo3(),
-      layoutModelo4: carregarLayoutModelo4(),
-      layoutModelo5: carregarLayoutModelo5(),
+      layoutModelo1: osMod.carregarLayoutModelo1(),
+      layoutModelo2: osMod.carregarLayoutModelo2(),
+      layoutModelo3: osMod.carregarLayoutModelo3(),
+      layoutModelo4: osMod.carregarLayoutModelo4(),
+      layoutModelo5: osMod.carregarLayoutModelo5(),
     };
   }
 
@@ -2090,27 +2080,44 @@ export function PdfOsViewer({
   useEffect(() => {
     let ativo = true;
     setConfigOsPronta(false);
-    void sincronizarConfiguracoesOsDoServidor()
-      .catch(() => undefined)
-      .finally(() => {
-        if (!ativo) return;
-        setDadosPdf(montarDadosPdf(data));
-        setConfigOsPronta(true);
-      });
+    void (async () => {
+      const osMod = await import("@/lib/configuracoes-os");
+      await osMod.sincronizarConfiguracoesOsDoServidor().catch(() => undefined);
+      if (!ativo) return;
+      const montado = await montarDadosPdf(data);
+      if (!ativo) return;
+      setDadosPdf(montado);
+      setConfigOsPronta(true);
+    })();
     return () => {
       ativo = false;
     };
   }, [data]);
 
   useEffect(() => {
+    let ativo = true;
+    let labEvent = "";
+    let osEvent = "";
     const handler = () => {
-      setDadosPdf(montarDadosPdf(data));
+      void montarDadosPdf(data).then((montado) => {
+        if (ativo) setDadosPdf(montado);
+      });
     };
-    window.addEventListener(LAB_CONFIG_ATUALIZADA_EVENT, handler);
-    window.addEventListener(CONFIG_OS_ATUALIZADA_EVENT, handler);
+    void (async () => {
+      const [labMod, osMod] = await Promise.all([
+        import("@/lib/configuracoes-lab"),
+        import("@/lib/configuracoes-os"),
+      ]);
+      if (!ativo) return;
+      labEvent = labMod.LAB_CONFIG_ATUALIZADA_EVENT;
+      osEvent = osMod.CONFIG_OS_ATUALIZADA_EVENT;
+      window.addEventListener(labEvent, handler);
+      window.addEventListener(osEvent, handler);
+    })();
     return () => {
-      window.removeEventListener(LAB_CONFIG_ATUALIZADA_EVENT, handler);
-      window.removeEventListener(CONFIG_OS_ATUALIZADA_EVENT, handler);
+      ativo = false;
+      if (labEvent) window.removeEventListener(labEvent, handler);
+      if (osEvent) window.removeEventListener(osEvent, handler);
     };
   }, [data]);
 

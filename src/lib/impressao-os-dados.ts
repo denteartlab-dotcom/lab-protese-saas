@@ -19,7 +19,6 @@ import {
   extrairItensImpressaoOs,
   flagsUrgenteRepeticaoInstrucoes,
 } from "@/lib/os-itens-impressao";
-import { nomeUsuarioDocumentosLaboratorio } from "@/lib/configuracoes-lab";
 import { carregarConfigLaboratorioServidor } from "@/lib/lab-config-servidor";
 
 export type DadosImpressaoOsPdf = {
@@ -183,6 +182,20 @@ export function resolverOpcoesImpressaoOs(
 
 function valorMonetarioSeguro(valor: number) {
   return Number.isFinite(valor) ? valor : 0;
+}
+
+function nomeUsuarioDocumentosImpressao(
+  config: Awaited<ReturnType<typeof carregarConfigLaboratorioServidor>>,
+  empresaNome?: string
+) {
+  return (
+    config.nomeLaboratorio?.trim() ||
+    config.nomeFantasia?.trim() ||
+    config.razaoSocial?.trim() ||
+    config.responsavel?.trim() ||
+    empresaNome?.trim() ||
+    ""
+  );
 }
 
 function codigoErroPrisma(err: unknown) {
@@ -371,7 +384,7 @@ export async function carregarDadosImpressaoOs({
   } catch (err) {
     console.error("imprimir: empresa", { id, empresaId: t.empresaId, err });
   }
-  const usuarioCriou = nomeUsuarioDocumentosLaboratorio(configLab, empresaNome);
+  const usuarioCriou = nomeUsuarioDocumentosImpressao(configLab, empresaNome);
 
   const etapasPorServico = somenteItem
     ? segmentoEfetivoTrabalho(t) === "servico"

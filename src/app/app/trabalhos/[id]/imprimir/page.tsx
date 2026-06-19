@@ -1,5 +1,9 @@
 import { getSession } from "@/lib/auth";
-import { ImprimirOsLoader } from "./imprimir-os-loader";
+import {
+  carregarDadosImpressaoOs,
+  mensagemErroImpressaoOs,
+} from "@/lib/impressao-os-dados";
+import { ImprimirOsCliente } from "./imprimir-os-cliente";
 
 export const dynamic = "force-dynamic";
 
@@ -63,7 +67,34 @@ export default async function ImprimirOSPage({
     );
   }
 
-  return (
-    <ImprimirOsLoader trabalhoId={id} queryString={montarQueryString(sp)} />
-  );
+  try {
+    const resultado = await carregarDadosImpressaoOs({
+      id,
+      empresaId,
+      sp,
+    });
+
+    if (!resultado.ok) {
+      return (
+        <ErroImpressao titulo={resultado.titulo} detalhe={resultado.detalhe} />
+      );
+    }
+
+    return (
+      <ImprimirOsCliente
+        dados={resultado.dados}
+        formato={resultado.opcoes.formato}
+        modelo={resultado.opcoes.modelo}
+        duasVias={resultado.opcoes.duasVias}
+      />
+    );
+  } catch (err) {
+    console.error("imprimir OS", { id, empresaId, err });
+    return (
+      <ErroImpressao
+        titulo="Erro ao abrir a impressão."
+        detalhe={mensagemErroImpressaoOs(err)}
+      />
+    );
+  }
 }
