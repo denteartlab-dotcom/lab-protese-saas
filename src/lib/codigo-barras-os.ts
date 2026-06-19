@@ -11,10 +11,14 @@ export function limparEntradaLeitorCodigo(raw: string): string {
 
 /** Extrai o número da OS de leitura do código (ex.: OS7, *OS12*, só dígitos). */
 export function extrairNumeroOsCodigo(raw: string): string {
-  const t = limparEntradaLeitorCodigo(raw).replace(/^\*+|\*+$/g, "");
+  const t = limparEntradaLeitorCodigo(raw)
+    .replace(/^\*+|\*+$/g, "")
+    .trim();
   if (!t) return "";
   const prefixo = t.match(/^OS\s*#?\s*(\d+)/i);
   if (prefixo) return prefixo[1];
+  const soDigitos = t.match(/^(\d+)$/);
+  if (soDigitos) return soDigitos[1];
   const digitos = t.replace(/\D/g, "");
   return digitos || "";
 }

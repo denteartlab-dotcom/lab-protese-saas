@@ -20,26 +20,38 @@ export function LeitorCodigoBarrasModal({ open, onClose, onCodigoLido }: Props) 
   const inputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [valor, setValor] = useState("");
+  const [codigoLido, setCodigoLido] = useState("");
   const [cameraAtiva, setCameraAtiva] = useState(false);
   const [cameraErro, setCameraErro] = useState("");
   const [suportaCamera, setSuportaCamera] = useState(false);
 
   const confirmarLeitura = useCallback(
-    (numero: string) => {
+    (numero: string, bruto?: string) => {
+      const exibicao = bruto?.trim() || `OS${numero}`;
+      setValor(exibicao);
+      setCodigoLido(numero);
       onCodigoLido(numero);
-      setValor("");
-      onClose();
+      window.setTimeout(() => {
+        setValor("");
+        setCodigoLido("");
+        onClose();
+      }, 500);
     },
     [onCodigoLido, onClose]
   );
 
-  const { onKeyDown, onChange, leitorUsbAtivo } = useEntradaLeitorCodigo({
-    onLido: (numero) => confirmarLeitura(numero),
+  const { onKeyDown, onChange, leitorUsbAtivo, ultimoBruto } = useEntradaLeitorCodigo({
+    onLido: (numero, bruto) => confirmarLeitura(numero, bruto),
+    capturaGlobal: true,
+    capturaGlobalAtivo: open,
+    onEntrada: setValor,
+    ignorarElemento: inputRef,
   });
 
   useEffect(() => {
     if (!open) {
       setValor("");
+      setCodigoLido("");
       setCameraAtiva(false);
       setCameraErro("");
       return;
@@ -130,6 +142,16 @@ export function LeitorCodigoBarrasModal({ open, onClose, onCodigoLido }: Props) 
           {leitorUsbAtivo && (
             <p className="mt-2 text-[11px] font-semibold text-emerald-600">
               Leitor USB detectado — aguardando código...
+            </p>
+          )}
+          {codigoLido && (
+            <p className="mt-2 text-[12px] font-semibold text-blue-700">
+              Código lido: OS {codigoLido} — buscando...
+            </p>
+          )}
+          {!codigoLido && ultimoBruto && !leitorUsbAtivo && (
+            <p className="mt-2 text-[11px] text-slate-500">
+              Digitado: {ultimoBruto}
             </p>
           )}
         </div>

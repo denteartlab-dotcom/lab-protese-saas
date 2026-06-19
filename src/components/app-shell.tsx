@@ -328,6 +328,14 @@ function AppShellInner({
     }
   }
 
+  function aoCodigoBarrasLido(numero: string) {
+    if (!isDashboard) return;
+    setBuscaOsAberta(true);
+    setBuscaOs(numero);
+    setLeitorCodigoAberto(false);
+    void buscarOrdemServico(numero);
+  }
+
   async function buscarPorPaciente() {
     const termo = buscaPaciente.trim();
     if (!termo) return;
@@ -928,8 +936,9 @@ function AppShellInner({
                   <InputLeitorCodigoOs
                     value={buscaOs}
                     onChange={setBuscaOs}
-                    onCodigoLido={(numero) => void buscarOrdemServico(numero)}
+                    onCodigoLido={(numero) => aoCodigoBarrasLido(numero)}
                     autoFocus
+                    mostrarStatusLeitor
                     placeholder="Busque número pela OS ou passe o leitor de código de barras"
                     className="h-8 w-full rounded border border-slate-300 px-3 text-[11px] outline-none focus:border-blue-500"
                   />
@@ -1287,7 +1296,7 @@ function AppShellInner({
       <LeitorCodigoBarrasModal
         open={leitorCodigoAberto}
         onClose={() => setLeitorCodigoAberto(false)}
-        onCodigoLido={(numero) => void buscarOrdemServico(numero)}
+        onCodigoLido={aoCodigoBarrasLido}
       />
 
       <main
