@@ -70,6 +70,7 @@ export type LancarReceitaOsSubmit = {
   parcelas: ParcelaLinhaReceita[];
   imprimirRecibo: boolean;
   alterarEntregue: boolean;
+  abaterCredito: boolean;
   anexos?: AnexoDespesa[];
 };
 
@@ -92,8 +93,7 @@ type Props = {
   algumasReceitaSelecionadas: boolean;
   valorOsSelecionadas: number;
   totalLiquido: number;
-  creditoAplicado: number;
-  totalAReceberComCredito: number;
+  creditoDisponivel: number;
   mensagemLancamento: string;
   mensagemLancamentoTipo: "erro" | "sucesso" | "info";
   formaSelecionadaEhBoleto: () => boolean;
@@ -199,8 +199,7 @@ export function LancarReceitaOsModal({
   algumasReceitaSelecionadas,
   valorOsSelecionadas,
   totalLiquido,
-  creditoAplicado,
-  totalAReceberComCredito,
+  creditoDisponivel,
   mensagemLancamento,
   mensagemLancamentoTipo,
   formaSelecionadaEhBoleto,
@@ -218,7 +217,13 @@ export function LancarReceitaOsModal({
   const anexosRef = useRef<AnexosReciboCampoRef>(null);
   const ocupado = cadastrando || salvando;
   const [alterarEntregue, setAlterarEntregue] = useState(true);
+  const [abaterCredito, setAbaterCredito] = useState(false);
   const [enviarControleEntrega, setEnviarControleEntrega] = useState(false);
+  const creditoAplicado =
+    abaterCredito && creditoDisponivel > 0
+      ? Math.min(creditoDisponivel, totalLiquido)
+      : 0;
+  const totalAReceberComCredito = Math.max(0, totalLiquido - creditoAplicado);
   const [codigoBarras, setCodigoBarras] = useState("");
   const [numParcelas, setNumParcelas] = useState(1);
   const [imprimirRecibo, setImprimirRecibo] = useState(false);
@@ -245,6 +250,7 @@ export function LancarReceitaOsModal({
   useEffect(() => {
     if (!open) return;
     setAlterarEntregue(true);
+    setAbaterCredito(false);
     setEnviarControleEntrega(false);
     setCodigoBarras("");
     setNumParcelas(1);
@@ -341,7 +347,14 @@ export function LancarReceitaOsModal({
       let anexos: AnexoDespesa[] | undefined;
       const lista = await anexosRef.current?.resolverAnexos();
       if (lista?.length) anexos = lista;
-      await onSubmit({ form, parcelas, imprimirRecibo, alterarEntregue, anexos });
+      await onSubmit({
+        form,
+        parcelas,
+        imprimirRecibo,
+        alterarEntregue,
+        abaterCredito,
+        anexos,
+      });
     } catch (err) {
       alert(err instanceof Error ? err.message : "Falha ao enviar os arquivos.");
     } finally {
@@ -582,6 +595,13 @@ export function LancarReceitaOsModal({
 
           <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
             <div className="flex flex-col gap-3 pt-1">
+              {creditoDisponivel > 0.009 ? (
+                <ToggleSmart
+                  checked={abaterCredito}
+                  onChange={setAbaterCredito}
+                  label={`Abater do Crédito de ${currency(creditoDisponivel)}`}
+                />
+              ) : null}
               <ToggleSmart
                 checked={alterarEntregue}
                 onChange={setAlterarEntregue}
@@ -650,7 +670,7 @@ export function LancarReceitaOsModal({
                 <span className="font-semibold text-[#4a90d9]">Total Líquido</span>
                 <span className="text-[15px] font-bold text-[#4a90d9]">{currency(totalLiquido)}</span>
               </div>
-              {creditoAplicado > 0 ? (
+              {abaterCredito && creditoAplicado > 0 ? (
                 <>
                   <div className="flex items-center justify-between border-t border-[#f3f4f6] py-2 text-emerald-700">
                     <span>Desconto com crédito</span>
@@ -661,6 +681,11 @@ export function LancarReceitaOsModal({
                     <span>{currency(totalAReceberComCredito)}</span>
                   </div>
                 </>
+              ) : creditoDisponivel > 0.009 ? (
+                <div className="flex items-center justify-between border-t border-[#f3f4f6] py-2 font-semibold text-[#374151]">
+                  <span>Total a cobrar</span>
+                  <span>{currency(totalLiquido)}</span>
+                </div>
               ) : null}
             </div>
           </div>

@@ -789,10 +789,7 @@ function FinanceiroReceberConteudo() {
       ? jurosBase
       : Math.max(valorBruto - desconto, 0) * (Math.max(jurosBase, 0) / 100);
   const totalLiquido = Math.max(0, valorBruto - desconto + jurosValor);
-  const creditoDisponivel = creditoDisponivelCliente(form.clienteId);
-  const creditoAplicado = Math.min(creditoDisponivel, totalLiquido);
-  const totalAReceberComCredito = Math.max(0, totalLiquido - creditoAplicado);
-  const deveCriarFaturaReceber = Math.round(totalAReceberComCredito * 100) > 0;
+  const creditoDisponivelReceita = creditoDisponivelCliente(form.clienteId);
 
   function formaSelecionadaEhBoleto() {
     return (form.formaPagamento || "").toLowerCase().includes("boleto");
@@ -859,6 +856,7 @@ function FinanceiroReceberConteudo() {
     parcelas,
     imprimirRecibo,
     alterarEntregue,
+    abaterCredito,
     anexos,
   }: LancarReceitaOsSubmit) {
     if (saveEmAndamentoRef.current) return;
@@ -866,6 +864,13 @@ function FinanceiroReceberConteudo() {
     setSalvandoLancamento(true);
     try {
     setMensagemLancamento("");
+    const creditoDisponivel = creditoDisponivelCliente(form.clienteId);
+    const creditoAplicado =
+      abaterCredito && creditoDisponivel > 0
+        ? Math.min(creditoDisponivel, totalLiquido)
+        : 0;
+    const totalAReceberComCredito = Math.max(0, totalLiquido - creditoAplicado);
+    const deveCriarFaturaReceber = Math.round(totalAReceberComCredito * 100) > 0;
     const descricaoBase = trabalhosSelecionados.length
       ? empacotarCobrancaOs(
           `Cobrança OS ${trabalhosSelecionados.map((trabalho) => trabalho.numeroOs).join(", ")}${
@@ -2836,8 +2841,7 @@ function FinanceiroReceberConteudo() {
         algumasReceitaSelecionadas={algumasReceitaSelecionadas}
         valorOsSelecionadas={valorOsSelecionadas}
         totalLiquido={totalLiquido}
-        creditoAplicado={creditoAplicado}
-        totalAReceberComCredito={totalAReceberComCredito}
+        creditoDisponivel={creditoDisponivelReceita}
         mensagemLancamento={mensagemLancamento}
         mensagemLancamentoTipo={mensagemLancamentoTipo}
         formaSelecionadaEhBoleto={formaSelecionadaEhBoleto}

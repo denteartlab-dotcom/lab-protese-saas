@@ -1,6 +1,9 @@
 import { readStorage } from "@/lib/persisted-storage";
 import { calcularDataVencimentoPorDias } from "@/lib/prazos-servico";
-import { isLinhaAuditoriaUrgenciaCliente } from "@/lib/urgencia-cliente";
+
+function isLinhaAuditoriaUrgenciaCliente(linha: string) {
+  return linha.includes("Urgência solicitada pelo cliente");
+}
 
 export const ETAPAS_STORAGE_KEY = "labProteseEtapas";
 
