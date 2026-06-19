@@ -34,6 +34,7 @@ export default async function AppLayout({
         dataVencimentoAssinatura={ctx.empresa.dataVencimento}
         suporteWhatsapp={ctx.suporteWhatsapp}
         initialLab={ctx.lab}
+        initialNomeLaboratorio={ctx.nomeLaboratorio}
       >
         {children}
       </AppShell>

@@ -25,6 +25,7 @@ import { useI18n } from "@/components/i18n-provider";
 import {
   carregarConfigLaboratorio,
   normalizarTipoPessoa,
+  nomeExibicaoLaboratorio,
   salvarConfigLaboratorio,
   type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
@@ -122,10 +123,18 @@ function ConfiguracoesConteudo() {
       if (!ativo) return;
       const carregado = carregarConfigLaboratorio();
       const tipo = normalizarTipoPessoa(carregado.tipoPessoa);
-      const normalizado =
+      let normalizado =
         carregado.tipoPessoa === tipo
           ? carregado
           : { ...carregado, tipoPessoa: tipo };
+      const nomeLab = nomeExibicaoLaboratorio(normalizado);
+      if (nomeLab && !normalizado.nomeLaboratorio?.trim()) {
+        normalizado = {
+          ...normalizado,
+          nomeLaboratorio: nomeLab,
+          responsavel: nomeLab,
+        };
+      }
       setForm(normalizado);
       setInicial(normalizado);
     })();
@@ -136,11 +145,18 @@ function ConfiguracoesConteudo() {
 
   async function salvar() {
     if (!form) return;
+    const nomeLab = (form.nomeLaboratorio?.trim() || nomeExibicaoLaboratorio(form)).trim();
+    const payload: ConfigLaboratorio = {
+      ...form,
+      nomeLaboratorio: nomeLab,
+      responsavel: nomeLab,
+    };
     setSalvando(true);
     try {
-      await persistirConfigLaboratorioServidor(form);
-      salvarConfigLaboratorio(form);
-      setInicial({ ...form });
+      await persistirConfigLaboratorioServidor(payload);
+      salvarConfigLaboratorio(payload);
+      setForm(payload);
+      setInicial({ ...payload });
       setMensagem(t("common.sucessoGravado"));
       setMensagemTipo("sucesso");
       router.refresh();

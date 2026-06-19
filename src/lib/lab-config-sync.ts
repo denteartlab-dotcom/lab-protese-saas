@@ -5,6 +5,7 @@ import {
   carregarConfigLaboratorio,
   hidratarConfigLaboratorioCache,
   normalizarTipoPessoa,
+  nomeExibicaoLaboratorio,
   prepararConfigParaSalvar,
   salvarConfigLaboratorio,
   type ConfigLaboratorio,
@@ -68,6 +69,32 @@ function resolverLogoMesclado(
   return { logoDataUrl, logoTamanho };
 }
 
+function resolverNomeLaboratorioMesclado(
+  local: ConfigLaboratorio,
+  remoto: Partial<ConfigLaboratorio>
+): string {
+  const direto = remoto.nomeLaboratorio?.trim() || local.nomeLaboratorio?.trim();
+  if (direto) return direto;
+
+  const tipo = normalizarTipoPessoa(remoto.tipoPessoa ?? local.tipoPessoa);
+  if (tipo === "Jurídica") {
+    return (
+      remoto.nomeFantasia?.trim() ||
+      remoto.razaoSocial?.trim() ||
+      local.nomeFantasia?.trim() ||
+      local.razaoSocial?.trim() ||
+      nomeExibicaoLaboratorio(local)
+    );
+  }
+  return (
+    remoto.nome?.trim() ||
+    remoto.razaoSocial?.trim() ||
+    local.nome?.trim() ||
+    local.razaoSocial?.trim() ||
+    nomeExibicaoLaboratorio(local)
+  );
+}
+
 /** Mescla config do servidor com a do navegador (prioriza nome salvo no servidor). */
 export function mesclarConfigLaboratorio(
   local: ConfigLaboratorio,
@@ -76,14 +103,9 @@ export function mesclarConfigLaboratorio(
   if (!remoto) return local;
 
   const { logoDataUrl, logoTamanho } = resolverLogoMesclado(local, remoto);
+  const nomeLaboratorio = resolverNomeLaboratorioMesclado(local, remoto);
 
-  const nomeRemoto =
-    remoto.nomeLaboratorio?.trim() ||
-    remoto.nomeFantasia?.trim() ||
-    remoto.nome?.trim() ||
-    remoto.responsavel?.trim();
-
-  if (!nomeRemoto) {
+  if (!nomeLaboratorio) {
     return { ...local, ...remoto, logoDataUrl, logoTamanho };
   }
 
@@ -92,8 +114,8 @@ export function mesclarConfigLaboratorio(
     ...remoto,
     logoDataUrl,
     logoTamanho,
-    nomeLaboratorio: nomeRemoto,
-    responsavel: nomeRemoto,
+    nomeLaboratorio,
+    responsavel: nomeLaboratorio,
   };
 }
 

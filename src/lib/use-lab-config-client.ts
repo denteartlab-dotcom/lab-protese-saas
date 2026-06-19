@@ -11,6 +11,7 @@ import {
   carregarConfigLaboratorio,
   LAB_CONFIG_ATUALIZADA_EVENT,
   nomeExibicaoLaboratorio,
+  type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
 import { LAB_IMPRESSAO_PADRAO, type LabImpressaoConfig } from "@/lib/lab-impressao";
@@ -18,6 +19,7 @@ import { labImpressaoFromConfig } from "@/lib/lab-logo";
 
 type Props = {
   initialLab?: LabImpressaoConfig;
+  initialNomeLaboratorio?: string;
 };
 
 function storageSincronizado() {
@@ -28,36 +30,51 @@ function storageSincronizado() {
   );
 }
 
+function nomeLaboratorioExibicao(cfg: ConfigLaboratorio | null | undefined, fallback: string) {
+  const direto = cfg?.nomeLaboratorio?.trim();
+  if (direto) return direto;
+  const derivado = cfg ? nomeExibicaoLaboratorio(cfg) : "";
+  return derivado || fallback || NOME_LAB_PADRAO;
+}
+
 function dadosDoServidor(
   servidor: ReturnType<typeof useLabConfigServidor>,
-  initialLab?: LabImpressaoConfig
+  initialLab?: LabImpressaoConfig,
+  initialNomeLaboratorio?: string
 ) {
   const lab = servidor?.lab ?? initialLab ?? LAB_IMPRESSAO_PADRAO;
   const nomeLaboratorio =
     servidor?.nomeLaboratorio?.trim() ||
+    initialNomeLaboratorio?.trim() ||
     lab.responsavel?.trim() ||
     NOME_LAB_PADRAO;
   return { lab, nomeLaboratorio };
 }
 
 /** Config do lab no cliente — só usa cache local após bootstrap do banco. */
-export function useLabConfigClient({ initialLab }: Props = {}) {
+export function useLabConfigClient({
+  initialLab,
+  initialNomeLaboratorio,
+}: Props = {}) {
   const servidor = useLabConfigServidor();
   const [cachePronto, setCachePronto] = useState(storageSincronizado);
 
+  const fallbackNome =
+    servidor?.nomeLaboratorio?.trim() ||
+    initialNomeLaboratorio?.trim() ||
+    initialLab?.responsavel?.trim() ||
+    NOME_LAB_PADRAO;
+
   const resolver = useCallback(() => {
     if (!cachePronto) {
-      return dadosDoServidor(servidor, initialLab);
+      return dadosDoServidor(servidor, initialLab, initialNomeLaboratorio);
     }
     const cfg = carregarConfigLaboratorio();
     return {
       lab: labImpressaoFromConfig(),
-      nomeLaboratorio:
-        nomeExibicaoLaboratorio(cfg) ||
-        servidor?.nomeLaboratorio?.trim() ||
-        NOME_LAB_PADRAO,
+      nomeLaboratorio: nomeLaboratorioExibicao(cfg, fallbackNome),
     };
-  }, [cachePronto, servidor, initialLab]);
+  }, [cachePronto, servidor, initialLab, initialNomeLaboratorio, fallbackNome]);
 
   const inicial = resolver();
   const [lab, setLab] = useState<LabImpressaoConfig>(inicial.lab);

@@ -99,6 +99,7 @@ export function AppShell({
   dataVencimentoAssinatura = null,
   suporteWhatsapp = null,
   initialLab,
+  initialNomeLaboratorio,
   children,
 }: {
   userName: string;
@@ -108,6 +109,7 @@ export function AppShell({
   dataVencimentoAssinatura?: string | null;
   suporteWhatsapp?: string | null;
   initialLab: LabImpressaoConfig;
+  initialNomeLaboratorio?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -121,6 +123,7 @@ export function AppShell({
           dataVencimentoAssinatura={dataVencimentoAssinatura}
           suporteWhatsapp={suporteWhatsapp}
           initialLab={initialLab}
+          initialNomeLaboratorio={initialNomeLaboratorio}
         >
           {children}
         </AppShellInner>
@@ -137,6 +140,7 @@ function AppShellInner({
   dataVencimentoAssinatura = null,
   suporteWhatsapp = null,
   initialLab,
+  initialNomeLaboratorio,
   children,
 }: {
   userName: string;
@@ -146,6 +150,7 @@ function AppShellInner({
   dataVencimentoAssinatura?: string | null;
   suporteWhatsapp?: string | null;
   initialLab: LabImpressaoConfig;
+  initialNomeLaboratorio?: string;
   children: React.ReactNode;
 }) {
   const { t } = useI18n();
@@ -193,7 +198,10 @@ function AppShellInner({
   const [leitorCodigoAberto, setLeitorCodigoAberto] = useState(false);
   const [menuMobileAberto, setMenuMobileAberto] = useState(false);
   const { acessoTotal, permissoesModulos } = usePermissoesApp();
-  const { montado, lab, nomeLaboratorio } = useLabConfigClient({ initialLab });
+  const { montado, lab, nomeLaboratorio } = useLabConfigClient({
+    initialLab,
+    initialNomeLaboratorio,
+  });
   const papelUsuario = rotuloPapelUsuario(userRole);
   const fecharMenuMobile = useCallback(() => setMenuMobileAberto(false), []);
   const alternarMenuMobile = useCallback(

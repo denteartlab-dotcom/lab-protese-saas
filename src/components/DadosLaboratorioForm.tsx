@@ -187,7 +187,7 @@ export function DadosLaboratorioForm({
           <Campo label="Nome do laboratório" className="lg:col-span-12">
             <input
               className={inputClassName()}
-              value={form.nomeLaboratorio ?? nomeExibicaoLaboratorio(form)}
+              value={form.nomeLaboratorio?.trim() || nomeExibicaoLaboratorio(form)}
               onChange={(e) => {
                 const v = e.target.value;
                 setForm({

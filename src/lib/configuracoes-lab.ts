@@ -179,17 +179,10 @@ export function nomeExibicaoLaboratorio(config: ConfigLaboratorio): string {
   if (principal) return principal;
 
   const tipo = normalizarTipoPessoa(config.tipoPessoa);
-  const deForm =
-    tipo === "Física"
-      ? (config.nome || config.razaoSocial).trim()
-      : (config.nomeFantasia || config.razaoSocial).trim();
-  return (
-    deForm ||
-    config.responsavel?.trim() ||
-    config.nome?.trim() ||
-    config.marca?.trim() ||
-    ""
-  );
+  if (tipo === "Física") {
+    return (config.nome || config.razaoSocial || "").trim();
+  }
+  return (config.nomeFantasia || config.razaoSocial || config.marca || "").trim();
 }
 
 /** Atualiza o nome do laboratório em todos os campos usados pelo sistema. */
@@ -283,16 +276,18 @@ export function prepararConfigParaSalvar(form: ConfigLaboratorio): ConfigLaborat
   const ruaNumero = [form.rua, form.numero].filter(Boolean).join(", ");
   const ehFisica = normalizarTipoPessoa(form.tipoPessoa) === "Física";
   const preparado = { ...form, tipoPessoa: normalizarTipoPessoa(form.tipoPessoa) };
-  const nomeExibicao = nomeExibicaoLaboratorio({
-    ...preparado,
-    tipoPessoa: preparado.tipoPessoa,
-  });
+  const nomeLaboratorio =
+    form.nomeLaboratorio?.trim() ||
+    (ehFisica
+      ? form.nome?.trim() || form.razaoSocial?.trim()
+      : form.nomeFantasia?.trim() || form.razaoSocial?.trim()) ||
+    nomeExibicaoLaboratorio(preparado);
   return {
     ...preparado,
     cabecalhoRequisicao: normalizarCabecalhoRequisicao(form.cabecalhoRequisicao),
     razaoSocial: ehFisica ? "" : form.razaoSocial,
-    nomeLaboratorio: form.nomeLaboratorio?.trim() || nomeExibicao,
-    responsavel: nomeExibicao,
+    nomeLaboratorio,
+    responsavel: nomeLaboratorio,
     nomeFantasia: ehFisica ? form.nome : form.nomeFantasia,
     marca: form.marca || "DenteArt",
     endereco,
