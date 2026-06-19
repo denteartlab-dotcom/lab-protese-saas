@@ -761,7 +761,14 @@ export function VisualizacaoClienteReceberModal({
                 </p>
               </div>
             </div>
-            <div className="flex min-w-[260px] flex-1 items-stretch justify-end sm:max-w-[420px]">
+            <div className="flex min-w-[260px] flex-1 items-stretch justify-end gap-2 sm:max-w-[420px]">
+              <button
+                type="button"
+                onClick={onReceber}
+                className="h-[34px] shrink-0 rounded-sm bg-[#16a34a] px-4 text-[12px] font-semibold text-white hover:bg-[#15803d]"
+              >
+                {totalAReceber <= 0.009 ? "Lançar Adiantamento" : "Receber"}
+              </button>
               <input
                 type="text"
                 value={busca}

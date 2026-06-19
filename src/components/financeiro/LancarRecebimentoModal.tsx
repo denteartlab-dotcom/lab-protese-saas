@@ -293,7 +293,7 @@ export function LancarRecebimentoModal({
       >
         <div className="flex shrink-0 items-center justify-between border-b border-[#e5e7eb] px-5 py-3">
           <h2 id="lancar-recebimento-titulo" className="text-[15px] font-medium text-[#374151]">
-            Lançar Recebimento
+            {modoSomenteAdiantamento ? "Lançar Adiantamento / Crédito" : "Lançar Recebimento"}
           </h2>
           <button
             type="button"
@@ -306,6 +306,12 @@ export function LancarRecebimentoModal({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          {modoSomenteAdiantamento ? (
+            <div className="mb-4 rounded-sm border border-[#bbf7d0] bg-[#f0fdf4] px-4 py-3 text-[12px] text-[#166534]">
+              Este cliente não tem fatura pendente. Informe o valor recebido abaixo para gerar
+              crédito de adiantamento (saldo em haver).
+            </div>
+          ) : null}
           <div className="mb-3 flex flex-wrap items-center gap-4 text-[12px] text-[#374151]">
             <p>
               Cliente: <strong>{clienteNome}</strong>
@@ -314,11 +320,13 @@ export function LancarRecebimentoModal({
               Total Devido:{" "}
               <strong className="text-[#dc2626]">{money(totalDevido)}</strong>
             </p>
-            <ToggleSmart
-              checked={selecaoAutomatica}
-              onChange={aplicarSelecaoAutomatica}
-              label="Seleção Automática"
-            />
+            {!modoSomenteAdiantamento ? (
+              <ToggleSmart
+                checked={selecaoAutomatica}
+                onChange={aplicarSelecaoAutomatica}
+                label="Seleção Automática"
+              />
+            ) : null}
           </div>
 
           <div className="overflow-x-auto border border-[#d1d5db]">
@@ -438,12 +446,14 @@ export function LancarRecebimentoModal({
                   Crédito disponível: {money(creditoDisponivel)}
                 </span>
               ) : null}
-              <ToggleSmart
-                checked={emitirNotaFiscal}
-                onChange={setEmitirNotaFiscal}
-                label="Emitir Nota Fiscal"
-                labelClassName="mx-auto"
-              />
+              {!modoSomenteAdiantamento ? (
+                <ToggleSmart
+                  checked={emitirNotaFiscal}
+                  onChange={setEmitirNotaFiscal}
+                  label="Emitir Nota Fiscal"
+                  labelClassName="mx-auto"
+                />
+              ) : null}
               <div className="ml-auto flex items-center gap-2">
                 <span className="text-[11px] text-[#6b7280]">Data Recebimento</span>
                 <CampoDataBr
@@ -565,7 +575,7 @@ export function LancarRecebimentoModal({
             disabled={!podeConfirmar}
             className="h-11 rounded-sm bg-[#4a90d9] text-sm font-normal text-white hover:bg-[#3d7fc4] disabled:opacity-50"
           >
-            Confirmar Recebimento
+            {modoSomenteAdiantamento ? "Confirmar Adiantamento" : "Confirmar Recebimento"}
           </button>
           <button
             type="button"
@@ -573,7 +583,9 @@ export function LancarRecebimentoModal({
             disabled={!podeConfirmar}
             className="h-11 rounded-sm bg-[#22c55e] text-sm font-normal text-white hover:bg-[#16a34a] disabled:opacity-50"
           >
-            Confirmar Recebimento e Imprimir Recibo
+            {modoSomenteAdiantamento
+              ? "Confirmar Adiantamento e Imprimir Recibo"
+              : "Confirmar Recebimento e Imprimir Recibo"}
           </button>
           <button
             type="button"

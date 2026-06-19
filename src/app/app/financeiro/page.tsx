@@ -1511,6 +1511,16 @@ function FinanceiroReceberConteudo() {
     );
   }
 
+  function faturasPendentesCliente(clienteId?: string) {
+    if (!clienteId) return [];
+    return (data?.lancamentos || []).filter(
+      (lancamento) =>
+        lancamento.status !== "pago" &&
+        isFaturaContasReceber(lancamento) &&
+        lancamento.cliente?.id === clienteId
+    );
+  }
+
   function creditoUsadoNaFatura(lancamento: Lancamento) {
     return creditosUtilizadosDaFatura(lancamento)
       .reduce((sum, item) => sum + item.valor, 0);
@@ -2282,14 +2292,15 @@ function FinanceiroReceberConteudo() {
         onClose={() => setRecebendoCliente(null)}
         clienteNome={recebendoCliente?.nome ?? ""}
         totalDevido={
-          recebendoCliente?.lancamentos
-            .filter((l) => l.status !== "pago" && isFaturaContasReceber(l))
-            .reduce((sum, l) => sum + saldoFatura(l), 0) ?? 0
+          recebendoCliente
+            ? faturasPendentesCliente(recebendoCliente.clienteId).reduce(
+                (sum, l) => sum + saldoFatura(l),
+                0
+              )
+            : 0
         }
         faturas={
-          recebendoCliente?.lancamentos.filter(
-            (l) => l.status !== "pago" && isFaturaContasReceber(l)
-          ) ?? []
+          recebendoCliente ? faturasPendentesCliente(recebendoCliente.clienteId) : []
         }
         numeroFatura={numeroFatura}
         saldoFatura={saldoFatura}
