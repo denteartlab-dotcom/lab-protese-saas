@@ -13,7 +13,7 @@ type BarcodeDetectorLike = {
 type Props = {
   open: boolean;
   onClose: () => void;
-  onCodigoLido: (numeroOs: string) => void;
+  onCodigoLido: (numeroOs: string, bruto?: string) => void;
 };
 
 export function LeitorCodigoBarrasModal({ open, onClose, onCodigoLido }: Props) {
@@ -21,6 +21,7 @@ export function LeitorCodigoBarrasModal({ open, onClose, onCodigoLido }: Props) 
   const videoRef = useRef<HTMLVideoElement>(null);
   const [valor, setValor] = useState("");
   const [codigoLido, setCodigoLido] = useState("");
+  const [codigoInvalido, setCodigoInvalido] = useState("");
   const [cameraAtiva, setCameraAtiva] = useState(false);
   const [cameraErro, setCameraErro] = useState("");
   const [suportaCamera, setSuportaCamera] = useState(false);
@@ -30,28 +31,33 @@ export function LeitorCodigoBarrasModal({ open, onClose, onCodigoLido }: Props) 
       const exibicao = bruto?.trim() || `OS${numero}`;
       setValor(exibicao);
       setCodigoLido(numero);
-      onCodigoLido(numero);
+      setCodigoInvalido("");
+      onCodigoLido(numero, bruto);
       window.setTimeout(() => {
         setValor("");
         setCodigoLido("");
         onClose();
-      }, 500);
+      }, 900);
     },
     [onCodigoLido, onClose]
   );
 
-  const { onKeyDown, onChange, leitorUsbAtivo, ultimoBruto } = useEntradaLeitorCodigo({
+  const { onKeyDown, onChange, onInput, leitorUsbAtivo, ultimoBruto } = useEntradaLeitorCodigo({
     onLido: (numero, bruto) => confirmarLeitura(numero, bruto),
+    onInvalido: (bruto) => {
+      setCodigoInvalido(bruto);
+      setCodigoLido("");
+    },
     capturaGlobal: true,
     capturaGlobalAtivo: open,
     onEntrada: setValor,
-    ignorarElemento: inputRef,
   });
 
   useEffect(() => {
     if (!open) {
       setValor("");
       setCodigoLido("");
+      setCodigoInvalido("");
       setCameraAtiva(false);
       setCameraErro("");
       return;
@@ -97,7 +103,7 @@ export function LeitorCodigoBarrasModal({ open, onClose, onCodigoLido }: Props) 
             const lido = codigos[0]?.rawValue;
             if (lido) {
               const numero = extrairNumeroOsCodigo(lido);
-              if (numero) confirmarLeitura(numero);
+              if (numero) confirmarLeitura(numero, lido);
               return;
             }
           } catch {
@@ -136,8 +142,8 @@ export function LeitorCodigoBarrasModal({ open, onClose, onCodigoLido }: Props) 
         <div className="flex flex-col items-center rounded-lg border border-dashed border-blue-200 bg-blue-50/60 px-4 py-6">
           <ScanBarcode className="h-14 w-14 text-blue-600" strokeWidth={1.5} />
           <p className="mt-3 text-center text-[12px] leading-relaxed text-slate-600">
-            Passe o leitor na etiqueta da OS, na fatura impressa ou digite o código. Formatos
-            aceitos: <strong>OS7</strong>, <strong>*OS7*</strong> ou só o número.
+            Passe o leitor na etiqueta da OS. Formatos aceitos: <strong>OS7</strong>,{" "}
+            <strong>*OS7*</strong> ou só o número.
           </p>
           {leitorUsbAtivo && (
             <p className="mt-2 text-[11px] font-semibold text-emerald-600">
@@ -146,13 +152,16 @@ export function LeitorCodigoBarrasModal({ open, onClose, onCodigoLido }: Props) 
           )}
           {codigoLido && (
             <p className="mt-2 text-[12px] font-semibold text-blue-700">
-              Código lido: OS {codigoLido} — buscando...
+              Código lido: OS {codigoLido} — buscando ordem de serviço...
             </p>
           )}
-          {!codigoLido && ultimoBruto && !leitorUsbAtivo && (
-            <p className="mt-2 text-[11px] text-slate-500">
-              Digitado: {ultimoBruto}
+          {codigoInvalido && !codigoLido && (
+            <p className="mt-2 text-[12px] font-semibold text-amber-700">
+              Código não reconhecido: {codigoInvalido}
             </p>
+          )}
+          {!codigoLido && !codigoInvalido && ultimoBruto && (
+            <p className="mt-2 text-[11px] text-slate-500">Lido: {ultimoBruto}</p>
           )}
         </div>
 
@@ -164,8 +173,9 @@ export function LeitorCodigoBarrasModal({ open, onClose, onCodigoLido }: Props) 
             ref={inputRef}
             value={valor}
             onChange={(e) => onChange(e, setValor)}
+            onInput={(e) => onInput(e, setValor)}
             onKeyDown={(e) => onKeyDown(e, setValor)}
-            placeholder="Aguardando leitura..."
+            placeholder="Aguardando leitura do leitor USB..."
             className="h-10 w-full rounded-lg border border-slate-300 px-3 text-center text-lg tracking-wide outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
             autoComplete="off"
           />
@@ -208,7 +218,8 @@ export function LeitorCodigoBarrasModal({ open, onClose, onCodigoLido }: Props) 
             type="button"
             onClick={() => {
               const numero = extrairNumeroOsCodigo(valor);
-              if (numero) confirmarLeitura(numero);
+              if (numero) confirmarLeitura(numero, valor);
+              else if (valor.trim()) setCodigoInvalido(valor.trim());
             }}
             disabled={!valor.trim()}
             className="rounded-lg bg-blue-600 px-4 py-2 text-[12px] font-semibold text-white hover:bg-blue-700 disabled:opacity-50"

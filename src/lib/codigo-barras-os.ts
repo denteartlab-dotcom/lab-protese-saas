@@ -13,14 +13,15 @@ export function limparEntradaLeitorCodigo(raw: string): string {
 export function extrairNumeroOsCodigo(raw: string): string {
   const t = limparEntradaLeitorCodigo(raw)
     .replace(/^\*+|\*+$/g, "")
+    .replace(/^[\s;:,]+|[\s;:,]+$/g, "")
     .trim();
   if (!t) return "";
-  const prefixo = t.match(/^OS\s*#?\s*(\d+)/i);
+  const prefixo = t.match(/^OS\s*#?\s*0*(\d+)/i);
   if (prefixo) return prefixo[1];
-  const soDigitos = t.match(/^(\d+)$/);
+  const soDigitos = t.match(/^0*(\d+)$/);
   if (soDigitos) return soDigitos[1];
   const digitos = t.replace(/\D/g, "");
-  return digitos || "";
+  return digitos ? String(Number(digitos)) : "";
 }
 
 /** Números de OS únicos nas linhas da fatura (para códigos de barras). */

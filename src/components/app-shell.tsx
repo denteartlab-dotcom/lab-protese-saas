@@ -196,6 +196,7 @@ function AppShellInner({
   const [buscandoOs, setBuscandoOs] = useState(false);
   const [buscaOsExecutada, setBuscaOsExecutada] = useState(false);
   const [leitorCodigoAberto, setLeitorCodigoAberto] = useState(false);
+  const [codigoBarrasMensagem, setCodigoBarrasMensagem] = useState("");
   const [menuMobileAberto, setMenuMobileAberto] = useState(false);
   const { acessoTotal, permissoesModulos } = usePermissoesApp();
   const { montado, lab, nomeLaboratorio } = useLabConfigClient({
@@ -323,16 +324,28 @@ function AppShellInner({
       setResultadosOs(resultados);
       setOsSelecionada(resultados.length === 1 ? resultados[0] : null);
       setItemOsSelecionado(null);
+      if (resultados.length === 1) {
+        setCodigoBarrasMensagem(`OS ${numero} encontrada.`);
+      } else if (resultados.length > 1) {
+        setCodigoBarrasMensagem(`${resultados.length} resultados para OS ${numero}.`);
+      } else {
+        setCodigoBarrasMensagem(`Nenhuma OS encontrada para o código ${numero}.`);
+      }
     } finally {
       setBuscandoOs(false);
     }
   }
 
-  function aoCodigoBarrasLido(numero: string) {
+  function aoCodigoBarrasLido(numero: string, bruto?: string) {
     if (!isDashboard) return;
     setBuscaOsAberta(true);
     setBuscaOs(numero);
     setLeitorCodigoAberto(false);
+    setCodigoBarrasMensagem(
+      bruto?.trim()
+        ? `Código lido: ${bruto.trim()} — buscando OS ${numero}...`
+        : `Código lido — buscando OS ${numero}...`
+    );
     void buscarOrdemServico(numero);
   }
 
@@ -365,6 +378,8 @@ function AppShellInner({
     setOsSelecionada(null);
     setItemOsSelecionado(null);
     setBuscaOsExecutada(false);
+    setCodigoBarrasMensagem("");
+    setLeitorCodigoAberto(true);
   }
 
   function abrirOs(trabalho: TrabalhoBuscaOs) {
@@ -936,7 +951,12 @@ function AppShellInner({
                   <InputLeitorCodigoOs
                     value={buscaOs}
                     onChange={setBuscaOs}
-                    onCodigoLido={(numero) => aoCodigoBarrasLido(numero)}
+                    onCodigoLido={(numero, bruto) => aoCodigoBarrasLido(numero, bruto)}
+                    onCodigoInvalido={(bruto) =>
+                      setCodigoBarrasMensagem(`Código não reconhecido: ${bruto}`)
+                    }
+                    capturaGlobal
+                    capturaGlobalAtivo={buscaOsAberta && !leitorCodigoAberto}
                     autoFocus
                     mostrarStatusLeitor
                     placeholder="Busque número pela OS ou passe o leitor de código de barras"
@@ -971,6 +991,12 @@ function AppShellInner({
                   Pesquisar Paciente
                 </button>
               </div>
+
+              {codigoBarrasMensagem ? (
+                <div className="rounded bg-blue-50 px-3 py-2 text-[10px] font-medium text-blue-700">
+                  {codigoBarrasMensagem}
+                </div>
+              ) : null}
 
               {buscaOsExecutada && resultadosOs.length === 0 && (
                 <div className="rounded bg-orange-50 px-3 py-2 text-[10px] text-orange-600">
