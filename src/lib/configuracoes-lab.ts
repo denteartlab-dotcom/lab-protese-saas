@@ -12,6 +12,7 @@ import { normalizarConfigLaboratorio } from "@/lib/configuracoes-lab-parse";
 import { normalizarIdioma, type Locale } from "@/lib/i18n";
 import {
   persistirArmazenamentoImediato,
+  aplicarEspelhoServidor,
   readStorage,
   writeStorage,
 } from "@/lib/persisted-storage";
@@ -312,7 +313,7 @@ export function salvarConfigLaboratorio(config: ConfigLaboratorio) {
   window.dispatchEvent(new Event(LAB_CONFIG_ATUALIZADA_EVENT));
 }
 
-/** Preenche o cache local sem regravar no servidor (hidratação SSR / bootstrap). */
+/** Atualiza espelho em memória com dados do servidor (sem regravar no banco). */
 export function hidratarConfigLaboratorioCache(config: ConfigLaboratorio) {
   if (typeof window === "undefined") return;
   const atual = carregarConfigLaboratorio();
@@ -324,11 +325,11 @@ export function hidratarConfigLaboratorioCache(config: ConfigLaboratorio) {
     : atual.logoDataUrl?.trim()
       ? atual.logoTamanho
       : preparado.logoTamanho;
-  writeStorage(
-    chaveStorageLaboratorio(),
-    { ...preparado, logoDataUrl, logoTamanho },
-    { forcar: false }
-  );
+  aplicarEspelhoServidor(chaveStorageLaboratorio(), {
+    ...preparado,
+    logoDataUrl,
+    logoTamanho,
+  });
   window.dispatchEvent(new Event(LAB_CONFIG_ATUALIZADA_EVENT));
 }
 

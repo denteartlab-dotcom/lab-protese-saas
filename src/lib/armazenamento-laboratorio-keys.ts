@@ -59,6 +59,7 @@ export const CHAVES_ARMAZENAMENTO_LAB = [
   "labProteseAnotacoesDashboard",
   "labProteseJaEntrou",
   "labProteseLembrarLogin",
+  "labProteseUltimoLaboratorio",
   "labProtesePrefsUi",
   "labProteseTheme",
   "labProteseControleComissaoZero",

@@ -17,8 +17,8 @@ const EVENTOS_ATIVIDADE = [
 const INTERVALO_VERIFICACAO_MS = 60_000;
 
 /**
- * Encerra a sessão após 2h sem interação. O tempo continua contando com o site fechado
- * (última atividade gravada em localStorage).
+ * Encerra a sessão após 2h sem interação nesta aba.
+ * O tempo de inatividade fica só na sessão da aba (sessionStorage).
  */
 export function useSessaoInatividade(onInativo: () => void) {
   const onInativoRef = useRef(onInativo);

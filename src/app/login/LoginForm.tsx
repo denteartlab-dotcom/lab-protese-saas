@@ -202,13 +202,12 @@ export function LoginForm({
           emailServidor = data.email?.trim() || null;
         }
       } catch {
-        /* fallback cache local pós-login */
+        /* fallback espelho em memória pós-login */
       }
 
       const salvo = lerLembrarLogin();
       if (salvo?.email) {
         setEmail(salvo.email);
-        if (salvo.password) setPassword(salvo.password);
         setLembrarSenha(true);
         return;
       }
@@ -311,7 +310,7 @@ export function LoginForm({
       }
 
       if (lembrarSenha) {
-        salvarLembrarLogin({ email: email.trim(), password });
+        salvarLembrarLogin({ email: email.trim() });
       } else {
         limparLembrarLogin();
       }

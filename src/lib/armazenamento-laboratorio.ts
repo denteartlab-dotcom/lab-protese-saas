@@ -7,7 +7,8 @@ import {
   THEME_STORAGE_KEY_LEGADO,
 } from "@/lib/armazenamento-laboratorio-keys";
 
-const cache = new Map<string, unknown>();
+/** Espelho em memória dos dados do PostgreSQL (JsonStore) — não usa localStorage. */
+const espelho = new Map<string, unknown>();
 const chavesDoServidor = new Set<string>();
 const snapshotServidor = new Map<string, string>();
 let hidratado = false;
@@ -19,7 +20,7 @@ let timerSalvar: ReturnType<typeof setTimeout> | null = null;
 export const ARMAZENAMENTO_LAB_PRONTO_EVENT = "lab-armazenamento-pronto";
 
 export type OpcoesGravarArmazenamento = {
-  /** Use `{ forcar: false }` apenas para atualizar cache local sem gravar no banco. */
+  /** @deprecated Use aplicarEspelhoServidor para leituras do servidor sem gravar. */
   forcar?: boolean;
 };
 
@@ -31,7 +32,7 @@ export function armazenamentoLaboratorioBootstrapOk() {
   return bootstrapOk;
 }
 
-/** Aguarda bootstrap do cache do laboratório (para impressão com logo/cabeçalho). */
+/** Aguarda carga inicial do banco (para impressão e telas que dependem do JsonStore). */
 export function aguardarArmazenamentoLaboratorioPronto(timeoutMs = 8000): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve();
   if (armazenamentoLaboratorioPronto() && armazenamentoLaboratorioBootstrapOk()) {
@@ -69,112 +70,52 @@ function dispararPronto() {
   window.dispatchEvent(new Event(ARMAZENAMENTO_LAB_PRONTO_EVENT));
 }
 
-function lerLocalStorageLegado(key: string): unknown | undefined {
-  if (typeof window === "undefined") return undefined;
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return undefined;
-    return JSON.parse(raw) as unknown;
-  } catch {
-    return undefined;
-  }
-}
-
-function removerLocalStorageLegado(key: string) {
+/** Remove resquícios antigos do localStorage (dados do lab ficam só no banco). */
+function limparLocalStorageLegadoLab() {
   if (typeof window === "undefined") return;
-  try {
-    window.localStorage.removeItem(key);
-  } catch {
-    /* ignore */
-  }
-}
+  const remover = new Set<string>(CHAVES_ARMAZENAMENTO_LAB);
+  remover.add(LISTAGEM_CONFIGS_KEY);
+  remover.add(THEME_STORAGE_KEY_LEGADO);
+  remover.add("labProteseLembrarLoginSenha");
 
-function coletarModuloProducaoEtapasLegado(): Record<string, number[]> | undefined {
-  if (typeof window === "undefined") return undefined;
-  const mapa: Record<string, number[]> = {};
-  let achou = false;
   for (let i = 0; i < window.localStorage.length; i++) {
     const key = window.localStorage.key(i);
-    if (!key?.startsWith(MODULO_PRODUCAO_ETAPAS_PREFIX_LEGADO)) continue;
-    const sufixo = key.slice(MODULO_PRODUCAO_ETAPAS_PREFIX_LEGADO.length);
-    const valor = lerLocalStorageLegado(key);
-    if (Array.isArray(valor)) {
-      mapa[sufixo] = valor as number[];
-      achou = true;
-    }
-    removerLocalStorageLegado(key);
-  }
-  return achou ? mapa : undefined;
-}
-
-function coletarListagensLegadas(): Record<string, unknown> {
-  if (typeof window === "undefined") return {};
-  const mapa: Record<string, unknown> = {};
-  for (let i = 0; i < window.localStorage.length; i++) {
-    const key = window.localStorage.key(i);
-    if (!key?.startsWith(LISTAGEM_CONFIG_PREFIX)) continue;
-    const sufixo = key.slice(LISTAGEM_CONFIG_PREFIX.length);
-    const valor = lerLocalStorageLegado(key);
-    if (valor !== undefined) mapa[sufixo] = valor;
-    removerLocalStorageLegado(key);
-  }
-  return mapa;
-}
-
-function coletarMigracaoLocal(): Record<string, unknown> {
-  const entradas: Record<string, unknown> = {};
-
-  for (const key of CHAVES_ARMAZENAMENTO_LAB) {
-    if (key === LISTAGEM_CONFIGS_KEY) continue;
-    const valor = lerLocalStorageLegado(key);
-    if (valor !== undefined) {
-      entradas[key] = valor;
-      removerLocalStorageLegado(key);
+    if (!key) continue;
+    if (
+      key.startsWith(ARMAZENAMENTO_LAB_PREFIX) ||
+      key.startsWith(LISTAGEM_CONFIG_PREFIX) ||
+      key.startsWith(MODULO_PRODUCAO_ETAPAS_PREFIX_LEGADO)
+    ) {
+      remover.add(key);
     }
   }
 
-  for (let i = 0; i < (typeof window !== "undefined" ? window.localStorage.length : 0); i++) {
-    const key = window.localStorage.key(i);
-    if (!key?.startsWith(ARMAZENAMENTO_LAB_PREFIX)) continue;
-    if (key.startsWith(LISTAGEM_CONFIG_PREFIX)) continue;
-    if (key in entradas) continue;
-    const valor = lerLocalStorageLegado(key);
-    if (valor !== undefined) {
-      entradas[key] = valor;
-      removerLocalStorageLegado(key);
+  for (const key of remover) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      /* ignore */
     }
   }
-
-  const listagens = coletarListagensLegadas();
-  if (Object.keys(listagens).length > 0) {
-    entradas[LISTAGEM_CONFIGS_KEY] = listagens;
-  }
-
-  const tema = lerLocalStorageLegado(THEME_STORAGE_KEY_LEGADO);
-  if (tema === "dark" || tema === "light") {
-    entradas.labProteseTheme = tema;
-    removerLocalStorageLegado(THEME_STORAGE_KEY_LEGADO);
-  }
-
-  const etapasModulo = coletarModuloProducaoEtapasLegado();
-  if (etapasModulo) {
-    entradas.labProteseModuloProducaoEtapas = etapasModulo;
-  }
-
-  return entradas;
 }
 
 function aplicarBootstrap(data: Record<string, unknown>) {
-  cache.clear();
+  espelho.clear();
   chavesDoServidor.clear();
   snapshotServidor.clear();
   for (const [key, valor] of Object.entries(data)) {
-    cache.set(key, valor);
+    espelho.set(key, valor);
     atualizarSnapshotServidor(key, valor);
   }
 }
 
-/** Toda alteração no cache deve ir para o PostgreSQL (JsonStore). */
+/** Atualiza espelho em memória com valor do servidor — não regrava no banco. */
+export function aplicarEspelhoServidor(key: string, valor: unknown) {
+  espelho.set(key, valor);
+  atualizarSnapshotServidor(key, valor);
+}
+
+/** Toda alteração do usuário deve ir para o PostgreSQL (JsonStore). */
 function devePersistirGravacao(
   key: string,
   valor: unknown,
@@ -185,7 +126,7 @@ function devePersistirGravacao(
   return snapshotServidor.get(key) !== novo;
 }
 
-/** Aplica valores de limpeza/restauração no cache e persiste no servidor. */
+/** Aplica valores de limpeza/restauração e persiste no servidor. */
 export async function aplicarArmazenamentoLaboratorioCliente(
   keysRemover: string[],
   prefixosRemover: string[],
@@ -196,13 +137,13 @@ export async function aplicarArmazenamentoLaboratorioCliente(
   }
   for (const key of keysRemover) {
     if (key in valores) continue;
-    cache.delete(key);
+    espelho.delete(key);
     chavesDoServidor.delete(key);
     snapshotServidor.delete(key);
     filaSalvar.set(key, null);
   }
   if (prefixosRemover.some((p) => p.startsWith(LISTAGEM_CONFIG_PREFIX))) {
-    cache.delete(LISTAGEM_CONFIGS_KEY);
+    espelho.delete(LISTAGEM_CONFIGS_KEY);
     chavesDoServidor.delete(LISTAGEM_CONFIGS_KEY);
     snapshotServidor.delete(LISTAGEM_CONFIGS_KEY);
     filaSalvar.set(LISTAGEM_CONFIGS_KEY, {});
@@ -220,21 +161,6 @@ async function fetchComTimeout(url: string, init?: RequestInit, timeoutMs = BOOT
     return await fetch(url, { ...init, signal: controller.signal });
   } finally {
     window.clearTimeout(timer);
-  }
-}
-
-async function enviarMigracaoLocal(entradas: Record<string, unknown>) {
-  if (Object.keys(entradas).length === 0) return;
-  try {
-    await fetchComTimeout("/api/armazenamento/migrar", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "same-origin",
-      cache: "no-store",
-      body: JSON.stringify({ entradas }),
-    });
-  } catch {
-    /* offline ou timeout */
   }
 }
 
@@ -353,23 +279,15 @@ export async function reinicializarArmazenamentoLaboratorio() {
   return inicializarArmazenamentoLaboratorio();
 }
 
-/** Carrega dados do banco e migra resquícios do localStorage (uma vez). */
+/** Carrega dados do PostgreSQL (JsonStore). Não usa localStorage. */
 export async function inicializarArmazenamentoLaboratorio() {
   if (typeof window === "undefined") return;
   if (hidratado) return;
   if (hidratando) return hidratando;
 
   hidratando = (async () => {
-    const legadoColetado = coletarMigracaoLocal();
-    if (Object.keys(legadoColetado).length > 0) {
-      await enviarMigracaoLocal(legadoColetado);
-    }
-
+    limparLocalStorageLegadoLab();
     bootstrapOk = await carregarBootstrapServidor();
-    if (!bootstrapOk && Object.keys(legadoColetado).length > 0) {
-      aplicarBootstrap(legadoColetado);
-      bootstrapOk = true;
-    }
   })()
     .catch((err) => {
       console.error("[armazenamento-laboratorio] falha na inicialização", err);
@@ -385,14 +303,16 @@ export async function inicializarArmazenamentoLaboratorio() {
   return hidratando;
 }
 
-/** Atualiza o cache em memória com dados mais recentes do servidor. */
+/** Recarrega espelho em memória a partir do banco (sem localStorage). */
 export async function revalidarArmazenamentoLaboratorio() {
   if (typeof window === "undefined" || !hidratado) return;
-  bootstrapOk = await carregarBootstrapServidor();
+  const ok = await carregarBootstrapServidor();
+  bootstrapOk = ok;
+  if (ok) dispararPronto();
 }
 
 export function lerArmazenamentoCache<T>(key: string, fallback: T): T {
-  if (cache.has(key)) return cache.get(key) as T;
+  if (espelho.has(key)) return espelho.get(key) as T;
   return fallback;
 }
 
@@ -401,7 +321,7 @@ export function gravarArmazenamentoCache<T>(
   valor: T,
   opcoes?: OpcoesGravarArmazenamento
 ) {
-  cache.set(key, valor);
+  espelho.set(key, valor);
   if (typeof window === "undefined") return;
   if (!devePersistirGravacao(key, valor, opcoes)) return;
 
@@ -414,7 +334,7 @@ export function gravarArmazenamentoCache<T>(
 }
 
 export async function persistirArmazenamentoImediato(key: string, valor: unknown) {
-  cache.set(key, valor);
+  espelho.set(key, valor);
   filaSalvar.delete(key);
 
   const res = await fetch("/api/armazenamento/migrar", {
@@ -437,6 +357,13 @@ if (typeof window !== "undefined") {
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
       void flushSalvarPendentes();
+      return;
     }
+    if (document.visibilityState === "visible" && hidratado) {
+      void revalidarArmazenamentoLaboratorio();
+    }
+  });
+  window.addEventListener("focus", () => {
+    if (hidratado) void revalidarArmazenamentoLaboratorio();
   });
 }

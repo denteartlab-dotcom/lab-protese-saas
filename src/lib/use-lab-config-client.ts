@@ -104,12 +104,17 @@ export function useLabConfigClient({
     const onStoragePronto = () => {
       if (storageSincronizado()) setCachePronto(true);
     };
+    const onRevalidar = () => {
+      if (storageSincronizado()) atualizar();
+    };
     window.addEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, onStoragePronto);
+    window.addEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, onRevalidar);
     onStoragePronto();
     return () => {
       window.removeEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, onStoragePronto);
+      window.removeEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, onRevalidar);
     };
-  }, []);
+  }, [atualizar]);
 
   useEffect(() => {
     atualizar();

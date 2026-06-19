@@ -46,7 +46,7 @@ function definirFavicon(href: string, tipo?: string) {
   upsertLink(FAVICON_APPLE_ID, "apple-touch-icon", href, "180x180");
 }
 
-/** Título da aba e ícone conforme dados do laboratório (localStorage). */
+/** Título da aba e ícone conforme dados do laboratório (banco de dados). */
 export function LabDocumentHead() {
   const pathname = usePathname() ?? "";
   const servidor = useLabConfigServidor();

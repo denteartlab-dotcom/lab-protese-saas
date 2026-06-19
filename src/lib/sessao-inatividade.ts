@@ -1,4 +1,4 @@
-/** Logout automático após 2 horas sem interação (conta mesmo com o site fechado). */
+/** Logout automático após 2 horas sem interação na aba atual. */
 export const SESSAO_INATIVIDADE_MS = 2 * 60 * 60 * 1000;
 
 export const SESSAO_ULTIMA_ATIVIDADE_KEY = "labProteseUltimaAtividade";
@@ -6,7 +6,7 @@ export const SESSAO_ULTIMA_ATIVIDADE_KEY = "labProteseUltimaAtividade";
 function storageAtividade() {
   if (typeof window === "undefined") return null;
   try {
-    return window.localStorage;
+    return window.sessionStorage;
   } catch {
     return null;
   }

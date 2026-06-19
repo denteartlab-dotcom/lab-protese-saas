@@ -1,27 +1,9 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  type ReactNode,
-} from "react";
-import {
-  carregarConfigLaboratorio,
-  hidratarConfigLaboratorioCache,
-  nomeExibicaoLaboratorio,
-  type ConfigLaboratorio,
-} from "@/lib/configuracoes-lab";
-import { mesclarConfigLaboratorio } from "@/lib/lab-config-sync";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { nomeExibicaoLaboratorio, type ConfigLaboratorio } from "@/lib/configuracoes-lab";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
 import type { LabImpressaoConfig } from "@/lib/lab-impressao";
-import {
-  ARMAZENAMENTO_LAB_PRONTO_EVENT,
-  armazenamentoLaboratorioBootstrapOk,
-  armazenamentoLaboratorioPronto,
-} from "@/lib/armazenamento-laboratorio";
 
 type LabConfigContextValue = {
   lab: LabImpressaoConfig;
@@ -40,9 +22,8 @@ type Props = {
   children: ReactNode;
 };
 
-/** Dados do laboratório vindos do servidor — primeira pintura sem valores padrão enganosos. */
+/** Dados do laboratório vindos do servidor (PostgreSQL) na primeira pintura. */
 export function LabConfigProvider({ lab, configLaboratorio, children }: Props) {
-  const hidratado = useRef(false);
   const value = useMemo(
     () => ({
       lab,
@@ -51,24 +32,6 @@ export function LabConfigProvider({ lab, configLaboratorio, children }: Props) {
     }),
     [lab, configLaboratorio]
   );
-
-  useEffect(() => {
-    function tentarHidratar() {
-      if (hidratado.current) return;
-      if (!armazenamentoLaboratorioPronto() || !armazenamentoLaboratorioBootstrapOk()) {
-        return;
-      }
-      hidratado.current = true;
-      const local = carregarConfigLaboratorio();
-      hidratarConfigLaboratorioCache(mesclarConfigLaboratorio(local, configLaboratorio));
-    }
-
-    tentarHidratar();
-    window.addEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, tentarHidratar);
-    return () => {
-      window.removeEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, tentarHidratar);
-    };
-  }, [configLaboratorio]);
 
   return (
     <LabConfigContext.Provider value={value}>{children}</LabConfigContext.Provider>

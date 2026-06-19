@@ -26,12 +26,12 @@ export function criarIdPdfViewer() {
 
 function storagePdfViewer() {
   if (typeof window === "undefined") return null;
-  return window.localStorage;
+  return window.sessionStorage;
 }
 
 function storagesPdfViewer(): Storage[] {
   if (typeof window === "undefined") return [];
-  return [window.sessionStorage, window.localStorage];
+  return [window.sessionStorage];
 }
 
 let repassadorOpenerRegistrado = false;
@@ -278,12 +278,12 @@ export async function publicarHtmlNaAba(
 }
 
 async function persistirPdfViewerSession(id: string, payload: PdfViewerSessionPayload) {
-  let localOk = false;
+  let sessionOk = false;
   try {
     salvarPdfViewerSession(id, payload);
-    localOk = true;
+    sessionOk = true;
   } catch {
-    /* localStorage cheio ou indisponível */
+    /* sessionStorage cheio ou indisponível */
   }
 
   if (
@@ -305,7 +305,7 @@ async function persistirPdfViewerSession(id: string, payload: PdfViewerSessionPa
   try {
     await publicarPdfViewerSessaoServidor(id, payload);
   } catch (err) {
-    if (!localOk) throw err;
+    if (!sessionOk) throw err;
   }
 }
 

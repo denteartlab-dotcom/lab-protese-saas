@@ -74,7 +74,7 @@ export function ArmazenamentoLaboratorioProvider({ children }: Props) {
   if (estado === "carregando") {
     return (
       <div className="flex min-h-[40vh] flex-1 items-center justify-center px-4">
-        <p className="text-sm text-slate-500">Carregando dados do laboratório…</p>
+        <p className="text-sm text-slate-500">Carregando dados do banco de dados…</p>
       </div>
     );
   }
