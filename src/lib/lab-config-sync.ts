@@ -39,7 +39,23 @@ export function montarConfigInicialCadastro(
 export async function persistirConfigLaboratorioServidor(
   config: ConfigLaboratorio
 ): Promise<void> {
-  const payload = prepararConfigParaSalvar(config);
+  let remoto: Partial<ConfigLaboratorio> | null = null;
+  try {
+    const res = await fetch(
+      `/api/json-store/${encodeURIComponent(CONFIG_LAB_STORAGE_KEY)}`,
+      { cache: "no-store", credentials: "same-origin" }
+    );
+    if (res.ok) {
+      remoto = (await res.json()) as Partial<ConfigLaboratorio>;
+    }
+  } catch {
+    /* offline */
+  }
+  const payload = preservarLogoConfigLaboratorio(
+    prepararConfigParaSalvar(config),
+    remoto,
+    carregarConfigLaboratorio()
+  );
   const res = await fetch(`/api/json-store/${encodeURIComponent(CONFIG_LAB_STORAGE_KEY)}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -89,9 +105,12 @@ function resolverNomeLaboratorioMesclado(
 /** Config do laboratório para impressão — prioriza dados do servidor (não o cache local). */
 export function configLaboratorioParaImpressao(
   servidor?: Partial<ConfigLaboratorio> | null,
-  local?: ConfigLaboratorio
+  local?: ConfigLaboratorio | null
 ): ConfigLaboratorio {
-  const localCfg = local ?? carregarConfigLaboratorio();
+  const usarCacheLocal = local === undefined;
+  const localCfg = usarCacheLocal
+    ? carregarConfigLaboratorio()
+    : local ?? CONFIG_LAB_PADRAO;
   if (!servidor || typeof servidor !== "object") {
     return prepararConfigParaSalvar(localCfg);
   }
@@ -106,6 +125,24 @@ export function configLaboratorioParaImpressao(
     logoTamanho: logoServidor ? srv.logoTamanho : localCfg.logoTamanho,
     cabecalhoRequisicao: srv.cabecalhoRequisicao ?? localCfg.cabecalhoRequisicao,
   });
+}
+
+/** Garante que gravações parciais não apaguem o logo já salvo. */
+export function preservarLogoConfigLaboratorio(
+  payload: ConfigLaboratorio,
+  ...fontes: (Partial<ConfigLaboratorio> | null | undefined)[]
+): ConfigLaboratorio {
+  const logoDataUrl =
+    payload.logoDataUrl?.trim() ||
+    fontes.map((f) => f?.logoDataUrl?.trim()).find(Boolean) ||
+    "";
+  const fonteLogo = fontes.find((f) => f?.logoDataUrl?.trim());
+  const logoTamanho = logoDataUrl
+    ? payload.logoDataUrl?.trim()
+      ? normalizarLogoTamanho(payload.logoTamanho)
+      : normalizarLogoTamanho(fonteLogo?.logoTamanho ?? payload.logoTamanho)
+    : normalizarLogoTamanho(payload.logoTamanho);
+  return { ...payload, logoDataUrl, logoTamanho };
 }
 
 /** Mescla config do servidor com a do navegador (prioriza nome salvo no servidor). */

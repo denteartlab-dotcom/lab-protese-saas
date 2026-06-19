@@ -85,7 +85,7 @@ export function useLabConfigClient({
     const cfg = carregarConfigLaboratorio();
     const cacheLab = labImpressaoFromConfig();
     return {
-      lab: mesclarLogoLab(cacheLab, initialLab, servidor?.lab),
+      lab: mesclarLogoLab(initialLab, cacheLab, servidor?.lab),
       nomeLaboratorio: nomeLaboratorioExibicao(cfg, fallbackNome),
     };
   }, [cachePronto, servidor, initialLab, initialNomeLaboratorio, fallbackNome]);

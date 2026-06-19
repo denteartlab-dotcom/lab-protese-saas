@@ -315,8 +315,20 @@ export function salvarConfigLaboratorio(config: ConfigLaboratorio) {
 /** Preenche o cache local sem regravar no servidor (hidratação SSR / bootstrap). */
 export function hidratarConfigLaboratorioCache(config: ConfigLaboratorio) {
   if (typeof window === "undefined") return;
+  const atual = carregarConfigLaboratorio();
   const preparado = prepararConfigParaSalvar(config);
-  writeStorage(chaveStorageLaboratorio(), preparado, { forcar: false });
+  const logoDataUrl =
+    preparado.logoDataUrl?.trim() || atual.logoDataUrl?.trim() || "";
+  const logoTamanho = preparado.logoDataUrl?.trim()
+    ? preparado.logoTamanho
+    : atual.logoDataUrl?.trim()
+      ? atual.logoTamanho
+      : preparado.logoTamanho;
+  writeStorage(
+    chaveStorageLaboratorio(),
+    { ...preparado, logoDataUrl, logoTamanho },
+    { forcar: false }
+  );
   window.dispatchEvent(new Event(LAB_CONFIG_ATUALIZADA_EVENT));
 }
 

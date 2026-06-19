@@ -89,7 +89,7 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
   const [comissaoVisivel, setComissaoVisivel] = useState(false);
 
   const logoPerfil = dimensoesLogoPx(lab, { largura: 36, altura: 36 });
-  const temLogo = montado && Boolean(lab.logoDataUrl?.startsWith("data:image"));
+  const temLogo = Boolean(lab.logoDataUrl?.startsWith("data:image"));
   const temLogoPerfil = temLogo;
   const logoutPorInatividade = useCallback(async () => {
     try {

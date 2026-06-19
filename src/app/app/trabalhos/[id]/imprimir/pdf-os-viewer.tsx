@@ -2058,7 +2058,10 @@ export function PdfOsViewer({
       return { ...base, lab: base.lab || LAB_IMPRESSAO_PADRAO };
     }
     try {
-      const cfg = configLaboratorioParaImpressao(base.configLaboratorio ?? null);
+      const cfg = configLaboratorioParaImpressao(
+        base.configLaboratorio ?? null,
+        base.configLaboratorio ?? null
+      );
       const lab = configParaLabImpressao(cfg);
       const usuarioLaboratorio =
         base.usuarioCriou?.trim() ||
@@ -2080,8 +2083,11 @@ export function PdfOsViewer({
     } catch (err) {
       console.error("[PdfOsViewer] montarDadosPdf", err);
       const cfg = base.configLaboratorio
-        ? configLaboratorioParaImpressao(base.configLaboratorio)
-        : CONFIG_LAB_PADRAO;
+        ? configLaboratorioParaImpressao(
+            base.configLaboratorio,
+            base.configLaboratorio
+          )
+        : configLaboratorioParaImpressao(null);
       const lab = configParaLabImpressao(cfg);
       return {
         ...base,

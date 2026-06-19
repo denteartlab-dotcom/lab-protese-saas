@@ -9,10 +9,12 @@ import {
   type ReactNode,
 } from "react";
 import {
+  carregarConfigLaboratorio,
   hidratarConfigLaboratorioCache,
   nomeExibicaoLaboratorio,
   type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
+import { mesclarConfigLaboratorio } from "@/lib/lab-config-sync";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
 import type { LabImpressaoConfig } from "@/lib/lab-impressao";
 import {
@@ -57,7 +59,8 @@ export function LabConfigProvider({ lab, configLaboratorio, children }: Props) {
         return;
       }
       hidratado.current = true;
-      hidratarConfigLaboratorioCache(configLaboratorio);
+      const local = carregarConfigLaboratorio();
+      hidratarConfigLaboratorioCache(mesclarConfigLaboratorio(local, configLaboratorio));
     }
 
     tentarHidratar();

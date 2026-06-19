@@ -7,6 +7,7 @@ import {
   montarTituloDocumento,
 } from "@/lib/document-title";
 import { gerarFaviconDeLogo } from "@/lib/favicon-lab";
+import { useLabConfigServidor } from "@/components/LabConfigProvider";
 import { useLabConfigClient } from "@/lib/use-lab-config-client";
 
 const FAVICON_LINK_ID = "lab-favicon";
@@ -48,7 +49,11 @@ function definirFavicon(href: string, tipo?: string) {
 /** Título da aba e ícone conforme dados do laboratório (localStorage). */
 export function LabDocumentHead() {
   const pathname = usePathname() ?? "";
-  const { montado, lab, nomeLaboratorio } = useLabConfigClient();
+  const servidor = useLabConfigServidor();
+  const { lab, nomeLaboratorio } = useLabConfigClient({
+    initialLab: servidor?.lab,
+    initialNomeLaboratorio: servidor?.nomeLaboratorio,
+  });
   const seq = useRef(0);
 
   const paginaPublicaBranding =
@@ -58,7 +63,7 @@ export function LabDocumentHead() {
     pathname.startsWith("/pagamento");
 
   useEffect(() => {
-    if (!montado || paginaPublicaBranding) return;
+    if (paginaPublicaBranding) return;
 
     document.title = montarTituloDocumento(nomeLaboratorio);
 
@@ -78,7 +83,7 @@ export function LabDocumentHead() {
     } else {
       definirFavicon(FAVICON_PADRAO);
     }
-  }, [montado, nomeLaboratorio, lab.logoDataUrl, paginaPublicaBranding]);
+  }, [nomeLaboratorio, lab.logoDataUrl, paginaPublicaBranding]);
 
   return null;
 }
