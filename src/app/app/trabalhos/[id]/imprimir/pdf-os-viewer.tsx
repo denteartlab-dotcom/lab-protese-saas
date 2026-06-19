@@ -9,7 +9,23 @@ import { prepararAbaPdf, visualizarPdfUrl, baixarPdfBlob, baixarPdfUrl, criarUrl
 import { urlPdfDocumentoServidor } from "@/lib/pdf-documento-http";
 import { criarIdPdfViewer, publicarPdfBlobNoServidor } from "@/lib/pdf-viewer-aba";
 import { LAB_IMPRESSAO_PADRAO, type LabImpressaoConfig } from "@/lib/lab-impressao";
-import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
+import {
+  CONFIG_LAB_PADRAO,
+  LAB_CONFIG_ATUALIZADA_EVENT,
+  carregarConfigLaboratorio,
+  nomeUsuarioDocumentosLaboratorio,
+  type ConfigLaboratorio,
+} from "@/lib/configuracoes-lab";
+import {
+  carregarLayoutModelo1,
+  carregarLayoutModelo2,
+  carregarLayoutModelo3,
+  carregarLayoutModelo4,
+  carregarLayoutModelo5,
+  CONFIG_OS_ATUALIZADA_EVENT,
+} from "@/lib/configuracoes-os";
+import { configParaLabImpressao } from "@/lib/lab-logo";
+import { mesclarConfigLaboratorio } from "@/lib/lab-config-sync";
 import { normalizarCabecalhoRequisicao, type CabecalhoRequisicaoConfig } from "@/lib/cabecalho-requisicao";
 import {
   hexParaRgb,
@@ -2037,106 +2053,102 @@ export function PdfOsViewer({
   const pdfDocIdRef = useRef("");
   const nomeArquivoPdf = nomeArquivoOsPdf(data.numeroOs);
 
-  async function publicarPdfGerado(blob: Blob) {
-    pdfBlobRef.current = blob;
-    const id = criarIdPdfViewer();
-    try {
-      await publicarPdfBlobNoServidor(blob, nomeArquivoPdf, id);
-      pdfDocIdRef.current = id;
-      const url = urlPdfDocumentoServidor(id, { nomeArquivo: nomeArquivoPdf });
-      setPdfUrl(url);
-      return url;
-    } catch (err) {
-      console.warn("[PdfOsViewer] fallback blob local", err);
-      pdfDocIdRef.current = "";
-      const url = criarUrlPdfNomeada(blob, nomeArquivoPdf);
-      setPdfUrl(url);
-      return url;
-    }
-  }
-  async function montarDadosPdf(base: PdfOsData): Promise<PdfOsData> {
+  function montarDadosPdfDeServidor(base: PdfOsData): PdfOsData {
     if (typeof window === "undefined") {
       return { ...base, lab: base.lab || LAB_IMPRESSAO_PADRAO };
     }
-    const [labMod, osMod, logoMod, labSyncMod] = await Promise.all([
-      import("@/lib/configuracoes-lab"),
-      import("@/lib/configuracoes-os"),
-      import("@/lib/lab-logo"),
-      import("@/lib/lab-config-sync"),
-    ]);
-
-    let cfg = labMod.carregarConfigLaboratorio();
-    if (base.configLaboratorio) {
-      cfg = labSyncMod.mesclarConfigLaboratorio(
-        cfg,
-        base.configLaboratorio as Partial<ConfigLaboratorio>
-      );
+    try {
+      let cfg = carregarConfigLaboratorio();
+      if (base.configLaboratorio) {
+        cfg = mesclarConfigLaboratorio(cfg, base.configLaboratorio);
+      }
+      const lab = configParaLabImpressao(cfg);
+      const usuarioLaboratorio =
+        base.usuarioCriou?.trim() ||
+        nomeUsuarioDocumentosLaboratorio(cfg) ||
+        lab.responsavel?.trim() ||
+        "";
+      return {
+        ...base,
+        usuarioCriou: usuarioLaboratorio,
+        lab,
+        configLab: cfg,
+        cabecalhoRequisicao: normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao),
+        layoutModelo1: carregarLayoutModelo1(),
+        layoutModelo2: carregarLayoutModelo2(),
+        layoutModelo3: carregarLayoutModelo3(),
+        layoutModelo4: carregarLayoutModelo4(),
+        layoutModelo5: carregarLayoutModelo5(),
+      };
+    } catch (err) {
+      console.error("[PdfOsViewer] montarDadosPdf", err);
+      const cfg = base.configLaboratorio
+        ? mesclarConfigLaboratorio(CONFIG_LAB_PADRAO, base.configLaboratorio)
+        : CONFIG_LAB_PADRAO;
+      const lab = configParaLabImpressao(cfg);
+      return {
+        ...base,
+        lab,
+        configLab: cfg,
+        cabecalhoRequisicao: normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao),
+        layoutModelo1: normalizarOsModelo1Layout(null),
+        layoutModelo2: normalizarOsModelo2Layout(null),
+        layoutModelo3: normalizarOsModelo3Layout(null),
+        layoutModelo4: normalizarOsModelo4Layout(null),
+        layoutModelo5: normalizarOsModelo5Layout(null),
+      };
     }
-
-    const lab = logoMod.configParaLabImpressao(cfg);
-    const usuarioLaboratorio =
-      base.usuarioCriou?.trim() ||
-      labMod.nomeUsuarioDocumentosLaboratorio(cfg) ||
-      lab.responsavel?.trim() ||
-      "";
-    return {
-      ...base,
-      usuarioCriou: usuarioLaboratorio,
-      lab,
-      configLab: cfg,
-      cabecalhoRequisicao: normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao),
-      layoutModelo1: osMod.carregarLayoutModelo1(),
-      layoutModelo2: osMod.carregarLayoutModelo2(),
-      layoutModelo3: osMod.carregarLayoutModelo3(),
-      layoutModelo4: osMod.carregarLayoutModelo4(),
-      layoutModelo5: osMod.carregarLayoutModelo5(),
-    };
   }
 
-  const [dadosPdf, setDadosPdf] = useState<PdfOsData>(() => ({
-    ...data,
-    lab: data.lab || LAB_IMPRESSAO_PADRAO,
-  }));
-  const [configOsPronta, setConfigOsPronta] = useState(false);
+  async function publicarPdfGerado(blob: Blob) {
+    pdfBlobRef.current = blob;
+    const blobUrl = criarUrlPdfNomeada(blob, nomeArquivoPdf);
+    setPdfUrl(blobUrl);
+
+    const id = criarIdPdfViewer();
+    try {
+      const upload = publicarPdfBlobNoServidor(blob, nomeArquivoPdf, id);
+      const timeout = new Promise<never>((_, reject) => {
+        window.setTimeout(() => reject(new Error("timeout upload pdf")), 12_000);
+      });
+      await Promise.race([upload, timeout]);
+      pdfDocIdRef.current = id;
+      const serverUrl = urlPdfDocumentoServidor(id, { nomeArquivo: nomeArquivoPdf });
+      setPdfUrl(serverUrl);
+      if (blobUrl.startsWith("blob:")) URL.revokeObjectURL(blobUrl);
+      return serverUrl;
+    } catch (err) {
+      console.warn("[PdfOsViewer] fallback blob local", err);
+      pdfDocIdRef.current = "";
+      return blobUrl;
+    }
+  }
+
+  const [dadosPdf, setDadosPdf] = useState<PdfOsData>(() => montarDadosPdfDeServidor(data));
+  const [configOsPronta, setConfigOsPronta] = useState(true);
 
   useEffect(() => {
-    let ativo = true;
-    setConfigOsPronta(false);
-    void (async () => {
-      const montado = await montarDadosPdf(data);
-      if (!ativo) return;
-      setDadosPdf(montado);
-      setConfigOsPronta(true);
-    })();
-    return () => {
-      ativo = false;
-    };
+    try {
+      setDadosPdf(montarDadosPdfDeServidor(data));
+    } catch (err) {
+      console.error("[PdfOsViewer] atualizar dados", err);
+    }
+    setConfigOsPronta(true);
   }, [data]);
 
   useEffect(() => {
-    let ativo = true;
-    let labEvent = "";
-    let osEvent = "";
     const handler = () => {
-      void montarDadosPdf(data).then((montado) => {
-        if (ativo) setDadosPdf(montado);
-      });
+      try {
+        setDadosPdf(montarDadosPdfDeServidor(data));
+      } catch {
+        /* ignore */
+      }
     };
-    void (async () => {
-      const [labMod, osMod] = await Promise.all([
-        import("@/lib/configuracoes-lab"),
-        import("@/lib/configuracoes-os"),
-      ]);
-      if (!ativo) return;
-      labEvent = labMod.LAB_CONFIG_ATUALIZADA_EVENT;
-      osEvent = osMod.CONFIG_OS_ATUALIZADA_EVENT;
-      window.addEventListener(labEvent, handler);
-      window.addEventListener(osEvent, handler);
-    })();
+    window.addEventListener(LAB_CONFIG_ATUALIZADA_EVENT, handler);
+    window.addEventListener(CONFIG_OS_ATUALIZADA_EVENT, handler);
     return () => {
-      ativo = false;
-      if (labEvent) window.removeEventListener(labEvent, handler);
-      if (osEvent) window.removeEventListener(osEvent, handler);
+      window.removeEventListener(LAB_CONFIG_ATUALIZADA_EVENT, handler);
+      window.removeEventListener(CONFIG_OS_ATUALIZADA_EVENT, handler);
     };
   }, [data]);
 
