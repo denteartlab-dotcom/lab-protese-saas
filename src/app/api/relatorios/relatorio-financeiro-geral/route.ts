@@ -36,7 +36,7 @@ export async function GET(request: Request) {
   };
 
   try {
-    const [trabalhosRaw, mapaRaw] = await Promise.all([
+    const [trabalhosRaw, mapaRaw, lancamentosRaw] = await Promise.all([
       prisma.trabalho.findMany({
         where: { empresaId: ctx.empresaId, status: { not: "cancelado" } },
         orderBy: [{ dataEntrada: "desc" }, { numeroOs: "desc" }],
@@ -56,6 +56,17 @@ export async function GET(request: Request) {
         },
       }),
       lerJsonStoreTenant(ctx.empresaId, MODULO_PRODUCAO_ETAPAS_STORAGE_KEY),
+      prisma.lancamento.findMany({
+        where: { empresaId: ctx.empresaId },
+        orderBy: { data: "desc" },
+        select: {
+          id: true,
+          tipo: true,
+          valor: true,
+          data: true,
+          status: true,
+        },
+      }),
     ]);
 
     const trabalhos: TrabalhoFinanceiroGeralInput[] = trabalhosRaw.map((t) => ({
@@ -74,7 +85,19 @@ export async function GET(request: Request) {
     }));
 
     const mapaEtapas = parseMapaEtapas(mapaRaw);
-    const payload = calcularRelatorioFinanceiroGeral(trabalhos, filtros, mapaEtapas);
+    const lancamentos = lancamentosRaw.map((l) => ({
+      id: l.id,
+      tipo: l.tipo,
+      valor: l.valor,
+      data: l.data.toISOString(),
+      status: l.status,
+    }));
+    const payload = calcularRelatorioFinanceiroGeral(
+      trabalhos,
+      filtros,
+      mapaEtapas,
+      lancamentos
+    );
 
     return NextResponse.json(payload);
   } catch (error) {

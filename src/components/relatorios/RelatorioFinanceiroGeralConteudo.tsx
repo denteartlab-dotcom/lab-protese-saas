@@ -272,6 +272,7 @@ export function RelatorioFinanceiroGeralConteudo() {
 
   const evolucaoChart = dados?.evolucaoMensal ?? [];
   const donutData = dados?.distribuicaoTipo ?? [];
+  const financeiroRealizadoChart = dados?.financeiroRealizado.porMes ?? [];
 
   return (
     <div className="relative -mx-3 min-h-screen w-[calc(100%+1.5rem)] bg-white text-[#374151] sm:-mx-5 sm:w-[calc(100%+2.5rem)]">
@@ -282,7 +283,7 @@ export function RelatorioFinanceiroGeralConteudo() {
               Relatório Financeiro Geral
             </h1>
             <p className="mt-1 text-[13px] text-[#6b7280]">
-              Dashboard executivo — valor bruto dos serviços cadastrados (OS)
+              Produção (valores das OS) e financeiro realizado (receitas e despesas pagas)
             </p>
           </div>
         </div>
@@ -435,8 +436,123 @@ export function RelatorioFinanceiroGeralConteudo() {
               />
             </div>
 
+            <div className="rounded-xl border border-[#e5e7eb] bg-[#f9fafb] p-4">
+              <h2 className="mb-3 text-[14px] font-semibold text-[#374151]">
+                Financeiro realizado — lançamentos pagos
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <CardKpi
+                  titulo="Receitas Realizadas"
+                  valor={formatarMoedaFinanceiroGeral(
+                    dados.financeiroRealizado.resumo.receitasTotal
+                  )}
+                  subtitulo={`${dados.financeiroRealizado.resumo.receitasQtd} lançamentos`}
+                  cor={COR.verde}
+                />
+                <CardKpi
+                  titulo="Despesas Realizadas"
+                  valor={formatarMoedaFinanceiroGeral(
+                    dados.financeiroRealizado.resumo.despesasTotal
+                  )}
+                  subtitulo={`${dados.financeiroRealizado.resumo.despesasQtd} lançamentos`}
+                  cor={COR.azul}
+                />
+                <CardKpi
+                  titulo="Saldo do Período"
+                  valor={formatarMoedaFinanceiroGeral(
+                    dados.financeiroRealizado.resumo.saldoTotal
+                  )}
+                  cor={COR.roxo}
+                />
+              </div>
+            </div>
+
             <div className="grid gap-4 xl:grid-cols-2">
-              <CardGrafico titulo="Evolução Mensal do Valor Bruto">
+              <CardGrafico titulo="Receitas x Despesas Realizadas por Mês">
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={financeiroRealizadoChart}>
+                      <CartesianGrid stroke={COR.grid} strokeDasharray="3 3" />
+                      <XAxis dataKey="mes" tick={{ fontSize: 11, fill: COR.texto }} />
+                      <YAxis
+                        tick={{ fontSize: 11, fill: COR.texto }}
+                        tickFormatter={(v) =>
+                          Number(v).toLocaleString("pt-BR", { notation: "compact" })
+                        }
+                      />
+                      <Tooltip content={<TooltipMoeda />} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      <Bar
+                        dataKey="receitas"
+                        name="Receitas"
+                        fill={COR.verde}
+                        radius={[4, 4, 0, 0]}
+                      />
+                      <Bar
+                        dataKey="despesas"
+                        name="Despesas"
+                        fill={COR.azul}
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardGrafico>
+
+              <CardGrafico titulo="Saldo Realizado por Mês">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[480px] text-left text-[12px]">
+                    <thead>
+                      <tr className="border-b border-[#e5e7eb] bg-[#f9fafb] text-[11px] uppercase tracking-wide text-[#6b7280]">
+                        <th className="px-3 py-2">Mês</th>
+                        <th className="px-3 py-2 text-right">Receitas</th>
+                        <th className="px-3 py-2 text-right">Despesas</th>
+                        <th className="px-3 py-2 text-right">Saldo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {financeiroRealizadoChart.map((m) => (
+                        <tr key={`${m.mes}-${m.ano}-fin`} className="border-b border-[#f3f4f6]">
+                          <td className="px-3 py-2 font-medium">
+                            {m.mes}/{m.ano}
+                          </td>
+                          <td className="px-3 py-2 text-right text-[#2ecc71]">
+                            {formatarMoedaFinanceiroGeral(m.receitas)}
+                          </td>
+                          <td className="px-3 py-2 text-right text-[#3498db]">
+                            {formatarMoedaFinanceiroGeral(m.despesas)}
+                          </td>
+                          <td className="px-3 py-2 text-right font-semibold text-[#8e44ad]">
+                            {formatarMoedaFinanceiroGeral(m.saldo)}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="bg-[#f9fafb] font-bold">
+                        <td className="px-3 py-2">TOTAL</td>
+                        <td className="px-3 py-2 text-right text-[#2ecc71]">
+                          {formatarMoedaFinanceiroGeral(
+                            dados.financeiroRealizado.resumo.receitasTotal
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-right text-[#3498db]">
+                          {formatarMoedaFinanceiroGeral(
+                            dados.financeiroRealizado.resumo.despesasTotal
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-right text-[#8e44ad]">
+                          {formatarMoedaFinanceiroGeral(
+                            dados.financeiroRealizado.resumo.saldoTotal
+                          )}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </CardGrafico>
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-2">
+              <CardGrafico titulo="Evolução Mensal do Valor Bruto (OS)">
                 <div className="h-[300px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={evolucaoChart}>

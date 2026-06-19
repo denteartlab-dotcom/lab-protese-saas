@@ -1,4 +1,5 @@
 import { dateToBrShort, parseBrDate } from "@/lib/datas-br";
+import { parseCurrencyBr } from "@/lib/cliente-financeiro";
 import {
   nomeEtapaSemSetor,
   parseComplementosInstrucoesGrupo,
@@ -6,6 +7,17 @@ import {
 import { itensDaOsModulo } from "@/lib/modulo-producao-os";
 import { indiceEtapaAtualDeConcluidas } from "@/lib/modulo-producao-etapas";
 import { normalizarChaveStatusOs, labelStatusOs } from "@/lib/status-os";
+import {
+  classificarItemOs,
+  parseDescontoTipoLinhaItem,
+  segmentoEfetivoTrabalho,
+  valorLiquidoItemOs,
+} from "@/lib/trabalho-os-segmento";
+import {
+  calcularFinanceiroLancamentosPeriodo,
+  type FinanceiroLancamentosPeriodo,
+  type LancamentoRelatorioFinanceiro,
+} from "@/lib/financeiro-lancamentos-relatorio";
 
 export const MESES_FINANCEIRO_GERAL = [
   "Jan",
@@ -119,11 +131,97 @@ export type RelatorioFinanceiroGeralPayload = {
   detalhes: LinhaDetalheFinanceiroGeral[];
   clientesOpcoes: string[];
   tiposServicoOpcoes: string[];
+  /** Receitas e despesas pagas no Financeiro (lançamentos com status Pago). */
+  financeiroRealizado: FinanceiroLancamentosPeriodo;
 };
+
+export const STATUS_SERVICO_CONCLUIDO_FINANCEIRO = [
+  "finalizado",
+  "saiu_entrega",
+  "entregue",
+] as const;
 
 export function servicoConcluidoFinanceiro(status?: string | null) {
   const key = normalizarChaveStatusOs(status);
-  return key === "finalizado" || key === "entregue";
+  return (STATUS_SERVICO_CONCLUIDO_FINANCEIRO as readonly string[]).includes(key);
+}
+
+function valorLiquidoLinhaItemOs(instrucoes: string, descricaoItem: string) {
+  const alvo = descricaoItem.trim().toLowerCase();
+  for (const line of (instrucoes || "").split("\n")) {
+    const texto = line.trim();
+    if (!texto.startsWith("Item adicionado:")) continue;
+
+    const matchServico = texto.match(/^Item adicionado:\s*(.*?)\s*-\s*dentes/i);
+    const servico = matchServico?.[1]?.trim() || "";
+    const produtoId = texto
+      .match(/ - produtoId (.*?)(?: - urgente| - repetição| - repeticao| - obs|$)/i)?.[1]
+      ?.trim();
+    const itemLinha = { servico, produtoId: produtoId || undefined };
+    if (classificarItemOs(itemLinha) !== "servico") continue;
+
+    const servicoNorm = servico.toLowerCase();
+    if (
+      servicoNorm &&
+      alvo &&
+      !servicoNorm.includes(alvo) &&
+      !alvo.includes(servicoNorm.replace(/^produto:\s*/i, ""))
+    ) {
+      continue;
+    }
+
+    const valorTexto = texto.match(
+      / - valor (.*?)(?: - categoria| - desc| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
+    )?.[1];
+    if (!valorTexto) continue;
+
+    const valor = parseCurrencyBr(valorTexto);
+    const descontoRaw = texto
+      .match(
+        / - desc (.*?)(?: - descTipo| - categoria| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
+      )?.[1]
+      ?.trim();
+    const descontoTipo = parseDescontoTipoLinhaItem(texto, descontoRaw || "");
+    return valorLiquidoItemOs({ valor, desconto: descontoRaw, descontoTipo });
+  }
+  return 0;
+}
+
+/** Valor real do serviço: itens da OS nas instruções (com desconto) ou campo valor do trabalho. */
+export function valorServicoTrabalhoFinanceiro(trabalho: TrabalhoFinanceiroGeralInput): number {
+  const moduloOs = {
+    id: trabalho.id,
+    numeroOs: trabalho.numeroOs,
+    tipoProtese: trabalho.tipoProtese,
+    valor: trabalho.valor,
+    status: trabalho.status,
+    instrucoes: trabalho.instrucoes,
+    dataPrevista: trabalho.dataPrevista,
+    cliente: { nome: trabalho.clienteNome },
+    paciente: { nome: trabalho.pacienteNome },
+  };
+
+  const itens = itensDaOsModulo(moduloOs).filter((item) => item.tipo === "trabalho");
+  const lista =
+    itens.length > 0
+      ? itens
+      : [
+          {
+            id: `${trabalho.id}-principal`,
+            descricao: trabalho.tipoProtese,
+            qtd: "1",
+            situacao: trabalho.status,
+            tipo: "trabalho" as const,
+          },
+        ];
+
+  let total = 0;
+  for (const item of lista) {
+    total += valorLiquidoLinhaItemOs(trabalho.instrucoes || "", item.descricao);
+  }
+
+  if (total > 0) return total;
+  return Number(trabalho.valor) || 0;
 }
 
 export function categorizarTipoServico(tipoProtese: string): CategoriaTipoServico {
@@ -230,7 +328,13 @@ export function montarLinhasDetalhe(
   mapaEtapas: Record<string, number[]> = {}
 ): LinhaDetalheFinanceiroGeral[] {
   return trabalhos
-    .filter((t) => t.segmentoFaturamento === "servico")
+    .filter(
+      (t) =>
+        segmentoEfetivoTrabalho({
+          segmentoFaturamento: t.segmentoFaturamento,
+          instrucoes: t.instrucoes,
+        }) === "servico"
+    )
     .filter((t) => normalizarChaveStatusOs(t.status) !== "cancelado")
     .map((t) => {
       const entrada = parseDataEntrada(t.dataEntrada);
@@ -242,7 +346,7 @@ export function montarLinhasDetalhe(
         numeroOs: t.numeroOs,
         cliente: t.clienteNome,
         servico: t.tipoProtese,
-        valor: Number(t.valor) || 0,
+        valor: valorServicoTrabalhoFinanceiro(t),
         dataEntrada: entrada ? dateToBrShort(entrada) : "—",
         prazo: t.dataPrevista
           ? dateToBrShort(parseDataEntrada(t.dataPrevista) ?? new Date())
@@ -263,7 +367,8 @@ export function montarLinhasDetalhe(
 export function calcularRelatorioFinanceiroGeral(
   trabalhos: TrabalhoFinanceiroGeralInput[],
   filtros: FiltrosRelatorioFinanceiroGeral,
-  mapaEtapas: Record<string, number[]> = {}
+  mapaEtapas: Record<string, number[]> = {},
+  lancamentos: LancamentoRelatorioFinanceiro[] = []
 ): RelatorioFinanceiroGeralPayload {
   const inicio =
     parseBrDate(filtros.dataInicio) ??
@@ -338,6 +443,13 @@ export function calcularRelatorioFinanceiroGeral(
 
   const tiposServicoOpcoes = [...CATEGORIAS_TIPO_SERVICO];
 
+  const financeiroRealizado = calcularFinanceiroLancamentosPeriodo(
+    lancamentos,
+    filtros.dataInicio,
+    filtros.dataFim,
+    MESES_FINANCEIRO_GERAL
+  );
+
   return {
     resumo: {
       valorBrutoTotal,
@@ -373,6 +485,7 @@ export function calcularRelatorioFinanceiroGeral(
     detalhes: linhas,
     clientesOpcoes,
     tiposServicoOpcoes,
+    financeiroRealizado,
   };
 }
 

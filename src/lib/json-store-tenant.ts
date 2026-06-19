@@ -1,7 +1,16 @@
-import { ARMAZENAMENTO_LAB_PREFIX } from "@/lib/armazenamento-laboratorio-keys";
+import { ARMAZENAMENTO_LAB_PREFIX, chaveBootstrapAdiada } from "@/lib/armazenamento-laboratorio-keys";
 import { prisma } from "@/lib/db";
 
 const PREFIXO_TENANT = "t:";
+
+export type FaseBootstrapJsonStore = "prioritaria" | "complementar" | "completa";
+
+function incluirChaveBootstrap(base: string, fase: FaseBootstrapJsonStore): boolean {
+  const adiada = chaveBootstrapAdiada(base);
+  if (fase === "prioritaria") return !adiada;
+  if (fase === "complementar") return adiada;
+  return true;
+}
 
 export function chaveJsonStoreTenant(empresaId: string, key: string): string {
   return `${PREFIXO_TENANT}${empresaId}:${key}`;
@@ -57,16 +66,18 @@ export async function salvarJsonStoreTenant(
 }
 
 export async function bootstrapJsonStoreTenant(
-  empresaId: string
+  empresaId: string,
+  fase: FaseBootstrapJsonStore = "completa"
 ): Promise<Record<string, unknown>> {
   const prefixo = `${PREFIXO_TENANT}${empresaId}:`;
   const rows = await prisma.jsonStore.findMany({
     where: { key: { startsWith: prefixo } },
+    select: { key: true, payload: true },
   });
   const data: Record<string, unknown> = {};
   for (const row of rows) {
     const base = extrairChaveBaseTenant(row.key, empresaId);
-    if (!base) continue;
+    if (!base || !incluirChaveBootstrap(base, fase)) continue;
     try {
       data[base] = JSON.parse(row.payload);
     } catch {
@@ -74,12 +85,14 @@ export async function bootstrapJsonStoreTenant(
     }
   }
 
-  if (Object.keys(data).length === 0) {
+  if (Object.keys(data).length === 0 && fase === "completa") {
     const legado = await prisma.jsonStore.findMany({
       where: { key: { startsWith: ARMAZENAMENTO_LAB_PREFIX } },
+      select: { key: true, payload: true },
     });
     for (const row of legado) {
       if (row.key.startsWith(PREFIXO_TENANT)) continue;
+      if (!incluirChaveBootstrap(row.key, fase)) continue;
       try {
         const parsed = JSON.parse(row.payload);
         data[row.key] = parsed;

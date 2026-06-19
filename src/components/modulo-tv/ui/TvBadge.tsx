@@ -11,7 +11,7 @@ const ESTILOS: Record<PrioridadeOs, { label: string; className: string }> = {
     className: "bg-orange-500/20 text-orange-300 border border-orange-500/30",
   },
   normal: {
-    label: "NORMAL",
+    label: "MÉDIA",
     className: "bg-sky-500/15 text-sky-300 border border-sky-500/25",
   },
   baixa: {

@@ -6,6 +6,7 @@ import {
   filtrarTrabalhosVencendoPeriodo,
 } from "@/lib/controle-producao-prazos";
 import { calcularResumoFinanceiroDashboard } from "@/lib/dashboard-financeiro";
+import { lancamentoEfetivadoFinanceiro } from "@/lib/lancamento-financeiro-realizado";
 import {
   clienteAniversarioNoMes,
   dataNascimentoCliente,
@@ -142,10 +143,10 @@ export async function GET(request: Request) {
   });
 
   const receitasMes = lancamentosMes
-    .filter((l) => l.tipo === "receita")
+    .filter((l) => l.tipo === "receita" && lancamentoEfetivadoFinanceiro(l))
     .reduce((s, l) => s + l.valor, 0);
   const despesasMes = lancamentosMes
-    .filter((l) => l.tipo === "despesa")
+    .filter((l) => l.tipo === "despesa" && lancamentoEfetivadoFinanceiro(l))
     .reduce((s, l) => s + l.valor, 0);
 
   const servicosAtrasados = filtrarTrabalhosAtrasados(trabalhosControle, "lab");

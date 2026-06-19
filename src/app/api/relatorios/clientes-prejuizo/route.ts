@@ -27,6 +27,10 @@ export async function GET(request: Request) {
           clienteId: true,
           valor: true,
           instrucoes: true,
+          tipoProtese: true,
+          status: true,
+          segmentoFaturamento: true,
+          dataEntrada: true,
           cliente: { select: { nome: true } },
         },
       }),
@@ -39,6 +43,10 @@ export async function GET(request: Request) {
       clienteNome: t.cliente?.nome?.trim() || "—",
       valor: t.valor,
       instrucoes: t.instrucoes,
+      tipoProtese: t.tipoProtese,
+      status: t.status,
+      segmentoFaturamento: t.segmentoFaturamento,
+      dataEntrada: t.dataEntrada.toISOString(),
     }));
 
     const payload = calcularRelatorioClientesPrejuizo(historico, trabalhos, {

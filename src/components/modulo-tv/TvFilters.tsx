@@ -10,7 +10,7 @@ const PRIORIDADES: { value: PrioridadeOs | "todas"; label: string }[] = [
   { value: "todas", label: "Todas" },
   { value: "urgente", label: "Urgente" },
   { value: "alta", label: "Alta" },
-  { value: "normal", label: "Normal" },
+  { value: "normal", label: "Média" },
   { value: "baixa", label: "Baixa" },
 ];
 

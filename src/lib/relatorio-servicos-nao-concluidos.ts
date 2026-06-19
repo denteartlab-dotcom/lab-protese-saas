@@ -76,7 +76,12 @@ export function agruparEtapaRelatorio(nomeEtapa: string): EtapaGrupoRelatorio {
 
 export function servicoNaoConcluidoRelatorio(status?: string | null) {
   const key = normalizarChaveStatusOs(status);
-  return key !== "finalizado" && key !== "entregue" && key !== "cancelado";
+  return (
+    key !== "finalizado" &&
+    key !== "saiu_entrega" &&
+    key !== "entregue" &&
+    key !== "cancelado"
+  );
 }
 
 export function formatarMoedaServicosNaoConcluidos(valor: number) {

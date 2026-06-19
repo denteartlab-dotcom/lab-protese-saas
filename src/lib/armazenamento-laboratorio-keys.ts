@@ -79,6 +79,23 @@ export const CHAVES_ARMAZENAMENTO_LAB = [
   LISTAGEM_CONFIGS_KEY,
 ] as const;
 
+/** Chaves grandes ou de módulo específico — carregadas em segundo plano após a abertura. */
+export const CHAVES_BOOTSTRAP_ADIADAS = new Set<string>([
+  "labProteseMovimentacoesConta",
+  "labProteseLancamentosFinanceiroCache",
+  "labProteseExtratoBancario",
+  "labProteseProdutosEstoqueMovimentos",
+  "labProteseProdutosEstoqueOsMovimentos",
+  "labProteseOrcamentosEstoqueAplicados",
+  "labProteseProdutosExcluidosSnapshots",
+]);
+
+export type FaseBootstrapArmazenamento = "prioritaria" | "complementar" | "completa";
+
+export function chaveBootstrapAdiada(key: string) {
+  return CHAVES_BOOTSTRAP_ADIADAS.has(key);
+}
+
 /** Legado no navegador — migrado para labProteseTheme. */
 export const THEME_STORAGE_KEY_LEGADO = "theme";
 

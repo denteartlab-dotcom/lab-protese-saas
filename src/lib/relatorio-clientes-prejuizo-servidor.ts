@@ -7,6 +7,10 @@ import {
   type HistoricoEtapaRow,
 } from "@/lib/historico-etapas";
 import {
+  valorServicoTrabalhoFinanceiro,
+  type TrabalhoFinanceiroGeralInput,
+} from "@/lib/relatorio-financeiro-geral";
+import {
   OPCOES_PERIODO_CLIENTES_PREJUIZO,
   type AlertaGargalo,
   type ClienteDevolucao,
@@ -30,7 +34,41 @@ export type TrabalhoPrejuizoInput = {
   clienteNome: string;
   valor: number;
   instrucoes: string | null;
+  tipoProtese?: string;
+  status?: string;
+  segmentoFaturamento?: string | null;
+  dataEntrada?: string;
 };
+
+function valorPrejuizoHistorico(
+  historico: HistoricoEtapaRow,
+  mapaTrabalhos: Map<string, TrabalhoPrejuizoInput>
+) {
+  if ((historico.valorPrejuizo ?? 0) > 0) {
+    return historico.valorPrejuizo ?? 0;
+  }
+  if (!historico.tipoRepeticao && !historico.motivoRetorno) return 0;
+
+  const trabalho = mapaTrabalhos.get(historico.trabalhoId);
+  if (!trabalho) return 0;
+
+  const entrada: TrabalhoFinanceiroGeralInput = {
+    id: trabalho.id,
+    numeroOs: trabalho.numeroOs,
+    tipoProtese: trabalho.tipoProtese || "",
+    valor: trabalho.valor,
+    status: trabalho.status || "producao",
+    segmentoFaturamento: trabalho.segmentoFaturamento || "servico",
+    dataEntrada: trabalho.dataEntrada || new Date().toISOString(),
+    dataPrevista: null,
+    dataEntrega: null,
+    instrucoes: trabalho.instrucoes,
+    clienteNome: trabalho.clienteNome,
+    pacienteNome: "",
+  };
+
+  return valorServicoTrabalhoFinanceiro(entrada);
+}
 
 function inicioPeriodo(
   periodo: PeriodoClientesPrejuizo,
@@ -90,8 +128,10 @@ export function calcularRelatorioClientesPrejuizo(
   );
 
   const mapaClientes = new Map<string, string>();
+  const mapaTrabalhos = new Map<string, TrabalhoPrejuizoInput>();
   for (const t of trabalhos) {
     mapaClientes.set(t.clienteId, t.clienteNome);
+    mapaTrabalhos.set(t.id, t);
   }
 
   const analises = analisarRepeticoesPorOs(historicoPeriodo);
@@ -158,8 +198,9 @@ export function calcularRelatorioClientesPrejuizo(
 
   for (const h of historicoPeriodo) {
     const agg = obterAgg(h.clienteId);
-    if ((h.valorPrejuizo ?? 0) > 0) {
-      agg.prejuizo += h.valorPrejuizo ?? 0;
+    const prejuizoLinha = valorPrejuizoHistorico(h, mapaTrabalhos);
+    if (prejuizoLinha > 0) {
+      agg.prejuizo += prejuizoLinha;
     }
     agg.tempoParadoMs += duracaoMsHistorico(h.dataEntrada, h.dataSaida);
 

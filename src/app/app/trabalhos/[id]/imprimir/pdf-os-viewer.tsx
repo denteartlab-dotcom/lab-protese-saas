@@ -75,22 +75,41 @@ import {
   type EtapasPorServicoOs,
 } from "@/lib/etapas-os-impressao";
 
-function drawCode39(
+const CODIGO_BARRAS_ALTURA_MM = 8;
+const CODIGO_BARRAS_ESTREITA_MM = 0.32;
+
+function desenharCodigoBarrasOsNoPdf(
   pdf: {
     rect: (x: number, y: number, w: number, h: number, style?: string) => void;
     setFillColor: (r: number, g?: number, b?: number) => void;
+    setFont: (fontName: string, fontStyle?: string) => void;
+    setFontSize: (size: number) => void;
+    text: (text: string, x: number, y: number, options?: { align?: string }) => void;
   },
-  value: string,
+  numeroOs: number | string,
   x: number,
-  y: number
-) {
-  const narrow = 0.26;
-  const height = 8;
-  const { barras } = gerarBarrasCode39(value, narrow);
+  y: number,
+  opts?: { centralizarTextoEm?: number; fontSize?: number }
+): number {
+  const barcodeValue = valorCodigoBarrasOs(numeroOs);
+  if (!barcodeValue) return y;
+
+  const { barras, width } = gerarBarrasCode39(barcodeValue, CODIGO_BARRAS_ESTREITA_MM);
   pdf.setFillColor(0, 0, 0);
   for (const barra of barras) {
-    pdf.rect(x + barra.x, y, barra.w, height, "F");
+    pdf.rect(x + barra.x, y, barra.w, CODIGO_BARRAS_ALTURA_MM, "F");
   }
+
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(opts?.fontSize ?? 7);
+  const textoY = y + CODIGO_BARRAS_ALTURA_MM + 2.5;
+  if (opts?.centralizarTextoEm != null) {
+    pdf.text(barcodeValue, opts.centralizarTextoEm, textoY, { align: "center" });
+  } else {
+    pdf.text(barcodeValue, x, textoY);
+  }
+
+  return textoY + 3;
 }
 
 function extrairDataPrazoBr(texto?: string | null) {
@@ -567,7 +586,7 @@ function desenharRodapeRequisicaoA4(
     y: number,
     x2: number
   ) => void,
-  linhaPagina: (pdf: PdfRenderApi, lay: OsModelo1Layout, y: number, pageWidth: number) => void
+  linhaPagina: (_pdf: PdfRenderApi, _lay: OsModelo1Layout, _y: number, _pageWidth: number) => void
 ) {
   let y = yInicio;
 
@@ -593,10 +612,7 @@ function desenharRodapeRequisicaoA4(
     if (!lay.assinatura) {
       y += gapMm(4);
     }
-    const barcodeValue = valorCodigoBarrasOs(data.numeroOs);
-    drawCode39(pdf, barcodeValue, conteudoEsq, y);
-    y += 10;
-    linhaPagina(pdf, lay, y, pageWidth);
+    y = desenharCodigoBarrasOsNoPdf(pdf, data.numeroOs, conteudoEsq, y);
   }
 
   return y;
@@ -878,6 +894,7 @@ function renderModeloProducao(
   });
 
   y = desenharMetadadosServicoRequisicao(pdf, lay, data, colDesc, y, gapMm);
+  y += gapMm(5);
   y = desenharEtapasOsRequisicao(pdf, lay, data, m.conteudoEsq, y, gapMm, fontBase);
 
   if (lay.total) {
@@ -1112,6 +1129,7 @@ function renderModeloComprovante(
   });
 
   y = desenharMetadadosServicoRequisicao(pdf, lay, data, colDesc, y, gapMm);
+  y += gapMm(5);
   y = desenharEtapasOsRequisicao(pdf, lay, data, m.conteudoEsq, y, gapMm, fontBase);
 
   y += gapMm(1);
@@ -1302,10 +1320,11 @@ function renderTermicaModelo3(pdf: PdfRenderApi, data: PdfOsData): number {
   y += 5;
 
   const barcodeValue = valorCodigoBarrasOs(data.numeroOs);
-  const barcodeW = 42;
-  drawCode39(pdf, barcodeValue, cx - barcodeW / 2, y);
-  y += 10;
-  linhaTermica(pdf, y, pageWidth);
+  const { width: barcodeW } = gerarBarrasCode39(barcodeValue, CODIGO_BARRAS_ESTREITA_MM);
+  y = desenharCodigoBarrasOsNoPdf(pdf, data.numeroOs, cx - barcodeW / 2, y, {
+    centralizarTextoEm: cx,
+    fontSize: 6.5,
+  });
 
   return y + 2;
 }
@@ -1507,6 +1526,7 @@ function renderTermicaModelo4(
       y += 0.5;
     }
 
+    y += 5;
     y = desenharEtapasOsTermica(pdf, lay, data, mx, y, larguraCampo, fsSmall);
 
     linhaTermica(pdf, y, pageWidth, corLinha);
@@ -1581,9 +1601,11 @@ function renderTermicaModelo4(
 
   if (lay.codBarras) {
     const barcodeValue = valorCodigoBarrasOs(data.numeroOs);
-    const barcodeW = 42;
-    drawCode39(pdf, barcodeValue, cx - barcodeW / 2, y);
-    y += 10;
+    const { width: barcodeW } = gerarBarrasCode39(barcodeValue, CODIGO_BARRAS_ESTREITA_MM);
+    y = desenharCodigoBarrasOsNoPdf(pdf, data.numeroOs, cx - barcodeW / 2, y, {
+      centralizarTextoEm: cx,
+      fontSize: 6.5,
+    });
   }
 
   return y + 2;
@@ -1771,6 +1793,7 @@ function renderTermicaModelo5(
       y += 0.5;
     }
 
+    y += 5;
     y = desenharEtapasOsTermica(pdf, lay, data, mx, y, larguraCampo, fsSmall);
 
     linhaTermica(pdf, y, pageWidth, corLinha);
@@ -1843,9 +1866,11 @@ function renderTermicaModelo5(
 
   if (lay.codBarras) {
     const barcodeValue = valorCodigoBarrasOs(data.numeroOs);
-    const barcodeW = 42;
-    drawCode39(pdf, barcodeValue, cx - barcodeW / 2, y);
-    y += 10;
+    const { width: barcodeW } = gerarBarrasCode39(barcodeValue, CODIGO_BARRAS_ESTREITA_MM);
+    y = desenharCodigoBarrasOsNoPdf(pdf, data.numeroOs, cx - barcodeW / 2, y, {
+      centralizarTextoEm: cx,
+      fontSize: 6.5,
+    });
   }
 
   return y + 2;
@@ -1958,9 +1983,16 @@ async function renderEtiquetaOs(
       barcodeW,
       tip.barcodeAlturaMm
     );
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(Math.max(5, tip.fsOs - 1));
+    pdf.text(codigoBarras, margem + barcodeW / 2, margem + tip.barcodeAlturaMm + 2, {
+      align: "center",
+    });
   } else {
-    drawCode39(pdf, codigoBarras, margem, barcodeY);
-    barcodeW = 28 * (larguraMm / 54);
+    barcodeW = gerarBarrasCode39(codigoBarras, CODIGO_BARRAS_ESTREITA_MM).width;
+    desenharCodigoBarrasOsNoPdf(pdf, data.numeroOs, margem, barcodeY, {
+      fontSize: Math.max(5, tip.fsOs - 1),
+    });
   }
 
   pdf.setFont("helvetica", "bold");
@@ -1968,7 +2000,7 @@ async function renderEtiquetaOs(
   const osX = margem + barcodeW + tip.gapNumeroOsMm;
   pdf.text(String(data.numeroOs), osX, margem + tip.barcodeAlturaMm * 0.78);
 
-  let y = margem + tip.barcodeAlturaMm + tip.gapAposBarcodeMm;
+  let y = margem + tip.barcodeAlturaMm + tip.gapAposBarcodeMm + 2;
 
   if (data.cliente) {
     y = linhaEtiquetaRotulo(

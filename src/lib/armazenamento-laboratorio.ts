@@ -5,6 +5,7 @@ import {
   LISTAGEM_CONFIGS_KEY,
   MODULO_PRODUCAO_ETAPAS_PREFIX_LEGADO,
   THEME_STORAGE_KEY_LEGADO,
+  type FaseBootstrapArmazenamento,
 } from "@/lib/armazenamento-laboratorio-keys";
 
 /** Espelho em memória dos dados do PostgreSQL (JsonStore) — não usa localStorage. */
@@ -16,6 +17,10 @@ let bootstrapOk = false;
 let hidratando: Promise<void> | null = null;
 const filaSalvar = new Map<string, unknown>();
 let timerSalvar: ReturnType<typeof setTimeout> | null = null;
+const REVALIDAR_INTERVALO_MS = 5 * 60 * 1000;
+let ultimaRevalidacao = 0;
+let revalidando: Promise<void> | null = null;
+let complementarAgendado = false;
 
 export const ARMAZENAMENTO_LAB_PRONTO_EVENT = "lab-armazenamento-pronto";
 
@@ -107,6 +112,19 @@ function aplicarBootstrap(data: Record<string, unknown>) {
     espelho.set(key, valor);
     atualizarSnapshotServidor(key, valor);
   }
+}
+
+/** Mescla dados do servidor sem limpar o espelho — retorna se algo mudou. */
+function mesclarBootstrap(data: Record<string, unknown>): boolean {
+  let mudou = false;
+  for (const [key, valor] of Object.entries(data)) {
+    const novo = serializarValor(valor);
+    if (snapshotServidor.get(key) === novo) continue;
+    espelho.set(key, valor);
+    atualizarSnapshotServidor(key, valor);
+    mudou = true;
+  }
+  return mudou;
 }
 
 /** Atualiza espelho em memória com valor do servidor — não regrava no banco. */
@@ -247,27 +265,47 @@ function agendarSalvar(key: string, valor: unknown) {
   }, 280);
 }
 
-async function carregarBootstrapServidor(): Promise<boolean> {
+async function carregarBootstrapServidor(
+  fase: FaseBootstrapArmazenamento = "completa"
+): Promise<{ ok: boolean; mudou: boolean }> {
+  const query = fase === "completa" ? "" : `?fase=${fase}`;
   for (let tentativa = 1; tentativa <= BOOTSTRAP_TENTATIVAS; tentativa += 1) {
     try {
-      const res = await fetchComTimeout("/api/armazenamento/bootstrap", {
+      const res = await fetchComTimeout(`/api/armazenamento/bootstrap${query}`, {
         credentials: "same-origin",
         cache: "no-store",
       });
       if (!res.ok) continue;
       const json = (await res.json()) as { data?: Record<string, unknown> };
       if (json.data && typeof json.data === "object") {
-        aplicarBootstrap(json.data);
-        return true;
+        let mudou = false;
+        if (espelho.size === 0) {
+          aplicarBootstrap(json.data);
+          mudou = true;
+        } else {
+          mudou = mesclarBootstrap(json.data);
+        }
+        return { ok: true, mudou };
       }
     } catch (err) {
       console.warn(
-        `[armazenamento-laboratorio] bootstrap tentativa ${tentativa}/${BOOTSTRAP_TENTATIVAS}`,
+        `[armazenamento-laboratorio] bootstrap ${fase} tentativa ${tentativa}/${BOOTSTRAP_TENTATIVAS}`,
         err
       );
     }
   }
-  return false;
+  return { ok: false, mudou: false };
+}
+
+function agendarBootstrapComplementar() {
+  if (complementarAgendado || typeof window === "undefined") return;
+  complementarAgendado = true;
+  window.setTimeout(() => {
+    void (async () => {
+      const { ok, mudou } = await carregarBootstrapServidor("complementar");
+      if (ok && mudou) dispararPronto();
+    })();
+  }, 80);
 }
 
 /** Força nova carga do banco (ex.: botão "Tentar novamente"). */
@@ -276,6 +314,8 @@ export async function reinicializarArmazenamentoLaboratorio() {
   hidratado = false;
   bootstrapOk = false;
   hidratando = null;
+  complementarAgendado = false;
+  ultimaRevalidacao = 0;
   return inicializarArmazenamentoLaboratorio();
 }
 
@@ -287,7 +327,9 @@ export async function inicializarArmazenamentoLaboratorio() {
 
   hidratando = (async () => {
     limparLocalStorageLegadoLab();
-    bootstrapOk = await carregarBootstrapServidor();
+    const { ok } = await carregarBootstrapServidor("prioritaria");
+    bootstrapOk = ok;
+    if (ok) agendarBootstrapComplementar();
   })()
     .catch((err) => {
       console.error("[armazenamento-laboratorio] falha na inicialização", err);
@@ -304,11 +346,24 @@ export async function inicializarArmazenamentoLaboratorio() {
 }
 
 /** Recarrega espelho em memória a partir do banco (sem localStorage). */
-export async function revalidarArmazenamentoLaboratorio() {
+export async function revalidarArmazenamentoLaboratorio(forcar = false) {
   if (typeof window === "undefined" || !hidratado) return;
-  const ok = await carregarBootstrapServidor();
-  bootstrapOk = ok;
-  if (ok) dispararPronto();
+  if (!forcar && filaSalvar.size > 0) return;
+
+  const agora = Date.now();
+  if (!forcar && agora - ultimaRevalidacao < REVALIDAR_INTERVALO_MS) return;
+  if (revalidando) return revalidando;
+
+  revalidando = (async () => {
+    ultimaRevalidacao = Date.now();
+    const { ok, mudou } = await carregarBootstrapServidor("completa");
+    bootstrapOk = ok;
+    if (ok && mudou) dispararPronto();
+  })().finally(() => {
+    revalidando = null;
+  });
+
+  return revalidando;
 }
 
 export function lerArmazenamentoCache<T>(key: string, fallback: T): T {
@@ -362,8 +417,5 @@ if (typeof window !== "undefined") {
     if (document.visibilityState === "visible" && hidratado) {
       void revalidarArmazenamentoLaboratorio();
     }
-  });
-  window.addEventListener("focus", () => {
-    if (hidratado) void revalidarArmazenamentoLaboratorio();
   });
 }

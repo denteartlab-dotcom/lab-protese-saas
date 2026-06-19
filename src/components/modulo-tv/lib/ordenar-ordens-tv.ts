@@ -1,14 +1,28 @@
 import { classificarPrazoTv } from "@/components/modulo-tv/lib/prazo-categoria";
-import type { OrdemServicoTv } from "@/components/modulo-tv/types";
+import type { OrdemServicoTv, PrioridadeOs } from "@/components/modulo-tv/types";
 
-/** Ordem no topo da coluna: urgente → atrasada → hoje → amanhã → após amanhã. */
-function prioridadeColunaTv(ordem: OrdemServicoTv): number {
-  if (ordem.prioridade === "urgente") return 0;
+/** Topo da coluna: urgente → alta → média (normal) → baixa. */
+export function pesoPrioridadeOsTv(prioridade: PrioridadeOs): number {
+  switch (prioridade) {
+    case "urgente":
+      return 0;
+    case "alta":
+      return 1;
+    case "normal":
+      return 2;
+    case "baixa":
+      return 3;
+    default:
+      return 4;
+  }
+}
+
+function pesoPrazoColunaTv(ordem: OrdemServicoTv): number {
   const categoria = classificarPrazoTv(ordem);
-  if (categoria === "atrasada") return 1;
-  if (categoria === "hoje") return 2;
-  if (categoria === "amanha") return 3;
-  return 4;
+  if (categoria === "atrasada") return 0;
+  if (categoria === "hoje") return 1;
+  if (categoria === "amanha") return 2;
+  return 3;
 }
 
 function compararDentroDoGrupo(a: OrdemServicoTv, b: OrdemServicoTv) {
@@ -27,9 +41,13 @@ function compararDentroDoGrupo(a: OrdemServicoTv, b: OrdemServicoTv) {
 
 export function ordenarOrdensColunaTv(ordens: OrdemServicoTv[]): OrdemServicoTv[] {
   return [...ordens].sort((a, b) => {
-    const grupoA = prioridadeColunaTv(a);
-    const grupoB = prioridadeColunaTv(b);
-    if (grupoA !== grupoB) return grupoA - grupoB;
+    const diffPrioridade =
+      pesoPrioridadeOsTv(a.prioridade) - pesoPrioridadeOsTv(b.prioridade);
+    if (diffPrioridade !== 0) return diffPrioridade;
+
+    const diffPrazo = pesoPrazoColunaTv(a) - pesoPrazoColunaTv(b);
+    if (diffPrazo !== 0) return diffPrazo;
+
     return compararDentroDoGrupo(a, b);
   });
 }

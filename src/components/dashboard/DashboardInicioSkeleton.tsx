@@ -16,6 +16,25 @@ function PainelSkeleton({ alto = "min-h-[118px]" }: { alto?: string }) {
   );
 }
 
+function PainelEstoqueSkeleton() {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-4 bg-transparent px-0 py-1">
+      <Bloco className="h-4 w-16" />
+      <div className="flex flex-1 justify-center gap-10 sm:justify-end">
+        <div className="flex flex-col items-center gap-1.5">
+          <Bloco className="h-11 w-11 rounded-full" />
+          <Bloco className="h-3 w-20" />
+        </div>
+        <div className="flex flex-col items-center gap-1.5">
+          <Bloco className="h-11 w-11 rounded-full" />
+          <Bloco className="h-3 w-20" />
+        </div>
+      </div>
+      <Bloco className="h-6 w-28 rounded" />
+    </div>
+  );
+}
+
 export function DashboardInicioSkeleton() {
   return (
     <div className="space-y-4 text-[13px]" aria-busy="true" aria-label="Carregando início">
@@ -25,8 +44,9 @@ export function DashboardInicioSkeleton() {
         <Bloco className="h-4 w-16" />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <PainelSkeleton />
+      <PainelEstoqueSkeleton />
+
+      <div className="grid gap-4 lg:grid-cols-2">
         <PainelSkeleton />
         <PainelSkeleton />
       </div>

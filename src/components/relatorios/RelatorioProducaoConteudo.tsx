@@ -111,6 +111,140 @@ const SUB_COLUNAS_ETAPAS = [
   "SITUAÇÃO",
 ] as const;
 
+const LINHAS_POR_PAGINA = 20;
+
+function paginarItens<T>(itens: T[], paginaSolicitada: number, porPagina: number) {
+  const totalPaginas = Math.max(1, Math.ceil(itens.length / porPagina));
+  const paginaAtual = Math.min(Math.max(1, paginaSolicitada), totalPaginas);
+  const inicio = (paginaAtual - 1) * porPagina;
+  return {
+    itens: itens.slice(inicio, inicio + porPagina),
+    paginaAtual,
+    totalPaginas,
+  };
+}
+
+type BlocoAgrupadoRelatorio = {
+  id: string;
+  titulo: string;
+  dados: LinhaRelatorioProducao[];
+  subtotal: LinhaRelatorioProducao;
+};
+
+function extrairBlocosAgrupadosRelatorio(
+  linhas: LinhaRelatorioProducao[]
+): BlocoAgrupadoRelatorio[] {
+  const blocos: BlocoAgrupadoRelatorio[] = [];
+  let atual: BlocoAgrupadoRelatorio | null = null;
+
+  for (const linha of linhas) {
+    if (linha.tipo === "grupo") {
+      atual = {
+        id: linha.id,
+        titulo: linha.descricao,
+        dados: [],
+        subtotal: linha,
+      };
+      blocos.push(atual);
+      continue;
+    }
+    if (linha.tipo === "subtotal" && atual) {
+      atual.subtotal = linha;
+      atual = null;
+      continue;
+    }
+    if (linha.tipo === "dados" && atual) {
+      atual.dados.push(linha);
+    }
+  }
+
+  return blocos;
+}
+
+function PaginacaoRelatorioControles({
+  pagina,
+  totalPaginas,
+  onPagina,
+  colSpan,
+}: {
+  pagina: number;
+  totalPaginas: number;
+  onPagina: (pagina: number) => void;
+  colSpan: number;
+}) {
+  if (totalPaginas <= 1) return null;
+
+  const botoes: number[] = [];
+  const inicio = Math.max(1, pagina - 2);
+  const fim = Math.min(totalPaginas, inicio + 4);
+  for (let p = inicio; p <= fim; p += 1) botoes.push(p);
+
+  return (
+    <tr className="print:hidden">
+      <td colSpan={colSpan} className="border-b border-[#e5e7eb] bg-white px-3 py-2">
+        <div className="flex flex-wrap items-center justify-center gap-1.5">
+          <button
+            type="button"
+            disabled={pagina <= 1}
+            onClick={() => onPagina(pagina - 1)}
+            className="rounded border border-[#d1d5db] px-2 py-0.5 text-[11px] text-[#374151] hover:bg-[#f3f4f6] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Anterior
+          </button>
+          {botoes.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => onPagina(p)}
+              className={cn(
+                "min-w-[28px] rounded border px-2 py-0.5 text-[11px] font-medium",
+                p === pagina
+                  ? "border-[#4a90d9] bg-[#4a90d9] text-white"
+                  : "border-[#d1d5db] bg-white text-[#374151] hover:bg-[#f3f4f6]"
+              )}
+            >
+              {p}
+            </button>
+          ))}
+          <button
+            type="button"
+            disabled={pagina >= totalPaginas}
+            onClick={() => onPagina(pagina + 1)}
+            className="rounded border border-[#d1d5db] px-2 py-0.5 text-[11px] text-[#374151] hover:bg-[#f3f4f6] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Próxima
+          </button>
+          <span className="ml-1 text-[10px] text-[#9ca3af]">
+            Página {pagina} de {totalPaginas}
+          </span>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function LinhaDadosRelatorioTabela({ linha }: { linha: LinhaRelatorioProducao }) {
+  return (
+    <>
+      <td className="px-2 py-2 text-[#374151]">{linha.data}</td>
+      <td className="px-2 py-2 text-right text-[#374151]">{linha.os}</td>
+      <td className="px-2 py-2 text-right text-[#374151]">{linha.qtd}</td>
+      <td className="px-2 py-2 text-[#374151]">{linha.descricao}</td>
+      <td className="px-2 py-2 text-[#374151]">{linha.cor}</td>
+      <td className="px-2 py-2 text-[#374151]">{linha.dente}</td>
+      <td className="px-2 py-2 text-[#374151]">{linha.cliente}</td>
+      <td className="px-2 py-2 text-[#374151]">{linha.paciente}</td>
+      <td className="px-2 py-2 text-[#374151]">{linha.colaborador}</td>
+      <td className="px-2 py-2">
+        <BadgeSituacaoOs status={linha.situacaoKey} />
+      </td>
+      <td className="px-2 py-2 text-right text-[#374151]">
+        {typeof linha.valor === "number" ? money(linha.valor) : ""}
+      </td>
+    </>
+  );
+}
+
 function SelectSituacaoMulti({
   selecionados,
   onChange,
@@ -263,6 +397,8 @@ export function RelatorioProducaoConteudo() {
   const [trabalhos, setTrabalhos] = useState<TrabalhoRelatorioProducao[]>([]);
   const [gerado, setGerado] = useState(false);
   const [linhasExpandidas, setLinhasExpandidas] = useState<Set<string>>(new Set());
+  const [paginaLista, setPaginaLista] = useState(1);
+  const [paginaPorBloco, setPaginaPorBloco] = useState<Record<string, number>>({});
 
   const [opcaoRelatorio, setOpcaoRelatorio] =
     useState<OpcaoRelatorioProducao>("servicos_lista");
@@ -333,6 +469,8 @@ export function RelatorioProducaoConteudo() {
     } else {
       setOrdenacao((atual) => (atual === "servico" ? "data" : atual));
     }
+    setPaginaLista(1);
+    setPaginaPorBloco({});
   }, [opcaoRelatorio]);
 
   const clientesOpcoes = useMemo(() => {
@@ -394,6 +532,36 @@ export function RelatorioProducaoConteudo() {
   const linhasEtapas =
     resultado && resultado.layout === "servicos_etapas" ? resultado.linhas : [];
 
+  const relatorioAgrupado = useMemo(
+    () => !modoServicosAgrupados && linhas.some((l) => l.tipo === "grupo"),
+    [linhas, modoServicosAgrupados]
+  );
+
+  const blocosAgrupados = useMemo(
+    () => (relatorioAgrupado ? extrairBlocosAgrupadosRelatorio(linhas) : []),
+    [linhas, relatorioAgrupado]
+  );
+
+  const linhasDadosLista = useMemo(
+    () => linhas.filter((linha) => linha.tipo === "dados"),
+    [linhas]
+  );
+
+  const paginacaoEtapas = useMemo(
+    () => paginarItens(linhasEtapas, paginaLista, LINHAS_POR_PAGINA),
+    [linhasEtapas, paginaLista]
+  );
+
+  const paginacaoServicosAgrupados = useMemo(
+    () => paginarItens(linhasDadosLista, paginaLista, LINHAS_POR_PAGINA),
+    [linhasDadosLista, paginaLista]
+  );
+
+  const paginacaoListaDetalhada = useMemo(
+    () => paginarItens(linhasDadosLista, paginaLista, LINHAS_POR_PAGINA),
+    [linhasDadosLista, paginaLista]
+  );
+
   const totais = useMemo(
     () => (resultado ? totaisDoResultadoRelatorio(resultado) : { qtd: 0, registros: 0, valor: 0 }),
     [resultado]
@@ -401,11 +569,26 @@ export function RelatorioProducaoConteudo() {
 
   const totalRegistrosExibidos = modoServicosEtapas
     ? linhasEtapas.length
-    : linhas.length;
+    : relatorioAgrupado
+      ? blocosAgrupados.reduce((s, b) => s + b.dados.length, 0)
+      : linhas.filter((l) => l.tipo === "dados").length;
 
   function gerarRelatorio() {
     setLinhasExpandidas(new Set());
+    setPaginaLista(1);
+    setPaginaPorBloco({});
     setGerado(true);
+  }
+
+  function irParaPaginaLista(pagina: number) {
+    setPaginaLista(Math.max(1, pagina));
+  }
+
+  function irParaPaginaBloco(blocoId: string, pagina: number) {
+    setPaginaPorBloco((atual) => ({
+      ...atual,
+      [blocoId]: Math.max(1, pagina),
+    }));
   }
 
   function alternarExpansao(id: string) {
@@ -709,127 +892,134 @@ export function RelatorioProducaoConteudo() {
                     </td>
                   </tr>
                 ) : modoServicosEtapas ? (
-                  linhasEtapas.map((linha) => {
-                    const expandido = linhasExpandidas.has(linha.id);
-                    return (
-                      <Fragment key={linha.id}>
-                        <tr className="border-b border-[#f3f4f6] hover:bg-[#fafafa]">
-                          <td className="w-8 px-1 py-2">
-                            <button
-                              type="button"
-                              onClick={() => alternarExpansao(linha.id)}
-                              className="flex h-6 w-6 items-center justify-center rounded-sm text-[#6b7280] hover:bg-[#f3f4f6]"
-                              aria-expanded={expandido}
-                              aria-label={expandido ? "Recolher etapas" : "Expandir etapas"}
-                            >
-                              {expandido ? (
-                                <ChevronDown className="h-4 w-4" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4" />
-                              )}
-                            </button>
-                          </td>
-                          <td className="px-2 py-2 text-[#374151]">{linha.data}</td>
-                          <td className="px-2 py-2 text-right text-[#374151]">{linha.os}</td>
-                          <td className="px-2 py-2 text-right text-[#374151]">{linha.qtd}</td>
-                          <td className="px-2 py-2 text-[#374151]">{linha.descricao}</td>
-                          <td className="px-2 py-2 text-[#374151]">{linha.cor}</td>
-                          <td className="px-2 py-2 text-[#374151]">{linha.dente}</td>
-                          <td className="px-2 py-2 text-[#374151]">{linha.cliente}</td>
-                          <td className="px-2 py-2 text-[#374151]">{linha.paciente}</td>
-                          <td className="px-2 py-2 text-[#374151]">{linha.dataEntregue}</td>
-                          <td className="px-2 py-2">
-                            <BadgeSituacaoOs status={linha.situacaoKey} />
-                          </td>
-                          <td className="px-2 py-2 text-right text-[#374151]">
-                            {money(linha.valor)}
-                          </td>
-                        </tr>
-                        {expandido && (
-                          <tr className="border-b border-[#e5e7eb] bg-[#fafafa]">
-                            <td colSpan={COLUNAS_SERVICOS_ETAPAS.length} className="px-6 py-3">
-                              <p className="mb-2 text-[11px] font-semibold uppercase text-[#6b7280]">
-                                Etapas
-                              </p>
-                              <table className="w-full max-w-4xl border-collapse text-[11px]">
-                                <thead>
-                                  <tr className="border-b border-[#e5e7eb] bg-[#f3f4f6] text-[#6b7280]">
-                                    {SUB_COLUNAS_ETAPAS.map((col) => (
-                                      <th
-                                        key={col}
-                                        className={cn(
-                                          "px-2 py-2 font-semibold uppercase",
-                                          col === "TEMPO TOTAL (MIN)" ? "text-right" : "text-left"
-                                        )}
-                                      >
-                                        {col}
-                                      </th>
-                                    ))}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {linha.etapas.length === 0 ? (
-                                    <tr>
-                                      <td
-                                        colSpan={SUB_COLUNAS_ETAPAS.length}
-                                        className="px-2 py-3 text-center text-[#9ca3af]"
-                                      >
-                                        Nenhuma etapa cadastrada nesta OS.
-                                      </td>
-                                    </tr>
-                                  ) : (
-                                    linha.etapas.map((etapa) => (
-                                      <tr
-                                        key={etapa.id}
-                                        className="border-b border-[#f3f4f6] bg-white"
-                                      >
-                                        <td className="px-2 py-2 text-[#374151]">
-                                          {etapa.etapa}
-                                        </td>
-                                        <td className="px-2 py-2 text-[#374151]">
-                                          {etapa.colaborador}
-                                        </td>
-                                        <td className="px-2 py-2 text-[#374151]">
-                                          {etapa.dataInicio || "—"}
-                                        </td>
-                                        <td className="px-2 py-2 text-[#374151]">
-                                          {etapa.dataFim || "—"}
-                                        </td>
-                                        <td className="px-2 py-2 text-right text-[#374151]">
-                                          {etapa.tempoMinutos}
-                                        </td>
-                                        <td className="px-2 py-2">
-                                          <BadgeSituacaoOs status={etapa.situacaoKey} />
-                                        </td>
-                                      </tr>
-                                    ))
-                                  )}
-                                </tbody>
-                                <tfoot>
-                                  <tr className="bg-[#e8f4fc]">
-                                    <td
-                                      colSpan={4}
-                                      className="px-2 py-2 font-semibold text-[#4a90d9]"
-                                    >
-                                      Tempo Total (minutos)
-                                    </td>
-                                    <td className="px-2 py-2 text-right font-semibold text-[#4a90d9]">
-                                      {linha.tempoTotalMinutos}
-                                    </td>
-                                    <td className="px-2 py-2" />
-                                  </tr>
-                                </tfoot>
-                              </table>
+                  <>
+                    {paginacaoEtapas.itens.map((linha) => {
+                      const expandido = linhasExpandidas.has(linha.id);
+                      return (
+                        <Fragment key={linha.id}>
+                          <tr className="border-b border-[#f3f4f6] hover:bg-[#fafafa]">
+                            <td className="w-8 px-1 py-2">
+                              <button
+                                type="button"
+                                onClick={() => alternarExpansao(linha.id)}
+                                className="flex h-6 w-6 items-center justify-center rounded-sm text-[#6b7280] hover:bg-[#f3f4f6]"
+                                aria-expanded={expandido}
+                                aria-label={expandido ? "Recolher etapas" : "Expandir etapas"}
+                              >
+                                {expandido ? (
+                                  <ChevronDown className="h-4 w-4" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4" />
+                                )}
+                              </button>
+                            </td>
+                            <td className="px-2 py-2 text-[#374151]">{linha.data}</td>
+                            <td className="px-2 py-2 text-right text-[#374151]">{linha.os}</td>
+                            <td className="px-2 py-2 text-right text-[#374151]">{linha.qtd}</td>
+                            <td className="px-2 py-2 text-[#374151]">{linha.descricao}</td>
+                            <td className="px-2 py-2 text-[#374151]">{linha.cor}</td>
+                            <td className="px-2 py-2 text-[#374151]">{linha.dente}</td>
+                            <td className="px-2 py-2 text-[#374151]">{linha.cliente}</td>
+                            <td className="px-2 py-2 text-[#374151]">{linha.paciente}</td>
+                            <td className="px-2 py-2 text-[#374151]">{linha.dataEntregue}</td>
+                            <td className="px-2 py-2">
+                              <BadgeSituacaoOs status={linha.situacaoKey} />
+                            </td>
+                            <td className="px-2 py-2 text-right text-[#374151]">
+                              {money(linha.valor)}
                             </td>
                           </tr>
-                        )}
-                      </Fragment>
-                    );
-                  })
+                          {expandido && (
+                            <tr className="border-b border-[#e5e7eb] bg-[#fafafa]">
+                              <td colSpan={COLUNAS_SERVICOS_ETAPAS.length} className="px-6 py-3">
+                                <p className="mb-2 text-[11px] font-semibold uppercase text-[#6b7280]">
+                                  Etapas
+                                </p>
+                                <table className="w-full max-w-4xl border-collapse text-[11px]">
+                                  <thead>
+                                    <tr className="border-b border-[#e5e7eb] bg-[#f3f4f6] text-[#6b7280]">
+                                      {SUB_COLUNAS_ETAPAS.map((col) => (
+                                        <th
+                                          key={col}
+                                          className={cn(
+                                            "px-2 py-2 font-semibold uppercase",
+                                            col === "TEMPO TOTAL (MIN)" ? "text-right" : "text-left"
+                                          )}
+                                        >
+                                          {col}
+                                        </th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {linha.etapas.length === 0 ? (
+                                      <tr>
+                                        <td
+                                          colSpan={SUB_COLUNAS_ETAPAS.length}
+                                          className="px-2 py-3 text-center text-[#9ca3af]"
+                                        >
+                                          Nenhuma etapa cadastrada nesta OS.
+                                        </td>
+                                      </tr>
+                                    ) : (
+                                      linha.etapas.map((etapa) => (
+                                        <tr
+                                          key={etapa.id}
+                                          className="border-b border-[#f3f4f6] bg-white"
+                                        >
+                                          <td className="px-2 py-2 text-[#374151]">
+                                            {etapa.etapa}
+                                          </td>
+                                          <td className="px-2 py-2 text-[#374151]">
+                                            {etapa.colaborador}
+                                          </td>
+                                          <td className="px-2 py-2 text-[#374151]">
+                                            {etapa.dataInicio || "—"}
+                                          </td>
+                                          <td className="px-2 py-2 text-[#374151]">
+                                            {etapa.dataFim || "—"}
+                                          </td>
+                                          <td className="px-2 py-2 text-right text-[#374151]">
+                                            {etapa.tempoMinutos}
+                                          </td>
+                                          <td className="px-2 py-2">
+                                            <BadgeSituacaoOs status={etapa.situacaoKey} />
+                                          </td>
+                                        </tr>
+                                      ))
+                                    )}
+                                  </tbody>
+                                  <tfoot>
+                                    <tr className="bg-[#e8f4fc]">
+                                      <td
+                                        colSpan={4}
+                                        className="px-2 py-2 font-semibold text-[#4a90d9]"
+                                      >
+                                        Tempo Total (minutos)
+                                      </td>
+                                      <td className="px-2 py-2 text-right font-semibold text-[#4a90d9]">
+                                        {linha.tempoTotalMinutos}
+                                      </td>
+                                      <td className="px-2 py-2" />
+                                    </tr>
+                                  </tfoot>
+                                </table>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })}
+                    <PaginacaoRelatorioControles
+                      pagina={paginacaoEtapas.paginaAtual}
+                      totalPaginas={paginacaoEtapas.totalPaginas}
+                      onPagina={irParaPaginaLista}
+                      colSpan={colunasAtivas.length}
+                    />
+                  </>
                 ) : modoServicosAgrupados ? (
-                  linhas
-                    .filter((linha) => linha.tipo === "dados")
-                    .map((linha) => (
+                  <>
+                    {paginacaoServicosAgrupados.itens.map((linha) => (
                       <tr
                         key={linha.id}
                         className="border-b border-[#f3f4f6] hover:bg-[#fafafa]"
@@ -843,61 +1033,99 @@ export function RelatorioProducaoConteudo() {
                           {typeof linha.valor === "number" ? money(linha.valor) : ""}
                         </td>
                       </tr>
-                    ))
-                ) : (
-                  linhas.map((linha) => {
-                    if (linha.tipo === "grupo") {
-                      return (
-                        <tr key={linha.id} className="bg-[#e5e7eb]">
-                          <td
-                            colSpan={colunasAtivas.length}
-                            className="px-3 py-2 text-[12px] font-semibold uppercase text-[#374151]"
-                          >
-                            {linha.descricao}
-                          </td>
-                        </tr>
-                      );
-                    }
-                    if (linha.tipo === "subtotal") {
-                      return (
-                        <tr
-                          key={linha.id}
-                          className="border-b border-[#d1d5db] bg-[#f3f4f6] font-semibold"
+                    ))}
+                    <PaginacaoRelatorioControles
+                      pagina={paginacaoServicosAgrupados.paginaAtual}
+                      totalPaginas={paginacaoServicosAgrupados.totalPaginas}
+                      onPagina={irParaPaginaLista}
+                      colSpan={colunasAtivas.length}
+                    />
+                  </>
+                ) : relatorioAgrupado ? (
+                  blocosAgrupados.flatMap((bloco) => {
+                    const totalPaginas = Math.max(
+                      1,
+                      Math.ceil(bloco.dados.length / LINHAS_POR_PAGINA)
+                    );
+                    const paginaSolicitada = paginaPorBloco[bloco.id] ?? 1;
+                    const paginaAtual = Math.min(paginaSolicitada, totalPaginas);
+                    const inicio = (paginaAtual - 1) * LINHAS_POR_PAGINA;
+                    const dadosPagina = bloco.dados.slice(
+                      inicio,
+                      inicio + LINHAS_POR_PAGINA
+                    );
+                    const idsPagina = new Set(dadosPagina.map((l) => l.id));
+
+                    return [
+                      <tr key={`${bloco.id}-grupo`} className="bg-[#e5e7eb]">
+                        <td
+                          colSpan={colunasAtivas.length}
+                          className="px-3 py-2 text-[12px] font-semibold uppercase text-[#374151]"
                         >
-                          <td className="px-2 py-2" colSpan={2} />
-                          <td className="px-2 py-2 text-right text-[#374151]">{linha.qtd}</td>
-                          <td className="px-2 py-2 text-[#374151]" colSpan={7}>
-                            {linha.descricao}
-                          </td>
-                          <td className="px-2 py-2 text-right text-[#4a90d9]">
-                            {typeof linha.valor === "number" ? money(linha.valor) : ""}
-                          </td>
+                          {bloco.titulo}
+                        </td>
+                      </tr>,
+                      ...bloco.dados.map((linha) =>
+                        idsPagina.has(linha.id) ? (
+                          <tr
+                            key={`${linha.id}-tela`}
+                            className="border-b border-[#f3f4f6] hover:bg-[#fafafa] print:hidden"
+                          >
+                            <LinhaDadosRelatorioTabela linha={linha} />
+                          </tr>
+                        ) : null
+                      ),
+                      ...bloco.dados.map((linha) => (
+                        <tr
+                          key={`${linha.id}-impressao`}
+                          className="hidden border-b border-[#f3f4f6] print:table-row"
+                        >
+                          <LinhaDadosRelatorioTabela linha={linha} />
                         </tr>
-                      );
-                    }
-                    return (
+                      )),
+                      <PaginacaoRelatorioControles
+                        key={`${bloco.id}-pag`}
+                        pagina={paginaAtual}
+                        totalPaginas={totalPaginas}
+                        onPagina={(p) => irParaPaginaBloco(bloco.id, p)}
+                        colSpan={colunasAtivas.length}
+                      />,
+                      <tr
+                        key={`${bloco.id}-subtotal`}
+                        className="border-b border-[#d1d5db] bg-[#f3f4f6] font-semibold"
+                      >
+                        <td className="px-2 py-2" colSpan={2} />
+                        <td className="px-2 py-2 text-right text-[#374151]">
+                          {bloco.subtotal.qtd}
+                        </td>
+                        <td className="px-2 py-2 text-[#374151]" colSpan={7}>
+                          {bloco.subtotal.descricao}
+                        </td>
+                        <td className="px-2 py-2 text-right text-[#4a90d9]">
+                          {typeof bloco.subtotal.valor === "number"
+                            ? money(bloco.subtotal.valor)
+                            : ""}
+                        </td>
+                      </tr>,
+                    ].filter(Boolean);
+                  })
+                ) : (
+                  <>
+                    {paginacaoListaDetalhada.itens.map((linha) => (
                       <tr
                         key={linha.id}
                         className="border-b border-[#f3f4f6] hover:bg-[#fafafa]"
                       >
-                        <td className="px-2 py-2 text-[#374151]">{linha.data}</td>
-                        <td className="px-2 py-2 text-right text-[#374151]">{linha.os}</td>
-                        <td className="px-2 py-2 text-right text-[#374151]">{linha.qtd}</td>
-                        <td className="px-2 py-2 text-[#374151]">{linha.descricao}</td>
-                        <td className="px-2 py-2 text-[#374151]">{linha.cor}</td>
-                        <td className="px-2 py-2 text-[#374151]">{linha.dente}</td>
-                        <td className="px-2 py-2 text-[#374151]">{linha.cliente}</td>
-                        <td className="px-2 py-2 text-[#374151]">{linha.paciente}</td>
-                        <td className="px-2 py-2 text-[#374151]">{linha.colaborador}</td>
-                        <td className="px-2 py-2">
-                          <BadgeSituacaoOs status={linha.situacaoKey} />
-                        </td>
-                        <td className="px-2 py-2 text-right text-[#374151]">
-                          {typeof linha.valor === "number" ? money(linha.valor) : ""}
-                        </td>
+                        <LinhaDadosRelatorioTabela linha={linha} />
                       </tr>
-                    );
-                  })
+                    ))}
+                    <PaginacaoRelatorioControles
+                      pagina={paginacaoListaDetalhada.paginaAtual}
+                      totalPaginas={paginacaoListaDetalhada.totalPaginas}
+                      onPagina={irParaPaginaLista}
+                      colSpan={colunasAtivas.length}
+                    />
+                  </>
                 )}
               </tbody>
               {gerado && (

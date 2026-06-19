@@ -16,6 +16,10 @@ import {
   type LancamentoFinanceiroResumo,
   type TrabalhoFinanceiroRef,
 } from "@/lib/dashboard-financeiro";
+import {
+  valorServicoTrabalhoFinanceiro,
+  type TrabalhoFinanceiroGeralInput,
+} from "@/lib/relatorio-financeiro-geral";
 import type { TrabalhoProducaoSetorRef } from "@/lib/dashboard-producao-setores";
 import {
   trabalhoContaNoGraficoProducao,
@@ -143,6 +147,38 @@ function agregarItensFornecedoresAno(lancamentos: LancamentoDre[], ano: number) 
   }
 
   return itens;
+}
+
+function trabalhoParaValorFinanceiro(t: TrabalhoDashboardGerencial): TrabalhoFinanceiroGeralInput {
+  const dataEntrada =
+    typeof t.dataEntrada === "string" ? t.dataEntrada : t.dataEntrada.toISOString();
+  const dataPrevista =
+    t.dataPrevista == null
+      ? null
+      : typeof t.dataPrevista === "string"
+        ? t.dataPrevista
+        : t.dataPrevista.toISOString();
+  const dataEntrega =
+    t.dataEntrega == null
+      ? null
+      : typeof t.dataEntrega === "string"
+        ? t.dataEntrega
+        : t.dataEntrega.toISOString();
+
+  return {
+    id: t.id,
+    numeroOs: t.numeroOs,
+    tipoProtese: t.tipoProtese || "",
+    valor: t.valor,
+    status: t.status,
+    segmentoFaturamento: t.segmentoFaturamento || "servico",
+    dataEntrada,
+    dataPrevista,
+    dataEntrega,
+    instrucoes: t.instrucoes ?? null,
+    clienteNome: t.clienteNome,
+    pacienteNome: "",
+  };
 }
 
 function nomeServicoExibicao(tipoProtese: string) {
@@ -303,9 +339,9 @@ export function calcularDashboardGerencial(input: {
     }
   }
 
-  const itensServicoQtd = trabalhosServico.map((t) => ({
+  const itensServicoValor = trabalhosServico.map((t) => ({
     nome: nomeServicoExibicao(t.tipoProtese || ""),
-    valor: 1,
+    valor: valorServicoTrabalhoFinanceiro(trabalhoParaValorFinanceiro(t)),
   }));
 
   const curvaClientes = gerarCurvaAbcClientes(recebimentosCurva, { porId: new Map(), porNumeroOs: new Map() }, {
@@ -317,7 +353,7 @@ export function calcularDashboardGerencial(input: {
 
   const curvaAbcClientesSecoes = curvaClientes.secoes;
 
-  const secoesServicos = classificarCurvaAbcPorNome(itensServicoQtd).secoes;
+  const secoesServicos = classificarCurvaAbcPorNome(itensServicoValor).secoes;
   const secoesFornecedores = classificarCurvaAbcPorNome(
     agregarItensFornecedoresAno(lancamentos, ano)
   ).secoes;

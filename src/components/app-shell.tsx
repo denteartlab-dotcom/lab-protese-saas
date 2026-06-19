@@ -379,7 +379,7 @@ function AppShellInner({
     setItemOsSelecionado(null);
     setBuscaOsExecutada(false);
     setCodigoBarrasMensagem("");
-    setLeitorCodigoAberto(true);
+    setLeitorCodigoAberto(false);
   }
 
   function abrirOs(trabalho: TrabalhoBuscaOs) {
@@ -936,7 +936,10 @@ function AppShellInner({
               </span>
               <button
                 type="button"
-                onClick={() => setBuscaOsAberta(false)}
+                onClick={() => {
+                  setLeitorCodigoAberto(false);
+                  setBuscaOsAberta(false);
+                }}
                 className="flex h-7 w-7 items-center justify-center rounded text-lg leading-none text-slate-500 hover:bg-slate-100"
                 aria-label="Fechar"
               >

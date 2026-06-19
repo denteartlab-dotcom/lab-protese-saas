@@ -138,7 +138,7 @@ export function exportarRelatorioFinanceiroGeralCsv(
 
 export function resumoExportacaoFinanceiroGeral(dados: RelatorioFinanceiroGeralPayload) {
   return [
-    ["Valor Bruto Total", moeda(dados.resumo.valorBrutoTotal)],
+    ["Valor Bruto Total (OS)", moeda(dados.resumo.valorBrutoTotal)],
     ["Quantidade Total", String(dados.resumo.quantidadeTotal)],
     ["Ticket Médio", moeda(dados.resumo.ticketMedio)],
     ["Valor Médio Mensal", moeda(dados.resumo.valorMedioMensal)],
@@ -146,6 +146,9 @@ export function resumoExportacaoFinanceiroGeral(dados: RelatorioFinanceiroGeralP
     ["Não Concluídos (valor)", moeda(dados.resumo.naoConcluidosValor)],
     ["Concluídos (qtd)", String(dados.resumo.concluidosQtd)],
     ["Concluídos (valor)", moeda(dados.resumo.concluidosValor)],
+    ["Receitas realizadas", moeda(dados.financeiroRealizado.resumo.receitasTotal)],
+    ["Despesas realizadas", moeda(dados.financeiroRealizado.resumo.despesasTotal)],
+    ["Saldo realizado", moeda(dados.financeiroRealizado.resumo.saldoTotal)],
     ...dados.tabelaPorTipo.map((t) => [
       `${t.servico} — %`,
       formatarPercentualFinanceiroGeral(t.percentual),

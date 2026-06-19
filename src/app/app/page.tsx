@@ -293,13 +293,22 @@ export default function DashboardPage() {
         <span className="font-medium text-slate-700">{t("dashboard.inicio")}</span>
       </div>
 
+      <PainelEstoque
+        titulo={t("dashboard.estoque")}
+        baixo={estoqueResumo.baixo}
+        zerado={estoqueResumo.zerado}
+        labelBaixo={t("dashboard.estoqueBaixo")}
+        labelZerado={t("dashboard.estoqueZerado")}
+        labelOrcamento={t("dashboard.solicitarOrcamento")}
+      />
+
       <PainelUrgenciasClienteDashboard
         titulo={t("dashboard.urgentesCliente")}
         lista={dashboard.urgentesCliente ?? []}
         labelVisualizar={t("dashboard.visualizar")}
       />
 
-      <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
+      <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
         <PainelServicosDashboard
           titulo={t("dashboard.servicosVencendo")}
           valor={vencendo}
@@ -357,14 +366,6 @@ export default function DashboardPage() {
           onImprimir={() => void imprimirServicosAtrasados()}
           labelVisualizar={t("dashboard.visualizar")}
           labelImprimir={t("dashboard.imprimir")}
-        />
-        <PainelEstoque
-          titulo={t("dashboard.estoque")}
-          baixo={estoqueResumo.baixo}
-          zerado={estoqueResumo.zerado}
-          labelBaixo={t("dashboard.estoqueBaixo")}
-          labelZerado={t("dashboard.estoqueZerado")}
-          labelOrcamento={t("dashboard.solicitarOrcamento")}
         />
       </div>
 
@@ -517,20 +518,28 @@ function PainelEstoque({
   labelOrcamento: string;
 }) {
   return (
-    <div className="relative min-h-[118px] rounded border border-slate-200 bg-white px-4 pb-3 pt-3 shadow-sm">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-[13px] font-medium text-slate-700">{titulo}</p>
-        <Link
-          href="/app/orcamentos"
-          className="shrink-0 rounded border border-[#4a90d9] px-2 py-0.5 text-[10px] font-medium text-[#4a90d9] hover:bg-blue-50"
-        >
-          {labelOrcamento}
-        </Link>
+    <div className="flex flex-wrap items-center justify-between gap-4 bg-transparent px-0 py-1">
+      <p className="text-[13px] font-medium text-slate-700">{titulo}</p>
+      <div className="flex flex-1 flex-wrap items-center justify-center gap-10 sm:justify-end">
+        <IndicadorEstoque
+          valor={baixo}
+          tom="amber"
+          href="/app/produtos?estoque=minimo"
+          label={labelBaixo}
+        />
+        <IndicadorEstoque
+          valor={zerado}
+          tom="rose"
+          href="/app/produtos?estoque=zero"
+          label={labelZerado}
+        />
       </div>
-      <div className="mt-4 flex items-start justify-around gap-4 px-2">
-        <IndicadorEstoque valor={baixo} tom="amber" href="/app/produtos?estoque=minimo" label={labelBaixo} />
-        <IndicadorEstoque valor={zerado} tom="rose" href="/app/produtos?estoque=zero" label={labelZerado} />
-      </div>
+      <Link
+        href="/app/orcamentos"
+        className="shrink-0 rounded border border-[#4a90d9] bg-transparent px-2 py-0.5 text-[10px] font-medium text-[#4a90d9] hover:bg-blue-50/80"
+      >
+        {labelOrcamento}
+      </Link>
     </div>
   );
 }
@@ -546,22 +555,24 @@ function IndicadorEstoque({
   href: string;
   label: string;
 }) {
-  const circle = tom === "amber" ? "bg-amber-500 text-white" : "bg-red-500 text-white";
-  const link = tom === "amber" ? "text-amber-600" : "text-red-600";
+  const circle =
+    tom === "amber"
+      ? "border-amber-400 text-amber-600"
+      : "border-red-500 text-red-600";
+  const labelCls = tom === "amber" ? "text-amber-700" : "text-red-600";
   return (
-    <div className="flex items-center gap-2">
+    <Link href={href} className="group flex flex-col items-center gap-1.5">
       <span
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[13px] font-bold ${circle}`}
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 bg-transparent text-[15px] font-bold ${circle}`}
       >
         {valor}
       </span>
-      <div className="text-center">
-        <Link href={href} className={`text-[10px] font-medium underline-offset-2 hover:underline ${link}`}>
-          ver
-        </Link>
-        <p className="mt-0.5 text-[11px] text-slate-600">{label}</p>
-      </div>
-    </div>
+      <span
+        className={`text-center text-[11px] font-medium group-hover:underline ${labelCls}`}
+      >
+        {label}
+      </span>
+    </Link>
   );
 }
 
