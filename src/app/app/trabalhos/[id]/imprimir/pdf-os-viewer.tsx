@@ -650,6 +650,11 @@ function desenharMetaOsCabecalhoDireita(
     yDir += 4.5;
   }
 
+  pdf.setFontSize(8.5);
+  const statusOs = (data.status || data.producao || "").trim();
+  desenharRotuloValorDireita("Status: ", statusOs || "—", yDir);
+  yDir += 4.5;
+
   const usuario = (data.usuarioCriou || "").trim();
   if (lay.usuario) {
     desenharRotuloValorDireita("Usuário: ", usuario || "—", yDir);
