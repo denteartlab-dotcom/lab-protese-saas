@@ -129,8 +129,12 @@ export function situacaoFaturaLabel(lancamento: LancamentoContasReceber) {
 }
 
 export function referenciaLancamento(lancamento: LancamentoContasReceber) {
-  if (isCreditoGerado(lancamento)) return "Crédito";
-  if (isCreditoUtilizado(lancamento)) return "Desconto com crédito";
+  if (isCreditoGerado(lancamento)) return "Adiantamento";
+  if (isCreditoUtilizado(lancamento)) {
+    const descricao = lancamento.descricao.replace(/^desconto com crédito\s*-\s*/i, "").trim();
+    if (descricao.toLowerCase().startsWith("cobrança os")) return "Pagamento da fatura";
+    return descricao || "Abatimento de crédito";
+  }
   if (lancamento.descricao.toLowerCase().startsWith("cobrança os")) return "Pagamento da fatura";
   return "Recebimento";
 }

@@ -109,12 +109,78 @@ function ErroImpressao({
   );
 }
 
+const selectTrabalhoImpressao = {
+  id: true,
+  empresaId: true,
+  numeroOs: true,
+  segmentoFaturamento: true,
+  grupoOsId: true,
+  tipoProtese: true,
+  dentes: true,
+  cor: true,
+  material: true,
+  escala: true,
+  valor: true,
+  dataEntrada: true,
+  dataPrevista: true,
+  dataEntrega: true,
+  status: true,
+  instrucoes: true,
+  cliente: {
+    select: {
+      nome: true,
+      cro: true,
+      telefone: true,
+      celular: true,
+      email: true,
+      endereco: true,
+      cidade: true,
+      observacoes: true,
+    },
+  },
+  paciente: { select: { nome: true } },
+} as const;
+
+function valorMonetarioSeguro(valor: number) {
+  return Number.isFinite(valor) ? valor : 0;
+}
+
+function codigoErroPrisma(err: unknown) {
+  if (err && typeof err === "object" && "code" in err) {
+    return String((err as { code: string }).code);
+  }
+  return "";
+}
+
+function mensagemErroImpressao(err: unknown) {
+  const prismaCode = codigoErroPrisma(err);
+  if (prismaCode === "P2022") {
+    return "O banco Neon está desatualizado em relação ao sistema. No servidor, na pasta do projeto, execute: npx prisma db push (com DATABASE_URL do Neon no .env).";
+  }
+  if (prismaCode === "P1001" || prismaCode === "P1017") {
+    return "Não foi possível conectar ao banco de dados (Neon). Verifique DATABASE_URL no servidor e tente novamente.";
+  }
+  if (process.env.NODE_ENV === "development" && err instanceof Error) {
+    return err.message;
+  }
+  return "Não foi possível gerar a requisição. Verifique a conexão com o banco (Neon) e faça um novo deploy no servidor.";
+}
+
+function sanitizarItensImpressao(itens: ReturnType<typeof extrairItensImpressaoOs>) {
+  return itens.map((item) => ({
+    ...item,
+    unitario: valorMonetarioSeguro(item.unitario),
+  }));
+}
+
 async function ImprimirOSConteudo({
   id,
   sp,
+  empresaId,
 }: {
   id: string;
   sp: Record<string, string | string[] | undefined>;
+  empresaId: string;
 }) {
   const somenteItem = searchFlag(sp.somenteItem);
   const duasVias = sp.vias === "2" || searchFlag(sp.duasVias);
@@ -139,26 +205,19 @@ async function ImprimirOSConteudo({
   const segmentoParam = String(Array.isArray(sp.segmento) ? sp.segmento[0] : sp.segmento || "");
 
   /** Só campos usados no PDF — evita falha se o Neon estiver sem colunas novas do schema. */
-  const includeTrabalho = {
-    cliente: {
-      select: {
-        nome: true,
-        cro: true,
-        telefone: true,
-        celular: true,
-        email: true,
-        endereco: true,
-        cidade: true,
-        observacoes: true,
-      },
-    },
-    paciente: { select: { nome: true } },
-  } as const;
+  let t: Awaited<
+    ReturnType<typeof prisma.trabalho.findFirst<{ select: typeof selectTrabalhoImpressao }>>
+  > = null;
 
-  const t = await prisma.trabalho.findFirst({
-    where: { id },
-    include: includeTrabalho,
-  });
+  try {
+    t = await prisma.trabalho.findFirst({
+      where: { id, empresaId },
+      select: selectTrabalhoImpressao,
+    });
+  } catch (err) {
+    console.error("imprimir: findFirst", { id, empresaId, err });
+    throw err;
+  }
 
   if (!t) {
     return (
@@ -169,17 +228,17 @@ async function ImprimirOSConteudo({
     );
   }
 
-  type TrabalhoComRelacoes = typeof t;
+  type TrabalhoComRelacoes = NonNullable<typeof t>;
 
   let grupo: TrabalhoComRelacoes[] = [t];
   try {
     grupo = await prisma.trabalho.findMany({
-      where: whereGrupoOs(t),
+      where: { empresaId, ...whereGrupoOs(t) },
       orderBy: { segmentoFaturamento: "asc" },
-      include: includeTrabalho,
+      select: selectTrabalhoImpressao,
     });
   } catch (err) {
-    console.error("imprimir: grupo OS", { id, grupoOsId: grupoOsIdOf(t), err });
+    console.error("imprimir: grupo OS", { id, empresaId, grupoOsId: grupoOsIdOf(t), err });
     grupo = [t];
   }
 
@@ -189,10 +248,10 @@ async function ImprimirOSConteudo({
       ? grupo.map((row) => row.instrucoes)
       : [t.instrucoes];
   const valorGrupo = somenteItem
-    ? t.valor
+    ? valorMonetarioSeguro(t.valor)
     : grupo.length > 0
-      ? grupo.reduce((sum, row) => sum + row.valor, 0)
-      : t.valor;
+      ? grupo.reduce((sum, row) => sum + valorMonetarioSeguro(row.valor), 0)
+      : valorMonetarioSeguro(t.valor);
   const trabalhoServico =
     grupo.find((row) => (row.segmentoFaturamento || "servico") === "servico") || t;
 
@@ -217,16 +276,18 @@ async function ImprimirOSConteudo({
       dentes: t.dentes,
       cor: t.cor,
       escala: trabalhoServico.escala ?? t.escala,
-      valor: t.valor,
+      valor: valorMonetarioSeguro(t.valor),
     },
     {},
     segmentoSomenteItem
   );
 
-  itens = anexarPrazosServicoPorTrabalho(
-    itens,
-    grupo,
-    (status) => STATUS_TRABALHO[status]?.label || status
+  itens = sanitizarItensImpressao(
+    anexarPrazosServicoPorTrabalho(
+      itens,
+      grupo,
+      (status) => STATUS_TRABALHO[status]?.label || status
+    )
   );
 
   const prazoLinhaServico =
@@ -263,14 +324,18 @@ async function ImprimirOSConteudo({
     segmentoSomenteItem
   );
 
-  const [configLab, empresa] = await Promise.all([
-    carregarConfigLaboratorioServidor(t.empresaId),
-    prisma.empresa.findUnique({
+  const configLab = await carregarConfigLaboratorioServidor(t.empresaId);
+  let empresaNome: string | undefined;
+  try {
+    const empresa = await prisma.empresa.findUnique({
       where: { id: t.empresaId },
       select: { nome: true },
-    }),
-  ]);
-  const usuarioCriou = nomeUsuarioDocumentosLaboratorio(configLab, empresa?.nome);
+    });
+    empresaNome = empresa?.nome;
+  } catch (err) {
+    console.error("imprimir: empresa", { id, empresaId: t.empresaId, err });
+  }
+  const usuarioCriou = nomeUsuarioDocumentosLaboratorio(configLab, empresaNome);
 
   const etapasPorServico = somenteItem
     ? segmentoEfetivoTrabalho(t) === "servico"
@@ -340,28 +405,29 @@ export default async function ImprimirOSPage({
 
   const { id } = await params;
   const sp = await searchParams;
+  const empresaId = session.empresaId?.trim();
+
+  if (!empresaId) {
+    return (
+      <ErroImpressao
+        titulo="Sessão incompleta."
+        detalhe="Faça logout e login novamente para imprimir a OS."
+      />
+    );
+  }
 
   try {
     return await ImprimirOSConteudo({
       id,
       sp,
+      empresaId,
     });
   } catch (err) {
-    console.error("imprimir OS", { id, err });
-    const prismaCode =
-      err && typeof err === "object" && "code" in err
-        ? String((err as { code: string }).code)
-        : "";
-    const detalhe =
-      process.env.NODE_ENV === "development" && err instanceof Error
-        ? err.message
-        : prismaCode === "P2022"
-          ? "O banco Neon está desatualizado em relação ao sistema. No computador, na pasta do projeto, execute: npx prisma db push (com DATABASE_URL do Neon no .env)."
-          : "Não foi possível gerar a requisição. Verifique a conexão com o banco (Neon) e faça um novo deploy na Vercel.";
+    console.error("imprimir OS", { id, empresaId, err });
     return (
       <ErroImpressao
         titulo="Erro ao abrir a impressão."
-        detalhe={detalhe}
+        detalhe={mensagemErroImpressao(err)}
       />
     );
   }

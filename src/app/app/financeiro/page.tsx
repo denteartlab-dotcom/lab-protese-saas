@@ -43,6 +43,7 @@ import {
   calcularCreditoDisponivelClienteFatura,
   calcularSaldoAnteriorCreditoFatura,
   calcularUltimoPagamentoClienteFatura,
+  FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
 } from "@/lib/fatura-cliente-financeiro";
 import { htmlCabecalhoLab, labImpressaoFromConfig } from "@/lib/lab-logo";
 import { ContaBancariaConteudo } from "@/components/financeiro/ContaBancariaConteudo";
@@ -963,7 +964,7 @@ function FinanceiroReceberConteudo() {
           valor: creditoAplicado,
           data: brShortToIso(form.vencimento || form.data),
           status: "pago",
-          formaPagamento: "Crédito do cliente",
+          formaPagamento: FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
           descricao: descricaoReceitaComPlano(
             `Desconto com crédito - ${descricaoBase}`,
             anexos
@@ -1221,67 +1222,199 @@ function FinanceiroReceberConteudo() {
     const selecionados = recebendoCliente.lancamentos.filter((l) =>
       payload.faturasSelecionadas.includes(l.id)
     );
-    if (selecionados.length === 0) return;
 
-    let valorDisponivel = payload.formas.reduce((sum, f) => sum + parseMoney(f.valor), 0);
+    const valorDisponivel = payload.formas.reduce((sum, f) => sum + parseMoney(f.valor), 0);
     const formaPrincipal =
       payload.formas.find((f) => parseMoney(f.valor) > 0)?.forma ?? "Pix Externo";
+    const dataIso = brShortToIso(payload.dataRecebimento);
     const faturasPagas: Lancamento[] = [];
 
-    for (const l of selecionados) {
-      if (valorDisponivel <= 0) break;
-      const juros = payload.jurosPorFatura[l.id] ?? 0;
-      const devido = saldoFatura(l) + juros;
-      const valorPago = Math.min(valorDisponivel, devido);
-      const saldo = Math.max(devido - valorPago, 0);
+    if (selecionados.length === 0) {
+      if (valorDisponivel <= 0.009) return;
 
-      await fetch(`/api/financeiro/${l.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          valor: valorPago,
-          status: "pago",
-          formaPagamento: formaPrincipal,
-          data: brShortToIso(payload.dataRecebimento),
-        }),
-      });
-      faturasPagas.push({
-        ...l,
-        valor: valorPago,
-        status: "pago",
-        formaPagamento: formaPrincipal,
-        data: brShortToIso(payload.dataRecebimento),
-      });
-
-      if (saldo > 0.009) {
-        await fetch("/api/financeiro", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            tipo: "receita",
-            descricao: `${l.descricao} - Saldo restante`,
-            valor: saldo,
-            data: l.data,
-            status: "pendente",
-            formaPagamento: l.formaPagamento || formaPrincipal,
-            clienteId: l.cliente?.id,
-            trabalhoId: l.trabalho?.id,
-          }),
-        });
-      }
-
-      valorDisponivel -= valorPago;
-    }
-
-    if (valorDisponivel > 0.009) {
-      await fetch("/api/financeiro", {
+      const resAdiantamento = await fetch("/api/financeiro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tipo: "receita",
           clienteId: recebendoCliente.clienteId || undefined,
           valor: valorDisponivel,
-          data: brShortToIso(payload.dataRecebimento),
+          data: dataIso,
+          status: "pago",
+          formaPagamento: formaPrincipal,
+          descricao: "Adiantamento / Crédito cliente",
+        }),
+      });
+      const adiantamentoPayload = await resAdiantamento.json().catch(() => ({}));
+      if (adiantamentoPayload?.id) {
+        faturasPagas.push(adiantamentoPayload as Lancamento);
+      } else {
+        faturasPagas.push({
+          id: `credito-${Date.now()}`,
+          tipo: "receita",
+          descricao: "Adiantamento / Crédito cliente",
+          valor: valorDisponivel,
+          data: dataIso,
+          status: "pago",
+          formaPagamento: formaPrincipal,
+          cliente: recebendoCliente.clienteId
+            ? { id: recebendoCliente.clienteId, nome: recebendoCliente.nome }
+            : null,
+        });
+      }
+
+      if (imprimir) {
+        abrirModalRecibo(recebendoCliente.nome, faturasPagas);
+      }
+      setRecebendoCliente(null);
+      void loadPosMutacao();
+      return;
+    }
+
+    let creditoRestante = payload.abaterCredito
+      ? creditoDisponivelCliente(recebendoCliente.clienteId)
+      : 0;
+    let valorRestante = valorDisponivel;
+
+    for (const l of selecionados) {
+      const juros = payload.jurosPorFatura[l.id] ?? 0;
+      let devido = saldoFatura(l) + juros;
+
+      const creditoAplicado =
+        creditoRestante > 0.009 ? Math.min(creditoRestante, devido) : 0;
+
+      if (creditoAplicado > 0.009) {
+        const resCredito = await fetch("/api/financeiro", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tipo: "receita",
+            clienteId: recebendoCliente.clienteId || undefined,
+            valor: creditoAplicado,
+            data: dataIso,
+            status: "pago",
+            formaPagamento: FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
+            descricao: `Desconto com crédito - ${l.descricao}`,
+          }),
+        });
+        const creditoPayload = await resCredito.json().catch(() => ({}));
+        if (creditoPayload?.id) {
+          faturasPagas.push(creditoPayload as Lancamento);
+        } else {
+          faturasPagas.push({
+            id: `credito-uso-${Date.now()}`,
+            tipo: "receita",
+            descricao: `Desconto com crédito - ${l.descricao}`,
+            valor: creditoAplicado,
+            data: dataIso,
+            status: "pago",
+            formaPagamento: FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
+            cliente: recebendoCliente.clienteId
+              ? { id: recebendoCliente.clienteId, nome: recebendoCliente.nome }
+              : null,
+          });
+        }
+        creditoRestante -= creditoAplicado;
+        devido -= creditoAplicado;
+      }
+
+      if (devido <= 0.009) {
+        await fetch(`/api/financeiro/${l.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            valor: l.valor,
+            status: "pago",
+            formaPagamento: FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
+            data: dataIso,
+          }),
+        });
+        faturasPagas.push({
+          ...l,
+          valor: l.valor,
+          status: "pago",
+          formaPagamento: FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
+          data: dataIso,
+        });
+        continue;
+      }
+
+      if (valorRestante <= 0) continue;
+
+      const valorPago = Math.min(valorRestante, devido);
+      const saldo = Math.max(devido - valorPago, 0);
+
+      if (saldo <= 0.009) {
+        await fetch(`/api/financeiro/${l.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            valor: l.valor,
+            status: "pago",
+            formaPagamento: formaPrincipal,
+            data: dataIso,
+          }),
+        });
+        faturasPagas.push({
+          ...l,
+          valor: l.valor,
+          status: "pago",
+          formaPagamento: formaPrincipal,
+          data: dataIso,
+        });
+      } else {
+        const valorRegistrado =
+          creditoAplicado > 0.009
+            ? recebidoNaFatura(l) + creditoAplicado + valorPago
+            : valorPago;
+        await fetch(`/api/financeiro/${l.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            valor: valorRegistrado,
+            status: "pago",
+            formaPagamento: formaPrincipal,
+            data: dataIso,
+          }),
+        });
+        faturasPagas.push({
+          ...l,
+          valor: valorRegistrado,
+          status: "pago",
+          formaPagamento: formaPrincipal,
+          data: dataIso,
+        });
+
+        if (saldo > 0.009) {
+          await fetch("/api/financeiro", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tipo: "receita",
+              descricao: `${l.descricao} - Saldo restante`,
+              valor: saldo,
+              data: l.data,
+              status: "pendente",
+              formaPagamento: l.formaPagamento || formaPrincipal,
+              clienteId: l.cliente?.id,
+              trabalhoId: l.trabalho?.id,
+            }),
+          });
+        }
+      }
+
+      valorRestante -= valorPago;
+    }
+
+    if (valorRestante > 0.009) {
+      await fetch("/api/financeiro", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tipo: "receita",
+          clienteId: recebendoCliente.clienteId || undefined,
+          valor: valorRestante,
+          data: dataIso,
           status: "pago",
           formaPagamento: formaPrincipal,
           descricao: "Adiantamento / Crédito cliente",
@@ -1291,8 +1424,8 @@ function FinanceiroReceberConteudo() {
         id: `credito-${Date.now()}`,
         tipo: "receita",
         descricao: "Adiantamento / Crédito cliente",
-        valor: valorDisponivel,
-        data: brShortToIso(payload.dataRecebimento),
+        valor: valorRestante,
+        data: dataIso,
         status: "pago",
         formaPagamento: formaPrincipal,
         cliente: recebendoCliente.clienteId
@@ -1331,10 +1464,19 @@ function FinanceiroReceberConteudo() {
   }
 
   function referenciaLancamento(lancamento: Lancamento) {
-    if (isCreditoGerado(lancamento)) return "Crédito";
-    if (isCreditoUtilizado(lancamento)) return "Desconto com crédito";
+    if (isCreditoGerado(lancamento)) return "Adiantamento";
+    if (isCreditoUtilizado(lancamento)) {
+      const descricao = lancamento.descricao.replace(/^desconto com crédito\s*-\s*/i, "").trim();
+      if (descricao.toLowerCase().startsWith("cobrança os")) return "Pagamento da fatura";
+      return descricao || "Abatimento de crédito";
+    }
     if (lancamento.descricao.toLowerCase().startsWith("cobrança os")) return "Pagamento da fatura";
     return "Recebimento";
+  }
+
+  function formaPagamentoExibicao(lancamento: Lancamento) {
+    if (isCreditoUtilizado(lancamento)) return FORMA_PAGAMENTO_ABATIMENTO_CREDITO;
+    return lancamento.formaPagamento || "-";
   }
 
   function isFaturaContasReceber(lancamento: Lancamento) {
@@ -2032,8 +2174,14 @@ function FinanceiroReceberConteudo() {
                                       <tr key={`recebimento-${l.id}`} className="border-b border-slate-100">
                                         <td className="px-2 py-2">{formatDate(l.data)}</td>
                                         <td className="px-2 py-2">
-                                          <span className="rounded bg-cyan-50 px-2 py-1 text-cyan-700">
-                                            {l.formaPagamento || "-"}
+                                          <span
+                                            className={
+                                              isCreditoUtilizado(l)
+                                                ? "rounded bg-red-100 px-2 py-1 text-red-700"
+                                                : "rounded bg-cyan-50 px-2 py-1 text-cyan-700"
+                                            }
+                                          >
+                                            {formaPagamentoExibicao(l)}
                                           </span>
                                         </td>
                                         <td className="px-2 py-2">
@@ -2042,7 +2190,7 @@ function FinanceiroReceberConteudo() {
                                               isCreditoGerado(l)
                                                 ? "rounded bg-emerald-100 px-2 py-1 text-emerald-700"
                                                 : isCreditoUtilizado(l)
-                                                  ? "rounded bg-amber-100 px-2 py-1 text-amber-700"
+                                                  ? "rounded bg-blue-50 px-2 py-1 text-blue-700"
                                                   : "rounded bg-blue-50 px-2 py-1 text-blue-700"
                                             }
                                           >
@@ -2140,6 +2288,9 @@ function FinanceiroReceberConteudo() {
         parseMoney={parseMoney}
         formatCurrencyInput={formatCurrencyInput}
         onConfirmar={(payload, imprimir) => void confirmarRecebimento(payload, imprimir)}
+        creditoDisponivel={
+          recebendoCliente ? creditoDisponivelCliente(recebendoCliente.clienteId) : 0
+        }
         onVisualizar={(lancamento) => {
           if (!recebendoCliente) return;
           setDetalheRecebimento({

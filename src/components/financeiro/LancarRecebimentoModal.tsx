@@ -34,6 +34,7 @@ export type LancarRecebimentoConfirmacao = {
   formas: FormaRecebimentoEntrada[];
   dataRecebimento: string;
   emitirNotaFiscal: boolean;
+  abaterCredito?: boolean;
 };
 
 type FaturaLinha = {
@@ -61,6 +62,7 @@ type Props = {
   onConfirmar: (payload: LancarRecebimentoConfirmacao, imprimir: boolean) => void;
   onVisualizar: (lancamento: LancamentoRecebimento) => void;
   emitirNotaFiscalPadrao?: boolean;
+  creditoDisponivel?: number;
 };
 
 const FORMAS = ["Pix Externo", "Dinheiro", "Cartão", "Boleto", "Transferência"];
@@ -138,6 +140,7 @@ export function LancarRecebimentoModal({
   onConfirmar,
   onVisualizar,
   emitirNotaFiscalPadrao = false,
+  creditoDisponivel = 0,
 }: Props) {
   const [mounted, setMounted] = useState(false);
   const [selecaoAutomatica, setSelecaoAutomatica] = useState(false);
@@ -147,6 +150,7 @@ export function LancarRecebimentoModal({
   const [formas, setFormas] = useState<FormaRecebimentoEntrada[]>([]);
   const [dataRecebimento, setDataRecebimento] = useState(dateToBrShort(new Date()));
   const [emitirNotaFiscal, setEmitirNotaFiscal] = useState(emitirNotaFiscalPadrao);
+  const [abaterCredito, setAbaterCredito] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -166,6 +170,8 @@ export function LancarRecebimentoModal({
     [faturas, formatDate, numeroFatura, saldoFatura]
   );
 
+  const modoSomenteAdiantamento = linhas.length === 0;
+
   useEffect(() => {
     if (!open) return;
     setSelecaoAutomatica(false);
@@ -175,6 +181,7 @@ export function LancarRecebimentoModal({
     setFormas([{ ...novaFormaEntrada(), valor: formatCurrencyInput("0") }]);
     setDataRecebimento(dateToBrShort(new Date()));
     setEmitirNotaFiscal(emitirNotaFiscalPadrao);
+    setAbaterCredito(false);
   }, [open, emitirNotaFiscalPadrao, formatCurrencyInput]);
 
   const valorComJuros = (id: string, saldo: number) => saldo + (jurosPorFatura[id] ?? 0);
@@ -187,9 +194,16 @@ export function LancarRecebimentoModal({
     [linhas, selecionadas, jurosPorFatura]
   );
 
+  const valorCreditoAbater = useMemo(() => {
+    if (!abaterCredito || creditoDisponivel <= 0) return 0;
+    return Math.min(creditoDisponivel, valorSelecionado);
+  }, [abaterCredito, creditoDisponivel, valorSelecionado]);
+
+  const valorDinheiroSugerido = Math.max(0, valorSelecionado - valorCreditoAbater);
+
   useEffect(() => {
-    if (!open) return;
-    const valorFmt = formatCurrencyInput(String(Math.round(valorSelecionado * 100)));
+    if (!open || modoSomenteAdiantamento || selecionadas.length === 0) return;
+    const valorFmt = formatCurrencyInput(String(Math.round(valorDinheiroSugerido * 100)));
     setFormas((atual) => {
       if (atual.length === 0) {
         return [{ ...novaFormaEntrada(), valor: valorFmt }];
@@ -198,12 +212,18 @@ export function LancarRecebimentoModal({
       copia[0] = { ...copia[0], valor: valorFmt };
       return copia;
     });
-  }, [open, valorSelecionado, formatCurrencyInput]);
+  }, [open, modoSomenteAdiantamento, selecionadas.length, valorDinheiroSugerido, formatCurrencyInput]);
 
   const totalReceber = useMemo(
     () => formas.reduce((s, f) => s + parseMoney(f.valor), 0),
     [formas, parseMoney]
   );
+
+  const valorLancamentoCredito = useMemo(() => {
+    if (selecionadas.length === 0 || valorSelecionado <= 0.009) return 0;
+    const totalAplicado = totalReceber + valorCreditoAbater;
+    return Math.max(0, totalAplicado - valorSelecionado);
+  }, [selecionadas.length, valorSelecionado, totalReceber, valorCreditoAbater]);
 
   function aplicarSelecaoAutomatica(ativa: boolean) {
     setSelecaoAutomatica(ativa);
@@ -243,10 +263,21 @@ export function LancarRecebimentoModal({
         formas,
         dataRecebimento,
         emitirNotaFiscal,
+        abaterCredito: abaterCredito && valorCreditoAbater > 0,
       },
       imprimir
     );
   }
+
+  const podeConfirmar = useMemo(() => {
+    if (selecionadas.length === 0) {
+      return totalReceber > 0.009;
+    }
+    return (
+      valorSelecionado > 0.009 &&
+      totalReceber + valorCreditoAbater >= valorSelecionado - 0.02
+    );
+  }, [selecionadas.length, totalReceber, valorSelecionado, valorCreditoAbater]);
 
   if (!open || !mounted) return null;
 
@@ -306,15 +337,8 @@ export function LancarRecebimentoModal({
                   </th>
                 </tr>
               </thead>
-              <tbody>
-                {linhas.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className={cn(tdClass, "py-6 text-center text-[#9ca3af]")}>
-                      Nenhuma fatura pendente para este cliente.
-                    </td>
-                  </tr>
-                ) : (
-                  linhas.map((linha) => {
+              <tbody className={cn(linhas.length === 0 && "min-h-[40px]")}>
+                {linhas.map((linha) => {
                     const juros = jurosPorFatura[linha.id] ?? 0;
                     const editandoJuros = jurosEditando === linha.id;
                     return (
@@ -379,8 +403,7 @@ export function LancarRecebimentoModal({
                         </td>
                       </tr>
                     );
-                  })
-                )}
+                  })}
               </tbody>
             </table>
             <div className="flex justify-end border-t border-[#e5e7eb] bg-white px-3 py-2">
@@ -393,6 +416,13 @@ export function LancarRecebimentoModal({
           <div className="mt-4 border border-[#d1d5db]">
             <div className="flex flex-wrap items-center gap-4 border-b border-[#e5e7eb] px-3 py-2.5">
               <strong className="text-[12px] text-[#374151]">Lançar Recebimento</strong>
+              {creditoDisponivel > 0.009 && linhas.length > 0 ? (
+                <ToggleSmart
+                  checked={abaterCredito}
+                  onChange={setAbaterCredito}
+                  label={`Abater do Crédito de ${money(creditoDisponivel)}`}
+                />
+              ) : null}
               <ToggleSmart
                 checked={emitirNotaFiscal}
                 onChange={setEmitirNotaFiscal}
@@ -482,6 +512,13 @@ export function LancarRecebimentoModal({
               ))}
             </div>
 
+            {valorLancamentoCredito > 0.009 ? (
+              <p className="px-3 py-2 text-[12px] font-medium text-[#ea580c]">
+                Lançamento de Crédito {money(valorLancamentoCredito)} (O beneficiário terá saldo em
+                haver)
+              </p>
+            ) : null}
+
             <div className="px-3 py-2.5">
               <button
                 type="button"
@@ -493,7 +530,12 @@ export function LancarRecebimentoModal({
               </button>
             </div>
 
-            <div className="flex justify-end border-t border-[#e5e7eb] px-3 py-2">
+            <div className="flex flex-wrap justify-end gap-4 border-t border-[#e5e7eb] px-3 py-2">
+              {valorCreditoAbater > 0 ? (
+                <p className="text-[12px] font-medium text-[#dc2626]">
+                  Crédito a abater {money(valorCreditoAbater)}
+                </p>
+              ) : null}
               <p className="text-[12px] font-medium text-[#16a34a]">
                 Total Receber {money(totalReceber)}
               </p>
@@ -505,7 +547,7 @@ export function LancarRecebimentoModal({
           <button
             type="button"
             onClick={() => confirmar(false)}
-            disabled={selecionadas.length === 0 || totalReceber <= 0}
+            disabled={!podeConfirmar}
             className="h-11 rounded-sm bg-[#4a90d9] text-sm font-normal text-white hover:bg-[#3d7fc4] disabled:opacity-50"
           >
             Confirmar Recebimento
@@ -513,7 +555,7 @@ export function LancarRecebimentoModal({
           <button
             type="button"
             onClick={() => confirmar(true)}
-            disabled={selecionadas.length === 0 || totalReceber <= 0}
+            disabled={!podeConfirmar}
             className="h-11 rounded-sm bg-[#22c55e] text-sm font-normal text-white hover:bg-[#16a34a] disabled:opacity-50"
           >
             Confirmar Recebimento e Imprimir Recibo

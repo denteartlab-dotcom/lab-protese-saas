@@ -59,7 +59,7 @@ import {
 import { parseCurrencyBr } from "@/lib/cliente-financeiro";
 import { extrairDataPrazoBr } from "@/lib/os-itens-impressao";
 import { formatarDescontoImpressaoOs } from "@/lib/trabalho-os-segmento";
-import { gerarPngCode39DataUrl } from "@/lib/code39-barcode";
+import { gerarPngCode39DataUrl } from "@/lib/code39-barcode-core";
 import {
   colaboradorDaEtapaImpressao,
   colaboradorExibirNoTopoImpressao,

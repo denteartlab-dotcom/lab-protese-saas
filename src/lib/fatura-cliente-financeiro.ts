@@ -1,3 +1,6 @@
+/** Forma de pagamento exibida em vermelho quando o cliente usa crédito de adiantamento. */
+export const FORMA_PAGAMENTO_ABATIMENTO_CREDITO = "Abatimento de Crédito";
+
 export type LancamentoResumoFatura = {
   id: string;
   tipo: string;

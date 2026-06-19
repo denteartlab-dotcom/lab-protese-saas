@@ -42,7 +42,7 @@ import {
   numerosOsUnicosDasLinhas,
   valorCodigoBarrasOs,
 } from "@/lib/codigo-barras-os";
-import { svgCode39Html } from "@/lib/code39-barcode";
+import { svgCode39Html } from "@/lib/code39-barcode-core";
 
 export type OpcoesHtmlFaturaImpressao = {
   formato: "a4" | "termica";
