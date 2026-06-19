@@ -21,7 +21,6 @@ import {
 } from "@/lib/os-itens-impressao";
 import { carregarConfigLaboratorioServidor } from "@/lib/lab-config-servidor";
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
-import { normalizarConfigLaboratorio } from "@/lib/configuracoes-lab-parse";
 
 export type DadosImpressaoOsPdf = {
   numeroOs: number;
@@ -192,17 +191,16 @@ function nomeUsuarioDocumentosImpressao(
   config: Awaited<ReturnType<typeof carregarConfigLaboratorioServidor>>,
   empresaNome?: string
 ) {
-  const cfg = normalizarConfigLaboratorio(config);
   const nomeLab =
-    cfg.nomeLaboratorio?.trim() ||
-    cfg.nomeFantasia?.trim() ||
-    cfg.razaoSocial?.trim() ||
-    cfg.nome?.trim() ||
+    config.nomeLaboratorio?.trim() ||
+    config.nomeFantasia?.trim() ||
+    config.razaoSocial?.trim() ||
+    config.nome?.trim() ||
     "";
   return (
     nomeLab ||
     empresaNome?.trim() ||
-    cfg.responsavel?.trim() ||
+    config.responsavel?.trim() ||
     ""
   );
 }
@@ -382,9 +380,7 @@ export async function carregarDadosImpressaoOs({
     segmentoSomenteItem
   );
 
-  const configLab = normalizarConfigLaboratorio(
-    await carregarConfigLaboratorioServidor(t.empresaId)
-  );
+  const configLab = await carregarConfigLaboratorioServidor(t.empresaId);
   let empresaNome: string | undefined;
   try {
     const empresa = await prisma.empresa.findUnique({

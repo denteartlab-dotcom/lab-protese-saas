@@ -390,7 +390,7 @@ function desenharEtapasOsRequisicao(
   data: PdfOsData,
   x: number,
   yInicio: number,
-  g: (mm: number) => number,
+  gapMm: (mm: number) => number,
   fontBase: number
 ) {
   const blocos = blocosEtapasImpressaoPdf(data);
@@ -398,7 +398,7 @@ function desenharEtapasOsRequisicao(
 
   const larguraUtil = 182 - x;
   const checkbox = 3;
-  const alturaLinha = g(4);
+  const alturaLinha = gapMm(4);
   let y = yInicio;
 
   pdf.setFont("helvetica", "normal");
@@ -414,7 +414,7 @@ function desenharEtapasOsRequisicao(
       ? `${bloco.tituloServico} — Etapas:`
       : "Etapas:";
     pdf.text(rotulo, x, y);
-    y += g(4);
+    y += gapMm(4);
 
     let cursorX = x;
     let rowY = y;
@@ -429,7 +429,7 @@ function desenharEtapasOsRequisicao(
       cursorX += larguraEtapa;
     }
 
-    y = rowY + alturaLinha + g(1.5);
+    y = rowY + alturaLinha + gapMm(1.5);
   }
 
   return y;
@@ -491,7 +491,7 @@ function desenharMetadadosServicoRequisicao(
   data: PdfOsData,
   colDesc: number,
   yInicio: number,
-  g: (mm: number) => number
+  gapMm: (mm: number) => number
 ) {
   let y = yInicio;
   const mostraPrazo = lay.dataPrazo || lay.finalizado;
@@ -505,7 +505,7 @@ function desenharMetadadosServicoRequisicao(
 
   if (mostraPrazo) {
     desenharPrazoFinalizadoRequisicao(pdf, lay, data, colDesc, y);
-    y += g(4);
+    y += gapMm(4);
   }
   if (mostraColab) {
     labelValue(
@@ -519,11 +519,11 @@ function desenharMetadadosServicoRequisicao(
       colDesc,
       y
     );
-    y += g(4);
+    y += gapMm(4);
   }
   if (mostraProd) {
     labelValue(pdf, "Produção: ", data.producao || "", colDesc, y);
-    y += g(4);
+    y += gapMm(4);
   }
   return y;
 }
@@ -538,7 +538,7 @@ function desenharRodapeRequisicaoA4(
   pageWidth: number,
   conteudoEsq: number,
   yInicio: number,
-  g: (mm: number) => number,
+  gapMm: (mm: number) => number,
   fontBase: number,
   variante: VarianteRodapeRequisicao,
   linhaSegmento: (
@@ -553,7 +553,7 @@ function desenharRodapeRequisicaoA4(
   let y = yInicio;
 
   if (lay.assinatura) {
-    y += g(6);
+    y += gapMm(6);
     const largura =
       variante === "comprovante"
         ? OS_ASSINATURA_LINHA_COMPROVANTE_MM
@@ -567,12 +567,12 @@ function desenharRodapeRequisicaoA4(
         ? "Recebi o(s) serviço(s) descritos acima"
         : "Assinatura";
     pdf.text(rotuloAssinatura, pageWidth / 2, y + 4, { align: "center" });
-    y += g(6);
+    y += gapMm(6);
   }
 
   if (lay.codBarras) {
     if (!lay.assinatura) {
-      y += g(4);
+      y += gapMm(4);
     }
     const barcodeValue = valorCodigoBarrasOs(data.numeroOs);
     drawCode39(pdf, barcodeValue, conteudoEsq, y);
@@ -690,7 +690,7 @@ function desenharBordaRequisicaoPdf(
   corHex: string,
   yFimConteudo: number
 ) {
-  const { r, g, b } = hexParaRgb(corHex);
+  const { r, g: gVerde, b } = hexParaRgb(corHex);
   const pw = pdf.internal.pageSize.getWidth();
   const m = OS_MODELO1_BORDA_MARGEM_MM;
   const yTop = yTopoBordaRequisicaoPdf();
@@ -698,7 +698,7 @@ function desenharBordaRequisicaoPdf(
   const t = OS_REQUISICAO_BORDA_EXTERNA_MM;
   const w = pw - m * 2;
   const h = Math.max(t, yBottom - yTop);
-  pdf.setFillColor(r, g, b);
+  pdf.setFillColor(r, gVerde, b);
   pdf.rect(m, yTop, w, t, "F");
   pdf.rect(m, yBottom - t, w, t, "F");
   pdf.rect(m, yTop, t, h, "F");
@@ -714,8 +714,8 @@ function linhaRequisicaoPdf(
 ) {
   const { linhaEsq, linhaDir } = margensLinhaRequisicao(pageWidth);
   const h = OS_REQUISICAO_LINHA_INTERNA_MM;
-  const { r, g, b } = hexParaRgb(OS_REQUISICAO_LINHA_DIVISAO_COR);
-  pdf.setFillColor(r, g, b);
+  const { r, g: gVerde, b } = hexParaRgb(OS_REQUISICAO_LINHA_DIVISAO_COR);
+  pdf.setFillColor(r, gVerde, b);
   pdf.rect(linhaEsq, y - h / 2, linhaDir - linhaEsq, h, "F");
 }
 
@@ -727,8 +727,8 @@ function linhaRequisicaoPdfSegmento(
   x2: number
 ) {
   const h = OS_REQUISICAO_LINHA_INTERNA_MM;
-  const { r, g, b } = hexParaRgb(OS_REQUISICAO_LINHA_DIVISAO_COR);
-  pdf.setFillColor(r, g, b);
+  const { r, g: gVerde, b } = hexParaRgb(OS_REQUISICAO_LINHA_DIVISAO_COR);
+  pdf.setFillColor(r, gVerde, b);
   pdf.rect(x1, y - h / 2, x2 - x1, h, "F");
 }
 
@@ -741,7 +741,7 @@ function renderModeloProducao(
   const fontBase = Math.max(7, lay.tamanhoFonte * 0.53);
   const pageWidth = pdf.internal.pageSize.getWidth();
   const m = margensLinhaRequisicao(pageWidth);
-  const g = (mm: number) => gapRequisicaoMm(lay, mm);
+  const gapMm = (mm: number) => gapRequisicaoMm(lay, mm);
   const colDir = 110;
   let y = desenharCabecalhoRequisicaoPdf(pdf, {
     lab: data.lab,
@@ -769,7 +769,7 @@ function renderModeloProducao(
   }
   if (lay.numOs || lay.osExterna) {
     desenharMarcadoresUrgenciaRepeticao(pdf, data, colDir, y);
-    y += g(4);
+    y += gapMm(4);
   }
   if (lay.cliente) {
     labelValue(pdf, "Cliente:", data.cliente, m.conteudoEsq, y);
@@ -777,29 +777,29 @@ function renderModeloProducao(
   if (lay.caixa) {
     labelValue(pdf, "Caixa:", data.caixa, colDir, y, "");
   }
-  if (lay.cliente || lay.caixa) y += g(4);
+  if (lay.cliente || lay.caixa) y += gapMm(4);
   if (lay.dentista) {
     labelValue(pdf, "Dentista:", data.dentista, m.conteudoEsq, y);
   }
   if (lay.clienteTel) {
     pdf.text(`Telefones: ${data.telefones}`, colDir, y);
   }
-  if (lay.dentista || lay.clienteTel) y += g(4);
+  if (lay.dentista || lay.clienteTel) y += gapMm(4);
   if (lay.paciente) {
     labelValue(pdf, "Paciente:", data.paciente, m.conteudoEsq, y);
   }
   if (lay.clienteEnd) {
     pdf.text(`Endereço: ${data.endereco}`, colDir, y);
   }
-  if (lay.paciente || lay.clienteEnd) y += g(4);
+  if (lay.paciente || lay.clienteEnd) y += gapMm(4);
   if (lay.clienteEmail) {
     pdf.text(`Email: ${data.email}`, lay.clienteTel ? m.conteudoEsq : colDir, y);
-    y += g(4);
+    y += gapMm(4);
   }
 
-  y += g(2);
+  y += gapMm(2);
   linhaRequisicaoPdf(pdf, lay, y, pageWidth);
-  y += g(4);
+  y += gapMm(4);
 
   const colQtd = m.tabelaEsq;
   const colDesc = 28;
@@ -824,9 +824,9 @@ function renderModeloProducao(
   if (lay.valorUnit) pdf.text("Unitário", colUnit, y, { align: "right" });
   if (lay.desconto) pdf.text("Desc", colDescPct, y, { align: "right" });
   if (lay.subtotal) pdf.text("Subtotal", colSubtotalDir, y, { align: "right" });
-  y += g(2);
+  y += gapMm(2);
   linhaRequisicaoPdf(pdf, lay, y, pageWidth);
-  y += g(4);
+  y += gapMm(4);
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(fontBase);
@@ -847,48 +847,48 @@ function renderModeloProducao(
     if (lay.subtotal) {
       pdf.text(unitarioTabela(subtotalItem(item)), colSubtotalDir, y, { align: "right" });
     }
-    y += Math.max(g(4), descricaoLinhas.length * 4.2 * escalaEspacamentoRequisicao(lay));
+    y += Math.max(gapMm(4), descricaoLinhas.length * 4.2 * escalaEspacamentoRequisicao(lay));
 
     if (indiceItem < totalItens - 1) {
-      y += g(1);
+      y += gapMm(1);
       linhaRequisicaoPdf(pdf, lay, y, pageWidth);
-      y += g(4);
+      y += gapMm(4);
     } else {
-      y += g(1);
+      y += gapMm(1);
     }
   });
 
-  y = desenharMetadadosServicoRequisicao(pdf, lay, data, colDesc, y, g);
-  y = desenharEtapasOsRequisicao(pdf, lay, data, m.conteudoEsq, y, g, fontBase);
+  y = desenharMetadadosServicoRequisicao(pdf, lay, data, colDesc, y, gapMm);
+  y = desenharEtapasOsRequisicao(pdf, lay, data, m.conteudoEsq, y, gapMm, fontBase);
 
   if (lay.total) {
     linhaRequisicaoPdf(pdf, lay, y, pageWidth);
-    y += g(3);
+    y += gapMm(3);
     pdf.setFont("helvetica", "bold");
     pdf.text(`Total ${money(data.valor)}`, m.tabelaDir, y, { align: "right" });
-    y += g(6);
+    y += gapMm(6);
   } else {
     linhaRequisicaoPdf(pdf, lay, y, pageWidth);
-    y += g(4);
+    y += gapMm(4);
   }
 
   pdf.setFont("helvetica", "normal");
   if (lay.materialRec && data.materiais) {
     labelValue(pdf, "Materiais: ", data.materiais.slice(0, 110), m.conteudoEsq, y);
-    y += g(5);
+    y += gapMm(5);
   }
   if (lay.obsFicha && data.obsFicha) {
     labelValue(pdf, "Observação: ", data.obsFicha.slice(0, 110), m.conteudoEsq, y);
-    y += g(5);
+    y += gapMm(5);
   }
   if (lay.pecas && data.pecas) {
     labelValue(pdf, "Peças: ", data.pecas.slice(0, 110), m.conteudoEsq, y);
-    y += g(5);
+    y += gapMm(5);
   }
   if (lay.mensagem?.trim()) {
     const linhasMsg = pdf.splitTextToSize(lay.mensagem.trim(), 180);
     pdf.text(linhasMsg, m.conteudoEsq, y);
-    y += linhasMsg.length * 3.8 * escalaEspacamentoRequisicao(lay) + g(2);
+    y += linhasMsg.length * 3.8 * escalaEspacamentoRequisicao(lay) + gapMm(2);
   }
 
   y = desenharRodapeRequisicaoA4(
@@ -898,7 +898,7 @@ function renderModeloProducao(
     pageWidth,
     m.conteudoEsq,
     y,
-    g,
+    gapMm,
     fontBase,
     "producao",
     linhaRequisicaoPdfSegmento,
@@ -968,7 +968,7 @@ function renderModeloComprovante(
   const fontBase = Math.max(7, lay.tamanhoFonte * 0.53);
   const pageWidth = pdf.internal.pageSize.getWidth();
   const m = margensLinhaRequisicao(pageWidth);
-  const g = (mm: number) => gapRequisicaoMm(lay, mm);
+  const gapMm = (mm: number) => gapRequisicaoMm(lay, mm);
   const colDir = 110;
   let y = desenharCabecalhoRequisicaoPdf(pdf, {
     lab: data.lab,
@@ -994,7 +994,7 @@ function renderModeloComprovante(
     pdf.text(data.osExterna || "—", colDir + pdf.getTextWidth("OS Externa:") + 1.5, y);
     pdf.setFont("helvetica", "normal");
   }
-  if (lay.numOs || lay.osExterna) y += g(4);
+  if (lay.numOs || lay.osExterna) y += gapMm(4);
 
   if (lay.cliente) {
     labelValue(pdf, "Cliente:", data.cliente, m.conteudoEsq, y);
@@ -1002,7 +1002,7 @@ function renderModeloComprovante(
   if (lay.caixa) {
     labelValue(pdf, "Caixa:", data.caixa, colDir, y, "");
   }
-  if (lay.cliente || lay.caixa) y += g(4);
+  if (lay.cliente || lay.caixa) y += gapMm(4);
 
   if (lay.dentista) {
     labelValue(pdf, "Dentista:", data.dentista, m.conteudoEsq, y);
@@ -1010,7 +1010,7 @@ function renderModeloComprovante(
   if (lay.clienteTel) {
     pdf.text(`Telefones: ${data.telefones}`, colDir, y);
   }
-  if (lay.dentista || lay.clienteTel) y += g(4);
+  if (lay.dentista || lay.clienteTel) y += gapMm(4);
 
   if (lay.paciente) {
     labelValue(pdf, "Paciente:", data.paciente, m.conteudoEsq, y);
@@ -1022,16 +1022,16 @@ function renderModeloComprovante(
     pdf.text(data.email || "", colDir + pdf.getTextWidth("Email:") + 1.5, y);
     pdf.setFont("helvetica", "normal");
   }
-  if (lay.paciente || lay.clienteEmail) y += g(4);
+  if (lay.paciente || lay.clienteEmail) y += gapMm(4);
 
   if (lay.clienteEnd) {
     pdf.text(`Endereço: ${data.endereco}`, colDir, y);
-    y += g(4);
+    y += gapMm(4);
   }
 
-  y += g(2);
+  y += gapMm(2);
   linhaRequisicaoPdf(pdf, lay, y, pageWidth);
-  y += g(4);
+  y += gapMm(4);
 
   const colQtd = m.tabelaEsq;
   const colDesc = OS_REQUISICAO_COL_DESCRICAO_MM;
@@ -1056,9 +1056,9 @@ function renderModeloComprovante(
   if (lay.valorUnit) pdf.text("Unitário", colUnit, y, { align: "right" });
   if (lay.desconto) pdf.text("Desc", colDescPct, y, { align: "right" });
   if (lay.subtotal) pdf.text("Subtotal", colSubtotal, y, { align: "right" });
-  y += g(2);
+  y += gapMm(2);
   linhaRequisicaoPdf(pdf, lay, y, pageWidth);
-  y += g(4);
+  y += gapMm(4);
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(fontBase);
@@ -1088,16 +1088,16 @@ function renderModeloComprovante(
     if (lay.subtotal) {
       pdf.text(unitarioTabela(subtotal), colSubtotal, y, { align: "right" });
     }
-    y += Math.max(g(4), descricaoLinhas.length * 4.2 * escalaEspacamentoRequisicao(lay));
-    y += g(1);
+    y += Math.max(gapMm(4), descricaoLinhas.length * 4.2 * escalaEspacamentoRequisicao(lay));
+    y += gapMm(1);
   });
 
-  y = desenharMetadadosServicoRequisicao(pdf, lay, data, colDesc, y, g);
-  y = desenharEtapasOsRequisicao(pdf, lay, data, m.conteudoEsq, y, g, fontBase);
+  y = desenharMetadadosServicoRequisicao(pdf, lay, data, colDesc, y, gapMm);
+  y = desenharEtapasOsRequisicao(pdf, lay, data, m.conteudoEsq, y, gapMm, fontBase);
 
-  y += g(1);
+  y += gapMm(1);
   linhaRequisicaoPdf(pdf, lay, y, pageWidth);
-  y += g(5);
+  y += gapMm(5);
 
   const totalFinal = totalServicos - totalDescontos;
   if (lay.total) {
@@ -1106,13 +1106,13 @@ function renderModeloComprovante(
     pdf.setFontSize(fontBase + 1);
     pdf.text("TOTAL SERVIÇOS", blocoTotalX, y);
     pdf.text(money(totalServicos), m.tabelaDir, y, { align: "right" });
-    y += g(4);
+    y += gapMm(4);
     pdf.text("(-) DESCONTOS", blocoTotalX, y);
     pdf.text(money(totalDescontos), m.tabelaDir, y, { align: "right" });
-    y += g(4);
+    y += gapMm(4);
     pdf.text("(=) TOTAL", blocoTotalX, y);
     pdf.text(money(totalFinal > 0 ? totalFinal : data.valor), m.tabelaDir, y, { align: "right" });
-    y += g(4);
+    y += gapMm(4);
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(fontBase);
   }
@@ -1122,23 +1122,23 @@ function renderModeloComprovante(
     pdf.setFont("helvetica", "bold");
     pdf.text(data.materiais.slice(0, 120), m.conteudoEsq + pdf.getTextWidth("Materiais:") + 2, y);
     pdf.setFont("helvetica", "normal");
-    y += g(5);
+    y += gapMm(5);
   }
 
   if (lay.obsFicha && data.obsFicha) {
     pdf.setFont("helvetica", "bold");
     pdf.text("Observação:", m.conteudoEsq, y);
-    y += g(3);
+    y += gapMm(3);
     pdf.setFont("helvetica", "normal");
     const linhasFicha = pdf.splitTextToSize(data.obsFicha, 180);
     pdf.text(linhasFicha, m.conteudoEsq, y);
-    y += linhasFicha.length * 3.8 * escalaEspacamentoRequisicao(lay) + g(2);
+    y += linhasFicha.length * 3.8 * escalaEspacamentoRequisicao(lay) + gapMm(2);
   }
 
   if (lay.mensagem?.trim()) {
     const linhasMsg = pdf.splitTextToSize(lay.mensagem.trim(), 180);
     pdf.text(linhasMsg, m.conteudoEsq, y);
-    y += linhasMsg.length * 3.8 * escalaEspacamentoRequisicao(lay) + g(2);
+    y += linhasMsg.length * 3.8 * escalaEspacamentoRequisicao(lay) + gapMm(2);
   }
 
   y = desenharRodapeRequisicaoA4(
@@ -1148,7 +1148,7 @@ function renderModeloComprovante(
     pageWidth,
     m.conteudoEsq,
     y,
-    g,
+    gapMm,
     fontBase,
     "comprovante",
     linhaRequisicaoPdfSegmento,
@@ -1168,8 +1168,8 @@ function pxTermicaParaMm(px: number) {
 
 function linhaTermica(pdf: PdfRenderApi, y: number, pageWidth: number, corHex?: string) {
   if (corHex) {
-    const { r, g, b } = hexParaRgb(corHex);
-    pdf.setDrawColor(r, g, b);
+    const { r, g: gVerde, b } = hexParaRgb(corHex);
+    pdf.setDrawColor(r, gVerde, b);
   }
   pdf.setLineWidth(0.25);
   pdf.line(TERMICA_MARGEM, y, pageWidth - TERMICA_MARGEM, y);
@@ -1538,8 +1538,8 @@ function renderTermicaModelo4(
     y += 4;
     const assinW = 50;
     const assinX = cx - assinW / 2;
-    const { r, g, b } = hexParaRgb(corLinha);
-    pdf.setDrawColor(r, g, b);
+    const { r, g: gVerde, b } = hexParaRgb(corLinha);
+    pdf.setDrawColor(r, gVerde, b);
     pdf.setLineWidth(0.25);
     pdf.line(assinX, y, assinX + assinW, y);
     y += 4;
@@ -1802,8 +1802,8 @@ function renderTermicaModelo5(
     y += 4;
     const assinW = 50;
     const assinX = cx - assinW / 2;
-    const { r, g, b } = hexParaRgb(corLinha);
-    pdf.setDrawColor(r, g, b);
+    const { r, g: gVerde, b } = hexParaRgb(corLinha);
+    pdf.setDrawColor(r, gVerde, b);
     pdf.setLineWidth(0.25);
     pdf.line(assinX, y, assinX + assinW, y);
     y += 4;
