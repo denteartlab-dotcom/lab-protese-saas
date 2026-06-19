@@ -1,6 +1,7 @@
 import {
   CONFIG_LAB_PADRAO,
   CONFIG_LAB_STORAGE_KEY,
+  prepararConfigParaSalvar,
   type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
 import { normalizarConfigLaboratorio } from "@/lib/configuracoes-lab-parse";
@@ -35,11 +36,11 @@ export const carregarConfigLaboratorioServidor = cache(
         }),
       ]);
       if (parsed) {
-        const config = normalizarConfigLaboratorio(parsed);
+        let config = normalizarConfigLaboratorio(parsed);
         if (!config.nomeLaboratorio?.trim() && empresa?.nome?.trim()) {
-          return { ...config, nomeLaboratorio: empresa.nome.trim() };
+          config = { ...config, nomeLaboratorio: empresa.nome.trim() };
         }
-        return config;
+        return prepararConfigParaSalvar(config);
       }
       if (empresa?.nome?.trim()) {
         return {
@@ -59,7 +60,7 @@ export const carregarConfigLaboratorioServidor = cache(
     }
     try {
       const parsed = JSON.parse(row.payload) as Partial<ConfigLaboratorio>;
-      return normalizarConfigLaboratorio(parsed);
+      return prepararConfigParaSalvar(normalizarConfigLaboratorio(parsed));
     } catch {
       return configLaboratorioPadrao();
     }

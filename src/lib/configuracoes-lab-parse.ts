@@ -9,11 +9,11 @@ import { normalizarTipoPessoa } from "@/lib/configuracoes-lab";
 function migrarLegado(parsed: Partial<ConfigLaboratorio>): ConfigLaboratorio {
   const base = { ...CONFIG_LAB_PADRAO, ...parsed };
   if (!base.nomeLaboratorio?.trim()) {
+    const tipo = normalizarTipoPessoa(base.tipoPessoa);
     const legado =
-      base.nomeFantasia?.trim() ||
-      base.nome?.trim() ||
-      base.responsavel?.trim() ||
-      "";
+      tipo === "Jurídica"
+        ? base.nomeFantasia?.trim() || base.razaoSocial?.trim() || ""
+        : base.nome?.trim() || base.razaoSocial?.trim() || "";
     if (legado) base.nomeLaboratorio = legado;
   }
   if (parsed.rua) return base;

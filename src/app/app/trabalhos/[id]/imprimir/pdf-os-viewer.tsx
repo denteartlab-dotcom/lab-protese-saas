@@ -25,7 +25,7 @@ import {
   CONFIG_OS_ATUALIZADA_EVENT,
 } from "@/lib/configuracoes-os";
 import { configParaLabImpressao } from "@/lib/lab-logo";
-import { mesclarConfigLaboratorio } from "@/lib/lab-config-sync";
+import { configLaboratorioParaImpressao } from "@/lib/lab-config-sync";
 import { normalizarCabecalhoRequisicao, type CabecalhoRequisicaoConfig } from "@/lib/cabecalho-requisicao";
 import {
   hexParaRgb,
@@ -2058,10 +2058,7 @@ export function PdfOsViewer({
       return { ...base, lab: base.lab || LAB_IMPRESSAO_PADRAO };
     }
     try {
-      let cfg = carregarConfigLaboratorio();
-      if (base.configLaboratorio) {
-        cfg = mesclarConfigLaboratorio(cfg, base.configLaboratorio);
-      }
+      const cfg = configLaboratorioParaImpressao(base.configLaboratorio ?? null);
       const lab = configParaLabImpressao(cfg);
       const usuarioLaboratorio =
         base.usuarioCriou?.trim() ||
@@ -2083,7 +2080,7 @@ export function PdfOsViewer({
     } catch (err) {
       console.error("[PdfOsViewer] montarDadosPdf", err);
       const cfg = base.configLaboratorio
-        ? mesclarConfigLaboratorio(CONFIG_LAB_PADRAO, base.configLaboratorio)
+        ? configLaboratorioParaImpressao(base.configLaboratorio)
         : CONFIG_LAB_PADRAO;
       const lab = configParaLabImpressao(cfg);
       return {

@@ -12,7 +12,7 @@ import {
 } from "@/lib/configuracoes-lab";
 import { normalizarLogoTamanho } from "@/lib/lab-impressao";
 
-export { CONFIG_LAB_STORAGE_KEY as LAB_CONFIG_JSON_KEY };
+import { normalizarConfigLaboratorio } from "@/lib/configuracoes-lab-parse";
 
 export function montarConfigInicialCadastro(
   dados: {
@@ -73,26 +73,39 @@ function resolverNomeLaboratorioMesclado(
   local: ConfigLaboratorio,
   remoto: Partial<ConfigLaboratorio>
 ): string {
-  const direto = remoto.nomeLaboratorio?.trim() || local.nomeLaboratorio?.trim();
-  if (direto) return direto;
+  if (remoto.nomeLaboratorio?.trim()) return remoto.nomeLaboratorio.trim();
 
   const tipo = normalizarTipoPessoa(remoto.tipoPessoa ?? local.tipoPessoa);
-  if (tipo === "Jurídica") {
-    return (
-      remoto.nomeFantasia?.trim() ||
-      remoto.razaoSocial?.trim() ||
-      local.nomeFantasia?.trim() ||
-      local.razaoSocial?.trim() ||
-      nomeExibicaoLaboratorio(local)
-    );
+  const derivadoRemoto =
+    tipo === "Jurídica"
+      ? remoto.nomeFantasia?.trim() || remoto.razaoSocial?.trim()
+      : remoto.nome?.trim() || remoto.razaoSocial?.trim();
+  if (derivadoRemoto) return derivadoRemoto;
+
+  if (local.nomeLaboratorio?.trim()) return local.nomeLaboratorio.trim();
+  return nomeExibicaoLaboratorio({ ...local, ...remoto, tipoPessoa: tipo } as ConfigLaboratorio);
+}
+
+/** Config do laboratório para impressão — prioriza dados do servidor (não o cache local). */
+export function configLaboratorioParaImpressao(
+  servidor?: Partial<ConfigLaboratorio> | null,
+  local?: ConfigLaboratorio
+): ConfigLaboratorio {
+  const localCfg = local ?? carregarConfigLaboratorio();
+  if (!servidor || typeof servidor !== "object") {
+    return prepararConfigParaSalvar(localCfg);
   }
-  return (
-    remoto.nome?.trim() ||
-    remoto.razaoSocial?.trim() ||
-    local.nome?.trim() ||
-    local.razaoSocial?.trim() ||
-    nomeExibicaoLaboratorio(local)
-  );
+
+  const srv = prepararConfigParaSalvar(normalizarConfigLaboratorio(servidor));
+  const logoServidor = srv.logoDataUrl?.trim();
+  const logoLocal = localCfg.logoDataUrl?.trim();
+
+  return prepararConfigParaSalvar({
+    ...srv,
+    logoDataUrl: logoServidor || logoLocal || "",
+    logoTamanho: logoServidor ? srv.logoTamanho : localCfg.logoTamanho,
+    cabecalhoRequisicao: srv.cabecalhoRequisicao ?? localCfg.cabecalhoRequisicao,
+  });
 }
 
 /** Mescla config do servidor com a do navegador (prioriza nome salvo no servidor). */
