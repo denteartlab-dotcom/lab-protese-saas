@@ -146,10 +146,16 @@ function ConfiguracoesConteudo() {
   async function salvar() {
     if (!form) return;
     const nomeLab = (form.nomeLaboratorio?.trim() || nomeExibicaoLaboratorio(form)).trim();
+    const logoDataUrl = form.logoDataUrl?.trim() || inicial?.logoDataUrl?.trim() || "";
+    const logoTamanho = logoDataUrl
+      ? normalizarLogoTamanho(form.logoTamanho)
+      : normalizarLogoTamanho(inicial?.logoTamanho ?? form.logoTamanho);
     const payload: ConfigLaboratorio = {
       ...form,
       nomeLaboratorio: nomeLab,
       responsavel: nomeLab,
+      logoDataUrl,
+      logoTamanho,
     };
     setSalvando(true);
     try {

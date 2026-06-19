@@ -209,7 +209,7 @@ function AppShellInner({
     []
   );
   const logoPerfil = dimensoesLogoPx(lab, { largura: 36, altura: 36 });
-  const temLogoPerfil = montado && Boolean(lab.logoDataUrl?.startsWith("data:image"));
+  const temLogoPerfil = Boolean(lab.logoDataUrl?.startsWith("data:image"));
   function podeVerMenu(href: string) {
     if (acessoTotal) return true;
     const id = permissaoIdPorHref(href);
@@ -508,7 +508,7 @@ function AppShellInner({
           aberto={menuMobileAberto}
           onFechar={fecharMenuMobile}
           nomeLaboratorio={nomeLaboratorio}
-          logoDataUrl={montado ? lab.logoDataUrl : undefined}
+          logoDataUrl={lab.logoDataUrl?.startsWith("data:image") ? lab.logoDataUrl : undefined}
           logoLargura={logoPerfil.largura}
           logoAltura={logoPerfil.altura}
         />

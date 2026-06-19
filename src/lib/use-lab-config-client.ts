@@ -14,13 +14,26 @@ import {
   type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
-import { LAB_IMPRESSAO_PADRAO, type LabImpressaoConfig } from "@/lib/lab-impressao";
+import { LAB_IMPRESSAO_PADRAO, normalizarLogoTamanho, type LabImpressaoConfig } from "@/lib/lab-impressao";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
 
 type Props = {
   initialLab?: LabImpressaoConfig;
   initialNomeLaboratorio?: string;
 };
+
+function mesclarLogoLab(
+  ...fontes: (LabImpressaoConfig | undefined | null)[]
+): LabImpressaoConfig {
+  const valid = fontes.filter((l): l is LabImpressaoConfig => Boolean(l));
+  const base = valid[0] ?? LAB_IMPRESSAO_PADRAO;
+  const comLogo = valid.find((l) => l.logoDataUrl?.trim());
+  return {
+    ...base,
+    logoDataUrl: comLogo?.logoDataUrl?.trim() || "",
+    logoTamanho: normalizarLogoTamanho(comLogo?.logoTamanho ?? base.logoTamanho),
+  };
+}
 
 function storageSincronizado() {
   return (
@@ -42,10 +55,10 @@ function dadosDoServidor(
   initialLab?: LabImpressaoConfig,
   initialNomeLaboratorio?: string
 ) {
-  const lab = servidor?.lab ?? initialLab ?? LAB_IMPRESSAO_PADRAO;
+  const lab = mesclarLogoLab(initialLab, servidor?.lab);
   const nomeLaboratorio =
-    servidor?.nomeLaboratorio?.trim() ||
     initialNomeLaboratorio?.trim() ||
+    servidor?.nomeLaboratorio?.trim() ||
     lab.responsavel?.trim() ||
     NOME_LAB_PADRAO;
   return { lab, nomeLaboratorio };
@@ -70,8 +83,9 @@ export function useLabConfigClient({
       return dadosDoServidor(servidor, initialLab, initialNomeLaboratorio);
     }
     const cfg = carregarConfigLaboratorio();
+    const cacheLab = labImpressaoFromConfig();
     return {
-      lab: labImpressaoFromConfig(),
+      lab: mesclarLogoLab(cacheLab, initialLab, servidor?.lab),
       nomeLaboratorio: nomeLaboratorioExibicao(cfg, fallbackNome),
     };
   }, [cachePronto, servidor, initialLab, initialNomeLaboratorio, fallbackNome]);
