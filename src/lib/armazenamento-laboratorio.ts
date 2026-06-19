@@ -31,6 +31,25 @@ export function armazenamentoLaboratorioBootstrapOk() {
   return bootstrapOk;
 }
 
+/** Aguarda bootstrap do cache do laboratório (para impressão com logo/cabeçalho). */
+export function aguardarArmazenamentoLaboratorioPronto(timeoutMs = 8000): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  if (armazenamentoLaboratorioPronto() && armazenamentoLaboratorioBootstrapOk()) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(resolve, timeoutMs);
+    const onPronto = () => {
+      if (!armazenamentoLaboratorioPronto() || !armazenamentoLaboratorioBootstrapOk()) return;
+      window.clearTimeout(timer);
+      window.removeEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, onPronto);
+      resolve();
+    };
+    window.addEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, onPronto);
+    onPronto();
+  });
+}
+
 /** Indica se a chave já foi carregada do PostgreSQL (JsonStore). */
 export function chaveExisteNoServidor(key: string) {
   return chavesDoServidor.has(key);

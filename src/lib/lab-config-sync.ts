@@ -12,6 +12,7 @@ import {
 } from "@/lib/configuracoes-lab";
 import { normalizarLogoTamanho } from "@/lib/lab-impressao";
 
+import { normalizarCabecalhoRequisicao } from "@/lib/cabecalho-requisicao";
 import { normalizarConfigLaboratorio } from "@/lib/configuracoes-lab-parse";
 
 export function montarConfigInicialCadastro(
@@ -118,12 +119,21 @@ export function configLaboratorioParaImpressao(
   const srv = prepararConfigParaSalvar(normalizarConfigLaboratorio(servidor));
   const logoServidor = srv.logoDataUrl?.trim();
   const logoLocal = localCfg.logoDataUrl?.trim();
+  const logoDataUrl = logoServidor || logoLocal || "";
 
   return prepararConfigParaSalvar({
+    ...localCfg,
     ...srv,
-    logoDataUrl: logoServidor || logoLocal || "",
-    logoTamanho: logoServidor ? srv.logoTamanho : localCfg.logoTamanho,
-    cabecalhoRequisicao: srv.cabecalhoRequisicao ?? localCfg.cabecalhoRequisicao,
+    logoDataUrl,
+    logoTamanho: logoServidor
+      ? srv.logoTamanho
+      : logoLocal
+        ? localCfg.logoTamanho
+        : srv.logoTamanho,
+    cabecalhoRequisicao: normalizarCabecalhoRequisicao({
+      ...localCfg.cabecalhoRequisicao,
+      ...srv.cabecalhoRequisicao,
+    }),
   });
 }
 

@@ -10,6 +10,7 @@ import {
   type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
 import { LAB_IMPRESSAO_PADRAO, type LabImpressaoConfig } from "@/lib/lab-impressao";
+import { configParaLabImpressao } from "@/lib/lab-logo";
 import {
   hexParaRgb,
   OS_REQUISICAO_LINHA_DIVISAO_COR,
@@ -45,6 +46,10 @@ export type PdfCabecalhoApi = {
   rect: (x: number, y: number, w: number, h: number, style?: string) => void;
 };
 
+function formatoPdfImagem(dataUrl: string): "PNG" | "JPEG" {
+  return dataUrl.toLowerCase().includes("image/png") ? "PNG" : "JPEG";
+}
+
 function desenharLogoLab(
   pdf: PdfCabecalhoApi,
   lab: LabImpressaoConfig,
@@ -60,7 +65,7 @@ function desenharLogoLab(
     cab,
     lab.logoTamanho
   );
-  const fmt = dataUrl.includes("image/png") ? "PNG" : "JPEG";
+  const fmt = formatoPdfImagem(dataUrl);
   try {
     pdf.addImage(dataUrl, fmt, x, y, w, h);
     return { largura: w, altura: h };
@@ -89,7 +94,7 @@ export function desenharCabecalhoRequisicaoPdf(
   const cfg =
     opts.configLab ??
     (typeof window !== "undefined" ? carregarConfigLaboratorio() : null);
-  const lab = opts.lab || LAB_IMPRESSAO_PADRAO;
+  const lab = cfg ? configParaLabImpressao(cfg) : opts.lab || LAB_IMPRESSAO_PADRAO;
   const cab = normalizarCabecalhoRequisicao(
     opts.cabecalhoRequisicao ?? cfg?.cabecalhoRequisicao
   );

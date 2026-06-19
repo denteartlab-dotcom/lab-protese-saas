@@ -25,7 +25,10 @@ import {
   CONFIG_OS_ATUALIZADA_EVENT,
 } from "@/lib/configuracoes-os";
 import { configParaLabImpressao } from "@/lib/lab-logo";
-import { configLaboratorioParaImpressao } from "@/lib/lab-config-sync";
+import { configLaboratorioParaImpressao, sincronizarConfigLaboratorioDoServidor } from "@/lib/lab-config-sync";
+import {
+  aguardarArmazenamentoLaboratorioPronto,
+} from "@/lib/armazenamento-laboratorio";
 import { normalizarCabecalhoRequisicao, type CabecalhoRequisicaoConfig } from "@/lib/cabecalho-requisicao";
 import {
   hexParaRgb,
@@ -2060,7 +2063,7 @@ export function PdfOsViewer({
     try {
       const cfg = configLaboratorioParaImpressao(
         base.configLaboratorio ?? null,
-        base.configLaboratorio ?? null
+        carregarConfigLaboratorio()
       );
       const lab = configParaLabImpressao(cfg);
       const usuarioLaboratorio =
@@ -2128,15 +2131,32 @@ export function PdfOsViewer({
   }
 
   const [dadosPdf, setDadosPdf] = useState<PdfOsData>(() => montarDadosPdfDeServidor(data));
-  const [configOsPronta, setConfigOsPronta] = useState(true);
+  const [configOsPronta, setConfigOsPronta] = useState(false);
 
   useEffect(() => {
-    try {
-      setDadosPdf(montarDadosPdfDeServidor(data));
-    } catch (err) {
-      console.error("[PdfOsViewer] atualizar dados", err);
+    let ativo = true;
+
+    async function prepararConfigImpressao() {
+      setConfigOsPronta(false);
+      await aguardarArmazenamentoLaboratorioPronto();
+      try {
+        await sincronizarConfigLaboratorioDoServidor();
+      } catch {
+        /* offline */
+      }
+      if (!ativo) return;
+      try {
+        setDadosPdf(montarDadosPdfDeServidor(data));
+      } catch (err) {
+        console.error("[PdfOsViewer] preparar config", err);
+      }
+      setConfigOsPronta(true);
     }
-    setConfigOsPronta(true);
+
+    void prepararConfigImpressao();
+    return () => {
+      ativo = false;
+    };
   }, [data]);
 
   useEffect(() => {

@@ -14,7 +14,7 @@ import {
   salvarConfigLaboratorio,
   type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
-import { persistirConfigLaboratorioServidor } from "@/lib/lab-config-sync";
+import { persistirConfigLaboratorioServidor, preservarLogoConfigLaboratorio } from "@/lib/lab-config-sync";
 import { configParaLabImpressao, escalaLogoMultiplicador } from "@/lib/lab-logo";
 import { cn } from "@/lib/utils";
 
@@ -184,10 +184,13 @@ export function ConfiguracoesCabecalhoConteudo() {
     if (!cfg) return;
     setSalvando(true);
     setMensagem("");
-    const merged = {
-      ...cfg,
-      cabecalhoRequisicao: normalizarCabecalhoRequisicao(cab),
-    };
+    const merged = preservarLogoConfigLaboratorio(
+      {
+        ...cfg,
+        cabecalhoRequisicao: normalizarCabecalhoRequisicao(cab),
+      },
+      cfg
+    );
     salvarConfigLaboratorio(merged);
     try {
       await persistirConfigLaboratorioServidor(merged);
