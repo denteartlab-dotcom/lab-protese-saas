@@ -160,8 +160,13 @@ function mensagemErroImpressao(err: unknown) {
   if (prismaCode === "P1001" || prismaCode === "P1017") {
     return "Não foi possível conectar ao banco de dados (Neon). Verifique DATABASE_URL no servidor e tente novamente.";
   }
-  if (process.env.NODE_ENV === "development" && err instanceof Error) {
-    return err.message;
+  if (err instanceof Error) {
+    const msg = err.message.trim();
+    if (/plain objects|cannot be passed to client components/i.test(msg)) {
+      return "Erro ao montar os dados da OS para impressão. Atualize a página (Ctrl+F5) e tente novamente.";
+    }
+    if (process.env.NODE_ENV === "development") return msg;
+    if (msg.length > 0 && msg.length <= 160) return msg;
   }
   return "Não foi possível gerar a requisição. Verifique a conexão com o banco (Neon) e faça um novo deploy no servidor.";
 }
@@ -171,6 +176,11 @@ function sanitizarItensImpressao(itens: ReturnType<typeof extrairItensImpressaoO
     ...item,
     unitario: valorMonetarioSeguro(item.unitario),
   }));
+}
+
+/** Garante objeto serializável para o PdfOsViewer (evita falha silenciosa no RSC). */
+function sanitizarDadosPdfOs<T>(valor: T): T {
+  return JSON.parse(JSON.stringify(valor)) as T;
 }
 
 async function ImprimirOSConteudo({
@@ -211,7 +221,7 @@ async function ImprimirOSConteudo({
 
   try {
     t = await prisma.trabalho.findFirst({
-      where: { id, empresaId },
+      where: { id },
       select: selectTrabalhoImpressao,
     });
   } catch (err) {
@@ -224,6 +234,15 @@ async function ImprimirOSConteudo({
       <ErroImpressao
         titulo="OS não encontrada ou removida."
         detalhe="Volte para o Controle de Produção e abra uma OS existente."
+      />
+    );
+  }
+
+  if (t.empresaId !== empresaId) {
+    return (
+      <ErroImpressao
+        titulo="OS de outro laboratório."
+        detalhe="Faça logout e entre novamente na conta correta para imprimir esta OS."
       />
     );
   }
@@ -343,12 +362,7 @@ async function ImprimirOSConteudo({
       : []
     : etapasPorServicoImpressao(grupo, segmentoEfetivoTrabalho);
 
-  return (
-    <PdfOsViewer
-      formato={formato}
-      modelo={modelo}
-      duasVias={duasVias}
-      data={{
+  const dadosPdf = sanitizarDadosPdfOs({
         numeroOs: t.numeroOs,
         usuarioCriou,
         dataEntrada: dateOrEmpty(t.dataEntrada),
@@ -360,7 +374,7 @@ async function ImprimirOSConteudo({
         telefones: telefoneWhatsappCliente(cliente),
         email: empty(cliente.email),
         endereco: [cliente.endereco, cliente.cidade].filter(Boolean).join(" - "),
-        valor: valorGrupo,
+        valor: valorMonetarioSeguro(valorGrupo),
         prazo: dateOrEmpty(trabalhoServico.dataPrevista),
         prazoLaboratorio,
         prazoDentista,
@@ -381,7 +395,14 @@ async function ImprimirOSConteudo({
         pecas: empty(t.dentes),
         obsFicha: "",
         itens,
-      }}
+      });
+
+  return (
+    <PdfOsViewer
+      formato={formato}
+      modelo={modelo}
+      duasVias={duasVias}
+      data={dadosPdf}
     />
   );
 }

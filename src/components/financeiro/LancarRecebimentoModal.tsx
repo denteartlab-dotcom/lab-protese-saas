@@ -338,6 +338,17 @@ export function LancarRecebimentoModal({
                 </tr>
               </thead>
               <tbody className={cn(linhas.length === 0 && "min-h-[40px]")}>
+                {linhas.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={8}
+                      className="px-3 py-6 text-center text-[12px] text-[#6b7280]"
+                    >
+                      Nenhuma fatura pendente. Informe o valor abaixo para lançar adiantamento
+                      (crédito do cliente).
+                    </td>
+                  </tr>
+                ) : null}
                 {linhas.map((linha) => {
                     const juros = jurosPorFatura[linha.id] ?? 0;
                     const editandoJuros = jurosEditando === linha.id;
@@ -422,6 +433,10 @@ export function LancarRecebimentoModal({
                   onChange={setAbaterCredito}
                   label={`Abater do Crédito de ${money(creditoDisponivel)}`}
                 />
+              ) : creditoDisponivel > 0.009 ? (
+                <span className="text-[12px] text-[#16a34a]">
+                  Crédito disponível: {money(creditoDisponivel)}
+                </span>
               ) : null}
               <ToggleSmart
                 checked={emitirNotaFiscal}

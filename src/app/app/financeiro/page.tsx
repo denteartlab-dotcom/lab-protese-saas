@@ -1501,6 +1501,16 @@ function FinanceiroReceberConteudo() {
     return Math.max(creditos - usados, 0);
   }
 
+  function recebimentosDoCliente(clienteId?: string) {
+    if (!clienteId) return [];
+    return (data?.lancamentos || []).filter(
+      (lancamento) =>
+        lancamento.tipo === "receita" &&
+        lancamento.status === "pago" &&
+        lancamento.cliente?.id === clienteId
+    );
+  }
+
   function creditoUsadoNaFatura(lancamento: Lancamento) {
     return creditosUtilizadosDaFatura(lancamento)
       .reduce((sum, item) => sum + item.valor, 0);
@@ -1990,7 +2000,7 @@ function FinanceiroReceberConteudo() {
                 const aberto = clienteCollapseAberto === chave;
                 const faturasContasReceber = cliente.lancamentos.filter(isFaturaContasReceber);
                 const temFatura = faturasContasReceber.length > 0;
-                const recebimentosCliente = cliente.lancamentos.filter((l) => l.status === "pago");
+                const recebimentosCliente = recebimentosDoCliente(cliente.clienteId);
 
                 return (
                   <Fragment key={chave}>

@@ -89,10 +89,11 @@ function redirecionarParaWww(request: NextRequest) {
   const host = request.headers.get("host")?.split(":")[0]?.toLowerCase();
   if (host !== "denteartlab.com.br") return null;
 
-  const url = request.nextUrl.clone();
-  url.protocol = "https:";
-  url.host = "www.denteartlab.com.br";
-  return NextResponse.redirect(url, 308);
+  const destino = new URL(
+    `${request.nextUrl.pathname}${request.nextUrl.search}`,
+    "https://www.denteartlab.com.br"
+  );
+  return NextResponse.redirect(destino, 308);
 }
 
 function processarRotaApp(
