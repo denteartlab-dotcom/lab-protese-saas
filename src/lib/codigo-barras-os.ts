@@ -4,9 +4,14 @@ export function valorCodigoBarrasOs(numeroOs: number | string): string {
   return n ? `OS${n}` : "";
 }
 
+/** Remove caracteres de controle enviados por leitores USB (Enter, Tab, etc.). */
+export function limparEntradaLeitorCodigo(raw: string): string {
+  return raw.replace(/[\x00-\x1F\x7F]/g, "").trim();
+}
+
 /** Extrai o número da OS de leitura do código (ex.: OS7, *OS12*, só dígitos). */
 export function extrairNumeroOsCodigo(raw: string): string {
-  const t = raw.trim().replace(/^\*+|\*+$/g, "");
+  const t = limparEntradaLeitorCodigo(raw).replace(/^\*+|\*+$/g, "");
   if (!t) return "";
   const prefixo = t.match(/^OS\s*#?\s*(\d+)/i);
   if (prefixo) return prefixo[1];

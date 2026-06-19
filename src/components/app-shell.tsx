@@ -9,6 +9,7 @@ import { ConfiguracoesGearMenu } from "@/components/ConfiguracoesGearMenu";
 import { LanguageMenu } from "@/components/header/LanguageMenu";
 import { NotificationsBell } from "@/components/header/NotificationsBell";
 import { LeitorCodigoBarrasModal } from "@/components/LeitorCodigoBarrasModal";
+import { InputLeitorCodigoOs } from "@/components/InputLeitorCodigoOs";
 import { extrairNumeroOsCodigo } from "@/lib/codigo-barras-os";
 import { SiteSearchBar, SiteSearchButton } from "@/components/header/SiteSearchBar";
 import { I18nProvider, useI18n } from "@/components/i18n-provider";
@@ -916,15 +917,10 @@ function AppShellInner({
               <div className="flex items-end gap-2">
                 <div className="flex-1 space-y-1">
                   <label className="block text-[10px] text-slate-500">Número da OS</label>
-                  <input
+                  <InputLeitorCodigoOs
                     value={buscaOs}
-                    onChange={(event) => setBuscaOs(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        void buscarOrdemServico();
-                      }
-                    }}
+                    onChange={setBuscaOs}
+                    onCodigoLido={(numero) => void buscarOrdemServico(numero)}
                     autoFocus
                     placeholder="Busque número pela OS ou passe o leitor de código de barras"
                     className="h-8 w-full rounded border border-slate-300 px-3 text-[11px] outline-none focus:border-blue-500"

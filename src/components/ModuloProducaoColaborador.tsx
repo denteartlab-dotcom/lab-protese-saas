@@ -25,6 +25,7 @@ import { NotificationsBell } from "@/components/header/NotificationsBell";
 import { SiteSearchBar, SiteSearchButton } from "@/components/header/SiteSearchBar";
 import { useI18n } from "@/components/i18n-provider";
 import { LeitorCodigoBarrasModal } from "@/components/LeitorCodigoBarrasModal";
+import { InputLeitorCodigoOs } from "@/components/InputLeitorCodigoOs";
 import { extrairNumeroOsCodigo } from "@/lib/codigo-barras-os";
 import type { MessageKey } from "@/lib/i18n";
 import { AppFaixaTopo } from "@/components/AppFaixaTopo";
@@ -458,15 +459,10 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
                 Número da OS
               </label>
               <div className="flex items-center gap-2">
-                <input
+                <InputLeitorCodigoOs
                   value={buscaOs}
-                  onChange={(e) => setBuscaOs(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      void buscarOrdemServico();
-                    }
-                  }}
+                  onChange={setBuscaOs}
+                  onCodigoLido={(numero) => void buscarOrdemServico(numero)}
                   placeholder="Buscar serviço pela OS"
                   className="h-[38px] min-w-0 flex-1 rounded border border-[#d1d5db] px-3 text-[13px] text-[#374151] outline-none focus:border-[#3b82f6]"
                 />

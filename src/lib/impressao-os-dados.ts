@@ -20,6 +20,8 @@ import {
   flagsUrgenteRepeticaoInstrucoes,
 } from "@/lib/os-itens-impressao";
 import { carregarConfigLaboratorioServidor } from "@/lib/lab-config-servidor";
+import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
+import { normalizarConfigLaboratorio } from "@/lib/configuracoes-lab-parse";
 
 export type DadosImpressaoOsPdf = {
   numeroOs: number;
@@ -54,6 +56,8 @@ export type DadosImpressaoOsPdf = {
   pecas?: string;
   obsFicha?: string;
   itens: ReturnType<typeof extrairItensImpressaoOs>;
+  /** Config do laboratório (cabeçalho, logo) — carregada no servidor para impressão. */
+  configLaboratorio?: ConfigLaboratorio;
 };
 
 export type OpcoesImpressaoOs = {
@@ -188,12 +192,17 @@ function nomeUsuarioDocumentosImpressao(
   config: Awaited<ReturnType<typeof carregarConfigLaboratorioServidor>>,
   empresaNome?: string
 ) {
+  const cfg = normalizarConfigLaboratorio(config);
+  const nomeLab =
+    cfg.nomeLaboratorio?.trim() ||
+    cfg.nomeFantasia?.trim() ||
+    cfg.razaoSocial?.trim() ||
+    cfg.nome?.trim() ||
+    "";
   return (
-    config.nomeLaboratorio?.trim() ||
-    config.nomeFantasia?.trim() ||
-    config.razaoSocial?.trim() ||
-    config.responsavel?.trim() ||
+    nomeLab ||
     empresaNome?.trim() ||
+    cfg.responsavel?.trim() ||
     ""
   );
 }
@@ -373,7 +382,9 @@ export async function carregarDadosImpressaoOs({
     segmentoSomenteItem
   );
 
-  const configLab = await carregarConfigLaboratorioServidor(t.empresaId);
+  const configLab = normalizarConfigLaboratorio(
+    await carregarConfigLaboratorioServidor(t.empresaId)
+  );
   let empresaNome: string | undefined;
   try {
     const empresa = await prisma.empresa.findUnique({
@@ -425,6 +436,7 @@ export async function carregarDadosImpressaoOs({
     pecas: empty(t.dentes),
     obsFicha: "",
     itens,
+    configLaboratorio: sanitizarDadosPdfOs(configLab),
   });
 
   return { ok: true, dados, opcoes };

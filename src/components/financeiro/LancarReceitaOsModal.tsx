@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Barcode, Minus, Plus, X } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
@@ -20,6 +20,7 @@ import {
 } from "@/components/financeiro/AnexosReciboCampo";
 import type { AnexoDespesa } from "@/lib/lancamento-despesa";
 import { cn, STATUS_TRABALHO } from "@/lib/utils";
+import { useEntradaLeitorCodigo } from "@/hooks/use-entrada-leitor-codigo-barras";
 import type { TrabalhoSituacaoBadge } from "@/components/financeiro/SituacaoOsBadgeReceita";
 
 export type LancarReceitaOsForm = {
@@ -216,6 +217,9 @@ export function LancarReceitaOsModal({
   const [alterarEntregue, setAlterarEntregue] = useState(true);
   const [enviarControleEntrega, setEnviarControleEntrega] = useState(false);
   const [codigoBarras, setCodigoBarras] = useState("");
+  const [feedbackCodigo, setFeedbackCodigo] = useState<{ tipo: "ok" | "erro"; msg: string } | null>(
+    null
+  );
   const [numParcelas, setNumParcelas] = useState(1);
   const [imprimirRecibo, setImprimirRecibo] = useState(false);
   const [parcelas, setParcelas] = useState<ParcelaLinhaReceita[]>([
@@ -234,6 +238,28 @@ export function LancarReceitaOsModal({
 
   const algumaParcelaRecebida = parcelas.some((p) => p.recebido);
 
+  const aplicarCodigoOs = useCallback(
+    (numero: string) => {
+      const trabalho = trabalhosParaReceita.find((t) => String(t.numeroOs) === numero);
+      if (trabalho) {
+        if (!osSelecionadas.includes(trabalho.id)) toggleOsReceita(trabalho.id);
+        setFeedbackCodigo({ tipo: "ok", msg: `OS ${numero} selecionada` });
+        setCodigoBarras("");
+      } else {
+        setFeedbackCodigo({
+          tipo: "erro",
+          msg: `OS ${numero} não encontrada para este cliente e situação`,
+        });
+      }
+    },
+    [trabalhosParaReceita, osSelecionadas, toggleOsReceita]
+  );
+
+  const { onKeyDown: onKeyDownCodigo, onChange: onChangeCodigo, leitorUsbAtivo } =
+    useEntradaLeitorCodigo({
+      onLido: (numero) => aplicarCodigoOs(numero),
+    });
+
   useEffect(() => {
     setPortalPronto(true);
   }, []);
@@ -243,6 +269,7 @@ export function LancarReceitaOsModal({
     setAlterarEntregue(true);
     setEnviarControleEntrega(false);
     setCodigoBarras("");
+    setFeedbackCodigo(null);
     setNumParcelas(1);
     setImprimirRecibo(false);
     const plano = carregarPlanoContas();
@@ -491,15 +518,32 @@ export function LancarReceitaOsModal({
                 Limpar
               </button>
             </div>
-            <div className="flex min-w-[220px] flex-1 items-center gap-2">
-              <Barcode className="h-5 w-5 shrink-0 text-[#6b7280]" />
-              <input
-                type="text"
-                value={codigoBarras}
-                onChange={(e) => setCodigoBarras(e.target.value)}
-                placeholder="Leitor de Código de Barras"
-                className={fieldClass}
-              />
+            <div className="flex min-w-[220px] flex-1 flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <Barcode className="h-5 w-5 shrink-0 text-[#6b7280]" />
+                <input
+                  type="text"
+                  value={codigoBarras}
+                  onChange={(e) => onChangeCodigo(e, setCodigoBarras)}
+                  onKeyDown={(e) => onKeyDownCodigo(e, setCodigoBarras)}
+                  placeholder="Leitor de Código de Barras"
+                  className={fieldClass}
+                  autoComplete="off"
+                />
+              </div>
+              {leitorUsbAtivo && (
+                <p className="pl-7 text-[10px] font-medium text-emerald-600">Leitor USB detectado</p>
+              )}
+              {feedbackCodigo && (
+                <p
+                  className={cn(
+                    "pl-7 text-[10px] font-medium",
+                    feedbackCodigo.tipo === "ok" ? "text-emerald-600" : "text-red-600"
+                  )}
+                >
+                  {feedbackCodigo.msg}
+                </p>
+              )}
             </div>
           </div>
 

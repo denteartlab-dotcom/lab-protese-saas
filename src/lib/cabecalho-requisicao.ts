@@ -1,8 +1,8 @@
 import { nomeExibicaoLaboratorio, type ConfigLaboratorio } from "@/lib/configuracoes-lab";
-import type { LabImpressaoConfig } from "@/lib/lab-impressao";
 import {
   LOGO_PDF_CABECALHO_OS_ALTURA_MM,
   LOGO_PDF_CABECALHO_OS_LARGURA_MM,
+  type LabImpressaoConfig,
 } from "@/lib/lab-impressao";
 
 export type CabecalhoRequisicaoConfig = {
@@ -126,7 +126,7 @@ export function montarTextosCabecalhoRequisicao(
   lab: LabImpressaoConfig,
   cab: CabecalhoRequisicaoConfig
 ): TextosCabecalhoRequisicao {
-  const nome = (lab.responsavel || nomeExibicaoLaboratorio(cfg) || "").trim();
+  const nome = nomeExibicaoLaboratorio(cfg);
   const linhas: string[] = [];
 
   if (cab.exibirEndereco) {

@@ -9,6 +9,7 @@ import { prepararAbaPdf, visualizarPdfUrl, baixarPdfBlob, baixarPdfUrl, criarUrl
 import { urlPdfDocumentoServidor } from "@/lib/pdf-documento-http";
 import { criarIdPdfViewer, publicarPdfBlobNoServidor } from "@/lib/pdf-viewer-aba";
 import { LAB_IMPRESSAO_PADRAO, type LabImpressaoConfig } from "@/lib/lab-impressao";
+import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
 import { normalizarCabecalhoRequisicao, type CabecalhoRequisicaoConfig } from "@/lib/cabecalho-requisicao";
 import {
   hexParaRgb,
@@ -43,6 +44,7 @@ import {
 } from "@/lib/configuracoes-etiquetas";
 import { parseCurrencyBr } from "@/lib/cliente-financeiro";
 import { gerarBarrasCode39, gerarPngCode39DataUrl } from "@/lib/code39-barcode-core";
+import { valorCodigoBarrasOs } from "@/lib/codigo-barras-os";
 import {
   colaboradorDaEtapaImpressao,
   colaboradorExibirNoTopoImpressao,
@@ -127,6 +129,9 @@ type PdfOsData = {
   email: string;
   endereco: string;
   lab?: LabImpressaoConfig;
+  configLab?: ConfigLaboratorio;
+  /** Config vinda do servidor (mesclada em configLab ao montar o PDF). */
+  configLaboratorio?: ConfigLaboratorio;
   cabecalhoRequisicao?: CabecalhoRequisicaoConfig;
   valor: number;
   prazo: string;
@@ -569,7 +574,7 @@ function desenharRodapeRequisicaoA4(
     if (!lay.assinatura) {
       y += g(4);
     }
-    const barcodeValue = `OS${data.numeroOs}`;
+    const barcodeValue = valorCodigoBarrasOs(data.numeroOs);
     drawCode39(pdf, barcodeValue, conteudoEsq, y);
     y += 10;
     linhaPagina(pdf, lay, y, pageWidth);
@@ -735,6 +740,7 @@ function renderModeloProducao(
   const colDir = 110;
   let y = desenharCabecalhoRequisicaoPdf(pdf, {
     lab: data.lab,
+    configLab: data.configLab,
     cabecalhoRequisicao: data.cabecalhoRequisicao,
     tituloDireita: "Ordem de Serviço",
     exibirLogo: lay.logo,
@@ -961,6 +967,7 @@ function renderModeloComprovante(
   const colDir = 110;
   let y = desenharCabecalhoRequisicaoPdf(pdf, {
     lab: data.lab,
+    configLab: data.configLab,
     cabecalhoRequisicao: data.cabecalhoRequisicao,
     tituloDireita: "Ordem de Serviço",
     exibirLogo: lay.logo,
@@ -1270,7 +1277,7 @@ function renderTermicaModelo3(pdf: PdfRenderApi, data: PdfOsData): number {
   pdf.text(lab.email, cx, y, { align: "center" });
   y += 5;
 
-  const barcodeValue = `OS${data.numeroOs}`;
+  const barcodeValue = valorCodigoBarrasOs(data.numeroOs);
   const barcodeW = 42;
   drawCode39(pdf, barcodeValue, cx - barcodeW / 2, y);
   y += 10;
@@ -1549,7 +1556,7 @@ function renderTermicaModelo4(
   y += 4;
 
   if (lay.codBarras) {
-    const barcodeValue = `OS${data.numeroOs}`;
+    const barcodeValue = valorCodigoBarrasOs(data.numeroOs);
     const barcodeW = 42;
     drawCode39(pdf, barcodeValue, cx - barcodeW / 2, y);
     y += 10;
@@ -1811,7 +1818,7 @@ function renderTermicaModelo5(
   y += 4;
 
   if (lay.codBarras) {
-    const barcodeValue = `OS${data.numeroOs}`;
+    const barcodeValue = valorCodigoBarrasOs(data.numeroOs);
     const barcodeW = 42;
     drawCode39(pdf, barcodeValue, cx - barcodeW / 2, y);
     y += 10;
@@ -1908,7 +1915,7 @@ async function renderEtiquetaOs(
   const larguraUtil = larguraMm - margem * 2;
   const alturaMax = alturaMm - margem;
   const item = data.itens[0];
-  const codigoBarras = String(data.numeroOs);
+  const codigoBarras = valorCodigoBarrasOs(data.numeroOs);
   const barcodeY = margem;
 
   const barcodeImg = gerarPngCode39DataUrl(codigoBarras, {
@@ -1935,7 +1942,7 @@ async function renderEtiquetaOs(
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(tip.fsOs);
   const osX = margem + barcodeW + tip.gapNumeroOsMm;
-  pdf.text(codigoBarras, osX, margem + tip.barcodeAlturaMm * 0.78);
+  pdf.text(String(data.numeroOs), osX, margem + tip.barcodeAlturaMm * 0.78);
 
   let y = margem + tip.barcodeAlturaMm + tip.gapAposBarcodeMm;
 
@@ -2046,22 +2053,34 @@ export function PdfOsViewer({
     if (typeof window === "undefined") {
       return { ...base, lab: base.lab || LAB_IMPRESSAO_PADRAO };
     }
-    const [labMod, osMod, logoMod] = await Promise.all([
+    const [labMod, osMod, logoMod, labSyncMod] = await Promise.all([
       import("@/lib/configuracoes-lab"),
       import("@/lib/configuracoes-os"),
       import("@/lib/lab-logo"),
+      import("@/lib/lab-config-sync"),
     ]);
-    const cfg = labMod.carregarConfigLaboratorio();
-    const lab = logoMod.labImpressaoFromConfig();
+    await labSyncMod.sincronizarConfigLaboratorioDoServidor().catch(() => undefined);
+
+    let cfg = labMod.carregarConfigLaboratorio();
+    if (base.configLaboratorio) {
+      cfg = labSyncMod.mesclarConfigLaboratorio(
+        cfg,
+        base.configLaboratorio as Partial<ConfigLaboratorio>
+      );
+      labSyncMod.aplicarConfigLaboratorioNoCliente(cfg);
+    }
+
+    const lab = logoMod.configParaLabImpressao(cfg);
     const usuarioLaboratorio =
+      base.usuarioCriou?.trim() ||
       labMod.nomeUsuarioDocumentosLaboratorio(cfg) ||
       lab.responsavel?.trim() ||
-      base.usuarioCriou?.trim() ||
       "";
     return {
       ...base,
       usuarioCriou: usuarioLaboratorio,
       lab,
+      configLab: cfg,
       cabecalhoRequisicao: normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao),
       layoutModelo1: osMod.carregarLayoutModelo1(),
       layoutModelo2: osMod.carregarLayoutModelo2(),

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { extrairNumeroOsCodigo } from "@/lib/codigo-barras-os";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
   formatClienteLogAuditoria,
@@ -49,8 +50,9 @@ export async function GET(request: Request) {
   const status = searchParams.get("status");
   const dataEntrada = searchParams.get("dataEntrada");
   const atrasados = searchParams.get("atrasados") === "1";
-  const isNumeroOs = /^\d+$/.test(q);
-  const numeroOs = isNumeroOs ? Number(q) : 0;
+  const numeroOsStr = extrairNumeroOsCodigo(q);
+  const isNumeroOs = numeroOsStr.length > 0 && /^\d+$/.test(numeroOsStr);
+  const numeroOs = isNumeroOs ? Number(numeroOsStr) : 0;
   const dataInicio = dataEntrada ? new Date(`${dataEntrada}T00:00:00`) : null;
   const dataFim = dataEntrada ? new Date(`${dataEntrada}T23:59:59.999`) : null;
   const hoje = new Date();
