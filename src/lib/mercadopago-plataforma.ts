@@ -1,4 +1,4 @@
-import { somenteDigitos } from "@/lib/asaas-client";
+import { PIX_ASSINATURA_QR_EXPIRACAO_MS } from "@/lib/assinatura-pix-constants";
 import {
   mercadoPagoPlataformaConfigurado,
   obterConfigMercadoPagoPlataforma,
@@ -120,7 +120,7 @@ export async function criarPixAssinaturaMercadoPago(params: {
     emailUsuario: params.emailUsuario,
   });
 
-  const expiracao = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const expiracao = new Date(Date.now() + PIX_ASSINATURA_QR_EXPIRACAO_MS);
   const body: Record<string, unknown> = {
     transaction_amount: Number(params.valor.toFixed(2)),
     description: params.descricao.slice(0, 256),

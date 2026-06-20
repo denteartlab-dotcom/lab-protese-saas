@@ -1,3 +1,4 @@
+import { PIX_ASSINATURA_QR_EXPIRACAO_MS } from "@/lib/assinatura-pix-constants";
 import { asaasPlataformaConfigurado } from "@/lib/asaas-plataforma-config";
 import { mercadoPagoPlataformaConfigurado } from "@/lib/mercadopago-plataforma-config";
 
@@ -48,7 +49,7 @@ export function cobrancaAssinaturaPixAberta(cobranca: {
   if (cobranca.pixExpiraEm && cobranca.pixExpiraEm.getTime() < Date.now()) {
     return false;
   }
-  const limite = Date.now() - 24 * 60 * 60 * 1000;
+  const limite = Date.now() - PIX_ASSINATURA_QR_EXPIRACAO_MS;
   if (!cobranca.pixExpiraEm && cobranca.createdAt.getTime() < limite) {
     return false;
   }

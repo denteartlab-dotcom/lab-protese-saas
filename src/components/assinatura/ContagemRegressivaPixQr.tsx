@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { PIX_ASSINATURA_QR_EXPIRACAO_MINUTOS } from "@/lib/assinatura-pix-constants";
 import { cn } from "@/lib/utils";
 
 function msRestantesPix(expiraEmIso: string | null | undefined): number {
@@ -59,6 +60,19 @@ export function ContagemRegressivaPixQr({
   compacto,
 }: Props) {
   const { expirado, texto, restoMs } = useContagemRegressivaPix(expiraEm);
+  const expiracaoTratadaRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    expiracaoTratadaRef.current = null;
+  }, [expiraEm]);
+
+  useEffect(() => {
+    if (!expirado || !onGerarNovo || gerandoNovo) return;
+    const chave = expiraEm ?? "";
+    if (expiracaoTratadaRef.current === chave) return;
+    expiracaoTratadaRef.current = chave;
+    onGerarNovo();
+  }, [expirado, expiraEm, onGerarNovo, gerandoNovo]);
 
   if (!expiraEm) return null;
 
@@ -71,22 +85,23 @@ export function ContagemRegressivaPixQr({
         )}
       >
         <p className={cn("font-semibold text-amber-900", compacto ? "text-xs" : "text-sm")}>
-          QR Code PIX expirado
+          {gerandoNovo ? "Gerando novo QR Code..." : "QR Code PIX expirado"}
         </p>
         <p className={cn("mt-0.5 text-amber-800", compacto ? "text-[10px]" : "text-xs")}>
-          Gere um novo código para continuar o pagamento.
+          {gerandoNovo
+            ? "Aguarde, um novo código será exibido em instantes."
+            : "Um novo código será gerado automaticamente."}
         </p>
-        {onGerarNovo ? (
+        {onGerarNovo && !gerandoNovo ? (
           <button
             type="button"
             onClick={onGerarNovo}
-            disabled={gerandoNovo}
             className={cn(
-              "mt-2 inline-flex items-center justify-center rounded-lg bg-amber-700 font-medium text-white hover:bg-amber-800 disabled:opacity-60",
+              "mt-2 inline-flex items-center justify-center rounded-lg bg-amber-700 font-medium text-white hover:bg-amber-800",
               compacto ? "h-8 px-3 text-[10px]" : "h-9 px-4 text-xs"
             )}
           >
-            {gerandoNovo ? "Gerando..." : "Gerar novo QR Code"}
+            Gerar agora
           </button>
         ) : null}
       </div>
@@ -119,6 +134,9 @@ export function ContagemRegressivaPixQr({
         )}
       >
         {texto}
+      </p>
+      <p className={cn("mt-0.5 text-slate-500", compacto ? "text-[9px]" : "text-[10px]")}>
+        Válido por {PIX_ASSINATURA_QR_EXPIRACAO_MINUTOS} min — renova sozinho ao expirar
       </p>
     </div>
   );
