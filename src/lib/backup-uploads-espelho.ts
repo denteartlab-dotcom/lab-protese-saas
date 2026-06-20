@@ -80,3 +80,7 @@ export async function espelharUploadsNoBackupEmpresa(
 
   return { destino, arquivos };
 }
+
+export async function contarUploadsBackupEmpresa(slug: string, nome?: string) {
+  return contarArquivosRecursivo(pastaUploadsBackupEmpresa(slug, nome));
+}

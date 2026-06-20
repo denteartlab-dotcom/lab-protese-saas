@@ -19,6 +19,7 @@ import {
   nomeArquivoBackupAutomatico,
 } from "@/lib/backup-automatico-servidor";
 import { uploadBackupParaGoogleDrive, sincronizarPastasDriveEmpresasAtivas } from "@/lib/backup-google-drive";
+import { sincronizarBackupComOneDrive } from "@/lib/backup-onedrive-sync";
 import { espelharUploadsNoBackupEmpresa } from "@/lib/backup-uploads-espelho";
 
 type EmpresaAtiva = { id: string; slug: string; nome: string };
@@ -84,6 +85,15 @@ export async function executarBackupAutomatico(
       `[backup-automatico] ${slug}: uploads espelhados (${uploads.arquivos} arquivo(s)) em ${uploads.destino}`
     );
 
+    const onedrive = await sincronizarBackupComOneDrive();
+    if (onedrive.ok) {
+      console.log(`[backup-automatico] ${slug}: pasta backups/ sincronizada no OneDrive`);
+    } else if (onedrive.erro && onedrive.erro !== "desativado") {
+      console.warn(
+        `[backup-automatico] ${slug}: OneDrive não sincronizado — ${onedrive.erro}`
+      );
+    }
+
     const drive = await uploadBackupParaGoogleDrive({
       empresaId,
       slug,
@@ -101,6 +111,9 @@ export async function executarBackupAutomatico(
       exportedAt: backup.exportedAt,
       slug,
       empresaId,
+      uploadsArquivos: uploads.arquivos,
+      uploadsDestino: uploads.destino,
+      onedrive,
       drive,
     };
   } catch (erro) {

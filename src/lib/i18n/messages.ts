@@ -100,6 +100,8 @@ export const messages = {
     "settings.backupExportarTitulo": "Exportar backup",
     "settings.backupExportarDesc":
       "Gera um arquivo .json com todos os registros do banco. Guarde em local seguro.",
+    "settings.backupExportarAvisoServidor":
+      "Este botão só baixa o JSON no seu computador. Para gravar no servidor com a pasta uploads/ (OneDrive), use «Gerar backup no servidor agora» na seção Backup automático.",
     "settings.backupBaixar": "Baixar backup",
     "settings.backupExportando": "Gerando arquivo...",
     "settings.backupExportado": "Backup baixado com sucesso.",
@@ -134,6 +136,17 @@ export const messages = {
     "settings.backupAutoArquivoPendente": "ainda não gerado",
     "settings.backupAutoPasta": "Pasta no servidor: {caminho}/",
     "settings.backupAutoPastaUploads": "Anexos e imagens: {caminho}/",
+    "settings.backupAutoUploadsArquivos": "{n} arquivo(s) espelhado(s)",
+    "settings.backupAutoOneDriveAtivo":
+      "OneDrive: após cada backup, a pasta backups/ é sincronizada automaticamente (rclone).",
+    "settings.backupServidorGerarAgora": "Gerar backup no servidor agora",
+    "settings.backupServidorGerando": "Gerando backup...",
+    "settings.backupServidorOk":
+      "Backup gravado no servidor. Pasta uploads/ com {n} arquivo(s) de anexos/imagens.",
+    "settings.backupServidorErro": "Não foi possível gerar o backup no servidor.",
+    "settings.backupServidorOneDriveOk": "OneDrive sincronizado.",
+    "settings.backupServidorOneDriveErro":
+      "OneDrive não sincronizado — confira rclone e ONEDRIVE_BACKUP_SYNC_ENABLED no .env.",
     "settings.backupAutoNomeArquivo": "Nome do arquivo de hoje: {nome}",
     "settings.backupAutoUltimoArquivo": "Último arquivo gerado: {nome}",
     "settings.backupAutoUltimoArquivoPendente": "Último arquivo gerado: ainda não gerado",
@@ -491,6 +504,8 @@ export const messages = {
     "settings.backupExportarTitulo": "Export backup",
     "settings.backupExportarDesc":
       "Creates a .json file with all database records. Store it in a safe place.",
+    "settings.backupExportarAvisoServidor":
+      "This button only downloads JSON to your computer. To save on the server with uploads/ (OneDrive), use «Generate server backup now» in the Automatic backup section.",
     "settings.backupBaixar": "Download backup",
     "settings.backupExportando": "Generating file...",
     "settings.backupExportado": "Backup downloaded successfully.",
@@ -525,6 +540,17 @@ export const messages = {
     "settings.backupAutoArquivoPendente": "not generated yet",
     "settings.backupAutoPasta": "Server folder: {caminho}/",
     "settings.backupAutoPastaUploads": "Attachments and images: {caminho}/",
+    "settings.backupAutoUploadsArquivos": "{n} mirrored file(s)",
+    "settings.backupAutoOneDriveAtivo":
+      "OneDrive: after each backup, the backups/ folder is synced automatically (rclone).",
+    "settings.backupServidorGerarAgora": "Generate server backup now",
+    "settings.backupServidorGerando": "Generating backup...",
+    "settings.backupServidorOk":
+      "Backup saved on server. uploads/ folder with {n} attachment/image file(s).",
+    "settings.backupServidorErro": "Could not generate server backup.",
+    "settings.backupServidorOneDriveOk": "OneDrive synced.",
+    "settings.backupServidorOneDriveErro":
+      "OneDrive not synced — check rclone and ONEDRIVE_BACKUP_SYNC_ENABLED in .env.",
     "settings.backupAutoNomeArquivo": "Today's file name: {nome}",
     "settings.backupAutoUltimoArquivo": "Last generated file: {nome}",
     "settings.backupAutoUltimoArquivoPendente": "Last generated file: not generated yet",
@@ -880,6 +906,8 @@ export const messages = {
     "settings.backupExportarTitulo": "Exportar respaldo",
     "settings.backupExportarDesc":
       "Genera un archivo .json con todos los registros. Guárdelo en un lugar seguro.",
+    "settings.backupExportarAvisoServidor":
+      "Este botón solo descarga el JSON en su equipo. Para grabar en el servidor con uploads/ (OneDrive), use «Generar respaldo en el servidor ahora» en Respaldo automático.",
     "settings.backupBaixar": "Descargar respaldo",
     "settings.backupExportando": "Generando archivo...",
     "settings.backupExportado": "Respaldo descargado correctamente.",
@@ -914,6 +942,17 @@ export const messages = {
     "settings.backupAutoArquivoPendente": "aún no generado",
     "settings.backupAutoPasta": "Carpeta en el servidor: {caminho}/",
     "settings.backupAutoPastaUploads": "Adjuntos e imágenes: {caminho}/",
+    "settings.backupAutoUploadsArquivos": "{n} archivo(s) espejado(s)",
+    "settings.backupAutoOneDriveAtivo":
+      "OneDrive: tras cada respaldo, la carpeta backups/ se sincroniza automáticamente (rclone).",
+    "settings.backupServidorGerarAgora": "Generar respaldo en el servidor ahora",
+    "settings.backupServidorGerando": "Generando respaldo...",
+    "settings.backupServidorOk":
+      "Respaldo guardado en el servidor. Carpeta uploads/ con {n} archivo(s) de adjuntos/imágenes.",
+    "settings.backupServidorErro": "No se pudo generar el respaldo en el servidor.",
+    "settings.backupServidorOneDriveOk": "OneDrive sincronizado.",
+    "settings.backupServidorOneDriveErro":
+      "OneDrive no sincronizado — revise rclone y ONEDRIVE_BACKUP_SYNC_ENABLED en .env.",
     "settings.backupAutoNomeArquivo": "Nombre del archivo de hoy: {nome}",
     "settings.backupAutoUltimoArquivo": "Último archivo generado: {nome}",
     "settings.backupAutoUltimoArquivoPendente": "Último archivo generado: aún no generado",

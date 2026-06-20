@@ -2,7 +2,12 @@ import { access } from "fs/promises";
 import path from "path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { caminhoRelativoPastaBackupEmpresa, caminhoRelativoUploadsBackupEmpresa } from "@/lib/backup-empresa-pasta";
+import {
+  caminhoRelativoPastaBackupEmpresa,
+  caminhoRelativoUploadsBackupEmpresa,
+} from "@/lib/backup-empresa-pasta";
+import { contarUploadsBackupEmpresa } from "@/lib/backup-uploads-espelho";
+import { onedriveBackupSyncHabilitado } from "@/lib/backup-onedrive-sync";
 import { reagendarBackupAutomatico } from "@/lib/backup-automatico";
 import {
   fusoBackupAutomatico,
@@ -106,6 +111,13 @@ async function montarStatus(empresaId: string, slug: string, nome: string) {
     }
   }
 
+  let uploadsArquivos = 0;
+  try {
+    uploadsArquivos = await contarUploadsBackupEmpresa(slug, nome);
+  } catch {
+    uploadsArquivos = 0;
+  }
+
   return {
     config,
     empresaSlug: slug,
@@ -115,6 +127,8 @@ async function montarStatus(empresaId: string, slug: string, nome: string) {
     agendadorInternoAtivo: !hospedagemVercel() && servidorBackupHabilitado(),
     pastaPadrao: pastaRelativa,
     pastaUploads: caminhoRelativoUploadsBackupEmpresa(slug, nome),
+    uploadsArquivos,
+    onedriveSyncHabilitado: onedriveBackupSyncHabilitado(),
     horarioFixo: formatarHorarioFixoBackupAutomatico(),
     padraoNomeArquivo,
     arquivoPadrao: `${pastaRelativa}/${padraoNomeArquivo}`,

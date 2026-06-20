@@ -27,6 +27,8 @@ type StatusBackupAutomatico = {
   agendadorInternoAtivo?: boolean;
   pastaPadrao: string;
   pastaUploads?: string;
+  uploadsArquivos?: number;
+  onedriveSyncHabilitado?: boolean;
   horarioFixo?: string;
   padraoNomeArquivo: string;
   arquivoPadrao: string;
@@ -73,6 +75,7 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
   const [statusAuto, setStatusAuto] = useState<StatusBackupAutomatico | null>(null);
   const [carregandoAuto, setCarregandoAuto] = useState(false);
   const [salvandoAuto, setSalvandoAuto] = useState(false);
+  const [gerandoBackupServidor, setGerandoBackupServidor] = useState(false);
   const [autoAtivo, setAutoAtivo] = useState(true);
   const [autoDia, setAutoDia] = useState<string>("todos");
   const [modalPastaBackupAberto, setModalPastaBackupAberto] = useState(false);
@@ -162,8 +165,40 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
     }
   }
 
+  async function gerarBackupServidorAgora() {
+    setGerandoBackupServidor(true);
+    try {
+      const res = await fetch("/api/backup/executar-agora", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        uploadsArquivos?: number;
+        pastaUploads?: string;
+        onedrive?: { habilitado?: boolean; sincronizado?: boolean; erro?: string | null };
+      };
+      if (!res.ok) {
+        onMensagem?.(data.error || t("settings.backupServidorErro"), "erro");
+        return;
+      }
+      await Promise.all([carregarStatusAutomatico(), carregarArquivosPastaAutomatica()]);
+      const uploads = data.uploadsArquivos ?? 0;
+      let msg = t("settings.backupServidorOk").replace("{n}", String(uploads));
+      if (data.onedrive?.habilitado) {
+        msg += data.onedrive.sincronizado
+          ? ` ${t("settings.backupServidorOneDriveOk")}`
+          : ` ${t("settings.backupServidorOneDriveErro")}`;
+      }
+      onMensagem?.(msg, "sucesso");
+    } catch {
+      onMensagem?.(t("settings.backupServidorErro"), "erro");
+    } finally {
+      setGerandoBackupServidor(false);
+    }
+  }
+
   async function exportar() {
-    setExportando(true);
     try {
       const res = await fetch("/api/backup/export", { credentials: "same-origin" });
       if (!res.ok) {
@@ -324,14 +359,25 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                         )}
                       </p>
                     )}
-                    {statusAuto?.pastaUploads && (
+                    {statusAuto?.pastaUploads ? (
                       <p className="mt-1 text-[11px] text-emerald-800">
                         {t("settings.backupAutoPastaUploads").replace(
                           "{caminho}",
                           statusAuto.pastaUploads
                         )}
+                        {typeof statusAuto.uploadsArquivos === "number"
+                          ? ` (${t("settings.backupAutoUploadsArquivos").replace(
+                              "{n}",
+                              String(statusAuto.uploadsArquivos)
+                            )})`
+                          : ""}
                       </p>
-                    )}
+                    ) : null}
+                    {statusAuto?.onedriveSyncHabilitado ? (
+                      <p className="mt-1 text-[11px] text-emerald-800">
+                        {t("settings.backupAutoOneDriveAtivo")}
+                      </p>
+                    ) : null}
                     {statusAuto?.padraoNomeArquivo && (
                       <p className="mt-1 text-[11px] text-emerald-800">
                         {t("settings.backupAutoNomeArquivo").replace(
@@ -457,6 +503,19 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                         ? t("settings.backupAutoSalvando")
                         : t("settings.backupAutoSalvar")}
                     </Button>
+                    {!statusAuto?.hospedagemVercel ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={gerandoBackupServidor || salvandoAuto}
+                        onClick={() => void gerarBackupServidorAgora()}
+                        className="inline-flex items-center gap-2 rounded border-emerald-500 bg-white px-4 py-2 text-sm text-emerald-900 hover:bg-emerald-50"
+                      >
+                        {gerandoBackupServidor
+                          ? t("settings.backupServidorGerando")
+                          : t("settings.backupServidorGerarAgora")}
+                      </Button>
+                    ) : null}
                     <Button
                       type="button"
                       variant="outline"
@@ -484,6 +543,9 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
             </h3>
             <p className="mt-1 text-xs text-slate-600">
               {t("settings.backupExportarDesc")}
+            </p>
+            <p className="mt-2 text-[11px] text-slate-500">
+              {t("settings.backupExportarAvisoServidor")}
             </p>
             <Button
               type="button"
