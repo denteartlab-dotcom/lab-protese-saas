@@ -52,8 +52,27 @@ function cobrancaPendenteValida(cobranca: {
   statusAsaas: string;
   pixExpiraEm: Date | null;
   createdAt: Date;
+  pagoEm?: Date | null;
 }): boolean {
   return cobrancaAssinaturaPixAberta(cobranca);
+}
+
+function cobrancaPendenteReutilizavel(
+  cobranca: {
+    valor: number;
+    diasRenovacao: number;
+    provedor: string;
+    statusAsaas: string;
+    pixExpiraEm: Date | null;
+    createdAt: Date;
+    pagoEm?: Date | null;
+  },
+  plano: string
+): boolean {
+  if (!cobrancaPendenteValida(cobranca)) return false;
+  if (cobranca.valor !== precoMensalPlano(plano)) return false;
+  if (cobranca.diasRenovacao !== DIAS_RENOVACAO_MENSAL) return false;
+  return true;
 }
 
 async function montarRespostaCobranca(
@@ -187,7 +206,7 @@ async function gerarCobrancaAsaas(
 export async function gerarCobrancaPixRenovacao(
   empresaId: string,
   planoEscolhido?: string,
-  opcoes?: { emailPagador?: string | null }
+  opcoes?: { emailPagador?: string | null; forcarNova?: boolean }
 ): Promise<CobrancaPixAssinatura> {
   const provedor = resolverProvedorPixAssinatura();
   if (!provedor) {
@@ -240,7 +259,7 @@ export async function gerarCobrancaPixRenovacao(
     include: { empresa: { select: { dataVencimento: true, slug: true } } },
   });
 
-  if (pendente && cobrancaPendenteValida(pendente)) {
+  if (pendente && !opcoes?.forcarNova && cobrancaPendenteReutilizavel(pendente, plano)) {
     let encodedImage: string | null = null;
     if (pendente.provedor === "asaas") {
       try {

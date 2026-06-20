@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Check, Copy, Loader2, QrCode, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ContagemRegressivaPixQr } from "@/components/assinatura/ContagemRegressivaPixQr";
+import { PixQrCodeVisual } from "@/components/assinatura/PixQrCodeVisual";
 
 export type CredenciaisRenovacaoPix = {
   email?: string;
@@ -42,7 +43,7 @@ export function RenovarAssinaturaPixModal({
   const [cobranca, setCobranca] = useState<CobrancaPix | null>(null);
   const [copiado, setCopiado] = useState(false);
 
-  const gerarPix = useCallback(async () => {
+  const gerarPix = useCallback(async (forcarNova = false) => {
     setLoading(true);
     setErro("");
     try {
@@ -50,7 +51,10 @@ export function RenovarAssinaturaPixModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify(credenciais || {}),
+        body: JSON.stringify({
+          ...(credenciais || {}),
+          ...(forcarNova ? { force: true } : {}),
+        }),
       });
       const data = (await res.json()) as { error?: string; cobranca?: CobrancaPix };
       if (!res.ok) throw new Error(data.error || "Não foi possível gerar o PIX.");
@@ -172,16 +176,16 @@ export function RenovarAssinaturaPixModal({
 
             <ContagemRegressivaPixQr
               expiraEm={cobranca.pixExpiraEm}
-              onGerarNovo={() => void gerarPix()}
+              onGerarNovo={() => void gerarPix(true)}
               gerandoNovo={loading}
               compacto
             />
 
-            {cobranca.pixEncodedImage ? (
+            {cobranca.pixPayload || cobranca.pixEncodedImage ? (
               <div className="flex justify-center">
-                <img
-                  src={`data:image/png;base64,${cobranca.pixEncodedImage}`}
-                  alt="QR Code PIX"
+                <PixQrCodeVisual
+                  pixEncodedImage={cobranca.pixEncodedImage}
+                  pixPayload={cobranca.pixPayload}
                   className="h-44 w-44 rounded border border-slate-200"
                 />
               </div>

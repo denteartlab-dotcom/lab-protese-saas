@@ -18,6 +18,7 @@ import {
 } from "@/lib/master-planos";
 import { cn } from "@/lib/utils";
 import { ContagemRegressivaPixQr } from "@/components/assinatura/ContagemRegressivaPixQr";
+import { PixQrCodeVisual } from "@/components/assinatura/PixQrCodeVisual";
 
 type CobrancaPix = {
   cobrancaId: string;
@@ -44,7 +45,7 @@ export function PagamentoAssinaturaPainel() {
   const [cobranca, setCobranca] = useState<CobrancaPix | null>(null);
   const [copiado, setCopiado] = useState(false);
 
-  const gerarPix = useCallback(async () => {
+  const gerarPix = useCallback(async (forcarNova = false) => {
     setLoading(true);
     setErro("");
     try {
@@ -52,7 +53,7 @@ export function PagamentoAssinaturaPainel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ plano }),
+        body: JSON.stringify({ plano, ...(forcarNova ? { force: true } : {}) }),
       });
       const data = (await res.json()) as { error?: string; cobranca?: CobrancaPix };
       if (!res.ok) throw new Error(data.error || "Não foi possível gerar o PIX.");
@@ -177,16 +178,15 @@ export function PagamentoAssinaturaPainel() {
 
             <ContagemRegressivaPixQr
               expiraEm={cobranca.pixExpiraEm}
-              onGerarNovo={() => void gerarPix()}
+              onGerarNovo={() => void gerarPix(true)}
               gerandoNovo={loading}
             />
 
-            {cobranca.pixEncodedImage ? (
+            {cobranca.pixPayload || cobranca.pixEncodedImage ? (
               <div className="flex justify-center">
-                <img
-                  src={`data:image/png;base64,${cobranca.pixEncodedImage}`}
-                  alt="QR Code PIX"
-                  className="h-48 w-48 rounded border border-slate-200"
+                <PixQrCodeVisual
+                  pixEncodedImage={cobranca.pixEncodedImage}
+                  pixPayload={cobranca.pixPayload}
                 />
               </div>
             ) : null}

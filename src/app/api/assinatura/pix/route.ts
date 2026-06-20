@@ -16,6 +16,7 @@ const bodySchema = z.object({
   password: z.string().min(1).optional(),
   empresaSlug: z.string().min(1).optional(),
   plano: z.enum(PLANOS_EMPRESA).optional(),
+  force: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
 
     const cobranca = await gerarCobrancaPixRenovacao(empresaId, body.plano, {
       emailPagador: session?.email || body.email,
+      forcarNova: body.force === true,
     });
     return NextResponse.json({ ok: true, cobranca });
   } catch (error) {
