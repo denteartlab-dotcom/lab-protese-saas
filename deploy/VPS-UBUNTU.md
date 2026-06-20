@@ -241,6 +241,25 @@ sudo ufw enable
 
 ---
 
+## 13. Renovação automática HTTPS (Let's Encrypt)
+
+O Certbot no Ubuntu agenda renovação sozinho. Na VPS, confirme uma vez:
+
+```bash
+cd /opt/lab-protese-saas
+bash deploy/garantir-renovacao-ssl.sh
+```
+
+Isso ativa o `certbot.timer`, cria hook para `reload nginx` após renovar e roda `certbot renew --dry-run`.
+
+Conferir timer:
+
+```bash
+sudo systemctl list-timers | grep certbot
+```
+
+---
+
 ## Troubleshooting
 
 | Problema | Solução |
