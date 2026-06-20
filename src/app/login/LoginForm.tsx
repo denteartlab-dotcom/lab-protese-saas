@@ -192,31 +192,12 @@ export function LoginForm({
   }, [jaEntrouInicial]);
 
   useEffect(() => {
-    void (async () => {
-      let emailServidor: string | null = null;
-
-      try {
-        const res = await fetch("/api/auth/prefs-lembrete", { cache: "no-store" });
-        if (res.ok) {
-          const data = (await res.json()) as { email?: string | null };
-          emailServidor = data.email?.trim() || null;
-        }
-      } catch {
-        /* fallback espelho em memória pós-login */
-      }
-
-      const salvo = lerLembrarLogin();
-      if (salvo?.email) {
-        setEmail(salvo.email);
-        setLembrarSenha(true);
-        return;
-      }
-
-      if (emailServidor) {
-        setEmail(emailServidor);
-        setLembrarSenha(true);
-      }
-    })();
+    const salvo = lerLembrarLogin();
+    if (salvo?.email) {
+      setEmail(salvo.email);
+      if (salvo.password) setPassword(salvo.password);
+      setLembrarSenha(true);
+    }
   }, []);
 
   async function tentarEntrar(e?: React.FormEvent) {
@@ -267,12 +248,22 @@ export function LoginForm({
       }
 
       if (data.code === "ASSINATURA_VENCIDA" || data.redirect === "/assinatura-vencida") {
+        if (lembrarSenha) {
+          salvarLembrarLogin({ email: email.trim(), password });
+        } else {
+          limparLembrarLogin();
+        }
         marcarUsuarioJaEntrou();
         window.location.assign(data.redirect || "/assinatura-vencida");
         return;
       }
 
       if (data.redirect?.trim()) {
+        if (lembrarSenha) {
+          salvarLembrarLogin({ email: email.trim(), password });
+        } else {
+          limparLembrarLogin();
+        }
         marcarUsuarioJaEntrou();
         window.location.assign(data.redirect.trim());
         return;
@@ -310,7 +301,7 @@ export function LoginForm({
       }
 
       if (lembrarSenha) {
-        salvarLembrarLogin({ email: email.trim() });
+        salvarLembrarLogin({ email: email.trim(), password });
       } else {
         limparLembrarLogin();
       }

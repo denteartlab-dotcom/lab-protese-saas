@@ -1,32 +1,111 @@
-import { readStorage, writeStorage, persistirArmazenamentoImediato } from "@/lib/persisted-storage";
+import {
+  persistirArmazenamentoImediato,
+  readStorage,
+  writeStorage,
+} from "@/lib/persisted-storage";
 
 const AUTH_JA_ENTROU_KEY = "labProteseJaEntrou";
+/** Legado no JsonStore — não usar para credenciais (era global e sobrescrevia contas). */
 const LEMBRAR_LOGIN_KEY = "labProteseLembrarLogin";
-const ULTIMO_LAB_LOGIN_KEY = "labProteseUltimoLaboratorio";
+/** Credenciais lembradas ficam só neste navegador (localStorage). */
+const LEMBRAR_LOGIN_LOCAL_KEY = "denteartLoginLembrete";
+const PWD_PREFIX = "b64:";
 
 export type LembrarLoginSalvo = {
   email: string;
   password?: string;
 };
 
-export function salvarLembrarLogin(dados: LembrarLoginSalvo) {
-  if (typeof window === "undefined") return;
-  const email = dados.email.trim();
-  writeStorage(LEMBRAR_LOGIN_KEY, { email });
-  void persistirArmazenamentoImediato(LEMBRAR_LOGIN_KEY, { email });
+type LembrarLoginArmazenado = {
+  email: string;
+  password?: string;
+  v?: number;
+};
+
+function codificarSenhaLembrete(senha: string): string {
+  return PWD_PREFIX + btoa(unescape(encodeURIComponent(senha)));
 }
 
-export function limparLembrarLogin() {
+function decodificarSenhaLembrete(codificado?: string): string {
+  if (!codificado?.startsWith(PWD_PREFIX)) return "";
+  try {
+    return decodeURIComponent(escape(atob(codificado.slice(PWD_PREFIX.length))));
+  } catch {
+    return "";
+  }
+}
+
+function lerLembreteLocalStorage(): LembrarLoginSalvo | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(LEMBRAR_LOGIN_LOCAL_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as LembrarLoginArmazenado;
+    const email = parsed.email?.trim();
+    if (!email) return null;
+    const password = decodificarSenhaLembrete(parsed.password);
+    return password ? { email, password } : { email };
+  } catch {
+    return null;
+  }
+}
+
+function gravarLembreteLocalStorage(dados: LembrarLoginSalvo) {
+  if (typeof window === "undefined") return;
+  const email = dados.email.trim();
+  if (!email) return;
+  const payload: LembrarLoginArmazenado = {
+    email,
+    v: 1,
+  };
+  const senha = dados.password ?? "";
+  if (senha) {
+    payload.password = codificarSenhaLembrete(senha);
+  }
+  window.localStorage.setItem(LEMBRAR_LOGIN_LOCAL_KEY, JSON.stringify(payload));
+}
+
+function limparLembreteLocalStorage() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(LEMBRAR_LOGIN_LOCAL_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Remove credenciais legadas do JsonStore global (comportamento antigo). */
+function limparLembreteLegadoServidor() {
   if (typeof window === "undefined") return;
   writeStorage(LEMBRAR_LOGIN_KEY, null);
   void persistirArmazenamentoImediato(LEMBRAR_LOGIN_KEY, null);
 }
 
+function migrarLembreteLegado(): LembrarLoginSalvo | null {
+  const legado = readStorage<{ email?: string } | null>(LEMBRAR_LOGIN_KEY, null);
+  const email = legado?.email?.trim();
+  if (!email) return null;
+  const dados = { email };
+  gravarLembreteLocalStorage(dados);
+  limparLembreteLegadoServidor();
+  return dados;
+}
+
+export function salvarLembrarLogin(dados: LembrarLoginSalvo) {
+  if (typeof window === "undefined") return;
+  gravarLembreteLocalStorage(dados);
+  limparLembreteLegadoServidor();
+}
+
+export function limparLembrarLogin() {
+  if (typeof window === "undefined") return;
+  limparLembreteLocalStorage();
+  limparLembreteLegadoServidor();
+}
+
 export function lerLembrarLogin(): LembrarLoginSalvo | null {
   if (typeof window === "undefined") return null;
-  const parsed = readStorage<{ email?: string } | null>(LEMBRAR_LOGIN_KEY, null);
-  if (!parsed?.email?.trim()) return null;
-  return { email: parsed.email.trim() };
+  return lerLembreteLocalStorage() ?? migrarLembreteLegado();
 }
 
 export function marcarUsuarioJaEntrou() {
@@ -70,14 +149,17 @@ export function salvarUltimoLaboratorioLogin(dados: UltimoLaboratorioLogin) {
   const slug = dados.slug?.trim();
   const nome = dados.nome?.trim();
   if (!slug || !nome) return;
-  writeStorage(ULTIMO_LAB_LOGIN_KEY, { slug, nome });
-  void persistirArmazenamentoImediato(ULTIMO_LAB_LOGIN_KEY, { slug, nome });
+  writeStorage("labProteseUltimoLaboratorio", { slug, nome });
+  void persistirArmazenamentoImediato("labProteseUltimoLaboratorio", { slug, nome });
   gravarCookieUltimoLabSlug(slug);
 }
 
 export function lerUltimoLaboratorioLogin(): UltimoLaboratorioLogin | null {
   if (typeof window === "undefined") return null;
-  const parsed = readStorage<Partial<UltimoLaboratorioLogin> | null>(ULTIMO_LAB_LOGIN_KEY, null);
+  const parsed = readStorage<Partial<UltimoLaboratorioLogin> | null>(
+    "labProteseUltimoLaboratorio",
+    null
+  );
   const slug = parsed?.slug?.trim();
   const nome = parsed?.nome?.trim();
   if (!slug || !nome) return null;
