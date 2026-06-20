@@ -30,9 +30,9 @@ export function limitesDoPlano(plano: string) {
 }
 
 export const PRECO_MENSAL_PLANO: Record<PlanoEmpresa, number> = {
-  basico: 99.9,
-  profissional: 199.9,
-  premium: 299.9,
+  basico: 30,
+  profissional: 40,
+  premium: 50,
 };
 
 export const DIAS_RENOVACAO_MENSAL = 30;
@@ -59,7 +59,7 @@ export const RECURSOS_PLANOS_ASSINATURA: RecursoPlanoAssinatura[] = [
   {
     id: "basico",
     nome: "Básico",
-    precoLabel: "R$ 99,90 / mês",
+    precoLabel: `${formatarPrecoPlano("basico")} / mês`,
     itens: [
       "Até 2 usuários",
       "Até 100 trabalhos por mês",
@@ -70,7 +70,7 @@ export const RECURSOS_PLANOS_ASSINATURA: RecursoPlanoAssinatura[] = [
   {
     id: "profissional",
     nome: "Profissional",
-    precoLabel: "R$ 199,90 / mês",
+    precoLabel: `${formatarPrecoPlano("profissional")} / mês`,
     destaque: true,
     destaqueRotulo: "MAIS CONTRATADO",
     itens: [
@@ -84,7 +84,7 @@ export const RECURSOS_PLANOS_ASSINATURA: RecursoPlanoAssinatura[] = [
   {
     id: "premium",
     nome: "Premium",
-    precoLabel: "R$ 299,90 / mês",
+    precoLabel: `${formatarPrecoPlano("premium")} / mês`,
     itens: [
       "Usuários ilimitados",
       "Trabalhos ilimitados",

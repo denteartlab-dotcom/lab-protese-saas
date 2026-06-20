@@ -107,7 +107,7 @@ Reinicie **depois** de alterar o `.env`.
 ### Produção
 
 1. Use token `APP_USR-...` real
-2. PIX real — valor conforme plano (Básico R$ 99,90 / Profissional R$ 199,90 / Premium R$ 299,90)
+2. PIX real — valor conforme plano (Básico R$ 30,00 / Profissional R$ 40,00 / Premium R$ 50,00)
 3. Verifique logs: `[assinatura-pix/mercadopago] Renovação automática: ...`
 
 ---
@@ -118,9 +118,9 @@ Definidos em `src/lib/master-planos.ts`:
 
 | Plano         | Valor/mês |
 |---------------|-----------|
-| Básico        | R$ 99,90  |
-| Profissional  | R$ 199,90 |
-| Premium       | R$ 299,90 |
+| Básico        | R$ 30,00  |
+| Profissional  | R$ 40,00 |
+| Premium       | R$ 50,00 |
 
 Renovação sempre **+30 dias** por pagamento (`DIAS_RENOVACAO_MENSAL`).
 
