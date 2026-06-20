@@ -166,6 +166,49 @@ export function lerUltimoLaboratorioLogin(): UltimoLaboratorioLogin | null {
   return { slug, nome };
 }
 
+const LOGO_LAB_LOGIN_CACHE = "denteartLabLogoPorSlug";
+
+function lerMapaLogoLogin(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(LOGO_LAB_LOGIN_CACHE);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object") return {};
+    const map: Record<string, string> = {};
+    for (const [slug, logo] of Object.entries(parsed)) {
+      if (typeof logo === "string" && logo.trim()) {
+        map[slug.toLowerCase()] = logo.trim();
+      }
+    }
+    return map;
+  } catch {
+    return {};
+  }
+}
+
+/** Cache local do logo por slug — fallback no login quando o SSR ainda não tem a imagem. */
+export function salvarLogoLaboratorioLogin(slug: string, logoDataUrl: string) {
+  if (typeof window === "undefined") return;
+  const chave = slug.trim().toLowerCase();
+  const logo = logoDataUrl.trim();
+  if (!chave || !logo.startsWith("data:image")) return;
+  try {
+    const map = lerMapaLogoLogin();
+    map[chave] = logo;
+    window.localStorage.setItem(LOGO_LAB_LOGIN_CACHE, JSON.stringify(map));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function lerLogoLaboratorioLogin(slug: string): string {
+  if (typeof window === "undefined") return "";
+  const chave = slug.trim().toLowerCase();
+  if (!chave) return "";
+  return lerMapaLogoLogin()[chave] || "";
+}
+
 export function rotuloPapelUsuario(role: string): string {
   if (role === "admin" || role === "proprietario" || role === "admin_empresa") {
     return "Proprietário";

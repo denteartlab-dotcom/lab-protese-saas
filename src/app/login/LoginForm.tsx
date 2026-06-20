@@ -6,9 +6,11 @@ import { Eye } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 import {
   lerLembrarLogin,
+  lerLogoLaboratorioLogin,
   limparLembrarLogin,
   marcarUsuarioJaEntrou,
   salvarLembrarLogin,
+  salvarLogoLaboratorioLogin,
   salvarUltimoLaboratorioLogin,
   lerUltimoLaboratorioLogin,
   usuarioJaEntrou,
@@ -40,15 +42,20 @@ type Props = {
 
 function brandingDeRemoto(
   remoto: LabBrandingPublico,
-  plataforma: LoginBranding
+  plataforma: LoginBranding,
+  slugFallback?: string
 ) {
+  const slug = remoto.empresaSlug?.trim() || slugFallback?.trim() || "";
+  const logoCache = slug ? lerLogoLaboratorioLogin(slug) : "";
+  const logoDataUrl =
+    remoto.logoDataUrl?.trim() || logoCache || plataforma.lab.logoDataUrl;
   return {
     nomeLaboratorio: remoto.nomeLaboratorio?.trim() || plataforma.nomeLaboratorio,
     marcaSubtitulo: remoto.marcaSubtitulo?.trim() || plataforma.marcaSubtitulo,
     labIdentificado: true,
     lab: {
       ...plataforma.lab,
-      logoDataUrl: remoto.logoDataUrl?.trim() || plataforma.lab.logoDataUrl,
+      logoDataUrl,
       logoTamanho: remoto.logoTamanho ?? plataforma.lab.logoTamanho ?? 0,
       marcaSubtitulo: remoto.marcaSubtitulo?.trim() || plataforma.marcaSubtitulo,
     },
@@ -110,25 +117,34 @@ export function LoginForm({
       } else if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailBusca)) {
         params.set("email", emailBusca);
       } else {
-        setBrandingRemoto(null);
         return;
       }
 
       const res = await fetch(`/api/lab/branding?${params}`, { cache: "no-store" });
-      if (!res.ok) {
-        setBrandingRemoto(null);
-        return;
-      }
+      if (!res.ok) return;
+
       const json = (await res.json()) as LabBrandingPublico;
-      if (json.empresaSlug) {
-        setBrandingRemoto(json);
-      } else {
-        setBrandingRemoto(null);
-      }
+      if (!json.empresaSlug) return;
+
+      setBrandingRemoto((atual) => {
+        const ref = atual ?? brandingLaboratorio;
+        const logoDataUrl =
+          json.logoDataUrl?.trim() ||
+          ref?.logoDataUrl?.trim() ||
+          (json.empresaSlug ? lerLogoLaboratorioLogin(json.empresaSlug) : "") ||
+          "";
+        return {
+          ...json,
+          logoDataUrl,
+          logoTamanho: json.logoDataUrl?.trim()
+            ? json.logoTamanho
+            : (ref?.logoTamanho ?? json.logoTamanho),
+        };
+      });
     } catch {
       /* mantém branding atual */
     }
-  }, []);
+  }, [brandingLaboratorio]);
 
   useEffect(() => {
     const ultimo = lerUltimoLaboratorioLogin();
@@ -147,18 +163,15 @@ export function LoginForm({
   useEffect(() => {
     if (labSlugAtivo) return;
     const valor = email.trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor)) {
-      if (!brandingLaboratorio?.empresaSlug) setBrandingRemoto(null);
-      return;
-    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor)) return;
     void carregarBranding({ email: valor });
-  }, [email, labSlugAtivo, carregarBranding, brandingLaboratorio?.empresaSlug]);
+  }, [email, labSlugAtivo, carregarBranding]);
 
   const branding = useMemo(() => {
     const plataforma = brandingInicial;
     const remoto = brandingRemoto ?? brandingLaboratorio;
     if (remoto?.empresaSlug) {
-      return brandingDeRemoto(remoto, plataforma);
+      return brandingDeRemoto(remoto, plataforma, labSlugAtivo);
     }
     return {
       nomeLaboratorio: plataforma.nomeLaboratorio,
@@ -166,7 +179,27 @@ export function LoginForm({
       labIdentificado: false,
       lab: plataforma.lab,
     };
-  }, [brandingInicial, brandingRemoto, brandingLaboratorio]);
+  }, [brandingInicial, brandingRemoto, brandingLaboratorio, labSlugAtivo]);
+
+  useEffect(() => {
+    const slug =
+      brandingRemoto?.empresaSlug?.trim() ||
+      brandingLaboratorio?.empresaSlug?.trim() ||
+      labSlugAtivo.trim();
+    const logo =
+      brandingRemoto?.logoDataUrl?.trim() ||
+      brandingLaboratorio?.logoDataUrl?.trim() ||
+      branding.lab.logoDataUrl?.trim() ||
+      "";
+    if (slug && logo.startsWith("data:image")) {
+      salvarLogoLaboratorioLogin(slug, logo);
+    }
+  }, [
+    brandingRemoto,
+    brandingLaboratorio,
+    labSlugAtivo,
+    branding.lab.logoDataUrl,
+  ]);
 
   useEffect(() => {
     const atualizar = () => {
@@ -275,6 +308,13 @@ export function LoginForm({
       const nomeLab = data.user?.empresaNome?.trim();
       if (slug && nomeLab) {
         salvarUltimoLaboratorioLogin({ slug, nome: nomeLab });
+      }
+      const logoAtual =
+        brandingRemoto?.logoDataUrl?.trim() ||
+        brandingLaboratorio?.logoDataUrl?.trim() ||
+        (slug ? lerLogoLaboratorioLogin(slug) : "");
+      if (slug && logoAtual.startsWith("data:image")) {
+        salvarLogoLaboratorioLogin(slug, logoAtual);
       }
 
       let destino = redirectDestino;

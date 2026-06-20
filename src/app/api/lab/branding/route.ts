@@ -1,13 +1,50 @@
 import { NextResponse } from "next/server";
-import { carregarBrandingLaboratorio } from "@/lib/lab-branding";
+import {
+  brandingPlataformaLogin,
+  carregarBrandingLaboratorioPorEmail,
+  carregarBrandingLaboratorioPorSlug,
+} from "@/lib/lab-branding";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const branding = await carregarBrandingLaboratorio();
-    return NextResponse.json(branding, {
+    const params = new URL(request.url).searchParams;
+    const slug = params.get("slug")?.trim().toLowerCase() || "";
+    const email = params.get("email")?.trim().toLowerCase() || "";
+
+    if (slug) {
+      const branding = await carregarBrandingLaboratorioPorSlug(slug);
+      if (!branding) {
+        return NextResponse.json(
+          { error: "Laboratório não encontrado." },
+          { status: 404 }
+        );
+      }
+      return NextResponse.json(branding, {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
+      });
+    }
+
+    if (email) {
+      const branding = await carregarBrandingLaboratorioPorEmail(email);
+      if (!branding) {
+        return NextResponse.json(
+          { error: "Nenhum laboratório identificado para este e-mail." },
+          { status: 404 }
+        );
+      }
+      return NextResponse.json(branding, {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
+      });
+    }
+
+    return NextResponse.json(brandingPlataformaLogin(), {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate",
       },

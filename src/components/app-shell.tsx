@@ -32,12 +32,12 @@ import {
 import type { MessageKey } from "@/lib/i18n";
 import { ArmazenamentoLaboratorioProvider } from "@/components/ArmazenamentoLaboratorioProvider";
 import { useSessaoInatividade } from "@/hooks/use-sessao-inatividade";
-import { rotuloPapelUsuario } from "@/lib/auth-client";
+import { lerUltimoLaboratorioLogin, rotuloPapelUsuario, salvarLogoLaboratorioLogin } from "@/lib/auth-client";
 import { limparUltimaAtividadeSessao } from "@/lib/sessao-inatividade";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { instrucoesTextoLivre } from "@/lib/etapas-os";
 import { cn, STATUS_TRABALHO } from "@/lib/utils";
-import { ehPaginaInicioApp } from "@/lib/rotas-app";
+import { analisarCaminhoApp, ehPaginaInicioApp } from "@/lib/rotas-app";
 import {
   BarChart3,
   CheckSquare,
@@ -211,6 +211,15 @@ function AppShellInner({
   );
   const logoPerfil = dimensoesLogoPx(lab, { largura: 36, altura: 36 });
   const temLogoPerfil = Boolean(lab.logoDataUrl?.startsWith("data:image"));
+
+  useEffect(() => {
+    if (!montado || !lab.logoDataUrl?.startsWith("data:image")) return;
+    const slug =
+      analisarCaminhoApp(pathname).slug ||
+      lerUltimoLaboratorioLogin()?.slug ||
+      "";
+    if (slug) salvarLogoLaboratorioLogin(slug, lab.logoDataUrl);
+  }, [montado, lab.logoDataUrl, pathname]);
   function podeVerMenu(href: string) {
     if (acessoTotal) return true;
     const id = permissaoIdPorHref(href);
