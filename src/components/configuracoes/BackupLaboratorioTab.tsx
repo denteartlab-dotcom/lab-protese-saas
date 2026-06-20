@@ -285,7 +285,9 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
         0
       );
       onMensagem?.(
-        t("settings.backupImportado").replace("{n}", String(total)),
+        t("settings.backupImportado")
+          .replace("{n}", String(total))
+          .replace("{u}", String(data.uploadsRestaurados ?? 0)),
         "sucesso"
       );
       setArquivo(null);

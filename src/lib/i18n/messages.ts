@@ -96,7 +96,7 @@ export const messages = {
     "settings.backup": "Backup",
     "settings.backupTitulo": "Backup do laboratório",
     "settings.backupDescricao":
-      "Exporte todos os dados (clientes, trabalhos, financeiro, usuários, configurações) em um arquivo JSON ou restaure um backup anterior.",
+      "Exporte todos os dados em um arquivo .zip (JSON + imagens/anexos) ou restaure um backup anterior.",
     "settings.backupExportarTitulo": "Exportar backup",
     "settings.backupExportarDesc":
       "Gera um arquivo .zip com backup.json (dados do banco) e a pasta uploads/ (imagens e anexos). Guarde em local seguro.",
@@ -116,7 +116,7 @@ export const messages = {
       "Entendo que todos os dados atuais serão apagados e substituídos pelo conteúdo do arquivo.",
     "settings.backupRestaurar": "Restaurar backup",
     "settings.backupImportando": "Restaurando...",
-    "settings.backupImportado": "Backup restaurado ({n} registros). Redirecionando...",
+    "settings.backupImportado": "Backup restaurado ({n} registros, {u} anexo(s)). Redirecionando...",
     "settings.backupErroImportar": "Não foi possível importar o backup.",
     "settings.backupSelecioneArquivo": "Selecione um arquivo de backup.",
     "settings.backupConfirmeSubstituir": "Marque a confirmação para continuar.",
@@ -500,7 +500,7 @@ export const messages = {
     "settings.backup": "Backup",
     "settings.backupTitulo": "Laboratory backup",
     "settings.backupDescricao":
-      "Export all data (clients, jobs, finance, users, settings) as a JSON file or restore a previous backup.",
+      "Export all data as a .zip file (JSON + images/attachments) or restore a previous backup.",
     "settings.backupExportarTitulo": "Export backup",
     "settings.backupExportarDesc":
       "Creates a .zip file with backup.json (database) and uploads/ folder (images and attachments). Store it safely.",
@@ -520,7 +520,7 @@ export const messages = {
       "I understand that all current data will be deleted and replaced by the file contents.",
     "settings.backupRestaurar": "Restore backup",
     "settings.backupImportando": "Restoring...",
-    "settings.backupImportado": "Backup restored ({n} records). Redirecting...",
+    "settings.backupImportado": "Backup restored ({n} records, {u} attachment(s)). Redirecting...",
     "settings.backupErroImportar": "Could not import backup.",
     "settings.backupSelecioneArquivo": "Select a backup file.",
     "settings.backupConfirmeSubstituir": "Check the confirmation box to continue.",
