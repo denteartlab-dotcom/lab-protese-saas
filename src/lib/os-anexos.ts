@@ -29,3 +29,19 @@ export function instrucoesSemAnexos(instrucoes?: string | null) {
     )
     .join("\n");
 }
+
+/** Anexos de todos os registros do mesmo protocolo (serviço, produto, transporte). */
+export function anexosFromGrupoTrabalhos(
+  trabalhos: Array<{ instrucoes?: string | null }>
+): AnexoOs[] {
+  const vistos = new Set<string>();
+  const anexos: AnexoOs[] = [];
+  for (const trabalho of trabalhos) {
+    for (const anexo of anexosFromInstrucoes(trabalho.instrucoes)) {
+      if (vistos.has(anexo.url)) continue;
+      vistos.add(anexo.url);
+      anexos.push(anexo);
+    }
+  }
+  return anexos;
+}

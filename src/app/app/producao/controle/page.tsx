@@ -126,6 +126,10 @@ import {
   type LancamentoFaturaOs,
 } from "@/lib/os-faturamento";
 import {
+  anexosFromGrupoTrabalhos,
+  anexosFromInstrucoes,
+} from "@/lib/os-anexos";
+import {
   anexosParaLinhasInstrucoes,
   clienteDescontoGeralDeObservacoes,
   clienteDescontoGeralTipoDeObservacoes,
@@ -793,18 +797,6 @@ function ServicoComMarcadores({ item }: { item: EditItem }) {
       )}
     </div>
   );
-}
-
-function anexosFromInstrucoes(instrucoes?: string | null): AnexoOs[] {
-  return (instrucoes || "")
-    .split("\n")
-    .map((line) => {
-      if (!line.startsWith("Arquivo anexado:")) return null;
-      const [name, type, url] = line.replace("Arquivo anexado:", "").split("|").map((item) => item.trim());
-      if (!url) return null;
-      return { name: name || "Arquivo", type: type || "", url };
-    })
-    .filter(Boolean) as AnexoOs[];
 }
 
 function instrucoesSemAnexos(instrucoes?: string | null) {
@@ -2545,8 +2537,19 @@ export default function ControlePage() {
     if (arquivosEdicao.length === 0) return [];
     const formData = new FormData();
     arquivosEdicao.forEach((arquivo) => formData.append("files", arquivo));
-    const response = await fetch("/api/uploads", { method: "POST", body: formData });
-    if (!response.ok) return [];
+    const response = await fetch("/api/uploads?pasta=os", {
+      method: "POST",
+      body: formData,
+      credentials: "same-origin",
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(
+        typeof err?.error === "string"
+          ? err.error
+          : "Não foi possível enviar os arquivos."
+      );
+    }
     const uploaded = await response.json();
     notificarUploadsAtualizados();
     return Array.isArray(uploaded) ? uploaded : [];
@@ -2642,7 +2645,18 @@ export default function ControlePage() {
 
     setSalvandoEdicao(true);
     try {
-    const anexosUpload = await uploadArquivosEdicaoSelecionados();
+    let anexosUpload: AnexoOs[] = [];
+    try {
+      anexosUpload = await uploadArquivosEdicaoSelecionados();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Não foi possível enviar os arquivos.");
+      return;
+    }
+    if (arquivosEdicao.length > 0 && anexosUpload.length === 0) {
+      alert("Não foi possível enviar os arquivos. Tente novamente.");
+      return;
+    }
+    setArquivosEdicao([]);
     await sincronizarCabecalhoMetaEdicao();
     const corpoCabecalho = corpoCabecalhoEdicaoAtual(anexosUpload);
 
@@ -2664,7 +2678,7 @@ export default function ControlePage() {
         registros[0];
       const instrucoesAtual = servicoReg.instrucoes || "";
       const corpoBase = removerComplementosOsDoCorpo(
-        instrucoesCorpoSemItens(instrucoesSemAnexos(corpoCabecalho || instrucoesAtual))
+        instrucoesCorpoSemItens(corpoCabecalho || instrucoesSemAnexos(instrucoesAtual))
       );
       const etapasLinhas = parseEtapasInstrucoes(instrucoesAtual)
         .map((etapa) => formatarLinhaEtapa(etapa))
@@ -3306,7 +3320,7 @@ export default function ControlePage() {
                     <tr>
                       <td colSpan={12} className="bg-slate-50 px-4 py-3">
                         {(() => {
-                          const anexos = anexosFromInstrucoes(trabalho.instrucoes);
+                          const anexos = anexosFromGrupoTrabalhos(grupoOs);
                           return anexos.length > 0 ? (
                             <div className="mb-3">
                               <p className="mb-2 text-xs font-semibold text-slate-600">Imagem:</p>
