@@ -5,7 +5,7 @@ import { FileText, Trash2 } from "lucide-react";
 import { Modal } from "@/components/ui";
 import {
   formatarTamanhoArmazenamento,
-  formatarTamanhoGb,
+  formatarTamanhoMbCard,
   notificarUploadsAtualizados,
 } from "@/lib/uploads-armazenamento";
 
@@ -38,8 +38,8 @@ export function PainelUploadsDashboard({
   onResumoAtualizado?: () => void;
 }) {
   const usado = Math.max(0, Math.min(100, resumo.percentualUsado));
-  const textoUsado = formatarTamanhoGb(resumo.bytesUsados);
-  const textoLivre = formatarTamanhoGb(resumo.bytesLivres);
+  const textoUsado = formatarTamanhoMbCard(resumo.bytesUsados);
+  const textoLivre = formatarTamanhoMbCard(resumo.bytesLivres);
 
   const [modalArquivos, setModalArquivos] = useState(false);
   const [arquivos, setArquivos] = useState<ArquivoGaleria[]>([]);

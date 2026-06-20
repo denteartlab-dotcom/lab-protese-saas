@@ -15,7 +15,20 @@ const fmtPtGbPreciso = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 3,
 });
 
-/** Sempre em GB (card Uploads do Início). */
+/** Exibição em MB no card Uploads do Início (limite continua 20 GB). */
+export function formatarTamanhoMbCard(bytes: number): string {
+  const n = Math.max(0, bytes);
+  if (n === 0) return "0 MB";
+  const mb = n / (1024 * 1024);
+  if (mb < 1) {
+    const kb = n / 1024;
+    return kb < 0.1 ? "0 MB" : `${fmtPt.format(Math.round(kb * 10) / 10)} KB`;
+  }
+  if (mb >= 10_000) return `${fmtPt.format(Math.round(mb))} MB`;
+  return `${fmtPt.format(Math.round(mb * 10) / 10)} MB`;
+}
+
+/** @deprecated Preferir formatarTamanhoMbCard no card do Início. */
 export function formatarTamanhoGb(bytes: number): string {
   const n = Math.max(0, bytes);
   const gb = n / 1024 ** 3;

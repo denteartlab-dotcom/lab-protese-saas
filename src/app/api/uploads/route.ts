@@ -13,7 +13,11 @@ import {
 export async function GET() {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-  const resumo = await calcularArmazenamentoGaleria(ctx.empresaId, ctx.empresaSlug);
+  const resumo = await calcularArmazenamentoGaleria(
+    ctx.empresaId,
+    ctx.empresaSlug,
+    ctx.empresaNome
+  );
   return NextResponse.json(resumo);
 }
 
@@ -30,7 +34,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Nenhum arquivo enviado" }, { status: 400 });
     }
 
-    const { bytesUsados } = await calcularArmazenamentoGaleria(ctx.empresaId, ctx.empresaSlug);
+    const { bytesUsados } = await calcularArmazenamentoGaleria(
+      ctx.empresaId,
+      ctx.empresaSlug,
+      ctx.empresaNome
+    );
     const novosBytes = files.reduce((s, f) => s + f.size, 0);
     if (bytesUsados + novosBytes > LIMITE_ARMAZENAMENTO_BYTES) {
       return NextResponse.json(

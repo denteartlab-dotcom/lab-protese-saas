@@ -438,8 +438,8 @@ export default function DashboardPage() {
             uploadsResumo ??
             dashboard.uploadsResumo ?? {
               bytesUsados: 0,
-              bytesLivres: 80 * 1024 ** 3,
-              limiteGb: 80,
+              bytesLivres: 20 * 1024 ** 3,
+              limiteGb: 20,
               percentualUsado: 0,
               percentualLivre: 100,
             }

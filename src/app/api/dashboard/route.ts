@@ -16,7 +16,7 @@ import {
   type AniversarianteMesItem,
 } from "@/lib/dashboard-clientes-servico";
 import { calcularResumoProducaoDashboard } from "@/lib/dashboard-producao";
-import { resumoArmazenamentoVazio } from "@/lib/uploads-armazenamento-server";
+import { calcularArmazenamentoGaleria } from "@/lib/uploads-armazenamento-server";
 import {
   enriquecerLinksAcompanhamentoUrgentes,
   montarUrgentesClienteDashboard,
@@ -239,7 +239,11 @@ export async function GET(request: Request) {
     aniversariantesMes,
     clientesSemServico,
     diasSemServico,
-    uploadsResumo: resumoArmazenamentoVazio(),
+    uploadsResumo: await calcularArmazenamentoGaleria(
+      ctx.empresaId,
+      ctx.empresaSlug,
+      ctx.empresaNome
+    ),
     urgentesCliente,
     mes,
     ano,

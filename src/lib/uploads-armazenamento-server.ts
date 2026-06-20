@@ -9,6 +9,7 @@ import {
   LIMITE_GALERIA_GB,
 } from "@/lib/uploads-armazenamento";
 import type { PastaUpload } from "@/lib/upload-arquivo-server";
+import { pastaBackupEmpresa } from "@/lib/backup-empresa-pasta";
 import {
   bytesTotalArquivosBanco,
   excluirArquivoBancoPorId,
@@ -175,14 +176,20 @@ export function resumoArmazenamentoVazio() {
 
 export async function calcularArmazenamentoGaleria(
   empresaId?: string,
-  empresaSlug?: string
+  empresaSlug?: string,
+  empresaNome?: string
 ) {
   if (empresaSlug) {
     await garantirPastasUploadEmpresa(empresaSlug);
   }
   const pastaEmpresa = empresaSlug ? caminhoPastaUploads(empresaSlug) : caminhoPastaUploads();
   const bytesDisco = empresaSlug ? await tamanhoDiretorio(pastaEmpresa) : 0;
-  const bytesUsados = bytesDisco + (await bytesTotalArquivosBanco(empresaId));
+  const bytesBanco = await bytesTotalArquivosBanco(empresaId);
+  const bytesBackup =
+    empresaSlug && empresaSlug.trim()
+      ? await tamanhoDiretorio(pastaBackupEmpresa(empresaSlug, empresaNome))
+      : 0;
+  const bytesUsados = bytesDisco + bytesBanco + bytesBackup;
   const bytesLivres = Math.max(0, LIMITE_ARMAZENAMENTO_BYTES - bytesUsados);
   const percentualUsado =
     LIMITE_ARMAZENAMENTO_BYTES > 0
