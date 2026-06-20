@@ -283,7 +283,8 @@ export function RelatorioFinanceiroGeralConteudo() {
               Relatório Financeiro Geral
             </h1>
             <p className="mt-1 text-[13px] text-[#6b7280]">
-              Produção (valores das OS) e financeiro realizado (receitas e despesas pagas)
+              Produção em aberto (valor da OS) e concluídos no período (saldo a receber em Contas a
+              Receber)
             </p>
           </div>
         </div>
@@ -431,7 +432,7 @@ export function RelatorioFinanceiroGeralConteudo() {
               <CardKpi
                 titulo="Serviços Concluídos"
                 valor={String(dados.resumo.concluidosQtd)}
-                subtitulo={formatarMoedaFinanceiroGeral(dados.resumo.concluidosValor)}
+                subtitulo={`${formatarMoedaFinanceiroGeral(dados.resumo.concluidosValor)} a receber`}
                 cor={COR.verde}
               />
             </div>
@@ -552,7 +553,7 @@ export function RelatorioFinanceiroGeralConteudo() {
             </div>
 
             <div className="grid gap-4 xl:grid-cols-2">
-              <CardGrafico titulo="Evolução Mensal do Valor Bruto (OS)">
+              <CardGrafico titulo="Evolução Mensal — Produção e A Receber">
                 <div className="h-[300px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={evolucaoChart}>
@@ -575,7 +576,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                       />
                       <Bar
                         dataKey="concluido"
-                        name="Concluído"
+                        name="A receber (concluídos)"
                         fill={COR.verde}
                         radius={[4, 4, 0, 0]}
                         barSize={18}
@@ -689,7 +690,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                   </div>
                   <div>
                     <p className="mb-2 text-center text-[12px] font-semibold text-[#2ecc71]">
-                      Concluídos
+                      Concluídos (a receber)
                     </p>
                     <div className="h-[200px]">
                       <ResponsiveContainer width="100%" height="100%">
@@ -754,7 +755,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                       />
                       <Bar
                         dataKey="concluido"
-                        name="Concluído"
+                        name="A receber (concluídos)"
                         fill={COR.verde}
                         radius={[4, 4, 0, 0]}
                       />
@@ -771,7 +772,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                     <tr className="border-b border-[#e5e7eb] bg-[#f9fafb] text-[11px] uppercase tracking-wide text-[#6b7280]">
                       <th className="px-3 py-2">Mês</th>
                       <th className="px-3 py-2 text-right">Valor Não Concluído</th>
-                      <th className="px-3 py-2 text-right">Valor Concluído</th>
+                      <th className="px-3 py-2 text-right">A Receber (Concluídos)</th>
                       <th className="px-3 py-2 text-right">Valor Total</th>
                       <th className="px-3 py-2 text-center">Quantidade</th>
                       <th className="px-3 py-2 text-right">Ticket Médio</th>

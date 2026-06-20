@@ -9,6 +9,7 @@ import { prisma } from "./src/lib/db";
 import { requisicaoTvSocket } from "./src/lib/tv/tv-socket-client";
 import { TV_SOCKET_PATH } from "./src/lib/tv/tv-socket-events";
 import { iniciarBackupAutomaticoDiario } from "./src/lib/backup-automatico";
+import { backupAutomaticoHabilitadoNoServidor } from "./src/lib/backup-automatico-servidor";
 import {
   getTvOrdensSnapshot,
   iniciarTvRefreshAutomatico,
@@ -127,8 +128,12 @@ app
         console.log(`> Socket.io TV: ${TV_SOCKET_PATH}`);
 
         setTimeout(() => {
-          if (process.env.BACKUP_AUTOMATICO_ENABLED === "1") {
+          if (backupAutomaticoHabilitadoNoServidor()) {
             void iniciarBackupAutomaticoDiario();
+          } else {
+            console.log(
+              "[backup-automatico] desativado (BACKUP_AUTOMATICO_ENABLED=false ou 0)."
+            );
           }
         }, 15_000);
       });

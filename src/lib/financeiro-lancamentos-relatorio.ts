@@ -7,6 +7,11 @@ export type LancamentoRelatorioFinanceiro = {
   valor: number;
   data: string | Date;
   status: string;
+  descricao?: string;
+  formaPagamento?: string | null;
+  clienteId?: string | null;
+  trabalhoId?: string | null;
+  trabalhoNumeroOs?: number | null;
 };
 
 export type MesFinanceiroLancamento = {

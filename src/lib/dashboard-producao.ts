@@ -25,7 +25,7 @@ export function trabalhoContaNoGraficoProducao(t: TrabalhoProducaoResumo): boole
   return true;
 }
 
-const STATUS_CONCLUIDO = ["finalizado", "saiu_entrega", "entregue"] as const;
+const STATUS_CONCLUIDO = ["finalizado", "saiu_entrega", "entregue", "recebido_cliente"] as const;
 const STATUS_PENDENTE_LAB = ["producao", "prova", "pendente", "pedido"] as const;
 
 export type ContagemProducaoStatus = {

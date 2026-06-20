@@ -732,6 +732,7 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
                           "prova",
                           "finalizado",
                           "saiu_entrega",
+                          "recebido_cliente",
                           "entregue",
                           "pendente",
                           "cancelado",

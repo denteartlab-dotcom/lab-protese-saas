@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { ChevronDown, ChevronUp, PackageCheck, Search } from "lucide-react";
 import { useParams, useSearchParams } from "next/navigation";
 import type { ClienteAcompanhamentoPublico } from "@/lib/cliente-acompanhamento";
+import { Modal } from "@/components/ui";
 import { cn, formatDate } from "@/lib/utils";
 
 const POLL_MS = 12_000;
@@ -35,6 +36,10 @@ export default function AcompanhamentoClientePage() {
   const [urgenteRemovendo, setUrgenteRemovendo] = useState<string | null>(null);
   const [urgenteMsg, setUrgenteMsg] = useState<string | null>(null);
   const [urgenteErro, setUrgenteErro] = useState(false);
+  const [recebidoModalTrabalhoId, setRecebidoModalTrabalhoId] = useState<string | null>(null);
+  const [nomeRecebedor, setNomeRecebedor] = useState("");
+  const [recebidoEnviando, setRecebidoEnviando] = useState(false);
+  const [historicoAberto, setHistoricoAberto] = useState<Record<string, boolean>>({});
   const [busca, setBusca] = useState("");
 
   const carregar = useCallback(async (silencioso = false) => {
@@ -130,6 +135,46 @@ export default function AcompanhamentoClientePage() {
     },
     [token, carregar]
   );
+
+  const confirmarRecebido = useCallback(async () => {
+    if (!recebidoModalTrabalhoId) return;
+    const nome = nomeRecebedor.trim();
+    if (nome.length < 2) {
+      setUrgenteErro(true);
+      setUrgenteMsg("Informe o nome de quem recebeu (mínimo 2 caracteres).");
+      return;
+    }
+
+    setRecebidoEnviando(true);
+    setUrgenteMsg(null);
+    setUrgenteErro(false);
+    try {
+      const res = await fetch(`/api/clientes/public/${token}/recebido`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          trabalhoId: recebidoModalTrabalhoId,
+          nomeRecebedor: nome,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setUrgenteErro(true);
+        setUrgenteMsg(json.message || "Não foi possível confirmar o recebimento.");
+        return;
+      }
+      setUrgenteErro(false);
+      setUrgenteMsg(json.message || "Recebimento confirmado. Obrigado!");
+      setRecebidoModalTrabalhoId(null);
+      setNomeRecebedor("");
+      await carregar(true);
+    } catch {
+      setUrgenteErro(true);
+      setUrgenteMsg("Não foi possível confirmar o recebimento.");
+    } finally {
+      setRecebidoEnviando(false);
+    }
+  }, [token, recebidoModalTrabalhoId, nomeRecebedor, carregar]);
 
   const trabalhosFiltrados = useMemo(() => {
     if (!dados) return [];
@@ -260,6 +305,39 @@ export default function AcompanhamentoClientePage() {
                   >
                     {t.statusLabel}
                   </span>
+                  {t.historicoRecebimento ? (
+                    <div className="w-full text-right">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setHistoricoAberto((atual) => ({
+                            ...atual,
+                            [t.id]: !atual[t.id],
+                          }))
+                        }
+                        className="inline-flex items-center gap-0.5 text-[10px] font-medium text-teal-700 hover:text-teal-900"
+                      >
+                        {historicoAberto[t.id] ? (
+                          <ChevronUp className="h-3 w-3" />
+                        ) : (
+                          <ChevronDown className="h-3 w-3" />
+                        )}
+                        Recebimento confirmado
+                      </button>
+                      {historicoAberto[t.id] ? (
+                        <div className="mt-1 rounded-md border border-teal-100 bg-teal-50/80 px-2.5 py-1.5 text-left text-[10px] text-teal-900">
+                          <p>
+                            <span className="font-semibold">Recebido por:</span>{" "}
+                            {t.historicoRecebimento.nomeRecebedor}
+                          </p>
+                          <p className="mt-0.5">
+                            <span className="font-semibold">Em:</span>{" "}
+                            {formatarDataHora(t.historicoRecebimento.registradoEm)}
+                          </p>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
@@ -346,36 +424,104 @@ export default function AcompanhamentoClientePage() {
                 <p className="text-[10px] text-slate-400">
                   Última alteração: {formatarDataHora(t.atualizadoEm)}
                 </p>
-                {t.podeSolicitarUrgente ? (
-                  <button
-                    type="button"
-                    disabled={urgenteEnviando === t.id}
-                    onClick={() => void solicitarUrgente(t.id)}
-                    className="absolute bottom-2 right-3 flex items-center gap-1 rounded-full border border-red-300 bg-red-50 px-3 py-1.5 text-[11px] font-semibold text-red-700 shadow-sm transition hover:bg-red-100 disabled:opacity-60"
-                    title="Sinalizar este trabalho como urgente"
-                  >
-                    {urgenteEnviando === t.id ? "Enviando…" : "⚡ Urgente"}
-                  </button>
-                ) : t.podeRemoverUrgente ? (
-                  <button
-                    type="button"
-                    disabled={urgenteRemovendo === t.id}
-                    onClick={() => void removerUrgente(t.id)}
-                    className="absolute bottom-2 right-3 flex items-center gap-1 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
-                    title="Remover a marcação de urgência deste trabalho"
-                  >
-                    {urgenteRemovendo === t.id ? "Removendo…" : "Remover urgência"}
-                  </button>
-                ) : t.urgente ? (
-                  <span className="absolute bottom-2 right-3 text-[10px] font-semibold uppercase text-red-600">
-                    Sinalizado urgente
-                  </span>
-                ) : null}
+                <div className="absolute bottom-2 right-3 flex flex-wrap items-center justify-end gap-2">
+                  {t.podeConfirmarRecebido ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRecebidoModalTrabalhoId(t.id);
+                        setNomeRecebedor("");
+                      }}
+                      className="inline-flex items-center gap-1 rounded-full border border-teal-300 bg-teal-50 px-3 py-1.5 text-[11px] font-semibold text-teal-800 shadow-sm transition hover:bg-teal-100"
+                      title="Confirmar que você recebeu este trabalho"
+                    >
+                      <PackageCheck className="h-3.5 w-3.5" />
+                      Recebido
+                    </button>
+                  ) : null}
+                  {t.podeSolicitarUrgente ? (
+                    <button
+                      type="button"
+                      disabled={urgenteEnviando === t.id}
+                      onClick={() => void solicitarUrgente(t.id)}
+                      className="inline-flex items-center gap-1 rounded-full border border-red-300 bg-red-50 px-3 py-1.5 text-[11px] font-semibold text-red-700 shadow-sm transition hover:bg-red-100 disabled:opacity-60"
+                      title="Sinalizar este trabalho como urgente"
+                    >
+                      {urgenteEnviando === t.id ? "Enviando…" : "⚡ Urgente"}
+                    </button>
+                  ) : t.podeRemoverUrgente ? (
+                    <button
+                      type="button"
+                      disabled={urgenteRemovendo === t.id}
+                      onClick={() => void removerUrgente(t.id)}
+                      className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
+                      title="Remover a marcação de urgência deste trabalho"
+                    >
+                      {urgenteRemovendo === t.id ? "Removendo…" : "Remover urgência"}
+                    </button>
+                  ) : t.urgente ? (
+                    <span className="text-[10px] font-semibold uppercase text-red-600">
+                      Sinalizado urgente
+                    </span>
+                  ) : null}
+                </div>
               </div>
             </article>
           ))
         )}
       </main>
+
+      <Modal
+        open={recebidoModalTrabalhoId !== null}
+        onClose={() => {
+          if (recebidoEnviando) return;
+          setRecebidoModalTrabalhoId(null);
+          setNomeRecebedor("");
+        }}
+        title="Confirmar recebimento"
+        size="sm"
+      >
+        <p className="mb-4 text-sm text-slate-600">
+          Informe o nome de quem recebeu o trabalho. A situação será atualizada para{" "}
+          <strong>Recebido</strong> no laboratório.
+        </p>
+        <label className="block text-xs font-medium text-slate-700">
+          Nome de quem recebeu
+          <input
+            type="text"
+            value={nomeRecebedor}
+            onChange={(e) => setNomeRecebedor(e.target.value)}
+            placeholder="Ex.: Dr. João Silva"
+            maxLength={120}
+            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm text-slate-800 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500/30"
+            disabled={recebidoEnviando}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void confirmarRecebido();
+            }}
+          />
+        </label>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            disabled={recebidoEnviando}
+            onClick={() => {
+              setRecebidoModalTrabalhoId(null);
+              setNomeRecebedor("");
+            }}
+            className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            disabled={recebidoEnviando}
+            onClick={() => void confirmarRecebido()}
+            className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60"
+          >
+            {recebidoEnviando ? "Salvando…" : "Confirmar recebimento"}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -65,6 +65,11 @@ export async function GET(request: Request) {
           valor: true,
           data: true,
           status: true,
+          descricao: true,
+          formaPagamento: true,
+          clienteId: true,
+          trabalhoId: true,
+          trabalho: { select: { numeroOs: true } },
         },
       }),
     ]);
@@ -91,6 +96,11 @@ export async function GET(request: Request) {
       valor: l.valor,
       data: l.data.toISOString(),
       status: l.status,
+      descricao: l.descricao,
+      formaPagamento: l.formaPagamento,
+      clienteId: l.clienteId,
+      trabalhoId: l.trabalhoId,
+      trabalhoNumeroOs: l.trabalho?.numeroOs ?? null,
     }));
     const payload = calcularRelatorioFinanceiroGeral(
       trabalhos,

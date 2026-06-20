@@ -17,6 +17,12 @@ import {
   type EventoUrgenciaCliente,
   type LimitesUrgenciaCliente,
 } from "@/lib/urgencia-cliente";
+import {
+  historicoRecebimentoPorTrabalho,
+  podeConfirmarRecebimentoCliente,
+  type EventoRecebimentoCliente,
+  type HistoricoRecebimentoPublico,
+} from "@/lib/recebimento-cliente";
 
 export function gerarTokenAcompanhamentoCliente() {
   return randomBytes(16).toString("hex");
@@ -73,6 +79,8 @@ export type TrabalhoAcompanhamentoPublico = {
   urgente: boolean;
   podeSolicitarUrgente: boolean;
   podeRemoverUrgente: boolean;
+  podeConfirmarRecebido: boolean;
+  historicoRecebimento: HistoricoRecebimentoPublico | null;
 };
 
 export type ClienteAcompanhamentoPublico = {
@@ -124,7 +132,8 @@ export function montarAcompanhamentoPublico(
   trabalhos: TrabalhoDb[],
   labNome: string,
   mapaEtapas: Record<string, number[]> = {},
-  eventosUrgencia: EventoUrgenciaCliente[] = []
+  eventosUrgencia: EventoUrgenciaCliente[] = [],
+  eventosRecebimento: EventoRecebimentoCliente[] = []
 ): ClienteAcompanhamentoPublico {
   const limitesUrgencia = calcularLimitesUrgenciaCliente(
     eventosUrgencia,
@@ -190,6 +199,12 @@ export function montarAcompanhamentoPublico(
     const podeSolicitarUrgente =
       ativo && !urgente && !limiteDia && !limiteAtivo;
     const podeRemoverUrgente = ativo && urgente;
+    const podeConfirmarRecebido = podeConfirmarRecebimentoCliente(principal.status);
+    const historicoRecebimento = historicoRecebimentoPorTrabalho(
+      eventosRecebimento,
+      principal.id,
+      principal.numeroOs
+    );
 
     publicos.push({
       id: principal.id,
@@ -209,6 +224,8 @@ export function montarAcompanhamentoPublico(
       urgente,
       podeSolicitarUrgente,
       podeRemoverUrgente,
+      podeConfirmarRecebido,
+      historicoRecebimento,
     });
   }
 

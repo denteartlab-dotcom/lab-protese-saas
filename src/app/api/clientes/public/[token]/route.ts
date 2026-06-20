@@ -5,6 +5,7 @@ import {
   montarAcompanhamentoPublico,
 } from "@/lib/cliente-acompanhamento";
 import { carregarStoreUrgenciasCliente } from "@/lib/urgencia-cliente";
+import { carregarStoreRecebimentosCliente } from "@/lib/recebimento-cliente";
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -22,6 +23,7 @@ export async function GET(_request: Request, { params }: Params) {
 
   const { cliente, trabalhos, labNome, mapaEtapas } = resultado;
   const storeUrgencias = await carregarStoreUrgenciasCliente(cliente.empresaId);
+  const storeRecebimentos = await carregarStoreRecebimentosCliente(cliente.empresaId);
 
   const payload = montarAcompanhamentoPublico(
     {
@@ -33,7 +35,8 @@ export async function GET(_request: Request, { params }: Params) {
     trabalhos,
     labNome,
     mapaEtapas,
-    storeUrgencias.eventos
+    storeUrgencias.eventos,
+    storeRecebimentos.eventos
   );
 
   return NextResponse.json(payload);

@@ -44,7 +44,7 @@ export async function exportarRelatorioFinanceiroGeralPdf(
     colunas: [
       { titulo: "Mês", larguraMm: 18 },
       { titulo: "Não Concl.", larguraMm: 24, alinhamento: "right" },
-      { titulo: "Concluído", larguraMm: 24, alinhamento: "right" },
+      { titulo: "A Receber", larguraMm: 24, alinhamento: "right" },
       { titulo: "Total", larguraMm: 24, alinhamento: "right" },
       { titulo: "Qtd", larguraMm: 12, alinhamento: "center" },
       { titulo: "Ticket", larguraMm: 24, alinhamento: "right" },

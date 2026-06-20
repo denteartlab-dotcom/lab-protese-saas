@@ -1,6 +1,11 @@
 import { dateToBrShort, parseBrDate } from "@/lib/datas-br";
 import { parseCurrencyBr } from "@/lib/cliente-financeiro";
 import {
+  ehCobrancaOsReceita,
+  saldoFaturaCobrancaOs,
+  type LancamentoFinanceiroResumo,
+} from "@/lib/dashboard-financeiro";
+import {
   nomeEtapaSemSetor,
   parseComplementosInstrucoesGrupo,
 } from "@/lib/etapas-os";
@@ -18,6 +23,7 @@ import {
   type FinanceiroLancamentosPeriodo,
   type LancamentoRelatorioFinanceiro,
 } from "@/lib/financeiro-lancamentos-relatorio";
+import { numerosOsDoLancamentoFatura } from "@/lib/os-faturamento";
 
 export const MESES_FINANCEIRO_GERAL = [
   "Jan",
@@ -76,6 +82,7 @@ export type LinhaDetalheFinanceiroGeral = {
   servico: string;
   valor: number;
   dataEntrada: string;
+  dataConclusao: string;
   prazo: string;
   diasProducao: number;
   status: string;
@@ -85,6 +92,8 @@ export type LinhaDetalheFinanceiroGeral = {
   concluido: boolean;
   mesEntrada: number;
   anoEntrada: number;
+  mesConclusao: number;
+  anoConclusao: number;
   categoriaServico: CategoriaTipoServico;
 };
 
@@ -139,6 +148,7 @@ export const STATUS_SERVICO_CONCLUIDO_FINANCEIRO = [
   "finalizado",
   "saiu_entrega",
   "entregue",
+  "recebido_cliente",
 ] as const;
 
 export function servicoConcluidoFinanceiro(status?: string | null) {
@@ -222,6 +232,76 @@ export function valorServicoTrabalhoFinanceiro(trabalho: TrabalhoFinanceiroGeral
 
   if (total > 0) return total;
   return Number(trabalho.valor) || 0;
+}
+
+function toLancamentoResumo(l: LancamentoRelatorioFinanceiro): LancamentoFinanceiroResumo {
+  return {
+    id: l.id,
+    tipo: l.tipo,
+    descricao: l.descricao ?? "",
+    valor: l.valor,
+    data: l.data,
+    status: l.status,
+    formaPagamento: l.formaPagamento ?? null,
+    clienteId: l.clienteId ?? null,
+    trabalhoId: l.trabalhoId ?? null,
+    trabalhoNumeroOs: l.trabalhoNumeroOs ?? null,
+  };
+}
+
+function faturaLigadaAoTrabalho(
+  lancamento: LancamentoFinanceiroResumo,
+  trabalho: Pick<TrabalhoFinanceiroGeralInput, "id" | "numeroOs">
+) {
+  if (lancamento.trabalhoId === trabalho.id) return true;
+  if (lancamento.trabalhoNumeroOs === trabalho.numeroOs) return true;
+  return numerosOsDoLancamentoFatura(lancamento).includes(trabalho.numeroOs);
+}
+
+/** Saldo em Contas a Receber da OS; se ainda não faturada, usa o valor do serviço. */
+export function valorAReceberTrabalhoFinanceiro(
+  trabalho: TrabalhoFinanceiroGeralInput,
+  lancamentos: LancamentoRelatorioFinanceiro[]
+): number {
+  const resumos = lancamentos.map(toLancamentoResumo);
+  let total = 0;
+  let temFatura = false;
+
+  for (const l of resumos) {
+    if (!ehCobrancaOsReceita(l)) continue;
+    if (!faturaLigadaAoTrabalho(l, trabalho)) continue;
+    temFatura = true;
+    total += saldoFaturaCobrancaOs(l, resumos);
+  }
+
+  if (total > 0.005) return total;
+  if (!temFatura) return valorServicoTrabalhoFinanceiro(trabalho);
+  return 0;
+}
+
+function dataConclusaoTrabalho(trabalho: TrabalhoFinanceiroGeralInput) {
+  if (!servicoConcluidoFinanceiro(trabalho.status)) return null;
+  if (trabalho.dataEntrega) {
+    const entrega = parseDataEntrada(trabalho.dataEntrega);
+    if (entrega) return entrega;
+  }
+  return parseDataEntrada(trabalho.dataEntrada);
+}
+
+function linhaNoPeriodo(
+  linha: LinhaDetalheFinanceiroGeral,
+  inicio: Date,
+  fim: Date
+) {
+  if (linha.concluido) {
+    const conclusao = parseBrDate(linha.dataConclusao);
+    if (!conclusao) return false;
+    return conclusao >= inicio && conclusao <= fim;
+  }
+
+  const entrada = parseBrDate(linha.dataEntrada);
+  if (!entrada) return false;
+  return entrada >= inicio && entrada <= fim;
 }
 
 export function categorizarTipoServico(tipoProtese: string): CategoriaTipoServico {
@@ -325,7 +405,8 @@ function mesesNoPeriodo(inicio: Date, fim: Date) {
 
 export function montarLinhasDetalhe(
   trabalhos: TrabalhoFinanceiroGeralInput[],
-  mapaEtapas: Record<string, number[]> = {}
+  mapaEtapas: Record<string, number[]> = {},
+  lancamentos: LancamentoRelatorioFinanceiro[] = []
 ): LinhaDetalheFinanceiroGeral[] {
   return trabalhos
     .filter(
@@ -340,14 +421,20 @@ export function montarLinhasDetalhe(
       const entrada = parseDataEntrada(t.dataEntrada);
       const entrega = t.dataEntrega ? parseDataEntrada(t.dataEntrega) : null;
       const concluido = servicoConcluidoFinanceiro(t.status);
+      const conclusao = dataConclusaoTrabalho(t);
       const { etapaAtual, responsavel } = resolverEtapaResponsavel(t, mapaEtapas);
+      const valorProducao = valorServicoTrabalhoFinanceiro(t);
+      const valor = concluido
+        ? valorAReceberTrabalhoFinanceiro(t, lancamentos)
+        : valorProducao;
       return {
         id: t.id,
         numeroOs: t.numeroOs,
         cliente: t.clienteNome,
         servico: t.tipoProtese,
-        valor: valorServicoTrabalhoFinanceiro(t),
+        valor,
         dataEntrada: entrada ? dateToBrShort(entrada) : "—",
+        dataConclusao: conclusao ? dateToBrShort(conclusao) : "—",
         prazo: t.dataPrevista
           ? dateToBrShort(parseDataEntrada(t.dataPrevista) ?? new Date())
           : "—",
@@ -359,6 +446,8 @@ export function montarLinhasDetalhe(
         concluido,
         mesEntrada: entrada?.getMonth() ?? 0,
         anoEntrada: entrada?.getFullYear() ?? new Date().getFullYear(),
+        mesConclusao: conclusao?.getMonth() ?? 0,
+        anoConclusao: conclusao?.getFullYear() ?? new Date().getFullYear(),
         categoriaServico: categorizarTipoServico(t.tipoProtese),
       };
     });
@@ -377,11 +466,9 @@ export function calcularRelatorioFinanceiroGeral(
     parseBrDate(filtros.dataFim) ?? new Date(new Date().getFullYear(), 11, 31);
   fim.setHours(23, 59, 59, 999);
 
-  const todasLinhas = montarLinhasDetalhe(trabalhos, mapaEtapas).filter((linha) => {
-    const entrada = parseBrDate(linha.dataEntrada);
-    if (!entrada) return false;
-    return entrada >= inicio && entrada <= fim;
-  });
+  const todasLinhas = montarLinhasDetalhe(trabalhos, mapaEtapas, lancamentos).filter((linha) =>
+    linhaNoPeriodo(linha, inicio, fim)
+  );
 
   const linhas = todasLinhas.filter((l) => passaFiltros(l, filtros));
 
@@ -397,11 +484,16 @@ export function calcularRelatorioFinanceiroGeral(
     mesesPeriodo.length > 0 ? valorBrutoTotal / mesesPeriodo.length : 0;
 
   const evolucaoMensal: MesValorFinanceiroGeral[] = mesesPeriodo.map(({ ano, mesIdx, label }) => {
-    const doMes = linhas.filter((l) => l.anoEntrada === ano && l.mesEntrada === mesIdx);
-    const valorNao = doMes.filter((l) => !l.concluido).reduce((s, l) => s + l.valor, 0);
-    const valorSim = doMes.filter((l) => l.concluido).reduce((s, l) => s + l.valor, 0);
+    const doMesNao = linhas.filter(
+      (l) => !l.concluido && l.anoEntrada === ano && l.mesEntrada === mesIdx
+    );
+    const doMesSim = linhas.filter(
+      (l) => l.concluido && l.anoConclusao === ano && l.mesConclusao === mesIdx
+    );
+    const valorNao = doMesNao.reduce((s, l) => s + l.valor, 0);
+    const valorSim = doMesSim.reduce((s, l) => s + l.valor, 0);
     const total = valorNao + valorSim;
-    const qtd = doMes.length;
+    const qtd = doMesNao.length + doMesSim.length;
     return {
       mes: label,
       mesIdx,
