@@ -17,6 +17,7 @@ import {
   RECURSOS_PLANOS_ASSINATURA,
 } from "@/lib/master-planos";
 import { cn } from "@/lib/utils";
+import { ContagemRegressivaPixQr } from "@/components/assinatura/ContagemRegressivaPixQr";
 
 type CobrancaPix = {
   cobrancaId: string;
@@ -25,6 +26,7 @@ type CobrancaPix = {
   diasRenovacao: number;
   pixPayload: string | null;
   pixEncodedImage: string | null;
+  pixExpiraEm: string | null;
   pago: boolean;
   renovadoEm: string | null;
   novaDataVencimento: string | null;
@@ -82,6 +84,7 @@ export function PagamentoAssinaturaPainel() {
           ...data.cobranca!,
           pixEncodedImage:
             data.cobranca!.pixEncodedImage || atual?.pixEncodedImage || null,
+          pixExpiraEm: data.cobranca!.pixExpiraEm ?? atual?.pixExpiraEm ?? null,
         }));
         if (data.cobranca.pago && data.cobranca.renovadoEm) {
           const slug = data.cobranca.empresaSlug?.trim();
@@ -171,6 +174,12 @@ export function PagamentoAssinaturaPainel() {
                 +{cobranca.diasRenovacao} dias após confirmação
               </p>
             </div>
+
+            <ContagemRegressivaPixQr
+              expiraEm={cobranca.pixExpiraEm}
+              onGerarNovo={() => void gerarPix()}
+              gerandoNovo={loading}
+            />
 
             {cobranca.pixEncodedImage ? (
               <div className="flex justify-center">

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Check, Copy, Loader2, QrCode, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ContagemRegressivaPixQr } from "@/components/assinatura/ContagemRegressivaPixQr";
 
 export type CredenciaisRenovacaoPix = {
   email?: string;
@@ -17,6 +18,7 @@ type CobrancaPix = {
   diasRenovacao: number;
   pixPayload: string | null;
   pixEncodedImage: string | null;
+  pixExpiraEm: string | null;
   pago: boolean;
   renovadoEm: string | null;
   novaDataVencimento: string | null;
@@ -86,6 +88,7 @@ export function RenovarAssinaturaPixModal({
           ...data.cobranca!,
           pixEncodedImage:
             data.cobranca!.pixEncodedImage || atual?.pixEncodedImage || null,
+          pixExpiraEm: data.cobranca!.pixExpiraEm ?? atual?.pixExpiraEm ?? null,
         }));
         if (data.cobranca.pago && data.cobranca.renovadoEm) {
           onRenovado?.();
@@ -166,6 +169,13 @@ export function RenovarAssinaturaPixModal({
                 +{cobranca.diasRenovacao} dias de acesso após confirmação do pagamento
               </p>
             </div>
+
+            <ContagemRegressivaPixQr
+              expiraEm={cobranca.pixExpiraEm}
+              onGerarNovo={() => void gerarPix()}
+              gerandoNovo={loading}
+              compacto
+            />
 
             {cobranca.pixEncodedImage ? (
               <div className="flex justify-center">
