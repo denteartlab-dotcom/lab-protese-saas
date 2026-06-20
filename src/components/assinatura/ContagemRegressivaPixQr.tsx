@@ -1,41 +1,51 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { PIX_ASSINATURA_QR_EXPIRACAO_MINUTOS } from "@/lib/assinatura-pix-constants";
+import {
+  PIX_ASSINATURA_QR_EXPIRACAO_MS,
+  PIX_ASSINATURA_QR_EXPIRACAO_MINUTOS,
+} from "@/lib/assinatura-pix-constants";
 import { cn } from "@/lib/utils";
 
 function msRestantesPix(expiraEmIso: string | null | undefined): number {
   if (!expiraEmIso) return 0;
-  return Math.max(0, new Date(expiraEmIso).getTime() - Date.now());
+  const resto = Math.max(0, new Date(expiraEmIso).getTime() - Date.now());
+  return Math.min(resto, PIX_ASSINATURA_QR_EXPIRACAO_MS);
 }
 
 export function formatarContagemRegressivaPix(msRestante: number): string {
   if (msRestante <= 0) return "00:00";
-  const totalSeg = Math.ceil(msRestante / 1000);
-  const horas = Math.floor(totalSeg / 3600);
-  const minutos = Math.floor((totalSeg % 3600) / 60);
+  const totalSeg = Math.floor(msRestante / 1000);
+  const minutos = Math.floor(totalSeg / 60);
   const segundos = totalSeg % 60;
-  if (horas > 0) {
-    return `${horas}:${String(minutos).padStart(2, "0")}:${String(segundos).padStart(2, "0")}`;
-  }
   return `${String(minutos).padStart(2, "0")}:${String(segundos).padStart(2, "0")}`;
 }
 
 export function useContagemRegressivaPix(expiraEmIso: string | null | undefined) {
   const [restoMs, setRestoMs] = useState(() => msRestantesPix(expiraEmIso));
+  const [expiradoReal, setExpiradoReal] = useState(() => {
+    if (!expiraEmIso) return false;
+    return new Date(expiraEmIso).getTime() <= Date.now();
+  });
 
   useEffect(() => {
     if (!expiraEmIso) {
       setRestoMs(0);
+      setExpiradoReal(false);
       return;
     }
-    const tick = () => setRestoMs(msRestantesPix(expiraEmIso));
+    const tick = () => {
+      const agora = Date.now();
+      const expira = new Date(expiraEmIso).getTime();
+      setExpiradoReal(expira <= agora);
+      setRestoMs(Math.min(Math.max(0, expira - agora), PIX_ASSINATURA_QR_EXPIRACAO_MS));
+    };
     tick();
     const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
   }, [expiraEmIso]);
 
-  const expirado = Boolean(expiraEmIso) && restoMs <= 0;
+  const expirado = Boolean(expiraEmIso) && expiradoReal;
 
   return {
     expirado,

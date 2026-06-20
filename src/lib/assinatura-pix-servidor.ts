@@ -20,6 +20,7 @@ import {
   obterPixMercadoPagoPlataforma,
 } from "@/lib/mercadopago-plataforma";
 import { prisma } from "@/lib/db";
+import { PIX_ASSINATURA_QR_EXPIRACAO_MS } from "@/lib/assinatura-pix-constants";
 import {
   DIAS_RENOVACAO_MENSAL,
   limitesDoPlano,
@@ -72,6 +73,17 @@ function cobrancaPendenteReutilizavel(
   if (!cobrancaPendenteValida(cobranca)) return false;
   if (cobranca.valor !== precoMensalPlano(plano)) return false;
   if (cobranca.diasRenovacao !== DIAS_RENOVACAO_MENSAL) return false;
+  if (cobranca.pixExpiraEm) {
+    const duracaoMs =
+      cobranca.pixExpiraEm.getTime() - cobranca.createdAt.getTime();
+    if (duracaoMs > PIX_ASSINATURA_QR_EXPIRACAO_MS + 2 * 60 * 1000) {
+      return false;
+    }
+    const restanteMs = cobranca.pixExpiraEm.getTime() - Date.now();
+    if (restanteMs > PIX_ASSINATURA_QR_EXPIRACAO_MS + 60 * 1000) {
+      return false;
+    }
+  }
   return true;
 }
 
