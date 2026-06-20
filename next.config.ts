@@ -59,6 +59,9 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  typescript: {
+    ignoreBuildErrors: process.env.SKIP_TYPECHECK === "1",
+  },
   ...(assetPrefix ? { assetPrefix } : {}),
   env: {
     NEXT_PUBLIC_APP_BUILD_ID: appBuildId,

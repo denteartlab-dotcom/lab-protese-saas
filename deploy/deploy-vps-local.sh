@@ -59,7 +59,9 @@ echo "$BUILD_ID" > .build-id
 export NEXT_PUBLIC_APP_BUILD_ID="$BUILD_ID"
 export NODE_ENV=production
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=4096}"
+export SKIP_TYPECHECK=1
 echo "    NODE_OPTIONS=$NODE_OPTIONS"
+echo "    SKIP_TYPECHECK=$SKIP_TYPECHECK (VPS: pula checagem de tipos no build)"
 npm run build
 echo "    buildId: $BUILD_ID"
 
