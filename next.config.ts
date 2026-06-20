@@ -56,6 +56,8 @@ const assetPrefix = resolveAssetPrefix();
 const nextConfig: NextConfig = {
   devIndicators: false,
   outputFileTracingRoot: projectRoot,
+  /** Evita bundling de libs Node (unzipper puxa @aws-sdk/client-s3 opcional). */
+  serverExternalPackages: ["archiver", "unzipper"],
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -99,7 +101,12 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: projectRoot,
   },
-  webpack: (config, { dev }) => {
+  webpack: (config, { dev, webpack }) => {
+    config.plugins.push(
+      new webpack.IgnorePlugin({
+        resourceRegExp: /^@aws-sdk\/client-s3$/,
+      })
+    );
     if (dev) {
       config.watchOptions = {
         ...config.watchOptions,

@@ -1,6 +1,6 @@
 import { readdir, stat } from "fs/promises";
 import path from "path";
-import archiver from "archiver";
+import { ZipArchive } from "archiver";
 import { PassThrough } from "stream";
 import unzipper from "unzipper";
 import type { BackupLaboratorioPayload } from "@/lib/backup-laboratorio";
@@ -107,7 +107,7 @@ export async function criarZipBackupEmpresa(
   const json = JSON.stringify(backupJsonSemBytesUpload(backup), null, 2);
 
   return new Promise((resolve, reject) => {
-    const archive = archiver("zip", { zlib: { level: 6 } });
+    const archive = new ZipArchive({ zlib: { level: 6 } });
     const stream = new PassThrough();
     const chunks: Buffer[] = [];
 
