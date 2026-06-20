@@ -18,11 +18,12 @@ import {
   parseItensAdicionadosLinhas,
   segmentoEfetivoTrabalho,
   valorLiquidoItemOs,
-  type SegmentoFaturamento,
 } from "@/lib/trabalho-os-segmento";
 import {
+  idsTrabalhosFaturadosNoLancamento,
+  lancamentoFaturaOsAtivo,
   numerosOsDoLancamentoFatura,
-  trabalhoEstaFaturado,
+  type LancamentoFaturaOs,
 } from "@/lib/os-faturamento";
 import {
   calcularFinanceiroLancamentosPeriodo,
@@ -180,9 +181,50 @@ function valorLiquidoDeLinhaItemAdicionado(line: string): number | null {
   return valorLiquidoItemOs({ valor, desconto: descontoRaw, descontoTipo });
 }
 
+const META_TRABALHOS_COBRANCA = /@@trab:([a-zA-Z0-9_,-]+)@@/;
+
+function toLancamentoFaturaOs(l: LancamentoRelatorioFinanceiro): LancamentoFaturaOs {
+  return {
+    id: l.id,
+    status: l.status,
+    descricao: l.descricao ?? "",
+    tipo: l.tipo,
+    trabalho: l.trabalhoId
+      ? { id: l.trabalhoId, numeroOs: l.trabalhoNumeroOs ?? undefined }
+      : null,
+  };
+}
+
+/** Cobrança legado (sem @@trab) só fatura o segmento serviço; produto/transporte seguem a receber. */
+function trabalhoEstaFaturadoRelatorio(
+  trabalho: TrabalhoFinanceiroGeralInput,
+  lancamentos: LancamentoRelatorioFinanceiro[]
+): boolean {
+  return lancamentos.some((lancamentoRaw) => {
+    const lancamento = toLancamentoFaturaOs(lancamentoRaw);
+    if (!lancamentoFaturaOsAtivo(lancamento)) return false;
+    const ids = idsTrabalhosFaturadosNoLancamento(lancamento);
+    const temMetaIds = META_TRABALHOS_COBRANCA.test(lancamento.descricao);
+    if (temMetaIds) return ids.includes(trabalho.id);
+    if (ids.length > 0 && ids.includes(trabalho.id)) return true;
+    if (segmentoEfetivoTrabalho(trabalho) !== "servico") return false;
+    return numerosOsDoLancamentoFatura(lancamento).includes(trabalho.numeroOs);
+  });
+}
+
+function valorEmbutidoSegmentosOs(
+  segmentosOs: TrabalhoFinanceiroGeralInput[],
+  segmento: "produto" | "transporte"
+): number {
+  if (segmentosOs.some((t) => segmentoEfetivoTrabalho(t) === segmento)) return 0;
+  return segmentosOs
+    .filter((t) => segmentoEfetivoTrabalho(t) === "servico")
+    .reduce((s, t) => s + valorTotalSegmentoInstrucoes(t.instrucoes, segmento), 0);
+}
+
 function valorTotalSegmentoInstrucoes(
   instrucoes: string | null | undefined,
-  segmento: SegmentoFaturamento
+  segmento: "servico" | "produto" | "transporte"
 ): number {
   let total = 0;
   for (const line of parseItensAdicionadosLinhas(instrucoes)) {
@@ -360,9 +402,12 @@ export function valorAReceberNumeroOsCompleto(
     saldoFaturas += saldoFaturaCobrancaOs(l, resumos);
   }
 
-  let valorNaoFaturado = 0;
+  const embutidoProduto = valorEmbutidoSegmentosOs(segmentosOs, "produto");
+  const embutidoTransporte = valorEmbutidoSegmentosOs(segmentosOs, "transporte");
+
+  let valorNaoFaturado = embutidoProduto + embutidoTransporte;
   for (const t of segmentosOs) {
-    if (trabalhoEstaFaturado(t, lancamentos)) continue;
+    if (trabalhoEstaFaturadoRelatorio(t, lancamentos)) continue;
     valorNaoFaturado += valorTrabalhoSegmentoFinanceiro(t);
   }
 

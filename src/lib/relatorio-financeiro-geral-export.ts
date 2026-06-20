@@ -3,6 +3,7 @@ import { baixarExcel } from "@/lib/exportar-excel";
 import { gerarRelatorioTabelaPdf } from "@/lib/pdf-relatorio-tabela";
 import type {
   FiltrosRelatorioFinanceiroGeral,
+  LinhaDetalheFinanceiroGeral,
   RelatorioFinanceiroGeralPayload,
 } from "@/lib/relatorio-financeiro-geral";
 import {
@@ -71,6 +72,39 @@ export async function exportarRelatorioFinanceiroGeralPdf(
         String(totalMes.qtd),
         moeda(dados.resumo.ticketMedio),
       ],
+    },
+  });
+}
+
+export async function exportarModalAReceberConcluidosPdf(
+  titulo: string,
+  linhas: LinhaDetalheFinanceiroGeral[],
+  total: number
+) {
+  return gerarRelatorioTabelaPdf({
+    tituloRelatorio: titulo,
+    periodoTexto:
+      "Valores a receber (serviço + produto + transporte da mesma OS, saldo em Contas a Receber ou valor da OS)",
+    colunas: [
+      { titulo: "OS", larguraMm: 14 },
+      { titulo: "Cliente", larguraMm: 36 },
+      { titulo: "Serviço", larguraMm: 36 },
+      { titulo: "Conclusão", larguraMm: 22 },
+      { titulo: "Situação", larguraMm: 28 },
+      { titulo: "A receber", larguraMm: 28, alinhamento: "right" },
+    ],
+    linhas: linhas.map((l) => [
+      String(l.numeroOs),
+      l.cliente,
+      l.servico,
+      l.dataConclusao,
+      l.statusLabel,
+      moeda(l.valor),
+    ]),
+    linhaTotal: {
+      indiceRotulo: 0,
+      rotulo: `TOTAL (${linhas.length} OS)`,
+      celulas: [`TOTAL (${linhas.length} OS)`, null, null, null, null, moeda(total)],
     },
   });
 }
