@@ -902,7 +902,7 @@ export const messages = {
     "settings.backup": "Respaldo",
     "settings.backupTitulo": "Respaldo del laboratorio",
     "settings.backupDescricao":
-      "Exporte todos los datos (clientes, trabajos, finanzas, usuarios, configuración) en JSON o restaure un respaldo anterior.",
+      "Exporte todos los datos en un .zip (JSON + imágenes/adjuntos) o restaure un respaldo anterior.",
     "settings.backupExportarTitulo": "Exportar respaldo",
     "settings.backupExportarDesc":
       "Genera un .zip con backup.json (datos) y la carpeta uploads/ (imágenes y adjuntos). Guárdelo en un lugar seguro.",
@@ -922,7 +922,7 @@ export const messages = {
       "Entiendo que todos los datos actuales se borrarán y se sustituirán por el archivo.",
     "settings.backupRestaurar": "Restaurar respaldo",
     "settings.backupImportando": "Restaurando...",
-    "settings.backupImportado": "Respaldo restaurado ({n} registros). Redirigiendo...",
+    "settings.backupImportado": "Respaldo restaurado ({n} registros, {u} adjunto(s)). Redirigiendo...",
     "settings.backupErroImportar": "No se pudo importar el respaldo.",
     "settings.backupSelecioneArquivo": "Seleccione un archivo de respaldo.",
     "settings.backupConfirmeSubstituir": "Marque la confirmación para continuar.",

@@ -54,6 +54,9 @@ npm run vps:validar
 
 echo ""
 echo "==> Build produção..."
+if command -v swapon >/dev/null 2>&1 && [[ "$(swapon --show 2>/dev/null | wc -l)" -le 0 ]]; then
+  echo "    AVISO: VPS sem swap — rode: bash deploy/garantir-swap.sh"
+fi
 BUILD_ID="$(git rev-parse --short HEAD)"
 echo "$BUILD_ID" > .build-id
 export NEXT_PUBLIC_APP_BUILD_ID="$BUILD_ID"

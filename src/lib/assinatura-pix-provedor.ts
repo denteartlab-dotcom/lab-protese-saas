@@ -29,3 +29,28 @@ export function statusCobrancaAssinaturaPendente(
   }
   return status === "PENDING";
 }
+
+/** PIX ainda aguardando pagamento (não pago e QR/cobrança não expirou). */
+export function cobrancaAssinaturaPixAberta(cobranca: {
+  provedor: string;
+  statusAsaas: string;
+  pixExpiraEm: Date | null;
+  createdAt: Date;
+  pagoEm?: Date | null;
+}): boolean {
+  if (cobranca.pagoEm) return false;
+  if (statusCobrancaAssinaturaPago(cobranca.provedor, cobranca.statusAsaas)) {
+    return false;
+  }
+  if (!statusCobrancaAssinaturaPendente(cobranca.provedor, cobranca.statusAsaas)) {
+    return false;
+  }
+  if (cobranca.pixExpiraEm && cobranca.pixExpiraEm.getTime() < Date.now()) {
+    return false;
+  }
+  const limite = Date.now() - 24 * 60 * 60 * 1000;
+  if (!cobranca.pixExpiraEm && cobranca.createdAt.getTime() < limite) {
+    return false;
+  }
+  return true;
+}

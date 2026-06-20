@@ -5,7 +5,7 @@ import {
 import {
   resolverProvedorPixAssinatura,
   statusCobrancaAssinaturaPago,
-  statusCobrancaAssinaturaPendente,
+  cobrancaAssinaturaPixAberta,
   type ProvedorPixAssinatura,
 } from "@/lib/assinatura-pix-provedor";
 import {
@@ -53,12 +53,7 @@ function cobrancaPendenteValida(cobranca: {
   pixExpiraEm: Date | null;
   createdAt: Date;
 }): boolean {
-  if (!statusCobrancaAssinaturaPendente(cobranca.provedor, cobranca.statusAsaas)) {
-    return false;
-  }
-  if (cobranca.pixExpiraEm && cobranca.pixExpiraEm.getTime() < Date.now()) return false;
-  const limite = Date.now() - 24 * 60 * 60 * 1000;
-  return cobranca.createdAt.getTime() >= limite;
+  return cobrancaAssinaturaPixAberta(cobranca);
 }
 
 async function montarRespostaCobranca(

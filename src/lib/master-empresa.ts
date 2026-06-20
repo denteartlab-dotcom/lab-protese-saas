@@ -402,6 +402,7 @@ export async function listarCobrancasAssinaturaMaster() {
       valor: c.valor,
       diasRenovacao: c.diasRenovacao,
       statusAsaas: c.statusAsaas,
+      pixExpiraEm: c.pixExpiraEm?.toISOString() ?? null,
       pago,
       pagoEm: c.pagoEm?.toISOString() ?? null,
       renovadoEm: c.renovadoEm?.toISOString() ?? null,
