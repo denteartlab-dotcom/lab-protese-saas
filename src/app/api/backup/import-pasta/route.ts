@@ -12,6 +12,7 @@ import {
   importarBackupEmpresa,
   validarBackupLaboratorio,
 } from "@/lib/backup-laboratorio";
+import { mapaUploadsDaPastaBackupEmpresa } from "@/lib/backup-uploads-espelho";
 
 export const dynamic = "force-dynamic";
 
@@ -103,8 +104,11 @@ export async function POST(request: Request) {
   }
 
   try {
+    const uploadsZip = await mapaUploadsDaPastaBackupEmpresa(empresaSlug, empresaNome);
     const resultado = await importarBackupEmpresa(prisma, backup, ctx.empresaId, {
       excluirDre: parsed.data.excluirDre,
+      uploadsZip,
+      empresaSlug,
     });
     return NextResponse.json({
       ok: true,
@@ -113,6 +117,7 @@ export async function POST(request: Request) {
       empresaSlug: backup.empresaSlug,
       contagens: resultado.contagens,
       excluirDre: Boolean(parsed.data.excluirDre),
+      uploadsRestaurados: uploadsZip.size,
     });
   } catch (err) {
     console.error("[backup/import-pasta]", err);

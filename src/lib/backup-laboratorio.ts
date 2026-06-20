@@ -1,5 +1,14 @@
+import { mkdir, writeFile } from "fs/promises";
+import path from "path";
 import type { PrismaClient } from "@prisma/client";
+import { resolverDadosUploadImport, UPLOADS_ZIP_PREFIX } from "@/lib/backup-zip";
 import { chaveJsonStoreTenant } from "@/lib/json-store-tenant";
+import { uploadUsaBancoDados } from "@/lib/upload-arquivo-server";
+import {
+  caminhoPastaUploads,
+  garantirPastasUploadEmpresa,
+  normalizarSlugPastaUploads,
+} from "@/lib/uploads-armazenamento-server";
 
 export const BACKUP_FORMAT_VERSION = 2;
 export const BACKUP_APP_ID = "lab-protese-saas";
@@ -280,7 +289,8 @@ async function excluirDadosEmpresa(prisma: PrismaClient, empresaId: string) {
 async function inserirLinhas(
   prisma: PrismaClient,
   tabela: string,
-  linhas: unknown[]
+  linhas: unknown[],
+  uploadsZip?: Map<string, Buffer>
 ) {
   for (const raw of linhas) {
     if (!raw || typeof raw !== "object") continue;
@@ -324,11 +334,16 @@ async function inserirLinhas(
         await prisma.orcamento.create({ data: row as never });
         break;
       case "ArquivoUpload": {
+        const dadosZip = uploadsZip?.size
+          ? resolverDadosUploadImport(row, uploadsZip)
+          : null;
         const dadosB64 = row.dados;
         const dados =
-          typeof dadosB64 === "string"
-            ? Buffer.from(dadosB64, "base64")
-            : Buffer.alloc(0);
+          dadosZip && dadosZip.length > 0
+            ? dadosZip
+            : typeof dadosB64 === "string" && dadosB64.length > 0
+              ? Buffer.from(dadosB64, "base64")
+              : Buffer.alloc(0);
         const { dados: _d, ...resto } = row;
         await prisma.arquivoUpload.create({
           data: { ...resto, dados } as never,
@@ -372,7 +387,29 @@ export function aplicarExclusaoDreNoBackup(
 export type OpcoesImportBackup = {
   /** Não restaura lançamentos pagos (dados que alimentam a D.R.E.). */
   excluirDre?: boolean;
+  /** Arquivos da pasta uploads/ dentro de um backup .zip */
+  uploadsZip?: Map<string, Buffer>;
+  empresaSlug?: string;
 };
+
+async function restaurarUploadsDiscoDoZip(
+  empresaSlug: string,
+  uploads: Map<string, Buffer>
+) {
+  if (uploadUsaBancoDados() || uploads.size === 0) return;
+
+  const slug = normalizarSlugPastaUploads(empresaSlug);
+  await garantirPastasUploadEmpresa(slug);
+  const base = caminhoPastaUploads(slug);
+
+  for (const [zipPath, buffer] of uploads) {
+    if (!zipPath.startsWith(UPLOADS_ZIP_PREFIX) || buffer.length === 0) continue;
+    const relative = zipPath.slice(UPLOADS_ZIP_PREFIX.length);
+    const dest = path.join(base, relative);
+    await mkdir(path.dirname(dest), { recursive: true });
+    await writeFile(dest, buffer);
+  }
+}
 
 export type ResultadoImportBackup = {
   contagens: Record<string, number>;
@@ -401,10 +438,14 @@ export async function importarBackupEmpresa(
         contagens[tabela] = 0;
         continue;
       }
-      await inserirLinhas(db, tabela, linhas);
+      await inserirLinhas(db, tabela, linhas, opts.uploadsZip);
       contagens[tabela] = linhas.length;
     }
   });
+
+  if (opts.empresaSlug) {
+    await restaurarUploadsDiscoDoZip(opts.empresaSlug, opts.uploadsZip ?? new Map());
+  }
 
   return { contagens };
 }

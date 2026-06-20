@@ -199,6 +199,7 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
   }
 
   async function exportar() {
+    setExportando(true);
     try {
       const res = await fetch("/api/backup/export", { credentials: "same-origin" });
       if (!res.ok) {
@@ -209,7 +210,9 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
       const blob = await res.blob();
       const disposition = res.headers.get("Content-Disposition") || "";
       const match = disposition.match(/filename="([^"]+)"/);
-      const nome = match?.[1] || `backup-lab-protese-${new Date().toISOString().slice(0, 10)}.json`;
+      const nome =
+        match?.[1] ||
+        `backup-lab-protese-${new Date().toISOString().slice(0, 10)}.zip`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -262,15 +265,13 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
           }),
         });
       } else {
-        const texto = await arquivo!.text();
+        const formData = new FormData();
+        formData.append("arquivo", arquivo!);
         res = await fetch("/api/backup/import", {
           method: "POST",
-          headers: {
-            ...headers,
-            "Content-Type": "application/json",
-          },
+          headers,
           credentials: "same-origin",
-          body: texto,
+          body: formData,
         });
       }
 
@@ -612,7 +613,7 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                 {t("settings.backupArquivo")}
                 <input
                   type="file"
-                  accept=".json,application/json"
+                  accept=".zip,.json,application/zip,application/json"
                   className="mt-1 block w-full text-xs text-slate-600 file:mr-3 file:rounded file:border-0 file:bg-[#4a90d9] file:px-3 file:py-1.5 file:text-xs file:text-white"
                   onChange={(e) => setArquivo(e.target.files?.[0] ?? null)}
                   disabled={importando}

@@ -1,11 +1,11 @@
-import { cp, mkdir, readdir, rm, stat, writeFile } from "fs/promises";
+import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from "fs/promises";
 import path from "path";
 import { pastaBackupEmpresa } from "@/lib/backup-empresa-pasta";
 import { prisma } from "@/lib/db";
 import { uploadUsaBancoDados } from "@/lib/upload-arquivo-server";
 import { caminhoPastaUploads } from "@/lib/uploads-armazenamento-server";
 
-function nomeArquivoSeguro(nome: string) {
+export function nomeArquivoUploadBackupSeguro(nome: string) {
   return nome
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -61,7 +61,7 @@ export async function espelharUploadsNoBackupEmpresa(
     for (const row of rows) {
       const pastaDestino = path.join(destino, row.pasta);
       await mkdir(pastaDestino, { recursive: true });
-      const arquivo = `${row.id}-${nomeArquivoSeguro(row.nome)}`;
+      const arquivo = `${row.id}-${nomeArquivoUploadBackupSeguro(row.nome)}`;
       await writeFile(path.join(pastaDestino, arquivo), row.dados);
       arquivos += 1;
     }
@@ -83,4 +83,37 @@ export async function espelharUploadsNoBackupEmpresa(
 
 export async function contarUploadsBackupEmpresa(slug: string, nome?: string) {
   return contarArquivosRecursivo(pastaUploadsBackupEmpresa(slug, nome));
+}
+
+async function lerUploadsRecursivoParaMapa(
+  dir: string,
+  prefixo: string,
+  destino: Map<string, Buffer>
+) {
+  let entradas;
+  try {
+    entradas = await readdir(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  for (const entrada of entradas) {
+    const rel = prefixo ? `${prefixo}/${entrada.name}` : entrada.name;
+    const completo = path.join(dir, entrada.name);
+    if (entrada.isDirectory()) {
+      await lerUploadsRecursivoParaMapa(completo, rel, destino);
+    } else if (entrada.isFile()) {
+      const dados = await readFile(completo);
+      if (dados.length > 0) {
+        destino.set(`uploads/${rel.replace(/\\/g, "/")}`, dados);
+      }
+    }
+  }
+}
+
+/** Lê uploads/ da pasta de backup automático no servidor (para importação). */
+export async function mapaUploadsDaPastaBackupEmpresa(slug: string, nome?: string) {
+  const mapa = new Map<string, Buffer>();
+  await lerUploadsRecursivoParaMapa(pastaUploadsBackupEmpresa(slug, nome), "", mapa);
+  return mapa;
 }

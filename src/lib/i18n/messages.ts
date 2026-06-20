@@ -99,19 +99,19 @@ export const messages = {
       "Exporte todos os dados (clientes, trabalhos, financeiro, usuários, configurações) em um arquivo JSON ou restaure um backup anterior.",
     "settings.backupExportarTitulo": "Exportar backup",
     "settings.backupExportarDesc":
-      "Gera um arquivo .json com todos os registros do banco. Guarde em local seguro.",
+      "Gera um arquivo .zip com backup.json (dados do banco) e a pasta uploads/ (imagens e anexos). Guarde em local seguro.",
     "settings.backupExportarAvisoServidor":
-      "Este botão só baixa o JSON no seu computador. Para gravar no servidor com a pasta uploads/ (OneDrive), use «Gerar backup no servidor agora» na seção Backup automático.",
-    "settings.backupBaixar": "Baixar backup",
+      "O download .zip é a cópia completa para o seu computador. Para gravar também no servidor (OneDrive), use «Gerar backup no servidor agora» na seção Backup automático.",
+    "settings.backupBaixar": "Baixar backup (.zip)",
     "settings.backupExportando": "Gerando arquivo...",
-    "settings.backupExportado": "Backup baixado com sucesso.",
+    "settings.backupExportado": "Backup .zip baixado com sucesso.",
     "settings.backupErroExportar": "Não foi possível exportar o backup.",
     "settings.backupImportarTitulo": "Importar backup",
     "settings.backupImportarDesc":
-      "Envie um arquivo .json gerado por este sistema. Todos os dados atuais serão substituídos.",
+      "Envie um backup .zip (recomendado) ou .json exportado por este sistema. Imagens e anexos voltam aos mesmos lugares após restaurar.",
     "settings.backupAvisoApagar":
       "Atenção: esta operação apaga todos os dados atuais antes de restaurar o backup. Não pode ser desfeita.",
-    "settings.backupArquivo": "Arquivo de backup (.json)",
+    "settings.backupArquivo": "Arquivo de backup (.zip ou .json)",
     "settings.backupConfirmarCheckbox":
       "Entendo que todos os dados atuais serão apagados e substituídos pelo conteúdo do arquivo.",
     "settings.backupRestaurar": "Restaurar backup",
@@ -503,19 +503,19 @@ export const messages = {
       "Export all data (clients, jobs, finance, users, settings) as a JSON file or restore a previous backup.",
     "settings.backupExportarTitulo": "Export backup",
     "settings.backupExportarDesc":
-      "Creates a .json file with all database records. Store it in a safe place.",
+      "Creates a .zip file with backup.json (database) and uploads/ folder (images and attachments). Store it safely.",
     "settings.backupExportarAvisoServidor":
-      "This button only downloads JSON to your computer. To save on the server with uploads/ (OneDrive), use «Generate server backup now» in the Automatic backup section.",
-    "settings.backupBaixar": "Download backup",
+      "The .zip download is a full copy for your computer. To also save on the server (OneDrive), use «Generate server backup now» in Automatic backup.",
+    "settings.backupBaixar": "Download backup (.zip)",
     "settings.backupExportando": "Generating file...",
-    "settings.backupExportado": "Backup downloaded successfully.",
+    "settings.backupExportado": "Backup .zip downloaded successfully.",
     "settings.backupErroExportar": "Could not export backup.",
     "settings.backupImportarTitulo": "Import backup",
     "settings.backupImportarDesc":
-      "Upload a .json file created by this system. All current data will be replaced.",
+      "Upload a .zip backup (recommended) or .json exported by this system. Images and attachments return to the same places after restore.",
     "settings.backupAvisoApagar":
       "Warning: this deletes all current data before restoring the backup. This cannot be undone.",
-    "settings.backupArquivo": "Backup file (.json)",
+    "settings.backupArquivo": "Backup file (.zip or .json)",
     "settings.backupConfirmarCheckbox":
       "I understand that all current data will be deleted and replaced by the file contents.",
     "settings.backupRestaurar": "Restore backup",
@@ -905,19 +905,19 @@ export const messages = {
       "Exporte todos los datos (clientes, trabajos, finanzas, usuarios, configuración) en JSON o restaure un respaldo anterior.",
     "settings.backupExportarTitulo": "Exportar respaldo",
     "settings.backupExportarDesc":
-      "Genera un archivo .json con todos los registros. Guárdelo en un lugar seguro.",
+      "Genera un .zip con backup.json (datos) y la carpeta uploads/ (imágenes y adjuntos). Guárdelo en un lugar seguro.",
     "settings.backupExportarAvisoServidor":
-      "Este botón solo descarga el JSON en su equipo. Para grabar en el servidor con uploads/ (OneDrive), use «Generar respaldo en el servidor ahora» en Respaldo automático.",
-    "settings.backupBaixar": "Descargar respaldo",
+      "La descarga .zip es la copia completa en su equipo. Para grabar también en el servidor (OneDrive), use «Generar respaldo en el servidor ahora».",
+    "settings.backupBaixar": "Descargar respaldo (.zip)",
     "settings.backupExportando": "Generando archivo...",
-    "settings.backupExportado": "Respaldo descargado correctamente.",
+    "settings.backupExportado": "Respaldo .zip descargado correctamente.",
     "settings.backupErroExportar": "No se pudo exportar el respaldo.",
     "settings.backupImportarTitulo": "Importar respaldo",
     "settings.backupImportarDesc":
-      "Suba un archivo .json generado por este sistema. Se reemplazarán todos los datos actuales.",
+      "Suba un respaldo .zip (recomendado) o .json exportado por este sistema. Imágenes y adjuntos vuelven a los mismos lugares al restaurar.",
     "settings.backupAvisoApagar":
       "Atención: esta operación borra todos los datos actuales antes de restaurar. No se puede deshacer.",
-    "settings.backupArquivo": "Archivo de respaldo (.json)",
+    "settings.backupArquivo": "Archivo de respaldo (.zip o .json)",
     "settings.backupConfirmarCheckbox":
       "Entiendo que todos los datos actuales se borrarán y se sustituirán por el archivo.",
     "settings.backupRestaurar": "Restaurar respaldo",
