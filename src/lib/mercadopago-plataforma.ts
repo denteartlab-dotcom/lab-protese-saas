@@ -87,6 +87,11 @@ export async function criarPixAssinaturaMercadoPago(params: {
     description: params.descricao.slice(0, 256),
     payment_method_id: "pix",
     date_of_expiration: expiracao.toISOString(),
+    external_reference: params.empresaId,
+    metadata: {
+      tipo: "assinatura_plataforma",
+      empresa_id: params.empresaId,
+    },
     payer: {
       email,
       first_name: params.empresaNome.slice(0, 80),

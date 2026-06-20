@@ -169,6 +169,13 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  if (
+    pathname === "/api/mercadopago/webhook" ||
+    pathname === "/api/asaas/webhook"
+  ) {
+    return NextResponse.next();
+  }
+
   if (requisicaoTvSocket(pathname) || pathname === "/api/tv/socket-health") {
     return NextResponse.next();
   }
