@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
 import { PainelCarregando } from "@/components/ListaCarregando";
+import { Modal } from "@/components/ui";
 import { dateToBrShort } from "@/lib/datas-br";
 import { TRABALHOS_ATUALIZADOS_EVENT } from "@/lib/trabalhos-events";
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
@@ -151,6 +152,11 @@ function CardGrafico({
 
 type ColunaDetalhe = keyof LinhaDetalheFinanceiroGeral | "valor";
 
+type FiltroConcluidosMes =
+  | { tipo: "mes"; mes: string; ano: number; mesIdx: number }
+  | { tipo: "total" }
+  | null;
+
 const ITENS_POR_PAGINA = 15;
 
 export function RelatorioFinanceiroGeralConteudo() {
@@ -169,6 +175,7 @@ export function RelatorioFinanceiroGeralConteudo() {
   const [ordenarPor, setOrdenarPor] = useState<ColunaDetalhe>("numeroOs");
   const [ordenarDir, setOrdenarDir] = useState<"asc" | "desc">("desc");
   const [pagina, setPagina] = useState(1);
+  const [detalheConcluidosMes, setDetalheConcluidosMes] = useState<FiltroConcluidosMes>(null);
 
   const carregar = useCallback(async (f: FiltrosRelatorioFinanceiroGeral) => {
     setCarregando(true);
@@ -207,6 +214,32 @@ export function RelatorioFinanceiroGeralConteudo() {
     setFiltrosAplicados({ ...filtros });
     setPagina(1);
   };
+
+  const linhasConcluidosModal = useMemo(() => {
+    if (!dados || !detalheConcluidosMes) return [];
+    let lista = dados.detalhes.filter((l) => l.concluido);
+    if (detalheConcluidosMes.tipo === "mes") {
+      lista = lista.filter(
+        (l) =>
+          l.anoConclusao === detalheConcluidosMes.ano &&
+          l.mesConclusao === detalheConcluidosMes.mesIdx
+      );
+    }
+    return lista.sort((a, b) => b.numeroOs - a.numeroOs);
+  }, [dados, detalheConcluidosMes]);
+
+  const totalConcluidosModal = useMemo(
+    () => linhasConcluidosModal.reduce((s, l) => s + l.valor, 0),
+    [linhasConcluidosModal]
+  );
+
+  const tituloConcluidosModal = useMemo(() => {
+    if (!detalheConcluidosMes) return "";
+    if (detalheConcluidosMes.tipo === "total") {
+      return "A receber — concluídos no período";
+    }
+    return `A receber — concluídos em ${detalheConcluidosMes.mes}/${detalheConcluidosMes.ano}`;
+  }, [detalheConcluidosMes]);
 
   const detalhesFiltrados = useMemo(() => {
     if (!dados) return [];
@@ -788,7 +821,25 @@ export function RelatorioFinanceiroGeralConteudo() {
                           {formatarMoedaFinanceiroGeral(m.naoConcluido)}
                         </td>
                         <td className="px-3 py-2 text-right text-[#2ecc71]">
-                          {formatarMoedaFinanceiroGeral(m.concluido)}
+                          {m.concluido > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setDetalheConcluidosMes({
+                                  tipo: "mes",
+                                  mes: m.mes,
+                                  ano: m.ano,
+                                  mesIdx: m.mesIdx,
+                                })
+                              }
+                              className="font-medium text-[#2ecc71] underline decoration-[#2ecc71]/40 underline-offset-2 transition hover:text-[#27ae60] hover:decoration-[#27ae60]"
+                              title="Ver OS concluídas deste mês"
+                            >
+                              {formatarMoedaFinanceiroGeral(m.concluido)}
+                            </button>
+                          ) : (
+                            formatarMoedaFinanceiroGeral(m.concluido)
+                          )}
                         </td>
                         <td className="px-3 py-2 text-right font-semibold text-[#8e44ad]">
                           {formatarMoedaFinanceiroGeral(m.total)}
@@ -805,7 +856,18 @@ export function RelatorioFinanceiroGeralConteudo() {
                         {formatarMoedaFinanceiroGeral(dados.resumo.naoConcluidosValor)}
                       </td>
                       <td className="px-3 py-2 text-right text-[#2ecc71]">
-                        {formatarMoedaFinanceiroGeral(dados.resumo.concluidosValor)}
+                        {dados.resumo.concluidosValor > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => setDetalheConcluidosMes({ tipo: "total" })}
+                            className="font-bold text-[#2ecc71] underline decoration-[#2ecc71]/40 underline-offset-2 transition hover:text-[#27ae60] hover:decoration-[#27ae60]"
+                            title="Ver todas as OS concluídas no período"
+                          >
+                            {formatarMoedaFinanceiroGeral(dados.resumo.concluidosValor)}
+                          </button>
+                        ) : (
+                          formatarMoedaFinanceiroGeral(dados.resumo.concluidosValor)
+                        )}
                       </td>
                       <td className="px-3 py-2 text-right text-[#8e44ad]">
                         {formatarMoedaFinanceiroGeral(dados.resumo.valorBrutoTotal)}
@@ -976,6 +1038,66 @@ export function RelatorioFinanceiroGeralConteudo() {
           </div>
         )}
       </div>
+
+      <Modal
+        open={detalheConcluidosMes !== null}
+        onClose={() => setDetalheConcluidosMes(null)}
+        title={tituloConcluidosModal}
+        size="lg"
+      >
+        <p className="mb-4 text-[12px] text-[#6b7280]">
+          Valores a receber de serviços concluídos (saldo em Contas a Receber ou valor da OS
+          quando ainda não faturada).
+        </p>
+        {linhasConcluidosModal.length === 0 ? (
+          <p className="py-8 text-center text-sm text-[#9ca3af]">
+            Nenhuma OS concluída neste período.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-left text-[12px]">
+              <thead>
+                <tr className="border-b border-[#e5e7eb] bg-[#f9fafb] text-[11px] uppercase tracking-wide text-[#6b7280]">
+                  <th className="px-3 py-2">OS</th>
+                  <th className="px-3 py-2">Cliente</th>
+                  <th className="px-3 py-2">Serviço</th>
+                  <th className="px-3 py-2">Conclusão</th>
+                  <th className="px-3 py-2">Situação</th>
+                  <th className="px-3 py-2 text-right">A receber</th>
+                </tr>
+              </thead>
+              <tbody>
+                {linhasConcluidosModal.map((linha) => (
+                  <tr key={linha.id} className="border-b border-[#f3f4f6]">
+                    <td className="px-3 py-2 font-mono font-semibold">{linha.numeroOs}</td>
+                    <td className="px-3 py-2">{linha.cliente}</td>
+                    <td className="px-3 py-2">{linha.servico}</td>
+                    <td className="px-3 py-2">{linha.dataConclusao}</td>
+                    <td className="px-3 py-2">
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                        {linha.statusLabel}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-right font-semibold text-[#2ecc71]">
+                      {formatarMoedaFinanceiroGeral(linha.valor)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-[#f9fafb] font-bold">
+                  <td className="px-3 py-2" colSpan={5}>
+                    TOTAL ({linhasConcluidosModal.length} OS)
+                  </td>
+                  <td className="px-3 py-2 text-right text-[#2ecc71]">
+                    {formatarMoedaFinanceiroGeral(totalConcluidosModal)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

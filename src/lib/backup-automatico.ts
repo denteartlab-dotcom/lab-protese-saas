@@ -18,6 +18,7 @@ import {
   garantirPastaBackupEmpresa,
   nomeArquivoBackupAutomatico,
 } from "@/lib/backup-automatico-servidor";
+import { uploadBackupParaGoogleDrive, sincronizarPastasDriveEmpresasAtivas } from "@/lib/backup-google-drive";
 
 type EmpresaAtiva = { id: string; slug: string; nome: string };
 
@@ -76,7 +77,26 @@ export async function executarBackupAutomatico(
     console.log(
       `[backup-automatico] ${slug}: gravado em ${destino} (${backup.exportedAt})`
     );
-    return { destino, exportedAt: backup.exportedAt, slug, empresaId };
+
+    const drive = await uploadBackupParaGoogleDrive({
+      empresaId,
+      slug,
+      nome,
+      caminhoArquivoLocal: destino,
+    });
+    if (drive.ok) {
+      console.log(`[backup-automatico] ${slug}: replicado no Drive (${drive.caminhoDrive})`);
+    } else if (drive.erro && drive.erro !== "desativado" && drive.erro !== "nao_configurado") {
+      console.warn(`[backup-automatico] ${slug}: Drive não replicado — ${drive.erro}`);
+    }
+
+    return {
+      destino,
+      exportedAt: backup.exportedAt,
+      slug,
+      empresaId,
+      drive,
+    };
   } catch (erro) {
     console.error(`[backup-automatico] ${slug}: falha`, erro);
     return null;
@@ -160,6 +180,7 @@ export async function iniciarBackupAutomaticoDiario() {
     console.log(
       `[backup-automatico] pastas por empresa: ${pastaExemplo}/${nomeArquivoBackupAutomatico()} fuso=${fusoBackupAutomatico()}`
     );
+    await sincronizarPastasDriveEmpresasAtivas();
     await reagendarBackupAutomatico();
   } catch (erro) {
     console.error("[backup-automatico] falha ao iniciar agendamento:", erro);

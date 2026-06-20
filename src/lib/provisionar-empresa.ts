@@ -6,6 +6,7 @@ import { normalizarSlugEmpresa } from "@/lib/rotas-app";
 import { validarCpfOuCnpj } from "@/lib/validar-documento";
 import { validarForcaSenha } from "@/lib/validar-senha";
 import { garantirPastasUploadEmpresa } from "@/lib/uploads-armazenamento-server";
+import { garantirPastaDriveEmpresa } from "@/lib/backup-google-drive";
 
 export const ROLE_PROPRIETARIO_EMPRESA = "proprietario";
 /** @deprecated Use ROLE_PROPRIETARIO_EMPRESA */
@@ -158,6 +159,13 @@ export async function provisionarNovaEmpresa(
 
   await gravarDadosPadraoEmpresa(resultado.empresa.id, nome);
   await garantirPastasUploadEmpresa(resultado.empresa.slug);
+  void garantirPastaDriveEmpresa({
+    empresaId: resultado.empresa.id,
+    slug: resultado.empresa.slug,
+    nome: resultado.empresa.nome,
+  }).catch((erro) => {
+    console.warn("[provisionar-empresa] pasta Drive:", erro);
+  });
 
   return {
     empresaId: resultado.empresa.id,

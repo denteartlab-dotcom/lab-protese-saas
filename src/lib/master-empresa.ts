@@ -6,6 +6,7 @@ import { CONFIG_LAB_STORAGE_KEY } from "@/lib/configuracoes-lab";
 import { chaveJsonStoreTenant } from "@/lib/json-store-tenant";
 import { normalizarSlugEmpresa } from "@/lib/rotas-app";
 import { garantirPastasUploadEmpresa } from "@/lib/uploads-armazenamento-server";
+import { garantirPastaDriveEmpresa } from "@/lib/backup-google-drive";
 import { statusCobrancaAssinaturaPago } from "@/lib/assinatura-pix-provedor";
 
 export type DadosCriarEmpresaMaster = {
@@ -132,6 +133,13 @@ export async function criarEmpresaMaster(dados: DadosCriarEmpresaMaster) {
 
   await gravarDadosPadraoEmpresa(resultado.empresa.id, nome);
   await garantirPastasUploadEmpresa(resultado.empresa.slug);
+  void garantirPastaDriveEmpresa({
+    empresaId: resultado.empresa.id,
+    slug: resultado.empresa.slug,
+    nome: resultado.empresa.nome,
+  }).catch((erro) => {
+    console.warn("[master-empresa] pasta Drive:", erro);
+  });
 
   return resultado;
 }

@@ -8,8 +8,10 @@
 import { prisma } from "../src/lib/db";
 import { executarBackupAutomatico } from "../src/lib/backup-automatico";
 import { carregarConfigBackupAutomatico } from "../src/lib/backup-automatico-config";
+import { sincronizarPastasDriveEmpresasAtivas } from "../src/lib/backup-google-drive";
 
 async function main() {
+  await sincronizarPastasDriveEmpresasAtivas();
   const empresas = await prisma.empresa.findMany({
     where: { status: "ativo" },
     select: { id: true, slug: true, nome: true },

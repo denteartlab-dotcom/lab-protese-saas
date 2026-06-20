@@ -16,6 +16,11 @@ import {
   formatarDataBackup,
   salvarConfigBackupAutomatico,
 } from "@/lib/backup-automatico-config";
+import {
+  caminhoDriveEmpresa,
+  statusGoogleDriveBackup,
+  textoStatusUploadDrive,
+} from "@/lib/backup-google-drive";
 import { exigirProprietario } from "@/lib/exigir-proprietario";
 
 export const dynamic = "force-dynamic";
@@ -117,6 +122,12 @@ async function montarStatus(empresaId: string, slug: string, nome: string) {
     fusoHorario: fuso,
     ultimoBackupFormatado: formatarDataBackup(config.ultimoBackupEm, fuso),
     proximoBackupFormatado: formatarProximoBackup(config, fuso),
+    googleDrive: {
+      ...statusGoogleDriveBackup(),
+      statusUpload: textoStatusUploadDrive(config, fuso),
+      pastaEmpresa: config.pastaDriveNome ?? null,
+      caminhoEmpresa: caminhoDriveEmpresa(slug, nome),
+    },
   };
 }
 

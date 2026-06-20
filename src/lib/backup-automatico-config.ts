@@ -16,6 +16,11 @@ export type BackupAutomaticoConfig = {
   ultimoBackupEm: string | null;
   proximoBackupEm: string | null;
   ultimoArquivo: string | null;
+  ultimoUploadDriveEm: string | null;
+  ultimoUploadDriveArquivo: string | null;
+  ultimoUploadDriveErro: string | null;
+  pastaDriveId: string | null;
+  pastaDriveNome: string | null;
 };
 
 export const CONFIG_BACKUP_AUTOMATICO_PADRAO: BackupAutomaticoConfig = {
@@ -26,6 +31,11 @@ export const CONFIG_BACKUP_AUTOMATICO_PADRAO: BackupAutomaticoConfig = {
   ultimoBackupEm: null,
   proximoBackupEm: null,
   ultimoArquivo: null,
+  ultimoUploadDriveEm: null,
+  ultimoUploadDriveArquivo: null,
+  ultimoUploadDriveErro: null,
+  pastaDriveId: null,
+  pastaDriveNome: null,
 };
 
 const schemaConfig = z.object({
@@ -36,6 +46,11 @@ const schemaConfig = z.object({
   ultimoBackupEm: z.string().nullable().optional(),
   proximoBackupEm: z.string().nullable().optional(),
   ultimoArquivo: z.string().nullable().optional(),
+  ultimoUploadDriveEm: z.string().nullable().optional(),
+  ultimoUploadDriveArquivo: z.string().nullable().optional(),
+  ultimoUploadDriveErro: z.string().nullable().optional(),
+  pastaDriveId: z.string().nullable().optional(),
+  pastaDriveNome: z.string().nullable().optional(),
 });
 
 function partesDataHora(data: Date, fuso: string) {
@@ -136,6 +151,11 @@ export function normalizarConfigBackupAutomatico(
     ultimoBackupEm: parsed.data.ultimoBackupEm ?? null,
     proximoBackupEm: parsed.data.proximoBackupEm ?? null,
     ultimoArquivo: parsed.data.ultimoArquivo ?? null,
+    ultimoUploadDriveEm: parsed.data.ultimoUploadDriveEm ?? null,
+    ultimoUploadDriveArquivo: parsed.data.ultimoUploadDriveArquivo ?? null,
+    ultimoUploadDriveErro: parsed.data.ultimoUploadDriveErro ?? null,
+    pastaDriveId: parsed.data.pastaDriveId ?? null,
+    pastaDriveNome: parsed.data.pastaDriveNome ?? null,
   };
 
   base.proximoBackupEm = calcularProximoBackupEm(base, fusoEfetivoBackup());
@@ -211,6 +231,42 @@ export async function registrarExecucaoBackupAutomatico(
     ultimoBackupEm: exportedAt,
     ultimoArquivo: arquivo,
     proximoBackupEm: calcularProximoBackupEm(atual, fusoEfetivoBackup(), Date.now()),
+  };
+  await salvarJsonStoreTenant(empresaId, BACKUP_AUTOMATICO_CONFIG_KEY, proximo);
+  return proximo;
+}
+
+export async function registrarUploadDriveBackupAutomatico(
+  empresaId: string,
+  entrada: Partial<
+    Pick<
+      BackupAutomaticoConfig,
+      "ultimoUploadDriveEm" | "ultimoUploadDriveArquivo" | "ultimoUploadDriveErro"
+    >
+  >
+): Promise<BackupAutomaticoConfig> {
+  const atual = await carregarConfigBackupAutomatico(empresaId);
+  const proximo: BackupAutomaticoConfig = {
+    ...atual,
+    ...entrada,
+  };
+  if (entrada.ultimoUploadDriveEm) {
+    proximo.ultimoUploadDriveErro = null;
+  }
+  await salvarJsonStoreTenant(empresaId, BACKUP_AUTOMATICO_CONFIG_KEY, proximo);
+  return proximo;
+}
+
+export async function registrarPastaDriveEmpresa(
+  empresaId: string,
+  pastaDriveId: string,
+  pastaDriveNome: string
+): Promise<BackupAutomaticoConfig> {
+  const atual = await carregarConfigBackupAutomatico(empresaId);
+  const proximo: BackupAutomaticoConfig = {
+    ...atual,
+    pastaDriveId,
+    pastaDriveNome,
   };
   await salvarJsonStoreTenant(empresaId, BACKUP_AUTOMATICO_CONFIG_KEY, proximo);
   return proximo;

@@ -33,6 +33,21 @@ type StatusBackupAutomatico = {
   fusoHorario?: string;
   ultimoBackupFormatado: string | null;
   proximoBackupFormatado: string | null;
+  googleDrive?: {
+    habilitado: boolean;
+    configurado: boolean;
+    pastaRaizId: string | null;
+    pastaRaizNome?: string;
+    retencaoDias: number | null;
+    pastaEmpresa: string | null;
+    caminhoEmpresa: string;
+    statusUpload: {
+      tipo: "ok" | "erro" | "pendente";
+      mensagem: string;
+      arquivo?: string | null;
+      pastaEmpresa?: string | null;
+    };
+  };
 };
 
 const DIAS_SEMANA_KEYS = [
@@ -343,6 +358,57 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                         )}
                       </p>
                     )}
+                    {statusAuto?.googleDrive?.habilitado ? (
+                      <div className="mt-2 rounded border border-sky-200 bg-sky-50/90 px-2.5 py-2 text-[11px] text-sky-950">
+                        <p className="font-semibold">Réplica no Google Drive</p>
+                        {!statusAuto.googleDrive.configurado ? (
+                          <p className="mt-1 text-sky-800">
+                            Ativo no servidor, mas faltam credenciais ou pasta compartilhada (
+                            <code className="text-[10px]">GOOGLE_DRIVE_FOLDER_ID</code>
+                            ).
+                          </p>
+                        ) : (
+                          <p className="mt-1 text-sky-800">
+                            Pasta desta empresa:{" "}
+                            <span className="font-medium">
+                              {statusAuto.googleDrive.caminhoEmpresa}/
+                            </span>
+                            <span className="text-sky-700">
+                              {" "}
+                              (criada automaticamente, igual à VPS)
+                            </span>
+                          </p>
+                        )}
+                        {statusAuto.googleDrive.configurado ? (
+                          statusAuto.googleDrive.statusUpload.tipo === "erro" ? (
+                            <p className="mt-1 text-red-700">
+                              Último envio com erro:{" "}
+                              {statusAuto.googleDrive.statusUpload.mensagem}
+                            </p>
+                          ) : statusAuto.googleDrive.statusUpload.tipo === "ok" ? (
+                            <>
+                              <p className="mt-1">
+                                Último envio: {statusAuto.googleDrive.statusUpload.mensagem}
+                              </p>
+                              {statusAuto.googleDrive.statusUpload.arquivo ? (
+                                <p className="mt-0.5 text-sky-800">
+                                  Arquivo: {statusAuto.googleDrive.statusUpload.arquivo}
+                                </p>
+                              ) : null}
+                            </>
+                          ) : (
+                            <p className="mt-1 text-sky-800">
+                              {statusAuto.googleDrive.statusUpload.mensagem}
+                            </p>
+                          )
+                        ) : null}
+                        {statusAuto.googleDrive.retencaoDias ? (
+                          <p className="mt-1 text-sky-700">
+                            Retenção na nuvem: {statusAuto.googleDrive.retencaoDias} dias
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
 
                   <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-emerald-950">
