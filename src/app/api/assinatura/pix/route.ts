@@ -38,7 +38,9 @@ export async function POST(request: Request) {
       empresaSlug: body.empresaSlug,
     });
 
-    const cobranca = await gerarCobrancaPixRenovacao(empresaId, body.plano);
+    const cobranca = await gerarCobrancaPixRenovacao(empresaId, body.plano, {
+      emailPagador: session?.email || body.email,
+    });
     return NextResponse.json({ ok: true, cobranca });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Erro ao gerar PIX.";

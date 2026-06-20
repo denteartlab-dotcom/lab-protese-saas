@@ -107,20 +107,24 @@ async function gerarCobrancaMercadoPago(
   empresa: {
     id: string;
     nome: string;
+    slug: string;
     plano: string;
     cnpj: string | null;
     email: string | null;
     dataVencimento: Date | null;
   },
   valor: number,
-  planoCobranca: string
+  planoCobranca: string,
+  emailPagador?: string | null
 ): Promise<CobrancaPixAssinatura> {
   const descricao = `Renovação ${rotuloPlanoEmpresa(planoCobranca)} — ${empresa.nome}`;
   const pagamento = await criarPixAssinaturaMercadoPago({
     empresaId: empresa.id,
     empresaNome: empresa.nome,
+    empresaSlug: empresa.slug,
     cnpj: empresa.cnpj,
     email: empresa.email,
+    emailUsuario: emailPagador,
     valor,
     descricao,
   });
@@ -187,7 +191,8 @@ async function gerarCobrancaAsaas(
 
 export async function gerarCobrancaPixRenovacao(
   empresaId: string,
-  planoEscolhido?: string
+  planoEscolhido?: string,
+  opcoes?: { emailPagador?: string | null }
 ): Promise<CobrancaPixAssinatura> {
   const provedor = resolverProvedorPixAssinatura();
   if (!provedor) {
@@ -201,6 +206,7 @@ export async function gerarCobrancaPixRenovacao(
     select: {
       id: true,
       nome: true,
+      slug: true,
       plano: true,
       cnpj: true,
       email: true,
@@ -211,6 +217,20 @@ export async function gerarCobrancaPixRenovacao(
     },
   });
   if (!empresa) throw new Error("Laboratório não encontrado.");
+
+  let emailPagador = opcoes?.emailPagador;
+  if (!emailPagador) {
+    const usuario = await prisma.user.findFirst({
+      where: {
+        empresaId,
+        excluidoEm: null,
+        role: { in: ["proprietario", "admin", "admin_empresa"] },
+      },
+      orderBy: { createdAt: "asc" },
+      select: { email: true },
+    });
+    emailPagador = usuario?.email ?? null;
+  }
 
   const plano = normalizarPlanoEmpresa(planoEscolhido || empresa.plano);
 
@@ -257,7 +277,7 @@ export async function gerarCobrancaPixRenovacao(
 
   const valor = precoMensalPlano(plano);
   if (provedor === "mercadopago") {
-    return gerarCobrancaMercadoPago(empresa, valor, plano);
+    return gerarCobrancaMercadoPago(empresa, valor, plano, emailPagador);
   }
   return gerarCobrancaAsaas(empresa, valor, plano);
 }

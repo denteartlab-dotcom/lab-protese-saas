@@ -70,16 +70,55 @@ function tipoDocumentoMp(doc: string): "CPF" | "CNPJ" {
   return doc.length > 11 ? "CNPJ" : "CPF";
 }
 
+function emailValidoMercadoPago(raw?: string | null): string | null {
+  const email = raw?.trim().toLowerCase();
+  if (!email) return null;
+  if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) return null;
+  if (email.endsWith(".local") || email.includes("@localhost")) return null;
+  return email;
+}
+
+/** MP exige e-mail válido no payer — empresa sem e-mail usava @labprotese.local (rejeitado). */
+export function resolverEmailPagadorMercadoPago(opcoes: {
+  empresaId: string;
+  empresaSlug?: string | null;
+  empresaEmail?: string | null;
+  emailUsuario?: string | null;
+}): string {
+  for (const candidato of [
+    opcoes.emailUsuario,
+    opcoes.empresaEmail,
+    process.env.MP_PLATAFORMA_EMAIL_PAGADOR,
+    process.env.MASTER_ADMIN_EMAIL,
+  ]) {
+    const ok = emailValidoMercadoPago(candidato);
+    if (ok) return ok;
+  }
+
+  const slug = (opcoes.empresaSlug || opcoes.empresaId)
+    .replace(/[^a-z0-9-]/gi, "")
+    .slice(0, 48)
+    .toLowerCase();
+  return `assinatura+${slug || "lab"}@denteartlab.com.br`;
+}
+
 export async function criarPixAssinaturaMercadoPago(params: {
   empresaId: string;
   empresaNome: string;
+  empresaSlug?: string | null;
   cnpj?: string | null;
   email?: string | null;
+  emailUsuario?: string | null;
   valor: number;
   descricao: string;
 }): Promise<MercadoPagoPixCriado> {
   const doc = somenteDigitos(params.cnpj || "");
-  const email = params.email?.trim() || `lab+${params.empresaId}@labprotese.local`;
+  const email = resolverEmailPagadorMercadoPago({
+    empresaId: params.empresaId,
+    empresaSlug: params.empresaSlug,
+    empresaEmail: params.email,
+    emailUsuario: params.emailUsuario,
+  });
 
   const expiracao = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const body: Record<string, unknown> = {
