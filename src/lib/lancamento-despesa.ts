@@ -104,6 +104,20 @@ export function descricaoDespesaComParcela(descricaoEmpacotada: string, parcelaL
   return `${texto} (${label})${metaPart}`;
 }
 
+/** Remove metadados técnicos embutidos na descrição (ex.: @@trab:id@@) para exibição. */
+function limparTextoVisivelDescricao(texto: string) {
+  return texto
+    .split("\n@@REC@@\n")[0]
+    .replace(/(\s*)@@[^@]+@@/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+export function descricaoLancamentoExibicao(descricao: string) {
+  const pack = desempacotarDespesa(descricao);
+  return pack.texto || pack.nome || "—";
+}
+
 function parseMetaDespesa(metaRaw: string): { meta: DespesaMeta; parcelaNoMeta?: string } {
   const trimmed = metaRaw.trim();
   try {
@@ -135,6 +149,8 @@ export function desempacotarDespesa(descricao: string): DespesaDescompactada {
       texto = `${texto} ${parsed.parcelaNoMeta}`.trim();
     }
   }
+
+  texto = limparTextoVisivelDescricao(texto);
 
   const orcamento = texto.match(/^Orçamento #(\d+)\s*-\s*(.+)$/i);
   const nome =

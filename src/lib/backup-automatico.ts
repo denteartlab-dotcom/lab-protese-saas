@@ -19,6 +19,7 @@ import {
   nomeArquivoBackupAutomatico,
 } from "@/lib/backup-automatico-servidor";
 import { uploadBackupParaGoogleDrive, sincronizarPastasDriveEmpresasAtivas } from "@/lib/backup-google-drive";
+import { espelharUploadsNoBackupEmpresa } from "@/lib/backup-uploads-espelho";
 
 type EmpresaAtiva = { id: string; slug: string; nome: string };
 
@@ -76,6 +77,11 @@ export async function executarBackupAutomatico(
     await registrarExecucaoBackupAutomatico(empresaId, backup.exportedAt, destino);
     console.log(
       `[backup-automatico] ${slug}: gravado em ${destino} (${backup.exportedAt})`
+    );
+
+    const uploads = await espelharUploadsNoBackupEmpresa(empresaId, slug, nome);
+    console.log(
+      `[backup-automatico] ${slug}: uploads espelhados (${uploads.arquivos} arquivo(s)) em ${uploads.destino}`
     );
 
     const drive = await uploadBackupParaGoogleDrive({

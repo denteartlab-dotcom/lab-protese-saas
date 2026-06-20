@@ -26,6 +26,8 @@ type StatusBackupAutomatico = {
   hospedagemVercel?: boolean;
   agendadorInternoAtivo?: boolean;
   pastaPadrao: string;
+  pastaUploads?: string;
+  horarioFixo?: string;
   padraoNomeArquivo: string;
   arquivoPadrao: string;
   ultimoArquivoNome: string | null;
@@ -60,12 +62,6 @@ const DIAS_SEMANA_KEYS = [
   "settings.backupAutoDiaSab",
 ] as const;
 
-const HORAS_BACKUP = Array.from({ length: 24 }, (_, indice) => indice);
-const MINUTOS_BACKUP = Array.from({ length: 60 }, (_, indice) => indice);
-
-const classeSelectHorario =
-  "h-9 min-w-0 flex-1 rounded border border-emerald-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-emerald-500 disabled:bg-slate-50";
-
 export function BackupLaboratorioTab({ onMensagem }: Props) {
   const { t } = useI18n();
   const [exportando, setExportando] = useState(false);
@@ -79,8 +75,6 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
   const [salvandoAuto, setSalvandoAuto] = useState(false);
   const [autoAtivo, setAutoAtivo] = useState(true);
   const [autoDia, setAutoDia] = useState<string>("todos");
-  const [autoHora, setAutoHora] = useState(0);
-  const [autoMinuto, setAutoMinuto] = useState(0);
   const [modalPastaBackupAberto, setModalPastaBackupAberto] = useState(false);
   const [fonteImportacao, setFonteImportacao] = useState<"arquivo" | "pasta">("arquivo");
   const [arquivosPastaAutomatica, setArquivosPastaAutomatica] = useState<
@@ -101,8 +95,6 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
       setAutoDia(
         data.config.diaSemana === null ? "todos" : String(data.config.diaSemana)
       );
-      setAutoHora(data.config.hora);
-      setAutoMinuto(data.config.minuto);
     } finally {
       setCarregandoAuto(false);
     }
@@ -154,8 +146,6 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
         body: JSON.stringify({
           ativo: autoAtivo,
           diaSemana: autoDia === "todos" ? null : Number(autoDia),
-          hora: autoHora,
-          minuto: autoMinuto,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -334,6 +324,14 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                         )}
                       </p>
                     )}
+                    {statusAuto?.pastaUploads && (
+                      <p className="mt-1 text-[11px] text-emerald-800">
+                        {t("settings.backupAutoPastaUploads").replace(
+                          "{caminho}",
+                          statusAuto.pastaUploads
+                        )}
+                      </p>
+                    )}
                     {statusAuto?.padraoNomeArquivo && (
                       <p className="mt-1 text-[11px] text-emerald-800">
                         {t("settings.backupAutoNomeArquivo").replace(
@@ -422,7 +420,7 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                     {t("settings.backupAutoAtivo")}
                   </label>
 
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-3 sm:max-w-xs">
                     <label className="block text-xs font-medium text-emerald-950">
                       {t("settings.backupAutoDia")}
                       <select
@@ -440,38 +438,12 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                       </select>
                     </label>
 
-                    <div className="block text-xs font-medium text-emerald-950">
-                      {t("settings.backupAutoHorario")}
-                      <div className="mt-1 flex items-center gap-1.5">
-                        <select
-                          value={autoHora}
-                          onChange={(evento) => setAutoHora(Number(evento.target.value))}
-                          disabled={salvandoAuto || !autoAtivo}
-                          className={classeSelectHorario}
-                          aria-label={t("settings.backupAutoHora")}
-                        >
-                          {HORAS_BACKUP.map((hora) => (
-                            <option key={hora} value={hora}>
-                              {String(hora).padStart(2, "0")}
-                            </option>
-                          ))}
-                        </select>
-                        <span className="text-sm font-semibold text-emerald-800">:</span>
-                        <select
-                          value={autoMinuto}
-                          onChange={(evento) => setAutoMinuto(Number(evento.target.value))}
-                          disabled={salvandoAuto || !autoAtivo}
-                          className={classeSelectHorario}
-                          aria-label={t("settings.backupAutoMinuto")}
-                        >
-                          {MINUTOS_BACKUP.map((minuto) => (
-                            <option key={minuto} value={minuto}>
-                              {String(minuto).padStart(2, "0")}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
+                    <p className="text-[11px] text-emerald-900/90">
+                      {t("settings.backupAutoHorarioFixo").replace(
+                        "{horario}",
+                        statusAuto?.horarioFixo ?? "23:30"
+                      )}
+                    </p>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3">

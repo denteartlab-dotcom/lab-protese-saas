@@ -7,7 +7,7 @@ import {
   type LancamentoDre,
   MESES_DRE,
 } from "@/lib/dre";
-import { desempacotarDespesa } from "@/lib/lancamento-despesa";
+import { descricaoLancamentoExibicao } from "@/lib/lancamento-despesa";
 import type { ItemPlanoContas } from "@/lib/plano-contas";
 import { formatarTooltip } from "@/lib/dre-graficos";
 
@@ -133,16 +133,10 @@ export function nomeSubcategoriaLancamento(
 function lancamentoParaLinha(
   l: LancamentoDre
 ): LancamentoRelatorioDreDetalhado {
-  const pack = desempacotarDespesa(l.descricao);
-  const descricao =
-    pack.texto?.trim() ||
-    pack.nome?.trim() ||
-    l.descricao.split("\n")[0]?.trim() ||
-    "—";
   return {
     id: l.id,
     dataLabel: formatarDataBr(l.data),
-    descricao,
+    descricao: descricaoLancamentoExibicao(l.descricao),
     formaPagamento: l.formaPagamento?.trim() || "—",
     valor: Math.abs(l.valor),
   };

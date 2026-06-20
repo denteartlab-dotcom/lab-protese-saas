@@ -33,3 +33,8 @@ export function caminhoRelativoPastaBackupEmpresa(slug: string, nome?: string) {
     .relative(process.cwd(), pastaBackupEmpresa(slug, nome))
     .replace(/\\/g, "/");
 }
+
+/** Caminho relativo dos anexos espelhados: `backups/DenteArt/uploads` */
+export function caminhoRelativoUploadsBackupEmpresa(slug: string, nome?: string) {
+  return `${caminhoRelativoPastaBackupEmpresa(slug, nome)}/uploads`;
+}

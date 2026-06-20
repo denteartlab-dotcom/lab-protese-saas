@@ -7,6 +7,20 @@ import {
 
 export const BACKUP_AUTOMATICO_CONFIG_KEY = "labProteseBackupAutomatico";
 export const FUSO_BACKUP_PADRAO = "America/Sao_Paulo";
+export const HORA_BACKUP_AUTOMATICO_FIXA = 23;
+export const MINUTO_BACKUP_AUTOMATICO_FIXA = 30;
+
+export function horarioFixoBackupAutomatico() {
+  return {
+    hora: HORA_BACKUP_AUTOMATICO_FIXA,
+    minuto: MINUTO_BACKUP_AUTOMATICO_FIXA,
+  };
+}
+
+export function formatarHorarioFixoBackupAutomatico() {
+  const { hora, minuto } = horarioFixoBackupAutomatico();
+  return `${String(hora).padStart(2, "0")}:${String(minuto).padStart(2, "0")}`;
+}
 
 export type BackupAutomaticoConfig = {
   ativo: boolean;
@@ -26,8 +40,7 @@ export type BackupAutomaticoConfig = {
 export const CONFIG_BACKUP_AUTOMATICO_PADRAO: BackupAutomaticoConfig = {
   ativo: true,
   diaSemana: null,
-  hora: 0,
-  minuto: 0,
+  ...horarioFixoBackupAutomatico(),
   ultimoBackupEm: null,
   proximoBackupEm: null,
   ultimoArquivo: null,
@@ -158,6 +171,9 @@ export function normalizarConfigBackupAutomatico(
     pastaDriveNome: parsed.data.pastaDriveNome ?? null,
   };
 
+  const fixo = horarioFixoBackupAutomatico();
+  base.hora = fixo.hora;
+  base.minuto = fixo.minuto;
   base.proximoBackupEm = calcularProximoBackupEm(base, fusoEfetivoBackup());
   return base;
 }
@@ -197,21 +213,22 @@ export async function carregarConfigBackupAutomatico(
 
 export async function salvarConfigBackupAutomatico(
   empresaId: string,
-  entrada: Pick<BackupAutomaticoConfig, "ativo" | "diaSemana" | "hora" | "minuto">
+  entrada: Pick<BackupAutomaticoConfig, "ativo" | "diaSemana">
 ): Promise<BackupAutomaticoConfig> {
   const atual = await carregarConfigBackupAutomatico(empresaId);
+  const fixo = horarioFixoBackupAutomatico();
   const proximo: BackupAutomaticoConfig = {
     ...atual,
     ativo: entrada.ativo,
     diaSemana: entrada.diaSemana,
-    hora: entrada.hora,
-    minuto: entrada.minuto,
+    hora: fixo.hora,
+    minuto: fixo.minuto,
     proximoBackupEm: calcularProximoBackupEm(
       {
         ativo: entrada.ativo,
         diaSemana: entrada.diaSemana,
-        hora: entrada.hora,
-        minuto: entrada.minuto,
+        hora: fixo.hora,
+        minuto: fixo.minuto,
       },
       fusoEfetivoBackup()
     ),

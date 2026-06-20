@@ -22,7 +22,10 @@ import {
   type LancamentoDre,
 } from "@/lib/dre";
 import { carregarPlanoContas } from "@/lib/plano-contas";
-import { desempacotarDespesa } from "@/lib/lancamento-despesa";
+import {
+  desempacotarDespesa,
+  descricaoLancamentoExibicao,
+} from "@/lib/lancamento-despesa";
 import { visualizarPdfUrl } from "@/lib/pdf-viewer";
 import { FINANCEIRO_ATUALIZADO_EVENT } from "@/lib/financeiro-events";
 import { lancamentoEfetivadoFinanceiro } from "@/lib/lancamento-financeiro-realizado";
@@ -536,7 +539,7 @@ export function DreConteudo() {
                             {new Date(l.data).toLocaleDateString("pt-BR")}
                           </td>
                           <td className="px-2 py-2 text-[#374151]">
-                            {pack.texto || l.descricao}
+                            {descricaoLancamentoExibicao(l.descricao)}
                           </td>
                           <td className="px-2 py-2 text-[#6b7280]">{pack.categoria}</td>
                           <td

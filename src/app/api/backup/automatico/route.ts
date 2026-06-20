@@ -2,7 +2,7 @@ import { access } from "fs/promises";
 import path from "path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { caminhoRelativoPastaBackupEmpresa } from "@/lib/backup-empresa-pasta";
+import { caminhoRelativoPastaBackupEmpresa, caminhoRelativoUploadsBackupEmpresa } from "@/lib/backup-empresa-pasta";
 import { reagendarBackupAutomatico } from "@/lib/backup-automatico";
 import {
   fusoBackupAutomatico,
@@ -14,6 +14,7 @@ import {
   calcularProximoBackupEm,
   carregarConfigBackupAutomatico,
   formatarDataBackup,
+  formatarHorarioFixoBackupAutomatico,
   salvarConfigBackupAutomatico,
 } from "@/lib/backup-automatico-config";
 import {
@@ -28,8 +29,6 @@ export const dynamic = "force-dynamic";
 const schemaSalvar = z.object({
   ativo: z.boolean(),
   diaSemana: z.number().int().min(0).max(6).nullable(),
-  hora: z.number().int().min(0).max(23),
-  minuto: z.number().int().min(0).max(59),
 });
 
 function servidorBackupHabilitado() {
@@ -115,6 +114,8 @@ async function montarStatus(empresaId: string, slug: string, nome: string) {
     hospedagemVercel: hospedagemVercel(),
     agendadorInternoAtivo: !hospedagemVercel() && servidorBackupHabilitado(),
     pastaPadrao: pastaRelativa,
+    pastaUploads: caminhoRelativoUploadsBackupEmpresa(slug, nome),
+    horarioFixo: formatarHorarioFixoBackupAutomatico(),
     padraoNomeArquivo,
     arquivoPadrao: `${pastaRelativa}/${padraoNomeArquivo}`,
     ultimoArquivoNome,
