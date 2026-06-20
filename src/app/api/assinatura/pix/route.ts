@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth";
 import { requireEmpresaContextRenovacao } from "@/lib/empresa-context";
-import { PLANOS_EMPRESA } from "@/lib/master-planos";
+import { PLANOS_EMPRESA, PERIODOS_COBRANCA } from "@/lib/master-planos";
 import { atualizarSessaoAssinaturaUsuario } from "@/lib/sessao-assinatura";
 import {
   consultarCobrancaPixAssinatura,
@@ -16,6 +16,7 @@ const bodySchema = z.object({
   password: z.string().min(1).optional(),
   empresaSlug: z.string().min(1).optional(),
   plano: z.enum(PLANOS_EMPRESA).optional(),
+  periodo: z.enum(PERIODOS_COBRANCA).optional(),
   force: z.boolean().optional(),
 });
 
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
     const cobranca = await gerarCobrancaPixRenovacao(empresaId, body.plano, {
       emailPagador: session?.email || body.email,
       forcarNova: body.force === true,
+      periodo: body.periodo,
     });
     return NextResponse.json({ ok: true, cobranca });
   } catch (error) {

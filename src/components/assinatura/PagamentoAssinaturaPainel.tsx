@@ -12,11 +12,15 @@ import {
 } from "lucide-react";
 import {
   normalizarPlanoEmpresa,
+  normalizarPeriodoCobranca,
   rotuloPlanoEmpresa,
-  formatarPrecoPlano,
-  RECURSOS_PLANOS_ASSINATURA,
+  formatarPrecoPlanoComPeriodo,
+  recursosPlanosAssinatura,
+  rotuloPeriodoCobranca,
+  type PeriodoCobranca,
 } from "@/lib/master-planos";
 import { cn } from "@/lib/utils";
+import { SeletorPeriodoCobranca } from "@/components/assinatura/SeletorPeriodoCobranca";
 import { ContagemRegressivaPixQr } from "@/components/assinatura/ContagemRegressivaPixQr";
 import { PixQrCodeVisual } from "@/components/assinatura/PixQrCodeVisual";
 
@@ -24,6 +28,8 @@ type CobrancaPix = {
   cobrancaId: string;
   valorFormatado: string;
   planoRotulo: string;
+  periodoCobranca?: string;
+  periodoRotulo?: string;
   diasRenovacao: number;
   pixPayload: string | null;
   pixEncodedImage: string | null;
@@ -38,7 +44,9 @@ export function PagamentoAssinaturaPainel() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const plano = normalizarPlanoEmpresa(searchParams.get("plano") || "profissional");
-  const planoInfo = RECURSOS_PLANOS_ASSINATURA.find((item) => item.id === plano);
+  const periodoInicial = normalizarPeriodoCobranca(searchParams.get("periodo") || "mensal");
+  const [periodo, setPeriodo] = useState<PeriodoCobranca>(periodoInicial);
+  const planoInfo = recursosPlanosAssinatura(periodo).find((item) => item.id === plano);
 
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
@@ -53,7 +61,11 @@ export function PagamentoAssinaturaPainel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ plano, ...(forcarNova ? { force: true } : {}) }),
+        body: JSON.stringify({
+          plano,
+          periodo,
+          ...(forcarNova ? { force: true } : {}),
+        }),
       });
       const data = (await res.json()) as { error?: string; cobranca?: CobrancaPix };
       if (!res.ok) throw new Error(data.error || "Não foi possível gerar o PIX.");
@@ -63,7 +75,11 @@ export function PagamentoAssinaturaPainel() {
     } finally {
       setLoading(false);
     }
-  }, [plano]);
+  }, [plano, periodo]);
+
+  useEffect(() => {
+    setPeriodo(periodoInicial);
+  }, [periodoInicial]);
 
   useEffect(() => {
     void gerarPix();
@@ -134,8 +150,18 @@ export function PagamentoAssinaturaPainel() {
           </div>
           <h1 className="text-xl font-bold text-slate-900">Pagamento da assinatura</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Plano {rotuloPlanoEmpresa(plano)} — {formatarPrecoPlano(plano)}/mês
+            Plano {rotuloPlanoEmpresa(plano)} ({rotuloPeriodoCobranca(periodo)}) —{" "}
+            {formatarPrecoPlanoComPeriodo(plano, periodo)}
           </p>
+          <div className="mt-4 flex justify-center">
+            <SeletorPeriodoCobranca
+              periodo={periodo}
+              onChange={(novo) => {
+                setPeriodo(novo);
+                router.replace(`/pagamento?plano=${plano}&periodo=${novo}`);
+              }}
+            />
+          </div>
         </div>
 
         {planoInfo ? (
@@ -173,6 +199,7 @@ export function PagamentoAssinaturaPainel() {
               <p className="text-lg font-bold text-slate-900">{cobranca.valorFormatado}</p>
               <p className="text-[10px] text-slate-500">
                 +{cobranca.diasRenovacao} dias após confirmação
+                {cobranca.periodoRotulo ? ` (${cobranca.periodoRotulo.toLowerCase()})` : ""}
               </p>
             </div>
 

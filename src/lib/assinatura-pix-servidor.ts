@@ -22,10 +22,12 @@ import {
 import { prisma } from "@/lib/db";
 import { PIX_ASSINATURA_QR_EXPIRACAO_MS } from "@/lib/assinatura-pix-constants";
 import {
-  DIAS_RENOVACAO_MENSAL,
+  diasRenovacaoPlano,
   limitesDoPlano,
+  normalizarPeriodoCobranca,
   normalizarPlanoEmpresa,
-  precoMensalPlano,
+  precoPlano,
+  rotuloPeriodoCobranca,
   rotuloPlanoEmpresa,
 } from "@/lib/master-planos";
 
@@ -37,6 +39,8 @@ export type CobrancaPixAssinatura = {
   valorFormatado: string;
   plano: string;
   planoRotulo: string;
+  periodoCobranca: string;
+  periodoRotulo: string;
   diasRenovacao: number;
   statusAsaas: string;
   pixPayload: string | null;
@@ -68,11 +72,12 @@ function cobrancaPendenteReutilizavel(
     createdAt: Date;
     pagoEm?: Date | null;
   },
-  plano: string
+  plano: string,
+  periodo: string
 ): boolean {
   if (!cobrancaPendenteValida(cobranca)) return false;
-  if (cobranca.valor !== precoMensalPlano(plano)) return false;
-  if (cobranca.diasRenovacao !== DIAS_RENOVACAO_MENSAL) return false;
+  if (cobranca.valor !== precoPlano(plano, periodo)) return false;
+  if (cobranca.diasRenovacao !== diasRenovacaoPlano(periodo)) return false;
   if (cobranca.pixExpiraEm) {
     const duracaoMs =
       cobranca.pixExpiraEm.getTime() - cobranca.createdAt.getTime();
@@ -106,6 +111,8 @@ async function montarRespostaCobranca(
 ): Promise<CobrancaPixAssinatura> {
   const provedor = (cobranca.provedor === "asaas" ? "asaas" : "mercadopago") as ProvedorPixAssinatura;
   const pago = statusCobrancaAssinaturaPago(provedor, cobranca.statusAsaas);
+  const periodoCobranca =
+    cobranca.diasRenovacao >= 360 ? "anual" : "mensal";
   return {
     cobrancaId: cobranca.id,
     paymentId: cobranca.asaasPaymentId,
@@ -117,6 +124,8 @@ async function montarRespostaCobranca(
     }),
     plano: cobranca.plano,
     planoRotulo: rotuloPlanoEmpresa(cobranca.plano),
+    periodoCobranca,
+    periodoRotulo: rotuloPeriodoCobranca(periodoCobranca),
     diasRenovacao: cobranca.diasRenovacao,
     statusAsaas: cobranca.statusAsaas,
     pixPayload: cobranca.pixPayload,
@@ -141,9 +150,10 @@ async function gerarCobrancaMercadoPago(
   },
   valor: number,
   planoCobranca: string,
+  diasRenovacao: number,
   emailPagador?: string | null
 ): Promise<CobrancaPixAssinatura> {
-  const descricao = `Renovação ${rotuloPlanoEmpresa(planoCobranca)} — ${empresa.nome}`;
+  const descricao = `Renovação ${rotuloPeriodoCobranca(diasRenovacao >= 360 ? "anual" : "mensal").toLowerCase()} ${rotuloPlanoEmpresa(planoCobranca)} — ${empresa.nome}`;
   const pagamento = await criarPixAssinaturaMercadoPago({
     empresaId: empresa.id,
     empresaNome: empresa.nome,
@@ -162,7 +172,7 @@ async function gerarCobrancaMercadoPago(
       provedor: "mercadopago",
       plano: planoCobranca,
       valor,
-      diasRenovacao: DIAS_RENOVACAO_MENSAL,
+      diasRenovacao,
       statusAsaas: pagamento.status,
       pixPayload: pagamento.pixPayload,
       pixExpiraEm: pagamento.pixExpiraEm ? new Date(pagamento.pixExpiraEm) : null,
@@ -186,10 +196,11 @@ async function gerarCobrancaAsaas(
     asaasCustomerIdPlataforma: string | null;
   },
   valor: number,
-  planoCobranca: string
+  planoCobranca: string,
+  diasRenovacao: number
 ): Promise<CobrancaPixAssinatura> {
   const asaasCustomerId = await criarOuBuscarClientePlataformaAsaas(empresa);
-  const descricao = `Renovação ${rotuloPlanoEmpresa(planoCobranca)} — ${empresa.nome}`;
+  const descricao = `Renovação ${rotuloPeriodoCobranca(diasRenovacao >= 360 ? "anual" : "mensal").toLowerCase()} ${rotuloPlanoEmpresa(planoCobranca)} — ${empresa.nome}`;
   const pagamento = await emitirPixAssinaturaPlataforma({
     asaasCustomerId,
     valor,
@@ -204,7 +215,7 @@ async function gerarCobrancaAsaas(
       provedor: "asaas",
       plano: planoCobranca,
       valor,
-      diasRenovacao: DIAS_RENOVACAO_MENSAL,
+      diasRenovacao,
       statusAsaas: pagamento.status || "PENDING",
       pixPayload: qr.payload || null,
       pixExpiraEm: qr.expirationDate ? new Date(qr.expirationDate) : null,
@@ -218,7 +229,11 @@ async function gerarCobrancaAsaas(
 export async function gerarCobrancaPixRenovacao(
   empresaId: string,
   planoEscolhido?: string,
-  opcoes?: { emailPagador?: string | null; forcarNova?: boolean }
+  opcoes?: {
+    emailPagador?: string | null;
+    forcarNova?: boolean;
+    periodo?: string;
+  }
 ): Promise<CobrancaPixAssinatura> {
   const provedor = resolverProvedorPixAssinatura();
   if (!provedor) {
@@ -259,19 +274,24 @@ export async function gerarCobrancaPixRenovacao(
   }
 
   const plano = normalizarPlanoEmpresa(planoEscolhido || empresa.plano);
+  const periodo = normalizarPeriodoCobranca(opcoes?.periodo || "mensal");
+  const valor = precoPlano(plano, periodo);
+  const diasRenovacao = diasRenovacaoPlano(periodo);
 
   const pendente = await prisma.cobrancaAssinatura.findFirst({
     where: {
       empresaId,
       provedor,
       plano,
+      valor,
+      diasRenovacao,
       statusAsaas: provedor === "mercadopago" ? { in: ["pending", "in_process", "PENDING"] } : "PENDING",
     },
     orderBy: { createdAt: "desc" },
     include: { empresa: { select: { dataVencimento: true, slug: true } } },
   });
 
-  if (pendente && !opcoes?.forcarNova && cobrancaPendenteReutilizavel(pendente, plano)) {
+  if (pendente && !opcoes?.forcarNova && cobrancaPendenteReutilizavel(pendente, plano, periodo)) {
     let encodedImage: string | null = null;
     if (pendente.provedor === "asaas") {
       try {
@@ -301,11 +321,16 @@ export async function gerarCobrancaPixRenovacao(
     return montarRespostaCobranca(pendente, encodedImage);
   }
 
-  const valor = precoMensalPlano(plano);
   if (provedor === "mercadopago") {
-    return gerarCobrancaMercadoPago(empresa, valor, plano, emailPagador);
+    return gerarCobrancaMercadoPago(
+      empresa,
+      valor,
+      plano,
+      diasRenovacao,
+      emailPagador
+    );
   }
-  return gerarCobrancaAsaas(empresa, valor, plano);
+  return gerarCobrancaAsaas(empresa, valor, plano, diasRenovacao);
 }
 
 export async function consultarCobrancaPixAssinatura(

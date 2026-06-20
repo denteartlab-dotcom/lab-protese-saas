@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   AlertCircle,
   Building2,
@@ -19,8 +20,12 @@ import {
 import type { ContextoAssinaturaVencida } from "@/lib/contexto-assinatura-vencida";
 import type { LabBrandingPublico } from "@/lib/lab-branding";
 import { dimensoesLogoPx } from "@/lib/lab-logo";
-import { RECURSOS_PLANOS_ASSINATURA } from "@/lib/master-planos";
+import {
+  recursosPlanosAssinatura,
+  type PeriodoCobranca,
+} from "@/lib/master-planos";
 import { cn } from "@/lib/utils";
+import { SeletorPeriodoCobranca } from "@/components/assinatura/SeletorPeriodoCobranca";
 
 type Props = {
   contexto: ContextoAssinaturaVencida;
@@ -35,6 +40,8 @@ const ICONES_PLANO = {
 
 export function AssinaturaVencidaPainel({ contexto, branding }: Props) {
   const router = useRouter();
+  const [periodo, setPeriodo] = useState<PeriodoCobranca>("mensal");
+  const planos = recursosPlanosAssinatura(periodo);
   const logo = dimensoesLogoPx(
     {
       marca: branding.nomeLaboratorio,
@@ -169,17 +176,23 @@ export function AssinaturaVencidaPainel({ contexto, branding }: Props) {
         </section>
 
         <section className="mb-8">
-          <div className="mb-5 text-center">
+          <div className="mb-5 flex flex-col items-center gap-3 text-center">
             <h2 className="text-lg font-bold text-slate-900">Escolha seu plano</h2>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="text-sm text-slate-600">
               {ehNovaConta
                 ? "Pague com PIX e comece a usar o sistema imediatamente."
                 : "Renove agora e volte a usar o sistema sem interrupções."}
             </p>
+            <SeletorPeriodoCobranca periodo={periodo} onChange={setPeriodo} />
+            {periodo === "anual" ? (
+              <p className="text-xs text-emerald-700">
+                Plano anual: 12 meses com desconto (Básico 10%, Profissional 13%, Premium 15%).
+              </p>
+            ) : null}
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
-            {RECURSOS_PLANOS_ASSINATURA.map((plano) => {
+            {planos.map((plano) => {
               const Icone = ICONES_PLANO[plano.id];
               return (
                 <div
@@ -200,7 +213,19 @@ export function AssinaturaVencidaPainel({ contexto, branding }: Props) {
                       <Icone className="h-5 w-5" />
                     </div>
                     <h3 className="text-base font-bold text-slate-900">{plano.nome}</h3>
-                    <p className="mt-2 text-2xl font-bold text-slate-900">{plano.precoLabel}</p>
+                    {plano.descontoAnualLabel ? (
+                      <span className="mt-2 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                        {plano.descontoAnualLabel}
+                      </span>
+                    ) : null}
+                    <div className="mt-2">
+                      {plano.precoCheioAnualLabel ? (
+                        <p className="text-sm text-slate-400 line-through">
+                          {plano.precoCheioAnualLabel}
+                        </p>
+                      ) : null}
+                      <p className="text-2xl font-bold text-slate-900">{plano.precoLabel}</p>
+                    </div>
                   </div>
 
                   <ul className="mb-5 flex-1 space-y-2.5">
@@ -214,7 +239,9 @@ export function AssinaturaVencidaPainel({ contexto, branding }: Props) {
 
                   <button
                     type="button"
-                    onClick={() => router.push(`/pagamento?plano=${plano.id}`)}
+                    onClick={() =>
+                      router.push(`/pagamento?plano=${plano.id}&periodo=${periodo}`)
+                    }
                     className={cn(
                       "h-10 w-full rounded-lg text-sm font-semibold transition",
                       plano.destaque
@@ -223,6 +250,7 @@ export function AssinaturaVencidaPainel({ contexto, branding }: Props) {
                     )}
                   >
                     Renovar {plano.nome}
+                    {periodo === "anual" ? " (Anual)" : ""}
                   </button>
                 </div>
               );
