@@ -30,7 +30,7 @@ export function limitesDoPlano(plano: string) {
 }
 
 export const PRECO_MENSAL_PLANO: Record<PlanoEmpresa, number> = {
-  basico: 30,
+  basico: 0.5,
   profissional: 40,
   premium: 50,
 };
