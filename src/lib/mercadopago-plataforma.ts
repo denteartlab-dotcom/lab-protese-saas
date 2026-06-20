@@ -1,3 +1,4 @@
+import { somenteDigitos } from "@/lib/asaas-client";
 import { PIX_ASSINATURA_QR_EXPIRACAO_MS } from "@/lib/assinatura-pix-constants";
 import {
   mercadoPagoPlataformaConfigurado,
