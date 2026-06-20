@@ -58,6 +58,8 @@ BUILD_ID="$(git rev-parse --short HEAD)"
 echo "$BUILD_ID" > .build-id
 export NEXT_PUBLIC_APP_BUILD_ID="$BUILD_ID"
 export NODE_ENV=production
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=4096}"
+echo "    NODE_OPTIONS=$NODE_OPTIONS"
 npm run build
 echo "    buildId: $BUILD_ID"
 

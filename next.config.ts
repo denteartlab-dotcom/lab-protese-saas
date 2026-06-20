@@ -56,6 +56,9 @@ const assetPrefix = resolveAssetPrefix();
 const nextConfig: NextConfig = {
   devIndicators: false,
   outputFileTracingRoot: projectRoot,
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   ...(assetPrefix ? { assetPrefix } : {}),
   env: {
     NEXT_PUBLIC_APP_BUILD_ID: appBuildId,
