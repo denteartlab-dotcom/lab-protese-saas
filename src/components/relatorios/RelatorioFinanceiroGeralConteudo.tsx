@@ -316,8 +316,8 @@ export function RelatorioFinanceiroGeralConteudo() {
               Relatório Financeiro Geral
             </h1>
             <p className="mt-1 text-[13px] text-[#6b7280]">
-              Produção em aberto (valor da OS) e concluídos no período (saldo a receber em Contas a
-              Receber)
+              Produção em aberto (valor do serviço) e concluídos no período (saldo a receber,
+              incluindo produto e transporte da OS)
             </p>
           </div>
         </div>
@@ -1046,8 +1046,8 @@ export function RelatorioFinanceiroGeralConteudo() {
         size="lg"
       >
         <p className="mb-4 text-[12px] text-[#6b7280]">
-          Valores a receber de serviços concluídos (saldo em Contas a Receber ou valor da OS
-          quando ainda não faturada).
+          Valores a receber de serviços concluídos (serviço + produto e transporte da mesma OS,
+          saldo em Contas a Receber ou valor da OS quando ainda não faturada).
         </p>
         {linhasConcluidosModal.length === 0 ? (
           <p className="py-8 text-center text-sm text-[#9ca3af]">

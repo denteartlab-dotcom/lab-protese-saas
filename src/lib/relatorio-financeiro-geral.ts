@@ -15,15 +15,20 @@ import { normalizarChaveStatusOs, labelStatusOs } from "@/lib/status-os";
 import {
   classificarItemOs,
   parseDescontoTipoLinhaItem,
+  parseItensAdicionadosLinhas,
   segmentoEfetivoTrabalho,
   valorLiquidoItemOs,
+  type SegmentoFaturamento,
 } from "@/lib/trabalho-os-segmento";
+import {
+  numerosOsDoLancamentoFatura,
+  trabalhoEstaFaturado,
+} from "@/lib/os-faturamento";
 import {
   calcularFinanceiroLancamentosPeriodo,
   type FinanceiroLancamentosPeriodo,
   type LancamentoRelatorioFinanceiro,
 } from "@/lib/financeiro-lancamentos-relatorio";
-import { numerosOsDoLancamentoFatura } from "@/lib/os-faturamento";
 
 export const MESES_FINANCEIRO_GERAL = [
   "Jan",
@@ -156,6 +161,55 @@ export function servicoConcluidoFinanceiro(status?: string | null) {
   return (STATUS_SERVICO_CONCLUIDO_FINANCEIRO as readonly string[]).includes(key);
 }
 
+function valorLiquidoDeLinhaItemAdicionado(line: string): number | null {
+  const match = line.match(/^Item adicionado:\s*(.*?)\s*-\s*dentes/i);
+  if (!match) return null;
+
+  const valorTexto = line.match(
+    / - valor (.*?)(?: - categoria| - desc| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
+  )?.[1];
+  if (!valorTexto) return null;
+
+  const valor = parseCurrencyBr(valorTexto);
+  const descontoRaw = line
+    .match(
+      / - desc (.*?)(?: - descTipo| - categoria| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
+    )?.[1]
+    ?.trim();
+  const descontoTipo = parseDescontoTipoLinhaItem(line, descontoRaw || "");
+  return valorLiquidoItemOs({ valor, desconto: descontoRaw, descontoTipo });
+}
+
+function valorTotalSegmentoInstrucoes(
+  instrucoes: string | null | undefined,
+  segmento: SegmentoFaturamento
+): number {
+  let total = 0;
+  for (const line of parseItensAdicionadosLinhas(instrucoes)) {
+    const match = line.match(/^Item adicionado:\s*(.*?)\s*-\s*dentes/i);
+    const servico = match?.[1]?.trim() || "";
+    const produtoId = line
+      .match(/ - produtoId (.*?)(?: - urgente| - repetição| - repeticao| - obs|$)/i)?.[1]
+      ?.trim();
+    if (classificarItemOs({ servico, produtoId: produtoId || undefined }) !== segmento) {
+      continue;
+    }
+    const liquido = valorLiquidoDeLinhaItemAdicionado(line);
+    if (liquido != null) total += liquido;
+  }
+  return total;
+}
+
+/** Valor do segmento (serviço, produto ou transporte) nas instruções da OS. */
+export function valorTrabalhoSegmentoFinanceiro(
+  trabalho: TrabalhoFinanceiroGeralInput
+): number {
+  const segmento = segmentoEfetivoTrabalho(trabalho);
+  const total = valorTotalSegmentoInstrucoes(trabalho.instrucoes, segmento);
+  if (total > 0) return total;
+  return Number(trabalho.valor) || 0;
+}
+
 function valorLiquidoLinhaItemOs(instrucoes: string, descricaoItem: string) {
   const alvo = descricaoItem.trim().toLowerCase();
   for (const line of (instrucoes || "").split("\n")) {
@@ -277,6 +331,75 @@ export function valorAReceberTrabalhoFinanceiro(
   if (total > 0.005) return total;
   if (!temFatura) return valorServicoTrabalhoFinanceiro(trabalho);
   return 0;
+}
+
+/**
+ * Saldo a receber de todos os segmentos da OS (serviço + produto + transporte),
+ * contando cada fatura de cobrança uma única vez.
+ */
+export function valorAReceberNumeroOsCompleto(
+  numeroOs: number,
+  todosTrabalhos: TrabalhoFinanceiroGeralInput[],
+  lancamentos: LancamentoRelatorioFinanceiro[]
+): number {
+  const segmentosOs = todosTrabalhos.filter(
+    (t) =>
+      t.numeroOs === numeroOs && normalizarChaveStatusOs(t.status) !== "cancelado"
+  );
+  if (!segmentosOs.length) return 0;
+
+  const resumos = lancamentos.map(toLancamentoResumo);
+  let saldoFaturas = 0;
+  const faturasVistas = new Set<string>();
+
+  for (const l of resumos) {
+    if (!ehCobrancaOsReceita(l)) continue;
+    if (!segmentosOs.some((t) => faturaLigadaAoTrabalho(l, t))) continue;
+    if (faturasVistas.has(l.id)) continue;
+    faturasVistas.add(l.id);
+    saldoFaturas += saldoFaturaCobrancaOs(l, resumos);
+  }
+
+  let valorNaoFaturado = 0;
+  for (const t of segmentosOs) {
+    if (trabalhoEstaFaturado(t, lancamentos)) continue;
+    valorNaoFaturado += valorTrabalhoSegmentoFinanceiro(t);
+  }
+
+  return saldoFaturas + valorNaoFaturado;
+}
+
+function valorLinhaConcluidaFinanceiro(
+  trabalho: TrabalhoFinanceiroGeralInput,
+  todosTrabalhos: TrabalhoFinanceiroGeralInput[],
+  lancamentos: LancamentoRelatorioFinanceiro[],
+  primeiroServicoIdPorOs: Map<number, string>
+): number {
+  const totalOs = valorAReceberNumeroOsCompleto(
+    trabalho.numeroOs,
+    todosTrabalhos,
+    lancamentos
+  );
+
+  if (primeiroServicoIdPorOs.get(trabalho.numeroOs) !== trabalho.id) {
+    return valorAReceberTrabalhoFinanceiro(trabalho, lancamentos);
+  }
+
+  const outrosServicos = todosTrabalhos.filter(
+    (t) =>
+      t.numeroOs === trabalho.numeroOs &&
+      t.id !== trabalho.id &&
+      segmentoEfetivoTrabalho(t) === "servico" &&
+      servicoConcluidoFinanceiro(t.status) &&
+      normalizarChaveStatusOs(t.status) !== "cancelado"
+  );
+
+  const recebivelOutros = outrosServicos.reduce(
+    (s, t) => s + valorAReceberTrabalhoFinanceiro(t, lancamentos),
+    0
+  );
+
+  return Math.max(0, totalOs - recebivelOutros);
 }
 
 function dataConclusaoTrabalho(trabalho: TrabalhoFinanceiroGeralInput) {
@@ -408,6 +531,15 @@ export function montarLinhasDetalhe(
   mapaEtapas: Record<string, number[]> = {},
   lancamentos: LancamentoRelatorioFinanceiro[] = []
 ): LinhaDetalheFinanceiroGeral[] {
+  const primeiroServicoIdPorOs = new Map<number, string>();
+  for (const t of trabalhos) {
+    if (segmentoEfetivoTrabalho(t) !== "servico") continue;
+    if (normalizarChaveStatusOs(t.status) === "cancelado") continue;
+    if (!primeiroServicoIdPorOs.has(t.numeroOs)) {
+      primeiroServicoIdPorOs.set(t.numeroOs, t.id);
+    }
+  }
+
   return trabalhos
     .filter(
       (t) =>
@@ -425,7 +557,7 @@ export function montarLinhasDetalhe(
       const { etapaAtual, responsavel } = resolverEtapaResponsavel(t, mapaEtapas);
       const valorProducao = valorServicoTrabalhoFinanceiro(t);
       const valor = concluido
-        ? valorAReceberTrabalhoFinanceiro(t, lancamentos)
+        ? valorLinhaConcluidaFinanceiro(t, trabalhos, lancamentos, primeiroServicoIdPorOs)
         : valorProducao;
       return {
         id: t.id,
