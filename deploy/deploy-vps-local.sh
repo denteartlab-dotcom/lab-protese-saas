@@ -76,6 +76,14 @@ chmod 755 "$BACKUP_DIR" 2>/dev/null || true
 echo "    $BACKUP_DIR"
 
 echo ""
+echo "==> Variáveis de ambiente..."
+if [[ -f .env ]] && grep -q '^RESEND_API_KEY=.\+' .env 2>/dev/null; then
+  echo "    RESEND_API_KEY: configurada"
+else
+  echo "    AVISO: RESEND_API_KEY ausente no .env — recuperação de senha por e-mail não funcionará."
+fi
+
+echo ""
 echo "==> Reiniciando aplicação..."
 if command -v pm2 >/dev/null 2>&1; then
   export APP_DIR

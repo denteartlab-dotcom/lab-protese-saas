@@ -32,7 +32,13 @@ export async function POST(request: Request) {
     if (!resultado.enviado) {
       console.error("[recuperar-senha]", resultado.erroInterno);
       return NextResponse.json(
-        { error: "Não foi possível enviar o e-mail. Tente novamente mais tarde." },
+        {
+          error:
+            resultado.erroInterno?.includes("RESEND") ||
+            resultado.erroInterno?.includes("API key")
+              ? "Serviço de e-mail não configurado. Contate o suporte."
+              : "Não foi possível enviar o e-mail. Tente novamente mais tarde.",
+        },
         { status: 500 }
       );
     }
@@ -45,7 +51,17 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    const msg = err instanceof Error ? err.message : String(err);
     console.error("[recuperar-senha]", err);
+    if (/PasswordResetToken|does not exist|P2021/i.test(msg)) {
+      return NextResponse.json(
+        {
+          error:
+            "Sistema desatualizado. Execute npx prisma db push no servidor e reinicie o PM2.",
+        },
+        { status: 503 }
+      );
+    }
     return NextResponse.json({ error: "Erro ao processar solicitação." }, { status: 500 });
   }
 }
