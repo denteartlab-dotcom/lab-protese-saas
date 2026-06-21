@@ -27,18 +27,25 @@ function migrarLegado(parsed: Partial<ConfigLaboratorio>): ConfigLaboratorio {
   };
 }
 
+function emailLaboratorioSalvo(parsed: Partial<ConfigLaboratorio> | null | undefined): string {
+  if (!parsed || typeof parsed !== "object" || !("email" in parsed)) return "";
+  return String(parsed.email ?? "").trim();
+}
+
 export function normalizarConfigLaboratorio(
   parsed: Partial<ConfigLaboratorio> | null | undefined
 ): ConfigLaboratorio {
   if (!parsed || typeof parsed !== "object") {
-    return { ...CONFIG_LAB_PADRAO, tipoPessoa: "Jurídica" };
+    return { ...CONFIG_LAB_PADRAO, tipoPessoa: "Jurídica", email: "" };
   }
   const config = migrarLegado(parsed);
+  const email = emailLaboratorioSalvo(parsed);
   const cabecalhoRequisicao = normalizarCabecalhoRequisicao(config.cabecalhoRequisicao);
   const tipo = normalizarTipoPessoa(config.tipoPessoa);
   if (tipo === "Física") {
     return {
       ...config,
+      email,
       cabecalhoRequisicao,
       tipoPessoa: tipo,
       razaoSocial: "",
@@ -51,6 +58,7 @@ export function normalizarConfigLaboratorio(
   }
   return {
     ...config,
+    email,
     cabecalhoRequisicao,
     tipoPessoa: tipo,
     idioma: normalizarIdioma(config.idioma),

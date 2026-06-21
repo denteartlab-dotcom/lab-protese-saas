@@ -57,5 +57,5 @@ export const LAB_IMPRESSAO_PADRAO: LabImpressaoConfig = {
   enderecoLinha1: "Rua Santos Dumont, 677",
   enderecoLinha2: "Governador Valadares / MG",
   telefones: "(31) 98270-9866",
-  email: "denteartlab@gmail.com",
+  email: "",
 };

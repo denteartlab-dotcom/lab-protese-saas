@@ -82,7 +82,7 @@ export const CONFIG_LAB_PADRAO: ConfigLaboratorio = {
   croResponsavel: "",
   inscricaoEstadual: "",
   inscricaoMunicipal: "",
-  email: LAB_IMPRESSAO_PADRAO.email,
+  email: "",
   telefoneComercial: "(31) 9827-0986",
   celular: "",
   whatsapp: "(31) 98270-9866",
@@ -287,6 +287,7 @@ export function prepararConfigParaSalvar(form: ConfigLaboratorio): ConfigLaborat
   return {
     ...preparado,
     cabecalhoRequisicao: normalizarCabecalhoRequisicao(form.cabecalhoRequisicao),
+    email: (form.email ?? "").trim(),
     razaoSocial: ehFisica ? "" : form.razaoSocial,
     nomeLaboratorio,
     responsavel: nomeLaboratorio,
