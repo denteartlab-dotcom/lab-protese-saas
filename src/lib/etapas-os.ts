@@ -53,14 +53,8 @@ export type EtapasPorServicoOs = {
   etapas: EtapaOsLinha[];
 };
 
-const etapasPadrao: EtapaCadastro[] = [
-  { id: "modelo-individual", nome: "Modelo Individual", setor: "Resina" },
-  { id: "montagem", nome: "Montagem", setor: "Resina" },
-  { id: "acrilizacao-caracterizada", nome: "Acrilização caracterizada", setor: "Resina" },
-];
-
 export function carregarEtapasCadastro(): EtapaCadastro[] {
-  const lista = readStorage<EtapaCadastro[]>(ETAPAS_STORAGE_KEY, etapasPadrao);
+  const lista = readStorage<EtapaCadastro[]>(ETAPAS_STORAGE_KEY, []);
   return lista.filter((e) => e?.nome?.trim());
 }
 

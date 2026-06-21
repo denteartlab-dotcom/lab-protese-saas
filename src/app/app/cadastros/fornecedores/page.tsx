@@ -15,6 +15,11 @@ import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import { Button, Input, Modal } from "@/components/ui";
 import { usePageReady } from "@/hooks/use-page-ready";
 import {
+  aplicarEspelhoContatoCadastro,
+  ESPELHOS_CONTATO_FORNECEDOR,
+  type CampoContatoPrincipal,
+} from "@/lib/espelhar-contato-cadastro";
+import {
   persistirArmazenamentoImediato,
   readStorageArray,
   writeStorage,
@@ -47,24 +52,6 @@ type Fornecedor = {
 const STORAGE_KEY = "labProteseFornecedores";
 const EXCLUIDOS_STORAGE_KEY = "labProteseFornecedoresExcluidos";
 const CATEGORIAS_STORAGE_KEY = "labProteseCategoriasFornecedores";
-const categoriasIniciais = [
-  "Material odontológico",
-  "Serviços terceirizados",
-  "Equipamentos",
-  "Administrativo",
-];
-
-const fornecedoresIniciais: Fornecedor[] = [
-  {
-    id: "smart-protese",
-    nome: "Smart Protese",
-    contato: "",
-    celular: "",
-    whatsapp: "",
-    email: "",
-    categoria: "",
-  },
-];
 
 const formularioVazio = {
   nome: "",
@@ -97,8 +84,8 @@ function formatCepInput(value: string) {
 }
 
 function carregarFornecedores() {
-  if (typeof window === "undefined") return fornecedoresIniciais;
-  return readStorageArray(STORAGE_KEY, fornecedoresIniciais);
+  if (typeof window === "undefined") return [];
+  return readStorageArray(STORAGE_KEY, []);
 }
 
 function carregarFornecedoresExcluidos() {
@@ -107,8 +94,8 @@ function carregarFornecedoresExcluidos() {
 }
 
 function carregarCategorias() {
-  if (typeof window === "undefined") return categoriasIniciais;
-  return readStorageArray(CATEGORIAS_STORAGE_KEY, categoriasIniciais);
+  if (typeof window === "undefined") return [];
+  return readStorageArray(CATEGORIAS_STORAGE_KEY, []);
 }
 
 export default function FornecedoresPage() {
@@ -175,6 +162,10 @@ export default function FornecedoresPage() {
     setEditando(null);
     setForm(formularioVazio);
     setModalAberto(true);
+  }
+
+  function atualizarFornecedorEspelhandoRepresentante(campo: CampoContatoPrincipal, valor: string) {
+    setForm((atual) => aplicarEspelhoContatoCadastro(atual, campo, valor, ESPELHOS_CONTATO_FORNECEDOR));
   }
 
   function abrirEdicao(fornecedor: Fornecedor) {
@@ -600,7 +591,7 @@ export default function FornecedoresPage() {
                 label="Email"
                 type="email"
                 value={form.email}
-                onChange={(event) => setForm({ ...form, email: event.target.value })}
+                onChange={(event) => atualizarFornecedorEspelhandoRepresentante("email", event.target.value)}
                 className="md:col-span-2"
               />
             </div>
@@ -613,7 +604,9 @@ export default function FornecedoresPage() {
               <Input
                 label="Telefone Comercial"
                 value={form.telefoneComercial}
-                onChange={(event) => setForm({ ...form, telefoneComercial: event.target.value })}
+                onChange={(event) =>
+                  atualizarFornecedorEspelhandoRepresentante("telefoneComercial", event.target.value)
+                }
               />
               <Input
                 label="Celular"
@@ -623,7 +616,7 @@ export default function FornecedoresPage() {
               <Input
                 label="WhatsApp"
                 value={form.whatsapp}
-                onChange={(event) => setForm({ ...form, whatsapp: event.target.value })}
+                onChange={(event) => atualizarFornecedorEspelhandoRepresentante("whatsapp", event.target.value)}
               />
             </div>
           </section>

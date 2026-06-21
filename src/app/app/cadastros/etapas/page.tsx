@@ -31,29 +31,7 @@ const STORAGE_KEY = "labProteseEtapas";
 const EXCLUIDOS_STORAGE_KEY = "labProteseEtapasExcluidas";
 const SETORES_STORAGE_KEY = "labProteseSetores";
 
-const setoresPadrao: Setor[] = [
-  { id: "resina", nome: "Resina", cor: "#f25f6a" },
-  { id: "metal", nome: "Metal", cor: "#e9a94f" },
-];
-
 const COR_ETAPA_PADRAO = "#f9a8d4";
-
-const etapasIniciais: Etapa[] = [
-  { id: "modelo-individual", nome: "Modelo Individual", setor: "Resina", cor: "#f9a8d4", tempoMedio: "30", calculoPorElemento: "Não" },
-  { id: "montagem", nome: "Montagem", setor: "Resina", cor: "#f9a8d4", tempoMedio: "80", calculoPorElemento: "Não" },
-  { id: "plano-cera", nome: "Plano de cera", setor: "Resina", cor: "#f9a8d4", tempoMedio: "45", calculoPorElemento: "Não" },
-  { id: "acrilizacao-comum", nome: "Acrilização comum", setor: "Resina", cor: "#f9a8d4", tempoMedio: "80", calculoPorElemento: "Não" },
-  { id: "acrilizacao-stg", nome: "Acrilização STG", setor: "Resina", cor: "#f9a8d4", tempoMedio: "45", calculoPorElemento: "Não" },
-  { id: "recebimento", nome: "Recebimento", setor: "Resina", cor: "#d1d5db", tempoMedio: "80", calculoPorElemento: "Não" },
-  { id: "plano-cera-personalizado", nome: "Plano de cera personalizado", setor: "Resina", cor: "#f9a8d4", tempoMedio: "60", calculoPorElemento: "Não" },
-  { id: "montagem-dentes-protocolo", nome: "Montagem de dentes protocolo", setor: "Resina", cor: "#f9a8d4", tempoMedio: "90", calculoPorElemento: "Não" },
-  { id: "barra-protocolo-titanio", nome: "Barra protocolo titânio", setor: "Resina", cor: "#f9a8d4", tempoMedio: "20", calculoPorElemento: "Não" },
-  { id: "acrilizacao-caracterizada", nome: "Acrilização caracterizada", setor: "Resina", cor: "#f9a8d4", tempoMedio: "80", calculoPorElemento: "Não" },
-  { id: "estrutura-metalica", nome: "Estrutura metálica", setor: "Metal", cor: "#fde68a", tempoMedio: "0", calculoPorElemento: "Não" },
-  { id: "montagem-ppr", nome: "Montagem ppr", setor: "Resina", cor: "#f9a8d4", tempoMedio: "80", calculoPorElemento: "Não" },
-  { id: "acrilizacao-ppr", nome: "Acrilização ppr", setor: "Resina", cor: "#f9a8d4", tempoMedio: "60", calculoPorElemento: "Não" },
-  { id: "acrilizacao-stg-ppr", nome: "Acrilização STG (PPR)", setor: "Resina", cor: "#f9a8d4", tempoMedio: "80", calculoPorElemento: "Não" },
-];
 
 const formularioVazio = {
   nome: "",
@@ -96,8 +74,8 @@ export default function EtapasPage() {
   const [persistenciaPronta, setPersistenciaPronta] = useState(false);
 
   const paginaPronta = usePageReady(() => {
-    const setoresCarregados = carregarLista(SETORES_STORAGE_KEY, setoresPadrao);
-    const etapasCarregadas = carregarLista<Etapa>(STORAGE_KEY, etapasIniciais).map((e) =>
+    const setoresCarregados = carregarLista(SETORES_STORAGE_KEY, []);
+    const etapasCarregadas = carregarLista<Etapa>(STORAGE_KEY, []).map((e) =>
       normalizarEtapa(e, setoresCarregados)
     );
     setEtapas(etapasCarregadas);
@@ -113,7 +91,7 @@ export default function EtapasPage() {
     if (!paginaPronta) return;
 
     function recarregarSetores() {
-      setSetores(carregarLista(SETORES_STORAGE_KEY, setoresPadrao));
+      setSetores(carregarLista(SETORES_STORAGE_KEY, []));
       setSetoresCarregados(true);
     }
 

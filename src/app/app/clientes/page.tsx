@@ -49,6 +49,11 @@ import {
   carregarColaboradoresListagem,
   type ColaboradorListagem,
 } from "@/lib/colaboradores-listagem";
+import {
+  aplicarEspelhoContatoCadastro,
+  ESPELHOS_CONTATO_CLIENTE,
+  type CampoContatoPrincipal,
+} from "@/lib/espelhar-contato-cadastro";
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
 
 type Cliente = {
@@ -380,6 +385,10 @@ export default function ClientesPage() {
       }
       return proximo;
     });
+  }
+
+  function atualizarDadosClienteEspelhandoContato(campo: CampoContatoPrincipal, valor: string) {
+    setForm((atual) => aplicarEspelhoContatoCadastro(atual, campo, valor, ESPELHOS_CONTATO_CLIENTE));
   }
 
   function limparSelecao() {
@@ -949,14 +958,14 @@ export default function ClientesPage() {
             <CampoCliente label="CNPJ" value={form.cnpjCpf} onChange={(e) => setForm({ ...form, cnpjCpf: e.target.value })} />
             <CampoCliente label="CPF" value={form.cpf} onChange={(e) => setForm({ ...form, cpf: e.target.value })} />
             <CampoCliente label="RG" value={form.rg} onChange={(e) => setForm({ ...form, rg: e.target.value })} />
-            <CampoCliente label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            <CampoCliente label="Email" type="email" value={form.email} onChange={(e) => atualizarDadosClienteEspelhandoContato("email", e.target.value)} />
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <CampoCliente label="Telefone Residencial" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} />
-            <CampoCliente label="Telefone Comercial" value={form.telefoneComercial} onChange={(e) => setForm({ ...form, telefoneComercial: e.target.value })} />
+            <CampoCliente label="Telefone Comercial" value={form.telefoneComercial} onChange={(e) => atualizarDadosClienteEspelhandoContato("telefoneComercial", e.target.value)} />
             <CampoCliente label="Celular" value={form.celular} onChange={(e) => setForm({ ...form, celular: e.target.value })} />
-            <CampoCliente label="WhatsApp" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} />
+            <CampoCliente label="WhatsApp" value={form.whatsapp} onChange={(e) => atualizarDadosClienteEspelhandoContato("whatsapp", e.target.value)} />
           </div>
 
           <div className="space-y-1 pt-1">

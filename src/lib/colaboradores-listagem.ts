@@ -27,14 +27,7 @@ type ColaboradorStorage = {
   };
 };
 
-const colaboradoresPadrao: ColaboradorStorage[] = [
-  {
-    id: "1",
-    nome: "Mateus Bonfim",
-    comissaoPercentual: "0,00",
-    dados: {},
-  },
-];
+const colaboradoresPadrao: ColaboradorStorage[] = [];
 
 function normalizarColaborador(colaborador: ColaboradorStorage): ColaboradorListagem | null {
   const nome = colaborador.nome?.trim();

@@ -304,13 +304,13 @@ export default function TabelaPrecosPage() {
     setTabelas(dados.tabelas?.length ? dados.tabelas : [...TABELA_PRECOS_VAZIA.tabelas!]);
     const categoriasSalvas =
       dados.categoriasPorTabela ?? TABELA_PRECOS_VAZIA.categoriasPorTabela ?? {};
-    const categoriasNormalizadas = Object.fromEntries(
+      const categoriasNormalizadas = Object.fromEntries(
       Object.entries(categoriasSalvas).map(([nomeTabela, cats]) => [
         nomeTabela,
         normalizarCategorias(cats as CategoriaPreco[]),
       ])
-    );
-    setCategoriasPorTabela(categoriasNormalizadas);
+      );
+      setCategoriasPorTabela(categoriasNormalizadas);
     setPersistenciaPronta(true);
   });
 

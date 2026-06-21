@@ -17,11 +17,6 @@ type Setor = {
 const STORAGE_KEY = "labProteseSetores";
 const EXCLUIDOS_STORAGE_KEY = "labProteseSetoresExcluidos";
 
-const setoresIniciais: Setor[] = [
-  { id: "resina", nome: "Resina", cor: "#f25f6a" },
-  { id: "metal", nome: "Metal", cor: "#e9a94f" },
-];
-
 const formularioVazio = {
   nome: "",
   cor: "#7c5cff",
@@ -44,7 +39,7 @@ export default function SetoresPage() {
   const [form, setForm] = useState(formularioVazio);
 
   const paginaPronta = usePageReady(() => {
-    setSetores(carregarLista(STORAGE_KEY, setoresIniciais));
+    setSetores(carregarLista(STORAGE_KEY));
     setSetoresExcluidos(carregarLista(EXCLUIDOS_STORAGE_KEY));
     setSetoresCarregados(true);
     setExcluidosCarregados(true);
@@ -54,7 +49,7 @@ export default function SetoresPage() {
     if (!paginaPronta) return;
 
     function carregar() {
-      setSetores(carregarLista(STORAGE_KEY, setoresIniciais));
+      setSetores(carregarLista(STORAGE_KEY));
       setSetoresExcluidos(carregarLista(EXCLUIDOS_STORAGE_KEY));
       setSetoresCarregados(true);
       setExcluidosCarregados(true);

@@ -13,7 +13,7 @@ import {
   clonarHorarioFuncionamento,
   type HorarioFuncionamentoConfig,
 } from "@/lib/horario-funcionamento";
-import { readStorage, writeStorage } from "@/lib/persisted-storage";
+import { readStorage, writeStorage, readStorageArray } from "@/lib/persisted-storage";
 import {
   formatValorMonetarioInput,
   formatarSalarioExibicao,
@@ -176,35 +176,15 @@ function CampoValorComissao({
   );
 }
 
-const colaboradoresIniciais: Colaborador[] = [
-  {
-    id: "1",
-    nome: "Mateus Bonfim",
-    email: "",
-    celular: "",
-    whatsapp: "",
-    setorAtuacao: "Prótese",
-    setorCor: "#3b82f6",
-    comissaoPercentual: "0,00",
-    dados: {},
-  },
-];
-
-const setoresIniciais: Setor[] = [
-  { id: "resina", nome: "Resina", cor: "#f25f6a" },
-  { id: "metal", nome: "Metal", cor: "#e9a94f" },
-];
-
 function carregarSetoresCadastrados() {
-  if (typeof window === "undefined") return setoresIniciais;
-  const parsed = readStorage<Setor[]>(SETORES_STORAGE_KEY, setoresIniciais);
-  return Array.isArray(parsed) && parsed.length > 0 ? parsed : setoresIniciais;
+  if (typeof window === "undefined") return [];
+  const parsed = readStorage<Setor[]>(SETORES_STORAGE_KEY, []);
+  return Array.isArray(parsed) ? parsed : [];
 }
 
-function carregarLista<T>(key: string, fallback: T[]) {
+function carregarLista<T>(key: string, fallback: T[] = []) {
   if (typeof window === "undefined") return fallback;
-  const parsed = readStorage<T[]>(key, fallback);
-  return Array.isArray(parsed) ? parsed : fallback;
+  return readStorageArray(key, fallback);
 }
 
 export default function ColaboradoresPage() {
@@ -231,7 +211,7 @@ export default function ColaboradoresPage() {
   );
 
   const paginaPronta = usePageReady(() => {
-    setColaboradores(carregarLista(COLABORADORES_STORAGE_KEY, colaboradoresIniciais));
+    setColaboradores(carregarLista(COLABORADORES_STORAGE_KEY));
     setColaboradoresExcluidos(carregarLista(COLABORADORES_EXCLUIDOS_STORAGE_KEY, []));
     setColaboradoresCarregados(true);
     setColaboradoresExcluidosCarregados(true);
