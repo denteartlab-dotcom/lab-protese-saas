@@ -159,6 +159,38 @@ function statusOsFinalizado(status?: string) {
   return chave === "finalizado" || chave === "entregue";
 }
 
+export const STATUS_TRABALHO_FINALIZADO_IMPRESSAO = new Set([
+  "finalizado",
+  "entregue",
+  "saiu_entrega",
+  "recebido_cliente",
+]);
+
+export function trabalhoStatusFinalizadoImpressao(status?: string): boolean {
+  return STATUS_TRABALHO_FINALIZADO_IMPRESSAO.has((status || "").trim().toLowerCase());
+}
+
+/** Data exibida em "Finalizado:" na requisição (somente após situação finalizada/entregue). */
+export function resolverDataFinalizadoImpressao(opts: {
+  status: string;
+  dataEntrega?: Date | string | null;
+  updatedAt?: Date | string | null;
+}): string {
+  if (!trabalhoStatusFinalizadoImpressao(opts.status)) return "";
+
+  const formatar = (value: Date | string) => {
+    const iso = value instanceof Date ? value.toISOString() : String(value);
+    const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) return `${match[3]}/${match[2]}/${match[1]}`;
+    const br = iso.match(/\d{2}\/\d{2}\/\d{4}/);
+    return br ? br[0] : "";
+  };
+
+  if (opts.dataEntrega) return formatar(opts.dataEntrega);
+  if (opts.updatedAt) return formatar(opts.updatedAt);
+  return "";
+}
+
 export function primeiraDataNasInstrucoes(texto?: string | null) {
   const match = (texto || "").match(/\d{2}\/\d{2}\/\d{4}/);
   return match?.[0] || "";
@@ -169,7 +201,6 @@ function resolverDataPrazoImpressao(ctx: ContextoPrazosImpressao) {
     ctx.etapaPrazo,
     ctx.prazoLaboratorio,
     ctx.dataPrevista,
-    ctx.dataEntrega,
     ctx.prazoDentista,
     ctx.dataEntrada,
     primeiraDataNasInstrucoes(ctx.textoInstrucoes),
@@ -183,12 +214,17 @@ function resolverDataPrazoImpressao(ctx: ContextoPrazosImpressao) {
 
 /** Linha exibida abaixo do serviço na requisição: `Prazo: Etapa: data` ou `Prazo: Finalizado: data`. */
 export function linhaPrazoImpressaoOs(ctx: ContextoPrazosImpressao) {
+  if (trabalhoStatusFinalizadoImpressao(ctx.status)) {
+    const dataFinal = resolverDataFinalizadoImpressao({
+      status: ctx.status || "",
+      dataEntrega: ctx.dataEntrega,
+    });
+    if (!dataFinal) return null;
+    return `Prazo: Finalizado: ${dataFinal}`;
+  }
+
   const data = resolverDataPrazoImpressao(ctx);
   if (!data) return null;
-
-  if (statusOsFinalizado(ctx.status)) {
-    return `Prazo: Finalizado: ${data}`;
-  }
 
   const rotulo =
     (ctx.etapaAtual || "").trim() ||

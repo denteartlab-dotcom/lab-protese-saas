@@ -20,7 +20,10 @@ import {
   flagsUrgenteRepeticaoInstrucoes,
 } from "@/lib/os-itens-impressao";
 import { carregarConfigLaboratorioServidor } from "@/lib/lab-config-servidor";
+import { carregarConfiguracoesOsServidor } from "@/lib/configuracoes-os-servidor";
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
+import type { ConfiguracoesOs } from "@/lib/configuracoes-os";
+import { resolverDataFinalizadoImpressao } from "@/lib/os-itens-impressao";
 
 export type DadosImpressaoOsPdf = {
   numeroOs: number;
@@ -57,6 +60,8 @@ export type DadosImpressaoOsPdf = {
   itens: ReturnType<typeof extrairItensImpressaoOs>;
   /** Config do laboratório (cabeçalho, logo) — carregada no servidor para impressão. */
   configLaboratorio?: ConfigLaboratorio;
+  /** Layout da OS (Configurações › Ordem de serviço) — carregado no servidor. */
+  configuracoesOs?: ConfiguracoesOs;
 };
 
 export type OpcoesImpressaoOs = {
@@ -97,6 +102,7 @@ const selectTrabalhoImpressao = {
   dataEntrega: true,
   status: true,
   instrucoes: true,
+  updatedAt: true,
   cliente: {
     select: {
       nome: true,
@@ -381,6 +387,7 @@ export async function carregarDadosImpressaoOs({
   );
 
   const configLab = await carregarConfigLaboratorioServidor(t.empresaId);
+  const configuracoesOs = await carregarConfiguracoesOsServidor(t.empresaId);
   let empresaNome: string | undefined;
   try {
     const empresa = await prisma.empresa.findUnique({
@@ -420,7 +427,11 @@ export async function carregarDadosImpressaoOs({
     prazoLinhaServico,
     osExterna,
     chavePed,
-    finalizado: dateOrEmpty(trabalhoServico.dataEntrega),
+    finalizado: resolverDataFinalizadoImpressao({
+      status: trabalhoServico.status,
+      dataEntrega: trabalhoServico.dataEntrega,
+      updatedAt: trabalhoServico.updatedAt,
+    }),
     colaborador,
     colaboradoresLista: parseColaboradoresInstrucoes(textoInstrucoesGrupo),
     etapasLista: parseEtapasInstrucoes(textoInstrucoesGrupo),
@@ -433,6 +444,7 @@ export async function carregarDadosImpressaoOs({
     obsFicha: "",
     itens,
     configLaboratorio: sanitizarDadosPdfOs(configLab),
+    configuracoesOs: sanitizarDadosPdfOs(configuracoesOs),
   });
 
   return { ok: true, dados, opcoes };

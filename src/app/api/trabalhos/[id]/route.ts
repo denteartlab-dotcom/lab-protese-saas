@@ -23,6 +23,7 @@ import {
   removerUrgenciaOs,
 } from "@/lib/urgencia-cliente";
 import { notificarTvOrdensEmpresa } from "@/lib/tv/notificar-tv-ordens";
+import { STATUS_TRABALHO_FINALIZADO_IMPRESSAO } from "@/lib/os-itens-impressao";
 import { z } from "zod";
 
 const schema = z.object({
@@ -46,6 +47,11 @@ function parseDateOnly(value: string) {
   const [year, month, day] = value.split("-").map(Number);
   if (!year || !month || !day) return new Date(value);
   return new Date(year, month - 1, day, 12);
+}
+
+function dataHojeMeioDia() {
+  const agora = new Date();
+  return new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 12);
 }
 
 export async function GET(
@@ -119,6 +125,17 @@ export async function PUT(
 
     if (data.dataEntrega === null) payload.dataEntrega = null;
     else if (data.dataEntrega) payload.dataEntrega = parseDateOnly(data.dataEntrega);
+
+    if (data.status != null && data.status !== atual.status) {
+      const novoStatus = String(data.status).trim().toLowerCase();
+      if (STATUS_TRABALHO_FINALIZADO_IMPRESSAO.has(novoStatus)) {
+        const entregaInformada =
+          data.dataEntrega !== undefined && data.dataEntrega !== null && data.dataEntrega !== "";
+        if (!entregaInformada && !atual.dataEntrega) {
+          payload.dataEntrega = dataHojeMeioDia();
+        }
+      }
+    }
 
     const trabalho = await prisma.trabalho.update({
       where: { id },

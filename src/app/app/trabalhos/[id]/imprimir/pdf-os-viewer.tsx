@@ -23,6 +23,8 @@ import {
   carregarLayoutModelo4,
   carregarLayoutModelo5,
   CONFIG_OS_ATUALIZADA_EVENT,
+  sincronizarConfiguracoesOsDoServidor,
+  type ConfiguracoesOs,
 } from "@/lib/configuracoes-os";
 import { configParaLabImpressao } from "@/lib/lab-logo";
 import { configLaboratorioParaImpressao, sincronizarConfigLaboratorioDoServidor } from "@/lib/lab-config-sync";
@@ -170,6 +172,8 @@ type PdfOsData = {
   configLab?: ConfigLaboratorio;
   /** Config vinda do servidor (mesclada em configLab ao montar o PDF). */
   configLaboratorio?: ConfigLaboratorio;
+  /** Layout OS salvo em Configurações › Ordem de serviço (servidor). */
+  configuracoesOs?: ConfiguracoesOs;
   cabecalhoRequisicao?: CabecalhoRequisicaoConfig;
   valor: number;
   prazo: string;
@@ -2088,6 +2092,17 @@ export function PdfOsViewer({
   const pdfDocIdRef = useRef("");
   const nomeArquivoPdf = nomeArquivoOsPdf(data.numeroOs);
 
+  function layoutsOsParaPdf(base: PdfOsData, cfgOs?: ConfiguracoesOs | null) {
+    const remoto = cfgOs ?? base.configuracoesOs;
+    return {
+      layoutModelo1: remoto?.layoutModelo1 ?? carregarLayoutModelo1(),
+      layoutModelo2: remoto?.layoutModelo2 ?? carregarLayoutModelo2(),
+      layoutModelo3: remoto?.layoutModelo3 ?? carregarLayoutModelo3(),
+      layoutModelo4: remoto?.layoutModelo4 ?? carregarLayoutModelo4(),
+      layoutModelo5: remoto?.layoutModelo5 ?? carregarLayoutModelo5(),
+    };
+  }
+
   function montarDadosPdfDeServidor(base: PdfOsData): PdfOsData {
     if (typeof window === "undefined") {
       return { ...base, lab: base.lab || LAB_IMPRESSAO_PADRAO };
@@ -2109,11 +2124,7 @@ export function PdfOsViewer({
         lab,
         configLab: cfg,
         cabecalhoRequisicao: normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao),
-        layoutModelo1: carregarLayoutModelo1(),
-        layoutModelo2: carregarLayoutModelo2(),
-        layoutModelo3: carregarLayoutModelo3(),
-        layoutModelo4: carregarLayoutModelo4(),
-        layoutModelo5: carregarLayoutModelo5(),
+        ...layoutsOsParaPdf(base),
       };
     } catch (err) {
       console.error("[PdfOsViewer] montarDadosPdf", err);
@@ -2172,7 +2183,10 @@ export function PdfOsViewer({
       setConfigOsPronta(false);
       await aguardarArmazenamentoLaboratorioPronto();
       try {
-        await sincronizarConfigLaboratorioDoServidor();
+        await Promise.all([
+          sincronizarConfigLaboratorioDoServidor(),
+          sincronizarConfiguracoesOsDoServidor(),
+        ]);
       } catch {
         /* offline */
       }
