@@ -8,6 +8,7 @@ import {
   carregarMateriaisDentistaCadastro,
   MATERIAIS_DENTISTA_STORAGE_KEY,
 } from "@/lib/materiais-dentista-cadastro";
+import { useArmazenamentoGaleria } from "@/hooks/use-armazenamento-galeria";
 import { writeStorage } from "@/lib/persisted-storage";
 import {
   clienteTabelaPrecoDeObservacoes,
@@ -63,6 +64,8 @@ export function CabecalhoFormularioOs({
   const [novoMaterial, setNovoMaterial] = useState("");
   const [materiaisSelecionados, setMateriaisSelecionados] = useState<string[]>([]);
   const [materialQuantidades, setMaterialQuantidades] = useState<Record<string, number>>({});
+  const { esgotado: galeriaEsgotada, mensagemBloqueioUpload, podeEnviarArquivos } =
+    useArmazenamentoGaleria();
 
   useEffect(() => {
     try {
@@ -137,6 +140,12 @@ export function CabecalhoFormularioOs({
     if (!onArquivosNovosChange) return;
     const selecionados = Array.from(event.target.files || []);
     if (!selecionados.length) return;
+    const bloqueio = mensagemBloqueioUpload();
+    if (bloqueio) {
+      window.alert(bloqueio);
+      event.target.value = "";
+      return;
+    }
     const existentes = new Set(
       arquivosNovos.map((arquivo) => `${arquivo.name}-${arquivo.size}-${arquivo.lastModified}`)
     );
@@ -144,7 +153,19 @@ export function CabecalhoFormularioOs({
       (arquivo) => !existentes.has(`${arquivo.name}-${arquivo.size}-${arquivo.lastModified}`)
     );
     const limiteRestante = Math.max(limiteArquivos - anexosExistentes.length, 0);
-    onArquivosNovosChange([...arquivosNovos, ...novos].slice(0, limiteRestante));
+    const paraAdicionar = novos.slice(0, Math.max(limiteRestante - arquivosNovos.length, 0));
+    if (!paraAdicionar.length) {
+      event.target.value = "";
+      return;
+    }
+    if (!podeEnviarArquivos(paraAdicionar)) {
+      window.alert(
+        "Espaço insuficiente na galeria para estes arquivos. Libere espaço em Início → Uploads."
+      );
+      event.target.value = "";
+      return;
+    }
+    onArquivosNovosChange([...arquivosNovos, ...paraAdicionar].slice(0, limiteRestante));
     event.target.value = "";
   }
 
@@ -332,17 +353,21 @@ export function CabecalhoFormularioOs({
           accept="image/*,video/*"
           multiple
           className="hidden"
+          disabled={desabilitado || galeriaEsgotada || totalAnexos >= limiteArquivos}
           onChange={adicionarArquivos}
         />
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          disabled={desabilitado || totalAnexos >= limiteArquivos}
+          disabled={desabilitado || galeriaEsgotada || totalAnexos >= limiteArquivos}
           className="shrink-0 rounded border border-slate-300 px-3 py-2 text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <ImageUp className="mr-2 inline h-4 w-4" /> Selecione Imagens ou Vídeos ({totalAnexos}/
           {limiteArquivos})
         </button>
+        {galeriaEsgotada ? (
+          <p className="text-[11px] text-red-600">{mensagemBloqueioUpload()}</p>
+        ) : null}
         <div className="min-w-0 flex-1">
           <label className="mb-1 block text-sm font-medium text-slate-700">
             Observação Interna

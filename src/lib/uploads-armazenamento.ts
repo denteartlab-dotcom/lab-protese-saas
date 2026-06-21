@@ -4,6 +4,36 @@ export const LIMITE_GALERIA_GB = 20;
 export const LIMITE_ARMAZENAMENTO_BYTES = LIMITE_GALERIA_GB * 1024 ** 3;
 export const UPLOADS_ATUALIZADO_EVENT = "labProteseUploadsAtualizado";
 
+export type UploadsResumoArmazenamento = {
+  bytesUsados: number;
+  bytesLivres: number;
+  limiteBytes?: number;
+  limiteGb: number;
+  percentualUsado: number;
+  percentualLivre: number;
+};
+
+export const MENSAGEM_LIMITE_GALERIA_ESGOTADO =
+  "Espaço de uploads esgotado (0 GB livre). Libere espaço em Início → Uploads → Liberar espaço.";
+
+export function armazenamentoGaleriaEsgotado(bytesLivres: number): boolean {
+  return bytesLivres <= 0;
+}
+
+export function somaBytesArquivos(arquivos: Iterable<File>): number {
+  let total = 0;
+  for (const arquivo of arquivos) total += arquivo.size;
+  return total;
+}
+
+export function armazenamentoGaleriaCabeArquivos(
+  bytesLivres: number,
+  novosBytes: number
+): boolean {
+  if (armazenamentoGaleriaEsgotado(bytesLivres)) return false;
+  return novosBytes <= bytesLivres;
+}
+
 export function notificarUploadsAtualizados() {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new Event(UPLOADS_ATUALIZADO_EVENT));

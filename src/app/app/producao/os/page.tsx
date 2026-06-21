@@ -15,6 +15,7 @@ import { notificarUploadsAtualizados } from "@/lib/uploads-armazenamento";
 import { formatDateBr, parseBrDate } from "@/lib/datas-br";
 import { propsInputComSelecaoAoFocar } from "@/lib/input-selecao";
 import { usePageReady } from "@/hooks/use-page-ready";
+import { useArmazenamentoGaleria } from "@/hooks/use-armazenamento-galeria";
 import {
   getProdutosEstoqueExtras,
   parseQuantidadeEstoque,
@@ -412,6 +413,8 @@ export default function OrdemServicoPage() {
   const [tipoDenticao, setTipoDenticao] = useState<TipoDenticao>("permanente");
   const [dentes, setDentes] = useState<string[]>([]);
   const [arquivos, setArquivos] = useState<File[]>([]);
+  const { esgotado: galeriaEsgotada, mensagemBloqueioUpload, podeEnviarArquivos } =
+    useArmazenamentoGaleria();
   const [abaServico, setAbaServico] = useState<
     "etapas" | "produtos" | "colaboradores" | "terceirizados"
   >("etapas");
@@ -2445,6 +2448,17 @@ export default function OrdemServicoPage() {
 
   async function uploadArquivosSelecionados(): Promise<ArquivoOs[]> {
     if (!arquivos.length) return [];
+    const bloqueio = mensagemBloqueioUpload();
+    if (bloqueio) {
+      alert(bloqueio);
+      return [];
+    }
+    if (!podeEnviarArquivos(arquivos)) {
+      alert(
+        "Espaço insuficiente na galeria para estes arquivos. Libere espaço em Início → Uploads."
+      );
+      return [];
+    }
     const formData = new FormData();
     arquivos.forEach((arquivo) => formData.append("files", arquivo));
 
@@ -2467,12 +2481,27 @@ export default function OrdemServicoPage() {
     const selecionados = Array.from(event.target.files || []);
     if (!selecionados.length) return;
 
+    const bloqueio = mensagemBloqueioUpload();
+    if (bloqueio) {
+      alert(bloqueio);
+      event.target.value = "";
+      return;
+    }
+
     setArquivos((atuais) => {
       const existentes = new Set(atuais.map((arquivo) => `${arquivo.name}-${arquivo.size}-${arquivo.lastModified}`));
       const novos = selecionados.filter(
         (arquivo) => !existentes.has(`${arquivo.name}-${arquivo.size}-${arquivo.lastModified}`)
       );
-      return [...atuais, ...novos].slice(0, LIMITE_ARQUIVOS_OS);
+      const limiteRestante = Math.max(LIMITE_ARQUIVOS_OS - atuais.length, 0);
+      const paraAdicionar = novos.slice(0, limiteRestante);
+      if (paraAdicionar.length && !podeEnviarArquivos(paraAdicionar)) {
+        alert(
+          "Espaço insuficiente na galeria para estes arquivos. Libere espaço em Início → Uploads."
+        );
+        return atuais;
+      }
+      return [...atuais, ...paraAdicionar].slice(0, LIMITE_ARQUIVOS_OS);
     });
     event.target.value = "";
   }
@@ -3477,16 +3506,20 @@ export default function OrdemServicoPage() {
               accept="image/*,video/*"
               multiple
               className="hidden"
+              disabled={galeriaEsgotada || arquivos.length >= LIMITE_ARQUIVOS_OS}
               onChange={adicionarArquivosSelecionados}
             />
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              disabled={arquivos.length >= LIMITE_ARQUIVOS_OS}
+              disabled={galeriaEsgotada || arquivos.length >= LIMITE_ARQUIVOS_OS}
               className="shrink-0 rounded border border-slate-300 px-3 py-2 text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <ImageUp className="mr-2 inline h-4 w-4" /> Selecione Imagens ou Vídeos ({arquivos.length}/{LIMITE_ARQUIVOS_OS})
             </button>
+            {galeriaEsgotada ? (
+              <p className="text-[11px] text-red-600">{mensagemBloqueioUpload()}</p>
+            ) : null}
             <div className="min-w-0 flex-1">
               <label className="mb-1 block text-sm font-medium text-slate-700">
                 Observação Interna

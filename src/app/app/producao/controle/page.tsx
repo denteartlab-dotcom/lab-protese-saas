@@ -142,6 +142,7 @@ import {
 } from "@/lib/cabecalho-os-form";
 import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
 import { notificarUploadsAtualizados } from "@/lib/uploads-armazenamento";
+import { useArmazenamentoGaleria } from "@/hooks/use-armazenamento-galeria";
 import {
   DENTES_DECIDUOS_INFERIORES,
   DENTES_DECIDUOS_SUPERIORES,
@@ -1056,6 +1057,7 @@ export default function ControlePage() {
   const [clientesCatalogo, setClientesCatalogo] = useState<ClienteCatalogo[]>([]);
   const [arquivosEdicao, setArquivosEdicao] = useState<File[]>([]);
   const [anexosEdicao, setAnexosEdicao] = useState<AnexoOs[]>([]);
+  const { mensagemBloqueioUpload, podeEnviarArquivos } = useArmazenamentoGaleria();
   const editarUrlAbertoRef = useRef(false);
 
   async function load() {
@@ -2535,6 +2537,13 @@ export default function ControlePage() {
 
   async function uploadArquivosEdicaoSelecionados(): Promise<AnexoOs[]> {
     if (arquivosEdicao.length === 0) return [];
+    const bloqueio = mensagemBloqueioUpload();
+    if (bloqueio) throw new Error(bloqueio);
+    if (!podeEnviarArquivos(arquivosEdicao)) {
+      throw new Error(
+        "Espaço insuficiente na galeria para estes arquivos. Libere espaço em Início → Uploads."
+      );
+    }
     const formData = new FormData();
     arquivosEdicao.forEach((arquivo) => formData.append("files", arquivo));
     const response = await fetch("/api/uploads?pasta=os", {

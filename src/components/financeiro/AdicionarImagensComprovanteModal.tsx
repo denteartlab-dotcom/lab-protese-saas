@@ -12,6 +12,7 @@ import {
   type AnexoDespesa,
 } from "@/lib/lancamento-despesa";
 import { notificarUploadsAtualizados } from "@/lib/uploads-armazenamento";
+import { useArmazenamentoGaleria } from "@/hooks/use-armazenamento-galeria";
 import { cn } from "@/lib/utils";
 
 type LancamentoBasico = {
@@ -97,6 +98,8 @@ export function AdicionarImagensComprovanteModal({
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const { esgotado: galeriaEsgotada, podeEnviarArquivos, mensagemBloqueioUpload } =
+    useArmazenamentoGaleria();
 
   const pararWebcam = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -126,6 +129,11 @@ export function AdicionarImagensComprovanteModal({
 
   function adicionarArquivos(lista: FileList | null) {
     if (!lista?.length) return;
+    const bloqueio = mensagemBloqueioUpload();
+    if (bloqueio) {
+      setErro(bloqueio);
+      return;
+    }
     const candidatos = Array.from(lista).filter(arquivoEhAnexoFinanceiro);
     if (!candidatos.length) {
       setErro("Use imagens (JPEG, PNG, HEIC, etc.) ou arquivos PDF.");
@@ -136,8 +144,15 @@ export function AdicionarImagensComprovanteModal({
       setErro(`Limite de ${LIMITE_ANEXOS_FINANCEIRO} arquivos atingido.`);
       return;
     }
+    const paraAdicionar = candidatos.slice(0, vagas);
+    if (!podeEnviarArquivos(paraAdicionar)) {
+      setErro(
+        "Espaço insuficiente na galeria para estes arquivos. Libere espaço em Início → Uploads."
+      );
+      return;
+    }
     setErro(null);
-    setArquivos((listaAtual) => [...listaAtual, ...candidatos.slice(0, vagas)]);
+    setArquivos((listaAtual) => [...listaAtual, ...paraAdicionar]);
   }
 
   async function iniciarWebcam() {
@@ -185,9 +200,20 @@ export function AdicionarImagensComprovanteModal({
           setErro(`Limite de ${LIMITE_ANEXOS_FINANCEIRO} arquivos atingido.`);
           return;
         }
+        const bloqueio = mensagemBloqueioUpload();
+        if (bloqueio) {
+          setErro(bloqueio);
+          return;
+        }
         const arquivo = new File([blob], `webcam-${Date.now()}.jpg`, {
           type: "image/jpeg",
         });
+        if (!podeEnviarArquivos([arquivo])) {
+          setErro(
+            "Espaço insuficiente na galeria para esta imagem. Libere espaço em Início → Uploads."
+          );
+          return;
+        }
         setErro(null);
         setArquivos((lista) => [...lista, arquivo]);
         pararWebcam();
@@ -200,6 +226,17 @@ export function AdicionarImagensComprovanteModal({
   async function gravarImagens() {
     if (!arquivos.length) {
       setErro("Selecione ao menos uma imagem ou PDF.");
+      return;
+    }
+    const bloqueio = mensagemBloqueioUpload();
+    if (bloqueio) {
+      setErro(bloqueio);
+      return;
+    }
+    if (!podeEnviarArquivos(arquivos)) {
+      setErro(
+        "Espaço insuficiente na galeria para estes arquivos. Libere espaço em Início → Uploads."
+      );
       return;
     }
     if (!lancamentoIds.length) {
@@ -255,7 +292,8 @@ export function AdicionarImagensComprovanteModal({
                   <button
                     type="button"
                     onClick={capturarWebcam}
-                    className="w-full rounded-sm border border-[#4a90d9] bg-white px-3 py-2 text-[12px] text-[#4a90d9] hover:bg-[#f0f7ff]"
+                    disabled={galeriaEsgotada}
+                    className="w-full rounded-sm border border-[#4a90d9] bg-white px-3 py-2 text-[12px] text-[#4a90d9] hover:bg-[#f0f7ff] disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Capturar imagem
                   </button>
@@ -265,8 +303,9 @@ export function AdicionarImagensComprovanteModal({
                   <User className="h-20 w-20 text-slate-300" strokeWidth={1} />
                   <button
                     type="button"
+                    disabled={galeriaEsgotada}
                     onClick={() => void iniciarWebcam()}
-                    className="mt-4 inline-flex items-center gap-2 rounded-sm border border-[#4a90d9] bg-white px-4 py-2 text-[12px] text-[#4a90d9] hover:bg-[#f0f7ff]"
+                    className="mt-4 inline-flex items-center gap-2 rounded-sm border border-[#4a90d9] bg-white px-4 py-2 text-[12px] text-[#4a90d9] hover:bg-[#f0f7ff] disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <Camera className="h-4 w-4" />
                     Imagem WebCam
@@ -290,8 +329,9 @@ export function AdicionarImagensComprovanteModal({
                 />
                 <button
                   type="button"
+                  disabled={galeriaEsgotada}
                   onClick={() => inputArquivoRef.current?.click()}
-                  className="inline-flex h-9 shrink-0 items-center gap-1 rounded-r-sm border border-slate-300 bg-slate-50 px-3 text-[12px] text-slate-700 hover:bg-slate-100"
+                  className="inline-flex h-9 shrink-0 items-center gap-1 rounded-r-sm border border-slate-300 bg-slate-50 px-3 text-[12px] text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Upload className="h-3.5 w-3.5" />
                   Upload
@@ -317,13 +357,17 @@ export function AdicionarImagensComprovanteModal({
             <p className="mt-3 text-[11px] text-red-600" role="alert">
               {erro}
             </p>
+          ) : galeriaEsgotada ? (
+            <p className="mt-3 text-[11px] text-red-600" role="alert">
+              {mensagemBloqueioUpload()}
+            </p>
           ) : null}
         </div>
 
         <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3">
           <button
             type="button"
-            disabled={salvando}
+            disabled={salvando || galeriaEsgotada}
             onClick={() => void gravarImagens()}
             className={cn(
               "inline-flex min-w-[130px] items-center justify-center gap-2 rounded-sm bg-[#4a90d9] px-4 py-2 text-[12px] text-white hover:bg-[#3d7fc4] disabled:opacity-60"

@@ -3,6 +3,8 @@ import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
   LIMITE_ARMAZENAMENTO_BYTES,
   LIMITE_GALERIA_GB,
+  MENSAGEM_LIMITE_GALERIA_ESGOTADO,
+  armazenamentoGaleriaEsgotado,
 } from "@/lib/uploads-armazenamento";
 import { calcularArmazenamentoGaleria } from "@/lib/uploads-armazenamento-server";
 import {
@@ -34,16 +36,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Nenhum arquivo enviado" }, { status: 400 });
     }
 
-    const { bytesUsados } = await calcularArmazenamentoGaleria(
+    const resumo = await calcularArmazenamentoGaleria(
       ctx.empresaId,
       ctx.empresaSlug,
       ctx.empresaNome
     );
     const novosBytes = files.reduce((s, f) => s + f.size, 0);
-    if (bytesUsados + novosBytes > LIMITE_ARMAZENAMENTO_BYTES) {
+    if (
+      armazenamentoGaleriaEsgotado(resumo.bytesLivres) ||
+      resumo.bytesUsados + novosBytes > LIMITE_ARMAZENAMENTO_BYTES
+    ) {
       return NextResponse.json(
         {
-          error: `Limite da galeria (${LIMITE_GALERIA_GB} GB) atingido. Libere espaço antes de enviar novos arquivos.`,
+          error: armazenamentoGaleriaEsgotado(resumo.bytesLivres)
+            ? MENSAGEM_LIMITE_GALERIA_ESGOTADO
+            : `Limite da galeria (${LIMITE_GALERIA_GB} GB) atingido. Libere espaço antes de enviar novos arquivos.`,
         },
         { status: 413 }
       );

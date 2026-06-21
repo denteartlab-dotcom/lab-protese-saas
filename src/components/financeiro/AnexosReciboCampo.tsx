@@ -17,6 +17,7 @@ import {
   type PastaAnexoFinanceiro,
 } from "@/lib/lancamento-despesa";
 import { notificarUploadsAtualizados } from "@/lib/uploads-armazenamento";
+import { useArmazenamentoGaleria } from "@/hooks/use-armazenamento-galeria";
 import { cn } from "@/lib/utils";
 
 const labelClass = "mb-1 block text-[11px] font-medium text-slate-600";
@@ -70,6 +71,8 @@ export const AnexosReciboCampo = forwardRef<AnexosReciboCampoRef, Props>(
     const inputImagemRef = useRef<HTMLInputElement>(null);
     const inputPdfRef = useRef<HTMLInputElement>(null);
     const filaUploadRef = useRef<Promise<void>>(Promise.resolve());
+    const { esgotado: galeriaEsgotada, podeEnviarArquivos, mensagemBloqueioUpload } =
+      useArmazenamentoGaleria();
 
     const sincronizarLista = useCallback((proxima: AnexoDespesa[]) => {
       const limitada = proxima.slice(0, LIMITE_ANEXOS_FINANCEIRO);
@@ -94,6 +97,17 @@ export const AnexosReciboCampo = forwardRef<AnexosReciboCampoRef, Props>(
         }
 
         const paraEnviar = candidatos.slice(0, vagas);
+        const bloqueio = mensagemBloqueioUpload();
+        if (bloqueio) {
+          setErroUpload(bloqueio);
+          return;
+        }
+        if (!podeEnviarArquivos(paraEnviar)) {
+          setErroUpload(
+            "Espaço insuficiente na galeria para estes arquivos. Libere espaço em Início → Uploads."
+          );
+          return;
+        }
         setErroUpload(null);
 
         filaUploadRef.current = filaUploadRef.current
@@ -121,7 +135,7 @@ export const AnexosReciboCampo = forwardRef<AnexosReciboCampoRef, Props>(
             /* evita quebra da fila */
           });
       },
-      [pasta, sincronizarLista]
+      [pasta, sincronizarLista, mensagemBloqueioUpload, podeEnviarArquivos]
     );
 
     useImperativeHandle(
@@ -163,7 +177,8 @@ export const AnexosReciboCampo = forwardRef<AnexosReciboCampoRef, Props>(
     }
 
     const totalAnexos = lista.length;
-    const podeAdicionar = totalAnexos < LIMITE_ANEXOS_FINANCEIRO && !enviando;
+    const podeAdicionar =
+      totalAnexos < LIMITE_ANEXOS_FINANCEIRO && !enviando && !galeriaEsgotada;
 
     return (
       <div className={cn("rounded border border-slate-200 bg-slate-50/80 p-3", className)}>
@@ -234,6 +249,10 @@ export const AnexosReciboCampo = forwardRef<AnexosReciboCampoRef, Props>(
         {erroUpload ? (
           <p className="mt-2 text-[11px] text-red-600" role="alert">
             {erroUpload}
+          </p>
+        ) : galeriaEsgotada ? (
+          <p className="mt-2 text-[11px] text-red-600" role="alert">
+            {mensagemBloqueioUpload()}
           </p>
         ) : null}
         {totalAnexos > 0 ? (

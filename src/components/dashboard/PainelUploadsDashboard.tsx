@@ -7,15 +7,11 @@ import {
   formatarTamanhoArmazenamento,
   formatarTamanhoMbCard,
   notificarUploadsAtualizados,
+  type UploadsResumoArmazenamento,
 } from "@/lib/uploads-armazenamento";
+import { cn } from "@/lib/utils";
 
-export type UploadsResumoUi = {
-  bytesUsados: number;
-  bytesLivres: number;
-  limiteGb: number;
-  percentualUsado: number;
-  percentualLivre: number;
-};
+export type UploadsResumoUi = UploadsResumoArmazenamento;
 
 type ArquivoGaleria = {
   relativePath: string;
@@ -40,6 +36,7 @@ export function PainelUploadsDashboard({
   const usado = Math.max(0, Math.min(100, resumo.percentualUsado));
   const textoUsado = formatarTamanhoMbCard(resumo.bytesUsados);
   const textoLivre = formatarTamanhoMbCard(resumo.bytesLivres);
+  const galeriaEsgotada = resumo.bytesLivres <= 0;
 
   const [modalArquivos, setModalArquivos] = useState(false);
   const [arquivos, setArquivos] = useState<ArquivoGaleria[]>([]);
@@ -136,7 +133,9 @@ export function PainelUploadsDashboard({
             <span className="text-slate-500">
               <span className="font-semibold text-sky-700">Usado: {textoUsado}</span>
               <span className="mx-1 text-slate-300">·</span>
-              Livre: {textoLivre}
+              <span className={galeriaEsgotada ? "font-semibold text-red-600" : ""}>
+                Livre: {textoLivre}
+              </span>
             </span>
             <button
               type="button"
@@ -157,7 +156,10 @@ export function PainelUploadsDashboard({
           <div className="relative h-16 overflow-hidden rounded bg-emerald-400">
             {usado > 0 && (
               <div
-                className="absolute inset-y-0 left-0 bg-sky-500 transition-all duration-300"
+                className={cn(
+                  "absolute inset-y-0 left-0 transition-all duration-300",
+                  galeriaEsgotada ? "bg-red-500" : "bg-sky-500"
+                )}
                 style={{ width: `${usado}%` }}
               />
             )}
@@ -165,6 +167,12 @@ export function PainelUploadsDashboard({
               {usado}%
             </div>
           </div>
+          {galeriaEsgotada ? (
+            <p className="mt-2 text-[11px] font-medium text-red-600">
+              Espaço esgotado — novos uploads estão bloqueados. Use &quot;Liberar espaço&quot; para
+              excluir arquivos.
+            </p>
+          ) : null}
           <div className="mt-3 flex justify-between text-[10px] text-slate-400">
             {[0, 20, 40, 60, 80, 100].map((n) => (
               <span key={n}>{n}</span>
