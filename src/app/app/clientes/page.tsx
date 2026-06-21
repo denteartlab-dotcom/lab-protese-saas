@@ -1,11 +1,11 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { Eye, MessageCircle, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Eye, MessageCircle, Pencil, Plus, Search, Trash2, User } from "lucide-react";
 import { BotoesListagemClientes } from "@/components/clientes/BotoesListagemClientes";
 import { ImportarClientesExcelModal } from "@/components/clientes/ImportarClientesExcelModal";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
-import { Button, Input, Modal, Textarea } from "@/components/ui";
+import { Input, Modal } from "@/components/ui";
 import { abrirWhatsAppAcompanhamentoCliente } from "@/lib/whatsapp";
 import {
   abreviacaoCliente,
@@ -82,6 +82,48 @@ function IconWhatsApp({ className = "h-3.5 w-3.5" }: { className?: string }) {
   );
 }
 
+function CampoCliente({
+  label,
+  className = "",
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement> & {
+  label: string;
+  className?: string;
+}) {
+  return (
+    <div className={`space-y-1 ${className}`}>
+      <label className="block text-[11px] font-normal text-slate-600">{label}</label>
+      <input
+        className="h-9 w-full rounded border border-slate-300 bg-white px-2.5 text-xs text-slate-800 shadow-sm outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]/30"
+        {...props}
+      />
+    </div>
+  );
+}
+
+function SelectCliente({
+  label,
+  className = "",
+  children,
+  ...props
+}: React.SelectHTMLAttributes<HTMLSelectElement> & {
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`space-y-1 ${className}`}>
+      <label className="block text-[11px] font-normal text-slate-600">{label}</label>
+      <select
+        className="h-9 w-full rounded border border-slate-300 bg-white px-2.5 text-xs text-slate-800 shadow-sm outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]/30"
+        {...props}
+      >
+        {children}
+      </select>
+    </div>
+  );
+}
+
 const empty = {
   tipoCliente: "Dentista",
   abreviacao: "",
@@ -89,6 +131,7 @@ const empty = {
   razaoSocial: "",
   cnpjCpf: "",
   cpf: "",
+  rg: "",
   dataNascimento: "",
   cro: "",
   telefone: "",
@@ -369,6 +412,7 @@ export default function ClientesPage() {
       razaoSocial: c.razaoSocial || "",
       cnpjCpf: c.cnpjCpf || "",
       cpf: "",
+      rg: configValue(c.observacoes, "RG:"),
       dataNascimento: dataNascimentoCliente(c.observacoes),
       cro: c.cro || "",
       telefone: c.telefone || "",
@@ -434,6 +478,7 @@ export default function ClientesPage() {
             form.contato ? `Contato: ${form.contato}` : "",
             form.contatoTelefoneComercial ? `Telefone Contato: ${form.contatoTelefoneComercial}` : "",
             form.contatoWhatsapp ? `WhatsApp Contato: ${form.contatoWhatsapp}` : "",
+            form.rg ? `RG: ${form.rg}` : "",
             form.tabelaPreco ? `Tabela de Preço: ${form.tabelaPreco}` : "",
             `Desconto Geral: ${form.descontoGeral || "0,00"}`,
             `Desconto Geral Tipo: ${form.descontoGeralTipo || "percentual"}`,
@@ -849,10 +894,10 @@ export default function ClientesPage() {
         open={open}
         onClose={() => setOpen(false)}
         title={editing ? "Editar Cliente" : "Cadastro de Cliente"}
-        size="2xl"
+        size="smart"
       >
-        <form onSubmit={save} className="space-y-7 text-xs">
-          <div className="flex gap-6 border-b border-slate-200 text-slate-500">
+        <form onSubmit={save} className="space-y-4 text-xs text-slate-800">
+          <div className="flex flex-wrap gap-1 border-b border-slate-200">
             {[
               { id: "dados", label: "Dados do Cliente" },
               { id: "endereco", label: "Endereço" },
@@ -862,10 +907,10 @@ export default function ClientesPage() {
                 key={tab.id}
                 type="button"
                 onClick={() => setAbaModal(tab.id)}
-                className={`border-b-2 px-2 pb-3 text-xs ${
+                className={`rounded-t px-4 py-2.5 text-[13px] font-normal transition ${
                   abaModal === tab.id
-                    ? "border-primary-600 text-primary-700"
-                    : "border-transparent hover:text-primary-700"
+                    ? "bg-[#4a90d9] text-white"
+                    : "text-slate-600 hover:bg-slate-100"
                 }`}
               >
                 {tab.label}
@@ -875,69 +920,71 @@ export default function ClientesPage() {
 
           {abaModal === "dados" && (
           <>
-          <div className="grid gap-4 md:grid-cols-5">
-            <div className="space-y-1">
-              <label className="block text-[11px] text-slate-600">Tipo de Cliente</label>
-              <select
-                value={form.tipoCliente}
-                onChange={(e) => setForm({ ...form, tipoCliente: e.target.value })}
-                className="h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs outline-none focus:border-primary-500"
-              >
-                <option>Dentista</option>
-                <option>Clínica</option>
-                <option>Laboratório</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="block text-[11px] text-slate-600">Abreviação</label>
-              <select
-                value={form.abreviacao}
-                onChange={(e) => setForm({ ...form, abreviacao: e.target.value })}
-                className="h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs outline-none focus:border-primary-500"
-              >
-                <option value=""></option>
-                <option>Dr.</option>
-                <option>Dra.</option>
-              </select>
-            </div>
-            <Input label="Razão Social" value={form.razaoSocial} onChange={(e) => setForm({ ...form, razaoSocial: e.target.value })} />
-            <Input label="Nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
-            <Input label="Data de Nascimento" value={form.dataNascimento} onChange={(e) => setForm({ ...form, dataNascimento: formatDateInput(e.target.value) })} placeholder="dd/mm/aaaa" />
-
-            <Input label="CRO Responsável" value={form.cro} onChange={(e) => setForm({ ...form, cro: e.target.value })} />
-            <Input label="CNPJ" value={form.cnpjCpf} onChange={(e) => setForm({ ...form, cnpjCpf: e.target.value })} />
-            <Input label="CPF" value={form.cpf} onChange={(e) => setForm({ ...form, cpf: e.target.value })} />
-            <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="md:col-span-2" />
-
-            <Input label="Telefone Residencial" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} />
-            <Input label="Telefone Comercial" value={form.telefoneComercial} onChange={(e) => setForm({ ...form, telefoneComercial: e.target.value })} />
-            <Input label="Celular" value={form.celular} onChange={(e) => setForm({ ...form, celular: e.target.value })} />
-            <Input label="WhatsApp" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} className="md:col-span-2" />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <SelectCliente
+              label="Tipo de Cliente"
+              value={form.tipoCliente}
+              onChange={(e) => setForm({ ...form, tipoCliente: e.target.value })}
+            >
+              <option>Dentista</option>
+              <option>Clínica</option>
+              <option>Laboratório</option>
+            </SelectCliente>
+            <SelectCliente
+              label="Abreviação"
+              value={form.abreviacao}
+              onChange={(e) => setForm({ ...form, abreviacao: e.target.value })}
+            >
+              <option value=""></option>
+              <option>Dr.</option>
+              <option>Dra.</option>
+            </SelectCliente>
+            <CampoCliente label="Razão Social" value={form.razaoSocial} onChange={(e) => setForm({ ...form, razaoSocial: e.target.value })} />
+            <CampoCliente label="Nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
+            <CampoCliente label="Data de Nascimento" value={form.dataNascimento} onChange={(e) => setForm({ ...form, dataNascimento: formatDateInput(e.target.value) })} placeholder="dd/mm/aaaa" />
           </div>
 
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <CampoCliente label="CRO Responsável" value={form.cro} onChange={(e) => setForm({ ...form, cro: e.target.value })} />
+            <CampoCliente label="CNPJ" value={form.cnpjCpf} onChange={(e) => setForm({ ...form, cnpjCpf: e.target.value })} />
+            <CampoCliente label="CPF" value={form.cpf} onChange={(e) => setForm({ ...form, cpf: e.target.value })} />
+            <CampoCliente label="RG" value={form.rg} onChange={(e) => setForm({ ...form, rg: e.target.value })} />
+            <CampoCliente label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <CampoCliente label="Telefone Residencial" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} />
+            <CampoCliente label="Telefone Comercial" value={form.telefoneComercial} onChange={(e) => setForm({ ...form, telefoneComercial: e.target.value })} />
+            <CampoCliente label="Celular" value={form.celular} onChange={(e) => setForm({ ...form, celular: e.target.value })} />
+            <CampoCliente label="WhatsApp" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} />
+          </div>
+
+          <div className="space-y-1 pt-1">
+            <label className="block text-[11px] font-normal text-slate-600">Observações</label>
+            <textarea
+              value={form.observacoes}
+              onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+              placeholder="Digite aqui as observações..."
+              rows={4}
+              className="min-h-[88px] w-full resize-y rounded border border-slate-300 bg-white px-2.5 py-2 text-xs text-slate-800 shadow-sm outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]/30"
+            />
+          </div>
+
+          <div className="border-t border-slate-200 pt-4">
+            <div className="mb-3 flex items-center gap-2 text-[13px] font-medium text-slate-700">
+              <User className="h-4 w-4 text-slate-500" strokeWidth={1.75} />
               <span>Contato</span>
             </div>
-            <div className="grid gap-4 md:grid-cols-[1.5fr_0.7fr_0.7fr_1.5fr]">
-              <Input label="Contato" value={form.contato} onChange={(e) => setForm({ ...form, contato: e.target.value })} />
-              <Input label="Telefone Comercial" value={form.contatoTelefoneComercial} onChange={(e) => setForm({ ...form, contatoTelefoneComercial: e.target.value })} />
-              <Input label="WhatsApp" value={form.contatoWhatsapp} onChange={(e) => setForm({ ...form, contatoWhatsapp: e.target.value })} />
-              <Input label="Email" type="email" value={form.contatoEmail} onChange={(e) => setForm({ ...form, contatoEmail: e.target.value })} />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <CampoCliente label="Contato" value={form.contato} onChange={(e) => setForm({ ...form, contato: e.target.value })} />
+              <CampoCliente label="Telefone Comercial" value={form.contatoTelefoneComercial} onChange={(e) => setForm({ ...form, contatoTelefoneComercial: e.target.value })} />
+              <CampoCliente label="WhatsApp" value={form.contatoWhatsapp} onChange={(e) => setForm({ ...form, contatoWhatsapp: e.target.value })} />
+              <CampoCliente label="Email" type="email" value={form.contatoEmail} onChange={(e) => setForm({ ...form, contatoEmail: e.target.value })} />
             </div>
           </div>
 
-          <Textarea
-            label="Observações"
-            value={form.observacoes}
-            onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
-            placeholder="Digite aqui as observações..."
-            rows={4}
-            className="min-h-[96px] text-xs"
-          />
-
           <div className="space-y-1 md:max-w-md">
-            <label className="flex items-center gap-1.5 text-[11px] text-slate-600">
+            <label className="flex items-center gap-1.5 text-[11px] font-normal text-slate-600">
               Representante (Colaborador)
               <span
                 className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#4a90d9] text-[10px] font-bold text-white"
@@ -951,7 +998,7 @@ export default function ClientesPage() {
               onChange={(e) =>
                 setForm({ ...form, representanteColaboradorId: e.target.value })
               }
-              className="h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs outline-none focus:border-primary-500"
+              className="h-9 w-full rounded border border-slate-300 bg-white px-2.5 text-xs text-slate-800 shadow-sm outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]/30"
             >
               <option value="">Selecione um colaborador...</option>
               {colaboradores.map((colaborador) => (
@@ -1191,13 +1238,20 @@ export default function ClientesPage() {
             </div>
           )}
 
-          <div className="flex justify-end gap-3 pt-4">
-            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+          <div className="flex justify-end gap-3 border-t border-slate-200 pt-4">
+            <button
+              type="submit"
+              className="rounded bg-[#4a90d9] px-5 py-2 text-sm font-normal text-white hover:bg-[#3d7fc4]"
+            >
               {editing ? "Gravar Alterações" : "Cadastrar Cliente"}
-            </Button>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded border border-slate-300 bg-white px-5 py-2 text-sm font-normal text-slate-700 hover:bg-slate-50"
+            >
               Fechar
-            </Button>
+            </button>
           </div>
         </form>
       </Modal>

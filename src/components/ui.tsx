@@ -277,7 +277,7 @@ export function Modal({
   onClose: () => void;
   title: string;
   children: React.ReactNode;
-  size?: "sm" | "md" | "lg" | "xl" | "2xl";
+  size?: "sm" | "md" | "lg" | "xl" | "2xl" | "smart";
   /** z-index da camada (ex.: z-[60] sobre outro modal). */
   layerClassName?: string;
 }) {
@@ -288,24 +288,41 @@ export function Modal({
     lg: "max-w-2xl",
     xl: "max-w-6xl",
     "2xl": "max-w-[min(1200px,95vw)]",
+    smart: "w-[95vw] max-w-[1380px]",
   };
-  const alturaConteudo = size === "2xl" ? "max-h-[90vh]" : "max-h-[80vh]";
+  const alturaModal = size === "smart" ? "max-h-[88vh]" : "";
+  const alturaConteudo =
+    size === "smart" ? "max-h-[calc(88vh-57px)]" : size === "2xl" ? "max-h-[90vh]" : "max-h-[80vh]";
+  const ehSmart = size === "smart";
   return (
     <div
       className={cn(
-        "fixed inset-0 flex items-center justify-center p-4",
+        "fixed inset-0 flex items-center justify-center",
+        ehSmart ? "p-3" : "p-4",
         layerClassName
       )}
     >
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div
         className={cn(
-          "relative w-full rounded-xl bg-white shadow-xl",
-          sizes[size]
+          "relative flex w-full flex-col rounded-xl bg-white shadow-xl",
+          sizes[size],
+          alturaModal
         )}
       >
-        <div className="flex items-center justify-between border-b px-5 py-4">
-          <h2 className="text-lg font-semibold">{title}</h2>
+        <div
+          className={cn(
+            "flex shrink-0 items-center justify-between border-b border-slate-200",
+            ehSmart ? "px-6 py-3" : "px-5 py-4"
+          )}
+        >
+          <h2
+            className={cn(
+              ehSmart ? "text-base font-normal text-slate-800" : "text-lg font-semibold"
+            )}
+          >
+            {title}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -314,7 +331,16 @@ export function Modal({
             ✕
           </button>
         </div>
-        <div className={cn("overflow-y-auto p-5", alturaConteudo)}>{children}</div>
+        <div
+          className={cn(
+            "min-h-0 flex-1 overflow-y-auto",
+            ehSmart ? "px-6 py-4" : "p-5",
+            !ehSmart && alturaConteudo
+          )}
+          style={ehSmart ? { maxHeight: "calc(88vh - 57px)" } : undefined}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );

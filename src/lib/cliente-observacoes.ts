@@ -13,6 +13,7 @@ export const PREFIXOS_CONFIG_CLIENTE = [
   "Limite Saldo Devedor:",
   "Dia da Cobrança:",
   "Data de Nascimento:",
+  "RG:",
   "Entregador:",
   "Tipo Entregador:",
   "Custo de Entrega:",
