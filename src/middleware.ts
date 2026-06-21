@@ -12,9 +12,12 @@ import { rotaLiberadaAssinaturaVencida, apiLiberadaAssinaturaVencida } from "@/l
 const COOKIE_NAME = "lab-protese-session";
 const MASTER_COOKIE_NAME = "lab-protese-master-session";
 const PUBLIC = [
+  "/",
   "/login",
   "/cadastro",
   "/criar-conta",
+  "/recuperar-senha",
+  "/redefinir-senha",
   "/admin-master/login",
 ];
 
@@ -194,10 +197,6 @@ export function middleware(request: NextRequest) {
 
   if (pathname.startsWith("/acompanhamento/")) {
     return NextResponse.next();
-  }
-
-  if (pathname === "/") {
-    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   if (pathname.startsWith("/admin-master") || pathname.startsWith("/api/admin-master")) {
