@@ -299,6 +299,7 @@ export function CriarContaForm() {
                 <SeletorPaisComBusca
                   modo="telefone"
                   value={form.codigoTelefone}
+                  paisIso={form.pais}
                   onChange={(dial, pais) => {
                     setForm((f) => ({
                       ...f,

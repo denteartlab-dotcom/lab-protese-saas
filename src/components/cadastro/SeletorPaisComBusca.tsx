@@ -11,6 +11,8 @@ type Props = {
   modo: Modo;
   value: string;
   onChange: (value: string, pais?: PaisTelefone) => void;
+  /** ISO do país selecionado — ajuda a exibir a bandeira correta quando o DDI se repete (+1, +7…). */
+  paisIso?: string;
   className?: string;
   id?: string;
   "aria-label"?: string;
@@ -24,21 +26,44 @@ function normalizarBusca(texto: string) {
     .trim();
 }
 
-function rotuloSelecionado(modo: Modo, value: string) {
-  const pais = PAISES_TELEFONE.find((p) => (modo === "pais" ? p.iso : p.dial) === value);
-  if (!pais) return modo === "pais" ? "Selecione" : "+?";
+function resolverPais(modo: Modo, value: string, paisIso?: string) {
+  if (modo === "pais") {
+    return PAISES_TELEFONE.find((p) => p.iso === value);
+  }
+  if (paisIso) {
+    const porIso = PAISES_TELEFONE.find((p) => p.iso === paisIso);
+    if (porIso?.dial === value) return porIso;
+  }
+  return PAISES_TELEFONE.find((p) => p.dial === value);
+}
+
+function rotuloSelecionado(modo: Modo, value: string, paisIso?: string) {
+  const pais = resolverPais(modo, value, paisIso);
+  if (!pais) {
+    return modo === "pais" ? (
+      <span className="text-lg leading-none text-slate-400" aria-hidden>
+        🏳️
+      </span>
+    ) : (
+      "+?"
+    );
+  }
 
   if (modo === "pais") {
     return (
-      <span className="flex items-center gap-2 truncate">
-        <span aria-hidden>{pais.bandeira}</span>
-        <span className="truncate">{pais.iso}</span>
+      <span className="text-xl leading-none" aria-label={pais.nome} title={pais.nome}>
+        {pais.bandeira}
       </span>
     );
   }
 
   return (
-    <span className="truncate font-medium">{pais.dial}</span>
+    <span className="flex items-center gap-1.5 truncate" title={`${pais.nome} ${pais.dial}`}>
+      <span className="text-base leading-none" aria-hidden>
+        {pais.bandeira}
+      </span>
+      <span className="truncate text-xs font-medium">{pais.dial}</span>
+    </span>
   );
 }
 
@@ -46,6 +71,7 @@ export function SeletorPaisComBusca({
   modo,
   value,
   onChange,
+  paisIso,
   className,
   id,
   "aria-label": ariaLabel,
@@ -102,10 +128,13 @@ export function SeletorPaisComBusca({
         onClick={() => setAberto((v) => !v)}
         className={cn(
           "flex h-10 w-full items-center justify-between gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-left text-sm text-slate-800 outline-none transition hover:border-slate-300 focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/15",
-          modo === "telefone" && "min-w-[92px]"
+          modo === "pais" && "justify-center px-2",
+          modo === "telefone" && "min-w-[96px]"
         )}
       >
-        <span className="min-w-0 flex-1">{rotuloSelecionado(modo, value)}</span>
+        <span className={cn("min-w-0 flex-1", modo === "pais" && "flex justify-center")}>
+          {rotuloSelecionado(modo, value, paisIso)}
+        </span>
         <ChevronDown className={cn("h-4 w-4 shrink-0 text-slate-400 transition", aberto && "rotate-180")} />
       </button>
 
@@ -151,9 +180,7 @@ export function SeletorPaisComBusca({
                       <span className="min-w-0 flex-1 truncate">{pais.nome}</span>
                       {modo === "telefone" ? (
                         <span className="shrink-0 font-medium text-slate-600">{pais.dial}</span>
-                      ) : (
-                        <span className="shrink-0 text-slate-400">{pais.iso}</span>
-                      )}
+                      ) : null}
                     </button>
                   </li>
                 );
