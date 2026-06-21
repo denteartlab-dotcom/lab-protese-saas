@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 export const WHATSAPP_LANDING_URL =
-  "https://wa.me/5531982709866?text=" +
+  "https://wa.me/5533988466838?text=" +
   encodeURIComponent(
     "Olá! Gostaria de saber mais sobre o Lab Prótese para meu laboratório."
   );

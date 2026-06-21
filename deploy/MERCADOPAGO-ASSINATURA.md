@@ -35,7 +35,7 @@ MP_PLATAFORMA_AMBIENTE=producao
 MP_PLATAFORMA_WEBHOOK_SECRET=
 
 # Suporte (botão na tela de assinatura vencida)
-SUPPORT_WHATSAPP=5531982709866
+SUPPORT_WHATSAPP=5533988466838
 ```
 
 > Se `MP_PLATAFORMA_ACCESS_TOKEN` estiver preenchido, o **Mercado Pago** é usado.  

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Eye, EyeOff, Facebook, Instagram, Youtube } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { LogoMarcaDenteArt } from "@/components/LogoMarcaDenteArt";
 import { SeletorPaisComBusca } from "@/components/cadastro/SeletorPaisComBusca";
 import { salvarUltimoLaboratorioLogin } from "@/lib/auth-client";
@@ -12,27 +12,6 @@ import { paisPorIso } from "@/lib/paises-telefone";
 import { cn } from "@/lib/utils";
 import { formatarTelefone } from "@/lib/validar-documento";
 import { validarForcaSenha } from "@/lib/validar-senha";
-
-const REDES_SOCIAIS = [
-  {
-    nome: "Facebook",
-    href: "https://www.facebook.com/",
-    Icon: Facebook,
-    cor: "text-[#1877F2]",
-  },
-  {
-    nome: "Instagram",
-    href: "https://www.instagram.com/",
-    Icon: Instagram,
-    cor: "text-[#E4405F]",
-  },
-  {
-    nome: "YouTube",
-    href: "https://www.youtube.com/",
-    Icon: Youtube,
-    cor: "text-[#FF0000]",
-  },
-] as const;
 
 export function CriarContaForm() {
   const router = useRouter();
@@ -401,24 +380,6 @@ export function CriarContaForm() {
               .
             </p>
           </form>
-
-          <div className="mt-5 flex items-center justify-center gap-3">
-            {REDES_SOCIAIS.map(({ nome, href, Icon, cor }) => (
-              <a
-                key={nome}
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={nome}
-                className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-md bg-slate-50 transition hover:bg-slate-100",
-                  cor
-                )}
-              >
-                <Icon className="h-4 w-4" strokeWidth={2.25} />
-              </a>
-            ))}
-          </div>
         </div>
 
         <p className="mt-4 text-center text-xs text-slate-500">
