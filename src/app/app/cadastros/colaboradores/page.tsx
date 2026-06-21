@@ -14,6 +14,13 @@ import {
   type HorarioFuncionamentoConfig,
 } from "@/lib/horario-funcionamento";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
+import {
+  formatValorMonetarioInput,
+  formatarSalarioExibicao,
+  montarTextoExemploRemuneracao,
+  usaComissaoColaborador,
+  usaSalarioColaborador,
+} from "@/lib/colaborador-remuneracao";
 
 type Colaborador = {
   id: string;
@@ -92,8 +99,38 @@ function formatPercentInput(value: string) {
 
 const formatMoneyInput = formatPercentInput;
 
-function parsePercent(value: string) {
-  return Number(value.replace(/\./g, "").replace(",", ".")) || 0;
+function CampoValorSalario({
+  label,
+  valor,
+  onChange,
+  disabled = false,
+}: {
+  label: string;
+  valor: string;
+  onChange: (valor: string) => void;
+  disabled?: boolean;
+}) {
+  const labelClass = "mb-1 block text-[9px] text-slate-500";
+  return (
+    <div>
+      <label className={labelClass}>{label}</label>
+      <div
+        className={`flex h-8 overflow-hidden rounded border border-slate-300 bg-white ${
+          disabled ? "opacity-60" : ""
+        }`}
+      >
+        <span className="flex w-9 shrink-0 items-center justify-center border-r border-slate-200 bg-white text-[10px] text-slate-500">
+          R$
+        </span>
+        <input
+          value={valor}
+          disabled={disabled}
+          onChange={(event) => onChange(formatValorMonetarioInput(event.target.value))}
+          className="w-full px-2 text-[10px] text-slate-600 outline-none disabled:cursor-not-allowed"
+        />
+      </div>
+    </div>
+  );
 }
 
 function CampoValorComissao({
@@ -137,13 +174,6 @@ function CampoValorComissao({
       </div>
     </div>
   );
-}
-
-function money(value: number) {
-  return value.toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
 }
 
 const colaboradoresIniciais: Colaborador[] = [
@@ -503,14 +533,9 @@ export default function ColaboradoresPage() {
 
   const inputClass = "h-8 w-full rounded border border-slate-300 bg-white px-2 text-[10px] text-slate-600 outline-none focus:border-blue-400";
   const labelClass = "mb-1 block text-[9px] text-slate-500";
-  const exemploComissao =
-    form.tipoValorComissao === "R$"
-      ? parsePercent(form.valorComissao)
-      : 1000 * (parsePercent(form.valorComissao) / 100);
-  const exemploComissaoRepeticao =
-    form.tipoValorComissaoRepeticao === "R$"
-      ? parsePercent(form.comissaoRepeticao)
-      : 1000 * (parsePercent(form.comissaoRepeticao) / 100);
+  const textoExemploRemuneracao = montarTextoExemploRemuneracao(form);
+  const exibeSalario = usaSalarioColaborador(form.tipoContratacao);
+  const exibeComissao = usaComissaoColaborador(form.tipoContratacao);
 
   return (
     <div className="min-h-[calc(100vh-90px)] bg-slate-50 px-3 py-4 text-[11px] text-slate-600">
@@ -699,7 +724,8 @@ export default function ColaboradoresPage() {
                               <p><strong>EMAIL:</strong> {dados.email || colaborador.email}</p>
                               <p><strong>DATA CONTRATAÇÃO:</strong> {dados.dataContratacao || ""}</p>
                               <p><strong>CARGO:</strong> {dados.cargo || ""}</p>
-                              <p><strong>SALÁRIO:</strong> {dados.valorSalario || ""}</p>
+                              <p><strong>TIPO REMUNERAÇÃO:</strong> {dados.tipoContratacao || ""}</p>
+                              <p><strong>SALÁRIO:</strong> {formatarSalarioExibicao(dados.valorSalario || "0,00")}</p>
                               <p><strong>TEL. RESIDENCIAL:</strong> {dados.telefoneResidencial || ""}</p>
                               <p><strong>TEL. COMERCIAL:</strong> {dados.telefoneComercial || ""}</p>
                               <p><strong>CELULAR:</strong> {dados.celular || colaborador.celular}</p>
@@ -864,10 +890,12 @@ export default function ColaboradoresPage() {
                       <option>Salário + Comissão</option>
                     </select>
                   </div>
-                  <div>
-                    <label className={labelClass}>Valor do Salário</label>
-                    <input value={form.valorSalario} onChange={(event) => setCampo("valorSalario", event.target.value)} className={inputClass} />
-                  </div>
+                  <CampoValorSalario
+                    label="Valor do Salário"
+                    valor={form.valorSalario}
+                    onChange={(valor) => setCampo("valorSalario", valor)}
+                    disabled={!exibeSalario}
+                  />
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-[1fr_0.32fr]">
@@ -959,23 +987,13 @@ export default function ColaboradoresPage() {
                 </div>
               </section>
 
+              {exibeComissao && (
               <section className="space-y-3 border-t border-slate-100 pt-3">
                 <h3 className="flex items-center gap-2 text-[12px] font-medium text-slate-600">
                   <Percent className="h-3.5 w-3.5" />
                   Comissão
                 </h3>
-                <p className="text-[10px] text-slate-400">
-                  A comissão normal será aplicada em trabalhos comuns. Quando o trabalho for marcado como repetição,
-                  será usado o valor de repetição. Exemplo: em um trabalho de {money(1000)}, ele recebe{" "}
-                  {form.tipoValorComissao === "R$"
-                    ? money(exemploComissao)
-                    : `${form.valorComissao}% (${money(exemploComissao)})`}{" "}
-                  no comum e{" "}
-                  {form.tipoValorComissaoRepeticao === "R$"
-                    ? money(exemploComissaoRepeticao)
-                    : `${form.comissaoRepeticao}% (${money(exemploComissaoRepeticao)})`}{" "}
-                  na repetição.
-                </p>
+                <p className="text-[10px] text-slate-400">{textoExemploRemuneracao}</p>
                 <div className="grid gap-3 md:grid-cols-3">
                   <CampoValorComissao
                     label="Valor da Comissão"
@@ -1000,6 +1018,17 @@ export default function ColaboradoresPage() {
                   />
                 </div>
               </section>
+              )}
+
+              {!exibeComissao && (
+              <section className="space-y-3 border-t border-slate-100 pt-3">
+                <h3 className="flex items-center gap-2 text-[12px] font-medium text-slate-600">
+                  <Percent className="h-3.5 w-3.5" />
+                  Remuneração
+                </h3>
+                <p className="text-[10px] text-slate-400">{textoExemploRemuneracao}</p>
+              </section>
+              )}
 
               <section className="space-y-3 border-t border-slate-100 pt-3">
                 <h3 className="flex items-center gap-2 text-[12px] font-medium text-slate-600">

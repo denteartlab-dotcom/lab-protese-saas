@@ -8,6 +8,9 @@ export type ColaboradorListagem = {
   comissaoPercentual: string;
   comissaoRepeticao: string;
   padraoComissao: string;
+  tipoContratacao: string;
+  tipoValorComissao: string;
+  tipoValorComissaoRepeticao: string;
 };
 
 type ColaboradorStorage = {
@@ -15,9 +18,12 @@ type ColaboradorStorage = {
   nome: string;
   comissaoPercentual?: string;
   dados?: {
+    tipoContratacao?: string;
     valorComissao?: string;
     comissaoRepeticao?: string;
     descricaoComissao?: string;
+    tipoValorComissao?: string;
+    tipoValorComissaoRepeticao?: string;
   };
 };
 
@@ -44,6 +50,9 @@ function normalizarColaborador(colaborador: ColaboradorStorage): ColaboradorList
     comissaoPercentual: colaborador.comissaoPercentual || dados.valorComissao || "0,00",
     comissaoRepeticao: dados.comissaoRepeticao || "0,00",
     padraoComissao,
+    tipoContratacao: dados.tipoContratacao || "Salário + Comissão",
+    tipoValorComissao: dados.tipoValorComissao || "%",
+    tipoValorComissaoRepeticao: dados.tipoValorComissaoRepeticao || "%",
   };
 }
 

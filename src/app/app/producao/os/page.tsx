@@ -99,6 +99,7 @@ import {
   carregarColaboradoresListagem,
   type ColaboradorListagem,
 } from "@/lib/colaboradores-listagem";
+import { comissaoCadastroColaborador } from "@/lib/colaborador-remuneracao";
 import {
   carregarEtapasCadastro,
   deduplicarColaboradores,
@@ -2355,10 +2356,15 @@ export default function OrdemServicoPage() {
   }
 
   function comissaoColaboradorCadastro(cadastro: ColaboradorListagem) {
-    if (form.repeticao && cadastro.comissaoRepeticao?.replace(/[^\d]/g, "") !== "000") {
-      return cadastro.comissaoRepeticao;
-    }
-    return cadastro.comissaoPercentual || "0,00";
+    return comissaoCadastroColaborador(
+      {
+        tipoContratacao: cadastro.tipoContratacao,
+        valorComissao: cadastro.comissaoPercentual,
+        comissaoRepeticao: cadastro.comissaoRepeticao,
+      },
+      cadastro.comissaoPercentual,
+      Boolean(form.repeticao)
+    );
   }
 
   function selecionarColaboradorOs(index: number, nome: string) {

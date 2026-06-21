@@ -93,6 +93,7 @@ import {
   carregarColaboradoresListagem,
   type ColaboradorListagem,
 } from "@/lib/colaboradores-listagem";
+import { comissaoCadastroColaborador } from "@/lib/colaborador-remuneracao";
 import {
   carregarEtapasCadastro,
   colaboradoresParaExibicaoControle,
@@ -1783,10 +1784,15 @@ export default function ControlePage() {
   }
 
   function comissaoColaboradorCadastroControle(cadastro: ColaboradorListagem) {
-    const bruto =
-      form?.repeticao && cadastro.comissaoRepeticao?.replace(/[^\d]/g, "") !== "000"
-        ? cadastro.comissaoRepeticao
-        : cadastro.comissaoPercentual || "0,00";
+    const bruto = comissaoCadastroColaborador(
+      {
+        tipoContratacao: cadastro.tipoContratacao,
+        valorComissao: cadastro.comissaoPercentual,
+        comissaoRepeticao: cadastro.comissaoRepeticao,
+      },
+      cadastro.comissaoPercentual,
+      Boolean(form?.repeticao)
+    );
     return exibirComissaoPercentual(bruto) || "0,00%";
   }
 
