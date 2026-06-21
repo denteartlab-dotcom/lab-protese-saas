@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLabConfigServidor } from "@/components/LabConfigProvider";
 import {
   ARMAZENAMENTO_LAB_PRONTO_EVENT,
@@ -53,23 +53,27 @@ function configLaboratorioCarregada(cfg: ConfigLaboratorio | null | undefined): 
   );
 }
 
-/** Nome do lab: cache explícito > cadastro real no cache > nome do servidor > padrão. */
-function nomeLaboratorioExibicao(
+function ehNomePadraoSistema(nome: string | undefined | null): boolean {
+  return nome?.trim() === NOME_LAB_PADRAO;
+}
+
+/** Nome do lab: ignora "Lab Prótese" do cache quando há cadastro real ou nome do servidor. */
+function resolverNomeLaboratorio(
   cfg: ConfigLaboratorio | null | undefined,
   fallback: string
 ): string {
-  const direto = cfg?.nomeLaboratorio?.trim();
-  if (direto) return direto;
-
-  if (configLaboratorioCarregada(cfg) && cfg) {
-    const derivado = nomeExibicaoLaboratorio(cfg).trim();
-    if (derivado && derivado !== NOME_LAB_PADRAO) return derivado;
-  }
-
   const fallbackTrim = fallback.trim();
+  const direto = cfg?.nomeLaboratorio?.trim() || "";
+  const derivado =
+    cfg && configLaboratorioCarregada(cfg)
+      ? nomeExibicaoLaboratorio(cfg).trim()
+      : "";
+
+  if (direto && !ehNomePadraoSistema(direto)) return direto;
+  if (derivado && !ehNomePadraoSistema(derivado)) return derivado;
   if (fallbackTrim) return fallbackTrim;
 
-  return NOME_LAB_PADRAO;
+  return direto || derivado || NOME_LAB_PADRAO;
 }
 
 function nomeServidorProps(
@@ -103,8 +107,9 @@ export function useLabConfigClient({
 }: Props = {}) {
   const servidor = useLabConfigServidor();
   const [cachePronto, setCachePronto] = useState(storageSincronizado);
+  const [cacheVersao, setCacheVersao] = useState(0);
 
-  const fallbackNome = nomeServidorProps(servidor, initialLab, initialNomeLaboratorio);
+  const nomeServidor = nomeServidorProps(servidor, initialLab, initialNomeLaboratorio);
 
   const resolver = useCallback(() => {
     if (!cachePronto) {
@@ -114,16 +119,17 @@ export function useLabConfigClient({
     const cacheLab = labImpressaoFromConfig();
     return {
       lab: mesclarLogoLab(initialLab, cacheLab, servidor?.lab),
-      nomeLaboratorio: nomeLaboratorioExibicao(cfg, fallbackNome),
+      nomeLaboratorio: resolverNomeLaboratorio(cfg, nomeServidor),
     };
-  }, [cachePronto, servidor, initialLab, initialNomeLaboratorio, fallbackNome]);
+  }, [cachePronto, servidor, initialLab, initialNomeLaboratorio, nomeServidor]);
 
-  const nomeInicial =
-    fallbackNome || resolver().nomeLaboratorio || NOME_LAB_PADRAO;
   const labInicial = mesclarLogoLab(initialLab, servidor?.lab);
-
   const [lab, setLab] = useState<LabImpressaoConfig>(labInicial);
-  const [nomeLaboratorio, setNomeLaboratorio] = useState(nomeInicial);
+
+  const nomeLaboratorio = useMemo(() => {
+    void cacheVersao;
+    return resolver().nomeLaboratorio;
+  }, [resolver, cacheVersao]);
 
   const atualizar = useCallback(() => {
     const next = resolver();
@@ -134,9 +140,7 @@ export function useLabConfigClient({
         ? atual
         : next.lab
     );
-    setNomeLaboratorio((atual) =>
-      atual === next.nomeLaboratorio ? atual : next.nomeLaboratorio
-    );
+    setCacheVersao((versao) => versao + 1);
   }, [resolver]);
 
   useEffect(() => {
@@ -171,5 +175,6 @@ export function useLabConfigClient({
     montado: cachePronto,
     lab,
     nomeLaboratorio,
+    nomeServidor: nomeServidor || NOME_LAB_PADRAO,
   };
 }

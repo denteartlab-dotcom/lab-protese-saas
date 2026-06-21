@@ -19,6 +19,7 @@ import { dimensoesLogoPx } from "@/lib/lab-logo";
 import { permissaoIdPorHref } from "@/lib/usuarios-menu-permissoes";
 import { AppFaixaTopo } from "@/components/AppFaixaTopo";
 import { AssinaturaFaixaRodape } from "@/components/AssinaturaFaixaRodape";
+import { NOME_LAB_PADRAO } from "@/lib/document-title";
 import { useLabConfigClient } from "@/lib/use-lab-config-client";
 import {
   appNavPrincipal,
@@ -199,10 +200,14 @@ function AppShellInner({
   const [codigoBarrasMensagem, setCodigoBarrasMensagem] = useState("");
   const [menuMobileAberto, setMenuMobileAberto] = useState(false);
   const { acessoTotal, permissoesModulos } = usePermissoesApp();
-  const { montado, lab, nomeLaboratorio } = useLabConfigClient({
+  const { montado, lab, nomeLaboratorio, nomeServidor } = useLabConfigClient({
     initialLab,
     initialNomeLaboratorio,
   });
+  const nomePerfil =
+    nomeLaboratorio.trim() && nomeLaboratorio.trim() !== NOME_LAB_PADRAO
+      ? nomeLaboratorio
+      : nomeServidor;
   const papelUsuario = rotuloPapelUsuario(userRole);
   const fecharMenuMobile = useCallback(() => setMenuMobileAberto(false), []);
   const alternarMenuMobile = useCallback(
@@ -539,7 +544,7 @@ function AppShellInner({
         <AppMobileNav
           aberto={menuMobileAberto}
           onFechar={fecharMenuMobile}
-          nomeLaboratorio={nomeLaboratorio}
+          nomeLaboratorio={nomePerfil}
           logoDataUrl={lab.logoDataUrl?.startsWith("data:image") ? lab.logoDataUrl : undefined}
           logoLargura={logoPerfil.largura}
           logoAltura={logoPerfil.altura}
@@ -615,7 +620,7 @@ function AppShellInner({
                         suppressHydrationWarning
                         className="text-[11px] font-bold text-slate-800"
                       >
-                        {nomeLaboratorio}
+                        {nomePerfil}
                       </p>
                       <p className="text-[10px] text-slate-500">{papelUsuario}</p>
                     </div>
@@ -647,7 +652,7 @@ function AppShellInner({
                           suppressHydrationWarning
                           className="text-sm font-bold text-slate-700 dark:text-slate-100"
                         >
-                          {nomeLaboratorio}
+                          {nomePerfil}
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">
                           {papelUsuario}
