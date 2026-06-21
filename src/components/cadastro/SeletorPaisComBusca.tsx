@@ -2,7 +2,7 @@
 
 import { ChevronDown, Search } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { PAISES_TELEFONE, type PaisTelefone } from "@/lib/paises-telefone";
+import { PAISES_TELEFONE, urlBandeiraPais, type PaisTelefone } from "@/lib/paises-telefone";
 import { cn } from "@/lib/utils";
 
 type Modo = "pais" | "telefone";
@@ -17,6 +17,32 @@ type Props = {
   id?: string;
   "aria-label"?: string;
 };
+
+function BandeiraImg({
+  iso,
+  className,
+  tamanho = "md",
+}: {
+  iso: string;
+  className?: string;
+  tamanho?: "sm" | "md";
+}) {
+  const dims = tamanho === "sm" ? { w: 18, h: 13 } : { w: 22, h: 16 };
+  return (
+    <img
+      src={urlBandeiraPais(iso, 40)}
+      alt=""
+      width={dims.w}
+      height={dims.h}
+      className={cn(
+        "shrink-0 rounded-[2px] border border-slate-200/90 object-cover bg-slate-100",
+        className
+      )}
+      loading="lazy"
+      decoding="async"
+    />
+  );
+}
 
 function normalizarBusca(texto: string) {
   return texto
@@ -41,9 +67,7 @@ function rotuloSelecionado(modo: Modo, value: string, paisIso?: string) {
   const pais = resolverPais(modo, value, paisIso);
   if (!pais) {
     return modo === "pais" ? (
-      <span className="text-lg leading-none text-slate-400" aria-hidden>
-        🏳️
-      </span>
+      <span className="text-xs text-slate-400">Selecione</span>
     ) : (
       "+?"
     );
@@ -56,9 +80,7 @@ function rotuloSelecionado(modo: Modo, value: string, paisIso?: string) {
         aria-label={pais.nome}
         title={pais.nome}
       >
-        <span className="text-lg leading-none" aria-hidden>
-          {pais.bandeira}
-        </span>
+        <BandeiraImg iso={pais.iso} />
         <span className="truncate text-sm font-medium text-slate-700">{pais.iso}</span>
       </span>
     );
@@ -66,12 +88,10 @@ function rotuloSelecionado(modo: Modo, value: string, paisIso?: string) {
 
   return (
     <span
-      className="flex items-center gap-1 truncate"
+      className="flex items-center gap-1.5 truncate"
       title={`${pais.nome} ${pais.dial}`}
     >
-      <span className="text-base leading-none" aria-hidden>
-        {pais.bandeira}
-      </span>
+      <BandeiraImg iso={pais.iso} tamanho="sm" />
       <span className="truncate text-[11px] font-medium text-slate-700">
         {pais.iso} {pais.dial}
       </span>
@@ -140,7 +160,7 @@ export function SeletorPaisComBusca({
         onClick={() => setAberto((v) => !v)}
         className={cn(
           "flex h-10 w-full items-center justify-between gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-left text-sm text-slate-800 outline-none transition hover:border-slate-300 focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/15",
-          modo === "telefone" && "min-w-[108px]"
+          modo === "telefone" && "min-w-[112px]"
         )}
       >
         <span className="min-w-0 flex-1">{rotuloSelecionado(modo, value, paisIso)}</span>
@@ -179,21 +199,23 @@ export function SeletorPaisComBusca({
                       type="button"
                       onClick={() => selecionar(pais)}
                       className={cn(
-                        "flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition hover:bg-slate-50",
-                        selecionado && "bg-blue-50 text-[#0066FF]"
+                        "flex w-full items-center gap-2.5 px-3 py-2 text-left transition hover:bg-slate-50",
+                        selecionado && "bg-blue-50"
                       )}
                     >
+                      <BandeiraImg iso={pais.iso} />
                       <span
-                        className="inline-flex h-4 w-5 shrink-0 items-center justify-center text-sm leading-none"
-                        aria-hidden
+                        className={cn(
+                          "min-w-0 flex-1 truncate text-sm",
+                          selecionado ? "font-medium text-[#0066FF]" : "text-slate-700"
+                        )}
                       >
-                        {pais.bandeira}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-sm text-slate-700">
                         {pais.nome}
                       </span>
                       {modo === "telefone" ? (
-                        <span className="shrink-0 font-medium text-slate-600">{pais.dial}</span>
+                        <span className="shrink-0 text-xs font-medium text-slate-500">
+                          {pais.dial}
+                        </span>
                       ) : null}
                     </button>
                   </li>

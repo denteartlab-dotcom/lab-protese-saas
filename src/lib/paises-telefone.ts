@@ -11,6 +11,11 @@ export function bandeiraPais(iso: string): string {
     .replace(/./g, (c) => String.fromCodePoint(127397 + c.charCodeAt(0)));
 }
 
+/** PNG da bandeira (funciona no Windows; emoji 🇧🇷 vira "BR" em muitos navegadores). */
+export function urlBandeiraPais(iso: string, largura = 40): string {
+  return `https://flagcdn.com/w${largura}/${iso.trim().toLowerCase()}.png`;
+}
+
 export const PAISES_TELEFONE: PaisTelefone[] = [
   { iso: "AF", nome: "Afeganistão", dial: "+93", bandeira: "🇦🇫" },
   { iso: "AL", nome: "Albânia", dial: "+355", bandeira: "🇦🇱" },
