@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import {
+  marcarCodigoVerificacaoUsado,
+  validarCodigoVerificacaoCadastro,
+} from "@/lib/cadastro-verificacao-email";
 import { provisionarNovaEmpresa } from "@/lib/provisionar-empresa";
 import { PLANOS_EMPRESA, PERIODOS_COBRANCA, DIAS_TESTE_GRATIS } from "@/lib/master-planos";
 import { apenasDigitos, validarCpfOuCnpj } from "@/lib/validar-documento";
@@ -24,6 +28,9 @@ const schemaCompleto = z
     aceiteTermos: z.literal(true, {
       errorMap: () => ({ message: "Aceite os termos para continuar." }),
     }),
+    codigoVerificacao: z
+      .string()
+      .regex(/^\d{6}$/, "Informe o código de 6 dígitos enviado por e-mail."),
   })
   .refine((d) => d.adminSenha === d.confirmarSenha, {
     message: "As senhas não conferem.",
@@ -52,6 +59,9 @@ const schemaSimples = z
     }),
     plano: z.enum(PLANOS_EMPRESA).optional(),
     periodoCobranca: z.enum(PERIODOS_COBRANCA).optional(),
+    codigoVerificacao: z
+      .string()
+      .regex(/^\d{6}$/, "Informe o código de 6 dígitos enviado por e-mail."),
   })
   .refine((d) => d.adminSenha === d.confirmarSenha, {
     message: "As senhas não conferem.",
@@ -75,14 +85,24 @@ function normalizarCadastro(body: unknown) {
   if ("emailLaboratorio" in dados || "adminEmail" in dados) {
     const parsed = schemaCompleto.safeParse(body);
     if (!parsed.success) return { ok: false as const, error: parsed.error };
-    const { confirmarSenha: _c, aceiteTermos: _a, ...resto } = parsed.data;
-    return { ok: true as const, dados: resto };
+    const {
+      confirmarSenha: _c,
+      aceiteTermos: _a,
+      codigoVerificacao,
+      ...resto
+    } = parsed.data;
+    return {
+      ok: true as const,
+      dados: resto,
+      codigoVerificacao,
+      emailVerificacao: parsed.data.adminEmail,
+    };
   }
 
   const parsed = schemaSimples.safeParse(body);
   if (!parsed.success) return { ok: false as const, error: parsed.error };
 
-  const { email, whatsapp, codigoTelefone, nome, ...resto } = parsed.data;
+  const { email, whatsapp, codigoTelefone, nome, codigoVerificacao, ...resto } = parsed.data;
   const telefone = montarTelefone(codigoTelefone, whatsapp);
 
   return {
@@ -100,6 +120,8 @@ function normalizarCadastro(body: unknown) {
       plano: "premium" as const,
       periodoCobranca: resto.periodoCobranca,
     },
+    codigoVerificacao,
+    emailVerificacao: email,
   };
 }
 
@@ -141,8 +163,22 @@ export async function POST(request: Request) {
 
   const dados = parsed.dados;
 
+  const verificacao = await validarCodigoVerificacaoCadastro(
+    parsed.emailVerificacao,
+    parsed.codigoVerificacao
+  );
+  if (!verificacao.ok) {
+    return NextResponse.json(
+      { error: verificacao.erro || "Código de verificação inválido." },
+      { status: 400 }
+    );
+  }
+
   try {
     const empresa = await provisionarNovaEmpresa(dados);
+    if (verificacao.registroId) {
+      await marcarCodigoVerificacaoUsado(verificacao.registroId);
+    }
     return NextResponse.json(
       {
         ok: true,

@@ -37,6 +37,9 @@ const REDES_SOCIAIS = [
 export function CriarContaForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [enviandoCodigo, setEnviandoCodigo] = useState(false);
+  const [codigoEnviado, setCodigoEnviado] = useState(false);
+  const [infoCodigo, setInfoCodigo] = useState("");
   const [error, setError] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
@@ -49,6 +52,7 @@ export function CriarContaForm() {
     whatsapp: "",
     adminSenha: "",
     confirmarSenha: "",
+    codigoVerificacao: "",
   });
 
   const forcaSenha = validarForcaSenha(form.adminSenha);
@@ -67,6 +71,40 @@ export function CriarContaForm() {
     }));
   }
 
+  async function enviarCodigoVerificacao() {
+    setError("");
+    setInfoCodigo("");
+    const email = form.email.trim();
+    if (!email) {
+      setError("Informe o e-mail antes de solicitar o código.");
+      return;
+    }
+
+    setEnviandoCodigo(true);
+    try {
+      const res = await fetch("/api/empresas/cadastro/enviar-codigo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        message?: string;
+        aguardarSegundos?: number;
+      };
+      if (!res.ok) {
+        setError(data.error || "Não foi possível enviar o código.");
+        return;
+      }
+      setCodigoEnviado(true);
+      setInfoCodigo(data.message || "Código enviado! Verifique sua caixa de entrada.");
+    } catch {
+      setError("Erro de conexão ao enviar o código.");
+    } finally {
+      setEnviandoCodigo(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -78,6 +116,17 @@ export function CriarContaForm() {
 
     if (!forcaSenha.valida) {
       setError(forcaSenha.erros[0] || "Senha fraca. Use maiúscula, minúscula e número.");
+      return;
+    }
+
+    const codigo = form.codigoVerificacao.replace(/\D/g, "");
+    if (codigo.length !== 6) {
+      setError("Informe o código de 6 dígitos enviado por e-mail.");
+      return;
+    }
+
+    if (!codigoEnviado) {
+      setError("Clique em \"Enviar código\" para receber a verificação no e-mail.");
       return;
     }
 
@@ -94,6 +143,7 @@ export function CriarContaForm() {
           whatsapp: form.whatsapp.trim(),
           adminSenha: form.adminSenha,
           confirmarSenha: form.confirmarSenha,
+          codigoVerificacao: codigo,
           aceiteTermos: true,
         }),
       });
@@ -170,16 +220,57 @@ export function CriarContaForm() {
               <label className={labelCls} htmlFor="cadastro-email">
                 E-mail
               </label>
+              <div className="flex gap-2">
+                <input
+                  id="cadastro-email"
+                  type="email"
+                  className={inputCls}
+                  value={form.email}
+                  onChange={(e) => {
+                    atualizar("email", e.target.value);
+                    setCodigoEnviado(false);
+                    setInfoCodigo("");
+                    atualizar("codigoVerificacao", "");
+                  }}
+                  placeholder="seu@email.com"
+                  required
+                  autoComplete="email"
+                />
+                <button
+                  type="button"
+                  onClick={() => void enviarCodigoVerificacao()}
+                  disabled={enviandoCodigo || !form.email.trim()}
+                  className="shrink-0 rounded-lg border border-[#0066FF] px-3 text-xs font-semibold text-[#0066FF] transition hover:bg-blue-50 disabled:opacity-50"
+                >
+                  {enviandoCodigo ? "..." : codigoEnviado ? "Reenviar" : "Enviar código"}
+                </button>
+              </div>
+              {infoCodigo ? (
+                <p className="mt-1.5 text-[11px] text-emerald-600">{infoCodigo}</p>
+              ) : null}
+            </div>
+
+            <div>
+              <label className={labelCls} htmlFor="cadastro-codigo">
+                Código de verificação
+              </label>
               <input
-                id="cadastro-email"
-                type="email"
-                className={inputCls}
-                value={form.email}
-                onChange={(e) => atualizar("email", e.target.value)}
-                placeholder="seu@email.com"
+                id="cadastro-codigo"
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                className={cn(inputCls, "tracking-[0.35em] text-center font-semibold")}
+                value={form.codigoVerificacao}
+                onChange={(e) =>
+                  atualizar("codigoVerificacao", e.target.value.replace(/\D/g, "").slice(0, 6))
+                }
+                placeholder="000000"
                 required
-                autoComplete="email"
+                autoComplete="one-time-code"
               />
+              <p className="mt-1 text-[10px] text-slate-400">
+                Enviamos um código de 6 dígitos para o seu e-mail. Válido por 10 minutos.
+              </p>
             </div>
 
             <div>

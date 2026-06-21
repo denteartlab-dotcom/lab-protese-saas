@@ -80,6 +80,18 @@ model PasswordResetToken {
   @@index([expiresAt])
 }
 
+model CadastroVerificacaoEmail {
+  id         String    @id @default(cuid())
+  email      String
+  codigoHash String
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([email])
+  @@index([expiresAt])
+}
+
 model Cliente {
   id                  String     @id @default(cuid())
   empresaId           String
