@@ -32,7 +32,7 @@ export function montarConfigInicialCadastro(
     responsavel: nome,
     nome: ehFisica ? nome : base.nome,
     nomeFantasia: ehFisica ? base.nomeFantasia : nome,
-    email: dados.email?.trim() || base.email,
+    email: base.email,
     whatsapp: dados.whatsapp?.trim() || base.whatsapp,
   });
 }

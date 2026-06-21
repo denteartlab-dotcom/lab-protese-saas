@@ -21,6 +21,7 @@ export function configLaboratorioInicial(nomeEmpresa: string): ConfigLaboratorio
     nomeFantasia: nomeEmpresa,
     razaoSocial: nomeEmpresa,
     tipoPessoa: "Jurídica",
+    email: "",
   };
 }
 

@@ -94,7 +94,7 @@ export function configParaLabImpressao(cfg: ConfigLaboratorio): LabImpressaoConf
     enderecoLinha2: enderecoLinha2,
     telefones:
       telefoneWhatsappLaboratorio(cfg) || LAB_IMPRESSAO_PADRAO.telefones,
-    email: cfg.email || LAB_IMPRESSAO_PADRAO.email,
+    email: cfg.email?.trim() || "",
     logoDataUrl: cfg.logoDataUrl || "",
     logoTamanho: normalizarLogoTamanho(cfg.logoTamanho),
   };

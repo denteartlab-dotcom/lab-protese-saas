@@ -144,8 +144,9 @@ export function montarTextosCabecalhoRequisicao(
   }
   if (telefones.length) linhas.push(telefones.join(" | "));
 
-  if (cab.exibirEmail && (cfg.email?.trim() || lab.email?.trim())) {
-    linhas.push((cfg.email || lab.email || "").trim());
+  if (cab.exibirEmail) {
+    const emailLab = cfg.email?.trim();
+    if (emailLab) linhas.push(emailLab);
   }
 
   if (cab.exibirSite && cfg.site?.trim()) {

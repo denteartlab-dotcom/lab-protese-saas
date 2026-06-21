@@ -204,7 +204,7 @@ export function aplicarNomeLaboratorio(
     responsavel: trimmed,
     nome: ehFisica ? trimmed : cfg.nome,
     nomeFantasia: ehFisica ? cfg.nomeFantasia : trimmed,
-    email: extras?.email?.trim() || cfg.email,
+    email: cfg.email,
     whatsapp: extras?.whatsapp?.trim() || cfg.whatsapp,
   };
   salvarConfigLaboratorio(atualizado);
