@@ -16,7 +16,11 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const session = await getSession();
   if (session?.empresaId) {
-    redirect(await obterDestinoPosLogin(session.empresaId));
+    const destino = await obterDestinoPosLogin(session.empresaId);
+    // Sessão inválida/expirada → mostra landing (não força /login).
+    if (destino !== "/login") {
+      redirect(destino);
+    }
   }
 
   return <LandingPage />;
