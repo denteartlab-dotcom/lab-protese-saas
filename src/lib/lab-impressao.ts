@@ -1,3 +1,5 @@
+import { NOME_LAB_PADRAO } from "@/lib/document-title";
+
 /** Dados do laboratório exibidos na impressão (comprovante / fatura). */
 export type LabImpressaoConfig = {
   marca: string;
@@ -46,7 +48,7 @@ export function normalizarLogoTamanho(pct: number | undefined | null): number {
 }
 
 export const LAB_IMPRESSAO_PADRAO: LabImpressaoConfig = {
-  marca: "DenteArt",
+  marca: NOME_LAB_PADRAO,
   marcaSubtitulo: "LABORATÓRIO DE PRÓTESE DENTÁRIA",
   logoDataUrl: "",
   logoTamanho: LOGO_TAMANHO_PADRAO,

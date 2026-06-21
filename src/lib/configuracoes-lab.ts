@@ -9,6 +9,7 @@ import {
   type CabecalhoRequisicaoConfig,
 } from "@/lib/cabecalho-requisicao";
 import { normalizarConfigLaboratorio } from "@/lib/configuracoes-lab-parse";
+import { NOME_LAB_PADRAO } from "@/lib/document-title";
 import { normalizarIdioma, type Locale } from "@/lib/i18n";
 import {
   persistirArmazenamentoImediato,
@@ -290,7 +291,7 @@ export function prepararConfigParaSalvar(form: ConfigLaboratorio): ConfigLaborat
     nomeLaboratorio,
     responsavel: nomeLaboratorio,
     nomeFantasia: ehFisica ? form.nome : form.nomeFantasia,
-    marca: form.marca || "DenteArt",
+    marca: form.marca || NOME_LAB_PADRAO,
     endereco,
     enderecoLinha1: ruaNumero || form.enderecoLinha1,
     enderecoLinha2:

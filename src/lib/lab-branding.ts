@@ -15,7 +15,7 @@ export type LabBrandingPublico = {
 
 /** Branding genérico da plataforma — login sem laboratório identificado. */
 export const BRANDING_PLATAFORMA_LOGIN: LabBrandingPublico = {
-  nomeLaboratorio: LAB_IMPRESSAO_PADRAO.marca || "DenteArt",
+  nomeLaboratorio: NOME_LAB_PADRAO,
   marcaSubtitulo:
     LAB_IMPRESSAO_PADRAO.marcaSubtitulo || "Sistema para Laboratórios",
   logoDataUrl: "/logo-denteart.png",

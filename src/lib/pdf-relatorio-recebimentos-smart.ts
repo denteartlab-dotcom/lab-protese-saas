@@ -1,4 +1,5 @@
 import type { LinhaRelatorioContasReceber } from "@/lib/relatorio-contas-receber";
+import { NOME_LAB_PADRAO } from "@/lib/document-title";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
 import { escalaLogoMultiplicador } from "@/lib/lab-logo";
 import { desenharCabecalhoLabRelatorioPdf } from "@/lib/pdf-lab-cabecalho";
@@ -124,7 +125,7 @@ export function desenharCabecalhoRecebimentosSmart(
     }
   }
 
-  const marca = (lab.marca || "DenteArt").trim();
+  const marca = (lab.marca || NOME_LAB_PADRAO).trim();
   if (marca) {
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(11);

@@ -24,6 +24,7 @@ import {
   recursosPlanosAssinatura,
   type PeriodoCobranca,
 } from "@/lib/master-planos";
+import { NOME_LAB_PADRAO } from "@/lib/document-title";
 import { cn } from "@/lib/utils";
 import { SeletorPeriodoCobranca } from "@/components/assinatura/SeletorPeriodoCobranca";
 
@@ -63,7 +64,7 @@ export function AssinaturaVencidaPainel({ contexto, branding }: Props) {
   const whatsapp = (contexto.suporteWhatsapp || "").replace(/\D/g, "");
   const linkWhatsapp = whatsapp
     ? `https://wa.me/55${whatsapp}?text=${encodeURIComponent(
-        "Olá, preciso de ajuda para renovar minha assinatura do DenteArt."
+        "Olá, preciso de ajuda para renovar minha assinatura do Lab Prótese."
       )}`
     : null;
 
@@ -108,7 +109,7 @@ export function AssinaturaVencidaPainel({ contexto, branding }: Props) {
             )}
             <div className="text-left">
               <p className="text-sm font-bold text-slate-900">
-                {branding.nomeLaboratorio || "DenteArt"}
+                {branding.nomeLaboratorio || NOME_LAB_PADRAO}
               </p>
               <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
                 {branding.marcaSubtitulo || "Laboratório"}

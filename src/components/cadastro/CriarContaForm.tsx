@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Building2,
   Check,
@@ -28,16 +28,13 @@ import {
 } from "@/lib/master-planos";
 import { cn } from "@/lib/utils";
 import { SeletorPeriodoCobranca } from "@/components/assinatura/SeletorPeriodoCobranca";
+import { ESTADOS_BR, listarCidadesPorEstado } from "@/lib/cidades-brasil";
+import { NOME_LAB_PADRAO } from "@/lib/document-title";
 import {
   formatarCpfCnpj,
   formatarTelefone,
 } from "@/lib/validar-documento";
 import { validarForcaSenha } from "@/lib/validar-senha";
-
-const ESTADOS_BR = [
-  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG",
-  "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
-];
 
 const ICONES_PLANO = {
   basico: Plane,
@@ -66,6 +63,8 @@ export function CriarContaForm({ branding }: Props) {
   const router = useRouter();
   const [periodo, setPeriodo] = useState<PeriodoCobranca>("mensal");
   const planos = recursosPlanosAssinatura(periodo);
+  const [cidades, setCidades] = useState<string[]>([]);
+  const [carregandoCidades, setCarregandoCidades] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
@@ -94,6 +93,23 @@ export function CriarContaForm({ branding }: Props) {
   function atualizar<K extends keyof typeof form>(campo: K, valor: typeof form[K]) {
     setForm((f) => ({ ...f, [campo]: valor }));
   }
+
+  useEffect(() => {
+    let ativo = true;
+    setCarregandoCidades(true);
+    void listarCidadesPorEstado(form.estado).then((lista) => {
+      if (!ativo) return;
+      setCidades(lista);
+      setForm((atual) => {
+        if (atual.cidade && lista.includes(atual.cidade)) return atual;
+        return { ...atual, cidade: "" };
+      });
+      setCarregandoCidades(false);
+    });
+    return () => {
+      ativo = false;
+    };
+  }, [form.estado]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -162,7 +178,7 @@ export function CriarContaForm({ branding }: Props) {
             )}
             <div>
               <p className="text-sm font-bold text-slate-900">
-                {branding.nomeLaboratorio || "DenteArt"}
+                {branding.nomeLaboratorio || NOME_LAB_PADRAO}
               </p>
               <p className="text-[11px] text-slate-500">
                 {branding.marcaSubtitulo || "Sistema para Laboratórios"}
@@ -266,16 +282,6 @@ export function CriarContaForm({ branding }: Props) {
                 </div>
               </div>
               <div>
-                <label className={labelCls}>Cidade *</label>
-                <input
-                  className={inputCls}
-                  value={form.cidade}
-                  onChange={(e) => atualizar("cidade", e.target.value)}
-                  placeholder="Sua cidade"
-                  required
-                />
-              </div>
-              <div>
                 <label className={labelCls}>Estado *</label>
                 <select
                   className={inputCls}
@@ -286,6 +292,27 @@ export function CriarContaForm({ branding }: Props) {
                   {ESTADOS_BR.map((uf) => (
                     <option key={uf} value={uf}>
                       {uf}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Cidade *</label>
+                <select
+                  className={inputCls}
+                  value={form.cidade}
+                  onChange={(e) => atualizar("cidade", e.target.value)}
+                  required
+                  disabled={carregandoCidades || cidades.length === 0}
+                >
+                  <option value="">
+                    {carregandoCidades
+                      ? "Carregando cidades..."
+                      : "Selecione a cidade"}
+                  </option>
+                  {cidades.map((cidade) => (
+                    <option key={cidade} value={cidade}>
+                      {cidade}
                     </option>
                   ))}
                 </select>
@@ -524,7 +551,7 @@ export function CriarContaForm({ branding }: Props) {
         </form>
 
         <p className="mt-10 text-center text-xs text-slate-400">
-          © {new Date().getFullYear()} DenteArt — Sistema para Laboratórios de Próteses
+          © {new Date().getFullYear()} {NOME_LAB_PADRAO} — Sistema para Laboratórios de Próteses
         </p>
       </main>
     </div>

@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Painel Master — DenteArt",
+  title: "Painel Master — Lab Prótese",
 };
 
 export default function AdminMasterLayout({

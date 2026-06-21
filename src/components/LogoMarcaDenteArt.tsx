@@ -31,7 +31,7 @@ export function LogoMarcaDenteArt({ className, variant = "topo" }: Props) {
   return (
     <img
       src={LOGO_SRC}
-      alt="Dente Art"
+      alt="Lab Prótese"
       width={largura}
       height={altura}
       className={cn(

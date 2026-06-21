@@ -30,7 +30,7 @@ export function MasterShell({
               <Shield className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-800">DenteArt</p>
+              <p className="text-sm font-semibold text-slate-800">Lab Prótese</p>
               <p className="text-[11px] text-slate-500">Painel Master</p>
             </div>
           </div>
