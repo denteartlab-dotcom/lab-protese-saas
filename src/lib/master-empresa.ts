@@ -7,7 +7,46 @@ import { chaveJsonStoreTenant } from "@/lib/json-store-tenant";
 import { normalizarSlugEmpresa } from "@/lib/rotas-app";
 import { garantirPastasUploadEmpresa } from "@/lib/uploads-armazenamento-server";
 import { garantirPastaDriveEmpresa } from "@/lib/backup-google-drive";
-import { statusCobrancaAssinaturaPago } from "@/lib/assinatura-pix-provedor";
+import {
+  cobrancaAssinaturaPixAberta,
+  statusCobrancaAssinaturaPago,
+} from "@/lib/assinatura-pix-provedor";
+import type { Prisma } from "@prisma/client";
+
+const STATUS_COBRANCA_ASSINATURA_PAGA: string[] = [
+  "approved",
+  "RECEIVED",
+  "CONFIRMED",
+  "RECEIVED_IN_CASH",
+];
+
+function whereCobrancaAssinaturaPagaNoPeriodo(
+  inicio: Date,
+  fim?: Date
+): Prisma.CobrancaAssinaturaWhereInput {
+  const periodoPagoEm = fim ? { gte: inicio, lte: fim } : { gte: inicio };
+  const periodoFallback = fim ? { gte: inicio, lte: fim } : { gte: inicio };
+
+  return {
+    OR: [
+      { pagoEm: periodoPagoEm },
+      {
+        pagoEm: null,
+        statusAsaas: { in: STATUS_COBRANCA_ASSINATURA_PAGA },
+        updatedAt: periodoFallback,
+      },
+    ],
+  };
+}
+
+function whereCobrancaAssinaturaPagaTotal(): Prisma.CobrancaAssinaturaWhereInput {
+  return {
+    OR: [
+      { pagoEm: { not: null } },
+      { statusAsaas: { in: STATUS_COBRANCA_ASSINATURA_PAGA } },
+    ],
+  };
+}
 
 export type DadosCriarEmpresaMaster = {
   nome: string;
@@ -172,24 +211,16 @@ export async function obterDashboardMaster() {
     }),
     prisma.user.count({ where: { excluidoEm: null } }),
     prisma.trabalho.count(),
-    prisma.lancamento.aggregate({
-      where: { tipo: "receita", status: "pago" },
+    prisma.cobrancaAssinatura.aggregate({
+      where: whereCobrancaAssinaturaPagaTotal(),
       _sum: { valor: true },
     }),
-    prisma.lancamento.aggregate({
-      where: {
-        tipo: "receita",
-        status: "pago",
-        data: { gte: inicioMes, lte: fimMes },
-      },
+    prisma.cobrancaAssinatura.aggregate({
+      where: whereCobrancaAssinaturaPagaNoPeriodo(inicioMes, fimMes),
       _sum: { valor: true },
     }),
-    prisma.lancamento.aggregate({
-      where: {
-        tipo: "receita",
-        status: "pago",
-        data: { gte: inicioAno },
-      },
+    prisma.cobrancaAssinatura.aggregate({
+      where: whereCobrancaAssinaturaPagaNoPeriodo(inicioAno),
       _sum: { valor: true },
     }),
   ]);
@@ -390,6 +421,15 @@ export async function listarCobrancasAssinaturaMaster() {
 
   return cobrancas.map((c) => {
     const pago = statusCobrancaAssinaturaPago(c.provedor, c.statusAsaas) || Boolean(c.pagoEm);
+    const pixAberta =
+      !pago &&
+      cobrancaAssinaturaPixAberta({
+        provedor: c.provedor,
+        statusAsaas: c.statusAsaas,
+        pixExpiraEm: c.pixExpiraEm,
+        createdAt: c.createdAt,
+        pagoEm: c.pagoEm,
+      });
     return {
       id: c.id,
       empresaId: c.empresaId,
@@ -404,6 +444,7 @@ export async function listarCobrancasAssinaturaMaster() {
       statusAsaas: c.statusAsaas,
       pixExpiraEm: c.pixExpiraEm?.toISOString() ?? null,
       pago,
+      pixAberta,
       pagoEm: c.pagoEm?.toISOString() ?? null,
       renovadoEm: c.renovadoEm?.toISOString() ?? null,
       createdAt: c.createdAt.toISOString(),

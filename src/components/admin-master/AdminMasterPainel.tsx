@@ -432,7 +432,7 @@ export function AdminMasterPainel() {
           { titulo: "Total de Contas", valor: dashboard?.totalEmpresas ?? 0, sub: "Laboratórios", cor: "text-[#4a90d9]", Icon: Building2 },
           { titulo: "Contas Ativas", valor: dashboard?.empresasAtivas ?? 0, sub: "Ativas", cor: "text-emerald-600", Icon: Unlock },
           { titulo: "Contas Bloqueadas", valor: dashboard?.empresasBloqueadas ?? 0, sub: "Bloqueadas", cor: "text-orange-600", Icon: Lock },
-          { titulo: "Faturamento Mensal", valor: formatarMoeda(dashboard?.receitaMensal ?? 0), sub: "Receita do mês", cor: "text-violet-600", Icon: Wallet },
+          { titulo: "Faturamento Mensal", valor: formatarMoeda(dashboard?.receitaMensal ?? 0), sub: "Assinaturas pagas no mês", cor: "text-violet-600", Icon: Wallet },
         ].map((card) => (
           <div key={card.titulo} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between">

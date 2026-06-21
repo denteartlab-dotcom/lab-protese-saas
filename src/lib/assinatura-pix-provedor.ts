@@ -46,12 +46,20 @@ export function cobrancaAssinaturaPixAberta(cobranca: {
   if (!statusCobrancaAssinaturaPendente(cobranca.provedor, cobranca.statusAsaas)) {
     return false;
   }
-  if (cobranca.pixExpiraEm && cobranca.pixExpiraEm.getTime() < Date.now()) {
-    return false;
+
+  const agora = Date.now();
+  const criacao = cobranca.createdAt.getTime();
+  const expiraPorPolitica = criacao + PIX_ASSINATURA_QR_EXPIRACAO_MS;
+
+  if (cobranca.pixExpiraEm) {
+    const expiraMs = cobranca.pixExpiraEm.getTime();
+    const duracaoMs = expiraMs - criacao;
+    // QR legado (ex.: validade de 24h) — considera expirado após 30 min da criação
+    if (duracaoMs > PIX_ASSINATURA_QR_EXPIRACAO_MS + 2 * 60 * 1000) {
+      return agora < expiraPorPolitica;
+    }
+    return agora < expiraMs;
   }
-  const limite = Date.now() - PIX_ASSINATURA_QR_EXPIRACAO_MS;
-  if (!cobranca.pixExpiraEm && cobranca.createdAt.getTime() < limite) {
-    return false;
-  }
-  return true;
+
+  return agora < expiraPorPolitica;
 }
