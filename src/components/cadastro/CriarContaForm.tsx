@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Building2,
   Check,
@@ -28,7 +28,6 @@ import {
 } from "@/lib/master-planos";
 import { cn } from "@/lib/utils";
 import { SeletorPeriodoCobranca } from "@/components/assinatura/SeletorPeriodoCobranca";
-import { ESTADOS_BR, listarCidadesPorEstado } from "@/lib/cidades-brasil";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
 import {
   formatarCpfCnpj,
@@ -63,8 +62,6 @@ export function CriarContaForm({ branding }: Props) {
   const router = useRouter();
   const [periodo, setPeriodo] = useState<PeriodoCobranca>("mensal");
   const planos = recursosPlanosAssinatura(periodo);
-  const [cidades, setCidades] = useState<string[]>([]);
-  const [carregandoCidades, setCarregandoCidades] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
@@ -77,8 +74,6 @@ export function CriarContaForm({ branding }: Props) {
     telefone: "",
     whatsapp: "",
     emailLaboratorio: "",
-    cidade: "",
-    estado: "SP",
     plano: "profissional" as PlanoEmpresa,
     adminNome: "",
     adminEmail: "",
@@ -93,23 +88,6 @@ export function CriarContaForm({ branding }: Props) {
   function atualizar<K extends keyof typeof form>(campo: K, valor: typeof form[K]) {
     setForm((f) => ({ ...f, [campo]: valor }));
   }
-
-  useEffect(() => {
-    let ativo = true;
-    setCarregandoCidades(true);
-    void listarCidadesPorEstado(form.estado).then((lista) => {
-      if (!ativo) return;
-      setCidades(lista);
-      setForm((atual) => {
-        if (atual.cidade && lista.includes(atual.cidade)) return atual;
-        return { ...atual, cidade: "" };
-      });
-      setCarregandoCidades(false);
-    });
-    return () => {
-      ativo = false;
-    };
-  }, [form.estado]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -280,42 +258,6 @@ export function CriarContaForm({ branding }: Props) {
                     required
                   />
                 </div>
-              </div>
-              <div>
-                <label className={labelCls}>Estado *</label>
-                <select
-                  className={inputCls}
-                  value={form.estado}
-                  onChange={(e) => atualizar("estado", e.target.value)}
-                  required
-                >
-                  {ESTADOS_BR.map((uf) => (
-                    <option key={uf} value={uf}>
-                      {uf}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className={labelCls}>Cidade *</label>
-                <select
-                  className={inputCls}
-                  value={form.cidade}
-                  onChange={(e) => atualizar("cidade", e.target.value)}
-                  required
-                  disabled={carregandoCidades || cidades.length === 0}
-                >
-                  <option value="">
-                    {carregandoCidades
-                      ? "Carregando cidades..."
-                      : "Selecione a cidade"}
-                  </option>
-                  {cidades.map((cidade) => (
-                    <option key={cidade} value={cidade}>
-                      {cidade}
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
           </section>

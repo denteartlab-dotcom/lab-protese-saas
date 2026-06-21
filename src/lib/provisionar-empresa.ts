@@ -26,8 +26,8 @@ export type DadosProvisionarEmpresa = {
   telefone: string;
   whatsapp?: string;
   emailLaboratorio: string;
-  cidade: string;
-  estado: string;
+  cidade?: string;
+  estado?: string;
   plano: string;
   periodoCobranca?: string;
   adminNome: string;
@@ -69,8 +69,8 @@ export async function provisionarNovaEmpresa(
   const telefone = dados.telefone.trim();
   const whatsapp = dados.whatsapp?.trim() || null;
   const emailLaboratorio = dados.emailLaboratorio.trim().toLowerCase();
-  const cidade = dados.cidade.trim();
-  const estado = dados.estado.trim().toUpperCase();
+  const cidade = dados.cidade?.trim() || null;
+  const estado = dados.estado?.trim().toUpperCase() || null;
   const adminNome = dados.adminNome.trim();
   const adminEmail = dados.adminEmail.trim().toLowerCase();
   const adminSenha = dados.adminSenha;
@@ -80,8 +80,8 @@ export async function provisionarNovaEmpresa(
   if (!validarCpfOuCnpj(cnpj)) throw new Error("DOCUMENTO_INVALIDO");
   if (telefone.replace(/\D/g, "").length < 10) throw new Error("TELEFONE_INVALIDO");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLaboratorio)) throw new Error("EMAIL_LAB_INVALIDO");
-  if (cidade.length < 2) throw new Error("CIDADE_INVALIDA");
-  if (estado.length !== 2) throw new Error("ESTADO_INVALIDO");
+  if (cidade && cidade.length < 2) throw new Error("CIDADE_INVALIDA");
+  if (estado && estado.length !== 2) throw new Error("ESTADO_INVALIDO");
   if (adminNome.length < 2) throw new Error("ADMIN_NOME_INVALIDO");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail)) throw new Error("EMAIL_INVALIDO");
 
