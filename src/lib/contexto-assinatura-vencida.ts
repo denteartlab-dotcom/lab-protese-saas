@@ -6,7 +6,13 @@ import {
   statusPagamentoAssinatura,
 } from "@/lib/assinatura-empresa";
 import { prisma } from "@/lib/db";
-import { rotuloPlanoEmpresa } from "@/lib/master-planos";
+import { lerJsonStoreTenant } from "@/lib/json-store-tenant";
+import {
+  normalizarPeriodoCobranca,
+  PERIODO_ASSINATURA_STORAGE_KEY,
+  rotuloPlanoEmpresa,
+  type PeriodoCobranca,
+} from "@/lib/master-planos";
 
 export type ContextoAssinaturaVencida = {
   user: {
@@ -24,6 +30,7 @@ export type ContextoAssinaturaVencida = {
     dataVencimentoFormatada: string;
     statusPagamento: string;
   };
+  periodoCobrancaPreferido: PeriodoCobranca;
   suporteWhatsapp: string | null;
 };
 
@@ -54,6 +61,11 @@ export async function obterContextoAssinaturaVencida(): Promise<ContextoAssinatu
   if (!user || user.excluidoEm || !user.empresa) return null;
   if (!empresaPrecisaPaginaRenovacao(user.empresa)) return null;
 
+  const periodoSalvo = await lerJsonStoreTenant<string>(
+    user.empresa.id,
+    PERIODO_ASSINATURA_STORAGE_KEY
+  );
+
   return {
     user: {
       id: user.id,
@@ -70,6 +82,7 @@ export async function obterContextoAssinaturaVencida(): Promise<ContextoAssinatu
       dataVencimentoFormatada: formatarDataAssinatura(user.empresa.dataVencimento),
       statusPagamento: statusPagamentoAssinatura(user.empresa),
     },
+    periodoCobrancaPreferido: normalizarPeriodoCobranca(periodoSalvo || "mensal"),
     suporteWhatsapp: process.env.SUPPORT_WHATSAPP?.trim() || null,
   };
 }

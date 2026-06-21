@@ -13,6 +13,8 @@ export const LIMITES_PLANO_PADRAO: Record<
   premium: { usuarios: 9999, trabalhos: 99999 },
 };
 
+export const PERIODO_ASSINATURA_STORAGE_KEY = "labProtesePeriodoAssinatura";
+
 export function normalizarPlanoEmpresa(plano: string): PlanoEmpresa {
   const valor = plano.trim().toLowerCase();
   if (valor === "profissional" || valor === "premium") return valor;

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { provisionarNovaEmpresa } from "@/lib/provisionar-empresa";
+import { PLANOS_EMPRESA, PERIODOS_COBRANCA } from "@/lib/master-planos";
 import { validarCpfOuCnpj } from "@/lib/validar-documento";
 import { validarForcaSenha } from "@/lib/validar-senha";
 
@@ -14,7 +15,8 @@ const schema = z
     emailLaboratorio: z.string().email("E-mail do laboratório inválido."),
     cidade: z.string().min(2, "Informe a cidade."),
     estado: z.string().length(2, "Selecione o estado."),
-    plano: z.enum(["basico", "profissional", "premium"]).default("profissional"),
+    plano: z.enum(PLANOS_EMPRESA).default("profissional"),
+    periodoCobranca: z.enum(PERIODOS_COBRANCA).optional(),
     adminNome: z.string().min(2, "Informe o nome do administrador."),
     adminEmail: z.string().email("E-mail de login inválido."),
     adminSenha: z.string().min(8, "A senha deve ter no mínimo 8 caracteres."),

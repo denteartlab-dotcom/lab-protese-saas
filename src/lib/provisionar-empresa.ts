@@ -1,7 +1,8 @@
 import { hashPassword } from "@/lib/auth";
 import { gravarDadosPadraoEmpresa, validarSlugEmpresa } from "@/lib/empresa-padrao";
 import { prisma } from "@/lib/db";
-import { limitesDoPlano, normalizarPlanoEmpresa } from "@/lib/master-planos";
+import { limitesDoPlano, normalizarPeriodoCobranca, normalizarPlanoEmpresa, PERIODO_ASSINATURA_STORAGE_KEY } from "@/lib/master-planos";
+import { salvarJsonStoreTenant } from "@/lib/json-store-tenant";
 import { normalizarSlugEmpresa } from "@/lib/rotas-app";
 import { validarCpfOuCnpj } from "@/lib/validar-documento";
 import { validarForcaSenha } from "@/lib/validar-senha";
@@ -28,6 +29,7 @@ export type DadosProvisionarEmpresa = {
   cidade: string;
   estado: string;
   plano: string;
+  periodoCobranca?: string;
   adminNome: string;
   adminEmail: string;
   adminSenha: string;
@@ -158,6 +160,13 @@ export async function provisionarNovaEmpresa(
   });
 
   await gravarDadosPadraoEmpresa(resultado.empresa.id, nome);
+  if (dados.periodoCobranca) {
+    await salvarJsonStoreTenant(
+      resultado.empresa.id,
+      PERIODO_ASSINATURA_STORAGE_KEY,
+      normalizarPeriodoCobranca(dados.periodoCobranca)
+    );
+  }
   await garantirPastasUploadEmpresa(resultado.empresa.slug);
   void garantirPastaDriveEmpresa({
     empresaId: resultado.empresa.id,

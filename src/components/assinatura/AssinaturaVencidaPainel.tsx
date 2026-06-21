@@ -40,7 +40,9 @@ const ICONES_PLANO = {
 
 export function AssinaturaVencidaPainel({ contexto, branding }: Props) {
   const router = useRouter();
-  const [periodo, setPeriodo] = useState<PeriodoCobranca>("mensal");
+  const [periodo, setPeriodo] = useState<PeriodoCobranca>(
+    contexto.periodoCobrancaPreferido ?? "mensal"
+  );
   const planos = recursosPlanosAssinatura(periodo);
   const logo = dimensoesLogoPx(
     {

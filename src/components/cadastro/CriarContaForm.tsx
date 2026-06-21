@@ -21,7 +21,13 @@ import {
 import { salvarUltimoLaboratorioLogin } from "@/lib/auth-client";
 import type { LabImpressaoConfig } from "@/lib/lab-impressao";
 import { dimensoesLogoPx } from "@/lib/lab-logo";
+import {
+  recursosPlanosAssinatura,
+  type PeriodoCobranca,
+  type PlanoEmpresa,
+} from "@/lib/master-planos";
 import { cn } from "@/lib/utils";
+import { SeletorPeriodoCobranca } from "@/components/assinatura/SeletorPeriodoCobranca";
 import {
   formatarCpfCnpj,
   formatarTelefone,
@@ -33,47 +39,20 @@ const ESTADOS_BR = [
   "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
 ];
 
-const PLANOS = [
-  {
-    id: "basico" as const,
-    nome: "Básico",
-    preco: "R$ 99,90",
-    cor: "emerald",
-    Icon: Plane,
-    itens: [
-      "Até 2 usuários",
-      "Até 100 trabalhos por mês",
-      "Relatórios básicos",
-    ],
-  },
-  {
-    id: "profissional" as const,
-    nome: "Profissional",
-    preco: "R$ 199,90",
-    cor: "blue",
-    Icon: Crown,
-    itens: [
-      "Até 5 usuários",
-      "Até 500 trabalhos por mês",
-      "Relatórios avançados",
-      "Backup automático",
-    ],
-  },
-  {
-    id: "premium" as const,
-    nome: "Premium",
-    preco: "R$ 299,90",
-    cor: "violet",
-    Icon: Diamond,
-    itens: [
-      "Usuários ilimitados",
-      "Trabalhos ilimitados",
-      "Relatórios avançados",
-      "Backup automático",
-      "Integrações exclusivas",
-    ],
-  },
-];
+const ICONES_PLANO = {
+  basico: Plane,
+  profissional: Crown,
+  premium: Diamond,
+} as const;
+
+const CORES_PLANO: Record<
+  PlanoEmpresa,
+  { cor: "emerald" | "blue" | "violet" }
+> = {
+  basico: { cor: "emerald" },
+  profissional: { cor: "blue" },
+  premium: { cor: "violet" },
+};
 
 type Props = {
   branding: {
@@ -85,6 +64,8 @@ type Props = {
 
 export function CriarContaForm({ branding }: Props) {
   const router = useRouter();
+  const [periodo, setPeriodo] = useState<PeriodoCobranca>("mensal");
+  const planos = recursosPlanosAssinatura(periodo);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
@@ -99,7 +80,7 @@ export function CriarContaForm({ branding }: Props) {
     emailLaboratorio: "",
     cidade: "",
     estado: "SP",
-    plano: "profissional" as "basico" | "profissional" | "premium",
+    plano: "profissional" as PlanoEmpresa,
     adminNome: "",
     adminEmail: "",
     adminSenha: "",
@@ -128,7 +109,10 @@ export function CriarContaForm({ branding }: Props) {
       const res = await fetch("/api/empresas/cadastro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          periodoCobranca: periodo,
+        }),
       });
       const data = (await res.json()) as {
         error?: string;
@@ -399,25 +383,35 @@ export function CriarContaForm({ branding }: Props) {
               <Crown className="h-4 w-4" />
               3. Escolha seu Plano
             </h2>
+            <div className="mb-5 flex flex-col items-center gap-3">
+              <SeletorPeriodoCobranca periodo={periodo} onChange={setPeriodo} />
+              {periodo === "anual" ? (
+                <p className="text-center text-xs text-emerald-700">
+                  Plano anual: 12 meses com desconto (Básico 10%, Profissional 13%, Premium 15%).
+                </p>
+              ) : null}
+            </div>
             <div className="grid gap-4 md:grid-cols-3">
-              {PLANOS.map((plano) => {
+              {planos.map((plano) => {
                 const selecionado = form.plano === plano.id;
+                const { cor } = CORES_PLANO[plano.id];
+                const Icone = ICONES_PLANO[plano.id];
                 const corBorda =
-                  plano.cor === "emerald"
+                  cor === "emerald"
                     ? "border-emerald-500 ring-emerald-100"
-                    : plano.cor === "violet"
+                    : cor === "violet"
                       ? "border-violet-500 ring-violet-100"
                       : "border-[#0066FF] ring-blue-100";
                 const corIcone =
-                  plano.cor === "emerald"
+                  cor === "emerald"
                     ? "text-emerald-500"
-                    : plano.cor === "violet"
+                    : cor === "violet"
                       ? "text-violet-500"
                       : "text-[#0066FF]";
                 const corCheck =
-                  plano.cor === "emerald"
+                  cor === "emerald"
                     ? "text-emerald-500"
-                    : plano.cor === "violet"
+                    : cor === "violet"
                       ? "text-violet-500"
                       : "text-[#0066FF]";
 
@@ -438,7 +432,7 @@ export function CriarContaForm({ branding }: Props) {
                           corIcone
                         )}
                       >
-                        <plano.Icon className="h-5 w-5" />
+                        <Icone className="h-5 w-5" />
                       </div>
                       <span
                         className={cn(
@@ -450,10 +444,19 @@ export function CriarContaForm({ branding }: Props) {
                       </span>
                     </div>
                     <p className="font-semibold text-slate-900">{plano.nome}</p>
-                    <p className="mt-1 text-lg font-bold text-slate-800">
-                      {plano.preco}
-                      <span className="text-xs font-normal text-slate-500"> /mês</span>
-                    </p>
+                    {plano.descontoAnualLabel ? (
+                      <span className="mt-1 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                        {plano.descontoAnualLabel}
+                      </span>
+                    ) : null}
+                    <div className="mt-1">
+                      {plano.precoCheioAnualLabel ? (
+                        <p className="text-sm text-slate-400 line-through">
+                          {plano.precoCheioAnualLabel}
+                        </p>
+                      ) : null}
+                      <p className="text-lg font-bold text-slate-800">{plano.precoLabel}</p>
+                    </div>
                     <ul className="mt-4 space-y-2">
                       {plano.itens.map((item) => (
                         <li
