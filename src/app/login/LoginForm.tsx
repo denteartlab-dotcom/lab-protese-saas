@@ -472,6 +472,14 @@ export function LoginForm({
                 <Eye className="h-3.5 w-3.5" />
               </button>
             </div>
+            <div className="flex justify-end">
+              <a
+                href="/recuperar-senha"
+                className="text-[10px] font-medium text-blue-600 hover:underline"
+              >
+                Esqueceu sua senha?
+              </a>
+            </div>
           </div>
 
           <label className="flex cursor-pointer items-center gap-2 text-[10px] text-slate-600">

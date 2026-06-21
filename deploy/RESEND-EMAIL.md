@@ -76,6 +76,7 @@ Após editar na VPS:
 
 ```bash
 cd /opt/lab-protese-saas
+npx prisma db push
 bash deploy/atualizar-producao.sh && pm2 restart lab-protese
 ```
 

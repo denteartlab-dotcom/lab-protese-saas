@@ -60,6 +60,8 @@ export function LabDocumentHead() {
     pathname === "/" ||
     pathname === "/login" ||
     pathname === "/cadastro" ||
+    pathname === "/recuperar-senha" ||
+    pathname === "/redefinir-senha" ||
     pathname.startsWith("/assinatura-vencida") ||
     pathname.startsWith("/pagamento");
 
