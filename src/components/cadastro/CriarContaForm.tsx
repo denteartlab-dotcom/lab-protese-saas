@@ -56,7 +56,6 @@ export function CriarContaForm() {
   });
 
   const forcaSenha = validarForcaSenha(form.adminSenha);
-  const paisAtual = paisPorIso(form.pais);
 
   function atualizar<K extends keyof typeof form>(campo: K, valor: typeof form[K]) {
     setForm((f) => ({ ...f, [campo]: valor }));
@@ -250,28 +249,31 @@ export function CriarContaForm() {
               ) : null}
             </div>
 
-            <div>
-              <label className={labelCls} htmlFor="cadastro-codigo">
-                Código de verificação
-              </label>
-              <input
-                id="cadastro-codigo"
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                className={cn(inputCls, "tracking-[0.35em] text-center font-semibold")}
-                value={form.codigoVerificacao}
-                onChange={(e) =>
-                  atualizar("codigoVerificacao", e.target.value.replace(/\D/g, "").slice(0, 6))
-                }
-                placeholder="000000"
-                required
-                autoComplete="one-time-code"
-              />
-              <p className="mt-1 text-[10px] text-slate-400">
-                Enviamos um código de 6 dígitos para o seu e-mail. Válido por 10 minutos.
-              </p>
-            </div>
+            {codigoEnviado ? (
+              <div>
+                <label className={labelCls} htmlFor="cadastro-codigo">
+                  Código de verificação
+                </label>
+                <input
+                  id="cadastro-codigo"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  className={cn(inputCls, "tracking-[0.35em] text-center font-semibold")}
+                  value={form.codigoVerificacao}
+                  onChange={(e) =>
+                    atualizar("codigoVerificacao", e.target.value.replace(/\D/g, "").slice(0, 6))
+                  }
+                  placeholder="000000"
+                  required
+                  autoComplete="one-time-code"
+                  autoFocus
+                />
+                <p className="mt-1 text-[10px] text-slate-400">
+                  Enviamos um código de 6 dígitos para o seu e-mail. Válido por 10 minutos.
+                </p>
+              </div>
+            ) : null}
 
             <div>
               <label className={labelCls} htmlFor="cadastro-pais">
@@ -284,11 +286,6 @@ export function CriarContaForm() {
                 onChange={(iso) => selecionarPais(iso)}
                 aria-label="País"
               />
-              {paisAtual ? (
-                <p className="mt-1 truncate text-[10px] text-slate-400">
-                  {paisAtual.bandeira} {paisAtual.nome}
-                </p>
-              ) : null}
             </div>
 
             <div>
@@ -307,7 +304,7 @@ export function CriarContaForm() {
                       pais: pais?.iso ?? f.pais,
                     }));
                   }}
-                  className="w-[96px] shrink-0"
+                  className="w-[112px] shrink-0"
                   aria-label="Código telefone país"
                 />
                 <input

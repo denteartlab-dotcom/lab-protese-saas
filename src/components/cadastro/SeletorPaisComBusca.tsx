@@ -51,18 +51,30 @@ function rotuloSelecionado(modo: Modo, value: string, paisIso?: string) {
 
   if (modo === "pais") {
     return (
-      <span className="text-xl leading-none" aria-label={pais.nome} title={pais.nome}>
-        {pais.bandeira}
+      <span
+        className="flex items-center gap-2 truncate"
+        aria-label={pais.nome}
+        title={pais.nome}
+      >
+        <span className="text-lg leading-none" aria-hidden>
+          {pais.bandeira}
+        </span>
+        <span className="truncate text-sm font-medium text-slate-700">{pais.iso}</span>
       </span>
     );
   }
 
   return (
-    <span className="flex items-center gap-1.5 truncate" title={`${pais.nome} ${pais.dial}`}>
+    <span
+      className="flex items-center gap-1 truncate"
+      title={`${pais.nome} ${pais.dial}`}
+    >
       <span className="text-base leading-none" aria-hidden>
         {pais.bandeira}
       </span>
-      <span className="truncate text-xs font-medium">{pais.dial}</span>
+      <span className="truncate text-[11px] font-medium text-slate-700">
+        {pais.iso} {pais.dial}
+      </span>
     </span>
   );
 }
@@ -128,13 +140,10 @@ export function SeletorPaisComBusca({
         onClick={() => setAberto((v) => !v)}
         className={cn(
           "flex h-10 w-full items-center justify-between gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-left text-sm text-slate-800 outline-none transition hover:border-slate-300 focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/15",
-          modo === "pais" && "justify-center px-2",
-          modo === "telefone" && "min-w-[96px]"
+          modo === "telefone" && "min-w-[108px]"
         )}
       >
-        <span className={cn("min-w-0 flex-1", modo === "pais" && "flex justify-center")}>
-          {rotuloSelecionado(modo, value, paisIso)}
-        </span>
+        <span className="min-w-0 flex-1">{rotuloSelecionado(modo, value, paisIso)}</span>
         <ChevronDown className={cn("h-4 w-4 shrink-0 text-slate-400 transition", aberto && "rotate-180")} />
       </button>
 
@@ -174,10 +183,15 @@ export function SeletorPaisComBusca({
                         selecionado && "bg-blue-50 text-[#0066FF]"
                       )}
                     >
-                      <span className="text-base leading-none" aria-hidden>
+                      <span
+                        className="inline-flex h-4 w-5 shrink-0 items-center justify-center text-sm leading-none"
+                        aria-hidden
+                      >
                         {pais.bandeira}
                       </span>
-                      <span className="min-w-0 flex-1 truncate">{pais.nome}</span>
+                      <span className="min-w-0 flex-1 truncate text-sm text-slate-700">
+                        {pais.nome}
+                      </span>
                       {modo === "telefone" ? (
                         <span className="shrink-0 font-medium text-slate-600">{pais.dial}</span>
                       ) : null}
