@@ -55,6 +55,11 @@ import {
   descontoItemResolvidoParaValor,
   descontoZeradoPorTipo,
 } from "@/lib/cabecalho-os-form";
+import {
+  aplicarRepresentanteEmColaboradoresOs,
+  aplicarRepresentanteEmEtapasOs,
+  nomeRepresentanteColaboradorCliente,
+} from "@/lib/cliente-representante";
 import { calcularDatasPrazoServico } from "@/lib/prazos-servico";
 import {
   ARMAZENAMENTO_LAB_PRONTO_EVENT,
@@ -133,7 +138,12 @@ import {
   urlImagemDente,
 } from "@/lib/dentes-imagens";
 
-type Cliente = { id: string; nome: string; observacoes?: string | null };
+type Cliente = {
+  id: string;
+  nome: string;
+  observacoes?: string | null;
+  representanteColaboradorId?: string | null;
+};
 type Produto = { id: string; nome: string; categoria?: string | null; valor: number; estoque?: number; unidadeMedida?: string };
 type TerceirizadoOpcao = {
   id: string;
@@ -1094,6 +1104,35 @@ export default function OrdemServicoPage() {
     );
   }, [editId, form.clienteId, clientes, lancamentosFinanceiros]);
 
+  function nomeRepresentanteClienteAtual(clienteId = form.clienteId) {
+    if (!clienteId) return "";
+    const cliente = clientes.find((item) => item.id === clienteId);
+    return nomeRepresentanteColaboradorCliente(cliente, colaboradoresOpcoes);
+  }
+
+  function aplicarRepresentanteClienteNaOs(
+    etapasAtuais: typeof etapas,
+    colaboradoresAtuais: typeof colaboradores,
+    servico?: ServicoTabelaPrecoOs
+  ) {
+    const nome = nomeRepresentanteClienteAtual();
+    if (!nome) {
+      return { etapas: etapasAtuais, colaboradores: colaboradoresAtuais };
+    }
+    return {
+      etapas: aplicarRepresentanteEmEtapasOs(etapasAtuais, nome, (etapa) =>
+        sincronizarComissaoEtapa(etapa)
+      ),
+      colaboradores: aplicarRepresentanteEmColaboradoresOs(
+        colaboradoresAtuais,
+        nome,
+        servico,
+        form.repeticao,
+        colaboradoresOpcoes
+      ),
+    };
+  }
+
   function aplicarConfiguracaoCliente(clienteId: string) {
     const config = clienteConfig(clienteId);
     const descontoTipo = config.descontoGeralTipo || "percentual";
@@ -1110,6 +1149,14 @@ export default function OrdemServicoPage() {
         descontoCliente
       ),
     }));
+
+    const representante = aplicarRepresentanteClienteNaOs(
+      etapas,
+      colaboradores,
+      servicoOsAtual
+    );
+    setEtapas(representante.etapas);
+    setColaboradores(representante.colaboradores);
   }
 
   function descontoGeralDoClienteSelecionado(clienteId = form.clienteId) {
@@ -1273,20 +1320,32 @@ export default function OrdemServicoPage() {
       dataDentista: prazos.dataDentista,
     }));
     if (servicoTemEtapasNaTabela(servico)) {
-      setEtapas(
-        etapasIniciaisFormParaOsServico(
+      setIndiceEtapaAtual(0);
+      setAbaServico("etapas");
+    } else {
+      setIndiceEtapaAtual(0);
+    }
+
+    const etapasIniciais = servicoTemEtapasNaTabela(servico)
+      ? etapasIniciaisFormParaOsServico(
           servico,
           modelosEtapas,
           form.dataLancamento,
           form.horaLaboratorio
         ).map((etapa) => sincronizarComissaoEtapa(etapa))
-      );
-      setIndiceEtapaAtual(0);
-      setAbaServico("etapas");
-    } else {
-      setEtapas([]);
-      setIndiceEtapaAtual(0);
-    }
+      : [];
+
+    const colaboradoresIniciais = servicoTemComissoesColaboradoresNaTabela(servico)
+      ? colaboradoresIniciaisFormParaOsServico(servico, form.repeticao)
+      : [];
+
+    const comRepresentante = aplicarRepresentanteClienteNaOs(
+      etapasIniciais,
+      colaboradoresIniciais,
+      servico
+    );
+    setEtapas(comRepresentante.etapas);
+    setColaboradores(comRepresentante.colaboradores);
     setAvisoAdicionarServico("");
   }
 

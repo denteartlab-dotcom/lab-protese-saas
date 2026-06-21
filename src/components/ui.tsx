@@ -277,12 +277,19 @@ export function Modal({
   onClose: () => void;
   title: string;
   children: React.ReactNode;
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "sm" | "md" | "lg" | "xl" | "2xl";
   /** z-index da camada (ex.: z-[60] sobre outro modal). */
   layerClassName?: string;
 }) {
   if (!open) return null;
-  const sizes = { sm: "max-w-md", md: "max-w-lg", lg: "max-w-2xl", xl: "max-w-6xl" };
+  const sizes = {
+    sm: "max-w-md",
+    md: "max-w-lg",
+    lg: "max-w-2xl",
+    xl: "max-w-6xl",
+    "2xl": "max-w-[min(1200px,95vw)]",
+  };
+  const alturaConteudo = size === "2xl" ? "max-h-[90vh]" : "max-h-[80vh]";
   return (
     <div
       className={cn(
@@ -307,7 +314,7 @@ export function Modal({
             ✕
           </button>
         </div>
-        <div className="max-h-[80vh] overflow-y-auto p-5">{children}</div>
+        <div className={cn("overflow-y-auto p-5", alturaConteudo)}>{children}</div>
       </div>
     </div>
   );

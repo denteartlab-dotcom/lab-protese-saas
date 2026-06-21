@@ -18,6 +18,7 @@ const schema = z.object({
   uf: z.string().optional(),
   cep: z.string().optional(),
   observacoes: z.string().optional(),
+  representanteColaboradorId: z.string().optional().nullable(),
 });
 
 export async function GET(request: Request) {

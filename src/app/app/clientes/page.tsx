@@ -5,7 +5,7 @@ import { Eye, MessageCircle, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { BotoesListagemClientes } from "@/components/clientes/BotoesListagemClientes";
 import { ImportarClientesExcelModal } from "@/components/clientes/ImportarClientesExcelModal";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
-import { Button, Input, Modal } from "@/components/ui";
+import { Button, Input, Modal, Textarea } from "@/components/ui";
 import { abrirWhatsAppAcompanhamentoCliente } from "@/lib/whatsapp";
 import {
   abreviacaoCliente,
@@ -41,6 +41,14 @@ import {
   gerarListaClientesPdf,
 } from "@/lib/clientes-lista-export";
 import { configValueFromObservacoes } from "@/lib/cliente-financeiro";
+import {
+  nomeRepresentanteColaboradorCliente,
+  resolverRepresentanteColaboradorId,
+} from "@/lib/cliente-representante";
+import {
+  carregarColaboradoresListagem,
+  type ColaboradorListagem,
+} from "@/lib/colaboradores-listagem";
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
 
 type Cliente = {
@@ -57,6 +65,7 @@ type Cliente = {
   uf?: string | null;
   cep?: string | null;
   observacoes?: string | null;
+  representanteColaboradorId?: string | null;
   _count?: { pacientes: number; trabalhos: number };
 };
 
@@ -91,7 +100,7 @@ const empty = {
   contatoTelefoneComercial: "",
   contatoWhatsapp: "",
   contatoEmail: "",
-  representante: "",
+  representanteColaboradorId: "",
   descricaoEndereco: "Endereço Principal",
   rua: "",
   numero: "",
@@ -125,6 +134,7 @@ export default function ClientesPage() {
   const [enviandoWhatsAppId, setEnviandoWhatsAppId] = useState<string | null>(null);
   const [tabelasPreco, setTabelasPreco] = useState<string[]>(["Tabela Principal"]);
   const [buscandoCep, setBuscandoCep] = useState(false);
+  const [colaboradores, setColaboradores] = useState<ColaboradorListagem[]>([]);
   const [entregadores, setEntregadores] = useState<string[]>([]);
   const [importarAberto, setImportarAberto] = useState(false);
   const [processandoLista, setProcessandoLista] = useState(false);
@@ -254,9 +264,15 @@ export default function ClientesPage() {
   }, [open]);
 
   useEffect(() => {
+    if (!open) return;
+    setColaboradores(carregarColaboradoresListagem());
+  }, [open]);
+
+  useEffect(() => {
     const local = carregarNomesTabelasPreco();
     if (local.length) setTabelasPreco(local);
     void recarregarTabelasPreco();
+    setColaboradores(carregarColaboradoresListagem());
     const aoAtualizar = () => void recarregarTabelasPreco();
     window.addEventListener(TABELA_PRECOS_EVENT, aoAtualizar);
     return () => {
@@ -342,6 +358,8 @@ export default function ClientesPage() {
   }
 
   function openEdit(c: Cliente) {
+    const cols = carregarColaboradoresListagem();
+    setColaboradores(cols);
     setEditing(c);
     ultimoCepBuscado.current = (c.cep || "").replace(/\D/g, "");
     setForm({
@@ -358,11 +376,11 @@ export default function ClientesPage() {
       celular: c.celular || "",
       whatsapp: c.celular || "",
       email: c.email || "",
-      contato: "",
-      contatoTelefoneComercial: "",
-      contatoWhatsapp: "",
-      contatoEmail: "",
-      representante: "",
+      contato: configValue(c.observacoes, "Contato:"),
+      contatoTelefoneComercial: configValue(c.observacoes, "Telefone Contato:"),
+      contatoWhatsapp: configValue(c.observacoes, "WhatsApp Contato:"),
+      contatoEmail: configValue(c.observacoes, "Email Contato:"),
+      representanteColaboradorId: resolverRepresentanteColaboradorId(c, cols),
       descricaoEndereco: "Endereço Principal",
       rua: c.endereco || "",
       numero: "",
@@ -406,6 +424,7 @@ export default function ClientesPage() {
       cidade: form.cidade,
       uf: form.uf,
       cep: form.cep,
+      representanteColaboradorId: form.representanteColaboradorId.trim() || null,
       observacoes: mesclarObservacoesComDataNascimento(
         mesclarObservacoesComEntregaCliente(
           [
@@ -415,7 +434,6 @@ export default function ClientesPage() {
             form.contato ? `Contato: ${form.contato}` : "",
             form.contatoTelefoneComercial ? `Telefone Contato: ${form.contatoTelefoneComercial}` : "",
             form.contatoWhatsapp ? `WhatsApp Contato: ${form.contatoWhatsapp}` : "",
-            form.representante ? `Representante: ${form.representante}` : "",
             form.tabelaPreco ? `Tabela de Preço: ${form.tabelaPreco}` : "",
             `Desconto Geral: ${form.descontoGeral || "0,00"}`,
             `Desconto Geral Tipo: ${form.descontoGeralTipo || "percentual"}`,
@@ -797,7 +815,8 @@ export default function ClientesPage() {
                               <p><span className="font-semibold text-slate-700">Email:</span> {c.email || ""}</p>
                               <p><span className="font-semibold text-slate-700">Cidade/UF:</span> {[c.cidade, c.uf].filter(Boolean).join(" / ")}</p>
                               <p className="md:col-span-2"><span className="font-semibold text-slate-700">Endereço:</span> {c.endereco || ""}</p>
-                              <p className="md:col-span-2"><span className="font-semibold text-slate-700">Observações:</span> {c.observacoes || ""}</p>
+                              <p><span className="font-semibold text-slate-700">Representante:</span> {nomeRepresentanteColaboradorCliente(c, colaboradores) || ""}</p>
+                              <p className="md:col-span-2"><span className="font-semibold text-slate-700">Observações:</span> {observacoesTextoLivreCliente(c.observacoes) || ""}</p>
                             </div>
                             <button
                               type="button"
@@ -829,8 +848,8 @@ export default function ClientesPage() {
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title={editing ? "Cadastro de Clientes" : "Cadastro de Clientes"}
-        size="xl"
+        title={editing ? "Editar Cliente" : "Cadastro de Cliente"}
+        size="2xl"
       >
         <form onSubmit={save} className="space-y-7 text-xs">
           <div className="flex gap-6 border-b border-slate-200 text-slate-500">
@@ -906,6 +925,41 @@ export default function ClientesPage() {
               <Input label="WhatsApp" value={form.contatoWhatsapp} onChange={(e) => setForm({ ...form, contatoWhatsapp: e.target.value })} />
               <Input label="Email" type="email" value={form.contatoEmail} onChange={(e) => setForm({ ...form, contatoEmail: e.target.value })} />
             </div>
+          </div>
+
+          <Textarea
+            label="Observações"
+            value={form.observacoes}
+            onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+            placeholder="Digite aqui as observações..."
+            rows={4}
+            className="min-h-[96px] text-xs"
+          />
+
+          <div className="space-y-1 md:max-w-md">
+            <label className="flex items-center gap-1.5 text-[11px] text-slate-600">
+              Representante (Colaborador)
+              <span
+                className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#4a90d9] text-[10px] font-bold text-white"
+                title="Colaborador responsável pelos trabalhos deste cliente nas ordens de serviço"
+              >
+                i
+              </span>
+            </label>
+            <select
+              value={form.representanteColaboradorId}
+              onChange={(e) =>
+                setForm({ ...form, representanteColaboradorId: e.target.value })
+              }
+              className="h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs outline-none focus:border-primary-500"
+            >
+              <option value="">Selecione um colaborador...</option>
+              {colaboradores.map((colaborador) => (
+                <option key={colaborador.id} value={colaborador.id}>
+                  {colaborador.nome}
+                </option>
+              ))}
+            </select>
           </div>
           </>
           )}
@@ -1139,7 +1193,7 @@ export default function ClientesPage() {
 
           <div className="flex justify-end gap-3 pt-4">
             <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-              {editing ? "Salvar Cliente" : "Cadastrar Cliente"}
+              {editing ? "Gravar Alterações" : "Cadastrar Cliente"}
             </Button>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Fechar

@@ -109,6 +109,7 @@ model Cliente {
   uf                  String?
   cep                 String?
   observacoes         String?
+  representanteColaboradorId String?
   tokenAcompanhamento String?    @unique
   ativo               Boolean    @default(true)
   createdAt           DateTime   @default(now())

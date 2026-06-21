@@ -60,6 +60,11 @@ import { bodyTrabalhoSemNull } from "@/lib/trabalho-api-body";
 import { ConfiguracaoListaGear } from "@/components/listagem/ConfiguracaoListaGear";
 import { Button, CampoDataBr, Input, Select, SelectPesquisavel, Textarea } from "@/components/ui";
 import { parseCurrencyBr } from "@/lib/cliente-financeiro";
+import {
+  aplicarRepresentanteEmColaboradoresOs,
+  aplicarRepresentanteEmEtapasOs,
+  nomeRepresentanteColaboradorCliente,
+} from "@/lib/cliente-representante";
 import { brShortToIso, parseBrDate } from "@/lib/datas-br";
 import { propsInputComSelecaoAoFocar } from "@/lib/input-selecao";
 import { calcularDatasPrazoServico } from "@/lib/prazos-servico";
@@ -312,6 +317,7 @@ type ClienteCatalogo = {
   id: string;
   nome: string;
   observacoes?: string | null;
+  representanteColaboradorId?: string | null;
 };
 
 function descontoGeralClienteControle(
@@ -1578,16 +1584,19 @@ export default function ControlePage() {
         : atual
     );
     if (servicoTemEtapasNaTabela(servico)) {
+      const etapasIniciais = etapasIniciaisFormParaOsServico(
+        servico,
+        modelosEtapasOs,
+        form.dataLancamento,
+        form.horaLaboratorio
+      ).map((etapa) => ({
+        ...etapa,
+        setor: etapa.setor || modelosEtapasOs.find((m) => m.nome === etapa.nome)?.setor || "",
+      }));
+      const cliente = clientesCatalogo.find((item) => item.id === form.clienteId);
+      const nomeRep = nomeRepresentanteColaboradorCliente(cliente, colaboradoresOpcoes);
       setEtapasEdicao(
-        etapasIniciaisFormParaOsServico(
-          servico,
-          modelosEtapasOs,
-          form.dataLancamento,
-          form.horaLaboratorio
-        ).map((etapa) => ({
-          ...etapa,
-          setor: etapa.setor || modelosEtapasOs.find((m) => m.nome === etapa.nome)?.setor || "",
-        }))
+        nomeRep ? aplicarRepresentanteEmEtapasOs(etapasIniciais, nomeRep) : etapasIniciais
       );
       setIndiceEtapaAtualEdicao(0);
       setAbaServicoEdicao("etapas");
@@ -1596,7 +1605,20 @@ export default function ControlePage() {
       setIndiceEtapaAtualEdicao(0);
     }
     if (servicoTemComissoesColaboradoresNaTabela(servico)) {
-      setColaboradoresEdicao(colaboradoresIniciaisFormParaOsServico(servico, Boolean(form.repeticao)));
+      const cols = colaboradoresIniciaisFormParaOsServico(servico, Boolean(form.repeticao));
+      const cliente = clientesCatalogo.find((item) => item.id === form.clienteId);
+      const nomeRep = nomeRepresentanteColaboradorCliente(cliente, colaboradoresOpcoes);
+      setColaboradoresEdicao(
+        nomeRep
+          ? aplicarRepresentanteEmColaboradoresOs(
+              cols,
+              nomeRep,
+              servico,
+              Boolean(form.repeticao),
+              colaboradoresOpcoes
+            )
+          : cols
+      );
     }
     if (servicoTemComissoesTerceirizadosNaTabela(servico)) {
       setTerceirizadosEdicao(
@@ -3589,11 +3611,30 @@ export default function ControlePage() {
                     if (!atual) return atual;
                     const next = { ...atual, ...patch };
                     if (patch.clienteId && patch.clienteId !== atual.clienteId) {
-                      const observacoes = clientesCatalogo.find(
+                      const cliente = clientesCatalogo.find(
                         (item) => item.id === patch.clienteId
-                      )?.observacoes;
+                      );
+                      const observacoes = cliente?.observacoes;
                       next.descontoTipo = "percentual";
                       next.desconto = clienteDescontoGeralDeObservacoes(observacoes) || "0,00";
+                      const nomeRep = nomeRepresentanteColaboradorCliente(
+                        cliente,
+                        colaboradoresOpcoes
+                      );
+                      if (nomeRep) {
+                        setEtapasEdicao((prev) =>
+                          aplicarRepresentanteEmEtapasOs(prev, nomeRep)
+                        );
+                        setColaboradoresEdicao((prev) =>
+                          aplicarRepresentanteEmColaboradoresOs(
+                            prev,
+                            nomeRep,
+                            undefined,
+                            Boolean(next.repeticao),
+                            colaboradoresOpcoes
+                          )
+                        );
+                      }
                     }
                     return next;
                   })

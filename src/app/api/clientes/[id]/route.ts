@@ -18,6 +18,7 @@ const schema = z.object({
   uf: z.string().optional().nullable(),
   cep: z.string().optional().nullable(),
   observacoes: z.string().optional().nullable(),
+  representanteColaboradorId: z.string().optional().nullable(),
   ativo: z.boolean().optional(),
 });
 
