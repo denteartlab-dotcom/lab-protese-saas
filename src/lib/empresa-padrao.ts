@@ -1,13 +1,20 @@
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
 import { CONFIG_LAB_PADRAO, CONFIG_LAB_STORAGE_KEY } from "@/lib/configuracoes-lab";
 import { ETAPAS_STORAGE_KEY } from "@/lib/etapas-os";
+import { MATERIAIS_DENTISTA_STORAGE_KEY } from "@/lib/materiais-dentista-cadastro";
 import { MODULO_PRODUCAO_ETAPAS_STORAGE_KEY } from "@/lib/modulo-producao-etapas";
+import {
+  PLANO_CONTAS_STORAGE_VERSION,
+} from "@/lib/plano-contas";
 import { salvarJsonStoreTenant } from "@/lib/json-store-tenant";
 import { normalizarSlugEmpresa } from "@/lib/rotas-app";
 import {
   TABELA_PRECOS_STORAGE_KEY,
   TABELA_PRECOS_VAZIA,
 } from "@/lib/tabela-precos-os";
+import { CORES_OS_STORAGE_KEY } from "@/lib/cores-os-cadastro";
+import { ITENS_CUSTO_CADASTRO_KEY } from "@/lib/itens-custo-cadastro";
+import { ETIQUETAS_CATEGORIA_STORAGE_KEY } from "@/lib/etiquetas-categoria";
 
 export function configLaboratorioInicial(nomeEmpresa: string): ConfigLaboratorio {
   return {
@@ -32,6 +39,11 @@ export async function gravarDadosPadraoEmpresa(
     salvarJsonStoreTenant(empresaId, "labProteseSetores", []),
     salvarJsonStoreTenant(empresaId, "labProteseSetoresExcluidos", []),
     salvarJsonStoreTenant(empresaId, "labProtesePlanoContas", []),
+    salvarJsonStoreTenant(
+      empresaId,
+      "labProtesePlanoContasVersion",
+      String(PLANO_CONTAS_STORAGE_VERSION)
+    ),
     salvarJsonStoreTenant(empresaId, "labProteseColaboradores", []),
     salvarJsonStoreTenant(empresaId, "labProteseColaboradoresExcluidos", []),
     salvarJsonStoreTenant(empresaId, "labProteseFornecedores", []),
@@ -45,6 +57,10 @@ export async function gravarDadosPadraoEmpresa(
     salvarJsonStoreTenant(empresaId, "labProteseProdutosEstoqueExtras", {}),
     salvarJsonStoreTenant(empresaId, "labProteseProdutosExcluidos", []),
     salvarJsonStoreTenant(empresaId, "labProteseProdutosRemovidosPermanentemente", []),
+    salvarJsonStoreTenant(empresaId, MATERIAIS_DENTISTA_STORAGE_KEY, []),
+    salvarJsonStoreTenant(empresaId, CORES_OS_STORAGE_KEY, []),
+    salvarJsonStoreTenant(empresaId, ITENS_CUSTO_CADASTRO_KEY, []),
+    salvarJsonStoreTenant(empresaId, ETIQUETAS_CATEGORIA_STORAGE_KEY, []),
   ]);
 }
 

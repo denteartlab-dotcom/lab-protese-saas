@@ -1,4 +1,4 @@
-import { readStorage, writeStorage } from "@/lib/persisted-storage";
+import { readStorage, writeStorage, chaveExisteNoServidor } from "@/lib/persisted-storage";
 
 export type SecaoPlanoContas = "receitas" | "despesas";
 
@@ -315,18 +315,24 @@ export const PLANO_CONTAS_PADRAO: ItemPlanoContas[] = [
 ];
 
 export function carregarPlanoContas(): ItemPlanoContas[] {
-  if (typeof window === "undefined") return PLANO_CONTAS_PADRAO;
+  if (typeof window === "undefined") return [];
   try {
     const versaoSalva = readStorage<string | null>(PLANO_CONTAS_STORAGE_VERSION_KEY, null);
+    const parsed = readStorage<ItemPlanoContas[] | null>(PLANO_CONTAS_STORAGE_KEY, null);
+    const lista = Array.isArray(parsed) ? parsed : [];
+
     if (versaoSalva !== String(PLANO_CONTAS_STORAGE_VERSION)) {
+      if (chaveExisteNoServidor(PLANO_CONTAS_STORAGE_KEY)) {
+        salvarPlanoContas(lista);
+        return lista;
+      }
       salvarPlanoContas(PLANO_CONTAS_PADRAO);
       return PLANO_CONTAS_PADRAO;
     }
 
-    const parsed = readStorage<ItemPlanoContas[] | null>(PLANO_CONTAS_STORAGE_KEY, null);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : PLANO_CONTAS_PADRAO;
+    return lista;
   } catch {
-    return PLANO_CONTAS_PADRAO;
+    return [];
   }
 }
 

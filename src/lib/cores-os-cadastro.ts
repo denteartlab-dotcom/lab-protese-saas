@@ -1,42 +1,14 @@
 import {
-  chaveExisteNoServidor,
   persistirArmazenamentoImediato,
-  readStorage,
+  readStorageArray,
   writeStorage,
 } from "@/lib/persisted-storage";
 
 export const CORES_OS_STORAGE_KEY = "labProteseCoresOs";
 export const CORES_OS_ATUALIZADA_EVENT = "lab-cores-os-atualizada";
 
-export const CORES_OS_PADRAO: readonly string[] = [
-  "A1",
-  "A2",
-  "A3",
-  "A3.5",
-  "A4",
-  "B1",
-  "B2",
-  "B3",
-  "B4",
-  "C1",
-  "C2",
-  "C3",
-  "C4",
-  "D2",
-  "D3",
-  "D4",
-  "BL1",
-  "BL2",
-  "BL3",
-  "BL4",
-];
-
 export function carregarCoresOsCadastro(): string[] {
-  if (!chaveExisteNoServidor(CORES_OS_STORAGE_KEY)) {
-    return [...CORES_OS_PADRAO];
-  }
-  const lista = readStorage<string[]>(CORES_OS_STORAGE_KEY, []);
-  if (!Array.isArray(lista)) return [];
+  const lista = readStorageArray<string>(CORES_OS_STORAGE_KEY, []);
   return lista.map((cor) => String(cor).trim()).filter(Boolean);
 }
 

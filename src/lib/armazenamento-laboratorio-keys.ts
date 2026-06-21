@@ -43,6 +43,8 @@ export const CHAVES_ARMAZENAMENTO_LAB = [
   "labProteseFornecedoresExcluidos",
   "labProteseCategoriasFornecedores",
   "labProteseMateriaisDentista",
+  "labProteseCoresOs",
+  "labProteseItensCustoCadastro",
   "labProteseConfigLaboratorio",
   "labProteseLaboratorioId",
   "labProteseHorarioFuncionamento",
