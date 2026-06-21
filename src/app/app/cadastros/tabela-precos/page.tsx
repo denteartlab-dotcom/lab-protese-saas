@@ -49,6 +49,21 @@ import {
   type ItemCustoServico,
 } from "@/lib/custos-servico-tabela-precos";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
+import { abrirPdfGerando } from "@/lib/pdf-viewer";
+import { carregarConfigImpressaoTabelaPrecos } from "@/lib/tabela-precos-impressao-config";
+import {
+  baixarPdfTabelaPrecos,
+  exportarTabelaPrecosExcel,
+  gerarPdfTabelaPrecos,
+  textoEmailTabelaPrecos,
+  type CategoriaTabelaPrecoExport,
+} from "@/lib/tabela-precos-lista-export";
+import {
+  notificarTabelasPrecoAtualizadas,
+  sincronizarTabelaPrecosServidor,
+  TABELA_PRECOS_STORAGE_KEY,
+  TABELA_PRECOS_VAZIA,
+} from "@/lib/tabela-precos-os";
 import { cn } from "@/lib/utils";
 
 type TipoItemPreco = "servico" | "produto" | "transporte";
@@ -166,64 +181,6 @@ function botoesAdicaoVisiveis(tipo: TipoItemPreco | null) {
   return { servico: false, produto: false, transporte: true };
 }
 
-const initialCategorias: CategoriaPreco[] = [
-  {
-    id: "removivel",
-    nome: "REMOVÍVEL",
-    servicos: [
-      { id: "1", nome: "Acrilização superior", valor: 110, etapa: "Editar Etapas", tipo: "servico", destaque: false, oculto: false },
-      { id: "2", nome: "Acrilização par comum", valor: 100, etapa: "Editar Etapas", tipo: "servico", destaque: false, oculto: false },
-      { id: "3", nome: "Acrilização total sup", valor: 110, etapa: "Editar Etapas", tipo: "servico", destaque: false, oculto: false },
-      { id: "4", nome: "Acrilização TOC FT", valor: 110, etapa: "Editar Etapas", tipo: "servico", destaque: false, oculto: false },
-      { id: "5", nome: "Moldeira", valor: 150, etapa: "Editar Etapas", tipo: "servico", destaque: false, oculto: false },
-      { id: "6", nome: "Montagem prótese total", valor: 100, etapa: "Editar Etapas", tipo: "servico", destaque: false, oculto: false },
-      { id: "7", nome: "Placa de cera", valor: 50, etapa: "Editar Etapas", tipo: "servico", destaque: false, oculto: false },
-      { id: "8", nome: "PPR Caracterização", valor: 400, etapa: "Editar Etapas", tipo: "servico", destaque: false, oculto: false },
-      { id: "9", nome: "PPR montagem", valor: 100, etapa: "Editar Etapas", tipo: "servico", destaque: false, oculto: false },
-      { id: "10", nome: "Prótese total", valor: 370, etapa: "Editar Etapas", tipo: "servico", destaque: false, oculto: false },
-      { id: "11", nome: "Provisório total", valor: 270, etapa: "Editar Etapas", tipo: "servico", destaque: false, oculto: false },
-      { id: "12", nome: "Reembasamento", valor: 100, etapa: "Editar Etapas", tipo: "servico", destaque: false, oculto: false },
-    ],
-  },
-  {
-    id: "protocolo",
-    nome: "PROTOCOLO",
-    servicos: [
-      { id: "13", nome: "Acrilização Caracterizada", valor: 300, etapa: "Editar Etapas", tipo: "servico", destaque: false, oculto: false },
-      { id: "14", nome: "Acrilização Imediata", valor: 400, etapa: "Editar Etapas", tipo: "servico", destaque: false, oculto: false },
-      { id: "15", nome: "Barra Metálica", valor: 700, etapa: "Editar Etapas", tipo: "servico", destaque: false, oculto: false },
-      { id: "16", nome: "Barra Metálica Imediata", valor: 700, etapa: "Editar Etapas", tipo: "servico", destaque: false, oculto: false },
-      { id: "17", nome: "Protocolo", valor: 900, etapa: "Editar Etapas", tipo: "servico", destaque: false, oculto: false },
-      { id: "18", nome: "Montagem Protocolo", valor: 400, etapa: "Editar Etapas", tipo: "servico", destaque: false, oculto: false },
-    ],
-  },
-];
-
-import { abrirPdfGerando } from "@/lib/pdf-viewer";
-import { carregarConfigImpressaoTabelaPrecos } from "@/lib/tabela-precos-impressao-config";
-import {
-  baixarPdfTabelaPrecos,
-  exportarTabelaPrecosExcel,
-  gerarPdfTabelaPrecos,
-  textoEmailTabelaPrecos,
-  type CategoriaTabelaPrecoExport,
-} from "@/lib/tabela-precos-lista-export";
-import {
-  notificarTabelasPrecoAtualizadas,
-  sincronizarTabelaPrecosServidor,
-  TABELA_PRECOS_STORAGE_KEY,
-} from "@/lib/tabela-precos-os";
-
-const dadosPadraoTabelaPrecos = {
-  tabela: "Tabela Principal",
-  tabelas: ["Tabela Principal", "Metal safira", "tabela del"],
-  categoriasPorTabela: {
-    "Tabela Principal": initialCategorias,
-    "Metal safira": [],
-    "tabela del": [],
-  } as Record<string, CategoriaPreco[]>,
-};
-
 function money(value: number) {
   return value.toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
@@ -340,21 +297,20 @@ export default function TabelaPrecosPage() {
   const [persistenciaPronta, setPersistenciaPronta] = useState(false);
 
   const paginaPronta = usePageReady(() => {
-    type DadosTabela = typeof dadosPadraoTabelaPrecos;
+    type DadosTabela = typeof TABELA_PRECOS_VAZIA;
     const saved = readStorage<DadosTabela | null>(TABELA_PRECOS_STORAGE_KEY, null);
-    if (saved) {
-      setTabela(saved.tabela || dadosPadraoTabelaPrecos.tabela);
-      setTabelas(saved.tabelas?.length ? saved.tabelas : dadosPadraoTabelaPrecos.tabelas);
-      const categoriasSalvas = saved.categoriasPorTabela || dadosPadraoTabelaPrecos.categoriasPorTabela;
-      const categoriasNormalizadas = Object.fromEntries(
-        Object.entries(categoriasSalvas).map(([nomeTabela, cats]) => [nomeTabela, normalizarCategorias(cats)])
-      );
-      setCategoriasPorTabela(categoriasNormalizadas);
-    } else {
-      setTabela(dadosPadraoTabelaPrecos.tabela);
-      setTabelas(dadosPadraoTabelaPrecos.tabelas);
-      setCategoriasPorTabela(dadosPadraoTabelaPrecos.categoriasPorTabela);
-    }
+    const dados = saved ?? TABELA_PRECOS_VAZIA;
+    setTabela(dados.tabela?.trim() || TABELA_PRECOS_VAZIA.tabela || "Tabela Principal");
+    setTabelas(dados.tabelas?.length ? dados.tabelas : [...TABELA_PRECOS_VAZIA.tabelas!]);
+    const categoriasSalvas =
+      dados.categoriasPorTabela ?? TABELA_PRECOS_VAZIA.categoriasPorTabela ?? {};
+    const categoriasNormalizadas = Object.fromEntries(
+      Object.entries(categoriasSalvas).map(([nomeTabela, cats]) => [
+        nomeTabela,
+        normalizarCategorias(cats as CategoriaPreco[]),
+      ])
+    );
+    setCategoriasPorTabela(categoriasNormalizadas);
     setPersistenciaPronta(true);
   });
 

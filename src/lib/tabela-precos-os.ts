@@ -10,6 +10,13 @@ export const TABELA_PRECOS_EVENT = "labProteseTabelaPrecosAtualizada";
 
 const TABELAS_PADRAO = ["Tabela Principal"];
 
+/** Estado inicial de tabela de preços para laboratórios novos (sem serviços cadastrados). */
+export const TABELA_PRECOS_VAZIA: DadosTabelaPrecosStorage = {
+  tabela: "Tabela Principal",
+  tabelas: [...TABELAS_PADRAO],
+  categoriasPorTabela: { "Tabela Principal": [] },
+};
+
 type DadosTabelaPrecosStorage = {
   tabela?: string;
   tabelas?: string[];

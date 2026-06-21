@@ -91,15 +91,6 @@ type Produto = {
   unidadeMedida?: string;
 };
 
-const produtosPadrao: Produto[] = [
-  { id: "padrao-brux", nome: "Brux", marca: "emc", categoria: "Material", estoque: 0, valorCusto: 10, valor: 30 },
-  { id: "padrao-deline", nome: "Deline", marca: "labore", categoria: "Material", estoque: 0, valorCusto: 55, valor: 70 },
-  { id: "padrao-estrutura", nome: "Estrutura PPR", categoria: "Material", estoque: 2, valorCusto: 150, valor: 180 },
-  { id: "padrao-investa", nome: "Investa", categoria: "Material", estoque: 0, valorCusto: 46.8, valor: 63 },
-  { id: "padrao-newflex", nome: "New-flex", marca: "journalab", categoria: "Material", estoque: 0, valorCusto: 17, valor: 30 },
-  { id: "padrao-trilux", nome: "Trilux", categoria: "Material", estoque: 0, valorCusto: 36, valor: 60 },
-];
-
 const FORNECEDORES_STORAGE_KEY = "labProteseFornecedores";
 const PRESTADORES_STORAGE_KEY = "labProtesePrestadores";
 const COLABORADORES_STORAGE_KEY = "labProteseColaboradores";
@@ -246,9 +237,6 @@ function ProdutosConteudo() {
     }
 
     const mapa = new Map<string, Produto>();
-    for (const produto of produtosPadrao) {
-      if (!removidos.includes(produto.id)) mapa.set(produto.id, produto);
-    }
     for (const produto of fromApi) {
       if (!removidos.includes(produto.id)) mapa.set(produto.id, produto);
     }

@@ -4,6 +4,10 @@ import { ETAPAS_STORAGE_KEY, type EtapaCadastro } from "@/lib/etapas-os";
 import { MODULO_PRODUCAO_ETAPAS_STORAGE_KEY } from "@/lib/modulo-producao-etapas";
 import { salvarJsonStoreTenant } from "@/lib/json-store-tenant";
 import { normalizarSlugEmpresa } from "@/lib/rotas-app";
+import {
+  TABELA_PRECOS_STORAGE_KEY,
+  TABELA_PRECOS_VAZIA,
+} from "@/lib/tabela-precos-os";
 
 export const ETAPAS_PADRAO_EMPRESA: EtapaCadastro[] = [
   { id: "entrada", nome: "ENTRADA", setor: "Entrada", cor: "#dbeafe" },
@@ -44,6 +48,10 @@ export async function gravarDadosPadraoEmpresa(
     salvarJsonStoreTenant(empresaId, "labProtesePlanoContas", []),
     salvarJsonStoreTenant(empresaId, "labProteseColaboradores", []),
     salvarJsonStoreTenant(empresaId, "labProteseFornecedores", []),
+    salvarJsonStoreTenant(empresaId, TABELA_PRECOS_STORAGE_KEY, TABELA_PRECOS_VAZIA),
+    salvarJsonStoreTenant(empresaId, "labProteseProdutosEstoqueExtras", {}),
+    salvarJsonStoreTenant(empresaId, "labProteseProdutosExcluidos", []),
+    salvarJsonStoreTenant(empresaId, "labProteseProdutosRemovidosPermanentemente", []),
   ]);
 }
 

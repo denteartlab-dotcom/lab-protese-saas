@@ -12,15 +12,6 @@ type ProdutoBase = {
   estoqueMaximo?: number;
 };
 
-const produtosPadrao: ProdutoBase[] = [
-  { id: "padrao-brux", nome: "Brux", estoque: 0, estoqueMinimo: 0, estoqueMaximo: 0 },
-  { id: "padrao-deline", nome: "Deline", estoque: 0, estoqueMinimo: 0, estoqueMaximo: 0 },
-  { id: "padrao-estrutura", nome: "Estrutura PPR", estoque: 2, estoqueMinimo: 0, estoqueMaximo: 0 },
-  { id: "padrao-investa", nome: "Investa", estoque: 0, estoqueMinimo: 0, estoqueMaximo: 0 },
-  { id: "padrao-newflex", nome: "New-flex", estoque: 0, estoqueMinimo: 0, estoqueMaximo: 0 },
-  { id: "padrao-trilux", nome: "Trilux", estoque: 0, estoqueMinimo: 0, estoqueMaximo: 0 },
-];
-
 function estoqueEfetivo(produto: ProdutoBase, extras: ReturnType<typeof getProdutosEstoqueExtras>) {
   const extra = extras[produto.id];
   return {
@@ -43,19 +34,13 @@ export async function carregarResumoEstoqueDashboard() {
       if (Array.isArray(data)) fromApi = data as ProdutoBase[];
     }
   } catch {
-    // catálogo local
-  }
-
-  const mapa = new Map<string, ProdutoBase>();
-  for (const produto of produtosPadrao) {
-    if (!removidos.includes(produto.id)) mapa.set(produto.id, produto);
-  }
-  for (const produto of fromApi) {
-    if (!removidos.includes(produto.id)) mapa.set(produto.id, produto);
+    /* offline */
   }
 
   const extras = getProdutosEstoqueExtras();
-  const ativos = Array.from(mapa.values()).filter((p) => !excluidos.includes(p.id));
+  const ativos = fromApi.filter(
+    (produto) => produto?.id && !removidos.includes(produto.id) && !excluidos.includes(produto.id)
+  );
 
   let baixo = 0;
   let zerado = 0;

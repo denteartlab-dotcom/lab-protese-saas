@@ -29,15 +29,6 @@ type ProdutoApi = {
   unidadeMedida?: string;
 };
 
-const produtosPadrao: ProdutoApi[] = [
-  { id: "padrao-brux", nome: "Brux", marca: "emc", estoque: 0, valorCusto: 10, valor: 30 },
-  { id: "padrao-deline", nome: "Deline", marca: "labore", estoque: 0, valorCusto: 55, valor: 70 },
-  { id: "padrao-estrutura", nome: "Estrutura PPR", estoque: 2, valorCusto: 150, valor: 180 },
-  { id: "padrao-investa", nome: "Investa", estoque: 0, valorCusto: 46.8, valor: 63 },
-  { id: "padrao-newflex", nome: "New-flex", marca: "journalab", estoque: 0, valorCusto: 17, valor: 30 },
-  { id: "padrao-trilux", nome: "Trilux", estoque: 0, valorCusto: 36, valor: 60 },
-];
-
 function opcaoEstoqueValida(valor: string | null): OpcaoEstoqueControle {
   if (valor === "minimo" || valor === "maximo" || valor === "zero") return valor;
   return "todos";
@@ -99,15 +90,9 @@ function ImprimirProdutosConteudo() {
           /* mantém lista local */
         }
 
-        const mapa = new Map<string, ProdutoApi>();
-        for (const produto of produtosPadrao) {
-          if (!removidos.includes(produto.id)) mapa.set(produto.id, produto);
-        }
-        for (const produto of fromApi) {
-          if (!removidos.includes(produto.id)) mapa.set(produto.id, produto);
-        }
-
-        const ativos = Array.from(mapa.values()).filter((produto) => !excluidos.includes(produto.id));
+        const ativos = fromApi.filter(
+          (produto) => produto?.id && !removidos.includes(produto.id) && !excluidos.includes(produto.id)
+        );
         if (!ativo) return;
         setProdutos(ativos);
         setExtras(extrasLocal);

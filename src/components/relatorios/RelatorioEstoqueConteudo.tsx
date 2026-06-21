@@ -58,15 +58,6 @@ const inputDataRelatorioClass =
 
 const SETORES_STORAGE_KEY = "labProteseSetores";
 
-const PRODUTOS_PADRAO: ProdutoRelatorioEstoque[] = [
-  { id: "padrao-brux", nome: "Brux", etiqueta: "", marca: "emc" },
-  { id: "padrao-deline", nome: "Deline", etiqueta: "", marca: "labore" },
-  { id: "padrao-estrutura", nome: "Estrutura PPR", etiqueta: "", marca: "" },
-  { id: "padrao-investa", nome: "Investa", etiqueta: "", marca: "" },
-  { id: "padrao-newflex", nome: "New-flex", etiqueta: "", marca: "journalab" },
-  { id: "padrao-trilux", nome: "Trilux", etiqueta: "", marca: "" },
-];
-
 function primeiroDiaMesBr() {
   const hoje = new Date();
   return dateToBrShort(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
@@ -548,9 +539,6 @@ export function RelatorioEstoqueConteudo() {
       }
 
       const mapa = new Map<string, ProdutoRelatorioEstoque>();
-      for (const p of PRODUTOS_PADRAO) {
-        mapa.set(p.id, montarProdutoComExtras(p, extras));
-      }
       for (const p of fromApi) {
         mapa.set(p.id, montarProdutoComExtras(p, extras));
       }

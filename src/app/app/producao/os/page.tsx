@@ -87,6 +87,7 @@ import {
   produtosVisiveisNaOs,
   categoriasSelecionaveisNaOs,
   TABELA_PRECOS_EVENT,
+  TABELA_PRECOS_VAZIA,
   type ServicoTabelaPrecoOs,
 } from "@/lib/tabela-precos-os";
 import {
@@ -223,39 +224,12 @@ type ItemAdicionado = {
 type CampoData = "dataLancamento" | "dataLaboratorio" | "dataDentista";
 type TipoDenticao = "permanente" | "deciduos";
 
-const produtosPadrao: Produto[] = [
-  { id: "padrao-zirconia", nome: "Coroa em zircônia", categoria: "Fixa", valor: 450 },
-  { id: "padrao-total", nome: "Prótese total superior", categoria: "Removível", valor: 1200 },
-  { id: "padrao-protocolo", nome: "Protocolo sobre implante", categoria: "Implante", valor: 2500 },
-];
-
 const FORNECEDORES_STORAGE_KEY = "labProteseFornecedores";
 const PRESTADORES_STORAGE_KEY = "labProtesePrestadores";
 const ETAPAS_STORAGE_KEY = "labProteseEtapas";
 const SETORES_STORAGE_KEY = "labProteseSetores";
 const COLABORADORES_STORAGE_KEY = "labProteseColaboradores";
 const LIMITE_ARQUIVOS_OS = 5;
-
-const categoriasTabelaPrecoPadrao: CategoriaTabelaPreco[] = [
-  {
-    id: "removivel",
-    nome: "REMOVÍVEL",
-    servicos: [
-      { id: "1", nome: "Acrilização superior", valor: 110 },
-      { id: "2", nome: "Acrilização par comum", valor: 100 },
-      { id: "3", nome: "Prótese total", valor: 370 },
-    ],
-  },
-  {
-    id: "protocolo",
-    nome: "PROTOCOLO",
-    servicos: [
-      { id: "13", nome: "Acrilização Caracterizada", valor: 300 },
-      { id: "15", nome: "Barra Metálica", valor: 700 },
-      { id: "17", nome: "Protocolo", valor: 900 },
-    ],
-  },
-];
 
 const dentesSuperiores = ["18", "17", "16", "15", "14", "13", "12", "11", "21", "22", "23", "24", "25", "26", "27", "28"];
 const dentesInferiores = ["48", "47", "46", "45", "44", "43", "42", "41", "31", "32", "33", "34", "35", "36", "37", "38"];
@@ -487,15 +461,15 @@ export default function OrdemServicoPage() {
 
     try {
       const dados = carregarDadosTabelaPrecoOs();
-      const chaves = Object.keys(dados.categoriasPorTabela);
-      if (chaves.length > 0) {
-        setTabelaPrecoAtual(dados.tabela);
-        setCategoriasPorTabelaPreco(dados.categoriasPorTabela);
-      } else {
-        setCategoriasPorTabelaPreco({ "Tabela Principal": categoriasTabelaPrecoPadrao });
-      }
+      setTabelaPrecoAtual(dados.tabela);
+      setCategoriasPorTabelaPreco(
+        dados.categoriasPorTabela ??
+          TABELA_PRECOS_VAZIA.categoriasPorTabela ?? { "Tabela Principal": [] }
+      );
     } catch {
-      setCategoriasPorTabelaPreco({ "Tabela Principal": categoriasTabelaPrecoPadrao });
+      setCategoriasPorTabelaPreco(
+        TABELA_PRECOS_VAZIA.categoriasPorTabela ?? { "Tabela Principal": [] }
+      );
     }
 
     try {
