@@ -10,6 +10,7 @@ export function SiteTopoMarca() {
   const autenticado = useSessaoAutenticada();
 
   if (
+    pathname === "/" ||
     pathname === "/login" ||
     pathname.includes("/imprimir") ||
     pathname.startsWith("/app") ||

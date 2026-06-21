@@ -57,6 +57,7 @@ export function LabDocumentHead() {
   const seq = useRef(0);
 
   const paginaPublicaBranding =
+    pathname === "/" ||
     pathname === "/login" ||
     pathname === "/cadastro" ||
     pathname.startsWith("/assinatura-vencida") ||

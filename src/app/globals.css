@@ -35,6 +35,66 @@
     background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #0ea5e9 100%);
   }
 
+  .landing-gradient-hero {
+    background: linear-gradient(
+      145deg,
+      #312e81 0%,
+      #4338ca 28%,
+      #4f46e5 48%,
+      #2563eb 72%,
+      #0ea5e9 100%
+    );
+  }
+
+  .landing-gradient-band {
+    background: linear-gradient(
+      120deg,
+      #3730a3 0%,
+      #4f46e5 35%,
+      #6366f1 55%,
+      #2563eb 100%
+    );
+  }
+
+  .landing-hero-glow {
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255, 255, 255, 0.18), transparent),
+      radial-gradient(ellipse 60% 40% at 90% 20%, rgba(14, 165, 233, 0.25), transparent);
+  }
+
+  @keyframes landing-fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .landing-fade-in-up {
+    animation: landing-fade-in-up 0.65s ease-out both;
+  }
+
+  .landing-fade-in-up.delay-100 {
+    animation-delay: 0.1s;
+  }
+
+  .landing-fade-in-up.delay-150 {
+    animation-delay: 0.15s;
+  }
+
+  .landing-fade-in-up.delay-200 {
+    animation-delay: 0.2s;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .landing-fade-in-up {
+      animation: none;
+    }
+  }
+
   .tv-dashboard .scrollbar-thin::-webkit-scrollbar {
     width: 5px;
   }
