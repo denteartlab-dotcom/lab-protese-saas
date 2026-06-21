@@ -19,8 +19,6 @@ import {
   UserPlus,
 } from "lucide-react";
 import { salvarUltimoLaboratorioLogin } from "@/lib/auth-client";
-import type { LabImpressaoConfig } from "@/lib/lab-impressao";
-import { dimensoesLogoPx } from "@/lib/lab-logo";
 import {
   recursosPlanosAssinatura,
   type PeriodoCobranca,
@@ -50,15 +48,7 @@ const CORES_PLANO: Record<
   premium: { cor: "violet" },
 };
 
-type Props = {
-  branding: {
-    lab: LabImpressaoConfig;
-    nomeLaboratorio: string;
-    marcaSubtitulo: string;
-  };
-};
-
-export function CriarContaForm({ branding }: Props) {
+export function CriarContaForm() {
   const router = useRouter();
   const [periodo, setPeriodo] = useState<PeriodoCobranca>("mensal");
   const planos = recursosPlanosAssinatura(periodo);
@@ -82,7 +72,6 @@ export function CriarContaForm({ branding }: Props) {
     aceiteTermos: false,
   });
 
-  const logo = dimensoesLogoPx(branding.lab, { largura: 40, altura: 40 });
   const forcaSenha = validarForcaSenha(form.adminSenha);
 
   function atualizar<K extends keyof typeof form>(campo: K, valor: typeof form[K]) {
@@ -138,31 +127,8 @@ export function CriarContaForm({ branding }: Props) {
 
   return (
     <div className="min-h-screen bg-white">
-      <header className="border-b border-slate-100 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            {branding.lab.logoDataUrl?.trim() ? (
-              <img
-                src={branding.lab.logoDataUrl}
-                alt=""
-                width={logo.largura}
-                height={logo.altura}
-                className="rounded-lg object-contain"
-              />
-            ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0066FF] text-lg text-white">
-                🦷
-              </div>
-            )}
-            <div>
-              <p className="text-sm font-bold text-slate-900">
-                {branding.nomeLaboratorio || NOME_LAB_PADRAO}
-              </p>
-              <p className="text-[11px] text-slate-500">
-                {branding.marcaSubtitulo || "Sistema para Laboratórios"}
-              </p>
-            </div>
-          </div>
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
+        <div className="mb-6 flex justify-end">
           <div className="flex items-center gap-2 text-sm">
             <span className="hidden text-slate-500 sm:inline">Já tem uma conta?</span>
             <Link
@@ -174,9 +140,7 @@ export function CriarContaForm({ branding }: Props) {
             </Link>
           </div>
         </div>
-      </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
         <div className="mb-8 text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-[#0066FF]">
             <UserPlus className="h-6 w-6" />

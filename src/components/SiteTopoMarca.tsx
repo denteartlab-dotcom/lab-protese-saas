@@ -12,6 +12,7 @@ export function SiteTopoMarca() {
   if (
     pathname === "/" ||
     pathname === "/login" ||
+    pathname === "/cadastro" ||
     pathname === "/recuperar-senha" ||
     pathname === "/redefinir-senha" ||
     pathname.includes("/imprimir") ||
