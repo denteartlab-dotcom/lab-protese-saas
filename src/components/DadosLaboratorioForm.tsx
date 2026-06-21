@@ -75,6 +75,12 @@ export function DadosLaboratorioForm({
   const ultimoCep = useRef("");
   const ultimoCnpj = useRef("");
 
+  useEffect(() => {
+    ultimoCep.current = form.cep.replace(/\D/g, "");
+    ultimoCnpj.current = form.cnpj.replace(/\D/g, "");
+    onMensagem?.("");
+  }, []);
+
   function alterarTipoPessoa(tipo: "Física" | "Jurídica") {
     if (tipoPessoa === tipo) return;
     ultimoCep.current = "";
@@ -94,7 +100,6 @@ export function DadosLaboratorioForm({
       ...atual,
       razaoSocial: dados.razaoSocial || atual.razaoSocial,
       nomeFantasia: dados.nomeFantasia || atual.nomeFantasia,
-      email: dados.email || atual.email,
       telefoneComercial: dados.telefoneComercial || atual.telefoneComercial,
       whatsapp: dados.whatsapp || atual.whatsapp,
       inscricaoEstadual: dados.inscricaoEstadual || atual.inscricaoEstadual,
@@ -110,7 +115,10 @@ export function DadosLaboratorioForm({
     }));
   }
 
-  async function buscarEnderecoPorCep(cepInformado = form.cep) {
+  async function buscarEnderecoPorCep(
+    cepInformado = form.cep,
+    opts?: { notificar?: boolean }
+  ) {
     const cep = cepInformado.replace(/\D/g, "");
     if (cep.length !== 8) return;
     ultimoCep.current = cep;
@@ -131,18 +139,23 @@ export function DadosLaboratorioForm({
         uf: endereco.uf || atual.uf,
         codMunicipio: endereco.codMunicipio || atual.codMunicipio,
       }));
-      onMensagem?.(
-        endereco.codMunicipio
-          ? "Endereço e código municipal (IBGE) preenchidos pelo CEP."
-          : "Endereço preenchido pelo CEP.",
-        "sucesso"
-      );
+      if (opts?.notificar !== false) {
+        onMensagem?.(
+          endereco.codMunicipio
+            ? "Endereço e código municipal (IBGE) preenchidos pelo CEP."
+            : "Endereço preenchido pelo CEP.",
+          "sucesso"
+        );
+      }
     } finally {
       setBuscandoCep(false);
     }
   }
 
-  async function buscarPorCnpj(cnpjInformado = form.cnpj) {
+  async function buscarPorCnpj(
+    cnpjInformado = form.cnpj,
+    opts?: { notificar?: boolean }
+  ) {
     const cnpj = cnpjInformado.replace(/\D/g, "");
     if (cnpj.length !== 14) return;
     ultimoCnpj.current = cnpj;
@@ -155,7 +168,9 @@ export function DadosLaboratorioForm({
         return;
       }
       aplicarDadosCnpjJuridica(data as DadosCnpjConsulta);
-      onMensagem?.("Dados do CNPJ preenchidos automaticamente.", "sucesso");
+      if (opts?.notificar !== false) {
+        onMensagem?.("Dados do CNPJ preenchidos automaticamente.", "sucesso");
+      }
     } finally {
       setBuscandoCnpj(false);
     }
@@ -165,14 +180,16 @@ export function DadosLaboratorioForm({
     if (ehFisica) return;
     const cnpj = form.cnpj.replace(/\D/g, "");
     if (cnpj.length === 14 && cnpj !== ultimoCnpj.current) {
-      void buscarPorCnpj(form.cnpj);
+      ultimoCnpj.current = cnpj;
+      void buscarPorCnpj(form.cnpj, { notificar: false });
     }
   }, [form.cnpj, ehFisica]);
 
   useEffect(() => {
     const cep = form.cep.replace(/\D/g, "");
     if (cep.length === 8 && cep !== ultimoCep.current) {
-      void buscarEnderecoPorCep(form.cep);
+      ultimoCep.current = cep;
+      void buscarEnderecoPorCep(form.cep, { notificar: false });
     }
   }, [form.cep]);
 
