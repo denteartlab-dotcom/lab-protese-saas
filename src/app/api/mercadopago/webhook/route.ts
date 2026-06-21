@@ -66,7 +66,11 @@ export async function POST(request: Request) {
     }
 
     const pagamento = await obterPagamentoMercadoPagoPlataforma(paymentId);
-    const resultado = await sincronizarPagamentoAssinatura(pagamento.id, pagamento.status);
+    const resultado = await sincronizarPagamentoAssinatura(
+      pagamento.id,
+      pagamento.status,
+      pagamento.pagoEm
+    );
 
     return NextResponse.json({ ok: true, renovado: resultado.renovado });
   } catch (error) {

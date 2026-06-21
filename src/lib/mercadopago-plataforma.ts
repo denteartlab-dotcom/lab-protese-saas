@@ -18,6 +18,7 @@ export type MercadoPagoPixCriado = {
 type MpPaymentResponse = {
   id?: number | string;
   status?: string;
+  date_approved?: string | null;
   date_of_expiration?: string;
   point_of_interaction?: {
     transaction_data?: {
@@ -169,22 +170,25 @@ export async function criarPixAssinaturaMercadoPago(params: {
 
 export async function obterPagamentoMercadoPagoPlataforma(
   paymentId: string
-): Promise<{ id: string; status: string }> {
+): Promise<{ id: string; status: string; pagoEm: Date | null }> {
   const pix = await obterPixMercadoPagoPlataforma(paymentId);
-  return { id: pix.id, status: pix.status };
+  return { id: pix.id, status: pix.status, pagoEm: pix.pagoEm };
 }
 
 export async function obterPixMercadoPagoPlataforma(paymentId: string): Promise<{
   id: string;
   status: string;
+  pagoEm: Date | null;
   pixPayload: string | null;
   pixEncodedImage: string | null;
 }> {
   const pagamento = await mpPlataformaFetch<MpPaymentResponse>(`/v1/payments/${paymentId}`);
   const tx = pagamento.point_of_interaction?.transaction_data;
+  const pagoEm = pagamento.date_approved ? new Date(pagamento.date_approved) : null;
   return {
     id: String(pagamento.id ?? paymentId),
     status: pagamento.status || "pending",
+    pagoEm: pagoEm && !Number.isNaN(pagoEm.getTime()) ? pagoEm : null,
     pixPayload: tx?.qr_code || null,
     pixEncodedImage: tx?.qr_code_base64 || null,
   };

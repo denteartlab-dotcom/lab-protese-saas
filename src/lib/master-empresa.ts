@@ -16,42 +16,13 @@ import {
   cobrancaAssinaturaPixAberta,
   statusCobrancaAssinaturaPago,
 } from "@/lib/assinatura-pix-provedor";
-import type { Prisma } from "@prisma/client";
-
-const STATUS_COBRANCA_ASSINATURA_PAGA: string[] = [
-  "approved",
-  "RECEIVED",
-  "CONFIRMED",
-  "RECEIVED_IN_CASH",
-];
-
-function whereCobrancaAssinaturaPagaNoPeriodo(
-  inicio: Date,
-  fim?: Date
-): Prisma.CobrancaAssinaturaWhereInput {
-  const periodoPagoEm = fim ? { gte: inicio, lte: fim } : { gte: inicio };
-  const periodoFallback = fim ? { gte: inicio, lte: fim } : { gte: inicio };
-
-  return {
-    OR: [
-      { pagoEm: periodoPagoEm },
-      {
-        pagoEm: null,
-        statusAsaas: { in: STATUS_COBRANCA_ASSINATURA_PAGA },
-        updatedAt: periodoFallback,
-      },
-    ],
-  };
-}
-
-function whereCobrancaAssinaturaPagaTotal(): Prisma.CobrancaAssinaturaWhereInput {
-  return {
-    OR: [
-      { pagoEm: { not: null } },
-      { statusAsaas: { in: STATUS_COBRANCA_ASSINATURA_PAGA } },
-    ],
-  };
-}
+import {
+  inicioAnoBrasilia,
+  periodoMesBrasilia,
+  reconciliarCobrancasAssinaturaPendentes,
+  whereCobrancaAssinaturaPagaNoPeriodo,
+  whereCobrancaAssinaturaPagaTotal,
+} from "@/lib/faturamento-assinatura-master";
 
 export type DadosCriarEmpresaMaster = {
   nome: string;
@@ -200,10 +171,11 @@ export async function criarEmpresaMaster(dados: DadosCriarEmpresaMaster) {
 }
 
 export async function obterDashboardMaster() {
+  await reconciliarCobrancasAssinaturaPendentes();
+
   const agora = new Date();
-  const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
-  const inicioAno = new Date(agora.getFullYear(), 0, 1);
-  const fimMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59);
+  const { inicio: inicioMes, fim: fimMes } = periodoMesBrasilia(agora);
+  const inicioAno = inicioAnoBrasilia(agora);
 
   const [
     totalEmpresas,
@@ -420,6 +392,8 @@ export async function obterEmpresaDetalheMaster(empresaId: string) {
 }
 
 export async function listarCobrancasAssinaturaMaster() {
+  await reconciliarCobrancasAssinaturaPendentes();
+
   const cobrancas = await prisma.cobrancaAssinatura.findMany({
     orderBy: { createdAt: "desc" },
     take: 300,
@@ -436,7 +410,10 @@ export async function listarCobrancasAssinaturaMaster() {
   });
 
   return cobrancas.map((c) => {
-    const pago = statusCobrancaAssinaturaPago(c.provedor, c.statusAsaas) || Boolean(c.pagoEm);
+    const pago =
+      statusCobrancaAssinaturaPago(c.provedor, c.statusAsaas) ||
+      Boolean(c.pagoEm) ||
+      Boolean(c.renovadoEm);
     const pixAberta =
       !pago &&
       cobrancaAssinaturaPixAberta({

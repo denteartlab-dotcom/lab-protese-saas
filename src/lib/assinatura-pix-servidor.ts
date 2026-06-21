@@ -110,7 +110,10 @@ async function montarRespostaCobranca(
   pixEncodedImage?: string | null
 ): Promise<CobrancaPixAssinatura> {
   const provedor = (cobranca.provedor === "asaas" ? "asaas" : "mercadopago") as ProvedorPixAssinatura;
-  const pago = statusCobrancaAssinaturaPago(provedor, cobranca.statusAsaas);
+  const pago =
+    statusCobrancaAssinaturaPago(provedor, cobranca.statusAsaas) ||
+    Boolean(cobranca.pagoEm) ||
+    Boolean(cobranca.renovadoEm);
   const periodoCobranca =
     cobranca.diasRenovacao >= 360 ? "anual" : "mensal";
   return {
@@ -374,11 +377,13 @@ export async function sincronizarStatusPagamentoAssinatura(
 
   const prov = provedor || cobranca.provedor;
   let status = cobranca.statusAsaas;
+  let pagoEm: Date | null = null;
 
   try {
     if (prov === "mercadopago") {
       const pagamento = await obterPagamentoMercadoPagoPlataforma(paymentId);
       status = pagamento.status;
+      pagoEm = pagamento.pagoEm;
     } else {
       const pagamento = await obterPagamentoPlataforma(paymentId);
       status = pagamento.status;
@@ -387,7 +392,7 @@ export async function sincronizarStatusPagamentoAssinatura(
     /* usa status atual */
   }
 
-  return sincronizarPagamentoAssinatura(paymentId, status);
+  return sincronizarPagamentoAssinatura(paymentId, status, pagoEm);
 }
 
 export async function aplicarRenovacaoAssinaturaPorPagamento(
@@ -425,7 +430,8 @@ export async function aplicarRenovacaoAssinaturaPorPagamento(
 
 export async function sincronizarPagamentoAssinatura(
   paymentId: string,
-  statusPagamento: string
+  statusPagamento: string,
+  pagoEmInformado?: Date | null
 ): Promise<{ renovado: boolean; empresaId?: string; dataVencimento?: string }> {
   const cobranca = await prisma.cobrancaAssinatura.findUnique({
     where: { asaasPaymentId: paymentId },
@@ -435,12 +441,18 @@ export async function sincronizarPagamentoAssinatura(
 
   const pago = statusCobrancaAssinaturaPago(cobranca.provedor, statusPagamento);
   const jaRenovado = Boolean(cobranca.renovadoEm);
+  const pagoEmFinal =
+    pago && !cobranca.pagoEm
+      ? pagoEmInformado && !Number.isNaN(pagoEmInformado.getTime())
+        ? pagoEmInformado
+        : new Date()
+      : null;
 
   await prisma.cobrancaAssinatura.update({
     where: { id: cobranca.id },
     data: {
       statusAsaas: statusPagamento,
-      ...(pago && !cobranca.pagoEm ? { pagoEm: new Date() } : {}),
+      ...(pagoEmFinal ? { pagoEm: pagoEmFinal } : {}),
     },
   });
 

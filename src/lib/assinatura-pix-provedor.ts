@@ -17,7 +17,9 @@ export function statusCobrancaAssinaturaPago(
   provedor: string,
   status: string
 ): boolean {
-  if (provedor === "mercadopago") return status === "approved";
+  if (provedor === "mercadopago") {
+    return status.toLowerCase() === "approved";
+  }
   return STATUS_PAGO_ASAAS.has(status);
 }
 
