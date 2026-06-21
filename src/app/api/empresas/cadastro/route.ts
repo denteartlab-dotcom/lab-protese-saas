@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { provisionarNovaEmpresa } from "@/lib/provisionar-empresa";
 import { PLANOS_EMPRESA, PERIODOS_COBRANCA } from "@/lib/master-planos";
-import { validarCpfOuCnpj } from "@/lib/validar-documento";
+import { apenasDigitos, validarCpfOuCnpj } from "@/lib/validar-documento";
 import { validarForcaSenha } from "@/lib/validar-senha";
 
-const schema = z
+const schemaCompleto = z
   .object({
     nome: z.string().min(2, "Informe o nome do laboratório."),
     responsavel: z.string().min(2, "Informe o nome do responsável."),
@@ -38,6 +38,71 @@ const schema = z
     path: ["adminSenha"],
   });
 
+const schemaSimples = z
+  .object({
+    nome: z.string().min(2, "Informe o nome do laboratório."),
+    email: z.string().email("E-mail inválido."),
+    pais: z.string().optional(),
+    codigoTelefone: z.string().default("+55"),
+    whatsapp: z.string().min(8, "Informe um celular válido."),
+    adminSenha: z.string().min(8, "A senha deve ter no mínimo 8 caracteres."),
+    confirmarSenha: z.string().min(8),
+    aceiteTermos: z.literal(true, {
+      errorMap: () => ({ message: "Aceite os termos para continuar." }),
+    }),
+    plano: z.enum(PLANOS_EMPRESA).optional(),
+    periodoCobranca: z.enum(PERIODOS_COBRANCA).optional(),
+  })
+  .refine((d) => d.adminSenha === d.confirmarSenha, {
+    message: "As senhas não conferem.",
+    path: ["confirmarSenha"],
+  })
+  .refine((d) => validarForcaSenha(d.adminSenha).valida, {
+    message: "Senha fraca: use maiúscula, minúscula e número (mín. 8 caracteres).",
+    path: ["adminSenha"],
+  });
+
+function montarTelefone(codigoTelefone: string, whatsapp: string) {
+  const numero = apenasDigitos(whatsapp);
+  const codigo = apenasDigitos(codigoTelefone);
+  return codigo && !numero.startsWith(codigo) ? `${codigo}${numero}` : numero;
+}
+
+function normalizarCadastro(body: unknown) {
+  if (!body || typeof body !== "object") return null;
+
+  const dados = body as Record<string, unknown>;
+  if ("emailLaboratorio" in dados || "adminEmail" in dados) {
+    const parsed = schemaCompleto.safeParse(body);
+    if (!parsed.success) return { ok: false as const, error: parsed.error };
+    const { confirmarSenha: _c, aceiteTermos: _a, ...resto } = parsed.data;
+    return { ok: true as const, dados: resto };
+  }
+
+  const parsed = schemaSimples.safeParse(body);
+  if (!parsed.success) return { ok: false as const, error: parsed.error };
+
+  const { email, whatsapp, codigoTelefone, nome, ...resto } = parsed.data;
+  const telefone = montarTelefone(codigoTelefone, whatsapp);
+
+  return {
+    ok: true as const,
+    dados: {
+      nome,
+      responsavel: nome,
+      cnpj: "",
+      telefone,
+      whatsapp: telefone,
+      emailLaboratorio: email,
+      adminNome: nome,
+      adminEmail: email,
+      adminSenha: resto.adminSenha,
+      plano: resto.plano ?? "profissional",
+      periodoCobranca: resto.periodoCobranca,
+    },
+  };
+}
+
 const MENSAGENS: Record<string, string> = {
   SLUG_INVALIDO: "Não foi possível gerar o identificador do laboratório.",
   SLUG_EM_USO: "Este laboratório já possui cadastro. Tente outro nome.",
@@ -63,15 +128,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Requisição inválida." }, { status: 400 });
   }
 
-  const parsed = schema.safeParse(body);
-  if (!parsed.success) {
+  const parsed = normalizarCadastro(body);
+  if (!parsed) {
+    return NextResponse.json({ error: "Requisição inválida." }, { status: 400 });
+  }
+  if (!parsed.ok) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message || "Dados inválidos." },
       { status: 400 }
     );
   }
 
-  const { confirmarSenha: _c, aceiteTermos: _a, ...dados } = parsed.data;
+  const dados = parsed.dados;
 
   try {
     const empresa = await provisionarNovaEmpresa(dados);

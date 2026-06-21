@@ -77,7 +77,7 @@ export async function provisionarNovaEmpresa(
 
   if (nome.length < 2) throw new Error("NOME_INVALIDO");
   if (responsavel.length < 2) throw new Error("RESPONSAVEL_INVALIDO");
-  if (!validarCpfOuCnpj(cnpj)) throw new Error("DOCUMENTO_INVALIDO");
+  if (cnpj && !validarCpfOuCnpj(cnpj)) throw new Error("DOCUMENTO_INVALIDO");
   if (telefone.replace(/\D/g, "").length < 10) throw new Error("TELEFONE_INVALIDO");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLaboratorio)) throw new Error("EMAIL_LAB_INVALIDO");
   if (cidade && cidade.length < 2) throw new Error("CIDADE_INVALIDA");
