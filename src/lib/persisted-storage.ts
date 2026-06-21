@@ -5,6 +5,7 @@
  */
 import {
   aplicarEspelhoServidor,
+  armazenamentoTemSalvamentosPendentes,
   chaveExisteNoServidor,
   gravarArmazenamentoCache,
   inicializarArmazenamentoLaboratorio,
@@ -16,6 +17,7 @@ import {
 
 export {
   aplicarEspelhoServidor,
+  armazenamentoTemSalvamentosPendentes,
   chaveExisteNoServidor,
   inicializarArmazenamentoLaboratorio,
   persistirArmazenamentoImediato,

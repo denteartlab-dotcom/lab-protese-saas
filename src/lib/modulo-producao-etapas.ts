@@ -1,5 +1,5 @@
 import type { EtapaOsLinha } from "@/lib/etapas-os";
-import { readStorage, writeStorage } from "@/lib/persisted-storage";
+import { persistirArmazenamentoImediato, readStorage, writeStorage } from "@/lib/persisted-storage";
 
 export const MODULO_PRODUCAO_ETAPAS_STORAGE_KEY = "labProteseModuloProducaoEtapas";
 
@@ -46,25 +46,13 @@ export async function persistirEtapaAtualOs(opts: {
   if (typeof window === "undefined") return;
   const chave = chaveEtapasModuloOs(opts.trabalhoId, opts.itemId);
   const concluidas = indicesConcluidasDeIndiceAtual(opts.indiceAtual);
-  salvarEtapasConcluidasModulo(chave, new Set(concluidas));
-
+  const mapa = lerMapa();
+  mapa[chave] = concluidas;
+  writeStorage(MODULO_PRODUCAO_ETAPAS_STORAGE_KEY, mapa);
   try {
-    const res = await fetch(`/api/json-store/${MODULO_PRODUCAO_ETAPAS_STORAGE_KEY}`);
-    let mapa: MapaEtapas = {};
-    if (res.ok) {
-      const body = await res.json();
-      if (body && typeof body === "object" && !Array.isArray(body)) {
-        mapa = body as MapaEtapas;
-      }
-    }
-    mapa[chave] = concluidas;
-    await fetch(`/api/json-store/${MODULO_PRODUCAO_ETAPAS_STORAGE_KEY}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(mapa),
-    });
+    await persistirArmazenamentoImediato(MODULO_PRODUCAO_ETAPAS_STORAGE_KEY, mapa);
   } catch {
-    /* localStorage já atualizado; TV sincroniza na próxima leitura do servidor */
+    /* espelho local mantido; próxima gravação tenta de novo */
   }
 }
 

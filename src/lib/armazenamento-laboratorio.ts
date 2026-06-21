@@ -76,6 +76,97 @@ function dispararPronto() {
 }
 
 /** Remove resquícios antigos do localStorage (dados do lab ficam só no banco). */
+function parseJsonLocalStorage(key: string): unknown | null {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (raw === null) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+/** Chaves de conveniência do navegador — não são dados do laboratório. */
+const CHAVES_LOCALSTORAGE_IGNORAR = new Set([
+  "labProteseLembrarLogin",
+  "denteartLoginLembrete",
+  "denteartLabLogoPorSlug",
+]);
+
+/**
+ * Migra dados legados do localStorage para o PostgreSQL antes de apagá-los.
+ * Garante que limpar cache do navegador não apague cadastros antigos ainda só no browser.
+ */
+async function migrarLocalStorageLegadoParaServidor() {
+  if (typeof window === "undefined") return;
+
+  const entradas: Record<string, unknown> = {};
+  const listagem: Record<string, unknown> = {};
+  const moduloEtapas: Record<string, number[]> = {};
+
+  const keys: string[] = [];
+  for (let i = 0; i < window.localStorage.length; i++) {
+    const key = window.localStorage.key(i);
+    if (key) keys.push(key);
+  }
+
+  for (const key of keys) {
+    if (CHAVES_LOCALSTORAGE_IGNORAR.has(key)) continue;
+
+    if (key.startsWith(LISTAGEM_CONFIG_PREFIX)) {
+      const tela = key.slice(LISTAGEM_CONFIG_PREFIX.length);
+      const valor = parseJsonLocalStorage(key);
+      if (valor != null) listagem[tela] = valor;
+      continue;
+    }
+
+    if (key.startsWith(MODULO_PRODUCAO_ETAPAS_PREFIX_LEGADO)) {
+      const chave = key.slice(MODULO_PRODUCAO_ETAPAS_PREFIX_LEGADO.length);
+      const valor = parseJsonLocalStorage(key);
+      if (Array.isArray(valor)) moduloEtapas[chave] = valor as number[];
+      continue;
+    }
+
+    if (key === THEME_STORAGE_KEY_LEGADO) {
+      const valor = parseJsonLocalStorage(key);
+      if (valor != null) entradas.labProteseTheme = valor;
+      continue;
+    }
+
+    if (key.startsWith(ARMAZENAMENTO_LAB_PREFIX)) {
+      const valor = parseJsonLocalStorage(key);
+      if (valor != null) entradas[key] = valor;
+    }
+  }
+
+  if (Object.keys(listagem).length > 0) {
+    entradas[LISTAGEM_CONFIGS_KEY] = listagem;
+  }
+  if (Object.keys(moduloEtapas).length > 0) {
+    entradas.labProteseModuloProducaoEtapas = moduloEtapas;
+  }
+
+  if (Object.keys(entradas).length === 0) return;
+
+  try {
+    const res = await fetch("/api/armazenamento/migrar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      cache: "no-store",
+      body: JSON.stringify({ entradas, sobrescrever: false }),
+    });
+    if (!res.ok) {
+      console.warn(
+        "[armazenamento-laboratorio] falha ao migrar localStorage legado:",
+        res.status
+      );
+    }
+  } catch (err) {
+    console.warn("[armazenamento-laboratorio] falha ao migrar localStorage legado", err);
+  }
+}
+
 function limparLocalStorageLegadoLab() {
   if (typeof window === "undefined") return;
   const remover = new Set<string>(CHAVES_ARMAZENAMENTO_LAB);
@@ -182,6 +273,17 @@ async function fetchComTimeout(url: string, init?: RequestInit, timeoutMs = BOOT
   }
 }
 
+function aplicarConfirmacaoSalvar(entradas: Record<string, unknown>) {
+  for (const [key, valor] of Object.entries(entradas)) {
+    if (valor === null) {
+      chavesDoServidor.delete(key);
+      snapshotServidor.delete(key);
+      continue;
+    }
+    atualizarSnapshotServidor(key, valor);
+  }
+}
+
 async function flushSalvarPendentes() {
   if (filaSalvar.size === 0) return;
   const entradas = Object.fromEntries(filaSalvar.entries());
@@ -201,14 +303,7 @@ async function flushSalvarPendentes() {
         body: JSON.stringify({ entradas, sobrescrever: true }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      for (const [key, valor] of Object.entries(entradas)) {
-        if (valor === null) {
-          chavesDoServidor.delete(key);
-          snapshotServidor.delete(key);
-          continue;
-        }
-        atualizarSnapshotServidor(key, valor);
-      }
+      aplicarConfirmacaoSalvar(entradas);
       return;
     } catch (err) {
       console.error(
@@ -224,13 +319,11 @@ async function flushSalvarPendentes() {
   }
 }
 
-function flushSalvarPendentesKeepalive() {
-  if (filaSalvar.size === 0) return;
-  const entradas = Object.fromEntries(filaSalvar.entries());
-  filaSalvar.clear();
-  if (timerSalvar) {
-    clearTimeout(timerSalvar);
-    timerSalvar = null;
+function enviarSalvamentoUrgente(entradas: Record<string, unknown>): boolean {
+  const body = JSON.stringify({ entradas, sobrescrever: true });
+  if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+    const blob = new Blob([body], { type: "application/json" });
+    return navigator.sendBeacon("/api/armazenamento/migrar", blob);
   }
   try {
     void fetch("/api/armazenamento/migrar", {
@@ -239,20 +332,33 @@ function flushSalvarPendentesKeepalive() {
       credentials: "same-origin",
       cache: "no-store",
       keepalive: true,
-      body: JSON.stringify({ entradas, sobrescrever: true }),
+      body,
+    }).then((res) => {
+      if (res.ok) aplicarConfirmacaoSalvar(entradas);
     });
-    for (const [key, valor] of Object.entries(entradas)) {
-      if (valor === null) {
-        chavesDoServidor.delete(key);
-        snapshotServidor.delete(key);
-        continue;
-      }
-      atualizarSnapshotServidor(key, valor);
-    }
+    return true;
   } catch {
-    for (const [k, v] of Object.entries(entradas)) {
-      filaSalvar.set(k, v);
-    }
+    return false;
+  }
+}
+
+function flushSalvarPendentesKeepalive() {
+  if (filaSalvar.size === 0) return;
+  const entradas = Object.fromEntries(filaSalvar.entries());
+  if (timerSalvar) {
+    clearTimeout(timerSalvar);
+    timerSalvar = null;
+  }
+
+  const enviado = enviarSalvamentoUrgente(entradas);
+  if (enviado) {
+    filaSalvar.clear();
+    aplicarConfirmacaoSalvar(entradas);
+    return;
+  }
+
+  for (const [k, v] of Object.entries(entradas)) {
+    filaSalvar.set(k, v);
   }
 }
 
@@ -262,7 +368,12 @@ function agendarSalvar(key: string, valor: unknown) {
   timerSalvar = setTimeout(() => {
     timerSalvar = null;
     void flushSalvarPendentes();
-  }, 280);
+  }, 80);
+}
+
+/** Indica se há alterações ainda não confirmadas no servidor. */
+export function armazenamentoTemSalvamentosPendentes() {
+  return filaSalvar.size > 0;
 }
 
 async function carregarBootstrapServidor(
@@ -326,6 +437,7 @@ export async function inicializarArmazenamentoLaboratorio() {
   if (hidratando) return hidratando;
 
   hidratando = (async () => {
+    await migrarLocalStorageLegadoParaServidor();
     limparLocalStorageLegadoLab();
     const { ok } = await carregarBootstrapServidor("prioritaria");
     bootstrapOk = ok;
@@ -409,6 +521,10 @@ export async function persistirArmazenamentoImediato(key: string, valor: unknown
 
 if (typeof window !== "undefined") {
   window.addEventListener("pagehide", flushSalvarPendentesKeepalive);
+  window.addEventListener("beforeunload", () => {
+    if (filaSalvar.size === 0) return;
+    flushSalvarPendentesKeepalive();
+  });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
       void flushSalvarPendentes();

@@ -721,7 +721,7 @@ export function extrairNomesTabelasPreco(
   return unicas.length > 0 ? unicas : [...TABELAS_PADRAO];
 }
 
-/** Nomes de todas as tabelas (localStorage do navegador). */
+/** Nomes de todas as tabelas (JsonStore do laboratório). */
 export function carregarNomesTabelasPreco(): string[] {
   const saved = readStorage<DadosTabelaPrecosStorage | null>(
     TABELA_PRECOS_STORAGE_KEY,
@@ -743,11 +743,11 @@ export async function sincronizarTabelaPrecosServidor(
     });
     notificarTabelasPrecoAtualizadas();
   } catch {
-    // mantém só localStorage
+    /* offline — espelho em memória mantém o valor */
   }
 }
 
-/** Lista tabelas: servidor primeiro, depois localStorage. */
+/** Lista tabelas: servidor primeiro, depois espelho em memória. */
 export async function carregarNomesTabelasPrecoRemoto(): Promise<string[]> {
   if (typeof window === "undefined") return [...TABELAS_PADRAO];
 
