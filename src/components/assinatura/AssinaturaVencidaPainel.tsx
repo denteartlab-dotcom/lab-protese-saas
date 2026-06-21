@@ -186,11 +186,6 @@ export function AssinaturaVencidaPainel({ contexto, branding }: Props) {
                 : "Renove agora e volte a usar o sistema sem interrupções."}
             </p>
             <SeletorPeriodoCobranca periodo={periodo} onChange={setPeriodo} />
-            {periodo === "anual" ? (
-              <p className="text-xs text-emerald-700">
-                Plano anual: 12 meses com desconto (Básico 10%, Profissional 13%, Premium 15%).
-              </p>
-            ) : null}
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
@@ -210,16 +205,17 @@ export function AssinaturaVencidaPainel({ contexto, branding }: Props) {
                     </span>
                   ) : null}
 
+                  {plano.descontoAnualLabel ? (
+                    <span className="absolute right-3 top-3 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                      {plano.descontoAnualLabel}
+                    </span>
+                  ) : null}
+
                   <div className="mb-4">
                     <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#0066FF]">
                       <Icone className="h-5 w-5" />
                     </div>
                     <h3 className="text-base font-bold text-slate-900">{plano.nome}</h3>
-                    {plano.descontoAnualLabel ? (
-                      <span className="mt-2 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-                        {plano.descontoAnualLabel}
-                      </span>
-                    ) : null}
                     <div className="mt-2">
                       {plano.precoCheioAnualLabel ? (
                         <p className="text-sm text-slate-400 line-through">

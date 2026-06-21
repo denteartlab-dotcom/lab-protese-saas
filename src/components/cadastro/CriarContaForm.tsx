@@ -385,11 +385,6 @@ export function CriarContaForm({ branding }: Props) {
             </h2>
             <div className="mb-5 flex flex-col items-center gap-3">
               <SeletorPeriodoCobranca periodo={periodo} onChange={setPeriodo} />
-              {periodo === "anual" ? (
-                <p className="text-center text-xs text-emerald-700">
-                  Plano anual: 12 meses com desconto (Básico 10%, Profissional 13%, Premium 15%).
-                </p>
-              ) : null}
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               {planos.map((plano) => {
@@ -425,6 +420,11 @@ export function CriarContaForm({ branding }: Props) {
                       selecionado ? cn(corBorda, "ring-4") : "border-slate-200"
                     )}
                   >
+                    {plano.descontoAnualLabel ? (
+                      <span className="absolute right-3 top-3 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                        {plano.descontoAnualLabel}
+                      </span>
+                    ) : null}
                     <div className="mb-3 flex items-start justify-between">
                       <div
                         className={cn(
@@ -437,18 +437,14 @@ export function CriarContaForm({ branding }: Props) {
                       <span
                         className={cn(
                           "flex h-5 w-5 items-center justify-center rounded-full border-2",
-                          selecionado ? corCheck : "border-slate-300"
+                          selecionado ? corCheck : "border-slate-300",
+                          plano.descontoAnualLabel ? "mt-6" : ""
                         )}
                       >
                         {selecionado && <Check className="h-3 w-3" />}
                       </span>
                     </div>
                     <p className="font-semibold text-slate-900">{plano.nome}</p>
-                    {plano.descontoAnualLabel ? (
-                      <span className="mt-1 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-                        {plano.descontoAnualLabel}
-                      </span>
-                    ) : null}
                     <div className="mt-1">
                       {plano.precoCheioAnualLabel ? (
                         <p className="text-sm text-slate-400 line-through">
