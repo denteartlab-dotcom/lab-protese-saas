@@ -18,6 +18,7 @@ import {
   JA_ENTROU_COOKIE,
 } from "@/lib/auth-client";
 import { registrarAtividadeSessao } from "@/lib/sessao-inatividade";
+import { montarTituloDocumento } from "@/lib/document-title";
 import { LAB_CONFIG_ATUALIZADA_EVENT } from "@/lib/configuracoes-lab";
 import type { LabBrandingPublico } from "@/lib/lab-branding";
 import type { LabImpressaoConfig } from "@/lib/lab-impressao";
@@ -210,11 +211,8 @@ export function LoginForm({
   }, [carregarBranding, labSlugAtivo]);
 
   useEffect(() => {
-    const nome = branding.nomeLaboratorio.trim();
-    if (nome) {
-      document.title = `${nome} - Gestão de Laboratório`;
-    }
-  }, [branding.nomeLaboratorio]);
+    document.title = montarTituloDocumento();
+  }, []);
 
   useEffect(() => {
     if (jaEntrouInicial) return;

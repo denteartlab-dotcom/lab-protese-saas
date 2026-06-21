@@ -63,9 +63,9 @@ export function LabDocumentHead() {
     pathname.startsWith("/pagamento");
 
   useEffect(() => {
-    if (paginaPublicaBranding) return;
+    document.title = montarTituloDocumento();
 
-    document.title = montarTituloDocumento(nomeLaboratorio);
+    if (paginaPublicaBranding) return;
 
     const logo = lab.logoDataUrl?.trim();
     const atual = ++seq.current;

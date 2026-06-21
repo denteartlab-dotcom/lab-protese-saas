@@ -1,5 +1,7 @@
+import { NOME_LAB_PADRAO } from "@/lib/document-title";
+
 export const metadata = {
-  title: "Painel Master — Lab Prótese",
+  title: NOME_LAB_PADRAO,
 };
 
 export default function AdminMasterLayout({
