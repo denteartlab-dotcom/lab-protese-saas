@@ -1,7 +1,7 @@
-import { NOME_LAB_PADRAO } from "@/lib/document-title";
+import { montarTituloDocumento } from "@/lib/document-title";
 
 export const metadata = {
-  title: NOME_LAB_PADRAO,
+  title: montarTituloDocumento(),
 };
 
 export default function AdminMasterLayout({
