@@ -14,6 +14,7 @@ import { normalizarLogoTamanho } from "@/lib/lab-impressao";
 
 import { normalizarCabecalhoRequisicao } from "@/lib/cabecalho-requisicao";
 import { normalizarConfigLaboratorio } from "@/lib/configuracoes-lab-parse";
+import { aplicarEspelhoServidor } from "@/lib/persisted-storage";
 
 export function montarConfigInicialCadastro(
   dados: {
@@ -69,6 +70,8 @@ export async function persistirConfigLaboratorioServidor(
       typeof err?.error === "string" ? err.error : "Não foi possível gravar no servidor."
     );
   }
+
+  aplicarEspelhoServidor(CONFIG_LAB_STORAGE_KEY, payload);
 }
 
 function resolverLogoMesclado(
@@ -164,19 +167,16 @@ export function mesclarConfigLaboratorio(
 
   const { logoDataUrl, logoTamanho } = resolverLogoMesclado(local, remoto);
   const nomeLaboratorio = resolverNomeLaboratorioMesclado(local, remoto);
+  const remotoNorm = prepararConfigParaSalvar(normalizarConfigLaboratorio(remoto));
 
-  if (!nomeLaboratorio) {
-    return { ...local, ...remoto, logoDataUrl, logoTamanho };
-  }
-
-  return {
-    ...local,
-    ...remoto,
+  return prepararConfigParaSalvar({
+    ...remotoNorm,
     logoDataUrl,
     logoTamanho,
-    nomeLaboratorio,
-    responsavel: nomeLaboratorio,
-  };
+    ...(nomeLaboratorio
+      ? { nomeLaboratorio, responsavel: nomeLaboratorio }
+      : {}),
+  });
 }
 
 export async function sincronizarConfigLaboratorioDoServidor(): Promise<void> {
@@ -188,9 +188,9 @@ export async function sincronizarConfigLaboratorioDoServidor(): Promise<void> {
     if (!res.ok) return;
     const remoto = (await res.json()) as Partial<ConfigLaboratorio> | null;
     if (!remoto || typeof remoto !== "object") return;
-    const mesclado = mesclarConfigLaboratorio(carregarConfigLaboratorio(), remoto);
-    salvarConfigLaboratorio(mesclado);
-    window.dispatchEvent(new Event(LAB_CONFIG_ATUALIZADA_EVENT));
+    const local = carregarConfigLaboratorio();
+    const mesclado = mesclarConfigLaboratorio(local, remoto);
+    hidratarConfigLaboratorioCache(mesclado);
   } catch {
     /* offline ou não autenticado */
   }

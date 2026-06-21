@@ -23,9 +23,7 @@ export const LAB_CONFIG_ATUALIZADA_EVENT = "lab-config-atualizada";
 const LAB_TENANT_ID_KEY = "labProteseLaboratorioId";
 
 function chaveStorageLaboratorio(): string {
-  if (typeof window === "undefined") return CONFIG_LAB_STORAGE_KEY;
-  const tenant = readStorage<string | null>(LAB_TENANT_ID_KEY, null);
-  return tenant ? `${CONFIG_LAB_STORAGE_KEY}:${tenant}` : CONFIG_LAB_STORAGE_KEY;
+  return CONFIG_LAB_STORAGE_KEY;
 }
 
 export function definirLaboratorioConfigAtivo(laboratorioId: string) {
@@ -136,10 +134,24 @@ function montarTelefones(config: ConfigLaboratorio) {
 function lerConfigSalva(): ConfigLaboratorio | null {
   if (typeof window === "undefined") return null;
   try {
-    const parsed = readStorage<Partial<ConfigLaboratorio> | null>(
-      chaveStorageLaboratorio(),
+    let parsed = readStorage<Partial<ConfigLaboratorio> | null>(
+      CONFIG_LAB_STORAGE_KEY,
       null
     );
+    if (!parsed) {
+      const tenant = readStorage<string | null>(LAB_TENANT_ID_KEY, null);
+      if (tenant) {
+        parsed = readStorage<Partial<ConfigLaboratorio> | null>(
+          `${CONFIG_LAB_STORAGE_KEY}:${tenant}`,
+          null
+        );
+        if (parsed && typeof parsed === "object") {
+          const migrado = normalizarConfigLaboratorio(parsed);
+          writeStorage(CONFIG_LAB_STORAGE_KEY, migrado);
+          void persistirArmazenamentoImediato(CONFIG_LAB_STORAGE_KEY, migrado);
+        }
+      }
+    }
     if (!parsed || typeof parsed !== "object") return null;
     return normalizarConfigLaboratorio(parsed);
   } catch {
