@@ -4,6 +4,7 @@ import {
   marcarCodigoVerificacaoUsado,
   validarCodigoVerificacaoCadastro,
 } from "@/lib/cadastro-verificacao-email";
+import { enviarEmailBoasVindasCadastro } from "@/lib/email-boas-vindas-cadastro";
 import { provisionarNovaEmpresa } from "@/lib/provisionar-empresa";
 import { PLANOS_EMPRESA, PERIODOS_COBRANCA, DIAS_TESTE_GRATIS } from "@/lib/master-planos";
 import { apenasDigitos, validarCpfOuCnpj } from "@/lib/validar-documento";
@@ -179,6 +180,16 @@ export async function POST(request: Request) {
     if (verificacao.registroId) {
       await marcarCodigoVerificacaoUsado(verificacao.registroId);
     }
+
+    void enviarEmailBoasVindasCadastro({
+      nome: dados.adminNome,
+      email: dados.adminEmail,
+      laboratorio: empresa.nome,
+      slug: empresa.slug,
+    }).catch((erro) => {
+      console.warn("[cadastro/boas-vindas]", erro);
+    });
+
     return NextResponse.json(
       {
         ok: true,
