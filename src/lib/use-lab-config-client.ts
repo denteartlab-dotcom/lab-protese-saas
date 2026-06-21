@@ -43,11 +43,46 @@ function storageSincronizado() {
   );
 }
 
-function nomeLaboratorioExibicao(cfg: ConfigLaboratorio | null | undefined, fallback: string) {
+function configLaboratorioCarregada(cfg: ConfigLaboratorio | null | undefined): boolean {
+  if (!cfg) return false;
+  return Boolean(
+    cfg.nomeLaboratorio?.trim() ||
+      cfg.nomeFantasia?.trim() ||
+      cfg.razaoSocial?.trim() ||
+      cfg.nome?.trim()
+  );
+}
+
+/** Nome do lab: cache explícito > cadastro real no cache > nome do servidor > padrão. */
+function nomeLaboratorioExibicao(
+  cfg: ConfigLaboratorio | null | undefined,
+  fallback: string
+): string {
   const direto = cfg?.nomeLaboratorio?.trim();
   if (direto) return direto;
-  const derivado = cfg ? nomeExibicaoLaboratorio(cfg) : "";
-  return derivado || fallback || NOME_LAB_PADRAO;
+
+  if (configLaboratorioCarregada(cfg) && cfg) {
+    const derivado = nomeExibicaoLaboratorio(cfg).trim();
+    if (derivado && derivado !== NOME_LAB_PADRAO) return derivado;
+  }
+
+  const fallbackTrim = fallback.trim();
+  if (fallbackTrim) return fallbackTrim;
+
+  return NOME_LAB_PADRAO;
+}
+
+function nomeServidorProps(
+  servidor: ReturnType<typeof useLabConfigServidor>,
+  initialLab?: LabImpressaoConfig,
+  initialNomeLaboratorio?: string
+) {
+  return (
+    initialNomeLaboratorio?.trim() ||
+    servidor?.nomeLaboratorio?.trim() ||
+    initialLab?.responsavel?.trim() ||
+    ""
+  );
 }
 
 function dadosDoServidor(
@@ -57,14 +92,11 @@ function dadosDoServidor(
 ) {
   const lab = mesclarLogoLab(initialLab, servidor?.lab);
   const nomeLaboratorio =
-    initialNomeLaboratorio?.trim() ||
-    servidor?.nomeLaboratorio?.trim() ||
-    lab.responsavel?.trim() ||
-    NOME_LAB_PADRAO;
+    nomeServidorProps(servidor, initialLab, initialNomeLaboratorio) || NOME_LAB_PADRAO;
   return { lab, nomeLaboratorio };
 }
 
-/** Config do lab no cliente — só usa cache local após bootstrap do banco. */
+/** Config do lab no cliente — prioriza dados do servidor até o cache ter cadastro real. */
 export function useLabConfigClient({
   initialLab,
   initialNomeLaboratorio,
@@ -72,11 +104,7 @@ export function useLabConfigClient({
   const servidor = useLabConfigServidor();
   const [cachePronto, setCachePronto] = useState(storageSincronizado);
 
-  const fallbackNome =
-    servidor?.nomeLaboratorio?.trim() ||
-    initialNomeLaboratorio?.trim() ||
-    initialLab?.responsavel?.trim() ||
-    NOME_LAB_PADRAO;
+  const fallbackNome = nomeServidorProps(servidor, initialLab, initialNomeLaboratorio);
 
   const resolver = useCallback(() => {
     if (!cachePronto) {
@@ -90,14 +118,25 @@ export function useLabConfigClient({
     };
   }, [cachePronto, servidor, initialLab, initialNomeLaboratorio, fallbackNome]);
 
-  const inicial = resolver();
-  const [lab, setLab] = useState<LabImpressaoConfig>(inicial.lab);
-  const [nomeLaboratorio, setNomeLaboratorio] = useState(inicial.nomeLaboratorio);
+  const nomeInicial =
+    fallbackNome || resolver().nomeLaboratorio || NOME_LAB_PADRAO;
+  const labInicial = mesclarLogoLab(initialLab, servidor?.lab);
+
+  const [lab, setLab] = useState<LabImpressaoConfig>(labInicial);
+  const [nomeLaboratorio, setNomeLaboratorio] = useState(nomeInicial);
 
   const atualizar = useCallback(() => {
     const next = resolver();
-    setLab(next.lab);
-    setNomeLaboratorio(next.nomeLaboratorio);
+    setLab((atual) =>
+      atual.logoDataUrl === next.lab.logoDataUrl &&
+      atual.logoTamanho === next.lab.logoTamanho &&
+      atual.responsavel === next.lab.responsavel
+        ? atual
+        : next.lab
+    );
+    setNomeLaboratorio((atual) =>
+      atual === next.nomeLaboratorio ? atual : next.nomeLaboratorio
+    );
   }, [resolver]);
 
   useEffect(() => {
