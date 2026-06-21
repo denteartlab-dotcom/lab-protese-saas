@@ -58,6 +58,9 @@ export const DESCONTO_ANUAL_PLANO: Record<PlanoEmpresa, number> = {
 export const DIAS_RENOVACAO_MENSAL = 30;
 export const DIAS_RENOVACAO_ANUAL = 365;
 
+/** Período de teste grátis para contas novas (plano Premium). */
+export const DIAS_TESTE_GRATIS = 14;
+
 export function precoMensalPlano(plano: string): number {
   return PRECO_MENSAL_PLANO[normalizarPlanoEmpresa(plano)];
 }

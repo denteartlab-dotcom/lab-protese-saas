@@ -425,7 +425,7 @@ export function LoginForm({
               Conta criada com sucesso!
             </p>
             <p className="mt-0.5 text-[10px] text-emerald-700">
-              Faça login para escolher seu plano e ativar a assinatura.
+              Faça login para começar seu teste grátis de 14 dias no plano Premium.
             </p>
           </div>
         )}

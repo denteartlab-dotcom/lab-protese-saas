@@ -1,7 +1,13 @@
 import { hashPassword } from "@/lib/auth";
+import { calcularDataVencimentoAssinatura } from "@/lib/assinatura-empresa";
 import { gravarDadosPadraoEmpresa, validarSlugEmpresa } from "@/lib/empresa-padrao";
 import { prisma } from "@/lib/db";
-import { limitesDoPlano, normalizarPeriodoCobranca, normalizarPlanoEmpresa, PERIODO_ASSINATURA_STORAGE_KEY } from "@/lib/master-planos";
+import {
+  DIAS_TESTE_GRATIS,
+  limitesDoPlano,
+  normalizarPeriodoCobranca,
+  PERIODO_ASSINATURA_STORAGE_KEY,
+} from "@/lib/master-planos";
 import { salvarJsonStoreTenant } from "@/lib/json-store-tenant";
 import { normalizarSlugEmpresa } from "@/lib/rotas-app";
 import { validarCpfOuCnpj } from "@/lib/validar-documento";
@@ -111,8 +117,9 @@ export async function provisionarNovaEmpresa(
     if (tentativa > 50) throw new Error("SLUG_EM_USO");
   }
 
-  const plano = normalizarPlanoEmpresa(dados.plano);
-  const limites = limitesDoPlano(plano);
+  const planoTrial = "premium" as const;
+  const limites = limitesDoPlano(planoTrial);
+  const dataVencimentoTrial = calcularDataVencimentoAssinatura(DIAS_TESTE_GRATIS);
   const codigo = await gerarCodigoEmpresa();
   const password = await hashPassword(adminSenha);
 
@@ -129,12 +136,12 @@ export async function provisionarNovaEmpresa(
         email: emailLaboratorio,
         cidade,
         estado,
-        plano,
+        plano: planoTrial,
         limiteUsuarios: limites.usuarios,
         limiteTrabalhos: limites.trabalhos,
-        status: "pendente",
-        dataVencimento: null,
-        observacoes: "Cadastro público — aguardando ativação da assinatura.",
+        status: "ativo",
+        dataVencimento: dataVencimentoTrial,
+        observacoes: `Teste grátis Premium por ${DIAS_TESTE_GRATIS} dias (cadastro público).`,
       },
     });
 

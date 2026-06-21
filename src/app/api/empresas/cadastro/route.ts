@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { provisionarNovaEmpresa } from "@/lib/provisionar-empresa";
-import { PLANOS_EMPRESA, PERIODOS_COBRANCA } from "@/lib/master-planos";
+import { PLANOS_EMPRESA, PERIODOS_COBRANCA, DIAS_TESTE_GRATIS } from "@/lib/master-planos";
 import { apenasDigitos, validarCpfOuCnpj } from "@/lib/validar-documento";
 import { validarForcaSenha } from "@/lib/validar-senha";
 
@@ -97,7 +97,7 @@ function normalizarCadastro(body: unknown) {
       adminNome: nome,
       adminEmail: email,
       adminSenha: resto.adminSenha,
-      plano: resto.plano ?? "profissional",
+      plano: "premium" as const,
       periodoCobranca: resto.periodoCobranca,
     },
   };
@@ -146,7 +146,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         ok: true,
-        mensagem: "Conta criada com sucesso!",
+        mensagem: `Conta criada! Você tem ${DIAS_TESTE_GRATIS} dias de teste grátis no plano Premium.`,
         empresa: {
           id: empresa.empresaId,
           codigo: empresa.codigo,

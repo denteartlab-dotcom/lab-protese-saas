@@ -1,7 +1,12 @@
 import { hashPassword } from "@/lib/auth";
+import { calcularDataVencimentoAssinatura } from "@/lib/assinatura-empresa";
 import { gravarDadosPadraoEmpresa, validarSlugEmpresa } from "@/lib/empresa-padrao";
 import { prisma } from "@/lib/db";
-import { limitesDoPlano, normalizarPlanoEmpresa } from "@/lib/master-planos";
+import {
+  DIAS_TESTE_GRATIS,
+  limitesDoPlano,
+  normalizarPlanoEmpresa,
+} from "@/lib/master-planos";
 import { CONFIG_LAB_STORAGE_KEY } from "@/lib/configuracoes-lab";
 import { chaveJsonStoreTenant } from "@/lib/json-store-tenant";
 import { normalizarSlugEmpresa } from "@/lib/rotas-app";
@@ -119,11 +124,22 @@ export async function criarEmpresaMaster(dados: DadosCriarEmpresaMaster) {
     if (tentativa > 50) throw new Error("SLUG_EM_USO");
   }
 
-  const plano = normalizarPlanoEmpresa(dados.plano ?? "basico");
+  const vencimentoInformado = parseDataVencimento(dados.dataVencimento);
+  const trialAutomatico = vencimentoInformado === null;
+  const plano = trialAutomatico
+    ? "premium"
+    : normalizarPlanoEmpresa(dados.plano ?? "basico");
   const limites = limitesDoPlano(plano);
   const limiteUsuarios = dados.limiteUsuarios ?? limites.usuarios;
   const limiteTrabalhos = dados.limiteTrabalhos ?? limites.trabalhos;
   const status = dados.status?.trim() || "ativo";
+  const dataVencimento =
+    vencimentoInformado ?? calcularDataVencimentoAssinatura(DIAS_TESTE_GRATIS);
+  const observacoes =
+    dados.observacoes?.trim() ||
+    (trialAutomatico
+      ? `Teste grátis Premium por ${DIAS_TESTE_GRATIS} dias.`
+      : null);
   const codigo = await gerarCodigoEmpresa();
   const password = await hashPassword(adminSenha);
 
@@ -143,8 +159,8 @@ export async function criarEmpresaMaster(dados: DadosCriarEmpresaMaster) {
         plano,
         limiteUsuarios,
         limiteTrabalhos,
-        dataVencimento: parseDataVencimento(dados.dataVencimento),
-        observacoes: dados.observacoes?.trim() || null,
+        dataVencimento,
+        observacoes,
         status,
       },
     });
