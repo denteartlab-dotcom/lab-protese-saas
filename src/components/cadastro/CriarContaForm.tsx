@@ -5,18 +5,13 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Eye, EyeOff, Facebook, Instagram, Youtube } from "lucide-react";
 import { LogoMarcaDenteArt } from "@/components/LogoMarcaDenteArt";
+import { SeletorPaisComBusca } from "@/components/cadastro/SeletorPaisComBusca";
 import { salvarUltimoLaboratorioLogin } from "@/lib/auth-client";
 import { WHATSAPP_LANDING_URL } from "@/lib/landing-content";
+import { paisPorIso } from "@/lib/paises-telefone";
 import { cn } from "@/lib/utils";
 import { formatarTelefone } from "@/lib/validar-documento";
 import { validarForcaSenha } from "@/lib/validar-senha";
-
-const PAISES = [
-  { codigo: "BR", nome: "Brasil", bandeira: "🇧🇷", telefone: "+55" },
-  { codigo: "US", nome: "Estados Unidos", bandeira: "🇺🇸", telefone: "+1" },
-  { codigo: "PT", nome: "Portugal", bandeira: "🇵🇹", telefone: "+351" },
-  { codigo: "AR", nome: "Argentina", bandeira: "🇦🇷", telefone: "+54" },
-] as const;
 
 const REDES_SOCIAIS = [
   {
@@ -57,17 +52,18 @@ export function CriarContaForm() {
   });
 
   const forcaSenha = validarForcaSenha(form.adminSenha);
+  const paisAtual = paisPorIso(form.pais);
 
   function atualizar<K extends keyof typeof form>(campo: K, valor: typeof form[K]) {
     setForm((f) => ({ ...f, [campo]: valor }));
   }
 
-  function selecionarPais(codigo: string) {
-    const pais = PAISES.find((p) => p.codigo === codigo) ?? PAISES[0];
+  function selecionarPais(iso: string) {
+    const pais = paisPorIso(iso);
     setForm((f) => ({
       ...f,
-      pais: pais.codigo,
-      codigoTelefone: pais.telefone,
+      pais: iso,
+      codigoTelefone: pais?.dial ?? f.codigoTelefone,
     }));
   }
 
@@ -190,18 +186,18 @@ export function CriarContaForm() {
               <label className={labelCls} htmlFor="cadastro-pais">
                 País
               </label>
-              <select
+              <SeletorPaisComBusca
                 id="cadastro-pais"
-                className={inputCls}
+                modo="pais"
                 value={form.pais}
-                onChange={(e) => selecionarPais(e.target.value)}
-              >
-                {PAISES.map((pais) => (
-                  <option key={pais.codigo} value={pais.codigo}>
-                    {pais.bandeira} {pais.nome}
-                  </option>
-                ))}
-              </select>
+                onChange={(iso) => selecionarPais(iso)}
+                aria-label="País"
+              />
+              {paisAtual ? (
+                <p className="mt-1 truncate text-[10px] text-slate-400">
+                  {paisAtual.bandeira} {paisAtual.nome}
+                </p>
+              ) : null}
             </div>
 
             <div>
@@ -209,18 +205,19 @@ export function CriarContaForm() {
                 Celular (WhatsApp)
               </label>
               <div className="flex gap-2">
-                <select
-                  aria-label="Código telefone país"
-                  className={cn(inputCls, "w-[88px] shrink-0 px-2")}
+                <SeletorPaisComBusca
+                  modo="telefone"
                   value={form.codigoTelefone}
-                  onChange={(e) => atualizar("codigoTelefone", e.target.value)}
-                >
-                  {PAISES.map((pais) => (
-                    <option key={pais.codigo} value={pais.telefone}>
-                      {pais.telefone}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(dial, pais) => {
+                    setForm((f) => ({
+                      ...f,
+                      codigoTelefone: dial,
+                      pais: pais?.iso ?? f.pais,
+                    }));
+                  }}
+                  className="w-[96px] shrink-0"
+                  aria-label="Código telefone país"
+                />
                 <input
                   id="cadastro-whatsapp"
                   type="tel"
