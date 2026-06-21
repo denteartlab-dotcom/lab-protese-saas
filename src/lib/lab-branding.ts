@@ -18,7 +18,7 @@ export const BRANDING_PLATAFORMA_LOGIN: LabBrandingPublico = {
   nomeLaboratorio: NOME_LAB_PADRAO,
   marcaSubtitulo:
     LAB_IMPRESSAO_PADRAO.marcaSubtitulo || "Sistema para Laboratórios",
-  logoDataUrl: "/logo-denteart.png",
+  logoDataUrl: "/logo-lab-protese.png",
   logoTamanho: 0,
 };
 

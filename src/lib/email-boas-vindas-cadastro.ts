@@ -38,7 +38,7 @@ export function montarHtmlEmailBoasVindasCadastro(dados: {
   const laboratorio = escapeHtml(dados.laboratorio.trim());
   const loginUrl = escapeHtml(dados.loginUrl.trim());
   const ano = new Date().getFullYear();
-  const logoUrl = `${urlPublicaApp()}/images/dente-art-logo.png`;
+  const logoUrl = `${urlPublicaApp()}/images/lab-protese-logo.png`;
 
   const listaBeneficios = BENEFICIOS.map(
     (item) =>

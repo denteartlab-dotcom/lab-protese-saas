@@ -281,7 +281,7 @@ export default function OrcamentoPublicoPage() {
         <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm print:border-0 print:shadow-none">
           <div className="hidden border-b border-slate-100 py-6 text-center print:block">
             <img
-              src="/images/dente-art-logo.png"
+              src="/images/lab-protese-logo.png"
               alt="Dente Art"
               width={300}
               height={100}

@@ -14,7 +14,7 @@ export const LOGO_TOPO_ALTURA = 52;
 /** Faixa cinza — altura próxima à Smart Prótese. */
 export const FAIXA_TOPO_ALTURA = 60;
 
-const LOGO_SRC = "/images/dente-art-logo.png";
+const LOGO_SRC = "/images/lab-protese-logo.png";
 
 type Props = {
   className?: string;
@@ -26,7 +26,7 @@ export function LogoMarcaDenteArt({ className, variant = "topo" }: Props) {
   const largura = variant === "full" ? LOGO_MARCA_LARGURA : LOGO_TOPO_LARGURA;
   const altura = variant === "full" ? LOGO_MARCA_ALTURA : LOGO_TOPO_ALTURA;
 
-  const objectFit = variant === "topo" ? "cover" : "contain";
+  const objectFit = "contain";
 
   return (
     <img
