@@ -4,6 +4,8 @@ import { ipDaRequisicao, registrarLogMaster } from "@/lib/master-audit";
 import { criarEmpresaMaster, listarEmpresasMaster } from "@/lib/master-empresa";
 import { z } from "zod";
 
+export const dynamic = "force-dynamic";
+
 const schemaCriar = z.object({
   nome: z.string().min(2),
   slug: z.string().optional(),

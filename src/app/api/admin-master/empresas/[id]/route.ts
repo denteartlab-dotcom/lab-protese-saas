@@ -170,6 +170,7 @@ export async function DELETE(request: Request, { params }: Params) {
       motivo: "manual",
       masterId: master.id,
       ip: ipDaRequisicao(request),
+      aguardarArquivos: false,
     });
 
     return NextResponse.json({ ok: true });

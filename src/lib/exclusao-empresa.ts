@@ -22,6 +22,8 @@ export type OpcoesExclusaoEmpresa = {
   masterId?: string;
   ip?: string;
   detalhesExtra?: string;
+  /** false = remove do banco e limpa arquivos em segundo plano (resposta rápida na UI). */
+  aguardarArquivos?: boolean;
 };
 
 async function excluirArquivosLocaisEmpresa(slug: string, nome: string) {
@@ -62,29 +64,45 @@ async function registrarAuditoriaExclusao(
   console.log(`[exclusao-empresa] ${acao}: ${detalhes}`);
 }
 
+async function limparArquivosEmpresaExcluida(slug: string, nome: string, empresaId: string) {
+  const drive = await excluirPastaDriveEmpresa({
+    empresaId,
+    slug,
+    nome,
+  });
+  if (!drive.ok && drive.erro && drive.erro !== "desativado") {
+    console.warn(`[exclusao-empresa] Drive ${slug}:`, drive.erro);
+  }
+
+  const onedrive = await excluirPastaBackupEmpresaOneDrive(slug, nome);
+  if (!onedrive.ok && onedrive.erro && onedrive.erro !== "desativado") {
+    console.warn(`[exclusao-empresa] OneDrive ${slug}:`, onedrive.erro);
+  }
+
+  await excluirArquivosLocaisEmpresa(slug, nome);
+}
+
 /** Remove backups (local, Drive, OneDrive), uploads, JsonStore e registro no banco. */
 export async function excluirEmpresaCompleta(
   empresa: DadosEmpresaExclusao,
   opcoes: OpcoesExclusaoEmpresa
 ) {
-  const drive = await excluirPastaDriveEmpresa({
-    empresaId: empresa.id,
-    slug: empresa.slug,
-    nome: empresa.nome,
-  });
-  if (!drive.ok && drive.erro && drive.erro !== "desativado") {
-    console.warn(`[exclusao-empresa] Drive ${empresa.slug}:`, drive.erro);
-  }
+  const aguardarArquivos = opcoes.aguardarArquivos !== false;
 
-  const onedrive = await excluirPastaBackupEmpresaOneDrive(empresa.slug, empresa.nome);
-  if (!onedrive.ok && onedrive.erro && onedrive.erro !== "desativado") {
-    console.warn(`[exclusao-empresa] OneDrive ${empresa.slug}:`, onedrive.erro);
-  }
-
-  await excluirArquivosLocaisEmpresa(empresa.slug, empresa.nome);
   await excluirJsonStoreTenant(empresa.id);
   await prisma.empresa.delete({ where: { id: empresa.id } });
   await registrarAuditoriaExclusao(empresa, opcoes);
+
+  const limparArquivos = () =>
+    limparArquivosEmpresaExcluida(empresa.slug, empresa.nome, empresa.id).catch((erro) => {
+      console.error(`[exclusao-empresa] limpeza de arquivos ${empresa.slug}:`, erro);
+    });
+
+  if (aguardarArquivos) {
+    await limparArquivos();
+  } else {
+    void limparArquivos();
+  }
 }
 
 export async function executarLimpezaContasInativas(opcoes?: {

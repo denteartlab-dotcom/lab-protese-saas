@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { exigirMasterAdmin, respostaNaoAutorizadoMaster } from "@/lib/exigir-master-admin";
 import { obterDashboardMaster } from "@/lib/master-empresa";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     await exigirMasterAdmin();

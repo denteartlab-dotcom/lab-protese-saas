@@ -242,10 +242,11 @@ export function AdminMasterPainel() {
   const [cobrancasPagas, setCobrancasPagas] = useState<CobrancaAssinaturaItem[]>([]);
 
   const carregar = useCallback(async () => {
+    const opcoesFetch: RequestInit = { cache: "no-store" };
     const [dashRes, empRes, cobRes] = await Promise.all([
-      fetch("/api/admin-master/dashboard"),
-      fetch("/api/admin-master/empresas"),
-      fetch("/api/admin-master/cobrancas-assinatura"),
+      fetch("/api/admin-master/dashboard", opcoesFetch),
+      fetch("/api/admin-master/empresas", opcoesFetch),
+      fetch("/api/admin-master/cobrancas-assinatura", opcoesFetch),
     ]);
     if (dashRes.ok) setDashboard(await dashRes.json());
     if (empRes.ok) {
@@ -394,12 +395,24 @@ export function AdminMasterPainel() {
     if (acao === "excluir" && !confirm("Excluir esta empresa e todos os dados? Esta ação é irreversível.")) {
       return;
     }
+    setErro("");
     const url =
       acao === "excluir"
         ? `/api/admin-master/empresas/${id}`
         : `/api/admin-master/empresas/${id}/${acao}`;
     const res = await fetch(url, { method: acao === "excluir" ? "DELETE" : "POST" });
-    if (res.ok) await carregar();
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      setErro(data.error || "Não foi possível concluir a ação.");
+      await carregar();
+      return;
+    }
+    if (acao === "excluir") {
+      setEmpresas((atual) => atual.filter((empresa) => empresa.id !== id));
+      if (editandoId === id) limparFormulario();
+      setMensagem("Conta excluída com sucesso.");
+    }
+    await carregar();
   }
 
   const proximoCodigo = `EMP-${String((empresas.length || 0) + 1).padStart(5, "0")}`;
