@@ -1,6 +1,7 @@
 import { exec } from "child_process";
 import path from "path";
 import { promisify } from "util";
+import { pastaBackupResolvida } from "@/lib/backup-automatico-servidor";
 import { nomePastaBackupEmpresa } from "@/lib/backup-empresa-pasta";
 
 const execAsync = promisify(exec);

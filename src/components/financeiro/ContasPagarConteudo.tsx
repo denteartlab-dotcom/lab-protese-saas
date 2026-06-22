@@ -25,6 +25,7 @@ import {
 import dynamic from "next/dynamic";
 import { Button, CampoDataBr } from "@/components/ui";
 import type { LancarReceitaPayload } from "@/components/financeiro/LancarReceitaModal";
+import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { FinanceiroAbasNav } from "@/components/financeiro/FinanceiroAbasNav";
 import { RelatorioDespesasModal } from "@/components/financeiro/RelatorioDespesasModal";
 import { DespesaDetalheModal } from "@/components/financeiro/DespesaDetalheModal";

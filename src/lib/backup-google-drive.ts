@@ -550,7 +550,7 @@ export async function excluirPastaDriveEmpresa(params: {
     let pastaId = config.pastaDriveId;
 
     if (pastaId && !(await pastaDriveExiste(drive, pastaId))) {
-      pastaId = undefined;
+      pastaId = null;
     }
 
     if (!pastaId) {
@@ -558,7 +558,7 @@ export async function excluirPastaDriveEmpresa(params: {
       if (!pastaRaizId) {
         return { ok: false, erro: "pasta_raiz_indisponivel" };
       }
-      pastaId = (await buscarPastaPorNome(drive, pastaRaizId, pastaEmpresaNome)) ?? undefined;
+      pastaId = (await buscarPastaPorNome(drive, pastaRaizId, pastaEmpresaNome)) ?? null;
     }
 
     if (!pastaId) {

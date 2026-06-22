@@ -110,8 +110,11 @@ export function comissaoCadastroColaborador(
   const tipo = dados.tipoContratacao || "Salário + Comissão";
   if (!usaComissaoColaborador(tipo)) return "0,00";
 
-  if (repeticao && dados.comissaoRepeticao?.replace(/[^\d]/g, "") !== "000") {
-    return dados.comissaoRepeticao;
+  if (repeticao) {
+    const rep = dados.comissaoRepeticao;
+    if (rep && rep.replace(/[^\d]/g, "") !== "000") {
+      return rep;
+    }
   }
   return dados.valorComissao || comissaoPercentual || "0,00";
 }

@@ -710,8 +710,8 @@ export function ControleBoletosConteudo() {
                     }
                   />
                   <Tooltip
-                    formatter={(v: number, name: string) => [
-                      formatarMoedaBoleto(v),
+                    formatter={(v, name) => [
+                      formatarMoedaBoleto(Number(v ?? 0)),
                       name === "pagos" ? "Pagos" : "Pendentes",
                     ]}
                   />
