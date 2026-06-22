@@ -226,6 +226,7 @@ export function LancarReceitaModal({
     tipo: "ok" | "erro";
     texto: string;
   } | null>(null);
+  const [leitorBoletoAtivo, setLeitorBoletoAtivo] = useState(false);
   const leitorBoletoRef = useRef<HTMLInputElement>(null);
   const [portalPronto, setPortalPronto] = useState(false);
   const [entidadesDespesa, setEntidadesDespesa] = useState<ClienteOpt[]>([]);
@@ -267,6 +268,7 @@ export function LancarReceitaModal({
     setParseandoNota(false);
     setFeedbackNota(null);
     setFeedbackLeitorBoleto(null);
+    setLeitorBoletoAtivo(false);
   }, [
     open,
     cfg.tipoPadrao,
@@ -633,13 +635,14 @@ export function LancarReceitaModal({
       tipo: "ok",
       texto: mensagemLeituraBoleto(dados, indiceAplicado, totalParcelas || 1),
     });
+    setLeitorBoletoAtivo(false);
   }, []);
 
-  useEffect(() => {
-    if (!open || modo !== "despesa") return;
-    const t = window.setTimeout(() => leitorBoletoRef.current?.focus(), 120);
-    return () => window.clearTimeout(t);
-  }, [open, modo]);
+  function ativarLeitorBoleto() {
+    setLeitorBoletoAtivo(true);
+    setFeedbackLeitorBoleto(null);
+    window.setTimeout(() => leitorBoletoRef.current?.focus(), 50);
+  }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -1183,57 +1186,84 @@ export function LancarReceitaModal({
             </div>
           </div>
 
-          <div className="mt-4 flex flex-col items-end gap-1">
-            <div className="flex w-full max-w-2xl items-center justify-end gap-2">
-              <Barcode className="h-5 w-5 shrink-0 text-slate-500" />
-              {modo === "despesa" ? (
-                <InputLeitorCodigoBoleto
-                  inputRef={leitorBoletoRef}
-                  value={codigoBarras}
-                  onChange={setCodigoBarras}
-                  onCodigoLido={registrarLeituraBoleto}
-                  onCodigoInvalido={() =>
-                    setFeedbackLeitorBoleto({
-                      tipo: "erro",
-                      texto:
-                        "Código inválido. Use o leitor USB no boleto ou digite a linha digitável.",
-                    })
-                  }
-                  placeholder="Leitor de Código de Barras — passe o leitor USB no boleto"
-                  className={cn(inputClass, "max-w-md flex-1 font-mono text-[11px]")}
-                  mostrarStatusLeitor
-                  capturaGlobal
-                  capturaGlobalAtivo={open && modo === "despesa"}
-                />
-              ) : (
+          <div className="mt-4">
+            {modo === "despesa" ? (
+              <div className="flex flex-col gap-1">
+                <div
+                  className={cn(
+                    "flex h-9 w-full max-w-xl items-stretch overflow-hidden rounded border bg-white transition",
+                    leitorBoletoAtivo
+                      ? "border-emerald-500 ring-1 ring-emerald-500/30"
+                      : "border-slate-300 focus-within:border-[#4a90d9] focus-within:ring-1 focus-within:ring-[#4a90d9]"
+                  )}
+                >
+                  <button
+                    type="button"
+                    onClick={ativarLeitorBoleto}
+                    className={cn(
+                      "flex w-10 shrink-0 items-center justify-center border-r transition",
+                      leitorBoletoAtivo
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                    )}
+                    title="Ativar leitor USB de código de barras"
+                    aria-label="Ativar leitor de código de barras"
+                  >
+                    <Barcode className="h-5 w-5" />
+                  </button>
+                  {leitorBoletoAtivo ? (
+                    <InputLeitorCodigoBoleto
+                      inputRef={leitorBoletoRef}
+                      value={codigoBarras}
+                      onChange={setCodigoBarras}
+                      onCodigoLido={registrarLeituraBoleto}
+                      onCodigoInvalido={() =>
+                        setFeedbackLeitorBoleto({
+                          tipo: "erro",
+                          texto:
+                            "Código inválido. Use o leitor USB no boleto ou digite a linha digitável.",
+                        })
+                      }
+                      placeholder="Passe o leitor USB no boleto..."
+                      className="h-9 min-w-0 flex-1 border-0 bg-transparent px-2.5 font-mono text-[11px] outline-none focus:ring-0"
+                      capturaGlobal
+                      capturaGlobalAtivo={open && leitorBoletoAtivo}
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={codigoBarras}
+                      onChange={(e) => setCodigoBarras(e.target.value)}
+                      placeholder="Leitor de Código de Barras"
+                      className="h-9 min-w-0 flex-1 border-0 bg-transparent px-2.5 text-[12px] text-slate-800 outline-none"
+                    />
+                  )}
+                </div>
+                {feedbackLeitorBoleto ? (
+                  <p
+                    className={cn(
+                      "text-[11px]",
+                      feedbackLeitorBoleto.tipo === "ok"
+                        ? "font-medium text-emerald-700"
+                        : "font-medium text-amber-700"
+                    )}
+                  >
+                    {feedbackLeitorBoleto.texto}
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <div className="flex max-w-xl items-center gap-2">
+                <Barcode className="h-5 w-5 shrink-0 text-slate-500" />
                 <input
                   type="text"
                   value={codigoBarras}
                   onChange={(e) => setCodigoBarras(e.target.value)}
                   placeholder="Leitor de Código de Barras"
-                  className={cn(inputClass, "max-w-md")}
+                  className={cn(inputClass, "flex-1")}
                 />
-              )}
-            </div>
-            {modo === "despesa" && feedbackLeitorBoleto ? (
-              <p
-                className={cn(
-                  "max-w-2xl text-right text-[11px]",
-                  feedbackLeitorBoleto.tipo === "ok"
-                    ? "font-medium text-emerald-700"
-                    : "font-medium text-amber-700"
-                )}
-              >
-                {feedbackLeitorBoleto.texto}
-              </p>
-            ) : null}
-            {modo === "despesa" ? (
-              <p className="max-w-2xl text-right text-[10px] text-slate-400">
-                O leitor USB funciona como teclado: clique no campo (ou deixe o modal aberto)
-                e passe o código do boleto. Valor e vencimento são preenchidos na parcela
-                correspondente.
-              </p>
-            ) : null}
+              </div>
+            )}
           </div>
 
           <div className="mt-2 overflow-x-auto rounded border border-slate-200">
@@ -1460,31 +1490,17 @@ export function LancarReceitaModal({
                       />
                     </td>
                     <td className="px-2 py-1.5">
-                      {modo === "despesa" ? (
-                        <InputLeitorCodigoBoleto
-                          value={parcela.codigoBarrasPix}
-                          onChange={(valor) =>
-                            atualizarParcela(index, { codigoBarrasPix: valor })
-                          }
-                          onCodigoLido={(bruto) =>
-                            registrarLeituraBoleto(bruto, index)
-                          }
-                          placeholder="Digite ou passe o leitor..."
-                          className={cn(inputClass, "font-mono text-[11px]")}
-                        />
-                      ) : (
-                        <input
-                          type="text"
-                          value={parcela.codigoBarrasPix}
-                          onChange={(e) =>
-                            atualizarParcela(index, {
-                              codigoBarrasPix: e.target.value,
-                            })
-                          }
-                          placeholder="Digite o código ou Pix..."
-                          className={inputClass}
-                        />
-                      )}
+                      <input
+                        type="text"
+                        value={parcela.codigoBarrasPix}
+                        onChange={(e) =>
+                          atualizarParcela(index, {
+                            codigoBarrasPix: e.target.value,
+                          })
+                        }
+                        placeholder="Digite o código ou Pix..."
+                        className={inputClass}
+                      />
                     </td>
                     <td className="px-2 py-1.5">
                       <input
