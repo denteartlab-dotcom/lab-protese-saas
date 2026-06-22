@@ -7,7 +7,9 @@ const INTERVALO_TECLA_SCAN_MS = 100;
 const PAUSA_FIM_SCAN_MS = 200;
 
 export type EntradaLeitorOpcoes = {
-  onLido: (numeroOs: string, bruto: string) => void;
+  onLido?: (numeroOs: string, bruto: string) => void;
+  /** Qualquer código (boleto, Pix, etc.) sem validar como OS. */
+  onTextoLido?: (bruto: string) => void;
   /** Confirma automaticamente após pausa típica de leitor USB (padrão: true). */
   autoUsb?: boolean;
   /** Captura teclas no documento (leitor USB funciona sem clicar no campo). */
@@ -30,6 +32,7 @@ function teclaConfirma(e: { key: string }) {
 
 export function useEntradaLeitorCodigo({
   onLido,
+  onTextoLido,
   autoUsb = true,
   capturaGlobal = false,
   capturaGlobalAtivo = false,
@@ -58,6 +61,12 @@ export function useEntradaLeitorCodigo({
     (bruto: string) => {
       const limpo = limparEntradaLeitorCodigo(bruto);
       if (!limpo) return false;
+      if (onTextoLido) {
+        setUltimoBruto(limpo);
+        onTextoLido(limpo);
+        return true;
+      }
+      if (!onLido) return false;
       const numero = extrairNumeroOsCodigo(limpo);
       if (!numero) {
         onInvalido?.(limpo);
@@ -67,7 +76,7 @@ export function useEntradaLeitorCodigo({
       onLido(numero, limpo);
       return true;
     },
-    [onInvalido, onLido]
+    [onInvalido, onLido, onTextoLido]
   );
 
   const limparBuffer = useCallback(() => {

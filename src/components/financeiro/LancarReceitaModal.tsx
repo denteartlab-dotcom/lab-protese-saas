@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Barcode, Minus, Plus, Upload } from "lucide-react";
 import {
@@ -34,6 +34,12 @@ import {
 } from "@/lib/plano-contas";
 import { cn } from "@/lib/utils";
 import type { ConciliacaoInicial } from "@/lib/conciliacao-lancamento";
+import { InputLeitorCodigoBoleto } from "@/components/InputLeitorCodigoBoleto";
+import {
+  indiceParcelaParaLeituraBoleto,
+  mensagemLeituraBoleto,
+  parseLeituraBoleto,
+} from "@/lib/codigo-barras-boleto";
 
 export type ItemReceitaLinha = {
   id: string;
@@ -216,6 +222,11 @@ export function LancarReceitaModal({
     tipo: "ok" | "erro";
     texto: string;
   } | null>(null);
+  const [feedbackLeitorBoleto, setFeedbackLeitorBoleto] = useState<{
+    tipo: "ok" | "erro";
+    texto: string;
+  } | null>(null);
+  const leitorBoletoRef = useRef<HTMLInputElement>(null);
   const [portalPronto, setPortalPronto] = useState(false);
   const [entidadesDespesa, setEntidadesDespesa] = useState<ClienteOpt[]>([]);
   const [cadastrando, setCadastrando] = useState(false);
@@ -255,6 +266,7 @@ export function LancarReceitaModal({
     setArquivoNota(null);
     setParseandoNota(false);
     setFeedbackNota(null);
+    setFeedbackLeitorBoleto(null);
   }, [
     open,
     cfg.tipoPadrao,
@@ -564,6 +576,70 @@ export function LancarReceitaModal({
       lista.map((p, i) => (i === index ? { ...p, ...patch } : p))
     );
   }
+
+  const registrarLeituraBoleto = useCallback((bruto: string, indiceForcado?: number) => {
+    const dados = parseLeituraBoleto(bruto);
+    if (!dados) {
+      setFeedbackLeitorBoleto({
+        tipo: "erro",
+        texto:
+          "Código não reconhecido. Passe o leitor no boleto (44 ou 47 dígitos) ou cole o Pix copia e cola.",
+      });
+      return;
+    }
+
+    let indiceAplicado = -1;
+    let totalParcelas = 0;
+
+    setParcelas((lista) => {
+      totalParcelas = lista.length;
+      const indice =
+        indiceForcado ?? indiceParcelaParaLeituraBoleto(lista, dados);
+      indiceAplicado = indice;
+      if (indice < 0) return lista;
+
+      return lista.map((p, i) => {
+        if (i !== indice) return p;
+        const patch: Partial<ParcelaReceitaLinha> = {
+          codigoBarrasPix: dados.ehPix ? dados.bruto : dados.linhaFormatada,
+        };
+        if (!p.formaPagamento.trim()) {
+          patch.formaPagamento = dados.ehPix ? "Pix" : "Boleto";
+        }
+        if (dados.vencimentoBr) {
+          patch.vencimento = dados.vencimentoBr;
+        }
+        if (dados.valor != null && parseMoney(p.valor) <= 0) {
+          patch.valor = dados.valor.toLocaleString("pt-BR", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          });
+        }
+        return { ...p, ...patch };
+      });
+    });
+
+    setCodigoBarras("");
+
+    if (indiceAplicado < 0) {
+      setFeedbackLeitorBoleto({
+        tipo: "erro",
+        texto: "Nenhuma parcela disponível para registrar o código.",
+      });
+      return;
+    }
+
+    setFeedbackLeitorBoleto({
+      tipo: "ok",
+      texto: mensagemLeituraBoleto(dados, indiceAplicado, totalParcelas || 1),
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!open || modo !== "despesa") return;
+    const t = window.setTimeout(() => leitorBoletoRef.current?.focus(), 120);
+    return () => window.clearTimeout(t);
+  }, [open, modo]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -1107,15 +1183,57 @@ export function LancarReceitaModal({
             </div>
           </div>
 
-          <div className="mt-4 flex items-center justify-end gap-2">
-            <Barcode className="h-5 w-5 text-slate-500" />
-            <input
-              type="text"
-              value={codigoBarras}
-              onChange={(e) => setCodigoBarras(e.target.value)}
-              placeholder="Leitor de Código de Barras"
-              className={cn(inputClass, "max-w-md")}
-            />
+          <div className="mt-4 flex flex-col items-end gap-1">
+            <div className="flex w-full max-w-2xl items-center justify-end gap-2">
+              <Barcode className="h-5 w-5 shrink-0 text-slate-500" />
+              {modo === "despesa" ? (
+                <InputLeitorCodigoBoleto
+                  inputRef={leitorBoletoRef}
+                  value={codigoBarras}
+                  onChange={setCodigoBarras}
+                  onCodigoLido={registrarLeituraBoleto}
+                  onCodigoInvalido={() =>
+                    setFeedbackLeitorBoleto({
+                      tipo: "erro",
+                      texto:
+                        "Código inválido. Use o leitor USB no boleto ou digite a linha digitável.",
+                    })
+                  }
+                  placeholder="Leitor de Código de Barras — passe o leitor USB no boleto"
+                  className={cn(inputClass, "max-w-md flex-1 font-mono text-[11px]")}
+                  mostrarStatusLeitor
+                  capturaGlobal
+                  capturaGlobalAtivo={open && modo === "despesa"}
+                />
+              ) : (
+                <input
+                  type="text"
+                  value={codigoBarras}
+                  onChange={(e) => setCodigoBarras(e.target.value)}
+                  placeholder="Leitor de Código de Barras"
+                  className={cn(inputClass, "max-w-md")}
+                />
+              )}
+            </div>
+            {modo === "despesa" && feedbackLeitorBoleto ? (
+              <p
+                className={cn(
+                  "max-w-2xl text-right text-[11px]",
+                  feedbackLeitorBoleto.tipo === "ok"
+                    ? "font-medium text-emerald-700"
+                    : "font-medium text-amber-700"
+                )}
+              >
+                {feedbackLeitorBoleto.texto}
+              </p>
+            ) : null}
+            {modo === "despesa" ? (
+              <p className="max-w-2xl text-right text-[10px] text-slate-400">
+                O leitor USB funciona como teclado: clique no campo (ou deixe o modal aberto)
+                e passe o código do boleto. Valor e vencimento são preenchidos na parcela
+                correspondente.
+              </p>
+            ) : null}
           </div>
 
           <div className="mt-2 overflow-x-auto rounded border border-slate-200">
@@ -1342,17 +1460,31 @@ export function LancarReceitaModal({
                       />
                     </td>
                     <td className="px-2 py-1.5">
-                      <input
-                        type="text"
-                        value={parcela.codigoBarrasPix}
-                        onChange={(e) =>
-                          atualizarParcela(index, {
-                            codigoBarrasPix: e.target.value,
-                          })
-                        }
-                        placeholder="Digite o código ou Pix..."
-                        className={inputClass}
-                      />
+                      {modo === "despesa" ? (
+                        <InputLeitorCodigoBoleto
+                          value={parcela.codigoBarrasPix}
+                          onChange={(valor) =>
+                            atualizarParcela(index, { codigoBarrasPix: valor })
+                          }
+                          onCodigoLido={(bruto) =>
+                            registrarLeituraBoleto(bruto, index)
+                          }
+                          placeholder="Digite ou passe o leitor..."
+                          className={cn(inputClass, "font-mono text-[11px]")}
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          value={parcela.codigoBarrasPix}
+                          onChange={(e) =>
+                            atualizarParcela(index, {
+                              codigoBarrasPix: e.target.value,
+                            })
+                          }
+                          placeholder="Digite o código ou Pix..."
+                          className={inputClass}
+                        />
+                      )}
                     </td>
                     <td className="px-2 py-1.5">
                       <input
