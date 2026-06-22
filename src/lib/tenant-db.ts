@@ -4,8 +4,8 @@ import { carregarConfigLaboratorioServidor } from "@/lib/lab-config-servidor";
 import { lerJsonStoreTenant } from "@/lib/json-store-tenant";
 import { MODULO_PRODUCAO_ETAPAS_STORAGE_KEY } from "@/lib/modulo-producao-etapas";
 
-/** Mesmos status ocultos no Módulo TV / relatórios de produção ativa. */
-const STATUS_EXCLUIDOS_ACOMPANHAMENTO = ["cancelado", "entregue", "finalizado"];
+/** Cancelados não aparecem no link de acompanhamento do cliente. */
+const STATUS_EXCLUIDOS_ACOMPANHAMENTO = ["cancelado"];
 
 type ClienteAcompanhamentoRow = {
   id: string;

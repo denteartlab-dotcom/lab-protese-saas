@@ -10,7 +10,7 @@ import {
   situacaoEtapaServico,
 } from "@/lib/modulo-producao-etapas";
 import { clienteNomeComAbreviacao } from "@/lib/cliente-observacoes";
-import { metaStatusOs } from "@/lib/status-os";
+import { metaStatusOs, normalizarChaveStatusOs } from "@/lib/status-os";
 import {
   calcularLimitesUrgenciaCliente,
   trabalhoAtivoUrgencia,
@@ -30,6 +30,75 @@ export function gerarTokenAcompanhamentoCliente() {
 
 export const MENSAGEM_LINK_ACOMPANHAMENTO_INVALIDO =
   "Link de acompanhamento inválido.";
+
+/** Situações exibidas no fim da lista do acompanhamento público. */
+export const STATUS_ACOMPANHAMENTO_ORDEM_FINAL = new Set([
+  "finalizado",
+  "entregue",
+  "recebido_cliente",
+]);
+
+export function trabalhoAcompanhamentoNoFinalDaOrdem(status: string): boolean {
+  return STATUS_ACOMPANHAMENTO_ORDEM_FINAL.has(normalizarChaveStatusOs(status));
+}
+
+export function compararTrabalhosAcompanhamento(
+  a: { numeroOs: number; status: string },
+  b: { numeroOs: number; status: string }
+): number {
+  const fimA = trabalhoAcompanhamentoNoFinalDaOrdem(a.status) ? 1 : 0;
+  const fimB = trabalhoAcompanhamentoNoFinalDaOrdem(b.status) ? 1 : 0;
+  if (fimA !== fimB) return fimA - fimB;
+  return b.numeroOs - a.numeroOs;
+}
+
+export type OpcaoFiltroSituacaoAcompanhamento = {
+  chave: string;
+  label: string;
+  color: string;
+  quantidade: number;
+};
+
+export function opcoesFiltroSituacaoAcompanhamento(
+  trabalhos: Array<{ status: string }>
+): OpcaoFiltroSituacaoAcompanhamento[] {
+  const contagem = new Map<string, number>();
+  for (const trabalho of trabalhos) {
+    const chave = normalizarChaveStatusOs(trabalho.status);
+    contagem.set(chave, (contagem.get(chave) || 0) + 1);
+  }
+
+  const ordemPreferida = [
+    "pedido",
+    "pendente",
+    "producao",
+    "prova",
+    "saiu_entrega",
+    "finalizado",
+    "entregue",
+    "recebido_cliente",
+    "cancelado",
+  ];
+
+  const chaves = [...contagem.keys()].sort((a, b) => {
+    const ia = ordemPreferida.indexOf(a);
+    const ib = ordemPreferida.indexOf(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b, "pt-BR");
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+
+  return chaves.map((chave) => {
+    const meta = metaStatusOs(chave);
+    return {
+      chave,
+      label: meta.label,
+      color: meta.color,
+      quantidade: contagem.get(chave) || 0,
+    };
+  });
+}
 
 /** Gera token apenas na primeira vez; nunca substitui um token existente. */
 export async function garantirTokenAcompanhamentoCliente(
@@ -229,7 +298,7 @@ export function montarAcompanhamentoPublico(
     });
   }
 
-  publicos.sort((a, b) => b.numeroOs - a.numeroOs);
+  publicos.sort(compararTrabalhosAcompanhamento);
 
   const atualizadoEm = publicos[0]?.atualizadoEm || new Date().toISOString();
 

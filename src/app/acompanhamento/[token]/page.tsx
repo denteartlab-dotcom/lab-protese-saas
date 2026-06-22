@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, PackageCheck, Search } from "lucide-react";
 import { useParams, useSearchParams } from "next/navigation";
-import type { ClienteAcompanhamentoPublico } from "@/lib/cliente-acompanhamento";
+import {
+  compararTrabalhosAcompanhamento,
+  opcoesFiltroSituacaoAcompanhamento,
+  type ClienteAcompanhamentoPublico,
+} from "@/lib/cliente-acompanhamento";
+import { normalizarChaveStatusOs } from "@/lib/status-os";
 import { Modal } from "@/components/ui";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -41,6 +46,7 @@ export default function AcompanhamentoClientePage() {
   const [recebidoEnviando, setRecebidoEnviando] = useState(false);
   const [historicoAberto, setHistoricoAberto] = useState<Record<string, boolean>>({});
   const [busca, setBusca] = useState("");
+  const [filtroSituacao, setFiltroSituacao] = useState("todos");
 
   const carregar = useCallback(async (silencioso = false) => {
     if (!silencioso) setCarregando(true);
@@ -176,18 +182,34 @@ export default function AcompanhamentoClientePage() {
     }
   }, [token, recebidoModalTrabalhoId, nomeRecebedor, carregar]);
 
+  const opcoesSituacao = useMemo(
+    () => (dados ? opcoesFiltroSituacaoAcompanhamento(dados.trabalhos) : []),
+    [dados]
+  );
+
   const trabalhosFiltrados = useMemo(() => {
     if (!dados) return [];
+    let lista = [...dados.trabalhos];
+
+    if (filtroSituacao !== "todos") {
+      lista = lista.filter(
+        (t) => normalizarChaveStatusOs(t.status) === filtroSituacao
+      );
+    }
+
     const termo = busca.trim().toLowerCase();
-    if (!termo) return dados.trabalhos;
-    const soNumero = termo.replace(/\D/g, "");
-    return dados.trabalhos.filter((t) => {
-      const paciente = t.pacienteNome.toLowerCase();
-      if (paciente.includes(termo)) return true;
-      if (soNumero && String(t.numeroOs).includes(soNumero)) return true;
-      return String(t.numeroOs).includes(termo);
-    });
-  }, [dados, busca]);
+    if (termo) {
+      const soNumero = termo.replace(/\D/g, "");
+      lista = lista.filter((t) => {
+        const paciente = t.pacienteNome.toLowerCase();
+        if (paciente.includes(termo)) return true;
+        if (soNumero && String(t.numeroOs).includes(soNumero)) return true;
+        return String(t.numeroOs).includes(termo);
+      });
+    }
+
+    return lista.sort(compararTrabalhosAcompanhamento);
+  }, [dados, busca, filtroSituacao]);
 
   if (carregando && !dados) {
     return (
@@ -231,7 +253,54 @@ export default function AcompanhamentoClientePage() {
         ) : null}
       </header>
 
-      <main className="mx-auto max-w-3xl space-y-4 p-4 pb-10">
+      <main className="mx-auto max-w-5xl p-4 pb-10">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start">
+          {dados.trabalhos.length > 0 ? (
+            <aside className="md:w-52 md:shrink-0">
+              <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm md:sticky md:top-4">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  Situação
+                </p>
+                <nav className="flex gap-2 overflow-x-auto pb-1 md:flex-col md:overflow-visible md:pb-0">
+                  <button
+                    type="button"
+                    onClick={() => setFiltroSituacao("todos")}
+                    className={cn(
+                      "inline-flex shrink-0 items-center justify-between gap-2 rounded-md border px-3 py-2 text-left text-[12px] font-medium transition md:w-full",
+                      filtroSituacao === "todos"
+                        ? "border-[#4a90d9] bg-[#4a90d9]/8 text-[#4a90d9]"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    )}
+                  >
+                    <span>Todos</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                      {dados.trabalhos.length}
+                    </span>
+                  </button>
+                  {opcoesSituacao.map((opcao) => (
+                    <button
+                      key={opcao.chave}
+                      type="button"
+                      onClick={() => setFiltroSituacao(opcao.chave)}
+                      className={cn(
+                        "inline-flex shrink-0 items-center justify-between gap-2 rounded-md border px-3 py-2 text-left text-[12px] font-medium transition md:w-full",
+                        filtroSituacao === opcao.chave
+                          ? "border-[#4a90d9] bg-[#4a90d9]/8 text-[#4a90d9]"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      )}
+                    >
+                      <span className="truncate">{opcao.label}</span>
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                        {opcao.quantidade}
+                      </span>
+                    </button>
+                  ))}
+                </nav>
+              </div>
+            </aside>
+          ) : null}
+
+          <div className="min-w-0 flex-1 space-y-4">
         {urgenteMsg ? (
           <p
             className={cn(
@@ -264,11 +333,13 @@ export default function AcompanhamentoClientePage() {
         ) : null}
         {dados.trabalhos.length === 0 ? (
           <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-            Nenhum trabalho em andamento no momento.
+            Nenhum trabalho disponível para acompanhamento.
           </div>
         ) : trabalhosFiltrados.length === 0 ? (
           <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-            Nenhum trabalho encontrado para &quot;{busca.trim()}&quot;.
+            {busca.trim()
+              ? `Nenhum trabalho encontrado para "${busca.trim()}".`
+              : "Nenhum trabalho com a situação selecionada."}
           </div>
         ) : (
           trabalhosFiltrados.map((t) => (
@@ -469,6 +540,8 @@ export default function AcompanhamentoClientePage() {
             </article>
           ))
         )}
+          </div>
+        </div>
       </main>
 
       <Modal
