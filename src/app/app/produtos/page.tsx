@@ -16,6 +16,7 @@ import {
   getHistoricoMovimentosProduto,
   getProdutosEstoqueExtras,
   limparDadosEstoqueDoProduto,
+  notificarProdutosEstoqueAtualizado,
   parseQuantidadeEstoque,
   PRODUTOS_ESTOQUE_EVENT,
   registrarMovimentoEstoque,
@@ -617,6 +618,7 @@ function ProdutosConteudo() {
     writeStorage(PRODUTOS_EXCLUIDOS_STORAGE_KEY, idsAtualizados);
     writeStorage(PRODUTOS_EXCLUIDOS_SNAPSHOTS_KEY, snapshotsAtualizados);
     setProdutoParaExcluir(null);
+    notificarProdutosEstoqueAtualizado();
   }
 
   function restaurarProduto(produto: Produto) {
@@ -628,6 +630,7 @@ function ProdutosConteudo() {
     setSnapshotsExcluidos(snapshotsAtualizados);
     writeStorage(PRODUTOS_EXCLUIDOS_STORAGE_KEY, idsAtualizados);
     writeStorage(PRODUTOS_EXCLUIDOS_SNAPSHOTS_KEY, snapshotsAtualizados);
+    notificarProdutosEstoqueAtualizado();
   }
 
   function solicitarExclusaoPermanente(produto: Produto) {
@@ -672,6 +675,7 @@ function ProdutosConteudo() {
         () => undefined
       );
     }
+    notificarProdutosEstoqueAtualizado();
   }
 
   function alterarUnidadeMedida(unidadeMedida: string) {

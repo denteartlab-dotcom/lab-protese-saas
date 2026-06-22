@@ -83,6 +83,10 @@ function notifyEstoqueUpdated() {
   window.dispatchEvent(new Event(PRODUTOS_ESTOQUE_EVENT));
 }
 
+export function notificarProdutosEstoqueAtualizado() {
+  notifyEstoqueUpdated();
+}
+
 function criarIdMovimento() {
   return `mov-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
