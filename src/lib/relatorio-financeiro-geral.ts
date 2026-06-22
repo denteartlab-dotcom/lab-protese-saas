@@ -151,12 +151,8 @@ export type RelatorioFinanceiroGeralPayload = {
   financeiroRealizado: FinanceiroLancamentosPeriodo;
 };
 
-export const STATUS_SERVICO_CONCLUIDO_FINANCEIRO = [
-  "finalizado",
-  "saiu_entrega",
-  "entregue",
-  "recebido_cliente",
-] as const;
+/** Concluído no financeiro = apenas Finalizado ou Entregue (não inclui Saiu para Entrega). */
+export const STATUS_SERVICO_CONCLUIDO_FINANCEIRO = ["finalizado", "entregue"] as const;
 
 export function servicoConcluidoFinanceiro(status?: string | null) {
   const key = normalizarChaveStatusOs(status);

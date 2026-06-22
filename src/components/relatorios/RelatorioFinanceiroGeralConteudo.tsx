@@ -343,8 +343,9 @@ export function RelatorioFinanceiroGeralConteudo() {
               Relatório Financeiro Geral
             </h1>
             <p className="mt-1 text-[13px] text-[#6b7280]">
-              Produção em aberto (valor do serviço) e concluídos no período (saldo a receber,
-              incluindo produto e transporte da OS)
+              Produção em aberto (valor do serviço) e a receber de serviços Finalizados ou Entregues
+              no período (saldo em Contas a Receber, incluindo produto e transporte da OS). Saiu para
+              Entrega conta como em aberto.
             </p>
           </div>
         </div>
@@ -1074,8 +1075,8 @@ export function RelatorioFinanceiroGeralConteudo() {
       >
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <p className="max-w-xl text-[12px] text-[#6b7280]">
-            Valores a receber de serviços concluídos (serviço + produto + transporte da mesma OS,
-            saldo em Contas a Receber ou valor da OS quando ainda não faturada).
+            Valores a receber de serviços Finalizados ou Entregues (serviço + produto + transporte da
+            mesma OS, saldo em Contas a Receber ou valor da OS quando ainda não faturada).
           </p>
           {linhasConcluidosModal.length > 0 ? (
             <button
