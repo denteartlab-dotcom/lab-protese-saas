@@ -148,28 +148,45 @@ export function LoginForm({
   }, [brandingLaboratorio]);
 
   useEffect(() => {
+    if (!jaEntrou) return;
     const ultimo = lerUltimoLaboratorioLogin();
     if (!ultimo?.slug) return;
     document.cookie = `${ULTIMO_LAB_SLUG_COOKIE}=${encodeURIComponent(ultimo.slug)}; path=/; max-age=31536000; samesite=lax`;
     if (brandingLaboratorio?.empresaSlug || labSlugQuery || empresaSlugRedirect) return;
     void carregarBranding({ slug: ultimo.slug });
-  }, [brandingLaboratorio?.empresaSlug, labSlugQuery, empresaSlugRedirect, carregarBranding]);
+  }, [
+    jaEntrou,
+    brandingLaboratorio?.empresaSlug,
+    labSlugQuery,
+    empresaSlugRedirect,
+    carregarBranding,
+  ]);
 
   useEffect(() => {
+    if (!jaEntrou) return;
     if (!labSlugAtivo) return;
     if (brandingRemoto?.empresaSlug === labSlugAtivo) return;
     void carregarBranding({ slug: labSlugAtivo });
-  }, [labSlugAtivo, brandingRemoto?.empresaSlug, carregarBranding]);
+  }, [jaEntrou, labSlugAtivo, brandingRemoto?.empresaSlug, carregarBranding]);
 
   useEffect(() => {
+    if (!jaEntrou) return;
     if (labSlugAtivo) return;
     const valor = email.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor)) return;
     void carregarBranding({ email: valor });
-  }, [email, labSlugAtivo, carregarBranding]);
+  }, [jaEntrou, email, labSlugAtivo, carregarBranding]);
 
   const branding = useMemo(() => {
     const plataforma = brandingInicial;
+    if (!jaEntrou) {
+      return {
+        nomeLaboratorio: plataforma.nomeLaboratorio,
+        marcaSubtitulo: plataforma.marcaSubtitulo,
+        labIdentificado: false,
+        lab: plataforma.lab,
+      };
+    }
     const remoto = brandingRemoto ?? brandingLaboratorio;
     if (remoto?.empresaSlug) {
       return brandingDeRemoto(remoto, plataforma, labSlugAtivo);
@@ -180,7 +197,7 @@ export function LoginForm({
       labIdentificado: false,
       lab: plataforma.lab,
     };
-  }, [brandingInicial, brandingRemoto, brandingLaboratorio, labSlugAtivo]);
+  }, [brandingInicial, brandingRemoto, brandingLaboratorio, labSlugAtivo, jaEntrou]);
 
   useEffect(() => {
     const slug =
@@ -203,12 +220,13 @@ export function LoginForm({
   ]);
 
   useEffect(() => {
+    if (!jaEntrou) return;
     const atualizar = () => {
       if (labSlugAtivo) void carregarBranding({ slug: labSlugAtivo });
     };
     window.addEventListener(LAB_CONFIG_ATUALIZADA_EVENT, atualizar);
     return () => window.removeEventListener(LAB_CONFIG_ATUALIZADA_EVENT, atualizar);
-  }, [carregarBranding, labSlugAtivo]);
+  }, [jaEntrou, carregarBranding, labSlugAtivo]);
 
   useEffect(() => {
     document.title = montarTituloDocumento();
@@ -363,7 +381,9 @@ export function LoginForm({
   const { lab, nomeLaboratorio, marcaSubtitulo, labIdentificado } = branding;
   const logoLogin = dimensoesLogoPx(lab, { largura: 120, altura: 72 });
   const logoLab = lab.logoDataUrl?.trim();
-  const logoSrc = logoLab || (!labIdentificado ? brandingInicial.lab.logoDataUrl : "");
+  const logoSrc = !jaEntrou
+    ? brandingInicial.lab.logoDataUrl?.trim() || "/logo-lab-protese.png"
+    : logoLab || (!labIdentificado ? brandingInicial.lab.logoDataUrl : "");
 
   const inputCls =
     "h-8 w-full rounded border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15";

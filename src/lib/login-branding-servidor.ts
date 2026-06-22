@@ -37,6 +37,15 @@ export async function carregarBrandingLoginServidor(params: {
   const cookieStore = await cookies();
   const jaEntrou = cookieStore.get(JA_ENTROU_COOKIE)?.value === "1";
   const plataforma = brandingPlataformaLogin();
+
+  if (!jaEntrou) {
+    return {
+      brandingInicial: brandingPublicoParaLoginForm(plataforma),
+      brandingLaboratorio: null,
+      jaEntrou: false,
+    };
+  }
+
   let slug = resolverSlugBrandingLogin(params);
 
   if (!slug) {

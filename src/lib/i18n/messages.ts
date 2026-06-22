@@ -298,7 +298,7 @@ export const messages = {
     "idioma.moedaDolar": "Dólar",
     "idioma.moedaEuro": "Euro",
     "login.bemVindo": "Bem-vindo de volta",
-    "login.bemVindoPrimeira": "Bem-vindo",
+    "login.bemVindoPrimeira": "Bem Vindo",
     "login.subtitulo": "Entre com seu e-mail e senha para continuar",
     "login.bemVindoCadastro": "Criar conta do laboratório",
     "login.subtituloCadastro": "Cadastre-se como administrador do sistema",
