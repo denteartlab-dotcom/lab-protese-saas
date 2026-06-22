@@ -102,7 +102,7 @@ fi
 echo ""
 echo "==> Diagnóstico Socket.IO (aguarde 3s)..."
 sleep 3
-curl -sf "http://127.0.0.1:${PORT:-3000}/api/tv/socket-health" && echo "" || echo "AVISO: socket-health indisponível — confira se npm run start está ativo."
+curl -sf "http://127.0.0.1:${PORT:-3000}/api/health" && echo "" || echo "AVISO: /api/health indisponível — confira se npm run start está ativo."
 
 echo ""
 echo "==> Teste de isolamento (opcional)..."

@@ -152,6 +152,15 @@ URL_PUBLICA_DO_APP=http://SEU_IP
 
 Reinicie: `pm2 restart lab-protese`
 
+**502 após ficar sem usar?** Atualize o Nginx e o cron de keepalive:
+
+```bash
+sudo cp deploy/nginx-denteartlab.conf /etc/nginx/sites-available/denteartlab
+sudo nginx -t && sudo systemctl reload nginx
+chmod +x deploy/ping-servidor.sh
+(crontab -l 2>/dev/null; echo "*/5 * * * * bash /opt/lab-protese-saas/deploy/ping-servidor.sh >> /var/log/lab-protese-ping.log 2>&1") | crontab -
+```
+
 ---
 
 ## 8. Systemd (alternativa ao PM2)

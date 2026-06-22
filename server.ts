@@ -17,6 +17,7 @@ import {
   salaTvEmpresa,
 } from "./src/lib/tv/tv-ordens-store";
 import { setTvSocketIo } from "./src/lib/tv/tv-socket-io";
+import { aquecerServidor, iniciarManutencaoServidor } from "./src/lib/servidor-saude";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME || "0.0.0.0";
@@ -84,6 +85,16 @@ app
 
     iniciarTvRefreshAutomatico();
 
+    void aquecerServidor()
+      .then(() => {
+        console.log("> Banco de dados aquecido");
+        iniciarManutencaoServidor();
+      })
+      .catch((erro) => {
+        console.error("> Falha ao aquecer banco (tentará de novo no keepalive):", erro);
+        iniciarManutencaoServidor();
+      });
+
     const iniciarHttp = (tentativa = 1) => {
       httpServer.once("error", (erro: NodeJS.ErrnoException) => {
         if (erro.code === "EADDRINUSE" && tentativa < 4) {
@@ -127,6 +138,10 @@ app
       httpServer.listen(port, () => {
         console.log(`> Smart Prótese pronto em http://${hostname}:${port}`);
         console.log(`> Socket.io TV: ${TV_SOCKET_PATH}`);
+
+        if (typeof process.send === "function") {
+          process.send("ready");
+        }
 
         setTimeout(() => {
           if (backupAutomaticoHabilitadoNoServidor()) {
