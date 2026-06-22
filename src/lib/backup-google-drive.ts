@@ -509,6 +509,77 @@ export async function uploadBackupParaGoogleDrive(params: {
   }
 }
 
+export type ResultadoExclusaoPastaDrive = {
+  ok: boolean;
+  pastaId?: string;
+  erro?: string;
+};
+
+/** Remove a pasta da empresa no Google Drive (backup completo). */
+export async function excluirPastaDriveEmpresa(params: {
+  empresaId: string;
+  slug: string;
+  nome?: string;
+}): Promise<ResultadoExclusaoPastaDrive> {
+  const status = statusGoogleDriveBackup();
+  if (!status.habilitado) {
+    return { ok: false, erro: "desativado" };
+  }
+  if (!status.configurado || !status.pastaRaizId) {
+    return { ok: false, erro: "nao_configurado" };
+  }
+
+  const drive = await criarClienteDrive();
+  if (!drive) {
+    return { ok: false, erro: "credenciais_invalidas" };
+  }
+
+  let nomeEmpresa = params.nome?.trim();
+  if (!nomeEmpresa) {
+    const empresa = await prisma.empresa.findUnique({
+      where: { id: params.empresaId },
+      select: { nome: true },
+    });
+    nomeEmpresa = empresa?.nome?.trim() || params.slug;
+  }
+
+  const pastaEmpresaNome = nomePastaBackupEmpresa(params.slug, nomeEmpresa);
+
+  try {
+    const config = await carregarConfigBackupAutomatico(params.empresaId);
+    let pastaId = config.pastaDriveId;
+
+    if (pastaId && !(await pastaDriveExiste(drive, pastaId))) {
+      pastaId = undefined;
+    }
+
+    if (!pastaId) {
+      const pastaRaizId = await resolverPastaRaizDrive(drive);
+      if (!pastaRaizId) {
+        return { ok: false, erro: "pasta_raiz_indisponivel" };
+      }
+      pastaId = (await buscarPastaPorNome(drive, pastaRaizId, pastaEmpresaNome)) ?? undefined;
+    }
+
+    if (!pastaId) {
+      return { ok: true };
+    }
+
+    await drive.files.delete({
+      fileId: pastaId,
+      supportsAllDrives: true,
+    });
+
+    console.log(`[backup-drive] pasta removida: ${pastaEmpresaNome} (${pastaId})`);
+    return { ok: true, pastaId };
+  } catch (erro) {
+    const mensagem =
+      erro instanceof Error ? erro.message : "Falha ao excluir pasta no Google Drive.";
+    console.error(`[backup-drive] excluir ${params.slug}:`, erro);
+    return { ok: false, erro: mensagem };
+  }
+}
+
 export function caminhoDriveEmpresa(slug: string, nome?: string) {
   const status = statusGoogleDriveBackup();
   const pastaLocal = caminhoRelativoPastaBackupEmpresa(slug, nome);

@@ -9,6 +9,7 @@ import { prisma } from "./src/lib/db";
 import { requisicaoTvSocket } from "./src/lib/tv/tv-socket-client";
 import { TV_SOCKET_PATH } from "./src/lib/tv/tv-socket-events";
 import { iniciarBackupAutomaticoDiario } from "./src/lib/backup-automatico";
+import { iniciarLimpezaContasInativasDiaria } from "./src/lib/exclusao-empresa";
 import { backupAutomaticoHabilitadoNoServidor } from "./src/lib/backup-automatico-servidor";
 import {
   getTvOrdensSnapshot,
@@ -135,6 +136,7 @@ app
               "[backup-automatico] desativado (BACKUP_AUTOMATICO_ENABLED=false ou 0)."
             );
           }
+          iniciarLimpezaContasInativasDiaria();
         }, 15_000);
       });
     };

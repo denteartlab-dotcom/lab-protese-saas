@@ -6,6 +6,7 @@ import {
   statusPagamentoAssinatura,
 } from "@/lib/assinatura-empresa";
 import { prisma } from "@/lib/db";
+import { registrarUltimoAcessoEmpresa } from "@/lib/empresa-ultimo-acesso";
 import { lerJsonStoreTenant } from "@/lib/json-store-tenant";
 import {
   normalizarPeriodoCobranca,
@@ -60,6 +61,8 @@ export async function obterContextoAssinaturaVencida(): Promise<ContextoAssinatu
 
   if (!user || user.excluidoEm || !user.empresa) return null;
   if (!empresaPrecisaPaginaRenovacao(user.empresa)) return null;
+
+  void registrarUltimoAcessoEmpresa(user.empresa.id);
 
   const periodoSalvo = await lerJsonStoreTenant<string>(
     user.empresa.id,

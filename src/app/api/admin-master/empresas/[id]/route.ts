@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { hashPassword } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { exigirMasterAdmin, respostaNaoAutorizadoMaster } from "@/lib/exigir-master-admin";
+import { excluirEmpresaCompleta } from "@/lib/exclusao-empresa";
 import { ipDaRequisicao, registrarLogMaster } from "@/lib/master-audit";
 import { obterEmpresaDetalheMaster } from "@/lib/master-empresa";
 import { validarSlugEmpresa } from "@/lib/empresa-padrao";
@@ -159,22 +160,24 @@ export async function DELETE(request: Request, { params }: Params) {
 
     const existente = await prisma.empresa.findUnique({
       where: { id },
-      select: { id: true, nome: true, codigo: true },
+      select: { id: true, nome: true, slug: true, codigo: true },
     });
     if (!existente) {
       return NextResponse.json({ error: "Empresa não encontrada." }, { status: 404 });
     }
 
-    await prisma.empresa.delete({ where: { id } });
-
-    await registrarLogMaster(master.id, "EXCLUIR_EMPRESA", {
-      empresaId: id,
-      detalhes: `Empresa excluída: ${existente.nome} (${existente.codigo ?? id})`,
+    await excluirEmpresaCompleta(existente, {
+      motivo: "manual",
+      masterId: master.id,
       ip: ipDaRequisicao(request),
     });
 
     return NextResponse.json({ ok: true });
-  } catch {
-    return respostaNaoAutorizadoMaster();
+  } catch (error) {
+    if (error instanceof Error && error.message === "UNAUTHORIZED") {
+      return respostaNaoAutorizadoMaster();
+    }
+    console.error("[admin-master/empresas DELETE]", error);
+    return NextResponse.json({ error: "Erro ao excluir empresa." }, { status: 500 });
   }
 }

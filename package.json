@@ -32,6 +32,7 @@
     "db:publicar-neon": "node node_modules/tsx/dist/cli.mjs scripts/publicar-banco-neon.ts",
     "db:migrar-financeiro": "node node_modules/tsx/dist/cli.mjs scripts/migrar-financeiro-neon.ts",
     "backup:diario": "node node_modules/tsx/dist/cli.mjs scripts/backup-diario.ts",
+    "limpar:contas-inativas": "node node_modules/tsx/dist/cli.mjs scripts/limpar-contas-inativas.ts",
     "db:zerar": "node node_modules/tsx/dist/cli.mjs scripts/zerar-sistema-virgem.ts --confirmar=ZERAR"
   },
   "dependencies": {

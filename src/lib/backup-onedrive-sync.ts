@@ -1,7 +1,7 @@
 import { exec } from "child_process";
 import path from "path";
 import { promisify } from "util";
-import { pastaBackupResolvida } from "@/lib/backup-automatico-servidor";
+import { nomePastaBackupEmpresa } from "@/lib/backup-empresa-pasta";
 
 const execAsync = promisify(exec);
 
@@ -47,6 +47,32 @@ export async function sincronizarBackupComOneDrive(): Promise<{
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[backup-onedrive-sync]", msg);
+    return { ok: false, erro: msg };
+  }
+}
+
+/** Remove a pasta da empresa no OneDrive via rclone purge. */
+export async function excluirPastaBackupEmpresaOneDrive(
+  slug: string,
+  nome?: string
+): Promise<{ ok: boolean; erro?: string }> {
+  if (!onedriveBackupSyncHabilitado()) {
+    return { ok: false, erro: "desativado" };
+  }
+
+  const pastaNome = nomePastaBackupEmpresa(slug, nome);
+  const destino = `${onedriveRcloneDestino()}/${pastaNome}`;
+
+  try {
+    await execAsync(`rclone purge "${destino}"`, { timeout: 120_000 });
+    console.log(`[backup-onedrive-sync] pasta removida: ${destino}`);
+    return { ok: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/directory not found|couldn't find file|not found|doesn't exist/i.test(msg)) {
+      return { ok: true };
+    }
+    console.error("[backup-onedrive-sync] purge:", msg);
     return { ok: false, erro: msg };
   }
 }

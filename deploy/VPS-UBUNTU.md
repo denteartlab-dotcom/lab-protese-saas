@@ -192,6 +192,14 @@ crontab -e
 0 3 * * * cd /opt/lab-protese-saas && npm run backup:diario >> /var/log/lab-protese-backup.log 2>&1
 ```
 
+Contas com **30+ dias sem acesso** e **sem assinatura paga** são excluídas automaticamente (banco, pasta local, Google Drive e OneDrive). O `server.ts` agenda isso diariamente (~04:15). Opcional via cron:
+
+```
+15 4 * * * cd /opt/lab-protese-saas && npm run limpar:contas-inativas >> /var/log/lab-protese-limpeza.log 2>&1
+```
+
+Simular antes: `npm run limpar:contas-inativas -- --simular`
+
 ---
 
 ## 10. Validar após subir

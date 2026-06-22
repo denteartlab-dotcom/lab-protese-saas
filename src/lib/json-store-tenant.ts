@@ -152,6 +152,12 @@ export async function buscarJsonStorePublicoPorToken<T>(
   }
 }
 
+export async function excluirJsonStoreTenant(empresaId: string) {
+  await prisma.jsonStore.deleteMany({
+    where: { key: { startsWith: `${PREFIXO_TENANT}${empresaId}:` } },
+  });
+}
+
 export async function copiarJsonStoreLegadoParaTenant(empresaId: string) {
   const legado = await prisma.jsonStore.findMany({
     where: { key: { startsWith: ARMAZENAMENTO_LAB_PREFIX } },

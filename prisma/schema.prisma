@@ -27,6 +27,7 @@ model Empresa {
   observacoes     String?
   status    String   @default("ativo")
   asaasCustomerIdPlataforma String?
+  ultimoAcessoEm DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

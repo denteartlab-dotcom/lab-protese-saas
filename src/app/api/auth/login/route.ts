@@ -7,6 +7,7 @@ import {
   mensagemBloqueioAssinatura,
 } from "@/lib/assinatura-empresa";
 import { montarSessionUserComAssinatura } from "@/lib/sessao-assinatura";
+import { registrarUltimoAcessoEmpresaImediato } from "@/lib/empresa-ultimo-acesso";
 import { parsePermissoesUsuario } from "@/lib/usuarios-sistema";
 import { z } from "zod";
 
@@ -151,6 +152,7 @@ export async function POST(request: Request) {
       };
 
     await createSession(sessionUser, { remember: remember === true });
+    await registrarUltimoAcessoEmpresaImediato(user.empresaId);
 
     return NextResponse.json({
       user: {

@@ -2,6 +2,7 @@ import { getSession } from "@/lib/auth";
 import { emailEhMasterAdmin } from "@/lib/exigir-master-admin";
 import { empresaTemAcessoAssinatura } from "@/lib/assinatura-empresa";
 import { carregarConfigLaboratorioServidor } from "@/lib/lab-config-servidor";
+import { registrarUltimoAcessoEmpresa } from "@/lib/empresa-ultimo-acesso";
 import { nomeExibicaoLaboratorio } from "@/lib/configuracoes-lab";
 import { configParaLabImpressao } from "@/lib/lab-logo";
 import type { LabImpressaoConfig } from "@/lib/lab-impressao";
@@ -60,6 +61,8 @@ export async function obterContextoAppServidor(): Promise<ContextoAppServidor | 
   if (!user || user.excluidoEm || !user.empresa || !empresaTemAcessoAssinatura(user.empresa)) {
     return null;
   }
+
+  void registrarUltimoAcessoEmpresa(user.empresa.id);
 
   const lab = configParaLabImpressao(configLab);
   const nomeLaboratorio = nomeExibicaoLaboratorio(configLab) || "Lab Prótese";
