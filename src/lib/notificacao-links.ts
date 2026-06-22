@@ -42,6 +42,12 @@ export function hrefDespesaVencendo(lancamentoId: string) {
   return `/app/financeiro?tipo=despesa&lancamentoId=${encodeURIComponent(lancamentoId)}`;
 }
 
+export function hrefBoletoControle(lancamentoId?: string) {
+  const q = new URLSearchParams({ aba: "boletos" });
+  if (lancamentoId) q.set("lancamentoId", lancamentoId);
+  return `/app/financeiro?${q}`;
+}
+
 export function hrefOrcamento(orcamentoId: string, acao: "abrir" | "resposta" = "abrir") {
   const q = new URLSearchParams({ orcamentoId, acao });
   return `/app/orcamentos?${q}`;

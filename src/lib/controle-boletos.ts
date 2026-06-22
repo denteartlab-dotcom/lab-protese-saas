@@ -1,5 +1,6 @@
-import { parseBrDate } from "@/lib/datas-br";
+import { dateToBrShort, parseBrDate } from "@/lib/datas-br";
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
+import { hrefBoletoControle } from "@/lib/notificacao-links";
 
 export type GrupoBoletoTabela = "vencidos" | "proximos" | "pagos";
 
@@ -23,6 +24,34 @@ export type LancamentoBoletoResumo = {
   cliente?: { id: string; nome: string } | null;
   trabalho?: { id: string; numeroOs: number } | null;
 };
+
+export function lancamentoParaResumoBoleto(l: {
+  id: string;
+  tipo: string;
+  descricao: string;
+  valor: number;
+  data: Date;
+  status: string;
+  formaPagamento?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  cliente?: { id: string; nome: string } | null;
+  trabalho?: { id: string; numeroOs: number } | null;
+}): LancamentoBoletoResumo {
+  return {
+    id: l.id,
+    tipo: l.tipo,
+    descricao: l.descricao,
+    valor: l.valor,
+    data: l.data.toISOString(),
+    status: l.status,
+    formaPagamento: l.formaPagamento,
+    createdAt: l.createdAt.toISOString(),
+    updatedAt: l.updatedAt.toISOString(),
+    cliente: l.cliente,
+    trabalho: l.trabalho,
+  };
+}
 
 export type LinhaBoleto = {
   lancamento: LancamentoBoletoResumo;
@@ -260,6 +289,60 @@ export function alertasBoletos(linhas: LinhaBoleto[], limite = 8): AlertaBoleto[
       return peso[a.tipo] - peso[b.tipo];
     })
     .slice(0, limite);
+}
+
+export type NotificacaoBoletoApi = {
+  id: string;
+  kind: "boleto_vencido" | "boleto_vencendo";
+  href: string;
+  params: Record<string, string | number>;
+  criadoEm: string;
+};
+
+/** Alertas de vencimento de boletos para o sino de notificações (mesma regra do painel lateral). */
+export function montarNotificacoesBoletos(
+  linhas: LinhaBoleto[],
+  limite = 50
+): NotificacaoBoletoApi[] {
+  const mapa = new Map(linhas.map((l) => [l.lancamento.id, l]));
+  return alertasBoletos(linhas, limite).map((alerta) => {
+    const linha = mapa.get(alerta.lancamentoId);
+    const vencimento = linha
+      ? dateToBrShort(dateOnlyBoleto(linha.lancamento.data))
+      : "—";
+    const dias =
+      linha && alerta.tipo === "vencido"
+        ? Math.abs(linha.diasAteVencimento)
+        : linha?.diasAteVencimento ?? 0;
+    const parcela = linha?.pack.parcela?.trim();
+    const quando =
+      alerta.tipo === "vencido"
+        ? ""
+        : dias === 0
+          ? "hoje"
+          : `em ${dias} dia(s)`;
+
+    return {
+      id:
+        alerta.tipo === "vencido"
+          ? `boleto-vencido-${alerta.lancamentoId}`
+          : `boleto-vencendo-${alerta.lancamentoId}`,
+      kind: alerta.tipo === "vencido" ? "boleto_vencido" : "boleto_vencendo",
+      href: hrefBoletoControle(alerta.lancamentoId),
+      params: {
+        fornecedor: linha?.fornecedor ?? "—",
+        valor: formatarMoedaBoleto(alerta.valor),
+        dias,
+        vencimento,
+        quando,
+        ...(parcela ? { parcela } : {}),
+      },
+      criadoEm:
+        linha?.lancamento.updatedAt ||
+        linha?.lancamento.createdAt ||
+        new Date().toISOString(),
+    };
+  });
 }
 
 export function formatarMoedaBoleto(valor: number) {

@@ -387,6 +387,8 @@ export const messages = {
     "notif.titulo.orcamento_recebido": "Orçamento recebido",
     "notif.titulo.os_sem_nota": "OS sem nota de cobrança",
     "notif.titulo.despesa_vencendo": "Despesa a vencer",
+    "notif.titulo.boleto_vencido": "Boleto vencido",
+    "notif.titulo.boleto_vencendo": "Boleto vence em breve",
     "notif.titulo.cobranca_dia": "Lembrete de cobrança",
     "notif.titulo.servico_vencendo": "Serviço vencendo",
     "notif.titulo.servico_atrasado": "Serviço atrasado",
@@ -401,6 +403,10 @@ export const messages = {
     "notif.orcamento_recebido": "Resposta recebida no orçamento #{pedido} ({fornecedor}).",
     "notif.os_sem_nota": "OS {numeroOs}: cobrança há {dias} dia(s) sem incluir na nota.",
     "notif.despesa_vencendo": "Parcela {parcela} de {fornecedor} ({valor}) vence em 2 dias ({vencimento}).",
+    "notif.boleto_vencido":
+      "Boleto vencido: {fornecedor} ({valor}) — {dias} dia(s) em atraso (venc. {vencimento}).",
+    "notif.boleto_vencendo":
+      "Boleto de {fornecedor} ({valor}) vence {quando} (venc. {vencimento}).",
     "notif.cobranca_dia": "Hoje é dia {dia} de cobrança de {cliente}. Saldo em aberto: {saldo}.",
     "notif.servico_vencendo": "OS {numeroOs} vence em {prazo}: {servico} (Paciente: {paciente}).",
     "notif.servico_atrasado": "OS {numeroOs} atrasada desde {prazo}: {servico} (Paciente: {paciente}).",
@@ -790,6 +796,8 @@ export const messages = {
     "notif.titulo.orcamento_recebido": "Quote received",
     "notif.titulo.os_sem_nota": "WO not on invoice",
     "notif.titulo.despesa_vencendo": "Expense due soon",
+    "notif.titulo.boleto_vencido": "Overdue bank slip",
+    "notif.titulo.boleto_vencendo": "Bank slip due soon",
     "notif.titulo.cobranca_dia": "Billing reminder",
     "notif.titulo.servico_vencendo": "Service due soon",
     "notif.titulo.servico_atrasado": "Overdue service",
@@ -804,6 +812,10 @@ export const messages = {
     "notif.orcamento_recebido": "Reply received on quote #{pedido} ({fornecedor}).",
     "notif.os_sem_nota": "WO {numeroOs}: charge pending on invoice for {dias} day(s).",
     "notif.despesa_vencendo": "Installment {parcela} for {fornecedor} ({valor}) due in 2 days ({vencimento}).",
+    "notif.boleto_vencido":
+      "Overdue bank slip: {fornecedor} ({valor}) — {dias} day(s) late (due {vencimento}).",
+    "notif.boleto_vencendo":
+      "Bank slip for {fornecedor} ({valor}) due {quando} (due {vencimento}).",
     "notif.cobranca_dia": "Today is billing day {dia} for {cliente}. Open balance: {saldo}.",
     "notif.servico_vencendo": "WO {numeroOs} due on {prazo}: {servico} (Patient: {paciente}).",
     "notif.servico_atrasado": "WO {numeroOs} overdue since {prazo}: {servico} (Patient: {paciente}).",
@@ -1193,6 +1205,8 @@ export const messages = {
     "notif.titulo.orcamento_recebido": "Presupuesto recibido",
     "notif.titulo.os_sem_nota": "OS sin nota de cobro",
     "notif.titulo.despesa_vencendo": "Gasto por vencer",
+    "notif.titulo.boleto_vencido": "Boleto vencido",
+    "notif.titulo.boleto_vencendo": "Boleto vence pronto",
     "notif.titulo.cobranca_dia": "Recordatorio de cobro",
     "notif.titulo.servico_vencendo": "Servicio por vencer",
     "notif.titulo.servico_atrasado": "Servicio atrasado",
@@ -1207,6 +1221,10 @@ export const messages = {
     "notif.orcamento_recebido": "Respuesta recibida en presupuesto #{pedido} ({fornecedor}).",
     "notif.os_sem_nota": "OS {numeroOs}: cobro hace {dias} día(s) sin incluir en la nota.",
     "notif.despesa_vencendo": "Cuota {parcela} de {fornecedor} ({valor}) vence en 2 días ({vencimento}).",
+    "notif.boleto_vencido":
+      "Boleto vencido: {fornecedor} ({valor}) — {dias} día(s) de atraso (venc. {vencimento}).",
+    "notif.boleto_vencendo":
+      "Boleto de {fornecedor} ({valor}) vence {quando} (venc. {vencimento}).",
     "notif.cobranca_dia": "Hoy es el día {dia} de cobro de {cliente}. Saldo pendiente: {saldo}.",
     "notif.servico_vencendo": "OS {numeroOs} vence el {prazo}: {servico} (Paciente: {paciente}).",
     "notif.servico_atrasado": "OS {numeroOs} atrasada desde {prazo}: {servico} (Paciente: {paciente}).",

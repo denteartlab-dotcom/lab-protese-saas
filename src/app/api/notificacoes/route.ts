@@ -20,12 +20,16 @@ import {
   hrefClienteCobrancaDia,
   hrefClienteSaldoLimite,
   hrefControleServico,
-  hrefDespesaVencendo,
   hrefLancamentoVencido,
   hrefOrcamento,
   hrefOsSemNota,
   hrefOsEditar,
 } from "@/lib/notificacao-links";
+import {
+  lancamentoParaResumoBoleto,
+  montarLinhaBoleto,
+  montarNotificacoesBoletos,
+} from "@/lib/controle-boletos";
 import {
   carregarEnviosNotaVencida,
   deveNotificarNotaVencida,
@@ -59,7 +63,9 @@ export type NotificacaoApi = {
     | "cobranca_dia"
     | "servico_vencendo"
     | "servico_atrasado"
-    | "urgente_cliente";
+    | "urgente_cliente"
+    | "boleto_vencido"
+    | "boleto_vencendo";
   href: string;
   params: Record<string, string | number>;
   criadoEm: string;
@@ -123,7 +129,7 @@ export async function GET() {
       lista.push({
         id: `despesa-vencendo-${l.id}`,
         kind: "despesa_vencendo",
-        href: hrefDespesaVencendo(l.id),
+        href: `/app/financeiro?tipo=despesa&lancamentoId=${encodeURIComponent(l.id)}`,
         params: {
           fornecedor: pack.nome,
           valor: l.valor.toLocaleString("pt-BR", {
@@ -136,6 +142,13 @@ export async function GET() {
         criadoEm: l.updatedAt.toISOString(),
       });
     }
+  }
+
+  const linhasBoletos = lancamentos
+    .filter((l) => l.tipo === "despesa" && l.status !== "cancelado")
+    .map((l) => montarLinhaBoleto(lancamentoParaResumoBoleto(l), hoje));
+  for (const n of montarNotificacoesBoletos(linhasBoletos)) {
+    lista.push(n);
   }
 
   for (const l of lancamentos) {
