@@ -270,14 +270,13 @@ export function buscarItemNaCategoriaTabela(
   return buscarServicoNaTabela(categorias, nomeOuId);
 }
 
-/** Categorias com serviço, transporte ou produto visível na tabela de preços. */
+/** Categorias do select Categoria na OS — só serviço e transporte (produtos ficam na aba Produtos / escala DENTES). */
 export function categoriasSelecionaveisNaOs(categorias: CategoriaTabelaPrecoOs[]) {
   return categorias.filter((categoria) => {
+    const tipo = tipoDominanteCategoriaOs(categoria);
+    if (tipo === "produto") return false;
     const servicos = categoria.servicos || [];
-    return (
-      servicosSelecionaveisNaOs(servicos).length > 0 ||
-      produtosVisiveisNaOs(servicos).length > 0
-    );
+    return servicosSelecionaveisNaOs(servicos).length > 0;
   });
 }
 
