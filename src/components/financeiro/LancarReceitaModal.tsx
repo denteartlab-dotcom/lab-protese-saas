@@ -638,10 +638,16 @@ export function LancarReceitaModal({
     setLeitorBoletoAtivo(false);
   }, []);
 
-  function ativarLeitorBoleto() {
-    setLeitorBoletoAtivo(true);
-    setFeedbackLeitorBoleto(null);
-    window.setTimeout(() => leitorBoletoRef.current?.focus(), 50);
+  function alternarLeitorBoleto() {
+    setLeitorBoletoAtivo((ativo) => {
+      if (ativo) {
+        leitorBoletoRef.current?.blur();
+        return false;
+      }
+      setFeedbackLeitorBoleto(null);
+      window.setTimeout(() => leitorBoletoRef.current?.focus(), 50);
+      return true;
+    });
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -1199,15 +1205,24 @@ export function LancarReceitaModal({
                 >
                   <button
                     type="button"
-                    onClick={ativarLeitorBoleto}
+                    onClick={alternarLeitorBoleto}
                     className={cn(
                       "flex w-10 shrink-0 items-center justify-center border-r transition",
                       leitorBoletoAtivo
                         ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                         : "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
                     )}
-                    title="Ativar leitor USB de código de barras"
-                    aria-label="Ativar leitor de código de barras"
+                    title={
+                      leitorBoletoAtivo
+                        ? "Desativar leitor USB"
+                        : "Ativar leitor USB de código de barras"
+                    }
+                    aria-label={
+                      leitorBoletoAtivo
+                        ? "Desativar leitor de código de barras"
+                        : "Ativar leitor de código de barras"
+                    }
+                    aria-pressed={leitorBoletoAtivo}
                   >
                     <Barcode className="h-5 w-5" />
                   </button>
