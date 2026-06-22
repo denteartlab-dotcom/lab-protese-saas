@@ -4109,8 +4109,8 @@ export default function OrdemServicoPage() {
                     ) : (
                       <>
                     <p className="text-[10px] text-slate-500">
-                      Produtos das categorias &quot;+ Produto&quot; na tabela de preços (exceto
-                      DENTES, usada na escala do serviço).
+                      Produtos das categorias &quot;+ Produto&quot; na tabela de preços (ex.:
+                      DENTES, insumos).
                     </p>
                     {produtosOs.length === 0 && (
                       <button

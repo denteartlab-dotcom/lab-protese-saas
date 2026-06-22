@@ -207,9 +207,16 @@ export function tipoDominanteCategoriaOs(
   categoria?: CategoriaTabelaPrecoOs | null
 ): TipoCampoItemOs | null {
   if (categoria?.tipo) return categoria.tipo;
+  if (categoria && categoriaEhEscalaDentesOs(categoria)) return "produto";
   if (!categoria?.servicos?.length) return null;
   const visiveis = categoria.servicos.filter(itemVisivelNaOs);
   if (!visiveis.length) return null;
+  const tipos = new Set(
+    visiveis.map((item) => (item.tipo || (item.produtoId ? "produto" : "servico")) as TipoCampoItemOs)
+  );
+  if (tipos.has("servico")) return "servico";
+  if (tipos.has("produto")) return "produto";
+  if (tipos.has("transporte")) return "transporte";
   return (visiveis[0].tipo || "servico") as TipoCampoItemOs;
 }
 
@@ -220,10 +227,18 @@ export function categoriaEhEscalaDentesOs(categoria: CategoriaTabelaPrecoOs) {
   );
 }
 
-/** Categoria criada com + Produto na tabela de preços (exceto DENTES, usada só na escala). */
+/** Categoria criada com + Produto na tabela de preços (inclui DENTES). */
 export function categoriaEhDeProdutosOs(categoria: CategoriaTabelaPrecoOs) {
-  if (categoriaEhEscalaDentesOs(categoria)) return false;
   return tipoDominanteCategoriaOs(categoria) === "produto";
+}
+
+/** Produtos visíveis de uma categoria para a aba Produtos da OS. */
+export function produtosDaCategoriaNaOs(categoria: CategoriaTabelaPrecoOs) {
+  const servicos = categoria.servicos || [];
+  if (tipoDominanteCategoriaOs(categoria) === "produto") {
+    return servicos.filter(itemVisivelNaOs);
+  }
+  return produtosVisiveisNaOs(servicos);
 }
 
 /** Itens exibidos no select principal da OS conforme o tipo da categoria. */
@@ -460,12 +475,9 @@ export function produtosCadastradosNaTabela(categorias: CategoriaTabelaPrecoOs[]
   );
 }
 
-/** Produtos das categorias + Produto na tabela de preços (aba Produtos da OS; sem DENTES/escala). */
+/** Produtos das categorias + Produto na tabela de preços (aba Produtos da OS). */
 export function produtosCadastradosNaOs(categorias: CategoriaTabelaPrecoOs[]) {
-  return categorias.flatMap((categoria) => {
-    if (!categoriaEhDeProdutosOs(categoria)) return [];
-    return produtosVisiveisNaOs(categoria.servicos || []);
-  });
+  return categorias.flatMap((categoria) => produtosDaCategoriaNaOs(categoria));
 }
 
 export function tabelaPrecoTemProdutos(categorias: CategoriaTabelaPrecoOs[]) {
@@ -694,21 +706,36 @@ export function categoriaDoServicoNaTabela(
 function normalizarCategoriasTabelaPrecoOs(
   categorias: CategoriaTabelaPrecoOs[]
 ): CategoriaTabelaPrecoOs[] {
-  return (categorias || []).map((categoria) => ({
-    ...categoria,
-    servicos: (categoria.servicos || []).map((item) => ({
-      ...item,
-      tipo: item.tipo || "servico",
-      valor: Number(item.valor) || 0,
-    })),
-    tipo:
+  return (categorias || []).map((categoria) => {
+    const tipoCategoria =
       categoria.tipo ||
+      (categoriaEhEscalaDentesOs(categoria) ? "produto" : undefined);
+
+    const servicos = (categoria.servicos || []).map((item) => {
+      let tipo = item.tipo;
+      if (!tipo && item.produtoId) tipo = "produto";
+      if (!tipo && tipoCategoria === "produto") tipo = "produto";
+      return {
+        ...item,
+        tipo: tipo || "servico",
+        valor: Number(item.valor) || 0,
+      };
+    });
+
+    const tipoResolvido =
+      tipoCategoria ||
       (() => {
-        const visiveis = (categoria.servicos || []).filter(itemVisivelNaOs);
+        const visiveis = servicos.filter(itemVisivelNaOs);
         if (!visiveis.length) return undefined;
         return (visiveis[0].tipo || "servico") as TipoItemTabelaPrecoOs;
-      })(),
-  }));
+      })();
+
+    return {
+      ...categoria,
+      servicos,
+      tipo: tipoResolvido,
+    };
+  });
 }
 
 export function encontrarChaveTabelaPreco(
