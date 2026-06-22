@@ -109,10 +109,17 @@ export function NotificationsBell() {
     [exibir, lidas]
   );
 
-  const lidasNoPainel = useMemo(
-    () => exibir.filter((n) => lidas.includes(n.id)),
-    [exibir, lidas]
-  );
+  /** Remove do painel todas as notificações (lidas ou não). */
+  function limparTodasNotificacoes() {
+    if (exibir.length === 0) return;
+    const ids = exibir.map((n) => n.id);
+    const nextDescartadas = [...new Set([...descartadas, ...ids])];
+    const nextLidas = [...new Set([...lidas, ...ids])];
+    salvarNotificacoesDescartadas(nextDescartadas);
+    salvarNotificacoesLidas(nextLidas);
+    setDescartadas(nextDescartadas);
+    setLidas(nextLidas);
+  }
 
   function marcarComoLida(id: string) {
     const next = [...new Set([...lidas, id])];
@@ -149,15 +156,6 @@ export function NotificationsBell() {
       </div>
     </>
   );
-
-  /** Remove do painel só as notificações já lidas (ícone verde), como no Smart Prótese. */
-  function limparNotificacoesLidas() {
-    if (lidasNoPainel.length === 0) return;
-    const ids = lidasNoPainel.map((n) => n.id);
-    const next = [...new Set([...descartadas, ...ids])];
-    salvarNotificacoesDescartadas(next);
-    setDescartadas(next);
-  }
 
   function toggleSistema() {
     const prox = !sistemaOn;
@@ -268,8 +266,8 @@ export function NotificationsBell() {
 
           <button
             type="button"
-            onClick={limparNotificacoesLidas}
-            disabled={lidasNoPainel.length === 0}
+            onClick={limparTodasNotificacoes}
+            disabled={exibir.length === 0}
             className="flex w-full items-center justify-center gap-2 bg-[#4a90d9] py-2.5 text-[13px] font-normal text-white transition hover:bg-[#3d7fc4] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Trash2 className="h-4 w-4" strokeWidth={1.75} />
