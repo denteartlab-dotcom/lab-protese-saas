@@ -9,7 +9,7 @@ import {
   nomeEtapaSemSetor,
   parseComplementosInstrucoesGrupo,
 } from "@/lib/etapas-os";
-import { itensDaOsModulo } from "@/lib/modulo-producao-os";
+import { itensDaOsModulo, type TrabalhoModuloOs } from "@/lib/modulo-producao-os";
 import { indiceEtapaAtualDeConcluidas } from "@/lib/modulo-producao-etapas";
 import { normalizarChaveStatusOs, labelStatusOs } from "@/lib/status-os";
 import {
@@ -76,6 +76,7 @@ export type TrabalhoFinanceiroGeralInput = {
   dataEntrada: string;
   dataPrevista: string | null;
   dataEntrega: string | null;
+  updatedAt?: string | null;
   instrucoes: string | null;
   clienteNome: string;
   pacienteNome: string;
@@ -160,6 +161,47 @@ export const STATUS_SERVICO_CONCLUIDO_FINANCEIRO = [
 export function servicoConcluidoFinanceiro(status?: string | null) {
   const key = normalizarChaveStatusOs(status);
   return (STATUS_SERVICO_CONCLUIDO_FINANCEIRO as readonly string[]).includes(key);
+}
+
+function trabalhoParaModuloOs(trabalho: TrabalhoFinanceiroGeralInput): TrabalhoModuloOs {
+  return {
+    id: trabalho.id,
+    numeroOs: trabalho.numeroOs,
+    tipoProtese: trabalho.tipoProtese,
+    valor: trabalho.valor,
+    status: trabalho.status,
+    instrucoes: trabalho.instrucoes,
+    dataEntrada: trabalho.dataEntrada,
+    dataPrevista: trabalho.dataPrevista,
+    cliente: { nome: trabalho.clienteNome },
+    paciente: { nome: trabalho.pacienteNome },
+  };
+}
+
+/** Situação efetiva: status salvo na OS ou situação do item de serviço nas instruções. */
+export function statusEfetivoTrabalhoFinanceiro(trabalho: TrabalhoFinanceiroGeralInput): string {
+  const statusSalvo = normalizarChaveStatusOs(trabalho.status);
+  if (servicoConcluidoFinanceiro(statusSalvo)) return statusSalvo;
+
+  const itens = itensDaOsModulo(trabalhoParaModuloOs(trabalho)).filter(
+    (item) => item.tipo === "trabalho"
+  );
+  for (const item of itens) {
+    const situacao = normalizarChaveStatusOs(item.situacao);
+    if (servicoConcluidoFinanceiro(situacao)) return situacao;
+  }
+
+  return statusSalvo;
+}
+
+function temCobrancaOsTrabalho(
+  trabalho: Pick<TrabalhoFinanceiroGeralInput, "id" | "numeroOs">,
+  lancamentos: LancamentoRelatorioFinanceiro[]
+) {
+  return lancamentos.some((lancamento) => {
+    const l = toLancamentoResumo(lancamento);
+    return ehCobrancaOsReceita(l) && faturaLigadaAoTrabalho(l, trabalho);
+  });
 }
 
 function valorLiquidoDeLinhaItemAdicionado(line: string): number | null {
@@ -435,7 +477,7 @@ function valorLinhaConcluidaFinanceiro(
       t.numeroOs === trabalho.numeroOs &&
       t.id !== trabalho.id &&
       segmentoEfetivoTrabalho(t) === "servico" &&
-      servicoConcluidoFinanceiro(t.status) &&
+      servicoConcluidoFinanceiro(statusEfetivoTrabalhoFinanceiro(t)) &&
       normalizarChaveStatusOs(t.status) !== "cancelado"
   );
 
@@ -447,11 +489,46 @@ function valorLinhaConcluidaFinanceiro(
   return Math.max(0, totalOs - recebivelOutros);
 }
 
+function valorConcluidoLinhaFinanceiro(
+  trabalho: TrabalhoFinanceiroGeralInput,
+  todosTrabalhos: TrabalhoFinanceiroGeralInput[],
+  lancamentos: LancamentoRelatorioFinanceiro[],
+  primeiroServicoIdPorOs: Map<number, string>
+): number {
+  const valor = valorLinhaConcluidaFinanceiro(
+    trabalho,
+    todosTrabalhos,
+    lancamentos,
+    primeiroServicoIdPorOs
+  );
+  if (valor > 0.005) return valor;
+  if (temCobrancaOsTrabalho(trabalho, lancamentos)) return valor;
+
+  if (primeiroServicoIdPorOs.get(trabalho.numeroOs) === trabalho.id) {
+    const totalOs = valorAReceberNumeroOsCompleto(
+      trabalho.numeroOs,
+      todosTrabalhos,
+      lancamentos
+    );
+    if (totalOs > 0.005) return totalOs;
+  }
+
+  const aReceber = valorAReceberTrabalhoFinanceiro(trabalho, lancamentos);
+  if (aReceber > 0.005) return aReceber;
+
+  return valorServicoTrabalhoFinanceiro(trabalho);
+}
+
 function dataConclusaoTrabalho(trabalho: TrabalhoFinanceiroGeralInput) {
-  if (!servicoConcluidoFinanceiro(trabalho.status)) return null;
+  const status = statusEfetivoTrabalhoFinanceiro(trabalho);
+  if (!servicoConcluidoFinanceiro(status)) return null;
   if (trabalho.dataEntrega) {
     const entrega = parseDataEntrada(trabalho.dataEntrega);
     if (entrega) return entrega;
+  }
+  if (trabalho.updatedAt) {
+    const atualizado = parseDataEntrada(trabalho.updatedAt);
+    if (atualizado) return atualizado;
   }
   return parseDataEntrada(trabalho.dataEntrada);
 }
@@ -597,12 +674,13 @@ export function montarLinhasDetalhe(
     .map((t) => {
       const entrada = parseDataEntrada(t.dataEntrada);
       const entrega = t.dataEntrega ? parseDataEntrada(t.dataEntrega) : null;
-      const concluido = servicoConcluidoFinanceiro(t.status);
+      const statusEfetivo = statusEfetivoTrabalhoFinanceiro(t);
+      const concluido = servicoConcluidoFinanceiro(statusEfetivo);
       const conclusao = dataConclusaoTrabalho(t);
       const { etapaAtual, responsavel } = resolverEtapaResponsavel(t, mapaEtapas);
       const valorProducao = valorServicoTrabalhoFinanceiro(t);
       const valor = concluido
-        ? valorLinhaConcluidaFinanceiro(t, trabalhos, lancamentos, primeiroServicoIdPorOs)
+        ? valorConcluidoLinhaFinanceiro(t, trabalhos, lancamentos, primeiroServicoIdPorOs)
         : valorProducao;
       return {
         id: t.id,
@@ -616,8 +694,8 @@ export function montarLinhasDetalhe(
           ? dateToBrShort(parseDataEntrada(t.dataPrevista) ?? new Date())
           : "—",
         diasProducao: entrada ? diasEmProducao(entrada, entrega, concluido) : 0,
-        status: normalizarChaveStatusOs(t.status),
-        statusLabel: labelStatusOs(t.status),
+        status: statusEfetivo,
+        statusLabel: labelStatusOs(statusEfetivo),
         etapaAtual,
         responsavel,
         concluido,

@@ -448,11 +448,18 @@ export async function moverTrabalhoTvColuna(
           ? "producao"
           : trabalho.status;
 
+  const payloadStatus: { status: string; dataEntrega?: Date } = { status: novoStatus };
+  if (novoStatus === "saiu_entrega" && !trabalho.dataEntrega) {
+    const hoje = new Date();
+    hoje.setHours(12, 0, 0, 0);
+    payloadStatus.dataEntrega = hoje;
+  }
+
   await Promise.all([
     salvarJsonStoreTenant(empresaId, MODULO_PRODUCAO_ETAPAS_STORAGE_KEY, mapa),
     prisma.trabalho.update({
       where: { id: trabalhoId },
-      data: { status: novoStatus },
+      data: payloadStatus,
     }),
     indiceAnterior !== indiceNovo
       ? registrarMudancaIndiceEtapa({
