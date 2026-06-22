@@ -14,6 +14,7 @@ import {
   classificarItemOs,
   type SegmentoFaturamento,
 } from "@/lib/trabalho-os-segmento";
+import { osExternaAgenda } from "@/lib/agenda-producao-grupo";
 import {
   FATURA_A4_ALTURA_MM,
   FATURA_A4_LARGURA_MM,
@@ -150,17 +151,47 @@ function contarColunasItensSmart(layout: FaturaModeloLayout) {
   return n;
 }
 
-function metaLinhaOsSmart(linha: LinhaFaturaImpressao, layout: FaturaModeloLayout) {
+function osExternaResumoFatura(linhas: LinhaFaturaImpressao[]): string {
+  const valores = [
+    ...new Set(
+      linhas
+        .map((linha) => (linha.osExterna || "").trim())
+        .filter((valor) => valor && valor !== "-")
+    ),
+  ];
+  return valores.length ? valores.join(", ") : "—";
+}
+
+function htmlMetaDatasFaturaLinha(
+  linha: LinhaFaturaImpressao,
+  layout: FaturaModeloLayout,
+  rotuloFinalizado = "Finalizado",
+  termica = false
+): string {
   if (linha.segmento !== "servico") return "";
   const partes: string[] = [];
-  if (layout.data) partes.push(`Data: ${linha.dataOs}`);
-  if (layout.finalizado) partes.push(`Finalizado: ${linha.finalizado}`);
-  if (layout.osExterna) partes.push(`OS Externa: ${linha.osExterna}`);
-  return partes.join(" ");
+  const itemStyle = termica ? ' style="margin:0;line-height:1.35"' : "";
+  if (layout.data) {
+    partes.push(
+      `<div class="meta-data-item"${itemStyle}><strong>Data:</strong> ${escapeHtml(linha.dataOs)}</div>`
+    );
+  }
+  if (layout.finalizado) {
+    partes.push(
+      `<div class="meta-data-item"${itemStyle}><strong>${escapeHtml(rotuloFinalizado)}:</strong> ${escapeHtml(linha.finalizado)}</div>`
+    );
+  }
+  if (!partes.length) return "";
+  const wrapStyle = termica ? ' style="display:flex;flex-direction:column;gap:2px;margin:0"' : "";
+  return `<div class="meta-linha-datas"${wrapStyle}>${partes.join("")}</div>`;
+}
+
+function metaLinhaOsSmart(linha: LinhaFaturaImpressao, layout: FaturaModeloLayout) {
+  return htmlMetaDatasFaturaLinha(linha, layout, "Finalizado");
 }
 
 function trMetaAbaixoServico(
-  meta: string,
+  htmlMeta: string,
   layout: FaturaModeloLayout,
   totalColunas: number,
   qtdAntesServico: boolean
@@ -176,14 +207,14 @@ function trMetaAbaixoServico(
     colunasUsadas += 1;
   }
   if (layout.servico) {
-    cells += `<td><span>${escapeHtml(meta)}</span></td>`;
+    cells += `<td>${htmlMeta}</td>`;
     colunasUsadas += 1;
     const restante = totalColunas - colunasUsadas;
     if (restante > 0) cells += `<td colspan="${restante}"></td>`;
     return `<tr class="meta-row">${cells}</tr>`;
   }
   const colspan = layout.numOs ? Math.max(1, totalColunas - 1) : totalColunas;
-  return `<tr class="meta-row">${layout.numOs ? "<td></td>" : ""}<td colspan="${colspan}"><span>${escapeHtml(meta)}</span></td></tr>`;
+  return `<tr class="meta-row">${layout.numOs ? "<td></td>" : ""}<td colspan="${colspan}">${htmlMeta}</td></tr>`;
 }
 
 function colunasLarguraSmart(layout: FaturaModeloLayout) {
@@ -283,6 +314,7 @@ export function montarDadosFaturaImpressao(params: {
     for (const trabalho of trabalhos) {
       const dataOs = trabalho.dataPrevista ? formatDate(trabalho.dataPrevista) : formatDate(lancamento.data);
       const finalizado = trabalho.dataEntrega ? formatDate(trabalho.dataEntrega) : "-";
+      const osExterna = osExternaAgenda(trabalho.instrucoes) || "-";
       for (const item of itensTrabalhoFatura(trabalho)) {
         const qtd = Number(String(item.quantidade).replace(",", ".")) || 1;
         const subtotal = item.valor;
@@ -290,7 +322,7 @@ export function montarDadosFaturaImpressao(params: {
         totalServicos += subtotal;
         linhas.push({
           os: String(trabalho.numeroOs),
-          osExterna: "-",
+          osExterna,
           dataOs,
           finalizado,
           cor: item.cor,
@@ -508,7 +540,8 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
     .items th{font-size:${fsCab}px;font-weight:bold;text-align:left;padding:4px 3px;background:${thBg}}
     .items td{font-size:${fsTabela}px;line-height:1.25}
     .items tr.meta-row td{padding-top:1px;padding-bottom:5px}
-    .items tr.meta-row td span{font-size:${Math.max(10, fs - 2)}px;color:#111}
+    .items tr.meta-row td .meta-linha-datas{display:flex;flex-direction:column;gap:2px}
+    .items tr.meta-row td .meta-data-item{font-size:${Math.max(10, fs - 2)}px;color:#111;line-height:1.35}
     .pay th{font-size:${fsCab}px;font-weight:bold;text-align:left;padding:4px 3px;background:${thBg}}
     .pay td{font-size:${fsTabela}px;line-height:1.25}
     .pay tr.pay-received td{color:#1a9e1a}
@@ -651,10 +684,12 @@ function htmlTabelaItensA4(
         return [trPrincipal];
       }
 
-      const partesMeta: string[] = [];
-      if (layout.data) partesMeta.push(`Data: ${linha.dataOs}`);
-      if (layout.finalizado) partesMeta.push(`Entregue: ${linha.finalizado}`);
-      const trMeta = trMetaAbaixoServico(partesMeta.join(" "), layout, colunas, false);
+      const trMeta = trMetaAbaixoServico(
+        htmlMetaDatasFaturaLinha(linha, layout, "Entregue"),
+        layout,
+        colunas,
+        false
+      );
       return [trPrincipal, trMeta];
     })
     .join("");
@@ -927,6 +962,7 @@ function gerarHtmlFaturaA4(
           ${layout.saldoAnterior && !saldoAnteriorNosTotais ? `<div><strong>Saldo Anterior:</strong> ${escapeHtml(dados.saldoAnterior || "R$ 0,00")}</div>` : ""}
         </div>
         <div>
+          ${layout.osExterna ? `<div><strong>OS Externa:</strong> ${escapeHtml(osExternaResumoFatura(dados.linhas))}</div>` : ""}
           ${layout.clienteEmail ? `<div><strong>Email:</strong> ${escapeHtml(dados.clienteEmail || "—")}</div>` : ""}
           ${layout.clienteEnd ? `<div><strong>Endereço:</strong> ${escapeHtml(dados.clienteEndereco || "—")}</div>` : ""}
         </div>
@@ -938,6 +974,7 @@ function gerarHtmlFaturaA4(
       ${layout.saldoAnterior && !saldoAnteriorNosTotais ? `<strong>Saldo Anterior:</strong> ${escapeHtml(dados.saldoAnterior || "0,00")}` : ""}
     </div>
     <div>
+      ${layout.osExterna ? `<strong>OS Externa:</strong> ${escapeHtml(osExternaResumoFatura(dados.linhas))}<br/>` : ""}
       ${layout.clienteEmail ? `<strong>Email:</strong><br/>` : ""}
       ${layout.clienteEnd ? `<strong>Endereço:</strong>` : ""}
     </div>
@@ -988,7 +1025,6 @@ function gerarHtmlFaturaTermica(
     layout.dentista ||
     layout.numDente ||
     layout.corDente ||
-    layout.osExterna ||
     layout.data ||
     layout.finalizado;
 
@@ -1000,7 +1036,8 @@ function gerarHtmlFaturaTermica(
       ${layout.dadosOs ? linhaRotuloValor("Fatura:", String(dados.numeroFatura)) : ""}
       ${layout.cliente ? linhaRotuloValor("Cliente:", dados.clienteNome) : ""}
       ${layout.clienteTel ? linhaRotuloValor("Telefone:", "—") : ""}
-      ${layout.clienteEmail ? linhaRotuloValor("Email:", "—") : ""}
+      ${layout.osExterna ? linhaRotuloValor("OS Externa:", osExternaResumoFatura(dados.linhas)) : ""}
+      ${layout.clienteEmail ? linhaRotuloValor("Email:", dados.clienteEmail || "—") : ""}
       ${layout.clienteEnd ? linhaRotuloValor("Endereço:", "—") : ""}
       ${layout.ultimoPgto ? linhaRotuloValor("Última Pgto:", dados.ultimoPgto || "—") : ""}
       ${layout.saldoAnterior && !saldoAnteriorNosTotais ? linhaRotuloValor("Saldo Anterior:", dados.saldoAnterior || "0,00") : ""}
@@ -1023,7 +1060,7 @@ function gerarHtmlFaturaTermica(
               .map((linha) => {
                 const metaPrazo =
                   linha.segmento === "servico" && (layout.data || layout.finalizado)
-                    ? `<p style="margin:0">${layout.osExterna ? `OS Externa: <strong>${escapeHtml(linha.osExterna)}</strong> ` : ""}${layout.data ? `Data: <strong>${escapeHtml(linha.dataOs)}</strong> ` : ""}${layout.finalizado ? `Entregue: <strong>${escapeHtml(linha.finalizado)}</strong>` : ""}</p>`
+                    ? htmlMetaDatasFaturaLinha(linha, layout, "Entregue", true)
                     : "";
                 const meta =
                   exibirMeta && linha.segmento === "servico"

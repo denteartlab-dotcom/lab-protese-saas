@@ -124,10 +124,11 @@ type CampoCheckbox = { key: keyof FaturaModeloLayout; label: string };
 
 /** Pares no menu lateral — ordem Smart Prótese Fatura Modelo 1. */
 export const CAMPOS_FATURA_PARES: Array<[CampoCheckbox, CampoCheckbox | null]> = [
-  [{ key: "numOs", label: "Num OS" }, { key: "osExterna", label: "OS Externa" }],
-  [{ key: "cliente", label: "Cliente" }, { key: "clienteEmail", label: "Cliente Email" }],
-  [{ key: "dentista", label: "Dentista" }, { key: "clienteTel", label: "Cliente Tel" }],
-  [{ key: "paciente", label: "Paciente" }, { key: "clienteEnd", label: "Cliente End" }],
+  [{ key: "numOs", label: "Num OS" }, { key: "cliente", label: "Cliente" }],
+  [{ key: "clienteTel", label: "Cliente Tel" }, { key: "osExterna", label: "OS Externa" }],
+  [{ key: "ultimoPgto", label: "Último Pgto" }, { key: "clienteEmail", label: "Cliente Email" }],
+  [{ key: "saldoAnterior", label: "Saldo Anterior" }, { key: "clienteEnd", label: "Cliente End" }],
+  [{ key: "dentista", label: "Dentista" }, { key: "paciente", label: "Paciente" }],
   [{ key: "numDente", label: "Num Dente" }, { key: "corDente", label: "Cor Dente" }],
   [{ key: "valorUnit", label: "Valor Unit" }, { key: "desconto", label: "Desconto" }],
   [{ key: "subtotal", label: "Subtotal" }, { key: "ultimoPgto", label: "Último Pgto" }],
@@ -157,10 +158,10 @@ export const CAMPOS_FATURA_TERMICA_CABECALHO: Array<{
 
 /** Pares no menu lateral — ordem Smart Prótese Fatura Modelo 4 térmica. */
 export const CAMPOS_FATURA_TERMICA_PARES: Array<[CampoCheckbox, CampoCheckbox | null]> = [
-  [{ key: "cliente", label: "Cliente" }, { key: "clienteEmail", label: "Cliente Email" }],
-  [{ key: "clienteTel", label: "Cliente Tel" }, { key: "clienteEnd", label: "Cliente End" }],
-  [{ key: "saldoAnterior", label: "Saldo Anterior" }, { key: "dentista", label: "Dentista" }],
-  [{ key: "osExterna", label: "OS Externa" }, { key: "numDente", label: "Nome Dente" }],
+  [{ key: "cliente", label: "Cliente" }, { key: "clienteTel", label: "Cliente Tel" }],
+  [{ key: "osExterna", label: "OS Externa" }, { key: "clienteEmail", label: "Cliente Email" }],
+  [{ key: "clienteEnd", label: "Cliente End" }, { key: "saldoAnterior", label: "Saldo Anterior" }],
+  [{ key: "dentista", label: "Dentista" }, { key: "numDente", label: "Nome Dente" }],
   [{ key: "valorUnit", label: "Valor Unit" }, null],
   [{ key: "data", label: "Data" }, { key: "formaPgto", label: "Forma Pgto" }],
   [{ key: "assinatura", label: "Assinatura" }, { key: "codBarras", label: "Cod Barras OS" }],

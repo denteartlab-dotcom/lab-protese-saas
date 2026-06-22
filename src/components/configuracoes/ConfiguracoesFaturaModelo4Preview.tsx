@@ -59,9 +59,15 @@ export function PreviewFaturaModelo4Termica({
     layout.dentista ||
     layout.numDente ||
     layout.corDente ||
-    layout.osExterna ||
     layout.data ||
     layout.finalizado;
+  const osExternaResumo = [
+    ...new Set(
+      amostra.linhas
+        .map((linha) => linha.osExterna?.trim())
+        .filter((valor) => valor && valor !== "-")
+    ),
+  ].join(", ");
 
   return (
     <div
@@ -133,6 +139,9 @@ export function PreviewFaturaModelo4Termica({
         ) : null}
         {layout.clienteTel ? (
           <LinhaRotuloValor rotulo="Telefone:" valor={amostra.telefones} />
+        ) : null}
+        {layout.osExterna ? (
+          <LinhaRotuloValor rotulo="OS Externa:" valor={osExternaResumo || "—"} />
         ) : null}
         {layout.clienteEmail ? (
           <LinhaRotuloValor rotulo="Email:" valor={amostra.email} />
@@ -242,29 +251,21 @@ export function PreviewFaturaModelo4Termica({
                               ) : null}
                             </p>
                           ) : null}
-                          {layout.osExterna || layout.data || layout.finalizado ? (
-                            <p>
-                              {layout.osExterna ? (
-                                <>
-                                  <span>OS Externa: </span>
-                                  <span className="font-bold">{linha.osExterna}</span>
-                                </>
-                              ) : null}
-                              {layout.osExterna && layout.data ? " " : null}
+                          {layout.data || layout.finalizado ? (
+                            <div className="space-y-0.5">
                               {layout.data ? (
-                                <>
+                                <p>
                                   <span>Data: </span>
                                   <span className="font-bold">{linha.dataOs}</span>
-                                </>
+                                </p>
                               ) : null}
-                              {layout.data && layout.finalizado ? " " : null}
                               {layout.finalizado ? (
-                                <>
+                                <p>
                                   <span>Entregue: </span>
                                   <span className="font-bold">{linha.finalizado}</span>
-                                </>
+                                </p>
                               ) : null}
-                            </p>
+                            </div>
                           ) : null}
                         </div>
                       </td>
