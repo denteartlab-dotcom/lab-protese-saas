@@ -1,30 +1,27 @@
 "use client";
 
 import {
-  colaboradorDaEtapaImpressao,
   formatarDataHoraEtapaImpressao,
   nomeEtapaSemSetor,
-  type ColaboradorOsLinha,
   type EtapaOsLinha,
 } from "@/lib/etapas-os";
 
 export function OsEtapasListaPreview({
   etapas,
-  colaboradores = [],
   dataEntrada = "",
   fontSize = 11,
   gapMm = "1.5mm",
   marginTop,
-  exibirColaborador = true,
   exibirDatas = true,
   tituloServico,
 }: {
   etapas: EtapaOsLinha[];
-  colaboradores?: ColaboradorOsLinha[];
+  colaboradores?: unknown;
   dataEntrada?: string;
   fontSize?: number;
   gapMm?: string;
   marginTop?: string;
+  /** Ignorado: colaborador não aparece nas etapas. */
   exibirColaborador?: boolean;
   exibirDatas?: boolean;
   /** Quando há mais de um serviço na OS (ex.: "Prótese Total — Etapas:"). */
@@ -57,9 +54,6 @@ export function OsEtapasListaPreview({
           const dataHora = exibirDatas
             ? formatarDataHoraEtapaImpressao(etapa.prazo, dataEntrada)
             : "";
-          const colaborador = exibirColaborador
-            ? colaboradorDaEtapaImpressao(etapa, colaboradores)
-            : "";
           return (
             <div
               key={`${etapa.indice}-${nome}`}
@@ -72,7 +66,6 @@ export function OsEtapasListaPreview({
               />
               <span className="whitespace-normal">
                 {dataHora ? <>{dataHora} </> : null}
-                {colaborador ? <span className="font-bold">{colaborador} </span> : null}
                 <span className="font-bold">{nome}</span>
                 {etapa.observacao?.trim() ? (
                   <span> {etapa.observacao.trim()}</span>

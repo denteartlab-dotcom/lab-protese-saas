@@ -67,7 +67,6 @@ import { parseCurrencyBr } from "@/lib/cliente-financeiro";
 import { gerarBarrasCode39, gerarPngCode39DataUrl } from "@/lib/code39-barcode-core";
 import { valorCodigoBarrasOs } from "@/lib/codigo-barras-os";
 import {
-  colaboradorDaEtapaImpressao,
   colaboradorExibirNoTopoImpressao,
   colaboradorMetadadosImpressao,
   formatarDataHoraEtapaImpressao,
@@ -340,9 +339,7 @@ function infoEtapaImpressaoHorizontal(
     dataHora: lay.etapasComDatas
       ? formatarDataHoraEtapaImpressao(etapa.prazo, data.dataEntrada)
       : "",
-    colaborador: lay.colaborador
-      ? colaboradorDaEtapaImpressao(etapa, data.colaboradoresLista || [])
-      : "",
+    colaborador: "",
     obs: (etapa.observacao || "").trim(),
   };
 }

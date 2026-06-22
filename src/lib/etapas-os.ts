@@ -491,22 +491,12 @@ export function colaboradorParaImpressao(instrucoes?: string | null) {
   });
 }
 
-/** Nome do colaborador vinculado à etapa (resp. da etapa ou aba Colaborador com etapa). */
+/** Etapas na impressão da OS não exibem colaborador responsável (apenas o nome da etapa). */
 export function colaboradorDaEtapaImpressao(
-  etapa: EtapaOsLinha,
-  colaboradores: ColaboradorOsLinha[] = []
+  _etapa: EtapaOsLinha,
+  _colaboradores: ColaboradorOsLinha[] = []
 ): string {
-  const responsavel = etapa.responsavel.trim();
-  if (responsavel) return responsavel;
-
-  const chaveEtapa = nomeEtapaSemSetor(etapa.nome).toLowerCase();
-  if (!chaveEtapa) return "";
-
-  const vinculado = colaboradores.find((colab) => {
-    const etapaColab = nomeEtapaSemSetor(colab.etapa).toLowerCase();
-    return etapaColab && etapaColab === chaveEtapa;
-  });
-  return vinculado?.nome.trim() || "";
+  return "";
 }
 
 /** Amostra para preview dos modelos 1–3 (checkbox + data + colaborador + etapa). */

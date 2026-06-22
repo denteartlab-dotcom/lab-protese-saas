@@ -201,21 +201,12 @@ export function colaboradorParaImpressao(instrucoes?: string | null) {
   });
 }
 
+/** Etapas na impressão da OS não exibem colaborador responsável (apenas o nome da etapa). */
 export function colaboradorDaEtapaImpressao(
-  etapa: EtapaOsLinha,
-  colaboradores: ColaboradorOsLinha[] = []
+  _etapa: EtapaOsLinha,
+  _colaboradores: ColaboradorOsLinha[] = []
 ): string {
-  const responsavel = etapa.responsavel.trim();
-  if (responsavel) return responsavel;
-
-  const chaveEtapa = nomeEtapaSemSetor(etapa.nome).toLowerCase();
-  if (!chaveEtapa) return "";
-
-  const vinculado = colaboradores.find((colab) => {
-    const etapaColab = nomeEtapaSemSetor(colab.etapa).toLowerCase();
-    return etapaColab && etapaColab === chaveEtapa;
-  });
-  return vinculado?.nome.trim() || "";
+  return "";
 }
 
 export function etapasPorServicoImpressao(
