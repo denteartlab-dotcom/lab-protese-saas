@@ -9,6 +9,8 @@ import {
   Bell,
   Calendar,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Clock,
   Pencil,
   Plus,
@@ -47,6 +49,9 @@ import {
   formatarMoedaBoleto,
   graficoBoletosPorMes,
   labelStatusBoleto,
+  ordenarLinhasBoletos,
+  type ColunaOrdenacaoBoleto,
+  type DirecaoOrdenacaoBoleto,
   type FiltroStatusBoleto,
   type GrupoBoletoTabela,
   type LancamentoBoletoResumo,
@@ -184,6 +189,52 @@ function CabecalhoGrupo({
   );
 }
 
+function ThOrdenavelBoleto({
+  titulo,
+  coluna,
+  colunaAtiva,
+  direcao,
+  onOrdenar,
+  alinhamento = "left",
+}: {
+  titulo: string;
+  coluna: ColunaOrdenacaoBoleto;
+  colunaAtiva: ColunaOrdenacaoBoleto;
+  direcao: DirecaoOrdenacaoBoleto;
+  onOrdenar: (coluna: ColunaOrdenacaoBoleto) => void;
+  alinhamento?: "left" | "right";
+}) {
+  const ativa = colunaAtiva === coluna;
+  return (
+    <button
+      type="button"
+      onClick={() => onOrdenar(coluna)}
+      className={cn(
+        "inline-flex w-full items-center gap-1 font-semibold uppercase tracking-wide text-slate-500 transition hover:text-slate-700",
+        alinhamento === "right" ? "justify-end" : "justify-start"
+      )}
+    >
+      <span>{titulo}</span>
+      <span className="inline-flex shrink-0 flex-col leading-none">
+        <ChevronUp
+          className={cn(
+            "h-2.5 w-2.5",
+            ativa && direcao === "asc" ? "text-slate-600" : "text-slate-300"
+          )}
+          strokeWidth={2.5}
+        />
+        <ChevronDown
+          className={cn(
+            "-mt-0.5 h-2.5 w-2.5",
+            ativa && direcao === "desc" ? "text-slate-600" : "text-slate-300"
+          )}
+          strokeWidth={2.5}
+        />
+      </span>
+    </button>
+  );
+}
+
 function LinhaTabela({
   linha,
   onVer,
@@ -270,6 +321,10 @@ export function ControleBoletosConteudo() {
   const [erroLista, setErroLista] = useState("");
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<FiltroStatusBoleto>("todos");
+  const [colunaOrdenacao, setColunaOrdenacao] =
+    useState<ColunaOrdenacaoBoleto>("vencimento");
+  const [direcaoOrdenacao, setDirecaoOrdenacao] =
+    useState<DirecaoOrdenacaoBoleto>("asc");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [modalAberto, setModalAberto] = useState(false);
@@ -349,6 +404,20 @@ export function ControleBoletosConteudo() {
     [lancamentos, busca, dataInicio, dataFim, filtroStatus]
   );
 
+  const linhasOrdenadas = useMemo(
+    () => ordenarLinhasBoletos(linhasFiltradas, colunaOrdenacao, direcaoOrdenacao),
+    [linhasFiltradas, colunaOrdenacao, direcaoOrdenacao]
+  );
+
+  function alternarOrdenacao(coluna: ColunaOrdenacaoBoleto) {
+    if (colunaOrdenacao === coluna) {
+      setDirecaoOrdenacao((atual) => (atual === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setColunaOrdenacao(coluna);
+    setDirecaoOrdenacao("asc");
+  }
+
   const linhasResumo = useMemo(
     () => filtrarLinhasBoletos(lancamentos, { dataInicio, dataFim }),
     [lancamentos, dataInicio, dataFim]
@@ -359,11 +428,11 @@ export function ControleBoletosConteudo() {
   const grafico = useMemo(() => graficoBoletosPorMes(linhasResumo), [linhasResumo]);
 
   const grupos = useMemo(() => {
-    const vencidos = linhasFiltradas.filter((l) => l.grupo === "vencidos");
-    const proximos = linhasFiltradas.filter((l) => l.grupo === "proximos");
-    const pagos = linhasFiltradas.filter((l) => l.grupo === "pagos");
+    const vencidos = linhasOrdenadas.filter((l) => l.grupo === "vencidos");
+    const proximos = linhasOrdenadas.filter((l) => l.grupo === "proximos");
+    const pagos = linhasOrdenadas.filter((l) => l.grupo === "pagos");
     return { vencidos, proximos, pagos };
-  }, [linhasFiltradas]);
+  }, [linhasOrdenadas]);
 
   async function salvarDespesaModal(payload: LancarReceitaPayload) {
     if (salvarRef.current) return;
@@ -579,7 +648,7 @@ export function ControleBoletosConteudo() {
             <p className="p-6 text-center text-sm text-red-600">{erroLista}</p>
           ) : carregando ? (
             <p className="p-10 text-center text-sm text-slate-400">Carregando boletos...</p>
-          ) : linhasFiltradas.length === 0 ? (
+          ) : linhasOrdenadas.length === 0 ? (
             <p className="p-10 text-center text-sm text-slate-400">
               Nenhum boleto encontrado. Lance uma despesa com forma de pagamento Boleto.
             </p>
@@ -587,14 +656,65 @@ export function ControleBoletosConteudo() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-left">
                 <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/80 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                    <th className="px-4 py-3">Fornecedor</th>
-                    <th className="px-4 py-3">Categoria</th>
-                    <th className="px-4 py-3 text-right">Valor</th>
-                    <th className="px-4 py-3">Emissão</th>
-                    <th className="px-4 py-3">Vencimento</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-right">Ações</th>
+                  <tr className="border-b border-slate-100 bg-slate-50/80 text-[10px]">
+                    <th className="px-4 py-3">
+                      <ThOrdenavelBoleto
+                        titulo="Fornecedor"
+                        coluna="fornecedor"
+                        colunaAtiva={colunaOrdenacao}
+                        direcao={direcaoOrdenacao}
+                        onOrdenar={alternarOrdenacao}
+                      />
+                    </th>
+                    <th className="px-4 py-3">
+                      <ThOrdenavelBoleto
+                        titulo="Categoria"
+                        coluna="categoria"
+                        colunaAtiva={colunaOrdenacao}
+                        direcao={direcaoOrdenacao}
+                        onOrdenar={alternarOrdenacao}
+                      />
+                    </th>
+                    <th className="px-4 py-3 text-right">
+                      <ThOrdenavelBoleto
+                        titulo="Valor"
+                        coluna="valor"
+                        colunaAtiva={colunaOrdenacao}
+                        direcao={direcaoOrdenacao}
+                        onOrdenar={alternarOrdenacao}
+                        alinhamento="right"
+                      />
+                    </th>
+                    <th className="px-4 py-3">
+                      <ThOrdenavelBoleto
+                        titulo="Emissão"
+                        coluna="emissao"
+                        colunaAtiva={colunaOrdenacao}
+                        direcao={direcaoOrdenacao}
+                        onOrdenar={alternarOrdenacao}
+                      />
+                    </th>
+                    <th className="px-4 py-3">
+                      <ThOrdenavelBoleto
+                        titulo="Vencimento"
+                        coluna="vencimento"
+                        colunaAtiva={colunaOrdenacao}
+                        direcao={direcaoOrdenacao}
+                        onOrdenar={alternarOrdenacao}
+                      />
+                    </th>
+                    <th className="px-4 py-3">
+                      <ThOrdenavelBoleto
+                        titulo="Status"
+                        coluna="status"
+                        colunaAtiva={colunaOrdenacao}
+                        direcao={direcaoOrdenacao}
+                        onOrdenar={alternarOrdenacao}
+                      />
+                    </th>
+                    <th className="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                      Ações
+                    </th>
                   </tr>
                 </thead>
                 <tbody>

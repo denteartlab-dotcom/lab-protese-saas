@@ -273,6 +273,68 @@ export function labelStatusBoleto(linha: LinhaBoleto) {
   return "Aguardando pagamento";
 }
 
+export type ColunaOrdenacaoBoleto =
+  | "fornecedor"
+  | "categoria"
+  | "valor"
+  | "emissao"
+  | "vencimento"
+  | "status";
+
+export type DirecaoOrdenacaoBoleto = "asc" | "desc";
+
+function pesoStatusBoleto(linha: LinhaBoleto) {
+  if (linha.lancamento.status === "pago") return 4;
+  if (linha.grupo === "vencidos") return 0;
+  if (linha.emAnalise) return 2;
+  return 1;
+}
+
+export function compararLinhasBoleto(
+  a: LinhaBoleto,
+  b: LinhaBoleto,
+  coluna: ColunaOrdenacaoBoleto
+) {
+  switch (coluna) {
+    case "fornecedor":
+      return a.fornecedor.localeCompare(b.fornecedor, "pt-BR");
+    case "categoria":
+      return a.categoria.localeCompare(b.categoria, "pt-BR");
+    case "valor":
+      return a.lancamento.valor - b.lancamento.valor;
+    case "emissao":
+      return (
+        dataEmissaoBoleto(a.lancamento).getTime() -
+        dataEmissaoBoleto(b.lancamento).getTime()
+      );
+    case "vencimento":
+      return (
+        dateOnlyBoleto(a.lancamento.data).getTime() -
+        dateOnlyBoleto(b.lancamento.data).getTime()
+      );
+    case "status": {
+      const diff = pesoStatusBoleto(a) - pesoStatusBoleto(b);
+      if (diff !== 0) return diff;
+      return labelStatusBoleto(a).localeCompare(labelStatusBoleto(b), "pt-BR");
+    }
+    default:
+      return 0;
+  }
+}
+
+export function ordenarLinhasBoletos(
+  linhas: LinhaBoleto[],
+  coluna: ColunaOrdenacaoBoleto,
+  direcao: DirecaoOrdenacaoBoleto
+) {
+  const lista = [...linhas];
+  lista.sort((a, b) => {
+    const diff = compararLinhasBoleto(a, b, coluna);
+    return direcao === "asc" ? diff : -diff;
+  });
+  return lista;
+}
+
 export function filtrarLinhasBoletos(
   lancamentos: LancamentoBoletoResumo[],
   opts: {
