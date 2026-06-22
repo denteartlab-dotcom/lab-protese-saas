@@ -244,7 +244,7 @@ export function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Link
+                <a
                   href="/cadastro"
                   className={cn(
                     "mt-8 block rounded-xl py-3 text-center text-sm font-bold transition",
