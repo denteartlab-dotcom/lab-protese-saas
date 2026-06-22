@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Check, MessageCircle, Play } from "lucide-react";
 import type { ReactNode } from "react";
 import { LandingFooter } from "@/components/landing/LandingFooter";
@@ -74,12 +73,12 @@ export function LandingPage() {
             única plataforma.
           </p>
           <div className="landing-fade-in-up mt-8 flex flex-col items-center justify-center gap-3 delay-150 sm:flex-row sm:gap-4">
-            <Link
+            <a
               href="/cadastro"
               className="inline-flex w-full max-w-xs items-center justify-center rounded-xl bg-emerald-500 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-600 sm:w-auto"
             >
               Começar teste grátis por 14 dias
-            </Link>
+            </a>
             <BotaoWhatsapp className="w-full max-w-xs sm:w-auto">
               Falar no WhatsApp
             </BotaoWhatsapp>
@@ -128,12 +127,12 @@ export function LandingPage() {
                 completa do fluxo de trabalho, enquanto dentistas acompanham prazos
                 e status pelo portal do cliente.
               </p>
-              <Link
+              <a
                 href="/cadastro"
                 className="mt-8 inline-flex items-center rounded-xl bg-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-600/25 transition hover:bg-indigo-700"
               >
                 Saiba mais — teste grátis
-              </Link>
+              </a>
             </div>
           </div>
         </div>
@@ -189,12 +188,12 @@ export function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <Link
+              <a
                 href="/cadastro"
                 className="mt-10 inline-flex rounded-xl bg-white px-6 py-3 text-sm font-bold text-indigo-700 shadow-lg transition hover:bg-indigo-50"
               >
                 Experimentar gratuitamente
-              </Link>
+              </a>
             </div>
             <div className="landing-fade-in-up">
               <LandingMockups
@@ -255,7 +254,7 @@ export function LandingPage() {
                   )}
                 >
                   Começar agora
-                </Link>
+                </a>
               </article>
             ))}
           </div>
@@ -273,12 +272,12 @@ export function LandingPage() {
             Teste o Lab Prótese gratuitamente por 14 dias.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
-            <Link
+            <a
               href="/cadastro"
               className="inline-flex w-full max-w-xs items-center justify-center rounded-xl bg-emerald-500 px-6 py-3.5 text-sm font-bold text-white shadow-lg transition hover:bg-emerald-600 sm:w-auto"
             >
               Criar conta grátis
-            </Link>
+            </a>
             <BotaoWhatsapp className="w-full max-w-xs sm:w-auto">
               Falar no WhatsApp
             </BotaoWhatsapp>

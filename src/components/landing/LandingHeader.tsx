@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { LogoMarcaDenteArt } from "@/components/LogoMarcaDenteArt";
@@ -74,7 +73,7 @@ export function LandingHeader() {
         </nav>
 
         <div className="hidden items-center gap-2 sm:flex">
-          <Link
+          <a
             href="/login"
             className={cn(
               "rounded-lg px-4 py-2 text-sm font-semibold transition",
@@ -84,8 +83,8 @@ export function LandingHeader() {
             )}
           >
             Entrar
-          </Link>
-          <Link
+          </a>
+          <a
             href="/cadastro"
             className={cn(
               "rounded-lg px-4 py-2 text-sm font-bold shadow-lg transition",
@@ -95,7 +94,7 @@ export function LandingHeader() {
             )}
           >
             Teste grátis
-          </Link>
+          </a>
         </div>
 
         <button
@@ -127,20 +126,20 @@ export function LandingHeader() {
             ))}
           </nav>
           <div className="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-4">
-            <Link
+            <a
               href="/login"
               className="rounded-lg border border-slate-200 px-4 py-2.5 text-center text-sm font-semibold text-slate-700"
               onClick={() => setMenuAberto(false)}
             >
               Entrar
-            </Link>
-            <Link
+            </a>
+            <a
               href="/cadastro"
               className="rounded-lg bg-indigo-600 px-4 py-2.5 text-center text-sm font-bold text-white"
               onClick={() => setMenuAberto(false)}
             >
               Teste grátis
-            </Link>
+            </a>
           </div>
         </div>
       )}

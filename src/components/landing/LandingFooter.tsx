@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { LogoMarcaDenteArt } from "@/components/LogoMarcaDenteArt";
 import { WHATSAPP_LANDING_URL } from "@/lib/landing-content";
 
@@ -33,9 +32,9 @@ export function LandingFooter() {
                 </a>
               </li>
               <li>
-                <Link href="/login" className="transition hover:text-white">
+                <a href="/login" className="transition hover:text-white">
                   Login
-                </Link>
+                </a>
               </li>
               <li>
                 <a

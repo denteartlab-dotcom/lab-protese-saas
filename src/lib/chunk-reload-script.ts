@@ -16,6 +16,18 @@ export const CHUNK_RELOAD_SCRIPT = `
     return;
   }
 
+  function resetarTentativasLoginDireto() {
+    if (window.location.pathname !== "/login") return;
+    try {
+      var nav = performance.getEntriesByType && performance.getEntriesByType("navigation")[0];
+      if (nav && nav.type === "navigate" && !window.location.search.includes("_build")) {
+        sessionStorage.removeItem(TENTOS_KEY);
+        sessionStorage.removeItem(KEY);
+      }
+    } catch (e) {}
+  }
+  resetarTentativasLoginDireto();
+
   function buildIdValido(id) {
     return !!(id && id !== "dev" && String(id).length >= 6);
   }

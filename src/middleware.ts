@@ -18,6 +18,7 @@ const PUBLIC = [
   "/criar-conta",
   "/recuperar-senha",
   "/redefinir-senha",
+  "/limpar-sessao",
   "/admin-master/login",
 ];
 
@@ -224,15 +225,12 @@ export function middleware(request: NextRequest) {
   }
 
   if (PUBLIC.includes(pathname)) {
-    if (pathname === "/login") {
-      const token = request.cookies.get(COOKIE_NAME)?.value;
-      if (token && sessionTokenAceito(token)) {
-        // Deixa a página de login decidir (assinatura vencida vs app).
-        return NextResponse.next();
-      }
-    }
+    const token = request.cookies.get(COOKIE_NAME)?.value;
+    const res =
+      token && !sessionTokenAceito(token)
+        ? limparCookieSessao(NextResponse.next())
+        : NextResponse.next();
 
-    const res = NextResponse.next();
     res.headers.set(
       "Cache-Control",
       "private, no-store, no-cache, max-age=0, must-revalidate"
