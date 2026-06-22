@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  BarChart3,
   CalendarDays,
   ClipboardList,
   CreditCard,
@@ -12,10 +13,10 @@ import {
   Send,
   Settings,
   ShoppingCart,
-  Tv,
   TrendingDown,
   TrendingUp,
   Truck,
+  Tv,
   UserPlus,
   Users,
   Wallet,
@@ -59,6 +60,7 @@ export const producaoNav: AppNavItem[] = [
 
 export const financeiroNav: AppNavItem[] = [
   { href: "/app/financeiro?tipo=receita", labelKey: "nav.contasReceber", icon: TrendingUp },
+  { href: "/app/financeiro?aba=boletos", labelKey: "nav.controleBoletos", icon: BarChart3 },
   { href: "/app/financeiro?tipo=despesa", labelKey: "nav.contasPagar", icon: TrendingDown },
   { href: "/app/financeiro?aba=plano-de-contas", labelKey: "nav.planoContas", icon: List },
   { href: "/app/financeiro?aba=conta-bancaria", labelKey: "nav.contaBancaria", icon: CreditCard },

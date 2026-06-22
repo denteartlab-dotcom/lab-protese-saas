@@ -25,7 +25,7 @@ import {
 import dynamic from "next/dynamic";
 import { Button, CampoDataBr } from "@/components/ui";
 import type { LancarReceitaPayload } from "@/components/financeiro/LancarReceitaModal";
-import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
+import { FinanceiroAbasNav } from "@/components/financeiro/FinanceiroAbasNav";
 import { RelatorioDespesasModal } from "@/components/financeiro/RelatorioDespesasModal";
 import { DespesaDetalheModal } from "@/components/financeiro/DespesaDetalheModal";
 import { AdicionarImagensComprovanteModal } from "@/components/financeiro/AdicionarImagensComprovanteModal";
@@ -915,6 +915,7 @@ export function ContasPagarConteudo() {
 
   return (
     <div className="space-y-3 text-[11px] text-slate-700">
+      <FinanceiroAbasNav />
       <div className="grid gap-3 md:grid-cols-3">
         <div className="rounded border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-start justify-between">
