@@ -33,6 +33,10 @@ echo "==> Certificados atuais"
 sudo certbot certificates 2>/dev/null || true
 
 echo ""
+echo "==> Remover ambiente beta (certificado e PM2)"
+SKIP_NGINX=1 bash "$APP_DIR/deploy/remover-beta-vps.sh"
+
+echo ""
 echo "==> Emitir/expandir certificado para ${DOMAIN} + ${WWW}"
 if [[ -f "${CERT_DIR}/fullchain.pem" ]]; then
   sudo certbot certonly --nginx --non-interactive --agree-tos --expand \

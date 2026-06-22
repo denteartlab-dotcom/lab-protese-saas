@@ -282,7 +282,8 @@ sudo systemctl list-timers | grep certbot
 | Problema | Solução |
 |----------|---------|
 | Login não funciona (HTTP) | `COOKIE_SECURE=false` no `.env` |
-| `NET::ERR_CERT_COMMON_NAME_INVALID` / SSL inválido | Na VPS: `bash deploy/corrigir-ssl-denteartlab.sh` (reemite cert para apex + www e recarrega Nginx) |
+| `NET::ERR_CERT_COMMON_NAME_INVALID` / SSL inválido | Na VPS: `bash deploy/corrigir-ssl-denteartlab.sh` (remove beta, reemite cert apex+www, recarrega Nginx) |
+| Remover ambiente beta | Na VPS: `bash deploy/remover-beta-vps.sh` |
 | TV não atualiza em tempo real | Confirme `npm run start` via PM2, não `next start` |
 | Build falha | `npm run db:push` antes do build; confira `DATABASE_URL` |
 | Usuários sem empresa | `npm run db:reparar-usuarios-empresa` |
