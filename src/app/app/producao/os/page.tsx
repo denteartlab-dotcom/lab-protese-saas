@@ -4103,14 +4103,14 @@ export default function OrdemServicoPage() {
                     {!exibeAbaProdutos ? (
                       <p className="text-[11px] text-slate-500">
                         {servicoOsAtual
-                          ? "Nenhum produto cadastrado na tabela de preços."
+                          ? "Nenhum produto em categorias + Produto na tabela de preços."
                           : "Selecione um serviço para adicionar produtos da tabela de preços."}
                       </p>
                     ) : (
                       <>
                     <p className="text-[10px] text-slate-500">
-                      Produtos cadastrados como tipo &quot;produto&quot; na tabela de preços do
-                      laboratório.
+                      Produtos das categorias &quot;+ Produto&quot; na tabela de preços (exceto
+                      DENTES, usada na escala do serviço).
                     </p>
                     {produtosOs.length === 0 && (
                       <button

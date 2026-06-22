@@ -128,6 +128,7 @@ type CategoriaPreco = {
   id: string;
   nome: string;
   servicos: ServicoPreco[];
+  tipo?: TipoItemPreco;
 };
 
 type ServicoEdicaoRapida = {
@@ -170,6 +171,7 @@ function tituloCadastroServico(editando: boolean) {
 }
 
 function tipoDominanteCategoria(categoria: CategoriaPreco): TipoItemPreco | null {
+  if (categoria.tipo) return categoria.tipo;
   if (categoria.servicos.length === 0) return null;
   return normalizarServico(categoria.servicos[0]).tipo;
 }
@@ -649,7 +651,9 @@ export default function TabelaPrecosPage() {
 
     atualizarCategorias((atuais) =>
       atuais.map((cat) =>
-        cat.id === modalProdutosCategoriaId ? { ...cat, servicos: [...cat.servicos, ...novos] } : cat
+        cat.id === modalProdutosCategoriaId
+          ? { ...cat, tipo: "produto" as const, servicos: [...cat.servicos, ...novos] }
+          : cat
       )
     );
     fecharModalProdutos();
@@ -681,6 +685,7 @@ export default function TabelaPrecosPage() {
         }
         return {
           ...categoria,
+          tipo: categoria.tipo || ("transporte" as const),
           servicos: [
             ...categoria.servicos,
             {
@@ -752,6 +757,7 @@ export default function TabelaPrecosPage() {
         categoria.id === categoriaServico.id
           ? {
               ...categoria,
+              tipo: categoria.tipo || ("servico" as const),
               servicos: servicoEditando
                 ? categoria.servicos.map((servico) =>
                     servico.id === servicoEditando.id

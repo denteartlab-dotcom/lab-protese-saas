@@ -152,6 +152,8 @@ export type CategoriaTabelaPrecoOs = {
   id: string;
   nome: string;
   servicos: ServicoTabelaPrecoOs[];
+  /** Definido ao cadastrar o primeiro item (+ Serviço, + Produto ou + Transporte). */
+  tipo?: TipoItemTabelaPrecoOs;
 };
 
 export function normalizarTextoTabela(value: string) {
@@ -198,14 +200,30 @@ export function produtosVisiveisNaOs(servicos: ServicoTabelaPrecoOs[]) {
 
 export type TipoCampoItemOs = "servico" | "produto" | "transporte";
 
+export const CATEGORIA_ESCALA_OS = "DENTES";
+
 /** Tipo homogêneo da categoria (serviço, produto ou transporte). */
 export function tipoDominanteCategoriaOs(
   categoria?: CategoriaTabelaPrecoOs | null
 ): TipoCampoItemOs | null {
+  if (categoria?.tipo) return categoria.tipo;
   if (!categoria?.servicos?.length) return null;
   const visiveis = categoria.servicos.filter(itemVisivelNaOs);
   if (!visiveis.length) return null;
   return (visiveis[0].tipo || "servico") as TipoCampoItemOs;
+}
+
+export function categoriaEhEscalaDentesOs(categoria: CategoriaTabelaPrecoOs) {
+  return (
+    normalizarTextoTabela(categoria.nome) ===
+    normalizarTextoTabela(CATEGORIA_ESCALA_OS)
+  );
+}
+
+/** Categoria criada com + Produto na tabela de preços (exceto DENTES, usada só na escala). */
+export function categoriaEhDeProdutosOs(categoria: CategoriaTabelaPrecoOs) {
+  if (categoriaEhEscalaDentesOs(categoria)) return false;
+  return tipoDominanteCategoriaOs(categoria) === "produto";
 }
 
 /** Itens exibidos no select principal da OS conforme o tipo da categoria. */
@@ -298,8 +316,6 @@ export function servicoTemEtapasNaTabela(servico?: ServicoTabelaPrecoOs | null) 
 export function itemEhProdutoNaTabela(item: ServicoTabelaPrecoOs) {
   return (item.tipo || "servico") === "produto";
 }
-
-export const CATEGORIA_ESCALA_OS = "DENTES";
 
 export function encontrarCategoriaEscalaOs(categorias: CategoriaTabelaPrecoOs[]) {
   return categorias.find(
@@ -397,6 +413,7 @@ export function adicionarProdutoEscalaOs(
     categorias.push({
       id: `cat-dentes-${Date.now()}`,
       nome: CATEGORIA_ESCALA_OS,
+      tipo: "produto",
       servicos: [],
     });
     indiceDentes = categorias.length - 1;
@@ -421,6 +438,7 @@ export function adicionarProdutoEscalaOs(
 
   categorias[indiceDentes] = {
     ...categoriaDentes,
+    tipo: "produto",
     servicos: [...(categoriaDentes.servicos || []), novo],
   };
 
@@ -442,14 +460,26 @@ export function produtosCadastradosNaTabela(categorias: CategoriaTabelaPrecoOs[]
   );
 }
 
+/** Produtos das categorias + Produto na tabela de preços (aba Produtos da OS; sem DENTES/escala). */
+export function produtosCadastradosNaOs(categorias: CategoriaTabelaPrecoOs[]) {
+  return categorias.flatMap((categoria) => {
+    if (!categoriaEhDeProdutosOs(categoria)) return [];
+    return produtosVisiveisNaOs(categoria.servicos || []);
+  });
+}
+
 export function tabelaPrecoTemProdutos(categorias: CategoriaTabelaPrecoOs[]) {
   return produtosCadastradosNaTabela(categorias).length > 0;
+}
+
+export function tabelaPrecoTemProdutosNaOs(categorias: CategoriaTabelaPrecoOs[]) {
+  return produtosCadastradosNaOs(categorias).length > 0;
 }
 
 export function produtosOpcoesNaOs(categorias: CategoriaTabelaPrecoOs[]): ProdutoOpcaoOs[] {
   const vistos = new Set<string>();
   const opcoes: ProdutoOpcaoOs[] = [];
-  for (const item of produtosCadastradosNaTabela(categorias)) {
+  for (const item of produtosCadastradosNaOs(categorias)) {
     const chave = item.produtoId || item.id;
     if (vistos.has(chave)) continue;
     vistos.add(chave);
@@ -671,6 +701,13 @@ function normalizarCategoriasTabelaPrecoOs(
       tipo: item.tipo || "servico",
       valor: Number(item.valor) || 0,
     })),
+    tipo:
+      categoria.tipo ||
+      (() => {
+        const visiveis = (categoria.servicos || []).filter(itemVisivelNaOs);
+        if (!visiveis.length) return undefined;
+        return (visiveis[0].tipo || "servico") as TipoItemTabelaPrecoOs;
+      })(),
   }));
 }
 
