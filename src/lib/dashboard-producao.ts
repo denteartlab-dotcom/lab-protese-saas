@@ -25,9 +25,6 @@ export function trabalhoContaNoGraficoProducao(t: TrabalhoProducaoResumo): boole
   return true;
 }
 
-const STATUS_CONCLUIDO = ["finalizado", "saiu_entrega", "entregue", "recebido_cliente"] as const;
-const STATUS_PENDENTE_LAB = ["producao", "prova", "pendente", "pedido"] as const;
-
 export type ContagemProducaoStatus = {
   finalizado: number;
   saiu_entrega: number;
@@ -111,10 +108,13 @@ export function calcularResumoProducaoDashboard(
     }
   }
 
-  const concluido =
-    porStatus.finalizado + porStatus.saiu_entrega + porStatus.entregue;
+  const concluido = porStatus.finalizado + porStatus.entregue;
   const pendente =
-    porStatus.producao + porStatus.prova + porStatus.pendente + porStatus.pedido;
+    porStatus.producao +
+    porStatus.prova +
+    porStatus.pendente +
+    porStatus.pedido +
+    porStatus.saiu_entrega;
   const total = concluido + pendente;
   const percentual = total > 0 ? Math.round((concluido / total) * 100) : 0;
 
