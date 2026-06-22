@@ -195,6 +195,8 @@ function ProdutosConteudo() {
   const [produtosRemovidosPermanentemente, setProdutosRemovidosPermanentemente] = useState<string[]>([]);
   const persistenciaPronta = useRef(false);
   const cargaInicialConcluida = useRef(false);
+  const salvandoProdutoRef = useRef(false);
+  const [salvandoProduto, setSalvandoProduto] = useState(false);
   const [open, setOpen] = useState(false);
   const [editandoProduto, setEditandoProduto] = useState<Produto | null>(null);
   const [visualizandoProduto, setVisualizandoProduto] = useState<Produto | null>(null);
@@ -488,59 +490,17 @@ function ProdutosConteudo() {
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    if (editandoProduto) {
-      const produtoAtualizado: Partial<Produto> = {
-        nome: form.nome,
-        categoria: form.categoria,
-        observacoes: form.observacoes,
-        valor: parseCurrency(form.valor),
-        marca: form.marca,
-        etiqueta: form.etiqueta,
-        codigoBarras: form.codigoBarras,
-        unidadeMedida: form.unidadeMedida,
-        estoque: parseQuantidade(form.estoque),
-        estoqueMinimo: parseQuantidade(form.estoqueMinimo),
-        estoqueMaximo: parseQuantidade(form.estoqueMaximo),
-        valorCusto: parseCurrency(form.valorCusto),
-      };
-      setProdutos((atuais) =>
-        atuais.map((produto) =>
-          produto.id === editandoProduto.id ? { ...produto, ...produtoAtualizado } : produto
-        )
-      );
-      setExtras((atuais) => ({
-        ...atuais,
-        [editandoProduto.id]: {
-          ...atuais[editandoProduto.id],
-          ...produtoAtualizado,
-          valorCustoDelta: undefined,
-        },
-      }));
-      setOpen(false);
-      setEditandoProduto(null);
-      setForm(novoProdutoForm());
-      return;
-    }
+    if (salvandoProdutoRef.current) return;
+    salvandoProdutoRef.current = true;
+    setSalvandoProduto(true);
 
-    const response = await fetch("/api/produtos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        nome: form.nome,
-        categoria: form.categoria,
-        observacoes: form.observacoes,
-        valor: parseCurrency(form.valor),
-      }),
-    });
-    const produto = await response.json();
-    if (produto?.id) {
-      setProdutos((atuais) => {
-        if (atuais.some((item) => item.id === produto.id)) return atuais;
-        return [...atuais, produto];
-      });
-      setExtras((atuais) => ({
-        ...atuais,
-        [produto.id]: {
+    try {
+      if (editandoProduto) {
+        const produtoAtualizado: Partial<Produto> = {
+          nome: form.nome,
+          categoria: form.categoria,
+          observacoes: form.observacoes,
+          valor: parseCurrency(form.valor),
           marca: form.marca,
           etiqueta: form.etiqueta,
           codigoBarras: form.codigoBarras,
@@ -549,12 +509,65 @@ function ProdutosConteudo() {
           estoqueMinimo: parseQuantidade(form.estoqueMinimo),
           estoqueMaximo: parseQuantidade(form.estoqueMaximo),
           valorCusto: parseCurrency(form.valorCusto),
-        },
-      }));
+        };
+        setProdutos((atuais) =>
+          atuais.map((produto) =>
+            produto.id === editandoProduto.id ? { ...produto, ...produtoAtualizado } : produto
+          )
+        );
+        setExtras((atuais) => ({
+          ...atuais,
+          [editandoProduto.id]: {
+            ...atuais[editandoProduto.id],
+            ...produtoAtualizado,
+            valorCustoDelta: undefined,
+          },
+        }));
+        setOpen(false);
+        setEditandoProduto(null);
+        setForm(novoProdutoForm());
+        return;
+      }
+
+      const response = await fetch("/api/produtos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome: form.nome,
+          categoria: form.categoria,
+          observacoes: form.observacoes,
+          valor: parseCurrency(form.valor),
+        }),
+      });
+      if (!response.ok) return;
+
+      const produto = await response.json();
+      if (produto?.id) {
+        setProdutos((atuais) => {
+          if (atuais.some((item) => item.id === produto.id)) return atuais;
+          return [...atuais, produto];
+        });
+        setExtras((atuais) => ({
+          ...atuais,
+          [produto.id]: {
+            marca: form.marca,
+            etiqueta: form.etiqueta,
+            codigoBarras: form.codigoBarras,
+            unidadeMedida: form.unidadeMedida,
+            estoque: parseQuantidade(form.estoque),
+            estoqueMinimo: parseQuantidade(form.estoqueMinimo),
+            estoqueMaximo: parseQuantidade(form.estoqueMaximo),
+            valorCusto: parseCurrency(form.valorCusto),
+          },
+        }));
+      }
+      setOpen(false);
+      setForm(novoProdutoForm());
+      await load();
+    } finally {
+      salvandoProdutoRef.current = false;
+      setSalvandoProduto(false);
     }
-    setOpen(false);
-    setForm(novoProdutoForm());
-    load();
   }
 
   function abrirNovoProduto() {
@@ -1195,6 +1208,7 @@ function ProdutosConteudo() {
       <Modal
         open={open}
         onClose={() => {
+          if (salvandoProduto) return;
           setOpen(false);
           setEditandoProduto(null);
         }}
@@ -1288,11 +1302,20 @@ function ProdutosConteudo() {
           </section>
 
           <div className="flex justify-start gap-2 border-t border-slate-100 pt-4">
-            <Button type="submit" size="sm">Cadastrar</Button>
+            <Button type="submit" size="sm" disabled={salvandoProduto}>
+              {salvandoProduto
+                ? editandoProduto
+                  ? "Salvando..."
+                  : "Cadastrando..."
+                : editandoProduto
+                  ? "Salvar"
+                  : "Cadastrar"}
+            </Button>
             <Button
               type="button"
               size="sm"
               variant="outline"
+              disabled={salvandoProduto}
               onClick={() => {
                 setOpen(false);
                 setEditandoProduto(null);
