@@ -37,6 +37,7 @@ import {
   nomeExibicaoItemOs,
   parseDescontoTipoLinhaItem,
   planejarBlocosSalvarOs,
+  statusTrabalhoParaSalvar,
   tituloSegmentoOs,
   tituloTrabalhoServicoItem,
   trechoDescontoLinhaItemOs,
@@ -2449,7 +2450,6 @@ export default function OrdemServicoPage() {
       ),
       escala: "",
       cor: "",
-      situacao: "producao",
       dataLaboratorio: "",
       dataDentista: "",
       horaLaboratorio: "",
@@ -2882,11 +2882,9 @@ export default function OrdemServicoPage() {
       cor: form.cor || null,
       material: form.materialEnviado || null,
       dataPrevista: dataPrevistaIso ?? null,
-      status: form.situacao || "pedido",
       observacoes: form.observacoes ?? null,
     };
     const payloadPostCompartilhado = bodyTrabalhoSemNull({
-      status: form.situacao || "pedido",
       ...(dentesResumo ? { dentes: dentesResumo } : {}),
       ...(form.cor ? { cor: form.cor } : {}),
       ...(form.materialEnviado ? { material: form.materialEnviado } : {}),
@@ -2921,6 +2919,7 @@ export default function OrdemServicoPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...payloadPutCompartilhado,
+          status: statusTrabalhoParaSalvar(itens, form.situacao),
           dentes,
           ...(opts?.segmentoFaturamento
             ? { segmentoFaturamento: opts.segmentoFaturamento }
@@ -3014,6 +3013,7 @@ export default function OrdemServicoPage() {
               body: JSON.stringify(
                 bodyTrabalhoSemNull({
                   ...payloadPostCompartilhado,
+                  status: statusTrabalhoParaSalvar(bloco.itens, form.situacao),
                   clienteId: meta.clienteId,
                   pacienteId: meta.pacienteId,
                   numeroOs: meta.numeroOs,
@@ -3147,7 +3147,7 @@ export default function OrdemServicoPage() {
         dataEntrada: brDateToIso(form.dataLancamento) || undefined,
         dataPrevista: brDateToIso(form.dataLaboratorio || form.dataDentista) || undefined,
         valor: valorItens(itens),
-        status: form.situacao,
+        status: statusTrabalhoParaSalvar(itens, form.situacao),
         observacoes: form.observacoes,
         instrucoes: montarInstrucoesSegmento(
           itens,

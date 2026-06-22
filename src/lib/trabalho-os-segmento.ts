@@ -5,6 +5,7 @@ export type SegmentoFaturamento = "servico" | "produto" | "transporte";
 export type ItemOsLinha = {
   servico: string;
   produtoId?: string;
+  situacao?: string;
 };
 
 const FRETE_PREFIXO_RE = /^(frete|transporte)\s*:/i;
@@ -27,6 +28,24 @@ export function classificarItemOs(item: ItemOsLinha): SegmentoFaturamento {
   if (/^produto:/i.test(servico)) return "produto";
   if (FRETE_PREFIXO_RE.test(servico)) return "transporte";
   return "servico";
+}
+
+/** Status da OS no banco: prioriza situação dos itens de serviço (após + Adicionar Serviço). */
+export function statusTrabalhoParaSalvar(
+  itens: ItemOsLinha[],
+  formSituacao?: string
+): string {
+  const candidatos: string[] = [];
+  for (const item of itens) {
+    if (classificarItemOs(item) !== "servico") continue;
+    const situacao = item.situacao?.trim();
+    if (situacao) candidatos.push(situacao);
+  }
+  const doForm = formSituacao?.trim();
+  if (doForm) candidatos.push(doForm);
+  const especial = candidatos.find((s) => s !== "producao" && s !== "pedido");
+  if (especial) return especial;
+  return candidatos[0] || doForm || "pedido";
 }
 
 export function nomeExibicaoItemOs(item: ItemOsLinha) {
