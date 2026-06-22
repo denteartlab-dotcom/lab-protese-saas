@@ -448,12 +448,20 @@ export function tabelaPrecoTemProdutos(categorias: CategoriaTabelaPrecoOs[]) {
 }
 
 export function produtosOpcoesNaOs(categorias: CategoriaTabelaPrecoOs[]): ProdutoOpcaoOs[] {
-  return produtosCadastradosNaTabela(categorias).map((item) => ({
-    id: item.produtoId || item.id,
-    nome: item.nome,
-    valor: item.valor,
-    produtoId: item.produtoId,
-  }));
+  const vistos = new Set<string>();
+  const opcoes: ProdutoOpcaoOs[] = [];
+  for (const item of produtosCadastradosNaTabela(categorias)) {
+    const chave = item.produtoId || item.id;
+    if (vistos.has(chave)) continue;
+    vistos.add(chave);
+    opcoes.push({
+      id: chave,
+      nome: item.nome,
+      valor: item.valor,
+      produtoId: item.produtoId,
+    });
+  }
+  return opcoes;
 }
 
 export function comissoesColaboradoresDoServico(servico?: ServicoTabelaPrecoOs | null) {

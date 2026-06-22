@@ -89,7 +89,6 @@ import {
   comissoesColaboradoresDoServico,
   comissoesTerceirizadosDoServico,
   produtosOpcoesNaOs,
-  produtosVisiveisNaOs,
   categoriasSelecionaveisNaOs,
   TABELA_PRECOS_EVENT,
   TABELA_PRECOS_VAZIA,
@@ -950,24 +949,18 @@ export default function OrdemServicoPage() {
     () => itensSelecionaveisCategoriaNaOs(categoriaAtualOs),
     [categoriaAtualOs]
   );
-  const produtosTabelaPrecoOs = useMemo(() => {
-    if (!form.categoria) return produtosOpcoesNaOs(categoriasTabelaCompleta);
-    const categoria = encontrarCategoriaTabela(categoriasTabelaCompleta, form.categoria);
-    if (!categoria) return produtosOpcoesNaOs(categoriasTabelaCompleta);
-    return produtosVisiveisNaOs(categoria.servicos).map((item) => ({
-      id: item.produtoId || item.id,
-      nome: item.nome,
-      valor: item.valor,
-      produtoId: item.produtoId,
-    }));
-  }, [categoriasTabelaCompleta, form.categoria]);
-  const exibeAbaProdutos = produtosTabelaPrecoOs.length > 0;
-
   const servicoOsAtual = useMemo(() => {
     const nome = form.tipoProtese.trim();
     if (!nome || /^Transporte:/i.test(nome) || /^Produto:/i.test(nome)) return undefined;
     return buscarServicoNaTabela(categoriasTabelaPreco, nome);
   }, [form.tipoProtese, categoriasTabelaPreco]);
+
+  const produtosTabelaPrecoOs = useMemo(() => {
+    if (!servicoOsAtual) return [];
+    return produtosOpcoesNaOs(categoriasTabelaCompleta);
+  }, [servicoOsAtual, categoriasTabelaCompleta]);
+  const exibeAbaProdutos =
+    Boolean(servicoOsAtual) && produtosTabelaPrecoOs.length > 0;
 
   const modelosEtapasOs = useMemo(() => {
     if (!servicoOsAtual) return [];
@@ -2327,6 +2320,7 @@ export default function OrdemServicoPage() {
   }
 
   function adicionarLinhaProduto() {
+    if (!exibeAbaProdutos) return;
     setAbaServico("produtos");
     setProdutosOs((atuais) => [...atuais, produtoOsLinhaVazio()]);
   }
@@ -4108,10 +4102,16 @@ export default function OrdemServicoPage() {
                     <span className="text-sm font-semibold text-slate-800">Produtos</span>
                     {!exibeAbaProdutos ? (
                       <p className="text-[11px] text-slate-500">
-                        Nenhum produto cadastrado na tabela de preços.
+                        {servicoOsAtual
+                          ? "Nenhum produto cadastrado na tabela de preços."
+                          : "Selecione um serviço para adicionar produtos da tabela de preços."}
                       </p>
                     ) : (
                       <>
+                    <p className="text-[10px] text-slate-500">
+                      Produtos cadastrados como tipo &quot;produto&quot; na tabela de preços do
+                      laboratório.
+                    </p>
                     {produtosOs.length === 0 && (
                       <button
                         type="button"
