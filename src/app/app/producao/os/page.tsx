@@ -1054,6 +1054,12 @@ export default function OrdemServicoPage() {
   }, [form.repeticao, form.quantidade, form.valor, servicoOsAtual, terceirizadosComissaoServico]);
 
   useEffect(() => {
+    if (abaServico !== "produtos" || !exibeAbaProdutos) return;
+    if (produtosOs.length > 0) return;
+    setProdutosOs([produtoOsLinhaVazio()]);
+  }, [abaServico, exibeAbaProdutos, produtosOs.length]);
+
+  useEffect(() => {
     if (!form.categoria) return;
     const categoriaValida = categoriasTabelaPreco.some(
       (categoria) => categoria.nome === form.categoria || categoria.id === form.categoria
@@ -4112,15 +4118,6 @@ export default function OrdemServicoPage() {
                       Produtos das categorias &quot;+ Produto&quot; na tabela de preços (ex.:
                       DENTES, insumos).
                     </p>
-                    {produtosOs.length === 0 && (
-                      <button
-                        type="button"
-                        onClick={adicionarLinhaProduto}
-                        className="w-full rounded bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
-                      >
-                        + Adicionar Produto
-                      </button>
-                    )}
                     {produtosOs.map((produtoOs, index) => (
                       <div
                         key={`${produtoOs.produtoId}-${index}`}
