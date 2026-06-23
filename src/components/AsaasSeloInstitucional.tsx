@@ -1,11 +1,14 @@
+"use client";
+
+import { useState } from "react";
 import {
   ASAAS_SITE_URL,
   ASAAS_TERMOS_URL,
   textoInstitucionalAsaasCurto,
   textoServicosFinanceirosAsaas,
-  urlSeloAsaas,
   type VarianteSeloAsaas,
 } from "@/lib/asaas-marca-baas";
+import { AsaasSeloSvg } from "@/components/AsaasSeloSvg";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -14,6 +17,37 @@ type Props = {
   detalhado?: boolean;
   className?: string;
 };
+
+function seloUrlCustomizada(variante: VarianteSeloAsaas): string | null {
+  const env =
+    variante === "escuro"
+      ? process.env.NEXT_PUBLIC_ASAAS_SELO_ESCURO_URL?.trim()
+      : process.env.NEXT_PUBLIC_ASAAS_SELO_CLARO_URL?.trim();
+  if (!env) return null;
+  if (env.startsWith("/asaas/")) return null;
+  return env;
+}
+
+function SeloVisual({ variante }: { variante: VarianteSeloAsaas }) {
+  const [imgFalhou, setImgFalhou] = useState(false);
+  const urlCustom = seloUrlCustomizada(variante);
+
+  if (urlCustom && !imgFalhou) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={urlCustom}
+        alt="Asaas — Instituição de Pagamento"
+        width={120}
+        height={36}
+        className="h-8 w-auto shrink-0"
+        onError={() => setImgFalhou(true)}
+      />
+    );
+  }
+
+  return <AsaasSeloSvg variante={variante} />;
+}
 
 export function AsaasSeloInstitucional({
   variante = "claro",
@@ -39,14 +73,7 @@ export function AsaasSeloInstitucional({
         className="inline-flex shrink-0"
         aria-label="Asaas — Instituição de Pagamento"
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={urlSeloAsaas(variante)}
-          alt="Asaas — Instituição de Pagamento"
-          width={120}
-          height={36}
-          className="h-8 w-auto"
-        />
+        <SeloVisual variante={variante} />
       </a>
       <p>
         {detalhado ? textoServicosFinanceirosAsaas() : textoInstitucionalAsaasCurto()}
