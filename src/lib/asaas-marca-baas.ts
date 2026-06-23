@@ -10,12 +10,21 @@ export const ASAAS_TERMOS_URL =
 
 export type VarianteSeloAsaas = "claro" | "escuro";
 
-/** Selo oficial enviado pelo Asaas (playbook BaaS). */
+/** Selo oficial enviado pelo Asaas (playbook BaaS). URL com F minúsculo — maiúsculo retorna 403. */
 export const ASAAS_SELO_OFICIAL_POSITIVO_URL =
   "https://baas.asaas.com/selos/Servicos_financeiros_Asaas-Reduzida-Positivo.svg?id=9dd91d64-fdd5-414e-b2e7-7fc88af59835";
 
-/** Cópia local do selo oficial (fallback se o CDN do Asaas falhar). */
-export const ASAAS_SELO_OFICIAL_LOCAL_URL = "/asaas/selo-oficial-positivo.svg";
+export const ASAAS_SELO_OFICIAL_NEGATIVO_URL =
+  "https://baas.asaas.com/selos/Servicos_financeiros_Asaas-Reduzida-Negativo-Preto.svg?id=9dd91d64-fdd5-414e-b2e7-7fc88af59835";
+
+/** Cópia local do selo oficial (fallback se o CDN do Asaas falhar ou for bloqueado). */
+export const ASAAS_SELO_OFICIAL_LOCAL_POSITIVO_URL = "/images/asaas-selo-oficial-positivo.svg";
+export const ASAAS_SELO_OFICIAL_LOCAL_NEGATIVO_URL = "/images/asaas-selo-oficial-negativo.svg";
+
+/** Atributos exigidos no HTML do selo (playbook BaaS). */
+export const ASAAS_SELO_ALT = "Selo Banco Asaas";
+export const ASAAS_SELO_LARGURA = 160;
+export const ASAAS_SELO_ALTURA = 48;
 
 export function urlSeloAsaas(variante: VarianteSeloAsaas): string {
   const custom =
@@ -23,7 +32,13 @@ export function urlSeloAsaas(variante: VarianteSeloAsaas): string {
       ? process.env.NEXT_PUBLIC_ASAAS_SELO_ESCURO_URL?.trim()
       : process.env.NEXT_PUBLIC_ASAAS_SELO_CLARO_URL?.trim();
   if (custom) return custom;
-  return ASAAS_SELO_OFICIAL_POSITIVO_URL;
+  return variante === "escuro" ? ASAAS_SELO_OFICIAL_NEGATIVO_URL : ASAAS_SELO_OFICIAL_POSITIVO_URL;
+}
+
+export function urlSeloAsaasLocal(variante: VarianteSeloAsaas): string {
+  return variante === "escuro"
+    ? ASAAS_SELO_OFICIAL_LOCAL_NEGATIVO_URL
+    : ASAAS_SELO_OFICIAL_LOCAL_POSITIVO_URL;
 }
 
 export function textoInstitucionalAsaasCurto(): string {

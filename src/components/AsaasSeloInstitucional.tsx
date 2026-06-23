@@ -2,15 +2,17 @@
 
 import { useState } from "react";
 import {
-  ASAAS_SELO_OFICIAL_LOCAL_URL,
+  ASAAS_SELO_ALT,
+  ASAAS_SELO_ALTURA,
+  ASAAS_SELO_LARGURA,
   ASAAS_SITE_URL,
   ASAAS_TERMOS_URL,
   textoInstitucionalAsaasCurto,
   textoServicosFinanceirosAsaas,
   urlSeloAsaas,
+  urlSeloAsaasLocal,
   type VarianteSeloAsaas,
 } from "@/lib/asaas-marca-baas";
-import { AsaasSeloSvg } from "@/components/AsaasSeloSvg";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -20,30 +22,25 @@ type Props = {
   className?: string;
 };
 
-type FonteSelo = "oficial" | "local" | "inline";
+type FonteSelo = "oficial" | "local";
 
 function SeloVisual({ variante }: { variante: VarianteSeloAsaas }) {
   const [fonte, setFonte] = useState<FonteSelo>("oficial");
-  const escuro = variante === "escuro";
-
-  if (fonte === "inline") {
-    return <AsaasSeloSvg variante={variante} />;
-  }
-
-  const src = fonte === "oficial" ? urlSeloAsaas(variante) : ASAAS_SELO_OFICIAL_LOCAL_URL;
+  const src = fonte === "oficial" ? urlSeloAsaas(variante) : urlSeloAsaasLocal(variante);
 
   return (
-    <span className={cn("inline-flex shrink-0", escuro && "rounded-md bg-white px-2.5 py-1.5")}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={src}
-        alt="Serviços financeiros Asaas"
-        width={188}
-        height={69}
-        className="h-10 w-auto max-w-[min(100%,220px)]"
-        onError={() => setFonte((atual) => (atual === "oficial" ? "local" : "inline"))}
-      />
-    </span>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={ASAAS_SELO_ALT}
+      width={ASAAS_SELO_LARGURA}
+      height={ASAAS_SELO_ALTURA}
+      style={{ display: "inline-block" }}
+      className="h-12 w-auto max-w-[min(100%,200px)]"
+      onError={() => {
+        if (fonte === "oficial") setFonte("local");
+      }}
+    />
   );
 }
 
