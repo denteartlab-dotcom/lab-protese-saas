@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Eye } from "lucide-react";
+import { AsaasSeloInstitucional } from "@/components/AsaasSeloInstitucional";
 import { useI18n } from "@/components/i18n-provider";
 import {
   lerLembrarLogin,
@@ -389,7 +390,7 @@ export function LoginForm({
     "h-8 w-full rounded border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15";
 
   return (
-    <div className="login-hero relative flex flex-1 items-center justify-center overflow-hidden bg-[#0a2f6e] px-4">
+    <div className="login-hero relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-[#0a2f6e] px-4 py-8">
       <img
         src="/images/login-background.png"
         alt=""
@@ -559,6 +560,11 @@ export function LoginForm({
           </p>
         </form>
       </div>
+
+      <AsaasSeloInstitucional
+        variante="escuro"
+        className="relative z-10 mt-6 max-w-xs px-2"
+      />
     </div>
   );
 }

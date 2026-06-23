@@ -14,6 +14,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui";
+import { AsaasSeloInstitucional } from "@/components/AsaasSeloInstitucional";
 import { FinanceiroAbasNav } from "@/components/financeiro/FinanceiroAbasNav";
 import { analisarCaminhoApp, montarCaminhoAppComSlug } from "@/lib/rotas-app";
 import { cn } from "@/lib/utils";
@@ -454,6 +455,11 @@ export function ContaDigitalConteudo() {
           </Button>
         </div>
       ) : null}
+
+      <AsaasSeloInstitucional
+        detalhado
+        className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-5"
+      />
     </div>
   );
 }

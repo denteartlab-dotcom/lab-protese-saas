@@ -11,6 +11,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui";
+import { AsaasSeloInstitucional } from "@/components/AsaasSeloInstitucional";
 import type { TipoMensagemForm } from "@/components/DadosLaboratorioForm";
 import { cn } from "@/lib/utils";
 
@@ -186,11 +187,11 @@ export function ConfiguracoesBoletosTab({ onMensagem }: Props) {
         <p className="font-semibold text-slate-800">Conta Digital Asaas</p>
         <p className="mt-1">
           Abra sua conta dentro do Lab Prótese para emitir boletos, receber Pix, pagar contas e
-          transferir valores — como no Smart Prótese. Após enviar os documentos, a análise leva
-          até 48 horas.
+          transferir valores. Após enviar os documentos, a análise leva até 48 horas.
         </p>
         <p className="mt-2 text-[11px] text-slate-500">
-          Serviço financeiro operado via Asaas (Instituição de Pagamento — Banco Central).
+          Serviços financeiros operados pelo Asaas, instituição de pagamento autorizada pelo Banco
+          Central do Brasil.
         </p>
       </div>
 
@@ -336,6 +337,11 @@ export function ConfiguracoesBoletosTab({ onMensagem }: Props) {
           </div>
         ) : null}
       </div>
+
+      <AsaasSeloInstitucional
+        detalhado
+        className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-5"
+      />
     </div>
   );
 }

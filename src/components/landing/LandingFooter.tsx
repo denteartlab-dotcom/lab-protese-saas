@@ -1,3 +1,4 @@
+import { AsaasSeloInstitucional } from "@/components/AsaasSeloInstitucional";
 import { LogoMarcaDenteArt } from "@/components/LogoMarcaDenteArt";
 import { WHATSAPP_LANDING_URL } from "@/lib/landing-content";
 
@@ -22,12 +23,12 @@ export function LandingFooter() {
             </h3>
             <ul className="mt-4 space-y-2 text-sm">
               <li>
-                <a href="#" className="transition hover:text-white">
+                <a href="/termos" className="transition hover:text-white">
                   Termos de Uso
                 </a>
               </li>
               <li>
-                <a href="#" className="transition hover:text-white">
+                <a href="/privacidade" className="transition hover:text-white">
                   Política de Privacidade
                 </a>
               </li>
@@ -78,8 +79,11 @@ export function LandingFooter() {
           </div>
         </div>
 
-        <div className="mt-10 border-t border-slate-800 pt-6 text-center text-xs text-slate-500">
-          © {new Date().getFullYear()} Lab Prótese Tecnologia LTDA. Todos os direitos reservados.
+        <div className="mt-10 border-t border-slate-800 pt-8">
+          <AsaasSeloInstitucional variante="escuro" className="mx-auto max-w-lg" />
+          <p className="mt-6 text-center text-xs text-slate-500">
+            © {new Date().getFullYear()} Lab Prótese Tecnologia LTDA. Todos os direitos reservados.
+          </p>
         </div>
       </div>
     </footer>

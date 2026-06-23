@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { AsaasSeloInstitucional } from "@/components/AsaasSeloInstitucional";
 import { LogoMarcaDenteArt } from "@/components/LogoMarcaDenteArt";
 import { SeletorPaisComBusca } from "@/components/cadastro/SeletorPaisComBusca";
 import { salvarUltimoLaboratorioLogin } from "@/lib/auth-client";
@@ -370,13 +371,13 @@ export function CriarContaForm() {
 
             <p className="pt-1 text-center text-[11px] leading-relaxed text-slate-500">
               Ao cadastrar você concorda com os{" "}
-              <a href="#" className="text-[#0066FF] hover:underline">
+              <Link href="/termos" className="text-[#0066FF] hover:underline">
                 Termos de Uso
-              </a>{" "}
-              e{" "}
-              <a href="#" className="text-[#0066FF] hover:underline">
-                LGPD
-              </a>
+              </Link>{" "}
+              e a{" "}
+              <Link href="/privacidade" className="text-[#0066FF] hover:underline">
+                Política de Privacidade
+              </Link>
               .
             </p>
           </form>
@@ -397,6 +398,8 @@ export function CriarContaForm() {
             Fale conosco
           </a>
         </p>
+
+        <AsaasSeloInstitucional className="mt-6 max-w-sm" />
       </div>
     </div>
   );

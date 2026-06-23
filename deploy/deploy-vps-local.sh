@@ -55,16 +55,27 @@ npm run vps:validar
 echo ""
 echo "==> Build produção..."
 if command -v swapon >/dev/null 2>&1 && [[ "$(swapon --show 2>/dev/null | wc -l)" -le 0 ]]; then
-  echo "    AVISO: VPS sem swap — rode: bash deploy/garantir-swap.sh"
+  echo "    VPS sem swap — criando antes do build..."
+  bash "$APP_DIR/deploy/garantir-swap.sh"
+fi
+RAM_MB="$(awk '/^Mem:/{print $2}' /proc/meminfo 2>/dev/null || echo 4096)"
+if [[ -z "${NODE_OPTIONS:-}" ]]; then
+  if [[ "$RAM_MB" -lt 2048 ]]; then
+    export NODE_OPTIONS="--max-old-space-size=1280"
+  elif [[ "$RAM_MB" -lt 4096 ]]; then
+    export NODE_OPTIONS="--max-old-space-size=1536"
+  else
+    export NODE_OPTIONS="--max-old-space-size=3072"
+  fi
 fi
 BUILD_ID="$(git rev-parse --short HEAD)"
 echo "$BUILD_ID" > .build-id
 export NEXT_PUBLIC_APP_BUILD_ID="$BUILD_ID"
 export NODE_ENV=production
-export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=4096}"
 export SKIP_TYPECHECK=1
-echo "    NODE_OPTIONS=$NODE_OPTIONS"
+echo "    RAM: ${RAM_MB} MB | NODE_OPTIONS=$NODE_OPTIONS"
 echo "    SKIP_TYPECHECK=$SKIP_TYPECHECK (VPS: pula checagem de tipos no build)"
+free -h 2>/dev/null || true
 npm run build
 echo "    buildId: $BUILD_ID"
 
