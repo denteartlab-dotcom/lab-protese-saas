@@ -1,0 +1,10 @@
+Coloque aqui os PDFs oficiais do Lab Prótese:
+
+1. termos-de-uso.pdf       → exibido em /termos e no cadastro
+2. politica-de-privacidade.pdf → exibido em /privacidade e no cadastro
+
+Se você tiver um único PDF com todas as regras, pode:
+- copiar o mesmo arquivo para os dois nomes acima, ou
+- usar só termos-de-uso.pdf e deixar politica-de-privacidade.pdf com o texto HTML padrão
+
+Depois de adicionar os arquivos, faça deploy na VPS (git add + commit + push + atualizar-producao).
