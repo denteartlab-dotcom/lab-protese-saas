@@ -1,8 +1,25 @@
 import { NextResponse } from "next/server";
 import { sincronizarPagamentoAssinatura } from "@/lib/assinatura-pix-servidor";
 import { sincronizarPagamentoAsaas } from "@/lib/asaas-boleto";
-import { validarWebhookTokenAsaas } from "@/lib/asaas-client";
+import { listarWebhookTokensAsaas, validarWebhookTokenAsaas } from "@/lib/asaas-client";
 import { atualizarSubcontaPorWebhookConta } from "@/lib/asaas-subconta";
+import { APP_URL } from "@/lib/app-url";
+
+const WEBHOOK_PATH = "/api/asaas/webhook";
+
+/** Confirma no navegador que o endpoint está publicado (o Asaas usa POST). */
+export async function GET() {
+  const tokens = await listarWebhookTokensAsaas();
+  return NextResponse.json({
+    ok: true,
+    provedor: "asaas",
+    webhookUrl: `${APP_URL}${WEBHOOK_PATH}`,
+    metodoAsaas: "POST",
+    tokenConfigurado: tokens.length > 0,
+    instrucoes:
+      "Cadastre esta URL no painel Asaas (Integrações → Webhooks). O Asaas envia POST com o header asaas-access-token igual ao token configurado no servidor.",
+  });
+}
 
 export async function POST(request: Request) {
   const tokenRecebido =
