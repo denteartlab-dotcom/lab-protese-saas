@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown } from "lucide-react";
+import { Check, ChevronDown, X } from "lucide-react";
 import { propsBloquearArrasteEntreCampos } from "@/lib/input-selecao";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +36,10 @@ type Props = {
   id?: string;
   emptyMessage?: string;
   maxItensVisiveis?: number;
+  /** Exibe botão X para limpar quando há valor selecionado. */
+  permitirLimpar?: boolean;
+  /** Valor aplicado ao limpar (padrão: ""). */
+  valorLimpar?: string;
 };
 
 export function SelectPesquisavel({
@@ -52,6 +56,8 @@ export function SelectPesquisavel({
   id,
   emptyMessage = "Nenhum resultado.",
   maxItensVisiveis = MAX_ITENS_VISIVEIS,
+  permitirLimpar = false,
+  valorLimpar = "",
 }: Props) {
   const autoId = useId();
   const inputId = id || autoId;
@@ -130,6 +136,15 @@ export function SelectPesquisavel({
     setAberto(false);
   }
 
+  function limparSelecao() {
+    onChange(valorLimpar);
+    setTexto("");
+    setAberto(false);
+    inputRef.current?.blur();
+  }
+
+  const exibirLimpar = permitirLimpar && value !== valorLimpar;
+
   function onBlurInput() {
     window.setTimeout(() => {
       setAberto(false);
@@ -150,7 +165,8 @@ export function SelectPesquisavel({
   }
 
   const inputCls = cn(
-    "w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-8 text-sm shadow-sm placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20",
+    "w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 text-sm shadow-sm placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20",
+    exibirLimpar ? "pr-14" : "pr-8",
     !value && !aberto ? "text-slate-400" : "text-slate-700",
     disabled && "cursor-not-allowed bg-slate-50 opacity-60",
     inputClassName
@@ -189,11 +205,12 @@ export function SelectPesquisavel({
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => selecionar(opcao)}
               className={cn(
-                "flex min-h-[34px] w-full items-center px-3 text-left text-[13px] text-slate-800 hover:bg-slate-50",
+                "flex min-h-[34px] w-full items-center justify-between gap-2 px-3 text-left text-[13px] text-slate-800 hover:bg-slate-50",
                 ativo && "bg-[#e8f2fc] font-medium text-[#4a90d9]"
               )}
             >
-              {opcao.label}
+              <span className="truncate">{opcao.label}</span>
+              {ativo ? <Check className="h-4 w-4 shrink-0 text-[#4a90d9]" aria-hidden /> : null}
             </button>
           );
         })
@@ -231,10 +248,24 @@ export function SelectPesquisavel({
           className={inputCls}
           {...propsBloquearArrasteEntreCampos()}
         />
+        {exibirLimpar ? (
+          <button
+            type="button"
+            tabIndex={-1}
+            disabled={disabled}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={limparSelecao}
+            className="absolute right-7 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40"
+            aria-label="Limpar seleção"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
         <button
           type="button"
           tabIndex={-1}
           disabled={disabled}
+          onMouseDown={(e) => e.preventDefault()}
           onClick={abrirLista}
           className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 disabled:opacity-40"
           aria-label="Abrir lista"

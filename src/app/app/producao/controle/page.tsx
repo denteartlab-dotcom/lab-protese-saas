@@ -3178,10 +3178,8 @@ export default function ControlePage() {
             value={cliente}
             onChange={setCliente}
             placeholder="Todos"
-            options={[
-              { value: "", label: "Todos" },
-              ...clientes.map((nome) => ({ value: nome, label: nome })),
-            ]}
+            permitirLimpar
+            options={clientes.map((nome) => ({ value: nome, label: nome }))}
           />
           <Input
             label="Buscar"
