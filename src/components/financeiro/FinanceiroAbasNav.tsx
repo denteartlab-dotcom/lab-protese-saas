@@ -7,11 +7,13 @@ import { cn } from "@/lib/utils";
 
 const abas = [
   { query: "tipo=receita", label: "Contas a Receber", id: "receber" },
+  { query: "aba=conta-digital", label: "Conta Digital", id: "conta-digital" },
   { query: "aba=boletos", label: "Controle de Boletos", id: "boletos" },
   { query: "tipo=despesa", label: "Contas a Pagar", id: "pagar" },
 ] as const;
 
 function abaAtiva(searchParams: URLSearchParams) {
+  if (searchParams.get("aba") === "conta-digital") return "conta-digital";
   if (searchParams.get("aba") === "boletos") return "boletos";
   if (
     searchParams.get("tipo") === "despesa" ||

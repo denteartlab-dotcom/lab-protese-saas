@@ -56,11 +56,21 @@ import {
   desempacotarDespesa,
   descricaoDespesaComParcela,
   empacotarDespesa,
+  atualizarMetaDespesa,
   lerFornecedoresStorage,
   lerNomesStorage,
   type EntidadeDespesa,
   type DespesaMeta,
 } from "@/lib/lancamento-despesa";
+import {
+  gerarGrupoDespesaFixaId,
+  listarMesesReferencia,
+  MESES_AVANCO_DESPESA_FIXA,
+  mesReferenciaDeDataBr,
+  metaDespesaFixa,
+  sincronizarDespesasFixaRemoto,
+  vencimentoParcelaNoMes,
+} from "@/lib/despesa-fixa";
 import {
   exportarListaDespesasExcel,
   gerarPdfListaDespesas,
@@ -372,11 +382,26 @@ export function ContasPagarConteudo() {
         setErroLista(json.error || "Não foi possível carregar as despesas.");
         return;
       }
-      setLancamentos(
-        Array.isArray(json.lancamentos)
-          ? json.lancamentos.filter((l: Lancamento) => l.tipo === "despesa")
-          : []
-      );
+      const lista = Array.isArray(json.lancamentos)
+        ? json.lancamentos.filter((l: Lancamento) => l.tipo === "despesa")
+        : [];
+      setLancamentos(lista);
+      try {
+        const criados = await sincronizarDespesasFixaRemoto(lista);
+        if (criados > 0) {
+          const resSync = await fetch("/api/financeiro?tipo=despesa");
+          const jsonSync = (await resSync.json().catch(() => ({}))) as {
+            lancamentos?: Lancamento[];
+          };
+          if (resSync.ok && Array.isArray(jsonSync.lancamentos)) {
+            setLancamentos(
+              jsonSync.lancamentos.filter((l: Lancamento) => l.tipo === "despesa")
+            );
+          }
+        }
+      } catch (syncErr) {
+        console.error("sincronizar despesas fixas", syncErr);
+      }
     } catch {
       setLancamentos([]);
       setErroLista("Não foi possível carregar as despesas.");
@@ -692,6 +717,116 @@ export function ContasPagarConteudo() {
     setModalAberto(true);
   }
 
+  async function criarDespesaApi(
+    descricaoBase: string,
+    parcelasApi: Array<{
+      valor: number;
+      data: string;
+      status: "pendente" | "pago";
+      formaPagamento: string;
+      parcelaLabel: string;
+    }>
+  ) {
+    if (parcelasApi.length === 0) {
+      throw new Error("Informe um valor maior que zero para salvar a despesa.");
+    }
+
+    if (parcelasApi.length === 1) {
+      const parcela = parcelasApi[0];
+      const partes = parcela.parcelaLabel.split("/").map((x) => Number(x.trim()));
+      const res = await fetch("/api/financeiro", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tipo: "despesa",
+          descricao: descricaoDespesaComParcela(descricaoBase, parcela.parcelaLabel),
+          valor: parcela.valor,
+          data: parcela.data,
+          status: parcela.status,
+          formaPagamento: parcela.formaPagamento,
+          parcelaNumero: partes[0] || 1,
+          parcelaTotal: partes[1] || 1,
+        }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        throw new Error(json.error || "Não foi possível salvar a despesa.");
+      }
+      return;
+    }
+
+    const res = await fetch("/api/financeiro", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tipo: "despesa",
+        descricao: descricaoBase,
+        valor: parcelasApi[0].valor,
+        parcelas: parcelasApi.map(({ parcelaLabel: _p, ...rest }) => rest),
+      }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { error?: string };
+    if (!res.ok) {
+      throw new Error(json.error || "Não foi possível salvar a despesa.");
+    }
+  }
+
+  function parcelasPayloadParaApi(
+    payload: LancarReceitaPayload,
+    mesReferencia?: string,
+    diaVencimento?: number
+  ) {
+    return payload.parcelas
+      .map((parcela, index) => {
+        const valor = Number(parcela.valor.replace(/\./g, "").replace(",", "."));
+        if (!Number.isFinite(valor) || valor <= 0) return null;
+        const vencimentoBr =
+          mesReferencia && diaVencimento
+            ? vencimentoParcelaNoMes(mesReferencia, diaVencimento, index)
+            : parcela.vencimento || payload.dataLancamento;
+        return {
+          valor,
+          data: brShortToIso(vencimentoBr),
+          status: (parcela.pago ? "pago" : "pendente") as "pendente" | "pago",
+          formaPagamento: parcela.formaPagamento || "Pix",
+          parcelaLabel: parcela.parcela,
+        };
+      })
+      .filter(
+        (
+          parcela
+        ): parcela is {
+          valor: number;
+          data: string;
+          status: "pendente" | "pago";
+          formaPagamento: string;
+          parcelaLabel: string;
+        } => parcela !== null
+      );
+  }
+
+  async function desativarGrupoDespesaFixa(grupoId: string) {
+    const alvos = lancamentos.filter(
+      (item) => desempacotarDespesa(item.descricao).meta.fixaGrupoId === grupoId
+    );
+    for (const alvo of alvos) {
+      const res = await fetch(`/api/financeiro/${alvo.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          descricao: atualizarMetaDespesa(alvo.descricao, {
+            fixa: true,
+            fixaAtiva: false,
+          }),
+        }),
+      });
+      if (!res.ok) {
+        const json = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(json.error || "Não foi possível desativar a despesa fixa.");
+      }
+    }
+  }
+
   async function salvarDespesaModal(payload: LancarReceitaPayload) {
     if (salvarDespesaEmAndamentoRef.current) return;
     salvarDespesaEmAndamentoRef.current = true;
@@ -702,22 +837,41 @@ export function ContasPagarConteudo() {
       .map((item) => [item.produto, item.descricao].filter(Boolean).join(" - "))
       .filter(Boolean)
       .join("; ");
-    const meta: DespesaMeta = {
-      entidade: payload.tipoCliente as EntidadeDespesa,
-      categoria: payload.categoria,
-      conta: payload.parcelas[0]?.conta || "Caixa Principal",
-      parcela: String(payload.parcelas.length),
-      referencia: payload.notaFiscalRef,
-      nome: nomeEntidade,
-      ...(payload.anexos?.length ? { anexos: payload.anexos } : {}),
-    };
-    const descricaoBase = empacotarDespesa(
+    const textoDespesa =
       [descricaoItens, payload.observacoes].filter(Boolean).join(" | ") ||
-        nomeEntidade,
-      meta
-    );
+      nomeEntidade;
+
+    const metaEdicao = editando
+      ? desempacotarDespesa(editando.descricao).meta
+      : null;
+    const grupoFixaExistente = metaEdicao?.fixaGrupoId;
+    const despesaFixaAtiva = payload.receitaFixa;
+    const grupoFixaId = despesaFixaAtiva
+      ? grupoFixaExistente || gerarGrupoDespesaFixaId()
+      : grupoFixaExistente;
+    const diaVencimento =
+      parseBrDate(payload.parcelas[0]?.vencimento || payload.dataLancamento)?.getDate() ||
+      1;
+
+    function montarMeta(mesReferencia?: string): DespesaMeta {
+      const base: DespesaMeta = {
+        entidade: payload.tipoCliente as EntidadeDespesa,
+        categoria: payload.categoria,
+        conta: payload.parcelas[0]?.conta || "Caixa Principal",
+        parcela: String(payload.parcelas.length),
+        referencia: payload.notaFiscalRef,
+        nome: nomeEntidade,
+        ...(payload.anexos?.length ? { anexos: payload.anexos } : {}),
+      };
+      if (!despesaFixaAtiva || !mesReferencia || !grupoFixaId) return base;
+      return metaDespesaFixa(base, grupoFixaId, mesReferencia, diaVencimento);
+    }
 
     try {
+      if (editando && grupoFixaExistente && !despesaFixaAtiva) {
+        await desativarGrupoDespesaFixa(grupoFixaExistente);
+      }
+
       if (editando) {
         const chave = chaveGrupoDespesa(editando.descricao);
         const irmaos = lancamentos.filter(
@@ -738,6 +892,14 @@ export function ContasPagarConteudo() {
           registrosGrupo.length > 1
             ? registrosGrupo
             : [editando];
+
+        const mesEdicao =
+          metaEdicao?.fixaMes ||
+          mesReferenciaDeDataBr(payload.dataLancamento);
+        const descricaoBase = empacotarDespesa(
+          textoDespesa,
+          montarMeta(despesaFixaAtiva ? mesEdicao : undefined)
+        );
 
         for (let i = 0; i < payload.parcelas.length; i++) {
           const parcela = payload.parcelas[i];
@@ -772,70 +934,49 @@ export function ContasPagarConteudo() {
         if (temPago && !temPendente) setTipoDespesa("pagas");
         else if (temPendente && !temPago) setTipoDespesa("a_pagar");
         else setTipoDespesa("todas");
-      } else {
-        const parcelasApi = payload.parcelas
-          .map((parcela) => {
-            const valor = Number(
-              parcela.valor.replace(/\./g, "").replace(",", ".")
-            );
-            if (!Number.isFinite(valor) || valor <= 0) return null;
-            return {
-              valor,
-              data: brShortToIso(parcela.vencimento || payload.dataLancamento),
-              status: (parcela.pago ? "pago" : "pendente") as "pago" | "pendente",
-              formaPagamento: parcela.formaPagamento || "Pix",
-            };
-          })
-          .filter((p): p is NonNullable<typeof p> => p !== null);
 
-        if (parcelasApi.length === 0) {
-          alert("Informe um valor maior que zero para salvar a despesa.");
-          return;
+        if (despesaFixaAtiva && grupoFixaId) {
+          await sincronizarDespesasFixaRemoto(lancamentos);
         }
-
-        const temPago = parcelasApi.some((p) => p.status === "pago");
-        const temPendente = parcelasApi.some((p) => p.status === "pendente");
-
-        if (parcelasApi.length === 1) {
-          const parcela = payload.parcelas[0];
-          const partes = parcela.parcela.split("/").map((x) => Number(x.trim()));
-          const res = await fetch("/api/financeiro", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              tipo: "despesa",
-              descricao: descricaoDespesaComParcela(descricaoBase, parcela.parcela),
-              valor: parcelasApi[0].valor,
-              data: parcelasApi[0].data,
-              status: parcelasApi[0].status,
-              formaPagamento: parcelasApi[0].formaPagamento,
-              parcelaNumero: partes[0] || 1,
-              parcelaTotal: partes[1] || 1,
-            }),
-          });
-          const json = (await res.json().catch(() => ({}))) as { error?: string };
-          if (!res.ok) {
-            alert(json.error || "Não foi possível salvar a despesa.");
-            return;
+      } else {
+        if (despesaFixaAtiva && grupoFixaId) {
+          const mesInicial = mesReferenciaDeDataBr(payload.dataLancamento);
+          const meses = listarMesesReferencia(
+            mesInicial,
+            MESES_AVANCO_DESPESA_FIXA
+          );
+          for (const mes of meses) {
+            const parcelasApi = parcelasPayloadParaApi(
+              payload,
+              mes,
+              diaVencimento
+            ).map((parcela) => ({
+              ...parcela,
+              status:
+                mes === mesInicial ? parcela.status : ("pendente" as const),
+            }));
+            if (!parcelasApi.length) {
+              alert("Informe um valor maior que zero para salvar a despesa.");
+              return;
+            }
+            const descricaoBase = empacotarDespesa(
+              textoDespesa,
+              montarMeta(mes)
+            );
+            await criarDespesaApi(descricaoBase, parcelasApi);
           }
         } else {
-          const res = await fetch("/api/financeiro", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              tipo: "despesa",
-              descricao: descricaoBase,
-              valor: parcelasApi[0].valor,
-              parcelas: parcelasApi,
-            }),
-          });
-          const json = (await res.json().catch(() => ({}))) as { error?: string };
-          if (!res.ok) {
-            alert(json.error || "Não foi possível salvar a despesa.");
+          const parcelasApi = parcelasPayloadParaApi(payload);
+          if (!parcelasApi.length) {
+            alert("Informe um valor maior que zero para salvar a despesa.");
             return;
           }
+          const descricaoBase = empacotarDespesa(textoDespesa, montarMeta());
+          await criarDespesaApi(descricaoBase, parcelasApi);
         }
 
+        const temPago = payload.parcelas.some((p) => p.pago);
+        const temPendente = payload.parcelas.some((p) => !p.pago);
         if (temPago && !temPendente) setTipoDespesa("pagas");
         else if (temPendente && !temPago) setTipoDespesa("a_pagar");
         else setTipoDespesa("todas");
@@ -843,6 +984,10 @@ export function ContasPagarConteudo() {
       setModalAberto(false);
       setEditando(null);
       notificarFinanceiroAtualizado();
+    } catch (err) {
+      alert(
+        err instanceof Error ? err.message : "Não foi possível salvar a despesa."
+      );
     } finally {
       salvarDespesaEmAndamentoRef.current = false;
       setSalvando(false);

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sincronizarPagamentoAssinatura } from "@/lib/assinatura-pix-servidor";
 import { sincronizarPagamentoAsaas } from "@/lib/asaas-boleto";
 import { validarWebhookTokenAsaas } from "@/lib/asaas-client";
+import { atualizarSubcontaPorWebhookConta } from "@/lib/asaas-subconta";
 
 export async function POST(request: Request) {
   const tokenRecebido =
@@ -17,7 +18,22 @@ export async function POST(request: Request) {
     const body = (await request.json()) as {
       event?: string;
       payment?: { id?: string; status?: string };
+      account?: { id?: string };
+      accountStatus?: {
+        general?: string;
+        documentation?: string;
+      };
     };
+
+    const evento = body.event || "";
+    if (evento.startsWith("ACCOUNT_STATUS_")) {
+      await atualizarSubcontaPorWebhookConta({
+        accountId: body.account?.id,
+        statusGeral: body.accountStatus?.general,
+        statusDocumentacao: body.accountStatus?.documentation,
+      });
+      return NextResponse.json({ ok: true });
+    }
 
     const paymentId = body.payment?.id;
     const status = body.payment?.status;
@@ -34,7 +50,7 @@ export async function POST(request: Request) {
       "PAYMENT_REFUNDED",
     ];
 
-    if (body.event && eventosPagamento.includes(body.event)) {
+    if (eventosPagamento.includes(evento)) {
       const assinatura = await sincronizarPagamentoAssinatura(paymentId, status);
       if (!assinatura.renovado) {
         await sincronizarPagamentoAsaas(paymentId, status);

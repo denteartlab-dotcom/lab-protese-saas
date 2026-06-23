@@ -31,7 +31,14 @@ function parseConfigAsaas(parsed: Partial<AsaasConfig>): AsaasConfig {
   };
 }
 
+import {
+  configOperacionalSubconta,
+} from "@/lib/asaas-subconta";
+
 async function carregarConfigServidor(empresaId: string): Promise<AsaasConfig> {
+  const subconta = await configOperacionalSubconta(empresaId);
+  if (subconta) return subconta;
+
   const parsed = await lerJsonStoreTenant<Partial<AsaasConfig>>(empresaId, ASAAS_CONFIG_KEY);
   if (!parsed) return { ...ASAAS_CONFIG_PADRAO };
   return parseConfigAsaas(parsed);
@@ -84,7 +91,7 @@ export async function validarWebhookTokenAsaas(tokenRecebido: string): Promise<b
   return configurados.includes(tokenRecebido);
 }
 
-async function asaasFetch<T>(
+export async function asaasFetch<T>(
   config: AsaasConfig,
   path: string,
   init?: RequestInit

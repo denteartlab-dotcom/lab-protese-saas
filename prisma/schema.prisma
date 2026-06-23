@@ -44,6 +44,26 @@ model Empresa {
   historicoEtapas HistoricoEtapa[]
   nfseEmissoes   NfseEmissao[]
   cobrancasAssinatura CobrancaAssinatura[]
+  asaasSubconta       AsaasSubconta?
+}
+
+model AsaasSubconta {
+  id               String   @id @default(cuid())
+  empresaId        String   @unique
+  empresa          Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  asaasAccountId   String?  @unique
+  walletId         String?
+  apiKey           String?
+  status           String   @default("nao_iniciado")
+  statusGeral      String?
+  statusDocumentacao String?
+  agencia          String?
+  conta            String?
+  contaDigito      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([status])
 }
 
 model User {

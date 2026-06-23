@@ -51,6 +51,15 @@ export type DespesaMeta = {
   nome?: string;
   /** Recibos e comprovantes — imagens ou PDF (máx. 5). */
   anexos?: AnexoDespesa[];
+  /** Despesa fixa recorrente mensal. */
+  fixa?: boolean;
+  fixaGrupoId?: string;
+  /** false = série desativada; omitido ou true = gera novos meses. */
+  fixaAtiva?: boolean;
+  /** Mês de referência desta instância (YYYY-MM). */
+  fixaMes?: string;
+  /** Dia preferido de vencimento no mês (1–31). */
+  fixaDiaVencimento?: number;
 };
 
 export const LIMITE_ANEXOS_DESPESA = 5;
@@ -89,6 +98,19 @@ export type DespesaDescompactada = {
 export function empacotarDespesa(descricao: string, meta: DespesaMeta) {
   const base = descricao.trim();
   return `${base}${DESPESA_META_SEP}${JSON.stringify(meta)}`;
+}
+
+/** Atualiza campos do JSON embutido na descrição, preservando o rótulo de parcela. */
+export function atualizarMetaDespesa(
+  descricaoEmpacotada: string,
+  patch: Partial<DespesaMeta>
+) {
+  const pack = desempacotarDespesa(descricaoEmpacotada);
+  const textoBase = descricaoSemParcela(pack.texto);
+  const novaMeta = { ...pack.meta, ...patch };
+  const base = empacotarDespesa(textoBase, novaMeta);
+  const match = pack.texto.match(/\((\d+\s*\/\s*\d+)\)/);
+  return match ? descricaoDespesaComParcela(base, match[1]) : base;
 }
 
 /** Inclui rótulo de parcela no texto visível, sem corromper o JSON em @@CAP@@. */

@@ -47,6 +47,7 @@ import {
 } from "@/lib/fatura-cliente-financeiro";
 import { htmlCabecalhoLab, labImpressaoFromConfig } from "@/lib/lab-logo";
 import { ContaBancariaConteudo } from "@/components/financeiro/ContaBancariaConteudo";
+import { ContaDigitalConteudo } from "@/components/financeiro/ContaDigitalConteudo";
 import { ContasPagarConteudo } from "@/components/financeiro/ContasPagarConteudo";
 import { ControleBoletosConteudo } from "@/components/financeiro/ControleBoletosConteudo";
 import { FinanceiroAbasNav } from "@/components/financeiro/FinanceiroAbasNav";
@@ -296,6 +297,9 @@ function FinanceiroRouter() {
   }
   if (searchParams.get("aba") === "conta-bancaria") {
     return <ContaBancariaConteudo />;
+  }
+  if (searchParams.get("aba") === "conta-digital") {
+    return <ContaDigitalConteudo />;
   }
   if (searchParams.get("aba") === "boletos") {
     return <ControleBoletosConteudo />;

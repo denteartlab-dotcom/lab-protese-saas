@@ -12,6 +12,7 @@ import {
   carregarEntidadesDespesaLocal,
   extrairDadosEdicaoDespesa,
   labelNomeEntidadeDespesa,
+  desempacotarDespesa,
   TIPOS_FORNECEDOR_DESPESA,
   type AnexoDespesa,
   type EntidadeDespesa,
@@ -339,6 +340,8 @@ export function LancarReceitaModal({
     setCategoria(dados.categoria || cfg.categoriaPadrao);
     setDataLancamento(dataBr);
     setNotaFiscalRef(dados.notaFiscalRef);
+    const metaEdicao = desempacotarDespesa(lancamentoEdicao.descricao).meta;
+    setReceitaFixa(Boolean(metaEdicao.fixa && metaEdicao.fixaAtiva !== false));
     setItens(
       dados.itens.length
         ? dados.itens.map((item) => ({
@@ -521,6 +524,16 @@ export function LancarReceitaModal({
 
   const totalLiquido = Math.max(0, valorBruto - descontoValor);
 
+  const valorParcelasTotal = useMemo(
+    () => parcelas.reduce((sum, parcela) => sum + parseMoney(parcela.valor), 0),
+    [parcelas]
+  );
+
+  const valorMinimoSalvar =
+    modo === "despesa"
+      ? Math.max(totalLiquido, valorParcelasTotal)
+      : totalLiquido;
+
   useEffect(() => {
     if (!open || lancamentoEdicao) return;
     setDataLancamento(dateToBrShort(new Date()));
@@ -676,7 +689,12 @@ export function LancarReceitaModal({
             ...p,
             valor: money(totalLiquido),
           }))
-        : parcelas;
+        : parcelas.map((parcela, index) => {
+            if (modo !== "despesa" || index !== 0) return parcela;
+            const codigo = codigoBarras.trim();
+            if (!codigo || parcela.codigoBarrasPix.trim()) return parcela;
+            return { ...parcela, codigoBarrasPix: codigo };
+          });
       await onSubmit({
       clienteId,
         entidadeNome:
@@ -1578,7 +1596,7 @@ export function LancarReceitaModal({
               type="submit"
               disabled={
                 ocupado ||
-                totalLiquido <= 0 ||
+                valorMinimoSalvar <= 0 ||
                 (modo === "receita" && !clienteId)
               }
               className="h-10 rounded bg-[#4a90d9] text-[13px] font-normal text-white hover:bg-[#3d7fc4] disabled:cursor-wait disabled:opacity-60"
