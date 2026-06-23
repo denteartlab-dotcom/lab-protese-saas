@@ -10,13 +10,20 @@ export const ASAAS_TERMOS_URL =
 
 export type VarianteSeloAsaas = "claro" | "escuro";
 
+/** Selo oficial enviado pelo Asaas (playbook BaaS). */
+export const ASAAS_SELO_OFICIAL_POSITIVO_URL =
+  "https://baas.asaas.com/selos/Servicos_financeiros_Asaas-Reduzida-Positivo.svg?id=9dd91d64-fdd5-414e-b2e7-7fc88af59835";
+
+/** Cópia local do selo oficial (fallback se o CDN do Asaas falhar). */
+export const ASAAS_SELO_OFICIAL_LOCAL_URL = "/asaas/selo-oficial-positivo.svg";
+
 export function urlSeloAsaas(variante: VarianteSeloAsaas): string {
   const custom =
     variante === "escuro"
       ? process.env.NEXT_PUBLIC_ASAAS_SELO_ESCURO_URL?.trim()
       : process.env.NEXT_PUBLIC_ASAAS_SELO_CLARO_URL?.trim();
   if (custom) return custom;
-  return variante === "escuro" ? "/asaas/selo-negativo.svg" : "/asaas/selo-azul.svg";
+  return ASAAS_SELO_OFICIAL_POSITIVO_URL;
 }
 
 export function textoInstitucionalAsaasCurto(): string {

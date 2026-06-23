@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import {
+  ASAAS_SELO_OFICIAL_LOCAL_URL,
   ASAAS_SITE_URL,
   ASAAS_TERMOS_URL,
   textoInstitucionalAsaasCurto,
   textoServicosFinanceirosAsaas,
+  urlSeloAsaas,
   type VarianteSeloAsaas,
 } from "@/lib/asaas-marca-baas";
 import { AsaasSeloSvg } from "@/components/AsaasSeloSvg";
@@ -18,35 +20,31 @@ type Props = {
   className?: string;
 };
 
-function seloUrlCustomizada(variante: VarianteSeloAsaas): string | null {
-  const env =
-    variante === "escuro"
-      ? process.env.NEXT_PUBLIC_ASAAS_SELO_ESCURO_URL?.trim()
-      : process.env.NEXT_PUBLIC_ASAAS_SELO_CLARO_URL?.trim();
-  if (!env) return null;
-  if (env.startsWith("/asaas/")) return null;
-  return env;
-}
+type FonteSelo = "oficial" | "local" | "inline";
 
 function SeloVisual({ variante }: { variante: VarianteSeloAsaas }) {
-  const [imgFalhou, setImgFalhou] = useState(false);
-  const urlCustom = seloUrlCustomizada(variante);
+  const [fonte, setFonte] = useState<FonteSelo>("oficial");
+  const escuro = variante === "escuro";
 
-  if (urlCustom && !imgFalhou) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={urlCustom}
-        alt="Asaas — Instituição de Pagamento"
-        width={120}
-        height={36}
-        className="h-8 w-auto shrink-0"
-        onError={() => setImgFalhou(true)}
-      />
-    );
+  if (fonte === "inline") {
+    return <AsaasSeloSvg variante={variante} />;
   }
 
-  return <AsaasSeloSvg variante={variante} />;
+  const src = fonte === "oficial" ? urlSeloAsaas(variante) : ASAAS_SELO_OFICIAL_LOCAL_URL;
+
+  return (
+    <span className={cn("inline-flex shrink-0", escuro && "rounded-md bg-white px-2.5 py-1.5")}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt="Serviços financeiros Asaas"
+        width={188}
+        height={69}
+        className="h-10 w-auto max-w-[min(100%,220px)]"
+        onError={() => setFonte((atual) => (atual === "oficial" ? "local" : "inline"))}
+      />
+    </span>
+  );
 }
 
 export function AsaasSeloInstitucional({
