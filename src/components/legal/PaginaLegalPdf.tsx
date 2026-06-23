@@ -9,9 +9,10 @@ type Props = {
   pdfUrl: string;
   temPdf: boolean;
   fallback?: ReactNode;
+  conteudoAdicional?: ReactNode;
 };
 
-export function PaginaLegalPdf({ titulo, pdfUrl, temPdf, fallback }: Props) {
+export function PaginaLegalPdf({ titulo, pdfUrl, temPdf, fallback, conteudoAdicional }: Props) {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
       <header className="border-b border-slate-200 bg-white">
@@ -64,6 +65,8 @@ export function PaginaLegalPdf({ titulo, pdfUrl, temPdf, fallback }: Props) {
             {fallback}
           </div>
         )}
+
+        {conteudoAdicional}
 
         <BlocoAsaasLegal />
 

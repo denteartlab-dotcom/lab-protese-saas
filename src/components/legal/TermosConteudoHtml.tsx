@@ -1,3 +1,5 @@
+import { TermosEncerramentoServico } from "@/components/legal/TermosEncerramentoServico";
+
 export function TermosConteudoHtml() {
   return (
     <>
@@ -61,6 +63,8 @@ export function TermosConteudoHtml() {
       </p>
 
       <p className="text-xs text-slate-500">Última atualização: junho de 2026.</p>
+
+      <TermosEncerramentoServico />
     </>
   );
 }
