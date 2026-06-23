@@ -1,0 +1,41 @@
+Modelo de e-mail — fluxo de offboarding BaaS (Asaas)
+===============================================
+
+Assunto: Fluxo de encerramento da plataforma e acesso às subcontas BaaS — Lab Prótese
+
+---
+
+Olá Helen, tudo bem?
+
+Sou Mateus Bonfim, da Lab Prótese Tecnologia LTDA (CNPJ 65.881.387/0001-88),
+plataforma https://www.denteartlab.com.br.
+
+Estamos finalizando a adequação ao BaaS e gostaríamos de alinhar um ponto importante
+para os nossos termos de uso e para o plano de contingência:
+
+Se a plataforma Lab Prótese vier a ser suspensa ou encerrada definitivamente,
+qual é o procedimento oficial do Asaas para que os laboratórios clientes
+(titulares das subcontas criadas via POST /v3/accounts) possam:
+
+1. Consultar saldo e extrato;
+2. Realizar transferências ou saques do saldo remanescente;
+3. Encerrar a subconta de forma regular;
+
+considerando que, no modelo BaaS, o laboratório não possui acesso ao painel web
+do Asaas e opera os serviços financeiros exclusivamente pela nossa interface?
+
+Informações da nossa integração:
+• Webhook: https://www.denteartlab.com.br/api/asaas/webhook (v3, sequencial)
+• Subcontas: API v3, uma subconta por laboratório (CNPJ)
+• Selo e textos institucionais Asaas publicados no site, cadastro e telas financeiras
+
+Podemos incluir no contrato/termos o fluxo que vocês indicarem. Fico no aguardo
+da orientação formal para repassarmos aos laboratórios clientes.
+
+Obrigado!
+
+Att,
+Mateus Bonfim
+Lab Prótese Tecnologia LTDA
+denteartlab@gmail.com
+(31) 98270-9866
