@@ -23,6 +23,7 @@ export function CriarContaForm() {
   const [error, setError] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
+  const [aceiteTermos, setAceiteTermos] = useState(false);
 
   const [form, setForm] = useState({
     nome: "",
@@ -109,6 +110,11 @@ export function CriarContaForm() {
       return;
     }
 
+    if (!aceiteTermos) {
+      setError("Você precisa aceitar os Termos de Uso e a Política de Privacidade.");
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch("/api/empresas/cadastro", {
@@ -123,7 +129,7 @@ export function CriarContaForm() {
           adminSenha: form.adminSenha,
           confirmarSenha: form.confirmarSenha,
           codigoVerificacao: codigo,
-          aceiteTermos: true,
+          aceiteTermos: true as const,
         }),
       });
       const data = (await res.json()) as {
@@ -361,25 +367,44 @@ export function CriarContaForm() {
               <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>
             ) : null}
 
+            <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2.5 text-left">
+              <input
+                type="checkbox"
+                checked={aceiteTermos}
+                onChange={(e) => setAceiteTermos(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-[#0066FF] focus:ring-[#0066FF]/30"
+                required
+              />
+              <span className="text-[11px] leading-relaxed text-slate-600">
+                Li e concordo com os{" "}
+                <Link
+                  href="/termos"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-[#0066FF] hover:underline"
+                >
+                  Termos de Uso
+                </Link>{" "}
+                e a{" "}
+                <Link
+                  href="/privacidade"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-[#0066FF] hover:underline"
+                >
+                  Política de Privacidade
+                </Link>{" "}
+                do Lab Prótese.
+              </span>
+            </label>
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !aceiteTermos}
               className="mt-1 h-11 w-full rounded-lg bg-[#0066FF] text-sm font-semibold text-white transition hover:bg-[#0052cc] disabled:opacity-60"
             >
               {loading ? "Cadastrando..." : "Cadastrar"}
             </button>
-
-            <p className="pt-1 text-center text-[11px] leading-relaxed text-slate-500">
-              Ao cadastrar você concorda com os{" "}
-              <Link href="/termos" className="text-[#0066FF] hover:underline">
-                Termos de Uso
-              </Link>{" "}
-              e a{" "}
-              <Link href="/privacidade" className="text-[#0066FF] hover:underline">
-                Política de Privacidade
-              </Link>
-              .
-            </p>
           </form>
         </div>
 
