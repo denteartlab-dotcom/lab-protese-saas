@@ -12,7 +12,7 @@ export const LOGO_TOPO_LARGURA = 320;
 export const LOGO_TOPO_ALTURA = 52;
 
 /** Faixa cinza — altura próxima à Smart Prótese. */
-export const FAIXA_TOPO_ALTURA = 65;
+export const FAIXA_TOPO_ALTURA = 68;
 
 const LOGO_SRC = "/images/lab-protese-logo.png";
 
