@@ -14,10 +14,9 @@ import { indiceEtapaAtualDeConcluidas } from "@/lib/modulo-producao-etapas";
 import { normalizarChaveStatusOs, labelStatusOs } from "@/lib/status-os";
 import {
   classificarItemOs,
-  parseDescontoTipoLinhaItem,
   parseItensAdicionadosLinhas,
   segmentoEfetivoTrabalho,
-  valorLiquidoItemOs,
+  valorLiquidoDeLinhaItemAdicionado,
 } from "@/lib/trabalho-os-segmento";
 import {
   idsTrabalhosFaturadosNoLancamento,
@@ -198,25 +197,6 @@ function temCobrancaOsTrabalho(
     const l = toLancamentoResumo(lancamento);
     return ehCobrancaOsReceita(l) && faturaLigadaAoTrabalho(l, trabalho);
   });
-}
-
-function valorLiquidoDeLinhaItemAdicionado(line: string): number | null {
-  const match = line.match(/^Item adicionado:\s*(.*?)\s*-\s*dentes/i);
-  if (!match) return null;
-
-  const valorTexto = line.match(
-    / - valor (.*?)(?: - categoria| - desc| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
-  )?.[1];
-  if (!valorTexto) return null;
-
-  const valor = parseCurrencyBr(valorTexto);
-  const descontoRaw = line
-    .match(
-      / - desc (.*?)(?: - descTipo| - categoria| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
-    )?.[1]
-    ?.trim();
-  const descontoTipo = parseDescontoTipoLinhaItem(line, descontoRaw || "");
-  return valorLiquidoItemOs({ valor, desconto: descontoRaw, descontoTipo });
 }
 
 const META_TRABALHOS_COBRANCA = /@@trab:([a-zA-Z0-9_,-]+)@@/;

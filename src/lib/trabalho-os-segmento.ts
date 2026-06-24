@@ -95,6 +95,26 @@ export function parseDescontoTipoLinhaItem(line: string, desconto: string) {
   return desconto.startsWith("R$") ? "valor" : "percentual";
 }
 
+/** Valor líquido de uma linha `Item adicionado:` (com desconto, se houver). */
+export function valorLiquidoDeLinhaItemAdicionado(line: string): number | null {
+  const match = line.match(/^Item adicionado:\s*(.*?)\s*-\s*dentes/i);
+  if (!match) return null;
+
+  const valorTexto = line.match(
+    / - valor (.*?)(?: - categoria| - desc| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
+  )?.[1];
+  if (!valorTexto) return null;
+
+  const valor = parseCurrencyBr(valorTexto);
+  const descontoRaw = line
+    .match(
+      / - desc (.*?)(?: - descTipo| - categoria| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
+    )?.[1]
+    ?.trim();
+  const descontoTipo = parseDescontoTipoLinhaItem(line, descontoRaw || "");
+  return valorLiquidoItemOs({ valor, desconto: descontoRaw, descontoTipo });
+}
+
 /** Formato na requisição impressa: `% 5.00` ou `R$ 5,00` (referência Smart Prótese). */
 export function formatarDescontoImpressaoOs(desconto?: string, descontoTipo?: string) {
   const texto = (desconto || "").trim();

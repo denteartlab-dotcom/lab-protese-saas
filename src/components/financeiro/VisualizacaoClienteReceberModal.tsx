@@ -94,6 +94,7 @@ type Props = {
   onDetalheRecebimento: (l: LancamentoClienteModal) => void;
   filtrosPainel: FiltrosPainelContasReceber;
   clienteTelefone?: string | null;
+  onRecarregarTrabalhos?: () => void | Promise<void>;
 };
 
 type ExtratoModeloModal = "1" | "2" | "3";
@@ -322,6 +323,7 @@ export function VisualizacaoClienteReceberModal({
   onDetalheRecebimento,
   filtrosPainel,
   clienteTelefone,
+  onRecarregarTrabalhos,
 }: Props) {
   const [mounted, setMounted] = useState(false);
   const [aba, setAba] = useState<"faturas" | "recebimentos" | "extrato">("faturas");
@@ -359,6 +361,11 @@ export function VisualizacaoClienteReceberModal({
     filtrosPainel.dataFinal,
     filtrosPainel.situacao,
   ]);
+
+  useEffect(() => {
+    if (!open || aba !== "extrato") return;
+    void onRecarregarTrabalhos?.();
+  }, [open, aba, onRecarregarTrabalhos]);
 
   const anosDisponiveis = useMemo(() => {
     const set = new Set<number>([new Date().getFullYear()]);

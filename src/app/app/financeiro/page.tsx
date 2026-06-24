@@ -74,6 +74,7 @@ import {
 } from "@/lib/relatorio-faturas-modelo3-dados";
 import { PlanoContasConteudo } from "@/components/financeiro/PlanoContasConteudo";
 import { notificarFinanceiroAtualizado } from "@/lib/financeiro-events";
+import { TRABALHOS_ATUALIZADOS_EVENT } from "@/lib/trabalhos-events";
 import {
   desempacotarDespesa,
   empacotarDespesa,
@@ -446,6 +447,25 @@ function FinanceiroReceberConteudo() {
   useEffect(() => {
     void load({ comReferencias: true });
   }, []);
+
+  useEffect(() => {
+    const atualizarTrabalhos = () => {
+      void fetch("/api/trabalhos", { cache: "no-store" }).then(async (res) => {
+        const trabalhosData = await lerJsonResposta<Trabalho[]>(res);
+        if (Array.isArray(trabalhosData)) setTrabalhos(trabalhosData);
+      });
+    };
+    window.addEventListener(TRABALHOS_ATUALIZADOS_EVENT, atualizarTrabalhos);
+    return () => window.removeEventListener(TRABALHOS_ATUALIZADOS_EVENT, atualizarTrabalhos);
+  }, []);
+
+  useEffect(() => {
+    if (!detalheCliente) return;
+    void fetch("/api/trabalhos", { cache: "no-store" }).then(async (res) => {
+      const trabalhosData = await lerJsonResposta<Trabalho[]>(res);
+      if (Array.isArray(trabalhosData)) setTrabalhos(trabalhosData);
+    });
+  }, [detalheCliente?.clienteId, detalheCliente?.nome]);
 
   const receitasFiltradas = useMemo(() => {
     const lancamentos = data?.lancamentos.filter((l) => l.tipo === "receita") || [];
@@ -2305,6 +2325,11 @@ function FinanceiroReceberConteudo() {
             : null,
         }))}
         filtrosPainel={{ dataInicio, dataFinal, situacao }}
+        onRecarregarTrabalhos={async () => {
+          const res = await fetch("/api/trabalhos", { cache: "no-store" });
+          const trabalhosData = await lerJsonResposta<Trabalho[]>(res);
+          if (Array.isArray(trabalhosData)) setTrabalhos(trabalhosData);
+        }}
         onClienteChange={(cliente) => setDetalheCliente(cliente as ClienteReceber)}
         money={money}
         formatDate={formatDate}

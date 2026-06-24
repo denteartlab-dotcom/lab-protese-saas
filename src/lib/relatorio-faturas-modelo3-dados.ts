@@ -11,6 +11,7 @@ import {
   type TrabalhoContasReceber,
 } from "@/lib/contas-receber-financeiro";
 import { formatDate } from "@/lib/utils";
+import { valorLiquidoDeLinhaItemAdicionado } from "@/lib/trabalho-os-segmento";
 
 export type TrabalhoRelatorioFatura = TrabalhoContasReceber & {
   tipoProtese?: string;
@@ -106,20 +107,17 @@ function totalItensInstrucoes(trabalho: TrabalhoRelatorioFatura) {
     .split("\n")
     .filter((line) => line.trim().startsWith("Item adicionado:"));
   return linhasItens.reduce((sum, line) => {
-    const match = line.match(
-      /valor\s*(.*?)(?: - categoria| - desc| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
-    );
-    return sum + parseMoney(match?.[1] || "");
+    const liquido = valorLiquidoDeLinhaItemAdicionado(line);
+    return sum + (liquido ?? 0);
   }, 0);
 }
 
-/** Valor da OS alinhado ao campo `valor` quando a OS foi editada após faturamento. */
+/** Valor da OS: campo `valor` gravado na OS tem prioridade sobre instruções legadas. */
 export function valorTrabalho(trabalho: TrabalhoRelatorioFatura) {
-  const totalItens = totalItensInstrucoes(trabalho);
   const valorDb = valorNumericoTrabalho(trabalho.valor);
-  if (totalItens <= 0) return valorDb;
-  if (valorDb > 0 && Math.abs(valorDb - totalItens) > 0.009) return valorDb;
-  return totalItens;
+  const totalLiquido = totalItensInstrucoes(trabalho);
+  if (valorDb > 0) return valorDb;
+  return totalLiquido;
 }
 
 function ajustarItensAoValorTrabalho(
@@ -156,13 +154,14 @@ export function itensDoTrabalho(trabalho: TrabalhoRelatorioFatura): ItemFaturaMo
       );
       if (!match) return null;
       const qtd = match[4]?.trim() || "1";
-      const valorLinha = parseMoney(
+      const valorBruto = parseMoney(
         line.match(
           / - valor (.*?)(?: - categoria| - desc| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
         )?.[1] ||
           match[5] ||
           ""
       );
+      const valorLinha = valorLiquidoDeLinhaItemAdicionado(line) ?? valorBruto;
       const qtdNum = Number(qtd.replace(",", ".")) || 1;
       const valorUn = qtdNum > 0 ? valorLinha / qtdNum : valorLinha;
       const descMatch = line.match(/ - desc(?:onto)?\s*([^-]+?)(?: - situação| - produtoId|$)/i);
