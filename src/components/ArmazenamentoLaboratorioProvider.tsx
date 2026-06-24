@@ -5,6 +5,7 @@ import {
   ARMAZENAMENTO_LAB_PRONTO_EVENT,
   armazenamentoLaboratorioBootstrapOk,
   armazenamentoLaboratorioPronto,
+  armazenamentoLaboratorioSessaoExpirada,
   inicializarArmazenamentoLaboratorio,
   reinicializarArmazenamentoLaboratorio,
 } from "@/lib/armazenamento-laboratorio";
@@ -18,13 +19,18 @@ type EstadoBootstrap = "carregando" | "pronto" | "erro";
 const TIMEOUT_CARREGAMENTO_MS = 20_000;
 
 function avaliarBootstrap(): EstadoBootstrap {
-  if (typeof window === "undefined") return "pronto";
+  if (typeof window === "undefined") return "carregando";
   if (!armazenamentoLaboratorioPronto()) return "carregando";
   return armazenamentoLaboratorioBootstrapOk() ? "pronto" : "erro";
 }
 
+function redirecionarParaLogin() {
+  const redirect = `${window.location.pathname}${window.location.search}`;
+  window.location.assign(`/login?redirect=${encodeURIComponent(redirect)}`);
+}
+
 export function ArmazenamentoLaboratorioProvider({ children }: Props) {
-  const [estado, setEstado] = useState<EstadoBootstrap>(avaliarBootstrap);
+  const [estado, setEstado] = useState<EstadoBootstrap>("carregando");
   const [erro, setErro] = useState("");
   const [tentando, setTentando] = useState(false);
 
@@ -33,11 +39,20 @@ export function ArmazenamentoLaboratorioProvider({ children }: Props) {
     setErro("");
     setEstado("carregando");
     try {
-      if (forcar) {
+      const precisaReinicializar =
+        forcar ||
+        (armazenamentoLaboratorioPronto() && !armazenamentoLaboratorioBootstrapOk());
+      if (precisaReinicializar) {
         await reinicializarArmazenamentoLaboratorio();
       } else {
         await inicializarArmazenamentoLaboratorio();
       }
+
+      if (armazenamentoLaboratorioSessaoExpirada()) {
+        redirecionarParaLogin();
+        return;
+      }
+
       const ok = armazenamentoLaboratorioBootstrapOk();
       setEstado(ok ? "pronto" : "erro");
       if (!ok) {
@@ -56,6 +71,16 @@ export function ArmazenamentoLaboratorioProvider({ children }: Props) {
   }
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const host = window.location.hostname.toLowerCase();
+      if (host === "denteartlab.com.br") {
+        window.location.replace(
+          `https://www.denteartlab.com.br${window.location.pathname}${window.location.search}`
+        );
+        return;
+      }
+    }
+
     const atual = avaliarBootstrap();
     if (atual === "pronto") {
       setEstado("pronto");
@@ -63,6 +88,10 @@ export function ArmazenamentoLaboratorioProvider({ children }: Props) {
     }
 
     const onPronto = () => {
+      if (armazenamentoLaboratorioSessaoExpirada()) {
+        redirecionarParaLogin();
+        return;
+      }
       setEstado(armazenamentoLaboratorioBootstrapOk() ? "pronto" : "erro");
       if (!armazenamentoLaboratorioBootstrapOk()) {
         setErro(

@@ -148,7 +148,8 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/api/setup") ||
     pathname.startsWith("/api/empresas/cadastro") ||
     pathname === "/api/admin-master/auth/login" ||
-    pathname === "/api/version"
+    pathname === "/api/version" ||
+    pathname === "/api/health"
   ) {
     return NextResponse.next();
   }

@@ -14,6 +14,7 @@ const chavesDoServidor = new Set<string>();
 const snapshotServidor = new Map<string, string>();
 let hidratado = false;
 let bootstrapOk = false;
+let sessaoExpirada = false;
 let hidratando: Promise<void> | null = null;
 const filaSalvar = new Map<string, unknown>();
 let timerSalvar: ReturnType<typeof setTimeout> | null = null;
@@ -35,6 +36,10 @@ export function armazenamentoLaboratorioPronto() {
 
 export function armazenamentoLaboratorioBootstrapOk() {
   return bootstrapOk;
+}
+
+export function armazenamentoLaboratorioSessaoExpirada() {
+  return sessaoExpirada;
 }
 
 /** Aguarda carga inicial do banco (para impressão e telas que dependem do JsonStore). */
@@ -264,9 +269,10 @@ export async function aplicarArmazenamentoLaboratorioCliente(
   await flushSalvarPendentes();
 }
 
-const BOOTSTRAP_TIMEOUT_MS = 15_000;
-const BOOTSTRAP_TENTATIVAS = 3;
-const MIGRAR_TIMEOUT_MS = 12_000;
+const BOOTSTRAP_TIMEOUT_MS = 12_000;
+const BOOTSTRAP_TENTATIVAS = 2;
+const MIGRAR_TIMEOUT_MS = 8_000;
+const SALVAR_TIMEOUT_MS = 10_000;
 
 async function fetchComTimeout(url: string, init?: RequestInit, timeoutMs = BOOTSTRAP_TIMEOUT_MS) {
   const controller = new AbortController();
@@ -300,13 +306,21 @@ async function flushSalvarPendentes() {
 
   for (let tentativa = 1; tentativa <= 3; tentativa += 1) {
     try {
-      const res = await fetch("/api/armazenamento/migrar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        cache: "no-store",
-        body: JSON.stringify({ entradas, sobrescrever: true }),
-      });
+      const res = await fetchComTimeout(
+        "/api/armazenamento/migrar",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          cache: "no-store",
+          body: JSON.stringify({ entradas, sobrescrever: true }),
+        },
+        SALVAR_TIMEOUT_MS
+      );
+      if (res.status === 401 || res.status === 403) {
+        sessaoExpirada = true;
+        return;
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       aplicarConfirmacaoSalvar(entradas);
       return;
@@ -391,6 +405,10 @@ async function carregarBootstrapServidor(
         credentials: "same-origin",
         cache: "no-store",
       });
+      if (res.status === 401 || res.status === 403) {
+        sessaoExpirada = true;
+        return { ok: false, mudou: false };
+      }
       if (!res.ok) continue;
       const json = (await res.json()) as { data?: Record<string, unknown> };
       if (json.data && typeof json.data === "object") {
@@ -429,6 +447,7 @@ export async function reinicializarArmazenamentoLaboratorio() {
   if (typeof window === "undefined") return;
   hidratado = false;
   bootstrapOk = false;
+  sessaoExpirada = false;
   hidratando = null;
   complementarAgendado = false;
   ultimaRevalidacao = 0;
@@ -438,7 +457,7 @@ export async function reinicializarArmazenamentoLaboratorio() {
 /** Carrega dados do PostgreSQL (JsonStore). Não usa localStorage. */
 export async function inicializarArmazenamentoLaboratorio() {
   if (typeof window === "undefined") return;
-  if (hidratado) return;
+  if (hidratado && bootstrapOk) return;
   if (hidratando) return hidratando;
 
   hidratando = (async () => {

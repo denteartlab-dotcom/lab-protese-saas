@@ -21,7 +21,12 @@ export async function GET(request: Request) {
   const fase = parseFaseBootstrap(new URL(request.url).searchParams.get("fase"));
 
   try {
-    const data = await bootstrapJsonStoreTenant(ctx.empresaId, fase);
+    const data = await Promise.race([
+      bootstrapJsonStoreTenant(ctx.empresaId, fase),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("BOOTSTRAP_TIMEOUT")), 25_000);
+      }),
+    ]);
     return NextResponse.json({ data, fase });
   } catch (err) {
     console.error("[armazenamento/bootstrap]", err);
