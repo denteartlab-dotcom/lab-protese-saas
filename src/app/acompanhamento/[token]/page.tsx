@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, PackageCheck, Search } from "lucide-react";
+import { PackageCheck, Search } from "lucide-react";
 import { useParams, useSearchParams } from "next/navigation";
 import {
   compararTrabalhosAcompanhamento,
@@ -44,7 +44,6 @@ export default function AcompanhamentoClientePage() {
   const [recebidoModalTrabalhoId, setRecebidoModalTrabalhoId] = useState<string | null>(null);
   const [nomeRecebedor, setNomeRecebedor] = useState("");
   const [recebidoEnviando, setRecebidoEnviando] = useState(false);
-  const [historicoAberto, setHistoricoAberto] = useState<Record<string, boolean>>({});
   const [busca, setBusca] = useState("");
   const [filtroSituacao, setFiltroSituacao] = useState("todos");
 
@@ -377,36 +376,15 @@ export default function AcompanhamentoClientePage() {
                     {t.statusLabel}
                   </span>
                   {t.historicoRecebimento ? (
-                    <div className="w-full text-right">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setHistoricoAberto((atual) => ({
-                            ...atual,
-                            [t.id]: !atual[t.id],
-                          }))
-                        }
-                        className="inline-flex items-center gap-0.5 text-[10px] font-medium text-teal-700 hover:text-teal-900"
-                      >
-                        {historicoAberto[t.id] ? (
-                          <ChevronUp className="h-3 w-3" />
-                        ) : (
-                          <ChevronDown className="h-3 w-3" />
-                        )}
-                        Recebimento confirmado
-                      </button>
-                      {historicoAberto[t.id] ? (
-                        <div className="mt-1 rounded-md border border-teal-100 bg-teal-50/80 px-2.5 py-1.5 text-left text-[10px] text-teal-900">
-                          <p>
-                            <span className="font-semibold">Recebido por:</span>{" "}
-                            {t.historicoRecebimento.nomeRecebedor}
-                          </p>
-                          <p className="mt-0.5">
-                            <span className="font-semibold">Em:</span>{" "}
-                            {formatarDataHora(t.historicoRecebimento.registradoEm)}
-                          </p>
-                        </div>
-                      ) : null}
+                    <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-0.5 text-[10px] text-teal-800">
+                      <p>
+                        <span className="font-semibold">Recebido por:</span>{" "}
+                        {t.historicoRecebimento.nomeRecebedor}
+                      </p>
+                      <p>
+                        <span className="font-semibold">Em:</span>{" "}
+                        {formatarDataHora(t.historicoRecebimento.registradoEm)}
+                      </p>
                     </div>
                   ) : null}
                 </div>
