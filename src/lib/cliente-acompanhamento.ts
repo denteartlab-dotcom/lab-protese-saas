@@ -33,22 +33,32 @@ export const MENSAGEM_LINK_ACOMPANHAMENTO_INVALIDO =
 
 /** Situações exibidas no fim da lista do acompanhamento público. */
 export const STATUS_ACOMPANHAMENTO_ORDEM_FINAL = new Set([
+  "recebido_cliente",
   "finalizado",
   "entregue",
-  "recebido_cliente",
+  "cancelado",
 ]);
 
+/** Menor prioridade = mais no topo. Finalizado/entregue ficam por último. */
+function prioridadeOrdemAcompanhamento(status: string): number {
+  const chave = normalizarChaveStatusOs(status);
+  if (chave === "finalizado" || chave === "entregue") return 2;
+  if (chave === "recebido_cliente") return 1;
+  if (chave === "cancelado") return 3;
+  return 0;
+}
+
 export function trabalhoAcompanhamentoNoFinalDaOrdem(status: string): boolean {
-  return STATUS_ACOMPANHAMENTO_ORDEM_FINAL.has(normalizarChaveStatusOs(status));
+  return prioridadeOrdemAcompanhamento(status) > 0;
 }
 
 export function compararTrabalhosAcompanhamento(
   a: { numeroOs: number; status: string },
   b: { numeroOs: number; status: string }
 ): number {
-  const fimA = trabalhoAcompanhamentoNoFinalDaOrdem(a.status) ? 1 : 0;
-  const fimB = trabalhoAcompanhamentoNoFinalDaOrdem(b.status) ? 1 : 0;
-  if (fimA !== fimB) return fimA - fimB;
+  const priA = prioridadeOrdemAcompanhamento(a.status);
+  const priB = prioridadeOrdemAcompanhamento(b.status);
+  if (priA !== priB) return priA - priB;
   return b.numeroOs - a.numeroOs;
 }
 
