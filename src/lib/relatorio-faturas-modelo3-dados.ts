@@ -102,7 +102,9 @@ function valorNumericoTrabalho(valor: unknown) {
   return 0;
 }
 
-function totalItensInstrucoes(trabalho: TrabalhoRelatorioFatura) {
+function totalItensInstrucoes(trabalho: {
+  instrucoes?: string | null;
+}) {
   const linhasItens = (trabalho.instrucoes || "")
     .split("\n")
     .filter((line) => line.trim().startsWith("Item adicionado:"));
@@ -113,7 +115,11 @@ function totalItensInstrucoes(trabalho: TrabalhoRelatorioFatura) {
 }
 
 /** Valor da OS: campo `valor` gravado na OS tem prioridade sobre instruções legadas. */
-export function valorTrabalho(trabalho: TrabalhoRelatorioFatura) {
+export function valorTrabalho(trabalho: {
+  instrucoes?: string | null;
+  valor?: number;
+  tipoProtese?: string;
+}) {
   const valorDb = valorNumericoTrabalho(trabalho.valor);
   const totalLiquido = totalItensInstrucoes(trabalho);
   if (valorDb > 0) return valorDb;

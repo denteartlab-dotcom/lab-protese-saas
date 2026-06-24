@@ -26,6 +26,7 @@ import {
   type TrabalhoContasReceber,
 } from "@/lib/contas-receber-financeiro";
 import type { TrabalhoRelatorioFatura } from "@/lib/relatorio-faturas-modelo3-dados";
+import { nomePacienteTrabalho } from "@/lib/relatorio-faturas-modelo3-dados";
 
 export type { ModeloRelatorioReceitas } from "@/lib/relatorio-receitas-modelos";
 
@@ -88,12 +89,15 @@ function pacienteDoLancamento(
 ) {
   if (lancamento.trabalho?.id) {
     const t = trabalhos.find((item) => item.id === lancamento.trabalho?.id);
-    if (t?.paciente?.trim()) return t.paciente.trim();
+    if (t) {
+      const nome = nomePacienteTrabalho(t);
+      if (nome !== "—") return nome;
+    }
   }
   const nums = numerosOsTexto(lancamento);
   if (nums === "—") return "—";
   const primeiro = trabalhos.find((t) => nums.startsWith(String(t.numeroOs)));
-  return primeiro?.paciente?.trim() || "—";
+  return primeiro ? nomePacienteTrabalho(primeiro) : "—";
 }
 
 function linhaBase(

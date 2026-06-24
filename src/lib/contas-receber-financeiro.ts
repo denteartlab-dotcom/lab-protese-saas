@@ -18,7 +18,7 @@ export type TrabalhoContasReceber = {
   id: string;
   numeroOs: number;
   status: string;
-  paciente?: string | null;
+  paciente?: string | { nome?: string | null } | null;
 };
 
 function dateOnly(value: string) {

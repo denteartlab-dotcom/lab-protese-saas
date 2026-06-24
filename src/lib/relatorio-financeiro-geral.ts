@@ -14,9 +14,11 @@ import { indiceEtapaAtualDeConcluidas } from "@/lib/modulo-producao-etapas";
 import { normalizarChaveStatusOs, labelStatusOs } from "@/lib/status-os";
 import {
   classificarItemOs,
+  parseDescontoTipoLinhaItem,
   parseItensAdicionadosLinhas,
   segmentoEfetivoTrabalho,
   valorLiquidoDeLinhaItemAdicionado,
+  valorLiquidoItemOs,
 } from "@/lib/trabalho-os-segmento";
 import {
   idsTrabalhosFaturadosNoLancamento,

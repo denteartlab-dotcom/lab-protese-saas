@@ -149,13 +149,17 @@ async function migrarLocalStorageLegadoParaServidor() {
   if (Object.keys(entradas).length === 0) return;
 
   try {
-    const res = await fetch("/api/armazenamento/migrar", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "same-origin",
-      cache: "no-store",
-      body: JSON.stringify({ entradas, sobrescrever: false }),
-    });
+    const res = await fetchComTimeout(
+      "/api/armazenamento/migrar",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        cache: "no-store",
+        body: JSON.stringify({ entradas, sobrescrever: false }),
+      },
+      MIGRAR_TIMEOUT_MS
+    );
     if (!res.ok) {
       console.warn(
         "[armazenamento-laboratorio] falha ao migrar localStorage legado:",
@@ -262,6 +266,7 @@ export async function aplicarArmazenamentoLaboratorioCliente(
 
 const BOOTSTRAP_TIMEOUT_MS = 15_000;
 const BOOTSTRAP_TENTATIVAS = 3;
+const MIGRAR_TIMEOUT_MS = 12_000;
 
 async function fetchComTimeout(url: string, init?: RequestInit, timeoutMs = BOOTSTRAP_TIMEOUT_MS) {
   const controller = new AbortController();

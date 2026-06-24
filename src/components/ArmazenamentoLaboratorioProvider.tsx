@@ -15,6 +15,8 @@ type Props = {
 
 type EstadoBootstrap = "carregando" | "pronto" | "erro";
 
+const TIMEOUT_CARREGAMENTO_MS = 20_000;
+
 function avaliarBootstrap(): EstadoBootstrap {
   if (typeof window === "undefined") return "pronto";
   if (!armazenamentoLaboratorioPronto()) return "carregando";
@@ -62,11 +64,27 @@ export function ArmazenamentoLaboratorioProvider({ children }: Props) {
 
     const onPronto = () => {
       setEstado(armazenamentoLaboratorioBootstrapOk() ? "pronto" : "erro");
+      if (!armazenamentoLaboratorioBootstrapOk()) {
+        setErro(
+          "Não foi possível carregar os dados do servidor. Verifique a conexão e tente novamente."
+        );
+      }
     };
     window.addEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, onPronto);
     void carregar();
 
+    const timer = window.setTimeout(() => {
+      setEstado((atualEstado) => {
+        if (atualEstado !== "carregando") return atualEstado;
+        setErro(
+          "O carregamento demorou demais. Verifique se o servidor está online e tente novamente."
+        );
+        return "erro";
+      });
+    }, TIMEOUT_CARREGAMENTO_MS);
+
     return () => {
+      window.clearTimeout(timer);
       window.removeEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, onPronto);
     };
   }, []);
