@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { extrairNumeroOsCodigo, limparEntradaLeitorCodigo } from "@/lib/codigo-barras-os";
 
-const INTERVALO_TECLA_SCAN_MS = 100;
-const PAUSA_FIM_SCAN_MS = 200;
+const PAUSA_RESET_BUFFER_MS = 600;
+const PAUSA_FIM_SCAN_MS = 350;
 
 export type EntradaLeitorOpcoes = {
   onLido?: (numeroOs: string, bruto: string) => void;
@@ -26,8 +26,28 @@ function teclaDigitavel(e: { key: string; ctrlKey?: boolean; metaKey?: boolean; 
   return e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
 }
 
-function teclaConfirma(e: { key: string }) {
-  return e.key === "Enter" || e.key === "Tab";
+function charDaTecla(e: KeyboardEvent | React.KeyboardEvent<HTMLInputElement>): string {
+  if (teclaDigitavel(e)) return e.key;
+  const legado = "keyCode" in e ? e.keyCode || e.which : 0;
+  if (legado >= 32 && legado <= 126) return String.fromCharCode(legado);
+  return "";
+}
+
+function teclaConfirma(e: { key: string; code?: string }) {
+  return (
+    e.key === "Enter" ||
+    e.key === "Tab" ||
+    e.key === "F13" ||
+    e.code === "NumpadEnter"
+  );
+}
+
+function valorInputAtivo(): string {
+  const ativo = document.activeElement;
+  if (ativo instanceof HTMLInputElement || ativo instanceof HTMLTextAreaElement) {
+    return ativo.value;
+  }
+  return "";
 }
 
 export function useEntradaLeitorCodigo({
@@ -130,6 +150,7 @@ export function useEntradaLeitorCodigo({
         if (!bruto && "currentTarget" in e && e.currentTarget instanceof HTMLInputElement) {
           bruto = e.currentTarget.value;
         }
+        if (!bruto.trim()) bruto = valorInputAtivo();
         limparBuffer();
         if (bruto.trim()) {
           processar(bruto);
@@ -146,7 +167,14 @@ export function useEntradaLeitorCodigo({
         return;
       }
 
-      if (!teclaDigitavel(e)) return;
+      const alvo = e.target as HTMLElement | null;
+      const noCampoLeitor =
+        Boolean(ignorarElemento?.current) && alvo === ignorarElemento?.current;
+
+      if (noCampoLeitor) return;
+
+      const char = charDaTecla(e);
+      if (!char) return;
 
       e.preventDefault();
       e.stopPropagation();
@@ -155,11 +183,11 @@ export function useEntradaLeitorCodigo({
       const intervalo = ultimoCharMs.current ? agora - ultimoCharMs.current : 999;
       ultimoCharMs.current = agora;
 
-      if (intervalo > INTERVALO_TECLA_SCAN_MS * 2) {
-        bufferRef.current = e.key;
+      if (intervalo > PAUSA_RESET_BUFFER_MS) {
+        bufferRef.current = char;
         scanRapidoRef.current = false;
       } else {
-        bufferRef.current += e.key;
+        bufferRef.current += char;
         scanRapidoRef.current = true;
         setLeitorUsbAtivo(true);
       }
@@ -167,7 +195,7 @@ export function useEntradaLeitorCodigo({
       atualizarVisivel(bufferRef.current, setValor);
       agendarAutoConfirmacao(setValor);
     },
-    [agendarAutoConfirmacao, atualizarVisivel, limparBuffer, processar]
+    [agendarAutoConfirmacao, atualizarVisivel, ignorarElemento, limparBuffer, processar]
   );
 
   const onKeyDown = useCallback(
@@ -180,8 +208,11 @@ export function useEntradaLeitorCodigo({
   const onChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>, setValor?: (v: string) => void) => {
       const valor = e.target.value;
-      if (scanRapidoRef.current) return;
       bufferRef.current = valor;
+      if (valor.length >= 2) {
+        scanRapidoRef.current = true;
+        setLeitorUsbAtivo(true);
+      }
       atualizarVisivel(valor, setValor);
     },
     [atualizarVisivel]
@@ -203,10 +234,26 @@ export function useEntradaLeitorCodigo({
     [atualizarVisivel, confirmarBuffer]
   );
 
+  const processarTextoLido = useCallback(
+    (bruto: string, setValor?: (v: string) => void) => {
+      const limpo = limparEntradaLeitorCodigo(bruto);
+      if (!limpo) return;
+      bufferRef.current = limpo;
+      scanRapidoRef.current = limpo.length >= 2;
+      if (scanRapidoRef.current) setLeitorUsbAtivo(true);
+      atualizarVisivel(limpo, setValor);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        confirmarBuffer(setValor);
+      }, PAUSA_FIM_SCAN_MS);
+    },
+    [atualizarVisivel, confirmarBuffer]
+  );
+
   useEffect(() => {
     if (!capturaGlobal || !capturaGlobalAtivo) return;
 
-    const handler = (e: KeyboardEvent) => {
+    const handlerTecla = (e: KeyboardEvent) => {
       const alvo = e.target as HTMLElement | null;
       if (ignorarElemento?.current && alvo === ignorarElemento.current) return;
       const tag = alvo?.tagName?.toLowerCase();
@@ -219,9 +266,31 @@ export function useEntradaLeitorCodigo({
       processarTecla(e);
     };
 
-    document.addEventListener("keydown", handler, true);
-    return () => document.removeEventListener("keydown", handler, true);
-  }, [capturaGlobal, capturaGlobalAtivo, ignorarElemento, processarTecla]);
+    const handlerInput = (e: Event) => {
+      const alvo = e.target as HTMLElement | null;
+      if (!(alvo instanceof HTMLInputElement)) return;
+      if (ignorarElemento?.current && alvo === ignorarElemento.current) return;
+      const tipo = alvo.type?.toLowerCase();
+      if (tipo && tipo !== "text" && tipo !== "search" && tipo !== "tel") return;
+      processarTextoLido(alvo.value);
+    };
+
+    const handlerColar = (e: ClipboardEvent) => {
+      const texto = e.clipboardData?.getData("text")?.trim();
+      if (!texto) return;
+      e.preventDefault();
+      processarTextoLido(texto);
+    };
+
+    document.addEventListener("keydown", handlerTecla, true);
+    document.addEventListener("input", handlerInput, true);
+    document.addEventListener("paste", handlerColar, true);
+    return () => {
+      document.removeEventListener("keydown", handlerTecla, true);
+      document.removeEventListener("input", handlerInput, true);
+      document.removeEventListener("paste", handlerColar, true);
+    };
+  }, [capturaGlobal, capturaGlobalAtivo, ignorarElemento, processarTecla, processarTextoLido]);
 
   useEffect(() => {
     if (!capturaGlobalAtivo) {

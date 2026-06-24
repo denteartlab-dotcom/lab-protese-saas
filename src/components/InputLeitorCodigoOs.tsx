@@ -17,6 +17,8 @@ type Props = {
   capturaGlobal?: boolean;
   capturaGlobalAtivo?: boolean;
   autoComplete?: string;
+  readOnly?: boolean;
+  disabled?: boolean;
 };
 
 export function InputLeitorCodigoOs({
@@ -32,6 +34,8 @@ export function InputLeitorCodigoOs({
   capturaGlobal = false,
   capturaGlobalAtivo = false,
   autoComplete = "off",
+  readOnly,
+  disabled,
 }: Props) {
   const { onKeyDown, onChange: onChangeLeitor, onInput, leitorUsbAtivo, ultimoBruto } =
     useEntradaLeitorCodigo({
@@ -40,6 +44,7 @@ export function InputLeitorCodigoOs({
       capturaGlobal,
       capturaGlobalAtivo,
       onEntrada: onChange,
+      ignorarElemento: inputRef,
     });
 
   return (
@@ -52,6 +57,8 @@ export function InputLeitorCodigoOs({
         onKeyDown={(e) => onKeyDown(e, onChange)}
         autoFocus={autoFocus}
         autoComplete={autoComplete}
+        readOnly={readOnly}
+        disabled={disabled}
         placeholder={placeholder}
         className={className}
       />

@@ -975,6 +975,7 @@ function AppShellInner({
                     capturaGlobal
                     capturaGlobalAtivo={buscaOsAberta && !leitorCodigoAberto}
                     autoFocus
+                    readOnly={leitorCodigoAberto}
                     mostrarStatusLeitor
                     placeholder="Busque número pela OS ou passe o leitor de código de barras"
                     className="h-8 w-full rounded border border-slate-300 px-3 text-[11px] outline-none focus:border-blue-500"

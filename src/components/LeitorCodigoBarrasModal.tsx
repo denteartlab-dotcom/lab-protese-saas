@@ -51,6 +51,7 @@ export function LeitorCodigoBarrasModal({ open, onClose, onCodigoLido }: Props) 
     capturaGlobal: true,
     capturaGlobalAtivo: open,
     onEntrada: setValor,
+    ignorarElemento: inputRef,
   });
 
   useEffect(() => {
@@ -67,8 +68,20 @@ export function LeitorCodigoBarrasModal({ open, onClose, onCodigoLido }: Props) 
         "BarcodeDetector" in window &&
         Boolean(navigator.mediaDevices?.getUserMedia)
     );
-    const t = window.setTimeout(() => inputRef.current?.focus(), 80);
-    return () => window.clearTimeout(t);
+    const focar = () => inputRef.current?.focus({ preventScroll: true });
+    focar();
+    const timers = [
+      window.setTimeout(focar, 0),
+      window.setTimeout(focar, 120),
+      window.setTimeout(focar, 400),
+    ];
+    const intervalo = window.setInterval(focar, 600);
+    const pararIntervalo = window.setTimeout(() => window.clearInterval(intervalo), 4000);
+    return () => {
+      timers.forEach((t) => window.clearTimeout(t));
+      window.clearInterval(intervalo);
+      window.clearTimeout(pararIntervalo);
+    };
   }, [open]);
 
   useEffect(() => {
@@ -175,9 +188,10 @@ export function LeitorCodigoBarrasModal({ open, onClose, onCodigoLido }: Props) 
             onChange={(e) => onChange(e, setValor)}
             onInput={(e) => onInput(e, setValor)}
             onKeyDown={(e) => onKeyDown(e, setValor)}
-            placeholder="Aguardando leitura do leitor USB..."
+            placeholder={valor ? "" : "Aguardando leitura do leitor USB..."}
             className="h-10 w-full rounded-lg border border-slate-300 px-3 text-center text-lg tracking-wide outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
             autoComplete="off"
+            spellCheck={false}
           />
         </div>
 
