@@ -92,17 +92,55 @@ export function nomePacienteTrabalho(trabalho: TrabalhoRelatorioFatura): string 
   return "—";
 }
 
-function valorTrabalho(trabalho: TrabalhoRelatorioFatura) {
+function valorNumericoTrabalho(valor: unknown) {
+  if (typeof valor === "number" && Number.isFinite(valor)) return valor;
+  if (typeof valor === "string") {
+    const n = Number(valor.replace(/\./g, "").replace(",", "."));
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
+function totalItensInstrucoes(trabalho: TrabalhoRelatorioFatura) {
   const linhasItens = (trabalho.instrucoes || "")
     .split("\n")
     .filter((line) => line.trim().startsWith("Item adicionado:"));
-  const totalItens = linhasItens.reduce((sum, line) => {
+  return linhasItens.reduce((sum, line) => {
     const match = line.match(
       /valor\s*(.*?)(?: - categoria| - desc| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
     );
     return sum + parseMoney(match?.[1] || "");
   }, 0);
-  return totalItens || trabalho.valor || 0;
+}
+
+/** Valor da OS alinhado ao campo `valor` quando a OS foi editada após faturamento. */
+export function valorTrabalho(trabalho: TrabalhoRelatorioFatura) {
+  const totalItens = totalItensInstrucoes(trabalho);
+  const valorDb = valorNumericoTrabalho(trabalho.valor);
+  if (totalItens <= 0) return valorDb;
+  if (valorDb > 0 && Math.abs(valorDb - totalItens) > 0.009) return valorDb;
+  return totalItens;
+}
+
+function ajustarItensAoValorTrabalho(
+  itens: ItemFaturaModelo3[],
+  valorAtual: number
+): ItemFaturaModelo3[] {
+  const totalItens = itens.reduce((sum, item) => sum + item.subtotal, 0);
+  if (totalItens <= 0 || Math.abs(valorAtual - totalItens) <= 0.009) return itens;
+
+  if (itens.length === 1) {
+    const item = itens[0];
+    const qtdNum = Number(item.qtd.replace(",", ".")) || 1;
+    return [{ ...item, valorUn: valorAtual / qtdNum, subtotal: valorAtual }];
+  }
+
+  const fator = valorAtual / totalItens;
+  return itens.map((item) => ({
+    ...item,
+    valorUn: item.valorUn * fator,
+    subtotal: item.subtotal * fator,
+  }));
 }
 
 export function itensDoTrabalho(trabalho: TrabalhoRelatorioFatura): ItemFaturaModelo3[] {
@@ -143,7 +181,9 @@ export function itensDoTrabalho(trabalho: TrabalhoRelatorioFatura): ItemFaturaMo
     })
     .filter(Boolean) as ItemFaturaModelo3[];
 
-  if (itens.length) return itens;
+  if (itens.length) {
+    return ajustarItensAoValorTrabalho(itens, valorTrabalho(trabalho));
+  }
 
   const valor = valorTrabalho(trabalho);
   return [

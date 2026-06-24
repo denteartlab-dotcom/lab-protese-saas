@@ -68,6 +68,10 @@ import { ImprimirFaturaModal } from "@/components/financeiro/ImprimirFaturaModal
 import { ItensFaturaModal } from "@/components/financeiro/ItensFaturaModal";
 import { VisualizacaoClienteReceberModal } from "@/components/financeiro/VisualizacaoClienteReceberModal";
 import { linhasItensFaturaFromTrabalhos } from "@/lib/itens-fatura-linhas";
+import {
+  itensDoTrabalho,
+  valorTrabalho,
+} from "@/lib/relatorio-faturas-modelo3-dados";
 import { PlanoContasConteudo } from "@/components/financeiro/PlanoContasConteudo";
 import { notificarFinanceiroAtualizado } from "@/lib/financeiro-events";
 import {
@@ -199,48 +203,14 @@ function primeiroItemLinhaReceita(trabalho: Trabalho): ItemOsLinha | null {
   return { servico: trabalho.tipoProtese };
 }
 
-function valorTrabalho(trabalho: {
-  instrucoes?: string | null;
-  valor?: number;
-  tipoProtese?: string;
-}) {
-  const linhasItens = (trabalho.instrucoes || "")
-    .split("\n")
-    .filter((line) => line.trim().startsWith("Item adicionado:"));
-  const totalItens = linhasItens.reduce((sum, line) => {
-    const match = line.match(/valor\s*(.*?)(?: - categoria| - desc| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i);
-    return sum + parseMoney(match?.[1] || "");
-  }, 0);
-  return totalItens || trabalho.valor || 0;
-}
-
 function itensNotaFromTrabalho(trabalho: Trabalho) {
-  const itens = (trabalho.instrucoes || "")
-    .split("\n")
-    .map((line) => {
-      const match = line.match(
-        /^Item adicionado:\s*(.*?)\s*-\s*dentes\s*(.*?)\s*-\s*cor\s*(.*?)\s*-\s*qtd\s*(.*?)\s*-\s*valor\s*(.*)$/i
-      );
-      if (!match) return null;
-      return {
-        servico: match[1]?.trim() || trabalho.tipoProtese,
-        dentes: match[2]?.trim() || trabalho.dentes || "-",
-        quantidade: match[4]?.trim() || "1",
-        valor: parseMoney(line.match(/ - valor (.*?)(?: - categoria| - desc| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i)?.[1] || match[5] || ""),
-      };
-    })
-    .filter(Boolean) as Array<{ servico: string; dentes: string; quantidade: string; valor: number }>;
-
-  return itens.length
-    ? itens
-    : [
-        {
-          servico: trabalho.tipoProtese,
-          dentes: trabalho.dentes || "-",
-          quantidade: "1",
-          valor: trabalho.valor || 0,
-        },
-      ];
+  return itensDoTrabalho(trabalho).map((item) => ({
+    servico: item.descricao,
+    dentes: item.numDente,
+    quantidade: item.qtd,
+    valorUn: item.valorUn,
+    subtotal: item.subtotal,
+  }));
 }
 
 function numerosOsDoLancamento(lancamento: Lancamento) {
@@ -1605,9 +1575,7 @@ function FinanceiroReceberConteudo() {
         }
         return trabalhosRelacionados.flatMap((trabalho) => {
           return itensNotaFromTrabalho(trabalho).map((item) => {
-            const quantidade = Number(String(item.quantidade).replace(",", ".")) || 1;
-            const subtotal = item.valor * quantidade;
-            totalServicos += subtotal;
+            totalServicos += item.subtotal;
             const data = trabalho.dataPrevista ? formatDate(trabalho.dataPrevista) : formatDate(l.data);
             return `<tr>
             <td>${trabalho.numeroOs}<br/><span>Data: ${data}</span></td>
@@ -1615,9 +1583,9 @@ function FinanceiroReceberConteudo() {
             <td>${item.dentes}</td>
             <td>${trabalho.paciente?.nome || "-"}</td>
             <td class="center">${item.quantidade}</td>
-            <td class="right">${money(item.valor)}</td>
+            <td class="right">${money(item.valorUn)}</td>
             <td class="right">0,00 %</td>
-            <td class="right">${money(subtotal)}</td>
+            <td class="right">${money(item.subtotal)}</td>
           </tr>`;
           });
         });
