@@ -41,6 +41,13 @@ export function urlSeloAsaasLocal(variante: VarianteSeloAsaas): string {
     : ASAAS_SELO_OFICIAL_LOCAL_POSITIVO_URL;
 }
 
+/** URL pública do selo no próprio domínio (evita CDN bloqueado e cache antigo). */
+export function urlSeloAsaasPublico(variante: VarianteSeloAsaas, versao?: string): string {
+  const base = urlSeloAsaasLocal(variante);
+  const v = versao?.trim() || "1";
+  return `${base}?v=${encodeURIComponent(v)}`;
+}
+
 export function textoInstitucionalAsaasCurto(): string {
   return `${ASAAS_RAZAO_SOCIAL}, CNPJ ${ASAAS_CNPJ}, instituição de pagamento autorizada pelo Banco Central do Brasil (código ${ASAAS_CODIGO_BANCO}).`;
 }

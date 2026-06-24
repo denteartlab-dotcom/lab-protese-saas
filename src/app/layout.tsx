@@ -3,8 +3,6 @@ import Script from "next/script";
 import { LabConfigProvider } from "@/components/LabConfigProvider";
 import { LabDocumentHead } from "@/components/LabDocumentHead";
 import { SiteTopoMarca } from "@/components/SiteTopoMarca";
-import { obterAppBuildIdServidor } from "@/lib/app-build-id-servidor";
-import { CHUNK_RELOAD_SCRIPT } from "@/lib/chunk-reload-script";
 import {
   FAVICON_PADRAO,
   montarTituloDocumento,
@@ -33,17 +31,10 @@ export default async function RootLayout({
   const session = await getSession();
   const configLaboratorio = await carregarConfigLaboratorioServidor(session?.empresaId);
   const lab = configParaLabImpressao(configLaboratorio);
-  const buildId = obterAppBuildIdServidor();
 
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
-        <meta name="app-build-id" content={buildId} />
-        <script
-          id="recarregar-chunks-antigos"
-          dangerouslySetInnerHTML={{ __html: CHUNK_RELOAD_SCRIPT }}
-          suppressHydrationWarning
-        />
         <Script
           id="remove-cursor-test-attrs"
           strategy="beforeInteractive"

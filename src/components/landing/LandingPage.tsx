@@ -2,7 +2,6 @@
 
 import { Check, MessageCircle, Play } from "lucide-react";
 import type { ReactNode } from "react";
-import { LandingFooter } from "@/components/landing/LandingFooter";
 import { LandingHeader } from "@/components/landing/LandingHeader";
 import {
   LandingMockupShowcase,
@@ -284,8 +283,6 @@ export function LandingPage() {
           </div>
         </div>
       </section>
-
-      <LandingFooter />
     </div>
   );
 }

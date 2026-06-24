@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { AsaasSeloInstitucional } from "@/components/AsaasSeloInstitucional";
 import { LogoMarcaDenteArt } from "@/components/LogoMarcaDenteArt";
 import { SeletorPaisComBusca } from "@/components/cadastro/SeletorPaisComBusca";
 import { salvarUltimoLaboratorioLogin } from "@/lib/auth-client";
@@ -423,8 +422,6 @@ export function CriarContaForm() {
             Fale conosco
           </a>
         </p>
-
-        <AsaasSeloInstitucional className="mt-6 max-w-sm" />
       </div>
     </div>
   );

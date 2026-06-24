@@ -1,6 +1,3 @@
-"use client";
-
-import { useState } from "react";
 import {
   ASAAS_SELO_ALT,
   ASAAS_SELO_ALTURA,
@@ -9,10 +6,10 @@ import {
   ASAAS_TERMOS_URL,
   textoInstitucionalAsaasCurto,
   textoServicosFinanceirosAsaas,
-  urlSeloAsaas,
-  urlSeloAsaasLocal,
+  urlSeloAsaasPublico,
   type VarianteSeloAsaas,
 } from "@/lib/asaas-marca-baas";
+import { APP_BUILD_ID } from "@/lib/app-build-id";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -20,38 +17,20 @@ type Props = {
   /** Texto completo sobre serviços financeiros (telas de conta digital). */
   detalhado?: boolean;
   className?: string;
+  /** Versão para cache-bust (passe obterAppBuildIdServidor() em páginas do servidor). */
+  versaoCache?: string;
 };
-
-type FonteSelo = "oficial" | "local";
-
-function SeloVisual({ variante }: { variante: VarianteSeloAsaas }) {
-  const [fonte, setFonte] = useState<FonteSelo>("oficial");
-  const src = fonte === "oficial" ? urlSeloAsaas(variante) : urlSeloAsaasLocal(variante);
-
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={src}
-      alt={ASAAS_SELO_ALT}
-      width={ASAAS_SELO_LARGURA}
-      height={ASAAS_SELO_ALTURA}
-      style={{ display: "inline-block" }}
-      className="h-12 w-auto max-w-[min(100%,200px)]"
-      onError={() => {
-        if (fonte === "oficial") setFonte("local");
-      }}
-    />
-  );
-}
 
 export function AsaasSeloInstitucional({
   variante = "claro",
   detalhado = false,
   className,
+  versaoCache,
 }: Props) {
   const escuro = variante === "escuro";
   const textoCor = escuro ? "text-slate-400" : "text-slate-600";
   const linkCor = escuro ? "text-slate-300 hover:text-white" : "text-[#0038E5] hover:underline";
+  const src = urlSeloAsaasPublico(variante, versaoCache?.trim() || APP_BUILD_ID);
 
   return (
     <div
@@ -68,7 +47,16 @@ export function AsaasSeloInstitucional({
         className="inline-flex shrink-0"
         aria-label="Asaas — Instituição de Pagamento"
       >
-        <SeloVisual variante={variante} />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt={ASAAS_SELO_ALT}
+          width={ASAAS_SELO_LARGURA}
+          height={ASAAS_SELO_ALTURA}
+          style={{ display: "inline-block" }}
+          className="h-12 w-auto max-w-[min(100%,200px)]"
+          decoding="async"
+        />
       </a>
       <p>
         {detalhado ? textoServicosFinanceirosAsaas() : textoInstitucionalAsaasCurto()}

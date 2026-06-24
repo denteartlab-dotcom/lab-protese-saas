@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { LandingFooter } from "@/components/landing/LandingFooter";
 import { LandingPage } from "@/components/landing/LandingPage";
 import { getSession } from "@/lib/auth";
 import { obterDestinoPosLogin } from "@/lib/contexto-assinatura-vencida";
+import { obterAppBuildIdServidor } from "@/lib/app-build-id-servidor";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
 
 export const dynamic = "force-dynamic";
@@ -23,5 +25,12 @@ export default async function HomePage() {
     }
   }
 
-  return <LandingPage />;
+  const buildId = obterAppBuildIdServidor();
+
+  return (
+    <div className="flex min-h-full flex-col">
+      <LandingPage />
+      <LandingFooter versaoSeloAsaas={buildId} />
+    </div>
+  );
 }
