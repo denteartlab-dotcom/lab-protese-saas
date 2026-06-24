@@ -71,7 +71,16 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/images/asaas-selo-oficial-:path*",
+        source: "/images/asaas-selo-oficial-positivo.svg",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-store, no-cache, must-revalidate",
+          },
+        ],
+      },
+      {
+        source: "/images/asaas-selo-oficial-negativo.svg",
         headers: [
           {
             key: "Cache-Control",

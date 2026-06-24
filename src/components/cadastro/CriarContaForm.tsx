@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { AsaasSeloInstitucional } from "@/components/AsaasSeloInstitucional";
 import { LogoMarcaDenteArt } from "@/components/LogoMarcaDenteArt";
 import { SeletorPaisComBusca } from "@/components/cadastro/SeletorPaisComBusca";
 import { salvarUltimoLaboratorioLogin } from "@/lib/auth-client";
@@ -13,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { formatarTelefone } from "@/lib/validar-documento";
 import { validarForcaSenha } from "@/lib/validar-senha";
 
-export function CriarContaForm() {
+export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [enviandoCodigo, setEnviandoCodigo] = useState(false);
@@ -422,6 +423,8 @@ export function CriarContaForm() {
             Fale conosco
           </a>
         </p>
+
+        <AsaasSeloInstitucional className="mt-6 max-w-sm" versaoCache={versaoSeloAsaas} />
       </div>
     </div>
   );

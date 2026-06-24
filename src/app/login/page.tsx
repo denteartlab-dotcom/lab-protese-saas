@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { AsaasSeloInstitucional } from "@/components/AsaasSeloInstitucional";
 import { I18nProvider } from "@/components/i18n-provider";
 import { getSession } from "@/lib/auth";
 import { obterDestinoPosLogin } from "@/lib/contexto-assinatura-vencida";
@@ -51,14 +50,8 @@ export default async function LoginPage({ searchParams }: Props) {
             brandingInicial={brandingInicial}
             brandingLaboratorio={brandingLaboratorio}
             jaEntrouInicial={jaEntrou}
+            versaoSeloAsaas={buildId}
           />
-          <div className="relative z-10 flex justify-center bg-[#0a2f6e] px-4 pb-8">
-            <AsaasSeloInstitucional
-              variante="escuro"
-              className="max-w-xs"
-              versaoCache={buildId}
-            />
-          </div>
         </div>
       </Suspense>
     </I18nProvider>

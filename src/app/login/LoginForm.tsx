@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Eye } from "lucide-react";
+import { AsaasSeloInstitucional } from "@/components/AsaasSeloInstitucional";
 import { useI18n } from "@/components/i18n-provider";
 import {
   lerLembrarLogin,
@@ -39,6 +40,7 @@ type Props = {
   brandingInicial: LoginBranding;
   brandingLaboratorio?: LabBrandingPublico | null;
   jaEntrouInicial?: boolean;
+  versaoSeloAsaas?: string;
 };
 
 function brandingDeRemoto(
@@ -67,6 +69,7 @@ export function LoginForm({
   brandingInicial,
   brandingLaboratorio = null,
   jaEntrouInicial = false,
+  versaoSeloAsaas,
 }: Props) {
   const { t } = useI18n();
   const searchParams = useSearchParams();
@@ -559,6 +562,12 @@ export function LoginForm({
           </p>
         </form>
       </div>
+
+      <AsaasSeloInstitucional
+        variante="escuro"
+        className="relative z-10 mt-6 max-w-xs px-2"
+        versaoCache={versaoSeloAsaas}
+      />
     </div>
   );
 }

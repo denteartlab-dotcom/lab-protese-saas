@@ -2,6 +2,7 @@
 
 import { Check, MessageCircle, Play } from "lucide-react";
 import type { ReactNode } from "react";
+import { LandingFooter } from "@/components/landing/LandingFooter";
 import { LandingHeader } from "@/components/landing/LandingHeader";
 import {
   LandingMockupShowcase,
@@ -50,7 +51,7 @@ function BotaoWhatsapp({ className, children }: { className?: string; children: 
   );
 }
 
-export function LandingPage() {
+export function LandingPage({ versaoSeloAsaas }: { versaoSeloAsaas?: string }) {
   const planos = recursosPlanosAssinatura("mensal");
 
   return (
@@ -283,6 +284,8 @@ export function LandingPage() {
           </div>
         </div>
       </section>
+
+      <LandingFooter versaoSeloAsaas={versaoSeloAsaas} />
     </div>
   );
 }
