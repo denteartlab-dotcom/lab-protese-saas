@@ -1,4 +1,8 @@
 import {
+  ehDescricaoReceitaOs,
+  numerosOsDoLancamentoFatura,
+} from "@/lib/os-faturamento";
+import {
   chaveAgrupamentoFatura,
   filtrarTrabalhosCliente,
   itensDoTrabalho,
@@ -55,14 +59,6 @@ function dateOnly(value: string) {
   return date;
 }
 
-function normalizarTexto(texto: string) {
-  return texto
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase()
-    .trim();
-}
-
 function descricaoBaseReceita(l: LancamentoContasReceber) {
   return desempacotarDespesa(l.descricao).texto;
 }
@@ -101,8 +97,25 @@ function textoPagamento(l: LancamentoContasReceber) {
   return `Pagamento (${forma})`;
 }
 
-function ehCobrancaOs(l: LancamentoContasReceber) {
-  return normalizarTexto(descricaoBaseReceita(l)).startsWith("cobranca os");
+function ehReceitaOs(l: LancamentoContasReceber) {
+  return ehDescricaoReceitaOs(descricaoBaseReceita(l));
+}
+
+function lancamentoSemTrabalhosValidos(
+  l: LancamentoContasReceber,
+  trabalhosCliente: TrabalhoRelatorioFatura[]
+) {
+  if (ehReceitaOs(l)) {
+    return trabalhosDaFatura(l, trabalhosCliente).length === 0;
+  }
+  if (l.trabalho?.id) {
+    return !trabalhosCliente.some((t) => t.id === l.trabalho?.id);
+  }
+  const numerosOs = numerosOsDoLancamentoFatura(l);
+  if (numerosOs.length === 0) return false;
+  return !numerosOs.some((numero) =>
+    trabalhosCliente.some((t) => t.numeroOs === numero)
+  );
 }
 
 function dataRefLancamento(
@@ -192,7 +205,7 @@ export function montarExtratoIndividual(
 
   const faturaPorGrupo = new Map<string, number>();
   for (const l of receitas) {
-    if (!ehCobrancaOs(l)) continue;
+    if (!ehReceitaOs(l)) continue;
     const chave = chaveAgrupamentoFatura(l);
     if (!faturaPorGrupo.has(chave)) {
       faturaPorGrupo.set(chave, numeroFaturaDeLancamento(l, receitas));
@@ -205,15 +218,7 @@ export function montarExtratoIndividual(
   for (const l of receitas) {
     if (isCreditoGerado(l)) continue;
 
-    if (ehCobrancaOs(l) && trabalhosDaFatura(l, trabalhosCliente).length === 0) {
-      continue;
-    }
-
-    if (
-      !ehCobrancaOs(l) &&
-      l.trabalho?.id &&
-      !trabalhosCliente.some((t) => t.id === l.trabalho?.id)
-    ) {
+    if (lancamentoSemTrabalhosValidos(l, trabalhosCliente)) {
       continue;
     }
 
@@ -260,7 +265,7 @@ export function montarExtratoIndividual(
       });
     }
 
-    if (!ehCobrancaOs(l)) {
+    if (!ehReceitaOs(l)) {
       if (l.status !== "pendente" && l.status !== "pago") continue;
       const { texto, ordem } = dataFaturaLancamento(l);
       const pack = desempacotarDespesa(l.descricao);

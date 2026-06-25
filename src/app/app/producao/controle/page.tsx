@@ -2764,8 +2764,9 @@ export default function ControlePage() {
         .filter(Boolean)
         .join("\n");
       const itensServico = editItems.filter((item) => classificarItemOs(item) === "servico");
+      const itensGravar = itensServico.length > 0 ? itensServico : editItems;
       const instrucoes = montarInstrucoesSegmentoControle(
-        itensServico.length > 0 ? itensServico : editItems,
+        itensGravar,
         corpoComComplementos,
         "",
         "servico"
@@ -2776,6 +2777,7 @@ export default function ControlePage() {
         body: JSON.stringify({
           observacoes: form.observacoes ?? null,
           instrucoes: instrucoes || null,
+          valor: valorItensControle(itensGravar),
         }),
       });
       if (!res.ok) {
@@ -3155,6 +3157,7 @@ export default function ControlePage() {
         return;
       }
       void load();
+      notificarTrabalhosAtualizados({ trabalhoId: id });
     } catch {
       window.alert("Não foi possível excluir a ordem de serviço.");
       void load();

@@ -418,7 +418,7 @@ function FinanceiroReceberConteudo() {
   async function carregarReferencias() {
     const [clientesRes, trabalhosRes] = await Promise.all([
       fetch("/api/clientes"),
-      fetch("/api/trabalhos"),
+      fetch("/api/trabalhos", { cache: "no-store" }),
     ]);
     const clientesData = await lerJsonResposta<Cliente[]>(clientesRes);
     if (Array.isArray(clientesData)) setClientes(clientesData);
@@ -438,10 +438,13 @@ function FinanceiroReceberConteudo() {
   }
 
   async function loadPosMutacao() {
-    await Promise.all([carregarLancamentosReceita(), fetch("/api/trabalhos").then(async (res) => {
-      const trabalhosData = await lerJsonResposta<Trabalho[]>(res);
-      if (Array.isArray(trabalhosData)) setTrabalhos(trabalhosData);
-    })]);
+    await Promise.all([
+      carregarLancamentosReceita(),
+      fetch("/api/trabalhos", { cache: "no-store" }).then(async (res) => {
+        const trabalhosData = await lerJsonResposta<Trabalho[]>(res);
+        if (Array.isArray(trabalhosData)) setTrabalhos(trabalhosData);
+      }),
+    ]);
     notificarFinanceiroAtualizado();
   }
 
@@ -450,14 +453,11 @@ function FinanceiroReceberConteudo() {
   }, []);
 
   useEffect(() => {
-    const atualizarTrabalhos = () => {
-      void fetch("/api/trabalhos", { cache: "no-store" }).then(async (res) => {
-        const trabalhosData = await lerJsonResposta<Trabalho[]>(res);
-        if (Array.isArray(trabalhosData)) setTrabalhos(trabalhosData);
-      });
+    const atualizarDados = () => {
+      void loadPosMutacao();
     };
-    window.addEventListener(TRABALHOS_ATUALIZADOS_EVENT, atualizarTrabalhos);
-    return () => window.removeEventListener(TRABALHOS_ATUALIZADOS_EVENT, atualizarTrabalhos);
+    window.addEventListener(TRABALHOS_ATUALIZADOS_EVENT, atualizarDados);
+    return () => window.removeEventListener(TRABALHOS_ATUALIZADOS_EVENT, atualizarDados);
   }, []);
 
   useEffect(() => {
@@ -2351,11 +2351,7 @@ function FinanceiroReceberConteudo() {
             : null,
         }))}
         filtrosPainel={{ dataInicio, dataFinal, situacao }}
-        onRecarregarTrabalhos={async () => {
-          const res = await fetch("/api/trabalhos", { cache: "no-store" });
-          const trabalhosData = await lerJsonResposta<Trabalho[]>(res);
-          if (Array.isArray(trabalhosData)) setTrabalhos(trabalhosData);
-        }}
+        onRecarregarDados={loadPosMutacao}
         onClienteChange={(cliente) => setDetalheCliente(cliente as ClienteReceber)}
         money={money}
         formatDate={formatDate}

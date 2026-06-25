@@ -114,16 +114,15 @@ function totalItensInstrucoes(trabalho: {
   }, 0);
 }
 
-/** Valor da OS: campo `valor` gravado na OS tem prioridade sobre instruções legadas. */
+/** Valor da OS: itens nas instruções têm prioridade (extrato/faturas); senão usa o campo `valor`. */
 export function valorTrabalho(trabalho: {
   instrucoes?: string | null;
   valor?: number;
   tipoProtese?: string;
 }) {
-  const valorDb = valorNumericoTrabalho(trabalho.valor);
   const totalLiquido = totalItensInstrucoes(trabalho);
-  if (valorDb > 0) return valorDb;
-  return totalLiquido;
+  if (totalLiquido > 0) return totalLiquido;
+  return valorNumericoTrabalho(trabalho.valor);
 }
 
 function ajustarItensAoValorTrabalho(
