@@ -216,17 +216,13 @@ export function urlPdfViewerPagina(id: string) {
   return `${window.location.origin}/app/financeiro/relatorio-pdf${query}`;
 }
 
-/** Abre a rota do visualizador em nova aba reservada (nunca navega a aba atual). */
+/** Abre a rota do visualizador em nova aba (nunca navega a aba atual). */
 export function abrirPdfViewerNovaAba(id: string): Window | null {
   if (typeof window === "undefined") return null;
   const url = urlPdfViewerPagina(id);
-  const features = "popup=yes,width=1024,height=768,noopener=no,noreferrer=no";
 
   try {
-    let janela = window.open("about:blank", "labProtesePdfPreview", features);
-    if (!janela) {
-      janela = window.open("about:blank", "_blank", features);
-    }
+    const janela = window.open("about:blank", "_blank");
     if (!janela) return null;
     try {
       janela.document.title = "Carregando PDF...";

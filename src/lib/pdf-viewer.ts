@@ -19,11 +19,7 @@ export function prepararAbaPdf(): Window | null {
 function criarAbaPdfCarregando(): Window | null {
   if (typeof window === "undefined") return null;
   try {
-    const features = "popup=yes,width=1024,height=768,noopener=no,noreferrer=no";
-    let w = window.open("about:blank", "labProtesePdfPreview", features);
-    if (!w) {
-      w = window.open("about:blank", "_blank", features);
-    }
+    const w = window.open("about:blank", "_blank");
     if (!w) return null;
     try {
       w.document.title = "Carregando PDF...";
