@@ -32,9 +32,17 @@ import {
   formatarDataHoraEntrega,
   formatarMoedaEntrega,
   SITUACOES_ENTREGA,
+  SITUACOES_ENTREGA_ATIVAS,
   type EntregaControle,
   type SituacaoEntrega,
 } from "@/lib/controle-entregas";
+import {
+  carregarHistoricoEntregas,
+  ENTREGAS_HISTORICO_EVENT,
+  labelSituacaoHistorico,
+  sincronizarHistoricoEntregasCliente,
+  type EntregaHistorico,
+} from "@/lib/controle-entregas-historico";
 import { sincronizarEntregasControleCliente } from "@/lib/controle-entregas-automatico";
 import { ENTREGADORES_CADASTRO_EVENT } from "@/lib/entregadores-cadastro";
 import { prepararAbaPdf } from "@/lib/pdf-viewer";
@@ -93,16 +101,18 @@ function CardResumoEntrega({
 
 export function ControleEntregas() {
   const [entregas, setEntregas] = useState<EntregaControle[]>([]);
+  const [historico, setHistorico] = useState<EntregaHistorico[]>([]);
   const [entregadores, setEntregadores] = useState<string[]>([]);
   const [entregador, setEntregador] = useState("");
   const [periodo, setPeriodo] = useState<"pedido" | "finalizado">("pedido");
   const [dataInicio, setDataInicio] = useState(dataBrInicioMesAtual);
   const [dataFim, setDataFim] = useState(dataBrHoje);
   const [situacao, setSituacao] = useState("");
-  const [filtroCard, setFiltroCard] = useState<SituacaoEntrega | "todos">("todos");
+  const [filtroCard, setFiltroCard] = useState<"pendente" | "em_rota" | "todos">("todos");
   const [busca, setBusca] = useState("");
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [modalAberto, setModalAberto] = useState(false);
+  const [historicoAberto, setHistoricoAberto] = useState(false);
   const [editando, setEditando] = useState<EntregaControle | null>(null);
   const [visualizando, setVisualizando] = useState<EntregaControle | null>(null);
   const [excluindo, setExcluindo] = useState<EntregaControle | null>(null);
@@ -111,18 +121,22 @@ export function ControleEntregas() {
 
   function recarregar() {
     setEntregas(carregarEntregas());
+    setHistorico(carregarHistoricoEntregas());
     setEntregadores(carregarEntregadores());
   }
 
   useEffect(() => {
     recarregar();
-    void sincronizarEntregasControleCliente().then((sincronizou) => {
-      if (!sincronizou) recarregar();
-    });
+    void Promise.all([
+      sincronizarEntregasControleCliente(),
+      sincronizarHistoricoEntregasCliente(),
+    ]).then(() => recarregar());
     window.addEventListener(ENTREGAS_EVENT, recarregar);
+    window.addEventListener(ENTREGAS_HISTORICO_EVENT, recarregar);
     window.addEventListener(ENTREGADORES_CADASTRO_EVENT, recarregar);
     return () => {
       window.removeEventListener(ENTREGAS_EVENT, recarregar);
+      window.removeEventListener(ENTREGAS_HISTORICO_EVENT, recarregar);
       window.removeEventListener(ENTREGADORES_CADASTRO_EVENT, recarregar);
     };
   }, []);
@@ -141,7 +155,7 @@ export function ControleEntregas() {
     [entregas, entregador, filtroCard, situacao, periodo, dataInicio, dataFim, busca]
   );
 
-  const totais = useMemo(() => contarPorSituacao(entregas), [entregas]);
+  const totais = useMemo(() => contarPorSituacao(entregas, historico.length), [entregas, historico]);
 
   const filtroRelatorioTela = useMemo(
     () =>
@@ -194,7 +208,7 @@ export function ControleEntregas() {
   const todosSelecionados =
     entregasFiltradas.length > 0 && entregasFiltradas.every((item) => selecionados.has(item.id));
 
-  function alternarFiltroCard(filtro: SituacaoEntrega) {
+  function alternarFiltroCard(filtro: "pendente" | "em_rota") {
     setFiltroCard((atual) => (atual === filtro ? "todos" : filtro));
   }
 
@@ -291,8 +305,8 @@ export function ControleEntregas() {
           <CardResumoEntrega
             valor={totais.entregue}
             titulo="Entregues"
-            ativo={filtroCard === "entregue"}
-            onVer={() => alternarFiltroCard("entregue")}
+            ativo={historicoAberto}
+            onVer={() => setHistoricoAberto(true)}
             icone={<CheckCircle2 className="h-6 w-6 text-emerald-500" />}
           />
         </div>
@@ -352,9 +366,9 @@ export function ControleEntregas() {
                 className={`${selectClassName()} pr-7`}
               >
                 <option value="">Todos</option>
-                {Object.entries(SITUACOES_ENTREGA).map(([key, value]) => (
+                {SITUACOES_ENTREGA_ATIVAS.map((key) => (
                   <option key={key} value={key}>
-                    {value.label}
+                    {SITUACOES_ENTREGA[key].label}
                   </option>
                 ))}
               </select>
@@ -498,6 +512,68 @@ export function ControleEntregas() {
         onClose={fecharModalRota}
         onSalvo={recarregar}
       />
+
+      <Modal
+        open={historicoAberto}
+        onClose={() => setHistoricoAberto(false)}
+        title="Histórico de entregas"
+        size="lg"
+      >
+        <div className="space-y-3 text-[11px] text-slate-600">
+          {historico.length === 0 ? (
+            <p className="py-6 text-center text-slate-500">
+              Nenhuma entrega concluída registrada no histórico.
+            </p>
+          ) : (
+            <div className="max-h-[420px] overflow-y-auto rounded border border-slate-200">
+              <table className="w-full text-[11px]">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                    <th className="px-3 py-2 text-left">OS</th>
+                    <th className="px-3 py-2 text-left">Destinatário</th>
+                    <th className="px-3 py-2 text-left">Descrição</th>
+                    <th className="px-3 py-2 text-left">Entregue em</th>
+                    <th className="px-3 py-2 text-left">Situação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {historico.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-50">
+                      <td className="px-3 py-2 font-semibold text-slate-700">
+                        {item.numeroOs || "—"}
+                      </td>
+                      <td className="px-3 py-2">{item.destinatario}</td>
+                      <td className="px-3 py-2">{item.descricao || "—"}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        {formatarDataHoraEntrega(item.dataFinalizado)}
+                      </td>
+                      <td className="px-3 py-2">
+                        <span
+                          className={`inline-flex rounded px-2 py-0.5 text-[10px] font-semibold ${
+                            item.situacao === "recebido"
+                              ? "bg-teal-100 text-teal-800"
+                              : "bg-emerald-100 text-emerald-800"
+                          }`}
+                        >
+                          {labelSituacaoHistorico(item.situacao)}
+                        </span>
+                        {item.nomeRecebedor ? (
+                          <p className="mt-1 text-[10px] text-slate-500">
+                            Recebedor: {item.nomeRecebedor}
+                          </p>
+                        ) : null}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <Button type="button" size="sm" variant="outline" onClick={() => setHistoricoAberto(false)}>
+            Fechar
+          </Button>
+        </div>
+      </Modal>
 
       <Modal
         open={Boolean(visualizando)}

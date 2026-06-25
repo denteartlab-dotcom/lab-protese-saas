@@ -4,6 +4,11 @@ import {
   garantirEntregadorCadastro,
 } from "@/lib/entregadores-cadastro";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
+import {
+  entregaParaHistorico,
+  registrarHistoricoEntregas,
+  type SituacaoHistoricoEntrega,
+} from "@/lib/controle-entregas-historico";
 
 export const ENTREGAS_STORAGE_KEY = "labProteseControleEntregas";
 export const ENTREGADORES_STORAGE_KEY = "labProteseEntregadores";
@@ -76,13 +81,59 @@ export const SITUACOES_ENTREGA: Record<
   recebido: { label: "Recebido", badge: "bg-teal-100 text-teal-800" },
 };
 
+export const SITUACOES_ENTREGA_ATIVAS: SituacaoEntrega[] = ["pendente", "em_rota"];
+
+function entregaEstaFinalizada(situacao: SituacaoEntrega) {
+  return situacao === "entregue" || situacao === "recebido";
+}
+
+function migrarEntregasFinalizadasParaHistorico(lista: EntregaControle[]) {
+  const ativas: EntregaControle[] = [];
+  const historico = [];
+  for (const item of lista) {
+    if (entregaEstaFinalizada(item.situacao)) {
+      historico.push(
+        entregaParaHistorico(item, {
+          situacao: item.situacao === "recebido" ? "recebido" : "entregue",
+          nomeRecebedor: item.nomeRecebedor,
+          dataFinalizado: item.dataFinalizado || new Date().toISOString(),
+        })
+      );
+    } else {
+      ativas.push(item);
+    }
+  }
+  if (historico.length > 0) {
+    registrarHistoricoEntregas(historico);
+  }
+  return ativas;
+}
+
+function arquivarEntregaSeFinalizada(entrega: EntregaControle) {
+  if (!entregaEstaFinalizada(entrega.situacao)) return false;
+  registrarHistoricoEntregas([
+    entregaParaHistorico(entrega, {
+      situacao: (entrega.situacao === "recebido" ? "recebido" : "entregue") as SituacaoHistoricoEntrega,
+      nomeRecebedor: entrega.nomeRecebedor,
+      dataFinalizado: entrega.dataFinalizado || new Date().toISOString(),
+    }),
+  ]);
+  return true;
+}
+
 export function carregarEntregas(): EntregaControle[] {
   const lista = readStorage<EntregaControle[]>(ENTREGAS_STORAGE_KEY, []);
   if (!Array.isArray(lista)) return [];
-  return lista
+  const normalizada = lista
     .map((item) => normalizarEntrega(item))
-    .filter((item): item is EntregaControle => Boolean(item))
-    .sort((a, b) => new Date(b.dataPedido).getTime() - new Date(a.dataPedido).getTime());
+    .filter((item): item is EntregaControle => Boolean(item));
+  const ativas = migrarEntregasFinalizadasParaHistorico(normalizada);
+  if (ativas.length !== normalizada.length) {
+    salvarEntregas(ativas);
+  }
+  return ativas.sort(
+    (a, b) => new Date(b.dataPedido).getTime() - new Date(a.dataPedido).getTime()
+  );
 }
 
 export function salvarEntregas(lista: EntregaControle[]) {
@@ -298,6 +349,7 @@ export function criarEntrega(
   });
   if (!entrega) throw new Error("Dados da entrega inválidos.");
   if (entrega.entregador) registrarEntregador(entrega.entregador);
+  if (arquivarEntregaSeFinalizada(entrega)) return entrega;
   const lista = [...carregarEntregas(), entrega];
   salvarEntregas(lista);
   return entrega;
@@ -311,7 +363,12 @@ export function atualizarEntrega(id: string, dados: Partial<EntregaControle>) {
     return merged || item;
   });
   const entrega = atualizada.find((item) => item.id === id);
-  if (entrega?.entregador) registrarEntregador(entrega.entregador);
+  if (!entrega) return;
+  if (entrega.entregador) registrarEntregador(entrega.entregador);
+  if (arquivarEntregaSeFinalizada(entrega)) {
+    salvarEntregas(atualizada.filter((item) => item.id !== id));
+    return;
+  }
   salvarEntregas(atualizada);
 }
 
@@ -375,9 +432,7 @@ export function filtrarEntregas(
     const situacaoFiltro = filtros.situacaoCard && filtros.situacaoCard !== "todos"
       ? filtros.situacaoCard
       : filtros.situacao || "";
-    if (situacaoFiltro && entrega.situacao !== situacaoFiltro) {
-      if (!(situacaoFiltro === "entregue" && entrega.situacao === "recebido")) return false;
-    }
+    if (situacaoFiltro && entrega.situacao !== situacaoFiltro) return false;
 
     if (termo) {
       const haystack = [
@@ -418,12 +473,10 @@ export function filtrarEntregas(
   });
 }
 
-export function contarPorSituacao(entregas: EntregaControle[]) {
+export function contarPorSituacao(entregas: EntregaControle[], totalHistorico = 0) {
   return {
     pendente: entregas.filter((item) => item.situacao === "pendente").length,
     em_rota: entregas.filter((item) => item.situacao === "em_rota").length,
-    entregue: entregas.filter(
-      (item) => item.situacao === "entregue" || item.situacao === "recebido"
-    ).length,
+    entregue: totalHistorico,
   };
 }

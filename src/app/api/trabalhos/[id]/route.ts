@@ -300,13 +300,17 @@ export async function PUT(
       }
     }
 
-    if (statusMudou && novoStatus === STATUS_ENTREGUE_CLIENTE) {
+    const statusArquivaEntrega =
+      novoStatus === STATUS_ENTREGUE_CLIENTE ||
+      novoStatus === "recebido_cliente" ||
+      novoStatus === "entregue";
+    if (statusMudou && statusArquivaEntrega) {
       try {
         await concluirEntregasControlePorNumeroOsServidor(ctx.empresaId, trabalho.numeroOs, {
-          situacao: "entregue",
+          situacao: novoStatus === "recebido_cliente" ? "recebido" : "entregue",
         });
       } catch (err) {
-        console.warn("[trabalhos/PUT] conclusão controle entregas", err);
+        console.warn("[trabalhos/PUT] arquivamento controle entregas", err);
       }
     }
 

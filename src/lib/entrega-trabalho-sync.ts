@@ -5,61 +5,79 @@ import {
   type EntregaControle,
   type SituacaoEntrega,
 } from "@/lib/controle-entregas";
+import {
+  entregaParaHistorico,
+  registrarHistoricoEntregas,
+  registrarHistoricoEntregasServidor,
+  type SituacaoHistoricoEntrega,
+} from "@/lib/controle-entregas-historico";
 import { lerJsonStoreTenant, salvarJsonStoreTenant } from "@/lib/json-store-tenant";
 
 export const STATUS_ENTREGUE_CLIENTE = "entregue_cliente";
 
 export type SituacaoConclusaoEntrega = Extract<SituacaoEntrega, "entregue" | "recebido">;
 
-function aplicarConclusaoEntrega(
-  item: EntregaControle,
-  opcoes: { situacao: SituacaoConclusaoEntrega; nomeRecebedor?: string }
-): EntregaControle {
-  const agora = new Date().toISOString();
-  return {
-    ...item,
-    situacao: opcoes.situacao,
-    dataFinalizado: agora,
-    nomeRecebedor: opcoes.nomeRecebedor?.trim() || item.nomeRecebedor || "",
-  };
+function situacaoHistoricoDeConclusao(
+  situacao: SituacaoConclusaoEntrega
+): SituacaoHistoricoEntrega {
+  return situacao === "recebido" ? "recebido" : "entregue";
 }
 
-function deveAtualizarEntrega(item: EntregaControle, novaSituacao: SituacaoConclusaoEntrega) {
-  if (novaSituacao === "recebido") return item.situacao !== "recebido";
+function deveArquivarEntrega(item: EntregaControle, novaSituacao: SituacaoConclusaoEntrega) {
+  if (novaSituacao === "recebido") {
+    return item.situacao === "pendente" || item.situacao === "em_rota" || item.situacao === "entregue";
+  }
   return item.situacao === "pendente" || item.situacao === "em_rota";
 }
 
-function atualizarListaEntregasPorOs(
+function arquivarEntregasDaLista(
   lista: EntregaControle[],
   numeroOs: number,
   opcoes: { situacao: SituacaoConclusaoEntrega; nomeRecebedor?: string }
 ) {
   const alvo = String(numeroOs);
-  let mudou = false;
-  const atualizada = lista.map((item) => {
-    if (String(item.numeroOs || "").trim() !== alvo) return item;
-    if (!deveAtualizarEntrega(item, opcoes.situacao)) return item;
-    mudou = true;
-    return aplicarConclusaoEntrega(item, opcoes);
-  });
-  return { atualizada, mudou };
+  const agora = new Date().toISOString();
+  const restantes: EntregaControle[] = [];
+  const historico = [];
+
+  for (const item of lista) {
+    if (String(item.numeroOs || "").trim() !== alvo) {
+      restantes.push(item);
+      continue;
+    }
+    if (!deveArquivarEntrega(item, opcoes.situacao)) {
+      restantes.push(item);
+      continue;
+    }
+    historico.push(
+      entregaParaHistorico(item, {
+        situacao: situacaoHistoricoDeConclusao(opcoes.situacao),
+        nomeRecebedor: opcoes.nomeRecebedor,
+        dataFinalizado: agora,
+      })
+    );
+  }
+
+  return { restantes, historico, mudou: historico.length > 0 };
 }
 
-/** Conclui entregas do Controle vinculadas à OS (navegador). */
+/** Remove do controle ativo e grava no histórico (navegador). */
 export function concluirEntregasControlePorNumeroOs(
   numeroOs: number,
   opcoes: { situacao: SituacaoConclusaoEntrega; nomeRecebedor?: string }
 ) {
-  const { atualizada, mudou } = atualizarListaEntregasPorOs(
+  const { restantes, historico, mudou } = arquivarEntregasDaLista(
     carregarEntregas(),
     numeroOs,
     opcoes
   );
-  if (mudou) salvarEntregas(atualizada);
-  return mudou;
+  if (!mudou) return false;
+  salvarEntregas(restantes);
+  registrarHistoricoEntregas(historico);
+  return true;
 }
 
-/** Conclui entregas do Controle vinculadas à OS (JsonStore do tenant). */
+/** Remove do controle ativo e grava no histórico (JsonStore do tenant). */
 export async function concluirEntregasControlePorNumeroOsServidor(
   empresaId: string,
   numeroOs: number,
@@ -68,8 +86,13 @@ export async function concluirEntregasControlePorNumeroOsServidor(
   const lista =
     (await lerJsonStoreTenant<EntregaControle[]>(empresaId, ENTREGAS_STORAGE_KEY)) ?? [];
   const normalizada = Array.isArray(lista) ? lista : [];
-  const { atualizada, mudou } = atualizarListaEntregasPorOs(normalizada, numeroOs, opcoes);
+  const { restantes, historico, mudou } = arquivarEntregasDaLista(
+    normalizada,
+    numeroOs,
+    opcoes
+  );
   if (!mudou) return false;
-  await salvarJsonStoreTenant(empresaId, ENTREGAS_STORAGE_KEY, atualizada);
+  await salvarJsonStoreTenant(empresaId, ENTREGAS_STORAGE_KEY, restantes);
+  await registrarHistoricoEntregasServidor(empresaId, historico);
   return true;
 }

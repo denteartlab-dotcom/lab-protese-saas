@@ -19,6 +19,7 @@ import {
   concluirEntregasControlePorNumeroOs,
   STATUS_ENTREGUE_CLIENTE,
 } from "@/lib/entrega-trabalho-sync";
+import { sincronizarHistoricoEntregasCliente } from "@/lib/controle-entregas-historico";
 import { lerJsonStoreTenant, salvarJsonStoreTenant } from "@/lib/json-store-tenant";
 
 export type TrabalhoParaControleEntrega = {
@@ -138,6 +139,19 @@ export function adicionarTrabalhoControleEntregasAutomatico(
   return true;
 }
 
+function deveArquivarControleEntregasPorStatus(statusNovo: string) {
+  const chave = statusNovo.trim().toLowerCase();
+  return (
+    chave === STATUS_ENTREGUE_CLIENTE ||
+    chave === "recebido_cliente" ||
+    chave === "entregue"
+  );
+}
+
+function situacaoArquivoPorStatus(statusNovo: string): "entregue" | "recebido" {
+  return statusNovo.trim().toLowerCase() === "recebido_cliente" ? "recebido" : "entregue";
+}
+
 /** Após mudar situação da OS (adiciona ou remove do controle de entregas). */
 export function aplicarControleEntregaAposMudancaStatus(
   statusAnterior: string,
@@ -147,11 +161,12 @@ export function aplicarControleEntregaAposMudancaStatus(
   if (deveRemoverControleEntregasPorStatus(statusAnterior, statusNovo)) {
     return removerTrabalhoControleEntregasAutomatico(trabalho.numeroOs);
   }
-  if (statusNovo === STATUS_ENTREGUE_CLIENTE) {
+  if (deveArquivarControleEntregasPorStatus(statusNovo)) {
     const mudou = concluirEntregasControlePorNumeroOs(trabalho.numeroOs, {
-      situacao: "entregue",
+      situacao: situacaoArquivoPorStatus(statusNovo),
     });
     void sincronizarEntregasControleCliente();
+    void sincronizarHistoricoEntregasCliente();
     return mudou;
   }
   if (!deveAdicionarControleEntregasPorStatus(statusAnterior, statusNovo)) return false;
