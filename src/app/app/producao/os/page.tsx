@@ -126,9 +126,14 @@ import {
   etapasConcluidasModulo,
   indiceEtapaAtualDeConcluidas,
   persistirEtapaAtualOs,
+  podeAlterarSituacaoEtapaServico,
   situacaoEtapaServico,
   type SituacaoEtapaServico,
 } from "@/lib/modulo-producao-etapas";
+import {
+  carregarConfiguracoesGerais,
+  CONFIG_GERAIS_ATUALIZADA_EVENT,
+} from "@/lib/configuracoes-gerais";
 import { itensDaOsModulo } from "@/lib/modulo-producao-os";
 import { bodyTrabalhoSemNull } from "@/lib/trabalho-api-body";
 import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
@@ -409,6 +414,10 @@ export default function OrdemServicoPage() {
   const [etapas, setEtapas] = useState<EtapaOsForm[]>([]);
   const [indiceEtapaAtual, setIndiceEtapaAtual] = useState(0);
   const [calendarioEtapaAberto, setCalendarioEtapaAberto] = useState<number | null>(null);
+  const [avisoEtapa, setAvisoEtapa] = useState("");
+  const [exigeAnteriorFinalizada, setExigeAnteriorFinalizada] = useState(
+    () => carregarConfiguracoesGerais().producaoEtapaExigeAnteriorFinalizada
+  );
   const [produtosOs, setProdutosOs] = useState<ProdutoOsLinha[]>([]);
   const [colaboradores, setColaboradores] = useState<
     Array<{ nome: string; comissao: string; etapa: string }>
@@ -613,6 +622,23 @@ export default function OrdemServicoPage() {
 
     carregarOpcoesTerceirizados();
   }, [paginaPronta]);
+
+  useEffect(() => {
+    const atualizar = () => {
+      setExigeAnteriorFinalizada(
+        carregarConfiguracoesGerais().producaoEtapaExigeAnteriorFinalizada
+      );
+    };
+    atualizar();
+    window.addEventListener(CONFIG_GERAIS_ATUALIZADA_EVENT, atualizar);
+    return () => window.removeEventListener(CONFIG_GERAIS_ATUALIZADA_EVENT, atualizar);
+  }, []);
+
+  useEffect(() => {
+    if (!avisoEtapa) return;
+    const timer = window.setTimeout(() => setAvisoEtapa(""), 4000);
+    return () => window.clearTimeout(timer);
+  }, [avisoEtapa]);
 
   useEffect(() => {
     if (!paginaPronta || typeof window === "undefined") return;
@@ -1351,16 +1377,24 @@ export default function OrdemServicoPage() {
   }
 
   function atualizarSituacaoEtapaOs(index: number, situacao: SituacaoEtapaServico) {
+    const validacao = podeAlterarSituacaoEtapaServico({
+      index,
+      situacao,
+      indiceAtual: indiceEtapaAtual,
+      totalEtapas: etapas.length,
+      exigeAnteriorFinalizada,
+    });
+    if (!validacao.permitido) {
+      setAvisoEtapa(validacao.motivo || "Não é possível alterar esta etapa agora.");
+      return;
+    }
+    setAvisoEtapa("");
+    if (validacao.novoIndice !== undefined) {
+      setIndiceEtapaAtual(validacao.novoIndice);
+      return;
+    }
     if (situacao === "atual") {
       setIndiceEtapaAtual(index);
-      return;
-    }
-    if (situacao === "concluida") {
-      setIndiceEtapaAtual(Math.min(index + 1, etapas.length));
-      return;
-    }
-    if (index === indiceEtapaAtual) {
-      setIndiceEtapaAtual(Math.min(index + 1, Math.max(0, etapas.length - 1)));
     }
   }
 
@@ -3945,6 +3979,11 @@ export default function OrdemServicoPage() {
 
                     {exibeLinhasEtapasOs && (
                     <div className="max-h-[min(420px,52vh)] space-y-3 overflow-y-auto overflow-x-hidden pr-1">
+                      {avisoEtapa ? (
+                        <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+                          {avisoEtapa}
+                        </div>
+                      ) : null}
                       {etapas.map((etapa, index) => {
                         if (!etapa.nome.trim()) return null;
                         const { data: dataEtapa, hora: horaEtapa } = partesPrazoEtapaOs(etapa.prazo);

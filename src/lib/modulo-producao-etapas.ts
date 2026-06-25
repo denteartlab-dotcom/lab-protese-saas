@@ -38,6 +38,109 @@ export function situacaoEtapaServico(
   return "aguardando";
 }
 
+/** Última etapa concluída em sequência (0, 1, 2…), ou -1 se nenhuma. */
+export function ultimoIndiceConcluidoSequencial(concluidas: Iterable<number>): number {
+  const set = new Set(concluidas);
+  let ultimo = -1;
+  while (set.has(ultimo + 1)) ultimo += 1;
+  return ultimo;
+}
+
+export const MENSAGEM_ETAPA_EXIGE_ANTERIOR =
+  "Conclua a etapa atual antes de avançar para a próxima.";
+
+export const MENSAGEM_ETAPA_REABRIR_SEQUENCIAL =
+  "Só é possível desfazer a última etapa concluída em sequência.";
+
+export function podeAlternarEtapaConcluida(opts: {
+  indice: number;
+  concluidas: Iterable<number>;
+  totalEtapas: number;
+  exigeAnteriorFinalizada: boolean;
+  marcandoConcluida: boolean;
+}): { permitido: boolean; motivo?: string } {
+  const { indice, concluidas, totalEtapas, exigeAnteriorFinalizada, marcandoConcluida } =
+    opts;
+  if (!exigeAnteriorFinalizada) return { permitido: true };
+  if (indice < 0 || indice >= totalEtapas) {
+    return { permitido: false, motivo: "Etapa inválida." };
+  }
+
+  const set = new Set(concluidas);
+  const etapaAtual = indiceEtapaAtualDeConcluidas(set, totalEtapas);
+
+  if (marcandoConcluida) {
+    if (indice !== etapaAtual) {
+      return { permitido: false, motivo: MENSAGEM_ETAPA_EXIGE_ANTERIOR };
+    }
+    return { permitido: true };
+  }
+
+  const ultimoConcluido = ultimoIndiceConcluidoSequencial(set);
+  if (!set.has(indice) || indice !== ultimoConcluido) {
+    return { permitido: false, motivo: MENSAGEM_ETAPA_REABRIR_SEQUENCIAL };
+  }
+  return { permitido: true };
+}
+
+export function podeDefinirIndiceEtapaAtual(opts: {
+  indiceAtual: number;
+  novoIndice: number;
+  totalEtapas: number;
+  exigeAnteriorFinalizada: boolean;
+}): { permitido: boolean; motivo?: string } {
+  const { indiceAtual, novoIndice, totalEtapas, exigeAnteriorFinalizada } = opts;
+  if (!exigeAnteriorFinalizada) return { permitido: true };
+  if (novoIndice < 0 || novoIndice > totalEtapas) {
+    return { permitido: false, motivo: "Etapa inválida." };
+  }
+  if (novoIndice === indiceAtual) return { permitido: true };
+
+  const delta = novoIndice - indiceAtual;
+  if (delta === 1) return { permitido: true };
+  if (delta === -1) return { permitido: true };
+
+  if (delta > 1) {
+    return { permitido: false, motivo: MENSAGEM_ETAPA_EXIGE_ANTERIOR };
+  }
+  return { permitido: false, motivo: MENSAGEM_ETAPA_REABRIR_SEQUENCIAL };
+}
+
+export function indiceEtapaAposSituacao(
+  index: number,
+  situacao: SituacaoEtapaServico,
+  indiceAtual: number,
+  totalEtapas: number
+): number | null {
+  if (situacao === "atual") return index;
+  if (situacao === "concluida") return Math.min(index + 1, totalEtapas);
+  if (situacao === "aguardando" && index === indiceAtual) {
+    return Math.min(index + 1, Math.max(0, totalEtapas - 1));
+  }
+  return null;
+}
+
+export function podeAlterarSituacaoEtapaServico(opts: {
+  index: number;
+  situacao: SituacaoEtapaServico;
+  indiceAtual: number;
+  totalEtapas: number;
+  exigeAnteriorFinalizada: boolean;
+}): { permitido: boolean; motivo?: string; novoIndice?: number } {
+  const { index, situacao, indiceAtual, totalEtapas, exigeAnteriorFinalizada } = opts;
+  const novoIndice = indiceEtapaAposSituacao(index, situacao, indiceAtual, totalEtapas);
+  if (novoIndice === null) return { permitido: true };
+
+  const validacao = podeDefinirIndiceEtapaAtual({
+    indiceAtual,
+    novoIndice,
+    totalEtapas,
+    exigeAnteriorFinalizada,
+  });
+  if (!validacao.permitido) return validacao;
+  return { permitido: true, novoIndice };
+}
+
 export async function persistirEtapaAtualOs(opts: {
   trabalhoId: string;
   itemId: string;

@@ -43,8 +43,13 @@ import {
 } from "@/lib/modulo-producao-os";
 import { cn } from "@/lib/utils";
 import {
+  carregarConfiguracoesGerais,
+  CONFIG_GERAIS_ATUALIZADA_EVENT,
+} from "@/lib/configuracoes-gerais";
+import {
   etapasConcluidasModulo,
   indiceEtapaAtualDeConcluidas,
+  podeAlternarEtapaConcluida,
   salvarEtapasConcluidasModulo,
 } from "@/lib/modulo-producao-etapas";
 import { useSessaoInatividade } from "@/hooks/use-sessao-inatividade";
@@ -91,6 +96,10 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
   const [anotacoes, setAnotacoes] = useState("");
   const [salvandoAnotacao, setSalvandoAnotacao] = useState(false);
   const [comissaoVisivel, setComissaoVisivel] = useState(false);
+  const [avisoEtapa, setAvisoEtapa] = useState("");
+  const [exigeAnteriorFinalizada, setExigeAnteriorFinalizada] = useState(
+    () => carregarConfiguracoesGerais().producaoEtapaExigeAnteriorFinalizada
+  );
 
   const logoPerfil = dimensoesLogoPx(lab, { largura: 36, altura: 36 });
   const temLogo = Boolean(lab.logoDataUrl?.startsWith("data:image"));
@@ -105,6 +114,23 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
   }, []);
 
   useSessaoInatividade(() => void logoutPorInatividade());
+
+  useEffect(() => {
+    const atualizar = () => {
+      setExigeAnteriorFinalizada(
+        carregarConfiguracoesGerais().producaoEtapaExigeAnteriorFinalizada
+      );
+    };
+    atualizar();
+    window.addEventListener(CONFIG_GERAIS_ATUALIZADA_EVENT, atualizar);
+    return () => window.removeEventListener(CONFIG_GERAIS_ATUALIZADA_EVENT, atualizar);
+  }, []);
+
+  useEffect(() => {
+    if (!avisoEtapa) return;
+    const timer = window.setTimeout(() => setAvisoEtapa(""), 4000);
+    return () => window.clearTimeout(timer);
+  }, [avisoEtapa]);
 
   async function logout() {
     setUserMenuOpen(false);
@@ -247,6 +273,18 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
     if (!chaveEtapasConcluidas || !osSelecionada) return;
     const etapa = etapasOs.find((e) => e.indice === indice);
     const concluidaAntes = etapasOk.has(indice);
+    const validacao = podeAlternarEtapaConcluida({
+      indice,
+      concluidas: etapasOk,
+      totalEtapas: etapasOs.length,
+      exigeAnteriorFinalizada,
+      marcandoConcluida: !concluidaAntes,
+    });
+    if (!validacao.permitido) {
+      setAvisoEtapa(validacao.motivo || "Não é possível alterar esta etapa agora.");
+      return;
+    }
+    setAvisoEtapa("");
     const indiceAnterior = indiceEtapaAtualDeConcluidas(etapasOk, etapasOs.length);
     const next = new Set(etapasOk);
     if (next.has(indice)) next.delete(indice);
@@ -650,6 +688,11 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
+                      {avisoEtapa ? (
+                        <div className="mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
+                          {avisoEtapa}
+                        </div>
+                      ) : null}
                       <table className="w-full min-w-[520px] border-collapse text-[12px]">
                         <thead>
                           <tr className="border-b border-[#e5e7eb] bg-[#f9fafb] text-[11px] font-semibold uppercase text-[#6b7280]">

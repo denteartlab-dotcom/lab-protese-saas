@@ -535,11 +535,13 @@ function etapasServicoDeRegistroGrupo(
     grupo.find((t) => segmentoEfetivoTrabalho(t) === "servico");
   if (!registro) return [];
 
-  const complementos = parseComplementosInstrucoesGrupo([registro.instrucoes || ""]);
   const servico = buscarServicoNaTabela(categorias, item.servico);
+  if (!servico || !servicoTemEtapasNaTabela(servico)) return [];
+
+  const complementos = parseComplementosInstrucoesGrupo([registro.instrucoes || ""]);
   let etapasForm = etapasOsLinhaParaForm(complementos.etapas).filter((etapa) => etapa.nome.trim());
 
-  if (etapasForm.length === 0 && servico && servicoTemEtapasNaTabela(servico)) {
+  if (etapasForm.length === 0) {
     etapasForm = etapasIniciaisFormParaOsServico(
       servico,
       modelos,
@@ -1046,6 +1048,11 @@ export default function ControlePage() {
   const comissoesTerceirizadosServicoEdicao = useMemo(
     () => comissoesTerceirizadosDoServico(servicoOsAtualEdicao),
     [servicoOsAtualEdicao]
+  );
+  const exibeLinhasEtapasEdicao = Boolean(
+    servicoOsAtualEdicao &&
+      servicoTemEtapasNaTabela(servicoOsAtualEdicao) &&
+      etapasEdicao.some((etapa) => etapa.nome.trim())
   );
   const [anexoAberto, setAnexoAberto] = useState<AnexoOs | null>(null);
   const [osExcluindo, setOsExcluindo] = useState<Trabalho | null>(null);
@@ -1867,17 +1874,22 @@ export default function ControlePage() {
   }
 
   function carregarEtapasNaEdicao(trabalho: Trabalho) {
+    const servico = buscarServicoNaTabela(
+      categoriasTabelaPreco,
+      form?.tipoProtese?.trim() || trabalho.tipoProtese
+    );
+    if (!servico || !servicoTemEtapasNaTabela(servico)) {
+      setEtapasEdicao([]);
+      sincronizarIndiceEtapaAtualEdicao(trabalho, 0, itemSelecionadoId);
+      return;
+    }
     const complementos = complementosEdicaoTrabalho(trabalho, trabalhos);
     const modelos = carregarEtapasCadastro();
     const etapasForm = etapasOsLinhaParaForm(complementos.etapas).map((etapa) => ({
       ...etapa,
       setor: modelos.find((m) => m.nome === etapa.nome)?.setor || "",
     }));
-    setEtapasEdicao(
-      etapasForm.length > 0
-        ? etapasForm
-        : [{ nome: "", setor: "", responsavel: "", prazo: "", observacao: "" }]
-    );
+    setEtapasEdicao(etapasForm);
     sincronizarIndiceEtapaAtualEdicao(trabalho, etapasForm.length, itemSelecionadoId);
   }
 
@@ -1932,6 +1944,11 @@ export default function ControlePage() {
     const dataLanc = form?.dataLancamento || formatDate(base.dataEntrada);
     const horaLab = form?.horaLaboratorio || "";
     const servicoItem = buscarServicoNaTabela(categoriasTabelaPreco, item.servico);
+    if (!servicoItem || !servicoTemEtapasNaTabela(servicoItem)) {
+      setEtapasEdicao([]);
+      sincronizarIndiceEtapaAtualEdicao(base, 0, item.id);
+      return;
+    }
     const grupo = trabalhosDoMesmoGrupoOsId(base, trabalhos);
     const etapasDoItem = item.etapasServico?.length
       ? item.etapasServico
@@ -1946,14 +1963,12 @@ export default function ControlePage() {
     const etapasCarregadas =
       etapasDoItem.length > 0
         ? etapasDoItem
-        : servicoItem && servicoTemEtapasNaTabela(servicoItem)
-          ? etapasIniciaisFormParaOsServico(servicoItem, modelosEtapasOs, dataLanc, horaLab).map(
-              (etapa) => ({
-                ...etapa,
-                setor: etapa.setor || modelosEtapasOs.find((m) => m.nome === etapa.nome)?.setor || "",
-              })
-            )
-          : [{ nome: "", setor: "", responsavel: "", prazo: "", observacao: "" }];
+        : etapasIniciaisFormParaOsServico(servicoItem, modelosEtapasOs, dataLanc, horaLab).map(
+            (etapa) => ({
+              ...etapa,
+              setor: etapa.setor || modelosEtapasOs.find((m) => m.nome === etapa.nome)?.setor || "",
+            })
+          );
     setEtapasEdicao(etapasCarregadas);
     sincronizarIndiceEtapaAtualEdicao(base, etapasCarregadas.length, item.id);
   }
@@ -3251,7 +3266,13 @@ export default function ControlePage() {
                 const complementosOs = parseComplementosInstrucoesGrupo(
                   grupoOs.map((registro) => registro.instrucoes || "")
                 );
-                const etapasOs = linhaProdutoOuTransporte ? [] : contextoEtapas.etapas;
+                const etapasOs = linhaProdutoOuTransporte
+                  ? []
+                  : servicoTemEtapasNaTabela(
+                        buscarServicoNaTabela(categoriasTabelaPreco, trabalho.tipoProtese)
+                      )
+                    ? contextoEtapas.etapas
+                    : [];
                 const colaboradoresOs = colaboradoresParaExibicaoControle(
                   complementosOs.colaboradores,
                   etapasOs
@@ -4260,6 +4281,7 @@ export default function ControlePage() {
                             repeticao={Boolean(form?.repeticao)}
                             indiceEtapaAtual={indiceEtapaAtualEdicao}
                             onIndiceEtapaAtualChange={setIndiceEtapaAtualEdicao}
+                            exibirLinhas={exibeLinhasEtapasEdicao}
                           />
                         )}
                         {abaServicoEdicao === "produtos" && (

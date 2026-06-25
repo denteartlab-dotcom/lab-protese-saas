@@ -22,8 +22,13 @@ import {
 import { carregarSetoresCadastro, type SetorCadastro } from "@/lib/setores-cadastro";
 import {
   situacaoEtapaServico,
+  podeAlterarSituacaoEtapaServico,
   type SituacaoEtapaServico,
 } from "@/lib/modulo-producao-etapas";
+import {
+  carregarConfiguracoesGerais,
+  CONFIG_GERAIS_ATUALIZADA_EVENT,
+} from "@/lib/configuracoes-gerais";
 import {
   comissaoColaboradorNaTabelaServico,
   montarPrazoEtapaOs,
@@ -52,6 +57,8 @@ type Props = {
   /** Índice da etapa em que o serviço está (exibida no Módulo TV). */
   indiceEtapaAtual?: number;
   onIndiceEtapaAtualChange?: (indice: number) => void;
+  /** Exibe os blocos editáveis; false = somente o título "Etapas". */
+  exibirLinhas?: boolean;
 };
 
 function parseMoneyEtapa(value: string) {
@@ -144,11 +151,33 @@ export function EtapasOsEditor({
   repeticao = false,
   indiceEtapaAtual = 0,
   onIndiceEtapaAtualChange,
+  exibirLinhas = true,
 }: Props) {
   const [modelosEtapas, setModelosEtapas] = useState<EtapaCadastro[]>([]);
   const [setoresCadastrados, setSetoresCadastrados] = useState<SetorCadastro[]>([]);
   const [colaboradoresOpcoes, setColaboradoresOpcoes] = useState<ColaboradorListagem[]>([]);
   const [calendarioEtapaAberto, setCalendarioEtapaAberto] = useState<number | null>(null);
+  const [avisoEtapa, setAvisoEtapa] = useState("");
+  const [exigeAnteriorFinalizada, setExigeAnteriorFinalizada] = useState(
+    () => carregarConfiguracoesGerais().producaoEtapaExigeAnteriorFinalizada
+  );
+
+  useEffect(() => {
+    const atualizar = () => {
+      setExigeAnteriorFinalizada(
+        carregarConfiguracoesGerais().producaoEtapaExigeAnteriorFinalizada
+      );
+    };
+    atualizar();
+    window.addEventListener(CONFIG_GERAIS_ATUALIZADA_EVENT, atualizar);
+    return () => window.removeEventListener(CONFIG_GERAIS_ATUALIZADA_EVENT, atualizar);
+  }, []);
+
+  useEffect(() => {
+    if (!avisoEtapa) return;
+    const timer = window.setTimeout(() => setAvisoEtapa(""), 4000);
+    return () => window.clearTimeout(timer);
+  }, [avisoEtapa]);
 
   useEffect(() => {
     setModelosEtapas(carregarEtapasCadastro());
@@ -227,16 +256,24 @@ export function EtapasOsEditor({
 
   function atualizarSituacaoEtapa(index: number, situacao: SituacaoEtapaServico) {
     if (desabilitado || !onIndiceEtapaAtualChange) return;
+    const validacao = podeAlterarSituacaoEtapaServico({
+      index,
+      situacao,
+      indiceAtual: indiceEtapaAtual,
+      totalEtapas: etapas.length,
+      exigeAnteriorFinalizada,
+    });
+    if (!validacao.permitido) {
+      setAvisoEtapa(validacao.motivo || "Não é possível alterar esta etapa agora.");
+      return;
+    }
+    setAvisoEtapa("");
+    if (validacao.novoIndice !== undefined) {
+      onIndiceEtapaAtualChange(validacao.novoIndice);
+      return;
+    }
     if (situacao === "atual") {
       onIndiceEtapaAtualChange(index);
-      return;
-    }
-    if (situacao === "concluida") {
-      onIndiceEtapaAtualChange(Math.min(index + 1, etapas.length));
-      return;
-    }
-    if (index === indiceEtapaAtual) {
-      onIndiceEtapaAtualChange(Math.min(index + 1, Math.max(0, etapas.length - 1)));
     }
   }
 
@@ -291,19 +328,26 @@ export function EtapasOsEditor({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm font-semibold text-slate-800">Etapas</span>
-        <button
-          type="button"
-          className="rounded bg-emerald-600 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-emerald-700"
-          title="Recurso em teste"
-        >
-          Buscar Melhor data e horário com IA (em teste)
-        </button>
+        {exibirLinhas ? (
+          <button
+            type="button"
+            className="rounded bg-emerald-600 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-emerald-700"
+            title="Recurso em teste"
+          >
+            Buscar Melhor data e horário com IA (em teste)
+          </button>
+        ) : null}
       </div>
 
-      {etapas.length === 0 ? (
+      {exibirLinhas && etapas.length === 0 ? (
         <p className="text-[11px] text-slate-500">Nenhuma etapa cadastrada para este serviço.</p>
-      ) : (
+      ) : exibirLinhas ? (
         <div className="max-h-[min(420px,52vh)] space-y-3 overflow-y-auto overflow-x-hidden pr-1">
+          {avisoEtapa ? (
+            <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+              {avisoEtapa}
+            </div>
+          ) : null}
           {etapas.map((etapa, index) => {
             const { data: dataEtapa, hora: horaEtapa } = partesPrazoEtapaOs(etapa.prazo);
             const setorRotulo = rotuloSetorEtapa(etapa);
@@ -442,7 +486,7 @@ export function EtapasOsEditor({
             );
           })}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
