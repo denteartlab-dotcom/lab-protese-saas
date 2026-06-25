@@ -102,12 +102,11 @@ export function removerTrabalhoControleEntregasAutomatico(numeroOs: number) {
   return true;
 }
 
-function exigeConfigFaturasControleEntregas(
-  opcoes?: { ignorarConfig?: boolean; origem?: "status" | "manual" }
+function controleEntregasAutomaticoDesabilitado(
+  opcoes?: { ignorarConfig?: boolean }
 ) {
-  if (opcoes?.origem === "status" || opcoes?.ignorarConfig) return false;
-  const config = carregarConfiguracoesGerais();
-  return !config.faturasAdicionarControleEntregas;
+  if (opcoes?.ignorarConfig) return false;
+  return !carregarConfiguracoesGerais().faturasAdicionarControleEntregas;
 }
 
 /** Adiciona ao controle de entregas no navegador (espelho + persistência). */
@@ -115,7 +114,7 @@ export function adicionarTrabalhoControleEntregasAutomatico(
   trabalho: TrabalhoParaControleEntrega,
   opcoes?: { ignorarConfig?: boolean; origem?: "status" | "manual" }
 ) {
-  if (exigeConfigFaturasControleEntregas(opcoes)) return false;
+  if (controleEntregasAutomaticoDesabilitado(opcoes)) return false;
 
   const lista = carregarEntregas();
   if (entregaJaExisteParaOs(lista, trabalho.numeroOs)) return false;
@@ -160,9 +159,9 @@ export async function sincronizarEntregasControleCliente(): Promise<boolean> {
 export async function adicionarTrabalhoControleEntregasAutomaticoServidor(
   empresaId: string,
   trabalho: TrabalhoParaControleEntrega,
-  opcoes?: { origem?: "status" | "manual" }
+  opcoes?: { origem?: "status" | "manual"; ignorarConfig?: boolean }
 ) {
-  if (opcoes?.origem !== "status") {
+  if (!opcoes?.ignorarConfig) {
     const configRaw = await lerJsonStoreTenant(empresaId, CONFIG_GERAIS_STORAGE_KEY);
     const config = normalizarConfiguracoesGerais(
       configRaw as Partial<ConfiguracoesGerais> | null
