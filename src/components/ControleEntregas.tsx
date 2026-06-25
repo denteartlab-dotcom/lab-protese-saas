@@ -36,6 +36,7 @@ import {
   type SituacaoEntrega,
 } from "@/lib/controle-entregas";
 import { sincronizarEntregasControleCliente } from "@/lib/controle-entregas-automatico";
+import { ENTREGADORES_CADASTRO_EVENT } from "@/lib/entregadores-cadastro";
 import { prepararAbaPdf } from "@/lib/pdf-viewer";
 import {
   carregarTrabalhosParaRelatorioEntregas,
@@ -114,11 +115,16 @@ export function ControleEntregas() {
   }
 
   useEffect(() => {
+    recarregar();
     void sincronizarEntregasControleCliente().then((sincronizou) => {
       if (!sincronizou) recarregar();
     });
     window.addEventListener(ENTREGAS_EVENT, recarregar);
-    return () => window.removeEventListener(ENTREGAS_EVENT, recarregar);
+    window.addEventListener(ENTREGADORES_CADASTRO_EVENT, recarregar);
+    return () => {
+      window.removeEventListener(ENTREGAS_EVENT, recarregar);
+      window.removeEventListener(ENTREGADORES_CADASTRO_EVENT, recarregar);
+    };
   }, []);
 
   const entregasFiltradas = useMemo(
@@ -489,7 +495,6 @@ export function ControleEntregas() {
       <FormularioRotaEntregaModal
         open={modalAberto}
         editando={editando}
-        entregadores={entregadores}
         onClose={fecharModalRota}
         onSalvo={recarregar}
       />

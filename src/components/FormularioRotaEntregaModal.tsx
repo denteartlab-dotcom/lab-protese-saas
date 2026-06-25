@@ -27,6 +27,11 @@ import {
   type TipoDestinatarioEntregaForm,
 } from "@/lib/controle-entregas";
 import { carregarPrestadoresListagem } from "@/lib/prestadores-listagem";
+import {
+  carregarEntregadoresCadastro,
+  ENTREGADORES_CADASTRO_EVENT,
+  type EntregadorCadastro,
+} from "@/lib/entregadores-cadastro";
 
 const FORNECEDORES_STORAGE_KEY = "labProteseFornecedores";
 
@@ -61,7 +66,6 @@ type FornecedorApi = {
 type Props = {
   open: boolean;
   editando: EntregaControle | null;
-  entregadores: string[];
   onClose: () => void;
   onSalvo: () => void;
 };
@@ -101,14 +105,18 @@ function formatCurrencyInput(value: string) {
 export function FormularioRotaEntregaModal({
   open,
   editando,
-  entregadores,
   onClose,
   onSalvo,
 }: Props) {
   const [form, setForm] = useState<FormRotaEntrega>(formRotaEntregaPadrao());
   const [clientes, setClientes] = useState<ClienteApi[]>([]);
+  const [entregadoresCadastro, setEntregadoresCadastro] = useState<EntregadorCadastro[]>([]);
   const [buscandoOs, setBuscandoOs] = useState(false);
   const [buscandoCep, setBuscandoCep] = useState(false);
+
+  function recarregarEntregadoresCadastro() {
+    setEntregadoresCadastro(carregarEntregadoresCadastro());
+  }
 
   const prestadores = useMemo(() => carregarPrestadoresListagem(), [open]);
   const fornecedores = useMemo(() => {
@@ -131,11 +139,18 @@ export function FormularioRotaEntregaModal({
   useEffect(() => {
     if (!open) return;
     setForm(editando ? entregaParaFormRota(editando) : formRotaEntregaPadrao());
+    recarregarEntregadoresCadastro();
     void fetch("/api/clientes")
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => setClientes(Array.isArray(data) ? data : []))
       .catch(() => setClientes([]));
   }, [open, editando]);
+
+  useEffect(() => {
+    const atualizar = () => recarregarEntregadoresCadastro();
+    window.addEventListener(ENTREGADORES_CADASTRO_EVENT, atualizar);
+    return () => window.removeEventListener(ENTREGADORES_CADASTRO_EVENT, atualizar);
+  }, []);
 
   const nomesDestinatario = useMemo(() => {
     if (form.tipoDestinatario === "cliente") {
@@ -156,6 +171,14 @@ export function FormularioRotaEntregaModal({
       a.localeCompare(b, "pt-BR")
     );
   }, [editando]);
+
+  const opcoesEntregador = useMemo(() => {
+    const nomes = new Set(entregadoresCadastro.map((item) => item.nome));
+    if (form.entregador.trim()) nomes.add(form.entregador.trim());
+    return Array.from(nomes)
+      .sort((a, b) => a.localeCompare(b, "pt-BR"))
+      .map((nome) => ({ value: nome, label: nome }));
+  }, [entregadoresCadastro, form.entregador]);
 
   function atualizar<K extends keyof FormRotaEntrega>(chave: K, valor: FormRotaEntrega[K]) {
     setForm((atual) => ({ ...atual, [chave]: valor }));
@@ -196,6 +219,15 @@ export function FormularioRotaEntregaModal({
       ...(tipoEntregador ? { tipoEntregador } : {}),
       ...(custo > 0 ? { valor: formatarMoedaEntrega(custo) } : {}),
     };
+  }
+
+  function aoSelecionarEntregador(nome: string) {
+    const cadastro = entregadoresCadastro.find((item) => item.nome === nome);
+    setForm((atual) => ({
+      ...atual,
+      entregador: nome,
+      ...(cadastro?.tipoEntregador ? { tipoEntregador: cadastro.tipoEntregador } : {}),
+    }));
   }
 
   function aoSelecionarDestinatario(nome: string) {
@@ -448,19 +480,20 @@ export function FormularioRotaEntregaModal({
           {tituloSecao(<Truck className="h-3.5 w-3.5" />, "Entregador")}
           <div className="grid gap-3 md:grid-cols-4">
             <div>
-              {labelCampo("Nome do Entregador*")}
-              <input
-                list="entregadores-rota"
+              <SelectPesquisavel
+                label="Nome do Entregador*"
                 value={form.entregador}
-                onChange={(e) => atualizar("entregador", e.target.value)}
-                className={inputClassName()}
-                required
+                onChange={aoSelecionarEntregador}
+                placeholder="Selecione"
+                inputClassName={selectClassName()}
+                menuEmPortal
+                options={opcoesEntregador}
               />
-              <datalist id="entregadores-rota">
-                {entregadores.map((nome) => (
-                  <option key={nome} value={nome} />
-                ))}
-              </datalist>
+              {entregadoresCadastro.length === 0 ? (
+                <p className="mt-1 text-[10px] text-slate-500">
+                  Nenhum entregador cadastrado. Cadastre em Cadastros › Entregadores.
+                </p>
+              ) : null}
             </div>
             <div>
               <CampoDataBr
