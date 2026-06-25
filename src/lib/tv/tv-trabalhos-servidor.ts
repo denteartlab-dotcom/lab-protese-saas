@@ -32,6 +32,10 @@ import {
 } from "@/lib/modulo-producao-etapas";
 import { registrarMudancaIndiceEtapa } from "@/lib/historico-etapas";
 import { labelStatusOs, trabalhoVisivelModuloTv } from "@/lib/status-os";
+import {
+  adicionarTrabalhoControleEntregasAutomaticoServidor,
+  deveAdicionarControleEntregasPorStatus,
+} from "@/lib/controle-entregas-automatico";
 import { normalizarColaborador } from "@/lib/utils";
 
 const STATUS_VISIVEIS_TV = ["producao", "processando"] as const;
@@ -385,7 +389,16 @@ export async function moverTrabalhoTvColuna(
   const trabalho = await prisma.trabalho.findFirst({
     where: { id: trabalhoId, empresaId },
     include: {
-      cliente: { select: { nome: true } },
+      cliente: {
+        select: {
+          nome: true,
+          endereco: true,
+          cidade: true,
+          uf: true,
+          cep: true,
+          observacoes: true,
+        },
+      },
       paciente: { select: { nome: true } },
     },
   });
@@ -473,6 +486,20 @@ export async function moverTrabalhoTvColuna(
         })
       : Promise.resolve(),
   ]);
+
+  if (deveAdicionarControleEntregasPorStatus(trabalho.status, novoStatus)) {
+    try {
+      await adicionarTrabalhoControleEntregasAutomaticoServidor(empresaId, {
+        id: trabalho.id,
+        numeroOs: trabalho.numeroOs,
+        tipoProtese: trabalho.tipoProtese,
+        valor: trabalho.valor,
+        cliente: trabalho.cliente,
+      });
+    } catch (err) {
+      console.warn("[tv] controle entregas automático", err);
+    }
+  }
 
   return carregarOrdensTv(empresaId);
 }

@@ -23,6 +23,10 @@ import {
   removerUrgenciaOs,
 } from "@/lib/urgencia-cliente";
 import { notificarTvOrdensEmpresa } from "@/lib/tv/notificar-tv-ordens";
+import {
+  adicionarTrabalhoControleEntregasAutomaticoServidor,
+  deveAdicionarControleEntregasPorStatus,
+} from "@/lib/controle-entregas-automatico";
 import { STATUS_TRABALHO_FINALIZADO_IMPRESSAO } from "@/lib/os-itens-impressao";
 import { z } from "zod";
 
@@ -140,7 +144,19 @@ export async function PUT(
     const trabalho = await prisma.trabalho.update({
       where: { id },
       data: payload,
-      include: { cliente: true, paciente: true },
+      include: {
+        cliente: {
+          select: {
+            nome: true,
+            endereco: true,
+            cidade: true,
+            uf: true,
+            cep: true,
+            observacoes: true,
+          },
+        },
+        paciente: true,
+      },
     });
 
     const novoStatus = String(payload.status ?? atual.status);
@@ -253,6 +269,20 @@ export async function PUT(
         },
         data: camposCompartilhados,
       });
+    }
+
+    if (statusMudou && deveAdicionarControleEntregasPorStatus(atual.status, novoStatus)) {
+      try {
+        await adicionarTrabalhoControleEntregasAutomaticoServidor(ctx.empresaId, {
+          id: trabalho.id,
+          numeroOs: trabalho.numeroOs,
+          tipoProtese: trabalho.tipoProtese,
+          valor: trabalho.valor,
+          cliente: trabalho.cliente,
+        });
+      } catch (err) {
+        console.warn("[trabalhos/PUT] controle entregas automático", err);
+      }
     }
 
     void notificarTvOrdensEmpresa(ctx.empresaId);

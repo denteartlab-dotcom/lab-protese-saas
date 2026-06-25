@@ -22,6 +22,10 @@ import type { AnexoDespesa } from "@/lib/lancamento-despesa";
 import { cn, STATUS_TRABALHO } from "@/lib/utils";
 import { useEntradaLeitorCodigo } from "@/hooks/use-entrada-leitor-codigo-barras";
 import type { TrabalhoSituacaoBadge } from "@/components/financeiro/SituacaoOsBadgeReceita";
+import {
+  carregarConfiguracoesGerais,
+  CONFIG_GERAIS_ATUALIZADA_EVENT,
+} from "@/lib/configuracoes-gerais";
 
 export type LancarReceitaOsForm = {
   tipo: string;
@@ -71,6 +75,7 @@ export type LancarReceitaOsSubmit = {
   parcelas: ParcelaLinhaReceita[];
   imprimirRecibo: boolean;
   alterarEntregue: boolean;
+  enviarControleEntrega: boolean;
   anexos?: AnexoDespesa[];
 };
 
@@ -214,8 +219,12 @@ export function LancarReceitaOsModal({
   const submitLockRef = useRef(false);
   const anexosRef = useRef<AnexosReciboCampoRef>(null);
   const ocupado = cadastrando || salvando;
-  const [alterarEntregue, setAlterarEntregue] = useState(true);
-  const [enviarControleEntrega, setEnviarControleEntrega] = useState(false);
+  const [alterarEntregue, setAlterarEntregue] = useState(
+    () => carregarConfiguracoesGerais().faturasAlterarSituacaoEntregue
+  );
+  const [enviarControleEntrega, setEnviarControleEntrega] = useState(
+    () => carregarConfiguracoesGerais().faturasAdicionarControleEntregas
+  );
   const [codigoBarras, setCodigoBarras] = useState("");
   const [feedbackCodigo, setFeedbackCodigo] = useState<{ tipo: "ok" | "erro"; msg: string } | null>(
     null
@@ -264,10 +273,15 @@ export function LancarReceitaOsModal({
     setPortalPronto(true);
   }, []);
 
+  function aplicarConfiguracoesFaturas() {
+    const config = carregarConfiguracoesGerais();
+    setAlterarEntregue(config.faturasAlterarSituacaoEntregue);
+    setEnviarControleEntrega(config.faturasAdicionarControleEntregas);
+  }
+
   useEffect(() => {
     if (!open) return;
-    setAlterarEntregue(true);
-    setEnviarControleEntrega(false);
+    aplicarConfiguracoesFaturas();
     setCodigoBarras("");
     setFeedbackCodigo(null);
     setNumParcelas(1);
@@ -277,6 +291,13 @@ export function LancarReceitaOsModal({
       categoriaPadraoLancamento(plano, "receitas") || "Receitas de Serviços";
     setForm((f) => ({ ...f, categoria: padrao }));
   }, [open, setForm]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onConfigAtualizada = () => aplicarConfiguracoesFaturas();
+    window.addEventListener(CONFIG_GERAIS_ATUALIZADA_EVENT, onConfigAtualizada);
+    return () => window.removeEventListener(CONFIG_GERAIS_ATUALIZADA_EVENT, onConfigAtualizada);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -369,6 +390,7 @@ export function LancarReceitaOsModal({
         parcelas,
         imprimirRecibo,
         alterarEntregue,
+        enviarControleEntrega,
         anexos,
       });
     } catch (err) {
@@ -631,12 +653,12 @@ export function LancarReceitaOsModal({
               <ToggleSmart
                 checked={alterarEntregue}
                 onChange={setAlterarEntregue}
-                label={`Altera Situação para 'Entregue'`}
+                label="Alterar Situação para Entregue"
               />
               <ToggleSmart
                 checked={enviarControleEntrega}
                 onChange={setEnviarControleEntrega}
-                label="Enviar Controle Entrega..."
+                label="Adicionar automaticamente ao Controle de Entregas"
               />
             </div>
 

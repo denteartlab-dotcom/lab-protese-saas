@@ -74,6 +74,7 @@ import {
 } from "@/lib/relatorio-faturas-modelo3-dados";
 import { PlanoContasConteudo } from "@/components/financeiro/PlanoContasConteudo";
 import { notificarFinanceiroAtualizado } from "@/lib/financeiro-events";
+import { adicionarTrabalhoControleEntregasAutomatico } from "@/lib/controle-entregas-automatico";
 import { TRABALHOS_ATUALIZADOS_EVENT } from "@/lib/trabalhos-events";
 import {
   desempacotarDespesa,
@@ -854,6 +855,7 @@ function FinanceiroReceberConteudo() {
     parcelas,
     imprimirRecibo,
     alterarEntregue,
+    enviarControleEntrega,
     anexos,
   }: LancarReceitaOsSubmit) {
     if (saveEmAndamentoRef.current) return;
@@ -953,6 +955,30 @@ function FinanceiroReceberConteudo() {
     if (!mensagemLancamento || mensagemLancamentoTipo !== "erro") {
       if (alterarEntregue && trabalhosSelecionados.length > 0 && deveCriarFaturaReceber) {
         await marcarOsFaturadasComoEntregues();
+      }
+      if (enviarControleEntrega && trabalhosSelecionados.length > 0 && deveCriarFaturaReceber) {
+        for (const trabalho of trabalhosSelecionados) {
+          adicionarTrabalhoControleEntregasAutomatico(
+            {
+              id: trabalho.id,
+              numeroOs: trabalho.numeroOs,
+              tipoProtese: trabalho.tipoProtese,
+              valor: valorTrabalho(trabalho),
+              cliente: trabalho.cliente
+                ? {
+                    nome: trabalho.cliente.nome,
+                    endereco: (trabalho.cliente as { endereco?: string | null }).endereco,
+                    cidade: (trabalho.cliente as { cidade?: string | null }).cidade,
+                    uf: (trabalho.cliente as { uf?: string | null }).uf,
+                    cep: (trabalho.cliente as { cep?: string | null }).cep,
+                    observacoes: (trabalho.cliente as { observacoes?: string | null })
+                      .observacoes,
+                  }
+                : null,
+            },
+            { ignorarConfig: true }
+          );
+        }
       }
       const clienteNome =
         clientes.find((c) => c.id === form.clienteId)?.nome || "Cliente";
