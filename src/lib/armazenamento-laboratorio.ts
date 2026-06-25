@@ -98,12 +98,20 @@ const CHAVES_LOCALSTORAGE_IGNORAR = new Set([
   "denteartLabLogoPorSlug",
 ]);
 
+const FLAG_MIGRACAO_LOCALSTORAGE = "labProteseLocalStorageMigradoV2";
+const LIMITE_MIGRACAO_LOCALSTORAGE_BYTES = 4_000_000;
+
 /**
  * Migra dados legados do localStorage para o PostgreSQL antes de apagá-los.
  * Garante que limpar cache do navegador não apague cadastros antigos ainda só no browser.
  */
 async function migrarLocalStorageLegadoParaServidor() {
   if (typeof window === "undefined") return;
+
+  if (window.localStorage.getItem(FLAG_MIGRACAO_LOCALSTORAGE) === "1") {
+    limparLocalStorageLegadoLab();
+    return;
+  }
 
   const entradas: Record<string, unknown> = {};
   const listagem: Record<string, unknown> = {};
@@ -151,7 +159,23 @@ async function migrarLocalStorageLegadoParaServidor() {
     entradas.labProteseModuloProducaoEtapas = moduloEtapas;
   }
 
-  if (Object.keys(entradas).length === 0) return;
+  if (Object.keys(entradas).length === 0) {
+    try {
+      window.localStorage.setItem(FLAG_MIGRACAO_LOCALSTORAGE, "1");
+    } catch {
+      /* ignore */
+    }
+    return;
+  }
+
+  const payload = JSON.stringify({ entradas, sobrescrever: false });
+  if (payload.length > LIMITE_MIGRACAO_LOCALSTORAGE_BYTES) {
+    console.warn(
+      "[armazenamento-laboratorio] localStorage legado grande demais — descartando cópia local"
+    );
+    descartarLocalStorageLaboratorioLegado();
+    return;
+  }
 
   try {
     const res = await fetchComTimeout(
@@ -161,10 +185,14 @@ async function migrarLocalStorageLegadoParaServidor() {
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
         cache: "no-store",
-        body: JSON.stringify({ entradas, sobrescrever: false }),
+        body: payload,
       },
       MIGRAR_TIMEOUT_MS
     );
+    if (res.status === 401 || res.status === 403) {
+      sessaoExpirada = true;
+      return;
+    }
     if (!res.ok) {
       console.warn(
         "[armazenamento-laboratorio] falha ao migrar localStorage legado:",
@@ -173,6 +201,8 @@ async function migrarLocalStorageLegadoParaServidor() {
     }
   } catch (err) {
     console.warn("[armazenamento-laboratorio] falha ao migrar localStorage legado", err);
+  } finally {
+    descartarLocalStorageLaboratorioLegado();
   }
 }
 
@@ -201,6 +231,16 @@ function limparLocalStorageLegadoLab() {
     } catch {
       /* ignore */
     }
+  }
+}
+
+export function descartarLocalStorageLaboratorioLegado() {
+  limparLocalStorageLegadoLab();
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(FLAG_MIGRACAO_LOCALSTORAGE, "1");
+  } catch {
+    /* ignore */
   }
 }
 
@@ -461,11 +501,11 @@ export async function inicializarArmazenamentoLaboratorio() {
   if (hidratando) return hidratando;
 
   hidratando = (async () => {
-    await migrarLocalStorageLegadoParaServidor();
-    limparLocalStorageLegadoLab();
+    const migracaoLegada = migrarLocalStorageLegadoParaServidor();
     const { ok } = await carregarBootstrapServidor("prioritaria");
     bootstrapOk = ok;
     if (ok) agendarBootstrapComplementar();
+    await migracaoLegada.catch(() => undefined);
   })()
     .catch((err) => {
       console.error("[armazenamento-laboratorio] falha na inicialização", err);

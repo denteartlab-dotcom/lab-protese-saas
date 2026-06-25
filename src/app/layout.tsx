@@ -31,10 +31,37 @@ export default async function RootLayout({
   const session = await getSession();
   const configLaboratorio = await carregarConfigLaboratorioServidor(session?.empresaId);
   const lab = configParaLabImpressao(configLaboratorio);
+  const buildId = process.env.NEXT_PUBLIC_APP_BUILD_ID ?? "dev";
 
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
+        <Script
+          id="app-build-cache-bust"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                var buildId = ${JSON.stringify(buildId)};
+                if (!buildId || buildId === "dev") return;
+                var key = "labProteseBuildId";
+                try {
+                  var anterior = localStorage.getItem(key);
+                  localStorage.setItem(key, buildId);
+                  if (anterior && anterior !== buildId) {
+                    if (window.caches && window.caches.keys) {
+                      window.caches.keys().then(function (keys) {
+                        return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+                      }).finally(function () { location.reload(); });
+                    } else {
+                      location.reload();
+                    }
+                  }
+                } catch (e) { /* ignore */ }
+              })();
+            `,
+          }}
+        />
         <Script
           id="remove-cursor-test-attrs"
           strategy="beforeInteractive"
