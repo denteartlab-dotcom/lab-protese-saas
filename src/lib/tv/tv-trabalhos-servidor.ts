@@ -35,6 +35,8 @@ import { labelStatusOs, trabalhoVisivelModuloTv } from "@/lib/status-os";
 import {
   adicionarTrabalhoControleEntregasAutomaticoServidor,
   deveAdicionarControleEntregasPorStatus,
+  deveRemoverControleEntregasPorStatus,
+  removerTrabalhoControleEntregasAutomaticoServidor,
 } from "@/lib/controle-entregas-automatico";
 import { normalizarColaborador } from "@/lib/utils";
 
@@ -487,7 +489,16 @@ export async function moverTrabalhoTvColuna(
       : Promise.resolve(),
   ]);
 
-  if (deveAdicionarControleEntregasPorStatus(trabalho.status, novoStatus)) {
+  if (deveRemoverControleEntregasPorStatus(trabalho.status, novoStatus)) {
+    try {
+      await removerTrabalhoControleEntregasAutomaticoServidor(
+        empresaId,
+        trabalho.numeroOs
+      );
+    } catch (err) {
+      console.warn("[tv] remoção controle entregas automático", err);
+    }
+  } else if (deveAdicionarControleEntregasPorStatus(trabalho.status, novoStatus)) {
     try {
       await adicionarTrabalhoControleEntregasAutomaticoServidor(empresaId, {
         id: trabalho.id,

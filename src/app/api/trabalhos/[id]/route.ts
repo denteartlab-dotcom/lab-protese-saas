@@ -26,6 +26,8 @@ import { notificarTvOrdensEmpresa } from "@/lib/tv/notificar-tv-ordens";
 import {
   adicionarTrabalhoControleEntregasAutomaticoServidor,
   deveAdicionarControleEntregasPorStatus,
+  deveRemoverControleEntregasPorStatus,
+  removerTrabalhoControleEntregasAutomaticoServidor,
 } from "@/lib/controle-entregas-automatico";
 import { STATUS_TRABALHO_FINALIZADO_IMPRESSAO } from "@/lib/os-itens-impressao";
 import { z } from "zod";
@@ -271,7 +273,16 @@ export async function PUT(
       });
     }
 
-    if (statusMudou && deveAdicionarControleEntregasPorStatus(atual.status, novoStatus)) {
+    if (statusMudou && deveRemoverControleEntregasPorStatus(atual.status, novoStatus)) {
+      try {
+        await removerTrabalhoControleEntregasAutomaticoServidor(
+          ctx.empresaId,
+          trabalho.numeroOs
+        );
+      } catch (err) {
+        console.warn("[trabalhos/PUT] remoção controle entregas automático", err);
+      }
+    } else if (statusMudou && deveAdicionarControleEntregasPorStatus(atual.status, novoStatus)) {
       try {
         await adicionarTrabalhoControleEntregasAutomaticoServidor(ctx.empresaId, {
           id: trabalho.id,

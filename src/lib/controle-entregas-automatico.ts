@@ -81,6 +81,27 @@ export function deveAdicionarControleEntregasPorStatus(
   return statusNovo === "saiu_entrega" && statusAnterior !== "saiu_entrega";
 }
 
+export function deveRemoverControleEntregasPorStatus(
+  statusAnterior: string,
+  statusNovo: string
+) {
+  return statusAnterior === "saiu_entrega" && statusNovo === "producao";
+}
+
+function filtrarEntregasPorNumeroOs(lista: EntregaControle[], numeroOs: number) {
+  const alvo = String(numeroOs);
+  return lista.filter((item) => String(item.numeroOs || "").trim() !== alvo);
+}
+
+/** Remove do controle de entregas as rotas vinculadas à OS (ex.: voltou para Produção). */
+export function removerTrabalhoControleEntregasAutomatico(numeroOs: number) {
+  const lista = carregarEntregas();
+  const filtrada = filtrarEntregasPorNumeroOs(lista, numeroOs);
+  if (filtrada.length === lista.length) return false;
+  salvarEntregas(filtrada);
+  return true;
+}
+
 function exigeConfigFaturasControleEntregas(
   opcoes?: { ignorarConfig?: boolean; origem?: "status" | "manual" }
 ) {
@@ -103,12 +124,15 @@ export function adicionarTrabalhoControleEntregasAutomatico(
   return true;
 }
 
-/** Após mudar situação da OS para Saiu para Entrega (produção). */
+/** Após mudar situação da OS (adiciona ou remove do controle de entregas). */
 export function aplicarControleEntregaAposMudancaStatus(
   statusAnterior: string,
   statusNovo: string,
   trabalho: TrabalhoParaControleEntrega
 ) {
+  if (deveRemoverControleEntregasPorStatus(statusAnterior, statusNovo)) {
+    return removerTrabalhoControleEntregasAutomatico(trabalho.numeroOs);
+  }
   if (!deveAdicionarControleEntregasPorStatus(statusAnterior, statusNovo)) return false;
   return adicionarTrabalhoControleEntregasAutomatico(trabalho, { origem: "status" });
 }
@@ -157,5 +181,18 @@ export async function adicionarTrabalhoControleEntregasAutomaticoServidor(
   };
 
   await salvarJsonStoreTenant(empresaId, ENTREGAS_STORAGE_KEY, [...normalizada, nova]);
+  return true;
+}
+
+export async function removerTrabalhoControleEntregasAutomaticoServidor(
+  empresaId: string,
+  numeroOs: number
+) {
+  const lista =
+    (await lerJsonStoreTenant<EntregaControle[]>(empresaId, ENTREGAS_STORAGE_KEY)) ?? [];
+  const normalizada = Array.isArray(lista) ? lista : [];
+  const filtrada = filtrarEntregasPorNumeroOs(normalizada, numeroOs);
+  if (filtrada.length === normalizada.length) return false;
+  await salvarJsonStoreTenant(empresaId, ENTREGAS_STORAGE_KEY, filtrada);
   return true;
 }
