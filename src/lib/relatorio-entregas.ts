@@ -7,7 +7,7 @@ import {
   type EntregaControle,
   type SituacaoEntrega,
 } from "@/lib/controle-entregas";
-import { abrirPdfNoVisualizador } from "@/lib/pdf-viewer";
+import { abrirPdfGerandoNoVisualizadorPagina } from "@/lib/pdf-viewer";
 import { metaStatusOs } from "@/lib/status-os";
 
 export const MODELOS_RELATORIO_ENTREGAS = [
@@ -306,22 +306,19 @@ export async function carregarTrabalhosParaRelatorioEntregas(): Promise<
 export async function imprimirRelatorioEntregas(
   linhas: LinhaRelatorioEntrega[],
   filtro: FiltroRelatorioEntregas,
-  janelaReservada?: Window | null
+  _janelaReservada?: Window | null
 ) {
-  const janela = janelaReservada ?? null;
-  try {
-    const { gerarRelatorioEntregasPdf } = await import("@/lib/relatorios-impressao-pdf");
-    const blob = await gerarRelatorioEntregasPdf(
-      linhas,
-      modeloLabelRelatorioEntregas(filtro.modelo),
-      periodoLabelRelatorioEntregas(filtro),
-      filtro.modelo
-    );
-    abrirPdfNoVisualizador(blob, "relatorio-entregas.pdf", undefined, janela);
-  } catch (err) {
-    janela?.close();
-    throw err;
-  }
+  const tituloModelo = modeloLabelRelatorioEntregas(filtro.modelo);
+  const periodo = periodoLabelRelatorioEntregas(filtro);
+  await abrirPdfGerandoNoVisualizadorPagina(
+    async () => {
+      const { gerarRelatorioEntregasPdf } = await import("@/lib/relatorios-impressao-pdf");
+      return gerarRelatorioEntregasPdf(linhas, tituloModelo, periodo, filtro.modelo);
+    },
+    `Relatório Entregas — ${tituloModelo}`,
+    "relatorio-entregas.pdf",
+    { subtitulo: periodo }
+  );
 }
 
 export function filtroRelatorioFromTela(params: {

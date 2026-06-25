@@ -12,7 +12,6 @@ import {
   type EntregaControle,
   type SituacaoEntrega,
 } from "@/lib/controle-entregas";
-import { prepararAbaPdf } from "@/lib/pdf-viewer";
 import {
   MODELOS_RELATORIO_ENTREGAS,
   carregarTrabalhosParaRelatorioEntregas,
@@ -98,15 +97,18 @@ export function RelatorioEntregasConteudo() {
   }
 
   async function imprimir() {
-    const janela = prepararAbaPdf();
     setGerando(true);
     try {
       const trabalhos = await carregarTrabalhosParaRelatorioEntregas();
       const resultado = gerarLinhasRelatorioEntregas(entregas, filtro, trabalhos);
-      await imprimirRelatorioEntregas(resultado, filtro, janela);
-    } catch {
-      janela?.close();
-      alert("Não foi possível gerar o PDF. Permita pop-ups para este site.");
+      await imprimirRelatorioEntregas(resultado, filtro);
+    } catch (err) {
+      console.error("[relatorio-entregas] imprimir", err);
+      alert(
+        err instanceof Error && err.message
+          ? err.message
+          : "Não foi possível gerar o relatório. Tente novamente."
+      );
     } finally {
       setGerando(false);
     }

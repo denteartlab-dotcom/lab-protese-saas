@@ -48,7 +48,6 @@ import {
 } from "@/lib/controle-entregas-historico";
 import { sincronizarEntregasControleCliente } from "@/lib/controle-entregas-automatico";
 import { ENTREGADORES_CADASTRO_EVENT } from "@/lib/entregadores-cadastro";
-import { prepararAbaPdf } from "@/lib/pdf-viewer";
 import {
   carregarTrabalhosParaRelatorioEntregas,
   exportarRelatorioEntregasCsv,
@@ -192,7 +191,6 @@ export function ControleEntregas() {
   }
 
   async function imprimirRelatorioTela() {
-    const janela = prepararAbaPdf();
     setExportandoRelatorio(true);
     try {
       const trabalhos = await carregarTrabalhosParaRelatorioEntregas();
@@ -201,10 +199,14 @@ export function ControleEntregas() {
         filtroRelatorioTela,
         trabalhos
       );
-      await imprimirRelatorioEntregas(linhas, filtroRelatorioTela, janela);
-    } catch {
-      janela?.close();
-      alert("Não foi possível gerar o PDF. Permita pop-ups para este site.");
+      await imprimirRelatorioEntregas(linhas, filtroRelatorioTela);
+    } catch (err) {
+      console.error("[controle-entregas] imprimir relatório", err);
+      alert(
+        err instanceof Error && err.message
+          ? err.message
+          : "Não foi possível gerar o relatório. Tente novamente."
+      );
     } finally {
       setExportandoRelatorio(false);
     }
@@ -270,20 +272,17 @@ export function ControleEntregas() {
   }
 
   function imprimirHistoricoModal() {
-    const janela = prepararAbaPdf();
     setImprimindoHistorico(true);
-    try {
-      imprimirHistoricoEntregas(historico, janela);
-    } catch (err) {
-      janela?.close();
-      alert(
-        err instanceof Error
-          ? err.message
-          : "Não foi possível imprimir o histórico. Permita pop-ups para este site."
-      );
-    } finally {
-      setImprimindoHistorico(false);
-    }
+    void imprimirHistoricoEntregas(historico)
+      .catch((err) => {
+        console.error("[controle-entregas] imprimir histórico", err);
+        alert(
+          err instanceof Error && err.message
+            ? err.message
+            : "Não foi possível imprimir o histórico. Tente novamente."
+        );
+      })
+      .finally(() => setImprimindoHistorico(false));
   }
 
   const barraEsquerda = (

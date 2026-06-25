@@ -10,7 +10,6 @@ import {
   type SituacaoEntrega,
 } from "@/lib/controle-entregas";
 import { dateToBrShort } from "@/lib/datas-br";
-import { prepararAbaPdf } from "@/lib/pdf-viewer";
 import {
   MODELOS_RELATORIO_ENTREGAS,
   carregarTrabalhosParaRelatorioEntregas,
@@ -167,14 +166,17 @@ export function RelatorioEntregasModal({
   }
 
   async function imprimir() {
-    const janela = prepararAbaPdf();
     setGerando(true);
     try {
       const linhas = await obterLinhasComProducao();
-      await imprimirRelatorioEntregas(linhas, filtroAtual, janela);
-    } catch {
-      janela?.close();
-      alert("Não foi possível gerar o PDF. Permita pop-ups para este site.");
+      await imprimirRelatorioEntregas(linhas, filtroAtual);
+    } catch (err) {
+      console.error("[relatorio-entregas] imprimir", err);
+      alert(
+        err instanceof Error && err.message
+          ? err.message
+          : "Não foi possível gerar o relatório. Tente novamente."
+      );
     } finally {
       setGerando(false);
     }

@@ -220,14 +220,26 @@ export function urlPdfViewerPagina(id: string) {
 export function abrirPdfViewerNovaAba(id: string): Window | null {
   if (typeof window === "undefined") return null;
   const url = urlPdfViewerPagina(id);
+  const features = "popup=yes,width=1024,height=768,noopener=no,noreferrer=no";
 
   try {
-    const janela = window.open("about:blank", "_blank");
+    let janela = window.open("about:blank", "labProtesePdfPreview", features);
+    if (!janela) {
+      janela = window.open("about:blank", "_blank", features);
+    }
     if (!janela) return null;
-    janela.document.title = "Carregando PDF...";
-    janela.document.body.innerHTML =
-      "<div style='font-family:system-ui,sans-serif;padding:32px;color:#334155'>Carregando PDF...</div>";
-    janela.location.replace(url);
+    try {
+      janela.document.title = "Carregando PDF...";
+      janela.document.body.innerHTML =
+        "<div style='font-family:system-ui,sans-serif;padding:32px;color:#334155'>Carregando PDF...</div>";
+      janela.location.replace(url);
+    } catch {
+      try {
+        janela.location.replace(url);
+      } catch {
+        return null;
+      }
+    }
     return janela;
   } catch {
     return null;

@@ -19,11 +19,19 @@ export function prepararAbaPdf(): Window | null {
 function criarAbaPdfCarregando(): Window | null {
   if (typeof window === "undefined") return null;
   try {
-    const w = window.open("about:blank", "_blank");
+    const features = "popup=yes,width=1024,height=768,noopener=no,noreferrer=no";
+    let w = window.open("about:blank", "labProtesePdfPreview", features);
+    if (!w) {
+      w = window.open("about:blank", "_blank", features);
+    }
     if (!w) return null;
-    w.document.title = "Carregando PDF...";
-    w.document.body.innerHTML =
-      "<div style='font-family:system-ui,sans-serif;padding:32px;color:#334155'>Carregando PDF...</div>";
+    try {
+      w.document.title = "Carregando PDF...";
+      w.document.body.innerHTML =
+        "<div style='font-family:system-ui,sans-serif;padding:32px;color:#334155'>Carregando PDF...</div>";
+    } catch {
+      /* Aba aberta; navegação via location.replace ainda pode funcionar. */
+    }
     return w;
   } catch {
     return null;
@@ -247,6 +255,7 @@ export async function abrirPdfNoVisualizadorPagina(
   const {
     criarIdPdfViewer,
     urlPdfViewerPagina,
+    abrirPdfViewerNovaAba,
     publicarPdfNaAba,
     salvarPdfViewerSession,
     salvarPdfViewerSessionNaJanela,
@@ -277,10 +286,10 @@ export async function abrirPdfNoVisualizadorPagina(
     }
     if (!navegarAbaPdf(janela, url)) {
       fecharJanela(janela);
-      janelaAlvo = typeof window !== "undefined" ? window.open(url, "_blank") : null;
+      janelaAlvo = abrirPdfViewerNovaAba(id);
     }
   } else if (typeof window !== "undefined") {
-    janelaAlvo = window.open(url, "_blank");
+    janelaAlvo = abrirPdfViewerNovaAba(id);
   }
 
   let payloadPronto: Awaited<ReturnType<typeof publicarPdfNaAba>> | null = null;
@@ -293,8 +302,14 @@ export async function abrirPdfNoVisualizadorPagina(
     });
     if (janelaAlvo && !janelaAlvo.closed) {
       salvarPdfViewerSessionNaJanela(janelaAlvo, id, payloadPronto);
+      enviarPdfViewerParaJanela(janelaAlvo, id, payloadPronto);
+      return;
     }
-    enviarPdfViewerParaJanela(janelaAlvo, id, payloadPronto);
+
+    if (blobGerado) {
+      baixarPdfBlob(blobGerado, nomeArquivo);
+      return;
+    }
   } catch (err) {
     const mensagem =
       err instanceof Error ? err.message : "Não foi possível carregar o documento.";

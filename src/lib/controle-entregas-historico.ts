@@ -1,9 +1,9 @@
 import {
   formatarDataHoraEntrega,
-  formatarMoedaEntrega,
   type EntregaControle,
 } from "@/lib/controle-entregas";
 import { aplicarEspelhoServidor } from "@/lib/armazenamento-laboratorio";
+import { abrirHtmlParaImpressao } from "@/lib/pdf-viewer";
 import { lerJsonStoreTenant, salvarJsonStoreTenant } from "@/lib/json-store-tenant";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 
@@ -172,16 +172,8 @@ function escHtml(texto: string) {
     .replace(/"/g, "&quot;");
 }
 
-export function imprimirHistoricoEntregas(
-  historico: EntregaHistorico[],
-  janelaReservada?: Window | null
-) {
-  if (typeof window === "undefined") return;
-  const janela = janelaReservada ?? window.open("about:blank", "_blank");
-  if (!janela) {
-    throw new Error("Não foi possível abrir a janela de impressão. Permita pop-ups para este site.");
-  }
-
+function gerarHtmlHistoricoEntregas(historico: EntregaHistorico[]) {
+  const emitidoEm = new Date().toLocaleString("pt-BR");
   const linhas =
     historico.length === 0
       ? `<tr><td colspan="6" style="padding:16px;text-align:center;color:#64748b">Nenhuma entrega no histórico.</td></tr>`
@@ -194,14 +186,11 @@ export function imprimirHistoricoEntregas(
               <td>${escHtml(formatarDataHoraEntrega(item.dataFinalizado))}</td>
               <td>${escHtml(labelSituacaoHistorico(item.situacao))}</td>
               <td>${escHtml(item.nomeRecebedor || "—")}</td>
-              <td style="text-align:right">${escHtml(formatarMoedaEntrega(item.valor))}</td>
             </tr>`
           )
           .join("");
 
-  const emitidoEm = new Date().toLocaleString("pt-BR");
-  janela.document.open();
-  janela.document.write(`<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
@@ -227,16 +216,20 @@ export function imprimirHistoricoEntregas(
         <th>Entregue em</th>
         <th>Situação</th>
         <th>Recebedor</th>
-        <th style="text-align:right">Valor</th>
       </tr>
     </thead>
     <tbody>${linhas}</tbody>
   </table>
 </body>
-</html>`);
-  janela.document.close();
-  janela.focus();
-  janela.print();
+</html>`;
+}
+
+export async function imprimirHistoricoEntregas(historico: EntregaHistorico[]) {
+  await abrirHtmlParaImpressao(
+    async () => gerarHtmlHistoricoEntregas(historico),
+    "Histórico de entregas",
+    "historico-entregas.html"
+  );
 }
 
 /** Persiste histórico no JsonStore do tenant. */
