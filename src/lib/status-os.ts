@@ -7,6 +7,8 @@ const ALIASES_STATUS_OS: Record<string, string> = {
   "saiu-entrega": "saiu_entrega",
   "recebido pelo cliente": "recebido_cliente",
   "recebido cliente": "recebido_cliente",
+  "entregue ao cliente": "entregue_cliente",
+  "entregue cliente": "entregue_cliente",
 };
 
 const ROTULO_PARA_CHAVE_STATUS_OS = Object.fromEntries(

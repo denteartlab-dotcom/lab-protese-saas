@@ -33,6 +33,7 @@ export const MENSAGEM_LINK_ACOMPANHAMENTO_INVALIDO =
 
 /** Situações exibidas no fim da lista do acompanhamento público. */
 export const STATUS_ACOMPANHAMENTO_ORDEM_FINAL = new Set([
+  "entregue_cliente",
   "recebido_cliente",
   "finalizado",
   "entregue",
@@ -44,6 +45,7 @@ function prioridadeOrdemAcompanhamento(status: string): number {
   const chave = normalizarChaveStatusOs(status);
   if (chave === "finalizado" || chave === "entregue") return 2;
   if (chave === "recebido_cliente") return 1;
+  if (chave === "entregue_cliente") return 1;
   if (chave === "cancelado") return 3;
   return 0;
 }
@@ -84,6 +86,7 @@ export function opcoesFiltroSituacaoAcompanhamento(
     "producao",
     "prova",
     "saiu_entrega",
+    "entregue_cliente",
     "finalizado",
     "entregue",
     "recebido_cliente",

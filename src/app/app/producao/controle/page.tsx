@@ -150,6 +150,8 @@ import {
   aplicarControleEntregaAposMudancaStatus,
   type TrabalhoParaControleEntrega,
 } from "@/lib/controle-entregas-automatico";
+import { STATUS_ENTREGUE_CLIENTE } from "@/lib/entrega-trabalho-sync";
+import { normalizarChaveStatusOs } from "@/lib/status-os";
 import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
 import { notificarUploadsAtualizados } from "@/lib/uploads-armazenamento";
 import { useArmazenamentoGaleria } from "@/hooks/use-armazenamento-galeria";
@@ -693,10 +695,12 @@ function CelulaSituacaoControle({
   trabalho,
   primeiroItem,
   onEditarStatus,
+  onMarcarEntregueCliente,
 }: {
   trabalho: Trabalho;
   primeiroItem?: ReturnType<typeof parseItens>[number];
   onEditarStatus: () => void;
+  onMarcarEntregueCliente?: () => void;
 }) {
   const exibicao = situacaoExibicaoTrabalho(trabalho, primeiroItem);
 
@@ -716,15 +720,37 @@ function CelulaSituacaoControle({
     );
   }
 
+  const statusChave = normalizarChaveStatusOs(trabalho.status);
+
   return (
-    <button
-      type="button"
-      onClick={onEditarStatus}
-      className={`rounded px-2 py-1 text-[10px] font-semibold ${STATUS_TRABALHO[trabalho.status]?.color || "bg-slate-100 text-slate-700"}`}
-      title="Alterar situação"
-    >
-      {statusLabel(trabalho.status)}
-    </button>
+    <div className="flex flex-wrap items-center gap-1">
+      <button
+        type="button"
+        onClick={onEditarStatus}
+        className={`rounded px-2 py-1 text-[10px] font-semibold ${STATUS_TRABALHO[trabalho.status]?.color || "bg-slate-100 text-slate-700"}`}
+        title="Alterar situação"
+      >
+        {statusLabel(trabalho.status)}
+      </button>
+      {statusChave === "saiu_entrega" && onMarcarEntregueCliente ? (
+        <select
+          defaultValue=""
+          onChange={(e) => {
+            if (e.target.value === STATUS_ENTREGUE_CLIENTE) {
+              onMarcarEntregueCliente();
+            }
+            e.currentTarget.value = "";
+          }}
+          className="h-6 max-w-[130px] rounded border border-emerald-300 bg-white px-1 text-[9px] text-emerald-800 focus:border-emerald-500 focus:outline-none"
+          title="Marcar como entregue ao cliente"
+        >
+          <option value="">Entregar...</option>
+          <option value={STATUS_ENTREGUE_CLIENTE}>
+            {STATUS_TRABALHO[STATUS_ENTREGUE_CLIENTE]?.label || "Entregue ao cliente"}
+          </option>
+        </select>
+      ) : null}
+    </div>
   );
 }
 
@@ -3383,6 +3409,9 @@ export default function ControlePage() {
                         trabalho={trabalho}
                         primeiroItem={primeiroItem}
                         onEditarStatus={() => abrirStatusRapido(trabalho)}
+                        onMarcarEntregueCliente={() =>
+                          void atualizarStatus(trabalho, STATUS_ENTREGUE_CLIENTE)
+                        }
                       />
                     </td>
                     <td className="px-2 py-2">

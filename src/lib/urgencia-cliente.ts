@@ -13,7 +13,13 @@ export function isLinhaAuditoriaUrgenciaCliente(linha: string) {
   return linha.includes("Urgência solicitada pelo cliente");
 }
 
-const STATUS_FINALIZADOS = ["cancelado", "entregue", "finalizado", "recebido_cliente"];
+const STATUS_FINALIZADOS = [
+  "cancelado",
+  "entregue",
+  "entregue_cliente",
+  "finalizado",
+  "recebido_cliente",
+];
 
 export type EventoUrgenciaCliente = {
   id: string;

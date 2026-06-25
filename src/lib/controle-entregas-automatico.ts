@@ -10,9 +10,14 @@ import {
   criarEntrega,
   ENTREGAS_EVENT,
   ENTREGAS_STORAGE_KEY,
+  salvarEntregas,
   type EntregaControle,
 } from "@/lib/controle-entregas";
 import { aplicarEspelhoServidor } from "@/lib/armazenamento-laboratorio";
+import {
+  concluirEntregasControlePorNumeroOs,
+  STATUS_ENTREGUE_CLIENTE,
+} from "@/lib/entrega-trabalho-sync";
 import { lerJsonStoreTenant, salvarJsonStoreTenant } from "@/lib/json-store-tenant";
 
 export type TrabalhoParaControleEntrega = {
@@ -131,6 +136,13 @@ export function aplicarControleEntregaAposMudancaStatus(
 ) {
   if (deveRemoverControleEntregasPorStatus(statusAnterior, statusNovo)) {
     return removerTrabalhoControleEntregasAutomatico(trabalho.numeroOs);
+  }
+  if (statusNovo === STATUS_ENTREGUE_CLIENTE) {
+    const mudou = concluirEntregasControlePorNumeroOs(trabalho.numeroOs, {
+      situacao: "entregue",
+    });
+    void sincronizarEntregasControleCliente();
+    return mudou;
   }
   if (!deveAdicionarControleEntregasPorStatus(statusAnterior, statusNovo)) return false;
   return adicionarTrabalhoControleEntregasAutomatico(trabalho, { origem: "status" });

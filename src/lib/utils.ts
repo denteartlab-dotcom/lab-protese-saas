@@ -65,6 +65,7 @@ export const STATUS_TRABALHO: Record<string, { label: string; color: string }> =
   pendente: { label: "Pendente", color: "bg-red-50 text-red-500" },
   cancelado: { label: "Cancelado", color: "bg-red-500 text-white" },
   saiu_entrega: { label: "Saiu para Entrega", color: "bg-cyan-100 text-cyan-600" },
+  entregue_cliente: { label: "Entregue ao cliente", color: "bg-emerald-100 text-emerald-800" },
   recebido_cliente: { label: "Recebido", color: "bg-teal-100 text-teal-700" },
   entregue: { label: "Entregue", color: "bg-emerald-500 text-white" },
 };

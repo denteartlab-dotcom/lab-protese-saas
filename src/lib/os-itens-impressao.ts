@@ -162,6 +162,7 @@ function statusOsFinalizado(status?: string) {
 export const STATUS_TRABALHO_FINALIZADO_IMPRESSAO = new Set([
   "finalizado",
   "entregue",
+  "entregue_cliente",
   "saiu_entrega",
   "recebido_cliente",
 ]);

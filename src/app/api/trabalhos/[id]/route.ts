@@ -29,6 +29,10 @@ import {
   deveRemoverControleEntregasPorStatus,
   removerTrabalhoControleEntregasAutomaticoServidor,
 } from "@/lib/controle-entregas-automatico";
+import {
+  concluirEntregasControlePorNumeroOsServidor,
+  STATUS_ENTREGUE_CLIENTE,
+} from "@/lib/entrega-trabalho-sync";
 import { STATUS_TRABALHO_FINALIZADO_IMPRESSAO } from "@/lib/os-itens-impressao";
 import { z } from "zod";
 
@@ -293,6 +297,16 @@ export async function PUT(
         }, { origem: "status" });
       } catch (err) {
         console.warn("[trabalhos/PUT] controle entregas automático", err);
+      }
+    }
+
+    if (statusMudou && novoStatus === STATUS_ENTREGUE_CLIENTE) {
+      try {
+        await concluirEntregasControlePorNumeroOsServidor(ctx.empresaId, trabalho.numeroOs, {
+          situacao: "entregue",
+        });
+      } catch (err) {
+        console.warn("[trabalhos/PUT] conclusão controle entregas", err);
       }
     }
 

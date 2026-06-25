@@ -786,6 +786,7 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
                           "prova",
                           "finalizado",
                           "saiu_entrega",
+                          "entregue_cliente",
                           "recebido_cliente",
                           "entregue",
                           "pendente",

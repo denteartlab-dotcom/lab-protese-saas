@@ -11,6 +11,10 @@ import { segmentoEfetivoTrabalho } from "@/lib/trabalho-os-segmento";
 import { STATUS_TRABALHO } from "@/lib/utils";
 import { notificarTvOrdensEmpresa } from "@/lib/tv/notificar-tv-ordens";
 import {
+  concluirEntregasControlePorNumeroOsServidor,
+  STATUS_ENTREGUE_CLIENTE,
+} from "@/lib/entrega-trabalho-sync";
+import {
   removerUrgenciaOs,
   trabalhoVisivelNoAcompanhamento,
 } from "@/lib/urgencia-cliente";
@@ -78,7 +82,8 @@ export function historicoRecebimentoPorTrabalho(
 }
 
 export function podeConfirmarRecebimentoCliente(status: string) {
-  return normalizarChaveStatusOs(status) === "saiu_entrega";
+  const chave = normalizarChaveStatusOs(status);
+  return chave === "saiu_entrega" || chave === STATUS_ENTREGUE_CLIENTE;
 }
 
 function normalizarNomeRecebedor(nome: string) {
@@ -136,11 +141,12 @@ export async function confirmarRecebimentoCliente(params: {
     };
   }
 
-  if (statusAtual !== "saiu_entrega") {
+  if (statusAtual !== "saiu_entrega" && statusAtual !== STATUS_ENTREGUE_CLIENTE) {
     return {
       ok: false as const,
       code: "status_invalido",
-      message: "Só é possível confirmar recebimento quando o serviço saiu para entrega.",
+      message:
+        "Só é possível confirmar recebimento quando o serviço saiu para entrega ou foi entregue ao cliente.",
     };
   }
 
@@ -212,6 +218,15 @@ export async function confirmarRecebimentoCliente(params: {
   await salvarStoreRecebimentosCliente(trabalho.empresaId, {
     eventos: [evento, ...store.eventos],
   });
+
+  try {
+    await concluirEntregasControlePorNumeroOsServidor(trabalho.empresaId, trabalho.numeroOs, {
+      situacao: "recebido",
+      nomeRecebedor,
+    });
+  } catch (err) {
+    console.warn("[recebimento-cliente] conclusão controle entregas", err);
+  }
 
   await registrarLogAuditoria({
     empresaId: trabalho.empresaId,

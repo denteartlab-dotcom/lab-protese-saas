@@ -9,7 +9,7 @@ export const ENTREGAS_STORAGE_KEY = "labProteseControleEntregas";
 export const ENTREGADORES_STORAGE_KEY = "labProteseEntregadores";
 export const ENTREGAS_EVENT = "labProteseControleEntregasAtualizado";
 
-export type SituacaoEntrega = "pendente" | "em_rota" | "entregue";
+export type SituacaoEntrega = "pendente" | "em_rota" | "entregue" | "recebido";
 
 export type TipoDestinatarioEntrega = "cliente" | "fornecedor" | "prestador";
 export type TipoDestinatarioEntregaForm = TipoDestinatarioEntrega | "";
@@ -73,6 +73,7 @@ export const SITUACOES_ENTREGA: Record<
   pendente: { label: "Pendente", badge: "bg-amber-100 text-amber-800" },
   em_rota: { label: "Em Rota", badge: "bg-blue-100 text-blue-800" },
   entregue: { label: "Entregue", badge: "bg-emerald-100 text-emerald-800" },
+  recebido: { label: "Recebido", badge: "bg-teal-100 text-teal-800" },
 };
 
 export function carregarEntregas(): EntregaControle[] {
@@ -112,8 +113,12 @@ function normalizarEntrega(item: Partial<EntregaControle>): EntregaControle | nu
   const destinatario = String(item.destinatario || "").trim();
   if (!id || !destinatario) return null;
 
-  const situacao =
-    item.situacao === "em_rota" || item.situacao === "entregue" ? item.situacao : "pendente";
+  const situacao: SituacaoEntrega =
+    item.situacao === "em_rota" ||
+    item.situacao === "entregue" ||
+    item.situacao === "recebido"
+      ? item.situacao
+      : "pendente";
 
   const tipoDestinatario = normalizarTipoDestinatario(item.tipoDestinatario);
 
@@ -370,7 +375,9 @@ export function filtrarEntregas(
     const situacaoFiltro = filtros.situacaoCard && filtros.situacaoCard !== "todos"
       ? filtros.situacaoCard
       : filtros.situacao || "";
-    if (situacaoFiltro && entrega.situacao !== situacaoFiltro) return false;
+    if (situacaoFiltro && entrega.situacao !== situacaoFiltro) {
+      if (!(situacaoFiltro === "entregue" && entrega.situacao === "recebido")) return false;
+    }
 
     if (termo) {
       const haystack = [
@@ -415,6 +422,8 @@ export function contarPorSituacao(entregas: EntregaControle[]) {
   return {
     pendente: entregas.filter((item) => item.situacao === "pendente").length,
     em_rota: entregas.filter((item) => item.situacao === "em_rota").length,
-    entregue: entregas.filter((item) => item.situacao === "entregue").length,
+    entregue: entregas.filter(
+      (item) => item.situacao === "entregue" || item.situacao === "recebido"
+    ).length,
   };
 }
