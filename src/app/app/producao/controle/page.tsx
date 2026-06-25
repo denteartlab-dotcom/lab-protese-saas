@@ -733,22 +733,14 @@ function CelulaSituacaoControle({
         {statusLabel(trabalho.status)}
       </button>
       {statusChave === "saiu_entrega" && onMarcarEntregueCliente ? (
-        <select
-          defaultValue=""
-          onChange={(e) => {
-            if (e.target.value === STATUS_ENTREGUE_CLIENTE) {
-              onMarcarEntregueCliente();
-            }
-            e.currentTarget.value = "";
-          }}
-          className="h-6 max-w-[130px] rounded border border-emerald-300 bg-white px-1 text-[9px] text-emerald-800 focus:border-emerald-500 focus:outline-none"
+        <button
+          type="button"
+          onClick={onMarcarEntregueCliente}
+          className="rounded border border-emerald-300 bg-white px-2 py-1 text-[9px] font-semibold text-emerald-800 hover:bg-emerald-50"
           title="Marcar como entregue ao cliente"
         >
-          <option value="">Entregar...</option>
-          <option value={STATUS_ENTREGUE_CLIENTE}>
-            {STATUS_TRABALHO[STATUS_ENTREGUE_CLIENTE]?.label || "Entregue ao cliente"}
-          </option>
-        </select>
+          Entregar
+        </button>
       ) : null}
     </div>
   );
