@@ -32,6 +32,7 @@ import {
 import {
   comissaoColaboradorNaTabelaServico,
   montarPrazoEtapaOs,
+  servicoTemEtapasNaTabela,
   valorMonetarioEtapaServico,
   type ServicoTabelaPrecoOs,
 } from "@/lib/tabela-precos-os";
@@ -339,9 +340,8 @@ export function EtapasOsEditor({
         ) : null}
       </div>
 
-      {exibirLinhas && etapas.length === 0 ? (
-        <p className="text-[11px] text-slate-500">Nenhuma etapa cadastrada para este serviço.</p>
-      ) : exibirLinhas ? (
+      {servicoTemEtapasNaTabela(servico) ? (
+        exibirLinhas ? (
         <div className="max-h-[min(420px,52vh)] space-y-3 overflow-y-auto overflow-x-hidden pr-1">
           {avisoEtapa ? (
             <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
@@ -486,7 +486,14 @@ export function EtapasOsEditor({
             );
           })}
         </div>
-      ) : null}
+        ) : null
+      ) : (
+        <p className="text-[11px] text-slate-500">
+          {servico
+            ? `Nenhuma etapa cadastrada na tabela de preços do serviço ${servico.nome}.`
+            : "Selecione um serviço com etapas cadastradas na tabela de preços."}
+        </p>
+      )}
     </div>
   );
 }

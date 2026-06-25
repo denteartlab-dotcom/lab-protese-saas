@@ -3966,7 +3966,7 @@ export default function OrdemServicoPage() {
                   <div className="space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-sm font-semibold text-slate-800">Etapas</span>
-                      {exibeLinhasEtapasOs && (
+                      {servicoTemEtapasNaTabela(servicoOsAtual) && exibeLinhasEtapasOs && (
                         <button
                           type="button"
                           className="rounded bg-emerald-600 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-emerald-700"
@@ -3977,7 +3977,13 @@ export default function OrdemServicoPage() {
                       )}
                     </div>
 
-                    {exibeLinhasEtapasOs && (
+                    {!servicoTemEtapasNaTabela(servicoOsAtual) ? (
+                      <p className="text-[11px] text-slate-500">
+                        {servicoOsAtual
+                          ? `Nenhuma etapa cadastrada na tabela de preços do serviço ${servicoOsAtual.nome}.`
+                          : "Selecione um serviço com etapas cadastradas na tabela de preços."}
+                      </p>
+                    ) : exibeLinhasEtapasOs ? (
                     <div className="max-h-[min(420px,52vh)] space-y-3 overflow-y-auto overflow-x-hidden pr-1">
                       {avisoEtapa ? (
                         <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
@@ -4138,7 +4144,7 @@ export default function OrdemServicoPage() {
                         );
                       })}
                     </div>
-                    )}
+                    ) : null}
                   </div>
                 )}
 
