@@ -495,7 +495,7 @@ export async function moverTrabalhoTvColuna(
         tipoProtese: trabalho.tipoProtese,
         valor: trabalho.valor,
         cliente: trabalho.cliente,
-      });
+      }, { origem: "status" });
     } catch (err) {
       console.warn("[tv] controle entregas automático", err);
     }

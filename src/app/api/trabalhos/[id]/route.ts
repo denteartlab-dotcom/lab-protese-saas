@@ -279,7 +279,7 @@ export async function PUT(
           tipoProtese: trabalho.tipoProtese,
           valor: trabalho.valor,
           cliente: trabalho.cliente,
-        });
+        }, { origem: "status" });
       } catch (err) {
         console.warn("[trabalhos/PUT] controle entregas automático", err);
       }

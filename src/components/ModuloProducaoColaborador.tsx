@@ -54,8 +54,7 @@ import {
 } from "@/lib/modulo-producao-etapas";
 import { useSessaoInatividade } from "@/hooks/use-sessao-inatividade";
 import {
-  adicionarTrabalhoControleEntregasAutomatico,
-  deveAdicionarControleEntregasPorStatus,
+  aplicarControleEntregaAposMudancaStatus,
 } from "@/lib/controle-entregas-automatico";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { limparUltimaAtividadeSessao } from "@/lib/sessao-inatividade";
@@ -356,15 +355,13 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
       body: JSON.stringify({ status: novoStatus }),
     });
     if (!res.ok) return;
-    if (deveAdicionarControleEntregasPorStatus(statusAnterior, novoStatus)) {
-      adicionarTrabalhoControleEntregasAutomatico({
-        id: osSelecionada.id,
-        numeroOs: osSelecionada.numeroOs,
-        tipoProtese: osSelecionada.tipoProtese,
-        valor: osSelecionada.valor,
-        cliente: osSelecionada.cliente,
-      });
-    }
+    aplicarControleEntregaAposMudancaStatus(statusAnterior, novoStatus, {
+      id: osSelecionada.id,
+      numeroOs: osSelecionada.numeroOs,
+      tipoProtese: osSelecionada.tipoProtese,
+      valor: osSelecionada.valor,
+      cliente: osSelecionada.cliente,
+    });
     setOsSelecionada({ ...osSelecionada, status: novoStatus });
     setResultadosOs((lista) =>
       lista.map((t) => (t.id === osSelecionada.id ? { ...t, status: novoStatus } : t))

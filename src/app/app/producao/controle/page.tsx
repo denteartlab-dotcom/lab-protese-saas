@@ -146,6 +146,10 @@ import {
   linhaInstrucaoOs,
   montarCorpoCabecalhoInstrucoes,
 } from "@/lib/cabecalho-os-form";
+import {
+  aplicarControleEntregaAposMudancaStatus,
+  type TrabalhoParaControleEntrega,
+} from "@/lib/controle-entregas-automatico";
 import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
 import { notificarUploadsAtualizados } from "@/lib/uploads-armazenamento";
 import { useArmazenamentoGaleria } from "@/hooks/use-armazenamento-galeria";
@@ -1070,6 +1074,26 @@ export default function ControlePage() {
   const [avisoConfirmarItem, setAvisoConfirmarItem] = useState("");
   const [clientesCatalogo, setClientesCatalogo] = useState<ClienteCatalogo[]>([]);
   const [arquivosEdicao, setArquivosEdicao] = useState<File[]>([]);
+
+  function dadosControleEntrega(
+    trabalho: Trabalho,
+    extras?: { clienteId?: string; tipoProtese?: string }
+  ): TrabalhoParaControleEntrega {
+    const clienteId = extras?.clienteId || trabalho.clienteId || trabalho.cliente?.id;
+    const catalogo = clienteId
+      ? clientesCatalogo.find((item) => item.id === clienteId)
+      : undefined;
+    return {
+      id: trabalho.id,
+      numeroOs: trabalho.numeroOs,
+      tipoProtese: extras?.tipoProtese || trabalho.tipoProtese,
+      valor: trabalho.valor,
+      cliente: {
+        nome: catalogo?.nome || trabalho.cliente?.nome,
+        observacoes: catalogo?.observacoes ?? trabalho.cliente?.observacoes,
+      },
+    };
+  }
   const [anexosEdicao, setAnexosEdicao] = useState<AnexoOs[]>([]);
   const { mensagemBloqueioUpload, podeEnviarArquivos } = useArmazenamentoGaleria();
   const editarUrlAbertoRef = useRef(false);
@@ -2980,6 +3004,20 @@ export default function ControlePage() {
     if (form?.tipoRepeticaoOs) {
       await registrarRepeticaoManualEdicaoOs();
     }
+    if (
+      editando &&
+      form &&
+      form.status !== editando.status
+    ) {
+      aplicarControleEntregaAposMudancaStatus(
+        editando.status,
+        form.status,
+        dadosControleEntrega(editando, {
+          clienteId: form.clienteId,
+          tipoProtese: form.tipoProtese,
+        })
+      );
+    }
     notificarTrabalhosAtualizados({ trabalhoId: editando.id });
     fecharEdicaoOs();
     void load();
@@ -3001,6 +3039,7 @@ export default function ControlePage() {
   }
 
   async function atualizarStatus(trabalho: Trabalho, novoStatus: string) {
+    const statusAnterior = trabalho.status;
     setTrabalhos((atuais) =>
       aplicarMudancaStatusLocal(atuais, trabalho, { status: novoStatus })
     );
@@ -3014,6 +3053,11 @@ export default function ControlePage() {
     if (!res.ok) {
       load();
     } else {
+      aplicarControleEntregaAposMudancaStatus(
+        statusAnterior,
+        novoStatus,
+        dadosControleEntrega(trabalho)
+      );
       notificarTrabalhosAtualizados({ trabalhoId: trabalho.id });
     }
   }
@@ -3030,6 +3074,10 @@ export default function ControlePage() {
 
   async function salvarStatusRapido() {
     if (!statusEditando) return;
+
+    const refTrabalho = statusEditando;
+    const statusAnterior = refTrabalho.status;
+    const novoStatus = statusForm.status;
 
     setTrabalhos((atuais) => {
       const ids = idsServicosMesmaOs(statusEditando, atuais);
@@ -3076,7 +3124,12 @@ export default function ControlePage() {
     if (!res.ok) {
       load();
     } else {
-      notificarTrabalhosAtualizados({ trabalhoId: statusEditando.id });
+      aplicarControleEntregaAposMudancaStatus(
+        statusAnterior,
+        novoStatus,
+        dadosControleEntrega(refTrabalho)
+      );
+      notificarTrabalhosAtualizados({ trabalhoId: refTrabalho.id });
     }
   }
 

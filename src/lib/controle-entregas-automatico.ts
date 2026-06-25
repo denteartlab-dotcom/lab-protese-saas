@@ -8,9 +8,11 @@ import {
 import {
   carregarEntregas,
   criarEntrega,
+  ENTREGAS_EVENT,
   ENTREGAS_STORAGE_KEY,
   type EntregaControle,
 } from "@/lib/controle-entregas";
+import { aplicarEspelhoServidor } from "@/lib/armazenamento-laboratorio";
 import { lerJsonStoreTenant, salvarJsonStoreTenant } from "@/lib/json-store-tenant";
 
 export type TrabalhoParaControleEntrega = {
@@ -79,15 +81,20 @@ export function deveAdicionarControleEntregasPorStatus(
   return statusNovo === "saiu_entrega" && statusAnterior !== "saiu_entrega";
 }
 
+function exigeConfigFaturasControleEntregas(
+  opcoes?: { ignorarConfig?: boolean; origem?: "status" | "manual" }
+) {
+  if (opcoes?.origem === "status" || opcoes?.ignorarConfig) return false;
+  const config = carregarConfiguracoesGerais();
+  return !config.faturasAdicionarControleEntregas;
+}
+
 /** Adiciona ao controle de entregas no navegador (espelho + persistência). */
 export function adicionarTrabalhoControleEntregasAutomatico(
   trabalho: TrabalhoParaControleEntrega,
-  opcoes?: { ignorarConfig?: boolean }
+  opcoes?: { ignorarConfig?: boolean; origem?: "status" | "manual" }
 ) {
-  if (!opcoes?.ignorarConfig) {
-    const config = carregarConfiguracoesGerais();
-    if (!config.faturasAdicionarControleEntregas) return false;
-  }
+  if (exigeConfigFaturasControleEntregas(opcoes)) return false;
 
   const lista = carregarEntregas();
   if (entregaJaExisteParaOs(lista, trabalho.numeroOs)) return false;
@@ -96,16 +103,48 @@ export function adicionarTrabalhoControleEntregasAutomatico(
   return true;
 }
 
+/** Após mudar situação da OS para Saiu para Entrega (produção). */
+export function aplicarControleEntregaAposMudancaStatus(
+  statusAnterior: string,
+  statusNovo: string,
+  trabalho: TrabalhoParaControleEntrega
+) {
+  if (!deveAdicionarControleEntregasPorStatus(statusAnterior, statusNovo)) return false;
+  return adicionarTrabalhoControleEntregasAutomatico(trabalho, { origem: "status" });
+}
+
+/** Atualiza o espelho local com entregas gravadas no servidor (outra aba / API). */
+export async function sincronizarEntregasControleCliente(): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  try {
+    const res = await fetch(
+      `/api/json-store/${encodeURIComponent(ENTREGAS_STORAGE_KEY)}`,
+      { cache: "no-store", credentials: "same-origin" }
+    );
+    if (!res.ok) return false;
+    const lista = await res.json();
+    if (!Array.isArray(lista)) return false;
+    aplicarEspelhoServidor(ENTREGAS_STORAGE_KEY, lista);
+    window.dispatchEvent(new Event(ENTREGAS_EVENT));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Persiste no JsonStore do tenant (API / TV / múltiplas abas). */
 export async function adicionarTrabalhoControleEntregasAutomaticoServidor(
   empresaId: string,
-  trabalho: TrabalhoParaControleEntrega
+  trabalho: TrabalhoParaControleEntrega,
+  opcoes?: { origem?: "status" | "manual" }
 ) {
-  const configRaw = await lerJsonStoreTenant(empresaId, CONFIG_GERAIS_STORAGE_KEY);
-  const config = normalizarConfiguracoesGerais(
-    configRaw as Partial<ConfiguracoesGerais> | null
-  );
-  if (!config.faturasAdicionarControleEntregas) return false;
+  if (opcoes?.origem !== "status") {
+    const configRaw = await lerJsonStoreTenant(empresaId, CONFIG_GERAIS_STORAGE_KEY);
+    const config = normalizarConfiguracoesGerais(
+      configRaw as Partial<ConfiguracoesGerais> | null
+    );
+    if (!config.faturasAdicionarControleEntregas) return false;
+  }
 
   const lista =
     (await lerJsonStoreTenant<EntregaControle[]>(empresaId, ENTREGAS_STORAGE_KEY)) ?? [];

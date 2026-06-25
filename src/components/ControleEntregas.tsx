@@ -35,6 +35,7 @@ import {
   type EntregaControle,
   type SituacaoEntrega,
 } from "@/lib/controle-entregas";
+import { sincronizarEntregasControleCliente } from "@/lib/controle-entregas-automatico";
 import { prepararAbaPdf } from "@/lib/pdf-viewer";
 import {
   carregarTrabalhosParaRelatorioEntregas,
@@ -113,7 +114,9 @@ export function ControleEntregas() {
   }
 
   useEffect(() => {
-    recarregar();
+    void sincronizarEntregasControleCliente().then((sincronizou) => {
+      if (!sincronizou) recarregar();
+    });
     window.addEventListener(ENTREGAS_EVENT, recarregar);
     return () => window.removeEventListener(ENTREGAS_EVENT, recarregar);
   }, []);
