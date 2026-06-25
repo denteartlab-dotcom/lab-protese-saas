@@ -470,6 +470,57 @@ export async function gerarRelatorioEntregasPdf(
   });
 }
 
+export type LinhaHistoricoEntregaPdf = {
+  numeroOs: string;
+  destinatario: string;
+  descricao: string;
+  entregador: string;
+  entregueEm: string;
+  situacao: string;
+  recebedor: string;
+  valor: number;
+};
+
+export async function gerarHistoricoEntregasPdf(
+  linhas: LinhaHistoricoEntregaPdf[],
+  periodoTexto: string
+) {
+  const total = linhas.reduce((s, l) => s + l.valor, 0);
+
+  return gerarRelatorioTabelaPdf({
+    tituloRelatorio: "Histórico de entregas",
+    periodoTexto,
+    colunas: [
+      { titulo: "OS", larguraMm: 11, alinhamento: "center" },
+      { titulo: "Destinatário", larguraMm: 24, alinhamento: "left" },
+      { titulo: "Descrição", larguraMm: 28, alinhamento: "left" },
+      { titulo: "Entregador", larguraMm: 20, alinhamento: "left" },
+      { titulo: "Entregue em", larguraMm: 22, alinhamento: "left" },
+      { titulo: "Situação", larguraMm: 24, alinhamento: "center" },
+      { titulo: "Recebedor", larguraMm: 22, alinhamento: "left" },
+      { titulo: "Valor", larguraMm: 17, alinhamento: "right" },
+    ],
+    linhas:
+      linhas.length === 0
+        ? [["—", "Nenhuma entrega no histórico.", "—", "—", "—", "—", "—", "0,00"]]
+        : linhas.map((l) => [
+            l.numeroOs,
+            l.destinatario,
+            l.descricao,
+            l.entregador,
+            l.entregueEm,
+            l.situacao,
+            l.recebedor,
+            money(l.valor),
+          ]),
+    linhaTotal: {
+      indiceRotulo: 6,
+      rotulo: "Total",
+      celulas: [null, null, null, null, null, null, "Total", money(total)],
+    },
+  });
+}
+
 export async function gerarMargemContribuicaoPdf(
   linhas: {
     categoria: string;

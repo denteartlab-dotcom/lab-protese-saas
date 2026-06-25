@@ -3,7 +3,8 @@ import {
   type EntregaControle,
 } from "@/lib/controle-entregas";
 import { aplicarEspelhoServidor } from "@/lib/armazenamento-laboratorio";
-import { abrirHtmlParaImpressao } from "@/lib/pdf-viewer";
+import { abrirPdfGerando } from "@/lib/pdf-viewer";
+import { gerarHistoricoEntregasPdf } from "@/lib/relatorios-impressao-pdf";
 import { lerJsonStoreTenant, salvarJsonStoreTenant } from "@/lib/json-store-tenant";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 
@@ -164,71 +165,27 @@ export async function excluirHistoricoEntregaPersistido(id: string) {
   return filtrada;
 }
 
-function escHtml(texto: string) {
-  return texto
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function gerarHtmlHistoricoEntregas(historico: EntregaHistorico[]) {
-  const emitidoEm = new Date().toLocaleString("pt-BR");
-  const linhas =
-    historico.length === 0
-      ? `<tr><td colspan="6" style="padding:16px;text-align:center;color:#64748b">Nenhuma entrega no histórico.</td></tr>`
-      : historico
-          .map(
-            (item) => `<tr>
-              <td>${escHtml(item.numeroOs || "—")}</td>
-              <td>${escHtml(item.destinatario)}</td>
-              <td>${escHtml(item.descricao || "—")}</td>
-              <td>${escHtml(formatarDataHoraEntrega(item.dataFinalizado))}</td>
-              <td>${escHtml(labelSituacaoHistorico(item.situacao))}</td>
-              <td>${escHtml(item.nomeRecebedor || "—")}</td>
-            </tr>`
-          )
-          .join("");
-
-  return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="utf-8" />
-  <title>Histórico de entregas</title>
-  <style>
-    body { font-family: system-ui, sans-serif; color: #334155; margin: 24px; font-size: 12px; }
-    h1 { font-size: 18px; margin: 0 0 4px; }
-    p { margin: 0 0 16px; color: #64748b; font-size: 11px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; vertical-align: top; }
-    th { background: #f8fafc; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
-  </style>
-</head>
-<body>
-  <h1>Histórico de entregas</h1>
-  <p>Emitido em ${escHtml(emitidoEm)} · ${historico.length} registro(s)</p>
-  <table>
-    <thead>
-      <tr>
-        <th>OS</th>
-        <th>Destinatário</th>
-        <th>Descrição</th>
-        <th>Entregue em</th>
-        <th>Situação</th>
-        <th>Recebedor</th>
-      </tr>
-    </thead>
-    <tbody>${linhas}</tbody>
-  </table>
-</body>
-</html>`;
-}
-
 export async function imprimirHistoricoEntregas(historico: EntregaHistorico[]) {
-  await abrirHtmlParaImpressao(
-    async () => gerarHtmlHistoricoEntregas(historico),
-    "Histórico de entregas",
-    "historico-entregas.html"
+  const emitidoEm = new Date().toLocaleString("pt-BR");
+  const linhas = historico.map((item) => ({
+    numeroOs: item.numeroOs || "—",
+    destinatario: item.destinatario,
+    descricao: item.descricao || "—",
+    entregador: item.entregador || "—",
+    entregueEm: formatarDataHoraEntrega(item.dataFinalizado),
+    situacao: labelSituacaoHistorico(item.situacao),
+    recebedor: item.nomeRecebedor || "—",
+    valor: item.valor,
+  }));
+
+  await abrirPdfGerando(
+    () =>
+      gerarHistoricoEntregasPdf(
+        linhas,
+        `Emitido em ${emitidoEm} · ${historico.length} registro(s)`
+      ),
+    "historico-entregas.pdf",
+    "Histórico de entregas"
   );
 }
 
