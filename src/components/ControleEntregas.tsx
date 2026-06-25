@@ -8,6 +8,7 @@ import {
   Eye,
   MapPin,
   Plus,
+  Printer,
   Search,
   Trash2,
   X,
@@ -39,6 +40,8 @@ import {
 import {
   carregarHistoricoEntregas,
   ENTREGAS_HISTORICO_EVENT,
+  excluirHistoricoEntregaPersistido,
+  imprimirHistoricoEntregas,
   labelSituacaoHistorico,
   sincronizarHistoricoEntregasCliente,
   type EntregaHistorico,
@@ -113,6 +116,8 @@ export function ControleEntregas() {
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [modalAberto, setModalAberto] = useState(false);
   const [historicoAberto, setHistoricoAberto] = useState(false);
+  const [historicoExcluindo, setHistoricoExcluindo] = useState<EntregaHistorico | null>(null);
+  const [imprimindoHistorico, setImprimindoHistorico] = useState(false);
   const [editando, setEditando] = useState<EntregaControle | null>(null);
   const [visualizando, setVisualizando] = useState<EntregaControle | null>(null);
   const [excluindo, setExcluindo] = useState<EntregaControle | null>(null);
@@ -249,6 +254,36 @@ export function ControleEntregas() {
     excluirEntrega(excluindo.id);
     setExcluindo(null);
     recarregar();
+  }
+
+  async function confirmarExclusaoHistorico() {
+    const item = historicoExcluindo;
+    if (!item) return;
+    setHistoricoExcluindo(null);
+    try {
+      await excluirHistoricoEntregaPersistido(item.id);
+      recarregar();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Não foi possível excluir o registro do histórico.");
+      recarregar();
+    }
+  }
+
+  function imprimirHistoricoModal() {
+    const janela = prepararAbaPdf();
+    setImprimindoHistorico(true);
+    try {
+      imprimirHistoricoEntregas(historico, janela);
+    } catch (err) {
+      janela?.close();
+      alert(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível imprimir o histórico. Permita pop-ups para este site."
+      );
+    } finally {
+      setImprimindoHistorico(false);
+    }
   }
 
   const barraEsquerda = (
@@ -520,6 +555,17 @@ export function ControleEntregas() {
         size="lg"
       >
         <div className="space-y-3 text-[11px] text-slate-600">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={imprimirHistoricoModal}
+              disabled={imprimindoHistorico || historico.length === 0}
+              className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              Imprimir
+            </button>
+          </div>
           {historico.length === 0 ? (
             <p className="py-6 text-center text-slate-500">
               Nenhuma entrega concluída registrada no histórico.
@@ -534,6 +580,7 @@ export function ControleEntregas() {
                     <th className="px-3 py-2 text-left">Descrição</th>
                     <th className="px-3 py-2 text-left">Entregue em</th>
                     <th className="px-3 py-2 text-left">Situação</th>
+                    <th className="px-3 py-2 text-center">Opções</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
@@ -562,6 +609,18 @@ export function ControleEntregas() {
                             Recebedor: {item.nomeRecebedor}
                           </p>
                         ) : null}
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex justify-center">
+                          <button
+                            type="button"
+                            onClick={() => setHistoricoExcluindo(item)}
+                            className="rounded p-1 text-red-500 hover:bg-red-50"
+                            title="Excluir do histórico"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -648,6 +707,21 @@ export function ControleEntregas() {
           </div>
         ) : null}
       </Modal>
+
+      <ConfirmacaoExclusaoModal
+        open={Boolean(historicoExcluindo)}
+        titulo="Excluir do histórico"
+        mensagem="Deseja remover este registro do histórico de entregas?"
+        detalhe={
+          historicoExcluindo
+            ? historicoExcluindo.numeroOs
+              ? `OS ${historicoExcluindo.numeroOs} — ${historicoExcluindo.destinatario}`
+              : historicoExcluindo.destinatario
+            : undefined
+        }
+        onClose={() => setHistoricoExcluindo(null)}
+        onConfirm={() => void confirmarExclusaoHistorico()}
+      />
 
       <ConfirmacaoExclusaoModal
         open={Boolean(excluindo)}

@@ -1,5 +1,6 @@
 import {
   formatarDataHoraEntrega,
+  formatarMoedaEntrega,
   type EntregaControle,
 } from "@/lib/controle-entregas";
 import { aplicarEspelhoServidor } from "@/lib/armazenamento-laboratorio";
@@ -128,6 +129,114 @@ export function textoHistoricoEntrega(item: EntregaHistorico) {
   const os = item.numeroOs ? `OS ${item.numeroOs}` : "Entrega";
   const quando = formatarDataHoraEntrega(item.dataFinalizado);
   return `${os} — ${labelSituacaoHistorico(item.situacao)} em ${quando}`;
+}
+
+export function excluirHistoricoEntrega(id: string) {
+  const filtrada = carregarHistoricoEntregas().filter((item) => item.id !== id);
+  salvarHistoricoEntregas(filtrada);
+  return filtrada;
+}
+
+export async function persistirHistoricoEntregasServidor(lista: EntregaHistorico[]) {
+  const payload = lista
+    .map((item) => normalizarHistorico(item))
+    .filter((item): item is EntregaHistorico => Boolean(item));
+  const res = await fetch(
+    `/api/json-store/${encodeURIComponent(ENTREGAS_HISTORICO_STORAGE_KEY)}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "same-origin",
+    }
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(
+      typeof err?.error === "string" ? err.error : "Não foi possível gravar o histórico."
+    );
+  }
+}
+
+export async function excluirHistoricoEntregaPersistido(id: string) {
+  const filtrada = excluirHistoricoEntrega(id);
+  await persistirHistoricoEntregasServidor(filtrada);
+  return filtrada;
+}
+
+function escHtml(texto: string) {
+  return texto
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+export function imprimirHistoricoEntregas(
+  historico: EntregaHistorico[],
+  janelaReservada?: Window | null
+) {
+  if (typeof window === "undefined") return;
+  const janela = janelaReservada ?? window.open("about:blank", "_blank");
+  if (!janela) {
+    throw new Error("Não foi possível abrir a janela de impressão. Permita pop-ups para este site.");
+  }
+
+  const linhas =
+    historico.length === 0
+      ? `<tr><td colspan="6" style="padding:16px;text-align:center;color:#64748b">Nenhuma entrega no histórico.</td></tr>`
+      : historico
+          .map(
+            (item) => `<tr>
+              <td>${escHtml(item.numeroOs || "—")}</td>
+              <td>${escHtml(item.destinatario)}</td>
+              <td>${escHtml(item.descricao || "—")}</td>
+              <td>${escHtml(formatarDataHoraEntrega(item.dataFinalizado))}</td>
+              <td>${escHtml(labelSituacaoHistorico(item.situacao))}</td>
+              <td>${escHtml(item.nomeRecebedor || "—")}</td>
+              <td style="text-align:right">${escHtml(formatarMoedaEntrega(item.valor))}</td>
+            </tr>`
+          )
+          .join("");
+
+  const emitidoEm = new Date().toLocaleString("pt-BR");
+  janela.document.open();
+  janela.document.write(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Histórico de entregas</title>
+  <style>
+    body { font-family: system-ui, sans-serif; color: #334155; margin: 24px; font-size: 12px; }
+    h1 { font-size: 18px; margin: 0 0 4px; }
+    p { margin: 0 0 16px; color: #64748b; font-size: 11px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+  </style>
+</head>
+<body>
+  <h1>Histórico de entregas</h1>
+  <p>Emitido em ${escHtml(emitidoEm)} · ${historico.length} registro(s)</p>
+  <table>
+    <thead>
+      <tr>
+        <th>OS</th>
+        <th>Destinatário</th>
+        <th>Descrição</th>
+        <th>Entregue em</th>
+        <th>Situação</th>
+        <th>Recebedor</th>
+        <th style="text-align:right">Valor</th>
+      </tr>
+    </thead>
+    <tbody>${linhas}</tbody>
+  </table>
+</body>
+</html>`);
+  janela.document.close();
+  janela.focus();
+  janela.print();
 }
 
 /** Persiste histórico no JsonStore do tenant. */
