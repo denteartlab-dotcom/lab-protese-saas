@@ -24,6 +24,15 @@ type EstadoBootstrap = "carregando" | "pronto" | "erro";
 const TIMEOUT_CARREGAMENTO_MS = 20_000;
 const BUILD_ID_ATUAL = process.env.NEXT_PUBLIC_APP_BUILD_ID ?? "dev";
 
+/** Visualizador PDF abre em nova aba — não depende do bootstrap IndexedDB do laboratório. */
+function ehRotaSemArmazenamentoLaboratorio(): boolean {
+  if (typeof window === "undefined") return false;
+  const path = window.location.pathname;
+  return (
+    path.includes("/financeiro/relatorio-pdf") || path.includes("/visualizar-pdf")
+  );
+}
+
 function avaliarBootstrap(): EstadoBootstrap {
   if (typeof window === "undefined") return "carregando";
   if (!armazenamentoLaboratorioPronto()) return "carregando";
@@ -36,7 +45,9 @@ function redirecionarParaLogin() {
 }
 
 export function ArmazenamentoLaboratorioProvider({ children }: Props) {
-  const [estado, setEstado] = useState<EstadoBootstrap>("carregando");
+  const [estado, setEstado] = useState<EstadoBootstrap>(() =>
+    ehRotaSemArmazenamentoLaboratorio() ? "pronto" : "carregando"
+  );
   const [erro, setErro] = useState("");
   const [tentando, setTentando] = useState(false);
 
@@ -86,6 +97,11 @@ export function ArmazenamentoLaboratorioProvider({ children }: Props) {
     let onPronto: (() => void) | undefined;
 
     void (async () => {
+      if (ehRotaSemArmazenamentoLaboratorio()) {
+        setEstado("pronto");
+        return;
+      }
+
       if (typeof window !== "undefined") {
         const host = window.location.hostname.toLowerCase();
         if (host === "denteartlab.com.br") {
