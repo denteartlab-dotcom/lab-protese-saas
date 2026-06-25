@@ -12,6 +12,7 @@ import {
   ENTREGAS_STORAGE_KEY,
   salvarEntregas,
   type EntregaControle,
+  type SituacaoEntrega,
 } from "@/lib/controle-entregas";
 import { aplicarEspelhoServidor } from "@/lib/armazenamento-laboratorio";
 import {
@@ -42,7 +43,14 @@ function entregaJaExisteParaOs(lista: EntregaControle[], numeroOs: number) {
   return lista.some((item) => String(item.numeroOs || "").trim() === alvo);
 }
 
-function montarEntregaDeTrabalho(trabalho: TrabalhoParaControleEntrega) {
+function situacaoInicialEntregaAutomatica(origem?: "status" | "manual"): SituacaoEntrega {
+  return origem === "status" ? "em_rota" : "pendente";
+}
+
+function montarEntregaDeTrabalho(
+  trabalho: TrabalhoParaControleEntrega,
+  situacao: SituacaoEntrega = "pendente"
+) {
   const cliente = trabalho.cliente;
   const obs = cliente?.observacoes;
   const entregador = entregadorCliente(obs);
@@ -57,7 +65,7 @@ function montarEntregaDeTrabalho(trabalho: TrabalhoParaControleEntrega) {
     destinatario: nome,
     entregador,
     descricao: trabalho.tipoProtese?.trim() || "Entrega de prótese",
-    situacao: "pendente" as const,
+    situacao,
     valor,
     numeroOs: String(trabalho.numeroOs),
     tipoDestinatario: "cliente" as const,
@@ -124,7 +132,9 @@ export function adicionarTrabalhoControleEntregasAutomatico(
   const lista = carregarEntregas();
   if (entregaJaExisteParaOs(lista, trabalho.numeroOs)) return false;
 
-  criarEntrega(montarEntregaDeTrabalho(trabalho));
+  criarEntrega(
+    montarEntregaDeTrabalho(trabalho, situacaoInicialEntregaAutomatica(opcoes?.origem))
+  );
   return true;
 }
 
@@ -188,7 +198,10 @@ export async function adicionarTrabalhoControleEntregasAutomaticoServidor(
 
   const nova: EntregaControle = {
     id: `ent-${Date.now()}-${trabalho.id.slice(0, 8)}`,
-    ...montarEntregaDeTrabalho(trabalho),
+    ...montarEntregaDeTrabalho(
+      trabalho,
+      situacaoInicialEntregaAutomatica(opcoes?.origem)
+    ),
   };
 
   await salvarJsonStoreTenant(empresaId, ENTREGAS_STORAGE_KEY, [...normalizada, nova]);
