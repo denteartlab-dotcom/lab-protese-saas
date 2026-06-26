@@ -9,10 +9,7 @@ import {
 } from "@/components/financeiro/SituacaoOsBadgeReceita";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
 import { gerarRelatorioTabelaPdf } from "@/lib/pdf-relatorio-tabela";
-import {
-  contagemItensOsPorSegmento,
-  rotuloContagemSegmentosOs,
-} from "@/lib/trabalho-os-segmento";
+import { expandirTrabalhosNaoFaturadosLinhas } from "@/lib/trabalho-os-segmento";
 
 export type TrabalhoNaoFaturado = TrabalhoSituacaoBadge & {
   valor?: number;
@@ -27,8 +24,6 @@ type Props = {
   open: boolean;
   onClose: () => void;
   trabalhos: TrabalhoNaoFaturado[];
-  /** Todos os trabalhos — usado para contar itens da OS (serv./prod./transp.). */
-  trabalhosReferencia?: TrabalhoNaoFaturado[];
   valorTrabalho: (trabalho: TrabalhoNaoFaturado) => number;
 };
 
@@ -39,46 +34,46 @@ function money(value: number) {
   });
 }
 
+function valorLinhaNaoFaturada(
+  linha: ReturnType<typeof expandirTrabalhosNaoFaturadosLinhas<TrabalhoNaoFaturado>>[number],
+  valorTrabalho: (trabalho: TrabalhoNaoFaturado) => number
+) {
+  if (linha.valor > 0) return linha.valor;
+  return valorTrabalho(linha.trabalho);
+}
+
 export function ServicosNaoFaturadosModal({
   open,
   onClose,
   trabalhos,
-  trabalhosReferencia,
   valorTrabalho,
 }: Props) {
   const [busca, setBusca] = useState("");
-  const baseContagem = trabalhosReferencia ?? trabalhos;
 
-  const contagemPorOs = useMemo(() => {
-    const mapa = new Map<number, string>();
-    const numeros = new Set(baseContagem.map((t) => t.numeroOs));
-    for (const numeroOs of numeros) {
-      mapa.set(
-        numeroOs,
-        rotuloContagemSegmentosOs(contagemItensOsPorSegmento(baseContagem, numeroOs))
-      );
-    }
-    return mapa;
-  }, [baseContagem]);
+  const linhas = useMemo(
+    () => expandirTrabalhosNaoFaturadosLinhas(trabalhos),
+    [trabalhos]
+  );
 
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
-    if (!termo) return trabalhos;
-    return trabalhos.filter((trabalho) => {
-      const situacao = labelSituacaoOsReceita(trabalho).toLowerCase();
+    if (!termo) return linhas;
+    return linhas.filter((linha) => {
+      const situacao = labelSituacaoOsReceita(linha.trabalho).toLowerCase();
       return [
-        trabalho.numeroOs,
-        trabalho.cliente?.nome,
-        trabalho.paciente?.nome,
-        trabalho.tipoProtese,
-        trabalho.dentes,
-        trabalho.cor,
+        linha.trabalho.numeroOs,
+        linha.trabalho.cliente?.nome,
+        linha.trabalho.paciente?.nome,
+        linha.servico,
+        linha.qtd,
+        linha.dentes,
+        linha.cor,
         situacao,
       ]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(termo));
     });
-  }, [trabalhos, busca]);
+  }, [linhas, busca]);
 
   async function abrirPdfVisualizador(janelaReservada: Window | null) {
     try {
@@ -88,24 +83,24 @@ export function ServicosNaoFaturadosModal({
         colunas: [
           { titulo: "OS", larguraMm: 12, alinhamento: "center" },
           { titulo: "Cliente", larguraMm: 28, alinhamento: "left" },
-          { titulo: "Serviço", larguraMm: 28, alinhamento: "left" },
-          { titulo: "Qtd OS", larguraMm: 26, alinhamento: "left" },
+          { titulo: "Serviço", larguraMm: 30, alinhamento: "left" },
+          { titulo: "Qtd", larguraMm: 10, alinhamento: "center" },
           { titulo: "Paciente", larguraMm: 24, alinhamento: "left" },
           { titulo: "Num Dente", larguraMm: 16, alinhamento: "center" },
           { titulo: "Cor", larguraMm: 14, alinhamento: "center" },
           { titulo: "Valor", larguraMm: 20, alinhamento: "right" },
           { titulo: "Situação", larguraMm: 20, alinhamento: "center" },
         ],
-        linhas: filtrados.map((t) => [
-          String(t.numeroOs),
-          t.cliente?.nome || "—",
-          t.tipoProtese,
-          contagemPorOs.get(t.numeroOs) || "—",
-          t.paciente?.nome || "—",
-          t.dentes || "—",
-          t.cor || "—",
-          money(valorTrabalho(t)),
-          labelSituacaoOsReceita(t),
+        linhas: filtrados.map((linha) => [
+          String(linha.trabalho.numeroOs),
+          linha.trabalho.cliente?.nome || "—",
+          linha.servico,
+          linha.qtd,
+          linha.trabalho.paciente?.nome || "—",
+          linha.dentes || "—",
+          linha.cor || "—",
+          money(valorLinhaNaoFaturada(linha, valorTrabalho)),
+          labelSituacaoOsReceita(linha.trabalho),
         ]),
       });
       abrirPdfNoVisualizador(
@@ -197,7 +192,7 @@ export function ServicosNaoFaturadosModal({
                 <th className="border-b border-[#e5e7eb] px-3 py-2.5 text-left">OS</th>
                 <th className="border-b border-[#e5e7eb] px-3 py-2.5 text-left">Cliente</th>
                 <th className="border-b border-[#e5e7eb] px-3 py-2.5 text-left">Serviço</th>
-                <th className="border-b border-[#e5e7eb] px-3 py-2.5 text-left">Qtd OS</th>
+                <th className="border-b border-[#e5e7eb] px-3 py-2.5 text-center">Qtd</th>
                 <th className="border-b border-[#e5e7eb] px-3 py-2.5 text-left">Paciente</th>
                 <th className="border-b border-[#e5e7eb] px-3 py-2.5 text-left">Num Dente</th>
                 <th className="border-b border-[#e5e7eb] px-3 py-2.5 text-left">Cor</th>
@@ -216,29 +211,29 @@ export function ServicosNaoFaturadosModal({
                   </td>
                 </tr>
               ) : (
-                filtrados.map((trabalho) => (
+                filtrados.map((linha) => (
                   <tr
-                    key={trabalho.id}
+                    key={linha.id}
                     className="border-b border-[#f3f4f6] hover:bg-[#fafafa]"
                   >
-                    <td className="px-3 py-2.5 text-[#374151]">{trabalho.numeroOs}</td>
+                    <td className="px-3 py-2.5 text-[#374151]">{linha.trabalho.numeroOs}</td>
                     <td className="px-3 py-2.5 text-[#374151]">
-                      {trabalho.cliente?.nome || "—"}
+                      {linha.trabalho.cliente?.nome || "—"}
                     </td>
-                    <td className="px-3 py-2.5 text-[#374151]">{trabalho.tipoProtese}</td>
-                    <td className="px-3 py-2.5 text-[11px] leading-snug text-[#6b7280]">
-                      {contagemPorOs.get(trabalho.numeroOs) || "—"}
+                    <td className="px-3 py-2.5 text-[#374151]">{linha.servico}</td>
+                    <td className="px-3 py-2.5 text-center tabular-nums text-[#374151]">
+                      {linha.qtd}
                     </td>
                     <td className="px-3 py-2.5 text-[#374151]">
-                      {trabalho.paciente?.nome || "—"}
+                      {linha.trabalho.paciente?.nome || "—"}
                     </td>
-                    <td className="px-3 py-2.5 text-[#374151]">{trabalho.dentes || ""}</td>
-                    <td className="px-3 py-2.5 text-[#374151]">{trabalho.cor || ""}</td>
+                    <td className="px-3 py-2.5 text-[#374151]">{linha.dentes || ""}</td>
+                    <td className="px-3 py-2.5 text-[#374151]">{linha.cor || ""}</td>
                     <td className="px-3 py-2.5 text-right text-[#374151]">
-                      {money(valorTrabalho(trabalho))}
+                      {money(valorLinhaNaoFaturada(linha, valorTrabalho))}
                     </td>
                     <td className="px-3 py-2.5 text-center">
-                      <SituacaoOsBadgeReceita trabalho={trabalho} />
+                      <SituacaoOsBadgeReceita trabalho={linha.trabalho} />
                     </td>
                   </tr>
                 ))

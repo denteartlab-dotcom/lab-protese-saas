@@ -441,6 +441,110 @@ export function listarTrabalhosNaoFaturados<
   return Array.from(incluidos.values());
 }
 
+export type LinhaItemNaoFaturado<T> = {
+  id: string;
+  trabalho: T;
+  servico: string;
+  qtd: string;
+  dentes: string;
+  cor: string;
+  valor: number;
+  segmento: SegmentoFaturamento;
+};
+
+function parseItemAdicionadoLinha(
+  line: string,
+  trabalho: { tipoProtese?: string | null; dentes?: string | null; cor?: string | null }
+) {
+  const match = line.match(
+    /^Item adicionado:\s*(.*?)\s*-\s*dentes\s*(.*?)\s*-\s*cor\s*(.*?)\s*-\s*qtd\s*(.*?)\s*-\s*valor\s*(.*)$/i
+  );
+  if (!match) return null;
+
+  const servicoRaw = match[1]?.trim() || trabalho.tipoProtese || "—";
+  const produtoId = line
+    .match(/ - produtoId (.*?)(?: - urgente| - repetição| - repeticao| - obs|$)/i)?.[1]
+    ?.trim();
+  const segmento = classificarItemOs({
+    servico: servicoRaw,
+    produtoId: produtoId || undefined,
+  });
+  const valorLinha = valorLiquidoDeLinhaItemAdicionado(line) ?? 0;
+
+  return {
+    servico: nomeExibicaoItemOs({ servico: servicoRaw }) || servicoRaw,
+    dentes: match[2]?.trim() || trabalho.dentes || "",
+    cor: match[3]?.trim() || trabalho.cor || "",
+    qtd: match[4]?.trim() || "1",
+    valor: valorLinha,
+    segmento,
+  };
+}
+
+/** Uma linha por item (serviço/produto/transporte), como no controle de produção. */
+export function expandirTrabalhosNaoFaturadosLinhas<
+  T extends {
+    id: string;
+    numeroOs: number;
+    tipoProtese: string;
+    status: string;
+    dentes?: string | null;
+    cor?: string | null;
+    valor?: number;
+    instrucoes?: string | null;
+    segmentoFaturamento?: string | null;
+  },
+>(trabalhos: T[]): LinhaItemNaoFaturado<T>[] {
+  const linhas: LinhaItemNaoFaturado<T>[] = [];
+
+  for (const trabalho of trabalhos) {
+    const segmentoTrabalho = segmentoEfetivoTrabalho(trabalho);
+    const itens = parseItensAdicionadosLinhas(trabalho.instrucoes)
+      .map((line) => parseItemAdicionadoLinha(line, trabalho))
+      .filter(
+        (item): item is NonNullable<ReturnType<typeof parseItemAdicionadoLinha>> =>
+          item !== null && item.segmento === segmentoTrabalho
+      );
+
+    if (itens.length === 0) {
+      linhas.push({
+        id: trabalho.id,
+        trabalho,
+        servico: trabalho.tipoProtese,
+        qtd: "1",
+        dentes: trabalho.dentes || "",
+        cor: trabalho.cor || "",
+        valor: Number(trabalho.valor) || 0,
+        segmento: segmentoTrabalho,
+      });
+      continue;
+    }
+
+    itens.forEach((item, idx) => {
+      linhas.push({
+        id: `${trabalho.id}:${idx}`,
+        trabalho,
+        servico: item.servico,
+        qtd: item.qtd,
+        dentes: item.dentes,
+        cor: item.cor,
+        valor: item.valor,
+        segmento: item.segmento,
+      });
+    });
+  }
+
+  return linhas.sort((a, b) => {
+    if (a.trabalho.numeroOs !== b.trabalho.numeroOs) {
+      return a.trabalho.numeroOs - b.trabalho.numeroOs;
+    }
+    const ordemSegmento =
+      ORDEM_SEGMENTO_FATURAMENTO[a.segmento] - ORDEM_SEGMENTO_FATURAMENTO[b.segmento];
+    if (ordemSegmento !== 0) return ordemSegmento;
+    return a.servico.localeCompare(b.servico, "pt-BR");
+  });
+}
+
 export type ContagemSegmentosOs = {
   servicos: number;
   produtos: number;

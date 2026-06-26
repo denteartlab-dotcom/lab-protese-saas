@@ -2818,7 +2818,6 @@ function FinanceiroReceberConteudo() {
         open={modalNaoFaturados}
         onClose={() => setModalNaoFaturados(false)}
         trabalhos={trabalhosNaoFaturados}
-        trabalhosReferencia={trabalhos}
         valorTrabalho={valorTrabalho}
       />
 
