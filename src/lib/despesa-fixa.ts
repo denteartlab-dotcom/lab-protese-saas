@@ -3,10 +3,12 @@ import {
   desempacotarDespesa,
   descricaoDespesaComParcela,
   empacotarDespesa,
+  atualizarMetaDespesa,
   type DespesaMeta,
 } from "@/lib/lancamento-despesa";
 
-export const MESES_AVANCO_DESPESA_FIXA = 12;
+/** Mantido por compatibilidade — a sincronização gera só o mês corrente. */
+export const MESES_AVANCO_DESPESA_FIXA = 1;
 
 export type LancamentoDespesaFixa = {
   id: string;
@@ -114,6 +116,62 @@ export function grupoFixaTemInstanciaNoMes(
   });
 }
 
+export function mesesIgnoradosGrupoFixa(
+  lancamentos: LancamentoDespesaFixa[],
+  grupoId: string
+) {
+  const meses = new Set<string>();
+  for (const item of lancamentos) {
+    const pack = desempacotarDespesa(item.descricao);
+    if (pack.meta.fixaGrupoId !== grupoId) continue;
+    for (const mes of pack.meta.fixaMesesIgnorados || []) {
+      if (mes) meses.add(mes);
+    }
+  }
+  return [...meses];
+}
+
+export function mesIgnoradoDespesaFixa(
+  lancamentos: LancamentoDespesaFixa[],
+  grupoId: string,
+  mesReferencia: string
+) {
+  return mesesIgnoradosGrupoFixa(lancamentos, grupoId).includes(mesReferencia);
+}
+
+/** Marca o mês como excluído no grupo para a sincronização não recriar a instância. */
+export async function registrarMesIgnoradoDespesaFixaGrupo(
+  lancamentos: LancamentoDespesaFixa[],
+  grupoId: string,
+  mesReferencia: string,
+  excetoId?: string
+) {
+  const meses = [...mesesIgnoradosGrupoFixa(lancamentos, grupoId)];
+  if (!meses.includes(mesReferencia)) meses.push(mesReferencia);
+
+  const alvos = lancamentos.filter((item) => {
+    if (excetoId && item.id === excetoId) return false;
+    const pack = desempacotarDespesa(item.descricao);
+    return pack.meta.fixaGrupoId === grupoId;
+  });
+
+  for (const alvo of alvos) {
+    const res = await fetch(`/api/financeiro/${alvo.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        descricao: atualizarMetaDespesa(alvo.descricao, {
+          fixaMesesIgnorados: meses,
+        }),
+      }),
+    });
+    if (!res.ok) {
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(json.error || "Não foi possível atualizar a despesa fixa.");
+    }
+  }
+}
+
 function numeroParcela(texto: string, parcelaMeta: string) {
   const match = texto.match(/\((\d+)\s*\/\s*(\d+)\)/);
   if (match) {
@@ -186,13 +244,24 @@ export function extrairTemplateDespesaFixa(
     codigoBarrasPix: "",
   }));
 
-  const { fixaGrupoId, fixa, fixaAtiva, fixaMes, fixaDiaVencimento, ...metaResto } =
+  const { fixaGrupoId, fixa, fixaAtiva, fixaMes, fixaDiaVencimento, fixaMesesIgnorados, ...metaResto } =
     referencia.pack.meta;
+
+  const mesesIgnorados = new Set<string>(fixaMesesIgnorados || []);
+  for (const item of doGrupo) {
+    const pack = desempacotarDespesa(item.descricao);
+    for (const mes of pack.meta.fixaMesesIgnorados || []) {
+      if (mes) mesesIgnorados.add(mes);
+    }
+  }
 
   return {
     grupoId,
     textoBase: textoSemParcela,
-    metaBase: metaResto,
+    metaBase: {
+      ...metaResto,
+      ...(mesesIgnorados.size ? { fixaMesesIgnorados: [...mesesIgnorados] } : {}),
+    },
     diaVencimento,
     parcelas,
   };
@@ -302,7 +371,7 @@ async function criarDespesaApiRemoto(
   }
 }
 
-/** Gera instâncias faltantes de despesas fixas ativas (janela de 12 meses). */
+/** Gera a instância do mês corrente para despesas fixas ativas (virada de mês). */
 export async function sincronizarDespesasFixaRemoto(
   lancamentos: LancamentoDespesaFixa[]
 ) {
@@ -310,10 +379,7 @@ export async function sincronizarDespesasFixaRemoto(
   if (!grupos.length) return 0;
 
   let criados = 0;
-  const meses = listarMesesReferencia(
-    mesReferenciaAtual(),
-    MESES_AVANCO_DESPESA_FIXA
-  );
+  const meses = [mesReferenciaAtual()];
 
   for (const grupoId of grupos) {
     const template = extrairTemplateDespesaFixa(lancamentos, grupoId);
@@ -321,6 +387,7 @@ export async function sincronizarDespesasFixaRemoto(
 
     for (const mes of meses) {
       if (grupoFixaTemInstanciaNoMes(lancamentos, grupoId, mes)) continue;
+      if (mesIgnoradoDespesaFixa(lancamentos, grupoId, mes)) continue;
 
       const parcelasMes = parcelasInstanciaFixaNoMes(template, mes);
       if (!parcelasMes.length) continue;

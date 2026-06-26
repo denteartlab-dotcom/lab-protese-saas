@@ -64,10 +64,10 @@ import {
 } from "@/lib/lancamento-despesa";
 import {
   gerarGrupoDespesaFixaId,
-  listarMesesReferencia,
-  MESES_AVANCO_DESPESA_FIXA,
   mesReferenciaDeDataBr,
+  mesReferenciaDeIso,
   metaDespesaFixa,
+  registrarMesIgnoradoDespesaFixaGrupo,
   sincronizarDespesasFixaRemoto,
   vencimentoParcelaNoMes,
 } from "@/lib/despesa-fixa";
@@ -941,30 +941,20 @@ export function ContasPagarConteudo() {
       } else {
         if (despesaFixaAtiva && grupoFixaId) {
           const mesInicial = mesReferenciaDeDataBr(payload.dataLancamento);
-          const meses = listarMesesReferencia(
+          const parcelasApi = parcelasPayloadParaApi(
+            payload,
             mesInicial,
-            MESES_AVANCO_DESPESA_FIXA
+            diaVencimento
           );
-          for (const mes of meses) {
-            const parcelasApi = parcelasPayloadParaApi(
-              payload,
-              mes,
-              diaVencimento
-            ).map((parcela) => ({
-              ...parcela,
-              status:
-                mes === mesInicial ? parcela.status : ("pendente" as const),
-            }));
-            if (!parcelasApi.length) {
-              alert("Informe um valor maior que zero para salvar a despesa.");
-              return;
-            }
-            const descricaoBase = empacotarDespesa(
-              textoDespesa,
-              montarMeta(mes)
-            );
-            await criarDespesaApi(descricaoBase, parcelasApi);
+          if (!parcelasApi.length) {
+            alert("Informe um valor maior que zero para salvar a despesa.");
+            return;
           }
+          const descricaoBase = empacotarDespesa(
+            textoDespesa,
+            montarMeta(mesInicial)
+          );
+          await criarDespesaApi(descricaoBase, parcelasApi);
         } else {
           const parcelasApi = parcelasPayloadParaApi(payload);
           if (!parcelasApi.length) {
@@ -1028,6 +1018,10 @@ export function ContasPagarConteudo() {
   async function confirmarExclusaoDespesa() {
     if (!despesaParaExcluir) return;
     const id = despesaParaExcluir.id;
+    const pack = desempacotarDespesa(despesaParaExcluir.descricao);
+    const grupoFixa = pack.meta.fixaGrupoId;
+    const mesFixa =
+      pack.meta.fixaMes || mesReferenciaDeIso(despesaParaExcluir.data);
 
     if (despesaParaExcluir.status === "pago") {
       const res = await fetch(`/api/financeiro/${id}`, {
@@ -1047,6 +1041,24 @@ export function ContasPagarConteudo() {
       setDespesaParaExcluir(null);
       notificarFinanceiroAtualizado();
       return;
+    }
+
+    if (grupoFixa && pack.meta.fixa) {
+      try {
+        await registrarMesIgnoradoDespesaFixaGrupo(
+          lancamentos,
+          grupoFixa,
+          mesFixa,
+          id
+        );
+      } catch (err) {
+        alert(
+          err instanceof Error
+            ? err.message
+            : "Não foi possível excluir a instância da despesa fixa."
+        );
+        return;
+      }
     }
 
     setLancamentos((lista) => lista.filter((item) => item.id !== id));

@@ -60,6 +60,8 @@ export type DespesaMeta = {
   fixaMes?: string;
   /** Dia preferido de vencimento no mês (1–31). */
   fixaDiaVencimento?: number;
+  /** Meses (YYYY-MM) em que a instância foi excluída e não deve ser recriada. */
+  fixaMesesIgnorados?: string[];
 };
 
 export const LIMITE_ANEXOS_DESPESA = 5;
