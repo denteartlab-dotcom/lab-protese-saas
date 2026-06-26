@@ -441,6 +441,59 @@ export function listarTrabalhosNaoFaturados<
   return Array.from(incluidos.values());
 }
 
+export type ContagemSegmentosOs = {
+  servicos: number;
+  produtos: number;
+  transportes: number;
+};
+
+/** Conta itens da OS (serviço, produto, transporte) somando linhas de todos os registros do mesmo número. */
+export function contagemItensOsPorSegmento<
+  T extends {
+    numeroOs: number;
+    tipoProtese?: string | null;
+    segmentoFaturamento?: string | null;
+    instrucoes?: string | null;
+  },
+>(trabalhos: T[], numeroOs: number): ContagemSegmentosOs {
+  const contagem: ContagemSegmentosOs = { servicos: 0, produtos: 0, transportes: 0 };
+  const registros = trabalhos.filter((t) => t.numeroOs === numeroOs);
+  if (!registros.length) return contagem;
+
+  for (const trabalho of registros) {
+    const linhas = parseItensAdicionadosLinhas(trabalho.instrucoes);
+    if (linhas.length === 0) {
+      const segmento = segmentoEfetivoTrabalho(trabalho);
+      if (segmento === "servico") contagem.servicos += 1;
+      else if (segmento === "produto") contagem.produtos += 1;
+      else contagem.transportes += 1;
+      continue;
+    }
+
+    for (const line of linhas) {
+      const match = line.match(/^Item adicionado:\s*(.*?)\s*-\s*dentes/i);
+      const servico = match?.[1]?.trim() || trabalho.tipoProtese || "";
+      const produtoId = line
+        .match(/ - produtoId (.*?)(?: - urgente| - repetição| - repeticao| - obs|$)/i)?.[1]
+        ?.trim();
+      const segmento = classificarItemOs({ servico, produtoId: produtoId || undefined });
+      if (segmento === "servico") contagem.servicos += 1;
+      else if (segmento === "produto") contagem.produtos += 1;
+      else contagem.transportes += 1;
+    }
+  }
+
+  return contagem;
+}
+
+export function rotuloContagemSegmentosOs(contagem: ContagemSegmentosOs) {
+  const partes: string[] = [];
+  if (contagem.servicos > 0) partes.push(`${contagem.servicos} serv.`);
+  if (contagem.produtos > 0) partes.push(`${contagem.produtos} prod.`);
+  if (contagem.transportes > 0) partes.push(`${contagem.transportes} transp.`);
+  return partes.length ? partes.join(" · ") : "—";
+}
+
 /** OS com mais de um segmento (serviço, produto e/ou transporte). */
 export type RegistroGrupoOs = {
   id: string;

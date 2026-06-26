@@ -9,11 +9,16 @@ import {
 } from "@/components/financeiro/SituacaoOsBadgeReceita";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
 import { gerarRelatorioTabelaPdf } from "@/lib/pdf-relatorio-tabela";
+import {
+  contagemItensOsPorSegmento,
+  rotuloContagemSegmentosOs,
+} from "@/lib/trabalho-os-segmento";
 
 export type TrabalhoNaoFaturado = TrabalhoSituacaoBadge & {
   valor?: number;
   dentes?: string | null;
   cor?: string | null;
+  instrucoes?: string | null;
   cliente?: { nome?: string | null } | null;
   paciente?: { nome?: string | null } | null;
 };
@@ -22,6 +27,8 @@ type Props = {
   open: boolean;
   onClose: () => void;
   trabalhos: TrabalhoNaoFaturado[];
+  /** Todos os trabalhos — usado para contar itens da OS (serv./prod./transp.). */
+  trabalhosReferencia?: TrabalhoNaoFaturado[];
   valorTrabalho: (trabalho: TrabalhoNaoFaturado) => number;
 };
 
@@ -36,9 +43,23 @@ export function ServicosNaoFaturadosModal({
   open,
   onClose,
   trabalhos,
+  trabalhosReferencia,
   valorTrabalho,
 }: Props) {
   const [busca, setBusca] = useState("");
+  const baseContagem = trabalhosReferencia ?? trabalhos;
+
+  const contagemPorOs = useMemo(() => {
+    const mapa = new Map<number, string>();
+    const numeros = new Set(baseContagem.map((t) => t.numeroOs));
+    for (const numeroOs of numeros) {
+      mapa.set(
+        numeroOs,
+        rotuloContagemSegmentosOs(contagemItensOsPorSegmento(baseContagem, numeroOs))
+      );
+    }
+    return mapa;
+  }, [baseContagem]);
 
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
@@ -65,19 +86,21 @@ export function ServicosNaoFaturadosModal({
         tituloRelatorio: "Serviços Entregues/Finalizados e não Faturados",
         periodoTexto: "",
         colunas: [
-          { titulo: "OS", larguraMm: 14, alinhamento: "center" },
-          { titulo: "Cliente", larguraMm: 32, alinhamento: "left" },
-          { titulo: "Serviço", larguraMm: 36, alinhamento: "left" },
-          { titulo: "Paciente", larguraMm: 28, alinhamento: "left" },
-          { titulo: "Num Dente", larguraMm: 18, alinhamento: "center" },
-          { titulo: "Cor", larguraMm: 16, alinhamento: "center" },
-          { titulo: "Valor", larguraMm: 22, alinhamento: "right" },
-          { titulo: "Situação", larguraMm: 22, alinhamento: "center" },
+          { titulo: "OS", larguraMm: 12, alinhamento: "center" },
+          { titulo: "Cliente", larguraMm: 28, alinhamento: "left" },
+          { titulo: "Serviço", larguraMm: 28, alinhamento: "left" },
+          { titulo: "Qtd OS", larguraMm: 26, alinhamento: "left" },
+          { titulo: "Paciente", larguraMm: 24, alinhamento: "left" },
+          { titulo: "Num Dente", larguraMm: 16, alinhamento: "center" },
+          { titulo: "Cor", larguraMm: 14, alinhamento: "center" },
+          { titulo: "Valor", larguraMm: 20, alinhamento: "right" },
+          { titulo: "Situação", larguraMm: 20, alinhamento: "center" },
         ],
         linhas: filtrados.map((t) => [
           String(t.numeroOs),
           t.cliente?.nome || "—",
           t.tipoProtese,
+          contagemPorOs.get(t.numeroOs) || "—",
           t.paciente?.nome || "—",
           t.dentes || "—",
           t.cor || "—",
@@ -174,6 +197,7 @@ export function ServicosNaoFaturadosModal({
                 <th className="border-b border-[#e5e7eb] px-3 py-2.5 text-left">OS</th>
                 <th className="border-b border-[#e5e7eb] px-3 py-2.5 text-left">Cliente</th>
                 <th className="border-b border-[#e5e7eb] px-3 py-2.5 text-left">Serviço</th>
+                <th className="border-b border-[#e5e7eb] px-3 py-2.5 text-left">Qtd OS</th>
                 <th className="border-b border-[#e5e7eb] px-3 py-2.5 text-left">Paciente</th>
                 <th className="border-b border-[#e5e7eb] px-3 py-2.5 text-left">Num Dente</th>
                 <th className="border-b border-[#e5e7eb] px-3 py-2.5 text-left">Cor</th>
@@ -185,7 +209,7 @@ export function ServicosNaoFaturadosModal({
               {filtrados.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     className="px-3 py-10 text-center text-[13px] text-[#9ca3af]"
                   >
                     Nenhum serviço entregue/finalizado pendente de faturamento.
@@ -202,6 +226,9 @@ export function ServicosNaoFaturadosModal({
                       {trabalho.cliente?.nome || "—"}
                     </td>
                     <td className="px-3 py-2.5 text-[#374151]">{trabalho.tipoProtese}</td>
+                    <td className="px-3 py-2.5 text-[11px] leading-snug text-[#6b7280]">
+                      {contagemPorOs.get(trabalho.numeroOs) || "—"}
+                    </td>
                     <td className="px-3 py-2.5 text-[#374151]">
                       {trabalho.paciente?.nome || "—"}
                     </td>
