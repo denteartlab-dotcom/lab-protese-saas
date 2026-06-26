@@ -1,4 +1,5 @@
 import { dateToBrShort, parseBrDate } from "@/lib/datas-br";
+import { formaEhBoleto } from "@/lib/formas-pagamento";
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
 import { hrefBoletoControle } from "@/lib/notificacao-links";
 
@@ -51,6 +52,17 @@ export function lancamentoParaResumoBoleto(l: {
     cliente: l.cliente,
     trabalho: l.trabalho,
   };
+}
+
+/** Somente despesas em boleto — exclui Pix, transferência, salário fixo etc. */
+export function lancamentoEhDespesaBoleto(
+  lancamento: Pick<LancamentoBoletoResumo, "tipo" | "status" | "formaPagamento">
+) {
+  return (
+    lancamento.tipo === "despesa" &&
+    lancamento.status !== "cancelado" &&
+    formaEhBoleto(lancamento.formaPagamento)
+  );
 }
 
 export type LinhaBoleto = {
@@ -436,7 +448,7 @@ export function filtrarLinhasBoletos(
   const status = opts.status || "todos";
 
   return lancamentos
-    .filter((l) => l.tipo === "despesa" && l.status !== "cancelado")
+    .filter(lancamentoEhDespesaBoleto)
     .map((l) => montarLinhaBoleto(l, hoje))
     .filter((linha) => {
       const venc = dateOnlyBoleto(linha.lancamento.data);

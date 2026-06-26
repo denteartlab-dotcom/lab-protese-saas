@@ -49,6 +49,7 @@ import {
   formatarMoedaBoleto,
   graficoBoletosPorMes,
   labelStatusBoleto,
+  lancamentoEhDespesaBoleto,
   ordenarLinhasBoletos,
   type ColunaOrdenacaoBoleto,
   type DirecaoOrdenacaoBoleto,
@@ -366,9 +367,7 @@ export function ControleBoletosConteudo() {
       }
       setLancamentos(
         Array.isArray(json.lancamentos)
-          ? json.lancamentos.filter(
-              (l) => l.tipo === "despesa" && l.status !== "cancelado"
-            )
+          ? json.lancamentos.filter(lancamentoEhDespesaBoleto)
           : []
       );
     } catch {
@@ -542,7 +541,7 @@ export function ControleBoletosConteudo() {
             Controle de Boletos / Contas a Pagar
           </h1>
           <p className="mt-1 text-[13px] text-slate-500">
-            Acompanhe boletos e despesas sincronizados com Contas a Pagar ·{" "}
+            Acompanhe boletos e despesas em boleto bancário sincronizados com Contas a Pagar ·{" "}
             {dateToBrShort(new Date())}
           </p>
         </div>
@@ -845,8 +844,8 @@ export function ControleBoletosConteudo() {
           <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4 text-[12px] text-emerald-900">
             <p className="font-semibold">Sincronização automática</p>
             <p className="mt-1 text-emerald-800/90">
-              Boletos e despesas lançados em Contas a Pagar aparecem aqui em tempo real.
-              Pagamentos feitos em qualquer tela atualizam ambas.
+              Despesas em boleto bancário lançadas em Contas a Pagar aparecem aqui em tempo real.
+              Pix, transferência e outras formas ficam só na visão clássica.
             </p>
           </div>
         </aside>

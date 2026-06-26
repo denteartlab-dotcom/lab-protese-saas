@@ -26,6 +26,7 @@ import {
   hrefOsEditar,
 } from "@/lib/notificacao-links";
 import {
+  lancamentoEhDespesaBoleto,
   lancamentoParaResumoBoleto,
   montarLinhaBoleto,
   montarNotificacoesBoletos,
@@ -145,7 +146,7 @@ export async function GET() {
   }
 
   const linhasBoletos = lancamentos
-    .filter((l) => l.tipo === "despesa" && l.status !== "cancelado")
+    .filter(lancamentoEhDespesaBoleto)
     .map((l) => montarLinhaBoleto(lancamentoParaResumoBoleto(l), hoje));
   for (const n of montarNotificacoesBoletos(linhasBoletos)) {
     lista.push(n);

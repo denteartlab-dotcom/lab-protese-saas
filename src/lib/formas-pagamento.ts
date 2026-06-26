@@ -14,6 +14,11 @@ export const FORMAS_PAGAMENTO = [
 
 export type FormaPagamentoPadrao = (typeof FORMAS_PAGAMENTO)[number];
 
+/** Despesa/receita lançada como boleto bancário (inclui rótulos "Boleto" e "Boleto Bancário"). */
+export function formaEhBoleto(forma?: string | null): boolean {
+  return (forma || "").trim().toLowerCase().includes("boleto");
+}
+
 export const FORMA_PAGAMENTO_PLACEHOLDER = "Forma Pagamento";
 export const FORMA_PAGAMENTO_TODOS = "Todos";
 
