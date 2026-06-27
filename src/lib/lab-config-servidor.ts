@@ -64,25 +64,17 @@ export const carregarConfigLaboratorioServidor = cache(
         }),
       ]);
       if (parsed) {
-        let config = normalizarConfigLaboratorio(parsed);
-        if (!config.nomeLaboratorio?.trim() && empresa?.nome?.trim()) {
-          config = { ...config, nomeLaboratorio: empresa.nome.trim() };
-        }
+        const config = normalizarConfigLaboratorio(parsed);
         return mesclarLogoLegadoConfig(
-          prepararConfigParaSalvar(
-            garantirNomeLaboratorioParaImpressao(config, empresa?.nome)
-          )
+          prepararConfigParaSalvar(garantirNomeLaboratorioParaImpressao(config))
         );
       }
       if (empresa?.nome?.trim()) {
-        return garantirNomeLaboratorioParaImpressao(
-          {
-            ...configLaboratorioPadrao(),
-            nomeLaboratorio: empresa.nome.trim(),
-            marca: empresa.nome.trim(),
-          },
-          empresa.nome
-        );
+        return garantirNomeLaboratorioParaImpressao({
+          ...configLaboratorioPadrao(),
+          nomeLaboratorio: empresa.nome.trim(),
+          nomeFantasia: empresa.nome.trim(),
+        });
       }
       return configLaboratorioPadrao();
     }

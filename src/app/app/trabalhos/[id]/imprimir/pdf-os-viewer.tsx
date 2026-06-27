@@ -12,7 +12,7 @@ import { LAB_IMPRESSAO_PADRAO, type LabImpressaoConfig } from "@/lib/lab-impress
 import {
   CONFIG_LAB_PADRAO,
   LAB_CONFIG_ATUALIZADA_EVENT,
-  carregarConfigLaboratorio,
+  configLaboratorioCabecalhoAtual,
   nomeUsuarioDocumentosLaboratorio,
   type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
@@ -27,7 +27,7 @@ import {
   type ConfiguracoesOs,
 } from "@/lib/configuracoes-os";
 import { configParaLabImpressao } from "@/lib/lab-logo";
-import { configLaboratorioParaImpressao, sincronizarConfigLaboratorioDoServidor } from "@/lib/lab-config-sync";
+import { sincronizarConfigLaboratorioDoServidor } from "@/lib/lab-config-sync";
 import {
   aguardarArmazenamentoLaboratorioPronto,
 } from "@/lib/armazenamento-laboratorio";
@@ -2105,15 +2105,11 @@ export function PdfOsViewer({
       return { ...base, lab: base.lab || LAB_IMPRESSAO_PADRAO };
     }
     try {
-      const cfg = configLaboratorioParaImpressao(
-        base.configLaboratorio ?? null,
-        carregarConfigLaboratorio(),
-        base.usuarioCriou
-      );
+      const cfg = configLaboratorioCabecalhoAtual();
       const lab = configParaLabImpressao(cfg);
       const usuarioLaboratorio =
-        base.usuarioCriou?.trim() ||
         nomeUsuarioDocumentosLaboratorio(cfg) ||
+        base.usuarioCriou?.trim() ||
         lab.responsavel?.trim() ||
         "";
       return {
@@ -2126,12 +2122,7 @@ export function PdfOsViewer({
       };
     } catch (err) {
       console.error("[PdfOsViewer] montarDadosPdf", err);
-      const cfg = base.configLaboratorio
-        ? configLaboratorioParaImpressao(
-            base.configLaboratorio,
-            base.configLaboratorio
-          )
-        : configLaboratorioParaImpressao(null);
+      const cfg = configLaboratorioCabecalhoAtual();
       const lab = configParaLabImpressao(cfg);
       return {
         ...base,

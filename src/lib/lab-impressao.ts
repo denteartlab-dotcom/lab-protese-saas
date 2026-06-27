@@ -59,3 +59,6 @@ export const LAB_IMPRESSAO_PADRAO: LabImpressaoConfig = {
   telefones: "(31) 98270-9866",
   email: "",
 };
+
+/** Nome demo do template — nunca usar como nome real do laboratório. */
+export const NOME_RESPONSAVEL_LAB_DEMO = LAB_IMPRESSAO_PADRAO.responsavel;

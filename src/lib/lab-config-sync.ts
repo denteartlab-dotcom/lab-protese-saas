@@ -7,6 +7,7 @@ import {
   normalizarTipoPessoa,
   nomeExibicaoLaboratorio,
   garantirNomeLaboratorioParaImpressao,
+  configLaboratorioCabecalhoAtual,
   prepararConfigParaSalvar,
   salvarConfigLaboratorio,
   type ConfigLaboratorio,
@@ -16,11 +17,15 @@ import { normalizarLogoTamanho } from "@/lib/lab-impressao";
 import { normalizarCabecalhoRequisicao } from "@/lib/cabecalho-requisicao";
 import { normalizarConfigLaboratorio } from "@/lib/configuracoes-lab-parse";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
+import { NOME_RESPONSAVEL_LAB_DEMO } from "@/lib/lab-impressao";
 import { aplicarEspelhoServidor } from "@/lib/persisted-storage";
 
 function nomeLaboratorioUtil(valor?: string | null) {
   const texto = (valor || "").trim();
-  return texto && texto !== NOME_LAB_PADRAO ? texto : "";
+  if (!texto) return "";
+  if (texto === NOME_LAB_PADRAO) return "";
+  if (texto === NOME_RESPONSAVEL_LAB_DEMO) return "";
+  return texto;
 }
 
 export function montarConfigInicialCadastro(
@@ -100,12 +105,26 @@ function resolverNomeLaboratorioMesclado(
   local: ConfigLaboratorio,
   remoto: Partial<ConfigLaboratorio>
 ): string {
+  const localNome = nomeLaboratorioUtil(local.nomeLaboratorio);
+  if (localNome) return localNome;
+
+  const tipo = normalizarTipoPessoa(local.tipoPessoa);
+  const derivadoLocal =
+    tipo === "Jurídica"
+      ? nomeLaboratorioUtil(local.nomeFantasia) ||
+        nomeLaboratorioUtil(local.razaoSocial)
+      : nomeLaboratorioUtil(local.nome) || nomeLaboratorioUtil(local.razaoSocial);
+  if (derivadoLocal) return derivadoLocal;
+
+  const localExib = nomeLaboratorioUtil(nomeExibicaoLaboratorio(local));
+  if (localExib) return localExib;
+
   const remotoNome = nomeLaboratorioUtil(remoto.nomeLaboratorio);
   if (remotoNome) return remotoNome;
 
-  const tipo = normalizarTipoPessoa(remoto.tipoPessoa ?? local.tipoPessoa);
+  const tipoRemoto = normalizarTipoPessoa(remoto.tipoPessoa ?? local.tipoPessoa);
   const derivadoRemoto =
-    tipo === "Jurídica"
+    tipoRemoto === "Jurídica"
       ? nomeLaboratorioUtil(remoto.nomeFantasia) ||
         nomeLaboratorioUtil(remoto.razaoSocial) ||
         nomeLaboratorioUtil(remoto.responsavel)
@@ -114,29 +133,26 @@ function resolverNomeLaboratorioMesclado(
         nomeLaboratorioUtil(remoto.responsavel);
   if (derivadoRemoto) return derivadoRemoto;
 
-  const localNome = nomeLaboratorioUtil(local.nomeLaboratorio);
-  if (localNome) return localNome;
-
-  const mesclado = nomeExibicaoLaboratorio({
-    ...local,
-    ...remoto,
-    tipoPessoa: tipo,
-  } as ConfigLaboratorio);
-  return nomeLaboratorioUtil(mesclado);
+  return nomeLaboratorioUtil(
+    nomeExibicaoLaboratorio({
+      ...local,
+      ...remoto,
+      tipoPessoa: tipoRemoto,
+    } as ConfigLaboratorio)
+  );
 }
 
-/** Config do laboratório para impressão — mescla servidor + local sem perder o nome real do lab. */
+/** Config do laboratório para impressão — no navegador, igual ao preview do cabeçalho. */
 export function configLaboratorioParaImpressao(
   servidor?: Partial<ConfigLaboratorio> | null,
   local?: ConfigLaboratorio | null,
   fallbackEmpresa?: string | null
 ): ConfigLaboratorio {
-  const usarCacheLocal = local === undefined;
-  const localCfg = usarCacheLocal
-    ? typeof window !== "undefined"
-      ? carregarConfigLaboratorio()
-      : CONFIG_LAB_PADRAO
-    : local ?? CONFIG_LAB_PADRAO;
+  if (typeof window !== "undefined") {
+    return configLaboratorioCabecalhoAtual();
+  }
+
+  const localCfg = local ?? CONFIG_LAB_PADRAO;
 
   if (!servidor || typeof servidor !== "object") {
     return prepararConfigParaSalvar(
@@ -179,7 +195,7 @@ export function preservarLogoConfigLaboratorio(
   return { ...payload, logoDataUrl, logoTamanho };
 }
 
-/** Mescla config do servidor com a do navegador (prioriza nome salvo no servidor). */
+/** Mescla config do servidor com a do navegador (preserva nome/endereço salvos localmente). */
 export function mesclarConfigLaboratorio(
   local: ConfigLaboratorio,
   remoto: Partial<ConfigLaboratorio> | null
@@ -188,12 +204,17 @@ export function mesclarConfigLaboratorio(
 
   const { logoDataUrl, logoTamanho } = resolverLogoMesclado(local, remoto);
   const nomeLaboratorio = resolverNomeLaboratorioMesclado(local, remoto);
-  const remotoNorm = prepararConfigParaSalvar(normalizarConfigLaboratorio(remoto));
+  const remotoNorm = normalizarConfigLaboratorio(remoto);
 
   return prepararConfigParaSalvar({
+    ...local,
     ...remotoNorm,
     logoDataUrl,
     logoTamanho,
+    cabecalhoRequisicao: normalizarCabecalhoRequisicao({
+      ...local.cabecalhoRequisicao,
+      ...remotoNorm.cabecalhoRequisicao,
+    }),
     ...(nomeLaboratorio
       ? { nomeLaboratorio, responsavel: nomeLaboratorio }
       : {}),

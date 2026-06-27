@@ -197,24 +197,6 @@ function valorMonetarioSeguro(valor: number) {
   return Number.isFinite(valor) ? valor : 0;
 }
 
-function nomeUsuarioDocumentosImpressao(
-  config: Awaited<ReturnType<typeof carregarConfigLaboratorioServidor>>,
-  empresaNome?: string
-) {
-  const nomeLab =
-    config.nomeLaboratorio?.trim() ||
-    config.nomeFantasia?.trim() ||
-    config.razaoSocial?.trim() ||
-    config.nome?.trim() ||
-    "";
-  return (
-    nomeLab ||
-    empresaNome?.trim() ||
-    config.responsavel?.trim() ||
-    ""
-  );
-}
-
 function codigoErroPrisma(err: unknown) {
   if (err && typeof err === "object" && "code" in err) {
     return String((err as { code: string }).code);
@@ -390,21 +372,10 @@ export async function carregarDadosImpressaoOs({
     segmentoSomenteItem
   );
 
-  let empresaNome: string | undefined;
-  try {
-    const empresa = await prisma.empresa.findUnique({
-      where: { id: t.empresaId },
-      select: { nome: true },
-    });
-    empresaNome = empresa?.nome;
-  } catch (err) {
-    console.error("imprimir: empresa", { id, empresaId: t.empresaId, err });
-  }
-
   const configLabRaw = await carregarConfigLaboratorioServidor(t.empresaId);
-  const configLab = garantirNomeLaboratorioParaImpressao(configLabRaw, empresaNome);
+  const configLab = garantirNomeLaboratorioParaImpressao(configLabRaw);
   const configuracoesOs = await carregarConfiguracoesOsServidor(t.empresaId);
-  const usuarioCriou = nomeUsuarioDocumentosImpressao(configLab, empresaNome);
+  const usuarioCriou = nomeUsuarioDocumentosLaboratorio(configLab);
 
   const etapasPorServico = somenteItem
     ? segmentoEfetivoTrabalho(t) === "servico"

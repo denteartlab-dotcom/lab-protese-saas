@@ -1,6 +1,7 @@
 import {
   LAB_IMPRESSAO_PADRAO,
   LOGO_TAMANHO_PADRAO,
+  NOME_RESPONSAVEL_LAB_DEMO,
   type LabImpressaoConfig,
 } from "@/lib/lab-impressao";
 import {
@@ -69,7 +70,16 @@ export type ConfigLaboratorio = LabImpressaoConfig & {
 };
 
 export const CONFIG_LAB_PADRAO: ConfigLaboratorio = {
-  ...LAB_IMPRESSAO_PADRAO,
+  marca: NOME_LAB_PADRAO,
+  marcaSubtitulo: LAB_IMPRESSAO_PADRAO.marcaSubtitulo,
+  responsavel: "",
+  endereco: "",
+  enderecoLinha1: "",
+  enderecoLinha2: "",
+  telefones: "",
+  email: "",
+  logoDataUrl: "",
+  logoTamanho: LOGO_TAMANHO_PADRAO,
   nomeLaboratorio: "",
   tipoPessoa: "Jurídica",
   razaoSocial: "",
@@ -190,7 +200,10 @@ export function nomeUsuarioDocumentosLaboratorio(
 
 function nomeLaboratorioValido(valor?: string | null) {
   const texto = (valor || "").trim();
-  return texto && texto !== NOME_LAB_PADRAO ? texto : "";
+  if (!texto) return "";
+  if (texto === NOME_LAB_PADRAO) return "";
+  if (texto === NOME_RESPONSAVEL_LAB_DEMO) return "";
+  return texto;
 }
 
 export function nomeExibicaoLaboratorio(config: ConfigLaboratorio): string {
@@ -215,13 +228,25 @@ export function garantirNomeLaboratorioParaImpressao(
   config: ConfigLaboratorio,
   fallbackEmpresa?: string | null
 ): ConfigLaboratorio {
-  const nome = nomeExibicaoLaboratorio(config) || nomeLaboratorioValido(fallbackEmpresa);
+  const nome =
+    nomeExibicaoLaboratorio(config) || nomeLaboratorioValido(fallbackEmpresa);
   if (!nome) return config;
   return {
     ...config,
     nomeLaboratorio: nome,
     responsavel: nome,
   };
+}
+
+/**
+ * Config do cabeçalho — mesma fonte do preview em Configurações › Cabeçalho.
+ * A impressão da OS deve usar sempre esta função no navegador.
+ */
+export function configLaboratorioCabecalhoAtual(): ConfigLaboratorio {
+  if (typeof window === "undefined") {
+    return { ...CONFIG_LAB_PADRAO, tipoPessoa: "Jurídica" };
+  }
+  return prepararConfigParaSalvar(carregarConfigLaboratorio());
 }
 
 /** Atualiza o nome do laboratório em todos os campos usados pelo sistema. */
