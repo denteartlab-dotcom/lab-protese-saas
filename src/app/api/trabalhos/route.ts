@@ -82,9 +82,17 @@ export async function GET(request: Request) {
           : {
               OR: [
                 { id: q },
-                { paciente: { nome: { contains: q } } },
-                { cliente: { nome: { contains: q } } },
-                { tipoProtese: { contains: q } },
+                {
+                  paciente: {
+                    nome: { contains: q, mode: "insensitive" },
+                  },
+                },
+                {
+                  cliente: {
+                    nome: { contains: q, mode: "insensitive" },
+                  },
+                },
+                { tipoProtese: { contains: q, mode: "insensitive" } },
               ],
             }
         : {}),
