@@ -152,6 +152,10 @@ import {
 } from "@/lib/controle-entregas-automatico";
 import { STATUS_ENTREGUE_CLIENTE } from "@/lib/entrega-trabalho-sync";
 import { normalizarChaveStatusOs } from "@/lib/status-os";
+import {
+  parsePrioridadeOsInstrucoes,
+  type PrioridadeOsForm,
+} from "@/lib/prioridade-os";
 import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
 import { notificarUploadsAtualizados } from "@/lib/uploads-armazenamento";
 import { useArmazenamentoGaleria } from "@/hooks/use-armazenamento-galeria";
@@ -292,6 +296,7 @@ type EditForm = {
   dataLancamento: string;
   caixa: string;
   casoUrgente: string;
+  prioridadeOs: PrioridadeOsForm;
   dentista: string;
   categoria: string;
   tipoProtese: string;
@@ -1524,6 +1529,7 @@ export default function ControlePage() {
       casoUrgente:
         linhaInstrucaoOs(instrucoesTexto, "Caso odontológico:") ||
         linhaInstrucaoOs(instrucoesTexto, "Caso clínico:"),
+      prioridadeOs: parsePrioridadeOsInstrucoes(instrucoesTexto) || "media",
       dentista:
         linhaInstrucaoOs(instrucoesTexto, "Dentista:") ||
         linhaInstrucaoOs(instrucoesTexto, "Dentista convidado:"),
@@ -2726,6 +2732,7 @@ export default function ControlePage() {
         dentista: form.dentista,
         casoUrgente: form.casoUrgente,
         material: form.material,
+        prioridadeOs: form.prioridadeOs,
       },
       anexosParaLinhasInstrucoes(todosAnexos)
     );
@@ -3724,6 +3731,7 @@ export default function ControlePage() {
                   casoUrgente: form.casoUrgente,
                   pacienteNome: form.pacienteNome,
                   clienteId: form.clienteId,
+                  prioridadeOs: form.prioridadeOs,
                   dentista: form.dentista,
                   material: form.material,
                   observacoes: form.observacoes,

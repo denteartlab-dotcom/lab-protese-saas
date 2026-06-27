@@ -1,4 +1,5 @@
 import { instrucoesTextoLivre } from "@/lib/etapas-os";
+import { linhaPrioridadeOs, type PrioridadeOsForm } from "@/lib/prioridade-os";
 
 export type CabecalhoOsCampos = {
   dataLancamento: string;
@@ -7,6 +8,7 @@ export type CabecalhoOsCampos = {
   casoUrgente: string;
   pacienteNome: string;
   clienteId: string;
+  prioridadeOs?: PrioridadeOsForm;
   dentista: string;
   material: string;
   observacoes: string;
@@ -112,7 +114,7 @@ export function montarCorpoCabecalhoInstrucoes(
   instrucoesCorpo: string,
   cabecalho: Pick<
     CabecalhoOsCampos,
-    "caixa" | "dentista" | "casoUrgente" | "material"
+    "caixa" | "dentista" | "casoUrgente" | "material" | "prioridadeOs"
   >,
   linhasAnexos = ""
 ) {
@@ -122,6 +124,7 @@ export function montarCorpoCabecalhoInstrucoes(
     cabecalho.material ? `Material enviado: ${cabecalho.material}` : "",
     cabecalho.caixa ? `Caixa: ${cabecalho.caixa}` : "",
     cabecalho.dentista ? `Dentista: ${cabecalho.dentista}` : "",
+    cabecalho.prioridadeOs ? linhaPrioridadeOs(cabecalho.prioridadeOs) : "",
     cabecalho.casoUrgente ? `Caso odontológico: ${cabecalho.casoUrgente}` : "",
     linhasAnexos,
   ]

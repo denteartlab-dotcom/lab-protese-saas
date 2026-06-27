@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { ImageUp, Tag, Trash2 } from "lucide-react";
-import { CampoDataBr, Input, SelectPesquisavel } from "@/components/ui";
+import { CampoDataBr, Input, Select, SelectPesquisavel } from "@/components/ui";
+import { type PrioridadeOsForm } from "@/lib/prioridade-os";
 import {
   carregarMateriaisDentistaCadastro,
   MATERIAIS_DENTISTA_STORAGE_KEY,
@@ -229,6 +230,21 @@ export function CabecalhoFormularioOs({
           </p>
         ) : null}
       </div>
+
+      <Select
+        label="Prioridade"
+        value={value.prioridadeOs || "media"}
+        onChange={(e) =>
+          onChange({
+            prioridadeOs: (e.target.value || "media") as PrioridadeOsForm,
+          })
+        }
+        disabled={desabilitado}
+      >
+        <option value="alta">Alta</option>
+        <option value="media">Média</option>
+        <option value="baixa">Baixa</option>
+      </Select>
 
       <Input
         label="Dentista"
