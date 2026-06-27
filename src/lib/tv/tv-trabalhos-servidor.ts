@@ -27,6 +27,10 @@ import {
   type TrabalhoModuloOs,
 } from "@/lib/modulo-producao-os";
 import {
+  parsePrioridadeOsInstrucoes,
+  prioridadeOsFormParaTv,
+} from "@/lib/prioridade-os";
+import {
   indiceEtapaAtualDeConcluidas,
   MODULO_PRODUCAO_ETAPAS_STORAGE_KEY,
 } from "@/lib/modulo-producao-etapas";
@@ -123,6 +127,9 @@ function colunaPorStatus(status: string): ColunaKanbanId {
 }
 
 function prioridadeDeTrabalho(trabalho: TrabalhoModuloOs): PrioridadeOs {
+  const explicita = parsePrioridadeOsInstrucoes(trabalho.instrucoes);
+  if (explicita) return prioridadeOsFormParaTv(explicita);
+
   const { urgente, repeticao } = flagsUrgenciaTrabalho(trabalho);
   if (urgente) return "urgente";
   if (repeticao) return "alta";
@@ -194,8 +201,9 @@ function trabalhoParaOrdem(
   trabalho: TrabalhoTvRow,
   etapasGrupo: EtapaOsLinha[],
   mapaConcluidas: MapaEtapasConcluidas,
-  colaboradoresCadastro: ColaboradorCadastro[]
-): OrdemServicoTv {
+  colaboradoresCadastro: ColaboradorCadastro[],
+  instrucoesGrupo: string[] = []
+) {
   const moduloOs: TrabalhoModuloOs = {
     id: trabalho.id,
     numeroOs: trabalho.numeroOs,
@@ -246,7 +254,10 @@ function trabalhoParaOrdem(
     dentista: trabalho.cliente.nome,
     colaborador: colab.nome,
     colaboradorId: colab.id,
-    prioridade: prioridadeDeTrabalho(moduloOs),
+    prioridade: prioridadeDeTrabalho({
+      ...moduloOs,
+      instrucoes: instrucoesGrupo.filter(Boolean).join("\n") || moduloOs.instrucoes,
+    }),
     prazo: formatarPrazoBr(trabalho.dataPrevista, trabalho.dataEntrada),
     prazoIso: (trabalho.dataPrevista ?? trabalho.dataEntrada).toISOString(),
     status: statusLabel,
@@ -342,7 +353,7 @@ export async function carregarOrdensTv(
     const { etapas } = parseComplementosInstrucoesGrupo(instrucoesGrupo);
 
     ordens.push(
-      trabalhoParaOrdem(principal, etapas, mapa, colabCadastro)
+      trabalhoParaOrdem(principal, etapas, mapa, colabCadastro, instrucoesGrupo)
     );
   }
 
@@ -616,7 +627,10 @@ export async function carregarResumoOsTv(
   };
 
   const { urgente, repeticao } = flagsUrgenciaTrabalho(moduloOs);
-  const prioridade = prioridadeDeTrabalho(moduloOs);
+  const prioridade = prioridadeDeTrabalho({
+    ...moduloOs,
+    instrucoes: instrucoesGrupo.filter(Boolean).join("\n") || moduloOs.instrucoes,
+  });
   const atrasada = isTrabalhoAtrasado({
     status: principal.status,
     dataEntrada: principal.dataEntrada,

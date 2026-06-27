@@ -50,6 +50,12 @@ import {
   type LancamentoResumo,
 } from "@/lib/cliente-financeiro";
 import {
+  linhaPrioridadeOs,
+  normalizarPrioridadeOsForm,
+  parsePrioridadeOsInstrucoes,
+  type PrioridadeOsForm,
+} from "@/lib/prioridade-os";
+import {
   clienteDescontoGeralDeObservacoes,
   clienteDescontoGeralTipoDeObservacoes,
   descontoFormularioParaValorUn,
@@ -451,6 +457,7 @@ export default function OrdemServicoPage() {
     numeroOs: "",
     clienteId: "",
     pacienteNome: "",
+    prioridadeOs: "media" as PrioridadeOsForm,
     casoUrgente: "",
     caixa: "",
     dentista: "",
@@ -780,9 +787,11 @@ export default function OrdemServicoPage() {
       const dentesTexto = trabalho.dentes || "";
       const itensCarregados = grupo.flatMap((item) => itensFromTrabalho(item));
       const primeiroItem = itensCarregados[0];
-      const instrucoesGrupo = grupo
-        .map((item) => item.instrucoes || "")
-        .find((texto) => texto.trim().length > 0) || trabalho.instrucoes || "";
+      const textosInstrucoesGrupo = grupo.map((item) => item.instrucoes || "");
+      const instrucoesGrupo =
+        textosInstrucoesGrupo.find((texto) => texto.trim().length > 0) ||
+        trabalho.instrucoes ||
+        "";
       const linhasInstrucoes = instrucoesGrupo.split("\n");
       const valorLinha = (prefixo: string) =>
         linhasInstrucoes
@@ -868,6 +877,10 @@ export default function OrdemServicoPage() {
         numeroOs: String(trabalho.numeroOs),
         clienteId: trabalho.clienteId,
         pacienteNome: trabalho.paciente?.nome || "",
+        prioridadeOs:
+          parsePrioridadeOsInstrucoes(textosInstrucoesGrupo.join("\n")) ||
+          normalizarPrioridadeOsForm(valorLinha("Prioridade:")) ||
+          "media",
         caixa: valorLinha("Caixa:"),
         dentista: valorLinha("Dentista:") || valorLinha("Dentista convidado:"),
         tipoProtese: "",
@@ -2780,6 +2793,7 @@ export default function OrdemServicoPage() {
       form.materialEnviado ? `Material enviado: ${form.materialEnviado}` : "",
       form.caixa ? `Caixa: ${form.caixa}` : "",
       form.dentista ? `Dentista: ${form.dentista}` : "",
+      form.prioridadeOs ? linhaPrioridadeOs(form.prioridadeOs) : "",
       form.casoUrgente ? `Caso odontológico: ${form.casoUrgente}` : "",
       form.dataLaboratorio ? `Data laboratório: ${form.dataLaboratorio} ${form.horaLaboratorio}`.trim() : "",
       form.dataDentista ? `Data dentista: ${form.dataDentista} ${form.horaDentista}`.trim() : "",
@@ -3449,6 +3463,20 @@ export default function OrdemServicoPage() {
                 label: cliente.nome,
               }))}
             />
+            <Select
+              label="Prioridade"
+              value={form.prioridadeOs}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  prioridadeOs: (e.target.value || "media") as PrioridadeOsForm,
+                })
+              }
+            >
+              <option value="alta">Alta</option>
+              <option value="media">Média</option>
+              <option value="baixa">Baixa</option>
+            </Select>
             {form.clienteId ? (
               <p className="text-[12px] font-medium leading-snug text-[#4a90d9]">
                 Tabela Utilizada{" "}
