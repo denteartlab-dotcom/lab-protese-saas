@@ -5,27 +5,25 @@ import {
   carregarConfigLaboratorio,
   hidratarConfigLaboratorioCache,
   normalizarTipoPessoa,
-  nomeExibicaoLaboratorio,
-  garantirNomeLaboratorioParaImpressao,
-  configLaboratorioCabecalhoAtual,
   prepararConfigParaSalvar,
   salvarConfigLaboratorio,
   type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
+import {
+  garantirNomeLaboratorioParaImpressao,
+  nomeExibicaoLaboratorio,
+  nomeLaboratorioValido,
+} from "@/lib/lab-nome-exibicao";
 import { normalizarLogoTamanho } from "@/lib/lab-impressao";
 
 import { normalizarCabecalhoRequisicao } from "@/lib/cabecalho-requisicao";
 import { normalizarConfigLaboratorio } from "@/lib/configuracoes-lab-parse";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
-import { NOME_RESPONSAVEL_LAB_DEMO } from "@/lib/lab-impressao";
 import { aplicarEspelhoServidor } from "@/lib/persisted-storage";
+import { configLaboratorioCabecalhoAtual } from "@/lib/configuracoes-lab";
 
 function nomeLaboratorioUtil(valor?: string | null) {
-  const texto = (valor || "").trim();
-  if (!texto) return "";
-  if (texto === NOME_LAB_PADRAO) return "";
-  if (texto === NOME_RESPONSAVEL_LAB_DEMO) return "";
-  return texto;
+  return nomeLaboratorioValido(valor);
 }
 
 export function montarConfigInicialCadastro(

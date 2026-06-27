@@ -21,11 +21,11 @@ import {
 } from "@/lib/os-itens-impressao";
 import {
   garantirNomeLaboratorioParaImpressao,
-  nomeUsuarioDocumentosLaboratorio,
-  type ConfigLaboratorio,
-} from "@/lib/configuracoes-lab";
+  nomeExibicaoLaboratorio,
+} from "@/lib/lab-nome-exibicao";
 import { carregarConfigLaboratorioServidor } from "@/lib/lab-config-servidor";
 import { carregarConfiguracoesOsServidor } from "@/lib/configuracoes-os-servidor";
+import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
 import type { ConfiguracoesOs } from "@/lib/configuracoes-os";
 import { resolverDataFinalizadoImpressao } from "@/lib/os-itens-impressao";
 
@@ -375,7 +375,7 @@ export async function carregarDadosImpressaoOs({
   const configLabRaw = await carregarConfigLaboratorioServidor(t.empresaId);
   const configLab = garantirNomeLaboratorioParaImpressao(configLabRaw);
   const configuracoesOs = await carregarConfiguracoesOsServidor(t.empresaId);
-  const usuarioCriou = nomeUsuarioDocumentosLaboratorio(configLab);
+  const usuarioCriou = nomeExibicaoLaboratorio(configLab);
 
   const etapasPorServico = somenteItem
     ? segmentoEfetivoTrabalho(t) === "servico"

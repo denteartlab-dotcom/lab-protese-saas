@@ -1,17 +1,21 @@
 import {
   LAB_IMPRESSAO_PADRAO,
   LOGO_TAMANHO_PADRAO,
-  NOME_RESPONSAVEL_LAB_DEMO,
   type LabImpressaoConfig,
 } from "@/lib/lab-impressao";
 import {
-  CABECALHO_REQUISICAO_PADRAO,
   normalizarCabecalhoRequisicao,
   type CabecalhoRequisicaoConfig,
 } from "@/lib/cabecalho-requisicao";
 import { normalizarConfigLaboratorio } from "@/lib/configuracoes-lab-parse";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
 import { normalizarIdioma, type Locale } from "@/lib/i18n";
+import {
+  garantirNomeLaboratorioParaImpressao,
+  nomeExibicaoLaboratorio,
+  nomeLaboratorioValido,
+  normalizarTipoPessoaLab,
+} from "@/lib/lab-nome-exibicao";
 import {
   persistirArmazenamentoImediato,
   aplicarEspelhoServidor,
@@ -90,7 +94,6 @@ export const CONFIG_LAB_PADRAO: ConfigLaboratorio = {
   croResponsavel: "",
   inscricaoEstadual: "",
   inscricaoMunicipal: "",
-  email: "",
   telefoneComercial: "(31) 9827-0986",
   celular: "",
   whatsapp: "(31) 98270-9866",
@@ -108,19 +111,13 @@ export const CONFIG_LAB_PADRAO: ConfigLaboratorio = {
   pais: "Brasil",
   moeda: "Real",
   codigoPaisTelefone: "+55",
-  cabecalhoRequisicao: { ...CABECALHO_REQUISICAO_PADRAO },
 };
 
 export function normalizarTipoPessoa(valor?: string): "Física" | "Jurídica" {
-  if (!valor) return "Jurídica";
-  const t = valor
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-  if (t.includes("fis")) return "Física";
-  return "Jurídica";
+  return normalizarTipoPessoaLab(valor);
 }
+
+export { garantirNomeLaboratorioParaImpressao, nomeExibicaoLaboratorio, nomeLaboratorioValido };
 
 function montarEnderecoCompleto(config: ConfigLaboratorio) {
   const ruaNumero = [config.rua, config.numero].filter(Boolean).join(", ");
@@ -190,52 +187,12 @@ export function nomeUsuarioDocumentosLaboratorio(
   fallbackNome?: string | null
 ): string {
   const nomeConfig = config
-    ? nomeExibicaoLaboratorio(normalizarConfigLaboratorio(config))
+    ? nomeExibicaoLaboratorio(config as ConfigLaboratorio)
     : typeof window !== "undefined"
       ? nomeExibicaoLaboratorio(carregarConfigLaboratorio())
       : "";
-  const nome = nomeConfig.trim() || fallbackNome?.trim() || "";
+  const nome = nomeConfig.trim() || nomeLaboratorioValido(fallbackNome);
   return nome;
-}
-
-function nomeLaboratorioValido(valor?: string | null) {
-  const texto = (valor || "").trim();
-  if (!texto) return "";
-  if (texto === NOME_LAB_PADRAO) return "";
-  if (texto === NOME_RESPONSAVEL_LAB_DEMO) return "";
-  return texto;
-}
-
-export function nomeExibicaoLaboratorio(config: ConfigLaboratorio): string {
-  const principal = nomeLaboratorioValido(config.nomeLaboratorio);
-  if (principal) return principal;
-
-  const tipo = normalizarTipoPessoa(config.tipoPessoa);
-  if (tipo === "Física") {
-    return nomeLaboratorioValido(config.nome) || nomeLaboratorioValido(config.razaoSocial);
-  }
-
-  return (
-    nomeLaboratorioValido(config.nomeFantasia) ||
-    nomeLaboratorioValido(config.razaoSocial) ||
-    nomeLaboratorioValido(config.responsavel) ||
-    nomeLaboratorioValido(config.marca)
-  );
-}
-
-/** Garante nome do laboratório para impressão (cabeçalho OS, faturas, etc.). */
-export function garantirNomeLaboratorioParaImpressao(
-  config: ConfigLaboratorio,
-  fallbackEmpresa?: string | null
-): ConfigLaboratorio {
-  const nome =
-    nomeExibicaoLaboratorio(config) || nomeLaboratorioValido(fallbackEmpresa);
-  if (!nome) return config;
-  return {
-    ...config,
-    nomeLaboratorio: nome,
-    responsavel: nome,
-  };
 }
 
 /**

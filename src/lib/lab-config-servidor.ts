@@ -1,11 +1,11 @@
 import {
   CONFIG_LAB_PADRAO,
   CONFIG_LAB_STORAGE_KEY,
-  garantirNomeLaboratorioParaImpressao,
   prepararConfigParaSalvar,
   type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
 import { normalizarConfigLaboratorio } from "@/lib/configuracoes-lab-parse";
+import { garantirNomeLaboratorioParaImpressao } from "@/lib/lab-nome-exibicao";
 import { lerJsonStoreTenant } from "@/lib/json-store-tenant";
 import { prisma } from "@/lib/db";
 import { cache } from "react";

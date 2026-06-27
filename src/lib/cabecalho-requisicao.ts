@@ -1,4 +1,4 @@
-import { nomeExibicaoLaboratorio, type ConfigLaboratorio } from "@/lib/configuracoes-lab";
+import { nomeExibicaoLaboratorio, type DadosNomeLaboratorio } from "@/lib/lab-nome-exibicao";
 import {
   LOGO_PDF_CABECALHO_OS_ALTURA_MM,
   LOGO_PDF_CABECALHO_OS_LARGURA_MM,
@@ -103,7 +103,17 @@ export type TextosCabecalhoRequisicao = {
   linhas: string[];
 };
 
-function enderecoLaboratorio(cfg: ConfigLaboratorio, lab: LabImpressaoConfig) {
+function enderecoLaboratorio(
+  cfg: DadosNomeLaboratorio & {
+    rua?: string;
+    numero?: string;
+    bairro?: string;
+    cidade?: string;
+    uf?: string;
+    endereco?: string;
+  },
+  lab: LabImpressaoConfig
+) {
   const ruaNumero = [cfg.rua, cfg.numero].filter(Boolean).join(", ");
   const partes = [
     ruaNumero,
@@ -122,7 +132,19 @@ function enderecoLaboratorio(cfg: ConfigLaboratorio, lab: LabImpressaoConfig) {
 }
 
 export function montarTextosCabecalhoRequisicao(
-  cfg: ConfigLaboratorio,
+  cfg: DadosNomeLaboratorio & {
+    rua?: string;
+    numero?: string;
+    bairro?: string;
+    cidade?: string;
+    uf?: string;
+    endereco?: string;
+    telefoneComercial?: string;
+    celular?: string;
+    whatsapp?: string;
+    email?: string;
+    site?: string;
+  },
   lab: LabImpressaoConfig,
   cab: CabecalhoRequisicaoConfig
 ): TextosCabecalhoRequisicao {
