@@ -214,7 +214,7 @@ function AppShellInner({
     () => setMenuMobileAberto((atual) => !atual),
     []
   );
-  const logoPerfil = dimensoesLogoPx(lab, { largura: 36, altura: 36 });
+  const logoPerfil = dimensoesLogoPx(lab, { largura: 46, altura: 46 });
   const temLogoPerfil = Boolean(lab.logoDataUrl?.startsWith("data:image"));
 
   useEffect(() => {
@@ -626,7 +626,7 @@ function AppShellInner({
                     </div>
                     <div
                       className={cn(
-                        "relative inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full",
+                        "relative inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center overflow-hidden rounded-full",
                         temLogoPerfil ? "bg-white ring-1 ring-slate-200/80" : "bg-[#dbeafe] text-[#3b6ea8]"
                       )}
                     >
@@ -639,9 +639,9 @@ function AppShellInner({
                           height={logoPerfil.altura}
                         />
                       ) : (
-                        <User className="h-4 w-4" />
+                        <User className="h-5 w-5" />
                       )}
-                      <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#f2f4f6] bg-emerald-500" />
+                      <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#f2f4f6] bg-emerald-500" />
                     </div>
                   </button>
 
