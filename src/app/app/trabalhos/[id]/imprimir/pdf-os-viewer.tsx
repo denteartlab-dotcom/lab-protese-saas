@@ -11,7 +11,6 @@ import { criarIdPdfViewer, publicarPdfBlobNoServidor } from "@/lib/pdf-viewer-ab
 import { LAB_IMPRESSAO_PADRAO, type LabImpressaoConfig } from "@/lib/lab-impressao";
 import {
   CONFIG_LAB_PADRAO,
-  LAB_CONFIG_ATUALIZADA_EVENT,
   configLaboratorioCabecalhoAtual,
   nomeUsuarioDocumentosLaboratorio,
   type ConfigLaboratorio,
@@ -22,7 +21,6 @@ import {
   carregarLayoutModelo3,
   carregarLayoutModelo4,
   carregarLayoutModelo5,
-  CONFIG_OS_ATUALIZADA_EVENT,
   sincronizarConfiguracoesOsDoServidor,
   type ConfiguracoesOs,
 } from "@/lib/configuracoes-os";
@@ -2087,6 +2085,8 @@ export function PdfOsViewer({
   const [erroPdf, setErroPdf] = useState("");
   const pdfBlobRef = useRef<Blob | null>(null);
   const pdfDocIdRef = useRef("");
+  const dadosPdfRef = useRef<PdfOsData>(data as PdfOsData);
+  const buildPdfSeqRef = useRef(0);
   const nomeArquivoPdf = nomeArquivoOsPdf(data.numeroOs);
 
   function layoutsOsParaPdf(base: PdfOsData, cfgOs?: ConfiguracoesOs | null) {
@@ -2138,11 +2138,9 @@ export function PdfOsViewer({
     }
   }
 
-  async function publicarPdfGerado(blob: Blob) {
+  async function publicarPdfGerado(blob: Blob, seq: number) {
     pdfBlobRef.current = blob;
     const blobUrl = criarUrlPdfNomeada(blob, nomeArquivoPdf);
-    setPdfUrl(blobUrl);
-
     const id = criarIdPdfViewer();
     try {
       const upload = publicarPdfBlobNoServidor(blob, nomeArquivoPdf, id);
@@ -2150,25 +2148,37 @@ export function PdfOsViewer({
         window.setTimeout(() => reject(new Error("timeout upload pdf")), 12_000);
       });
       await Promise.race([upload, timeout]);
+      if (seq !== buildPdfSeqRef.current) {
+        if (blobUrl.startsWith("blob:")) URL.revokeObjectURL(blobUrl);
+        return "";
+      }
       pdfDocIdRef.current = id;
       const serverUrl = urlPdfDocumentoServidor(id, { nomeArquivo: nomeArquivoPdf });
       setPdfUrl(serverUrl);
       if (blobUrl.startsWith("blob:")) URL.revokeObjectURL(blobUrl);
       return serverUrl;
     } catch (err) {
+      if (seq !== buildPdfSeqRef.current) {
+        if (blobUrl.startsWith("blob:")) URL.revokeObjectURL(blobUrl);
+        return "";
+      }
       console.warn("[PdfOsViewer] fallback blob local", err);
       pdfDocIdRef.current = "";
+      setPdfUrl(blobUrl);
       return blobUrl;
     }
   }
 
   const [dadosPdf, setDadosPdf] = useState<PdfOsData>(() => montarDadosPdfDeServidor(data));
+  dadosPdfRef.current = dadosPdf;
   const [configOsPronta, setConfigOsPronta] = useState(false);
 
   useEffect(() => {
     let ativo = true;
 
     async function prepararConfigImpressao() {
+      setPdfUrl("");
+      setErroPdf("");
       setConfigOsPronta(false);
       await aguardarArmazenamentoLaboratorioPronto();
       try {
@@ -2181,7 +2191,9 @@ export function PdfOsViewer({
       }
       if (!ativo) return;
       try {
-        setDadosPdf(montarDadosPdfDeServidor(data));
+        const montado = montarDadosPdfDeServidor(data);
+        dadosPdfRef.current = montado;
+        setDadosPdf(montado);
       } catch (err) {
         console.error("[PdfOsViewer] preparar config", err);
       }
@@ -2195,45 +2207,32 @@ export function PdfOsViewer({
   }, [data]);
 
   useEffect(() => {
-    const handler = () => {
-      try {
-        setDadosPdf(montarDadosPdfDeServidor(data));
-      } catch {
-        /* ignore */
-      }
-    };
-    window.addEventListener(LAB_CONFIG_ATUALIZADA_EVENT, handler);
-    window.addEventListener(CONFIG_OS_ATUALIZADA_EVENT, handler);
-    return () => {
-      window.removeEventListener(LAB_CONFIG_ATUALIZADA_EVENT, handler);
-      window.removeEventListener(CONFIG_OS_ATUALIZADA_EVENT, handler);
-    };
-  }, [data]);
-
-  useEffect(() => {
     if (!configOsPronta) return;
 
-    let url = "";
+    const seq = ++buildPdfSeqRef.current;
 
     async function buildPdf() {
       setErroPdf("");
+      const dadosAtuais = dadosPdfRef.current;
       const { jsPDF } = await import("jspdf");
+      if (seq !== buildPdfSeqRef.current) return;
 
       if (formato === "termica") {
         const renderTermica = renderTermicaPorModelo(modelo);
         const medida = new jsPDF({ unit: "mm", format: [80, 400] });
-        const finalY = renderTermica(medida as unknown as PdfRenderApi, dadosPdf);
+        const finalY = renderTermica(medida as unknown as PdfRenderApi, dadosAtuais);
         const altura = Math.min(Math.max(Math.ceil(finalY + 4), 58), 400);
 
         const pdf = new jsPDF({ unit: "mm", format: [80, altura] });
         const api = pdf as unknown as PdfRenderApi;
-        renderTermica(api, dadosPdf);
+        renderTermica(api, dadosAtuais);
         if (duasVias) {
           pdf.addPage([80, altura]);
-          renderTermica(api, dadosPdf);
+          renderTermica(api, dadosAtuais);
         }
         const blob = pdf.output("blob");
-        url = await publicarPdfGerado(blob);
+        if (seq !== buildPdfSeqRef.current) return;
+        await publicarPdfGerado(blob, seq);
         return;
       }
 
@@ -2244,28 +2243,29 @@ export function PdfOsViewer({
         const { larguraMm, alturaMm } = dimensoesModeloEtiqueta(modeloEtiqueta);
         const pdf = new jsPDF({ unit: "mm", format: [larguraMm, alturaMm] });
         const api = pdf as unknown as PdfRenderApi;
-        await renderEtiquetaOs(api, dadosPdf, modeloEtiqueta);
+        await renderEtiquetaOs(api, dadosAtuais, modeloEtiqueta);
         if (duasVias) {
           pdf.addPage([larguraMm, alturaMm]);
-          await renderEtiquetaOs(api, dadosPdf, modeloEtiqueta);
+          await renderEtiquetaOs(api, dadosAtuais, modeloEtiqueta);
         }
         const blob = pdf.output("blob");
-        url = await publicarPdfGerado(blob);
+        if (seq !== buildPdfSeqRef.current) return;
+        await publicarPdfGerado(blob, seq);
         return;
       }
 
-      const layoutModelo2 = normalizarOsModelo2Layout(dadosPdf.layoutModelo2);
-      const layoutModelo3 = normalizarOsModelo3Layout(dadosPdf.layoutModelo3);
+      const layoutModelo2 = normalizarOsModelo2Layout(dadosAtuais.layoutModelo2);
+      const layoutModelo3 = normalizarOsModelo3Layout(dadosAtuais.layoutModelo3);
       const pdf = new jsPDF({ unit: "mm", format: criarPdf(formato) });
       const api = pdf as unknown as PdfRenderApi;
       const renderPagina = () => {
         if (modelo === "modelo3") {
-          return renderModeloComprovante(api, dadosPdf, layoutModelo3);
+          return renderModeloComprovante(api, dadosAtuais, layoutModelo3);
         }
         if (modelo === "modelo2") {
-          return renderModeloProducao(api, dadosPdf, layoutModelo2);
+          return renderModeloProducao(api, dadosAtuais, layoutModelo2);
         }
-        return renderModeloProducao(api, dadosPdf, dadosPdf.layoutModelo1);
+        return renderModeloProducao(api, dadosAtuais, dadosAtuais.layoutModelo1);
       };
 
       renderPagina();
@@ -2275,10 +2275,12 @@ export function PdfOsViewer({
       }
 
       const blob = pdf.output("blob");
-      url = await publicarPdfGerado(blob);
+      if (seq !== buildPdfSeqRef.current) return;
+      await publicarPdfGerado(blob, seq);
     }
 
     void buildPdf().catch((err) => {
+      if (seq !== buildPdfSeqRef.current) return;
       console.error("gerar PDF OS", err);
       setErroPdf(
         err instanceof Error
@@ -2286,10 +2288,7 @@ export function PdfOsViewer({
           : "Não foi possível gerar o PDF da requisição."
       );
     });
-    return () => {
-      if (url.startsWith("blob:")) URL.revokeObjectURL(url);
-    };
-  }, [configOsPronta, dadosPdf, formato, modelo, duasVias]);
+  }, [configOsPronta, formato, modelo, duasVias, data.numeroOs]);
 
   function baixarPdf() {
     if (pdfDocIdRef.current) {
