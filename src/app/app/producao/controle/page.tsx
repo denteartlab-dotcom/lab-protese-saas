@@ -36,7 +36,7 @@ import {
   grupoOsIdOf,
   deveDividirOs,
   formatarDescontoItemOs,
-  grupoOsTemMultiplosSegmentos,
+  osTemMultiplosItensImpressao,
   itemExibeBadgeProduto,
   itemExibeBadgeTransporte,
   itemUsaCamposOdontologicos,
@@ -4979,11 +4979,7 @@ export default function ControlePage() {
         onClose={() => setImprimirOs(null)}
         trabalho={imprimirOs}
         multiplosSegmentos={
-          imprimirOs
-            ? grupoOsTemMultiplosSegmentos(
-                trabalhos.filter((item) => chaveGrupoOs(item) === chaveGrupoOs(imprimirOs))
-              )
-            : false
+          imprimirOs ? osTemMultiplosItensImpressao(trabalhos, imprimirOs.numeroOs) : false
         }
       />
       )}

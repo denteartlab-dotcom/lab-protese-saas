@@ -20,7 +20,7 @@ import {
   type LinhaAgendaGrupoOs,
   type TrabalhoAgendaGrupo,
 } from "@/lib/agenda-producao-grupo";
-import { editIdPreferidoGrupo, grupoOsTemMultiplosSegmentos } from "@/lib/trabalho-os-segmento";
+import { editIdPreferidoGrupo, osTemMultiplosItensImpressao } from "@/lib/trabalho-os-segmento";
 import {
   TRABALHOS_ATUALIZADOS_EVENT,
   notificarTrabalhosAtualizados,
@@ -545,11 +545,7 @@ export default function AgendaPage() {
         onClose={() => setImprimirOs(null)}
         trabalho={imprimirOs}
         multiplosSegmentos={
-          imprimirOs
-            ? grupoOsTemMultiplosSegmentos(
-                trabalhos.filter((item) => item.numeroOs === imprimirOs.numeroOs)
-              )
-            : false
+          imprimirOs ? osTemMultiplosItensImpressao(trabalhos, imprimirOs.numeroOs) : false
         }
       />
 

@@ -734,6 +734,27 @@ export function linhasServicoDoGrupoOs<
   return grupo.filter((t) => segmentoEfetivoTrabalho(t) === "servico");
 }
 
+type TrabalhoContagemItensOs = {
+  numeroOs: number;
+  tipoProtese?: string | null;
+  segmentoFaturamento?: string | null;
+  instrucoes?: string | null;
+};
+
+/** OS com mais de um item imprimível (vários serviços, segmentos ou linhas de item). */
+export function osTemMultiplosItensImpressao<T extends TrabalhoContagemItensOs>(
+  trabalhos: T[],
+  numeroOs: number
+): boolean {
+  const registros = trabalhos.filter((trabalho) => trabalho.numeroOs === numeroOs);
+  if (!registros.length) return false;
+  if (grupoOsTemMultiplosSegmentos(registros)) return true;
+  if (linhasServicoDoGrupoOs(registros).length > 1) return true;
+
+  const contagem = contagemItensOsPorSegmento(trabalhos, numeroOs);
+  return contagem.servicos + contagem.produtos + contagem.transportes > 1;
+}
+
 type FiltrosControleProducao = {
   filtroProdutos: boolean;
   filtroFichasSemServicos: boolean;

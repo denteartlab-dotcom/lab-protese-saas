@@ -406,7 +406,7 @@ export function ImprimirOsModal({
                     Somente Item Selecionado
                   </span>
                   <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
-                    Não — único segmento nesta OS
+                    Não — único item nesta OS
                   </p>
                 </div>
               )
@@ -456,8 +456,8 @@ export function ImprimirOsModal({
           {permitirSomenteItem && multiplosSegmentos ? (
             <p className="text-center text-xs text-slate-500">
               Com <strong>Sim</strong>, a requisição inclui apenas o item desta linha (
-              {segmentoLabel}). Com <strong>Não</strong>, inclui serviço, produto e transporte da
-              mesma OS.
+              {itemAtual}). Com <strong>Não</strong>, inclui todos os serviços, produtos e
+              transportes da mesma OS.
             </p>
           ) : !permitirSomenteItem && multiplosSegmentos ? (
             <p className="text-center text-xs text-slate-500">
