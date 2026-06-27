@@ -58,6 +58,48 @@ export function mesReferenciaAtual() {
   return `${y}-${m}`;
 }
 
+export function compararMesReferencia(a: string, b: string) {
+  return a.localeCompare(b);
+}
+
+export function mesReferenciaEhFuturo(
+  mesReferencia: string,
+  referencia = mesReferenciaAtual()
+) {
+  return compararMesReferencia(mesReferencia, referencia) > 0;
+}
+
+/** Mês de referência de uma instância de despesa fixa (YYYY-MM). */
+export function mesInstanciaDespesaFixa(item: LancamentoDespesaFixa) {
+  const pack = desempacotarDespesa(item.descricao);
+  if (!pack.meta.fixa || !pack.meta.fixaGrupoId) return null;
+  return pack.meta.fixaMes || mesReferenciaDeIso(item.data);
+}
+
+export function instanciaFixaEhFutura(item: LancamentoDespesaFixa) {
+  const mes = mesInstanciaDespesaFixa(item);
+  return mes ? mesReferenciaEhFuturo(mes) : false;
+}
+
+/**
+ * Despesa fixa só gera instância do mês corrente, a partir do dia 1 (virada de mês).
+ * Após o dia 1, ainda gera se faltar a instância (primeira abertura do mês).
+ */
+export function podeGerarInstanciaFixaMesCorrente(
+  mesReferencia: string,
+  _lancamentos: LancamentoDespesaFixa[],
+  _grupoId: string
+) {
+  const mesAtual = mesReferenciaAtual();
+  if (mesReferencia !== mesAtual) return false;
+  if (mesReferenciaEhFuturo(mesReferencia)) return false;
+
+  const hoje = new Date();
+  if (hoje.getDate() < 1) return false;
+
+  return true;
+}
+
 export function listarMesesReferencia(mesInicial: string, quantidade: number) {
   const [anoStr, mesStr] = mesInicial.split("-");
   let ano = Number(anoStr);
@@ -371,6 +413,22 @@ async function criarDespesaApiRemoto(
   }
 }
 
+/** Remove instâncias de meses futuros geradas indevidamente (legado de 12 meses). */
+export async function limparInstanciasFixasFuturasRemoto(
+  lancamentos: LancamentoDespesaFixa[]
+) {
+  let removidos = 0;
+  for (const item of lancamentos) {
+    const pack = desempacotarDespesa(item.descricao);
+    if (!pack.meta.fixa || pack.meta.fixaAtiva === false) continue;
+    if (!instanciaFixaEhFutura(item)) continue;
+
+    const res = await fetch(`/api/financeiro/${item.id}`, { method: "DELETE" });
+    if (res.ok) removidos += 1;
+  }
+  return removidos;
+}
+
 /** Gera a instância do mês corrente para despesas fixas ativas (virada de mês). */
 export async function sincronizarDespesasFixaRemoto(
   lancamentos: LancamentoDespesaFixa[]
@@ -379,74 +437,73 @@ export async function sincronizarDespesasFixaRemoto(
   if (!grupos.length) return 0;
 
   let criados = 0;
-  const meses = [mesReferenciaAtual()];
+  const mesAtual = mesReferenciaAtual();
 
   for (const grupoId of grupos) {
     const template = extrairTemplateDespesaFixa(lancamentos, grupoId);
     if (!template) continue;
 
-    for (const mes of meses) {
-      if (grupoFixaTemInstanciaNoMes(lancamentos, grupoId, mes)) continue;
-      if (mesIgnoradoDespesaFixa(lancamentos, grupoId, mes)) continue;
+    if (!podeGerarInstanciaFixaMesCorrente(mesAtual, lancamentos, grupoId)) continue;
+    if (grupoFixaTemInstanciaNoMes(lancamentos, grupoId, mesAtual)) continue;
+    if (mesIgnoradoDespesaFixa(lancamentos, grupoId, mesAtual)) continue;
 
-      const parcelasMes = parcelasInstanciaFixaNoMes(template, mes);
-      if (!parcelasMes.length) continue;
+    const parcelasMes = parcelasInstanciaFixaNoMes(template, mesAtual);
+    if (!parcelasMes.length) continue;
 
-      if (parcelasMes.length === 1) {
-        const parcela = parcelasMes[0];
-        await criarDespesaApiRemoto(
-          empacotarDespesa(
-            template.textoBase,
-            metaDespesaFixa(
-              {
-                ...template.metaBase,
-                conta: parcela.conta,
-                parcela: "1",
-              },
-              template.grupoId,
-              mes,
-              template.diaVencimento
-            )
-          ),
-          [
-            {
-              valor: parcela.valor,
-              data: brShortToIso(parcela.vencimento),
-              status: "pendente",
-              formaPagamento: parcela.formaPagamento,
-              parcelaLabel: parcela.parcela,
-            },
-          ]
-        );
-        criados += 1;
-      } else {
-        const descricaoBase = empacotarDespesa(
+    if (parcelasMes.length === 1) {
+      const parcela = parcelasMes[0];
+      await criarDespesaApiRemoto(
+        empacotarDespesa(
           template.textoBase,
           metaDespesaFixa(
             {
               ...template.metaBase,
-              conta: parcelasMes[0].conta,
-              parcela: String(parcelasMes.length),
+              conta: parcela.conta,
+              parcela: "1",
             },
             template.grupoId,
-            mes,
+            mesAtual,
             template.diaVencimento
           )
-        );
-        await criarDespesaApiRemoto(
-          descricaoBase,
-          parcelasMes.map((parcela, index) => ({
+        ),
+        [
+          {
             valor: parcela.valor,
-            data: brShortToIso(
-              vencimentoParcelaNoMes(mes, template.diaVencimento, index)
-            ),
-            status: "pendente" as const,
+            data: brShortToIso(parcela.vencimento),
+            status: "pendente",
             formaPagamento: parcela.formaPagamento,
             parcelaLabel: parcela.parcela,
-          }))
-        );
-        criados += parcelasMes.length;
-      }
+          },
+        ]
+      );
+      criados += 1;
+    } else {
+      const descricaoBase = empacotarDespesa(
+        template.textoBase,
+        metaDespesaFixa(
+          {
+            ...template.metaBase,
+            conta: parcelasMes[0].conta,
+            parcela: String(parcelasMes.length),
+          },
+          template.grupoId,
+          mesAtual,
+          template.diaVencimento
+        )
+      );
+      await criarDespesaApiRemoto(
+        descricaoBase,
+        parcelasMes.map((parcela, index) => ({
+          valor: parcela.valor,
+          data: brShortToIso(
+            vencimentoParcelaNoMes(mesAtual, template.diaVencimento, index)
+          ),
+          status: "pendente" as const,
+          formaPagamento: parcela.formaPagamento,
+          parcelaLabel: parcela.parcela,
+        }))
+      );
+      criados += parcelasMes.length;
     }
   }
 

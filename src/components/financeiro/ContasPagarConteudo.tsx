@@ -64,6 +64,7 @@ import {
 } from "@/lib/lancamento-despesa";
 import {
   gerarGrupoDespesaFixaId,
+  limparInstanciasFixasFuturasRemoto,
   mesReferenciaDeDataBr,
   mesReferenciaDeIso,
   metaDespesaFixa,
@@ -387,8 +388,21 @@ export function ContasPagarConteudo() {
         : [];
       setLancamentos(lista);
       try {
-        const criados = await sincronizarDespesasFixaRemoto(lista);
-        if (criados > 0) {
+        const removidos = await limparInstanciasFixasFuturasRemoto(lista);
+        let listaSync = lista;
+        if (removidos > 0) {
+          const resLimpeza = await fetch("/api/financeiro?tipo=despesa");
+          const jsonLimpeza = (await resLimpeza.json().catch(() => ({}))) as {
+            lancamentos?: Lancamento[];
+          };
+          if (resLimpeza.ok && Array.isArray(jsonLimpeza.lancamentos)) {
+            listaSync = jsonLimpeza.lancamentos.filter(
+              (l: Lancamento) => l.tipo === "despesa"
+            );
+          }
+        }
+        const criados = await sincronizarDespesasFixaRemoto(listaSync);
+        if (removidos > 0 || criados > 0) {
           const resSync = await fetch("/api/financeiro?tipo=despesa");
           const jsonSync = (await resSync.json().catch(() => ({}))) as {
             lancamentos?: Lancamento[];
@@ -934,10 +948,6 @@ export function ContasPagarConteudo() {
         if (temPago && !temPendente) setTipoDespesa("pagas");
         else if (temPendente && !temPago) setTipoDespesa("a_pagar");
         else setTipoDespesa("todas");
-
-        if (despesaFixaAtiva && grupoFixaId) {
-          await sincronizarDespesasFixaRemoto(lancamentos);
-        }
       } else {
         if (despesaFixaAtiva && grupoFixaId) {
           const mesInicial = mesReferenciaDeDataBr(payload.dataLancamento);
