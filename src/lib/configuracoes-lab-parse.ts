@@ -5,6 +5,7 @@ import {
 } from "@/lib/configuracoes-lab";
 import { normalizarIdioma } from "@/lib/i18n";
 import { normalizarTipoPessoa } from "@/lib/configuracoes-lab";
+import { NOME_LAB_PADRAO } from "@/lib/document-title";
 
 function migrarLegado(parsed: Partial<ConfigLaboratorio>): ConfigLaboratorio {
   const base = { ...CONFIG_LAB_PADRAO, ...parsed };
@@ -14,7 +15,12 @@ function migrarLegado(parsed: Partial<ConfigLaboratorio>): ConfigLaboratorio {
       tipo === "Jurídica"
         ? base.nomeFantasia?.trim() || base.razaoSocial?.trim() || ""
         : base.nome?.trim() || base.razaoSocial?.trim() || "";
+    const responsavel =
+      base.responsavel?.trim() && base.responsavel.trim() !== NOME_LAB_PADRAO
+        ? base.responsavel.trim()
+        : "";
     if (legado) base.nomeLaboratorio = legado;
+    else if (responsavel) base.nomeLaboratorio = responsavel;
   }
   if (parsed.rua) return base;
   const texto = (parsed.endereco || "").trim();

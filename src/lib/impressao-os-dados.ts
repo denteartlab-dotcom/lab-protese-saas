@@ -19,9 +19,13 @@ import {
   extrairItensImpressaoOs,
   flagsUrgenteRepeticaoInstrucoes,
 } from "@/lib/os-itens-impressao";
+import {
+  garantirNomeLaboratorioParaImpressao,
+  nomeUsuarioDocumentosLaboratorio,
+  type ConfigLaboratorio,
+} from "@/lib/configuracoes-lab";
 import { carregarConfigLaboratorioServidor } from "@/lib/lab-config-servidor";
 import { carregarConfiguracoesOsServidor } from "@/lib/configuracoes-os-servidor";
-import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
 import type { ConfiguracoesOs } from "@/lib/configuracoes-os";
 import { resolverDataFinalizadoImpressao } from "@/lib/os-itens-impressao";
 
@@ -386,8 +390,6 @@ export async function carregarDadosImpressaoOs({
     segmentoSomenteItem
   );
 
-  const configLab = await carregarConfigLaboratorioServidor(t.empresaId);
-  const configuracoesOs = await carregarConfiguracoesOsServidor(t.empresaId);
   let empresaNome: string | undefined;
   try {
     const empresa = await prisma.empresa.findUnique({
@@ -398,6 +400,10 @@ export async function carregarDadosImpressaoOs({
   } catch (err) {
     console.error("imprimir: empresa", { id, empresaId: t.empresaId, err });
   }
+
+  const configLabRaw = await carregarConfigLaboratorioServidor(t.empresaId);
+  const configLab = garantirNomeLaboratorioParaImpressao(configLabRaw, empresaNome);
+  const configuracoesOs = await carregarConfiguracoesOsServidor(t.empresaId);
   const usuarioCriou = nomeUsuarioDocumentosImpressao(configLab, empresaNome);
 
   const etapasPorServico = somenteItem

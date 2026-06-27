@@ -1,6 +1,7 @@
 import {
   CONFIG_LAB_PADRAO,
   CONFIG_LAB_STORAGE_KEY,
+  garantirNomeLaboratorioParaImpressao,
   prepararConfigParaSalvar,
   type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
@@ -67,14 +68,21 @@ export const carregarConfigLaboratorioServidor = cache(
         if (!config.nomeLaboratorio?.trim() && empresa?.nome?.trim()) {
           config = { ...config, nomeLaboratorio: empresa.nome.trim() };
         }
-        return mesclarLogoLegadoConfig(prepararConfigParaSalvar(config));
+        return mesclarLogoLegadoConfig(
+          prepararConfigParaSalvar(
+            garantirNomeLaboratorioParaImpressao(config, empresa?.nome)
+          )
+        );
       }
       if (empresa?.nome?.trim()) {
-        return {
-          ...configLaboratorioPadrao(),
-          nomeLaboratorio: empresa.nome.trim(),
-          marca: empresa.nome.trim(),
-        };
+        return garantirNomeLaboratorioParaImpressao(
+          {
+            ...configLaboratorioPadrao(),
+            nomeLaboratorio: empresa.nome.trim(),
+            marca: empresa.nome.trim(),
+          },
+          empresa.nome
+        );
       }
       return configLaboratorioPadrao();
     }

@@ -6,6 +6,7 @@ import {
   hidratarConfigLaboratorioCache,
   normalizarTipoPessoa,
   nomeExibicaoLaboratorio,
+  garantirNomeLaboratorioParaImpressao,
   prepararConfigParaSalvar,
   salvarConfigLaboratorio,
   type ConfigLaboratorio,
@@ -14,7 +15,13 @@ import { normalizarLogoTamanho } from "@/lib/lab-impressao";
 
 import { normalizarCabecalhoRequisicao } from "@/lib/cabecalho-requisicao";
 import { normalizarConfigLaboratorio } from "@/lib/configuracoes-lab-parse";
+import { NOME_LAB_PADRAO } from "@/lib/document-title";
 import { aplicarEspelhoServidor } from "@/lib/persisted-storage";
+
+function nomeLaboratorioUtil(valor?: string | null) {
+  const texto = (valor || "").trim();
+  return texto && texto !== NOME_LAB_PADRAO ? texto : "";
+}
 
 export function montarConfigInicialCadastro(
   dados: {
@@ -93,51 +100,65 @@ function resolverNomeLaboratorioMesclado(
   local: ConfigLaboratorio,
   remoto: Partial<ConfigLaboratorio>
 ): string {
-  if (remoto.nomeLaboratorio?.trim()) return remoto.nomeLaboratorio.trim();
+  const remotoNome = nomeLaboratorioUtil(remoto.nomeLaboratorio);
+  if (remotoNome) return remotoNome;
 
   const tipo = normalizarTipoPessoa(remoto.tipoPessoa ?? local.tipoPessoa);
   const derivadoRemoto =
     tipo === "Jurídica"
-      ? remoto.nomeFantasia?.trim() || remoto.razaoSocial?.trim()
-      : remoto.nome?.trim() || remoto.razaoSocial?.trim();
+      ? nomeLaboratorioUtil(remoto.nomeFantasia) ||
+        nomeLaboratorioUtil(remoto.razaoSocial) ||
+        nomeLaboratorioUtil(remoto.responsavel)
+      : nomeLaboratorioUtil(remoto.nome) ||
+        nomeLaboratorioUtil(remoto.razaoSocial) ||
+        nomeLaboratorioUtil(remoto.responsavel);
   if (derivadoRemoto) return derivadoRemoto;
 
-  if (local.nomeLaboratorio?.trim()) return local.nomeLaboratorio.trim();
-  return nomeExibicaoLaboratorio({ ...local, ...remoto, tipoPessoa: tipo } as ConfigLaboratorio);
+  const localNome = nomeLaboratorioUtil(local.nomeLaboratorio);
+  if (localNome) return localNome;
+
+  const mesclado = nomeExibicaoLaboratorio({
+    ...local,
+    ...remoto,
+    tipoPessoa: tipo,
+  } as ConfigLaboratorio);
+  return nomeLaboratorioUtil(mesclado);
 }
 
-/** Config do laboratório para impressão — prioriza dados do servidor (não o cache local). */
+/** Config do laboratório para impressão — mescla servidor + local sem perder o nome real do lab. */
 export function configLaboratorioParaImpressao(
   servidor?: Partial<ConfigLaboratorio> | null,
-  local?: ConfigLaboratorio | null
+  local?: ConfigLaboratorio | null,
+  fallbackEmpresa?: string | null
 ): ConfigLaboratorio {
   const usarCacheLocal = local === undefined;
   const localCfg = usarCacheLocal
-    ? carregarConfigLaboratorio()
+    ? typeof window !== "undefined"
+      ? carregarConfigLaboratorio()
+      : CONFIG_LAB_PADRAO
     : local ?? CONFIG_LAB_PADRAO;
+
   if (!servidor || typeof servidor !== "object") {
-    return prepararConfigParaSalvar(localCfg);
+    return prepararConfigParaSalvar(
+      garantirNomeLaboratorioParaImpressao(localCfg, fallbackEmpresa)
+    );
   }
 
-  const srv = prepararConfigParaSalvar(normalizarConfigLaboratorio(servidor));
-  const logoServidor = srv.logoDataUrl?.trim();
-  const logoLocal = localCfg.logoDataUrl?.trim();
-  const logoDataUrl = logoServidor || logoLocal || "";
+  const remotoNorm = normalizarConfigLaboratorio(servidor);
+  const mesclado = mesclarConfigLaboratorio(localCfg, remotoNorm);
 
-  return prepararConfigParaSalvar({
-    ...localCfg,
-    ...srv,
-    logoDataUrl,
-    logoTamanho: logoServidor
-      ? srv.logoTamanho
-      : logoLocal
-        ? localCfg.logoTamanho
-        : srv.logoTamanho,
-    cabecalhoRequisicao: normalizarCabecalhoRequisicao({
-      ...localCfg.cabecalhoRequisicao,
-      ...srv.cabecalhoRequisicao,
-    }),
-  });
+  return prepararConfigParaSalvar(
+    garantirNomeLaboratorioParaImpressao(
+      {
+        ...mesclado,
+        cabecalhoRequisicao: normalizarCabecalhoRequisicao({
+          ...localCfg.cabecalhoRequisicao,
+          ...remotoNorm.cabecalhoRequisicao,
+        }),
+      },
+      fallbackEmpresa
+    )
+  );
 }
 
 /** Garante que gravações parciais não apaguem o logo já salvo. */

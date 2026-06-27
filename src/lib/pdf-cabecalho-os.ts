@@ -7,6 +7,7 @@ import {
 } from "@/lib/cabecalho-requisicao";
 import {
   carregarConfigLaboratorio,
+  garantirNomeLaboratorioParaImpressao,
   type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
 import { LAB_IMPRESSAO_PADRAO, type LabImpressaoConfig } from "@/lib/lab-impressao";
@@ -91,9 +92,10 @@ export function desenharCabecalhoRequisicaoPdf(
     corLinha?: string;
   }
 ): number {
-  const cfg =
+  const cfgBase =
     opts.configLab ??
     (typeof window !== "undefined" ? carregarConfigLaboratorio() : null);
+  const cfg = cfgBase ? garantirNomeLaboratorioParaImpressao(cfgBase) : null;
   const lab = cfg ? configParaLabImpressao(cfg) : opts.lab || LAB_IMPRESSAO_PADRAO;
   const cab = normalizarCabecalhoRequisicao(
     opts.cabecalhoRequisicao ?? cfg?.cabecalhoRequisicao

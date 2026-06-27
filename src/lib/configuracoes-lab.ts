@@ -188,15 +188,40 @@ export function nomeUsuarioDocumentosLaboratorio(
   return nome;
 }
 
+function nomeLaboratorioValido(valor?: string | null) {
+  const texto = (valor || "").trim();
+  return texto && texto !== NOME_LAB_PADRAO ? texto : "";
+}
+
 export function nomeExibicaoLaboratorio(config: ConfigLaboratorio): string {
-  const principal = config.nomeLaboratorio?.trim();
+  const principal = nomeLaboratorioValido(config.nomeLaboratorio);
   if (principal) return principal;
 
   const tipo = normalizarTipoPessoa(config.tipoPessoa);
   if (tipo === "Física") {
-    return (config.nome || config.razaoSocial || "").trim();
+    return nomeLaboratorioValido(config.nome) || nomeLaboratorioValido(config.razaoSocial);
   }
-  return (config.nomeFantasia || config.razaoSocial || config.marca || "").trim();
+
+  return (
+    nomeLaboratorioValido(config.nomeFantasia) ||
+    nomeLaboratorioValido(config.razaoSocial) ||
+    nomeLaboratorioValido(config.responsavel) ||
+    nomeLaboratorioValido(config.marca)
+  );
+}
+
+/** Garante nome do laboratório para impressão (cabeçalho OS, faturas, etc.). */
+export function garantirNomeLaboratorioParaImpressao(
+  config: ConfigLaboratorio,
+  fallbackEmpresa?: string | null
+): ConfigLaboratorio {
+  const nome = nomeExibicaoLaboratorio(config) || nomeLaboratorioValido(fallbackEmpresa);
+  if (!nome) return config;
+  return {
+    ...config,
+    nomeLaboratorio: nome,
+    responsavel: nome,
+  };
 }
 
 /** Atualiza o nome do laboratório em todos os campos usados pelo sistema. */
@@ -291,10 +316,11 @@ export function prepararConfigParaSalvar(form: ConfigLaboratorio): ConfigLaborat
   const ehFisica = normalizarTipoPessoa(form.tipoPessoa) === "Física";
   const preparado = { ...form, tipoPessoa: normalizarTipoPessoa(form.tipoPessoa) };
   const nomeLaboratorio =
-    form.nomeLaboratorio?.trim() ||
+    nomeLaboratorioValido(form.nomeLaboratorio) ||
     (ehFisica
-      ? form.nome?.trim() || form.razaoSocial?.trim()
-      : form.nomeFantasia?.trim() || form.razaoSocial?.trim()) ||
+      ? nomeLaboratorioValido(form.nome) || nomeLaboratorioValido(form.razaoSocial)
+      : nomeLaboratorioValido(form.nomeFantasia) ||
+        nomeLaboratorioValido(form.razaoSocial)) ||
     nomeExibicaoLaboratorio(preparado);
   return {
     ...preparado,

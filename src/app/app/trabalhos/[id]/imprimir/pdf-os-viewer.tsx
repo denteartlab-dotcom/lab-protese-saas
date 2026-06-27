@@ -2107,7 +2107,8 @@ export function PdfOsViewer({
     try {
       const cfg = configLaboratorioParaImpressao(
         base.configLaboratorio ?? null,
-        carregarConfigLaboratorio()
+        carregarConfigLaboratorio(),
+        base.usuarioCriou
       );
       const lab = configParaLabImpressao(cfg);
       const usuarioLaboratorio =

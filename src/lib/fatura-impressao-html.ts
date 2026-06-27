@@ -916,7 +916,7 @@ function gerarHtmlFaturaA4(
           ${
             layout.infoLab
               ? `<div class="lab" style="line-height:1.3;min-width:0">
-                  <strong style="display:block;font-size:${fs + 2}px;margin-bottom:3px;font-weight:bold">${escapeHtml(textos.nome || lab.marca)}</strong>
+                  <strong style="display:block;font-size:${fs + 2}px;margin-bottom:3px;font-weight:bold">${escapeHtml(textos.nome || lab.responsavel)}</strong>
                   ${textos.linhas.map((l) => `<span style="display:block;font-size:${fsSmall}px">${escapeHtml(l)}</span>`).join("")}
                 </div>`
               : "<div></div>"
@@ -937,7 +937,7 @@ function gerarHtmlFaturaA4(
     ${
       layout.infoLab
         ? `<div class="lab" style="line-height:1.2">
-            <strong style="display:block;font-size:16px;margin-bottom:3px">${escapeHtml(textos.nome || lab.marca)}</strong>
+            <strong style="display:block;font-size:16px;margin-bottom:3px">${escapeHtml(textos.nome || lab.responsavel)}</strong>
             ${textos.linhas.map((l) => `<span style="display:block;font-size:13px">${escapeHtml(l)}</span>`).join("")}
           </div>`
         : "<div></div>"
