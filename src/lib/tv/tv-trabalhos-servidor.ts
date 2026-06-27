@@ -30,6 +30,7 @@ import {
   parsePrioridadeOsInstrucoes,
   prioridadeOsFormParaTv,
 } from "@/lib/prioridade-os";
+import { colunaTvPorNomeServico } from "@/lib/tv/tv-servico-coluna";
 import {
   indiceEtapaAtualDeConcluidas,
   MODULO_PRODUCAO_ETAPAS_STORAGE_KEY,
@@ -174,6 +175,23 @@ function resolverColunaAtual(
 
   if (trabalho.status === "saiu_entrega") {
     return { coluna: "pronto_entrega", itemChave };
+  }
+
+  const colunaFixaServico = colunaTvPorNomeServico(trabalho.tipoProtese);
+  if (colunaFixaServico) {
+    if (etapas.length > 0) {
+      const todasConcluidas = etapas.every((_, i) => concluidas.has(i));
+      if (todasConcluidas) {
+        return { coluna: "pronto_entrega", itemChave };
+      }
+      const indiceAtual = etapas.findIndex((_, i) => !concluidas.has(i));
+      return {
+        coluna: colunaFixaServico,
+        etapaAtual: indiceAtual >= 0 ? etapas[indiceAtual] : undefined,
+        itemChave,
+      };
+    }
+    return { coluna: colunaFixaServico, itemChave };
   }
 
   if (etapas.length === 0) {
