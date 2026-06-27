@@ -214,7 +214,7 @@ function AppShellInner({
     () => setMenuMobileAberto((atual) => !atual),
     []
   );
-  const logoPerfil = dimensoesLogoPx(lab, { largura: 46, altura: 46 });
+  const logoPerfil = dimensoesLogoPx(lab, { largura: 61, altura: 61 });
   const temLogoPerfil = Boolean(lab.logoDataUrl?.startsWith("data:image"));
 
   useEffect(() => {
@@ -611,22 +611,22 @@ function AppShellInner({
                   <button
                     type="button"
                     onClick={() => setUserMenuOpen((current) => !current)}
-                    className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-left transition hover:bg-black/5"
+                    className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition hover:bg-black/5"
                     aria-expanded={userMenuOpen}
                     aria-label="Abrir menu do usuário"
                   >
                     <div className="hidden leading-tight sm:block">
                       <p
                         suppressHydrationWarning
-                        className="text-[11px] font-bold text-slate-800"
+                        className="text-[13px] font-bold text-slate-800"
                       >
                         {nomePerfil}
                       </p>
-                      <p className="text-[10px] text-slate-500">{papelUsuario}</p>
+                      <p className="text-[11px] text-slate-500">{papelUsuario}</p>
                     </div>
                     <div
                       className={cn(
-                        "relative inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center overflow-hidden rounded-full",
+                        "relative inline-flex h-[57px] w-[57px] shrink-0 items-center justify-center overflow-hidden rounded-full",
                         temLogoPerfil ? "bg-white ring-1 ring-slate-200/80" : "bg-[#dbeafe] text-[#3b6ea8]"
                       )}
                     >
@@ -639,9 +639,9 @@ function AppShellInner({
                           height={logoPerfil.altura}
                         />
                       ) : (
-                        <User className="h-5 w-5" />
+                        <User className="h-6 w-6" />
                       )}
-                      <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#f2f4f6] bg-emerald-500" />
+                      <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#f2f4f6] bg-emerald-500" />
                     </div>
                   </button>
 
