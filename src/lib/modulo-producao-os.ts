@@ -1,7 +1,9 @@
 import {
   parseComplementosInstrucoesGrupo,
+  parseEtapasInstrucoes,
   type EtapaOsLinha,
 } from "@/lib/etapas-os";
+import { segmentoEfetivoTrabalho } from "@/lib/trabalho-os-segmento";
 import { STATUS_TRABALHO } from "@/lib/utils";
 
 export type { EtapaOsLinha };
@@ -91,6 +93,24 @@ export function contextoEtapasModuloOsGrupo(grupo: TrabalhoComSegmento[]) {
     itens[0]?.id ??
     `${principal.id}-principal`;
   return { etapas, trabalhoId: principal.id, itemId, principal };
+}
+
+/** Etapas e chave de progresso para uma linha do controle de produção. */
+export function contextoEtapasControleLinha(
+  trabalho: TrabalhoComSegmento,
+  grupo: TrabalhoComSegmento[]
+) {
+  const servicoRef =
+    segmentoEfetivoTrabalho(trabalho) === "servico"
+      ? trabalho
+      : grupo.find((t) => segmentoEfetivoTrabalho(t) === "servico") ?? trabalho;
+  const etapas = parseEtapasInstrucoes(servicoRef.instrucoes);
+  const itens = itensDaOsModulo(servicoRef);
+  const itemId =
+    itens.find((item) => item.tipo === "trabalho")?.id ??
+    itens[0]?.id ??
+    `${servicoRef.id}-principal`;
+  return { etapas, trabalhoId: servicoRef.id, itemId, servicoRef };
 }
 
 export function itensDaOsModulo(trabalho: TrabalhoModuloOs): ItemModuloOs[] {

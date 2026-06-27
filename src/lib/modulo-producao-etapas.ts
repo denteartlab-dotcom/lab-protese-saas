@@ -112,12 +112,24 @@ export function indiceEtapaAposSituacao(
   indiceAtual: number,
   totalEtapas: number
 ): number | null {
-  if (situacao === "atual") return index;
-  if (situacao === "concluida") return Math.min(index + 1, totalEtapas);
+  if (totalEtapas <= 0) return 0;
+  const ultimoIndice = totalEtapas - 1;
+  if (situacao === "atual") return Math.max(0, Math.min(index, ultimoIndice));
+  if (situacao === "concluida") return Math.min(index + 1, ultimoIndice);
   if (situacao === "aguardando" && index === indiceAtual) {
-    return Math.min(index + 1, Math.max(0, totalEtapas - 1));
+    return Math.min(index + 1, ultimoIndice);
   }
   return null;
+}
+
+/** Garante índice válido ao persistir (evita marcar todas as etapas como concluídas). */
+export function normalizarIndiceEtapaAtualParaPersistir(
+  indiceAtual: number,
+  totalEtapas: number
+): number {
+  if (totalEtapas <= 0) return 0;
+  const ultimoIndice = totalEtapas - 1;
+  return Math.max(0, Math.min(Math.floor(indiceAtual), ultimoIndice));
 }
 
 export function podeAlterarSituacaoEtapaServico(opts: {
@@ -145,10 +157,15 @@ export async function persistirEtapaAtualOs(opts: {
   trabalhoId: string;
   itemId: string;
   indiceAtual: number;
+  totalEtapas?: number;
 }) {
   if (typeof window === "undefined") return;
   const chave = chaveEtapasModuloOs(opts.trabalhoId, opts.itemId);
-  const concluidas = indicesConcluidasDeIndiceAtual(opts.indiceAtual);
+  const indiceNormalizado =
+    opts.totalEtapas !== undefined
+      ? normalizarIndiceEtapaAtualParaPersistir(opts.indiceAtual, opts.totalEtapas)
+      : Math.max(0, Math.floor(opts.indiceAtual));
+  const concluidas = indicesConcluidasDeIndiceAtual(indiceNormalizado);
   const mapa = lerMapa();
   mapa[chave] = concluidas;
   writeStorage(MODULO_PRODUCAO_ETAPAS_STORAGE_KEY, mapa);

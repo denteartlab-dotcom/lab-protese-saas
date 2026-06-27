@@ -167,7 +167,7 @@ import {
   indiceEtapaAtualDeConcluidas,
   persistirEtapaAtualOs,
 } from "@/lib/modulo-producao-etapas";
-import { contextoEtapasModuloOsGrupo, flagsUrgenciaTrabalho, itensDaOsModulo } from "@/lib/modulo-producao-os";
+import { contextoEtapasControleLinha, flagsUrgenciaTrabalho, itensDaOsModulo } from "@/lib/modulo-producao-os";
 import { removerMarcacaoUrgenteInstrucoes } from "@/lib/urgencia-cliente";
 import {
   OPCOES_TIPO_REPETICAO_OS,
@@ -1745,7 +1745,8 @@ export default function ControlePage() {
     await persistirEtapaAtualOs({
       trabalhoId: trabalhoRef.id,
       itemId: itemIdEtapasControle(trabalhoRef, itemServico?.id ?? itemSelecionadoId),
-      indiceAtual: Math.min(indiceEtapaAtualEdicao, etapasEdicao.length),
+      indiceAtual: indiceEtapaAtualEdicao,
+      totalEtapas: etapasEdicao.length,
     });
   }
 
@@ -1948,9 +1949,16 @@ export default function ControlePage() {
     );
   }
 
+  function etapasEdicaoAtivaParaItem(item: EditItem) {
+    if (etapasEdicao.length === 0) return false;
+    if (itemSelecionadoId === item.id) return true;
+    const servicos = editItems.filter((entry) => classificarItemOs(entry) === "servico");
+    return servicos.length === 1 && servicos[0]?.id === item.id;
+  }
+
   function etapasFonteItemControle(item: EditItem): EtapaOsItemEdicao[] {
+    if (etapasEdicaoAtivaParaItem(item)) return etapasEdicao;
     if (item.etapasServico?.length) return item.etapasServico;
-    if (itemSelecionadoId === item.id && etapasEdicao.length > 0) return etapasEdicao;
     if (!editando) return [];
     const grupo = trabalhosDoMesmoGrupoOsId(editando, trabalhos);
     return etapasServicoDeRegistroGrupo(
@@ -1964,12 +1972,13 @@ export default function ControlePage() {
   }
 
   function linhasEtapasItemControle(item: EditItem) {
+    const fonte = etapasFonteItemControle(item);
     const filtradas = etapasFormParaItemServico(
       item.servico,
-      etapasFonteItemControle(item),
+      fonte,
       categoriasTabelaPreco,
       modelosEtapasOs,
-      { somentePreenchidasNoForm: true }
+      etapasEdicaoAtivaParaItem(item) ? undefined : { somentePreenchidasNoForm: true }
     );
     const dentesItem = dentesFromResumoControle(
       item.numeroDente === "-" ? "" : item.numeroDente
@@ -3324,7 +3333,18 @@ export default function ControlePage() {
                 const linhaProdutoOuTransporte =
                   exibicaoLinha.kind === "produto" || exibicaoLinha.kind === "transporte";
                 const grupoOs = gruposPorNumeroOs.get(trabalho.numeroOs) ?? [trabalho];
-                const contextoEtapas = contextoEtapasModuloOsGrupo(
+                const contextoEtapas = contextoEtapasControleLinha(
+                  {
+                    id: trabalho.id,
+                    numeroOs: trabalho.numeroOs,
+                    tipoProtese: trabalho.tipoProtese,
+                    valor: trabalho.valor ?? 0,
+                    status: trabalho.status,
+                    instrucoes: trabalho.instrucoes,
+                    dataEntrada: trabalho.dataEntrada,
+                    dataPrevista: trabalho.dataPrevista,
+                    segmentoFaturamento: trabalho.segmentoFaturamento,
+                  },
                   grupoOs.map((registro) => ({
                     id: registro.id,
                     numeroOs: registro.numeroOs,

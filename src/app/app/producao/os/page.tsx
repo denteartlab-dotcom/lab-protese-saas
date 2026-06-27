@@ -1412,7 +1412,8 @@ export default function OrdemServicoPage() {
     await persistirEtapaAtualOs({
       trabalhoId,
       itemId,
-      indiceAtual: Math.min(indiceEtapaAtual, etapas.length),
+      indiceAtual: indiceEtapaAtual,
+      totalEtapas: etapas.length,
     });
   }
 
