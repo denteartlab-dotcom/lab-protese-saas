@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, Plus, Trash2 } from "lucide-react";
-import {
+import { calcularPosicaoMenuAbaixo } from "@/lib/dropdown-portal-pos";import {
   agruparPlanoContas,
   carregarPlanoContas,
   contaCriadaPeloUsuario,
@@ -47,8 +47,7 @@ export function PlanoContasCategoriaSelect({
   const [modalCadastro, setModalCadastro] = useState(false);
   const [categoriaInicialCadastro, setCategoriaInicialCadastro] =
     useState<ItemPlanoContas | null>(null);
-  const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 0 });
-  const ref = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 0, maxHeight: 240 });  const ref = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const recarregar = useCallback(() => {
@@ -72,26 +71,21 @@ export function PlanoContasCategoriaSelect({
     [itensSecao]
   );
 
-  useEffect(() => {
-    if (!aberto) return;
-    function atualizarPos() {
-      if (!triggerRef.current) return;
-      const rect = triggerRef.current.getBoundingClientRect();
-      setMenuPos({
-        top: rect.bottom,
-        left: rect.left,
-        width: rect.width,
-      });
-    }
-    atualizarPos();
-    window.addEventListener("resize", atualizarPos);
-    window.addEventListener("scroll", atualizarPos, true);
-    return () => {
-      window.removeEventListener("resize", atualizarPos);
-      window.removeEventListener("scroll", atualizarPos, true);
-    };
-  }, [aberto]);
+  const atualizarPosMenu = useCallback(() => {
+    if (!menuEmPortal || !triggerRef.current) return;
+    setMenuPos(calcularPosicaoMenuAbaixo(triggerRef.current, { alturaMaxima: 240 }));
+  }, [menuEmPortal]);
 
+  useLayoutEffect(() => {
+    if (!aberto || !menuEmPortal) return;
+    atualizarPosMenu();
+    window.addEventListener("resize", atualizarPosMenu);
+    window.addEventListener("scroll", atualizarPosMenu, true);
+    return () => {
+      window.removeEventListener("resize", atualizarPosMenu);
+      window.removeEventListener("scroll", atualizarPosMenu, true);
+    };
+  }, [aberto, menuEmPortal, atualizarPosMenu]);
   useEffect(() => {
     if (!aberto) return;
     function fechar(e: MouseEvent) {
@@ -150,7 +144,7 @@ export function PlanoContasCategoriaSelect({
       id="plano-contas-categoria-menu"
       role="listbox"
       className={cn(
-        "max-h-[240px] overflow-y-auto border border-[#d4d4d4] bg-white shadow-[0_4px_12px_rgba(0,0,0,0.12)]",
+        "overflow-y-auto border border-[#d4d4d4] bg-white shadow-[0_4px_12px_rgba(0,0,0,0.12)]",
         menuEmPortal
           ? "fixed z-[10050]"
           : "absolute left-0 right-0 top-full z-[100] mt-0"
@@ -161,10 +155,10 @@ export function PlanoContasCategoriaSelect({
               top: menuPos.top,
               left: menuPos.left,
               width: menuPos.width,
+              maxHeight: menuPos.maxHeight,
             }
-          : undefined
-      }
-    >
+          : { maxHeight: 240 }
+      }    >
       <button
         type="button"
         onClick={abrirCadastro}

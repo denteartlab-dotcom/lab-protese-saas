@@ -1,8 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, X } from "lucide-react";
+import { calcularPosicaoMenuAbaixo } from "@/lib/dropdown-portal-pos";
 import { propsBloquearArrasteEntreCampos } from "@/lib/input-selecao";
 import { cn } from "@/lib/utils";
 
@@ -63,11 +72,17 @@ export function SelectPesquisavel({
   const inputId = id || autoId;
   const menuId = `${inputId}-menu`;
   const ref = useRef<HTMLDivElement>(null);
+  const anchorRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [aberto, setAberto] = useState(false);
   const [texto, setTexto] = useState("");
-  const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 0 });
+  const [menuPos, setMenuPos] = useState({
+    top: 0,
+    left: 0,
+    width: 0,
+    maxHeight: maxItensVisiveis * ALTURA_ITEM_PX,
+  });
 
   const labelSelecionado = useMemo(
     () => options.find((opcao) => opcao.value === value)?.label ?? "",
@@ -90,25 +105,27 @@ export function SelectPesquisavel({
     if (!aberto) sincronizarTexto();
   }, [aberto, sincronizarTexto]);
 
-  useEffect(() => {
-    if (!aberto) return;
-    function atualizarPos() {
-      if (!ref.current) return;
-      const rect = ref.current.getBoundingClientRect();
-      setMenuPos({
-        top: rect.bottom,
-        left: rect.left,
-        width: rect.width,
-      });
-    }
-    atualizarPos();
-    window.addEventListener("resize", atualizarPos);
-    window.addEventListener("scroll", atualizarPos, true);
+  const atualizarPosMenu = useCallback(() => {
+    if (!menuEmPortal) return;
+    const anchor = anchorRef.current ?? ref.current;
+    if (!anchor) return;
+    setMenuPos(
+      calcularPosicaoMenuAbaixo(anchor, {
+        alturaMaxima: maxItensVisiveis * ALTURA_ITEM_PX,
+      })
+    );
+  }, [menuEmPortal, maxItensVisiveis]);
+
+  useLayoutEffect(() => {
+    if (!aberto || !menuEmPortal) return;
+    atualizarPosMenu();
+    window.addEventListener("resize", atualizarPosMenu);
+    window.addEventListener("scroll", atualizarPosMenu, true);
     return () => {
-      window.removeEventListener("resize", atualizarPos);
-      window.removeEventListener("scroll", atualizarPos, true);
+      window.removeEventListener("resize", atualizarPosMenu);
+      window.removeEventListener("scroll", atualizarPosMenu, true);
     };
-  }, [aberto]);
+  }, [aberto, menuEmPortal, atualizarPosMenu]);
 
   useEffect(() => {
     if (!aberto) return;
@@ -181,10 +198,10 @@ export function SelectPesquisavel({
         menuEmPortal ? "fixed z-[10050]" : "absolute left-0 right-0 top-full z-[100] mt-0.5"
       )}
       style={{
-        maxHeight: maxAlturaMenu,
+        maxHeight: menuEmPortal ? menuPos.maxHeight : maxAlturaMenu,
         ...(menuEmPortal
           ? {
-              top: menuPos.top + 2,
+              top: menuPos.top,
               left: menuPos.left,
               width: menuPos.width,
             }
@@ -225,7 +242,7 @@ export function SelectPesquisavel({
           {label}
         </label>
       ) : null}
-      <div className="relative">
+      <div ref={anchorRef} className="relative">
         <input
           ref={inputRef}
           id={inputId}
