@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, Plus, Trash2 } from "lucide-react";
-import { calcularPosicaoMenuAbaixo } from "@/lib/dropdown-portal-pos";import {
+import { Check, ChevronDown, Plus, Trash2 } from "lucide-react";
+import { calcularPosicaoMenuAbaixo } from "@/lib/dropdown-portal-pos";
+import {
   agruparPlanoContas,
   carregarPlanoContas,
   contaCriadaPeloUsuario,
@@ -19,8 +20,17 @@ import { PlanoContasCadastroModal } from "@/components/financeiro/PlanoContasCad
 import { cn } from "@/lib/utils";
 
 const AZUL_GRUPO = "#4a90d9";
+const AZUL_SELECAO = "#4a90d9";
 const BG_GRUPO = "#e8f2fc";
 const VERDE_CADASTRAR = "#2e9e5b";
+
+function normalizarBusca(texto: string) {
+  return texto
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
 
 type Props = {
   secao: SecaoPlanoContas;
@@ -44,11 +54,14 @@ export function PlanoContasCategoriaSelect({
 }: Props) {
   const [itens, setItens] = useState<ItemPlanoContas[]>([]);
   const [aberto, setAberto] = useState(false);
+  const [busca, setBusca] = useState("");
   const [modalCadastro, setModalCadastro] = useState(false);
   const [categoriaInicialCadastro, setCategoriaInicialCadastro] =
     useState<ItemPlanoContas | null>(null);
-  const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 0, maxHeight: 240 });  const ref = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 0, maxHeight: 280 });
+  const ref = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const buscaRef = useRef<HTMLInputElement>(null);
 
   const recarregar = useCallback(() => {
     setItens(carregarPlanoContas());
@@ -71,9 +84,22 @@ export function PlanoContasCategoriaSelect({
     [itensSecao]
   );
 
+  const gruposFiltrados = useMemo(() => {
+    const termo = normalizarBusca(busca);
+    if (!termo) return grupos;
+    return grupos
+      .map((grupo) => ({
+        ...grupo,
+        filhos: grupo.filhos.filter((filho) =>
+          normalizarBusca(filho.nome).includes(termo)
+        ),
+      }))
+      .filter((grupo) => grupo.filhos.length > 0);
+  }, [grupos, busca]);
+
   const atualizarPosMenu = useCallback(() => {
     if (!menuEmPortal || !triggerRef.current) return;
-    setMenuPos(calcularPosicaoMenuAbaixo(triggerRef.current, { alturaMaxima: 240 }));
+    setMenuPos(calcularPosicaoMenuAbaixo(triggerRef.current, { alturaMaxima: 280 }));
   }, [menuEmPortal]);
 
   useLayoutEffect(() => {
@@ -86,6 +112,12 @@ export function PlanoContasCategoriaSelect({
       window.removeEventListener("scroll", atualizarPosMenu, true);
     };
   }, [aberto, menuEmPortal, atualizarPosMenu]);
+
+  useEffect(() => {
+    if (!aberto) return;
+    window.setTimeout(() => buscaRef.current?.focus(), 0);
+  }, [aberto]);
+
   useEffect(() => {
     if (!aberto) return;
     function fechar(e: MouseEvent) {
@@ -94,6 +126,7 @@ export function PlanoContasCategoriaSelect({
       const menu = document.getElementById("plano-contas-categoria-menu");
       if (menu?.contains(alvo)) return;
       setAberto(false);
+      setBusca("");
     }
     document.addEventListener("mousedown", fechar);
     return () => document.removeEventListener("mousedown", fechar);
@@ -102,6 +135,7 @@ export function PlanoContasCategoriaSelect({
   function selecionar(filho: ItemPlanoContas) {
     onChange(filho.nome);
     setAberto(false);
+    setBusca("");
   }
 
   function excluirConta(item: ItemPlanoContas, e: React.MouseEvent) {
@@ -118,6 +152,7 @@ export function PlanoContasCategoriaSelect({
     setCategoriaInicialCadastro(null);
     setModalCadastro(true);
     setAberto(false);
+    setBusca("");
   }
 
   function cadastrarConta(pai: ItemPlanoContas, nome: string) {
@@ -134,8 +169,16 @@ export function PlanoContasCategoriaSelect({
     if (novo) onChange(novo.nome);
   }
 
+  function alternarAberto() {
+    setAberto((v) => {
+      if (v) setBusca("");
+      return !v;
+    });
+  }
+
   const triggerCls = cn(
     "flex h-9 w-full items-center justify-between gap-2 rounded border border-[#d4d4d4] bg-white px-2.5 text-left text-[13px] text-slate-800 outline-none focus:border-[#4a90d9]",
+    !value && "text-slate-400",
     triggerClassName
   );
 
@@ -144,7 +187,7 @@ export function PlanoContasCategoriaSelect({
       id="plano-contas-categoria-menu"
       role="listbox"
       className={cn(
-        "overflow-y-auto border border-[#d4d4d4] bg-white shadow-[0_4px_12px_rgba(0,0,0,0.12)]",
+        "overflow-hidden border border-[#d4d4d4] bg-white shadow-[0_4px_12px_rgba(0,0,0,0.12)]",
         menuEmPortal
           ? "fixed z-[10050]"
           : "absolute left-0 right-0 top-full z-[100] mt-0"
@@ -157,8 +200,9 @@ export function PlanoContasCategoriaSelect({
               width: menuPos.width,
               maxHeight: menuPos.maxHeight,
             }
-          : { maxHeight: 240 }
-      }    >
+          : { maxHeight: 280 }
+      }
+    >
       <button
         type="button"
         onClick={abrirCadastro}
@@ -169,51 +213,78 @@ export function PlanoContasCategoriaSelect({
         Cadastrar Categoria
       </button>
 
-      {grupos.map((grupo) => (
-        <div key={grupo.topico.id}>
-          <div
-            className="px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide"
-            style={{ backgroundColor: BG_GRUPO, color: AZUL_GRUPO }}
-          >
-            {grupo.topico.nome}
-          </div>
-          {grupo.filhos.map((filho) => {
-            const ativo = filho.nome === value;
-            const podeExcluir = contaCriadaPeloUsuario(filho);
-            return (
+      <div className="border-b border-[#e8e8e8] p-2">
+        <input
+          ref={buscaRef}
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar categoria..."
+          className="h-8 w-full rounded border border-slate-200 px-2 text-[12px] outline-none focus:border-[#4a90d9]"
+        />
+      </div>
+
+      <div className="max-h-[220px] overflow-y-auto">
+        {gruposFiltrados.length === 0 ? (
+          <p className="px-3 py-2 text-[12px] text-slate-400">Nenhuma categoria encontrada.</p>
+        ) : (
+          gruposFiltrados.map((grupo) => (
+            <div key={grupo.topico.id}>
               <div
-                key={filho.id}
-                className={cn(
-                  "flex min-h-[34px] items-center justify-between gap-1 pr-1",
-                  ativo ? "" : "hover:bg-slate-50"
-                )}
-                style={ativo ? { backgroundColor: BG_GRUPO } : undefined}
+                className="px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide"
+                style={{ backgroundColor: BG_GRUPO, color: AZUL_GRUPO }}
               >
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={ativo}
-                  onClick={() => selecionar(filho)}
-                  className="min-w-0 flex-1 py-2 pl-3 pr-1 text-left text-[13px] text-slate-800"
-                >
-                  {filho.nome}
-                </button>
-                {podeExcluir ? (
-                  <button
-                    type="button"
-                    title="Excluir categoria"
-                    onClick={(e) => excluirConta(filho, e)}
-                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center text-red-500 hover:bg-red-50 hover:text-red-600"
-                    aria-label="Excluir categoria"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
-                  </button>
-                ) : null}
+                {grupo.topico.nome}
               </div>
-            );
-          })}
-        </div>
-      ))}
+              {grupo.filhos.map((filho) => {
+                const ativo = filho.nome === value;
+                const podeExcluir = contaCriadaPeloUsuario(filho);
+                return (
+                  <div
+                    key={filho.id}
+                    className={cn(
+                      "flex min-h-[34px] items-center justify-between gap-1 pr-1",
+                      !ativo && "hover:bg-slate-50"
+                    )}
+                    style={ativo ? { backgroundColor: AZUL_SELECAO } : undefined}
+                  >
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={ativo}
+                      onClick={() => selecionar(filho)}
+                      className={cn(
+                        "flex min-w-0 flex-1 items-center gap-2 py-2 pl-3 pr-1 text-left text-[13px]",
+                        ativo ? "font-medium text-white" : "text-slate-800"
+                      )}
+                    >
+                      {ativo ? (
+                        <Check className="h-3.5 w-3.5 shrink-0" strokeWidth={3} aria-hidden />
+                      ) : (
+                        <span className="w-3.5 shrink-0" aria-hidden />
+                      )}
+                      <span className="truncate">{filho.nome}</span>
+                    </button>
+                    {podeExcluir ? (
+                      <button
+                        type="button"
+                        title="Excluir categoria"
+                        onClick={(e) => excluirConta(filho, e)}
+                        className={cn(
+                          "inline-flex h-7 w-7 shrink-0 items-center justify-center hover:bg-red-50 hover:text-red-600",
+                          ativo ? "text-white/90" : "text-red-500"
+                        )}
+                        aria-label="Excluir categoria"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
+                      </button>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          ))
+        )}
+      </div>
     </div>
   ) : null;
 
@@ -222,7 +293,7 @@ export function PlanoContasCategoriaSelect({
       <button
         ref={triggerRef}
         type="button"
-        onClick={() => setAberto((v) => !v)}
+        onClick={alternarAberto}
         className={triggerCls}
         aria-haspopup="listbox"
         aria-expanded={aberto}
@@ -237,9 +308,7 @@ export function PlanoContasCategoriaSelect({
         />
       </button>
 
-      {menuEmPortal && menu
-        ? createPortal(menu, document.body)
-        : menu}
+      {menuEmPortal && menu ? createPortal(menu, document.body) : menu}
 
       <PlanoContasCadastroModal
         open={modalCadastro}

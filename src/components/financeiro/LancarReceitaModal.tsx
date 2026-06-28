@@ -20,6 +20,7 @@ import {
 } from "@/lib/lancamento-despesa";
 import { CampoDataBr } from "@/components/ui";
 import { SelectPesquisavel } from "@/components/SelectPesquisavel";
+import { EntidadeDespesaSelect } from "@/components/financeiro/EntidadeDespesaSelect";
 import { dateToBrShort, somarDiasBr } from "@/lib/datas-br";
 import { parseNotaFiscalArquivo } from "@/lib/nfe-import";
 import {
@@ -864,19 +865,21 @@ export function LancarReceitaModal({
                       </select>
                     </div>
                     <div className="col-span-12 md:col-span-4">
-                      <label className={labelClass}>{labelNomeEntidade}</label>
-                      <select
+                      <EntidadeDespesaSelect
+                        label={labelNomeEntidade}
                         value={clienteId}
-                        onChange={(e) => setClienteId(e.target.value)}
-                        className={selectClass}
-                      >
-                        <option value="">Selecione</option>
-                        {entidadesLista.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.nome}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={setClienteId}
+                        placeholder="Selecione"
+                        inputClassName={selectClass}
+                        menuEmPortal
+                        tipoEntidade={
+                          tipoCliente as Exclude<EntidadeDespesa, "todos">
+                        }
+                        options={entidadesLista.map((c) => ({
+                          id: c.id,
+                          nome: c.nome,
+                        }))}
+                      />
                     </div>
                   </>
                 ) : (
@@ -1229,16 +1232,37 @@ export function LancarReceitaModal({
               </select>
             </div>
             <div className="col-span-12 md:col-span-6">
-              <SelectPesquisavel
-                label={labelNomeEntidade}
-                value={clienteId}
-                onChange={setClienteId}
-                placeholder="Selecione"
-                required={modo === "receita"}
-                inputClassName={selectClass}
-                menuEmPortal
-                options={entidadesLista.map((c) => ({ value: c.id, label: c.nome }))}
-              />
+              {modo === "despesa" ? (
+                <EntidadeDespesaSelect
+                  label={labelNomeEntidade}
+                  value={clienteId}
+                  onChange={setClienteId}
+                  placeholder="Selecione"
+                  inputClassName={selectClass}
+                  menuEmPortal
+                  tipoEntidade={
+                    tipoCliente as Exclude<EntidadeDespesa, "todos">
+                  }
+                  options={entidadesLista.map((c) => ({
+                    id: c.id,
+                    nome: c.nome,
+                  }))}
+                />
+              ) : (
+                <SelectPesquisavel
+                  label={labelNomeEntidade}
+                  value={clienteId}
+                  onChange={setClienteId}
+                  placeholder="Selecione"
+                  required
+                  inputClassName={selectClass}
+                  menuEmPortal
+                  options={entidadesLista.map((c) => ({
+                    value: c.id,
+                    label: c.nome,
+                  }))}
+                />
+              )}
             </div>
             <div className="col-span-12 md:col-span-3">
               <label className={labelClass}>Categoria</label>
