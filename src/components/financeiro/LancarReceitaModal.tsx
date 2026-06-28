@@ -29,6 +29,12 @@ import {
   lerFornecedoresComCnpj,
 } from "@/lib/nfe-xml";
 import { PlanoContasCategoriaSelect } from "@/components/financeiro/PlanoContasCategoriaSelect";
+import { ProdutoEstoqueSelect } from "@/components/estoque/ProdutoEstoqueSelect";
+import { PRODUTOS_ESTOQUE_EVENT } from "@/lib/estoque";
+import {
+  listarProdutosCatalogo,
+  type ProdutoCatalogo,
+} from "@/lib/produtos-catalogo";
 import {
   carregarPlanoContas,
   categoriaPadraoLancamento,
@@ -44,6 +50,7 @@ import {
 
 export type ItemReceitaLinha = {
   id: string;
+  produtoId?: string;
   produto: string;
   descricao: string;
   quantidade: string;
@@ -231,6 +238,7 @@ export function LancarReceitaModal({
   const leitorBoletoRef = useRef<HTMLInputElement>(null);
   const [portalPronto, setPortalPronto] = useState(false);
   const [entidadesDespesa, setEntidadesDespesa] = useState<ClienteOpt[]>([]);
+  const [produtosCatalogo, setProdutosCatalogo] = useState<ProdutoCatalogo[]>([]);
   const [cadastrando, setCadastrando] = useState(false);
   const submitLockRef = useRef(false);
   const anexosRef = useRef<AnexosReciboCampoRef>(null);
@@ -416,6 +424,24 @@ export function LancarReceitaModal({
   }, [open, modo, tipoCliente, lancamentoEdicao]);
 
   useEffect(() => {
+    if (!open || modo !== "despesa") return;
+    let cancelado = false;
+
+    async function carregarProdutos() {
+      const lista = await listarProdutosCatalogo();
+      if (!cancelado) setProdutosCatalogo(lista);
+    }
+
+    void carregarProdutos();
+    const handler = () => void carregarProdutos();
+    window.addEventListener(PRODUTOS_ESTOQUE_EVENT, handler);
+    return () => {
+      cancelado = true;
+      window.removeEventListener(PRODUTOS_ESTOQUE_EVENT, handler);
+    };
+  }, [open, modo]);
+
+  useEffect(() => {
     if (!open || modo !== "despesa" || !lancamentoEdicao) return;
     const nome = nomeEntidadeEdicaoRef.current.trim();
     if (!nome) return;
@@ -558,9 +584,7 @@ export function LancarReceitaModal({
             ? somarDiasBr(dataLancamento, i * 30)
             : (existente?.vencimento ?? somarDiasBr(dataLancamento, i * 30)),
           codigoBarrasPix: existente?.codigoBarrasPix ?? "",
-          valor: recalcularVencimentos
-            ? money(valorParcela)
-            : (existente?.valor ?? money(valorParcela)),
+          valor: money(valorParcela),
           pago: existente?.pago ?? false,
         };
       });
@@ -579,6 +603,25 @@ export function LancarReceitaModal({
     setItens((lista) =>
       lista.map((item) => (item.id === id ? { ...item, ...patch } : item))
     );
+  }
+
+  function produtoIdItem(item: ItemReceitaLinha) {
+    if (item.produtoId) return item.produtoId;
+    const match = produtosCatalogo.find(
+      (produto) =>
+        produto.nome.trim().toLowerCase() === item.produto.trim().toLowerCase()
+    );
+    return match?.id || "";
+  }
+
+  function selecionarProdutoItem(itemId: string, produto: ProdutoCatalogo) {
+    const custo = Number(produto.valorCusto) || 0;
+    atualizarItem(itemId, {
+      produtoId: produto.id,
+      produto: produto.nome,
+      descricao: produto.nome,
+      custoUnitario: money(custo),
+    });
   }
 
   function subtotalItem(item: ItemReceitaLinha) {
@@ -1315,14 +1358,25 @@ export function LancarReceitaModal({
                 {itens.map((item) => (
                   <tr key={item.id} className="border-t border-slate-100">
                     <td className="px-2 py-1.5">
-                      <input
-                        type="text"
-                        value={item.produto}
-                        onChange={(e) =>
-                          atualizarItem(item.id, { produto: e.target.value })
-                        }
-                        className={inputClass}
-                      />
+                      {modo === "despesa" ? (
+                        <ProdutoEstoqueSelect
+                          value={produtoIdItem(item)}
+                          labelFallback={item.produto}
+                          produtos={produtosCatalogo}
+                          onChange={(produto) => selecionarProdutoItem(item.id, produto)}
+                          triggerClassName={selectClass}
+                          menuEmPortal
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          value={item.produto}
+                          onChange={(e) =>
+                            atualizarItem(item.id, { produto: e.target.value })
+                          }
+                          className={inputClass}
+                        />
+                      )}
                     </td>
                     <td className="px-2 py-1.5">
                       <input
