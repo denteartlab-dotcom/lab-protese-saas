@@ -224,27 +224,26 @@ export function CabecalhoFormularioOs({
             label: cliente.nome,
           }))}
         />
+        <Select
+          label="Prioridade"
+          value={value.prioridadeOs || "media"}
+          onChange={(e) =>
+            onChange({
+              prioridadeOs: (e.target.value || "media") as PrioridadeOsForm,
+            })
+          }
+          disabled={desabilitado}
+        >
+          <option value="alta">Alta</option>
+          <option value="media">Média</option>
+          <option value="baixa">Baixa</option>
+        </Select>
         {value.clienteId ? (
           <p className="text-[12px] font-medium leading-snug text-[#4a90d9]">
             Tabela Utilizada <span className="font-semibold">{tabelaPrecoSelecionada}</span>
           </p>
         ) : null}
       </div>
-
-      <Select
-        label="Prioridade"
-        value={value.prioridadeOs || "media"}
-        onChange={(e) =>
-          onChange({
-            prioridadeOs: (e.target.value || "media") as PrioridadeOsForm,
-          })
-        }
-        disabled={desabilitado}
-      >
-        <option value="alta">Alta</option>
-        <option value="media">Média</option>
-        <option value="baixa">Baixa</option>
-      </Select>
 
       <Input
         label="Dentista"
