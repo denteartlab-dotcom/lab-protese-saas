@@ -15,6 +15,7 @@ import {
   segmentoEfetivoTrabalho,
 } from "@/lib/trabalho-os-segmento";
 import { escolherTrabalhoServicoGrupoOs } from "@/lib/modulo-producao-os";
+import { trabalhoVisivelModuloTv } from "@/lib/status-os";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 export type TrabalhoAgendaGrupo = TrabalhoAgenda & {
@@ -293,12 +294,16 @@ export function mapearLinhaAgendaPdfGrupo(linha: LinhaAgendaGrupoOs): LinhaAgend
   };
 }
 
+export function filtrarLinhasAgendaSomenteProducao(linhas: LinhaAgendaGrupoOs[]) {
+  return linhas.filter((linha) => trabalhoVisivelModuloTv(linha.principal.status));
+}
+
 export function filtrarLinhasAgendaGrupo(
   linhas: LinhaAgendaGrupoOs[],
   filtro: string,
   cliente?: string
 ) {
-  let base = linhas;
+  let base = filtrarLinhasAgendaSomenteProducao(linhas);
   if (cliente) {
     base = base.filter(
       (linha) => (linha.principal.cliente?.nome?.trim() || "") === cliente

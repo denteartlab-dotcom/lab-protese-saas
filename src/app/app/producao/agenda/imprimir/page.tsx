@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 
 async function buscarTrabalhosAgenda(sp: Record<string, string | string[] | undefined>) {
   const q = String(Array.isArray(sp.q) ? sp.q[0] : sp.q || "").trim();
-  const status = String(Array.isArray(sp.status) ? sp.status[0] : sp.status || "");
+  const status = String(Array.isArray(sp.status) ? sp.status[0] : sp.status || "producao");
   const isNumeroOs = /^\d+$/.test(q);
   const numeroOs = isNumeroOs ? Number(q) : 0;
 

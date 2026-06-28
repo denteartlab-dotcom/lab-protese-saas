@@ -7,13 +7,16 @@ import { AgendaEditarOsModal } from "@/components/producao/AgendaEditarOsModal";
 import { AgendaOsDetalheExpandido } from "@/components/producao/AgendaOsDetalheExpandido";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { ControleProducaoToolbar } from "@/components/ControleProducaoToolbar";
+import { BarraConfigListagem } from "@/components/listagem/BarraConfigListagem";
 import { ImprimirOsModal } from "@/components/ImprimirOsModal";
 import { Button, Input, Select, SelectPesquisavel } from "@/components/ui";
+import { useListagemPaginada } from "@/hooks/use-listagem-paginada";
 import {
   agruparTrabalhosAgenda,
   caixaAgendaGrupo,
   colaboradorAgendaGrupo,
   etapaAtualAgendaGrupo,
+  filtrarLinhasAgendaSomenteProducao,
   prazoTextoAgendaGrupo,
   qtdTextoAgendaGrupo,
   servicosTextoAgenda,
@@ -35,6 +38,11 @@ import {
   MENSAGEM_OS_FATURADA_NAO_EXCLUI,
   type LancamentoFaturaOs,
 } from "@/lib/os-faturamento";
+import {
+  compararDataIso,
+  compararNumero,
+  compararTextoBr,
+} from "@/lib/listagem-config";
 import { formatDate, STATUS_TRABALHO } from "@/lib/utils";
 
 function clienteNome(trabalho: TrabalhoAgendaGrupo) {
@@ -105,10 +113,36 @@ function isAtrasadoLinha(linha: LinhaAgendaGrupoOs) {
   return trabalhoAtrasadoAgenda(linha.principal);
 }
 
+function prazoOrdenacaoLinha(linha: LinhaAgendaGrupoOs) {
+  const prazo = prazoDate(linha.principal);
+  return prazo ? prazo.getTime() : Number.MAX_SAFE_INTEGER;
+}
+
+type CampoOrdenacaoAgenda = "numeroOs" | "dataEntrada" | "prazo" | "cliente" | "paciente";
+
+const OPCOES_ORDENACAO_AGENDA = [
+  { valor: "numeroOs" as const, label: "Num OS" },
+  { valor: "dataEntrada" as const, label: "Entrada" },
+  { valor: "prazo" as const, label: "Prazo" },
+  { valor: "cliente" as const, label: "Cliente" },
+  { valor: "paciente" as const, label: "Paciente" },
+];
+
+const COMPARADORES_AGENDA: Record<
+  CampoOrdenacaoAgenda,
+  (a: LinhaAgendaGrupoOs, b: LinhaAgendaGrupoOs) => number
+> = {
+  numeroOs: (a, b) => compararNumero(a.principal.numeroOs, b.principal.numeroOs),
+  dataEntrada: (a, b) =>
+    compararDataIso(a.principal.dataEntrada, b.principal.dataEntrada),
+  prazo: (a, b) => compararNumero(prazoOrdenacaoLinha(a), prazoOrdenacaoLinha(b)),
+  cliente: (a, b) => compararTextoBr(clienteNome(a.principal), clienteNome(b.principal)),
+  paciente: (a, b) => compararTextoBr(pacienteNome(a.principal), pacienteNome(b.principal)),
+};
+
 export default function AgendaPage() {
   const [trabalhos, setTrabalhos] = useState<TrabalhoAgendaGrupo[]>([]);
   const [lancamentosFatura, setLancamentosFatura] = useState<LancamentoFaturaOs[]>([]);
-  const [status, setStatus] = useState("");
   const [cliente, setCliente] = useState("");
   const [colaborador, setColaborador] = useState("");
   const [busca, setBusca] = useState("");
@@ -126,12 +160,12 @@ export default function AgendaPage() {
 
   const load = useCallback(async () => {
     const params = new URLSearchParams();
-    if (status) params.set("status", status);
+    params.set("status", "producao");
     if (busca) params.set("q", busca);
     const res = await fetch(`/api/trabalhos?${params.toString()}`);
     const data = await res.json();
     setTrabalhos(Array.isArray(data) ? data : []);
-  }, [status, busca]);
+  }, [busca]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -159,7 +193,7 @@ export default function AgendaPage() {
   }, []);
 
   const linhasAgrupadas = useMemo(
-    () => agruparTrabalhosAgenda(trabalhos),
+    () => filtrarLinhasAgendaSomenteProducao(agruparTrabalhosAgenda(trabalhos)),
     [trabalhos]
   );
 
@@ -202,10 +236,21 @@ export default function AgendaPage() {
       .filter(Boolean) as LinhaAgendaGrupoOs[];
   }, [baseFiltrada, filtroAgenda]);
 
+  const listagem = useListagemPaginada<LinhaAgendaGrupoOs, CampoOrdenacaoAgenda>({
+    storageKey: "agenda-producao",
+    itens: filtrados,
+    padrao: {
+      ordenarPor: "prazo",
+      direcao: "asc",
+      porPagina: 50,
+    },
+    comparadores: COMPARADORES_AGENDA,
+  });
+
   function montarUrlImprimirAgenda() {
     const params = new URLSearchParams();
     params.set("filtro", filtroAgenda);
-    if (status) params.set("status", status);
+    params.set("status", "producao");
     if (cliente) params.set("cliente", cliente);
     if (busca) params.set("q", busca);
     return `/app/producao/agenda/imprimir?${params.toString()}`;
@@ -288,13 +333,7 @@ export default function AgendaPage() {
           </Link>
         </div>
 
-        <div className="mt-3 grid gap-2 md:grid-cols-[1fr_1fr_1fr_1.4fr_auto]">
-          <Select label="Situação" value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="">Todas</option>
-            {Object.entries(STATUS_TRABALHO).map(([key, value]) => (
-              <option key={key} value={key}>{value.label}</option>
-            ))}
-          </Select>
+        <div className="mt-3 grid gap-2 md:grid-cols-[1fr_1fr_1.4fr_auto]">
           <SelectPesquisavel
             label="Cliente"
             value={cliente}
@@ -410,7 +449,24 @@ export default function AgendaPage() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded border border-slate-200 bg-white shadow-sm">
+      <BarraConfigListagem
+        varianteGear="controle"
+        configAberto={listagem.configAberto}
+        onToggleConfig={() =>
+          listagem.configAberto ? listagem.fecharConfig() : listagem.abrirConfig()
+        }
+        onFecharConfig={listagem.fecharConfig}
+        rascunho={listagem.rascunho}
+        opcoesOrdenacao={OPCOES_ORDENACAO_AGENDA}
+        onAlterarOrdenarPor={(valor) => listagem.atualizarRascunho({ ordenarPor: valor })}
+        onAlterarDirecao={(direcao) => listagem.atualizarRascunho({ direcao })}
+        onAlterarPorPagina={(porPagina) => listagem.atualizarRascunho({ porPagina })}
+        onGravarConfig={listagem.gravarConfig}
+        pagina={listagem.pagina}
+        totalPaginas={listagem.totalPaginas}
+        onPagina={listagem.setPagina}
+        totalItens={listagem.totalItens}
+      >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1050px] text-[11px]">
             <thead>
@@ -430,7 +486,7 @@ export default function AgendaPage() {
               </tr>
             </thead>
             <tbody>
-              {filtrados.map((linha) => {
+              {listagem.itensPagina.map((linha) => {
                 const { principal } = linha;
                 const atrasado = isAtrasadoLinha(linha);
                 const expandida = osAberta === linha.chaveGrupo;
@@ -519,17 +575,17 @@ export default function AgendaPage() {
                   </Fragment>
                 );
               })}
-              {filtrados.length === 0 && (
+              {listagem.totalItens === 0 && (
                 <tr>
                   <td colSpan={12} className="px-3 py-8 text-center text-slate-400">
-                    Nenhuma OS encontrada na agenda.
+                    Nenhuma OS em produção encontrada na agenda.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-      </div>
+      </BarraConfigListagem>
 
       <ConfirmacaoExclusaoModal
         open={!!osExcluindo}
