@@ -960,10 +960,10 @@ export function LancarReceitaModal({
                         onChange={(e) =>
                           setDescontoTipo(e.target.value as "percentual" | "valor")
                         }
-                        className="h-8 w-12 rounded border border-slate-300 text-center text-[11px]"
+                        className="h-8 w-14 rounded border border-slate-300 text-center text-[11px]"
                       >
                         <option value="percentual">%</option>
-                        <option value="valor">=</option>
+                        <option value="valor">R$</option>
                       </select>
                       <input
                         type="text"
@@ -1480,10 +1480,10 @@ export function LancarReceitaModal({
                     onChange={(e) =>
                       setDescontoTipo(e.target.value as "percentual" | "valor")
                     }
-                    className="h-8 w-12 rounded border border-slate-300 text-center text-[11px]"
+                    className="h-8 w-14 rounded border border-slate-300 text-center text-[11px]"
                   >
                     <option value="percentual">%</option>
-                    <option value="valor">=</option>
+                    <option value="valor">R$</option>
                   </select>
                   <input
                     type="text"
