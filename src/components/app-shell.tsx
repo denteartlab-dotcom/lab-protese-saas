@@ -689,7 +689,7 @@ function AppShellInner({
           />
 
           <header className="hidden border-b border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:block">
-            <nav className="flex min-h-[4.25rem] items-center justify-start gap-1 px-4 pl-5">
+            <nav className="flex min-h-[4rem] items-center justify-start gap-1 px-4 pl-5">
             {appNavPrincipal.filter((item) => item.labelKey === "nav.inicio").map((item) => {
               const active = ehPaginaInicioApp(pathname);
               return (
@@ -697,13 +697,13 @@ function AppShellInner({
                   key={`${item.href}-${item.labelKey}`}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-2 rounded-md px-3.5 py-2.5 text-[22px] font-medium leading-none transition",
+                    "flex items-center gap-2 rounded-md px-3.5 py-2.5 text-[19px] font-medium leading-none transition",
                     active
                       ? "bg-primary-50 text-primary-700"
                       : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                   )}
                 >
-                  <item.icon className="h-5 w-5 shrink-0" />
+                  <item.icon className="h-[18px] w-[18px] shrink-0" />
                   {t(item.labelKey)}
                 </Link>
               );
@@ -712,13 +712,13 @@ function AppShellInner({
               <Link
                 href="/app/producao"
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-3.5 py-2.5 text-[22px] font-medium leading-none transition",
+                  "flex items-center gap-2 rounded-md px-3.5 py-2.5 text-[19px] font-medium leading-none transition",
                   pathname.startsWith("/app/producao") || pathname.startsWith("/app/trabalhos")
                     ? "bg-primary-600 text-white"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 )}
               >
-                <ClipboardList className="h-5 w-5 shrink-0" />
+                <ClipboardList className="h-[18px] w-[18px] shrink-0" />
                 {t("nav.producao")} ▾
               </Link>
               <div className="invisible absolute left-0 top-full z-40 w-56 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
@@ -750,13 +750,13 @@ function AppShellInner({
               <Link
                 href="/app/financeiro"
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-3.5 py-2.5 text-[22px] font-medium leading-none transition",
+                  "flex items-center gap-2 rounded-md px-3.5 py-2.5 text-[19px] font-medium leading-none transition",
                   pathname.startsWith("/app/financeiro")
                     ? "bg-primary-600 text-white shadow-md shadow-primary-600/25"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 )}
               >
-                <Wallet className="h-5 w-5 shrink-0" />
+                <Wallet className="h-[18px] w-[18px] shrink-0" />
                 {t("nav.financeiro")} ▾
               </Link>
               <div className="invisible absolute left-0 top-full z-40 w-56 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
@@ -788,13 +788,13 @@ function AppShellInner({
               <Link
                 href="/app/clientes"
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-3.5 py-2.5 text-[22px] font-medium leading-none transition",
+                  "flex items-center gap-2 rounded-md px-3.5 py-2.5 text-[19px] font-medium leading-none transition",
                   pathname.startsWith("/app/clientes") || pathname.startsWith("/app/cadastros")
                     ? "bg-primary-600 text-white"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 )}
               >
-                <Users className="h-5 w-5 shrink-0" />
+                <Users className="h-[18px] w-[18px] shrink-0" />
                 {t("nav.cadastros")} ▾
               </Link>
               <div className="invisible absolute left-0 top-full z-40 w-64 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
@@ -826,13 +826,13 @@ function AppShellInner({
               <Link
                 href="/app/produtos"
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-3.5 py-2.5 text-[22px] font-medium leading-none transition",
+                  "flex items-center gap-2 rounded-md px-3.5 py-2.5 text-[19px] font-medium leading-none transition",
                   pathname.startsWith("/app/produtos") || pathname.startsWith("/app/orcamentos")
                     ? "bg-primary-600 text-white"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 )}
               >
-                <Package className="h-5 w-5 shrink-0" />
+                <Package className="h-[18px] w-[18px] shrink-0" />
                 {t("nav.estoque")} ▾
               </Link>
               <div className="invisible absolute left-0 top-full z-40 w-48 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
@@ -864,13 +864,13 @@ function AppShellInner({
               <Link
                 href="/app/relatorios/fluxo-de-caixa"
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-3.5 py-2.5 text-[22px] font-medium leading-none transition",
+                  "flex items-center gap-2 rounded-md px-3.5 py-2.5 text-[19px] font-medium leading-none transition",
                   pathname.startsWith("/app/relatorios")
                     ? "bg-primary-600 text-white"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 )}
               >
-                <BarChart3 className="h-5 w-5 shrink-0" />
+                <BarChart3 className="h-[18px] w-[18px] shrink-0" />
                 {t("nav.relatorios")} ▾
               </Link>
               <div className="invisible absolute left-0 top-full z-40 w-56 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
@@ -902,14 +902,14 @@ function AppShellInner({
               <Link
                 href="/admin-master"
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-3.5 py-2.5 text-[22px] font-medium leading-none transition",
+                  "flex items-center gap-2 rounded-md px-3.5 py-2.5 text-[19px] font-medium leading-none transition",
                   pathname.startsWith("/admin-master")
                     ? "bg-violet-600 text-white"
                     : "text-slate-600 hover:bg-violet-50 hover:text-violet-700"
                 )}
                 title={userEmail ?? "Master"}
               >
-                <Shield className="h-5 w-5 shrink-0" />
+                <Shield className="h-[18px] w-[18px] shrink-0" />
                 Gerenciar Sistema
               </Link>
             )}
@@ -924,13 +924,13 @@ function AppShellInner({
                   key={`${item.href}-${item.labelKey}`}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-2 rounded-md px-3.5 py-2.5 text-[22px] font-medium leading-none transition",
+                    "flex items-center gap-2 rounded-md px-3.5 py-2.5 text-[19px] font-medium leading-none transition",
                     active
                       ? "bg-primary-50 text-primary-700"
                       : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                   )}
                 >
-                  <item.icon className="h-5 w-5 shrink-0" />
+                  <item.icon className="h-[18px] w-[18px] shrink-0" />
                   {t(item.labelKey)}
                 </Link>
               );
