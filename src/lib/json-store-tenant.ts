@@ -40,15 +40,7 @@ export async function lerJsonStoreTenant<T>(
     }
   }
 
-  const legado = await prisma.jsonStore.findUnique({ where: { key } });
-  if (!legado?.payload) return null;
-  try {
-    const parsed = JSON.parse(legado.payload) as T;
-    await salvarJsonStoreTenant(empresaId, key, parsed);
-    return parsed;
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 export async function salvarJsonStoreTenant(
@@ -82,24 +74,6 @@ export async function bootstrapJsonStoreTenant(
       data[base] = JSON.parse(row.payload);
     } catch {
       /* ignora payload inválido */
-    }
-  }
-
-  if (Object.keys(data).length === 0 && fase === "completa") {
-    const legado = await prisma.jsonStore.findMany({
-      where: { key: { startsWith: ARMAZENAMENTO_LAB_PREFIX } },
-      select: { key: true, payload: true },
-    });
-    for (const row of legado) {
-      if (row.key.startsWith(PREFIXO_TENANT)) continue;
-      if (!incluirChaveBootstrap(row.key, fase)) continue;
-      try {
-        const parsed = JSON.parse(row.payload);
-        data[row.key] = parsed;
-        await salvarJsonStoreTenant(empresaId, row.key, parsed);
-      } catch {
-        /* ignora */
-      }
     }
   }
 

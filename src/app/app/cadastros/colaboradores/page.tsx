@@ -8,6 +8,7 @@ import { CampoDataBr } from "@/components/campo-data-br";
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { compararTextoBr } from "@/lib/listagem-config";
+import { exibirTelefone } from "@/lib/validar-documento";
 import { usePageReady } from "@/hooks/use-page-ready";
 import {
   clonarHorarioFuncionamento,
@@ -625,8 +626,8 @@ export default function ColaboradoresPage() {
                   <tr className="border-b border-slate-50 bg-white text-slate-600 hover:bg-slate-50">
                     <td className="px-4 py-3">{colaborador.nome}</td>
                     <td className="px-4 py-3">{colaborador.email}</td>
-                    <td className="px-4 py-3">{colaborador.celular}</td>
-                    <td className="px-4 py-3">{colaborador.whatsapp}</td>
+                    <td className="px-4 py-3">{exibirTelefone(colaborador.celular)}</td>
+                    <td className="px-4 py-3">{exibirTelefone(colaborador.whatsapp)}</td>
                     <td className="px-4 py-3 text-center">
                       <span
                         className="inline-flex h-5 items-center rounded px-3 text-[9px] font-semibold text-white"

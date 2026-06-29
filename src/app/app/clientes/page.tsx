@@ -27,6 +27,7 @@ import { compararTextoBr } from "@/lib/listagem-config";
 import { buscarEnderecoPorCep as buscarCepApi } from "@/lib/cep-lookup";
 import { validarNomeCliente } from "@/lib/cliente-validacao";
 import { formatCepInput } from "@/lib/documento-br";
+import { exibirTelefone } from "@/lib/validar-documento";
 import {
   custoEntregaCliente,
   entregadorCliente,
@@ -790,18 +791,18 @@ export default function ClientesPage() {
                         />
                       </td>
                       <td className="px-3 py-2 font-medium text-slate-600">{c.nome}</td>
-                      <td className="px-3 py-2 text-slate-500">{c.telefone || ""}</td>
-                      <td className="px-3 py-2 text-slate-500">{c.celular || ""}</td>
+                      <td className="px-3 py-2 text-slate-500">{exibirTelefone(c.telefone)}</td>
+                      <td className="px-3 py-2 text-slate-500">{exibirTelefone(c.celular)}</td>
                       <td className="px-3 py-2 text-slate-500">
-                        {c.celular ? (
+                        {c.celular || c.telefone ? (
                           <a
-                            href={`https://wa.me/${c.celular.replace(/\D/g, "")}`}
+                            href={`https://wa.me/${(c.celular || c.telefone || "").replace(/\D/g, "")}`}
                             target="_blank"
                             rel="noreferrer"
                             className="inline-flex items-center gap-1 text-emerald-600 hover:underline"
                           >
                             <MessageCircle className="h-3.5 w-3.5" />
-                            WhatsApp
+                            {exibirTelefone(c.celular || c.telefone)}
                           </a>
                         ) : (
                           ""

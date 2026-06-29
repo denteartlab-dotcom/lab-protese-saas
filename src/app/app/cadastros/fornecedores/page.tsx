@@ -7,6 +7,7 @@ import { ImportarFornecedoresExcelModal } from "@/components/fornecedores/Import
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { compararTextoBr } from "@/lib/listagem-config";
+import { exibirTelefone } from "@/lib/validar-documento";
 import {
   exportarFornecedoresExcel,
   gerarListaFornecedoresPdf,
@@ -423,8 +424,8 @@ export default function FornecedoresPage() {
                     <tr className={aberto ? "bg-blue-50/40" : "hover:bg-slate-50"}>
                       <td className="px-3 py-2 text-slate-700">{fornecedor.nome}</td>
                       <td className="px-3 py-2">{fornecedor.contato}</td>
-                      <td className="px-3 py-2">{fornecedor.celular}</td>
-                      <td className="px-3 py-2">{fornecedor.whatsapp}</td>
+                      <td className="px-3 py-2">{exibirTelefone(fornecedor.celular)}</td>
+                      <td className="px-3 py-2">{exibirTelefone(fornecedor.whatsapp)}</td>
                       <td className="px-3 py-2">{fornecedor.email}</td>
                       <td className="px-3 py-2">
                         <div className="flex justify-center gap-1 text-slate-500">

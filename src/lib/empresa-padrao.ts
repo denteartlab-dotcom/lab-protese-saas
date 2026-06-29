@@ -1,5 +1,9 @@
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
-import { CONFIG_LAB_PADRAO, CONFIG_LAB_STORAGE_KEY } from "@/lib/configuracoes-lab";
+import {
+  CONFIG_LAB_STORAGE_KEY,
+  criarFormularioLaboratorioLimpo,
+} from "@/lib/configuracoes-lab";
+import { LAB_IMPRESSAO_PADRAO } from "@/lib/lab-impressao";
 import { ETAPAS_STORAGE_KEY } from "@/lib/etapas-os";
 import { MATERIAIS_DENTISTA_STORAGE_KEY } from "@/lib/materiais-dentista-cadastro";
 import { MODULO_PRODUCAO_ETAPAS_STORAGE_KEY } from "@/lib/modulo-producao-etapas";
@@ -18,11 +22,13 @@ import { ETIQUETAS_CATEGORIA_STORAGE_KEY } from "@/lib/etiquetas-categoria";
 
 export function configLaboratorioInicial(nomeEmpresa: string): ConfigLaboratorio {
   return {
-    ...CONFIG_LAB_PADRAO,
+    ...criarFormularioLaboratorioLimpo("Jurídica"),
     nomeLaboratorio: nomeEmpresa,
     nomeFantasia: nomeEmpresa,
     razaoSocial: nomeEmpresa,
-    tipoPessoa: "Jurídica",
+    responsavel: nomeEmpresa,
+    marca: LAB_IMPRESSAO_PADRAO.marca,
+    marcaSubtitulo: LAB_IMPRESSAO_PADRAO.marcaSubtitulo,
     email: "",
   };
 }

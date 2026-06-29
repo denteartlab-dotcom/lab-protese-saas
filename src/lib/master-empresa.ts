@@ -12,6 +12,8 @@ import { chaveJsonStoreTenant } from "@/lib/json-store-tenant";
 import { normalizarSlugEmpresa } from "@/lib/rotas-app";
 import { garantirPastasUploadEmpresa } from "@/lib/uploads-armazenamento-server";
 import { garantirPastaDriveEmpresa } from "@/lib/backup-google-drive";
+import { proprietarioTemTodasPermissoes } from "@/lib/usuarios-menu-permissoes";
+import { serializarPermissoesUsuario } from "@/lib/usuarios-sistema";
 import {
   cobrancaAssinaturaPixAberta,
   statusCobrancaAssinaturaPago,
@@ -143,6 +145,12 @@ export async function criarEmpresaMaster(dados: DadosCriarEmpresaMaster) {
         email: adminEmail,
         password,
         role: "proprietario",
+        permissoesJson: serializarPermissoesUsuario({
+          setores: [],
+          modulos: proprietarioTemTodasPermissoes(),
+          situacao: "ativo",
+          permitirAlterarSenha: true,
+        }),
       },
     });
 

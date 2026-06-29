@@ -6,6 +6,7 @@ import { BotoesListagemPrestadores } from "@/components/prestadores/BotoesListag
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { compararTextoBr } from "@/lib/listagem-config";
+import { exibirTelefone } from "@/lib/validar-documento";
 import {
   exportarPrestadoresExcel,
   gerarListaPrestadoresPdf,
@@ -333,8 +334,8 @@ export default function PrestadoresPage() {
                     <tr className={aberto ? "bg-blue-50/40" : "hover:bg-slate-50"}>
                       <td className="px-3 py-2 text-slate-700">{prestador.nome}</td>
                       <td className="px-3 py-2">{prestador.tipoServico}</td>
-                      <td className="px-3 py-2">{prestador.celular}</td>
-                      <td className="px-3 py-2">{prestador.whatsapp}</td>
+                      <td className="px-3 py-2">{exibirTelefone(prestador.celular)}</td>
+                      <td className="px-3 py-2">{exibirTelefone(prestador.whatsapp)}</td>
                       <td className="px-3 py-2">{prestador.email}</td>
                       <td className="px-3 py-2">
                         <div className="flex justify-center gap-1 text-slate-500">

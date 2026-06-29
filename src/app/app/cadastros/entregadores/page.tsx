@@ -6,6 +6,7 @@ import { BotoesListagemEntregadores } from "@/components/entregadores/BotoesList
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { compararTextoBr } from "@/lib/listagem-config";
+import { exibirTelefone } from "@/lib/validar-documento";
 import { Modal } from "@/components/ui";
 import { usePageReady } from "@/hooks/use-page-ready";
 import { formatarCepEntrega, TIPOS_ENTREGADOR } from "@/lib/controle-entregas";
@@ -337,8 +338,8 @@ export default function EntregadoresPage() {
                         <Fragment key={entregador.id}>
                           <tr className={aberto ? "bg-blue-50/40" : "hover:bg-slate-50"}>
                             <td className="px-3 py-2 font-medium text-slate-600">{entregador.nome}</td>
-                            <td className="px-3 py-2 text-slate-500">{entregador.celular || ""}</td>
-                            <td className="px-3 py-2 text-slate-500">{entregador.whatsapp || ""}</td>
+                            <td className="px-3 py-2 text-slate-500">{exibirTelefone(entregador.celular)}</td>
+                            <td className="px-3 py-2 text-slate-500">{exibirTelefone(entregador.whatsapp)}</td>
                             <td className="px-3 py-2 text-slate-500">{entregador.email || ""}</td>
                             <td className="px-3 py-2">
                               <div className="flex items-center justify-center gap-1 text-slate-500">

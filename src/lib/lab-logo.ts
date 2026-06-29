@@ -74,16 +74,16 @@ export function configParaLabImpressao(cfg: ConfigLaboratorio): LabImpressaoConf
   const cep = cfg.cep?.trim() ? `CEP ${cfg.cep.trim()}` : "";
 
   const enderecoLinha1 =
-    numeroComplemento || cfg.enderecoLinha1?.trim() || LAB_IMPRESSAO_PADRAO.enderecoLinha1;
+    numeroComplemento || cfg.enderecoLinha1?.trim() || "";
   const enderecoLinha2Partes = [bairro, cidadeUf, cep].filter(Boolean);
   const enderecoLinha2 =
     enderecoLinha2Partes.join(" - ") ||
     cfg.enderecoLinha2?.trim() ||
-    LAB_IMPRESSAO_PADRAO.enderecoLinha2;
+    "";
   const enderecoCompleto =
     [enderecoLinha1, enderecoLinha2].filter(Boolean).join(" - ") ||
     cfg.endereco?.trim() ||
-    LAB_IMPRESSAO_PADRAO.endereco;
+    "";
 
   return {
     marca: cfg.marca || LAB_IMPRESSAO_PADRAO.marca,
@@ -92,8 +92,7 @@ export function configParaLabImpressao(cfg: ConfigLaboratorio): LabImpressaoConf
     endereco: enderecoCompleto,
     enderecoLinha1: enderecoLinha1,
     enderecoLinha2: enderecoLinha2,
-    telefones:
-      telefoneWhatsappLaboratorio(cfg) || LAB_IMPRESSAO_PADRAO.telefones,
+    telefones: telefoneWhatsappLaboratorio(cfg) || cfg.telefones?.trim() || "",
     email: cfg.email?.trim() || "",
     logoDataUrl: cfg.logoDataUrl || "",
     logoTamanho: normalizarLogoTamanho(cfg.logoTamanho),

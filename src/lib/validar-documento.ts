@@ -59,7 +59,16 @@ export function formatarCpfCnpj(valor: string): string {
 export function formatarTelefone(valor: string): string {
   const n = apenasDigitos(valor).slice(0, 11);
   if (n.length <= 10) {
-    return n.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{4})(\d)/, "$1-$2");
+    return n.replace(/(\d{2})(\d)/, "($1)$2").replace(/(\d{4})(\d)/, "$1-$2");
   }
-  return n.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2");
+  return n.replace(/(\d{2})(\d)/, "($1)$2").replace(/(\d{5})(\d)/, "$1-$2");
+}
+
+/** Exibe telefone/WhatsApp formatado em listagens — (DD)XXXX-XXXX ou (DD)XXXXX-XXXX. */
+export function exibirTelefone(valor?: string | null): string {
+  const texto = String(valor ?? "").trim();
+  if (!texto) return "";
+  const digitos = apenasDigitos(texto);
+  if (digitos.length < 10) return texto;
+  return formatarTelefone(texto);
 }

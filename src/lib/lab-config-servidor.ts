@@ -14,33 +14,6 @@ function configLaboratorioPadrao(): ConfigLaboratorio {
   return { ...CONFIG_LAB_PADRAO, tipoPessoa: "Jurídica" };
 }
 
-async function mesclarLogoLegadoConfig(
-  config: ConfigLaboratorio
-): Promise<ConfigLaboratorio> {
-  if (config.logoDataUrl?.trim()) return config;
-
-  try {
-    const legado = await prisma.jsonStore.findUnique({
-      where: { key: CONFIG_LAB_STORAGE_KEY },
-    });
-    if (!legado?.payload) return config;
-
-    const parsed = normalizarConfigLaboratorio(
-      JSON.parse(legado.payload) as Partial<ConfigLaboratorio>
-    );
-    const logoDataUrl = parsed.logoDataUrl?.trim();
-    if (!logoDataUrl) return config;
-
-    return prepararConfigParaSalvar({
-      ...config,
-      logoDataUrl,
-      logoTamanho: parsed.logoTamanho ?? config.logoTamanho,
-    });
-  } catch {
-    return config;
-  }
-}
-
 function emBuildProducaoNext() {
   return process.env.NEXT_PHASE === "phase-production-build";
 }
@@ -65,9 +38,7 @@ export const carregarConfigLaboratorioServidor = cache(
       ]);
       if (parsed) {
         const config = normalizarConfigLaboratorio(parsed);
-        return mesclarLogoLegadoConfig(
-          prepararConfigParaSalvar(garantirNomeLaboratorioParaImpressao(config))
-        );
+        return prepararConfigParaSalvar(garantirNomeLaboratorioParaImpressao(config));
       }
       if (empresa?.nome?.trim()) {
         return garantirNomeLaboratorioParaImpressao({

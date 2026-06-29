@@ -52,13 +52,13 @@ export const LAB_IMPRESSAO_PADRAO: LabImpressaoConfig = {
   marcaSubtitulo: "LABORATÓRIO DE PRÓTESE DENTÁRIA",
   logoDataUrl: "",
   logoTamanho: LOGO_TAMANHO_PADRAO,
-  responsavel: "Mateus Bonfim",
-  endereco: "Rua Santos Dumont 677 Governador Valadares MG",
-  enderecoLinha1: "Rua Santos Dumont, 677",
-  enderecoLinha2: "Governador Valadares / MG",
-  telefones: "(31) 98270-9866",
+  responsavel: "",
+  endereco: "",
+  enderecoLinha1: "",
+  enderecoLinha2: "",
+  telefones: "",
   email: "",
 };
 
-/** Nome demo do template — nunca usar como nome real do laboratório. */
-export const NOME_RESPONSAVEL_LAB_DEMO = LAB_IMPRESSAO_PADRAO.responsavel;
+/** Nome demo legado — ignorado na exibição (laboratórios antigos). */
+export const NOME_RESPONSAVEL_LAB_DEMO = "Mateus Bonfim";

@@ -8,6 +8,7 @@ import {
 import { messages, type MessageKey } from "@/lib/i18n/messages";
 import { relatoriosNav } from "@/lib/relatorios-nav";
 import type { PermissaoCrud, PermissoesUsuario } from "@/lib/usuarios-sistema";
+import { usuarioEhProprietario } from "@/lib/usuarios-sistema";
 
 export type MenuPermissaoItem = {
   id: string;
@@ -157,7 +158,7 @@ export function normalizarPermissoesCompletas(
   parcial: Partial<PermissoesUsuario>,
   role?: string
 ): PermissoesUsuario {
-  if (role === "proprietario" || role === "admin") {
+  if (usuarioEhProprietario(role || "")) {
     return {
       setores: parcial.setores ?? [],
       modulos: proprietarioTemTodasPermissoes(),

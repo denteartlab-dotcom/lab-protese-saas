@@ -7,6 +7,7 @@ import { BarraConfigListagem } from "@/components/listagem/BarraConfigListagem";
 import { Button, Card, Input, Modal, SelectPesquisavel, Table } from "@/components/ui";
 import { useListagemPaginada } from "@/hooks/use-listagem-paginada";
 import { compararTextoBr } from "@/lib/listagem-config";
+import { exibirTelefone } from "@/lib/validar-documento";
 
 type Paciente = {
   id: string;
@@ -161,7 +162,7 @@ export default function PacientesPage() {
               <td className="px-4 py-3 font-medium">{p.nome}</td>
               <td className="px-4 py-3">{p.cliente.nome}</td>
               <td className="px-4 py-3">{p.cpf || ""}</td>
-              <td className="px-4 py-3">{p.telefone || ""}</td>
+              <td className="px-4 py-3">{exibirTelefone(p.telefone)}</td>
               <td className="px-4 py-3">
                 <div className="flex gap-1">
                   <Button size="sm" variant="ghost" onClick={() => openEdit(p)}>

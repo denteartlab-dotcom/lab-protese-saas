@@ -14,6 +14,8 @@ import { validarCpfOuCnpj } from "@/lib/validar-documento";
 import { validarForcaSenha } from "@/lib/validar-senha";
 import { garantirPastasUploadEmpresa } from "@/lib/uploads-armazenamento-server";
 import { garantirPastaDriveEmpresa } from "@/lib/backup-google-drive";
+import { proprietarioTemTodasPermissoes } from "@/lib/usuarios-menu-permissoes";
+import { serializarPermissoesUsuario } from "@/lib/usuarios-sistema";
 
 export const ROLE_PROPRIETARIO_EMPRESA = "proprietario";
 /** @deprecated Use ROLE_PROPRIETARIO_EMPRESA */
@@ -152,6 +154,12 @@ export async function provisionarNovaEmpresa(
         email: adminEmail,
         password,
         role: ROLE_PROPRIETARIO_EMPRESA,
+        permissoesJson: serializarPermissoesUsuario({
+          setores: [],
+          modulos: proprietarioTemTodasPermissoes(),
+          situacao: "ativo",
+          permitirAlterarSenha: true,
+        }),
       },
     });
 
