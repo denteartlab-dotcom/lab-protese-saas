@@ -10,10 +10,11 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
 import { Check, ChevronDown, Plus } from "lucide-react";
+import { FornecedorCadastroModal } from "@/components/fornecedores/FornecedorCadastroModal";
 import { calcularPosicaoMenuAbaixo } from "@/lib/dropdown-portal-pos";
 import type { EntidadeDespesa } from "@/lib/lancamento-despesa";
+import type { FornecedorCadastro } from "@/lib/fornecedores-cadastro";
 import { propsBloquearArrasteEntreCampos } from "@/lib/input-selecao";
 import { cn } from "@/lib/utils";
 
@@ -67,6 +68,7 @@ type Props = {
   className?: string;
   inputClassName?: string;
   menuEmPortal?: boolean;
+  onEntidadeCriada?: (entidade: { id: string; nome: string }) => void;
 };
 
 export function EntidadeDespesaSelect({
@@ -81,6 +83,7 @@ export function EntidadeDespesaSelect({
   className,
   inputClassName,
   menuEmPortal = true,
+  onEntidadeCriada,
 }: Props) {
   const autoId = useId();
   const inputId = autoId;
@@ -90,6 +93,7 @@ export function EntidadeDespesaSelect({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [aberto, setAberto] = useState(false);
+  const [modalFornecedorAberto, setModalFornecedorAberto] = useState(false);
   const [texto, setTexto] = useState("");
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 0, maxHeight: 240 });
 
@@ -165,6 +169,19 @@ export function EntidadeDespesaSelect({
     }, 150);
   }
 
+  function abrirCadastroFornecedor(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setAberto(false);
+    setModalFornecedorAberto(true);
+  }
+
+  function fornecedorSalvo(fornecedor: FornecedorCadastro) {
+    onChange(fornecedor.id);
+    setTexto(fornecedor.nome);
+    onEntidadeCriada?.({ id: fornecedor.id, nome: fornecedor.nome });
+  }
+
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Escape") {
       setAberto(false);
@@ -204,17 +221,30 @@ export function EntidadeDespesaSelect({
       }
     >
       {cadastro ? (
-        <Link
-          href={cadastro.href}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => setAberto(false)}
-          className="flex w-full items-center gap-1 border-b border-[#e8e8e8] px-3 py-2 text-left text-[12px] font-medium hover:bg-slate-50"
-          style={{ color: VERDE_CADASTRAR }}
-        >
-          <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
-          {cadastro.label}
-        </Link>
+        tipoEntidade === "fornecedores" ? (
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={abrirCadastroFornecedor}
+            className="flex w-full items-center gap-1 border-b border-[#e8e8e8] px-3 py-2 text-left text-[12px] font-medium hover:bg-slate-50"
+            style={{ color: VERDE_CADASTRAR }}
+          >
+            <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+            {cadastro.label}
+          </button>
+        ) : (
+          <a
+            href={cadastro.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setAberto(false)}
+            className="flex w-full items-center gap-1 border-b border-[#e8e8e8] px-3 py-2 text-left text-[12px] font-medium hover:bg-slate-50"
+            style={{ color: VERDE_CADASTRAR }}
+          >
+            <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+            {cadastro.label}
+          </a>
+        )
       ) : null}
 
       <ul className="max-h-[200px] overflow-y-auto py-1">
@@ -306,6 +336,12 @@ export function EntidadeDespesaSelect({
         ) : null}
       </div>
       {menuEmPortal && menu ? createPortal(menu, document.body) : menu}
+
+      <FornecedorCadastroModal
+        open={modalFornecedorAberto}
+        onClose={() => setModalFornecedorAberto(false)}
+        onSalvo={fornecedorSalvo}
+      />
     </div>
   );
 }

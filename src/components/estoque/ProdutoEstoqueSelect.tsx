@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
 import { ChevronDown, Plus } from "lucide-react";
+import { ProdutoCadastroModal } from "@/components/estoque/ProdutoCadastroModal";
 import { calcularPosicaoMenuAbaixo } from "@/lib/dropdown-portal-pos";
 import type { ProdutoCatalogo } from "@/lib/produtos-catalogo";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,7 @@ type Props = {
   triggerClassName?: string;
   menuEmPortal?: boolean;
   disabled?: boolean;
+  onProdutoCriado?: (produto: ProdutoCatalogo) => void;
 };
 
 function money(value: number) {
@@ -35,8 +36,10 @@ export function ProdutoEstoqueSelect({
   triggerClassName,
   menuEmPortal = true,
   disabled = false,
+  onProdutoCriado,
 }: Props) {
   const [aberto, setAberto] = useState(false);
+  const [modalCadastroAberto, setModalCadastroAberto] = useState(false);
   const [busca, setBusca] = useState("");
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 0, maxHeight: 240 });
   const ref = useRef<HTMLDivElement>(null);
@@ -93,6 +96,19 @@ export function ProdutoEstoqueSelect({
     setBusca("");
   }
 
+  function abrirCadastroProduto(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setAberto(false);
+    setBusca("");
+    setModalCadastroAberto(true);
+  }
+
+  function produtoSalvo(produto: ProdutoCatalogo) {
+    onChange(produto);
+    onProdutoCriado?.(produto);
+  }
+
   const triggerCls = cn(
     "flex h-9 w-full items-center justify-between gap-2 rounded border border-[#d4d4d4] bg-white px-2.5 text-left text-[12px] text-slate-800 outline-none focus:border-[#4a90d9] disabled:cursor-not-allowed disabled:opacity-60",
     triggerClassName
@@ -117,17 +133,15 @@ export function ProdutoEstoqueSelect({
           : { maxHeight: 280 }
       }
     >
-      <Link
-        href="/app/produtos"
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={() => setAberto(false)}
+      <button
+        type="button"
+        onClick={abrirCadastroProduto}
         className="flex w-full items-center gap-1 border-b border-[#e8e8e8] px-3 py-2 text-left text-[12px] font-medium hover:bg-slate-50"
         style={{ color: VERDE_CADASTRAR }}
       >
         <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
         Cadastrar Produto
-      </Link>
+      </button>
 
       <div className="border-b border-[#e8e8e8] p-2">
         <input
@@ -195,6 +209,12 @@ export function ProdutoEstoqueSelect({
       </button>
 
       {menuEmPortal && menu ? createPortal(menu, document.body) : menu}
+
+      <ProdutoCadastroModal
+        open={modalCadastroAberto}
+        onClose={() => setModalCadastroAberto(false)}
+        onSalvo={produtoSalvo}
+      />
     </div>
   );
 }

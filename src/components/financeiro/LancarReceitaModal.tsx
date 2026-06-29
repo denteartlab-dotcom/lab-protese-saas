@@ -21,6 +21,7 @@ import {
 import { CampoDataBr } from "@/components/ui";
 import { SelectPesquisavel } from "@/components/SelectPesquisavel";
 import { EntidadeDespesaSelect } from "@/components/financeiro/EntidadeDespesaSelect";
+import { FORNECEDORES_ATUALIZADO_EVENT } from "@/lib/fornecedores-cadastro";
 import { dateToBrShort, somarDiasBr } from "@/lib/datas-br";
 import { parseNotaFiscalArquivo } from "@/lib/nfe-import";
 import {
@@ -419,8 +420,14 @@ export function LancarReceitaModal({
     }
 
     void carregarEntidades();
+    const handlerFornecedores = () => {
+      if (tipoCliente !== "fornecedores") return;
+      setEntidadesDespesa(carregarEntidadesDespesaLocal("fornecedores"));
+    };
+    window.addEventListener(FORNECEDORES_ATUALIZADO_EVENT, handlerFornecedores);
     return () => {
       cancelado = true;
+      window.removeEventListener(FORNECEDORES_ATUALIZADO_EVENT, handlerFornecedores);
     };
   }, [open, modo, tipoCliente, lancamentoEdicao]);
 
@@ -622,6 +629,26 @@ export function LancarReceitaModal({
       produto: produto.nome,
       descricao: produto.nome,
       custoUnitario: money(custo),
+    });
+  }
+
+  function sincronizarProdutoCatalogo(produto: ProdutoCatalogo) {
+    setProdutosCatalogo((lista) => {
+      const existe = lista.some((item) => item.id === produto.id);
+      const atualizada = existe
+        ? lista.map((item) => (item.id === produto.id ? produto : item))
+        : [...lista, produto];
+      return atualizada.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    });
+  }
+
+  function sincronizarEntidadeDespesa(entidade: { id: string; nome: string }) {
+    setEntidadesDespesa((lista) => {
+      const existe = lista.some((item) => item.id === entidade.id);
+      const atualizada = existe
+        ? lista.map((item) => (item.id === entidade.id ? entidade : item))
+        : [...lista, entidade];
+      return atualizada.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
     });
   }
 
@@ -879,6 +906,7 @@ export function LancarReceitaModal({
                           id: c.id,
                           nome: c.nome,
                         }))}
+                        onEntidadeCriada={sincronizarEntidadeDespesa}
                       />
                     </div>
                   </>
@@ -1247,6 +1275,7 @@ export function LancarReceitaModal({
                     id: c.id,
                     nome: c.nome,
                   }))}
+                  onEntidadeCriada={sincronizarEntidadeDespesa}
                 />
               ) : (
                 <SelectPesquisavel
@@ -1388,6 +1417,7 @@ export function LancarReceitaModal({
                           labelFallback={item.produto}
                           produtos={produtosCatalogo}
                           onChange={(produto) => selecionarProdutoItem(item.id, produto)}
+                          onProdutoCriado={sincronizarProdutoCatalogo}
                           triggerClassName={selectClass}
                           menuEmPortal
                         />
