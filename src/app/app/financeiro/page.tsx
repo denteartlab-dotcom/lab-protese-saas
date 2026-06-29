@@ -12,7 +12,7 @@ import {
   Modal,
   Select,
 } from "@/components/ui";
-import { brShortToIso, dateToBrShort, formatDateBr, parseBrDate } from "@/lib/datas-br";
+import { brShortToIso, dateToBrShort, formatDateBr, intervaloMesVigente, parseBrDate } from "@/lib/datas-br";
 import {
   empacotarCobrancaOs,
   idsTrabalhosFaturadosNoLancamento,
@@ -748,25 +748,30 @@ function FinanceiroReceberConteudo() {
   const resumoReceber = useMemo(() => {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
+    const { inicio: inicioMes, fim: fimMes } = intervaloMesVigente(hoje);
+    const lancamentos = (data?.lancamentos || []).filter((l) => l.tipo === "receita");
 
-    return receitasFiltradas.reduce(
+    return lancamentos.reduce(
       (acc, l) => {
+        const dataLancamento = dateOnly(l.data);
+        const noMesVigente = dataLancamento >= inicioMes && dataLancamento <= fimMes;
+
         if (isCreditoGerado(l)) {
-          acc.adiantamentos += l.valor;
+          if (noMesVigente) acc.adiantamentos += l.valor;
           return acc;
         }
         if (isCreditoUtilizado(l)) return acc;
         if (!isFaturaContasReceber(l)) return acc;
+
         const pendente = l.status !== "pago";
-        if (pendente) acc.aReceber += saldoFatura(l);
-        if (pendente && dateOnly(l.data) < hoje) acc.atraso += l.valor;
-        if (l.status === "pago") acc.recebidas += l.valor;
-        acc.naoFaturados += pendente ? l.valor : 0;
+        if (pendente && noMesVigente) acc.aReceber += saldoFatura(l);
+        if (pendente && dataLancamento < hoje) acc.atraso += saldoFatura(l);
+        if (l.status === "pago" && noMesVigente) acc.recebidas += l.valor;
         return acc;
       },
       { aReceber: 0, atraso: 0, recebidas: 0, adiantamentos: 0, naoFaturados: 0 }
     );
-  }, [receitasFiltradas]);
+  }, [data]);
 
   const trabalhosSelecionados = useMemo(
     () => trabalhos.filter((trabalho) => osSelecionadas.includes(trabalho.id)),

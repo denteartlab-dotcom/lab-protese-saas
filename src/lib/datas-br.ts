@@ -72,3 +72,21 @@ export function somarDiasIso(iso: string, dias: number) {
   const d = String(base.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
+
+/** Início e fim do mês calendário vigente (00:00 do dia 1 até 23:59:59 do último dia). */
+export function intervaloMesVigente(base = new Date()) {
+  const referencia = new Date(base);
+  const inicio = new Date(referencia.getFullYear(), referencia.getMonth(), 1);
+  inicio.setHours(0, 0, 0, 0);
+  const fim = new Date(referencia.getFullYear(), referencia.getMonth() + 1, 0);
+  fim.setHours(23, 59, 59, 999);
+  return { inicio, fim };
+}
+
+/** Verifica se a data cai no mês calendário vigente. */
+export function dataNoMesVigente(data: Date, base = new Date()) {
+  const { inicio, fim } = intervaloMesVigente(base);
+  const valor = new Date(data);
+  valor.setHours(12, 0, 0, 0);
+  return valor >= inicio && valor <= fim;
+}

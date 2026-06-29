@@ -48,7 +48,7 @@ const LancarDespesaModal = dynamic(
     ),
   { ssr: false }
 );
-import { brShortToIso, dateToBrShort, parseBrDate } from "@/lib/datas-br";
+import { brShortToIso, dateToBrShort, intervaloMesVigente, parseBrDate } from "@/lib/datas-br";
 import {
   carregarEntidadesDespesaLocal,
   chaveGrupoDespesa,
@@ -658,17 +658,15 @@ export function ContasPagarConteudo() {
     setDirecaoOrdenacao("asc");
   }
 
-  const linhasResumo = useMemo(() => {
-    const inicio = dataInicio ? parseBrDate(dataInicio) : null;
-    const fim = dataFinal ? parseBrDate(dataFinal) : null;
-    if (inicio) inicio.setHours(0, 0, 0, 0);
-    if (fim) fim.setHours(23, 59, 59, 999);
+  const resumo = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const { inicio: inicioMes, fim: fimMes } = intervaloMesVigente(hoje);
+    let aPagar = 0;
+    let atraso = 0;
+    let pagas = 0;
 
-    return lancamentos.filter((lancamento) => {
-      const dataVencimento = dateOnly(lancamento.data);
-      if (inicio && dataVencimento < inicio) return false;
-      if (fim && dataVencimento > fim) return false;
-      if (entidadeAtiva === "todos") return true;
+    for (const lancamento of lancamentos) {
       const pack = desempacotarDespesa(lancamento.descricao);
       const entidade =
         pack.meta.entidade ||
@@ -677,41 +675,39 @@ export function ContasPagarConteudo() {
           Boolean(lancamento.cliente?.id),
           listasNomes
         );
-      if (entidade !== entidadeAtiva) return false;
-      if (!vinculoSelecionado) return true;
-      return despesaCorrespondeVinculo(
-        lancamento,
-        pack,
-        vinculoSelecionado,
-        entidadesVinculo
-      );
-    });
+
+      if (entidadeAtiva !== "todos" && entidade !== entidadeAtiva) continue;
+      if (
+        vinculoSelecionado &&
+        !despesaCorrespondeVinculo(
+          lancamento,
+          pack,
+          vinculoSelecionado,
+          entidadesVinculo
+        )
+      ) {
+        continue;
+      }
+
+      const dataVencimento = dateOnly(lancamento.data);
+      const noMesVigente = dataVencimento >= inicioMes && dataVencimento <= fimMes;
+
+      if (lancamento.status === "pago") {
+        if (noMesVigente) pagas += lancamento.valor;
+      } else if (lancamento.status === "pendente") {
+        if (noMesVigente) aPagar += lancamento.valor;
+        if (dataVencimento < hoje) atraso += lancamento.valor;
+      }
+    }
+
+    return { aPagar, atraso, pagas };
   }, [
     lancamentos,
-    dataInicio,
-    dataFinal,
     entidadeAtiva,
     vinculoSelecionado,
     entidadesVinculo,
     listasNomes,
   ]);
-
-  const resumo = useMemo(() => {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    let aPagar = 0;
-    let atraso = 0;
-    let pagas = 0;
-    for (const lancamento of linhasResumo) {
-      if (lancamento.status === "pago") {
-        pagas += lancamento.valor;
-      } else if (lancamento.status === "pendente") {
-        aPagar += lancamento.valor;
-        if (dateOnly(lancamento.data) < hoje) atraso += lancamento.valor;
-      }
-    }
-    return { aPagar, atraso, pagas };
-  }, [linhasResumo]);
 
   function limparFiltros() {
     setBusca("");
