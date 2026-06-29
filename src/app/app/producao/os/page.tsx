@@ -95,16 +95,17 @@ import {
   comissaoColaboradorNaTabelaServico,
   comissoesColaboradoresDoServico,
   comissoesTerceirizadosDoServico,
-  produtosOpcoesNaOs,
+  montarProdutosOpcoesOs,
+  produtosOsIniciaisDoServico,
   categoriasSelecionaveisNaOs,
   TABELA_PRECOS_EVENT,
   TABELA_PRECOS_VAZIA,
   type ServicoTabelaPrecoOs,
 } from "@/lib/tabela-precos-os";
-import {
-  carregarColaboradoresListagem,
+import { carregarColaboradoresListagem,
   type ColaboradorListagem,
 } from "@/lib/colaboradores-listagem";
+import { carregarProdutosListagem } from "@/lib/produtos-listagem";
 import { comissaoCadastroColaborador } from "@/lib/colaborador-remuneracao";
 import {
   carregarEtapasCadastro,
@@ -326,6 +327,29 @@ function atualizarProdutoOsLinhaSelecao(
     produtoId,
     valorUnitario,
     valor: (unit * qtd).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+  };
+}
+
+function produtoOsLinhaFromInicial(linha: {
+  produtoId: string;
+  quantidade: string;
+  valorUnitario: number;
+  observacao: string;
+}): ProdutoOsLinha {
+  const qtd = Number(linha.quantidade || 1) || 1;
+  const valorUnitario = linha.valorUnitario.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+  return {
+    produtoId: linha.produtoId,
+    quantidade: linha.quantidade,
+    valorUnitario,
+    valor: (linha.valorUnitario * qtd).toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }),
+    observacao: linha.observacao,
   };
 }
 
@@ -557,6 +581,11 @@ export default function OrdemServicoPage() {
       }));
     }
 
+    async function carregarProdutosOs() {
+      const lista = await carregarProdutosListagem();
+      setProdutos(aplicarExtrasEstoque(lista));
+    }
+
     async function fetchJson(url: string, fallback: unknown) {
       try {
         const response = await fetch(url);
@@ -567,17 +596,15 @@ export default function OrdemServicoPage() {
       }
     }
 
-    const [clientesData, produtosData, nextOsData, financeiroData] = await Promise.all([
+    const [clientesData, nextOsData, financeiroData] = await Promise.all([
       fetchJson("/api/clientes", []),
-      fetchJson("/api/produtos", []),
       fetchJson("/api/trabalhos/next-os", null),
       fetchJson("/api/financeiro?tipo=receita", null),
     ]);
 
+    await carregarProdutosOs();
+
     if (Array.isArray(clientesData)) setClientes(clientesData);
-    if (Array.isArray(produtosData) && produtosData.length > 0) {
-      setProdutos(aplicarExtrasEstoque(produtosData));
-    }
     if (
       financeiroData &&
       typeof financeiroData === "object" &&
@@ -737,23 +764,22 @@ export default function OrdemServicoPage() {
   useEffect(() => {
     if (!paginaPronta) return;
 
-    function aplicarExtrasEstoque(lista: Produto[]) {
+    async function recarregarProdutosOs() {
+      const lista = await carregarProdutosListagem();
       const extras = getProdutosEstoqueExtras();
-      return lista.map((produto) => ({
-        ...produto,
-        ...extras[produto.id],
-        estoque: Number(extras[produto.id]?.estoque ?? produto.estoque ?? 0),
-        unidadeMedida: String(extras[produto.id]?.unidadeMedida ?? produto.unidadeMedida ?? "un (Unitário)"),
-      }));
+      setProdutos(
+        lista.map((produto) => ({
+          ...produto,
+          ...extras[produto.id],
+          estoque: Number(extras[produto.id]?.estoque ?? 0),
+          unidadeMedida: String(extras[produto.id]?.unidadeMedida ?? "un (Unitário)"),
+        }))
+      );
     }
 
-    function recarregarEstoqueProdutos() {
-      setProdutos((atuais) => aplicarExtrasEstoque(atuais));
-    }
-
-    window.addEventListener(PRODUTOS_ESTOQUE_EVENT, recarregarEstoqueProdutos);
+    window.addEventListener(PRODUTOS_ESTOQUE_EVENT, recarregarProdutosOs);
     return () => {
-      window.removeEventListener(PRODUTOS_ESTOQUE_EVENT, recarregarEstoqueProdutos);
+      window.removeEventListener(PRODUTOS_ESTOQUE_EVENT, recarregarProdutosOs);
     };
   }, [paginaPronta]);
 
@@ -995,12 +1021,11 @@ export default function OrdemServicoPage() {
     return buscarServicoNaTabela(categoriasTabelaPreco, nome);
   }, [form.tipoProtese, categoriasTabelaPreco]);
 
-  const produtosTabelaPrecoOs = useMemo(() => {
-    if (!servicoOsAtual) return [];
-    return produtosOpcoesNaOs(categoriasTabelaCompleta);
-  }, [servicoOsAtual, categoriasTabelaCompleta]);
+  const produtosOpcoesOs = useMemo(() => {
+    return montarProdutosOpcoesOs(categoriasTabelaCompleta, produtos, servicoOsAtual);
+  }, [servicoOsAtual, categoriasTabelaCompleta, produtos]);
   const exibeAbaProdutos =
-    Boolean(servicoOsAtual) && produtosTabelaPrecoOs.length > 0;
+    Boolean(servicoOsAtual) && produtosOpcoesOs.length > 0;
 
   const modelosEtapasOs = useMemo(() => {
     if (!servicoOsAtual) return [];
@@ -1349,7 +1374,11 @@ export default function OrdemServicoPage() {
     }
 
     const prazos = prazosDoServicoSelecionado(servico.nome, form.dataLancamento);
-    setProdutosOs([]);
+    const opcoesServico = montarProdutosOpcoesOs(categoriasTabelaCompleta, produtos, servico);
+    const produtosIniciais = produtosOsIniciaisDoServico(servico, opcoesServico).map(
+      produtoOsLinhaFromInicial
+    );
+    setProdutosOs(produtosIniciais);
     setForm((current) => ({
       ...current,
       tipoProtese: servico.nome,
@@ -1998,7 +2027,7 @@ export default function OrdemServicoPage() {
   function produtoFromItem(item: ItemAdicionado) {
     const nome = item.servico.replace(/^Produto:\s*/i, "").trim();
     return (
-      produtosTabelaPrecoOs.find(
+      produtosOpcoesOs.find(
         (produto) => produto.id === item.produtoId || produto.nome === nome
       ) || produtos.find((produto) => produto.id === item.produtoId || produto.nome === nome)
     );
@@ -2183,7 +2212,7 @@ export default function OrdemServicoPage() {
       )[0];
       if (!produtoOs) return null;
       const produto =
-        produtosTabelaPrecoOs.find((p) => p.id === produtoOs.produtoId) ||
+        produtosOpcoesOs.find((p) => p.id === produtoOs.produtoId) ||
         produtos.find((p) => p.id === produtoOs.produtoId);
       const nomeProduto = produto?.nome || produtoOs.observacao?.trim() || "Produto";
       const quantidade = produtoOs.quantidade || "1";
@@ -2281,7 +2310,7 @@ export default function OrdemServicoPage() {
 
     const itensProdutos = produtosSelecionados.map((produtoOs, index) => {
       const produto =
-        produtosTabelaPrecoOs.find((item) => item.id === produtoOs.produtoId) ||
+        produtosOpcoesOs.find((item) => item.id === produtoOs.produtoId) ||
         produtos.find((item) => item.id === produtoOs.produtoId);
       const nomeProduto = produto?.nome || produtoOs.observacao?.trim() || "Produto";
       const quantidade = produtoOs.quantidade || "1";
@@ -4183,14 +4212,14 @@ export default function OrdemServicoPage() {
                     {!exibeAbaProdutos ? (
                       <p className="text-[11px] text-slate-500">
                         {servicoOsAtual
-                          ? "Nenhum produto em categorias + Produto na tabela de preços."
-                          : "Selecione um serviço para adicionar produtos da tabela de preços."}
+                          ? "Nenhum produto cadastrado no estoque ou na tabela de preços."
+                          : "Selecione um serviço para adicionar produtos."}
                       </p>
                     ) : (
                       <>
                     <p className="text-[10px] text-slate-500">
-                      Produtos das categorias &quot;+ Produto&quot; na tabela de preços (ex.:
-                      DENTES, insumos).
+                      Produtos do estoque sincronizados com a tabela de preços quando cadastrados
+                      (ex.: DENTES, insumos).
                     </p>
                     {produtosOs.map((produtoOs, index) => (
                       <div
@@ -4201,7 +4230,7 @@ export default function OrdemServicoPage() {
                           label="Produto cadastrado"
                           value={produtoOs.produtoId}
                           onChange={(e) => {
-                            const produto = produtosTabelaPrecoOs.find(
+                            const produto = produtosOpcoesOs.find(
                               (item) => item.id === e.target.value
                             );
 
@@ -4216,7 +4245,7 @@ export default function OrdemServicoPage() {
                         >
                           <option value="">Selecione um produto</option>
                           {produtoOs.produtoId &&
-                            !produtosTabelaPrecoOs.some(
+                            !produtosOpcoesOs.some(
                               (produto) => produto.id === produtoOs.produtoId
                             ) && (
                               <option value={produtoOs.produtoId}>
@@ -4231,7 +4260,7 @@ export default function OrdemServicoPage() {
                                 })?.nome || produtoOs.produtoId}
                               </option>
                             )}
-                          {produtosTabelaPrecoOs.map((produto) => (
+                          {produtosOpcoesOs.map((produto) => (
                             <option key={produto.id} value={produto.id}>
                               {produto.nome} -{" "}
                               {produto.valor.toLocaleString("pt-BR", {

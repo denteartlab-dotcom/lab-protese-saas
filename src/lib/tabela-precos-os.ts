@@ -505,6 +505,103 @@ export function produtosOpcoesNaOs(categorias: CategoriaTabelaPrecoOs[]): Produt
   return opcoes;
 }
 
+type ProdutoEstoqueOsRef = {
+  id: string;
+  nome: string;
+  valor?: number;
+};
+
+function qtdTextoItemCustoOs(rawQtd?: string | null) {
+  const raw = String(rawQtd ?? "1").trim() || "1";
+  const match = raw.match(/(\d+(?:[.,]\d+)?)/);
+  return match ? match[1].replace(",", ".") : "1";
+}
+
+/** Une produtos do estoque com preços da tabela de preços (+ Produto) e itens de custo do serviço. */
+export function montarProdutosOpcoesOs(
+  categorias: CategoriaTabelaPrecoOs[],
+  produtosEstoque: ProdutoEstoqueOsRef[] = [],
+  servico?: ServicoTabelaPrecoOs | null
+): ProdutoOpcaoOs[] {
+  const porId = new Map<string, ProdutoOpcaoOs>();
+
+  for (const item of produtosOpcoesNaOs(categorias)) {
+    porId.set(item.id, item);
+  }
+
+  for (const produto of produtosEstoque) {
+    if (!produto?.id) continue;
+    const naTabela = porId.get(produto.id);
+    if (naTabela) {
+      porId.set(produto.id, {
+        ...naTabela,
+        nome: naTabela.nome || produto.nome,
+      });
+      continue;
+    }
+    porId.set(produto.id, {
+      id: produto.id,
+      nome: produto.nome,
+      valor: Number(produto.valor) || 0,
+      produtoId: produto.id,
+    });
+  }
+
+  for (const item of servico?.itensCusto || []) {
+    const produtoId = item.produtoId?.trim();
+    if (!produtoId) continue;
+    const naTabela = porId.get(produtoId);
+    const doEstoque = produtosEstoque.find((produto) => produto.id === produtoId);
+    const valorTabela = naTabela?.valor;
+    const valorCusto = parseValorMonetarioTabela(item.valorUnitario);
+    porId.set(produtoId, {
+      id: produtoId,
+      nome: item.nome?.trim() || naTabela?.nome || doEstoque?.nome || "Produto",
+      valor: valorTabela && valorTabela > 0 ? valorTabela : valorCusto,
+      produtoId,
+    });
+  }
+
+  return Array.from(porId.values()).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+}
+
+export type ProdutoOsLinhaInicial = {
+  produtoId: string;
+  quantidade: string;
+  valorUnitario: number;
+  observacao: string;
+};
+
+/** Pré-preenche produtos da OS com os itens de custo cadastrados no serviço na tabela de preços. */
+export function produtosOsIniciaisDoServico(
+  servico: ServicoTabelaPrecoOs,
+  opcoes: ProdutoOpcaoOs[]
+): ProdutoOsLinhaInicial[] {
+  const itens = servico.itensCusto || [];
+  if (!itens.length) return [];
+
+  return itens
+    .filter((item) => item.produtoId?.trim())
+    .map((item) => {
+      const produtoId = item.produtoId.trim();
+      const opcao = opcoes.find(
+        (produto) => produto.id === produtoId || produto.produtoId === produtoId
+      );
+      const quantidade = qtdTextoItemCustoOs(item.qtd);
+      const qtdNum = Number(quantidade) || 1;
+      const unit =
+        opcao?.valor && opcao.valor > 0
+          ? opcao.valor
+          : parseValorMonetarioTabela(item.valorUnitario);
+      return {
+        produtoId,
+        quantidade,
+        valorUnitario: unit,
+        observacao: item.nome?.trim() || opcao?.nome || "",
+      };
+    });
+}
+
 export function comissoesColaboradoresDoServico(servico?: ServicoTabelaPrecoOs | null) {
   return (servico?.comissoesColaboradores || []).filter((linha) => linha.nome?.trim());
 }
