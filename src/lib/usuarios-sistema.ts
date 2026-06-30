@@ -52,9 +52,10 @@ export function podeGerenciarUsuarios(role: string) {
 export function rotuloTipoUsuario(role: string) {
   switch (role) {
     case "proprietario":
+      return "Proprietário";
     case "admin":
     case "admin_empresa":
-      return "Administrador";
+      return "Proprietário";
     case "gerente":
       return "Gerente";
     case "financeiro":
