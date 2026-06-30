@@ -63,6 +63,31 @@ export function ehPaginaInicioApp(pathname: string): boolean {
   return !restante || restante === "/";
 }
 
+/** Sufixo após o slug da empresa (ex.: /financeiro, /producao/os). */
+export function restanteCaminhoMenuApp(pathname: string): string {
+  const normalizado = pathname.replace(/\/+$/, "") || "/";
+  const { restante, legado } = analisarCaminhoApp(normalizado);
+  if (legado) {
+    const partes = normalizado.split("/").filter(Boolean);
+    if (partes[0] === "app" && partes.length > 1) {
+      return `/${partes.slice(1).join("/")}`;
+    }
+    return restante || "/";
+  }
+  return restante || "/";
+}
+
+/** Verifica se o menu principal deve ficar ativo (compatível com /app/{slug}/...). */
+export function menuAppSecaoAtiva(pathname: string, prefixos: string | string[]): boolean {
+  const lista = Array.isArray(prefixos) ? prefixos : [prefixos];
+  const restante = restanteCaminhoMenuApp(pathname);
+
+  return lista.some((prefixo) => {
+    const norm = prefixo.startsWith("/") ? prefixo : `/${prefixo}`;
+    return restante === norm || restante.startsWith(`${norm}/`);
+  });
+}
+
 export function normalizarSlugEmpresa(slug: string): string {
   return slug
     .trim()

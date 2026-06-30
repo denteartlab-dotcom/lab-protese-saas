@@ -22,6 +22,7 @@ import {
   Wallet,
 } from "lucide-react";
 import type { MessageKey } from "@/lib/i18n";
+import { menuAppSecaoAtiva } from "@/lib/rotas-app";
 import { relatoriosNav } from "@/lib/relatorios-nav";
 
 export type AppNavItem = {
@@ -98,8 +99,7 @@ export const gruposNavMobile: AppNavGrupoMobile[] = [
     labelKey: "nav.producao",
     icon: ClipboardList,
     hrefBase: "/app/producao",
-    ativo: (pathname) =>
-      pathname.startsWith("/app/producao") || pathname.startsWith("/app/trabalhos"),
+    ativo: (pathname) => menuAppSecaoAtiva(pathname, ["/producao", "/trabalhos"]),
     itens: producaoNav,
   },
   {
@@ -107,7 +107,7 @@ export const gruposNavMobile: AppNavGrupoMobile[] = [
     labelKey: "nav.financeiro",
     icon: Wallet,
     hrefBase: "/app/financeiro",
-    ativo: (pathname) => pathname.startsWith("/app/financeiro"),
+    ativo: (pathname) => menuAppSecaoAtiva(pathname, "/financeiro"),
     itens: financeiroNav,
   },
   {
@@ -115,8 +115,7 @@ export const gruposNavMobile: AppNavGrupoMobile[] = [
     labelKey: "nav.cadastros",
     icon: Users,
     hrefBase: "/app/clientes",
-    ativo: (pathname) =>
-      pathname.startsWith("/app/clientes") || pathname.startsWith("/app/cadastros"),
+    ativo: (pathname) => menuAppSecaoAtiva(pathname, ["/clientes", "/cadastros"]),
     itens: cadastrosNav,
   },
   {
@@ -124,8 +123,7 @@ export const gruposNavMobile: AppNavGrupoMobile[] = [
     labelKey: "nav.estoque",
     icon: Package,
     hrefBase: "/app/produtos",
-    ativo: (pathname) =>
-      pathname.startsWith("/app/produtos") || pathname.startsWith("/app/orcamentos"),
+    ativo: (pathname) => menuAppSecaoAtiva(pathname, ["/produtos", "/orcamentos"]),
     itens: estoqueNav,
   },
   {
@@ -133,7 +131,7 @@ export const gruposNavMobile: AppNavGrupoMobile[] = [
     labelKey: "nav.relatorios",
     icon: FileText,
     hrefBase: "/app/relatorios",
-    ativo: (pathname) => pathname.startsWith("/app/relatorios"),
+    ativo: (pathname) => menuAppSecaoAtiva(pathname, "/relatorios"),
     itens: relatoriosNav as AppNavItem[],
   },
 ];

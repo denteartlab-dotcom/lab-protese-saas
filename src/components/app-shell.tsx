@@ -44,7 +44,7 @@ import { limparUltimaAtividadeSessao } from "@/lib/sessao-inatividade";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { instrucoesTextoLivre } from "@/lib/etapas-os";
 import { cn, STATUS_TRABALHO } from "@/lib/utils";
-import { analisarCaminhoApp, ehPaginaInicioApp } from "@/lib/rotas-app";
+import { analisarCaminhoApp, ehPaginaInicioApp, menuAppSecaoAtiva } from "@/lib/rotas-app";
 import {
   BarChart3,
   CheckSquare,
@@ -729,10 +729,13 @@ function AppShellInner({
               <Link
                 href={primeiroHrefPermitidoNav(acessoTotal, permissoesModulos, producaoNav) || "/app/producao"}
                 className={classeItemNavPrincipal(
-                  pathname.startsWith("/app/producao") || pathname.startsWith("/app/trabalhos")
+                  menuAppSecaoAtiva(pathname, ["/producao", "/trabalhos"])
                 )}
               >
-                <ClipboardList className={CLASSE_NAV_ICONE} strokeWidth={2} />
+                <ClipboardList
+                  className={CLASSE_NAV_ICONE}
+                  strokeWidth={menuAppSecaoAtiva(pathname, ["/producao", "/trabalhos"]) ? 2.25 : 2}
+                />
                 <span>{t("nav.producao")}</span>
                 <ChevronDown className={CLASSE_NAV_CHEVRON} />
               </Link>
@@ -754,9 +757,12 @@ function AppShellInner({
             <div className="group relative">
               <Link
                 href={primeiroHrefPermitidoNav(acessoTotal, permissoesModulos, financeiroNav) || "/app/financeiro"}
-                className={classeItemNavPrincipal(pathname.startsWith("/app/financeiro"))}
+                className={classeItemNavPrincipal(menuAppSecaoAtiva(pathname, "/financeiro"))}
               >
-                <Wallet className={CLASSE_NAV_ICONE} strokeWidth={2} />
+                <Wallet
+                  className={CLASSE_NAV_ICONE}
+                  strokeWidth={menuAppSecaoAtiva(pathname, "/financeiro") ? 2.25 : 2}
+                />
                 <span>{t("nav.financeiro")}</span>
                 <ChevronDown className={CLASSE_NAV_CHEVRON} />
               </Link>
@@ -779,10 +785,13 @@ function AppShellInner({
               <Link
                 href={primeiroHrefPermitidoNav(acessoTotal, permissoesModulos, cadastrosNav) || "/app/clientes"}
                 className={classeItemNavPrincipal(
-                  pathname.startsWith("/app/clientes") || pathname.startsWith("/app/cadastros")
+                  menuAppSecaoAtiva(pathname, ["/clientes", "/cadastros"])
                 )}
               >
-                <Users className={CLASSE_NAV_ICONE} strokeWidth={2} />
+                <Users
+                  className={CLASSE_NAV_ICONE}
+                  strokeWidth={menuAppSecaoAtiva(pathname, ["/clientes", "/cadastros"]) ? 2.25 : 2}
+                />
                 <span>{t("nav.cadastros")}</span>
                 <ChevronDown className={CLASSE_NAV_CHEVRON} />
               </Link>
@@ -805,10 +814,13 @@ function AppShellInner({
               <Link
                 href={primeiroHrefPermitidoNav(acessoTotal, permissoesModulos, estoqueNav) || "/app/produtos"}
                 className={classeItemNavPrincipal(
-                  pathname.startsWith("/app/produtos") || pathname.startsWith("/app/orcamentos")
+                  menuAppSecaoAtiva(pathname, ["/produtos", "/orcamentos"])
                 )}
               >
-                <Package className={CLASSE_NAV_ICONE} strokeWidth={2} />
+                <Package
+                  className={CLASSE_NAV_ICONE}
+                  strokeWidth={menuAppSecaoAtiva(pathname, ["/produtos", "/orcamentos"]) ? 2.25 : 2}
+                />
                 <span>{t("nav.estoque")}</span>
                 <ChevronDown className={CLASSE_NAV_CHEVRON} />
               </Link>
@@ -836,9 +848,12 @@ function AppShellInner({
                     relatoriosNav as typeof producaoNav
                   ) || "/app/relatorios/fluxo-de-caixa"
                 }
-                className={classeItemNavPrincipal(pathname.startsWith("/app/relatorios"))}
+                className={classeItemNavPrincipal(menuAppSecaoAtiva(pathname, "/relatorios"))}
               >
-                <BarChart3 className={CLASSE_NAV_ICONE} strokeWidth={2} />
+                <BarChart3
+                  className={CLASSE_NAV_ICONE}
+                  strokeWidth={menuAppSecaoAtiva(pathname, "/relatorios") ? 2.25 : 2}
+                />
                 <span>{t("nav.relatorios")}</span>
                 <ChevronDown className={CLASSE_NAV_CHEVRON} />
               </Link>

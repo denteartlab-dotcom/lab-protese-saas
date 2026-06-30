@@ -17,7 +17,7 @@ import {
   podeVerHref,
 } from "@/lib/permissoes-acesso";
 import { cn } from "@/lib/utils";
-import { ehPaginaInicioApp } from "@/lib/rotas-app";
+import { ehPaginaInicioApp, menuAppSecaoAtiva } from "@/lib/rotas-app";
 
 type Props = {
   aberto: boolean;
@@ -31,7 +31,8 @@ type Props = {
 function linkAtivo(pathname: string, href: string) {
   const base = href.split("?")[0];
   if (base === "/app") return ehPaginaInicioApp(pathname);
-  return pathname === base || pathname.startsWith(`${base}/`);
+  const sufixo = base.replace(/^\/app/, "") || "/";
+  return menuAppSecaoAtiva(pathname, sufixo);
 }
 
 function ItemNavSimples({
