@@ -211,9 +211,10 @@ function AppShellInner({
     initialNomeLaboratorio,
   });
   const nomePerfil =
-    nomeLaboratorio.trim() && nomeLaboratorio.trim() !== NOME_LAB_PADRAO
+    userName.trim() ||
+    (nomeLaboratorio.trim() && nomeLaboratorio.trim() !== NOME_LAB_PADRAO
       ? nomeLaboratorio
-      : nomeServidor;
+      : nomeServidor);
   const papelUsuario = rotuloPapelUsuario(userRole);
   const fecharMenuMobile = useCallback(() => setMenuMobileAberto(false), []);
   const alternarMenuMobile = useCallback(
