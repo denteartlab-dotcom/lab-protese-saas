@@ -41,6 +41,8 @@ module.exports = {
       env: {
         ...envArquivo,
         NODE_ENV: "production",
+        NODE_OPTIONS:
+          envArquivo.NODE_OPTIONS || "--max-old-space-size=4096",
         PORT: envArquivo.PORT || "3000",
         HOSTNAME: envArquivo.HOSTNAME || "0.0.0.0",
       },
@@ -54,7 +56,7 @@ module.exports = {
       restart_delay: 3_000,
       max_restarts: 20,
       exp_backoff_restart_delay: 200,
-      max_memory_restart: "1800M",
+      max_memory_restart: "3600M",
       time: true,
     },
   ],

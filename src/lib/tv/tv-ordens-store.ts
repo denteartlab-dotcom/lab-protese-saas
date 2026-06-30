@@ -12,7 +12,7 @@ import {
 } from "@/lib/tv/tv-trabalhos-servidor";
 
 const MAX_CHART_POINTS = 24;
-const REFRESH_INTERVAL_MS = 12_000;
+const REFRESH_INTERVAL_MS = 20_000;
 
 type TvStoreState = {
   snapshot: TvOrdensResponse;

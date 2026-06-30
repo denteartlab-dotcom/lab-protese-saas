@@ -229,6 +229,10 @@ app
           process.send("ready");
         }
 
+        const delayJobsMs = parseInt(
+          process.env.BACKUP_AUTOMATICO_DELAY_MS || "120000",
+          10
+        );
         setTimeout(() => {
           if (backupAutomaticoHabilitadoNoServidor()) {
             void iniciarBackupAutomaticoDiario();
@@ -239,7 +243,7 @@ app
           }
           iniciarLimpezaContasInativasDiaria();
           iniciarLimpezaSuporteInativo();
-        }, 15_000);
+        }, delayJobsMs);
       });
     };
 

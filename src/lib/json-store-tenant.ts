@@ -1,3 +1,4 @@
+import { invalidarBootstrapCache } from "@/lib/bootstrap-cache";
 import { ARMAZENAMENTO_LAB_PREFIX, chaveBootstrapAdiada } from "@/lib/armazenamento-laboratorio-keys";
 import { prisma } from "@/lib/db";
 
@@ -55,6 +56,7 @@ export async function salvarJsonStoreTenant(
     create: { key: tenantKey, payload },
     update: { payload },
   });
+  invalidarBootstrapCache(empresaId);
 }
 
 export async function bootstrapJsonStoreTenant(
