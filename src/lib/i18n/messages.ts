@@ -435,6 +435,7 @@ export const messages = {
     "nav.finalizadores": "Service Providers",
     "nav.entregas": "Delivery Control",
     "nav.contasReceber": "Accounts Receivable",
+    "nav.contaDigital": "Digital Account",
     "nav.controleBoletos": "Bill Control",
     "nav.contasPagar": "Accounts Payable",
     "nav.planoContas": "Chart of Accounts",
