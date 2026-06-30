@@ -175,6 +175,18 @@
     background-color: #020617;
   }
 
+  .dark .bg-\[\#f8f9fa\] {
+    background-color: #0f172a;
+  }
+
+  .dark .border-\[\#e8eaed\] {
+    border-color: #334155;
+  }
+
+  .dark .bg-slate-50\/50 {
+    background-color: rgb(30 41 59 / 0.6);
+  }
+
   .dark .bg-\[\#f5f6f8\],
   .dark .bg-\[\#f0f7ff\],
   .dark .bg-\[\#f0faf0\],

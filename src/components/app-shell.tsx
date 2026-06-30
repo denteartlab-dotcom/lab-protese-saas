@@ -105,9 +105,13 @@ const CLASSE_NAV_MENU =
 const CLASSE_NAV_ATIVO =
   "bg-[#5c85d6] font-bold text-white shadow-[0_2px_4px_rgba(0,0,0,0.1)]";
 const CLASSE_NAV_INATIVO =
-  "font-normal text-[#555566] hover:bg-black/[0.04] hover:text-[#444455]";
+  "font-normal text-[#555566] hover:bg-black/[0.04] hover:text-[#444455] dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-slate-100";
 const CLASSE_NAV_ICONE = "h-4 w-4 shrink-0";
 const CLASSE_NAV_CHEVRON = "ml-0.5 h-3 w-3 shrink-0 opacity-75";
+const CLASSE_NAV_DROPDOWN =
+  "invisible absolute left-0 top-full z-40 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900";
+const CLASSE_NAV_DROPDOWN_LINK =
+  "flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-primary-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-primary-400";
 
 function classeItemNavPrincipal(ativo: boolean) {
   return cn(CLASSE_NAV_MENU, ativo ? CLASSE_NAV_ATIVO : CLASSE_NAV_INATIVO);
@@ -631,18 +635,18 @@ function AppShellInner({
                   <button
                     type="button"
                     onClick={() => setUserMenuOpen((current) => !current)}
-                    className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition hover:bg-black/5"
+                    className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition hover:bg-black/5 dark:hover:bg-white/10"
                     aria-expanded={userMenuOpen}
                     aria-label="Abrir menu do usuário"
                   >
                     <div className="hidden leading-tight sm:block">
                       <p
                         suppressHydrationWarning
-                        className="text-[13px] font-bold text-slate-800"
+                        className="text-[13px] font-bold text-slate-800 dark:text-slate-100"
                       >
                         {nomePerfil}
                       </p>
-                      <p className="text-[11px] text-slate-500">{papelUsuario}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">{papelUsuario}</p>
                     </div>
                     <div
                       className={cn(
@@ -708,7 +712,7 @@ function AppShellInner({
             }
           />
 
-          <header className="hidden border-b border-[#e8eaed] bg-[#f8f9fa] lg:block">
+          <header className="hidden border-b border-[#e8eaed] bg-[#f8f9fa] dark:border-slate-700 dark:bg-slate-900 lg:block">
             <nav className="flex min-h-[44px] items-center justify-start gap-8 px-5 font-sans antialiased">
             {podeVerMenu("/app") &&
               appNavPrincipal.filter((item) => item.labelKey === "nav.inicio").map((item) => {
@@ -739,12 +743,12 @@ function AppShellInner({
                 <span>{t("nav.producao")}</span>
                 <ChevronDown className={CLASSE_NAV_CHEVRON} />
               </Link>
-              <div className="invisible absolute left-0 top-full z-40 w-56 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
+              <div className={cn(CLASSE_NAV_DROPDOWN, "w-56")}>
                 {producaoNav.filter((item) => podeVerMenu(item.href)).map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-primary-700"
+                      className={CLASSE_NAV_DROPDOWN_LINK}
                     >
                       <item.icon className="h-3.5 w-3.5" />
                       {t(item.labelKey)}
@@ -766,12 +770,12 @@ function AppShellInner({
                 <span>{t("nav.financeiro")}</span>
                 <ChevronDown className={CLASSE_NAV_CHEVRON} />
               </Link>
-              <div className="invisible absolute left-0 top-full z-40 w-56 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+              <div className={cn(CLASSE_NAV_DROPDOWN, "w-56")}>
                 {financeiroNav.filter((item) => podeVerMenu(item.href)).map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-primary-700"
+                      className={CLASSE_NAV_DROPDOWN_LINK}
                     >
                       <item.icon className="h-3.5 w-3.5" />
                       {t(item.labelKey)}
@@ -795,12 +799,12 @@ function AppShellInner({
                 <span>{t("nav.cadastros")}</span>
                 <ChevronDown className={CLASSE_NAV_CHEVRON} />
               </Link>
-              <div className="invisible absolute left-0 top-full z-40 w-64 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
+              <div className={cn(CLASSE_NAV_DROPDOWN, "w-64")}>
                 {cadastrosNav.filter((item) => podeVerMenu(item.href)).map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="flex items-center gap-1.5 rounded-md px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-primary-700"
+                      className={cn(CLASSE_NAV_DROPDOWN_LINK, "gap-1.5 rounded-md")}
                     >
                       <item.icon className="h-3.5 w-3.5" />
                       {t(item.labelKey)}
@@ -824,12 +828,12 @@ function AppShellInner({
                 <span>{t("nav.estoque")}</span>
                 <ChevronDown className={CLASSE_NAV_CHEVRON} />
               </Link>
-              <div className="invisible absolute left-0 top-full z-40 w-48 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
+              <div className={cn(CLASSE_NAV_DROPDOWN, "w-48")}>
                 {estoqueNav.filter((item) => podeVerMenu(item.href)).map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-primary-700"
+                      className={CLASSE_NAV_DROPDOWN_LINK}
                     >
                       <item.icon className="h-3.5 w-3.5" />
                       {t(item.labelKey)}
@@ -857,12 +861,12 @@ function AppShellInner({
                 <span>{t("nav.relatorios")}</span>
                 <ChevronDown className={CLASSE_NAV_CHEVRON} />
               </Link>
-              <div className="invisible absolute left-0 top-full z-40 w-56 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
+              <div className={cn(CLASSE_NAV_DROPDOWN, "w-56")}>
                 {relatoriosNav.filter((item) => podeVerMenu(item.href)).map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-primary-700"
+                      className={CLASSE_NAV_DROPDOWN_LINK}
                     >
                       <item.icon className="h-3.5 w-3.5" />
                       {t(item.labelKey)}
