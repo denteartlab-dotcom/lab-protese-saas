@@ -226,6 +226,10 @@ export const messages = {
     "settings.restaurarPadraoAcessoNegado":
       "Restaurar padrão e palavra-chave de recuperação são exclusivos do proprietário.",
     "settings.restaurarPadraoBotao": "Restaurar padrão do site",
+    "settings.restaurarPadraoBotaoContaBancaria": "Restaurar somente Conta Bancária",
+    "settings.restaurarPadraoTituloContaBancaria": "Restaurar Conta Bancária ao padrão",
+    "settings.restaurarPadraoDescricaoContaBancaria":
+      "Volta as contas Caixa Principal, Carteira Digital e Nota Fiscal ao estado inicial, apaga movimentações e extrato. Receitas e despesas não são alteradas.",
     "settings.restaurarPadraoTitulo": "Restaurar padrão — escolher módulos",
     "settings.restaurarPadraoDescricao":
       "Marque os módulos que deseja zerar. Cada um remove registros no PostgreSQL, arquivos anexados e dados salvos neste navegador.",
@@ -637,6 +641,10 @@ export const messages = {
     "settings.restaurarPadraoAcessoNegado":
       "Restore defaults and recovery passphrase are owner-only.",
     "settings.restaurarPadraoBotao": "Restore site defaults",
+    "settings.restaurarPadraoBotaoContaBancaria": "Restore Bank Account only",
+    "settings.restaurarPadraoTituloContaBancaria": "Restore Bank Account to defaults",
+    "settings.restaurarPadraoDescricaoContaBancaria":
+      "Resets Main Cash, Digital Wallet, and Invoice accounts, clears movements and statements. Revenues and expenses are not changed.",
     "settings.restaurarPadraoTitulo": "Restore defaults — choose modules",
     "settings.restaurarPadraoDescricao":
       "Select modules to reset. Each removes PostgreSQL records, uploaded files, and data stored in this browser.",
@@ -1047,6 +1055,10 @@ export const messages = {
     "settings.restaurarPadraoAcessoNegado":
       "Restaurar estándar y palabra clave de recuperación son exclusivos del propietario.",
     "settings.restaurarPadraoBotao": "Restaurar estándar del sitio",
+    "settings.restaurarPadraoBotaoContaBancaria": "Restaurar solo Cuenta Bancaria",
+    "settings.restaurarPadraoTituloContaBancaria": "Restaurar Cuenta Bancaria al estándar",
+    "settings.restaurarPadraoDescricaoContaBancaria":
+      "Vuelve las cuentas Caja Principal, Cartera Digital y Nota Fiscal al estado inicial, borra movimientos y extracto. Ingresos y gastos no se modifican.",
     "settings.restaurarPadraoTitulo": "Restaurar estándar — elegir módulos",
     "settings.restaurarPadraoDescricao":
       "Marque los módulos que desea vaciar. Cada uno elimina registros en PostgreSQL, archivos adjuntos y datos guardados en este navegador.",

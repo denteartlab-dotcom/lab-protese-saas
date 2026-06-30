@@ -7,6 +7,7 @@ import { useI18n } from "@/components/i18n-provider";
 import { ModalAbrirPastaBackup } from "@/components/configuracoes/ModalAbrirPastaBackup";
 import { RestaurarPadraoModal } from "@/components/configuracoes/RestaurarPadraoModal";
 import { PalavraChaveRestaurarSection } from "@/components/configuracoes/PalavraChaveRestaurarSection";
+import type { ModuloLimpezaId } from "@/lib/limpar-modulos-laboratorio";
 
 type Props = {
   onMensagem?: (texto: string, tipo?: "info" | "sucesso" | "erro") => void;
@@ -71,6 +72,9 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
   const [confirmarSubstituir, setConfirmarSubstituir] = useState(false);
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [modalPadraoAberto, setModalPadraoAberto] = useState(false);
+  const [modalPadraoPreset, setModalPadraoPreset] = useState<
+    ModuloLimpezaId[] | undefined
+  >(undefined);
   const [ehProprietario, setEhProprietario] = useState(false);
   const [statusAuto, setStatusAuto] = useState<StatusBackupAutomatico | null>(null);
   const [carregandoAuto, setCarregandoAuto] = useState(false);
@@ -717,14 +721,30 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                 <p className="mt-2 text-[11px] font-medium text-red-800 dark:text-red-300">
                   {t("settings.restaurarPadraoSomenteProprietario")}
                 </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setModalPadraoAberto(true)}
-                  className="mt-4 rounded border-red-600 bg-white px-4 py-2 text-sm text-red-800 hover:bg-red-100 dark:border-red-700 dark:bg-slate-800 dark:text-red-200 dark:hover:bg-red-950/50"
-                >
-                  {t("settings.restaurarPadraoBotao")}
-                </Button>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setModalPadraoPreset(undefined);
+                      setModalPadraoAberto(true);
+                    }}
+                    className="rounded border-red-600 bg-white px-4 py-2 text-sm text-red-800 hover:bg-red-100 dark:border-red-700 dark:bg-slate-800 dark:text-red-200 dark:hover:bg-red-950/50"
+                  >
+                    {t("settings.restaurarPadraoBotao")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setModalPadraoPreset(["conta_bancaria"]);
+                      setModalPadraoAberto(true);
+                    }}
+                    className="rounded border-red-500 bg-white px-4 py-2 text-sm text-red-700 hover:bg-red-50 dark:border-red-800 dark:bg-slate-800 dark:text-red-300 dark:hover:bg-red-950/40"
+                  >
+                    {t("settings.restaurarPadraoBotaoContaBancaria")}
+                  </Button>
+                </div>
               </div>
             </div>
           </section>
@@ -741,8 +761,12 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
 
       <RestaurarPadraoModal
         open={modalPadraoAberto}
-        onClose={() => setModalPadraoAberto(false)}
+        onClose={() => {
+          setModalPadraoAberto(false);
+          setModalPadraoPreset(undefined);
+        }}
         onMensagem={onMensagem}
+        modulosPreset={modalPadraoPreset}
       />
     </div>
   );

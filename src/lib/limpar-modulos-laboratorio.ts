@@ -9,9 +9,23 @@ import { MODULO_PRODUCAO_ETAPAS_STORAGE_KEY } from "@/lib/modulo-producao-etapas
 import { lerJsonStoreTenant, salvarJsonStoreTenant } from "@/lib/json-store-tenant";
 import type { PastaUpload } from "@/lib/upload-arquivo-server";
 import { caminhoPastaUploads } from "@/lib/uploads-armazenamento-server";
+import {
+  CONTAS_BANCARIAS_PADRAO,
+  CONTAS_BANCARIAS_VERSION,
+  CONTAS_BANCARIAS_VERSION_KEY,
+  CONTAS_BANCARIAS_STORAGE_KEY,
+  MOVIMENTACOES_CONTA_STORAGE_KEY,
+} from "@/lib/conta-bancaria";
+import { EXTRATO_BANCARIO_STORAGE_KEY } from "@/lib/extrato-bancario";
+import {
+  salvarContasBancariasServidor,
+  salvarExtratoBancarioServidor,
+  salvarMovimentacoesContaServidor,
+} from "@/lib/conta-bancaria-servidor";
 
 export type ModuloLimpezaId =
   | "financeiro"
+  | "conta_bancaria"
   | "producao"
   | "clientes"
   | "orcamentos"
@@ -48,17 +62,26 @@ export const MODULOS_LIMPEZA: ModuloLimpezaDef[] = [
     id: "financeiro",
     label: "Financeiro",
     descricao:
-      "Receitas, despesas, boletos Asaas, NFS-e emitidas, plano de contas, contas bancárias e anexos de receitas/despesas.",
+      "Receitas, despesas, boletos Asaas, NFS-e emitidas, plano de contas e anexos de receitas/despesas.",
     ordemExclusao: 10,
     localStorageKeys: [
       "labProtesePlanoContas",
       "labProtesePlanoContasVersion",
-      "labProteseContasBancarias",
-      "labProteseContasBancariasVersion",
-      "labProteseMovimentacoesConta",
-      "labProteseExtratoBancario",
     ],
     uploadPastas: ["despesas", "receitas"],
+  },
+  {
+    id: "conta_bancaria",
+    label: "Conta bancária",
+    descricao:
+      "Restaura Caixa Principal, Carteira Digital e Nota Fiscal ao padrão; remove movimentações e extrato. Não apaga receitas nem despesas.",
+    ordemExclusao: 12,
+    localStorageKeys: [
+      CONTAS_BANCARIAS_STORAGE_KEY,
+      CONTAS_BANCARIAS_VERSION_KEY,
+      MOVIMENTACOES_CONTA_STORAGE_KEY,
+      EXTRATO_BANCARIO_STORAGE_KEY,
+    ],
   },
   {
     id: "dre",
@@ -260,6 +283,9 @@ export async function contarRegistrosModulos(
     usuarios,
     anexos,
     sequenciaOs,
+    contasBancarias,
+    movimentacoesConta,
+    extratoBancario,
   ] = await Promise.all([
     prisma.lancamento.count({ where: whereEmpresa }),
     prisma.lancamento.count({ where: { ...whereEmpresa, status: "pago" } }),
@@ -274,6 +300,9 @@ export async function contarRegistrosModulos(
     prisma.user.count({ where: whereEmpresa }),
     prisma.arquivoUpload.count({ where: whereEmpresa }),
     prisma.sequenciaNumerica.count({ where: { empresaId, chave: "numero_os" } }),
+    prisma.contaBancaria.count({ where: whereEmpresa }),
+    prisma.movimentacaoConta.count({ where: { conta: whereEmpresa } }),
+    prisma.extratoMovimentacao.count({ where: { conta: whereEmpresa } }),
   ]);
 
   const [jsonNfse, jsonAsaas, jsonLab, jsonEtapasModulo] = await Promise.all([
@@ -301,6 +330,7 @@ export async function contarRegistrosModulos(
 
   return {
     financeiro: lancamentos + cobrancas + nfse,
+    conta_bancaria: contasBancarias + movimentacoesConta + extratoBancario,
     dre: lancamentosPagos,
     producao: trabalhos + (sequenciaOs > 0 ? 1 : 0),
     clientes_negativos: historicoEtapas,
@@ -390,6 +420,25 @@ export async function limparModulosSelecionados(
         const c2 = await prisma.nfseEmissao.deleteMany({ where: whereEmpresa });
         const c3 = await prisma.lancamento.deleteMany({ where: whereEmpresa });
         apagados.financeiro = c1.count + c2.count + c3.count;
+        break;
+      }
+      case "conta_bancaria": {
+        const c1 = await prisma.movimentacaoConta.deleteMany({
+          where: { conta: whereEmpresa },
+        });
+        const c2 = await prisma.extratoMovimentacao.deleteMany({
+          where: { conta: whereEmpresa },
+        });
+        await salvarContasBancariasServidor(empresaId, CONTAS_BANCARIAS_PADRAO);
+        await salvarMovimentacoesContaServidor(empresaId, []);
+        await salvarExtratoBancarioServidor(empresaId, []);
+        apagados.conta_bancaria = c1.count + c2.count + CONTAS_BANCARIAS_PADRAO.length;
+        localStorageSet[CONTAS_BANCARIAS_STORAGE_KEY] = JSON.stringify(
+          CONTAS_BANCARIAS_PADRAO
+        );
+        localStorageSet[CONTAS_BANCARIAS_VERSION_KEY] = String(CONTAS_BANCARIAS_VERSION);
+        localStorageSet[MOVIMENTACOES_CONTA_STORAGE_KEY] = "[]";
+        localStorageSet[EXTRATO_BANCARIO_STORAGE_KEY] = "[]";
         break;
       }
       case "dre": {

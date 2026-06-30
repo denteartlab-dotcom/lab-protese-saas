@@ -25,6 +25,8 @@ type Props = {
   onClose: () => void;
   onMensagem?: (texto: string, tipo?: "info" | "sucesso" | "erro") => void;
   onConcluido?: () => void;
+  /** Pré-seleciona módulos ao abrir (ex.: somente conta bancária). */
+  modulosPreset?: ModuloLimpezaId[];
 };
 
 function valorTemDados(valor: unknown): boolean {
@@ -68,6 +70,7 @@ export function RestaurarPadraoModal({
   onClose,
   onMensagem,
   onConcluido,
+  modulosPreset,
 }: Props) {
   const { t } = useI18n();
   const [modulos, setModulos] = useState<ModuloApi[]>([]);
@@ -122,12 +125,17 @@ export function RestaurarPadraoModal({
 
   useEffect(() => {
     if (!open) return;
-    setSelecionados(new Set());
+    setSelecionados(
+      modulosPreset?.length ? new Set(modulosPreset) : new Set()
+    );
     setConfirmar(false);
     setSenha("");
     setPalavraChave("");
     void carregar();
-  }, [open, carregar]);
+  }, [open, carregar, modulosPreset]);
+
+  const somenteContaBancaria =
+    modulosPreset?.length === 1 && modulosPreset[0] === "conta_bancaria";
 
   const modulosComContagem = useMemo(() => {
     return modulos.map((mod) => {
@@ -268,10 +276,14 @@ export function RestaurarPadraoModal({
             id="restaurar-padrao-titulo"
             className="pr-8 text-base font-semibold text-slate-800"
           >
-            {t("settings.restaurarPadraoTitulo")}
+            {somenteContaBancaria
+              ? t("settings.restaurarPadraoTituloContaBancaria")
+              : t("settings.restaurarPadraoTitulo")}
           </h2>
           <p className="mt-1 text-xs text-slate-600">
-            {t("settings.restaurarPadraoDescricao")}
+            {somenteContaBancaria
+              ? t("settings.restaurarPadraoDescricaoContaBancaria")
+              : t("settings.restaurarPadraoDescricao")}
           </p>
           <button
             type="button"
