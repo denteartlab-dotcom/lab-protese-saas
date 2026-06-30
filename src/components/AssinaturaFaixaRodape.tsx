@@ -4,6 +4,7 @@ import { useState } from "react";
 import { MessageCircle } from "lucide-react";
 import { formatarDataAssinatura, diasRestantesAssinatura } from "@/lib/assinatura-empresa";
 import { RenovarAssinaturaPixModal } from "@/components/assinatura/RenovarAssinaturaPixModal";
+import { abrirSuporteChat } from "@/components/SuporteChatWidget";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -63,9 +64,7 @@ export function AssinaturaFaixaRodape({
             <button
               type="button"
               className="inline-flex items-center gap-1.5 rounded-full bg-[#4a90d9] px-3 py-1 text-[11px] font-medium text-white hover:bg-[#3a7bc8]"
-              onClick={() => {
-                if (linkWhatsapp) window.open(linkWhatsapp, "_blank");
-              }}
+              onClick={abrirSuporteChat}
             >
               <MessageCircle className="h-3.5 w-3.5" />
               Chat

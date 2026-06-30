@@ -45,6 +45,38 @@ model Empresa {
   nfseEmissoes   NfseEmissao[]
   cobrancasAssinatura CobrancaAssinatura[]
   asaasSubconta       AsaasSubconta?
+  suporteConversa     SuporteConversa?
+}
+
+model SuporteConversa {
+  id               String   @id @default(cuid())
+  empresaId        String   @unique
+  empresa          Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  ultimaMensagemEm DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  mensagens SuporteMensagem[]
+
+  @@index([ultimaMensagemEm])
+  @@map("suporte_conversas")
+}
+
+model SuporteMensagem {
+  id                String          @id @default(cuid())
+  conversaId        String
+  conversa          SuporteConversa @relation(fields: [conversaId], references: [id], onDelete: Cascade)
+  remetenteTipo     String
+  remetenteUserId   String?
+  remetenteMasterId String?
+  remetenteNome     String
+  texto             String
+  lidaEm            DateTime?
+  createdAt         DateTime        @default(now())
+
+  @@index([conversaId, createdAt])
+  @@index([conversaId, remetenteTipo, lidaEm])
+  @@map("suporte_mensagens")
 }
 
 model AsaasSubconta {

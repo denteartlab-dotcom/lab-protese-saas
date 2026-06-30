@@ -46,6 +46,17 @@ export function MasterShell({
             >
               Dashboard
             </Link>
+            <Link
+              href="/admin-master/suporte"
+              className={cn(
+                "rounded-md px-3 py-2 text-xs font-medium transition",
+                pathname.startsWith("/admin-master/suporte")
+                  ? "bg-[#4a90d9] text-white"
+                  : "text-slate-600 hover:bg-slate-100"
+              )}
+            >
+              Suporte
+            </Link>
             <span className="hidden text-xs text-slate-500 sm:inline">{masterName}</span>
             <button
               type="button"

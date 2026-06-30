@@ -23,6 +23,7 @@ import {
 } from "@/lib/permissoes-acesso";
 import { AppFaixaTopo } from "@/components/AppFaixaTopo";
 import { AssinaturaFaixaRodape } from "@/components/AssinaturaFaixaRodape";
+import { SuporteChatWidget } from "@/components/SuporteChatWidget";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
 import { useLabConfigClient } from "@/lib/use-lab-config-client";
 import {
@@ -1322,6 +1323,7 @@ function AppShellInner({
           whatsappSuporte={suporteWhatsapp}
         />
       )}
+      {!isPrint && !isModuloTv && !isModuloImersivo && <SuporteChatWidget />}
     </div>
   );
 }
