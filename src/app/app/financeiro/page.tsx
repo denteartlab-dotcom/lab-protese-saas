@@ -50,7 +50,6 @@ import { ContaBancariaConteudo } from "@/components/financeiro/ContaBancariaCont
 import { ContaDigitalConteudo } from "@/components/financeiro/ContaDigitalConteudo";
 import { ContasPagarConteudo } from "@/components/financeiro/ContasPagarConteudo";
 import { ControleBoletosConteudo } from "@/components/financeiro/ControleBoletosConteudo";
-import { FinanceiroAbasNav } from "@/components/financeiro/FinanceiroAbasNav";
 import { RelatorioContasReceberModal } from "@/components/financeiro/RelatorioContasReceberModal";
 import { ServicosNaoFaturadosModal } from "@/components/financeiro/ServicosNaoFaturadosModal";
 import {
@@ -1870,7 +1869,6 @@ function FinanceiroReceberConteudo() {
 
   return (
     <div className="space-y-3 text-[11px] text-slate-700">
-      <FinanceiroAbasNav />
       <div
         className={cn(
           "grid gap-3",
