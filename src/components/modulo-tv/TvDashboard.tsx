@@ -23,6 +23,7 @@ export function TvDashboard() {
     dataAtual,
     ordens,
     stats,
+    colaboradores,
     carregando,
     erroCarregamento,
     wsConectado,
@@ -153,7 +154,7 @@ export function TvDashboard() {
         ) : null}
 
         <div className="flex min-h-0 w-full max-w-none flex-1 gap-2 overflow-hidden tv-hd:gap-2.5 tv:gap-3">
-          <TvSidebar stats={stats} />
+          <TvSidebar stats={stats} colaboradores={colaboradores} />
           <main className="min-h-0 min-w-0 w-full max-w-none flex-1 overflow-hidden">
             <TvKanbanBoard
               ordens={ordens}

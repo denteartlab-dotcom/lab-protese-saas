@@ -83,6 +83,14 @@ export class TvOrdensStore {
     return this.state.chart.map((p) => ({ ...p }));
   }
 
+  atualizarColaboradores(colaboradores: TvOrdensResponse["colaboradores"]) {
+    this.state.snapshot.colaboradores = colaboradores.map((c) => ({ ...c }));
+    this.state.snapshot.stats.colaboradoresOnline = colaboradores.filter(
+      (c) => c.online
+    ).length;
+    this.state.snapshot.ultimaAtualizacao = new Date().toISOString();
+  }
+
   syncBroadcast() {
     const snapshot = this.getSnapshot();
     emitTvEvent(this.empresaId, "tv:ordens:update", snapshot);

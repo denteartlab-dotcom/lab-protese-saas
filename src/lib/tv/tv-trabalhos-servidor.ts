@@ -44,6 +44,7 @@ import {
   removerTrabalhoControleEntregasAutomaticoServidor,
 } from "@/lib/controle-entregas-automatico";
 import { normalizarColaborador } from "@/lib/utils";
+import { listarUsuariosOnlineEmpresa } from "@/lib/presenca-usuarios";
 
 const STATUS_VISIVEIS_TV = ["producao", "processando"] as const;
 
@@ -292,41 +293,61 @@ function escolherTrabalhoPrincipal(grupo: TrabalhoTvRow[]) {
 export async function carregarColaboradoresTv(
   empresaId: string
 ): Promise<ColaboradorTv[]> {
-  const [cadastro, usuariosModulo] = await Promise.all([
+  const [cadastro, usuariosOnline] = await Promise.all([
     lerJsonStoreTenant<ColaboradorCadastro[]>(empresaId, "labProteseColaboradores"),
-    prisma.user.findMany({
-      where: { empresaId, excluidoEm: null, moduloProducao: true },
-      select: { colaboradorId: true, colaboradorNome: true, name: true },
-    }),
+    Promise.resolve(listarUsuariosOnlineEmpresa(empresaId)),
   ]);
 
-  const idsOnline = new Set(
-    usuariosModulo
-      .map((u) => u.colaboradorId?.trim())
-      .filter((id): id is string => Boolean(id))
-  );
-  const nomesOnline = new Set(
-    usuariosModulo.map((u) =>
-      (u.colaboradorNome || u.name || "").trim().toLowerCase()
-    )
-  );
+  const colaboradoresCadastro = (cadastro ?? []).filter((c) => c?.nome?.trim());
+  const idsOnline = new Set<string>();
+  const nomesOnline = new Set<string>();
 
-  const lista = (cadastro ?? []).filter((c) => c?.nome?.trim());
-  if (lista.length === 0) {
-    return usuariosModulo.map((u) => ({
-      id: u.colaboradorId || u.name,
-      nome: u.colaboradorNome || u.name,
-      online: true,
-    }));
+  for (const usuario of usuariosOnline) {
+    if (usuario.colaboradorId?.trim()) {
+      idsOnline.add(usuario.colaboradorId.trim());
+    }
+    const nome = (usuario.colaboradorNome || usuario.name || "").trim().toLowerCase();
+    if (nome) nomesOnline.add(nome);
   }
 
-  return lista.map((c) => ({
-    id: c.id,
-    nome: c.nome,
-    online:
-      idsOnline.has(c.id) ||
-      nomesOnline.has(c.nome.trim().toLowerCase()),
-  }));
+  const resultado: ColaboradorTv[] = [];
+  const idsIncluidos = new Set<string>();
+
+  for (const usuario of usuariosOnline) {
+    const colabId = usuario.colaboradorId?.trim();
+    const nomeExibicao =
+      (colabId
+        ? colaboradoresCadastro.find((c) => c.id === colabId)?.nome
+        : null) ||
+      usuario.colaboradorNome?.trim() ||
+      usuario.name.trim();
+
+    const id = colabId || `user-${usuario.userId}`;
+    if (idsIncluidos.has(id)) continue;
+    idsIncluidos.add(id);
+
+    resultado.push({
+      id,
+      nome: nomeExibicao,
+      online: true,
+    });
+  }
+
+  for (const colaborador of colaboradoresCadastro) {
+    if (idsIncluidos.has(colaborador.id)) continue;
+    resultado.push({
+      id: colaborador.id,
+      nome: colaborador.nome,
+      online:
+        idsOnline.has(colaborador.id) ||
+        nomesOnline.has(colaborador.nome.trim().toLowerCase()),
+    });
+  }
+
+  return resultado.sort((a, b) => {
+    if (a.online !== b.online) return a.online ? -1 : 1;
+    return a.nome.localeCompare(b.nome, "pt-BR");
+  });
 }
 
 export async function carregarOrdensTv(

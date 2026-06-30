@@ -4,11 +4,12 @@ import { motion } from "framer-motion";
 import { Calendar, Users } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { TV_SIDEBAR_CARD, TV_TEXT_LABEL } from "@/components/modulo-tv/tv-styles";
-import type { TvDashboardStats } from "@/components/modulo-tv/types";
+import type { TvDashboardStats, ColaboradorTv } from "@/components/modulo-tv/types";
 import { cn } from "@/lib/utils";
 
 type Props = {
   stats: TvDashboardStats;
+  colaboradores: ColaboradorTv[];
 };
 
 const DONUT_CORES = [
@@ -18,7 +19,8 @@ const DONUT_CORES = [
   { key: "prazoAposAmanha", cor: "#8b5cf6", label: "Após Amanhã" },
 ] as const;
 
-export function TvSidebar({ stats }: Props) {
+export function TvSidebar({ stats, colaboradores }: Props) {
+  const colaboradoresOnline = colaboradores.filter((c) => c.online);
   const donutData = DONUT_CORES.map((d) => ({
     name: d.label,
     value: Math.max(0, stats[d.key]),
@@ -135,6 +137,23 @@ export function TvSidebar({ stats }: Props) {
         <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 tv:text-[11px]">
           Ativos agora
         </p>
+        {colaboradoresOnline.length > 0 ? (
+          <ul className="mt-3 max-h-[140px] space-y-1.5 overflow-y-auto tv:max-h-[180px]">
+            {colaboradoresOnline.map((colab) => (
+              <li
+                key={colab.id}
+                className="flex items-center gap-2 text-[11px] text-slate-300 tv:text-xs"
+              >
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
+                <span className="truncate">{colab.nome}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-[11px] text-slate-500 tv:text-xs">
+            Nenhum usuário online no momento.
+          </p>
+        )}
       </motion.div>
     </aside>
   );

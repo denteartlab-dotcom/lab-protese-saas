@@ -120,6 +120,7 @@ export function useTvDashboard() {
 
   const ordensBrutas = ordensQuery.data?.ordens ?? [];
   const stats = ordensQuery.data?.stats ?? STATS_VAZIO;
+  const colaboradores = ordensQuery.data?.colaboradores ?? [];
 
   const ordens = useMemo(() => {
     let list: OrdemServicoTv[] = ordensBrutas;
@@ -194,6 +195,7 @@ export function useTvDashboard() {
     ordens,
     ordensBrutas,
     stats,
+    colaboradores,
     carregando: ordensQuery.isLoading,
     erroCarregamento,
     wsConectado,

@@ -37,6 +37,7 @@ import {
 import type { MessageKey } from "@/lib/i18n";
 import { ArmazenamentoLaboratorioProvider } from "@/components/ArmazenamentoLaboratorioProvider";
 import { useSessaoInatividade } from "@/hooks/use-sessao-inatividade";
+import { usePresencaApp } from "@/hooks/usePresencaApp";
 import { lerUltimoLaboratorioLogin, rotuloPapelUsuario, salvarLogoLaboratorioLogin } from "@/lib/auth-client";
 import { limparUltimaAtividadeSessao } from "@/lib/sessao-inatividade";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
@@ -179,6 +180,7 @@ function AppShellInner({
     pathname.includes("/configuracoes/faturas/modelo5");
   const isModuloColaborador = pathname === "/app/producao/modulo";
   const isModuloTv = pathname.startsWith("/app/producao/modulo-tv");
+  usePresencaApp(!isPrint && !isModuloTv);
   const isRelatorioImersivo =
     pathname.startsWith("/app/relatorios/clientes-prejuizo") ||
     pathname.startsWith("/app/relatorios/servicos-nao-concluidos");

@@ -8,6 +8,11 @@ import { getSessionFromCookieHeader } from "./src/lib/auth-token";
 import { prisma } from "./src/lib/db";
 import { requisicaoTvSocket } from "./src/lib/tv/tv-socket-client";
 import { TV_SOCKET_PATH } from "./src/lib/tv/tv-socket-events";
+import {
+  conectarPresencaUsuario,
+  desconectarPresencaUsuario,
+} from "./src/lib/presenca-usuarios";
+import { notificarPresencaTv } from "./src/lib/tv/notificar-presenca-tv";
 import { iniciarBackupAutomaticoDiario } from "./src/lib/backup-automatico";
 import { iniciarLimpezaContasInativasDiaria } from "./src/lib/exclusao-empresa";
 import { backupAutomaticoHabilitadoNoServidor } from "./src/lib/backup-automatico-servidor";
@@ -51,6 +56,47 @@ app
     setTvSocketIo(io);
 
     io.on("connection", (socket) => {
+      let presencaEmpresaId: string | null = null;
+      let presencaUserId: string | null = null;
+
+      const registrarPresenca = async () => {
+        const cookie = socket.handshake.headers.cookie;
+        const session = await getSessionFromCookieHeader(cookie);
+        if (!session?.id) return null;
+
+        let empresaId = session.empresaId;
+        if (!empresaId && session.empresaSlug) {
+          const empresa = await prisma.empresa.findUnique({
+            where: { slug: session.empresaSlug },
+            select: { id: true },
+          });
+          empresaId = empresa?.id;
+        }
+        if (!empresaId) return null;
+
+        const usuario = await prisma.user.findFirst({
+          where: { id: session.id, empresaId, excluidoEm: null },
+          select: {
+            id: true,
+            name: true,
+            colaboradorId: true,
+            colaboradorNome: true,
+          },
+        });
+        if (!usuario) return null;
+
+        presencaEmpresaId = empresaId;
+        presencaUserId = usuario.id;
+        conectarPresencaUsuario(empresaId, socket.id, {
+          userId: usuario.id,
+          name: usuario.name,
+          colaboradorId: usuario.colaboradorId,
+          colaboradorNome: usuario.colaboradorNome,
+        });
+        void notificarPresencaTv(empresaId);
+        return empresaId;
+      };
+
       const enviarSyncEmpresa = async () => {
         const cookie = socket.handshake.headers.cookie;
         const session = await getSessionFromCookieHeader(cookie);
@@ -69,10 +115,19 @@ app
         socket.emit("tv:sync", payload);
       };
 
-      void enviarSyncEmpresa();
+      void (async () => {
+        await registrarPresenca();
+        await enviarSyncEmpresa();
+      })();
 
       socket.on("tv:subscribe", () => {
         void enviarSyncEmpresa();
+      });
+
+      socket.on("disconnect", () => {
+        if (!presencaEmpresaId || !presencaUserId) return;
+        desconectarPresencaUsuario(presencaEmpresaId, presencaUserId, socket.id);
+        void notificarPresencaTv(presencaEmpresaId);
       });
     });
 
