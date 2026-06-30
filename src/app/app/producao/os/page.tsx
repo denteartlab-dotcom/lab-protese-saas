@@ -2678,6 +2678,7 @@ export default function OrdemServicoPage() {
       numeroOs: nextOs?.numeroOs ? String(nextOs.numeroOs) : "",
       clienteId: "",
       pacienteNome: "",
+      prioridadeOs: "media" as PrioridadeOsForm,
       casoUrgente: "",
       dentista: "",
       caixa: "",

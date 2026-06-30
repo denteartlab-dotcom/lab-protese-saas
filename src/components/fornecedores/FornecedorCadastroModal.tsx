@@ -49,9 +49,9 @@ export function FornecedorCadastroModal({ open, onClose, onSalvo }: Props) {
 
   useEffect(() => {
     if (!open) return;
-    const cep = form.cep.replace(/\D/g, "");
+    const cep = (form.cep ?? "").replace(/\D/g, "");
     if (cep.length === 8 && cep !== ultimoCepBuscado.current) {
-      void buscarEnderecoPorCep(form.cep);
+      void buscarEnderecoPorCep(form.cep ?? "");
     }
   }, [open, form.cep]);
 
@@ -61,7 +61,7 @@ export function FornecedorCadastroModal({ open, onClose, onSalvo }: Props) {
     );
   }
 
-  async function buscarEnderecoPorCep(cepInformado = form.cep) {
+  async function buscarEnderecoPorCep(cepInformado = form.cep ?? "") {
     const cep = cepInformado.replace(/\D/g, "");
     if (cep.length !== 8) return;
 
