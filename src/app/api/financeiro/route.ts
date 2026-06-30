@@ -140,7 +140,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const data = schema.parse(body);
     const { emitirBoleto, parcelas: parcelasBody } = data;
-    const session = ctx.user;
+    const { empresaId, user: session } = ctx;
 
     if (
       data.tipo === "despesa" &&
@@ -192,7 +192,7 @@ export async function POST(request: Request) {
       for (const item of lista) {
         if (item.tipo !== "receita" || item.status !== "pago") continue;
         try {
-          await sincronizarMovimentacaoRecebimentoServidor(ctx.empresaId, item);
+          await sincronizarMovimentacaoRecebimentoServidor(empresaId, item);
         } catch (syncErr) {
           console.error("[financeiro POST] sync conta bancária", syncErr);
         }
