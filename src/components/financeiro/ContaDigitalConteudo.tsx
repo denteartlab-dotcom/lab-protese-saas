@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui";
 import { AsaasSeloInstitucional } from "@/components/AsaasSeloInstitucional";
-import { FinanceiroAbasNav } from "@/components/financeiro/FinanceiroAbasNav";
 import { analisarCaminhoApp, montarCaminhoAppComSlug } from "@/lib/rotas-app";
 import { cn } from "@/lib/utils";
 import type { TipoMensagemForm } from "@/components/DadosLaboratorioForm";
@@ -239,8 +238,7 @@ export function ContaDigitalConteudo() {
   if (!subconta?.contaAtiva) {
     return (
       <div>
-        <FinanceiroAbasNav />
-        <div className="max-w-xl rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="max-w-xl rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div className="flex items-start gap-3">
             <Wallet className="mt-0.5 h-8 w-8 text-[#4a90d9]" />
             <div>
@@ -272,8 +270,6 @@ export function ContaDigitalConteudo() {
 
   return (
     <div>
-      <FinanceiroAbasNav />
-
       {mensagem ? (
         <p
           className={cn(
@@ -310,7 +306,7 @@ export function ContaDigitalConteudo() {
         </div>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
+      <div className="mb-4 flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
         {(
           [
             ["extrato", "Extrato", FileText],
@@ -324,7 +320,9 @@ export function ContaDigitalConteudo() {
             onClick={() => setAba(id)}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-[12px] font-medium transition",
-              aba === id ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              aba === id
+                ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-slate-100"
+                : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
             )}
           >
             <Icon className="h-3.5 w-3.5" />
