@@ -82,7 +82,10 @@ export function compararNumero(a: number, b: number) {
   return a - b;
 }
 
-export function compararDataIso(a: string | null | undefined, b: string | null | undefined) {
+export function compararDataIso(
+  a: string | Date | null | undefined,
+  b: string | Date | null | undefined
+) {
   const ta = a ? new Date(a).getTime() : 0;
   const tb = b ? new Date(b).getTime() : 0;
   return ta - tb;
