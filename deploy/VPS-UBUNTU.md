@@ -321,6 +321,8 @@ sudo systemctl list-timers | grep certbot
 | Problema | Solução |
 |----------|---------|
 | Login não funciona (HTTP) | `COOKIE_SECURE=false` no `.env` |
+| `nginx: options-ssl-nginx.conf failed` | Config SSL antes do Certbot — use `bash deploy/configurar-nginx-denteartlab.sh` |
+| Cloudflare **522** (site no ar pelo IP, domínio offline) | Domínio passa pelo Cloudflare (IPs 104.x / 172.x). Ajuste no painel Cloudflare: **DNS** → registros A `@` e `www` apontando para `187.127.40.175`; **SSL/TLS** → **Flexível** enquanto a VPS só tiver HTTP (porta 80). Depois do Certbot, mude para **Completo (estrito)**. |
 | `NET::ERR_CERT_COMMON_NAME_INVALID` / SSL inválido | Na VPS: `bash deploy/corrigir-ssl-denteartlab.sh` (remove beta, reemite cert apex+www, recarrega Nginx) |
 | Remover ambiente beta | Na VPS: `bash deploy/remover-beta-vps.sh` |
 | TV não atualiza em tempo real | Confirme `npm run start` via PM2, não `next start` |
