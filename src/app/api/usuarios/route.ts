@@ -13,6 +13,7 @@ import {
   type PermissoesUsuario,
 } from "@/lib/usuarios-sistema";
 import { normalizarPermissoesCompletas } from "@/lib/usuarios-menu-permissoes";
+import { enviarEmailSenhaNovoUsuario } from "@/lib/enviar-email-senha-usuario";
 
 const permissaoCrudSchema = z.object({
   ver: z.boolean().optional(),
@@ -35,7 +36,6 @@ const permissoesSchema = z.object({
 const criarSchema = z.object({
   name: z.string().min(2, "Informe o nome."),
   email: z.string().email("E-mail inválido."),
-  password: z.string().min(6).optional().or(z.literal("")),
   role: z.enum(ROLES_USUARIO),
   colaboradorId: z.string().optional().nullable(),
   colaboradorNome: z.string().optional().nullable(),
@@ -122,10 +122,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Este e-mail já está em uso." }, { status: 400 });
     }
 
-    const senha =
-      data.password && data.password.trim().length >= 6
-        ? data.password.trim()
-        : gerarSenhaAutomatica();
+    const senha = gerarSenhaAutomatica();
 
     const permissoes = serializarPermissoesUsuario(
       normalizarPermissoesCompletas(
@@ -142,6 +139,11 @@ export async function POST(request: Request) {
         data.role
       )
     );
+
+    const empresa = await prisma.empresa.findUnique({
+      where: { id: auth.session.empresaId! },
+      select: { nome: true },
+    });
 
     const criado = await prisma.user.create({
       data: {
@@ -168,6 +170,25 @@ export async function POST(request: Request) {
         createdAt: true,
       },
     });
+
+    const emailEnviado = await enviarEmailSenhaNovoUsuario({
+      email,
+      nome: data.name.trim(),
+      senha,
+      nomeLaboratorio: empresa?.nome,
+    });
+
+    if (!emailEnviado.ok) {
+      await prisma.user.delete({ where: { id: criado.id } });
+      return NextResponse.json(
+        {
+          error:
+            emailEnviado.erro ||
+            "Usuário não cadastrado: não foi possível enviar a senha por e-mail.",
+        },
+        { status: 502 }
+      );
+    }
 
     return NextResponse.json({ usuario: mapUsuarioListagem(criado) }, { status: 201 });
   } catch (err) {

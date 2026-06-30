@@ -234,20 +234,10 @@ export async function DELETE(_request: Request, { params }: Params) {
   }
 
   if (usuarioEhProprietario(atual.role)) {
-    const outros = await prisma.user.count({
-      where: {
-        empresaId: auth.session!.empresaId,
-        excluidoEm: null,
-        role: { in: ["proprietario", "admin"] },
-        id: { not: id },
-      },
-    });
-    if (outros === 0) {
-      return NextResponse.json(
-        { error: "Não é possível excluir o único proprietário." },
-        { status: 400 }
-      );
-    }
+    return NextResponse.json(
+      { error: "Não é possível excluir o usuário proprietário." },
+      { status: 400 }
+    );
   }
 
   await prisma.user.update({

@@ -6,6 +6,7 @@ import { Edit3, Eye, Home, Plus, Trash2, UserRound } from "lucide-react";
 import {
   corTipoUsuario,
   rotuloTipoUsuario,
+  usuarioEhProprietario,
   type UsuarioListagem,
 } from "@/lib/usuarios-sistema";
 import type { CotasUsuariosEmpresa } from "@/lib/limite-usuarios-empresa";
@@ -310,15 +311,17 @@ export function MeusUsuariosTab() {
                           >
                             <Edit3 className="h-3.5 w-3.5" />
                           </Link>
-                          <button
-                            type="button"
-                            title="Excluir"
-                            disabled={salvando}
-                            onClick={() => void excluir(usuario)}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded text-[#6b7280] hover:bg-red-50 hover:text-red-600"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          {!usuarioEhProprietario(usuario.role) ? (
+                            <button
+                              type="button"
+                              title="Excluir"
+                              disabled={salvando}
+                              onClick={() => void excluir(usuario)}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded text-[#6b7280] hover:bg-red-50 hover:text-red-600"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          ) : null}
                         </div>
                       )}
                     </td>
