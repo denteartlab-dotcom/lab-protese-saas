@@ -1267,12 +1267,13 @@ export default function TabelaPrecosPage() {
     setModalEditarValores(false);
   }
 
-  function solicitarExcluirTabela() {
+  function solicitarExcluirTabela(nomeTabela?: string) {
+    const alvo = nomeTabela ?? tabela;
     if (tabelas.length <= 1) {
       alert("Não é possível excluir a única tabela cadastrada.");
       return;
     }
-    setTabelaParaExcluir(tabela);
+    setTabelaParaExcluir(alvo);
   }
 
   function confirmarExcluirTabela() {
@@ -1480,7 +1481,13 @@ export default function TabelaPrecosPage() {
                         >
                           <Edit3 className="h-3.5 w-3.5" />
                         </button>
-                        <button type="button" className="text-red-400 hover:text-red-600">
+                        <button
+                          type="button"
+                          onClick={() => solicitarExcluirTabela(item)}
+                          disabled={tabelas.length <= 1}
+                          title="Excluir tabela"
+                          className="text-red-400 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                         <button type="button" className="text-slate-500 hover:text-primary-700">
