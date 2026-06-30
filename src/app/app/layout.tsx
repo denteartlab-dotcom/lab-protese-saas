@@ -1,6 +1,8 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { PermissoesAppProvider } from "@/components/PermissoesAppProvider";
+import { GuardPermissaoRota } from "@/components/GuardPermissaoRota";
 import { getSession } from "@/lib/auth";
 import { obterDestinoPosLogin } from "@/lib/contexto-assinatura-vencida";
 import { obterContextoAppServidor } from "@/lib/contexto-app-servidor";
@@ -36,7 +38,9 @@ export default async function AppLayout({
         initialLab={ctx.lab}
         initialNomeLaboratorio={ctx.nomeLaboratorio}
       >
-        {children}
+        <Suspense fallback={children}>
+          <GuardPermissaoRota>{children}</GuardPermissaoRota>
+        </Suspense>
       </AppShell>
     </PermissoesAppProvider>
   );

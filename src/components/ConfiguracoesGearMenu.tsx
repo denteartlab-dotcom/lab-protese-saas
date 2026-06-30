@@ -15,29 +15,40 @@ import {
   Wrench,
 } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
+import { usePermissoesApp } from "@/components/PermissoesAppProvider";
 import type { MessageKey } from "@/lib/i18n";
+import {
+  ITENS_MENU_CONFIGURACOES,
+  podeVerModulo,
+  temPermissaoAlgumaConfiguracao,
+} from "@/lib/permissoes-acesso";
 import { cn } from "@/lib/utils";
 
-const itensConfiguracao = [
-  { href: "/app/configuracoes?aba=dados", labelKey: "settings.dadosLabTitulo" as MessageKey, icon: FileText },
-  { href: "/app/configuracoes/cabecalho", labelKey: "settings.cabecalho" as MessageKey, icon: FileText },
-  { href: "/app/configuracoes?aba=gerais", labelKey: "settings.gerais" as MessageKey, icon: Wrench },
-  { href: "/app/configuracoes?aba=boletos", labelKey: "settings.boletos" as MessageKey, icon: BarChart3 },
-  { href: "/app/configuracoes?aba=mensagens", labelKey: "settings.mensagens" as MessageKey, icon: MessageCircle },
-  { href: "/app/configuracoes?aba=os", labelKey: "settings.os" as MessageKey, icon: ClipboardList },
-  { href: "/app/configuracoes?aba=faturas", labelKey: "settings.faturas" as MessageKey, icon: FileText },
-  { href: "/app/configuracoes?aba=etiquetas", labelKey: "settings.etiquetas" as MessageKey, icon: Tag },
-  { href: "/app/configuracoes?aba=usuarios", labelKey: "settings.usuarios" as MessageKey, icon: Users },
-  { href: "/app/configuracoes?aba=backup", labelKey: "settings.backup" as MessageKey, icon: DatabaseBackup },
-];
+const iconesConfig: Record<string, typeof FileText> = {
+  "settings.dadosLabTitulo": FileText,
+  "settings.cabecalho": FileText,
+  "settings.gerais": Wrench,
+  "settings.boletos": BarChart3,
+  "settings.mensagens": MessageCircle,
+  "settings.os": ClipboardList,
+  "settings.faturas": FileText,
+  "settings.etiquetas": Tag,
+  "settings.usuarios": Users,
+  "settings.backup": DatabaseBackup,
+};
 
 export function ConfiguracoesGearMenu() {
   const { t } = useI18n();
+  const { acessoTotal, permissoesModulos } = usePermissoesApp();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const abaAtual = searchParams.get("aba") || "dados";
   const [aberto, setAberto] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  const itensVisiveis = ITENS_MENU_CONFIGURACOES.filter((item) =>
+    podeVerModulo(acessoTotal, permissoesModulos, item.permissaoId)
+  );
 
   useEffect(() => {
     setAberto(false);
@@ -53,6 +64,10 @@ export function ConfiguracoesGearMenu() {
     document.addEventListener("mousedown", fecharFora);
     return () => document.removeEventListener("mousedown", fecharFora);
   }, [aberto]);
+
+  if (!temPermissaoAlgumaConfiguracao(acessoTotal, permissoesModulos)) {
+    return null;
+  }
 
   return (
     <div className="relative" ref={ref}>
@@ -74,7 +89,7 @@ export function ConfiguracoesGearMenu() {
 
       {aberto && (
         <div className="absolute right-0 top-full z-50 mt-2 max-h-[min(70vh,420px)] w-56 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-          {itensConfiguracao.map((item) => {
+          {itensVisiveis.map((item) => {
             const itemAba = item.href.includes("aba=")
               ? item.href.split("aba=")[1]?.split("&")[0] || "dados"
               : "";
@@ -82,9 +97,10 @@ export function ConfiguracoesGearMenu() {
               item.href === "/app/configuracoes/cabecalho"
                 ? pathname.startsWith("/app/configuracoes/cabecalho")
                 : pathname.startsWith("/app/configuracoes") && abaAtual === itemAba;
+            const Icon = iconesConfig[item.labelKey] || FileText;
             return (
               <Link
-                key={item.labelKey}
+                key={item.permissaoId}
                 href={item.href}
                 onClick={() => setAberto(false)}
                 className={cn(
@@ -94,8 +110,8 @@ export function ConfiguracoesGearMenu() {
                     : "text-slate-600 hover:bg-slate-50 hover:text-primary-700 dark:text-slate-300 dark:hover:bg-slate-800"
                 )}
               >
-                <item.icon className="h-3.5 w-3.5 shrink-0" />
-                {t(item.labelKey)}
+                <Icon className="h-3.5 w-3.5 shrink-0" />
+                {t(item.labelKey as MessageKey)}
               </Link>
             );
           })}

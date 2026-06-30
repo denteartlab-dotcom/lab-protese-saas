@@ -10,6 +10,24 @@ import { relatoriosNav } from "@/lib/relatorios-nav";
 import type { PermissaoCrud, PermissoesUsuario } from "@/lib/usuarios-sistema";
 import { usuarioEhProprietario } from "@/lib/usuarios-sistema";
 
+/** Mapa aba de configurações → id do módulo na grade de permissões. */
+export const ABA_PERMISSAO_ID: Record<string, string> = {
+  dados: "configuracoes-dados",
+  cabecalho: "configuracoes-cabecalho",
+  logo: "configuracoes-logo",
+  idioma: "configuracoes-idioma",
+  horario: "configuracoes-horario",
+  nfse: "configuracoes-nfse",
+  boletos: "configuracoes-boletos",
+  gerais: "configuracoes-gerais",
+  mensagens: "configuracoes-mensagens",
+  os: "configuracoes-os",
+  faturas: "configuracoes-faturas",
+  etiquetas: "configuracoes-etiquetas",
+  usuarios: "configuracoes-usuarios",
+  backup: "configuracoes-backup",
+};
+
 export type MenuPermissaoItem = {
   id: string;
   label: string;
@@ -34,6 +52,14 @@ function idFromHref(href: string) {
 }
 
 export function permissaoIdPorHref(href: string): string {
+  const abaMatch = href.match(/[?&]aba=([^&]+)/);
+  if (href.startsWith("/app/configuracoes/cabecalho")) {
+    return "configuracoes-cabecalho";
+  }
+  if (href.startsWith("/app/configuracoes") && abaMatch?.[1]) {
+    return ABA_PERMISSAO_ID[abaMatch[1]] ?? idFromHref(href);
+  }
+  if (href === "/app" || href === "/app/") return "inicio";
   return idFromHref(href);
 }
 
@@ -48,6 +74,11 @@ function itensNav(nav: AppNavItem[]): MenuPermissaoItem[] {
 /** Menus existentes no lab-protese-saas (sem itens Smart que não existem aqui). */
 export const SECOES_MENU_PERMISSOES: MenuPermissaoSecao[] = [
   {
+    id: "geral",
+    titulo: "MENU GERAL",
+    itens: [{ id: "inicio", label: t("nav.inicio"), href: "/app" }],
+  },
+  {
     id: "producao",
     titulo: "MENU PRODUÇÃO",
     itens: itensNav(producaoNav),
@@ -60,9 +91,7 @@ export const SECOES_MENU_PERMISSOES: MenuPermissaoSecao[] = [
   {
     id: "cadastros",
     titulo: "MENU CADASTROS",
-    itens: itensNav(
-      cadastrosNav.filter((item) => item.href !== "/app/cadastros/entregadores")
-    ),
+    itens: itensNav(cadastrosNav),
   },
   {
     id: "estoque",
@@ -80,29 +109,20 @@ export const SECOES_MENU_PERMISSOES: MenuPermissaoSecao[] = [
     id: "configuracoes",
     titulo: "MENU CONFIGURAÇÕES",
     itens: [
-      { id: "configuracoes-dados", label: t("settings.dadosLabTitulo"), href: "/app/configuracoes" },
-      {
-        id: "configuracoes-cabecalho",
-        label: t("settings.cabecalho"),
-        href: "/app/configuracoes/cabecalho",
-      },
-      { id: "configuracoes-logo", label: t("settings.logo"), href: "/app/configuracoes" },
-      { id: "configuracoes-idioma", label: t("settings.idioma"), href: "/app/configuracoes" },
-      { id: "configuracoes-horario", label: t("settings.horario"), href: "/app/configuracoes" },
-      { id: "configuracoes-nfse", label: t("settings.nfse"), href: "/app/configuracoes" },
-      { id: "configuracoes-boletos", label: t("settings.boletos"), href: "/app/configuracoes" },
-      { id: "configuracoes-gerais", label: t("settings.gerais"), href: "/app/configuracoes" },
-      { id: "configuracoes-mensagens", label: t("settings.mensagens"), href: "/app/configuracoes" },
-      { id: "configuracoes-os", label: t("settings.os"), href: "/app/configuracoes" },
-      { id: "configuracoes-faturas", label: t("settings.faturas"), href: "/app/configuracoes" },
-      { id: "configuracoes-etiquetas", label: t("settings.etiquetas"), href: "/app/configuracoes" },
-      { id: "configuracoes-backup", label: t("settings.backup"), href: "/app/configuracoes" },
-      { id: "configuracoes-usuarios", label: t("settings.usuarios"), href: "/app/configuracoes" },
-      {
-        id: "relatorios-logs-auditoria",
-        label: t("nav.relatorio.logsAuditoria"),
-        href: "/app/relatorios/logs-auditoria",
-      },
+      { id: "configuracoes-dados", label: t("settings.dadosLabTitulo"), href: "/app/configuracoes?aba=dados" },
+      { id: "configuracoes-cabecalho", label: t("settings.cabecalho"), href: "/app/configuracoes/cabecalho" },
+      { id: "configuracoes-logo", label: t("settings.logo"), href: "/app/configuracoes?aba=logo" },
+      { id: "configuracoes-idioma", label: t("settings.idioma"), href: "/app/configuracoes?aba=idioma" },
+      { id: "configuracoes-horario", label: t("settings.horario"), href: "/app/configuracoes?aba=horario" },
+      { id: "configuracoes-nfse", label: t("settings.nfse"), href: "/app/configuracoes?aba=nfse" },
+      { id: "configuracoes-boletos", label: t("settings.boletos"), href: "/app/configuracoes?aba=boletos" },
+      { id: "configuracoes-gerais", label: t("settings.gerais"), href: "/app/configuracoes?aba=gerais" },
+      { id: "configuracoes-mensagens", label: t("settings.mensagens"), href: "/app/configuracoes?aba=mensagens" },
+      { id: "configuracoes-os", label: t("settings.os"), href: "/app/configuracoes?aba=os" },
+      { id: "configuracoes-faturas", label: t("settings.faturas"), href: "/app/configuracoes?aba=faturas" },
+      { id: "configuracoes-etiquetas", label: t("settings.etiquetas"), href: "/app/configuracoes?aba=etiquetas" },
+      { id: "configuracoes-backup", label: t("settings.backup"), href: "/app/configuracoes?aba=backup" },
+      { id: "configuracoes-usuarios", label: t("settings.usuarios"), href: "/app/configuracoes?aba=usuarios" },
     ],
   },
   {

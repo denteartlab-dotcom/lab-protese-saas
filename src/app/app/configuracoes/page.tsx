@@ -10,6 +10,8 @@ import {
   DadosLaboratorioForm,
   type TipoMensagemForm,
 } from "@/components/DadosLaboratorioForm";
+import { ABA_PERMISSAO_ID } from "@/lib/usuarios-menu-permissoes";
+import { podeVerModulo } from "@/lib/permissoes-acesso";
 import { HorarioFuncionamentoTab } from "@/components/HorarioFuncionamentoTab";
 import { IdiomaLaboratorioTab } from "@/components/IdiomaLaboratorioTab";
 import { ConfiguracoesBoletosTab } from "@/components/ConfiguracoesBoletosTab";
@@ -49,21 +51,7 @@ const abasPagina: Array<{ id: string; labelKey: MessageKey; href?: string }> = [
   { id: "backup", labelKey: "settings.backup" },
 ];
 
-const abaPermissaoId: Record<string, string> = {
-  dados: "configuracoes-dados",
-  cabecalho: "configuracoes-cabecalho",
-  logo: "configuracoes-logo",
-  idioma: "configuracoes-idioma",
-  horario: "configuracoes-horario",
-  nfse: "configuracoes-nfse",
-  boletos: "configuracoes-boletos",
-  gerais: "configuracoes-gerais",
-  os: "configuracoes-os",
-  faturas: "configuracoes-faturas",
-  etiquetas: "configuracoes-etiquetas",
-  usuarios: "configuracoes-usuarios",
-  backup: "configuracoes-backup",
-};
+const abaPermissaoId = ABA_PERMISSAO_ID;
 
 const titulosAbaKeys: Record<string, MessageKey> = {
   dados: "settings.dadosLabTitulo",
@@ -91,10 +79,9 @@ function ConfiguracoesConteudo() {
   const aba = searchParams.get("aba") || "dados";
   const titulo = titulosAbaKeys[aba] ? t(titulosAbaKeys[aba]) : t("settings.titulo");
   const abasPermitidas = abasPagina.filter((item) => {
-    if (acessoTotal) return true;
     const permissaoId = abaPermissaoId[item.id];
     if (!permissaoId) return true;
-    return permissoesModulos?.[permissaoId]?.ver !== false;
+    return podeVerModulo(acessoTotal, permissoesModulos, permissaoId);
   });
   const abaNaPagina = abasPermitidas.some((item) => item.id === aba);
 
@@ -109,7 +96,10 @@ function ConfiguracoesConteudo() {
       router.replace("/app/configuracoes/cabecalho");
       return;
     }
-    if (!abasPermitidas.length) return;
+    if (!abasPermitidas.length) {
+      router.replace("/app?semPermissao=1");
+      return;
+    }
     if (abasPermitidas.some((item) => item.id === aba)) return;
     router.replace(`/app/configuracoes?aba=${abasPermitidas[0].id}`);
   }, [aba, abasPermitidas, router]);

@@ -5,12 +5,17 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { ChevronDown, ChevronRight, Menu, X } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
+import { usePermissoesApp } from "@/components/PermissoesAppProvider";
 import {
   appNavPrincipal,
   appNavSemDropdown,
   gruposNavMobile,
   type AppNavItem,
 } from "@/lib/app-nav";
+import {
+  navGrupoTemAcesso,
+  podeVerHref,
+} from "@/lib/permissoes-acesso";
 import { cn } from "@/lib/utils";
 import { ehPaginaInicioApp } from "@/lib/rotas-app";
 
@@ -33,12 +38,15 @@ function ItemNavSimples({
   item,
   pathname,
   onNavigate,
+  oculto,
 }: {
   item: AppNavItem;
   pathname: string;
   onNavigate: () => void;
+  oculto?: boolean;
 }) {
   const { t } = useI18n();
+  if (oculto) return null;
   const ativo = linkAtivo(pathname, item.href);
 
   return (
@@ -64,14 +72,17 @@ function GrupoNavExpansivel({
   expandido,
   onToggle,
   onNavigate,
+  itensVisiveis,
 }: {
   grupo: (typeof gruposNavMobile)[number];
   pathname: string;
   expandido: boolean;
   onToggle: () => void;
   onNavigate: () => void;
+  itensVisiveis: AppNavItem[];
 }) {
   const { t } = useI18n();
+  if (itensVisiveis.length === 0) return null;
   const ativo = grupo.ativo(pathname);
 
   return (
@@ -96,7 +107,7 @@ function GrupoNavExpansivel({
       </button>
       {expandido ? (
         <div className="ml-2 space-y-0.5 border-l border-slate-200 pl-2">
-          {grupo.itens.map((item) => {
+          {itensVisiveis.map((item) => {
             const itemAtivo = linkAtivo(pathname, item.href);
             return (
               <Link
@@ -150,8 +161,13 @@ export function AppMobileNav({
   logoAltura = 36,
 }: Props) {
   const { t } = useI18n();
+  const { acessoTotal, permissoesModulos } = usePermissoesApp();
   const pathname = usePathname();
   const [grupoExpandido, setGrupoExpandido] = useState<string | null>(null);
+
+  function podeVer(href: string) {
+    return podeVerHref(acessoTotal, permissoesModulos, href);
+  }
 
   useEffect(() => {
     onFechar();
@@ -239,9 +255,13 @@ export function AppMobileNav({
             item={appNavPrincipal[0]}
             pathname={pathname}
             onNavigate={onFechar}
+            oculto={!podeVer("/app")}
           />
 
-          {gruposNavMobile.map((grupo) => (
+          {gruposNavMobile.map((grupo) => {
+            const itensVisiveis = grupo.itens.filter((item) => podeVer(item.href));
+            if (!navGrupoTemAcesso(acessoTotal, permissoesModulos, grupo.itens)) return null;
+            return (
             <GrupoNavExpansivel
               key={grupo.id}
               grupo={grupo}
@@ -251,8 +271,10 @@ export function AppMobileNav({
                 setGrupoExpandido((atual) => (atual === grupo.id ? null : grupo.id))
               }
               onNavigate={onFechar}
+              itensVisiveis={itensVisiveis}
             />
-          ))}
+            );
+          })}
 
           {appNavPrincipal
             .filter((item) => !appNavSemDropdown.has(item.labelKey))
@@ -262,6 +284,7 @@ export function AppMobileNav({
                 item={item}
                 pathname={pathname}
                 onNavigate={onFechar}
+                oculto={!podeVer(item.href)}
               />
             ))}
         </nav>

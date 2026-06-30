@@ -16,7 +16,11 @@ import { I18nProvider, useI18n } from "@/components/i18n-provider";
 import { usePermissoesApp } from "@/components/PermissoesAppProvider";
 import type { LabImpressaoConfig } from "@/lib/lab-impressao";
 import { dimensoesLogoPx } from "@/lib/lab-logo";
-import { permissaoIdPorHref } from "@/lib/usuarios-menu-permissoes";
+import {
+  navGrupoTemAcesso,
+  podeVerHref,
+  primeiroHrefPermitidoNav,
+} from "@/lib/permissoes-acesso";
 import { AppFaixaTopo } from "@/components/AppFaixaTopo";
 import { AssinaturaFaixaRodape } from "@/components/AssinaturaFaixaRodape";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
@@ -226,10 +230,7 @@ function AppShellInner({
     if (slug) salvarLogoLaboratorioLogin(slug, lab.logoDataUrl);
   }, [montado, lab.logoDataUrl, pathname]);
   function podeVerMenu(href: string) {
-    if (acessoTotal) return true;
-    const id = permissaoIdPorHref(href);
-    const valor = permissoesModulos?.[id]?.ver;
-    return valor !== false;
+    return podeVerHref(acessoTotal, permissoesModulos, href);
   }
 
   useEffect(() => {
@@ -690,7 +691,8 @@ function AppShellInner({
 
           <header className="hidden border-b border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:block">
             <nav className="flex min-h-[3.375rem] items-center justify-start gap-1 px-4 pl-5">
-            {appNavPrincipal.filter((item) => item.labelKey === "nav.inicio").map((item) => {
+            {podeVerMenu("/app") &&
+              appNavPrincipal.filter((item) => item.labelKey === "nav.inicio").map((item) => {
               const active = ehPaginaInicioApp(pathname);
               return (
                 <Link
@@ -708,9 +710,10 @@ function AppShellInner({
                 </Link>
               );
             })}
+            {navGrupoTemAcesso(acessoTotal, permissoesModulos, producaoNav) && (
             <div className="group relative">
               <Link
-                href="/app/producao"
+                href={primeiroHrefPermitidoNav(acessoTotal, permissoesModulos, producaoNav) || "/app/producao"}
                 className={cn(
                   "flex items-center gap-2 rounded-md px-3.5 py-1.5 text-[19px] font-medium leading-none transition",
                   pathname.startsWith("/app/producao") || pathname.startsWith("/app/trabalhos")
@@ -722,9 +725,7 @@ function AppShellInner({
                 {t("nav.producao")} ▾
               </Link>
               <div className="invisible absolute left-0 top-full z-40 w-56 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
-                {producaoNav.map((item) => {
-                  const permitido = podeVerMenu(item.href);
-                  return permitido ? (
+                {producaoNav.filter((item) => podeVerMenu(item.href)).map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
@@ -733,22 +734,14 @@ function AppShellInner({
                       <item.icon className="h-3.5 w-3.5" />
                       {t(item.labelKey)}
                     </Link>
-                  ) : (
-                    <span
-                      key={item.href}
-                      className="flex cursor-not-allowed items-center gap-2 px-3 py-2 text-xs text-slate-300"
-                      title="Sem permissão"
-                    >
-                      <item.icon className="h-3.5 w-3.5" />
-                      {t(item.labelKey)}
-                    </span>
-                  );
-                })}
+                ))}
               </div>
             </div>
+            )}
+            {navGrupoTemAcesso(acessoTotal, permissoesModulos, financeiroNav) && (
             <div className="group relative">
               <Link
-                href="/app/financeiro"
+                href={primeiroHrefPermitidoNav(acessoTotal, permissoesModulos, financeiroNav) || "/app/financeiro"}
                 className={cn(
                   "flex items-center gap-2 rounded-md px-3.5 py-1.5 text-[19px] font-medium leading-none transition",
                   pathname.startsWith("/app/financeiro")
@@ -760,9 +753,7 @@ function AppShellInner({
                 {t("nav.financeiro")} ▾
               </Link>
               <div className="invisible absolute left-0 top-full z-40 w-56 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
-                {financeiroNav.map((item) => {
-                  const permitido = podeVerMenu(item.href);
-                  return permitido ? (
+                {financeiroNav.filter((item) => podeVerMenu(item.href)).map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
@@ -771,22 +762,14 @@ function AppShellInner({
                       <item.icon className="h-3.5 w-3.5" />
                       {t(item.labelKey)}
                     </Link>
-                  ) : (
-                    <span
-                      key={item.href}
-                      className="flex cursor-not-allowed items-center gap-2 px-3 py-2 text-xs text-slate-300"
-                      title="Sem permissão"
-                    >
-                      <item.icon className="h-3.5 w-3.5" />
-                      {t(item.labelKey)}
-                    </span>
-                  );
-                })}
+                ))}
               </div>
             </div>
+            )}
+            {navGrupoTemAcesso(acessoTotal, permissoesModulos, cadastrosNav) && (
             <div className="group relative">
               <Link
-                href="/app/clientes"
+                href={primeiroHrefPermitidoNav(acessoTotal, permissoesModulos, cadastrosNav) || "/app/clientes"}
                 className={cn(
                   "flex items-center gap-2 rounded-md px-3.5 py-1.5 text-[19px] font-medium leading-none transition",
                   pathname.startsWith("/app/clientes") || pathname.startsWith("/app/cadastros")
@@ -798,9 +781,7 @@ function AppShellInner({
                 {t("nav.cadastros")} ▾
               </Link>
               <div className="invisible absolute left-0 top-full z-40 w-64 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
-                {cadastrosNav.map((item) => {
-                  const permitido = podeVerMenu(item.href);
-                  return permitido ? (
+                {cadastrosNav.filter((item) => podeVerMenu(item.href)).map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
@@ -809,22 +790,14 @@ function AppShellInner({
                       <item.icon className="h-3.5 w-3.5" />
                       {t(item.labelKey)}
                     </Link>
-                  ) : (
-                    <span
-                      key={item.href}
-                      className="flex cursor-not-allowed items-center gap-1.5 rounded-md px-3 py-2 text-xs text-slate-300"
-                      title="Sem permissão"
-                    >
-                      <item.icon className="h-3.5 w-3.5" />
-                      {t(item.labelKey)}
-                    </span>
-                  );
-                })}
+                ))}
               </div>
             </div>
+            )}
+            {navGrupoTemAcesso(acessoTotal, permissoesModulos, estoqueNav) && (
             <div className="group relative">
               <Link
-                href="/app/produtos"
+                href={primeiroHrefPermitidoNav(acessoTotal, permissoesModulos, estoqueNav) || "/app/produtos"}
                 className={cn(
                   "flex items-center gap-2 rounded-md px-3.5 py-1.5 text-[19px] font-medium leading-none transition",
                   pathname.startsWith("/app/produtos") || pathname.startsWith("/app/orcamentos")
@@ -836,9 +809,7 @@ function AppShellInner({
                 {t("nav.estoque")} ▾
               </Link>
               <div className="invisible absolute left-0 top-full z-40 w-48 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
-                {estoqueNav.map((item) => {
-                  const permitido = podeVerMenu(item.href);
-                  return permitido ? (
+                {estoqueNav.filter((item) => podeVerMenu(item.href)).map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
@@ -847,22 +818,20 @@ function AppShellInner({
                       <item.icon className="h-3.5 w-3.5" />
                       {t(item.labelKey)}
                     </Link>
-                  ) : (
-                    <span
-                      key={item.href}
-                      className="flex cursor-not-allowed items-center gap-2 px-3 py-2 text-xs text-slate-300"
-                      title="Sem permissão"
-                    >
-                      <item.icon className="h-3.5 w-3.5" />
-                      {t(item.labelKey)}
-                    </span>
-                  );
-                })}
+                ))}
               </div>
             </div>
+            )}
+            {navGrupoTemAcesso(acessoTotal, permissoesModulos, relatoriosNav as typeof producaoNav) && (
             <div className="group relative">
               <Link
-                href="/app/relatorios/fluxo-de-caixa"
+                href={
+                  primeiroHrefPermitidoNav(
+                    acessoTotal,
+                    permissoesModulos,
+                    relatoriosNav as typeof producaoNav
+                  ) || "/app/relatorios/fluxo-de-caixa"
+                }
                 className={cn(
                   "flex items-center gap-2 rounded-md px-3.5 py-1.5 text-[19px] font-medium leading-none transition",
                   pathname.startsWith("/app/relatorios")
@@ -874,9 +843,7 @@ function AppShellInner({
                 {t("nav.relatorios")} ▾
               </Link>
               <div className="invisible absolute left-0 top-full z-40 w-56 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
-                {relatoriosNav.map((item) => {
-                  const permitido = podeVerMenu(item.href);
-                  return permitido ? (
+                {relatoriosNav.filter((item) => podeVerMenu(item.href)).map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
@@ -885,19 +852,10 @@ function AppShellInner({
                       <item.icon className="h-3.5 w-3.5" />
                       {t(item.labelKey)}
                     </Link>
-                  ) : (
-                    <span
-                      key={item.href}
-                      className="flex cursor-not-allowed items-center gap-2 px-3 py-2 text-xs text-slate-300"
-                      title="Sem permissão"
-                    >
-                      <item.icon className="h-3.5 w-3.5" />
-                      {t(item.labelKey)}
-                    </span>
-                  );
-                })}
+                ))}
               </div>
             </div>
+            )}
             {isMasterAdmin && (
               <Link
                 href="/admin-master"
