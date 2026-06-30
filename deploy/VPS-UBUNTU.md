@@ -322,7 +322,8 @@ sudo systemctl list-timers | grep certbot
 |----------|---------|
 | Login não funciona (HTTP) | `COOKIE_SECURE=false` no `.env` |
 | `nginx: options-ssl-nginx.conf failed` | Config SSL antes do Certbot — use `bash deploy/configurar-nginx-denteartlab.sh` |
-| Cloudflare **522** (site no ar pelo IP, domínio offline) | Domínio passa pelo Cloudflare (IPs 104.x / 172.x). Ajuste no painel Cloudflare: **DNS** → registros A `@` e `www` apontando para `187.127.40.175`; **SSL/TLS** → **Flexível** enquanto a VPS só tiver HTTP (porta 80). Depois do Certbot, mude para **Completo (estrito)**. |
+| Cloudflare **522** (site no ar pelo IP, domínio offline) | Cloudflare em **Full** exige HTTPS na VPS (porta 443). Se o Certbot falhar, use certificado de origem: **SSL/TLS → Origin Server** no Cloudflare, depois `bash deploy/configurar-ssl-cloudflare-origin.sh`. Alternativa rápida: **SSL/TLS → Flexível** (só HTTP na origem). |
+| Certbot / Let's Encrypt falha com Cloudflare | O validador não alcança a origem em modo **Full**. Use `bash deploy/configurar-ssl-cloudflare-origin.sh` ou mude temporariamente para **Flexível** / nuvem cinza no DNS só durante o Certbot. |
 | `NET::ERR_CERT_COMMON_NAME_INVALID` / SSL inválido | Na VPS: `bash deploy/corrigir-ssl-denteartlab.sh` (remove beta, reemite cert apex+www, recarrega Nginx) |
 | Remover ambiente beta | Na VPS: `bash deploy/remover-beta-vps.sh` |
 | TV não atualiza em tempo real | Confirme `npm run start` via PM2, não `next start` |
