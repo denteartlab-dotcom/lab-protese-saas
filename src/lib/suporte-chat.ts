@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/db";
 import { enviarEmailResend } from "@/lib/email-resend";
 import { resumoTextoMensagemSuporte } from "@/lib/suporte-chat-anexo";
+import { masterSuporteEstaOnline } from "@/lib/suporte/presenca-suporte-master";
+import { conversaSuporteInativa } from "@/lib/suporte/suporte-inatividade";
 import {
+  emitSuporteConversaExpirada,
   emitSuporteConversasAtualizadas,
   emitSuporteNovaMensagem,
   emitSuporteNaoLidasEmpresa,
@@ -38,11 +41,53 @@ export function rotuloSuportePlataforma() {
 }
 
 async function garantirConversa(empresaId: string) {
+  await expirarConversaEmpresaSeInativa(empresaId);
   return prisma.suporteConversa.upsert({
     where: { empresaId },
     create: { empresaId },
     update: {},
   });
+}
+
+function idsArquivosDeMensagens(mensagens: Array<{ imagemUrl: string | null }>) {
+  return mensagens
+    .map((m) => m.imagemUrl?.match(/\/api\/uploads\/arquivo\/([^/?]+)/)?.[1])
+    .filter((id): id is string => Boolean(id));
+}
+
+export async function excluirConversaSuporte(conversaId: string, empresaId: string) {
+  const mensagens = await prisma.suporteMensagem.findMany({
+    where: { conversaId },
+    select: { imagemUrl: true },
+  });
+  const idsArquivos = idsArquivosDeMensagens(mensagens);
+
+  await prisma.suporteConversa.delete({ where: { id: conversaId } });
+
+  if (idsArquivos.length > 0) {
+    await prisma.arquivoUpload.deleteMany({
+      where: { id: { in: idsArquivos }, empresaId, pasta: "suporte" },
+    });
+  }
+}
+
+export async function expirarConversaEmpresaSeInativa(empresaId: string) {
+  const conversa = await prisma.suporteConversa.findUnique({
+    where: { empresaId },
+    select: { id: true, ultimaMensagemEm: true },
+  });
+  if (!conversa || !conversaSuporteInativa(conversa.ultimaMensagemEm)) {
+    return false;
+  }
+
+  await excluirConversaSuporte(conversa.id, empresaId);
+  emitSuporteConversaExpirada(empresaId);
+  emitSuporteConversasAtualizadas();
+  return true;
+}
+
+export function suporteAdminEstaOnline() {
+  return masterSuporteEstaOnline();
 }
 
 function mapMensagem(m: {
@@ -81,7 +126,21 @@ async function publicarMensagemSuporte(empresaId: string, mensagem: SuporteMensa
 }
 
 export async function listarMensagensEmpresa(empresaId: string, marcarLidas = false) {
-  const conversa = await garantirConversa(empresaId);
+  await expirarConversaEmpresaSeInativa(empresaId);
+
+  const conversa = await prisma.suporteConversa.findUnique({
+    where: { empresaId },
+    select: { id: true },
+  });
+
+  if (!conversa) {
+    return {
+      conversaId: null,
+      suporteEmail: rotuloSuportePlataforma(),
+      suporteOnline: suporteAdminEstaOnline(),
+      mensagens: [] as SuporteMensagemDto[],
+    };
+  }
 
   if (marcarLidas) {
     await prisma.suporteMensagem.updateMany({
@@ -104,6 +163,7 @@ export async function listarMensagensEmpresa(empresaId: string, marcarLidas = fa
   return {
     conversaId: conversa.id,
     suporteEmail: rotuloSuportePlataforma(),
+    suporteOnline: suporteAdminEstaOnline(),
     mensagens: mensagens.map(mapMensagem),
   };
 }
@@ -132,6 +192,10 @@ export async function enviarMensagemUsuario(params: {
   texto: string;
   imagemUrl?: string | null;
 }) {
+  if (!suporteAdminEstaOnline()) {
+    throw new Error("SUPORTE_OFFLINE");
+  }
+
   const texto = params.texto.trim();
   const imagemUrl = params.imagemUrl?.trim() || null;
   validarConteudoMensagem(texto, imagemUrl);
@@ -211,6 +275,8 @@ export async function listarConversasMaster() {
 }
 
 export async function listarMensagensMaster(empresaId: string, marcarLidas = false) {
+  await expirarConversaEmpresaSeInativa(empresaId);
+
   const conversa = await prisma.suporteConversa.findUnique({
     where: { empresaId },
     include: {
@@ -354,6 +420,12 @@ export function respostaErroMensagemSuporte(erro: unknown) {
   }
   if (msg === "TIPO_INVALIDO") {
     return { status: 400, error: "Envie apenas imagens (JPEG, PNG, WebP ou GIF)." };
+  }
+  if (msg === "SUPORTE_OFFLINE") {
+    return {
+      status: 503,
+      error: "O suporte está offline no momento. Tente novamente quando houver atendente disponível.",
+    };
   }
   return { status: 500, error: "Erro ao enviar mensagem." };
 }

@@ -12,6 +12,8 @@ type Props = {
   onEnviar: () => void;
   enviando: boolean;
   placeholder?: string;
+  disabled?: boolean;
+  motivoDesabilitado?: string;
 };
 
 export function SuporteChatInput({
@@ -22,6 +24,8 @@ export function SuporteChatInput({
   onEnviar,
   enviando,
   placeholder = "Digite sua mensagem...",
+  disabled = false,
+  motivoDesabilitado,
 }: Props) {
   const inputArquivoRef = useRef<HTMLInputElement>(null);
 
@@ -34,10 +38,13 @@ export function SuporteChatInput({
     onImagemSelecionada(file);
   }
 
-  const podeEnviar = Boolean(texto.trim() || imagemPreview) && !enviando;
+  const podeEnviar = Boolean(texto.trim() || imagemPreview) && !enviando && !disabled;
 
   return (
     <div className="border-t border-slate-100 bg-white p-3">
+      {motivoDesabilitado ? (
+        <p className="mb-2 text-[11px] text-amber-700">{motivoDesabilitado}</p>
+      ) : null}
       {imagemPreview ? (
         <div className="relative mb-2 inline-block">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -71,7 +78,7 @@ export function SuporteChatInput({
         <button
           type="button"
           onClick={() => inputArquivoRef.current?.click()}
-          disabled={enviando}
+          disabled={enviando || disabled}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-50"
           title="Enviar imagem"
           aria-label="Enviar imagem"
@@ -89,7 +96,8 @@ export function SuporteChatInput({
           }}
           rows={2}
           placeholder={placeholder}
-          className="min-h-[44px] flex-1 resize-none rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-[#4a90d9]"
+          disabled={disabled}
+          className="min-h-[44px] flex-1 resize-none rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-[#4a90d9] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
         />
         <button
           type="button"

@@ -3,8 +3,10 @@ import type { SuporteMensagemDto } from "@/lib/suporte-chat";
 import { tocarSomNovaMensagemSuporte } from "@/lib/suporte-chat-som";
 import {
   SUPORTE_SOCKET_EVENTS,
+  type SuporteSocketConversaExpiradaPayload,
   type SuporteSocketNovaMensagemPayload,
   type SuporteSocketNaoLidasEmpresaPayload,
+  type SuporteSocketStatusAdminPayload,
 } from "@/lib/suporte/suporte-socket-events";
 import { referenciarPresencaSocket, liberarPresencaSocket } from "@/lib/presenca-socket-singleton";
 
@@ -19,6 +21,8 @@ type Options = {
   onNovaMensagem?: (payload: SuporteSocketNovaMensagemPayload) => void;
   onNaoLidas?: (naoLidas: number) => void;
   onConversasAtualizadas?: () => void;
+  onStatusAdmin?: (online: boolean) => void;
+  onConversaExpirada?: (empresaId: string) => void;
 };
 
 export function useSuporteChatRealtime({
@@ -30,10 +34,24 @@ export function useSuporteChatRealtime({
   onNovaMensagem,
   onNaoLidas,
   onConversasAtualizadas,
+  onStatusAdmin,
+  onConversaExpirada,
 }: Options) {
   const idsSomRef = useRef<Set<string>>(new Set());
-  const callbacksRef = useRef({ onNovaMensagem, onNaoLidas, onConversasAtualizadas });
-  callbacksRef.current = { onNovaMensagem, onNaoLidas, onConversasAtualizadas };
+  const callbacksRef = useRef({
+    onNovaMensagem,
+    onNaoLidas,
+    onConversasAtualizadas,
+    onStatusAdmin,
+    onConversaExpirada,
+  });
+  callbacksRef.current = {
+    onNovaMensagem,
+    onNaoLidas,
+    onConversasAtualizadas,
+    onStatusAdmin,
+    onConversaExpirada,
+  };
 
   const deveTocarSom = useCallback(
     (mensagem: SuporteMensagemDto, payloadEmpresaId: string) => {
@@ -88,15 +106,32 @@ export function useSuporteChatRealtime({
       callbacksRef.current.onConversasAtualizadas?.();
     };
 
+    const aoStatusAdmin = (payload: SuporteSocketStatusAdminPayload) => {
+      if (modo !== "empresa") return;
+      callbacksRef.current.onStatusAdmin?.(payload.online);
+    };
+
+    const aoConversaExpirada = (payload: SuporteSocketConversaExpiradaPayload) => {
+      if (modo === "empresa" && empresaId && payload.empresaId !== empresaId) return;
+      callbacksRef.current.onConversaExpirada?.(payload.empresaId);
+      if (modo === "master") {
+        callbacksRef.current.onConversasAtualizadas?.();
+      }
+    };
+
     socket.on(SUPORTE_SOCKET_EVENTS.novaMensagem, aoNovaMensagem);
     socket.on(SUPORTE_SOCKET_EVENTS.naoLidasEmpresa, aoNaoLidas);
     socket.on(SUPORTE_SOCKET_EVENTS.conversasAtualizadas, aoConversas);
+    socket.on(SUPORTE_SOCKET_EVENTS.statusAdmin, aoStatusAdmin);
+    socket.on(SUPORTE_SOCKET_EVENTS.conversaExpirada, aoConversaExpirada);
 
     return () => {
       socket.off("connect", entrar);
       socket.off(SUPORTE_SOCKET_EVENTS.novaMensagem, aoNovaMensagem);
       socket.off(SUPORTE_SOCKET_EVENTS.naoLidasEmpresa, aoNaoLidas);
       socket.off(SUPORTE_SOCKET_EVENTS.conversasAtualizadas, aoConversas);
+      socket.off(SUPORTE_SOCKET_EVENTS.statusAdmin, aoStatusAdmin);
+      socket.off(SUPORTE_SOCKET_EVENTS.conversaExpirada, aoConversaExpirada);
       liberarPresencaSocket();
     };
   }, [ativo, modo, empresaId, deveTocarSom]);

@@ -6,6 +6,8 @@ export const SUPORTE_SOCKET_EVENTS = {
   novaMensagem: "suporte:nova-mensagem",
   conversasAtualizadas: "suporte:conversas-atualizadas",
   naoLidasEmpresa: "suporte:nao-lidas-empresa",
+  statusAdmin: "suporte:status-admin",
+  conversaExpirada: "suporte:conversa-expirada",
 } as const;
 
 export function salaSuporteEmpresa(empresaId: string) {
@@ -23,4 +25,12 @@ export type SuporteSocketNovaMensagemPayload = {
 
 export type SuporteSocketNaoLidasEmpresaPayload = {
   naoLidas: number;
+};
+
+export type SuporteSocketStatusAdminPayload = {
+  online: boolean;
+};
+
+export type SuporteSocketConversaExpiradaPayload = {
+  empresaId: string;
 };

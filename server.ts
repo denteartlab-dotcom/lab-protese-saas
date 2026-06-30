@@ -18,6 +18,11 @@ import {
   conectarPresencaUsuario,
   desconectarPresencaUsuario,
 } from "./src/lib/presenca-usuarios";
+import {
+  conectarPresencaMasterSuporte,
+  desconectarPresencaMasterSuporte,
+} from "./src/lib/suporte/presenca-suporte-master";
+import { iniciarLimpezaSuporteInativo } from "./src/lib/suporte/suporte-limpeza";
 import { notificarPresencaTv } from "./src/lib/tv/notificar-presenca-tv";
 import { iniciarBackupAutomaticoDiario } from "./src/lib/backup-automatico";
 import { iniciarLimpezaContasInativasDiaria } from "./src/lib/exclusao-empresa";
@@ -142,11 +147,15 @@ app
           const master = await getMasterSessionFromCookieHeader(
             socket.handshake.headers.cookie
           );
-          if (master) await socket.join(salaSuporteMaster());
+          if (master) {
+            await socket.join(salaSuporteMaster());
+            conectarPresencaMasterSuporte(socket.id);
+          }
         })();
       });
 
       socket.on("disconnect", () => {
+        desconectarPresencaMasterSuporte(socket.id);
         if (!presencaEmpresaId || !presencaUserId) return;
         desconectarPresencaUsuario(presencaEmpresaId, presencaUserId, socket.id);
         void notificarPresencaTv(presencaEmpresaId);
@@ -229,6 +238,7 @@ app
             );
           }
           iniciarLimpezaContasInativasDiaria();
+          iniciarLimpezaSuporteInativo();
         }, 15_000);
       });
     };

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSuporteMasterPresenca } from "@/hooks/useSuporteMasterPresenca";
 
 export function MasterShell({
   masterName,
@@ -14,6 +15,8 @@ export function MasterShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+
+  useSuporteMasterPresenca();
 
   async function sair() {
     await fetch("/api/admin-master/auth/logout", { method: "POST" });

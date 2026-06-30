@@ -6,6 +6,7 @@ import {
   listarMensagensEmpresa,
   parseCorpoMensagemSuporte,
   respostaErroMensagemSuporte,
+  suporteAdminEstaOnline,
 } from "@/lib/suporte-chat";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
 
   if (apenasContagem) {
     const naoLidas = await contarNaoLidasEmpresa(ctx.empresaId);
-    return NextResponse.json({ naoLidas });
+    return NextResponse.json({ naoLidas, suporteOnline: suporteAdminEstaOnline() });
   }
 
   const marcarLidas = url.searchParams.get("marcarLidas") !== "0";

@@ -17,6 +17,8 @@ export function SuporteChatWidget() {
   const [imagemArquivo, setImagemArquivo] = useState<File | null>(null);
   const [imagemPreview, setImagemPreview] = useState<string | null>(null);
   const [naoLidas, setNaoLidas] = useState(0);
+  const [suporteOnline, setSuporteOnline] = useState(false);
+  const [conversaExpirada, setConversaExpirada] = useState(false);
   const [carregando, setCarregando] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
@@ -33,8 +35,9 @@ export function SuporteChatWidget() {
     try {
       const res = await fetch("/api/suporte/chat?contagem=1", { cache: "no-store" });
       if (!res.ok) return;
-      const data = (await res.json()) as { naoLidas?: number };
+      const data = (await res.json()) as { naoLidas?: number; suporteOnline?: boolean };
       setNaoLidas(data.naoLidas ?? 0);
+      if (typeof data.suporteOnline === "boolean") setSuporteOnline(data.suporteOnline);
     } catch {
       /* ignore */
     }
@@ -53,10 +56,13 @@ export function SuporteChatWidget() {
         mensagens: SuporteMensagemDto[];
         suporteEmail?: string;
         naoLidas?: number;
+        suporteOnline?: boolean;
       };
       setMensagens(data.mensagens ?? []);
       if (data.suporteEmail) setSuporteEmail(data.suporteEmail);
       setNaoLidas(data.naoLidas ?? 0);
+      if (typeof data.suporteOnline === "boolean") setSuporteOnline(data.suporteOnline);
+      setConversaExpirada(false);
       rolarParaFim();
     } catch {
       setErro("Não foi possível carregar o chat.");
@@ -101,6 +107,15 @@ export function SuporteChatWidget() {
       rolarParaFim();
     },
     onNaoLidas: setNaoLidas,
+    onStatusAdmin: setSuporteOnline,
+    onConversaExpirada: () => {
+      setMensagens([]);
+      setNaoLidas(0);
+      setTexto("");
+      selecionarImagem(null);
+      setConversaExpirada(true);
+      setErro("");
+    },
   });
 
   function selecionarImagem(file: File | null) {
@@ -111,7 +126,7 @@ export function SuporteChatWidget() {
 
   async function enviar() {
     const msg = texto.trim();
-    if ((!msg && !imagemArquivo) || enviando) return;
+    if ((!msg && !imagemArquivo) || enviando || !suporteOnline) return;
 
     setEnviando(true);
     setErro("");
@@ -131,6 +146,7 @@ export function SuporteChatWidget() {
       }
       setTexto("");
       selecionarImagem(null);
+      setConversaExpirada(false);
       const nova = (data as { mensagem?: SuporteMensagemDto }).mensagem;
       if (nova) {
         setMensagens((prev) => {
@@ -147,6 +163,13 @@ export function SuporteChatWidget() {
       setEnviando(false);
     }
   }
+
+  const chatBloqueado = !suporteOnline;
+  const motivoDesabilitado = conversaExpirada
+    ? "Esta conversa expirou por inatividade (10 min). Inicie um novo chat quando o suporte estiver online."
+    : chatBloqueado
+      ? "O suporte está offline. Aguarde um atendente ficar disponível para iniciar ou continuar a conversa."
+      : undefined;
 
   return (
     <>
@@ -171,6 +194,9 @@ export function SuporteChatWidget() {
             <div>
               <p className="text-sm font-semibold">Suporte Lab Prótese</p>
               <p className="text-[11px] text-white/80">{suporteEmail}</p>
+              <p className="text-[10px] text-white/70">
+                {suporteOnline ? "● Online" : "○ Offline"}
+              </p>
             </div>
             <button
               type="button"
@@ -191,7 +217,11 @@ export function SuporteChatWidget() {
             )}
             {!carregando && mensagens.length === 0 && (
               <p className="text-center text-xs text-slate-500">
-                Envie uma mensagem para falar com nossa equipe de suporte.
+                {conversaExpirada
+                  ? "Sua conversa anterior foi encerrada por inatividade. Envie uma nova mensagem para recomeçar."
+                  : suporteOnline
+                    ? "Envie uma mensagem para falar com nossa equipe de suporte."
+                    : "O suporte está offline no momento. Você poderá enviar mensagens quando um atendente estiver disponível."}
               </p>
             )}
             {mensagens.map((m) => (
@@ -216,6 +246,13 @@ export function SuporteChatWidget() {
             onImagemSelecionada={selecionarImagem}
             onEnviar={() => void enviar()}
             enviando={enviando}
+            disabled={chatBloqueado}
+            motivoDesabilitado={motivoDesabilitado}
+            placeholder={
+              chatBloqueado
+                ? "Aguardando suporte online..."
+                : "Digite sua mensagem..."
+            }
           />
         </div>
       )}
