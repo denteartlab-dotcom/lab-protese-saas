@@ -182,10 +182,10 @@ export function SelectPesquisavel({
   }
 
   const inputCls = cn(
-    "w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 text-sm shadow-sm placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20",
+    "w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 text-sm shadow-sm placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-primary-400 dark:focus:ring-primary-400/25",
     exibirLimpar ? "pr-14" : "pr-8",
-    !value && !aberto ? "text-slate-400" : "text-slate-700",
-    disabled && "cursor-not-allowed bg-slate-50 opacity-60",
+    !value && !aberto ? "text-slate-400" : "text-slate-700 dark:text-slate-200",
+    disabled && "cursor-not-allowed bg-slate-50 opacity-60 dark:bg-slate-800",
     inputClassName
   );
 
@@ -194,7 +194,7 @@ export function SelectPesquisavel({
       id={menuId}
       role="listbox"
       className={cn(
-        "overflow-y-auto border border-slate-300 bg-white shadow-lg",
+        "overflow-y-auto border border-slate-300 bg-white shadow-lg dark:border-slate-600 dark:bg-slate-900",
         menuEmPortal ? "fixed z-[10050]" : "absolute left-0 right-0 top-full z-[100] mt-0.5"
       )}
       style={{
@@ -222,8 +222,8 @@ export function SelectPesquisavel({
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => selecionar(opcao)}
               className={cn(
-                "flex min-h-[34px] w-full items-center justify-between gap-2 px-3 text-left text-[13px] text-slate-800 hover:bg-slate-50",
-                ativo && "bg-[#e8f2fc] font-medium text-[#4a90d9]"
+                "flex min-h-[34px] w-full items-center justify-between gap-2 px-3 text-left text-[13px] text-slate-800 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800",
+                ativo && "bg-[#e8f2fc] font-medium text-[#4a90d9] dark:bg-primary-950/50 dark:text-primary-400"
               )}
             >
               <span className="truncate">{opcao.label}</span>
@@ -238,7 +238,7 @@ export function SelectPesquisavel({
   return (
     <div ref={ref} className={cn("relative space-y-1", className)}>
       {label ? (
-        <label htmlFor={inputId} className="block text-sm font-medium text-slate-700">
+        <label htmlFor={inputId} className="block text-sm font-medium text-slate-700 dark:text-slate-300">
           {label}
         </label>
       ) : null}
@@ -272,7 +272,7 @@ export function SelectPesquisavel({
             disabled={disabled}
             onMouseDown={(e) => e.preventDefault()}
             onClick={limparSelecao}
-            className="absolute right-7 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40"
+            className="absolute right-7 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40 dark:hover:bg-slate-800 dark:hover:text-slate-200"
             aria-label="Limpar seleção"
           >
             <X className="h-3.5 w-3.5" />

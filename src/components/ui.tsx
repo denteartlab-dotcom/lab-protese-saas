@@ -15,6 +15,9 @@ export { CampoDataBr } from "@/components/campo-data-br";
 export { CampoHoraBr } from "@/components/campo-hora-br";
 export { SelectPesquisavel, type OpcaoSelectPesquisavel } from "@/components/SelectPesquisavel";
 
+const inputBaseClass =
+  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-primary-400 dark:focus:ring-primary-400/25";
+
 export function Button({
   className,
   variant = "primary",
@@ -26,10 +29,12 @@ export function Button({
 }) {
   const variants = {
     primary: "bg-primary-600 text-white hover:bg-primary-700 shadow-sm",
-    secondary: "bg-slate-200 text-slate-800 hover:bg-slate-300",
-    ghost: "text-slate-600 hover:bg-slate-100",
+    secondary:
+      "bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600",
+    ghost: "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800",
     danger: "bg-red-600 text-white hover:bg-red-700",
-    outline: "border border-slate-300 bg-white hover:bg-slate-50 text-slate-700",
+    outline:
+      "border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800",
   };
   const sizes = {
     sm: "px-3 py-1.5 text-sm",
@@ -69,7 +74,7 @@ export const Input = forwardRef<
   return (
     <div className="space-y-1">
       {label && (
-        <label htmlFor={inputId} className="block text-sm font-medium text-slate-700">
+        <label htmlFor={inputId} className="block text-sm font-medium text-slate-700 dark:text-slate-300">
           {label}
         </label>
       )}
@@ -77,16 +82,12 @@ export const Input = forwardRef<
         ref={ref}
         id={inputId}
         type={type}
-        className={cn(
-          "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20",
-          error && "border-red-500",
-          className
-        )}
+        className={cn(inputBaseClass, error && "border-red-500 dark:border-red-500", className)}
         {...propsBloquearArrasteEntreCampos()}
         {...props}
         {...handlersSelecao}
       />
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
 });
@@ -104,16 +105,16 @@ export const Select = forwardRef<
     }
 
     return cloneElement(child, {
-      style: {
-        color: child.props.value === "" ? "#94a3b8" : "#334155",
-        ...child.props.style,
-      },
+      className: cn(
+        child.props.value === "" ? "text-slate-400" : "text-slate-700 dark:text-slate-200",
+        child.props.className
+      ),
     });
   });
   return (
     <div className="space-y-1">
       {label && (
-        <label htmlFor={selectId} className="block text-sm font-medium text-slate-700">
+        <label htmlFor={selectId} className="block text-sm font-medium text-slate-700 dark:text-slate-300">
           {label}
         </label>
       )}
@@ -121,8 +122,8 @@ export const Select = forwardRef<
         ref={ref}
         id={selectId}
         className={cn(
-          "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20",
-          isPlaceholder ? "text-slate-400" : "text-slate-700",
+          inputBaseClass,
+          isPlaceholder ? "text-slate-400" : "text-slate-700 dark:text-slate-200",
           className
         )}
         {...propsBloquearArrasteEntreCampos()}
@@ -142,17 +143,14 @@ export const Textarea = forwardRef<
   return (
     <div className="space-y-1">
       {label && (
-        <label htmlFor={areaId} className="block text-sm font-medium text-slate-700">
+        <label htmlFor={areaId} className="block text-sm font-medium text-slate-700 dark:text-slate-300">
           {label}
         </label>
       )}
       <textarea
         ref={ref}
         id={areaId}
-        className={cn(
-          "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 min-h-[80px]",
-          className
-        )}
+        className={cn(inputBaseClass, "min-h-[80px]", className)}
         {...propsBloquearArrasteEntreCampos()}
         {...props}
       />
@@ -172,10 +170,15 @@ export function Card({
   action?: React.ReactNode;
 }) {
   return (
-    <div className={cn("rounded-xl border border-slate-200 bg-white shadow-sm", className)}>
+    <div
+      className={cn(
+        "rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900",
+        className
+      )}
+    >
       {(title || action) && (
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-          {title && <h3 className="font-semibold text-slate-800">{title}</h3>}
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800">
+          {title && <h3 className="font-semibold text-slate-800 dark:text-slate-100">{title}</h3>}
           {action}
         </div>
       )}
@@ -219,17 +222,17 @@ export function StatCard({
   return (
     <div
       className={cn(
-        "rounded-xl border border-slate-200 bg-white p-5 shadow-sm",
+        "rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900",
         className
       )}
     >
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm text-slate-500">{title}</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{value}</p>
-          {trend && <p className="mt-1 text-xs text-slate-500">{trend}</p>}
+          <p className="text-sm text-slate-500 dark:text-slate-400">{title}</p>
+          <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">{value}</p>
+          {trend && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{trend}</p>}
         </div>
-        <div className="rounded-lg bg-primary-50 p-2.5 text-primary-600">
+        <div className="rounded-lg bg-primary-50 p-2.5 text-primary-600 dark:bg-primary-950/40 dark:text-primary-400">
           <Icon className="h-5 w-5" />
         </div>
       </div>
@@ -248,18 +251,18 @@ export function Table({
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-slate-200 bg-slate-50/80">
+          <tr className="border-b border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-800/80">
             {headers.map((h) => (
               <th
                 key={h}
-                className="px-4 py-3 text-left font-medium text-slate-600"
+                className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300"
               >
                 {h}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">{children}</tbody>
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">{children}</tbody>
       </table>
     </div>
   );
@@ -305,20 +308,21 @@ export function Modal({
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div
         className={cn(
-          "relative flex w-full flex-col rounded-xl bg-white shadow-xl",
+          "relative flex w-full flex-col rounded-xl bg-white shadow-xl dark:border dark:border-slate-700 dark:bg-slate-900",
           sizes[size],
           alturaModal
         )}
       >
         <div
           className={cn(
-            "flex shrink-0 items-center justify-between border-b border-slate-200",
+            "flex shrink-0 items-center justify-between border-b border-slate-200 dark:border-slate-700",
             ehSmart ? "px-6 py-3" : "px-5 py-4"
           )}
         >
           <h2
             className={cn(
-              ehSmart ? "text-base font-normal text-slate-800" : "text-lg font-semibold"
+              "text-slate-800 dark:text-slate-100",
+              ehSmart ? "text-base font-normal" : "text-lg font-semibold"
             )}
           >
             {title}
@@ -326,7 +330,7 @@ export function Modal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
           >
             ✕
           </button>

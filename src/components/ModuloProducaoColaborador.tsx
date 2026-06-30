@@ -57,6 +57,7 @@ import {
   aplicarControleEntregaAposMudancaStatus,
 } from "@/lib/controle-entregas-automatico";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
+import { persistirTemaLocal, lerTemaLocal } from "@/lib/theme-ui";
 import { limparUltimaAtividadeSessao } from "@/lib/sessao-inatividade";
 import { useLabConfigClient } from "@/lib/use-lab-config-client";
 
@@ -228,12 +229,16 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
   const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
-    setDarkMode(readStorage<string | null>("labProteseTheme", null) === "dark");
+    const savedTheme = readStorage<string | null>("labProteseTheme", null);
+    const localTheme = lerTemaLocal();
+    const dark = savedTheme === "dark" || (savedTheme === null && localTheme === true);
+    setDarkMode(dark);
+    persistirTemaLocal(dark);
   }, []);
 
   function toggleTheme() {
     const next = !document.documentElement.classList.contains("dark");
-    document.documentElement.classList.toggle("dark", next);
+    persistirTemaLocal(next);
     writeStorage("labProteseTheme", next ? "dark" : "light");
     setDarkMode(next);
   }

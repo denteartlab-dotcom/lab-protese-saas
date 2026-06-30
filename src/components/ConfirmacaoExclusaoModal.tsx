@@ -64,13 +64,13 @@ export function ConfirmacaoExclusaoModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirmacao-exclusao-titulo"
-        className="relative w-full max-w-md overflow-visible rounded-md bg-white shadow-2xl"
+        className="relative w-full max-w-md overflow-visible rounded-md bg-white shadow-2xl dark:border dark:border-slate-700 dark:bg-slate-900"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="rounded-t bg-slate-50 px-5 py-4">
+        <div className="rounded-t bg-slate-50 px-5 py-4 dark:bg-slate-800">
           <h2
             id="confirmacao-exclusao-titulo"
-            className="pr-8 text-base font-medium text-slate-600"
+            className="pr-8 text-base font-medium text-slate-600 dark:text-slate-200"
           >
             {titulo}
           </h2>
@@ -78,25 +78,25 @@ export function ConfirmacaoExclusaoModal({
             type="button"
             onClick={onClose}
             disabled={processando}
-            className="absolute right-[-8px] top-[-3px] flex h-9 w-9 items-center justify-center rounded-md bg-white text-3xl leading-none text-slate-500 shadow-md hover:bg-slate-50 disabled:opacity-60"
+            className="absolute right-[-8px] top-[-3px] flex h-9 w-9 items-center justify-center rounded-md bg-white text-3xl leading-none text-slate-500 shadow-md hover:bg-slate-50 disabled:opacity-60 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
             aria-label="Fechar"
           >
             <X className="h-5 w-5" strokeWidth={1.5} />
           </button>
         </div>
 
-        <div className="border-y border-slate-100 px-5 py-5 text-sm leading-relaxed text-slate-600">
+        <div className="border-y border-slate-100 px-5 py-5 text-sm leading-relaxed text-slate-600 dark:border-slate-800 dark:text-slate-300">
           <p className="whitespace-pre-line">{mensagem}</p>
           {aviso ? <p className="mt-2">{aviso}</p> : null}
-          {detalhe ? <p className="mt-2 text-slate-500">{detalhe}</p> : null}
+          {detalhe ? <p className="mt-2 text-slate-500 dark:text-slate-400">{detalhe}</p> : null}
         </div>
 
-        <div className="flex justify-end gap-3 rounded-b bg-white px-6 py-4">
+        <div className="flex justify-end gap-3 rounded-b bg-white px-6 py-4 dark:bg-slate-900">
           <button
             type="button"
             onClick={onClose}
             disabled={processando}
-            className="h-10 rounded-md border border-slate-300 bg-white px-8 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+            className="h-10 rounded-md border border-slate-300 bg-white px-8 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
           >
             {labelCancelar}
           </button>

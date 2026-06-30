@@ -189,7 +189,7 @@ export function SuporteChatWidget() {
       </button>
 
       {aberto && (
-        <div className="fixed bottom-36 right-4 z-50 flex w-[min(100vw-2rem,380px)] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl sm:bottom-20">
+        <div className="fixed bottom-36 right-4 z-50 flex w-[min(100vw-2rem,380px)] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900 sm:bottom-20">
           <div className="flex items-center justify-between border-b border-slate-100 bg-[#4a90d9] px-4 py-3 text-white">
             <div>
               <p className="text-sm font-semibold">Suporte Lab Prótese</p>
@@ -210,7 +210,7 @@ export function SuporteChatWidget() {
 
           <div
             ref={listaRef}
-            className="flex max-h-[min(50vh,360px)] min-h-[220px] flex-1 flex-col gap-2 overflow-y-auto bg-slate-50 p-3"
+            className="flex max-h-[min(50vh,360px)] min-h-[220px] flex-1 flex-col gap-2 overflow-y-auto bg-slate-50 p-3 dark:bg-slate-950"
           >
             {carregando && mensagens.length === 0 && (
               <p className="text-center text-xs text-slate-400">Carregando...</p>
@@ -234,7 +234,7 @@ export function SuporteChatWidget() {
           </div>
 
           {erro && (
-            <p className="border-t border-red-100 bg-red-50 px-3 py-1.5 text-[11px] text-red-600">
+            <p className="border-t border-red-100 bg-red-50 px-3 py-1.5 text-[11px] text-red-600 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400">
               {erro}
             </p>
           )}

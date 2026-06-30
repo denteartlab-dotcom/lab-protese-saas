@@ -42,6 +42,7 @@ import { usePresencaApp } from "@/hooks/usePresencaApp";
 import { lerUltimoLaboratorioLogin, rotuloPapelUsuario, salvarLogoLaboratorioLogin } from "@/lib/auth-client";
 import { limparUltimaAtividadeSessao } from "@/lib/sessao-inatividade";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
+import { persistirTemaLocal, lerTemaLocal } from "@/lib/theme-ui";
 import { instrucoesTextoLivre } from "@/lib/etapas-os";
 import { cn, STATUS_TRABALHO } from "@/lib/utils";
 import { analisarCaminhoApp, ehPaginaInicioApp, menuAppSecaoAtiva } from "@/lib/rotas-app";
@@ -258,9 +259,11 @@ function AppShellInner({
 
   useEffect(() => {
     const savedTheme = readStorage<string | null>("labProteseTheme", null);
-    const shouldUseDark = savedTheme === "dark";
+    const localTheme = lerTemaLocal();
+    const shouldUseDark =
+      savedTheme === "dark" || (savedTheme === null && localTheme === true);
     setDarkMode(shouldUseDark);
-    document.documentElement.classList.toggle("dark", shouldUseDark);
+    persistirTemaLocal(shouldUseDark);
   }, []);
 
   useEffect(() => {
@@ -313,7 +316,7 @@ function AppShellInner({
   function toggleTheme() {
     setDarkMode((current) => {
       const next = !current;
-      document.documentElement.classList.toggle("dark", next);
+      persistirTemaLocal(next);
       writeStorage("labProteseTheme", next ? "dark" : "light");
       return next;
     });
@@ -557,9 +560,9 @@ function AppShellInner({
         isModuloTv
           ? "h-[100vh] w-[100vw] max-w-none overflow-hidden bg-[#070b12]"
           : isRelatorioImersivo
-            ? "min-h-[100vh] w-full bg-[#f4f6f8]"
+            ? "min-h-[100vh] w-full bg-[#f4f6f8] dark:bg-slate-950"
             : isModuloColaborador
-              ? "bg-white"
+              ? "bg-white dark:bg-slate-950"
               : "bg-[#f4f6f8] dark:bg-slate-950"
       )}
     >

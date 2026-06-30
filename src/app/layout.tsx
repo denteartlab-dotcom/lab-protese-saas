@@ -37,6 +37,24 @@ export default async function RootLayout({
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
         <Script
+          id="aplicar-tema-inicial"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                try {
+                  var tema = localStorage.getItem("labProteseDarkMode");
+                  if (tema === "dark") {
+                    document.documentElement.classList.add("dark");
+                  } else if (tema === "light") {
+                    document.documentElement.classList.remove("dark");
+                  }
+                } catch (e) { /* ignore */ }
+              })();
+            `,
+          }}
+        />
+        <Script
           id="app-build-cache-bust"
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{

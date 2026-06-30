@@ -15,6 +15,7 @@ import { ReportSummaryCards } from "@/components/relatorios/tempo-producao/Repor
 import { StatusDistributionChart } from "@/components/relatorios/tempo-producao/StatusDistributionChart";
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
+import { persistirTemaLocal, lerTemaLocal } from "@/lib/theme-ui";
 import { gerarTempoProducaoPdf } from "@/lib/relatorios-impressao-pdf";
 import {
   exportarTempoProducaoCsv,
@@ -57,12 +58,16 @@ export function ProductionTimeReportPage() {
   const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
-    setDarkMode(readStorage<string | null>("labProteseTheme", null) === "dark");
+    const savedTheme = readStorage<string | null>("labProteseTheme", null);
+    const localTheme = lerTemaLocal();
+    const dark = savedTheme === "dark" || (savedTheme === null && localTheme === true);
+    setDarkMode(dark);
+    persistirTemaLocal(dark);
   }, []);
 
   function toggleTheme() {
     const next = !document.documentElement.classList.contains("dark");
-    document.documentElement.classList.toggle("dark", next);
+    persistirTemaLocal(next);
     writeStorage("labProteseTheme", next ? "dark" : "light");
     setDarkMode(next);
   }

@@ -94,6 +94,7 @@ function parseJsonLocalStorage(key: string): unknown | null {
 /** Chaves de conveniência do navegador — não são dados do laboratório. */
 const CHAVES_LOCALSTORAGE_IGNORAR = new Set([
   "labProteseLembrarLogin",
+  "labProteseDarkMode",
   "denteartLoginLembrete",
   "denteartLabLogoPorSlug",
 ]);
