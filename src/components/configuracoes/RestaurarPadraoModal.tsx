@@ -268,19 +268,19 @@ export function RestaurarPadraoModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="restaurar-padrao-titulo"
-        className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
+        className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl dark:border dark:border-slate-700 dark:bg-slate-900"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="shrink-0 border-b border-slate-200 bg-slate-50 px-5 py-4">
+        <div className="shrink-0 border-b border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-700 dark:bg-slate-800">
           <h2
             id="restaurar-padrao-titulo"
-            className="pr-8 text-base font-semibold text-slate-800"
+            className="pr-8 text-base font-semibold text-slate-800 dark:text-slate-100"
           >
             {somenteContaBancaria
               ? t("settings.restaurarPadraoTituloContaBancaria")
               : t("settings.restaurarPadraoTitulo")}
           </h2>
-          <p className="mt-1 text-xs text-slate-600">
+          <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
             {somenteContaBancaria
               ? t("settings.restaurarPadraoDescricaoContaBancaria")
               : t("settings.restaurarPadraoDescricao")}
@@ -289,7 +289,7 @@ export function RestaurarPadraoModal({
             type="button"
             onClick={onClose}
             disabled={processando}
-            className="absolute right-3 top-3 rounded p-1 text-slate-500 hover:bg-slate-200 disabled:opacity-50"
+            className="absolute right-3 top-3 rounded p-1 text-slate-500 hover:bg-slate-200 disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-700"
             aria-label="Fechar"
           >
             <X className="h-5 w-5" />
@@ -300,7 +300,7 @@ export function RestaurarPadraoModal({
           <div className="mb-3 flex flex-wrap gap-2">
             <button
               type="button"
-              className="text-xs text-[#4a90d9] hover:underline"
+              className="text-xs text-[#4a90d9] hover:underline dark:text-primary-400"
               onClick={selecionarTodos}
               disabled={carregando || processando}
             >
@@ -309,7 +309,7 @@ export function RestaurarPadraoModal({
             <span className="text-slate-300">|</span>
             <button
               type="button"
-              className="text-xs text-slate-600 hover:underline"
+              className="text-xs text-slate-600 hover:underline dark:text-slate-400"
               onClick={limparSelecao}
               disabled={carregando || processando}
             >
@@ -318,7 +318,7 @@ export function RestaurarPadraoModal({
           </div>
 
           {carregando ? (
-            <p className="py-8 text-center text-sm text-slate-500">
+            <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">
               {t("common.carregando")}
             </p>
           ) : (
@@ -330,11 +330,11 @@ export function RestaurarPadraoModal({
                     <label
                       className={`flex cursor-pointer gap-3 rounded-lg border p-3 transition ${
                         marcado
-                          ? "border-red-300 bg-red-50/60"
-                          : "border-slate-200 hover:border-slate-300 hover:bg-slate-50/80"
+                          ? "border-red-300 bg-red-50/60 dark:border-red-800 dark:bg-red-950/40"
+                          : "border-slate-200 hover:border-slate-300 hover:bg-slate-50/80 dark:border-slate-700 dark:hover:border-slate-600 dark:hover:bg-slate-800/60"
                       }`}
                     >
-                      <span className="mt-0.5 shrink-0 text-slate-600">
+                      <span className="mt-0.5 shrink-0 text-slate-600 dark:text-slate-400">
                         {marcado ? (
                           <CheckSquare className="h-5 w-5 text-red-600" />
                         ) : (
@@ -350,23 +350,23 @@ export function RestaurarPadraoModal({
                       />
                       <span className="min-w-0 flex-1">
                         <span className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-medium text-slate-800">
+                          <span className="text-sm font-medium text-slate-800 dark:text-slate-100">
                             {mod.label}
                           </span>
                           {mod.temDadosEfetivo ? (
-                            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-900">
+                            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
                               {t("settings.restaurarPadraoComDados")}
                             </span>
                           ) : (
-                            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
+                            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                               {t("settings.restaurarPadraoSemDados")}
                             </span>
                           )}
                         </span>
-                        <span className="mt-0.5 block text-xs text-slate-500">
+                        <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">
                           {mod.descricao}
                         </span>
-                        <span className="mt-1 block text-[11px] text-slate-400">
+                        <span className="mt-1 block text-[11px] text-slate-400 dark:text-slate-500">
                           {mod.registros > 0 && (
                             <span>
                               {t("settings.restaurarPadraoRegistrosBanco").replace(
@@ -396,52 +396,52 @@ export function RestaurarPadraoModal({
             </ul>
           )}
 
-          <div className="mt-4 flex items-start gap-2 rounded border border-red-200 bg-red-50 p-3">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
-            <p className="text-xs text-red-800">{t("settings.restaurarPadraoAviso")}</p>
+          <div className="mt-4 flex items-start gap-2 rounded border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950/35">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
+            <p className="text-xs text-red-800 dark:text-red-200">{t("settings.restaurarPadraoAviso")}</p>
           </div>
 
           {exigePalavraChave ? (
-            <div className="mt-4 space-y-3 rounded border border-amber-300 bg-amber-50 p-3">
-              <p className="text-xs font-medium text-amber-900">
+            <div className="mt-4 space-y-3 rounded border border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/35">
+              <p className="text-xs font-medium text-amber-900 dark:text-amber-200">
                 {t("settings.restaurarPadraoBloqueadoSenha")}
               </p>
               {referenciaPalavraChave ? (
-                <p className="text-[11px] text-amber-800">
+                <p className="text-[11px] text-amber-800 dark:text-amber-300">
                   {t("settings.restaurarPadraoReferenciaLembrete")}:{" "}
                   <strong>{referenciaPalavraChave}</strong>
                 </p>
               ) : null}
-              <label className="block text-xs font-medium text-slate-700">
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
                 {t("settings.restaurarPadraoPalavraChaveCampo")}
                 <input
                   type="password"
                   value={palavraChave}
                   onChange={(e) => setPalavraChave(e.target.value)}
-                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100"
                   disabled={processando}
                   autoComplete="off"
                 />
               </label>
               {!palavraChaveCadastrada ? (
-                <p className="text-[11px] text-red-700">
+                <p className="text-[11px] text-red-700 dark:text-red-400">
                   {t("settings.restaurarPadraoCadastrePalavraChave")}
                 </p>
               ) : null}
             </div>
           ) : (
-            <label className="mt-4 block text-xs font-medium text-slate-700">
+            <label className="mt-4 block text-xs font-medium text-slate-700 dark:text-slate-300">
               {t("settings.restaurarPadraoSenhaProprietario")}
               <input
                 type="password"
                 value={senha}
                 onChange={(e) => setSenha(e.target.value)}
-                className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100"
                 disabled={processando}
                 autoComplete="current-password"
               />
               {tentativasSenha > 0 ? (
-                <span className="mt-1 block text-[11px] text-amber-700">
+                <span className="mt-1 block text-[11px] text-amber-700 dark:text-amber-300">
                   {t("settings.restaurarPadraoTentativasSenha").replace(
                     "{n}",
                     String(tentativasSenha)
@@ -451,7 +451,7 @@ export function RestaurarPadraoModal({
             </label>
           )}
 
-          <label className="mt-3 flex cursor-pointer items-start gap-2 text-xs text-slate-700">
+          <label className="mt-3 flex cursor-pointer items-start gap-2 text-xs text-slate-700 dark:text-slate-300">
             <input
               type="checkbox"
               checked={confirmar}
@@ -463,7 +463,7 @@ export function RestaurarPadraoModal({
           </label>
         </div>
 
-        <div className="flex shrink-0 justify-end gap-3 border-t border-slate-200 bg-white px-5 py-4">
+        <div className="flex shrink-0 justify-end gap-3 border-t border-slate-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-900">
           <Button
             type="button"
             variant="outline"

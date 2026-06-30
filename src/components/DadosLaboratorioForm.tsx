@@ -30,7 +30,9 @@ function Campo({
 }) {
   return (
     <div className={`space-y-1 ${className}`}>
-      <label className="block text-[13px] font-normal text-slate-700">{label}</label>
+      <label className="block text-[13px] font-normal text-slate-700 dark:text-slate-300">
+        {label}
+      </label>
       {children}
     </div>
   );
@@ -40,9 +42,9 @@ function inputClassName(bloqueado = false) {
   const base =
     "w-full rounded border px-3 py-[7px] text-sm shadow-sm focus:outline-none focus:ring-1";
   if (bloqueado) {
-    return `${base} cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500 focus:ring-0`;
+    return `${base} cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500 focus:ring-0 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500`;
   }
-  return `${base} border-slate-300 bg-white text-slate-800 focus:border-[#4a90d9] focus:ring-[#4a90d9]/30`;
+  return `${base} border-slate-300 bg-white text-slate-800 focus:border-[#4a90d9] focus:ring-[#4a90d9]/30 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-primary-500 dark:focus:ring-primary-500/30`;
 }
 
 function SecaoTitulo({
@@ -53,8 +55,8 @@ function SecaoTitulo({
   titulo: string;
 }) {
   return (
-    <div className="mb-3 flex items-center gap-2 text-slate-800">
-      <Icon className="h-4 w-4 text-slate-600" strokeWidth={1.75} />
+    <div className="mb-3 flex items-center gap-2 text-slate-800 dark:text-slate-100">
+      <Icon className="h-4 w-4 text-slate-600 dark:text-slate-400" strokeWidth={1.75} />
       <h2 className="text-[15px] font-normal">{titulo}</h2>
     </div>
   );
@@ -233,7 +235,7 @@ export function DadosLaboratorioForm({
 
           <Campo label="Tipo Pessoa" className="lg:col-span-3">
             <div className="flex h-[34px] items-center gap-6 pt-0.5">
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-800">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-800 dark:text-slate-200">
                 <input
                   type="radio"
                   name="tipoPessoa"
@@ -243,7 +245,7 @@ export function DadosLaboratorioForm({
                 />
                 Física
               </label>
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-800">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-800 dark:text-slate-200">
                 <input
                   type="radio"
                   name="tipoPessoa"
@@ -428,7 +430,7 @@ export function DadosLaboratorioForm({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="shrink-0 whitespace-nowrap rounded border-[#4a90d9] bg-white px-3 py-1.5 text-[13px] font-normal text-[#4a90d9] hover:bg-[#4a90d9]/5"
+                className="shrink-0 whitespace-nowrap rounded border-[#4a90d9] bg-white px-3 py-1.5 text-[13px] font-normal text-[#4a90d9] hover:bg-[#4a90d9]/5 dark:border-primary-500 dark:bg-slate-800 dark:text-primary-400 dark:hover:bg-primary-950/40"
                 disabled={buscandoCep}
                 onClick={() => void buscarEnderecoPorCep()}
               >

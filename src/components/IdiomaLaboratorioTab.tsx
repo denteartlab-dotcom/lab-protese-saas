@@ -17,7 +17,7 @@ type Props = {
 };
 
 const selectClass =
-  "h-9 w-full rounded border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]";
+  "h-9 w-full rounded border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9] dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-primary-500 dark:focus:ring-primary-500";
 
 export function IdiomaLaboratorioTab({
   form,
@@ -58,7 +58,7 @@ export function IdiomaLaboratorioTab({
     >
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-600">
+          <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400">
             {t("idioma.labelIdioma")}
           </label>
           <select
@@ -72,7 +72,7 @@ export function IdiomaLaboratorioTab({
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-600">
+          <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400">
             {t("idioma.labelPais")}
           </label>
           <select
@@ -87,7 +87,7 @@ export function IdiomaLaboratorioTab({
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-600">
+          <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400">
             {t("idioma.labelMoeda")}
           </label>
           <select
@@ -101,7 +101,7 @@ export function IdiomaLaboratorioTab({
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-600">
+          <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400">
             {t("idioma.labelCodigoTelefone")}
           </label>
           <select

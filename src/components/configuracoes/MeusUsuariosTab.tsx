@@ -13,8 +13,8 @@ import type { CotasUsuariosEmpresa } from "@/lib/limite-usuarios-empresa";
 import { cn, exibirTexto } from "@/lib/utils";
 
 const thClass =
-  "px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]";
-const tdClass = "px-3 py-2.5 align-middle text-[12px] text-[#374151]";
+  "px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#6b7280] dark:text-slate-400";
+const tdClass = "px-3 py-2.5 align-middle text-[12px] text-[#374151] dark:text-slate-300";
 
 export function MeusUsuariosTab() {
   const [carregando, setCarregando] = useState(true);

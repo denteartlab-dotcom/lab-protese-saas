@@ -103,16 +103,16 @@ export function LogoLaboratorioTab({
 
   return (
     <div className="mx-auto max-w-lg py-4">
-      <h2 className="mb-4 text-center text-[15px] font-normal text-slate-800">
+      <h2 className="mb-4 text-center text-[15px] font-normal text-slate-800 dark:text-slate-100">
         Logomarca do Laboratório
       </h2>
 
-      <div className="rounded border border-slate-200 bg-[#f8f9fb] px-6 py-8">
+      <div className="rounded border border-slate-200 bg-[#f8f9fb] px-6 py-8 dark:border-slate-700 dark:bg-slate-800/50">
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={processando}
-          className="mx-auto flex w-full max-w-[320px] flex-col items-center justify-center rounded border-2 border-dashed border-slate-300 bg-white py-10 transition hover:border-[#4a90d9] hover:bg-slate-50"
+          className="mx-auto flex w-full max-w-[320px] flex-col items-center justify-center rounded border-2 border-dashed border-slate-300 bg-white py-10 transition hover:border-[#4a90d9] hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:hover:border-primary-500 dark:hover:bg-slate-800"
         >
           {preview ? (
             <img
@@ -130,11 +130,11 @@ export function LogoLaboratorioTab({
               }
             />
           ) : (
-            <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-slate-300 bg-slate-50 text-slate-400">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-slate-300 bg-slate-50 text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-500">
               <Upload className="h-10 w-10" strokeWidth={1.5} />
             </div>
           )}
-          <span className="mt-3 text-xs text-slate-500">
+          <span className="mt-3 text-xs text-slate-500 dark:text-slate-400">
             {processando ? "Processando..." : "Clique para enviar a logomarca"}
           </span>
         </button>
@@ -150,7 +150,7 @@ export function LogoLaboratorioTab({
         />
 
         <div className="mx-auto mt-6 max-w-[280px]">
-          <label className="mb-1 block text-center text-[12px] text-slate-600">
+          <label className="mb-1 block text-center text-[12px] text-slate-600 dark:text-slate-400">
             Tamanho do logo: {tamanho}%
           </label>
           <input

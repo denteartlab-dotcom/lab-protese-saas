@@ -176,7 +176,9 @@ function ConfiguracoesConteudo() {
   }
 
   if (!form) {
-    return <p className="p-6 text-sm text-slate-500">{t("common.carregando")}</p>;
+    return (
+      <p className="p-6 text-sm text-slate-500 dark:text-slate-400">{t("common.carregando")}</p>
+    );
   }
 
   const atualizarForm: React.Dispatch<React.SetStateAction<ConfigLaboratorio>> = (
@@ -189,18 +191,20 @@ function ConfiguracoesConteudo() {
   };
 
   return (
-    <div className="min-h-full bg-[#e8eaed] pb-8">
+    <div className="min-h-full bg-[#e8eaed] pb-8 dark:bg-slate-950">
       <div className="mx-auto max-w-[1100px] px-4 pt-4 md:px-6 md:pt-5">
-        <h1 className="text-[17px] font-normal text-slate-800">{t("settings.titulo")}</h1>
-        <p className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-slate-600">
+        <h1 className="text-[17px] font-normal text-slate-800 dark:text-slate-100">
+          {t("settings.titulo")}
+        </h1>
+        <p className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-slate-600 dark:text-slate-400">
           <Link
             href="/app"
-            className="inline-flex items-center gap-1 text-slate-600 hover:text-[#4a90d9]"
+            className="inline-flex items-center gap-1 text-slate-600 hover:text-[#4a90d9] dark:text-slate-400 dark:hover:text-primary-400"
           >
             <Home className="h-3.5 w-3.5" />
           </Link>
-          <span className="text-slate-500">›</span>
-          <span>{titulo}</span>
+          <span className="text-slate-500 dark:text-slate-500">›</span>
+          <span className="text-slate-700 dark:text-slate-300">{titulo}</span>
         </p>
 
         <div className="mt-3 flex flex-wrap gap-0">
@@ -214,7 +218,7 @@ function ConfiguracoesConteudo() {
                 className={`rounded-t px-3 py-2 text-[13px] font-normal transition ${
                   ativa
                     ? "bg-[#4a90d9] text-white"
-                    : "bg-[#d8dce3] text-slate-700 hover:bg-[#cdd2db]"
+                    : "bg-[#d8dce3] text-slate-700 hover:bg-[#cdd2db] dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                 }`}
               >
                 {t(item.labelKey)}
@@ -223,7 +227,7 @@ function ConfiguracoesConteudo() {
           })}
         </div>
 
-        <div className="rounded-b rounded-tr bg-white px-5 py-5 shadow-sm md:px-6 md:py-6">
+        <div className="rounded-b rounded-tr bg-white px-5 py-5 shadow-sm dark:border dark:border-slate-700 dark:bg-slate-900 md:px-6 md:py-6">
           {aba === "dados" ? (
             <form
               onSubmit={(event) => {
@@ -251,7 +255,7 @@ function ConfiguracoesConteudo() {
                   type="button"
                   variant="outline"
                   onClick={cancelar}
-                  className="rounded border-slate-300 bg-white px-5 py-2 text-sm font-normal text-slate-700 hover:bg-slate-50"
+                  className="rounded border-slate-300 bg-white px-5 py-2 text-sm font-normal text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                 >
                   {t("common.cancelar")}
                 </Button>
@@ -260,10 +264,10 @@ function ConfiguracoesConteudo() {
                     role="alert"
                     className={`text-sm font-medium ${
                       mensagemTipo === "sucesso"
-                        ? "text-emerald-600"
+                        ? "text-emerald-600 dark:text-emerald-400"
                         : mensagemTipo === "erro"
-                          ? "text-red-600"
-                          : "text-slate-600"
+                          ? "text-red-600 dark:text-red-400"
+                          : "text-slate-600 dark:text-slate-400"
                     }`}
                   >
                     {mensagem}
@@ -351,10 +355,10 @@ function ConfiguracoesConteudo() {
                   role="alert"
                   className={`mt-4 text-sm font-medium ${
                     mensagemTipo === "sucesso"
-                      ? "text-emerald-600"
+                      ? "text-emerald-600 dark:text-emerald-400"
                       : mensagemTipo === "erro"
-                        ? "text-red-600"
-                        : "text-slate-600"
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-slate-600 dark:text-slate-400"
                   }`}
                 >
                   {mensagem}
@@ -377,10 +381,10 @@ function ConfiguracoesConteudo() {
                   role="alert"
                   className={`mt-4 text-sm font-medium ${
                     mensagemTipo === "sucesso"
-                      ? "text-emerald-600"
+                      ? "text-emerald-600 dark:text-emerald-400"
                       : mensagemTipo === "erro"
-                        ? "text-red-600"
-                        : "text-slate-600"
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-slate-600 dark:text-slate-400"
                   }`}
                 >
                   {mensagem}
@@ -406,13 +410,13 @@ function ConfiguracoesConteudo() {
               }}
             />
           ) : abaNaPagina ? (
-            <div className="py-16 text-center text-sm text-slate-500">
-              <p className="font-medium text-slate-700">{titulo}</p>
+            <div className="py-16 text-center text-sm text-slate-500 dark:text-slate-400">
+              <p className="font-medium text-slate-700 dark:text-slate-200">{titulo}</p>
               <p className="mt-2">{t("settings.emBreve")}</p>
             </div>
           ) : (
-            <div className="py-16 text-center text-sm text-slate-500">
-              <p className="font-medium text-slate-700">{titulo}</p>
+            <div className="py-16 text-center text-sm text-slate-500 dark:text-slate-400">
+              <p className="font-medium text-slate-700 dark:text-slate-200">{titulo}</p>
               <p className="mt-2">{t("settings.emBreveSecao")}</p>
               <Link
                 href="/app/configuracoes?aba=dados"
@@ -430,7 +434,7 @@ function ConfiguracoesConteudo() {
 
 export default function ConfiguracoesPage() {
   return (
-    <Suspense fallback={<p className="p-6 text-sm text-slate-500">…</p>}>
+    <Suspense fallback={<p className="p-6 text-sm text-slate-500 dark:text-slate-400">…</p>}>
       <ConfiguracoesConteudo />
     </Suspense>
   );

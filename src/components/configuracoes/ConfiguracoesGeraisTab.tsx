@@ -18,11 +18,11 @@ type Props = {
 
 function CardSecao({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
-    <section className="overflow-hidden rounded border border-slate-200 bg-white shadow-sm">
-      <header className="border-b border-slate-200 bg-[#f5f6f8] px-4 py-2.5">
-        <h3 className="text-[13px] font-semibold text-slate-700">{titulo}</h3>
+    <section className="overflow-hidden rounded border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <header className="border-b border-slate-200 bg-[#f5f6f8] px-4 py-2.5 dark:border-slate-700 dark:bg-slate-800">
+        <h3 className="text-[13px] font-semibold text-slate-700 dark:text-slate-200">{titulo}</h3>
       </header>
-      <div className="divide-y divide-slate-100">{children}</div>
+      <div className="divide-y divide-slate-100 dark:divide-slate-800">{children}</div>
     </section>
   );
 }
@@ -37,7 +37,7 @@ function LinhaOpcao({
   children: React.ReactNode;
 }) {
   return (
-    <label className="flex cursor-pointer items-start gap-3 px-4 py-3.5 text-[12px] leading-snug text-slate-700 hover:bg-slate-50/80">
+    <label className="flex cursor-pointer items-start gap-3 px-4 py-3.5 text-[12px] leading-snug text-slate-700 hover:bg-slate-50/80 dark:text-slate-300 dark:hover:bg-slate-800/60">
       <input
         type="checkbox"
         checked={checked}
@@ -109,7 +109,7 @@ export function ConfiguracoesGeraisTab({ onMensagem }: Props) {
   }
 
   if (carregando) {
-    return <p className="py-8 text-center text-sm text-slate-500">Carregando…</p>;
+    return <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">Carregando…</p>;
   }
 
   return (

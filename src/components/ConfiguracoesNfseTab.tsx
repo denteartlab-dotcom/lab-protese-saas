@@ -10,9 +10,9 @@ import {
 } from "@/lib/configuracoes-lab";
 import { prepararAbaPdf, visualizarPdfUrl } from "@/lib/pdf-viewer";
 
-const labelClass = "mb-1 block text-[11px] font-medium text-slate-600";
+const labelClass = "mb-1 block text-[11px] font-medium text-slate-600 dark:text-slate-400";
 const inputClass =
-  "h-9 w-full rounded border border-slate-300 bg-white px-2.5 text-[12px] text-slate-800 outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]";
+  "h-9 w-full rounded border border-slate-300 bg-white px-2.5 text-[12px] text-slate-800 outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9] dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-primary-500 dark:focus:ring-primary-500";
 
 type ClienteOpt = { id: string; nome: string; cnpjCpf?: string | null };
 

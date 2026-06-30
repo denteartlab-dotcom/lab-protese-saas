@@ -274,6 +274,43 @@
     background-color: #1e293b;
   }
 
+  .dark .bg-\[\#e8eaed\] {
+    background-color: #020617;
+  }
+
+  .dark .bg-\[\#d8dce3\] {
+    background-color: #334155;
+  }
+
+  .dark .hover\:bg-\[\#cdd2db\]:hover {
+    background-color: #475569;
+  }
+
+  .dark .bg-\[\#d9dde3\] {
+    background-color: #1e293b;
+  }
+
+  .dark .divide-slate-100 {
+    border-color: #334155;
+  }
+
+  .dark .bg-\[\#f8f9fb\] {
+    background-color: #1e293b;
+  }
+
+  .dark .text-\[\#6b7280\] {
+    color: #94a3b8;
+  }
+
+  .dark .text-\[\#374151\] {
+    color: #e2e8f0;
+  }
+
+  .dark select option {
+    background-color: #0f172a;
+    color: #f1f5f9;
+  }
+
   .dark .shadow-sm,
   .dark .shadow-xl {
     box-shadow: 0 10px 30px rgb(0 0 0 / 0.35);
