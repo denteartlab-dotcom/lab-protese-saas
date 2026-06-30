@@ -104,10 +104,12 @@ export function ArmazenamentoLaboratorioProvider({ children }: Props) {
 
       if (typeof window !== "undefined") {
         const host = window.location.hostname.toLowerCase();
-        if (host === "denteartlab.com.br") {
-          window.location.replace(
-            `https://www.denteartlab.com.br${window.location.pathname}${window.location.search}`
-          );
+        const pathComQuery = `${window.location.pathname}${window.location.search}`;
+        if (
+          host === "denteartlab.com.br" ||
+          (host === "www.denteartlab.com.br" && window.location.protocol === "http:")
+        ) {
+          window.location.replace(`https://www.denteartlab.com.br${pathComQuery}`);
           return;
         }
 
