@@ -930,9 +930,9 @@ function AppShellInner({
             </div>
 
             <div className="space-y-3 px-4 py-4 text-[11px] text-slate-600">
-              <div className="flex items-end gap-2">
-                <div className="flex-1 space-y-1">
-                  <label className="block text-[10px] text-slate-500">Número da OS</label>
+              <div className="space-y-1">
+                <label className="block text-[10px] text-slate-500">Número da OS</label>
+                <div className="flex items-center gap-2">
                   <InputLeitorCodigoOs
                     value={buscaOs}
                     onChange={setBuscaOs}
@@ -946,36 +946,36 @@ function AppShellInner({
                     readOnly={leitorCodigoAberto}
                     mostrarStatusLeitor
                     placeholder="Busque número pela OS ou passe o leitor de código de barras"
-                    className="h-8 w-full rounded border border-slate-300 px-3 text-[11px] outline-none focus:border-blue-500"
+                    className="h-7 min-w-0 flex-1 rounded border border-slate-300 px-3 text-[11px] outline-none focus:border-blue-500"
                   />
+                  <button
+                    type="button"
+                    onClick={() => void buscarOrdemServico()}
+                    disabled={buscandoOs}
+                    className="inline-flex h-7 shrink-0 items-center justify-center rounded bg-blue-600 px-2.5 text-[10px] font-semibold leading-none text-white hover:bg-blue-700 disabled:opacity-60"
+                  >
+                    {buscandoOs ? "..." : "Buscar"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLeitorCodigoAberto(true)}
+                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-blue-600 text-white shadow-sm transition hover:bg-blue-700"
+                    title="Abrir leitor de código de barras"
+                    aria-label="Abrir leitor de código de barras"
+                  >
+                    <ScanBarcode className="h-4 w-4" strokeWidth={2.4} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBuscaPaciente("");
+                      setBuscaPacienteAberta(true);
+                    }}
+                    className="inline-flex h-7 shrink-0 items-center justify-center rounded border border-slate-300 bg-white px-2.5 text-[10px] font-semibold leading-none text-slate-600 hover:bg-slate-50"
+                  >
+                    Pesquisar Paciente
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => void buscarOrdemServico()}
-                  disabled={buscandoOs}
-                  className="h-8 rounded bg-blue-600 px-4 text-[10px] font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
-                >
-                  {buscandoOs ? "Buscando..." : "Buscar"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLeitorCodigoAberto(true)}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-sm bg-blue-600 text-white shadow-sm transition hover:bg-blue-700"
-                  title="Abrir leitor de código de barras"
-                  aria-label="Abrir leitor de código de barras"
-                >
-                  <ScanBarcode className="h-5 w-5" strokeWidth={2.4} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBuscaPaciente("");
-                    setBuscaPacienteAberta(true);
-                  }}
-                  className="h-8 rounded border border-slate-300 bg-white px-4 text-[10px] font-semibold text-slate-600 hover:bg-slate-50"
-                >
-                  Pesquisar Paciente
-                </button>
               </div>
 
               {codigoBarrasMensagem ? (
