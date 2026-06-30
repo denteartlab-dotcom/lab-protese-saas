@@ -1,5 +1,6 @@
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
 import { contaReceitaLancamento } from "@/lib/receita-conta-bancaria";
+import { lancamentosComMovimentacaoRecebimento } from "@/lib/recebimento-conta-bancaria";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 
 export type AcaoContaBancaria = "movimentar" | "baixar" | "adicionar_credito";
@@ -168,6 +169,7 @@ export const CONTAS_BANCARIAS_PADRAO: ContaBancaria[] = [
 ];
 
 type LancamentoResumo = {
+  id?: string;
   tipo: string;
   descricao: string;
   valor: number;
@@ -243,9 +245,11 @@ export function calcularSaldoConta(
   movimentacoes: MovimentacaoContaBancaria[]
 ) {
   let saldo = conta.saldoInicial;
+  const receitasViaMovimentacao = lancamentosComMovimentacaoRecebimento(movimentacoes);
 
   for (const l of lancamentos) {
     if (l.status !== "pago") continue;
+    if (l.tipo === "receita" && l.id && receitasViaMovimentacao.has(l.id)) continue;
     const contaRef = contaDeLancamento(l, "Caixa Principal");
     if (contaRef !== conta.nome) continue;
     if (l.tipo === "receita") saldo += l.valor;

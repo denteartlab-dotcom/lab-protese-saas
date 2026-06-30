@@ -13,6 +13,7 @@ import {
   findLancamentoFinanceiroPorId,
   findLancamentosFinanceiro,
 } from "@/lib/lancamentos-cobranca";
+import { sincronizarMovimentacaoRecebimentoServidor } from "@/lib/recebimento-conta-bancaria-servidor";
 import { z } from "zod";
 
 const parcelaItemSchema = z.object({
@@ -178,6 +179,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ lancamentos: criados }, { status: 201 });
     }
 
+    async function sincronizarReceitasPagas(
+      lista: Array<{
+        id: string;
+        tipo: string;
+        descricao: string;
+        valor: number;
+        status: string;
+        data: Date;
+      }>
+    ) {
+      for (const item of lista) {
+        if (item.tipo !== "receita" || item.status !== "pago") continue;
+        try {
+          await sincronizarMovimentacaoRecebimentoServidor(ctx.empresaId, item);
+        } catch (syncErr) {
+          console.error("[financeiro POST] sync conta bancária", syncErr);
+        }
+      }
+    }
+
     if (
       data.tipo === "receita" &&
       parcelasBody &&
@@ -206,6 +227,7 @@ export async function POST(request: Request) {
         criados.push(lancamento);
       }
       const numeroFatura = await auditarCriacaoReceitasParceladas(session, criados);
+      await sincronizarReceitasPagas(criados);
       return NextResponse.json(
         { lancamentos: criados, numeroFatura },
         { status: 201 }
@@ -281,6 +303,14 @@ export async function POST(request: Request) {
       numeroFaturaRetorno = audit.numeroFatura ?? numeroFaturaRetorno;
     } catch (auditErr) {
       console.error("[financeiro POST] auditoria", auditErr);
+    }
+
+    if (lancamento.tipo === "receita" && lancamento.status === "pago") {
+      try {
+        await sincronizarMovimentacaoRecebimentoServidor(ctx.empresaId, lancamento);
+      } catch (syncErr) {
+        console.error("[financeiro POST] sync conta bancária", syncErr);
+      }
     }
 
     return NextResponse.json(

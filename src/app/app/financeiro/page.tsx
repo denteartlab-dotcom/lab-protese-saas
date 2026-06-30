@@ -91,6 +91,7 @@ import {
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
 import { gerarRelatorioTabelaPdf } from "@/lib/pdf-relatorio-tabela";
 import type { LinhaReciboRecebimento } from "@/lib/recibo-recebimento";
+import { empacotarReceitaConta } from "@/lib/receita-conta-bancaria";
 
 type CobrancaAsaas = {
   id: string;
@@ -1228,8 +1229,9 @@ function FinanceiroReceberConteudo() {
     );
 
     const valorDisponivel = payload.formas.reduce((sum, f) => sum + parseMoney(f.valor), 0);
-    const formaPrincipal =
-      payload.formas.find((f) => parseMoney(f.valor) > 0)?.forma ?? "Pix Externo";
+    const formaComValor = payload.formas.find((f) => parseMoney(f.valor) > 0);
+    const formaPrincipal = formaComValor?.forma ?? "Pix Externo";
+    const contaRecebimento = formaComValor?.conta?.trim() || "Caixa Principal";
     const dataIso = brShortToIso(payload.dataRecebimento);
     const faturasPagas: Lancamento[] = [];
 
@@ -1246,7 +1248,10 @@ function FinanceiroReceberConteudo() {
           data: dataIso,
           status: "pago",
           formaPagamento: formaPrincipal,
-          descricao: "Adiantamento / Crédito cliente",
+          descricao: empacotarReceitaConta(
+            "Adiantamento / Crédito cliente",
+            contaRecebimento
+          ),
         }),
       });
       const adiantamentoPayload = await resAdiantamento.json().catch(() => ({}));
@@ -1298,7 +1303,10 @@ function FinanceiroReceberConteudo() {
             data: dataIso,
             status: "pago",
             formaPagamento: FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
-            descricao: `Desconto com crédito - ${l.descricao}`,
+            descricao: empacotarReceitaConta(
+              `Desconto com crédito - ${l.descricao}`,
+              contaRecebimento
+            ),
           }),
         });
         const creditoPayload = await resCredito.json().catch(() => ({}));
@@ -1331,6 +1339,7 @@ function FinanceiroReceberConteudo() {
             status: "pago",
             formaPagamento: FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
             data: dataIso,
+            descricao: empacotarReceitaConta(l.descricao, contaRecebimento),
           }),
         });
         faturasPagas.push({
@@ -1357,6 +1366,7 @@ function FinanceiroReceberConteudo() {
             status: "pago",
             formaPagamento: formaPrincipal,
             data: dataIso,
+            descricao: empacotarReceitaConta(l.descricao, contaRecebimento),
           }),
         });
         faturasPagas.push({
@@ -1379,6 +1389,7 @@ function FinanceiroReceberConteudo() {
             status: "pago",
             formaPagamento: formaPrincipal,
             data: dataIso,
+            descricao: empacotarReceitaConta(l.descricao, contaRecebimento),
           }),
         });
         faturasPagas.push({
@@ -1421,7 +1432,10 @@ function FinanceiroReceberConteudo() {
           data: dataIso,
           status: "pago",
           formaPagamento: formaPrincipal,
-          descricao: "Adiantamento / Crédito cliente",
+          descricao: empacotarReceitaConta(
+            "Adiantamento / Crédito cliente",
+            contaRecebimento
+          ),
         }),
       });
       faturasPagas.push({

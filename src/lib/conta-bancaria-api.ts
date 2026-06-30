@@ -10,6 +10,7 @@ import {
   carregarExtratoBancario,
   salvarExtratoBancario,
 } from "@/lib/extrato-bancario";
+import { movimentacaoEhDeRecebimento } from "@/lib/recebimento-conta-bancaria";
 
 export type DadosContasBancariasApi = {
   contas: ContaBancaria[];
@@ -24,6 +25,7 @@ export function mesclarMovimentacoesConta(
 ): MovimentacaoContaBancaria[] {
   const mapa = new Map(servidor.map((m) => [m.id, m]));
   for (const mov of local) {
+    if (movimentacaoEhDeRecebimento(mov)) continue;
     if (!mapa.has(mov.id)) mapa.set(mov.id, mov);
   }
   return Array.from(mapa.values()).sort(

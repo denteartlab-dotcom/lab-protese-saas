@@ -191,22 +191,31 @@ export function ContaBancariaConteudo() {
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const atualizarLancamentosAtrasado = () => {
+    const atualizarFinanceiroConta = () => {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         timer = null;
-        void carregarLancamentos();
+        void (async () => {
+          await carregarLancamentos();
+          try {
+            const dados = await carregarContasBancariasApi();
+            setMovimentacoes(dados.movimentacoes);
+            salvarMovimentacoesConta(dados.movimentacoes);
+          } catch {
+            /* mantém movimentações locais */
+          }
+        })();
       }, 480);
     };
     window.addEventListener(
       FINANCEIRO_ATUALIZADO_EVENT,
-      atualizarLancamentosAtrasado
+      atualizarFinanceiroConta
     );
     return () => {
       if (timer) clearTimeout(timer);
       window.removeEventListener(
         FINANCEIRO_ATUALIZADO_EVENT,
-        atualizarLancamentosAtrasado
+        atualizarFinanceiroConta
       );
     };
   }, [carregarLancamentos]);

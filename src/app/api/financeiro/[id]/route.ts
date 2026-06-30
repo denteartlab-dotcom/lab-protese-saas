@@ -5,6 +5,10 @@ import {
   auditarAlteracaoLancamento,
   auditarExclusaoLancamento,
 } from "@/lib/log-auditoria-financeiro";
+import {
+  removerMovimentacoesRecebimentoServidor,
+  sincronizarMovimentacaoRecebimentoServidor,
+} from "@/lib/recebimento-conta-bancaria-servidor";
 import { z } from "zod";
 
 const schema = z.object({
@@ -61,6 +65,17 @@ export async function PUT(
     } catch (auditErr) {
       console.error("[financeiro PUT] auditoria", auditErr);
     }
+    if (lancamento.tipo === "receita") {
+      try {
+        if (lancamento.status === "pago") {
+          await sincronizarMovimentacaoRecebimentoServidor(ctx.empresaId, lancamento);
+        } else if (existente.status === "pago") {
+          await removerMovimentacoesRecebimentoServidor(ctx.empresaId, [id]);
+        }
+      } catch (syncErr) {
+        console.error("[financeiro PUT] sync conta bancária", syncErr);
+      }
+    }
     return NextResponse.json(lancamento);
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -90,6 +105,11 @@ export async function DELETE(
   }
 
   await prisma.lancamento.delete({ where: { id } });
+  try {
+    await removerMovimentacoesRecebimentoServidor(ctx.empresaId, [id]);
+  } catch (syncErr) {
+    console.error("[financeiro DELETE] sync conta bancária", syncErr);
+  }
   try {
     await auditarExclusaoLancamento(ctx.user, existente);
   } catch (auditErr) {

@@ -93,9 +93,18 @@ export async function sincronizarPagamentoAsaas(
 
   const pago = ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"].includes(statusAsaas);
   if (pago && cobranca.lancamento.status !== "pago") {
-    await prisma.lancamento.update({
+    const atualizado = await prisma.lancamento.update({
       where: { id: cobranca.lancamentoId },
       data: { status: "pago" },
     });
+    if (atualizado.tipo === "receita") {
+      const { sincronizarMovimentacaoRecebimentoServidor } = await import(
+        "@/lib/recebimento-conta-bancaria-servidor"
+      );
+      await sincronizarMovimentacaoRecebimentoServidor(
+        atualizado.empresaId,
+        atualizado
+      );
+    }
   }
 }
