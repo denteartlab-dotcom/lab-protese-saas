@@ -44,7 +44,6 @@ export const carregarConfigLaboratorioServidor = cache(
         return garantirNomeLaboratorioParaImpressao({
           ...configLaboratorioPadrao(),
           nomeLaboratorio: empresa.nome.trim(),
-          nomeFantasia: empresa.nome.trim(),
         });
       }
       return configLaboratorioPadrao();

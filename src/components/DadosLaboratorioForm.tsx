@@ -15,6 +15,7 @@ import {
   formatCnpjInput,
   formatCpfInput,
 } from "@/lib/documento-br";
+import { formatarTelefone } from "@/lib/validar-documento";
 
 export type TipoMensagemForm = "sucesso" | "erro" | "info";
 
@@ -95,13 +96,25 @@ export function DadosLaboratorioForm({
     onMensagem?.("");
   }
 
+  function atualizarTelefone(
+    campo: "telefoneComercial" | "celular" | "whatsapp",
+    valor: string
+  ) {
+    setForm((atual) => ({
+      ...atual,
+      [campo]: formatarTelefone(valor),
+    }));
+  }
+
   function aplicarDadosCnpjJuridica(dados: DadosCnpjConsulta) {
     setForm((atual) => ({
       ...atual,
       razaoSocial: dados.razaoSocial || atual.razaoSocial,
       nomeFantasia: dados.nomeFantasia || atual.nomeFantasia,
-      telefoneComercial: dados.telefoneComercial || atual.telefoneComercial,
-      whatsapp: dados.whatsapp || atual.whatsapp,
+      telefoneComercial: dados.telefoneComercial
+        ? formatarTelefone(dados.telefoneComercial)
+        : atual.telefoneComercial,
+      whatsapp: dados.whatsapp ? formatarTelefone(dados.whatsapp) : atual.whatsapp,
       inscricaoEstadual: dados.inscricaoEstadual || atual.inscricaoEstadual,
       inscricaoMunicipal: dados.inscricaoMunicipal || atual.inscricaoMunicipal,
       cep: dados.cep || atual.cep,
@@ -212,7 +225,6 @@ export function DadosLaboratorioForm({
                   nomeLaboratorio: v,
                   responsavel: v,
                   nome: ehFisica ? v : form.nome,
-                  nomeFantasia: ehFisica ? form.nomeFantasia : v,
                 });
               }}
               placeholder="Nome exibido no sistema e nas impressões"
@@ -353,9 +365,9 @@ export function DadosLaboratorioForm({
             <input
               className={inputClassName()}
               value={form.telefoneComercial}
-              onChange={(e) =>
-                setForm({ ...form, telefoneComercial: e.target.value })
-              }
+              onChange={(e) => atualizarTelefone("telefoneComercial", e.target.value)}
+              inputMode="tel"
+              placeholder="(00)0000-0000"
             />
           </Campo>
 
@@ -363,7 +375,9 @@ export function DadosLaboratorioForm({
             <input
               className={inputClassName()}
               value={form.celular}
-              onChange={(e) => setForm({ ...form, celular: e.target.value })}
+              onChange={(e) => atualizarTelefone("celular", e.target.value)}
+              inputMode="tel"
+              placeholder="(00)00000-0000"
             />
           </Campo>
 
@@ -371,7 +385,9 @@ export function DadosLaboratorioForm({
             <input
               className={inputClassName()}
               value={form.whatsapp}
-              onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
+              onChange={(e) => atualizarTelefone("whatsapp", e.target.value)}
+              inputMode="tel"
+              placeholder="(00)00000-0000"
             />
           </Campo>
 

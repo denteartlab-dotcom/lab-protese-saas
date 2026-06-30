@@ -22,6 +22,7 @@ import {
   readStorage,
   writeStorage,
 } from "@/lib/persisted-storage";
+import { formatarTelefone } from "@/lib/validar-documento";
 
 export const CONFIG_LAB_STORAGE_KEY = "labProteseConfigLaboratorio";
 export const LAB_CONFIG_ATUALIZADA_EVENT = "lab-config-atualizada";
@@ -222,9 +223,10 @@ export function aplicarNomeLaboratorio(
     nomeLaboratorio: trimmed,
     responsavel: trimmed,
     nome: ehFisica ? trimmed : cfg.nome,
-    nomeFantasia: ehFisica ? cfg.nomeFantasia : trimmed,
     email: cfg.email,
-    whatsapp: extras?.whatsapp?.trim() || cfg.whatsapp,
+    whatsapp: extras?.whatsapp?.trim()
+      ? formatarTelefone(extras.whatsapp.trim())
+      : cfg.whatsapp,
   };
   salvarConfigLaboratorio(atualizado);
   return atualizado;
@@ -240,11 +242,7 @@ export function carregarConfigLaboratorio(): ConfigLaboratorio {
   if (!salvo) {
     return { ...CONFIG_LAB_PADRAO, tipoPessoa: "Jurídica" };
   }
-  const tipo = normalizarTipoPessoa(salvo.tipoPessoa);
-  if (tipo === "Física") {
-    return { ...salvo, tipoPessoa: tipo, razaoSocial: "" };
-  }
-  return { ...salvo, tipoPessoa: tipo };
+  return normalizarConfigLaboratorio(salvo);
 }
 
 /** Formulário em branco ao trocar Física ↔ Jurídica. */

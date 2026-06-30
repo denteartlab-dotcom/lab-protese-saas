@@ -24,9 +24,6 @@ export function configLaboratorioInicial(nomeEmpresa: string): ConfigLaboratorio
   return {
     ...criarFormularioLaboratorioLimpo("Jurídica"),
     nomeLaboratorio: nomeEmpresa,
-    nomeFantasia: nomeEmpresa,
-    razaoSocial: nomeEmpresa,
-    responsavel: nomeEmpresa,
     marca: LAB_IMPRESSAO_PADRAO.marca,
     marcaSubtitulo: LAB_IMPRESSAO_PADRAO.marcaSubtitulo,
     email: "",

@@ -6,6 +6,24 @@ import {
 import { normalizarIdioma } from "@/lib/i18n";
 import { normalizarTipoPessoa } from "@/lib/configuracoes-lab";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
+import { formatarTelefone } from "@/lib/validar-documento";
+
+function formatarTelefoneSalvo(valor?: string | null): string {
+  const texto = String(valor ?? "").trim();
+  if (!texto) return "";
+  const digitos = texto.replace(/\D/g, "");
+  if (digitos.length < 10) return texto;
+  return formatarTelefone(texto);
+}
+
+function aplicarFormatoTelefones(config: ConfigLaboratorio): ConfigLaboratorio {
+  return {
+    ...config,
+    telefoneComercial: formatarTelefoneSalvo(config.telefoneComercial),
+    celular: formatarTelefoneSalvo(config.celular),
+    whatsapp: formatarTelefoneSalvo(config.whatsapp),
+  };
+}
 
 function migrarLegado(parsed: Partial<ConfigLaboratorio>): ConfigLaboratorio {
   const base = { ...CONFIG_LAB_PADRAO, ...parsed };
@@ -49,7 +67,7 @@ export function normalizarConfigLaboratorio(
   const cabecalhoRequisicao = normalizarCabecalhoRequisicao(config.cabecalhoRequisicao);
   const tipo = normalizarTipoPessoa(config.tipoPessoa);
   if (tipo === "Física") {
-    return {
+    return aplicarFormatoTelefones({
       ...config,
       email,
       cabecalhoRequisicao,
@@ -60,9 +78,9 @@ export function normalizarConfigLaboratorio(
       moeda: config.moeda || CONFIG_LAB_PADRAO.moeda,
       codigoPaisTelefone:
         config.codigoPaisTelefone || CONFIG_LAB_PADRAO.codigoPaisTelefone,
-    };
+    });
   }
-  return {
+  return aplicarFormatoTelefones({
     ...config,
     email,
     cabecalhoRequisicao,
@@ -72,5 +90,5 @@ export function normalizarConfigLaboratorio(
     moeda: config.moeda || CONFIG_LAB_PADRAO.moeda,
     codigoPaisTelefone:
       config.codigoPaisTelefone || CONFIG_LAB_PADRAO.codigoPaisTelefone,
-  };
+  });
 }
