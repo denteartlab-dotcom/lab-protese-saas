@@ -198,6 +198,22 @@
     background-color: #1e293b;
   }
 
+  .dark .bg-emerald-50\/80 {
+    background-color: rgb(2 44 34 / 0.35);
+  }
+
+  .dark .bg-amber-50\/90 {
+    background-color: rgb(69 26 3 / 0.35);
+  }
+
+  .dark .bg-red-50\/80 {
+    background-color: rgb(69 10 10 / 0.35);
+  }
+
+  .dark .bg-slate-50\/80 {
+    background-color: rgb(15 23 42 / 0.5);
+  }
+
   .dark .bg-\[\#fafafa\] {
     background-color: #0f172a;
   }

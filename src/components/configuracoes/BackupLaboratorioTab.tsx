@@ -309,38 +309,38 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
   return (
     <div className="max-w-2xl space-y-8">
       <div>
-        <h2 className="text-sm font-semibold text-slate-800">
+        <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
           {t("settings.backupTitulo")}
         </h2>
-        <p className="mt-1 text-xs text-slate-600">{t("settings.backupDescricao")}</p>
+        <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{t("settings.backupDescricao")}</p>
       </div>
 
       {ehProprietario && (
-        <section className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-5">
+        <section className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-5 dark:border-emerald-800 dark:bg-emerald-950/35">
           <div className="flex items-start gap-3">
-            <Clock className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
+            <Clock className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700 dark:text-emerald-400" />
             <div className="flex-1 space-y-4">
               <div>
-                <h3 className="text-sm font-medium text-emerald-950">
+                <h3 className="text-sm font-medium text-emerald-950 dark:text-emerald-100">
                   {t("settings.backupAutoTitulo")}
                 </h3>
-                <p className="mt-1 text-xs text-emerald-900/90">
+                <p className="mt-1 text-xs text-emerald-900/90 dark:text-emerald-200/90">
                   {t("settings.backupAutoDesc")}
                 </p>
               </div>
 
               {carregandoAuto ? (
-                <p className="text-xs text-emerald-800">{t("settings.backupAutoCarregando")}</p>
+                <p className="text-xs text-emerald-800 dark:text-emerald-300">{t("settings.backupAutoCarregando")}</p>
               ) : (
                 <>
-                  <div className="rounded border border-emerald-200 bg-white/90 px-3 py-3 text-xs text-emerald-950">
+                  <div className="rounded border border-emerald-200 bg-white/90 px-3 py-3 text-xs text-emerald-950 dark:border-emerald-800 dark:bg-slate-900/70 dark:text-emerald-100">
                     {statusAuto?.ultimoBackupFormatado ? (
                       <p>
                         <span className="font-semibold">{t("settings.backupAutoUltimoLabel")}</span>{" "}
                         {statusAuto.ultimoBackupFormatado}
                       </p>
                     ) : (
-                      <p className="text-emerald-800">{t("settings.backupAutoUltimoNunca")}</p>
+                      <p className="text-emerald-800 dark:text-emerald-300">{t("settings.backupAutoUltimoNunca")}</p>
                     )}
                     <p className="mt-1.5">
                       <span className="font-semibold">{t("settings.backupAutoProximoLabel")}</span>{" "}
@@ -350,12 +350,12 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                           t("settings.backupAutoProximoPendente")}
                     </p>
                     {statusAuto?.hospedagemVercel && statusAuto.config.ativo && (
-                      <p className="mt-2 rounded border border-amber-300 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900">
+                      <p className="mt-2 rounded border border-amber-300 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-200">
                         {t("settings.backupAutoAvisoVercel")}
                       </p>
                     )}
                     {statusAuto?.pastaPadrao && (
-                      <p className="mt-1.5 text-[11px] text-emerald-800">
+                      <p className="mt-1.5 text-[11px] text-emerald-800 dark:text-emerald-300">
                         {t("settings.backupAutoPasta").replace(
                           "{caminho}",
                           statusAuto.pastaPadrao
@@ -363,7 +363,7 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                       </p>
                     )}
                     {statusAuto?.pastaUploads ? (
-                      <p className="mt-1 text-[11px] text-emerald-800">
+                      <p className="mt-1 text-[11px] text-emerald-800 dark:text-emerald-300">
                         {t("settings.backupAutoPastaUploads").replace(
                           "{caminho}",
                           statusAuto.pastaUploads
@@ -377,19 +377,19 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                       </p>
                     ) : null}
                     {statusAuto?.onedriveSyncHabilitado ? (
-                      <p className="mt-1 text-[11px] text-emerald-800">
+                      <p className="mt-1 text-[11px] text-emerald-800 dark:text-emerald-300">
                         {t("settings.backupAutoOneDriveAtivo")}
                       </p>
                     ) : null}
                     {statusAuto?.padraoNomeArquivo && (
-                      <p className="mt-1 text-[11px] text-emerald-800">
+                      <p className="mt-1 text-[11px] text-emerald-800 dark:text-emerald-300">
                         {t("settings.backupAutoNomeArquivo").replace(
                           "{nome}",
                           statusAuto.padraoNomeArquivo
                         )}
                       </p>
                     )}
-                    <p className="mt-1 text-[11px] text-emerald-800">
+                    <p className="mt-1 text-[11px] text-emerald-800 dark:text-emerald-300">
                       {statusAuto?.ultimoArquivoNome
                         ? t("settings.backupAutoUltimoArquivo").replace(
                             "{nome}",
@@ -398,7 +398,7 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                         : t("settings.backupAutoUltimoArquivoPendente")}
                     </p>
                     {statusAuto?.fusoHorario && (
-                      <p className="mt-1 text-[11px] text-emerald-800/90">
+                      <p className="mt-1 text-[11px] text-emerald-800/90 dark:text-emerald-300/90">
                         {t("settings.backupAutoFuso").replace(
                           "{fuso}",
                           statusAuto.fusoHorario
@@ -406,16 +406,16 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                       </p>
                     )}
                     {statusAuto?.googleDrive?.habilitado ? (
-                      <div className="mt-2 rounded border border-sky-200 bg-sky-50/90 px-2.5 py-2 text-[11px] text-sky-950">
+                      <div className="mt-2 rounded border border-sky-200 bg-sky-50/90 px-2.5 py-2 text-[11px] text-sky-950 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-100">
                         <p className="font-semibold">Réplica no Google Drive</p>
                         {!statusAuto.googleDrive.configurado ? (
-                          <p className="mt-1 text-sky-800">
+                          <p className="mt-1 text-sky-800 dark:text-sky-300">
                             Ativo no servidor, mas faltam credenciais ou pasta compartilhada (
                             <code className="text-[10px]">GOOGLE_DRIVE_FOLDER_ID</code>
                             ).
                           </p>
                         ) : (
-                          <p className="mt-1 text-sky-800">
+                          <p className="mt-1 text-sky-800 dark:text-sky-300">
                             Pasta desta empresa:{" "}
                             <span className="font-medium">
                               {statusAuto.googleDrive.caminhoEmpresa}/
@@ -428,7 +428,7 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                         )}
                         {statusAuto.googleDrive.configurado ? (
                           statusAuto.googleDrive.statusUpload.tipo === "erro" ? (
-                            <p className="mt-1 text-red-700">
+                            <p className="mt-1 text-red-700 dark:text-red-300">
                               Último envio com erro:{" "}
                               {statusAuto.googleDrive.statusUpload.mensagem}
                             </p>
@@ -438,19 +438,19 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                                 Último envio: {statusAuto.googleDrive.statusUpload.mensagem}
                               </p>
                               {statusAuto.googleDrive.statusUpload.arquivo ? (
-                                <p className="mt-0.5 text-sky-800">
+                                <p className="mt-0.5 text-sky-800 dark:text-sky-300">
                                   Arquivo: {statusAuto.googleDrive.statusUpload.arquivo}
                                 </p>
                               ) : null}
                             </>
                           ) : (
-                            <p className="mt-1 text-sky-800">
+                            <p className="mt-1 text-sky-800 dark:text-sky-300">
                               {statusAuto.googleDrive.statusUpload.mensagem}
                             </p>
                           )
                         ) : null}
                         {statusAuto.googleDrive.retencaoDias ? (
-                          <p className="mt-1 text-sky-700">
+                          <p className="mt-1 text-sky-700 dark:text-sky-400">
                             Retenção na nuvem: {statusAuto.googleDrive.retencaoDias} dias
                           </p>
                         ) : null}
@@ -458,7 +458,7 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                     ) : null}
                   </div>
 
-                  <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-emerald-950">
+                  <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-emerald-950 dark:text-emerald-100">
                     <input
                       type="checkbox"
                       checked={autoAtivo}
@@ -470,13 +470,13 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                   </label>
 
                   <div className="grid gap-3 sm:max-w-xs">
-                    <label className="block text-xs font-medium text-emerald-950">
+                    <label className="block text-xs font-medium text-emerald-950 dark:text-emerald-100">
                       {t("settings.backupAutoDia")}
                       <select
                         value={autoDia}
                         onChange={(evento) => setAutoDia(evento.target.value)}
                         disabled={salvandoAuto || !autoAtivo}
-                        className="mt-1 h-9 w-full rounded border border-emerald-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                        className="mt-1 h-9 w-full rounded border border-emerald-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-emerald-500 disabled:bg-slate-50 dark:border-emerald-700 dark:bg-slate-900 dark:text-slate-100 dark:disabled:bg-slate-800"
                       >
                         <option value="todos">{t("settings.backupAutoDiaTodos")}</option>
                         {DIAS_SEMANA_KEYS.map((key, indice) => (
@@ -487,7 +487,7 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                       </select>
                     </label>
 
-                    <p className="text-[11px] text-emerald-900/90">
+                    <p className="text-[11px] text-emerald-900/90 dark:text-emerald-200/90">
                       {t("settings.backupAutoHorarioFixo").replace(
                         "{horario}",
                         statusAuto?.horarioFixo ?? "23:30"
@@ -512,7 +512,7 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                         variant="outline"
                         disabled={gerandoBackupServidor || salvandoAuto}
                         onClick={() => void gerarBackupServidorAgora()}
-                        className="inline-flex items-center gap-2 rounded border-emerald-500 bg-white px-4 py-2 text-sm text-emerald-900 hover:bg-emerald-50"
+                        className="inline-flex items-center gap-2 rounded border-emerald-500 bg-white px-4 py-2 text-sm text-emerald-900 hover:bg-emerald-50 dark:border-emerald-600 dark:bg-slate-800 dark:text-emerald-200 dark:hover:bg-emerald-950/50"
                       >
                         {gerandoBackupServidor
                           ? t("settings.backupServidorGerando")
@@ -524,7 +524,7 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                       variant="outline"
                       disabled={salvandoAuto}
                       onClick={() => setModalPastaBackupAberto(true)}
-                      className="inline-flex items-center gap-2 rounded border-emerald-300 bg-white px-4 py-2 text-sm text-emerald-900 hover:bg-emerald-50"
+                      className="inline-flex items-center gap-2 rounded border-emerald-300 bg-white px-4 py-2 text-sm text-emerald-900 hover:bg-emerald-50 dark:border-emerald-700 dark:bg-slate-800 dark:text-emerald-200 dark:hover:bg-emerald-950/50"
                     >
                       <FolderOpen className="h-4 w-4" />
                       {t("settings.backupAutoAbrirPasta")}
@@ -537,17 +537,17 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
         </section>
       )}
 
-      <section className="rounded-lg border border-slate-200 bg-slate-50/80 p-5">
+      <section className="rounded-lg border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-700 dark:bg-slate-900/50">
         <div className="flex items-start gap-3">
           <Download className="mt-0.5 h-5 w-5 shrink-0 text-[#4a90d9]" />
           <div className="flex-1">
-            <h3 className="text-sm font-medium text-slate-800">
+            <h3 className="text-sm font-medium text-slate-800 dark:text-slate-100">
               {t("settings.backupExportarTitulo")}
             </h3>
-            <p className="mt-1 text-xs text-slate-600">
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
               {t("settings.backupExportarDesc")}
             </p>
-            <p className="mt-2 text-[11px] text-slate-500">
+            <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
               {t("settings.backupExportarAvisoServidor")}
             </p>
             <Button
@@ -562,30 +562,30 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
         </div>
       </section>
 
-      <section className="rounded-lg border border-amber-200 bg-amber-50/90 p-5">
+      <section className="rounded-lg border border-amber-200 bg-amber-50/90 p-5 dark:border-amber-800 dark:bg-amber-950/35">
         <div className="flex items-start gap-3">
-          <Upload className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+          <Upload className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-400" />
           <div className="flex-1">
-            <h3 className="text-sm font-medium text-amber-900">
+            <h3 className="text-sm font-medium text-amber-900 dark:text-amber-100">
               {t("settings.backupImportarTitulo")}
             </h3>
-            <p className="mt-1 text-xs text-amber-900/90">
+            <p className="mt-1 text-xs text-amber-900/90 dark:text-amber-200/90">
               {t("settings.backupImportarDesc")}
             </p>
 
-            <div className="mt-4 flex items-start gap-2 rounded border border-amber-300 bg-white/80 p-3">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
-              <p className="text-xs font-medium text-red-700">
+            <div className="mt-4 flex items-start gap-2 rounded border border-amber-300 bg-white/80 p-3 dark:border-amber-700 dark:bg-slate-900/60">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
+              <p className="text-xs font-medium text-red-700 dark:text-red-300">
                 {t("settings.backupAvisoApagar")}
               </p>
             </div>
 
-            <fieldset className="mt-4 rounded-lg border border-amber-200 bg-white/70 p-4">
-              <legend className="px-1 text-xs font-semibold text-slate-800">
+            <fieldset className="mt-4 rounded-lg border border-amber-200 bg-white/70 p-4 dark:border-amber-800 dark:bg-slate-900/50">
+              <legend className="px-1 text-xs font-semibold text-slate-800 dark:text-slate-200">
                 {t("settings.backupFonteImportacao")}
               </legend>
               <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-4">
-                <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-700">
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
                   <input
                     type="radio"
                     name="fonte-importacao-backup"
@@ -596,7 +596,7 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                   {t("settings.backupFonteArquivo")}
                 </label>
                 {ehProprietario ? (
-                  <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-700">
+                  <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
                     <input
                       type="radio"
                       name="fonte-importacao-backup"
@@ -611,25 +611,25 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
             </fieldset>
 
             {fonteImportacao === "arquivo" ? (
-              <label className="mt-4 block text-xs font-medium text-slate-700">
+              <label className="mt-4 block text-xs font-medium text-slate-700 dark:text-slate-300">
                 {t("settings.backupArquivo")}
                 <input
                   type="file"
                   accept=".zip,.json,application/zip,application/json"
-                  className="mt-1 block w-full text-xs text-slate-600 file:mr-3 file:rounded file:border-0 file:bg-[#4a90d9] file:px-3 file:py-1.5 file:text-xs file:text-white"
+                  className="mt-1 block w-full text-xs text-slate-600 file:mr-3 file:rounded file:border-0 file:bg-[#4a90d9] file:px-3 file:py-1.5 file:text-xs file:text-white dark:text-slate-300"
                   onChange={(e) => setArquivo(e.target.files?.[0] ?? null)}
                   disabled={importando}
                 />
               </label>
             ) : (
-              <div className="mt-4 space-y-2 rounded-lg border border-amber-200 bg-white/70 p-4">
-                <label className="block text-xs font-medium text-slate-700">
+              <div className="mt-4 space-y-2 rounded-lg border border-amber-200 bg-white/70 p-4 dark:border-amber-800 dark:bg-slate-900/50">
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
                   {t("settings.backupArquivoPastaAutomatica")}
                   <select
                     value={arquivoPastaSelecionado}
                     onChange={(e) => setArquivoPastaSelecionado(e.target.value)}
                     disabled={importando || carregandoArquivosPasta}
-                    className="mt-1 h-9 w-full rounded border border-amber-300 bg-white px-2 text-xs text-slate-700 outline-none focus:border-amber-500"
+                    className="mt-1 h-9 w-full rounded border border-amber-300 bg-white px-2 text-xs text-slate-700 outline-none focus:border-amber-500 dark:border-amber-700 dark:bg-slate-900 dark:text-slate-100"
                   >
                     {carregandoArquivosPasta ? (
                       <option value="">{t("settings.backupAutoCarregando")}</option>
@@ -644,7 +644,7 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                     )}
                   </select>
                 </label>
-                <p className="text-[11px] leading-relaxed text-amber-900/90">
+                <p className="text-[11px] leading-relaxed text-amber-900/90 dark:text-amber-200/90">
                   {t("settings.backupFontePastaAutomaticaDesc")}
                 </p>
                 <Button
@@ -652,15 +652,15 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                   variant="outline"
                   disabled={importando || carregandoArquivosPasta}
                   onClick={() => void carregarArquivosPastaAutomatica()}
-                  className="rounded border-amber-400 bg-white px-3 py-1.5 text-xs text-amber-900 hover:bg-amber-100"
+                  className="rounded border-amber-400 bg-white px-3 py-1.5 text-xs text-amber-900 hover:bg-amber-100 dark:border-amber-600 dark:bg-slate-800 dark:text-amber-200 dark:hover:bg-amber-950/50"
                 >
                   {t("settings.backupSincronizarPasta")}
                 </Button>
               </div>
             )}
 
-            <div className="mt-4 space-y-3 rounded-lg border border-amber-200/80 bg-white/60 p-4">
-              <label className="flex cursor-pointer items-start gap-2 text-xs leading-relaxed text-slate-700">
+            <div className="mt-4 space-y-3 rounded-lg border border-amber-200/80 bg-white/60 p-4 dark:border-amber-800 dark:bg-slate-900/40">
+              <label className="flex cursor-pointer items-start gap-2 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
                 <input
                   type="checkbox"
                   checked={excluirDreNaImportacao}
@@ -671,7 +671,7 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                 <span>{t("settings.backupExcluirDreImportacao")}</span>
               </label>
 
-              <label className="flex cursor-pointer items-start gap-2 text-xs leading-relaxed text-slate-700">
+              <label className="flex cursor-pointer items-start gap-2 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
                 <input
                   type="checkbox"
                   checked={confirmarSubstituir}
@@ -692,7 +692,7 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                 (fonteImportacao === "arquivo" ? !arquivo : !arquivoPastaSelecionado)
               }
               onClick={() => void importar()}
-              className="mt-4 rounded border-amber-600 bg-white px-4 py-2 text-sm text-amber-900 hover:bg-amber-100"
+              className="mt-4 rounded border-amber-600 bg-white px-4 py-2 text-sm text-amber-900 hover:bg-amber-100 dark:border-amber-500 dark:bg-slate-800 dark:text-amber-200 dark:hover:bg-amber-950/50"
             >
               {importando ? t("settings.backupImportando") : t("settings.backupRestaurar")}
             </Button>
@@ -704,24 +704,24 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
         <>
           <PalavraChaveRestaurarSection onMensagem={onMensagem} />
 
-          <section className="rounded-lg border border-red-200 bg-red-50/80 p-5">
+          <section className="rounded-lg border border-red-200 bg-red-50/80 p-5 dark:border-red-900 dark:bg-red-950/35">
             <div className="flex items-start gap-3">
-              <RotateCcw className="mt-0.5 h-5 w-5 shrink-0 text-red-700" />
+              <RotateCcw className="mt-0.5 h-5 w-5 shrink-0 text-red-700 dark:text-red-400" />
               <div className="flex-1">
-                <h3 className="text-sm font-medium text-red-900">
+                <h3 className="text-sm font-medium text-red-900 dark:text-red-100">
                   {t("settings.restaurarPadraoSecaoTitulo")}
                 </h3>
-                <p className="mt-1 text-xs text-red-900/90">
+                <p className="mt-1 text-xs text-red-900/90 dark:text-red-200/90">
                   {t("settings.restaurarPadraoSecaoDesc")}
                 </p>
-                <p className="mt-2 text-[11px] font-medium text-red-800">
+                <p className="mt-2 text-[11px] font-medium text-red-800 dark:text-red-300">
                   {t("settings.restaurarPadraoSomenteProprietario")}
                 </p>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setModalPadraoAberto(true)}
-                  className="mt-4 rounded border-red-600 bg-white px-4 py-2 text-sm text-red-800 hover:bg-red-100"
+                  className="mt-4 rounded border-red-600 bg-white px-4 py-2 text-sm text-red-800 hover:bg-red-100 dark:border-red-700 dark:bg-slate-800 dark:text-red-200 dark:hover:bg-red-950/50"
                 >
                   {t("settings.restaurarPadraoBotao")}
                 </Button>
@@ -730,7 +730,7 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
           </section>
         </>
       ) : (
-        <p className="text-xs text-slate-500">{t("settings.restaurarPadraoAcessoNegado")}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">{t("settings.restaurarPadraoAcessoNegado")}</p>
       )}
 
       <ModalAbrirPastaBackup

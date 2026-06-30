@@ -86,40 +86,40 @@ export function PalavraChaveRestaurarSection({ onMensagem }: Props) {
   if (carregando || estado === null) return null;
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-slate-50/80 p-5">
+    <section className="rounded-lg border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-700 dark:bg-slate-900/50">
       <div className="flex items-start gap-3">
-        <KeyRound className="mt-0.5 h-5 w-5 shrink-0 text-slate-600" />
+        <KeyRound className="mt-0.5 h-5 w-5 shrink-0 text-slate-600 dark:text-slate-400" />
         <div className="flex-1">
-          <h3 className="text-sm font-medium text-slate-800">
+          <h3 className="text-sm font-medium text-slate-800 dark:text-slate-100">
             {t("settings.palavraChaveTitulo")}
           </h3>
-          <p className="mt-1 text-xs text-slate-600">{t("settings.palavraChaveDesc")}</p>
+          <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{t("settings.palavraChaveDesc")}</p>
 
           {estado.cadastrada && !formAberto ? (
-            <div className="mt-3 rounded border border-slate-200 bg-white p-3 text-xs text-slate-700">
+            <div className="mt-3 rounded border border-slate-200 bg-white p-3 text-xs text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
               <p>
                 <span className="font-medium">{t("settings.palavraChaveReferencia")}:</span>{" "}
                 {estado.referencia || "—"}
               </p>
-              <p className="mt-1 text-slate-500">{t("settings.palavraChaveJaCadastrada")}</p>
+              <p className="mt-1 text-slate-500 dark:text-slate-400">{t("settings.palavraChaveJaCadastrada")}</p>
             </div>
           ) : null}
 
           {formAberto ? (
             <div className="mt-4 space-y-3">
               {estado.cadastrada ? (
-                <label className="block text-xs font-medium text-slate-700">
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
                   {t("settings.palavraChaveAtual")}
                   <input
                     type="password"
                     value={palavraChaveAtual}
                     onChange={(e) => setPalavraChaveAtual(e.target.value)}
-                    className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                    className="mt-1 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                     autoComplete="off"
                   />
                 </label>
               ) : null}
-              <label className="block text-xs font-medium text-slate-700">
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
                 {estado.cadastrada
                   ? t("settings.palavraChaveNova")
                   : t("settings.palavraChaveCampo")}
@@ -127,21 +127,21 @@ export function PalavraChaveRestaurarSection({ onMensagem }: Props) {
                   type="password"
                   value={palavraChave}
                   onChange={(e) => setPalavraChave(e.target.value)}
-                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                   autoComplete="new-password"
                 />
               </label>
-              <label className="block text-xs font-medium text-slate-700">
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
                 {t("settings.palavraChaveReferenciaCampo")}
                 <input
                   type="text"
                   value={referencia}
                   onChange={(e) => setReferencia(e.target.value)}
                   placeholder={t("settings.palavraChaveReferenciaPlaceholder")}
-                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                 />
               </label>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
                 {t("settings.palavraChaveReferenciaAjuda")}
               </p>
               <div className="flex gap-2">
@@ -173,7 +173,7 @@ export function PalavraChaveRestaurarSection({ onMensagem }: Props) {
               type="button"
               variant="outline"
               onClick={() => setFormAberto(true)}
-              className="mt-4 rounded border-slate-400 px-4 py-2 text-sm text-slate-800"
+              className="mt-4 rounded border-slate-400 px-4 py-2 text-sm text-slate-800 dark:border-slate-500 dark:text-slate-200"
             >
               {estado.cadastrada
                 ? t("settings.palavraChaveAlterar")
