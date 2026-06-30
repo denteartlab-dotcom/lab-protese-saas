@@ -70,7 +70,7 @@ function validarConteudoMensagem(texto: string, imagemUrl?: string | null) {
   if (texto.length > 4000) throw new Error("TEXTO_LONGO");
 }
 
-async async function publicarMensagemSuporte(empresaId: string, mensagem: SuporteMensagemDto) {
+async function publicarMensagemSuporte(empresaId: string, mensagem: SuporteMensagemDto) {
   emitSuporteNovaMensagem(empresaId, mensagem);
   emitSuporteConversasAtualizadas();
 
