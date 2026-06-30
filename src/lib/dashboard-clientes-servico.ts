@@ -1,6 +1,5 @@
 import {
   segmentoEfetivoTrabalho,
-  trabalhoEhFichaSemServico,
 } from "@/lib/trabalho-os-segmento";
 
 export type ClienteSemServicoItem = {
@@ -46,14 +45,12 @@ export function ordenarClientesSemServicoPorMenosTempo(lista: ClienteSemServicoI
   });
 }
 
-/** Mesma base do Controle de Produção: serviço odontológico lançado (não produto/transporte/ficha vazia). */
+/** Qualquer OS de serviço gerada (não cancelada) atualiza a data do último serviço do cliente. */
 export function trabalhoContaComoUltimoServicoCliente(
   trabalho: TrabalhoUltimoServicoCliente
 ): boolean {
   if (trabalho.status === "cancelado") return false;
-  if (segmentoEfetivoTrabalho(trabalho) !== "servico") return false;
-  if (trabalhoEhFichaSemServico(trabalho)) return false;
-  return true;
+  return segmentoEfetivoTrabalho(trabalho) === "servico";
 }
 
 function inicioDoDia(date: Date) {
@@ -92,7 +89,7 @@ export function calcularClientesSemServico(
     if (!ultimo) continue;
 
     const diasSemServico = diasEntreDatas(ultimo, hoje);
-    if (diasSemServico <= diasMinimos) continue;
+    if (diasSemServico < diasMinimos) continue;
 
     lista.push({
       id: c.id,

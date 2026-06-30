@@ -113,7 +113,7 @@ function montarHtmlImpressaoClientesServicos(
             <span class="nome">Cliente</span>
             <span class="data">Data último</span>
           </div>${linhas}`
-        : '<p class="vazio">Nenhum cliente inativo neste período.</p>'
+        : '<p class="vazio">Nenhum cliente neste período.</p>'
     }
   </div>
 </body>
@@ -218,7 +218,7 @@ export function PainelClientesServicosDashboard({
         >
           {visiveis.length === 0 ? (
             <p className="py-4 text-center text-[11px] text-slate-400">
-              Nenhum cliente inativo neste período.
+              Nenhum cliente neste período.
             </p>
           ) : (
             visiveis.map((c) => (
@@ -249,7 +249,7 @@ export function PainelClientesServicosDashboard({
           <button
             type="button"
             onClick={() => void imprimir()}
-            disabled={imprimindo || ordenada.length === 0}
+            disabled={imprimindo}
             className="rounded border border-primary-600 bg-primary-600 px-3 py-1 text-[11px] font-medium text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {imprimindo ? "Gerando..." : "Imprimir"}
