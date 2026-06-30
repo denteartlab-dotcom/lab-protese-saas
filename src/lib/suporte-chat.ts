@@ -1,11 +1,18 @@
 import { prisma } from "@/lib/db";
 import { enviarEmailResend } from "@/lib/email-resend";
+import { resumoTextoMensagemSuporte } from "@/lib/suporte-chat-anexo";
+import {
+  emitSuporteConversasAtualizadas,
+  emitSuporteNovaMensagem,
+  emitSuporteNaoLidasEmpresa,
+} from "@/lib/suporte/suporte-socket-server";
 
 export type SuporteMensagemDto = {
   id: string;
   remetenteTipo: "usuario" | "suporte";
   remetenteNome: string;
   texto: string;
+  imagemUrl: string | null;
   lidaEm: string | null;
   createdAt: string;
 };
@@ -43,6 +50,7 @@ function mapMensagem(m: {
   remetenteTipo: string;
   remetenteNome: string;
   texto: string;
+  imagemUrl?: string | null;
   lidaEm: Date | null;
   createdAt: Date;
 }): SuporteMensagemDto {
@@ -51,9 +59,25 @@ function mapMensagem(m: {
     remetenteTipo: m.remetenteTipo as "usuario" | "suporte",
     remetenteNome: m.remetenteNome,
     texto: m.texto,
+    imagemUrl: m.imagemUrl ?? null,
     lidaEm: m.lidaEm?.toISOString() ?? null,
     createdAt: m.createdAt.toISOString(),
   };
+}
+
+function validarConteudoMensagem(texto: string, imagemUrl?: string | null) {
+  if (!texto.trim() && !imagemUrl) throw new Error("TEXTO_VAZIO");
+  if (texto.length > 4000) throw new Error("TEXTO_LONGO");
+}
+
+async async function publicarMensagemSuporte(empresaId: string, mensagem: SuporteMensagemDto) {
+  emitSuporteNovaMensagem(empresaId, mensagem);
+  emitSuporteConversasAtualizadas();
+
+  if (mensagem.remetenteTipo === "suporte") {
+    const naoLidas = await contarNaoLidasEmpresa(empresaId);
+    emitSuporteNaoLidasEmpresa(empresaId, naoLidas);
+  }
 }
 
 export async function listarMensagensEmpresa(empresaId: string, marcarLidas = false) {
@@ -68,6 +92,7 @@ export async function listarMensagensEmpresa(empresaId: string, marcarLidas = fa
       },
       data: { lidaEm: new Date() },
     });
+    emitSuporteNaoLidasEmpresa(empresaId, 0);
   }
 
   const mensagens = await prisma.suporteMensagem.findMany({
@@ -105,9 +130,11 @@ export async function enviarMensagemUsuario(params: {
   userId: string;
   userName: string;
   texto: string;
+  imagemUrl?: string | null;
 }) {
   const texto = params.texto.trim();
-  if (!texto) throw new Error("TEXTO_VAZIO");
+  const imagemUrl = params.imagemUrl?.trim() || null;
+  validarConteudoMensagem(texto, imagemUrl);
 
   const conversa = await garantirConversa(params.empresaId);
   const agora = new Date();
@@ -119,6 +146,7 @@ export async function enviarMensagemUsuario(params: {
       remetenteUserId: params.userId,
       remetenteNome: params.userName,
       texto,
+      imagemUrl,
     },
   });
 
@@ -127,13 +155,16 @@ export async function enviarMensagemUsuario(params: {
     data: { ultimaMensagemEm: agora },
   });
 
+  const dto = mapMensagem(mensagem);
+  await publicarMensagemSuporte(params.empresaId, dto);
+
   void notificarSuporteNovaMensagem({
     empresaNome: params.empresaNome,
     userName: params.userName,
-    texto,
+    texto: resumoTextoMensagemSuporte(texto, imagemUrl),
   });
 
-  return mapMensagem(mensagem);
+  return dto;
 }
 
 export async function listarConversasMaster() {
@@ -143,7 +174,7 @@ export async function listarConversasMaster() {
       mensagens: {
         orderBy: { createdAt: "desc" },
         take: 1,
-        select: { texto: true, createdAt: true },
+        select: { texto: true, imagemUrl: true, createdAt: true },
       },
     },
     orderBy: { ultimaMensagemEm: "desc" },
@@ -161,13 +192,18 @@ export async function listarConversasMaster() {
     )
   );
 
-  const lista: SuporteConversaResumoDto[] = conversas.map((c, i) => ({
-    empresaId: c.empresaId,
-    empresaNome: c.empresa.nome,
-    ultimaMensagemEm: c.ultimaMensagemEm.toISOString(),
-    ultimaMensagemTexto: c.mensagens[0]?.texto ?? null,
-    naoLidas: naoLidasPorConversa[i] ?? 0,
-  }));
+  const lista: SuporteConversaResumoDto[] = conversas.map((c, i) => {
+    const ultima = c.mensagens[0];
+    return {
+      empresaId: c.empresaId,
+      empresaNome: c.empresa.nome,
+      ultimaMensagemEm: c.ultimaMensagemEm.toISOString(),
+      ultimaMensagemTexto: ultima
+        ? resumoTextoMensagemSuporte(ultima.texto, ultima.imagemUrl)
+        : null,
+      naoLidas: naoLidasPorConversa[i] ?? 0,
+    };
+  });
 
   const totalNaoLidas = naoLidasPorConversa.reduce((s, n) => s + n, 0);
 
@@ -200,6 +236,7 @@ export async function listarMensagensMaster(empresaId: string, marcarLidas = fal
       },
       data: { lidaEm: new Date() },
     });
+    emitSuporteConversasAtualizadas();
   }
 
   const mensagens = await prisma.suporteMensagem.findMany({
@@ -221,9 +258,11 @@ export async function enviarMensagemSuporte(params: {
   masterId: string;
   masterNome: string;
   texto: string;
+  imagemUrl?: string | null;
 }) {
   const texto = params.texto.trim();
-  if (!texto) throw new Error("TEXTO_VAZIO");
+  const imagemUrl = params.imagemUrl?.trim() || null;
+  validarConteudoMensagem(texto, imagemUrl);
 
   const conversa = await garantirConversa(params.empresaId);
   const agora = new Date();
@@ -235,6 +274,7 @@ export async function enviarMensagemSuporte(params: {
       remetenteMasterId: params.masterId,
       remetenteNome: params.masterNome || rotuloSuportePlataforma(),
       texto,
+      imagemUrl,
     },
   });
 
@@ -243,7 +283,10 @@ export async function enviarMensagemSuporte(params: {
     data: { ultimaMensagemEm: agora },
   });
 
-  return mapMensagem(mensagem);
+  const dto = mapMensagem(mensagem);
+  await publicarMensagemSuporte(params.empresaId, dto);
+
+  return dto;
 }
 
 async function notificarSuporteNovaMensagem(params: {
@@ -269,4 +312,48 @@ async function notificarSuporteNovaMensagem(params: {
     `,
     text: `${params.userName} (${params.empresaNome}): ${params.texto}\n\nAbrir: ${appUrl}/admin-master/suporte`,
   });
+}
+
+export async function parseCorpoMensagemSuporte(
+  request: Request,
+  empresaId: string
+): Promise<{ texto: string; imagemUrl?: string | null }> {
+  const contentType = request.headers.get("content-type") || "";
+
+  if (contentType.includes("multipart/form-data")) {
+    const { salvarImagemSuporteChat } = await import("@/lib/suporte-chat-anexo");
+    const formData = await request.formData();
+    const texto = String(formData.get("texto") ?? "").trim();
+    const arquivo = formData.get("imagem");
+    let imagemUrl: string | null = null;
+
+    if (arquivo instanceof File && arquivo.size > 0) {
+      imagemUrl = await salvarImagemSuporteChat(arquivo, empresaId);
+    }
+
+    return { texto, imagemUrl };
+  }
+
+  const body = (await request.json()) as { texto?: string; imagemUrl?: string };
+  return {
+    texto: (body.texto ?? "").trim(),
+    imagemUrl: body.imagemUrl?.trim() || null,
+  };
+}
+
+export function respostaErroMensagemSuporte(erro: unknown) {
+  const msg = erro instanceof Error ? erro.message : "Erro ao enviar";
+  if (msg === "TEXTO_VAZIO") {
+    return { status: 400, error: "Digite uma mensagem ou envie uma imagem." };
+  }
+  if (msg === "TEXTO_LONGO") {
+    return { status: 400, error: "Mensagem muito longa (máx. 4000 caracteres)." };
+  }
+  if (msg === "IMAGEM_GRANDE") {
+    return { status: 400, error: "Imagem muito grande (máx. 2 MB)." };
+  }
+  if (msg === "TIPO_INVALIDO") {
+    return { status: 400, error: "Envie apenas imagens (JPEG, PNG, WebP ou GIF)." };
+  }
+  return { status: 500, error: "Erro ao enviar mensagem." };
 }

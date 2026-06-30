@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MessageCircle, Send } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import type { SuporteConversaResumoDto, SuporteMensagemDto } from "@/lib/suporte-chat";
+import { SuporteChatInput } from "@/components/suporte/SuporteChatInput";
+import { SuporteMensagemBubble } from "@/components/suporte/SuporteMensagemBubble";
+import { useSuporteChatRealtime } from "@/hooks/useSuporteChatRealtime";
 import { cn } from "@/lib/utils";
 
 function formatarData(iso: string) {
@@ -23,6 +26,8 @@ export function SuporteChatMaster() {
   const [empresaNome, setEmpresaNome] = useState("");
   const [mensagens, setMensagens] = useState<SuporteMensagemDto[]>([]);
   const [texto, setTexto] = useState("");
+  const [imagemArquivo, setImagemArquivo] = useState<File | null>(null);
+  const [imagemPreview, setImagemPreview] = useState<string | null>(null);
   const [carregandoLista, setCarregandoLista] = useState(true);
   const [carregandoChat, setCarregandoChat] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -83,34 +88,62 @@ export function SuporteChatMaster() {
 
   useEffect(() => {
     void carregarConversas();
-    const id = window.setInterval(() => void carregarConversas(), 15000);
-    return () => window.clearInterval(id);
   }, [carregarConversas]);
 
   useEffect(() => {
     if (!empresaSelecionada) return;
     void carregarMensagens(empresaSelecionada);
-    const id = window.setInterval(
-      () => void carregarMensagens(empresaSelecionada),
-      5000
-    );
-    return () => window.clearInterval(id);
   }, [empresaSelecionada, carregarMensagens]);
+
+  useEffect(() => {
+    return () => {
+      if (imagemPreview) URL.revokeObjectURL(imagemPreview);
+    };
+  }, [imagemPreview]);
+
+  useSuporteChatRealtime({
+    modo: "master",
+    ativo: true,
+    chatAberto: Boolean(empresaSelecionada),
+    empresaSelecionada,
+    onNovaMensagem: ({ empresaId, mensagem }) => {
+      if (empresaId === empresaSelecionada) {
+        setMensagens((prev) => {
+          if (prev.some((m) => m.id === mensagem.id)) return prev;
+          return [...prev, mensagem];
+        });
+        rolarParaFim();
+      }
+      void carregarConversas();
+    },
+    onConversasAtualizadas: () => {
+      void carregarConversas();
+    },
+  });
+
+  function selecionarImagem(file: File | null) {
+    if (imagemPreview) URL.revokeObjectURL(imagemPreview);
+    setImagemArquivo(file);
+    setImagemPreview(file ? URL.createObjectURL(file) : null);
+  }
 
   async function enviar() {
     if (!empresaSelecionada) return;
     const msg = texto.trim();
-    if (!msg || enviando) return;
+    if ((!msg && !imagemArquivo) || enviando) return;
 
     setEnviando(true);
     setErro("");
     try {
+      const formData = new FormData();
+      if (msg) formData.append("texto", msg);
+      if (imagemArquivo) formData.append("imagem", imagemArquivo);
+
       const res = await fetch(
         `/api/admin-master/suporte/conversas/${encodeURIComponent(empresaSelecionada)}`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ texto: msg }),
+          body: formData,
         }
       );
       const data = await res.json().catch(() => ({}));
@@ -119,9 +152,13 @@ export function SuporteChatMaster() {
         return;
       }
       setTexto("");
+      selecionarImagem(null);
       const nova = (data as { mensagem?: SuporteMensagemDto }).mensagem;
       if (nova) {
-        setMensagens((prev) => [...prev, nova]);
+        setMensagens((prev) => {
+          if (prev.some((m) => m.id === nova.id)) return prev;
+          return [...prev, nova];
+        });
         rolarParaFim();
       } else {
         await carregarMensagens(empresaSelecionada);
@@ -140,7 +177,7 @@ export function SuporteChatMaster() {
         <div>
           <h1 className="text-lg font-semibold text-slate-800">Chat de suporte</h1>
           <p className="text-xs text-slate-500">
-            Mensagens dos laboratórios — responda como suporte da plataforma
+            Mensagens em tempo real — responda como suporte da plataforma
           </p>
         </div>
         {totalNaoLidas > 0 && (
@@ -221,39 +258,13 @@ export function SuporteChatMaster() {
                     Nenhuma mensagem nesta conversa.
                   </p>
                 )}
-                {mensagens.map((m) => {
-                  const ehSuporte = m.remetenteTipo === "suporte";
-                  return (
-                    <div
-                      key={m.id}
-                      className={cn("flex", ehSuporte ? "justify-end" : "justify-start")}
-                    >
-                      <div
-                        className={cn(
-                          "max-w-[80%] rounded-lg px-3 py-2 text-xs shadow-sm",
-                          ehSuporte
-                            ? "rounded-br-none bg-[#4a90d9] text-white"
-                            : "rounded-bl-none bg-white text-slate-700"
-                        )}
-                      >
-                        {!ehSuporte && (
-                          <p className="mb-0.5 text-[10px] font-semibold text-slate-500">
-                            {m.remetenteNome}
-                          </p>
-                        )}
-                        <p className="whitespace-pre-wrap break-words">{m.texto}</p>
-                        <p
-                          className={cn(
-                            "mt-1 text-[9px]",
-                            ehSuporte ? "text-white/70" : "text-slate-400"
-                          )}
-                        >
-                          {formatarHora(m.createdAt)}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
+                {mensagens.map((m) => (
+                  <SuporteMensagemBubble
+                    key={m.id}
+                    mensagem={m}
+                    alinhamento={m.remetenteTipo === "suporte" ? "direita" : "esquerda"}
+                  />
+                ))}
               </div>
 
               {erro && (
@@ -262,44 +273,19 @@ export function SuporteChatMaster() {
                 </p>
               )}
 
-              <div className="flex gap-2 border-t border-slate-100 p-3">
-                <textarea
-                  value={texto}
-                  onChange={(e) => setTexto(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      void enviar();
-                    }
-                  }}
-                  rows={2}
-                  placeholder="Responder ao laboratório..."
-                  className="min-h-[44px] flex-1 resize-none rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-[#4a90d9]"
-                />
-                <button
-                  type="button"
-                  onClick={() => void enviar()}
-                  disabled={enviando || !texto.trim()}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#4a90d9] text-white transition hover:bg-[#3a7bc8] disabled:opacity-50"
-                  aria-label="Enviar resposta"
-                >
-                  <Send className="h-4 w-4" />
-                </button>
-              </div>
+              <SuporteChatInput
+                texto={texto}
+                onTextoChange={setTexto}
+                imagemPreview={imagemPreview}
+                onImagemSelecionada={selecionarImagem}
+                onEnviar={() => void enviar()}
+                enviando={enviando}
+                placeholder="Responder ao laboratório..."
+              />
             </>
           )}
         </section>
       </div>
     </div>
   );
-}
-
-function formatarHora(iso: string) {
-  return new Date(iso).toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
 }

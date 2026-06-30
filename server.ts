@@ -5,9 +5,15 @@ import { parse } from "url";
 import next from "next";
 import { Server as SocketIOServer } from "socket.io";
 import { getSessionFromCookieHeader } from "./src/lib/auth-token";
+import { getMasterSessionFromCookieHeader } from "./src/lib/master-auth-token";
 import { prisma } from "./src/lib/db";
 import { requisicaoTvSocket } from "./src/lib/tv/tv-socket-client";
 import { TV_SOCKET_PATH } from "./src/lib/tv/tv-socket-events";
+import {
+  SUPORTE_SOCKET_EVENTS,
+  salaSuporteEmpresa,
+  salaSuporteMaster,
+} from "./src/lib/suporte/suporte-socket-events";
 import {
   conectarPresencaUsuario,
   desconectarPresencaUsuario,
@@ -122,6 +128,22 @@ app
 
       socket.on("tv:subscribe", () => {
         void enviarSyncEmpresa();
+      });
+
+      socket.on(SUPORTE_SOCKET_EVENTS.joinEmpresa, () => {
+        void (async () => {
+          const empresaId = presencaEmpresaId ?? (await registrarPresenca());
+          if (empresaId) await socket.join(salaSuporteEmpresa(empresaId));
+        })();
+      });
+
+      socket.on(SUPORTE_SOCKET_EVENTS.joinMaster, () => {
+        void (async () => {
+          const master = await getMasterSessionFromCookieHeader(
+            socket.handshake.headers.cookie
+          );
+          if (master) await socket.join(salaSuporteMaster());
+        })();
       });
 
       socket.on("disconnect", () => {

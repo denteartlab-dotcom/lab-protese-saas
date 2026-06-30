@@ -1,27 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MessageCircle, Send, X } from "lucide-react";
+import { MessageCircle, X } from "lucide-react";
 import type { SuporteMensagemDto } from "@/lib/suporte-chat";
-import { cn } from "@/lib/utils";
+import { SuporteChatInput } from "@/components/suporte/SuporteChatInput";
+import { SuporteMensagemBubble } from "@/components/suporte/SuporteMensagemBubble";
+import { useSuporteChatRealtime } from "@/hooks/useSuporteChatRealtime";
 
 export const EVENTO_ABRIR_SUPORTE_CHAT = "lab-protese:abrir-suporte-chat";
-
-function formatarHora(iso: string) {
-  return new Date(iso).toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-}
 
 export function SuporteChatWidget() {
   const [aberto, setAberto] = useState(false);
   const [mensagens, setMensagens] = useState<SuporteMensagemDto[]>([]);
   const [suporteEmail, setSuporteEmail] = useState("admin@labprotese.com");
   const [texto, setTexto] = useState("");
+  const [imagemArquivo, setImagemArquivo] = useState<File | null>(null);
+  const [imagemPreview, setImagemPreview] = useState<string | null>(null);
   const [naoLidas, setNaoLidas] = useState(0);
   const [carregando, setCarregando] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -73,8 +67,6 @@ export function SuporteChatWidget() {
 
   useEffect(() => {
     void carregarContagem();
-    const id = window.setInterval(() => void carregarContagem(), 30000);
-    return () => window.clearInterval(id);
   }, [carregarContagem]);
 
   useEffect(() => {
@@ -86,21 +78,51 @@ export function SuporteChatWidget() {
   useEffect(() => {
     if (!aberto) return;
     void carregarMensagens();
-    const id = window.setInterval(() => void carregarMensagens(), 5000);
-    return () => window.clearInterval(id);
   }, [aberto, carregarMensagens]);
+
+  useEffect(() => {
+    return () => {
+      if (imagemPreview) URL.revokeObjectURL(imagemPreview);
+    };
+  }, [imagemPreview]);
+
+  useSuporteChatRealtime({
+    modo: "empresa",
+    ativo: true,
+    chatAberto: aberto,
+    onNovaMensagem: ({ mensagem }) => {
+      setMensagens((prev) => {
+        if (prev.some((m) => m.id === mensagem.id)) return prev;
+        return [...prev, mensagem];
+      });
+      if (!aberto && mensagem.remetenteTipo === "suporte") {
+        setNaoLidas((n) => n + 1);
+      }
+      rolarParaFim();
+    },
+    onNaoLidas: setNaoLidas,
+  });
+
+  function selecionarImagem(file: File | null) {
+    if (imagemPreview) URL.revokeObjectURL(imagemPreview);
+    setImagemArquivo(file);
+    setImagemPreview(file ? URL.createObjectURL(file) : null);
+  }
 
   async function enviar() {
     const msg = texto.trim();
-    if (!msg || enviando) return;
+    if ((!msg && !imagemArquivo) || enviando) return;
 
     setEnviando(true);
     setErro("");
     try {
+      const formData = new FormData();
+      if (msg) formData.append("texto", msg);
+      if (imagemArquivo) formData.append("imagem", imagemArquivo);
+
       const res = await fetch("/api/suporte/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ texto: msg }),
+        body: formData,
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -108,9 +130,13 @@ export function SuporteChatWidget() {
         return;
       }
       setTexto("");
+      selecionarImagem(null);
       const nova = (data as { mensagem?: SuporteMensagemDto }).mensagem;
       if (nova) {
-        setMensagens((prev) => [...prev, nova]);
+        setMensagens((prev) => {
+          if (prev.some((m) => m.id === nova.id)) return prev;
+          return [...prev, nova];
+        });
         rolarParaFim();
       } else {
         await carregarMensagens();
@@ -168,39 +194,13 @@ export function SuporteChatWidget() {
                 Envie uma mensagem para falar com nossa equipe de suporte.
               </p>
             )}
-            {mensagens.map((m) => {
-              const ehSuporte = m.remetenteTipo === "suporte";
-              return (
-                <div
-                  key={m.id}
-                  className={cn("flex", ehSuporte ? "justify-start" : "justify-end")}
-                >
-                  <div
-                    className={cn(
-                      "max-w-[85%] rounded-lg px-3 py-2 text-xs shadow-sm",
-                      ehSuporte
-                        ? "rounded-bl-none bg-white text-slate-700"
-                        : "rounded-br-none bg-[#4a90d9] text-white"
-                    )}
-                  >
-                    {ehSuporte && (
-                      <p className="mb-0.5 text-[10px] font-semibold text-[#4a90d9]">
-                        {m.remetenteNome}
-                      </p>
-                    )}
-                    <p className="whitespace-pre-wrap break-words">{m.texto}</p>
-                    <p
-                      className={cn(
-                        "mt-1 text-[9px]",
-                        ehSuporte ? "text-slate-400" : "text-white/70"
-                      )}
-                    >
-                      {formatarHora(m.createdAt)}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
+            {mensagens.map((m) => (
+              <SuporteMensagemBubble
+                key={m.id}
+                mensagem={m}
+                alinhamento={m.remetenteTipo === "suporte" ? "esquerda" : "direita"}
+              />
+            ))}
           </div>
 
           {erro && (
@@ -209,30 +209,14 @@ export function SuporteChatWidget() {
             </p>
           )}
 
-          <div className="flex gap-2 border-t border-slate-100 bg-white p-3">
-            <textarea
-              value={texto}
-              onChange={(e) => setTexto(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void enviar();
-                }
-              }}
-              rows={2}
-              placeholder="Digite sua mensagem..."
-              className="min-h-[44px] flex-1 resize-none rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-[#4a90d9]"
-            />
-            <button
-              type="button"
-              onClick={() => void enviar()}
-              disabled={enviando || !texto.trim()}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#4a90d9] text-white transition hover:bg-[#3a7bc8] disabled:opacity-50"
-              aria-label="Enviar mensagem"
-            >
-              <Send className="h-4 w-4" />
-            </button>
-          </div>
+          <SuporteChatInput
+            texto={texto}
+            onTextoChange={setTexto}
+            imagemPreview={imagemPreview}
+            onImagemSelecionada={selecionarImagem}
+            onEnviar={() => void enviar()}
+            enviando={enviando}
+          />
         </div>
       )}
     </>

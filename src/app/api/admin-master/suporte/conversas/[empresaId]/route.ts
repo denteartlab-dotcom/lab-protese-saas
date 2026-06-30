@@ -3,6 +3,8 @@ import { exigirMasterAdmin, respostaNaoAutorizadoMaster } from "@/lib/exigir-mas
 import {
   enviarMensagemSuporte,
   listarMensagensMaster,
+  parseCorpoMensagemSuporte,
+  respostaErroMensagemSuporte,
 } from "@/lib/suporte-chat";
 
 export const dynamic = "force-dynamic";
@@ -27,29 +29,13 @@ export async function POST(request: Request, { params }: Params) {
     const { master } = await exigirMasterAdmin();
     const { empresaId } = await params;
 
-    let body: { texto?: string };
-    try {
-      body = await request.json();
-    } catch {
-      return NextResponse.json({ error: "Corpo inválido" }, { status: 400 });
-    }
-
-    const texto = (body.texto ?? "").trim();
-    if (!texto) {
-      return NextResponse.json({ error: "Digite uma mensagem." }, { status: 400 });
-    }
-    if (texto.length > 4000) {
-      return NextResponse.json(
-        { error: "Mensagem muito longa (máx. 4000 caracteres)." },
-        { status: 400 }
-      );
-    }
-
+    const { texto, imagemUrl } = await parseCorpoMensagemSuporte(request, empresaId);
     const mensagem = await enviarMensagemSuporte({
       empresaId,
       masterId: master.id,
       masterNome: master.nome,
       texto,
+      imagemUrl,
     });
 
     return NextResponse.json({ mensagem });
@@ -57,6 +43,7 @@ export async function POST(request: Request, { params }: Params) {
     if (e instanceof Error && e.message === "UNAUTHORIZED") {
       return respostaNaoAutorizadoMaster();
     }
-    return NextResponse.json({ error: "Erro ao enviar mensagem." }, { status: 500 });
+    const resposta = respostaErroMensagemSuporte(e);
+    return NextResponse.json({ error: resposta.error }, { status: resposta.status });
   }
 }

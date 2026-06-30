@@ -71,6 +71,7 @@ model SuporteMensagem {
   remetenteMasterId String?
   remetenteNome     String
   texto             String
+  imagemUrl         String?
   lidaEm            DateTime?
   createdAt         DateTime        @default(now())
 

@@ -4,6 +4,8 @@ import {
   contarNaoLidasEmpresa,
   enviarMensagemUsuario,
   listarMensagensEmpresa,
+  parseCorpoMensagemSuporte,
+  respostaErroMensagemSuporte,
 } from "@/lib/suporte-chat";
 
 export const dynamic = "force-dynamic";
@@ -35,35 +37,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
-  let body: { texto?: string };
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Corpo inválido" }, { status: 400 });
-  }
-
-  const texto = (body.texto ?? "").trim();
-  if (!texto) {
-    return NextResponse.json({ error: "Digite uma mensagem." }, { status: 400 });
-  }
-  if (texto.length > 4000) {
-    return NextResponse.json({ error: "Mensagem muito longa (máx. 4000 caracteres)." }, { status: 400 });
-  }
-
-  try {
+    const { texto, imagemUrl } = await parseCorpoMensagemSuporte(request, ctx.empresaId);
     const mensagem = await enviarMensagemUsuario({
       empresaId: ctx.empresaId,
       empresaNome: ctx.empresaNome,
       userId: ctx.user.id,
       userName: ctx.user.name,
       texto,
+      imagemUrl,
     });
     return NextResponse.json({ mensagem });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Erro ao enviar";
-    if (msg === "TEXTO_VAZIO") {
-      return NextResponse.json({ error: "Digite uma mensagem." }, { status: 400 });
-    }
-    return NextResponse.json({ error: "Erro ao enviar mensagem." }, { status: 500 });
+    const resposta = respostaErroMensagemSuporte(e);
+    return NextResponse.json({ error: resposta.error }, { status: resposta.status });
   }
 }
