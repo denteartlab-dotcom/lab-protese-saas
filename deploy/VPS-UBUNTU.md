@@ -258,7 +258,46 @@ sudo ufw enable
 
 ---
 
-## 13. Renovação automática HTTPS (Let's Encrypt)
+## 13. Domínio denteartlab.com.br (HostGator → VPS)
+
+**Ordem correta** — não copie `nginx-denteartlab.conf` antes do Certbot.
+
+1. No painel HostGator, aponte o DNS do domínio para o IP do VPS:
+   - Registro **A** `@` → `SEU_IP`
+   - Registro **A** `www` → `SEU_IP`
+2. Aguarde a propagação (pode levar até algumas horas).
+3. Na VPS:
+
+```bash
+cd /opt/lab-protese-saas
+git pull origin main
+bash deploy/configurar-nginx-denteartlab.sh        # só HTTP (corrige nginx -t)
+bash deploy/configurar-nginx-denteartlab.sh --ssl  # Certbot + HTTPS
+```
+
+Se já tiver copiado a config SSL e o `nginx -t` falhou com `options-ssl-nginx.conf`:
+
+```bash
+cd /opt/lab-protese-saas
+git pull origin main
+sudo cp deploy/nginx-denteartlab-http.conf /etc/nginx/sites-available/denteartlab
+sudo nginx -t && sudo systemctl reload nginx
+bash deploy/corrigir-ssl-denteartlab.sh
+```
+
+Atualize o `.env` após HTTPS:
+
+```env
+NEXT_PUBLIC_APP_URL=https://www.denteartlab.com.br
+URL_PUBLICA_DO_APP=https://www.denteartlab.com.br
+COOKIE_SECURE=true
+```
+
+Reinicie: `pm2 restart lab-protese`
+
+---
+
+## 14. Renovação automática HTTPS (Let's Encrypt)
 
 O Certbot no Ubuntu agenda renovação sozinho. Na VPS, confirme uma vez:
 

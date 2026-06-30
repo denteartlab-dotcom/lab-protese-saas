@@ -28,6 +28,16 @@ echo "==> Instalar Certbot (se necessário)"
 sudo apt-get update -qq
 sudo apt-get install -y certbot python3-certbot-nginx
 
+if [[ ! -f "${CERT_DIR}/fullchain.pem" ]]; then
+  echo ""
+  echo "==> Certificado ainda não existe — ativar Nginx HTTP antes do Certbot"
+  sudo cp "$APP_DIR/deploy/nginx-denteartlab-http.conf" "$NGINX_SITE"
+  sudo ln -sf "$NGINX_SITE" /etc/nginx/sites-enabled/denteartlab
+  sudo rm -f /etc/nginx/sites-enabled/default
+  sudo nginx -t
+  sudo systemctl reload nginx
+fi
+
 echo ""
 echo "==> Certificados atuais"
 sudo certbot certificates 2>/dev/null || true
