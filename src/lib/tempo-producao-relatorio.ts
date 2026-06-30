@@ -128,9 +128,9 @@ export const STATUS_TEMPO_PRODUCAO: Record<
   },
   critico: {
     label: "Crítico",
-    cor: "text-red-700",
-    bg: "bg-red-50",
-    border: "border-red-200",
+    cor: "text-red-700 dark:text-red-300",
+    bg: "bg-red-50 dark:bg-red-950/45",
+    border: "border-red-400 dark:border-red-600",
   },
 };
 
@@ -138,10 +138,24 @@ export const PRIORIDADE_TEMPO_PRODUCAO: Record<
   PrioridadeTempoProducao,
   { label: string; className: string }
 > = {
-  urgente: { label: "Urgente", className: "bg-red-100 text-red-800" },
-  alta: { label: "Alta", className: "bg-orange-100 text-orange-800" },
-  normal: { label: "Normal", className: "bg-sky-100 text-sky-800" },
-  baixa: { label: "Baixa", className: "bg-slate-100 text-slate-600" },
+  urgente: {
+    label: "Urgente",
+    className:
+      "bg-red-600 font-bold text-white shadow-sm dark:bg-red-500 dark:text-white",
+  },
+  alta: {
+    label: "Alta",
+    className:
+      "bg-amber-400 font-bold text-amber-950 shadow-sm ring-1 ring-amber-500/40 dark:bg-amber-300 dark:text-amber-950 dark:ring-amber-200/50",
+  },
+  normal: {
+    label: "Normal",
+    className: "bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-200",
+  },
+  baixa: {
+    label: "Baixa",
+    className: "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300",
+  },
 };
 
 const hoje = () => startOfDay(new Date());

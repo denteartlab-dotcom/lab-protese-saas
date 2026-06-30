@@ -149,15 +149,22 @@ export function ProductionTimeTable({
                 const st = STATUS_TEMPO_PRODUCAO[linha.status];
                 const pr = PRIORIDADE_TEMPO_PRODUCAO[linha.prioridade];
                 const paradoDestaque = linha.paradoMuitoTempo;
+                const ehCritico = linha.status === "critico";
                 return (
                   <tr
                     key={linha.id}
                     className={cn(
                       "transition border-l-4",
-                      st.bg,
-                      st.border,
-                      paradoDestaque && "ring-1 ring-inset ring-amber-300 dark:ring-amber-700",
-                      "hover:bg-slate-50/80 dark:hover:bg-slate-700/30"
+                      ehCritico
+                        ? cn(st.bg, st.border)
+                        : "border-l-slate-200 bg-white dark:border-l-slate-600 dark:bg-slate-900/25",
+                      paradoDestaque &&
+                        (ehCritico
+                          ? "ring-1 ring-inset ring-amber-400/60 dark:ring-amber-600/50"
+                          : "ring-1 ring-inset ring-amber-300 dark:ring-amber-700/60"),
+                      ehCritico
+                        ? "hover:bg-red-100/70 dark:hover:bg-red-950/55"
+                        : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
                     )}
                   >
                     <td className="px-3 py-2.5 font-bold text-slate-800 dark:text-slate-100">
@@ -218,8 +225,9 @@ export function ProductionTimeTable({
                       <span
                         className={cn(
                           "inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase",
-                          st.bg,
-                          st.cor
+                          ehCritico
+                            ? cn(st.bg, st.cor, "ring-1 ring-red-200 dark:ring-red-800")
+                            : cn(st.bg, st.cor)
                         )}
                       >
                         {st.label}
