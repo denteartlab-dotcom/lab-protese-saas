@@ -47,6 +47,7 @@ import { analisarCaminhoApp, ehPaginaInicioApp } from "@/lib/rotas-app";
 import {
   BarChart3,
   CheckSquare,
+  ChevronDown,
   ClipboardList,
   Home,
   LockKeyhole,
@@ -96,6 +97,20 @@ type LancamentoBuscaOs = {
   descricao: string;
   trabalho?: { numeroOs?: number | null } | null;
 };
+
+/** Estilo do menu principal (referência Smart Prótese). */
+const CLASSE_NAV_MENU =
+  "flex items-center gap-2 rounded px-3 py-2 text-[14px] leading-none transition";
+const CLASSE_NAV_ATIVO =
+  "bg-[#5c85d6] font-bold text-white shadow-[0_2px_4px_rgba(0,0,0,0.1)]";
+const CLASSE_NAV_INATIVO =
+  "font-normal text-[#555566] hover:bg-black/[0.04] hover:text-[#444455]";
+const CLASSE_NAV_ICONE = "h-4 w-4 shrink-0";
+const CLASSE_NAV_CHEVRON = "ml-0.5 h-3 w-3 shrink-0 opacity-75";
+
+function classeItemNavPrincipal(ativo: boolean) {
+  return cn(CLASSE_NAV_MENU, ativo ? CLASSE_NAV_ATIVO : CLASSE_NAV_INATIVO);
+}
 
 export function AppShell({
   userName,
@@ -692,8 +707,8 @@ function AppShellInner({
             }
           />
 
-          <header className="hidden border-b border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:block">
-            <nav className="flex min-h-[3.375rem] items-center justify-start gap-1 px-4 pl-5">
+          <header className="hidden border-b border-[#e8eaed] bg-[#f8f9fa] lg:block">
+            <nav className="flex min-h-[44px] items-center justify-start gap-8 px-5 font-sans antialiased">
             {podeVerMenu("/app") &&
               appNavPrincipal.filter((item) => item.labelKey === "nav.inicio").map((item) => {
               const active = ehPaginaInicioApp(pathname);
@@ -701,14 +716,9 @@ function AppShellInner({
                 <Link
                   key={`${item.href}-${item.labelKey}`}
                   href={item.href}
-                  className={cn(
-                    "flex items-center gap-2 rounded-md px-3.5 py-1.5 text-[19px] font-medium leading-none transition",
-                    active
-                      ? "bg-primary-50 text-primary-700"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                  )}
+                  className={classeItemNavPrincipal(active)}
                 >
-                  <item.icon className="h-[18px] w-[18px] shrink-0" />
+                  <item.icon className={CLASSE_NAV_ICONE} strokeWidth={active ? 2.25 : 2} />
                   {t(item.labelKey)}
                 </Link>
               );
@@ -717,15 +727,13 @@ function AppShellInner({
             <div className="group relative">
               <Link
                 href={primeiroHrefPermitidoNav(acessoTotal, permissoesModulos, producaoNav) || "/app/producao"}
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-3.5 py-1.5 text-[19px] font-medium leading-none transition",
+                className={classeItemNavPrincipal(
                   pathname.startsWith("/app/producao") || pathname.startsWith("/app/trabalhos")
-                    ? "bg-primary-600 text-white"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 )}
               >
-                <ClipboardList className="h-[18px] w-[18px] shrink-0" />
-                {t("nav.producao")} ▾
+                <ClipboardList className={CLASSE_NAV_ICONE} strokeWidth={2} />
+                <span>{t("nav.producao")}</span>
+                <ChevronDown className={CLASSE_NAV_CHEVRON} />
               </Link>
               <div className="invisible absolute left-0 top-full z-40 w-56 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
                 {producaoNav.filter((item) => podeVerMenu(item.href)).map((item) => (
@@ -745,15 +753,11 @@ function AppShellInner({
             <div className="group relative">
               <Link
                 href={primeiroHrefPermitidoNav(acessoTotal, permissoesModulos, financeiroNav) || "/app/financeiro"}
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-3.5 py-1.5 text-[19px] font-medium leading-none transition",
-                  pathname.startsWith("/app/financeiro")
-                    ? "bg-primary-600 text-white shadow-md shadow-primary-600/25"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                )}
+                className={classeItemNavPrincipal(pathname.startsWith("/app/financeiro"))}
               >
-                <Wallet className="h-[18px] w-[18px] shrink-0" />
-                {t("nav.financeiro")} ▾
+                <Wallet className={CLASSE_NAV_ICONE} strokeWidth={2} />
+                <span>{t("nav.financeiro")}</span>
+                <ChevronDown className={CLASSE_NAV_CHEVRON} />
               </Link>
               <div className="invisible absolute left-0 top-full z-40 w-56 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
                 {financeiroNav.filter((item) => podeVerMenu(item.href)).map((item) => (
@@ -773,15 +777,13 @@ function AppShellInner({
             <div className="group relative">
               <Link
                 href={primeiroHrefPermitidoNav(acessoTotal, permissoesModulos, cadastrosNav) || "/app/clientes"}
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-3.5 py-1.5 text-[19px] font-medium leading-none transition",
+                className={classeItemNavPrincipal(
                   pathname.startsWith("/app/clientes") || pathname.startsWith("/app/cadastros")
-                    ? "bg-primary-600 text-white"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 )}
               >
-                <Users className="h-[18px] w-[18px] shrink-0" />
-                {t("nav.cadastros")} ▾
+                <Users className={CLASSE_NAV_ICONE} strokeWidth={2} />
+                <span>{t("nav.cadastros")}</span>
+                <ChevronDown className={CLASSE_NAV_CHEVRON} />
               </Link>
               <div className="invisible absolute left-0 top-full z-40 w-64 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
                 {cadastrosNav.filter((item) => podeVerMenu(item.href)).map((item) => (
@@ -801,15 +803,13 @@ function AppShellInner({
             <div className="group relative">
               <Link
                 href={primeiroHrefPermitidoNav(acessoTotal, permissoesModulos, estoqueNav) || "/app/produtos"}
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-3.5 py-1.5 text-[19px] font-medium leading-none transition",
+                className={classeItemNavPrincipal(
                   pathname.startsWith("/app/produtos") || pathname.startsWith("/app/orcamentos")
-                    ? "bg-primary-600 text-white"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 )}
               >
-                <Package className="h-[18px] w-[18px] shrink-0" />
-                {t("nav.estoque")} ▾
+                <Package className={CLASSE_NAV_ICONE} strokeWidth={2} />
+                <span>{t("nav.estoque")}</span>
+                <ChevronDown className={CLASSE_NAV_CHEVRON} />
               </Link>
               <div className="invisible absolute left-0 top-full z-40 w-48 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
                 {estoqueNav.filter((item) => podeVerMenu(item.href)).map((item) => (
@@ -835,15 +835,11 @@ function AppShellInner({
                     relatoriosNav as typeof producaoNav
                   ) || "/app/relatorios/fluxo-de-caixa"
                 }
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-3.5 py-1.5 text-[19px] font-medium leading-none transition",
-                  pathname.startsWith("/app/relatorios")
-                    ? "bg-primary-600 text-white"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                )}
+                className={classeItemNavPrincipal(pathname.startsWith("/app/relatorios"))}
               >
-                <BarChart3 className="h-[18px] w-[18px] shrink-0" />
-                {t("nav.relatorios")} ▾
+                <BarChart3 className={CLASSE_NAV_ICONE} strokeWidth={2} />
+                <span>{t("nav.relatorios")}</span>
+                <ChevronDown className={CLASSE_NAV_CHEVRON} />
               </Link>
               <div className="invisible absolute left-0 top-full z-40 w-56 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
                 {relatoriosNav.filter((item) => podeVerMenu(item.href)).map((item) => (
@@ -863,14 +859,14 @@ function AppShellInner({
               <Link
                 href="/admin-master"
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-3.5 py-1.5 text-[19px] font-medium leading-none transition",
+                  CLASSE_NAV_MENU,
                   pathname.startsWith("/admin-master")
-                    ? "bg-violet-600 text-white"
-                    : "text-slate-600 hover:bg-violet-50 hover:text-violet-700"
+                    ? "bg-violet-600 font-bold text-white shadow-[0_2px_4px_rgba(0,0,0,0.1)]"
+                    : CLASSE_NAV_INATIVO
                 )}
                 title={userEmail ?? "Master"}
               >
-                <Shield className="h-[18px] w-[18px] shrink-0" />
+                <Shield className={CLASSE_NAV_ICONE} strokeWidth={2} />
                 Gerenciar Sistema
               </Link>
             )}
@@ -884,14 +880,9 @@ function AppShellInner({
                 <Link
                   key={`${item.href}-${item.labelKey}`}
                   href={item.href}
-                  className={cn(
-                    "flex items-center gap-2 rounded-md px-3.5 py-1.5 text-[19px] font-medium leading-none transition",
-                    active
-                      ? "bg-primary-50 text-primary-700"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                  )}
+                  className={classeItemNavPrincipal(active)}
                 >
-                  <item.icon className="h-[18px] w-[18px] shrink-0" />
+                  <item.icon className={CLASSE_NAV_ICONE} strokeWidth={2} />
                   {t(item.labelKey)}
                 </Link>
               );
