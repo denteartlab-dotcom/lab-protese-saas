@@ -13,6 +13,7 @@ DOMAIN="denteartlab.com.br"
 WWW="www.denteartlab.com.br"
 NGINX_SITE="/etc/nginx/sites-available/denteartlab"
 CERT_DIR="/etc/letsencrypt/live/${DOMAIN}"
+WEBROOT="/var/www/certbot"
 
 cd "$APP_DIR"
 
@@ -24,57 +25,56 @@ if [[ -z "$CERTBOT_EMAIL" ]]; then
   CERTBOT_EMAIL="admin@${DOMAIN}"
 fi
 
-echo "==> Instalar Certbot (se necessário)"
-sudo apt-get update -qq
-sudo apt-get install -y certbot python3-certbot-nginx
-
-if [[ ! -f "${CERT_DIR}/fullchain.pem" ]]; then
+aplicar_nginx_https() {
   echo ""
-  echo "==> Certificado ainda não existe — ativar Nginx HTTP antes do Certbot"
-  sudo cp "$APP_DIR/deploy/nginx-denteartlab-http.conf" "$NGINX_SITE"
+  echo "==> Aplicar Nginx HTTPS (${NGINX_SITE})"
+  sudo cp "$APP_DIR/deploy/nginx-denteartlab.conf" "$NGINX_SITE"
   sudo ln -sf "$NGINX_SITE" /etc/nginx/sites-enabled/denteartlab
   sudo rm -f /etc/nginx/sites-enabled/default
   sudo nginx -t
   sudo systemctl reload nginx
-fi
+}
+
+echo "==> Instalar Certbot (se necessário)"
+sudo apt-get update -qq
+sudo apt-get install -y certbot
 
 echo ""
 echo "==> Certificados atuais"
 sudo certbot certificates 2>/dev/null || true
 
-echo ""
-echo "==> Remover ambiente beta (certificado e PM2)"
-SKIP_NGINX=1 bash "$APP_DIR/deploy/remover-beta-vps.sh"
-
-echo ""
-echo "==> Emitir/expandir certificado para ${DOMAIN} + ${WWW}"
 if [[ -f "${CERT_DIR}/fullchain.pem" ]]; then
-  sudo certbot certonly --nginx --non-interactive --agree-tos --expand \
-    -m "$CERTBOT_EMAIL" \
-    -d "$DOMAIN" -d "$WWW" \
-    || sudo certbot certonly --nginx --non-interactive --agree-tos --force-renewal \
-    -m "$CERTBOT_EMAIL" \
-    -d "$DOMAIN" -d "$WWW"
+  echo ""
+  echo "==> Certificado Let's Encrypt já existe — só aplicar Nginx HTTPS"
+  aplicar_nginx_https
 else
-  sudo certbot certonly --nginx --non-interactive --agree-tos \
+  echo ""
+  echo "==> Remover ambiente beta (certificado e PM2)"
+  SKIP_NGINX=1 bash "$APP_DIR/deploy/remover-beta-vps.sh" || true
+
+  echo ""
+  echo "==> Nginx HTTP limpo (antes do Certbot)"
+  sudo cp "$APP_DIR/deploy/nginx-denteartlab-http.conf" "$NGINX_SITE"
+  sudo ln -sf "$NGINX_SITE" /etc/nginx/sites-enabled/denteartlab
+  sudo rm -f /etc/nginx/sites-enabled/default
+  sudo mkdir -p "$WEBROOT"
+  sudo nginx -t
+  sudo systemctl reload nginx
+
+  echo ""
+  echo "==> Emitir certificado (webroot — não altera o Nginx)"
+  sudo certbot certonly --webroot --non-interactive --agree-tos \
+    -w "$WEBROOT" \
     -m "$CERTBOT_EMAIL" \
     -d "$DOMAIN" -d "$WWW"
+
+  if [[ ! -f "${CERT_DIR}/fullchain.pem" ]]; then
+    echo "ERRO: certificado não encontrado em ${CERT_DIR}"
+    exit 1
+  fi
+
+  aplicar_nginx_https
 fi
-
-if [[ ! -f "${CERT_DIR}/fullchain.pem" ]]; then
-  echo "ERRO: certificado não encontrado em ${CERT_DIR}"
-  exit 1
-fi
-
-echo ""
-echo "==> Atualizar Nginx (${NGINX_SITE})"
-sudo cp "$APP_DIR/deploy/nginx-denteartlab.conf" "$NGINX_SITE"
-sudo ln -sf "$NGINX_SITE" /etc/nginx/sites-enabled/denteartlab
-
-echo ""
-echo "==> Testar e recarregar Nginx"
-sudo nginx -t
-sudo systemctl reload nginx
 
 echo ""
 echo "==> Renovação automática"
@@ -90,4 +90,10 @@ else
 fi
 
 echo ""
-echo "Pronto. Abra https://${WWW}/app no navegador."
+echo "Atualize o .env:"
+echo "  NEXT_PUBLIC_APP_URL=https://${WWW}"
+echo "  URL_PUBLICA_DO_APP=https://${WWW}"
+echo "  COOKIE_SECURE=true"
+echo "Depois: pm2 restart lab-protese --update-env"
+echo ""
+echo "Pronto. Abra https://${WWW}/login no navegador."
