@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { AppMobileNav, BotaoMenuMobile } from "@/components/AppMobileNav";
@@ -110,12 +110,21 @@ const CLASSE_NAV_INATIVO =
 const CLASSE_NAV_ICONE = "h-4 w-4 shrink-0";
 const CLASSE_NAV_CHEVRON = "ml-0.5 h-3 w-3 shrink-0 opacity-75";
 const CLASSE_NAV_DROPDOWN =
-  "invisible absolute left-0 top-full z-40 rounded-md border border-slate-200 bg-white py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900";
+  "absolute left-0 top-full z-40 rounded-md border border-slate-200 bg-white py-2 shadow-xl transition dark:border-slate-700 dark:bg-slate-900";
 const CLASSE_NAV_DROPDOWN_LINK =
   "flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-primary-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-primary-400";
 
 function classeItemNavPrincipal(ativo: boolean) {
   return cn(CLASSE_NAV_MENU, ativo ? CLASSE_NAV_ATIVO : CLASSE_NAV_INATIVO);
+}
+
+function classeMenuNavDropdown(aberto: boolean) {
+  return cn(
+    CLASSE_NAV_DROPDOWN,
+    aberto
+      ? "visible translate-y-0 opacity-100"
+      : "invisible pointer-events-none opacity-0"
+  );
 }
 
 export function AppShell({
@@ -212,6 +221,8 @@ function AppShellInner({
   const isDashboard = ehPaginaInicioApp(pathname);
   const [darkMode, setDarkMode] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [menuNavAberto, setMenuNavAberto] = useState<string | null>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const [buscaSiteAberta, setBuscaSiteAberta] = useState(false);
   const [buscaOsAberta, setBuscaOsAberta] = useState(false);
   const [buscaOs, setBuscaOs] = useState("");
@@ -268,12 +279,38 @@ function AppShellInner({
 
   useEffect(() => {
     setUserMenuOpen(false);
+    setMenuNavAberto(null);
     setMenuMobileAberto(false);
     if (!ehPaginaInicioApp(pathname)) {
       setBuscaOsAberta(false);
       setBuscaPacienteAberta(false);
     }
   }, [pathname]);
+
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    function fecharMenuUsuario(event: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", fecharMenuUsuario);
+    return () => document.removeEventListener("mousedown", fecharMenuUsuario);
+  }, [userMenuOpen]);
+
+  const abrirMenuNav = useCallback((id: string) => {
+    setUserMenuOpen(false);
+    setMenuNavAberto(id);
+  }, []);
+
+  const fecharMenusNav = useCallback(() => {
+    setMenuNavAberto(null);
+  }, []);
+
+  const alternarMenuUsuario = useCallback(() => {
+    setMenuNavAberto(null);
+    setUserMenuOpen((atual) => !atual);
+  }, []);
 
   useEffect(() => {
     if (!buscaOsAberta) return;
@@ -634,10 +671,10 @@ function AppShellInner({
                   <ConfiguracoesGearMenu />
                 </Suspense>
                 <NotificationsBell />
-                <div className="relative">
+                <div className="relative" ref={userMenuRef}>
                   <button
                     type="button"
-                    onClick={() => setUserMenuOpen((current) => !current)}
+                    onClick={alternarMenuUsuario}
                     className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition hover:bg-black/5 dark:hover:bg-white/10"
                     aria-expanded={userMenuOpen}
                     aria-label="Abrir menu do usuário"
@@ -716,7 +753,10 @@ function AppShellInner({
           />
 
           <header className="hidden border-b border-[#e8eaed] bg-[#f8f9fa] dark:border-slate-700 dark:bg-slate-900 lg:block">
-            <nav className="flex min-h-[44px] items-center justify-start gap-8 px-5 font-sans antialiased">
+            <nav
+              className="flex min-h-[44px] items-center justify-start gap-8 px-5 font-sans antialiased"
+              onMouseLeave={fecharMenusNav}
+            >
             {podeVerMenu("/app") &&
               appNavPrincipal.filter((item) => item.labelKey === "nav.inicio").map((item) => {
               const active = ehPaginaInicioApp(pathname);
@@ -724,6 +764,7 @@ function AppShellInner({
                 <Link
                   key={`${item.href}-${item.labelKey}`}
                   href={item.href}
+                  onMouseEnter={fecharMenusNav}
                   className={classeItemNavPrincipal(active)}
                 >
                   <item.icon className={CLASSE_NAV_ICONE} strokeWidth={active ? 2.25 : 2} />
@@ -732,7 +773,10 @@ function AppShellInner({
               );
             })}
             {navGrupoTemAcesso(acessoTotal, permissoesModulos, producaoNav) && (
-            <div className="group relative">
+            <div
+              className="relative"
+              onMouseEnter={() => abrirMenuNav("producao")}
+            >
               <Link
                 href={primeiroHrefPermitidoNav(acessoTotal, permissoesModulos, producaoNav) || "/app/producao"}
                 className={classeItemNavPrincipal(
@@ -746,7 +790,7 @@ function AppShellInner({
                 <span>{t("nav.producao")}</span>
                 <ChevronDown className={CLASSE_NAV_CHEVRON} />
               </Link>
-              <div className={cn(CLASSE_NAV_DROPDOWN, "w-56")}>
+              <div className={cn(classeMenuNavDropdown(menuNavAberto === "producao"), "w-56")}>
                 {producaoNav.filter((item) => podeVerMenu(item.href)).map((item) => (
                     <Link
                       key={item.href}
@@ -761,7 +805,10 @@ function AppShellInner({
             </div>
             )}
             {navGrupoTemAcesso(acessoTotal, permissoesModulos, financeiroNav) && (
-            <div className="group relative">
+            <div
+              className="relative"
+              onMouseEnter={() => abrirMenuNav("financeiro")}
+            >
               <Link
                 href={primeiroHrefPermitidoNav(acessoTotal, permissoesModulos, financeiroNav) || "/app/financeiro"}
                 className={classeItemNavPrincipal(menuAppSecaoAtiva(pathname, "/financeiro"))}
@@ -773,7 +820,7 @@ function AppShellInner({
                 <span>{t("nav.financeiro")}</span>
                 <ChevronDown className={CLASSE_NAV_CHEVRON} />
               </Link>
-              <div className={cn(CLASSE_NAV_DROPDOWN, "w-56")}>
+              <div className={cn(classeMenuNavDropdown(menuNavAberto === "financeiro"), "w-56")}>
                 {financeiroNav.filter((item) => podeVerMenu(item.href)).map((item) => (
                     <Link
                       key={item.href}
@@ -817,7 +864,10 @@ function AppShellInner({
             </div>
             )}
             {navGrupoTemAcesso(acessoTotal, permissoesModulos, estoqueNav) && (
-            <div className="group relative">
+            <div
+              className="relative"
+              onMouseEnter={() => abrirMenuNav("estoque")}
+            >
               <Link
                 href={primeiroHrefPermitidoNav(acessoTotal, permissoesModulos, estoqueNav) || "/app/produtos"}
                 className={classeItemNavPrincipal(
@@ -831,7 +881,7 @@ function AppShellInner({
                 <span>{t("nav.estoque")}</span>
                 <ChevronDown className={CLASSE_NAV_CHEVRON} />
               </Link>
-              <div className={cn(CLASSE_NAV_DROPDOWN, "w-48")}>
+              <div className={cn(classeMenuNavDropdown(menuNavAberto === "estoque"), "w-48")}>
                 {estoqueNav.filter((item) => podeVerMenu(item.href)).map((item) => (
                     <Link
                       key={item.href}
@@ -846,7 +896,10 @@ function AppShellInner({
             </div>
             )}
             {navGrupoTemAcesso(acessoTotal, permissoesModulos, relatoriosNav as typeof producaoNav) && (
-            <div className="group relative">
+            <div
+              className="relative"
+              onMouseEnter={() => abrirMenuNav("relatorios")}
+            >
               <Link
                 href={
                   primeiroHrefPermitidoNav(
@@ -864,7 +917,7 @@ function AppShellInner({
                 <span>{t("nav.relatorios")}</span>
                 <ChevronDown className={CLASSE_NAV_CHEVRON} />
               </Link>
-              <div className={cn(CLASSE_NAV_DROPDOWN, "w-56")}>
+              <div className={cn(classeMenuNavDropdown(menuNavAberto === "relatorios"), "w-56")}>
                 {relatoriosNav.filter((item) => podeVerMenu(item.href)).map((item) => (
                     <Link
                       key={item.href}
@@ -881,6 +934,7 @@ function AppShellInner({
             {isMasterAdmin && (
               <Link
                 href="/admin-master"
+                onMouseEnter={fecharMenusNav}
                 className={cn(
                   CLASSE_NAV_MENU,
                   pathname.startsWith("/admin-master")
@@ -903,6 +957,7 @@ function AppShellInner({
                 <Link
                   key={`${item.href}-${item.labelKey}`}
                   href={item.href}
+                  onMouseEnter={fecharMenusNav}
                   className={classeItemNavPrincipal(active)}
                 >
                   <item.icon className={CLASSE_NAV_ICONE} strokeWidth={2} />
