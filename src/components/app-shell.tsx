@@ -835,7 +835,10 @@ function AppShellInner({
             </div>
             )}
             {navGrupoTemAcesso(acessoTotal, permissoesModulos, cadastrosNav) && (
-            <div className="group relative">
+            <div
+              className="relative"
+              onMouseEnter={() => abrirMenuNav("cadastros")}
+            >
               <Link
                 href={primeiroHrefPermitidoNav(acessoTotal, permissoesModulos, cadastrosNav) || "/app/clientes"}
                 className={classeItemNavPrincipal(
@@ -849,7 +852,7 @@ function AppShellInner({
                 <span>{t("nav.cadastros")}</span>
                 <ChevronDown className={CLASSE_NAV_CHEVRON} />
               </Link>
-              <div className={cn(CLASSE_NAV_DROPDOWN, "w-64")}>
+              <div className={cn(classeMenuNavDropdown(menuNavAberto === "cadastros"), "w-64")}>
                 {cadastrosNav.filter((item) => podeVerMenu(item.href)).map((item) => (
                     <Link
                       key={item.href}
