@@ -1,3 +1,7 @@
+import {
+  ordenarClientesSemServicoPorMenosTempo,
+  type ClienteSemServicoItem,
+} from "@/lib/dashboard-clientes-servico";
 import { formatarPercentualCurvaAbc, type ResultadoCurvaAbcClientes } from "@/lib/curva-abc-clientes";
 import type { LinhaRelatorioDespesa } from "@/lib/relatorio-despesas";
 import type {
@@ -22,12 +26,32 @@ import {
   type LinhaTempoProducao,
 } from "@/lib/tempo-producao-relatorio";
 import { gerarRelatorioTabelaPdf } from "@/lib/pdf-relatorio-tabela";
-import { normalizarColaborador } from "@/lib/utils";
+import { formatDate, normalizarColaborador } from "@/lib/utils";
 
 function money(value: number) {
   return value.toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
+  });
+}
+
+export async function gerarClientesSemServicoPdf(
+  titulo: string,
+  diasMinimos: number,
+  lista: ClienteSemServicoItem[]
+) {
+  const ordenada = ordenarClientesSemServicoPorMenosTempo(lista);
+  return gerarRelatorioTabelaPdf({
+    tituloRelatorio: titulo,
+    periodoTexto: `Não solicita serviço há mais de ${diasMinimos} dias`,
+    colunas: [
+      { titulo: "Cliente", larguraMm: 120, alinhamento: "left" },
+      { titulo: "Data último", larguraMm: 56, alinhamento: "right" },
+    ],
+    linhas: ordenada.map((cliente) => [
+      cliente.nome,
+      cliente.ultimoServicoEm ? formatDate(cliente.ultimoServicoEm) : "—",
+    ]),
   });
 }
 
