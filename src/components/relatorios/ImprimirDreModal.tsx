@@ -84,14 +84,10 @@ export function ImprimirDreModal({
     const janela = prepararAbaPdf();
     try {
       const lancamentos = matriz.lancamentos ?? [];
-      const titulo = `Demonstrativo de Resultado ${mesIndex + 1}/${ano}`;
 
       if (dreMesSemDados(lancamentos, ano, mesIndex)) {
-        await abrirPdfViewerMensagem(
-          titulo,
-          "Não há lançamentos no período selecionado.",
-          { janela, subtitulo: "Relatórios", vazio: true }
-        );
+        janela?.close();
+        alert("Não há lançamentos no período selecionado.");
         onClose();
         return;
       }
