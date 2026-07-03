@@ -336,19 +336,14 @@ export function salvarConfigLaboratorio(config: ConfigLaboratorio) {
 /** Atualiza espelho em memória com dados do servidor (sem regravar no banco). */
 export function hidratarConfigLaboratorioCache(config: ConfigLaboratorio) {
   if (typeof window === "undefined") return;
-  const atual = carregarConfigLaboratorio();
+  // Servidor é a fonte da verdade — não herdar logo de cache de outro tenant.
   const preparado = prepararConfigParaSalvar(config);
-  const logoDataUrl =
-    preparado.logoDataUrl?.trim() || atual.logoDataUrl?.trim() || "";
-  const logoTamanho = preparado.logoDataUrl?.trim()
-    ? preparado.logoTamanho
-    : atual.logoDataUrl?.trim()
-      ? atual.logoTamanho
-      : preparado.logoTamanho;
   aplicarEspelhoServidor(chaveStorageLaboratorio(), {
     ...preparado,
-    logoDataUrl,
-    logoTamanho,
+    logoDataUrl: preparado.logoDataUrl?.trim() || "",
+    logoTamanho: preparado.logoDataUrl?.trim()
+      ? preparado.logoTamanho
+      : LOGO_TAMANHO_PADRAO,
   });
   window.dispatchEvent(new Event(LAB_CONFIG_ATUALIZADA_EVENT));
 }

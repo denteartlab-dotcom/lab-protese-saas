@@ -2027,7 +2027,9 @@ export default function OrdemServicoPage() {
         type="button"
         onClick={() => toggleDente(dente)}
         className={`group flex w-7 flex-col items-center gap-0.5 rounded px-0.5 py-1 transition ${
-          selected ? "bg-emerald-50 text-emerald-700" : "text-slate-500 hover:bg-slate-50"
+          selected
+            ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+            : "text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
         }`}
         title={`Dente ${dente}`}
       >
@@ -3355,11 +3357,11 @@ export default function OrdemServicoPage() {
 
   function renderItensAdicionados() {
     return (
-      <div className="mt-4 rounded border border-slate-200 bg-white p-3">
+      <div className="mt-4 rounded border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
         <div className="mb-3 text-center">
-          <span className="font-medium text-slate-600">Itens Adicionados</span>
+          <span className="font-medium text-slate-600 dark:text-slate-300">Itens Adicionados</span>
         </div>
-        <div className="mb-2 flex justify-end text-[11px] text-slate-600">
+        <div className="mb-2 flex justify-end text-[11px] text-slate-600 dark:text-slate-300">
           <span>
             Total Serviços:{" "}
             {totalItensOs.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
@@ -3368,7 +3370,7 @@ export default function OrdemServicoPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-[11px]">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
+              <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
                 <th className="px-3 py-2 text-left font-medium uppercase">Serviço/Produto</th>
                 <th className="px-3 py-2 text-left font-medium uppercase">Número Dente</th>
                 <th className="px-3 py-2 text-left font-medium uppercase">Cor Dente</th>
@@ -3379,10 +3381,10 @@ export default function OrdemServicoPage() {
                 <th className="px-3 py-2 text-center font-medium uppercase">Opções</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
               {itensAdicionados.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-3 py-5 text-center text-slate-400">
+                  <td colSpan={8} className="px-3 py-5 text-center text-slate-400 dark:text-slate-400">
                     Nenhum serviço adicionado para conferência.
                   </td>
                 </tr>
@@ -3393,11 +3395,13 @@ export default function OrdemServicoPage() {
                   onClick={() => {
                     if (editId) selecionarItem(item);
                   }}
-                  className={`${editId ? "cursor-pointer hover:bg-blue-50" : ""} odd:bg-slate-50/60 ${
-                    itemSelecionadoId === item.id ? "bg-blue-100 ring-1 ring-blue-300" : ""
+                  className={`${editId ? "cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-800" : ""} odd:bg-slate-50/60 dark:odd:bg-slate-800/40 ${
+                    itemSelecionadoId === item.id
+                      ? "bg-blue-100 ring-1 ring-blue-300 dark:bg-blue-950/50 dark:ring-blue-700"
+                      : ""
                   }`}
                 >
-                  <td className="px-3 py-2 text-slate-700">
+                  <td className="px-3 py-2 text-slate-700 dark:text-slate-200">
                     <div className="flex flex-wrap items-center gap-2">
                       <span>{nomeExibicaoItemOs(item)}</span>
                       {item.urgente && (
@@ -3412,34 +3416,34 @@ export default function OrdemServicoPage() {
                       )}
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-slate-600">
+                  <td className="px-3 py-2 text-slate-600 dark:text-slate-300">
                     {itemUsaCamposOdontologicos(item) ? exibirTexto(item.numeroDente) : ""}
                   </td>
-                  <td className="px-3 py-2 text-slate-600">
+                  <td className="px-3 py-2 text-slate-600 dark:text-slate-300">
                     {itemUsaCamposOdontologicos(item) ? exibirTexto(item.corDente) : ""}
                   </td>
-                  <td className="px-3 py-2 text-slate-600">{item.quantidade}</td>
-                  <td className="px-3 py-2 text-slate-600">{formatarDescontoItemOs(item)}</td>
+                  <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{item.quantidade}</td>
+                  <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{formatarDescontoItemOs(item)}</td>
                   <td className="px-3 py-2">
                     {itemExibeBadgeProduto(item) ? (
                       <span className="inline-flex items-center rounded-full bg-slate-600 px-2.5 py-1 text-[10px] font-semibold text-white">
                         Produto
                       </span>
                     ) : itemExibeBadgeTransporte(item) ? (
-                      <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
+                      <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-200">
                         Transporte
                       </span>
                     ) : (
                       <span
                         className={`rounded px-2 py-1 text-[10px] font-semibold ${
-                          STATUS_TRABALHO[item.situacao || ""]?.color || "bg-slate-100 text-slate-700"
+                          STATUS_TRABALHO[item.situacao || ""]?.color || "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200"
                         }`}
                       >
                         {STATUS_TRABALHO[item.situacao || ""]?.label || item.situacao || "-"}
                       </span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-slate-700">
+                  <td className="px-3 py-2 text-slate-700 dark:text-slate-200">
                     {valorLiquidoItemOs(item).toLocaleString("pt-BR", {
                       style: "currency",
                       currency: "BRL",
@@ -3472,11 +3476,11 @@ export default function OrdemServicoPage() {
 
   if (!paginaPronta) {
     return (
-      <div className="space-y-4 text-xs text-slate-700">
-        <div className="flex items-center gap-2 text-sm text-slate-500">
+      <div className="space-y-4 text-xs text-slate-700 dark:text-slate-200">
+        <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
           <span>Produção</span>
           <span>/</span>
-          <span className="font-medium text-slate-700">Ordem de Serviço</span>
+          <span className="font-medium text-slate-700 dark:text-slate-200">Ordem de Serviço</span>
         </div>
         <PainelCarregando mensagem="Carregando ordem de serviço..." />
       </div>
@@ -3484,16 +3488,19 @@ export default function OrdemServicoPage() {
   }
 
   return (
-    <div className="space-y-4 text-xs text-slate-700">
-      <div className="flex items-center gap-2 text-sm text-slate-500">
+    <div className="space-y-4 text-xs text-slate-700 dark:text-slate-200">
+      <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
         <span>Produção</span>
         <span>/</span>
-        <span className="font-medium text-slate-700">Ordem de Serviço</span>
+        <span className="font-medium text-slate-700 dark:text-slate-200">Ordem de Serviço</span>
       </div>
 
-      <form onSubmit={submit} className="rounded border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 px-4 py-3 text-center">
-          <h1 className="text-sm font-medium text-slate-700">
+      <form
+        onSubmit={submit}
+        className="rounded border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900"
+      >
+        <div className="border-b border-slate-100 bg-slate-50 px-4 py-3 text-center dark:border-slate-700 dark:bg-slate-800">
+          <h1 className="text-sm font-medium text-slate-700 dark:text-slate-100">
             {editId ? `Editar Ordem de Serviço ${form.numeroOs}` : "Ordem de Serviço"}
           </h1>
         </div>
@@ -3557,10 +3564,10 @@ export default function OrdemServicoPage() {
             placeholder="Nome do dentista (opcional)"
           />
           <div className="relative space-y-2 md:col-span-3">
-            <label className="block text-sm font-medium text-slate-700">
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
               Material Enviado pelo Dentista
             </label>
-            <div className="rounded border border-slate-300 bg-white p-2 shadow-sm">
+            <div className="rounded border border-slate-300 bg-white p-2 shadow-sm dark:border-slate-600 dark:bg-slate-950">
               {materiaisSelecionados.length > 0 && (
                 <div className="mb-2 flex flex-wrap gap-2">
                   {materiaisSelecionados.map((material) => (
@@ -3576,15 +3583,15 @@ export default function OrdemServicoPage() {
               <button
                 type="button"
                 onClick={() => setMaterialAberto((aberto) => !aberto)}
-                className="flex w-full items-center justify-center gap-2 rounded border border-slate-500 bg-slate-100 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-200"
+                className="flex w-full items-center justify-center gap-2 rounded border border-slate-500 bg-slate-100 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
               >
-                <Tag className="h-3.5 w-3.5 text-slate-500" />
+                <Tag className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
                 Selecione Materiais
                 <span className="text-slate-400">⌄</span>
               </button>
             </div>
             {materialAberto && (
-              <div className="absolute left-0 z-30 mt-1 w-full rounded border border-slate-300 bg-white p-4 shadow-xl">
+              <div className="absolute left-0 z-30 mt-1 w-full rounded border border-slate-300 bg-white p-4 shadow-xl dark:border-slate-600 dark:bg-slate-900">
                 <div className="mb-4 grid gap-3 md:grid-cols-[1fr_auto_auto]">
                   <Input
                     value={buscaMaterial}
@@ -3600,7 +3607,7 @@ export default function OrdemServicoPage() {
                       setMaterialQuantidades({});
                       setForm((current) => ({ ...current, materialEnviado: "" }));
                     }}
-                    className="rounded border border-slate-300 px-3 text-xs text-slate-600 hover:bg-slate-50"
+                    className="rounded border border-slate-300 px-3 text-xs text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
                   >
                     Limpar
                   </button>
@@ -3610,7 +3617,7 @@ export default function OrdemServicoPage() {
                       setNovoMaterial(buscaMaterial);
                       setModalMaterialAberto(true);
                     }}
-                    className="rounded border border-emerald-300 px-3 text-xs text-emerald-700 hover:bg-emerald-50"
+                    className="rounded border border-emerald-300 px-3 text-xs text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
                   >
                     + Material na Lista
                   </button>
@@ -3619,7 +3626,7 @@ export default function OrdemServicoPage() {
                   {materiaisFiltrados.map((material) => {
                     const selecionado = materiaisSelecionados.includes(material);
                     return (
-                      <div key={material} className="grid grid-cols-[1fr_minmax(160px,260px)] items-center gap-4 rounded px-1 py-1 text-xs text-slate-600 hover:bg-slate-50">
+                      <div key={material} className="grid grid-cols-[1fr_minmax(160px,260px)] items-center gap-4 rounded px-1 py-1 text-xs text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
                         <label className="flex min-w-0 flex-1 items-center gap-2">
                           <input
                             type="checkbox"
@@ -3629,12 +3636,12 @@ export default function OrdemServicoPage() {
                           />
                           <span className="truncate">{material}</span>
                         </label>
-                        <div className="grid grid-cols-[32px_1fr_32px] items-center overflow-hidden rounded border border-slate-300 bg-white">
+                        <div className="grid grid-cols-[32px_1fr_32px] items-center overflow-hidden rounded border border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-950">
                           <button
                             type="button"
                             disabled={!selecionado}
                             onClick={() => alterarQuantidadeMaterial(material, -1)}
-                            className="h-6 border-r border-slate-200 text-slate-600 disabled:opacity-40"
+                            className="h-6 border-r border-slate-200 text-slate-600 disabled:opacity-40 dark:border-slate-600 dark:text-slate-300"
                           >
                             -
                           </button>
@@ -3643,7 +3650,7 @@ export default function OrdemServicoPage() {
                             type="button"
                             disabled={!selecionado}
                             onClick={() => alterarQuantidadeMaterial(material, 1)}
-                            className="h-6 border-l border-slate-200 text-slate-600 disabled:opacity-40"
+                            className="h-6 border-l border-slate-200 text-slate-600 disabled:opacity-40 dark:border-slate-600 dark:text-slate-300"
                           >
                             +
                           </button>
@@ -3652,7 +3659,7 @@ export default function OrdemServicoPage() {
                     );
                   })}
                   {materiaisFiltrados.length === 0 && (
-                    <p className="py-3 text-center text-xs text-slate-400">
+                    <p className="py-3 text-center text-xs text-slate-400 dark:text-slate-400">
                       Nenhum material encontrado.
                     </p>
                   )}
@@ -3675,7 +3682,7 @@ export default function OrdemServicoPage() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={galeriaEsgotada || arquivos.length >= LIMITE_ARQUIVOS_OS}
-              className="shrink-0 rounded border border-slate-300 px-3 py-2 text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+              className="shrink-0 rounded border border-slate-300 px-3 py-2 text-slate-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
             >
               <ImageUp className="mr-2 inline h-4 w-4" /> Selecione Imagens ou Vídeos ({arquivos.length}/{LIMITE_ARQUIVOS_OS})
             </button>
@@ -3683,7 +3690,7 @@ export default function OrdemServicoPage() {
               <p className="text-[11px] text-red-600">{mensagemBloqueioUpload()}</p>
             ) : null}
             <div className="min-w-0 flex-1">
-              <label className="mb-1 block text-sm font-medium text-slate-700">
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                 Observação Interna
               </label>
               <input
@@ -3691,12 +3698,12 @@ export default function OrdemServicoPage() {
                 value={form.observacoes}
                 onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
                 placeholder="Somente para o laboratório (não aparece na OS impressa)"
-                className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm shadow-sm placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-400"
               />
             </div>
           </div>
           {arquivos.length > 0 && (
-            <div className="md:col-span-5 rounded border border-emerald-200 bg-emerald-50 p-3 text-emerald-800">
+            <div className="md:col-span-5 rounded border border-emerald-200 bg-emerald-50 p-3 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
               <p className="mb-2 font-medium">Arquivos selecionados ({arquivos.length}/{LIMITE_ARQUIVOS_OS}):</p>
               <div className="grid gap-2 sm:grid-cols-3 md:grid-cols-5">
                 {previews.map((preview, index) => (
@@ -3746,18 +3753,18 @@ export default function OrdemServicoPage() {
           )}
         </section>
 
-        <section className="border-t border-slate-100 bg-slate-50/70 p-4">
-          <h2 className="mb-4 text-center text-base font-medium text-slate-700">
+        <section className="border-t border-slate-100 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-800/60">
+          <h2 className="mb-4 text-center text-base font-medium text-slate-700 dark:text-slate-100">
             {form.categoria ? rotulosItemOs.secao : "Serviço"}
           </h2>
-          <div className="rounded border border-slate-200 bg-white p-4">
+          <div className="rounded border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
             {itemSelecionadoId && (
-              <div className="mb-3 flex items-center justify-between rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+              <div className="mb-3 flex items-center justify-between rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
                 <span>Item selecionado para edição. Altere os campos abaixo e clique em Atualizar Item Selecionado.</span>
                 <button
                   type="button"
                   onClick={limparSelecaoItem}
-                  className="rounded border border-blue-200 bg-white px-2 py-1 text-blue-700 hover:bg-blue-100"
+                  className="rounded border border-blue-200 bg-white px-2 py-1 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:bg-slate-900 dark:text-blue-200 dark:hover:bg-blue-950/50"
                 >
                   Cancelar edição
                 </button>
@@ -3765,11 +3772,11 @@ export default function OrdemServicoPage() {
             )}
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div className="flex gap-5">
-                <label className="flex cursor-pointer flex-col items-start gap-1 text-[10px] font-medium text-slate-500">
+                <label className="flex cursor-pointer flex-col items-start gap-1 text-[10px] font-medium text-slate-500 dark:text-slate-400">
                   <span>Urgente</span>
                   <span
                     className={`relative inline-flex h-5 w-10 items-center rounded-full transition ${
-                      form.urgente ? "bg-red-700" : "bg-slate-200"
+                      form.urgente ? "bg-red-700" : "bg-slate-200 dark:bg-slate-600"
                     }`}
                   >
                     <input
@@ -3785,11 +3792,11 @@ export default function OrdemServicoPage() {
                     />
                   </span>
                 </label>
-                <label className="flex cursor-pointer flex-col items-start gap-1 text-[10px] font-medium text-slate-500">
+                <label className="flex cursor-pointer flex-col items-start gap-1 text-[10px] font-medium text-slate-500 dark:text-slate-400">
                   <span>Repetição</span>
                   <span
                     className={`relative inline-flex h-5 w-10 items-center rounded-full transition ${
-                      form.repeticao ? "bg-orange-300" : "bg-slate-200"
+                      form.repeticao ? "bg-orange-300" : "bg-slate-200 dark:bg-slate-600"
                     }`}
                   >
                     <input
@@ -3806,10 +3813,10 @@ export default function OrdemServicoPage() {
                   </span>
                 </label>
               </div>
-              <div className="flex items-center gap-2 text-sm text-primary-700">
+              <div className="flex items-center gap-2 text-sm text-primary-700 dark:text-primary-300">
                 <span>{form.categoria ? rotulosItemOs.total : "Total Serviço"}:</span>
               <input
-                className="w-40 rounded border border-slate-200 px-3 py-2 text-right text-slate-700"
+                className="w-40 rounded border border-slate-200 bg-white px-3 py-2 text-right text-slate-700 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100"
                 value={totalLinhaServico.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                 readOnly
               />
@@ -3882,8 +3889,8 @@ export default function OrdemServicoPage() {
                 }}
               />
               <div className="space-y-1">
-                <label className="block text-sm font-medium text-slate-700">Desc.</label>
-                <div className="flex overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Desc.</label>
+                <div className="flex overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20 dark:border-slate-600 dark:bg-slate-950">
                   <select
                     value={form.descontoTipo}
                     onChange={(e) => {
@@ -3901,7 +3908,7 @@ export default function OrdemServicoPage() {
                               : descontoCliente.desconto,
                       });
                     }}
-                    className="w-14 border-r border-slate-300 bg-white px-2 text-sm text-slate-600 focus:outline-none"
+                    className="w-14 border-r border-slate-300 bg-white px-2 text-sm text-slate-600 focus:outline-none dark:border-slate-600 dark:bg-slate-950 dark:text-slate-200"
                   >
                     <option value="percentual">%</option>
                     <option value="valor">$</option>
@@ -3946,8 +3953,8 @@ export default function OrdemServicoPage() {
 
             {tipoItemCategoriaOs === "servico" && (
             <div className="mt-5 text-center">
-              <div className="mb-2 text-[11px] text-slate-500">Selecione os dentes do trabalho</div>
-              <div className="mb-3 flex justify-center gap-5 text-[11px] text-slate-600">
+              <div className="mb-2 text-[11px] text-slate-500 dark:text-slate-400">Selecione os dentes do trabalho</div>
+              <div className="mb-3 flex justify-center gap-5 text-[11px] text-slate-600 dark:text-slate-300">
                 <label className="inline-flex cursor-pointer items-center gap-1.5">
                   <input
                     type="radio"
@@ -3969,7 +3976,7 @@ export default function OrdemServicoPage() {
                   Decíduos
                 </label>
               </div>
-              <div className="mx-auto max-w-3xl rounded bg-white px-3 py-2">
+              <div className="mx-auto max-w-3xl rounded bg-white px-3 py-2 dark:bg-slate-950">
                 <div className="flex items-end justify-center gap-2">
                   <button
                     type="button"
@@ -4047,8 +4054,10 @@ export default function OrdemServicoPage() {
               </div>
 
               <div
-                className={`mt-3 rounded border border-slate-200 p-3 text-left ${
-                  abaServico === "etapas" ? "bg-white" : "bg-slate-50"
+                className={`mt-3 rounded border border-slate-200 p-3 text-left dark:border-slate-700 ${
+                  abaServico === "etapas"
+                    ? "bg-white dark:bg-slate-900"
+                    : "bg-slate-50 dark:bg-slate-800/40"
                 }`}
               >
                 {abaServico === "etapas" && (
@@ -4622,7 +4631,7 @@ export default function OrdemServicoPage() {
           </div>
         </section>
 
-        <div className="flex justify-end gap-2 border-t border-slate-100 p-4">
+        <div className="flex justify-end gap-2 border-t border-slate-100 p-4 dark:border-slate-700">
           <Button type="button" variant="outline" onClick={() => router.push("/app/producao/controle")}>
             Cancelar
           </Button>

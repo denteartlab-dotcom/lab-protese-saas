@@ -191,6 +191,32 @@
     background-color: rgb(30 41 59 / 0.6);
   }
 
+  /* OS / formulários: faixas com opacidade (ex.: seção Serviço) */
+  .dark .bg-slate-50\/60,
+  .dark .bg-slate-50\/70 {
+    background-color: rgb(30 41 59 / 0.55);
+  }
+
+  .dark .odd\:bg-slate-50\/60:nth-child(odd) {
+    background-color: rgb(30 41 59 / 0.35);
+  }
+
+  .dark .bg-blue-100 {
+    background-color: rgb(30 58 138 / 0.35);
+  }
+
+  .dark .hover\:bg-blue-100:hover {
+    background-color: rgb(30 58 138 / 0.45);
+  }
+
+  .dark .ring-blue-300 {
+    --tw-ring-color: rgb(59 130 246 / 0.45);
+  }
+
+  .dark .read-only\:bg-slate-50:read-only {
+    background-color: #1e293b;
+  }
+
   .dark .bg-\[\#f5f6f8\],
   .dark .bg-\[\#f0f7ff\],
   .dark .bg-\[\#f0faf0\],
@@ -262,7 +288,7 @@
 
   .dark input::placeholder,
   .dark textarea::placeholder {
-    color: #64748b;
+    color: #94a3b8;
   }
 
   .dark table thead tr {

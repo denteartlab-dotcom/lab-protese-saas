@@ -183,7 +183,7 @@ export function SelectPesquisavel({
   }
 
   const inputCls = cn(
-    "w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 text-sm shadow-sm placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-primary-400 dark:focus:ring-primary-400/25",
+    "w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 text-sm shadow-sm placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-400 dark:focus:border-primary-400 dark:focus:ring-primary-400/25",
     exibirLimpar ? "pr-14" : "pr-8",
     !value && !aberto ? "text-slate-400" : "text-slate-700 dark:text-slate-200",
     disabled && "cursor-not-allowed bg-slate-50 opacity-60 dark:bg-slate-800",

@@ -290,7 +290,7 @@ function ConfiguracoesConteudo() {
                 const merged = { ...form, ...patch };
                 setForm(merged);
                 try {
-                  await persistirConfigLaboratorioServidor(merged);
+                  await persistirConfigLaboratorioServidor(merged, { logoExplicito: true });
                   salvarConfigLaboratorio(merged);
                   setInicial(merged);
                   router.refresh();

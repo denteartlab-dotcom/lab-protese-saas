@@ -3211,7 +3211,7 @@ export default function ControlePage() {
       <div className="rounded border border-slate-200 bg-white px-2 py-3 shadow-sm">
         <ControleProducaoToolbar viewAtiva="lista" somenteNavegacao />
 
-        <div className="grid min-w-0 grid-cols-1 gap-2 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)]">
+        <div className="grid min-w-0 grid-cols-1 items-start gap-2 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)]">
           <div className="min-w-0">
           <Select label="Situação" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="todos">Todos</option>
@@ -3290,20 +3290,28 @@ export default function ControlePage() {
               options={clientes.map((nome) => ({ value: nome, label: nome }))}
             />
           </div>
-          <div className="flex min-w-0 items-end gap-2">
-            <div className="min-w-0 flex-1">
-              <Input
-                label="Buscar"
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                placeholder="Nº OS, ID, cliente, paciente ou serviço"
-                className="min-w-0"
-              />
-            </div>
-            <Button className="mb-px shrink-0" size="sm" onClick={load}>
-              <Search className="h-4 w-4" />
+          <div className="min-w-0">
+            <label
+              htmlFor="controle-producao-busca"
+              className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
               Buscar
-            </Button>
+            </label>
+            <div className="flex min-w-0 items-stretch gap-2">
+              <div className="min-w-0 flex-1 overflow-hidden">
+                <Input
+                  id="controle-producao-busca"
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  placeholder="Nº OS, ID, cliente, paciente ou serviço"
+                  className="min-w-0"
+                />
+              </div>
+              <Button className="shrink-0 self-stretch px-3" size="sm" onClick={load}>
+                <Search className="h-4 w-4" />
+                Buscar
+              </Button>
+            </div>
           </div>
         </div>
       </div>

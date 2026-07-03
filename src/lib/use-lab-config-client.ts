@@ -26,16 +26,35 @@ type Props = {
   initialNomeLaboratorio?: string;
 };
 
+/**
+ * Logo da autoridade (servidor/SSR) prevalece — inclusive vazio.
+ * Só usa fallback (cache) quando ainda não há dados do servidor.
+ * Evita conta nova exibir foto de outro laboratório no mesmo navegador.
+ */
 function mesclarLogoLab(
-  ...fontes: (LabImpressaoConfig | undefined | null)[]
+  autoridade: LabImpressaoConfig | undefined | null,
+  ...fallbacks: (LabImpressaoConfig | undefined | null)[]
 ): LabImpressaoConfig {
-  const valid = fontes.filter((l): l is LabImpressaoConfig => Boolean(l));
-  const base = valid[0] ?? LAB_IMPRESSAO_PADRAO;
-  const comLogo = valid.find((l) => l.logoDataUrl?.trim());
+  const fallbacksValid = fallbacks.filter((l): l is LabImpressaoConfig => Boolean(l));
+  if (autoridade) {
+    const logoDataUrl = autoridade.logoDataUrl?.trim() || "";
+    return {
+      ...autoridade,
+      logoDataUrl,
+      logoTamanho: logoDataUrl
+        ? normalizarLogoTamanho(autoridade.logoTamanho)
+        : normalizarLogoTamanho(undefined),
+    };
+  }
+  const base = fallbacksValid[0] ?? LAB_IMPRESSAO_PADRAO;
+  const comLogo = fallbacksValid.find((l) => l.logoDataUrl?.trim());
+  const logoDataUrl = comLogo?.logoDataUrl?.trim() || "";
   return {
     ...base,
-    logoDataUrl: comLogo?.logoDataUrl?.trim() || "",
-    logoTamanho: normalizarLogoTamanho(comLogo?.logoTamanho ?? base.logoTamanho),
+    logoDataUrl,
+    logoTamanho: logoDataUrl
+      ? normalizarLogoTamanho(comLogo?.logoTamanho ?? base.logoTamanho)
+      : normalizarLogoTamanho(undefined),
   };
 }
 
@@ -98,7 +117,7 @@ function dadosDoServidor(
   initialLab?: LabImpressaoConfig,
   initialNomeLaboratorio?: string
 ) {
-  const lab = mesclarLogoLab(initialLab, servidor?.lab);
+  const lab = mesclarLogoLab(servidor?.lab ?? initialLab, initialLab);
   const nomeLaboratorio =
     nomeServidorProps(servidor, initialLab, initialNomeLaboratorio) || NOME_LAB_PADRAO;
   return { lab, nomeLaboratorio };
@@ -121,13 +140,14 @@ export function useLabConfigClient({
     }
     const cfg = carregarConfigLaboratorio();
     const cacheLab = labImpressaoFromConfig();
+    const autoridade = servidor?.lab ?? initialLab;
     return {
-      lab: mesclarLogoLab(initialLab, cacheLab, servidor?.lab),
+      lab: mesclarLogoLab(autoridade, cacheLab, initialLab),
       nomeLaboratorio: resolverNomeLaboratorio(cfg, nomeServidor),
     };
   }, [cachePronto, servidor, initialLab, initialNomeLaboratorio, nomeServidor]);
 
-  const labInicial = mesclarLogoLab(initialLab, servidor?.lab);
+  const labInicial = mesclarLogoLab(servidor?.lab ?? initialLab, initialLab);
   const [lab, setLab] = useState<LabImpressaoConfig>(labInicial);
 
   const nomeLaboratorio = useMemo(() => {

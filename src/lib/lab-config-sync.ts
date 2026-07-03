@@ -14,7 +14,7 @@ import {
   nomeExibicaoLaboratorio,
   nomeLaboratorioValido,
 } from "@/lib/lab-nome-exibicao";
-import { normalizarLogoTamanho } from "@/lib/lab-impressao";
+import { LOGO_TAMANHO_PADRAO, normalizarLogoTamanho } from "@/lib/lab-impressao";
 
 import { normalizarCabecalhoRequisicao } from "@/lib/cabecalho-requisicao";
 import { normalizarConfigLaboratorio } from "@/lib/configuracoes-lab-parse";
@@ -44,11 +44,15 @@ export function montarConfigInicialCadastro(
     nome: ehFisica ? nome : base.nome,
     email: dados.email?.trim() || "",
     whatsapp: dados.whatsapp?.trim() || base.whatsapp,
+    // Conta nova sempre sem foto/logo — nunca herdar de outra sessão/tenant.
+    logoDataUrl: "",
+    logoTamanho: LOGO_TAMANHO_PADRAO,
   });
 }
 
 export async function persistirConfigLaboratorioServidor(
-  config: ConfigLaboratorio
+  config: ConfigLaboratorio,
+  opcoes?: { /** Grava o logo do payload mesmo vazio (upload/remoção na aba Logo). */ logoExplicito?: boolean }
 ): Promise<void> {
   let remoto: Partial<ConfigLaboratorio> | null = null;
   try {
@@ -62,11 +66,16 @@ export async function persistirConfigLaboratorioServidor(
   } catch {
     /* offline */
   }
-  const payload = preservarLogoConfigLaboratorio(
-    prepararConfigParaSalvar(config),
-    remoto,
-    carregarConfigLaboratorio()
-  );
+  const preparado = prepararConfigParaSalvar(config);
+  const payload = opcoes?.logoExplicito
+    ? {
+        ...preparado,
+        logoDataUrl: preparado.logoDataUrl?.trim() || "",
+        logoTamanho: preparado.logoDataUrl?.trim()
+          ? normalizarLogoTamanho(preparado.logoTamanho)
+          : LOGO_TAMANHO_PADRAO,
+      }
+    : preservarLogoConfigLaboratorio(preparado, remoto);
   const res = await fetch(`/api/json-store/${encodeURIComponent(CONFIG_LAB_STORAGE_KEY)}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -83,19 +92,18 @@ export async function persistirConfigLaboratorioServidor(
   aplicarEspelhoServidor(CONFIG_LAB_STORAGE_KEY, payload);
 }
 
+/** Logo do servidor é a fonte da verdade — não herda cache local de outro tenant. */
 function resolverLogoMesclado(
-  local: ConfigLaboratorio,
+  _local: ConfigLaboratorio,
   remoto: Partial<ConfigLaboratorio>
 ) {
-  const logoRemoto = remoto.logoDataUrl?.trim();
-  const logoLocal = local.logoDataUrl?.trim();
-  const logoDataUrl = logoRemoto || logoLocal || "";
-  const logoTamanho = logoRemoto
-    ? normalizarLogoTamanho(remoto.logoTamanho)
-    : logoLocal
-      ? normalizarLogoTamanho(local.logoTamanho)
-      : normalizarLogoTamanho(remoto.logoTamanho);
-  return { logoDataUrl, logoTamanho };
+  const logoDataUrl = remoto.logoDataUrl?.trim() || "";
+  return {
+    logoDataUrl,
+    logoTamanho: logoDataUrl
+      ? normalizarLogoTamanho(remoto.logoTamanho)
+      : LOGO_TAMANHO_PADRAO,
+  };
 }
 
 function resolverNomeLaboratorioMesclado(
@@ -174,22 +182,42 @@ export function configLaboratorioParaImpressao(
   );
 }
 
-/** Garante que gravações parciais não apaguem o logo já salvo. */
+/**
+ * Resolve o logo na gravação.
+ * - Payload com logo: mantém.
+ * - Payload vazio: só reaproveita o logo já salvo no SERVIDOR (1ª fonte),
+ *   nunca o cache local — evita conta nova herdar foto de outro laboratório.
+ * - Payload vazio e servidor sem logo: grava vazio (conta limpa / remoção).
+ */
 export function preservarLogoConfigLaboratorio(
   payload: ConfigLaboratorio,
   ...fontes: (Partial<ConfigLaboratorio> | null | undefined)[]
 ): ConfigLaboratorio {
-  const logoDataUrl =
-    payload.logoDataUrl?.trim() ||
-    fontes.map((f) => f?.logoDataUrl?.trim()).find(Boolean) ||
-    "";
-  const fonteLogo = fontes.find((f) => f?.logoDataUrl?.trim());
-  const logoTamanho = logoDataUrl
-    ? payload.logoDataUrl?.trim()
-      ? normalizarLogoTamanho(payload.logoTamanho)
-      : normalizarLogoTamanho(fonteLogo?.logoTamanho ?? payload.logoTamanho)
-    : normalizarLogoTamanho(payload.logoTamanho);
-  return { ...payload, logoDataUrl, logoTamanho };
+  const logoPayload = payload.logoDataUrl?.trim() || "";
+  if (logoPayload) {
+    return {
+      ...payload,
+      logoDataUrl: logoPayload,
+      logoTamanho: normalizarLogoTamanho(payload.logoTamanho),
+    };
+  }
+
+  // 1ª fonte = remoto (servidor). Demais fontes (cache local) são ignoradas de propósito.
+  const remoto = fontes[0];
+  const logoRemoto = remoto?.logoDataUrl?.trim() || "";
+  if (logoRemoto) {
+    return {
+      ...payload,
+      logoDataUrl: logoRemoto,
+      logoTamanho: normalizarLogoTamanho(remoto?.logoTamanho ?? payload.logoTamanho),
+    };
+  }
+
+  return {
+    ...payload,
+    logoDataUrl: "",
+    logoTamanho: LOGO_TAMANHO_PADRAO,
+  };
 }
 
 /** Mescla config do servidor com a do navegador (preserva nome/endereço salvos localmente). */
