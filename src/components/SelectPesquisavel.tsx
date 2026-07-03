@@ -111,6 +111,7 @@ export function SelectPesquisavel({
     if (!anchor) return;
     setMenuPos(
       calcularPosicaoMenuAbaixo(anchor, {
+        gap: 0,
         alturaMaxima: maxItensVisiveis * ALTURA_ITEM_PX,
       })
     );
@@ -195,7 +196,7 @@ export function SelectPesquisavel({
       role="listbox"
       className={cn(
         "overflow-y-auto border border-slate-300 bg-white shadow-lg dark:border-slate-600 dark:bg-slate-900",
-        menuEmPortal ? "fixed z-[10050]" : "absolute left-0 right-0 top-full z-[100] mt-0.5"
+        menuEmPortal ? "fixed z-[10050]" : "absolute left-0 right-0 top-full z-[100]"
       )}
       style={{
         maxHeight: menuEmPortal ? menuPos.maxHeight : maxAlturaMenu,
@@ -236,9 +237,12 @@ export function SelectPesquisavel({
   ) : null;
 
   return (
-    <div ref={ref} className={cn("relative space-y-1", className)}>
+    <div ref={ref} className={cn("relative", className)}>
       {label ? (
-        <label htmlFor={inputId} className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+        <label
+          htmlFor={inputId}
+          className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+        >
           {label}
         </label>
       ) : null}
@@ -300,8 +304,9 @@ export function SelectPesquisavel({
             onChange={() => {}}
           />
         ) : null}
+        {!menuEmPortal ? menu : null}
       </div>
-      {menuEmPortal && menu ? createPortal(menu, document.body) : menu}
+      {menuEmPortal && menu ? createPortal(menu, document.body) : null}
     </div>
   );
 }

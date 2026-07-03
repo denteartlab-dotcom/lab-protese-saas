@@ -3208,11 +3208,11 @@ export default function ControlePage() {
         <span className="font-medium text-slate-700">Controle de Produção</span>
       </div>
 
-      <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">
+      <div className="rounded border border-slate-200 bg-white px-2 py-3 shadow-sm">
         <ControleProducaoToolbar viewAtiva="lista" somenteNavegacao />
 
-        <div className="grid gap-2 md:grid-cols-[1fr_1.2fr_1fr_1.2fr_auto]">
-          <div>
+        <div className="grid min-w-0 grid-cols-1 gap-2 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)]">
+          <div className="min-w-0">
           <Select label="Situação" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="todos">Todos</option>
             {Object.entries(STATUS_TRABALHO).map(([key, value]) => (
@@ -3272,30 +3272,39 @@ export default function ControlePage() {
               }
             />
           </div>
-          <CampoDataBr
-            label="Data lançamento"
-            value={dataEntrada}
-            onChange={setDataEntrada}
-            placeholder="dd/mm/aaaa"
-          />
-          <SelectPesquisavel
-            label="Cliente"
-            value={cliente}
-            onChange={setCliente}
-            placeholder="Todos"
-            permitirLimpar
-            options={clientes.map((nome) => ({ value: nome, label: nome }))}
-          />
-          <Input
-            label="Buscar"
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            placeholder="Nº OS, ID, cliente, paciente ou serviço"
-          />
-          <Button className="mt-6" size="sm" onClick={load}>
-            <Search className="h-4 w-4" />
-            Buscar
-          </Button>
+          <div className="min-w-0">
+            <CampoDataBr
+              label="Data lançamento"
+              value={dataEntrada}
+              onChange={setDataEntrada}
+              placeholder="dd/mm/aaaa"
+            />
+          </div>
+          <div className="min-w-0">
+            <SelectPesquisavel
+              label="Cliente"
+              value={cliente}
+              onChange={setCliente}
+              placeholder="Todos"
+              permitirLimpar
+              options={clientes.map((nome) => ({ value: nome, label: nome }))}
+            />
+          </div>
+          <div className="flex min-w-0 items-end gap-2">
+            <div className="min-w-0 flex-1">
+              <Input
+                label="Buscar"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Nº OS, ID, cliente, paciente ou serviço"
+                className="min-w-0"
+              />
+            </div>
+            <Button className="mb-px shrink-0" size="sm" onClick={load}>
+              <Search className="h-4 w-4" />
+              Buscar
+            </Button>
+          </div>
         </div>
       </div>
 
