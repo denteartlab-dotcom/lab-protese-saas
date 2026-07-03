@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { I18nProvider } from "@/components/i18n-provider";
-import { getSession } from "@/lib/auth";
+import { destroySession, getSession } from "@/lib/auth";
 import { obterDestinoPosLogin } from "@/lib/contexto-assinatura-vencida";
 import { obterAppBuildIdServidor } from "@/lib/app-build-id-servidor";
+import { obterEmpresaContexto } from "@/lib/empresa-context";
 import { carregarBrandingLoginServidor } from "@/lib/login-branding-servidor";
 import { LoginForm } from "./LoginForm";
 
@@ -24,12 +25,18 @@ export default async function LoginPage({ searchParams }: Props) {
   const params = await searchParams;
 
   if (session?.empresaId) {
-    const padrao = await obterDestinoPosLogin(session.empresaId);
-    let destino = padrao;
-    if (padrao.startsWith("/app") && params.redirect?.startsWith("/app")) {
-      destino = params.redirect;
+    /** Cookie antigo sem usuário no banco (ex.: pós-RLS) gerava loop login ↔ app. */
+    const contexto = await obterEmpresaContexto();
+    if (!contexto) {
+      await destroySession();
+    } else {
+      const padrao = await obterDestinoPosLogin(session.empresaId);
+      let destino = padrao;
+      if (padrao.startsWith("/app") && params.redirect?.startsWith("/app")) {
+        destino = params.redirect;
+      }
+      redirect(destino);
     }
-    redirect(destino);
   }
 
   const { brandingInicial, brandingLaboratorio, jaEntrou } =

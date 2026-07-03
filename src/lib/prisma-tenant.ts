@@ -24,6 +24,41 @@ async function aplicarSessaoRls(
   }
 }
 
+function delegateName(model: string) {
+  return model.charAt(0).toLowerCase() + model.slice(1);
+}
+
+/**
+ * Cliente com RLS real no Postgres (FORCE RLS).
+ * Quando há contexto em AsyncLocalStorage (bypass ou empresaId), cada operação
+ * roda numa transação com set_config — necessário por causa do pool de conexões.
+ */
+export const prisma = prismaBase.$extends({
+  query: {
+    $allModels: {
+      async $allOperations({ model, operation, args, query }) {
+        const ctx = tenantStorage.getStore();
+        if (!ctx?.bypass && !ctx?.empresaId) {
+          return query(args);
+        }
+
+        return prismaBase.$transaction(async (tx) => {
+          await aplicarSessaoRls(tx, ctx);
+          const nome = delegateName(model);
+          const delegate = (tx as unknown as Record<string, Record<string, (a: unknown) => Promise<unknown>>>)[
+            nome
+          ];
+          const metodo = delegate?.[operation];
+          if (typeof metodo !== "function") {
+            return query(args);
+          }
+          return metodo.call(delegate, args);
+        });
+      },
+    },
+  },
+});
+
 /** Executa callback com tenant ativo (RLS no PostgreSQL). */
 export async function executarComTenant<T>(
   empresaId: string,
@@ -60,6 +95,3 @@ export function runWithRlsBypass<T>(fn: () => Promise<T>): Promise<T> {
 export function contextoTenantAtual(): TenantContext | undefined {
   return tenantStorage.getStore();
 }
-
-/** Alias do cliente base — prefira executarComTenant(tx => ...) para RLS. */
-export const prisma = prismaBase;

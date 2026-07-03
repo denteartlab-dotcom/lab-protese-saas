@@ -20,7 +20,7 @@ LANGUAGE sql STABLE AS $$
 $$;
 
 ALTER TABLE "Empresa" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "Empresa" FORCE ROW LEVEL SECURITY;
+-- FORCE removido: owner da app (DATABASE_URL) precisa operar; lab_app continua com RLS via ENABLE
 DROP POLICY IF EXISTS tenant_empresa ON "Empresa";
 CREATE POLICY tenant_empresa ON "Empresa"
   FOR ALL USING (app_rls_bypass() OR id = app_current_tenant())
@@ -37,7 +37,7 @@ DECLARE
 BEGIN
   FOREACH t IN ARRAY tables LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
-    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
+    -- FORCE removido (lab_app ainda respeita ENABLE ROW LEVEL SECURITY)
     EXECUTE format('DROP POLICY IF EXISTS tenant_isolation ON %I', t);
     EXECUTE format(
       'CREATE POLICY tenant_isolation ON %I FOR ALL
@@ -51,7 +51,7 @@ $rls$;
 
 DROP POLICY IF EXISTS tenant_isolation ON "LogAuditoria";
 ALTER TABLE "LogAuditoria" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "LogAuditoria" FORCE ROW LEVEL SECURITY;
+-- FORCE removido: owner da app (DATABASE_URL) precisa operar; lab_app continua com RLS via ENABLE
 CREATE POLICY tenant_isolation ON "LogAuditoria"
   FOR ALL USING (
     app_rls_bypass()
@@ -64,7 +64,7 @@ CREATE POLICY tenant_isolation ON "LogAuditoria"
 
 DROP POLICY IF EXISTS tenant_isolation ON "historico_etapas";
 ALTER TABLE "historico_etapas" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "historico_etapas" FORCE ROW LEVEL SECURITY;
+-- FORCE removido: owner da app (DATABASE_URL) precisa operar; lab_app continua com RLS via ENABLE
 CREATE POLICY tenant_isolation ON "historico_etapas"
   FOR ALL USING (
     app_rls_bypass()
@@ -77,7 +77,7 @@ CREATE POLICY tenant_isolation ON "historico_etapas"
 
 DROP POLICY IF EXISTS tenant_isolation ON "NfseEmissao";
 ALTER TABLE "NfseEmissao" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "NfseEmissao" FORCE ROW LEVEL SECURITY;
+-- FORCE removido: owner da app (DATABASE_URL) precisa operar; lab_app continua com RLS via ENABLE
 CREATE POLICY tenant_isolation ON "NfseEmissao"
   FOR ALL USING (
     app_rls_bypass()
@@ -89,7 +89,7 @@ CREATE POLICY tenant_isolation ON "NfseEmissao"
   );
 
 ALTER TABLE "JsonStore" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "JsonStore" FORCE ROW LEVEL SECURITY;
+-- FORCE removido: owner da app (DATABASE_URL) precisa operar; lab_app continua com RLS via ENABLE
 DROP POLICY IF EXISTS tenant_json_store ON "JsonStore";
 CREATE POLICY tenant_json_store ON "JsonStore"
   FOR ALL USING (
@@ -108,7 +108,7 @@ CREATE POLICY tenant_json_store ON "JsonStore"
   );
 
 ALTER TABLE "Paciente" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "Paciente" FORCE ROW LEVEL SECURITY;
+-- FORCE removido: owner da app (DATABASE_URL) precisa operar; lab_app continua com RLS via ENABLE
 DROP POLICY IF EXISTS tenant_paciente ON "Paciente";
 CREATE POLICY tenant_paciente ON "Paciente"
   FOR ALL USING (
@@ -129,7 +129,7 @@ CREATE POLICY tenant_paciente ON "Paciente"
   );
 
 ALTER TABLE "MovimentacaoConta" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "MovimentacaoConta" FORCE ROW LEVEL SECURITY;
+-- FORCE removido: owner da app (DATABASE_URL) precisa operar; lab_app continua com RLS via ENABLE
 DROP POLICY IF EXISTS tenant_movimentacao ON "MovimentacaoConta";
 CREATE POLICY tenant_movimentacao ON "MovimentacaoConta"
   FOR ALL USING (
@@ -150,7 +150,7 @@ CREATE POLICY tenant_movimentacao ON "MovimentacaoConta"
   );
 
 ALTER TABLE "ExtratoMovimentacao" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "ExtratoMovimentacao" FORCE ROW LEVEL SECURITY;
+-- FORCE removido: owner da app (DATABASE_URL) precisa operar; lab_app continua com RLS via ENABLE
 DROP POLICY IF EXISTS tenant_extrato ON "ExtratoMovimentacao";
 CREATE POLICY tenant_extrato ON "ExtratoMovimentacao"
   FOR ALL USING (
@@ -171,7 +171,7 @@ CREATE POLICY tenant_extrato ON "ExtratoMovimentacao"
   );
 
 ALTER TABLE "CobrancaAsaas" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "CobrancaAsaas" FORCE ROW LEVEL SECURITY;
+-- FORCE removido: owner da app (DATABASE_URL) precisa operar; lab_app continua com RLS via ENABLE
 DROP POLICY IF EXISTS tenant_cobranca_asaas ON "CobrancaAsaas";
 CREATE POLICY tenant_cobranca_asaas ON "CobrancaAsaas"
   FOR ALL USING (
@@ -192,7 +192,7 @@ CREATE POLICY tenant_cobranca_asaas ON "CobrancaAsaas"
   );
 
 ALTER TABLE "suporte_mensagens" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "suporte_mensagens" FORCE ROW LEVEL SECURITY;
+-- FORCE removido: owner da app (DATABASE_URL) precisa operar; lab_app continua com RLS via ENABLE
 DROP POLICY IF EXISTS tenant_suporte_msg ON "suporte_mensagens";
 CREATE POLICY tenant_suporte_msg ON "suporte_mensagens"
   FOR ALL USING (
@@ -213,7 +213,7 @@ CREATE POLICY tenant_suporte_msg ON "suporte_mensagens"
   );
 
 ALTER TABLE "PasswordResetToken" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "PasswordResetToken" FORCE ROW LEVEL SECURITY;
+-- FORCE removido: owner da app (DATABASE_URL) precisa operar; lab_app continua com RLS via ENABLE
 DROP POLICY IF EXISTS tenant_password_reset ON "PasswordResetToken";
 CREATE POLICY tenant_password_reset ON "PasswordResetToken"
   FOR ALL USING (
@@ -234,21 +234,21 @@ CREATE POLICY tenant_password_reset ON "PasswordResetToken"
   );
 
 ALTER TABLE "CadastroVerificacaoEmail" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "CadastroVerificacaoEmail" FORCE ROW LEVEL SECURITY;
+-- FORCE removido: owner da app (DATABASE_URL) precisa operar; lab_app continua com RLS via ENABLE
 DROP POLICY IF EXISTS bypass_only_cadastro_email ON "CadastroVerificacaoEmail";
 CREATE POLICY bypass_only_cadastro_email ON "CadastroVerificacaoEmail"
   FOR ALL USING (app_rls_bypass())
   WITH CHECK (app_rls_bypass());
 
 ALTER TABLE "master_users" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "master_users" FORCE ROW LEVEL SECURITY;
+-- FORCE removido: owner da app (DATABASE_URL) precisa operar; lab_app continua com RLS via ENABLE
 DROP POLICY IF EXISTS bypass_only_master_users ON "master_users";
 CREATE POLICY bypass_only_master_users ON "master_users"
   FOR ALL USING (app_rls_bypass())
   WITH CHECK (app_rls_bypass());
 
 ALTER TABLE "master_audit_logs" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "master_audit_logs" FORCE ROW LEVEL SECURITY;
+-- FORCE removido: owner da app (DATABASE_URL) precisa operar; lab_app continua com RLS via ENABLE
 DROP POLICY IF EXISTS bypass_only_master_audit ON "master_audit_logs";
 CREATE POLICY bypass_only_master_audit ON "master_audit_logs"
   FOR ALL USING (app_rls_bypass())

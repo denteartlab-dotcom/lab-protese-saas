@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { prismaBase } from "@/lib/prisma-base";
-import { runWithRlsBypass } from "@/lib/prisma-tenant";
+import { prisma, runWithRlsBypass } from "@/lib/prisma-tenant";
 import { createSession, verifyPassword } from "@/lib/auth";
 import {
   empresaPrecisaPaginaRenovacao,
@@ -68,7 +67,7 @@ export async function POST(request: Request) {
 
   try {
     return await runWithRlsBypass(async () => {
-    const candidatos = await prismaBase.user.findMany({
+    const candidatos = await prisma.user.findMany({
       where: {
         email: emailNorm,
         excluidoEm: null,

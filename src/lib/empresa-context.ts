@@ -3,8 +3,7 @@ import {
   empresaPrecisaPaginaRenovacao,
   empresaTemAcessoAssinatura,
 } from "@/lib/assinatura-empresa";
-import { prismaBase } from "@/lib/prisma-base";
-import { runWithRlsBypass, runWithTenantContext } from "@/lib/prisma-tenant";
+import { prisma, runWithRlsBypass, runWithTenantContext } from "@/lib/prisma-tenant";
 import { montarSessionUserComAssinatura } from "@/lib/sessao-assinatura";
 
 export type EmpresaContext = {
@@ -16,7 +15,7 @@ export type EmpresaContext = {
 
 async function carregarUsuarioEmpresa(session: SessionUser) {
   const consulta = () =>
-    prismaBase.user.findUnique({
+    prisma.user.findUnique({
       where: { id: session.id },
       select: {
         name: true,
@@ -171,7 +170,7 @@ export function filtroTrabalhoEmpresa(empresaId: string) {
 
 export async function empresaAtivaPorSlug(slug: string) {
   return runWithRlsBypass(() =>
-    prismaBase.empresa.findFirst({
+    prisma.empresa.findFirst({
       where: { slug, status: "ativo" },
       select: { id: true, nome: true, slug: true, status: true },
     })
@@ -180,7 +179,7 @@ export async function empresaAtivaPorSlug(slug: string) {
 
 export async function carregarEmpresaUsuario(userId: string) {
   return runWithRlsBypass(() =>
-    prismaBase.user.findUnique({
+    prisma.user.findUnique({
       where: { id: userId },
       select: {
         empresaId: true,
@@ -192,7 +191,7 @@ export async function carregarEmpresaUsuario(userId: string) {
 
 export async function verificarTrabalhoEmpresa(trabalhoId: string, empresaId: string) {
   return runWithTenantContext(empresaId, () =>
-    prismaBase.trabalho.findFirst({
+    prisma.trabalho.findFirst({
       where: { id: trabalhoId, empresaId },
       select: { id: true },
     })
