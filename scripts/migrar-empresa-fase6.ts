@@ -164,51 +164,59 @@ async function validarBanco(checks: Check[]) {
     return;
   }
 
-  const empresa = await prisma.empresa.findUnique({ where: { slug: SLUG_PADRAO } });
-  if (!empresa) {
-    add(
-      checks,
-      "erro",
-      `Empresa "${SLUG_PADRAO}" ausente`,
-      "O laboratório padrão ainda não foi criado no banco.",
-      "Execute: npm run db:migrar-empresa"
-    );
-  } else {
-    add(
-      checks,
-      "ok",
-      "Empresa padrão",
-      `${empresa.nome} (${empresa.slug}) — status ${empresa.status}.`
-    );
-  }
+  /**
+   * FORCE RLS esconde linhas sem app.rls_bypass — validação admin precisa do bypass,
+   * senão reporta "0 laboratórios" mesmo com empresa existente.
+   */
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.rls_bypass', 'true', true)`;
 
-  const tabelas = [
-    ["User", () => prisma.user.count({ where: { empresaId: null } })],
-    ["Cliente", () => prisma.cliente.count({ where: { empresaId: null } })],
-    ["Trabalho", () => prisma.trabalho.count({ where: { empresaId: null } })],
-    ["Lancamento", () => prisma.lancamento.count({ where: { empresaId: null } })],
-    ["LogAuditoria", () => prisma.logAuditoria.count({ where: { empresaId: null } })],
-    ["HistoricoEtapa", () => prisma.historicoEtapa.count({ where: { empresaId: null } })],
-    ["NfseEmissao", () => prisma.nfseEmissao.count({ where: { empresaId: null } })],
-  ] as const;
-
-  for (const [nome, fn] of tabelas) {
-    const qtd = await contarSemEmpresa(nome, fn);
-    if (qtd > 0) {
+    const empresa = await tx.empresa.findUnique({ where: { slug: SLUG_PADRAO } });
+    if (!empresa) {
       add(
         checks,
         "erro",
-        `${nome} sem empresaId`,
-        `${qtd} registro(s) ainda sem tenant.`,
+        `Empresa "${SLUG_PADRAO}" ausente`,
+        "O laboratório padrão ainda não foi criado no banco.",
         "Execute: npm run db:migrar-empresa"
       );
-    } else if (qtd === 0) {
-      add(checks, "ok", `${nome} tenant`, "Todos os registros vinculados.");
+    } else {
+      add(
+        checks,
+        "ok",
+        "Empresa padrão",
+        `${empresa.nome} (${empresa.slug}) — status ${empresa.status}.`
+      );
     }
-  }
 
-  const totalEmpresas = await prisma.empresa.count();
-  add(checks, "ok", "Empresas cadastradas", `${totalEmpresas} laboratório(s) no banco.`);
+    const tabelas = [
+      ["User", () => tx.user.count({ where: { empresaId: null } })],
+      ["Cliente", () => tx.cliente.count({ where: { empresaId: null } })],
+      ["Trabalho", () => tx.trabalho.count({ where: { empresaId: null } })],
+      ["Lancamento", () => tx.lancamento.count({ where: { empresaId: null } })],
+      ["LogAuditoria", () => tx.logAuditoria.count({ where: { empresaId: null } })],
+      ["HistoricoEtapa", () => tx.historicoEtapa.count({ where: { empresaId: null } })],
+      ["NfseEmissao", () => tx.nfseEmissao.count({ where: { empresaId: null } })],
+    ] as const;
+
+    for (const [nome, fn] of tabelas) {
+      const qtd = await contarSemEmpresa(nome, fn);
+      if (qtd > 0) {
+        add(
+          checks,
+          "erro",
+          `${nome} sem empresaId`,
+          `${qtd} registro(s) ainda sem tenant.`,
+          "Execute: npm run db:migrar-empresa"
+        );
+      } else if (qtd === 0) {
+        add(checks, "ok", `${nome} tenant`, "Todos os registros vinculados.");
+      }
+    }
+
+    const totalEmpresas = await tx.empresa.count();
+    add(checks, "ok", "Empresas cadastradas", `${totalEmpresas} laboratório(s) no banco.`);
+  });
 }
 
 async function validarBackup(checks: Check[]) {
