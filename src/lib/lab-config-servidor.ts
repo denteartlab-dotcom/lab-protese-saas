@@ -18,7 +18,11 @@ function emBuildProducaoNext() {
   return process.env.NEXT_PHASE === "phase-production-build";
 }
 
-/** Leitura da config do laboratório (cache por request no RSC). */
+/**
+ * Leitura da config do laboratório (cache por request no RSC).
+ * Sem empresaId: sempre padrão vazio — nunca lê o JsonStore global legado,
+ * que vazava logo de outro laboratório para contas novas.
+ */
 export const carregarConfigLaboratorioServidor = cache(
   async function carregarConfigLaboratorioServidor(
     empresaId?: string
@@ -27,40 +31,35 @@ export const carregarConfigLaboratorioServidor = cache(
     return configLaboratorioPadrao();
   }
 
-  try {
-    if (empresaId) {
-      const [parsed, empresa] = await Promise.all([
-        lerJsonStoreTenant<Partial<ConfigLaboratorio>>(empresaId, CONFIG_LAB_STORAGE_KEY),
-        prisma.empresa.findUnique({
-          where: { id: empresaId },
-          select: { nome: true },
-        }),
-      ]);
-      if (parsed) {
-        const config = normalizarConfigLaboratorio(parsed);
-        return prepararConfigParaSalvar(garantirNomeLaboratorioParaImpressao(config));
-      }
-      if (empresa?.nome?.trim()) {
-        return garantirNomeLaboratorioParaImpressao({
-          ...configLaboratorioPadrao(),
-          nomeLaboratorio: empresa.nome.trim(),
-        });
-      }
-      return configLaboratorioPadrao();
-    }
+  if (!empresaId?.trim()) {
+    return configLaboratorioPadrao();
+  }
 
-    const row = await prisma.jsonStore.findUnique({
-      where: { key: CONFIG_LAB_STORAGE_KEY },
-    });
-    if (!row?.payload) {
-      return configLaboratorioPadrao();
+  try {
+    const [parsed, empresa] = await Promise.all([
+      lerJsonStoreTenant<Partial<ConfigLaboratorio>>(empresaId, CONFIG_LAB_STORAGE_KEY),
+      prisma.empresa.findUnique({
+        where: { id: empresaId },
+        select: { nome: true },
+      }),
+    ]);
+    if (parsed) {
+      const config = normalizarConfigLaboratorio(parsed);
+      return prepararConfigParaSalvar(
+        garantirNomeLaboratorioParaImpressao({
+          ...config,
+          logoDataUrl: config.logoDataUrl?.trim() || "",
+        })
+      );
     }
-    try {
-      const parsed = JSON.parse(row.payload) as Partial<ConfigLaboratorio>;
-      return prepararConfigParaSalvar(normalizarConfigLaboratorio(parsed));
-    } catch {
-      return configLaboratorioPadrao();
+    if (empresa?.nome?.trim()) {
+      return garantirNomeLaboratorioParaImpressao({
+        ...configLaboratorioPadrao(),
+        nomeLaboratorio: empresa.nome.trim(),
+        logoDataUrl: "",
+      });
     }
+    return configLaboratorioPadrao();
   } catch (err) {
     console.warn(
       "[lab-config] usando padrão (banco indisponível):",

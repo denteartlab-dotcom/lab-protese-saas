@@ -14,7 +14,7 @@ import {
   salvarConfigLaboratorio,
   type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
-import { persistirConfigLaboratorioServidor, preservarLogoConfigLaboratorio } from "@/lib/lab-config-sync";
+import { persistirConfigLaboratorioServidor } from "@/lib/lab-config-sync";
 import { configParaLabImpressao, escalaLogoMultiplicador } from "@/lib/lab-logo";
 import { cn } from "@/lib/utils";
 
@@ -184,17 +184,17 @@ export function ConfiguracoesCabecalhoConteudo() {
     if (!cfg) return;
     setSalvando(true);
     setMensagem("");
-    const merged = preservarLogoConfigLaboratorio(
-      {
-        ...cfg,
-        cabecalhoRequisicao: normalizarCabecalhoRequisicao(cab),
-      },
-      cfg
-    );
-    salvarConfigLaboratorio(merged);
+    // Cabeçalho não altera logo — gravação parcial nunca herda foto de cache/outro tenant.
+    const merged = {
+      ...cfg,
+      cabecalhoRequisicao: normalizarCabecalhoRequisicao(cab),
+      logoDataUrl: "",
+    };
     try {
       await persistirConfigLaboratorioServidor(merged);
-      setCfg(merged);
+      salvarConfigLaboratorio(merged);
+      const gravado = carregarConfigLaboratorio();
+      setCfg(gravado);
       setMensagem("Alterações salvas com sucesso.");
     } catch {
       setMensagem(

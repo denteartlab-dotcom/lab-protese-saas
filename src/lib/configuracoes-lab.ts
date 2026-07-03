@@ -1,6 +1,7 @@
 import {
   LAB_IMPRESSAO_PADRAO,
   LOGO_TAMANHO_PADRAO,
+  normalizarLogoTamanho,
   type LabImpressaoConfig,
 } from "@/lib/lab-impressao";
 import {
@@ -142,24 +143,10 @@ function montarTelefones(config: ConfigLaboratorio) {
 function lerConfigSalva(): ConfigLaboratorio | null {
   if (typeof window === "undefined") return null;
   try {
-    let parsed = readStorage<Partial<ConfigLaboratorio> | null>(
+    const parsed = readStorage<Partial<ConfigLaboratorio> | null>(
       CONFIG_LAB_STORAGE_KEY,
       null
     );
-    if (!parsed) {
-      const tenant = readStorage<string | null>(LAB_TENANT_ID_KEY, null);
-      if (tenant) {
-        parsed = readStorage<Partial<ConfigLaboratorio> | null>(
-          `${CONFIG_LAB_STORAGE_KEY}:${tenant}`,
-          null
-        );
-        if (parsed && typeof parsed === "object") {
-          const migrado = normalizarConfigLaboratorio(parsed);
-          writeStorage(CONFIG_LAB_STORAGE_KEY, migrado);
-          void persistirArmazenamentoImediato(CONFIG_LAB_STORAGE_KEY, migrado);
-        }
-      }
-    }
     if (!parsed || typeof parsed !== "object") return null;
     return normalizarConfigLaboratorio(parsed);
   } catch {
@@ -324,12 +311,57 @@ export function prepararConfigParaSalvar(form: ConfigLaboratorio): ConfigLaborat
   };
 }
 
-export function salvarConfigLaboratorio(config: ConfigLaboratorio) {
+/**
+ * Grava config do laboratório.
+ * Por padrão NÃO altera o logo (evita gravação parcial herdar foto de outro tenant
+ * ou apagar o logo do servidor antes do bootstrap).
+ * Passe logoExplicito ao salvar upload/remoção na aba Logo.
+ */
+export function salvarConfigLaboratorio(
+  config: ConfigLaboratorio,
+  opcoes?: { logoExplicito?: boolean }
+) {
   if (typeof window === "undefined") return;
   const preparado = prepararConfigParaSalvar(config);
   const chave = chaveStorageLaboratorio();
-  writeStorage(chave, preparado);
-  void persistirArmazenamentoImediato(chave, preparado);
+
+  if (opcoes?.logoExplicito) {
+    const logoDataUrl = preparado.logoDataUrl?.trim() || "";
+    const comLogo: ConfigLaboratorio = {
+      ...preparado,
+      logoDataUrl,
+      logoTamanho: logoDataUrl
+        ? normalizarLogoTamanho(preparado.logoTamanho)
+        : LOGO_TAMANHO_PADRAO,
+    };
+    writeStorage(chave, comLogo);
+    void persistirArmazenamentoImediato(chave, comLogo);
+    window.dispatchEvent(new Event(LAB_CONFIG_ATUALIZADA_EVENT));
+    return;
+  }
+
+  const atual = lerConfigSalva();
+  if (!atual) {
+    // Espelho do tenant ainda não hidratou — não persistir (evita apagar logo no servidor).
+    writeStorage(
+      chave,
+      { ...preparado, logoDataUrl: "", logoTamanho: LOGO_TAMANHO_PADRAO },
+      { forcar: false }
+    );
+    window.dispatchEvent(new Event(LAB_CONFIG_ATUALIZADA_EVENT));
+    return;
+  }
+
+  const logoDataUrl = atual.logoDataUrl?.trim() || "";
+  const comLogo: ConfigLaboratorio = {
+    ...preparado,
+    logoDataUrl,
+    logoTamanho: logoDataUrl
+      ? normalizarLogoTamanho(atual.logoTamanho)
+      : LOGO_TAMANHO_PADRAO,
+  };
+  writeStorage(chave, comLogo);
+  void persistirArmazenamentoImediato(chave, comLogo);
   window.dispatchEvent(new Event(LAB_CONFIG_ATUALIZADA_EVENT));
 }
 

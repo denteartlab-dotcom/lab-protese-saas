@@ -95,6 +95,12 @@ export async function bootstrapJsonStoreTenant(
   return data;
 }
 
+/** Chaves provisionadas no servidor por tenant — nunca preencher a partir do navegador. */
+const CHAVES_NAO_MIGRAR_DO_CLIENTE = new Set([
+  "labProteseConfigLaboratorio",
+  "labProteseLaboratorioId",
+]);
+
 export async function migrarJsonStoreTenant(
   empresaId: string,
   entradas: Record<string, unknown>
@@ -102,6 +108,7 @@ export async function migrarJsonStoreTenant(
   const gravadas: string[] = [];
   for (const [key, valor] of Object.entries(entradas)) {
     if (!key.startsWith(ARMAZENAMENTO_LAB_PREFIX)) continue;
+    if (CHAVES_NAO_MIGRAR_DO_CLIENTE.has(key)) continue;
     const tenantKey = chaveJsonStoreTenant(empresaId, key);
     const existente = await prisma.jsonStore.findUnique({ where: { key: tenantKey } });
     if (existente) continue;

@@ -136,23 +136,21 @@ function ConfiguracoesConteudo() {
   async function salvar() {
     if (!form) return;
     const nomeLab = (form.nomeLaboratorio?.trim() || nomeExibicaoLaboratorio(form)).trim();
-    const logoDataUrl = form.logoDataUrl?.trim() || inicial?.logoDataUrl?.trim() || "";
-    const logoTamanho = logoDataUrl
-      ? normalizarLogoTamanho(form.logoTamanho)
-      : normalizarLogoTamanho(inicial?.logoTamanho ?? form.logoTamanho);
+    // Dados do lab não alteram o logo — servidor/espelho preservam o valor real do tenant.
     const payload: ConfigLaboratorio = {
       ...form,
       nomeLaboratorio: nomeLab,
       responsavel: nomeLab,
-      logoDataUrl,
-      logoTamanho,
+      logoDataUrl: "",
+      logoTamanho: normalizarLogoTamanho(undefined),
     };
     setSalvando(true);
     try {
       await persistirConfigLaboratorioServidor(payload);
       salvarConfigLaboratorio(payload);
-      setForm(payload);
-      setInicial({ ...payload });
+      const gravado = carregarConfigLaboratorio();
+      setForm(gravado);
+      setInicial({ ...gravado });
       setMensagem(t("common.sucessoGravado"));
       setMensagemTipo("sucesso");
       router.refresh();
@@ -291,7 +289,7 @@ function ConfiguracoesConteudo() {
                 setForm(merged);
                 try {
                   await persistirConfigLaboratorioServidor(merged, { logoExplicito: true });
-                  salvarConfigLaboratorio(merged);
+                  salvarConfigLaboratorio(merged, { logoExplicito: true });
                   setInicial(merged);
                   router.refresh();
                 } catch {

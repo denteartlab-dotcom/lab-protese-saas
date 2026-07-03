@@ -102,6 +102,10 @@ const CHAVES_LOCALSTORAGE_IGNORAR = new Set([
   "labProteseDarkMode",
   "denteartLoginLembrete",
   "denteartLabLogoPorSlug",
+  // Config do lab (inclui logo) é provisionada no servidor por tenant —
+  // nunca migrar do navegador (evita conta nova herdar foto de outro lab).
+  "labProteseConfigLaboratorio",
+  "labProteseLaboratorioId",
 ]);
 
 const FLAG_MIGRACAO_LOCALSTORAGE = "labProteseLocalStorageMigradoV2";

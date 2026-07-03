@@ -7,6 +7,7 @@ import {
   FAVICON_PADRAO,
   montarTituloDocumento,
 } from "@/lib/document-title";
+import { getSession } from "@/lib/auth";
 import { carregarConfigLaboratorioServidor } from "@/lib/lab-config-servidor";
 import { configParaLabImpressao } from "@/lib/lab-logo";
 import "./globals.css";
@@ -27,7 +28,10 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const configLaboratorio = await carregarConfigLaboratorioServidor();
+  const session = await getSession();
+  const configLaboratorio = await carregarConfigLaboratorioServidor(
+    session?.empresaId
+  );
   const lab = configParaLabImpressao(configLaboratorio);
   const buildId = process.env.NEXT_PUBLIC_APP_BUILD_ID ?? "dev";
   const devBoot = process.env.NEXT_PUBLIC_DEV_BOOT ?? "";

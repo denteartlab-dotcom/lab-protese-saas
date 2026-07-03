@@ -3,7 +3,7 @@ import {
   CONFIG_LAB_STORAGE_KEY,
   criarFormularioLaboratorioLimpo,
 } from "@/lib/configuracoes-lab";
-import { LAB_IMPRESSAO_PADRAO } from "@/lib/lab-impressao";
+import { LAB_IMPRESSAO_PADRAO, LOGO_TAMANHO_PADRAO } from "@/lib/lab-impressao";
 import { ETAPAS_STORAGE_KEY } from "@/lib/etapas-os";
 import { MATERIAIS_DENTISTA_STORAGE_KEY } from "@/lib/materiais-dentista-cadastro";
 import { MODULO_PRODUCAO_ETAPAS_STORAGE_KEY } from "@/lib/modulo-producao-etapas";
@@ -24,9 +24,12 @@ export function configLaboratorioInicial(nomeEmpresa: string): ConfigLaboratorio
   return {
     ...criarFormularioLaboratorioLimpo("Jurídica"),
     nomeLaboratorio: nomeEmpresa,
-    marca: LAB_IMPRESSAO_PADRAO.marca,
-    marcaSubtitulo: LAB_IMPRESSAO_PADRAO.marcaSubtitulo,
+    marca: nomeEmpresa.trim() || LAB_IMPRESSAO_PADRAO.marca,
+    marcaSubtitulo: "",
     email: "",
+    // Conta nova: logo sempre vazio — nunca herdar da plataforma nem de outro tenant.
+    logoDataUrl: "",
+    logoTamanho: LOGO_TAMANHO_PADRAO,
   };
 }
 

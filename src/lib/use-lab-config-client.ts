@@ -27,35 +27,32 @@ type Props = {
 };
 
 /**
- * Logo da autoridade (servidor/SSR) prevalece — inclusive vazio.
- * Só usa fallback (cache) quando ainda não há dados do servidor.
+ * Logo da autoridade do tenant prevalece — inclusive vazio.
+ * Nunca busca logo em fallbacks quando a autoridade já veio do tenant/SSR.
  * Evita conta nova exibir foto de outro laboratório no mesmo navegador.
  */
 function mesclarLogoLab(
   autoridade: LabImpressaoConfig | undefined | null,
-  ...fallbacks: (LabImpressaoConfig | undefined | null)[]
+  ..._fallbacks: (LabImpressaoConfig | undefined | null)[]
 ): LabImpressaoConfig {
-  const fallbacksValid = fallbacks.filter((l): l is LabImpressaoConfig => Boolean(l));
-  if (autoridade) {
-    const logoDataUrl = autoridade.logoDataUrl?.trim() || "";
-    return {
-      ...autoridade,
-      logoDataUrl,
-      logoTamanho: logoDataUrl
-        ? normalizarLogoTamanho(autoridade.logoTamanho)
-        : normalizarLogoTamanho(undefined),
-    };
-  }
-  const base = fallbacksValid[0] ?? LAB_IMPRESSAO_PADRAO;
-  const comLogo = fallbacksValid.find((l) => l.logoDataUrl?.trim());
-  const logoDataUrl = comLogo?.logoDataUrl?.trim() || "";
+  const base = autoridade ?? LAB_IMPRESSAO_PADRAO;
+  const logoDataUrl = autoridade?.logoDataUrl?.trim() || "";
   return {
     ...base,
     logoDataUrl,
     logoTamanho: logoDataUrl
-      ? normalizarLogoTamanho(comLogo?.logoTamanho ?? base.logoTamanho)
+      ? normalizarLogoTamanho(autoridade?.logoTamanho)
       : normalizarLogoTamanho(undefined),
   };
+}
+
+/** initialLab (layout /app, tenant) tem prioridade sobre o provider raiz. */
+function autoridadeLogoLab(
+  initialLab?: LabImpressaoConfig,
+  servidor?: LabImpressaoConfig | null
+): LabImpressaoConfig | undefined {
+  if (initialLab) return initialLab;
+  return servidor ?? undefined;
 }
 
 function storageSincronizado() {
@@ -117,7 +114,7 @@ function dadosDoServidor(
   initialLab?: LabImpressaoConfig,
   initialNomeLaboratorio?: string
 ) {
-  const lab = mesclarLogoLab(servidor?.lab ?? initialLab, initialLab);
+  const lab = mesclarLogoLab(autoridadeLogoLab(initialLab, servidor?.lab));
   const nomeLaboratorio =
     nomeServidorProps(servidor, initialLab, initialNomeLaboratorio) || NOME_LAB_PADRAO;
   return { lab, nomeLaboratorio };
@@ -136,18 +133,18 @@ export function useLabConfigClient({
 
   const resolver = useCallback(() => {
     if (!cachePronto) {
+      // Antes do bootstrap: só SSR do tenant (nunca cache de outra sessão).
       return dadosDoServidor(servidor, initialLab, initialNomeLaboratorio);
     }
     const cfg = carregarConfigLaboratorio();
-    const cacheLab = labImpressaoFromConfig();
-    const autoridade = servidor?.lab ?? initialLab;
+    // Após bootstrap o espelho é do tenant atual (inclui upload recente do logo).
     return {
-      lab: mesclarLogoLab(autoridade, cacheLab, initialLab),
+      lab: mesclarLogoLab(labImpressaoFromConfig()),
       nomeLaboratorio: resolverNomeLaboratorio(cfg, nomeServidor),
     };
   }, [cachePronto, servidor, initialLab, initialNomeLaboratorio, nomeServidor]);
 
-  const labInicial = mesclarLogoLab(servidor?.lab ?? initialLab, initialLab);
+  const labInicial = mesclarLogoLab(autoridadeLogoLab(initialLab, servidor?.lab));
   const [lab, setLab] = useState<LabImpressaoConfig>(labInicial);
 
   const nomeLaboratorio = useMemo(() => {
