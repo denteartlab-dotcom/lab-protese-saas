@@ -113,6 +113,7 @@ export function visualizarPdfUrl(
     }
   }
 
+  /** Sempre o blob/URL direto — nunca a rota /relatorio-pdf (perdia o arquivo). */
   const urlVisualizador = srcIframePdfViewer(url);
 
   if (navegarAbaPdf(janelaReservada, urlVisualizador)) {
@@ -126,7 +127,11 @@ export function visualizarPdfUrl(
 
   const nova = window.open(urlVisualizador, "_blank");
   if (!nova) {
-    baixarPdfUrl(url, nomeArquivo);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = nomeArquivo;
+    link.rel = "noopener";
+    link.click();
     if (revogarAoFechar) agendarRevogarUrl(url);
     return url;
   }
@@ -141,7 +146,7 @@ export function abrirPdfNoVisualizador(
   titulo?: string,
   janela?: Window | null
 ) {
-  const url = URL.createObjectURL(blob);
+  const url = criarUrlPdfNomeada(blob, nomeArquivo);
   visualizarPdfUrl(url, nomeArquivo, titulo, {
     revogarAoFechar: true,
     janela,
@@ -237,7 +242,10 @@ export async function abrirHtmlParaImpressao(
   }
 }
 
-/** Abre PDF no visualizador do app (/app/financeiro/relatorio-pdf) — mesmo estilo da OS. */
+/**
+ * Gera e abre o PDF direto no navegador (blob URL).
+ * Não usa /financeiro/relatorio-pdf — evita “Gerando PDF...” infinito.
+ */
 export async function abrirPdfNoVisualizadorPagina(
   gerar: () => Promise<Blob>,
   titulo: string,
@@ -248,76 +256,9 @@ export async function abrirPdfNoVisualizadorPagina(
     subtitulo?: string;
   }
 ) {
-  const {
-    criarIdPdfViewer,
-    urlPdfViewerPagina,
-    abrirPdfViewerNovaAba,
-    publicarPdfNaAba,
-    salvarPdfViewerSession,
-    salvarPdfViewerSessionNaJanela,
-    enviarPdfViewerParaJanela,
-    registrarRepassadorPdfViewerOpener,
-    marcarPdfViewerErro,
-  } = await import("@/lib/pdf-viewer-aba");
-
-  registrarRepassadorPdfViewerOpener();
-
-  const id = criarIdPdfViewer();
-  let janelaAlvo = consumirJanelaReservada(opcoes?.janela);
-  const url = urlPdfViewerPagina(id);
-
-  salvarPdfViewerSession(id, {
-    status: "loading",
-    titulo,
-    subtitulo: opcoes?.subtitulo,
-    nomeArquivo,
+  await abrirPdfBlobDiretoNaAba(gerar, titulo, nomeArquivo, {
+    janela: opcoes?.janela,
   });
-
-  /** Abre o visualizador cedo para escutar postMessage antes do PDF ficar pronto. */
-  if (janelaAlvo && !janelaAlvo.closed) {
-    if (!navegarAbaPdf(janelaAlvo, url)) {
-      fecharJanela(janelaAlvo);
-      janelaAlvo = abrirPdfViewerNovaAba(id);
-    }
-  } else if (typeof window !== "undefined") {
-    janelaAlvo = abrirPdfViewerNovaAba(id);
-  }
-
-  let payloadPronto: Awaited<ReturnType<typeof publicarPdfNaAba>> | null = null;
-  let blobGerado: Blob | null = null;
-  try {
-    blobGerado = await gerar();
-    payloadPronto = await publicarPdfNaAba(id, blobGerado, titulo, nomeArquivo, {
-      imprimirAoCarregar: opcoes?.imprimirAoCarregar,
-      subtitulo: opcoes?.subtitulo,
-    });
-  } catch (err) {
-    const mensagem =
-      err instanceof Error ? err.message : "Não foi possível carregar o documento.";
-    marcarPdfViewerErro(id, mensagem, titulo);
-    enviarPdfViewerParaJanela(janelaAlvo, id, {
-      status: "error",
-      message: mensagem,
-      titulo,
-    });
-    console.error("visualizador PDF", err);
-    throw err;
-  }
-
-  if (janelaAlvo && !janelaAlvo.closed && payloadPronto) {
-    try {
-      janelaAlvo.document.title = titulo;
-    } catch {
-      /* ignore */
-    }
-    salvarPdfViewerSessionNaJanela(janelaAlvo, id, payloadPronto);
-    enviarPdfViewerParaJanela(janelaAlvo, id, payloadPronto);
-    return;
-  }
-
-  if (blobGerado) {
-    baixarPdfBlob(blobGerado, nomeArquivo);
-  }
 }
 
 export async function abrirPdfGerandoNoVisualizadorPagina(
@@ -326,16 +267,9 @@ export async function abrirPdfGerandoNoVisualizadorPagina(
   nomeArquivo = "documento.pdf",
   opcoes?: { janela?: Window | null; subtitulo?: string }
 ) {
-  const janela = opcoes?.janela ?? prepararAbaPdf();
-  try {
-    await abrirPdfNoVisualizadorPagina(gerar, titulo, nomeArquivo, {
-      janela,
-      subtitulo: opcoes?.subtitulo,
-    });
-  } catch (err) {
-    console.error("visualizador PDF", err);
-    throw err;
-  }
+  await abrirPdfBlobDiretoNaAba(gerar, titulo, nomeArquivo, {
+    janela: opcoes?.janela,
+  });
 }
 
 /**
@@ -404,81 +338,35 @@ export async function abrirPdfParaImpressaoNoVisualizador(
   }
 }
 
-/** Abre HTML no visualizador do app (/app/financeiro/relatorio-pdf) — layout idêntico ao preview. */
+/** Abre HTML direto na aba (blob) — sem /relatorio-pdf. */
 export async function abrirHtmlNoVisualizadorPagina(
   gerar: () => Promise<string>,
   titulo: string,
-  nomeArquivo = "documento.html",
+  _nomeArquivo = "documento.html",
   opcoes?: { janela?: Window | null; imprimirAoCarregar?: boolean; subtitulo?: string }
 ) {
-  const {
-    criarIdPdfViewer,
-    urlPdfViewerPagina,
-    publicarHtmlNaAba,
-    salvarPdfViewerSession,
-    salvarPdfViewerSessionNaJanela,
-    enviarPdfViewerParaJanela,
-    registrarRepassadorPdfViewerOpener,
-    marcarPdfViewerErro,
-  } = await import("@/lib/pdf-viewer-aba");
-
-  registrarRepassadorPdfViewerOpener();
-
-  const id = criarIdPdfViewer();
-  const janela = consumirJanelaReservada(opcoes?.janela);
-
-  salvarPdfViewerSession(id, { status: "loading", titulo, nomeArquivo });
-
-  let html = "";
-  let payloadPronto: Awaited<ReturnType<typeof publicarHtmlNaAba>> | null = null;
+  const janela =
+    opcoes?.janela && !opcoes.janela.closed ? opcoes.janela : prepararAbaPdf();
   try {
-    html = await gerar();
-    payloadPronto = await publicarHtmlNaAba(id, html, titulo, nomeArquivo, {
-      imprimirAoCarregar: opcoes?.imprimirAoCarregar,
-    });
-    if (janela && !janela.closed) {
-      salvarPdfViewerSessionNaJanela(janela, id, payloadPronto);
+    const html = await gerar();
+    const url = abrirHtmlDocumentoNoVisualizador(html, titulo, janela);
+
+    if (opcoes?.imprimirAoCarregar && janela && !janela.closed) {
+      window.setTimeout(() => {
+        try {
+          janela.focus();
+          janela.print();
+        } catch {
+          /* ignore */
+        }
+      }, 800);
     }
+
+    return url;
   } catch (err) {
-    marcarPdfViewerErro(id, "Não foi possível carregar o documento.", titulo);
     fecharJanela(janela);
     console.error("visualizador HTML", err);
-    if (html) {
-      abrirHtmlDocumentoNoVisualizador(html, titulo, janela);
-      return;
-    }
     throw err;
-  }
-
-  const url = urlPdfViewerPagina(id);
-
-  if (janela && !janela.closed) {
-    try {
-      janela.document.title = titulo;
-    } catch {
-      /* ignore */
-    }
-    if (!navegarAbaPdf(janela, url)) {
-      fecharJanela(janela);
-      const nova = window.open(url, "_blank");
-      if (!nova) {
-        abrirHtmlDocumentoNoVisualizador(html, titulo);
-      } else if (payloadPronto) {
-        enviarPdfViewerParaJanela(nova, id, payloadPronto);
-      }
-    } else if (payloadPronto) {
-      enviarPdfViewerParaJanela(janela, id, payloadPronto);
-    }
-    return;
-  }
-
-  if (typeof window === "undefined") return;
-
-  const nova = window.open(url, "_blank");
-  if (!nova) {
-    abrirHtmlDocumentoNoVisualizador(html, titulo);
-  } else if (payloadPronto) {
-    enviarPdfViewerParaJanela(nova, id, payloadPronto);
   }
 }
 
