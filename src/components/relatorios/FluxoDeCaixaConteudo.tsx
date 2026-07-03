@@ -40,7 +40,12 @@ import {
 import { cn } from "@/lib/utils";
 import { opcoesFormaPagamentoFiltro } from "@/lib/formas-pagamento";
 import { prepararAbaPdf } from "@/lib/pdf-viewer";
-import { abrirRelatorioPdfJob, gerarRelatorioPdfComJob } from "@/lib/relatorio-pdf-cliente";
+import { abrirPdfBlobGerandoNoVisualizadorUnificado } from "@/lib/pdf-viewer-unificado";
+import {
+  dataImpressaoHoje,
+  gerarRelatorioMovimentacaoPdf,
+  labelPeriodoFluxoCaixa,
+} from "@/lib/relatorio-movimentacao-pdf";
 
 const selectClass =
   "h-[34px] w-full rounded-sm border border-[#d1d5db] bg-white px-2 text-[12px] text-[#374151] outline-none focus:border-[#4a90d9]";
@@ -252,23 +257,29 @@ export function FluxoDeCaixaConteudo() {
     }
 
     setPdfCarregando(true);
-    setPdfProgresso(0);
+    setPdfProgresso(10);
     const janela = prepararAbaPdf();
     try {
-      const resultado = await gerarRelatorioPdfComJob(
-        "fluxo-caixa",
-        {
-          conta,
-          tipo,
-          formaPagamento,
-          periodo,
-          dataInicio,
-          dataFim: dataFinal,
-          situacao,
-        },
-        { onProgresso: (pct) => setPdfProgresso(pct) }
+      const contaLabel =
+        conta === "Todos"
+          ? "Todas"
+          : contas.find((c) => c.id === conta || c.nome === conta)?.nome ?? conta;
+
+      setPdfProgresso(40);
+      await abrirPdfBlobGerandoNoVisualizadorUnificado(
+        () =>
+          gerarRelatorioMovimentacaoPdf({
+            linhas: resultadoDiario.linhas,
+            contaLabel,
+            periodoLabel: labelPeriodoFluxoCaixa(periodo, dataInicio, dataFinal),
+            dataImpressao: dataImpressaoHoje(),
+            totalGeral: resultadoDiario.saldoFinal,
+          }),
+        "Relatório Movimentação — Fluxo de Caixa",
+        "relatorio-movimentacao.pdf",
+        { janela, origem: "Relatórios" }
       );
-      await abrirRelatorioPdfJob(resultado, { janela });
+      setPdfProgresso(100);
     } catch (err) {
       janela?.close();
       console.error("gerar PDF movimentação", err);

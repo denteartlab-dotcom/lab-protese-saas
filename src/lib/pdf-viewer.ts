@@ -263,7 +263,7 @@ export async function abrirPdfNoVisualizadorPagina(
   registrarRepassadorPdfViewerOpener();
 
   const id = criarIdPdfViewer();
-  const janela = consumirJanelaReservada(opcoes?.janela);
+  let janelaAlvo = consumirJanelaReservada(opcoes?.janela);
   const url = urlPdfViewerPagina(id);
 
   salvarPdfViewerSession(id, {
@@ -273,7 +273,16 @@ export async function abrirPdfNoVisualizadorPagina(
     nomeArquivo,
   });
 
-  let janelaAlvo: Window | null = janela;
+  /** Abre o visualizador cedo para escutar postMessage antes do PDF ficar pronto. */
+  if (janelaAlvo && !janelaAlvo.closed) {
+    if (!navegarAbaPdf(janelaAlvo, url)) {
+      fecharJanela(janelaAlvo);
+      janelaAlvo = abrirPdfViewerNovaAba(id);
+    }
+  } else if (typeof window !== "undefined") {
+    janelaAlvo = abrirPdfViewerNovaAba(id);
+  }
+
   let payloadPronto: Awaited<ReturnType<typeof publicarPdfNaAba>> | null = null;
   let blobGerado: Blob | null = null;
   try {
@@ -295,21 +304,12 @@ export async function abrirPdfNoVisualizadorPagina(
     throw err;
   }
 
-  if (janelaAlvo && !janelaAlvo.closed) {
+  if (janelaAlvo && !janelaAlvo.closed && payloadPronto) {
     try {
       janelaAlvo.document.title = titulo;
     } catch {
       /* ignore */
     }
-    if (!navegarAbaPdf(janelaAlvo, url)) {
-      fecharJanela(janelaAlvo);
-      janelaAlvo = abrirPdfViewerNovaAba(id);
-    }
-  } else if (typeof window !== "undefined") {
-    janelaAlvo = abrirPdfViewerNovaAba(id);
-  }
-
-  if (janelaAlvo && !janelaAlvo.closed && payloadPronto) {
     salvarPdfViewerSessionNaJanela(janelaAlvo, id, payloadPronto);
     enviarPdfViewerParaJanela(janelaAlvo, id, payloadPronto);
     return;
