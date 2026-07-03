@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, FileSpreadsheet, Printer, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { MESES_DRE } from "@/lib/dre";
+import { calcularMatrizDre, MESES_DRE } from "@/lib/dre";
 import {
+  dreMesSemDados,
   exportarRelatorioDreMesCsv,
   montarRelatorioDreMes,
   type TipoRelatorioDre,
@@ -16,10 +17,13 @@ import {
   montarRelatorioDreDetalhadoItens,
   type DreCategoriaRelatorioId,
 } from "@/lib/dre-relatorio-detalhado";
+import { gerarRelatorioDreDetalhadoPdf } from "@/lib/dre-relatorio-detalhado-pdf";
+import { gerarRelatorioDrePdf } from "@/lib/dre-relatorio-pdf";
 import type { DreMatriz } from "@/lib/dre";
 import type { ItemPlanoContas } from "@/lib/plano-contas";
 import { prepararAbaPdf } from "@/lib/pdf-viewer";
-import { abrirRelatorioPdfJob, gerarRelatorioPdfComJob } from "@/lib/relatorio-pdf-cliente";
+import { abrirPdfViewerMensagem } from "@/lib/pdf-viewer-aba";
+import { abrirPdfBlobGerandoNoVisualizadorUnificado } from "@/lib/pdf-viewer-unificado";
 
 const selectClass =
   "h-[36px] w-full rounded-sm border border-[#d1d5db] bg-white px-2 text-[12px] text-[#374151] outline-none focus:border-[#4a90d9]";
@@ -77,22 +81,54 @@ export function ImprimirDreModal({
     }
 
     setGerando(true);
-    setProgresso(0);
+    setProgresso(10);
     const janela = prepararAbaPdf();
     try {
-      const resultado = await gerarRelatorioPdfComJob(
-        "dre",
-        {
-          tipoRelatorio: tipo === "detalhado" ? "detalhado" : "resumo",
+      const lancamentos = matriz.lancamentos ?? [];
+      const titulo = `Demonstrativo de Resultado ${mesIndex + 1}/${ano}`;
+
+      if (dreMesSemDados(lancamentos, ano, mesIndex)) {
+        await abrirPdfViewerMensagem(
+          titulo,
+          "Não há lançamentos no período selecionado.",
+          { janela, subtitulo: "Relatórios", vazio: true }
+        );
+        onClose();
+        return;
+      }
+
+      const matrizAnoLocal = calcularMatrizDre(lancamentos, ano, planoContas);
+      setProgresso(40);
+
+      if (tipo === "detalhado") {
+        const relatorio = montarRelatorioDreDetalhadoItens(
+          matrizAnoLocal,
           mesIndex,
-          ano,
-          categorias: tipo === "detalhado" ? categoriasSelecionadas : undefined,
-        },
-        {
-          onProgresso: (pct) => setProgresso(pct),
-        }
-      );
-      await abrirRelatorioPdfJob(resultado, { janela });
+          planoContas,
+          categoriasSelecionadas
+        );
+        await abrirPdfBlobGerandoNoVisualizadorUnificado(
+          () => gerarRelatorioDreDetalhadoPdf(relatorio),
+          relatorio.titulo,
+          `relatorio-dre-detalhado-${mesIndex + 1}-${ano}.pdf`,
+          { janela, origem: "Relatórios" }
+        );
+      } else {
+        const relatorio = montarRelatorioDreMes(
+          matrizAnoLocal,
+          mesIndex,
+          planoContas,
+          "resumo"
+        );
+        await abrirPdfBlobGerandoNoVisualizadorUnificado(
+          () => gerarRelatorioDrePdf(relatorio),
+          relatorio.titulo,
+          `relatorio-dre-${mesIndex + 1}-${ano}.pdf`,
+          { janela, origem: "Relatórios" }
+        );
+      }
+
+      setProgresso(100);
       onClose();
     } catch (err) {
       janela?.close();
