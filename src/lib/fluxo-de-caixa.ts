@@ -7,6 +7,7 @@ import { desempacotarDespesa } from "@/lib/lancamento-despesa";
 import { parseBrDate } from "@/lib/datas-br";
 import { lancamentoEfetivadoFinanceiro } from "@/lib/lancamento-financeiro-realizado";
 import { ehDescricaoReceitaOs } from "@/lib/os-faturamento";
+import { descricaoReceitaSemMeta } from "@/lib/receita-conta-bancaria";
 
 export type LancamentoFluxo = {
   id: string;
@@ -113,11 +114,52 @@ function passaConta(nomeContaLinha: string, filtro: string | null) {
   return nomeContaLinha === filtro;
 }
 
+/**
+ * Remove metadados e o sufixo longo gerado automaticamente
+ * (paciente, serviço, etc.), deixando só o prefixo curto:
+ * "Cobrança OS 26", "Cobrança OS 12, 15", "OS #26", etc.
+ */
+function descricaoCurtaFluxo(texto: string): string {
+  let d = texto
+    .replace(/@@trab:[a-zA-Z0-9_,-]+@@/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const cobranca = d.match(/^(cobrança os\s+[\d]+(?:\s*,\s*[\d]+)*)/i);
+  if (cobranca) {
+    return cobranca[1].replace(/\s*,\s*/g, ", ").replace(/\s+/g, " ").trim();
+  }
+
+  const osHash = d.match(/^(os\s*#\s*\d+)/i);
+  if (osHash) {
+    return osHash[1].replace(/\s+/g, " ").trim();
+  }
+
+  if (
+    /^crédito utilizado/i.test(d) ||
+    /^desconto com crédito/i.test(d) ||
+    /^adiantamento/i.test(d)
+  ) {
+    const prefixo = d.split(" - ")[0]?.trim();
+    return prefixo || d;
+  }
+
+  // Outras linhas geradas no formato "Título curto - detalhe longo..."
+  if (d.length > 48 && d.includes(" - ")) {
+    const prefixo = d.split(" - ")[0]?.trim() || "";
+    if (prefixo.length >= 6 && prefixo.length <= 42) return prefixo;
+  }
+
+  return d;
+}
+
 function descricaoLancamento(l: LancamentoFluxo) {
   if (l.tipo === "despesa") {
-    return desempacotarDespesa(l.descricao).texto || l.descricao;
+    return descricaoCurtaFluxo(
+      desempacotarDespesa(l.descricao).texto || l.descricao
+    );
   }
-  return l.descricao;
+  return descricaoCurtaFluxo(descricaoReceitaSemMeta(l.descricao));
 }
 
 function lancamentoIncluido(
@@ -172,7 +214,7 @@ function movimentosBrutos(
     linhas.push({
       id: m.id,
       data,
-      descricao: m.descricao,
+      descricao: descricaoCurtaFluxo(m.descricao),
       forma: "Movimentação",
       conta: conta.nome,
       valor: m.tipo === "entrada" ? m.valor : -m.valor,
