@@ -26,9 +26,9 @@ import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import { gerarMargemContribuicaoPdf } from "@/lib/relatorios-impressao-pdf";
 import { cn } from "@/lib/utils";
 
-const labelClass = "mb-1 block text-[11px] font-normal text-[#6b7280]";
+const labelClass = "mb-1 block text-[11px] font-normal text-[#6b7280] dark:text-slate-400";
 const selectClass =
-  "h-[34px] w-full rounded-sm border border-[#d1d5db] bg-white px-2 text-[12px] text-[#374151] outline-none focus:border-[#4a90d9]";
+  "h-[34px] w-full rounded-sm border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 px-2 text-[12px] text-[#374151] dark:text-slate-200 outline-none focus:border-[#4a90d9]";
 
 function money(value: number) {
   return value.toLocaleString("pt-BR", {
@@ -43,7 +43,7 @@ function DetalheCustosLinha({ itens }: { itens: ItemCustoMargem[] }) {
       <td colSpan={4} className="p-0">
         <table className="w-full border-collapse text-[11px]">
           <thead>
-            <tr className="border-b border-[#e5e7eb] bg-[#ececec] text-[10px] font-semibold uppercase tracking-wide text-[#6b7280]">
+            <tr className="border-b border-[#e5e7eb] dark:border-slate-700 bg-[#ececec] dark:bg-slate-700 text-[10px] font-semibold uppercase tracking-wide text-[#6b7280] dark:text-slate-400">
               <th className="py-1.5 pl-8 text-left">Item</th>
               <th className="w-[32%] py-1.5 text-center">Quantidade</th>
               <th className="w-[22%] py-1.5 pr-8 text-right">Valor</th>
@@ -53,11 +53,11 @@ function DetalheCustosLinha({ itens }: { itens: ItemCustoMargem[] }) {
             {itens.map((item, index) => (
               <tr
                 key={`${item.item}-${index}`}
-                className="border-b border-[#f0f0f0] bg-white last:border-b-0"
+                className="border-b border-[#f0f0f0] dark:border-slate-700 bg-white dark:bg-slate-900 last:border-b-0"
               >
-                <td className="py-1.5 pl-8 text-[#374151]">{item.item}</td>
-                <td className="py-1.5 text-center text-[#374151]">{item.quantidade}</td>
-                <td className="py-1.5 pr-8 text-right text-[#374151]">
+                <td className="py-1.5 pl-8 text-[#374151] dark:text-slate-200">{item.item}</td>
+                <td className="py-1.5 text-center text-[#374151] dark:text-slate-200">{item.quantidade}</td>
+                <td className="py-1.5 pr-8 text-right text-[#374151] dark:text-slate-200">
                   {money(item.valor)}
                 </td>
               </tr>
@@ -91,14 +91,16 @@ function LinhasMargemTabela({
                 if (podeExpandir) onToggle(linha.id);
               }}
               className={cn(
-                "border-b border-[#e5e7eb] transition-colors",
+                "border-b border-[#e5e7eb] dark:border-slate-700 transition-colors",
                 podeExpandir && "cursor-pointer",
-                expandido ? "bg-[#e8e8e8]" : "bg-[#f3f4f6] hover:bg-[#ececec]",
+                expandido
+                  ? "bg-[#e8e8e8] dark:bg-slate-700"
+                  : "bg-[#f3f4f6] hover:bg-[#ececec] dark:bg-slate-800 dark:hover:bg-slate-700",
                 "print:hover:bg-[#f3f4f6]"
               )}
             >
-              <td className="px-3 py-2 font-medium text-[#374151]">{linha.nome}</td>
-              <td className="w-28 px-3 py-2 text-right text-[#374151]">
+              <td className="px-3 py-2 font-medium text-[#374151] dark:text-slate-200">{linha.nome}</td>
+              <td className="w-28 px-3 py-2 text-right text-[#374151] dark:text-slate-200">
                 {money(linha.valor)}
               </td>
               <td className="w-28 px-3 py-2 text-right font-medium text-[#c62828]">
@@ -201,26 +203,26 @@ export function MargemContribuicaoConteudo() {
 
   if (carregando) {
     return (
-      <div className="min-h-[320px] bg-[#f3f4f6] pb-8 pt-1">
+      <div className="min-h-[320px] bg-[#f3f4f6] dark:bg-slate-950 pb-8 pt-1">
         <PainelCarregando mensagem="Carregando margens de contribuição..." />
       </div>
     );
   }
 
   return (
-    <div className="margem-contribuicao-relatorio bg-[#f3f4f6] pb-8 pt-1 text-[12px] text-[#374151] print:bg-white">
+    <div className="margem-contribuicao-relatorio bg-[#f3f4f6] dark:bg-slate-950 pb-8 pt-1 text-[12px] text-[#374151] dark:text-slate-200 print:bg-white">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <h1 className="text-[22px] font-normal leading-none text-[#6b7280]">
+        <h1 className="text-[22px] font-normal leading-none text-[#6b7280] dark:text-slate-400">
           Relatórios
         </h1>
-        <div className="flex items-center gap-1.5 text-[12px] text-[#9ca3af]">
+        <div className="flex items-center gap-1.5 text-[12px] text-[#9ca3af] dark:text-slate-500">
           <Home className="h-3.5 w-3.5 shrink-0" />
-          <span className="text-[#d1d5db]">/</span>
-          <span className="text-[#6b7280]">Margens Contribuição</span>
+          <span className="text-[#d1d5db] dark:text-slate-600">/</span>
+          <span className="text-[#6b7280] dark:text-slate-400">Margens Contribuição</span>
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-sm border border-[#e5e7eb] bg-white shadow-sm print:border-0 print:shadow-none">
+      <div className="overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm print:border-0 print:shadow-none">
         <div className="flex flex-wrap items-end gap-x-4 gap-y-3 px-4 py-4 print:hidden">
           <div className="min-w-[220px] flex-1">
             <label className={labelClass}>Selecione uma Tabela</label>
@@ -254,7 +256,7 @@ export function MargemContribuicaoConteudo() {
             </select>
           </div>
 
-          <label className="mb-1 flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap text-[12px] text-[#374151]">
+          <label className="mb-1 flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap text-[12px] text-[#374151] dark:text-slate-200">
             <input
               type="checkbox"
               checked={somenteComCustos}
@@ -294,9 +296,9 @@ export function MargemContribuicaoConteudo() {
           </div>
         </div>
 
-        <div id="margem-contribuicao-impressao" className="border-t border-[#e5e7eb]">
+        <div id="margem-contribuicao-impressao" className="border-t border-[#e5e7eb] dark:border-slate-700">
           {grupos.length === 0 ? (
-            <div className="flex min-h-[280px] items-center justify-center px-4 py-12 text-[12px] text-[#9ca3af]">
+            <div className="flex min-h-[280px] items-center justify-center px-4 py-12 text-[12px] text-[#9ca3af] dark:text-slate-400">
               {somenteComCustos
                 ? "Nenhum serviço com custo cadastrado para esta tabela."
                 : "Nenhum serviço sem custo cadastrado para esta tabela."}
@@ -306,7 +308,7 @@ export function MargemContribuicaoConteudo() {
               {grupos.map((grupo) => (
                 <section
                   key={grupo.categoriaId}
-                  className="overflow-hidden rounded border border-primary-300 bg-white shadow-sm print:break-inside-avoid print:shadow-none"
+                  className="overflow-hidden rounded border border-primary-300 bg-white dark:bg-slate-900 shadow-sm print:break-inside-avoid print:shadow-none"
                 >
                   <div className="border-b border-primary-700 bg-primary-600 px-4 py-2.5">
                     <h2 className="text-[13px] font-bold uppercase tracking-wide text-white">
@@ -316,7 +318,7 @@ export function MargemContribuicaoConteudo() {
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[720px] border-collapse text-[11px]">
                       <thead>
-                        <tr className="border-b border-[#e5e7eb] bg-white text-left text-[#6b7280]">
+                        <tr className="border-b border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 text-left text-[#6b7280] dark:text-slate-400">
                           <th className="px-3 py-2 font-semibold uppercase">Serviço</th>
                           <th className="w-28 px-3 py-2 text-right font-semibold uppercase">
                             Valor

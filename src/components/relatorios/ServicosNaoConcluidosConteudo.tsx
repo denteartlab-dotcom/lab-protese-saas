@@ -45,7 +45,7 @@ import {
 } from "@/lib/relatorio-servicos-nao-concluidos";
 
 const inputDataClass =
-  "h-[36px] w-full rounded-lg border border-[#e5e7eb] bg-white pl-8 pr-3 text-[12px] text-[#374151] shadow-none outline-none focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]/20";
+  "h-[36px] w-full rounded-lg border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 pl-8 pr-3 text-[12px] text-[#374151] dark:text-slate-200 shadow-none outline-none focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]/20";
 
 const COR_ETAPA: Record<EtapaGrupoRelatorio, string> = {
   Montagem: "#8b5cf6",
@@ -80,15 +80,15 @@ function CardKpi({
   corFundoIcone: string;
 }) {
   return (
-    <div className="rounded-xl border border-[#e8eaed] bg-white p-4 shadow-sm">
+    <div className="rounded-xl border border-[#e8eaed] bg-white dark:bg-slate-900 p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[12px] font-medium text-[#6b7280]">{titulo}</p>
+          <p className="text-[12px] font-medium text-[#6b7280] dark:text-slate-400">{titulo}</p>
           <p className="mt-1 text-[22px] font-bold tabular-nums" style={{ color: corValor }}>
             {valor}
           </p>
           {subtitulo ? (
-            <p className="mt-1 text-[11px] text-[#9ca3af]">{subtitulo}</p>
+            <p className="mt-1 text-[11px] text-[#9ca3af] dark:text-slate-500">{subtitulo}</p>
           ) : null}
         </div>
         <div
@@ -104,9 +104,9 @@ function CardKpi({
 
 function CardGrafico({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
-    <div className="flex h-full flex-col rounded-xl border border-[#e8eaed] bg-white shadow-sm">
-      <div className="border-b border-[#f0f0f0] px-4 py-3">
-        <h3 className="text-[13px] font-semibold text-[#374151]">{titulo}</h3>
+    <div className="flex h-full flex-col rounded-xl border border-[#e8eaed] bg-white dark:bg-slate-900 shadow-sm">
+      <div className="border-b border-[#f0f0f0] dark:border-slate-700 px-4 py-3">
+        <h3 className="text-[13px] font-semibold text-[#374151] dark:text-slate-200">{titulo}</h3>
       </div>
       <div className="flex-1 p-4">{children}</div>
     </div>
@@ -123,13 +123,13 @@ function CardTabela({
   linkVerTodos?: boolean;
 }) {
   return (
-    <div className="flex h-full flex-col rounded-xl border border-[#e8eaed] bg-white shadow-sm">
-      <div className="border-b border-[#f0f0f0] px-4 py-3">
-        <h3 className="text-[13px] font-semibold text-[#374151]">{titulo}</h3>
+    <div className="flex h-full flex-col rounded-xl border border-[#e8eaed] bg-white dark:bg-slate-900 shadow-sm">
+      <div className="border-b border-[#f0f0f0] dark:border-slate-700 px-4 py-3">
+        <h3 className="text-[13px] font-semibold text-[#374151] dark:text-slate-200">{titulo}</h3>
       </div>
       <div className="flex-1 overflow-x-auto px-2 py-2">{children}</div>
       {linkVerTodos ? (
-        <div className="border-t border-[#f0f0f0] px-4 py-2.5 text-center">
+        <div className="border-t border-[#f0f0f0] dark:border-slate-700 px-4 py-2.5 text-center">
           <button
             type="button"
             className="text-[12px] font-medium text-[#4a90d9] hover:underline"
@@ -144,7 +144,7 @@ function CardTabela({
 
 function SemDados() {
   return (
-    <div className="flex h-full min-h-[220px] items-center justify-center text-[12px] text-[#9ca3af]">
+    <div className="flex h-full min-h-[220px] items-center justify-center text-[12px] text-[#9ca3af] dark:text-slate-500">
       Sem dados no período selecionado.
     </div>
   );
@@ -224,7 +224,7 @@ export function ServicosNaoConcluidosConteudo() {
         <div className="mb-2">
           <Link
             href="/app/relatorios"
-            className="inline-flex items-center gap-1.5 text-[12px] text-[#6b7280] hover:text-[#374151]"
+            className="inline-flex items-center gap-1.5 text-[12px] text-[#6b7280] dark:text-slate-400 hover:text-[#374151] dark:text-slate-200"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             Voltar aos relatórios
@@ -233,10 +233,10 @@ export function ServicosNaoConcluidosConteudo() {
 
         <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <h1 className="text-[20px] font-bold text-[#1f2937] sm:text-[22px]">
+            <h1 className="text-[20px] font-bold text-[#1f2937] dark:text-slate-100 sm:text-[22px]">
               Relatório de Serviços Não Concluídos
             </h1>
-            <p className="mt-1 max-w-2xl text-[13px] text-[#6b7280]">
+            <p className="mt-1 max-w-2xl text-[13px] text-[#6b7280] dark:text-slate-400">
               Análise dos serviços em andamento e valor total preso no laboratório.
             </p>
           </div>
@@ -251,7 +251,7 @@ export function ServicosNaoConcluidosConteudo() {
                 inputClassName={inputDataClass}
               />
             </div>
-            <span className="pb-2 text-[12px] text-[#9ca3af]">—</span>
+            <span className="pb-2 text-[12px] text-[#9ca3af] dark:text-slate-500">—</span>
             <div className="w-[130px]">
               <CampoDataBr
                 value={filtros.dataFim}
@@ -275,7 +275,7 @@ export function ServicosNaoConcluidosConteudo() {
                 type="button"
                 disabled={!dados || exportando}
                 onClick={() => void exportar("csv")}
-                className="inline-flex h-[36px] items-center gap-1.5 rounded-lg border border-[#e5e7eb] bg-white px-3 text-[12px] font-medium text-[#374151] shadow-sm hover:bg-[#f9fafb] disabled:opacity-50"
+                className="inline-flex h-[36px] items-center gap-1.5 rounded-lg border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-[12px] font-medium text-[#374151] dark:text-slate-200 shadow-sm hover:bg-[#f9fafb] dark:bg-slate-800/70 disabled:opacity-50"
               >
                 <Download className="h-3.5 w-3.5" />
                 Exportar
@@ -285,11 +285,11 @@ export function ServicosNaoConcluidosConteudo() {
         </header>
 
         {carregando ? (
-          <div className="min-h-[400px] rounded-xl border border-[#e8eaed] bg-white shadow-sm">
+          <div className="min-h-[400px] rounded-xl border border-[#e8eaed] bg-white dark:bg-slate-900 shadow-sm">
             <PainelCarregando mensagem="Carregando relatório..." />
           </div>
         ) : !dados ? (
-          <div className="rounded-xl border border-[#e8eaed] bg-white p-12 text-center text-[#6b7280]">
+          <div className="rounded-xl border border-[#e8eaed] bg-white dark:bg-slate-900 p-12 text-center text-[#6b7280] dark:text-slate-400">
             Não foi possível carregar o relatório.
           </div>
         ) : (
@@ -423,7 +423,7 @@ export function ServicosNaoConcluidosConteudo() {
                       {dadosPizza.map((e) => (
                         <span
                           key={e.nome}
-                          className="inline-flex items-center gap-1 text-[10px] text-[#6b7280]"
+                          className="inline-flex items-center gap-1 text-[10px] text-[#6b7280] dark:text-slate-400"
                         >
                           <span
                             className="h-2 w-2 rounded-full"
@@ -492,7 +492,7 @@ export function ServicosNaoConcluidosConteudo() {
               <CardTabela titulo="Serviços Não Concluídos por Cliente" linkVerTodos>
                 <table className="w-full min-w-[420px] text-left text-[12px]">
                   <thead>
-                    <tr className="border-b border-[#f0f0f0] text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">
+                    <tr className="border-b border-[#f0f0f0] dark:border-slate-700 text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af] dark:text-slate-500">
                       <th className="px-2 py-2">Cliente</th>
                       <th className="px-2 py-2 text-center">Qtde Serviços</th>
                       <th className="px-2 py-2 text-right">Valor Total</th>
@@ -503,14 +503,14 @@ export function ServicosNaoConcluidosConteudo() {
                   <tbody>
                     {dados.porCliente.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-2 py-6 text-center text-[#9ca3af]">
+                        <td colSpan={5} className="px-2 py-6 text-center text-[#9ca3af] dark:text-slate-500">
                           Nenhum serviço não concluído no período.
                         </td>
                       </tr>
                     ) : (
                       dados.porCliente.map((c) => (
                         <tr key={c.cliente} className="border-b border-[#f8f8f8] last:border-0">
-                          <td className="px-2 py-2.5 font-medium text-[#374151]">{c.cliente}</td>
+                          <td className="px-2 py-2.5 font-medium text-[#374151] dark:text-slate-200">{c.cliente}</td>
                           <td className="px-2 py-2.5 text-center tabular-nums">{c.quantidade}</td>
                           <td className="px-2 py-2.5 text-right tabular-nums">
                             {formatarMoedaServicosNaoConcluidos(c.valorTotal)}
@@ -527,7 +527,7 @@ export function ServicosNaoConcluidosConteudo() {
                   </tbody>
                   {dados.porCliente.length > 0 ? (
                     <tfoot>
-                      <tr className="bg-[#f9fafb] font-semibold text-[#374151]">
+                      <tr className="bg-[#f9fafb] dark:bg-slate-800/70 font-semibold text-[#374151] dark:text-slate-200">
                         <td className="px-2 py-2.5">Total</td>
                         <td className="px-2 py-2.5 text-center">{dados.resumo.quantidade}</td>
                         <td className="px-2 py-2.5 text-right text-[#10b981]">
@@ -548,7 +548,7 @@ export function ServicosNaoConcluidosConteudo() {
               <CardTabela titulo="Serviços Vencidos (Prazo Excedido)" linkVerTodos>
                 <table className="w-full min-w-[380px] text-left text-[12px]">
                   <thead>
-                    <tr className="border-b border-[#f0f0f0] text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">
+                    <tr className="border-b border-[#f0f0f0] dark:border-slate-700 text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af] dark:text-slate-500">
                       <th className="px-2 py-2">OS</th>
                       <th className="px-2 py-2">Cliente</th>
                       <th className="px-2 py-2">Etapa Atual</th>
@@ -559,7 +559,7 @@ export function ServicosNaoConcluidosConteudo() {
                   <tbody>
                     {dados.vencidos.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-2 py-6 text-center text-[#9ca3af]">
+                        <td colSpan={5} className="px-2 py-6 text-center text-[#9ca3af] dark:text-slate-500">
                           Nenhum serviço vencido no período.
                         </td>
                       </tr>
@@ -569,9 +569,9 @@ export function ServicosNaoConcluidosConteudo() {
                           key={`${v.numeroOs}-${v.cliente}`}
                           className="border-b border-[#f8f8f8] last:border-0"
                         >
-                          <td className="px-2 py-2.5 font-medium text-[#374151]">{v.numeroOs}</td>
-                          <td className="px-2 py-2.5 text-[#374151]">{v.cliente}</td>
-                          <td className="px-2 py-2.5 text-[#6b7280]">{v.etapaAtual}</td>
+                          <td className="px-2 py-2.5 font-medium text-[#374151] dark:text-slate-200">{v.numeroOs}</td>
+                          <td className="px-2 py-2.5 text-[#374151] dark:text-slate-200">{v.cliente}</td>
+                          <td className="px-2 py-2.5 text-[#6b7280] dark:text-slate-400">{v.etapaAtual}</td>
                           <td className="px-2 py-2.5 text-center font-semibold text-[#ef4444]">
                             {v.diasAtraso} dias
                           </td>
@@ -584,7 +584,7 @@ export function ServicosNaoConcluidosConteudo() {
                   </tbody>
                   {dados.vencidos.length > 0 ? (
                     <tfoot>
-                      <tr className="bg-[#f9fafb] font-semibold text-[#374151]">
+                      <tr className="bg-[#f9fafb] dark:bg-slate-800/70 font-semibold text-[#374151] dark:text-slate-200">
                         <td colSpan={3} className="px-2 py-2.5">
                           Total de Vencidos
                         </td>
@@ -603,7 +603,7 @@ export function ServicosNaoConcluidosConteudo() {
               </CardTabela>
             </div>
 
-            <p className="flex items-center gap-1.5 text-[11px] text-[#9ca3af]">
+            <p className="flex items-center gap-1.5 text-[11px] text-[#9ca3af] dark:text-slate-500">
               <Info className="h-3.5 w-3.5" />
               Relatório gerado em {dados.geradoEm}
               <span className="mx-1">·</span>

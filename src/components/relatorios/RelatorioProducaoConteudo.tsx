@@ -46,12 +46,12 @@ import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import { gerarRelatorioProducaoPdf } from "@/lib/relatorios-impressao-pdf";
 import { cn } from "@/lib/utils";
 
-const labelClass = "mb-1 block text-[11px] font-normal text-[#6b7280]";
+const labelClass = "mb-1 block text-[11px] font-normal text-[#6b7280] dark:text-slate-400";
 const selectClass =
-  "h-[34px] w-full rounded-sm border border-[#d1d5db] bg-white px-2 text-[12px] text-[#374151] outline-none focus:border-[#4a90d9]";
+  "h-[34px] w-full rounded-sm border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 px-2 text-[12px] text-[#374151] dark:text-slate-200 outline-none focus:border-[#4a90d9]";
 
 const inputDataRelatorioClass =
-  "h-[34px] w-full rounded-sm border border-[#d1d5db] bg-white text-[12px] text-[#374151] shadow-none focus:border-[#4a90d9] focus:ring-0";
+  "h-[34px] w-full rounded-sm border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 text-[12px] text-[#374151] dark:text-slate-200 shadow-none focus:border-[#4a90d9] focus:ring-0";
 
 function money(value: number) {
   return value.toLocaleString("pt-BR", {
@@ -181,13 +181,13 @@ function PaginacaoRelatorioControles({
 
   return (
     <tr className="print:hidden">
-      <td colSpan={colSpan} className="border-b border-[#e5e7eb] bg-white px-3 py-2">
+      <td colSpan={colSpan} className="border-b border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2">
         <div className="flex flex-wrap items-center justify-center gap-1.5">
           <button
             type="button"
             disabled={pagina <= 1}
             onClick={() => onPagina(pagina - 1)}
-            className="rounded border border-[#d1d5db] px-2 py-0.5 text-[11px] text-[#374151] hover:bg-[#f3f4f6] disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded border border-[#d1d5db] dark:border-slate-600 px-2 py-0.5 text-[11px] text-[#374151] dark:text-slate-200 hover:bg-[#f3f4f6] dark:hover:bg-slate-700 dark:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Anterior
           </button>
@@ -200,7 +200,7 @@ function PaginacaoRelatorioControles({
                 "min-w-[28px] rounded border px-2 py-0.5 text-[11px] font-medium",
                 p === pagina
                   ? "border-[#4a90d9] bg-[#4a90d9] text-white"
-                  : "border-[#d1d5db] bg-white text-[#374151] hover:bg-[#f3f4f6]"
+                  : "border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 text-[#374151] dark:text-slate-200 hover:bg-[#f3f4f6] dark:hover:bg-slate-700 dark:bg-slate-800"
               )}
             >
               {p}
@@ -210,11 +210,11 @@ function PaginacaoRelatorioControles({
             type="button"
             disabled={pagina >= totalPaginas}
             onClick={() => onPagina(pagina + 1)}
-            className="rounded border border-[#d1d5db] px-2 py-0.5 text-[11px] text-[#374151] hover:bg-[#f3f4f6] disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded border border-[#d1d5db] dark:border-slate-600 px-2 py-0.5 text-[11px] text-[#374151] dark:text-slate-200 hover:bg-[#f3f4f6] dark:hover:bg-slate-700 dark:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Próxima
           </button>
-          <span className="ml-1 text-[10px] text-[#9ca3af]">
+          <span className="ml-1 text-[10px] text-[#9ca3af] dark:text-slate-500">
             Página {pagina} de {totalPaginas}
           </span>
         </div>
@@ -226,19 +226,19 @@ function PaginacaoRelatorioControles({
 function LinhaDadosRelatorioTabela({ linha }: { linha: LinhaRelatorioProducao }) {
   return (
     <>
-      <td className="px-2 py-2 text-[#374151]">{linha.data}</td>
-      <td className="px-2 py-2 text-right text-[#374151]">{linha.os}</td>
-      <td className="px-2 py-2 text-right text-[#374151]">{linha.qtd}</td>
-      <td className="px-2 py-2 text-[#374151]">{linha.descricao}</td>
-      <td className="px-2 py-2 text-[#374151]">{linha.cor}</td>
-      <td className="px-2 py-2 text-[#374151]">{linha.dente}</td>
-      <td className="px-2 py-2 text-[#374151]">{linha.cliente}</td>
-      <td className="px-2 py-2 text-[#374151]">{linha.paciente}</td>
-      <td className="px-2 py-2 text-[#374151]">{linha.colaborador}</td>
+      <td className="px-2 py-2 text-[#374151] dark:text-slate-200">{linha.data}</td>
+      <td className="px-2 py-2 text-right text-[#374151] dark:text-slate-200">{linha.os}</td>
+      <td className="px-2 py-2 text-right text-[#374151] dark:text-slate-200">{linha.qtd}</td>
+      <td className="px-2 py-2 text-[#374151] dark:text-slate-200">{linha.descricao}</td>
+      <td className="px-2 py-2 text-[#374151] dark:text-slate-200">{linha.cor}</td>
+      <td className="px-2 py-2 text-[#374151] dark:text-slate-200">{linha.dente}</td>
+      <td className="px-2 py-2 text-[#374151] dark:text-slate-200">{linha.cliente}</td>
+      <td className="px-2 py-2 text-[#374151] dark:text-slate-200">{linha.paciente}</td>
+      <td className="px-2 py-2 text-[#374151] dark:text-slate-200">{linha.colaborador}</td>
       <td className="px-2 py-2">
         <BadgeSituacaoOs status={linha.situacaoKey} />
       </td>
-      <td className="px-2 py-2 text-right text-[#374151]">
+      <td className="px-2 py-2 text-right text-[#374151] dark:text-slate-200">
         {typeof linha.valor === "number" ? money(linha.valor) : ""}
       </td>
     </>
@@ -299,7 +299,7 @@ function SelectSituacaoMulti({
 
   const listaSituacoes = (
     <ul
-      className="max-h-56 overflow-auto rounded-sm border border-[#d1d5db] bg-white py-1 shadow-lg"
+      className="max-h-56 overflow-auto rounded-sm border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 py-1 shadow-lg"
       style={posicao ? { width: posicao.width } : undefined}
     >
       {SITUACOES_FILTRO_RELATORIO_PRODUCAO.map((item) => {
@@ -312,7 +312,7 @@ function SelectSituacaoMulti({
                 "flex w-full items-center justify-between px-3 py-2 text-left text-[12px]",
                 ativo
                   ? "bg-[#4a90d9] font-medium text-white"
-                  : "text-[#374151] hover:bg-[#f3f4f6]"
+                  : "text-[#374151] dark:text-slate-200 hover:bg-[#f3f4f6] dark:hover:bg-slate-700 dark:bg-slate-800"
               )}
               onClick={() => alternar(item.key)}
             >
@@ -338,11 +338,11 @@ function SelectSituacaoMulti({
           atualizarPosicao();
           setAberto(true);
         }}
-        className="flex min-h-[34px] w-full flex-wrap items-center gap-1 rounded-sm border border-[#d1d5db] bg-white px-2 py-1.5 text-left text-[12px] outline-none focus:border-[#4a90d9]"
+        className="flex min-h-[34px] w-full flex-wrap items-center gap-1 rounded-sm border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1.5 text-left text-[12px] outline-none focus:border-[#4a90d9]"
         aria-expanded={aberto}
       >
         {selecionados.length === 0 ? (
-          <span className="text-[#9ca3af]">&nbsp;</span>
+          <span className="text-[#9ca3af] dark:text-slate-500">&nbsp;</span>
         ) : (
           selecionados.map((key) => (
             <span
@@ -364,7 +364,7 @@ function SelectSituacaoMulti({
             </span>
           ))
         )}
-        <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-[#9ca3af]" />
+        <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-[#9ca3af] dark:text-slate-500" />
       </button>
       {aberto &&
         posicao &&
@@ -632,20 +632,20 @@ export function RelatorioProducaoConteudo() {
 
   if (carregando) {
     return (
-      <div className="min-h-[320px] bg-[#f3f4f6] pb-8 pt-1">
+      <div className="min-h-[320px] bg-[#f3f4f6] dark:bg-slate-950 pb-8 pt-1">
         <PainelCarregando mensagem="Carregando relatório de produção..." />
       </div>
     );
   }
 
   return (
-    <div className="relatorio-producao bg-[#f3f4f6] pb-8 pt-1 text-[12px] text-[#374151] print:bg-white">
+    <div className="relatorio-producao bg-[#f3f4f6] dark:bg-slate-950 pb-8 pt-1 text-[12px] text-[#374151] dark:text-slate-200 print:bg-white">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <h1 className="text-[22px] font-normal leading-none text-[#6b7280]">Relatórios</h1>
-        <div className="flex items-center gap-1.5 text-[12px] text-[#9ca3af]">
+        <h1 className="text-[22px] font-normal leading-none text-[#6b7280] dark:text-slate-400">Relatórios</h1>
+        <div className="flex items-center gap-1.5 text-[12px] text-[#9ca3af] dark:text-slate-500">
           <Home className="h-3.5 w-3.5 shrink-0" />
-          <span className="text-[#d1d5db]">/</span>
-          <span className="text-[#6b7280]">Produção</span>
+          <span className="text-[#d1d5db] dark:text-slate-600">/</span>
+          <span className="text-[#6b7280] dark:text-slate-400">Produção</span>
         </div>
       </div>
 
@@ -654,9 +654,9 @@ export function RelatorioProducaoConteudo() {
         className="space-y-4 print:space-y-2"
       >
         {/* Filtros */}
-        <div className="overflow-visible rounded-sm border border-[#e5e7eb] bg-white shadow-sm print:hidden">
-          <div className="border-b border-[#e5e7eb] px-4 py-3">
-            <p className="text-[13px] font-semibold text-[#374151]">Relatórios</p>
+        <div className="overflow-visible rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm print:hidden">
+          <div className="border-b border-[#e5e7eb] dark:border-slate-700 px-4 py-3">
+            <p className="text-[13px] font-semibold text-[#374151] dark:text-slate-200">Relatórios</p>
           </div>
           <div className="space-y-3 px-4 py-4">
             <div className="grid gap-3 lg:grid-cols-12">
@@ -835,7 +835,7 @@ export function RelatorioProducaoConteudo() {
         {/* Tabela */}
         <div
           className={cn(
-            "overflow-hidden rounded-sm border border-[#e5e7eb] bg-white shadow-sm print:border-0 print:shadow-none",
+            "overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm print:border-0 print:shadow-none",
             modoServicosEtapas && "print:hidden"
           )}
         >
@@ -851,7 +851,7 @@ export function RelatorioProducaoConteudo() {
               )}
             >
               <thead>
-                <tr className="border-b border-[#e5e7eb] bg-[#f9fafb] text-[#6b7280]">
+                <tr className="border-b border-[#e5e7eb] dark:border-slate-700 bg-[#f9fafb] dark:bg-slate-800/70 text-[#6b7280] dark:text-slate-400">
                   {colunasAtivas.map((col) => (
                     <th
                       key={col}
@@ -877,7 +877,7 @@ export function RelatorioProducaoConteudo() {
                   <tr>
                     <td
                       colSpan={colunasAtivas.length}
-                      className="h-[280px] text-center text-[#9ca3af]"
+                      className="h-[280px] text-center text-[#9ca3af] dark:text-slate-500"
                     >
                       Clique em Gerar Relatório para exibir os dados.
                     </td>
@@ -886,7 +886,7 @@ export function RelatorioProducaoConteudo() {
                   <tr>
                     <td
                       colSpan={colunasAtivas.length}
-                      className="h-[280px] text-center text-[#9ca3af]"
+                      className="h-[280px] text-center text-[#9ca3af] dark:text-slate-500"
                     >
                       Nenhum registro encontrado no período.
                     </td>
@@ -897,12 +897,12 @@ export function RelatorioProducaoConteudo() {
                       const expandido = linhasExpandidas.has(linha.id);
                       return (
                         <Fragment key={linha.id}>
-                          <tr className="border-b border-[#f3f4f6] hover:bg-[#fafafa]">
+                          <tr className="border-b border-[#f3f4f6] hover:bg-[#fafafa] dark:bg-slate-800/70">
                             <td className="w-8 px-1 py-2">
                               <button
                                 type="button"
                                 onClick={() => alternarExpansao(linha.id)}
-                                className="flex h-6 w-6 items-center justify-center rounded-sm text-[#6b7280] hover:bg-[#f3f4f6]"
+                                className="flex h-6 w-6 items-center justify-center rounded-sm text-[#6b7280] dark:text-slate-400 hover:bg-[#f3f4f6] dark:hover:bg-slate-700 dark:bg-slate-800"
                                 aria-expanded={expandido}
                                 aria-label={expandido ? "Recolher etapas" : "Expandir etapas"}
                               >
@@ -913,31 +913,31 @@ export function RelatorioProducaoConteudo() {
                                 )}
                               </button>
                             </td>
-                            <td className="px-2 py-2 text-[#374151]">{linha.data}</td>
-                            <td className="px-2 py-2 text-right text-[#374151]">{linha.os}</td>
-                            <td className="px-2 py-2 text-right text-[#374151]">{linha.qtd}</td>
-                            <td className="px-2 py-2 text-[#374151]">{linha.descricao}</td>
-                            <td className="px-2 py-2 text-[#374151]">{linha.cor}</td>
-                            <td className="px-2 py-2 text-[#374151]">{linha.dente}</td>
-                            <td className="px-2 py-2 text-[#374151]">{linha.cliente}</td>
-                            <td className="px-2 py-2 text-[#374151]">{linha.paciente}</td>
-                            <td className="px-2 py-2 text-[#374151]">{linha.dataEntregue}</td>
+                            <td className="px-2 py-2 text-[#374151] dark:text-slate-200">{linha.data}</td>
+                            <td className="px-2 py-2 text-right text-[#374151] dark:text-slate-200">{linha.os}</td>
+                            <td className="px-2 py-2 text-right text-[#374151] dark:text-slate-200">{linha.qtd}</td>
+                            <td className="px-2 py-2 text-[#374151] dark:text-slate-200">{linha.descricao}</td>
+                            <td className="px-2 py-2 text-[#374151] dark:text-slate-200">{linha.cor}</td>
+                            <td className="px-2 py-2 text-[#374151] dark:text-slate-200">{linha.dente}</td>
+                            <td className="px-2 py-2 text-[#374151] dark:text-slate-200">{linha.cliente}</td>
+                            <td className="px-2 py-2 text-[#374151] dark:text-slate-200">{linha.paciente}</td>
+                            <td className="px-2 py-2 text-[#374151] dark:text-slate-200">{linha.dataEntregue}</td>
                             <td className="px-2 py-2">
                               <BadgeSituacaoOs status={linha.situacaoKey} />
                             </td>
-                            <td className="px-2 py-2 text-right text-[#374151]">
+                            <td className="px-2 py-2 text-right text-[#374151] dark:text-slate-200">
                               {money(linha.valor)}
                             </td>
                           </tr>
                           {expandido && (
-                            <tr className="border-b border-[#e5e7eb] bg-[#fafafa]">
+                            <tr className="border-b border-[#e5e7eb] dark:border-slate-700 bg-[#fafafa] dark:bg-slate-800/70">
                               <td colSpan={COLUNAS_SERVICOS_ETAPAS.length} className="px-6 py-3">
-                                <p className="mb-2 text-[11px] font-semibold uppercase text-[#6b7280]">
+                                <p className="mb-2 text-[11px] font-semibold uppercase text-[#6b7280] dark:text-slate-400">
                                   Etapas
                                 </p>
                                 <table className="w-full max-w-4xl border-collapse text-[11px]">
                                   <thead>
-                                    <tr className="border-b border-[#e5e7eb] bg-[#f3f4f6] text-[#6b7280]">
+                                    <tr className="border-b border-[#e5e7eb] dark:border-slate-700 bg-[#f3f4f6] dark:bg-slate-950 text-[#6b7280] dark:text-slate-400">
                                       {SUB_COLUNAS_ETAPAS.map((col) => (
                                         <th
                                           key={col}
@@ -956,7 +956,7 @@ export function RelatorioProducaoConteudo() {
                                       <tr>
                                         <td
                                           colSpan={SUB_COLUNAS_ETAPAS.length}
-                                          className="px-2 py-3 text-center text-[#9ca3af]"
+                                          className="px-2 py-3 text-center text-[#9ca3af] dark:text-slate-500"
                                         >
                                           Nenhuma etapa cadastrada nesta OS.
                                         </td>
@@ -965,21 +965,21 @@ export function RelatorioProducaoConteudo() {
                                       linha.etapas.map((etapa) => (
                                         <tr
                                           key={etapa.id}
-                                          className="border-b border-[#f3f4f6] bg-white"
+                                          className="border-b border-[#f3f4f6] bg-white dark:bg-slate-900"
                                         >
-                                          <td className="px-2 py-2 text-[#374151]">
+                                          <td className="px-2 py-2 text-[#374151] dark:text-slate-200">
                                             {etapa.etapa}
                                           </td>
-                                          <td className="px-2 py-2 text-[#374151]">
+                                          <td className="px-2 py-2 text-[#374151] dark:text-slate-200">
                                             {etapa.colaborador}
                                           </td>
-                                          <td className="px-2 py-2 text-[#374151]">
+                                          <td className="px-2 py-2 text-[#374151] dark:text-slate-200">
                                             {etapa.dataInicio || "—"}
                                           </td>
-                                          <td className="px-2 py-2 text-[#374151]">
+                                          <td className="px-2 py-2 text-[#374151] dark:text-slate-200">
                                             {etapa.dataFim || "—"}
                                           </td>
-                                          <td className="px-2 py-2 text-right text-[#374151]">
+                                          <td className="px-2 py-2 text-right text-[#374151] dark:text-slate-200">
                                             {etapa.tempoMinutos}
                                           </td>
                                           <td className="px-2 py-2">
@@ -1022,14 +1022,14 @@ export function RelatorioProducaoConteudo() {
                     {paginacaoServicosAgrupados.itens.map((linha) => (
                       <tr
                         key={linha.id}
-                        className="border-b border-[#f3f4f6] hover:bg-[#fafafa]"
+                        className="border-b border-[#f3f4f6] hover:bg-[#fafafa] dark:bg-slate-800/70"
                       >
-                        <td className="px-3 py-2.5 text-right text-[#374151]">{linha.qtd}</td>
-                        <td className="px-3 py-2.5 text-[#374151]">{linha.descricao}</td>
-                        <td className="px-3 py-2.5 text-right text-[#374151]">
+                        <td className="px-3 py-2.5 text-right text-[#374151] dark:text-slate-200">{linha.qtd}</td>
+                        <td className="px-3 py-2.5 text-[#374151] dark:text-slate-200">{linha.descricao}</td>
+                        <td className="px-3 py-2.5 text-right text-[#374151] dark:text-slate-200">
                           {formatarPercentualRelatorio(linha.percentual ?? 0)}
                         </td>
-                        <td className="px-3 py-2.5 text-right text-[#374151]">
+                        <td className="px-3 py-2.5 text-right text-[#374151] dark:text-slate-200">
                           {typeof linha.valor === "number" ? money(linha.valor) : ""}
                         </td>
                       </tr>
@@ -1060,7 +1060,7 @@ export function RelatorioProducaoConteudo() {
                       <tr key={`${bloco.id}-grupo`} className="bg-[#e5e7eb]">
                         <td
                           colSpan={colunasAtivas.length}
-                          className="px-3 py-2 text-[12px] font-semibold uppercase text-[#374151]"
+                          className="px-3 py-2 text-[12px] font-semibold uppercase text-[#374151] dark:text-slate-200"
                         >
                           {bloco.titulo}
                         </td>
@@ -1069,7 +1069,7 @@ export function RelatorioProducaoConteudo() {
                         idsPagina.has(linha.id) ? (
                           <tr
                             key={`${linha.id}-tela`}
-                            className="border-b border-[#f3f4f6] hover:bg-[#fafafa] print:hidden"
+                            className="border-b border-[#f3f4f6] hover:bg-[#fafafa] dark:bg-slate-800/70 print:hidden"
                           >
                             <LinhaDadosRelatorioTabela linha={linha} />
                           </tr>
@@ -1092,13 +1092,13 @@ export function RelatorioProducaoConteudo() {
                       />,
                       <tr
                         key={`${bloco.id}-subtotal`}
-                        className="border-b border-[#d1d5db] bg-[#f3f4f6] font-semibold"
+                        className="border-b border-[#d1d5db] dark:border-slate-600 bg-[#f3f4f6] dark:bg-slate-950 font-semibold"
                       >
                         <td className="px-2 py-2" colSpan={2} />
-                        <td className="px-2 py-2 text-right text-[#374151]">
+                        <td className="px-2 py-2 text-right text-[#374151] dark:text-slate-200">
                           {bloco.subtotal.qtd}
                         </td>
-                        <td className="px-2 py-2 text-[#374151]" colSpan={7}>
+                        <td className="px-2 py-2 text-[#374151] dark:text-slate-200" colSpan={7}>
                           {bloco.subtotal.descricao}
                         </td>
                         <td className="px-2 py-2 text-right text-[#4a90d9]">
@@ -1114,7 +1114,7 @@ export function RelatorioProducaoConteudo() {
                     {paginacaoListaDetalhada.itens.map((linha) => (
                       <tr
                         key={linha.id}
-                        className="border-b border-[#f3f4f6] hover:bg-[#fafafa]"
+                        className="border-b border-[#f3f4f6] hover:bg-[#fafafa] dark:bg-slate-800/70"
                       >
                         <LinhaDadosRelatorioTabela linha={linha} />
                       </tr>
@@ -1130,7 +1130,7 @@ export function RelatorioProducaoConteudo() {
               </tbody>
               {gerado && (
                 <tfoot>
-                  <tr className="border-t border-[#e5e7eb] bg-[#f9fafb] font-semibold">
+                  <tr className="border-t border-[#e5e7eb] dark:border-slate-700 bg-[#f9fafb] dark:bg-slate-800/70 font-semibold">
                     {modoServicosAgrupados ? (
                       <>
                         <td className="px-3 py-2.5 text-[#4a90d9]">

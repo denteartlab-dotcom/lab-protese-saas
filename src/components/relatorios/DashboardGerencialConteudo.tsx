@@ -113,21 +113,21 @@ function DonutProducao({
             height={36}
             iconType="circle"
             formatter={(value) => (
-              <span className="text-[11px] text-[#6b7280]">{value}</span>
+              <span className="text-[11px] text-[#6b7280] dark:text-slate-400">{value}</span>
             )}
           />
         </PieChart>
       </ResponsiveContainer>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pb-8">
-        <span className="text-[11px] text-[#9ca3af]">Total</span>
-        <span className="text-[20px] font-medium text-[#374151]">{total}</span>
+        <span className="text-[11px] text-[#9ca3af] dark:text-slate-500">Total</span>
+        <span className="text-[20px] font-medium text-[#374151] dark:text-slate-200">{total}</span>
       </div>
     </div>
   );
 }
 
 const selectFiltroProducaoClass =
-  "h-[30px] rounded-sm border border-[#d1d5db] bg-white px-2 text-[11px] text-[#374151] outline-none focus:border-[#4a90d9]";
+  "h-[30px] rounded-sm border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 px-2 text-[11px] text-[#374151] dark:text-slate-200 outline-none focus:border-[#4a90d9]";
 
 function FiltrosMesAnoProducao({
   mes,
@@ -188,9 +188,9 @@ function CardProducaoPorSetor({
   total: number;
 }) {
   return (
-    <div className="overflow-hidden rounded-sm border border-[#e5e7eb] bg-white shadow-sm">
+    <div className="overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-2 border-b border-[#f3f4f6] px-4 py-2.5">
-        <h3 className="text-[13px] leading-snug text-[#374151]">
+        <h3 className="text-[13px] leading-snug text-[#374151] dark:text-slate-200">
           Produção
           <br />
           por{" "}
@@ -233,11 +233,11 @@ function CardProdutividadeColaborador({
   const { topo, ticks } = dominioEixoYProdutividade(maxValor);
 
   return (
-    <div className="overflow-hidden rounded-sm border border-[#e5e7eb] bg-white shadow-sm">
+    <div className="overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-2 border-b border-[#f3f4f6] px-4 py-2.5">
         <div>
-          <h3 className="text-[13px] font-medium text-[#374151]">Produtividade Colaborador</h3>
-          <p className="mt-0.5 text-[11px] text-[#9ca3af]">Produção</p>
+          <h3 className="text-[13px] font-medium text-[#374151] dark:text-slate-200">Produtividade Colaborador</h3>
+          <p className="mt-0.5 text-[11px] text-[#9ca3af] dark:text-slate-500">Produção</p>
         </div>
         <div className="flex items-start gap-2">
           <FiltrosMesAnoProducao
@@ -249,7 +249,7 @@ function CardProdutividadeColaborador({
           />
           <button
             type="button"
-            className="rounded p-1 text-[#9ca3af] hover:bg-[#f3f4f6] hover:text-[#6b7280]"
+            className="rounded p-1 text-[#9ca3af] dark:text-slate-500 hover:bg-[#f3f4f6] dark:hover:bg-slate-700 dark:bg-slate-800 hover:text-[#6b7280] dark:text-slate-400"
             aria-label="Opções"
           >
             <MoreVertical className="h-4 w-4" />
@@ -277,7 +277,7 @@ function CardProdutividadeColaborador({
                   height={32}
                   iconType="circle"
                   formatter={(value) => (
-                    <span className="text-[11px] text-[#6b7280]">{value}</span>
+                    <span className="text-[11px] text-[#6b7280] dark:text-slate-400">{value}</span>
                   )}
                 />
               )}
@@ -314,15 +314,15 @@ function CardDashboard({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-sm border border-[#e5e7eb] bg-white shadow-sm",
+        "overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm",
         className
       )}
     >
       <div className="flex items-center justify-between border-b border-[#f3f4f6] px-4 py-2.5">
-        <h3 className="text-[13px] font-medium text-[#374151]">{titulo}</h3>
+        <h3 className="text-[13px] font-medium text-[#374151] dark:text-slate-200">{titulo}</h3>
         <button
           type="button"
-          className="rounded p-1 text-[#9ca3af] hover:bg-[#f3f4f6] hover:text-[#6b7280]"
+          className="rounded p-1 text-[#9ca3af] dark:text-slate-500 hover:bg-[#f3f4f6] dark:hover:bg-slate-700 dark:bg-slate-800 hover:text-[#6b7280] dark:text-slate-400"
           aria-label="Opções"
         >
           <MoreVertical className="h-4 w-4" />
@@ -357,8 +357,8 @@ function ResumoMetrica({
         {icone}
       </div>
       <div className="min-w-0">
-        <p className="text-[20px] font-semibold leading-none text-[#374151]">{valor}</p>
-        <p className="mt-1 text-[12px] text-[#9ca3af]">{titulo}</p>
+        <p className="text-[20px] font-semibold leading-none text-[#374151] dark:text-slate-200">{valor}</p>
+        <p className="mt-1 text-[12px] text-[#9ca3af] dark:text-slate-500">{titulo}</p>
       </div>
     </>
   );
@@ -368,7 +368,7 @@ function ResumoMetrica({
       <button
         type="button"
         onClick={onClick}
-        className="flex min-w-0 flex-1 items-center gap-3 rounded-sm px-2 py-1 text-left transition-colors hover:bg-[#f9fafb]"
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-sm px-2 py-1 text-left transition-colors hover:bg-[#f9fafb] dark:bg-slate-800/70"
       >
         {conteudo}
       </button>
@@ -388,19 +388,19 @@ function CardCurvaAbc({
   children: React.ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-sm border border-[#e5e7eb] bg-white shadow-sm">
+    <div className="overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
       <div className="flex items-center justify-between border-b border-[#f3f4f6] px-4 py-2.5">
-        <h3 className="text-[13px] font-medium text-[#374151]">Curva ABC</h3>
+        <h3 className="text-[13px] font-medium text-[#374151] dark:text-slate-200">Curva ABC</h3>
         <button
           type="button"
-          className="rounded p-1 text-[#9ca3af] hover:bg-[#f3f4f6] hover:text-[#6b7280]"
+          className="rounded p-1 text-[#9ca3af] dark:text-slate-500 hover:bg-[#f3f4f6] dark:hover:bg-slate-700 dark:bg-slate-800 hover:text-[#6b7280] dark:text-slate-400"
           aria-label="Opções"
         >
           <MoreVertical className="h-4 w-4" />
         </button>
       </div>
       <div className="px-4 pb-4 pt-3">
-        <p className="mb-2 text-center text-[12px] font-medium text-[#374151]">
+        <p className="mb-2 text-center text-[12px] font-medium text-[#374151] dark:text-slate-200">
           {subtitulo}
         </p>
         <div className="mb-3 flex flex-wrap items-center justify-center gap-3">
@@ -410,12 +410,12 @@ function CardCurvaAbc({
                 className="inline-block h-3 w-3 shrink-0 rounded-sm"
                 style={{ backgroundColor: cor }}
               />
-              <span className="text-[10px] text-[#9ca3af]">
+              <span className="text-[10px] text-[#9ca3af] dark:text-slate-500">
                 {(["A", "B", "C"] as const)[index]}
               </span>
             </span>
           ))}
-          <span className="text-[11px] text-[#6b7280]">{legenda}</span>
+          <span className="text-[11px] text-[#6b7280] dark:text-slate-400">{legenda}</span>
         </div>
         {children}
       </div>
@@ -513,8 +513,8 @@ function TooltipSimples({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-sm border border-[#e5e7eb] bg-white px-3 py-2 text-[11px] shadow-md">
-      {label && <p className="mb-1 font-medium text-[#374151]">{label}</p>}
+    <div className="rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-[11px] shadow-md">
+      {label && <p className="mb-1 font-medium text-[#374151] dark:text-slate-200">{label}</p>}
       {payload.map((item) => (
         <p key={item.name} style={{ color: item.color || "#374151" }}>
           {item.name}: {typeof item.value === "number" ? item.value : item.value}
@@ -729,14 +729,14 @@ export function DashboardGerencialConteudo() {
   );
 
   return (
-    <div className="dashboard-gerencial bg-[#f3f4f6] pb-8 pt-1 text-[12px] text-[#374151]">
+    <div className="dashboard-gerencial bg-[#f3f4f6] dark:bg-slate-950 pb-8 pt-1 text-[12px] text-[#374151] dark:text-slate-200">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-[22px] font-normal leading-none text-[#6b7280]">Relatórios</h1>
+        <h1 className="text-[22px] font-normal leading-none text-[#6b7280] dark:text-slate-400">Relatórios</h1>
         <div className="flex flex-wrap items-center gap-3">
           <select
             value={ano}
             onChange={(e) => setAno(Number(e.target.value))}
-            className="h-[34px] rounded-sm border border-[#d1d5db] bg-white px-3 text-[12px] text-[#374151] outline-none focus:border-[#4a90d9]"
+            className="h-[34px] rounded-sm border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 px-3 text-[12px] text-[#374151] dark:text-slate-200 outline-none focus:border-[#4a90d9]"
           >
             {anosOpcoes.map((a) => (
               <option key={a} value={a}>
@@ -744,21 +744,21 @@ export function DashboardGerencialConteudo() {
               </option>
             ))}
           </select>
-          <div className="flex items-center gap-1.5 text-[12px] text-[#9ca3af]">
+          <div className="flex items-center gap-1.5 text-[12px] text-[#9ca3af] dark:text-slate-500">
             <Home className="h-3.5 w-3.5 shrink-0" />
-            <span className="text-[#d1d5db]">/</span>
-            <span className="text-[#6b7280]">Dashboard</span>
+            <span className="text-[#d1d5db] dark:text-slate-600">/</span>
+            <span className="text-[#6b7280] dark:text-slate-400">Dashboard</span>
           </div>
         </div>
       </div>
 
       {carregando ? (
-        <div className="min-h-[640px] rounded-sm border border-[#e5e7eb] bg-white shadow-sm">
+        <div className="min-h-[640px] rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
           <PainelCarregando mensagem="Carregando dashboard gerencial..." />
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-4 rounded-sm border border-[#e5e7eb] bg-white px-4 py-4 shadow-sm lg:flex-nowrap lg:gap-6">
+          <div className="flex flex-wrap items-center gap-4 rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-4 shadow-sm lg:flex-nowrap lg:gap-6">
             <ResumoMetrica
               titulo="Inadimplentes"
               valor={String(dados.resumo.inadimplentes)}
@@ -792,7 +792,7 @@ export function DashboardGerencialConteudo() {
               <select
                 value={ano}
                 onChange={(e) => setAno(Number(e.target.value))}
-                className="h-[34px] w-full min-w-[100px] rounded-sm border border-[#d1d5db] bg-white px-3 text-[12px] text-[#374151] outline-none focus:border-[#4a90d9] sm:w-auto"
+                className="h-[34px] w-full min-w-[100px] rounded-sm border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 px-3 text-[12px] text-[#374151] dark:text-slate-200 outline-none focus:border-[#4a90d9] sm:w-auto"
               >
                 {anosOpcoes.map((a) => (
                   <option key={a} value={a}>
@@ -828,7 +828,7 @@ export function DashboardGerencialConteudo() {
             <CardDashboard titulo="Produção">
               <div className="mb-3 flex flex-wrap justify-end gap-2">
                 <select
-                  className="h-[30px] rounded-sm border border-[#d1d5db] bg-white px-2 text-[11px] text-[#374151] outline-none focus:border-[#4a90d9]"
+                  className="h-[30px] rounded-sm border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 px-2 text-[11px] text-[#374151] dark:text-slate-200 outline-none focus:border-[#4a90d9]"
                   value={mesProducao}
                   onChange={(e) => setMesProducao(Number(e.target.value))}
                 >
@@ -839,7 +839,7 @@ export function DashboardGerencialConteudo() {
                   ))}
                 </select>
                 <select
-                  className="h-[30px] min-w-[72px] rounded-sm border border-[#d1d5db] bg-white px-2 text-[11px] text-[#374151] outline-none focus:border-[#4a90d9]"
+                  className="h-[30px] min-w-[72px] rounded-sm border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 px-2 text-[11px] text-[#374151] dark:text-slate-200 outline-none focus:border-[#4a90d9]"
                   value={anoProducao}
                   onChange={(e) => setAnoProducao(Number(e.target.value))}
                 >
@@ -933,7 +933,7 @@ export function DashboardGerencialConteudo() {
                       height={28}
                       iconType="circle"
                       formatter={(value) => (
-                        <span className="text-[11px] text-[#6b7280]">{value}</span>
+                        <span className="text-[11px] text-[#6b7280] dark:text-slate-400">{value}</span>
                       )}
                     />
                     <Bar
@@ -991,7 +991,7 @@ export function DashboardGerencialConteudo() {
                     height={28}
                     iconType="circle"
                     formatter={(value) => (
-                      <span className="text-[11px] text-[#6b7280]">{value}</span>
+                      <span className="text-[11px] text-[#6b7280] dark:text-slate-400">{value}</span>
                     )}
                   />
                   <Line

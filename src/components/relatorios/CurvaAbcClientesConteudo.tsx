@@ -25,12 +25,12 @@ import {
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import { gerarCurvaAbcClientesPdf } from "@/lib/relatorios-impressao-pdf";
 
-const labelClass = "mb-1 block text-[11px] font-normal text-[#6b7280]";
+const labelClass = "mb-1 block text-[11px] font-normal text-[#6b7280] dark:text-slate-400";
 const selectClass =
-  "h-[34px] w-full rounded-sm border border-[#d1d5db] bg-white px-2 text-[12px] text-[#374151] outline-none focus:border-[#4a90d9]";
+  "h-[34px] w-full rounded-sm border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 px-2 text-[12px] text-[#374151] dark:text-slate-200 outline-none focus:border-[#4a90d9]";
 
 const inputDataRelatorioClass =
-  "h-[34px] w-full rounded-sm border border-[#d1d5db] bg-white text-[12px] text-[#374151] shadow-none focus:border-[#4a90d9] focus:ring-0";
+  "h-[34px] w-full rounded-sm border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 text-[12px] text-[#374151] dark:text-slate-200 shadow-none focus:border-[#4a90d9] focus:ring-0";
 
 const OPCOES_SIM_NAO = [
   { value: "", label: "" },
@@ -54,10 +54,10 @@ function TabelaSecaoAbc({ secao }: { secao: SecaoCurvaAbc }) {
   const resumo = `${secao.linhas.length} Clientes representam ${secao.metaPercentual}% do Faturamento`;
 
   return (
-    <section className="overflow-hidden rounded-sm border border-[#e5e7eb] bg-white shadow-sm print:break-inside-avoid print:border-[#e5e7eb] print:shadow-none">
+    <section className="overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm print:break-inside-avoid print:border-[#e5e7eb] dark:border-slate-700 print:shadow-none">
       <div className="px-5 pb-2 pt-4">
-        <p className="text-[42px] font-normal leading-none text-[#374151]">{secao.classe}</p>
-        <p className="mt-1 text-[12px] text-[#9ca3af]">{resumo}</p>
+        <p className="text-[42px] font-normal leading-none text-[#374151] dark:text-slate-200">{secao.classe}</p>
+        <p className="mt-1 text-[12px] text-[#9ca3af] dark:text-slate-500">{resumo}</p>
       </div>
       <div className="pb-4">
         <table className="w-full table-fixed border-collapse text-[12px]">
@@ -67,7 +67,7 @@ function TabelaSecaoAbc({ secao }: { secao: SecaoCurvaAbc }) {
             <col className="w-[21%]" />
           </colgroup>
           <thead>
-            <tr className="bg-[#f3f4f6] text-[#6b7280]">
+            <tr className="bg-[#f3f4f6] dark:bg-slate-950 text-[#6b7280] dark:text-slate-400">
               <th className="px-4 py-3 text-center align-middle text-[11px] font-semibold uppercase tracking-wide">
                 Cliente
               </th>
@@ -79,7 +79,7 @@ function TabelaSecaoAbc({ secao }: { secao: SecaoCurvaAbc }) {
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white text-[#374151]">
+          <tbody className="bg-white dark:bg-slate-900 text-[#374151] dark:text-slate-200">
             {secao.linhas.length === 0 ? (
               <tr>
                 <td colSpan={3} className="h-8" />
@@ -99,7 +99,7 @@ function TabelaSecaoAbc({ secao }: { secao: SecaoCurvaAbc }) {
             )}
           </tbody>
           <tfoot>
-            <tr className="bg-[#f3f4f6] text-[#374151]">
+            <tr className="bg-[#f3f4f6] dark:bg-slate-950 text-[#374151] dark:text-slate-200">
               <td className="px-4 py-3" />
               <td className="px-4 py-3 text-center align-middle text-[11px] font-semibold uppercase tracking-wide">
                 SUBTOTAL
@@ -233,7 +233,7 @@ export function CurvaAbcClientesConteudo() {
 
   if (carregando) {
     return (
-      <div className="min-h-[320px] bg-[#f3f4f6] pb-8 pt-1">
+      <div className="min-h-[320px] bg-[#f3f4f6] dark:bg-slate-950 pb-8 pt-1">
         <PainelCarregando mensagem="Carregando Curva ABC Clientes..." />
       </div>
     );
@@ -249,18 +249,18 @@ export function CurvaAbcClientesConteudo() {
   };
 
   return (
-    <div className="curva-abc-clientes bg-[#f3f4f6] pb-8 pt-1 text-[12px] text-[#374151] print:bg-white">
+    <div className="curva-abc-clientes bg-[#f3f4f6] dark:bg-slate-950 pb-8 pt-1 text-[12px] text-[#374151] dark:text-slate-200 print:bg-white">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <h1 className="text-[22px] font-normal leading-none text-[#6b7280]">Relatórios</h1>
-        <div className="flex items-center gap-1.5 text-[12px] text-[#9ca3af]">
+        <h1 className="text-[22px] font-normal leading-none text-[#6b7280] dark:text-slate-400">Relatórios</h1>
+        <div className="flex items-center gap-1.5 text-[12px] text-[#9ca3af] dark:text-slate-500">
           <Home className="h-3.5 w-3.5 shrink-0" />
-          <span className="text-[#d1d5db]">/</span>
-          <span className="text-[#6b7280]">Curva ABC Clientes</span>
+          <span className="text-[#d1d5db] dark:text-slate-600">/</span>
+          <span className="text-[#6b7280] dark:text-slate-400">Curva ABC Clientes</span>
         </div>
       </div>
 
       <div id="curva-abc-clientes-impressao" className="space-y-4 print:space-y-3">
-        <div className="overflow-visible rounded-sm border border-[#e5e7eb] bg-white shadow-sm print:hidden">
+        <div className="overflow-visible rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm print:hidden">
           <div className="flex flex-wrap items-end gap-3 px-4 py-4">
             <div className="min-w-[280px] flex-1">
               <label className={labelClass}>Período</label>
@@ -339,7 +339,7 @@ export function CurvaAbcClientesConteudo() {
         </div>
 
         {!gerado ? (
-          <div className="rounded-sm border border-[#e5e7eb] bg-white px-4 py-16 text-center text-[#9ca3af] shadow-sm print:hidden">
+          <div className="rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-16 text-center text-[#9ca3af] dark:text-slate-500 shadow-sm print:hidden">
             Clique em Gerar Relatório para exibir os dados.
           </div>
         ) : (
@@ -349,8 +349,8 @@ export function CurvaAbcClientesConteudo() {
                 <TabelaSecaoAbc key={secao.classe} secao={secao} />
               ))}
             </div>
-            <div className="w-full bg-[#f3f4f6] py-3 text-center print:break-inside-avoid">
-              <p className="text-[13px] font-semibold text-[#374151]">
+            <div className="w-full bg-[#f3f4f6] dark:bg-slate-950 py-3 text-center print:break-inside-avoid">
+              <p className="text-[13px] font-semibold text-[#374151] dark:text-slate-200">
                 Total: <span className="tabular-nums">{money(exibir.total)}</span>
               </p>
             </div>

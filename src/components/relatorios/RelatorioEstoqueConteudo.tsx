@@ -49,12 +49,12 @@ import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import { gerarRelatorioEstoquePdf } from "@/lib/relatorio-estoque-pdf";
 import { cn } from "@/lib/utils";
 
-const labelClass = "mb-1 block text-[11px] font-normal text-[#6b7280]";
+const labelClass = "mb-1 block text-[11px] font-normal text-[#6b7280] dark:text-slate-400";
 const selectClass =
-  "h-[34px] w-full rounded-sm border border-[#d1d5db] bg-white px-2 text-[12px] text-[#374151] outline-none focus:border-[#4a90d9]";
+  "h-[34px] w-full rounded-sm border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 px-2 text-[12px] text-[#374151] dark:text-slate-200 outline-none focus:border-[#4a90d9]";
 
 const inputDataRelatorioClass =
-  "h-[34px] w-full rounded-sm border border-[#d1d5db] bg-white text-[12px] text-[#374151] shadow-none focus:border-[#4a90d9] focus:ring-0";
+  "h-[34px] w-full rounded-sm border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 text-[12px] text-[#374151] dark:text-slate-200 shadow-none focus:border-[#4a90d9] focus:ring-0";
 
 const SETORES_STORAGE_KEY = "labProteseSetores";
 
@@ -110,7 +110,7 @@ const COLUNAS_CONTROLE = [
 
 const thClass =
   "px-3 py-3 text-center align-middle text-[11px] font-semibold uppercase tracking-wide";
-const tdClass = "px-3 py-2.5 text-center align-middle text-[#374151]";
+const tdClass = "px-3 py-2.5 text-center align-middle text-[#374151] dark:text-slate-200";
 
 function CelulaEstoqueAtual({
   label,
@@ -167,7 +167,7 @@ function TabelaPosicaoEstoque({
   totais: TotaisPosicaoEstoque;
 }) {
   return (
-    <div className="overflow-hidden rounded-sm border border-[#e5e7eb] bg-white shadow-sm print:border-0 print:shadow-none">
+    <div className="overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm print:border-0 print:shadow-none">
       <div className="overflow-x-auto">
         <table className="w-full table-fixed border-collapse text-[12px]">
           <colgroup>
@@ -181,7 +181,7 @@ function TabelaPosicaoEstoque({
             <col className="w-[16%]" />
           </colgroup>
           <thead>
-            <tr className="bg-[#f3f4f6] text-[#6b7280]">
+            <tr className="bg-[#f3f4f6] dark:bg-slate-950 text-[#6b7280] dark:text-slate-400">
               {COLUNAS_POSICAO.map((col) => (
                 <th key={col} className={thClass}>
                   {col}
@@ -192,7 +192,7 @@ function TabelaPosicaoEstoque({
           <tbody>
             {linhas.length === 0 ? (
               <tr>
-                <td colSpan={COLUNAS_POSICAO.length} className="h-[280px] text-center text-[#9ca3af]">
+                <td colSpan={COLUNAS_POSICAO.length} className="h-[280px] text-center text-[#9ca3af] dark:text-slate-500">
                   Nenhum registro encontrado no período.
                 </td>
               </tr>
@@ -200,7 +200,7 @@ function TabelaPosicaoEstoque({
               linhas.map((linha) => (
                 <tr
                   key={linha.id}
-                  className="border-b border-[#f3f4f6] transition-colors hover:bg-[#eef2ff] print:hover:bg-transparent"
+                  className="border-b border-[#f3f4f6] transition-colors hover:bg-[#eef2ff] dark:bg-slate-800 print:hover:bg-transparent"
                 >
                   <td className={tdClass}>{linha.produto}</td>
                   <td className={tdClass}>
@@ -230,7 +230,7 @@ function TabelaPosicaoEstoque({
           </tbody>
           {linhas.length > 0 && (
             <tfoot>
-              <tr className="border-t border-[#e5e7eb] bg-white font-semibold text-[#374151]">
+              <tr className="border-t border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 font-semibold text-[#374151] dark:text-slate-200">
                 <td className={tdClass} />
                 <td className={tdClass} />
                 <td className={cn(tdClass, "uppercase")}>Totais</td>
@@ -258,7 +258,7 @@ function TabelaControleProdutos({
   totais: TotaisControleProduto;
 }) {
   return (
-    <div className="overflow-hidden rounded-sm border border-[#e5e7eb] bg-white shadow-sm print:border-0 print:shadow-none">
+    <div className="overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm print:border-0 print:shadow-none">
       <div className="overflow-x-auto">
         <table className="w-full table-fixed border-collapse text-[12px]">
           <colgroup>
@@ -275,7 +275,7 @@ function TabelaControleProdutos({
             <col className="w-[8%]" />
           </colgroup>
           <thead>
-            <tr className="bg-[#f3f4f6] text-[#6b7280]">
+            <tr className="bg-[#f3f4f6] dark:bg-slate-950 text-[#6b7280] dark:text-slate-400">
               {COLUNAS_CONTROLE.map((col) => (
                 <th key={col} className={thClass}>
                   {col}
@@ -286,7 +286,7 @@ function TabelaControleProdutos({
           <tbody>
             {linhas.length === 0 ? (
               <tr>
-                <td colSpan={COLUNAS_CONTROLE.length} className="h-[280px] text-center text-[#9ca3af]">
+                <td colSpan={COLUNAS_CONTROLE.length} className="h-[280px] text-center text-[#9ca3af] dark:text-slate-500">
                   Nenhum produto encontrado.
                 </td>
               </tr>
@@ -294,7 +294,7 @@ function TabelaControleProdutos({
               linhas.map((linha) => (
                 <tr
                   key={linha.id}
-                  className="border-b border-[#f3f4f6] transition-colors hover:bg-[#eef2ff] print:hover:bg-transparent"
+                  className="border-b border-[#f3f4f6] transition-colors hover:bg-[#eef2ff] dark:bg-slate-800 print:hover:bg-transparent"
                 >
                   <td className={tdClass}>{linha.codigo}</td>
                   <td className={cn(tdClass, "text-left")}>{linha.produto}</td>
@@ -323,7 +323,7 @@ function TabelaControleProdutos({
           </tbody>
           {linhas.length > 0 && (
             <tfoot>
-              <tr className="border-t border-[#e5e7eb] bg-white font-semibold text-[#374151]">
+              <tr className="border-t border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 font-semibold text-[#374151] dark:text-slate-200">
                 <td className={tdClass} colSpan={8} />
                 <td className={cn(tdClass, "tabular-nums")}>{moneyRelatorioEstoque(0)}</td>
                 <td className={cn(tdClass, "tabular-nums")}>{moneyRelatorioEstoque(0)}</td>
@@ -347,7 +347,7 @@ function TabelaVendaProdutos({
   totais: TotaisVendaProduto;
 }) {
   return (
-    <div className="overflow-hidden rounded-sm border border-[#e5e7eb] bg-white shadow-sm print:border-0 print:shadow-none">
+    <div className="overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm print:border-0 print:shadow-none">
       <div className="overflow-x-auto">
         <table className="w-full table-fixed border-collapse text-[12px]">
           <colgroup>
@@ -360,7 +360,7 @@ function TabelaVendaProdutos({
             <col className="w-[13%]" />
           </colgroup>
           <thead>
-            <tr className="bg-[#f3f4f6] text-[#6b7280]">
+            <tr className="bg-[#f3f4f6] dark:bg-slate-950 text-[#6b7280] dark:text-slate-400">
               {COLUNAS_VENDA.map((col) => (
                 <th
                   key={col}
@@ -377,7 +377,7 @@ function TabelaVendaProdutos({
           <tbody>
             {linhas.length === 0 ? (
               <tr>
-                <td colSpan={COLUNAS_VENDA.length} className="h-[280px] text-center text-[#9ca3af]">
+                <td colSpan={COLUNAS_VENDA.length} className="h-[280px] text-center text-[#9ca3af] dark:text-slate-500">
                   Nenhum registro encontrado no período.
                 </td>
               </tr>
@@ -385,7 +385,7 @@ function TabelaVendaProdutos({
               linhas.map((linha) => (
                 <tr
                   key={linha.id}
-                  className="border-b border-[#f3f4f6] transition-colors hover:bg-[#eef2ff] print:hover:bg-transparent"
+                  className="border-b border-[#f3f4f6] transition-colors hover:bg-[#eef2ff] dark:bg-slate-800 print:hover:bg-transparent"
                 >
                   <td className={cn(tdClass, "whitespace-nowrap")}>{linha.dataEntregue}</td>
                   <td className={cn(tdClass, "tabular-nums")}>{linha.quantidadeLabel}</td>
@@ -405,7 +405,7 @@ function TabelaVendaProdutos({
             )}
           </tbody>
           <tfoot>
-            <tr className="border-t border-[#e5e7eb] bg-white font-semibold text-[#374151]">
+            <tr className="border-t border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 font-semibold text-[#374151] dark:text-slate-200">
               <td className={tdClass} />
               <td className={tdClass} />
               <td className={tdClass} />
@@ -429,7 +429,7 @@ function TabelaVendaProdutos({
 
 function TabelaMovimentacaoEstoque({ linhas }: { linhas: LinhaRelatorioEstoque[] }) {
   return (
-    <div className="overflow-hidden rounded-sm border border-[#e5e7eb] bg-white shadow-sm print:border-0 print:shadow-none">
+    <div className="overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm print:border-0 print:shadow-none">
       <div className="overflow-x-auto">
         <table className="w-full table-fixed border-collapse text-[12px]">
           <colgroup>
@@ -442,7 +442,7 @@ function TabelaMovimentacaoEstoque({ linhas }: { linhas: LinhaRelatorioEstoque[]
             <col className="w-[13%]" />
           </colgroup>
           <thead>
-            <tr className="bg-[#f3f4f6] text-[#6b7280]">
+            <tr className="bg-[#f3f4f6] dark:bg-slate-950 text-[#6b7280] dark:text-slate-400">
               {COLUNAS_MOVIMENTACAO.map((col) => (
                 <th key={col} className={thClass}>
                   {col}
@@ -453,7 +453,7 @@ function TabelaMovimentacaoEstoque({ linhas }: { linhas: LinhaRelatorioEstoque[]
           <tbody>
             {linhas.length === 0 ? (
               <tr>
-                <td colSpan={COLUNAS_MOVIMENTACAO.length} className="h-[280px] text-center text-[#9ca3af]">
+                <td colSpan={COLUNAS_MOVIMENTACAO.length} className="h-[280px] text-center text-[#9ca3af] dark:text-slate-500">
                   Nenhum registro encontrado no período.
                 </td>
               </tr>
@@ -461,7 +461,7 @@ function TabelaMovimentacaoEstoque({ linhas }: { linhas: LinhaRelatorioEstoque[]
               linhas.map((linha) => (
                 <tr
                   key={linha.id}
-                  className="border-b border-[#f3f4f6] transition-colors hover:bg-[#eef2ff] print:hover:bg-transparent"
+                  className="border-b border-[#f3f4f6] transition-colors hover:bg-[#eef2ff] dark:bg-slate-800 print:hover:bg-transparent"
                 >
                   <td className={cn(tdClass, "whitespace-nowrap")}>{linha.dataLabel}</td>
                   <td className={tdClass}>{linha.tipo}</td>
@@ -680,25 +680,25 @@ export function RelatorioEstoqueConteudo() {
 
   if (carregando) {
     return (
-      <div className="min-h-[320px] bg-[#f3f4f6] pb-8 pt-1">
+      <div className="min-h-[320px] bg-[#f3f4f6] dark:bg-slate-950 pb-8 pt-1">
         <PainelCarregando mensagem="Carregando relatório de estoque..." />
       </div>
     );
   }
 
   return (
-    <div className="relatorio-estoque bg-[#f3f4f6] pb-8 pt-1 text-[12px] text-[#374151] print:bg-white">
+    <div className="relatorio-estoque bg-[#f3f4f6] dark:bg-slate-950 pb-8 pt-1 text-[12px] text-[#374151] dark:text-slate-200 print:bg-white">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <h1 className="text-[22px] font-normal leading-none text-[#6b7280]">Relatórios</h1>
-        <div className="flex items-center gap-1.5 text-[12px] text-[#9ca3af]">
+        <h1 className="text-[22px] font-normal leading-none text-[#6b7280] dark:text-slate-400">Relatórios</h1>
+        <div className="flex items-center gap-1.5 text-[12px] text-[#9ca3af] dark:text-slate-500">
           <Home className="h-3.5 w-3.5 shrink-0" />
-          <span className="text-[#d1d5db]">/</span>
-          <span className="text-[#6b7280]">Estoque</span>
+          <span className="text-[#d1d5db] dark:text-slate-600">/</span>
+          <span className="text-[#6b7280] dark:text-slate-400">Estoque</span>
         </div>
       </div>
 
       <div id="relatorio-estoque-impressao" className="space-y-4 print:space-y-3">
-        <div className="overflow-visible rounded-sm border border-[#e5e7eb] bg-white shadow-sm print:hidden">
+        <div className="overflow-visible rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm print:hidden">
           <div className="space-y-3 px-4 py-4">
             <div className="flex flex-wrap items-end gap-3">
               <div className="min-w-[200px] flex-1">
@@ -715,7 +715,7 @@ export function RelatorioEstoqueConteudo() {
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9ca3af]" />
+                  <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9ca3af] dark:text-slate-500" />
                 </div>
               </div>
 
@@ -735,7 +735,7 @@ export function RelatorioEstoqueConteudo() {
                           </option>
                         ))}
                       </select>
-                      <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9ca3af]" />
+                      <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9ca3af] dark:text-slate-500" />
                     </div>
                   </div>
                   <div className="w-[140px]">
@@ -752,7 +752,7 @@ export function RelatorioEstoqueConteudo() {
                           </option>
                         ))}
                       </select>
-                      <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9ca3af]" />
+                      <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9ca3af] dark:text-slate-500" />
                     </div>
                   </div>
                 </>

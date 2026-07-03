@@ -36,7 +36,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const inputDataClass =
-  "h-[36px] w-full rounded-lg border border-[#e5e7eb] bg-white pl-8 pr-3 text-[12px] text-[#374151] shadow-none outline-none focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]/20";
+  "h-[36px] w-full rounded-lg border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 pl-8 pr-3 text-[12px] text-[#374151] dark:text-slate-200 shadow-none outline-none focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]/20";
 
 function BadgeStatus({ status }: { status: StatusCriticidadeCliente }) {
   return (
@@ -69,7 +69,7 @@ function CardKpi({
   corFundoIcone: string;
 }) {
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-[#e8eaed] bg-white p-4 shadow-sm">
+    <div className="flex items-center gap-4 rounded-xl border border-[#e8eaed] bg-white dark:bg-slate-900 p-4 shadow-sm">
       <div
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
         style={{ backgroundColor: corFundoIcone, color: corIcone }}
@@ -77,7 +77,7 @@ function CardKpi({
         {icone}
       </div>
       <div>
-        <p className="text-[12px] font-medium text-[#6b7280]">{titulo}</p>
+        <p className="text-[12px] font-medium text-[#6b7280] dark:text-slate-400">{titulo}</p>
         <p className="text-[22px] font-bold tabular-nums" style={{ color: corValor }}>
           {valor}
         </p>
@@ -96,13 +96,13 @@ function CardTabela({
   linkVerTodos?: boolean;
 }) {
   return (
-    <div className="flex h-full flex-col rounded-xl border border-[#e8eaed] bg-white shadow-sm">
-      <div className="border-b border-[#f0f0f0] px-4 py-3">
-        <h3 className="text-[13px] font-semibold text-[#374151]">{titulo}</h3>
+    <div className="flex h-full flex-col rounded-xl border border-[#e8eaed] bg-white dark:bg-slate-900 shadow-sm">
+      <div className="border-b border-[#f0f0f0] dark:border-slate-700 px-4 py-3">
+        <h3 className="text-[13px] font-semibold text-[#374151] dark:text-slate-200">{titulo}</h3>
       </div>
       <div className="flex-1 overflow-x-auto px-2 py-2">{children}</div>
       {linkVerTodos ? (
-        <div className="border-t border-[#f0f0f0] px-4 py-2.5 text-center">
+        <div className="border-t border-[#f0f0f0] dark:border-slate-700 px-4 py-2.5 text-center">
           <button
             type="button"
             className="text-[12px] font-medium text-[#4a90d9] hover:underline"
@@ -125,7 +125,7 @@ function TabelaSimples({
   return (
     <table className="w-full min-w-[200px] text-left text-[12px]">
       <thead>
-        <tr className="border-b border-[#f0f0f0] text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">
+        <tr className="border-b border-[#f0f0f0] dark:border-slate-700 text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af] dark:text-slate-500">
           {colunas.map((col) => (
             <th key={col} className="px-2 py-2">
               {col}
@@ -137,7 +137,7 @@ function TabelaSimples({
         {linhas.map((linha, i) => (
           <tr key={i} className="border-b border-[#f8f8f8] last:border-0">
             {linha.map((cel, j) => (
-              <td key={j} className="px-2 py-2.5 text-[#374151]">
+              <td key={j} className="px-2 py-2.5 text-[#374151] dark:text-slate-200">
                 {cel}
               </td>
             ))}
@@ -167,7 +167,7 @@ function GraficoBarrasHorizontais({
 }) {
   if (!dados.length) {
     return (
-      <div className="flex h-full min-h-[220px] items-center justify-center text-[12px] text-[#9ca3af]">
+      <div className="flex h-full min-h-[220px] items-center justify-center text-[12px] text-[#9ca3af] dark:text-slate-500">
         Sem dados no período selecionado.
       </div>
     );
@@ -245,7 +245,7 @@ export function ClientesPrejuizoConteudo() {
         <div className="mb-2">
           <Link
             href="/app/relatorios"
-            className="inline-flex items-center gap-1.5 text-[12px] text-[#6b7280] hover:text-[#374151]"
+            className="inline-flex items-center gap-1.5 text-[12px] text-[#6b7280] dark:text-slate-400 hover:text-[#374151] dark:text-slate-200"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             Voltar aos relatórios
@@ -254,10 +254,10 @@ export function ClientesPrejuizoConteudo() {
 
         <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <h1 className="text-[20px] font-bold text-[#1f2937] sm:text-[22px]">
+            <h1 className="text-[20px] font-bold text-[#1f2937] dark:text-slate-100 sm:text-[22px]">
               Relatório: Clientes que Mais Geram Retrabalho
             </h1>
-            <p className="mt-1 max-w-2xl text-[13px] text-[#6b7280]">
+            <p className="mt-1 max-w-2xl text-[13px] text-[#6b7280] dark:text-slate-400">
               Identifique clientes com maior número de retornos, garantias, atrasos e
               prejuízo estimado.
             </p>
@@ -275,7 +275,7 @@ export function ClientesPrejuizoConteudo() {
                     inputClassName={inputDataClass}
                   />
                 </div>
-                <span className="pb-2 text-[12px] text-[#9ca3af]">—</span>
+                <span className="pb-2 text-[12px] text-[#9ca3af] dark:text-slate-500">—</span>
                 <div className="w-[138px]">
                   <CampoDataBr
                     value={dataFim}
@@ -289,11 +289,11 @@ export function ClientesPrejuizoConteudo() {
               </>
             ) : null}
             <div className="relative">
-              <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9ca3af]" />
+              <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9ca3af] dark:text-slate-500" />
               <select
                 value={periodo}
                 onChange={(e) => setPeriodo(e.target.value as PeriodoClientesPrejuizo)}
-                className="h-[36px] min-w-[180px] appearance-none rounded-lg border border-[#e5e7eb] bg-white pl-9 pr-8 text-[12px] text-[#374151] shadow-sm outline-none focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]/20"
+                className="h-[36px] min-w-[180px] appearance-none rounded-lg border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 pl-9 pr-8 text-[12px] text-[#374151] dark:text-slate-200 shadow-sm outline-none focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]/20"
               >
                 {OPCOES_PERIODO_CLIENTES_PREJUIZO.map((op) => (
                   <option key={op.value} value={op.value}>
@@ -314,11 +314,11 @@ export function ClientesPrejuizoConteudo() {
         </header>
 
         {carregando ? (
-          <div className="min-h-[400px] rounded-xl border border-[#e8eaed] bg-white shadow-sm">
+          <div className="min-h-[400px] rounded-xl border border-[#e8eaed] bg-white dark:bg-slate-900 shadow-sm">
             <PainelCarregando mensagem="Carregando relatório de clientes..." />
           </div>
         ) : !dados ? (
-          <div className="rounded-xl border border-[#e8eaed] bg-white p-12 text-center text-[#6b7280]">
+          <div className="rounded-xl border border-[#e8eaed] bg-white dark:bg-slate-900 p-12 text-center text-[#6b7280] dark:text-slate-400">
             Não foi possível carregar o relatório.
           </div>
         ) : (
@@ -359,7 +359,7 @@ export function ClientesPrejuizoConteudo() {
             </div>
 
             <div>
-              <h2 className="mb-3 text-[14px] font-semibold text-[#374151]">
+              <h2 className="mb-3 text-[14px] font-semibold text-[#374151] dark:text-slate-200">
                 Análise de Repetição de Etapas
               </h2>
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -486,9 +486,9 @@ export function ClientesPrejuizoConteudo() {
                   ])}
                 />
               </CardTabela>
-              <div className="flex h-full flex-col rounded-xl border border-[#e8eaed] bg-white shadow-sm">
-                <div className="border-b border-[#f0f0f0] px-4 py-3">
-                  <h3 className="text-[13px] font-semibold text-[#374151]">
+              <div className="flex h-full flex-col rounded-xl border border-[#e8eaed] bg-white dark:bg-slate-900 shadow-sm">
+                <div className="border-b border-[#f0f0f0] dark:border-slate-700 px-4 py-3">
+                  <h3 className="text-[13px] font-semibold text-[#374151] dark:text-slate-200">
                     Alerta de Gargalos
                   </h3>
                 </div>
@@ -511,14 +511,14 @@ export function ClientesPrejuizoConteudo() {
                           )}
                         />
                         <div>
-                          <p className="text-[13px] font-semibold text-[#374151]">
+                          <p className="text-[13px] font-semibold text-[#374151] dark:text-slate-200">
                             {alerta.cliente}
                           </p>
                           <ul className="mt-1.5 space-y-0.5">
                             {alerta.itens.map((item) => (
                               <li
                                 key={item}
-                                className="text-[11px] text-[#6b7280] before:mr-1.5 before:content-['•']"
+                                className="text-[11px] text-[#6b7280] dark:text-slate-400 before:mr-1.5 before:content-['•']"
                               >
                                 {item}
                               </li>
@@ -532,7 +532,7 @@ export function ClientesPrejuizoConteudo() {
               </div>
             </div>
 
-            <footer className="pb-6 pt-2 text-center text-[11px] text-[#9ca3af]">
+            <footer className="pb-6 pt-2 text-center text-[11px] text-[#9ca3af] dark:text-slate-500">
               <p>Relatório gerado em {dados.geradoEm}</p>
               <p className="mt-0.5">
                 Os dados apresentados são baseados no período: {dados.periodoLabel}

@@ -67,11 +67,11 @@ const CORES_DONUT = [
   "#95a5a6",
 ];
 
-const labelClass = "mb-1 block text-[11px] font-medium text-[#6b7280]";
+const labelClass = "mb-1 block text-[11px] font-medium text-[#6b7280] dark:text-slate-400";
 const selectClass =
-  "h-[36px] w-full rounded-lg border border-[#e5e7eb] bg-white px-3 text-[12px] text-[#374151] outline-none focus:border-[#3498db] focus:ring-1 focus:ring-[#3498db]/20";
+  "h-[36px] w-full rounded-lg border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-[12px] text-[#374151] dark:text-slate-200 outline-none focus:border-[#3498db] focus:ring-1 focus:ring-[#3498db]/20";
 const inputClass =
-  "h-[36px] w-full rounded-lg border border-[#e5e7eb] bg-white pl-8 pr-3 text-[12px] text-[#374151] shadow-none outline-none focus:border-[#3498db] focus:ring-1 focus:ring-[#3498db]/20";
+  "h-[36px] w-full rounded-lg border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 pl-8 pr-3 text-[12px] text-[#374151] dark:text-slate-200 shadow-none outline-none focus:border-[#3498db] focus:ring-1 focus:ring-[#3498db]/20";
 
 function primeiroDiaAnoBr() {
   const hoje = new Date();
@@ -93,8 +93,8 @@ function TooltipMoeda({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-[11px] shadow-lg">
-      <p className="mb-1 font-semibold text-[#374151]">{label}</p>
+    <div className="rounded-lg border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-[11px] shadow-lg">
+      <p className="mb-1 font-semibold text-[#374151] dark:text-slate-200">{label}</p>
       {payload.map((p) => (
         <p key={p.name} style={{ color: p.color || COR.texto }}>
           {p.name}: {formatarMoedaFinanceiroGeral(Number(p.value) || 0)}
@@ -116,15 +116,15 @@ function CardKpi({
   cor?: string;
 }) {
   return (
-    <div className="rounded-xl border border-[#e5e7eb] bg-white p-4 shadow-sm">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">
+    <div className="rounded-xl border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 p-4 shadow-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af] dark:text-slate-500">
         {titulo}
       </p>
       <p className="mt-2 text-[22px] font-bold tabular-nums" style={{ color: cor }}>
         {valor}
       </p>
       {subtitulo ? (
-        <p className="mt-1 text-[11px] text-[#9ca3af]">{subtitulo}</p>
+        <p className="mt-1 text-[11px] text-[#9ca3af] dark:text-slate-500">{subtitulo}</p>
       ) : null}
     </div>
   );
@@ -142,11 +142,11 @@ function CardGrafico({
   return (
     <div
       className={cn(
-        "rounded-xl border border-[#e5e7eb] bg-white p-4 shadow-sm",
+        "rounded-xl border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 p-4 shadow-sm",
         className
       )}
     >
-      <h3 className="mb-3 text-[13px] font-semibold text-[#374151]">{titulo}</h3>
+      <h3 className="mb-3 text-[13px] font-semibold text-[#374151] dark:text-slate-200">{titulo}</h3>
       {children}
     </div>
   );
@@ -335,14 +335,14 @@ export function RelatorioFinanceiroGeralConteudo() {
   const financeiroRealizadoChart = dados?.financeiroRealizado.porMes ?? [];
 
   return (
-    <div className="relative -mx-3 min-h-screen w-[calc(100%+1.5rem)] bg-white text-[#374151] sm:-mx-5 sm:w-[calc(100%+2.5rem)]">
+    <div className="relative -mx-3 min-h-screen w-[calc(100%+1.5rem)] bg-white dark:bg-slate-900 text-[#374151] dark:text-slate-200 sm:-mx-5 sm:w-[calc(100%+2.5rem)]">
       <div className="w-full max-w-none px-4 py-5 sm:px-6 lg:px-8">
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-[26px] font-semibold text-[#1f2937]">
+            <h1 className="text-[26px] font-semibold text-[#1f2937] dark:text-slate-100">
               Relatório Financeiro Geral
             </h1>
-            <p className="mt-1 text-[13px] text-[#6b7280]">
+            <p className="mt-1 text-[13px] text-[#6b7280] dark:text-slate-400">
               Produção em aberto (valor do serviço) e a receber de serviços Finalizados ou Entregues
               no período (saldo em Contas a Receber, incluindo produto e transporte da OS). Saiu para
               Entrega conta como em aberto.
@@ -350,7 +350,7 @@ export function RelatorioFinanceiroGeralConteudo() {
           </div>
         </div>
 
-        <div className="mb-6 rounded-xl border border-[#e5e7eb] bg-[#fafafa] p-4 shadow-sm">
+        <div className="mb-6 rounded-xl border border-[#e5e7eb] dark:border-slate-700 bg-[#fafafa] dark:bg-slate-800/70 p-4 shadow-sm">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <div>
               <label className={labelClass}>Data Inicial</label>
@@ -435,7 +435,7 @@ export function RelatorioFinanceiroGeralConteudo() {
               type="button"
               onClick={exportarPdf}
               disabled={!dados || carregando}
-              className="inline-flex h-[34px] items-center gap-1.5 rounded-lg border border-[#e5e7eb] bg-white px-3 text-[12px] font-medium text-[#374151] shadow-sm hover:bg-[#f9fafb] disabled:opacity-50"
+              className="inline-flex h-[34px] items-center gap-1.5 rounded-lg border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-[12px] font-medium text-[#374151] dark:text-slate-200 shadow-sm hover:bg-[#f9fafb] dark:bg-slate-800/70 disabled:opacity-50"
             >
               <FileText className="h-3.5 w-3.5" />
               Exportar PDF
@@ -444,7 +444,7 @@ export function RelatorioFinanceiroGeralConteudo() {
               type="button"
               onClick={exportarExcel}
               disabled={!dados || carregando}
-              className="inline-flex h-[34px] items-center gap-1.5 rounded-lg border border-[#e5e7eb] bg-white px-3 text-[12px] font-medium text-[#374151] shadow-sm hover:bg-[#f9fafb] disabled:opacity-50"
+              className="inline-flex h-[34px] items-center gap-1.5 rounded-lg border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-[12px] font-medium text-[#374151] dark:text-slate-200 shadow-sm hover:bg-[#f9fafb] dark:bg-slate-800/70 disabled:opacity-50"
             >
               <FileSpreadsheet className="h-3.5 w-3.5" />
               Exportar Excel
@@ -453,11 +453,11 @@ export function RelatorioFinanceiroGeralConteudo() {
         </div>
 
         {carregando ? (
-          <div className="min-h-[480px] rounded-xl border border-[#e5e7eb] bg-white shadow-sm">
+          <div className="min-h-[480px] rounded-xl border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
             <PainelCarregando mensagem="Carregando relatório financeiro geral..." />
           </div>
         ) : !dados ? (
-          <div className="rounded-xl border border-[#e5e7eb] bg-white p-12 text-center text-[#6b7280]">
+          <div className="rounded-xl border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 p-12 text-center text-[#6b7280] dark:text-slate-400">
             Não foi possível carregar os dados.
           </div>
         ) : (
@@ -498,8 +498,8 @@ export function RelatorioFinanceiroGeralConteudo() {
               />
             </div>
 
-            <div className="rounded-xl border border-[#e5e7eb] bg-[#f9fafb] p-4">
-              <h2 className="mb-3 text-[14px] font-semibold text-[#374151]">
+            <div className="rounded-xl border border-[#e5e7eb] dark:border-slate-700 bg-[#f9fafb] dark:bg-slate-800/70 p-4">
+              <h2 className="mb-3 text-[14px] font-semibold text-[#374151] dark:text-slate-200">
                 Financeiro realizado — lançamentos pagos
               </h2>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -565,7 +565,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[480px] text-left text-[12px]">
                     <thead>
-                      <tr className="border-b border-[#e5e7eb] bg-[#f9fafb] text-[11px] uppercase tracking-wide text-[#6b7280]">
+                      <tr className="border-b border-[#e5e7eb] dark:border-slate-700 bg-[#f9fafb] dark:bg-slate-800/70 text-[11px] uppercase tracking-wide text-[#6b7280] dark:text-slate-400">
                         <th className="px-3 py-2">Mês</th>
                         <th className="px-3 py-2 text-right">Receitas</th>
                         <th className="px-3 py-2 text-right">Despesas</th>
@@ -589,7 +589,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                           </td>
                         </tr>
                       ))}
-                      <tr className="bg-[#f9fafb] font-bold">
+                      <tr className="bg-[#f9fafb] dark:bg-slate-800/70 font-bold">
                         <td className="px-3 py-2">TOTAL</td>
                         <td className="px-3 py-2 text-right text-[#2ecc71]">
                           {formatarMoedaFinanceiroGeral(
@@ -736,13 +736,13 @@ export function RelatorioFinanceiroGeralConteudo() {
                       </ResponsiveContainer>
                     </div>
                     <div className="text-center text-[12px]">
-                      <p className="font-bold text-[#374151]">
+                      <p className="font-bold text-[#374151] dark:text-slate-200">
                         {dados.statusResumo.naoConcluidos.quantidade} OS
                       </p>
                       <p className="text-[#3498db]">
                         {formatarMoedaFinanceiroGeral(dados.statusResumo.naoConcluidos.valor)}
                       </p>
-                      <p className="text-[#9ca3af]">
+                      <p className="text-[#9ca3af] dark:text-slate-500">
                         {formatarPercentualFinanceiroGeral(
                           dados.statusResumo.naoConcluidos.percentual
                         )}
@@ -778,13 +778,13 @@ export function RelatorioFinanceiroGeralConteudo() {
                       </ResponsiveContainer>
                     </div>
                     <div className="text-center text-[12px]">
-                      <p className="font-bold text-[#374151]">
+                      <p className="font-bold text-[#374151] dark:text-slate-200">
                         {dados.statusResumo.concluidos.quantidade} OS
                       </p>
                       <p className="text-[#2ecc71]">
                         {formatarMoedaFinanceiroGeral(dados.statusResumo.concluidos.valor)}
                       </p>
-                      <p className="text-[#9ca3af]">
+                      <p className="text-[#9ca3af] dark:text-slate-500">
                         {formatarPercentualFinanceiroGeral(
                           dados.statusResumo.concluidos.percentual
                         )}
@@ -830,7 +830,7 @@ export function RelatorioFinanceiroGeralConteudo() {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[640px] text-left text-[12px]">
                   <thead>
-                    <tr className="border-b border-[#e5e7eb] bg-[#f9fafb] text-[11px] uppercase tracking-wide text-[#6b7280]">
+                    <tr className="border-b border-[#e5e7eb] dark:border-slate-700 bg-[#f9fafb] dark:bg-slate-800/70 text-[11px] uppercase tracking-wide text-[#6b7280] dark:text-slate-400">
                       <th className="px-3 py-2">Mês</th>
                       <th className="px-3 py-2 text-right">Valor Não Concluído</th>
                       <th className="px-3 py-2 text-right">A Receber (Concluídos)</th>
@@ -878,7 +878,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                         </td>
                       </tr>
                     ))}
-                    <tr className="bg-[#f9fafb] font-bold">
+                    <tr className="bg-[#f9fafb] dark:bg-slate-800/70 font-bold">
                       <td className="px-3 py-2">TOTAL</td>
                       <td className="px-3 py-2 text-right text-[#3498db]">
                         {formatarMoedaFinanceiroGeral(dados.resumo.naoConcluidosValor)}
@@ -914,7 +914,7 @@ export function RelatorioFinanceiroGeralConteudo() {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[480px] text-left text-[12px]">
                   <thead>
-                    <tr className="border-b border-[#e5e7eb] bg-[#f9fafb] text-[11px] uppercase tracking-wide text-[#6b7280]">
+                    <tr className="border-b border-[#e5e7eb] dark:border-slate-700 bg-[#f9fafb] dark:bg-slate-800/70 text-[11px] uppercase tracking-wide text-[#6b7280] dark:text-slate-400">
                       <th className="px-3 py-2">Serviço</th>
                       <th className="px-3 py-2 text-center">Quantidade</th>
                       <th className="px-3 py-2 text-right">Valor Total</th>
@@ -942,7 +942,7 @@ export function RelatorioFinanceiroGeralConteudo() {
             <CardGrafico titulo="Serviços Detalhados">
               <div className="mb-4 flex flex-wrap items-center gap-3">
                 <div className="relative min-w-[200px] flex-1">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9ca3af]" />
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9ca3af] dark:text-slate-500" />
                   <input
                     type="search"
                     value={busca}
@@ -966,14 +966,14 @@ export function RelatorioFinanceiroGeralConteudo() {
                   <option value="Concluídos">Concluídos</option>
                   <option value="Não Concluídos">Não Concluídos</option>
                 </select>
-                <span className="text-[11px] text-[#9ca3af]">
+                <span className="text-[11px] text-[#9ca3af] dark:text-slate-500">
                   {detalhesFiltrados.length} registro(s)
                 </span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[960px] text-left text-[12px]">
                   <thead>
-                    <tr className="border-b border-[#e5e7eb] bg-[#f9fafb] text-[11px] uppercase tracking-wide text-[#6b7280]">
+                    <tr className="border-b border-[#e5e7eb] dark:border-slate-700 bg-[#f9fafb] dark:bg-slate-800/70 text-[11px] uppercase tracking-wide text-[#6b7280] dark:text-slate-400">
                       {(
                         [
                           ["numeroOs", "Nº OS"],
@@ -1003,7 +1003,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                   </thead>
                   <tbody>
                     {detalhesPagina.map((d) => (
-                      <tr key={d.id} className="border-b border-[#f3f4f6] hover:bg-[#fafafa]">
+                      <tr key={d.id} className="border-b border-[#f3f4f6] hover:bg-[#fafafa] dark:bg-slate-800/70">
                         <td className="px-3 py-2 font-mono font-semibold">{d.numeroOs}</td>
                         <td className="px-3 py-2">{d.cliente}</td>
                         <td className="px-3 py-2">{d.servico}</td>
@@ -1031,7 +1031,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                     ))}
                     {detalhesPagina.length === 0 ? (
                       <tr>
-                        <td colSpan={10} className="px-3 py-8 text-center text-[#9ca3af]">
+                        <td colSpan={10} className="px-3 py-8 text-center text-[#9ca3af] dark:text-slate-500">
                           Nenhum serviço encontrado.
                         </td>
                       </tr>
@@ -1045,18 +1045,18 @@ export function RelatorioFinanceiroGeralConteudo() {
                     type="button"
                     disabled={pagina <= 1}
                     onClick={() => setPagina((p) => Math.max(1, p - 1))}
-                    className="rounded-lg border border-[#e5e7eb] px-3 py-1 text-[12px] disabled:opacity-40"
+                    className="rounded-lg border border-[#e5e7eb] dark:border-slate-700 px-3 py-1 text-[12px] disabled:opacity-40"
                   >
                     Anterior
                   </button>
-                  <span className="text-[12px] text-[#6b7280]">
+                  <span className="text-[12px] text-[#6b7280] dark:text-slate-400">
                     Página {pagina} de {totalPaginas}
                   </span>
                   <button
                     type="button"
                     disabled={pagina >= totalPaginas}
                     onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
-                    className="rounded-lg border border-[#e5e7eb] px-3 py-1 text-[12px] disabled:opacity-40"
+                    className="rounded-lg border border-[#e5e7eb] dark:border-slate-700 px-3 py-1 text-[12px] disabled:opacity-40"
                   >
                     Próxima
                   </button>
@@ -1074,7 +1074,7 @@ export function RelatorioFinanceiroGeralConteudo() {
         size="lg"
       >
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-          <p className="max-w-xl text-[12px] text-[#6b7280]">
+          <p className="max-w-xl text-[12px] text-[#6b7280] dark:text-slate-400">
             Valores a receber de serviços Finalizados ou Entregues (serviço + produto + transporte da
             mesma OS, saldo em Contas a Receber ou valor da OS quando ainda não faturada).
           </p>
@@ -1082,7 +1082,7 @@ export function RelatorioFinanceiroGeralConteudo() {
             <button
               type="button"
               onClick={imprimirModalConcluidos}
-              className="inline-flex h-[34px] shrink-0 items-center gap-1.5 rounded-lg border border-[#e5e7eb] bg-white px-3 text-[12px] font-medium text-[#374151] shadow-sm hover:bg-[#f9fafb]"
+              className="inline-flex h-[34px] shrink-0 items-center gap-1.5 rounded-lg border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-[12px] font-medium text-[#374151] dark:text-slate-200 shadow-sm hover:bg-[#f9fafb] dark:bg-slate-800/70"
             >
               <Printer className="h-3.5 w-3.5" />
               Imprimir
@@ -1090,7 +1090,7 @@ export function RelatorioFinanceiroGeralConteudo() {
           ) : null}
         </div>
         {linhasConcluidosModal.length === 0 ? (
-          <p className="py-8 text-center text-sm text-[#9ca3af]">
+          <p className="py-8 text-center text-sm text-[#9ca3af] dark:text-slate-500">
             Nenhuma OS concluída neste período.
           </p>
         ) : (
@@ -1098,7 +1098,7 @@ export function RelatorioFinanceiroGeralConteudo() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[640px] text-left text-[12px]">
                 <thead>
-                  <tr className="border-b border-[#e5e7eb] bg-[#f9fafb] text-[11px] uppercase tracking-wide text-[#6b7280]">
+                  <tr className="border-b border-[#e5e7eb] dark:border-slate-700 bg-[#f9fafb] dark:bg-slate-800/70 text-[11px] uppercase tracking-wide text-[#6b7280] dark:text-slate-400">
                     <th className="px-3 py-2">OS</th>
                     <th className="px-3 py-2">Cliente</th>
                     <th className="px-3 py-2">Serviço</th>
@@ -1126,7 +1126,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="bg-[#f9fafb] font-bold">
+                  <tr className="bg-[#f9fafb] dark:bg-slate-800/70 font-bold">
                     <td className="px-3 py-2" colSpan={5}>
                       TOTAL ({linhasConcluidosModal.length} OS)
                     </td>
@@ -1143,18 +1143,18 @@ export function RelatorioFinanceiroGeralConteudo() {
                   type="button"
                   disabled={paginaModal <= 1}
                   onClick={() => setPaginaModal((p) => Math.max(1, p - 1))}
-                  className="rounded-lg border border-[#e5e7eb] px-3 py-1 text-[12px] disabled:opacity-40"
+                  className="rounded-lg border border-[#e5e7eb] dark:border-slate-700 px-3 py-1 text-[12px] disabled:opacity-40"
                 >
                   Anterior
                 </button>
-                <span className="text-[12px] text-[#6b7280]">
+                <span className="text-[12px] text-[#6b7280] dark:text-slate-400">
                   Página {paginaModal} de {totalPaginasModal}
                 </span>
                 <button
                   type="button"
                   disabled={paginaModal >= totalPaginasModal}
                   onClick={() => setPaginaModal((p) => Math.min(totalPaginasModal, p + 1))}
-                  className="rounded-lg border border-[#e5e7eb] px-3 py-1 text-[12px] disabled:opacity-40"
+                  className="rounded-lg border border-[#e5e7eb] dark:border-slate-700 px-3 py-1 text-[12px] disabled:opacity-40"
                 >
                   Próxima
                 </button>
