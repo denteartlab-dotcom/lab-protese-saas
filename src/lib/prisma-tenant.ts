@@ -59,6 +59,9 @@ export const prisma = prismaBase.$extends({
   },
 });
 
+/** Tipo do cliente com extensão RLS (não é o PrismaClient “puro”). */
+export type PrismaAppClient = typeof prisma;
+
 /** Executa callback com tenant ativo (RLS no PostgreSQL). */
 export async function executarComTenant<T>(
   empresaId: string,

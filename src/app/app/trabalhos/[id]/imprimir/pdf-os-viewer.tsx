@@ -6,8 +6,6 @@ import { Button } from "@/components/ui";
 import { PdfViewerIframe } from "@/components/pdf/PdfViewerIframe";
 import { PDF_VIEWER_PAGINA_CLASSES } from "@/lib/pdf-viewer-iframe";
 import { prepararAbaPdf, visualizarPdfUrl, baixarPdfBlob, baixarPdfUrl, criarUrlPdfNomeada, nomeArquivoOsPdf } from "@/lib/pdf-viewer";
-import { urlPdfDocumentoServidor } from "@/lib/pdf-documento-http";
-import { criarIdPdfViewer, publicarPdfBlobNoServidor } from "@/lib/pdf-viewer-aba";
 import { LAB_IMPRESSAO_PADRAO, type LabImpressaoConfig } from "@/lib/lab-impressao";
 import {
   CONFIG_LAB_PADRAO,
@@ -2084,7 +2082,7 @@ export function PdfOsViewer({
   const [pdfUrl, setPdfUrl] = useState("");
   const [erroPdf, setErroPdf] = useState("");
   const pdfBlobRef = useRef<Blob | null>(null);
-  const pdfDocIdRef = useRef("");
+  const pdfUrlRef = useRef("");
   const dadosPdfRef = useRef<PdfOsData>(data as PdfOsData);
   const buildPdfSeqRef = useRef(0);
   const nomeArquivoPdf = nomeArquivoOsPdf(data.numeroOs);
@@ -2138,35 +2136,20 @@ export function PdfOsViewer({
     }
   }
 
-  async function publicarPdfGerado(blob: Blob, seq: number) {
+  function publicarPdfGerado(blob: Blob, seq: number) {
     pdfBlobRef.current = blob;
     const blobUrl = criarUrlPdfNomeada(blob, nomeArquivoPdf);
-    const id = criarIdPdfViewer();
-    try {
-      const upload = publicarPdfBlobNoServidor(blob, nomeArquivoPdf, id);
-      const timeout = new Promise<never>((_, reject) => {
-        window.setTimeout(() => reject(new Error("timeout upload pdf")), 12_000);
-      });
-      await Promise.race([upload, timeout]);
-      if (seq !== buildPdfSeqRef.current) {
-        if (blobUrl.startsWith("blob:")) URL.revokeObjectURL(blobUrl);
-        return "";
-      }
-      pdfDocIdRef.current = id;
-      const serverUrl = urlPdfDocumentoServidor(id, { nomeArquivo: nomeArquivoPdf });
-      setPdfUrl(serverUrl);
+    if (seq !== buildPdfSeqRef.current) {
       if (blobUrl.startsWith("blob:")) URL.revokeObjectURL(blobUrl);
-      return serverUrl;
-    } catch (err) {
-      if (seq !== buildPdfSeqRef.current) {
-        if (blobUrl.startsWith("blob:")) URL.revokeObjectURL(blobUrl);
-        return "";
-      }
-      console.warn("[PdfOsViewer] fallback blob local", err);
-      pdfDocIdRef.current = "";
-      setPdfUrl(blobUrl);
-      return blobUrl;
+      return "";
     }
+    const anterior = pdfUrlRef.current;
+    pdfUrlRef.current = blobUrl;
+    setPdfUrl(blobUrl);
+    if (anterior.startsWith("blob:") && anterior !== blobUrl) {
+      URL.revokeObjectURL(anterior);
+    }
+    return blobUrl;
   }
 
   const [dadosPdf, setDadosPdf] = useState<PdfOsData>(() => montarDadosPdfDeServidor(data));
@@ -2232,7 +2215,7 @@ export function PdfOsViewer({
         }
         const blob = pdf.output("blob");
         if (seq !== buildPdfSeqRef.current) return;
-        await publicarPdfGerado(blob, seq);
+        publicarPdfGerado(blob, seq);
         return;
       }
 
@@ -2250,7 +2233,7 @@ export function PdfOsViewer({
         }
         const blob = pdf.output("blob");
         if (seq !== buildPdfSeqRef.current) return;
-        await publicarPdfGerado(blob, seq);
+        publicarPdfGerado(blob, seq);
         return;
       }
 
@@ -2276,7 +2259,7 @@ export function PdfOsViewer({
 
       const blob = pdf.output("blob");
       if (seq !== buildPdfSeqRef.current) return;
-      await publicarPdfGerado(blob, seq);
+      publicarPdfGerado(blob, seq);
     }
 
     void buildPdf().catch((err) => {
@@ -2288,23 +2271,16 @@ export function PdfOsViewer({
           : "Não foi possível gerar o PDF da requisição."
       );
     });
+
+    return () => {
+      const url = pdfUrlRef.current;
+      if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+      pdfUrlRef.current = "";
+      pdfBlobRef.current = null;
+    };
   }, [configOsPronta, formato, modelo, duasVias, data.numeroOs]);
 
   function baixarPdf() {
-    if (pdfDocIdRef.current) {
-      const link = document.createElement("a");
-      link.href = urlPdfDocumentoServidor(pdfDocIdRef.current, {
-        download: true,
-        nomeArquivo: nomeArquivoPdf,
-      });
-      link.download = nomeArquivoPdf;
-      link.rel = "noopener";
-      link.style.display = "none";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      return;
-    }
     if (pdfBlobRef.current) {
       baixarPdfBlob(pdfBlobRef.current, nomeArquivoPdf);
       return;
@@ -2323,12 +2299,9 @@ export function PdfOsViewer({
   }
 
   function abrirEmNovaAba() {
-    const url = pdfDocIdRef.current
-      ? urlPdfDocumentoServidor(pdfDocIdRef.current, { nomeArquivo: nomeArquivoPdf })
-      : pdfUrl;
-    if (!url) return;
+    if (!pdfUrl) return;
     const janela = prepararAbaPdf();
-    visualizarPdfUrl(url, nomeArquivoPdf, `OS ${data.numeroOs}`, {
+    visualizarPdfUrl(pdfUrl, nomeArquivoPdf, `OS ${data.numeroOs}`, {
       janela,
       revogarAoFechar: false,
     });

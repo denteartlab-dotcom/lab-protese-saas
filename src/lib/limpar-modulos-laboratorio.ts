@@ -1,6 +1,6 @@
 import { mkdir, rm } from "fs/promises";
 import path from "path";
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaAppClient } from "@/lib/prisma-tenant";
 import { CONFIG_LAB_PADRAO, CONFIG_LAB_STORAGE_KEY } from "@/lib/configuracoes-lab";
 import { ASAAS_CONFIG_KEY, ASAAS_CONFIG_PADRAO } from "@/lib/asaas-config";
 import { NFSE_CONFIG_KEY, NFSE_CONFIG_PADRAO } from "@/lib/nfse-config";
@@ -22,6 +22,8 @@ import {
   salvarExtratoBancarioServidor,
   salvarMovimentacoesContaServidor,
 } from "@/lib/conta-bancaria-servidor";
+
+type PrismaDb = PrismaAppClient;
 
 export type ModuloLimpezaId =
   | "financeiro"
@@ -264,7 +266,7 @@ export function chavesLocalStorageModulos(ids: ModuloLimpezaId[]): string[] {
 
 /** Contagens no servidor (banco + arquivos em disco) — escopo de uma empresa. */
 export async function contarRegistrosModulos(
-  prisma: PrismaClient,
+  prisma: PrismaDb,
   empresaId: string
 ): Promise<Record<ModuloLimpezaId, number>> {
   const whereEmpresa = { empresaId };
@@ -362,7 +364,7 @@ async function excluirPastaUploads(pasta: PastaUpload, empresaSlug: string) {
 }
 
 async function excluirUploadsPastasComPrisma(
-  prisma: PrismaClient,
+  prisma: PrismaDb,
   pastas: PastaUpload[],
   empresaId: string,
   empresaSlug: string
@@ -383,7 +385,7 @@ export type ResultadoLimpezaModulos = {
 };
 
 export async function limparModulosSelecionados(
-  prisma: PrismaClient,
+  prisma: PrismaDb,
   ids: ModuloLimpezaId[],
   opts: { usuarioIdManter: string; empresaId: string }
 ): Promise<ResultadoLimpezaModulos> {

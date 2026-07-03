@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaAppClient } from "@/lib/prisma-tenant";
 import { resolverDadosUploadImport, UPLOADS_ZIP_PREFIX } from "@/lib/backup-zip";
 import { chaveJsonStoreTenant } from "@/lib/json-store-tenant";
 import { uploadUsaBancoDados } from "@/lib/upload-arquivo-server";
@@ -9,6 +9,9 @@ import {
   garantirPastasUploadEmpresa,
   normalizarSlugPastaUploads,
 } from "@/lib/uploads-armazenamento-server";
+
+/** Cliente Prisma da app (com extensão RLS). */
+type PrismaDb = PrismaAppClient;
 
 export const BACKUP_FORMAT_VERSION = 2;
 export const BACKUP_APP_ID = "lab-protese-saas";
@@ -76,7 +79,7 @@ function normalizarLinhaImport(row: Record<string, unknown>) {
   return out;
 }
 
-async function carregarEmpresaBackup(prisma: PrismaClient, empresaId: string) {
+async function carregarEmpresaBackup(prisma: PrismaDb, empresaId: string) {
   const empresa = await prisma.empresa.findUnique({
     where: { id: empresaId },
     select: { id: true, slug: true, nome: true, status: true },
@@ -86,7 +89,7 @@ async function carregarEmpresaBackup(prisma: PrismaClient, empresaId: string) {
 }
 
 export async function exportarBackupEmpresa(
-  prisma: PrismaClient,
+  prisma: PrismaDb,
   empresaId: string
 ): Promise<BackupLaboratorioPayload> {
   const empresa = await carregarEmpresaBackup(prisma, empresaId);
@@ -189,7 +192,7 @@ export async function exportarBackupEmpresa(
 
 /** @deprecated Use exportarBackupEmpresa */
 export async function exportarBackupLaboratorio(
-  prisma: PrismaClient,
+  prisma: PrismaDb,
   empresaId: string
 ) {
   return exportarBackupEmpresa(prisma, empresaId);
@@ -214,7 +217,7 @@ export function backupPertenceAEmpresa(
   return backup.empresaId === empresaId;
 }
 
-async function excluirDadosEmpresa(prisma: PrismaClient, empresaId: string) {
+async function excluirDadosEmpresa(prisma: PrismaDb, empresaId: string) {
   const prefixoTenant = `t:${empresaId}:`;
 
   const [lancamentos, clientes, contas] = await Promise.all([
@@ -287,7 +290,7 @@ async function excluirDadosEmpresa(prisma: PrismaClient, empresaId: string) {
 }
 
 async function inserirLinhas(
-  prisma: PrismaClient,
+  prisma: PrismaDb,
   tabela: string,
   linhas: unknown[],
   uploadsZip?: Map<string, Buffer>
@@ -416,7 +419,7 @@ export type ResultadoImportBackup = {
 };
 
 export async function importarBackupEmpresa(
-  prisma: PrismaClient,
+  prisma: PrismaDb,
   backup: BackupLaboratorioPayload,
   empresaId: string,
   opts: OpcoesImportBackup = {}
@@ -429,7 +432,7 @@ export async function importarBackupEmpresa(
   const contagens: Record<string, number> = {};
 
   await prisma.$transaction(async (tx) => {
-    const db = tx as PrismaClient;
+    const db = tx as unknown as PrismaDb;
     await excluirDadosEmpresa(db, empresaId);
 
     for (const tabela of TABELAS_IMPORTACAO) {
@@ -452,7 +455,7 @@ export async function importarBackupEmpresa(
 
 /** @deprecated Use importarBackupEmpresa */
 export async function importarBackupLaboratorio(
-  prisma: PrismaClient,
+  prisma: PrismaDb,
   backup: BackupLaboratorioPayload,
   empresaId: string
 ) {
