@@ -9,6 +9,7 @@ import {
   removerMovimentacoesRecebimentoServidor,
   sincronizarMovimentacaoRecebimentoServidor,
 } from "@/lib/recebimento-conta-bancaria-servidor";
+import { invalidarCachePainelFinanceiro } from "@/lib/financeiro-painel-cache";
 import { z } from "zod";
 
 const schema = z.object({
@@ -76,6 +77,7 @@ export async function PUT(
         console.error("[financeiro PUT] sync conta bancária", syncErr);
       }
     }
+    invalidarCachePainelFinanceiro(ctx.empresaId);
     return NextResponse.json(lancamento);
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -115,5 +117,6 @@ export async function DELETE(
   } catch (auditErr) {
     console.error("[financeiro DELETE] auditoria", auditErr);
   }
+  invalidarCachePainelFinanceiro(ctx.empresaId);
   return NextResponse.json({ ok: true });
 }

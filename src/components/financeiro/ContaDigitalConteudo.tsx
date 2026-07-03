@@ -16,6 +16,8 @@ import {
 import { Button } from "@/components/ui";
 import { AsaasSeloInstitucional } from "@/components/AsaasSeloInstitucional";
 import { analisarCaminhoApp, montarCaminhoAppComSlug } from "@/lib/rotas-app";
+import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
+import type { PainelFinanceiroContaDigital } from "@/lib/financeiro-painel-types";
 import { cn } from "@/lib/utils";
 import type { TipoMensagemForm } from "@/components/DadosLaboratorioForm";
 
@@ -102,33 +104,17 @@ export function ContaDigitalConteudo() {
   const [chavePix, setChavePix] = useState("");
   const [tipoChave, setTipoChave] = useState<"CPF" | "CNPJ" | "EMAIL" | "PHONE" | "EVP">("EVP");
 
-  const carregar = useCallback(async () => {
+  const carregar = useCallback(async (opts?: { refresh?: boolean }) => {
     setCarregando(true);
     try {
-      const resSub = await fetch("/api/asaas/subconta", { cache: "no-store" });
-      const jsonSub = (await resSub.json()) as {
-        subconta?: SubcontaResumo;
-        error?: string;
-      };
-      if (!resSub.ok) throw new Error(jsonSub.error || "Erro ao carregar conta.");
-      setSubconta(jsonSub.subconta || null);
-
-      if (jsonSub.subconta?.contaAtiva) {
-        const resSaldo = await fetch("/api/asaas/conta-digital", { cache: "no-store" });
-        const jsonSaldo = (await resSaldo.json()) as { saldo?: number; error?: string };
-        if (resSaldo.ok) setSaldo(Number(jsonSaldo.saldo) || 0);
-
-        const resExt = await fetch("/api/asaas/conta-digital?acao=extrato", {
-          cache: "no-store",
-        });
-        const jsonExt = (await resExt.json()) as {
-          movimentacoes?: typeof movimentacoes;
-        };
-        if (resExt.ok) setMovimentacoes(jsonExt.movimentacoes || []);
-      } else {
-        setSaldo(0);
-        setMovimentacoes([]);
-      }
+      const painel = await fetchPainelFinanceiro<PainelFinanceiroContaDigital>(
+        "conta-digital",
+        opts
+      );
+      if (!painel.ok) throw new Error(painel.error);
+      setSubconta((painel.dados.subconta as SubcontaResumo) || null);
+      setSaldo(Number(painel.dados.saldo) || 0);
+      setMovimentacoes(painel.dados.movimentacoes || []);
     } catch (err) {
       setMensagem({
         texto: err instanceof Error ? err.message : "Erro ao carregar.",
@@ -181,7 +167,7 @@ export function ContaDigitalConteudo() {
       setLinhaDigitavel("");
       setBoletoValidado(null);
       setMensagem({ texto: "Pagamento solicitado com sucesso.", tipo: "sucesso" });
-      await carregar();
+      await carregar({ refresh: true });
     } catch (err) {
       setMensagem({
         texto: err instanceof Error ? err.message : "Falha no pagamento.",
@@ -212,7 +198,7 @@ export function ContaDigitalConteudo() {
       setValorPix("");
       setChavePix("");
       setMensagem({ texto: "Transferência Pix solicitada.", tipo: "sucesso" });
-      await carregar();
+      await carregar({ refresh: true });
     } catch (err) {
       setMensagem({
         texto: err instanceof Error ? err.message : "Falha na transferência.",

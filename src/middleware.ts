@@ -158,7 +158,18 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  if (
+    process.env.NODE_ENV !== "production" &&
+    pathname.startsWith("/api/dev/")
+  ) {
+    return NextResponse.next();
+  }
+
   if (pathname.startsWith("/api/clientes/public")) {
+    return NextResponse.next();
+  }
+
+  if (pathname.startsWith("/api/public/")) {
     return NextResponse.next();
   }
 

@@ -8,7 +8,7 @@ import {
   type ClienteSemServicoItem,
 } from "@/lib/dashboard-clientes-servico";
 import { abrirPdfGerandoNoVisualizadorPagina } from "@/lib/pdf-viewer";
-import { gerarClientesSemServicoPdf } from "@/lib/relatorios-impressao-pdf";
+import { gerarClientesSemServicoPdf } from "@/lib/relatorio-clientes-sem-servico-pdf";
 import { formatDate } from "@/lib/utils";
 
 export function PainelClientesServicosDashboard({

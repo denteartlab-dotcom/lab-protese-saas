@@ -1,5 +1,5 @@
 import { numerosOsDoLancamentoFatura } from "@/lib/os-faturamento";
-import { parseParcelaNaDescricao, textoParcelaLog } from "@/lib/fatura-financeiro";
+import { parseParcelaNaDescricao, textoParcelaLog } from "@/lib/fatura-financeiro-util";
 
 export type LancamentoContasReceber = {
   id: string;
@@ -139,7 +139,38 @@ export function referenciaLancamento(lancamento: LancamentoContasReceber) {
   return "Recebimento";
 }
 
+/** Texto curto para nota/PDF — evita "Cobrança OS 123, 456 - …". */
+export function descricaoExibicaoCobranca(descricao: string): string {
+  const texto = descricao.replace(/@@trab:[a-zA-Z0-9_,-]+@@/gi, "").trim();
+  if (texto.toLowerCase().startsWith("cobrança os")) return "Cobrança";
+  return texto;
+}
+
 export function numerosOsTexto(lancamento: LancamentoContasReceber) {
   const nums = numerosOsDoLancamentoFatura(lancamento);
   return nums.length ? nums.join(", ") : "—";
+}
+
+export type TotaisContasReceberCliente = {
+  aReceber: number;
+  recebido: number;
+  adiantamentos: number;
+  naoFaturados: number;
+};
+
+function colunaTemValorExibido(value: number): boolean {
+  return Math.round((Number(value) || 0) * 100) > 0;
+}
+
+/**
+ * Cliente (ativo, inativo ou excluído) só aparece em Contas a Receber se alguma
+ * coluna da tabela tiver valor visível (a receber, recebido, adiantamento ou não faturado).
+ */
+export function clienteVisivelContasReceber(totais: TotaisContasReceberCliente): boolean {
+  return (
+    colunaTemValorExibido(totais.aReceber) ||
+    colunaTemValorExibido(totais.recebido) ||
+    colunaTemValorExibido(totais.adiantamentos) ||
+    colunaTemValorExibido(totais.naoFaturados)
+  );
 }

@@ -4,6 +4,7 @@
  */
 
 import type { ExtratoMovimentacao } from "@/lib/extrato-bancario";
+import { fetchComTimeout } from "@/lib/http-integracao";
 
 const PLUGGY_API = "https://api.pluggy.ai";
 
@@ -28,11 +29,15 @@ async function pluggyApiKey() {
     );
   }
 
-  const res = await fetch(`${PLUGGY_API}/auth`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ clientId, clientSecret }),
-  });
+  const res = await fetchComTimeout(
+    `${PLUGGY_API}/auth`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId, clientSecret }),
+    },
+    { integracao: "pluggy" }
+  );
 
   if (!res.ok) {
     throw new Error("Falha ao autenticar na Pluggy. Verifique as credenciais.");
@@ -44,20 +49,24 @@ async function pluggyApiKey() {
 
 export async function criarConnectToken(itemId?: string) {
   const apiKey = await pluggyApiKey();
-  const res = await fetch(`${PLUGGY_API}/connect_token`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-API-KEY": apiKey,
-    },
-    body: JSON.stringify({
-      ...(itemId ? { itemId } : {}),
-      options: {
-        clientUserId: "lab-protese",
-        openFinance: true,
+  const res = await fetchComTimeout(
+    `${PLUGGY_API}/connect_token`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-KEY": apiKey,
       },
-    }),
-  });
+      body: JSON.stringify({
+        ...(itemId ? { itemId } : {}),
+        options: {
+          clientUserId: "lab-protese",
+          openFinance: true,
+        },
+      }),
+    },
+    { integracao: "pluggy" }
+  );
 
   if (!res.ok) {
     const err = await res.text();
@@ -82,9 +91,10 @@ export async function buscarTransacoesPluggy(
 ): Promise<PluggyTransaction[]> {
   const apiKey = await pluggyApiKey();
 
-  const accountsRes = await fetch(
+  const accountsRes = await fetchComTimeout(
     `${PLUGGY_API}/accounts?itemId=${encodeURIComponent(itemId)}`,
-    { headers: { "X-API-KEY": apiKey } }
+    { headers: { "X-API-KEY": apiKey } },
+    { integracao: "pluggy" }
   );
   if (!accountsRes.ok) {
     throw new Error("Não foi possível listar contas do banco conectado.");
@@ -107,9 +117,11 @@ export async function buscarTransacoesPluggy(
     pageSize: "500",
   });
 
-  const txRes = await fetch(`${PLUGGY_API}/transactions?${params}`, {
-    headers: { "X-API-KEY": apiKey },
-  });
+  const txRes = await fetchComTimeout(
+    `${PLUGGY_API}/transactions?${params}`,
+    { headers: { "X-API-KEY": apiKey } },
+    { integracao: "pluggy" }
+  );
   if (!txRes.ok) {
     throw new Error("Não foi possível buscar transações do extrato.");
   }

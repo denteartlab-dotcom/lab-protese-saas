@@ -8,7 +8,7 @@ import {
   entregaParaHistorico,
   registrarHistoricoEntregas,
   type SituacaoHistoricoEntrega,
-} from "@/lib/controle-entregas-historico";
+} from "@/lib/controle-entregas-historico-core";
 
 export const ENTREGAS_STORAGE_KEY = "labProteseControleEntregas";
 export const ENTREGADORES_STORAGE_KEY = "labProteseEntregadores";

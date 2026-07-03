@@ -63,6 +63,7 @@ export type ItemEstoqueOrcamento = {
 };
 
 const ORCAMENTOS_ESTOQUE_APLICADOS_KEY = "labProteseOrcamentosEstoqueAplicados";
+export { ORCAMENTOS_ESTOQUE_APLICADOS_KEY };
 
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 

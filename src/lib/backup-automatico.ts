@@ -1,26 +1,20 @@
-import { access, writeFile } from "fs/promises";
 import { prisma } from "@/lib/db";
 import { caminhoRelativoPastaBackupEmpresa } from "@/lib/backup-empresa-pasta";
-import { exportarBackupEmpresa } from "@/lib/backup-laboratorio";
+import { executarBackupNoServidor } from "@/lib/backup-runner-servidor";
 import {
   calcularProximoBackupEm,
   carregarConfigBackupAutomatico,
   formatarDataBackup,
   msAteProximoAgendamento,
-  registrarExecucaoBackupAutomatico,
   type BackupAutomaticoConfig,
 } from "@/lib/backup-automatico-config";
 import {
   backupAutomaticoHabilitadoNoServidor,
-  caminhoArquivoBackupAutomaticoEmpresa,
   fusoBackupAutomatico,
   garantirPastaBackup,
-  garantirPastaBackupEmpresa,
   nomeArquivoBackupAutomatico,
 } from "@/lib/backup-automatico-servidor";
-import { uploadBackupParaGoogleDrive, sincronizarPastasDriveEmpresasAtivas } from "@/lib/backup-google-drive";
-import { sincronizarBackupComOneDrive } from "@/lib/backup-onedrive-sync";
-import { espelharUploadsNoBackupEmpresa } from "@/lib/backup-uploads-espelho";
+import { sincronizarPastasDriveEmpresasAtivas } from "@/lib/backup-google-drive";
 
 type EmpresaAtiva = { id: string; slug: string; nome: string };
 
@@ -58,64 +52,9 @@ export async function executarBackupAutomatico(
   }
 
   empresasEmExecucao().add(chave);
-  const fuso = fusoBackupAutomatico();
-  const agora = new Date();
 
   try {
-    await garantirPastaBackup();
-    await garantirPastaBackupEmpresa(slug, nome);
-    const destino = caminhoArquivoBackupAutomaticoEmpresa(slug, nome, agora, fuso);
-    const backup = await exportarBackupEmpresa(prisma, empresaId);
-    const conteudo = JSON.stringify(backup, null, 2);
-    await writeFile(destino, conteudo, "utf8");
-
-    try {
-      await access(destino);
-    } catch {
-      throw new Error(`Arquivo de backup não encontrado após gravação: ${destino}`);
-    }
-
-    await registrarExecucaoBackupAutomatico(empresaId, backup.exportedAt, destino);
-    console.log(
-      `[backup-automatico] ${slug}: gravado em ${destino} (${backup.exportedAt})`
-    );
-
-    const uploads = await espelharUploadsNoBackupEmpresa(empresaId, slug, nome);
-    console.log(
-      `[backup-automatico] ${slug}: uploads espelhados (${uploads.arquivos} arquivo(s)) em ${uploads.destino}`
-    );
-
-    const onedrive = await sincronizarBackupComOneDrive();
-    if (onedrive.ok) {
-      console.log(`[backup-automatico] ${slug}: pasta backups/ sincronizada no OneDrive`);
-    } else if (onedrive.erro && onedrive.erro !== "desativado") {
-      console.warn(
-        `[backup-automatico] ${slug}: OneDrive não sincronizado — ${onedrive.erro}`
-      );
-    }
-
-    const drive = await uploadBackupParaGoogleDrive({
-      empresaId,
-      slug,
-      nome,
-      caminhoArquivoLocal: destino,
-    });
-    if (drive.ok) {
-      console.log(`[backup-automatico] ${slug}: replicado no Drive (${drive.caminhoDrive})`);
-    } else if (drive.erro && drive.erro !== "desativado" && drive.erro !== "nao_configurado") {
-      console.warn(`[backup-automatico] ${slug}: Drive não replicado — ${drive.erro}`);
-    }
-
-    return {
-      destino,
-      exportedAt: backup.exportedAt,
-      slug,
-      empresaId,
-      uploadsArquivos: uploads.arquivos,
-      uploadsDestino: uploads.destino,
-      onedrive,
-      drive,
-    };
+    return await executarBackupNoServidor(empresaId, slug, nome);
   } catch (erro) {
     console.error(`[backup-automatico] ${slug}: falha`, erro);
     return null;

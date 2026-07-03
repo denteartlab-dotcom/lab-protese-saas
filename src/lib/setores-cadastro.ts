@@ -10,5 +10,9 @@ export type SetorCadastro = {
 
 export function carregarSetoresCadastro(): SetorCadastro[] {
   const lista = readStorage<SetorCadastro[]>(SETORES_STORAGE_KEY, []);
+  return filtrarSetoresCadastro(lista);
+}
+
+export function filtrarSetoresCadastro(lista: SetorCadastro[]): SetorCadastro[] {
   return Array.isArray(lista) ? lista.filter((s) => s?.nome?.trim()) : [];
 }

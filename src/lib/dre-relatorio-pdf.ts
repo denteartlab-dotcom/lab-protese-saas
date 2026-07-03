@@ -79,6 +79,15 @@ export async function gerarRelatorioDrePdf(
   pdf.text(relatorio.titulo, pageW / 2, y, { align: "center" });
   y += 12;
 
+  if (relatorio.linhas.length === 0) {
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(10);
+    pdf.text("O relatório não possui dados para o período selecionado.", pageW / 2, y, {
+      align: "center",
+    });
+    return pdf.output("blob");
+  }
+
   for (const linha of relatorio.linhas) {
     desenharLinha(linha);
   }

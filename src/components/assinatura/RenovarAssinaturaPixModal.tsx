@@ -25,6 +25,11 @@ type CobrancaPix = {
   novaDataVencimento: string | null;
 };
 
+type SyncJobPix = {
+  jobId: string;
+  status: string;
+};
+
 type Props = {
   aberto: boolean;
   onFechar: () => void;
@@ -41,6 +46,7 @@ export function RenovarAssinaturaPixModal({
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
   const [cobranca, setCobranca] = useState<CobrancaPix | null>(null);
+  const [syncJob, setSyncJob] = useState<SyncJobPix | null>(null);
   const [copiado, setCopiado] = useState(false);
 
   const gerarPix = useCallback(async (forcarNova = false) => {
@@ -86,7 +92,10 @@ export function RenovarAssinaturaPixModal({
           { cache: "no-store" }
         );
         if (!res.ok) return;
-        const data = (await res.json()) as { cobranca?: CobrancaPix };
+        const data = (await res.json()) as {
+          cobranca?: CobrancaPix;
+          syncJob?: SyncJobPix;
+        };
         if (!data.cobranca) return;
         setCobranca((atual) => ({
           ...data.cobranca!,
@@ -94,6 +103,7 @@ export function RenovarAssinaturaPixModal({
             data.cobranca!.pixEncodedImage || atual?.pixEncodedImage || null,
           pixExpiraEm: data.cobranca!.pixExpiraEm ?? atual?.pixExpiraEm ?? null,
         }));
+        if (data.syncJob) setSyncJob(data.syncJob);
         if (data.cobranca.pago && data.cobranca.renovadoEm) {
           onRenovado?.();
         }
@@ -217,6 +227,9 @@ export function RenovarAssinaturaPixModal({
 
             <p className="text-center text-[10px] text-slate-500">
               Após pagar, a renovação é automática em poucos segundos.
+              {syncJob && (syncJob.status === "pendente" || syncJob.status === "executando")
+                ? " Verificando pagamento..."
+                : ""}
             </p>
           </div>
         ) : null}

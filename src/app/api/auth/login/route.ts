@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prismaBase } from "@/lib/prisma-base";
+import { runWithRlsBypass } from "@/lib/prisma-tenant";
 import { createSession, verifyPassword } from "@/lib/auth";
 import {
   empresaPrecisaPaginaRenovacao,
@@ -66,7 +67,8 @@ export async function POST(request: Request) {
   const slugInformado = empresaSlug?.trim().toLowerCase();
 
   try {
-    const candidatos = await prisma.user.findMany({
+    return await runWithRlsBypass(async () => {
+    const candidatos = await prismaBase.user.findMany({
       where: {
         email: emailNorm,
         excluidoEm: null,
@@ -165,6 +167,7 @@ export async function POST(request: Request) {
       ...(precisaRenovacao
         ? { code: "ASSINATURA_VENCIDA", redirect: "/assinatura-vencida" }
         : {}),
+    });
     });
   } catch (err) {
     console.error("[auth/login]", err);

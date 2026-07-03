@@ -1,5 +1,6 @@
 import { somenteDigitos } from "@/lib/asaas-client";
 import { PIX_ASSINATURA_QR_EXPIRACAO_MS } from "@/lib/assinatura-pix-constants";
+import { fetchComTimeout } from "@/lib/http-integracao";
 import {
   mercadoPagoPlataformaConfigurado,
   obterConfigMercadoPagoPlataforma,
@@ -51,11 +52,15 @@ async function mpPlataformaFetch<T>(
   }
 
   const { idempotencyKey: _ignored, ...fetchInit } = init || {};
-  const res = await fetch(`${urlBaseMercadoPagoApi()}${path}`, {
-    ...fetchInit,
-    headers,
-    cache: "no-store",
-  });
+  const res = await fetchComTimeout(
+    `${urlBaseMercadoPagoApi()}${path}`,
+    {
+      ...fetchInit,
+      headers,
+      cache: "no-store",
+    },
+    { integracao: "mercado-pago" }
+  );
 
   const body = (await res.json().catch(() => ({}))) as MpPaymentResponse & Record<string, unknown>;
   if (!res.ok) {

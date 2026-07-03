@@ -1,3 +1,4 @@
+import type { SuporteConversaResumoDto, SuporteMensagemDto } from "@/lib/suporte-chat-types";
 import { prisma } from "@/lib/db";
 import { enviarEmailResend } from "@/lib/email-resend";
 import { resumoTextoMensagemSuporte } from "@/lib/suporte-chat-anexo";
@@ -10,23 +11,7 @@ import {
   emitSuporteNaoLidasEmpresa,
 } from "@/lib/suporte/suporte-socket-server";
 
-export type SuporteMensagemDto = {
-  id: string;
-  remetenteTipo: "usuario" | "suporte";
-  remetenteNome: string;
-  texto: string;
-  imagemUrl: string | null;
-  lidaEm: string | null;
-  createdAt: string;
-};
-
-export type SuporteConversaResumoDto = {
-  empresaId: string;
-  empresaNome: string;
-  ultimaMensagemEm: string;
-  ultimaMensagemTexto: string | null;
-  naoLidas: number;
-};
+export type { SuporteConversaResumoDto, SuporteMensagemDto } from "@/lib/suporte-chat-types";
 
 export function emailSuportePlataforma() {
   return (

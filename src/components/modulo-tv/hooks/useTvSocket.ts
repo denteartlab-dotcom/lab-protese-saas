@@ -54,6 +54,32 @@ export function useTvSocket() {
       onTvSocketEvent("tv:ordens:update", (payload) => {
         queryClient.setQueryData(TV_QUERY_KEYS.ordens, payload);
       }),
+      onTvSocketEvent("tv:ordens:delta", (payload) => {
+        const delta = payload as {
+          ids: string[];
+          ordens: TvOrdensResponse["ordens"];
+          stats: TvOrdensResponse["stats"];
+          colaboradores: TvOrdensResponse["colaboradores"];
+          ultimaAtualizacao: string;
+        };
+        queryClient.setQueryData<TvOrdensResponse>(TV_QUERY_KEYS.ordens, (old) => {
+          if (!old) return old;
+          const mapa = new Map(old.ordens.map((o) => [o.id, o]));
+          const idsPresentes = new Set(delta.ordens.map((o) => o.id));
+          for (const id of delta.ids) {
+            if (!idsPresentes.has(id)) mapa.delete(id);
+          }
+          for (const ordem of delta.ordens) {
+            mapa.set(ordem.id, ordem);
+          }
+          return {
+            ordens: [...mapa.values()],
+            stats: delta.stats,
+            colaboradores: delta.colaboradores,
+            ultimaAtualizacao: delta.ultimaAtualizacao,
+          };
+        });
+      }),
       onTvSocketEvent("tv:chart:update", (payload) => {
         queryClient.setQueryData(TV_QUERY_KEYS.chart, payload);
       }),

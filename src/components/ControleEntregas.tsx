@@ -45,8 +45,8 @@ import {
   labelSituacaoHistorico,
   sincronizarHistoricoEntregasCliente,
   type EntregaHistorico,
-} from "@/lib/controle-entregas-historico";
-import { sincronizarEntregasControleCliente } from "@/lib/controle-entregas-automatico";
+} from "@/lib/controle-entregas-historico-cliente";
+import { sincronizarEntregasControleCliente } from "@/lib/controle-entregas-automatico-cliente";
 import { ENTREGADORES_CADASTRO_EVENT } from "@/lib/entregadores-cadastro";
 import {
   carregarTrabalhosParaRelatorioEntregas,

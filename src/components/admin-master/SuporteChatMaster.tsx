@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MessageCircle } from "lucide-react";
-import type { SuporteConversaResumoDto, SuporteMensagemDto } from "@/lib/suporte-chat";
+import type { SuporteConversaResumoDto, SuporteMensagemDto } from "@/lib/suporte-chat-types";
 import { SuporteChatInput } from "@/components/suporte/SuporteChatInput";
 import { SuporteMensagemBubble } from "@/components/suporte/SuporteMensagemBubble";
 import { useSuporteChatRealtime } from "@/hooks/useSuporteChatRealtime";

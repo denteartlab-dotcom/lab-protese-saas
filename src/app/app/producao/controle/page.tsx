@@ -149,8 +149,8 @@ import {
 import {
   aplicarControleEntregaAposMudancaStatus,
   type TrabalhoParaControleEntrega,
-} from "@/lib/controle-entregas-automatico";
-import { STATUS_ENTREGUE_CLIENTE } from "@/lib/entrega-trabalho-sync";
+} from "@/lib/controle-entregas-automatico-cliente";
+import { STATUS_ENTREGUE_CLIENTE } from "@/lib/entrega-trabalho-sync-cliente";
 import { normalizarChaveStatusOs } from "@/lib/status-os";
 import {
   parsePrioridadeOsInstrucoes,
@@ -172,7 +172,7 @@ import {
   persistirEtapaAtualOs,
 } from "@/lib/modulo-producao-etapas";
 import { contextoEtapasControleLinha, flagsUrgenciaTrabalho, itensDaOsModulo } from "@/lib/modulo-producao-os";
-import { removerMarcacaoUrgenteInstrucoes } from "@/lib/urgencia-cliente";
+import { removerMarcacaoUrgenteInstrucoes } from "@/lib/urgencia-cliente-util";
 import {
   OPCOES_TIPO_REPETICAO_OS,
   tipoRepeticaoIncluiEtapa,

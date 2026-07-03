@@ -5,13 +5,8 @@ import { LAB_IMPRESSAO_PADRAO } from "@/lib/lab-impressao";
 import { configParaLabImpressao } from "@/lib/lab-logo";
 import { prisma } from "@/lib/db";
 
-export type LabBrandingPublico = {
-  nomeLaboratorio: string;
-  marcaSubtitulo: string;
-  logoDataUrl: string;
-  logoTamanho: number;
-  empresaSlug?: string;
-};
+export type { LabBrandingPublico } from "@/lib/lab-branding-types";
+import type { LabBrandingPublico } from "@/lib/lab-branding-types";
 
 /** Branding genérico da plataforma — login sem laboratório identificado. */
 export const BRANDING_PLATAFORMA_LOGIN: LabBrandingPublico = {
@@ -100,6 +95,19 @@ export async function carregarBrandingLaboratorioPorEmail(
   if (empresas.size !== 1) return null;
 
   const empresa = [...empresas.values()][0];
+  const config = await carregarConfigLaboratorioServidor(empresa.id);
+  return montarBrandingPublico(config, empresa.nome, empresa.slug);
+}
+
+export async function carregarBrandingLaboratorioPorEmpresaId(
+  empresaId: string
+): Promise<LabBrandingPublico> {
+  const empresa = await prisma.empresa.findUnique({
+    where: { id: empresaId },
+    select: { id: true, nome: true, slug: true },
+  });
+  if (!empresa) return brandingPlataformaLogin();
+
   const config = await carregarConfigLaboratorioServidor(empresa.id);
   return montarBrandingPublico(config, empresa.nome, empresa.slug);
 }

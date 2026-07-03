@@ -5,18 +5,16 @@ import { Download, Printer } from "lucide-react";
 import { useParams } from "next/navigation";
 import { PdfViewerIframe } from "@/components/pdf/PdfViewerIframe";
 import { PDF_VIEWER_PAGINA_CLASSES } from "@/lib/pdf-viewer-iframe";
-
-type DadosExtratoPublico = {
-  titulo: string;
-  nomeArquivo: string;
-  clienteNome: string;
-  temPdf: boolean;
-};
+import {
+  fetchPortalPublico,
+  pdfBlobUrlFromBase64,
+} from "@/lib/portal-publico-cliente";
+import type { PortalPublicoPaginaExtrato } from "@/lib/portal-publico-types";
 
 function ExtratoPublicaViewer() {
   const params = useParams<{ token: string }>();
   const token = params.token?.trim() ?? "";
-  const [dados, setDados] = useState<DadosExtratoPublico | null>(null);
+  const [dados, setDados] = useState<PortalPublicoPaginaExtrato["entidade"] | null>(null);
   const [erro, setErro] = useState("");
   const [pdfUrl, setPdfUrl] = useState("");
 
@@ -25,35 +23,14 @@ function ExtratoPublicaViewer() {
     let ativo = true;
 
     void (async () => {
-      try {
-        const resDados = await fetch(`/api/financeiro/extrato-publica/${token}/dados`);
-        const json = (await resDados.json().catch(() => ({}))) as DadosExtratoPublico & {
-          error?: string;
-        };
-        if (!resDados.ok) {
-          throw new Error(json.error || "Não foi possível carregar o extrato.");
-        }
-        if (!ativo) return;
-        setDados(json);
-
-        if (!json.temPdf) {
-          throw new Error("Extrato publicado sem PDF. Gere um novo link pelo laboratório.");
-        }
-
-        const pdfRes = await fetch(`/api/financeiro/extrato-publica/${token}`);
-        if (!pdfRes.ok) {
-          throw new Error("Não foi possível carregar o PDF do extrato.");
-        }
-        const blob = await pdfRes.blob();
-        if (!blob.size) {
-          throw new Error("PDF do extrato vazio. Gere um novo link pelo laboratório.");
-        }
-        if (!ativo) return;
-        setPdfUrl(URL.createObjectURL(blob));
-      } catch (err) {
-        if (!ativo) return;
-        setErro(err instanceof Error ? err.message : "Erro ao carregar extrato.");
+      const res = await fetchPortalPublico<PortalPublicoPaginaExtrato>("extrato", token);
+      if (!ativo) return;
+      if (!res.ok) {
+        setErro(res.message || res.error || "Não foi possível carregar o extrato.");
+        return;
       }
+      setDados(res.dados.entidade);
+      setPdfUrl(pdfBlobUrlFromBase64(res.dados.pdf.base64));
     })();
 
     return () => {

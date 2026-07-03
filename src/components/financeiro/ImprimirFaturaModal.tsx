@@ -7,7 +7,7 @@ import { Select } from "@/components/ui";
 import {
   mensagemWhatsappFaturaConferencia,
   publicarFaturaPublica,
-} from "@/lib/fatura-publica";
+} from "@/lib/fatura-publica-cliente";
 import { abrirWhatsAppFaturaConferencia } from "@/lib/whatsapp";
 import {
   CONFIG_FATURAS_ATUALIZADA_EVENT,
@@ -22,11 +22,8 @@ import {
 } from "@/lib/configuracoes-faturas";
 import { sincronizarConfigLaboratorioDoServidor } from "@/lib/lab-config-sync";
 import { gerarPdfDeHtmlDocumento } from "@/lib/html-para-pdf";
-import {
-  criarIdFaturaImpressao,
-  montarUrlImpressaoFatura,
-  publicarFaturaImpressaoSessao,
-} from "@/lib/fatura-impressao-sessao";
+import { prepararAbaPdf } from "@/lib/pdf-viewer";
+import { abrirHtmlNoVisualizadorUnificado } from "@/lib/pdf-viewer-unificado";
 import { cn } from "@/lib/utils";
 
 export type FormatoImpressaoFatura = "a4" | "termica";
@@ -206,21 +203,22 @@ export function ImprimirFaturaModal({
     if (gerandoPdf || sincronizando) return;
 
     setGerandoPdf(true);
+    const janela = prepararAbaPdf();
     try {
-      const html = await prepararHtmlImpressao();
-      const id = criarIdFaturaImpressao();
-      await publicarFaturaImpressaoSessao(id, {
-        html,
-        numeroFatura,
-        clienteNome,
-        subtitulo: subtituloFatura(),
-        formato,
-        imprimirAoCarregar,
-      });
-      const url = montarUrlImpressaoFatura(id, { imprimir: imprimirAoCarregar });
-      window.open(url, "_blank", "noopener,noreferrer");
+      await abrirHtmlNoVisualizadorUnificado(
+        prepararHtmlImpressao,
+        `Fatura ${numeroFatura} — ${clienteNome}`,
+        `fatura-${numeroFatura}.html`,
+        {
+          janela,
+          imprimirAoCarregar,
+          subtitulo: subtituloFatura(),
+          origem: "Financeiro · Fatura",
+        }
+      );
       onClose();
     } catch (err) {
+      janela?.close();
       console.error("[ImprimirFaturaModal] visualizador", err);
       window.alert("Não foi possível abrir a fatura. Tente novamente.");
     } finally {

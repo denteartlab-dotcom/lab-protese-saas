@@ -1,6 +1,6 @@
 "use client";
 
-import type { SuporteMensagemDto } from "@/lib/suporte-chat";
+import type { SuporteMensagemDto } from "@/lib/suporte-chat-types";
 import { cn } from "@/lib/utils";
 
 function formatarHora(iso: string) {

@@ -1,4 +1,4 @@
-import type { NotificacaoApi } from "@/app/api/notificacoes/route";
+import type { NotificacaoApi } from "@/lib/notificacoes-resumo-server";
 import { getProdutosEstoqueExtras, PRODUTOS_ESTOQUE_EVENT } from "@/lib/estoque";
 import type { MessageKey } from "@/lib/i18n";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";

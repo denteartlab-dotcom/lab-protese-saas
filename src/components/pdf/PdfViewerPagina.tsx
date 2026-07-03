@@ -31,6 +31,7 @@ export function PdfViewerPagina({ id }: Props) {
   const [subtitulo, setSubtitulo] = useState("Visualização do PDF");
   const [nomeArquivo, setNomeArquivo] = useState("documento.pdf");
   const [erro, setErro] = useState("");
+  const [avisoVazio, setAvisoVazio] = useState("");
   const [carregando, setCarregando] = useState(true);
   const imprimirAoCarregarRef = useRef(false);
   const concluidoRef = useRef(false);
@@ -109,7 +110,16 @@ export function PdfViewerPagina({ id }: Props) {
       if (payload.status === "error") {
         concluidoRef.current = true;
         setCarregando(false);
+        setAvisoVazio("");
         setErro(payload.message || "Não foi possível carregar o documento.");
+        return;
+      }
+
+      if (payload.status === "empty") {
+        concluidoRef.current = true;
+        setCarregando(false);
+        setErro("");
+        setAvisoVazio(payload.message || "O relatório não possui dados.");
         return;
       }
 
@@ -295,6 +305,13 @@ export function PdfViewerPagina({ id }: Props) {
           <Button type="button" onClick={() => window.location.reload()}>
             Tentar novamente
           </Button>
+        </div>
+      ) : avisoVazio ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center text-white">
+          <p className="max-w-md text-sm font-medium text-slate-200">{avisoVazio}</p>
+          <p className="text-xs text-slate-400">
+            Ajuste o período ou registre lançamentos financeiros e tente novamente.
+          </p>
         </div>
       ) : pdfUrl ? (
         <PdfViewerIframe

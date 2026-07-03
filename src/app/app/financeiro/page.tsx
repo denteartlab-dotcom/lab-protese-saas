@@ -4,7 +4,30 @@ import { Fragment, Suspense, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation";
 import { AlertTriangle, Check, Eye, FileText, Pencil, Plus, Printer, Search, Trash2 } from "lucide-react";
 import { BotoesImprimirExportarToolbar } from "@/components/BotoesImprimirExportarToolbar";
-import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
+import {
+  ContaBancariaConteudoLazy,
+  ContaDigitalConteudoLazy,
+  ConfirmacaoExclusaoModalLazy,
+  ContasPagarConteudoLazy,
+  ControleBoletosConteudoLazy,
+  ImprimirFaturaModalLazy,
+  ImprimirReciboModalLazy,
+  ItensFaturaModalLazy,
+  LancarRecebimentoModalLazy,
+  LancarReceitaOsModalLazy,
+  PlanoContasConteudoLazy,
+  RelatorioContasReceberModalLazy,
+  ServicosNaoFaturadosModalLazy,
+  VisualizacaoClienteReceberModalLazy,
+} from "@/components/financeiro/financeiro-lazy";
+import type {
+  LancarRecebimentoConfirmacao,
+  LancamentoRecebimento,
+} from "@/components/financeiro/LancarRecebimentoModal";
+import type {
+  LancarReceitaOsSubmit,
+  ParcelaLinhaReceita,
+} from "@/components/financeiro/LancarReceitaOsModal";
 import {
   Button,
   CampoDataBr,
@@ -46,34 +69,13 @@ import {
   FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
 } from "@/lib/fatura-cliente-financeiro";
 import { htmlCabecalhoLab, labImpressaoFromConfig } from "@/lib/lab-logo";
-import { ContaBancariaConteudo } from "@/components/financeiro/ContaBancariaConteudo";
-import { ContaDigitalConteudo } from "@/components/financeiro/ContaDigitalConteudo";
-import { ContasPagarConteudo } from "@/components/financeiro/ContasPagarConteudo";
-import { ControleBoletosConteudo } from "@/components/financeiro/ControleBoletosConteudo";
-import { RelatorioContasReceberModal } from "@/components/financeiro/RelatorioContasReceberModal";
-import { ServicosNaoFaturadosModal } from "@/components/financeiro/ServicosNaoFaturadosModal";
-import {
-  LancarReceitaOsModal,
-  type LancarReceitaOsSubmit,
-  type ParcelaLinhaReceita,
-} from "@/components/financeiro/LancarReceitaOsModal";
-import { ImprimirReciboModal } from "@/components/financeiro/ImprimirReciboModal";
-import {
-  LancarRecebimentoModal,
-  type LancarRecebimentoConfirmacao,
-  type LancamentoRecebimento,
-} from "@/components/financeiro/LancarRecebimentoModal";
-import { ImprimirFaturaModal } from "@/components/financeiro/ImprimirFaturaModal";
-import { ItensFaturaModal } from "@/components/financeiro/ItensFaturaModal";
-import { VisualizacaoClienteReceberModal } from "@/components/financeiro/VisualizacaoClienteReceberModal";
 import { linhasItensFaturaFromTrabalhos } from "@/lib/itens-fatura-linhas";
 import {
   itensDoTrabalho,
   valorTrabalho,
 } from "@/lib/relatorio-faturas-modelo3-dados";
-import { PlanoContasConteudo } from "@/components/financeiro/PlanoContasConteudo";
 import { notificarFinanceiroAtualizado } from "@/lib/financeiro-events";
-import { adicionarTrabalhoControleEntregasAutomatico } from "@/lib/controle-entregas-automatico";
+import { adicionarTrabalhoControleEntregasAutomatico } from "@/lib/controle-entregas-automatico-cliente";
 import { TRABALHOS_ATUALIZADOS_EVENT } from "@/lib/trabalhos-events";
 import {
   desempacotarDespesa,
@@ -88,6 +90,9 @@ import {
   exportarContasReceberClientesCsv,
   gerarContasReceberClientesPdf,
 } from "@/lib/contas-receber-clientes-export";
+import { clienteVisivelContasReceber, descricaoExibicaoCobranca } from "@/lib/contas-receber-financeiro";
+import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
+import type { PainelFinanceiroReceita } from "@/lib/financeiro-painel-types";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
 import { gerarRelatorioTabelaPdf } from "@/lib/pdf-relatorio-tabela";
 import type { LinhaReciboRecebimento } from "@/lib/recibo-recebimento";
@@ -265,19 +270,19 @@ function ehRotaContasPagar(searchParams: URLSearchParams) {
 function FinanceiroRouter() {
   const searchParams = useSearchParams();
   if (searchParams.get("aba") === "plano-de-contas") {
-    return <PlanoContasConteudo />;
+    return <PlanoContasConteudoLazy />;
   }
   if (searchParams.get("aba") === "conta-bancaria") {
-    return <ContaBancariaConteudo />;
+    return <ContaBancariaConteudoLazy />;
   }
   if (searchParams.get("aba") === "conta-digital") {
-    return <ContaDigitalConteudo />;
+    return <ContaDigitalConteudoLazy />;
   }
   if (searchParams.get("aba") === "boletos") {
-    return <ControleBoletosConteudo />;
+    return <ControleBoletosConteudoLazy />;
   }
   if (ehRotaContasPagar(searchParams)) {
-    return <ContasPagarConteudo />;
+    return <ContasPagarConteudoLazy />;
   }
   return <FinanceiroReceberConteudo />;
 }
@@ -286,7 +291,6 @@ function FinanceiroReceberConteudo() {
   const searchParams = useSearchParams();
   const notifDeepLinkFeito = useRef(false);
   const saveEmAndamentoRef = useRef(false);
-  const referenciasCarregadasRef = useRef(false);
   const [salvandoLancamento, setSalvandoLancamento] = useState(false);
   const [data, setData] = useState<{
     lancamentos: Lancamento[];
@@ -383,19 +387,12 @@ function FinanceiroReceberConteudo() {
     }
   }
 
-  async function carregarLancamentosReceita() {
-    const financeiroRes = await fetch("/api/financeiro?tipo=receita");
-    const financeiroData = await lerJsonResposta<{
-      lancamentos?: Lancamento[];
-      resumo?: { totalReceitas: number; totalDespesas: number; saldo: number; receitasPendentes: number };
-      error?: string;
-    }>(financeiroRes);
-
-    if (!financeiroRes.ok || !financeiroData?.lancamentos) {
+  async function carregarPainelReceita(opts?: { refresh?: boolean }) {
+    const painel = await fetchPainelFinanceiro<PainelFinanceiroReceita>("receita", opts);
+    if (!painel.ok || !painel.dados.lancamentos) {
       setMensagemLancamentoTipo("erro");
       setMensagemLancamento(
-        financeiroData?.error ||
-          "Não foi possível carregar o financeiro. Reinicie o servidor após atualizar o banco (prisma generate)."
+        painel.ok ? "Resposta inválida do painel financeiro." : painel.error
       );
       setData({
         lancamentos: [],
@@ -404,52 +401,36 @@ function FinanceiroReceberConteudo() {
       return;
     }
 
+    const painelData = painel.dados;
+    const lancamentosSerializados = JSON.parse(
+      JSON.stringify(painelData.lancamentos)
+    ) as typeof painelData.lancamentos;
     setData({
-      lancamentos: financeiroData.lancamentos,
-      resumo: financeiroData.resumo || {
+      lancamentos: lancamentosSerializados as unknown as Lancamento[],
+      resumo: painelData.resumo || {
         totalReceitas: 0,
         totalDespesas: 0,
         saldo: 0,
         receitasPendentes: 0,
       },
     });
-  }
-
-  async function carregarReferencias() {
-    const [clientesRes, trabalhosRes] = await Promise.all([
-      fetch("/api/clientes"),
-      fetch("/api/trabalhos", { cache: "no-store" }),
-    ]);
-    const clientesData = await lerJsonResposta<Cliente[]>(clientesRes);
-    if (Array.isArray(clientesData)) setClientes(clientesData);
-    const trabalhosData = await lerJsonResposta<Trabalho[]>(trabalhosRes);
-    if (Array.isArray(trabalhosData)) setTrabalhos(trabalhosData);
-    referenciasCarregadasRef.current = true;
-  }
-
-  async function load(opts?: { comReferencias?: boolean }) {
-    const precisaReferencias =
-      opts?.comReferencias ?? !referenciasCarregadasRef.current;
-    if (precisaReferencias) {
-      await Promise.all([carregarLancamentosReceita(), carregarReferencias()]);
-      return;
+    if (Array.isArray(painelData.clientes)) setClientes(painelData.clientes);
+    if (Array.isArray(painelData.trabalhos)) {
+      setTrabalhos(JSON.parse(JSON.stringify(painelData.trabalhos)) as Trabalho[]);
     }
-    await carregarLancamentosReceita();
+  }
+
+  async function load(opts?: { refresh?: boolean }) {
+    await carregarPainelReceita(opts);
   }
 
   async function loadPosMutacao() {
-    await Promise.all([
-      carregarLancamentosReceita(),
-      fetch("/api/trabalhos", { cache: "no-store" }).then(async (res) => {
-        const trabalhosData = await lerJsonResposta<Trabalho[]>(res);
-        if (Array.isArray(trabalhosData)) setTrabalhos(trabalhosData);
-      }),
-    ]);
+    await carregarPainelReceita({ refresh: true });
     notificarFinanceiroAtualizado();
   }
 
   useEffect(() => {
-    void load({ comReferencias: true });
+    void load();
   }, []);
 
   useEffect(() => {
@@ -693,8 +674,9 @@ function FinanceiroReceberConteudo() {
         ...grupo,
         adiantamentos: creditoDisponivelCliente(grupo.clienteId),
       }))
+      .filter((grupo) => clienteVisivelContasReceber(grupo))
       .sort((a, b) => a.nome.localeCompare(b.nome));
-  }, [receitasFiltradas, trabalhosNaoFaturados]);
+  }, [receitasFiltradas, trabalhosNaoFaturados, data]);
 
   useEffect(() => {
     if (!data || notifDeepLinkFeito.current) return;
@@ -1635,7 +1617,7 @@ function FinanceiroReceberConteudo() {
         if (!trabalhosRelacionados.length) {
           const os = l.trabalho?.numeroOs || "-";
           totalServicos += l.valor;
-          return [`<tr><td>${os}</td><td>${l.descricao}</td><td>-</td><td>-</td><td class="center">1</td><td class="right">${money(l.valor)}</td><td class="right">0,00 %</td><td class="right">${money(l.valor)}</td></tr>`];
+          return [`<tr><td>${os}</td><td>${descricaoExibicaoCobranca(l.descricao)}</td><td>-</td><td>-</td><td class="center">1</td><td class="right">${money(l.valor)}</td><td class="right">0,00 %</td><td class="right">${money(l.valor)}</td></tr>`];
         }
         return trabalhosRelacionados.flatMap((trabalho) => {
           return itensNotaFromTrabalho(trabalho).map((item) => {
@@ -1730,12 +1712,12 @@ function FinanceiroReceberConteudo() {
     const janela = prepararAbaPdf();
     try {
       const blob = await gerarRelatorioTabelaPdf({
-        tituloRelatorio: `Nota de Cobrança — ${cliente.nome}`,
+        tituloRelatorio: "Nota de Cobrança",
         colunas: [
           { titulo: "Descrição", larguraMm: 110, alinhamento: "left" },
           { titulo: "Valor", larguraMm: 66, alinhamento: "right" },
         ],
-        linhas: receitas.map((l) => [l.descricao, currency(l.valor)]),
+        linhas: receitas.map((l) => [descricaoExibicaoCobranca(l.descricao), currency(l.valor)]),
         linhaTotal: {
           indiceRotulo: 0,
           rotulo: "TOTAL",
@@ -2290,57 +2272,58 @@ function FinanceiroReceberConteudo() {
         </div>
       </div>
 
-      <ConfirmacaoExclusaoModal
-        open={!!confirmacaoExclusao}
-        titulo={confirmacaoExclusao?.title ?? ""}
-        mensagem={confirmacaoExclusao?.message ?? ""}
-        aviso={confirmacaoExclusao?.aviso}
-        detalhe={confirmacaoExclusao?.detalhe}
-        tipoConfirmacao={confirmacaoExclusao?.tipoConfirmacao}
-        onClose={() => setConfirmacaoExclusao(null)}
-        onConfirm={() => {
-          if (confirmacaoExclusao) void confirmacaoExclusao.onConfirm();
-        }}
-      />
+      {confirmacaoExclusao ? (
+        <Suspense fallback={null}>
+          <ConfirmacaoExclusaoModalLazy
+            open
+            titulo={confirmacaoExclusao.title}
+            mensagem={confirmacaoExclusao.message}
+            aviso={confirmacaoExclusao.aviso}
+            detalhe={confirmacaoExclusao.detalhe}
+            tipoConfirmacao={confirmacaoExclusao.tipoConfirmacao}
+            onClose={() => setConfirmacaoExclusao(null)}
+            onConfirm={() => {
+              void confirmacaoExclusao.onConfirm();
+            }}
+          />
+        </Suspense>
+      ) : null}
 
-      <LancarRecebimentoModal
-        open={Boolean(recebendoCliente)}
-        onClose={() => setRecebendoCliente(null)}
-        clienteNome={recebendoCliente?.nome ?? ""}
-        totalDevido={
-          recebendoCliente
-            ? faturasPendentesCliente(recebendoCliente.clienteId).reduce(
-                (sum, l) => sum + saldoFatura(l),
-                0
-              )
-            : 0
-        }
-        faturas={
-          recebendoCliente ? faturasPendentesCliente(recebendoCliente.clienteId) : []
-        }
-        numeroFatura={numeroFatura}
-        saldoFatura={saldoFatura}
-        formatDate={formatDate}
-        money={money}
-        parseMoney={parseMoney}
-        formatCurrencyInput={formatCurrencyInput}
-        onConfirmar={(payload, imprimir) => void confirmarRecebimento(payload, imprimir)}
-        creditoDisponivel={
-          recebendoCliente ? creditoDisponivelCliente(recebendoCliente.clienteId) : 0
-        }
-        onVisualizar={(lancamento) => {
-          if (!recebendoCliente) return;
-          setDetalheRecebimento({
-            cliente: recebendoCliente,
-            lancamento: lancamento as Lancamento,
-          });
-        }}
-      />
+      {recebendoCliente ? (
+        <Suspense fallback={null}>
+          <LancarRecebimentoModalLazy
+            open
+            onClose={() => setRecebendoCliente(null)}
+            clienteNome={recebendoCliente.nome}
+            totalDevido={faturasPendentesCliente(recebendoCliente.clienteId).reduce(
+              (sum, l) => sum + saldoFatura(l),
+              0
+            )}
+            faturas={faturasPendentesCliente(recebendoCliente.clienteId)}
+            numeroFatura={numeroFatura}
+            saldoFatura={saldoFatura}
+            formatDate={formatDate}
+            money={money}
+            parseMoney={parseMoney}
+            formatCurrencyInput={formatCurrencyInput}
+            onConfirmar={(payload, imprimir) => void confirmarRecebimento(payload, imprimir)}
+            creditoDisponivel={creditoDisponivelCliente(recebendoCliente.clienteId)}
+            onVisualizar={(lancamento) => {
+              setDetalheRecebimento({
+                cliente: recebendoCliente,
+                lancamento: lancamento as Lancamento,
+              });
+            }}
+          />
+        </Suspense>
+      ) : null}
 
-      <VisualizacaoClienteReceberModal
-        open={Boolean(detalheCliente)}
-        onClose={() => setDetalheCliente(null)}
-        cliente={detalheCliente}
+      {detalheCliente ? (
+        <Suspense fallback={null}>
+          <VisualizacaoClienteReceberModalLazy
+            open
+            onClose={() => setDetalheCliente(null)}
+            cliente={detalheCliente}
         clientes={clientesReceber}
         clienteTelefone={
           detalheCliente
@@ -2413,7 +2396,9 @@ function FinanceiroReceberConteudo() {
           if (!detalheCliente) return;
           setDetalheRecebimento({ cliente: detalheCliente, lancamento: l as Lancamento });
         }}
-      />
+          />
+        </Suspense>
+      ) : null}
 
       <Modal
         open={Boolean(faturaEditando)}
@@ -2490,7 +2475,7 @@ function FinanceiroReceberConteudo() {
                           <td className="px-2 py-2">{numeroFatura(faturaEditando)}</td>
                           <td className="px-2 py-2">{formatDate(faturaEditando.data)}</td>
                           <td className="px-2 py-2 text-center">1</td>
-                          <td className="px-2 py-2">{faturaEditando.descricao}</td>
+                          <td className="px-2 py-2">{descricaoExibicaoCobranca(faturaEditando.descricao)}</td>
                           <td className="px-2 py-2">{clienteNome}</td>
                           <td className="px-2 py-2">-</td>
                           <td className="px-2 py-2">-</td>
@@ -2724,87 +2709,88 @@ function FinanceiroReceberConteudo() {
         )}
       </Modal>
 
-      <ImprimirReciboModal
-        open={Boolean(reciboRecebimento)}
-        onClose={() => setReciboRecebimento(null)}
-        clienteNome={reciboRecebimento?.clienteNome ?? ""}
-        linhas={reciboRecebimento?.linhas ?? []}
-      />
+      {reciboRecebimento ? (
+        <Suspense fallback={null}>
+          <ImprimirReciboModalLazy
+            open
+            onClose={() => setReciboRecebimento(null)}
+            clienteNome={reciboRecebimento.clienteNome}
+            linhas={reciboRecebimento.linhas}
+          />
+        </Suspense>
+      ) : null}
 
-      <ItensFaturaModal
-        open={Boolean(itensFatura)}
-        onClose={() => setItensFatura(null)}
-        linhas={
-          itensFatura
-            ? linhasItensFaturaFromTrabalhos(trabalhosDaFatura(itensFatura), formatDate)
-            : []
-        }
-      />
+      {itensFatura ? (
+        <Suspense fallback={null}>
+          <ItensFaturaModalLazy
+            open
+            onClose={() => setItensFatura(null)}
+            linhas={linhasItensFaturaFromTrabalhos(trabalhosDaFatura(itensFatura), formatDate)}
+          />
+        </Suspense>
+      ) : null}
 
-      <ImprimirFaturaModal
-        open={Boolean(faturaImprimindo)}
-        onClose={() => setFaturaImprimindo(null)}
-        numeroFatura={
-          faturaImprimindo ? numeroFatura(faturaImprimindo.lancamento) : 0
-        }
-        clienteNome={faturaImprimindo?.cliente.nome ?? ""}
-        clienteTelefone={
-          faturaImprimindo
-            ? clientes.find(
-                (c) =>
-                  c.id ===
-                  (faturaImprimindo.cliente.clienteId ||
-                    faturaImprimindo.lancamento.cliente?.id)
-              )?.celular
-            : undefined
-        }
-        valorFatura={faturaImprimindo?.lancamento.valor}
-        gerarHtml={(opcoes, configFaturas) => {
-          if (!faturaImprimindo) return "";
-          const lancamento = faturaImprimindo.lancamento;
-          const clienteId =
-            faturaImprimindo.cliente.clienteId || lancamento.cliente?.id;
-          const lancamentosCliente = data?.lancamentos || [];
-          const creditoUsado = creditoUsadoNaFatura(lancamento);
-          const creditoDisponivel = calcularCreditoDisponivelClienteFatura(
-            lancamentosCliente,
-            clienteId
-          );
-          const dados = montarDadosFaturaImpressao({
-            numeroFatura: numeroFatura(lancamento),
-            clienteNome: faturaImprimindo.cliente.nome,
-            lancamento,
-            trabalhos: trabalhosDaFatura(
-              lancamento,
-              faturaImprimindo.cliente.clienteId
-            ),
-            creditoFatura: creditoUsado,
-            valorRecebido: recebidoNaFatura(lancamento),
-            ultimoPgto: calcularUltimoPagamentoClienteFatura({
-              lancamentos: lancamentosCliente,
-              clienteId,
-              excluirLancamentoId:
-                lancamento.status !== "pago" ? lancamento.id : undefined,
-              formatDate,
-              money,
-            }),
-            saldoAnterior: calcularSaldoAnteriorCreditoFatura(
-              creditoDisponivel,
-              creditoUsado,
-              money
-            ),
-            formatDate,
-            money,
-          });
-          return gerarHtmlFaturaImpressao(
-            dados,
-            carregarConfigLaboratorio(),
-            configFaturas,
-            opcoes,
-            money
-          );
-        }}
-      />
+      {faturaImprimindo ? (
+        <Suspense fallback={null}>
+          <ImprimirFaturaModalLazy
+            open
+            onClose={() => setFaturaImprimindo(null)}
+            numeroFatura={numeroFatura(faturaImprimindo.lancamento)}
+            clienteNome={faturaImprimindo.cliente.nome}
+            clienteTelefone={clientes.find(
+              (c) =>
+                c.id ===
+                (faturaImprimindo.cliente.clienteId ||
+                  faturaImprimindo.lancamento.cliente?.id)
+            )?.celular}
+            valorFatura={faturaImprimindo.lancamento.valor}
+            gerarHtml={(opcoes, configFaturas) => {
+              const lancamento = faturaImprimindo.lancamento;
+              const clienteId =
+                faturaImprimindo.cliente.clienteId || lancamento.cliente?.id;
+              const lancamentosCliente = data?.lancamentos || [];
+              const creditoUsado = creditoUsadoNaFatura(lancamento);
+              const creditoDisponivel = calcularCreditoDisponivelClienteFatura(
+                lancamentosCliente,
+                clienteId
+              );
+              const dados = montarDadosFaturaImpressao({
+                numeroFatura: numeroFatura(lancamento),
+                clienteNome: faturaImprimindo.cliente.nome,
+                lancamento,
+                trabalhos: trabalhosDaFatura(
+                  lancamento,
+                  faturaImprimindo.cliente.clienteId
+                ),
+                creditoFatura: creditoUsado,
+                valorRecebido: recebidoNaFatura(lancamento),
+                ultimoPgto: calcularUltimoPagamentoClienteFatura({
+                  lancamentos: lancamentosCliente,
+                  clienteId,
+                  excluirLancamentoId:
+                    lancamento.status !== "pago" ? lancamento.id : undefined,
+                  formatDate,
+                  money,
+                }),
+                saldoAnterior: calcularSaldoAnteriorCreditoFatura(
+                  creditoDisponivel,
+                  creditoUsado,
+                  money
+                ),
+                formatDate,
+                money,
+              });
+              return gerarHtmlFaturaImpressao(
+                dados,
+                carregarConfigLaboratorio(),
+                configFaturas,
+                opcoes,
+                money
+              );
+            }}
+          />
+        </Suspense>
+      ) : null}
 
       <Modal
         open={Boolean(notaCliente)}
@@ -2831,66 +2817,78 @@ function FinanceiroReceberConteudo() {
         )}
       </Modal>
 
-      <ServicosNaoFaturadosModal
-        open={modalNaoFaturados}
-        onClose={() => setModalNaoFaturados(false)}
-        trabalhos={trabalhosNaoFaturados}
-        valorTrabalho={valorTrabalho}
-      />
+      {modalNaoFaturados ? (
+        <Suspense fallback={null}>
+          <ServicosNaoFaturadosModalLazy
+            open
+            onClose={() => setModalNaoFaturados(false)}
+            trabalhos={trabalhosNaoFaturados}
+            valorTrabalho={valorTrabalho}
+          />
+        </Suspense>
+      ) : null}
 
-      <LancarReceitaOsModal
-        open={open}
-        onClose={() => setOpen(false)}
-        onSubmit={save}
-        form={form}
-        setForm={setForm}
-        clientes={clientes}
-        trabalhosParaReceita={trabalhosParaReceita}
-        osSelecionadas={osSelecionadas}
-        toggleOsReceita={toggleOsReceita}
-        toggleSelecionarTodasReceita={toggleSelecionarTodasReceita}
-        todasReceitaSelecionadas={todasReceitaSelecionadas}
-        algumasReceitaSelecionadas={algumasReceitaSelecionadas}
-        valorOsSelecionadas={valorOsSelecionadas}
-        totalLiquido={totalLiquido}
-        mensagemLancamento={mensagemLancamento}
-        mensagemLancamentoTipo={mensagemLancamentoTipo}
-        formaSelecionadaEhBoleto={formaSelecionadaEhBoleto}
-        valorTrabalho={valorTrabalho}
-        onLimparOsSelecionadas={() => setOsSelecionadas([])}
-        money={money}
-        currency={currency}
-        formatDecimalInput={formatDecimalInput}
-        formatCurrencyInput={formatCurrencyInput}
-        salvando={salvandoLancamento}
-      />
+      {open ? (
+        <Suspense fallback={null}>
+          <LancarReceitaOsModalLazy
+            open
+            onClose={() => setOpen(false)}
+            onSubmit={save}
+            form={form}
+            setForm={setForm}
+            clientes={clientes}
+            trabalhosParaReceita={trabalhosParaReceita}
+            osSelecionadas={osSelecionadas}
+            toggleOsReceita={toggleOsReceita}
+            toggleSelecionarTodasReceita={toggleSelecionarTodasReceita}
+            todasReceitaSelecionadas={todasReceitaSelecionadas}
+            algumasReceitaSelecionadas={algumasReceitaSelecionadas}
+            valorOsSelecionadas={valorOsSelecionadas}
+            totalLiquido={totalLiquido}
+            mensagemLancamento={mensagemLancamento}
+            mensagemLancamentoTipo={mensagemLancamentoTipo}
+            formaSelecionadaEhBoleto={formaSelecionadaEhBoleto}
+            valorTrabalho={valorTrabalho}
+            onLimparOsSelecionadas={() => setOsSelecionadas([])}
+            money={money}
+            currency={currency}
+            formatDecimalInput={formatDecimalInput}
+            formatCurrencyInput={formatCurrencyInput}
+            salvando={salvandoLancamento}
+          />
+        </Suspense>
+      ) : null}
 
-      <RelatorioContasReceberModal
-        open={relatorioAberto}
-        onClose={() => setRelatorioAberto(false)}
-        lancamentos={data?.lancamentos ?? []}
-        contatosClientes={clientes.map((c) => ({
-          id: c.id,
-          nome: c.nome,
-          celular: c.celular,
-        }))}
-        trabalhos={trabalhos.map((t) => ({
-          id: t.id,
-          numeroOs: t.numeroOs,
-          status: t.status,
-          paciente: t.paciente?.nome ?? null,
-          tipoProtese: t.tipoProtese,
-          valor: t.valor,
-          dentes: t.dentes,
-          cor: t.cor,
-          instrucoes: t.instrucoes,
-          dataEntrega: t.dataEntrega ?? null,
-          dataPrevista: t.dataPrevista ?? null,
-          cliente: t.cliente
-            ? { id: t.cliente.id, nome: t.cliente.nome, cro: t.cliente.cro }
-            : null,
-        }))}
-      />
+      {relatorioAberto ? (
+        <Suspense fallback={null}>
+          <RelatorioContasReceberModalLazy
+            open
+            onClose={() => setRelatorioAberto(false)}
+            lancamentos={data?.lancamentos ?? []}
+            contatosClientes={clientes.map((c) => ({
+              id: c.id,
+              nome: c.nome,
+              celular: c.celular,
+            }))}
+            trabalhos={trabalhos.map((t) => ({
+              id: t.id,
+              numeroOs: t.numeroOs,
+              status: t.status,
+              paciente: t.paciente?.nome ?? null,
+              tipoProtese: t.tipoProtese,
+              valor: t.valor,
+              dentes: t.dentes,
+              cor: t.cor,
+              instrucoes: t.instrucoes,
+              dataEntrega: t.dataEntrega ?? null,
+              dataPrevista: t.dataPrevista ?? null,
+              cliente: t.cliente
+                ? { id: t.cliente.id, nome: t.cliente.nome, cro: t.cliente.cro }
+                : null,
+            }))}
+          />
+        </Suspense>
+      ) : null}
     </div>
   );
 }

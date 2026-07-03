@@ -6,7 +6,7 @@ export const PDF_VIEWER_MSG_PEDIDO = "lab-protese-pdf-viewer-request";
 export const PDF_VIEWER_MSG_DADOS = "lab-protese-pdf-viewer-data";
 
 export type PdfViewerSessionPayload = {
-  status: "loading" | "ready" | "error";
+  status: "loading" | "ready" | "error" | "empty";
   titulo?: string;
   subtitulo?: string;
   nomeArquivo?: string;
@@ -337,4 +337,64 @@ export function marcarPdfViewerErro(id: string, message: string, titulo?: string
     message,
     titulo,
   });
+}
+
+export function marcarPdfViewerVazio(id: string, message: string, titulo?: string) {
+  salvarPdfViewerSession(id, {
+    status: "empty",
+    message,
+    titulo,
+  });
+}
+
+/** Abre o visualizador do app com mensagem (sem PDF). */
+export async function abrirPdfViewerMensagem(
+  titulo: string,
+  mensagem: string,
+  opcoes?: { janela?: Window | null; subtitulo?: string; vazio?: boolean }
+) {
+  registrarRepassadorPdfViewerOpener();
+
+  const id = criarIdPdfViewer();
+  const status = opcoes?.vazio ? "empty" : "error";
+  const payload: PdfViewerSessionPayload = {
+    status,
+    titulo,
+    subtitulo: opcoes?.subtitulo,
+    message: mensagem,
+  };
+
+  if (status === "empty") {
+    marcarPdfViewerVazio(id, mensagem, titulo);
+  } else {
+    marcarPdfViewerErro(id, mensagem, titulo);
+  }
+
+  try {
+    await publicarPdfViewerSessaoServidor(id, payload);
+  } catch {
+    /* sessionStorage + postMessage ainda podem funcionar */
+  }
+
+  const url = urlPdfViewerPagina(id);
+  const janela = opcoes?.janela;
+  let janelaAlvo: Window | null =
+    janela && !janela.closed ? janela : null;
+
+  if (janelaAlvo) {
+    try {
+      janelaAlvo.document.title = titulo;
+    } catch {
+      /* ignore */
+    }
+    try {
+      janelaAlvo.location.replace(url);
+    } catch {
+      janelaAlvo = abrirPdfViewerNovaAba(id);
+    }
+  } else if (typeof window !== "undefined") {
+    janelaAlvo = abrirPdfViewerNovaAba(id);
+  }
+
+  enviarPdfViewerParaJanela(janelaAlvo, id, payload);
 }

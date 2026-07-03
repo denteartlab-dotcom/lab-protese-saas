@@ -1,4 +1,4 @@
-import { labelTipoAlteracaoLog } from "@/lib/logs-auditoria";
+import { labelTipoAlteracaoLog } from "@/lib/logs-auditoria-core";
 import { cn } from "@/lib/utils";
 
 const base =

@@ -1,12 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/ui";
 import {
   clienteImportacaoParaPayload,
   parsearArquivoClientesExcel,
   type ClienteImportacaoLinha,
 } from "@/lib/clientes-lista-export";
+import { ErroJobCliente, importarClientesComJob } from "@/lib/clientes-import-cliente";
 
 type Props = {
   aberto: boolean;
@@ -16,19 +17,31 @@ type Props = {
 
 export function ImportarClientesExcelModal({ aberto, onFechar, onImportado }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [linhas, setLinhas] = useState<ClienteImportacaoLinha[]>([]);
   const [erro, setErro] = useState("");
   const [importando, setImportando] = useState(false);
+  const [progresso, setProgresso] = useState(0);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
 
   function resetar() {
+    abortRef.current?.abort();
+    abortRef.current = null;
     setArquivo(null);
     setLinhas([]);
     setErro("");
+    setProgresso(0);
     if (inputRef.current) inputRef.current.value = "";
   }
 
   function fechar() {
+    if (importando) return;
     resetar();
     onFechar();
   }
@@ -51,6 +64,11 @@ export function ImportarClientesExcelModal({ aberto, onFechar, onImportado }: Pr
     }
   }
 
+  function mensagemErroImportacao(erroImport: unknown): string {
+    if (erroImport instanceof ErroJobCliente) return erroImport.message;
+    return "Erro de conexão ao importar os clientes.";
+  }
+
   async function importarDados() {
     if (!linhas.length) {
       setErro("Selecione um arquivo Excel com clientes para importar.");
@@ -59,41 +77,54 @@ export function ImportarClientesExcelModal({ aberto, onFechar, onImportado }: Pr
 
     setImportando(true);
     setErro("");
+    setProgresso(0);
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
-      const res = await fetch("/api/clientes/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientes: linhas.map(clienteImportacaoParaPayload),
-        }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        importados?: number;
-        ignorados?: number;
-      };
+      const resultado = await importarClientesComJob(
+        linhas.map(clienteImportacaoParaPayload),
+        {
+          signal: controller.signal,
+          onProgresso: (pct) => setProgresso(pct),
+        }
+      );
 
-      if (!res.ok) {
-        setErro(data.error || "Não foi possível importar os clientes.");
-        return;
-      }
+      const total = resultado.ok ?? resultado.importados ?? 0;
+      const ignorados = resultado.ignorados ?? 0;
+      const avisos = (resultado.erros ?? [])
+        .slice(0, 3)
+        .map((e) => `Linha ${e.linha}: ${e.mensagem}`)
+        .join("\n");
 
-      const total = data.importados ?? 0;
-      const ignorados = data.ignorados ?? 0;
       if (ignorados > 0) {
-        alert(`${total} cliente(s) importado(s). ${ignorados} linha(s) ignorada(s).`);
+        alert(
+          `${total} cliente(s) importado(s). ${ignorados} linha(s) ignorada(s).` +
+            (avisos ? `\n\n${avisos}` : "")
+        );
       } else {
         alert(`${total} cliente(s) importado(s) com sucesso.`);
       }
 
       onImportado();
-      fechar();
-    } catch {
-      setErro("Erro de conexão ao importar os clientes.");
+      resetar();
+      onFechar();
+    } catch (erroImport) {
+      if (erroImport instanceof ErroJobCliente && erroImport.codigo === "abortado") return;
+      setErro(mensagemErroImportacao(erroImport));
     } finally {
       setImportando(false);
+      abortRef.current = null;
     }
   }
+
+  const rotuloBotaoImportar =
+    importando && progresso > 0
+      ? `Importando… ${progresso}%`
+      : importando
+        ? "Importando…"
+        : "Importar Dados";
 
   return (
     <Modal open={aberto} onClose={fechar} title="Importar Lista de Clientes em Excel">
@@ -104,19 +135,21 @@ export function ImportarClientesExcelModal({ aberto, onFechar, onImportado }: Pr
             type="file"
             accept=".xlsx,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
             className="hidden"
+            disabled={importando}
             onChange={(e) => void processarArquivo(e.target.files?.[0] ?? null)}
           />
           <input
             readOnly
             value={arquivo?.name || ""}
             placeholder="Escolha um arquivo Excel ou arraste aqui"
-            className="h-[34px] min-w-0 flex-1 border-0 bg-white px-3 text-[12px] text-[#374151] outline-none placeholder:text-[#9ca3af]"
-            onClick={() => inputRef.current?.click()}
+            className="h-[34px] min-w-0 flex-1 border-0 bg-white px-3 text-[12px] text-[#374151] outline-none placeholder:text-[#9ca3af] disabled:opacity-60"
+            onClick={() => !importando && inputRef.current?.click()}
           />
           <button
             type="button"
+            disabled={importando}
             onClick={() => inputRef.current?.click()}
-            className="shrink-0 border-l border-[#d1d5db] bg-white px-4 text-[12px] font-normal text-[#374151] hover:bg-[#f9fafb]"
+            className="shrink-0 border-l border-[#d1d5db] bg-white px-4 text-[12px] font-normal text-[#374151] hover:bg-[#f9fafb] disabled:opacity-60"
           >
             Importar Arquivo
           </button>
@@ -126,6 +159,20 @@ export function ImportarClientesExcelModal({ aberto, onFechar, onImportado }: Pr
           <p className="text-[12px] text-[#16a34a]">
             {linhas.length} cliente(s) pronto(s) para importação.
           </p>
+        ) : null}
+
+        {importando ? (
+          <div className="space-y-1">
+            <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-[#5bc0de] transition-[width] duration-300"
+                style={{ width: `${Math.max(progresso, 8)}%` }}
+              />
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Processando em segundo plano… você pode aguardar nesta tela.
+            </p>
+          </div>
         ) : null}
 
         {erro ? <p className="text-[12px] text-red-600">{erro}</p> : null}
@@ -145,7 +192,7 @@ export function ImportarClientesExcelModal({ aberto, onFechar, onImportado }: Pr
             disabled={importando || !linhas.length}
             className="h-[34px] flex-1 rounded-sm bg-[#5bc0de] text-[13px] font-semibold text-white hover:bg-[#46b8da] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {importando ? "Importando…" : "Importar Dados"}
+            {rotuloBotaoImportar}
           </button>
         </div>
       </div>

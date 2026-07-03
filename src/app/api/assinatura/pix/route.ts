@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth";
 import { requireEmpresaContextRenovacao } from "@/lib/empresa-context";
+import { garantirJobSincronizacaoPagamentoAssinatura } from "@/lib/assinatura-webhook-job";
 import { PLANOS_EMPRESA, PERIODOS_COBRANCA } from "@/lib/master-planos";
 import { atualizarSessaoAssinaturaUsuario } from "@/lib/sessao-assinatura";
 import {
   consultarCobrancaPixAssinatura,
   gerarCobrancaPixRenovacao,
   resolverEmpresaIdParaRenovacao,
-  sincronizarStatusPagamentoAssinatura,
 } from "@/lib/assinatura-pix-servidor";
 
 const bodySchema = z.object({
@@ -73,17 +73,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Cobrança não encontrada." }, { status: 404 });
     }
 
-    if (!cobranca.pago) {
-      try {
-        await sincronizarStatusPagamentoAssinatura(
-          cobranca.paymentId,
-          cobranca.provedor
-        );
-        cobranca =
-          (await consultarCobrancaPixAssinatura(cobrancaId, empresaId)) ?? cobranca;
-      } catch {
-        /* webhook ou próxima consulta */
-      }
+    let syncJob: { jobId: string; status: string } | undefined;
+    if (!cobranca.pago && empresaId) {
+      syncJob = await garantirJobSincronizacaoPagamentoAssinatura({
+        empresaId,
+        cobrancaId: cobranca.cobrancaId,
+        paymentId: cobranca.paymentId,
+        provedor: cobranca.provedor,
+      });
     }
 
     if (cobranca.pago && cobranca.renovadoEm) {
@@ -93,7 +90,7 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.json({ ok: true, cobranca });
+    return NextResponse.json({ ok: true, cobranca, syncJob });
   } catch {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }

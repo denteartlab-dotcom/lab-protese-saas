@@ -208,7 +208,7 @@ export async function POST(request: Request) {
     });
 
     if (trabalhoVisivelModuloTv(trabalho.status)) {
-      void notificarTvOrdensEmpresa(ctx.empresaId);
+      void notificarTvOrdensEmpresa(ctx.empresaId, trabalho.id);
     }
 
     return NextResponse.json(trabalho, { status: 201 });

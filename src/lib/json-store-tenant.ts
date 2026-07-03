@@ -1,4 +1,9 @@
 import { invalidarBootstrapCache } from "@/lib/bootstrap-cache";
+import {
+  invalidarJsonStoreCache,
+  lerJsonStoreCache,
+  salvarJsonStoreCache,
+} from "@/lib/json-store-cache";
 import { ARMAZENAMENTO_LAB_PREFIX, chaveBootstrapAdiada } from "@/lib/armazenamento-laboratorio-keys";
 import { prisma } from "@/lib/db";
 
@@ -31,11 +36,18 @@ export async function lerJsonStoreTenant<T>(
   empresaId: string,
   key: string
 ): Promise<T | null> {
+  const emCache = lerJsonStoreCache(empresaId, key);
+  if (emCache !== undefined) {
+    return emCache as T;
+  }
+
   const tenantKey = chaveJsonStoreTenant(empresaId, key);
   const row = await prisma.jsonStore.findUnique({ where: { key: tenantKey } });
   if (row?.payload) {
     try {
-      return JSON.parse(row.payload) as T;
+      const valor = JSON.parse(row.payload) as T;
+      salvarJsonStoreCache(empresaId, key, valor);
+      return valor;
     } catch {
       return null;
     }
@@ -56,6 +68,7 @@ export async function salvarJsonStoreTenant(
     create: { key: tenantKey, payload },
     update: { payload },
   });
+  invalidarJsonStoreCache(empresaId, key);
   invalidarBootstrapCache(empresaId);
 }
 
@@ -128,10 +141,32 @@ export async function buscarJsonStorePublicoPorToken<T>(
   }
 }
 
+/** Resolve empresaId a partir da chave tenant `t:{empresaId}:...`. */
+export async function resolverEmpresaIdJsonStorePublico(
+  token: string,
+  prefixoChave: string
+): Promise<string | null> {
+  const limpo = token.trim();
+  if (!limpo) return null;
+
+  const sufixo = `:${prefixoChave}${limpo}`;
+  const tenant = await prisma.jsonStore.findFirst({
+    where: { key: { endsWith: sufixo } },
+    select: { key: true },
+  });
+  if (!tenant?.key.startsWith(PREFIXO_TENANT)) return null;
+
+  const restante = tenant.key.slice(PREFIXO_TENANT.length);
+  const separador = restante.indexOf(":");
+  if (separador <= 0) return null;
+  return restante.slice(0, separador) || null;
+}
+
 export async function excluirJsonStoreTenant(empresaId: string) {
   await prisma.jsonStore.deleteMany({
     where: { key: { startsWith: `${PREFIXO_TENANT}${empresaId}:` } },
   });
+  invalidarJsonStoreCache(empresaId);
 }
 
 export async function copiarJsonStoreLegadoParaTenant(empresaId: string) {

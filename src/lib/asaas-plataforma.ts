@@ -1,4 +1,5 @@
 import { urlBaseAsaas } from "@/lib/asaas-config";
+import { fetchComTimeout } from "@/lib/http-integracao";
 import {
   asaasPlataformaConfigurado,
   obterConfigAsaasPlataforma,
@@ -23,15 +24,19 @@ async function asaasPlataformaFetch<T>(path: string, init?: RequestInit): Promis
   }
 
   const base = urlBaseAsaas(config.ambiente);
-  const res = await fetch(`${base}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      access_token: config.apiKey,
-      ...(init?.headers || {}),
+  const res = await fetchComTimeout(
+    `${base}${path}`,
+    {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        access_token: config.apiKey,
+        ...(init?.headers || {}),
+      },
+      cache: "no-store",
     },
-    cache: "no-store",
-  });
+    { integracao: "asaas" }
+  );
 
   const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) {

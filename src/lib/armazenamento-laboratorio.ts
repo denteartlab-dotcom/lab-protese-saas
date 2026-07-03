@@ -7,6 +7,11 @@ import {
   THEME_STORAGE_KEY_LEGADO,
   type FaseBootstrapArmazenamento,
 } from "@/lib/armazenamento-laboratorio-keys";
+import {
+  TIMEOUT_BOOTSTRAP_CLIENTE_MS,
+  TIMEOUT_MIGRAR_LOCAL_MS,
+  TENTATIVAS_BOOTSTRAP_CLIENTE,
+} from "@/lib/dev-timeouts";
 
 /** Espelho em memória dos dados do PostgreSQL (JsonStore) — não usa localStorage. */
 const espelho = new Map<string, unknown>();
@@ -188,7 +193,7 @@ async function migrarLocalStorageLegadoParaServidor() {
         cache: "no-store",
         body: payload,
       },
-      MIGRAR_TIMEOUT_MS
+      TIMEOUT_MIGRAR_LOCAL_MS
     );
     if (res.status === 401 || res.status === 403) {
       sessaoExpirada = true;
@@ -310,12 +315,9 @@ export async function aplicarArmazenamentoLaboratorioCliente(
   await flushSalvarPendentes();
 }
 
-const BOOTSTRAP_TIMEOUT_MS = 12_000;
-const BOOTSTRAP_TENTATIVAS = 2;
-const MIGRAR_TIMEOUT_MS = 8_000;
 const SALVAR_TIMEOUT_MS = 10_000;
 
-async function fetchComTimeout(url: string, init?: RequestInit, timeoutMs = BOOTSTRAP_TIMEOUT_MS) {
+async function fetchComTimeout(url: string, init?: RequestInit, timeoutMs = TIMEOUT_BOOTSTRAP_CLIENTE_MS) {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -440,15 +442,27 @@ async function carregarBootstrapServidor(
   fase: FaseBootstrapArmazenamento = "completa"
 ): Promise<{ ok: boolean; mudou: boolean }> {
   const query = fase === "completa" ? "" : `?fase=${fase}`;
-  for (let tentativa = 1; tentativa <= BOOTSTRAP_TENTATIVAS; tentativa += 1) {
+  for (let tentativa = 1; tentativa <= TENTATIVAS_BOOTSTRAP_CLIENTE; tentativa += 1) {
     try {
       const res = await fetchComTimeout(`/api/armazenamento/bootstrap${query}`, {
         credentials: "same-origin",
         cache: "no-store",
       });
       if (res.status === 401 || res.status === 403) {
+        if (tentativa < TENTATIVAS_BOOTSTRAP_CLIENTE) {
+          await new Promise((resolve) =>
+            window.setTimeout(resolve, 400 + tentativa * 400)
+          );
+          continue;
+        }
         sessaoExpirada = true;
         return { ok: false, mudou: false };
+      }
+      if (res.status >= 500 && tentativa < TENTATIVAS_BOOTSTRAP_CLIENTE) {
+        await new Promise((resolve) =>
+          window.setTimeout(resolve, 800 + tentativa * 600)
+        );
+        continue;
       }
       if (!res.ok) continue;
       const json = (await res.json()) as { data?: Record<string, unknown> };
@@ -464,7 +478,7 @@ async function carregarBootstrapServidor(
       }
     } catch (err) {
       console.warn(
-        `[armazenamento-laboratorio] bootstrap ${fase} tentativa ${tentativa}/${BOOTSTRAP_TENTATIVAS}`,
+        `[armazenamento-laboratorio] bootstrap ${fase} tentativa ${tentativa}/${TENTATIVAS_BOOTSTRAP_CLIENTE}`,
         err
       );
     }

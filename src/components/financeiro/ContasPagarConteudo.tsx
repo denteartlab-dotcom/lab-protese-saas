@@ -39,6 +39,8 @@ import {
   FINANCEIRO_ATUALIZADO_EVENT,
   notificarFinanceiroAtualizado,
 } from "@/lib/financeiro-events";
+import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
+import type { PainelFinanceiroDespesa } from "@/lib/financeiro-painel-types";
 
 const LancarDespesaModal = dynamic(
   () =>
@@ -63,12 +65,10 @@ import {
 } from "@/lib/lancamento-despesa";
 import {
   gerarGrupoDespesaFixaId,
-  limparInstanciasFixasFuturasRemoto,
   mesReferenciaDeDataBr,
   mesReferenciaDeIso,
   metaDespesaFixa,
   registrarMesIgnoradoDespesaFixaGrupo,
-  sincronizarDespesasFixaRemoto,
   vencimentoParcelaNoMes,
 } from "@/lib/despesa-fixa";
 import {
@@ -365,6 +365,9 @@ export function ContasPagarConteudo() {
   const [entidadesVinculo, setEntidadesVinculo] = useState<
     Array<{ id: string; nome: string }>
   >([]);
+  const [clientesPainel, setClientesPainel] = useState<Array<{ id: string; nome: string }>>(
+    []
+  );
 
   const load = useCallback(async (opts?: { silencioso?: boolean }) => {
     if (!opts?.silencioso) {
@@ -372,48 +375,20 @@ export function ContasPagarConteudo() {
       setErroLista("");
     }
     try {
-      const res = await fetch("/api/financeiro?tipo=despesa");
-      const json = (await res.json().catch(() => ({}))) as {
-        lancamentos?: Lancamento[];
-        error?: string;
-      };
-      if (!res.ok) {
+      const painel = await fetchPainelFinanceiro<PainelFinanceiroDespesa>("despesa", {
+        refresh: opts?.silencioso,
+      });
+      if (!painel.ok) {
         setLancamentos([]);
-        setErroLista(json.error || "Não foi possível carregar as despesas.");
+        setErroLista(painel.error);
         return;
       }
-      const lista = Array.isArray(json.lancamentos)
-        ? json.lancamentos.filter((l: Lancamento) => l.tipo === "despesa")
+      const lista = Array.isArray(painel.dados.lancamentos)
+        ? painel.dados.lancamentos.filter((l) => l.tipo === "despesa")
         : [];
       setLancamentos(lista);
-      try {
-        const removidos = await limparInstanciasFixasFuturasRemoto(lista);
-        let listaSync = lista;
-        if (removidos > 0) {
-          const resLimpeza = await fetch("/api/financeiro?tipo=despesa");
-          const jsonLimpeza = (await resLimpeza.json().catch(() => ({}))) as {
-            lancamentos?: Lancamento[];
-          };
-          if (resLimpeza.ok && Array.isArray(jsonLimpeza.lancamentos)) {
-            listaSync = jsonLimpeza.lancamentos.filter(
-              (l: Lancamento) => l.tipo === "despesa"
-            );
-          }
-        }
-        const criados = await sincronizarDespesasFixaRemoto(listaSync);
-        if (removidos > 0 || criados > 0) {
-          const resSync = await fetch("/api/financeiro?tipo=despesa");
-          const jsonSync = (await resSync.json().catch(() => ({}))) as {
-            lancamentos?: Lancamento[];
-          };
-          if (resSync.ok && Array.isArray(jsonSync.lancamentos)) {
-            setLancamentos(
-              jsonSync.lancamentos.filter((l: Lancamento) => l.tipo === "despesa")
-            );
-          }
-        }
-      } catch (syncErr) {
-        console.error("sincronizar despesas fixas", syncErr);
+      if (Array.isArray(painel.dados.clientes)) {
+        setClientesPainel(painel.dados.clientes);
       }
     } catch {
       setLancamentos([]);
@@ -499,23 +474,14 @@ export function ContasPagarConteudo() {
 
     async function carregarVinculos() {
       if (entidadeAtiva === "clientes") {
-        try {
-          const res = await fetch("/api/clientes");
-          const data = await res.json();
-          if (cancelado) return;
-          const lista = Array.isArray(data)
-            ? data
-                .map((item: { id?: string; nome?: string }) => ({
-                  id: String(item.id || ""),
-                  nome: String(item.nome || "").trim(),
-                }))
-                .filter((item) => item.id && item.nome)
-            : [];
-          setEntidadesVinculo(
-            lista.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
-          );
-        } catch {
-          if (!cancelado) setEntidadesVinculo([]);
+        const lista = clientesPainel
+          .map((item) => ({
+            id: String(item.id || ""),
+            nome: String(item.nome || "").trim(),
+          }))
+          .filter((item) => item.id && item.nome);
+        if (!cancelado) {
+          setEntidadesVinculo(lista.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")));
         }
         return;
       }
@@ -535,7 +501,7 @@ export function ContasPagarConteudo() {
     return () => {
       cancelado = true;
     };
-  }, [entidadeAtiva]);
+  }, [entidadeAtiva, clientesPainel]);
 
   function aplicarPeriodo(value: string) {
     setPeriodo(value);

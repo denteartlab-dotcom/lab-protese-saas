@@ -1,41 +1,50 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/ui";
 import {
-  fornecedorImportacaoParaFornecedor,
+  ErroJobCliente,
+  fornecedorImportacaoParaPayload,
+  importarFornecedoresComJob,
+} from "@/lib/fornecedores-import-cliente";
+import {
   parsearArquivoFornecedoresExcel,
   type FornecedorImportacaoLinha,
-  type FornecedorListagemExport,
 } from "@/lib/fornecedores-lista-export";
 
 type Props = {
   aberto: boolean;
   onFechar: () => void;
-  onImportado: (fornecedores: (FornecedorListagemExport & { id: string })[]) => void;
-  nomesExistentes: string[];
+  onImportado: () => void;
 };
 
-export function ImportarFornecedoresExcelModal({
-  aberto,
-  onFechar,
-  onImportado,
-  nomesExistentes,
-}: Props) {
+export function ImportarFornecedoresExcelModal({ aberto, onFechar, onImportado }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [linhas, setLinhas] = useState<FornecedorImportacaoLinha[]>([]);
   const [erro, setErro] = useState("");
   const [importando, setImportando] = useState(false);
+  const [progresso, setProgresso] = useState(0);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
 
   function resetar() {
+    abortRef.current?.abort();
+    abortRef.current = null;
     setArquivo(null);
     setLinhas([]);
     setErro("");
+    setProgresso(0);
     if (inputRef.current) inputRef.current.value = "";
   }
 
   function fechar() {
+    if (importando) return;
     resetar();
     onFechar();
   }
@@ -58,7 +67,12 @@ export function ImportarFornecedoresExcelModal({
     }
   }
 
-  function importarDados() {
+  function mensagemErroImportacao(erroImport: unknown): string {
+    if (erroImport instanceof ErroJobCliente) return erroImport.message;
+    return "Erro de conexão ao importar os fornecedores.";
+  }
+
+  async function importarDados() {
     if (!linhas.length) {
       setErro("Selecione um arquivo Excel com fornecedores para importar.");
       return;
@@ -66,43 +80,59 @@ export function ImportarFornecedoresExcelModal({
 
     setImportando(true);
     setErro("");
+    setProgresso(0);
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     try {
-      const nomes = new Set(nomesExistentes.map((nome) => nome.trim().toLowerCase()));
-      const novos: (FornecedorListagemExport & { id: string })[] = [];
-      let ignorados = 0;
-
-      for (const linha of linhas) {
-        const nomeNormalizado = linha.nome.trim().toLowerCase();
-        if (nomes.has(nomeNormalizado)) {
-          ignorados += 1;
-          continue;
+      const resultado = await importarFornecedoresComJob(
+        linhas.map(fornecedorImportacaoParaPayload),
+        {
+          signal: controller.signal,
+          onProgresso: (pct) => setProgresso(pct),
         }
-        const fornecedor = fornecedorImportacaoParaFornecedor(linha);
-        novos.push(fornecedor);
-        nomes.add(nomeNormalizado);
-      }
+      );
 
-      if (!novos.length) {
+      const total = resultado.ok ?? 0;
+      const ignorados = resultado.ignorados ?? 0;
+      const avisos = (resultado.erros ?? [])
+        .slice(0, 3)
+        .map((e) => `Linha ${e.linha}: ${e.mensagem}`)
+        .join("\n");
+
+      if (total === 0 && ignorados > 0) {
         setErro("Nenhum fornecedor novo para importar. Verifique nomes duplicados.");
         return;
       }
 
-      onImportado(novos);
-
       if (ignorados > 0) {
-        alert(`${novos.length} fornecedor(es) importado(s). ${ignorados} linha(s) ignorada(s).`);
+        alert(
+          `${total} fornecedor(es) importado(s). ${ignorados} linha(s) ignorada(s).` +
+            (avisos ? `\n\n${avisos}` : "")
+        );
       } else {
-        alert(`${novos.length} fornecedor(es) importado(s) com sucesso.`);
+        alert(`${total} fornecedor(es) importado(s) com sucesso.`);
       }
 
-      fechar();
-    } catch {
-      setErro("Não foi possível importar os fornecedores.");
+      onImportado();
+      resetar();
+      onFechar();
+    } catch (erroImport) {
+      if (erroImport instanceof ErroJobCliente && erroImport.codigo === "abortado") return;
+      setErro(mensagemErroImportacao(erroImport));
     } finally {
       setImportando(false);
+      abortRef.current = null;
     }
   }
+
+  const rotuloBotaoImportar =
+    importando && progresso > 0
+      ? `Importando… ${progresso}%`
+      : importando
+        ? "Importando…"
+        : "Importar Dados";
 
   return (
     <Modal open={aberto} onClose={fechar} title="Importar Lista de Fornecedores em Excel">
@@ -113,19 +143,21 @@ export function ImportarFornecedoresExcelModal({
             type="file"
             accept=".xlsx,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
             className="hidden"
+            disabled={importando}
             onChange={(e) => void processarArquivo(e.target.files?.[0] ?? null)}
           />
           <input
             readOnly
             value={arquivo?.name || ""}
             placeholder="Escolha um arquivo Excel ou arraste aqui"
-            className="h-[34px] min-w-0 flex-1 border-0 bg-white px-3 text-[12px] text-[#374151] outline-none placeholder:text-[#9ca3af]"
-            onClick={() => inputRef.current?.click()}
+            className="h-[34px] min-w-0 flex-1 border-0 bg-white px-3 text-[12px] text-[#374151] outline-none placeholder:text-[#9ca3af] disabled:opacity-60"
+            onClick={() => !importando && inputRef.current?.click()}
           />
           <button
             type="button"
+            disabled={importando}
             onClick={() => inputRef.current?.click()}
-            className="shrink-0 border-l border-[#d1d5db] bg-white px-4 text-[12px] font-normal text-[#374151] hover:bg-[#f9fafb]"
+            className="shrink-0 border-l border-[#d1d5db] bg-white px-4 text-[12px] font-normal text-[#374151] hover:bg-[#f9fafb] disabled:opacity-60"
           >
             Importar Arquivo
           </button>
@@ -135,6 +167,20 @@ export function ImportarFornecedoresExcelModal({
           <p className="text-[12px] text-[#16a34a]">
             {linhas.length} fornecedor(es) pronto(s) para importação.
           </p>
+        ) : null}
+
+        {importando ? (
+          <div className="space-y-1">
+            <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-[#5bc0de] transition-[width] duration-300"
+                style={{ width: `${Math.max(progresso, 8)}%` }}
+              />
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Processando em segundo plano… você pode aguardar nesta tela.
+            </p>
+          </div>
         ) : null}
 
         {erro ? <p className="text-[12px] text-red-600">{erro}</p> : null}
@@ -150,11 +196,11 @@ export function ImportarFornecedoresExcelModal({
           </button>
           <button
             type="button"
-            onClick={importarDados}
+            onClick={() => void importarDados()}
             disabled={importando || !linhas.length}
             className="h-[34px] flex-1 rounded-sm bg-[#5bc0de] text-[13px] font-semibold text-white hover:bg-[#46b8da] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {importando ? "Importando…" : "Importar Dados"}
+            {rotuloBotaoImportar}
           </button>
         </div>
       </div>

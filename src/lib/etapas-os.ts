@@ -55,6 +55,10 @@ export type EtapasPorServicoOs = {
 
 export function carregarEtapasCadastro(): EtapaCadastro[] {
   const lista = readStorage<EtapaCadastro[]>(ETAPAS_STORAGE_KEY, []);
+  return filtrarEtapasCadastro(lista);
+}
+
+export function filtrarEtapasCadastro(lista: EtapaCadastro[]): EtapaCadastro[] {
   return lista.filter((e) => e?.nome?.trim());
 }
 

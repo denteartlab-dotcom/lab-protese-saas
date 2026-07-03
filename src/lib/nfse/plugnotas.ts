@@ -1,6 +1,7 @@
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
 import { normalizarTipoPessoa } from "@/lib/configuracoes-lab";
 import { apenasDigitos } from "@/lib/documento-br";
+import { fetchComTimeout } from "@/lib/http-integracao";
 import type { NfseAmbiente, NfseConfig } from "@/lib/nfse-config";
 import type { ResultadoEmissaoNfse, TomadorNfse } from "@/lib/nfse/types";
 
@@ -20,16 +21,20 @@ async function plugnotasFetch<T>(
     throw new Error("Informe o token (x-api-key) do PlugNotas em Configurações → Nota Fiscal.");
   }
 
-  const res = await fetch(`${baseUrl(config.ambiente)}${path}`, {
-    ...init,
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "x-api-key": key,
-      ...(init?.headers || {}),
+  const res = await fetchComTimeout(
+    `${baseUrl(config.ambiente)}${path}`,
+    {
+      ...init,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "x-api-key": key,
+        ...(init?.headers || {}),
+      },
+      cache: "no-store",
     },
-    cache: "no-store",
-  });
+    { integracao: "nfse" }
+  );
 
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {

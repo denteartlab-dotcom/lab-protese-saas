@@ -46,6 +46,7 @@ model Empresa {
   cobrancasAssinatura CobrancaAssinatura[]
   asaasSubconta       AsaasSubconta?
   suporteConversa     SuporteConversa?
+  jobExecucoes        JobExecucao[]
 }
 
 model SuporteConversa {
@@ -309,6 +310,26 @@ model JsonStore {
   key       String   @id
   payload   String
   updatedAt DateTime @updatedAt
+}
+
+/** Jobs assíncronos por tenant (issue 002 — importações, PDFs, conciliações). */
+model JobExecucao {
+  id           String    @id @default(cuid())
+  empresaId    String
+  empresa      Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  tipo         String
+  status       String    @default("pendente")
+  progresso    Int       @default(0)
+  payload      String
+  resultado    String?
+  erro         String?
+  criadoEm     DateTime  @default(now())
+  atualizadoEm DateTime  @updatedAt
+  concluidoEm  DateTime?
+
+  @@index([empresaId, status])
+  @@index([empresaId, criadoEm])
+  @@map("job_execucoes")
 }
 
 model LogAuditoria {

@@ -8,6 +8,9 @@ import {
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+/** Cache curto público — issue 021 (branding pouco muda entre requests). */
+const CACHE_BRANDING = "public, max-age=60, stale-while-revalidate=300";
+
 export async function GET(request: Request) {
   try {
     const params = new URL(request.url).searchParams;
@@ -23,9 +26,7 @@ export async function GET(request: Request) {
         );
       }
       return NextResponse.json(branding, {
-        headers: {
-          "Cache-Control": "no-store, no-cache, must-revalidate",
-        },
+        headers: { "Cache-Control": CACHE_BRANDING },
       });
     }
 
@@ -38,16 +39,12 @@ export async function GET(request: Request) {
         );
       }
       return NextResponse.json(branding, {
-        headers: {
-          "Cache-Control": "no-store, no-cache, must-revalidate",
-        },
+        headers: { "Cache-Control": CACHE_BRANDING },
       });
     }
 
     return NextResponse.json(brandingPlataformaLogin(), {
-      headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      },
+      headers: { "Cache-Control": CACHE_BRANDING },
     });
   } catch {
     return NextResponse.json(

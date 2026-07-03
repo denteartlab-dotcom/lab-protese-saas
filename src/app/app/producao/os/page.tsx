@@ -143,6 +143,7 @@ import {
 } from "@/lib/configuracoes-gerais";
 import { itensDaOsModulo } from "@/lib/modulo-producao-os";
 import { bodyTrabalhoSemNull } from "@/lib/trabalho-api-body";
+import { fetchTrabalhoContexto } from "@/lib/trabalho-contexto-cliente";
 import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
 import {
   DENTES_DECIDUOS_INFERIORES,
@@ -416,6 +417,7 @@ export default function OrdemServicoPage() {
   const editId = searchParams.get("edit");
   const osNumeroParam = searchParams.get("os");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const trabalhoContextoRef = useRef<TrabalhoEdicao | null>(null);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [lancamentosFinanceiros, setLancamentosFinanceiros] = useState<LancamentoFinanceiro[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -596,25 +598,49 @@ export default function OrdemServicoPage() {
       }
     }
 
-    const [clientesData, nextOsData, financeiroData] = await Promise.all([
-      fetchJson("/api/clientes", []),
-      fetchJson("/api/trabalhos/next-os", null),
-      fetchJson("/api/financeiro?tipo=receita", null),
-    ]);
+    const contexto = await fetchTrabalhoContexto({ osId: editId });
+    if (contexto.ok) {
+      const dados = contexto.dados;
+      setClientes(dados.clientes);
+      setLancamentosFinanceiros(dados.lancamentosReceita);
+      if (!editId) {
+        setForm((current) => ({ ...current, numeroOs: String(dados.proximoNumeroOs) }));
+      }
+      setProdutos(aplicarExtrasEstoque(dados.produtos));
+      setModelosEtapas(dados.etapas);
+      setSetoresCadastrados(dados.setores);
+      setColaboradoresOpcoes(dados.colaboradores);
+      setExigeAnteriorFinalizada(dados.configuracoesGerais.producaoEtapaExigeAnteriorFinalizada);
+      setTabelaPrecoAtual(dados.tabelaPrecos.tabela);
+      setCategoriasPorTabelaPreco(
+        Object.keys(dados.tabelaPrecos.categoriasPorTabela).length > 0
+          ? dados.tabelaPrecos.categoriasPorTabela
+          : TABELA_PRECOS_VAZIA.categoriasPorTabela ?? { "Tabela Principal": [] }
+      );
+      if (dados.trabalho) {
+        trabalhoContextoRef.current = dados.trabalho as TrabalhoEdicao;
+      }
+    } else {
+      const [clientesData, nextOsData, financeiroData] = await Promise.all([
+        fetchJson("/api/clientes", []),
+        fetchJson("/api/trabalhos/next-os", null),
+        fetchJson("/api/financeiro?tipo=receita", null),
+      ]);
 
-    await carregarProdutosOs();
+      await carregarProdutosOs();
 
-    if (Array.isArray(clientesData)) setClientes(clientesData);
-    if (
-      financeiroData &&
-      typeof financeiroData === "object" &&
-      "lancamentos" in financeiroData &&
-      Array.isArray((financeiroData as { lancamentos: LancamentoFinanceiro[] }).lancamentos)
-    ) {
-      setLancamentosFinanceiros((financeiroData as { lancamentos: LancamentoFinanceiro[] }).lancamentos);
-    }
-    if (nextOsData && typeof nextOsData === "object" && "numeroOs" in nextOsData) {
-      setForm((current) => ({ ...current, numeroOs: String(nextOsData.numeroOs) }));
+      if (Array.isArray(clientesData)) setClientes(clientesData);
+      if (
+        financeiroData &&
+        typeof financeiroData === "object" &&
+        "lancamentos" in financeiroData &&
+        Array.isArray((financeiroData as { lancamentos: LancamentoFinanceiro[] }).lancamentos)
+      ) {
+        setLancamentosFinanceiros((financeiroData as { lancamentos: LancamentoFinanceiro[] }).lancamentos);
+      }
+      if (nextOsData && typeof nextOsData === "object" && "numeroOs" in nextOsData) {
+        setForm((current) => ({ ...current, numeroOs: String(nextOsData.numeroOs) }));
+      }
     }
   });
 
@@ -784,14 +810,17 @@ export default function OrdemServicoPage() {
   }, [paginaPronta]);
 
   useEffect(() => {
-    if (!editId) return;
+    if (!editId || !paginaPronta) return;
     let mounted = true;
 
     async function carregarEdicao() {
-      const res = await fetch(`/api/trabalhos/${editId}`);
-      if (!res.ok) return;
-      const payload = (await res.json()) as TrabalhoEdicao;
-      if (!mounted) return;
+      let payload = trabalhoContextoRef.current;
+      if (!payload) {
+        const res = await fetch(`/api/trabalhos/${editId}`);
+        if (!res.ok) return;
+        payload = (await res.json()) as TrabalhoEdicao;
+      }
+      if (!mounted || !payload) return;
 
       const grupo =
         Array.isArray(payload.grupo) && payload.grupo.length > 0 ? payload.grupo : [payload];
@@ -933,9 +962,10 @@ export default function OrdemServicoPage() {
     return () => {
       setGrupoOsRegistros([]);
       setMetaGrupoOsEdicao(null);
+      trabalhoContextoRef.current = null;
       mounted = false;
     };
-  }, [editId]);
+  }, [editId, paginaPronta]);
 
   useEffect(() => {
     if (editId || !osNumeroParam) return;

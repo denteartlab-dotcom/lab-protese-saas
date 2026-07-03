@@ -58,6 +58,8 @@ import {
   mesclarMovimentacoesConta,
   persistirContasBancariasApi,
 } from "@/lib/conta-bancaria-api";
+import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
+import type { PainelFinanceiroContaBancaria } from "@/lib/financeiro-painel-types";
 import { cn } from "@/lib/utils";
 
 function hidratarDadosLocais() {
@@ -134,12 +136,14 @@ export function ContaBancariaConteudo() {
 
   const carregarLancamentos = useCallback(async () => {
     try {
-      const res = await fetch("/api/financeiro", { cache: "no-store" });
-      if (!res.ok) return;
-      const json = (await res.json()) as {
-        lancamentos?: LancamentoFinanceiroCache[];
-      };
-      const lista = Array.isArray(json.lancamentos) ? json.lancamentos : [];
+      const painel = await fetchPainelFinanceiro<PainelFinanceiroContaBancaria>(
+        "conta-bancaria",
+        { refresh: true }
+      );
+      if (!painel.ok) return;
+      const lista = Array.isArray(painel.dados.lancamentos)
+        ? painel.dados.lancamentos
+        : [];
       setLancamentos(lista);
       salvarLancamentosFinanceiroCache(lista);
     } catch {
@@ -148,29 +152,37 @@ export function ContaBancariaConteudo() {
   }, []);
 
   const carregarDados = useCallback(async () => {
-    const [dados, resFinanceiro] = await Promise.all([
-      carregarContasBancariasApi(),
-      fetch("/api/financeiro", { cache: "no-store" }).catch(() => null),
-    ]);
+    const painel = await fetchPainelFinanceiro<PainelFinanceiroContaBancaria>(
+      "conta-bancaria"
+    );
+    if (!painel.ok) {
+      try {
+        const dados = await carregarContasBancariasApi();
+        setContas(dados.contas);
+        setMovimentacoes((atual) => {
+          const mesclado = mesclarMovimentacoesConta(atual, dados.movimentacoes);
+          salvarMovimentacoesConta(mesclado);
+          return mesclado;
+        });
+      } catch {
+        /* mantém local */
+      }
+      return;
+    }
 
-    setContas(dados.contas);
+    const { contas: contasApi, movimentacoes: movApi, extrato, lancamentos: lista } =
+      painel.dados;
+    setContas(contasApi);
+    salvarContasBancarias(contasApi);
     setMovimentacoes((atual) => {
-      const mesclado = mesclarMovimentacoesConta(atual, dados.movimentacoes);
+      const mesclado = mesclarMovimentacoesConta(atual, movApi);
       salvarMovimentacoesConta(mesclado);
       return mesclado;
     });
-
-    if (resFinanceiro?.ok) {
-      try {
-        const json = (await resFinanceiro.json()) as {
-          lancamentos?: LancamentoFinanceiroCache[];
-        };
-        const lista = Array.isArray(json.lancamentos) ? json.lancamentos : [];
-        setLancamentos(lista);
-        salvarLancamentosFinanceiroCache(lista);
-      } catch {
-        /* mantém cache/local */
-      }
+    if (Array.isArray(extrato)) salvarExtratoBancario(extrato);
+    if (Array.isArray(lista)) {
+      setLancamentos(lista);
+      salvarLancamentosFinanceiroCache(lista);
     }
   }, []);
 

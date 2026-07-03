@@ -254,7 +254,7 @@ export async function confirmarRecebimentoCliente(params: {
     ],
   });
 
-  await notificarTvOrdensEmpresa(trabalho.empresaId);
+  notificarTvOrdensEmpresa(trabalho.empresaId, trabalho.id);
 
   return {
     ok: true as const,

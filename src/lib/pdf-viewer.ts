@@ -324,9 +324,9 @@ export async function abrirPdfGerandoNoVisualizadorPagina(
   gerar: () => Promise<Blob>,
   titulo: string,
   nomeArquivo = "documento.pdf",
-  opcoes?: { subtitulo?: string }
+  opcoes?: { janela?: Window | null; subtitulo?: string }
 ) {
-  const janela = prepararAbaPdf();
+  const janela = opcoes?.janela ?? prepararAbaPdf();
   try {
     await abrirPdfNoVisualizadorPagina(gerar, titulo, nomeArquivo, {
       janela,

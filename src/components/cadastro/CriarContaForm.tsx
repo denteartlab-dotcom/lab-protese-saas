@@ -134,6 +134,8 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
       });
       const data = (await res.json()) as {
         error?: string;
+        autoLogin?: boolean;
+        redirect?: string;
         empresa?: { slug?: string; nome?: string };
       };
       if (!res.ok) {
@@ -144,6 +146,16 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
       const nome = data.empresa?.nome?.trim();
       if (slug && nome) {
         salvarUltimoLaboratorioLogin({ slug, nome });
+      }
+      if (data.autoLogin && data.redirect) {
+        window.location.href = data.redirect;
+        return;
+      }
+      if (data.redirect) {
+        router.push(data.redirect);
+        return;
+      }
+      if (slug) {
         router.push(`/login?cadastro=ok&lab=${encodeURIComponent(slug)}`);
         return;
       }

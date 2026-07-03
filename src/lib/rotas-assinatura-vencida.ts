@@ -8,6 +8,7 @@ export const ROTAS_LIBERADAS_ASSINATURA_VENCIDA = [
 export const APIS_LIBERADAS_ASSINATURA_VENCIDA = [
   "/api/assinatura/pix",
   "/api/assinatura/status",
+  "/api/jobs",
   "/api/auth/logout",
 ] as const;
 

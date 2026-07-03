@@ -9,7 +9,8 @@ import { SelectPesquisavel } from "@/components/SelectPesquisavel";
 import { dateToBrShort } from "@/lib/datas-br";
 import { exportarExtratoRelatorioExcel } from "@/lib/extrato-relatorio-export";
 import type { LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
-import { abrirPdfGerando } from "@/lib/pdf-viewer";
+import { prepararAbaPdf } from "@/lib/pdf-viewer";
+import { abrirPdfBlobGerandoNoVisualizadorUnificado } from "@/lib/pdf-viewer-unificado";
 import { cn } from "@/lib/utils";
 import type { TrabalhoRelatorioFatura } from "@/lib/relatorio-faturas-modelo3-dados";
 import {
@@ -288,7 +289,8 @@ export function RelatorioContasReceberModal({
     }
 
     setGerandoPdf(true);
-    void abrirPdfGerando(
+    const janela = prepararAbaPdf();
+    void abrirPdfBlobGerandoNoVisualizadorUnificado(
       () =>
         gerarRelatorioContasReceberBlob(
           ordenadas,
@@ -310,10 +312,12 @@ export function RelatorioContasReceberModal({
             recebimentosAgruparPorCliente: filtro.recebimentosAgruparPorCliente,
           }
         ),
+      modeloLabel,
       "relatorio-receitas.pdf",
-      modeloLabel
+      { janela, origem: "Financeiro · Extrato receitas" }
     )
       .catch(() => {
+        janela?.close();
         alert("Não foi possível gerar o PDF. Permita pop-ups para abrir em nova aba.");
       })
       .finally(() => setGerandoPdf(false));

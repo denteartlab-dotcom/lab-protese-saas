@@ -21,10 +21,34 @@ import {
 import { registrarAtividadeSessao } from "@/lib/sessao-inatividade";
 import { montarTituloDocumento } from "@/lib/document-title";
 import { LAB_CONFIG_ATUALIZADA_EVENT } from "@/lib/configuracoes-lab";
-import type { LabBrandingPublico } from "@/lib/lab-branding";
+import type { LabBrandingPublico } from "@/lib/lab-branding-types";
 import type { LabImpressaoConfig } from "@/lib/lab-impressao";
 import { dimensoesLogoPx } from "@/lib/lab-logo";
 import { analisarCaminhoApp } from "@/lib/rotas-app";
+
+async function aguardarSessaoConfirmada(): Promise<boolean> {
+  for (let tentativa = 0; tentativa < 10; tentativa += 1) {
+    try {
+      const res = await fetch("/api/auth/me", {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      if (res.ok) return true;
+    } catch {
+      /* nova tentativa */
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 300 + tentativa * 200));
+  }
+  return false;
+}
+
+async function entrarNoApp(destino: string) {
+  const sessaoOk = await aguardarSessaoConfirmada();
+  if (!sessaoOk) {
+    throw new Error("SESSAO_NAO_CONFIRMADA");
+  }
+  window.location.assign(destino);
+}
 export type LoginBranding = {
   lab: LabImpressaoConfig;
   nomeLaboratorio: string;
@@ -78,8 +102,10 @@ export function LoginForm({
   const [lembrarSenha, setLembrarSenha] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [aguardandoServidor, setAguardandoServidor] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [jaEntrou, setJaEntrou] = useState(jaEntrouInicial);
+  const [clientePronto, setClientePronto] = useState(false);
   const [brandingRemoto, setBrandingRemoto] = useState<LabBrandingPublico | null>(
     brandingLaboratorio
   );
@@ -236,6 +262,7 @@ export function LoginForm({
   }, []);
 
   useEffect(() => {
+    setClientePronto(true);
     if (jaEntrouInicial) return;
     if (usuarioJaEntrou()) {
       setJaEntrou(true);
@@ -255,7 +282,12 @@ export function LoginForm({
   async function tentarEntrar(e?: React.FormEvent) {
     e?.preventDefault();
     setLoading(true);
+    setAguardandoServidor(false);
     setError("");
+
+    const avisoLento = window.setTimeout(() => setAguardandoServidor(true), 8000);
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 120_000);
 
     const slugLogin =
       empresaSlugSelecionado.trim() ||
@@ -268,6 +300,7 @@ export function LoginForm({
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
         cache: "no-store",
+        signal: controller.signal,
         body: JSON.stringify({
           email: email.trim(),
           password,
@@ -306,7 +339,7 @@ export function LoginForm({
           limparLembrarLogin();
         }
         marcarUsuarioJaEntrou();
-        window.location.assign(data.redirect || "/assinatura-vencida");
+        await entrarNoApp(data.redirect || "/assinatura-vencida");
         return;
       }
 
@@ -317,7 +350,7 @@ export function LoginForm({
           limparLembrarLogin();
         }
         marcarUsuarioJaEntrou();
-        window.location.assign(data.redirect.trim());
+        await entrarNoApp(data.redirect.trim());
         return;
       }
 
@@ -367,12 +400,23 @@ export function LoginForm({
 
       marcarUsuarioJaEntrou();
       registrarAtividadeSessao();
-      window.location.assign(destino);
-    } catch {
+      await entrarNoApp(destino);
+    } catch (erro) {
+      const abortado =
+        erro instanceof DOMException && erro.name === "AbortError";
+      const sessaoFalhou =
+        erro instanceof Error && erro.message === "SESSAO_NAO_CONFIRMADA";
       setError(
-        "Não foi possível conectar ao servidor. Recarregue a página (Ctrl+Shift+R) e tente de novo."
+        sessaoFalhou
+          ? "Login aceito, mas a sessão não foi confirmada. Acesse /limpar-sessao, limpe o cache e tente novamente."
+          : abortado
+            ? "O servidor demorou demais para responder. Verifique se npm run dev:server está rodando e tente de novo."
+            : "Não foi possível conectar ao servidor. Recarregue a página (Ctrl+Shift+R) e tente de novo."
       );
     } finally {
+      window.clearTimeout(avisoLento);
+      window.clearTimeout(timeoutId);
+      setAguardandoServidor(false);
       setLoading(false);
     }
   }
@@ -437,8 +481,10 @@ export function LoginForm({
           ) : null}
         </div>
 
-        <h2 className="text-sm font-bold text-slate-900">
-          {!jaEntrou ? t("login.bemVindoPrimeira") : t("login.bemVindo")}
+        <h2 className="text-sm font-bold text-slate-900" suppressHydrationWarning>
+          {!(clientePronto ? jaEntrou : jaEntrouInicial)
+            ? t("login.bemVindoPrimeira")
+            : t("login.bemVindo")}
         </h2>
         <p className="mt-1 text-[10px] text-slate-500">{t("login.subtitulo")}</p>
 
@@ -519,6 +565,13 @@ export function LoginForm({
             />
             {t("login.lembrarSenha")}
           </label>
+
+          {aguardandoServidor && loading ? (
+            <p className="rounded bg-amber-50 px-2 py-1.5 text-[10px] text-amber-800">
+              Primeira entrada após iniciar o servidor pode levar até 1 minuto (compilação local).
+              Aguarde…
+            </p>
+          ) : null}
 
           {error && (
             <p className="rounded bg-red-50 px-2 py-1.5 text-[10px] text-red-700">{error}</p>

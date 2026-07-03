@@ -4,6 +4,12 @@ import type {
   TvChartPoint,
   TvOrdensResponse,
 } from "@/components/modulo-tv/types";
+import {
+  deveTentarBancoSegundoPlano,
+  executarComCircuitBreakerBanco,
+  marcarBancoIndisponivel,
+} from "@/lib/banco-circuit-breaker";
+import { isErroConexaoBanco } from "@/lib/prisma-erro-conexao";
 import { emitTvEvent, salaTvEmpresa } from "@/lib/tv/tv-socket-io";
 import {
   carregarOrdensTv,
@@ -63,11 +69,23 @@ export class TvOrdensStore {
     ].slice(-MAX_CHART_POINTS);
   }
 
-  async refreshFromDb(): Promise<TvOrdensResponse> {
-    const snapshot = await carregarOrdensTv(this.empresaId);
-    this.state.snapshot = snapshot;
-    this.appendChart(snapshot.ordens);
-    return snapshot;
+  async refreshFromDb(): Promise<TvOrdensResponse | null> {
+    if (!deveTentarBancoSegundoPlano()) {
+      return null;
+    }
+
+    try {
+      const snapshot = await carregarOrdensTv(this.empresaId);
+      this.state.snapshot = snapshot;
+      this.appendChart(snapshot.ordens);
+      return snapshot;
+    } catch (err) {
+      if (isErroConexaoBanco(err)) {
+        marcarBancoIndisponivel(err);
+        return null;
+      }
+      throw err;
+    }
   }
 
   getSnapshot(): TvOrdensResponse {
@@ -94,6 +112,25 @@ export class TvOrdensStore {
   syncBroadcast() {
     const snapshot = this.getSnapshot();
     emitTvEvent(this.empresaId, "tv:ordens:update", snapshot);
+    emitTvEvent(this.empresaId, "tv:chart:update", {
+      pontos: this.getChart(),
+    });
+  }
+
+  /** Emite apenas ordens alteradas + stats (issue 004). */
+  syncDeltaBroadcast(idsAlterados: string[]) {
+    const snapshot = this.getSnapshot();
+    const idSet = new Set(idsAlterados);
+    const ordens = snapshot.ordens.filter((o) => idSet.has(o.id));
+
+    emitTvEvent(this.empresaId, "tv:ordens:delta", {
+      tipo: "ordens_delta",
+      ids: idsAlterados,
+      ordens,
+      stats: snapshot.stats,
+      colaboradores: snapshot.colaboradores,
+      ultimaAtualizacao: snapshot.ultimaAtualizacao,
+    });
     emitTvEvent(this.empresaId, "tv:chart:update", {
       pontos: this.getChart(),
     });
@@ -137,7 +174,13 @@ export function getTvOrdensStore(empresaId: string): TvOrdensStore {
 
 export async function getTvOrdensSnapshot(empresaId: string) {
   const store = getTvOrdensStore(empresaId);
-  await store.refreshFromDb();
+  const atualizado = await store.refreshFromDb();
+  if (!atualizado) {
+    return {
+      ...store.getSnapshot(),
+      chart: store.getChart(),
+    };
+  }
   return {
     ...store.getSnapshot(),
     chart: store.getChart(),
@@ -145,11 +188,16 @@ export async function getTvOrdensSnapshot(empresaId: string) {
 }
 
 async function refreshTodasEmpresasAtivas() {
+  if (!deveTentarBancoSegundoPlano()) return;
+
   const mapa = mapaStores();
   await Promise.all(
     [...mapa.values()].map(async (store) => {
-      await store.refreshFromDb();
-      store.syncBroadcast();
+      const ok = await executarComCircuitBreakerBanco(
+        () => store.refreshFromDb(),
+        { segundoPlano: true }
+      );
+      if (ok) store.syncBroadcast();
     })
   );
 }

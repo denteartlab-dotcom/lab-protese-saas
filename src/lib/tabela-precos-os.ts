@@ -857,6 +857,13 @@ export function carregarDadosTabelaPrecoOs(): DadosTabelaPrecoOsCarregados {
     TABELA_PRECOS_STORAGE_KEY,
     null
   );
+  return parseDadosTabelaPrecoOsRemoto(saved);
+}
+
+/** Normaliza payload JsonStore da tabela de preços (servidor / issue 007). */
+export function parseDadosTabelaPrecoOsRemoto(
+  saved: DadosTabelaPrecosStorage | null | undefined
+): DadosTabelaPrecoOsCarregados {
   const tabelas = extrairNomesTabelasPreco(saved);
   const categoriasRaw = saved?.categoriasPorTabela || {};
   const categoriasPorTabela = Object.fromEntries(

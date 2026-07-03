@@ -1,11 +1,21 @@
 import { NextResponse } from "next/server";
-import { sincronizarPagamentoAssinatura } from "@/lib/assinatura-pix-servidor";
-import { sincronizarPagamentoAsaas } from "@/lib/asaas-boleto";
+import {
+  enfileirarJobWebhookAssinatura,
+  resolverEmpresaIdWebhookAsaas,
+} from "@/lib/assinatura-webhook-job";
 import { listarWebhookTokensAsaas, validarWebhookTokenAsaas } from "@/lib/asaas-client";
-import { atualizarSubcontaPorWebhookConta } from "@/lib/asaas-subconta";
 import { APP_URL } from "@/lib/app-url";
 
 const WEBHOOK_PATH = "/api/asaas/webhook";
+
+const EVENTOS_PAGAMENTO = [
+  "PAYMENT_RECEIVED",
+  "PAYMENT_CONFIRMED",
+  "PAYMENT_RECEIVED_IN_CASH",
+  "PAYMENT_OVERDUE",
+  "PAYMENT_DELETED",
+  "PAYMENT_REFUNDED",
+];
 
 /** Confirma no navegador que o endpoint está publicado (o Asaas usa POST). */
 export async function GET() {
@@ -43,39 +53,67 @@ export async function POST(request: Request) {
     };
 
     const evento = body.event || "";
-    if (evento.startsWith("ACCOUNT_STATUS_")) {
-      await atualizarSubcontaPorWebhookConta({
-        accountId: body.account?.id,
-        statusGeral: body.accountStatus?.general,
-        statusDocumentacao: body.accountStatus?.documentation,
-      });
-      return NextResponse.json({ ok: true });
-    }
-
     const paymentId = body.payment?.id;
     const status = body.payment?.status;
+    const accountId = body.account?.id;
+
+    const empresaId = await resolverEmpresaIdWebhookAsaas({
+      paymentId,
+      accountId,
+    });
+
+    if (!empresaId) {
+      return NextResponse.json({ ok: true, ignored: true });
+    }
+
+    if (evento.startsWith("ACCOUNT_STATUS_")) {
+      const chaveIdempotencia = `asaas:account:${evento}:${accountId || "unknown"}`;
+      const enfileirado = await enfileirarJobWebhookAssinatura({
+        empresaId,
+        tipo: "webhook_asaas_assinatura",
+        chaveIdempotencia,
+        payload: {
+          chaveIdempotencia,
+          evento,
+          accountId,
+          accountStatus: body.accountStatus,
+        },
+      });
+      return NextResponse.json({
+        ok: true,
+        jobId: enfileirado.jobId,
+        duplicate: enfileirado.duplicate === true,
+      });
+    }
+
     if (!paymentId || !status) {
       return NextResponse.json({ ok: true, ignored: true });
     }
 
-    const eventosPagamento = [
-      "PAYMENT_RECEIVED",
-      "PAYMENT_CONFIRMED",
-      "PAYMENT_RECEIVED_IN_CASH",
-      "PAYMENT_OVERDUE",
-      "PAYMENT_DELETED",
-      "PAYMENT_REFUNDED",
-    ];
-
-    if (eventosPagamento.includes(evento)) {
-      const assinatura = await sincronizarPagamentoAssinatura(paymentId, status);
-      if (!assinatura.renovado) {
-        await sincronizarPagamentoAsaas(paymentId, status);
-      }
+    if (!EVENTOS_PAGAMENTO.includes(evento)) {
+      return NextResponse.json({ ok: true, ignored: true });
     }
 
-    return NextResponse.json({ ok: true });
-  } catch {
+    const chaveIdempotencia = `asaas:${evento}:${paymentId}`;
+    const enfileirado = await enfileirarJobWebhookAssinatura({
+      empresaId,
+      tipo: "webhook_asaas_assinatura",
+      chaveIdempotencia,
+      payload: {
+        chaveIdempotencia,
+        evento,
+        paymentId,
+        status,
+      },
+    });
+
+    return NextResponse.json({
+      ok: true,
+      jobId: enfileirado.jobId,
+      duplicate: enfileirado.duplicate === true,
+    });
+  } catch (error) {
+    console.error("[asaas/webhook]", error);
     return NextResponse.json({ ok: true });
   }
 }

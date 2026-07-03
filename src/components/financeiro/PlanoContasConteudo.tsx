@@ -15,6 +15,8 @@ import {
   type ItemPlanoContas,
   type SecaoPlanoContas,
 } from "@/lib/plano-contas";
+import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
+import type { PainelFinanceiroPlanoContas } from "@/lib/financeiro-painel-types";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { PlanoContasCadastroModal } from "@/components/financeiro/PlanoContasCadastroModal";
 
@@ -196,8 +198,28 @@ export function PlanoContasConteudo() {
   const persistenciaPronta = useRef(false);
 
   useEffect(() => {
-    setItens(carregarPlanoContas());
-    persistenciaPronta.current = true;
+    let cancelado = false;
+
+    async function hidratar() {
+      const local = carregarPlanoContas();
+      if (!cancelado && local.length > 0) setItens(local);
+
+      const painel = await fetchPainelFinanceiro<PainelFinanceiroPlanoContas>(
+        "plano-de-contas"
+      );
+      if (cancelado || !painel.ok || !Array.isArray(painel.dados.itens)) return;
+
+      setItens(painel.dados.itens);
+      salvarPlanoContas(painel.dados.itens);
+    }
+
+    void hidratar().finally(() => {
+      if (!cancelado) persistenciaPronta.current = true;
+    });
+
+    return () => {
+      cancelado = true;
+    };
   }, []);
 
   useEffect(() => {

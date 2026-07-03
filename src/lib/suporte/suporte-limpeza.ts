@@ -1,4 +1,9 @@
+import {
+  executarComCircuitBreakerBanco,
+  tratarErroBancoSilencioso,
+} from "@/lib/banco-circuit-breaker";
 import { prisma } from "@/lib/db";
+import { isErroConexaoBanco } from "@/lib/prisma-erro-conexao";
 import { excluirConversaSuporte } from "@/lib/suporte-chat";
 import { limiteInatividadeSuporte } from "@/lib/suporte/suporte-inatividade";
 import {
@@ -10,12 +15,16 @@ let timerLimpeza: ReturnType<typeof setInterval> | null = null;
 
 export async function limparConversasSuporteInativas() {
   const limite = limiteInatividadeSuporte();
-  const conversas = await prisma.suporteConversa.findMany({
-    where: { ultimaMensagemEm: { lt: limite } },
-    select: { id: true, empresaId: true },
-  });
+  const conversas = await executarComCircuitBreakerBanco(
+    () =>
+      prisma.suporteConversa.findMany({
+        where: { ultimaMensagemEm: { lt: limite } },
+        select: { id: true, empresaId: true },
+      }),
+    { segundoPlano: true }
+  );
 
-  if (conversas.length === 0) return 0;
+  if (!conversas || conversas.length === 0) return 0;
 
   for (const conversa of conversas) {
     await excluirConversaSuporte(conversa.id, conversa.empresaId);
@@ -31,6 +40,10 @@ export function iniciarLimpezaSuporteInativo() {
 
   const executar = () => {
     void limparConversasSuporteInativas().catch((erro) => {
+      if (isErroConexaoBanco(erro)) {
+        tratarErroBancoSilencioso(erro);
+        return;
+      }
       console.warn("[suporte] limpeza por inatividade falhou:", erro);
     });
   };

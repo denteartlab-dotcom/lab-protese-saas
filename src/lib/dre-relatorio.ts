@@ -50,6 +50,19 @@ function anoDaData(dataIso: string) {
   return new Date(dataIso).getFullYear();
 }
 
+/** Mês sem lançamentos financeiros efetivados (relatório imprimível vazio). */
+export function dreMesSemDados(
+  lancamentos: LancamentoDre[],
+  ano: number,
+  mesIndex: number
+): boolean {
+  return !lancamentos.some((l) => {
+    if (!lancamentoEfetivadoFinanceiro(l)) return false;
+    if (anoDaData(l.data) !== ano) return false;
+    return mesIndexDaData(l.data) === mesIndex;
+  });
+}
+
 export function agregarValoresPorCodigoPlano(
   lancamentos: LancamentoDre[],
   ano: number,

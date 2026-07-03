@@ -23,6 +23,7 @@ import {
 import {
   persistirArmazenamentoImediato,
   readStorageArray,
+  revalidarArmazenamentoLaboratorio,
   writeStorage,
 } from "@/lib/persisted-storage";
 
@@ -329,11 +330,9 @@ export default function FornecedoresPage() {
     }
   }
 
-  function importarFornecedores(novos: Array<Fornecedor & { id: string }>) {
-    setFornecedores((atuais) => {
-      const atualizados = [...atuais, ...novos];
-      void persistirArmazenamentoImediato(STORAGE_KEY, atualizados);
-      return atualizados;
+  function recarregarFornecedoresAposImportacao() {
+    void revalidarArmazenamentoLaboratorio(true).then(() => {
+      setFornecedores(carregarFornecedores());
     });
   }
 
@@ -741,8 +740,7 @@ export default function FornecedoresPage() {
       <ImportarFornecedoresExcelModal
         aberto={importarAberto}
         onFechar={() => setImportarAberto(false)}
-        onImportado={importarFornecedores}
-        nomesExistentes={fornecedores.map((fornecedor) => fornecedor.nome)}
+        onImportado={recarregarFornecedoresAposImportacao}
       />
     </div>
   );

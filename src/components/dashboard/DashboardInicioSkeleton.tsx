@@ -43,6 +43,22 @@ function PainelEstoqueSkeleton() {
   );
 }
 
+export function DashboardWidgetSkeleton({ alto = "min-h-[180px]" }: { alto?: string }) {
+  return (
+    <div
+      className={`rounded border border-slate-200 bg-white px-4 pb-3 pt-3 shadow-sm ${alto}`}
+      aria-busy="true"
+    >
+      <Bloco className="mb-4 h-4 w-32" />
+      <div className="space-y-2">
+        <Bloco className="h-3 w-full" />
+        <Bloco className="h-3 w-4/5" />
+        <Bloco className="h-3 w-2/3" />
+      </div>
+    </div>
+  );
+}
+
 export function DashboardInicioSkeleton() {
   return (
     <div className="space-y-4 text-[13px]" aria-busy="true" aria-label="Carregando início">

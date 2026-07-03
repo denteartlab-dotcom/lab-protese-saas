@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { Eye, Pencil, Plus, X } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
 import { dateToBrShort } from "@/lib/datas-br";
-import { parseParcelaNaDescricao } from "@/lib/fatura-financeiro";
+import { parseParcelaNaDescricao } from "@/lib/fatura-financeiro-util";
 import { cn } from "@/lib/utils";
 
 export type LancamentoRecebimento = {

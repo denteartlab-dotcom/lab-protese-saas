@@ -22,6 +22,7 @@ import {
   registrarMovimentoEstoque,
   type MovimentoEstoque,
 } from "@/lib/estoque";
+import { fetchProdutoContexto } from "@/lib/produto-contexto-cliente";
 import {
   carregarEtiquetasCategoria,
   etiquetaCategoriaAtiva,
@@ -294,52 +295,29 @@ function ProdutosConteudo() {
   useEffect(() => {
     if (!historicoProduto) return;
     const produtoId = historicoProduto.id;
-    function atualizarHistorico() {
-      setHistoricoMovimentos(getHistoricoMovimentosProduto(produtoId));
-    }
-    atualizarHistorico();
-    window.addEventListener(PRODUTOS_ESTOQUE_EVENT, atualizarHistorico);
-    window.addEventListener("focus", atualizarHistorico);
-    return () => {
-      window.removeEventListener(PRODUTOS_ESTOQUE_EVENT, atualizarHistorico);
-      window.removeEventListener("focus", atualizarHistorico);
-    };
-  }, [historicoProduto]);
-
-  useEffect(() => {
-    if (!historicoProduto) return;
-    const produtoId = historicoProduto.id;
     let ativo = true;
-    async function enriquecerOs() {
-      const movimentos = getHistoricoMovimentosProduto(produtoId);
-      const precisaOs = movimentos.some(
-        (item) => item.origem === "os" && item.referencia && (!item.pacienteNome || !item.clienteNome)
-      );
-      if (!precisaOs) {
-        if (ativo) setHistoricoMovimentos(movimentos);
+
+    async function carregarHistoricoContexto() {
+      const contexto = await fetchProdutoContexto(produtoId, 100);
+      if (!ativo) return;
+      if (contexto) {
+        setHistoricoMovimentos(contexto.movimentos);
         return;
       }
-      const trabalhos = await fetch("/api/trabalhos").then((r) => (r.ok ? r.json() : []));
-      if (!Array.isArray(trabalhos) || !ativo) return;
-      const porId = new Map(trabalhos.map((item: { id: string }) => [item.id, item]));
-      const enriquecidos = movimentos.map((item) => {
-        if (item.origem !== "os" || !item.referencia) return item;
-        const trabalho = porId.get(item.referencia) as
-          | { numeroOs?: number; paciente?: { nome?: string }; cliente?: { nome?: string } }
-          | undefined;
-        if (!trabalho) return item;
-        return {
-          ...item,
-          numeroOs: item.numeroOs ?? trabalho.numeroOs,
-          pacienteNome: item.pacienteNome || trabalho.paciente?.nome,
-          clienteNome: item.clienteNome || trabalho.cliente?.nome,
-        };
-      });
-      setHistoricoMovimentos(enriquecidos);
+      setHistoricoMovimentos(getHistoricoMovimentosProduto(produtoId));
     }
-    enriquecerOs();
+
+    function aoAtualizar() {
+      void carregarHistoricoContexto();
+    }
+
+    void carregarHistoricoContexto();
+    window.addEventListener(PRODUTOS_ESTOQUE_EVENT, aoAtualizar);
+    window.addEventListener("focus", aoAtualizar);
     return () => {
       ativo = false;
+      window.removeEventListener(PRODUTOS_ESTOQUE_EVENT, aoAtualizar);
+      window.removeEventListener("focus", aoAtualizar);
     };
   }, [historicoProduto]);
 
@@ -763,6 +741,7 @@ function ProdutosConteudo() {
       dataInicial: "",
       dataFinal: "",
     });
+    /** Fallback local imediato; o useEffect troca pelo payload de /contexto. */
     setHistoricoMovimentos(getHistoricoMovimentosProduto(produto.id));
   }
 

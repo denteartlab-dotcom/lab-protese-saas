@@ -62,6 +62,8 @@ import {
   FINANCEIRO_ATUALIZADO_EVENT,
   notificarFinanceiroAtualizado,
 } from "@/lib/financeiro-events";
+import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
+import type { PainelFinanceiroBoletos } from "@/lib/financeiro-painel-types";
 import {
   desempacotarDespesa,
   descricaoDespesaComParcela,
@@ -367,19 +369,17 @@ export function ControleBoletosConteudo() {
       setErroLista("");
     }
     try {
-      const res = await fetch("/api/financeiro?tipo=despesa");
-      const json = (await res.json().catch(() => ({}))) as {
-        lancamentos?: LancamentoBoletoResumo[];
-        error?: string;
-      };
-      if (!res.ok) {
+      const painel = await fetchPainelFinanceiro<PainelFinanceiroBoletos>("boletos", {
+        refresh: opts?.silencioso,
+      });
+      if (!painel.ok) {
         setLancamentos([]);
-        setErroLista(json.error || "Não foi possível carregar os boletos.");
+        setErroLista(painel.error);
         return;
       }
       setLancamentos(
-        Array.isArray(json.lancamentos)
-          ? json.lancamentos.filter(lancamentoEhDespesaBoleto)
+        Array.isArray(painel.dados.lancamentos)
+          ? painel.dados.lancamentos.filter(lancamentoEhDespesaBoleto)
           : []
       );
     } catch {

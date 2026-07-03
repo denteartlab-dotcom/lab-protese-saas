@@ -13,6 +13,10 @@ import {
   nomeExibicaoLaboratorio,
   type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
+import {
+  carregarLabBootstrap,
+  invalidarLabBootstrapCliente,
+} from "@/lib/lab-bootstrap-cliente";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
 import { LAB_IMPRESSAO_PADRAO, normalizarLogoTamanho, type LabImpressaoConfig } from "@/lib/lab-impressao";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
@@ -106,7 +110,7 @@ export function useLabConfigClient({
   initialNomeLaboratorio,
 }: Props = {}) {
   const servidor = useLabConfigServidor();
-  const [cachePronto, setCachePronto] = useState(storageSincronizado);
+  const [cachePronto, setCachePronto] = useState(false);
   const [cacheVersao, setCacheVersao] = useState(0);
 
   const nomeServidor = nomeServidorProps(servidor, initialLab, initialNomeLaboratorio);
@@ -162,6 +166,16 @@ export function useLabConfigClient({
   useEffect(() => {
     atualizar();
   }, [atualizar, cachePronto]);
+
+  useEffect(() => {
+    if (!cachePronto) return;
+    void carregarLabBootstrap().catch(() => undefined);
+    const invalidar = () => invalidarLabBootstrapCliente();
+    window.addEventListener(LAB_CONFIG_ATUALIZADA_EVENT, invalidar);
+    return () => {
+      window.removeEventListener(LAB_CONFIG_ATUALIZADA_EVENT, invalidar);
+    };
+  }, [cachePronto]);
 
   useEffect(() => {
     if (!cachePronto) return;

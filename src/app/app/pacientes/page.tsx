@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Plus, Pencil, Trash2, Search, Users } from "lucide-react";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { BarraConfigListagem } from "@/components/listagem/BarraConfigListagem";
 import { Button, Card, Input, Modal, SelectPesquisavel, Table } from "@/components/ui";
@@ -19,9 +19,24 @@ type Paciente = {
 
 type Cliente = { id: string; nome: string };
 
+type PainelPacienteResumo = {
+  pacienteId: string;
+  pacienteNome: string;
+  cliente: { id: string; nome: string; telefone: string | null } | null;
+  ultimoTrabalhoEm: string;
+  totalTrabalhos: number;
+};
+
+type PainelPacientesResposta = {
+  pacientes: PainelPacienteResumo[];
+  total: number;
+};
+
 export default function PacientesPage() {
   const [list, setList] = useState<Paciente[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [painel, setPainel] = useState<PainelPacienteResumo[]>([]);
+  const [totalPainel, setTotalPainel] = useState(0);
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Paciente | null>(null);
@@ -34,18 +49,25 @@ export default function PacientesPage() {
     observacoes: "",
   });
 
-  async function load() {
-    const [p, c] = await Promise.all([
+  const load = useCallback(async () => {
+    const [p, c, painelRes] = await Promise.all([
       fetch(`/api/pacientes?q=${encodeURIComponent(q)}`).then((r) => r.json()),
       fetch("/api/clientes").then((r) => r.json()),
+      fetch(`/api/pacientes/painel?busca=${encodeURIComponent(q)}`)
+        .then((r) => (r.ok ? (r.json() as Promise<PainelPacientesResposta>) : null))
+        .catch(() => null),
     ]);
     setList(p);
     setClientes(c);
-  }
+    if (painelRes) {
+      setPainel(painelRes.pacientes || []);
+      setTotalPainel(painelRes.total || 0);
+    }
+  }, [q]);
 
   useEffect(() => {
-    load();
-  }, [q]);
+    void load();
+  }, [load]);
 
   const listagem = useListagemPaginada<Paciente, "nome" | "cliente">({
     storageKey: "pacientes",
@@ -90,7 +112,7 @@ export default function PacientesPage() {
       body: JSON.stringify(form),
     });
     setOpen(false);
-    load();
+    void load();
   }
 
   async function confirmarExclusaoPaciente() {
@@ -122,6 +144,36 @@ export default function PacientesPage() {
           <Plus className="h-4 w-4" /> Novo paciente
         </Button>
       </div>
+
+      {totalPainel > 0 && (
+        <div className="grid gap-3 md:grid-cols-3">
+          <Card className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-blue-100 p-2 text-blue-600">
+                <Users className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-slate-500">
+                  Pacientes com trabalho
+                </p>
+                <p className="text-lg font-semibold">{totalPainel}</p>
+              </div>
+            </div>
+          </Card>
+          {painel.slice(0, 2).map((p) => (
+            <Card key={p.pacienteId} className="p-4">
+              <p className="text-[11px] uppercase tracking-wide text-slate-500">
+                Mais recente
+              </p>
+              <p className="font-semibold">{p.pacienteNome}</p>
+              <p className="text-xs text-slate-500">
+                {p.cliente?.nome || "—"} · {p.totalTrabalhos} trabalho
+                {p.totalTrabalhos === 1 ? "" : "s"}
+              </p>
+            </Card>
+          ))}
+        </div>
+      )}
 
       <Card>
         <div className="mb-4 flex gap-2">

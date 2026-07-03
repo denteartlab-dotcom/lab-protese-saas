@@ -1,16 +1,12 @@
+import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 import { exigirGestorUsuarios } from "@/lib/exigir-gestor";
-import { prisma } from "@/lib/db";
-import {
-  backupPertenceAEmpresa,
-  importarBackupEmpresa,
-  validarBackupLaboratorio,
-} from "@/lib/backup-laboratorio";
-import { extrairConteudoZipBackup } from "@/lib/backup-zip";
+import { salvarStagingImportBackup } from "@/lib/backup-temp-servidor";
+import { criarJob, executarJobEmBackground } from "@/lib/jobs";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 60;
 
 const MAX_BYTES_JSON = 80 * 1024 * 1024;
 const MAX_BYTES_ZIP = 512 * 1024 * 1024;
@@ -24,7 +20,7 @@ function ehArquivoZip(nome: string, tipo: string) {
   );
 }
 
-async function lerBackupDaRequisicao(request: Request) {
+async function lerArquivoDaRequisicao(request: Request) {
   const contentType = request.headers.get("content-type") || "";
 
   if (contentType.includes("multipart/form-data")) {
@@ -39,18 +35,7 @@ async function lerBackupDaRequisicao(request: Request) {
       if (buffer.length > MAX_BYTES_ZIP) {
         return { erro: "Arquivo ZIP muito grande (máx. 512 MB)." as const };
       }
-      try {
-        const { backupJson, uploads } = await extrairConteudoZipBackup(buffer);
-        return {
-          body: JSON.parse(backupJson) as unknown,
-          uploadsZip: uploads,
-        };
-      } catch (err) {
-        if (err instanceof Error && err.message === "ZIP_SEM_BACKUP_JSON") {
-          return { erro: "ZIP inválido: falta o arquivo backup.json." as const };
-        }
-        return { erro: "Arquivo ZIP inválido ou corrompido." as const };
-      }
+      return { buffer, ext: "zip" as const };
     }
 
     if (buffer.length > MAX_BYTES_JSON) {
@@ -58,7 +43,8 @@ async function lerBackupDaRequisicao(request: Request) {
     }
 
     try {
-      return { body: JSON.parse(buffer.toString("utf8")) as unknown };
+      JSON.parse(buffer.toString("utf8"));
+      return { buffer, ext: "json" as const };
     } catch {
       return { erro: "Arquivo JSON inválido." as const };
     }
@@ -70,12 +56,14 @@ async function lerBackupDaRequisicao(request: Request) {
   }
 
   try {
-    return { body: JSON.parse(texto) as unknown };
+    JSON.parse(texto);
+    return { buffer: Buffer.from(texto, "utf8"), ext: "json" as const };
   } catch {
     return { erro: "Arquivo JSON inválido." as const };
   }
 }
 
+/** Salva arquivo em staging e enfileira restore — resposta imediata (issue 026). */
 export async function POST(request: Request) {
   const auth = await exigirGestorUsuarios();
   if (auth.erro) return auth.erro;
@@ -96,52 +84,32 @@ export async function POST(request: Request) {
     );
   }
 
-  const lido = await lerBackupDaRequisicao(request);
+  const lido = await lerArquivoDaRequisicao(request);
   if ("erro" in lido) {
     return NextResponse.json({ error: lido.erro }, { status: 400 });
   }
 
-  const backup = validarBackupLaboratorio(lido.body);
-  if (!backup) {
-    return NextResponse.json(
-      {
-        error:
-          "Backup incompatível ou corrompido. Use um arquivo exportado nesta versão multi-empresa.",
-      },
-      { status: 400 }
-    );
-  }
-
-  if (!backupPertenceAEmpresa(backup, ctx.empresaId)) {
-    return NextResponse.json(
-      {
-        error: `Este backup pertence a outra empresa (${backup.empresaNome || backup.empresaSlug}).`,
-      },
-      { status: 403 }
-    );
-  }
+  const excluirDre = request.headers.get("x-backup-excluir-dre") === "1";
+  const stagingId = randomUUID();
 
   try {
-    const excluirDre = request.headers.get("x-backup-excluir-dre") === "1";
-    const resultado = await importarBackupEmpresa(prisma, backup, ctx.empresaId, {
+    await salvarStagingImportBackup(ctx.empresaId, stagingId, lido.buffer, lido.ext);
+    const job = await criarJob(ctx.empresaId, "backup_import", {
+      stagingId,
       excluirDre,
-      uploadsZip: lido.uploadsZip,
       empresaSlug: ctx.empresaSlug,
     });
+    executarJobEmBackground(job.id, ctx.empresaId);
+
     return NextResponse.json({
-      ok: true,
-      exportedAt: backup.exportedAt,
-      empresaSlug: backup.empresaSlug,
-      contagens: resultado.contagens,
-      excluirDre,
-      uploadsRestaurados: lido.uploadsZip?.size ?? 0,
+      jobId: job.id,
+      status: job.status,
     });
   } catch (err) {
-    console.error("[backup/import]", err);
-    const msg =
-      err instanceof Error && err.message === "BACKUP_OUTRA_EMPRESA"
-        ? "Este backup não pertence à sua empresa."
-        : "Falha ao importar backup. Os dados podem estar inconsistentes — restaure outro backup ou contate o suporte.";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error("[backup/import POST]", err);
+    return NextResponse.json(
+      { error: "Não foi possível iniciar a restauração." },
+      { status: 500 }
+    );
   }
 }

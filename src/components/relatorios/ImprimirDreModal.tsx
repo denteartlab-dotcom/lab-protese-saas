@@ -9,7 +9,6 @@ import {
   montarRelatorioDreMes,
   type TipoRelatorioDre,
 } from "@/lib/dre-relatorio";
-import { gerarRelatorioDrePdf } from "@/lib/dre-relatorio-pdf";
 import {
   CATEGORIAS_RELATORIO_DRE_DETALHADO,
   exportarRelatorioDreDetalhadoCsv,
@@ -17,10 +16,10 @@ import {
   montarRelatorioDreDetalhadoItens,
   type DreCategoriaRelatorioId,
 } from "@/lib/dre-relatorio-detalhado";
-import { gerarRelatorioDreDetalhadoPdf } from "@/lib/dre-relatorio-detalhado-pdf";
 import type { DreMatriz } from "@/lib/dre";
 import type { ItemPlanoContas } from "@/lib/plano-contas";
 import { prepararAbaPdf } from "@/lib/pdf-viewer";
+import { abrirRelatorioPdfJob, gerarRelatorioPdfComJob } from "@/lib/relatorio-pdf-cliente";
 
 const selectClass =
   "h-[36px] w-full rounded-sm border border-[#d1d5db] bg-white px-2 text-[12px] text-[#374151] outline-none focus:border-[#4a90d9]";
@@ -31,7 +30,6 @@ type ImprimirDreModalProps = {
   matriz: DreMatriz;
   planoContas: ItemPlanoContas[];
   anoPadrao: number;
-  onAbrirPdf: (url: string, titulo: string, janela?: Window | null) => void;
 };
 
 export function ImprimirDreModal({
@@ -40,12 +38,12 @@ export function ImprimirDreModal({
   matriz,
   planoContas,
   anoPadrao,
-  onAbrirPdf,
 }: ImprimirDreModalProps) {
   const [tipo, setTipo] = useState<TipoRelatorioDre>("detalhado");
   const [mesIndex, setMesIndex] = useState(new Date().getMonth());
   const [ano, setAno] = useState(anoPadrao);
   const [gerando, setGerando] = useState(false);
+  const [progresso, setProgresso] = useState(0);
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState<
     DreCategoriaRelatorioId[]
   >(IDS_CATEGORIAS_DRE_DETALHADO_PADRAO);
@@ -79,29 +77,22 @@ export function ImprimirDreModal({
     }
 
     setGerando(true);
+    setProgresso(0);
     const janela = prepararAbaPdf();
     try {
-      if (tipo === "detalhado") {
-        const relatorio = montarRelatorioDreDetalhadoItens(
-          matrizAno,
+      const resultado = await gerarRelatorioPdfComJob(
+        "dre",
+        {
+          tipoRelatorio: tipo === "detalhado" ? "detalhado" : "resumo",
           mesIndex,
-          planoContas,
-          categoriasSelecionadas
-        );
-        const blob = await gerarRelatorioDreDetalhadoPdf(relatorio);
-        const url = URL.createObjectURL(blob);
-        onAbrirPdf(url, relatorio.titulo, janela);
-      } else {
-        const relatorio = montarRelatorioDreMes(
-          matrizAno,
-          mesIndex,
-          planoContas,
-          tipo
-        );
-        const blob = await gerarRelatorioDrePdf(relatorio);
-        const url = URL.createObjectURL(blob);
-        onAbrirPdf(url, relatorio.titulo, janela);
-      }
+          ano,
+          categorias: tipo === "detalhado" ? categoriasSelecionadas : undefined,
+        },
+        {
+          onProgresso: (pct) => setProgresso(pct),
+        }
+      );
+      await abrirRelatorioPdfJob(resultado, { janela });
       onClose();
     } catch (err) {
       janela?.close();
@@ -109,6 +100,7 @@ export function ImprimirDreModal({
       alert("Não foi possível gerar o PDF do relatório.");
     } finally {
       setGerando(false);
+      setProgresso(0);
     }
   }
 
@@ -322,7 +314,11 @@ export function ImprimirDreModal({
             )}
           >
             <Printer className="h-4 w-4" />
-            {gerando ? "Gerando..." : "Imprimir"}
+            {gerando
+              ? progresso > 0
+                ? `Gerando… ${progresso}%`
+                : "Gerando..."
+              : "Imprimir"}
           </button>
           <button
             type="button"

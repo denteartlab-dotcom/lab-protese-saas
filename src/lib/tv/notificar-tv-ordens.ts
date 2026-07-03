@@ -1,3 +1,4 @@
+import { agendarNotificacaoTvOrdens, agendarNotificacaoTvOrdensVarios } from "@/lib/tv-notify-debounce";
 import { getTvOrdensStore } from "@/lib/tv/tv-ordens-store";
 
 async function refreshStore(empresaId: string) {
@@ -20,10 +21,16 @@ export async function notificarTvOrdensAtualizadas() {
   }
 }
 
-export async function notificarTvOrdensEmpresa(empresaId: string) {
-  try {
-    await refreshStore(empresaId);
-  } catch (erro) {
-    console.error("[tv] notificarTvOrdensEmpresa", erro);
+/** Agenda refresh debounced da TV (issue 004). */
+export function notificarTvOrdensEmpresa(empresaId: string, trabalhoId?: string) {
+  agendarNotificacaoTvOrdens(empresaId, trabalhoId);
+}
+
+/** Vários trabalhos em um único debounce (issue 008). */
+export function notificarTvOrdensEmpresaVarios(empresaId: string, trabalhoIds: string[]) {
+  if (trabalhoIds.length === 0) {
+    agendarNotificacaoTvOrdens(empresaId);
+    return;
   }
+  agendarNotificacaoTvOrdensVarios(empresaId, trabalhoIds);
 }

@@ -7,12 +7,8 @@ import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal"
 import { BarraConfigListagem } from "@/components/listagem/BarraConfigListagem";
 import { useListagemPaginada } from "@/hooks/use-listagem-paginada";
 import { compararDataIso, compararNumero, compararTextoBr } from "@/lib/listagem-config";
-import {
-  aplicarCustosAprovadosOrcamento,
-  aplicarEstoqueOrcamentoAprovado,
-  getProdutosEstoqueExtras,
-  PRODUTOS_ESTOQUE_EVENT,
-} from "@/lib/estoque";
+import { PRODUTOS_ESTOQUE_EVENT } from "@/lib/estoque";
+import { aguardarJobCliente } from "@/lib/jobs/polling-cliente";
 import { listarProdutosCatalogo } from "@/lib/produtos-catalogo";
 import {
   STATUS_ORCAMENTO,
@@ -324,17 +320,6 @@ export default function OrcamentosPage() {
     await recarregarOrcamentos();
   }
 
-  function mapaCustoAtualProdutos() {
-    const extras = getProdutosEstoqueExtras();
-    const mapa: Record<string, number> = {};
-    for (const produto of produtos) {
-      mapa[produto.id] = Number(
-        extras[produto.id]?.valorCusto ?? produto.valorCusto ?? 0
-      );
-    }
-    return mapa;
-  }
-
   async function sincronizarFinanceiroOrcamento(orcamento: Orcamento) {
     setProcessandoAprovacao(true);
     try {
@@ -373,6 +358,7 @@ export default function OrcamentosPage() {
       const data = (await response.json()) as Orcamento & {
         parcelasFinanceiro?: number;
         message?: string;
+        estoqueJobId?: string | null;
       };
       if (!response.ok) {
         alert(data.message || "Não foi possível atualizar o orçamento.");
@@ -393,26 +379,20 @@ export default function OrcamentosPage() {
             "Orçamento aprovado, mas as parcelas não foram geradas. Verifique o valor líquido e tente novamente."
           );
         }
-      }
-      if (status === "aprovado" && orcamento.itens.length > 0) {
-        aplicarCustosAprovadosOrcamento(
-          orcamento.itens.map((item) => ({
-            produtoId: item.produtoId,
-            valorUnitario: item.valorUnitario,
-            quantidade: item.quantidade,
-          })),
-          mapaCustoAtualProdutos()
-        );
-        aplicarEstoqueOrcamentoAprovado(
-          orcamento.id,
-          orcamento.numeroPedido,
-          orcamento.fornecedorNome,
-          orcamento.itens.map((item) => ({
-            produtoId: item.produtoId,
-            quantidade: item.quantidade,
-          }))
-        );
-        void carregarProdutos();
+
+        /** Estoque + custos em job (issue 029) — não bloqueia o modal no client. */
+        if (data.estoqueJobId) {
+          try {
+            await aguardarJobCliente(data.estoqueJobId, { timeoutMs: 60_000 });
+            window.dispatchEvent(new Event(PRODUTOS_ESTOQUE_EVENT));
+            void carregarProdutos();
+          } catch (err) {
+            console.warn("[orcamento] job estoque", err);
+            alert(
+              "Orçamento aprovado, mas a atualização de estoque ainda está processando. Atualize a página de produtos em instantes."
+            );
+          }
+        }
       }
       await recarregarOrcamentos();
       fecharRespostaModal();

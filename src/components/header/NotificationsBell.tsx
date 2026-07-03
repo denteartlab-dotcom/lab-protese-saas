@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Bell, Trash2 } from "lucide-react";
-import type { NotificacaoApi } from "@/app/api/notificacoes/route";
+import type { NotificacaoApi } from "@/lib/notificacoes-resumo-server";
 import { useI18n } from "@/components/i18n-provider";
 import type { Locale } from "@/lib/i18n";
 import {
@@ -45,20 +45,26 @@ export function NotificationsBell() {
   const [carregando, setCarregando] = useState(false);
   const [jaCarregou, setJaCarregou] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const etagRef = useRef<string | null>(null);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
     try {
-      const [resNotif, resProd] = await Promise.all([
-        fetch("/api/notificacoes", { cache: "no-store" }),
-        fetch("/api/produtos", { cache: "no-store" }),
-      ]);
+      const resNotif = await fetch("/api/notificacoes/resumo", {
+        cache: "no-store",
+        headers: etagRef.current ? { "If-None-Match": etagRef.current } : {},
+      });
+      if (resNotif.status === 304) return;
+      const etag = resNotif.headers.get("etag");
+      if (etag) etagRef.current = etag;
+
       const dataNotif = resNotif.ok
-        ? ((await resNotif.json()) as { notificacoes: NotificacaoApi[] })
-        : { notificacoes: [] };
-      const produtos = resProd.ok
-        ? ((await resProd.json()) as Array<{ id: string; nome: string }>)
-        : [];
+        ? ((await resNotif.json()) as {
+            notificacoes: NotificacaoApi[];
+            produtosEstoque?: Array<{ id: string; nome: string }>;
+          })
+        : { notificacoes: [], produtosEstoque: [] };
+      const produtos = dataNotif.produtosEstoque ?? [];
       const api = (dataNotif.notificacoes || []).map(mapApiNotificacao);
       const anotacoes = notificacoesAnotacoesLocal();
       const estoque = notificacoesEstoqueLocal(produtos);

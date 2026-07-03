@@ -1,3 +1,4 @@
+import "./server-init-node";
 import { createServer } from "http";
 import { execSync } from "node:child_process";
 import path from "path";
@@ -6,6 +7,7 @@ import next from "next";
 import { Server as SocketIOServer } from "socket.io";
 import { getSessionFromCookieHeader } from "./src/lib/auth-token";
 import { getMasterSessionFromCookieHeader } from "./src/lib/master-auth-token";
+import { marcarBancoIndisponivel, tratarErroBancoSilencioso } from "./src/lib/banco-circuit-breaker";
 import { prisma } from "./src/lib/db";
 import { requisicaoTvSocket } from "./src/lib/tv/tv-socket-client";
 import { TV_SOCKET_PATH } from "./src/lib/tv/tv-socket-events";
@@ -34,17 +36,29 @@ import {
 } from "./src/lib/tv/tv-ordens-store";
 import { setTvSocketIo } from "./src/lib/tv/tv-socket-io";
 import { aquecerServidor, iniciarManutencaoServidor } from "./src/lib/servidor-saude";
+import {
+  metricasApiHabilitadas,
+  normalizarRotaApi,
+  registrarMetricaApi,
+} from "./src/lib/api-observabilidade";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME || "0.0.0.0";
 const port = parseInt(process.env.PORT || "3000", 10);
 const projectDir = path.resolve(process.cwd());
 
+if (dev && process.platform === "win32") {
+  process.env.WATCHPACK_POLLING = "true";
+  process.env.CHOKIDAR_USEPOLLING = "1";
+}
+
 process.on("unhandledRejection", (motivo) => {
+  if (tratarErroBancoSilencioso(motivo)) return;
   console.error("[process] unhandledRejection:", motivo);
 });
 
 process.on("uncaughtException", (erro) => {
+  if (tratarErroBancoSilencioso(erro)) return;
   console.error("[process] uncaughtException:", erro);
 });
 
@@ -166,6 +180,30 @@ app
       const parsedUrl = parse(req.url ?? "", true);
       const pathname = parsedUrl.pathname ?? "";
       if (requisicaoTvSocket(pathname)) return;
+
+      const medirApi =
+        metricasApiHabilitadas() && pathname.startsWith("/api");
+      const inicioApi = medirApi ? Date.now() : 0;
+      const metodoApi = req.method ?? "GET";
+
+      const promessaSessaoMetrica = medirApi
+        ? getSessionFromCookieHeader(req.headers.cookie)
+        : null;
+
+      if (medirApi) {
+        res.on("finish", () => {
+          void promessaSessaoMetrica?.then((session) => {
+            registrarMetricaApi({
+              rota: normalizarRotaApi(pathname),
+              metodo: metodoApi,
+              duracaoMs: Date.now() - inicioApi,
+              status: res.statusCode,
+              empresaId: session?.empresaId,
+            });
+          });
+        });
+      }
+
       handle(req, res, parsedUrl);
     });
 
@@ -173,11 +211,13 @@ app
 
     void aquecerServidor()
       .then(() => {
-        console.log("> Banco de dados aquecido");
+        console.log("> Banco de dados conectado");
         iniciarManutencaoServidor();
       })
-      .catch((erro) => {
-        console.error("> Falha ao aquecer banco (tentará de novo no keepalive):", erro);
+      .catch(() => {
+        console.warn(
+          "> Postgres indisponível no boot — servidor sobe em modo degradado; keepalive tentará reconectar."
+        );
         iniciarManutencaoServidor();
       });
 
@@ -222,8 +262,27 @@ app
       });
 
       httpServer.listen(port, () => {
-        console.log(`> Smart Prótese pronto em http://${hostname}:${port}`);
+        console.log(`> Lab Prótese pronto em http://${hostname}:${port}`);
         console.log(`> Socket.io TV: ${TV_SOCKET_PATH}`);
+
+        if (dev && process.env.DEV_PREWARM !== "0") {
+          const base = `http://127.0.0.1:${port}`;
+          const slugDev = process.env.DEV_PREWARM_SLUG?.trim() || "denteart";
+          setTimeout(() => {
+            console.log("> Pré-compilando rotas críticas (dev)…");
+            void Promise.allSettled([
+              fetch(`${base}/login`),
+              fetch(`${base}/api/health`),
+              fetch(`${base}/api/armazenamento/bootstrap?fase=prioritaria`),
+              fetch(`${base}/app/${slugDev}`),
+              fetch(`${base}/api/auth/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: "{}",
+              }),
+            ]).then(() => console.log("> Rotas críticas pré-compiladas"));
+          }, 2500);
+        }
 
         if (typeof process.send === "function") {
           process.send("ready");

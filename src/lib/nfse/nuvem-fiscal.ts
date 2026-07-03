@@ -1,6 +1,7 @@
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
 import { normalizarTipoPessoa } from "@/lib/configuracoes-lab";
 import { apenasDigitos } from "@/lib/documento-br";
+import { fetchComTimeout } from "@/lib/http-integracao";
 import type { NfseConfig } from "@/lib/nfse-config";
 import type { ResultadoEmissaoNfse, TomadorNfse } from "@/lib/nfse/types";
 
@@ -25,12 +26,16 @@ async function obterToken(config: NfseConfig): Promise<string> {
     scope: "empresa nfse cep",
   });
 
-  const res = await fetch(AUTH_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: body.toString(),
-    cache: "no-store",
-  });
+  const res = await fetchComTimeout(
+    AUTH_URL,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+      cache: "no-store",
+    },
+    { integracao: "nfse" }
+  );
 
   const data = (await res.json().catch(() => ({}))) as {
     access_token?: string;
@@ -57,15 +62,19 @@ async function nfseFetch<T>(
   init?: RequestInit
 ): Promise<T> {
   const token = await obterToken(config);
-  const res = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      ...(init?.headers || {}),
+  const res = await fetchComTimeout(
+    `${API_URL}${path}`,
+    {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        ...(init?.headers || {}),
+      },
+      cache: "no-store",
     },
-    cache: "no-store",
-  });
+    { integracao: "nfse" }
+  );
 
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {

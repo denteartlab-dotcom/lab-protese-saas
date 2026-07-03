@@ -39,12 +39,8 @@ import {
 } from "@/lib/fluxo-de-caixa";
 import { cn } from "@/lib/utils";
 import { opcoesFormaPagamentoFiltro } from "@/lib/formas-pagamento";
-import {
-  dataImpressaoHoje,
-  gerarRelatorioMovimentacaoPdf,
-  labelPeriodoFluxoCaixa,
-} from "@/lib/relatorio-movimentacao-pdf";
-import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
+import { prepararAbaPdf } from "@/lib/pdf-viewer";
+import { abrirRelatorioPdfJob, gerarRelatorioPdfComJob } from "@/lib/relatorio-pdf-cliente";
 
 const selectClass =
   "h-[34px] w-full rounded-sm border border-[#d1d5db] bg-white px-2 text-[12px] text-[#374151] outline-none focus:border-[#4a90d9]";
@@ -91,6 +87,7 @@ export function FluxoDeCaixaConteudo() {
     return prefs.fluxoSituacao === "previsto" ? "previsto" : "realizado";
   });
   const [pdfCarregando, setPdfCarregando] = useState(false);
+  const [pdfProgresso, setPdfProgresso] = useState(0);
   const porPagina = 20;
 
   const anosDisponiveis = useMemo(() => {
@@ -101,9 +98,27 @@ export function FluxoDeCaixaConteudo() {
   const recarregarDados = useCallback(async (silencioso = false) => {
     if (!silencioso) setCarregando(true);
     try {
-      const res = await fetch("/api/financeiro");
-      const data = await res.json();
-      setLancamentos(Array.isArray(data.lancamentos) ? data.lancamentos : []);
+      /** Prefere endpoint agregado (issue 016); fallback para /api/financeiro. */
+      const respRelatorio = await fetch(
+        "/api/relatorios/fluxo-de-caixa",
+        { cache: "no-store" }
+      ).catch(() => null);
+
+      let linhas: unknown[] = [];
+      if (respRelatorio?.ok) {
+        const dadosRel = (await respRelatorio.json()) as {
+          linhas?: Array<Record<string, unknown>>;
+        };
+        linhas = Array.isArray(dadosRel.linhas) ? dadosRel.linhas : [];
+      }
+
+      if (linhas.length === 0) {
+        const res = await fetch("/api/financeiro");
+        const data = await res.json();
+        linhas = Array.isArray(data.lancamentos) ? data.lancamentos : [];
+      }
+
+      setLancamentos(linhas as LancamentoFluxo[]);
       setContas(carregarContasBancarias().filter((c) => !c.excluida));
     } catch {
       setLancamentos([]);
@@ -230,32 +245,37 @@ export function FluxoDeCaixaConteudo() {
     pagina * porPagina
   );
 
-  const contaLabelImpressao = useMemo(() => {
-    if (conta === "Todos") return "Todas";
-    const encontrada = opcoesConta.find(
-      (c) => c.id === conta || c.nome === conta
-    );
-    return encontrada?.nome ?? conta;
-  }, [conta, opcoesConta]);
-
   async function imprimirRelatorio() {
+    if (modo !== "diario") {
+      alert("A impressão em PDF está disponível no modo diário.");
+      return;
+    }
+
     setPdfCarregando(true);
+    setPdfProgresso(0);
     const janela = prepararAbaPdf();
     try {
-      const blob = await gerarRelatorioMovimentacaoPdf({
-        linhas: resultadoDiario.linhas,
-        contaLabel: contaLabelImpressao,
-        periodoLabel: labelPeriodoFluxoCaixa(periodo, dataInicio, dataFinal),
-        dataImpressao: dataImpressaoHoje(),
-        totalGeral: resultadoDiario.saldoFinal,
-      });
-      abrirPdfNoVisualizador(blob, "relatorio-movimentacao.pdf", undefined, janela);
+      const resultado = await gerarRelatorioPdfComJob(
+        "fluxo-caixa",
+        {
+          conta,
+          tipo,
+          formaPagamento,
+          periodo,
+          dataInicio,
+          dataFim: dataFinal,
+          situacao,
+        },
+        { onProgresso: (pct) => setPdfProgresso(pct) }
+      );
+      await abrirRelatorioPdfJob(resultado, { janela });
     } catch (err) {
       janela?.close();
       console.error("gerar PDF movimentação", err);
       alert("Não foi possível gerar o PDF do relatório.");
     } finally {
       setPdfCarregando(false);
+      setPdfProgresso(0);
     }
   }
 
@@ -441,9 +461,10 @@ export function FluxoDeCaixaConteudo() {
           <div className="flex items-end gap-2">
             <button
               type="button"
-              title="Imprimir"
-              onClick={imprimirRelatorio}
-              className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-sm bg-[#4a90d9] text-white hover:bg-[#3d7fc4]"
+              title={pdfCarregando ? `Gerando… ${pdfProgresso}%` : "Imprimir"}
+              disabled={pdfCarregando}
+              onClick={() => void imprimirRelatorio()}
+              className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-sm bg-[#4a90d9] text-white hover:bg-[#3d7fc4] disabled:opacity-60"
             >
               <Printer className="h-4 w-4" />
             </button>

@@ -19,6 +19,8 @@ import {
   type FormaPagamentoOrcamento,
 } from "@/lib/orcamentos-pagamento";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { fetchPortalPublico } from "@/lib/portal-publico-cliente";
+import type { PortalPublicoPaginaOrcamento } from "@/lib/portal-publico-types";
 
 function parseMoeda(value: string) {
   return Number(value.replace(/\D/g, "")) / 100;
@@ -62,13 +64,13 @@ export default function OrcamentoPublicoPage() {
     setCarregando(true);
     setErro(null);
     try {
-      const response = await fetch(`/api/orcamentos/public/${token}`);
-      const data = await response.json();
-      if (!response.ok) {
-        setErro(data.message || "Link indisponível.");
+      const res = await fetchPortalPublico<PortalPublicoPaginaOrcamento>("orcamento", token);
+      if (!res.ok) {
+        setErro(res.message || res.error || "Link indisponível.");
         setOrcamento(null);
         return;
       }
+      const data = res.dados.entidade;
       setOrcamento(data);
       setItens(data.itens || []);
       setObservacao(data.observacoes || "");
@@ -226,6 +228,9 @@ export default function OrcamentoPublicoPage() {
       }
       setEnviado(true);
       setOrcamento(data);
+      if (data.mensagem) {
+        /* confirmação 202 — UI já mostra estado "enviado" */
+      }
     } catch {
       alert("Erro ao enviar. Tente novamente.");
     } finally {

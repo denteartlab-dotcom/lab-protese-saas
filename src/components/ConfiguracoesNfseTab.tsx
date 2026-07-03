@@ -9,6 +9,7 @@ import {
   normalizarTipoPessoa,
 } from "@/lib/configuracoes-lab";
 import { prepararAbaPdf, visualizarPdfUrl } from "@/lib/pdf-viewer";
+import { emitirNfseComJob } from "@/lib/financeiro-jobs-cliente";
 
 const labelClass = "mb-1 block text-[11px] font-medium text-slate-600 dark:text-slate-400";
 const inputClass =
@@ -134,23 +135,13 @@ export function ConfiguracoesNfseTab({ onMensagem }: Props) {
     setEmitindo(true);
     const janela = prepararAbaPdf();
     try {
-      const res = await fetch("/api/nfse/emitir", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clienteId,
-          valor: valorNum,
-          descricao: descricao.trim() || descricaoPadrao,
-        }),
+      const resultado = await emitirNfseComJob({
+        clienteId,
+        valor: valorNum,
+        descricao: descricao.trim() || descricaoPadrao,
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(
-          typeof data.error === "string" ? data.error : "Falha ao emitir nota."
-        );
-      }
-      if (data.status === "erro") {
-        onMensagem?.(data.mensagemErro || "Nota rejeitada.", "erro");
+      if (resultado.status === "erro") {
+        onMensagem?.(resultado.mensagemErro || "Nota rejeitada.", "erro");
       } else {
         onMensagem?.(
           provedor === "plugnotas"
@@ -158,8 +149,8 @@ export function ConfiguracoesNfseTab({ onMensagem }: Props) {
             : "NFS-e enviada à prefeitura (via Nuvem Fiscal).",
           "sucesso"
         );
-        if (data.pdfUrl) {
-          visualizarPdfUrl(data.pdfUrl, "nfse.pdf", "NFS-e", {
+        if (resultado.pdfUrl) {
+          visualizarPdfUrl(resultado.pdfUrl, "nfse.pdf", "NFS-e", {
             revogarAoFechar: false,
             janela,
           });

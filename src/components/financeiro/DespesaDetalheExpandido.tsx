@@ -2,7 +2,7 @@
 
 import { FileText } from "lucide-react";
 import { Button } from "@/components/ui";
-import { parseParcelaNaDescricao } from "@/lib/fatura-financeiro";
+import { parseParcelaNaDescricao } from "@/lib/fatura-financeiro-util";
 import {
   desempacotarDespesa,
   type AnexoDespesa,

@@ -3,7 +3,8 @@ import {
   empresaPrecisaPaginaRenovacao,
   empresaTemAcessoAssinatura,
 } from "@/lib/assinatura-empresa";
-import { prisma } from "@/lib/db";
+import { prismaBase } from "@/lib/prisma-base";
+import { runWithRlsBypass, runWithTenantContext } from "@/lib/prisma-tenant";
 import { montarSessionUserComAssinatura } from "@/lib/sessao-assinatura";
 
 export type EmpresaContext = {
@@ -14,25 +15,31 @@ export type EmpresaContext = {
 };
 
 async function carregarUsuarioEmpresa(session: SessionUser) {
-  return prisma.user.findUnique({
-    where: { id: session.id },
-    select: {
-      name: true,
-      email: true,
-      role: true,
-      excluidoEm: true,
-      empresaId: true,
-      empresa: {
-        select: {
-          id: true,
-          nome: true,
-          slug: true,
-          status: true,
-          dataVencimento: true,
+  const consulta = () =>
+    prismaBase.user.findUnique({
+      where: { id: session.id },
+      select: {
+        name: true,
+        email: true,
+        role: true,
+        excluidoEm: true,
+        empresaId: true,
+        empresa: {
+          select: {
+            id: true,
+            nome: true,
+            slug: true,
+            status: true,
+            dataVencimento: true,
+          },
         },
       },
-    },
-  });
+    });
+
+  if (session.empresaId) {
+    return runWithTenantContext(session.empresaId, consulta);
+  }
+  return runWithRlsBypass(consulta);
 }
 
 async function sincronizarSessaoEmpresa(session: SessionUser): Promise<SessionUser> {
@@ -88,6 +95,19 @@ export async function obterEmpresaContexto(): Promise<EmpresaContext | null> {
 }
 
 export async function requireEmpresaContext(): Promise<EmpresaContext> {
+  const ctx = await requireEmpresaContextInterno();
+  return ctx;
+}
+
+/** Executa handler com contexto de empresa + RLS ativo no PostgreSQL. */
+export async function withEmpresaContext<T>(
+  fn: (ctx: EmpresaContext) => Promise<T>
+): Promise<T> {
+  const ctx = await requireEmpresaContextInterno();
+  return runWithTenantContext(ctx.empresaId, () => fn(ctx));
+}
+
+async function requireEmpresaContextInterno(): Promise<EmpresaContext> {
   const session = await requireSession();
   const atualizada = await sincronizarSessaoEmpresa(session);
 
@@ -150,25 +170,31 @@ export function filtroTrabalhoEmpresa(empresaId: string) {
 }
 
 export async function empresaAtivaPorSlug(slug: string) {
-  return prisma.empresa.findFirst({
-    where: { slug, status: "ativo" },
-    select: { id: true, nome: true, slug: true, status: true },
-  });
+  return runWithRlsBypass(() =>
+    prismaBase.empresa.findFirst({
+      where: { slug, status: "ativo" },
+      select: { id: true, nome: true, slug: true, status: true },
+    })
+  );
 }
 
 export async function carregarEmpresaUsuario(userId: string) {
-  return prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      empresaId: true,
-      empresa: { select: { id: true, nome: true, slug: true, status: true, dataVencimento: true } },
-    },
-  });
+  return runWithRlsBypass(() =>
+    prismaBase.user.findUnique({
+      where: { id: userId },
+      select: {
+        empresaId: true,
+        empresa: { select: { id: true, nome: true, slug: true, status: true, dataVencimento: true } },
+      },
+    })
+  );
 }
 
 export async function verificarTrabalhoEmpresa(trabalhoId: string, empresaId: string) {
-  return prisma.trabalho.findFirst({
-    where: { id: trabalhoId, empresaId },
-    select: { id: true },
-  });
+  return runWithTenantContext(empresaId, () =>
+    prismaBase.trabalho.findFirst({
+      where: { id: trabalhoId, empresaId },
+      select: { id: true },
+    })
+  );
 }

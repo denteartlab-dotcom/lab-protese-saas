@@ -40,6 +40,11 @@ type CobrancaPix = {
   empresaSlug: string | null;
 };
 
+type SyncJobPix = {
+  jobId: string;
+  status: string;
+};
+
 export function PagamentoAssinaturaPainel() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -51,6 +56,7 @@ export function PagamentoAssinaturaPainel() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
   const [cobranca, setCobranca] = useState<CobrancaPix | null>(null);
+  const [syncJob, setSyncJob] = useState<SyncJobPix | null>(null);
   const [copiado, setCopiado] = useState(false);
 
   const gerarPix = useCallback(async (forcarNova = false) => {
@@ -95,7 +101,10 @@ export function PagamentoAssinaturaPainel() {
           { cache: "no-store" }
         );
         if (!res.ok) return;
-        const data = (await res.json()) as { cobranca?: CobrancaPix };
+        const data = (await res.json()) as {
+          cobranca?: CobrancaPix;
+          syncJob?: SyncJobPix;
+        };
         if (!data.cobranca) return;
         setCobranca((atual) => ({
           ...data.cobranca!,
@@ -103,6 +112,7 @@ export function PagamentoAssinaturaPainel() {
             data.cobranca!.pixEncodedImage || atual?.pixEncodedImage || null,
           pixExpiraEm: data.cobranca!.pixExpiraEm ?? atual?.pixExpiraEm ?? null,
         }));
+        if (data.syncJob) setSyncJob(data.syncJob);
         if (data.cobranca.pago && data.cobranca.renovadoEm) {
           const slug = data.cobranca.empresaSlug?.trim();
           router.replace(slug ? `/app/${slug}` : "/app");
@@ -244,6 +254,9 @@ export function PagamentoAssinaturaPainel() {
 
             <p className="text-center text-xs text-slate-500">
               Após pagar, o acesso é liberado automaticamente em poucos segundos.
+              {syncJob && (syncJob.status === "pendente" || syncJob.status === "executando")
+                ? " Verificando pagamento..."
+                : ""}
             </p>
           </div>
         ) : null}

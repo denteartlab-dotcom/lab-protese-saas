@@ -6,6 +6,7 @@ import { contaOfxCombina, parseOfxArquivo } from "@/lib/extrato-ofx";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** @deprecated Preferir POST /api/financeiro/conta-bancaria/import-ofx (job assíncrono, issue 011). */
 export async function POST(request: Request) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) {

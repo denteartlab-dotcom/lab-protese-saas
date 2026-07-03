@@ -117,5 +117,13 @@ export async function PATCH(request: Request, { params }: Params) {
     },
   });
 
-  return NextResponse.json(mapOrcamento(updated));
+  /** 202 Accepted — confirmação rápida ao fornecedor (issue 029). */
+  return NextResponse.json(
+    {
+      ok: true,
+      mensagem: "Resposta recebida com sucesso. O laboratório foi notificado.",
+      ...mapOrcamento(updated),
+    },
+    { status: 202 }
+  );
 }

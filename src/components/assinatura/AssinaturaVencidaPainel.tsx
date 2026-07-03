@@ -18,7 +18,7 @@ import {
   XCircle,
 } from "lucide-react";
 import type { ContextoAssinaturaVencida } from "@/lib/contexto-assinatura-vencida";
-import type { LabBrandingPublico } from "@/lib/lab-branding";
+import type { LabBrandingPublico } from "@/lib/lab-branding-types";
 import { dimensoesLogoPx } from "@/lib/lab-logo";
 import {
   recursosPlanosAssinatura,

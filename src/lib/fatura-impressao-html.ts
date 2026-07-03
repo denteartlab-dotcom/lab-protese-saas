@@ -9,7 +9,7 @@ import {
   type ConfiguracoesFaturas,
   type ModeloFaturaId,
 } from "@/lib/configuracoes-faturas";
-import { parseParcelaNaDescricao, textoParcelaLog } from "@/lib/fatura-financeiro";
+import { parseParcelaNaDescricao, textoParcelaLog } from "@/lib/fatura-financeiro-util";
 import {
   classificarItemOs,
   type SegmentoFaturamento,

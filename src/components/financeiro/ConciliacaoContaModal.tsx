@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { Upload, User, X } from "lucide-react";
 import type { ContaBancaria } from "@/lib/conta-bancaria";
 import type { ExtratoMovimentacao } from "@/lib/extrato-bancario";
-import { salvarConciliacaoNaConta } from "@/lib/conciliacao-ofx-salvar";
+import type { ResultadoConciliacaoContaJob } from "@/lib/conciliacao-ofx-servidor";
 import {
   montarOpcoesProcedimentoPorTipo,
   sugerirProcedimento,
@@ -31,6 +31,8 @@ import {
   salvarLancamentoProcedimento,
 } from "@/lib/conciliacao-lancamento";
 import { persistirContasBancariasApi } from "@/lib/conta-bancaria-api";
+import { aguardarJobCliente } from "@/lib/jobs/polling-cliente";
+import type { ResultadoImportOfxJob } from "@/lib/ofx-import-servidor";
 
 type ExtratoPendente = Omit<ExtratoMovimentacao, "contaId">[];
 
@@ -159,6 +161,7 @@ export function ConciliacaoContaModal({
     useState<MovimentacaoOfx | null>(null);
   const [salvandoProcedimento, setSalvandoProcedimento] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [progressoJob, setProgressoJob] = useState(0);
   const [contaIdentificadaId, setContaIdentificadaId] = useState<string | null>(
     null
   );
@@ -239,22 +242,24 @@ export function ConciliacaoContaModal({
       try {
         const form = new FormData();
         form.append("arquivo", file);
-        const res = await fetch("/api/contas-bancarias/ofx", {
+        const res = await fetch("/api/financeiro/conta-bancaria/import-ofx", {
           method: "POST",
           body: form,
         });
-        const json = (await res.json().catch(() => ({}))) as {
+        const iniciado = (await res.json().catch(() => ({}))) as {
           error?: string;
-          parseResult?: OfxParseResult;
-          contaEncontrada?: ContaBancaria | null;
-          contaNaoCadastrada?: boolean;
+          jobId?: string;
         };
 
-        if (!res.ok) {
-          setErroLeitura(json.error || "Falha ao ler o arquivo OFX.");
+        if (!res.ok || !iniciado.jobId) {
+          setErroLeitura(iniciado.error || "Falha ao enfileirar leitura do OFX.");
           return;
         }
 
+        const job = await aguardarJobCliente(iniciado.jobId, {
+          onProgresso: (p) => setProgressoJob(p),
+        });
+        const json = (job.resultado ?? {}) as ResultadoImportOfxJob;
         const resultado = json.parseResult;
         if (
           !resultado ||
@@ -268,10 +273,13 @@ export function ConciliacaoContaModal({
         setParseResult(resultado);
         setContaIdentificadaId(json.contaEncontrada?.id ?? null);
         aplicarSugestoesProcedimento(resultado.movimentacoes);
-      } catch {
-        setErroLeitura("Falha ao ler o arquivo OFX.");
+      } catch (err) {
+        setErroLeitura(
+          err instanceof Error ? err.message : "Falha ao ler o arquivo OFX."
+        );
       } finally {
         setLendo(false);
+        setProgressoJob(0);
       }
     },
     [aplicarSugestoesProcedimento]
@@ -371,34 +379,57 @@ export function ConciliacaoContaModal({
     }
 
     setSalvando(true);
+    setProgressoJob(0);
     try {
-      const movimentacoes = await salvarConciliacaoNaConta({
-        conta: contaEncontrada,
-        linhas: linhasTabela,
-        procedimentos,
-        lancamentos,
-        resumirDescricao,
+      const res = await fetch("/api/financeiro/conciliacao", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contaId: contaEncontrada.id,
+          linhas: linhasTabela,
+          procedimentos,
+          lancamentos,
+          resumirDescricao,
+        }),
       });
+      const iniciado = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        jobId?: string;
+      };
+      if (!res.ok || !iniciado.jobId) {
+        throw new Error(iniciado.error || "Falha ao enfileirar conciliação.");
+      }
 
+      const job = await aguardarJobCliente(iniciado.jobId, {
+        onProgresso: (p) => setProgressoJob(p),
+      });
+      const resultado = (job.resultado ?? {}) as ResultadoConciliacaoContaJob;
+
+      if (resultado.erros?.length) {
+        setErroLeitura(
+          `Conciliação parcial: ${resultado.processados}/${resultado.total} linhas. ` +
+            resultado.erros.map((e) => e.mensagem).slice(0, 3).join("; ")
+        );
+      }
+
+      const movimentacoes = resultado.movimentacoesExtrato ?? [];
       if (movimentacoes.length > 0) {
         const { mesclarExtrato, carregarExtratoBancario, salvarExtratoBancario } =
           await import("@/lib/extrato-bancario");
-        const extrato = mesclarExtrato(
-          carregarExtratoBancario(),
-          movimentacoes
-        );
+        const extrato = mesclarExtrato(carregarExtratoBancario(), movimentacoes);
         salvarExtratoBancario(extrato);
         await persistirContasBancariasApi({ extrato });
       }
 
       await onConciliacaoSalva();
-      onClose();
+      if (!resultado.erros?.length) onClose();
     } catch (err) {
       setErroLeitura(
         err instanceof Error ? err.message : "Não foi possível salvar a conciliação."
       );
     } finally {
       setSalvando(false);
+      setProgressoJob(0);
     }
   }
 
@@ -495,7 +526,13 @@ export function ConciliacaoContaModal({
               <input
                 type="text"
                 readOnly
-                value={lendo ? "Lendo arquivo OFX..." : nomeArquivo || "Selecione o arquivo OFX"}
+                value={
+                  lendo
+                    ? progressoJob > 0
+                      ? `Processando OFX… ${progressoJob}%`
+                      : "Lendo arquivo OFX..."
+                    : nomeArquivo || "Selecione o arquivo OFX"
+                }
                 onClick={() => inputRef.current?.click()}
                 className="min-w-0 flex-1 cursor-pointer border-0 bg-white px-3 py-2.5 text-[13px] text-slate-700 outline-none"
               />
@@ -747,7 +784,11 @@ export function ConciliacaoContaModal({
             disabled={!parseResult || lendo || salvando}
             className="h-9 rounded border border-[#4a90d9] bg-[#4a90d9] px-5 text-[13px] text-white hover:bg-[#3d7fc4] disabled:opacity-50"
           >
-            {salvando ? "Salvando..." : "Cadastrar"}
+            {salvando
+              ? progressoJob > 0
+                ? `Salvando… ${progressoJob}%`
+                : "Salvando..."
+              : "Cadastrar"}
           </button>
           <button
             type="button"

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import type { UrgenteClienteDashboardItem } from "@/lib/urgencia-cliente";
+import type { UrgenteClienteDashboardItem } from "@/lib/urgencia-cliente-util";
 
 type Props = {
   titulo: string;

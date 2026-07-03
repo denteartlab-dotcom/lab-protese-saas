@@ -4,12 +4,16 @@ import { readFileSync } from "fs";
 import path from "path";
 
 const projectRoot = path.resolve(__dirname);
-const projectRootPosix = projectRoot.replace(/\\/g, "/");
 
-function caminhoForaDoProjeto(watchPath: string): boolean {
-  const normalizado = path.resolve(watchPath).replace(/\\/g, "/");
-  return !normalizado.startsWith(projectRootPosix);
-}
+const webpackWatchIgnoredGlobs = [
+  "**/node_modules/**",
+  "**/.git/**",
+  "**/.next/**",
+  "**/System Volume Information/**",
+  "**/hiberfil.sys",
+  "**/swapfile.sys",
+  "**/pagefile.sys",
+];
 
 function resolveAppBuildId() {
   if (process.env.NODE_ENV === "development") {
@@ -129,27 +133,10 @@ const nextConfig: NextConfig = {
       config.watchOptions = {
         ...config.watchOptions,
         followSymlinks: false,
-        ignored: [
-          "**/node_modules/**",
-          "**/.git/**",
-          "**/.next/**",
-          "**/System Volume Information/**",
-          "**/hiberfil.sys",
-          "**/swapfile.sys",
-          "**/pagefile.sys",
-          (watchPath: string) => {
-            const base = path.basename(watchPath);
-            if (
-              base === "hiberfil.sys" ||
-              base === "swapfile.sys" ||
-              base === "pagefile.sys"
-            ) {
-              return true;
-            }
-            if (watchPath.includes("System Volume Information")) return true;
-            return caminhoForaDoProjeto(watchPath);
-          },
-        ],
+        ignored: webpackWatchIgnoredGlobs,
+        ...(process.platform === "win32"
+          ? { poll: 2000, aggregateTimeout: 500 }
+          : {}),
       };
     }
     return config;

@@ -19,7 +19,7 @@ import {
   textoParcelaLog,
   textoServicoLog,
   TIPOS_ALTERACAO_LOG,
-} from "@/lib/logs-auditoria";
+} from "@/lib/logs-auditoria-core";
 import { cn, exibirTexto } from "@/lib/utils";
 
 const labelClass = "mb-1 block text-[11px] font-normal text-[#6b7280]";

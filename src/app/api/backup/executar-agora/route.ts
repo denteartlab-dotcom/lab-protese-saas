@@ -6,15 +6,15 @@ import {
 } from "@/lib/backup-empresa-pasta";
 import { onedriveBackupSyncHabilitado } from "@/lib/backup-onedrive-sync";
 import { exigirProprietario } from "@/lib/exigir-proprietario";
+import { criarJob, executarJobEmBackground } from "@/lib/jobs";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
 
 function hospedagemVercel() {
   return process.env.VERCEL === "1";
 }
 
-/** Gera backup completo na pasta do servidor (JSON + uploads/) e opcionalmente envia ao OneDrive. */
+/** Enfileira backup no servidor — resposta imediata com jobId (issue 026). */
 export async function POST() {
   const auth = await exigirProprietario();
   if (auth.erro) return auth.erro;
@@ -32,43 +32,42 @@ export async function POST() {
   const { empresaId, empresaSlug, empresaNome } = auth.session!;
 
   try {
-    const resultado = await executarBackupAutomatico(
-      empresaId,
+    const job = await criarJob(empresaId, "backup_servidor", {
       empresaSlug,
-      empresaNome
-    );
-
-    if (!resultado) {
-      return NextResponse.json(
-        {
-          error:
-            "Não foi possível gerar o backup no servidor. Verifique os logs ou tente novamente em instantes.",
-        },
-        { status: 500 }
-      );
-    }
+      empresaNome,
+    });
+    executarJobEmBackground(job.id, empresaId);
 
     return NextResponse.json({
-      ok: true,
-      destino: resultado.destino,
-      exportedAt: resultado.exportedAt,
+      jobId: job.id,
+      status: job.status,
       pastaPadrao: caminhoRelativoPastaBackupEmpresa(empresaSlug, empresaNome),
       pastaUploads: caminhoRelativoUploadsBackupEmpresa(empresaSlug, empresaNome),
-      uploadsArquivos: resultado.uploadsArquivos ?? 0,
-      onedrive: {
-        habilitado: onedriveBackupSyncHabilitado(),
-        sincronizado: resultado.onedrive?.ok === true,
-        erro:
-          resultado.onedrive?.ok === false && resultado.onedrive.erro !== "desativado"
-            ? resultado.onedrive.erro
-            : null,
-      },
+      onedrive: { habilitado: onedriveBackupSyncHabilitado() },
     });
   } catch (erro) {
     console.error("[backup/executar-agora]", erro);
     return NextResponse.json(
-      { error: "Não foi possível gerar o backup no servidor." },
+      { error: "Não foi possível iniciar o backup no servidor." },
       { status: 500 }
     );
   }
+}
+
+/** Compatibilidade: execução síncrona legada (cron interno). */
+export async function PUT() {
+  const auth = await exigirProprietario();
+  if (auth.erro) return auth.erro;
+
+  if (hospedagemVercel()) {
+    return NextResponse.json({ error: "Indisponível na Vercel." }, { status: 501 });
+  }
+
+  const { empresaId, empresaSlug, empresaNome } = auth.session!;
+  const resultado = await executarBackupAutomatico(empresaId, empresaSlug, empresaNome);
+  if (!resultado) {
+    return NextResponse.json({ error: "Falha ao gerar backup." }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, ...resultado });
 }

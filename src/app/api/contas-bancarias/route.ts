@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { invalidarCachePainelFinanceiro } from "@/lib/financeiro-painel-cache";
 import {
   listarContasBancariasServidor,
   listarExtratoBancarioServidor,
@@ -124,6 +125,7 @@ export async function PUT(request: Request) {
       listarExtratoBancarioServidor(ctx.empresaId),
     ]);
 
+    invalidarCachePainelFinanceiro(ctx.empresaId, "conta-bancaria");
     return NextResponse.json({ contas, movimentacoes, extrato });
   } catch (err) {
     console.error("[contas-bancarias PUT]", err);

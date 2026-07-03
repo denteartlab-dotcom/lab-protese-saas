@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MessageCircle, X } from "lucide-react";
-import type { SuporteMensagemDto } from "@/lib/suporte-chat";
+import type { SuporteMensagemDto } from "@/lib/suporte-chat-types";
 import { SuporteChatInput } from "@/components/suporte/SuporteChatInput";
 import { SuporteMensagemBubble } from "@/components/suporte/SuporteMensagemBubble";
 import { useSuporteChatRealtime } from "@/hooks/useSuporteChatRealtime";
@@ -33,7 +33,9 @@ export function SuporteChatWidget() {
 
   const carregarContagem = useCallback(async () => {
     try {
-      const res = await fetch("/api/suporte/chat?contagem=1", { cache: "no-store" });
+      const res = await fetch("/api/suporte/conversa/contexto?marcarLidas=0", {
+        cache: "no-store",
+      });
       if (!res.ok) return;
       const data = (await res.json()) as { naoLidas?: number; suporteOnline?: boolean };
       setNaoLidas(data.naoLidas ?? 0);
@@ -47,7 +49,7 @@ export function SuporteChatWidget() {
     setCarregando(true);
     setErro("");
     try {
-      const res = await fetch("/api/suporte/chat", { cache: "no-store" });
+      const res = await fetch("/api/suporte/conversa/contexto", { cache: "no-store" });
       if (!res.ok) {
         setErro("Não foi possível carregar o chat.");
         return;

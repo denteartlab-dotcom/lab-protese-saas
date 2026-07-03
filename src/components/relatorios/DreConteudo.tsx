@@ -26,9 +26,8 @@ import {
   desempacotarDespesa,
   descricaoLancamentoExibicao,
 } from "@/lib/lancamento-despesa";
-import { visualizarPdfUrl } from "@/lib/pdf-viewer";
-import { FINANCEIRO_ATUALIZADO_EVENT } from "@/lib/financeiro-events";
 import { lancamentoEfetivadoFinanceiro } from "@/lib/lancamento-financeiro-realizado";
+import { FINANCEIRO_ATUALIZADO_EVENT } from "@/lib/financeiro-events";
 
 const LINHAS_CLICAVEIS = new Set<DreLinhaId>([
   "receita_bruta",
@@ -262,12 +261,6 @@ export function DreConteudo() {
     });
   }
 
-  function abrirPdfViewer(url: string, titulo: string, janela?: Window | null) {
-    const nome = `${titulo.replace(/\s+/g, "-").toLowerCase()}.pdf`;
-    visualizarPdfUrl(url, nome, titulo, { janela });
-    setImprimirModalAberto(false);
-  }
-
   function exportarExcel() {
     const csv = exportarDreCsv(matriz);
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
@@ -498,7 +491,6 @@ export function DreConteudo() {
         matriz={matriz}
         planoContas={planoContas}
         anoPadrao={ano}
-        onAbrirPdf={abrirPdfViewer}
       />
 
       {drilldown && (

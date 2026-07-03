@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { sincronizarPagamentoAssinatura } from "@/lib/assinatura-pix-servidor";
-import { obterPagamentoMercadoPagoPlataforma } from "@/lib/mercadopago-plataforma";
+import {
+  enfileirarJobWebhookAssinatura,
+  resolverEmpresaIdWebhookMercadoPago,
+} from "@/lib/assinatura-webhook-job";
 import {
   obterConfigMercadoPagoPlataforma,
   urlWebhookMercadoPagoPlataforma,
@@ -44,8 +46,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, ignored: true });
   }
 
-  const dataIdAssinatura =
-    url.searchParams.get("data.id") || paymentId;
+  const dataIdAssinatura = url.searchParams.get("data.id") || paymentId;
 
   const assinaturaValida = validarAssinaturaWebhookMercadoPago({
     xSignature: request.headers.get("x-signature"),
@@ -58,25 +59,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Assinatura inválida" }, { status: 401 });
   }
 
-  try {
-    const tipo = (body.type || body.action || body.topic || url.searchParams.get("type") || "")
-      .toLowerCase();
-    if (tipo && !tipo.includes("payment")) {
-      return NextResponse.json({ ok: true, ignored: true });
-    }
-
-    const pagamento = await obterPagamentoMercadoPagoPlataforma(paymentId);
-    const resultado = await sincronizarPagamentoAssinatura(
-      pagamento.id,
-      pagamento.status,
-      pagamento.pagoEm
-    );
-
-    return NextResponse.json({ ok: true, renovado: resultado.renovado });
-  } catch (error) {
-    console.error("[mercadopago/webhook]", error);
-    return NextResponse.json({ ok: true });
+  const tipo = (body.type || body.action || body.topic || url.searchParams.get("type") || "")
+    .toLowerCase();
+  if (tipo && !tipo.includes("payment")) {
+    return NextResponse.json({ ok: true, ignored: true });
   }
+
+  const empresaId = await resolverEmpresaIdWebhookMercadoPago(paymentId);
+  if (!empresaId) {
+    return NextResponse.json({ ok: true, ignored: true });
+  }
+
+  const chaveIdempotencia = `mercadopago:payment:${paymentId}`;
+  const enfileirado = await enfileirarJobWebhookAssinatura({
+    empresaId,
+    tipo: "webhook_mercadopago_assinatura",
+    chaveIdempotencia,
+    payload: { paymentId, chaveIdempotencia },
+  });
+
+  return NextResponse.json({
+    ok: true,
+    jobId: enfileirado.jobId,
+    duplicate: enfileirado.duplicate === true,
+  });
 }
 
 export async function GET() {
@@ -89,9 +95,7 @@ export async function GET() {
     configurado: Boolean(config.accessToken),
     ambiente: config.ambiente,
     webhookSecretConfigurado: Boolean(config.webhookSecret),
-    webhookUrl:
-      webhookUrl?.replace(/\?source_news=webhooks$/, "") ||
-      null,
+    webhookUrl: webhookUrl?.replace(/\?source_news=webhooks$/, "") || null,
     instrucoes:
       "Cadastre webhookUrl no painel MP (evento Pagamentos) e copie o secret para MP_PLATAFORMA_WEBHOOK_SECRET.",
   });

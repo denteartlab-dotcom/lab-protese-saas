@@ -1,15 +1,14 @@
 import { montarUrlPublica } from "@/lib/app-url";
 import { buscarJsonStorePublicoPorToken } from "@/lib/json-store-tenant";
-import { garantirUrlPublicaAbsoluta } from "@/lib/whatsapp";
+import {
+  type ExtratoPublicaRegistro,
+} from "@/lib/extrato-publica-cliente";
 
-export type ExtratoPublicaRegistro = {
-  base64: string;
-  nomeArquivo: string;
-  titulo: string;
-  clienteNome: string;
-  criadoEm: string;
-  expiraEm: string;
-};
+export {
+  mensagemWhatsappExtratoConferencia,
+  publicarExtratoPublica,
+  type ExtratoPublicaRegistro,
+} from "@/lib/extrato-publica-cliente";
 
 export const PREFIXO_JSON_STORE_EXTRATO_PUBLICA = "extrato-publica:";
 const DIAS_VALIDADE = 30;
@@ -63,40 +62,4 @@ export function registroExtratoPublicaValido(
   const expira = new Date(registro.expiraEm);
   if (Number.isNaN(expira.getTime())) return true;
   return expira.getTime() >= Date.now();
-}
-
-export function mensagemWhatsappExtratoConferencia(input: {
-  clienteNome: string;
-  publicUrl: string;
-}) {
-  return `Extrato Financeiro — ${input.clienteNome}\nSolicito o extrato para conferência.\n\n${input.publicUrl}`;
-}
-
-export async function publicarExtratoPublica(input: {
-  blob: Blob;
-  clienteNome: string;
-  nomeArquivo: string;
-  titulo: string;
-}) {
-  const { blobParaBase64 } = await import("@/lib/pdf-viewer-aba");
-  const base64 = await blobParaBase64(input.blob);
-  const res = await fetch("/api/financeiro/extrato-publica", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      base64,
-      clienteNome: input.clienteNome,
-      nomeArquivo: input.nomeArquivo,
-      titulo: input.titulo,
-    }),
-  });
-  const json = (await res.json().catch(() => ({}))) as {
-    token?: string;
-    url?: string;
-    error?: string;
-  };
-  if (!res.ok || !json.url) {
-    throw new Error(json.error || "Não foi possível publicar o extrato.");
-  }
-  return garantirUrlPublicaAbsoluta(json.url);
 }

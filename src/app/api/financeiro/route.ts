@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { invalidarCachePainelFinanceiro } from "@/lib/financeiro-painel-cache";
 import { tentarEmitirBoletoParaLancamento } from "@/lib/asaas-boleto";
 import { parseParcelaNaDescricao } from "@/lib/fatura-financeiro";
 import { descricaoDespesaComParcela } from "@/lib/lancamento-despesa";
+import { criarJob, executarJobEmBackground } from "@/lib/jobs";
 import {
   auditarCriacaoDespesasParceladas,
   auditarCriacaoLancamento,
@@ -33,6 +35,8 @@ const schema = z.object({
   clienteId: z.string().optional(),
   trabalhoId: z.string().optional(),
   emitirBoleto: z.boolean().optional(),
+  /** Se true, enfileira job para emitir o boleto em background (issue 030). */
+  emitirBoletoAsync: z.boolean().optional(),
   parcelaNumero: z.number().int().positive().optional(),
   parcelaTotal: z.number().int().positive().optional(),
   numeroFatura: z.number().int().positive().optional(),
@@ -139,7 +143,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const data = schema.parse(body);
-    const { emitirBoleto, parcelas: parcelasBody } = data;
+    const { emitirBoleto, emitirBoletoAsync, parcelas: parcelasBody } = data;
     const { empresaId, user: session } = ctx;
 
     if (
@@ -176,6 +180,7 @@ export async function POST(request: Request) {
         return lista;
       });
       await auditarCriacaoDespesasParceladas(session, criados);
+      invalidarCachePainelFinanceiro(empresaId);
       return NextResponse.json({ lancamentos: criados }, { status: 201 });
     }
 
@@ -226,8 +231,9 @@ export async function POST(request: Request) {
         });
         criados.push(lancamento);
       }
-      const numeroFatura = await auditarCriacaoReceitasParceladas(session, criados);
+      const numeroFatura =       await auditarCriacaoReceitasParceladas(session, criados);
       await sincronizarReceitasPagas(criados);
+      invalidarCachePainelFinanceiro(empresaId);
       return NextResponse.json(
         { lancamentos: criados, numeroFatura },
         { status: 201 }
@@ -261,6 +267,29 @@ export async function POST(request: Request) {
       emitirBoleto !== false &&
       (data.formaPagamento || "").toLowerCase().includes("boleto");
 
+    /** Modo async (issue 030): enfileira job para não travar o request. */
+    if (deveEmitirBoleto && emitirBoletoAsync === true) {
+      const audit = await auditarCriacaoLancamento(session, lancamento, {
+        parcelaNumero,
+        parcelaTotal,
+        numeroFatura: data.numeroFatura,
+      });
+      const job = await criarJob(ctx.empresaId, "emitir_boleto_asaas", {
+        lancamentoId: lancamento.id,
+      });
+      executarJobEmBackground(job.id, ctx.empresaId);
+      invalidarCachePainelFinanceiro(ctx.empresaId);
+      return NextResponse.json(
+        {
+          ...lancamento,
+          boletoEmitido: false,
+          boletoJobId: job.id,
+          numeroFatura: audit.numeroFatura,
+        },
+        { status: 202 }
+      );
+    }
+
     if (deveEmitirBoleto) {
       try {
         const cobranca = await tentarEmitirBoletoParaLancamento(lancamento.id);
@@ -277,6 +306,7 @@ export async function POST(request: Request) {
           parcelaTotal,
           numeroFatura: audit.numeroFatura ?? data.numeroFatura,
         });
+        invalidarCachePainelFinanceiro(ctx.empresaId);
         return NextResponse.json(
           {
             ...registro,
@@ -286,10 +316,30 @@ export async function POST(request: Request) {
           { status: 201 }
         );
       } catch (err) {
-        await prisma.lancamento.delete({ where: { id: lancamento.id } });
+        console.error("[financeiro POST] boleto asaas", err);
         const msg =
           err instanceof Error ? err.message : "Falha ao emitir boleto no Asaas.";
-        return NextResponse.json({ error: msg }, { status: 422 });
+        let numeroFaturaRetornoBoleto = data.numeroFatura;
+        try {
+          const audit = await auditarCriacaoLancamento(session, lancamento, {
+            parcelaNumero,
+            parcelaTotal,
+            numeroFatura: data.numeroFatura,
+          });
+          numeroFaturaRetornoBoleto = audit.numeroFatura ?? numeroFaturaRetornoBoleto;
+        } catch (auditErr) {
+          console.error("[financeiro POST] auditoria pós-falha boleto", auditErr);
+        }
+        invalidarCachePainelFinanceiro(ctx.empresaId);
+        return NextResponse.json(
+          {
+            ...lancamento,
+            boletoEmitido: false,
+            avisoBoleto: msg,
+            numeroFatura: numeroFaturaRetornoBoleto,
+          },
+          { status: 201 }
+        );
       }
     }
 
@@ -313,6 +363,7 @@ export async function POST(request: Request) {
       }
     }
 
+    invalidarCachePainelFinanceiro(ctx.empresaId);
     return NextResponse.json(
       { ...lancamento, numeroFatura: numeroFaturaRetorno },
       { status: 201 }

@@ -23,9 +23,13 @@ function envComMaisMemoria() {
       ...base,
       WATCHPACK_POLLING: "true",
       CHOKIDAR_USEPOLLING: "1",
+      NEXT_PUBLIC_DEV_BOOT: String(Date.now()),
     };
   }
-  return base;
+  return {
+    ...base,
+    NEXT_PUBLIC_DEV_BOOT: String(Date.now()),
+  };
 }
 
 async function precisaRebuild(outfile, entrada) {

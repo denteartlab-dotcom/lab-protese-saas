@@ -440,7 +440,6 @@ export async function sincronizarPagamentoAssinatura(
   if (!cobranca) return { renovado: false };
 
   const pago = statusCobrancaAssinaturaPago(cobranca.provedor, statusPagamento);
-  const jaRenovado = Boolean(cobranca.renovadoEm);
   const pagoEmFinal =
     pago && !cobranca.pagoEm
       ? pagoEmInformado && !Number.isNaN(pagoEmInformado.getTime())
@@ -456,7 +455,19 @@ export async function sincronizarPagamentoAssinatura(
     },
   });
 
-  if (!pago || jaRenovado) {
+  if (!pago || cobranca.renovadoEm) {
+    return { renovado: false, empresaId: cobranca.empresaId };
+  }
+
+  const reservaRenovacao = await prisma.cobrancaAssinatura.updateMany({
+    where: { id: cobranca.id, renovadoEm: null },
+    data: {
+      renovadoEm: new Date(),
+      ...(pagoEmFinal && !cobranca.pagoEm ? { pagoEm: pagoEmFinal } : {}),
+    },
+  });
+
+  if (reservaRenovacao.count === 0) {
     return { renovado: false, empresaId: cobranca.empresaId };
   }
 
@@ -465,11 +476,6 @@ export async function sincronizarPagamentoAssinatura(
     cobranca.diasRenovacao,
     cobranca.plano
   );
-
-  await prisma.cobrancaAssinatura.update({
-    where: { id: cobranca.id },
-    data: { renovadoEm: new Date() },
-  });
 
   console.log(
     `[assinatura-pix/${cobranca.provedor}] Renovação automática: ${cobranca.empresa.nome} até ${formatarDataAssinatura(novaData)}`

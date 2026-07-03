@@ -7,7 +7,9 @@ import {
   compararTrabalhosAcompanhamento,
   opcoesFiltroSituacaoAcompanhamento,
   type ClienteAcompanhamentoPublico,
-} from "@/lib/cliente-acompanhamento";
+} from "@/lib/cliente-acompanhamento-cliente";
+import { fetchPortalPublico } from "@/lib/portal-publico-cliente";
+import type { PortalPublicoPaginaAcompanhamento } from "@/lib/portal-publico-types";
 import { normalizarChaveStatusOs } from "@/lib/status-os";
 import { Modal } from "@/components/ui";
 import { cn, formatDate } from "@/lib/utils";
@@ -50,17 +52,17 @@ export default function AcompanhamentoClientePage() {
   const carregar = useCallback(async (silencioso = false) => {
     if (!silencioso) setCarregando(true);
     try {
-      const res = await fetch(`/api/clientes/public/${token}`, {
-        cache: "no-store",
-      });
-      const json = await res.json();
+      const res = await fetchPortalPublico<PortalPublicoPaginaAcompanhamento>(
+        "acompanhamento",
+        token
+      );
       if (!res.ok) {
-        setErro(json.message || "Link indisponível.");
+        setErro(res.message || res.error || "Link indisponível.");
         setDados(null);
         return;
       }
       setErro(null);
-      setDados(json as ClienteAcompanhamentoPublico);
+      setDados(res.dados.entidade);
       setUltimaAtualizacao(new Date());
     } catch {
       setErro("Não foi possível carregar o acompanhamento.");

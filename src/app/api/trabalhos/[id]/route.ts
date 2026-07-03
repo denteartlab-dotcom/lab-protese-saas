@@ -314,7 +314,7 @@ export async function PUT(
       }
     }
 
-    void notificarTvOrdensEmpresa(ctx.empresaId);
+    void notificarTvOrdensEmpresa(ctx.empresaId, id);
 
     return NextResponse.json(trabalho);
   } catch (error) {
@@ -399,6 +399,6 @@ export async function DELETE(
   } catch {
     return NextResponse.json({ ok: true });
   }
-  void notificarTvOrdensEmpresa(ctx.empresaId);
+  void notificarTvOrdensEmpresa(ctx.empresaId, id);
   return NextResponse.json({ ok: true });
 }

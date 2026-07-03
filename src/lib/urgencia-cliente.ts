@@ -3,15 +3,29 @@ import { lerJsonStoreTenant, salvarJsonStoreTenant } from "@/lib/json-store-tena
 import { garantirTokenAcompanhamentoCliente } from "@/lib/cliente-acompanhamento";
 import { flagsUrgenciaTrabalho } from "@/lib/modulo-producao-os";
 import { hrefAcompanhamentoClienteOs } from "@/lib/whatsapp";
+import {
+  eventoNoDia,
+  fimDiaBr,
+  inicioDiaBr,
+  isLinhaAuditoriaUrgenciaCliente,
+  JSON_STORE_URGENCIAS_CLIENTE,
+  LIMITE_URGENCIAS_ATIVAS_CLIENTE,
+  LIMITE_URGENCIAS_DIA_CLIENTE,
+  removerMarcacaoUrgenteInstrucoes,
+  type UrgenteClienteDashboardItem,
+} from "@/lib/urgencia-cliente-util";
 
-export const LIMITE_URGENCIAS_ATIVAS_CLIENTE = 5;
-export const LIMITE_URGENCIAS_DIA_CLIENTE = 2;
-export const JSON_STORE_URGENCIAS_CLIENTE = "labProteseUrgenciasCliente";
-
-/** Linha de auditoria gravada em instruções (legado — não exibir na observação da OS). */
-export function isLinhaAuditoriaUrgenciaCliente(linha: string) {
-  return linha.includes("Urgência solicitada pelo cliente");
-}
+export {
+  eventoNoDia,
+  fimDiaBr,
+  inicioDiaBr,
+  isLinhaAuditoriaUrgenciaCliente,
+  JSON_STORE_URGENCIAS_CLIENTE,
+  LIMITE_URGENCIAS_ATIVAS_CLIENTE,
+  LIMITE_URGENCIAS_DIA_CLIENTE,
+  removerMarcacaoUrgenteInstrucoes,
+  type UrgenteClienteDashboardItem,
+};
 
 const STATUS_FINALIZADOS = [
   "cancelado",
@@ -34,18 +48,6 @@ export type EventoUrgenciaCliente = {
 
 type StoreUrgenciasCliente = {
   eventos: EventoUrgenciaCliente[];
-};
-
-export type UrgenteClienteDashboardItem = {
-  id: string;
-  trabalhoId: string;
-  clienteId: string;
-  numeroOs: number;
-  clienteNome: string;
-  pacienteNome: string;
-  tipoProtese: string;
-  criadoEm: string;
-  linkAcompanhamento?: string;
 };
 
 export type LimitesUrgenciaCliente = {
@@ -113,39 +115,6 @@ export function marcarInstrucoesUrgente(
   }
 
   return alterou ? linhas.join("\n") : texto;
-}
-
-/** Remove marcação de urgência nas instruções (ao finalizar/entregar). */
-export function removerMarcacaoUrgenteInstrucoes(
-  instrucoes: string | null | undefined
-): string {
-  const linhas = (instrucoes || "")
-    .split("\n")
-    .filter((l) => !isLinhaAuditoriaUrgenciaCliente(l))
-    .map((line) =>
-      line
-        .replace(/ - urgente - obs /gi, " - obs ")
-        .replace(/ - urgente(?= -|$)/gi, "")
-    );
-  return linhas.join("\n").trimEnd();
-}
-
-export function inicioDiaBr(date = new Date()) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-export function fimDiaBr(date = new Date()) {
-  const d = new Date(date);
-  d.setHours(23, 59, 59, 999);
-  return d;
-}
-
-export function eventoNoDia(criadoEm: string, ref = new Date()) {
-  const d = new Date(criadoEm);
-  if (Number.isNaN(d.getTime())) return false;
-  return d >= inicioDiaBr(ref) && d <= fimDiaBr(ref);
 }
 
 export async function carregarStoreUrgenciasCliente(

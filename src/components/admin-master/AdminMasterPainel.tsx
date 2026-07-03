@@ -243,12 +243,15 @@ export function AdminMasterPainel() {
 
   const carregar = useCallback(async () => {
     const opcoesFetch: RequestInit = { cache: "no-store" };
-    const [dashRes, empRes, cobRes] = await Promise.all([
-      fetch("/api/admin-master/dashboard", opcoesFetch),
+    const [resumoRes, empRes, cobRes] = await Promise.all([
+      fetch("/api/admin-master/dashboard/resumo", opcoesFetch),
       fetch("/api/admin-master/empresas", opcoesFetch),
       fetch("/api/admin-master/cobrancas-assinatura", opcoesFetch),
     ]);
-    if (dashRes.ok) setDashboard(await dashRes.json());
+    if (resumoRes.ok) {
+      const data = await resumoRes.json();
+      if (data.dashboard) setDashboard(data.dashboard);
+    }
     if (empRes.ok) {
       const data = await empRes.json();
       setEmpresas(data.empresas ?? []);

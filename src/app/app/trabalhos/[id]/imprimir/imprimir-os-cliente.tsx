@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { DadosImpressaoOsPdf } from "@/lib/impressao-os-dados";
+import type { DadosImpressaoOsPdf } from "@/lib/impressao-os-types";
 
 const PdfOsViewer = dynamic(
   () => import("./pdf-os-viewer").then((mod) => mod.PdfOsViewer),

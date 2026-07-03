@@ -6,7 +6,8 @@ import {
   carregarConfigLaboratorio,
   telefoneWhatsappLaboratorio,
 } from "@/lib/configuracoes-lab";
-import { abrirPdfGerando } from "@/lib/pdf-viewer";
+import { prepararAbaPdf } from "@/lib/pdf-viewer";
+import { abrirPdfBlobGerandoNoVisualizadorUnificado } from "@/lib/pdf-viewer-unificado";
 import { gerarReciboRecebimentoPdf } from "@/lib/recibo-recebimento-pdf";
 import {
   montarTextoReciboCompartilhar,
@@ -37,9 +38,12 @@ export function ImprimirReciboModal({
   if (!open) return null;
 
   function imprimir() {
-    void abrirPdfGerando(
+    const janela = prepararAbaPdf();
+    void abrirPdfBlobGerandoNoVisualizadorUnificado(
       () => gerarReciboRecebimentoPdf(modelo, { clienteNome, linhas }),
-      "recibo.pdf"
+      `Recibo — ${clienteNome}`,
+      "recibo.pdf",
+      { janela, origem: "Financeiro · Recibo" }
     );
   }
 

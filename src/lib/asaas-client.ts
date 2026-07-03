@@ -5,6 +5,7 @@ import {
   urlBaseAsaas,
   type AsaasConfig,
 } from "@/lib/asaas-config";
+import { fetchComTimeout } from "@/lib/http-integracao";
 import { prisma } from "@/lib/db";
 import { lerJsonStoreTenant, salvarJsonStoreTenant } from "@/lib/json-store-tenant";
 
@@ -104,15 +105,19 @@ export async function asaasFetch<T>(
   }
 
   const base = urlBaseAsaas(config.ambiente);
-  const res = await fetch(`${base}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      access_token: config.apiKey.trim(),
-      ...(init?.headers || {}),
+  const res = await fetchComTimeout(
+    `${base}${path}`,
+    {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        access_token: config.apiKey.trim(),
+        ...(init?.headers || {}),
+      },
+      cache: "no-store",
     },
-    cache: "no-store",
-  });
+    { integracao: "asaas" }
+  );
 
   const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
 

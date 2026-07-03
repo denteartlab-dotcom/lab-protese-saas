@@ -29,52 +29,11 @@ import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
 import type { ConfiguracoesOs } from "@/lib/configuracoes-os";
 import { resolverDataFinalizadoImpressao } from "@/lib/os-itens-impressao";
 
-export type DadosImpressaoOsPdf = {
-  numeroOs: number;
-  usuarioCriou?: string;
-  dataEntrada: string;
-  status: string;
-  cliente: string;
-  dentista: string;
-  paciente: string;
-  caixa: string;
-  telefones: string;
-  email: string;
-  endereco: string;
-  valor: number;
-  prazo: string;
-  prazoLaboratorio: string;
-  prazoDentista: string;
-  materiais: string;
-  observacoes: string;
-  prazoLinhaServico?: string;
-  osExterna?: string;
-  chavePed?: string;
-  finalizado?: string;
-  colaborador?: string;
-  colaboradoresLista?: ReturnType<typeof parseColaboradoresInstrucoes>;
-  etapasLista?: ReturnType<typeof parseEtapasInstrucoes>;
-  etapasPorServico?: ReturnType<typeof etapasPorServicoImpressao>;
-  etapas?: string;
-  urgente?: boolean;
-  repeticao?: boolean;
-  producao?: string;
-  pecas?: string;
-  obsFicha?: string;
-  itens: ReturnType<typeof extrairItensImpressaoOs>;
-  /** Config do laboratório (cabeçalho, logo) — carregada no servidor para impressão. */
-  configLaboratorio?: ConfigLaboratorio;
-  /** Layout da OS (Configurações › Ordem de serviço) — carregado no servidor. */
-  configuracoesOs?: ConfiguracoesOs;
-};
-
-export type OpcoesImpressaoOs = {
-  somenteItem: boolean;
-  duasVias: boolean;
-  formato: string;
-  modelo: string;
-  segmentoParam: string;
-};
+export type {
+  DadosImpressaoOsPdf,
+  OpcoesImpressaoOs,
+} from "@/lib/impressao-os-types";
+import type { DadosImpressaoOsPdf, OpcoesImpressaoOs } from "@/lib/impressao-os-types";
 
 export type ResultadoImpressaoOs =
   | {

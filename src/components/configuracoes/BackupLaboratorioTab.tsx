@@ -8,6 +8,13 @@ import { ModalAbrirPastaBackup } from "@/components/configuracoes/ModalAbrirPast
 import { RestaurarPadraoModal } from "@/components/configuracoes/RestaurarPadraoModal";
 import { PalavraChaveRestaurarSection } from "@/components/configuracoes/PalavraChaveRestaurarSection";
 import type { ModuloLimpezaId } from "@/lib/limpar-modulos-laboratorio";
+import {
+  baixarBackupExportado,
+  exportarBackupComJob,
+  gerarBackupServidorComJob,
+  importarBackupComJob,
+  rotuloFaseBackup,
+} from "@/lib/backup-job-cliente";
 
 type Props = {
   onMensagem?: (texto: string, tipo?: "info" | "sucesso" | "erro") => void;
@@ -80,6 +87,7 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
   const [carregandoAuto, setCarregandoAuto] = useState(false);
   const [salvandoAuto, setSalvandoAuto] = useState(false);
   const [gerandoBackupServidor, setGerandoBackupServidor] = useState(false);
+  const [progressoOperacao, setProgressoOperacao] = useState("");
   const [autoAtivo, setAutoAtivo] = useState(true);
   const [autoDia, setAutoDia] = useState<string>("todos");
   const [modalPastaBackupAberto, setModalPastaBackupAberto] = useState(false);
@@ -171,63 +179,40 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
 
   async function gerarBackupServidorAgora() {
     setGerandoBackupServidor(true);
+    setProgressoOperacao("");
     try {
-      const res = await fetch("/api/backup/executar-agora", {
-        method: "POST",
-        credentials: "same-origin",
+      const resultado = await gerarBackupServidorComJob({
+        onFase: (fase, percentual) =>
+          setProgressoOperacao(`${rotuloFaseBackup(fase)} (${percentual}%)`),
       });
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        uploadsArquivos?: number;
-        pastaUploads?: string;
-        onedrive?: { habilitado?: boolean; sincronizado?: boolean; erro?: string | null };
-      };
-      if (!res.ok) {
-        onMensagem?.(data.error || t("settings.backupServidorErro"), "erro");
-        return;
-      }
       await Promise.all([carregarStatusAutomatico(), carregarArquivosPastaAutomatica()]);
-      const uploads = data.uploadsArquivos ?? 0;
-      let msg = t("settings.backupServidorOk").replace("{n}", String(uploads));
-      if (data.onedrive?.habilitado) {
-        msg += data.onedrive.sincronizado
-          ? ` ${t("settings.backupServidorOneDriveOk")}`
-          : ` ${t("settings.backupServidorOneDriveErro")}`;
-      }
-      onMensagem?.(msg, "sucesso");
-    } catch {
-      onMensagem?.(t("settings.backupServidorErro"), "erro");
+      const uploads = resultado.uploadsArquivos ?? 0;
+      onMensagem?.(t("settings.backupServidorOk").replace("{n}", String(uploads)), "sucesso");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : t("settings.backupServidorErro");
+      onMensagem?.(msg, "erro");
     } finally {
       setGerandoBackupServidor(false);
+      setProgressoOperacao("");
     }
   }
 
   async function exportar() {
     setExportando(true);
+    setProgressoOperacao("");
     try {
-      const res = await fetch("/api/backup/export", { credentials: "same-origin" });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        onMensagem?.(data.error || t("settings.backupErroExportar"), "erro");
-        return;
-      }
-      const blob = await res.blob();
-      const disposition = res.headers.get("Content-Disposition") || "";
-      const match = disposition.match(/filename="([^"]+)"/);
-      const nome =
-        match?.[1] ||
-        `backup-lab-protese-${new Date().toISOString().slice(0, 10)}.zip`;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = nome;
-      a.click();
-      URL.revokeObjectURL(url);
+      const resultado = await exportarBackupComJob({
+        onFase: (fase, percentual) =>
+          setProgressoOperacao(`${rotuloFaseBackup(fase)} (${percentual}%)`),
+      });
+      await baixarBackupExportado(resultado);
       onMensagem?.(t("settings.backupExportado"), "sucesso");
-    } catch {
-      onMensagem?.(t("settings.backupErroExportar"), "erro");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : t("settings.backupErroExportar");
+      onMensagem?.(msg, "erro");
     } finally {
       setExportando(false);
+      setProgressoOperacao("");
     }
   }
 
@@ -246,6 +231,7 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
     }
 
     setImportando(true);
+    setProgressoOperacao("");
     try {
       const headers: Record<string, string> = {
         "x-backup-confirmar": "substituir-tudo",
@@ -254,9 +240,9 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
         headers["x-backup-excluir-dre"] = "1";
       }
 
-      let res: Response;
+      let resultado;
       if (fonteImportacao === "pasta") {
-        res = await fetch("/api/backup/import-pasta", {
+        const res = await fetch("/api/backup/import-pasta", {
           method: "POST",
           headers: {
             ...headers,
@@ -268,30 +254,32 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
             excluirDre: excluirDreNaImportacao,
           }),
         });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          onMensagem?.(data.error || t("settings.backupErroImportar"), "erro");
+          return;
+        }
+        resultado = data;
       } else {
         const formData = new FormData();
         formData.append("arquivo", arquivo!);
-        res = await fetch("/api/backup/import", {
-          method: "POST",
-          headers,
-          credentials: "same-origin",
-          body: formData,
-        });
+        resultado = await importarBackupComJob(
+          { headers, body: formData },
+          {
+            onFase: (fase, percentual) =>
+              setProgressoOperacao(`${rotuloFaseBackup(fase)} (${percentual}%)`),
+          }
+        );
       }
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        onMensagem?.(data.error || t("settings.backupErroImportar"), "erro");
-        return;
-      }
-      const total = Object.values(data.contagens || {}).reduce(
+      const total = Object.values(resultado.contagens || {}).reduce(
         (s: number, n) => s + (typeof n === "number" ? n : 0),
         0
       );
       onMensagem?.(
         t("settings.backupImportado")
           .replace("{n}", String(total))
-          .replace("{u}", String(data.uploadsRestaurados ?? 0)),
+          .replace("{u}", String(resultado.uploadsRestaurados ?? 0)),
         "sucesso"
       );
       setArquivo(null);
@@ -303,10 +291,12 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
       window.setTimeout(() => {
         window.location.href = "/app";
       }, 2000);
-    } catch {
-      onMensagem?.(t("settings.backupErroImportar"), "erro");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : t("settings.backupErroImportar");
+      onMensagem?.(msg, "erro");
     } finally {
       setImportando(false);
+      setProgressoOperacao("");
     }
   }
 
@@ -560,7 +550,9 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
               onClick={() => void exportar()}
               className="mt-4 rounded bg-[#4a90d9] px-4 py-2 text-sm text-white hover:bg-[#3d7fc4]"
             >
-              {exportando ? t("settings.backupExportando") : t("settings.backupBaixar")}
+              {exportando
+                ? progressoOperacao || t("settings.backupExportando")
+                : t("settings.backupBaixar")}
             </Button>
           </div>
         </div>

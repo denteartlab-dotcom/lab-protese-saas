@@ -22,8 +22,9 @@ import {
   montarExtratoIndividual,
   type LinhaExtratoIndividualComSaldo,
 } from "@/lib/extrato-individual-dados";
-import { parseParcelaNaDescricao } from "@/lib/fatura-financeiro";
-import { abrirPdfGerando } from "@/lib/pdf-viewer";
+import { parseParcelaNaDescricao } from "@/lib/fatura-financeiro-util";
+import { prepararAbaPdf } from "@/lib/pdf-viewer";
+import { abrirPdfBlobGerandoNoVisualizadorUnificado } from "@/lib/pdf-viewer-unificado";
 import type { TrabalhoRelatorioFatura } from "@/lib/relatorio-faturas-modelo3-dados";
 import { filtrarTrabalhosCliente } from "@/lib/relatorio-faturas-modelo3-dados";
 import { baixarCsv } from "@/lib/exportar-csv";
@@ -571,8 +572,16 @@ export function VisualizacaoClienteReceberModal({
   async function imprimirExtratoPdf() {
     if (!cliente) return;
     setGerandoExtrato(true);
+    const janela = prepararAbaPdf();
     try {
-      await abrirPdfGerando(() => gerarExtratoPdfBlob(), "extrato-cliente.pdf");
+      await abrirPdfBlobGerandoNoVisualizadorUnificado(
+        gerarExtratoPdfBlob,
+        `Extrato — ${cliente.nome}`,
+        "extrato-cliente.pdf",
+        { janela, origem: "Financeiro · Extrato cliente" }
+      );
+    } catch {
+      janela?.close();
     } finally {
       setGerandoExtrato(false);
     }

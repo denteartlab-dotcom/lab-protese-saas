@@ -41,10 +41,27 @@ export function FornecedorCadastroModal({ open, onClose, onSalvo }: Props) {
   useEffect(() => {
     if (!open) return;
     setForm(fornecedorFormularioVazio());
-    setCategorias(carregarCategoriasFornecedor());
     setNovaCategoria("");
     setModalCategoriaAberto(false);
     ultimoCepBuscado.current = "";
+
+    void (async () => {
+      try {
+        const res = await fetch("/api/cadastros/contexto?tipo=fornecedor", {
+          cache: "no-store",
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { categorias?: string[] };
+          if (Array.isArray(data.categorias) && data.categorias.length > 0) {
+            setCategorias(data.categorias);
+            return;
+          }
+        }
+      } catch {
+        /* fallback local */
+      }
+      setCategorias(carregarCategoriasFornecedor());
+    })();
   }, [open]);
 
   useEffect(() => {

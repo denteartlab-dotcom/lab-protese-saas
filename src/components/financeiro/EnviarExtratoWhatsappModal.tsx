@@ -6,7 +6,7 @@ import { MessageCircle, X } from "lucide-react";
 import {
   mensagemWhatsappExtratoConferencia,
   publicarExtratoPublica,
-} from "@/lib/extrato-publica";
+} from "@/lib/extrato-publica-cliente";
 import { abrirWhatsAppFaturaConferencia, formatWhatsappInput } from "@/lib/whatsapp";
 import { cn } from "@/lib/utils";
 

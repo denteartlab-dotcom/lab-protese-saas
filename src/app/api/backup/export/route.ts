@@ -1,16 +1,12 @@
 import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 import { exigirGestorUsuarios } from "@/lib/exigir-gestor";
-import { prisma } from "@/lib/db";
-import { exportarBackupEmpresa } from "@/lib/backup-laboratorio";
-import {
-  coletarUploadsParaZipBackup,
-  criarZipBackupEmpresa,
-} from "@/lib/backup-zip";
+import { criarJob, executarJobEmBackground } from "@/lib/jobs";
 
-export const maxDuration = 120;
+export const dynamic = "force-dynamic";
 
-export async function GET() {
+/** Enfileira exportação ZIP — resposta imediata com jobId (issue 026). */
+export async function POST() {
   const auth = await exigirGestorUsuarios();
   if (auth.erro) return auth.erro;
 
@@ -20,25 +16,19 @@ export async function GET() {
   }
 
   try {
-    const backup = await exportarBackupEmpresa(prisma, ctx.empresaId);
-    const uploads = await coletarUploadsParaZipBackup(ctx.empresaId, ctx.empresaSlug);
-    const zip = await criarZipBackupEmpresa(backup, uploads);
-    const data = new Date().toISOString().slice(0, 10);
-    const nomeArquivo = `backup-${ctx.empresaSlug}-${data}.zip`;
+    const job = await criarJob(ctx.empresaId, "backup_export", {
+      empresaSlug: ctx.empresaSlug,
+    });
+    executarJobEmBackground(job.id, ctx.empresaId);
 
-    return new NextResponse(new Uint8Array(zip), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/zip",
-        "Content-Disposition": `attachment; filename="${nomeArquivo}"`,
-        "Content-Length": String(zip.length),
-        "Cache-Control": "no-store",
-      },
+    return NextResponse.json({
+      jobId: job.id,
+      status: job.status,
     });
   } catch (err) {
-    console.error("[backup/export]", err);
+    console.error("[backup/export POST]", err);
     return NextResponse.json(
-      { error: "Não foi possível gerar o backup." },
+      { error: "Não foi possível iniciar o backup." },
       { status: 500 }
     );
   }

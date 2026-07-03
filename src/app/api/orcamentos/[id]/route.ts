@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 import { prisma } from "@/lib/db";
+import { criarJob, executarJobEmBackground } from "@/lib/jobs";
 import {
   calcularTotaisItens,
   totalLiquidoOrcamento,
@@ -130,9 +131,20 @@ export async function PATCH(request: Request, { params }: Params) {
     }
   }
 
+  /** Estoque + custos em background (issue 029) — não trava o modal. */
+  let estoqueJobId: string | null = null;
+  if (status === "aprovado" && statusAnterior !== "aprovado") {
+    const job = await criarJob(ctx.empresaId, "aplicar_orcamento", {
+      orcamentoId: row.id,
+    });
+    executarJobEmBackground(job.id, ctx.empresaId);
+    estoqueJobId = job.id;
+  }
+
   return NextResponse.json({
     ...mapOrcamento(row),
     parcelasFinanceiro,
+    estoqueJobId,
   });
 }
 

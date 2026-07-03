@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { promessaComTimeout } from "@/lib/http-integracao";
 
 export type EnviarEmailParams = {
   to: string | string[];
@@ -37,14 +38,17 @@ export async function enviarEmailResend(params: EnviarEmailParams): Promise<{
   const destinatarios = Array.isArray(params.to) ? params.to : [params.to];
 
   try {
-    const { data, error } = await resend.emails.send({
-      from: remetentePadrao(),
-      to: destinatarios,
-      subject: params.subject,
-      html: params.html,
-      text: params.text,
-      replyTo: params.replyTo || replyToPadrao(),
-    });
+    const { data, error } = await promessaComTimeout(
+      resend.emails.send({
+        from: remetentePadrao(),
+        to: destinatarios,
+        subject: params.subject,
+        html: params.html,
+        text: params.text,
+        replyTo: params.replyTo || replyToPadrao(),
+      }),
+      { integracao: "resend", rotulo: "resend.emails.send" }
+    );
 
     if (error) {
       console.error("[email-resend]", error);

@@ -7,7 +7,7 @@ import {
   textoClienteLog,
   textoServicoLog,
   type LogAuditoriaLinha,
-} from "@/lib/logs-auditoria";
+} from "@/lib/logs-auditoria-core";
 
 type Props = {
   linha: LogAuditoriaLinha | null;

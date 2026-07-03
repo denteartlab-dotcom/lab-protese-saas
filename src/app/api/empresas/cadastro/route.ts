@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { createSession } from "@/lib/auth";
 import {
   marcarCodigoVerificacaoUsado,
   validarCodigoVerificacaoCadastro,
 } from "@/lib/cadastro-verificacao-email";
 import { enviarEmailBoasVindasCadastro } from "@/lib/email-boas-vindas-cadastro";
 import { provisionarNovaEmpresa } from "@/lib/provisionar-empresa";
+import { montarSessionUserComAssinatura } from "@/lib/sessao-assinatura";
 import { PLANOS_EMPRESA, PERIODOS_COBRANCA, DIAS_TESTE_GRATIS } from "@/lib/master-planos";
 import { apenasDigitos, validarCpfOuCnpj } from "@/lib/validar-documento";
 import { validarForcaSenha } from "@/lib/validar-senha";
@@ -190,16 +192,31 @@ export async function POST(request: Request) {
       console.warn("[cadastro/boas-vindas]", erro);
     });
 
+    /** Auto-login pós-cadastro (issue 021): já cria sessão para evitar redirect duplo. */
+    let autoLogin = false;
+    try {
+      const sessionUser = await montarSessionUserComAssinatura(empresa.adminId);
+      if (sessionUser) {
+        await createSession(sessionUser, { remember: false });
+        autoLogin = true;
+      }
+    } catch (erro) {
+      console.warn("[cadastro/auto-login]", erro);
+    }
+
+    const urlApp = `/app/${empresa.slug}`;
     return NextResponse.json(
       {
         ok: true,
         mensagem: `Conta criada! Você tem ${DIAS_TESTE_GRATIS} dias de teste grátis no plano Premium.`,
+        autoLogin,
+        redirect: autoLogin ? urlApp : `/login?cadastro=ok&lab=${empresa.slug}`,
         empresa: {
           id: empresa.empresaId,
           codigo: empresa.codigo,
           nome: empresa.nome,
           slug: empresa.slug,
-          urlApp: `/app/${empresa.slug}`,
+          urlApp,
         },
       },
       { status: 201 }

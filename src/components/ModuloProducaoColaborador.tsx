@@ -55,7 +55,7 @@ import {
 import { useSessaoInatividade } from "@/hooks/use-sessao-inatividade";
 import {
   aplicarControleEntregaAposMudancaStatus,
-} from "@/lib/controle-entregas-automatico";
+} from "@/lib/controle-entregas-automatico-cliente";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { persistirTemaLocal, lerTemaLocal } from "@/lib/theme-ui";
 import { limparUltimaAtividadeSessao } from "@/lib/sessao-inatividade";

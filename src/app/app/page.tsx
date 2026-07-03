@@ -24,15 +24,14 @@ import {
 } from "@/lib/controle-producao-prazos";
 import { PRODUTOS_ESTOQUE_EVENT } from "@/lib/estoque";
 import { UPLOADS_ATUALIZADO_EVENT } from "@/lib/uploads-armazenamento";
-import { carregarResumoEstoqueDashboard } from "@/lib/resumo-estoque-dashboard";
 import { apiFetch } from "@/lib/fetch-client";
 import Link from "next/link";
 import { PainelAnotacoesDashboard } from "@/components/dashboard/PainelAnotacoesDashboard";
-import { DashboardInicioSkeleton } from "@/components/dashboard/DashboardInicioSkeleton";
+import { DashboardInicioSkeleton, DashboardWidgetSkeleton } from "@/components/dashboard/DashboardInicioSkeleton";
 import { PainelServicosDashboard } from "@/components/dashboard/PainelServicosDashboard";
 import { PdfViewerModal } from "@/components/dashboard/PdfViewerModal";
 import { PainelUrgenciasClienteDashboard } from "@/components/dashboard/PainelUrgenciasClienteDashboard";
-import type { UrgenteClienteDashboardItem } from "@/lib/urgencia-cliente";
+import type { UrgenteClienteDashboardItem } from "@/lib/urgencia-cliente-util";
 import {
   agruparTrabalhosPainelServicos,
   rotuloFimPeriodoVencendo,
@@ -69,6 +68,7 @@ type Dashboard = {
   aniversariantesMes?: AniversarianteMesItem[];
   clientesSemServico?: ClienteSemServicoItem[];
   uploadsResumo?: UploadsResumoUi;
+  estoqueResumo?: { baixo: number; zerado: number };
   urgentesCliente?: UrgenteClienteDashboardItem[];
 };
 
@@ -95,6 +95,16 @@ const resumoFinanceiroVazio: ResumoFinanceiroDashboard = {
   despesasVencidas: 0,
 };
 
+const uploadsResumoVazio: UploadsResumoUi = {
+  bytesUsados: 0,
+  bytesLivres: 20 * 1024 ** 3,
+  limiteGb: 20,
+  percentualUsado: 0,
+  percentualLivre: 100,
+};
+
+const estoqueResumoVazio = { baixo: 0, zerado: 0 };
+
 type TrabalhoPainel = {
   id: string;
   numeroOs: number;
@@ -113,52 +123,89 @@ type TrabalhoPainel = {
 export default function DashboardPage() {
   const { t, locale } = useI18n();
   const { lab } = useLabConfigClient();
+type DashboardSecundario = Pick<
+  Dashboard,
+  "aniversariantesMes" | "clientesSemServico" | "uploadsResumo"
+>;
+
   const [data, setData] = useState<Dashboard | null>(null);
   const [carregando, setCarregando] = useState(true);
+  const [carregandoSecundario, setCarregandoSecundario] = useState(false);
   const [clientePronto, setClientePronto] = useState(false);
   const [error, setError] = useState("");
   const [prazoVencendo, setPrazoVencendo] = useState<TipoPrazoProducao>("lab");
   const [periodoVencendo, setPeriodoVencendo] = useState("hoje");
   const [prazoAtrasados, setPrazoAtrasados] = useState<TipoPrazoProducao>("lab");
   const opcoesDiaVencendo = useMemo(() => opcoesPeriodoVencendo(5), []);
-  const [estoqueResumo, setEstoqueResumo] = useState({ baixo: 0, zerado: 0 });
   const [painelExpandido, setPainelExpandido] = useState<"vencendo" | "atrasados" | null>(null);
   const [mesFiltro, setMesFiltro] = useState(new Date().getMonth());
   const [anoFiltro, setAnoFiltro] = useState(new Date().getFullYear());
   const [diasSemServico, setDiasSemServico] = useState(15);
-  const [uploadsResumo, setUploadsResumo] = useState<UploadsResumoUi | null>(null);
   const [pdfVencendoUrl, setPdfVencendoUrl] = useState<string | null>(null);
   const [pdfAtrasadosUrl, setPdfAtrasadosUrl] = useState<string | null>(null);
   const { acessoTotal, permissoesModulos } = usePermissoesApp();
   const dataRef = useRef<Dashboard | null>(data);
+  const diasSemServicoAnterior = useRef(diasSemServico);
   dataRef.current = data;
 
+  const paramsBase = useCallback(
+    () =>
+      new URLSearchParams({
+        mes: String(mesFiltro),
+        ano: String(anoFiltro),
+        diasSemServico: String(diasSemServico),
+        clientesSemServicoLimite: "0",
+        mesAniversario: String(new Date().getMonth()),
+      }),
+    [mesFiltro, anoFiltro, diasSemServico]
+  );
+
+  const carregarDashboardSecundario = useCallback(() => {
+    const params = paramsBase();
+    params.set("escopo", "secundario");
+    setCarregandoSecundario(true);
+    return apiFetch<DashboardSecundario>(`/api/dashboard?${params}`)
+      .then((secundario) => {
+        setData((atual) => (atual ? { ...atual, ...secundario } : ({ ...secundario } as Dashboard)));
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setCarregandoSecundario(false));
+  }, [paramsBase]);
+
   const carregarDashboard = useCallback(() => {
-    const params = new URLSearchParams({
-      mes: String(mesFiltro),
-      ano: String(anoFiltro),
-      diasSemServico: String(diasSemServico),
-      clientesSemServicoLimite: "0",
-      mesAniversario: String(new Date().getMonth()),
-    });
+    const params = paramsBase();
+    params.set("escopo", "core");
     if (!dataRef.current) setCarregando(true);
     return apiFetch<Dashboard>(`/api/dashboard?${params}`)
       .then((dash) => {
-        setData(dash);
-        if (dash.uploadsResumo) setUploadsResumo(dash.uploadsResumo);
+        setData((atual) => ({ ...atual, ...dash }));
+        void carregarDashboardSecundario();
       })
       .catch((e) => setError(e.message))
       .finally(() => setCarregando(false));
-  }, [mesFiltro, anoFiltro, diasSemServico]);
+  }, [paramsBase, carregarDashboardSecundario]);
 
-  const recarregarUploads = useCallback(async () => {
-    try {
-      const res = await fetch("/api/uploads", { cache: "no-store" });
-      if (res.ok) setUploadsResumo((await res.json()) as UploadsResumoUi);
-    } catch {
-      /* mantém último valor */
+  useEffect(() => {
+    function atualizarEstoque() {
+      void carregarDashboard();
     }
-  }, []);
+    function atualizarUploads() {
+      void carregarDashboardSecundario();
+    }
+    window.addEventListener(PRODUTOS_ESTOQUE_EVENT, atualizarEstoque);
+    window.addEventListener(UPLOADS_ATUALIZADO_EVENT, atualizarUploads);
+    return () => {
+      window.removeEventListener(PRODUTOS_ESTOQUE_EVENT, atualizarEstoque);
+      window.removeEventListener(UPLOADS_ATUALIZADO_EVENT, atualizarUploads);
+    };
+  }, [carregarDashboard, carregarDashboardSecundario]);
+
+  useEffect(() => {
+    if (!clientePronto || !data) return;
+    if (diasSemServicoAnterior.current === diasSemServico) return;
+    diasSemServicoAnterior.current = diasSemServico;
+    void carregarDashboardSecundario();
+  }, [clientePronto, diasSemServico, data, carregarDashboardSecundario]);
 
   useEffect(() => {
     setClientePronto(true);
@@ -167,21 +214,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!clientePronto) return;
     void carregarDashboard();
-    void recarregarUploads();
-  }, [clientePronto, carregarDashboard, recarregarUploads]);
-
-  useEffect(() => {
-    function atualizarEstoque() {
-      void carregarResumoEstoqueDashboard().then(setEstoqueResumo);
-    }
-    atualizarEstoque();
-    window.addEventListener(PRODUTOS_ESTOQUE_EVENT, atualizarEstoque);
-    window.addEventListener(UPLOADS_ATUALIZADO_EVENT, recarregarUploads);
-    return () => {
-      window.removeEventListener(PRODUTOS_ESTOQUE_EVENT, atualizarEstoque);
-      window.removeEventListener(UPLOADS_ATUALIZADO_EVENT, recarregarUploads);
-    };
-  }, [recarregarUploads]);
+  }, [clientePronto, carregarDashboard]);
 
   const trabalhosControle =
     data?.trabalhosControle || data?.servicosAtrasados || [];
@@ -360,8 +393,8 @@ export default function DashboardPage() {
         />
         <PainelEstoque
           titulo={t("dashboard.estoque")}
-          baixo={estoqueResumo.baixo}
-          zerado={estoqueResumo.zerado}
+          baixo={dashboard.estoqueResumo?.baixo ?? estoqueResumoVazio.baixo}
+          zerado={dashboard.estoqueResumo?.zerado ?? estoqueResumoVazio.zerado}
           labelBaixo={t("dashboard.estoqueBaixo")}
           labelZerado={t("dashboard.estoqueZerado")}
           labelOrcamento={t("dashboard.solicitarOrcamento")}
@@ -405,47 +438,45 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         {podeClientes ? (
-          <PainelAniversariantesDashboard
-            titulo={`${t("dashboard.aniversariantes")} 🎉`}
-            lista={dashboard.aniversariantesMes ?? []}
-            mes={new Date().getMonth()}
-          />
+          carregandoSecundario && !dashboard.aniversariantesMes ? (
+            <DashboardWidgetSkeleton />
+          ) : (
+            <PainelAniversariantesDashboard
+              titulo={`${t("dashboard.aniversariantes")} 🎉`}
+              lista={dashboard.aniversariantesMes ?? []}
+              mes={new Date().getMonth()}
+            />
+          )
         ) : null}
 
         {podeClientes ? (
-          <PainelClientesServicosDashboard
-            titulo="Clientes - Serviços"
-            lista={dashboard.clientesSemServico ?? []}
-            diasMinimos={diasSemServico}
-            onDiasChange={setDiasSemServico}
-            carregarListaImpressao={async () => {
-              const params = new URLSearchParams({
-                mes: String(mesFiltro),
-                ano: String(anoFiltro),
-                diasSemServico: String(diasSemServico),
-                clientesSemServicoLimite: "0",
-                mesAniversario: String(new Date().getMonth()),
-              });
-              const dash = await apiFetch<Dashboard>(`/api/dashboard?${params}`);
-              return dash.clientesSemServico ?? [];
-            }}
-          />
+          carregandoSecundario && !dashboard.clientesSemServico ? (
+            <DashboardWidgetSkeleton />
+          ) : (
+            <PainelClientesServicosDashboard
+              titulo="Clientes - Serviços"
+              lista={dashboard.clientesSemServico ?? []}
+              diasMinimos={diasSemServico}
+              onDiasChange={setDiasSemServico}
+              carregarListaImpressao={async () => {
+                const params = paramsBase();
+                params.set("escopo", "secundario");
+                const dash = await apiFetch<DashboardSecundario>(`/api/dashboard?${params}`);
+                return dash.clientesSemServico ?? [];
+              }}
+            />
+          )
         ) : null}
 
-        <PainelUploadsDashboard
-          titulo="Uploads"
-          resumo={
-            uploadsResumo ??
-            dashboard.uploadsResumo ?? {
-              bytesUsados: 0,
-              bytesLivres: 20 * 1024 ** 3,
-              limiteGb: 20,
-              percentualUsado: 0,
-              percentualLivre: 100,
-            }
-          }
-          onResumoAtualizado={() => void recarregarUploads()}
-        />
+        {carregandoSecundario && !dashboard.uploadsResumo ? (
+          <DashboardWidgetSkeleton />
+        ) : (
+          <PainelUploadsDashboard
+            titulo="Uploads"
+            resumo={dashboard.uploadsResumo ?? uploadsResumoVazio}
+            onResumoAtualizado={() => void carregarDashboardSecundario()}
+          />
+        )}
       </div>
 
       {pdfVencendoUrl ? (
