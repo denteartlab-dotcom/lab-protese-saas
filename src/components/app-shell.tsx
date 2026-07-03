@@ -11,7 +11,6 @@ import { NotificationsBell } from "@/components/header/NotificationsBell";
 import { LeitorCodigoBarrasModal } from "@/components/LeitorCodigoBarrasModal";
 import { InputLeitorCodigoOs } from "@/components/InputLeitorCodigoOs";
 import { extrairNumeroOsCodigo } from "@/lib/codigo-barras-os";
-import { buscarTrabalhosRapido } from "@/lib/trabalhos-busca-rapida-cliente";
 import { SiteSearchBar, SiteSearchButton } from "@/components/header/SiteSearchBar";
 import { I18nProvider, useI18n } from "@/components/i18n-provider";
 import { usePermissoesApp } from "@/components/PermissoesAppProvider";
@@ -340,8 +339,11 @@ function AppShellInner({
     const timeout = window.setTimeout(async () => {
       setBuscandoOs(true);
       try {
-        const resultados = await buscarTrabalhosRapido(termo);
-        setResultadosOs(resultados);
+        const response = await fetch(`/api/trabalhos?q=${encodeURIComponent(termo)}`, {
+          cache: "no-store",
+        });
+        const data = await response.json();
+        setResultadosOs(Array.isArray(data) ? data : []);
       } finally {
         setBuscandoOs(false);
       }
@@ -396,7 +398,11 @@ function AppShellInner({
     setBuscandoOs(true);
     setBuscaOsExecutada(true);
     try {
-      const resultados = await buscarTrabalhosRapido(numero);
+      const response = await fetch(`/api/trabalhos?q=${encodeURIComponent(numero)}`, {
+        cache: "no-store",
+      });
+      const data = await response.json();
+      const resultados = Array.isArray(data) ? data : [];
       setResultadosOs(resultados);
       setOsSelecionada(resultados.length === 1 ? resultados[0] : null);
       setItemOsSelecionado(null);
@@ -432,7 +438,11 @@ function AppShellInner({
     setBuscandoOs(true);
     setBuscaOsExecutada(true);
     try {
-      const resultados = await buscarTrabalhosRapido(termo);
+      const response = await fetch(`/api/trabalhos?q=${encodeURIComponent(termo)}`, {
+        cache: "no-store",
+      });
+      const data = await response.json();
+      const resultados = Array.isArray(data) ? data : [];
       setResultadosOs(resultados);
       setOsSelecionada(resultados.length > 0 ? resultados[0] : null);
       setItemOsSelecionado(null);
@@ -970,18 +980,8 @@ function AppShellInner({
         </>
       )}
       {buscaOsAberta && (
-        <div
-          className="fixed inset-0 z-50 bg-black/45"
-          onClick={() => {
-            setLeitorCodigoAberto(false);
-            setBuscaPacienteAberta(false);
-            setBuscaOsAberta(false);
-          }}
-        >
-          <div
-            className="absolute right-0 top-0 flex h-full w-full max-w-6xl flex-col bg-white shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/45 p-4 pt-20">
+          <div className="relative w-full max-w-6xl rounded bg-white shadow-2xl">
             <div className="flex h-9 items-center justify-between border-b border-slate-100 px-4">
               <h2 className="text-[11px] font-medium text-slate-700">Busca Rápida de Ordem de Serviço</h2>
               <span className="ml-auto mr-4 text-[11px] font-semibold text-emerald-600">
@@ -1060,51 +1060,6 @@ function AppShellInner({
                   Nenhuma ordem de serviço encontrada.
                 </div>
               )}
-
-              {buscaPacienteAberta ? (
-                <div className="rounded border border-slate-200 bg-slate-50 p-3">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-[10px] font-semibold text-slate-600">Buscar por paciente</span>
-                    <button
-                      type="button"
-                      onClick={() => setBuscaPacienteAberta(false)}
-                      className="text-[10px] text-slate-500 hover:text-slate-700"
-                    >
-                      Voltar
-                    </button>
-                  </div>
-                  <input
-                    value={buscaPaciente}
-                    onChange={(event) => setBuscaPaciente(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        void buscarPorPaciente();
-                      }
-                    }}
-                    autoFocus
-                    placeholder="Digite o nome do paciente"
-                    className="mb-2 h-8 w-full rounded border border-slate-300 px-3 text-[11px] outline-none focus:border-blue-500"
-                  />
-                  <div className="max-h-48 space-y-1 overflow-y-auto">
-                    {buscaPaciente.trim().length >= 2 &&
-                      !buscandoOs &&
-                      resultadosOs.map((trabalho) => (
-                        <button
-                          type="button"
-                          key={trabalho.id}
-                          onClick={() => abrirOsDoPaciente(trabalho)}
-                          className="flex w-full items-center justify-between rounded border border-slate-200 bg-white px-3 py-2 text-left text-[11px] hover:bg-blue-50"
-                        >
-                          <span>
-                            OS {trabalho.numeroOs} — {trabalho.paciente?.nome || "—"}
-                          </span>
-                          <span className="text-slate-400">{trabalho.cliente?.nome}</span>
-                        </button>
-                      ))}
-                  </div>
-                </div>
-              ) : null}
 
               <div className="overflow-x-auto rounded border border-slate-200">
                 <table className="w-full min-w-[900px] text-[10px]">
@@ -1358,6 +1313,64 @@ function AppShellInner({
                 </div>
                 );
               })()}
+            </div>
+          </div>
+        </div>
+      )}
+      {buscaPacienteAberta && (
+        <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/20 p-4 pt-24">
+          <div className="relative w-full max-w-md rounded bg-white shadow-2xl">
+            <div className="flex h-9 items-center justify-between border-b border-slate-100 px-4">
+              <h2 className="text-[11px] font-medium text-slate-700">Buscar por Paciente</h2>
+              <button
+                type="button"
+                onClick={() => setBuscaPacienteAberta(false)}
+                className="flex h-7 w-7 items-center justify-center rounded text-lg leading-none text-slate-500 hover:bg-slate-100"
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+            <div className="space-y-3 px-4 py-4 text-[11px] text-slate-600">
+              <input
+                value={buscaPaciente}
+                onChange={(event) => setBuscaPaciente(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void buscarPorPaciente();
+                  }
+                }}
+                autoFocus
+                placeholder="Digite o nome do paciente"
+                className="h-8 w-full rounded border border-slate-300 px-3 text-[11px] outline-none focus:border-blue-500"
+              />
+              <div className="space-y-1">
+                {buscaPaciente.trim().length < 2 && (
+                  <p className="text-center text-[10px] text-slate-400">
+                    Digite ao menos 2 caracteres para buscar
+                  </p>
+                )}
+                {buscaPaciente.trim().length >= 2 && buscandoOs && (
+                  <p className="text-center text-[10px] text-slate-400">Buscando paciente...</p>
+                )}
+                {buscaPaciente.trim().length >= 2 && !buscandoOs && resultadosOs.length === 0 && (
+                  <p className="text-center text-[10px] text-slate-400">Nenhuma OS encontrada.</p>
+                )}
+                {resultadosOs.map((trabalho) => (
+                  <button
+                    type="button"
+                    key={trabalho.id}
+                    onClick={() => abrirOsDoPaciente(trabalho)}
+                    className="flex w-full items-center justify-between rounded border border-slate-200 bg-white px-3 py-2 text-left text-[11px] hover:bg-blue-50"
+                  >
+                    <span>{trabalho.paciente?.nome || trabalho.cliente?.nome || "-"}</span>
+                    <span className="rounded bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-600">
+                      OS {trabalho.numeroOs}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
