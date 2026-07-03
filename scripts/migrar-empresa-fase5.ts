@@ -5,15 +5,29 @@
  *
  * Uso (após prisma db push):
  *   npm run db:migrar-empresa-fase5
+ *
+ * Com FORCE RLS, precisa de app.rls_bypass=true (mesmo como owner).
  */
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 const SLUG_PADRAO = process.env.EMPRESA_SLUG_PADRAO?.trim() || "denteart";
 
-async function empresaPadraoId() {
-  const empresa = await prisma.empresa.findUnique({ where: { slug: SLUG_PADRAO } });
+async function comBypassRls<T>(
+  fn: (tx: Prisma.TransactionClient) => Promise<T>
+): Promise<T> {
+  return prisma.$transaction(
+    async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.rls_bypass', 'true', true)`;
+      return fn(tx);
+    },
+    { maxWait: 15_000, timeout: 300_000 }
+  );
+}
+
+async function empresaPadraoId(tx: Prisma.TransactionClient) {
+  const empresa = await tx.empresa.findUnique({ where: { slug: SLUG_PADRAO } });
   if (!empresa) {
     throw new Error(
       `Empresa padrão "${SLUG_PADRAO}" não encontrada. Execute npm run db:migrar-empresa antes.`
@@ -22,8 +36,11 @@ async function empresaPadraoId() {
   return empresa.id;
 }
 
-async function backfillLogAuditoria(fallbackEmpresaId: string) {
-  const pendentes = await prisma.logAuditoria.findMany({
+async function backfillLogAuditoria(
+  tx: Prisma.TransactionClient,
+  fallbackEmpresaId: string
+) {
+  const pendentes = await tx.logAuditoria.findMany({
     where: { empresaId: null },
     select: {
       id: true,
@@ -38,7 +55,7 @@ async function backfillLogAuditoria(fallbackEmpresaId: string) {
     let empresaId: string | null = null;
 
     if (log.usuarioId) {
-      const user = await prisma.user.findFirst({
+      const user = await tx.user.findFirst({
         where: { id: log.usuarioId },
         select: { empresaId: true },
       });
@@ -46,7 +63,7 @@ async function backfillLogAuditoria(fallbackEmpresaId: string) {
     }
 
     if (!empresaId && log.trabalhoId) {
-      const trabalho = await prisma.trabalho.findFirst({
+      const trabalho = await tx.trabalho.findFirst({
         where: { id: log.trabalhoId },
         select: { empresaId: true },
       });
@@ -54,7 +71,7 @@ async function backfillLogAuditoria(fallbackEmpresaId: string) {
     }
 
     if (!empresaId && log.lancamentoId) {
-      const lancamento = await prisma.lancamento.findFirst({
+      const lancamento = await tx.lancamento.findFirst({
         where: { id: log.lancamentoId },
         select: { empresaId: true },
       });
@@ -63,7 +80,7 @@ async function backfillLogAuditoria(fallbackEmpresaId: string) {
 
     if (!empresaId) empresaId = fallbackEmpresaId;
 
-    await prisma.logAuditoria.update({
+    await tx.logAuditoria.update({
       where: { id: log.id },
       data: { empresaId },
     });
@@ -73,21 +90,24 @@ async function backfillLogAuditoria(fallbackEmpresaId: string) {
   console.log(`LogAuditoria: ${atualizados} registro(s) vinculados.`);
 }
 
-async function backfillHistoricoEtapas(fallbackEmpresaId: string) {
-  const pendentes = await prisma.historicoEtapa.findMany({
+async function backfillHistoricoEtapas(
+  tx: Prisma.TransactionClient,
+  fallbackEmpresaId: string
+) {
+  const pendentes = await tx.historicoEtapa.findMany({
     where: { empresaId: null },
     select: { id: true, trabalhoId: true },
   });
 
   let atualizados = 0;
   for (const row of pendentes) {
-    const trabalho = await prisma.trabalho.findFirst({
+    const trabalho = await tx.trabalho.findFirst({
       where: { id: row.trabalhoId },
       select: { empresaId: true },
     });
     const empresaId = trabalho?.empresaId ?? fallbackEmpresaId;
 
-    await prisma.historicoEtapa.update({
+    await tx.historicoEtapa.update({
       where: { id: row.id },
       data: { empresaId },
     });
@@ -97,8 +117,11 @@ async function backfillHistoricoEtapas(fallbackEmpresaId: string) {
   console.log(`HistoricoEtapa: ${atualizados} registro(s) vinculados.`);
 }
 
-async function backfillNfseEmissao(fallbackEmpresaId: string) {
-  const pendentes = await prisma.nfseEmissao.findMany({
+async function backfillNfseEmissao(
+  tx: Prisma.TransactionClient,
+  fallbackEmpresaId: string
+) {
+  const pendentes = await tx.nfseEmissao.findMany({
     where: { empresaId: null },
     select: { id: true, clienteId: true, lancamentoId: true },
   });
@@ -108,7 +131,7 @@ async function backfillNfseEmissao(fallbackEmpresaId: string) {
     let empresaId: string | null = null;
 
     if (row.clienteId) {
-      const cliente = await prisma.cliente.findFirst({
+      const cliente = await tx.cliente.findFirst({
         where: { id: row.clienteId },
         select: { empresaId: true },
       });
@@ -116,7 +139,7 @@ async function backfillNfseEmissao(fallbackEmpresaId: string) {
     }
 
     if (!empresaId && row.lancamentoId) {
-      const lancamento = await prisma.lancamento.findFirst({
+      const lancamento = await tx.lancamento.findFirst({
         where: { id: row.lancamentoId },
         select: { empresaId: true },
       });
@@ -125,7 +148,7 @@ async function backfillNfseEmissao(fallbackEmpresaId: string) {
 
     if (!empresaId) empresaId = fallbackEmpresaId;
 
-    await prisma.nfseEmissao.update({
+    await tx.nfseEmissao.update({
       where: { id: row.id },
       data: { empresaId },
     });
@@ -138,28 +161,30 @@ async function backfillNfseEmissao(fallbackEmpresaId: string) {
 async function main() {
   console.log("Migração multi-tenant — Fase 5\n");
 
-  const fallbackEmpresaId = await empresaPadraoId();
-  console.log(`Empresa fallback: ${SLUG_PADRAO} (${fallbackEmpresaId})\n`);
+  await comBypassRls(async (tx) => {
+    const fallbackEmpresaId = await empresaPadraoId(tx);
+    console.log(`Empresa fallback: ${SLUG_PADRAO} (${fallbackEmpresaId})\n`);
 
-  await backfillLogAuditoria(fallbackEmpresaId);
-  await backfillHistoricoEtapas(fallbackEmpresaId);
-  await backfillNfseEmissao(fallbackEmpresaId);
+    await backfillLogAuditoria(tx, fallbackEmpresaId);
+    await backfillHistoricoEtapas(tx, fallbackEmpresaId);
+    await backfillNfseEmissao(tx, fallbackEmpresaId);
 
-  const [logsSemEmpresa, historicoSemEmpresa, nfseSemEmpresa] = await Promise.all([
-    prisma.logAuditoria.count({ where: { empresaId: null } }),
-    prisma.historicoEtapa.count({ where: { empresaId: null } }),
-    prisma.nfseEmissao.count({ where: { empresaId: null } }),
-  ]);
+    const [logsSemEmpresa, historicoSemEmpresa, nfseSemEmpresa] = await Promise.all([
+      tx.logAuditoria.count({ where: { empresaId: null } }),
+      tx.historicoEtapa.count({ where: { empresaId: null } }),
+      tx.nfseEmissao.count({ where: { empresaId: null } }),
+    ]);
 
-  if (logsSemEmpresa || historicoSemEmpresa || nfseSemEmpresa) {
-    console.warn(
-      `\nAtenção: registros sem empresaId — Log: ${logsSemEmpresa}, Histórico: ${historicoSemEmpresa}, NFSe: ${nfseSemEmpresa}`
-    );
-  } else {
-    console.log("\nTodos os registros das tabelas da Fase 5 possuem empresaId.");
-  }
+    if (logsSemEmpresa || historicoSemEmpresa || nfseSemEmpresa) {
+      console.warn(
+        `\nAtenção: registros sem empresaId — Log: ${logsSemEmpresa}, Histórico: ${historicoSemEmpresa}, NFSe: ${nfseSemEmpresa}`
+      );
+    } else {
+      console.log("\nTodos os registros das tabelas da Fase 5 possuem empresaId.");
+    }
 
-  console.log("\nMigração Fase 5 concluída.");
+    console.log("\nMigração Fase 5 concluída.");
+  });
 }
 
 main()
