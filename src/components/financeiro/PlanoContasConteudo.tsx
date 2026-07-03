@@ -20,8 +20,6 @@ import type { PainelFinanceiroPlanoContas } from "@/lib/financeiro-painel-types"
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { PlanoContasCadastroModal } from "@/components/financeiro/PlanoContasCadastroModal";
 
-const AZUL_TITULO = "#7eb6ff";
-
 function BotaoMais({
   item,
   onAdicionarFilho,
@@ -34,7 +32,7 @@ function BotaoMais({
       type="button"
       title="Adicionar subconta"
       onClick={() => onAdicionarFilho(item)}
-      className="shrink-0 border-0 bg-transparent p-0 text-[20px] font-normal leading-none text-sky-400 hover:text-sky-300"
+      className="shrink-0 border-0 bg-transparent p-0 text-[20px] font-normal leading-none text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
       aria-label="Adicionar subconta"
     >
       +
@@ -54,7 +52,7 @@ function BotaoExcluir({
       type="button"
       title="Excluir conta"
       onClick={() => onExcluir(item)}
-      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border-0 bg-transparent text-red-400 hover:bg-red-950/60 hover:text-red-300"
+      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border-0 bg-transparent text-red-500 hover:bg-red-50 hover:text-red-600 dark:text-red-400 dark:hover:bg-red-950/60 dark:hover:text-red-300"
       aria-label="Excluir conta"
     >
       <Trash2 className="h-4 w-4" strokeWidth={2} />
@@ -87,11 +85,17 @@ function LinhaSubconta({
   return (
     <div
       className={`flex min-h-[44px] items-center justify-between gap-4 px-4 py-[13px] ${
-        indice % 2 === 0 ? "bg-slate-800/90" : "bg-slate-700/80"
-      } ${comBordaInferior ? "border-b border-slate-600/70" : ""}`}
+        indice % 2 === 0
+          ? "bg-white dark:bg-slate-800/90"
+          : "bg-slate-50 dark:bg-slate-700/80"
+      } ${comBordaInferior ? "border-b border-slate-200 dark:border-slate-600/70" : ""}`}
     >
-      <span className={`text-[13px] leading-snug text-slate-100 ${recuo}`}>
-        <span className="font-medium text-sky-300/90">{item.codigo}</span>{" "}
+      <span
+        className={`text-[13px] leading-snug text-slate-700 dark:text-slate-100 ${recuo}`}
+      >
+        <span className="font-medium text-sky-700 dark:text-sky-300/90">
+          {item.codigo}
+        </span>{" "}
         {item.nome}
       </span>
       <div className="flex shrink-0 items-center gap-1">
@@ -121,14 +125,11 @@ function GrupoPlano({
 }) {
   return (
     <div className="mb-7 last:mb-0">
-      <p
-        className="mb-2 text-[13px] font-semibold uppercase leading-snug tracking-wide"
-        style={{ color: AZUL_TITULO }}
-      >
+      <p className="mb-2 text-[13px] font-semibold uppercase leading-snug tracking-wide text-sky-700 dark:text-sky-300">
         {topico.codigo} {topico.nome}
       </p>
       {filhos.length > 0 ? (
-        <div className="overflow-hidden rounded-sm border border-slate-600/80 bg-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+        <div className="overflow-hidden rounded-sm border border-slate-200 bg-white shadow-sm dark:border-slate-600/80 dark:bg-slate-900 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
           {filhos.map((filho, index) => (
             <LinhaSubconta
               key={filho.id}
@@ -163,13 +164,13 @@ function PainelSecao({
   const grupos = agruparPlanoContas(itens);
 
   return (
-    <section className="overflow-hidden rounded-md border border-slate-600/80 bg-slate-900 shadow-[0_4px_18px_rgba(0,0,0,0.35)]">
-      <header className="border-b border-slate-600/80 bg-slate-800 px-4 py-3">
-        <h2 className="text-[15px] font-bold uppercase tracking-wide text-slate-100">
+    <section className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm dark:border-slate-600/80 dark:bg-slate-900 dark:shadow-[0_4px_18px_rgba(0,0,0,0.35)]">
+      <header className="border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-600/80 dark:bg-slate-800">
+        <h2 className="text-[15px] font-bold uppercase tracking-wide text-slate-800 dark:text-slate-100">
           {titulo}
         </h2>
       </header>
-      <div className="bg-slate-900 px-4 pb-5 pt-4">
+      <div className="bg-white px-4 pb-5 pt-4 dark:bg-slate-900">
         {grupos.map((grupo) => (
           <GrupoPlano
             key={grupo.topico.id}
@@ -253,16 +254,20 @@ export function PlanoContasConteudo() {
   }
 
   return (
-    <div className="space-y-3 text-xs text-slate-300">
-      <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+    <div className="space-y-3 text-xs text-slate-600 dark:text-slate-300">
+      <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
         <span>Financeiro</span>
-        <span className="text-slate-500">&gt;</span>
-        <span className="font-medium text-slate-300">Plano de Contas</span>
+        <span className="text-slate-400 dark:text-slate-500">&gt;</span>
+        <span className="font-medium text-slate-700 dark:text-slate-300">
+          Plano de Contas
+        </span>
       </div>
 
-      <h1 className="text-2xl font-normal text-slate-100">Plano de Contas</h1>
+      <h1 className="text-2xl font-normal text-slate-800 dark:text-slate-100">
+        Plano de Contas
+      </h1>
 
-      <div className="space-y-5 rounded-lg bg-slate-950 p-4 ring-1 ring-slate-800">
+      <div className="space-y-5 rounded-lg bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-slate-950 dark:ring-slate-800">
         <PainelSecao
           titulo="RECEITAS"
           itens={receitas}
