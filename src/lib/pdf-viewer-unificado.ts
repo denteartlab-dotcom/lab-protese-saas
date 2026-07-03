@@ -1,5 +1,6 @@
 import {
   abrirHtmlNoVisualizadorPagina,
+  abrirPdfBlobDiretoNaAba,
   abrirPdfGerandoNoVisualizadorPagina,
 } from "@/lib/pdf-viewer";
 
@@ -8,22 +9,31 @@ export type OpcoesVisualizadorUnificado = {
   subtitulo?: string;
   origem?: string;
   imprimirAoCarregar?: boolean;
+  /** Se true (padrão para relatórios), abre o PDF nativo do navegador sem a rota /relatorio-pdf. */
+  direto?: boolean;
 };
 
 function subtituloExibicao(opcoes?: OpcoesVisualizadorUnificado) {
   return opcoes?.subtitulo ?? opcoes?.origem;
 }
 
-/** Abre PDF gerado no cliente no visualizador único `/app/financeiro/relatorio-pdf` (issue 010). */
+/** Abre PDF gerado no cliente. Por padrão usa blob direto (confiável). */
 export async function abrirPdfBlobGerandoNoVisualizadorUnificado(
   gerar: () => Promise<Blob>,
   titulo: string,
   nomeArquivo = "documento.pdf",
   opcoes?: OpcoesVisualizadorUnificado
 ) {
-  await abrirPdfGerandoNoVisualizadorPagina(gerar, titulo, nomeArquivo, {
+  if (opcoes?.direto === false) {
+    await abrirPdfGerandoNoVisualizadorPagina(gerar, titulo, nomeArquivo, {
+      janela: opcoes?.janela,
+      subtitulo: subtituloExibicao(opcoes),
+    });
+    return;
+  }
+
+  await abrirPdfBlobDiretoNaAba(gerar, titulo, nomeArquivo, {
     janela: opcoes?.janela,
-    subtitulo: subtituloExibicao(opcoes),
   });
 }
 

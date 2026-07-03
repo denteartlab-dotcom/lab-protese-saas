@@ -22,7 +22,6 @@ import { gerarRelatorioDrePdf } from "@/lib/dre-relatorio-pdf";
 import type { DreMatriz } from "@/lib/dre";
 import type { ItemPlanoContas } from "@/lib/plano-contas";
 import { prepararAbaPdf } from "@/lib/pdf-viewer";
-import { abrirPdfViewerMensagem } from "@/lib/pdf-viewer-aba";
 import { abrirPdfBlobGerandoNoVisualizadorUnificado } from "@/lib/pdf-viewer-unificado";
 
 const selectClass =

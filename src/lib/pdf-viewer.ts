@@ -338,6 +338,53 @@ export async function abrirPdfGerandoNoVisualizadorPagina(
   }
 }
 
+/**
+ * Gera o PDF e abre direto na aba (blob URL do navegador).
+ * Não depende de sessionStorage/postMessage — caminho confiável para relatórios.
+ */
+export async function abrirPdfBlobDiretoNaAba(
+  gerar: () => Promise<Blob>,
+  titulo: string,
+  nomeArquivo = "documento.pdf",
+  opcoes?: { janela?: Window | null }
+) {
+  const janela = consumirJanelaReservada(opcoes?.janela) ?? prepararAbaPdf();
+  try {
+    if (janela && !janela.closed) {
+      try {
+        janela.document.title = `Gerando: ${titulo}`;
+        janela.document.body.innerHTML =
+          "<div style='font-family:system-ui,sans-serif;padding:32px;color:#334155'>Gerando PDF...</div>";
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const blob = await gerar();
+    const url = criarUrlPdfNomeada(blob, nomeArquivo);
+    agendarRevogarUrl(url);
+
+    if (janela && !janela.closed) {
+      try {
+        janela.document.title = titulo;
+      } catch {
+        /* ignore */
+      }
+      if (navegarAbaPdf(janela, url)) return;
+      fecharJanela(janela);
+    }
+
+    const aberta = window.open(url, "_blank");
+    if (!aberta) {
+      baixarPdfBlob(blob, nomeArquivo);
+    }
+  } catch (err) {
+    fecharJanela(janela);
+    console.error("abrir PDF direto", err);
+    throw err;
+  }
+}
+
 export async function abrirPdfParaImpressaoNoVisualizador(
   gerar: () => Promise<Blob>,
   titulo: string,
