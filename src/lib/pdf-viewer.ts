@@ -1,4 +1,8 @@
-import { srcIframePdfViewer } from "@/lib/pdf-viewer-iframe";
+/** URL do PDF sem forçar zoom — o visualizador nativo do navegador centraliza o A4. */
+function srcIframePdfViewer(pdfUrl: string) {
+  if (!pdfUrl.trim()) return "";
+  return pdfUrl.split("#")[0] ?? pdfUrl;
+}
 
 export type PdfViewerOpcoes = {
   revogarAoFechar?: boolean;

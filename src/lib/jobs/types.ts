@@ -6,7 +6,6 @@ export const TIPOS_JOB = [
   "importar_fornecedores",
   "import_ofx",
   "conciliacao_conta",
-  "relatorio_pdf",
   "backup_export",
   "backup_import",
   "backup_servidor",

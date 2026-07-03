@@ -13,15 +13,16 @@
 - Busca OS: painel lateral (drawer) ou página dedicada `/app/producao/busca-os`
 - Leitor de código integrado no mesmo contexto (sem segundo modal)
 
-## Escopo
+## Escopo (estado atual)
 
-- [x] `GET /api/trabalhos/busca-rapida?q=` consolidando busca por número, paciente, código de barras
-- [x] UI: substituir modal fullscreen por drawer (migrar gradualmente)
+- [x] `GET /api/trabalhos/busca-rapida?q=` consolidando busca por número, paciente, código de barras (API pronta)
+- [ ] UI: drawer — **revertido** a pedido do produto: permanece **modal central** fullscreen (`fixed inset-0`)
 - [x] Atalho teclado mantido
+- [x] UI usa `/api/trabalhos?q=` (payload completo para lançamentos/financeiro na busca); `busca-rapida` fica disponível para migração futura
 
 ## Critérios de aceite
 
-- Buscar OS: nunca mais de 1 overlay por vez
+- Buscar OS: idealmente nunca mais de 1 overlay por vez (hoje ainda pode empilhar busca paciente `z-[60]` e leitor de código)
 - Funcionalidade atual (lançamentos financeiros da OS na busca) preservada
 
 ## Fase
@@ -32,3 +33,4 @@
 
 - `src/components/app-shell.tsx` (buscaOsAberta)
 - `LeitorCodigoBarrasModal.tsx`
+- `src/app/api/trabalhos/busca-rapida/route.ts`

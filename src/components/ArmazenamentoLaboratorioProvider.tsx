@@ -26,10 +26,7 @@ type EstadoBootstrap = "carregando" | "pronto" | "erro";
 const BUILD_ID_ATUAL = process.env.NEXT_PUBLIC_APP_BUILD_ID ?? "dev";
 
 function rotaSemArmazenamentoLaboratorio(pathname: string) {
-  return (
-    pathname.includes("/financeiro/relatorio-pdf") ||
-    pathname.includes("/visualizar-pdf")
-  );
+  return pathname.includes("/visualizar-pdf");
 }
 
 function avaliarBootstrap(): EstadoBootstrap {

@@ -1,7 +1,6 @@
 import {
   abrirHtmlNoVisualizadorPagina,
   abrirPdfBlobDiretoNaAba,
-  abrirPdfGerandoNoVisualizadorPagina,
 } from "@/lib/pdf-viewer";
 
 export type OpcoesVisualizadorUnificado = {
@@ -9,35 +8,21 @@ export type OpcoesVisualizadorUnificado = {
   subtitulo?: string;
   origem?: string;
   imprimirAoCarregar?: boolean;
-  /** Se true (padrão para relatórios), abre o PDF nativo do navegador sem a rota /relatorio-pdf. */
-  direto?: boolean;
 };
 
-function subtituloExibicao(opcoes?: OpcoesVisualizadorUnificado) {
-  return opcoes?.subtitulo ?? opcoes?.origem;
-}
-
-/** Abre PDF gerado no cliente. Por padrão usa blob direto (confiável). */
+/** Abre PDF gerado no cliente direto no navegador (blob URL). */
 export async function abrirPdfBlobGerandoNoVisualizadorUnificado(
   gerar: () => Promise<Blob>,
   titulo: string,
   nomeArquivo = "documento.pdf",
   opcoes?: OpcoesVisualizadorUnificado
 ) {
-  if (opcoes?.direto === false) {
-    await abrirPdfGerandoNoVisualizadorPagina(gerar, titulo, nomeArquivo, {
-      janela: opcoes?.janela,
-      subtitulo: subtituloExibicao(opcoes),
-    });
-    return;
-  }
-
   await abrirPdfBlobDiretoNaAba(gerar, titulo, nomeArquivo, {
     janela: opcoes?.janela,
   });
 }
 
-/** Abre HTML (ex.: fatura) no visualizador único (issue 010). */
+/** Abre HTML (ex.: fatura) direto na aba. */
 export async function abrirHtmlNoVisualizadorUnificado(
   gerar: () => Promise<string>,
   titulo: string,
@@ -47,27 +32,6 @@ export async function abrirHtmlNoVisualizadorUnificado(
   await abrirHtmlNoVisualizadorPagina(gerar, titulo, nomeArquivo, {
     janela: opcoes?.janela,
     imprimirAoCarregar: opcoes?.imprimirAoCarregar,
-    subtitulo: subtituloExibicao(opcoes),
+    subtitulo: opcoes?.subtitulo ?? opcoes?.origem,
   });
-}
-
-/** Carrega PDF de URL autenticada e abre no visualizador único (issue 015 + 010). */
-export async function abrirPdfUrlNoVisualizadorUnificado(
-  url: string,
-  titulo: string,
-  nomeArquivo = "documento.pdf",
-  opcoes?: OpcoesVisualizadorUnificado
-) {
-  await abrirPdfGerandoNoVisualizadorPagina(
-    async () => {
-      const res = await fetch(url, { credentials: "same-origin", cache: "no-store" });
-      if (!res.ok) {
-        throw new Error("Não foi possível carregar o PDF.");
-      }
-      return res.blob();
-    },
-    titulo,
-    nomeArquivo,
-    { janela: opcoes?.janela, subtitulo: subtituloExibicao(opcoes) }
-  );
 }

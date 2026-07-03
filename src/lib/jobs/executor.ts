@@ -1,6 +1,5 @@
 import { ZodError } from "zod";
 import { atualizarJob, obterJobTenant } from "@/lib/jobs/store";
-import { manipularJobRelatorioPdf } from "@/lib/jobs/handlers/relatorio-pdf";
 import { manipularJobBackupExport } from "@/lib/jobs/handlers/backup-export";
 import { manipularJobBackupImport } from "@/lib/jobs/handlers/backup-import";
 import { manipularJobBackupServidor } from "@/lib/jobs/handlers/backup-servidor";
@@ -21,7 +20,6 @@ const manipuladores: Record<TipoJob, ManipuladorJob> = {
   importar_fornecedores: manipularJobImportarFornecedores,
   import_ofx: manipularJobImportOfx,
   conciliacao_conta: manipularJobConciliacaoConta,
-  relatorio_pdf: manipularJobRelatorioPdf,
   backup_export: manipularJobBackupExport,
   backup_import: manipularJobBackupImport,
   backup_servidor: manipularJobBackupServidor,

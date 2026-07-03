@@ -23,7 +23,7 @@ export async function publicarExtratoPublica(input: {
   nomeArquivo: string;
   titulo: string;
 }) {
-  const { blobParaBase64 } = await import("@/lib/pdf-viewer-aba");
+  const { blobParaBase64 } = await import("@/lib/blob-base64");
   const base64 = await blobParaBase64(input.blob);
   const res = await fetch("/api/financeiro/extrato-publica", {
     method: "POST",

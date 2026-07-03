@@ -6,35 +6,38 @@
 
 ## Contexto
 
-DRE, fluxo de caixa, tempo de produção e relatórios gerenciais geram PDF no cliente ou em request longo, abrindo modais viewer (`PdfDreViewerModal`, `PdfMovimentacaoViewerModal`, etc.).
+DRE, fluxo de caixa e outros relatórios geravam PDF em request longo ou em job + página `/financeiro/relatorio-pdf`, o que podia travar em “Gerando PDF...”.
 
-## Objetivo
+## Objetivo (atualizado)
 
-Para relatórios pesados: `POST /api/relatorios/[tipo]/pdf` → job → blob em storage temporário ou base64 no result → abrir no visualizador único (issue 010).
+Relatórios abrem PDF **direto no navegador** (blob URL via `abrirPdfBlobDiretoNaAba` / `abrirPdfBlobGerandoNoVisualizadorUnificado`), sem depender de job nem da rota de sessão.
 
 ## Escopo
 
-- [x] Piloto: DRE e fluxo de caixa
-- [x] Reutilizar geradores PDF (`dre-relatorio-pdf`, `relatorio-movimentacao-pdf`) no worker do job
-- [x] TTL de arquivo temporário (1 h em `relatorio-pdf-temp-servidor.ts`)
-- [x] Frontend migrado nos pilotos (`ImprimirDreModal`, `FluxoDeCaixaConteudo`)
-- [x] PDF do job abre no visualizador único (issue 010) via `abrirPdfUrlNoVisualizadorUnificado`
-- [x] Estado vazio no visualizador quando relatório sem dados
-- [x] Removidos viewers órfãos (`PdfDreViewerModal`, `PdfMovimentacaoViewerModal`)
+- [x] Piloto: DRE e fluxo de caixa (geração no cliente)
+- [x] Reutilizar geradores PDF (`dre-relatorio-pdf`, `relatorio-movimentacao-pdf`) no browser
+- [x] Demais PDFs de financeiro/relatórios passam pelo mesmo caminho de blob direto
+- [x] Removidos viewers órfãos e o stack morto `relatorio_pdf` + `/financeiro/relatorio-pdf`
+- [x] Estado vazio: alerta quando não há dados (DRE)
 
-## Backlog (issue 016 / futuro)
+## Nota de limpeza (pós-integração)
 
-- Migrar demais relatórios pesados: produção, estoque, financeiro geral, margem, tempo de produção, etc.
+Removidos do código (não usar mais):
+
+- Job `relatorio_pdf`, `relatorio-pdf-cliente`, rotas `/api/relatorios/[tipo]/pdf` e `/api/relatorios/pdf/[id]`
+- Página `/app/financeiro/relatorio-pdf`, `PdfViewerPagina`, `pdf-viewer-sessao`, `pdf-documento`
 
 ## Critérios de aceite
 
-- Relatório 12 meses DRE não bloqueia API por > 5 s no POST inicial
-- PDF final idêntico ao atual (diff visual manual)
+- Imprimir DRE / fluxo de caixa abre o PDF nativo do navegador (não fica em “Gerando PDF...”)
+- PDF final com os mesmos dados da tela
 
 ## Dependência
 
-- Issue 002
+- Issue 002 (jobs permanecem para import, backup, OFX, NFS-e, etc. — não para PDF de relatório)
 
 ## Referências
 
-- PRD §5.7: filtros de período, PDF viewer
+- PRD §5.7: filtros de período, exportação PDF
+- `src/lib/pdf-viewer.ts` (`abrirPdfBlobDiretoNaAba`)
+- `src/lib/pdf-viewer-unificado.ts`
