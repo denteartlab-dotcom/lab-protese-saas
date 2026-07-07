@@ -113,7 +113,7 @@ function valorCampoConta(valor?: string) {
 export function ContaBancariaConteudo() {
   const searchParams = useSearchParams();
   const [contaAsaasAtiva, setContaAsaasAtiva] = useState(false);
-  const [subcontaAsaasAprovada, setSubcontaAsaasAprovada] = useState(false);
+  const [podeVisualizarContaAsaas, setPodeVisualizarContaAsaas] = useState(false);
   const [modoIntegracaoAsaas, setModoIntegracaoAsaas] = useState<
     "subconta" | "legado" | null
   >(null);
@@ -242,17 +242,25 @@ export function ContaBancariaConteudo() {
         modoIntegracao?: "subconta" | "legado" | null;
         contaAtiva?: boolean;
         integracaoConfigurada?: boolean;
+        asaasAccountId?: string | null;
+        podeVisualizarContaDigital?: boolean;
       } | null;
       const modo = sub?.modoIntegracao ?? null;
+      const integracaoAtiva = Boolean(sub?.integracaoConfigurada && sub?.contaAtiva);
+      const subcontaIniciada = Boolean(
+        sub?.status &&
+          sub.status !== "nao_iniciado" &&
+          (sub.asaasAccountId || modo === "subconta")
+      );
       setModoIntegracaoAsaas(modo);
-      setContaAsaasAtiva(Boolean(sub?.integracaoConfigurada && sub?.contaAtiva));
-      setSubcontaAsaasAprovada(
-        modo === "subconta" && sub?.status === "aprovada"
+      setContaAsaasAtiva(integracaoAtiva);
+      setPodeVisualizarContaAsaas(
+        Boolean(sub?.podeVisualizarContaDigital) || integracaoAtiva || subcontaIniciada
       );
     } catch {
       setSaldoAsaas(null);
       setContaAsaasAtiva(false);
-      setSubcontaAsaasAprovada(false);
+      setPodeVisualizarContaAsaas(false);
       setModoIntegracaoAsaas(null);
     }
   }, []);
@@ -269,7 +277,10 @@ export function ContaBancariaConteudo() {
   }
 
   function mensagemVisualizarAsaasIndisponivel() {
-    return "Visualização disponível apenas com subconta Asaas aprovada (Configurações → Boletos)";
+    if (modoIntegracaoAsaas === "legado") {
+      return "Configure a chave API Asaas em Configurações → Boletos";
+    }
+    return "Disponível após abrir a conta digital Asaas (Configurações → Boletos)";
   }
 
   function abrirContaBancariaAsaas(aba: ContaDigitalAba) {
@@ -279,7 +290,7 @@ export function ContaBancariaConteudo() {
 
   function visualizarConta(conta: ContaBancaria) {
     if (conta.id === ID_CONTA_CARTEIRA) {
-      if (!subcontaAsaasAprovada) return;
+      if (!podeVisualizarContaAsaas) return;
       if (contaVisualizada === ID_CONTA_CARTEIRA) {
         setContaVisualizada(null);
         return;
@@ -297,11 +308,11 @@ export function ContaBancariaConteudo() {
 
     const aba: ContaDigitalAba =
       abaUrl === "pagar" || abaUrl === "transferir" ? abaUrl : "extrato";
-    if (aba === "extrato" && !subcontaAsaasAprovada) return;
-    if (!contaAsaasAtiva) return;
+    if (aba === "extrato" && !podeVisualizarContaAsaas) return;
+    if (aba !== "extrato" && !contaAsaasAtiva) return;
 
     abrirContaBancariaAsaas(aba);
-  }, [searchParams, contaAsaasAtiva, subcontaAsaasAprovada]);
+  }, [searchParams, contaAsaasAtiva, podeVisualizarContaAsaas]);
 
   function acionarPrincipalConta(conta: ContaBancaria) {
     if (conta.id === ID_CONTA_CARTEIRA && conta.acaoPrincipal === "baixar") {
@@ -668,14 +679,14 @@ export function ContaBancariaConteudo() {
                                 type="button"
                                 title={
                                   conta.id === ID_CONTA_CARTEIRA &&
-                                  !subcontaAsaasAprovada
+                                  !podeVisualizarContaAsaas
                                     ? mensagemVisualizarAsaasIndisponivel()
                                     : "Visualizar"
                                 }
                                 onClick={() => visualizarConta(conta)}
                                 disabled={
                                   conta.id === ID_CONTA_CARTEIRA &&
-                                  !subcontaAsaasAprovada
+                                  !podeVisualizarContaAsaas
                                 }
                                 className={cn(
                                   "inline-flex h-8 w-8 items-center justify-center hover:text-[#4a90d9] dark:hover:text-sky-300 disabled:cursor-not-allowed disabled:opacity-40",

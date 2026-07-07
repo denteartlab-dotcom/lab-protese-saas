@@ -34,6 +34,12 @@ export async function montarSubcontaPainelContaDigital(empresaId: string) {
   const base = serializarSubcontaPublica(sub);
   const podeUsarIntegracaoManual = await laboratorioUsaCnpjContaMae(empresaId);
   const { config, modo } = await resolverContaDigitalOperacional(empresaId);
+  const subcontaIniciada = Boolean(
+    sub &&
+      base.status !== "nao_iniciado" &&
+      (sub.asaasAccountId || sub.apiKey)
+  );
+  const integracaoAtiva = Boolean(config) && (Boolean(base.contaAtiva) || modo === "legado");
 
   return {
     ...base,
@@ -41,6 +47,8 @@ export async function montarSubcontaPainelContaDigital(empresaId: string) {
     contaAtiva: Boolean(base.contaAtiva) || modo === "legado",
     integracaoConfigurada: Boolean(config),
     podeUsarIntegracaoManual,
+    subcontaIniciada,
+    podeVisualizarContaDigital: integracaoAtiva || subcontaIniciada,
   };
 }
 
