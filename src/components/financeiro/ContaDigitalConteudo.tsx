@@ -280,7 +280,7 @@ export function ContaDigitalConteudo() {
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:col-span-1">
           <p className="text-[11px] text-slate-500">Saldo disponível</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{money(saldo)}</p>
-          {subconta.conta ? (
+          {subconta?.conta ? (
             <p className="mt-2 text-[11px] text-slate-500">
               Ag. {subconta.agencia || "—"} · Cc {subconta.conta}
               {subconta.contaDigito ? `-${subconta.contaDigito}` : ""}
