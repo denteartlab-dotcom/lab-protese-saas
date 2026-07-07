@@ -205,6 +205,35 @@ const IDS_CONTAS_SISTEMA = new Set([
   ID_CONTA_NF,
 ]);
 
+export const SEPARADOR_ID_CONTA_SISTEMA = ":";
+
+/** ID persistido no PostgreSQL (contas do sistema são únicas por empresa). */
+export function idContaBancariaDb(empresaId: string, appId: string): string {
+  if (IDS_CONTAS_SISTEMA.has(appId)) {
+    return `${empresaId}${SEPARADOR_ID_CONTA_SISTEMA}${appId}`;
+  }
+  return appId;
+}
+
+/** ID exposto na UI e no localStorage. */
+export function idContaBancariaApp(empresaId: string, dbId: string): string {
+  const prefixo = `${empresaId}${SEPARADOR_ID_CONTA_SISTEMA}`;
+  if (dbId.startsWith(prefixo)) {
+    const appId = dbId.slice(prefixo.length);
+    if (IDS_CONTAS_SISTEMA.has(appId)) return appId;
+  }
+  if (IDS_CONTAS_SISTEMA.has(dbId)) return dbId;
+  return dbId;
+}
+
+export function contaIdParaDb(empresaId: string, contaId: string): string {
+  return idContaBancariaDb(empresaId, contaId);
+}
+
+export function contaIdParaApp(empresaId: string, contaIdDb: string): string {
+  return idContaBancariaApp(empresaId, contaIdDb);
+}
+
 /** Garante Caixa Principal, Conta Bancária (Asaas) e Nota Fiscal na lista. */
 export function garantirContasSistemaPadrao(contas: ContaBancaria[]): ContaBancaria[] {
   const mapa = new Map(contas.map((c) => [c.id, c]));

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import type { ContaBancaria } from "@/lib/conta-bancaria";
+import { idContaBancariaApp, idContaBancariaDb } from "@/lib/conta-bancaria";
 import type { LancamentoConciliacao } from "@/lib/conciliacao-ofx-procedimento";
 import type { ExtratoMovimentacao } from "@/lib/extrato-bancario";
 import {
@@ -166,14 +167,20 @@ export async function executarConciliacaoContaServidor(
   opcoes?: { onProgresso?: (progresso: number) => void | Promise<void> }
 ): Promise<ResultadoConciliacaoContaJob> {
   const contaRow = await prisma.contaBancaria.findFirst({
-    where: { id: input.contaId, empresaId },
+    where: {
+      empresaId,
+      OR: [
+        { id: idContaBancariaDb(empresaId, input.contaId) },
+        { id: input.contaId },
+      ],
+    },
   });
   if (!contaRow) {
     throw new Error("Conta bancária não encontrada.");
   }
 
   const conta: ContaBancaria = {
-    id: contaRow.id,
+    id: idContaBancariaApp(empresaId, contaRow.id),
     nome: contaRow.nome,
     saldoInicial: contaRow.saldoInicial,
     excluida: contaRow.excluida,
