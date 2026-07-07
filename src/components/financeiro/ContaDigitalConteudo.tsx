@@ -124,6 +124,7 @@ export function ContaDigitalConteudo() {
     valor: number;
     vencimento?: string;
     beneficiario?: string;
+    taxa?: number;
   } | null>(null);
   const [valorPix, setValorPix] = useState("");
   const [chavePix, setChavePix] = useState("");
@@ -540,7 +541,10 @@ export function ContaDigitalConteudo() {
             <input
               type="text"
               value={linhaDigitavel}
-              onChange={(e) => setLinhaDigitavel(e.target.value)}
+              onChange={(e) => {
+                setLinhaDigitavel(e.target.value);
+                setBoletoValidado(null);
+              }}
               className={cn(inputClass, "font-mono text-[11px]")}
               placeholder="Cole ou digite a linha digitável"
             />
@@ -557,7 +561,13 @@ export function ContaDigitalConteudo() {
               ) : null}
               {boletoValidado.vencimento ? (
                 <p>
-                  <strong>Vencimento:</strong> {boletoValidado.vencimento}
+                  <strong>Vencimento:</strong>{" "}
+                  {new Date(boletoValidado.vencimento + "T12:00:00").toLocaleDateString("pt-BR")}
+                </p>
+              ) : null}
+              {boletoValidado.taxa != null && boletoValidado.taxa > 0 ? (
+                <p>
+                  <strong>Taxa Asaas:</strong> {money(boletoValidado.taxa)}
                 </p>
               ) : null}
             </div>

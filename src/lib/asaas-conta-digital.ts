@@ -85,30 +85,71 @@ export type BoletoValidado = {
   vencimento?: string;
   beneficiario?: string;
   identificationField?: string;
+  taxa?: number;
+  vencido?: boolean;
 };
+
+type RespostaSimularBoletoAsaas = {
+  fee?: number;
+  minimumScheduleDate?: string;
+  bankSlipInfo?: {
+    identificationField?: string;
+    value?: number;
+    originalValue?: number;
+    dueDate?: string;
+    beneficiaryName?: string;
+    companyName?: string;
+    isOverdue?: boolean;
+  };
+  /** Compatibilidade com formato antigo/incorreto. */
+  value?: number;
+  dueDate?: string;
+  beneficiaryName?: string;
+  identificationField?: string;
+};
+
+function normalizarSimulacaoBoleto(
+  res: RespostaSimularBoletoAsaas,
+  identificationField: string
+): BoletoValidado {
+  const info = res.bankSlipInfo;
+  const valor =
+    Number(info?.value ?? info?.originalValue ?? res.value) || 0;
+
+  return {
+    valor,
+    vencimento: info?.dueDate ?? res.dueDate,
+    beneficiario: info?.beneficiaryName ?? info?.companyName ?? res.beneficiaryName,
+    identificationField:
+      info?.identificationField ?? res.identificationField ?? identificationField,
+    taxa: Number(res.fee) || 0,
+    vencido: Boolean(info?.isOverdue),
+  };
+}
 
 export async function validarBoletoContaDigital(
   empresaId: string,
   linhaDigitavel: string
 ): Promise<BoletoValidado> {
   const config = await configContaDigital(empresaId);
-  const identificationField = linhaDigitavel.replace(/\s/g, "");
-  const res = await asaasFetch<{
-    value?: number;
-    dueDate?: string;
-    beneficiaryName?: string;
-    identificationField?: string;
-  }>(config, "/bill/simulate", {
+  const identificationField = linhaDigitavel.replace(/\D/g, "");
+  if (identificationField.length < 44) {
+    throw new Error("Linha digitável inválida. Informe os 47 dígitos do boleto.");
+  }
+
+  const res = await asaasFetch<RespostaSimularBoletoAsaas>(config, "/bill/simulate", {
     method: "POST",
     body: JSON.stringify({ identificationField }),
   });
 
-  return {
-    valor: Number(res.value) || 0,
-    vencimento: res.dueDate,
-    beneficiario: res.beneficiaryName,
-    identificationField: res.identificationField || identificationField,
-  };
+  const boleto = normalizarSimulacaoBoleto(res, identificationField);
+  if (boleto.valor <= 0) {
+    throw new Error(
+      "Não foi possível ler o valor do boleto. Verifique a linha digitável e tente novamente."
+    );
+  }
+
+  return boleto;
 }
 
 export async function pagarBoletoContaDigital(
@@ -120,7 +161,24 @@ export async function pagarBoletoContaDigital(
   }
 ) {
   const config = await configContaDigital(empresaId);
-  const identificationField = params.linhaDigitavel.replace(/\s/g, "");
+  const identificationField = params.linhaDigitavel.replace(/\D/g, "");
+
+  const simulacao = await validarBoletoContaDigital(empresaId, params.linhaDigitavel);
+  const { saldo } = await obterSaldoContaDigital(empresaId);
+  const totalDebito = simulacao.valor + (simulacao.taxa ?? 0);
+
+  if (totalDebito > saldo + 0.001) {
+    throw new Error(
+      `O valor do boleto (${simulacao.valor.toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      })}) é maior que o saldo disponível (${saldo.toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      })}).`
+    );
+  }
+
   return asaasFetch<{ id?: string; status?: string }>(config, "/bill", {
     method: "POST",
     body: JSON.stringify({
