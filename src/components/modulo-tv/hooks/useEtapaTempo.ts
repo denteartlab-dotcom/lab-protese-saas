@@ -1,14 +1,15 @@
 "use client";
 
+import { differenceInCalendarDays, startOfDay } from "date-fns";
 import { useEffect, useState } from "react";
 
-function formatarDuracao(ms: number) {
-  const totalMin = Math.max(0, Math.floor(ms / 60_000));
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m`;
-  return "< 1m";
+function formatarDuracaoDias(etapaDesde: Date) {
+  const hoje = startOfDay(new Date());
+  const inicio = startOfDay(etapaDesde);
+  const dias = Math.max(0, differenceInCalendarDays(hoje, inicio));
+  if (dias === 0) return "hoje";
+  if (dias === 1) return "1 dia";
+  return `${dias} dias`;
 }
 
 export function useEtapaTempo(etapaDesde: string) {
@@ -16,16 +17,15 @@ export function useEtapaTempo(etapaDesde: string) {
 
   useEffect(() => {
     const atualizar = () => {
-      const inicio = new Date(etapaDesde).getTime();
-      if (Number.isNaN(inicio)) {
+      const inicio = new Date(etapaDesde);
+      if (Number.isNaN(inicio.getTime())) {
         setLabel("—");
         return;
       }
-      const ms = Date.now() - inicio;
-      setLabel(formatarDuracao(ms));
+      setLabel(formatarDuracaoDias(inicio));
     };
     atualizar();
-    const t = window.setInterval(atualizar, 30_000);
+    const t = window.setInterval(atualizar, 60_000);
     return () => window.clearInterval(t);
   }, [etapaDesde]);
 
