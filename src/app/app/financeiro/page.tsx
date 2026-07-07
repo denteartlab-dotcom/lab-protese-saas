@@ -778,6 +778,10 @@ function FinanceiroReceberConteudo() {
   const totalLiquido = Math.max(0, valorBruto - desconto + jurosValor);
 
   function formaSelecionadaEhBoleto() {
+    const naParcela = parcelas.some((p) =>
+      (p.formaPagamento || "").toLowerCase().includes("boleto")
+    );
+    if (naParcela) return true;
     return (form.formaPagamento || "").toLowerCase().includes("boleto");
   }
 
@@ -933,9 +937,17 @@ function FinanceiroReceberConteudo() {
           setMensagemLancamentoTipo("sucesso");
           setMensagemLancamento("Boleto emitido no Asaas. Abrindo PDF…");
           window.open(payload.cobrancaAsaas.bankSlipUrl, "_blank", "noopener,noreferrer");
+        } else if (typeof payload.avisoBoleto === "string" && payload.avisoBoleto) {
+          setMensagemLancamentoTipo("erro");
+          setMensagemLancamento(payload.avisoBoleto);
+          return;
         } else if (formaSelecionadaEhBoleto() && !algumRecebido) {
           setMensagemLancamentoTipo("sucesso");
-          setMensagemLancamento("Cobrança lançada.");
+          setMensagemLancamento(
+            payload.boletoEmitido
+              ? "Cobrança lançada com boleto emitido."
+              : "Cobrança lançada."
+          );
         }
       }
     }
