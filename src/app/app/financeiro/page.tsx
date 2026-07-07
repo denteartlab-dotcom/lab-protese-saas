@@ -907,10 +907,21 @@ function FinanceiroReceberConteudo() {
     const lancamentosCriados: Lancamento[] = [];
     const algumRecebido = parcelas.some((p) => p.recebido);
 
-    if (deveCriarFaturaReceber) {
-      const basePorParcela =
-        parcelas.length > 0 ? totalAReceberComCredito / parcelas.length : totalAReceberComCredito;
+    function valorParcelaFatura(parcela: ParcelaLinhaReceita, totalParcelas: number) {
+      const qtd = Math.max(totalParcelas, 1);
+      if (creditoAplicado <= 0.009) {
+        return valorParcelaNumerico(parcela, totalLiquido / qtd);
+      }
+      const valorCobrancaParcela = valorParcelaNumerico(
+        parcela,
+        totalAReceberComCredito / qtd
+      );
+      if (totalAReceberComCredito <= 0.009) return 0;
+      const proporcao = valorCobrancaParcela / totalAReceberComCredito;
+      return Math.round(totalLiquido * proporcao * 100) / 100;
+    }
 
+    if (deveCriarFaturaReceber) {
       if (parcelas.length > 1) {
         const res = await fetch("/api/financeiro", {
           method: "POST",
@@ -923,7 +934,7 @@ function FinanceiroReceberConteudo() {
             emitirBoleto: formaSelecionadaEhBoleto(parcelas) && !algumRecebido,
             emitirPix: formaSelecionadaEhPix(parcelas) && !algumRecebido,
             parcelas: parcelas.map((p) => ({
-              valor: valorParcelaNumerico(p, basePorParcela),
+              valor: valorParcelaFatura(p, parcelas.length),
               data: p.recebido ? hojeIso : brShortToIso(p.vencimento || form.data),
               status: p.recebido ? "pago" : "pendente",
               formaPagamento: formaPagamentoValida(p.formaPagamento),
@@ -996,8 +1007,16 @@ function FinanceiroReceberConteudo() {
       } else {
         const p = parcelas[0];
         const valorLancamento = p
-          ? valorParcelaNumerico(p, totalAReceberComCredito)
-          : totalAReceberComCredito;
+          ? valorParcelaFatura(p, 1)
+          : creditoAplicado > 0.009
+            ? totalLiquido
+            : totalAReceberComCredito;
+        const valorPixBoleto =
+          creditoAplicado > 0.009
+            ? p
+              ? valorParcelaNumerico(p, totalAReceberComCredito)
+              : totalAReceberComCredito
+            : valorLancamento;
         const res = await fetch("/api/financeiro", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1012,6 +1031,7 @@ function FinanceiroReceberConteudo() {
             descricao: descricaoCobranca,
             emitirBoleto: formaSelecionadaEhBoleto(parcelas) && !algumRecebido,
             emitirPix: formaSelecionadaEhPix(parcelas) && !algumRecebido,
+            valorCobrancaAsaas: valorPixBoleto,
           }),
         });
         const payload = await res.json().catch(() => ({}));
@@ -1033,7 +1053,7 @@ function FinanceiroReceberConteudo() {
           const clienteNome =
             clientes.find((c) => c.id === form.clienteId)?.nome || "Cliente";
           setPixQrRecebimento({
-            valor: valorLancamento,
+            valor: valorPixBoleto,
             clienteNome,
             pixPayload: String(payload.pixQr.pixPayload || ""),
             pixEncodedImage: String(payload.pixQr.pixEncodedImage || ""),
@@ -1073,10 +1093,7 @@ function FinanceiroReceberConteudo() {
           data: brShortToIso(form.vencimento || form.data),
           status: "pago",
           formaPagamento: FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
-          descricao: descricaoReceitaComPlano(
-            `Desconto com crédito - ${descricaoBase}`,
-            anexos
-          ),
+          descricao: `Desconto com crédito - ${descricaoCobranca}`,
         }),
       });
     }

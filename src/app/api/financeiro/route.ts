@@ -40,6 +40,8 @@ const schema = z.object({
   /** Se true, enfileira job para emitir o boleto em background (issue 030). */
   emitirBoletoAsync: z.boolean().optional(),
   emitirPix: z.boolean().optional(),
+  /** Valor a cobrar no Asaas (Pix/boleto) quando diferente do valor da fatura — ex.: abatimento de crédito. */
+  valorCobrancaAsaas: z.number().nonnegative().optional(),
   parcelaNumero: z.number().int().positive().optional(),
   parcelaTotal: z.number().int().positive().optional(),
   numeroFatura: z.number().int().positive().optional(),
@@ -146,7 +148,8 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const data = schema.parse(body);
-    const { emitirBoleto, emitirBoletoAsync, emitirPix, parcelas: parcelasBody } = data;
+    const { emitirBoleto, emitirBoletoAsync, emitirPix, parcelas: parcelasBody, valorCobrancaAsaas } =
+      data;
     const { empresaId, user: session } = ctx;
 
     if (
@@ -325,6 +328,10 @@ export async function POST(request: Request) {
     const deveEmitirBoleto =
       emitirBoleto !== false &&
       (data.formaPagamento || "").toLowerCase().includes("boleto");
+    const valorAsaas =
+      typeof valorCobrancaAsaas === "number" && valorCobrancaAsaas > 0
+        ? valorCobrancaAsaas
+        : data.valor;
 
     /** Modo async (issue 030): enfileira job para não travar o request. */
     if (deveEmitirBoleto && emitirBoletoAsync === true) {
@@ -351,7 +358,10 @@ export async function POST(request: Request) {
 
     if (deveEmitirBoleto) {
       try {
-        const cobranca = await tentarEmitirBoletoParaLancamento(lancamento.id);
+        const cobranca = await tentarEmitirBoletoParaLancamento(
+          lancamento.id,
+          valorAsaas !== data.valor ? valorAsaas : undefined
+        );
         const atualizado = await findLancamentoFinanceiroPorId(lancamento.id);
         const registro = atualizado || lancamento;
         const audit = await auditarCriacaoLancamento(session, registro, {
@@ -406,7 +416,10 @@ export async function POST(request: Request) {
 
     if (deveEmitirPix) {
       try {
-        const pix = await tentarEmitirPixParaLancamento(lancamento.id);
+        const pix = await tentarEmitirPixParaLancamento(
+          lancamento.id,
+          valorAsaas !== data.valor ? valorAsaas : undefined
+        );
         const atualizado = await findLancamentoFinanceiroPorId(lancamento.id);
         const registro = atualizado || lancamento;
         const audit = await auditarCriacaoLancamento(session, registro, {

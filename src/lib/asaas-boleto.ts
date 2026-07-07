@@ -13,7 +13,10 @@ function formaEhBoleto(forma?: string | null): boolean {
   return (forma || "").toLowerCase().includes("boleto");
 }
 
-export async function tentarEmitirBoletoParaLancamento(lancamentoId: string) {
+export async function tentarEmitirBoletoParaLancamento(
+  lancamentoId: string,
+  valorOverride?: number
+) {
   const lancamento = await prisma.lancamento.findUnique({
     where: { id: lancamentoId },
     include: { cliente: true },
@@ -60,7 +63,7 @@ export async function tentarEmitirBoletoParaLancamento(lancamentoId: string) {
   const pagamento = await emitirBoletoAsaas({
     config,
     asaasCustomerId,
-    valor: lancamento.valor,
+    valor: valorOverride ?? lancamento.valor,
     vencimento: lancamento.data,
     descricao: descricaoPublicaLancamento(lancamento.descricao),
   });
