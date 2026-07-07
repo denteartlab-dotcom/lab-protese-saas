@@ -42,7 +42,10 @@ export const DENTES_PERMANENTES_INFERIORES = [
   "38",
 ] as const;
 
-function listasDenticao(tipo: "permanente" | "deciduos") {
+function listasDenticao(tipo: "permanente" | "deciduos"): {
+  superiores: string[];
+  inferiores: string[];
+} {
   return tipo === "deciduos"
     ? {
         superiores: [...DENTES_DECIDUOS_SUPERIORES],
@@ -110,7 +113,7 @@ export function compactarDentesParaImpressaoOs(resumo: string): string {
     ...(!todosInferiores ? ordenarDentes(inferiores.filter((dente) => set.has(dente))) : []),
   ].filter(Boolean);
 
-  const conhecidos = new Set([...superiores, ...inferiores]);
+  const conhecidos = new Set<string>([...superiores, ...inferiores]);
   const extras = ordenarDentes(numeros.filter((numero) => !conhecidos.has(numero)));
   if (extras.length) partes.push(...extras);
 
