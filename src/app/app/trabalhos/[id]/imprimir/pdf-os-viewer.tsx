@@ -71,6 +71,7 @@ import {
   type EtapaOsLinha,
   type EtapasPorServicoOs,
 } from "@/lib/etapas-os-impressao";
+import { formatarDentesParaImpressaoOs } from "@/lib/dentes-os-resumo";
 
 const CODIGO_BARRAS_ALTURA_MM = 8;
 const CODIGO_BARRAS_ESTREITA_MM = 0.32;
@@ -221,6 +222,42 @@ function descontoCelula(desconto: string, descontoTipo?: string) {
   if (!texto) return "% 0.00";
   if (texto.startsWith("%") || texto.startsWith("R$")) return texto;
   return formatarDescontoImpressaoOs(desconto, descontoTipo);
+}
+
+type PdfTextoApi = {
+  splitTextToSize: (text: string, maxWidth: number) => string[];
+  text: (text: string | string[], x: number, y: number, options?: { align?: string }) => void;
+};
+
+function textoDenteParaImpressao(dente: string) {
+  return formatarDentesParaImpressaoOs(dente) || String(dente || "").trim();
+}
+
+function larguraColunaDente(colDente: number, colCor: number, temCor: boolean) {
+  return Math.max(14, temCor ? colCor - colDente - 2 : 20);
+}
+
+function linhasDenteItem(pdf: PdfTextoApi, dente: string, largura: number) {
+  const texto = textoDenteParaImpressao(dente);
+  if (!texto || texto === "-") return [""];
+  return pdf.splitTextToSize(texto, largura);
+}
+
+function desenharDenteCelula(
+  pdf: PdfTextoApi,
+  dente: string,
+  x: number,
+  y: number,
+  largura: number,
+  alturaLinha: number
+) {
+  const linhas = linhasDenteItem(pdf, dente, largura);
+  let cy = y;
+  for (const linha of linhas) {
+    if (linha) pdf.text(linha, x, cy, { align: "center" });
+    cy += alturaLinha;
+  }
+  return Math.max(1, linhas.length);
 }
 
 function desenharLinhaPrazo(
@@ -869,17 +906,21 @@ function renderModeloProducao(
       y = OS_REQUISICAO_MARGEM_CONTEUDO_MM + 1;
     }
     const descricaoLinhas = pdf.splitTextToSize(String(item.descricao), lay.subtotal ? 58 : 68);
+    const alturaLinha = 4.2 * escalaEspacamentoRequisicao(lay);
+    const larguraDente = larguraColunaDente(colDente, colCor, lay.corDente);
 
     pdf.text(String(item.qtd), colQtd, y);
     pdf.text(descricaoLinhas, colDesc, y);
-    if (lay.numDente) pdf.text(String(item.dente).slice(0, 12), colDente, y, { align: "center" });
+    const denteLinhas = lay.numDente
+      ? desenharDenteCelula(pdf, item.dente, colDente, y, larguraDente, alturaLinha)
+      : 1;
     if (lay.corDente) pdf.text(String(item.cor).slice(0, 16), colCor, y, { align: "center" });
     if (lay.valorUnit) pdf.text(unitarioTabela(item.unitario), colUnit, y, { align: "right" });
     if (lay.desconto) pdf.text(descontoCelula(item.desconto, item.descontoTipo), colDescPct, y, { align: "right" });
     if (lay.subtotal) {
       pdf.text(unitarioTabela(subtotalItem(item)), colSubtotalDir, y, { align: "right" });
     }
-    y += Math.max(gapMm(4), descricaoLinhas.length * 4.2 * escalaEspacamentoRequisicao(lay));
+    y += Math.max(gapMm(4), descricaoLinhas.length * alturaLinha, denteLinhas * alturaLinha);
 
     if (indiceItem < totalItens - 1) {
       y += gapMm(1);
@@ -1110,9 +1151,13 @@ function renderModeloComprovante(
 
     const descricaoLargura = lay.subtotal ? 62 : 72;
     const descricaoLinhas = pdf.splitTextToSize(String(item.descricao), descricaoLargura);
+    const alturaLinha = 4.2 * escalaEspacamentoRequisicao(lay);
+    const larguraDente = larguraColunaDente(colDente, colCor, lay.corDente);
     pdf.text(String(item.qtd), colQtd, y);
     pdf.text(descricaoLinhas, colDesc, y);
-    if (lay.numDente) pdf.text(String(item.dente).slice(0, 12), colDente, y, { align: "center" });
+    const denteLinhas = lay.numDente
+      ? desenharDenteCelula(pdf, item.dente, colDente, y, larguraDente, alturaLinha)
+      : 1;
     if (lay.corDente) pdf.text(String(item.cor).slice(0, 16), colCor, y, { align: "center" });
     if (lay.valorUnit) pdf.text(unitarioTabela(item.unitario), colUnit, y, { align: "right" });
     if (lay.desconto) {
@@ -1121,7 +1166,7 @@ function renderModeloComprovante(
     if (lay.subtotal) {
       pdf.text(unitarioTabela(subtotal), colSubtotal, y, { align: "right" });
     }
-    y += Math.max(gapMm(4), descricaoLinhas.length * 4.2 * escalaEspacamentoRequisicao(lay));
+    y += Math.max(gapMm(4), descricaoLinhas.length * alturaLinha, denteLinhas * alturaLinha);
     y += gapMm(1);
   });
 
@@ -1294,7 +1339,7 @@ function renderTermicaModelo3(pdf: PdfRenderApi, data: PdfOsData): number {
     y += Math.max(4, descricaoLinhas.length * 3.5) + 1;
 
     pdf.setFontSize(7.5);
-    y = campoTermica(pdf, "Num Dente:", item.dente, mx + 2, y, larguraTexto - 22);
+    y = campoTermica(pdf, "Num Dente:", textoDenteParaImpressao(item.dente), mx + 2, y, larguraTexto - 22);
     y = campoTermica(pdf, "Cor Dente:", item.cor, mx + 2, y, larguraTexto - 22);
     const prazo = prazoDoItemTermica(item, data);
     y = campoTermica(pdf, "Prazo:", prazo, mx + 2, y, larguraTexto - 14);
@@ -1483,7 +1528,7 @@ function renderTermicaModelo4(
 
       pdf.setFontSize(fsSmall - 0.5);
       if (lay.numDente) {
-        y = campoTermica(pdf, "Num Dente:", item.dente, mx + 1, y, larguraCampo);
+        y = campoTermica(pdf, "Num Dente:", textoDenteParaImpressao(item.dente), mx + 1, y, larguraCampo);
       }
       if (lay.corDente) {
         y = campoTermica(pdf, "Cor Dente:", item.cor, mx + 1, y, larguraCampo);
@@ -1750,7 +1795,7 @@ function renderTermicaModelo5(
 
       pdf.setFontSize(fsSmall - 0.5);
       if (lay.numDente) {
-        y = campoTermica(pdf, "Num Dente:", item.dente, mx + 1, y, larguraCampo);
+        y = campoTermica(pdf, "Num Dente:", textoDenteParaImpressao(item.dente), mx + 1, y, larguraCampo);
       }
       if (lay.corDente) {
         y = campoTermica(pdf, "Cor Dente:", item.cor, mx + 1, y, larguraCampo);

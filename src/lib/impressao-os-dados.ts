@@ -19,6 +19,7 @@ import {
   extrairItensImpressaoOs,
   flagsUrgenteRepeticaoInstrucoes,
 } from "@/lib/os-itens-impressao";
+import { mesclarResumosDentesOs, formatarDentesParaImpressaoOs } from "@/lib/dentes-os-resumo";
 import {
   garantirNomeLaboratorioParaImpressao,
   nomeExibicaoLaboratorio,
@@ -289,13 +290,25 @@ export async function carregarDadosImpressaoOs({
     segmentoSomenteItem
   );
 
-  itens = sanitizarItensImpressao(
-    anexarPrazosServicoPorTrabalho(
-      itens,
-      grupo,
-      (status) => STATUS_TRABALHO[status]?.label || status
-    )
+  itens = anexarPrazosServicoPorTrabalho(
+    itens,
+    grupo,
+    (status) => STATUS_TRABALHO[status]?.label || status
   );
+
+  const dentesGrupo = mesclarResumosDentesOs(
+    t.dentes || "",
+    ...grupo.map((row) => row.dentes || "")
+  );
+  if (dentesGrupo) {
+    itens = itens.map((item) => {
+      if (item.tipo !== "servico") return item;
+      const dente = mesclarResumosDentesOs(item.dente, dentesGrupo);
+      return dente !== item.dente ? { ...item, dente } : item;
+    });
+  }
+
+  itens = sanitizarItensImpressao(itens);
 
   const prazoLinhaServico =
     segmentoSomenteItem && segmentoSomenteItem !== "servico"
@@ -376,7 +389,7 @@ export async function carregarDadosImpressaoOs({
     urgente,
     repeticao,
     producao: STATUS_TRABALHO[statusServico]?.label || statusServico || "",
-    pecas: empty(t.dentes),
+    pecas: formatarDentesParaImpressaoOs(t.dentes || "") || empty(t.dentes),
     obsFicha: "",
     itens,
     configLaboratorio: sanitizarDadosPdfOs(configLab),

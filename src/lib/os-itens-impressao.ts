@@ -1,5 +1,9 @@
 import { parseEtapasInstrucoes } from "@/lib/etapas-os-impressao";
 import {
+  formatarDentesParaImpressaoOs,
+  mesclarResumosDentesOs,
+} from "@/lib/dentes-os-resumo";
+import {
   classificarItemOs,
   itemExibeBadgeProduto,
   itemExibeBadgeTransporte,
@@ -108,7 +112,7 @@ function parseLinhaItemAdicionado(
   return {
     qtd,
     descricao,
-    dente: odontologico && dente !== "-" ? dente : "",
+    dente: odontologico && dente !== "-" ? formatarDentesParaImpressaoOs(dente) : "",
     cor: odontologico ? formatarCorEscalaImpressaoOs(escalaEfetiva, corLinha) : "",
     unitario: quantidade > 0 ? total / quantidade : total,
     desconto: tipo === "servico" ? descontoImpressao(descontoRaw, descontoTipo) : "",
@@ -382,7 +386,15 @@ export function extrairItensImpressaoOs(
   const unicos = new Map<string, ItemImpressaoOs>();
   for (const item of itens) {
     const chave = `${item.tipo}|${item.descricao}|${item.qtd}|${item.unitario}`;
-    unicos.set(chave, item);
+    const existente = unicos.get(chave);
+    if (existente) {
+      unicos.set(chave, {
+        ...existente,
+        dente: mesclarResumosDentesOs(existente.dente, item.dente),
+      });
+    } else {
+      unicos.set(chave, item);
+    }
   }
 
   let resultado = ordenarItensImpressao([...unicos.values()]);
@@ -399,7 +411,7 @@ export function extrairItensImpressaoOs(
         {
           qtd: "1",
           descricao: classificarItemOs(itemFallback) === "servico" ? descricao : `${descricao}`,
-          dente: fallback.dentes || "",
+          dente: formatarDentesParaImpressaoOs(fallback.dentes || ""),
           cor: formatarCorEscalaImpressaoOs(fallback.escala, fallback.cor),
           unitario: fallback.valor,
           desconto: "",
