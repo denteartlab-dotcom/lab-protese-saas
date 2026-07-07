@@ -52,10 +52,12 @@ export function formatarTamanhoMbCard(bytes: number): string {
   const mb = n / (1024 * 1024);
   if (mb < 1) {
     const kb = n / 1024;
-    return kb < 0.1 ? "0 MB" : `${fmtPt.format(Math.round(kb * 10) / 10)} KB`;
+    if (kb < 0.1) return "0 MB";
+    const kbFmt = Math.round(kb * 10) / 10;
+    return `${String(kbFmt).replace(".", ",")} KB`;
   }
-  if (mb >= 10_000) return `${fmtPt.format(Math.round(mb))} MB`;
-  return `${fmtPt.format(Math.round(mb * 10) / 10)} MB`;
+  const mbFmt = Math.round(mb * 10) / 10;
+  return `${String(mbFmt).replace(".", ",")} MB`;
 }
 
 /** @deprecated Preferir formatarTamanhoMbCard no card do Início. */

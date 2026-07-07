@@ -31,11 +31,13 @@ export function PainelUploadsDashboard({
   resumo: UploadsResumoUi;
   onResumoAtualizado?: () => void;
 }) {
+  const limiteBytes = resumo.limiteBytes ?? LIMITE_ARMAZENAMENTO_BYTES;
+  const bytesLivres = Math.max(0, limiteBytes - resumo.bytesUsados);
   const pctUsado = percentualUsadoBarra(resumo);
   const textoPercentual = rotuloPercentualUsado(resumo);
   const textoUsado = formatarTamanhoMbCard(resumo.bytesUsados);
-  const textoLivre = formatarTamanhoMbCard(resumo.bytesLivres);
-  const galeriaEsgotada = resumo.bytesLivres <= 0;
+  const textoLivre = formatarTamanhoMbCard(bytesLivres);
+  const galeriaEsgotada = bytesLivres <= 0;
 
   return (
     <section className="rounded border border-slate-200 bg-white shadow-sm">
