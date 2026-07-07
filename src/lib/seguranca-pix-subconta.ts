@@ -103,7 +103,7 @@ export async function avaliarAutorizacaoSaqueAsaas(
 
   const transfer = payload.transfer;
   const transferId = transfer?.id?.trim();
-  if (!transferId) {
+  if (!transfer || !transferId) {
     return { status: "REFUSED", refuseReason: "Transferência sem identificador." };
   }
 
@@ -132,12 +132,12 @@ export async function avaliarAutorizacaoSaqueAsaas(
     return { status: "REFUSED", refuseReason: "Autorização Pix expirada." };
   }
 
-  const valorAsaas = Number(transfer?.value) || 0;
+  const valorAsaas = Number(transfer.value) || 0;
   if (Math.abs(valorAsaas - registro.valor) > 0.01) {
     return { status: "REFUSED", refuseReason: "Valor divergente da solicitação." };
   }
 
-  if ((transfer?.operationType || "").toUpperCase() !== "PIX") {
+  if ((transfer.operationType || "").toUpperCase() !== "PIX") {
     return { status: "REFUSED", refuseReason: "Operação não é Pix." };
   }
 
