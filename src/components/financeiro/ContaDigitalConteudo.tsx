@@ -97,7 +97,19 @@ function linkConfiguracoes(pathname: string) {
   return "/app/configuracoes?aba=boletos";
 }
 
-export function ContaDigitalConteudo() {
+export type ContaDigitalAba = "extrato" | "pagar" | "transferir";
+
+type Props = {
+  /** Quando embutido na página Conta Bancária. */
+  embedded?: boolean;
+  /** Abre a aba solicitada (ex.: transferir ao clicar em Retirar). */
+  abaSolicitada?: ContaDigitalAba | null;
+};
+
+export function ContaDigitalConteudo({
+  embedded = false,
+  abaSolicitada = null,
+}: Props = {}) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [subconta, setSubconta] = useState<SubcontaResumo | null>(null);
@@ -179,8 +191,14 @@ export function ContaDigitalConteudo() {
   useEffect(() => {
     if (searchParams.get("acao") === "transferir") {
       setAba("transferir");
+    } else if (searchParams.get("acao") === "pagar") {
+      setAba("pagar");
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (abaSolicitada) setAba(abaSolicitada);
+  }, [abaSolicitada]);
 
   useEffect(() => {
     void fetch("/api/auth/me", { cache: "no-store" })
@@ -356,7 +374,12 @@ export function ContaDigitalConteudo() {
 
   if (carregando) {
     return (
-      <div className="flex items-center gap-2 text-sm text-slate-500">
+      <div
+        className={cn(
+          "flex items-center gap-2 text-sm text-slate-500",
+          embedded && "py-4"
+        )}
+      >
         <Loader2 className="h-4 w-4 animate-spin" />
         Carregando conta digital…
       </div>
@@ -370,7 +393,7 @@ export function ContaDigitalConteudo() {
 
   if (!contaOperacional) {
     return (
-      <div>
+      <div className={embedded ? "" : undefined}>
         <div className="max-w-xl rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div className="flex items-start gap-3">
             <Wallet className="mt-0.5 h-8 w-8 text-[#4a90d9]" />
@@ -406,7 +429,18 @@ export function ContaDigitalConteudo() {
   }
 
   return (
-    <div>
+    <div className={embedded ? "space-y-4" : undefined}>
+      {embedded ? (
+        <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+          <Wallet className="h-5 w-5 text-[#4a90d9]" />
+          <div>
+            <h3 className="text-[14px] font-semibold text-slate-800">Conta Digital Asaas</h3>
+            <p className="text-[11px] text-slate-500">
+              Saldo, extrato, pagamento de boletos e transferências Pix
+            </p>
+          </div>
+        </div>
+      ) : null}
       {mensagem ? (
         <p
           className={cn(

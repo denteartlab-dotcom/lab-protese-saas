@@ -277,11 +277,11 @@ function FinanceiroRouter() {
   if (searchParams.get("aba") === "plano-de-contas") {
     return <PlanoContasConteudoLazy />;
   }
-  if (searchParams.get("aba") === "conta-bancaria") {
+  if (
+    searchParams.get("aba") === "conta-bancaria" ||
+    searchParams.get("aba") === "conta-digital"
+  ) {
     return <ContaBancariaConteudoLazy />;
-  }
-  if (searchParams.get("aba") === "conta-digital") {
-    return <ContaDigitalConteudoLazy />;
   }
   if (searchParams.get("aba") === "boletos") {
     return <ControleBoletosConteudoLazy />;

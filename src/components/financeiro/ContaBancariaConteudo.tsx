@@ -1,7 +1,8 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import {
   ArrowLeftRight,
   ArrowUpFromLine,
@@ -61,8 +62,20 @@ import {
 } from "@/lib/conta-bancaria-api";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroContaBancaria } from "@/lib/financeiro-painel-types";
-import { analisarCaminhoApp, montarCaminhoAppComSlug } from "@/lib/rotas-app";
 import { cn } from "@/lib/utils";
+import type { ContaDigitalAba } from "@/components/financeiro/ContaDigitalConteudo";
+
+const ContaDigitalConteudo = dynamic(
+  () =>
+    import("@/components/financeiro/ContaDigitalConteudo").then(
+      (mod) => mod.ContaDigitalConteudo
+    ),
+  {
+    loading: () => (
+      <p className="py-4 text-center text-[12px] text-slate-500">Carregando conta digital…</p>
+    ),
+  }
+);
 
 function hidratarDadosLocais() {
   return {
@@ -94,9 +107,10 @@ function valorCampoConta(valor?: string) {
 }
 
 export function ContaBancariaConteudo() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const [subcontaPixOk, setSubcontaPixOk] = useState(false);
+  const searchParams = useSearchParams();
+  const painelContaDigitalRef = useRef<HTMLDivElement>(null);
+  const [contaDigitalAtiva, setContaDigitalAtiva] = useState(false);
+  const [abaContaDigital, setAbaContaDigital] = useState<ContaDigitalAba | null>(null);
   const [contas, setContas] = useState<ContaBancaria[]>(() =>
     typeof window !== "undefined" ? carregarContasBancarias() : []
   );
@@ -209,26 +223,53 @@ export function ContaBancariaConteudo() {
   useEffect(() => {
     void fetch("/api/asaas/subconta", { cache: "no-store" })
       .then((res) => res.json())
-      .then((json: { subconta?: { status?: string; modoIntegracao?: string } }) => {
-        const sub = json.subconta;
-        setSubcontaPixOk(
-          sub?.status === "aprovada" && sub?.modoIntegracao === "subconta"
-        );
-      })
-      .catch(() => setSubcontaPixOk(false));
+      .then(
+        (json: {
+          subconta?: {
+            status?: string;
+            modoIntegracao?: string;
+            contaAtiva?: boolean;
+            integracaoConfigurada?: boolean;
+          };
+        }) => {
+          const sub = json.subconta;
+          const legado = sub?.modoIntegracao === "legado";
+          setContaDigitalAtiva(
+            Boolean(sub?.integracaoConfigurada && (sub?.contaAtiva || legado))
+          );
+        }
+      )
+      .catch(() => {
+        setContaDigitalAtiva(false);
+      });
   }, []);
 
-  function irParaTransferirPix() {
-    const { slug } = analisarCaminhoApp(pathname);
-    const destino = slug
-      ? montarCaminhoAppComSlug(slug, "/financeiro?aba=conta-digital&acao=transferir")
-      : "/app/financeiro?aba=conta-digital&acao=transferir";
-    router.push(destino);
+  function abrirPainelContaDigital(aba: ContaDigitalAba) {
+    setAbaContaDigital(aba);
+    setContaVisualizada(ID_CONTA_CARTEIRA);
+    window.setTimeout(() => {
+      painelContaDigitalRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
   }
+
+  useEffect(() => {
+    const abaUrl = searchParams.get("acao") || searchParams.get("digital");
+    const veioContaDigital = searchParams.get("aba") === "conta-digital";
+    if (!abaUrl && !veioContaDigital) return;
+
+    const aba: ContaDigitalAba =
+      abaUrl === "pagar" || abaUrl === "transferir" ? abaUrl : "extrato";
+    setAbaContaDigital(aba);
+    window.setTimeout(() => {
+      painelContaDigitalRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 200);
+  }, [searchParams]);
 
   function acionarPrincipalConta(conta: ContaBancaria) {
     if (conta.id === ID_CONTA_CARTEIRA && conta.acaoPrincipal === "baixar") {
-      if (subcontaPixOk) irParaTransferirPix();
+      if (contaDigitalAtiva) {
+        abrirPainelContaDigital("transferir");
+      }
       return;
     }
     setModalAcao({ conta, acao: conta.acaoPrincipal });
@@ -626,13 +667,13 @@ export function ContaBancariaConteudo() {
                                 disabled={
                                   conta.id === ID_CONTA_CARTEIRA &&
                                   conta.acaoPrincipal === "baixar" &&
-                                  !subcontaPixOk
+                                  !contaDigitalAtiva
                                 }
                                 title={
                                   conta.id === ID_CONTA_CARTEIRA &&
                                   conta.acaoPrincipal === "baixar" &&
-                                  !subcontaPixOk
-                                    ? "Retirar disponível após subconta Asaas aprovada (Configurações → Boletos)"
+                                  !contaDigitalAtiva
+                                    ? "Configure a conta Asaas em Configurações → Boletos para usar Retirar"
                                     : undefined
                                 }
                                 className={cn(
@@ -662,36 +703,54 @@ export function ContaBancariaConteudo() {
                             </div>
 
                             <div className="grid grid-cols-1 gap-y-2 text-[12px] leading-relaxed text-slate-800 md:grid-cols-4 md:gap-x-6">
-                              <div className="min-w-0">
-                                <span className="font-bold uppercase tracking-wide text-slate-800">
-                                  NOME :
-                                </span>{" "}
-                                <span className="text-slate-700">{conta.nome}</span>
-                              </div>
-                              <div className="min-w-0 md:pl-2">
-                                <span className="font-semibold text-slate-800">
-                                  Agência:
-                                </span>{" "}
-                                <span className="text-slate-700">
-                                  {valorCampoConta(conta.agencia)}
-                                </span>
-                              </div>
-                              <div className="min-w-0 md:pl-2">
-                                <span className="font-semibold text-slate-800">
-                                  Número da Conta:
-                                </span>{" "}
-                                <span className="text-slate-700">
-                                  {valorCampoConta(conta.numeroConta)}
-                                </span>
-                              </div>
-                              <div className="min-w-0 md:pl-2">
-                                <span className="font-semibold text-slate-800">
-                                  Chave Pix:
-                                </span>{" "}
-                                <span className="text-slate-700">
-                                  {valorCampoConta(conta.chavePix)}
-                                </span>
-                              </div>
+                              {conta.id === ID_CONTA_CARTEIRA ? (
+                                <div className="col-span-full space-y-2">
+                                  <p className="text-slate-600">
+                                    Conta integrada ao Asaas para saldo, extrato, pagamento de
+                                    boletos e transferências Pix.
+                                  </p>
+                                  <button
+                                    type="button"
+                                    onClick={() => abrirPainelContaDigital("extrato")}
+                                    className="h-8 rounded border border-[#4a90d9] bg-white px-3 text-[12px] text-[#4a90d9] hover:bg-[#f0f7ff]"
+                                  >
+                                    Ver conta digital Asaas
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="min-w-0">
+                                    <span className="font-bold uppercase tracking-wide text-slate-800">
+                                      NOME :
+                                    </span>{" "}
+                                    <span className="text-slate-700">{conta.nome}</span>
+                                  </div>
+                                  <div className="min-w-0 md:pl-2">
+                                    <span className="font-semibold text-slate-800">
+                                      Agência:
+                                    </span>{" "}
+                                    <span className="text-slate-700">
+                                      {valorCampoConta(conta.agencia)}
+                                    </span>
+                                  </div>
+                                  <div className="min-w-0 md:pl-2">
+                                    <span className="font-semibold text-slate-800">
+                                      Número da Conta:
+                                    </span>{" "}
+                                    <span className="text-slate-700">
+                                      {valorCampoConta(conta.numeroConta)}
+                                    </span>
+                                  </div>
+                                  <div className="min-w-0 md:pl-2">
+                                    <span className="font-semibold text-slate-800">
+                                      Chave Pix:
+                                    </span>{" "}
+                                    <span className="text-slate-700">
+                                      {valorCampoConta(conta.chavePix)}
+                                    </span>
+                                  </div>
+                                </>
+                              )}
                             </div>
 
                             <div className="mt-3 text-[12px] text-slate-800">
@@ -727,6 +786,14 @@ export function ContaBancariaConteudo() {
             )}
           </tbody>
         </table>
+      </div>
+
+      <div
+        ref={painelContaDigitalRef}
+        id="conta-digital-asaas"
+        className="mt-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900"
+      >
+        <ContaDigitalConteudo embedded abaSolicitada={abaContaDigital} />
       </div>
 
       <CadastrarContaBancariaModal
