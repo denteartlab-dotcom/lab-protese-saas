@@ -31,9 +31,10 @@ export const GET = medirHandlerApi("/api/financeiro/painel", async function GET(
   }
 
   const aba = abaParam;
+  const abaComSyncFixa = aba === "despesa" || aba === "boletos";
 
   try {
-    if (!semCache) {
+    if (!semCache && !abaComSyncFixa) {
       const emCache = lerCachePainelFinanceiro(ctx.empresaId, aba);
       if (emCache) {
         return NextResponse.json(emCache, {

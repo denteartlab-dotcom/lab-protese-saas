@@ -11,7 +11,7 @@ import {
   extrairGruposDespesaFixaAtivos,
   extrairTemplateDespesaFixa,
   grupoFixaTemInstanciaNoMes,
-  instanciaFixaEhFutura,
+  idsInstanciasFixasIndevidas,
   mesIgnoradoDespesaFixa,
   mesReferenciaAtual,
   metaDespesaFixa,
@@ -95,22 +95,17 @@ async function criarDespesaServidor(
   );
 }
 
-async function limparInstanciasFixasFuturasServidor(
+async function limparInstanciasFixasIndevidasServidor(
   empresaId: string,
   lancamentos: LancamentoDespesaFixa[]
 ) {
-  let removidos = 0;
-  for (const item of lancamentos) {
-    const pack = desempacotarDespesa(item.descricao);
-    if (!pack.meta.fixa || pack.meta.fixaAtiva === false) continue;
-    if (!instanciaFixaEhFutura(item)) continue;
+  const ids = idsInstanciasFixasIndevidas(lancamentos);
+  if (!ids.length) return 0;
 
-    const deleted = await prisma.lancamento.deleteMany({
-      where: { id: item.id, empresaId },
-    });
-    removidos += deleted.count;
-  }
-  return removidos;
+  const deleted = await prisma.lancamento.deleteMany({
+    where: { empresaId, id: { in: ids } },
+  });
+  return deleted.count;
 }
 
 async function sincronizarDespesasFixaServidor(
@@ -205,7 +200,7 @@ export async function carregarDespesasPainelServidor(empresaId: string) {
   });
 
   let listaFixa = lancamentosParaDespesaFixa(lancamentos);
-  const removidos = await limparInstanciasFixasFuturasServidor(empresaId, listaFixa);
+  const removidos = await limparInstanciasFixasIndevidasServidor(empresaId, listaFixa);
   if (removidos > 0) {
     lancamentos = await findLancamentosFinanceiro({
       where: { empresaId, tipo: "despesa" },

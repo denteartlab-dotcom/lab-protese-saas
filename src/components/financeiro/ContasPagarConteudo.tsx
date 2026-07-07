@@ -376,7 +376,7 @@ export function ContasPagarConteudo() {
     }
     try {
       const painel = await fetchPainelFinanceiro<PainelFinanceiroDespesa>("despesa", {
-        refresh: opts?.silencioso,
+        refresh: true,
       });
       if (!painel.ok) {
         setLancamentos([]);

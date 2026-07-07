@@ -7,6 +7,9 @@ import {
   type DespesaMeta,
 } from "@/lib/lancamento-despesa";
 
+/** Intervalo em dias entre parcelas da mesma instância mensal. */
+export const INTERVALO_DIAS_PARCELA_DESPESA_FIXA = 30;
+
 /** Mantido por compatibilidade — a sincronização gera só o mês corrente. */
 export const MESES_AVANCO_DESPESA_FIXA = 1;
 
@@ -76,28 +79,87 @@ export function mesInstanciaDespesaFixa(item: LancamentoDespesaFixa) {
   return pack.meta.fixaMes || mesReferenciaDeIso(item.data);
 }
 
-export function instanciaFixaEhFutura(item: LancamentoDespesaFixa) {
-  const mes = mesInstanciaDespesaFixa(item);
-  return mes ? mesReferenciaEhFuturo(mes) : false;
+export function mesReferenciaDeVencimentoIso(dataIso: string) {
+  return mesReferenciaDeIso(dataIso);
+}
+
+/** Mês efetivo da instância: meta fixaMes ou, se ausente, mês do vencimento. */
+export function mesEfetivoInstanciaDespesaFixa(item: LancamentoDespesaFixa) {
+  return mesInstanciaDespesaFixa(item) || mesReferenciaDeVencimentoIso(item.data);
+}
+
+export function instanciaFixaEhFutura(
+  item: LancamentoDespesaFixa,
+  referencia = mesReferenciaAtual()
+) {
+  const pack = desempacotarDespesa(item.descricao);
+  if (!pack.meta.fixa || !pack.meta.fixaGrupoId) return false;
+
+  const mesMeta = pack.meta.fixaMes;
+  const mesVencimento = mesReferenciaDeVencimentoIso(item.data);
+
+  if (mesMeta && mesReferenciaEhFuturo(mesMeta, referencia)) return true;
+  if (mesReferenciaEhFuturo(mesVencimento, referencia)) return true;
+
+  return false;
+}
+
+export function mesPrimeiraInstanciaGrupoFixa(
+  lancamentos: LancamentoDespesaFixa[],
+  grupoId: string
+) {
+  let menor: string | null = null;
+  for (const item of lancamentos) {
+    const pack = desempacotarDespesa(item.descricao);
+    if (pack.meta.fixaGrupoId !== grupoId) continue;
+    const mes = mesEfetivoInstanciaDespesaFixa(item);
+    if (!menor || compararMesReferencia(mes, menor) < 0) menor = mes;
+  }
+  return menor;
 }
 
 /**
- * Despesa fixa só gera instância do mês corrente, a partir do dia 1 (virada de mês).
- * Após o dia 1, ainda gera se faltar a instância (primeira abertura do mês).
+ * Despesa fixa gera no máximo uma instância por mês, somente no mês vigente.
+ * Meses posteriores ao primeiro cadastro só entram a partir do dia 1 daquele mês.
  */
 export function podeGerarInstanciaFixaMesCorrente(
   mesReferencia: string,
-  _lancamentos: LancamentoDespesaFixa[],
-  _grupoId: string
+  lancamentos: LancamentoDespesaFixa[],
+  grupoId: string
 ) {
   const mesAtual = mesReferenciaAtual();
   if (mesReferencia !== mesAtual) return false;
-  if (mesReferenciaEhFuturo(mesReferencia)) return false;
 
-  const hoje = new Date();
-  if (hoje.getDate() < 1) return false;
+  const mesPrimeiro = mesPrimeiraInstanciaGrupoFixa(lancamentos, grupoId);
+  if (!mesPrimeiro) return false;
+  if (compararMesReferencia(mesAtual, mesPrimeiro) < 0) return false;
 
   return true;
+}
+
+/** Instâncias duplicadas do mesmo grupo no mesmo mês (legado / corrida). */
+export function idsInstanciasFixasDuplicadas(lancamentos: LancamentoDespesaFixa[]) {
+  const vistos = new Map<string, string>();
+  const duplicados: string[] = [];
+
+  for (const item of lancamentos) {
+    const pack = desempacotarDespesa(item.descricao);
+    if (!pack.meta.fixa || !pack.meta.fixaGrupoId || pack.meta.fixaAtiva === false) {
+      continue;
+    }
+
+    const mes = mesEfetivoInstanciaDespesaFixa(item);
+    const chave = `${pack.meta.fixaGrupoId}:${mes}`;
+
+    if (!vistos.has(chave)) {
+      vistos.set(chave, item.id);
+      continue;
+    }
+
+    duplicados.push(item.id);
+  }
+
+  return duplicados;
 }
 
 export function listarMesesReferencia(mesInicial: string, quantidade: number) {
@@ -129,7 +191,17 @@ export function vencimentoParcelaNoMes(
   const ultimoDia = new Date(ano, mes, 0).getDate();
   const dia = Math.min(Math.max(diaPreferido, 1), ultimoDia);
   const data = new Date(ano, mes - 1, dia);
-  data.setDate(data.getDate() + indiceParcela * 30);
+
+  if (indiceParcela > 0) {
+    data.setDate(
+      data.getDate() + indiceParcela * INTERVALO_DIAS_PARCELA_DESPESA_FIXA
+    );
+    const mesResultado = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}`;
+    if (mesResultado !== mesReferencia) {
+      return vencimentoParcelaNoMes(mesReferencia, diaPreferido, 0);
+    }
+  }
+
   return dateToBrShort(data);
 }
 
@@ -151,10 +223,8 @@ export function grupoFixaTemInstanciaNoMes(
 ) {
   return lancamentos.some((item) => {
     const pack = desempacotarDespesa(item.descricao);
-    return (
-      pack.meta.fixaGrupoId === grupoId &&
-      (pack.meta.fixaMes || mesReferenciaDeIso(item.data)) === mesReferencia
-    );
+    if (pack.meta.fixaGrupoId !== grupoId) return false;
+    return mesEfetivoInstanciaDespesaFixa(item) === mesReferencia;
   });
 }
 
@@ -413,17 +483,26 @@ async function criarDespesaApiRemoto(
   }
 }
 
-/** Remove instâncias de meses futuros geradas indevidamente (legado de 12 meses). */
+export function idsInstanciasFixasIndevidas(lancamentos: LancamentoDespesaFixa[]) {
+  const ids = new Set<string>();
+  for (const item of lancamentos) {
+    const pack = desempacotarDespesa(item.descricao);
+    if (!pack.meta.fixa || pack.meta.fixaAtiva === false) continue;
+    if (instanciaFixaEhFutura(item)) ids.add(item.id);
+  }
+  for (const id of idsInstanciasFixasDuplicadas(lancamentos)) {
+    ids.add(id);
+  }
+  return [...ids];
+}
+
+/** Remove instâncias futuras e duplicatas geradas indevidamente. */
 export async function limparInstanciasFixasFuturasRemoto(
   lancamentos: LancamentoDespesaFixa[]
 ) {
   let removidos = 0;
-  for (const item of lancamentos) {
-    const pack = desempacotarDespesa(item.descricao);
-    if (!pack.meta.fixa || pack.meta.fixaAtiva === false) continue;
-    if (!instanciaFixaEhFutura(item)) continue;
-
-    const res = await fetch(`/api/financeiro/${item.id}`, { method: "DELETE" });
+  for (const id of idsInstanciasFixasIndevidas(lancamentos)) {
+    const res = await fetch(`/api/financeiro/${id}`, { method: "DELETE" });
     if (res.ok) removidos += 1;
   }
   return removidos;
