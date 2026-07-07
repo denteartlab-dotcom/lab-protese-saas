@@ -57,3 +57,27 @@ export function montarUrlImpressaoFatura(id: string, opcoes?: { imprimir?: boole
   }
   return `/app${path}`;
 }
+
+/** Abre a rota do visualizador de fatura (mesmo padrão da OS). */
+export async function abrirFaturaNoVisualizador(
+  payload: FaturaImpressaoSessao,
+  opcoes?: { janela?: Window | null; imprimir?: boolean }
+) {
+  const id = criarIdFaturaImpressao();
+  await publicarFaturaImpressaoSessao(id, {
+    ...payload,
+    imprimirAoCarregar: opcoes?.imprimir ?? payload.imprimirAoCarregar,
+  });
+
+  const url = montarUrlImpressaoFatura(id, { imprimir: opcoes?.imprimir });
+  const janela = opcoes?.janela;
+  if (janela && !janela.closed) {
+    janela.location.replace(url);
+    return;
+  }
+
+  const aberta = window.open(url, "_blank");
+  if (!aberta) {
+    throw new Error("Não foi possível abrir a fatura. Verifique o bloqueio de pop-ups.");
+  }
+}

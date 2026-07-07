@@ -23,7 +23,7 @@ import {
 import { sincronizarConfigLaboratorioDoServidor } from "@/lib/lab-config-sync";
 import { gerarPdfDeHtmlDocumento } from "@/lib/html-para-pdf";
 import { prepararAbaPdf } from "@/lib/pdf-viewer";
-import { abrirPdfBlobGerandoNoVisualizadorUnificado } from "@/lib/pdf-viewer-unificado";
+import { abrirFaturaNoVisualizador } from "@/lib/fatura-impressao-sessao";
 import { cn } from "@/lib/utils";
 
 export type FormatoImpressaoFatura = "a4" | "termica";
@@ -199,26 +199,22 @@ export function ImprimirFaturaModal({
     return `Fatura — Folha A4 (${modeloNome})`;
   }
 
-  async function abrirNoVisualizador() {
+  async function abrirNoVisualizador(imprimirAoCarregar: boolean) {
     if (gerandoPdf || sincronizando) return;
 
     setGerandoPdf(true);
     const janela = prepararAbaPdf();
-    const nomeArquivo = `Fatura ${numeroFatura}.pdf`;
-    const titulo = `Fatura ${numeroFatura} — ${clienteNome}`;
     try {
-      await abrirPdfBlobGerandoNoVisualizadorUnificado(
-        async () => {
-          const html = await prepararHtmlImpressao();
-          return gerarPdfDeHtmlDocumento(html, formato);
-        },
-        titulo,
-        nomeArquivo,
+      const html = await prepararHtmlImpressao();
+      await abrirFaturaNoVisualizador(
         {
-          janela,
+          html,
+          numeroFatura,
+          clienteNome,
           subtitulo: subtituloFatura(),
-          origem: "Financeiro · Fatura",
-        }
+          formato,
+        },
+        { janela, imprimir: imprimirAoCarregar }
       );
       onClose();
     } catch (err) {
@@ -231,11 +227,11 @@ export function ImprimirFaturaModal({
   }
 
   function imprimir() {
-    void abrirNoVisualizador();
+    void abrirNoVisualizador(true);
   }
 
   function visualizarPdf() {
-    void abrirNoVisualizador();
+    void abrirNoVisualizador(false);
   }
 
   async function enviarWhatsapp() {
@@ -319,7 +315,7 @@ export function ImprimirFaturaModal({
 
           {gerandoPdf ? (
             <p className="mb-3 text-center text-xs text-[#6b7280]">
-              Gerando PDF e abrindo em nova aba…
+              Abrindo visualizador da fatura…
             </p>
           ) : null}
 
