@@ -215,7 +215,7 @@ type DreGraficosProps = {
 };
 
 export function DreGraficos({ matriz, carregando }: DreGraficosProps) {
-  const [mesComposicao, setMesComposicao] = useState(0);
+  const [mesComposicao, setMesComposicao] = useState(() => new Date().getMonth());
   const comparativoChartRef = useRef<HTMLDivElement>(null);
   const dados = useMemo(() => montarDadosGraficosDre(matriz), [matriz]);
   const composicao = useMemo(
