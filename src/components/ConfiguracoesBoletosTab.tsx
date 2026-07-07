@@ -19,9 +19,6 @@ const labelClass = "mb-1 block text-[11px] font-medium text-slate-600 dark:text-
 const inputClass =
   "h-9 w-full rounded border border-slate-300 bg-white px-2.5 text-[12px] text-slate-800 outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9] dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-primary-500 dark:focus:ring-primary-500";
 
-type Props = {
-  onMensagem?: (texto: string, tipo?: TipoMensagemForm) => void;
-};
 
 type StatusSubconta =
   | "nao_iniciado"
@@ -63,7 +60,7 @@ function rotuloStatus(status: StatusSubconta) {
   }
 }
 
-export function ConfiguracoesBoletosTab({ onMensagem }: Props) {
+export function ConfiguracoesBoletosTab() {
   const [subconta, setSubconta] = useState<SubcontaResumo | null>(null);
   const [documentos, setDocumentos] = useState<DocumentoOnboarding[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -84,7 +81,6 @@ export function ConfiguracoesBoletosTab({ onMensagem }: Props) {
 
   function exibirFeedback(texto: string, tipo: TipoMensagemForm = "info") {
     setFeedbackLocal({ texto, tipo });
-    onMensagem?.(texto, tipo);
     if (tipo === "sucesso" || tipo === "info") {
       window.setTimeout(() => setFeedbackLocal(null), 8000);
     }
@@ -152,7 +148,7 @@ export function ConfiguracoesBoletosTab({ onMensagem }: Props) {
     setAtualizando(true);
     try {
       await carregar();
-      onMensagem?.("Status atualizado.", "sucesso");
+      exibirFeedback("Status atualizado.", "sucesso");
     } finally {
       setAtualizando(false);
     }

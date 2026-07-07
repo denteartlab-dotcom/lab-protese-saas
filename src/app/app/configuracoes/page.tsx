@@ -92,6 +92,11 @@ function ConfiguracoesConteudo() {
   const [mensagemTipo, setMensagemTipo] = useState<TipoMensagemForm>("info");
 
   useEffect(() => {
+    setMensagem("");
+    setMensagemTipo("info");
+  }, [aba]);
+
+  useEffect(() => {
     if (aba === "cabecalho") {
       router.replace("/app/configuracoes/cabecalho");
       return;
@@ -344,31 +349,7 @@ function ConfiguracoesConteudo() {
               ) : null}
             </>
           ) : aba === "boletos" ? (
-            <>
-              <ConfiguracoesBoletosTab
-                onMensagem={(texto, tipo = "info") => {
-                  setMensagem(texto);
-                  setMensagemTipo(tipo);
-                  if (tipo === "sucesso" || tipo === "info") {
-                    window.setTimeout(() => setMensagem(""), 5000);
-                  }
-                }}
-              />
-              {mensagem ? (
-                <p
-                  role="alert"
-                  className={`mt-4 text-sm font-medium ${
-                    mensagemTipo === "sucesso"
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : mensagemTipo === "erro"
-                        ? "text-red-600 dark:text-red-400"
-                        : "text-slate-600 dark:text-slate-400"
-                  }`}
-                >
-                  {mensagem}
-                </p>
-              ) : null}
-            </>
+            <ConfiguracoesBoletosTab />
           ) : aba === "horario" ? (
             <>
               <HorarioFuncionamentoTab
