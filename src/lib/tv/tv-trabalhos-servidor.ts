@@ -752,6 +752,7 @@ export async function carregarResumoOsTv(
     dataEntrada: principal.dataEntrada,
     dataPrevista: principal.dataPrevista,
     updatedAt: principal.updatedAt,
+    clienteId: principal.clienteId,
     cliente: principal.cliente,
     paciente: principal.paciente,
   };
