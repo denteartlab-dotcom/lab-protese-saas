@@ -252,20 +252,23 @@ export function PreviewFaturaModelo4Termica({
                             </p>
                           ) : null}
                           {layout.data || layout.finalizado ? (
-                            <div className="space-y-0.5">
+                            <p>
                               {layout.data ? (
-                                <p>
+                                <>
                                   <span>Data: </span>
                                   <span className="font-bold">{linha.dataOs}</span>
-                                </p>
+                                </>
+                              ) : null}
+                              {layout.data && layout.finalizado ? (
+                                <span className="mx-1 font-normal">|</span>
                               ) : null}
                               {layout.finalizado ? (
-                                <p>
+                                <>
                                   <span>Entregue: </span>
                                   <span className="font-bold">{linha.finalizado}</span>
-                                </p>
+                                </>
                               ) : null}
-                            </div>
+                            </p>
                           ) : null}
                         </div>
                       </td>

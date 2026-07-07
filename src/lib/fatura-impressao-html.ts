@@ -169,21 +169,27 @@ function htmlMetaDatasFaturaLinha(
   termica = false
 ): string {
   if (linha.segmento !== "servico") return "";
+  const temData = layout.data;
+  const temFinalizado = layout.finalizado;
+  if (!temData && !temFinalizado) return "";
+
   const partes: string[] = [];
-  const itemStyle = termica ? ' style="margin:0;line-height:1.35"' : "";
-  if (layout.data) {
+  if (temData) {
+    partes.push(`<strong>Data:</strong> ${escapeHtml(linha.dataOs)}`);
+  }
+  if (temFinalizado) {
     partes.push(
-      `<div class="meta-data-item"${itemStyle}><strong>Data:</strong> ${escapeHtml(linha.dataOs)}</div>`
+      `<strong>${escapeHtml(rotuloFinalizado)}:</strong> ${escapeHtml(linha.finalizado)}`
     );
   }
-  if (layout.finalizado) {
-    partes.push(
-      `<div class="meta-data-item"${itemStyle}><strong>${escapeHtml(rotuloFinalizado)}:</strong> ${escapeHtml(linha.finalizado)}</div>`
-    );
-  }
-  if (!partes.length) return "";
-  const wrapStyle = termica ? ' style="display:flex;flex-direction:column;gap:2px;margin:0"' : "";
-  return `<div class="meta-linha-datas"${wrapStyle}>${partes.join("")}</div>`;
+
+  const conteudo =
+    temData && temFinalizado
+      ? `${partes[0]} <span class="meta-data-sep">|</span> ${partes[1]}`
+      : partes[0];
+
+  const wrapStyle = termica ? ' style="margin:0;line-height:1.35"' : "";
+  return `<div class="meta-linha-datas"${wrapStyle}><span class="meta-data-item">${conteudo}</span></div>`;
 }
 
 function metaLinhaOsSmart(linha: LinhaFaturaImpressao, layout: FaturaModeloLayout) {
@@ -540,8 +546,9 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
     .items th{font-size:${fsCab}px;font-weight:bold;text-align:left;padding:4px 3px;background:${thBg}}
     .items td{font-size:${fsTabela}px;line-height:1.25}
     .items tr.meta-row td{padding-top:1px;padding-bottom:5px}
-    .items tr.meta-row td .meta-linha-datas{display:flex;flex-direction:column;gap:2px}
+    .items tr.meta-row td .meta-linha-datas{margin:0;line-height:1.35}
     .items tr.meta-row td .meta-data-item{font-size:${Math.max(10, fs - 2)}px;color:#111;line-height:1.35}
+    .items tr.meta-row td .meta-data-sep{margin:0 4px;font-weight:normal;color:#111}
     .pay th{font-size:${fsCab}px;font-weight:bold;text-align:left;padding:4px 3px;background:${thBg}}
     .pay td{font-size:${fsTabela}px;line-height:1.25}
     .pay tr.pay-received td{color:#1a9e1a}
