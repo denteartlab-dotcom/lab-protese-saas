@@ -24,6 +24,12 @@ export type AsaasPayment = {
   dueDate?: string;
 };
 
+export type AsaasPixQrCode = {
+  encodedImage: string;
+  payload: string;
+  expirationDate?: string;
+};
+
 function parseConfigAsaas(parsed: Partial<AsaasConfig>): AsaasConfig {
   return {
     apiKey: parsed.apiKey?.trim() || "",
@@ -201,6 +207,33 @@ export async function emitirBoletoAsaas(params: {
       description: params.descricao.slice(0, 500),
     }),
   });
+}
+
+export async function emitirPixCobrancaAsaas(params: {
+  config: AsaasConfig;
+  asaasCustomerId: string;
+  valor: number;
+  vencimento: Date;
+  descricao: string;
+}): Promise<AsaasPayment> {
+  const dueDate = params.vencimento.toISOString().slice(0, 10);
+  return asaasFetch<AsaasPayment>(params.config, "/payments", {
+    method: "POST",
+    body: JSON.stringify({
+      customer: params.asaasCustomerId,
+      billingType: "PIX",
+      value: Number(params.valor.toFixed(2)),
+      dueDate,
+      description: params.descricao.slice(0, 500),
+    }),
+  });
+}
+
+export async function obterQrCodePixAsaas(
+  config: AsaasConfig,
+  paymentId: string
+): Promise<AsaasPixQrCode> {
+  return asaasFetch<AsaasPixQrCode>(config, `/payments/${paymentId}/pixQrCode`);
 }
 
 export { carregarConfigServidor as carregarConfigAsaasServidor };

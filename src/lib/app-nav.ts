@@ -7,7 +7,6 @@ import {
   FileText,
   HandCoins,
   Home,
-  Landmark,
   LayoutGrid,
   List,
   Package,
@@ -62,7 +61,6 @@ export const producaoNav: AppNavItem[] = [
 
 export const financeiroNav: AppNavItem[] = [
   { href: "/app/financeiro?tipo=receita", labelKey: "nav.contasReceber", icon: TrendingUp },
-  { href: "/app/financeiro?aba=conta-digital", labelKey: "nav.contaDigital", icon: Landmark },
   { href: "/app/financeiro?aba=boletos", labelKey: "nav.controleBoletos", icon: BarChart3 },
   { href: "/app/financeiro?tipo=despesa", labelKey: "nav.contasPagar", icon: TrendingDown },
   { href: "/app/financeiro?aba=plano-de-contas", labelKey: "nav.planoContas", icon: List },

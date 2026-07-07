@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   ArrowLeftRight,
   CheckCircle2,
@@ -99,6 +99,7 @@ function linkConfiguracoes(pathname: string) {
 
 export function ContaDigitalConteudo() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [subconta, setSubconta] = useState<SubcontaResumo | null>(null);
   const [saldo, setSaldo] = useState(0);
   const [movimentacoes, setMovimentacoes] = useState<
@@ -173,6 +174,12 @@ export function ContaDigitalConteudo() {
   useEffect(() => {
     void carregar();
   }, [carregar]);
+
+  useEffect(() => {
+    if (searchParams.get("acao") === "transferir") {
+      setAba("transferir");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     void fetch("/api/auth/me", { cache: "no-store" })

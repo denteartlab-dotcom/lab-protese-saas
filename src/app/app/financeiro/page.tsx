@@ -97,6 +97,11 @@ import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
 import { gerarRelatorioTabelaPdf } from "@/lib/pdf-relatorio-tabela";
 import type { LinhaReciboRecebimento } from "@/lib/recibo-recebimento";
 import { empacotarReceitaConta } from "@/lib/receita-conta-bancaria";
+import { formaEhPixAsaas } from "@/lib/forma-pagamento-pix";
+import {
+  PixQrRecebimentoModal,
+  type DadosPixQrRecebimento,
+} from "@/components/financeiro/PixQrRecebimentoModal";
 
 type CobrancaAsaas = {
   id: string;
@@ -330,6 +335,10 @@ function FinanceiroReceberConteudo() {
     clienteNome: string;
     linhas: LinhaReciboRecebimento[];
   } | null>(null);
+  const [pixAsaasDisponivel, setPixAsaasDisponivel] = useState(false);
+  const [pixQrRecebimento, setPixQrRecebimento] = useState<DadosPixQrRecebimento | null>(
+    null
+  );
   const [confirmacaoExclusao, setConfirmacaoExclusao] = useState<{
     title: string;
     message: string;
@@ -431,6 +440,15 @@ function FinanceiroReceberConteudo() {
 
   useEffect(() => {
     void load();
+  }, []);
+
+  useEffect(() => {
+    void fetch("/api/asaas/pix-cobranca", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((json: { disponivel?: boolean }) => {
+        setPixAsaasDisponivel(Boolean(json.disponivel));
+      })
+      .catch(() => setPixAsaasDisponivel(false));
   }, []);
 
   useEffect(() => {
@@ -785,6 +803,12 @@ function FinanceiroReceberConteudo() {
     return (form.formaPagamento || "").toLowerCase().includes("boleto");
   }
 
+  function formaSelecionadaEhPix(parcelasLinha: ParcelaLinhaReceita[] = []) {
+    const naParcela = parcelasLinha.some((p) => formaEhPixAsaas(p.formaPagamento));
+    if (naParcela) return true;
+    return formaEhPixAsaas(form.formaPagamento);
+  }
+
   function categoriaPadraoReceita() {
     const plano = carregarPlanoContas();
     return categoriaPadraoLancamento(plano, "receitas") || "Receitas de Serviços";
@@ -801,7 +825,9 @@ function FinanceiroReceberConteudo() {
 
   function formaPagamentoValida(valor: string) {
     const v = valor?.trim();
-    if (!v || v === "Forma Pagamento") return "Pix";
+    if (!v || v === "Forma Pagamento") {
+      return pixAsaasDisponivel ? "Pix" : "Pix Externo";
+    }
     return v;
   }
 
@@ -882,6 +908,7 @@ function FinanceiroReceberConteudo() {
             descricao: descricaoCobranca,
             trabalhoId: trabalhosSelecionados.length === 1 ? trabalhosSelecionados[0].id : undefined,
             emitirBoleto: formaSelecionadaEhBoleto(parcelas) && !algumRecebido,
+            emitirPix: formaSelecionadaEhPix(parcelas) && !algumRecebido,
             parcelas: parcelas.map((p) => ({
               valor: valorParcelaNumerico(p, basePorParcela),
               data: p.recebido ? hojeIso : brShortToIso(p.vencimento || form.data),
@@ -930,6 +957,28 @@ function FinanceiroReceberConteudo() {
               ? "Cobrança parcelada lançada com boletos emitidos."
               : "Cobrança parcelada lançada."
           );
+        } else if (
+          Array.isArray(payload.avisosPix) &&
+          payload.avisosPix.length > 0
+        ) {
+          setMensagemLancamentoTipo("erro");
+          setMensagemLancamento(String(payload.avisosPix[0]));
+          return;
+        } else if (payload.pixQr && formaSelecionadaEhPix(parcelas) && !algumRecebido) {
+          const clienteNome =
+            clientes.find((c) => c.id === form.clienteId)?.nome || "Cliente";
+          setPixQrRecebimento({
+            valor: totalLiquido,
+            clienteNome,
+            pixPayload: String(payload.pixQr.pixPayload || ""),
+            pixEncodedImage: String(payload.pixQr.pixEncodedImage || ""),
+            expirationDate:
+              typeof payload.pixQr.expirationDate === "string"
+                ? payload.pixQr.expirationDate
+                : undefined,
+          });
+          setMensagemLancamentoTipo("sucesso");
+          setMensagemLancamento("Cobrança parcelada lançada. Escaneie o QR Code Pix.");
         }
       } else {
         const p = parcelas[0];
@@ -949,6 +998,7 @@ function FinanceiroReceberConteudo() {
             trabalhoId: trabalhosSelecionados.length === 1 ? trabalhosSelecionados[0].id : undefined,
             descricao: descricaoCobranca,
             emitirBoleto: formaSelecionadaEhBoleto(parcelas) && !algumRecebido,
+            emitirPix: formaSelecionadaEhPix(parcelas) && !algumRecebido,
           }),
         });
         const payload = await res.json().catch(() => ({}));
@@ -966,9 +1016,28 @@ function FinanceiroReceberConteudo() {
           setMensagemLancamentoTipo("sucesso");
           setMensagemLancamento("Boleto emitido no Asaas. Abrindo PDF…");
           window.open(payload.cobrancaAsaas.bankSlipUrl, "_blank", "noopener,noreferrer");
+        } else if (payload.pixQr && formaSelecionadaEhPix(parcelas) && !algumRecebido) {
+          const clienteNome =
+            clientes.find((c) => c.id === form.clienteId)?.nome || "Cliente";
+          setPixQrRecebimento({
+            valor: valorLancamento,
+            clienteNome,
+            pixPayload: String(payload.pixQr.pixPayload || ""),
+            pixEncodedImage: String(payload.pixQr.pixEncodedImage || ""),
+            expirationDate:
+              typeof payload.pixQr.expirationDate === "string"
+                ? payload.pixQr.expirationDate
+                : undefined,
+          });
+          setMensagemLancamentoTipo("sucesso");
+          setMensagemLancamento("Pix gerado no Asaas. Escaneie o QR Code.");
         } else if (typeof payload.avisoBoleto === "string" && payload.avisoBoleto) {
           setMensagemLancamentoTipo("erro");
           setMensagemLancamento(payload.avisoBoleto);
+          return;
+        } else if (typeof payload.avisoPix === "string" && payload.avisoPix) {
+          setMensagemLancamentoTipo("erro");
+          setMensagemLancamento(payload.avisoPix);
           return;
         } else if (formaSelecionadaEhBoleto(parcelas) && !algumRecebido) {
           setMensagemLancamentoTipo("sucesso");
@@ -1257,6 +1326,104 @@ function FinanceiroReceberConteudo() {
     const contaRecebimento = formaComValor?.conta?.trim() || "Caixa Principal";
     const dataIso = brShortToIso(payload.dataRecebimento);
     const faturasPagas: Lancamento[] = [];
+
+    if (formaEhPixAsaas(formaPrincipal) && valorDisponivel > 0.009) {
+      if (!recebendoCliente.clienteId) {
+        alert("Selecione um cliente cadastrado para gerar Pix com QR Code.");
+        return;
+      }
+
+      let creditoRestante = payload.abaterCredito
+        ? creditoDisponivelCliente(recebendoCliente.clienteId)
+        : 0;
+
+      if (selecionados.length > 0) {
+        for (const l of selecionados) {
+          const juros = payload.jurosPorFatura[l.id] ?? 0;
+          let devido = saldoFatura(l) + juros;
+          const creditoAplicado =
+            creditoRestante > 0.009 ? Math.min(creditoRestante, devido) : 0;
+
+          if (creditoAplicado > 0.009) {
+            await fetch("/api/financeiro", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                tipo: "receita",
+                clienteId: recebendoCliente.clienteId || undefined,
+                valor: creditoAplicado,
+                data: dataIso,
+                status: "pago",
+                formaPagamento: FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
+                descricao: empacotarReceitaConta(
+                  `Desconto com crédito - ${l.descricao}`,
+                  contaRecebimento
+                ),
+              }),
+            });
+            creditoRestante -= creditoAplicado;
+            devido -= creditoAplicado;
+          }
+
+          if (devido <= 0.009) {
+            await fetch(`/api/financeiro/${l.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                valor: l.valor,
+                status: "pago",
+                formaPagamento: FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
+                data: dataIso,
+                descricao: empacotarReceitaConta(l.descricao, contaRecebimento),
+              }),
+            });
+          }
+        }
+      }
+
+      const resPix = await fetch("/api/asaas/pix-cobranca", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lancamentoIds:
+            selecionados.length > 0 ? selecionados.map((l) => l.id) : undefined,
+          valor: valorDisponivel,
+          clienteId: recebendoCliente.clienteId,
+          conta: contaRecebimento,
+          dataRecebimento: dataIso,
+          descricao:
+            selecionados.length === 0
+              ? "Adiantamento / Crédito cliente"
+              : selecionados.length === 1
+                ? selecionados[0].descricao
+                : `Recebimento Pix — ${selecionados.length} fatura(s)`,
+        }),
+      });
+      const pixResposta = await resPix.json().catch(() => ({}));
+      if (!resPix.ok) {
+        alert(
+          typeof pixResposta.error === "string"
+            ? pixResposta.error
+            : "Falha ao gerar Pix com QR Code."
+        );
+        void loadPosMutacao();
+        return;
+      }
+
+      setPixQrRecebimento({
+        valor: valorDisponivel,
+        clienteNome: recebendoCliente.nome,
+        pixPayload: String(pixResposta.pixPayload || ""),
+        pixEncodedImage: String(pixResposta.pixEncodedImage || ""),
+        expirationDate:
+          typeof pixResposta.expirationDate === "string"
+            ? pixResposta.expirationDate
+            : undefined,
+      });
+      setRecebendoCliente(null);
+      void loadPosMutacao();
+      return;
+    }
 
     if (selecionados.length === 0) {
       if (valorDisponivel <= 0.009) return;
@@ -2355,6 +2522,7 @@ function FinanceiroReceberConteudo() {
                 lancamento: lancamento as Lancamento,
               });
             }}
+            pixAsaasDisponivel={pixAsaasDisponivel}
           />
         </Suspense>
       ) : null}
@@ -2889,6 +3057,7 @@ function FinanceiroReceberConteudo() {
             mensagemLancamento={mensagemLancamento}
             mensagemLancamentoTipo={mensagemLancamentoTipo}
             formaSelecionadaEhBoleto={formaSelecionadaEhBoleto}
+            pixAsaasDisponivel={pixAsaasDisponivel}
             valorTrabalho={valorTrabalho}
             onLimparOsSelecionadas={() => setOsSelecionadas([])}
             money={money}
@@ -2930,6 +3099,13 @@ function FinanceiroReceberConteudo() {
           />
         </Suspense>
       ) : null}
+
+      <PixQrRecebimentoModal
+        open={pixQrRecebimento !== null}
+        onClose={() => setPixQrRecebimento(null)}
+        dados={pixQrRecebimento}
+        money={currency}
+      />
     </div>
   );
 }

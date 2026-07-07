@@ -3,6 +3,7 @@ import { lerJsonStoreTenant } from "@/lib/json-store-tenant";
 import {
   CONTAS_BANCARIAS_PADRAO,
   CONTAS_BANCARIAS_STORAGE_KEY,
+  ID_CONTA_CARTEIRA,
   MOVIMENTACOES_CONTA_STORAGE_KEY,
   type ContaBancaria,
   type MovimentacaoContaBancaria,
@@ -229,7 +230,13 @@ export async function listarContasBancariasServidor(
     });
     return seeded.map(rowParaConta);
   }
-  return rows.map(rowParaConta);
+  return rows.map((row) => {
+    const conta = rowParaConta(row);
+    if (conta.id === ID_CONTA_CARTEIRA && conta.nome.trim() === "Carteira Digital") {
+      return { ...conta, nome: "Conta Bancária" };
+    }
+    return conta;
+  });
 }
 
 export async function salvarContasBancariasServidor(

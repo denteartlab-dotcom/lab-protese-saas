@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowLeftRight,
   ArrowUpFromLine,
@@ -60,6 +61,7 @@ import {
 } from "@/lib/conta-bancaria-api";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroContaBancaria } from "@/lib/financeiro-painel-types";
+import { analisarCaminhoApp, montarCaminhoAppComSlug } from "@/lib/rotas-app";
 import { cn } from "@/lib/utils";
 
 function hidratarDadosLocais() {
@@ -92,6 +94,9 @@ function valorCampoConta(valor?: string) {
 }
 
 export function ContaBancariaConteudo() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [subcontaPixOk, setSubcontaPixOk] = useState(false);
   const [contas, setContas] = useState<ContaBancaria[]>(() =>
     typeof window !== "undefined" ? carregarContasBancarias() : []
   );
@@ -200,6 +205,34 @@ export function ContaBancariaConteudo() {
       );
     };
   }, [aplicarDadosLocais, carregarDados]);
+
+  useEffect(() => {
+    void fetch("/api/asaas/subconta", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((json: { subconta?: { status?: string; modoIntegracao?: string } }) => {
+        const sub = json.subconta;
+        setSubcontaPixOk(
+          sub?.status === "aprovada" && sub?.modoIntegracao === "subconta"
+        );
+      })
+      .catch(() => setSubcontaPixOk(false));
+  }, []);
+
+  function irParaTransferirPix() {
+    const { slug } = analisarCaminhoApp(pathname);
+    const destino = slug
+      ? montarCaminhoAppComSlug(slug, "/financeiro?aba=conta-digital&acao=transferir")
+      : "/app/financeiro?aba=conta-digital&acao=transferir";
+    router.push(destino);
+  }
+
+  function acionarPrincipalConta(conta: ContaBancaria) {
+    if (conta.id === ID_CONTA_CARTEIRA && conta.acaoPrincipal === "baixar") {
+      if (subcontaPixOk) irParaTransferirPix();
+      return;
+    }
+    setModalAcao({ conta, acao: conta.acaoPrincipal });
+  }
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -589,14 +622,21 @@ export function ContaBancariaConteudo() {
                               ) : null}
                               <button
                                 type="button"
-                                onClick={() =>
-                                  setModalAcao({
-                                    conta,
-                                    acao: conta.acaoPrincipal,
-                                  })
+                                onClick={() => acionarPrincipalConta(conta)}
+                                disabled={
+                                  conta.id === ID_CONTA_CARTEIRA &&
+                                  conta.acaoPrincipal === "baixar" &&
+                                  !subcontaPixOk
+                                }
+                                title={
+                                  conta.id === ID_CONTA_CARTEIRA &&
+                                  conta.acaoPrincipal === "baixar" &&
+                                  !subcontaPixOk
+                                    ? "Retirar disponível após subconta Asaas aprovada (Configurações → Boletos)"
+                                    : undefined
                                 }
                                 className={cn(
-                                  "inline-flex items-center rounded px-3 py-1.5 text-[12px] font-normal text-white",
+                                  "inline-flex items-center rounded px-3 py-1.5 text-[12px] font-normal text-white disabled:cursor-not-allowed disabled:opacity-50",
                                   classeBotaoAcaoConta(conta.acaoPrincipal)
                                 )}
                               >

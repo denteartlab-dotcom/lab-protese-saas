@@ -101,6 +101,7 @@ type Props = {
   mensagemLancamento: string;
   mensagemLancamentoTipo: "erro" | "sucesso" | "info";
   formaSelecionadaEhBoleto: (parcelas: ParcelaLinhaReceita[]) => boolean;
+  pixAsaasDisponivel?: boolean;
   valorTrabalho: (trabalho: TrabalhoReceita) => number;
   onLimparOsSelecionadas: () => void;
   money: (value: number) => string;
@@ -206,6 +207,7 @@ export function LancarReceitaOsModal({
   mensagemLancamento,
   mensagemLancamentoTipo,
   formaSelecionadaEhBoleto,
+  pixAsaasDisponivel = false,
   valorTrabalho,
   onLimparOsSelecionadas,
   money,
@@ -817,7 +819,8 @@ export function LancarReceitaOsModal({
                         >
                           <option>Forma Pagamento</option>
                           <option>Dinheiro</option>
-                          <option>Pix</option>
+                          {pixAsaasDisponivel ? <option>Pix</option> : null}
+                          <option>Pix Externo</option>
                           <option>Cartão de Crédito</option>
                           <option>Cartão de Débito</option>
                           <option>Boleto Bancário</option>

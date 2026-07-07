@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/db";
-import { ID_CONTA_CAIXA } from "@/lib/conta-bancaria";
+import {
+  ID_CONTA_CAIXA,
+  ID_CONTA_CARTEIRA,
+  normalizarNomeContaRecebimento,
+} from "@/lib/conta-bancaria";
 import { listarContasBancariasServidor } from "@/lib/conta-bancaria-servidor";
 import {
   contaReceitaLancamento,
@@ -22,9 +26,14 @@ type LancamentoRecebimento = {
 
 async function contaIdParaRecebimento(empresaId: string, descricao: string) {
   const contas = await listarContasBancariasServidor(empresaId);
-  const nomeConta = contaReceitaLancamento(descricao, "Caixa Principal");
+  const nomeConta = normalizarNomeContaRecebimento(
+    contaReceitaLancamento(descricao, "Caixa Principal")
+  );
   const conta =
     contas.find((c) => c.nome === nomeConta && !c.excluida) ??
+    (nomeConta === "Conta Bancária"
+      ? contas.find((c) => c.id === ID_CONTA_CARTEIRA && !c.excluida)
+      : undefined) ??
     contas.find((c) => c.id === ID_CONTA_CAIXA && !c.excluida) ??
     contas.find((c) => !c.excluida);
   return conta?.id ?? null;

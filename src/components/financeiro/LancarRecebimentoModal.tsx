@@ -63,10 +63,11 @@ type Props = {
   onVisualizar: (lancamento: LancamentoRecebimento) => void;
   emitirNotaFiscalPadrao?: boolean;
   creditoDisponivel?: number;
+  pixAsaasDisponivel?: boolean;
 };
 
-const FORMAS = ["Pix Externo", "Dinheiro", "Cartão", "Boleto", "Transferência"];
-const CONTAS = ["Caixa Principal", "Banco"];
+const FORMAS_BASE = ["Pix Externo", "Dinheiro", "Cartão", "Boleto", "Transferência"];
+const CONTAS_BASE = ["Caixa Principal", "Banco"];
 
 const thClass =
   "border border-[#d1d5db] bg-[#f3f4f6] px-2 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-[#4b5563]";
@@ -141,7 +142,19 @@ export function LancarRecebimentoModal({
   onVisualizar,
   emitirNotaFiscalPadrao = false,
   creditoDisponivel = 0,
+  pixAsaasDisponivel = false,
 }: Props) {
+  const formasDisponiveis = useMemo(
+    () => (pixAsaasDisponivel ? ["Pix", ...FORMAS_BASE] : FORMAS_BASE),
+    [pixAsaasDisponivel]
+  );
+  const contasDisponiveis = useMemo(
+    () =>
+      pixAsaasDisponivel
+        ? ["Caixa Principal", "Conta Bancária", "Banco"]
+        : CONTAS_BASE,
+    [pixAsaasDisponivel]
+  );
   const [mounted, setMounted] = useState(false);
   const [selecaoAutomatica, setSelecaoAutomatica] = useState(false);
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
@@ -484,7 +497,7 @@ export function LancarRecebimentoModal({
                     onChange={(e) => atualizarForma(forma.id, { forma: e.target.value })}
                     className={fieldClass}
                   >
-                    {FORMAS.map((f) => (
+                    {formasDisponiveis.map((f) => (
                       <option key={f} value={f}>
                         {f}
                       </option>
@@ -495,7 +508,7 @@ export function LancarRecebimentoModal({
                     onChange={(e) => atualizarForma(forma.id, { conta: e.target.value })}
                     className={fieldClass}
                   >
-                    {CONTAS.map((c) => (
+                    {contasDisponiveis.map((c) => (
                       <option key={c} value={c}>
                         {c}
                       </option>

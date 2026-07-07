@@ -142,7 +142,7 @@ export type MovimentacaoContaBancaria = {
 export const CONTAS_BANCARIAS_STORAGE_KEY = "labProteseContasBancarias";
 export const MOVIMENTACOES_CONTA_STORAGE_KEY = "labProteseMovimentacoesConta";
 export const CONTAS_BANCARIAS_VERSION_KEY = "labProteseContasBancariasVersion";
-export const CONTAS_BANCARIAS_VERSION = 3;
+export const CONTAS_BANCARIAS_VERSION = 4;
 
 /** Saldo de demonstração legado — zerado na migração v3. */
 const SALDO_INICIAL_DEMO_LEGADO = 18215.6;
@@ -156,7 +156,7 @@ export const CONTAS_BANCARIAS_PADRAO: ContaBancaria[] = [
   },
   {
     id: "cb-carteira",
-    nome: "Carteira Digital",
+    nome: "Conta Bancária",
     saldoInicial: 0,
     acaoPrincipal: "baixar",
   },
@@ -188,6 +188,27 @@ function normalizarSaldoLegado(contas: ContaBancaria[]): ContaBancaria[] {
   });
 }
 
+/** Nome legado da conta digital (cb-carteira) antes da migração v4. */
+export function normalizarNomeContaRecebimento(nome: string) {
+  const limpo = nome.trim();
+  if (limpo === "Carteira Digital") return "Conta Bancária";
+  return limpo;
+}
+
+export const ID_CONTA_CAIXA = "cb-caixa";
+export const ID_CONTA_CARTEIRA = "cb-carteira";
+export const ID_CONTA_NF = "cb-nf";
+
+function migrarContasV4(contas: ContaBancaria[]): ContaBancaria[] {
+  return contas.map((c) => {
+    if (c.id !== ID_CONTA_CARTEIRA) return c;
+    if (c.nome.trim() === "Carteira Digital") {
+      return { ...c, nome: "Conta Bancária" };
+    }
+    return c;
+  });
+}
+
 export function carregarContasBancarias(): ContaBancaria[] {
   if (typeof window === "undefined") return CONTAS_BANCARIAS_PADRAO;
   try {
@@ -198,6 +219,7 @@ export function carregarContasBancarias(): ContaBancaria[] {
       let contas =
         Array.isArray(existente) && existente.length > 0 ? existente : CONTAS_BANCARIAS_PADRAO;
       contas = normalizarSaldoLegado(contas);
+      contas = migrarContasV4(contas);
       salvarContasBancarias(contas);
       return contas;
     }
@@ -236,7 +258,9 @@ export function contaDeLancamento(
   if (lancamento.tipo === "despesa") {
     return desempacotarDespesa(lancamento.descricao).conta || nomePadrao;
   }
-  return contaReceitaLancamento(lancamento.descricao, nomePadrao);
+  return normalizarNomeContaRecebimento(
+    contaReceitaLancamento(lancamento.descricao, nomePadrao)
+  );
 }
 
 export function calcularSaldoConta(
@@ -265,11 +289,7 @@ export function calcularSaldoConta(
   return saldo;
 }
 
-export const ID_CONTA_CAIXA = "cb-caixa";
-export const ID_CONTA_CARTEIRA = "cb-carteira";
-export const ID_CONTA_NF = "cb-nf";
-
-/** Carteira Digital não exibe editar na lista (Smart Prótese). */
+/** Conta Bancária (Asaas) não exibe editar na lista (Smart Prótese). */
 export function contaPermiteEditarNaLista(conta: ContaBancaria) {
   return conta.id !== ID_CONTA_CARTEIRA;
 }

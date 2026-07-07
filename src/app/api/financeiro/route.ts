@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 import { invalidarCachePainelFinanceiro } from "@/lib/financeiro-painel-cache";
 import { tentarEmitirBoletoParaLancamento } from "@/lib/asaas-boleto";
+import { tentarEmitirPixParaLancamento } from "@/lib/asaas-pix-cobranca";
+import { formaEhPixAsaas } from "@/lib/forma-pagamento-pix";
 import { parseParcelaNaDescricao } from "@/lib/fatura-financeiro";
 import { descricaoDespesaComParcela } from "@/lib/lancamento-despesa";
 import { criarJob, executarJobEmBackground } from "@/lib/jobs";
@@ -37,6 +39,7 @@ const schema = z.object({
   emitirBoleto: z.boolean().optional(),
   /** Se true, enfileira job para emitir o boleto em background (issue 030). */
   emitirBoletoAsync: z.boolean().optional(),
+  emitirPix: z.boolean().optional(),
   parcelaNumero: z.number().int().positive().optional(),
   parcelaTotal: z.number().int().positive().optional(),
   numeroFatura: z.number().int().positive().optional(),
@@ -143,7 +146,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const data = schema.parse(body);
-    const { emitirBoleto, emitirBoletoAsync, parcelas: parcelasBody } = data;
+    const { emitirBoleto, emitirBoletoAsync, emitirPix, parcelas: parcelasBody } = data;
     const { empresaId, user: session } = ctx;
 
     if (
@@ -237,6 +240,9 @@ export async function POST(request: Request) {
       const deveEmitirBoletos = emitirBoleto !== false;
       const avisosBoletos: string[] = [];
       let boletosEmitidos = 0;
+      const avisosPix: string[] = [];
+      let pixEmitidos = 0;
+      let pixQrResposta: Awaited<ReturnType<typeof tentarEmitirPixParaLancamento>> = null;
 
       if (deveEmitirBoletos) {
         for (const lancamento of criados) {
@@ -254,6 +260,26 @@ export async function POST(request: Request) {
         }
       }
 
+      if (emitirPix !== false) {
+        for (const lancamento of criados) {
+          if (!formaEhPixAsaas(lancamento.formaPagamento) || lancamento.status === "pago") {
+            continue;
+          }
+          try {
+            const pix = await tentarEmitirPixParaLancamento(lancamento.id);
+            if (pix) {
+              pixEmitidos += 1;
+              if (!pixQrResposta) pixQrResposta = pix;
+            }
+          } catch (err) {
+            console.error("[financeiro POST] pix parcela asaas", err);
+            avisosPix.push(
+              err instanceof Error ? err.message : "Falha ao emitir Pix no Asaas."
+            );
+          }
+        }
+      }
+
       const lancamentosComCobranca = await Promise.all(
         criados.map((l) => findLancamentoFinanceiroPorId(l.id))
       );
@@ -265,6 +291,9 @@ export async function POST(request: Request) {
           numeroFatura,
           boletosEmitidos,
           avisosBoletos: avisosBoletos.length ? avisosBoletos : undefined,
+          pixEmitidos,
+          avisosPix: avisosPix.length ? avisosPix : undefined,
+          pixQr: pixQrResposta ?? undefined,
         },
         { status: 201 }
       );
@@ -367,6 +396,55 @@ export async function POST(request: Request) {
             boletoEmitido: false,
             avisoBoleto: msg,
             numeroFatura: numeroFaturaRetornoBoleto,
+          },
+          { status: 201 }
+        );
+      }
+    }
+
+    const deveEmitirPix = emitirPix !== false && formaEhPixAsaas(data.formaPagamento);
+
+    if (deveEmitirPix) {
+      try {
+        const pix = await tentarEmitirPixParaLancamento(lancamento.id);
+        const atualizado = await findLancamentoFinanceiroPorId(lancamento.id);
+        const registro = atualizado || lancamento;
+        const audit = await auditarCriacaoLancamento(session, registro, {
+          parcelaNumero,
+          parcelaTotal,
+          numeroFatura: data.numeroFatura,
+        });
+        invalidarCachePainelFinanceiro(ctx.empresaId);
+        return NextResponse.json(
+          {
+            ...registro,
+            pixEmitido: Boolean(pix),
+            pixQr: pix ?? undefined,
+            numeroFatura: audit.numeroFatura,
+          },
+          { status: 201 }
+        );
+      } catch (err) {
+        console.error("[financeiro POST] pix asaas", err);
+        const msg = err instanceof Error ? err.message : "Falha ao emitir Pix no Asaas.";
+        let numeroFaturaRetornoPix = data.numeroFatura;
+        try {
+          const audit = await auditarCriacaoLancamento(session, lancamento, {
+            parcelaNumero,
+            parcelaTotal,
+            numeroFatura: data.numeroFatura,
+          });
+          numeroFaturaRetornoPix = audit.numeroFatura ?? numeroFaturaRetornoPix;
+        } catch (auditErr) {
+          console.error("[financeiro POST] auditoria pós-falha pix", auditErr);
+        }
+        invalidarCachePainelFinanceiro(ctx.empresaId);
+        return NextResponse.json(
+          {
+            ...lancamento,
+            pixEmitido: false,
+            avisoPix: msg,
+            numeroFatura: numeroFaturaRetornoPix,
           },
           { status: 201 }
         );
