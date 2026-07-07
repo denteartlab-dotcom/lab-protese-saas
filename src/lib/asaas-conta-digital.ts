@@ -2,6 +2,7 @@ import { asaasFetch, obterConfigAsaas } from "@/lib/asaas-client";
 import { asaasConfigurado, type AsaasConfig } from "@/lib/asaas-config";
 import {
   configOperacionalSubconta,
+  laboratorioUsaCnpjContaMae,
   obterSubcontaEmpresa,
   serializarSubcontaPublica,
 } from "@/lib/asaas-subconta";
@@ -16,7 +17,9 @@ export async function resolverContaDigitalOperacional(empresaId: string): Promis
   if (subconta) return { config: subconta, modo: "subconta" };
 
   const legado = await obterConfigAsaas(empresaId);
-  if (asaasConfigurado(legado)) return { config: legado, modo: "legado" };
+  if (asaasConfigurado(legado) && (await laboratorioUsaCnpjContaMae(empresaId))) {
+    return { config: legado, modo: "legado" };
+  }
 
   return { config: null, modo: null };
 }
@@ -29,6 +32,7 @@ export async function contaDigitalOperacionalAtiva(empresaId: string): Promise<b
 export async function montarSubcontaPainelContaDigital(empresaId: string) {
   const sub = await obterSubcontaEmpresa(empresaId);
   const base = serializarSubcontaPublica(sub);
+  const podeUsarIntegracaoManual = await laboratorioUsaCnpjContaMae(empresaId);
   const { config, modo } = await resolverContaDigitalOperacional(empresaId);
 
   return {
@@ -36,6 +40,7 @@ export async function montarSubcontaPainelContaDigital(empresaId: string) {
     modoIntegracao: modo,
     contaAtiva: Boolean(base.contaAtiva) || modo === "legado",
     integracaoConfigurada: Boolean(config),
+    podeUsarIntegracaoManual,
   };
 }
 

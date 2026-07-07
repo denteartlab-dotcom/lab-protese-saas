@@ -9,6 +9,7 @@ import {
   obterConfigAsaas,
   salvarConfigAsaas,
 } from "@/lib/asaas-client";
+import { laboratorioUsaCnpjContaMae } from "@/lib/asaas-subconta";
 
 export async function GET() {
   const session = await getSession();
@@ -20,12 +21,14 @@ export async function GET() {
   }
 
   const config = await obterConfigAsaas(session.empresaId);
+  const podeUsarIntegracaoManual = await laboratorioUsaCnpjContaMae(session.empresaId);
   return NextResponse.json({
     config: {
       ambiente: config.ambiente,
       apiKeyConfigurada: Boolean(config.apiKey),
       webhookTokenConfigurado: Boolean(config.webhookToken),
     },
+    podeUsarIntegracaoManual,
     webhookUrl: `${APP_URL}/api/asaas/webhook`,
     urlBase: urlBaseAsaas(config.ambiente),
   });
@@ -41,6 +44,17 @@ export async function PUT(request: Request) {
   }
 
   try {
+    const podeUsarIntegracaoManual = await laboratorioUsaCnpjContaMae(session.empresaId);
+    if (!podeUsarIntegracaoManual) {
+      return NextResponse.json(
+        {
+          error:
+            "Integração manual disponível apenas para o laboratório com o mesmo CNPJ da conta-mãe Asaas.",
+        },
+        { status: 403 }
+      );
+    }
+
     const body = (await request.json()) as Partial<AsaasConfig> & {
       apiKey?: string;
       manterApiKey?: boolean;

@@ -39,6 +39,7 @@ type SubcontaResumo = {
   status: StatusSubconta;
   contaAtiva?: boolean;
   contaMaeConfigurada?: boolean;
+  podeUsarIntegracaoManual?: boolean;
   agencia?: string | null;
   conta?: string | null;
   contaDigito?: string | null;
@@ -72,6 +73,7 @@ export function ConfiguracoesBoletosTab() {
   const [apiKey, setApiKey] = useState("");
   const [webhookToken, setWebhookToken] = useState("");
   const [apiKeyConfigurada, setApiKeyConfigurada] = useState(false);
+  const [podeUsarIntegracaoManual, setPodeUsarIntegracaoManual] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState("");
   const [salvandoLegado, setSalvandoLegado] = useState(false);
   const [feedbackLocal, setFeedbackLocal] = useState<{
@@ -100,12 +102,18 @@ export function ConfiguracoesBoletosTab() {
       const jsonCfg = (await resCfg.json()) as {
         config?: { ambiente?: "sandbox" | "producao"; apiKeyConfigurada?: boolean };
         webhookUrl?: string;
+        podeUsarIntegracaoManual?: boolean;
       };
 
       setSubconta(jsonSub.subconta || null);
       setDocumentos(jsonSub.documentos || []);
       if (jsonCfg.config?.ambiente) setAmbiente(jsonCfg.config.ambiente);
       setApiKeyConfigurada(Boolean(jsonCfg.config?.apiKeyConfigurada));
+      setPodeUsarIntegracaoManual(
+        Boolean(
+          jsonCfg.podeUsarIntegracaoManual ?? jsonSub.subconta?.podeUsarIntegracaoManual
+        )
+      );
       setWebhookUrl(jsonCfg.webhookUrl || "");
     } finally {
       setCarregando(false);
@@ -201,6 +209,7 @@ export function ConfiguracoesBoletosTab() {
   const badge = rotuloStatus(status);
   const BadgeIcon = badge.Icon;
   const contaIniciada = status !== "nao_iniciado";
+  const integracaoManualVisivel = podeUsarIntegracaoManual;
 
   return (
     <div className="max-w-2xl space-y-5 text-sm">
@@ -222,18 +231,18 @@ export function ConfiguracoesBoletosTab() {
           <code className="text-[11px]">ASAAS_CONTA_MAE_API_KEY</code>). Entre em contato com o
           suporte para habilitar contas digitais.
         </div>
-      ) : apiKeyConfigurada ? (
+      ) : integracaoManualVisivel && apiKeyConfigurada ? (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-[12px] text-emerald-900">
           Integração manual ativa. Boletos e{" "}
           <strong>Financeiro → Conta Digital</strong> (saldo, pagar boleto e Pix) usam sua conta
           Asaas conectada.
         </div>
-      ) : (
+      ) : integracaoManualVisivel ? (
         <div className="rounded-lg border border-blue-100 bg-blue-50/80 px-4 py-3 text-[12px] text-slate-700">
-          Se o CNPJ do laboratório for o mesmo da conta-mãe Asaas, não use &quot;Abrir conta
-          digital&quot;. Configure a <strong>chave API manual (legado)</strong> abaixo.
+          O CNPJ deste laboratório é o mesmo da conta-mãe Asaas. Use a{" "}
+          <strong>chave API manual (legado)</strong> abaixo em vez de abrir subconta.
         </div>
-      )}
+      ) : null}
 
       {feedbackLocal ? (
         <div
@@ -268,7 +277,9 @@ export function ConfiguracoesBoletosTab() {
                 {atualizando ? "Atualizando…" : "Atualizar status"}
               </Button>
             ) : null}
-            {!contaIniciada && subconta?.contaMaeConfigurada !== false ? (
+            {!contaIniciada &&
+            subconta?.contaMaeConfigurada !== false &&
+            !integracaoManualVisivel ? (
               <Button type="button" disabled={abrindo} onClick={() => void abrirContaDigital()}>
                 {abrindo ? "Abrindo conta…" : "Abrir conta digital"}
               </Button>
@@ -327,6 +338,7 @@ export function ConfiguracoesBoletosTab() {
         </p>
       ) : null}
 
+      {integracaoManualVisivel ? (
       <div className="border-t border-slate-200 pt-4">
         <button
           type="button"
@@ -339,7 +351,7 @@ export function ConfiguracoesBoletosTab() {
         {modoLegado ? (
           <div className="mt-3 space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
             <p className="text-[11px] text-slate-600">
-              Para laboratórios que já possuem conta Asaas própria, fora do modelo de subconta.
+              Para o laboratório com o mesmo CNPJ da conta-mãe Asaas (chave da plataforma).
             </p>
             <div>
               <label className={labelClass}>Ambiente</label>
@@ -385,6 +397,7 @@ export function ConfiguracoesBoletosTab() {
           </div>
         ) : null}
       </div>
+      ) : null}
 
       <AsaasSeloInstitucional
         detalhado

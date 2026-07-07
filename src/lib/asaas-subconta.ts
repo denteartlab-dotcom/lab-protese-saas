@@ -64,6 +64,28 @@ export async function obterSubcontaEmpresa(empresaId: string) {
   return prisma.asaasSubconta.findUnique({ where: { empresaId } });
 }
 
+/** Laboratório com o mesmo CNPJ/CPF da conta-mãe Asaas (único elegível à integração manual). */
+export async function laboratorioUsaCnpjContaMae(empresaId: string): Promise<boolean> {
+  if (!contaMaeAsaasConfigurada()) return false;
+
+  const empresa = await prisma.empresa.findUnique({ where: { id: empresaId } });
+  if (!empresa) return false;
+
+  const lab =
+    (await lerJsonStoreTenant<ConfigLaboratorio>(empresaId, CONFIG_LAB_STORAGE_KEY)) || null;
+  const documentoLab = somenteDigitos(lab?.cnpj || empresa.cnpj || "");
+  if (documentoLab.length < 11) return false;
+
+  try {
+    const mae = obterConfigContaMaeAsaas();
+    const comercial = await asaasFetch<{ cpfCnpj?: string }>(mae, "/myAccount/commercialInfo");
+    const documentoMae = somenteDigitos(comercial.cpfCnpj || "");
+    return documentoMae.length >= 11 && documentoMae === documentoLab;
+  } catch {
+    return false;
+  }
+}
+
 export async function configOperacionalSubconta(
   empresaId: string
 ): Promise<AsaasConfig | null> {
@@ -237,16 +259,10 @@ export async function criarSubcontaEmpresa(empresaId: string) {
   const mae = obterConfigContaMaeAsaas();
   const dados = await carregarDadosCadastroSubconta(empresaId);
 
-  try {
-    const comercial = await asaasFetch<{ cpfCnpj?: string }>(mae, "/myAccount/commercialInfo");
-    const cnpjMae = somenteDigitos(comercial.cpfCnpj || "");
-    if (cnpjMae.length >= 11 && cnpjMae === dados.cpfCnpj) {
-      throw new Error(
-        "Este laboratório usa o mesmo CNPJ/CPF da conta-mãe Asaas. Use Configurações → Boletos → chave API manual (legado) para boletos, saldo, pagamentos e Pix."
-      );
-    }
-  } catch (err) {
-    if (err instanceof Error && err.message.includes("conta-mãe Asaas")) throw err;
+  if (await laboratorioUsaCnpjContaMae(empresaId)) {
+    throw new Error(
+      "Este laboratório usa o mesmo CNPJ/CPF da conta-mãe Asaas. Use Configurações → Boletos → chave API manual (legado) para boletos, saldo, pagamentos e Pix."
+    );
   }
 
   let criada: RespostaCriarSubconta;

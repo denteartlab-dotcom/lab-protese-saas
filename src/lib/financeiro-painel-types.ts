@@ -70,6 +70,7 @@ export type SubcontaDigitalPublica = {
   contaMaeConfigurada?: boolean;
   modoIntegracao?: "subconta" | "legado" | null;
   integracaoConfigurada?: boolean;
+  podeUsarIntegracaoManual?: boolean;
 };
 
 export type PainelFinanceiroReceita = {
