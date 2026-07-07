@@ -75,6 +75,7 @@ export type LancarReceitaOsSubmit = {
   parcelas: ParcelaLinhaReceita[];
   imprimirRecibo: boolean;
   alterarEntregue: boolean;
+  abaterCredito: boolean;
   enviarControleEntrega: boolean;
   anexos?: AnexoDespesa[];
 };
@@ -98,6 +99,7 @@ type Props = {
   algumasReceitaSelecionadas: boolean;
   valorOsSelecionadas: number;
   totalLiquido: number;
+  creditoDisponivel: number;
   mensagemLancamento: string;
   mensagemLancamentoTipo: "erro" | "sucesso" | "info";
   formaSelecionadaEhBoleto: (parcelas: ParcelaLinhaReceita[]) => boolean;
@@ -204,6 +206,7 @@ export function LancarReceitaOsModal({
   algumasReceitaSelecionadas,
   valorOsSelecionadas,
   totalLiquido,
+  creditoDisponivel,
   mensagemLancamento,
   mensagemLancamentoTipo,
   formaSelecionadaEhBoleto,
@@ -227,6 +230,12 @@ export function LancarReceitaOsModal({
   const [enviarControleEntrega, setEnviarControleEntrega] = useState(
     () => carregarConfiguracoesGerais().faturasAdicionarControleEntregas
   );
+  const [abaterCredito, setAbaterCredito] = useState(false);
+  const creditoAplicado =
+    abaterCredito && creditoDisponivel > 0
+      ? Math.min(creditoDisponivel, totalLiquido)
+      : 0;
+  const totalAReceberComCredito = Math.max(0, totalLiquido - creditoAplicado);
   const [codigoBarras, setCodigoBarras] = useState("");
   const [feedbackCodigo, setFeedbackCodigo] = useState<{ tipo: "ok" | "erro"; msg: string } | null>(
     null
@@ -284,6 +293,7 @@ export function LancarReceitaOsModal({
   useEffect(() => {
     if (!open) return;
     aplicarConfiguracoesFaturas();
+    setAbaterCredito(false);
     setCodigoBarras("");
     setFeedbackCodigo(null);
     setNumParcelas(1);
@@ -322,7 +332,7 @@ export function LancarReceitaOsModal({
   useEffect(() => {
     const valorParcela =
       numParcelas > 0
-        ? (totalLiquido / numParcelas).toLocaleString("pt-BR", {
+        ? (totalAReceberComCredito / numParcelas).toLocaleString("pt-BR", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           })
@@ -348,7 +358,7 @@ export function LancarReceitaOsModal({
     });
   }, [
     numParcelas,
-    totalLiquido,
+    totalAReceberComCredito,
     form.formaPagamento,
     form.conta,
     form.vencimento,
@@ -395,6 +405,7 @@ export function LancarReceitaOsModal({
         parcelas,
         imprimirRecibo,
         alterarEntregue,
+        abaterCredito,
         enviarControleEntrega,
         anexos,
       });
@@ -655,6 +666,13 @@ export function LancarReceitaOsModal({
 
           <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
             <div className="flex flex-col gap-3 pt-1">
+              {creditoDisponivel > 0.009 ? (
+                <ToggleSmart
+                  checked={abaterCredito}
+                  onChange={setAbaterCredito}
+                  label={`Abater do Crédito de ${currency(creditoDisponivel)}`}
+                />
+              ) : null}
               <ToggleSmart
                 checked={alterarEntregue}
                 onChange={setAlterarEntregue}
@@ -723,6 +741,23 @@ export function LancarReceitaOsModal({
                 <span className="font-semibold text-[#4a90d9]">Total Líquido</span>
                 <span className="text-[15px] font-bold text-[#4a90d9]">{currency(totalLiquido)}</span>
               </div>
+              {abaterCredito && creditoAplicado > 0 ? (
+                <>
+                  <div className="flex items-center justify-between border-t border-[#f3f4f6] py-2 text-emerald-700">
+                    <span>Desconto com crédito</span>
+                    <span>- {currency(creditoAplicado)}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-2 font-semibold text-[#374151]">
+                    <span>Total a cobrar</span>
+                    <span>{currency(totalAReceberComCredito)}</span>
+                  </div>
+                </>
+              ) : creditoDisponivel > 0.009 ? (
+                <div className="flex items-center justify-between border-t border-[#f3f4f6] py-2 font-semibold text-[#374151]">
+                  <span>Total a cobrar</span>
+                  <span>{currency(totalLiquido)}</span>
+                </div>
+              ) : null}
             </div>
           </div>
 
