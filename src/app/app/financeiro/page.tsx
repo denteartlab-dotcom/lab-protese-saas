@@ -696,6 +696,12 @@ function FinanceiroReceberConteudo() {
       .sort((a, b) => a.nome.localeCompare(b.nome));
   }, [receitasFiltradas, trabalhosNaoFaturados, data]);
 
+  const creditoDisponivelReceita = useMemo(
+    () =>
+      calcularCreditoDisponivelClienteFatura(data?.lancamentos ?? [], form.clienteId),
+    [data, form.clienteId]
+  );
+
   useEffect(() => {
     if (!data || notifDeepLinkFeito.current) return;
 
@@ -794,7 +800,6 @@ function FinanceiroReceberConteudo() {
       ? jurosBase
       : Math.max(valorBruto - desconto, 0) * (Math.max(jurosBase, 0) / 100);
   const totalLiquido = Math.max(0, valorBruto - desconto + jurosValor);
-  const creditoDisponivelReceita = creditoDisponivelCliente(form.clienteId);
 
   function formaSelecionadaEhBoleto(parcelasLinha: ParcelaLinhaReceita[] = []) {
     const naParcela = parcelasLinha.some((p) =>
@@ -1728,15 +1733,7 @@ function FinanceiroReceberConteudo() {
   }
 
   function creditoDisponivelCliente(clienteId?: string) {
-    if (!clienteId) return 0;
-    const lancamentos = data?.lancamentos || [];
-    const creditos = lancamentos
-      .filter((lancamento) => lancamento.cliente?.id === clienteId && isCreditoGerado(lancamento))
-      .reduce((sum, lancamento) => sum + lancamento.valor, 0);
-    const usados = lancamentos
-      .filter((lancamento) => lancamento.cliente?.id === clienteId && isCreditoUtilizado(lancamento))
-      .reduce((sum, lancamento) => sum + lancamento.valor, 0);
-    return Math.max(creditos - usados, 0);
+    return calcularCreditoDisponivelClienteFatura(data?.lancamentos ?? [], clienteId);
   }
 
   function recebimentosDoCliente(clienteId?: string) {

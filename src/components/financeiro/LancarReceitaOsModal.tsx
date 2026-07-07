@@ -206,7 +206,7 @@ export function LancarReceitaOsModal({
   algumasReceitaSelecionadas,
   valorOsSelecionadas,
   totalLiquido,
-  creditoDisponivel,
+  creditoDisponivel = 0,
   mensagemLancamento,
   mensagemLancamentoTipo,
   formaSelecionadaEhBoleto,
@@ -230,10 +230,11 @@ export function LancarReceitaOsModal({
   const [enviarControleEntrega, setEnviarControleEntrega] = useState(
     () => carregarConfiguracoesGerais().faturasAdicionarControleEntregas
   );
+  const creditoDisponivelSeguro = Number.isFinite(creditoDisponivel) ? creditoDisponivel : 0;
   const [abaterCredito, setAbaterCredito] = useState(false);
   const creditoAplicado =
-    abaterCredito && creditoDisponivel > 0
-      ? Math.min(creditoDisponivel, totalLiquido)
+    abaterCredito && creditoDisponivelSeguro > 0
+      ? Math.min(creditoDisponivelSeguro, totalLiquido)
       : 0;
   const totalAReceberComCredito = Math.max(0, totalLiquido - creditoAplicado);
   const [codigoBarras, setCodigoBarras] = useState("");
@@ -666,11 +667,11 @@ export function LancarReceitaOsModal({
 
           <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
             <div className="flex flex-col gap-3 pt-1">
-              {creditoDisponivel > 0.009 ? (
+              {creditoDisponivelSeguro > 0.009 ? (
                 <ToggleSmart
                   checked={abaterCredito}
                   onChange={setAbaterCredito}
-                  label={`Abater do Crédito de ${currency(creditoDisponivel)}`}
+                  label={`Abater do Crédito de ${currency(creditoDisponivelSeguro)}`}
                 />
               ) : null}
               <ToggleSmart
@@ -752,7 +753,7 @@ export function LancarReceitaOsModal({
                     <span>{currency(totalAReceberComCredito)}</span>
                   </div>
                 </>
-              ) : creditoDisponivel > 0.009 ? (
+              ) : creditoDisponivelSeguro > 0.009 ? (
                 <div className="flex items-center justify-between border-t border-[#f3f4f6] py-2 font-semibold text-[#374151]">
                   <span>Total a cobrar</span>
                   <span>{currency(totalLiquido)}</span>
