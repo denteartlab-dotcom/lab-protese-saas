@@ -4,9 +4,9 @@ import {
   criarSubcontaEmpresa,
   listarDocumentosSubconta,
   obterSubcontaEmpresa,
-  serializarSubcontaPublica,
   sincronizarStatusSubconta,
 } from "@/lib/asaas-subconta";
+import { montarSubcontaPainelContaDigital } from "@/lib/asaas-conta-digital";
 
 export async function GET() {
   const session = await getSession();
@@ -30,7 +30,7 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      subconta: serializarSubcontaPublica(sub),
+      subconta: await montarSubcontaPainelContaDigital(session.empresaId),
       documentos: documentos.map((doc) => ({
         id: doc.id,
         type: doc.type,
@@ -56,7 +56,7 @@ export async function POST() {
   }
 
   try {
-    const sub = await criarSubcontaEmpresa(session.empresaId);
+    await criarSubcontaEmpresa(session.empresaId);
     let documentos: Awaited<ReturnType<typeof listarDocumentosSubconta>> = [];
     try {
       documentos = await listarDocumentosSubconta(session.empresaId);
@@ -66,7 +66,7 @@ export async function POST() {
 
     return NextResponse.json(
       {
-        subconta: serializarSubcontaPublica(sub),
+        subconta: await montarSubcontaPainelContaDigital(session.empresaId),
         documentos: documentos.map((doc) => ({
           id: doc.id,
           type: doc.type,

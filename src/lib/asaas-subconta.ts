@@ -237,13 +237,42 @@ export async function criarSubcontaEmpresa(empresaId: string) {
   const mae = obterConfigContaMaeAsaas();
   const dados = await carregarDadosCadastroSubconta(empresaId);
 
-  const criada = await asaasFetch<RespostaCriarSubconta>(mae, "/accounts", {
-    method: "POST",
-    body: JSON.stringify({
-      ...dados,
-      webhooks: webhooksSubconta(mae.webhookToken),
-    }),
-  });
+  try {
+    const comercial = await asaasFetch<{ cpfCnpj?: string }>(mae, "/myAccount/commercialInfo");
+    const cnpjMae = somenteDigitos(comercial.cpfCnpj || "");
+    if (cnpjMae.length >= 11 && cnpjMae === dados.cpfCnpj) {
+      throw new Error(
+        "Este laboratório usa o mesmo CNPJ/CPF da conta-mãe Asaas. Use Configurações → Boletos → chave API manual (legado) para boletos, saldo, pagamentos e Pix."
+      );
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("conta-mãe Asaas")) throw err;
+  }
+
+  let criada: RespostaCriarSubconta;
+  try {
+    criada = await asaasFetch<RespostaCriarSubconta>(mae, "/accounts", {
+      method: "POST",
+      body: JSON.stringify({
+        ...dados,
+        webhooks: webhooksSubconta(mae.webhookToken),
+      }),
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message.toLowerCase() : "";
+    if (
+      msg.includes("cpf") ||
+      msg.includes("cnpj") ||
+      msg.includes("cadastr") ||
+      msg.includes("já existe") ||
+      msg.includes("ja existe")
+    ) {
+      throw new Error(
+        "O Asaas não permitiu criar subconta com este CNPJ (pode ser o mesmo da conta-mãe). Use Configurações → Boletos → chave API manual (legado)."
+      );
+    }
+    throw err;
+  }
 
   if (!criada.apiKey) {
     throw new Error("Asaas não retornou a chave da subconta. Tente novamente.");

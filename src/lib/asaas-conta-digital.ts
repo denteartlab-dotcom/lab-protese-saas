@@ -1,11 +1,49 @@
-import { asaasFetch } from "@/lib/asaas-client";
-import { configOperacionalSubconta } from "@/lib/asaas-subconta";
+import { asaasFetch, obterConfigAsaas } from "@/lib/asaas-client";
+import { asaasConfigurado, type AsaasConfig } from "@/lib/asaas-config";
+import {
+  configOperacionalSubconta,
+  obterSubcontaEmpresa,
+  serializarSubcontaPublica,
+} from "@/lib/asaas-subconta";
+
+export type ModoIntegracaoContaDigital = "subconta" | "legado" | null;
+
+export async function resolverContaDigitalOperacional(empresaId: string): Promise<{
+  config: AsaasConfig | null;
+  modo: ModoIntegracaoContaDigital;
+}> {
+  const subconta = await configOperacionalSubconta(empresaId);
+  if (subconta) return { config: subconta, modo: "subconta" };
+
+  const legado = await obterConfigAsaas(empresaId);
+  if (asaasConfigurado(legado)) return { config: legado, modo: "legado" };
+
+  return { config: null, modo: null };
+}
+
+export async function contaDigitalOperacionalAtiva(empresaId: string): Promise<boolean> {
+  const { config } = await resolverContaDigitalOperacional(empresaId);
+  return Boolean(config);
+}
+
+export async function montarSubcontaPainelContaDigital(empresaId: string) {
+  const sub = await obterSubcontaEmpresa(empresaId);
+  const base = serializarSubcontaPublica(sub);
+  const { config, modo } = await resolverContaDigitalOperacional(empresaId);
+
+  return {
+    ...base,
+    modoIntegracao: modo,
+    contaAtiva: Boolean(base.contaAtiva) || modo === "legado",
+    integracaoConfigurada: Boolean(config),
+  };
+}
 
 async function configContaDigital(empresaId: string) {
-  const config = await configOperacionalSubconta(empresaId);
+  const { config } = await resolverContaDigitalOperacional(empresaId);
   if (!config) {
     throw new Error(
-      "Conta digital não está ativa. Conclua o cadastro em Configurações → Conta Digital."
+      "Conta digital não está ativa. Configure a chave API em Configurações → Boletos (modo legado) ou conclua a subconta BaaS."
     );
   }
   return config;

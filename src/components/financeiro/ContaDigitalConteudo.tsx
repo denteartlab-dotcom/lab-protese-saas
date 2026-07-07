@@ -39,6 +39,7 @@ type DocumentoOnboarding = {
 type SubcontaResumo = {
   status: StatusSubconta;
   contaAtiva?: boolean;
+  modoIntegracao?: "subconta" | "legado" | null;
   agencia?: string | null;
   conta?: string | null;
   contaDigito?: string | null;
@@ -220,8 +221,10 @@ export function ContaDigitalConteudo() {
 
   const status = subconta?.status || "nao_iniciado";
   const badge = rotuloStatus(status);
+  const contaOperacional =
+    Boolean(subconta?.contaAtiva) || subconta?.modoIntegracao === "legado";
 
-  if (!subconta?.contaAtiva) {
+  if (!contaOperacional) {
     return (
       <div>
         <div className="max-w-xl rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
@@ -230,8 +233,12 @@ export function ContaDigitalConteudo() {
             <div>
               <h2 className="text-[15px] font-medium text-slate-800">Conta Digital</h2>
               <p className="mt-1 text-[12px] text-slate-600">
-                Abra sua conta para emitir boletos, receber Pix, pagar contas e transferir valores
-                sem sair do Lab Prótese.
+                Conecte sua conta Asaas para consultar saldo, pagar boletos e transferir Pix sem
+                sair do Lab Prótese.
+              </p>
+              <p className="mt-2 text-[11px] text-slate-500">
+                Se o CNPJ do laboratório for o mesmo da conta-mãe da plataforma, use a{" "}
+                <strong>chave API manual (legado)</strong> em Configurações → Boletos.
               </p>
               <span
                 className={cn(
@@ -247,7 +254,7 @@ export function ContaDigitalConteudo() {
             href={linkConfiguracoes(pathname)}
             className="mt-5 inline-flex h-9 items-center rounded bg-[#4a90d9] px-4 text-[13px] text-white hover:bg-[#3d7fc4]"
           >
-            Ativar conta digital
+            Configurar conta Asaas
           </Link>
         </div>
       </div>
@@ -283,11 +290,16 @@ export function ContaDigitalConteudo() {
         <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-4 md:col-span-2">
           <div className="flex items-center gap-2 text-emerald-800">
             <CheckCircle2 className="h-4 w-4" />
-            <span className="text-[13px] font-medium">Conta digital ativa</span>
+            <span className="text-[13px] font-medium">
+              {subconta?.modoIntegracao === "legado"
+                ? "Conta Asaas conectada (modo legado)"
+                : "Conta digital ativa"}
+            </span>
           </div>
           <p className="mt-1 text-[12px] text-emerald-900/80">
-            Emissão de boletos nas receitas usa automaticamente esta conta. Pagamentos e
-            transferências abaixo debitam deste saldo.
+            {subconta?.modoIntegracao === "legado"
+              ? "Saldo, pagamentos de boleto e transferências Pix usam a chave API configurada em Configurações → Boletos."
+              : "Emissão de boletos nas receitas usa automaticamente esta conta. Pagamentos e transferências abaixo debitam deste saldo."}
           </p>
         </div>
       </div>

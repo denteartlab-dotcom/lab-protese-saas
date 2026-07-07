@@ -1,12 +1,12 @@
 import { prisma } from "@/lib/db";
 import {
+  montarSubcontaPainelContaDigital,
   obterExtratoContaDigital,
   obterSaldoContaDigital,
   type MovimentacaoExtrato,
 } from "@/lib/asaas-conta-digital";
 import {
   obterSubcontaEmpresa,
-  serializarSubcontaPublica,
   sincronizarStatusSubconta,
 } from "@/lib/asaas-subconta";
 import { lancamentoEhDespesaBoleto } from "@/lib/controle-boletos";
@@ -214,7 +214,7 @@ export async function montarPainelFinanceiroContaDigital(
     }
   }
 
-  const subconta = serializarSubcontaPublica(sub);
+  const subconta = await montarSubcontaPainelContaDigital(empresaId);
   let saldo = 0;
   let movimentacoes: MovimentacaoExtrato[] = [];
 

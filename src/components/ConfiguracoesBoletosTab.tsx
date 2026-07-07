@@ -178,7 +178,10 @@ export function ConfiguracoesBoletosTab({ onMensagem }: Props) {
       }
       setApiKey("");
       setApiKeyConfigurada(true);
-      exibirFeedback("Integração manual salva.", "sucesso");
+      exibirFeedback(
+        "Integração manual salva. Acesse Financeiro → Conta Digital para saldo, pagamentos e Pix.",
+        "sucesso"
+      );
     } catch (e) {
       exibirFeedback(
         e instanceof Error ? e.message : "Não foi possível salvar.",
@@ -223,7 +226,18 @@ export function ConfiguracoesBoletosTab({ onMensagem }: Props) {
           <code className="text-[11px]">ASAAS_CONTA_MAE_API_KEY</code>). Entre em contato com o
           suporte para habilitar contas digitais.
         </div>
-      ) : null}
+      ) : apiKeyConfigurada ? (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-[12px] text-emerald-900">
+          Integração manual ativa. Boletos e{" "}
+          <strong>Financeiro → Conta Digital</strong> (saldo, pagar boleto e Pix) usam sua conta
+          Asaas conectada.
+        </div>
+      ) : (
+        <div className="rounded-lg border border-blue-100 bg-blue-50/80 px-4 py-3 text-[12px] text-slate-700">
+          Se o CNPJ do laboratório for o mesmo da conta-mãe Asaas, não use &quot;Abrir conta
+          digital&quot;. Configure a <strong>chave API manual (legado)</strong> abaixo.
+        </div>
+      )}
 
       {feedbackLocal ? (
         <div
