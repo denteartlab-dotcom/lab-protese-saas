@@ -22,7 +22,7 @@ import {
 } from "@/lib/configuracoes-faturas";
 import { sincronizarConfigLaboratorioDoServidor } from "@/lib/lab-config-sync";
 import { gerarPdfDeHtmlDocumento } from "@/lib/html-para-pdf";
-import { prepararAbaPdf } from "@/lib/pdf-viewer";
+import { nomeArquivoFaturaPdf, prepararAbaPdf } from "@/lib/pdf-viewer";
 import { abrirFaturaNoVisualizador } from "@/lib/fatura-impressao-sessao";
 import { cn } from "@/lib/utils";
 
@@ -244,7 +244,7 @@ export function ImprimirFaturaModal({
             maximumFractionDigits: 2,
           })
         : "";
-    const nomeArquivo = `Fatura ${numeroFatura}.pdf`;
+    const nomeArquivo = nomeArquivoFaturaPdf(numeroFatura, clienteNome);
     const titulo = `Fatura ${numeroFatura} — ${clienteNome}`;
 
     setEnviandoWhatsapp(true);

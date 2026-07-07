@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Download, ExternalLink, Printer } from "lucide-react";
 import { Button } from "@/components/ui";
 import { PDF_VIEWER_PAGINA_CLASSES } from "@/lib/pdf-viewer-iframe";
-import { baixarPdfBlob } from "@/lib/pdf-viewer";
+import { baixarPdfBlob, nomeArquivoFaturaPdf } from "@/lib/pdf-viewer";
 import { gerarPdfDeHtmlDocumento } from "@/lib/html-para-pdf";
 import type { FaturaImpressaoSessao } from "@/lib/fatura-impressao-sessao";
 
@@ -25,8 +25,10 @@ export function FaturaPdfViewer({
   const [gerandoDownload, setGerandoDownload] = useState(false);
   const [erro, setErro] = useState("");
   const imprimirPendenteRef = useRef(imprimirAoCarregar);
-  const nomeArquivoPdf = `Fatura ${numeroFatura}.pdf`;
-  const titulo = `Fatura ${numeroFatura}`;
+  const nomeArquivoPdf = nomeArquivoFaturaPdf(numeroFatura, clienteNome);
+  const titulo = clienteNome.trim()
+    ? `Fatura ${numeroFatura} — ${clienteNome.trim()}`
+    : `Fatura ${numeroFatura}`;
 
   const imprimirFatura = useCallback(() => {
     const iframe = document.getElementById(IFRAME_ID) as HTMLIFrameElement | null;

@@ -68,6 +68,21 @@ export function nomeArquivoOsPdf(numeroOs: number) {
   return `OS ${numeroOs}.pdf`;
 }
 
+function limparSegmentoNomeArquivo(texto: string) {
+  return texto
+    .trim()
+    .replace(/[\\/:*?"<>|]/g, "")
+    .replace(/\s+/g, " ")
+    .slice(0, 120);
+}
+
+/** Nome sugerido para salvar PDF de fatura (ex.: Fatura 49 - Dr João Silva.pdf). */
+export function nomeArquivoFaturaPdf(numeroFatura: number, clienteNome?: string | null) {
+  const cliente = limparSegmentoNomeArquivo(clienteNome ?? "");
+  if (cliente) return `Fatura ${numeroFatura} - ${cliente}.pdf`;
+  return `Fatura ${numeroFatura}.pdf`;
+}
+
 /** Blob URL com nome sugerido (melhora título/salvar no visualizador do navegador). */
 export function criarUrlPdfNomeada(blob: Blob, nomeArquivo: string) {
   const file = new File([blob], nomeArquivo, {
