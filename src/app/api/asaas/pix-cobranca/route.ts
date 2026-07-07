@@ -4,7 +4,7 @@ import { requireEmpresaContext } from "@/lib/empresa-context";
 import { invalidarCachePainelFinanceiro } from "@/lib/financeiro-painel-cache";
 import {
   emitirPixCobrancaRecebimento,
-  subcontaPixAsaasDisponivel,
+  pixAsaasDisponivel,
   tentarEmitirPixParaLancamento,
 } from "@/lib/asaas-pix-cobranca";
 import { empacotarReceitaConta } from "@/lib/receita-conta-bancaria";
@@ -35,7 +35,7 @@ export async function GET() {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
-  const disponivel = await subcontaPixAsaasDisponivel(ctx.empresaId);
+  const disponivel = await pixAsaasDisponivel(ctx.empresaId);
   return NextResponse.json({ disponivel });
 }
 
@@ -47,12 +47,12 @@ export async function POST(request: Request) {
     const body = await request.json();
     const data = schema.parse(body);
 
-    const disponivel = await subcontaPixAsaasDisponivel(ctx.empresaId);
+    const disponivel = await pixAsaasDisponivel(ctx.empresaId);
     if (!disponivel) {
       return NextResponse.json(
         {
           error:
-            "Pix com QR Code exige subconta Asaas aprovada. Conclua a abertura em Configurações → Boletos ou use Pix Externo.",
+            "Pix com QR Code exige integração Asaas ativa (subconta ou chave API em Configurações → Boletos). Use Pix Externo para lançamento manual.",
         },
         { status: 422 }
       );

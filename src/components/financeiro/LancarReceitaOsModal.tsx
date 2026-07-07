@@ -773,6 +773,14 @@ export function LancarReceitaOsModal({
             </p>
           ) : null}
 
+          {pixAsaasDisponivel &&
+          parcelas.some((p) => (p.formaPagamento || "").trim().toLowerCase() === "pix") ? (
+            <p className="mb-3 rounded-sm border border-sky-200 bg-sky-50 px-3 py-2 text-center text-[11px] text-sky-900">
+              Com <strong>Pix</strong>, o sistema gera QR Code no Asaas (conta digital ou
+              conta-mãe) ao cadastrar a cobrança pendente.
+            </p>
+          ) : null}
+
           {mensagemLancamento ? (
             <p
               role="alert"

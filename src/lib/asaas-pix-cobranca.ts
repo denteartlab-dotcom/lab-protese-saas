@@ -7,7 +7,7 @@ import {
 } from "@/lib/asaas-client";
 import { formaEhPixAsaas } from "@/lib/forma-pagamento-pix";
 import { cobrancaPorLancamentoId } from "@/lib/lancamentos-cobranca";
-import { configOperacionalSubconta } from "@/lib/asaas-subconta";
+import { resolverContaDigitalOperacional } from "@/lib/asaas-conta-digital";
 import { descricaoPublicaLancamento } from "@/lib/lancamento-despesa";
 
 export type PixCobrancaEmitida = {
@@ -18,9 +18,24 @@ export type PixCobrancaEmitida = {
   expirationDate?: string;
 };
 
-export async function subcontaPixAsaasDisponivel(empresaId: string) {
-  const config = await configOperacionalSubconta(empresaId);
+/** Pix Asaas disponível com subconta aprovada ou integração legado (conta-mãe). */
+export async function pixAsaasDisponivel(empresaId: string) {
+  const { config } = await resolverContaDigitalOperacional(empresaId);
   return Boolean(config);
+}
+
+export async function subcontaPixAsaasDisponivel(empresaId: string) {
+  return pixAsaasDisponivel(empresaId);
+}
+
+async function configPixOperacional(empresaId: string) {
+  const { config } = await resolverContaDigitalOperacional(empresaId);
+  if (!config) {
+    throw new Error(
+      "Pix com QR Code exige integração Asaas ativa: conclua a subconta ou configure a chave API em Configurações → Boletos (conta com o mesmo CNPJ da conta-mãe)."
+    );
+  }
+  return config;
 }
 
 export async function tentarEmitirPixParaLancamento(
@@ -42,10 +57,7 @@ export async function tentarEmitirPixParaLancamento(
 
   const cobrancaExistente = await cobrancaPorLancamentoId(lancamentoId);
   if (cobrancaExistente?.asaasPaymentId) {
-    const config = await configOperacionalSubconta(lancamento.empresaId);
-    if (!config) {
-      throw new Error("Subconta Asaas não aprovada para emitir Pix.");
-    }
+    const config = await configPixOperacional(lancamento.empresaId);
     const qr = await obterQrCodePixAsaas(config, cobrancaExistente.asaasPaymentId);
     return {
       cobrancaId: cobrancaExistente.id,
@@ -56,12 +68,7 @@ export async function tentarEmitirPixParaLancamento(
     };
   }
 
-  const config = await configOperacionalSubconta(lancamento.empresaId);
-  if (!config) {
-    throw new Error(
-      "Pix com QR Code exige subconta Asaas aprovada. Conclua a abertura em Configurações → Boletos ou use Pix Externo."
-    );
-  }
+  const config = await configPixOperacional(lancamento.empresaId);
 
   if (!lancamento.clienteId || !lancamento.cliente) {
     throw new Error("Selecione um cliente para emitir Pix.");
@@ -123,12 +130,7 @@ export async function emitirPixCobrancaRecebimento(params: {
   vencimento?: Date;
   lancamentoId?: string;
 }): Promise<PixCobrancaEmitida> {
-  const config = await configOperacionalSubconta(params.empresaId);
-  if (!config) {
-    throw new Error(
-      "Pix com QR Code exige subconta Asaas aprovada. Conclua a abertura em Configurações → Boletos ou use Pix Externo."
-    );
-  }
+  const config = await configPixOperacional(params.empresaId);
 
   const cliente = await prisma.cliente.findFirst({
     where: { id: params.clienteId, empresaId: params.empresaId },
