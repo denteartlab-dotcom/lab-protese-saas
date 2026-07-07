@@ -88,22 +88,49 @@ function ordenarDentes(numeros: string[]) {
   });
 }
 
-/** Texto completo para impressão — expande SUP/INF e lista todos os dentes. */
-export function formatarDentesParaImpressaoOs(resumo: string): string {
+/** Compacta arcada inteira em SUP/INF; dentes parciais ficam em linha única. */
+export function compactarDentesParaImpressaoOs(resumo: string): string {
   const numeros = expandirResumoDentesOs(resumo);
+  const textoOriginal = (resumo || "").trim();
   if (!numeros.length) {
-    const texto = (resumo || "").trim();
-    return texto && texto !== "-" ? texto : "";
+    return textoOriginal && textoOriginal !== "-" ? textoOriginal : "";
   }
-  return ordenarDentes(numeros).join(", ");
+
+  const tipo = tipoDenticaoFromNumerosDentes(numeros);
+  const { superiores, inferiores } = listasDenticao(tipo);
+  const set = new Set(numeros);
+
+  const todosSuperiores = superiores.every((dente) => set.has(dente));
+  const todosInferiores = inferiores.every((dente) => set.has(dente));
+
+  const partes = [
+    todosSuperiores ? "SUP" : "",
+    todosInferiores ? "INF" : "",
+    ...(!todosSuperiores ? ordenarDentes(superiores.filter((dente) => set.has(dente))) : []),
+    ...(!todosInferiores ? ordenarDentes(inferiores.filter((dente) => set.has(dente))) : []),
+  ].filter(Boolean);
+
+  const conhecidos = new Set([...superiores, ...inferiores]);
+  const extras = ordenarDentes(numeros.filter((numero) => !conhecidos.has(numero)));
+  if (extras.length) partes.push(...extras);
+
+  if (!partes.length) {
+    return textoOriginal && textoOriginal !== "-" ? textoOriginal : "";
+  }
+  if (todosSuperiores && todosInferiores) return "SUP, INF";
+  return partes.join(", ");
+}
+
+/** Texto para impressão — arcada completa vira SUP/INF; parciais em uma linha. */
+export function formatarDentesParaImpressaoOs(resumo: string): string {
+  return compactarDentesParaImpressaoOs(resumo);
 }
 
 export function mesclarResumosDentesOs(...resumos: string[]): string {
   const todos = resumos.flatMap((resumo) => expandirResumoDentesOs(resumo));
-  const unicos = Array.from(new Set(todos));
-  if (!unicos.length) {
+  if (!todos.length) {
     const primeiro = resumos.map((resumo) => (resumo || "").trim()).find((resumo) => resumo && resumo !== "-");
     return primeiro || "";
   }
-  return ordenarDentes(unicos).join(", ");
+  return compactarDentesParaImpressaoOs(ordenarDentes(Array.from(new Set(todos))).join(", "));
 }

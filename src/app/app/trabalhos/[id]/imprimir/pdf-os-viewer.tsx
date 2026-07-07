@@ -71,7 +71,7 @@ import {
   type EtapaOsLinha,
   type EtapasPorServicoOs,
 } from "@/lib/etapas-os-impressao";
-import { formatarDentesParaImpressaoOs } from "@/lib/dentes-os-resumo";
+import { compactarDentesParaImpressaoOs } from "@/lib/dentes-os-resumo";
 
 const CODIGO_BARRAS_ALTURA_MM = 8;
 const CODIGO_BARRAS_ESTREITA_MM = 0.32;
@@ -225,22 +225,17 @@ function descontoCelula(desconto: string, descontoTipo?: string) {
 }
 
 type PdfTextoApi = {
-  splitTextToSize: (text: string, maxWidth: number) => string[];
   text: (text: string | string[], x: number, y: number, options?: { align?: string }) => void;
+  getTextWidth: (text: string) => number;
+  setFontSize: (size: number) => void;
 };
 
 function textoDenteParaImpressao(dente: string) {
-  return formatarDentesParaImpressaoOs(dente) || String(dente || "").trim();
+  return compactarDentesParaImpressaoOs(dente) || String(dente || "").trim();
 }
 
 function larguraColunaDente(colDente: number, colCor: number, temCor: boolean) {
   return Math.max(14, temCor ? colCor - colDente - 2 : 20);
-}
-
-function linhasDenteItem(pdf: PdfTextoApi, dente: string, largura: number) {
-  const texto = textoDenteParaImpressao(dente);
-  if (!texto || texto === "-") return [""];
-  return pdf.splitTextToSize(texto, largura);
 }
 
 function desenharDenteCelula(
@@ -249,15 +244,21 @@ function desenharDenteCelula(
   x: number,
   y: number,
   largura: number,
-  alturaLinha: number
+  fontBase: number
 ) {
-  const linhas = linhasDenteItem(pdf, dente, largura);
-  let cy = y;
-  for (const linha of linhas) {
-    if (linha) pdf.text(linha, x, cy, { align: "center" });
-    cy += alturaLinha;
+  const texto = textoDenteParaImpressao(dente);
+  if (!texto || texto === "-") return 1;
+
+  let fontSize = fontBase;
+  pdf.setFontSize(fontSize);
+  while (pdf.getTextWidth(texto) > largura && fontSize > 5.5) {
+    fontSize -= 0.4;
+    pdf.setFontSize(fontSize);
   }
-  return Math.max(1, linhas.length);
+
+  pdf.text(texto, x, y, { align: "center" });
+  pdf.setFontSize(fontBase);
+  return 1;
 }
 
 function desenharLinhaPrazo(
@@ -911,16 +912,16 @@ function renderModeloProducao(
 
     pdf.text(String(item.qtd), colQtd, y);
     pdf.text(descricaoLinhas, colDesc, y);
-    const denteLinhas = lay.numDente
-      ? desenharDenteCelula(pdf, item.dente, colDente, y, larguraDente, alturaLinha)
-      : 1;
+    if (lay.numDente) {
+      desenharDenteCelula(pdf, item.dente, colDente, y, larguraDente, fontBase);
+    }
     if (lay.corDente) pdf.text(String(item.cor).slice(0, 16), colCor, y, { align: "center" });
     if (lay.valorUnit) pdf.text(unitarioTabela(item.unitario), colUnit, y, { align: "right" });
     if (lay.desconto) pdf.text(descontoCelula(item.desconto, item.descontoTipo), colDescPct, y, { align: "right" });
     if (lay.subtotal) {
       pdf.text(unitarioTabela(subtotalItem(item)), colSubtotalDir, y, { align: "right" });
     }
-    y += Math.max(gapMm(4), descricaoLinhas.length * alturaLinha, denteLinhas * alturaLinha);
+    y += Math.max(gapMm(4), descricaoLinhas.length * alturaLinha);
 
     if (indiceItem < totalItens - 1) {
       y += gapMm(1);
@@ -1155,9 +1156,9 @@ function renderModeloComprovante(
     const larguraDente = larguraColunaDente(colDente, colCor, lay.corDente);
     pdf.text(String(item.qtd), colQtd, y);
     pdf.text(descricaoLinhas, colDesc, y);
-    const denteLinhas = lay.numDente
-      ? desenharDenteCelula(pdf, item.dente, colDente, y, larguraDente, alturaLinha)
-      : 1;
+    if (lay.numDente) {
+      desenharDenteCelula(pdf, item.dente, colDente, y, larguraDente, fontBase);
+    }
     if (lay.corDente) pdf.text(String(item.cor).slice(0, 16), colCor, y, { align: "center" });
     if (lay.valorUnit) pdf.text(unitarioTabela(item.unitario), colUnit, y, { align: "right" });
     if (lay.desconto) {
@@ -1166,7 +1167,7 @@ function renderModeloComprovante(
     if (lay.subtotal) {
       pdf.text(unitarioTabela(subtotal), colSubtotal, y, { align: "right" });
     }
-    y += Math.max(gapMm(4), descricaoLinhas.length * alturaLinha, denteLinhas * alturaLinha);
+    y += Math.max(gapMm(4), descricaoLinhas.length * alturaLinha);
     y += gapMm(1);
   });
 
