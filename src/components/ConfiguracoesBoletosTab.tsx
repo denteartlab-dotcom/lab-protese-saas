@@ -77,6 +77,18 @@ export function ConfiguracoesBoletosTab({ onMensagem }: Props) {
   const [apiKeyConfigurada, setApiKeyConfigurada] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState("");
   const [salvandoLegado, setSalvandoLegado] = useState(false);
+  const [feedbackLocal, setFeedbackLocal] = useState<{
+    texto: string;
+    tipo: TipoMensagemForm;
+  } | null>(null);
+
+  function exibirFeedback(texto: string, tipo: TipoMensagemForm = "info") {
+    setFeedbackLocal({ texto, tipo });
+    onMensagem?.(texto, tipo);
+    if (tipo === "sucesso" || tipo === "info") {
+      window.setTimeout(() => setFeedbackLocal(null), 8000);
+    }
+  }
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -110,14 +122,24 @@ export function ConfiguracoesBoletosTab({ onMensagem }: Props) {
 
   async function abrirContaDigital() {
     setAbrindo(true);
+    setFeedbackLocal(null);
     try {
       const res = await fetch("/api/asaas/subconta", { method: "POST" });
-      const json = (await res.json()) as { error?: string };
+      const texto = await res.text();
+      let json: { error?: string } = {};
+      try {
+        json = texto ? (JSON.parse(texto) as { error?: string }) : {};
+      } catch {
+        throw new Error(texto.slice(0, 200) || "Resposta inválida do servidor.");
+      }
       if (!res.ok) throw new Error(json.error || "Não foi possível abrir a conta.");
-      onMensagem?.("Conta digital criada. Envie os documentos para liberar boletos e pagamentos.", "sucesso");
+      exibirFeedback(
+        "Conta digital criada. Envie os documentos para liberar boletos e pagamentos.",
+        "sucesso"
+      );
       await carregar();
     } catch (e) {
-      onMensagem?.(
+      exibirFeedback(
         e instanceof Error ? e.message : "Falha ao abrir conta digital.",
         "erro"
       );
@@ -156,9 +178,9 @@ export function ConfiguracoesBoletosTab({ onMensagem }: Props) {
       }
       setApiKey("");
       setApiKeyConfigurada(true);
-      onMensagem?.("Integração manual salva.", "sucesso");
+      exibirFeedback("Integração manual salva.", "sucesso");
     } catch (e) {
-      onMensagem?.(
+      exibirFeedback(
         e instanceof Error ? e.message : "Não foi possível salvar.",
         "erro"
       );
@@ -200,6 +222,22 @@ export function ConfiguracoesBoletosTab({ onMensagem }: Props) {
           A plataforma ainda não configurou a conta-mãe Asaas no servidor (
           <code className="text-[11px]">ASAAS_CONTA_MAE_API_KEY</code>). Entre em contato com o
           suporte para habilitar contas digitais.
+        </div>
+      ) : null}
+
+      {feedbackLocal ? (
+        <div
+          role="alert"
+          className={cn(
+            "rounded-lg border px-4 py-3 text-[12px]",
+            feedbackLocal.tipo === "sucesso"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+              : feedbackLocal.tipo === "erro"
+                ? "border-red-200 bg-red-50 text-red-900"
+                : "border-slate-200 bg-slate-50 text-slate-700"
+          )}
+        >
+          {feedbackLocal.texto}
         </div>
       ) : null}
 

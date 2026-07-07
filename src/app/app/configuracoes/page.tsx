@@ -318,25 +318,57 @@ function ConfiguracoesConteudo() {
               mensagemTipo={mensagemTipo}
             />
           ) : aba === "nfse" ? (
-            <ConfiguracoesNfseTab
-              onMensagem={(texto, tipo = "info") => {
-                setMensagem(texto);
-                setMensagemTipo(tipo);
-                if (tipo === "sucesso" || tipo === "info") {
-                  window.setTimeout(() => setMensagem(""), 5000);
-                }
-              }}
-            />
+            <>
+              <ConfiguracoesNfseTab
+                onMensagem={(texto, tipo = "info") => {
+                  setMensagem(texto);
+                  setMensagemTipo(tipo);
+                  if (tipo === "sucesso" || tipo === "info") {
+                    window.setTimeout(() => setMensagem(""), 5000);
+                  }
+                }}
+              />
+              {mensagem ? (
+                <p
+                  role="alert"
+                  className={`mt-4 text-sm font-medium ${
+                    mensagemTipo === "sucesso"
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : mensagemTipo === "erro"
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-slate-600 dark:text-slate-400"
+                  }`}
+                >
+                  {mensagem}
+                </p>
+              ) : null}
+            </>
           ) : aba === "boletos" ? (
-            <ConfiguracoesBoletosTab
-              onMensagem={(texto, tipo = "info") => {
-                setMensagem(texto);
-                setMensagemTipo(tipo);
-                if (tipo === "sucesso" || tipo === "info") {
-                  window.setTimeout(() => setMensagem(""), 5000);
-                }
-              }}
-            />
+            <>
+              <ConfiguracoesBoletosTab
+                onMensagem={(texto, tipo = "info") => {
+                  setMensagem(texto);
+                  setMensagemTipo(tipo);
+                  if (tipo === "sucesso" || tipo === "info") {
+                    window.setTimeout(() => setMensagem(""), 5000);
+                  }
+                }}
+              />
+              {mensagem ? (
+                <p
+                  role="alert"
+                  className={`mt-4 text-sm font-medium ${
+                    mensagemTipo === "sucesso"
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : mensagemTipo === "erro"
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-slate-600 dark:text-slate-400"
+                  }`}
+                >
+                  {mensagem}
+                </p>
+              ) : null}
+            </>
           ) : aba === "horario" ? (
             <>
               <HorarioFuncionamentoTab

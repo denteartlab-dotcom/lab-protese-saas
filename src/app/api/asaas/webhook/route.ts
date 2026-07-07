@@ -4,6 +4,7 @@ import {
   resolverEmpresaIdWebhookAsaas,
 } from "@/lib/assinatura-webhook-job";
 import { listarWebhookTokensAsaas, validarWebhookTokenAsaas } from "@/lib/asaas-client";
+import { contaMaeAsaasConfigurada } from "@/lib/asaas-conta-mae-config";
 import { APP_URL } from "@/lib/app-url";
 
 const WEBHOOK_PATH = "/api/asaas/webhook";
@@ -20,14 +21,22 @@ const EVENTOS_PAGAMENTO = [
 /** Confirma no navegador que o endpoint está publicado (o Asaas usa POST). */
 export async function GET() {
   const tokens = await listarWebhookTokensAsaas();
+  const contaMaeConfigurada = contaMaeAsaasConfigurada();
+  const chaveContaMaeTamanho = contaMaeConfigurada
+    ? (process.env["ASAAS_CONTA_MAE_API_KEY"] || process.env["ASAAS_PLATAFORMA_API_KEY"] || "")
+        .trim().length
+    : 0;
   return NextResponse.json({
     ok: true,
     provedor: "asaas",
     webhookUrl: `${APP_URL}${WEBHOOK_PATH}`,
     metodoAsaas: "POST",
     tokenConfigurado: tokens.length > 0,
-    instrucoes:
-      "Cadastre esta URL no painel Asaas (Integrações → Webhooks). O Asaas envia POST com o header asaas-access-token igual ao token configurado no servidor.",
+    contaMaeConfigurada,
+    chaveContaMaeTamanho,
+    instrucoes: contaMaeConfigurada
+      ? "Cadastre esta URL no painel Asaas (Integrações → Webhooks). O Asaas envia POST com o header asaas-access-token igual ao token configurado no servidor."
+      : "Configure ASAAS_CONTA_MAE_API_KEY no .env do servidor e reinicie o PM2. O webhook sozinho não habilita contas digitais BaaS.",
   });
 }
 

@@ -53,10 +53,10 @@ export async function salvarConfigAsaas(empresaId: string, config: AsaasConfig) 
 export async function listarWebhookTokensAsaas(): Promise<string[]> {
   const tokens = new Set<string>();
 
-  const tokenContaMae = process.env.ASAAS_CONTA_MAE_WEBHOOK_TOKEN?.trim();
+  const tokenContaMae = process.env["ASAAS_CONTA_MAE_WEBHOOK_TOKEN"]?.trim();
   if (tokenContaMae) tokens.add(tokenContaMae);
 
-  const tokenPlataforma = process.env.ASAAS_PLATAFORMA_WEBHOOK_TOKEN?.trim();
+  const tokenPlataforma = process.env["ASAAS_PLATAFORMA_WEBHOOK_TOKEN"]?.trim();
   if (tokenPlataforma) tokens.add(tokenPlataforma);
 
   const legado = await prisma.jsonStore.findUnique({

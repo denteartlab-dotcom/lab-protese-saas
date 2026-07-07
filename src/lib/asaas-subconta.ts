@@ -6,6 +6,7 @@ import {
   obterConfigContaMaeAsaas,
 } from "@/lib/asaas-conta-mae-config";
 import { CONFIG_LAB_STORAGE_KEY, type ConfigLaboratorio } from "@/lib/configuracoes-lab";
+import { normalizarTipoPessoaLab } from "@/lib/lab-nome-exibicao";
 import { prisma } from "@/lib/db";
 import { lerJsonStoreTenant } from "@/lib/json-store-tenant";
 
@@ -76,6 +77,15 @@ export async function configOperacionalSubconta(
   };
 }
 
+function mapearCompanyTypeAsaas(
+  tipoPessoa?: string,
+  cnpj?: string
+): "MEI" | "LIMITED" | "INDIVIDUAL" {
+  const tipo = normalizarTipoPessoaLab(tipoPessoa);
+  if (tipo === "Física" || (cnpj && cnpj.length === 11)) return "INDIVIDUAL";
+  return "LIMITED";
+}
+
 async function carregarDadosCadastroSubconta(empresaId: string) {
   const empresa = await prisma.empresa.findUnique({ where: { id: empresaId } });
   if (!empresa) throw new Error("Empresa não encontrada.");
@@ -118,7 +128,7 @@ async function carregarDadosCadastroSubconta(empresaId: string) {
     name: nome,
     email,
     cpfCnpj: cnpj,
-    companyType: "MEI" as const,
+    companyType: mapearCompanyTypeAsaas(lab?.tipoPessoa, cnpj),
     phone: telefone || celular,
     mobilePhone: celular || telefone,
     address: endereco,
