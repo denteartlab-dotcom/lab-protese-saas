@@ -11,6 +11,13 @@ import {
 import { exigirProprietario } from "@/lib/exigir-proprietario";
 import { verificarSenhaProprietario } from "@/lib/seguranca-restaurar-padrao";
 import {
+  montarResumoLimitePix,
+  registrarPixTransferidoContaDigital,
+  salvarConfigLimitePixContaDigital,
+  validarLimitePixDiarioContaDigital,
+} from "@/lib/conta-digital-pix-limite";
+import { invalidarCachePainelFinanceiro } from "@/lib/financeiro-painel-cache";
+import {
   criarAutorizacaoPixSubconta,
   vincularTransferenciaAsaas,
 } from "@/lib/seguranca-pix-subconta";
@@ -61,6 +68,8 @@ export async function POST(request: Request) {
       chavePix?: string;
       tipoChave?: "CPF" | "CNPJ" | "EMAIL" | "PHONE" | "EVP";
       senhaProprietario?: string;
+      limiteDiario?: number | null;
+      limiteAtivo?: boolean;
     };
 
     if (body.acao === "validar-boleto") {
@@ -86,6 +95,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ pagamento });
     }
 
+    if (body.acao === "salvar-limite-pix") {
+      const prop = await exigirProprietario();
+      if (prop.erro) return prop.erro;
+
+      const limiteRaw = body.limiteDiario;
+      const limiteDiario =
+        limiteRaw == null || limiteRaw === 0
+          ? null
+          : Number(limiteRaw);
+      if (limiteDiario != null && (!Number.isFinite(limiteDiario) || limiteDiario < 0)) {
+        return NextResponse.json({ error: "Informe um limite válido." }, { status: 400 });
+      }
+
+      const config = await salvarConfigLimitePixContaDigital(session.empresaId, {
+        ativo: Boolean(body.limiteAtivo),
+        limiteDiario,
+      });
+      invalidarCachePainelFinanceiro(session.empresaId, "conta-digital");
+      return NextResponse.json({ limitePix: montarResumoLimitePix(config) });
+    }
+
     if (body.acao === "transferir-pix") {
       if (!body.chavePix?.trim() || !body.tipoChave) {
         return NextResponse.json({ error: "Informe chave Pix e tipo." }, { status: 400 });
@@ -94,6 +124,8 @@ export async function POST(request: Request) {
       if (!Number.isFinite(valor) || valor <= 0) {
         return NextResponse.json({ error: "Informe um valor válido." }, { status: 400 });
       }
+
+      await validarLimitePixDiarioContaDigital(session.empresaId, valor);
 
       const { modo } = await resolverContaDigitalOperacional(session.empresaId);
       let pendingId: string | undefined;
@@ -137,7 +169,10 @@ export async function POST(request: Request) {
         await vincularTransferenciaAsaas(pendingId, transferencia.id);
       }
 
-      return NextResponse.json({ transferencia });
+      const limitePix = await registrarPixTransferidoContaDigital(session.empresaId, valor);
+      invalidarCachePainelFinanceiro(session.empresaId, "conta-digital");
+
+      return NextResponse.json({ transferencia, limitePix });
     }
 
     return NextResponse.json({ error: "Ação inválida." }, { status: 400 });

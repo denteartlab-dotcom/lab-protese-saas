@@ -114,11 +114,19 @@ export type PainelFinanceiroContaBancaria = {
   lancamentos: LancamentoFinanceiroPainel[];
 };
 
+export type ResumoLimitePixPainel = {
+  ativo: boolean;
+  limiteDiario: number | null;
+  usadoHoje: number;
+  disponivelHoje: number | null;
+};
+
 export type PainelFinanceiroContaDigital = {
   aba: "conta-digital";
   subconta: SubcontaDigitalPublica;
   saldo: number;
   movimentacoes: MovimentacaoExtratoPainel[];
+  limitePix: ResumoLimitePixPainel;
 };
 
 export type PainelFinanceiroAba =

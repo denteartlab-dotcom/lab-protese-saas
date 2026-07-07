@@ -5,6 +5,7 @@ import {
   obterSaldoContaDigital,
   type MovimentacaoExtrato,
 } from "@/lib/asaas-conta-digital";
+import { obterResumoLimitePixContaDigital } from "@/lib/conta-digital-pix-limite";
 import {
   obterSubcontaEmpresa,
   sincronizarStatusSubconta,
@@ -215,6 +216,7 @@ export async function montarPainelFinanceiroContaDigital(
   }
 
   const subconta = await montarSubcontaPainelContaDigital(empresaId);
+  const limitePix = await obterResumoLimitePixContaDigital(empresaId);
   let saldo = 0;
   let movimentacoes: MovimentacaoExtrato[] = [];
 
@@ -237,6 +239,7 @@ export async function montarPainelFinanceiroContaDigital(
     subconta,
     saldo,
     movimentacoes,
+    limitePix,
   }) as unknown as PainelFinanceiroContaDigital;
 }
 

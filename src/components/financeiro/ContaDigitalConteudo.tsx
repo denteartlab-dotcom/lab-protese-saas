@@ -10,6 +10,7 @@ import {
   ExternalLink,
   FileText,
   Loader2,
+  Shield,
   Wallet,
   XCircle,
 } from "lucide-react";
@@ -19,6 +20,7 @@ import { ConfirmarPixSubcontaModal } from "@/components/financeiro/ConfirmarPixS
 import { analisarCaminhoApp, montarCaminhoAppComSlug } from "@/lib/rotas-app";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroContaDigital } from "@/lib/financeiro-painel-types";
+import type { ResumoLimitePixContaDigital } from "@/lib/conta-digital-pix-limite";
 import { parseCurrencyBr } from "@/lib/cliente-financeiro";
 import { cn } from "@/lib/utils";
 import type { TipoMensagemForm } from "@/components/DadosLaboratorioForm";
@@ -127,6 +129,16 @@ export function ContaDigitalConteudo() {
   const [tipoChave, setTipoChave] = useState<"CPF" | "CNPJ" | "EMAIL" | "PHONE" | "EVP">("EVP");
   const [modalPixSubconta, setModalPixSubconta] = useState(false);
   const [erroModalPix, setErroModalPix] = useState<string | null>(null);
+  const [limitePix, setLimitePix] = useState<ResumoLimitePixContaDigital>({
+    ativo: false,
+    limiteDiario: null,
+    usadoHoje: 0,
+    disponivelHoje: null,
+  });
+  const [limiteAtivoForm, setLimiteAtivoForm] = useState(false);
+  const [limiteValorForm, setLimiteValorForm] = useState("");
+  const [salvandoLimite, setSalvandoLimite] = useState(false);
+  const [podeConfigurarLimite, setPodeConfigurarLimite] = useState(false);
 
   const carregar = useCallback(async (opts?: { refresh?: boolean }) => {
     setCarregando(true);
@@ -139,6 +151,15 @@ export function ContaDigitalConteudo() {
       setSubconta((painel.dados.subconta as SubcontaResumo) || null);
       setSaldo(Number(painel.dados.saldo) || 0);
       setMovimentacoes(painel.dados.movimentacoes || []);
+      if (painel.dados.limitePix) {
+        setLimitePix(painel.dados.limitePix);
+        setLimiteAtivoForm(Boolean(painel.dados.limitePix.ativo));
+        setLimiteValorForm(
+          painel.dados.limitePix.limiteDiario
+            ? money(painel.dados.limitePix.limiteDiario)
+            : ""
+        );
+      }
     } catch (err) {
       setMensagem({
         texto: err instanceof Error ? err.message : "Erro ao carregar.",
@@ -152,6 +173,54 @@ export function ContaDigitalConteudo() {
   useEffect(() => {
     void carregar();
   }, [carregar]);
+
+  useEffect(() => {
+    void fetch("/api/auth/me", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((json: { acessoTotal?: boolean }) => {
+        setPodeConfigurarLimite(Boolean(json.acessoTotal));
+      })
+      .catch(() => setPodeConfigurarLimite(false));
+  }, []);
+
+  async function salvarLimitePix() {
+    setSalvandoLimite(true);
+    setMensagem(null);
+    try {
+      const limiteDiario = limiteAtivoForm ? parseCurrencyBr(limiteValorForm) : null;
+      if (limiteAtivoForm && (!limiteDiario || limiteDiario <= 0)) {
+        throw new Error("Informe um limite diário maior que zero.");
+      }
+      const res = await fetch("/api/asaas/conta-digital", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          acao: "salvar-limite-pix",
+          limiteAtivo: limiteAtivoForm,
+          limiteDiario,
+        }),
+      });
+      const json = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(json.error || "Não foi possível salvar o limite.");
+      setMensagem({ texto: "Limite diário de Pix atualizado.", tipo: "sucesso" });
+      await carregar({ refresh: true });
+    } catch (err) {
+      setMensagem({
+        texto: err instanceof Error ? err.message : "Falha ao salvar limite.",
+        tipo: "erro",
+      });
+    } finally {
+      setSalvandoLimite(false);
+    }
+  }
+
+  function validarLimiteAntesPix(valor: number) {
+    if (!limitePix.ativo || limitePix.limiteDiario == null) return null;
+    if (valor > (limitePix.disponivelHoje ?? 0) + 0.001) {
+      return `Limite diário de Pix: disponível hoje ${money(limitePix.disponivelHoje ?? 0)} (limite ${money(limitePix.limiteDiario)}).`;
+    }
+    return null;
+  }
 
   async function validarBoleto() {
     setProcessando(true);
@@ -214,6 +283,8 @@ export function ContaDigitalConteudo() {
       if (!chavePix.trim()) {
         throw new Error("Informe a chave Pix.");
       }
+      const avisoLimite = validarLimiteAntesPix(valor);
+      if (avisoLimite) throw new Error(avisoLimite);
       const res = await fetch("/api/asaas/conta-digital", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -228,8 +299,10 @@ export function ContaDigitalConteudo() {
       const json = (await res.json()) as {
         error?: string;
         transferencia?: { status?: string };
+        limitePix?: ResumoLimitePixContaDigital;
       };
       if (!res.ok) throw new Error(json.error || "Transferência não realizada.");
+      if (json.limitePix) setLimitePix(json.limitePix);
       setValorPix("");
       setChavePix("");
       setModalPixSubconta(false);
@@ -258,6 +331,11 @@ export function ContaDigitalConteudo() {
     }
     if (!chavePix.trim()) {
       setMensagem({ texto: "Informe a chave Pix.", tipo: "erro" });
+      return;
+    }
+    const avisoLimite = validarLimiteAntesPix(valor);
+    if (avisoLimite) {
+      setMensagem({ texto: avisoLimite, tipo: "erro" });
       return;
     }
     if (subconta?.modoIntegracao === "subconta") {
@@ -335,7 +413,7 @@ export function ContaDigitalConteudo() {
       ) : null}
 
       <div className="mb-4 grid gap-3 md:grid-cols-3">
-        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:col-span-1">
+        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-[11px] text-slate-500">Saldo disponível</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{money(saldo)}</p>
           {subconta?.conta ? (
@@ -345,7 +423,28 @@ export function ContaDigitalConteudo() {
             </p>
           ) : null}
         </div>
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-4 md:col-span-2">
+        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-slate-600">
+            <Shield className="h-4 w-4 text-[#4a90d9]" />
+            <p className="text-[11px] font-medium">Limite Pix (hoje)</p>
+          </div>
+          {limitePix.ativo && limitePix.limiteDiario != null ? (
+            <>
+              <p className="mt-2 text-[13px] text-slate-800">
+                Usado: <strong>{money(limitePix.usadoHoje)}</strong>
+              </p>
+              <p className="mt-1 text-[13px] text-emerald-700">
+                Disponível: <strong>{money(limitePix.disponivelHoje ?? 0)}</strong>
+              </p>
+              <p className="mt-1 text-[10px] text-slate-400">
+                Teto diário: {money(limitePix.limiteDiario)}
+              </p>
+            </>
+          ) : (
+            <p className="mt-2 text-[12px] text-slate-500">Sem limite diário ativo.</p>
+          )}
+        </div>
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-4">
           <div className="flex items-center gap-2 text-emerald-800">
             <CheckCircle2 className="h-4 w-4" />
             <span className="text-[13px] font-medium">
@@ -469,6 +568,57 @@ export function ContaDigitalConteudo() {
 
       {aba === "transferir" ? (
         <div className="max-w-xl space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="flex items-center gap-2 text-slate-700">
+              <Shield className="h-4 w-4 text-[#4a90d9]" />
+              <p className="text-[12px] font-medium">Limite diário de Pix</p>
+            </div>
+            {podeConfigurarLimite ? (
+              <div className="mt-3 space-y-3">
+                <label className="flex items-center gap-2 text-[12px] text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={limiteAtivoForm}
+                    onChange={(e) => setLimiteAtivoForm(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300"
+                  />
+                  Ativar limite diário de transferências Pix
+                </label>
+                <div>
+                  <label className={labelClass}>Valor máximo por dia</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={limiteValorForm}
+                    onChange={(e) => setLimiteValorForm(formatCurrencyInput(e.target.value))}
+                    disabled={!limiteAtivoForm}
+                    className={cn(inputClass, !limiteAtivoForm && "bg-slate-100 text-slate-400")}
+                    placeholder="R$ 0,00"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={salvandoLimite}
+                  onClick={() => void salvarLimitePix()}
+                >
+                  {salvandoLimite ? "Salvando…" : "Salvar limite"}
+                </Button>
+                <p className="text-[10px] text-slate-500">
+                  Somente o proprietário pode alterar. O contador zera à meia-noite (horário do
+                  servidor).
+                </p>
+              </div>
+            ) : (
+              <p className="mt-2 text-[11px] text-slate-500">
+                {limitePix.ativo && limitePix.limiteDiario != null
+                  ? `Limite ativo: ${money(limitePix.limiteDiario)} por dia. Disponível hoje: ${money(limitePix.disponivelHoje ?? 0)}.`
+                  : "Nenhum limite diário configurado pelo proprietário."}
+              </p>
+            )}
+          </div>
+
           {subconta?.modoIntegracao === "legado" ? (
             <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
               No <strong>modo legado</strong>, saques e Pix exigem{" "}
