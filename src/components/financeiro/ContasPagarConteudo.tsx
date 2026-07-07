@@ -11,6 +11,7 @@ import {
   ChevronUp,
   Filter,
   Eye,
+  Flag,
   List,
   Pencil,
   Plus,
@@ -1053,8 +1054,8 @@ export function ContasPagarConteudo() {
               </p>
               <p className="text-[11px] text-slate-500">A Pagar</p>
             </div>
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded bg-orange-400 text-xs font-bold text-white">
-              P
+            <span className="rounded-full bg-orange-50 p-2 text-orange-500">
+              <Flag className="h-4 w-4" strokeWidth={2} />
             </span>
           </div>
         </div>
