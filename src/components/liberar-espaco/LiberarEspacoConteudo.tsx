@@ -26,7 +26,7 @@ import {
 } from "@/lib/uploads-armazenamento";
 import { cn } from "@/lib/utils";
 
-const POR_PAGINA = 24;
+const POR_PAGINA = 48;
 
 function inicioAnoBr() {
   const hoje = new Date();
@@ -318,7 +318,7 @@ export function LiberarEspacoConteudo() {
               Nenhum arquivo no período selecionado.
             </p>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-2">
               {arquivosPagina.map((arq) => {
                 const marcado = selecionados.has(arq.relativePath);
                 const imagem = ehImagemGaleria(arq.nome);
@@ -328,31 +328,31 @@ export function LiberarEspacoConteudo() {
                     className={cn(
                       "relative overflow-hidden rounded border bg-slate-50 transition dark:bg-slate-800",
                       marcado
-                        ? "border-sky-400 ring-2 ring-sky-200"
+                        ? "border-sky-400 ring-1 ring-sky-200"
                         : "border-[#e5e7eb] dark:border-slate-600"
                     )}
                   >
-                    <label className="absolute left-2 top-2 z-10 cursor-pointer">
+                    <label className="absolute left-1 top-1 z-10 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={marcado}
                         onChange={() => alternarSelecao(arq.relativePath)}
-                        className="h-4 w-4 rounded border-slate-300 bg-white shadow"
+                        className="h-3 w-3 rounded border-slate-300 bg-white shadow"
                       />
                     </label>
                     <button
                       type="button"
                       disabled={excluindo}
                       onClick={() => setPreviewArquivo(arq)}
-                      className="absolute right-2 top-2 z-10 rounded bg-white/90 p-1 text-[#4a90d9] shadow hover:bg-sky-50 disabled:opacity-40"
+                      className="absolute right-1 top-1 z-10 rounded bg-white/90 p-0.5 text-[#4a90d9] shadow hover:bg-sky-50 disabled:opacity-40"
                       title="Conferir"
                     >
-                      <Eye className="h-3.5 w-3.5" />
+                      <Eye className="h-3 w-3" />
                     </button>
                     <button
                       type="button"
                       onClick={() => setPreviewArquivo(arq)}
-                      className="flex aspect-square w-full items-center justify-center bg-white p-2 dark:bg-slate-900"
+                      className="flex h-14 w-full items-center justify-center bg-white p-1 dark:bg-slate-900"
                     >
                       {imagem ? (
                         <img
@@ -362,17 +362,17 @@ export function LiberarEspacoConteudo() {
                           loading="lazy"
                         />
                       ) : (
-                        <FileText className="h-10 w-10 text-slate-300" />
+                        <FileText className="h-6 w-6 text-slate-300" />
                       )}
                     </button>
-                    <div className="border-t border-slate-100 px-2 py-1.5 dark:border-slate-700">
+                    <div className="border-t border-slate-100 px-1 py-1 dark:border-slate-700">
                       <p
-                        className="truncate text-[10px] font-medium text-slate-700 dark:text-slate-200"
+                        className="truncate text-[9px] font-medium leading-tight text-slate-700 dark:text-slate-200"
                         title={arq.nome}
                       >
                         {arq.nome}
                       </p>
-                      <p className="text-[10px] text-slate-400">
+                      <p className="truncate text-[8px] leading-tight text-slate-400">
                         {formatarDataArquivo(arq.criadoEm)} ·{" "}
                         {formatarTamanhoArmazenamento(arq.bytes)}
                       </p>
