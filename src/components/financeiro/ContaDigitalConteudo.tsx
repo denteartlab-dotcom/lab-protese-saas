@@ -390,6 +390,8 @@ export function ContaDigitalConteudo({
   const badge = rotuloStatus(status);
   const contaOperacional =
     Boolean(subconta?.contaAtiva) || subconta?.modoIntegracao === "legado";
+  const modoVisualizacao = embedded && abaSolicitada === "extrato";
+  const modoOperacoes = !modoVisualizacao;
 
   if (!contaOperacional) {
     return (
@@ -436,7 +438,9 @@ export function ContaDigitalConteudo({
           <div>
             <h3 className="text-[14px] font-semibold text-slate-800">Conta Bancária Asaas</h3>
             <p className="text-[11px] text-slate-500">
-              Saldo, extrato, pagamento de boletos e transferências Pix
+              {modoVisualizacao
+                ? "Saldo e movimentações da conta"
+                : "Saldo, extrato, pagamento de boletos e transferências Pix"}
             </p>
           </div>
         </div>
@@ -454,7 +458,12 @@ export function ContaDigitalConteudo({
         </p>
       ) : null}
 
-      <div className="mb-4 grid gap-3 md:grid-cols-3">
+      <div
+        className={cn(
+          "mb-4 grid gap-3",
+          modoVisualizacao ? "max-w-md grid-cols-1" : "md:grid-cols-3"
+        )}
+      >
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-[11px] text-slate-500">Saldo disponível</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{money(saldo)}</p>
@@ -465,6 +474,8 @@ export function ContaDigitalConteudo({
             </p>
           ) : null}
         </div>
+        {modoOperacoes ? (
+          <>
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-2 text-slate-600">
             <Shield className="h-4 w-4 text-[#4a90d9]" />
@@ -501,8 +512,11 @@ export function ContaDigitalConteudo({
               : "Emissão de boletos nas receitas usa automaticamente esta conta. Pagamentos e transferências abaixo debitam deste saldo."}
           </p>
         </div>
+          </>
+        ) : null}
       </div>
 
+      {modoOperacoes ? (
       <div className="mb-4 flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
         {(
           [
@@ -527,8 +541,9 @@ export function ContaDigitalConteudo({
           </button>
         ))}
       </div>
+      ) : null}
 
-      {aba === "extrato" ? (
+      {aba === "extrato" || modoVisualizacao ? (
         <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-left text-[12px]">
             <thead className="border-b border-slate-200 bg-slate-50 text-[11px] text-slate-500">
@@ -568,7 +583,7 @@ export function ContaDigitalConteudo({
         </div>
       ) : null}
 
-      {aba === "pagar" ? (
+      {aba === "pagar" && modoOperacoes ? (
         <div className="max-w-xl space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div>
             <label className={labelClass}>Linha digitável do boleto</label>
@@ -617,7 +632,7 @@ export function ContaDigitalConteudo({
         </div>
       ) : null}
 
-      {aba === "transferir" ? (
+      {aba === "transferir" && modoOperacoes ? (
         <div className="max-w-xl space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
             <div className="flex items-center gap-2 text-slate-700">
@@ -741,10 +756,12 @@ export function ContaDigitalConteudo({
         }}
       />
 
+      {modoOperacoes ? (
       <AsaasSeloInstitucional
         detalhado
         className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-5"
       />
+      ) : null}
     </div>
   );
 }
