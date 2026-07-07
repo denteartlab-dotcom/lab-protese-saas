@@ -904,19 +904,18 @@ function FinanceiroReceberConteudo() {
           lancamentosCriados.push(...payload.lancamentos);
         }
         const urlsBoleto = (Array.isArray(payload.lancamentos) ? payload.lancamentos : [])
-          .map((l: Lancamento) => l.cobrancaAsaas?.bankSlipUrl)
-          .filter(
-            (url: string | null | undefined): url is string =>
-              typeof url === "string" && url.length > 0
-          );
+          .flatMap((l: Lancamento) => {
+            const url = l.cobrancaAsaas?.bankSlipUrl;
+            return typeof url === "string" && url.length > 0 ? [url] : [];
+          });
         if (urlsBoleto.length > 0) {
           setMensagemLancamentoTipo("sucesso");
           setMensagemLancamento(
             `${urlsBoleto.length} boleto(s) emitido(s) no Asaas. Abrindo PDFs…`
           );
-          urlsBoleto.forEach((url) =>
-            window.open(url, "_blank", "noopener,noreferrer")
-          );
+          for (const url of urlsBoleto) {
+            window.open(url, "_blank", "noopener,noreferrer");
+          }
         } else if (
           Array.isArray(payload.avisosBoletos) &&
           payload.avisosBoletos.length > 0
