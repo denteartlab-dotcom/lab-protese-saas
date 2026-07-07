@@ -6,6 +6,8 @@ import { MODULO_PRODUCAO_ETAPAS_STORAGE_KEY } from "@/lib/modulo-producao-etapas
 import {
   calcularRelatorioServicosNaoConcluidos,
   filtrosPadraoServicosNaoConcluidos,
+  normalizarPeriodoFiltrosServicosNaoConcluidos,
+  periodoFiltroServicosNaoConcluidosValido,
   type FiltrosServicosNaoConcluidos,
 } from "@/lib/relatorio-servicos-nao-concluidos";
 import type { TrabalhoFinanceiroGeralInput } from "@/lib/relatorio-financeiro-geral";
@@ -29,10 +31,13 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const padrao = filtrosPadraoServicosNaoConcluidos();
-  const filtros: FiltrosServicosNaoConcluidos = {
+  const filtrosBrutos: FiltrosServicosNaoConcluidos = {
     dataInicio: searchParams.get("dataInicio") || padrao.dataInicio,
     dataFim: searchParams.get("dataFim") || padrao.dataFim,
   };
+  const filtros = periodoFiltroServicosNaoConcluidosValido(filtrosBrutos)
+    ? normalizarPeriodoFiltrosServicosNaoConcluidos(filtrosBrutos)
+    : padrao;
 
   try {
     const [trabalhosRaw, mapaRaw] = await Promise.all([

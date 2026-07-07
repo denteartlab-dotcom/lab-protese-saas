@@ -97,6 +97,30 @@ export function periodoTextoServicosNaoConcluidos(filtros: FiltrosServicosNaoCon
   return "Período não informado";
 }
 
+export function normalizarPeriodoFiltrosServicosNaoConcluidos(
+  filtros: FiltrosServicosNaoConcluidos
+): FiltrosServicosNaoConcluidos {
+  const inicio = parseBrDate(filtros.dataInicio);
+  const fim = parseBrDate(filtros.dataFim);
+  if (!inicio || !fim) return filtros;
+  if (inicio <= fim) return filtros;
+  return {
+    dataInicio: dateToBrShort(fim),
+    dataFim: dateToBrShort(inicio),
+  };
+}
+
+export function periodoFiltroServicosNaoConcluidosValido(
+  filtros: FiltrosServicosNaoConcluidos
+) {
+  return (
+    filtros.dataInicio.length === 10 &&
+    filtros.dataFim.length === 10 &&
+    parseBrDate(filtros.dataInicio) !== null &&
+    parseBrDate(filtros.dataFim) !== null
+  );
+}
+
 function mesesNoPeriodo(inicio: Date, fim: Date) {
   const meses: { ano: number; mesIdx: number; label: string }[] = [];
   const cursor = new Date(inicio.getFullYear(), inicio.getMonth(), 1);

@@ -39,6 +39,8 @@ import {
   filtrosPadraoServicosNaoConcluidos,
   formatarMoedaServicosNaoConcluidos,
   formatarPercentualServicosNaoConcluidos,
+  normalizarPeriodoFiltrosServicosNaoConcluidos,
+  periodoFiltroServicosNaoConcluidosValido,
   type EtapaGrupoRelatorio,
   type FiltrosServicosNaoConcluidos,
   type RelatorioServicosNaoConcluidosPayload,
@@ -181,8 +183,29 @@ export function ServicosNaoConcluidosConteudo() {
     void carregar();
   }, [carregar]);
 
-  function aplicarFiltros() {
-    setFiltrosAplicados({ ...filtros });
+  function aplicarFiltros(proximo?: FiltrosServicosNaoConcluidos) {
+    const bruto = proximo ?? filtros;
+    const normalizado = normalizarPeriodoFiltrosServicosNaoConcluidos(bruto);
+    if (!periodoFiltroServicosNaoConcluidosValido(normalizado)) return;
+    setFiltros(normalizado);
+    setFiltrosAplicados(normalizado);
+  }
+
+  function aoAlterarData(campo: "dataInicio" | "dataFim", valor: string) {
+    setFiltros((atual) => ({ ...atual, [campo]: valor }));
+  }
+
+  function aoConfirmarData(campo: "dataInicio" | "dataFim", valor: string) {
+    setFiltros((atual) => {
+      const proximo = normalizarPeriodoFiltrosServicosNaoConcluidos({
+        ...atual,
+        [campo]: valor,
+      });
+      if (periodoFiltroServicosNaoConcluidosValido(proximo)) {
+        setFiltrosAplicados(proximo);
+      }
+      return proximo;
+    });
   }
 
   async function exportar(tipo: "pdf" | "excel" | "csv") {
@@ -244,7 +267,8 @@ export function ServicosNaoConcluidosConteudo() {
             <div className="w-[130px]">
               <CampoDataBr
                 value={filtros.dataInicio}
-                onChange={(dataInicio) => setFiltros((f) => ({ ...f, dataInicio }))}
+                onChange={(dataInicio) => aoAlterarData("dataInicio", dataInicio)}
+                onValueChange={(dataInicio) => aoConfirmarData("dataInicio", dataInicio)}
                 placeholder="dd/mm/aaaa"
                 iconPosition="left"
                 className="space-y-0"
@@ -255,7 +279,8 @@ export function ServicosNaoConcluidosConteudo() {
             <div className="w-[130px]">
               <CampoDataBr
                 value={filtros.dataFim}
-                onChange={(dataFim) => setFiltros((f) => ({ ...f, dataFim }))}
+                onChange={(dataFim) => aoAlterarData("dataFim", dataFim)}
+                onValueChange={(dataFim) => aoConfirmarData("dataFim", dataFim)}
                 placeholder="dd/mm/aaaa"
                 iconPosition="left"
                 className="space-y-0"
@@ -264,7 +289,7 @@ export function ServicosNaoConcluidosConteudo() {
             </div>
             <button
               type="button"
-              onClick={aplicarFiltros}
+              onClick={() => aplicarFiltros()}
               className="inline-flex h-[36px] items-center gap-1.5 rounded-lg bg-[#8b5cf6] px-3 text-[12px] font-semibold text-white shadow-sm hover:bg-[#7c3aed]"
             >
               <Filter className="h-3.5 w-3.5" />
