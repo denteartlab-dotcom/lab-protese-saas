@@ -905,7 +905,10 @@ function FinanceiroReceberConteudo() {
         }
         const urlsBoleto = (Array.isArray(payload.lancamentos) ? payload.lancamentos : [])
           .map((l: Lancamento) => l.cobrancaAsaas?.bankSlipUrl)
-          .filter((url): url is string => Boolean(url));
+          .filter(
+            (url: string | null | undefined): url is string =>
+              typeof url === "string" && url.length > 0
+          );
         if (urlsBoleto.length > 0) {
           setMensagemLancamentoTipo("sucesso");
           setMensagemLancamento(
