@@ -134,6 +134,7 @@ export async function listarArquivosBanco(empresaId?: string) {
     nome: row.nome,
     bytes: row.tamanho,
     url: `/api/uploads/arquivo/${row.id}`,
+    criadoEm: row.criadoEm.toISOString(),
   }));
 }
 

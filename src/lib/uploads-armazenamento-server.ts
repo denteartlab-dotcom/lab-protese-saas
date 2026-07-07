@@ -4,6 +4,7 @@ import path from "path";
 import { promisify } from "util";
 
 const execAsync = promisify(exec);
+import type { ArquivoGaleriaItem } from "@/lib/galeria-uploads-types";
 import {
   LIMITE_ARMAZENAMENTO_BYTES,
   LIMITE_GALERIA_GB,
@@ -49,12 +50,7 @@ function resolverArquivoUploads(relativePath: string, empresaSlug?: string) {
   return alvo;
 }
 
-export type ArquivoGaleria = {
-  relativePath: string;
-  nome: string;
-  bytes: number;
-  url: string;
-};
+export type ArquivoGaleria = ArquivoGaleriaItem;
 
 export async function listarArquivosGaleria(
   empresaId?: string,
@@ -87,6 +83,7 @@ export async function listarArquivosGaleria(
             nome: entry.name,
             bytes: info.size,
             url: `/uploads/${urlPath}`,
+            criadoEm: info.mtime.toISOString(),
           });
         }
       }

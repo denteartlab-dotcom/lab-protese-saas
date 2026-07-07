@@ -14,7 +14,7 @@ export type UploadsResumoArmazenamento = {
 };
 
 export const MENSAGEM_LIMITE_GALERIA_ESGOTADO =
-  "Espaço de uploads esgotado (0 GB livre). Libere espaço em Início → Uploads → Liberar espaço.";
+  "Espaço de uploads esgotado (0 GB livre). Libere espaço em Início → Uploads → Liberar espaço ou acesse /app/liberar-espaco.";
 
 export function armazenamentoGaleriaEsgotado(bytesLivres: number): boolean {
   return bytesLivres <= 0;
