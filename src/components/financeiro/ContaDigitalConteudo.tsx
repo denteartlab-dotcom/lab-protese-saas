@@ -18,6 +18,7 @@ import { AsaasSeloInstitucional } from "@/components/AsaasSeloInstitucional";
 import { analisarCaminhoApp, montarCaminhoAppComSlug } from "@/lib/rotas-app";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroContaDigital } from "@/lib/financeiro-painel-types";
+import { parseCurrencyBr } from "@/lib/cliente-financeiro";
 import { cn } from "@/lib/utils";
 import type { TipoMensagemForm } from "@/components/DadosLaboratorioForm";
 
@@ -51,6 +52,25 @@ const inputClass =
 
 function money(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function formatCurrencyInput(value: string) {
+  return money(Number(value.replace(/\D/g, "")) / 100);
+}
+
+function mensagemTransferenciaPix(
+  modo: SubcontaResumo["modoIntegracao"],
+  status?: string | null
+) {
+  const pendente = !status || status === "PENDING" || status === "BANK_PROCESSING";
+  if (modo === "legado" && pendente) {
+    return "Transferência solicitada. Aprove no site ou app do Asaas (autorização crítica) para concluir.";
+  }
+  if (modo === "subconta" && pendente) {
+    return "Transferência Pix solicitada. Aguardando processamento pelo Asaas.";
+  }
+  if (status === "DONE") return "Transferência Pix concluída.";
+  return "Transferência Pix solicitada.";
 }
 
 function rotuloStatus(status: StatusSubconta) {
@@ -183,7 +203,10 @@ export function ContaDigitalConteudo() {
     setProcessando(true);
     setMensagem(null);
     try {
-      const valor = Number(valorPix.replace(/\./g, "").replace(",", "."));
+      const valor = parseCurrencyBr(valorPix);
+      if (valor <= 0) {
+        throw new Error("Informe um valor válido.");
+      }
       const res = await fetch("/api/asaas/conta-digital", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -194,11 +217,17 @@ export function ContaDigitalConteudo() {
           tipoChave,
         }),
       });
-      const json = (await res.json()) as { error?: string };
+      const json = (await res.json()) as {
+        error?: string;
+        transferencia?: { status?: string };
+      };
       if (!res.ok) throw new Error(json.error || "Transferência não realizada.");
       setValorPix("");
       setChavePix("");
-      setMensagem({ texto: "Transferência Pix solicitada.", tipo: "sucesso" });
+      setMensagem({
+        texto: mensagemTransferenciaPix(subconta?.modoIntegracao, json.transferencia?.status),
+        tipo: "sucesso",
+      });
       await carregar({ refresh: true });
     } catch (err) {
       setMensagem({
@@ -411,14 +440,28 @@ export function ContaDigitalConteudo() {
 
       {aba === "transferir" ? (
         <div className="max-w-xl space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          {subconta?.modoIntegracao === "legado" ? (
+            <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+              No <strong>modo legado</strong>, saques e Pix exigem{" "}
+              <strong>aprovação manual</strong> no site ou app do Asaas (token SMS/app ou
+              autorização crítica). Isso é uma proteção da própria conta Asaas, não do Lab
+              Prótese.
+            </p>
+          ) : (
+            <p className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
+              Na <strong>subconta BaaS</strong>, o Asaas pode processar Pix automaticamente
+              (sem token no app), conforme as regras de segurança da conta-mãe da plataforma.
+            </p>
+          )}
           <div>
             <label className={labelClass}>Valor</label>
             <input
               type="text"
+              inputMode="numeric"
               value={valorPix}
-              onChange={(e) => setValorPix(e.target.value)}
+              onChange={(e) => setValorPix(formatCurrencyInput(e.target.value))}
               className={inputClass}
-              placeholder="0,00"
+              placeholder="R$ 0,00"
             />
           </div>
           <div>
