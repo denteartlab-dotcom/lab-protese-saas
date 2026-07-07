@@ -35,7 +35,8 @@ export async function GET() {
     contaMaeConfigurada,
     chaveContaMaeTamanho,
     instrucoes: contaMaeConfigurada
-      ? "Cadastre esta URL no painel Asaas (Integrações → Webhooks). O Asaas envia POST com o header asaas-access-token igual ao token configurado no servidor."
+      ? "Cadastre esta URL no painel Asaas (Integrações → Webhooks). O Asaas envia POST com o header asaas-access-token igual ao token configurado no servidor. Para autorização de saques Pix em subcontas, cadastre também " +
+        `${APP_URL}/api/asaas/autorizacao-saque em Integrações → Mecanismos de segurança.`
       : "Configure ASAAS_CONTA_MAE_API_KEY no .env do servidor e reinicie o PM2. O webhook sozinho não habilita contas digitais BaaS.",
   });
 }

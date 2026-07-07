@@ -4,9 +4,16 @@ import {
   obterExtratoContaDigital,
   obterSaldoContaDigital,
   pagarBoletoContaDigital,
+  resolverContaDigitalOperacional,
   transferirPixContaDigital,
   validarBoletoContaDigital,
 } from "@/lib/asaas-conta-digital";
+import { exigirProprietario } from "@/lib/exigir-proprietario";
+import { verificarSenhaProprietario } from "@/lib/seguranca-restaurar-padrao";
+import {
+  criarAutorizacaoPixSubconta,
+  vincularTransferenciaAsaas,
+} from "@/lib/seguranca-pix-subconta";
 
 export async function GET(request: Request) {
   const session = await getSession();
@@ -53,6 +60,7 @@ export async function POST(request: Request) {
       valor?: number;
       chavePix?: string;
       tipoChave?: "CPF" | "CNPJ" | "EMAIL" | "PHONE" | "EVP";
+      senhaProprietario?: string;
     };
 
     if (body.acao === "validar-boleto") {
@@ -86,12 +94,49 @@ export async function POST(request: Request) {
       if (!Number.isFinite(valor) || valor <= 0) {
         return NextResponse.json({ error: "Informe um valor válido." }, { status: 400 });
       }
+
+      const { modo } = await resolverContaDigitalOperacional(session.empresaId);
+      let pendingId: string | undefined;
+
+      if (modo === "subconta") {
+        const prop = await exigirProprietario();
+        if (prop.erro) return prop.erro;
+
+        const senha = body.senhaProprietario?.trim() || "";
+        if (!senha) {
+          return NextResponse.json(
+            { error: "Informe a senha do proprietário para autorizar o Pix." },
+            { status: 400 }
+          );
+        }
+        const senhaOk = await verificarSenhaProprietario(prop.session.id, senha);
+        if (!senhaOk) {
+          return NextResponse.json(
+            { error: "Senha do proprietário incorreta." },
+            { status: 403 }
+          );
+        }
+
+        pendingId = await criarAutorizacaoPixSubconta({
+          empresaId: session.empresaId,
+          usuarioId: prop.session.id,
+          valor,
+          chavePix: body.chavePix,
+          tipoChave: body.tipoChave,
+        });
+      }
+
       const transferencia = await transferirPixContaDigital(session.empresaId, {
         valor,
         chavePix: body.chavePix,
         tipoChave: body.tipoChave,
         descricao: body.descricao,
       });
+
+      if (pendingId && transferencia?.id) {
+        await vincularTransferenciaAsaas(pendingId, transferencia.id);
+      }
+
       return NextResponse.json({ transferencia });
     }
 

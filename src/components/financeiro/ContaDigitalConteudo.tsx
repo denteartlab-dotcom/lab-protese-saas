@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui";
 import { AsaasSeloInstitucional } from "@/components/AsaasSeloInstitucional";
+import { ConfirmarPixSubcontaModal } from "@/components/financeiro/ConfirmarPixSubcontaModal";
 import { analisarCaminhoApp, montarCaminhoAppComSlug } from "@/lib/rotas-app";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroContaDigital } from "@/lib/financeiro-painel-types";
@@ -124,6 +125,8 @@ export function ContaDigitalConteudo() {
   const [valorPix, setValorPix] = useState("");
   const [chavePix, setChavePix] = useState("");
   const [tipoChave, setTipoChave] = useState<"CPF" | "CNPJ" | "EMAIL" | "PHONE" | "EVP">("EVP");
+  const [modalPixSubconta, setModalPixSubconta] = useState(false);
+  const [erroModalPix, setErroModalPix] = useState<string | null>(null);
 
   const carregar = useCallback(async (opts?: { refresh?: boolean }) => {
     setCarregando(true);
@@ -199,13 +202,17 @@ export function ContaDigitalConteudo() {
     }
   }
 
-  async function transferirPix() {
+  async function transferirPix(senhaProprietario?: string) {
     setProcessando(true);
     setMensagem(null);
+    setErroModalPix(null);
     try {
       const valor = parseCurrencyBr(valorPix);
       if (valor <= 0) {
         throw new Error("Informe um valor válido.");
+      }
+      if (!chavePix.trim()) {
+        throw new Error("Informe a chave Pix.");
       }
       const res = await fetch("/api/asaas/conta-digital", {
         method: "POST",
@@ -215,6 +222,7 @@ export function ContaDigitalConteudo() {
           valor,
           chavePix,
           tipoChave,
+          ...(senhaProprietario ? { senhaProprietario } : {}),
         }),
       });
       const json = (await res.json()) as {
@@ -224,19 +232,40 @@ export function ContaDigitalConteudo() {
       if (!res.ok) throw new Error(json.error || "Transferência não realizada.");
       setValorPix("");
       setChavePix("");
+      setModalPixSubconta(false);
       setMensagem({
         texto: mensagemTransferenciaPix(subconta?.modoIntegracao, json.transferencia?.status),
         tipo: "sucesso",
       });
       await carregar({ refresh: true });
     } catch (err) {
-      setMensagem({
-        texto: err instanceof Error ? err.message : "Falha na transferência.",
-        tipo: "erro",
-      });
+      const msg = err instanceof Error ? err.message : "Falha na transferência.";
+      if (modalPixSubconta) {
+        setErroModalPix(msg);
+      } else {
+        setMensagem({ texto: msg, tipo: "erro" });
+      }
     } finally {
       setProcessando(false);
     }
+  }
+
+  function solicitarTransferenciaPix() {
+    const valor = parseCurrencyBr(valorPix);
+    if (valor <= 0) {
+      setMensagem({ texto: "Informe um valor válido.", tipo: "erro" });
+      return;
+    }
+    if (!chavePix.trim()) {
+      setMensagem({ texto: "Informe a chave Pix.", tipo: "erro" });
+      return;
+    }
+    if (subconta?.modoIntegracao === "subconta") {
+      setErroModalPix(null);
+      setModalPixSubconta(true);
+      return;
+    }
+    void transferirPix();
   }
 
   if (carregando) {
@@ -448,9 +477,10 @@ export function ContaDigitalConteudo() {
               Prótese.
             </p>
           ) : (
-            <p className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
-              Na <strong>subconta BaaS</strong>, o Asaas pode processar Pix automaticamente
-              (sem token no app), conforme as regras de segurança da conta-mãe da plataforma.
+            <p className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-[11px] text-blue-900">
+              Na <strong>subconta BaaS</strong>, o Pix exige{" "}
+              <strong>senha do proprietário</strong> no Lab Prótese. O Asaas só conclui se a
+              transferência tiver sido autorizada aqui (webhook de segurança da conta-mãe).
             </p>
           )}
           <div>
@@ -489,11 +519,26 @@ export function ContaDigitalConteudo() {
               className={inputClass}
             />
           </div>
-          <Button type="button" disabled={processando} onClick={() => void transferirPix()}>
+          <Button type="button" disabled={processando} onClick={solicitarTransferenciaPix}>
             Transferir Pix
           </Button>
         </div>
       ) : null}
+
+      <ConfirmarPixSubcontaModal
+        open={modalPixSubconta}
+        valor={valorPix}
+        chavePix={chavePix}
+        tipoChave={tipoChave}
+        processando={processando}
+        erro={erroModalPix}
+        onClose={() => {
+          if (!processando) setModalPixSubconta(false);
+        }}
+        onConfirmar={async (senha) => {
+          await transferirPix(senha);
+        }}
+      />
 
       <AsaasSeloInstitucional
         detalhado
