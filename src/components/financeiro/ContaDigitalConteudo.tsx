@@ -390,8 +390,22 @@ export function ContaDigitalConteudo({
   const badge = rotuloStatus(status);
   const contaOperacional =
     Boolean(subconta?.contaAtiva) || subconta?.modoIntegracao === "legado";
+  const subcontaAprovada =
+    subconta?.modoIntegracao === "subconta" && status === "aprovada";
   const modoVisualizacao = embedded && abaSolicitada === "extrato";
   const modoOperacoes = !modoVisualizacao;
+
+  if (modoVisualizacao && !subcontaAprovada) {
+    return (
+      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] text-amber-900">
+        Visualização do saldo e extrato disponível apenas com subconta Asaas aprovada.{" "}
+        <Link href={linkConfiguracoes(pathname)} className="font-medium underline">
+          Configurar em Boletos
+        </Link>
+        .
+      </div>
+    );
+  }
 
   if (!contaOperacional) {
     return (

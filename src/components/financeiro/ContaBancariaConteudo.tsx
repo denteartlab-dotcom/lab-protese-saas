@@ -113,6 +113,7 @@ function valorCampoConta(valor?: string) {
 export function ContaBancariaConteudo() {
   const searchParams = useSearchParams();
   const [contaAsaasAtiva, setContaAsaasAtiva] = useState(false);
+  const [subcontaAsaasAprovada, setSubcontaAsaasAprovada] = useState(false);
   const [modoIntegracaoAsaas, setModoIntegracaoAsaas] = useState<
     "subconta" | "legado" | null
   >(null);
@@ -245,9 +246,13 @@ export function ContaBancariaConteudo() {
       const modo = sub?.modoIntegracao ?? null;
       setModoIntegracaoAsaas(modo);
       setContaAsaasAtiva(Boolean(sub?.integracaoConfigurada && sub?.contaAtiva));
+      setSubcontaAsaasAprovada(
+        modo === "subconta" && sub?.status === "aprovada"
+      );
     } catch {
       setSaldoAsaas(null);
       setContaAsaasAtiva(false);
+      setSubcontaAsaasAprovada(false);
       setModoIntegracaoAsaas(null);
     }
   }, []);
@@ -263,6 +268,10 @@ export function ContaBancariaConteudo() {
     return "Disponível após subconta Asaas aprovada (Configurações → Boletos)";
   }
 
+  function mensagemVisualizarAsaasIndisponivel() {
+    return "Visualização disponível apenas com subconta Asaas aprovada (Configurações → Boletos)";
+  }
+
   function abrirContaBancariaAsaas(aba: ContaDigitalAba) {
     setAbaContaDigital(aba);
     setContaVisualizada(ID_CONTA_CARTEIRA);
@@ -270,7 +279,7 @@ export function ContaBancariaConteudo() {
 
   function visualizarConta(conta: ContaBancaria) {
     if (conta.id === ID_CONTA_CARTEIRA) {
-      if (!contaAsaasAtiva) return;
+      if (!subcontaAsaasAprovada) return;
       if (contaVisualizada === ID_CONTA_CARTEIRA) {
         setContaVisualizada(null);
         return;
@@ -285,12 +294,14 @@ export function ContaBancariaConteudo() {
     const abaUrl = searchParams.get("acao") || searchParams.get("digital");
     const veioContaDigital = searchParams.get("aba") === "conta-digital";
     if (!abaUrl && !veioContaDigital) return;
-    if (!contaAsaasAtiva) return;
 
     const aba: ContaDigitalAba =
       abaUrl === "pagar" || abaUrl === "transferir" ? abaUrl : "extrato";
+    if (aba === "extrato" && !subcontaAsaasAprovada) return;
+    if (!contaAsaasAtiva) return;
+
     abrirContaBancariaAsaas(aba);
-  }, [searchParams, contaAsaasAtiva]);
+  }, [searchParams, contaAsaasAtiva, subcontaAsaasAprovada]);
 
   function acionarPrincipalConta(conta: ContaBancaria) {
     if (conta.id === ID_CONTA_CARTEIRA && conta.acaoPrincipal === "baixar") {
@@ -656,13 +667,15 @@ export function ContaBancariaConteudo() {
                               <button
                                 type="button"
                                 title={
-                                  conta.id === ID_CONTA_CARTEIRA && !contaAsaasAtiva
-                                    ? mensagemContaAsaasIndisponivel()
+                                  conta.id === ID_CONTA_CARTEIRA &&
+                                  !subcontaAsaasAprovada
+                                    ? mensagemVisualizarAsaasIndisponivel()
                                     : "Visualizar"
                                 }
                                 onClick={() => visualizarConta(conta)}
                                 disabled={
-                                  conta.id === ID_CONTA_CARTEIRA && !contaAsaasAtiva
+                                  conta.id === ID_CONTA_CARTEIRA &&
+                                  !subcontaAsaasAprovada
                                 }
                                 className={cn(
                                   "inline-flex h-8 w-8 items-center justify-center hover:text-[#4a90d9] dark:hover:text-sky-300 disabled:cursor-not-allowed disabled:opacity-40",
