@@ -89,6 +89,12 @@ assert(
   !instanciaFixaEhFutura(julhoAtrasado, mesAtual),
   "Parcela vencida do mês anterior permanece após virada de mês"
 );
+
+const julhoComVencAgosto = item("jul-ago", mesAtual, `${proxMes}-07`);
+assert(
+  instanciaFixaEhFutura(julhoComVencAgosto, mesAtual),
+  "Remove legado com vencimento no mês futuro mesmo se fixaMes for vigente"
+);
 assert(
   !idsInstanciasFixasIndevidas([julhoAtrasado, julho]).includes("jul-atraso"),
   "Não remove atraso do mês anterior ao gerar mês vigente"

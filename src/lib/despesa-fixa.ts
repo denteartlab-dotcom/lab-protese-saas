@@ -100,7 +100,15 @@ export function instanciaFixaEhFutura(
   if (!pack.meta.fixa || !pack.meta.fixaGrupoId) return false;
 
   const mesInstancia = mesEfetivoInstanciaDespesaFixa(item);
-  return mesReferenciaEhFuturo(mesInstancia, referencia);
+  if (mesReferenciaEhFuturo(mesInstancia, referencia)) return true;
+
+  // Legado: fixaMes errado, mas vencimento ainda no mês futuro (gerada adiantada).
+  if (item.status === "pendente") {
+    const mesVencimento = mesReferenciaDeVencimentoIso(item.data);
+    if (mesReferenciaEhFuturo(mesVencimento, referencia)) return true;
+  }
+
+  return false;
 }
 
 export function mesPrimeiraInstanciaGrupoFixa(

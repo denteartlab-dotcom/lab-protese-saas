@@ -44,10 +44,13 @@ export const GET = medirHandlerApi("/api/financeiro/painel", async function GET(
     }
 
     const dados = await montarPainelFinanceiro(ctx.empresaId, aba);
-    gravarCachePainelFinanceiro(ctx.empresaId, aba, dados);
+
+    if (!abaComSyncFixa) {
+      gravarCachePainelFinanceiro(ctx.empresaId, aba, dados);
+    }
 
     return NextResponse.json(dados, {
-      headers: { "X-Cache": semCache ? "REFRESH" : "MISS" },
+      headers: { "X-Cache": abaComSyncFixa ? "BYPASS" : semCache ? "REFRESH" : "MISS" },
     });
   } catch (err) {
     console.error("[financeiro/painel GET]", err);
