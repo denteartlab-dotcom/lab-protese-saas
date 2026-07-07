@@ -6,6 +6,7 @@ import {
   obterConfigAsaas,
 } from "@/lib/asaas-client";
 import { asaasConfigurado } from "@/lib/asaas-config";
+import { descricaoPublicaLancamento } from "@/lib/lancamento-despesa";
 import { cobrancaPorLancamentoId } from "@/lib/lancamentos-cobranca";
 
 function formaEhBoleto(forma?: string | null): boolean {
@@ -61,7 +62,7 @@ export async function tentarEmitirBoletoParaLancamento(lancamentoId: string) {
     asaasCustomerId,
     valor: lancamento.valor,
     vencimento: lancamento.data,
-    descricao: lancamento.descricao,
+    descricao: descricaoPublicaLancamento(lancamento.descricao),
   });
 
   return prisma.cobrancaAsaas.create({

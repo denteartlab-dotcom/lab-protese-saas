@@ -131,10 +131,17 @@ export function descricaoDespesaComParcela(descricaoEmpacotada: string, parcelaL
 /** Remove metadados técnicos embutidos na descrição (ex.: @@trab:id@@) para exibição. */
 function limparTextoVisivelDescricao(texto: string) {
   return texto
+    .split(DESPESA_META_SEP)[0]
     .split("\n@@REC@@\n")[0]
     .replace(/(\s*)@@[^@]+@@/g, "")
     .replace(/\s{2,}/g, " ")
     .trim();
+}
+
+/** Texto legível para boletos, Pix e outras APIs externas (sem metadados internos). */
+export function descricaoPublicaLancamento(descricao: string): string {
+  const texto = desempacotarDespesa(descricao).texto.trim();
+  return texto || "Cobrança";
 }
 
 export function descricaoLancamentoExibicao(descricao: string) {

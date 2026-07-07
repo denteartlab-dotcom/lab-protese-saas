@@ -8,6 +8,7 @@ import {
 import { formaEhPixAsaas } from "@/lib/forma-pagamento-pix";
 import { cobrancaPorLancamentoId } from "@/lib/lancamentos-cobranca";
 import { configOperacionalSubconta } from "@/lib/asaas-subconta";
+import { descricaoPublicaLancamento } from "@/lib/lancamento-despesa";
 
 export type PixCobrancaEmitida = {
   cobrancaId: string;
@@ -91,7 +92,7 @@ export async function tentarEmitirPixParaLancamento(
     asaasCustomerId,
     valor,
     vencimento: lancamento.data,
-    descricao: lancamento.descricao,
+    descricao: descricaoPublicaLancamento(lancamento.descricao),
   });
 
   const qr = await obterQrCodePixAsaas(config, pagamento.id);
@@ -187,7 +188,7 @@ export async function emitirPixCobrancaRecebimento(params: {
     asaasCustomerId,
     valor: params.valor,
     vencimento: params.vencimento ?? new Date(),
-    descricao: params.descricao,
+    descricao: descricaoPublicaLancamento(params.descricao),
   });
 
   const qr = await obterQrCodePixAsaas(config, pagamento.id);
