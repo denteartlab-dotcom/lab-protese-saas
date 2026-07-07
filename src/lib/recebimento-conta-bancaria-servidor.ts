@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import {
   ID_CONTA_CAIXA,
   ID_CONTA_CARTEIRA,
+  idContaBancariaDb,
   normalizarNomeContaRecebimento,
 } from "@/lib/conta-bancaria";
 import { listarContasBancariasServidor } from "@/lib/conta-bancaria-servidor";
@@ -51,6 +52,7 @@ export async function sincronizarMovimentacaoRecebimentoServidor(
   const contaId = await contaIdParaRecebimento(empresaId, lancamento.descricao);
   if (!contaId) return;
 
+  const contaIdDb = idContaBancariaDb(empresaId, contaId);
   const movId = idMovimentacaoRecebimento(lancamento.id);
   const descricao =
     descricaoReceitaSemMeta(lancamento.descricao).trim() || "Recebimento";
@@ -59,7 +61,7 @@ export async function sincronizarMovimentacaoRecebimentoServidor(
     where: { id: movId },
     create: {
       id: movId,
-      contaId,
+      contaId: contaIdDb,
       tipo: "entrada",
       valor: lancamento.valor,
       descricao,
