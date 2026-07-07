@@ -434,7 +434,7 @@ export function ContaDigitalConteudo({
         <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
           <Wallet className="h-5 w-5 text-[#4a90d9]" />
           <div>
-            <h3 className="text-[14px] font-semibold text-slate-800">Conta Digital Asaas</h3>
+            <h3 className="text-[14px] font-semibold text-slate-800">Conta Bancária Asaas</h3>
             <p className="text-[11px] text-slate-500">
               Saldo, extrato, pagamento de boletos e transferências Pix
             </p>

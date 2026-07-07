@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import {
@@ -61,7 +61,10 @@ import {
   persistirContasBancariasApi,
 } from "@/lib/conta-bancaria-api";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
-import type { PainelFinanceiroContaBancaria } from "@/lib/financeiro-painel-types";
+import type {
+  PainelFinanceiroContaBancaria,
+  PainelFinanceiroContaDigital,
+} from "@/lib/financeiro-painel-types";
 import { cn } from "@/lib/utils";
 import type { ContaDigitalAba } from "@/components/financeiro/ContaDigitalConteudo";
 
@@ -108,8 +111,8 @@ function valorCampoConta(valor?: string) {
 
 export function ContaBancariaConteudo() {
   const searchParams = useSearchParams();
-  const painelContaDigitalRef = useRef<HTMLDivElement>(null);
-  const [contaDigitalAtiva, setContaDigitalAtiva] = useState(false);
+  const [subcontaAprovada, setSubcontaAprovada] = useState(false);
+  const [saldoAsaas, setSaldoAsaas] = useState<number | null>(null);
   const [abaContaDigital, setAbaContaDigital] = useState<ContaDigitalAba | null>(null);
   const [contas, setContas] = useState<ContaBancaria[]>(() =>
     typeof window !== "undefined" ? carregarContasBancarias() : []
@@ -220,36 +223,46 @@ export function ContaBancariaConteudo() {
     };
   }, [aplicarDadosLocais, carregarDados]);
 
-  useEffect(() => {
-    void fetch("/api/asaas/subconta", { cache: "no-store" })
-      .then((res) => res.json())
-      .then(
-        (json: {
-          subconta?: {
-            status?: string;
-            modoIntegracao?: string;
-            contaAtiva?: boolean;
-            integracaoConfigurada?: boolean;
-          };
-        }) => {
-          const sub = json.subconta;
-          const legado = sub?.modoIntegracao === "legado";
-          setContaDigitalAtiva(
-            Boolean(sub?.integracaoConfigurada && (sub?.contaAtiva || legado))
-          );
-        }
-      )
-      .catch(() => {
-        setContaDigitalAtiva(false);
-      });
+  const carregarContaAsaas = useCallback(async () => {
+    try {
+      const painel = await fetchPainelFinanceiro<PainelFinanceiroContaDigital>(
+        "conta-digital",
+        { refresh: true }
+      );
+      if (!painel.ok) return;
+      setSaldoAsaas(Number(painel.dados.saldo) || 0);
+      const sub = painel.dados.subconta as {
+        status?: string;
+        modoIntegracao?: string;
+      } | null;
+      setSubcontaAprovada(
+        sub?.status === "aprovada" && sub?.modoIntegracao === "subconta"
+      );
+    } catch {
+      setSaldoAsaas(null);
+      setSubcontaAprovada(false);
+    }
   }, []);
 
-  function abrirPainelContaDigital(aba: ContaDigitalAba) {
+  useEffect(() => {
+    void carregarContaAsaas();
+  }, [carregarContaAsaas]);
+
+  function abrirContaBancariaAsaas(aba: ContaDigitalAba) {
     setAbaContaDigital(aba);
     setContaVisualizada(ID_CONTA_CARTEIRA);
-    window.setTimeout(() => {
-      painelContaDigitalRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 120);
+  }
+
+  function visualizarConta(conta: ContaBancaria) {
+    if (conta.id === ID_CONTA_CARTEIRA) {
+      if (contaVisualizada === ID_CONTA_CARTEIRA) {
+        setContaVisualizada(null);
+        return;
+      }
+      abrirContaBancariaAsaas("extrato");
+      return;
+    }
+    setContaVisualizada((atual) => (atual === conta.id ? null : conta.id));
   }
 
   useEffect(() => {
@@ -259,16 +272,13 @@ export function ContaBancariaConteudo() {
 
     const aba: ContaDigitalAba =
       abaUrl === "pagar" || abaUrl === "transferir" ? abaUrl : "extrato";
-    setAbaContaDigital(aba);
-    window.setTimeout(() => {
-      painelContaDigitalRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 200);
+    abrirContaBancariaAsaas(aba);
   }, [searchParams]);
 
   function acionarPrincipalConta(conta: ContaBancaria) {
     if (conta.id === ID_CONTA_CARTEIRA && conta.acaoPrincipal === "baixar") {
-      if (contaDigitalAtiva) {
-        abrirPainelContaDigital("transferir");
+      if (subcontaAprovada) {
+        abrirContaBancariaAsaas("transferir");
       }
       return;
     }
@@ -283,6 +293,7 @@ export function ContaBancariaConteudo() {
         timer = null;
         void (async () => {
           await carregarLancamentos();
+          await carregarContaAsaas();
           try {
             const dados = await carregarContasBancariasApi();
             setMovimentacoes(dados.movimentacoes);
@@ -304,7 +315,7 @@ export function ContaBancariaConteudo() {
         atualizarFinanceiroConta
       );
     };
-  }, [carregarLancamentos]);
+  }, [carregarLancamentos, carregarContaAsaas]);
 
   const contasVisiveis = useMemo(() => {
     const lista = contas.filter((c) =>
@@ -317,11 +328,13 @@ export function ContaBancariaConteudo() {
 
   const linhas = useMemo(
     () =>
-      contasVisiveis.map((conta) => ({
-        conta,
-        saldo: calcularSaldoConta(conta, lancamentos, movimentacoes),
-      })),
-    [contasVisiveis, lancamentos, movimentacoes]
+      contasVisiveis.map((conta) => {
+        const saldoLocal = calcularSaldoConta(conta, lancamentos, movimentacoes);
+        const saldo =
+          conta.id === ID_CONTA_CARTEIRA && saldoAsaas != null ? saldoAsaas : saldoLocal;
+        return { conta, saldo, saldoLocal };
+      }),
+    [contasVisiveis, lancamentos, movimentacoes, saldoAsaas]
   );
 
   async function sincronizarMovimentacoesServidor(
@@ -585,8 +598,12 @@ export function ContaBancariaConteudo() {
                     >
                       <td className="px-4 py-3 font-normal text-slate-800 dark:text-slate-100">
                         <span>{conta.nome}</span>
-                        {conta.modoVinculo === "open_finance" &&
-                        conta.openFinance?.itemId ? (
+                        {conta.id === ID_CONTA_CARTEIRA ? (
+                          <span className="ml-2 rounded bg-[#e8f2fc] px-1.5 py-0.5 text-[10px] text-[#4a90d9] dark:bg-slate-700 dark:text-sky-300">
+                            Asaas
+                          </span>
+                        ) : conta.modoVinculo === "open_finance" &&
+                          conta.openFinance?.itemId ? (
                           <span className="ml-2 rounded bg-[#e8f2fc] px-1.5 py-0.5 text-[10px] text-[#4a90d9] dark:bg-slate-700 dark:text-sky-300">
                             Open Finance
                           </span>
@@ -619,11 +636,7 @@ export function ContaBancariaConteudo() {
                               <button
                                 type="button"
                                 title="Visualizar"
-                                onClick={() =>
-                                  setContaVisualizada((atual) =>
-                                    atual === conta.id ? null : conta.id
-                                  )
-                                }
+                                onClick={() => visualizarConta(conta)}
                                 className={cn(
                                   "inline-flex h-8 w-8 items-center justify-center hover:text-[#4a90d9] dark:hover:text-sky-300",
                                   expandida
@@ -643,14 +656,16 @@ export function ContaBancariaConteudo() {
                                   <Pencil className="h-4 w-4" />
                                 </button>
                               ) : null}
-                              <button
-                                type="button"
-                                title="Transferências e Ajustes"
-                                onClick={() => setModalTransferir(conta)}
-                                className="inline-flex h-8 w-8 items-center justify-center text-slate-500 hover:text-[#4a90d9] dark:text-slate-400 dark:hover:text-sky-300"
-                              >
-                                <ArrowLeftRight className="h-4 w-4" />
-                              </button>
+                              {conta.id !== ID_CONTA_CARTEIRA ? (
+                                <button
+                                  type="button"
+                                  title="Transferências e Ajustes"
+                                  onClick={() => setModalTransferir(conta)}
+                                  className="inline-flex h-8 w-8 items-center justify-center text-slate-500 hover:text-[#4a90d9] dark:text-slate-400 dark:hover:text-sky-300"
+                                >
+                                  <ArrowLeftRight className="h-4 w-4" />
+                                </button>
+                              ) : null}
                               {contaPodeExcluir(conta) ? (
                                 <button
                                   type="button"
@@ -667,13 +682,13 @@ export function ContaBancariaConteudo() {
                                 disabled={
                                   conta.id === ID_CONTA_CARTEIRA &&
                                   conta.acaoPrincipal === "baixar" &&
-                                  !contaDigitalAtiva
+                                  !subcontaAprovada
                                 }
                                 title={
                                   conta.id === ID_CONTA_CARTEIRA &&
                                   conta.acaoPrincipal === "baixar" &&
-                                  !contaDigitalAtiva
-                                    ? "Configure a conta Asaas em Configurações → Boletos para usar Retirar"
+                                  !subcontaAprovada
+                                    ? "Retirar disponível após subconta Asaas criada e aprovada (Configurações → Boletos)"
                                     : undefined
                                 }
                                 className={cn(
@@ -691,6 +706,12 @@ export function ContaBancariaConteudo() {
                     {expandida ? (
                       <tr className="border-b border-[#ececec] bg-white dark:border-slate-700 dark:bg-slate-900">
                         <td colSpan={3} className="bg-white px-4 py-3 dark:bg-slate-900">
+                          {conta.id === ID_CONTA_CARTEIRA ? (
+                            <ContaDigitalConteudo
+                              embedded
+                              abaSolicitada={abaContaDigital}
+                            />
+                          ) : (
                           <div className="rounded border border-[#e8e8e8] bg-white px-5 py-4 dark:border-slate-600 dark:bg-white">
                             <div className="mb-4 flex items-center gap-2">
                               <Box
@@ -703,54 +724,36 @@ export function ContaBancariaConteudo() {
                             </div>
 
                             <div className="grid grid-cols-1 gap-y-2 text-[12px] leading-relaxed text-slate-800 md:grid-cols-4 md:gap-x-6">
-                              {conta.id === ID_CONTA_CARTEIRA ? (
-                                <div className="col-span-full space-y-2">
-                                  <p className="text-slate-600">
-                                    Conta integrada ao Asaas para saldo, extrato, pagamento de
-                                    boletos e transferências Pix.
-                                  </p>
-                                  <button
-                                    type="button"
-                                    onClick={() => abrirPainelContaDigital("extrato")}
-                                    className="h-8 rounded border border-[#4a90d9] bg-white px-3 text-[12px] text-[#4a90d9] hover:bg-[#f0f7ff]"
-                                  >
-                                    Ver conta digital Asaas
-                                  </button>
-                                </div>
-                              ) : (
-                                <>
-                                  <div className="min-w-0">
-                                    <span className="font-bold uppercase tracking-wide text-slate-800">
-                                      NOME :
-                                    </span>{" "}
-                                    <span className="text-slate-700">{conta.nome}</span>
-                                  </div>
-                                  <div className="min-w-0 md:pl-2">
-                                    <span className="font-semibold text-slate-800">
-                                      Agência:
-                                    </span>{" "}
-                                    <span className="text-slate-700">
-                                      {valorCampoConta(conta.agencia)}
-                                    </span>
-                                  </div>
-                                  <div className="min-w-0 md:pl-2">
-                                    <span className="font-semibold text-slate-800">
-                                      Número da Conta:
-                                    </span>{" "}
-                                    <span className="text-slate-700">
-                                      {valorCampoConta(conta.numeroConta)}
-                                    </span>
-                                  </div>
-                                  <div className="min-w-0 md:pl-2">
-                                    <span className="font-semibold text-slate-800">
-                                      Chave Pix:
-                                    </span>{" "}
-                                    <span className="text-slate-700">
-                                      {valorCampoConta(conta.chavePix)}
-                                    </span>
-                                  </div>
-                                </>
-                              )}
+                              <div className="min-w-0">
+                                <span className="font-bold uppercase tracking-wide text-slate-800">
+                                  NOME :
+                                </span>{" "}
+                                <span className="text-slate-700">{conta.nome}</span>
+                              </div>
+                              <div className="min-w-0 md:pl-2">
+                                <span className="font-semibold text-slate-800">
+                                  Agência:
+                                </span>{" "}
+                                <span className="text-slate-700">
+                                  {valorCampoConta(conta.agencia)}
+                                </span>
+                              </div>
+                              <div className="min-w-0 md:pl-2">
+                                <span className="font-semibold text-slate-800">
+                                  Número da Conta:
+                                </span>{" "}
+                                <span className="text-slate-700">
+                                  {valorCampoConta(conta.numeroConta)}
+                                </span>
+                              </div>
+                              <div className="min-w-0 md:pl-2">
+                                <span className="font-semibold text-slate-800">
+                                  Chave Pix:
+                                </span>{" "}
+                                <span className="text-slate-700">
+                                  {valorCampoConta(conta.chavePix)}
+                                </span>
+                              </div>
                             </div>
 
                             <div className="mt-3 text-[12px] text-slate-800">
@@ -777,6 +780,7 @@ export function ContaBancariaConteudo() {
                               </button>
                             </div>
                           </div>
+                          )}
                         </td>
                       </tr>
                     ) : null}
@@ -786,14 +790,6 @@ export function ContaBancariaConteudo() {
             )}
           </tbody>
         </table>
-      </div>
-
-      <div
-        ref={painelContaDigitalRef}
-        id="conta-digital-asaas"
-        className="mt-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900"
-      >
-        <ContaDigitalConteudo embedded abaSolicitada={abaContaDigital} />
       </div>
 
       <CadastrarContaBancariaModal
