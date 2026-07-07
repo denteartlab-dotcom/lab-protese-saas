@@ -165,7 +165,13 @@ export async function criarOuBuscarClienteAsaas(params: {
     where: { id: params.clienteId },
     select: { asaasCustomerId: true },
   });
-  if (existente?.asaasCustomerId) return existente.asaasCustomerId;
+  if (existente?.asaasCustomerId) {
+    await garantirNotificacoesAsaasDesabilitadas(
+      params.config,
+      existente.asaasCustomerId
+    );
+    return existente.asaasCustomerId;
+  }
 
   const doc = somenteDigitos(params.cpfCnpj);
   const payload = {
@@ -174,6 +180,7 @@ export async function criarOuBuscarClienteAsaas(params: {
     email: params.email?.trim() || undefined,
     phone: somenteDigitos(params.telefone || "") || undefined,
     mobilePhone: somenteDigitos(params.celular || params.telefone || "") || undefined,
+    notificationDisabled: true,
   };
 
   const criado = await asaasFetch<AsaasCustomer>(params.config, "/customers", {
@@ -187,6 +194,21 @@ export async function criarOuBuscarClienteAsaas(params: {
   });
 
   return criado.id;
+}
+
+/** Impede envio de notificações Asaas (pagamento recebido, vencimento, WhatsApp etc.). */
+async function garantirNotificacoesAsaasDesabilitadas(
+  config: AsaasConfig,
+  asaasCustomerId: string
+) {
+  try {
+    await asaasFetch<AsaasCustomer>(config, `/customers/${asaasCustomerId}`, {
+      method: "PUT",
+      body: JSON.stringify({ notificationDisabled: true }),
+    });
+  } catch {
+    /* não bloqueia emissão de cobrança se a atualização falhar */
+  }
 }
 
 export async function emitirBoletoAsaas(params: {
