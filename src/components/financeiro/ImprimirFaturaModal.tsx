@@ -23,7 +23,7 @@ import {
 import { sincronizarConfigLaboratorioDoServidor } from "@/lib/lab-config-sync";
 import { gerarPdfDeHtmlDocumento } from "@/lib/html-para-pdf";
 import { prepararAbaPdf } from "@/lib/pdf-viewer";
-import { abrirHtmlNoVisualizadorUnificado } from "@/lib/pdf-viewer-unificado";
+import { abrirPdfBlobGerandoNoVisualizadorUnificado } from "@/lib/pdf-viewer-unificado";
 import { cn } from "@/lib/utils";
 
 export type FormatoImpressaoFatura = "a4" | "termica";
@@ -199,19 +199,23 @@ export function ImprimirFaturaModal({
     return `Fatura — Folha A4 (${modeloNome})`;
   }
 
-  async function abrirNoVisualizador(imprimirAoCarregar: boolean) {
+  async function abrirNoVisualizador() {
     if (gerandoPdf || sincronizando) return;
 
     setGerandoPdf(true);
     const janela = prepararAbaPdf();
+    const nomeArquivo = `Fatura ${numeroFatura}.pdf`;
+    const titulo = `Fatura ${numeroFatura} — ${clienteNome}`;
     try {
-      await abrirHtmlNoVisualizadorUnificado(
-        prepararHtmlImpressao,
-        `Fatura ${numeroFatura} — ${clienteNome}`,
-        `fatura-${numeroFatura}.html`,
+      await abrirPdfBlobGerandoNoVisualizadorUnificado(
+        async () => {
+          const html = await prepararHtmlImpressao();
+          return gerarPdfDeHtmlDocumento(html, formato);
+        },
+        titulo,
+        nomeArquivo,
         {
           janela,
-          imprimirAoCarregar,
           subtitulo: subtituloFatura(),
           origem: "Financeiro · Fatura",
         }
@@ -219,7 +223,7 @@ export function ImprimirFaturaModal({
       onClose();
     } catch (err) {
       janela?.close();
-      console.error("[ImprimirFaturaModal] visualizador", err);
+      console.error("[ImprimirFaturaModal] visualizador PDF", err);
       window.alert("Não foi possível abrir a fatura. Tente novamente.");
     } finally {
       setGerandoPdf(false);
@@ -227,11 +231,11 @@ export function ImprimirFaturaModal({
   }
 
   function imprimir() {
-    void abrirNoVisualizador(true);
+    void abrirNoVisualizador();
   }
 
   function visualizarPdf() {
-    void abrirNoVisualizador(false);
+    void abrirNoVisualizador();
   }
 
   async function enviarWhatsapp() {
@@ -315,7 +319,7 @@ export function ImprimirFaturaModal({
 
           {gerandoPdf ? (
             <p className="mb-3 text-center text-xs text-[#6b7280]">
-              Abrindo visualizador da fatura…
+              Gerando PDF e abrindo em nova aba…
             </p>
           ) : null}
 
