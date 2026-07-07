@@ -199,6 +199,34 @@ export const ID_CONTA_CAIXA = "cb-caixa";
 export const ID_CONTA_CARTEIRA = "cb-carteira";
 export const ID_CONTA_NF = "cb-nf";
 
+const IDS_CONTAS_SISTEMA = new Set([
+  ID_CONTA_CAIXA,
+  ID_CONTA_CARTEIRA,
+  ID_CONTA_NF,
+]);
+
+/** Garante Caixa Principal, Conta Bancária (Asaas) e Nota Fiscal na lista. */
+export function garantirContasSistemaPadrao(contas: ContaBancaria[]): ContaBancaria[] {
+  const mapa = new Map(contas.map((c) => [c.id, c]));
+  for (const padrao of CONTAS_BANCARIAS_PADRAO) {
+    const atual = mapa.get(padrao.id);
+    if (!atual) {
+      mapa.set(padrao.id, { ...padrao });
+      continue;
+    }
+    mapa.set(padrao.id, {
+      ...padrao,
+      ...atual,
+      nome: padrao.nome,
+      acaoPrincipal: padrao.acaoPrincipal,
+      excluida: false,
+    });
+  }
+  const sistema = CONTAS_BANCARIAS_PADRAO.map((p) => mapa.get(p.id)!);
+  const extras = contas.filter((c) => !IDS_CONTAS_SISTEMA.has(c.id));
+  return [...sistema, ...extras];
+}
+
 function migrarContasV4(contas: ContaBancaria[]): ContaBancaria[] {
   return contas.map((c) => {
     if (c.id !== ID_CONTA_CARTEIRA) return c;
@@ -220,12 +248,15 @@ export function carregarContasBancarias(): ContaBancaria[] {
         Array.isArray(existente) && existente.length > 0 ? existente : CONTAS_BANCARIAS_PADRAO;
       contas = normalizarSaldoLegado(contas);
       contas = migrarContasV4(contas);
+      contas = garantirContasSistemaPadrao(contas);
       salvarContasBancarias(contas);
       return contas;
     }
 
-    if (!Array.isArray(existente) || existente.length === 0) return CONTAS_BANCARIAS_PADRAO;
-    return normalizarSaldoLegado(existente);
+    if (!Array.isArray(existente) || existente.length === 0) {
+      return garantirContasSistemaPadrao(CONTAS_BANCARIAS_PADRAO);
+    }
+    return garantirContasSistemaPadrao(normalizarSaldoLegado(existente));
   } catch {
     return CONTAS_BANCARIAS_PADRAO;
   }

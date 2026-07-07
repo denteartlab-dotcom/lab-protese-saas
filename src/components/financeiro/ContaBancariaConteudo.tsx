@@ -29,6 +29,7 @@ import {
   contaFromForm,
   contaFromFormEdicao,
   contaPermiteEditarNaLista,
+  garantirContasSistemaPadrao,
   ID_CONTA_CAIXA,
   ID_CONTA_CARTEIRA,
   ID_CONTA_NF,
@@ -82,7 +83,7 @@ const ContaDigitalConteudo = dynamic(
 
 function hidratarDadosLocais() {
   return {
-    contas: carregarContasBancarias(),
+    contas: garantirContasSistemaPadrao(carregarContasBancarias()),
     movimentacoes: carregarMovimentacoesConta(),
     lancamentos: carregarLancamentosFinanceiroCache(),
   };
@@ -180,7 +181,7 @@ export function ContaBancariaConteudo() {
     if (!painel.ok) {
       try {
         const dados = await carregarContasBancariasApi();
-        setContas(dados.contas);
+        setContas(garantirContasSistemaPadrao(dados.contas));
         setMovimentacoes((atual) => {
           const mesclado = mesclarMovimentacoesConta(atual, dados.movimentacoes);
           salvarMovimentacoesConta(mesclado);
@@ -194,8 +195,9 @@ export function ContaBancariaConteudo() {
 
     const { contas: contasApi, movimentacoes: movApi, extrato, lancamentos: lista } =
       painel.dados;
-    setContas(contasApi);
-    salvarContasBancarias(contasApi);
+    const contasNormalizadas = garantirContasSistemaPadrao(contasApi);
+    setContas(contasNormalizadas);
+    salvarContasBancarias(contasNormalizadas);
     setMovimentacoes((atual) => {
       const mesclado = mesclarMovimentacoesConta(atual, movApi);
       salvarMovimentacoesConta(mesclado);
@@ -255,6 +257,7 @@ export function ContaBancariaConteudo() {
 
   function visualizarConta(conta: ContaBancaria) {
     if (conta.id === ID_CONTA_CARTEIRA) {
+      if (!subcontaAprovada) return;
       if (contaVisualizada === ID_CONTA_CARTEIRA) {
         setContaVisualizada(null);
         return;
@@ -269,11 +272,12 @@ export function ContaBancariaConteudo() {
     const abaUrl = searchParams.get("acao") || searchParams.get("digital");
     const veioContaDigital = searchParams.get("aba") === "conta-digital";
     if (!abaUrl && !veioContaDigital) return;
+    if (!subcontaAprovada) return;
 
     const aba: ContaDigitalAba =
       abaUrl === "pagar" || abaUrl === "transferir" ? abaUrl : "extrato";
     abrirContaBancariaAsaas(aba);
-  }, [searchParams]);
+  }, [searchParams, subcontaAprovada]);
 
   function acionarPrincipalConta(conta: ContaBancaria) {
     if (conta.id === ID_CONTA_CARTEIRA && conta.acaoPrincipal === "baixar") {
@@ -331,10 +335,12 @@ export function ContaBancariaConteudo() {
       contasVisiveis.map((conta) => {
         const saldoLocal = calcularSaldoConta(conta, lancamentos, movimentacoes);
         const saldo =
-          conta.id === ID_CONTA_CARTEIRA && saldoAsaas != null ? saldoAsaas : saldoLocal;
+          conta.id === ID_CONTA_CARTEIRA && subcontaAprovada && saldoAsaas != null
+            ? saldoAsaas
+            : saldoLocal;
         return { conta, saldo, saldoLocal };
       }),
-    [contasVisiveis, lancamentos, movimentacoes, saldoAsaas]
+    [contasVisiveis, lancamentos, movimentacoes, saldoAsaas, subcontaAprovada]
   );
 
   async function sincronizarMovimentacoesServidor(
@@ -350,9 +356,10 @@ export function ContaBancariaConteudo() {
   }
 
   function persistirContas(novaLista: ContaBancaria[]) {
-    setContas(novaLista);
-    salvarContasBancarias(novaLista);
-    void persistirContasBancariasApi({ contas: novaLista }).then(() => {
+    const normalizada = garantirContasSistemaPadrao(novaLista);
+    setContas(normalizada);
+    salvarContasBancarias(normalizada);
+    void persistirContasBancariasApi({ contas: normalizada }).then(() => {
       notificarFinanceiroAtualizado();
     });
   }
@@ -635,10 +642,17 @@ export function ContaBancariaConteudo() {
                             <>
                               <button
                                 type="button"
-                                title="Visualizar"
+                                title={
+                                  conta.id === ID_CONTA_CARTEIRA && !subcontaAprovada
+                                    ? "Disponível após subconta Asaas aprovada (Configurações → Boletos)"
+                                    : "Visualizar"
+                                }
                                 onClick={() => visualizarConta(conta)}
+                                disabled={
+                                  conta.id === ID_CONTA_CARTEIRA && !subcontaAprovada
+                                }
                                 className={cn(
-                                  "inline-flex h-8 w-8 items-center justify-center hover:text-[#4a90d9] dark:hover:text-sky-300",
+                                  "inline-flex h-8 w-8 items-center justify-center hover:text-[#4a90d9] dark:hover:text-sky-300 disabled:cursor-not-allowed disabled:opacity-40",
                                   expandida
                                     ? "rounded-sm bg-[#e8f2fc] text-[#4a90d9] dark:bg-slate-700 dark:text-sky-300"
                                     : "text-slate-500 dark:text-slate-400"

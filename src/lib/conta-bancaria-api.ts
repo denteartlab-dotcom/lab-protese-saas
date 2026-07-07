@@ -3,6 +3,7 @@ import type { ExtratoMovimentacao } from "@/lib/extrato-bancario";
 import {
   carregarContasBancarias,
   carregarMovimentacoesConta,
+  garantirContasSistemaPadrao,
   salvarContasBancarias,
   salvarMovimentacoesConta,
 } from "@/lib/conta-bancaria";
@@ -38,13 +39,13 @@ export async function carregarContasBancariasApi(): Promise<DadosContasBancarias
     const res = await fetch("/api/contas-bancarias", { cache: "no-store" });
     if (!res.ok) throw new Error("falha");
     const json = (await res.json()) as DadosContasBancariasApi;
-    if (Array.isArray(json.contas)) salvarContasBancarias(json.contas);
+    if (Array.isArray(json.contas)) salvarContasBancarias(garantirContasSistemaPadrao(json.contas));
     if (Array.isArray(json.movimentacoes)) {
       salvarMovimentacoesConta(json.movimentacoes);
     }
     if (Array.isArray(json.extrato)) salvarExtratoBancario(json.extrato);
     return {
-      contas: json.contas ?? carregarContasBancarias(),
+      contas: garantirContasSistemaPadrao(json.contas ?? carregarContasBancarias()),
       movimentacoes: json.movimentacoes ?? carregarMovimentacoesConta(),
       extrato: json.extrato ?? carregarExtratoBancario(),
     };
@@ -62,7 +63,7 @@ export async function persistirContasBancariasApi(input: {
   movimentacoes?: MovimentacaoContaBancaria[];
   extrato?: ExtratoMovimentacao[];
 }): Promise<DadosContasBancariasApi | null> {
-  const contas = input.contas ?? carregarContasBancarias();
+  const contas = garantirContasSistemaPadrao(input.contas ?? carregarContasBancarias());
   const movimentacoes = input.movimentacoes ?? carregarMovimentacoesConta();
   const extrato = input.extrato ?? carregarExtratoBancario();
 
@@ -78,7 +79,7 @@ export async function persistirContasBancariasApi(input: {
     });
     if (!res.ok) throw new Error("falha");
     const json = (await res.json()) as DadosContasBancariasApi;
-    if (Array.isArray(json.contas)) salvarContasBancarias(json.contas);
+    if (Array.isArray(json.contas)) salvarContasBancarias(garantirContasSistemaPadrao(json.contas));
     if (Array.isArray(json.movimentacoes)) {
       salvarMovimentacoesConta(json.movimentacoes);
     }

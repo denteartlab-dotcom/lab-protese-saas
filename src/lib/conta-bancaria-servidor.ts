@@ -3,6 +3,7 @@ import { lerJsonStoreTenant } from "@/lib/json-store-tenant";
 import {
   CONTAS_BANCARIAS_PADRAO,
   CONTAS_BANCARIAS_STORAGE_KEY,
+  garantirContasSistemaPadrao,
   ID_CONTA_CARTEIRA,
   MOVIMENTACOES_CONTA_STORAGE_KEY,
   type ContaBancaria,
@@ -230,13 +231,30 @@ export async function listarContasBancariasServidor(
     });
     return seeded.map(rowParaConta);
   }
-  return rows.map((row) => {
-    const conta = rowParaConta(row);
-    if (conta.id === ID_CONTA_CARTEIRA && conta.nome.trim() === "Carteira Digital") {
-      return { ...conta, nome: "Conta Bancária" };
-    }
-    return conta;
-  });
+  const contas = garantirContasSistemaPadrao(
+    rows.map((row) => {
+      const conta = rowParaConta(row);
+      if (conta.id === ID_CONTA_CARTEIRA && conta.nome.trim() === "Carteira Digital") {
+        return { ...conta, nome: "Conta Bancária" };
+      }
+      return conta;
+    })
+  );
+  const faltando = CONTAS_BANCARIAS_PADRAO.filter(
+    (p) => !rows.some((r) => r.id === p.id)
+  );
+  if (faltando.length > 0) {
+    await prisma.$transaction(async (tx) => {
+      for (const conta of faltando) {
+        await tx.contaBancaria.upsert({
+          where: { id: conta.id },
+          create: contaParaRow(conta, empresaId),
+          update: contaParaRow(conta, empresaId),
+        });
+      }
+    });
+  }
+  return contas;
 }
 
 export async function salvarContasBancariasServidor(
@@ -244,14 +262,15 @@ export async function salvarContasBancariasServidor(
   contas: ContaBancaria[]
 ) {
   await migrarJsonStoreSeNecessario(empresaId);
-  const ids = contas.map((c) => c.id);
+  const contasNormalizadas = garantirContasSistemaPadrao(contas);
+  const ids = contasNormalizadas.map((c) => c.id);
   await prisma.$transaction(async (tx) => {
     if (ids.length > 0) {
       await tx.contaBancaria.deleteMany({
         where: { empresaId, id: { notIn: ids } },
       });
     }
-    for (const conta of contas) {
+    for (const conta of contasNormalizadas) {
       await tx.contaBancaria.upsert({
         where: { id: conta.id },
         create: contaParaRow(conta, empresaId),
