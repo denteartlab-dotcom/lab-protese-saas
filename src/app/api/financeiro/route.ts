@@ -231,11 +231,41 @@ export async function POST(request: Request) {
         });
         criados.push(lancamento);
       }
-      const numeroFatura =       await auditarCriacaoReceitasParceladas(session, criados);
+      const numeroFatura = await auditarCriacaoReceitasParceladas(session, criados);
       await sincronizarReceitasPagas(criados);
+
+      const deveEmitirBoletos = emitirBoleto !== false;
+      const avisosBoletos: string[] = [];
+      let boletosEmitidos = 0;
+
+      if (deveEmitirBoletos) {
+        for (const lancamento of criados) {
+          const forma = (lancamento.formaPagamento || "").toLowerCase();
+          if (!forma.includes("boleto") || lancamento.status === "pago") continue;
+          try {
+            const cobranca = await tentarEmitirBoletoParaLancamento(lancamento.id);
+            if (cobranca) boletosEmitidos += 1;
+          } catch (err) {
+            console.error("[financeiro POST] boleto parcela asaas", err);
+            avisosBoletos.push(
+              err instanceof Error ? err.message : "Falha ao emitir boleto no Asaas."
+            );
+          }
+        }
+      }
+
+      const lancamentosComCobranca = await Promise.all(
+        criados.map((l) => findLancamentoFinanceiroPorId(l.id))
+      );
+
       invalidarCachePainelFinanceiro(empresaId);
       return NextResponse.json(
-        { lancamentos: criados, numeroFatura },
+        {
+          lancamentos: lancamentosComCobranca.filter(Boolean),
+          numeroFatura,
+          boletosEmitidos,
+          avisosBoletos: avisosBoletos.length ? avisosBoletos : undefined,
+        },
         { status: 201 }
       );
     }

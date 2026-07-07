@@ -7,7 +7,7 @@ import { CampoDataBr } from "@/components/campo-data-br";
 import { SelectPesquisavel } from "@/components/SelectPesquisavel";
 import { PlanoContasCategoriaSelect } from "@/components/financeiro/PlanoContasCategoriaSelect";
 import { SituacaoOsBadgeReceita } from "@/components/financeiro/SituacaoOsBadgeReceita";
-import { dateToBrShort } from "@/lib/datas-br";
+import { dateToBrShort, somarMesesDataBr } from "@/lib/datas-br";
 import {
   carregarPlanoContas,
   categoriaPadraoLancamento,
@@ -100,7 +100,7 @@ type Props = {
   totalLiquido: number;
   mensagemLancamento: string;
   mensagemLancamentoTipo: "erro" | "sucesso" | "info";
-  formaSelecionadaEhBoleto: () => boolean;
+  formaSelecionadaEhBoleto: (parcelas: ParcelaLinhaReceita[]) => boolean;
   valorTrabalho: (trabalho: TrabalhoReceita) => number;
   onLimparOsSelecionadas: () => void;
   money: (value: number) => string;
@@ -325,22 +325,25 @@ export function LancarReceitaOsModal({
             maximumFractionDigits: 2,
           })
         : "0,00";
-    setParcelas((atual) =>
-      Array.from({ length: numParcelas }, (_, i) => {
+    setParcelas((atual) => {
+      const vencimentoBase =
+        atual[0]?.vencimento || form.vencimento || dateToBrShort(new Date());
+      return Array.from({ length: numParcelas }, (_, i) => {
         const existente = atual[i];
         return {
           parcela: `${i + 1}/${numParcelas}`,
           formaPagamento: existente?.formaPagamento || form.formaPagamento || "Forma Pagamento",
           conta: existente?.conta || form.conta || "Caixa Principal",
-          vencimento: existente?.vencimento || form.vencimento || dateToBrShort(new Date()),
+          vencimento:
+            existente?.vencimento || somarMesesDataBr(vencimentoBase, i),
           valor: valorParcela,
           valorTipo: existente?.valorTipo || "valor",
           juros: existente?.juros || form.juros || "0,00",
           jurosTipo: existente?.jurosTipo || (form.jurosTipo as "percentual" | "valor") || "percentual",
           recebido: existente?.recebido ?? form.recebido,
         };
-      })
-    );
+      });
+    });
   }, [
     numParcelas,
     totalLiquido,
@@ -725,9 +728,10 @@ export function LancarReceitaOsModal({
             Escolha a(s) forma(s) de recebimento
           </p>
 
-          {formaSelecionadaEhBoleto() ? (
+          {formaSelecionadaEhBoleto(parcelas) ? (
             <p className="mb-3 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-center text-[11px] text-amber-900">
-              Com <strong>Boleto</strong>, o sistema emite automaticamente no Asaas ao cadastrar.
+              Com <strong>Boleto</strong>, o sistema emite um boleto no Asaas para cada
+              parcela pendente (vencimentos mensais).
             </p>
           ) : null}
 

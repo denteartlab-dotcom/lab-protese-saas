@@ -777,8 +777,8 @@ function FinanceiroReceberConteudo() {
       : Math.max(valorBruto - desconto, 0) * (Math.max(jurosBase, 0) / 100);
   const totalLiquido = Math.max(0, valorBruto - desconto + jurosValor);
 
-  function formaSelecionadaEhBoleto() {
-    const naParcela = parcelas.some((p) =>
+  function formaSelecionadaEhBoleto(parcelasLinha: ParcelaLinhaReceita[] = []) {
+    const naParcela = parcelasLinha.some((p) =>
       (p.formaPagamento || "").toLowerCase().includes("boleto")
     );
     if (naParcela) return true;
@@ -881,6 +881,7 @@ function FinanceiroReceberConteudo() {
             clienteId: form.clienteId || undefined,
             descricao: descricaoCobranca,
             trabalhoId: trabalhosSelecionados.length === 1 ? trabalhosSelecionados[0].id : undefined,
+            emitirBoleto: formaSelecionadaEhBoleto(parcelas) && !algumRecebido,
             parcelas: parcelas.map((p) => ({
               valor: valorParcelaNumerico(p, basePorParcela),
               data: p.recebido ? hojeIso : brShortToIso(p.vencimento || form.data),
@@ -902,6 +903,32 @@ function FinanceiroReceberConteudo() {
         if (Array.isArray(payload.lancamentos)) {
           lancamentosCriados.push(...payload.lancamentos);
         }
+        const urlsBoleto = (Array.isArray(payload.lancamentos) ? payload.lancamentos : [])
+          .map((l: Lancamento) => l.cobrancaAsaas?.bankSlipUrl)
+          .filter((url): url is string => Boolean(url));
+        if (urlsBoleto.length > 0) {
+          setMensagemLancamentoTipo("sucesso");
+          setMensagemLancamento(
+            `${urlsBoleto.length} boleto(s) emitido(s) no Asaas. Abrindo PDFs…`
+          );
+          urlsBoleto.forEach((url) =>
+            window.open(url, "_blank", "noopener,noreferrer")
+          );
+        } else if (
+          Array.isArray(payload.avisosBoletos) &&
+          payload.avisosBoletos.length > 0
+        ) {
+          setMensagemLancamentoTipo("erro");
+          setMensagemLancamento(String(payload.avisosBoletos[0]));
+          return;
+        } else if (formaSelecionadaEhBoleto(parcelas) && !algumRecebido) {
+          setMensagemLancamentoTipo("sucesso");
+          setMensagemLancamento(
+            payload.boletosEmitidos
+              ? "Cobrança parcelada lançada com boletos emitidos."
+              : "Cobrança parcelada lançada."
+          );
+        }
       } else {
         const p = parcelas[0];
         const valorLancamento = p
@@ -919,7 +946,7 @@ function FinanceiroReceberConteudo() {
             status: p?.recebido ? "pago" : form.status || "pendente",
             trabalhoId: trabalhosSelecionados.length === 1 ? trabalhosSelecionados[0].id : undefined,
             descricao: descricaoCobranca,
-            emitirBoleto: formaSelecionadaEhBoleto() && !algumRecebido,
+            emitirBoleto: formaSelecionadaEhBoleto(parcelas) && !algumRecebido,
           }),
         });
         const payload = await res.json().catch(() => ({}));
@@ -941,7 +968,7 @@ function FinanceiroReceberConteudo() {
           setMensagemLancamentoTipo("erro");
           setMensagemLancamento(payload.avisoBoleto);
           return;
-        } else if (formaSelecionadaEhBoleto() && !algumRecebido) {
+        } else if (formaSelecionadaEhBoleto(parcelas) && !algumRecebido) {
           setMensagemLancamentoTipo("sucesso");
           setMensagemLancamento(
             payload.boletoEmitido

@@ -51,6 +51,17 @@ export function brShortToIso(value: string) {
   return `${y}-${m}-${d}`;
 }
 
+/** Soma meses a uma data dd/mm/aaaa (ajusta o dia em meses curtos). */
+export function somarMesesDataBr(value: string, meses: number) {
+  const date = parseBrDate(value);
+  if (!date || !meses) return value;
+  const dia = date.getDate();
+  const alvo = new Date(date.getFullYear(), date.getMonth() + meses, 1, 12);
+  const ultimoDia = new Date(alvo.getFullYear(), alvo.getMonth() + 1, 0).getDate();
+  alvo.setDate(Math.min(dia, ultimoDia));
+  return dateToBrShort(alvo);
+}
+
 /** Soma dias a uma data dd/mm/aaaa e devolve no mesmo formato. */
 export function somarDiasBr(value: string, dias: number) {
   const date = parseBrDate(value);
