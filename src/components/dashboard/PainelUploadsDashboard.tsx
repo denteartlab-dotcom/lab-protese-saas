@@ -3,11 +3,25 @@
 import Link from "next/link";
 import {
   formatarTamanhoMbCard,
+  LIMITE_ARMAZENAMENTO_BYTES,
   type UploadsResumoArmazenamento,
 } from "@/lib/uploads-armazenamento";
 import { cn } from "@/lib/utils";
 
 export type UploadsResumoUi = UploadsResumoArmazenamento;
+
+function percentualUsadoBarra(resumo: UploadsResumoUi) {
+  const limite = resumo.limiteBytes ?? LIMITE_ARMAZENAMENTO_BYTES;
+  if (limite <= 0 || resumo.bytesUsados <= 0) return 0;
+  return Math.min(100, (resumo.bytesUsados / limite) * 100);
+}
+
+function rotuloPercentualUsado(resumo: UploadsResumoUi) {
+  const pct = percentualUsadoBarra(resumo);
+  if (resumo.bytesUsados <= 0) return "0";
+  if (pct < 1) return (Math.round(pct * 10) / 10).toLocaleString("pt-BR");
+  return String(Math.round(pct));
+}
 
 export function PainelUploadsDashboard({
   titulo,
@@ -17,7 +31,8 @@ export function PainelUploadsDashboard({
   resumo: UploadsResumoUi;
   onResumoAtualizado?: () => void;
 }) {
-  const usado = Math.max(0, Math.min(100, resumo.percentualUsado));
+  const pctUsado = percentualUsadoBarra(resumo);
+  const textoPercentual = rotuloPercentualUsado(resumo);
   const textoUsado = formatarTamanhoMbCard(resumo.bytesUsados);
   const textoLivre = formatarTamanhoMbCard(resumo.bytesLivres);
   const galeriaEsgotada = resumo.bytesLivres <= 0;
@@ -54,18 +69,20 @@ export function PainelUploadsDashboard({
             <span className="h-2 w-2 rounded-full bg-emerald-500" /> Livre
           </span>
         </div>
-        <div className="relative h-16 overflow-hidden rounded bg-emerald-400">
-          {usado > 0 && (
-            <div
-              className={cn(
-                "absolute inset-y-0 left-0 transition-all duration-300",
-                galeriaEsgotada ? "bg-red-500" : "bg-sky-500"
-              )}
-              style={{ width: `${usado}%` }}
-            />
-          )}
-          <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white drop-shadow-sm">
-            {usado}%
+        <div className="relative flex h-16 overflow-hidden rounded">
+          <div
+            className={cn(
+              "shrink-0 transition-all duration-300",
+              galeriaEsgotada ? "bg-red-500" : "bg-sky-500"
+            )}
+            style={{
+              width: `${pctUsado}%`,
+              minWidth: resumo.bytesUsados > 0 ? 4 : 0,
+            }}
+          />
+          <div className="min-w-0 flex-1 bg-emerald-400 transition-all duration-300" />
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs font-bold text-white drop-shadow-sm">
+            {textoPercentual}%
           </div>
         </div>
         {galeriaEsgotada ? (
