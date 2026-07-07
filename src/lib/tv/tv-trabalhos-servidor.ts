@@ -35,7 +35,13 @@ import {
   indiceEtapaAtualDeConcluidas,
   MODULO_PRODUCAO_ETAPAS_STORAGE_KEY,
 } from "@/lib/modulo-producao-etapas";
-import { registrarMudancaIndiceEtapa } from "@/lib/historico-etapas";
+import {
+  chaveEntradaEtapaHistorico,
+  garantirEntradaEtapaAbertaTv,
+  mapaEntradaEtapaAberta,
+  parseChaveEtapasModulo,
+  registrarMudancaIndiceEtapa,
+} from "@/lib/historico-etapas";
 import { labelStatusOs, trabalhoVisivelModuloTv } from "@/lib/status-os";
 import {
   adicionarTrabalhoControleEntregasAutomaticoServidor,
@@ -61,6 +67,7 @@ type TrabalhoTvRow = {
   dataEntrada: Date;
   dataPrevista: Date | null;
   updatedAt: Date;
+  clienteId: string;
   cliente: { nome: string };
   paciente: { nome: string };
 };
@@ -216,12 +223,91 @@ function resolverColunaAtual(
   return { coluna: "pronto_entrega", itemChave };
 }
 
+function estimarEntradaEtapaAtual(
+  dataEntradaLab: Date,
+  indiceAtual: number,
+  totalEtapas: number
+) {
+  if (indiceAtual <= 0 || totalEtapas <= 1) return dataEntradaLab;
+  const ratio = indiceAtual / totalEtapas;
+  const ms = Date.now() - dataEntradaLab.getTime();
+  return new Date(dataEntradaLab.getTime() + ms * ratio);
+}
+
+async function resolverMapaEtapaDesde(
+  empresaId: string,
+  candidatos: Array<{
+    trabalho: TrabalhoTvRow;
+    etapas: EtapaOsLinha[];
+    etapaAtual?: EtapaOsLinha;
+    itemChave: string;
+  }>,
+  mapaConcluidas: MapaEtapasConcluidas
+): Promise<Map<string, Date>> {
+  const itensHistorico = candidatos
+    .filter((c) => c.etapaAtual?.nome)
+    .map((c) => {
+      const parsed = parseChaveEtapasModulo(c.itemChave);
+      return {
+        trabalhoId: c.trabalho.id,
+        etapaNome: c.etapaAtual!.nome,
+        itemId: parsed?.itemId,
+      };
+    });
+
+  const mapaHistorico = await mapaEntradaEtapaAberta(empresaId, itensHistorico);
+  const mapaResultado = new Map<string, Date>();
+
+  for (const candidato of candidatos) {
+    const { trabalho, etapas, etapaAtual, itemChave } = candidato;
+    if (!etapaAtual?.nome) {
+      mapaResultado.set(trabalho.id, trabalho.dataEntrada);
+      continue;
+    }
+
+    const chaveHist = chaveEntradaEtapaHistorico(trabalho.id, etapaAtual.nome);
+    const doHistorico = mapaHistorico.get(chaveHist);
+    if (doHistorico) {
+      mapaResultado.set(trabalho.id, doHistorico);
+      continue;
+    }
+
+    const parsed = parseChaveEtapasModulo(itemChave);
+    const concluidas = mapaConcluidas[itemChave] ?? [];
+    const indiceAtual = indiceEtapaAtualDeConcluidas(concluidas, etapas.length);
+    const dataEntradaEstimada =
+      indiceAtual <= 0
+        ? trabalho.dataEntrada
+        : estimarEntradaEtapaAtual(
+            trabalho.dataEntrada,
+            indiceAtual,
+            etapas.length
+          );
+
+    const dataEntrada = await garantirEntradaEtapaAbertaTv({
+      empresaId,
+      trabalhoId: trabalho.id,
+      numeroOs: trabalho.numeroOs,
+      clienteId: trabalho.clienteId,
+      itemId: parsed?.itemId,
+      etapaNome: etapaAtual.nome,
+      colaboradorNome: etapaAtual.responsavel ?? null,
+      dataEntrada: dataEntradaEstimada,
+    });
+
+    mapaResultado.set(trabalho.id, dataEntrada);
+  }
+
+  return mapaResultado;
+}
+
 function trabalhoParaOrdem(
   trabalho: TrabalhoTvRow,
   etapasGrupo: EtapaOsLinha[],
   mapaConcluidas: MapaEtapasConcluidas,
   colaboradoresCadastro: ColaboradorCadastro[],
-  instrucoesGrupo: string[] = []
+  instrucoesGrupo: string[] = [],
+  etapaDesde: Date
 ) {
   const moduloOs: TrabalhoModuloOs = {
     id: trabalho.id,
@@ -282,7 +368,7 @@ function trabalhoParaOrdem(
     status: statusLabel,
     coluna,
     atrasada,
-    etapaDesde: trabalho.updatedAt.toISOString(),
+    etapaDesde: etapaDesde.toISOString(),
   };
 }
 
@@ -383,6 +469,13 @@ export async function carregarOrdensTv(
   }
 
   const ordens: OrdemServicoTv[] = [];
+  const candidatosEtapa: Array<{
+    trabalho: TrabalhoTvRow;
+    etapas: EtapaOsLinha[];
+    etapaAtual?: EtapaOsLinha;
+    itemChave: string;
+    instrucoesGrupo: string[];
+  }> = [];
 
   for (const grupo of porNumero.values()) {
     const principal = escolherTrabalhoPrincipal(grupo);
@@ -390,9 +483,36 @@ export async function carregarOrdensTv(
 
     const instrucoesGrupo = grupo.map((t) => t.instrucoes || "");
     const { etapas } = parseComplementosInstrucoesGrupo(instrucoesGrupo);
+    const { etapaAtual, itemChave } = resolverColunaAtual(principal, etapas, mapa);
+
+    candidatosEtapa.push({
+      trabalho: principal,
+      etapas,
+      etapaAtual,
+      itemChave,
+      instrucoesGrupo,
+    });
+  }
+
+  const mapaEtapaDesde = await resolverMapaEtapaDesde(
+    empresaId,
+    candidatosEtapa,
+    mapa
+  );
+
+  for (const candidato of candidatosEtapa) {
+    const etapaDesde =
+      mapaEtapaDesde.get(candidato.trabalho.id) ?? candidato.trabalho.dataEntrada;
 
     ordens.push(
-      trabalhoParaOrdem(principal, etapas, mapa, colabCadastro, instrucoesGrupo)
+      trabalhoParaOrdem(
+        candidato.trabalho,
+        candidato.etapas,
+        mapa,
+        colabCadastro,
+        candidato.instrucoesGrupo,
+        etapaDesde
+      )
     );
   }
 

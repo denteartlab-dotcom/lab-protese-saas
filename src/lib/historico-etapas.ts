@@ -336,6 +336,99 @@ export async function carregarContextoTrabalhoEtapa(trabalhoId: string) {
   return { trabalho, etapas };
 }
 
+export async function mapaEntradaEtapaAberta(
+  empresaId: string,
+  itens: Array<{
+    trabalhoId: string;
+    etapaNome: string;
+    itemId?: string | null;
+  }>
+): Promise<Map<string, Date>> {
+  await garantirTabelaHistoricoEtapas();
+  const result = new Map<string, Date>();
+  if (!itens.length) return result;
+
+  const trabalhoIds = [...new Set(itens.map((i) => i.trabalhoId))];
+  const rows = await prisma.historicoEtapa.findMany({
+    where: {
+      trabalhoId: { in: trabalhoIds },
+      dataSaida: null,
+      OR: [{ empresaId }, { empresaId: null }],
+    },
+    orderBy: { dataEntrada: "desc" },
+  });
+
+  const porTrabalho = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const lista = porTrabalho.get(row.trabalhoId) ?? [];
+    lista.push(row);
+    porTrabalho.set(row.trabalhoId, lista);
+  }
+
+  for (const item of itens) {
+    const nome = item.etapaNome?.trim();
+    if (!nome) continue;
+
+    const chave = chaveEntradaEtapaHistorico(item.trabalhoId, nome);
+    const alvo = normalizarEtapaHistorico(nome).toLowerCase();
+    const lista = porTrabalho.get(item.trabalhoId) ?? [];
+    const match =
+      lista.find(
+        (r) =>
+          normalizarEtapaHistorico(r.etapa).toLowerCase() === alvo &&
+          (item.itemId == null || !item.itemId || r.itemId === item.itemId)
+      ) ??
+      lista.find((r) => normalizarEtapaHistorico(r.etapa).toLowerCase() === alvo);
+
+    if (match) result.set(chave, match.dataEntrada);
+  }
+
+  return result;
+}
+
+export function chaveEntradaEtapaHistorico(trabalhoId: string, etapaNome: string) {
+  return `${trabalhoId}:${normalizarEtapaHistorico(etapaNome).toLowerCase()}`;
+}
+
+/** Garante registro aberto da etapa atual (corrige legado sem histórico). */
+export async function garantirEntradaEtapaAbertaTv(opts: {
+  empresaId: string;
+  trabalhoId: string;
+  numeroOs: number;
+  clienteId: string;
+  itemId?: string | null;
+  etapaNome: string;
+  colaboradorNome?: string | null;
+  dataEntrada?: Date;
+}) {
+  const etapaNorm = normalizarEtapaHistorico(opts.etapaNome);
+  if (!etapaNorm) return opts.dataEntrada ?? new Date();
+
+  await garantirTabelaHistoricoEtapas();
+  const existente = await prisma.historicoEtapa.findFirst({
+    where: {
+      trabalhoId: opts.trabalhoId,
+      dataSaida: null,
+      etapa: etapaNorm,
+      ...(opts.itemId ? { itemId: opts.itemId } : {}),
+    },
+    orderBy: { dataEntrada: "desc" },
+  });
+  if (existente) return existente.dataEntrada;
+
+  const registro = await registrarTransicaoEtapa({
+    empresaId: opts.empresaId,
+    trabalhoId: opts.trabalhoId,
+    numeroOs: opts.numeroOs,
+    clienteId: opts.clienteId,
+    itemId: opts.itemId,
+    etapaNova: opts.etapaNome,
+    colaboradorNome: opts.colaboradorNome,
+    dataEntrada: opts.dataEntrada ?? new Date(),
+  });
+  return registro?.dataEntrada ?? opts.dataEntrada ?? new Date();
+}
+
 export async function registrarMudancaIndiceEtapa(opts: {
   trabalhoId: string;
   itemId?: string | null;

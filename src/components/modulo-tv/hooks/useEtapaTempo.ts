@@ -16,7 +16,12 @@ export function useEtapaTempo(etapaDesde: string) {
 
   useEffect(() => {
     const atualizar = () => {
-      const ms = Date.now() - new Date(etapaDesde).getTime();
+      const inicio = new Date(etapaDesde).getTime();
+      if (Number.isNaN(inicio)) {
+        setLabel("—");
+        return;
+      }
+      const ms = Date.now() - inicio;
       setLabel(formatarDuracao(ms));
     };
     atualizar();
