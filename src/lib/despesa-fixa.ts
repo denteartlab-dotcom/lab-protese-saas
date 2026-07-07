@@ -88,6 +88,10 @@ export function mesEfetivoInstanciaDespesaFixa(item: LancamentoDespesaFixa) {
   return mesInstanciaDespesaFixa(item) || mesReferenciaDeVencimentoIso(item.data);
 }
 
+/**
+ * Instância de mês futuro (ex.: agosto gerado indevidamente em julho).
+ * Meses passados em atraso NÃO são removidos — ficam até serem pagos.
+ */
 export function instanciaFixaEhFutura(
   item: LancamentoDespesaFixa,
   referencia = mesReferenciaAtual()
@@ -95,13 +99,8 @@ export function instanciaFixaEhFutura(
   const pack = desempacotarDespesa(item.descricao);
   if (!pack.meta.fixa || !pack.meta.fixaGrupoId) return false;
 
-  const mesMeta = pack.meta.fixaMes;
-  const mesVencimento = mesReferenciaDeVencimentoIso(item.data);
-
-  if (mesMeta && mesReferenciaEhFuturo(mesMeta, referencia)) return true;
-  if (mesReferenciaEhFuturo(mesVencimento, referencia)) return true;
-
-  return false;
+  const mesInstancia = mesEfetivoInstanciaDespesaFixa(item);
+  return mesReferenciaEhFuturo(mesInstancia, referencia);
 }
 
 export function mesPrimeiraInstanciaGrupoFixa(
@@ -120,7 +119,7 @@ export function mesPrimeiraInstanciaGrupoFixa(
 
 /**
  * Despesa fixa gera no máximo uma instância por mês, somente no mês vigente.
- * Meses posteriores ao primeiro cadastro só entram a partir do dia 1 daquele mês.
+ * Meses anteriores em atraso permanecem na lista até o pagamento.
  */
 export function podeGerarInstanciaFixaMesCorrente(
   mesReferencia: string,
@@ -133,14 +132,14 @@ export function podeGerarInstanciaFixaMesCorrente(
   const mesPrimeiro = mesPrimeiraInstanciaGrupoFixa(lancamentos, grupoId);
   if (!mesPrimeiro) return false;
   if (compararMesReferencia(mesAtual, mesPrimeiro) < 0) return false;
+  if (grupoFixaTemInstanciaNoMes(lancamentos, grupoId, mesAtual)) return false;
 
   return true;
 }
 
-/** Instâncias duplicadas do mesmo grupo no mesmo mês (legado / corrida). */
+/** Duplicatas do mesmo grupo no mesmo mês — mantém a instância mais antiga (ou paga). */
 export function idsInstanciasFixasDuplicadas(lancamentos: LancamentoDespesaFixa[]) {
-  const vistos = new Map<string, string>();
-  const duplicados: string[] = [];
+  const porChave = new Map<string, LancamentoDespesaFixa[]>();
 
   for (const item of lancamentos) {
     const pack = desempacotarDespesa(item.descricao);
@@ -150,13 +149,26 @@ export function idsInstanciasFixasDuplicadas(lancamentos: LancamentoDespesaFixa[
 
     const mes = mesEfetivoInstanciaDespesaFixa(item);
     const chave = `${pack.meta.fixaGrupoId}:${mes}`;
+    const lista = porChave.get(chave) || [];
+    lista.push(item);
+    porChave.set(chave, lista);
+  }
 
-    if (!vistos.has(chave)) {
-      vistos.set(chave, item.id);
-      continue;
+  const duplicados: string[] = [];
+
+  for (const instancias of porChave.values()) {
+    if (instancias.length <= 1) continue;
+
+    const ordenadas = [...instancias].sort((a, b) => {
+      const aPago = a.status === "pago" ? 0 : 1;
+      const bPago = b.status === "pago" ? 0 : 1;
+      if (aPago !== bPago) return aPago - bPago;
+      return a.id.localeCompare(b.id);
+    });
+
+    for (const extra of ordenadas.slice(1)) {
+      duplicados.push(extra.id);
     }
-
-    duplicados.push(item.id);
   }
 
   return duplicados;
@@ -523,7 +535,6 @@ export async function sincronizarDespesasFixaRemoto(
     if (!template) continue;
 
     if (!podeGerarInstanciaFixaMesCorrente(mesAtual, lancamentos, grupoId)) continue;
-    if (grupoFixaTemInstanciaNoMes(lancamentos, grupoId, mesAtual)) continue;
     if (mesIgnoradoDespesaFixa(lancamentos, grupoId, mesAtual)) continue;
 
     const parcelasMes = parcelasInstanciaFixaNoMes(template, mesAtual);

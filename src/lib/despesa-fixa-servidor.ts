@@ -123,7 +123,6 @@ async function sincronizarDespesasFixaServidor(
     if (!template) continue;
 
     if (!podeGerarInstanciaFixaMesCorrente(mesAtual, lancamentos, grupoId)) continue;
-    if (grupoFixaTemInstanciaNoMes(lancamentos, grupoId, mesAtual)) continue;
     if (mesIgnoradoDespesaFixa(lancamentos, grupoId, mesAtual)) continue;
 
     const parcelasMes = parcelasInstanciaFixaNoMes(template, mesAtual);

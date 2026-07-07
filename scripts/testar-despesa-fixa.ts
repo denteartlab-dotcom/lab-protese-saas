@@ -68,12 +68,30 @@ assert(
 );
 
 assert(
-  podeGerarInstanciaFixaMesCorrente(mesAtual, [julho], grupo),
-  "Pode gerar se ainda não existe instância do mês"
+  !podeGerarInstanciaFixaMesCorrente(mesAtual, [julho], grupo),
+  "Não gera se já existe instância do mês"
+);
+assert(
+  !podeGerarInstanciaFixaMesCorrente(mesAtual, [], grupo),
+  "Não gera sem histórico do grupo"
 );
 assert(
   !podeGerarInstanciaFixaMesCorrente(proxMes, [julho], grupo),
   "Não gera mês futuro"
+);
+
+const mesAnterior =
+  mesNum === "01"
+    ? `${Number(ano) - 1}-12`
+    : `${ano}-${String(Number(mesNum) - 1).padStart(2, "0")}`;
+const julhoAtrasado = item("jul-atraso", mesAnterior, `${mesAnterior}-07`);
+assert(
+  !instanciaFixaEhFutura(julhoAtrasado, mesAtual),
+  "Parcela vencida do mês anterior permanece após virada de mês"
+);
+assert(
+  !idsInstanciasFixasIndevidas([julhoAtrasado, julho]).includes("jul-atraso"),
+  "Não remove atraso do mês anterior ao gerar mês vigente"
 );
 
 const venc = vencimentoParcelaNoMes(mesAtual, 7, 0);
