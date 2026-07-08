@@ -120,6 +120,7 @@ export function DisparosWhatsappConteudo() {
   const [socketOnline, setSocketOnline] = useState(false);
   const [aguardandoQr, setAguardandoQr] = useState(false);
   const [qrModalAberto, setQrModalAberto] = useState(false);
+  const [apiNaoAutorizada, setApiNaoAutorizada] = useState(false);
 
   const toast = useCallback((tipo: ToastDisparo["tipo"], mensagem: string) => {
     setToasts((prev) => [...prev, { id: `${Date.now()}-${Math.random()}`, tipo, mensagem }]);
@@ -144,22 +145,36 @@ export function DisparosWhatsappConteudo() {
 
   const recarregar = useCallback(async () => {
     try {
+      const opts: RequestInit = { cache: "no-store", credentials: "same-origin" };
       const [dashRes, campRes] = await Promise.all([
-        fetch("/api/disparos-whatsapp/conexao", { cache: "no-store" }),
-        fetch("/api/disparos-whatsapp/campanhas", { cache: "no-store" }),
+        fetch("/api/disparos-whatsapp/conexao", opts),
+        fetch("/api/disparos-whatsapp/campanhas", opts),
       ]);
-      const dash = (await dashRes.json()) as DashboardData;
-      const campData = (await campRes.json()) as { campanhas: CampanhaPublica[] };
-      setDashboard(dash);
-      setCampanhas(campData.campanhas || []);
-      if (dash.conexao.qr) {
-        await aplicarQr(dash.conexao.qr);
-      } else if (dash.conexao.conectado) {
-        setQrImagem(null);
+
+      if (dashRes.ok) {
+        setApiNaoAutorizada(false);
+        const dash = (await dashRes.json()) as DashboardData;
+        if (dash?.conexao) {
+          setDashboard(dash);
+          if (dash.conexao.qr) {
+            await aplicarQr(dash.conexao.qr);
+          } else if (dash.conexao.conectado) {
+            setQrImagem(null);
+            setAguardandoQr(false);
+          } else if (dash.conexao.status !== "aguardando_qr") {
+            setQrImagem(null);
+          }
+        }
+      } else if (dashRes.status === 401) {
         setAguardandoQr(false);
-      } else if (dash.conexao.status !== "aguardando_qr") {
-        setQrImagem(null);
       }
+
+      if (campRes.ok) {
+        const campData = (await campRes.json()) as { campanhas?: CampanhaPublica[] };
+        setCampanhas(campData.campanhas ?? []);
+      }
+    } catch {
+      setAguardandoQr(false);
     } finally {
       setCarregando(false);
     }
@@ -187,26 +202,27 @@ export function DisparosWhatsappConteudo() {
   useDisparosSocket({
     onSocketStatus: setSocketOnline,
     onConexao: (payload) => {
-      setDashboard((prev) =>
-        prev
-          ? {
-              ...prev,
-              conexao: {
-                ...prev.conexao,
-                conectado: payload.conectado,
-                baileysOnline: true,
-                numero: payload.numero,
-                ultimaConexao: payload.ultimaConexao,
-                qr: payload.qr,
-                status: payload.conectado
-                  ? "conectado"
-                  : payload.qr
-                    ? "aguardando_qr"
-                    : "desconectado",
-              },
-            }
-          : prev
-      );
+      setDashboard((prev) => {
+        const conexao = {
+          conectado: payload.conectado,
+          baileysOnline: true,
+          numero: payload.numero,
+          ultimaConexao: payload.ultimaConexao,
+          qr: payload.qr,
+          status: payload.conectado
+            ? "conectado"
+            : payload.qr
+              ? "aguardando_qr"
+              : "desconectado",
+        };
+        if (prev) {
+          return { ...prev, conexao };
+        }
+        return {
+          conexao,
+          metricas: { totalCampanhas: 0, enviadasHoje: 0, pendentes: 0, falhas: 0 },
+        };
+      });
       if (payload.conectado) {
         setAguardandoQr(false);
         setQrImagem(null);
@@ -258,7 +274,10 @@ export function DisparosWhatsappConteudo() {
     setAguardandoQr(true);
     setQrImagem(null);
     try {
-      const res = await fetch("/api/disparos-whatsapp/conexao", { method: "POST" });
+      const res = await fetch("/api/disparos-whatsapp/conexao", {
+        method: "POST",
+        credentials: "same-origin",
+      });
       const data = (await res.json()) as {
         ok?: boolean;
         error?: string;
