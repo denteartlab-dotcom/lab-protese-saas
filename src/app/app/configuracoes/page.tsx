@@ -22,7 +22,7 @@ import { ConfiguracoesGeraisTab } from "@/components/configuracoes/Configuracoes
 import { ConfiguracoesOsTab } from "@/components/configuracoes/ConfiguracoesOsTab";
 import { ConfiguracoesFaturasTab } from "@/components/configuracoes/ConfiguracoesFaturasTab";
 import { ConfiguracoesEtiquetasTab } from "@/components/configuracoes/ConfiguracoesEtiquetasTab";
-import { ConfiguracoesWhatsappTab } from "@/components/configuracoes/ConfiguracoesWhatsappTab";
+import { ConfiguracoesMensagensTab } from "@/components/configuracoes/ConfiguracoesMensagensTab";
 import { LogoLaboratorioTab } from "@/components/LogoLaboratorioTab";
 import { useI18n } from "@/components/i18n-provider";
 import {
@@ -44,8 +44,8 @@ const abasPagina: Array<{ id: string; labelKey: MessageKey; href?: string }> = [
   { id: "horario", labelKey: "settings.horario" },
   { id: "nfse", labelKey: "settings.nfse" },
   { id: "boletos", labelKey: "settings.boletos" },
-  { id: "whatsapp", labelKey: "settings.whatsapp" },
   { id: "gerais", labelKey: "settings.gerais" },
+  { id: "mensagens", labelKey: "settings.mensagens" },
   { id: "os", labelKey: "settings.os" },
   { id: "faturas", labelKey: "settings.faturas" },
   { id: "etiquetas", labelKey: "settings.etiquetas" },
@@ -64,7 +64,8 @@ const titulosAbaKeys: Record<string, MessageKey> = {
   cabecalho: "settings.cabecalho",
   gerais: "settings.gerais",
   boletos: "settings.boletos",
-  whatsapp: "settings.whatsapp",
+  gerais: "settings.gerais",
+  mensagens: "settings.mensagens",
   os: "settings.os",
   faturas: "settings.faturas",
   etiquetas: "settings.etiquetas",
@@ -102,6 +103,10 @@ function ConfiguracoesConteudo() {
   useEffect(() => {
     if (aba === "cabecalho") {
       router.replace("/app/configuracoes/cabecalho");
+      return;
+    }
+    if (aba === "whatsapp") {
+      router.replace("/app/configuracoes?aba=mensagens");
       return;
     }
     if (!abasPermitidas.length) {
@@ -353,8 +358,8 @@ function ConfiguracoesConteudo() {
             </>
           ) : aba === "boletos" ? (
             <ConfiguracoesBoletosTab />
-          ) : aba === "whatsapp" ? (
-            <ConfiguracoesWhatsappTab />
+          ) : aba === "mensagens" ? (
+            <ConfiguracoesMensagensTab />
           ) : aba === "horario" ? (
             <>
               <HorarioFuncionamentoTab

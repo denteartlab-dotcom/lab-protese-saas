@@ -95,7 +95,13 @@ function labelStatus(status: string) {
   return map[status] || status;
 }
 
-export function DisparosWhatsappConteudo() {
+export function DisparosWhatsappConteudo({
+  embedded = false,
+  historicoHref = "/app/disparos-whatsapp/historico",
+}: {
+  embedded?: boolean;
+  historicoHref?: string;
+}) {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [campanhas, setCampanhas] = useState<CampanhaPublica[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -290,14 +296,20 @@ export function DisparosWhatsappConteudo() {
   const metricas = dashboard?.metricas;
 
   return (
-    <div className="space-y-6 pb-10">
+    <div className={embedded ? "space-y-6" : "space-y-6 pb-10"}>
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-800 dark:text-slate-100">Disparos WhatsApp</h1>
-          <p className="mt-1 text-sm text-slate-500">Crie e gerencie campanhas de WhatsApp com envio automático.</p>
-        </div>
+        {!embedded ? (
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-800 dark:text-slate-100">Disparos WhatsApp</h1>
+            <p className="mt-1 text-sm text-slate-500">Crie e gerencie campanhas de WhatsApp com envio automático.</p>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500">
+            Crie e gerencie campanhas de WhatsApp com envio automático pelo número do laboratório.
+          </p>
+        )}
         <div className="flex flex-wrap gap-2">
-          <Link href="/app/disparos-whatsapp/historico">
+          <Link href={historicoHref}>
             <Button variant="outline" size="sm">
               <History className="h-4 w-4" />
               Histórico
