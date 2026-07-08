@@ -244,8 +244,13 @@ const server = http.createServer(async (req, res) => {
       if (!autorizado(req)) {
         return json(res, 401, { ok: false, error: "Não autorizado" });
       }
-      if (!iniciando && !conectado) void conectar();
-      return json(res, 200, { ok: true });
+      if (!conectado && !sock && !iniciando) void conectar();
+      return json(res, 200, {
+        ok: true,
+        connected: conectado,
+        qr: qrAtual || null,
+        phone: numeroConectado,
+      });
     }
 
     json(res, 404, { ok: false, error: "Rota não encontrada" });

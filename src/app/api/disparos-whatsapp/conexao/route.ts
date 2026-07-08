@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 import { baileysStatus, baileysReconectar } from "@/lib/whatsapp-disparos/baileys-service";
 import {
+  aguardarQrBaileys,
+  sincronizarConexaoWhatsappSocket,
+} from "@/lib/whatsapp-disparos/conexao-monitor";
+import {
   metricasDisparosWhatsapp,
   obterSessaoWhatsapp,
   sincronizarSessaoWhatsapp,
@@ -18,6 +22,7 @@ export async function GET() {
     obterSessaoWhatsapp(ctx.empresaId),
   ]);
 
+  const baileysOnline = status !== null;
   const conectado = Boolean(status?.connected);
   const numero = status?.connected
     ? formatarTelefoneExibicao(String((status as { phone?: string }).phone || sessao?.numeroConectado || ""))
@@ -33,10 +38,17 @@ export async function GET() {
   return NextResponse.json({
     conexao: {
       conectado,
+      baileysOnline,
       numero,
       ultimaConexao: sessao?.ultimaConexaoEm?.toISOString() || null,
       qr: status?.qr || null,
-      status: conectado ? "conectado" : status?.qr ? "aguardando_qr" : "desconectado",
+      status: !baileysOnline
+        ? "servico_offline"
+        : conectado
+          ? "conectado"
+          : status?.qr
+            ? "aguardando_qr"
+            : "desconectado",
     },
     metricas,
   });
@@ -47,10 +59,13 @@ export async function POST() {
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   await baileysReconectar();
-  const status = await baileysStatus();
+  const status = await aguardarQrBaileys(20);
+  void sincronizarConexaoWhatsappSocket();
+
   return NextResponse.json({
     ok: true,
     qr: status?.qr || null,
     conectado: Boolean(status?.connected),
+    baileysOnline: status !== null,
   });
 }

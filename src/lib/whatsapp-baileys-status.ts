@@ -29,8 +29,6 @@ export function urlHealthBaileys() {
 }
 
 export async function consultarStatusBaileys(): Promise<StatusWhatsappBaileys | null> {
-  if (!process.env.WHATSAPP_HTTP_URL?.trim()) return null;
-
   try {
     const res = await fetch(urlStatusBaileys(), {
       cache: "no-store",
@@ -47,4 +45,12 @@ export async function consultarStatusBaileys(): Promise<StatusWhatsappBaileys | 
   } catch {
     return null;
   }
+}
+
+export function baileysServicoConfigurado() {
+  return Boolean(
+    process.env.WHATSAPP_HTTP_URL?.trim() ||
+      process.env.WHATSAPP_BAILEYS_PORT?.trim() ||
+      process.env.WHATSAPP_BAILEYS_STATUS_URL?.trim()
+  );
 }

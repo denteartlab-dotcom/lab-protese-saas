@@ -46,6 +46,7 @@ import {
   salaDisparoEmpresa,
 } from "./src/lib/whatsapp-disparos/disparos-socket-events";
 import { retomarCampanhasPendentesServidor } from "./src/lib/whatsapp-disparos/campaign-queue";
+import { iniciarMonitorConexaoWhatsapp } from "./src/lib/whatsapp-disparos/conexao-monitor";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME || "0.0.0.0";
@@ -276,6 +277,7 @@ app
       httpServer.listen(port, () => {
         console.log(`> Lab Prótese pronto em http://${hostname}:${port}`);
         console.log(`> Socket.io TV: ${TV_SOCKET_PATH}`);
+        iniciarMonitorConexaoWhatsapp();
 
         if (dev && process.env.DEV_PREWARM !== "0") {
           const base = `http://127.0.0.1:${port}`;

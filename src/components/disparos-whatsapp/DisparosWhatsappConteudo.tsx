@@ -33,6 +33,7 @@ import type { CampanhaPublica } from "@/lib/whatsapp-disparos/campanha-servidor"
 type DashboardData = {
   conexao: {
     conectado: boolean;
+    baileysOnline?: boolean;
     numero: string | null;
     ultimaConexao: string | null;
     qr: string | null;
@@ -116,10 +117,22 @@ export function DisparosWhatsappConteudo() {
   const [toasts, setToasts] = useState<ToastDisparo[]>([]);
   const [excluirId, setExcluirId] = useState<string | null>(null);
   const [processando, setProcessando] = useState(false);
+  const [socketOnline, setSocketOnline] = useState(false);
+  const [aguardandoQr, setAguardandoQr] = useState(false);
 
   const toast = useCallback((tipo: ToastDisparo["tipo"], mensagem: string) => {
     setToasts((prev) => [...prev, { id: `${Date.now()}-${Math.random()}`, tipo, mensagem }]);
   }, []);
+
+  const aplicarQr = useCallback(async (qr: string | null) => {
+    if (qr) {
+      const img = await QRCode.toDataURL(qr, { width: 200, margin: 1 });
+      setQrImagem(img);
+      setAguardandoQr(false);
+    } else if (!dashboard?.conexao?.conectado) {
+      setQrImagem(null);
+    }
+  }, [dashboard?.conexao?.conectado]);
 
   const recarregar = useCallback(async () => {
     try {
@@ -132,25 +145,27 @@ export function DisparosWhatsappConteudo() {
       setDashboard(dash);
       setCampanhas(campData.campanhas || []);
       if (dash.conexao.qr) {
-        const img = await QRCode.toDataURL(dash.conexao.qr, { width: 88, margin: 0 });
-        setQrImagem(img);
+        await aplicarQr(dash.conexao.qr);
       } else if (dash.conexao.conectado) {
         setQrImagem(null);
-      } else {
+        setAguardandoQr(false);
+      } else if (dash.conexao.status !== "aguardando_qr") {
         setQrImagem(null);
       }
     } finally {
       setCarregando(false);
     }
-  }, []);
+  }, [aplicarQr]);
 
   useEffect(() => {
     void recarregar();
-    const timer = window.setInterval(() => void recarregar(), 8000);
+    const intervalo = aguardandoQr ? 2000 : 8000;
+    const timer = window.setInterval(() => void recarregar(), intervalo);
     return () => window.clearInterval(timer);
-  }, [recarregar]);
+  }, [recarregar, aguardandoQr]);
 
   useDisparosSocket({
+    onSocketStatus: setSocketOnline,
     onConexao: (payload) => {
       setDashboard((prev) =>
         prev
@@ -159,20 +174,28 @@ export function DisparosWhatsappConteudo() {
               conexao: {
                 ...prev.conexao,
                 conectado: payload.conectado,
+                baileysOnline: true,
                 numero: payload.numero,
                 ultimaConexao: payload.ultimaConexao,
                 qr: payload.qr,
-                status: payload.conectado ? "conectado" : payload.qr ? "aguardando_qr" : "desconectado",
+                status: payload.conectado
+                  ? "conectado"
+                  : payload.qr
+                    ? "aguardando_qr"
+                    : "desconectado",
               },
             }
           : prev
       );
+      if (payload.conectado) {
+        setAguardandoQr(false);
+        setQrImagem(null);
+      } else if (payload.qr) {
+        void aplicarQr(payload.qr);
+      }
     },
     onQr: async (qr) => {
-      if (qr) {
-        const img = await QRCode.toDataURL(qr, { width: 88, margin: 0 });
-        setQrImagem(img);
-      } else setQrImagem(null);
+      await aplicarQr(qr);
     },
     onProgresso: (p) => {
       setProgresso({
@@ -212,13 +235,29 @@ export function DisparosWhatsappConteudo() {
 
   async function gerarQr() {
     setProcessando(true);
+    setAguardandoQr(true);
     try {
       const res = await fetch("/api/disparos-whatsapp/conexao", { method: "POST" });
-      const data = await res.json();
+      const data = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        qr?: string | null;
+        baileysOnline?: boolean;
+      };
       if (!res.ok) throw new Error(data.error || "Falha ao gerar QR");
+
+      if (data.baileysOnline === false) {
+        throw new Error(
+          "Serviço WhatsApp offline. Inicie com: npm run whatsapp:baileys ou pm2 restart lab-protese-whatsapp"
+        );
+      }
+
+      if (data.qr) await aplicarQr(data.qr);
+      else void recarregar();
+
       toast("sucesso", "QR Code atualizado. Escaneie com o WhatsApp.");
-      void recarregar();
     } catch (err) {
+      setAguardandoQr(false);
       toast("erro", err instanceof Error ? err.message : "Erro ao gerar QR Code");
     } finally {
       setProcessando(false);
@@ -356,13 +395,33 @@ export function DisparosWhatsappConteudo() {
             <p className="text-xs font-medium text-slate-500">Conexão WhatsApp</p>
             <span
               className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                conexao?.conectado ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                conexao?.conectado
+                  ? "bg-emerald-50 text-emerald-700"
+                  : conexao?.baileysOnline === false
+                    ? "bg-red-50 text-red-700"
+                    : aguardandoQr || conexao?.status === "aguardando_qr"
+                      ? "bg-blue-50 text-blue-700"
+                      : "bg-amber-50 text-amber-700"
               }`}
             >
               <span
-                className={`h-1.5 w-1.5 rounded-full ${conexao?.conectado ? "bg-emerald-500" : "bg-amber-500"}`}
+                className={`h-1.5 w-1.5 rounded-full ${
+                  conexao?.conectado
+                    ? "bg-emerald-500"
+                    : conexao?.baileysOnline === false
+                      ? "bg-red-500"
+                      : aguardandoQr || conexao?.status === "aguardando_qr"
+                        ? "bg-blue-500 animate-pulse"
+                        : "bg-amber-500"
+                }`}
               />
-              {conexao?.conectado ? "Conectado" : "Desconectado"}
+              {conexao?.conectado
+                ? "Conectado"
+                : conexao?.baileysOnline === false
+                  ? "Serviço offline"
+                  : aguardandoQr || conexao?.status === "aguardando_qr"
+                    ? "Aguardando QR"
+                    : "Desconectado"}
             </span>
           </div>
           <div className="mt-2 flex items-end justify-between gap-2">
@@ -373,15 +432,25 @@ export function DisparosWhatsappConteudo() {
               <p className="mt-0.5 text-[10px] text-slate-400">
                 Última conexão: {fmtUltimaConexao(conexao?.ultimaConexao)}
               </p>
+              {!socketOnline ? (
+                <p className="mt-1 text-[10px] font-medium text-amber-600">
+                  WebSocket offline — use npm run dev:server ou pm2 restart lab-protese
+                </p>
+              ) : null}
+              {conexao?.baileysOnline === false ? (
+                <p className="mt-1 text-[10px] font-medium text-red-600">
+                  Baileys offline — npm run whatsapp:baileys
+                </p>
+              ) : null}
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {!conexao?.conectado ? (
                   <button
                     type="button"
                     onClick={() => void gerarQr()}
-                    disabled={processando}
+                    disabled={processando || conexao?.baileysOnline === false}
                     className="rounded-md bg-indigo-600 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
                   >
-                    Gerar QR Code
+                    {processando ? "Gerando…" : "Gerar QR Code"}
                   </button>
                 ) : null}
                 {conexao?.conectado ? (
@@ -397,9 +466,20 @@ export function DisparosWhatsappConteudo() {
               </div>
             </div>
             {qrImagem ? (
-              <img src={qrImagem} alt="QR Code" className="h-[52px] w-[52px] shrink-0 rounded border border-slate-200" />
+              <button
+                type="button"
+                onClick={() => window.open(qrImagem, "_blank")}
+                title="Ampliar QR Code"
+                className="shrink-0 rounded-lg border border-slate-200 p-0.5 hover:border-indigo-300"
+              >
+                <img src={qrImagem} alt="QR Code WhatsApp" className="h-16 w-16 rounded-md" />
+              </button>
+            ) : aguardandoQr ? (
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-dashed border-indigo-200 bg-indigo-50">
+                <span className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+              </div>
             ) : (
-              <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded border border-dashed border-slate-200 bg-slate-50">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded border border-dashed border-slate-200 bg-slate-50">
                 <div className="grid grid-cols-3 gap-0.5 p-1">
                   {Array.from({ length: 9 }).map((_, i) => (
                     <span key={i} className="h-1 w-1 rounded-sm bg-slate-300" />

@@ -1,4 +1,4 @@
-import { consultarStatusBaileys } from "@/lib/whatsapp-baileys-status";
+import { consultarStatusBaileys, baileysServicoConfigurado } from "@/lib/whatsapp-baileys-status";
 import { formatWhatsAppPhone } from "@/lib/whatsapp";
 
 type BaileysSendResponse = { ok?: boolean; error?: string };
@@ -71,5 +71,5 @@ export async function baileysReconectar() {
 }
 
 export function baileysConfigurado() {
-  return Boolean(process.env.WHATSAPP_HTTP_URL?.trim());
+  return baileysServicoConfigurado();
 }
