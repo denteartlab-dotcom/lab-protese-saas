@@ -98,10 +98,10 @@ echo ""
 echo "==> Reiniciando aplicação..."
 if command -v pm2 >/dev/null 2>&1; then
   export APP_DIR
-  pm2 delete lab-protese 2>/dev/null || true
+  pm2 delete lab-protese lab-protese-whatsapp 2>/dev/null || true
   pm2 start deploy/ecosystem.config.cjs
   pm2 save
-  pm2 status lab-protese
+  pm2 status lab-protese lab-protese-whatsapp
 elif systemctl is-active --quiet lab-protese 2>/dev/null; then
   sudo systemctl restart lab-protese
   sudo systemctl status lab-protese --no-pager || true

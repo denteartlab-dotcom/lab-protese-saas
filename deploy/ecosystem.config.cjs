@@ -59,5 +59,29 @@ module.exports = {
       max_memory_restart: "3600M",
       time: true,
     },
+    {
+      name: "lab-protese-whatsapp",
+      cwd: appDir,
+      script: "scripts/whatsapp-baileys-server.mjs",
+      interpreter: "node",
+      env: {
+        ...envArquivo,
+        NODE_ENV: "production",
+        WHATSAPP_BAILEYS_PORT: envArquivo.WHATSAPP_BAILEYS_PORT || "3100",
+        WHATSAPP_HTTP_TOKEN: envArquivo.WHATSAPP_HTTP_TOKEN || "",
+        WHATSAPP_AUTH_DIR:
+          envArquivo.WHATSAPP_AUTH_DIR ||
+          path.join(appDir, "data", "whatsapp-auth"),
+      },
+      instances: 1,
+      exec_mode: "fork",
+      autorestart: true,
+      min_uptime: 10_000,
+      restart_delay: 5_000,
+      max_restarts: 30,
+      exp_backoff_restart_delay: 500,
+      max_memory_restart: "512M",
+      time: true,
+    },
   ],
 };

@@ -25,10 +25,11 @@ import {
 } from "@/lib/orcamentos-pagamento";
 import { formatCurrency } from "@/lib/utils";
 import {
-  abrirWhatsAppAprovacao,
-  abrirWhatsAppReenviarConferencia,
+  mensagemAprovacaoOrcamento,
+  mensagemReenviarOrcamentoConferencia,
   orcamentoPublicUrl,
 } from "@/lib/whatsapp";
+import { dispararOuAbrirWhatsapp } from "@/lib/whatsapp-disparo-cliente";
 import {
   OrcamentoFormModal,
   type FornecedorContato,
@@ -431,14 +432,15 @@ export default function OrcamentosPage() {
 
       const telefone = data.whatsappEnvio?.trim();
       if (telefone) {
-        const ok = abrirWhatsAppReenviarConferencia(
-          telefone,
+        const texto = mensagemReenviarOrcamentoConferencia(
           data.numeroPedido,
           url
         );
-        if (!ok) {
+        const resultado = await dispararOuAbrirWhatsapp(telefone, texto);
+        if (resultado.modo === "erro") {
           alert(
-            "Orçamento reaberto e link aberto no navegador. Não foi possível abrir o WhatsApp — verifique o número."
+            resultado.error ||
+              "Orçamento reaberto e link aberto no navegador. Não foi possível enviar pelo WhatsApp — verifique o número ou a conexão em Configurações → WhatsApp."
           );
         }
       } else {
@@ -454,20 +456,23 @@ export default function OrcamentosPage() {
     }
   }
 
-  function enviarAprovacaoWhatsApp(orcamento: Orcamento) {
+  async function enviarAprovacaoWhatsApp(orcamento: Orcamento) {
     const telefone = orcamento.whatsappEnvio?.trim();
     if (!telefone) {
       alert("Este pedido não possui WhatsApp do fornecedor cadastrado.");
       return;
     }
-    const ok = abrirWhatsAppAprovacao(
-      telefone,
+    const texto = mensagemAprovacaoOrcamento(
       orcamento.numeroPedido,
       orcamento.fornecedorNome || "Fornecedor",
       formatCurrency(totalLiquido(orcamento))
     );
-    if (!ok) {
-      alert("Não foi possível abrir o WhatsApp. Verifique o número do fornecedor.");
+    const resultado = await dispararOuAbrirWhatsapp(telefone, texto);
+    if (resultado.modo === "erro") {
+      alert(
+        resultado.error ||
+          "Não foi possível enviar pelo WhatsApp. Verifique o número ou a conexão em Configurações → WhatsApp."
+      );
     }
   }
 
@@ -630,7 +635,7 @@ export default function OrcamentosPage() {
                         {orcamento.status === "aprovado" && orcamento.whatsappEnvio ? (
                           <button
                             type="button"
-                            onClick={() => enviarAprovacaoWhatsApp(orcamento)}
+                            onClick={() => void enviarAprovacaoWhatsApp(orcamento)}
                             className="inline-flex h-7 w-7 items-center justify-center rounded-full text-emerald-600 transition hover:bg-emerald-50 hover:text-emerald-700"
                             title="Enviar resposta ao fornecedor no WhatsApp"
                           >

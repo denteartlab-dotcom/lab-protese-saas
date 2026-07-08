@@ -7,7 +7,8 @@ import {
   mensagemWhatsappExtratoConferencia,
   publicarExtratoPublica,
 } from "@/lib/extrato-publica-cliente";
-import { abrirWhatsAppFaturaConferencia, formatWhatsappInput } from "@/lib/whatsapp";
+import { formatWhatsappInput } from "@/lib/whatsapp";
+import { dispararOuAbrirWhatsapp } from "@/lib/whatsapp-disparo-cliente";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -63,9 +64,12 @@ export function EnviarExtratoWhatsappModal({
         clienteNome,
         publicUrl,
       });
-      const abriu = abrirWhatsAppFaturaConferencia(telefone, texto);
-      if (!abriu) {
-        window.alert("Não foi possível abrir o WhatsApp. Verifique o bloqueio de pop-ups.");
+      const resultado = await dispararOuAbrirWhatsapp(telefone, texto);
+      if (resultado.modo === "erro") {
+        window.alert(
+          resultado.error ||
+            "Não foi possível enviar pelo WhatsApp. Verifique o número ou a conexão em Configurações → WhatsApp."
+        );
         return;
       }
       onClose();

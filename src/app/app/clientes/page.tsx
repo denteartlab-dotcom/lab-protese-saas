@@ -6,7 +6,8 @@ import { BotoesListagemClientes } from "@/components/clientes/BotoesListagemClie
 import { ImportarClientesExcelModal } from "@/components/clientes/ImportarClientesExcelModal";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { Input, Modal } from "@/components/ui";
-import { abrirWhatsAppAcompanhamentoCliente } from "@/lib/whatsapp";
+import { mensagemAcompanhamentoCliente } from "@/lib/whatsapp";
+import { dispararOuAbrirWhatsapp } from "@/lib/whatsapp-disparo-cliente";
 import {
   abreviacaoCliente,
   dataNascimentoCliente,
@@ -640,14 +641,12 @@ export default function ClientesPage() {
         alert(data.error || "Não foi possível gerar o link de acompanhamento.");
         return;
       }
-      const ok = abrirWhatsAppAcompanhamentoCliente(
-        telefone,
-        cliente.nome,
-        data.publicUrl
-      );
-      if (!ok) {
+      const texto = mensagemAcompanhamentoCliente(cliente.nome, data.publicUrl);
+      const resultado = await dispararOuAbrirWhatsapp(telefone, texto);
+      if (resultado.modo === "erro") {
         alert(
-          "Link gerado, mas não foi possível abrir o WhatsApp. Verifique o número do cliente."
+          resultado.error ||
+            "Link gerado, mas não foi possível enviar pelo WhatsApp. Verifique o número ou a conexão em Configurações → WhatsApp."
         );
       }
     } catch {

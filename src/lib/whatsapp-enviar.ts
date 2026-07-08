@@ -17,7 +17,59 @@ function modoDevAtivo() {
   );
 }
 
-async function enviarViaMeta(
+/** Envio automático configurado no servidor (Baileys HTTP ou Meta). */
+export function whatsappAutomacaoServidorHabilitada() {
+  if (modoDevAtivo()) return true;
+  return Boolean(
+    process.env.WHATSAPP_HTTP_URL?.trim() || process.env.WHATSAPP_CLOUD_TOKEN?.trim()
+  );
+}
+
+export function whatsappBaileysConfigurado() {
+  return Boolean(process.env.WHATSAPP_HTTP_URL?.trim());
+}
+
+async function enviarViaMetaTexto(
+  telefone: string,
+  mensagem: string
+): Promise<ResultadoEnvioWhatsapp> {
+  const token = process.env.WHATSAPP_CLOUD_TOKEN?.trim();
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID?.trim();
+
+  if (!token || !phoneNumberId) {
+    return { ok: false, error: "WhatsApp Cloud API não configurada" };
+  }
+
+  const to = formatWhatsAppPhone(telefone);
+  const url = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to,
+      type: "text",
+      text: { body: mensagem },
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text().catch(() => "");
+    console.error("[whatsapp-meta]", res.status, err);
+    return {
+      ok: false,
+      error: "Não foi possível enviar a mensagem pelo WhatsApp",
+    };
+  }
+
+  return { ok: true, modo: "meta" };
+}
+
+async function enviarViaMetaTemplate(
   telefone: string,
   codigo: string,
   appName: string
@@ -33,29 +85,27 @@ async function enviarViaMeta(
   const to = formatWhatsAppPhone(telefone);
   const url = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
 
-  const body = {
-    messaging_product: "whatsapp",
-    to,
-    type: "template",
-    template: {
-      name: template,
-      language: { code: "pt_BR" },
-      components: [
-        {
-          type: "body",
-          parameters: [{ type: "text", text: codigo }],
-        },
-      ],
-    },
-  };
-
   const res = await fetch(url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to,
+      type: "template",
+      template: {
+        name: template,
+        language: { code: "pt_BR" },
+        components: [
+          {
+            type: "body",
+            parameters: [{ type: "text", text: codigo }],
+          },
+        ],
+      },
+    }),
   });
 
   if (!res.ok) {
@@ -72,8 +122,7 @@ async function enviarViaMeta(
 
 async function enviarViaHttp(
   telefone: string,
-  codigo: string,
-  appName: string
+  mensagem: string
 ): Promise<ResultadoEnvioWhatsapp> {
   const url = process.env.WHATSAPP_HTTP_URL?.trim();
   if (!url) {
@@ -91,21 +140,56 @@ async function enviarViaHttp(
     headers,
     body: JSON.stringify({
       phone: formatWhatsAppPhone(telefone),
-      message: mensagemCodigoCadastro(codigo, appName),
-      codigo,
+      message: mensagem,
     }),
   });
 
   if (!res.ok) {
     const err = await res.text().catch(() => "");
     console.error("[whatsapp-http]", res.status, err);
-    return {
-      ok: false,
-      error: "Não foi possível enviar o código pelo WhatsApp",
-    };
+    let mensagemErro = "Não foi possível enviar a mensagem pelo WhatsApp";
+    try {
+      const json = JSON.parse(err) as { error?: string };
+      if (json.error) mensagemErro = json.error;
+    } catch {
+      /* ignora */
+    }
+    return { ok: false, error: mensagemErro };
   }
 
   return { ok: true, modo: "http" };
+}
+
+/** Disparo genérico de texto pelo WhatsApp (Baileys, Meta ou modo dev). */
+export async function enviarMensagemWhatsapp(
+  telefone: string,
+  mensagem: string
+): Promise<ResultadoEnvioWhatsapp> {
+  const texto = mensagem.trim();
+  if (!texto) {
+    return { ok: false, error: "Mensagem vazia" };
+  }
+
+  if (modoDevAtivo()) {
+    console.info(
+      `[whatsapp-dev] Para ${formatWhatsAppPhone(telefone)}: ${texto}`
+    );
+    return { ok: true, modo: "dev" };
+  }
+
+  if (process.env.WHATSAPP_HTTP_URL?.trim()) {
+    return enviarViaHttp(telefone, texto);
+  }
+
+  if (process.env.WHATSAPP_CLOUD_TOKEN?.trim()) {
+    return enviarViaMetaTexto(telefone, texto);
+  }
+
+  return {
+    ok: false,
+    error:
+      "Envio por WhatsApp não configurado. Defina WHATSAPP_HTTP_URL (Baileys) ou WHATSAPP_CLOUD_TOKEN.",
+  };
 }
 
 /** Envia código OTP pelo WhatsApp (Meta Cloud, HTTP genérico ou modo dev). */
@@ -124,11 +208,11 @@ export async function enviarCodigoWhatsapp(
   }
 
   if (process.env.WHATSAPP_HTTP_URL?.trim()) {
-    return enviarViaHttp(telefone, codigo, appName);
+    return enviarViaHttp(telefone, mensagemCodigoCadastro(codigo, appName));
   }
 
   if (process.env.WHATSAPP_CLOUD_TOKEN?.trim()) {
-    return enviarViaMeta(telefone, codigo, appName);
+    return enviarViaMetaTemplate(telefone, codigo, appName);
   }
 
   return {

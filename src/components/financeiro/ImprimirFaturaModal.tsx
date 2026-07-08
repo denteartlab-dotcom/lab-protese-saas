@@ -8,7 +8,7 @@ import {
   mensagemWhatsappFaturaConferencia,
   publicarFaturaPublica,
 } from "@/lib/fatura-publica-cliente";
-import { abrirWhatsAppFaturaConferencia } from "@/lib/whatsapp";
+import { dispararOuAbrirWhatsapp } from "@/lib/whatsapp-disparo-cliente";
 import {
   CONFIG_FATURAS_ATUALIZADA_EVENT,
   carregarConfiguracoesFaturas,
@@ -264,9 +264,12 @@ export function ImprimirFaturaModal({
         valorFormatado: valorFormatado || undefined,
         publicUrl,
       });
-      const abriu = abrirWhatsAppFaturaConferencia(clienteTelefone, texto);
-      if (!abriu) {
-        window.alert("Não foi possível abrir o WhatsApp. Verifique o bloqueio de pop-ups.");
+      const resultado = await dispararOuAbrirWhatsapp(clienteTelefone, texto);
+      if (resultado.modo === "erro") {
+        window.alert(
+          resultado.error ||
+            "Não foi possível enviar pelo WhatsApp. Verifique o número ou a conexão em Configurações → WhatsApp."
+        );
       }
     } catch (err) {
       console.error("[ImprimirFaturaModal] WhatsApp", err);

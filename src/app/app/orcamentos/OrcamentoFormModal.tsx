@@ -8,7 +8,8 @@ import {
   type ItemOrcamento,
   type Orcamento,
 } from "@/lib/orcamentos-types";
-import { abrirWhatsAppOrcamento, orcamentoPublicUrl } from "@/lib/whatsapp";
+import { mensagemSolicitarOrcamento, orcamentoPublicUrl } from "@/lib/whatsapp";
+import { dispararOuAbrirWhatsapp } from "@/lib/whatsapp-disparo-cliente";
 
 export type SalvarOrcamentoPayload = {
   fornecedorId: string;
@@ -382,7 +383,14 @@ export function OrcamentoFormModal({
 
       if (resultado?.whatsappEnvio && resultado.token) {
         const publicUrl = orcamentoPublicUrl(resultado.token);
-        abrirWhatsAppOrcamento(resultado.whatsappEnvio, publicUrl);
+        const texto = mensagemSolicitarOrcamento(publicUrl);
+        const envio = await dispararOuAbrirWhatsapp(resultado.whatsappEnvio, texto);
+        if (envio.modo === "erro") {
+          window.alert(
+            envio.error ||
+              "Orçamento salvo, mas não foi possível enviar pelo WhatsApp. Verifique o número ou a conexão em Configurações → WhatsApp."
+          );
+        }
       }
     } finally {
       setEnviando(false);
