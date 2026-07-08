@@ -10,6 +10,8 @@ import {
   sincronizarMovimentacaoRecebimentoServidor,
 } from "@/lib/recebimento-conta-bancaria-servidor";
 import { invalidarCachePainelFinanceiro } from "@/lib/financeiro-painel-cache";
+import { lancamentoFaturaOsAtivo } from "@/lib/os-faturamento";
+import { sincronizarTrabalhosAposAlteracaoLancamento } from "@/lib/os-faturamento-sync-servidor";
 import { z } from "zod";
 
 const schema = z.object({
@@ -58,7 +60,7 @@ export async function PUT(
       },
       include: {
         cliente: true,
-        trabalho: { select: { numeroOs: true } },
+        trabalho: { select: { id: true, numeroOs: true } },
       },
     });
     try {
@@ -75,6 +77,26 @@ export async function PUT(
         }
       } catch (syncErr) {
         console.error("[financeiro PUT] sync conta bancária", syncErr);
+      }
+      if (
+        data.valor !== undefined &&
+        Math.abs(data.valor - existente.valor) > 0.009 &&
+        lancamentoFaturaOsAtivo(lancamento)
+      ) {
+        try {
+          await sincronizarTrabalhosAposAlteracaoLancamento(ctx.empresaId, {
+            id: lancamento.id,
+            tipo: lancamento.tipo,
+            descricao: lancamento.descricao,
+            valor: lancamento.valor,
+            status: lancamento.status,
+            data: lancamento.data,
+            clienteId: lancamento.clienteId,
+            trabalho: lancamento.trabalho,
+          });
+        } catch (syncErr) {
+          console.warn("[financeiro PUT] sync valor OS", syncErr);
+        }
       }
     }
     invalidarCachePainelFinanceiro(ctx.empresaId);
