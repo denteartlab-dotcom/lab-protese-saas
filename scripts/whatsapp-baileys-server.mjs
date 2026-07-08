@@ -27,9 +27,16 @@ let sock = null;
 let qrAtual = null;
 let conectado = false;
 let iniciando = false;
+let numeroConectado = null;
 
 function log(...args) {
   console.log("[whatsapp-baileys]", ...args);
+}
+
+function extrairNumeroUsuario(sockInst) {
+  const id = sockInst?.user?.id || "";
+  const digits = String(id).replace(/@.*/, "").replace(/\D/g, "");
+  return digits || null;
 }
 
 function jidFromPhone(phone) {
@@ -93,10 +100,12 @@ async function conectar() {
       if (connection === "open") {
         conectado = true;
         qrAtual = null;
-        log("Conectado ao WhatsApp.");
+        numeroConectado = extrairNumeroUsuario(sock);
+        log("Conectado ao WhatsApp.", numeroConectado || "");
       }
       if (connection === "close") {
         conectado = false;
+        numeroConectado = null;
         const statusCode = lastDisconnect?.error?.output?.statusCode;
         const loggedOut = statusCode === DisconnectReason.loggedOut;
         log("Conexão fechada.", loggedOut ? "Sessão encerrada — escaneie o QR novamente." : "Reconectando…");
@@ -127,6 +136,64 @@ async function enviarMensagem(phone, message) {
   return { ok: true };
 }
 
+async function enviarMidia(phone, body) {
+  if (!sock || !conectado) {
+    throw new Error("WhatsApp não conectado. Escaneie o QR Code.");
+  }
+  const jid = jidFromPhone(phone);
+  if (!jid) throw new Error("Telefone inválido.");
+
+  const buffer = Buffer.from(String(body.dataBase64 || ""), "base64");
+  if (!buffer.length) throw new Error("Arquivo vazio.");
+
+  const caption = String(body.message || "").trim();
+  const tipo = String(body.tipo || "documento");
+  const mimeType = String(body.mimeType || "application/octet-stream");
+  const fileName = String(body.fileName || "arquivo");
+
+  let content;
+  if (tipo === "imagem") {
+    content = { image: buffer, caption: caption || undefined, mimetype: mimeType };
+  } else if (tipo === "video") {
+    content = { video: buffer, caption: caption || undefined, mimetype: mimeType };
+  } else if (tipo === "audio") {
+    content = { audio: buffer, mimetype: mimeType, ptt: false };
+  } else {
+    content = {
+      document: buffer,
+      mimetype: mimeType,
+      fileName,
+      caption: caption || undefined,
+    };
+  }
+
+  await sock.sendMessage(jid, content);
+  return { ok: true };
+}
+
+async function desconectar() {
+  if (sock) {
+    try {
+      await sock.logout();
+    } catch {
+      /* ignora */
+    }
+    sock = null;
+  }
+  conectado = false;
+  numeroConectado = null;
+  qrAtual = null;
+  iniciando = false;
+  try {
+    fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+  } catch {
+    /* ignora */
+  }
+  fs.mkdirSync(AUTH_DIR, { recursive: true });
+  setTimeout(() => void conectar(), 1500);
+  return { ok: true };
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url || "/", `http://127.0.0.1:${PORT}`);
@@ -139,6 +206,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, {
         connected: conectado,
         qr: qrAtual || null,
+        phone: numeroConectado,
         authDir: AUTH_DIR,
       });
     }
@@ -151,6 +219,32 @@ const server = http.createServer(async (req, res) => {
       const phone = body.phone || body.telefone;
       const message = body.message || body.mensagem;
       await enviarMensagem(phone, message);
+      return json(res, 200, { ok: true });
+    }
+
+    if (url.pathname === "/send-media" && req.method === "POST") {
+      if (!autorizado(req)) {
+        return json(res, 401, { ok: false, error: "Não autorizado" });
+      }
+      const body = await lerJson(req);
+      const phone = body.phone || body.telefone;
+      await enviarMidia(phone, body);
+      return json(res, 200, { ok: true });
+    }
+
+    if (url.pathname === "/logout" && req.method === "POST") {
+      if (!autorizado(req)) {
+        return json(res, 401, { ok: false, error: "Não autorizado" });
+      }
+      await desconectar();
+      return json(res, 200, { ok: true });
+    }
+
+    if (url.pathname === "/reconnect" && req.method === "POST") {
+      if (!autorizado(req)) {
+        return json(res, 401, { ok: false, error: "Não autorizado" });
+      }
+      if (!iniciando && !conectado) void conectar();
       return json(res, 200, { ok: true });
     }
 

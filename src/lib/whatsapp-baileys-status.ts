@@ -3,6 +3,7 @@
 export type StatusWhatsappBaileys = {
   connected: boolean;
   qr: string | null;
+  phone?: string | null;
   authDir?: string;
 };
 
@@ -40,6 +41,7 @@ export async function consultarStatusBaileys(): Promise<StatusWhatsappBaileys | 
     return {
       connected: Boolean(data.connected),
       qr: data.qr || null,
+      phone: data.phone || null,
       authDir: data.authDir,
     };
   } catch {

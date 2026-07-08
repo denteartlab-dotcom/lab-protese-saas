@@ -47,6 +47,9 @@ model Empresa {
   asaasSubconta       AsaasSubconta?
   suporteConversa     SuporteConversa?
   jobExecucoes        JobExecucao[]
+  whatsappSession     WhatsappSession?
+  whatsappCampaigns   WhatsappCampaign[]
+  whatsappLogs        WhatsappLog[]
 }
 
 model SuporteConversa {
@@ -544,4 +547,99 @@ model CobrancaAssinatura {
   @@index([empresaId])
   @@index([statusAsaas])
   @@map("cobrancas_assinatura")
+}
+
+model WhatsappSession {
+  id              String    @id @default(cuid())
+  empresaId       String    @unique
+  empresa         Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  numeroConectado String?
+  status          String    @default("desconectado")
+  ultimaConexaoEm DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("whatsapp_sessions")
+}
+
+model WhatsappCampaign {
+  id                String   @id @default(cuid())
+  empresaId         String
+  empresa           Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  userId            String?
+  userName          String?
+  nome              String
+  mensagem          String
+  anexoTipo         String?
+  anexoUrl          String?
+  anexoNome         String?
+  anexoMime         String?
+  anexoUploadId     String?
+  origemContatos    String   @default("clientes")
+  intervaloSegundos Int      @default(10)
+  atrasoAleatorio   Boolean  @default(false)
+  limitePorHora     Int?
+  agendadoPara      DateTime?
+  status            String   @default("rascunho")
+  totalContatos     Int      @default(0)
+  enviadas          Int      @default(0)
+  pendentes         Int      @default(0)
+  falhas            Int      @default(0)
+  iniciadoEm        DateTime?
+  concluidoEm       DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  contatos WhatsappCampaignContact[]
+  logs     WhatsappLog[]
+
+  @@index([empresaId, status])
+  @@index([empresaId, createdAt])
+  @@map("whatsapp_campaigns")
+}
+
+model WhatsappCampaignContact {
+  id            String           @id @default(cuid())
+  campaignId    String
+  campaign      WhatsappCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  nome          String
+  telefone      String
+  cidade        String?
+  empresaNome   String?
+  dentista      String?
+  consulta      String?
+  valor         String?
+  vencimento    String?
+  variaveisJson String?
+  status        String           @default("aguardando")
+  tentativas    Int              @default(0)
+  erro          String?
+  enviadoEm     DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  logs WhatsappLog[]
+
+  @@index([campaignId, status])
+  @@index([campaignId, createdAt])
+  @@map("whatsapp_campaign_contacts")
+}
+
+model WhatsappLog {
+  id         String                   @id @default(cuid())
+  empresaId  String
+  empresa    Empresa                  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  campaignId String
+  campaign   WhatsappCampaign         @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contactId  String?
+  contact    WhatsappCampaignContact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  mensagem   String?
+  erro       String?
+  status     String
+  tentativas Int                      @default(0)
+  createdAt  DateTime                 @default(now())
+
+  @@index([campaignId, createdAt])
+  @@index([empresaId, createdAt])
+  @@map("whatsapp_logs")
 }

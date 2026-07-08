@@ -41,6 +41,11 @@ import {
   normalizarRotaApi,
   registrarMetricaApi,
 } from "./src/lib/api-observabilidade";
+import {
+  DISPARO_SOCKET_EVENTS,
+  salaDisparoEmpresa,
+} from "./src/lib/whatsapp-disparos/disparos-socket-events";
+import { retomarCampanhasPendentesServidor } from "./src/lib/whatsapp-disparos/campaign-queue";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME || "0.0.0.0";
@@ -147,6 +152,13 @@ app
 
       socket.on("tv:subscribe", () => {
         void enviarSyncEmpresa();
+      });
+
+      socket.on(DISPARO_SOCKET_EVENTS.subscribe, () => {
+        void (async () => {
+          const empresaId = presencaEmpresaId ?? (await registrarPresenca());
+          if (empresaId) await socket.join(salaDisparoEmpresa(empresaId));
+        })();
       });
 
       socket.on(SUPORTE_SOCKET_EVENTS.joinEmpresa, () => {
@@ -302,6 +314,7 @@ app
           }
           iniciarLimpezaContasInativasDiaria();
           iniciarLimpezaSuporteInativo();
+          void retomarCampanhasPendentesServidor();
         }, delayJobsMs);
       });
     };

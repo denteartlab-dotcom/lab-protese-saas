@@ -6,7 +6,7 @@ import {
   normalizarSlugPastaUploads,
 } from "@/lib/uploads-armazenamento-server";
 
-export type PastaUpload = "os" | "despesas" | "receitas";
+export type PastaUpload = "os" | "despesas" | "receitas" | "disparos-whatsapp";
 
 export type ArquivoEnviado = {
   name: string;
@@ -19,6 +19,7 @@ const MAX_BYTES_ARQUIVO = 4 * 1024 * 1024;
 export function pastaUploadValida(pasta: string | null): PastaUpload {
   if (pasta === "despesas") return "despesas";
   if (pasta === "receitas") return "receitas";
+  if (pasta === "disparos-whatsapp") return "disparos-whatsapp";
   return "os";
 }
 
