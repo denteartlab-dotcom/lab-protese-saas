@@ -22,7 +22,6 @@ import { ConfiguracoesGeraisTab } from "@/components/configuracoes/Configuracoes
 import { ConfiguracoesOsTab } from "@/components/configuracoes/ConfiguracoesOsTab";
 import { ConfiguracoesFaturasTab } from "@/components/configuracoes/ConfiguracoesFaturasTab";
 import { ConfiguracoesEtiquetasTab } from "@/components/configuracoes/ConfiguracoesEtiquetasTab";
-import { ConfiguracoesMensagensTab } from "@/components/configuracoes/ConfiguracoesMensagensTab";
 import { LogoLaboratorioTab } from "@/components/LogoLaboratorioTab";
 import { useI18n } from "@/components/i18n-provider";
 import {
@@ -45,7 +44,6 @@ const abasPagina: Array<{ id: string; labelKey: MessageKey; href?: string }> = [
   { id: "nfse", labelKey: "settings.nfse" },
   { id: "boletos", labelKey: "settings.boletos" },
   { id: "gerais", labelKey: "settings.gerais" },
-  { id: "mensagens", labelKey: "settings.mensagens" },
   { id: "os", labelKey: "settings.os" },
   { id: "faturas", labelKey: "settings.faturas" },
   { id: "etiquetas", labelKey: "settings.etiquetas" },
@@ -64,7 +62,6 @@ const titulosAbaKeys: Record<string, MessageKey> = {
   cabecalho: "settings.cabecalho",
   gerais: "settings.gerais",
   boletos: "settings.boletos",
-  mensagens: "settings.mensagens",
   os: "settings.os",
   faturas: "settings.faturas",
   etiquetas: "settings.etiquetas",
@@ -104,8 +101,8 @@ function ConfiguracoesConteudo() {
       router.replace("/app/configuracoes/cabecalho");
       return;
     }
-    if (aba === "whatsapp") {
-      router.replace("/app/configuracoes?aba=mensagens");
+    if (aba === "whatsapp" || aba === "mensagens") {
+      router.replace("/app/disparos-whatsapp");
       return;
     }
     if (!abasPermitidas.length) {
@@ -357,8 +354,6 @@ function ConfiguracoesConteudo() {
             </>
           ) : aba === "boletos" ? (
             <ConfiguracoesBoletosTab />
-          ) : aba === "mensagens" ? (
-            <ConfiguracoesMensagensTab />
           ) : aba === "horario" ? (
             <>
               <HorarioFuncionamentoTab

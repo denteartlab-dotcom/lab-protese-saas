@@ -4,6 +4,7 @@ export const ROTAS_APP_SEM_SLUG = new Set([
   "cadastros",
   "clientes",
   "configuracoes",
+  "disparos-whatsapp",
   "financeiro",
   "liberar-espaco",
   "lista-imagens",

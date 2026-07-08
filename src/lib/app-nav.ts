@@ -9,6 +9,7 @@ import {
   Home,
   LayoutGrid,
   List,
+  MessageCircle,
   Package,
   Send,
   Settings,
@@ -74,6 +75,7 @@ export const estoqueNav: AppNavItem[] = [
 
 export const cadastrosNav: AppNavItem[] = [
   { href: "/app/clientes", labelKey: "nav.clientes", icon: Users },
+  { href: "/app/disparos-whatsapp", labelKey: "nav.disparosWhatsapp", icon: MessageCircle },
   { href: "/app/cadastros/colaboradores", labelKey: "nav.colaboradores", icon: UserPlus },
   { href: "/app/cadastros/fornecedores", labelKey: "nav.fornecedores", icon: ShoppingCart },
   { href: "/app/cadastros/prestadores", labelKey: "nav.prestadores", icon: Send },
@@ -115,7 +117,7 @@ export const gruposNavMobile: AppNavGrupoMobile[] = [
     labelKey: "nav.cadastros",
     icon: Users,
     hrefBase: "/app/clientes",
-    ativo: (pathname) => menuAppSecaoAtiva(pathname, ["/clientes", "/cadastros"]),
+    ativo: (pathname) => menuAppSecaoAtiva(pathname, ["/clientes", "/cadastros", "/disparos-whatsapp"]),
     itens: cadastrosNav,
   },
   {

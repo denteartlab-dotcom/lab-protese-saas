@@ -24,7 +24,6 @@ export const ITENS_MENU_CONFIGURACOES: ItemMenuConfiguracoes[] = [
   { href: "/app/configuracoes/cabecalho", labelKey: "settings.cabecalho", permissaoId: "configuracoes-cabecalho" },
   { href: "/app/configuracoes?aba=gerais", labelKey: "settings.gerais", permissaoId: "configuracoes-gerais" },
   { href: "/app/configuracoes?aba=boletos", labelKey: "settings.boletos", permissaoId: "configuracoes-boletos" },
-  { href: "/app/configuracoes?aba=mensagens", labelKey: "settings.mensagens", permissaoId: "configuracoes-mensagens" },
   { href: "/app/configuracoes?aba=os", labelKey: "settings.os", permissaoId: "configuracoes-os" },
   { href: "/app/configuracoes?aba=faturas", labelKey: "settings.faturas", permissaoId: "configuracoes-faturas" },
   { href: "/app/configuracoes?aba=etiquetas", labelKey: "settings.etiquetas", permissaoId: "configuracoes-etiquetas" },
@@ -47,7 +46,9 @@ export function podeVerModulo(
   id: string
 ): boolean {
   if (acessoTotal) return true;
-  return Boolean(modulos[id]?.ver);
+  if (Boolean(modulos[id]?.ver)) return true;
+  if (id === "disparos-whatsapp" && Boolean(modulos["configuracoes-mensagens"]?.ver)) return true;
+  return false;
 }
 
 export function podeVerHref(
