@@ -66,8 +66,10 @@ export async function baileysLogout() {
   return postBaileys("/logout", {});
 }
 
-export async function baileysReconectar() {
-  return postBaileys("/reconnect", {});
+export async function baileysReconectar(opts?: { limparAuth?: boolean }) {
+  return postBaileys("/reconnect", {
+    limparAuth: Boolean(opts?.limparAuth),
+  });
 }
 
 export function baileysConfigurado() {

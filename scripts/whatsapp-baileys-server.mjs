@@ -76,8 +76,42 @@ function autorizado(req) {
   return bearer === TOKEN;
 }
 
+async function encerrarSocket() {
+  if (sock) {
+    try {
+      sock.ev.removeAllListeners();
+    } catch {
+      /* ignora */
+    }
+    try {
+      await sock.end(undefined);
+    } catch {
+      /* ignora */
+    }
+    sock = null;
+  }
+  iniciando = false;
+}
+
+async function reiniciarConexao(opts = { limparAuth: false }) {
+  await encerrarSocket();
+  conectado = false;
+  numeroConectado = null;
+  qrAtual = null;
+  if (opts.limparAuth) {
+    try {
+      fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+    } catch {
+      /* ignora */
+    }
+    fs.mkdirSync(AUTH_DIR, { recursive: true });
+    log("Sessão anterior removida — novo QR será gerado.");
+  }
+  void conectar();
+}
+
 async function conectar() {
-  if (iniciando) return;
+  if (iniciando || conectado) return;
   iniciando = true;
   try {
     fs.mkdirSync(AUTH_DIR, { recursive: true });
@@ -109,13 +143,13 @@ async function conectar() {
         const statusCode = lastDisconnect?.error?.output?.statusCode;
         const loggedOut = statusCode === DisconnectReason.loggedOut;
         log("Conexão fechada.", loggedOut ? "Sessão encerrada — escaneie o QR novamente." : "Reconectando…");
-        sock = null;
-        iniciando = false;
+        void encerrarSocket();
         if (!loggedOut) {
           setTimeout(() => void conectar(), 4000);
         }
       }
     });
+    iniciando = false;
   } catch (err) {
     log("Erro ao iniciar:", err);
     sock = null;
@@ -208,6 +242,8 @@ const server = http.createServer(async (req, res) => {
         qr: qrAtual || null,
         phone: numeroConectado,
         authDir: AUTH_DIR,
+        iniciando,
+        hasSocket: Boolean(sock),
       });
     }
 
@@ -244,7 +280,16 @@ const server = http.createServer(async (req, res) => {
       if (!autorizado(req)) {
         return json(res, 401, { ok: false, error: "Não autorizado" });
       }
-      if (!conectado && !sock && !iniciando) void conectar();
+      let body = {};
+      try {
+        body = await lerJson(req);
+      } catch {
+        body = {};
+      }
+      const limparAuth = Boolean(body.limparAuth || body.limparSessao);
+      if (!conectado) {
+        await reiniciarConexao({ limparAuth });
+      }
       return json(res, 200, {
         ok: true,
         connected: conectado,

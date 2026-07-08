@@ -17,7 +17,7 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
-import { Button } from "@/components/ui";
+import { Button, Modal } from "@/components/ui";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { CampanhaWizardInline } from "@/components/disparos-whatsapp/CampanhaWizardInline";
 import { DisparosMetricCard } from "@/components/disparos-whatsapp/DisparosMetricCard";
@@ -119,18 +119,26 @@ export function DisparosWhatsappConteudo() {
   const [processando, setProcessando] = useState(false);
   const [socketOnline, setSocketOnline] = useState(false);
   const [aguardandoQr, setAguardandoQr] = useState(false);
+  const [qrModalAberto, setQrModalAberto] = useState(false);
 
   const toast = useCallback((tipo: ToastDisparo["tipo"], mensagem: string) => {
     setToasts((prev) => [...prev, { id: `${Date.now()}-${Math.random()}`, tipo, mensagem }]);
   }, []);
 
   const aplicarQr = useCallback(async (qr: string | null) => {
-    if (qr) {
-      const img = await QRCode.toDataURL(qr, { width: 200, margin: 1 });
+    if (!qr) {
+      if (!dashboard?.conexao?.conectado) setQrImagem(null);
+      return false;
+    }
+    try {
+      const img = await QRCode.toDataURL(qr, { width: 280, margin: 2 });
       setQrImagem(img);
       setAguardandoQr(false);
-    } else if (!dashboard?.conexao?.conectado) {
-      setQrImagem(null);
+      setQrModalAberto(true);
+      return true;
+    } catch {
+      setAguardandoQr(false);
+      return false;
     }
   }, [dashboard?.conexao?.conectado]);
 
@@ -156,6 +164,18 @@ export function DisparosWhatsappConteudo() {
       setCarregando(false);
     }
   }, [aplicarQr]);
+
+  useEffect(() => {
+    if (!aguardandoQr) return;
+    const timeout = window.setTimeout(() => {
+      setAguardandoQr(false);
+      toast(
+        "erro",
+        "Tempo esgotado aguardando o QR. Reinicie o serviço: pm2 restart lab-protese-whatsapp"
+      );
+    }, 60_000);
+    return () => window.clearTimeout(timeout);
+  }, [aguardandoQr, toast]);
 
   useEffect(() => {
     void recarregar();
@@ -236,6 +256,7 @@ export function DisparosWhatsappConteudo() {
   async function gerarQr() {
     setProcessando(true);
     setAguardandoQr(true);
+    setQrImagem(null);
     try {
       const res = await fetch("/api/disparos-whatsapp/conexao", { method: "POST" });
       const data = (await res.json()) as {
@@ -243,19 +264,30 @@ export function DisparosWhatsappConteudo() {
         error?: string;
         qr?: string | null;
         baileysOnline?: boolean;
+        conectado?: boolean;
       };
-      if (!res.ok) throw new Error(data.error || "Falha ao gerar QR");
 
-      if (data.baileysOnline === false) {
-        throw new Error(
-          "Serviço WhatsApp offline. Inicie com: npm run whatsapp:baileys ou pm2 restart lab-protese-whatsapp"
-        );
+      if (!res.ok) {
+        throw new Error(data.error || "Falha ao gerar QR");
       }
 
-      if (data.qr) await aplicarQr(data.qr);
-      else void recarregar();
+      if (data.conectado) {
+        setAguardandoQr(false);
+        toast("sucesso", "WhatsApp já está conectado.");
+        void recarregar();
+        return;
+      }
 
-      toast("sucesso", "QR Code atualizado. Escaneie com o WhatsApp.");
+      if (data.qr) {
+        const ok = await aplicarQr(data.qr);
+        if (ok) {
+          toast("sucesso", "QR Code pronto. Escaneie com o WhatsApp do laboratório.");
+          return;
+        }
+      }
+
+      // Continua aguardando via polling/socket (até 60s)
+      void recarregar();
     } catch (err) {
       setAguardandoQr(false);
       toast("erro", err instanceof Error ? err.message : "Erro ao gerar QR Code");
@@ -468,8 +500,8 @@ export function DisparosWhatsappConteudo() {
             {qrImagem ? (
               <button
                 type="button"
-                onClick={() => window.open(qrImagem, "_blank")}
-                title="Ampliar QR Code"
+                onClick={() => setQrModalAberto(true)}
+                title="Ver QR Code"
                 className="shrink-0 rounded-lg border border-slate-200 p-0.5 hover:border-indigo-300"
               >
                 <img src={qrImagem} alt="QR Code WhatsApp" className="h-16 w-16 rounded-md" />
@@ -688,6 +720,25 @@ export function DisparosWhatsappConteudo() {
           void recarregar();
         }}
       />
+
+      <Modal
+        open={qrModalAberto && Boolean(qrImagem)}
+        onClose={() => setQrModalAberto(false)}
+        title="Escaneie o QR Code"
+        size="sm"
+      >
+        <div className="flex flex-col items-center gap-4 py-2">
+          {qrImagem ? (
+            <img src={qrImagem} alt="QR Code WhatsApp" className="h-64 w-64 rounded-xl border border-slate-200" />
+          ) : null}
+          <p className="text-center text-sm text-slate-600">
+            No WhatsApp do celular: <strong>Menu → Aparelhos conectados → Conectar aparelho</strong>
+          </p>
+          <Button variant="outline" onClick={() => setQrModalAberto(false)}>
+            Fechar
+          </Button>
+        </div>
+      </Modal>
 
       <DisparosToast toasts={toasts} onRemover={(id) => setToasts((p) => p.filter((t) => t.id !== id))} />
     </div>

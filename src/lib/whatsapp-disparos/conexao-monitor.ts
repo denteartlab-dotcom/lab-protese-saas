@@ -52,13 +52,13 @@ export function iniciarMonitorConexaoWhatsapp(intervaloMs = 2500) {
   }, intervaloMs);
 }
 
-export async function aguardarQrBaileys(maxSegundos = 20) {
+export async function aguardarQrBaileys(maxSegundos = 45) {
   const inicio = Date.now();
   while (Date.now() - inicio < maxSegundos * 1000) {
     const status = await consultarStatusBaileys();
     if (status?.connected) return status;
     if (status?.qr) return status;
-    await new Promise((r) => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 1500));
   }
   return consultarStatusBaileys();
 }

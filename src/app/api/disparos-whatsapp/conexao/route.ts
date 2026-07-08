@@ -58,14 +58,37 @@ export async function POST() {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
-  await baileysReconectar();
-  const status = await aguardarQrBaileys(20);
+  await baileysReconectar({ limparAuth: true });
+  const status = await aguardarQrBaileys(45);
   void sincronizarConexaoWhatsappSocket();
+
+  if (!status) {
+    return NextResponse.json(
+      {
+        error:
+          "Serviço WhatsApp offline. Na VPS: pm2 restart lab-protese-whatsapp. Confira WHATSAPP_HTTP_URL no .env.",
+      },
+      { status: 503 }
+    );
+  }
+
+  if (!status.connected && !status.qr) {
+    return NextResponse.json(
+      {
+        error:
+          "QR não foi gerado. Veja os logs: pm2 logs lab-protese-whatsapp --lines 50",
+        baileysOnline: true,
+        conectado: false,
+        qr: null,
+      },
+      { status: 422 }
+    );
+  }
 
   return NextResponse.json({
     ok: true,
-    qr: status?.qr || null,
-    conectado: Boolean(status?.connected),
-    baileysOnline: status !== null,
+    qr: status.qr || null,
+    conectado: Boolean(status.connected),
+    baileysOnline: true,
   });
 }
