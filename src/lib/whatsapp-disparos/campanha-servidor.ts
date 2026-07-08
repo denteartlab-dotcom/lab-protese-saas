@@ -85,7 +85,7 @@ export async function listarCampanhasWhatsapp(
     where.status = opts.status;
   }
   if (opts?.busca?.trim()) {
-    where.nome = { contains: opts.busca.trim() };
+    where.nome = { contains: opts.busca.trim(), mode: "insensitive" };
   }
 
   const rows = await runWithTenantContext(empresaId, () =>
