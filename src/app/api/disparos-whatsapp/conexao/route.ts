@@ -58,8 +58,30 @@ export async function POST() {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
-  await baileysReconectar({ limparAuth: true });
-  const status = await aguardarQrBaileys(55);
+  let reconnect: Awaited<ReturnType<typeof baileysReconectar>>;
+  try {
+    reconnect = await baileysReconectar({ limparAuth: true });
+  } catch (err) {
+    return NextResponse.json(
+      {
+        error:
+          err instanceof Error
+            ? err.message
+            : "Falha ao conectar no Baileys. Confira WHATSAPP_HTTP_URL e pm2 restart lab-protese-whatsapp.",
+      },
+      { status: 503 }
+    );
+  }
+
+  const status =
+    reconnect.connected || reconnect.qr
+      ? {
+          connected: Boolean(reconnect.connected),
+          qr: reconnect.qr ?? null,
+          phone: reconnect.phone ?? null,
+        }
+      : await aguardarQrBaileys(12);
+
   void sincronizarConexaoWhatsappSocket();
 
   if (!status) {

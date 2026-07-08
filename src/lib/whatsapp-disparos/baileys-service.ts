@@ -1,7 +1,13 @@
 import { consultarStatusBaileys, baileysServicoConfigurado } from "@/lib/whatsapp-baileys-status";
 import { formatWhatsAppPhone } from "@/lib/whatsapp";
 
-type BaileysSendResponse = { ok?: boolean; error?: string };
+type BaileysSendResponse = {
+  ok?: boolean;
+  error?: string;
+  connected?: boolean;
+  qr?: string | null;
+  phone?: string | null;
+};
 
 function urlBaseBaileys() {
   const httpUrl = process.env.WHATSAPP_HTTP_URL?.trim();
@@ -75,8 +81,8 @@ export async function baileysReconectar(opts?: { limparAuth?: boolean }) {
   return postBaileys(
     "/reconnect",
     { limparAuth: Boolean(opts?.limparAuth) },
-    65_000
-  );
+    55_000
+  ) as Promise<BaileysSendResponse>;
 }
 
 export function baileysConfigurado() {

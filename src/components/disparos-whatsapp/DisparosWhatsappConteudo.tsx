@@ -433,6 +433,16 @@ export function DisparosWhatsappConteudo() {
         </div>
       ) : null}
 
+      {diagnostico && !diagnostico.urlConfigurada && !apiNaoAutorizada ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-semibold">WHATSAPP_HTTP_URL vazio no .env</p>
+          <p className="mt-1">Adicione esta linha e reinicie o PM2:</p>
+          <pre className="mt-2 overflow-x-auto rounded bg-amber-100/80 p-2 text-xs">
+            WHATSAPP_HTTP_URL=http://127.0.0.1:3100/send
+          </pre>
+        </div>
+      ) : null}
+
       {diagnostico && !diagnostico.baileysOnline && !apiNaoAutorizada ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
           <p className="font-semibold">Passo 2 — Serviço Baileys offline</p>
@@ -552,7 +562,7 @@ export function DisparosWhatsappConteudo() {
                     disabled={processando || conexao?.baileysOnline === false}
                     className="rounded-md bg-indigo-600 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
                   >
-                    {processando ? "Gerando…" : "Gerar QR Code"}
+                    {processando ? "Aguarde ~60s…" : "Gerar QR Code"}
                   </button>
                 ) : null}
                 {conexao?.conectado ? (

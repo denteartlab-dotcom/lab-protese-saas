@@ -6,6 +6,7 @@ export type DiagnosticoWhatsapp = {
   baileysConectado: boolean;
   temQr: boolean;
   tokenConfigurado: boolean;
+  urlConfigurada: boolean;
   urlBaileys: string;
   healthUrl: string;
   statusUrl: string;
@@ -63,6 +64,7 @@ export async function diagnosticarWhatsappServidor(sessaoOk: boolean): Promise<D
 
   if (!process.env.WHATSAPP_HTTP_URL?.trim()) {
     acoes.push("Adicione no .env: WHATSAPP_HTTP_URL=http://127.0.0.1:3100/send");
+    detalhes.push("WHATSAPP_HTTP_URL está vazio no .env.");
   }
 
   return {
@@ -71,6 +73,7 @@ export async function diagnosticarWhatsappServidor(sessaoOk: boolean): Promise<D
     baileysConectado,
     temQr,
     tokenConfigurado,
+    urlConfigurada: Boolean(process.env.WHATSAPP_HTTP_URL?.trim()),
     urlBaileys,
     healthUrl,
     statusUrl,
