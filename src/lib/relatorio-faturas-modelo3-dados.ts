@@ -118,7 +118,7 @@ function totalItensInstrucoes(trabalho: {
 export function valorTrabalho(trabalho: {
   instrucoes?: string | null;
   valor?: number;
-  tipoProtese?: string;
+  tipoProtese?: string | null;
 }) {
   const totalLiquido = totalItensInstrucoes(trabalho);
   if (totalLiquido > 0) return totalLiquido;
