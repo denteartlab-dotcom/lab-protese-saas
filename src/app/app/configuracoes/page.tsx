@@ -64,7 +64,6 @@ const titulosAbaKeys: Record<string, MessageKey> = {
   cabecalho: "settings.cabecalho",
   gerais: "settings.gerais",
   boletos: "settings.boletos",
-  gerais: "settings.gerais",
   mensagens: "settings.mensagens",
   os: "settings.os",
   faturas: "settings.faturas",
