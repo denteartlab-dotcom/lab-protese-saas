@@ -5,7 +5,7 @@ import { HistoricoDisparosConteudo } from "@/components/disparos-whatsapp/Histor
 
 export default function HistoricoDisparosPage() {
   return (
-    <div className="min-h-full bg-[#f4f6f9] pb-8 dark:bg-slate-950">
+    <div className="min-h-full bg-[#f9fafb] pb-10">
       <div className="mx-auto max-w-[1400px] px-4 pt-4 md:px-6 md:pt-5">
         <p className="mb-4 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
           <Link href="/app/clientes" className="hover:text-[#4a90d9]">

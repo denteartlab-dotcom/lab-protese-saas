@@ -1,29 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import {
-  AlertTriangle,
+  Bell,
+  Clock,
   Copy,
-  Download,
-  History,
+  FileText,
+  HelpCircle,
   MessageCircle,
   Pause,
   Play,
   Plus,
-  QrCode,
-  RefreshCw,
-  Send,
+  ThumbsDown,
   Trash2,
-  Wifi,
-  WifiOff,
-  X,
+  Users,
 } from "lucide-react";
-import { Button, Table } from "@/components/ui";
+import { Button } from "@/components/ui";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
-import { CampanhaWizardModal } from "@/components/disparos-whatsapp/CampanhaWizardModal";
+import { CampanhaWizardInline } from "@/components/disparos-whatsapp/CampanhaWizardInline";
 import { DisparosMetricCard } from "@/components/disparos-whatsapp/DisparosMetricCard";
 import { DisparosToast, type ToastDisparo } from "@/components/disparos-whatsapp/DisparosToast";
 import { ProgressoCircular } from "@/components/disparos-whatsapp/ProgressoCircular";
@@ -60,24 +56,35 @@ type ContatoFila = {
   horario: string;
 };
 
-function statusBadge(status: string) {
-  const map: Record<string, string> = {
-    rascunho: "bg-slate-100 text-slate-700",
-    agendada: "bg-blue-100 text-blue-800",
-    enviando: "bg-indigo-100 text-indigo-800",
-    pausada: "bg-amber-100 text-amber-800",
-    concluida: "bg-emerald-100 text-emerald-800",
-    cancelada: "bg-slate-200 text-slate-600",
-    enviado: "bg-emerald-100 text-emerald-800",
-    aguardando: "bg-amber-100 text-amber-800",
-    falhou: "bg-red-100 text-red-800",
-    pausado: "bg-slate-100 text-slate-600",
-    cancelado: "bg-slate-100 text-slate-500",
-  };
-  return map[status] || "bg-slate-100 text-slate-700";
+function fmt(n: number) {
+  return n.toLocaleString("pt-BR");
 }
 
-function labelStatus(status: string) {
+function fmtUltimaConexao(iso: string | null | undefined) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const hoje = new Date();
+  const mesmoDia =
+    d.getDate() === hoje.getDate() &&
+    d.getMonth() === hoje.getMonth() &&
+    d.getFullYear() === hoje.getFullYear();
+  const hora = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  return mesmoDia ? `Hoje às ${hora}` : d.toLocaleString("pt-BR");
+}
+
+function statusCampanhaBadge(status: string) {
+  const map: Record<string, string> = {
+    rascunho: "bg-slate-100 text-slate-600",
+    agendada: "bg-blue-50 text-blue-700",
+    enviando: "bg-blue-50 text-blue-700",
+    pausada: "bg-amber-50 text-amber-700",
+    concluida: "bg-emerald-50 text-emerald-700",
+    cancelada: "bg-slate-100 text-slate-500",
+  };
+  return map[status] || "bg-slate-100 text-slate-600";
+}
+
+function labelStatusCampanha(status: string) {
   const map: Record<string, string> = {
     rascunho: "Rascunho",
     agendada: "Agendada",
@@ -85,28 +92,16 @@ function labelStatus(status: string) {
     pausada: "Pausada",
     concluida: "Finalizada",
     cancelada: "Cancelada",
-    enviado: "Enviado",
-    aguardando: "Aguardando",
-    falhou: "Falhou",
-    pausado: "Pausado",
-    cancelado: "Cancelado",
   };
   return map[status] || status;
 }
 
-function dotStatus(status: string) {
-  if (status === "enviado") return "🟢";
-  if (status === "aguardando" || status === "pausado") return "🟡";
-  if (status === "falhou") return "🔴";
-  if (status === "pausada" || status === "enviando") return "⏸";
-  return "⚪";
-}
-
 export function DisparosWhatsappConteudo() {
+  const wizardRef = useRef<HTMLDivElement>(null);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [campanhas, setCampanhas] = useState<CampanhaPublica[]>([]);
   const [carregando, setCarregando] = useState(true);
-  const [wizardAberto, setWizardAberto] = useState(false);
+  const [wizardReset, setWizardReset] = useState(0);
   const [campanhaAtiva, setCampanhaAtiva] = useState<CampanhaPublica | null>(null);
   const [progresso, setProgresso] = useState<{
     percentual: number;
@@ -137,8 +132,10 @@ export function DisparosWhatsappConteudo() {
       setDashboard(dash);
       setCampanhas(campData.campanhas || []);
       if (dash.conexao.qr) {
-        const img = await QRCode.toDataURL(dash.conexao.qr, { width: 160, margin: 1 });
+        const img = await QRCode.toDataURL(dash.conexao.qr, { width: 88, margin: 0 });
         setQrImagem(img);
+      } else if (dash.conexao.conectado) {
+        setQrImagem(null);
       } else {
         setQrImagem(null);
       }
@@ -173,7 +170,7 @@ export function DisparosWhatsappConteudo() {
     },
     onQr: async (qr) => {
       if (qr) {
-        const img = await QRCode.toDataURL(qr, { width: 160, margin: 1 });
+        const img = await QRCode.toDataURL(qr, { width: 88, margin: 0 });
         setQrImagem(img);
       } else setQrImagem(null);
     },
@@ -219,7 +216,7 @@ export function DisparosWhatsappConteudo() {
       const res = await fetch("/api/disparos-whatsapp/conexao", { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Falha ao gerar QR");
-      toast("sucesso", "QR Code atualizado. Escaneie com o WhatsApp do laboratório.");
+      toast("sucesso", "QR Code atualizado. Escaneie com o WhatsApp.");
       void recarregar();
     } catch (err) {
       toast("erro", err instanceof Error ? err.message : "Erro ao gerar QR Code");
@@ -248,16 +245,13 @@ export function DisparosWhatsappConteudo() {
       if (!res.ok) throw new Error(data.error || "Falha na operação");
       if (acao === "iniciar" || acao === "continuar") {
         const camp = campanhas.find((c) => c.id === id) || data.campanha;
-        if (camp) {
-          setCampanhaAtiva(camp);
-          await abrirCampanha(camp);
-        }
+        if (camp) await abrirCampanha(camp);
       }
       if (acao === "cancelar") {
         setCampanhaAtiva(null);
         setProgresso(null);
       }
-      toast("sucesso", `Campanha ${acao === "duplicar" ? "duplicada" : "atualizada"} com sucesso.`);
+      toast("sucesso", `Campanha ${acao === "duplicar" ? "duplicada" : "atualizada"}.`);
       void recarregar();
     } catch (err) {
       toast("erro", err instanceof Error ? err.message : "Erro na campanha");
@@ -285,17 +279,19 @@ export function DisparosWhatsappConteudo() {
     }
   }
 
+  function scrollParaWizard() {
+    setWizardReset((n) => n + 1);
+    wizardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   if (carregando && !dashboard) {
     return (
-      <div className="space-y-4">
-        <div className="h-10 w-72 animate-pulse rounded-lg bg-slate-200" />
-        <div className="grid gap-4 lg:grid-cols-12">
-          <div className="h-44 animate-pulse rounded-xl bg-slate-200 lg:col-span-5" />
-          <div className="grid gap-4 sm:grid-cols-2 lg:col-span-7 xl:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-24 animate-pulse rounded-xl bg-slate-200" />
-            ))}
-          </div>
+      <div className="space-y-5">
+        <div className="h-14 animate-pulse rounded-xl bg-slate-200" />
+        <div className="grid gap-4 xl:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-[118px] animate-pulse rounded-xl bg-slate-200" />
+          ))}
         </div>
       </div>
     );
@@ -306,25 +302,45 @@ export function DisparosWhatsappConteudo() {
   const emDisparo =
     campanhaAtiva && (campanhaAtiva.status === "enviando" || campanhaAtiva.status === "pausada") && progresso;
 
+  const pctProgresso = emDisparo ? progresso.percentual : 0;
+  const dadosProgresso = emDisparo
+    ? progresso
+    : { enviadas: 0, pendentes: 0, falhas: 0, total: 0, tempoRestanteSegundos: 0 };
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
-            Disparos WhatsApp
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">Crie e gerencie campanhas de WhatsApp.</p>
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#25D366] shadow-sm">
+            <MessageCircle className="h-5 w-5 text-white" strokeWidth={2.5} />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">Disparos WhatsApp</h1>
+            <p className="text-sm text-slate-500">Crie e gerencie campanhas de WhatsApp.</p>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/app/disparos-whatsapp/historico">
-            <Button variant="outline" size="sm" className="border-slate-300">
-              <History className="h-4 w-4" />
-              Histórico
-            </Button>
-          </Link>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+            aria-label="Notificações"
+          >
+            <Bell className="h-4 w-4" />
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+              3
+            </span>
+          </button>
+          <button
+            type="button"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+            aria-label="Ajuda"
+          >
+            <HelpCircle className="h-4 w-4" />
+          </button>
           <Button
-            onClick={() => setWizardAberto(true)}
-            className="bg-indigo-600 hover:bg-indigo-700"
+            onClick={scrollParaWizard}
+            className="h-9 bg-indigo-600 px-4 text-sm font-medium shadow-sm hover:bg-indigo-700"
           >
             <Plus className="h-4 w-4" />
             Nova Campanha
@@ -332,251 +348,252 @@ export function DisparosWhatsappConteudo() {
         </div>
       </div>
 
-      {/* Cards superiores */}
-      <div className="grid gap-4 lg:grid-cols-12">
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-5 dark:border-slate-700 dark:bg-slate-900"
-        >
-          <div className="flex gap-4">
+      {/* 5 cards superiores */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {/* Conexão */}
+        <div className="flex min-h-[118px] flex-col justify-between rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs font-medium text-slate-500">Conexão WhatsApp</p>
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                conexao?.conectado ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+              }`}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${conexao?.conectado ? "bg-emerald-500" : "bg-amber-500"}`}
+              />
+              {conexao?.conectado ? "Conectado" : "Desconectado"}
+            </span>
+          </div>
+          <div className="mt-2 flex items-end justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Conexão WhatsApp</h2>
-                <span
-                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
-                    conexao?.conectado ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
-                  }`}
-                >
-                  <span className={`h-1.5 w-1.5 rounded-full ${conexao?.conectado ? "bg-emerald-500" : "bg-amber-500"}`} />
-                  {conexao?.conectado ? "Conectado" : "Desconectado"}
-                </span>
-              </div>
-              <p className="flex items-center gap-2 text-sm text-slate-700">
-                {conexao?.conectado ? (
-                  <Wifi className="h-4 w-4 shrink-0 text-emerald-600" />
-                ) : (
-                  <WifiOff className="h-4 w-4 shrink-0 text-amber-600" />
-                )}
-                {conexao?.numero || "Nenhum número conectado"}
+              <p className="truncate text-sm font-semibold text-slate-800">
+                {conexao?.numero || "+55 — — — — — —"}
               </p>
-              <p className="mt-1 text-xs text-slate-500">
-                Última conexão:{" "}
-                {conexao?.ultimaConexao ? new Date(conexao.ultimaConexao).toLocaleString("pt-BR") : "—"}
+              <p className="mt-0.5 text-[10px] text-slate-400">
+                Última conexão: {fmtUltimaConexao(conexao?.ultimaConexao)}
               </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700" onClick={() => void gerarQr()} disabled={processando}>
-                  <QrCode className="h-3.5 w-3.5" />
-                  Gerar QR Code
-                </Button>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {!conexao?.conectado ? (
+                  <button
+                    type="button"
+                    onClick={() => void gerarQr()}
+                    disabled={processando}
+                    className="rounded-md bg-indigo-600 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    Gerar QR Code
+                  </button>
+                ) : null}
                 {conexao?.conectado ? (
-                  <Button size="sm" variant="outline" onClick={() => void desconectar()} disabled={processando}>
+                  <button
+                    type="button"
+                    onClick={() => void desconectar()}
+                    disabled={processando}
+                    className="rounded-md border border-red-200 px-2.5 py-1 text-[10px] font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  >
                     Desconectar
-                  </Button>
+                  </button>
                 ) : null}
               </div>
             </div>
-            {!conexao?.conectado && qrImagem ? (
-              <img src={qrImagem} alt="QR Code WhatsApp" className="h-[120px] w-[120px] shrink-0 rounded-lg border border-slate-200" />
-            ) : null}
-          </div>
-        </motion.div>
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:col-span-7 xl:grid-cols-4">
-          <DisparosMetricCard titulo="Campanhas" valor={metricas?.totalCampanhas ?? 0} subtitulo="Total de campanhas" icon={Send} tom="indigo" />
-          <DisparosMetricCard titulo="Enviadas hoje" valor={metricas?.enviadasHoje ?? 0} subtitulo="Mensagens enviadas" icon={MessageCircle} tom="emerald" />
-          <DisparosMetricCard titulo="Pendentes" valor={metricas?.pendentes ?? 0} subtitulo="Aguardando envio" icon={Play} tom="amber" />
-          <DisparosMetricCard titulo="Falhas" valor={metricas?.falhas ?? 0} subtitulo="Não entregues" icon={AlertTriangle} tom="rose" />
-        </div>
-      </div>
-
-      {/* Campanhas + Progresso lado a lado */}
-      <div className="grid gap-4 xl:grid-cols-12">
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm xl:col-span-7 dark:border-slate-700 dark:bg-slate-900">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
-            <h2 className="font-semibold text-slate-800 dark:text-slate-100">Campanhas recentes</h2>
-            <div className="flex gap-2">
-              <a href="/api/disparos-whatsapp/historico?formato=xlsx">
-                <Button variant="ghost" size="sm">
-                  <Download className="h-3.5 w-3.5" />
-                  Exportar
-                </Button>
-              </a>
-              <Link href="/app/disparos-whatsapp/historico">
-                <Button variant="ghost" size="sm">
-                  Ver todas
-                </Button>
-              </Link>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <Table headers={["Nome", "Data", "Contatos", "Enviadas", "Pendentes", "Falhas", "Status", "Ações"]}>
-              {campanhas.slice(0, 8).map((c) => (
-                <tr
-                  key={c.id}
-                  className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/50 ${
-                    campanhaAtiva?.id === c.id ? "bg-indigo-50/50" : ""
-                  }`}
-                >
-                  <td className="px-4 py-3 text-sm font-medium text-slate-800">{c.nome}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-500">
-                    {new Date(c.createdAt).toLocaleString("pt-BR")}
-                  </td>
-                  <td className="px-4 py-3 text-sm">{c.totalContatos}</td>
-                  <td className="px-4 py-3 text-sm text-emerald-700">{c.enviadas}</td>
-                  <td className="px-4 py-3 text-sm text-amber-700">{c.pendentes}</td>
-                  <td className="px-4 py-3 text-sm text-red-600">{c.falhas}</td>
-                  <td className="px-4 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusBadge(c.status)}`}>
-                      {labelStatus(c.status)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-0.5">
-                      <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => void abrirCampanha(c)}>
-                        Abrir
-                      </Button>
-                      {(c.status === "rascunho" || c.status === "agendada") && (
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => void acaoCampanha(c.id, "iniciar")} title="Iniciar">
-                          <Play className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => void acaoCampanha(c.id, "duplicar")} title="Duplicar">
-                        <Copy className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setExcluirId(c.id)} title="Excluir">
-                        <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </Table>
-          </div>
-          {!campanhas.length && (
-            <p className="p-10 text-center text-sm text-slate-500">Nenhuma campanha ainda. Clique em Nova Campanha.</p>
-          )}
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-5 dark:border-slate-700 dark:bg-slate-900">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-semibold text-slate-800 dark:text-slate-100">Progresso do disparo</h2>
-            {emDisparo && campanhaAtiva.status === "enviando" ? (
-              <Button size="sm" variant="outline" onClick={() => void acaoCampanha(campanhaAtiva.id, "pausar")}>
-                <Pause className="h-3.5 w-3.5" /> Pausar
-              </Button>
-            ) : emDisparo && campanhaAtiva.status === "pausada" ? (
-              <Button size="sm" onClick={() => void acaoCampanha(campanhaAtiva.id, "continuar")}>
-                <Play className="h-3.5 w-3.5" /> Continuar
-              </Button>
-            ) : null}
-          </div>
-
-          {emDisparo ? (
-            <>
-              <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-                <ProgressoCircular percentual={progresso.percentual} />
-                <div className="grid flex-1 grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="text-xs text-slate-500">Enviadas</p>
-                    <p className="font-semibold text-emerald-700">{progresso.enviadas}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Pendentes</p>
-                    <p className="font-semibold text-amber-700">{progresso.pendentes}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Falhas</p>
-                    <p className="font-semibold text-red-600">{progresso.falhas}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Total</p>
-                    <p className="font-semibold text-slate-800">{progresso.total}</p>
-                  </div>
+            {qrImagem ? (
+              <img src={qrImagem} alt="QR Code" className="h-[52px] w-[52px] shrink-0 rounded border border-slate-200" />
+            ) : (
+              <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded border border-dashed border-slate-200 bg-slate-50">
+                <div className="grid grid-cols-3 gap-0.5 p-1">
+                  {Array.from({ length: 9 }).map((_, i) => (
+                    <span key={i} className="h-1 w-1 rounded-sm bg-slate-300" />
+                  ))}
                 </div>
               </div>
-              <div className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-xs text-slate-500 dark:border-slate-800">
-                <p>
-                  Tempo restante: <strong className="text-slate-700">{formatarTempoRestante(progresso.tempoRestanteSegundos)}</strong>
-                </p>
-                <p>
-                  Velocidade: <strong className="text-slate-700">{campanhaAtiva.intervaloSegundos}s</strong> por mensagem
-                </p>
-                <p className="truncate font-medium text-indigo-700">{campanhaAtiva.nome}</p>
-              </div>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className="h-full rounded-full bg-indigo-500 transition-all duration-500"
-                  style={{ width: `${progresso.percentual}%` }}
-                />
-              </div>
-              <Button
-                size="sm"
-                variant="danger"
-                className="mt-4 w-full"
-                onClick={() => {
-                  if (window.confirm("Cancelar o disparo em andamento?")) {
-                    void acaoCampanha(campanhaAtiva.id, "cancelar");
-                  }
-                }}
-              >
-                <X className="h-3.5 w-3.5" /> Cancelar disparo
-              </Button>
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-slate-500">
-              <RefreshCw className="mb-3 h-8 w-8 text-slate-300" />
-              <p>Selecione uma campanha em andamento ou inicie um novo disparo.</p>
-            </div>
+            )}
+          </div>
+        </div>
+
+        <DisparosMetricCard
+          titulo="Campanhas"
+          valor={fmt(metricas?.totalCampanhas ?? 0)}
+          subtitulo="Total de campanhas"
+          icon={FileText}
+          tom="indigo"
+        />
+        <DisparosMetricCard
+          titulo="Enviados Hoje"
+          valor={fmt(metricas?.enviadasHoje ?? 0)}
+          subtitulo="Mensagens enviadas"
+          icon={Users}
+          tom="emerald"
+        />
+        <DisparosMetricCard
+          titulo="Pendentes"
+          valor={fmt(metricas?.pendentes ?? 0)}
+          subtitulo="Aguardando envio"
+          icon={Clock}
+          tom="amber"
+        />
+        <DisparosMetricCard
+          titulo="Falhas"
+          valor={fmt(metricas?.falhas ?? 0)}
+          subtitulo="Não foram entregues"
+          icon={ThumbsDown}
+          tom="rose"
+        />
+      </div>
+
+      {/* Campanhas + Progresso */}
+      <div className="grid gap-4 xl:grid-cols-12">
+        <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] xl:col-span-7">
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+            <h2 className="text-sm font-semibold text-slate-800">Campanhas recentes</h2>
+            <Link href="/app/disparos-whatsapp/historico" className="text-xs font-medium text-indigo-600 hover:underline">
+              Ver todas
+            </Link>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="border-b border-slate-100 bg-slate-50/80 text-[10px] uppercase tracking-wide text-slate-500">
+                <tr>
+                  {["Nome da Campanha", "Data", "Contatos", "Enviados", "Pendentes", "Falhas", "Status", ""].map(
+                    (h) => (
+                      <th key={h} className="whitespace-nowrap px-4 py-2.5 font-medium">
+                        {h}
+                      </th>
+                    )
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {campanhas.slice(0, 6).map((c) => (
+                  <tr
+                    key={c.id}
+                    onClick={() => void abrirCampanha(c)}
+                    className={`cursor-pointer border-b border-slate-50 transition-colors hover:bg-slate-50/80 ${
+                      campanhaAtiva?.id === c.id ? "bg-indigo-50/40" : ""
+                    }`}
+                  >
+                    <td className="px-4 py-3 font-medium text-slate-800">{c.nome}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-slate-500">
+                      {new Date(c.createdAt).toLocaleDateString("pt-BR")}
+                    </td>
+                    <td className="px-4 py-3 text-slate-700">{fmt(c.totalContatos)}</td>
+                    <td className="px-4 py-3 font-medium text-emerald-700">{fmt(c.enviadas)}</td>
+                    <td className="px-4 py-3 font-medium text-amber-700">{fmt(c.pendentes)}</td>
+                    <td className="px-4 py-3 font-medium text-red-600">{fmt(c.falhas)}</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${statusCampanhaBadge(c.status)}`}
+                      >
+                        {labelStatusCampanha(c.status)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                        {(c.status === "rascunho" || c.status === "agendada") && (
+                          <button
+                            type="button"
+                            title="Iniciar"
+                            onClick={() => void acaoCampanha(c.id, "iniciar")}
+                            className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-indigo-600"
+                          >
+                            <Play className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          title="Duplicar"
+                          onClick={() => void acaoCampanha(c.id, "duplicar")}
+                          className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          title="Excluir"
+                          onClick={() => setExcluirId(c.id)}
+                          className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-500"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {!campanhas.length && (
+            <p className="py-12 text-center text-sm text-slate-400">Nenhuma campanha criada ainda.</p>
           )}
         </div>
-      </div>
 
-      {/* Fila de envio */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-800">
-          <h2 className="font-semibold text-slate-800 dark:text-slate-100">
-            Fila de envio
-            {campanhaAtiva ? (
-              <span className="ml-2 text-sm font-normal text-slate-500">— {campanhaAtiva.nome}</span>
+        <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] xl:col-span-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-800">Progresso do disparo</h2>
+            {emDisparo && campanhaAtiva.status === "enviando" ? (
+              <button
+                type="button"
+                onClick={() => void acaoCampanha(campanhaAtiva.id, "pausar")}
+                className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
+              >
+                <Pause className="h-3 w-3" /> Pausar
+              </button>
+            ) : emDisparo && campanhaAtiva.status === "pausada" ? (
+              <button
+                type="button"
+                onClick={() => void acaoCampanha(campanhaAtiva.id, "continuar")}
+                className="flex items-center gap-1 rounded-lg bg-indigo-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-indigo-700"
+              >
+                <Play className="h-3 w-3" /> Continuar
+              </button>
             ) : null}
-          </h2>
+          </div>
+
+          <ProgressoCircular
+            percentual={pctProgresso}
+            legenda={[
+              { label: "Enviados", valor: dadosProgresso.enviadas, cor: "text-emerald-700" },
+              { label: "Pendentes", valor: dadosProgresso.pendentes, cor: "text-amber-700" },
+              { label: "Falhas", valor: dadosProgresso.falhas, cor: "text-red-600" },
+              { label: "Total", valor: dadosProgresso.total, cor: "text-slate-800" },
+            ]}
+          />
+
+          <div className="mt-4 space-y-1 border-t border-slate-100 pt-4 text-[11px] text-slate-500">
+            <p>
+              Tempo restante:{" "}
+              <strong className="text-slate-700">
+                {emDisparo ? formatarTempoRestante(dadosProgresso.tempoRestanteSegundos) : "—"}
+              </strong>
+            </p>
+            <p>
+              Velocidade:{" "}
+              <strong className="text-slate-700">
+                {emDisparo ? `${campanhaAtiva.intervaloSegundos} seg` : "—"} por mensagem
+              </strong>
+            </p>
+            {campanhaAtiva ? (
+              <p className="truncate font-medium text-indigo-600">{campanhaAtiva.nome}</p>
+            ) : null}
+          </div>
         </div>
-        {fila.length > 0 ? (
-          <Table headers={["", "Nome", "Telefone", "Status", "Horário", "Tentativas", "Erro"]}>
-            {fila.map((item) => (
-              <tr key={item.id} className="text-sm">
-                <td className="px-4 py-2.5">{dotStatus(item.status)}</td>
-                <td className="px-4 py-2.5 font-medium">{item.nome}</td>
-                <td className="px-4 py-2.5 text-slate-600">{item.telefone}</td>
-                <td className="px-4 py-2.5">
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] ${statusBadge(item.status)}`}>
-                    {labelStatus(item.status)}
-                  </span>
-                </td>
-                <td className="whitespace-nowrap px-4 py-2.5 text-xs text-slate-500">
-                  {new Date(item.horario).toLocaleTimeString("pt-BR")}
-                </td>
-                <td className="px-4 py-2.5 text-center">{item.tentativas}</td>
-                <td className="max-w-[180px] truncate px-4 py-2.5 text-xs text-red-600">{item.erro || "—"}</td>
-              </tr>
-            ))}
-          </Table>
-        ) : (
-          <p className="p-8 text-center text-sm text-slate-500">A fila aparece ao abrir ou iniciar uma campanha.</p>
-        )}
       </div>
 
-      <CampanhaWizardModal
-        open={wizardAberto}
-        onClose={() => setWizardAberto(false)}
-        onSalvo={() => {
-          setWizardAberto(false);
-          toast("sucesso", "Campanha salva com sucesso.");
-          void recarregar();
-        }}
-        conectado={Boolean(conexao?.conectado)}
-      />
+      {/* Wizard inline — igual ao mockup */}
+      <div ref={wizardRef}>
+        <CampanhaWizardInline
+          conectado={Boolean(conexao?.conectado)}
+          fila={fila}
+          resetSignal={wizardReset}
+          onSalvo={() => {
+            toast("sucesso", "Campanha salva com sucesso.");
+            void recarregar();
+          }}
+          onIniciado={() => {
+            toast("sucesso", "Disparo iniciado.");
+            void recarregar();
+          }}
+        />
+      </div>
 
       <ConfirmacaoExclusaoModal
         open={Boolean(excluirId)}
