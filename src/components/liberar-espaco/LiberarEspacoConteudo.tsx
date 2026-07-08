@@ -23,6 +23,7 @@ import {
 import {
   formatarTamanhoArmazenamento,
   notificarUploadsAtualizados,
+  UPLOADS_ATUALIZADO_EVENT,
 } from "@/lib/uploads-armazenamento";
 import { cn } from "@/lib/utils";
 
@@ -83,6 +84,12 @@ export function LiberarEspacoConteudo() {
       void recarregarLista();
     }, 280);
     return () => window.clearTimeout(t);
+  }, [recarregarLista]);
+
+  useEffect(() => {
+    const atualizar = () => void recarregarLista();
+    window.addEventListener(UPLOADS_ATUALIZADO_EVENT, atualizar);
+    return () => window.removeEventListener(UPLOADS_ATUALIZADO_EVENT, atualizar);
   }, [recarregarLista]);
 
   const totalPaginas = Math.max(1, Math.ceil(arquivos.length / POR_PAGINA));

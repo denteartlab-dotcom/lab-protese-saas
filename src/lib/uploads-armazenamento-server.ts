@@ -93,7 +93,11 @@ export async function listarArquivosGaleria(
   }
 
   const doBanco = await listarArquivosBanco(empresaId);
-  return [...lista, ...doBanco].sort((a, b) => b.bytes - a.bytes);
+  return [...lista, ...doBanco].sort((a, b) => {
+    const tb = new Date(b.criadoEm).getTime();
+    const ta = new Date(a.criadoEm).getTime();
+    return (Number.isNaN(tb) ? 0 : tb) - (Number.isNaN(ta) ? 0 : ta);
+  });
 }
 
 export async function excluirArquivoGaleria(

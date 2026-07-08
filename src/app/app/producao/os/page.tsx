@@ -56,12 +56,14 @@ import {
   type PrioridadeOsForm,
 } from "@/lib/prioridade-os";
 import {
+  anexosParaLinhasInstrucoes,
   clienteDescontoGeralDeObservacoes,
   clienteDescontoGeralTipoDeObservacoes,
   descontoFormularioParaValorUn,
   descontoItemResolvidoParaValor,
   descontoZeradoPorTipo,
 } from "@/lib/cabecalho-os-form";
+import { anexosFromGrupoTrabalhos } from "@/lib/os-anexos";
 import {
   aplicarRepresentanteEmColaboradoresOs,
   aplicarRepresentanteEmEtapasOs,
@@ -435,6 +437,7 @@ export default function OrdemServicoPage() {
   const [tipoDenticao, setTipoDenticao] = useState<TipoDenticao>("permanente");
   const [dentes, setDentes] = useState<string[]>([]);
   const [arquivos, setArquivos] = useState<File[]>([]);
+  const [anexosExistentes, setAnexosExistentes] = useState<ArquivoOs[]>([]);
   const { esgotado: galeriaEsgotada, mensagemBloqueioUpload, podeEnviarArquivos } =
     useArmazenamentoGaleria();
   const [abaServico, setAbaServico] = useState<
@@ -838,6 +841,7 @@ export default function OrdemServicoPage() {
           tipoProtese: item.tipoProtese,
         }))
       );
+      setAnexosExistentes(anexosFromGrupoTrabalhos(grupo));
 
       const dentesTexto = trabalho.dentes || "";
       const itensCarregados = grupo.flatMap((item) => itensFromTrabalho(item));
@@ -962,6 +966,7 @@ export default function OrdemServicoPage() {
     return () => {
       setGrupoOsRegistros([]);
       setMetaGrupoOsEdicao(null);
+      setAnexosExistentes([]);
       trabalhoContextoRef.current = null;
       mounted = false;
     };
@@ -2597,32 +2602,32 @@ export default function OrdemServicoPage() {
   async function uploadArquivosSelecionados(): Promise<ArquivoOs[]> {
     if (!arquivos.length) return [];
     const bloqueio = mensagemBloqueioUpload();
-    if (bloqueio) {
-      alert(bloqueio);
-      return [];
-    }
+    if (bloqueio) throw new Error(bloqueio);
     if (!podeEnviarArquivos(arquivos)) {
-      alert(
+      throw new Error(
         "Espaço insuficiente na galeria para estes arquivos. Libere espaço em Início → Uploads."
       );
-      return [];
     }
     const formData = new FormData();
     arquivos.forEach((arquivo) => formData.append("files", arquivo));
 
-    const response = await fetch("/api/uploads", {
+    const response = await fetch("/api/uploads?pasta=os", {
       method: "POST",
       body: formData,
+      credentials: "same-origin",
     });
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      if (err?.error) alert(String(err.error));
-      return [];
+      throw new Error(
+        typeof err?.error === "string"
+          ? err.error
+          : "Não foi possível enviar os arquivos."
+      );
     }
     const uploaded = await response.json();
     notificarUploadsAtualizados();
-    return uploaded;
+    return Array.isArray(uploaded) ? uploaded : [];
   }
 
   function adicionarArquivosSelecionados(event: React.ChangeEvent<HTMLInputElement>) {
@@ -2691,6 +2696,7 @@ export default function OrdemServicoPage() {
 
     setDentes([]);
     setArquivos([]);
+    setAnexosExistentes([]);
     setMateriaisSelecionados([]);
     setMaterialQuantidades({});
     setMaterialAberto(false);
@@ -2850,6 +2856,11 @@ export default function OrdemServicoPage() {
   }
 
   function montarCorpoInstrucoes(arquivosEnviados: ArquivoOs[]) {
+    const urlsExistentes = new Set(anexosExistentes.map((anexo) => anexo.url));
+    const todosAnexos = [
+      ...anexosExistentes,
+      ...arquivosEnviados.filter((anexo) => !urlsExistentes.has(anexo.url)),
+    ];
     return [
       instrucoesTextoLivre(form.instrucoes),
       form.materialEnviado ? `Material enviado: ${form.materialEnviado}` : "",
@@ -2874,10 +2885,7 @@ export default function OrdemServicoPage() {
             }`
         )
         .join("\n"),
-      arquivosEnviados
-        .map((arquivo) => `Arquivo anexado: ${arquivo.name} | ${arquivo.type} | ${arquivo.url}`)
-        .join("\n") ||
-        (arquivos.length ? `Arquivos anexados: ${arquivos.map((arquivo) => arquivo.name).join(", ")}` : ""),
+      anexosParaLinhasInstrucoes(todosAnexos),
     ]
       .filter(Boolean)
       .join("\n");
@@ -2973,7 +2981,31 @@ export default function OrdemServicoPage() {
 
     setAvisoAdicionarServico("");
     setSalvando(true);
-    const arquivosEnviados = await uploadArquivosSelecionados();
+    let arquivosEnviados: ArquivoOs[] = [];
+    try {
+      arquivosEnviados = await uploadArquivosSelecionados();
+    } catch (err) {
+      setSalvando(false);
+      alert(err instanceof Error ? err.message : "Não foi possível enviar os arquivos.");
+      return;
+    }
+    if (arquivos.length > 0 && arquivosEnviados.length === 0) {
+      setSalvando(false);
+      alert("Não foi possível enviar os arquivos. Tente novamente.");
+      return;
+    }
+    if (arquivosEnviados.length > 0) {
+      setArquivos([]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      setAnexosExistentes((atuais) => {
+        const urls = new Set(atuais.map((anexo) => anexo.url));
+        const merged = [...atuais];
+        for (const anexo of arquivosEnviados) {
+          if (!urls.has(anexo.url)) merged.push(anexo);
+        }
+        return merged;
+      });
+    }
     const itensParaSalvar = prepararItensParaSalvarOs([...itensAdicionados]);
 
     if (itensParaSalvar.length === 0) {
