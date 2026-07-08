@@ -52,7 +52,7 @@ export function iniciarMonitorConexaoWhatsapp(intervaloMs = 2500) {
   }, intervaloMs);
 }
 
-export async function aguardarQrBaileys(maxSegundos = 45) {
+export async function aguardarQrBaileys(maxSegundos = 55) {
   const inicio = Date.now();
   while (Date.now() - inicio < maxSegundos * 1000) {
     const status = await consultarStatusBaileys();

@@ -59,7 +59,7 @@ export async function POST() {
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   await baileysReconectar({ limparAuth: true });
-  const status = await aguardarQrBaileys(45);
+  const status = await aguardarQrBaileys(55);
   void sincronizarConexaoWhatsappSocket();
 
   if (!status) {

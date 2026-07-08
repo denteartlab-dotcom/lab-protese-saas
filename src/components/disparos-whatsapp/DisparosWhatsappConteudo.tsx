@@ -29,6 +29,7 @@ import {
   formatarTempoRestante,
 } from "@/lib/whatsapp-disparos/mensagem-variaveis";
 import type { CampanhaPublica } from "@/lib/whatsapp-disparos/campanha-servidor";
+import type { DiagnosticoWhatsapp } from "@/lib/whatsapp-disparos/diagnostico-conexao";
 
 type DashboardData = {
   conexao: {
@@ -121,6 +122,7 @@ export function DisparosWhatsappConteudo() {
   const [aguardandoQr, setAguardandoQr] = useState(false);
   const [qrModalAberto, setQrModalAberto] = useState(false);
   const [apiNaoAutorizada, setApiNaoAutorizada] = useState(false);
+  const [diagnostico, setDiagnostico] = useState<DiagnosticoWhatsapp | null>(null);
 
   const toast = useCallback((tipo: ToastDisparo["tipo"], mensagem: string) => {
     setToasts((prev) => [...prev, { id: `${Date.now()}-${Math.random()}`, tipo, mensagem }]);
@@ -142,6 +144,18 @@ export function DisparosWhatsappConteudo() {
       return false;
     }
   }, [dashboard?.conexao?.conectado]);
+
+  const carregarDiagnostico = useCallback(async () => {
+    try {
+      const res = await fetch("/api/disparos-whatsapp/diagnostico", {
+        cache: "no-store",
+        credentials: "same-origin",
+      });
+      if (res.ok) setDiagnostico((await res.json()) as DiagnosticoWhatsapp);
+    } catch {
+      /* ignora */
+    }
+  }, []);
 
   const recarregar = useCallback(async () => {
     try {
@@ -165,8 +179,9 @@ export function DisparosWhatsappConteudo() {
             setQrImagem(null);
           }
         }
-      } else if (dashRes.status === 401) {
+      } else if (dashRes.status === 401 || campRes.status === 401) {
         setAguardandoQr(false);
+        setApiNaoAutorizada(true);
       }
 
       if (campRes.ok) {
@@ -188,16 +203,21 @@ export function DisparosWhatsappConteudo() {
         "erro",
         "Tempo esgotado aguardando o QR. Reinicie o serviço: pm2 restart lab-protese-whatsapp"
       );
-    }, 60_000);
+    }, 90_000);
     return () => window.clearTimeout(timeout);
   }, [aguardandoQr, toast]);
 
   useEffect(() => {
     void recarregar();
+    void carregarDiagnostico();
+    if (apiNaoAutorizada) return;
     const intervalo = aguardandoQr ? 2000 : 8000;
-    const timer = window.setInterval(() => void recarregar(), intervalo);
+    const timer = window.setInterval(() => {
+      void recarregar();
+      void carregarDiagnostico();
+    }, intervalo);
     return () => window.clearInterval(timer);
-  }, [recarregar, aguardandoQr]);
+  }, [recarregar, carregarDiagnostico, aguardandoQr, apiNaoAutorizada]);
 
   useDisparosSocket({
     onSocketStatus: setSocketOnline,
@@ -305,11 +325,13 @@ export function DisparosWhatsappConteudo() {
         }
       }
 
-      // Continua aguardando via polling/socket (até 60s)
+      // Continua aguardando via polling/socket (até 90s)
       void recarregar();
+      void carregarDiagnostico();
     } catch (err) {
       setAguardandoQr(false);
       toast("erro", err instanceof Error ? err.message : "Erro ao gerar QR Code");
+      void carregarDiagnostico();
     } finally {
       setProcessando(false);
     }
@@ -399,6 +421,35 @@ export function DisparosWhatsappConteudo() {
 
   return (
     <div className="space-y-5">
+      {apiNaoAutorizada ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-semibold">Passo 1 — Sessão inválida (erro 401)</p>
+          <p className="mt-1">
+            Saia e entre de novo usando sempre o mesmo endereço (com ou sem www).{" "}
+            <Link href="/login" className="font-semibold underline">
+              Ir para login
+            </Link>
+          </p>
+        </div>
+      ) : null}
+
+      {diagnostico && !diagnostico.baileysOnline && !apiNaoAutorizada ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+          <p className="font-semibold">Passo 2 — Serviço Baileys offline</p>
+          <p className="mt-1">Na VPS execute:</p>
+          <pre className="mt-2 overflow-x-auto rounded bg-red-100/80 p-2 text-xs">
+            pm2 restart lab-protese-whatsapp{"\n"}
+            npm run whatsapp:diagnostico
+          </pre>
+        </div>
+      ) : null}
+
+      {diagnostico?.tokenConfigurado && diagnostico.baileysOnline && !apiNaoAutorizada ? (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-900">
+          Token configurado: confira se <code className="rounded bg-blue-100 px-1">WHATSAPP_HTTP_TOKEN</code> é
+          idêntico no .env (ou deixe vazio nos dois processos).
+        </div>
+      ) : null}
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">

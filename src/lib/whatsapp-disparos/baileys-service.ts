@@ -17,15 +17,20 @@ function headersBaileys() {
   return headers;
 }
 
-async function postBaileys(path: string, body: Record<string, unknown>) {
+async function postBaileys(path: string, body: Record<string, unknown>, timeoutMs = 30_000) {
   const res = await fetch(`${urlBaseBaileys()}${path}`, {
     method: "POST",
     headers: headersBaileys(),
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(30_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   const data = (await res.json().catch(() => ({}))) as BaileysSendResponse;
   if (!res.ok) {
+    if (res.status === 401) {
+      throw new Error(
+        "Token Baileys rejeitado (401). Deixe WHATSAPP_HTTP_TOKEN vazio no .env ou use o mesmo valor nos dois processos PM2."
+      );
+    }
     throw new Error(data.error || `Falha Baileys (${res.status})`);
   }
   return data;
@@ -67,9 +72,11 @@ export async function baileysLogout() {
 }
 
 export async function baileysReconectar(opts?: { limparAuth?: boolean }) {
-  return postBaileys("/reconnect", {
-    limparAuth: Boolean(opts?.limparAuth),
-  });
+  return postBaileys(
+    "/reconnect",
+    { limparAuth: Boolean(opts?.limparAuth) },
+    65_000
+  );
 }
 
 export function baileysConfigurado() {

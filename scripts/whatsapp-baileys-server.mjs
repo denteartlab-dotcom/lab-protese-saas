@@ -93,6 +93,16 @@ async function encerrarSocket() {
   iniciando = false;
 }
 
+async function aguardarQrLocal(maxMs = 50_000) {
+  const inicio = Date.now();
+  while (Date.now() - inicio < maxMs) {
+    if (conectado) return { connected: true, qr: null, phone: numeroConectado };
+    if (qrAtual) return { connected: false, qr: qrAtual, phone: null };
+    await new Promise((r) => setTimeout(r, 800));
+  }
+  return { connected: conectado, qr: qrAtual || null, phone: numeroConectado };
+}
+
 async function reiniciarConexao(opts = { limparAuth: false }) {
   await encerrarSocket();
   conectado = false;
@@ -289,6 +299,13 @@ const server = http.createServer(async (req, res) => {
       const limparAuth = Boolean(body.limparAuth || body.limparSessao);
       if (!conectado) {
         await reiniciarConexao({ limparAuth });
+        const aguardado = await aguardarQrLocal(50_000);
+        return json(res, 200, {
+          ok: true,
+          connected: aguardado.connected,
+          qr: aguardado.qr,
+          phone: aguardado.phone,
+        });
       }
       return json(res, 200, {
         ok: true,
