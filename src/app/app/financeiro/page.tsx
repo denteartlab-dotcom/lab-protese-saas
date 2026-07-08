@@ -2,7 +2,18 @@
 
 import { Fragment, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { AlertTriangle, Check, Eye, FileText, Pencil, Plus, Printer, Search, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  Eye,
+  FileText,
+  Pencil,
+  Plus,
+  Printer,
+  QrCode,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { BotoesImprimirExportarToolbar } from "@/components/BotoesImprimirExportarToolbar";
 import {
   ContaBancariaConteudoLazy,
@@ -339,6 +350,7 @@ function FinanceiroReceberConteudo() {
   const [pixQrRecebimento, setPixQrRecebimento] = useState<DadosPixQrRecebimento | null>(
     null
   );
+  const [pixAbrindoLancamentoId, setPixAbrindoLancamentoId] = useState<string | null>(null);
   const [confirmacaoExclusao, setConfirmacaoExclusao] = useState<{
     title: string;
     message: string;
@@ -1739,6 +1751,48 @@ function FinanceiroReceberConteudo() {
     return lancamento.formaPagamento || "-";
   }
 
+  function podeReabrirPixAsaas(lancamento: Lancamento) {
+    if (!pixAsaasDisponivel) return false;
+    if (!formaEhPixAsaas(lancamento.formaPagamento)) return false;
+    if (lancamento.status === "pago") return false;
+    return true;
+  }
+
+  async function abrirPixQrLancamento(lancamento: Lancamento, clienteNome: string) {
+    if (pixAbrindoLancamentoId) return;
+    setPixAbrindoLancamentoId(lancamento.id);
+    try {
+      const res = await fetch(
+        `/api/asaas/pix-cobranca?lancamentoId=${encodeURIComponent(lancamento.id)}`,
+        { cache: "no-store" }
+      );
+      const json = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        pixPayload?: string;
+        pixEncodedImage?: string;
+        expirationDate?: string;
+      };
+      if (!res.ok) {
+        alert(
+          typeof json.error === "string"
+            ? json.error
+            : "Não foi possível carregar o QR Code Pix."
+        );
+        return;
+      }
+      setPixQrRecebimento({
+        valor: lancamento.valor,
+        clienteNome,
+        pixPayload: String(json.pixPayload || ""),
+        pixEncodedImage: String(json.pixEncodedImage || ""),
+        expirationDate:
+          typeof json.expirationDate === "string" ? json.expirationDate : undefined,
+      });
+    } finally {
+      setPixAbrindoLancamentoId(null);
+    }
+  }
+
   function isFaturaContasReceber(lancamento: Lancamento) {
     if (isCreditoGerado(lancamento) || isCreditoUtilizado(lancamento)) return false;
     if (!lancamento.descricao.toLowerCase().startsWith("cobrança os")) return false;
@@ -2371,15 +2425,30 @@ function FinanceiroReceberConteudo() {
                                           </td>
                                           <td className="px-2 py-2">
                                             <div className="flex items-center justify-center gap-1">
+                                              {podeReabrirPixAsaas(l) ? (
+                                                <button
+                                                  type="button"
+                                                  title="Abrir QR Code Pix"
+                                                  disabled={pixAbrindoLancamentoId === l.id}
+                                                  onClick={() =>
+                                                    void abrirPixQrLancamento(l, cliente.nome)
+                                                  }
+                                                  className="inline-flex items-center gap-1 rounded p-1 text-sky-600 hover:bg-sky-50 disabled:opacity-50"
+                                                >
+                                                  <QrCode className="h-3.5 w-3.5" />
+                                                  <span className="text-[10px]">Pix</span>
+                                                </button>
+                                              ) : null}
                                               {l.cobrancaAsaas?.bankSlipUrl ? (
                                                 <a
                                                   href={l.cobrancaAsaas.bankSlipUrl}
                                                   target="_blank"
                                                   rel="noopener noreferrer"
                                                   title="Abrir boleto (PDF)"
-                                                  className="rounded p-1 text-emerald-600 hover:bg-emerald-50"
+                                                  className="inline-flex items-center gap-1 rounded p-1 text-emerald-600 hover:bg-emerald-50"
                                                 >
                                                   <FileText className="h-3.5 w-3.5" />
+                                                  <span className="text-[10px]">Boleto</span>
                                                 </a>
                                               ) : null}
                                               <button
@@ -2470,6 +2539,32 @@ function FinanceiroReceberConteudo() {
                                         <td className="px-2 py-2 text-right">{money(l.valor)}</td>
                                         <td className="px-2 py-2">
                                           <div className="flex items-center justify-center gap-1">
+                                            {podeReabrirPixAsaas(l) ? (
+                                              <button
+                                                type="button"
+                                                title="Abrir QR Code Pix"
+                                                disabled={pixAbrindoLancamentoId === l.id}
+                                                onClick={() =>
+                                                  void abrirPixQrLancamento(l, cliente.nome)
+                                                }
+                                                className="inline-flex items-center gap-1 rounded p-1 text-sky-600 hover:bg-sky-50 disabled:opacity-50"
+                                              >
+                                                <QrCode className="h-3.5 w-3.5" />
+                                                <span className="text-[10px]">Pix</span>
+                                              </button>
+                                            ) : null}
+                                            {l.cobrancaAsaas?.bankSlipUrl ? (
+                                              <a
+                                                href={l.cobrancaAsaas.bankSlipUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                title="Abrir boleto (PDF)"
+                                                className="inline-flex items-center gap-1 rounded p-1 text-emerald-600 hover:bg-emerald-50"
+                                              >
+                                                <FileText className="h-3.5 w-3.5" />
+                                                <span className="text-[10px]">Boleto</span>
+                                              </a>
+                                            ) : null}
                                             <button
                                               type="button"
                                               title="Estornar recebimento"
@@ -2948,7 +3043,34 @@ function FinanceiroReceberConteudo() {
               </table>
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex flex-wrap justify-end gap-2">
+              {podeReabrirPixAsaas(detalheRecebimento.lancamento) ? (
+                <Button
+                  type="button"
+                  className="bg-sky-600 text-white hover:bg-sky-700"
+                  disabled={pixAbrindoLancamentoId === detalheRecebimento.lancamento.id}
+                  onClick={() =>
+                    void abrirPixQrLancamento(
+                      detalheRecebimento.lancamento,
+                      detalheRecebimento.cliente.nome
+                    )
+                  }
+                >
+                  <QrCode className="mr-2 h-4 w-4" />
+                  Ver QR Code Pix
+                </Button>
+              ) : null}
+              {detalheRecebimento.lancamento.cobrancaAsaas?.bankSlipUrl ? (
+                <a
+                  href={detalheRecebimento.lancamento.cobrancaAsaas.bankSlipUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center rounded border border-emerald-300 bg-emerald-50 px-3 py-2 text-[12px] font-medium text-emerald-700 hover:bg-emerald-100"
+                >
+                  <FileText className="mr-2 h-4 w-4" />
+                  Abrir boleto
+                </a>
+              ) : null}
               <Button
                 type="button"
                 variant="outline"

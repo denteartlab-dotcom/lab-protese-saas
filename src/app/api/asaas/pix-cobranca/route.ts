@@ -31,9 +31,43 @@ function parseDateOnly(value?: string) {
   return parsed;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+
+  const lancamentoId = new URL(request.url).searchParams.get("lancamentoId")?.trim();
+  if (lancamentoId) {
+    const lancamento = await prisma.lancamento.findFirst({
+      where: { id: lancamentoId, empresaId: ctx.empresaId, tipo: "receita" },
+    });
+    if (!lancamento) {
+      return NextResponse.json({ error: "Lançamento não encontrado." }, { status: 404 });
+    }
+
+    const disponivel = await pixAsaasDisponivel(ctx.empresaId);
+    if (!disponivel) {
+      return NextResponse.json(
+        { error: "Pix com QR Code não está disponível nesta conta." },
+        { status: 422 }
+      );
+    }
+
+    try {
+      const pix = await tentarEmitirPixParaLancamento(lancamentoId, lancamento.valor);
+      if (!pix) {
+        return NextResponse.json(
+          { error: "Este lançamento não possui cobrança Pix no Asaas." },
+          { status: 422 }
+        );
+      }
+      return NextResponse.json({ ok: true, ...pix, lancamentoId });
+    } catch (err) {
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "Erro ao obter QR Code Pix." },
+        { status: 422 }
+      );
+    }
+  }
 
   const disponivel = await pixAsaasDisponivel(ctx.empresaId);
   return NextResponse.json({ disponivel });
