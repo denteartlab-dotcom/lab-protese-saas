@@ -337,6 +337,7 @@ type DashboardSecundario = Pick<
           titulo={t("dashboard.servicosVencendo")}
           valor={vencendo}
           tom="warning"
+          painelControle="vencendo"
           grupos={vencendoGrupos}
           tipoPrazo={prazoVencendo}
           expandido={painelExpandido === "vencendo"}
@@ -370,6 +371,7 @@ type DashboardSecundario = Pick<
           titulo={t("dashboard.servicosAtrasados")}
           valor={atrasados}
           tom="danger"
+          painelControle="atrasados"
           grupos={atrasadosGrupos}
           tipoPrazo={prazoAtrasados}
           expandido={painelExpandido === "atrasados"}

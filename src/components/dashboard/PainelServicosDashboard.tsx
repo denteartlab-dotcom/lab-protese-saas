@@ -3,11 +3,13 @@
 import { useMemo, useState } from "react";
 import type { TipoPrazoProducao } from "@/lib/controle-producao-prazos";
 import type { GrupoOsPainelServicos } from "@/lib/painel-servicos-dashboard";
+import { ModalOsResumoDashboard } from "@/components/dashboard/ModalOsResumoDashboard";
 
 type Props = {
   titulo: string;
   valor: number;
   tom: "warning" | "danger";
+  painelControle: "atrasados" | "vencendo";
   filtros: React.ReactNode;
   grupos: GrupoOsPainelServicos[];
   tipoPrazo: TipoPrazoProducao;
@@ -46,8 +48,10 @@ export function PainelServicosDashboard({
   titulo,
   valor,
   tom,
+  painelControle,
   filtros,
   grupos,
+  tipoPrazo,
   expandido,
   onToggleExpandir,
   labelVisualizar,
@@ -72,19 +76,11 @@ export function PainelServicosDashboard({
     campo: CampoOrdenacao;
     direcao: DirecaoOrdenacao;
   }>({ campo: "os", direcao: "desc" });
-  const [osSelecionada, setOsSelecionada] = useState<string | null>(null);
+  const [grupoModal, setGrupoModal] = useState<GrupoOsPainelServicos | null>(null);
 
   const ordenados = useMemo(
     () => ordenarGruposPainel(grupos, ordenacao.campo, ordenacao.direcao),
     [grupos, ordenacao]
-  );
-
-  const visiveis = useMemo(
-    () =>
-      osSelecionada
-        ? ordenados.filter((grupo) => grupo.chave === osSelecionada)
-        : ordenados,
-    [ordenados, osSelecionada]
   );
 
   function alternarOrdenacao(campo: CampoOrdenacao) {
@@ -95,12 +91,8 @@ export function PainelServicosDashboard({
     );
   }
 
-  function alternarOs(chave: string) {
-    setOsSelecionada((atual) => (atual === chave ? null : chave));
-  }
-
   function handleToggleExpandir() {
-    if (expandido) setOsSelecionada(null);
+    if (expandido) setGrupoModal(null);
     onToggleExpandir();
   }
 
@@ -147,48 +139,33 @@ export function PainelServicosDashboard({
 
       {expandido && (
         <div className="border-t border-slate-100 px-3 pb-3">
-          {osSelecionada ? (
-            <div className="flex items-center justify-between px-1 pt-2">
-              <p className="text-[10px] text-slate-500">Exibindo OS selecionada</p>
-              <button
-                type="button"
-                onClick={() => setOsSelecionada(null)}
-                className="text-[10px] font-medium text-[#4a90d9] hover:underline"
-              >
-                Ver todas
-              </button>
-            </div>
-          ) : (
-            <div className="mb-1 flex justify-end gap-3 pr-1 pt-2 text-[10px]">
-              <BotaoOrdenacao
-                label="OS"
-                ativo={ordenacao.campo === "os"}
-                direcao={ordenacao.direcao}
-                onClick={() => alternarOrdenacao("os")}
-              />
-              <BotaoOrdenacao
-                label="Data"
-                ativo={ordenacao.campo === "data"}
-                direcao={ordenacao.direcao}
-                onClick={() => alternarOrdenacao("data")}
-              />
-            </div>
-          )}
+          <div className="mb-1 flex justify-end gap-3 pr-1 pt-2 text-[10px]">
+            <BotaoOrdenacao
+              label="OS"
+              ativo={ordenacao.campo === "os"}
+              direcao={ordenacao.direcao}
+              onClick={() => alternarOrdenacao("os")}
+            />
+            <BotaoOrdenacao
+              label="Data"
+              ativo={ordenacao.campo === "data"}
+              direcao={ordenacao.direcao}
+              onClick={() => alternarOrdenacao("data")}
+            />
+          </div>
           <div className="max-h-[min(42vh,300px)] overflow-y-auto">
-            {visiveis.length === 0 ? (
+            {ordenados.length === 0 ? (
               <p className="py-8 text-center text-[12px] text-slate-400">Nenhum serviço neste filtro.</p>
             ) : (
               <ul>
-                {visiveis.map((grupo) => (
+                {ordenados.map((grupo) => (
                   <li key={grupo.chave} className="border-b border-slate-100 last:border-0">
                     <div className="grid grid-cols-[52px_1fr] gap-3 py-2.5">
                       <button
                         type="button"
-                        onClick={() => alternarOs(grupo.chave)}
-                        className={`flex h-9 w-9 items-center justify-center rounded text-[13px] font-bold transition hover:opacity-80 ${badgeOs} ${
-                          osSelecionada === grupo.chave ? "ring-2 ring-offset-1 ring-slate-400" : ""
-                        }`}
-                        title="Ver somente esta OS"
+                        onClick={() => setGrupoModal(grupo)}
+                        className={`flex h-9 w-9 items-center justify-center rounded text-[13px] font-bold transition hover:opacity-80 ${badgeOs}`}
+                        title="Ver resumo da OS"
                       >
                         {grupo.numeroOs}
                       </button>
@@ -215,6 +192,14 @@ export function PainelServicosDashboard({
           </div>
         </div>
       )}
+
+      <ModalOsResumoDashboard
+        open={grupoModal !== null}
+        onClose={() => setGrupoModal(null)}
+        grupo={grupoModal}
+        painelControle={painelControle}
+        tipoPrazo={tipoPrazo}
+      />
     </div>
   );
 }
