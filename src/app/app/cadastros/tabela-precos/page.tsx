@@ -67,10 +67,8 @@ import {
   TABELA_PRECOS_STORAGE_KEY,
   TABELA_PRECOS_VAZIA,
 } from "@/lib/tabela-precos-os";
-import {
-  configValueFromObservacoes,
-  definirTabelaPrecoClienteObservacoes,
-} from "@/lib/cliente-observacoes";
+import { configValueFromObservacoes } from "@/lib/cliente-financeiro";
+import { definirTabelaPrecoClienteObservacoes } from "@/lib/cliente-observacoes";
 import { cn } from "@/lib/utils";
 
 type TipoItemPreco = "servico" | "produto" | "transporte";
