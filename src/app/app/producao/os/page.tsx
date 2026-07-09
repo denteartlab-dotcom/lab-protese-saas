@@ -49,6 +49,7 @@ import {
   mensagemBloqueioSaldoDevedorOs,
   type LancamentoResumo,
 } from "@/lib/cliente-financeiro";
+import { nomePacienteProntoParaVerificacaoDuplicata } from "@/lib/paciente-nome-os";
 import {
   linhaPrioridadeOs,
   normalizarPrioridadeOsForm,
@@ -483,6 +484,9 @@ export default function OrdemServicoPage() {
     multiplosSegmentos: boolean;
   } | null>(null);
   const [avisoAdicionarServico, setAvisoAdicionarServico] = useState("");
+  const [avisoPacienteDuplicado, setAvisoPacienteDuplicado] = useState<{
+    numerosOs: number[];
+  } | null>(null);
   const [form, setForm] = useState({
     numeroOs: "",
     clienteId: "",
@@ -731,6 +735,42 @@ export default function OrdemServicoPage() {
 
     carregarMateriaisDentista();
   }, [paginaPronta]);
+
+  useEffect(() => {
+    if (editId || !paginaPronta || !form.clienteId || !nomePacienteProntoParaVerificacaoDuplicata(form.pacienteNome)) {
+      setAvisoPacienteDuplicado(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams({
+        clienteId: form.clienteId,
+        nome: form.pacienteNome.trim(),
+      });
+      void fetch(`/api/trabalhos/verificar-paciente?${params}`, { signal: controller.signal })
+        .then(async (res) => {
+          if (!res.ok) {
+            setAvisoPacienteDuplicado(null);
+            return;
+          }
+          const data = (await res.json()) as { duplicado?: boolean; numerosOs?: number[] };
+          setAvisoPacienteDuplicado(
+            data.duplicado && data.numerosOs?.length
+              ? { numerosOs: data.numerosOs }
+              : null
+          );
+        })
+        .catch(() => {
+          /* abort ou rede */
+        });
+    }, 450);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [editId, form.clienteId, form.pacienteNome, paginaPronta]);
 
   useEffect(() => {
     if (!paginaPronta || typeof window === "undefined") return;
@@ -2980,6 +3020,14 @@ export default function OrdemServicoPage() {
       return;
     }
 
+    if (!editId && avisoPacienteDuplicado?.numerosOs.length) {
+      const listaOs = avisoPacienteDuplicado.numerosOs.join(", ");
+      const continuar = window.confirm(
+        `Já existe ordem de serviço nº ${listaOs} para um paciente com o mesmo nome e sobrenome deste cliente. Deseja criar uma nova OS mesmo assim?`
+      );
+      if (!continuar) return;
+    }
+
     if (itemSelecionadoId && temAlteracoesPendentesItemOs()) {
       setAvisoAdicionarServico("Clique em Atualizar Item Selecionado antes de salvar.");
       return;
@@ -3557,13 +3605,22 @@ export default function OrdemServicoPage() {
           <Input label="Número OS" value={form.numeroOs || "Gerando..."} readOnly />
           <Input label="Caixa" value={form.caixa} onChange={(e) => setForm({ ...form, caixa: e.target.value })} />
           <Input label="Caso Clínico" value={form.casoUrgente} onChange={(e) => setForm({ ...form, casoUrgente: e.target.value })} />
-          <Input
-            label={requiredLabel("Paciente", Boolean(avisoAdicionarServico))}
-            value={form.pacienteNome}
-            onChange={(e) => setForm({ ...form, pacienteNome: e.target.value })}
-            placeholder="Digite o nome do paciente"
-            required
-          />
+          <div className="space-y-1">
+            <Input
+              label={requiredLabel("Paciente", Boolean(avisoAdicionarServico))}
+              value={form.pacienteNome}
+              onChange={(e) => setForm({ ...form, pacienteNome: e.target.value })}
+              placeholder="Nome e sobrenome do paciente"
+              required
+            />
+            {!editId && avisoPacienteDuplicado?.numerosOs.length ? (
+              <p className="flex items-start gap-1.5 text-[11px] font-medium leading-snug text-amber-700">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                Já existe OS nº {avisoPacienteDuplicado.numerosOs.join(", ")} para paciente com o
+                mesmo nome e sobrenome neste cliente.
+              </p>
+            ) : null}
+          </div>
 
           <div className="space-y-1">
             <SelectPesquisavel
