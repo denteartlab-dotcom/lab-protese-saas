@@ -208,7 +208,27 @@ export function DisparosWhatsappConteudo() {
 
       if (campRes.ok) {
         const campData = (await campRes.json()) as { campanhas?: CampanhaPublica[] };
-        setCampanhas(campData.campanhas ?? []);
+        const lista = campData.campanhas ?? [];
+        setCampanhas(lista);
+        const emEnvio = lista.find((c) => c.status === "enviando" || c.status === "pausada");
+        if (emEnvio) {
+          setCampanhaAtiva(emEnvio);
+          setProgresso({
+            percentual:
+              emEnvio.totalContatos > 0
+                ? Math.round((emEnvio.enviadas / emEnvio.totalContatos) * 100)
+                : 0,
+            tempoRestanteSegundos: estimarDuracaoDisparo(
+              emEnvio.pendentes,
+              emEnvio.intervaloSegundos,
+              emEnvio.atrasoAleatorio
+            ),
+            enviadas: emEnvio.enviadas,
+            pendentes: emEnvio.pendentes,
+            falhas: emEnvio.falhas,
+            total: emEnvio.totalContatos,
+          });
+        }
       }
     } catch {
       setAguardandoQr(false);
@@ -286,13 +306,23 @@ export function DisparosWhatsappConteudo() {
         falhas: p.falhas,
         total: p.total,
       });
-      setCampanhas((prev) =>
-        prev.map((c) =>
+      setCampanhas((prev) => {
+        const next = prev.map((c) =>
           c.id === p.campaignId
-            ? { ...c, status: p.status, enviadas: p.enviadas, pendentes: p.pendentes, falhas: p.falhas }
+            ? {
+                ...c,
+                status: p.status,
+                enviadas: p.enviadas,
+                pendentes: p.pendentes,
+                falhas: p.falhas,
+                totalContatos: p.total,
+              }
             : c
-        )
-      );
+        );
+        const ativa = next.find((c) => c.id === p.campaignId);
+        if (ativa) setCampanhaAtiva(ativa);
+        return next;
+      });
     },
     onContato: (c) => {
       setFila((prev) => {

@@ -9,12 +9,13 @@ import {
   baileysEnviarMidia,
   baileysEnviarTexto,
   baileysConfigurado,
+  baileysStatus,
 } from "@/lib/whatsapp-disparos/baileys-service";
 import {
   emitDisparoContato,
   emitDisparoProgresso,
 } from "@/lib/whatsapp-disparos/disparos-socket-io";
-import { formatarTelefoneExibicao } from "@/lib/whatsapp-disparos/telefone-br";
+import { formatarTelefoneExibicao, normalizarTelefoneBr } from "@/lib/whatsapp-disparos/telefone-br";
 
 type EstadoFila = {
   campaignId: string;
@@ -195,8 +196,20 @@ async function enviarParaContato(
       throw new Error("Baileys não configurado no servidor.");
     }
 
+    const status = await baileysStatus();
+    if (!status?.connected) {
+      throw new Error(
+        "WhatsApp desconectou durante o disparo. Reconecte em Disparos WhatsApp e continue a campanha."
+      );
+    }
+
+    const telefoneEnvio = normalizarTelefoneBr(contato.telefone);
+    if (!telefoneEnvio) {
+      throw new Error(`Telefone inválido: ${contato.telefone}`);
+    }
+
     if (anexo && anexoTipo) {
-      await baileysEnviarMidia(contato.telefone, {
+      await baileysEnviarMidia(telefoneEnvio, {
         mensagem,
         mimeType: anexo.mimeType,
         fileName: anexo.fileName,
@@ -204,7 +217,7 @@ async function enviarParaContato(
         tipo: anexoTipo as "imagem" | "pdf" | "documento" | "video" | "audio",
       });
     } else {
-      await baileysEnviarTexto(contato.telefone, mensagem);
+      await baileysEnviarTexto(telefoneEnvio, mensagem);
     }
 
     const atualizado = await runWithTenantContext(empresaId, () =>
@@ -236,12 +249,25 @@ async function enviarParaContato(
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Falha no envio";
-    await runWithTenantContext(empresaId, () =>
-      prisma.whatsappCampaignContact.update({
-        where: { id: contactId },
-        data: { status: "falhou", erro: msg },
-      })
-    );
+    const desconectou = /desconect|sessão inválida|não conectado|não confirmou/i.test(msg);
+
+    if (desconectou) {
+      await pausarFilaCampanha(empresaId, campaignId);
+      await runWithTenantContext(empresaId, () =>
+        prisma.whatsappCampaignContact.update({
+          where: { id: contactId },
+          data: { status: "aguardando", erro: msg },
+        })
+      );
+    } else {
+      await runWithTenantContext(empresaId, () =>
+        prisma.whatsappCampaignContact.update({
+          where: { id: contactId },
+          data: { status: "falhou", erro: msg },
+        })
+      );
+    }
+
     await registrarLog(
       empresaId,
       campaignId,
@@ -256,7 +282,7 @@ async function enviarParaContato(
       contactId,
       nome: contato.nome,
       telefone: contato.telefone,
-      status: "falhou",
+      status: desconectou ? "aguardando" : "falhou",
       tentativas: contato.tentativas,
       erro: msg,
       enviadoEm: null,

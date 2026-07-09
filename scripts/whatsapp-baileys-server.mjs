@@ -168,6 +168,59 @@ function jidFromPhone(phone) {
   return `${digits}@s.whatsapp.net`;
 }
 
+function variantesTelefoneBr(raw) {
+  let digits = String(raw || "").replace(/\D/g, "");
+  if (!digits) return [];
+  if ((digits.length === 10 || digits.length === 11) && !digits.startsWith("55")) {
+    digits = `55${digits}`;
+  }
+  const set = new Set([digits]);
+  if (digits.startsWith("55") && digits.length === 13) {
+    const ddd = digits.slice(2, 4);
+    const num = digits.slice(4);
+    if (num.length === 9 && num[0] === "9") {
+      set.add(`55${ddd}${num.slice(1)}`);
+    }
+  }
+  if (digits.startsWith("55") && digits.length === 12) {
+    const ddd = digits.slice(2, 4);
+    const num = digits.slice(4);
+    if (num.length === 8) {
+      set.add(`55${ddd}9${num}`);
+    }
+  }
+  return [...set];
+}
+
+function conexaoEnvioOk() {
+  return Boolean(sock && conectado && sock.user?.id && !iniciando);
+}
+
+async function resolverJidDestino(phoneRaw) {
+  if (!sock) throw new Error("Socket WhatsApp indisponível.");
+  const variants = variantesTelefoneBr(phoneRaw);
+  if (!variants.length) throw new Error("Telefone inválido.");
+
+  for (const digits of variants) {
+    try {
+      const [check] = await sock.onWhatsApp(digits);
+      if (check?.exists && check.jid) {
+        return check.jid;
+      }
+    } catch {
+      /* tenta próxima variante */
+    }
+  }
+
+  throw new Error(
+    `Número ${phoneRaw} não encontrado no WhatsApp. Confira DDD e nono dígito.`
+  );
+}
+
+function extrairIdMensagem(sent) {
+  return sent?.key?.id || sent?.message?.key?.id || null;
+}
+
 function lerJson(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -518,23 +571,30 @@ async function resetarSessaoCompleta(force = false) {
 }
 
 async function enviarMensagem(phone, message) {
-  if (!sock || !conectado) {
-    throw new Error("WhatsApp não conectado. Escaneie o QR Code em Disparos WhatsApp.");
+  if (!conexaoEnvioOk()) {
+    conectado = false;
+    throw new Error("WhatsApp não conectado ou sessão inválida. Reconecte em Disparos WhatsApp.");
   }
-  const jid = jidFromPhone(phone);
-  if (!jid) throw new Error("Telefone inválido.");
+  const jid = await resolverJidDestino(phone);
   const texto = String(message || "").trim();
   if (!texto) throw new Error("Mensagem vazia.");
-  await sock.sendMessage(jid, { text: texto });
-  return { ok: true };
+
+  const sent = await sock.sendMessage(jid, { text: texto });
+  const messageId = extrairIdMensagem(sent);
+  if (!messageId) {
+    throw new Error("WhatsApp não confirmou o envio (sem ID da mensagem).");
+  }
+
+  log("Mensagem enviada", { jid, messageId });
+  return { ok: true, messageId, jid };
 }
 
 async function enviarMidia(phone, body) {
-  if (!sock || !conectado) {
+  if (!conexaoEnvioOk()) {
+    conectado = false;
     throw new Error("WhatsApp não conectado. Escaneie o QR Code.");
   }
-  const jid = jidFromPhone(phone);
-  if (!jid) throw new Error("Telefone inválido.");
+  const jid = await resolverJidDestino(phone);
 
   const buffer = Buffer.from(String(body.dataBase64 || ""), "base64");
   if (!buffer.length) throw new Error("Arquivo vazio.");
@@ -560,8 +620,13 @@ async function enviarMidia(phone, body) {
     };
   }
 
-  await sock.sendMessage(jid, content);
-  return { ok: true };
+  const sent = await sock.sendMessage(jid, content);
+  const messageId = extrairIdMensagem(sent);
+  if (!messageId) {
+    throw new Error("WhatsApp não confirmou o envio da mídia.");
+  }
+  log("Mídia enviada", { jid, messageId });
+  return { ok: true, messageId, jid };
 }
 
 const server = http.createServer(async (req, res) => {

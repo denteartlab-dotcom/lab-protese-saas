@@ -7,6 +7,8 @@ type BaileysSendResponse = {
   connected?: boolean;
   qr?: string | null;
   phone?: string | null;
+  messageId?: string | null;
+  jid?: string | null;
 };
 
 function urlBaseBaileys() {
@@ -46,11 +48,19 @@ export async function baileysStatus() {
   return consultarStatusBaileys();
 }
 
+function exigirConfirmacaoEnvio(data: BaileysSendResponse) {
+  if (!data.messageId) {
+    throw new Error("WhatsApp não confirmou o envio da mensagem.");
+  }
+  return data;
+}
+
 export async function baileysEnviarTexto(telefone: string, mensagem: string) {
-  return postBaileys("/send", {
+  const data = await postBaileys("/send", {
     phone: formatWhatsAppPhone(telefone),
     message: mensagem,
   });
+  return exigirConfirmacaoEnvio(data);
 }
 
 export async function baileysEnviarMidia(
@@ -63,7 +73,7 @@ export async function baileysEnviarMidia(
     tipo: "imagem" | "pdf" | "documento" | "video" | "audio";
   }
 ) {
-  return postBaileys("/send-media", {
+  const data = await postBaileys("/send-media", {
     phone: formatWhatsAppPhone(telefone),
     message: opts.mensagem || "",
     mimeType: opts.mimeType,
@@ -71,6 +81,7 @@ export async function baileysEnviarMidia(
     dataBase64: opts.dataBase64,
     tipo: opts.tipo,
   });
+  return exigirConfirmacaoEnvio(data);
 }
 
 export async function baileysLogout() {
