@@ -26,6 +26,12 @@ import {
   type LinhaTempoProducao,
   type PrioridadeTempoProducao,
 } from "@/lib/tempo-producao-relatorio";
+import {
+  chaveInicioProducaoOs,
+  interpretarInicioProducaoOs,
+  lerInicioProducaoOsServidor,
+  statusContaTempoProducao,
+} from "@/lib/tempo-producao-status-servidor";
 
 const STATUS_ATIVOS_EXCLUIDOS = ["cancelado", "entregue", "finalizado"];
 
@@ -92,7 +98,8 @@ function trabalhoParaLinha(
   principal: TrabalhoRow,
   grupo: TrabalhoRow[],
   etapas: EtapaOsLinha[],
-  mapaConcluidas: MapaEtapasConcluidas
+  mapaConcluidas: MapaEtapasConcluidas,
+  inicioProducao: Date
 ): LinhaTempoProducao {
   const instrucoesGrupo = grupo.map((t) => t.instrucoes || "").join("\n");
   const moduloConsolidado: TrabalhoModuloOs = {
@@ -120,8 +127,8 @@ function trabalhoParaLinha(
   );
 
   const metricas = calcularMetricasTempoProducao({
-    dataEntradaLab: principal.dataEntrada,
-    dataEntradaEtapa: principal.updatedAt,
+    dataEntradaLab: inicioProducao,
+    dataEntradaEtapa: inicioProducao,
     prazo: prazoDate,
   });
 
@@ -135,10 +142,10 @@ function trabalhoParaLinha(
     tipoServico: principal.tipoProtese,
     etapaAtual: etapaAtual?.nome ?? "Sem etapa definida",
     colaborador: normalizarColaborador(etapaAtual?.responsavel),
-    dataEntradaLab: principal.dataEntrada.toISOString(),
-    dataEntradaLabBr: formatarDataBr(principal.dataEntrada.toISOString()),
-    dataEntradaEtapa: principal.updatedAt.toISOString(),
-    dataEntradaEtapaBr: formatarDataBr(principal.updatedAt.toISOString()),
+    dataEntradaLab: inicioProducao.toISOString(),
+    dataEntradaLabBr: formatarDataBr(inicioProducao.toISOString()),
+    dataEntradaEtapa: inicioProducao.toISOString(),
+    dataEntradaEtapaBr: formatarDataBr(inicioProducao.toISOString()),
     prazoCombinado: prazoDate ? localDate(prazoDate).toISOString() : "",
     prazoCombinadoBr: prazoDate ? formatarDataBr(localDate(prazoDate).toISOString()) : "—",
     diasNoLaboratorio: metricas.diasNoLaboratorio,
@@ -174,6 +181,7 @@ export async function carregarLinhasTempoProducaoServidor(
   ]);
 
   const mapa = mapaConcluidas ?? {};
+  const mapaInicio = await lerInicioProducaoOsServidor(empresaId);
   const porNumero = new Map<number, TrabalhoRow[]>();
 
   for (const t of trabalhos) {
@@ -186,9 +194,17 @@ export async function carregarLinhasTempoProducaoServidor(
   const linhas: LinhaTempoProducao[] = [];
   for (const grupo of porNumero.values()) {
     const principal = escolherTrabalhoPrincipal(grupo);
+    if (!statusContaTempoProducao(principal.status)) continue;
     const instrucoesGrupo = grupo.map((t) => t.instrucoes || "");
     const { etapas } = parseComplementosInstrucoesGrupo(instrucoesGrupo);
-    linhas.push(enriquecerLinhaTempoProducao(trabalhoParaLinha(principal, grupo, etapas, mapa)));
+    const chave = chaveInicioProducaoOs(principal);
+    const inicioProducao =
+      interpretarInicioProducaoOs(mapaInicio[chave]) ?? principal.updatedAt;
+    linhas.push(
+      enriquecerLinhaTempoProducao(
+        trabalhoParaLinha(principal, grupo, etapas, mapa, inicioProducao)
+      )
+    );
   }
 
   return linhas;
@@ -223,8 +239,13 @@ export async function carregarDetalheTempoProducaoServidor(
   })) as TrabalhoRow[];
 
   const principal = escolherTrabalhoPrincipal(grupo);
+  if (!statusContaTempoProducao(principal.status)) return null;
   const instrucoesGrupo = grupo.map((t) => t.instrucoes || "");
   const { etapas } = parseComplementosInstrucoesGrupo(instrucoesGrupo);
+  const mapaInicio = await lerInicioProducaoOsServidor(empresaId);
+  const inicioProducao =
+    interpretarInicioProducaoOs(mapaInicio[chaveInicioProducaoOs(principal)]) ??
+    principal.updatedAt;
   const item = itensDaOsModulo({
     id: principal.id,
     numeroOs: principal.numeroOs,
@@ -241,7 +262,7 @@ export async function carregarDetalheTempoProducaoServidor(
   const concluidas = mapaConcluidas?.[chave] ?? [];
 
   const linhaResumo = enriquecerLinhaTempoProducao(
-    trabalhoParaLinha(principal, grupo, etapas, mapaConcluidas ?? {})
+    trabalhoParaLinha(principal, grupo, etapas, mapaConcluidas ?? {}, inicioProducao)
   );
 
   return trabalhoParaDetalheTempoProducao(

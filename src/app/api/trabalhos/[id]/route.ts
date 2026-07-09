@@ -14,6 +14,7 @@ import {
   MENSAGEM_OS_FATURADA_NAO_EXCLUI,
   osEstaFaturadaContasReceber,
 } from "@/lib/os-faturamento";
+import { sincronizarContasReceberAposAlteracaoTrabalho } from "@/lib/os-faturamento-sync-servidor";
 import { grupoOsIdOf, segmentoEfetivoTrabalho, whereGrupoOs } from "@/lib/trabalho-os-segmento";
 import { STATUS_TRABALHO } from "@/lib/utils";
 import {
@@ -23,6 +24,7 @@ import {
   removerUrgenciaOs,
 } from "@/lib/urgencia-cliente";
 import { notificarTvOrdensEmpresa } from "@/lib/tv/notificar-tv-ordens";
+import { sincronizarTempoProducaoPorMudancaStatus } from "@/lib/tempo-producao-status-servidor";
 import {
   adicionarTrabalhoControleEntregasAutomaticoServidor,
   deveAdicionarControleEntregasPorStatus,
@@ -203,6 +205,13 @@ export async function PUT(
           data: { status: novoStatus },
         });
       }
+
+      await sincronizarTempoProducaoPorMudancaStatus(
+        ctx.empresaId,
+        atual,
+        atual.status,
+        novoStatus
+      );
     }
 
     const detalhes: DetalheAlteracaoAuditoria[] = [];
@@ -311,6 +320,24 @@ export async function PUT(
         });
       } catch (err) {
         console.warn("[trabalhos/PUT] arquivamento controle entregas", err);
+      }
+    }
+
+    const valorMudou = data.valor != null && data.valor !== atual.valor;
+    const instrucoesMudou =
+      data.instrucoes !== undefined && data.instrucoes !== atual.instrucoes;
+    if (valorMudou || instrucoesMudou) {
+      try {
+        await sincronizarContasReceberAposAlteracaoTrabalho(ctx.empresaId, {
+          id: trabalho.id,
+          numeroOs: trabalho.numeroOs,
+          clienteId: trabalho.clienteId,
+          instrucoes: trabalho.instrucoes,
+          valor: trabalho.valor,
+          tipoProtese: trabalho.tipoProtese,
+        });
+      } catch (err) {
+        console.warn("[trabalhos/PUT] sync contas a receber", err);
       }
     }
 

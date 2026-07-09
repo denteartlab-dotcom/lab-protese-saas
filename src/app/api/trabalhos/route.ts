@@ -11,6 +11,9 @@ import {
 import { proximoNumeroOsDisponivel, registrarNumeroOsUtilizado } from "@/lib/os-sequencia";
 import { trabalhoVisivelModuloTv } from "@/lib/status-os";
 import { notificarTvOrdensEmpresa } from "@/lib/tv/notificar-tv-ordens";
+import {
+  sincronizarTempoProducaoPorMudancaStatus,
+} from "@/lib/tempo-producao-status-servidor";
 import { z } from "zod";
 
 const schema = z.object({
@@ -172,6 +175,13 @@ export async function POST(request: Request) {
       });
       trabalho.grupoOsId = trabalho.id;
     }
+
+    await sincronizarTempoProducaoPorMudancaStatus(
+      ctx.empresaId,
+      trabalho,
+      "",
+      trabalho.status
+    );
 
     if (trabalho.valor > 0) {
       const sufixoSegmento =

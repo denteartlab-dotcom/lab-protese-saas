@@ -20,6 +20,7 @@ import { flagsUrgenciaTrabalho } from "@/lib/modulo-producao-os";
 import { STATUS_TRABALHO_FINALIZADO_IMPRESSAO } from "@/lib/os-itens-impressao";
 import { segmentoEfetivoTrabalho } from "@/lib/trabalho-os-segmento";
 import { notificarTvOrdensEmpresaVarios } from "@/lib/tv/notificar-tv-ordens";
+import { sincronizarTempoProducaoPorMudancaStatus } from "@/lib/tempo-producao-status-servidor";
 import { removerUrgenciaOs } from "@/lib/urgencia-cliente";
 import { STATUS_TRABALHO } from "@/lib/utils";
 import type { SessionUser } from "@/lib/auth";
@@ -203,6 +204,12 @@ export async function aplicarMudancaStatusTrabalho(
   }
 
   await sincronizarStatusServicosMesmaOs(empresaId, atual.numeroOs, trabalhoId, novoStatus);
+  await sincronizarTempoProducaoPorMudancaStatus(
+    empresaId,
+    atual,
+    statusAnterior,
+    novoStatus
+  );
   await aplicarEfeitosStatus(empresaId, statusAnterior, novoStatus, trabalho);
 
   return {
