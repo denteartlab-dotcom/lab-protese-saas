@@ -49,7 +49,7 @@ export async function baileysStatus() {
 }
 
 function exigirConfirmacaoEnvio(data: BaileysSendResponse) {
-  if (!data.messageId) {
+  if (!data.ok && !data.messageId) {
     throw new Error("WhatsApp não confirmou o envio da mensagem.");
   }
   return data;

@@ -24,9 +24,12 @@ type EstadoFila = {
   cancelado: boolean;
   timer: ReturnType<typeof setTimeout> | null;
   enviosNaHora: number[];
+  aguardandoConexao: number;
 };
 
 const filasAtivas = new Map<string, EstadoFila>();
+const MAX_TENTATIVAS_CONTATO = 4;
+const MAX_ESPERA_CONEXAO = 36;
 
 function chaveFila(empresaId: string, campaignId: string) {
   return `${empresaId}:${campaignId}`;
@@ -36,6 +39,21 @@ function intervaloComAtraso(base: number, aleatorio: boolean) {
   if (!aleatorio) return base * 1000;
   const extra = Math.floor(Math.random() * base * 1000);
   return base * 1000 + extra;
+}
+
+function erroTransiente(msg: string) {
+  return /desconect|sessão inválida|não conectado|indisponível|timeout|timed out|econnrefused|socket|não confirmou|não encontrado no whatsapp/i.test(
+    msg
+  );
+}
+
+async function liberarContatosTravados(empresaId: string, campaignId: string) {
+  await runWithTenantContext(empresaId, () =>
+    prisma.whatsappCampaignContact.updateMany({
+      where: { campaignId, status: "enviando" },
+      data: { status: "aguardando" },
+    })
+  );
 }
 
 function podeEnviarNaHora(estado: EstadoFila, limite: number | null) {
@@ -196,13 +214,6 @@ async function enviarParaContato(
       throw new Error("Baileys não configurado no servidor.");
     }
 
-    const status = await baileysStatus();
-    if (!status?.connected) {
-      throw new Error(
-        "WhatsApp desconectou durante o disparo. Reconecte em Disparos WhatsApp e continue a campanha."
-      );
-    }
-
     const telefoneEnvio = normalizarTelefoneBr(contato.telefone);
     if (!telefoneEnvio) {
       throw new Error(`Telefone inválido: ${contato.telefone}`);
@@ -249,25 +260,44 @@ async function enviarParaContato(
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Falha no envio";
-    const desconectou = /desconect|sessão inválida|não conectado|não confirmou/i.test(msg);
+    const tentativasAtuais = contato.tentativas;
+    const retentar = erroTransiente(msg) && tentativasAtuais < MAX_TENTATIVAS_CONTATO;
 
-    if (desconectou) {
-      await pausarFilaCampanha(empresaId, campaignId);
+    if (retentar) {
       await runWithTenantContext(empresaId, () =>
         prisma.whatsappCampaignContact.update({
           where: { id: contactId },
           data: { status: "aguardando", erro: msg },
         })
       );
-    } else {
-      await runWithTenantContext(empresaId, () =>
-        prisma.whatsappCampaignContact.update({
-          where: { id: contactId },
-          data: { status: "falhou", erro: msg },
-        })
+      await registrarLog(
+        empresaId,
+        campaignId,
+        contactId,
+        "retentativa",
+        mensagem,
+        msg,
+        tentativasAtuais
       );
+      emitDisparoContato(empresaId, {
+        campaignId,
+        contactId,
+        nome: contato.nome,
+        telefone: contato.telefone,
+        status: "aguardando",
+        tentativas: tentativasAtuais,
+        erro: msg,
+        enviadoEm: null,
+      });
+      return;
     }
 
+    await runWithTenantContext(empresaId, () =>
+      prisma.whatsappCampaignContact.update({
+        where: { id: contactId },
+        data: { status: "falhou", erro: msg },
+      })
+    );
     await registrarLog(
       empresaId,
       campaignId,
@@ -275,15 +305,15 @@ async function enviarParaContato(
       "falhou",
       mensagem,
       msg,
-      contato.tentativas
+      tentativasAtuais
     );
     emitDisparoContato(empresaId, {
       campaignId,
       contactId,
       nome: contato.nome,
       telefone: contato.telefone,
-      status: desconectou ? "aguardando" : "falhou",
-      tentativas: contato.tentativas,
+      status: "falhou",
+      tentativas: tentativasAtuais,
       erro: msg,
       enviadoEm: null,
     });
@@ -310,6 +340,18 @@ async function processarProximo(empresaId: string, campaignId: string) {
     return;
   }
 
+  const statusWhatsapp = await baileysStatus();
+  if (!statusWhatsapp?.connected) {
+    estado.aguardandoConexao += 1;
+    if (estado.aguardandoConexao >= MAX_ESPERA_CONEXAO) {
+      await pausarFilaCampanha(empresaId, campaignId);
+      return;
+    }
+    estado.timer = setTimeout(() => void processarProximo(empresaId, campaignId), 5000);
+    return;
+  }
+  estado.aguardandoConexao = 0;
+
   if (campanha.agendadoPara && campanha.agendadoPara > new Date()) {
     estado.timer = setTimeout(() => void processarProximo(empresaId, campaignId), 5000);
     return;
@@ -328,6 +370,16 @@ async function processarProximo(empresaId: string, campaignId: string) {
   );
 
   if (!proximo) {
+    await liberarContatosTravados(empresaId, campaignId);
+    const retry = await runWithTenantContext(empresaId, () =>
+      prisma.whatsappCampaignContact.findFirst({
+        where: { campaignId, status: "aguardando" },
+      })
+    );
+    if (retry) {
+      estado.timer = setTimeout(() => void processarProximo(empresaId, campaignId), 2000);
+      return;
+    }
     await atualizarContadoresCampanha(empresaId, campaignId);
     return;
   }
@@ -356,9 +408,19 @@ export async function iniciarFilaCampanha(empresaId: string, campaignId: string)
     const estado = filasAtivas.get(key)!;
     estado.pausado = false;
     estado.cancelado = false;
+    estado.aguardandoConexao = 0;
+    await liberarContatosTravados(empresaId, campaignId);
+    await runWithTenantContext(empresaId, () =>
+      prisma.whatsappCampaign.update({
+        where: { id: campaignId },
+        data: { status: "enviando" },
+      })
+    );
     void processarProximo(empresaId, campaignId);
     return;
   }
+
+  await liberarContatosTravados(empresaId, campaignId);
 
   await runWithTenantContext(empresaId, () =>
     prisma.whatsappCampaign.update({
@@ -378,6 +440,7 @@ export async function iniciarFilaCampanha(empresaId: string, campaignId: string)
     cancelado: false,
     timer: null,
     enviosNaHora: [],
+    aguardandoConexao: 0,
   });
 
   void processarProximo(empresaId, campaignId);
@@ -405,6 +468,7 @@ export async function pausarFilaCampanha(empresaId: string, campaignId: string) 
 }
 
 export async function continuarFilaCampanha(empresaId: string, campaignId: string) {
+  await liberarContatosTravados(empresaId, campaignId);
   await runWithTenantContext(empresaId, () =>
     prisma.whatsappCampaignContact.updateMany({
       where: { campaignId, status: "pausado" },
