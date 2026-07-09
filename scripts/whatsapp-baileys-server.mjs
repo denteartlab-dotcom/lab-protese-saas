@@ -12,6 +12,7 @@ import makeWASocket, {
   DisconnectReason,
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
+  proto,
   useMultiFileAuthState,
 } from "@whiskeysockets/baileys";
 
@@ -42,6 +43,12 @@ let saveCredsFn = null;
 let pairingCodeAtual = null;
 let pairingPhoneAlvo = null;
 let pairingCodeSolicitado = false;
+
+const ACK_TIMEOUT_MS = Number(process.env.WHATSAPP_ACK_TIMEOUT_MS || 50_000);
+const pendentesAck = new Map();
+let filaEnvio = Promise.resolve();
+
+const StatusMensagem = proto.WebMessageInfo.Status;
 
 function browserWhatsApp() {
   const modo = (process.env.WHATSAPP_BROWSER || "windows").toLowerCase();
@@ -221,6 +228,96 @@ function extrairIdMensagem(sent) {
   return sent?.key?.id || sent?.message?.key?.id || null;
 }
 
+function credenciaisSalvasRegistradas() {
+  try {
+    const creds = JSON.parse(fs.readFileSync(path.join(AUTH_DIR, "creds.json"), "utf8"));
+    return Boolean(creds?.registered);
+  } catch {
+    return credenciaisRegistradas;
+  }
+}
+
+function statusAckOk(status) {
+  if (status == null) return false;
+  if (status === StatusMensagem.ERROR || status === 0) return false;
+  return (
+    status === StatusMensagem.SERVER_ACK ||
+    status === StatusMensagem.DELIVERY_ACK ||
+    status === StatusMensagem.READ ||
+    status === StatusMensagem.PLAYED ||
+    (typeof status === "number" && status >= 2)
+  );
+}
+
+function rejeitarPendentesAck(motivo) {
+  for (const [id, pendente] of pendentesAck) {
+    clearTimeout(pendente.timeout);
+    pendente.reject(new Error(motivo));
+    pendentesAck.delete(id);
+  }
+}
+
+function onMessagesUpdate(updates) {
+  for (const { key, update } of updates) {
+    const id = key?.id;
+    if (!id) continue;
+    const pendente = pendentesAck.get(id);
+    if (!pendente) continue;
+    if (pendente.jid && key?.remoteJid && key.remoteJid !== pendente.jid) continue;
+
+    const status = update?.status;
+    if (status === StatusMensagem.ERROR || status === 0) {
+      clearTimeout(pendente.timeout);
+      pendentesAck.delete(id);
+      pendente.reject(new Error("WhatsApp rejeitou o envio (erro de confirmação)."));
+      continue;
+    }
+    if (statusAckOk(status)) {
+      clearTimeout(pendente.timeout);
+      pendentesAck.delete(id);
+      pendente.resolve({ key, update, status });
+    }
+  }
+}
+
+function aguardarAckEntrega(msgKey, timeoutMs = ACK_TIMEOUT_MS) {
+  const id = msgKey?.id;
+  if (!id) {
+    return Promise.reject(new Error("WhatsApp não retornou ID da mensagem."));
+  }
+  if (pendentesAck.has(id)) {
+    return pendentesAck.get(id).promise;
+  }
+
+  let resolveFn;
+  let rejectFn;
+  const promise = new Promise((resolve, reject) => {
+    resolveFn = resolve;
+    rejectFn = reject;
+  });
+
+  const timeout = setTimeout(() => {
+    pendentesAck.delete(id);
+    rejectFn(new Error("WhatsApp não confirmou entrega no prazo (timeout de ack)."));
+  }, timeoutMs);
+
+  pendentesAck.set(id, {
+    promise,
+    resolve: resolveFn,
+    reject: rejectFn,
+    timeout,
+    jid: msgKey.remoteJid,
+  });
+
+  return promise;
+}
+
+function enfileirarEnvio(fn) {
+  const execucao = filaEnvio.then(fn);
+  filaEnvio = execucao.catch(() => {});
+  return execucao;
+}
+
 function lerJson(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -327,6 +424,7 @@ async function aguardarQrLocal(maxMs = 45_000) {
 function tratarFechamento(lastDisconnect) {
   conectado = false;
   numeroConectado = null;
+  rejeitarPendentesAck("Conexão WhatsApp caiu durante o envio.");
   limparSocketLocal();
 
   const statusCode = lastDisconnect?.error?.output?.statusCode;
@@ -345,11 +443,12 @@ function tratarFechamento(lastDisconnect) {
   }
 
   if (statusCode === DisconnectReason.loggedOut) {
-    log("Conexão encerrada — reconectando com sessão salva em 6s…", msg);
-    credenciaisRegistradas = false;
+    log("Conexão instável — reconectando com sessão salva em 8s…", msg);
+    credenciaisRegistradas = credenciaisSalvasRegistradas();
     qrAtual = null;
     qrGeradoEm = null;
-    agendarReconnect("logged-out", 6000);
+    reconnectAttempts = Math.max(0, reconnectAttempts - 1);
+    agendarReconnect("sessao-instavel", 8000);
     return;
   }
 
@@ -478,7 +577,8 @@ async function startBaileys() {
       logger,
       printQRInTerminal: false,
       syncFullHistory: false,
-      markOnlineOnConnect: true,
+      shouldSyncHistoryMessage: () => false,
+      markOnlineOnConnect: false,
       generateHighQualityLinkPreview: false,
       browser: browserWhatsApp(),
       connectTimeoutMs: 60_000,
@@ -496,6 +596,8 @@ async function startBaileys() {
         qrGeradoEm = null;
       }
     });
+
+    sock.ev.on("messages.update", onMessagesUpdate);
 
     sock.ev.on("connection.update", (update) => {
       const { connection, lastDisconnect, qr } = update;
@@ -580,64 +682,69 @@ async function resetarSessaoCompleta(force = false) {
 }
 
 async function enviarMensagem(phone, message) {
-  if (!conexaoEnvioOk()) {
-    conectado = false;
-    throw new Error("WhatsApp não conectado ou sessão inválida. Reconecte em Disparos WhatsApp.");
-  }
-  const jid = await resolverJidDestino(phone);
-  const texto = String(message || "").trim();
-  if (!texto) throw new Error("Mensagem vazia.");
+  return enfileirarEnvio(async () => {
+    if (!conexaoEnvioOk()) {
+      conectado = false;
+      throw new Error("WhatsApp não conectado ou sessão inválida. Reconecte em Disparos WhatsApp.");
+    }
+    const jid = await resolverJidDestino(phone);
+    const texto = String(message || "").trim();
+    if (!texto) throw new Error("Mensagem vazia.");
 
-  const sent = await sock.sendMessage(jid, { text: texto });
-  const messageId = extrairIdMensagem(sent);
-  if (!messageId) {
-    log("Aviso: envio sem messageId imediato", { jid });
-    return { ok: true, messageId: `ack-${Date.now()}`, jid };
-  }
+    const sent = await sock.sendMessage(jid, { text: texto });
+    const messageId = extrairIdMensagem(sent);
+    if (!messageId) {
+      throw new Error("WhatsApp não retornou ID da mensagem — envio não confirmado.");
+    }
 
-  log("Mensagem enviada", { jid, messageId });
-  return { ok: true, messageId, jid };
+    const ack = await aguardarAckEntrega(sent?.key || { id: messageId, remoteJid: jid });
+    log("Mensagem entregue ao servidor WhatsApp", { jid, messageId, status: ack.status });
+    return { ok: true, messageId, jid, ack: true };
+  });
 }
 
 async function enviarMidia(phone, body) {
-  if (!conexaoEnvioOk()) {
-    conectado = false;
-    throw new Error("WhatsApp não conectado. Escaneie o QR Code.");
-  }
-  const jid = await resolverJidDestino(phone);
+  return enfileirarEnvio(async () => {
+    if (!conexaoEnvioOk()) {
+      conectado = false;
+      throw new Error("WhatsApp não conectado. Escaneie o QR Code.");
+    }
+    const jid = await resolverJidDestino(phone);
 
-  const buffer = Buffer.from(String(body.dataBase64 || ""), "base64");
-  if (!buffer.length) throw new Error("Arquivo vazio.");
+    const buffer = Buffer.from(String(body.dataBase64 || ""), "base64");
+    if (!buffer.length) throw new Error("Arquivo vazio.");
 
-  const caption = String(body.message || "").trim();
-  const tipo = String(body.tipo || "documento");
-  const mimeType = String(body.mimeType || "application/octet-stream");
-  const fileName = String(body.fileName || "arquivo");
+    const caption = String(body.message || "").trim();
+    const tipo = String(body.tipo || "documento");
+    const mimeType = String(body.mimeType || "application/octet-stream");
+    const fileName = String(body.fileName || "arquivo");
 
-  let content;
-  if (tipo === "imagem") {
-    content = { image: buffer, caption: caption || undefined, mimetype: mimeType };
-  } else if (tipo === "video") {
-    content = { video: buffer, caption: caption || undefined, mimetype: mimeType };
-  } else if (tipo === "audio") {
-    content = { audio: buffer, mimetype: mimeType, ptt: false };
-  } else {
-    content = {
-      document: buffer,
-      mimetype: mimeType,
-      fileName,
-      caption: caption || undefined,
-    };
-  }
+    let content;
+    if (tipo === "imagem") {
+      content = { image: buffer, caption: caption || undefined, mimetype: mimeType };
+    } else if (tipo === "video") {
+      content = { video: buffer, caption: caption || undefined, mimetype: mimeType };
+    } else if (tipo === "audio") {
+      content = { audio: buffer, mimetype: mimeType, ptt: false };
+    } else {
+      content = {
+        document: buffer,
+        mimetype: mimeType,
+        fileName,
+        caption: caption || undefined,
+      };
+    }
 
-  const sent = await sock.sendMessage(jid, content);
-  const messageId = extrairIdMensagem(sent);
-  if (!messageId) {
-    log("Aviso: mídia sem messageId imediato", { jid });
-    return { ok: true, messageId: `ack-${Date.now()}`, jid };
-  }
-  log("Mídia enviada", { jid, messageId });
-  return { ok: true, messageId, jid };
+    const sent = await sock.sendMessage(jid, content);
+    const messageId = extrairIdMensagem(sent);
+    if (!messageId) {
+      throw new Error("WhatsApp não retornou ID da mídia — envio não confirmado.");
+    }
+
+    const ack = await aguardarAckEntrega(sent?.key || { id: messageId, remoteJid: jid });
+    log("Mídia entregue ao servidor WhatsApp", { jid, messageId, status: ack.status });
+    return { ok: true, messageId, jid, ack: true };
+  });
 }
 
 const server = http.createServer(async (req, res) => {
@@ -687,15 +794,15 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/send" && req.method === "POST") {
       if (!autorizado(req)) return json(res, 401, { ok: false, error: "Não autorizado" });
       const body = await lerJson(req);
-      await enviarMensagem(body.phone || body.telefone, body.message || body.mensagem);
-      return json(res, 200, { ok: true });
+      const result = await enviarMensagem(body.phone || body.telefone, body.message || body.mensagem);
+      return json(res, 200, result);
     }
 
     if (url.pathname === "/send-media" && req.method === "POST") {
       if (!autorizado(req)) return json(res, 401, { ok: false, error: "Não autorizado" });
       const body = await lerJson(req);
-      await enviarMidia(body.phone || body.telefone, body);
-      return json(res, 200, { ok: true });
+      const result = await enviarMidia(body.phone || body.telefone, body);
+      return json(res, 200, result);
     }
 
     if (url.pathname === "/logout" && req.method === "POST") {

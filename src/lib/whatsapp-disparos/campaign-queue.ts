@@ -42,7 +42,7 @@ function intervaloComAtraso(base: number, aleatorio: boolean) {
 }
 
 function erroTransiente(msg: string) {
-  return /desconect|sessão inválida|não conectado|indisponível|timeout|timed out|econnrefused|socket|não confirmou|não encontrado no whatsapp/i.test(
+  return /desconect|sessão inválida|não conectado|indisponível|timeout|timed out|econnrefused|socket|não confirmou|rejeitou|confirmação|ack|conexão whatsapp caiu|não encontrado no whatsapp/i.test(
     msg
   );
 }

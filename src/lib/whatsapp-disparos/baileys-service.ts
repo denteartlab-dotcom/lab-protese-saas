@@ -9,6 +9,7 @@ type BaileysSendResponse = {
   phone?: string | null;
   messageId?: string | null;
   jid?: string | null;
+  ack?: boolean;
 };
 
 function urlBaseBaileys() {
@@ -49,17 +50,25 @@ export async function baileysStatus() {
 }
 
 function exigirConfirmacaoEnvio(data: BaileysSendResponse) {
-  if (!data.ok && !data.messageId) {
+  const messageId = data.messageId?.trim();
+  if (!messageId || messageId.startsWith("ack-")) {
     throw new Error("WhatsApp não confirmou o envio da mensagem.");
+  }
+  if (!data.ok || !data.ack) {
+    throw new Error("WhatsApp não confirmou a entrega ao servidor.");
   }
   return data;
 }
 
 export async function baileysEnviarTexto(telefone: string, mensagem: string) {
-  const data = await postBaileys("/send", {
-    phone: formatWhatsAppPhone(telefone),
-    message: mensagem,
-  });
+  const data = await postBaileys(
+    "/send",
+    {
+      phone: formatWhatsAppPhone(telefone),
+      message: mensagem,
+    },
+    65_000
+  );
   return exigirConfirmacaoEnvio(data);
 }
 
@@ -73,14 +82,18 @@ export async function baileysEnviarMidia(
     tipo: "imagem" | "pdf" | "documento" | "video" | "audio";
   }
 ) {
-  const data = await postBaileys("/send-media", {
-    phone: formatWhatsAppPhone(telefone),
-    message: opts.mensagem || "",
-    mimeType: opts.mimeType,
-    fileName: opts.fileName,
-    dataBase64: opts.dataBase64,
-    tipo: opts.tipo,
-  });
+  const data = await postBaileys(
+    "/send-media",
+    {
+      phone: formatWhatsAppPhone(telefone),
+      message: opts.mensagem || "",
+      mimeType: opts.mimeType,
+      fileName: opts.fileName,
+      dataBase64: opts.dataBase64,
+      tipo: opts.tipo,
+    },
+    90_000
+  );
   return exigirConfirmacaoEnvio(data);
 }
 
