@@ -1083,6 +1083,7 @@ export default function ControlePage() {
   );
   const [anexoAberto, setAnexoAberto] = useState<AnexoOs | null>(null);
   const [osExcluindo, setOsExcluindo] = useState<Trabalho | null>(null);
+  const [avisoExclusaoOs, setAvisoExclusaoOs] = useState<string | null>(null);
   const [statusEditando, setStatusEditando] = useState<Trabalho | null>(null);
   const [statusForm, setStatusForm] = useState<StatusForm>({
     status: "",
@@ -3173,8 +3174,8 @@ export default function ControlePage() {
     const trabalho = osExcluindo;
     if (!trabalho) return;
     if (trabalhoGrupoFaturado(trabalho)) {
-      window.alert(MENSAGEM_OS_FATURADA_NAO_EXCLUI);
-    setOsExcluindo(null);
+      setOsExcluindo(null);
+      setAvisoExclusaoOs(MENSAGEM_OS_FATURADA_NAO_EXCLUI);
       return;
     }
     const id = trabalho.id;
@@ -3184,7 +3185,7 @@ export default function ControlePage() {
       const res = await fetch(`/api/trabalhos/${id}`, { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        window.alert(
+        setAvisoExclusaoOs(
           typeof data.error === "string" ? data.error : MENSAGEM_OS_FATURADA_NAO_EXCLUI
         );
         void load();
@@ -3193,7 +3194,7 @@ export default function ControlePage() {
       void load();
       notificarTrabalhosAtualizados({ trabalhoId: id });
     } catch {
-      window.alert("Não foi possível excluir a ordem de serviço.");
+      setAvisoExclusaoOs("Não foi possível excluir a ordem de serviço.");
       void load();
     }
   }
@@ -3480,7 +3481,7 @@ export default function ControlePage() {
                           type="button"
                           onClick={() => {
                             if (trabalhoGrupoFaturado(trabalho)) {
-                              window.alert(MENSAGEM_OS_FATURADA_NAO_EXCLUI);
+                              setAvisoExclusaoOs(MENSAGEM_OS_FATURADA_NAO_EXCLUI);
                               return;
                             }
                             setOsExcluindo(trabalho);
@@ -3579,6 +3580,15 @@ export default function ControlePage() {
         aviso="Atenção!! Todas as comissões serão excluídas exceto comissões já faturadas. Se a OS já foi faturada em Contas a Receber, exclua o lançamento no Financeiro antes."
         onClose={() => setOsExcluindo(null)}
         onConfirm={confirmarExclusaoOs}
+      />
+
+      <ConfirmacaoExclusaoModal
+        open={!!avisoExclusaoOs}
+        modo="alerta"
+        titulo="Excluir Ordem de Serviço"
+        mensagem={avisoExclusaoOs || ""}
+        onClose={() => setAvisoExclusaoOs(null)}
+        onConfirm={() => setAvisoExclusaoOs(null)}
       />
 
       {anexoAberto && (

@@ -151,6 +151,7 @@ export default function AgendaPage() {
   const [imprimirOs, setImprimirOs] = useState<TrabalhoAgendaGrupo | null>(null);
   const [osAberta, setOsAberta] = useState<string | null>(null);
   const [osExcluindo, setOsExcluindo] = useState<LinhaAgendaGrupoOs | null>(null);
+  const [avisoExclusaoOs, setAvisoExclusaoOs] = useState<string | null>(null);
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [anexoAberto, setAnexoAberto] = useState<{
     name: string;
@@ -286,8 +287,8 @@ export default function AgendaPage() {
     const linha = osExcluindo;
     if (!linha) return;
     if (linhaGrupoFaturada(linha)) {
-      window.alert(MENSAGEM_OS_FATURADA_NAO_EXCLUI);
       setOsExcluindo(null);
+      setAvisoExclusaoOs(MENSAGEM_OS_FATURADA_NAO_EXCLUI);
       return;
     }
     const id = editIdLinha(linha);
@@ -297,14 +298,14 @@ export default function AgendaPage() {
       const res = await fetch(`/api/trabalhos/${id}`, { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        window.alert(
+        setAvisoExclusaoOs(
           typeof data.error === "string" ? data.error : MENSAGEM_OS_FATURADA_NAO_EXCLUI
         );
       } else {
         notificarTrabalhosAtualizados({ trabalhoId: id });
       }
     } catch {
-      window.alert("Não foi possível excluir a ordem de serviço.");
+      setAvisoExclusaoOs("Não foi possível excluir a ordem de serviço.");
     }
     void load();
   }
@@ -548,7 +549,7 @@ export default function AgendaPage() {
                             type="button"
                             onClick={() => {
                               if (linhaGrupoFaturada(linha)) {
-                                window.alert(MENSAGEM_OS_FATURADA_NAO_EXCLUI);
+                                setAvisoExclusaoOs(MENSAGEM_OS_FATURADA_NAO_EXCLUI);
                                 return;
                               }
                               setOsExcluindo(linha);
@@ -594,6 +595,15 @@ export default function AgendaPage() {
         aviso="Atenção!! Todas as comissões serão excluídas exceto comissões já faturadas. Se a OS já foi faturada em Contas a Receber, exclua o lançamento no Financeiro antes."
         onClose={() => setOsExcluindo(null)}
         onConfirm={confirmarExclusaoOs}
+      />
+
+      <ConfirmacaoExclusaoModal
+        open={!!avisoExclusaoOs}
+        modo="alerta"
+        titulo="Excluir Ordem de Serviço"
+        mensagem={avisoExclusaoOs || ""}
+        onClose={() => setAvisoExclusaoOs(null)}
+        onConfirm={() => setAvisoExclusaoOs(null)}
       />
 
       <ImprimirOsModal

@@ -15,6 +15,8 @@ type Props = {
   processando?: boolean;
   /** Botão de confirmação vermelho (exclusão) ou azul (ação). */
   tipoConfirmacao?: "exclusao" | "primario";
+  /** Apenas aviso com botão OK (sem Sim/Não). */
+  modo?: "confirmacao" | "alerta";
   labelConfirmar?: string;
   labelCancelar?: string;
 };
@@ -29,6 +31,7 @@ export function ConfirmacaoExclusaoModal({
   onConfirm,
   processando = false,
   tipoConfirmacao = "exclusao",
+  modo = "confirmacao",
   labelConfirmar = "Sim",
   labelCancelar = "Não",
 }: Props) {
@@ -38,6 +41,10 @@ export function ConfirmacaoExclusaoModal({
 
   function handleConfirmar() {
     if (processando || confirmandoRef.current) return;
+    if (modo === "alerta") {
+      onClose();
+      return;
+    }
     confirmandoRef.current = true;
     const action = onConfirm;
     onClose();
@@ -92,25 +99,27 @@ export function ConfirmacaoExclusaoModal({
         </div>
 
         <div className="flex justify-end gap-3 rounded-b bg-white px-6 py-4 dark:bg-slate-900">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={processando}
-            className="h-10 rounded-md border border-slate-300 bg-white px-8 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-          >
-            {labelCancelar}
-          </button>
+          {modo === "confirmacao" ? (
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={processando}
+              className="h-10 rounded-md border border-slate-300 bg-white px-8 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            >
+              {labelCancelar}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={handleConfirmar}
             disabled={processando}
             className={
-              tipoConfirmacao === "primario"
+              modo === "alerta" || tipoConfirmacao === "primario"
                 ? "h-10 rounded-md bg-[#4a90d9] px-8 text-sm font-semibold text-white hover:bg-[#3d7fc4] disabled:opacity-60"
                 : "h-10 rounded-md bg-red-500 px-8 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
             }
           >
-            {labelConfirmar}
+            {modo === "alerta" ? "OK" : labelConfirmar}
           </button>
         </div>
       </div>
