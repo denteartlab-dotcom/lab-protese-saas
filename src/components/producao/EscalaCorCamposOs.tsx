@@ -240,19 +240,21 @@ export function EscalaCorCamposOs({
     if (cor === opcao.nome) onCorChange("");
   }
 
-  function salvarNovaCor(event: React.FormEvent) {
-    event.preventDefault();
+  async function salvarNovaCor() {
     const nome = novaCor.trim();
     if (!nome) return;
-    const proximas = adicionarCorOsCadastro(nome, cores);
-    setCores(proximas);
-    onCorChange(nome);
-    setNovaCor("");
-    setModalCorAberto(false);
+    try {
+      const proximas = adicionarCorOsCadastro(nome, cores);
+      setCores(proximas);
+      onCorChange(nome);
+      setNovaCor("");
+      setModalCorAberto(false);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Não foi possível salvar a cor.");
+    }
   }
 
-  function salvarNovaEscala(event: React.FormEvent) {
-    event.preventDefault();
+  async function salvarNovaEscala() {
     const nome = novaEscala.trim();
     if (!nome) return;
     const criado = adicionarProdutoEscalaOs(nomeTabelaPreco, nome);
@@ -309,11 +311,17 @@ export function EscalaCorCamposOs({
         onClose={() => setModalEscalaAberto(false)}
         title="Adicionar escala"
       >
-        <form onSubmit={salvarNovaEscala} className="space-y-4">
+        <div className="space-y-4">
           <Input
             label="Escala"
             value={novaEscala}
             onChange={(e) => setNovaEscala(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void salvarNovaEscala();
+              }
+            }}
             placeholder="Ex.: Trilux, Vitapan…"
             autoFocus
           />
@@ -324,9 +332,11 @@ export function EscalaCorCamposOs({
             <Button type="button" variant="secondary" onClick={() => setModalEscalaAberto(false)}>
               Cancelar
             </Button>
-            <Button type="submit">Salvar</Button>
+            <Button type="button" onClick={() => void salvarNovaEscala()}>
+              Salvar
+            </Button>
           </div>
-        </form>
+        </div>
       </Modal>
 
       <Modal
@@ -334,11 +344,17 @@ export function EscalaCorCamposOs({
         onClose={() => setModalCorAberto(false)}
         title="Adicionar cor"
       >
-        <form onSubmit={salvarNovaCor} className="space-y-4">
+        <div className="space-y-4">
           <Input
             label="Cor"
             value={novaCor}
             onChange={(e) => setNovaCor(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void salvarNovaCor();
+              }
+            }}
             placeholder="Ex.: A2, BL3…"
             autoFocus
           />
@@ -346,9 +362,11 @@ export function EscalaCorCamposOs({
             <Button type="button" variant="secondary" onClick={() => setModalCorAberto(false)}>
               Cancelar
             </Button>
-            <Button type="submit">Salvar</Button>
+            <Button type="button" onClick={() => void salvarNovaCor()}>
+              Salvar
+            </Button>
           </div>
-        </form>
+        </div>
       </Modal>
     </>
   );
