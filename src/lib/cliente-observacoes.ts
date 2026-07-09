@@ -1,5 +1,7 @@
 import { configValueFromObservacoes } from "@/lib/cliente-financeiro";
 
+export { configValueFromObservacoes };
+
 export const PREFIXOS_CONFIG_CLIENTE = [
   "Tipo de Cliente:",
   "Abreviação:",

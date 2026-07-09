@@ -3,17 +3,24 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Download, ExternalLink, Printer } from "lucide-react";
 import { Button } from "@/components/ui";
+import { PdfViewerIframe } from "@/components/pdf/PdfViewerIframe";
 import { PDF_VIEWER_PAGINA_CLASSES } from "@/lib/pdf-viewer-iframe";
-import { baixarPdfBlob, imprimirPdfBlob, nomeArquivoFaturaPdf } from "@/lib/pdf-viewer";
+import {
+  baixarPdfBlob,
+  baixarPdfUrl,
+  criarUrlPdfNomeada,
+  nomeArquivoFaturaPdf,
+  prepararAbaPdf,
+  visualizarPdfUrl,
+} from "@/lib/pdf-viewer";
 import { gerarPdfDeHtmlDocumento } from "@/lib/html-para-pdf";
-import { FATURA_A4_ALTURA_MM, FATURA_A4_LARGURA_MM } from "@/lib/fatura-modelo-layout";
 import type { FaturaImpressaoSessao } from "@/lib/fatura-impressao-sessao";
 
-const IFRAME_ID = "fatura-html-viewer";
+const IFRAME_ID = "fatura-pdf-viewer";
 
 type Props = FaturaImpressaoSessao;
 
-/** Visualizador de fatura — preview em largura A4; impressão usa o mesmo PDF do download. */
+/** Visualizador de fatura — mesmo fluxo da OS: gera PDF, exibe no iframe e imprime o mesmo arquivo. */
 export function FaturaPdfViewer({
   html,
   numeroFatura,
@@ -22,84 +29,101 @@ export function FaturaPdfViewer({
   formato,
   imprimirAoCarregar = false,
 }: Props) {
-  const [iframePronto, setIframePronto] = useState(false);
-  const [gerandoDownload, setGerandoDownload] = useState(false);
-  const [gerandoImpressao, setGerandoImpressao] = useState(false);
-  const [erro, setErro] = useState("");
+  const [pdfUrl, setPdfUrl] = useState("");
+  const [erroPdf, setErroPdf] = useState("");
+  const pdfBlobRef = useRef<Blob | null>(null);
+  const pdfUrlRef = useRef("");
+  const buildPdfSeqRef = useRef(0);
   const autoImpressaoDisparadaRef = useRef(false);
+
   const nomeArquivoPdf = nomeArquivoFaturaPdf(numeroFatura, clienteNome);
   const titulo = clienteNome.trim()
     ? `Fatura ${numeroFatura} — ${clienteNome.trim()}`
     : `Fatura ${numeroFatura}`;
-  const termica = formato === "termica";
-  const larguraPreviewMm = termica ? 80 : FATURA_A4_LARGURA_MM;
-  const alturaPreviewMm = termica ? 297 : FATURA_A4_ALTURA_MM;
 
-  const gerarPdfFatura = useCallback(async () => {
-    return gerarPdfDeHtmlDocumento(html, formato);
-  }, [html, formato]);
+  function publicarPdfGerado(blob: Blob, seq: number) {
+    pdfBlobRef.current = blob;
+    const blobUrl = criarUrlPdfNomeada(blob, nomeArquivoPdf);
+    if (seq !== buildPdfSeqRef.current) {
+      if (blobUrl.startsWith("blob:")) URL.revokeObjectURL(blobUrl);
+      return "";
+    }
+    const anterior = pdfUrlRef.current;
+    pdfUrlRef.current = blobUrl;
+    setPdfUrl(blobUrl);
+    if (anterior.startsWith("blob:") && anterior !== blobUrl) {
+      URL.revokeObjectURL(anterior);
+    }
+    return blobUrl;
+  }
 
   useEffect(() => {
     autoImpressaoDisparadaRef.current = false;
   }, [html, formato]);
 
-  const imprimirFatura = useCallback(async () => {
-    if (gerandoImpressao) return;
-    setGerandoImpressao(true);
-    setErro("");
-    try {
-      const blob = await gerarPdfFatura();
-      await imprimirPdfBlob(blob, titulo);
-    } catch (err) {
-      console.error("imprimir PDF fatura", err);
-      setErro(
-        err instanceof Error ? err.message : "Não foi possível gerar o PDF para impressão."
-      );
-    } finally {
-      setGerandoImpressao(false);
-    }
-  }, [gerandoImpressao, gerarPdfFatura, titulo]);
-
   useEffect(() => {
-    if (!imprimirAoCarregar || autoImpressaoDisparadaRef.current) return;
-    autoImpressaoDisparadaRef.current = true;
+    const seq = ++buildPdfSeqRef.current;
+    setPdfUrl("");
+    setErroPdf("");
 
-    const timer = window.setTimeout(() => {
-      void imprimirFatura();
-    }, 800);
+    async function buildPdf() {
+      const blob = await gerarPdfDeHtmlDocumento(html, formato);
+      if (seq !== buildPdfSeqRef.current) return;
+      publicarPdfGerado(blob, seq);
+    }
+
+    void buildPdf().catch((err) => {
+      if (seq !== buildPdfSeqRef.current) return;
+      console.error("gerar PDF fatura", err);
+      setErroPdf(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível gerar o PDF da fatura."
+      );
+    });
 
     return () => {
-      window.clearTimeout(timer);
+      const url = pdfUrlRef.current;
+      if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+      pdfUrlRef.current = "";
+      pdfBlobRef.current = null;
     };
-  }, [imprimirAoCarregar, imprimirFatura]);
+  }, [html, formato, nomeArquivoPdf]);
 
-  async function baixarPdf() {
-    if (gerandoDownload) return;
-    setGerandoDownload(true);
-    setErro("");
+  const imprimirPdf = useCallback(() => {
+    if (!pdfUrl) return;
+    const iframe = document.getElementById(IFRAME_ID) as HTMLIFrameElement | null;
     try {
-      const blob = await gerarPdfFatura();
-      baixarPdfBlob(blob, nomeArquivoPdf);
-    } catch (err) {
-      console.error("baixar PDF fatura", err);
-      setErro(
-        err instanceof Error ? err.message : "Não foi possível gerar o PDF para download."
-      );
-    } finally {
-      setGerandoDownload(false);
+      iframe?.contentWindow?.print();
+    } catch {
+      /* ignorar */
     }
+  }, [pdfUrl]);
+
+  useEffect(() => {
+    if (!imprimirAoCarregar || autoImpressaoDisparadaRef.current || !pdfUrl) return;
+    autoImpressaoDisparadaRef.current = true;
+    const timer = window.setTimeout(() => {
+      imprimirPdf();
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [imprimirAoCarregar, pdfUrl, imprimirPdf]);
+
+  function baixarPdf() {
+    if (pdfBlobRef.current) {
+      baixarPdfBlob(pdfBlobRef.current, nomeArquivoPdf);
+      return;
+    }
+    if (pdfUrl) void baixarPdfUrl(pdfUrl, nomeArquivoPdf);
   }
 
   function abrirEmNovaAba() {
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const janela = window.open(url, "_blank", "noopener,noreferrer");
-    if (!janela) {
-      URL.revokeObjectURL(url);
-      window.alert("Não foi possível abrir a fatura. Verifique o bloqueio de pop-ups.");
-      return;
-    }
-    window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
+    if (!pdfUrl) return;
+    const janela = prepararAbaPdf();
+    visualizarPdfUrl(pdfUrl, nomeArquivoPdf, titulo, {
+      janela,
+      revogarAoFechar: false,
+    });
   }
 
   return (
@@ -111,27 +135,25 @@ export function FaturaPdfViewer({
           <p className="text-xs text-slate-400">{clienteNome}</p>
         </div>
         <div className="flex gap-2">
-          {iframePronto ? (
+          {pdfUrl ? (
             <>
               <Button
                 type="button"
                 variant="outline"
                 className="gap-1.5 border-slate-500 bg-transparent text-white"
-                onClick={() => void baixarPdf()}
-                disabled={gerandoDownload}
+                onClick={baixarPdf}
               >
                 <Download className="h-3.5 w-3.5" />
-                {gerandoDownload ? "Gerando..." : "Baixar PDF"}
+                Baixar PDF
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 className="gap-1.5 border-slate-500 bg-transparent text-white"
-                onClick={() => void imprimirFatura()}
-                disabled={gerandoImpressao}
+                onClick={imprimirPdf}
               >
                 <Printer className="h-3.5 w-3.5" />
-                {gerandoImpressao ? "Gerando..." : "Imprimir"}
+                Imprimir
               </Button>
               <Button
                 type="button"
@@ -147,42 +169,20 @@ export function FaturaPdfViewer({
         </div>
       </div>
 
-      {erro ? (
-        <div className="border-b border-red-900/50 bg-red-950/40 px-4 py-2 text-center text-sm text-red-200">
-          {erro}
+      {erroPdf ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center text-white">
+          <p className="text-sm font-medium text-red-300">{erroPdf}</p>
+          <Button type="button" onClick={() => window.location.reload()}>
+            Tentar novamente
+          </Button>
         </div>
-      ) : null}
-
-      <div className="relative min-h-0 flex-1 overflow-auto bg-[#525659]">
-        <div className="flex min-h-full justify-center py-4">
-          <div
-            className="shrink-0"
-            style={{
-              width: `${larguraPreviewMm}mm`,
-              maxWidth: "100%",
-            }}
-          >
-            <iframe
-              id={IFRAME_ID}
-              title={titulo}
-              srcDoc={html}
-              onLoad={() => setIframePronto(true)}
-              className="w-full border-0 bg-white shadow-lg"
-              style={{
-                width: "100%",
-                aspectRatio: `${larguraPreviewMm} / ${alturaPreviewMm}`,
-                minHeight: termica ? "480px" : "720px",
-                display: "block",
-              }}
-            />
-          </div>
+      ) : pdfUrl ? (
+        <PdfViewerIframe id={IFRAME_ID} title={titulo} pdfUrl={pdfUrl} />
+      ) : (
+        <div className="flex flex-1 items-center justify-center text-sm text-slate-300">
+          Gerando PDF da fatura...
         </div>
-        {!iframePronto ? (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-slate-300">
-            Carregando fatura...
-          </div>
-        ) : null}
-      </div>
+      )}
     </div>
   );
 }
