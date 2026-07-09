@@ -19,6 +19,8 @@ export const PREFIXOS_CONFIG_CLIENTE = [
   "Custo de Entrega:",
 ] as const;
 
+const PREFIXO_TABELA_PRECO = "Tabela de Preço:";
+
 /** Remove linhas de configuração estruturada — evita duplicar ao salvar o cadastro. */
 export function observacoesTextoLivreCliente(observacoes: string | null | undefined) {
   return (observacoes || "")
@@ -41,6 +43,24 @@ export function descontoGeralClienteObservacoes(observacoes: string | null | und
 export function descontoGeralTipoClienteObservacoes(observacoes: string | null | undefined) {
   const tipo = configValueFromObservacoes(observacoes, "Desconto Geral Tipo:");
   return tipo === "valor" ? "valor" : "percentual";
+}
+
+export function definirTabelaPrecoClienteObservacoes(
+  observacoes: string | null | undefined,
+  tabela: string
+) {
+  const tabelaLimpa = tabela.trim();
+  const linhas = (observacoes || "")
+    .split("\n")
+    .map((linha) => linha.trim())
+    .filter(Boolean)
+    .filter((linha) => !linha.toLowerCase().startsWith(PREFIXO_TABELA_PRECO.toLowerCase()));
+
+  if (tabelaLimpa) {
+    linhas.push(`${PREFIXO_TABELA_PRECO} ${tabelaLimpa}`);
+  }
+
+  return linhas.join("\n");
 }
 
 export function abreviacaoCliente(observacoes: string | null | undefined): string {

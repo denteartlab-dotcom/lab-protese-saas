@@ -50,7 +50,10 @@ import {
 } from "@/lib/custos-servico-tabela-precos";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
-import { carregarConfigImpressaoTabelaPrecos } from "@/lib/tabela-precos-impressao-config";
+import {
+  carregarConfigImpressaoTabelaPrecos,
+  salvarConfigImpressaoTabelaPrecos,
+} from "@/lib/tabela-precos-impressao-config";
 import {
   baixarPdfTabelaPrecos,
   exportarTabelaPrecosExcel,
@@ -64,6 +67,10 @@ import {
   TABELA_PRECOS_STORAGE_KEY,
   TABELA_PRECOS_VAZIA,
 } from "@/lib/tabela-precos-os";
+import {
+  configValueFromObservacoes,
+  definirTabelaPrecoClienteObservacoes,
+} from "@/lib/cliente-observacoes";
 import { cn } from "@/lib/utils";
 
 type TipoItemPreco = "servico" | "produto" | "transporte";
@@ -136,6 +143,13 @@ type ServicoEdicaoRapida = {
   nome: string;
   valor: string;
   oculto: boolean;
+};
+
+type ClienteTabelaPreco = {
+  id: string;
+  nome: string;
+  observacoes?: string | null;
+  cidade?: string | null;
 };
 
 function normalizarServico(servico: ServicoPreco): ServicoPreco {
@@ -232,6 +246,16 @@ export default function TabelaPrecosPage() {
   const [modalEditarTabela, setModalEditarTabela] = useState(false);
   const [nomeTabelaEditando, setNomeTabelaEditando] = useState("Tabela Principal");
   const [nomeNovaTabela, setNomeNovaTabela] = useState("");
+  const [modalClientesTabela, setModalClientesTabela] = useState<{
+    tabela: string;
+  } | null>(null);
+  const [clientesTabela, setClientesTabela] = useState<ClienteTabelaPreco[]>([]);
+  const [buscaClienteTabela, setBuscaClienteTabela] = useState("");
+  const [clientesSelecionadosTabela, setClientesSelecionadosTabela] = useState<Set<string>>(
+    () => new Set()
+  );
+  const [carregandoClientesTabela, setCarregandoClientesTabela] = useState(false);
+  const [salvandoClientesTabela, setSalvandoClientesTabela] = useState(false);
   const [categoriaServico, setCategoriaServico] = useState<CategoriaPreco | null>(null);
   const [servicoEditando, setServicoEditando] = useState<ServicoPreco | null>(null);
   const [categoriaEdicaoRapida, setCategoriaEdicaoRapida] = useState<string | null>(null);
@@ -390,6 +414,19 @@ export default function TabelaPrecosPage() {
     [produtosEstoque, formCustoProduto.produtoId]
   );
 
+  const clientesFiltradosTabela = useMemo(() => {
+    const termo = buscaClienteTabela.trim().toLowerCase();
+    return clientesTabela.filter(
+      (cliente) =>
+        !termo ||
+        cliente.nome.toLowerCase().includes(termo) ||
+        (cliente.cidade || "").toLowerCase().includes(termo) ||
+        configValueFromObservacoes(cliente.observacoes, "Tabela de Preço:")
+          .toLowerCase()
+          .includes(termo)
+    );
+  }, [buscaClienteTabela, clientesTabela]);
+
   function adicionarCategoria() {
     const nome = window.prompt("Nome da categoria");
     if (!nome?.trim()) return;
@@ -419,6 +456,137 @@ export default function TabelaPrecosPage() {
     setModalCadastrarTabela(false);
   }
 
+  function nomeTabelaDuplicada(base: string) {
+    const sugeridoBase = `${base.trim()} - Cópia`;
+    if (!tabelas.includes(sugeridoBase)) return sugeridoBase;
+    let numero = 2;
+    while (tabelas.includes(`${sugeridoBase} ${numero}`)) numero += 1;
+    return `${sugeridoBase} ${numero}`;
+  }
+
+  async function carregarClientesDaTabela(tabelaSelecionada: string) {
+    setCarregandoClientesTabela(true);
+    try {
+      const res = await fetch("/api/clientes");
+      const data = (await res.json().catch(() => [])) as ClienteTabelaPreco[];
+      const lista = Array.isArray(data) ? data : [];
+      setClientesTabela(lista);
+      setClientesSelecionadosTabela(
+        new Set(
+          lista
+            .filter(
+              (cliente) =>
+                configValueFromObservacoes(cliente.observacoes, "Tabela de Preço:").trim() ===
+                tabelaSelecionada
+            )
+            .map((cliente) => cliente.id)
+        )
+      );
+    } catch {
+      setClientesTabela([]);
+      setClientesSelecionadosTabela(new Set());
+    } finally {
+      setCarregandoClientesTabela(false);
+    }
+  }
+
+  function abrirModalClientesTabela(tabelaSelecionada: string) {
+    setBuscaClienteTabela("");
+    setModalClientesTabela({ tabela: tabelaSelecionada });
+    void carregarClientesDaTabela(tabelaSelecionada);
+  }
+
+  function fecharModalClientesTabela() {
+    setModalClientesTabela(null);
+    setBuscaClienteTabela("");
+    setClientesSelecionadosTabela(new Set());
+    setClientesTabela([]);
+  }
+
+  function alternarClienteTabela(id: string) {
+    setClientesSelecionadosTabela((atual) => {
+      const proximo = new Set(atual);
+      if (proximo.has(id)) proximo.delete(id);
+      else proximo.add(id);
+      return proximo;
+    });
+  }
+
+  async function salvarClientesDaTabela() {
+    if (!modalClientesTabela) return;
+    setSalvandoClientesTabela(true);
+    try {
+      const tabelaSelecionada = modalClientesTabela.tabela;
+      const atualizacoes = clientesTabela.filter((cliente) => {
+        const tabelaAtual = configValueFromObservacoes(cliente.observacoes, "Tabela de Preço:");
+        const selecionado = clientesSelecionadosTabela.has(cliente.id);
+        return (selecionado && tabelaAtual !== tabelaSelecionada) || (!selecionado && tabelaAtual === tabelaSelecionada);
+      });
+
+      for (const cliente of atualizacoes) {
+        const tabelaAtual = configValueFromObservacoes(cliente.observacoes, "Tabela de Preço:");
+        const selecionado = clientesSelecionadosTabela.has(cliente.id);
+        const observacoes = definirTabelaPrecoClienteObservacoes(
+          cliente.observacoes || "",
+          selecionado ? tabelaSelecionada : tabelaAtual === tabelaSelecionada ? "" : tabelaAtual
+        );
+        await fetch(`/api/clientes/${cliente.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ observacoes }),
+        });
+      }
+
+      fecharModalClientesTabela();
+    } finally {
+      setSalvandoClientesTabela(false);
+    }
+  }
+
+  async function atualizarClientesTabelaRenomeada(nomeAntigo: string, nomeNovo: string) {
+    try {
+      const res = await fetch("/api/clientes");
+      const data = (await res.json().catch(() => [])) as ClienteTabelaPreco[];
+      const lista = Array.isArray(data) ? data : [];
+      const clientes = lista.filter(
+        (cliente) =>
+          configValueFromObservacoes(cliente.observacoes, "Tabela de Preço:").trim() === nomeAntigo
+      );
+
+      for (const cliente of clientes) {
+        const observacoes = definirTabelaPrecoClienteObservacoes(
+          cliente.observacoes || "",
+          nomeNovo
+        );
+        await fetch(`/api/clientes/${cliente.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ observacoes }),
+        });
+      }
+    } catch {
+      /* ignora se não conseguir sincronizar */
+    }
+  }
+
+  async function duplicarTabelaSelecionada(nomeOrigem: string) {
+    const categoriasOrigem = categoriasPorTabela[nomeOrigem] || [];
+    const nomeNovo = nomeTabelaDuplicada(nomeOrigem);
+    const configOrigem = await carregarConfigImpressaoTabelaPrecos(nomeOrigem);
+
+    setTabelas((atuais) => [...atuais, nomeNovo]);
+    setCategoriasPorTabela((atuais) => ({
+      ...atuais,
+      [nomeNovo]: JSON.parse(JSON.stringify(categoriasOrigem)),
+    }));
+    setTabela(nomeNovo);
+    setVisualizacao("precos");
+    await salvarConfigImpressaoTabelaPrecos(nomeNovo, {
+      ...configOrigem,
+      titulo: nomeNovo,
+    });
+  }
+
   function abrirEditarTabela() {
     setNomeTabelaEditando(tabela);
     setModalEditarTabela(true);
@@ -431,6 +599,7 @@ export default function TabelaPrecosPage() {
 
   function salvarTabelaEditada() {
     if (!nomeTabelaEditando.trim()) return;
+    const nomeAntigo = tabela;
     const novoNome = nomeTabelaEditando.trim();
     setTabelas((atuais) => atuais.map((item) => (item === tabela ? novoNome : item)));
     setCategoriasPorTabela((atuais) => {
@@ -442,6 +611,7 @@ export default function TabelaPrecosPage() {
       };
     });
     setTabela(novoNome);
+    void atualizarClientesTabelaRenomeada(nomeAntigo, novoNome);
     setModalEditarTabela(false);
   }
 
@@ -1457,12 +1627,20 @@ export default function TabelaPrecosPage() {
                   <tr key={item} className="hover:bg-slate-50">
                     <td className="px-3 py-2 text-slate-600">{item}</td>
                     <td className="px-3 py-2">
-                      <button type="button" className="text-primary-700 hover:underline">
+                      <button
+                        type="button"
+                        onClick={() => abrirModalClientesTabela(item)}
+                        className="text-primary-700 hover:underline"
+                      >
                         Clientes
                       </button>
                     </td>
                     <td className="px-3 py-2">
-                      <button type="button" className="text-primary-700 hover:underline">
+                      <button
+                        type="button"
+                        onClick={() => void duplicarTabelaSelecionada(item)}
+                        className="text-primary-700 hover:underline"
+                      >
                         Duplicar
                       </button>
                     </td>
@@ -1490,7 +1668,11 @@ export default function TabelaPrecosPage() {
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
-                        <button type="button" className="text-slate-500 hover:text-primary-700">
+                        <button
+                          type="button"
+                          onClick={() => void duplicarTabelaSelecionada(item)}
+                          className="text-slate-500 hover:text-primary-700"
+                        >
                           <Copy className="h-3.5 w-3.5" />
                         </button>
                       </div>
@@ -2168,6 +2350,116 @@ export default function TabelaPrecosPage() {
                   className="rounded border border-slate-300 bg-white px-4 py-2 text-xs text-slate-600 hover:bg-slate-50"
                 >
                   Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalClientesTabela && (
+        <div className="fixed inset-0 z-[65] flex items-start justify-center bg-black/45 p-4 pt-16">
+          <div className="relative w-full max-w-3xl rounded bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+              <h2 className="text-sm font-medium text-slate-700">
+                Selecionar Clientes — {modalClientesTabela.tabela}
+              </h2>
+              <button
+                type="button"
+                onClick={fecharModalClientesTabela}
+                className="flex h-7 w-7 items-center justify-center rounded bg-white text-xl leading-none text-slate-500 hover:bg-slate-100"
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+            <div className="space-y-4 p-4 text-xs">
+              <p className="text-slate-500">
+                Marque os clientes que vão usar esta tabela de preços. O cadastro do cliente será
+                atualizado em{" "}
+                <span className="font-semibold text-slate-700">Configuração → Tabela de Preço</span>.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  value={buscaClienteTabela}
+                  onChange={(event) => setBuscaClienteTabela(event.target.value)}
+                  placeholder="Procurar cliente..."
+                  className="h-9 flex-1 rounded border border-slate-300 px-3 outline-none focus:border-primary-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setBuscaClienteTabela("")}
+                  className="rounded bg-slate-500 px-4 py-2 text-[11px] font-semibold text-white hover:bg-slate-600"
+                >
+                  Limpar
+                </button>
+              </div>
+              <div className="max-h-[52vh] overflow-auto rounded border border-slate-200">
+                <table className="w-full text-[11px]">
+                  <thead className="sticky top-0 bg-[#f4f3fb] text-slate-500">
+                    <tr>
+                      <th className="w-10 px-3 py-2 text-center">#</th>
+                      <th className="px-3 py-2 text-left font-semibold uppercase">Cliente</th>
+                      <th className="px-3 py-2 text-left font-semibold uppercase">Cidade</th>
+                      <th className="px-3 py-2 text-left font-semibold uppercase">Tabela atual</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {carregandoClientesTabela && (
+                      <tr>
+                        <td colSpan={4} className="px-3 py-8 text-center text-slate-400">
+                          Carregando clientes...
+                        </td>
+                      </tr>
+                    )}
+                    {!carregandoClientesTabela &&
+                      clientesFiltradosTabela.map((cliente) => {
+                        const tabelaAtual = configValueFromObservacoes(
+                          cliente.observacoes,
+                          "Tabela de Preço:"
+                        );
+                        const selecionado = clientesSelecionadosTabela.has(cliente.id);
+                        return (
+                          <tr key={cliente.id} className={selecionado ? "bg-emerald-50/70" : ""}>
+                            <td className="px-3 py-2 text-center">
+                              <input
+                                type="checkbox"
+                                checked={selecionado}
+                                onChange={() => alternarClienteTabela(cliente.id)}
+                                className="h-3.5 w-3.5 accent-primary-600"
+                              />
+                            </td>
+                            <td className="px-3 py-2 font-medium text-slate-700">{cliente.nome}</td>
+                            <td className="px-3 py-2 text-slate-500">{cliente.cidade || ""}</td>
+                            <td className="px-3 py-2 text-slate-500">{tabelaAtual || "Tabela Principal"}</td>
+                          </tr>
+                        );
+                      })}
+                    {!carregandoClientesTabela && clientesFiltradosTabela.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="px-3 py-8 text-center text-slate-400">
+                          Nenhum cliente encontrado.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={fecharModalClientesTabela}
+                  className="rounded border border-slate-300 bg-white px-4 py-2 text-xs text-slate-600 hover:bg-slate-50"
+                >
+                  Fechar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void salvarClientesDaTabela()}
+                  disabled={salvandoClientesTabela}
+                  className="rounded bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {salvandoClientesTabela ? "Salvando..." : "Salvar Clientes"}
                 </button>
               </div>
             </div>
