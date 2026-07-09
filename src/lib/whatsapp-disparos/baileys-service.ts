@@ -85,6 +85,19 @@ export async function baileysReconectar(opts?: { limparAuth?: boolean }) {
   ) as Promise<BaileysSendResponse>;
 }
 
+export async function baileysPairingCode(telefone: string) {
+  return postBaileys(
+    "/pairing-code",
+    { phone: telefone, reset: true },
+    55_000
+  ) as Promise<
+    BaileysSendResponse & {
+      pairingCode?: string | null;
+      pairingCodeFormatado?: string | null;
+    }
+  >;
+}
+
 export function baileysConfigurado() {
   return baileysServicoConfigurado();
 }

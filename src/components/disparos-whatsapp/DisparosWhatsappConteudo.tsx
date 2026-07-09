@@ -124,6 +124,9 @@ export function DisparosWhatsappConteudo() {
   const [socketOnline, setSocketOnline] = useState(false);
   const [aguardandoQr, setAguardandoQr] = useState(false);
   const [qrModalAberto, setQrModalAberto] = useState(false);
+  const [codigoModalAberto, setCodigoModalAberto] = useState(false);
+  const [telefonePareamento, setTelefonePareamento] = useState("");
+  const [codigoPareamento, setCodigoPareamento] = useState<string | null>(null);
   const [apiNaoAutorizada, setApiNaoAutorizada] = useState(false);
   const [diagnostico, setDiagnostico] = useState<DiagnosticoWhatsapp | null>(null);
   const ultimoQrRef = useRef<string | null>(null);
@@ -309,6 +312,40 @@ export function DisparosWhatsappConteudo() {
       });
     },
   });
+
+  async function gerarCodigoPareamento() {
+    const telefone = telefonePareamento.replace(/\D/g, "");
+    if (telefone.length < 12) {
+      toast("erro", "Informe o telefone com DDI, ex: 5533999123456");
+      return;
+    }
+    setProcessando(true);
+    setCodigoPareamento(null);
+    try {
+      const res = await fetch("/api/disparos-whatsapp/conexao/codigo", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ telefone }),
+      });
+      const data = (await res.json()) as { ok?: boolean; codigo?: string; error?: string; conectado?: boolean };
+      if (!res.ok) throw new Error(data.error || "Falha ao gerar código");
+      if (data.conectado) {
+        toast("sucesso", "WhatsApp conectado.");
+        setCodigoModalAberto(false);
+        void recarregar();
+        return;
+      }
+      if (data.codigo) {
+        setCodigoPareamento(data.codigo);
+        toast("sucesso", "Digite o código no celular (vincular com número de telefone).");
+      }
+    } catch (err) {
+      toast("erro", err instanceof Error ? err.message : "Erro ao gerar código");
+    } finally {
+      setProcessando(false);
+    }
+  }
 
   async function gerarQr(reset = false) {
     if (conexao?.status === "pareamento" && !reset) {
@@ -623,12 +660,17 @@ export function DisparosWhatsappConteudo() {
                 </p>
               ) : null}
               {conexao?.status === "bloqueado_whatsapp" ? (
-                <p className="mt-1 text-[10px] font-medium text-red-600">
-                  WhatsApp bloqueou novos aparelhos. Aguarde ~24h. No celular: Aparelhos conectados →
-                  remova sessões antigas. Não clique em Gerar QR.
+                <p className="mt-1 text-[10px] font-medium text-amber-600">
+                  Pareamento pausado no servidor (muitas tentativas). Use{" "}
+                  <strong>Conectar com código</strong> ou rode na VPS: npm run whatsapp:liberar
                   {conexao.pairingBlockedUntil
-                    ? ` Libera ~${new Date(conexao.pairingBlockedUntil).toLocaleString("pt-BR")}.`
+                    ? ` (até ${new Date(conexao.pairingBlockedUntil).toLocaleString("pt-BR")})`
                     : null}
+                </p>
+              ) : null}
+              {!conexao?.conectado && conexao?.baileysOnline !== false ? (
+                <p className="mt-1 text-[10px] text-slate-500">
+                  Se o QR do Baileys falhar, use <strong>Conectar com código</strong> (igual WhatsApp Web oficial).
                 </p>
               ) : null}
               {conexao?.status === "pareamento" ? (
@@ -640,6 +682,19 @@ export function DisparosWhatsappConteudo() {
                 {!conexao?.conectado ? (
                   <button
                     type="button"
+                    onClick={() => {
+                      setCodigoPareamento(null);
+                      setCodigoModalAberto(true);
+                    }}
+                    disabled={processando || conexao?.baileysOnline === false || conexao?.status === "pareamento"}
+                    className="rounded-md bg-emerald-600 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                  >
+                    Conectar com código
+                  </button>
+                ) : null}
+                {!conexao?.conectado ? (
+                  <button
+                    type="button"
                     onClick={() => void gerarQr()}
                     disabled={
                       processando ||
@@ -647,7 +702,7 @@ export function DisparosWhatsappConteudo() {
                       conexao?.status === "pareamento" ||
                       conexao?.status === "bloqueado_whatsapp"
                     }
-                    className="rounded-md bg-indigo-600 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                    className="rounded-md border border-indigo-200 bg-white px-2.5 py-1 text-[10px] font-medium text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
                   >
                     {processando
                       ? "Aguarde…"
@@ -901,6 +956,46 @@ export function DisparosWhatsappConteudo() {
           void recarregar();
         }}
       />
+
+      <Modal
+        open={codigoModalAberto}
+        onClose={() => setCodigoModalAberto(false)}
+        title="Conectar com código"
+        size="sm"
+      >
+        <div className="flex flex-col gap-4 py-2">
+          <p className="text-sm text-slate-600">
+            Mesmo método do WhatsApp Web quando o QR falha. Informe o número do celular do laboratório (com DDI 55).
+          </p>
+          <input
+            type="tel"
+            value={telefonePareamento}
+            onChange={(e) => setTelefonePareamento(e.target.value)}
+            placeholder="5533999123456"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+          />
+          {codigoPareamento ? (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-6 text-center">
+              <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">Código</p>
+              <p className="mt-2 font-mono text-3xl font-bold tracking-widest text-emerald-900">
+                {codigoPareamento}
+              </p>
+            </div>
+          ) : null}
+          <p className="text-xs text-slate-500">
+            Celular: WhatsApp → Aparelhos conectados → Conectar dispositivo →{" "}
+            <strong>Vincular com número de telefone</strong> → digite o código acima.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setCodigoModalAberto(false)}>
+              Fechar
+            </Button>
+            <Button onClick={() => void gerarCodigoPareamento()} disabled={processando}>
+              {processando ? "Gerando…" : codigoPareamento ? "Gerar novo código" : "Gerar código"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         open={qrModalAberto && Boolean(qrImagem)}

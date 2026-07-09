@@ -88,7 +88,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         error:
-          "WhatsApp bloqueou novos dispositivos temporariamente. Aguarde 24h, remova aparelhos antigos no celular e tente de novo.",
+          "Pareamento pausado no servidor. Use Conectar com código ou npm run whatsapp:liberar na VPS.",
         pairingBlocked: true,
         pairingBlockedUntil: atual.pairingBlockedUntil || null,
         baileysOnline: true,

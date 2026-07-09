@@ -8,6 +8,7 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import pino from "pino";
 import makeWASocket, {
+  Browsers,
   DisconnectReason,
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
@@ -38,6 +39,32 @@ let ultimoQrLogEm = 0;
 let ultimoQrHash = null;
 let qrGeradoEm = null;
 let saveCredsFn = null;
+let pairingCodeAtual = null;
+let pairingPhoneAlvo = null;
+let pairingCodeSolicitado = false;
+
+function browserWhatsApp() {
+  const modo = (process.env.WHATSAPP_BROWSER || "windows").toLowerCase();
+  if (modo === "macos" || modo === "mac") return Browsers.macOS("Chrome");
+  if (modo === "ubuntu") return Browsers.ubuntu("Chrome");
+  return Browsers.windows("Chrome");
+}
+
+function formatarCodigoPareamento(code) {
+  if (!code) return null;
+  const limpo = String(code).replace(/\D/g, "");
+  return limpo.match(/.{1,4}/g)?.join("-") || limpo;
+}
+
+function normalizarTelefonePareamento(raw) {
+  let digits = String(raw || "").replace(/\D/g, "");
+  if (!digits) return null;
+  if ((digits.length === 10 || digits.length === 11) && !digits.startsWith("55")) {
+    digits = `55${digits}`;
+  }
+  if (digits.length < 12 || digits.length > 13) return null;
+  return digits;
+}
 
 function lerCooldown() {
   try {
@@ -222,7 +249,7 @@ function qrRecente() {
 function agendarReconnect(motivo, delayMs) {
   if (conectado || reconnectTimer || iniciando || pareamentoBloqueado()) return;
   if (reconnectAttempts >= 5) {
-    ativarCooldown("muitas-tentativas-reconnect", 12);
+    log(`Muitas tentativas (${reconnectAttempts}x). Aguarde 30 min ou use código de pareamento.`);
     return;
   }
   reconnectAttempts += 1;
@@ -253,12 +280,14 @@ function tratarFechamento(lastDisconnect) {
   const msg = lastDisconnect?.error?.message || "";
 
   if (statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.badSession) {
-    log("Sessão rejeitada pelo WhatsApp.", msg);
+    log("Sessão rejeitada pelo Baileys — aguarde 2 min antes de novo pareamento.", msg);
     credenciaisRegistradas = false;
     qrAtual = null;
     qrGeradoEm = null;
+    pairingCodeAtual = null;
+    pairingCodeSolicitado = false;
     limparAuthDir();
-    ativarCooldown("sessao-rejeitada-whatsapp", COOLDOWN_PADRAO_HORAS);
+    agendarReconnect("sessao-rejeitada", 120_000);
     return;
   }
 
@@ -280,6 +309,80 @@ function tratarFechamento(lastDisconnect) {
 
   log("Conexão fechada.", msg || `code=${statusCode ?? "?"}`);
   agendarReconnect("close", 15_000);
+}
+
+async function aguardarPairingCodeLocal(maxMs = 45_000) {
+  const inicio = Date.now();
+  while (Date.now() - inicio < maxMs) {
+    if (conectado) return { connected: true, qr: null, phone: numeroConectado, pairingCode: null };
+    if (pairingCodeAtual) {
+      return {
+        connected: false,
+        qr: null,
+        phone: null,
+        pairingCode: pairingCodeAtual,
+        pairingCodeFormatado: formatarCodigoPareamento(pairingCodeAtual),
+      };
+    }
+    await new Promise((r) => setTimeout(r, 700));
+  }
+  return {
+    connected: conectado,
+    qr: null,
+    phone: numeroConectado,
+    pairingCode: pairingCodeAtual,
+    pairingCodeFormatado: formatarCodigoPareamento(pairingCodeAtual),
+  };
+}
+
+async function tentarGerarPairingCode(sockInst, state) {
+  if (!pairingPhoneAlvo || state.creds?.registered || pairingCodeAtual || pairingCodeSolicitado) {
+    return;
+  }
+  pairingCodeSolicitado = true;
+  try {
+    const code = await sockInst.requestPairingCode(pairingPhoneAlvo);
+    pairingCodeAtual = code;
+    qrAtual = null;
+    qrGeradoEm = null;
+    log(`Código de pareamento: ${formatarCodigoPareamento(code)}`);
+    log("No celular: Aparelhos conectados → Conectar dispositivo → Vincular com número de telefone.");
+  } catch (err) {
+    pairingCodeSolicitado = false;
+    log("Erro ao gerar código:", err instanceof Error ? err.message : err);
+  }
+}
+
+async function iniciarPareamentoPorCodigo(telefoneRaw, opts = { reset: true }) {
+  const telefone = normalizarTelefonePareamento(telefoneRaw);
+  if (!telefone) {
+    throw new Error("Telefone inválido. Use DDI+DDD+número, ex: 5533999123456");
+  }
+
+  if (conectado) {
+    return { connected: true, qr: null, phone: numeroConectado, pairingCode: null };
+  }
+
+  pairingPhoneAlvo = telefone;
+  pairingCodeAtual = null;
+  pairingCodeSolicitado = false;
+
+  if (opts.reset) {
+    cancelarReconnectAgendado();
+    if (sock) {
+      try {
+        await sock.logout();
+      } catch {
+        /* ignora */
+      }
+    }
+    limparSocketLocal();
+    limparAuthDir();
+    credenciaisRegistradas = false;
+  }
+
+  await startBaileys();
+  return aguardarPairingCodeLocal(50_000);
 }
 
 async function startBaileys() {
@@ -315,7 +418,7 @@ async function startBaileys() {
       syncFullHistory: false,
       markOnlineOnConnect: false,
       generateHighQualityLinkPreview: false,
-      browser: ["Lab Protese", "Chrome", "120.0.0"],
+      browser: browserWhatsApp(),
       connectTimeoutMs: 60_000,
       defaultQueryTimeoutMs: 60_000,
       keepAliveIntervalMs: 30_000,
@@ -335,8 +438,12 @@ async function startBaileys() {
     sock.ev.on("connection.update", (update) => {
       const { connection, lastDisconnect, qr } = update;
 
+      if (pairingPhoneAlvo && !state.creds?.registered && (connection === "connecting" || qr)) {
+        void tentarGerarPairingCode(sock, state);
+      }
+
       if (qr) {
-        if (conectado || credenciaisRegistradas) {
+        if (conectado || credenciaisRegistradas || pairingPhoneAlvo) {
           return;
         }
         registrarQr(qr);
@@ -351,6 +458,9 @@ async function startBaileys() {
         credenciaisRegistradas = true;
         qrAtual = null;
         qrGeradoEm = null;
+        pairingCodeAtual = null;
+        pairingPhoneAlvo = null;
+        pairingCodeSolicitado = false;
         reconnectAttempts = 0;
         cancelarReconnectAgendado();
         limparCooldown();
@@ -390,6 +500,9 @@ async function resetarSessaoCompleta(force = false) {
   qrAtual = null;
   qrGeradoEm = null;
   credenciaisRegistradas = false;
+  pairingCodeAtual = null;
+  pairingPhoneAlvo = null;
+  pairingCodeSolicitado = false;
 
   if (sock) {
     try {
@@ -474,7 +587,25 @@ const server = http.createServer(async (req, res) => {
         pairingBlocked: cooldown.active,
         pairingBlockedUntil: cooldown.active ? cooldown.until : null,
         pairingBlockedReason: cooldown.active ? cooldown.reason : null,
+        pairingCode: conectado ? null : pairingCodeAtual,
+        pairingCodeFormatado: conectado ? null : formatarCodigoPareamento(pairingCodeAtual),
+        pairingPhoneAlvo,
       });
+    }
+
+    if (url.pathname === "/pairing-code" && req.method === "POST") {
+      if (!autorizado(req)) return json(res, 401, { ok: false, error: "Não autorizado" });
+      const body = await lerJson(req);
+      const telefone = body.phone || body.telefone || process.env.WHATSAPP_PAIRING_PHONE;
+      try {
+        const result = await iniciarPareamentoPorCodigo(telefone, { reset: body.reset !== false });
+        return json(res, 200, { ok: true, ...result });
+      } catch (err) {
+        return json(res, 422, {
+          ok: false,
+          error: err instanceof Error ? err.message : "Falha ao gerar código",
+        });
+      }
     }
 
     if (url.pathname === "/send" && req.method === "POST") {
