@@ -26,7 +26,6 @@ export function FaturaPdfViewer({
   const [gerandoDownload, setGerandoDownload] = useState(false);
   const [gerandoImpressao, setGerandoImpressao] = useState(false);
   const [erro, setErro] = useState("");
-  const pdfCacheRef = useRef<Blob | null>(null);
   const autoImpressaoDisparadaRef = useRef(false);
   const nomeArquivoPdf = nomeArquivoFaturaPdf(numeroFatura, clienteNome);
   const titulo = clienteNome.trim()
@@ -36,11 +35,12 @@ export function FaturaPdfViewer({
   const larguraPreviewMm = termica ? 80 : FATURA_A4_LARGURA_MM;
   const alturaPreviewMm = termica ? 297 : FATURA_A4_ALTURA_MM;
 
-  const obterPdfFatura = useCallback(async () => {
-    if (pdfCacheRef.current) return pdfCacheRef.current;
-    const blob = await gerarPdfDeHtmlDocumento(html, formato);
-    pdfCacheRef.current = blob;
-    return blob;
+  const gerarPdfFatura = useCallback(async () => {
+    return gerarPdfDeHtmlDocumento(html, formato);
+  }, [html, formato]);
+
+  useEffect(() => {
+    autoImpressaoDisparadaRef.current = false;
   }, [html, formato]);
 
   const imprimirFatura = useCallback(async () => {
@@ -48,7 +48,7 @@ export function FaturaPdfViewer({
     setGerandoImpressao(true);
     setErro("");
     try {
-      const blob = await obterPdfFatura();
+      const blob = await gerarPdfFatura();
       await imprimirPdfBlob(blob, titulo);
     } catch (err) {
       console.error("imprimir PDF fatura", err);
@@ -58,50 +58,27 @@ export function FaturaPdfViewer({
     } finally {
       setGerandoImpressao(false);
     }
-  }, [gerandoImpressao, obterPdfFatura, titulo]);
-
-  useEffect(() => {
-    pdfCacheRef.current = null;
-    autoImpressaoDisparadaRef.current = false;
-  }, [html, formato]);
+  }, [gerandoImpressao, gerarPdfFatura, titulo]);
 
   useEffect(() => {
     if (!imprimirAoCarregar || autoImpressaoDisparadaRef.current) return;
     autoImpressaoDisparadaRef.current = true;
 
-    let cancelado = false;
     const timer = window.setTimeout(() => {
-      void (async () => {
-        setGerandoImpressao(true);
-        setErro("");
-        try {
-          const blob = await obterPdfFatura();
-          if (!cancelado) await imprimirPdfBlob(blob, titulo);
-        } catch (err) {
-          if (!cancelado) {
-            console.error("auto-impressão fatura", err);
-            setErro(
-              err instanceof Error ? err.message : "Não foi possível imprimir a fatura."
-            );
-          }
-        } finally {
-          if (!cancelado) setGerandoImpressao(false);
-        }
-      })();
+      void imprimirFatura();
     }, 800);
 
     return () => {
-      cancelado = true;
       window.clearTimeout(timer);
     };
-  }, [imprimirAoCarregar, obterPdfFatura, titulo]);
+  }, [imprimirAoCarregar, imprimirFatura]);
 
   async function baixarPdf() {
     if (gerandoDownload) return;
     setGerandoDownload(true);
     setErro("");
     try {
-      const blob = await obterPdfFatura();
+      const blob = await gerarPdfFatura();
       baixarPdfBlob(blob, nomeArquivoPdf);
     } catch (err) {
       console.error("baixar PDF fatura", err);
@@ -134,35 +111,39 @@ export function FaturaPdfViewer({
           <p className="text-xs text-slate-400">{clienteNome}</p>
         </div>
         <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            className="gap-1.5 border-slate-500 bg-transparent text-white"
-            onClick={() => void baixarPdf()}
-            disabled={gerandoDownload}
-          >
-            <Download className="h-3.5 w-3.5" />
-            {gerandoDownload ? "Gerando..." : "Baixar PDF"}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="gap-1.5 border-slate-500 bg-transparent text-white"
-            onClick={() => void imprimirFatura()}
-            disabled={gerandoImpressao}
-          >
-            <Printer className="h-3.5 w-3.5" />
-            {gerandoImpressao ? "Gerando..." : "Imprimir"}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="gap-1.5 border-slate-500 bg-transparent text-white"
-            onClick={abrirEmNovaAba}
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-            Nova aba
-          </Button>
+          {iframePronto ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-1.5 border-slate-500 bg-transparent text-white"
+                onClick={() => void baixarPdf()}
+                disabled={gerandoDownload}
+              >
+                <Download className="h-3.5 w-3.5" />
+                {gerandoDownload ? "Gerando..." : "Baixar PDF"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-1.5 border-slate-500 bg-transparent text-white"
+                onClick={() => void imprimirFatura()}
+                disabled={gerandoImpressao}
+              >
+                <Printer className="h-3.5 w-3.5" />
+                {gerandoImpressao ? "Gerando..." : "Imprimir"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-1.5 border-slate-500 bg-transparent text-white"
+                onClick={abrirEmNovaAba}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Nova aba
+              </Button>
+            </>
+          ) : null}
         </div>
       </div>
 
