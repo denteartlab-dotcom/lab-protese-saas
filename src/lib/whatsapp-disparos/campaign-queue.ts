@@ -47,6 +47,10 @@ function erroTransiente(msg: string) {
   );
 }
 
+function erroAquecimento(msg: string) {
+  return /aquecendo|pronto para envio/i.test(msg);
+}
+
 async function liberarContatosTravados(empresaId: string, campaignId: string) {
   await runWithTenantContext(empresaId, () =>
     prisma.whatsappCampaignContact.updateMany({
@@ -167,10 +171,11 @@ async function atualizarContadoresCampanha(empresaId: string, campaignId: string
   });
 
   if (pendentes === 0 && campanha.status === "enviando") {
+    const statusFinal = enviadas > 0 ? "concluida" : "falhou";
     await runWithTenantContext(empresaId, () =>
       prisma.whatsappCampaign.update({
         where: { id: campaignId },
-        data: { status: "concluida", concluidoEm: new Date(), pendentes: 0 },
+        data: { status: statusFinal, concluidoEm: new Date(), pendentes: 0 },
       })
     );
     pararFila(empresaId, campaignId);
@@ -188,9 +193,8 @@ async function enviarParaContato(
   anexoTipo: string | null
 ) {
   const contato = await runWithTenantContext(empresaId, () =>
-    prisma.whatsappCampaignContact.update({
+    prisma.whatsappCampaignContact.findUnique({
       where: { id: contactId },
-      data: { status: "enviando", tentativas: { increment: 1 } },
       select: {
         id: true,
         nome: true,
@@ -202,7 +206,17 @@ async function enviarParaContato(
         valor: true,
         vencimento: true,
         tentativas: true,
+        status: true,
       },
+    })
+  );
+  if (!contato) return;
+
+  const proximaTentativa = contato.tentativas + 1;
+  await runWithTenantContext(empresaId, () =>
+    prisma.whatsappCampaignContact.update({
+      where: { id: contactId },
+      data: { status: "enviando", tentativas: proximaTentativa },
     })
   );
 
@@ -255,7 +269,7 @@ async function enviarParaContato(
       "enviado",
       mensagem,
       null,
-      contato.tentativas
+      proximaTentativa
     );
 
     emitDisparoContato(empresaId, {
@@ -264,20 +278,26 @@ async function enviarParaContato(
       nome: contato.nome,
       telefone: contato.telefone,
       status: "enviado",
-      tentativas: contato.tentativas,
+      tentativas: proximaTentativa,
       erro: null,
       enviadoEm: atualizado.enviadoEm?.toISOString() || new Date().toISOString(),
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Falha no envio";
-    const tentativasAtuais = contato.tentativas;
-    const retentar = erroTransiente(msg) && tentativasAtuais < MAX_TENTATIVAS_CONTATO;
+    const tentativasAtuais = proximaTentativa;
+    const retentar =
+      (erroTransiente(msg) || erroAquecimento(msg)) &&
+      tentativasAtuais < MAX_TENTATIVAS_CONTATO;
 
     if (retentar) {
       await runWithTenantContext(empresaId, () =>
         prisma.whatsappCampaignContact.update({
           where: { id: contactId },
-          data: { status: "aguardando", erro: msg },
+          data: {
+            status: "aguardando",
+            erro: msg,
+            tentativas: erroAquecimento(msg) ? contato.tentativas : tentativasAtuais,
+          },
         })
       );
       await registrarLog(
@@ -295,7 +315,7 @@ async function enviarParaContato(
         nome: contato.nome,
         telefone: contato.telefone,
         status: "aguardando",
-        tentativas: tentativasAtuais,
+        tentativas: erroAquecimento(msg) ? contato.tentativas : tentativasAtuais,
         erro: msg,
         enviadoEm: null,
       });
@@ -360,6 +380,14 @@ async function processarProximo(empresaId: string, campaignId: string) {
     estado.timer = setTimeout(() => void processarProximo(empresaId, campaignId), 5000);
     return;
   }
+  if (!statusWhatsapp.prontoParaEnvio) {
+    const esperaMs = Math.min(
+      Math.max((statusWhatsapp.warmupRestanteSegundos ?? 3) * 1000, 2000),
+      8000
+    );
+    estado.timer = setTimeout(() => void processarProximo(empresaId, campaignId), esperaMs);
+    return;
+  }
   estado.aguardandoConexao = 0;
 
   await liberarContatosTravadosAntigos(empresaId, campaignId);
@@ -415,6 +443,15 @@ async function processarProximo(empresaId: string, campaignId: string) {
 }
 
 export async function iniciarFilaCampanha(empresaId: string, campaignId: string) {
+  const contatosPendentes = await runWithTenantContext(empresaId, () =>
+    prisma.whatsappCampaignContact.count({
+      where: { campaignId, status: { in: ["aguardando", "pausado"] } },
+    })
+  );
+  if (contatosPendentes === 0) {
+    throw new Error("Campanha sem contatos para enviar. Importe contatos válidos antes de iniciar.");
+  }
+
   const key = chaveFila(empresaId, campaignId);
   if (filasAtivas.has(key)) {
     const estado = filasAtivas.get(key)!;

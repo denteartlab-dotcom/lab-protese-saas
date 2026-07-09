@@ -86,20 +86,28 @@ function statusCampanhaBadge(status: string) {
     enviando: "bg-blue-50 text-blue-700",
     pausada: "bg-amber-50 text-amber-700",
     concluida: "bg-emerald-50 text-emerald-700",
+    falhou: "bg-red-50 text-red-700",
     cancelada: "bg-slate-100 text-slate-500",
   };
   return map[status] || "bg-slate-100 text-slate-600";
 }
 
-function labelStatusCampanha(status: string) {
+function labelStatusCampanha(status: string, enviadas?: number, falhas?: number) {
   const map: Record<string, string> = {
     rascunho: "Rascunho",
     agendada: "Agendada",
     enviando: "Em andamento",
     pausada: "Pausada",
     concluida: "Finalizada",
+    falhou: "Falhou",
     cancelada: "Cancelada",
   };
+  if (status === "concluida" && enviadas === 0 && (falhas ?? 0) > 0) {
+    return "Falhou";
+  }
+  if (status === "concluida" && enviadas === 0) {
+    return "Sem envios";
+  }
   return map[status] || status;
 }
 
@@ -867,9 +875,11 @@ export function DisparosWhatsappConteudo() {
                     <td className="px-4 py-3 font-medium text-red-600">{fmt(c.falhas)}</td>
                     <td className="px-4 py-3">
                       <span
-                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${statusCampanhaBadge(c.status)}`}
+                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${statusCampanhaBadge(
+                          c.status === "concluida" && c.enviadas === 0 ? "falhou" : c.status
+                        )}`}
                       >
-                        {labelStatusCampanha(c.status)}
+                        {labelStatusCampanha(c.status, c.enviadas, c.falhas)}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -968,6 +978,8 @@ export function DisparosWhatsappConteudo() {
       <div ref={wizardRef}>
         <CampanhaWizardInline
           conectado={Boolean(conexao?.conectado)}
+          prontoParaEnvio={conexao?.prontoParaEnvio !== false}
+          warmupRestanteSegundos={conexao?.warmupRestanteSegundos ?? 0}
           fila={fila}
           resetSignal={wizardReset}
           onSalvo={() => {

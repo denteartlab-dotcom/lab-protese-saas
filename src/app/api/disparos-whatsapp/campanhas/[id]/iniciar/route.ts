@@ -14,6 +14,13 @@ export async function POST(_request: Request, { params }: Params) {
   const campanha = await obterCampanhaWhatsapp(ctx.empresaId, id);
   if (!campanha) return NextResponse.json({ error: "Campanha não encontrada" }, { status: 404 });
 
+  if (campanha.totalContatos === 0 || campanha.pendentes === 0) {
+    return NextResponse.json(
+      { error: "Campanha sem contatos para enviar. Importe contatos válidos antes de iniciar." },
+      { status: 422 }
+    );
+  }
+
   const status = await baileysStatus();
   if (!status?.connected) {
     return NextResponse.json(
@@ -21,7 +28,23 @@ export async function POST(_request: Request, { params }: Params) {
       { status: 422 }
     );
   }
+  if (!status.prontoParaEnvio) {
+    const segundos = status.warmupRestanteSegundos ?? 12;
+    return NextResponse.json(
+      {
+        error: `WhatsApp ainda aquecendo — aguarde ${segundos}s após conectar e tente novamente.`,
+      },
+      { status: 422 }
+    );
+  }
 
-  await iniciarFilaCampanha(ctx.empresaId, id);
+  try {
+    await iniciarFilaCampanha(ctx.empresaId, id);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Falha ao iniciar disparo" },
+      { status: 422 }
+    );
+  }
   return NextResponse.json({ ok: true });
 }

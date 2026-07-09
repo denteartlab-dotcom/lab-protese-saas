@@ -282,6 +282,29 @@ async function resolverJidDestino(phoneRaw) {
   return jidFromPhone(variants[0]);
 }
 
+async function resolverJidWhatsappValido(phoneRaw) {
+  if (!sock || !conectado) {
+    throw new Error("WhatsApp não conectado ou sessão inválida. Reconecte em Disparos WhatsApp.");
+  }
+  const variants = variantesTelefoneBr(phoneRaw);
+  if (!variants.length) throw new Error("Telefone inválido.");
+
+  try {
+    const consulta = await sock.onWhatsApp(...variants);
+    for (const item of consulta || []) {
+      if (item?.exists && item.jid) {
+        return item.jid;
+      }
+    }
+  } catch (err) {
+    log("Falha ao consultar número no WhatsApp", err instanceof Error ? err.message : String(err));
+  }
+
+  throw new Error(
+    `Número ${variants[0]} não encontrado no WhatsApp. Confira DDD e nono dígito do celular.`
+  );
+}
+
 function jidsVariantesBr(phoneRaw) {
   return variantesTelefoneBr(phoneRaw)
     .map((digits) => jidFromPhone(digits))
@@ -289,21 +312,16 @@ function jidsVariantesBr(phoneRaw) {
 }
 
 async function enviarComVariantes(phoneRaw, enviarParaJid) {
-  const jids = jidsVariantesBr(phoneRaw);
-  if (!jids.length) throw new Error("Telefone inválido.");
-  let ultimoErro = null;
-  for (const jid of jids) {
-    try {
-      return await enviarParaJid(jid);
-    } catch (err) {
-      ultimoErro = err;
-      const msg = err instanceof Error ? err.message : String(err);
-      if (/instável|não conectado|aquecendo|sessão inválida/i.test(msg)) {
-        throw err;
-      }
+  const jidValido = await resolverJidWhatsappValido(phoneRaw);
+  try {
+    return await enviarParaJid(jidValido);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/instável|não conectado|aquecendo|sessão inválida/i.test(msg)) {
+      throw err;
     }
+    throw err;
   }
-  throw ultimoErro instanceof Error ? ultimoErro : new Error("Falha ao enviar para todos os formatos do número.");
 }
 
 function extrairIdMensagem(sent) {

@@ -35,6 +35,8 @@ type ContatoFila = {
 
 type Props = {
   conectado: boolean;
+  prontoParaEnvio?: boolean;
+  warmupRestanteSegundos?: number;
   onSalvo: () => void;
   onIniciado?: () => void;
   fila: ContatoFila[];
@@ -60,7 +62,15 @@ function corStatusFila(status: string) {
   return "text-slate-600 bg-slate-50";
 }
 
-export function CampanhaWizardInline({ conectado, onSalvo, onIniciado, fila, resetSignal = 0 }: Props) {
+export function CampanhaWizardInline({
+  conectado,
+  prontoParaEnvio = true,
+  warmupRestanteSegundos = 0,
+  onSalvo,
+  onIniciado,
+  fila,
+  resetSignal = 0,
+}: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [etapa, setEtapa] = useState(0);
   const [nome, setNome] = useState("");
@@ -214,6 +224,13 @@ export function CampanhaWizardInline({ conectado, onSalvo, onIniciado, fila, res
 
       if (iniciarApos) {
         if (!conectado) throw new Error("Conecte o WhatsApp antes de iniciar o disparo.");
+        if (!prontoParaEnvio) {
+          throw new Error(
+            warmupRestanteSegundos > 0
+              ? `WhatsApp ainda aquecendo — aguarde ${warmupRestanteSegundos}s e tente novamente.`
+              : "WhatsApp ainda não está pronto para envio. Aguarde alguns segundos após conectar."
+          );
+        }
         const startRes = await fetch(`/api/disparos-whatsapp/campanhas/${data.campanha.id}/iniciar`, {
           method: "POST",
         });
