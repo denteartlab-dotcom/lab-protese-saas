@@ -8,32 +8,27 @@ import { Button, Input, Modal } from "@/components/ui";
 import { usePageReady } from "@/hooks/use-page-ready";
 import {
   carregarMateriaisDentistaCadastro,
-  MATERIAIS_DENTISTA_STORAGE_KEY,
+  MATERIAIS_DENTISTA_ATUALIZADA_EVENT,
+  removerMaterialDentistaCadastro,
+  salvarMateriaisDentistaCadastro,
 } from "@/lib/materiais-dentista-cadastro";
-import { persistirArmazenamentoImediato, writeStorage } from "@/lib/persisted-storage";
 
 export default function MaterialDentistaPage() {
   const [busca, setBusca] = useState("");
   const [materiais, setMateriais] = useState<string[]>([]);
-  const [materiaisCarregados, setMateriaisCarregados] = useState(false);
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
   const [nomeMaterial, setNomeMaterial] = useState("");
 
   const paginaPronta = usePageReady(() => {
     setMateriais(carregarMateriaisDentistaCadastro());
-    setMateriaisCarregados(true);
   });
 
   useEffect(() => {
-    if (!materiaisCarregados) return;
-    writeStorage(MATERIAIS_DENTISTA_STORAGE_KEY, materiais);
-  }, [materiais, materiaisCarregados]);
-
-  async function persistirMateriais(lista: string[]) {
-    writeStorage(MATERIAIS_DENTISTA_STORAGE_KEY, lista);
-    await persistirArmazenamentoImediato(MATERIAIS_DENTISTA_STORAGE_KEY, lista);
-  }
+    const handler = () => setMateriais(carregarMateriaisDentistaCadastro());
+    window.addEventListener(MATERIAIS_DENTISTA_ATUALIZADA_EVENT, handler);
+    return () => window.removeEventListener(MATERIAIS_DENTISTA_ATUALIZADA_EVENT, handler);
+  }, []);
 
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
@@ -58,7 +53,7 @@ export default function MaterialDentistaPage() {
     setModalAberto(true);
   }
 
-  function salvarMaterial(event: React.FormEvent) {
+  async function salvarMaterial(event: React.FormEvent) {
     event.preventDefault();
     const nome = nomeMaterial.trim();
     if (!nome) return;
@@ -68,17 +63,25 @@ export default function MaterialDentistaPage() {
         material !== editando && material.toLowerCase() !== nome.toLowerCase()
     );
     const proxima = editando ? semDuplicidade.concat(nome) : [...semDuplicidade, nome];
-    setMateriais(proxima);
-    void persistirMateriais(proxima);
+    try {
+      const salva = await salvarMateriaisDentistaCadastro(proxima);
+      setMateriais(salva);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Não foi possível salvar o material.");
+      return;
+    }
     setModalAberto(false);
     setEditando(null);
     setNomeMaterial("");
   }
 
-  function excluirMaterial(material: string) {
-    const proxima = materiais.filter((item) => item !== material);
-    setMateriais(proxima);
-    void persistirMateriais(proxima);
+  async function excluirMaterial(material: string) {
+    try {
+      const proxima = await removerMaterialDentistaCadastro(material, materiais);
+      setMateriais(proxima);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Não foi possível excluir o material.");
+    }
   }
 
   return (

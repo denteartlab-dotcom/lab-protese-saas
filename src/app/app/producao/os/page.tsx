@@ -126,7 +126,8 @@ import {
 } from "@/lib/etapas-os";
 import {
   carregarMateriaisDentistaCadastro,
-  MATERIAIS_DENTISTA_STORAGE_KEY,
+  MATERIAIS_DENTISTA_ATUALIZADA_EVENT,
+  salvarMateriaisDentistaCadastro,
 } from "@/lib/materiais-dentista-cadastro";
 import { carregarSetoresCadastro, type SetorCadastro } from "@/lib/setores-cadastro";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
@@ -786,9 +787,17 @@ export default function OrdemServicoPage() {
   }, [editId, modelosEtapas]);
 
   useEffect(() => {
-    if (!materiaisCarregados || typeof window === "undefined") return;
-    writeStorage(MATERIAIS_DENTISTA_STORAGE_KEY, materiais);
-  }, [materiais, materiaisCarregados]);
+    if (!paginaPronta || typeof window === "undefined") return;
+    const handler = () => {
+      try {
+        setMateriais(carregarMateriaisDentistaCadastro());
+      } catch {
+        setMateriais([]);
+      }
+    };
+    window.addEventListener(MATERIAIS_DENTISTA_ATUALIZADA_EVENT, handler);
+    return () => window.removeEventListener(MATERIAIS_DENTISTA_ATUALIZADA_EVENT, handler);
+  }, [paginaPronta]);
 
   useEffect(() => {
     if (!paginaPronta) return;
@@ -1579,14 +1588,20 @@ export default function OrdemServicoPage() {
     updateMaterialEnviado(materiaisSelecionados, quantidades);
   }
 
-  function adicionarMaterial() {
+  async function adicionarMaterial() {
     const material = (novoMaterial || buscaMaterial).trim();
     if (!material) return;
-    setMateriais((atuais) => {
-      if (atuais.some((item) => item.toLowerCase() === material.toLowerCase())) return atuais;
-      const atualizados = [...atuais, material];
-      return atualizados;
-    });
+    const jaExiste = materiais.some(
+      (item) => item.toLowerCase() === material.toLowerCase()
+    );
+    const atualizados = jaExiste ? materiais : [...materiais, material];
+    setMateriais(atualizados);
+    try {
+      await salvarMateriaisDentistaCadastro(atualizados);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Não foi possível salvar o material.");
+      return;
+    }
     setNovoMaterial("");
     setBuscaMaterial("");
     setModalMaterialAberto(false);
@@ -4680,29 +4695,29 @@ export default function OrdemServicoPage() {
         title="Cadastrar Material"
         size="sm"
       >
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            adicionarMaterial();
-          }}
-          className="space-y-4 text-[11px] text-slate-600"
-        >
+        <div className="space-y-4 text-[11px] text-slate-600">
           <Input
             label="Material"
             value={novoMaterial}
             onChange={(event) => setNovoMaterial(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                void adicionarMaterial();
+              }
+            }}
             placeholder="Digite o nome do material"
-            required
+            autoFocus
           />
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
-            <Button type="submit" size="sm">
+            <Button type="button" size="sm" onClick={() => void adicionarMaterial()}>
               Cadastrar Material
             </Button>
             <Button type="button" size="sm" variant="outline" onClick={() => setModalMaterialAberto(false)}>
               Fechar
             </Button>
           </div>
-        </form>
+        </div>
       </Modal>
 
       <ImprimirOsModal

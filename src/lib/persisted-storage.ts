@@ -30,11 +30,8 @@ export function readStorage<T>(key: string, fallback: T): T {
 
 /** Lê lista do banco quando a chave existe no servidor; senão usa fallback até o primeiro cadastro. */
 export function readStorageArray<T>(key: string, fallbackExibicao: T[]): T[] {
-  if (!chaveExisteNoServidor(key)) {
-    return fallbackExibicao;
-  }
-  const valor = lerArmazenamentoCache(key, [] as T[]);
-  return Array.isArray(valor) ? valor : [];
+  const valor = lerArmazenamentoCache(key, fallbackExibicao);
+  return Array.isArray(valor) ? valor : fallbackExibicao;
 }
 
 export function writeStorage<T>(

@@ -6,11 +6,11 @@ import { ImageUp, Tag, Trash2 } from "lucide-react";
 import { CampoDataBr, Input, Select, SelectPesquisavel } from "@/components/ui";
 import { type PrioridadeOsForm } from "@/lib/prioridade-os";
 import {
+  adicionarMaterialDentistaCadastro,
   carregarMateriaisDentistaCadastro,
-  MATERIAIS_DENTISTA_STORAGE_KEY,
+  MATERIAIS_DENTISTA_ATUALIZADA_EVENT,
 } from "@/lib/materiais-dentista-cadastro";
 import { useArmazenamentoGaleria } from "@/hooks/use-armazenamento-galeria";
-import { writeStorage } from "@/lib/persisted-storage";
 import {
   clienteTabelaPrecoDeObservacoes,
   formatMateriaisEnviadosTexto,
@@ -84,9 +84,10 @@ export function CabecalhoFormularioOs({
   }, [value.material]);
 
   useEffect(() => {
-    if (!materiaisCarregados || typeof window === "undefined") return;
-    writeStorage(MATERIAIS_DENTISTA_STORAGE_KEY, materiais);
-  }, [materiais, materiaisCarregados]);
+    const handler = () => setMateriais(carregarMateriaisDentistaCadastro());
+    window.addEventListener(MATERIAIS_DENTISTA_ATUALIZADA_EVENT, handler);
+    return () => window.removeEventListener(MATERIAIS_DENTISTA_ATUALIZADA_EVENT, handler);
+  }, []);
 
   const tabelaPrecoSelecionada = useMemo(() => {
     const cliente = clientes.find((item) => item.id === value.clienteId);
@@ -125,13 +126,16 @@ export function CabecalhoFormularioOs({
     atualizarMaterial(formatMateriaisEnviadosTexto(materiaisSelecionados, quantidades));
   }
 
-  function adicionarMaterialLista() {
+  async function adicionarMaterialLista() {
     const material = (novoMaterial || buscaMaterial).trim();
     if (!material) return;
-    setMateriais((atuais) => {
-      if (atuais.some((item) => item.toLowerCase() === material.toLowerCase())) return atuais;
-      return [...atuais, material];
-    });
+    try {
+      const proxima = await adicionarMaterialDentistaCadastro(material, materiais);
+      setMateriais(proxima);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Não foi possível salvar o material.");
+      return;
+    }
     setNovoMaterial("");
     setBuscaMaterial("");
     if (!materiaisSelecionados.includes(material)) toggleMaterial(material);
