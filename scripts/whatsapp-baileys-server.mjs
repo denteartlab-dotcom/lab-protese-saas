@@ -737,10 +737,9 @@ async function startBaileys() {
       const { connection, lastDisconnect, qr } = update;
 
       if (qr && !conectado) {
+        registrarQr(qr);
         if (pairingPhoneAlvo && !pairingCodeAtual) {
           void tentarGerarPairingCode(sock, state);
-        } else if (!pairingPhoneAlvo) {
-          registrarQr(qr);
         }
       }
 
@@ -763,10 +762,9 @@ async function startBaileys() {
         falhasConexaoSeguidas = 0;
         qrAtual = null;
         qrGeradoEm = null;
-        if (!pairingPhoneAlvo) {
-          pairingCodeAtual = null;
-          pairingCodeSolicitado = false;
-        }
+        pairingPhoneAlvo = null;
+        pairingCodeAtual = null;
+        pairingCodeSolicitado = false;
         reconnectAttempts = 0;
         cancelarReconnectAgendado();
         limparCooldown();
