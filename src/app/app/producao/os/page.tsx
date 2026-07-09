@@ -3606,7 +3606,7 @@ export default function OrdemServicoPage() {
               required
             />
             {!editId && avisoPacienteDuplicado?.numerosOs.length ? (
-              <p className="text-[10px] leading-snug text-amber-600">
+              <p className="rounded bg-red-600 px-2 py-1 text-[15px] font-medium leading-snug text-white">
                 Já existe OS nº {avisoPacienteDuplicado.numerosOs.join(", ")} para este paciente
                 neste cliente.
               </p>
