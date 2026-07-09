@@ -40,6 +40,8 @@ type DashboardData = {
     qr: string | null;
     status: string;
     pareamentoEmAndamento?: boolean;
+    pairingBlocked?: boolean;
+    pairingBlockedUntil?: string | null;
   };
   metricas: {
     totalCampanhas: number;
@@ -333,10 +335,21 @@ export function DisparosWhatsappConteudo() {
         baileysOnline?: boolean;
         conectado?: boolean;
         pareamentoEmAndamento?: boolean;
+        pairingBlocked?: boolean;
+        pairingBlockedUntil?: string | null;
         mensagem?: string;
       };
 
       if (!res.ok) {
+        if (data.pairingBlocked) {
+          toast(
+            "erro",
+            data.error ||
+              "WhatsApp bloqueou novos dispositivos. Aguarde 24h antes de tentar de novo."
+          );
+          void recarregar();
+          return;
+        }
         if (data.pareamentoEmAndamento) {
           toast("info", data.error || "Aguarde — pareamento em andamento.");
           return;
@@ -585,7 +598,9 @@ export function DisparosWhatsappConteudo() {
                   : aguardandoQr || conexao?.status === "aguardando_qr"
                     ? "Aguardando QR"
                     : conexao?.status === "pareamento"
-                      ? "Finalizando…"
+                    ? "Finalizando…"
+                    : conexao?.status === "bloqueado_whatsapp"
+                      ? "Bloqueado"
                     : "Desconectado"}
             </span>
           </div>
@@ -607,6 +622,15 @@ export function DisparosWhatsappConteudo() {
                   Baileys offline — npm run whatsapp:baileys
                 </p>
               ) : null}
+              {conexao?.status === "bloqueado_whatsapp" ? (
+                <p className="mt-1 text-[10px] font-medium text-red-600">
+                  WhatsApp bloqueou novos aparelhos. Aguarde ~24h. No celular: Aparelhos conectados →
+                  remova sessões antigas. Não clique em Gerar QR.
+                  {conexao.pairingBlockedUntil
+                    ? ` Libera ~${new Date(conexao.pairingBlockedUntil).toLocaleString("pt-BR")}.`
+                    : null}
+                </p>
+              ) : null}
               {conexao?.status === "pareamento" ? (
                 <p className="mt-1 text-[10px] font-medium text-violet-600">
                   QR escaneado — aguarde ~30s sem clicar em nada.
@@ -620,7 +644,8 @@ export function DisparosWhatsappConteudo() {
                     disabled={
                       processando ||
                       conexao?.baileysOnline === false ||
-                      conexao?.status === "pareamento"
+                      conexao?.status === "pareamento" ||
+                      conexao?.status === "bloqueado_whatsapp"
                     }
                     className="rounded-md bg-indigo-600 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
                   >

@@ -35,6 +35,9 @@ const headers = { "Content-Type": "application/json" };
 if (token) headers.Authorization = `Bearer ${token}`;
 
 console.log("\n=== Reset WhatsApp Baileys ===\n");
+console.log("Se o celular mostra 'não é possível conectar novos dispositivos',");
+console.log("NÃO gere QR agora. Rode: npm run whatsapp:pausar\n");
+
 console.log("1. Limpando pasta de sessão:", authDir);
 
 try {

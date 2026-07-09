@@ -21,6 +21,8 @@ const AUTH_DIR =
   process.env.WHATSAPP_AUTH_DIR ||
   path.join(path.resolve(__dirname, ".."), "data", "whatsapp-auth");
 const LOCK_FILE = path.join(AUTH_DIR, ".baileys.lock");
+const COOLDOWN_FILE = path.join(path.dirname(AUTH_DIR), "whatsapp-pairing-cooldown.json");
+const COOLDOWN_PADRAO_HORAS = Number(process.env.WHATSAPP_PAIRING_COOLDOWN_HORAS || 24);
 
 const logger = pino({ level: "warn" });
 
@@ -36,6 +38,47 @@ let ultimoQrLogEm = 0;
 let ultimoQrHash = null;
 let qrGeradoEm = null;
 let saveCredsFn = null;
+
+function lerCooldown() {
+  try {
+    const data = JSON.parse(fs.readFileSync(COOLDOWN_FILE, "utf8"));
+    const untilMs = new Date(data.until).getTime();
+    if (untilMs > Date.now()) {
+      return { active: true, until: data.until, reason: data.reason || "bloqueio" };
+    }
+    fs.unlinkSync(COOLDOWN_FILE);
+  } catch {
+    /* sem cooldown */
+  }
+  return { active: false };
+}
+
+function ativarCooldown(motivo, horas = COOLDOWN_PADRAO_HORAS) {
+  const until = new Date(Date.now() + horas * 60 * 60 * 1000).toISOString();
+  fs.mkdirSync(path.dirname(COOLDOWN_FILE), { recursive: true });
+  fs.writeFileSync(
+    COOLDOWN_FILE,
+    JSON.stringify({ until, reason: motivo, at: new Date().toISOString(), horas }, null, 2)
+  );
+  cancelarReconnectAgendado();
+  limparSocketLocal();
+  qrAtual = null;
+  qrGeradoEm = null;
+  reconnectAttempts = 5;
+  log(`PAREAMENTO PAUSADO por ${horas}h (${motivo}). WhatsApp bloqueou novos dispositivos — aguarde.`);
+}
+
+function limparCooldown() {
+  try {
+    fs.unlinkSync(COOLDOWN_FILE);
+  } catch {
+    /* ignora */
+  }
+}
+
+function pareamentoBloqueado() {
+  return lerCooldown().active;
+}
 
 function log(...args) {
   console.log("[whatsapp-baileys]", ...args);
@@ -177,9 +220,9 @@ function qrRecente() {
 }
 
 function agendarReconnect(motivo, delayMs) {
-  if (conectado || reconnectTimer || iniciando) return;
+  if (conectado || reconnectTimer || iniciando || pareamentoBloqueado()) return;
   if (reconnectAttempts >= 5) {
-    log(`Reconnect pausado (${reconnectAttempts}x). Rode: npm run whatsapp:reset`);
+    ativarCooldown("muitas-tentativas-reconnect", 12);
     return;
   }
   reconnectAttempts += 1;
@@ -210,13 +253,12 @@ function tratarFechamento(lastDisconnect) {
   const msg = lastDisconnect?.error?.message || "";
 
   if (statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.badSession) {
-    log("Sessão inválida — limpando credenciais.", msg);
+    log("Sessão rejeitada pelo WhatsApp.", msg);
     credenciaisRegistradas = false;
     qrAtual = null;
     qrGeradoEm = null;
-    reconnectAttempts = 0;
     limparAuthDir();
-    agendarReconnect("sessao-invalida", 5000);
+    ativarCooldown("sessao-rejeitada-whatsapp", COOLDOWN_PADRAO_HORAS);
     return;
   }
 
@@ -244,6 +286,12 @@ async function startBaileys() {
   if (conectado) return;
   if (iniciando) return;
   if (sock) return;
+
+  const cooldown = lerCooldown();
+  if (cooldown.active) {
+    log(`Pareamento pausado até ${cooldown.until} — não gerar QR.`);
+    return;
+  }
 
   cancelarReconnectAgendado();
   iniciando = true;
@@ -305,6 +353,7 @@ async function startBaileys() {
         qrGeradoEm = null;
         reconnectAttempts = 0;
         cancelarReconnectAgendado();
+        limparCooldown();
         numeroConectado = extrairNumeroUsuario(sock);
         log("Conectado ao WhatsApp.", numeroConectado || "");
       }
@@ -322,7 +371,18 @@ async function startBaileys() {
   }
 }
 
-async function resetarSessaoCompleta() {
+async function resetarSessaoCompleta(force = false) {
+  const cooldown = lerCooldown();
+  if (cooldown.active && !force) {
+    return {
+      connected: false,
+      qr: null,
+      phone: null,
+      pairingBlocked: true,
+      pairingBlockedUntil: cooldown.until,
+    };
+  }
+
   cancelarReconnectAgendado();
   reconnectAttempts = 0;
   conectado = false;
@@ -400,9 +460,10 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && url.pathname === "/status") {
+      const cooldown = lerCooldown();
       return json(res, 200, {
         connected: conectado,
-        qr: conectado ? null : qrAtual || null,
+        qr: conectado || cooldown.active ? null : qrAtual || null,
         phone: numeroConectado,
         authDir: AUTH_DIR,
         iniciando,
@@ -410,6 +471,9 @@ const server = http.createServer(async (req, res) => {
         credenciaisRegistradas,
         reconnectAttempts,
         pareamentoEmAndamento: credenciaisRegistradas && !conectado,
+        pairingBlocked: cooldown.active,
+        pairingBlockedUntil: cooldown.active ? cooldown.until : null,
+        pairingBlockedReason: cooldown.active ? cooldown.reason : null,
       });
     }
 
@@ -433,6 +497,19 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true });
     }
 
+    if (url.pathname === "/pause-pairing" && req.method === "POST") {
+      if (!autorizado(req)) return json(res, 401, { ok: false, error: "Não autorizado" });
+      let body = {};
+      try {
+        body = await lerJson(req);
+      } catch {
+        body = {};
+      }
+      const horas = Math.max(1, Number(body.horas || COOLDOWN_PADRAO_HORAS));
+      ativarCooldown("pausa-manual", horas);
+      return json(res, 200, { ok: true, pairingBlockedUntil: lerCooldown().until });
+    }
+
     if (url.pathname === "/reconnect" && req.method === "POST") {
       if (!autorizado(req)) return json(res, 401, { ok: false, error: "Não autorizado" });
 
@@ -441,6 +518,22 @@ const server = http.createServer(async (req, res) => {
         body = await lerJson(req);
       } catch {
         body = {};
+      }
+
+      const cooldown = lerCooldown();
+      const force = Boolean(body.force);
+      if (cooldown.active && !force) {
+        return json(res, 429, {
+          ok: false,
+          pairingBlocked: true,
+          pairingBlockedUntil: cooldown.until,
+          error:
+            "WhatsApp bloqueou novos dispositivos. Aguarde 24h, remova aparelhos antigos no celular e tente de novo.",
+        });
+      }
+
+      if (force && cooldown.active) {
+        limparCooldown();
       }
 
       if (conectado) {
@@ -471,7 +564,15 @@ const server = http.createServer(async (req, res) => {
 
       const limparAuth = Boolean(body.limparAuth || body.limparSessao);
       if (limparAuth) {
-        const aguardado = await resetarSessaoCompleta();
+        const aguardado = await resetarSessaoCompleta(force);
+        if (aguardado.pairingBlocked) {
+          return json(res, 429, {
+            ok: false,
+            pairingBlocked: true,
+            pairingBlockedUntil: aguardado.pairingBlockedUntil,
+            error: "Pareamento pausado — aguarde o bloqueio do WhatsApp expirar.",
+          });
+        }
         return json(res, 200, {
           ok: true,
           connected: aguardado.connected,
@@ -503,5 +604,10 @@ const server = http.createServer(async (req, res) => {
 garantirInstanciaUnica();
 server.listen(PORT, "127.0.0.1", () => {
   log(`HTTP em http://127.0.0.1:${PORT} (auth: ${AUTH_DIR})`);
-  void startBaileys();
+  const cooldown = lerCooldown();
+  if (cooldown.active) {
+    log(`Pareamento PAUSADO até ${cooldown.until} — npm run whatsapp:liberar após aguardar.`);
+  } else {
+    void startBaileys();
+  }
 });

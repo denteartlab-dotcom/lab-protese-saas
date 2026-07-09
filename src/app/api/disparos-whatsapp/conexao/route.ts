@@ -20,6 +20,9 @@ type BaileysStatusExtra = {
   iniciando?: boolean;
   credenciaisRegistradas?: boolean;
   pareamentoEmAndamento?: boolean;
+  pairingBlocked?: boolean;
+  pairingBlockedUntil?: string | null;
+  pairingBlockedReason?: string | null;
 };
 
 export async function GET() {
@@ -36,6 +39,7 @@ export async function GET() {
   const baileysOnline = status !== null;
   const conectado = Boolean(status?.connected);
   const pareamento = Boolean(extra.pareamentoEmAndamento || (extra.credenciaisRegistradas && !conectado));
+  const bloqueado = Boolean(extra.pairingBlocked);
   const numero = status?.connected
     ? formatarTelefoneExibicao(String(extra.phone || sessao?.numeroConectado || ""))
     : null;
@@ -53,12 +57,16 @@ export async function GET() {
       baileysOnline,
       numero,
       ultimaConexao: sessao?.ultimaConexaoEm?.toISOString() || null,
-      qr: conectado ? null : status?.qr || null,
+      qr: conectado || bloqueado ? null : status?.qr || null,
       pareamentoEmAndamento: pareamento,
+      pairingBlocked: bloqueado,
+      pairingBlockedUntil: extra.pairingBlockedUntil || null,
       status: !baileysOnline
         ? "servico_offline"
         : conectado
           ? "conectado"
+          : bloqueado
+            ? "bloqueado_whatsapp"
           : pareamento
             ? "pareamento"
             : status?.qr
@@ -75,6 +83,21 @@ export async function POST(req: Request) {
 
   const body = (await req.json().catch(() => ({}))) as { reset?: boolean };
   const atual = (await baileysStatus()) as BaileysStatusExtra | null;
+
+  if (atual?.pairingBlocked) {
+    return NextResponse.json(
+      {
+        error:
+          "WhatsApp bloqueou novos dispositivos temporariamente. Aguarde 24h, remova aparelhos antigos no celular e tente de novo.",
+        pairingBlocked: true,
+        pairingBlockedUntil: atual.pairingBlockedUntil || null,
+        baileysOnline: true,
+        conectado: false,
+        qr: null,
+      },
+      { status: 429 }
+    );
+  }
 
   if (atual?.connected) {
     return NextResponse.json({
