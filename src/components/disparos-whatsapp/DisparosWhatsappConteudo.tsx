@@ -123,27 +123,44 @@ export function DisparosWhatsappConteudo() {
   const [qrModalAberto, setQrModalAberto] = useState(false);
   const [apiNaoAutorizada, setApiNaoAutorizada] = useState(false);
   const [diagnostico, setDiagnostico] = useState<DiagnosticoWhatsapp | null>(null);
+  const ultimoQrRef = useRef<string | null>(null);
+  const qrModalAbertoRef = useRef(false);
 
   const toast = useCallback((tipo: ToastDisparo["tipo"], mensagem: string) => {
     setToasts((prev) => [...prev, { id: `${Date.now()}-${Math.random()}`, tipo, mensagem }]);
   }, []);
 
-  const aplicarQr = useCallback(async (qr: string | null) => {
+  const aplicarQr = useCallback(async (qr: string | null, opts?: { forcarModal?: boolean }) => {
     if (!qr) {
-      if (!dashboard?.conexao?.conectado) setQrImagem(null);
+      if (!dashboard?.conexao?.conectado) {
+        setQrImagem(null);
+        ultimoQrRef.current = null;
+      }
       return false;
     }
+
+    const mesmoQr = ultimoQrRef.current === qr;
+    ultimoQrRef.current = qr;
+
     try {
-      const img = await QRCode.toDataURL(qr, { width: 280, margin: 2 });
-      setQrImagem(img);
+      if (!mesmoQr || !qrImagem) {
+        const img = await QRCode.toDataURL(qr, { width: 280, margin: 2 });
+        setQrImagem(img);
+      }
       setAguardandoQr(false);
-      setQrModalAberto(true);
+      if (opts?.forcarModal || !qrModalAbertoRef.current) {
+        setQrModalAberto(true);
+      }
       return true;
     } catch {
       setAguardandoQr(false);
       return false;
     }
-  }, [dashboard?.conexao?.conectado]);
+  }, [dashboard?.conexao?.conectado, qrImagem]);
+
+  useEffect(() => {
+    qrModalAbertoRef.current = qrModalAberto;
+  }, [qrModalAberto]);
 
   const carregarDiagnostico = useCallback(async () => {
     try {
@@ -211,7 +228,7 @@ export function DisparosWhatsappConteudo() {
     void recarregar();
     void carregarDiagnostico();
     if (apiNaoAutorizada) return;
-    const intervalo = aguardandoQr ? 2000 : 8000;
+    const intervalo = aguardandoQr ? 4000 : 10000;
     const timer = window.setInterval(() => {
       void recarregar();
       void carregarDiagnostico();
@@ -246,6 +263,7 @@ export function DisparosWhatsappConteudo() {
       if (payload.conectado) {
         setAguardandoQr(false);
         setQrImagem(null);
+        ultimoQrRef.current = null;
       } else if (payload.qr) {
         void aplicarQr(payload.qr);
       }
@@ -318,7 +336,7 @@ export function DisparosWhatsappConteudo() {
       }
 
       if (data.qr) {
-        const ok = await aplicarQr(data.qr);
+        const ok = await aplicarQr(data.qr, { forcarModal: true });
         if (ok) {
           toast("sucesso", "QR Code pronto. Escaneie com o WhatsApp do laboratório.");
           return;

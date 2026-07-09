@@ -62,26 +62,39 @@ try {
   console.log("   iniciando:", data.iniciando);
   console.log("   authDir:", data.authDir);
 
-  if (!data.connected && !data.qr) {
-    console.log("\n4. Gerando QR (limparAuth + reconnect)… aguarde até 55s");
+  if (!data.connected && !data.qr && !data.iniciando && !data.hasSocket) {
+    console.log("\n4. Gerando QR (reconnect suave)… aguarde até 55s");
     const recon = await fetch(`${base}/reconnect`, {
       method: "POST",
       headers: headersComToken(token),
-      body: JSON.stringify({ limparAuth: true }),
+      body: JSON.stringify({ limparAuth: false }),
       signal: AbortSignal.timeout(55_000),
     });
     const body = await recon.json();
     if (recon.status === 401) {
       console.log("   ERRO 401 — token inválido. WHATSAPP_HTTP_TOKEN deve ser igual no .env.");
     } else if (body.qr) {
-      console.log("   QR GERADO ✓ — volte ao site e clique Gerar QR Code (ou escaneie pelo terminal pm2 logs).");
+      console.log("   QR GERADO ✓ — escaneie no celular (Aparelhos conectados).");
     } else if (body.connected) {
       console.log("   Já conectado ✓");
     } else {
-      console.log("   Sem QR após 55s ✗");
-      console.log("   → pm2 logs lab-protese-whatsapp --lines 40");
-      console.log("   → Verifique se a VPS acessa web.whatsapp.com (firewall/proxy)");
+      console.log("   Sem QR — tentando limpar sessão antiga…");
+      const recon2 = await fetch(`${base}/reconnect`, {
+        method: "POST",
+        headers: headersComToken(token),
+        body: JSON.stringify({ limparAuth: true }),
+        signal: AbortSignal.timeout(55_000),
+      });
+      const body2 = await recon2.json();
+      if (body2.qr) {
+        console.log("   QR GERADO ✓ após limpar sessão.");
+      } else {
+        console.log("   Sem QR após 55s ✗");
+        console.log("   → pm2 logs lab-protese-whatsapp --lines 40");
+      }
     }
+  } else if (!data.connected && !data.qr) {
+    console.log("\n4. Baileys iniciando — aguarde ~30s antes de gerar novo QR.");
   } else {
     console.log("\n4. QR/conexão OK — não precisa reconectar.");
   }

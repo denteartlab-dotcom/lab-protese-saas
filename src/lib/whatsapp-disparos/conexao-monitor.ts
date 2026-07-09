@@ -9,6 +9,11 @@ let ultimoQr: string | null | undefined;
 let ultimoConectado: boolean | undefined;
 let ultimoPhone: string | null | undefined;
 
+function assinaturaQr(qr: string | null) {
+  if (!qr) return null;
+  return qr.slice(-32);
+}
+
 function emitir(payload: DisparoConexaoPayload) {
   const io = getDisparoSocketIo();
   if (!io) return;
@@ -25,7 +30,7 @@ export async function sincronizarConexaoWhatsappSocket() {
   const phone = status.phone || null;
 
   const mudou =
-    ultimoQr !== qr ||
+    assinaturaQr(ultimoQr ?? null) !== assinaturaQr(qr) ||
     ultimoConectado !== conectado ||
     ultimoPhone !== phone;
 

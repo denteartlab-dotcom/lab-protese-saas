@@ -60,7 +60,10 @@ export async function POST() {
 
   let reconnect: Awaited<ReturnType<typeof baileysReconectar>>;
   try {
-    reconnect = await baileysReconectar({ limparAuth: true });
+    reconnect = await baileysReconectar({ limparAuth: false });
+    if (!reconnect.connected && !reconnect.qr) {
+      reconnect = await baileysReconectar({ limparAuth: true });
+    }
   } catch (err) {
     return NextResponse.json(
       {
