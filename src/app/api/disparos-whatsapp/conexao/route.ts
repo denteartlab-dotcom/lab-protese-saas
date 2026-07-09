@@ -16,6 +16,8 @@ type BaileysStatusExtra = {
   phone?: string | null;
   qr?: string | null;
   connected?: boolean;
+  prontoParaEnvio?: boolean;
+  warmupRestanteSegundos?: number;
   hasSocket?: boolean;
   iniciando?: boolean;
   credenciaisRegistradas?: boolean;
@@ -38,6 +40,8 @@ export async function GET() {
   const extra = (status || {}) as BaileysStatusExtra;
   const baileysOnline = status !== null;
   const conectado = Boolean(status?.connected);
+  const prontoParaEnvio = Boolean(extra.prontoParaEnvio);
+  const warmupRestanteSegundos = extra.warmupRestanteSegundos ?? 0;
   const pareamento = Boolean(extra.pareamentoEmAndamento || (extra.credenciaisRegistradas && !conectado));
   const bloqueado = Boolean(extra.pairingBlocked);
   const numero = status?.connected
@@ -54,6 +58,8 @@ export async function GET() {
   return NextResponse.json({
     conexao: {
       conectado,
+      prontoParaEnvio,
+      warmupRestanteSegundos,
       baileysOnline,
       numero,
       ultimaConexao: sessao?.ultimaConexaoEm?.toISOString() || null,
@@ -63,6 +69,8 @@ export async function GET() {
       pairingBlockedUntil: extra.pairingBlockedUntil || null,
       status: !baileysOnline
         ? "servico_offline"
+        : conectado && !prontoParaEnvio
+          ? "aquecendo"
         : conectado
           ? "conectado"
           : bloqueado

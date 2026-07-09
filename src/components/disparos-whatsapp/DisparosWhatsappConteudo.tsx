@@ -34,6 +34,8 @@ import type { DiagnosticoWhatsapp } from "@/lib/whatsapp-disparos/diagnostico-co
 type DashboardData = {
   conexao: {
     conectado: boolean;
+    prontoParaEnvio?: boolean;
+    warmupRestanteSegundos?: number;
     baileysOnline?: boolean;
     numero: string | null;
     ultimaConexao: string | null;
@@ -634,8 +636,10 @@ export function DisparosWhatsappConteudo() {
             <p className="text-xs font-medium text-slate-500">Conexão WhatsApp</p>
             <span
               className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                conexao?.conectado
+                conexao?.conectado && conexao?.prontoParaEnvio !== false
                   ? "bg-emerald-50 text-emerald-700"
+                  : conexao?.status === "aquecendo"
+                    ? "bg-sky-50 text-sky-700"
                   : conexao?.baileysOnline === false
                     ? "bg-red-50 text-red-700"
                     : aguardandoQr || conexao?.status === "aguardando_qr"
@@ -647,8 +651,10 @@ export function DisparosWhatsappConteudo() {
             >
               <span
                 className={`h-1.5 w-1.5 rounded-full ${
-                  conexao?.conectado
+                  conexao?.conectado && conexao?.prontoParaEnvio !== false
                     ? "bg-emerald-500"
+                    : conexao?.status === "aquecendo"
+                      ? "bg-sky-500 animate-pulse"
                     : conexao?.baileysOnline === false
                       ? "bg-red-500"
                       : aguardandoQr || conexao?.status === "aguardando_qr"
@@ -658,8 +664,10 @@ export function DisparosWhatsappConteudo() {
                         : "bg-amber-500"
                 }`}
               />
-              {conexao?.conectado
+              {conexao?.conectado && conexao?.prontoParaEnvio !== false
                 ? "Conectado"
+                : conexao?.status === "aquecendo"
+                  ? `Aquecendo${conexao.warmupRestanteSegundos ? ` (${conexao.warmupRestanteSegundos}s)` : ""}`
                 : conexao?.baileysOnline === false
                   ? "Serviço offline"
                   : aguardandoQr || conexao?.status === "aguardando_qr"

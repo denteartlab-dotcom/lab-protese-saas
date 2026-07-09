@@ -67,7 +67,7 @@ export async function baileysEnviarTexto(telefone: string, mensagem: string) {
       phone: formatWhatsAppPhone(telefone),
       message: mensagem,
     },
-    65_000
+    42_000
   );
   return exigirConfirmacaoEnvio(data);
 }
@@ -92,7 +92,7 @@ export async function baileysEnviarMidia(
       dataBase64: opts.dataBase64,
       tipo: opts.tipo,
     },
-    90_000
+    62_000
   );
   return exigirConfirmacaoEnvio(data);
 }

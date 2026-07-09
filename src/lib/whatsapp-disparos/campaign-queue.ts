@@ -42,7 +42,7 @@ function intervaloComAtraso(base: number, aleatorio: boolean) {
 }
 
 function erroTransiente(msg: string) {
-  return /desconect|sessão inválida|não conectado|indisponível|timeout|timed out|econnrefused|socket|não confirmou|rejeitou|confirmação|ack|conexão whatsapp caiu|não encontrado no whatsapp/i.test(
+  return /desconect|sessão inválida|não conectado|indisponível|timeout|timed out|econnrefused|socket|não confirmou|rejeitou|confirmação|ack|conexão whatsapp caiu|aquecendo|tempo limite|não encontrado no whatsapp/i.test(
     msg
   );
 }
@@ -52,6 +52,16 @@ async function liberarContatosTravados(empresaId: string, campaignId: string) {
     prisma.whatsappCampaignContact.updateMany({
       where: { campaignId, status: "enviando" },
       data: { status: "aguardando" },
+    })
+  );
+}
+
+async function liberarContatosTravadosAntigos(empresaId: string, campaignId: string) {
+  const limite = new Date(Date.now() - 90_000);
+  await runWithTenantContext(empresaId, () =>
+    prisma.whatsappCampaignContact.updateMany({
+      where: { campaignId, status: "enviando", updatedAt: { lt: limite } },
+      data: { status: "aguardando", erro: "Envio travado — nova tentativa automática" },
     })
   );
 }
@@ -350,7 +360,13 @@ async function processarProximo(empresaId: string, campaignId: string) {
     estado.timer = setTimeout(() => void processarProximo(empresaId, campaignId), 5000);
     return;
   }
+  if (!statusWhatsapp.prontoParaEnvio) {
+    estado.timer = setTimeout(() => void processarProximo(empresaId, campaignId), 3000);
+    return;
+  }
   estado.aguardandoConexao = 0;
+
+  await liberarContatosTravadosAntigos(empresaId, campaignId);
 
   if (campanha.agendadoPara && campanha.agendadoPara > new Date()) {
     estado.timer = setTimeout(() => void processarProximo(empresaId, campaignId), 5000);

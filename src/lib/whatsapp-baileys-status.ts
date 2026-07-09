@@ -5,6 +5,14 @@ export type StatusWhatsappBaileys = {
   qr: string | null;
   phone?: string | null;
   authDir?: string;
+  prontoParaEnvio?: boolean;
+  warmupRestanteSegundos?: number;
+  iniciando?: boolean;
+  credenciaisRegistradas?: boolean;
+  pareamentoEmAndamento?: boolean;
+  pairingBlocked?: boolean;
+  pairingBlockedUntil?: string | null;
+  pairingBlockedReason?: string | null;
 };
 
 function urlBaseBaileys() {
@@ -41,6 +49,14 @@ export async function consultarStatusBaileys(): Promise<StatusWhatsappBaileys | 
       qr: data.qr || null,
       phone: data.phone || null,
       authDir: data.authDir,
+      prontoParaEnvio: Boolean(data.prontoParaEnvio),
+      warmupRestanteSegundos: data.warmupRestanteSegundos ?? 0,
+      iniciando: data.iniciando,
+      credenciaisRegistradas: data.credenciaisRegistradas,
+      pareamentoEmAndamento: data.pareamentoEmAndamento,
+      pairingBlocked: data.pairingBlocked,
+      pairingBlockedUntil: data.pairingBlockedUntil,
+      pairingBlockedReason: data.pairingBlockedReason,
     };
   } catch {
     return null;

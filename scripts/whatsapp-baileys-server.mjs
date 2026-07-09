@@ -43,8 +43,13 @@ let saveCredsFn = null;
 let pairingCodeAtual = null;
 let pairingPhoneAlvo = null;
 let pairingCodeSolicitado = false;
+let conectadoEm = null;
+let prontoParaEnvio = false;
+let warmupTimer = null;
 
-const ACK_TIMEOUT_MS = Number(process.env.WHATSAPP_ACK_TIMEOUT_MS || 50_000);
+const ACK_TIMEOUT_MS = Number(process.env.WHATSAPP_ACK_TIMEOUT_MS || 22_000);
+const WARMUP_MS = Number(process.env.WHATSAPP_WARMUP_MS || 18_000);
+const ENVIO_TIMEOUT_MS = Number(process.env.WHATSAPP_ENVIO_TIMEOUT_MS || 38_000);
 const pendentesAck = new Map();
 let filaEnvio = Promise.resolve();
 
@@ -200,28 +205,50 @@ function variantesTelefoneBr(raw) {
 }
 
 function conexaoEnvioOk() {
-  return Boolean(sock && conectado && sock.user?.id && !iniciando);
+  return Boolean(sock && conectado && prontoParaEnvio && sock.user?.id && !iniciando);
+}
+
+function segundosWarmupRestantes() {
+  if (prontoParaEnvio || !conectadoEm) return 0;
+  return Math.max(0, Math.ceil((WARMUP_MS - (Date.now() - conectadoEm)) / 1000));
+}
+
+function agendarWarmupEnvio() {
+  prontoParaEnvio = false;
+  conectadoEm = Date.now();
+  if (warmupTimer) clearTimeout(warmupTimer);
+  warmupTimer = setTimeout(() => {
+    warmupTimer = null;
+    if (conectado && sock?.user?.id) {
+      prontoParaEnvio = true;
+      log(`Sessão pronta para envio (aguarde ${WARMUP_MS / 1000}s após conectar).`);
+    }
+  }, WARMUP_MS);
+}
+
+function cancelarWarmupEnvio() {
+  if (warmupTimer) {
+    clearTimeout(warmupTimer);
+    warmupTimer = null;
+  }
+  conectadoEm = null;
+  prontoParaEnvio = false;
+}
+
+function withTimeout(promise, ms, mensagem) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(mensagem)), ms);
+    }),
+  ]);
 }
 
 async function resolverJidDestino(phoneRaw) {
-  if (!sock) throw new Error("Socket WhatsApp indisponível.");
   const variants = variantesTelefoneBr(phoneRaw);
   if (!variants.length) throw new Error("Telefone inválido.");
-
-  for (const digits of variants) {
-    try {
-      const [check] = await sock.onWhatsApp(digits);
-      if (check?.exists && check.jid) {
-        return check.jid;
-      }
-    } catch {
-      /* tenta próxima variante */
-    }
-  }
-
-  throw new Error(
-    `Número ${phoneRaw} não encontrado no WhatsApp. Confira DDD e nono dígito.`
-  );
+  // Envio direto — onWhatsApp dispara queries que causam timeout e derrubam a sessão.
+  return jidFromPhone(variants[0]);
 }
 
 function extrairIdMensagem(sent) {
@@ -254,6 +281,28 @@ function rejeitarPendentesAck(motivo) {
     clearTimeout(pendente.timeout);
     pendente.reject(new Error(motivo));
     pendentesAck.delete(id);
+  }
+}
+
+function onMessagesUpsert({ messages }) {
+  for (const msg of messages || []) {
+    if (!msg?.key?.fromMe) continue;
+    const id = msg.key.id;
+    const pendente = pendentesAck.get(id);
+    if (!pendente) continue;
+    if (pendente.jid && msg.key.remoteJid && msg.key.remoteJid !== pendente.jid) continue;
+    const status = msg.status;
+    if (status === StatusMensagem.ERROR || status === 0) {
+      clearTimeout(pendente.timeout);
+      pendentesAck.delete(id);
+      pendente.reject(new Error("WhatsApp rejeitou o envio (erro de confirmação)."));
+      continue;
+    }
+    if (statusAckOk(status)) {
+      clearTimeout(pendente.timeout);
+      pendentesAck.delete(id);
+      pendente.resolve({ key: msg.key, update: { status }, status });
+    }
   }
 }
 
@@ -424,6 +473,7 @@ async function aguardarQrLocal(maxMs = 45_000) {
 function tratarFechamento(lastDisconnect) {
   conectado = false;
   numeroConectado = null;
+  cancelarWarmupEnvio();
   rejeitarPendentesAck("Conexão WhatsApp caiu durante o envio.");
   limparSocketLocal();
 
@@ -581,9 +631,10 @@ async function startBaileys() {
       markOnlineOnConnect: false,
       generateHighQualityLinkPreview: false,
       browser: browserWhatsApp(),
-      connectTimeoutMs: 60_000,
-      defaultQueryTimeoutMs: 60_000,
-      keepAliveIntervalMs: 30_000,
+      connectTimeoutMs: 90_000,
+      defaultQueryTimeoutMs: 90_000,
+      keepAliveIntervalMs: 15_000,
+      retryRequestDelayMs: 500,
       qrTimeout: 60_000,
       getMessage: async () => undefined,
     });
@@ -598,6 +649,7 @@ async function startBaileys() {
     });
 
     sock.ev.on("messages.update", onMessagesUpdate);
+    sock.ev.on("messages.upsert", onMessagesUpsert);
 
     sock.ev.on("connection.update", (update) => {
       const { connection, lastDisconnect, qr } = update;
@@ -607,7 +659,7 @@ async function startBaileys() {
       }
 
       if (qr) {
-        if (conectado || credenciaisRegistradas || pairingPhoneAlvo) {
+        if (conectado || credenciaisRegistradas || credenciaisSalvasRegistradas() || pairingPhoneAlvo) {
           return;
         }
         registrarQr(qr);
@@ -629,7 +681,8 @@ async function startBaileys() {
         cancelarReconnectAgendado();
         limparCooldown();
         numeroConectado = extrairNumeroUsuario(sock);
-        log("Conectado ao WhatsApp.", numeroConectado || "");
+        agendarWarmupEnvio();
+        log("Conectado ao WhatsApp.", numeroConectado || "", `Aguarde ${WARMUP_MS / 1000}s antes de disparar.`);
       }
 
       if (connection === "close") {
@@ -658,6 +711,7 @@ async function resetarSessaoCompleta(force = false) {
   }
 
   cancelarReconnectAgendado();
+  cancelarWarmupEnvio();
   reconnectAttempts = 0;
   conectado = false;
   numeroConectado = null;
@@ -682,69 +736,89 @@ async function resetarSessaoCompleta(force = false) {
 }
 
 async function enviarMensagem(phone, message) {
-  return enfileirarEnvio(async () => {
-    if (!conexaoEnvioOk()) {
-      conectado = false;
-      throw new Error("WhatsApp não conectado ou sessão inválida. Reconecte em Disparos WhatsApp.");
-    }
-    const jid = await resolverJidDestino(phone);
-    const texto = String(message || "").trim();
-    if (!texto) throw new Error("Mensagem vazia.");
+  return enfileirarEnvio(() =>
+    withTimeout(
+      (async () => {
+        if (!conexaoEnvioOk()) {
+          const restante = segundosWarmupRestantes();
+          if (conectado && restante > 0) {
+            throw new Error(`Sessão aquecendo — aguarde ${restante}s após conectar.`);
+          }
+          conectado = false;
+          throw new Error("WhatsApp não conectado ou sessão inválida. Reconecte em Disparos WhatsApp.");
+        }
+        const jid = await resolverJidDestino(phone);
+        const texto = String(message || "").trim();
+        if (!texto) throw new Error("Mensagem vazia.");
 
-    const sent = await sock.sendMessage(jid, { text: texto });
-    const messageId = extrairIdMensagem(sent);
-    if (!messageId) {
-      throw new Error("WhatsApp não retornou ID da mensagem — envio não confirmado.");
-    }
+        const sent = await sock.sendMessage(jid, { text: texto });
+        const messageId = extrairIdMensagem(sent);
+        if (!messageId) {
+          throw new Error("WhatsApp não retornou ID da mensagem — envio não confirmado.");
+        }
 
-    const ack = await aguardarAckEntrega(sent?.key || { id: messageId, remoteJid: jid });
-    log("Mensagem entregue ao servidor WhatsApp", { jid, messageId, status: ack.status });
-    return { ok: true, messageId, jid, ack: true };
-  });
+        const ack = await aguardarAckEntrega(sent?.key || { id: messageId, remoteJid: jid });
+        log("Mensagem entregue ao servidor WhatsApp", { jid, messageId, status: ack.status });
+        return { ok: true, messageId, jid, ack: true };
+      })(),
+      ENVIO_TIMEOUT_MS,
+      "Envio excedeu o tempo limite — tente novamente."
+    )
+  );
 }
 
 async function enviarMidia(phone, body) {
-  return enfileirarEnvio(async () => {
-    if (!conexaoEnvioOk()) {
-      conectado = false;
-      throw new Error("WhatsApp não conectado. Escaneie o QR Code.");
-    }
-    const jid = await resolverJidDestino(phone);
+  return enfileirarEnvio(() =>
+    withTimeout(
+      (async () => {
+        if (!conexaoEnvioOk()) {
+          const restante = segundosWarmupRestantes();
+          if (conectado && restante > 0) {
+            throw new Error(`Sessão aquecendo — aguarde ${restante}s após conectar.`);
+          }
+          conectado = false;
+          throw new Error("WhatsApp não conectado. Escaneie o QR Code.");
+        }
+        const jid = await resolverJidDestino(phone);
 
-    const buffer = Buffer.from(String(body.dataBase64 || ""), "base64");
-    if (!buffer.length) throw new Error("Arquivo vazio.");
+        const buffer = Buffer.from(String(body.dataBase64 || ""), "base64");
+        if (!buffer.length) throw new Error("Arquivo vazio.");
 
-    const caption = String(body.message || "").trim();
-    const tipo = String(body.tipo || "documento");
-    const mimeType = String(body.mimeType || "application/octet-stream");
-    const fileName = String(body.fileName || "arquivo");
+        const caption = String(body.message || "").trim();
+        const tipo = String(body.tipo || "documento");
+        const mimeType = String(body.mimeType || "application/octet-stream");
+        const fileName = String(body.fileName || "arquivo");
 
-    let content;
-    if (tipo === "imagem") {
-      content = { image: buffer, caption: caption || undefined, mimetype: mimeType };
-    } else if (tipo === "video") {
-      content = { video: buffer, caption: caption || undefined, mimetype: mimeType };
-    } else if (tipo === "audio") {
-      content = { audio: buffer, mimetype: mimeType, ptt: false };
-    } else {
-      content = {
-        document: buffer,
-        mimetype: mimeType,
-        fileName,
-        caption: caption || undefined,
-      };
-    }
+        let content;
+        if (tipo === "imagem") {
+          content = { image: buffer, caption: caption || undefined, mimetype: mimeType };
+        } else if (tipo === "video") {
+          content = { video: buffer, caption: caption || undefined, mimetype: mimeType };
+        } else if (tipo === "audio") {
+          content = { audio: buffer, mimetype: mimeType, ptt: false };
+        } else {
+          content = {
+            document: buffer,
+            mimetype: mimeType,
+            fileName,
+            caption: caption || undefined,
+          };
+        }
 
-    const sent = await sock.sendMessage(jid, content);
-    const messageId = extrairIdMensagem(sent);
-    if (!messageId) {
-      throw new Error("WhatsApp não retornou ID da mídia — envio não confirmado.");
-    }
+        const sent = await sock.sendMessage(jid, content);
+        const messageId = extrairIdMensagem(sent);
+        if (!messageId) {
+          throw new Error("WhatsApp não retornou ID da mídia — envio não confirmado.");
+        }
 
-    const ack = await aguardarAckEntrega(sent?.key || { id: messageId, remoteJid: jid });
-    log("Mídia entregue ao servidor WhatsApp", { jid, messageId, status: ack.status });
-    return { ok: true, messageId, jid, ack: true };
-  });
+        const ack = await aguardarAckEntrega(sent?.key || { id: messageId, remoteJid: jid });
+        log("Mídia entregue ao servidor WhatsApp", { jid, messageId, status: ack.status });
+        return { ok: true, messageId, jid, ack: true };
+      })(),
+      ENVIO_TIMEOUT_MS + 20_000,
+      "Envio de mídia excedeu o tempo limite — tente novamente."
+    )
+  );
 }
 
 const server = http.createServer(async (req, res) => {
@@ -759,6 +833,8 @@ const server = http.createServer(async (req, res) => {
       const cooldown = lerCooldown();
       return json(res, 200, {
         connected: conectado,
+        prontoParaEnvio: conexaoEnvioOk(),
+        warmupRestanteSegundos: segundosWarmupRestantes(),
         qr: conectado || cooldown.active ? null : qrAtual || null,
         phone: numeroConectado,
         authDir: AUTH_DIR,
