@@ -4,6 +4,7 @@ import {
   type DisparoConexaoPayload,
 } from "@/lib/whatsapp-disparos/disparos-socket-events";
 import { getDisparoSocketIo } from "@/lib/whatsapp-disparos/disparos-socket-io";
+import { garantirFilasCampanhasAtivas } from "@/lib/whatsapp-disparos/campaign-queue";
 
 let ultimoQr: string | null | undefined;
 let ultimoConectado: boolean | undefined;
@@ -52,8 +53,10 @@ export async function sincronizarConexaoWhatsappSocket() {
 
 export function iniciarMonitorConexaoWhatsapp(intervaloMs = 2500) {
   void sincronizarConexaoWhatsappSocket();
+  void garantirFilasCampanhasAtivas();
   return setInterval(() => {
     void sincronizarConexaoWhatsappSocket();
+    void garantirFilasCampanhasAtivas();
   }, intervaloMs);
 }
 

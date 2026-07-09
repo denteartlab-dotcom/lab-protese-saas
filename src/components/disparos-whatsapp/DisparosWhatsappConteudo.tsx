@@ -644,7 +644,7 @@ export function DisparosWhatsappConteudo() {
             <p className="text-xs font-medium text-slate-500">Conexão WhatsApp</p>
             <span
               className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                conexao?.conectado && conexao?.prontoParaEnvio !== false
+                conexao?.conectado && conexao?.prontoParaEnvio === true
                   ? "bg-emerald-50 text-emerald-700"
                   : conexao?.status === "aquecendo"
                     ? "bg-sky-50 text-sky-700"
@@ -659,7 +659,7 @@ export function DisparosWhatsappConteudo() {
             >
               <span
                 className={`h-1.5 w-1.5 rounded-full ${
-                  conexao?.conectado && conexao?.prontoParaEnvio !== false
+                  conexao?.conectado && conexao?.prontoParaEnvio === true
                     ? "bg-emerald-500"
                     : conexao?.status === "aquecendo"
                       ? "bg-sky-500 animate-pulse"
@@ -672,7 +672,7 @@ export function DisparosWhatsappConteudo() {
                         : "bg-amber-500"
                 }`}
               />
-              {conexao?.conectado && conexao?.prontoParaEnvio !== false
+              {conexao?.conectado && conexao?.prontoParaEnvio === true
                 ? "Conectado"
                 : conexao?.status === "aquecendo"
                   ? `Aquecendo${conexao.warmupRestanteSegundos ? ` (${conexao.warmupRestanteSegundos}s)` : ""}`
@@ -978,7 +978,7 @@ export function DisparosWhatsappConteudo() {
       <div ref={wizardRef}>
         <CampanhaWizardInline
           conectado={Boolean(conexao?.conectado)}
-          prontoParaEnvio={conexao?.prontoParaEnvio !== false}
+          prontoParaEnvio={conexao?.prontoParaEnvio === true}
           warmupRestanteSegundos={conexao?.warmupRestanteSegundos ?? 0}
           fila={fila}
           resetSignal={wizardReset}

@@ -3,6 +3,7 @@ import { requireEmpresaContext } from "@/lib/empresa-context";
 import { iniciarFilaCampanha } from "@/lib/whatsapp-disparos/campaign-queue";
 import { obterCampanhaWhatsapp } from "@/lib/whatsapp-disparos/campanha-servidor";
 import { baileysStatus } from "@/lib/whatsapp-disparos/baileys-service";
+import { sessaoWhatsappProntaParaEnvio } from "@/lib/whatsapp-baileys-status";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -28,8 +29,8 @@ export async function POST(_request: Request, { params }: Params) {
       { status: 422 }
     );
   }
-  if (!status.prontoParaEnvio) {
-    const segundos = status.warmupRestanteSegundos ?? 12;
+  if (!sessaoWhatsappProntaParaEnvio(status)) {
+    const segundos = status?.warmupRestanteSegundos ?? 12;
     return NextResponse.json(
       {
         error: `WhatsApp ainda aquecendo — aguarde ${segundos}s após conectar e tente novamente.`,

@@ -70,3 +70,10 @@ export function baileysServicoConfigurado() {
       process.env.WHATSAPP_BAILEYS_STATUS_URL?.trim()
   );
 }
+
+/** Sessão apta para disparo (conectada e fora do aquecimento). */
+export function sessaoWhatsappProntaParaEnvio(status: StatusWhatsappBaileys | null): boolean {
+  if (!status?.connected) return false;
+  if (status.prontoParaEnvio) return true;
+  return (status.warmupRestanteSegundos ?? 0) <= 0;
+}

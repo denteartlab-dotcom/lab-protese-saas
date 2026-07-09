@@ -48,6 +48,7 @@ const ETAPAS = ["Contato", "Mensagem", "Configurações", "Resumo"] as const;
 function labelStatusFila(status: string) {
   const map: Record<string, string> = {
     enviado: "Enviado",
+    enviando: "Enviando…",
     aguardando: "Aguardando",
     falhou: "Falhou",
     pausado: "Pausado",
@@ -57,6 +58,7 @@ function labelStatusFila(status: string) {
 
 function corStatusFila(status: string) {
   if (status === "enviado") return "text-emerald-600 bg-emerald-50";
+  if (status === "enviando") return "text-blue-600 bg-blue-50";
   if (status === "aguardando") return "text-amber-600 bg-amber-50";
   if (status === "falhou") return "text-red-600 bg-red-50";
   return "text-slate-600 bg-slate-50";

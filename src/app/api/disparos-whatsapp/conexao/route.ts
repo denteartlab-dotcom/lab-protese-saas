@@ -11,6 +11,7 @@ import {
   sincronizarSessaoWhatsapp,
 } from "@/lib/whatsapp-disparos/campanha-servidor";
 import { formatarTelefoneExibicao } from "@/lib/whatsapp-disparos/telefone-br";
+import { sessaoWhatsappProntaParaEnvio } from "@/lib/whatsapp-baileys-status";
 
 type BaileysStatusExtra = {
   phone?: string | null;
@@ -40,7 +41,7 @@ export async function GET() {
   const extra = (status || {}) as BaileysStatusExtra;
   const baileysOnline = status !== null;
   const conectado = Boolean(status?.connected);
-  const prontoParaEnvio = Boolean(extra.prontoParaEnvio);
+  const prontoParaEnvio = sessaoWhatsappProntaParaEnvio(status);
   const warmupRestanteSegundos = extra.warmupRestanteSegundos ?? 0;
   const pareamento = Boolean(extra.pareamentoEmAndamento || (extra.credenciaisRegistradas && !conectado));
   const bloqueado = Boolean(extra.pairingBlocked);

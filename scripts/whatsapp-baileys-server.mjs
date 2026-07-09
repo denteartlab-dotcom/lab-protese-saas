@@ -289,20 +289,20 @@ async function resolverJidWhatsappValido(phoneRaw) {
   const variants = variantesTelefoneBr(phoneRaw);
   if (!variants.length) throw new Error("Telefone inválido.");
 
+  const jids = variants.map((digits) => jidFromPhone(digits)).filter(Boolean);
+
   try {
-    const consulta = await sock.onWhatsApp(...variants);
+    const consulta = await sock.onWhatsApp(...jids);
     for (const item of consulta || []) {
       if (item?.exists && item.jid) {
         return item.jid;
       }
     }
   } catch (err) {
-    log("Falha ao consultar número no WhatsApp", err instanceof Error ? err.message : String(err));
+    log("onWhatsApp indisponível — usando JID direto", err instanceof Error ? err.message : String(err));
   }
 
-  throw new Error(
-    `Número ${variants[0]} não encontrado no WhatsApp. Confira DDD e nono dígito do celular.`
-  );
+  return jids[0];
 }
 
 function jidsVariantesBr(phoneRaw) {
@@ -312,16 +312,33 @@ function jidsVariantesBr(phoneRaw) {
 }
 
 async function enviarComVariantes(phoneRaw, enviarParaJid) {
-  const jidValido = await resolverJidWhatsappValido(phoneRaw);
+  const jids = jidsVariantesBr(phoneRaw);
+  if (!jids.length) throw new Error("Telefone inválido.");
+
+  let jidPreferido = null;
   try {
-    return await enviarParaJid(jidValido);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (/instável|não conectado|aquecendo|sessão inválida/i.test(msg)) {
-      throw err;
-    }
-    throw err;
+    jidPreferido = await resolverJidWhatsappValido(phoneRaw);
+  } catch {
+    jidPreferido = null;
   }
+
+  const ordem = jidPreferido
+    ? [jidPreferido, ...jids.filter((jid) => jid !== jidPreferido)]
+    : jids;
+
+  let ultimoErro = null;
+  for (const jid of ordem) {
+    try {
+      return await enviarParaJid(jid);
+    } catch (err) {
+      ultimoErro = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/instável|não conectado|aquecendo|sessão inválida/i.test(msg)) {
+        throw err;
+      }
+    }
+  }
+  throw ultimoErro instanceof Error ? ultimoErro : new Error("Falha ao enviar para todos os formatos do número.");
 }
 
 function extrairIdMensagem(sent) {
@@ -432,6 +449,22 @@ function aguardarAckEntrega(msgKey, timeoutMs = ACK_TIMEOUT_MS) {
   });
 
   return promise;
+}
+
+async function aguardarAckEntregaComFallback(msgKey, timeoutMs = ACK_TIMEOUT_MS) {
+  try {
+    return await aguardarAckEntrega(msgKey, timeoutMs);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/timeout|não confirmou|prazo/i.test(msg) && msgKey?.id) {
+      log("Ack tardio — mensagem aceita pelo ID retornado", {
+        id: msgKey.id,
+        jid: msgKey.remoteJid,
+      });
+      return { key: msgKey, status: StatusMensagem.SERVER_ACK, fallback: true };
+    }
+    throw err;
+  }
 }
 
 function enfileirarEnvio(fn) {
@@ -846,7 +879,7 @@ async function enviarMensagem(phone, message) {
           if (!messageId) {
             throw new Error("WhatsApp não retornou ID da mensagem — envio não confirmado.");
           }
-          const ack = await aguardarAckEntrega(sent?.key || { id: messageId, remoteJid: jid });
+          const ack = await aguardarAckEntregaComFallback(sent?.key || { id: messageId, remoteJid: jid });
           return { messageId, jid, ack };
         });
 
@@ -906,7 +939,7 @@ async function enviarMidia(phone, body) {
           if (!messageId) {
             throw new Error("WhatsApp não retornou ID da mídia — envio não confirmado.");
           }
-          const ack = await aguardarAckEntrega(sent?.key || { id: messageId, remoteJid: jid });
+          const ack = await aguardarAckEntregaComFallback(sent?.key || { id: messageId, remoteJid: jid });
           return { messageId, jid, ack };
         });
 

@@ -16,6 +16,7 @@ import {
   emitDisparoProgresso,
 } from "@/lib/whatsapp-disparos/disparos-socket-io";
 import { formatarTelefoneExibicao, normalizarTelefoneBr } from "@/lib/whatsapp-disparos/telefone-br";
+import { sessaoWhatsappProntaParaEnvio } from "@/lib/whatsapp-baileys-status";
 
 type EstadoFila = {
   campaignId: string;
@@ -25,11 +26,13 @@ type EstadoFila = {
   timer: ReturnType<typeof setTimeout> | null;
   enviosNaHora: number[];
   aguardandoConexao: number;
+  ultimoTick: number;
 };
 
 const filasAtivas = new Map<string, EstadoFila>();
 const MAX_TENTATIVAS_CONTATO = 6;
 const MAX_ESPERA_CONEXAO = 36;
+const FILA_PARADA_MS = 90_000;
 
 function chaveFila(empresaId: string, campaignId: string) {
   return `${empresaId}:${campaignId}`;
@@ -61,7 +64,7 @@ async function liberarContatosTravados(empresaId: string, campaignId: string) {
 }
 
 async function liberarContatosTravadosAntigos(empresaId: string, campaignId: string) {
-  const limite = new Date(Date.now() - 90_000);
+  const limite = new Date(Date.now() - 45_000);
   await runWithTenantContext(empresaId, () =>
     prisma.whatsappCampaignContact.updateMany({
       where: { campaignId, status: "enviando", updatedAt: { lt: limite } },
@@ -355,12 +358,15 @@ async function processarProximo(empresaId: string, campaignId: string) {
   const estado = filasAtivas.get(key);
   if (!estado || estado.cancelado) return;
 
+  estado.ultimoTick = Date.now();
+
+  try {
   const campanha = await runWithTenantContext(empresaId, () =>
     prisma.whatsappCampaign.findFirst({
       where: { id: campaignId, empresaId },
     })
   );
-  if (!campanha || campanha.status === "cancelada" || campanha.status === "concluida") {
+  if (!campanha || campanha.status === "cancelada" || campanha.status === "concluida" || campanha.status === "falhou") {
     pararFila(empresaId, campaignId);
     return;
   }
@@ -380,7 +386,7 @@ async function processarProximo(empresaId: string, campaignId: string) {
     estado.timer = setTimeout(() => void processarProximo(empresaId, campaignId), 5000);
     return;
   }
-  if (!statusWhatsapp.prontoParaEnvio) {
+  if (!sessaoWhatsappProntaParaEnvio(statusWhatsapp)) {
     const esperaMs = Math.min(
       Math.max((statusWhatsapp.warmupRestanteSegundos ?? 3) * 1000, 2000),
       8000
@@ -440,6 +446,12 @@ async function processarProximo(empresaId: string, campaignId: string) {
 
   const delay = intervaloComAtraso(campanha.intervaloSegundos, campanha.atrasoAleatorio);
   estado.timer = setTimeout(() => void processarProximo(empresaId, campaignId), delay);
+  } catch (err) {
+    console.error("[campaign-queue] erro em processarProximo:", err);
+    if (!estado.cancelado && !estado.pausado) {
+      estado.timer = setTimeout(() => void processarProximo(empresaId, campaignId), 5000);
+    }
+  }
 }
 
 export async function iniciarFilaCampanha(empresaId: string, campaignId: string) {
@@ -458,6 +470,7 @@ export async function iniciarFilaCampanha(empresaId: string, campaignId: string)
     estado.pausado = false;
     estado.cancelado = false;
     estado.aguardandoConexao = 0;
+    estado.ultimoTick = Date.now();
     await liberarContatosTravados(empresaId, campaignId);
     await runWithTenantContext(empresaId, () =>
       prisma.whatsappCampaign.update({
@@ -490,6 +503,7 @@ export async function iniciarFilaCampanha(empresaId: string, campaignId: string)
     timer: null,
     enviosNaHora: [],
     aguardandoConexao: 0,
+    ultimoTick: Date.now(),
   });
 
   void processarProximo(empresaId, campaignId);
@@ -565,16 +579,39 @@ function pararFila(empresaId: string, campaignId: string) {
 
 export async function retomarCampanhasPendentesServidor() {
   if (!baileysConfigurado()) return;
+  await garantirFilasCampanhasAtivas();
+}
+
+/** Religa filas que morreram na memória mas ainda estão "enviando" no banco. */
+export async function garantirFilasCampanhasAtivas() {
+  if (!baileysConfigurado()) return;
+
   const campanhas = await prisma.whatsappCampaign.findMany({
     where: { status: "enviando" },
-    select: { id: true, empresaId: true, status: true },
+    select: { id: true, empresaId: true },
   });
+
   for (const c of campanhas) {
+    const key = chaveFila(c.empresaId, c.id);
+    const estado = filasAtivas.get(key);
+    const parada =
+      !estado ||
+      estado.cancelado ||
+      Date.now() - (estado.ultimoTick || 0) > FILA_PARADA_MS;
+
+    if (!parada) continue;
+
     await liberarContatosTravados(c.empresaId, c.id);
-    void iniciarFilaCampanha(c.empresaId, c.id);
+    try {
+      await iniciarFilaCampanha(c.empresaId, c.id);
+    } catch (err) {
+      console.error("[campaign-queue] watchdog falhou ao religar fila:", err);
+    }
   }
 }
 
 export function campanhaEmExecucao(empresaId: string, campaignId: string) {
-  return filasAtivas.has(chaveFila(empresaId, campaignId));
+  const estado = filasAtivas.get(chaveFila(empresaId, campaignId));
+  if (!estado || estado.cancelado) return false;
+  return Date.now() - (estado.ultimoTick || 0) <= FILA_PARADA_MS;
 }
