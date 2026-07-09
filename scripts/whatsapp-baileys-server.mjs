@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 import pino from "pino";
 import makeWASocket, {
   DisconnectReason,
+  fetchLatestBaileysVersion,
   useMultiFileAuthState,
 } from "@whiskeysockets/baileys";
 
@@ -109,15 +110,19 @@ async function reiniciarConexao(opts = { limparAuth: false }) {
   numeroConectado = null;
   qrAtual = null;
   if (opts.limparAuth) {
-    try {
-      fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-    } catch {
-      /* ignora */
-    }
-    fs.mkdirSync(AUTH_DIR, { recursive: true });
+    limparAuthDir();
     log("Sessão anterior removida — novo QR será gerado.");
   }
-  void conectar();
+  await conectar();
+}
+
+function limparAuthDir() {
+  try {
+    fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+  } catch {
+    /* ignora */
+  }
+  fs.mkdirSync(AUTH_DIR, { recursive: true });
 }
 
 async function conectar() {
@@ -126,12 +131,19 @@ async function conectar() {
   try {
     fs.mkdirSync(AUTH_DIR, { recursive: true });
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+    const { version } = await fetchLatestBaileysVersion().catch(() => ({ version: undefined }));
+
     sock = makeWASocket({
       auth: state,
+      version,
       logger: pino({ level: "warn" }),
       printQRInTerminal: true,
       syncFullHistory: false,
       markOnlineOnConnect: false,
+      browser: ["Lab Protese SaaS", "Chrome", "120.0.0"],
+      connectTimeoutMs: 60_000,
+      defaultQueryTimeoutMs: 60_000,
+      keepAliveIntervalMs: 25_000,
     });
 
     sock.ev.on("creds.update", saveCreds);
@@ -139,7 +151,10 @@ async function conectar() {
       const { connection, lastDisconnect, qr } = update;
       if (qr) {
         qrAtual = qr;
-        log("Escaneie o QR Code no WhatsApp (Aparelhos conectados).");
+        log("QR Code gerado — escaneie no WhatsApp (Aparelhos conectados).");
+      }
+      if (connection) {
+        log("Estado:", connection);
       }
       if (connection === "open") {
         conectado = true;
@@ -152,9 +167,13 @@ async function conectar() {
         numeroConectado = null;
         const statusCode = lastDisconnect?.error?.output?.statusCode;
         const loggedOut = statusCode === DisconnectReason.loggedOut;
-        log("Conexão fechada.", loggedOut ? "Sessão encerrada — escaneie o QR novamente." : "Reconectando…");
+        const msg = lastDisconnect?.error?.message || "";
+        log("Conexão fechada.", loggedOut ? "Logout — nova sessão necessária." : msg || "Reconectando…");
         void encerrarSocket();
-        if (!loggedOut) {
+        if (loggedOut) {
+          limparAuthDir();
+          setTimeout(() => void conectar(), 2000);
+        } else {
           setTimeout(() => void conectar(), 4000);
         }
       }
@@ -325,4 +344,9 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, "127.0.0.1", () => {
   log(`HTTP em http://127.0.0.1:${PORT} (auth: ${AUTH_DIR})`);
   void conectar();
+  setTimeout(async () => {
+    if (conectado || qrAtual) return;
+    log("Boot: sem QR após 20s — limpando sessão e gerando novo QR…");
+    await reiniciarConexao({ limparAuth: true });
+  }, 20_000);
 });

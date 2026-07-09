@@ -26,21 +26,28 @@ function lerEnv() {
   return vars;
 }
 
+function headersComToken(token) {
+  const h = { "Content-Type": "application/json" };
+  if (token) h.Authorization = `Bearer ${token}`;
+  return h;
+}
+
 const env = lerEnv();
+const token = env.WHATSAPP_HTTP_TOKEN || "";
+
 console.log("\n=== Diagnóstico WhatsApp Baileys ===\n");
 
 console.log("1. Variáveis .env:");
 console.log("   WHATSAPP_HTTP_URL =", env.WHATSAPP_HTTP_URL || "(não definido — usa porta 3100)");
-console.log("   WHATSAPP_HTTP_TOKEN =", env.WHATSAPP_HTTP_TOKEN ? "(definido)" : "(vazio — ok)");
+console.log("   WHATSAPP_HTTP_TOKEN =", token ? "(definido)" : "(vazio — ok)");
 console.log("   WHATSAPP_BAILEYS_PORT =", env.WHATSAPP_BAILEYS_PORT || "3100");
 
 try {
   const health = await fetch(`${base}/health`, { signal: AbortSignal.timeout(4000) });
   console.log("\n2. Health:", health.ok ? "OK ✓" : `FALHOU (${health.status})`);
-} catch (e) {
+} catch {
   console.log("\n2. Health: OFFLINE ✗");
   console.log("   → Rode: pm2 restart lab-protese-whatsapp");
-  console.log("   → Ou: npm run whatsapp:baileys");
   process.exit(1);
 }
 
@@ -51,15 +58,35 @@ try {
   console.log("   connected:", data.connected);
   console.log("   qr:", data.qr ? "SIM (disponível)" : "não");
   console.log("   phone:", data.phone || "—");
+  console.log("   hasSocket:", data.hasSocket);
+  console.log("   iniciando:", data.iniciando);
   console.log("   authDir:", data.authDir);
+
   if (!data.connected && !data.qr) {
-    console.log("\n   Para gerar QR: curl -X POST", `${base}/reconnect -H "Content-Type: application/json" -d "{\\"limparAuth\\":true}"`);
+    console.log("\n4. Gerando QR (limparAuth + reconnect)… aguarde até 55s");
+    const recon = await fetch(`${base}/reconnect`, {
+      method: "POST",
+      headers: headersComToken(token),
+      body: JSON.stringify({ limparAuth: true }),
+      signal: AbortSignal.timeout(55_000),
+    });
+    const body = await recon.json();
+    if (recon.status === 401) {
+      console.log("   ERRO 401 — token inválido. WHATSAPP_HTTP_TOKEN deve ser igual no .env.");
+    } else if (body.qr) {
+      console.log("   QR GERADO ✓ — volte ao site e clique Gerar QR Code (ou escaneie pelo terminal pm2 logs).");
+    } else if (body.connected) {
+      console.log("   Já conectado ✓");
+    } else {
+      console.log("   Sem QR após 55s ✗");
+      console.log("   → pm2 logs lab-protese-whatsapp --lines 40");
+      console.log("   → Verifique se a VPS acessa web.whatsapp.com (firewall/proxy)");
+    }
+  } else {
+    console.log("\n4. QR/conexão OK — não precisa reconectar.");
   }
 } catch (e) {
-  console.log("\n3. Status: erro ao consultar", e.message);
+  console.log("\n3. Erro:", e.message);
 }
 
-console.log("\n4. PM2 esperado:");
-console.log("   lab-protese (app)");
-console.log("   lab-protese-whatsapp (Baileys)");
 console.log("\n=== Fim ===\n");
