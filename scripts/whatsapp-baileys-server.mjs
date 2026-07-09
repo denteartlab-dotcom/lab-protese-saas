@@ -1,10 +1,6 @@
 /**
  * Microserviço HTTP para envio de WhatsApp via Baileys.
  * Rode com PM2 ao lado do lab-protese (ver deploy/ecosystem.config.cjs).
- *
- * POST /send  { phone, message }  — compatível com WHATSAPP_HTTP_URL do Lab Prótese
- * GET  /status — { connected, qr? }
- * GET  /health
  */
 import http from "node:http";
 import path from "node:path";
@@ -14,6 +10,7 @@ import pino from "pino";
 import makeWASocket, {
   DisconnectReason,
   fetchLatestBaileysVersion,
+  makeCacheableSignalKeyStore,
   useMultiFileAuthState,
 } from "@whiskeysockets/baileys";
 
@@ -23,29 +20,67 @@ const TOKEN = (process.env.WHATSAPP_HTTP_TOKEN || "").trim();
 const AUTH_DIR =
   process.env.WHATSAPP_AUTH_DIR ||
   path.join(path.resolve(__dirname, ".."), "data", "whatsapp-auth");
+const LOCK_FILE = path.join(AUTH_DIR, ".baileys.lock");
 
-const MAX_AUTO_RECONNECT = 6;
-const QR_LOG_INTERVAL_MS = 25_000;
+const logger = pino({ level: "warn" });
 
 let sock = null;
 let qrAtual = null;
 let conectado = false;
 let iniciando = false;
 let numeroConectado = null;
+let credenciaisRegistradas = false;
 let reconnectTimer = null;
 let reconnectAttempts = 0;
-let reconnectEmAndamento = false;
-let bootWatchdogFeito = false;
 let ultimoQrLogEm = 0;
 let ultimoQrHash = null;
 let qrGeradoEm = null;
+let saveCredsFn = null;
 
 function log(...args) {
   console.log("[whatsapp-baileys]", ...args);
 }
 
-function hashQr(qr) {
-  return qr ? qr.slice(-24) : null;
+function garantirInstanciaUnica() {
+  fs.mkdirSync(AUTH_DIR, { recursive: true });
+  try {
+    fs.writeFileSync(LOCK_FILE, String(process.pid), { flag: "wx" });
+  } catch {
+    try {
+      const pid = Number(fs.readFileSync(LOCK_FILE, "utf8").trim());
+      if (pid && pid !== process.pid) {
+        try {
+          process.kill(pid, 0);
+          log(`ERRO: outro Baileys já roda (PID ${pid}). Pare duplicatas: pm2 delete lab-protese-whatsapp && pm2 start deploy/ecosystem.config.cjs --only lab-protese-whatsapp`);
+          process.exit(1);
+        } catch {
+          fs.unlinkSync(LOCK_FILE);
+          fs.writeFileSync(LOCK_FILE, String(process.pid), { flag: "wx" });
+        }
+      }
+    } catch {
+      fs.writeFileSync(LOCK_FILE, String(process.pid));
+    }
+  }
+
+  const liberarLock = () => {
+    try {
+      if (fs.readFileSync(LOCK_FILE, "utf8").trim() === String(process.pid)) {
+        fs.unlinkSync(LOCK_FILE);
+      }
+    } catch {
+      /* ignora */
+    }
+  };
+  process.on("exit", liberarLock);
+  process.on("SIGINT", () => {
+    liberarLock();
+    process.exit(0);
+  });
+  process.on("SIGTERM", () => {
+    liberarLock();
+    process.exit(0);
+  });
 }
 
 function extrairNumeroUsuario(sockInst) {
@@ -98,110 +133,6 @@ function cancelarReconnectAgendado() {
   }
 }
 
-function resetarEstadoConectado() {
-  conectado = false;
-  numeroConectado = null;
-}
-
-function registrarQr(qr) {
-  qrAtual = qr;
-  qrGeradoEm = Date.now();
-  const h = hashQr(qr);
-  const agora = Date.now();
-  if (h !== ultimoQrHash || agora - ultimoQrLogEm > QR_LOG_INTERVAL_MS) {
-    ultimoQrHash = h;
-    ultimoQrLogEm = agora;
-    log("QR Code disponível — escaneie no WhatsApp (Aparelhos conectados). Válido ~60s.");
-  }
-}
-
-async function encerrarSocket() {
-  if (sock) {
-    try {
-      sock.ev.removeAllListeners();
-    } catch {
-      /* ignora */
-    }
-    try {
-      await sock.end(undefined);
-    } catch {
-      /* ignora */
-    }
-    sock = null;
-  }
-  iniciando = false;
-}
-
-function qrRecente() {
-  return Boolean(qrAtual && qrGeradoEm && Date.now() - qrGeradoEm < 55_000);
-}
-
-function agendarReconnect(motivo, delayMs, opts = { limparAuth: false }) {
-  if (conectado || reconnectTimer || reconnectEmAndamento) return;
-  if (reconnectAttempts >= MAX_AUTO_RECONNECT) {
-    log(
-      `Auto-reconnect pausado (${reconnectAttempts} tentativas). Clique em Gerar QR Code no site ou pm2 restart lab-protese-whatsapp.`
-    );
-    return;
-  }
-
-  reconnectAttempts += 1;
-  const delay = Math.min(Math.round(delayMs * Math.pow(1.4, reconnectAttempts - 1)), 60_000);
-  log(`Reconnect agendado em ${Math.round(delay / 1000)}s (${motivo}) — tentativa ${reconnectAttempts}/${MAX_AUTO_RECONNECT}`);
-
-  reconnectTimer = setTimeout(() => {
-    reconnectTimer = null;
-    void reiniciarConexao(opts);
-  }, delay);
-}
-
-async function aguardarQrLocal(maxMs = 50_000) {
-  const inicio = Date.now();
-  while (Date.now() - inicio < maxMs) {
-    if (conectado) return { connected: true, qr: null, phone: numeroConectado };
-    if (qrAtual) return { connected: false, qr: qrAtual, phone: null };
-    await new Promise((r) => setTimeout(r, 800));
-  }
-  return { connected: conectado, qr: qrAtual || null, phone: numeroConectado };
-}
-
-async function reiniciarConexao(opts = { limparAuth: false }) {
-  if (reconnectEmAndamento) {
-    return aguardarQrLocal(15_000);
-  }
-
-  if (!opts.limparAuth && conectado) {
-    return { connected: true, qr: null, phone: numeroConectado };
-  }
-
-  if (!opts.limparAuth && qrRecente()) {
-    log("QR recente ainda válido — mantendo sessão atual.");
-    return { connected: false, qr: qrAtual, phone: null };
-  }
-
-  reconnectEmAndamento = true;
-  cancelarReconnectAgendado();
-
-  try {
-    await encerrarSocket();
-    resetarEstadoConectado();
-    qrAtual = null;
-    qrGeradoEm = null;
-    ultimoQrHash = null;
-
-    if (opts.limparAuth) {
-      limparAuthDir();
-      reconnectAttempts = 0;
-      log("Sessão anterior removida — novo QR será gerado.");
-    }
-
-    await conectar();
-    return aguardarQrLocal(opts.limparAuth ? 50_000 : 25_000);
-  } finally {
-    reconnectEmAndamento = false;
-  }
-}
-
 function limparAuthDir() {
   try {
     fs.rmSync(AUTH_DIR, { recursive: true, force: true });
@@ -209,82 +140,169 @@ function limparAuthDir() {
     /* ignora */
   }
   fs.mkdirSync(AUTH_DIR, { recursive: true });
+  try {
+    fs.writeFileSync(LOCK_FILE, String(process.pid));
+  } catch {
+    /* ignora */
+  }
+  credenciaisRegistradas = false;
 }
 
-function tratarFechamentoConexao(lastDisconnect) {
-  resetarEstadoConectado();
-  qrAtual = null;
-  qrGeradoEm = null;
+function registrarQr(qr) {
+  qrAtual = qr;
+  qrGeradoEm = Date.now();
+  const h = qr.slice(-24);
+  const agora = Date.now();
+  if (h !== ultimoQrHash || agora - ultimoQrLogEm > 30_000) {
+    ultimoQrHash = h;
+    ultimoQrLogEm = agora;
+    log("QR disponível — escaneie UMA vez e aguarde até 30s (não clique de novo).");
+  }
+}
+
+function limparSocketLocal() {
+  if (sock) {
+    try {
+      sock.ev.removeAllListeners();
+    } catch {
+      /* ignora */
+    }
+  }
+  sock = null;
+  iniciando = false;
+}
+
+function qrRecente() {
+  return Boolean(qrAtual && qrGeradoEm && Date.now() - qrGeradoEm < 50_000);
+}
+
+function agendarReconnect(motivo, delayMs) {
+  if (conectado || reconnectTimer || iniciando) return;
+  if (reconnectAttempts >= 5) {
+    log(`Reconnect pausado (${reconnectAttempts}x). Rode: npm run whatsapp:reset`);
+    return;
+  }
+  reconnectAttempts += 1;
+  const delay = Math.min(delayMs * reconnectAttempts, 45_000);
+  log(`Reconnect em ${Math.round(delay / 1000)}s (${motivo})`);
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    void startBaileys();
+  }, delay);
+}
+
+async function aguardarQrLocal(maxMs = 45_000) {
+  const inicio = Date.now();
+  while (Date.now() - inicio < maxMs) {
+    if (conectado) return { connected: true, qr: null, phone: numeroConectado };
+    if (qrAtual) return { connected: false, qr: qrAtual, phone: null };
+    await new Promise((r) => setTimeout(r, 700));
+  }
+  return { connected: conectado, qr: qrAtual || null, phone: numeroConectado };
+}
+
+function tratarFechamento(lastDisconnect) {
+  conectado = false;
+  numeroConectado = null;
+  limparSocketLocal();
 
   const statusCode = lastDisconnect?.error?.output?.statusCode;
-  const loggedOut = statusCode === DisconnectReason.loggedOut;
-  const badSession = statusCode === DisconnectReason.badSession;
-  const replaced = statusCode === DisconnectReason.connectionReplaced;
-  const restartRequired = statusCode === DisconnectReason.restartRequired;
   const msg = lastDisconnect?.error?.message || "";
 
-  if (loggedOut || badSession) {
-    log("Sessão inválida — será gerado novo QR após limpar credenciais.");
+  if (statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.badSession) {
+    log("Sessão inválida — limpando credenciais.", msg);
+    credenciaisRegistradas = false;
+    qrAtual = null;
+    qrGeradoEm = null;
     reconnectAttempts = 0;
-    agendarReconnect("sessao-invalida", 8000, { limparAuth: true });
+    limparAuthDir();
+    agendarReconnect("sessao-invalida", 5000);
     return;
   }
 
-  if (replaced) {
-    log("WhatsApp conectado em outro aparelho/sessão — reconexão manual necessária.");
-    reconnectAttempts = MAX_AUTO_RECONNECT;
+  if (statusCode === DisconnectReason.connectionReplaced) {
+    log("WhatsApp aberto em outro lugar — pare outras sessões Baileys.");
+    reconnectAttempts = 5;
     return;
   }
 
-  if (restartRequired) {
-    agendarReconnect("restart-required", 5000, { limparAuth: false });
+  if (statusCode === DisconnectReason.restartRequired) {
+    log("Pareamento OK — reconectando imediatamente (sem novo QR)…");
+    reconnectAttempts = 0;
+    qrAtual = null;
+    qrGeradoEm = null;
+    cancelarReconnectAgendado();
+    void startBaileys();
     return;
   }
 
-  log("Conexão fechada.", msg || "Reconectando com backoff…");
-  agendarReconnect("close", 12_000, { limparAuth: false });
+  log("Conexão fechada.", msg || `code=${statusCode ?? "?"}`);
+  agendarReconnect("close", 15_000);
 }
 
-async function conectar() {
-  if (iniciando || conectado || sock) return;
+async function startBaileys() {
+  if (conectado) return;
+  if (iniciando) return;
+  if (sock) return;
+
+  cancelarReconnectAgendado();
   iniciando = true;
 
   try {
     fs.mkdirSync(AUTH_DIR, { recursive: true });
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+    saveCredsFn = saveCreds;
+    credenciaisRegistradas = Boolean(state.creds?.registered);
+
     const { version } = await fetchLatestBaileysVersion().catch(() => ({ version: undefined }));
 
     sock = makeWASocket({
-      auth: state,
+      auth: {
+        creds: state.creds,
+        keys: makeCacheableSignalKeyStore(state.keys, logger),
+      },
       version,
-      logger: pino({ level: "warn" }),
+      logger,
       printQRInTerminal: false,
       syncFullHistory: false,
       markOnlineOnConnect: false,
-      browser: ["Lab Protese SaaS", "Chrome", "120.0.0"],
+      generateHighQualityLinkPreview: false,
+      browser: ["Lab Protese", "Chrome", "120.0.0"],
       connectTimeoutMs: 60_000,
       defaultQueryTimeoutMs: 60_000,
       keepAliveIntervalMs: 30_000,
       qrTimeout: 60_000,
+      getMessage: async () => undefined,
     });
 
-    sock.ev.on("creds.update", saveCreds);
+    sock.ev.on("creds.update", async () => {
+      await saveCreds();
+      if (state.creds?.registered) {
+        credenciaisRegistradas = true;
+        qrAtual = null;
+        qrGeradoEm = null;
+      }
+    });
+
     sock.ev.on("connection.update", (update) => {
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
+        if (conectado || credenciaisRegistradas) {
+          return;
+        }
         registrarQr(qr);
       }
 
-      if (connection) {
-        log("Estado:", connection);
+      if (connection === "connecting") {
+        log("Conectando…");
       }
 
       if (connection === "open") {
         conectado = true;
+        credenciaisRegistradas = true;
         qrAtual = null;
         qrGeradoEm = null;
-        ultimoQrHash = null;
         reconnectAttempts = 0;
         cancelarReconnectAgendado();
         numeroConectado = extrairNumeroUsuario(sock);
@@ -292,18 +310,38 @@ async function conectar() {
       }
 
       if (connection === "close") {
-        void encerrarSocket().then(() => {
-          tratarFechamentoConexao(lastDisconnect);
-        });
+        tratarFechamento(lastDisconnect);
       }
     });
   } catch (err) {
-    log("Erro ao iniciar:", err);
-    sock = null;
-    agendarReconnect("erro-boot", 15_000, { limparAuth: false });
+    log("Erro ao iniciar Baileys:", err);
+    limparSocketLocal();
+    agendarReconnect("erro-boot", 10_000);
   } finally {
     iniciando = false;
   }
+}
+
+async function resetarSessaoCompleta() {
+  cancelarReconnectAgendado();
+  reconnectAttempts = 0;
+  conectado = false;
+  numeroConectado = null;
+  qrAtual = null;
+  qrGeradoEm = null;
+  credenciaisRegistradas = false;
+
+  if (sock) {
+    try {
+      await sock.logout();
+    } catch {
+      /* ignora */
+    }
+  }
+  limparSocketLocal();
+  limparAuthDir();
+  await startBaileys();
+  return aguardarQrLocal(50_000);
 }
 
 async function enviarMensagem(phone, message) {
@@ -353,29 +391,6 @@ async function enviarMidia(phone, body) {
   return { ok: true };
 }
 
-async function desconectar() {
-  cancelarReconnectAgendado();
-  reconnectAttempts = 0;
-
-  if (sock) {
-    try {
-      await sock.logout();
-    } catch {
-      /* ignora */
-    }
-    sock = null;
-  }
-
-  conectado = false;
-  numeroConectado = null;
-  qrAtual = null;
-  qrGeradoEm = null;
-  iniciando = false;
-  limparAuthDir();
-  setTimeout(() => void conectar(), 3000);
-  return { ok: true };
-}
-
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url || "/", `http://127.0.0.1:${PORT}`);
@@ -387,49 +402,40 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/status") {
       return json(res, 200, {
         connected: conectado,
-        qr: qrAtual || null,
+        qr: conectado ? null : qrAtual || null,
         phone: numeroConectado,
         authDir: AUTH_DIR,
         iniciando,
         hasSocket: Boolean(sock),
+        credenciaisRegistradas,
         reconnectAttempts,
-        qrRecente: qrRecente(),
+        pareamentoEmAndamento: credenciaisRegistradas && !conectado,
       });
     }
 
     if (url.pathname === "/send" && req.method === "POST") {
-      if (!autorizado(req)) {
-        return json(res, 401, { ok: false, error: "Não autorizado" });
-      }
+      if (!autorizado(req)) return json(res, 401, { ok: false, error: "Não autorizado" });
       const body = await lerJson(req);
-      const phone = body.phone || body.telefone;
-      const message = body.message || body.mensagem;
-      await enviarMensagem(phone, message);
+      await enviarMensagem(body.phone || body.telefone, body.message || body.mensagem);
       return json(res, 200, { ok: true });
     }
 
     if (url.pathname === "/send-media" && req.method === "POST") {
-      if (!autorizado(req)) {
-        return json(res, 401, { ok: false, error: "Não autorizado" });
-      }
+      if (!autorizado(req)) return json(res, 401, { ok: false, error: "Não autorizado" });
       const body = await lerJson(req);
-      const phone = body.phone || body.telefone;
-      await enviarMidia(phone, body);
+      await enviarMidia(body.phone || body.telefone, body);
       return json(res, 200, { ok: true });
     }
 
     if (url.pathname === "/logout" && req.method === "POST") {
-      if (!autorizado(req)) {
-        return json(res, 401, { ok: false, error: "Não autorizado" });
-      }
-      await desconectar();
+      if (!autorizado(req)) return json(res, 401, { ok: false, error: "Não autorizado" });
+      await resetarSessaoCompleta();
       return json(res, 200, { ok: true });
     }
 
     if (url.pathname === "/reconnect" && req.method === "POST") {
-      if (!autorizado(req)) {
-        return json(res, 401, { ok: false, error: "Não autorizado" });
-      }
+      if (!autorizado(req)) return json(res, 401, { ok: false, error: "Não autorizado" });
+
       let body = {};
       try {
         body = await lerJson(req);
@@ -438,16 +444,47 @@ const server = http.createServer(async (req, res) => {
       }
 
       if (conectado) {
+        return json(res, 200, { ok: true, connected: true, qr: null, phone: numeroConectado });
+      }
+
+      if (credenciaisRegistradas && !conectado) {
+        log("Pareamento em andamento — aguardando reconexão automática…");
+        if (!sock && !iniciando) void startBaileys();
+        const aguardado = await aguardarQrLocal(35_000);
         return json(res, 200, {
           ok: true,
-          connected: true,
-          qr: null,
-          phone: numeroConectado,
+          connected: aguardado.connected,
+          qr: aguardado.qr,
+          phone: aguardado.phone,
+          pareamentoEmAndamento: !aguardado.connected && !aguardado.qr,
+        });
+      }
+
+      if (qrRecente()) {
+        return json(res, 200, {
+          ok: true,
+          connected: false,
+          qr: qrAtual,
+          phone: null,
         });
       }
 
       const limparAuth = Boolean(body.limparAuth || body.limparSessao);
-      const aguardado = await reiniciarConexao({ limparAuth });
+      if (limparAuth) {
+        const aguardado = await resetarSessaoCompleta();
+        return json(res, 200, {
+          ok: true,
+          connected: aguardado.connected,
+          qr: aguardado.qr,
+          phone: aguardado.phone,
+        });
+      }
+
+      if (!sock && !iniciando) {
+        void startBaileys();
+      }
+
+      const aguardado = await aguardarQrLocal(45_000);
       return json(res, 200, {
         ok: true,
         connected: aguardado.connected,
@@ -458,26 +495,13 @@ const server = http.createServer(async (req, res) => {
 
     json(res, 404, { ok: false, error: "Rota não encontrada" });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Erro ao enviar mensagem";
+    const msg = err instanceof Error ? err.message : "Erro interno";
     json(res, 422, { ok: false, error: msg });
   }
 });
 
+garantirInstanciaUnica();
 server.listen(PORT, "127.0.0.1", () => {
   log(`HTTP em http://127.0.0.1:${PORT} (auth: ${AUTH_DIR})`);
-  void conectar();
-
-  setTimeout(async () => {
-    if (bootWatchdogFeito || conectado || qrAtual || sock) return;
-    bootWatchdogFeito = true;
-    log("Boot: sem QR após 45s — tentando reconectar sem apagar sessão…");
-    await reiniciarConexao({ limparAuth: false });
-  }, 45_000);
-
-  setTimeout(async () => {
-    if (conectado || qrAtual) return;
-    if (reconnectAttempts >= MAX_AUTO_RECONNECT) return;
-    log("Boot: ainda sem QR após 2 min — limpando sessão antiga (último recurso)…");
-    await reiniciarConexao({ limparAuth: true });
-  }, 120_000);
+  void startBaileys();
 });

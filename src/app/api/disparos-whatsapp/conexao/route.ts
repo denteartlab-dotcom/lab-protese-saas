@@ -12,6 +12,16 @@ import {
 } from "@/lib/whatsapp-disparos/campanha-servidor";
 import { formatarTelefoneExibicao } from "@/lib/whatsapp-disparos/telefone-br";
 
+type BaileysStatusExtra = {
+  phone?: string | null;
+  qr?: string | null;
+  connected?: boolean;
+  hasSocket?: boolean;
+  iniciando?: boolean;
+  credenciaisRegistradas?: boolean;
+  pareamentoEmAndamento?: boolean;
+};
+
 export async function GET() {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
@@ -22,16 +32,18 @@ export async function GET() {
     obterSessaoWhatsapp(ctx.empresaId),
   ]);
 
+  const extra = (status || {}) as BaileysStatusExtra;
   const baileysOnline = status !== null;
   const conectado = Boolean(status?.connected);
+  const pareamento = Boolean(extra.pareamentoEmAndamento || (extra.credenciaisRegistradas && !conectado));
   const numero = status?.connected
-    ? formatarTelefoneExibicao(String((status as { phone?: string }).phone || sessao?.numeroConectado || ""))
+    ? formatarTelefoneExibicao(String(extra.phone || sessao?.numeroConectado || ""))
     : null;
 
   if (conectado) {
     await sincronizarSessaoWhatsapp(ctx.empresaId, {
       conectado: true,
-      numero: (status as { phone?: string }).phone || sessao?.numeroConectado,
+      numero: extra.phone || sessao?.numeroConectado,
     });
   }
 
@@ -41,29 +53,65 @@ export async function GET() {
       baileysOnline,
       numero,
       ultimaConexao: sessao?.ultimaConexaoEm?.toISOString() || null,
-      qr: status?.qr || null,
+      qr: conectado ? null : status?.qr || null,
+      pareamentoEmAndamento: pareamento,
       status: !baileysOnline
         ? "servico_offline"
         : conectado
           ? "conectado"
-          : status?.qr
-            ? "aguardando_qr"
-            : "desconectado",
+          : pareamento
+            ? "pareamento"
+            : status?.qr
+              ? "aguardando_qr"
+              : "desconectado",
     },
     metricas,
   });
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
+  const body = (await req.json().catch(() => ({}))) as { reset?: boolean };
+  const atual = (await baileysStatus()) as BaileysStatusExtra | null;
+
+  if (atual?.connected) {
+    return NextResponse.json({
+      ok: true,
+      conectado: true,
+      baileysOnline: true,
+      qr: null,
+    });
+  }
+
+  if (atual?.qr && !body.reset) {
+    return NextResponse.json({
+      ok: true,
+      conectado: false,
+      baileysOnline: true,
+      qr: atual.qr,
+    });
+  }
+
+  if (atual?.credenciaisRegistradas && !atual.connected && !body.reset) {
+    const aguardado = await aguardarQrBaileys(35);
+    void sincronizarConexaoWhatsappSocket();
+    return NextResponse.json({
+      ok: true,
+      conectado: Boolean(aguardado?.connected),
+      baileysOnline: true,
+      qr: aguardado?.qr || null,
+      pareamentoEmAndamento: !aguardado?.connected && !aguardado?.qr,
+      mensagem: "Pareamento detectado — aguarde até 30s sem clicar novamente.",
+    });
+  }
+
   let reconnect: Awaited<ReturnType<typeof baileysReconectar>>;
   try {
-    reconnect = await baileysReconectar({ limparAuth: false });
-    if (!reconnect.connected && !reconnect.qr) {
-      reconnect = await baileysReconectar({ limparAuth: true });
-    }
+    reconnect = await baileysReconectar({
+      limparAuth: Boolean(body.reset),
+    });
   } catch (err) {
     return NextResponse.json(
       {
@@ -83,7 +131,7 @@ export async function POST() {
           qr: reconnect.qr ?? null,
           phone: reconnect.phone ?? null,
         }
-      : await aguardarQrBaileys(12);
+      : await aguardarQrBaileys(45);
 
   void sincronizarConexaoWhatsappSocket();
 
@@ -101,10 +149,11 @@ export async function POST() {
     return NextResponse.json(
       {
         error:
-          "QR não foi gerado. Veja os logs: pm2 logs lab-protese-whatsapp --lines 50",
+          "Aguardando conexão após pareamento ou QR não gerado. Aguarde 30s ou rode npm run whatsapp:reset na VPS.",
         baileysOnline: true,
         conectado: false,
         qr: null,
+        pareamentoEmAndamento: true,
       },
       { status: 422 }
     );

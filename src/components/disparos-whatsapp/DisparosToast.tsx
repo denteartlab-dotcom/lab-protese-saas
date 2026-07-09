@@ -1,11 +1,11 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, Info, XCircle } from "lucide-react";
 
 export type ToastDisparo = {
   id: string;
-  tipo: "sucesso" | "erro";
+  tipo: "sucesso" | "erro" | "info";
   mensagem: string;
 };
 
@@ -28,6 +28,8 @@ export function DisparosToast({
             className={`pointer-events-auto flex items-start gap-2 rounded-lg border px-4 py-3 shadow-lg ${
               toast.tipo === "sucesso"
                 ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                : toast.tipo === "info"
+                  ? "border-blue-200 bg-blue-50 text-blue-900"
                 : "border-red-200 bg-red-50 text-red-900"
             }`}
             onAnimationComplete={() => {
@@ -36,6 +38,8 @@ export function DisparosToast({
           >
             {toast.tipo === "sucesso" ? (
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+            ) : toast.tipo === "info" ? (
+              <Info className="mt-0.5 h-4 w-4 shrink-0" />
             ) : (
               <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
             )}

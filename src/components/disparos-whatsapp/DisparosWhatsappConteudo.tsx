@@ -39,6 +39,7 @@ type DashboardData = {
     ultimaConexao: string | null;
     qr: string | null;
     status: string;
+    pareamentoEmAndamento?: boolean;
   };
   metricas: {
     totalCampanhas: number;
@@ -307,14 +308,23 @@ export function DisparosWhatsappConteudo() {
     },
   });
 
-  async function gerarQr() {
+  async function gerarQr(reset = false) {
+    if (conexao?.status === "pareamento" && !reset) {
+      toast("info", "Pareamento em andamento — aguarde até 30s após escanear o QR.");
+      return;
+    }
     setProcessando(true);
     setAguardandoQr(true);
-    setQrImagem(null);
+    if (reset) {
+      setQrImagem(null);
+      ultimoQrRef.current = null;
+    }
     try {
       const res = await fetch("/api/disparos-whatsapp/conexao", {
         method: "POST",
         credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(reset ? { reset: true } : {}),
       });
       const data = (await res.json()) as {
         ok?: boolean;
@@ -322,10 +332,20 @@ export function DisparosWhatsappConteudo() {
         qr?: string | null;
         baileysOnline?: boolean;
         conectado?: boolean;
+        pareamentoEmAndamento?: boolean;
+        mensagem?: string;
       };
 
       if (!res.ok) {
+        if (data.pareamentoEmAndamento) {
+          toast("info", data.error || "Aguarde — pareamento em andamento.");
+          return;
+        }
         throw new Error(data.error || "Falha ao gerar QR");
+      }
+
+      if (data.mensagem) {
+        toast("info", data.mensagem);
       }
 
       if (data.conectado) {
@@ -335,15 +355,19 @@ export function DisparosWhatsappConteudo() {
         return;
       }
 
+      if (data.pareamentoEmAndamento) {
+        toast("info", "QR escaneado — aguarde até 30s. Não clique em Gerar QR novamente.");
+        return;
+      }
+
       if (data.qr) {
         const ok = await aplicarQr(data.qr, { forcarModal: true });
         if (ok) {
-          toast("sucesso", "QR Code pronto. Escaneie com o WhatsApp do laboratório.");
+          toast("sucesso", "Escaneie o QR UMA vez e aguarde ~30s. Não clique de novo.");
           return;
         }
       }
 
-      // Continua aguardando via polling/socket (até 90s)
       void recarregar();
       void carregarDiagnostico();
     } catch (err) {
@@ -353,6 +377,11 @@ export function DisparosWhatsappConteudo() {
     } finally {
       setProcessando(false);
     }
+  }
+
+  async function resetarSessaoWhatsapp() {
+    if (!window.confirm("Resetar sessão WhatsApp? Será necessário escanear QR novamente.")) return;
+    await gerarQr(true);
   }
 
   async function desconectar() {
@@ -531,6 +560,8 @@ export function DisparosWhatsappConteudo() {
                     ? "bg-red-50 text-red-700"
                     : aguardandoQr || conexao?.status === "aguardando_qr"
                       ? "bg-blue-50 text-blue-700"
+                      : conexao?.status === "pareamento"
+                        ? "bg-violet-50 text-violet-700"
                       : "bg-amber-50 text-amber-700"
               }`}
             >
@@ -542,6 +573,8 @@ export function DisparosWhatsappConteudo() {
                       ? "bg-red-500"
                       : aguardandoQr || conexao?.status === "aguardando_qr"
                         ? "bg-blue-500 animate-pulse"
+                        : conexao?.status === "pareamento"
+                          ? "bg-violet-500 animate-pulse"
                         : "bg-amber-500"
                 }`}
               />
@@ -551,6 +584,8 @@ export function DisparosWhatsappConteudo() {
                   ? "Serviço offline"
                   : aguardandoQr || conexao?.status === "aguardando_qr"
                     ? "Aguardando QR"
+                    : conexao?.status === "pareamento"
+                      ? "Finalizando…"
                     : "Desconectado"}
             </span>
           </div>
@@ -572,15 +607,38 @@ export function DisparosWhatsappConteudo() {
                   Baileys offline — npm run whatsapp:baileys
                 </p>
               ) : null}
+              {conexao?.status === "pareamento" ? (
+                <p className="mt-1 text-[10px] font-medium text-violet-600">
+                  QR escaneado — aguarde ~30s sem clicar em nada.
+                </p>
+              ) : null}
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {!conexao?.conectado ? (
                   <button
                     type="button"
                     onClick={() => void gerarQr()}
-                    disabled={processando || conexao?.baileysOnline === false}
+                    disabled={
+                      processando ||
+                      conexao?.baileysOnline === false ||
+                      conexao?.status === "pareamento"
+                    }
                     className="rounded-md bg-indigo-600 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
                   >
-                    {processando ? "Aguarde ~60s…" : "Gerar QR Code"}
+                    {processando
+                      ? "Aguarde…"
+                      : conexao?.status === "pareamento"
+                        ? "Conectando…"
+                        : "Gerar QR Code"}
+                  </button>
+                ) : null}
+                {!conexao?.conectado ? (
+                  <button
+                    type="button"
+                    onClick={() => void resetarSessaoWhatsapp()}
+                    disabled={processando || conexao?.baileysOnline === false}
+                    className="rounded-md border border-slate-200 px-2.5 py-1 text-[10px] font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Resetar sessão
                   </button>
                 ) : null}
                 {conexao?.conectado ? (

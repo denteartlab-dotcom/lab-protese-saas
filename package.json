@@ -15,6 +15,7 @@
     "pm2:restart": "pm2 restart lab-protese lab-protese-whatsapp",
     "whatsapp:baileys": "node scripts/whatsapp-baileys-server.mjs",
     "whatsapp:diagnostico": "node scripts/whatsapp-diagnostico.mjs",
+    "whatsapp:reset": "node scripts/whatsapp-reset.mjs",
     "pm2:beta": "pm2 start deploy/ecosystem-beta.config.cjs",
     "pm2:beta:restart": "pm2 restart lab-protese-beta",
     "lint": "next lint",
