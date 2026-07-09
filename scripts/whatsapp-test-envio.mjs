@@ -55,6 +55,19 @@ try {
     console.log(`Aguarde ${status.warmupRestanteSegundos}s (aquecimento)…`);
     await new Promise((r) => setTimeout(r, (status.warmupRestanteSegundos + 1) * 1000));
   }
+
+  const verifyRes = await fetch(
+    `${base}/verify-phone?phone=${encodeURIComponent(phone)}`,
+    { signal: AbortSignal.timeout(20_000) }
+  );
+  const verify = await verifyRes.json();
+  console.log("\nVerificação WhatsApp:", verify.existe ? "número OK ✓" : "número NÃO encontrado ✗");
+  if (verify.jids?.length) console.log("JID:", verify.jids.join(", "));
+  if (verify.erro) console.log("Detalhe:", verify.erro);
+  if (!verify.existe) {
+    console.log("→ Corrija o número (DDD + 9 dígitos) antes de enviar.");
+    process.exit(1);
+  }
 } catch {
   console.error("\nBaileys OFFLINE. Rode: pm2 restart lab-protese-whatsapp\n");
   process.exit(1);
@@ -65,7 +78,7 @@ try {
     method: "POST",
     headers,
     body: JSON.stringify({ phone, message }),
-    signal: AbortSignal.timeout(60_000),
+    signal: AbortSignal.timeout(95_000),
   });
   const data = await res.json();
   if (!res.ok || !data.ok) {

@@ -84,7 +84,7 @@ let ultimoWatchdogEm = 0;
 const ACK_TIMEOUT_MS = Number(process.env.WHATSAPP_ACK_TIMEOUT_MS || 45_000);
 const QR_VALIDADE_MS = Number(process.env.WHATSAPP_QR_VALIDADE_MS || 45_000);
 const WARMUP_MS = Number(process.env.WHATSAPP_WARMUP_MS || 12_000);
-const ENVIO_TIMEOUT_MS = Number(process.env.WHATSAPP_ENVIO_TIMEOUT_MS || 55_000);
+const ENVIO_TIMEOUT_MS = Number(process.env.WHATSAPP_ENVIO_TIMEOUT_MS || 90_000);
 const pendentesAck = new Map();
 const messageStore = new Map();
 let filaEnvio = Promise.resolve();
@@ -203,7 +203,9 @@ function garantirInstanciaUnica() {
 
 function extrairNumeroUsuario(sockInst) {
   const id = sockInst?.user?.id || "";
-  const digits = String(id).replace(/@.*/, "").replace(/\D/g, "");
+  const parteLocal = String(id).split("@")[0] || "";
+  const numero = parteLocal.split(":")[0] || parteLocal;
+  const digits = numero.replace(/\D/g, "");
   return digits || null;
 }
 
@@ -289,6 +291,7 @@ async function resolverJidDestino(phoneRaw) {
 async function jidsParaEnvio(phoneRaw) {
   const variants = variantesTelefoneBr(phoneRaw);
   if (!variants.length) throw new Error("Telefone inválido.");
+  if (!sock || !conectado) throw new Error("WhatsApp não conectado.");
 
   const ordem = [];
   const vistos = new Set();
@@ -299,26 +302,85 @@ async function jidsParaEnvio(phoneRaw) {
     ordem.push(jid);
   };
 
-  if (sock && conectado) {
-    try {
-      const consulta = await sock.onWhatsApp(
+  try {
+    const consulta = await withTimeout(
+      sock.onWhatsApp(
         ...variants,
         ...variants.map((digits) => jidFromPhone(digits)).filter(Boolean)
-      );
-      for (const item of consulta || []) {
-        if (item?.exists && item?.jid) registrar(item.jid);
-      }
-    } catch (err) {
-      log("onWhatsApp indisponível — tentando JIDs diretos", err instanceof Error ? err.message : String(err));
+      ),
+      15_000,
+      "Timeout ao consultar número no WhatsApp."
+    );
+    for (const item of consulta || []) {
+      if (item?.exists && item?.jid) registrar(item.jid);
     }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    log("Falha ao validar número no WhatsApp:", msg);
+    throw new Error(`Não foi possível validar o número no WhatsApp: ${msg}`);
   }
 
-  for (const digits of variants) {
-    registrar(jidFromPhone(digits));
+  if (!ordem.length) {
+    throw new Error(
+      "Este número não está registrado no WhatsApp. Confira DDD e o 9º dígito do celular."
+    );
   }
 
-  if (!ordem.length) throw new Error("Telefone inválido.");
   return ordem;
+}
+
+async function prepararDestinoParaEnvio(jid) {
+  try {
+    if (sock?.presenceSubscribe) {
+      await sock.presenceSubscribe(jid);
+      await new Promise((r) => setTimeout(r, 800));
+    }
+  } catch (err) {
+    log(
+      "presenceSubscribe falhou (continuando)",
+      jid,
+      err instanceof Error ? err.message : String(err)
+    );
+  }
+}
+
+async function verificarTelefoneWhatsApp(phoneRaw) {
+  const variants = variantesTelefoneBr(phoneRaw);
+  if (!variants.length) {
+    return { valido: false, existe: false, jids: [], erro: "Telefone inválido." };
+  }
+  if (!sock || !conectado) {
+    return { valido: true, existe: false, jids: [], erro: "WhatsApp não conectado." };
+  }
+
+  try {
+    const consulta = await withTimeout(
+      sock.onWhatsApp(
+        ...variants,
+        ...variants.map((digits) => jidFromPhone(digits)).filter(Boolean)
+      ),
+      15_000,
+      "Timeout ao consultar número."
+    );
+    const jids = (consulta || [])
+      .filter((item) => item?.exists && item?.jid)
+      .map((item) => item.jid);
+    return {
+      valido: true,
+      existe: jids.length > 0,
+      jids,
+      variants,
+      erro: jids.length ? null : "Número não encontrado no WhatsApp.",
+    };
+  } catch (err) {
+    return {
+      valido: true,
+      existe: false,
+      jids: [],
+      variants,
+      erro: err instanceof Error ? err.message : String(err),
+    };
+  }
 }
 
 async function enviarComVariantes(phoneRaw, enviarParaJid) {
@@ -467,17 +529,19 @@ async function confirmarEnvioBaileys(sent, jid) {
   if (!messageId) {
     throw new Error("WhatsApp não retornou ID da mensagem — envio não confirmado.");
   }
-  try {
-    const ack = await aguardarAckEntrega(sent?.key || { id: messageId, remoteJid: jid }, 12_000);
-    return { messageId, jid, ack };
-  } catch (err) {
-    log("Envio aceito pelo messageId (ack tardio)", {
-      jid,
-      messageId,
-      aviso: err instanceof Error ? err.message : String(err),
-    });
-    return { messageId, jid, ack: { status: StatusMensagem.SERVER_ACK, byMessageId: true } };
+
+  const statusImediato = sent?.status ?? sent?.message?.status;
+  if (statusAckOk(statusImediato)) {
+    log("Ack imediato no envio", { jid, messageId, status: statusImediato });
+    return { messageId, jid, ack: { status: statusImediato, imediato: true } };
   }
+
+  const ack = await aguardarAckEntrega(
+    sent?.key || { id: messageId, remoteJid: jid },
+    ACK_TIMEOUT_MS
+  );
+  log("Ack confirmado pelo WhatsApp", { jid, messageId, status: ack.status });
+  return { messageId, jid, ack };
 }
 
 function enfileirarEnvio(fn) {
@@ -956,6 +1020,7 @@ async function enviarMensagem(phone, message) {
         if (!texto) throw new Error("Mensagem vazia.");
 
         const resultado = await enviarComVariantes(phone, async (jid) => {
+          await prepararDestinoParaEnvio(jid);
           const sent = await sock.sendMessage(jid, { text: texto });
           guardarMensagemEnviada(sent);
           return confirmarEnvioBaileys(sent, jid);
@@ -1018,6 +1083,7 @@ async function enviarMidia(phone, body) {
         }
 
         const resultado = await enviarComVariantes(phone, async (jid) => {
+          await prepararDestinoParaEnvio(jid);
           const sent = await sock.sendMessage(jid, content);
           guardarMensagemEnviada(sent);
           return confirmarEnvioBaileys(sent, jid);
@@ -1072,6 +1138,12 @@ const server = http.createServer(async (req, res) => {
         pairingCodeFormatado: conectado ? null : formatarCodigoPareamento(pairingCodeAtual),
         pairingPhoneAlvo,
       });
+    }
+
+    if (req.method === "GET" && url.pathname === "/verify-phone") {
+      const phone = url.searchParams.get("phone") || url.searchParams.get("telefone") || "";
+      const resultado = await verificarTelefoneWhatsApp(phone);
+      return json(res, 200, { ok: true, ...resultado });
     }
 
     if (url.pathname === "/pairing-code" && req.method === "POST") {
