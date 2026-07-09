@@ -28,7 +28,7 @@ function aguardarLayout() {
   });
 }
 
-/** Remove estilos de tela cheia do visualizador — não devem ir para o PDF. */
+/** Remove botões do visualizador — não devem ir para o PDF. */
 function htmlLimpoParaPdf(html: string) {
   return html.replace(/<div class="actions">[\s\S]*?<\/div>\s*/g, "");
 }
@@ -66,27 +66,22 @@ function prepararElementoParaCaptura(el: HTMLElement, doc: Document) {
   doc.body.style.padding = "0";
 }
 
-function adicionarCanvasNoPdf(pdf: jsPDF, canvas: HTMLCanvasElement, umaPagina: boolean) {
+/** Mantém largura total da página; quebra em várias páginas quando necessário. */
+function adicionarCanvasNoPdf(pdf: jsPDF, canvas: HTMLCanvasElement) {
   const larguraPdf = pdf.internal.pageSize.getWidth();
   const alturaPdf = pdf.internal.pageSize.getHeight();
   const alturaImagem = (canvas.height * larguraPdf) / canvas.width;
   const imgData = canvas.toDataURL("image/jpeg", 0.95);
+  const limiarMm = 4;
 
-  if (umaPagina || alturaImagem <= alturaPdf + 0.5) {
-    const escala = Math.min(1, alturaPdf / alturaImagem);
-    const largura = larguraPdf * escala;
-    const altura = alturaImagem * escala;
-    const offsetX = (larguraPdf - largura) / 2;
-    pdf.addImage(imgData, "JPEG", offsetX, 0, largura, altura);
+  if (alturaImagem <= alturaPdf + 0.5) {
+    pdf.addImage(imgData, "JPEG", 0, 0, larguraPdf, alturaImagem);
     return;
   }
 
   let posicaoY = 0;
-  let restante = alturaImagem;
-  const limiarMm = 4;
-
   pdf.addImage(imgData, "JPEG", 0, posicaoY, larguraPdf, alturaImagem);
-  restante -= alturaPdf;
+  let restante = alturaImagem - alturaPdf;
 
   while (restante > limiarMm) {
     posicaoY -= alturaPdf;
@@ -96,7 +91,11 @@ function adicionarCanvasNoPdf(pdf: jsPDF, canvas: HTMLCanvasElement, umaPagina: 
   }
 }
 
-/** Converte HTML de fatura (ou documento similar) em PDF para o visualizador do navegador. */
+function alturaPdfTermicaMm(alturaImagemMm: number) {
+  return Math.min(Math.max(Math.ceil(alturaImagemMm + 4), 58), 400);
+}
+
+/** Converte HTML de fatura (ou documento similar) em PDF — usado apenas no download. */
 export async function gerarPdfDeHtmlDocumento(
   html: string,
   formato: FormatoHtmlPdf = "a4"
@@ -106,53 +105,79 @@ export async function gerarPdfDeHtmlDocumento(
   }
 
   const gerar = async () => {
-  const { iframe, doc } = montarIframeHtml(html, formato);
+    const { iframe, doc } = montarIframeHtml(html, formato);
 
-  await new Promise<void>((resolve) => {
-    if (doc.readyState === "complete") resolve();
-    else iframe.onload = () => resolve();
-  });
-  await aguardarImagens(doc);
-  await aguardarLayout();
+    await new Promise<void>((resolve) => {
+      if (doc.readyState === "complete") resolve();
+      else iframe.onload = () => resolve();
+    });
+    await aguardarImagens(doc);
+    await aguardarLayout();
 
-  doc.querySelectorAll(".actions").forEach((node) => {
-    (node as HTMLElement).style.display = "none";
-  });
-
-  const paginas = Array.from(doc.querySelectorAll(".page")) as HTMLElement[];
-  const alvos = paginas.length ? paginas : [(doc.body as HTMLElement)];
-  const html2canvas = (await import("html2canvas")).default;
-  const { jsPDF } = await import("jspdf");
-
-  const termica = formato === "termica";
-  const pdf = new jsPDF({
-    unit: "mm",
-    format: termica ? [80, 297] : "a4",
-    orientation: "portrait",
-  });
-
-  for (let i = 0; i < alvos.length; i++) {
-    if (i > 0) pdf.addPage();
-    const alvo = alvos[i];
-    prepararElementoParaCaptura(alvo, doc);
-
-    const canvas = await html2canvas(alvo, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      logging: false,
-      backgroundColor: "#ffffff",
-      width: alvo.scrollWidth,
-      height: alvo.scrollHeight,
-      windowWidth: alvo.scrollWidth,
-      windowHeight: alvo.scrollHeight,
+    doc.querySelectorAll(".actions").forEach((node) => {
+      (node as HTMLElement).style.display = "none";
     });
 
-    adicionarCanvasNoPdf(pdf, canvas, alvos.length === 1);
-  }
+    const paginas = Array.from(doc.querySelectorAll(".page")) as HTMLElement[];
+    const alvos = paginas.length ? paginas : [(doc.body as HTMLElement)];
+    const html2canvas = (await import("html2canvas")).default;
+    const { jsPDF } = await import("jspdf");
 
-  iframe.remove();
-  return pdf.output("blob");
+    const termica = formato === "termica";
+
+    if (termica && alvos.length === 1) {
+      const alvo = alvos[0];
+      prepararElementoParaCaptura(alvo, doc);
+      const canvas = await html2canvas(alvo, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+        width: alvo.scrollWidth,
+        height: alvo.scrollHeight,
+        windowWidth: alvo.scrollWidth,
+        windowHeight: alvo.scrollHeight,
+      });
+      const larguraPdf = 80;
+      const alturaImagem = (canvas.height * larguraPdf) / canvas.width;
+      const pdf = new jsPDF({
+        unit: "mm",
+        format: [larguraPdf, alturaPdfTermicaMm(alturaImagem)],
+      });
+      adicionarCanvasNoPdf(pdf, canvas);
+      iframe.remove();
+      return pdf.output("blob");
+    }
+
+    const pdf = new jsPDF({
+      unit: "mm",
+      format: termica ? [80, 297] : "a4",
+      orientation: "portrait",
+    });
+
+    for (let i = 0; i < alvos.length; i++) {
+      if (i > 0) pdf.addPage();
+      const alvo = alvos[i];
+      prepararElementoParaCaptura(alvo, doc);
+
+      const canvas = await html2canvas(alvo, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+        width: alvo.scrollWidth,
+        height: alvo.scrollHeight,
+        windowWidth: alvo.scrollWidth,
+        windowHeight: alvo.scrollHeight,
+      });
+
+      adicionarCanvasNoPdf(pdf, canvas);
+    }
+
+    iframe.remove();
+    return pdf.output("blob");
   };
 
   return Promise.race([
