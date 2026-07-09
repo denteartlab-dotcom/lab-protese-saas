@@ -4,15 +4,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Download, ExternalLink, Printer } from "lucide-react";
 import { Button } from "@/components/ui";
 import { PDF_VIEWER_PAGINA_CLASSES } from "@/lib/pdf-viewer-iframe";
-import { baixarPdfBlob, nomeArquivoFaturaPdf } from "@/lib/pdf-viewer";
+import { baixarPdfBlob, imprimirPdfBlob, nomeArquivoFaturaPdf } from "@/lib/pdf-viewer";
 import { gerarPdfDeHtmlDocumento } from "@/lib/html-para-pdf";
+import { FATURA_A4_ALTURA_MM, FATURA_A4_LARGURA_MM } from "@/lib/fatura-modelo-layout";
 import type { FaturaImpressaoSessao } from "@/lib/fatura-impressao-sessao";
 
 const IFRAME_ID = "fatura-html-viewer";
 
 type Props = FaturaImpressaoSessao;
 
-/** Visualizador de fatura — renderiza o HTML direto (igual ao preview em Configurações). */
+/** Visualizador de fatura — preview em largura A4; impressão usa o mesmo PDF do download. */
 export function FaturaPdfViewer({
   html,
   numeroFatura,
@@ -22,37 +23,53 @@ export function FaturaPdfViewer({
   imprimirAoCarregar = false,
 }: Props) {
   const [iframePronto, setIframePronto] = useState(false);
-  const [gerandoDownload, setGerandoDownload] = useState(false);
+  const [gerandoPdf, setGerandoPdf] = useState(false);
   const [erro, setErro] = useState("");
   const imprimirPendenteRef = useRef(imprimirAoCarregar);
   const nomeArquivoPdf = nomeArquivoFaturaPdf(numeroFatura, clienteNome);
   const titulo = clienteNome.trim()
     ? `Fatura ${numeroFatura} — ${clienteNome.trim()}`
     : `Fatura ${numeroFatura}`;
+  const termica = formato === "termica";
+  const larguraPreviewMm = termica ? 80 : FATURA_A4_LARGURA_MM;
+  const alturaPreviewMm = termica ? 297 : FATURA_A4_ALTURA_MM;
 
-  const imprimirFatura = useCallback(() => {
-    const iframe = document.getElementById(IFRAME_ID) as HTMLIFrameElement | null;
-    try {
-      iframe?.contentWindow?.focus();
-      iframe?.contentWindow?.print();
-    } catch {
-      /* ignorar */
-    }
-  }, []);
+  const gerarPdfFatura = useCallback(async () => {
+    return gerarPdfDeHtmlDocumento(html, formato);
+  }, [html, formato]);
 
-  useEffect(() => {
-    if (!iframePronto || !imprimirPendenteRef.current) return;
-    imprimirPendenteRef.current = false;
-    const timer = window.setTimeout(imprimirFatura, 400);
-    return () => window.clearTimeout(timer);
-  }, [iframePronto, imprimirFatura]);
-
-  async function baixarPdf() {
-    if (gerandoDownload) return;
-    setGerandoDownload(true);
+  const imprimirFatura = useCallback(async () => {
+    if (gerandoPdf) return;
+    setGerandoPdf(true);
     setErro("");
     try {
-      const blob = await gerarPdfDeHtmlDocumento(html, formato);
+      const blob = await gerarPdfFatura();
+      await imprimirPdfBlob(blob, titulo);
+    } catch (err) {
+      console.error("imprimir PDF fatura", err);
+      setErro(
+        err instanceof Error ? err.message : "Não foi possível gerar o PDF para impressão."
+      );
+    } finally {
+      setGerandoPdf(false);
+    }
+  }, [gerandoPdf, gerarPdfFatura, titulo]);
+
+  useEffect(() => {
+    if (!imprimirPendenteRef.current) return;
+    imprimirPendenteRef.current = false;
+    const timer = window.setTimeout(() => {
+      void imprimirFatura();
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [imprimirFatura]);
+
+  async function baixarPdf() {
+    if (gerandoPdf) return;
+    setGerandoPdf(true);
+    setErro("");
+    try {
+      const blob = await gerarPdfFatura();
       baixarPdfBlob(blob, nomeArquivoPdf);
     } catch (err) {
       console.error("baixar PDF fatura", err);
@@ -60,7 +77,7 @@ export function FaturaPdfViewer({
         err instanceof Error ? err.message : "Não foi possível gerar o PDF para download."
       );
     } finally {
-      setGerandoDownload(false);
+      setGerandoPdf(false);
     }
   }
 
@@ -91,20 +108,21 @@ export function FaturaPdfViewer({
                 type="button"
                 variant="outline"
                 className="gap-1.5 border-slate-500 bg-transparent text-white"
-                onClick={baixarPdf}
-                disabled={gerandoDownload}
+                onClick={() => void baixarPdf()}
+                disabled={gerandoPdf}
               >
                 <Download className="h-3.5 w-3.5" />
-                {gerandoDownload ? "Gerando..." : "Baixar PDF"}
+                {gerandoPdf ? "Gerando..." : "Baixar PDF"}
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 className="gap-1.5 border-slate-500 bg-transparent text-white"
-                onClick={imprimirFatura}
+                onClick={() => void imprimirFatura()}
+                disabled={gerandoPdf}
               >
                 <Printer className="h-3.5 w-3.5" />
-                Imprimir
+                {gerandoPdf ? "Gerando..." : "Imprimir"}
               </Button>
               <Button
                 type="button"
@@ -129,14 +147,30 @@ export function FaturaPdfViewer({
         </div>
       ) : null}
 
-      <div className="relative min-h-0 flex-1 overflow-hidden bg-[#525659]">
-        <iframe
-          id={IFRAME_ID}
-          title={titulo}
-          srcDoc={html}
-          onLoad={() => setIframePronto(true)}
-          className="absolute inset-0 h-full w-full border-0 bg-[#525659]"
-        />
+      <div className="relative min-h-0 flex-1 overflow-auto bg-[#525659]">
+        <div className="flex min-h-full justify-center py-4">
+          <div
+            className="shrink-0"
+            style={{
+              width: `${larguraPreviewMm}mm`,
+              maxWidth: "100%",
+            }}
+          >
+            <iframe
+              id={IFRAME_ID}
+              title={titulo}
+              srcDoc={html}
+              onLoad={() => setIframePronto(true)}
+              className="w-full border-0 bg-white shadow-lg"
+              style={{
+                width: "100%",
+                aspectRatio: `${larguraPreviewMm} / ${alturaPreviewMm}`,
+                minHeight: termica ? "480px" : "720px",
+                display: "block",
+              }}
+            />
+          </div>
+        </div>
         {!iframePronto ? (
           <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-300">
             Carregando fatura...

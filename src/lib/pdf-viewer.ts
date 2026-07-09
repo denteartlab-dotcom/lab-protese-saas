@@ -104,6 +104,61 @@ export function baixarPdfBlob(blob: Blob, nomeArquivo: string) {
   agendarRevogarUrl(url);
 }
 
+/** Abre o diálogo de impressão do navegador com o mesmo PDF gerado para download. */
+export function imprimirPdfBlob(blob: Blob, titulo = "Documento"): Promise<void> {
+  if (typeof window === "undefined") {
+    return Promise.reject(new Error("Impressão disponível apenas no navegador."));
+  }
+
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const iframe = document.createElement("iframe");
+    iframe.style.cssText =
+      "position:fixed;left:0;top:0;width:0;height:0;border:0;opacity:0;pointer-events:none;";
+    iframe.title = titulo;
+    document.body.appendChild(iframe);
+
+    let finalizado = false;
+    const limpar = () => {
+      if (finalizado) return;
+      finalizado = true;
+      window.setTimeout(() => {
+        iframe.remove();
+        URL.revokeObjectURL(url);
+      }, 500);
+      resolve();
+    };
+
+    iframe.onload = () => {
+      try {
+        const janela = iframe.contentWindow;
+        if (!janela) {
+          iframe.remove();
+          URL.revokeObjectURL(url);
+          reject(new Error("Não foi possível abrir o PDF para impressão."));
+          return;
+        }
+        janela.addEventListener("afterprint", limpar, { once: true });
+        janela.focus();
+        janela.print();
+        window.setTimeout(limpar, 120_000);
+      } catch (err) {
+        iframe.remove();
+        URL.revokeObjectURL(url);
+        reject(err instanceof Error ? err : new Error("Falha ao imprimir o PDF."));
+      }
+    };
+
+    iframe.onerror = () => {
+      iframe.remove();
+      URL.revokeObjectURL(url);
+      reject(new Error("Não foi possível carregar o PDF para impressão."));
+    };
+
+    iframe.src = url;
+  });
+}
+
 export async function baixarPdfUrl(url: string, nomeArquivo: string) {
   const res = await fetch(url);
   const blob = await res.blob();
