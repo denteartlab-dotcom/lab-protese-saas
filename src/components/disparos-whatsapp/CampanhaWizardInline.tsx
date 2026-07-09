@@ -23,6 +23,14 @@ import {
   estimarDuracaoDisparo,
   formatarTempoRestante,
 } from "@/lib/whatsapp-disparos/mensagem-variaveis";
+import {
+  DISPARO_INTERVALO_MAX_SEG,
+  DISPARO_INTERVALO_MIN_SEG,
+  DISPARO_INTERVALO_PADRAO_SEG,
+  DISPARO_INTERVALO_STEP_SEG,
+  MARCAS_INTERVALO_DISPARO_SEG,
+  formatarIntervaloDisparo,
+} from "@/lib/whatsapp-disparos/disparo-intervalo";
 import type { ContatoImportado } from "@/lib/whatsapp-disparos/telefone-br";
 
 type ContatoFila = {
@@ -83,10 +91,10 @@ export function CampanhaWizardInline({
   );
   const [contatos, setContatos] = useState<ContatoImportado[]>([]);
   const [resumo, setResumo] = useState({ total: 0, validos: 0, invalidos: 0, duplicados: 0 });
-  const [intervalo, setIntervalo] = useState(15);
+  const [intervalo, setIntervalo] = useState(DISPARO_INTERVALO_PADRAO_SEG);
   const [atrasoAleatorio, setAtrasoAleatorio] = useState(true);
   const [filtroDuplicados, setFiltroDuplicados] = useState(true);
-  const [limiteHora, setLimiteHora] = useState("500");
+  const [limiteHora, setLimiteHora] = useState("30");
   const [agendar, setAgendar] = useState(false);
   const [agendadoPara, setAgendadoPara] = useState("");
   const [arquivosImportados, setArquivosImportados] = useState<string[]>([]);
@@ -577,21 +585,22 @@ export function CampanhaWizardInline({
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
             <div className="md:col-span-2">
               <label className="mb-2 block text-xs font-medium text-slate-600">
-                Intervalo entre mensagens: <strong className="text-indigo-600">{intervalo}s</strong>
+                Intervalo entre mensagens:{" "}
+                <strong className="text-indigo-600">{formatarIntervaloDisparo(intervalo)}</strong>
               </label>
               <input
                 type="range"
-                min={5}
-                max={30}
-                step={5}
+                min={DISPARO_INTERVALO_MIN_SEG}
+                max={DISPARO_INTERVALO_MAX_SEG}
+                step={DISPARO_INTERVALO_STEP_SEG}
                 value={intervalo}
                 onChange={(e) => setIntervalo(Number(e.target.value))}
                 className="h-2 w-full cursor-pointer accent-indigo-600"
               />
               <div className="mt-1.5 flex justify-between text-[10px] text-slate-400">
-                {[5, 10, 15, 20, 30].map((v) => (
+                {MARCAS_INTERVALO_DISPARO_SEG.map((v) => (
                   <span key={v} className={intervalo === v ? "font-semibold text-indigo-600" : ""}>
-                    {v}s
+                    {formatarIntervaloDisparo(v)}
                   </span>
                 ))}
               </div>
@@ -618,10 +627,10 @@ export function CampanhaWizardInline({
             </div>
             <div className="space-y-3">
               <Select label="Limite por hora" value={limiteHora} onChange={(e) => setLimiteHora(e.target.value)}>
-                <option value="100">100 mensagens</option>
-                <option value="250">250 mensagens</option>
-                <option value="500">500 mensagens</option>
-                <option value="1000">1000 mensagens</option>
+                <option value="12">12 mensagens</option>
+                <option value="24">24 mensagens</option>
+                <option value="30">30 mensagens</option>
+                <option value="60">60 mensagens</option>
                 <option value="0">Sem limite</option>
               </Select>
               <label className="flex items-center gap-2 text-xs text-slate-600">
@@ -645,7 +654,8 @@ export function CampanhaWizardInline({
           </div>
           <p className="mt-4 rounded-lg bg-indigo-50 px-4 py-2.5 text-xs text-indigo-900">
             Tempo estimado do disparo: <strong>{tempoEstimado}</strong> para{" "}
-            {resumo.validos.toLocaleString("pt-BR")} contatos válidos.
+            {resumo.validos.toLocaleString("pt-BR")} contatos válidos. Intervalos maiores reduzem risco de
+            bloqueio pelo WhatsApp.
           </p>
         </div>
       </div>

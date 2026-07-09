@@ -51,7 +51,7 @@ export function estimarDuracaoDisparo(
 ) {
   if (totalContatos <= 0) return 0;
   const base = intervaloSegundos * totalContatos;
-  const extra = atrasoAleatorio ? Math.floor(totalContatos * 2.5) : 0;
+  const extra = atrasoAleatorio ? Math.floor(totalContatos * intervaloSegundos * 0.5) : 0;
   return base + extra;
 }
 

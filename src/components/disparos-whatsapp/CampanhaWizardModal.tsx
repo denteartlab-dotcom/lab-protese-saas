@@ -4,6 +4,14 @@ import { useCallback, useState } from "react";
 import { Button, Input, Modal, Select, Textarea } from "@/components/ui";
 import { WhatsAppPreview } from "@/components/disparos-whatsapp/WhatsAppPreview";
 import { VARIAVEIS_MENSAGEM, estimarDuracaoDisparo, formatarTempoRestante } from "@/lib/whatsapp-disparos/mensagem-variaveis";
+import {
+  DISPARO_INTERVALO_MAX_SEG,
+  DISPARO_INTERVALO_MIN_SEG,
+  DISPARO_INTERVALO_PADRAO_SEG,
+  DISPARO_INTERVALO_STEP_SEG,
+  MARCAS_INTERVALO_DISPARO_SEG,
+  formatarIntervaloDisparo,
+} from "@/lib/whatsapp-disparos/disparo-intervalo";
 import type { ContatoImportado } from "@/lib/whatsapp-disparos/telefone-br";
 import { FileAudio, FileImage, FileText, FileVideo, Upload } from "lucide-react";
 
@@ -25,9 +33,9 @@ export function CampanhaWizardModal({ open, onClose, onSalvo, conectado }: Props
   );
   const [contatos, setContatos] = useState<ContatoImportado[]>([]);
   const [resumo, setResumo] = useState({ total: 0, validos: 0, invalidos: 0, duplicados: 0 });
-  const [intervalo, setIntervalo] = useState(10);
+  const [intervalo, setIntervalo] = useState(DISPARO_INTERVALO_PADRAO_SEG);
   const [atrasoAleatorio, setAtrasoAleatorio] = useState(true);
-  const [limiteHora, setLimiteHora] = useState<string>("500");
+  const [limiteHora, setLimiteHora] = useState<string>("30");
   const [agendar, setAgendar] = useState(false);
   const [agendadoPara, setAgendadoPara] = useState("");
   const [anexo, setAnexo] = useState<{
@@ -323,20 +331,20 @@ export function CampanhaWizardModal({ open, onClose, onSalvo, conectado }: Props
         <div className="space-y-5">
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">
-              Intervalo entre mensagens: {intervalo}s
+              Intervalo entre mensagens: {formatarIntervaloDisparo(intervalo)}
             </label>
             <input
               type="range"
-              min={5}
-              max={30}
-              step={5}
+              min={DISPARO_INTERVALO_MIN_SEG}
+              max={DISPARO_INTERVALO_MAX_SEG}
+              step={DISPARO_INTERVALO_STEP_SEG}
               value={intervalo}
               onChange={(e) => setIntervalo(Number(e.target.value))}
               className="w-full"
             />
             <div className="mt-1 flex justify-between text-xs text-slate-500">
-              {[5, 10, 15, 20, 30].map((v) => (
-                <span key={v}>{v}s</span>
+              {MARCAS_INTERVALO_DISPARO_SEG.map((v) => (
+                <span key={v}>{formatarIntervaloDisparo(v)}</span>
               ))}
             </div>
           </div>
@@ -349,10 +357,10 @@ export function CampanhaWizardModal({ open, onClose, onSalvo, conectado }: Props
             <option value="nao">Não</option>
           </Select>
           <Select label="Limite por hora" value={limiteHora} onChange={(e) => setLimiteHora(e.target.value)}>
-            <option value="100">100</option>
-            <option value="250">250</option>
-            <option value="500">500</option>
-            <option value="1000">1000</option>
+            <option value="12">12</option>
+            <option value="24">24</option>
+            <option value="30">30</option>
+            <option value="60">60</option>
             <option value="0">Sem limite</option>
           </Select>
           <label className="flex items-center gap-2 text-sm">

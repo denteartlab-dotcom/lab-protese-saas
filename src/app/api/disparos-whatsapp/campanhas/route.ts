@@ -6,6 +6,10 @@ import {
   listarCampanhasWhatsapp,
 } from "@/lib/whatsapp-disparos/campanha-servidor";
 import type { ContatoImportado } from "@/lib/whatsapp-disparos/telefone-br";
+import {
+  DISPARO_INTERVALO_MAX_SEG,
+  DISPARO_INTERVALO_MIN_SEG,
+} from "@/lib/whatsapp-disparos/disparo-intervalo";
 
 const contatoSchema = z.object({
   nome: z.string(),
@@ -24,7 +28,7 @@ const schema = z.object({
   nome: z.string().min(1).max(120),
   mensagem: z.string().min(1).max(4000),
   origemContatos: z.enum(["pacientes", "clientes", "excel", "csv"]),
-  intervaloSegundos: z.number().int().min(5).max(30),
+  intervaloSegundos: z.number().int().min(DISPARO_INTERVALO_MIN_SEG).max(DISPARO_INTERVALO_MAX_SEG),
   atrasoAleatorio: z.boolean(),
   limitePorHora: z.number().int().positive().nullable(),
   agendadoPara: z.string().datetime().nullable().optional(),

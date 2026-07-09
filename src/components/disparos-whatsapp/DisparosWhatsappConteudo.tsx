@@ -28,6 +28,7 @@ import {
   estimarDuracaoDisparo,
   formatarTempoRestante,
 } from "@/lib/whatsapp-disparos/mensagem-variaveis";
+import { formatarIntervaloDisparo } from "@/lib/whatsapp-disparos/disparo-intervalo";
 import type { CampanhaPublica } from "@/lib/whatsapp-disparos/campanha-servidor";
 import type { DiagnosticoWhatsapp } from "@/lib/whatsapp-disparos/diagnostico-conexao";
 
@@ -964,7 +965,9 @@ export function DisparosWhatsappConteudo() {
             <p>
               Velocidade:{" "}
               <strong className="text-slate-700">
-                {emDisparo ? `${campanhaAtiva.intervaloSegundos} seg` : "—"} por mensagem
+                {emDisparo
+                  ? `${formatarIntervaloDisparo(campanhaAtiva.intervaloSegundos)} por mensagem`
+                  : "—"}
               </strong>
             </p>
             {campanhaAtiva ? (
