@@ -130,7 +130,6 @@ export function DisparosWhatsappConteudo() {
   const [apiNaoAutorizada, setApiNaoAutorizada] = useState(false);
   const [diagnostico, setDiagnostico] = useState<DiagnosticoWhatsapp | null>(null);
   const ultimoQrRef = useRef<string | null>(null);
-  const qrModalAbertoRef = useRef(false);
 
   const toast = useCallback((tipo: ToastDisparo["tipo"], mensagem: string) => {
     setToasts((prev) => [...prev, { id: `${Date.now()}-${Math.random()}`, tipo, mensagem }]);
@@ -154,7 +153,8 @@ export function DisparosWhatsappConteudo() {
         setQrImagem(img);
       }
       setAguardandoQr(false);
-      if (opts?.forcarModal || !qrModalAbertoRef.current) {
+      // Só abre o modal quando o usuário clica em "Gerar QR" — polling/socket não reabrem.
+      if (opts?.forcarModal) {
         setQrModalAberto(true);
       }
       return true;
@@ -163,10 +163,6 @@ export function DisparosWhatsappConteudo() {
       return false;
     }
   }, [dashboard?.conexao?.conectado, qrImagem]);
-
-  useEffect(() => {
-    qrModalAbertoRef.current = qrModalAberto;
-  }, [qrModalAberto]);
 
   const carregarDiagnostico = useCallback(async () => {
     try {
@@ -192,14 +188,17 @@ export function DisparosWhatsappConteudo() {
         setApiNaoAutorizada(false);
         const dash = (await dashRes.json()) as DashboardData;
         if (dash?.conexao) {
-          setDashboard(dash);
+          setDashboard((prev) => ({
+            ...dash,
+            metricas: prev?.metricas ?? dash.metricas,
+          }));
           if (dash.conexao.qr) {
             await aplicarQr(dash.conexao.qr);
           } else if (dash.conexao.conectado) {
             setQrImagem(null);
             setAguardandoQr(false);
-          } else if (dash.conexao.status !== "aguardando_qr") {
-            setQrImagem(null);
+            setQrModalAberto(false);
+            ultimoQrRef.current = null;
           }
         }
       } else if (dashRes.status === 401 || campRes.status === 401) {
@@ -234,10 +233,10 @@ export function DisparosWhatsappConteudo() {
     void recarregar();
     void carregarDiagnostico();
     if (apiNaoAutorizada) return;
-    const intervalo = aguardandoQr ? 4000 : 10000;
+    const intervalo = aguardandoQr ? 5000 : 30000;
     const timer = window.setInterval(() => {
       void recarregar();
-      void carregarDiagnostico();
+      if (!aguardandoQr) void carregarDiagnostico();
     }, intervalo);
     return () => window.clearInterval(timer);
   }, [recarregar, carregarDiagnostico, aguardandoQr, apiNaoAutorizada]);
@@ -269,6 +268,7 @@ export function DisparosWhatsappConteudo() {
       if (payload.conectado) {
         setAguardandoQr(false);
         setQrImagem(null);
+        setQrModalAberto(false);
         ultimoQrRef.current = null;
       } else if (payload.qr) {
         void aplicarQr(payload.qr);
@@ -1009,6 +1009,10 @@ export function DisparosWhatsappConteudo() {
           ) : null}
           <p className="text-center text-sm text-slate-600">
             No WhatsApp do celular: <strong>Menu → Aparelhos conectados → Conectar aparelho</strong>
+          </p>
+          <p className="text-center text-xs text-slate-400">
+            Pode fechar este modal — o QR continua visível no card de conexão. Prefira{" "}
+            <strong>Conectar com código</strong> se o QR falhar.
           </p>
           <Button variant="outline" onClick={() => setQrModalAberto(false)}>
             Fechar
