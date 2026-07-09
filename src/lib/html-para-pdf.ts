@@ -30,9 +30,7 @@ function aguardarLayout() {
 
 /** Remove estilos de tela cheia do visualizador — não devem ir para o PDF. */
 function htmlLimpoParaPdf(html: string) {
-  return html
-    .replace(/@media screen\{[^}]*\}/g, "")
-    .replace(/<div class="actions">[\s\S]*?<\/div>\s*/g, "");
+  return html.replace(/<div class="actions">[\s\S]*?<\/div>\s*/g, "");
 }
 
 function montarIframeHtml(html: string, formato: FormatoHtmlPdf) {
