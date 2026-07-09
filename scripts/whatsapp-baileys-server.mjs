@@ -81,10 +81,10 @@ let falhasConexaoSeguidas = 0;
 let desconectadoDesde = Date.now();
 let ultimoWatchdogEm = 0;
 
-const ACK_TIMEOUT_MS = Number(process.env.WHATSAPP_ACK_TIMEOUT_MS || 45_000);
+const ACK_TIMEOUT_MS = Number(process.env.WHATSAPP_ACK_TIMEOUT_MS || 12_000);
 const QR_VALIDADE_MS = Number(process.env.WHATSAPP_QR_VALIDADE_MS || 45_000);
 const WARMUP_MS = Number(process.env.WHATSAPP_WARMUP_MS || 12_000);
-const ENVIO_TIMEOUT_MS = Number(process.env.WHATSAPP_ENVIO_TIMEOUT_MS || 90_000);
+const ENVIO_TIMEOUT_MS = Number(process.env.WHATSAPP_ENVIO_TIMEOUT_MS || 65_000);
 const pendentesAck = new Map();
 const messageStore = new Map();
 let filaEnvio = Promise.resolve();
@@ -291,10 +291,11 @@ async function resolverJidDestino(phoneRaw) {
 async function jidsParaEnvio(phoneRaw) {
   const variants = variantesTelefoneBr(phoneRaw);
   if (!variants.length) throw new Error("Telefone inválido.");
-  if (!sock || !conectado) throw new Error("WhatsApp não conectado.");
 
   const ordem = [];
   const vistos = new Set();
+  let consultaFalhou = false;
+  let encontrouNoWhatsapp = false;
 
   const registrar = (jid) => {
     if (!jid || vistos.has(jid)) return;
@@ -302,30 +303,43 @@ async function jidsParaEnvio(phoneRaw) {
     ordem.push(jid);
   };
 
-  try {
-    const consulta = await withTimeout(
-      sock.onWhatsApp(
-        ...variants,
-        ...variants.map((digits) => jidFromPhone(digits)).filter(Boolean)
-      ),
-      15_000,
-      "Timeout ao consultar número no WhatsApp."
-    );
-    for (const item of consulta || []) {
-      if (item?.exists && item?.jid) registrar(item.jid);
+  if (sock && conectado) {
+    try {
+      const consulta = await withTimeout(
+        sock.onWhatsApp(
+          ...variants,
+          ...variants.map((digits) => jidFromPhone(digits)).filter(Boolean)
+        ),
+        12_000,
+        "Timeout ao consultar número no WhatsApp."
+      );
+      for (const item of consulta || []) {
+        if (item?.exists && item?.jid) {
+          encontrouNoWhatsapp = true;
+          registrar(item.jid);
+        }
+      }
+    } catch (err) {
+      consultaFalhou = true;
+      log(
+        "onWhatsApp indisponível — tentando JIDs diretos",
+        err instanceof Error ? err.message : String(err)
+      );
     }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    log("Falha ao validar número no WhatsApp:", msg);
-    throw new Error(`Não foi possível validar o número no WhatsApp: ${msg}`);
   }
 
-  if (!ordem.length) {
+  if (!encontrouNoWhatsapp && !consultaFalhou && sock && conectado) {
     throw new Error(
       "Este número não está registrado no WhatsApp. Confira DDD e o 9º dígito do celular."
     );
   }
 
+  for (const digits of variants) {
+    registrar(jidFromPhone(digits));
+  }
+
+  if (!ordem.length) throw new Error("Telefone inválido.");
+  log("JIDs para envio", { phone: phoneRaw, jids: ordem });
   return ordem;
 }
 
@@ -333,14 +347,10 @@ async function prepararDestinoParaEnvio(jid) {
   try {
     if (sock?.presenceSubscribe) {
       await sock.presenceSubscribe(jid);
-      await new Promise((r) => setTimeout(r, 800));
+      await new Promise((r) => setTimeout(r, 400));
     }
-  } catch (err) {
-    log(
-      "presenceSubscribe falhou (continuando)",
-      jid,
-      err instanceof Error ? err.message : String(err)
-    );
+  } catch {
+    /* ignora */
   }
 }
 
@@ -536,12 +546,25 @@ async function confirmarEnvioBaileys(sent, jid) {
     return { messageId, jid, ack: { status: statusImediato, imediato: true } };
   }
 
-  const ack = await aguardarAckEntrega(
-    sent?.key || { id: messageId, remoteJid: jid },
-    ACK_TIMEOUT_MS
-  );
-  log("Ack confirmado pelo WhatsApp", { jid, messageId, status: ack.status });
-  return { messageId, jid, ack };
+  try {
+    const ack = await aguardarAckEntrega(
+      sent?.key || { id: messageId, remoteJid: jid },
+      ACK_TIMEOUT_MS
+    );
+    log("Ack confirmado pelo WhatsApp", { jid, messageId, status: ack.status });
+    return { messageId, jid, ack };
+  } catch (err) {
+    log("Envio aceito pelo messageId (ack tardio)", {
+      jid,
+      messageId,
+      aviso: err instanceof Error ? err.message : String(err),
+    });
+    return {
+      messageId,
+      jid,
+      ack: { status: StatusMensagem.SERVER_ACK, byMessageId: true },
+    };
+  }
 }
 
 function enfileirarEnvio(fn) {
@@ -903,7 +926,7 @@ async function startBaileys() {
       printQRInTerminal: false,
       syncFullHistory: false,
       shouldSyncHistoryMessage: () => false,
-      markOnlineOnConnect: true,
+      markOnlineOnConnect: false,
       generateHighQualityLinkPreview: false,
       browser: browserWhatsApp(),
       connectTimeoutMs: 90_000,
@@ -1021,9 +1044,11 @@ async function enviarMensagem(phone, message) {
 
         const resultado = await enviarComVariantes(phone, async (jid) => {
           await prepararDestinoParaEnvio(jid);
+          log("Enviando texto", { jid, phone });
           const sent = await sock.sendMessage(jid, { text: texto });
           guardarMensagemEnviada(sent);
-          return confirmarEnvioBaileys(sent, jid);
+          const confirmado = await confirmarEnvioBaileys(sent, jid);
+          return confirmado;
         });
 
         log("Mensagem enviada", {

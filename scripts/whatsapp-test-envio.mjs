@@ -68,8 +68,9 @@ try {
     console.log("→ Corrija o número (DDD + 9 dígitos) antes de enviar.");
     process.exit(1);
   }
-} catch {
-  console.error("\nBaileys OFFLINE. Rode: pm2 restart lab-protese-whatsapp\n");
+} catch (err) {
+  console.error("\nBaileys OFFLINE ou erro de status:", err instanceof Error ? err.message : err);
+  console.error("Rode: pm2 restart lab-protese-whatsapp\n");
   process.exit(1);
 }
 
@@ -78,7 +79,7 @@ try {
     method: "POST",
     headers,
     body: JSON.stringify({ phone, message }),
-    signal: AbortSignal.timeout(95_000),
+    signal: AbortSignal.timeout(75_000),
   });
   const data = await res.json();
   if (!res.ok || !data.ok) {
