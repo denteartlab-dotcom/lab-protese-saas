@@ -16,12 +16,19 @@ import {
   modeloPadraoParaFormatoFatura,
   modelosFaturaPorFormato,
   nomeModeloFatura,
+  resolverLayoutFaturaImpressao,
   sincronizarConfiguracoesFaturasDoServidor,
   type ConfiguracoesFaturas,
   type ModeloFaturaId,
 } from "@/lib/configuracoes-faturas";
+import type { DadosFaturaImpressao } from "@/lib/fatura-impressao-html";
 import { sincronizarConfigLaboratorioDoServidor } from "@/lib/lab-config-sync";
 import { gerarPdfDeHtmlDocumento } from "@/lib/html-para-pdf";
+import {
+  faturaSuportaPdfNativo,
+  gerarPdfFaturaImpressao,
+} from "@/lib/pdf-fatura-impressao";
+import { carregarConfigLaboratorio } from "@/lib/configuracoes-lab";
 import { nomeArquivoFaturaPdf, prepararAbaPdf } from "@/lib/pdf-viewer";
 import { abrirFaturaNoVisualizador } from "@/lib/fatura-impressao-sessao";
 import { cn } from "@/lib/utils";
@@ -42,6 +49,10 @@ type Props = {
   clienteTelefone?: string | null;
   valorFatura?: number;
   gerarHtml: (opcoes: OpcoesImpressaoFaturaModal, config: ConfiguracoesFaturas) => string;
+  montarDados?: (
+    opcoes: OpcoesImpressaoFaturaModal,
+    config: ConfiguracoesFaturas
+  ) => DadosFaturaImpressao;
 };
 
 function ocultarAcoesHtml(html: string) {
@@ -67,6 +78,7 @@ export function ImprimirFaturaModal({
   clienteTelefone,
   valorFatura,
   gerarHtml,
+  montarDados,
 }: Props) {
   const [mounted, setMounted] = useState(false);
   const [config, setConfig] = useState<ConfiguracoesFaturas>(() =>
@@ -159,7 +171,10 @@ export function ImprimirFaturaModal({
       recarregarConfig(),
       sincronizarConfigLaboratorioDoServidor().catch(() => undefined),
     ]);
-    return ocultarAcoesHtml(htmlPreparado(cfgFaturas));
+    return {
+      html: ocultarAcoesHtml(htmlPreparado(cfgFaturas)),
+      cfgFaturas,
+    };
   }
 
   function modeloParaFormato(
@@ -199,13 +214,29 @@ export function ImprimirFaturaModal({
     return `Fatura — Folha A4 (${modeloNome})`;
   }
 
+  async function gerarPdfFaturaBlob() {
+    const { html, cfgFaturas } = await prepararHtmlImpressao();
+    const opcoes = opcoesAtuais();
+    if (montarDados && faturaSuportaPdfNativo(modelo, formato)) {
+      await sincronizarConfigLaboratorioDoServidor().catch(() => undefined);
+      return gerarPdfFaturaImpressao({
+        dados: montarDados(opcoes, cfgFaturas),
+        cfgLab: carregarConfigLaboratorio(),
+        layout: resolverLayoutFaturaImpressao(cfgFaturas, modelo),
+        modelo,
+      });
+    }
+    return gerarPdfDeHtmlDocumento(html, formato);
+  }
+
   async function abrirNoVisualizador(imprimirAoCarregar: boolean) {
     if (gerandoPdf || sincronizando) return;
 
     setGerandoPdf(true);
     const janela = prepararAbaPdf();
     try {
-      const html = await prepararHtmlImpressao();
+      const { html, cfgFaturas } = await prepararHtmlImpressao();
+      const opcoes = opcoesAtuais();
       await abrirFaturaNoVisualizador(
         {
           html,
@@ -213,6 +244,8 @@ export function ImprimirFaturaModal({
           clienteNome,
           subtitulo: subtituloFatura(),
           formato,
+          modelo,
+          dados: montarDados?.(opcoes, cfgFaturas),
         },
         { janela, imprimir: imprimirAoCarregar }
       );
@@ -249,8 +282,7 @@ export function ImprimirFaturaModal({
 
     setEnviandoWhatsapp(true);
     try {
-      const html = await prepararHtmlImpressao();
-      const blob = await gerarPdfDeHtmlDocumento(html, formato);
+      const blob = await gerarPdfFaturaBlob();
       const publicUrl = await publicarFaturaPublica({
         blob,
         numeroFatura,

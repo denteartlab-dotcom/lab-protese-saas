@@ -1,4 +1,6 @@
 import { analisarCaminhoApp, montarCaminhoAppComSlug } from "@/lib/rotas-app";
+import type { ModeloFaturaId } from "@/lib/configuracoes-faturas";
+import type { DadosFaturaImpressao } from "@/lib/fatura-impressao-html";
 import type { FormatoHtmlPdf } from "@/lib/html-para-pdf";
 
 export type FaturaImpressaoSessao = {
@@ -8,6 +10,9 @@ export type FaturaImpressaoSessao = {
   subtitulo: string;
   formato: FormatoHtmlPdf;
   imprimirAoCarregar?: boolean;
+  /** Dados estruturados para PDF nativo (mesma base da OS). */
+  dados?: DadosFaturaImpressao;
+  modelo?: ModeloFaturaId;
 };
 
 export function criarIdFaturaImpressao() {

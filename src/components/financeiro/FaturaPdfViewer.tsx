@@ -6,10 +6,23 @@ import { Button } from "@/components/ui";
 import { PDF_VIEWER_PAGINA_CLASSES } from "@/lib/pdf-viewer-iframe";
 import {
   baixarPdfBlob,
+  criarUrlPdfNomeada,
   nomeArquivoFaturaPdf,
   prepararAbaPdf,
+  visualizarPdfUrl,
 } from "@/lib/pdf-viewer";
+import { carregarConfigLaboratorio } from "@/lib/configuracoes-lab";
+import { sincronizarConfigLaboratorioDoServidor } from "@/lib/lab-config-sync";
+import {
+  carregarConfiguracoesFaturas,
+  resolverLayoutFaturaImpressao,
+  sincronizarConfiguracoesFaturasDoServidor,
+} from "@/lib/configuracoes-faturas";
 import { gerarPdfDeHtmlDocumento } from "@/lib/html-para-pdf";
+import {
+  faturaSuportaPdfNativo,
+  gerarPdfFaturaImpressao,
+} from "@/lib/pdf-fatura-impressao";
 import type { FaturaImpressaoSessao } from "@/lib/fatura-impressao-sessao";
 
 const IFRAME_ID = "fatura-pdf-viewer";
@@ -45,11 +58,14 @@ export function FaturaPdfViewer({
   subtitulo,
   formato,
   imprimirAoCarregar = false,
+  dados,
+  modelo,
 }: Props) {
   const [documentoPronto, setDocumentoPronto] = useState(false);
   const [gerandoDownload, setGerandoDownload] = useState(false);
   const [erro, setErro] = useState("");
   const htmlUrlRef = useRef("");
+  const pdfBlobRef = useRef<Blob | null>(null);
   const autoImpressaoDisparadaRef = useRef(false);
 
   const nomeArquivoPdf = nomeArquivoFaturaPdf(numeroFatura, clienteNome);
@@ -115,8 +131,28 @@ export function FaturaPdfViewer({
   async function baixarPdf() {
     if (gerandoDownload) return;
     setGerandoDownload(true);
+    setErro("");
     try {
-      const blob = await gerarPdfDeHtmlDocumento(htmlRef.current, formato);
+      let blob = pdfBlobRef.current;
+      if (!blob) {
+        if (dados && modelo && faturaSuportaPdfNativo(modelo, formato)) {
+          const [cfgLab, cfgFaturas] = await Promise.all([
+            sincronizarConfigLaboratorioDoServidor().catch(() => carregarConfigLaboratorio()),
+            sincronizarConfiguracoesFaturasDoServidor().catch(() =>
+              carregarConfiguracoesFaturas()
+            ),
+          ]);
+          blob = await gerarPdfFaturaImpressao({
+            dados,
+            cfgLab,
+            layout: resolverLayoutFaturaImpressao(cfgFaturas, modelo),
+            modelo,
+          });
+        } else {
+          blob = await gerarPdfDeHtmlDocumento(htmlRef.current, formato);
+        }
+        pdfBlobRef.current = blob;
+      }
       baixarPdfBlob(blob, nomeArquivoPdf);
     } catch (err) {
       console.error("baixar PDF fatura", err);
@@ -125,6 +161,43 @@ export function FaturaPdfViewer({
           ? err.message
           : "Não foi possível gerar o PDF para download."
       );
+    } finally {
+      setGerandoDownload(false);
+    }
+  }
+
+  async function abrirPdfEmNovaAba() {
+    if (gerandoDownload) return;
+    setGerandoDownload(true);
+    try {
+      let blob = pdfBlobRef.current;
+      if (!blob) {
+        if (dados && modelo && faturaSuportaPdfNativo(modelo, formato)) {
+          const [cfgLab, cfgFaturas] = await Promise.all([
+            sincronizarConfigLaboratorioDoServidor().catch(() => carregarConfigLaboratorio()),
+            sincronizarConfiguracoesFaturasDoServidor().catch(() =>
+              carregarConfiguracoesFaturas()
+            ),
+          ]);
+          blob = await gerarPdfFaturaImpressao({
+            dados,
+            cfgLab,
+            layout: resolverLayoutFaturaImpressao(cfgFaturas, modelo),
+            modelo,
+          });
+        } else {
+          blob = await gerarPdfDeHtmlDocumento(htmlRef.current, formato);
+        }
+        pdfBlobRef.current = blob;
+      }
+      const janela = prepararAbaPdf();
+      visualizarPdfUrl(criarUrlPdfNomeada(blob, nomeArquivoPdf), nomeArquivoPdf, titulo, {
+        janela,
+        revogarAoFechar: false,
+      });
+    } catch (err) {
+      console.error("abrir PDF fatura", err);
+      abrirEmNovaAba();
     } finally {
       setGerandoDownload(false);
     }
@@ -182,7 +255,7 @@ export function FaturaPdfViewer({
                 type="button"
                 variant="outline"
                 className="gap-1.5 border-slate-500 bg-transparent text-white"
-                onClick={abrirEmNovaAba}
+                onClick={() => void abrirPdfEmNovaAba()}
               >
                 <ExternalLink className="h-3.5 w-3.5" />
                 Nova aba

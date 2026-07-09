@@ -3119,6 +3119,43 @@ function FinanceiroReceberConteudo() {
                   faturaImprimindo.lancamento.cliente?.id)
             )?.celular}
             valorFatura={faturaImprimindo.lancamento.valor}
+            montarDados={(_opcoes, _configFaturas) => {
+              const lancamento = faturaImprimindo.lancamento;
+              const clienteId =
+                faturaImprimindo.cliente.clienteId || lancamento.cliente?.id;
+              const lancamentosCliente = data?.lancamentos || [];
+              const creditoUsado = creditoUsadoNaFatura(lancamento);
+              const creditoDisponivel = calcularCreditoDisponivelClienteFatura(
+                lancamentosCliente,
+                clienteId
+              );
+              return montarDadosFaturaImpressao({
+                numeroFatura: numeroFatura(lancamento),
+                clienteNome: faturaImprimindo.cliente.nome,
+                lancamento,
+                trabalhos: trabalhosDaFatura(
+                  lancamento,
+                  faturaImprimindo.cliente.clienteId
+                ),
+                creditoFatura: creditoUsado,
+                valorRecebido: recebidoNaFatura(lancamento),
+                ultimoPgto: calcularUltimoPagamentoClienteFatura({
+                  lancamentos: lancamentosCliente,
+                  clienteId,
+                  excluirLancamentoId:
+                    lancamento.status !== "pago" ? lancamento.id : undefined,
+                  formatDate,
+                  money,
+                }),
+                saldoAnterior: calcularSaldoAnteriorCreditoFatura(
+                  creditoDisponivel,
+                  creditoUsado,
+                  money
+                ),
+                formatDate,
+                money,
+              });
+            }}
             gerarHtml={(opcoes, configFaturas) => {
               const lancamento = faturaImprimindo.lancamento;
               const clienteId =
