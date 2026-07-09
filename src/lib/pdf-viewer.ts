@@ -119,30 +119,37 @@ export function imprimirPdfBlob(blob: Blob, titulo = "Documento"): Promise<void>
     document.body.appendChild(iframe);
 
     let finalizado = false;
-    const limpar = () => {
+    const limpar = (ok = true) => {
       if (finalizado) return;
       finalizado = true;
       window.setTimeout(() => {
         iframe.remove();
         URL.revokeObjectURL(url);
       }, 500);
-      resolve();
+      if (ok) resolve();
     };
+
+    const timerSeguranca = window.setTimeout(() => limpar(true), 4_000);
 
     iframe.onload = () => {
       try {
         const janela = iframe.contentWindow;
         if (!janela) {
+          window.clearTimeout(timerSeguranca);
           iframe.remove();
           URL.revokeObjectURL(url);
           reject(new Error("Não foi possível abrir o PDF para impressão."));
           return;
         }
-        janela.addEventListener("afterprint", limpar, { once: true });
+        const aoFechar = () => {
+          window.clearTimeout(timerSeguranca);
+          limpar(true);
+        };
+        janela.addEventListener("afterprint", aoFechar, { once: true });
         janela.focus();
         janela.print();
-        window.setTimeout(limpar, 120_000);
       } catch (err) {
+        window.clearTimeout(timerSeguranca);
         iframe.remove();
         URL.revokeObjectURL(url);
         reject(err instanceof Error ? err : new Error("Falha ao imprimir o PDF."));
@@ -150,6 +157,7 @@ export function imprimirPdfBlob(blob: Blob, titulo = "Documento"): Promise<void>
     };
 
     iframe.onerror = () => {
+      window.clearTimeout(timerSeguranca);
       iframe.remove();
       URL.revokeObjectURL(url);
       reject(new Error("Não foi possível carregar o PDF para impressão."));
