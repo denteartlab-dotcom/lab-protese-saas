@@ -26,7 +26,38 @@ const LOCK_FILE = path.join(AUTH_DIR, ".baileys.lock");
 const COOLDOWN_FILE = path.join(path.dirname(AUTH_DIR), "whatsapp-pairing-cooldown.json");
 const COOLDOWN_PADRAO_HORAS = Number(process.env.WHATSAPP_PAIRING_COOLDOWN_HORAS || 24);
 
-const logger = pino({ level: "warn" });
+function marcarSessaoInstavel(motivo) {
+  if (!conectado && !sock) return;
+  prontoParaEnvio = false;
+  rejeitarPendentesAck("Sessão WhatsApp instável — aguarde e tente de novo.");
+  log(`Sessão instável (${motivo}) — aguardando ${WARMUP_MS / 1000}s antes de novos envios.`);
+  if (conectado && sock?.user?.id) {
+    agendarWarmupEnvio();
+  }
+}
+
+function criarLoggerBaileys() {
+  return pino({
+    level: "warn",
+    hooks: {
+      logMethod(args, method) {
+        const obj = args.find((a) => a && typeof a === "object" && !Array.isArray(a));
+        const msg = typeof args[0] === "string" ? args[0] : obj?.msg;
+        if (
+          msg === "received error in ack" ||
+          msg === "error in sending keep alive" ||
+          msg === "stream errored out" ||
+          msg === "unexpected error in 'init queries'"
+        ) {
+          marcarSessaoInstavel(String(msg));
+        }
+        return method.apply(this, args);
+      },
+    },
+  });
+}
+
+const logger = criarLoggerBaileys();
 
 let sock = null;
 let qrAtual = null;
@@ -47,8 +78,8 @@ let conectadoEm = null;
 let prontoParaEnvio = false;
 let warmupTimer = null;
 
-const ACK_TIMEOUT_MS = Number(process.env.WHATSAPP_ACK_TIMEOUT_MS || 22_000);
-const WARMUP_MS = Number(process.env.WHATSAPP_WARMUP_MS || 18_000);
+const ACK_TIMEOUT_MS = Number(process.env.WHATSAPP_ACK_TIMEOUT_MS || 15_000);
+const WARMUP_MS = Number(process.env.WHATSAPP_WARMUP_MS || 30_000);
 const ENVIO_TIMEOUT_MS = Number(process.env.WHATSAPP_ENVIO_TIMEOUT_MS || 38_000);
 const pendentesAck = new Map();
 let filaEnvio = Promise.resolve();
@@ -247,8 +278,31 @@ function withTimeout(promise, ms, mensagem) {
 async function resolverJidDestino(phoneRaw) {
   const variants = variantesTelefoneBr(phoneRaw);
   if (!variants.length) throw new Error("Telefone inválido.");
-  // Envio direto — onWhatsApp dispara queries que causam timeout e derrubam a sessão.
   return jidFromPhone(variants[0]);
+}
+
+function jidsVariantesBr(phoneRaw) {
+  return variantesTelefoneBr(phoneRaw)
+    .map((digits) => jidFromPhone(digits))
+    .filter(Boolean);
+}
+
+async function enviarComVariantes(phoneRaw, enviarParaJid) {
+  const jids = jidsVariantesBr(phoneRaw);
+  if (!jids.length) throw new Error("Telefone inválido.");
+  let ultimoErro = null;
+  for (const jid of jids) {
+    try {
+      return await enviarParaJid(jid);
+    } catch (err) {
+      ultimoErro = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/instável|não conectado|aquecendo|sessão inválida/i.test(msg)) {
+        throw err;
+      }
+    }
+  }
+  throw ultimoErro instanceof Error ? ultimoErro : new Error("Falha ao enviar para todos os formatos do número.");
 }
 
 function extrairIdMensagem(sent) {
@@ -514,6 +568,7 @@ function tratarFechamento(lastDisconnect) {
     qrAtual = null;
     qrGeradoEm = null;
     cancelarReconnectAgendado();
+    marcarSessaoInstavel("restart-required");
     void startBaileys();
     return;
   }
@@ -599,7 +654,9 @@ async function iniciarPareamentoPorCodigo(telefoneRaw, opts = { reset: true }) {
 async function startBaileys() {
   if (conectado) return;
   if (iniciando) return;
-  if (sock) return;
+  if (sock) {
+    limparSocketLocal();
+  }
 
   const cooldown = lerCooldown();
   if (cooldown.active) {
@@ -747,19 +804,25 @@ async function enviarMensagem(phone, message) {
           conectado = false;
           throw new Error("WhatsApp não conectado ou sessão inválida. Reconecte em Disparos WhatsApp.");
         }
-        const jid = await resolverJidDestino(phone);
         const texto = String(message || "").trim();
         if (!texto) throw new Error("Mensagem vazia.");
 
-        const sent = await sock.sendMessage(jid, { text: texto });
-        const messageId = extrairIdMensagem(sent);
-        if (!messageId) {
-          throw new Error("WhatsApp não retornou ID da mensagem — envio não confirmado.");
-        }
+        const resultado = await enviarComVariantes(phone, async (jid) => {
+          const sent = await sock.sendMessage(jid, { text: texto });
+          const messageId = extrairIdMensagem(sent);
+          if (!messageId) {
+            throw new Error("WhatsApp não retornou ID da mensagem — envio não confirmado.");
+          }
+          const ack = await aguardarAckEntrega(sent?.key || { id: messageId, remoteJid: jid });
+          return { messageId, jid, ack };
+        });
 
-        const ack = await aguardarAckEntrega(sent?.key || { id: messageId, remoteJid: jid });
-        log("Mensagem entregue ao servidor WhatsApp", { jid, messageId, status: ack.status });
-        return { ok: true, messageId, jid, ack: true };
+        log("Mensagem entregue ao servidor WhatsApp", {
+          jid: resultado.jid,
+          messageId: resultado.messageId,
+          status: resultado.ack.status,
+        });
+        return { ok: true, messageId: resultado.messageId, jid: resultado.jid, ack: true };
       })(),
       ENVIO_TIMEOUT_MS,
       "Envio excedeu o tempo limite — tente novamente."
@@ -779,7 +842,6 @@ async function enviarMidia(phone, body) {
           conectado = false;
           throw new Error("WhatsApp não conectado. Escaneie o QR Code.");
         }
-        const jid = await resolverJidDestino(phone);
 
         const buffer = Buffer.from(String(body.dataBase64 || ""), "base64");
         if (!buffer.length) throw new Error("Arquivo vazio.");
@@ -805,15 +867,22 @@ async function enviarMidia(phone, body) {
           };
         }
 
-        const sent = await sock.sendMessage(jid, content);
-        const messageId = extrairIdMensagem(sent);
-        if (!messageId) {
-          throw new Error("WhatsApp não retornou ID da mídia — envio não confirmado.");
-        }
+        const resultado = await enviarComVariantes(phone, async (jid) => {
+          const sent = await sock.sendMessage(jid, content);
+          const messageId = extrairIdMensagem(sent);
+          if (!messageId) {
+            throw new Error("WhatsApp não retornou ID da mídia — envio não confirmado.");
+          }
+          const ack = await aguardarAckEntrega(sent?.key || { id: messageId, remoteJid: jid });
+          return { messageId, jid, ack };
+        });
 
-        const ack = await aguardarAckEntrega(sent?.key || { id: messageId, remoteJid: jid });
-        log("Mídia entregue ao servidor WhatsApp", { jid, messageId, status: ack.status });
-        return { ok: true, messageId, jid, ack: true };
+        log("Mídia entregue ao servidor WhatsApp", {
+          jid: resultado.jid,
+          messageId: resultado.messageId,
+          status: resultado.ack.status,
+        });
+        return { ok: true, messageId: resultado.messageId, jid: resultado.jid, ack: true };
       })(),
       ENVIO_TIMEOUT_MS + 20_000,
       "Envio de mídia excedeu o tempo limite — tente novamente."

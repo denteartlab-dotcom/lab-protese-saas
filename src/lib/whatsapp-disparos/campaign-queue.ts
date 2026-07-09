@@ -28,7 +28,7 @@ type EstadoFila = {
 };
 
 const filasAtivas = new Map<string, EstadoFila>();
-const MAX_TENTATIVAS_CONTATO = 4;
+const MAX_TENTATIVAS_CONTATO = 6;
 const MAX_ESPERA_CONEXAO = 36;
 
 function chaveFila(empresaId: string, campaignId: string) {
@@ -42,7 +42,7 @@ function intervaloComAtraso(base: number, aleatorio: boolean) {
 }
 
 function erroTransiente(msg: string) {
-  return /desconect|sessão inválida|não conectado|indisponível|timeout|timed out|econnrefused|socket|não confirmou|rejeitou|confirmação|ack|conexão whatsapp caiu|aquecendo|tempo limite|não encontrado no whatsapp/i.test(
+  return /desconect|sessão inválida|não conectado|indisponível|timeout|timed out|econnrefused|socket|não confirmou|rejeitou|confirmação|ack|conexão whatsapp caiu|aquecendo|instável|tempo limite|não encontrado no whatsapp/i.test(
     msg
   );
 }
@@ -533,11 +533,11 @@ function pararFila(empresaId: string, campaignId: string) {
 export async function retomarCampanhasPendentesServidor() {
   if (!baileysConfigurado()) return;
   const campanhas = await prisma.whatsappCampaign.findMany({
-    where: { status: { in: ["enviando", "pausada"] } },
+    where: { status: "enviando" },
     select: { id: true, empresaId: true, status: true },
   });
   for (const c of campanhas) {
-    if (c.status === "pausada") continue;
+    await liberarContatosTravados(c.empresaId, c.id);
     void iniciarFilaCampanha(c.empresaId, c.id);
   }
 }

@@ -21,6 +21,16 @@ export async function POST(_request: Request, { params }: Params) {
       { status: 422 }
     );
   }
+  if (!status.prontoParaEnvio) {
+    const segundos = status.warmupRestanteSegundos || 30;
+    return NextResponse.json(
+      {
+        error: `WhatsApp aquecendo — aguarde ${segundos}s após conectar antes de iniciar a campanha.`,
+        warmupRestanteSegundos: segundos,
+      },
+      { status: 422 }
+    );
+  }
 
   await iniciarFilaCampanha(ctx.empresaId, id);
   return NextResponse.json({ ok: true });

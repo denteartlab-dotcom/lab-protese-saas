@@ -278,6 +278,7 @@ app
         console.log(`> Lab Prótese pronto em http://${hostname}:${port}`);
         console.log(`> Socket.io TV: ${TV_SOCKET_PATH}`);
         iniciarMonitorConexaoWhatsapp();
+        void retomarCampanhasPendentesServidor();
 
         if (dev && process.env.DEV_PREWARM !== "0") {
           const base = `http://127.0.0.1:${port}`;
@@ -303,7 +304,7 @@ app
         }
 
         const delayJobsMs = parseInt(
-          process.env.BACKUP_AUTOMATICO_DELAY_MS || "120000",
+          process.env.BACKUP_AUTOMATICO_DELAY_MS || "15000",
           10
         );
         setTimeout(() => {
