@@ -45,7 +45,10 @@ function intervaloComAtraso(base: number, aleatorio: boolean) {
 }
 
 function erroTransiente(msg: string) {
-  return /desconect|sessão inválida|não conectado|indisponível|timeout|timed out|econnrefused|socket|não confirmou|rejeitou|confirmação|ack|conexão whatsapp caiu|aquecendo|instável|tempo limite|não encontrado no whatsapp/i.test(
+  if (/não está no whatsapp|não entregou|1 check|celular do destinatário|telefone inválido/i.test(msg)) {
+    return false;
+  }
+  return /desconect|sessão inválida|não conectado|indisponível|timeout|timed out|econnrefused|socket|não confirmou|rejeitou|confirmação|ack|conexão whatsapp caiu|aquecendo|instável|tempo limite/i.test(
     msg
   );
 }

@@ -10,6 +10,7 @@ type BaileysSendResponse = {
   messageId?: string | null;
   jid?: string | null;
   ack?: boolean;
+  ackStatus?: number;
 };
 
 function urlBaseBaileys() {
@@ -57,6 +58,11 @@ function exigirConfirmacaoEnvio(data: BaileysSendResponse) {
   if (!data.ok) {
     throw new Error("WhatsApp recusou o envio da mensagem.");
   }
+  if (typeof data.ackStatus === "number" && data.ackStatus < 3) {
+    throw new Error(
+      "WhatsApp recebeu mas não entregou no celular do destinatário (aguarde o cliente ficar online ou confira o número)."
+    );
+  }
   return data;
 }
 
@@ -67,7 +73,7 @@ export async function baileysEnviarTexto(telefone: string, mensagem: string) {
       phone: formatWhatsAppPhone(telefone),
       message: mensagem,
     },
-    42_000
+    65_000
   );
   return exigirConfirmacaoEnvio(data);
 }
@@ -92,7 +98,7 @@ export async function baileysEnviarMidia(
       dataBase64: opts.dataBase64,
       tipo: opts.tipo,
     },
-    62_000
+    85_000
   );
   return exigirConfirmacaoEnvio(data);
 }
