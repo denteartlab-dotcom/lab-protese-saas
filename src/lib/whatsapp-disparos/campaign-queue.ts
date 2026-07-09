@@ -17,6 +17,7 @@ import {
 } from "@/lib/whatsapp-disparos/disparos-socket-io";
 import { formatarTelefoneExibicao, normalizarTelefoneBr } from "@/lib/whatsapp-disparos/telefone-br";
 import { sessaoWhatsappProntaParaEnvio } from "@/lib/whatsapp-baileys-status";
+import { baileysReconectar } from "@/lib/whatsapp-disparos/baileys-service";
 
 type EstadoFila = {
   campaignId: string;
@@ -382,8 +383,23 @@ async function processarProximo(empresaId: string, campaignId: string) {
   const statusWhatsapp = await baileysStatus();
   if (!statusWhatsapp?.connected) {
     estado.aguardandoConexao += 1;
+    if (estado.aguardandoConexao === 3 || estado.aguardandoConexao === 12) {
+      try {
+        await baileysReconectar({ limparAuth: estado.aguardandoConexao >= 12 });
+      } catch {
+        /* próximo ciclo tenta de novo */
+      }
+    }
     if (estado.aguardandoConexao >= MAX_ESPERA_CONEXAO) {
       await pausarFilaCampanha(empresaId, campaignId);
+      await runWithTenantContext(empresaId, () =>
+        prisma.whatsappCampaignContact.updateMany({
+          where: { campaignId, status: "aguardando" },
+          data: {
+            erro: "WhatsApp desconectado — escaneie o QR em Disparos WhatsApp e retome a campanha.",
+          },
+        })
+      );
       return;
     }
     estado.timer = setTimeout(() => void processarProximo(empresaId, campaignId), 5000);

@@ -15,11 +15,13 @@ import {
 } from "@/lib/etapas-os-impressao";
 import {
   anexarPrazosServicoPorTrabalho,
+  consolidarItensImpressaoOs,
   extrairDataPrazoBr,
   extrairItensImpressaoOs,
   flagsUrgenteRepeticaoInstrucoes,
+  ordenarItensImpressao,
 } from "@/lib/os-itens-impressao";
-import { mesclarResumosDentesOs, formatarDentesParaImpressaoOs } from "@/lib/dentes-os-resumo";
+import { formatarDentesParaImpressaoOs } from "@/lib/dentes-os-resumo";
 import {
   garantirNomeLaboratorioParaImpressao,
   nomeExibicaoLaboratorio,
@@ -277,36 +279,45 @@ export async function carregarDadosImpressaoOs({
   const prazoDentista = extrairDataPrazoBr(lineValue(linhas, "Data dentista:"));
   const statusServico = trabalhoServico.status;
 
-  let itens = extrairItensImpressaoOs(
-    instrucoesGrupo,
-    {
-      tipoProtese: t.tipoProtese,
-      dentes: t.dentes,
-      cor: t.cor,
-      escala: trabalhoServico.escala ?? t.escala,
-      valor: valorMonetarioSeguro(t.valor),
-    },
-    {},
-    segmentoSomenteItem
-  );
+  const escalaPadrao = trabalhoServico.escala ?? t.escala;
+
+  let itens = somenteItem
+    ? extrairItensImpressaoOs(
+        [t.instrucoes],
+        {
+          tipoProtese: t.tipoProtese,
+          dentes: t.dentes,
+          cor: t.cor,
+          escala: escalaPadrao,
+          valor: valorMonetarioSeguro(t.valor),
+        },
+        {},
+        segmentoSomenteItem
+      )
+    : consolidarItensImpressaoOs(
+        ordenarItensImpressao(
+          grupo.flatMap((row) =>
+            extrairItensImpressaoOs(
+              [row.instrucoes],
+              {
+                tipoProtese: row.tipoProtese,
+                dentes: row.dentes,
+                cor: row.cor,
+                escala: row.escala ?? escalaPadrao,
+                valor: valorMonetarioSeguro(row.valor),
+              },
+              {},
+              segmentoSomenteItem
+            )
+          )
+        )
+      );
 
   itens = anexarPrazosServicoPorTrabalho(
     itens,
     grupo,
     (status) => STATUS_TRABALHO[status]?.label || status
   );
-
-  const dentesGrupo = mesclarResumosDentesOs(
-    t.dentes || "",
-    ...grupo.map((row) => row.dentes || "")
-  );
-  if (dentesGrupo) {
-    itens = itens.map((item) => {
-      if (item.tipo !== "servico") return item;
-      const dente = mesclarResumosDentesOs(item.dente, dentesGrupo);
-      return dente !== item.dente ? { ...item, dente } : item;
-    });
-  }
 
   itens = sanitizarItensImpressao(itens);
 

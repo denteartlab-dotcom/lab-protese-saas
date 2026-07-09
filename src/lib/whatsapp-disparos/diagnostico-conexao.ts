@@ -50,9 +50,11 @@ export async function diagnosticarWhatsappServidor(sessaoOk: boolean): Promise<D
     if (baileysConectado) {
       detalhes.push("WhatsApp já conectado ao Baileys.");
     } else if (temQr) {
-      detalhes.push("QR Code disponível no Baileys — escaneie no celular.");
+      detalhes.push("WhatsApp NÃO conectado — mensagens não serão enviadas até escanear o QR.");
+      acoes.push("Abra Disparos WhatsApp → Gerar QR Code → escaneie no celular (Aparelhos conectados).");
     } else {
-      detalhes.push("Baileys online, mas ainda sem QR. Clique em Gerar QR Code.");
+      detalhes.push("Baileys online, mas WhatsApp desconectado — gere o QR Code.");
+      acoes.push("Disparos WhatsApp → Gerar QR Code (ou na VPS: npm run whatsapp:reset).");
     }
   }
 

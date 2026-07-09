@@ -1,8 +1,5 @@
 import { parseEtapasInstrucoes } from "@/lib/etapas-os-impressao";
-import {
-  formatarDentesParaImpressaoOs,
-  mesclarResumosDentesOs,
-} from "@/lib/dentes-os-resumo";
+import { formatarDentesParaImpressaoOs } from "@/lib/dentes-os-resumo";
 import {
   classificarItemOs,
   itemExibeBadgeProduto,
@@ -129,6 +126,41 @@ const ORDEM_TIPO: Record<TipoItemImpressaoOs, number> = {
 
 export function ordenarItensImpressao(itens: ItemImpressaoOs[]) {
   return [...itens].sort((a, b) => ORDEM_TIPO[a.tipo] - ORDEM_TIPO[b.tipo]);
+}
+
+function parseQtdImpressaoOs(qtd: string) {
+  return Number(String(qtd).replace(",", ".")) || 0;
+}
+
+function formatarQtdImpressaoOs(qtd: number) {
+  if (!Number.isFinite(qtd) || qtd <= 0) return "1";
+  return Number.isInteger(qtd) ? String(qtd) : String(qtd).replace(".", ",");
+}
+
+function chaveConsolidacaoItemImpressaoOs(item: ItemImpressaoOs) {
+  const unitario = Number.isFinite(item.unitario) ? item.unitario.toFixed(2) : "0.00";
+  if (item.tipo === "produto" || item.tipo === "transporte") {
+    return `${item.tipo}|${item.descricao}|${unitario}|${item.desconto}`;
+  }
+  return `${item.tipo}|${item.descricao}|${item.qtd}|${unitario}|${item.dente}|${item.desconto}`;
+}
+
+/** Produtos/transportes iguais viram uma linha com quantidade somada; serviços mantêm dente por linha. */
+export function consolidarItensImpressaoOs(itens: ItemImpressaoOs[]) {
+  const mapa = new Map<string, ItemImpressaoOs>();
+  for (const item of itens) {
+    const chave = chaveConsolidacaoItemImpressaoOs(item);
+    const existente = mapa.get(chave);
+    if (!existente) {
+      mapa.set(chave, item);
+      continue;
+    }
+    if (item.tipo === "produto" || item.tipo === "transporte") {
+      const qtdTotal = parseQtdImpressaoOs(existente.qtd) + parseQtdImpressaoOs(item.qtd);
+      mapa.set(chave, { ...existente, qtd: formatarQtdImpressaoOs(qtdTotal) });
+    }
+  }
+  return ordenarItensImpressao([...mapa.values()]);
 }
 
 export type ContextoPrazosImpressao = {
@@ -383,21 +415,7 @@ export function extrairItensImpressaoOs(
     .map((line) => parseLinhaItemAdicionado(line, fallback?.escala))
     .filter((item): item is ItemImpressaoOs => item !== null);
 
-  const unicos = new Map<string, ItemImpressaoOs>();
-  for (const item of itens) {
-    const chave = `${item.tipo}|${item.descricao}|${item.qtd}|${item.unitario}`;
-    const existente = unicos.get(chave);
-    if (existente) {
-      unicos.set(chave, {
-        ...existente,
-        dente: mesclarResumosDentesOs(existente.dente, item.dente),
-      });
-    } else {
-      unicos.set(chave, item);
-    }
-  }
-
-  let resultado = ordenarItensImpressao([...unicos.values()]);
+  let resultado = consolidarItensImpressaoOs(itens);
 
   if (segmentoFiltro) {
     resultado = filtrarItensImpressaoPorSegmento(resultado, segmentoFiltro);

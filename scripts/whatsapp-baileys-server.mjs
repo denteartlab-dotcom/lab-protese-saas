@@ -78,8 +78,11 @@ let conectadoEm = null;
 let prontoParaEnvio = false;
 let warmupTimer = null;
 let falhasConexaoSeguidas = 0;
+let desconectadoDesde = Date.now();
+let ultimoWatchdogEm = 0;
 
 const ACK_TIMEOUT_MS = Number(process.env.WHATSAPP_ACK_TIMEOUT_MS || 45_000);
+const QR_VALIDADE_MS = Number(process.env.WHATSAPP_QR_VALIDADE_MS || 45_000);
 const WARMUP_MS = Number(process.env.WHATSAPP_WARMUP_MS || 12_000);
 const ENVIO_TIMEOUT_MS = Number(process.env.WHATSAPP_ENVIO_TIMEOUT_MS || 55_000);
 const pendentesAck = new Map();
@@ -583,8 +586,71 @@ function limparSocketLocal() {
   iniciando = false;
 }
 
+function qrValido() {
+  return Boolean(qrAtual && qrGeradoEm && Date.now() - qrGeradoEm < QR_VALIDADE_MS);
+}
+
 function qrRecente() {
-  return Boolean(qrAtual && qrGeradoEm && Date.now() - qrGeradoEm < 50_000);
+  return qrValido();
+}
+
+function qrParaStatus() {
+  if (conectado || pareamentoBloqueado()) return null;
+  return qrValido() ? qrAtual : null;
+}
+
+function marcarDesconectado() {
+  if (!desconectadoDesde) desconectadoDesde = Date.now();
+}
+
+function marcarConectado() {
+  desconectadoDesde = null;
+}
+
+async function verificarSaudeConexao() {
+  const agora = Date.now();
+  if (agora - ultimoWatchdogEm < 8_000) return;
+  ultimoWatchdogEm = agora;
+
+  if (conectado || pareamentoBloqueado() || iniciando) return;
+  marcarDesconectado();
+
+  const offlineMs = agora - (desconectadoDesde || agora);
+
+  if (qrAtual && !qrValido()) {
+    log("QR expirado — gerando novo automaticamente.");
+    qrAtual = null;
+    qrGeradoEm = null;
+    limparSocketLocal();
+    cancelarReconnectAgendado();
+    reconnectAttempts = 0;
+    await startBaileys();
+    return;
+  }
+
+  if (credenciaisRegistradas && !qrAtual && offlineMs > 20_000) {
+    if (falhasConexaoSeguidas < 1 && sock) {
+      falhasConexaoSeguidas += 1;
+      log("Sessão antiga sem conectar — tentando reconectar.");
+      limparSocketLocal();
+      cancelarReconnectAgendado();
+      await startBaileys();
+      return;
+    }
+    if (offlineMs > 35_000 && !reconnectTimer) {
+      log("Sessão antiga inválida — limpando para gerar novo QR.");
+      limparSessaoParaPareamento("watchdog-stale");
+      reconnectAttempts = 0;
+      await startBaileys();
+      return;
+    }
+  }
+
+  if (!sock && !qrAtual && !reconnectTimer && offlineMs > 5_000) {
+    log("WhatsApp desconectado — iniciando pareamento.");
+    reconnectAttempts = 0;
+    await startBaileys();
+  }
 }
 
 function agendarReconnect(motivo, delayMs) {
@@ -621,6 +687,7 @@ async function aguardarQrLocal(maxMs = 45_000) {
 function tratarFechamento(lastDisconnect) {
   conectado = false;
   numeroConectado = null;
+  marcarDesconectado();
   cancelarWarmupEnvio();
   rejeitarPendentesAck("Conexão WhatsApp caiu durante o envio.");
   limparSocketLocal();
@@ -824,6 +891,7 @@ async function startBaileys() {
 
       if (connection === "open") {
         conectado = true;
+        marcarConectado();
         credenciaisRegistradas = true;
         falhasConexaoSeguidas = 0;
         qrAtual = null;
@@ -984,11 +1052,12 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "GET" && url.pathname === "/status") {
       const cooldown = lerCooldown();
+      void verificarSaudeConexao();
       return json(res, 200, {
         connected: conectado,
         prontoParaEnvio: conexaoEnvioOk(),
         warmupRestanteSegundos: segundosWarmupRestantes(),
-        qr: conectado || cooldown.active ? null : qrAtual || null,
+        qr: qrParaStatus(),
         phone: numeroConectado,
         authDir: AUTH_DIR,
         iniciando,
@@ -1084,14 +1153,27 @@ const server = http.createServer(async (req, res) => {
       }
 
       if (credenciaisRegistradas && !conectado) {
-        if (falhasConexaoSeguidas >= 1) {
+        if (falhasConexaoSeguidas >= 1 || !sock) {
           log("Sessão antiga inválida — limpando para gerar QR.");
           limparSessaoParaPareamento("reconnect-stale");
           await startBaileys();
-        } else if (!sock && !iniciando) {
+        } else if (!iniciando) {
           void startBaileys();
         }
         const aguardado = await aguardarQrLocal(35_000);
+        if (!aguardado.connected && !aguardado.qr) {
+          log("Pareamento não concluiu — limpando sessão para novo QR.");
+          limparSessaoParaPareamento("reconnect-timeout");
+          await startBaileys();
+          const retry = await aguardarQrLocal(35_000);
+          return json(res, 200, {
+            ok: true,
+            connected: retry.connected,
+            qr: retry.qr,
+            phone: retry.phone,
+            pareamentoEmAndamento: !retry.connected && !retry.qr,
+          });
+        }
         return json(res, 200, {
           ok: true,
           connected: aguardado.connected,
@@ -1105,7 +1187,7 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, {
           ok: true,
           connected: false,
-          qr: qrAtual,
+          qr: qrParaStatus(),
           phone: null,
         });
       }
@@ -1158,4 +1240,7 @@ server.listen(PORT, "127.0.0.1", () => {
   } else {
     void startBaileys();
   }
+  setInterval(() => {
+    void verificarSaudeConexao();
+  }, 20_000);
 });

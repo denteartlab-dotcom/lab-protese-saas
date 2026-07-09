@@ -1,4 +1,5 @@
 import { consultarStatusBaileys } from "@/lib/whatsapp-baileys-status";
+import { baileysReconectar } from "@/lib/whatsapp-disparos/baileys-service";
 import {
   DISPARO_SOCKET_EVENTS,
   type DisparoConexaoPayload,
@@ -9,6 +10,7 @@ import { garantirFilasCampanhasAtivas } from "@/lib/whatsapp-disparos/campaign-q
 let ultimoQr: string | null | undefined;
 let ultimoConectado: boolean | undefined;
 let ultimoPhone: string | null | undefined;
+let ultimoReconnectAutomatico = 0;
 
 function assinaturaQr(qr: string | null) {
   if (!qr) return null;
@@ -23,8 +25,24 @@ function emitir(payload: DisparoConexaoPayload) {
 }
 
 export async function sincronizarConexaoWhatsappSocket() {
-  const status = await consultarStatusBaileys();
+  let status = await consultarStatusBaileys();
   if (!status) return null;
+
+  if (
+    !status.connected &&
+    !status.pairingBlocked &&
+    !status.iniciando &&
+    !status.qr &&
+    Date.now() - ultimoReconnectAutomatico > 45_000
+  ) {
+    ultimoReconnectAutomatico = Date.now();
+    try {
+      await baileysReconectar({ limparAuth: false });
+      status = (await consultarStatusBaileys()) || status;
+    } catch {
+      /* tenta de novo no próximo ciclo */
+    }
+  }
 
   const conectado = Boolean(status.connected);
   const qr = status.qr || null;
