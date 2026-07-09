@@ -58,11 +58,6 @@ function exigirConfirmacaoEnvio(data: BaileysSendResponse) {
   if (!data.ok) {
     throw new Error("WhatsApp recusou o envio da mensagem.");
   }
-  if (typeof data.ackStatus === "number" && data.ackStatus < 3) {
-    throw new Error(
-      "WhatsApp recebeu mas não entregou no celular do destinatário (aguarde o cliente ficar online ou confira o número)."
-    );
-  }
   return data;
 }
 

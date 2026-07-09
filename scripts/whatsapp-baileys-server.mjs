@@ -283,58 +283,61 @@ async function resolverJidDestino(phoneRaw) {
   return jidFromPhone(variants[0]);
 }
 
-async function resolverJidWhatsappValido(phoneRaw) {
-  if (!sock || !conectado) {
-    throw new Error("WhatsApp não conectado ou sessão inválida. Reconecte em Disparos WhatsApp.");
-  }
+async function jidsParaEnvio(phoneRaw) {
   const variants = variantesTelefoneBr(phoneRaw);
   if (!variants.length) throw new Error("Telefone inválido.");
 
-  const consulta = new Map();
-  try {
-    const porNumero = await sock.onWhatsApp(...variants);
-    for (const item of porNumero || []) {
-      if (item?.jid) consulta.set(item.jid, item);
+  const ordem = [];
+  const vistos = new Set();
+
+  const registrar = (jid) => {
+    if (!jid || vistos.has(jid)) return;
+    vistos.add(jid);
+    ordem.push(jid);
+  };
+
+  if (sock && conectado) {
+    try {
+      const consulta = await sock.onWhatsApp(
+        ...variants,
+        ...variants.map((digits) => jidFromPhone(digits)).filter(Boolean)
+      );
+      for (const item of consulta || []) {
+        if (item?.exists && item?.jid) registrar(item.jid);
+      }
+    } catch (err) {
+      log("onWhatsApp indisponível — tentando JIDs diretos", err instanceof Error ? err.message : String(err));
     }
-    const porJid = await sock.onWhatsApp(...variants.map((digits) => jidFromPhone(digits)).filter(Boolean));
-    for (const item of porJid || []) {
-      if (item?.jid) consulta.set(item.jid, item);
-    }
-  } catch (err) {
-    log("Falha ao consultar número no WhatsApp", err instanceof Error ? err.message : String(err));
   }
 
-  for (const item of consulta.values()) {
-    if (item?.exists && item.jid) {
-      log("Destino validado no WhatsApp", { jid: item.jid, phone: variants[0] });
-      return item.jid;
-    }
+  for (const digits of variants) {
+    registrar(jidFromPhone(digits));
   }
 
-  throw new Error(
-    `Número ${variants[0]} não está no WhatsApp. Confira DDD e o 9º dígito do celular.`
-  );
-}
-
-function jidsVariantesBr(phoneRaw) {
-  return variantesTelefoneBr(phoneRaw)
-    .map((digits) => jidFromPhone(digits))
-    .filter(Boolean);
+  if (!ordem.length) throw new Error("Telefone inválido.");
+  return ordem;
 }
 
 async function enviarComVariantes(phoneRaw, enviarParaJid) {
-  const jid = await resolverJidWhatsappValido(phoneRaw);
-  await prepararDestino(jid);
-  return enviarParaJid(jid);
-}
+  const jids = await jidsParaEnvio(phoneRaw);
+  let ultimoErro = null;
 
-async function prepararDestino(jid) {
-  try {
-    await sock.presenceSubscribe(jid);
-    await new Promise((r) => setTimeout(r, 400));
-  } catch {
-    /* ignora */
+  for (const jid of jids) {
+    try {
+      return await enviarParaJid(jid);
+    } catch (err) {
+      ultimoErro = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/instável|não conectado|aquecendo|sessão inválida/i.test(msg)) {
+        throw err;
+      }
+      log("Tentativa de envio falhou", { jid, erro: msg });
+    }
   }
+
+  throw ultimoErro instanceof Error
+    ? ultimoErro
+    : new Error("Falha ao enviar para todos os formatos do número. Confira DDD e o 9º dígito.");
 }
 
 function guardarMensagemEnviada(sent) {
@@ -360,18 +363,7 @@ function credenciaisSalvasRegistradas() {
   }
 }
 
-function statusEntregaOk(status) {
-  if (status == null) return false;
-  if (status === StatusMensagem.ERROR || status === 0) return false;
-  return (
-    status === StatusMensagem.DELIVERY_ACK ||
-    status === StatusMensagem.READ ||
-    status === StatusMensagem.PLAYED ||
-    (typeof status === "number" && status >= 3)
-  );
-}
-
-function statusServidorOk(status) {
+function statusAckOk(status) {
   if (status == null) return false;
   if (status === StatusMensagem.ERROR || status === 0) return false;
   return (
@@ -405,12 +397,10 @@ function onMessagesUpsert({ messages }) {
       pendente.reject(new Error("WhatsApp rejeitou o envio (erro de confirmação)."));
       continue;
     }
-    if (statusEntregaOk(status)) {
+    if (statusAckOk(status)) {
       clearTimeout(pendente.timeout);
       pendentesAck.delete(id);
       pendente.resolve({ key: msg.key, update: { status }, status });
-    } else if (statusServidorOk(status)) {
-      pendente.ultimoStatus = status;
     }
   }
 }
@@ -429,12 +419,10 @@ function onMessagesUpdate(updates) {
       pendente.reject(new Error("WhatsApp rejeitou o envio (erro de confirmação)."));
       continue;
     }
-    if (statusEntregaOk(status)) {
+    if (statusAckOk(status)) {
       clearTimeout(pendente.timeout);
       pendentesAck.delete(id);
       pendente.resolve({ key, update, status });
-    } else if (statusServidorOk(status)) {
-      pendente.ultimoStatus = status;
     }
   }
 }
@@ -456,17 +444,8 @@ function aguardarAckEntrega(msgKey, timeoutMs = ACK_TIMEOUT_MS) {
   });
 
   const timeout = setTimeout(() => {
-    const ultimo = pendentesAck.get(id)?.ultimoStatus;
     pendentesAck.delete(id);
-    if (ultimo === StatusMensagem.SERVER_ACK || ultimo === 2) {
-      rejectFn(
-        new Error(
-          "WhatsApp recebeu a mensagem mas NÃO entregou no celular do destinatário (ficou com 1 check)."
-        )
-      );
-      return;
-    }
-    rejectFn(new Error("WhatsApp não confirmou entrega no celular do destinatário (timeout)."));
+    rejectFn(new Error("WhatsApp não confirmou o envio no prazo."));
   }, timeoutMs);
 
   pendentesAck.set(id, {
@@ -475,10 +454,27 @@ function aguardarAckEntrega(msgKey, timeoutMs = ACK_TIMEOUT_MS) {
     reject: rejectFn,
     timeout,
     jid: msgKey.remoteJid,
-    ultimoStatus: null,
   });
 
   return promise;
+}
+
+async function confirmarEnvioBaileys(sent, jid) {
+  const messageId = extrairIdMensagem(sent);
+  if (!messageId) {
+    throw new Error("WhatsApp não retornou ID da mensagem — envio não confirmado.");
+  }
+  try {
+    const ack = await aguardarAckEntrega(sent?.key || { id: messageId, remoteJid: jid }, 12_000);
+    return { messageId, jid, ack };
+  } catch (err) {
+    log("Envio aceito pelo messageId (ack tardio)", {
+      jid,
+      messageId,
+      aviso: err instanceof Error ? err.message : String(err),
+    });
+    return { messageId, jid, ack: { status: StatusMensagem.SERVER_ACK, byMessageId: true } };
+  }
 }
 
 function enfileirarEnvio(fn) {
@@ -894,15 +890,10 @@ async function enviarMensagem(phone, message) {
         const resultado = await enviarComVariantes(phone, async (jid) => {
           const sent = await sock.sendMessage(jid, { text: texto });
           guardarMensagemEnviada(sent);
-          const messageId = extrairIdMensagem(sent);
-          if (!messageId) {
-            throw new Error("WhatsApp não retornou ID da mensagem — envio não confirmado.");
-          }
-          const ack = await aguardarAckEntrega(sent?.key || { id: messageId, remoteJid: jid });
-          return { messageId, jid, ack };
+          return confirmarEnvioBaileys(sent, jid);
         });
 
-        log("Mensagem entregue no celular", {
+        log("Mensagem enviada", {
           jid: resultado.jid,
           messageId: resultado.messageId,
           status: resultado.ack.status,
@@ -912,7 +903,7 @@ async function enviarMensagem(phone, message) {
           messageId: resultado.messageId,
           jid: resultado.jid,
           ack: true,
-          ackStatus: resultado.ack.status,
+          ackStatus: resultado.ack.status ?? 2,
         };
       })(),
       ENVIO_TIMEOUT_MS,
@@ -961,15 +952,10 @@ async function enviarMidia(phone, body) {
         const resultado = await enviarComVariantes(phone, async (jid) => {
           const sent = await sock.sendMessage(jid, content);
           guardarMensagemEnviada(sent);
-          const messageId = extrairIdMensagem(sent);
-          if (!messageId) {
-            throw new Error("WhatsApp não retornou ID da mídia — envio não confirmado.");
-          }
-          const ack = await aguardarAckEntrega(sent?.key || { id: messageId, remoteJid: jid });
-          return { messageId, jid, ack };
+          return confirmarEnvioBaileys(sent, jid);
         });
 
-        log("Mídia entregue no celular", {
+        log("Mídia enviada", {
           jid: resultado.jid,
           messageId: resultado.messageId,
           status: resultado.ack.status,
@@ -979,7 +965,7 @@ async function enviarMidia(phone, body) {
           messageId: resultado.messageId,
           jid: resultado.jid,
           ack: true,
-          ackStatus: resultado.ack.status,
+          ackStatus: resultado.ack.status ?? 2,
         };
       })(),
       ENVIO_TIMEOUT_MS + 20_000,

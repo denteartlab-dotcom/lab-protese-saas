@@ -31,6 +31,7 @@ type ContatoFila = {
   telefone: string;
   status: string;
   horario: string;
+  erro?: string | null;
 };
 
 type Props = {
@@ -451,6 +452,11 @@ export function CampanhaWizardInline({
                           >
                             {labelStatusFila(item.status)}
                           </span>
+                          {item.status === "falhou" && item.erro ? (
+                            <p className="mt-1 max-w-[220px] text-[10px] leading-snug text-red-600" title={item.erro}>
+                              {item.erro}
+                            </p>
+                          ) : null}
                         </td>
                         <td className="px-3 py-2 text-slate-400">
                           {new Date(item.horario).toLocaleTimeString("pt-BR", {
