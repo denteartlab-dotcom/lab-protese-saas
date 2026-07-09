@@ -360,10 +360,6 @@ async function processarProximo(empresaId: string, campaignId: string) {
     estado.timer = setTimeout(() => void processarProximo(empresaId, campaignId), 5000);
     return;
   }
-  if (!statusWhatsapp.prontoParaEnvio) {
-    estado.timer = setTimeout(() => void processarProximo(empresaId, campaignId), 3000);
-    return;
-  }
   estado.aguardandoConexao = 0;
 
   await liberarContatosTravadosAntigos(empresaId, campaignId);

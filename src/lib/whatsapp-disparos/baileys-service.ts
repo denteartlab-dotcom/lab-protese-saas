@@ -54,8 +54,8 @@ function exigirConfirmacaoEnvio(data: BaileysSendResponse) {
   if (!messageId || messageId.startsWith("ack-")) {
     throw new Error("WhatsApp não confirmou o envio da mensagem.");
   }
-  if (!data.ok || !data.ack) {
-    throw new Error("WhatsApp não confirmou a entrega ao servidor.");
+  if (!data.ok) {
+    throw new Error("WhatsApp recusou o envio da mensagem.");
   }
   return data;
 }
