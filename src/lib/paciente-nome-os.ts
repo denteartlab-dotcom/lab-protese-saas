@@ -8,20 +8,13 @@ export function normalizarNomePaciente(nome: string) {
     .replace(/\p{M}/gu, "");
 }
 
-/** Primeira palavra = nome; última palavra = sobrenome. */
-export function extrairNomeSobrenomePaciente(nomeCompleto: string) {
-  const partes = normalizarNomePaciente(nomeCompleto).split(" ").filter(Boolean);
-  if (partes.length < 2) return null;
-  return { nome: partes[0], sobrenome: partes[partes.length - 1] };
+/** Mesmo nome completo — diferença de maiúsculas/acentos não conta; sobrenomes extras sim. */
+export function mesmosNomePacienteExato(a: string, b: string) {
+  const na = normalizarNomePaciente(a);
+  const nb = normalizarNomePaciente(b);
+  return na.length >= 2 && na === nb;
 }
 
 export function nomePacienteProntoParaVerificacaoDuplicata(nome: string) {
-  return extrairNomeSobrenomePaciente(nome) !== null;
-}
-
-export function mesmosNomeSobrenomePaciente(a: string, b: string) {
-  const pa = extrairNomeSobrenomePaciente(a);
-  const pb = extrairNomeSobrenomePaciente(b);
-  if (!pa || !pb) return false;
-  return pa.nome === pb.nome && pa.sobrenome === pb.sobrenome;
+  return normalizarNomePaciente(nome).length >= 2;
 }

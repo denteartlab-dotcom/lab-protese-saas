@@ -3020,14 +3020,6 @@ export default function OrdemServicoPage() {
       return;
     }
 
-    if (!editId && avisoPacienteDuplicado?.numerosOs.length) {
-      const listaOs = avisoPacienteDuplicado.numerosOs.join(", ");
-      const continuar = window.confirm(
-        `Já existe ordem de serviço nº ${listaOs} para um paciente com o mesmo nome e sobrenome deste cliente. Deseja criar uma nova OS mesmo assim?`
-      );
-      if (!continuar) return;
-    }
-
     if (itemSelecionadoId && temAlteracoesPendentesItemOs()) {
       setAvisoAdicionarServico("Clique em Atualizar Item Selecionado antes de salvar.");
       return;
@@ -3610,14 +3602,13 @@ export default function OrdemServicoPage() {
               label={requiredLabel("Paciente", Boolean(avisoAdicionarServico))}
               value={form.pacienteNome}
               onChange={(e) => setForm({ ...form, pacienteNome: e.target.value })}
-              placeholder="Nome e sobrenome do paciente"
+              placeholder="Digite o nome do paciente"
               required
             />
             {!editId && avisoPacienteDuplicado?.numerosOs.length ? (
-              <p className="flex items-start gap-1.5 text-[11px] font-medium leading-snug text-amber-700">
-                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                Já existe OS nº {avisoPacienteDuplicado.numerosOs.join(", ")} para paciente com o
-                mesmo nome e sobrenome neste cliente.
+              <p className="text-[10px] leading-snug text-amber-600">
+                Já existe OS nº {avisoPacienteDuplicado.numerosOs.join(", ")} para este paciente
+                neste cliente.
               </p>
             ) : null}
           </div>

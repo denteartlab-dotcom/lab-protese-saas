@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
-  extrairNomeSobrenomePaciente,
-  mesmosNomeSobrenomePaciente,
+  mesmosNomePacienteExato,
+  normalizarNomePaciente,
 } from "@/lib/paciente-nome-os";
 
 export async function GET(request: Request) {
@@ -13,14 +13,8 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const clienteId = (searchParams.get("clienteId") || "").trim();
   const nome = (searchParams.get("nome") || "").trim();
-  const excluirNumeroOs = Number(searchParams.get("excluirNumeroOs") || 0);
 
-  if (!clienteId || !nome) {
-    return NextResponse.json({ duplicado: false, numerosOs: [] as number[] });
-  }
-
-  const partes = extrairNomeSobrenomePaciente(nome);
-  if (!partes) {
+  if (!clienteId || normalizarNomePaciente(nome).length < 2) {
     return NextResponse.json({ duplicado: false, numerosOs: [] as number[] });
   }
 
@@ -32,46 +26,29 @@ export async function GET(request: Request) {
     return NextResponse.json({ duplicado: false, numerosOs: [] as number[] });
   }
 
-  const trabalhos = await prisma.trabalho.findMany({
+  const pacientes = await prisma.paciente.findMany({
     where: {
-      empresaId: ctx.empresaId,
       clienteId,
-      paciente: {
-        nome: { contains: partes.nome, mode: "insensitive" },
-      },
-      ...(excluirNumeroOs > 0 ? { numeroOs: { not: excluirNumeroOs } } : {}),
+      cliente: { empresaId: ctx.empresaId },
     },
     select: {
-      numeroOs: true,
-      dataEntrada: true,
-      status: true,
-      paciente: { select: { nome: true } },
+      nome: true,
+      trabalhos: {
+        select: { numeroOs: true },
+      },
     },
-    orderBy: [{ numeroOs: "desc" }, { createdAt: "desc" }],
-    take: 200,
   });
 
   const numerosOs = [
     ...new Set(
-      trabalhos
-        .filter((trabalho) => mesmosNomeSobrenomePaciente(nome, trabalho.paciente.nome))
-        .map((trabalho) => trabalho.numeroOs)
+      pacientes
+        .filter((paciente) => mesmosNomePacienteExato(nome, paciente.nome))
+        .flatMap((paciente) => paciente.trabalhos.map((trabalho) => trabalho.numeroOs))
     ),
   ].sort((a, b) => b - a);
-
-  const ordens = numerosOs.map((numeroOs) => {
-    const registro = trabalhos.find((trabalho) => trabalho.numeroOs === numeroOs);
-    return {
-      numeroOs,
-      status: registro?.status || "",
-      dataEntrada: registro?.dataEntrada?.toISOString() || null,
-      pacienteNome: registro?.paciente.nome || nome,
-    };
-  });
 
   return NextResponse.json({
     duplicado: numerosOs.length > 0,
     numerosOs,
-    ordens,
   });
 }
