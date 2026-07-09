@@ -77,9 +77,10 @@ let pairingCodeSolicitado = false;
 let conectadoEm = null;
 let prontoParaEnvio = false;
 let warmupTimer = null;
+let falhasConexaoSeguidas = 0;
 
-const ACK_TIMEOUT_MS = Number(process.env.WHATSAPP_ACK_TIMEOUT_MS || 15_000);
-const WARMUP_MS = Number(process.env.WHATSAPP_WARMUP_MS || 30_000);
+const ACK_TIMEOUT_MS = Number(process.env.WHATSAPP_ACK_TIMEOUT_MS || 12_000);
+const WARMUP_MS = Number(process.env.WHATSAPP_WARMUP_MS || 12_000);
 const ENVIO_TIMEOUT_MS = Number(process.env.WHATSAPP_ENVIO_TIMEOUT_MS || 38_000);
 const pendentesAck = new Map();
 let filaEnvio = Promise.resolve();
@@ -456,6 +457,32 @@ function cancelarReconnectAgendado() {
   }
 }
 
+function limparSessaoParaPareamento(motivo) {
+  log(`Limpando sessão (${motivo}) — gere QR ou código novamente.`);
+  cancelarReconnectAgendado();
+  cancelarWarmupEnvio();
+  conectado = false;
+  numeroConectado = null;
+  credenciaisRegistradas = false;
+  pairingCodeAtual = null;
+  pairingPhoneAlvo = null;
+  pairingCodeSolicitado = false;
+  qrAtual = null;
+  qrGeradoEm = null;
+  reconnectAttempts = 0;
+  falhasConexaoSeguidas = 0;
+  limparSocketLocal();
+  limparAuthDir();
+}
+
+function falhaConexaoGrave(msg, statusCode) {
+  if (statusCode === DisconnectReason.badSession) return true;
+  if (statusCode === DisconnectReason.loggedOut) return true;
+  return /connection failure|connection closed|connection lost|timed out|conflict|forbidden/i.test(
+    String(msg || "")
+  );
+}
+
 function limparAuthDir() {
   try {
     fs.rmSync(AUTH_DIR, { recursive: true, force: true });
@@ -502,7 +529,13 @@ function qrRecente() {
 function agendarReconnect(motivo, delayMs) {
   if (conectado || reconnectTimer || iniciando || pareamentoBloqueado()) return;
   if (reconnectAttempts >= 5) {
-    log(`Muitas tentativas (${reconnectAttempts}x). Aguarde 30 min ou use código de pareamento.`);
+    log("Muitas tentativas — limpando sessão para gerar novo QR.");
+    limparSessaoParaPareamento("max-retries");
+    reconnectAttempts = 0;
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null;
+      void startBaileys();
+    }, 2000);
     return;
   }
   reconnectAttempts += 1;
@@ -533,28 +566,7 @@ function tratarFechamento(lastDisconnect) {
 
   const statusCode = lastDisconnect?.error?.output?.statusCode;
   const msg = lastDisconnect?.error?.message || "";
-
-  if (statusCode === DisconnectReason.badSession) {
-    log("Sessão inválida — limpando credenciais e reconectando.", msg);
-    credenciaisRegistradas = false;
-    qrAtual = null;
-    qrGeradoEm = null;
-    pairingCodeAtual = null;
-    pairingCodeSolicitado = false;
-    limparAuthDir();
-    agendarReconnect("bad-session", 8000);
-    return;
-  }
-
-  if (statusCode === DisconnectReason.loggedOut) {
-    log("Conexão instável — reconectando com sessão salva em 8s…", msg);
-    credenciaisRegistradas = credenciaisSalvasRegistradas();
-    qrAtual = null;
-    qrGeradoEm = null;
-    reconnectAttempts = Math.max(0, reconnectAttempts - 1);
-    agendarReconnect("sessao-instavel", 8000);
-    return;
-  }
+  falhasConexaoSeguidas += 1;
 
   if (statusCode === DisconnectReason.connectionReplaced) {
     log("WhatsApp aberto em outro lugar — pare outras sessões Baileys.");
@@ -563,18 +575,24 @@ function tratarFechamento(lastDisconnect) {
   }
 
   if (statusCode === DisconnectReason.restartRequired) {
-    log("Pareamento OK — reconectando imediatamente (sem novo QR)…");
+    log("Pareamento OK — reconectando…");
     reconnectAttempts = 0;
+    falhasConexaoSeguidas = 0;
     qrAtual = null;
     qrGeradoEm = null;
     cancelarReconnectAgendado();
-    marcarSessaoInstavel("restart-required");
     void startBaileys();
     return;
   }
 
+  if (falhaConexaoGrave(msg, statusCode) || falhasConexaoSeguidas >= 2) {
+    limparSessaoParaPareamento(msg || `code=${statusCode ?? "?"}`);
+    agendarReconnect("nova-sessao", 2000);
+    return;
+  }
+
   log("Conexão fechada.", msg || `code=${statusCode ?? "?"}`);
-  agendarReconnect("close", 15_000);
+  agendarReconnect("close", 10_000);
 }
 
 async function aguardarPairingCodeLocal(maxMs = 45_000) {
@@ -605,8 +623,12 @@ async function tentarGerarPairingCode(sockInst, state) {
   if (!pairingPhoneAlvo || state.creds?.registered || pairingCodeAtual || pairingCodeSolicitado) {
     return;
   }
+  if (!sockInst?.ws?.isOpen && !conectado) {
+    return;
+  }
   pairingCodeSolicitado = true;
   try {
+    await new Promise((r) => setTimeout(r, 1500));
     const code = await sockInst.requestPairingCode(pairingPhoneAlvo);
     pairingCodeAtual = code;
     qrAtual = null;
@@ -615,7 +637,16 @@ async function tentarGerarPairingCode(sockInst, state) {
     log("No celular: Aparelhos conectados → Conectar dispositivo → Vincular com número de telefone.");
   } catch (err) {
     pairingCodeSolicitado = false;
-    log("Erro ao gerar código:", err instanceof Error ? err.message : err);
+    const msg = err instanceof Error ? err.message : String(err);
+    log("Erro ao gerar código:", msg);
+    if (/connection closed|connection failure|timed out/i.test(msg)) {
+      falhasConexaoSeguidas += 1;
+      if (falhasConexaoSeguidas >= 2) {
+        pairingPhoneAlvo = null;
+        limparSessaoParaPareamento("pairing-failed");
+        agendarReconnect("pairing-retry", 2000);
+      }
+    }
   }
 }
 
@@ -635,16 +666,10 @@ async function iniciarPareamentoPorCodigo(telefoneRaw, opts = { reset: true }) {
 
   if (opts.reset) {
     cancelarReconnectAgendado();
-    if (sock) {
-      try {
-        await sock.logout();
-      } catch {
-        /* ignora */
-      }
-    }
-    limparSocketLocal();
-    limparAuthDir();
-    credenciaisRegistradas = false;
+    limparSessaoParaPareamento("pairing-reset");
+    pairingPhoneAlvo = telefone;
+    pairingCodeAtual = null;
+    pairingCodeSolicitado = false;
   }
 
   await startBaileys();
@@ -711,15 +736,21 @@ async function startBaileys() {
     sock.ev.on("connection.update", (update) => {
       const { connection, lastDisconnect, qr } = update;
 
-      if (pairingPhoneAlvo && !state.creds?.registered && (connection === "connecting" || qr)) {
-        void tentarGerarPairingCode(sock, state);
+      if (qr && !conectado) {
+        if (pairingPhoneAlvo && !pairingCodeAtual) {
+          void tentarGerarPairingCode(sock, state);
+        } else if (!pairingPhoneAlvo) {
+          registrarQr(qr);
+        }
       }
 
-      if (qr) {
-        if (conectado || credenciaisRegistradas || credenciaisSalvasRegistradas() || pairingPhoneAlvo) {
-          return;
-        }
-        registrarQr(qr);
+      if (
+        pairingPhoneAlvo &&
+        !state.creds?.registered &&
+        !pairingCodeAtual &&
+        connection === "open"
+      ) {
+        void tentarGerarPairingCode(sock, state);
       }
 
       if (connection === "connecting") {
@@ -729,11 +760,13 @@ async function startBaileys() {
       if (connection === "open") {
         conectado = true;
         credenciaisRegistradas = true;
+        falhasConexaoSeguidas = 0;
         qrAtual = null;
         qrGeradoEm = null;
-        pairingCodeAtual = null;
-        pairingPhoneAlvo = null;
-        pairingCodeSolicitado = false;
+        if (!pairingPhoneAlvo) {
+          pairingCodeAtual = null;
+          pairingCodeSolicitado = false;
+        }
         reconnectAttempts = 0;
         cancelarReconnectAgendado();
         limparCooldown();
@@ -767,27 +800,11 @@ async function resetarSessaoCompleta(force = false) {
     };
   }
 
-  cancelarReconnectAgendado();
-  cancelarWarmupEnvio();
-  reconnectAttempts = 0;
-  conectado = false;
-  numeroConectado = null;
-  qrAtual = null;
-  qrGeradoEm = null;
-  credenciaisRegistradas = false;
-  pairingCodeAtual = null;
-  pairingPhoneAlvo = null;
-  pairingCodeSolicitado = false;
-
-  if (sock) {
-    try {
-      await sock.logout();
-    } catch {
-      /* ignora */
-    }
+  if (force && cooldown.active) {
+    limparCooldown();
   }
-  limparSocketLocal();
-  limparAuthDir();
+
+  limparSessaoParaPareamento("reset-manual");
   await startBaileys();
   return aguardarQrLocal(50_000);
 }
@@ -1000,8 +1017,13 @@ const server = http.createServer(async (req, res) => {
       }
 
       if (credenciaisRegistradas && !conectado) {
-        log("Pareamento em andamento — aguardando reconexão automática…");
-        if (!sock && !iniciando) void startBaileys();
+        if (falhasConexaoSeguidas >= 1) {
+          log("Sessão antiga inválida — limpando para gerar QR.");
+          limparSessaoParaPareamento("reconnect-stale");
+          await startBaileys();
+        } else if (!sock && !iniciando) {
+          void startBaileys();
+        }
         const aguardado = await aguardarQrLocal(35_000);
         return json(res, 200, {
           ok: true,

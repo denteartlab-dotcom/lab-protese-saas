@@ -5,6 +5,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -48,7 +49,17 @@ try {
   console.log("   Erro:", e.message);
 }
 
-console.log("\n2. Reiniciando via API /reconnect…");
+console.log("\n2. Reiniciando processo PM2 (quebra loop de reconexão)…");
+try {
+  execSync("pm2 restart lab-protese-whatsapp", { stdio: "inherit", cwd: root });
+  console.log("   OK ✓");
+} catch {
+  console.log("   Rode manualmente: pm2 restart lab-protese-whatsapp");
+}
+
+await new Promise((r) => setTimeout(r, 3000));
+
+console.log("\n3. Gerando novo QR via API /reconnect…");
 try {
   const res = await fetch(`${base}/reconnect`, {
     method: "POST",
