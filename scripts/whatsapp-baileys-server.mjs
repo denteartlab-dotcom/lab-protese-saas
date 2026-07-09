@@ -79,7 +79,7 @@ let prontoParaEnvio = false;
 let warmupTimer = null;
 let falhasConexaoSeguidas = 0;
 
-const ACK_TIMEOUT_MS = Number(process.env.WHATSAPP_ACK_TIMEOUT_MS || 12_000);
+const ACK_TIMEOUT_MS = Number(process.env.WHATSAPP_ACK_TIMEOUT_MS || 20_000);
 const WARMUP_MS = Number(process.env.WHATSAPP_WARMUP_MS || 12_000);
 const ENVIO_TIMEOUT_MS = Number(process.env.WHATSAPP_ENVIO_TIMEOUT_MS || 38_000);
 const pendentesAck = new Map();
@@ -828,27 +828,14 @@ async function enviarMensagem(phone, message) {
           if (!messageId) {
             throw new Error("WhatsApp não retornou ID da mensagem — envio não confirmado.");
           }
-          void aguardarAckEntrega(sent?.key || { id: messageId, remoteJid: jid })
-            .then((ack) => {
-              log("Mensagem confirmada pelo WhatsApp", {
-                jid,
-                messageId,
-                status: ack.status,
-              });
-            })
-            .catch((err) => {
-              log("Ack da mensagem não confirmado", {
-                jid,
-                messageId,
-                erro: err instanceof Error ? err.message : String(err),
-              });
-            });
-          return { messageId, jid, ack: { status: null } };
+          const ack = await aguardarAckEntrega(sent?.key || { id: messageId, remoteJid: jid });
+          return { messageId, jid, ack };
         });
 
         log("Mensagem enviada ao WhatsApp", {
           jid: resultado.jid,
           messageId: resultado.messageId,
+          status: resultado.ack.status,
         });
         return { ok: true, messageId: resultado.messageId, jid: resultado.jid, ack: true };
       })(),
@@ -901,27 +888,14 @@ async function enviarMidia(phone, body) {
           if (!messageId) {
             throw new Error("WhatsApp não retornou ID da mídia — envio não confirmado.");
           }
-          void aguardarAckEntrega(sent?.key || { id: messageId, remoteJid: jid })
-            .then((ack) => {
-              log("Mídia confirmada pelo WhatsApp", {
-                jid,
-                messageId,
-                status: ack.status,
-              });
-            })
-            .catch((err) => {
-              log("Ack da mídia não confirmado", {
-                jid,
-                messageId,
-                erro: err instanceof Error ? err.message : String(err),
-              });
-            });
-          return { messageId, jid, ack: { status: null } };
+          const ack = await aguardarAckEntrega(sent?.key || { id: messageId, remoteJid: jid });
+          return { messageId, jid, ack };
         });
 
         log("Mídia enviada ao WhatsApp", {
           jid: resultado.jid,
           messageId: resultado.messageId,
+          status: resultado.ack.status,
         });
         return { ok: true, messageId: resultado.messageId, jid: resultado.jid, ack: true };
       })(),
