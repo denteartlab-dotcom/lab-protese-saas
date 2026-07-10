@@ -18,6 +18,7 @@ import {
 import {
   creditosUtilizadosDaFatura,
   recebimentosParciaisDaFatura,
+  type LancamentoContasReceber,
 } from "@/lib/contas-receber-financeiro";
 import {
   classificarItemOs,
@@ -302,6 +303,7 @@ function itensTrabalhoFatura(trabalho: TrabalhoFaturaImpressao) {
 function montarParcelasCondicaoPagamentoFatura(params: {
   lancamento: LancamentoFaturaImpressao;
   clienteId?: string;
+  clienteNome?: string;
   lancamentos?: LancamentoResumoFatura[];
   totalFinal: number;
   formatDate: (iso: string) => string;
@@ -311,13 +313,19 @@ function montarParcelasCondicaoPagamentoFatura(params: {
   const parcela = parseParcelaNaDescricao(lancamento.descricao);
   const parcelaTexto = textoParcelaLog(parcela?.numero ?? 1, parcela?.total ?? 1);
   const lancamentos = params.lancamentos || [];
-  const descricao = lancamento.descricao.trim();
+  const lancamentoCliente: LancamentoContasReceber | null = params.clienteId
+    ? {
+        id: "",
+        tipo: "receita",
+        ...lancamento,
+        cliente: { id: params.clienteId, nome: params.clienteNome || "" },
+      }
+    : null;
 
-  const parciais = params.clienteId
-    ? recebimentosParciaisDaFatura(
-        { ...lancamento, cliente: { id: params.clienteId } },
-        lancamentos
-      ).sort((a, b) => a.data.localeCompare(b.data))
+  const parciais = lancamentoCliente
+    ? recebimentosParciaisDaFatura(lancamentoCliente, lancamentos).sort((a, b) =>
+        a.data.localeCompare(b.data)
+      )
     : [];
 
   const totalPagoCash = parciais.reduce((sum, item) => sum + item.valor, 0);
@@ -338,12 +346,9 @@ function montarParcelasCondicaoPagamentoFatura(params: {
     },
   ];
 
-  if (!params.clienteId) return parcelas;
+  if (!params.clienteId || !lancamentoCliente) return parcelas;
 
-  const creditos = creditosUtilizadosDaFatura(
-    { ...lancamento, cliente: { id: params.clienteId } },
-    lancamentos
-  )
+  const creditos = creditosUtilizadosDaFatura(lancamentoCliente, lancamentos)
     .filter((item) => isCreditoUtilizadoFatura(item.descricao))
     .sort((a, b) => a.data.localeCompare(b.data));
 
@@ -464,6 +469,7 @@ export function montarDadosFaturaImpressao(params: {
     parcelas: montarParcelasCondicaoPagamentoFatura({
       lancamento,
       clienteId: params.clienteId,
+      clienteNome: params.clienteNome,
       lancamentos: params.lancamentosCliente,
       totalFinal,
       formatDate,
