@@ -208,11 +208,11 @@ async function migrarLocalStorageLegadoParaServidor() {
         "[armazenamento-laboratorio] falha ao migrar localStorage legado:",
         res.status
       );
+      return;
     }
+    descartarLocalStorageLaboratorioLegado();
   } catch (err) {
     console.warn("[armazenamento-laboratorio] falha ao migrar localStorage legado", err);
-  } finally {
-    descartarLocalStorageLaboratorioLegado();
   }
 }
 
@@ -283,6 +283,29 @@ export function aplicarEspelhoServidor(key: string, valor: unknown) {
   atualizarSnapshotServidor(key, valor);
 }
 
+function valorSerializadoVazio(serializado: string) {
+  return serializado === "[]" || serializado === "{}" || serializado === "null";
+}
+
+function valorGravacaoVazio(valor: unknown) {
+  if (valor === null || valor === undefined) return false;
+  if (Array.isArray(valor)) return valor.length === 0;
+  if (typeof valor === "object") return Object.keys(valor as object).length === 0;
+  return false;
+}
+
+/** Evita que a fila de pré-bootstrap apague cadastros já existentes no servidor. */
+function gravacaoSeguraParaServidor(key: string, valor: unknown) {
+  if (!chavesDoServidor.has(key)) return true;
+  const anterior = snapshotServidor.get(key);
+  if (!anterior || valorSerializadoVazio(anterior)) return true;
+  if (!valorGravacaoVazio(valor)) return true;
+  console.warn(
+    `[armazenamento-laboratorio] ignorando gravação vazia de ${key} (servidor já tem dados)`
+  );
+  return false;
+}
+
 /** Toda alteração do usuário deve ir para o PostgreSQL (JsonStore). */
 function devePersistirGravacao(
   key: string,
@@ -344,12 +367,20 @@ function aplicarConfirmacaoSalvar(entradas: Record<string, unknown>) {
 
 async function flushSalvarPendentes() {
   if (filaSalvar.size === 0) return;
-  const entradas = Object.fromEntries(filaSalvar.entries());
+  const entradasBrutas = Object.fromEntries(filaSalvar.entries());
   filaSalvar.clear();
   if (timerSalvar) {
     clearTimeout(timerSalvar);
     timerSalvar = null;
   }
+
+  const entradas: Record<string, unknown> = {};
+  for (const [key, valor] of Object.entries(entradasBrutas)) {
+    if (gravacaoSeguraParaServidor(key, valor)) {
+      entradas[key] = valor;
+    }
+  }
+  if (Object.keys(entradas).length === 0) return;
 
   for (let tentativa = 1; tentativa <= 3; tentativa += 1) {
     try {
@@ -575,7 +606,8 @@ export function gravarArmazenamentoCache<T>(
   if (typeof window === "undefined") return;
   if (!devePersistirGravacao(key, valor, opcoes)) return;
 
-  if (!hidratado) {
+  if (!hidratado || !bootstrapOk) {
+    if (!gravacaoSeguraParaServidor(key, valor)) return;
     filaSalvar.set(key, valor);
     return;
   }

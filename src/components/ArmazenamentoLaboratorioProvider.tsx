@@ -166,9 +166,11 @@ export function ArmazenamentoLaboratorioProvider({ children }: Props) {
   const mostrarCarregando = montado && !ignoraBootstrap && estado === "carregando";
   const mostrarErro = montado && !ignoraBootstrap && estado === "erro";
 
+  const podeRenderizarFilhos = ignoraBootstrap || estado === "pronto";
+
   return (
     <>
-      {children}
+      {podeRenderizarFilhos ? children : null}
       {mostrarCarregando ? (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-[#f4f6f8]/95 px-4 dark:bg-slate-950/95">
           <p className="text-center text-sm text-slate-500">

@@ -5,6 +5,7 @@
  */
 import {
   aplicarEspelhoServidor,
+  armazenamentoLaboratorioBootstrapOk,
   armazenamentoTemSalvamentosPendentes,
   chaveExisteNoServidor,
   gravarArmazenamentoCache,
@@ -17,6 +18,7 @@ import {
 
 export {
   aplicarEspelhoServidor,
+  armazenamentoLaboratorioBootstrapOk,
   armazenamentoTemSalvamentosPendentes,
   chaveExisteNoServidor,
   inicializarArmazenamentoLaboratorio,
@@ -39,5 +41,8 @@ export function writeStorage<T>(
   value: T,
   opcoes?: OpcoesGravarArmazenamento
 ) {
+  if (typeof window !== "undefined" && !armazenamentoLaboratorioBootstrapOk()) {
+    return;
+  }
   gravarArmazenamentoCache(key, value, opcoes);
 }
