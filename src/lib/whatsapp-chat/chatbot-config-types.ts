@@ -30,12 +30,15 @@ export type ChatbotOpcaoMenu = {
 
 export type ChatbotConfigDados = {
   ativo: boolean;
+  /** Se true, responde qualquer número no WhatsApp (mesmo sem cadastro de cliente). */
+  responderSemCadastro: boolean;
   intro: string;
   rodapeMenu: string;
   opcoes: ChatbotOpcaoMenu[];
   msgAtendente: string;
   msgAguardandoOs: string;
   msgNaoEntendi: string;
+  msgSemCadastro: string;
 };
 
 export type RespostaChatMidia = {
@@ -85,6 +88,7 @@ export function opcoesPadraoMenu(): ChatbotOpcaoMenu[] {
 
 export const CHATBOT_CONFIG_PADRAO: ChatbotConfigDados = {
   ativo: true,
+  responderSemCadastro: true,
   intro: "Olá! Sou o assistente do {laboratorio}.",
   rodapeMenu: "A qualquer momento digite *menu* para voltar.",
   opcoes: opcoesPadraoMenu(),
@@ -92,6 +96,8 @@ export const CHATBOT_CONFIG_PADRAO: ChatbotConfigDados = {
     "Certo! Um atendente do laboratório vai responder em breve.\n\nEnquanto isso, digite *menu* para voltar ao assistente automático.",
   msgAguardandoOs: "Qual o número da OS? (ex.: 1234)",
   msgNaoEntendi: "Não entendi.",
+  msgSemCadastro:
+    "Não localizamos seu cadastro com este WhatsApp.\n\nVocê ainda pode usar as outras opções do menu ou digite *menu*.",
 };
 
 export const CHATBOT_MAX_OPCOES = 12;

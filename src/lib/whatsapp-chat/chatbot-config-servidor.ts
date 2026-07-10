@@ -10,6 +10,7 @@ import {
 
 type RowConfig = {
   ativo: boolean;
+  responderSemCadastro?: boolean;
   intro: string;
   rodapeMenu: string;
   opcao1Ativa: boolean;
@@ -23,6 +24,7 @@ type RowConfig = {
   msgAtendente: string;
   msgAguardandoOs: string;
   msgNaoEntendi: string;
+  msgSemCadastro?: string;
   opcoes: unknown;
 };
 
@@ -37,12 +39,14 @@ function rowParaConfig(row: RowConfig | null): ChatbotConfigDados {
   if (!row) return { ...CHATBOT_CONFIG_PADRAO, opcoes: [...CHATBOT_CONFIG_PADRAO.opcoes] };
   return {
     ativo: row.ativo,
+    responderSemCadastro: row.responderSemCadastro ?? true,
     intro: row.intro,
     rodapeMenu: row.rodapeMenu,
     opcoes: parseOpcoesJson(row.opcoes, row),
     msgAtendente: row.msgAtendente,
     msgAguardandoOs: row.msgAguardandoOs,
     msgNaoEntendi: row.msgNaoEntendi,
+    msgSemCadastro: row.msgSemCadastro || CHATBOT_CONFIG_PADRAO.msgSemCadastro,
   };
 }
 
@@ -66,12 +70,14 @@ export async function salvarChatbotConfig(empresaId: string, dados: ChatbotConfi
       create: {
         empresaId,
         ativo: dados.ativo,
+        responderSemCadastro: dados.responderSemCadastro,
         intro: dados.intro,
         rodapeMenu: dados.rodapeMenu,
         opcoes,
         msgAtendente: dados.msgAtendente,
         msgAguardandoOs: dados.msgAguardandoOs,
         msgNaoEntendi: dados.msgNaoEntendi,
+        msgSemCadastro: dados.msgSemCadastro,
         opcao1Ativa: opcoes[0]?.ativa ?? true,
         opcao1Texto: opcoes[0]?.texto ?? "",
         opcao2Ativa: opcoes[1]?.ativa ?? true,
@@ -83,12 +89,14 @@ export async function salvarChatbotConfig(empresaId: string, dados: ChatbotConfi
       },
       update: {
         ativo: dados.ativo,
+        responderSemCadastro: dados.responderSemCadastro,
         intro: dados.intro,
         rodapeMenu: dados.rodapeMenu,
         opcoes,
         msgAtendente: dados.msgAtendente,
         msgAguardandoOs: dados.msgAguardandoOs,
         msgNaoEntendi: dados.msgNaoEntendi,
+        msgSemCadastro: dados.msgSemCadastro,
         opcao1Ativa: opcoes[0]?.ativa ?? false,
         opcao1Texto: opcoes[0]?.texto ?? "",
         opcao2Ativa: opcoes[1]?.ativa ?? false,

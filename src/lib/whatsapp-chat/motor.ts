@@ -9,6 +9,7 @@ import {
 } from "@/lib/whatsapp";
 import {
   buscarClientesPorTelefoneChat,
+  contatoWhatsappCadastrado,
   type ClienteChatResumo,
 } from "@/lib/whatsapp-chat/buscar-cliente";
 import { carregarAnexoChatbot } from "@/lib/whatsapp-chat/chatbot-anexo";
@@ -98,12 +99,13 @@ async function nomeLaboratorio(empresaId: string) {
   return empresa?.nome?.trim() || "Laboratório";
 }
 
-async function listarOsEmAndamento(empresaId: string, clientes: ClienteChatResumo[]) {
+async function listarOsEmAndamento(
+  empresaId: string,
+  clientes: ClienteChatResumo[],
+  msgSemCadastro: string
+) {
   if (clientes.length === 0) {
-    return (
-      "Não encontramos seu cadastro com este WhatsApp.\n\n" +
-      "Peça ao laboratório para conferir o número no cadastro do cliente ou digite *menu*."
-    );
+    return msgSemCadastro;
   }
 
   const ids = clientes.map((c) => c.id);
@@ -165,10 +167,11 @@ async function listarOsEmAndamento(empresaId: string, clientes: ClienteChatResum
 async function detalharOs(
   empresaId: string,
   clientes: ClienteChatResumo[],
-  numeroOs: number
+  numeroOs: number,
+  msgSemCadastro: string
 ) {
   if (clientes.length === 0) {
-    return "Cadastro não encontrado para este WhatsApp. Digite *menu*.";
+    return msgSemCadastro;
   }
 
   const ids = clientes.map((c) => c.id);
@@ -205,9 +208,9 @@ async function detalharOs(
   return `${blocos.join("\n\n")}\n\nDigite *menu* para outras opções.`;
 }
 
-async function linkAcompanhamento(clientes: ClienteChatResumo[]) {
+async function linkAcompanhamento(clientes: ClienteChatResumo[], msgSemCadastro: string) {
   if (clientes.length === 0) {
-    return "Não encontramos seu cadastro. Digite *menu* para falar com o laboratório.";
+    return msgSemCadastro;
   }
 
   const principal = clientes[0];
@@ -272,15 +275,20 @@ async function executarAcaoSistema(
   acao: ChatbotOpcaoMenu["acao"],
   textoEntrada: string
 ): Promise<ResultadoMotorChat> {
+  const msgSemCadastro = config.msgSemCadastro;
+
   if (acao === "listar_os") {
-    const lista = await listarOsEmAndamento(empresaId, clientes);
+    const lista = await listarOsEmAndamento(empresaId, clientes, msgSemCadastro);
     return resultadoVazio({ respostas: [lista], clienteId });
   }
 
   if (acao === "consultar_os") {
+    if (!contatoWhatsappCadastrado(clientes)) {
+      return resultadoVazio({ respostas: [msgSemCadastro], clienteId });
+    }
     const numeroDireto = extrairNumeroOs(textoEntrada);
     if (numeroDireto) {
-      const detalhe = await detalharOs(empresaId, clientes, numeroDireto);
+      const detalhe = await detalharOs(empresaId, clientes, numeroDireto, msgSemCadastro);
       return resultadoVazio({ respostas: [detalhe], clienteId });
     }
     return resultadoVazio({
@@ -291,7 +299,7 @@ async function executarAcaoSistema(
   }
 
   if (acao === "link_acompanhamento") {
-    const msg = await linkAcompanhamento(clientes);
+    const msg = await linkAcompanhamento(clientes, msgSemCadastro);
     return resultadoVazio({ respostas: [msg], clienteId });
   }
 
@@ -347,6 +355,15 @@ export async function processarTextoChatbot(
   const config = await obterChatbotConfig(empresaId);
   const clientes = await buscarClientesPorTelefoneChat(empresaId, conversa.telefone);
   const clienteId = clientes[0]?.id ?? conversa.clienteId ?? null;
+  const cadastrado = contatoWhatsappCadastrado(clientes);
+
+  if (!config.responderSemCadastro && !cadastrado) {
+    return resultadoVazio({
+      respostas: [],
+      proximaEtapa: "menu",
+      clienteId,
+    });
+  }
 
   if (conversa.atendimentoHumano && !pedeMenu(texto)) {
     return resultadoVazio({
@@ -393,6 +410,9 @@ export async function processarTextoChatbot(
   }
 
   if (conversa.etapa === "aguardando_os") {
+    if (!cadastrado) {
+      return resultadoVazio({ respostas: [config.msgSemCadastro], clienteId });
+    }
     const numero = extrairNumeroOs(texto);
     if (!numero) {
       return resultadoVazio({
@@ -401,7 +421,7 @@ export async function processarTextoChatbot(
         clienteId,
       });
     }
-    const detalhe = await detalharOs(empresaId, clientes, numero);
+    const detalhe = await detalharOs(empresaId, clientes, numero, config.msgSemCadastro);
     return resultadoVazio({ respostas: [detalhe], clienteId });
   }
 
@@ -414,8 +434,8 @@ export async function processarTextoChatbot(
   }
 
   const numeroDireto = extrairNumeroOs(texto);
-  if (numeroDireto) {
-    const detalhe = await detalharOs(empresaId, clientes, numeroDireto);
+  if (numeroDireto && cadastrado) {
+    const detalhe = await detalharOs(empresaId, clientes, numeroDireto, config.msgSemCadastro);
     return resultadoVazio({ respostas: [detalhe], clienteId });
   }
 

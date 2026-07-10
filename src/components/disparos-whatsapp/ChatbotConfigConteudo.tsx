@@ -236,6 +236,24 @@ export function ChatbotConfigConteudo() {
 
       <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
         <div className="space-y-5">
+          <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
+            <label className="flex cursor-pointer items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Responder números sem cadastro</p>
+                <p className="text-xs text-slate-500">
+                  Quando ativo, qualquer WhatsApp recebe o menu e opções personalizadas — mesmo sem
+                  estar no cadastro de clientes.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={config.responderSemCadastro}
+                onChange={(e) => atualizar("responderSemCadastro", e.target.checked)}
+                className="h-5 w-5 rounded accent-indigo-600"
+              />
+            </label>
+          </div>
+
           <div className="rounded-xl border border-slate-200 bg-white p-5">
             <label className="flex cursor-pointer items-center justify-between gap-4">
               <div>
@@ -430,6 +448,12 @@ export function ChatbotConfigConteudo() {
               value={config.msgNaoEntendi}
               onChange={(e) => atualizar("msgNaoEntendi", e.target.value)}
               rows={2}
+            />
+            <Textarea
+              label="Quando tentar OS/link sem cadastro"
+              value={config.msgSemCadastro}
+              onChange={(e) => atualizar("msgSemCadastro", e.target.value)}
+              rows={3}
             />
           </div>
         </div>

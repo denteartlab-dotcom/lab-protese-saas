@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { runWithTenantContext } from "@/lib/prisma-tenant";
-import { normalizarTelefoneBr } from "@/lib/whatsapp-disparos/telefone-br";
+import { normalizarTelefoneBr, telefoneParaEnvioWhatsapp } from "@/lib/whatsapp-disparos/telefone-br";
 
 export type EtapaChatWhatsapp = "menu" | "aguardando_os" | "atendente" | `aguardando_sim_nao:${string}`;
 
@@ -18,9 +18,11 @@ export async function obterOuCriarConversaChat(
   empresaId: string,
   telefoneRaw: string
 ): Promise<ConversaChatWhatsapp | null> {
+  const raw = String(telefoneRaw || "").trim();
   const telefone =
-    normalizarTelefoneBr(telefoneRaw) ||
-    (telefoneRaw.includes("@") ? telefoneRaw.trim() : null);
+    (raw.includes("@") ? raw : null) ||
+    telefoneParaEnvioWhatsapp(raw) ||
+    normalizarTelefoneBr(raw);
   if (!telefone) return null;
 
   const row = await runWithTenantContext(empresaId, () =>

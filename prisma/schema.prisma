@@ -699,6 +699,8 @@ model WhatsappChatbotConfig {
   msgAtendente    String   @default("Certo! Um atendente do laboratório vai responder em breve.\n\nEnquanto isso, digite *menu* para voltar ao assistente automático.")
   msgAguardandoOs String   @default("Qual o número da OS? (ex.: 1234)")
   msgNaoEntendi   String   @default("Não entendi.")
+  responderSemCadastro Boolean @default(true)
+  msgSemCadastro  String   @default("Não localizamos seu cadastro com este WhatsApp.\n\nVocê ainda pode usar as outras opções do menu ou digite *menu*.")
   opcoes          Json?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

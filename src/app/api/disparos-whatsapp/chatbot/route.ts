@@ -35,12 +35,14 @@ const opcaoSchema = z.object({
 
 const schema = z.object({
   ativo: z.boolean(),
+  responderSemCadastro: z.boolean(),
   intro: z.string().min(1).max(500),
   rodapeMenu: z.string().min(1).max(300),
   opcoes: z.array(opcaoSchema).min(1).max(12),
   msgAtendente: z.string().min(1).max(800),
   msgAguardandoOs: z.string().min(1).max(300),
   msgNaoEntendi: z.string().min(1).max(300),
+  msgSemCadastro: z.string().min(1).max(800),
 });
 
 export async function GET() {

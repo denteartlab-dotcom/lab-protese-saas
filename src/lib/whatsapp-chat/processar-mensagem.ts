@@ -102,7 +102,12 @@ export async function processarMensagemRecebidaWhatsapp(
 
   if (resultado.respostas.length === 0 && resultado.midias.length === 0) {
     await aplicarEstadoConversaAposResposta(conversa, resultado);
-    return { ok: true, ignorado: true, motivo: "atendimento_humano", respostasEnviadas: 0 };
+    return {
+      ok: true,
+      ignorado: true,
+      motivo: resultado.atendimentoHumano ? "atendimento_humano" : "sem_resposta",
+      respostasEnviadas: 0,
+    };
   }
 
   let enviadas = 0;
