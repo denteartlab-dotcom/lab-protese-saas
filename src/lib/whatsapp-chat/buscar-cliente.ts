@@ -1,3 +1,4 @@
+import { clienteTemWhatsappCadastrado, numerosWhatsappClienteCadastro } from "@/lib/cliente-observacoes";
 import { prisma } from "@/lib/db";
 import { runWithTenantContext } from "@/lib/prisma-tenant";
 import {
@@ -11,6 +12,21 @@ export type ClienteChatResumo = {
   tokenAcompanhamento: string | null;
 };
 
+function clienteCoincideWhatsapp(
+  cliente: {
+    celular?: string | null;
+    observacoes?: string | null;
+  },
+  telefoneEntrada: string
+) {
+  const alvo = normalizarTelefoneBr(telefoneEntrada);
+  if (!alvo) return false;
+  return numerosWhatsappClienteCadastro(cliente).some((numero) =>
+    telefonesBrCoincidem(alvo, numero)
+  );
+}
+
+/** Busca cliente pelo WhatsApp cadastrado (campo WhatsApp/celular e WhatsApp do contato). */
 export async function buscarClientesPorTelefoneChat(
   empresaId: string,
   telefone: string
@@ -23,24 +39,27 @@ export async function buscarClientesPorTelefoneChat(
       where: {
         empresaId,
         ativo: true,
-        OR: [{ celular: { not: null } }, { telefone: { not: null } }],
+        OR: [
+          { celular: { not: null } },
+          { observacoes: { contains: "WhatsApp Contato:", mode: "insensitive" } },
+        ],
       },
       select: {
         id: true,
         nome: true,
         celular: true,
-        telefone: true,
+        observacoes: true,
         tokenAcompanhamento: true,
       },
     })
   );
 
   return clientes
-    .filter((cliente) => {
-      const cel = cliente.celular || "";
-      const tel = cliente.telefone || "";
-      return telefonesBrCoincidem(alvo, cel) || telefonesBrCoincidem(alvo, tel);
-    })
+    .filter(
+      (cliente) =>
+        clienteTemWhatsappCadastrado(cliente) &&
+        clienteCoincideWhatsapp(cliente, alvo)
+    )
     .map((cliente) => ({
       id: cliente.id,
       nome: cliente.nome,

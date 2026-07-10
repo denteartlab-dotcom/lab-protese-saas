@@ -98,12 +98,43 @@ export function telefoneWhatsappCliente(cliente: {
   telefone?: string | null;
   observacoes?: string | null;
 }): string {
+  const lista = numerosWhatsappClienteCadastro(cliente);
+  return lista[0] || "";
+}
+
+/**
+ * Números de WhatsApp do cadastro (campo WhatsApp / celular e WhatsApp do contato).
+ * Não inclui telefone residencial ou comercial.
+ */
+export function numerosWhatsappClienteCadastro(cliente: {
+  celular?: string | null;
+  observacoes?: string | null;
+}): string[] {
+  const bruto: string[] = [];
   const waContato = configValueFromObservacoes(
     cliente.observacoes,
     "WhatsApp Contato:"
   );
-  if (waContato) return waContato;
-  return (cliente.celular || "").trim();
+  if (waContato.trim()) bruto.push(waContato.trim());
+  const celular = (cliente.celular || "").trim();
+  if (celular) bruto.push(celular);
+
+  const vistos = new Set<string>();
+  const unicos: string[] = [];
+  for (const item of bruto) {
+    const chave = item.replace(/\D/g, "");
+    if (!chave || vistos.has(chave)) continue;
+    vistos.add(chave);
+    unicos.push(item);
+  }
+  return unicos;
+}
+
+export function clienteTemWhatsappCadastrado(cliente: {
+  celular?: string | null;
+  observacoes?: string | null;
+}) {
+  return numerosWhatsappClienteCadastro(cliente).length > 0;
 }
 
 const PREFIXO_NASCIMENTO = "Data de Nascimento:";
