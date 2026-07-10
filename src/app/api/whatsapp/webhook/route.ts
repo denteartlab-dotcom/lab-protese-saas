@@ -28,6 +28,16 @@ function autorizadoWebhook(request: Request) {
   return header === tokenEsperado;
 }
 
+/** Ping rápido — confirma que o middleware liberou a rota (sem token). */
+export async function GET() {
+  return NextResponse.json({
+    ok: true,
+    webhook: "whatsapp-chat",
+    chatbotHabilitado: chatbotWhatsappHabilitado(),
+    tokenObrigatorio: Boolean(process.env.WHATSAPP_HTTP_TOKEN?.trim()),
+  });
+}
+
 export async function POST(request: Request) {
   if (!chatbotWhatsappHabilitado()) {
     return NextResponse.json({ ok: true, ignorado: true, motivo: "chatbot_desabilitado" });

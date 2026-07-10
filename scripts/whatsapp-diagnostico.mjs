@@ -73,6 +73,11 @@ console.log("1. Variáveis .env:");
 console.log("   WHATSAPP_HTTP_URL =", env.WHATSAPP_HTTP_URL || "(não definido — usa porta 3100)");
 console.log("   WHATSAPP_HTTP_TOKEN =", token ? "(definido)" : "(vazio — ok)");
 console.log("   WHATSAPP_BAILEYS_PORT =", env.WHATSAPP_BAILEYS_PORT || "3100");
+const appPort = env.PORT || "3000";
+const webhookUrl =
+  env.WHATSAPP_WEBHOOK_URL || `http://127.0.0.1:${appPort}/api/whatsapp/webhook`;
+console.log("   PORT (lab-protese) =", appPort);
+console.log("   WHATSAPP_WEBHOOK_URL =", webhookUrl);
 
 try {
   const health = await fetch(`${base}/health`, { signal: AbortSignal.timeout(4000) });
@@ -132,6 +137,30 @@ try {
   }
 } catch (e) {
   console.log("\n3. Erro:", e.message);
+}
+
+try {
+  const healthApp = await fetch(`http://127.0.0.1:${appPort}/api/health`, {
+    signal: AbortSignal.timeout(4000),
+  });
+  console.log("\n5. App lab-protese:", healthApp.ok ? `OK na porta ${appPort} ✓` : `HTTP ${healthApp.status} ✗`);
+} catch {
+  console.log(`\n5. App lab-protese: OFFLINE na porta ${appPort} ✗`);
+  console.log("   → Confira PORT no .env e pm2 restart lab-protese");
+}
+
+try {
+  const pingWebhook = await fetch(webhookUrl, { signal: AbortSignal.timeout(4000) });
+  const corpo = await pingWebhook.text();
+  console.log(
+    "6. Webhook chatbot GET:",
+    pingWebhook.ok ? `OK (${corpo.slice(0, 80)})` : `HTTP ${pingWebhook.status} ✗`
+  );
+  if (pingWebhook.status === 401) {
+    console.log("   → Middleware antigo. Rode: npm run build && pm2 restart lab-protese");
+  }
+} catch {
+  console.log("6. Webhook chatbot GET: não alcançou", webhookUrl);
 }
 
 console.log("\n=== Fim ===\n");
