@@ -1,5 +1,6 @@
 import { numerosOsDoLancamentoFatura } from "@/lib/os-faturamento";
 import { parseParcelaNaDescricao, textoParcelaLog } from "@/lib/fatura-financeiro-util";
+import { descricaoReceitaSemMeta } from "@/lib/receita-conta-bancaria";
 
 export type LancamentoContasReceber = {
   id: string;
@@ -40,16 +41,37 @@ export function isCreditoUtilizado(lancamento: LancamentoContasReceber) {
   return descricao.startsWith("crédito utilizado") || descricao.includes("desconto com crédito");
 }
 
+export function isRecebimentoParcial(lancamento: LancamentoContasReceber) {
+  const base = descricaoReceitaSemMeta(lancamento.descricao);
+  return /^recebimento parcial\s*-/i.test(base);
+}
+
 export function creditosUtilizadosDaFatura(
   lancamento: LancamentoContasReceber,
   lancamentos: LancamentoContasReceber[]
 ) {
+  const descricao = lancamento.descricao.trim();
   return lancamentos.filter(
     (item) =>
       isCreditoUtilizado(item) &&
       item.cliente?.id === lancamento.cliente?.id &&
-      item.descricao.includes(lancamento.descricao)
+      (item.descricao.trim() === `Desconto com crédito - ${descricao}` ||
+        item.descricao.trim() === `Crédito utilizado - ${descricao}` ||
+        item.descricao.trim().endsWith(` - ${descricao}`))
   );
+}
+
+export function recebimentosParciaisDaFatura(
+  lancamento: LancamentoContasReceber,
+  lancamentos: LancamentoContasReceber[]
+) {
+  const descricaoBase = lancamento.descricao.trim();
+  const prefixo = `Recebimento parcial - ${descricaoBase}`;
+  return lancamentos.filter((item) => {
+    if (item.tipo !== "receita" || item.status !== "pago") return false;
+    if (item.cliente?.id !== lancamento.cliente?.id) return false;
+    return descricaoReceitaSemMeta(item.descricao) === prefixo;
+  });
 }
 
 export function creditoUsadoNaFatura(
@@ -66,8 +88,64 @@ export function recebidoNaFatura(
   lancamento: LancamentoContasReceber,
   lancamentos: LancamentoContasReceber[]
 ) {
+  const credito = creditoUsadoNaFatura(lancamento, lancamentos);
+  const parciais = recebimentosParciaisDaFatura(lancamento, lancamentos).reduce(
+    (sum, item) => sum + item.valor,
+    0
+  );
+  const totalRecebido = credito + parciais;
   if (lancamento.status === "pago") return lancamento.valor;
-  return Math.min(creditoUsadoNaFatura(lancamento, lancamentos), lancamento.valor);
+  return Math.min(totalRecebido, lancamento.valor);
+}
+
+export function lancamentoReceitaNoPeriodo(
+  lancamento: LancamentoContasReceber,
+  inicio: Date | null,
+  fim: Date | null
+) {
+  const dataLancamento = new Date(lancamento.data);
+  if (inicio && dataLancamento < inicio) return false;
+  if (fim && dataLancamento > fim) return false;
+  return true;
+}
+
+function valorRecebidoCashNaFaturaPaga(
+  lancamento: LancamentoContasReceber,
+  lancamentos: LancamentoContasReceber[]
+) {
+  const parciais = recebimentosParciaisDaFatura(lancamento, lancamentos).reduce(
+    (sum, item) => sum + item.valor,
+    0
+  );
+  const credito = creditoUsadoNaFatura(lancamento, lancamentos);
+  return Math.max(lancamento.valor - parciais - credito, 0);
+}
+
+/** Valor em dinheiro recebido de um lançamento para a coluna Recebido do cliente. */
+export function contribuiRecebidoCliente(
+  lancamento: LancamentoContasReceber,
+  lancamentos: LancamentoContasReceber[]
+) {
+  if (lancamento.tipo !== "receita" || lancamento.status !== "pago") return 0;
+  if (isCreditoUtilizado(lancamento)) return 0;
+  if (isCreditoGerado(lancamento)) return lancamento.valor;
+  if (isRecebimentoParcial(lancamento)) return lancamento.valor;
+  if (lancamento.descricao.toLowerCase().startsWith("cobrança os")) {
+    return valorRecebidoCashNaFaturaPaga(lancamento, lancamentos);
+  }
+  return 0;
+}
+
+export function calcularRecebidoCliente(
+  clienteId: string,
+  lancamentos: LancamentoContasReceber[],
+  inicio: Date | null,
+  fim: Date | null
+) {
+  return lancamentos
+    .filter((l) => l.cliente?.id === clienteId && l.tipo === "receita")
+    .filter((l) => lancamentoReceitaNoPeriodo(l, inicio, fim))
+    .reduce((sum, l) => sum + contribuiRecebidoCliente(l, lancamentos), 0);
 }
 
 export function saldoFatura(

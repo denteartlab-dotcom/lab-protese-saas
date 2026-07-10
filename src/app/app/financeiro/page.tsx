@@ -101,7 +101,7 @@ import {
   exportarContasReceberClientesCsv,
   gerarContasReceberClientesPdf,
 } from "@/lib/contas-receber-clientes-export";
-import { clienteVisivelContasReceber, descricaoExibicaoCobranca } from "@/lib/contas-receber-financeiro";
+import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, contribuiRecebidoCliente } from "@/lib/contas-receber-financeiro";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroReceita } from "@/lib/financeiro-painel-types";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
@@ -643,6 +643,11 @@ function FinanceiroReceberConteudo() {
 
   const clientesReceber = useMemo(() => {
     const grupos = new Map<string, ClienteReceber>();
+    const inicio = dataInicio ? parseBrShortDate(dataInicio) : null;
+    const fim = dataFinal ? parseBrShortDate(dataFinal) : null;
+    if (inicio) inicio.setHours(0, 0, 0, 0);
+    if (fim) fim.setHours(23, 59, 59, 999);
+    const todosReceitas = data?.lancamentos.filter((l) => l.tipo === "receita") || [];
 
     receitasFiltradas.forEach((lancamento) => {
       const clienteId = lancamento.cliente?.id;
@@ -661,7 +666,6 @@ function FinanceiroReceberConteudo() {
 
       grupo.lancamentos.push(lancamento);
       if (isCreditoGerado(lancamento)) {
-        grupo.adiantamentos += lancamento.valor;
         grupos.set(chave, grupo);
         return;
       }
@@ -673,9 +677,7 @@ function FinanceiroReceberConteudo() {
         grupos.set(chave, grupo);
         return;
       }
-      if (lancamento.status === "pago") {
-        grupo.recebido += lancamento.valor;
-      } else {
+      if (lancamento.status !== "pago") {
         grupo.aReceber += saldoFatura(lancamento);
       }
       grupos.set(chave, grupo);
@@ -702,11 +704,14 @@ function FinanceiroReceberConteudo() {
     return Array.from(grupos.values())
       .map((grupo) => ({
         ...grupo,
+        recebido: grupo.clienteId
+          ? calcularRecebidoCliente(grupo.clienteId, todosReceitas, inicio, fim)
+          : 0,
         adiantamentos: creditoDisponivelCliente(grupo.clienteId),
       }))
       .filter((grupo) => clienteVisivelContasReceber(grupo))
       .sort((a, b) => a.nome.localeCompare(b.nome));
-  }, [receitasFiltradas, trabalhosNaoFaturados, data]);
+  }, [receitasFiltradas, trabalhosNaoFaturados, data, dataInicio, dataFinal]);
 
   const creditoDisponivelReceita = useMemo(
     () =>
@@ -775,16 +780,26 @@ function FinanceiroReceberConteudo() {
         const noMesVigente = dataLancamento >= inicioMes && dataLancamento <= fimMes;
 
         if (isCreditoGerado(l)) {
-          if (noMesVigente) acc.adiantamentos += l.valor;
+          if (noMesVigente) {
+            acc.adiantamentos += l.valor;
+            if (l.status === "pago") acc.recebidas += l.valor;
+          }
           return acc;
         }
         if (isCreditoUtilizado(l)) return acc;
-        if (!isFaturaContasReceber(l)) return acc;
+        if (!isFaturaContasReceber(l)) {
+          if (noMesVigente) {
+            acc.recebidas += contribuiRecebidoCliente(l, lancamentos);
+          }
+          return acc;
+        }
 
         const pendente = l.status !== "pago";
         if (pendente && noMesVigente) acc.aReceber += saldoFatura(l);
         if (pendente && dataLancamento < hoje) acc.atraso += saldoFatura(l);
-        if (l.status === "pago" && noMesVigente) acc.recebidas += l.valor;
+        if (noMesVigente) {
+          acc.recebidas += contribuiRecebidoCliente(l, lancamentos);
+        }
         return acc;
       },
       { aReceber: 0, atraso: 0, recebidas: 0, adiantamentos: 0, naoFaturados: 0 }
@@ -3176,6 +3191,8 @@ function FinanceiroReceberConteudo() {
                 ),
                 creditoFatura: creditoUsado,
                 valorRecebido: recebidoNaFatura(lancamento),
+                clienteId,
+                lancamentosCliente: lancamentosCliente,
                 ultimoPgto: calcularUltimoPagamentoClienteFatura({
                   lancamentos: lancamentosCliente,
                   clienteId,
@@ -3213,6 +3230,8 @@ function FinanceiroReceberConteudo() {
                 ),
                 creditoFatura: creditoUsado,
                 valorRecebido: recebidoNaFatura(lancamento),
+                clienteId,
+                lancamentosCliente: lancamentosCliente,
                 ultimoPgto: calcularUltimoPagamentoClienteFatura({
                   lancamentos: lancamentosCliente,
                   clienteId,

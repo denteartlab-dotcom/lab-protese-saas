@@ -11,6 +11,15 @@ import {
 } from "@/lib/configuracoes-faturas";
 import { parseParcelaNaDescricao, textoParcelaLog } from "@/lib/fatura-financeiro-util";
 import {
+  FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
+  isCreditoUtilizadoFatura,
+  type LancamentoResumoFatura,
+} from "@/lib/fatura-cliente-financeiro";
+import {
+  creditosUtilizadosDaFatura,
+  recebimentosParciaisDaFatura,
+} from "@/lib/contas-receber-financeiro";
+import {
   classificarItemOs,
   type SegmentoFaturamento,
 } from "@/lib/trabalho-os-segmento";
@@ -290,6 +299,77 @@ function itensTrabalhoFatura(trabalho: TrabalhoFaturaImpressao) {
       ];
 }
 
+function montarParcelasCondicaoPagamentoFatura(params: {
+  lancamento: LancamentoFaturaImpressao;
+  clienteId?: string;
+  lancamentos?: LancamentoResumoFatura[];
+  totalFinal: number;
+  formatDate: (iso: string) => string;
+  money: (n: number) => string;
+}): ParcelaFaturaImpressao[] {
+  const { lancamento, totalFinal, formatDate, money } = params;
+  const parcela = parseParcelaNaDescricao(lancamento.descricao);
+  const parcelaTexto = textoParcelaLog(parcela?.numero ?? 1, parcela?.total ?? 1);
+  const lancamentos = params.lancamentos || [];
+  const descricao = lancamento.descricao.trim();
+
+  const parciais = params.clienteId
+    ? recebimentosParciaisDaFatura(
+        { ...lancamento, cliente: { id: params.clienteId } },
+        lancamentos
+      ).sort((a, b) => a.data.localeCompare(b.data))
+    : [];
+
+  const totalPagoCash = parciais.reduce((sum, item) => sum + item.valor, 0);
+  const valorPagoPrincipal =
+    lancamento.status === "pago"
+      ? totalFinal
+      : totalPagoCash > 0
+        ? Math.min(totalPagoCash, totalFinal)
+        : 0;
+
+  const parcelas: ParcelaFaturaImpressao[] = [
+    {
+      parcela: parcelaTexto,
+      vencimento: formatDate(lancamento.data),
+      forma: lancamento.formaPagamento || "-",
+      valor: money(totalFinal),
+      pago: money(valorPagoPrincipal),
+    },
+  ];
+
+  if (!params.clienteId) return parcelas;
+
+  const creditos = creditosUtilizadosDaFatura(
+    { ...lancamento, cliente: { id: params.clienteId } },
+    lancamentos
+  )
+    .filter((item) => isCreditoUtilizadoFatura(item.descricao))
+    .sort((a, b) => a.data.localeCompare(b.data));
+
+  for (const credito of creditos) {
+    parcelas.push({
+      parcela: "Adiantamento",
+      vencimento: formatDate(credito.data),
+      forma: credito.formaPagamento || FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
+      valor: money(credito.valor),
+      pago: money(credito.valor),
+    });
+  }
+
+  for (const parcial of parciais) {
+    parcelas.push({
+      parcela: "Pagamento parcial",
+      vencimento: formatDate(parcial.data),
+      forma: parcial.formaPagamento || "-",
+      valor: money(parcial.valor),
+      pago: money(parcial.valor),
+    });
+  }
+
+  return parcelas;
+}
+
 export function montarDadosFaturaImpressao(params: {
   numeroFatura: number;
   clienteNome: string;
@@ -297,6 +377,8 @@ export function montarDadosFaturaImpressao(params: {
   trabalhos: TrabalhoFaturaImpressao[];
   creditoFatura?: number;
   valorRecebido?: number;
+  clienteId?: string;
+  lancamentosCliente?: LancamentoResumoFatura[];
   ultimoPgto?: string;
   saldoAnterior?: string;
   clienteTelefones?: string;
@@ -362,16 +444,7 @@ export function montarDadosFaturaImpressao(params: {
     });
   }
 
-  const parcela = parseParcelaNaDescricao(lancamento.descricao);
-  const parcelaTexto = textoParcelaLog(parcela?.numero ?? 1, parcela?.total ?? 1);
   const totalFinal = Math.max(totalServicos - creditoFatura, 0);
-  const recebidoInformado = params.valorRecebido ?? 0;
-  const valorPago =
-    lancamento.status === "pago"
-      ? totalFinal
-      : recebidoInformado > 0
-        ? Math.min(recebidoInformado, totalFinal)
-        : 0;
   const agora = new Date();
 
   return {
@@ -388,15 +461,14 @@ export function montarDadosFaturaImpressao(params: {
     ultimoPgto: params.ultimoPgto,
     saldoAnterior: params.saldoAnterior,
     linhas,
-    parcelas: [
-      {
-        parcela: parcelaTexto,
-        vencimento: formatDate(lancamento.data),
-        forma: lancamento.formaPagamento || "-",
-        valor: money(totalFinal),
-        pago: money(valorPago),
-      },
-    ],
+    parcelas: montarParcelasCondicaoPagamentoFatura({
+      lancamento,
+      clienteId: params.clienteId,
+      lancamentos: params.lancamentosCliente,
+      totalFinal,
+      formatDate,
+      money,
+    }),
     totalServicos,
     totalFinal,
   };
