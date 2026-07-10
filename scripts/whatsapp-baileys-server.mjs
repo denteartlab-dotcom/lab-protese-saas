@@ -125,6 +125,7 @@ const WARMUP_MS = Number(process.env.WHATSAPP_WARMUP_MS || 12_000);
 const ENVIO_TIMEOUT_MS = Number(process.env.WHATSAPP_ENVIO_TIMEOUT_MS || 65_000);
 const pendentesAck = new Map();
 const ackErrosRecentes = new Set();
+const enviosRejeitados = new Set();
 const messageStore = new Map();
 let filaEnvio = Promise.resolve();
 
@@ -282,7 +283,11 @@ function variantesTelefoneBr(raw) {
 }
 
 function conexaoEnvioOk() {
-  return Boolean(sock && conectado && prontoParaEnvio && sock.user?.id && !iniciando);
+  return Boolean(sock && conectado && prontoParaEnvio && sock.user?.id && !iniciando && socketAberto());
+}
+
+function socketAberto() {
+  return Boolean(sock?.ws?.isOpen);
 }
 
 function segundosWarmupRestantes() {
@@ -707,6 +712,7 @@ function onMessagesUpdate(updates) {
 
     const status = update?.status;
     if (status === StatusMensagem.ERROR || status === 0) {
+      enviosRejeitados.add(id);
       clearTimeout(pendente.timeout);
       pendentesAck.delete(id);
       pendente.reject(new Error("WhatsApp rejeitou o envio (erro de confirmação)."));
@@ -772,10 +778,14 @@ async function confirmarEnvioBaileys(sent, jid) {
     log("Ack confirmado pelo WhatsApp", { jid, messageId, status: ack.status });
     return { messageId, jid, ack };
   } catch (err) {
-    if (messageId && ackErrosRecentes.has(messageId)) {
-      ackErrosRecentes.delete(messageId);
+    await new Promise((r) => setTimeout(r, 2000));
+    if (
+      (messageId && enviosRejeitados.delete(messageId)) ||
+      (messageId && ackErrosRecentes.has(messageId))
+    ) {
+      if (messageId) ackErrosRecentes.delete(messageId);
       throw new Error(
-        "WhatsApp rejeitou o envio (sessão instável). Rode: npm run whatsapp:reset e escaneie o QR novamente."
+        "WhatsApp rejeitou o envio. Se o contato nunca conversou com este número, a entrega pode ser bloqueada. Rode: npm run whatsapp:reset"
       );
     }
     log("Envio aceito pelo messageId (ack tardio)", {
@@ -1262,6 +1272,13 @@ async function enviarMensagem(phone, message, jidDirect = null) {
           }
           conectado = false;
           throw new Error("WhatsApp não conectado ou sessão inválida. Reconecte em Disparos WhatsApp.");
+        }
+        if (!socketAberto()) {
+          conectado = false;
+          prontoParaEnvio = false;
+          throw new Error(
+            "Conexão WhatsApp fechada (428). Aguarde reconectar ou rode: npm run whatsapp:reset"
+          );
         }
         const texto = String(message || "").trim();
         if (!texto) throw new Error("Mensagem vazia.");
