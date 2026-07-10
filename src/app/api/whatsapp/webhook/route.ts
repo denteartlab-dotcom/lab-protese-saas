@@ -9,13 +9,17 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const schema = z.object({
-  telefone: z.string().min(8),
-  mensagem: z.string().min(1).max(4000),
-  messageId: z.string().optional().nullable(),
-  jid: z.string().optional().nullable(),
-  numeroConectado: z.string().optional().nullable(),
-});
+const schema = z
+  .object({
+    telefone: z.string().min(8).optional(),
+    mensagem: z.string().min(1).max(4000),
+    messageId: z.string().optional().nullable(),
+    jid: z.string().optional().nullable(),
+    numeroConectado: z.string().optional().nullable(),
+  })
+  .refine((data) => Boolean(data.telefone?.trim() || data.jid?.trim()), {
+    message: "Informe telefone ou jid",
+  });
 
 function autorizadoWebhook(request: Request) {
   const tokenEsperado = process.env.WHATSAPP_HTTP_TOKEN?.trim();

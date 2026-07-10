@@ -497,22 +497,66 @@ function extrairTextoRecebido(msg) {
 function jidRemetente(msg) {
   const key = msg?.key;
   if (!key) return null;
-  const alt = key.remoteJidAlt ? String(key.remoteJidAlt) : "";
-  if (alt && alt.includes("@s.whatsapp.net")) return alt;
+  const candidatos = [key.remoteJidAlt, key.participant, key.remoteJid]
+    .filter(Boolean)
+    .map(String);
+  for (const jid of candidatos) {
+    if (jid.includes("@s.whatsapp.net")) return jid;
+  }
+  for (const jid of candidatos) {
+    if (!jid.includes("@g.us") && !jid.includes("@broadcast")) return jid;
+  }
+  return null;
+}
+
+function jidResposta(msg) {
+  const key = msg?.key;
+  if (!key) return null;
   const remote = key.remoteJid ? String(key.remoteJid) : "";
   if (remote && !remote.includes("@g.us") && !remote.includes("@broadcast")) return remote;
-  const participant = key.participant ? String(key.participant) : "";
-  if (participant && participant.includes("@s.whatsapp.net")) return participant;
-  return remote || null;
+  return jidRemetente(msg);
+}
+
+function resolverContatoRemetente(msg) {
+  const key = msg?.key;
+  if (!key) return null;
+
+  const alt = key.remoteJidAlt ? String(key.remoteJidAlt) : "";
+  const remote = key.remoteJid ? String(key.remoteJid) : "";
+  const replyJid = jidResposta(msg);
+
+  if (alt.includes("@s.whatsapp.net")) {
+    const telefone = telefoneFromRemoteJid(alt);
+    if (telefone) {
+      return { telefone, jid: alt, replyJid: remote.includes("@lid") ? remote : alt };
+    }
+  }
+
+  const jidPrincipal = jidRemetente(msg);
+  const telefone = telefoneFromRemoteJid(jidPrincipal);
+  if (telefone && replyJid) {
+    return { telefone, jid: jidPrincipal, replyJid };
+  }
+
+  if (remote.includes("@lid") && replyJid) {
+    return { telefone: null, jid: remote, replyJid };
+  }
+
+  if (telefone && replyJid) {
+    return { telefone, jid: jidPrincipal, replyJid };
+  }
+
+  return null;
 }
 
 function telefoneFromRemoteJid(jid) {
   if (!jid) return null;
   const raw = String(jid);
-  if (raw.includes("@g.us") || raw.includes("@broadcast")) return null;
+  if (raw.includes("@g.us") || raw.includes("@broadcast") || raw.includes("@lid")) return null;
   const parte = raw.split("@")[0] || "";
   const digits = parte.split(":")[0].replace(/\D/g, "");
-  return digits || null;
+  if (!digits || digits.length < 10) return null;
+  return digits;
 }
 
 const mensagensEncaminhadas = new Map();
@@ -536,15 +580,23 @@ async function encaminharMensagemRecebida(msg) {
   if (msg?.key?.fromMe) return;
   if (msg?.message?.protocolMessage) return;
 
-  const jid = jidRemetente(msg);
-  const telefone = telefoneFromRemoteJid(jid);
-  if (!telefone) {
-    log("Chatbot ignorou mensagem — JID sem telefone", { jid: msg?.key?.remoteJid, alt: msg?.key?.remoteJidAlt });
+  const contato = resolverContatoRemetente(msg);
+  if (!contato?.replyJid) {
+    log("Chatbot ignorou mensagem — remetente desconhecido", {
+      remoteJid: msg?.key?.remoteJid,
+      remoteJidAlt: msg?.key?.remoteJidAlt,
+    });
     return;
   }
 
   const texto = extrairTextoRecebido(msg);
-  if (!texto) return;
+  if (!texto) {
+    log("Chatbot ignorou mensagem — sem texto (sessão corrompida? npm run whatsapp:reset)", {
+      remoteJid: msg?.key?.remoteJid,
+      remoteJidAlt: msg?.key?.remoteJidAlt,
+    });
+    return;
+  }
 
   const messageId = msg?.key?.id;
   if (jaEncaminhouMensagem(messageId)) return;
@@ -556,16 +608,25 @@ async function encaminharMensagemRecebida(msg) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 28_000);
 
+  const telefone =
+    contato.telefone ||
+    telefoneFromRemoteJid(contato.jid) ||
+    String(contato.replyJid).split("@")[0].replace(/\D/g, "");
+
   try {
-    log("Chatbot webhook →", { telefone, trecho: texto.slice(0, 40) });
+    log("Chatbot webhook →", {
+      telefone: telefone || "(lid)",
+      replyJid: contato.replyJid,
+      trecho: texto.slice(0, 40),
+    });
     const res = await fetch(webhookUrl, {
       method: "POST",
       headers,
       body: JSON.stringify({
-        telefone,
+        telefone: telefone || contato.replyJid,
         mensagem: texto,
         messageId,
-        jid,
+        jid: contato.replyJid,
         numeroConectado: numeroConectado,
       }),
       signal: controller.signal,
@@ -1158,7 +1219,7 @@ async function resetarSessaoCompleta(force = false) {
   return aguardarQrLocal(50_000);
 }
 
-async function enviarMensagem(phone, message) {
+async function enviarMensagem(phone, message, jidDirect = null) {
   return enfileirarEnvio(() =>
     withTimeout(
       (async () => {
@@ -1173,14 +1234,18 @@ async function enviarMensagem(phone, message) {
         const texto = String(message || "").trim();
         if (!texto) throw new Error("Mensagem vazia.");
 
-        const resultado = await enviarComVariantes(phone, async (jid) => {
+        const enviarParaJid = async (jid) => {
           await prepararDestinoParaEnvio(jid);
-          log("Enviando texto", { jid, phone });
+          log("Enviando texto", { jid, phone: phone || jidDirect });
           const sent = await sock.sendMessage(jid, { text: texto });
           guardarMensagemEnviada(sent);
           const confirmado = await confirmarEnvioBaileys(sent, jid);
           return confirmado;
-        });
+        };
+
+        const resultado = jidDirect
+          ? await enviarParaJid(jidDirect)
+          : await enviarComVariantes(phone, enviarParaJid);
 
         log("Mensagem enviada", {
           jid: resultado.jid,
@@ -1320,7 +1385,11 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/send" && req.method === "POST") {
       if (!autorizado(req)) return json(res, 401, { ok: false, error: "Não autorizado" });
       const body = await lerJson(req);
-      const result = await enviarMensagem(body.phone || body.telefone, body.message || body.mensagem);
+      const result = await enviarMensagem(
+        body.phone || body.telefone,
+        body.message || body.mensagem,
+        body.jid || null
+      );
       return json(res, 200, result);
     }
 

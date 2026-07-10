@@ -1,5 +1,7 @@
 import { baileysEnviarTexto } from "@/lib/whatsapp-disparos/baileys-service";
-import { normalizarTelefoneBr } from "@/lib/whatsapp-disparos/telefone-br";
+import {
+  telefoneParaEnvioWhatsapp,
+} from "@/lib/whatsapp-disparos/telefone-br";
 import {
   mensagemEntradaJaProcessada,
   obterOuCriarConversaChat,
@@ -12,9 +14,10 @@ import {
 import { chatbotWhatsappHabilitado } from "@/lib/whatsapp-chat/resolver-empresa";
 
 export type PayloadMensagemRecebidaWhatsapp = {
-  telefone: string;
+  telefone?: string;
   mensagem: string;
   messageId?: string | null;
+  jid?: string | null;
   numeroConectado?: string | null;
 };
 
@@ -38,6 +41,16 @@ function aguardarIntervalo(telefone: string) {
   return Promise.resolve();
 }
 
+function chaveTelefoneConversa(payload: PayloadMensagemRecebidaWhatsapp) {
+  const direto = telefoneParaEnvioWhatsapp(payload.telefone || "");
+  if (direto) return direto;
+  if (payload.jid?.includes("@s.whatsapp.net")) {
+    return telefoneParaEnvioWhatsapp(payload.jid.split("@")[0]);
+  }
+  if (payload.jid?.trim()) return payload.jid.trim();
+  return null;
+}
+
 export async function processarMensagemRecebidaWhatsapp(
   empresaId: string,
   payload: PayloadMensagemRecebidaWhatsapp
@@ -46,8 +59,9 @@ export async function processarMensagemRecebidaWhatsapp(
     return { ok: true, ignorado: true, motivo: "chatbot_desabilitado" };
   }
 
-  const telefone = normalizarTelefoneBr(payload.telefone);
+  const telefone = chaveTelefoneConversa(payload);
   const mensagem = payload.mensagem?.trim() || "";
+  const replyJid = payload.jid?.trim() || null;
   if (!telefone || !mensagem) {
     return { ok: true, ignorado: true, motivo: "entrada_invalida" };
   }
@@ -86,11 +100,11 @@ export async function processarMensagemRecebidaWhatsapp(
   for (const resposta of resultado.respostas) {
     await aguardarIntervalo(telefone);
     try {
-      await baileysEnviarTexto(telefone, resposta);
+      await baileysEnviarTexto(telefone, resposta, { jid: replyJid });
       ultimoEnvioPorTelefone.set(telefone, Date.now());
     } catch (err) {
       const mensagemErro = err instanceof Error ? err.message : "Falha ao enviar resposta";
-      console.error("[whatsapp-chat]", mensagemErro);
+      console.error("[whatsapp-chat] envio falhou", { telefone, replyJid, erro: mensagemErro });
       return {
         ok: false,
         motivo: mensagemErro,

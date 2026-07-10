@@ -18,7 +18,9 @@ export async function obterOuCriarConversaChat(
   empresaId: string,
   telefoneRaw: string
 ): Promise<ConversaChatWhatsapp | null> {
-  const telefone = normalizarTelefoneBr(telefoneRaw);
+  const telefone =
+    normalizarTelefoneBr(telefoneRaw) ||
+    (telefoneRaw.includes("@") ? telefoneRaw.trim() : null);
   if (!telefone) return null;
 
   const row = await runWithTenantContext(empresaId, () =>

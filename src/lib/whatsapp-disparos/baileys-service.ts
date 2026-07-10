@@ -52,20 +52,31 @@ export async function baileysStatus() {
 
 function exigirConfirmacaoEnvio(data: BaileysSendResponse) {
   const messageId = data.messageId?.trim();
-  if (!messageId || messageId.startsWith("ack-")) {
-    throw new Error("WhatsApp não confirmou o envio da mensagem.");
-  }
   if (!data.ok) {
     throw new Error("WhatsApp recusou o envio da mensagem.");
+  }
+  if (!messageId) {
+    console.warn("[baileys] envio sem messageId — aceito como ok");
+    return data;
+  }
+  if (messageId.startsWith("ack-")) {
+    console.warn("[baileys] messageId sintético — aceito como ok", messageId);
+    return data;
   }
   return data;
 }
 
-export async function baileysEnviarTexto(telefone: string, mensagem: string) {
+export async function baileysEnviarTexto(
+  telefone: string,
+  mensagem: string,
+  opts?: { jid?: string | null }
+) {
+  const phone = formatWhatsAppPhone(telefone);
+  const jid = opts?.jid?.trim() || null;
   const data = await postBaileys(
     "/send",
     {
-      phone: formatWhatsAppPhone(telefone),
+      ...(jid ? { jid } : { phone }),
       message: mensagem,
     },
     70_000
