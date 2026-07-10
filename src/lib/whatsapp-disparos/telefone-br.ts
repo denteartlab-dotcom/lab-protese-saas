@@ -27,6 +27,35 @@ export function normalizarTelefoneBr(raw: string): string | null {
   return null;
 }
 
+/** Variantes com/sem 9º dígito (comparar celular cadastrado vs WhatsApp). */
+export function variantesTelefoneBr(raw: string): string[] {
+  const norm = normalizarTelefoneBr(raw);
+  if (!norm) return [];
+  const set = new Set<string>([norm]);
+  if (norm.startsWith("55") && norm.length === 13) {
+    const ddd = norm.slice(2, 4);
+    const num = norm.slice(4);
+    if (num.length === 9 && num[0] === "9") {
+      set.add(`55${ddd}${num.slice(1)}`);
+    }
+  }
+  if (norm.startsWith("55") && norm.length === 12) {
+    const ddd = norm.slice(2, 4);
+    const num = norm.slice(4);
+    if (num.length === 8) {
+      set.add(`55${ddd}9${num}`);
+    }
+  }
+  return [...set];
+}
+
+export function telefonesBrCoincidem(a: string, b: string) {
+  const va = variantesTelefoneBr(a);
+  const vb = variantesTelefoneBr(b);
+  if (!va.length || !vb.length) return false;
+  return va.some((item) => vb.includes(item));
+}
+
 export function telefoneBrValido(raw: string) {
   return normalizarTelefoneBr(raw) !== null;
 }

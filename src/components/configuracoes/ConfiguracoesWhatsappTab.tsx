@@ -80,6 +80,7 @@ WHATSAPP_BAILEYS_PORT=3100`}
           <p className="font-medium text-slate-800">WhatsApp automático (Baileys)</p>
           <p className="mt-1 text-slate-500">
             Mensagens de fatura, extrato e orçamento são enviadas pelo número do laboratório quando conectado.
+            Com o chatbot ativo, clientes também podem consultar OS e pedir link de acompanhamento por WhatsApp.
           </p>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={() => void recarregar()}>
@@ -100,7 +101,7 @@ WHATSAPP_BAILEYS_PORT=3100`}
             status.conectado ? "bg-emerald-500" : "bg-amber-500"
           }`}
         />
-        {status.conectado ? "Conectado — disparos automáticos ativos" : "Aguardando conexão"}
+        {status.conectado ? "Conectado — envios e chatbot ativos" : "Aguardando conexão"}
       </div>
 
       {!status.conectado && status.baileys && qrImagem ? (

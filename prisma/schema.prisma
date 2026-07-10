@@ -50,6 +50,7 @@ model Empresa {
   whatsappSession     WhatsappSession?
   whatsappCampaigns   WhatsappCampaign[]
   whatsappLogs        WhatsappLog[]
+  whatsappChatConversas WhatsappChatConversa[]
 }
 
 model SuporteConversa {
@@ -642,4 +643,38 @@ model WhatsappLog {
   @@index([campaignId, createdAt])
   @@index([empresaId, createdAt])
   @@map("whatsapp_logs")
+}
+
+/** Conversa do chatbot WhatsApp (um contato por telefone + laboratório). */
+model WhatsappChatConversa {
+  id                String   @id @default(cuid())
+  empresaId         String
+  empresa           Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  telefone          String
+  etapa             String   @default("menu")
+  clienteId         String?
+  atendimentoHumano Boolean  @default(false)
+  ultimaMensagemEm  DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  mensagens WhatsappChatMensagem[]
+
+  @@unique([empresaId, telefone])
+  @@index([empresaId, ultimaMensagemEm])
+  @@map("whatsapp_chat_conversas")
+}
+
+/** Histórico de mensagens do chatbot (entrada e saída). */
+model WhatsappChatMensagem {
+  id         String               @id @default(cuid())
+  conversaId String
+  conversa   WhatsappChatConversa @relation(fields: [conversaId], references: [id], onDelete: Cascade)
+  direcao    String
+  texto      String
+  messageId  String?              @unique
+  createdAt  DateTime             @default(now())
+
+  @@index([conversaId, createdAt])
+  @@map("whatsapp_chat_mensagens")
 }

@@ -458,7 +458,94 @@ function rejeitarPendentesAck(motivo) {
   }
 }
 
-function onMessagesUpsert({ messages }) {
+function extrairTextoRecebido(msg) {
+  const content = msg?.message;
+  if (!content) return "";
+  if (content.conversation) return String(content.conversation).trim();
+  if (content.extendedTextMessage?.text) return String(content.extendedTextMessage.text).trim();
+  if (content.imageMessage?.caption) return String(content.imageMessage.caption).trim();
+  if (content.videoMessage?.caption) return String(content.videoMessage.caption).trim();
+  return "";
+}
+
+function telefoneFromRemoteJid(jid) {
+  if (!jid) return null;
+  const raw = String(jid);
+  if (raw.includes("@g.us") || raw.includes("@broadcast")) return null;
+  const parte = raw.split("@")[0] || "";
+  const digits = parte.split(":")[0].replace(/\D/g, "");
+  return digits || null;
+}
+
+const mensagensEncaminhadas = new Map();
+const MENSAGEM_DEDUP_MS = 120_000;
+
+function jaEncaminhouMensagem(id) {
+  if (!id) return false;
+  const agora = Date.now();
+  if (mensagensEncaminhadas.has(id)) return true;
+  mensagensEncaminhadas.set(id, agora);
+  if (mensagensEncaminhadas.size > 800) {
+    for (const [chave, quando] of mensagensEncaminhadas) {
+      if (agora - quando > MENSAGEM_DEDUP_MS) mensagensEncaminhadas.delete(chave);
+    }
+  }
+  return false;
+}
+
+async function encaminharMensagemRecebida(msg) {
+  const webhookUrl = (process.env.WHATSAPP_WEBHOOK_URL || "").trim();
+  if (!webhookUrl || process.env.WHATSAPP_CHATBOT_ENABLED === "false") return;
+  if (msg?.key?.fromMe) return;
+  if (msg?.message?.protocolMessage) return;
+
+  const jid = msg?.key?.remoteJid;
+  const telefone = telefoneFromRemoteJid(jid);
+  if (!telefone) return;
+
+  const texto = extrairTextoRecebido(msg);
+  if (!texto) return;
+
+  const messageId = msg?.key?.id;
+  if (jaEncaminhouMensagem(messageId)) return;
+
+  const headers = { "Content-Type": "application/json" };
+  if (TOKEN) headers.Authorization = `Bearer ${TOKEN}`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 28_000);
+
+  try {
+    const res = await fetch(webhookUrl, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        telefone,
+        mensagem: texto,
+        messageId,
+        jid,
+        numeroConectado: numeroConectado,
+      }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const err = await res.text().catch(() => "");
+      log("Webhook chatbot falhou", res.status, err.slice(0, 200));
+    }
+  } catch (err) {
+    log("Webhook chatbot erro", err instanceof Error ? err.message : String(err));
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function onMessagesUpsert({ messages, type }) {
+  if (type === "notify") {
+    for (const msg of messages || []) {
+      void encaminharMensagemRecebida(msg);
+    }
+  }
+
   for (const msg of messages || []) {
     if (!msg?.key?.fromMe) continue;
     const id = msg.key.id;
