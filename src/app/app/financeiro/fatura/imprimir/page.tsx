@@ -80,6 +80,7 @@ function ImprimirFaturaConteudo() {
   return (
     <FaturaPdfViewer
       {...payload}
+      sessaoId={id}
       imprimirAoCarregar={imprimir || Boolean(payload.imprimirAoCarregar)}
     />
   );

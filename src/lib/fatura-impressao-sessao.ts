@@ -46,6 +46,51 @@ export async function buscarFaturaImpressaoSessao(id: string): Promise<FaturaImp
   return (await res.json()) as FaturaImpressaoSessao;
 }
 
+async function blobPdfParaBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const data = reader.result;
+      if (typeof data !== "string") {
+        reject(new Error("Falha ao ler o PDF."));
+        return;
+      }
+      const base64 = data.split(",")[1];
+      if (!base64) {
+        reject(new Error("Falha ao converter o PDF."));
+        return;
+      }
+      resolve(base64);
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("Falha ao ler o PDF."));
+    reader.readAsDataURL(blob);
+  });
+}
+
+/** Publica o PDF gerado no servidor para exibir com nome legível no visualizador. */
+export async function publicarPdfFaturaImpressao(
+  sessaoId: string,
+  blob: Blob,
+  nomeArquivo: string
+) {
+  const pdfBase64 = await blobPdfParaBase64(blob);
+  const res = await fetch("/api/fatura-impressao-pdf", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ id: sessaoId, pdfBase64, nomeArquivo }),
+  });
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(data.error || "Não foi possível publicar o PDF da fatura.");
+  }
+}
+
+export function montarUrlPdfFaturaServidor(sessaoId: string, nomeArquivo: string) {
+  const segmento = encodeURIComponent(nomeArquivo);
+  return `/api/fatura-impressao-pdf/${segmento}?id=${encodeURIComponent(sessaoId)}`;
+}
+
 export function montarUrlImpressaoFatura(id: string, opcoes?: { imprimir?: boolean }) {
   const params = new URLSearchParams({ id });
   if (opcoes?.imprimir) params.set("imprimir", "1");

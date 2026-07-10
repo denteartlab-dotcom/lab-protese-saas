@@ -26,10 +26,16 @@ import {
   gerarPdfFaturaImpressao,
 } from "@/lib/pdf-fatura-impressao";
 import type { FaturaImpressaoSessao } from "@/lib/fatura-impressao-sessao";
+import {
+  montarUrlPdfFaturaServidor,
+  publicarPdfFaturaImpressao,
+} from "@/lib/fatura-impressao-sessao";
 
 const IFRAME_ID = "fatura-pdf-viewer";
 
-type Props = FaturaImpressaoSessao;
+type Props = FaturaImpressaoSessao & {
+  sessaoId?: string;
+};
 
 /** Visualizador de fatura — mesmo padrão da OS: PDF no iframe nativo do navegador. */
 export function FaturaPdfViewer({
@@ -41,6 +47,7 @@ export function FaturaPdfViewer({
   imprimirAoCarregar = false,
   dados,
   modelo,
+  sessaoId,
 }: Props) {
   const [pdfUrl, setPdfUrl] = useState("");
   const [erroPdf, setErroPdf] = useState("");
@@ -54,20 +61,28 @@ export function FaturaPdfViewer({
   const nomeArquivoPdf = nomeArquivoFaturaPdf(numeroFatura, clienteNome);
   const titulo = `Fatura ${numeroFatura} — PDF`;
 
-  function publicarPdfGerado(blob: Blob, seq: number) {
+  async function publicarPdfGerado(blob: Blob, seq: number) {
     pdfBlobRef.current = blob;
-    const blobUrl = criarUrlPdfNomeada(blob, nomeArquivoPdf);
-    if (seq !== buildPdfSeqRef.current) {
-      if (blobUrl.startsWith("blob:")) URL.revokeObjectURL(blobUrl);
-      return "";
+    if (seq !== buildPdfSeqRef.current) return "";
+
+    let urlVisualizacao = criarUrlPdfNomeada(blob, nomeArquivoPdf);
+    if (sessaoId) {
+      try {
+        await publicarPdfFaturaImpressao(sessaoId, blob, nomeArquivoPdf);
+        if (seq !== buildPdfSeqRef.current) return "";
+        urlVisualizacao = montarUrlPdfFaturaServidor(sessaoId, nomeArquivoPdf);
+      } catch (err) {
+        console.error("publicar PDF fatura no servidor", err);
+      }
     }
+
     const anterior = pdfUrlRef.current;
-    pdfUrlRef.current = blobUrl;
-    setPdfUrl(blobUrl);
-    if (anterior.startsWith("blob:") && anterior !== blobUrl) {
+    pdfUrlRef.current = urlVisualizacao;
+    setPdfUrl(urlVisualizacao);
+    if (anterior.startsWith("blob:") && anterior !== urlVisualizacao) {
       URL.revokeObjectURL(anterior);
     }
-    return blobUrl;
+    return urlVisualizacao;
   }
 
   const [configPronta, setConfigPronta] = useState(false);
@@ -124,7 +139,7 @@ export function FaturaPdfViewer({
           blob = await gerarPdfDeHtmlDocumento(htmlRef.current, formato);
         }
         if (seq !== buildPdfSeqRef.current) return;
-        publicarPdfGerado(blob, seq);
+        await publicarPdfGerado(blob, seq);
       } catch (err) {
         if (seq !== buildPdfSeqRef.current) return;
         console.error("gerar PDF fatura", err);
@@ -144,7 +159,7 @@ export function FaturaPdfViewer({
       pdfUrlRef.current = "";
       pdfBlobRef.current = null;
     };
-  }, [configPronta, html, formato, modelo, dados, numeroFatura]);
+  }, [configPronta, html, formato, modelo, dados, numeroFatura, sessaoId]);
 
   const imprimirPdf = useCallback(() => {
     if (!pdfUrl) return;
