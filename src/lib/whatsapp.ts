@@ -1,25 +1,18 @@
 import { montarUrlPublica } from "@/lib/app-url";
+import {
+  formatarTelefoneEntrada,
+  normalizarTelefoneBr,
+} from "@/lib/whatsapp-disparos/telefone-br";
 
 export { publicOriginFromRequest } from "@/lib/app-url";
 
 export function formatWhatsAppPhone(raw: string) {
-  const digits = raw.replace(/\D/g, "");
-  if (!digits) return "";
-  if (digits.startsWith("55") && digits.length >= 12) return digits;
-  if (digits.length === 10 || digits.length === 11) return `55${digits}`;
-  return digits;
+  return normalizarTelefoneBr(raw) || raw.replace(/\D/g, "");
 }
 
-/** Máscara visual para campo de WhatsApp (Brasil). */
+/** Máscara visual para campo de WhatsApp (Brasil com código do país). */
 export function formatWhatsappInput(raw: string) {
-  let digits = raw.replace(/\D/g, "");
-  if (digits.startsWith("55")) digits = digits.slice(2);
-  digits = digits.slice(0, 11);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 7) {
-    return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-  }
-  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  return formatarTelefoneEntrada(raw);
 }
 
 /** Garante URL absoluta para WhatsApp reconhecer o link (https://dominio/...). */

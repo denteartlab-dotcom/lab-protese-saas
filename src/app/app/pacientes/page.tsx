@@ -7,7 +7,7 @@ import { BarraConfigListagem } from "@/components/listagem/BarraConfigListagem";
 import { Button, Card, Input, Modal, SelectPesquisavel, Table } from "@/components/ui";
 import { useListagemPaginada } from "@/hooks/use-listagem-paginada";
 import { compararTextoBr } from "@/lib/listagem-config";
-import { exibirTelefone } from "@/lib/validar-documento";
+import { exibirTelefone, formatarTelefone, PLACEHOLDER_TELEFONE_BR } from "@/lib/validar-documento";
 
 type Paciente = {
   id: string;
@@ -259,8 +259,9 @@ export default function PacientesPage() {
           />
           <Input
             label="Telefone"
+            placeholder={PLACEHOLDER_TELEFONE_BR}
             value={form.telefone}
-            onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+            onChange={(e) => setForm({ ...form, telefone: formatarTelefone(e.target.value) })}
           />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>

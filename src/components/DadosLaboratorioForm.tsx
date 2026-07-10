@@ -15,7 +15,7 @@ import {
   formatCnpjInput,
   formatCpfInput,
 } from "@/lib/documento-br";
-import { formatarTelefone } from "@/lib/validar-documento";
+import { formatarTelefone, PLACEHOLDER_TELEFONE_BR } from "@/lib/validar-documento";
 
 export type TipoMensagemForm = "sucesso" | "erro" | "info";
 
@@ -369,7 +369,7 @@ export function DadosLaboratorioForm({
               value={form.telefoneComercial}
               onChange={(e) => atualizarTelefone("telefoneComercial", e.target.value)}
               inputMode="tel"
-              placeholder="(00)0000-0000"
+              placeholder={PLACEHOLDER_TELEFONE_BR}
             />
           </Campo>
 
@@ -379,7 +379,7 @@ export function DadosLaboratorioForm({
               value={form.celular}
               onChange={(e) => atualizarTelefone("celular", e.target.value)}
               inputMode="tel"
-              placeholder="(00)00000-0000"
+              placeholder={PLACEHOLDER_TELEFONE_BR}
             />
           </Campo>
 
@@ -389,7 +389,7 @@ export function DadosLaboratorioForm({
               value={form.whatsapp}
               onChange={(e) => atualizarTelefone("whatsapp", e.target.value)}
               inputMode="tel"
-              placeholder="(00)00000-0000"
+              placeholder={PLACEHOLDER_TELEFONE_BR}
             />
           </Campo>
 

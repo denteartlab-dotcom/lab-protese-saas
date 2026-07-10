@@ -56,19 +56,21 @@ export function formatarCpfCnpj(valor: string): string {
     .replace(/(\d{4})(\d)/, "$1-$2");
 }
 
+import {
+  formatarTelefoneEntrada,
+  formatarTelefoneExibicao,
+} from "@/lib/whatsapp-disparos/telefone-br";
+
+export { PLACEHOLDER_TELEFONE_BR } from "@/lib/whatsapp-disparos/telefone-br";
+
+/** Máscara de telefone/WhatsApp com código do país (ex.: 553198270-9866). */
 export function formatarTelefone(valor: string): string {
-  const n = apenasDigitos(valor).slice(0, 11);
-  if (n.length <= 10) {
-    return n.replace(/(\d{2})(\d)/, "($1)$2").replace(/(\d{4})(\d)/, "$1-$2");
-  }
-  return n.replace(/(\d{2})(\d)/, "($1)$2").replace(/(\d{5})(\d)/, "$1-$2");
+  return formatarTelefoneEntrada(valor);
 }
 
-/** Exibe telefone/WhatsApp formatado em listagens — (DD)XXXX-XXXX ou (DD)XXXXX-XXXX. */
+/** Exibe telefone/WhatsApp formatado em listagens — 553198270-9866. */
 export function exibirTelefone(valor?: string | null): string {
   const texto = String(valor ?? "").trim();
   if (!texto) return "";
-  const digitos = apenasDigitos(texto);
-  if (digitos.length < 10) return texto;
-  return formatarTelefone(texto);
+  return formatarTelefoneExibicao(texto);
 }

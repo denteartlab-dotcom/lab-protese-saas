@@ -1,4 +1,5 @@
 import { configValueFromObservacoes } from "@/lib/cliente-financeiro";
+import { normalizarTelefoneBr } from "@/lib/whatsapp-disparos/telefone-br";
 
 export { configValueFromObservacoes };
 
@@ -122,7 +123,7 @@ export function numerosWhatsappClienteCadastro(cliente: {
   const vistos = new Set<string>();
   const unicos: string[] = [];
   for (const item of bruto) {
-    const chave = item.replace(/\D/g, "");
+    const chave = normalizarTelefoneBr(item) || item.replace(/\D/g, "");
     if (!chave || vistos.has(chave)) continue;
     vistos.add(chave);
     unicos.push(item);

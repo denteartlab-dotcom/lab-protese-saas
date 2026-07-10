@@ -1,7 +1,43 @@
 /** Normaliza e valida telefones brasileiros para WhatsApp. */
 
+export const PLACEHOLDER_TELEFONE_BR = "553198270-9866";
+
 export function apenasDigitos(valor: string) {
   return valor.replace(/\D/g, "");
+}
+
+/** Aplica máscara 55DDXXXXX-XXXX (celular) ou 55DDXXXX-XXXX (fixo). */
+function aplicarMascaraBrComPais(digits: string) {
+  const limpo = digits.slice(0, 13);
+  const len = limpo.length;
+  if (len <= 4) return limpo;
+  const head = limpo.slice(0, 4);
+  const tail = limpo.slice(4);
+  if (len <= 12) {
+    if (tail.length <= 4) return head + tail;
+    return `${head}${tail.slice(0, 4)}-${tail.slice(4)}`;
+  }
+  if (tail.length <= 5) return head + tail;
+  return `${head}${tail.slice(0, 5)}-${tail.slice(5, 9)}`;
+}
+
+function digitosParaMascaraBr(raw: string) {
+  let digits = apenasDigitos(raw);
+  if (!digits) return "";
+  if (!digits.startsWith("55")) {
+    digits = digits.slice(0, 11);
+    if (digits.length >= 10) digits = `55${digits}`.slice(0, 13);
+  } else {
+    digits = digits.slice(0, 13);
+  }
+  return digits;
+}
+
+/** Máscara de entrada com código do país (ex.: 553198270-9866). Aceita com ou sem 55. */
+export function formatarTelefoneEntrada(raw: string) {
+  const digits = digitosParaMascaraBr(raw);
+  if (!digits) return "";
+  return aplicarMascaraBrComPais(digits);
 }
 
 export function normalizarTelefoneBr(raw: string): string | null {
@@ -61,16 +97,13 @@ export function telefoneBrValido(raw: string) {
 }
 
 export function formatarTelefoneExibicao(raw: string) {
-  const norm = normalizarTelefoneBr(raw);
-  if (!norm) return raw.trim();
-  const local = norm.startsWith("55") ? norm.slice(2) : norm;
-  if (local.length === 11) {
-    return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
-  }
-  if (local.length === 10) {
-    return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
-  }
-  return `+${norm}`;
+  const texto = String(raw ?? "").trim();
+  if (!texto) return "";
+  const norm = normalizarTelefoneBr(texto);
+  if (norm) return aplicarMascaraBrComPais(norm);
+  const parcial = digitosParaMascaraBr(texto);
+  if (parcial.length >= 10) return aplicarMascaraBrComPais(parcial);
+  return texto;
 }
 
 export type ContatoImportado = {

@@ -6,7 +6,7 @@ import { BotoesListagemPrestadores } from "@/components/prestadores/BotoesListag
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { compararTextoBr } from "@/lib/listagem-config";
-import { exibirTelefone } from "@/lib/validar-documento";
+import { exibirTelefone, formatarTelefone, PLACEHOLDER_TELEFONE_BR } from "@/lib/validar-documento";
 import {
   exportarPrestadoresExcel,
   gerarListaPrestadoresPdf,
@@ -451,10 +451,10 @@ export default function PrestadoresPage() {
               <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </div>
             <div className="grid gap-3 md:grid-cols-4">
-              <Input label="Telefone Residencial" value={form.telefoneResidencial} onChange={(e) => setForm({ ...form, telefoneResidencial: e.target.value })} />
-              <Input label="Telefone Comercial" value={form.telefoneComercial} onChange={(e) => setForm({ ...form, telefoneComercial: e.target.value })} />
-              <Input label="Celular" value={form.celular} onChange={(e) => setForm({ ...form, celular: e.target.value })} />
-              <Input label="WhatsApp" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} />
+              <Input label="Telefone Residencial" placeholder={PLACEHOLDER_TELEFONE_BR} value={form.telefoneResidencial} onChange={(e) => setForm({ ...form, telefoneResidencial: formatarTelefone(e.target.value) })} />
+              <Input label="Telefone Comercial" placeholder={PLACEHOLDER_TELEFONE_BR} value={form.telefoneComercial} onChange={(e) => setForm({ ...form, telefoneComercial: formatarTelefone(e.target.value) })} />
+              <Input label="Celular" placeholder={PLACEHOLDER_TELEFONE_BR} value={form.celular} onChange={(e) => setForm({ ...form, celular: formatarTelefone(e.target.value) })} />
+              <Input label="WhatsApp" placeholder={PLACEHOLDER_TELEFONE_BR} value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: formatarTelefone(e.target.value) })} />
             </div>
           </section>
 

@@ -8,7 +8,7 @@ import { CampoDataBr } from "@/components/campo-data-br";
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { compararTextoBr } from "@/lib/listagem-config";
-import { exibirTelefone } from "@/lib/validar-documento";
+import { exibirTelefone, formatarTelefone, PLACEHOLDER_TELEFONE_BR } from "@/lib/validar-documento";
 import { usePageReady } from "@/hooks/use-page-ready";
 import {
   clonarHorarioFuncionamento,
@@ -842,19 +842,19 @@ export default function ColaboradoresPage() {
                 <div className="grid gap-3 md:grid-cols-4">
                   <div>
                     <label className={labelClass}>Telefone Residencial</label>
-                    <input value={form.telefoneResidencial} onChange={(event) => setCampo("telefoneResidencial", event.target.value)} className={inputClass} />
+                    <input value={form.telefoneResidencial} placeholder={PLACEHOLDER_TELEFONE_BR} onChange={(event) => setCampo("telefoneResidencial", formatarTelefone(event.target.value))} className={inputClass} />
                   </div>
                   <div>
                     <label className={labelClass}>Telefone Comercial</label>
-                    <input value={form.telefoneComercial} onChange={(event) => setCampo("telefoneComercial", event.target.value)} className={inputClass} />
+                    <input value={form.telefoneComercial} placeholder={PLACEHOLDER_TELEFONE_BR} onChange={(event) => setCampo("telefoneComercial", formatarTelefone(event.target.value))} className={inputClass} />
                   </div>
                   <div>
                     <label className={labelClass}>Celular</label>
-                    <input value={form.celular} onChange={(event) => setCampo("celular", event.target.value)} className={inputClass} />
+                    <input value={form.celular} placeholder={PLACEHOLDER_TELEFONE_BR} onChange={(event) => setCampo("celular", formatarTelefone(event.target.value))} className={inputClass} />
                   </div>
                   <div>
                     <label className={labelClass}>Whatsapp</label>
-                    <input value={form.whatsapp} onChange={(event) => setCampo("whatsapp", event.target.value)} className={inputClass} />
+                    <input value={form.whatsapp} placeholder={PLACEHOLDER_TELEFONE_BR} onChange={(event) => setCampo("whatsapp", formatarTelefone(event.target.value))} className={inputClass} />
                   </div>
                 </div>
 

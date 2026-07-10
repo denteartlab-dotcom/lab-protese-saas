@@ -9,6 +9,7 @@ import {
   ESPELHOS_CONTATO_FORNECEDOR,
   type CampoContatoPrincipal,
 } from "@/lib/espelhar-contato-cadastro";
+import { formatarTelefone, PLACEHOLDER_TELEFONE_BR } from "@/lib/validar-documento";
 import {
   carregarCategoriasFornecedor,
   formatCepInput,
@@ -242,27 +243,31 @@ export function FornecedorCadastroModal({ open, onClose, onSalvo }: Props) {
               <div className="grid gap-3 md:grid-cols-4">
                 <Input
                   label="Telefone Residencial"
+                  placeholder={PLACEHOLDER_TELEFONE_BR}
                   value={form.telefoneResidencial}
                   onChange={(event) =>
-                    setForm({ ...form, telefoneResidencial: event.target.value })
+                    setForm({ ...form, telefoneResidencial: formatarTelefone(event.target.value) })
                   }
                 />
                 <Input
                   label="Telefone Comercial"
+                  placeholder={PLACEHOLDER_TELEFONE_BR}
                   value={form.telefoneComercial}
                   onChange={(event) =>
-                    atualizarEspelho("telefoneComercial", event.target.value)
+                    atualizarEspelho("telefoneComercial", formatarTelefone(event.target.value))
                   }
                 />
                 <Input
                   label="Celular"
+                  placeholder={PLACEHOLDER_TELEFONE_BR}
                   value={form.celular}
-                  onChange={(event) => setForm({ ...form, celular: event.target.value })}
+                  onChange={(event) => setForm({ ...form, celular: formatarTelefone(event.target.value) })}
                 />
                 <Input
                   label="WhatsApp"
+                  placeholder={PLACEHOLDER_TELEFONE_BR}
                   value={form.whatsapp}
-                  onChange={(event) => atualizarEspelho("whatsapp", event.target.value)}
+                  onChange={(event) => atualizarEspelho("whatsapp", formatarTelefone(event.target.value))}
                 />
               </div>
             </section>

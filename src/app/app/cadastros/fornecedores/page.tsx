@@ -7,7 +7,7 @@ import { ImportarFornecedoresExcelModal } from "@/components/fornecedores/Import
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { compararTextoBr } from "@/lib/listagem-config";
-import { exibirTelefone } from "@/lib/validar-documento";
+import { exibirTelefone, formatarTelefone, PLACEHOLDER_TELEFONE_BR } from "@/lib/validar-documento";
 import {
   exportarFornecedoresExcel,
   gerarListaFornecedoresPdf,
@@ -598,25 +598,29 @@ export default function FornecedoresPage() {
             <div className="grid gap-3 md:grid-cols-4">
               <Input
                 label="Telefone Residencial"
+                placeholder={PLACEHOLDER_TELEFONE_BR}
                 value={form.telefoneResidencial}
-                onChange={(event) => setForm({ ...form, telefoneResidencial: event.target.value })}
+                onChange={(event) => setForm({ ...form, telefoneResidencial: formatarTelefone(event.target.value) })}
               />
               <Input
                 label="Telefone Comercial"
+                placeholder={PLACEHOLDER_TELEFONE_BR}
                 value={form.telefoneComercial}
                 onChange={(event) =>
-                  atualizarFornecedorEspelhandoRepresentante("telefoneComercial", event.target.value)
+                  atualizarFornecedorEspelhandoRepresentante("telefoneComercial", formatarTelefone(event.target.value))
                 }
               />
               <Input
                 label="Celular"
+                placeholder={PLACEHOLDER_TELEFONE_BR}
                 value={form.celular}
-                onChange={(event) => setForm({ ...form, celular: event.target.value })}
+                onChange={(event) => setForm({ ...form, celular: formatarTelefone(event.target.value) })}
               />
               <Input
                 label="WhatsApp"
+                placeholder={PLACEHOLDER_TELEFONE_BR}
                 value={form.whatsapp}
-                onChange={(event) => atualizarFornecedorEspelhandoRepresentante("whatsapp", event.target.value)}
+                onChange={(event) => atualizarFornecedorEspelhandoRepresentante("whatsapp", formatarTelefone(event.target.value))}
               />
             </div>
           </section>

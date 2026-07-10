@@ -6,7 +6,7 @@ import { BotoesListagemClientes } from "@/components/clientes/BotoesListagemClie
 import { ImportarClientesExcelModal } from "@/components/clientes/ImportarClientesExcelModal";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { Input, Modal } from "@/components/ui";
-import { mensagemAcompanhamentoCliente } from "@/lib/whatsapp";
+import { mensagemAcompanhamentoCliente, formatWhatsAppPhone } from "@/lib/whatsapp";
 import { dispararOuAbrirWhatsapp } from "@/lib/whatsapp-disparo-cliente";
 import {
   abreviacaoCliente,
@@ -28,7 +28,7 @@ import { compararTextoBr } from "@/lib/listagem-config";
 import { buscarEnderecoPorCep as buscarCepApi } from "@/lib/cep-lookup";
 import { validarNomeCliente } from "@/lib/cliente-validacao";
 import { formatCepInput } from "@/lib/documento-br";
-import { exibirTelefone } from "@/lib/validar-documento";
+import { exibirTelefone, formatarTelefone, PLACEHOLDER_TELEFONE_BR } from "@/lib/validar-documento";
 import {
   custoEntregaCliente,
   entregadorCliente,
@@ -795,7 +795,7 @@ export default function ClientesPage() {
                       <td className="px-3 py-2 text-slate-500">
                         {c.celular || c.telefone ? (
                           <a
-                            href={`https://wa.me/${(c.celular || c.telefone || "").replace(/\D/g, "")}`}
+                            href={`https://wa.me/${formatWhatsAppPhone(c.celular || c.telefone || "")}`}
                             target="_blank"
                             rel="noreferrer"
                             className="inline-flex items-center gap-1 text-emerald-600 hover:underline"
@@ -962,10 +962,10 @@ export default function ClientesPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <CampoCliente label="Telefone Residencial" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} />
-            <CampoCliente label="Telefone Comercial" value={form.telefoneComercial} onChange={(e) => atualizarDadosClienteEspelhandoContato("telefoneComercial", e.target.value)} />
-            <CampoCliente label="Celular" value={form.celular} onChange={(e) => setForm({ ...form, celular: e.target.value })} />
-            <CampoCliente label="WhatsApp" value={form.whatsapp} onChange={(e) => atualizarDadosClienteEspelhandoContato("whatsapp", e.target.value)} />
+            <CampoCliente label="Telefone Residencial" placeholder={PLACEHOLDER_TELEFONE_BR} value={form.telefone} onChange={(e) => setForm({ ...form, telefone: formatarTelefone(e.target.value) })} />
+            <CampoCliente label="Telefone Comercial" placeholder={PLACEHOLDER_TELEFONE_BR} value={form.telefoneComercial} onChange={(e) => atualizarDadosClienteEspelhandoContato("telefoneComercial", formatarTelefone(e.target.value))} />
+            <CampoCliente label="Celular" placeholder={PLACEHOLDER_TELEFONE_BR} value={form.celular} onChange={(e) => setForm({ ...form, celular: formatarTelefone(e.target.value) })} />
+            <CampoCliente label="WhatsApp" placeholder={PLACEHOLDER_TELEFONE_BR} value={form.whatsapp} onChange={(e) => atualizarDadosClienteEspelhandoContato("whatsapp", formatarTelefone(e.target.value))} />
           </div>
 
           <div className="space-y-1 pt-1">
@@ -986,8 +986,8 @@ export default function ClientesPage() {
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <CampoCliente label="Contato" value={form.contato} onChange={(e) => setForm({ ...form, contato: e.target.value })} />
-              <CampoCliente label="Telefone Comercial" value={form.contatoTelefoneComercial} onChange={(e) => setForm({ ...form, contatoTelefoneComercial: e.target.value })} />
-              <CampoCliente label="WhatsApp" value={form.contatoWhatsapp} onChange={(e) => setForm({ ...form, contatoWhatsapp: e.target.value })} />
+              <CampoCliente label="Telefone Comercial" placeholder={PLACEHOLDER_TELEFONE_BR} value={form.contatoTelefoneComercial} onChange={(e) => setForm({ ...form, contatoTelefoneComercial: formatarTelefone(e.target.value) })} />
+              <CampoCliente label="WhatsApp" placeholder={PLACEHOLDER_TELEFONE_BR} value={form.contatoWhatsapp} onChange={(e) => setForm({ ...form, contatoWhatsapp: formatarTelefone(e.target.value) })} />
               <CampoCliente label="Email" type="email" value={form.contatoEmail} onChange={(e) => setForm({ ...form, contatoEmail: e.target.value })} />
             </div>
           </div>

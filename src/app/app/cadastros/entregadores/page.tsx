@@ -6,7 +6,7 @@ import { BotoesListagemEntregadores } from "@/components/entregadores/BotoesList
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { compararTextoBr } from "@/lib/listagem-config";
-import { exibirTelefone } from "@/lib/validar-documento";
+import { exibirTelefone, formatarTelefone, PLACEHOLDER_TELEFONE_BR } from "@/lib/validar-documento";
 import { Modal } from "@/components/ui";
 import { usePageReady } from "@/hooks/use-page-ready";
 import { formatarCepEntrega, TIPOS_ENTREGADOR } from "@/lib/controle-entregas";
@@ -523,7 +523,8 @@ export default function EntregadoresPage() {
                 {labelCampo("Telefone Residencial")}
                 <input
                   value={form.telefoneResidencial}
-                  onChange={(e) => setForm({ ...form, telefoneResidencial: e.target.value })}
+                  placeholder={PLACEHOLDER_TELEFONE_BR}
+                  onChange={(e) => setForm({ ...form, telefoneResidencial: formatarTelefone(e.target.value) })}
                   className={inputClassName()}
                 />
               </div>
@@ -531,7 +532,8 @@ export default function EntregadoresPage() {
                 {labelCampo("Telefone Comercial")}
                 <input
                   value={form.telefoneComercial}
-                  onChange={(e) => setForm({ ...form, telefoneComercial: e.target.value })}
+                  placeholder={PLACEHOLDER_TELEFONE_BR}
+                  onChange={(e) => setForm({ ...form, telefoneComercial: formatarTelefone(e.target.value) })}
                   className={inputClassName()}
                 />
               </div>
@@ -539,7 +541,8 @@ export default function EntregadoresPage() {
                 {labelCampo("Celular")}
                 <input
                   value={form.celular}
-                  onChange={(e) => setForm({ ...form, celular: e.target.value })}
+                  placeholder={PLACEHOLDER_TELEFONE_BR}
+                  onChange={(e) => setForm({ ...form, celular: formatarTelefone(e.target.value) })}
                   className={inputClassName()}
                 />
               </div>
@@ -547,7 +550,8 @@ export default function EntregadoresPage() {
                 {labelCampo("WhatsApp")}
                 <input
                   value={form.whatsapp}
-                  onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
+                  placeholder={PLACEHOLDER_TELEFONE_BR}
+                  onChange={(e) => setForm({ ...form, whatsapp: formatarTelefone(e.target.value) })}
                   className={inputClassName()}
                 />
               </div>
