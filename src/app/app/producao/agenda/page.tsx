@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Edit3, Eye, Printer, Search, Trash2 } from "lucide-react";
 import { AgendaEditarOsModal } from "@/components/producao/AgendaEditarOsModal";
 import { AgendaOsDetalheExpandido } from "@/components/producao/AgendaOsDetalheExpandido";
+import { EtapasControleCelula } from "@/components/producao/EtapasControleCelula";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { ControleProducaoToolbar } from "@/components/ControleProducaoToolbar";
 import { BarraConfigListagem } from "@/components/listagem/BarraConfigListagem";
@@ -15,7 +16,6 @@ import {
   agruparTrabalhosAgenda,
   caixaAgendaGrupo,
   colaboradorAgendaGrupo,
-  etapaAtualAgendaGrupo,
   filtrarLinhasAgendaSomenteProducao,
   prazoTextoAgendaGrupo,
   qtdTextoAgendaGrupo,
@@ -23,6 +23,7 @@ import {
   type LinhaAgendaGrupoOs,
   type TrabalhoAgendaGrupo,
 } from "@/lib/agenda-producao-grupo";
+import { contextoEtapasModuloOsGrupo } from "@/lib/modulo-producao-os";
 import { editIdPreferidoGrupo, osTemMultiplosItensImpressao } from "@/lib/trabalho-os-segmento";
 import {
   TRABALHOS_ATUALIZADOS_EVENT,
@@ -491,6 +492,7 @@ export default function AgendaPage() {
                 const { principal } = linha;
                 const atrasado = isAtrasadoLinha(linha);
                 const expandida = osAberta === linha.chaveGrupo;
+                const contextoEtapas = contextoEtapasModuloOsGrupo(linha.grupoCompleto);
                 return (
                   <Fragment key={linha.chaveGrupo}>
                     <tr
@@ -505,7 +507,17 @@ export default function AgendaPage() {
                       <td className="px-3 py-2">{clienteNome(principal)}</td>
                       <td className="px-3 py-2">{pacienteNome(principal)}</td>
                       <td className="px-3 py-2">{colaboradorAgendaGrupo(linha)}</td>
-                      <td className="px-3 py-2">{etapaAtualAgendaGrupo(linha)}</td>
+                      <td className="px-3 py-2">
+                        {contextoEtapas.etapas.length > 0 ? (
+                          <EtapasControleCelula
+                            etapas={contextoEtapas.etapas}
+                            trabalhoId={contextoEtapas.trabalhoId}
+                            itemId={contextoEtapas.itemId}
+                          />
+                        ) : (
+                          "Produção"
+                        )}
+                      </td>
                       <td className="px-3 py-2">
                         <span
                           className={`rounded px-2 py-1 text-[10px] font-semibold ${STATUS_TRABALHO[principal.status]?.color || "bg-slate-100 text-slate-700"}`}

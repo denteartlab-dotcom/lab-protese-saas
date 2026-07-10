@@ -1,5 +1,7 @@
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { lerJsonStoreTenant } from "@/lib/json-store-tenant";
+import { MODULO_PRODUCAO_ETAPAS_STORAGE_KEY } from "@/lib/modulo-producao-etapas";
 import {
   agruparTrabalhosAgenda,
   filtrarLinhasAgendaGrupo,
@@ -72,7 +74,15 @@ export default async function ImprimirAgendaPage({
     filtro,
     cliente || undefined
   );
-  const linhas = ordenarLinhasAgenda(filtrados.map(mapearLinhaAgendaPdfGrupo));
+  const mapaEtapas = session.empresaId
+    ? (await lerJsonStoreTenant<Record<string, number[]>>(
+        session.empresaId,
+        MODULO_PRODUCAO_ETAPAS_STORAGE_KEY
+      )) ?? undefined
+    : undefined;
+  const linhas = ordenarLinhasAgenda(
+    filtrados.map((linha) => mapearLinhaAgendaPdfGrupo(linha, mapaEtapas))
+  );
   const titulo = tituloAgendaPdf(filtro);
 
   return <PdfAgendaViewer titulo={titulo} linhas={linhas} />;

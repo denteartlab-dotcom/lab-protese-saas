@@ -1,7 +1,6 @@
 import {
   caixaAgenda,
   colaboradorAgenda,
-  etapaAtualAgenda,
   prazoTextoAgenda,
   qtdAgenda,
   trabalhoAtrasadoAgenda,
@@ -9,12 +8,17 @@ import {
   type TrabalhoAgenda,
 } from "@/lib/agenda-producao";
 import { dateKeyLocal, prazoTrabalho } from "@/lib/controle-producao-prazos";
+import { nomeEtapaSemSetor } from "@/lib/etapas-os";
 import {
   classificarItemOs,
   linhasServicoDoGrupoOs,
   segmentoEfetivoTrabalho,
 } from "@/lib/trabalho-os-segmento";
-import { escolherTrabalhoServicoGrupoOs } from "@/lib/modulo-producao-os";
+import {
+  contextoEtapasModuloOsGrupo,
+  escolherTrabalhoServicoGrupoOs,
+} from "@/lib/modulo-producao-os";
+import { etapaAtualLinhaOsComMapa } from "@/lib/modulo-producao-etapas";
 import { trabalhoVisivelModuloTv } from "@/lib/status-os";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -153,8 +157,14 @@ export function colaboradorAgendaGrupo(linha: LinhaAgendaGrupoOs) {
   return [...new Set(textos)].join(", ");
 }
 
-export function etapaAtualAgendaGrupo(linha: LinhaAgendaGrupoOs) {
-  return etapaAtualAgenda(linha.principal.instrucoes);
+export function etapaAtualAgendaGrupo(
+  linha: LinhaAgendaGrupoOs,
+  mapaEtapas?: Record<string, number[]>
+) {
+  const { etapas, trabalhoId, itemId } = contextoEtapasModuloOsGrupo(linha.grupoCompleto);
+  if (!etapas.length) return "Produção";
+  const etapa = etapaAtualLinhaOsComMapa(etapas, trabalhoId, itemId, mapaEtapas);
+  return nomeEtapaSemSetor(etapa?.nome || "") || "Produção";
 }
 
 export function caixaAgendaGrupo(linha: LinhaAgendaGrupoOs) {
@@ -278,7 +288,10 @@ export function linhasServicoAgenda(linha: LinhaAgendaGrupoOs) {
   return linhasServicoDoGrupoOs(linha.grupoCompleto);
 }
 
-export function mapearLinhaAgendaPdfGrupo(linha: LinhaAgendaGrupoOs): LinhaAgendaPdf {
+export function mapearLinhaAgendaPdfGrupo(
+  linha: LinhaAgendaGrupoOs,
+  mapaEtapas?: Record<string, number[]>
+): LinhaAgendaPdf {
   const prazoDate = prazoTrabalho(linha.principal, "lab");
   return {
     os: String(linha.principal.numeroOs),
@@ -289,7 +302,7 @@ export function mapearLinhaAgendaPdfGrupo(linha: LinhaAgendaGrupoOs): LinhaAgend
     cliente: linha.principal.cliente?.nome?.trim() || "",
     paciente: linha.principal.paciente?.nome?.trim() || "",
     colaborador: colaboradorAgendaGrupo(linha),
-    etapas: etapaAtualAgendaGrupo(linha),
+    etapas: etapaAtualAgendaGrupo(linha, mapaEtapas),
     prazoOrdenacao: prazoDate ? prazoDate.getTime() : Number.MAX_SAFE_INTEGER,
   };
 }

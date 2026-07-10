@@ -192,17 +192,25 @@ export function indiceEtapaAtualModulo(chave: string, totalEtapas: number): numb
   return indiceEtapaAtualDeConcluidas(etapasConcluidasModulo(chave), totalEtapas);
 }
 
-/** Etapa em andamento da OS (mesma regra do Módulo TV). */
 export function etapaAtualLinhaOs(
   etapas: EtapaOsLinha[],
   trabalhoId: string,
   itemId: string
 ): EtapaOsLinha | undefined {
+  return etapaAtualLinhaOsComMapa(etapas, trabalhoId, itemId);
+}
+
+/** Etapa em andamento com mapa explícito (ex.: impressão/PDF no servidor). */
+export function etapaAtualLinhaOsComMapa(
+  etapas: EtapaOsLinha[],
+  trabalhoId: string,
+  itemId: string,
+  mapa?: MapaEtapas
+): EtapaOsLinha | undefined {
   if (!etapas.length) return undefined;
-  const indice = indiceEtapaAtualModulo(
-    chaveEtapasModuloOs(trabalhoId, itemId),
-    etapas.length
-  );
+  const chave = chaveEtapasModuloOs(trabalhoId, itemId);
+  const concluidas = mapa ? (mapa[chave] ?? []) : [...etapasConcluidasModulo(chave)];
+  const indice = indiceEtapaAtualDeConcluidas(concluidas, etapas.length);
   return etapas[indice];
 }
 
