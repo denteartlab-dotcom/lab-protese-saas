@@ -73,6 +73,7 @@ module.exports = {
           envArquivo.WHATSAPP_WEBHOOK_URL ||
           `http://127.0.0.1:${envArquivo.PORT || "3000"}/api/whatsapp/webhook`,
         WHATSAPP_CHATBOT_ENABLED: envArquivo.WHATSAPP_CHATBOT_ENABLED ?? "true",
+        PORT: envArquivo.PORT || "3000",
         WHATSAPP_AUTH_DIR:
           envArquivo.WHATSAPP_AUTH_DIR ||
           path.join(appDir, "data", "whatsapp-auth"),

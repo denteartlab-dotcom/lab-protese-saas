@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { formatWhatsAppPhone } from "@/lib/whatsapp";
 import { telefonesBrCoincidem } from "@/lib/whatsapp-disparos/telefone-br";
+import { sincronizarSessaoWhatsapp } from "@/lib/whatsapp-disparos/campanha-servidor";
 
 export function chatbotWhatsappHabilitado() {
   return process.env.WHATSAPP_CHATBOT_ENABLED !== "false";
@@ -18,17 +19,44 @@ export async function resolverEmpresaIdWebhook(opts?: {
     select: { empresaId: true, numeroConectado: true },
   });
 
-  if (sessoes.length === 0) return null;
   if (sessoes.length === 1) return sessoes[0].empresaId;
 
-  const conectado = opts?.numeroConectado?.trim();
-  if (conectado) {
-    const alvo = formatWhatsAppPhone(conectado);
-    const porNumero = sessoes.find((s) =>
-      s.numeroConectado ? telefonesBrCoincidem(s.numeroConectado, alvo) : false
-    );
-    if (porNumero) return porNumero.empresaId;
+  if (sessoes.length > 1) {
+    const conectado = opts?.numeroConectado?.trim();
+    if (conectado) {
+      const alvo = formatWhatsAppPhone(conectado);
+      const porNumero = sessoes.find((s) =>
+        s.numeroConectado ? telefonesBrCoincidem(s.numeroConectado, alvo) : false
+      );
+      if (porNumero) return porNumero.empresaId;
+    }
+    return sessoes[0]?.empresaId ?? null;
   }
 
-  return sessoes[0]?.empresaId ?? null;
+  const empresasAtivas = await prisma.empresa.findMany({
+    where: { status: "ativo" },
+    select: { id: true },
+    take: 2,
+  });
+  if (empresasAtivas.length === 1) return empresasAtivas[0].id;
+
+  const ultimaSessao = await prisma.whatsappSession.findFirst({
+    orderBy: { updatedAt: "desc" },
+    select: { empresaId: true },
+  });
+  if (ultimaSessao) return ultimaSessao.empresaId;
+
+  return empresasAtivas[0]?.id ?? null;
+}
+
+/** Mantém WhatsappSession como conectada quando o Baileys envia o número ativo. */
+export async function sincronizarSessaoWebhook(
+  empresaId: string,
+  numeroConectado?: string | null
+) {
+  if (!numeroConectado?.trim()) return;
+  await sincronizarSessaoWhatsapp(empresaId, {
+    conectado: true,
+    numero: numeroConectado,
+  });
 }

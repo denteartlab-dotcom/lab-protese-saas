@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { runWithTenantContext } from "@/lib/prisma-tenant";
 import { normalizarTelefoneBr } from "@/lib/whatsapp-disparos/telefone-br";
@@ -77,12 +78,22 @@ export async function registrarMensagemChat(opts: {
   texto: string;
   messageId?: string | null;
 }) {
-  await prisma.whatsappChatMensagem.create({
-    data: {
-      conversaId: opts.conversaId,
-      direcao: opts.direcao,
-      texto: opts.texto,
-      messageId: opts.messageId?.trim() || null,
-    },
-  });
+  try {
+    await prisma.whatsappChatMensagem.create({
+      data: {
+        conversaId: opts.conversaId,
+        direcao: opts.direcao,
+        texto: opts.texto,
+        messageId: opts.messageId?.trim() || null,
+      },
+    });
+  } catch (err) {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
+      throw new Error("DUPLICADA");
+    }
+    throw err;
+  }
 }

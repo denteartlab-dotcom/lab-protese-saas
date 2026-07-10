@@ -4,6 +4,7 @@ import { processarMensagemRecebidaWhatsapp } from "@/lib/whatsapp-chat/processar
 import {
   chatbotWhatsappHabilitado,
   resolverEmpresaIdWebhook,
+  sincronizarSessaoWebhook,
 } from "@/lib/whatsapp-chat/resolver-empresa";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,8 @@ export async function POST(request: Request) {
         { status: 422 }
       );
     }
+
+    await sincronizarSessaoWebhook(empresaId, data.numeroConectado);
 
     const resultado = await processarMensagemRecebidaWhatsapp(empresaId, data);
     return NextResponse.json(resultado);

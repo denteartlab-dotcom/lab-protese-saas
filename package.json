@@ -17,6 +17,7 @@
     "whatsapp:diagnostico": "node scripts/whatsapp-diagnostico.mjs",
     "whatsapp:reset": "node scripts/whatsapp-reset.mjs",
     "whatsapp:test-envio": "node scripts/whatsapp-test-envio.mjs",
+    "whatsapp:test-chatbot": "node scripts/whatsapp-test-chatbot.mjs",
     "whatsapp:pausar": "node scripts/whatsapp-pausar.mjs",
     "whatsapp:liberar": "node scripts/whatsapp-liberar.mjs",
     "pm2:beta": "pm2 start deploy/ecosystem-beta.config.cjs",

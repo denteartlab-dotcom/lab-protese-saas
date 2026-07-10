@@ -19,6 +19,17 @@ import makeWASocket, {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.WHATSAPP_BAILEYS_PORT || 3100);
 const TOKEN = (process.env.WHATSAPP_HTTP_TOKEN || "").trim();
+const APP_PORT = process.env.PORT || "3000";
+
+function urlWebhookChatbot() {
+  const explicita = (process.env.WHATSAPP_WEBHOOK_URL || "").trim();
+  if (explicita) return explicita;
+  return `http://127.0.0.1:${APP_PORT}/api/whatsapp/webhook`;
+}
+
+function chatbotHabilitado() {
+  return process.env.WHATSAPP_CHATBOT_ENABLED !== "false";
+}
 const AUTH_DIR =
   process.env.WHATSAPP_AUTH_DIR ||
   path.join(path.resolve(__dirname, ".."), "data", "whatsapp-auth");
@@ -459,13 +470,40 @@ function rejeitarPendentesAck(motivo) {
 }
 
 function extrairTextoRecebido(msg) {
-  const content = msg?.message;
+  function unwrapMessage(message) {
+    if (!message) return message;
+    if (message.ephemeralMessage?.message) return unwrapMessage(message.ephemeralMessage.message);
+    if (message.viewOnceMessage?.message) return unwrapMessage(message.viewOnceMessage.message);
+    if (message.viewOnceMessageV2?.message) return unwrapMessage(message.viewOnceMessageV2.message);
+    if (message.documentWithCaptionMessage?.message) {
+      return unwrapMessage(message.documentWithCaptionMessage.message);
+    }
+    return message;
+  }
+
+  const content = unwrapMessage(msg?.message);
   if (!content) return "";
   if (content.conversation) return String(content.conversation).trim();
   if (content.extendedTextMessage?.text) return String(content.extendedTextMessage.text).trim();
+  if (content.buttonsResponseMessage?.selectedDisplayText) {
+    return String(content.buttonsResponseMessage.selectedDisplayText).trim();
+  }
+  if (content.listResponseMessage?.title) return String(content.listResponseMessage.title).trim();
   if (content.imageMessage?.caption) return String(content.imageMessage.caption).trim();
   if (content.videoMessage?.caption) return String(content.videoMessage.caption).trim();
   return "";
+}
+
+function jidRemetente(msg) {
+  const key = msg?.key;
+  if (!key) return null;
+  const alt = key.remoteJidAlt ? String(key.remoteJidAlt) : "";
+  if (alt && alt.includes("@s.whatsapp.net")) return alt;
+  const remote = key.remoteJid ? String(key.remoteJid) : "";
+  if (remote && !remote.includes("@g.us") && !remote.includes("@broadcast")) return remote;
+  const participant = key.participant ? String(key.participant) : "";
+  if (participant && participant.includes("@s.whatsapp.net")) return participant;
+  return remote || null;
 }
 
 function telefoneFromRemoteJid(jid) {
@@ -494,14 +532,16 @@ function jaEncaminhouMensagem(id) {
 }
 
 async function encaminharMensagemRecebida(msg) {
-  const webhookUrl = (process.env.WHATSAPP_WEBHOOK_URL || "").trim();
-  if (!webhookUrl || process.env.WHATSAPP_CHATBOT_ENABLED === "false") return;
+  if (!chatbotHabilitado()) return;
   if (msg?.key?.fromMe) return;
   if (msg?.message?.protocolMessage) return;
 
-  const jid = msg?.key?.remoteJid;
+  const jid = jidRemetente(msg);
   const telefone = telefoneFromRemoteJid(jid);
-  if (!telefone) return;
+  if (!telefone) {
+    log("Chatbot ignorou mensagem — JID sem telefone", { jid: msg?.key?.remoteJid, alt: msg?.key?.remoteJidAlt });
+    return;
+  }
 
   const texto = extrairTextoRecebido(msg);
   if (!texto) return;
@@ -509,6 +549,7 @@ async function encaminharMensagemRecebida(msg) {
   const messageId = msg?.key?.id;
   if (jaEncaminhouMensagem(messageId)) return;
 
+  const webhookUrl = urlWebhookChatbot();
   const headers = { "Content-Type": "application/json" };
   if (TOKEN) headers.Authorization = `Bearer ${TOKEN}`;
 
@@ -516,6 +557,7 @@ async function encaminharMensagemRecebida(msg) {
   const timer = setTimeout(() => controller.abort(), 28_000);
 
   try {
+    log("Chatbot webhook →", { telefone, trecho: texto.slice(0, 40) });
     const res = await fetch(webhookUrl, {
       method: "POST",
       headers,
@@ -528,19 +570,21 @@ async function encaminharMensagemRecebida(msg) {
       }),
       signal: controller.signal,
     });
+    const body = await res.text().catch(() => "");
     if (!res.ok) {
-      const err = await res.text().catch(() => "");
-      log("Webhook chatbot falhou", res.status, err.slice(0, 200));
+      log("Webhook chatbot falhou", res.status, body.slice(0, 300));
+      return;
     }
+    log("Chatbot webhook ok", body.slice(0, 120));
   } catch (err) {
-    log("Webhook chatbot erro", err instanceof Error ? err.message : String(err));
+    log("Webhook chatbot erro", err instanceof Error ? err.message : String(err), webhookUrl);
   } finally {
     clearTimeout(timer);
   }
 }
 
 function onMessagesUpsert({ messages, type }) {
-  if (type === "notify") {
+  if (type !== "append") {
     for (const msg of messages || []) {
       void encaminharMensagemRecebida(msg);
     }

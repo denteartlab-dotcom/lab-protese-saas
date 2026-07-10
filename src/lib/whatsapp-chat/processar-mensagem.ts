@@ -1,4 +1,4 @@
-import { enviarMensagemWhatsapp } from "@/lib/whatsapp-enviar";
+import { baileysEnviarTexto } from "@/lib/whatsapp-disparos/baileys-service";
 import { normalizarTelefoneBr } from "@/lib/whatsapp-disparos/telefone-br";
 import {
   mensagemEntradaJaProcessada,
@@ -85,13 +85,15 @@ export async function processarMensagemRecebidaWhatsapp(
   let enviadas = 0;
   for (const resposta of resultado.respostas) {
     await aguardarIntervalo(telefone);
-    const envio = await enviarMensagemWhatsapp(telefone, resposta);
-    ultimoEnvioPorTelefone.set(telefone, Date.now());
-    if (!envio.ok) {
-      console.error("[whatsapp-chat]", envio.error);
+    try {
+      await baileysEnviarTexto(telefone, resposta);
+      ultimoEnvioPorTelefone.set(telefone, Date.now());
+    } catch (err) {
+      const mensagemErro = err instanceof Error ? err.message : "Falha ao enviar resposta";
+      console.error("[whatsapp-chat]", mensagemErro);
       return {
         ok: false,
-        motivo: envio.error,
+        motivo: mensagemErro,
         respostasEnviadas: enviadas,
       };
     }
