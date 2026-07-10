@@ -24,8 +24,8 @@ function lerEnv() {
   return vars;
 }
 
-const env = lerEnv();
-const token = env.WHATSAPP_HTTP_TOKEN || "";
+const env = { ...lerEnv(), ...process.env };
+const token = String(env.WHATSAPP_HTTP_TOKEN || "").trim();
 const appPort = env.PORT || "3000";
 const webhookUrl =
   env.WHATSAPP_WEBHOOK_URL || `http://127.0.0.1:${appPort}/api/whatsapp/webhook`;
@@ -44,6 +44,7 @@ console.log("\n=== Teste webhook chatbot ===\n");
 console.log("URL:", webhookUrl);
 console.log("Telefone:", phone);
 console.log("Mensagem:", mensagem);
+console.log("Token:", token ? `configurado (${token.length} caracteres)` : "não enviado");
 
 try {
   const res = await fetch(webhookUrl, {
@@ -60,6 +61,14 @@ try {
   const texto = await res.text();
   console.log("\nHTTP", res.status);
   console.log(texto);
+  if (res.status === 401) {
+    console.error(
+      "\n401 — Se a mensagem for só \"Não autorizado\", atualize o código (middleware) e reinicie: pm2 restart lab-protese"
+    );
+    console.error(
+      "Se mencionar token, confira WHATSAPP_HTTP_TOKEN igual no .env e no PM2.\n"
+    );
+  }
   if (!res.ok) process.exit(1);
   console.log("\nSe ok:true e respostasEnviadas>0, confira o WhatsApp de destino.\n");
 } catch (err) {

@@ -187,7 +187,8 @@ export function middleware(request: NextRequest) {
 
   if (
     pathname === "/api/mercadopago/webhook" ||
-    pathname === "/api/asaas/webhook"
+    pathname === "/api/asaas/webhook" ||
+    pathname === "/api/whatsapp/webhook"
   ) {
     return NextResponse.next();
   }
