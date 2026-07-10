@@ -13,7 +13,7 @@ import {
   prepararAbaPdf,
   visualizarPdfUrl,
 } from "@/lib/pdf-viewer";
-import { carregarConfigLaboratorio } from "@/lib/configuracoes-lab";
+import { configLaboratorioCabecalhoAtual } from "@/lib/configuracoes-lab";
 import { sincronizarConfigLaboratorioDoServidor } from "@/lib/lab-config-sync";
 import {
   carregarConfiguracoesFaturas,
@@ -108,16 +108,14 @@ export function FaturaPdfViewer({
       try {
         let blob: Blob;
         if (dados && modelo && faturaSuportaPdfNativo(modelo, formato)) {
-          const [cfgLab, cfgFaturas] = await Promise.all([
-            sincronizarConfigLaboratorioDoServidor().catch(() => carregarConfigLaboratorio()),
-            sincronizarConfiguracoesFaturasDoServidor().catch(() =>
-              carregarConfiguracoesFaturas()
-            ),
-          ]);
+          await sincronizarConfigLaboratorioDoServidor().catch(() => undefined);
+          const cfgFaturas = await sincronizarConfiguracoesFaturasDoServidor().catch(
+            () => carregarConfiguracoesFaturas()
+          );
           if (seq !== buildPdfSeqRef.current) return;
           blob = await gerarPdfFaturaImpressao({
             dados,
-            cfgLab,
+            cfgLab: configLaboratorioCabecalhoAtual(),
             layout: resolverLayoutFaturaImpressao(cfgFaturas, modelo),
             modelo,
           });

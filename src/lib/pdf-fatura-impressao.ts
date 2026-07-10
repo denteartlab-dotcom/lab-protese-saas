@@ -1,5 +1,9 @@
 import type { ModeloFaturaId } from "@/lib/configuracoes-faturas";
-import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
+import {
+  CONFIG_LAB_PADRAO,
+  carregarConfigLaboratorio,
+  type ConfigLaboratorio,
+} from "@/lib/configuracoes-lab";
 import type { FormatoHtmlPdf } from "@/lib/html-para-pdf";
 import type {
   DadosFaturaImpressao,
@@ -576,12 +580,15 @@ export async function gerarPdfFaturaImpressao(opts: {
   layout: FaturaModeloLayout;
   modelo: ModeloFaturaId;
 }): Promise<Blob> {
+  const cfgLab =
+    opts.cfgLab ??
+    (typeof window !== "undefined" ? carregarConfigLaboratorio() : CONFIG_LAB_PADRAO);
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   renderFaturaA4SmartPdf(
     pdf as unknown as PdfApi,
     opts.dados,
-    opts.cfgLab,
+    cfgLab,
     opts.layout,
     opts.modelo
   );

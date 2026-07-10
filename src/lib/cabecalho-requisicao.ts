@@ -104,16 +104,23 @@ export type TextosCabecalhoRequisicao = {
 };
 
 function enderecoLaboratorio(
-  cfg: DadosNomeLaboratorio & {
+  cfg: (DadosNomeLaboratorio & {
     rua?: string;
     numero?: string;
     bairro?: string;
     cidade?: string;
     uf?: string;
     endereco?: string;
-  },
+  }) | null | undefined,
   lab: LabImpressaoConfig
 ) {
+  if (!cfg) {
+    return (
+      lab.endereco?.trim() ||
+      [lab.enderecoLinha1, lab.enderecoLinha2].filter(Boolean).join(" — ") ||
+      ""
+    );
+  }
   const ruaNumero = [cfg.rua, cfg.numero].filter(Boolean).join(", ");
   const partes = [
     ruaNumero,
