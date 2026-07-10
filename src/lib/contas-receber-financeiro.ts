@@ -11,9 +11,15 @@ export type LancamentoContasReceber = {
   createdAt?: string;
   status: string;
   formaPagamento?: string | null;
-  cliente?: { id: string; nome: string } | null;
+  cliente?: { id: string; nome?: string } | null;
   trabalho?: { id: string; numeroOs: number } | null;
 };
+
+/** Campos mínimos para cruzar parciais/créditos de uma fatura. */
+export type LancamentoFaturaFinanceiroRef = Pick<
+  LancamentoContasReceber,
+  "tipo" | "descricao" | "valor" | "data" | "status" | "formaPagamento" | "cliente"
+> & { id?: string };
 
 export type TrabalhoContasReceber = {
   id: string;
@@ -36,19 +42,19 @@ export function isCreditoGerado(lancamento: LancamentoContasReceber) {
   return descricao.startsWith("adiantamento") || descricao.includes("crédito cliente");
 }
 
-export function isCreditoUtilizado(lancamento: LancamentoContasReceber) {
+export function isCreditoUtilizado(lancamento: { descricao: string }) {
   const descricao = lancamento.descricao.toLowerCase();
   return descricao.startsWith("crédito utilizado") || descricao.includes("desconto com crédito");
 }
 
-export function isRecebimentoParcial(lancamento: LancamentoContasReceber) {
+export function isRecebimentoParcial(lancamento: { descricao: string }) {
   const base = descricaoReceitaSemMeta(lancamento.descricao);
   return /^recebimento parcial\s*-/i.test(base);
 }
 
 export function creditosUtilizadosDaFatura(
-  lancamento: LancamentoContasReceber,
-  lancamentos: LancamentoContasReceber[]
+  lancamento: Pick<LancamentoContasReceber, "descricao" | "cliente">,
+  lancamentos: LancamentoFaturaFinanceiroRef[]
 ) {
   const descricao = lancamento.descricao.trim();
   return lancamentos.filter(
@@ -62,8 +68,8 @@ export function creditosUtilizadosDaFatura(
 }
 
 export function recebimentosParciaisDaFatura(
-  lancamento: LancamentoContasReceber,
-  lancamentos: LancamentoContasReceber[]
+  lancamento: Pick<LancamentoContasReceber, "descricao" | "cliente">,
+  lancamentos: LancamentoFaturaFinanceiroRef[]
 ) {
   const descricaoBase = lancamento.descricao.trim();
   const prefixo = `Recebimento parcial - ${descricaoBase}`;
