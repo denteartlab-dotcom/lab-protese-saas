@@ -1,13 +1,15 @@
 import { montarUrlPublica } from "@/lib/app-url";
 import {
   formatarTelefoneEntrada,
-  normalizarTelefoneBr,
+  telefoneParaEnvioWhatsapp,
 } from "@/lib/whatsapp-disparos/telefone-br";
+
+export { telefoneParaEnvioWhatsapp } from "@/lib/whatsapp-disparos/telefone-br";
 
 export { publicOriginFromRequest } from "@/lib/app-url";
 
 export function formatWhatsAppPhone(raw: string) {
-  return normalizarTelefoneBr(raw) || raw.replace(/\D/g, "");
+  return telefoneParaEnvioWhatsapp(raw) || "";
 }
 
 /** Máscara visual para campo de WhatsApp (Brasil com código do país). */
@@ -94,8 +96,12 @@ export function buildAprovacaoWhatsAppUrl(
   );
 }
 
-export function abrirWhatsAppUrl(url: string | null) {
+export function abrirWhatsAppUrl(url: string | null, janela?: Window | null) {
   if (!url) return false;
+  if (janela && !janela.closed) {
+    janela.location.href = url;
+    return true;
+  }
   window.open(url, "_blank", "noopener,noreferrer");
   return true;
 }
@@ -151,7 +157,8 @@ export function buildFaturaConferenciaWhatsAppUrl(
 
 export function abrirWhatsAppFaturaConferencia(
   phone: string | null | undefined,
-  texto: string
+  texto: string,
+  janela?: Window | null
 ) {
-  return abrirWhatsAppUrl(buildFaturaConferenciaWhatsAppUrl(phone, texto));
+  return abrirWhatsAppUrl(buildFaturaConferenciaWhatsAppUrl(phone, texto), janela);
 }

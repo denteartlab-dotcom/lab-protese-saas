@@ -1,6 +1,7 @@
 import {
   abrirWhatsAppFaturaConferencia,
   buildFaturaConferenciaWhatsAppUrl,
+  formatWhatsAppPhone,
 } from "@/lib/whatsapp";
 
 export type ResultadoDisparoWhatsappCliente =
@@ -46,22 +47,31 @@ export async function dispararWhatsappSistema(
 
 /**
  * Tenta envio automático (Baileys) quando conectado; senão abre wa.me no navegador.
+ * Use `forcarWhatsAppWeb: true` para sempre abrir o WhatsApp Web (ex.: link de acompanhamento).
  */
 export async function dispararOuAbrirWhatsapp(
   telefone: string | null | undefined,
-  mensagem: string
+  mensagem: string,
+  opts?: { forcarWhatsAppWeb?: boolean; janelaWhatsapp?: Window | null }
 ): Promise<ResultadoDisparoWhatsappCliente> {
-  const status = await buscarStatusWhatsappAutomacao();
-  if (status.habilitado && status.conectado && telefone?.trim()) {
-    const auto = await dispararWhatsappSistema(telefone, mensagem);
-    if (auto.modo === "auto") return auto;
-    if (auto.modo === "erro" && auto.error) {
-      console.warn("[whatsapp]", auto.error);
+  const telefoneNorm = formatWhatsAppPhone(String(telefone ?? "").trim());
+  if (!telefoneNorm) {
+    return { modo: "erro", error: "Telefone inválido" };
+  }
+
+  if (!opts?.forcarWhatsAppWeb) {
+    const status = await buscarStatusWhatsappAutomacao();
+    if (status.habilitado && status.conectado) {
+      const auto = await dispararWhatsappSistema(telefoneNorm, mensagem);
+      if (auto.modo === "auto") return auto;
+      if (auto.modo === "erro" && auto.error) {
+        console.warn("[whatsapp]", auto.error);
+      }
     }
   }
 
-  const url = buildFaturaConferenciaWhatsAppUrl(telefone, mensagem);
-  const abriu = abrirWhatsAppFaturaConferencia(telefone, mensagem);
+  const url = buildFaturaConferenciaWhatsAppUrl(telefoneNorm, mensagem);
+  const abriu = abrirWhatsAppFaturaConferencia(telefoneNorm, mensagem, opts?.janelaWhatsapp);
   if (abriu) return { modo: "manual" };
   if (!url) return { modo: "erro", error: "Telefone inválido" };
   return { modo: "erro", error: "Não foi possível abrir o WhatsApp" };

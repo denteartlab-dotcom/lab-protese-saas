@@ -96,6 +96,17 @@ export function telefoneBrValido(raw: string) {
   return normalizarTelefoneBr(raw) !== null;
 }
 
+/** Número pronto para envio (Baileys, API ou wa.me) — aceita 55..., DDD local e hífen. */
+export function telefoneParaEnvioWhatsapp(raw: string | null | undefined): string | null {
+  const texto = String(raw ?? "").trim();
+  if (!texto) return null;
+  const norm = normalizarTelefoneBr(texto);
+  if (norm) return norm;
+  const digits = apenasDigitos(texto);
+  if (digits.length >= 10) return digits;
+  return null;
+}
+
 export function formatarTelefoneExibicao(raw: string) {
   const texto = String(raw ?? "").trim();
   if (!texto) return "";

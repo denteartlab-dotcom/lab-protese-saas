@@ -15,6 +15,7 @@ import {
   descontoGeralTipoClienteObservacoes,
   mesclarObservacoesComDataNascimento,
   observacoesTextoLivreCliente,
+  telefoneWhatsappCliente,
   tipoClienteCadastro,
 } from "@/lib/cliente-observacoes";
 import {
@@ -625,31 +626,38 @@ export default function ClientesPage() {
   }
 
   async function enviarAcompanhamentoWhatsApp(cliente: Cliente) {
-    const telefone = (cliente.celular || cliente.telefone || "").trim();
-    if (!telefone) {
+    const telefone = telefoneWhatsappCliente(cliente) || cliente.celular || cliente.telefone || "";
+    if (!telefone.trim()) {
       alert(
         "Cadastre o celular ou WhatsApp do cliente para enviar o link de acompanhamento."
       );
       return;
     }
 
+    const janelaWhatsapp = window.open("about:blank", "_blank", "noopener,noreferrer");
     setEnviandoWhatsAppId(cliente.id);
     try {
       const res = await fetch(`/api/clientes/${cliente.id}/acompanhamento`);
       const data = await res.json();
       if (!res.ok || !data.publicUrl) {
+        janelaWhatsapp?.close();
         alert(data.error || "Não foi possível gerar o link de acompanhamento.");
         return;
       }
       const texto = mensagemAcompanhamentoCliente(cliente.nome, data.publicUrl);
-      const resultado = await dispararOuAbrirWhatsapp(telefone, texto);
+      const resultado = await dispararOuAbrirWhatsapp(telefone, texto, {
+        forcarWhatsAppWeb: true,
+        janelaWhatsapp,
+      });
       if (resultado.modo === "erro") {
+        janelaWhatsapp?.close();
         alert(
           resultado.error ||
-            "Link gerado, mas não foi possível enviar pelo WhatsApp. Verifique o número ou a conexão em Configurações → WhatsApp."
+            "Link gerado, mas não foi possível abrir o WhatsApp. Verifique o número cadastrado."
         );
       }
     } catch {
+      janelaWhatsapp?.close();
       alert("Erro ao preparar o envio pelo WhatsApp.");
     } finally {
       setEnviandoWhatsAppId(null);
