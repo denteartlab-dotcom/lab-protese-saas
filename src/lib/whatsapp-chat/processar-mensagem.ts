@@ -12,6 +12,7 @@ import {
   processarTextoChatbot,
 } from "@/lib/whatsapp-chat/motor";
 import { chatbotWhatsappHabilitado } from "@/lib/whatsapp-chat/resolver-empresa";
+import { chatbotAtivoParaEmpresa } from "@/lib/whatsapp-chat/chatbot-config-servidor";
 
 export type PayloadMensagemRecebidaWhatsapp = {
   telefone?: string;
@@ -60,6 +61,10 @@ export async function processarMensagemRecebidaWhatsapp(
 ): Promise<ResultadoProcessamentoChat> {
   if (!chatbotWhatsappHabilitado()) {
     return { ok: true, ignorado: true, motivo: "chatbot_desabilitado" };
+  }
+
+  if (!(await chatbotAtivoParaEmpresa(empresaId))) {
+    return { ok: true, ignorado: true, motivo: "chatbot_desabilitado_empresa" };
   }
 
   const telefone = chaveTelefoneConversa(payload);

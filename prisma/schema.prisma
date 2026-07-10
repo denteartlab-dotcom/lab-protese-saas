@@ -51,6 +51,7 @@ model Empresa {
   whatsappCampaigns   WhatsappCampaign[]
   whatsappLogs        WhatsappLog[]
   whatsappChatConversas WhatsappChatConversa[]
+  whatsappChatbotConfig WhatsappChatbotConfig?
 }
 
 model SuporteConversa {
@@ -677,4 +678,29 @@ model WhatsappChatMensagem {
 
   @@index([conversaId, createdAt])
   @@map("whatsapp_chat_mensagens")
+}
+
+/** Configuração do chatbot WhatsApp por laboratório. */
+model WhatsappChatbotConfig {
+  id              String   @id @default(cuid())
+  empresaId       String   @unique
+  empresa         Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  ativo           Boolean  @default(true)
+  intro           String   @default("Olá! Sou o assistente do {laboratorio}.")
+  rodapeMenu      String   @default("A qualquer momento digite *menu* para voltar.")
+  opcao1Ativa     Boolean  @default(true)
+  opcao1Texto     String   @default("Ver minhas OS em andamento")
+  opcao2Ativa     Boolean  @default(true)
+  opcao2Texto     String   @default("Consultar uma OS (informe o número)")
+  opcao3Ativa     Boolean  @default(true)
+  opcao3Texto     String   @default("Link de acompanhamento online")
+  opcao4Ativa     Boolean  @default(true)
+  opcao4Texto     String   @default("Falar com atendente")
+  msgAtendente    String   @default("Certo! Um atendente do laboratório vai responder em breve.\n\nEnquanto isso, digite *menu* para voltar ao assistente automático.")
+  msgAguardandoOs String   @default("Qual o número da OS? (ex.: 1234)")
+  msgNaoEntendi   String   @default("Não entendi.")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("whatsapp_chatbot_configs")
 }

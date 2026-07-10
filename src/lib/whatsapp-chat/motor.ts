@@ -12,6 +12,12 @@ import {
   type ClienteChatResumo,
 } from "@/lib/whatsapp-chat/buscar-cliente";
 import {
+  CHATBOT_CONFIG_PADRAO,
+  montarTextoMenuChat,
+  type ChatbotConfigDados,
+} from "@/lib/whatsapp-chat/chatbot-config-types";
+import { obterChatbotConfig } from "@/lib/whatsapp-chat/chatbot-config-servidor";
+import {
   atualizarConversaChat,
   type ConversaChatWhatsapp,
   type EtapaChatWhatsapp,
@@ -25,17 +31,8 @@ const STATUS_EM_ANDAMENTO = new Set([
   "saiu_entrega",
 ]);
 
-export function textoMenuChat(nomeLab?: string) {
-  const lab = nomeLab?.trim() || "laboratório";
-  return (
-    `Olá! Sou o assistente do ${lab}.\n\n` +
-    `Digite o número da opção:\n` +
-    `*1* — Ver minhas OS em andamento\n` +
-    `*2* — Consultar uma OS (informe o número)\n` +
-    `*3* — Link de acompanhamento online\n` +
-    `*4* — Falar com atendente\n\n` +
-    `A qualquer momento digite *menu* para voltar.`
-  );
+export function textoMenuChat(nomeLab?: string, config?: ChatbotConfigDados) {
+  return montarTextoMenuChat(config || CHATBOT_CONFIG_PADRAO, nomeLab);
 }
 
 function normalizarEntrada(texto: string) {
@@ -215,6 +212,7 @@ export async function processarTextoChatbot(
   textoEntrada: string
 ): Promise<ResultadoMotorChat> {
   const texto = textoEntrada.trim();
+  const config = await obterChatbotConfig(empresaId);
   const clientes = await buscarClientesPorTelefoneChat(empresaId, conversa.telefone);
   const clienteId = clientes[0]?.id ?? conversa.clienteId ?? null;
 
@@ -230,7 +228,7 @@ export async function processarTextoChatbot(
   if (pedeMenu(texto)) {
     const nomeLab = await nomeLaboratorio(empresaId);
     return {
-      respostas: [textoMenuChat(nomeLab)],
+      respostas: [textoMenuChat(nomeLab, config)],
       proximaEtapa: "menu",
       atendimentoHumano: false,
       clienteId,
@@ -258,7 +256,7 @@ export async function processarTextoChatbot(
 
   const opcao = normalizarEntrada(texto).replace(/\s/g, "");
 
-  if (opcao === "1") {
+  if (opcao === "1" && config.opcao1Ativa) {
     const lista = await listarOsEmAndamento(empresaId, clientes);
     return {
       respostas: [lista],
@@ -268,7 +266,7 @@ export async function processarTextoChatbot(
     };
   }
 
-  if (opcao === "2") {
+  if (opcao === "2" && config.opcao2Ativa) {
     const numeroDireto = extrairNumeroOs(texto);
     if (numeroDireto) {
       const detalhe = await detalharOs(empresaId, clientes, numeroDireto);
@@ -280,14 +278,14 @@ export async function processarTextoChatbot(
       };
     }
     return {
-      respostas: ["Qual o número da OS? (ex.: 1234)"],
+      respostas: [config.msgAguardandoOs],
       proximaEtapa: "aguardando_os",
       atendimentoHumano: false,
       clienteId,
     };
   }
 
-  if (opcao === "3") {
+  if (opcao === "3" && config.opcao3Ativa) {
     const msg = await linkAcompanhamento(clientes);
     return {
       respostas: [msg],
@@ -297,11 +295,9 @@ export async function processarTextoChatbot(
     };
   }
 
-  if (opcao === "4") {
+  if (opcao === "4" && config.opcao4Ativa) {
     return {
-      respostas: [
-        "Certo! Um atendente do laboratório vai responder em breve.\n\nEnquanto isso, digite *menu* para voltar ao assistente automático.",
-      ],
+      respostas: [config.msgAtendente],
       proximaEtapa: "atendente",
       atendimentoHumano: true,
       clienteId,
@@ -322,7 +318,7 @@ export async function processarTextoChatbot(
   const nomeLab = await nomeLaboratorio(empresaId);
   return {
     respostas: [
-      `Não entendi. ${textoMenuChat(nomeLab)}`,
+      `${config.msgNaoEntendi} ${textoMenuChat(nomeLab, config)}`,
     ],
     proximaEtapa: "menu",
     atendimentoHumano: false,
