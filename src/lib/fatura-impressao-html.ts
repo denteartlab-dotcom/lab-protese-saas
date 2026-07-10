@@ -524,6 +524,8 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
       padding:4px 3px;
     }
     table.items.smart td,table.items.pay.smart td{background:#fff}
+    table.items.smart .cel-servico{line-height:1.35;word-break:break-word;overflow-wrap:break-word;padding-bottom:2px}
+    table.items.smart tr.meta-row td{padding-top:2px;padding-bottom:4px}
     table.items.smart thead tr,table.items.pay.smart thead tr{background:#fff}
   `
     : "";
@@ -628,7 +630,7 @@ function htmlTabelaItensA4(
         const trPrincipal = `<tr>
           ${layout.numOs ? celulaOsFatura(linha, novaOs, layout) : ""}
           ${layout.qtd ? `<td class="center">${escapeHtml(linha.qtd)}</td>` : ""}
-          ${layout.servico ? `<td>${escapeHtml(linha.servico)}</td>` : ""}
+          ${layout.servico ? `<td class="cel-servico">${escapeHtml(linha.servico)}</td>` : ""}
           ${layout.numDente ? `<td>${escapeHtml(linha.dentes)}</td>` : ""}
           ${layout.paciente ? `<td>${escapeHtml(linha.paciente)}</td>` : ""}
           ${layout.valorUnit ? `<td class="right">${escapeHtml(formatarMoedaReais(linha.unitario, money))}</td>` : ""}
@@ -1080,7 +1082,7 @@ function gerarHtmlFaturaTermica(
                     : "";
                 return `<tr>
                   ${layout.qtd ? `<td style="font-weight:bold">${escapeHtml(linha.qtd)}</td>` : ""}
-                  ${layout.servico ? `<td>${escapeHtml(linha.servico)}</td>` : ""}
+                  ${layout.servico ? `<td class="cel-servico">${escapeHtml(linha.servico)}</td>` : ""}
                   ${layout.valorUnit ? `<td class="right">${escapeHtml(linha.unitario)}</td>` : ""}
                   ${layout.desconto ? `<td class="right">${escapeHtml(linha.desconto)}</td>` : ""}
                 </tr>${meta}`;

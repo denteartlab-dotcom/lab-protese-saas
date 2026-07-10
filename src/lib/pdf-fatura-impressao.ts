@@ -35,6 +35,7 @@ type PdfApi = PdfCabecalhoApi & {
   addPage: () => void;
   output: (type: "blob") => Blob;
   setLineWidth: (width: number) => void;
+  getLineHeightFactor?: () => number;
 };
 
 type ColunaFatura = {
@@ -238,6 +239,15 @@ function desenharInfoCliente(
   return Math.max(yEsquerda, yDireita) + 2;
 }
 
+function alturaBlocoTextoPdf(pdf: PdfApi, linhas: string | string[], fs: number) {
+  const count = Array.isArray(linhas) ? linhas.length : linhas ? 1 : 0;
+  if (count <= 0) return 0;
+  const lineHeightFactor =
+    typeof pdf.getLineHeightFactor === "function" ? pdf.getLineHeightFactor() : 1.15;
+  const mmPorLinha = fs * lineHeightFactor * 0.352778;
+  return count * mmPorLinha;
+}
+
 function desenharLinhaTabela(
   pdf: PdfApi,
   cols: ReturnType<typeof largurasColunas>,
@@ -246,9 +256,10 @@ function desenharLinhaTabela(
   fs: number,
   xBase: number,
   header = false
-) {
+): number {
   pdf.setFont("helvetica", header ? "bold" : "normal");
   pdf.setFontSize(fs);
+  let alturaMax = 0;
   for (let i = 0; i < cols.length; i++) {
     const col = cols[i];
     const texto = valores[i] ?? "";
@@ -262,7 +273,9 @@ function desenharLinhaTabela(
     pdf.text(linhas, x, y, {
       align: col.align === "right" ? "right" : col.align === "center" ? "center" : "left",
     });
+    alturaMax = Math.max(alturaMax, alturaBlocoTextoPdf(pdf, linhas, fs));
   }
+  return alturaMax;
 }
 
 function indiceColunaServico(cols: ReturnType<typeof largurasColunas>) {
@@ -314,7 +327,7 @@ function desenharTabelaItens(
   let y = yInicio;
   linhaRequisicaoPdf(pdf, y, pageWidth);
   y += 5;
-  desenharLinhaTabela(
+  const alturaCabecalho = desenharLinhaTabela(
     pdf,
     cols,
     cols.map((c) => c.titulo),
@@ -323,7 +336,7 @@ function desenharTabelaItens(
     m.tabelaEsq,
     true
   );
-  y += 5;
+  y += Math.max(alturaCabecalho, 4) + 1;
   linhaRequisicaoPdf(pdf, y, pageWidth);
   y += 4;
 
@@ -341,10 +354,10 @@ function desenharTabelaItens(
       return textoCelula(linha, col);
     });
 
-    desenharLinhaTabela(pdf, cols, valores, y, fs - 1, m.tabelaEsq);
-    y += 4.5;
+    const alturaLinha = desenharLinhaTabela(pdf, cols, valores, y, fs - 1, m.tabelaEsq);
+    y += Math.max(alturaLinha, 3.5) + 0.6;
     y = desenharMetaLinhaServico(pdf, cols, linha, layout, y, fsMeta, m.tabelaEsq);
-    y += 1.5;
+    y += 1.2;
   }
 
   linhaRequisicaoPdf(pdf, y, pageWidth);
