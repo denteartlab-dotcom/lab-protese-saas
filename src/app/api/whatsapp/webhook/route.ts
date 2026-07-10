@@ -6,10 +6,20 @@ import {
   resolverEmpresaIdWebhook,
   sincronizarSessaoWebhook,
 } from "@/lib/whatsapp-chat/resolver-empresa";
+import {
+  provedorChatbotWhatsapp,
+  whatsappCloudConfigurado,
+} from "@/lib/whatsapp-cloud/meta-config";
+import {
+  ehPayloadMetaCloud,
+  extrairMensagensMetaCloud,
+  verificarAssinaturaMeta,
+  verificarWebhookMeta,
+} from "@/lib/whatsapp-cloud/meta-webhook";
 
 export const dynamic = "force-dynamic";
 
-const schema = z
+const schemaBaileys = z
   .object({
     telefone: z.string().min(8).optional(),
     mensagem: z.string().min(1).max(4000),
@@ -21,7 +31,7 @@ const schema = z
     message: "Informe telefone ou jid",
   });
 
-function autorizadoWebhook(request: Request) {
+function autorizadoWebhookBaileys(request: Request) {
   const tokenEsperado = process.env.WHATSAPP_HTTP_TOKEN?.trim();
   if (!tokenEsperado) return true;
 
@@ -32,12 +42,23 @@ function autorizadoWebhook(request: Request) {
   return header === tokenEsperado;
 }
 
-/** Ping rápido — confirma que o middleware liberou a rota (sem token). */
-export async function GET() {
+/** Ping ou verificação da Meta (hub.challenge). */
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const challenge = verificarWebhookMeta(searchParams);
+  if (challenge) {
+    return new NextResponse(challenge, {
+      status: 200,
+      headers: { "Content-Type": "text/plain" },
+    });
+  }
+
   return NextResponse.json({
     ok: true,
     webhook: "whatsapp-chat",
     chatbotHabilitado: chatbotWhatsappHabilitado(),
+    provedorChatbot: provedorChatbotWhatsapp(),
+    cloudApi: whatsappCloudConfigurado(),
     tokenObrigatorio: Boolean(process.env.WHATSAPP_HTTP_TOKEN?.trim()),
   });
 }
@@ -47,13 +68,61 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, ignorado: true, motivo: "chatbot_desabilitado" });
   }
 
-  if (!autorizadoWebhook(request)) {
+  const rawBody = await request.text();
+  let body: unknown;
+  try {
+    body = rawBody ? JSON.parse(rawBody) : {};
+  } catch {
+    return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
+  }
+
+  if (ehPayloadMetaCloud(body)) {
+    if (!whatsappCloudConfigurado()) {
+      return NextResponse.json(
+        { ok: false, error: "Cloud API não configurada" },
+        { status: 422 }
+      );
+    }
+
+    const assinatura = request.headers.get("x-hub-signature-256");
+    if (!verificarAssinaturaMeta(rawBody, assinatura)) {
+      return NextResponse.json({ error: "Assinatura inválida" }, { status: 401 });
+    }
+
+    const mensagens = extrairMensagensMetaCloud(body);
+    if (mensagens.length === 0) {
+      return NextResponse.json({ ok: true, ignorado: true, motivo: "sem_mensagens" });
+    }
+
+    const resultados = [];
+    for (const item of mensagens) {
+      const empresaId = await resolverEmpresaIdWebhook({
+        numeroConectado: item.displayPhoneNumber || item.phoneNumberId,
+        phoneNumberId: item.phoneNumberId,
+      });
+      if (!empresaId) {
+        resultados.push({ ok: false, error: "empresa_nao_identificada" });
+        continue;
+      }
+
+      await sincronizarSessaoWebhook(empresaId, item.displayPhoneNumber);
+
+      const resultado = await processarMensagemRecebidaWhatsapp(empresaId, {
+        ...item.payload,
+        phoneNumberId: item.phoneNumberId,
+      });
+      resultados.push(resultado);
+    }
+
+    return NextResponse.json({ ok: true, resultados });
+  }
+
+  if (!autorizadoWebhookBaileys(request)) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   try {
-    const body = await request.json();
-    const data = schema.parse(body);
+    const data = schemaBaileys.parse(body);
 
     const empresaId = await resolverEmpresaIdWebhook({
       numeroConectado: data.numeroConectado,

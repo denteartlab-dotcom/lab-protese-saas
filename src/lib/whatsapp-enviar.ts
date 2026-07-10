@@ -1,4 +1,6 @@
 import { formatWhatsAppPhone } from "@/lib/whatsapp";
+import { metaEnviarTexto } from "@/lib/whatsapp-cloud/meta-enviar";
+import { whatsappCloudConfigurado } from "@/lib/whatsapp-cloud/meta-config";
 
 export type ResultadoEnvioWhatsapp =
   | { ok: true; modo: "meta" | "http" | "dev" }
@@ -29,43 +31,16 @@ export function whatsappBaileysConfigurado() {
   return Boolean(process.env.WHATSAPP_HTTP_URL?.trim());
 }
 
+export { whatsappCloudConfigurado } from "@/lib/whatsapp-cloud/meta-config";
+
 async function enviarViaMetaTexto(
   telefone: string,
   mensagem: string
 ): Promise<ResultadoEnvioWhatsapp> {
-  const token = process.env.WHATSAPP_CLOUD_TOKEN?.trim();
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID?.trim();
-
-  if (!token || !phoneNumberId) {
-    return { ok: false, error: "WhatsApp Cloud API não configurada" };
+  const resultado = await metaEnviarTexto(telefone, mensagem);
+  if (!resultado.ok) {
+    return { ok: false, error: resultado.error };
   }
-
-  const to = formatWhatsAppPhone(telefone);
-  const url = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      to,
-      type: "text",
-      text: { body: mensagem },
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.text().catch(() => "");
-    console.error("[whatsapp-meta]", res.status, err);
-    return {
-      ok: false,
-      error: "Não foi possível enviar a mensagem pelo WhatsApp",
-    };
-  }
-
   return { ok: true, modo: "meta" };
 }
 

@@ -1,7 +1,5 @@
-import { baileysEnviarMidia, baileysEnviarTexto } from "@/lib/whatsapp-disparos/baileys-service";
-import {
-  telefoneParaEnvioWhatsapp,
-} from "@/lib/whatsapp-disparos/telefone-br";
+import { enviarMidiaChatbot, enviarTextoChatbot } from "@/lib/whatsapp-chat/enviar-resposta";
+import { telefoneParaEnvioWhatsapp } from "@/lib/whatsapp-disparos/telefone-br";
 import { carregarBase64AnexoChatbot } from "@/lib/whatsapp-chat/chatbot-anexo";
 import {
   mensagemEntradaJaProcessada,
@@ -21,6 +19,8 @@ export type PayloadMensagemRecebidaWhatsapp = {
   messageId?: string | null;
   jid?: string | null;
   numeroConectado?: string | null;
+  /** ID do número na Cloud API (phone_number_id da Meta). */
+  phoneNumberId?: string | null;
 };
 
 export type ResultadoProcessamentoChat = {
@@ -117,7 +117,10 @@ export async function processarMensagemRecebidaWhatsapp(
   for (const resposta of resultado.respostas) {
     await aguardarIntervalo(chaveIntervalo);
     try {
-      await baileysEnviarTexto(destino, resposta, { jid: replyJid });
+      await enviarTextoChatbot(destino, resposta, {
+        jid: replyJid,
+        phoneNumberId: payload.phoneNumberId,
+      });
       ultimoEnvioPorTelefone.set(chaveIntervalo, Date.now());
     } catch (err) {
       const mensagemErro = err instanceof Error ? err.message : "Falha ao enviar resposta";
@@ -144,17 +147,15 @@ export async function processarMensagemRecebidaWhatsapp(
       continue;
     }
     try {
-      await baileysEnviarMidia(
-        destino,
-        {
-          mensagem: midia.texto,
-          mimeType: arquivo.mimeType,
-          fileName: arquivo.fileName,
-          dataBase64: arquivo.dataBase64,
-          tipo: midia.tipo,
-          jid: replyJid,
-        }
-      );
+      await enviarMidiaChatbot(destino, {
+        mensagem: midia.texto,
+        mimeType: arquivo.mimeType,
+        fileName: arquivo.fileName,
+        dataBase64: arquivo.dataBase64,
+        tipo: midia.tipo,
+        jid: replyJid,
+        phoneNumberId: payload.phoneNumberId,
+      });
       ultimoEnvioPorTelefone.set(chaveIntervalo, Date.now());
     } catch (err) {
       const mensagemErro = err instanceof Error ? err.message : "Falha ao enviar anexo";

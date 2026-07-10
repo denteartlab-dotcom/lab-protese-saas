@@ -95,9 +95,15 @@ function sanitizarWebhookUrl(url) {
 const webhookInfo = sanitizarWebhookUrl(env.WHATSAPP_WEBHOOK_URL);
 const webhookUrl = webhookInfo.url;
 
-console.log("\n=== Diagnóstico WhatsApp Baileys ===\n");
+console.log("\n=== Diagnóstico WhatsApp ===\n");
 
 console.log("1. Variáveis .env:");
+console.log("   WHATSAPP_CHATBOT_PROVIDER =", env.WHATSAPP_CHATBOT_PROVIDER || "(auto — cloud se token Meta definido)");
+console.log("   WHATSAPP_CLOUD_TOKEN =", env.WHATSAPP_CLOUD_TOKEN ? "(definido)" : "(vazio)");
+console.log("   WHATSAPP_PHONE_NUMBER_ID =", env.WHATSAPP_PHONE_NUMBER_ID || "(vazio)");
+console.log("   WHATSAPP_VERIFY_TOKEN =", env.WHATSAPP_VERIFY_TOKEN ? "(definido)" : "(vazio — necessário para webhook Meta)");
+console.log("   WHATSAPP_APP_SECRET =", env.WHATSAPP_APP_SECRET ? "(definido)" : "(vazio — recomendado)");
+console.log("   WHATSAPP_EMPRESA_ID =", env.WHATSAPP_EMPRESA_ID || "(vazio — use id do laboratório na VPS)");
 console.log("   WHATSAPP_HTTP_URL =", env.WHATSAPP_HTTP_URL || "(não definido — usa porta 3100)");
 console.log("   WHATSAPP_HTTP_TOKEN =", token ? "(definido)" : "(vazio — ok)");
 console.log("   WHATSAPP_BAILEYS_PORT =", env.WHATSAPP_BAILEYS_PORT || "3100");
@@ -109,6 +115,21 @@ if (webhookInfo.corrigida) {
     webhookInfo.url
   );
   console.log("   → Corrija o .env e rode: pm2 restart lab-protese-whatsapp --update-env");
+}
+
+const cloudAtivo =
+  env.WHATSAPP_CHATBOT_PROVIDER === "cloud" ||
+  (env.WHATSAPP_CLOUD_TOKEN && env.WHATSAPP_PHONE_NUMBER_ID && env.WHATSAPP_CHATBOT_PROVIDER !== "baileys");
+
+if (cloudAtivo) {
+  const webhookPublico = env.NEXT_PUBLIC_APP_URL
+    ? `${env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/api/whatsapp/webhook`
+    : `(seu domínio)/api/whatsapp/webhook`;
+  console.log("\n   Cloud API (chatbot oficial):");
+  console.log("   Webhook Meta →", webhookPublico);
+  console.log("   Verify token → mesmo valor de WHATSAPP_VERIFY_TOKEN no painel Meta");
+  console.log("   Campo webhook → messages");
+  console.log("   Respostas do chatbot: GRÁTIS (cliente manda primeiro, janela 24h)");
 }
 
 try {

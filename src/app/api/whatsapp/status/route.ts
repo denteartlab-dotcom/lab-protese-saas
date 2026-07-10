@@ -4,7 +4,9 @@ import { consultarStatusBaileys } from "@/lib/whatsapp-baileys-status";
 import {
   whatsappAutomacaoServidorHabilitada,
   whatsappBaileysConfigurado,
+  whatsappCloudConfigurado,
 } from "@/lib/whatsapp-enviar";
+import { provedorChatbotWhatsapp } from "@/lib/whatsapp-cloud/meta-config";
 
 export async function GET() {
   const ctx = await requireEmpresaContext().catch(() => null);
@@ -14,23 +16,40 @@ export async function GET() {
 
   const habilitado = whatsappAutomacaoServidorHabilitada();
   const baileys = whatsappBaileysConfigurado();
+  const cloud = whatsappCloudConfigurado();
+  const provedorChatbot = provedorChatbotWhatsapp();
 
-  if (!habilitado) {
+  if (!habilitado && !cloud) {
     return NextResponse.json({
       habilitado: false,
       conectado: false,
       baileys: false,
+      cloud: false,
       qr: null,
+    });
+  }
+
+  if (provedorChatbot === "cloud" && cloud) {
+    return NextResponse.json({
+      habilitado: true,
+      conectado: true,
+      baileys: baileys,
+      cloud: true,
+      qr: null,
+      modo: "meta",
+      provedorChatbot: "cloud",
     });
   }
 
   if (!baileys) {
     return NextResponse.json({
       habilitado: true,
-      conectado: true,
+      conectado: cloud,
       baileys: false,
+      cloud,
       qr: null,
-      modo: "meta",
+      modo: cloud ? "meta" : "dev",
+      provedorChatbot,
     });
   }
 
@@ -38,8 +57,10 @@ export async function GET() {
   return NextResponse.json({
     habilitado: true,
     baileys: true,
+    cloud,
     conectado: Boolean(status?.connected),
     qr: status?.qr || null,
     modo: "baileys",
+    provedorChatbot,
   });
 }

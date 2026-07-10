@@ -10,6 +10,7 @@ export function chatbotWhatsappHabilitado() {
 /** Resolve o laboratório (tenant) para mensagens recebidas sem sessão de usuário. */
 export async function resolverEmpresaIdWebhook(opts?: {
   numeroConectado?: string | null;
+  phoneNumberId?: string | null;
 }): Promise<string | null> {
   const fixo = process.env.WHATSAPP_EMPRESA_ID?.trim();
   if (fixo) return fixo;
