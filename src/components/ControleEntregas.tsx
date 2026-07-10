@@ -13,6 +13,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { usePageReady } from "@/hooks/use-page-ready";
 import { BotoesImprimirExportarToolbar } from "@/components/BotoesImprimirExportarToolbar";
 import { ControleProducaoToolbar } from "@/components/ControleProducaoToolbar";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
@@ -129,12 +130,18 @@ export function ControleEntregas() {
     setEntregadores(carregarEntregadores());
   }
 
-  useEffect(() => {
+  const paginaPronta = usePageReady(async () => {
     recarregar();
-    void Promise.all([
+    await Promise.all([
       sincronizarEntregasControleCliente(),
       sincronizarHistoricoEntregasCliente(),
-    ]).then(() => recarregar());
+    ]);
+    recarregar();
+  });
+
+  useEffect(() => {
+    if (!paginaPronta) return;
+
     window.addEventListener(ENTREGAS_EVENT, recarregar);
     window.addEventListener(ENTREGAS_HISTORICO_EVENT, recarregar);
     window.addEventListener(ENTREGADORES_CADASTRO_EVENT, recarregar);
@@ -143,7 +150,7 @@ export function ControleEntregas() {
       window.removeEventListener(ENTREGAS_HISTORICO_EVENT, recarregar);
       window.removeEventListener(ENTREGADORES_CADASTRO_EVENT, recarregar);
     };
-  }, []);
+  }, [paginaPronta]);
 
   const entregasFiltradas = useMemo(
     () =>

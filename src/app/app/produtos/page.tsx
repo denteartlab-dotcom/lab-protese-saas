@@ -29,6 +29,7 @@ import {
   ETIQUETAS_CATEGORIA_EVENT,
   type EtiquetaCategoria,
 } from "@/lib/etiquetas-categoria";
+import { usePageReady } from "@/hooks/use-page-ready";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { formatCurrency } from "@/lib/utils";
 
@@ -270,27 +271,28 @@ function ProdutosConteudo() {
     return () => window.removeEventListener(ETIQUETAS_CATEGORIA_EVENT, atualizarEtiquetasCategoria);
   }, []);
 
+  const paginaPronta = usePageReady(async () => {
+    hidratarPersistenciaLocal();
+    await load();
+    setListaPronta(true);
+    cargaInicialConcluida.current = true;
+  });
+
   useEffect(() => {
-    async function iniciar() {
-      hidratarPersistenciaLocal();
-      await load();
-      setListaPronta(true);
-      cargaInicialConcluida.current = true;
-    }
+    if (!paginaPronta) return;
 
     function atualizarPersistenciaSemOcultarLista() {
       if (!cargaInicialConcluida.current) return;
       hidratarPersistenciaLocal();
     }
 
-    void iniciar();
     window.addEventListener("focus", atualizarPersistenciaSemOcultarLista);
     window.addEventListener(PRODUTOS_ESTOQUE_EVENT, atualizarPersistenciaSemOcultarLista);
     return () => {
       window.removeEventListener("focus", atualizarPersistenciaSemOcultarLista);
       window.removeEventListener(PRODUTOS_ESTOQUE_EVENT, atualizarPersistenciaSemOcultarLista);
     };
-  }, []);
+  }, [paginaPronta]);
 
   useEffect(() => {
     if (!historicoProduto) return;
