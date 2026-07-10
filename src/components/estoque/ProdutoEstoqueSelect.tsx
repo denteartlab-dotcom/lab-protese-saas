@@ -119,7 +119,7 @@ export function ProdutoEstoqueSelect({
       id="produto-estoque-select-menu"
       role="listbox"
       className={cn(
-        "overflow-hidden border border-[#d4d4d4] bg-white shadow-[0_4px_12px_rgba(0,0,0,0.12)]",
+        "flex flex-col overflow-hidden border border-[#d4d4d4] bg-white shadow-[0_4px_12px_rgba(0,0,0,0.12)]",
         menuEmPortal ? "fixed z-[10050]" : "absolute left-0 right-0 top-full z-[100] mt-0.5"
       )}
       style={
@@ -153,7 +153,7 @@ export function ProdutoEstoqueSelect({
         />
       </div>
 
-      <ul className="max-h-[220px] overflow-y-auto py-1">
+      <ul className="min-h-0 flex-1 overflow-y-auto py-1 pb-2">
         {filtrados.map((produto) => {
           const ativo = produto.id === value;
           return (
