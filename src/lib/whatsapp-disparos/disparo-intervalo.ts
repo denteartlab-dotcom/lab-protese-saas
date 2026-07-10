@@ -1,16 +1,16 @@
 /** Intervalo mínimo entre mensagens de campanha (anti-spam / banimento). */
-export const DISPARO_INTERVALO_MIN_SEG = 30;
+export const DISPARO_INTERVALO_MIN_SEG = 15;
 
 /** Intervalo máximo entre mensagens (5 minutos). */
 export const DISPARO_INTERVALO_MAX_SEG = 300;
 
 /** Padrão recomendado ao criar campanha. */
-export const DISPARO_INTERVALO_PADRAO_SEG = 60;
+export const DISPARO_INTERVALO_PADRAO_SEG = 30;
 
-export const DISPARO_INTERVALO_STEP_SEG = 30;
+export const DISPARO_INTERVALO_STEP_SEG = 15;
 
 /** Marcas exibidas no controle deslizante do wizard. */
-export const MARCAS_INTERVALO_DISPARO_SEG = [30, 60, 120, 180, 240, 300] as const;
+export const MARCAS_INTERVALO_DISPARO_SEG = [15, 60, 120, 180, 240, 300] as const;
 
 export function formatarIntervaloDisparo(segundos: number): string {
   if (!Number.isFinite(segundos) || segundos <= 0) return "—";
