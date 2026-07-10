@@ -11,10 +11,14 @@ import {
   buscarClientesPorTelefoneChat,
   type ClienteChatResumo,
 } from "@/lib/whatsapp-chat/buscar-cliente";
+import { carregarAnexoChatbot } from "@/lib/whatsapp-chat/chatbot-anexo";
 import {
   CHATBOT_CONFIG_PADRAO,
   montarTextoMenuChat,
+  opcaoPorNumeroMenu,
   type ChatbotConfigDados,
+  type ChatbotOpcaoMenu,
+  type RespostaChatMidia,
 } from "@/lib/whatsapp-chat/chatbot-config-types";
 import { obterChatbotConfig } from "@/lib/whatsapp-chat/chatbot-config-servidor";
 import {
@@ -60,11 +64,30 @@ function pedeMenu(texto: string) {
   );
 }
 
+function ehSim(texto: string) {
+  const t = normalizarEntrada(texto);
+  return t === "sim" || t === "s" || t === "1" || t === "yes";
+}
+
+function ehNao(texto: string) {
+  const t = normalizarEntrada(texto);
+  return t === "nao" || t === "não" || t === "n" || t === "2" || t === "no";
+}
+
 function extrairNumeroOs(texto: string) {
   const match = texto.match(/\b(\d{1,6})\b/);
   if (!match) return null;
   const n = Number(match[1]);
   return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function etapaAguardandoSimNao(etapa: string) {
+  const match = etapa.match(/^aguardando_sim_nao:(.+)$/);
+  return match?.[1] || null;
+}
+
+function etapaAguardandoSimNaoId(opcaoId: string): EtapaChatWhatsapp {
+  return `aguardando_sim_nao:${opcaoId}`;
 }
 
 async function nomeLaboratorio(empresaId: string) {
@@ -75,14 +98,11 @@ async function nomeLaboratorio(empresaId: string) {
   return empresa?.nome?.trim() || "Laboratório";
 }
 
-async function listarOsEmAndamento(
-  empresaId: string,
-  clientes: ClienteChatResumo[]
-) {
+async function listarOsEmAndamento(empresaId: string, clientes: ClienteChatResumo[]) {
   if (clientes.length === 0) {
     return (
       "Não encontramos seu cadastro com este WhatsApp.\n\n" +
-      "Peça ao laboratório para conferir o número no cadastro do cliente ou digite *4* para falar com atendente."
+      "Peça ao laboratório para conferir o número no cadastro do cliente ou digite *menu*."
     );
   }
 
@@ -148,7 +168,7 @@ async function detalharOs(
   numeroOs: number
 ) {
   if (clientes.length === 0) {
-    return "Cadastro não encontrado para este WhatsApp. Digite *4* para atendimento.";
+    return "Cadastro não encontrado para este WhatsApp. Digite *menu*.";
   }
 
   const ids = clientes.map((c) => c.id);
@@ -187,7 +207,7 @@ async function detalharOs(
 
 async function linkAcompanhamento(clientes: ClienteChatResumo[]) {
   if (clientes.length === 0) {
-    return "Não encontramos seu cadastro. Digite *4* para falar com o laboratório.";
+    return "Não encontramos seu cadastro. Digite *menu* para falar com o laboratório.";
   }
 
   const principal = clientes[0];
@@ -201,10 +221,122 @@ async function linkAcompanhamento(clientes: ClienteChatResumo[]) {
 
 export type ResultadoMotorChat = {
   respostas: string[];
+  midias: RespostaChatMidia[];
   proximaEtapa: EtapaChatWhatsapp;
   atendimentoHumano: boolean;
   clienteId: string | null;
 };
+
+function resultadoVazio(parcial: Partial<ResultadoMotorChat> = {}): ResultadoMotorChat {
+  return {
+    respostas: [],
+    midias: [],
+    proximaEtapa: "menu",
+    atendimentoHumano: false,
+    clienteId: null,
+    ...parcial,
+  };
+}
+
+async function montarRespostaSimNao(
+  empresaId: string,
+  opcao: ChatbotOpcaoMenu,
+  positivo: boolean
+): Promise<Pick<ResultadoMotorChat, "respostas" | "midias">> {
+  const texto = positivo ? opcao.respostaSimTexto?.trim() : opcao.respostaNaoTexto?.trim();
+  const anexoCfg = positivo ? opcao.respostaSimAnexo : opcao.respostaNaoAnexo;
+  const anexo = await carregarAnexoChatbot(anexoCfg?.uploadId, empresaId);
+
+  if (anexo) {
+    return {
+      respostas: [],
+      midias: [{ ...anexo, texto: texto || undefined }],
+    };
+  }
+
+  if (texto) {
+    return { respostas: [texto], midias: [] };
+  }
+
+  return {
+    respostas: [positivo ? "Certo!" : "Tudo bem!"],
+    midias: [],
+  };
+}
+
+async function executarAcaoSistema(
+  empresaId: string,
+  config: ChatbotConfigDados,
+  clientes: ClienteChatResumo[],
+  clienteId: string | null,
+  acao: ChatbotOpcaoMenu["acao"],
+  textoEntrada: string
+): Promise<ResultadoMotorChat> {
+  if (acao === "listar_os") {
+    const lista = await listarOsEmAndamento(empresaId, clientes);
+    return resultadoVazio({ respostas: [lista], clienteId });
+  }
+
+  if (acao === "consultar_os") {
+    const numeroDireto = extrairNumeroOs(textoEntrada);
+    if (numeroDireto) {
+      const detalhe = await detalharOs(empresaId, clientes, numeroDireto);
+      return resultadoVazio({ respostas: [detalhe], clienteId });
+    }
+    return resultadoVazio({
+      respostas: [config.msgAguardandoOs],
+      proximaEtapa: "aguardando_os",
+      clienteId,
+    });
+  }
+
+  if (acao === "link_acompanhamento") {
+    const msg = await linkAcompanhamento(clientes);
+    return resultadoVazio({ respostas: [msg], clienteId });
+  }
+
+  if (acao === "atendente") {
+    return resultadoVazio({
+      respostas: [config.msgAtendente],
+      proximaEtapa: "atendente",
+      atendimentoHumano: true,
+      clienteId,
+    });
+  }
+
+  return resultadoVazio({ clienteId });
+}
+
+async function executarOpcaoMenu(
+  empresaId: string,
+  config: ChatbotConfigDados,
+  clientes: ClienteChatResumo[],
+  clienteId: string | null,
+  opcao: ChatbotOpcaoMenu,
+  textoEntrada: string
+): Promise<ResultadoMotorChat> {
+  if (opcao.tipo === "sistema") {
+    return executarAcaoSistema(empresaId, config, clientes, clienteId, opcao.acao, textoEntrada);
+  }
+
+  if (opcao.tipo === "mensagem") {
+    const msg = opcao.mensagem?.trim() || "Opção indisponível no momento.";
+    return resultadoVazio({ respostas: [msg], clienteId });
+  }
+
+  if (opcao.tipo === "sim_nao") {
+    const pergunta =
+      opcao.pergunta?.trim() ||
+      "Responda *sim* ou *não*:";
+    return resultadoVazio({
+      respostas: [`${pergunta}\n\nResponda *sim* ou *não*.`],
+      proximaEtapa: etapaAguardandoSimNaoId(opcao.id),
+      clienteId,
+    });
+  }
+
+  return resultadoVazio({ clienteId });
+}
 
 export async function processarTextoChatbot(
   empresaId: string,
@@ -217,113 +349,81 @@ export async function processarTextoChatbot(
   const clienteId = clientes[0]?.id ?? conversa.clienteId ?? null;
 
   if (conversa.atendimentoHumano && !pedeMenu(texto)) {
-    return {
-      respostas: [],
+    return resultadoVazio({
       proximaEtapa: "atendente",
       atendimentoHumano: true,
       clienteId,
-    };
+    });
   }
 
   if (pedeMenu(texto)) {
     const nomeLab = await nomeLaboratorio(empresaId);
-    return {
+    return resultadoVazio({
       respostas: [textoMenuChat(nomeLab, config)],
-      proximaEtapa: "menu",
-      atendimentoHumano: false,
       clienteId,
-    };
+    });
+  }
+
+  const opcaoSimNaoId = etapaAguardandoSimNao(conversa.etapa);
+  if (opcaoSimNaoId) {
+    const opcao = config.opcoes.find((item) => item.id === opcaoSimNaoId);
+    if (!opcao || opcao.tipo !== "sim_nao") {
+      const nomeLab = await nomeLaboratorio(empresaId);
+      return resultadoVazio({
+        respostas: [textoMenuChat(nomeLab, config)],
+        clienteId,
+      });
+    }
+
+    if (ehSim(texto)) {
+      const parcial = await montarRespostaSimNao(empresaId, opcao, true);
+      return resultadoVazio({ ...parcial, clienteId });
+    }
+
+    if (ehNao(texto)) {
+      const parcial = await montarRespostaSimNao(empresaId, opcao, false);
+      return resultadoVazio({ ...parcial, clienteId });
+    }
+
+    return resultadoVazio({
+      respostas: ["Responda *sim* ou *não*, ou digite *menu* para voltar."],
+      proximaEtapa: conversa.etapa,
+      clienteId,
+    });
   }
 
   if (conversa.etapa === "aguardando_os") {
     const numero = extrairNumeroOs(texto);
     if (!numero) {
-      return {
+      return resultadoVazio({
         respostas: ["Informe o número da OS (ex.: 1234) ou digite *menu*."],
         proximaEtapa: "aguardando_os",
-        atendimentoHumano: false,
         clienteId,
-      };
+      });
     }
     const detalhe = await detalharOs(empresaId, clientes, numero);
-    return {
-      respostas: [detalhe],
-      proximaEtapa: "menu",
-      atendimentoHumano: false,
-      clienteId,
-    };
+    return resultadoVazio({ respostas: [detalhe], clienteId });
   }
 
-  const opcao = normalizarEntrada(texto).replace(/\s/g, "");
-
-  if (opcao === "1" && config.opcao1Ativa) {
-    const lista = await listarOsEmAndamento(empresaId, clientes);
-    return {
-      respostas: [lista],
-      proximaEtapa: "menu",
-      atendimentoHumano: false,
-      clienteId,
-    };
-  }
-
-  if (opcao === "2" && config.opcao2Ativa) {
-    const numeroDireto = extrairNumeroOs(texto);
-    if (numeroDireto) {
-      const detalhe = await detalharOs(empresaId, clientes, numeroDireto);
-      return {
-        respostas: [detalhe],
-        proximaEtapa: "menu",
-        atendimentoHumano: false,
-        clienteId,
-      };
+  const numeroOpcao = Number(normalizarEntrada(texto).replace(/\s/g, ""));
+  if (Number.isFinite(numeroOpcao) && numeroOpcao > 0) {
+    const opcao = opcaoPorNumeroMenu(config, numeroOpcao);
+    if (opcao) {
+      return executarOpcaoMenu(empresaId, config, clientes, clienteId, opcao, texto);
     }
-    return {
-      respostas: [config.msgAguardandoOs],
-      proximaEtapa: "aguardando_os",
-      atendimentoHumano: false,
-      clienteId,
-    };
-  }
-
-  if (opcao === "3" && config.opcao3Ativa) {
-    const msg = await linkAcompanhamento(clientes);
-    return {
-      respostas: [msg],
-      proximaEtapa: "menu",
-      atendimentoHumano: false,
-      clienteId,
-    };
-  }
-
-  if (opcao === "4" && config.opcao4Ativa) {
-    return {
-      respostas: [config.msgAtendente],
-      proximaEtapa: "atendente",
-      atendimentoHumano: true,
-      clienteId,
-    };
   }
 
   const numeroDireto = extrairNumeroOs(texto);
   if (numeroDireto) {
     const detalhe = await detalharOs(empresaId, clientes, numeroDireto);
-    return {
-      respostas: [detalhe],
-      proximaEtapa: "menu",
-      atendimentoHumano: false,
-      clienteId,
-    };
+    return resultadoVazio({ respostas: [detalhe], clienteId });
   }
 
   const nomeLab = await nomeLaboratorio(empresaId);
-  return {
-    respostas: [
-      `${config.msgNaoEntendi} ${textoMenuChat(nomeLab, config)}`,
-    ],
-    proximaEtapa: "menu",
-    atendimentoHumano: false,
+  return resultadoVazio({
+    respostas: [`${config.msgNaoEntendi} ${textoMenuChat(nomeLab, config)}`],
     clienteId,
-  };
+  });
 }
 
 export async function aplicarEstadoConversaAposResposta(

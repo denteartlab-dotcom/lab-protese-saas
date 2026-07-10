@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { runWithTenantContext } from "@/lib/prisma-tenant";
 import { normalizarTelefoneBr } from "@/lib/whatsapp-disparos/telefone-br";
 
-export type EtapaChatWhatsapp = "menu" | "aguardando_os" | "atendente";
+export type EtapaChatWhatsapp = "menu" | "aguardando_os" | "atendente" | `aguardando_sim_nao:${string}`;
 
 export type ConversaChatWhatsapp = {
   id: string;

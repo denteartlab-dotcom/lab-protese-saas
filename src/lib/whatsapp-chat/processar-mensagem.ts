@@ -1,7 +1,8 @@
-import { baileysEnviarTexto } from "@/lib/whatsapp-disparos/baileys-service";
+import { baileysEnviarMidia, baileysEnviarTexto } from "@/lib/whatsapp-disparos/baileys-service";
 import {
   telefoneParaEnvioWhatsapp,
 } from "@/lib/whatsapp-disparos/telefone-br";
+import { carregarBase64AnexoChatbot } from "@/lib/whatsapp-chat/chatbot-anexo";
 import {
   mensagemEntradaJaProcessada,
   obterOuCriarConversaChat,
@@ -99,17 +100,19 @@ export async function processarMensagemRecebidaWhatsapp(
 
   const resultado = await processarTextoChatbot(empresaId, conversa, mensagem);
 
-  if (resultado.respostas.length === 0) {
+  if (resultado.respostas.length === 0 && resultado.midias.length === 0) {
     await aplicarEstadoConversaAposResposta(conversa, resultado);
     return { ok: true, ignorado: true, motivo: "atendimento_humano", respostasEnviadas: 0 };
   }
 
   let enviadas = 0;
+  const chaveIntervalo = telefone || replyJid || "";
+  const destino = telefone || replyJid || "";
+
   for (const resposta of resultado.respostas) {
-    const chaveIntervalo = telefone || replyJid || "";
     await aguardarIntervalo(chaveIntervalo);
     try {
-      await baileysEnviarTexto(telefone || replyJid || "", resposta, { jid: replyJid });
+      await baileysEnviarTexto(destino, resposta, { jid: replyJid });
       ultimoEnvioPorTelefone.set(chaveIntervalo, Date.now());
     } catch (err) {
       const mensagemErro = err instanceof Error ? err.message : "Falha ao enviar resposta";
@@ -124,6 +127,43 @@ export async function processarMensagemRecebidaWhatsapp(
       conversaId: conversa.id,
       direcao: "saida",
       texto: resposta,
+    });
+    enviadas += 1;
+  }
+
+  for (const midia of resultado.midias) {
+    await aguardarIntervalo(chaveIntervalo);
+    const arquivo = await carregarBase64AnexoChatbot(midia.uploadId, empresaId);
+    if (!arquivo) {
+      console.warn("[whatsapp-chat] anexo não encontrado", midia.uploadId);
+      continue;
+    }
+    try {
+      await baileysEnviarMidia(
+        destino,
+        {
+          mensagem: midia.texto,
+          mimeType: arquivo.mimeType,
+          fileName: arquivo.fileName,
+          dataBase64: arquivo.dataBase64,
+          tipo: midia.tipo,
+          jid: replyJid,
+        }
+      );
+      ultimoEnvioPorTelefone.set(chaveIntervalo, Date.now());
+    } catch (err) {
+      const mensagemErro = err instanceof Error ? err.message : "Falha ao enviar anexo";
+      console.error("[whatsapp-chat] midia falhou", { telefone, replyJid, erro: mensagemErro });
+      return {
+        ok: false,
+        motivo: mensagemErro,
+        respostasEnviadas: enviadas,
+      };
+    }
+    await registrarMensagemChat({
+      conversaId: conversa.id,
+      direcao: "saida",
+      texto: midia.texto ? `[${midia.tipo}] ${midia.texto}` : `[${midia.tipo}] ${midia.fileName}`,
     });
     enviadas += 1;
   }

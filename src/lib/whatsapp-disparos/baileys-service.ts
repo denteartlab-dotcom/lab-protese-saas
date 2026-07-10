@@ -92,12 +92,15 @@ export async function baileysEnviarMidia(
     fileName: string;
     dataBase64: string;
     tipo: "imagem" | "pdf" | "documento" | "video" | "audio";
+    jid?: string | null;
   }
 ) {
+  const phone = formatWhatsAppPhone(telefone);
+  const jid = opts.jid?.trim() || null;
   const data = await postBaileys(
     "/send-media",
     {
-      phone: formatWhatsAppPhone(telefone),
+      ...(jid ? { jid } : { phone }),
       message: opts.mensagem || "",
       mimeType: opts.mimeType,
       fileName: opts.fileName,

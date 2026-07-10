@@ -1315,7 +1315,7 @@ async function enviarMensagem(phone, message, jidDirect = null) {
   );
 }
 
-async function enviarMidia(phone, body) {
+async function enviarMidia(phone, body, jidDirect = null) {
   return enfileirarEnvio(() =>
     withTimeout(
       (async () => {
@@ -1326,6 +1326,13 @@ async function enviarMidia(phone, body) {
           }
           conectado = false;
           throw new Error("WhatsApp não conectado. Escaneie o QR Code.");
+        }
+        if (!socketAberto()) {
+          conectado = false;
+          prontoParaEnvio = false;
+          throw new Error(
+            "Conexão WhatsApp fechada (428). Aguarde reconectar ou rode: npm run whatsapp:reset"
+          );
         }
 
         const buffer = Buffer.from(String(body.dataBase64 || ""), "base64");
@@ -1352,12 +1359,16 @@ async function enviarMidia(phone, body) {
           };
         }
 
-        const resultado = await enviarComVariantes(phone, async (jid) => {
+        const enviarParaJid = async (jid) => {
           await prepararDestinoParaEnvio(jid);
           const sent = await sock.sendMessage(jid, content);
           guardarMensagemEnviada(sent);
           return confirmarEnvioBaileys(sent, jid);
-        });
+        };
+
+        const resultado = jidDirect
+          ? await enviarParaJid(jidDirect)
+          : await enviarComVariantes(phone, enviarParaJid);
 
         log("Mídia enviada", {
           jid: resultado.jid,
@@ -1446,7 +1457,11 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/send-media" && req.method === "POST") {
       if (!autorizado(req)) return json(res, 401, { ok: false, error: "Não autorizado" });
       const body = await lerJson(req);
-      const result = await enviarMidia(body.phone || body.telefone, body);
+      const result = await enviarMidia(
+        body.phone || body.telefone,
+        body,
+        body.jid || null
+      );
       return json(res, 200, result);
     }
 
