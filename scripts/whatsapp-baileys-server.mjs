@@ -21,11 +21,34 @@ const PORT = Number(process.env.WHATSAPP_BAILEYS_PORT || 3100);
 const TOKEN = (process.env.WHATSAPP_HTTP_TOKEN || "").trim();
 const APP_PORT = process.env.PORT || "3000";
 
+function portaDeUrl(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.port) return Number(parsed.port);
+    return parsed.protocol === "https:" ? 443 : 80;
+  } catch {
+    return null;
+  }
+}
+
 function urlWebhookChatbot() {
   const explicita = (process.env.WHATSAPP_WEBHOOK_URL || "").trim();
-  if (explicita) return explicita;
-  return `http://127.0.0.1:${APP_PORT}/api/whatsapp/webhook`;
+  const padrao = `http://127.0.0.1:${APP_PORT}/api/whatsapp/webhook`;
+  const candidata = explicita || padrao;
+  const porta = portaDeUrl(candidata);
+
+  if (porta === PORT) {
+    log(
+      `WHATSAPP_WEBHOOK_URL aponta para a porta do Baileys (${PORT}) — usando app em ${APP_PORT}.`,
+      candidata
+    );
+    return padrao;
+  }
+
+  return candidata;
 }
+
+const WEBHOOK_CHATBOT_URL = urlWebhookChatbot();
 
 function chatbotHabilitado() {
   return process.env.WHATSAPP_CHATBOT_ENABLED !== "false";
@@ -60,6 +83,10 @@ function criarLoggerBaileys() {
           msg === "stream errored out" ||
           msg === "unexpected error in 'init queries'"
         ) {
+          if (msg === "received error in ack") {
+            const id = obj?.key?.id || obj?.attrs?.id;
+            if (id) ackErrosRecentes.add(String(id));
+          }
           marcarSessaoInstavel(String(msg));
         }
         return method.apply(this, args);
@@ -97,6 +124,7 @@ const QR_VALIDADE_MS = Number(process.env.WHATSAPP_QR_VALIDADE_MS || 45_000);
 const WARMUP_MS = Number(process.env.WHATSAPP_WARMUP_MS || 12_000);
 const ENVIO_TIMEOUT_MS = Number(process.env.WHATSAPP_ENVIO_TIMEOUT_MS || 65_000);
 const pendentesAck = new Map();
+const ackErrosRecentes = new Set();
 const messageStore = new Map();
 let filaEnvio = Promise.resolve();
 
@@ -601,7 +629,6 @@ async function encaminharMensagemRecebida(msg) {
   const messageId = msg?.key?.id;
   if (jaEncaminhouMensagem(messageId)) return;
 
-  const webhookUrl = urlWebhookChatbot();
   const headers = { "Content-Type": "application/json" };
   if (TOKEN) headers.Authorization = `Bearer ${TOKEN}`;
 
@@ -610,8 +637,7 @@ async function encaminharMensagemRecebida(msg) {
 
   const telefone =
     contato.telefone ||
-    telefoneFromRemoteJid(contato.jid) ||
-    String(contato.replyJid).split("@")[0].replace(/\D/g, "");
+    (contato.jid?.includes("@s.whatsapp.net") ? telefoneFromRemoteJid(contato.jid) : null);
 
   try {
     log("Chatbot webhook →", {
@@ -619,11 +645,11 @@ async function encaminharMensagemRecebida(msg) {
       replyJid: contato.replyJid,
       trecho: texto.slice(0, 40),
     });
-    const res = await fetch(webhookUrl, {
+    const res = await fetch(WEBHOOK_CHATBOT_URL, {
       method: "POST",
       headers,
       body: JSON.stringify({
-        telefone: telefone || contato.replyJid,
+        telefone: telefone || undefined,
         mensagem: texto,
         messageId,
         jid: contato.replyJid,
@@ -638,7 +664,7 @@ async function encaminharMensagemRecebida(msg) {
     }
     log("Chatbot webhook ok", body.slice(0, 120));
   } catch (err) {
-    log("Webhook chatbot erro", err instanceof Error ? err.message : String(err), webhookUrl);
+    log("Webhook chatbot erro", err instanceof Error ? err.message : String(err), WEBHOOK_CHATBOT_URL);
   } finally {
     clearTimeout(timer);
   }
@@ -746,6 +772,12 @@ async function confirmarEnvioBaileys(sent, jid) {
     log("Ack confirmado pelo WhatsApp", { jid, messageId, status: ack.status });
     return { messageId, jid, ack };
   } catch (err) {
+    if (messageId && ackErrosRecentes.has(messageId)) {
+      ackErrosRecentes.delete(messageId);
+      throw new Error(
+        "WhatsApp rejeitou o envio (sessão instável). Rode: npm run whatsapp:reset e escaneie o QR novamente."
+      );
+    }
     log("Envio aceito pelo messageId (ack tardio)", {
       jid,
       messageId,
@@ -1358,6 +1390,7 @@ const server = http.createServer(async (req, res) => {
         pairingCode: conectado ? null : pairingCodeAtual,
         pairingCodeFormatado: conectado ? null : formatarCodigoPareamento(pairingCodeAtual),
         pairingPhoneAlvo,
+        webhookUrl: WEBHOOK_CHATBOT_URL,
       });
     }
 
@@ -1531,6 +1564,7 @@ const server = http.createServer(async (req, res) => {
 garantirInstanciaUnica();
 server.listen(PORT, "127.0.0.1", () => {
   log(`HTTP em http://127.0.0.1:${PORT} (auth: ${AUTH_DIR})`);
+  log(`Webhook chatbot → ${WEBHOOK_CHATBOT_URL}`);
   const cooldown = lerCooldown();
   if (cooldown.active) {
     log(`Pareamento PAUSADO até ${cooldown.until} — npm run whatsapp:liberar após aguardar.`);

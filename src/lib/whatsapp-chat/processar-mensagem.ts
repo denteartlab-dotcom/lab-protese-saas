@@ -42,12 +42,15 @@ function aguardarIntervalo(telefone: string) {
 }
 
 function chaveTelefoneConversa(payload: PayloadMensagemRecebidaWhatsapp) {
+  const jid = payload.jid?.trim() || "";
+  if (jid.includes("@lid")) return jid;
+
   const direto = telefoneParaEnvioWhatsapp(payload.telefone || "");
   if (direto) return direto;
-  if (payload.jid?.includes("@s.whatsapp.net")) {
-    return telefoneParaEnvioWhatsapp(payload.jid.split("@")[0]);
+  if (jid.includes("@s.whatsapp.net")) {
+    return telefoneParaEnvioWhatsapp(jid.split("@")[0]);
   }
-  if (payload.jid?.trim()) return payload.jid.trim();
+  if (jid) return jid;
   return null;
 }
 
@@ -62,7 +65,7 @@ export async function processarMensagemRecebidaWhatsapp(
   const telefone = chaveTelefoneConversa(payload);
   const mensagem = payload.mensagem?.trim() || "";
   const replyJid = payload.jid?.trim() || null;
-  if (!telefone || !mensagem) {
+  if ((!telefone && !replyJid) || !mensagem) {
     return { ok: true, ignorado: true, motivo: "entrada_invalida" };
   }
 
@@ -70,7 +73,7 @@ export async function processarMensagemRecebidaWhatsapp(
     return { ok: true, ignorado: true, motivo: "duplicada" };
   }
 
-  const conversa = await obterOuCriarConversaChat(empresaId, telefone);
+  const conversa = await obterOuCriarConversaChat(empresaId, telefone || replyJid!);
   if (!conversa) {
     return { ok: false, motivo: "conversa_invalida" };
   }
@@ -98,10 +101,11 @@ export async function processarMensagemRecebidaWhatsapp(
 
   let enviadas = 0;
   for (const resposta of resultado.respostas) {
-    await aguardarIntervalo(telefone);
+    const chaveIntervalo = telefone || replyJid || "";
+    await aguardarIntervalo(chaveIntervalo);
     try {
-      await baileysEnviarTexto(telefone, resposta, { jid: replyJid });
-      ultimoEnvioPorTelefone.set(telefone, Date.now());
+      await baileysEnviarTexto(telefone || replyJid || "", resposta, { jid: replyJid });
+      ultimoEnvioPorTelefone.set(chaveIntervalo, Date.now());
     } catch (err) {
       const mensagemErro = err instanceof Error ? err.message : "Falha ao enviar resposta";
       console.error("[whatsapp-chat] envio falhou", { telefone, replyJid, erro: mensagemErro });

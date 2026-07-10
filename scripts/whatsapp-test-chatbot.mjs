@@ -27,9 +27,27 @@ function lerEnv() {
 const env = { ...lerEnv(), ...process.env };
 const token = String(env.WHATSAPP_HTTP_TOKEN || "").trim();
 const appPort = String(env.PORT || "3000").trim();
+const baileysPort = Number(env.WHATSAPP_BAILEYS_PORT || "3100");
 const appBase = `http://127.0.0.1:${appPort}`;
-const webhookUrl =
+
+function portaDeUrl(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.port) return Number(parsed.port);
+    return parsed.protocol === "https:" ? 443 : 80;
+  } catch {
+    return null;
+  }
+}
+
+let webhookUrl =
   env.WHATSAPP_WEBHOOK_URL || `${appBase}/api/whatsapp/webhook`;
+if (portaDeUrl(webhookUrl) === baileysPort) {
+  console.warn(
+    `\n⚠ WHATSAPP_WEBHOOK_URL aponta para porta ${baileysPort} (Baileys). Usando ${appBase}/api/whatsapp/webhook\n`
+  );
+  webhookUrl = `${appBase}/api/whatsapp/webhook`;
+}
 const phone = process.argv[2]?.replace(/\D/g, "");
 const mensagem = process.argv.slice(3).join(" ").trim() || "oi";
 

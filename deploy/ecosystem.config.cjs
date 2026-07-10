@@ -31,6 +31,34 @@ function carregarEnvArquivo(envPath) {
 
 const envArquivo = carregarEnvArquivo(path.join(appDir, ".env"));
 
+function sanitizarWebhookUrl(url, appPort, baileysPort) {
+  const candidata =
+    url ||
+    `http://127.0.0.1:${appPort || "3000"}/api/whatsapp/webhook`;
+  try {
+    const parsed = new URL(candidata);
+    const porta = parsed.port
+      ? Number(parsed.port)
+      : parsed.protocol === "https:"
+        ? 443
+        : 80;
+    if (porta === Number(baileysPort || 3100)) {
+      return `http://127.0.0.1:${appPort || "3000"}/api/whatsapp/webhook`;
+    }
+  } catch {
+    return `http://127.0.0.1:${appPort || "3000"}/api/whatsapp/webhook`;
+  }
+  return candidata;
+}
+
+const appPort = envArquivo.PORT || "3000";
+const baileysPort = envArquivo.WHATSAPP_BAILEYS_PORT || "3100";
+const webhookUrlSanitizada = sanitizarWebhookUrl(
+  envArquivo.WHATSAPP_WEBHOOK_URL,
+  appPort,
+  baileysPort
+);
+
 module.exports = {
   apps: [
     {
@@ -69,9 +97,7 @@ module.exports = {
         NODE_ENV: "production",
         WHATSAPP_BAILEYS_PORT: envArquivo.WHATSAPP_BAILEYS_PORT || "3100",
         WHATSAPP_HTTP_TOKEN: envArquivo.WHATSAPP_HTTP_TOKEN || "",
-        WHATSAPP_WEBHOOK_URL:
-          envArquivo.WHATSAPP_WEBHOOK_URL ||
-          `http://127.0.0.1:${envArquivo.PORT || "3000"}/api/whatsapp/webhook`,
+        WHATSAPP_WEBHOOK_URL: webhookUrlSanitizada,
         WHATSAPP_CHATBOT_ENABLED: envArquivo.WHATSAPP_CHATBOT_ENABLED ?? "true",
         PORT: envArquivo.PORT || "3000",
         WHATSAPP_AUTH_DIR:

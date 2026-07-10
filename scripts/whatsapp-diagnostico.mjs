@@ -66,6 +66,34 @@ async function reconectar(opts = {}) {
 
 const env = lerEnv();
 const token = env.WHATSAPP_HTTP_TOKEN || "";
+const appPort = env.PORT || "3000";
+const baileysPort = env.WHATSAPP_BAILEYS_PORT || "3100";
+
+function portaDeUrl(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.port) return Number(parsed.port);
+    return parsed.protocol === "https:" ? 443 : 80;
+  } catch {
+    return null;
+  }
+}
+
+function sanitizarWebhookUrl(url) {
+  const candidata = url || `http://127.0.0.1:${appPort}/api/whatsapp/webhook`;
+  const porta = portaDeUrl(candidata);
+  if (porta === Number(baileysPort)) {
+    return {
+      url: `http://127.0.0.1:${appPort}/api/whatsapp/webhook`,
+      corrigida: true,
+      original: candidata,
+    };
+  }
+  return { url: candidata, corrigida: false, original: candidata };
+}
+
+const webhookInfo = sanitizarWebhookUrl(env.WHATSAPP_WEBHOOK_URL);
+const webhookUrl = webhookInfo.url;
 
 console.log("\n=== Diagnóstico WhatsApp Baileys ===\n");
 
@@ -73,11 +101,15 @@ console.log("1. Variáveis .env:");
 console.log("   WHATSAPP_HTTP_URL =", env.WHATSAPP_HTTP_URL || "(não definido — usa porta 3100)");
 console.log("   WHATSAPP_HTTP_TOKEN =", token ? "(definido)" : "(vazio — ok)");
 console.log("   WHATSAPP_BAILEYS_PORT =", env.WHATSAPP_BAILEYS_PORT || "3100");
-const appPort = env.PORT || "3000";
-const webhookUrl =
-  env.WHATSAPP_WEBHOOK_URL || `http://127.0.0.1:${appPort}/api/whatsapp/webhook`;
 console.log("   PORT (lab-protese) =", appPort);
-console.log("   WHATSAPP_WEBHOOK_URL =", webhookUrl);
+console.log("   WHATSAPP_WEBHOOK_URL =", webhookInfo.original);
+if (webhookInfo.corrigida) {
+  console.log(
+    "   ⚠ WHATSAPP_WEBHOOK_URL aponta para a porta do Baileys — use:",
+    webhookInfo.url
+  );
+  console.log("   → Corrija o .env e rode: pm2 restart lab-protese-whatsapp --update-env");
+}
 
 try {
   const health = await fetch(`${base}/health`, { signal: AbortSignal.timeout(4000) });
@@ -159,8 +191,28 @@ try {
   if (pingWebhook.status === 401) {
     console.log("   → Middleware antigo. Rode: npm run build && pm2 restart lab-protese");
   }
+  if (corpo.includes("Rota não encontrada")) {
+    console.log(
+      "   ⚠ Resposta do Baileys (porta errada) — WHATSAPP_WEBHOOK_URL deve apontar para porta",
+      appPort
+    );
+    console.log("   → Exemplo: http://127.0.0.1:3000/api/whatsapp/webhook");
+    console.log("   → pm2 restart lab-protese-whatsapp --update-env");
+  }
 } catch {
   console.log("6. Webhook chatbot GET: não alcançou", webhookUrl);
+}
+
+try {
+  const statusBaileys = await buscarStatus();
+  if (statusBaileys.webhookUrl) {
+    console.log("\n7. Webhook em uso pelo Baileys:", statusBaileys.webhookUrl);
+    if (portaDeUrl(statusBaileys.webhookUrl) === Number(baileysPort)) {
+      console.log("   ⚠ Baileys ainda usa porta errada — pm2 restart lab-protese-whatsapp --update-env");
+    }
+  }
+} catch {
+  /* ignora */
 }
 
 console.log("\n=== Fim ===\n");
