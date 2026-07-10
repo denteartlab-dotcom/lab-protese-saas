@@ -232,6 +232,22 @@ export function LancarRecebimentoModal({
     [formas, parseMoney]
   );
 
+  const totalAplicadoRecebimento = totalReceber + valorCreditoAbater;
+
+  const saldoRestanteAposRecebimento = useMemo(() => {
+    if (selecionadas.length === 0 || valorSelecionado <= 0.009) return 0;
+    return Math.max(0, valorSelecionado - totalAplicadoRecebimento);
+  }, [selecionadas.length, valorSelecionado, totalAplicadoRecebimento]);
+
+  const recebimentoParcial = useMemo(
+    () =>
+      selecionadas.length > 0 &&
+      valorSelecionado > 0.009 &&
+      totalAplicadoRecebimento > 0.009 &&
+      saldoRestanteAposRecebimento > 0.02,
+    [selecionadas.length, valorSelecionado, totalAplicadoRecebimento, saldoRestanteAposRecebimento]
+  );
+
   const valorLancamentoCredito = useMemo(() => {
     if (selecionadas.length === 0 || valorSelecionado <= 0.009) return 0;
     const totalAplicado = totalReceber + valorCreditoAbater;
@@ -286,11 +302,8 @@ export function LancarRecebimentoModal({
     if (selecionadas.length === 0) {
       return totalReceber > 0.009;
     }
-    return (
-      valorSelecionado > 0.009 &&
-      totalReceber + valorCreditoAbater >= valorSelecionado - 0.02
-    );
-  }, [selecionadas.length, totalReceber, valorSelecionado, valorCreditoAbater]);
+    return valorSelecionado > 0.009 && totalAplicadoRecebimento > 0.009;
+  }, [selecionadas.length, totalReceber, valorSelecionado, totalAplicadoRecebimento]);
 
   if (!open || !mounted) return null;
 
@@ -554,6 +567,12 @@ export function LancarRecebimentoModal({
               <p className="px-3 py-2 text-[12px] font-medium text-[#ea580c]">
                 Lançamento de Crédito {money(valorLancamentoCredito)} (O beneficiário terá saldo em
                 haver)
+              </p>
+            ) : null}
+
+            {recebimentoParcial ? (
+              <p className="px-3 py-2 text-[12px] font-medium text-[#ea580c]">
+                Recebimento parcial — saldo restante da fatura: {money(saldoRestanteAposRecebimento)}
               </p>
             ) : null}
 

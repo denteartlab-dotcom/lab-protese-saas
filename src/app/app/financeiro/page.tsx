@@ -107,7 +107,7 @@ import type { PainelFinanceiroReceita } from "@/lib/financeiro-painel-types";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
 import { gerarRelatorioTabelaPdf } from "@/lib/pdf-relatorio-tabela";
 import type { LinhaReciboRecebimento } from "@/lib/recibo-recebimento";
-import { empacotarReceitaConta } from "@/lib/receita-conta-bancaria";
+import { empacotarReceitaConta, descricaoReceitaSemMeta } from "@/lib/receita-conta-bancaria";
 import { formaEhPixAsaas } from "@/lib/forma-pagamento-pix";
 import {
   PixQrRecebimentoModal,
@@ -1609,9 +1609,8 @@ function FinanceiroReceberConteudo() {
       if (valorRestante <= 0) continue;
 
       const valorPago = Math.min(valorRestante, devido);
-      const saldo = Math.max(devido - valorPago, 0);
 
-      if (saldo <= 0.009) {
+      if (valorPago >= devido - 0.009) {
         await fetch(`/api/financeiro/${l.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -1631,43 +1630,61 @@ function FinanceiroReceberConteudo() {
           data: dataIso,
         });
       } else {
-        const valorRegistrado =
-          creditoAplicado > 0.009
-            ? recebidoNaFatura(l) + creditoAplicado + valorPago
-            : valorPago;
-        await fetch(`/api/financeiro/${l.id}`, {
-          method: "PUT",
+        const resParcial = await fetch("/api/financeiro", {
+          method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            valor: valorRegistrado,
+            tipo: "receita",
+            clienteId: recebendoCliente.clienteId || undefined,
+            valor: valorPago,
+            data: dataIso,
+            status: "pago",
+            formaPagamento: formaPrincipal,
+            descricao: empacotarReceitaConta(
+              `Recebimento parcial - ${l.descricao}`,
+              contaRecebimento
+            ),
+            trabalhoId: l.trabalho?.id,
+          }),
+        });
+        const parcialPayload = await resParcial.json().catch(() => ({}));
+        if (parcialPayload?.id) {
+          faturasPagas.push(parcialPayload as Lancamento);
+        } else {
+          faturasPagas.push({
+            id: `parcial-${Date.now()}`,
+            tipo: "receita",
+            descricao: `Recebimento parcial - ${l.descricao}`,
+            valor: valorPago,
+            data: dataIso,
+            status: "pago",
+            formaPagamento: formaPrincipal,
+            cliente: recebendoCliente.clienteId
+              ? { id: recebendoCliente.clienteId, nome: recebendoCliente.nome }
+              : null,
+          });
+        }
+
+        const totalRecebidoFatura =
+          recebidoNaFatura(l) + creditoAplicado + valorPago;
+        if (totalRecebidoFatura >= l.valor - 0.009) {
+          await fetch(`/api/financeiro/${l.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              valor: l.valor,
+              status: "pago",
+              formaPagamento: formaPrincipal,
+              data: dataIso,
+              descricao: empacotarReceitaConta(l.descricao, contaRecebimento),
+            }),
+          });
+          faturasPagas.push({
+            ...l,
+            valor: l.valor,
             status: "pago",
             formaPagamento: formaPrincipal,
             data: dataIso,
-            descricao: empacotarReceitaConta(l.descricao, contaRecebimento),
-          }),
-        });
-        faturasPagas.push({
-          ...l,
-          valor: valorRegistrado,
-          status: "pago",
-          formaPagamento: formaPrincipal,
-          data: dataIso,
-        });
-
-        if (saldo > 0.009) {
-          await fetch("/api/financeiro", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              tipo: "receita",
-              descricao: `${l.descricao} - Saldo restante`,
-              valor: saldo,
-              data: l.data,
-              status: "pendente",
-              formaPagamento: l.formaPagamento || formaPrincipal,
-              clienteId: l.cliente?.id,
-              trabalhoId: l.trabalho?.id,
-            }),
           });
         }
       }
@@ -1845,9 +1862,26 @@ function FinanceiroReceberConteudo() {
       );
   }
 
+  function recebimentosParciaisDaFatura(lancamento: Lancamento) {
+    const descricaoBase = lancamento.descricao.trim();
+    const prefixo = `Recebimento parcial - ${descricaoBase}`;
+    return (data?.lancamentos || []).filter((item) => {
+      if (item.tipo !== "receita" || item.status !== "pago") return false;
+      if (item.cliente?.id !== lancamento.cliente?.id) return false;
+      const base = descricaoReceitaSemMeta(item.descricao);
+      return base === prefixo;
+    });
+  }
+
   function recebidoNaFatura(lancamento: Lancamento) {
+    const credito = creditoUsadoNaFatura(lancamento);
+    const parciais = recebimentosParciaisDaFatura(lancamento).reduce(
+      (sum, item) => sum + item.valor,
+      0
+    );
+    const totalRecebido = credito + parciais;
     if (lancamento.status === "pago") return lancamento.valor;
-    return Math.min(creditoUsadoNaFatura(lancamento), lancamento.valor);
+    return Math.min(totalRecebido, lancamento.valor);
   }
 
   function saldoFatura(lancamento: Lancamento) {
@@ -1882,6 +1916,9 @@ function FinanceiroReceberConteudo() {
     }
     if (lancamento.status === "cancelado") {
       return { label: "Cancelado", color: "bg-slate-100 text-slate-600" };
+    }
+    if (recebidoNaFatura(lancamento) > 0.009 && saldoFatura(lancamento) > 0.009) {
+      return { label: "Parcial", color: "bg-amber-100 text-amber-800" };
     }
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
