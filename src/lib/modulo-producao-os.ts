@@ -71,9 +71,20 @@ export function complementosDaOs(trabalhos: { instrucoes?: string | null }[]) {
   );
 }
 
-type TrabalhoComSegmento = TrabalhoModuloOs & {
+export type TrabalhoContextoEtapas = {
+  id: string;
+  tipoProtese: string;
+  status: string;
+  instrucoes?: string | null;
+  dataPrevista?: string | Date | null;
   segmentoFaturamento?: string | null;
 };
+
+function prazoItemOs(dataPrevista?: string | Date | null) {
+  if (dataPrevista == null) return dataPrevista;
+  if (dataPrevista instanceof Date) return dataPrevista.toISOString();
+  return dataPrevista;
+}
 
 export function escolherTrabalhoServicoGrupoOs<T extends { segmentoFaturamento?: string | null }>(
   grupo: T[]
@@ -82,7 +93,7 @@ export function escolherTrabalhoServicoGrupoOs<T extends { segmentoFaturamento?:
 }
 
 /** Etapas e chave de progresso alinhadas ao Módulo TV (serviço principal do grupo OS). */
-export function contextoEtapasModuloOsGrupo(grupo: TrabalhoComSegmento[]) {
+export function contextoEtapasModuloOsGrupo<T extends TrabalhoContextoEtapas>(grupo: T[]) {
   const principal = escolherTrabalhoServicoGrupoOs(grupo);
   const { etapas } = parseComplementosInstrucoesGrupo(
     grupo.map((t) => t.instrucoes || "")
@@ -96,10 +107,10 @@ export function contextoEtapasModuloOsGrupo(grupo: TrabalhoComSegmento[]) {
 }
 
 /** Etapas e chave de progresso para uma linha do controle de produção. */
-export function contextoEtapasControleLinha(
-  trabalho: TrabalhoComSegmento,
-  grupo: TrabalhoComSegmento[]
-) {
+export function contextoEtapasControleLinha<
+  T extends TrabalhoContextoEtapas,
+  U extends TrabalhoContextoEtapas,
+>(trabalho: T, grupo: U[]) {
   const servicoRef =
     segmentoEfetivoTrabalho(trabalho) === "servico"
       ? trabalho
@@ -113,7 +124,7 @@ export function contextoEtapasControleLinha(
   return { etapas, trabalhoId: servicoRef.id, itemId, servicoRef };
 }
 
-export function itensDaOsModulo(trabalho: TrabalhoModuloOs): ItemModuloOs[] {
+export function itensDaOsModulo<T extends TrabalhoContextoEtapas>(trabalho: T): ItemModuloOs[] {
   const linhas = (trabalho.instrucoes || "")
     .split("\n")
     .filter((line) => line.trim().startsWith("Item adicionado:"));
@@ -130,7 +141,7 @@ export function itensDaOsModulo(trabalho: TrabalhoModuloOs): ItemModuloOs[] {
     return {
       id: `${trabalho.id}-${index}`,
       descricao: descricao.replace(/^Produto:\s*/i, ""),
-      prazo: trabalho.dataPrevista,
+      prazo: prazoItemOs(trabalho.dataPrevista),
       qtd: match?.[4]?.trim() || "1",
       situacao,
       tipo: tipoItemOs(descricao),
@@ -143,7 +154,7 @@ export function itensDaOsModulo(trabalho: TrabalhoModuloOs): ItemModuloOs[] {
         {
           id: `${trabalho.id}-principal`,
           descricao: trabalho.tipoProtese,
-          prazo: trabalho.dataPrevista,
+          prazo: prazoItemOs(trabalho.dataPrevista),
           qtd: "1",
           situacao: trabalho.status,
           tipo: tipoItemOs(trabalho.tipoProtese),
