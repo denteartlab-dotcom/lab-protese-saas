@@ -2107,10 +2107,14 @@ function FinanceiroReceberConteudo() {
   }
 
   function linhasReciboDeLancamentos(lancamentos: Lancamento[]): LinhaReciboRecebimento[] {
+    const todos = data?.lancamentos || [];
     return lancamentos.map((l) => ({
-      valor: l.valor,
+      valor: Math.abs(
+        valorHistoricoRecebimentoCliente(l, todos as LancamentoContasReceber[])
+      ),
       data: l.data,
-      formaPagamento: l.formaPagamento,
+      formaPagamento: formaPagamentoExibicao(l),
+      referencia: referenciaLancamento(l),
       descricao: l.descricao,
       numeroFatura: numeroFatura(l),
     }));

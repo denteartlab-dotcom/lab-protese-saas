@@ -8,6 +8,8 @@ export type LinhaReciboRecebimento = {
   valor: number;
   data: string;
   formaPagamento?: string | null;
+  /** Referência do recebimento (ex.: Adiantamento, Pagamento parcial). */
+  referencia?: string | null;
   descricao?: string;
   numeroFatura: number;
 };
@@ -21,6 +23,14 @@ function moneyBr(value: number) {
 
 function currencyBr(value: number) {
   return `R$ ${moneyBr(value)}`;
+}
+
+/** Forma de pagamento + referência na mesma linha (ex.: PIX EXTERNO    Adiantamento). */
+export function textoFormaPagamentoRecibo(linha: LinhaReciboRecebimento) {
+  const forma = (linha.formaPagamento || "Pix Externo").toUpperCase();
+  const referencia = (linha.referencia || "").trim();
+  if (!referencia) return forma;
+  return `${forma}    ${referencia}`;
 }
 
 function dataPorExtenso(value: string | Date) {
@@ -86,13 +96,13 @@ export function gerarReciboRecebimentoHtml(
     modelo === "detalhado"
       ? opts.linhas
           .map((l) => {
-            const forma = (l.formaPagamento || "Pix Externo").toUpperCase();
+            const formaComReferencia = textoFormaPagamentoRecibo(l);
             const valor = currencyBr(l.valor);
             const vencimento = formatDate(l.data);
             return `
             <tr>
               <td>
-                ${forma}<br/>
+                ${formaComReferencia}<br/>
                 <strong>Fatura: ${l.numeroFatura}</strong> | Vencimento: ${vencimento}
               </td>
               <td>${valor}</td>
@@ -147,10 +157,10 @@ export function montarTextoReciboCompartilhar(opts: {
 }) {
   const total = opts.linhas.reduce((s, l) => s + l.valor, 0);
   const linhasTxt = opts.linhas
-    .map(
-      (l) =>
-        `Fatura ${l.numeroFatura} — ${currencyBr(l.valor)} (${formatDate(l.data)})`
-    )
+    .map((l) => {
+      const forma = textoFormaPagamentoRecibo(l);
+      return `${forma} — ${currencyBr(l.valor)} (${formatDate(l.data)})`;
+    })
     .join("\n");
   return `Recibo de recebimento\nCliente: ${opts.clienteNome}\nValor total: ${currencyBr(total)}\n\n${linhasTxt}`;
 }

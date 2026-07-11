@@ -4,7 +4,11 @@ import {
 } from "@/lib/pdf-lab-cabecalho";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
 import { formatDate } from "@/lib/utils";
-import type { LinhaReciboRecebimento, ModeloReciboRecebimento } from "@/lib/recibo-recebimento";
+import {
+  textoFormaPagamentoRecibo,
+  type LinhaReciboRecebimento,
+  type ModeloReciboRecebimento,
+} from "@/lib/recibo-recebimento";
 
 function moneyBr(value: number) {
   return value.toLocaleString("pt-BR", {
@@ -88,10 +92,10 @@ export async function gerarReciboRecebimentoPdf(
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(10);
     for (const l of opts.linhas) {
-      const forma = (l.formaPagamento || "Pix Externo").toUpperCase();
+      const formaComReferencia = textoFormaPagamentoRecibo(l);
       const valor = currencyBr(l.valor);
       const vencimento = formatDate(l.data);
-      const descricao = `${forma}\nFatura: ${l.numeroFatura} | Vencimento: ${vencimento}`;
+      const descricao = `${formaComReferencia}\nFatura: ${l.numeroFatura} | Vencimento: ${vencimento}`;
       const linhasDescricao = pdf.splitTextToSize(descricao, colW[0] - 4);
       const altura = Math.max(linhasDescricao.length * 4.5, 6);
       pdf.text(linhasDescricao, colX[0] + 2, y);

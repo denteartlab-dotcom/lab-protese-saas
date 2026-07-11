@@ -1,4 +1,5 @@
 import { dateToBrShort, parseBrDate } from "@/lib/datas-br";
+import { referenciaLancamento } from "@/lib/contas-receber-financeiro";
 import type { LinhaReciboRecebimento } from "@/lib/recibo-recebimento";
 
 export type LancamentoReciboEmitido = {
@@ -84,6 +85,28 @@ export function filtrarRecibosEmitidos(
       valor: l.valor,
       data: l.data,
       formaPagamento: l.formaPagamento,
+      referencia: referenciaLancamento(
+        {
+          id: l.id,
+          tipo: l.tipo,
+          descricao: l.descricao,
+          valor: l.valor,
+          data: l.data,
+          status: l.status,
+          formaPagamento: l.formaPagamento,
+          cliente: l.cliente?.id ? { id: l.cliente.id } : null,
+        },
+        lancamentos.map((item) => ({
+          id: item.id,
+          tipo: item.tipo,
+          descricao: item.descricao,
+          valor: item.valor,
+          data: item.data,
+          status: item.status,
+          formaPagamento: item.formaPagamento,
+          cliente: item.cliente?.id ? { id: item.cliente.id } : null,
+        }))
+      ),
       descricao: l.descricao,
       numeroFatura: numeros.get(l.id) || 1,
     };
