@@ -8,12 +8,13 @@ import {
   ChevronRight,
   FileSpreadsheet,
   FileText,
-  Home,
   Printer,
   X,
 } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import { BadgeSituacaoOs } from "@/components/BadgeSituacaoOs";
 import { CampoDataBr } from "@/components/campo-data-br";
+import { RelatorioCabecalho, RelatorioTituloLateral } from "@/components/relatorios/RelatorioCabecalho";
 import { PainelCarregando } from "@/components/ListaCarregando";
 import { RelatorioProducaoEtapasImpressao } from "@/components/relatorios/RelatorioProducaoEtapasImpressao";
 import { dateToBrShort } from "@/lib/datas-br";
@@ -393,6 +394,7 @@ function SelectSituacaoMulti({
 }
 
 export function RelatorioProducaoConteudo() {
+  const { t } = useI18n();
   const [carregando, setCarregando] = useState(true);
   const [trabalhos, setTrabalhos] = useState<TrabalhoRelatorioProducao[]>([]);
   const [gerado, setGerado] = useState(false);
@@ -641,12 +643,8 @@ export function RelatorioProducaoConteudo() {
   return (
     <div className="relatorio-producao bg-[#f3f4f6] dark:bg-slate-950 pb-8 pt-1 text-[12px] text-[#374151] dark:text-slate-200 print:bg-white">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <h1 className="text-[22px] font-normal leading-none text-[#6b7280] dark:text-slate-400">Relatórios</h1>
-        <div className="flex items-center gap-1.5 text-[12px] text-[#9ca3af] dark:text-slate-500">
-          <Home className="h-3.5 w-3.5 shrink-0" />
-          <span className="text-[#d1d5db] dark:text-slate-600">/</span>
-          <span className="text-[#6b7280] dark:text-slate-400">Produção</span>
-        </div>
+        <RelatorioTituloLateral />
+        <RelatorioCabecalho labelKey="nav.relatorio.producao" className="mb-0" />
       </div>
 
       <div
@@ -656,7 +654,7 @@ export function RelatorioProducaoConteudo() {
         {/* Filtros */}
         <div className="overflow-visible rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm print:hidden">
           <div className="border-b border-[#e5e7eb] dark:border-slate-700 px-4 py-3">
-            <p className="text-[13px] font-semibold text-[#374151] dark:text-slate-200">Relatórios</p>
+            <p className="text-[13px] font-semibold text-[#374151] dark:text-slate-200">{t("relatorio.tituloSecao")}</p>
           </div>
           <div className="space-y-3 px-4 py-4">
             <div className="grid gap-3 lg:grid-cols-12">
@@ -677,7 +675,7 @@ export function RelatorioProducaoConteudo() {
                 </select>
               </div>
               <div className="lg:col-span-6">
-                <label className={labelClass}>Período</label>
+                <label className={labelClass}>{t("relatorio.filtro.periodo")}</label>
                 <div className="flex flex-wrap items-center gap-2">
                   <select
                     className={cn(selectClass, "min-w-[140px] flex-1")}
@@ -718,7 +716,7 @@ export function RelatorioProducaoConteudo() {
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               <div>
-                <label className={labelClass}>Clientes</label>
+                <label className={labelClass}>{t("relatorio.filtro.cliente")}</label>
                 <select
                   className={selectClass}
                   value={cliente}
@@ -732,7 +730,7 @@ export function RelatorioProducaoConteudo() {
                 </select>
               </div>
               <div>
-                <label className={labelClass}>Colaboradores</label>
+                <label className={labelClass}>{t("relatorio.filtro.colaborador")}</label>
                 <select
                   className={selectClass}
                   value={colaborador}
@@ -809,13 +807,13 @@ export function RelatorioProducaoConteudo() {
                 className="inline-flex h-[34px] items-center gap-2 rounded-sm bg-[#4a90d9] px-4 text-[12px] font-semibold text-white hover:bg-[#3d7fc4]"
               >
                 <Printer className="h-4 w-4" />
-                Imprimir
+                {t("relatorio.imprimir")}
               </button>
               <button
                 type="button"
                 onClick={exportarExcel}
                 className="flex h-[34px] w-[34px] items-center justify-center rounded-sm bg-[#5cb85c] text-white hover:bg-[#4cae4c]"
-                title="Exportar Excel"
+                title={t("relatorio.excel")}
               >
                 <FileSpreadsheet className="h-4 w-4" />
               </button>

@@ -4,10 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FileSpreadsheet,
   FileText,
-  Home,
   Printer,
 } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import { CampoDataBr } from "@/components/campo-data-br";
+import { RelatorioCabecalho, RelatorioTituloLateral } from "@/components/relatorios/RelatorioCabecalho";
 import { SelectPesquisavel } from "@/components/SelectPesquisavel";
 import { ImprimirReciboModal } from "@/components/financeiro/ImprimirReciboModal";
 import { PainelCarregando } from "@/components/ListaCarregando";
@@ -41,6 +42,7 @@ function primeiroDiaMesBr() {
 }
 
 export function RelatorioRecibosEmitidosConteudo() {
+  const { t } = useI18n();
   const [carregando, setCarregando] = useState(true);
   const [lancamentos, setLancamentos] = useState<LancamentoReciboEmitido[]>([]);
   const [clienteId, setClienteId] = useState("todos");
@@ -133,12 +135,8 @@ export function RelatorioRecibosEmitidosConteudo() {
   return (
     <div className="relatorio-recibos-emitidos bg-[#f3f4f6] dark:bg-slate-950 pb-8 pt-1 text-[12px] text-[#374151] dark:text-slate-200 print:bg-white">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <h1 className="text-[22px] font-normal leading-none text-[#6b7280] dark:text-slate-400">Relatórios</h1>
-        <div className="flex items-center gap-1.5 text-[12px] text-[#9ca3af] dark:text-slate-500">
-          <Home className="h-3.5 w-3.5 shrink-0" />
-          <span className="text-[#d1d5db] dark:text-slate-600">/</span>
-          <span className="text-[#6b7280] dark:text-slate-400">Recibos Emitidos</span>
-        </div>
+        <RelatorioTituloLateral />
+        <RelatorioCabecalho labelKey="nav.relatorio.recibosEmitidos" className="mb-0" />
       </div>
 
       <div id="relatorio-recibos-emitidos-impressao" className="space-y-4 print:space-y-3">
@@ -150,10 +148,10 @@ export function RelatorioRecibosEmitidosConteudo() {
                   label="Clientes"
                   value={clienteId}
                   onChange={setClienteId}
-                  placeholder="Todos"
+                  placeholder={t("relatorio.opcao.todos")}
                   inputClassName={selectClass}
                   options={[
-                    { value: "todos", label: "Todos" },
+                    { value: "todos", label: t("relatorio.opcao.todos") },
                     ...opcoesCliente.map((c) => ({ value: c.id, label: c.nome })),
                   ]}
                 />
@@ -194,13 +192,13 @@ export function RelatorioRecibosEmitidosConteudo() {
                 className="inline-flex h-[34px] items-center gap-2 rounded-sm bg-[#4a90d9] px-4 text-[12px] font-semibold text-white hover:bg-[#3d7fc4]"
               >
                 <Printer className="h-4 w-4" />
-                Imprimir
+                {t("relatorio.imprimir")}
               </button>
               <button
                 type="button"
                 onClick={exportarExcel}
                 className="flex h-[34px] w-[34px] items-center justify-center rounded-sm bg-[#5cb85c] text-white hover:bg-[#4cae4c]"
-                title="Exportar Excel"
+                title={t("relatorio.excel")}
               >
                 <FileSpreadsheet className="h-4 w-4" />
               </button>

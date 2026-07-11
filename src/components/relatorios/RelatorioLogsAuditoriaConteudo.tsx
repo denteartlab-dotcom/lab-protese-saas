@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, Home, Search } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import { CampoDataBr } from "@/components/campo-data-br";
+import { RelatorioCabecalho, RelatorioTituloLateral } from "@/components/relatorios/RelatorioCabecalho";
 import { PainelCarregando } from "@/components/ListaCarregando";
 import { BadgeTipoAlteracaoLog } from "@/components/relatorios/BadgeTipoAlteracaoLog";
 import { VerAlteracoesAuditoriaModal } from "@/components/relatorios/VerAlteracoesAuditoriaModal";
@@ -36,6 +38,7 @@ function hojeBr() {
 }
 
 export function RelatorioLogsAuditoriaConteudo() {
+  const { t } = useI18n();
   const [carregando, setCarregando] = useState(true);
   const [linhas, setLinhas] = useState<LogAuditoriaLinha[]>([]);
   const [categoria, setCategoria] = useState("os");
@@ -98,12 +101,8 @@ export function RelatorioLogsAuditoriaConteudo() {
   return (
     <div className="relatorio-logs-auditoria bg-[#f3f4f6] dark:bg-slate-950 pb-8 pt-1 text-[12px] text-[#374151] dark:text-slate-200">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-[22px] font-normal leading-none text-[#6b7280] dark:text-slate-400">Relatórios</h1>
-        <div className="flex items-center gap-1.5 text-[12px] text-[#9ca3af] dark:text-slate-500">
-          <Home className="h-3.5 w-3.5 shrink-0" />
-          <span className="text-[#d1d5db] dark:text-slate-600">/</span>
-          <span className="text-[#6b7280] dark:text-slate-400">Logs (auditoria)</span>
-        </div>
+        <RelatorioTituloLateral />
+        <RelatorioCabecalho labelKey="nav.relatorio.logsAuditoria" className="mb-0" />
       </div>
 
       <div className="space-y-4">
@@ -111,7 +110,7 @@ export function RelatorioLogsAuditoriaConteudo() {
           <div className="px-4 py-4">
             <div className="grid gap-3 lg:grid-cols-12">
               <div className="lg:col-span-2">
-                <label className={labelClass}>Categoria</label>
+                <label className={labelClass}>{t("relatorio.filtro.categoria")}</label>
                 <div className="relative">
                   <select
                     className={cn(selectClass, "appearance-none pr-8")}
@@ -138,9 +137,9 @@ export function RelatorioLogsAuditoriaConteudo() {
                     value={tipoAlteracao}
                     onChange={(e) => setTipoAlteracao(e.target.value)}
                   >
-                    {TIPOS_ALTERACAO_LOG.map((t) => (
-                      <option key={t.value} value={t.value}>
-                        {t.label}
+                    {TIPOS_ALTERACAO_LOG.map((tipo) => (
+                      <option key={tipo.value} value={tipo.value}>
+                        {tipo.label}
                       </option>
                     ))}
                   </select>
@@ -166,7 +165,7 @@ export function RelatorioLogsAuditoriaConteudo() {
                 </div>
               </div>
               <div className="lg:col-span-6">
-                <label className={labelClass}>Período</label>
+                <label className={labelClass}>{t("relatorio.filtro.periodo")}</label>
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="relative min-w-[120px] flex-1">
                     <select
@@ -174,12 +173,12 @@ export function RelatorioLogsAuditoriaConteudo() {
                       value={periodo}
                       onChange={(e) => onPeriodoChange(e.target.value)}
                     >
-                      <option value="hoje">Hoje</option>
-                      <option value="semana">Esta Semana</option>
-                      <option value="mes">Este Mês</option>
-                      <option value="proximos30">Próximos 30 dias</option>
-                      <option value="todos">Mostrar Todos</option>
-                      <option value="outro">Outro Período</option>
+                      <option value="hoje">{t("relatorio.periodo.hoje")}</option>
+                      <option value="semana">{t("relatorio.periodo.semana")}</option>
+                      <option value="mes">{t("relatorio.periodo.mes")}</option>
+                      <option value="proximos30">{t("relatorio.periodo.proximos30")}</option>
+                      <option value="todos">{t("relatorio.periodo.todos")}</option>
+                      <option value="outro">{t("relatorio.periodo.outro")}</option>
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9ca3af] dark:text-slate-500" />
                   </div>

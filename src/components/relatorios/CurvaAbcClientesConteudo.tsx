@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FileSpreadsheet,
-  Home,
   Printer,
   Search,
 } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import { CampoDataBr } from "@/components/campo-data-br";
+import { RelatorioCabecalho, RelatorioTituloLateral } from "@/components/relatorios/RelatorioCabecalho";
 import { PainelCarregando } from "@/components/ListaCarregando";
 import { dateToBrShort } from "@/lib/datas-br";
 import {
@@ -116,6 +117,7 @@ function TabelaSecaoAbc({ secao }: { secao: SecaoCurvaAbc }) {
 }
 
 export function CurvaAbcClientesConteudo() {
+  const { t } = useI18n();
   const [carregando, setCarregando] = useState(true);
   const [recebimentos, setRecebimentos] = useState<RecebimentoCurvaAbc[]>([]);
   const [indiceTrabalhos, setIndiceTrabalhos] = useState<IndiceTrabalhosCurvaAbc>(() =>
@@ -251,19 +253,15 @@ export function CurvaAbcClientesConteudo() {
   return (
     <div className="curva-abc-clientes bg-[#f3f4f6] dark:bg-slate-950 pb-8 pt-1 text-[12px] text-[#374151] dark:text-slate-200 print:bg-white">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <h1 className="text-[22px] font-normal leading-none text-[#6b7280] dark:text-slate-400">Relatórios</h1>
-        <div className="flex items-center gap-1.5 text-[12px] text-[#9ca3af] dark:text-slate-500">
-          <Home className="h-3.5 w-3.5 shrink-0" />
-          <span className="text-[#d1d5db] dark:text-slate-600">/</span>
-          <span className="text-[#6b7280] dark:text-slate-400">Curva ABC Clientes</span>
-        </div>
+        <RelatorioTituloLateral />
+        <RelatorioCabecalho labelKey="nav.relatorio.curvaAbcClientes" className="mb-0" />
       </div>
 
       <div id="curva-abc-clientes-impressao" className="space-y-4 print:space-y-3">
         <div className="overflow-visible rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm print:hidden">
           <div className="flex flex-wrap items-end gap-3 px-4 py-4">
             <div className="min-w-[280px] flex-1">
-              <label className={labelClass}>Período</label>
+              <label className={labelClass}>{t("relatorio.filtro.periodo")}</label>
               <div className="flex flex-wrap items-center gap-2">
                 <CampoDataBr
                   value={dataInicio}
@@ -324,13 +322,13 @@ export function CurvaAbcClientesConteudo() {
                 className="inline-flex h-[34px] items-center gap-2 rounded-sm bg-[#4a90d9] px-4 text-[12px] font-semibold text-white hover:bg-[#3d7fc4]"
               >
                 <Printer className="h-4 w-4" />
-                Imprimir
+                {t("relatorio.imprimir")}
               </button>
               <button
                 type="button"
                 onClick={exportarExcel}
                 className="flex h-[34px] w-[34px] items-center justify-center rounded-sm bg-[#5cb85c] text-white hover:bg-[#4cae4c]"
-                title="Exportar Excel"
+                title={t("relatorio.excel")}
               >
                 <FileSpreadsheet className="h-4 w-4" />
               </button>

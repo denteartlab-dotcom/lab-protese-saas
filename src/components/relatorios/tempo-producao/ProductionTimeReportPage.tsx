@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Clock, Home, Moon, Printer, RefreshCw, Sun } from "lucide-react";
+import { Clock, Moon, Printer, RefreshCw, Sun } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
+import { RelatorioCabecalho } from "@/components/relatorios/RelatorioCabecalho";
 import { BottleneckRanking } from "@/components/relatorios/tempo-producao/BottleneckRanking";
 import { CollaboratorPerformanceChart } from "@/components/relatorios/tempo-producao/CollaboratorPerformanceChart";
 import { CriticalAlertBanner } from "@/components/relatorios/tempo-producao/CriticalAlertBanner";
@@ -38,6 +40,7 @@ const filtrosIniciais: FiltrosTempoProducao = {};
 const POR_PAGINA_PADRAO = 15;
 
 export function ProductionTimeReportPage() {
+  const { t } = useI18n();
   const [filtros, setFiltros] = useState<FiltrosTempoProducao>(filtrosIniciais);
   const [linhas, setLinhas] = useState<LinhaTempoProducao[]>([]);
   const [resumo, setResumo] = useState<ResumoTempoProducao | null>(null);
@@ -163,6 +166,9 @@ export function ProductionTimeReportPage() {
       />
 
       <div className="border-b border-slate-200/80 bg-white/90 px-4 py-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/90 sm:px-6 print:hidden">
+        <div className="mx-auto max-w-[1600px] tv:max-w-[2200px]">
+          <RelatorioCabecalho labelKey="nav.relatorio.tempoProducao" className="mb-3" />
+        </div>
         <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3 tv:max-w-[2200px]">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-primary-600 to-violet-600 text-white shadow-md">
@@ -170,7 +176,7 @@ export function ProductionTimeReportPage() {
             </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white tv:text-2xl">
-                Tempo de Produção
+                {t("relatorio.tempo.titulo")}
               </h1>
               <p className="text-sm text-slate-500 dark:text-slate-400 tv:text-base">
                 Identifique gargalos, atrasos e responsáveis em cada etapa do laboratório.
@@ -182,7 +188,7 @@ export function ProductionTimeReportPage() {
               type="button"
               onClick={toggleTheme}
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
-              title={darkMode ? "Modo claro" : "Modo escuro"}
+              title={darkMode ? t("relatorio.tempo.modoClaro") : t("relatorio.tempo.modoEscuro")}
             >
               {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
@@ -198,8 +204,7 @@ export function ProductionTimeReportPage() {
               href="/app"
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
             >
-              <Home className="h-4 w-4" />
-              Início
+              {t("nav.inicio")}
             </Link>
             <button
               type="button"
@@ -207,7 +212,7 @@ export function ProductionTimeReportPage() {
               className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white hover:bg-primary-700"
             >
               <RefreshCw className={cn("h-4 w-4", carregando && "animate-spin")} />
-              Atualizar
+              {t("relatorio.tempo.atualizarDados")}
             </button>
           </div>
         </div>

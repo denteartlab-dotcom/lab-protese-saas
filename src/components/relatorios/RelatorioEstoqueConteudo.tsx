@@ -4,10 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ChevronDown,
   FileSpreadsheet,
-  Home,
   Printer,
 } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import { CampoDataBr } from "@/components/campo-data-br";
+import { RelatorioCabecalho, RelatorioTituloLateral } from "@/components/relatorios/RelatorioCabecalho";
 import { PainelCarregando } from "@/components/ListaCarregando";
 import { dateToBrShort } from "@/lib/datas-br";
 import {
@@ -489,6 +490,7 @@ function TabelaMovimentacaoEstoque({ linhas }: { linhas: LinhaRelatorioEstoque[]
 }
 
 export function RelatorioEstoqueConteudo() {
+  const { t } = useI18n();
   const [carregando, setCarregando] = useState(true);
   const [movimentos, setMovimentos] = useState<MovimentoEstoque[]>([]);
   const [produtosPorId, setProdutosPorId] = useState<Map<string, ProdutoRelatorioEstoque>>(
@@ -689,12 +691,8 @@ export function RelatorioEstoqueConteudo() {
   return (
     <div className="relatorio-estoque bg-[#f3f4f6] dark:bg-slate-950 pb-8 pt-1 text-[12px] text-[#374151] dark:text-slate-200 print:bg-white">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <h1 className="text-[22px] font-normal leading-none text-[#6b7280] dark:text-slate-400">Relatórios</h1>
-        <div className="flex items-center gap-1.5 text-[12px] text-[#9ca3af] dark:text-slate-500">
-          <Home className="h-3.5 w-3.5 shrink-0" />
-          <span className="text-[#d1d5db] dark:text-slate-600">/</span>
-          <span className="text-[#6b7280] dark:text-slate-400">Estoque</span>
-        </div>
+        <RelatorioTituloLateral />
+        <RelatorioCabecalho labelKey="nav.relatorio.estoque" className="mb-0" />
       </div>
 
       <div id="relatorio-estoque-impressao" className="space-y-4 print:space-y-3">
@@ -765,13 +763,13 @@ export function RelatorioEstoqueConteudo() {
                   className="inline-flex h-[34px] items-center gap-2 rounded-sm bg-[#4a90d9] px-4 text-[12px] font-semibold text-white hover:bg-[#3d7fc4]"
                 >
                   <Printer className="h-4 w-4" />
-                  Imprimir
+                  {t("relatorio.imprimir")}
                 </button>
                 <button
                   type="button"
                   onClick={exportarExcel}
                   className="flex h-[34px] w-[34px] items-center justify-center rounded-sm bg-[#5cb85c] text-white hover:bg-[#4cae4c]"
-                  title="Exportar Excel"
+                  title={t("relatorio.excel")}
                 >
                   <FileSpreadsheet className="h-4 w-4" />
                 </button>
@@ -780,7 +778,7 @@ export function RelatorioEstoqueConteudo() {
 
             {modoVenda && (
               <div className="max-w-md">
-                <label className={labelClass}>Período</label>
+                <label className={labelClass}>{t("relatorio.filtro.periodo")}</label>
                 <div className="flex items-center gap-2">
                   <CampoDataBr
                     value={dataInicio}
@@ -853,7 +851,7 @@ export function RelatorioEstoqueConteudo() {
                 </select>
               </div>
               <div>
-                <label className={labelClass}>Período</label>
+                <label className={labelClass}>{t("relatorio.filtro.periodo")}</label>
                 <div className="flex items-center gap-2">
                   <CampoDataBr
                     value={dataInicio}

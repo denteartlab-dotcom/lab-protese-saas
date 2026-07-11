@@ -25,6 +25,11 @@ import {
   messagesPrintEs,
   messagesPrintPt,
 } from "@/lib/i18n/messages-print";
+import {
+  messagesModulosEn,
+  messagesModulosEs,
+  messagesModulosPt,
+} from "@/lib/i18n/messages-modulos";
 
 export type MessageKey = keyof (typeof messages)["pt"];
 
@@ -558,6 +563,7 @@ export const messages = {
     ...messagesProducaoPt,
     ...messagesProducaoSubPt,
     ...messagesFinanceiroPt,
+    ...messagesModulosPt,
     ...messagesUiAutoPt,
     ...messagesPrintPt,
   },
@@ -1088,6 +1094,7 @@ export const messages = {
     ...messagesProducaoEn,
     ...messagesProducaoSubEn,
     ...messagesFinanceiroEn,
+    ...messagesModulosEn,
     ...messagesUiAutoEn,
     ...messagesPrintEn,
   },
@@ -1618,6 +1625,7 @@ export const messages = {
     ...messagesProducaoEs,
     ...messagesProducaoSubEs,
     ...messagesFinanceiroEs,
+    ...messagesModulosEs,
     ...messagesUiAutoEs,
     ...messagesPrintEs,
   },

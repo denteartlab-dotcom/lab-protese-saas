@@ -27,7 +27,9 @@ import {
   Search,
 } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
+import { useI18n } from "@/components/i18n-provider";
 import { PainelCarregando } from "@/components/ListaCarregando";
+import { RelatorioCabecalho } from "@/components/relatorios/RelatorioCabecalho";
 import { Modal } from "@/components/ui";
 import { dateToBrShort } from "@/lib/datas-br";
 import { TRABALHOS_ATUALIZADOS_EVENT } from "@/lib/trabalhos-events";
@@ -162,6 +164,7 @@ type FiltroConcluidosMes =
 const ITENS_POR_PAGINA = 10;
 
 export function RelatorioFinanceiroGeralConteudo() {
+  const { t } = useI18n();
   const [filtros, setFiltros] = useState<FiltrosRelatorioFinanceiroGeral>({
     dataInicio: primeiroDiaAnoBr(),
     dataFim: hojeBr(),
@@ -337,6 +340,7 @@ export function RelatorioFinanceiroGeralConteudo() {
   return (
     <div className="relative -mx-3 min-h-screen w-[calc(100%+1.5rem)] bg-white dark:bg-slate-900 text-[#374151] dark:text-slate-200 sm:-mx-5 sm:w-[calc(100%+2.5rem)]">
       <div className="w-full max-w-none px-4 py-5 sm:px-6 lg:px-8">
+        <RelatorioCabecalho labelKey="nav.relatorio.financeiroGeral" />
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-[26px] font-semibold text-[#1f2937] dark:text-slate-100">
@@ -375,13 +379,13 @@ export function RelatorioFinanceiroGeralConteudo() {
               />
             </div>
             <div>
-              <label className={labelClass}>Cliente</label>
+              <label className={labelClass}>{t("relatorio.filtro.cliente")}</label>
               <select
                 className={selectClass}
                 value={filtros.cliente}
                 onChange={(e) => setFiltros((f) => ({ ...f, cliente: e.target.value }))}
               >
-                <option value="Todos">Todos</option>
+                <option value="Todos">{t("relatorio.opcao.todos")}</option>
                 {(dados?.clientesOpcoes ?? []).map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -396,22 +400,22 @@ export function RelatorioFinanceiroGeralConteudo() {
                 value={filtros.tipoServico}
                 onChange={(e) => setFiltros((f) => ({ ...f, tipoServico: e.target.value }))}
               >
-                <option value="Todos">Todos</option>
-                {CATEGORIAS_TIPO_SERVICO.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
+                <option value="Todos">{t("relatorio.opcao.todos")}</option>
+                {CATEGORIAS_TIPO_SERVICO.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className={labelClass}>Status</label>
+              <label className={labelClass}>{t("relatorio.filtro.status")}</label>
               <select
                 className={selectClass}
                 value={filtros.status}
                 onChange={(e) => setFiltros((f) => ({ ...f, status: e.target.value }))}
               >
-                <option value="Todos">Todos</option>
+                <option value="Todos">{t("relatorio.opcao.todos")}</option>
                 {Object.entries(STATUS_TRABALHO).map(([key, meta]) => (
                   <option key={key} value={key}>
                     {meta.label}
@@ -426,7 +430,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                 className="inline-flex h-[36px] flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#3498db] px-4 text-[12px] font-semibold text-white shadow-sm hover:bg-[#2980b9]"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
-                Atualizar
+                {t("relatorio.atualizar")}
               </button>
             </div>
           </div>
@@ -1085,7 +1089,7 @@ export function RelatorioFinanceiroGeralConteudo() {
               className="inline-flex h-[34px] shrink-0 items-center gap-1.5 rounded-lg border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-[12px] font-medium text-[#374151] dark:text-slate-200 shadow-sm hover:bg-[#f9fafb] dark:bg-slate-800/70"
             >
               <Printer className="h-3.5 w-3.5" />
-              Imprimir
+              {t("relatorio.imprimir")}
             </button>
           ) : null}
         </div>

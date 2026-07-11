@@ -53,7 +53,7 @@ export default function RelatorioPage() {
     <div className="space-y-4 text-sm text-slate-600">
       <div className="flex items-center gap-2 text-slate-500">
         <Link href="/app" className="hover:text-primary-700">
-          Início
+          {t("nav.inicio")}
         </Link>
         <span>/</span>
         <span className="font-medium text-slate-700">{t("nav.relatorios")}</span>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -23,6 +23,7 @@ import {
   YAxis,
 } from "recharts";
 import { CampoDataBr } from "@/components/campo-data-br";
+import { useI18n } from "@/components/i18n-provider";
 import { PainelCarregando } from "@/components/ListaCarregando";
 import { dateToBrShort } from "@/lib/datas-br";
 import {
@@ -202,6 +203,7 @@ function GraficoBarrasHorizontais({
 }
 
 export function ClientesPrejuizoConteudo() {
+  const { t } = useI18n();
   const [periodo, setPeriodo] = useState<PeriodoClientesPrejuizo>("30dias");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState(dateToBrShort(new Date()));
@@ -248,7 +250,7 @@ export function ClientesPrejuizoConteudo() {
             className="inline-flex items-center gap-1.5 text-[12px] text-[#6b7280] dark:text-slate-400 hover:text-[#374151] dark:text-slate-200"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Voltar aos relatórios
+            {t("relatorio.voltar")}
           </Link>
         </div>
 
@@ -308,7 +310,7 @@ export function ClientesPrejuizoConteudo() {
               className="inline-flex h-[36px] items-center gap-1.5 rounded-lg bg-[#4a90d9] px-3 text-[12px] font-semibold text-white shadow-sm hover:bg-[#3a7bc8]"
             >
               <RefreshCw className="h-3.5 w-3.5" />
-              Atualizar
+              {t("relatorio.atualizar")}
             </button>
           </div>
         </header>

@@ -28,6 +28,7 @@ import {
   YAxis,
 } from "recharts";
 import { CampoDataBr } from "@/components/campo-data-br";
+import { useI18n } from "@/components/i18n-provider";
 import { PainelCarregando } from "@/components/ListaCarregando";
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import {
@@ -153,6 +154,7 @@ function SemDados() {
 }
 
 export function ServicosNaoConcluidosConteudo() {
+  const { t } = useI18n();
   const padrao = filtrosPadraoServicosNaoConcluidos();
   const [filtros, setFiltros] = useState<FiltrosServicosNaoConcluidos>(padrao);
   const [filtrosAplicados, setFiltrosAplicados] = useState<FiltrosServicosNaoConcluidos>(padrao);
@@ -250,7 +252,7 @@ export function ServicosNaoConcluidosConteudo() {
             className="inline-flex items-center gap-1.5 text-[12px] text-[#6b7280] dark:text-slate-400 hover:text-[#374151] dark:text-slate-200"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Voltar aos relatórios
+            {t("relatorio.voltar")}
           </Link>
         </div>
 
@@ -293,7 +295,7 @@ export function ServicosNaoConcluidosConteudo() {
               className="inline-flex h-[36px] items-center gap-1.5 rounded-lg bg-[#8b5cf6] px-3 text-[12px] font-semibold text-white shadow-sm hover:bg-[#7c3aed]"
             >
               <Filter className="h-3.5 w-3.5" />
-              Filtrar
+              {t("relatorio.filtrar")}
             </button>
             <div className="relative">
               <button
@@ -633,7 +635,7 @@ export function ServicosNaoConcluidosConteudo() {
               Relatório gerado em {dados.geradoEm}
               <span className="mx-1">·</span>
               <CalendarDays className="h-3.5 w-3.5" />
-              Período: {dados.periodoLabel}
+              {t("relatorio.filtro.periodo")}: {dados.periodoLabel}
               <span className="mx-1">·</span>
               <Clock className="h-3.5 w-3.5" />
               Serviços ativos excluem Finalizado, Entregue e Cancelado

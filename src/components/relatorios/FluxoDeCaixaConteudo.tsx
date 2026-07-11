@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
   AlertTriangle,
   CalendarDays,
@@ -10,12 +9,13 @@ import {
   DollarSign,
   FileSpreadsheet,
   Flag,
-  Home,
   List,
   MessageCircle,
   Printer,
 } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import { CampoDataBr } from "@/components/campo-data-br";
+import { RelatorioCabecalho } from "@/components/relatorios/RelatorioCabecalho";
 import {
   carregarContasBancarias,
   carregarMovimentacoesConta,
@@ -75,6 +75,7 @@ function periodoMesAtualBr() {
 const periodoMesInicial = periodoMesAtualBr();
 
 export function FluxoDeCaixaConteudo() {
+  const { t } = useI18n();
   const [lancamentos, setLancamentos] = useState<LancamentoFluxo[]>([]);
   const [contas, setContas] = useState<ContaBancaria[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -252,7 +253,7 @@ export function FluxoDeCaixaConteudo() {
 
   async function imprimirRelatorio() {
     if (modo !== "diario") {
-      alert("A impressão em PDF está disponível no modo diário.");
+      alert(t("relatorio.alerta.pdfSomenteDiario"));
       return;
     }
 
@@ -262,7 +263,7 @@ export function FluxoDeCaixaConteudo() {
     try {
       const contaLabel =
         conta === "Todos"
-          ? "Todas"
+          ? t("relatorio.opcao.todas")
           : contas.find((c) => c.id === conta || c.nome === conta)?.nome ?? conta;
 
       setPdfProgresso(40);
@@ -277,13 +278,13 @@ export function FluxoDeCaixaConteudo() {
           }),
         "Relatório Movimentação — Fluxo de Caixa",
         "relatorio-movimentacao.pdf",
-        { janela, origem: "Relatórios" }
+        { janela, origem: t("relatorio.origemPdf") }
       );
       setPdfProgresso(100);
     } catch (err) {
       janela?.close();
       console.error("gerar PDF movimentação", err);
-      alert("Não foi possível gerar o PDF do relatório.");
+      alert(t("relatorio.alerta.pdfErro"));
     } finally {
       setPdfCarregando(false);
       setPdfProgresso(0);
@@ -312,48 +313,41 @@ export function FluxoDeCaixaConteudo() {
 
   return (
     <div className="pb-16 text-[11px] text-slate-600">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5 text-slate-500">
-          <Home className="h-3.5 w-3.5" />
-          <Link href="/app" className="hover:text-[#4a90d9]">
-            Início
-          </Link>
-          <span>/</span>
-          <span className="font-medium text-slate-700">Relatórios</span>
-          <span>/</span>
-          <span className="font-medium text-slate-700">Fluxo de Caixa</span>
-        </div>
-        <div className="inline-flex overflow-hidden rounded-sm print:hidden">
-          <button
-            type="button"
-            onClick={() => setModo("diario")}
-            className={cn(
-              toggleModoBtn,
-              "border border-[#4a90d9]",
-              modo === "diario"
-                ? "bg-[#4a90d9] text-white"
-                : "bg-white text-[#4a90d9]"
-            )}
-          >
-            <List className="h-4 w-4" />
-            Diário
-          </button>
-          <button
-            type="button"
-            onClick={() => setModo("mensal")}
-            className={cn(
-              toggleModoBtn,
-              "border border-l-0 border-[#4a90d9]",
-              modo === "mensal"
-                ? "bg-[#4a90d9] text-white"
-                : "bg-white text-[#4a90d9]"
-            )}
-          >
-            <CalendarDays className="h-4 w-4" />
-            Mensal
-          </button>
-        </div>
-      </div>
+      <RelatorioCabecalho
+        labelKey="nav.relatorio.fluxoCaixa"
+        acoes={
+          <div className="inline-flex overflow-hidden rounded-sm print:hidden">
+            <button
+              type="button"
+              onClick={() => setModo("diario")}
+              className={cn(
+                toggleModoBtn,
+                "border border-[#4a90d9]",
+                modo === "diario"
+                  ? "bg-[#4a90d9] text-white"
+                  : "bg-white text-[#4a90d9]"
+              )}
+            >
+              <List className="h-4 w-4" />
+              {t("relatorio.modo.diario")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setModo("mensal")}
+              className={cn(
+                toggleModoBtn,
+                "border border-l-0 border-[#4a90d9]",
+                modo === "mensal"
+                  ? "bg-[#4a90d9] text-white"
+                  : "bg-white text-[#4a90d9]"
+              )}
+            >
+              <CalendarDays className="h-4 w-4" />
+              {t("relatorio.modo.mensal")}
+            </button>
+          </div>
+        }
+      />
 
       {modo === "diario" && (
       <div className="mb-4 grid gap-3 md:grid-cols-2">
@@ -362,7 +356,7 @@ export function FluxoDeCaixaConteudo() {
             <p className="text-2xl font-semibold text-slate-800">
               {money(resultadoDiario.totalReceitas)}
             </p>
-            <p className="mt-0.5 text-[11px] text-slate-500">Total Receitas</p>
+            <p className="mt-0.5 text-[11px] text-slate-500">{t("relatorio.kpi.totalReceitas")}</p>
           </div>
           <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-500 text-white">
             <DollarSign className="h-5 w-5" />
@@ -373,7 +367,7 @@ export function FluxoDeCaixaConteudo() {
             <p className="text-2xl font-semibold text-slate-800">
               {money(resultadoDiario.totalDespesas)}
             </p>
-            <p className="mt-0.5 text-[11px] text-slate-500">Total Despesas</p>
+            <p className="mt-0.5 text-[11px] text-slate-500">{t("relatorio.kpi.totalDespesas")}</p>
           </div>
           <div className="flex h-11 w-11 items-center justify-center rounded-full bg-orange-500 text-white">
             <Flag className="h-5 w-5" />
@@ -386,7 +380,7 @@ export function FluxoDeCaixaConteudo() {
         {modo === "diario" ? (
         <div className="grid grid-cols-2 items-end gap-x-3 gap-y-3 border-b border-[#e5e7eb] px-4 py-4 sm:grid-cols-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] print:hidden">
           <div>
-            <label className={labelClass}>Conta</label>
+            <label className={labelClass}>{t("relatorio.filtro.conta")}</label>
             <select
               className={selectClass}
               value={conta}
@@ -394,21 +388,21 @@ export function FluxoDeCaixaConteudo() {
             >
               {opcoesConta.map((c) => (
                 <option key={c.id} value={c.id === "Todos" ? "Todos" : c.nome}>
-                  {c.nome}
+                  {c.id === "Todos" ? t("relatorio.opcao.todos") : c.nome}
                 </option>
               ))}
             </select>
           </div>
           <div>
-            <label className={labelClass}>Tipo</label>
+            <label className={labelClass}>{t("relatorio.filtro.tipo")}</label>
             <select className={selectClass} value={tipo} onChange={(e) => setTipo(e.target.value)}>
-              <option value="Todas">Todas</option>
-              <option value="receita">Receita</option>
-              <option value="despesa">Despesa</option>
+              <option value="Todas">{t("relatorio.opcao.todas")}</option>
+              <option value="receita">{t("relatorio.opcao.receita")}</option>
+              <option value="despesa">{t("relatorio.opcao.despesa")}</option>
             </select>
           </div>
           <div>
-            <label className={labelClass}>Forma Pagamento</label>
+            <label className={labelClass}>{t("relatorio.filtro.formaPagamento")}</label>
             <select
               className={selectClass}
               value={formaPagamento}
@@ -422,29 +416,29 @@ export function FluxoDeCaixaConteudo() {
             </select>
           </div>
           <div>
-            <label className={labelClass}>Período</label>
+            <label className={labelClass}>{t("relatorio.filtro.periodo")}</label>
             <select
               className={selectClass}
               value={periodo}
               onChange={(e) => aplicarPeriodo(e.target.value)}
             >
-              <option value="hoje">Hoje</option>
-              <option value="semana">Esta Semana</option>
-              <option value="mes">Este Mês</option>
-              <option value="proximos30">Próximos 30 dias</option>
-              <option value="todos">Mostrar Todos</option>
-              <option value="outro">Outro Período</option>
+              <option value="hoje">{t("relatorio.periodo.hoje")}</option>
+              <option value="semana">{t("relatorio.periodo.semana")}</option>
+              <option value="mes">{t("relatorio.periodo.mes")}</option>
+              <option value="proximos30">{t("relatorio.periodo.proximos30")}</option>
+              <option value="todos">{t("relatorio.periodo.todos")}</option>
+              <option value="outro">{t("relatorio.periodo.outro")}</option>
             </select>
           </div>
           <div>
-            <label className={labelClass}>Situação</label>
+            <label className={labelClass}>{t("relatorio.filtro.situacao")}</label>
             <select
               className={selectClass}
               value={situacao}
               onChange={(e) => setSituacao(e.target.value as SituacaoFluxoCaixa)}
             >
-              <option value="previsto">Previsto</option>
-              <option value="realizado">Realizado</option>
+              <option value="previsto">{t("relatorio.opcao.previsto")}</option>
+              <option value="realizado">{t("relatorio.opcao.realizado")}</option>
             </select>
           </div>
           <div>
@@ -472,7 +466,11 @@ export function FluxoDeCaixaConteudo() {
           <div className="flex items-end gap-2">
             <button
               type="button"
-              title={pdfCarregando ? `Gerando… ${pdfProgresso}%` : "Imprimir"}
+              title={
+                pdfCarregando
+                  ? t("relatorio.gerandoPdf", { progresso: pdfProgresso })
+                  : t("relatorio.imprimir")
+              }
               disabled={pdfCarregando}
               onClick={() => void imprimirRelatorio()}
               className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-sm bg-[#4a90d9] text-white hover:bg-[#3d7fc4] disabled:opacity-60"
@@ -485,7 +483,7 @@ export function FluxoDeCaixaConteudo() {
               className="flex h-[34px] items-center gap-1.5 rounded-sm border border-[#9ca3af] bg-[#9ca3af] px-3 text-[12px] font-medium text-white hover:bg-[#6b7280]"
             >
               <FileSpreadsheet className="h-4 w-4" />
-              Excel
+              {t("relatorio.excel")}
             </button>
           </div>
         </div>
@@ -493,7 +491,7 @@ export function FluxoDeCaixaConteudo() {
         <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[#e5e7eb] px-4 py-4 print:hidden">
           <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-3 sm:max-w-xl">
             <div>
-              <label className={labelClass}>Conta</label>
+              <label className={labelClass}>{t("relatorio.filtro.conta")}</label>
               <select
                 className={selectClass}
                 value={conta}
@@ -501,13 +499,13 @@ export function FluxoDeCaixaConteudo() {
               >
                 {opcoesConta.map((c) => (
                   <option key={c.id} value={c.id === "Todos" ? "Todos" : c.nome}>
-                    {c.nome}
+                    {c.id === "Todos" ? t("relatorio.opcao.todos") : c.nome}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className={labelClass}>Período</label>
+              <label className={labelClass}>{t("relatorio.filtro.periodo")}</label>
               <select
                 className={selectClass}
                 value={String(anoMensal)}
@@ -521,14 +519,14 @@ export function FluxoDeCaixaConteudo() {
               </select>
             </div>
             <div>
-              <label className={labelClass}>Situação</label>
+              <label className={labelClass}>{t("relatorio.filtro.situacao")}</label>
               <select
                 className={selectClass}
                 value={situacao}
                 onChange={(e) => setSituacao(e.target.value as SituacaoFluxoCaixa)}
               >
-                <option value="previsto">Previsto</option>
-                <option value="realizado">Realizado</option>
+                <option value="previsto">{t("relatorio.opcao.previsto")}</option>
+                <option value="realizado">{t("relatorio.opcao.realizado")}</option>
               </select>
             </div>
           </div>
@@ -538,7 +536,7 @@ export function FluxoDeCaixaConteudo() {
             className="flex h-[34px] shrink-0 items-center gap-2 rounded-sm bg-[#9ca3af] px-4 text-[12px] font-medium text-white hover:bg-[#6b7280]"
           >
             <FileSpreadsheet className="h-4 w-4" />
-            Exportar Excel
+            {t("relatorio.excel")}
           </button>
         </div>
         )}

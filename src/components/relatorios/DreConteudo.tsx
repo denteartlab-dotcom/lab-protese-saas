@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { FileSpreadsheet, Home, Printer, X } from "lucide-react";
+import { FileSpreadsheet, Printer, X } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import { DreGraficos } from "@/components/relatorios/DreGraficos";
 import { ImprimirDreModal } from "@/components/relatorios/ImprimirDreModal";
+import { RelatorioCabecalho } from "@/components/relatorios/RelatorioCabecalho";
 import { cn } from "@/lib/utils";
 import {
   calcularIndicativosDre,
@@ -155,6 +156,7 @@ type DrilldownState = {
 };
 
 export function DreConteudo() {
+  const { t } = useI18n();
   const [lancamentos, setLancamentos] = useState<LancamentoDre[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [ano, setAno] = useState(new Date().getFullYear());
@@ -274,19 +276,12 @@ export function DreConteudo() {
 
   return (
     <div className="dre-relatorio -mx-1 pb-4 text-[12px] text-[#374151] sm:mx-0">
-      <div className="mb-4 flex items-center gap-1.5 text-[#6b7280]">
-        <Home className="h-3.5 w-3.5 shrink-0" />
-        <Link href="/app/relatorios" className="hover:text-[#4a90d9]">
-          Relatórios
-        </Link>
-        <span className="text-[#9ca3af]">/</span>
-        <span className="font-medium text-[#374151]">DRE</span>
-      </div>
+      <RelatorioCabecalho labelKey="nav.relatorio.dre" />
 
       <div className="overflow-hidden border border-[#e5e7eb] bg-white">
         <div className="flex flex-col print:hidden sm:flex-row sm:items-start sm:justify-between sm:gap-8 sm:px-5 sm:pt-5">
           <div className="px-5 pt-5 sm:px-0 sm:pt-0">
-            <label className={labelClass}>Período</label>
+            <label className={labelClass}>{t("relatorio.filtro.periodo")}</label>
             <select
               className={selectClass}
               value={String(ano)}
@@ -346,12 +341,12 @@ export function DreConteudo() {
               className="flex h-[34px] items-center gap-2 rounded-sm bg-[#4a90d9] px-4 text-[12px] font-medium text-white hover:bg-[#3d7fc4]"
             >
               <Printer className="h-4 w-4" />
-              Imprimir
+              {t("relatorio.imprimir")}
             </button>
             <button
               type="button"
               onClick={exportarExcel}
-              title="Exportar Excel"
+              title={t("relatorio.excel")}
               className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-sm bg-[#22c55e] text-white hover:bg-[#16a34a]"
             >
               <FileSpreadsheet className="h-4 w-4" />

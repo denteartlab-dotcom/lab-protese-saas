@@ -19,12 +19,13 @@ import {
 import {
   ArrowDown,
   DollarSign,
-  Home,
   MoreVertical,
   Package,
   User,
 } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import { PainelCarregando } from "@/components/ListaCarregando";
+import { RelatorioCabecalho, RelatorioTituloLateral } from "@/components/relatorios/RelatorioCabecalho";
 import { ModalCurvaAbcClientesDashboard } from "@/components/relatorios/ModalCurvaAbcClientesDashboard";
 import { ModalCurvaAbcDetalheDashboard } from "@/components/relatorios/ModalCurvaAbcDetalheDashboard";
 import { ModalInadimplentesDashboard } from "@/components/relatorios/ModalInadimplentesDashboard";
@@ -569,6 +570,7 @@ function payloadVazio(ano: number): DashboardGerencialPayload {
 }
 
 export function DashboardGerencialConteudo() {
+  const { t } = useI18n();
   const [ano, setAno] = useState(new Date().getFullYear());
   const [mesProducao, setMesProducao] = useState(new Date().getMonth());
   const [anoProducao, setAnoProducao] = useState(new Date().getFullYear());
@@ -731,7 +733,7 @@ export function DashboardGerencialConteudo() {
   return (
     <div className="dashboard-gerencial bg-[#f3f4f6] dark:bg-slate-950 pb-8 pt-1 text-[12px] text-[#374151] dark:text-slate-200">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-[22px] font-normal leading-none text-[#6b7280] dark:text-slate-400">Relatórios</h1>
+        <RelatorioTituloLateral />
         <div className="flex flex-wrap items-center gap-3">
           <select
             value={ano}
@@ -744,11 +746,7 @@ export function DashboardGerencialConteudo() {
               </option>
             ))}
           </select>
-          <div className="flex items-center gap-1.5 text-[12px] text-[#9ca3af] dark:text-slate-500">
-            <Home className="h-3.5 w-3.5 shrink-0" />
-            <span className="text-[#d1d5db] dark:text-slate-600">/</span>
-            <span className="text-[#6b7280] dark:text-slate-400">Dashboard</span>
-          </div>
+          <RelatorioCabecalho labelKey="nav.relatorio.dashboardGerencial" className="mb-0" />
         </div>
       </div>
 

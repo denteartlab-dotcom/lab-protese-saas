@@ -4,10 +4,11 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
   ChevronDown,
   FileSpreadsheet,
-  Home,
   Printer,
 } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import { PainelCarregando } from "@/components/ListaCarregando";
+import { RelatorioCabecalho, RelatorioTituloLateral } from "@/components/relatorios/RelatorioCabecalho";
 import {
   agruparLinhasPorCategoria,
   carregarDadosTabelaMargem,
@@ -121,6 +122,7 @@ function LinhasMargemTabela({
 }
 
 export function MargemContribuicaoConteudo() {
+  const { t } = useI18n();
   const [tabelas, setTabelas] = useState<string[]>([]);
   const [tabela, setTabela] = useState("");
   const [ordenacao, setOrdenacao] = useState<OrdenacaoMargemContribuicao>("nome_servico");
@@ -212,14 +214,8 @@ export function MargemContribuicaoConteudo() {
   return (
     <div className="margem-contribuicao-relatorio bg-[#f3f4f6] dark:bg-slate-950 pb-8 pt-1 text-[12px] text-[#374151] dark:text-slate-200 print:bg-white">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <h1 className="text-[22px] font-normal leading-none text-[#6b7280] dark:text-slate-400">
-          Relatórios
-        </h1>
-        <div className="flex items-center gap-1.5 text-[12px] text-[#9ca3af] dark:text-slate-500">
-          <Home className="h-3.5 w-3.5 shrink-0" />
-          <span className="text-[#d1d5db] dark:text-slate-600">/</span>
-          <span className="text-[#6b7280] dark:text-slate-400">Margens Contribuição</span>
-        </div>
+        <RelatorioTituloLateral />
+        <RelatorioCabecalho labelKey="nav.relatorio.margemContribuicao" className="mb-0" />
       </div>
 
       <div className="overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm print:border-0 print:shadow-none">
@@ -272,7 +268,7 @@ export function MargemContribuicaoConteudo() {
                 type="button"
                 onClick={imprimir}
                 className="flex h-[34px] w-[34px] items-center justify-center bg-[#4a90d9] text-white hover:bg-[#3d7fc4]"
-                title="Imprimir"
+                title={t("relatorio.imprimir")}
               >
                 <Printer className="h-4 w-4" />
               </button>
@@ -289,7 +285,7 @@ export function MargemContribuicaoConteudo() {
               type="button"
               onClick={exportarExcel}
               className="flex h-[34px] w-[34px] items-center justify-center rounded-sm bg-[#22c55e] text-white hover:bg-[#16a34a]"
-              title="Exportar Excel"
+              title={t("relatorio.excel")}
             >
               <FileSpreadsheet className="h-4 w-4" />
             </button>

@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FileSpreadsheet, Home, Printer } from "lucide-react";
+import { FileSpreadsheet, Printer } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import { CampoDataBr } from "@/components/campo-data-br";
+import { RelatorioCabecalho } from "@/components/relatorios/RelatorioCabecalho";
 import { PainelCarregando } from "@/components/ListaCarregando";
 import {
   ENTREGAS_EVENT,
@@ -37,6 +39,7 @@ function money(value: number) {
 }
 
 export function RelatorioEntregasConteudo() {
+  const { t } = useI18n();
   const [carregando, setCarregando] = useState(true);
   const [gerando, setGerando] = useState(false);
   const [entregas, setEntregas] = useState<EntregaControle[]>([]);
@@ -107,7 +110,7 @@ export function RelatorioEntregasConteudo() {
       alert(
         err instanceof Error && err.message
           ? err.message
-          : "Não foi possível gerar o relatório. Tente novamente."
+          : t("relatorio.alerta.pdfErro")
       );
     } finally {
       setGerando(false);
@@ -129,12 +132,7 @@ export function RelatorioEntregasConteudo() {
 
   return (
     <div className="space-y-4 text-[12px] text-slate-700">
-      <div className="flex items-center gap-1 text-sm text-slate-500">
-        <Home className="h-3.5 w-3.5" />
-        <span>Relatórios</span>
-        <span>/</span>
-        <span className="font-medium text-slate-700">Controle de Entregas</span>
-      </div>
+      <RelatorioCabecalho labelKey="nav.relatorio.controleEntregas" />
 
       <div className="rounded border border-slate-200 bg-white p-4 shadow-sm">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -204,7 +202,7 @@ export function RelatorioEntregasConteudo() {
             </select>
           </div>
           <div>
-            <label className={labelClass}>Período</label>
+            <label className={labelClass}>{t("relatorio.filtro.periodo")}</label>
             <select
               value={periodo}
               onChange={(e) =>
@@ -254,7 +252,7 @@ export function RelatorioEntregasConteudo() {
             className="inline-flex items-center gap-1.5 rounded-sm border border-[#93c5fd] bg-[#dbeafe] px-3 py-2 text-[12px] text-[#2563eb] hover:bg-[#bfdbfe] disabled:opacity-60"
           >
             <Printer className="h-3.5 w-3.5" />
-            Imprimir
+            {t("relatorio.imprimir")}
           </button>
           <button
             type="button"
@@ -263,7 +261,7 @@ export function RelatorioEntregasConteudo() {
             className="inline-flex items-center gap-1.5 rounded-sm border border-[#86efac] bg-[#dcfce7] px-3 py-2 text-[12px] text-[#16a34a] hover:bg-[#bbf7d0] disabled:opacity-60"
           >
             <FileSpreadsheet className="h-3.5 w-3.5" />
-            Exportar CSV
+            {t("relatorio.exportarCsv")}
           </button>
         </div>
       </div>
