@@ -18,6 +18,8 @@ import {
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroPlanoContas } from "@/lib/financeiro-painel-types";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
+import { useI18n } from "@/components/i18n-provider";
+import { BreadcrumbFinanceiro } from "@/components/financeiro/BreadcrumbFinanceiro";
 import { PlanoContasCadastroModal } from "@/components/financeiro/PlanoContasCadastroModal";
 
 function BotaoMais({
@@ -27,13 +29,14 @@ function BotaoMais({
   item: ItemPlanoContas;
   onAdicionarFilho: (item: ItemPlanoContas) => void;
 }) {
+  const { t } = useI18n();
   return (
     <button
       type="button"
-      title="Adicionar subconta"
+      title={t("financeiro.plano.adicionarSubconta")}
       onClick={() => onAdicionarFilho(item)}
       className="shrink-0 border-0 bg-transparent p-0 text-[20px] font-normal leading-none text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
-      aria-label="Adicionar subconta"
+      aria-label={t("financeiro.plano.adicionarSubconta")}
     >
       +
     </button>
@@ -47,13 +50,14 @@ function BotaoExcluir({
   item: ItemPlanoContas;
   onExcluir: (item: ItemPlanoContas) => void;
 }) {
+  const { t } = useI18n();
   return (
     <button
       type="button"
-      title="Excluir conta"
+      title={t("financeiro.plano.excluirConta")}
       onClick={() => onExcluir(item)}
       className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border-0 bg-transparent text-red-500 hover:bg-red-50 hover:text-red-600 dark:text-red-400 dark:hover:bg-red-950/60 dark:hover:text-red-300"
-      aria-label="Excluir conta"
+      aria-label={t("financeiro.plano.excluirConta")}
     >
       <Trash2 className="h-4 w-4" strokeWidth={2} />
     </button>
@@ -192,6 +196,7 @@ type ModalPlanoState = {
 } | null;
 
 export function PlanoContasConteudo() {
+  const { t } = useI18n();
   const [itens, setItens] = useState<ItemPlanoContas[]>(PLANO_CONTAS_PADRAO);
   const [modal, setModal] = useState<ModalPlanoState>(null);
   const [contaParaExcluir, setContaParaExcluir] =
@@ -255,28 +260,22 @@ export function PlanoContasConteudo() {
 
   return (
     <div className="space-y-3 text-xs text-slate-600 dark:text-slate-300">
-      <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-        <span>Financeiro</span>
-        <span className="text-slate-400 dark:text-slate-500">&gt;</span>
-        <span className="font-medium text-slate-700 dark:text-slate-300">
-          Plano de Contas
-        </span>
-      </div>
+      <BreadcrumbFinanceiro pagina="financeiro.breadcrumb.planoContas" />
 
       <h1 className="text-2xl font-normal text-slate-800 dark:text-slate-100">
-        Plano de Contas
+        {t("financeiro.plano.titulo")}
       </h1>
 
       <div className="space-y-5 rounded-lg bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-slate-950 dark:ring-slate-800">
         <PainelSecao
-          titulo="RECEITAS"
+          titulo={t("financeiro.plano.receitas")}
           itens={receitas}
           onAdicionarFilho={abrirModal("receitas")}
           onExcluir={solicitarExclusao}
           mostrarMaisNasLinhas
         />
         <PainelSecao
-          titulo="DESPESAS"
+          titulo={t("financeiro.plano.despesas")}
           itens={despesas}
           onAdicionarFilho={abrirModal("despesas")}
           onExcluir={solicitarExclusao}
@@ -285,8 +284,8 @@ export function PlanoContasConteudo() {
 
       <ConfirmacaoExclusaoModal
         open={contaParaExcluir !== null}
-        titulo="Excluir conta"
-        mensagem="Deseja realmente excluir esta conta do plano de contas?"
+        titulo={t("financeiro.plano.excluirTitulo")}
+        mensagem={t("financeiro.plano.excluirMensagem")}
         detalhe={
           contaParaExcluir
             ? `${contaParaExcluir.codigo} ${contaParaExcluir.nome}`

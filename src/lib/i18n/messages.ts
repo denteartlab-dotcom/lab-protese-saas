@@ -11,6 +11,11 @@ import {
   messagesProducaoSubPt,
 } from "@/lib/i18n/messages-producao-submodulos";
 import {
+  messagesFinanceiroEn,
+  messagesFinanceiroEs,
+  messagesFinanceiroPt,
+} from "@/lib/i18n/messages-financeiro";
+import {
   messagesUiAutoEn,
   messagesUiAutoEs,
   messagesUiAutoPt,
@@ -502,6 +507,7 @@ export const messages = {
     "notif.anotacao_lembrete": "{texto}",
     ...messagesProducaoPt,
     ...messagesProducaoSubPt,
+    ...messagesFinanceiroPt,
     ...messagesUiAutoPt,
   },
   en: {
@@ -985,6 +991,7 @@ export const messages = {
     "notif.anotacao_lembrete": "{texto}",
     ...messagesProducaoEn,
     ...messagesProducaoSubEn,
+    ...messagesFinanceiroEn,
     ...messagesUiAutoEn,
   },
   es: {
@@ -1468,6 +1475,7 @@ export const messages = {
     "notif.anotacao_lembrete": "{texto}",
     ...messagesProducaoEs,
     ...messagesProducaoSubEs,
+    ...messagesFinanceiroEs,
     ...messagesUiAutoEs,
   },
 } as const;

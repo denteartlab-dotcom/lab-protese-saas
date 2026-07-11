@@ -13,6 +13,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
+import { useI18n } from "@/components/i18n-provider";
+import { BreadcrumbFinanceiro } from "@/components/financeiro/BreadcrumbFinanceiro";
 import { CadastrarContaBancariaModal } from "@/components/financeiro/CadastrarContaBancariaModal";
 import { ConciliacaoContaModal } from "@/components/financeiro/ConciliacaoContaModal";
 import { MovimentacaoContaModal } from "@/components/financeiro/MovimentacaoContaModal";
@@ -33,7 +35,6 @@ import {
   ID_CONTA_CAIXA,
   ID_CONTA_CARTEIRA,
   ID_CONTA_NF,
-  labelAcaoConta,
   salvarContasBancarias,
   salvarMovimentacoesConta,
   type AcaoContaBancaria,
@@ -68,6 +69,16 @@ import type {
 } from "@/lib/financeiro-painel-types";
 import { cn } from "@/lib/utils";
 import type { ContaDigitalAba } from "@/components/financeiro/ContaDigitalConteudo";
+import type { MessageKey } from "@/lib/i18n";
+
+function ContaDigitalCarregando() {
+  const { t } = useI18n();
+  return (
+    <p className="py-4 text-center text-[12px] text-slate-500">
+      {t("financeiro.conta.carregandoContaDigital")}
+    </p>
+  );
+}
 
 const ContaDigitalConteudo = dynamic(
   () =>
@@ -75,11 +86,15 @@ const ContaDigitalConteudo = dynamic(
       (mod) => mod.ContaDigitalConteudo
     ),
   {
-    loading: () => (
-      <p className="py-4 text-center text-[12px] text-slate-500">Carregando conta digital…</p>
-    ),
+    loading: () => <ContaDigitalCarregando />,
   }
 );
+
+function chaveAcaoConta(acao: AcaoContaBancaria): MessageKey {
+  if (acao === "movimentar") return "financeiro.conta.acao.movimentar";
+  if (acao === "baixar") return "financeiro.conta.acao.retirar";
+  return "financeiro.conta.acao.adicionarCredito";
+}
 
 function hidratarDadosLocais() {
   return {
@@ -111,6 +126,7 @@ function valorCampoConta(valor?: string) {
 }
 
 export function ContaBancariaConteudo() {
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const [contaAsaasAtiva, setContaAsaasAtiva] = useState(false);
   const [podeVisualizarContaAsaas, setPodeVisualizarContaAsaas] = useState(false);
@@ -271,16 +287,16 @@ export function ContaBancariaConteudo() {
 
   function mensagemContaAsaasIndisponivel() {
     if (modoIntegracaoAsaas === "legado") {
-      return "Configure a chave API Asaas em Configurações → Boletos";
+      return t("financeiro.conta.asaasIndisponivelLegado");
     }
-    return "Disponível após subconta Asaas aprovada (Configurações → Boletos)";
+    return t("financeiro.conta.asaasIndisponivelSubconta");
   }
 
   function mensagemVisualizarAsaasIndisponivel() {
     if (modoIntegracaoAsaas === "legado") {
-      return "Configure a chave API Asaas em Configurações → Boletos";
+      return t("financeiro.conta.visualizarIndisponivelLegado");
     }
-    return "Disponível após abrir a conta digital Asaas (Configurações → Boletos)";
+    return t("financeiro.conta.visualizarIndisponivelSubconta");
   }
 
   function abrirContaBancariaAsaas(aba: ContaDigitalAba) {
@@ -545,13 +561,9 @@ export function ContaBancariaConteudo() {
 
   return (
     <div className="space-y-4 text-xs text-slate-600">
-      <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
-        <span>Financeiro</span>
-        <span className="text-slate-400">&gt;</span>
-        <span className="font-medium text-slate-600">Conta Bancária</span>
-      </div>
+      <BreadcrumbFinanceiro pagina="financeiro.breadcrumb.contaBancaria" />
 
-      <h1 className="text-2xl font-normal text-slate-700">Financeiro</h1>
+      <h1 className="text-2xl font-normal text-slate-700">{t("financeiro.conta.titulo")}</h1>
 
       <div className="flex flex-wrap items-center gap-2">
         <button
@@ -560,7 +572,7 @@ export function ContaBancariaConteudo() {
           className="inline-flex items-center gap-1.5 rounded bg-[#4cae4c] px-4 py-2 text-[13px] font-normal text-white hover:bg-[#449d44]"
         >
           <Plus className="h-4 w-4" strokeWidth={2.5} />
-          Adicionar Conta
+          {t("financeiro.conta.adicionarConta")}
         </button>
         <button
           type="button"
@@ -568,7 +580,7 @@ export function ContaBancariaConteudo() {
           className="inline-flex items-center gap-1.5 rounded border border-[#4cae4c] bg-white px-4 py-2 text-[13px] text-[#4cae4c] hover:bg-[#f0faf0] dark:border-emerald-700 dark:bg-slate-900 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
         >
           <ArrowUpFromLine className="h-4 w-4" />
-          Conciliar
+          {t("financeiro.conta.conciliar")}
         </button>
         <button
           type="button"
@@ -581,7 +593,7 @@ export function ContaBancariaConteudo() {
           )}
         >
           <Eye className="h-4 w-4" />
-          Ver Excluídos
+          {t("financeiro.conta.verExcluidos")}
         </button>
       </div>
 
@@ -590,7 +602,7 @@ export function ContaBancariaConteudo() {
           type="text"
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
-          placeholder="Procurar"
+          placeholder={t("financeiro.conta.procurar")}
           className="min-w-0 flex-1 border-0 bg-transparent px-3 py-2.5 text-[13px] text-slate-800 outline-none dark:text-slate-100 dark:placeholder:text-slate-500"
         />
         <button
@@ -598,7 +610,7 @@ export function ContaBancariaConteudo() {
           onClick={() => setBusca("")}
           className="shrink-0 border-l border-[#e0e0e0] bg-transparent px-4 py-2.5 text-[12px] text-slate-500 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-800"
         >
-          Limpar
+          {t("financeiro.conta.limpar")}
         </button>
       </div>
 
@@ -606,9 +618,11 @@ export function ContaBancariaConteudo() {
         <table className="w-full border-collapse text-left">
           <thead>
             <tr>
-              <th className={thClass}>Nome</th>
-              <th className={cn(thClass, "text-right")}>Saldo</th>
-              <th className={cn(thClass, "w-[280px] text-center")}>Opções</th>
+              <th className={thClass}>{t("financeiro.conta.colunaNome")}</th>
+              <th className={cn(thClass, "text-right")}>{t("financeiro.conta.colunaSaldo")}</th>
+              <th className={cn(thClass, "w-[280px] text-center")}>
+                {t("financeiro.conta.colunaOpcoes")}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -619,8 +633,8 @@ export function ContaBancariaConteudo() {
                   className="px-4 py-10 text-center text-[13px] text-slate-400 dark:text-slate-500"
                 >
                   {verExcluidos
-                    ? "Nenhuma conta excluída."
-                    : "Nenhuma conta encontrada."}
+                    ? t("financeiro.conta.vazioExcluidos")
+                    : t("financeiro.conta.vazioNenhuma")}
                 </td>
               </tr>
             ) : (
@@ -671,7 +685,7 @@ export function ContaBancariaConteudo() {
                               onClick={() => restaurarConta(conta)}
                               className="rounded border border-[#4a90d9] px-3 py-1 text-[12px] text-[#4a90d9] hover:bg-[#f0f7ff] dark:border-sky-600 dark:text-sky-300 dark:hover:bg-slate-800"
                             >
-                              Restaurar
+                              {t("financeiro.conta.restaurar")}
                             </button>
                           ) : (
                             <>
@@ -681,7 +695,7 @@ export function ContaBancariaConteudo() {
                                   conta.id === ID_CONTA_CARTEIRA &&
                                   !podeVisualizarContaAsaas
                                     ? mensagemVisualizarAsaasIndisponivel()
-                                    : "Visualizar"
+                                    : t("financeiro.conta.visualizar")
                                 }
                                 onClick={() => visualizarConta(conta)}
                                 disabled={
@@ -700,7 +714,7 @@ export function ContaBancariaConteudo() {
                               {contaPermiteEditarNaLista(conta) ? (
                                 <button
                                   type="button"
-                                  title="Editar"
+                                  title={t("financeiro.conta.editar")}
                                   onClick={() => setModalEditar(conta)}
                                   className="inline-flex h-8 w-8 items-center justify-center text-slate-500 hover:text-[#4a90d9] dark:text-slate-400 dark:hover:text-sky-300"
                                 >
@@ -710,7 +724,7 @@ export function ContaBancariaConteudo() {
                               {conta.id !== ID_CONTA_CARTEIRA ? (
                                 <button
                                   type="button"
-                                  title="Transferências e Ajustes"
+                                  title={t("financeiro.conta.transferencias")}
                                   onClick={() => setModalTransferir(conta)}
                                   className="inline-flex h-8 w-8 items-center justify-center text-slate-500 hover:text-[#4a90d9] dark:text-slate-400 dark:hover:text-sky-300"
                                 >
@@ -720,7 +734,7 @@ export function ContaBancariaConteudo() {
                               {contaPodeExcluir(conta) ? (
                                 <button
                                   type="button"
-                                  title="Excluir"
+                                  title={t("financeiro.conta.excluir")}
                                   onClick={() => solicitarExclusaoConta(conta)}
                                   className="inline-flex h-8 w-8 items-center justify-center text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
                                 >
@@ -747,7 +761,7 @@ export function ContaBancariaConteudo() {
                                   classeBotaoAcaoConta(conta.acaoPrincipal)
                                 )}
                               >
-                                {labelAcaoConta(conta.acaoPrincipal)}
+                                {t(chaveAcaoConta(conta.acaoPrincipal))}
                               </button>
                             </>
                           )}
@@ -872,17 +886,19 @@ export function ContaBancariaConteudo() {
 
       <ConfirmacaoExclusaoModal
         open={contaExcluirConfirmacao !== null}
-        titulo="Excluir Conta Bancária"
+        titulo={t("financeiro.conta.excluirTitulo")}
         mensagem={
           contaExcluirConfirmacao
-            ? `Deseja realmente excluir a conta "${contaExcluirConfirmacao.nome}"?`
+            ? t("financeiro.conta.excluirMensagem", {
+                nome: contaExcluirConfirmacao.nome,
+              })
             : ""
         }
-        aviso="A conta será movida para a lista de excluídos. Você pode restaurá-la em Ver Excluídos."
+        aviso={t("financeiro.conta.excluirAviso")}
         onClose={() => setContaExcluirConfirmacao(null)}
         onConfirm={confirmarExclusaoConta}
-        labelConfirmar="Sim, excluir"
-        labelCancelar="Não"
+        labelConfirmar={t("financeiro.conta.simExcluir")}
+        labelCancelar={t("financeiro.conta.nao")}
       />
 
       <TransferenciasAjustesSaldoModal
