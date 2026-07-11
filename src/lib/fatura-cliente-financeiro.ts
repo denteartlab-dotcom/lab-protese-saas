@@ -1,3 +1,8 @@
+import {
+  saldoFatura,
+  type LancamentoContasReceber,
+} from "@/lib/contas-receber-financeiro";
+
 /** Forma de pagamento exibida em vermelho quando o cliente usa crédito de adiantamento. */
 export const FORMA_PAGAMENTO_ABATIMENTO_CREDITO = "Abatimento de Crédito";
 
@@ -62,6 +67,39 @@ export function formatarSaldoAnteriorCreditoFatura(
   return `- ${valorMonetarioSemPrefixo(credito, money)} C`;
 }
 
+/** Débito em aberto (outras faturas) — formato Smart: `350,00 D`. */
+export function formatarSaldoAnteriorDebitoFatura(
+  debito: number,
+  money: (n: number) => string
+) {
+  if (debito <= 0.009) return "0,00";
+  return `${valorMonetarioSemPrefixo(debito, money)} D`;
+}
+
+function ehFaturaCobrancaOs(descricao: string) {
+  return descricao.toLowerCase().startsWith("cobrança os");
+}
+
+/** Saldo em aberto de outras faturas do cliente (exclui a fatura atual). */
+export function calcularDebitoAbertoOutrasFaturas(
+  lancamentos: LancamentoResumoFatura[],
+  clienteId?: string,
+  excluirLancamentoId?: string
+) {
+  if (!clienteId) return 0;
+  const refs = lancamentos as LancamentoContasReceber[];
+  return lancamentos
+    .filter(
+      (l) =>
+        l.cliente?.id === clienteId &&
+        l.tipo === "receita" &&
+        l.id !== excluirLancamentoId &&
+        ehFaturaCobrancaOs(l.descricao) &&
+        l.status !== "pago"
+    )
+    .reduce((sum, l) => sum + saldoFatura(l, refs), 0);
+}
+
 export function calcularCreditoDisponivelClienteFatura(
   lancamentos: LancamentoResumoFatura[],
   clienteId?: string
@@ -112,4 +150,41 @@ export function calcularSaldoAnteriorCreditoFatura(
 ) {
   const saldo = Math.max(creditoDisponivel + creditoUsadoNaFaturaAtual, 0);
   return formatarSaldoAnteriorCreditoFatura(saldo, money);
+}
+
+/** Saldo anterior na fatura — crédito (`C`) ou débito (`D`) no formato Smart. */
+export function calcularSaldoAnteriorFatura(params: {
+  creditoDisponivel: number;
+  creditoUsadoNaFaturaAtual: number;
+  lancamentos: LancamentoResumoFatura[];
+  clienteId?: string;
+  excluirLancamentoId?: string;
+  money: (n: number) => string;
+}) {
+  const credito = Math.max(
+    params.creditoDisponivel + params.creditoUsadoNaFaturaAtual,
+    0
+  );
+  const debito = calcularDebitoAbertoOutrasFaturas(
+    params.lancamentos,
+    params.clienteId,
+    params.excluirLancamentoId
+  );
+
+  if (credito <= 0.009 && debito <= 0.009) return "0,00";
+  if (credito > 0.009 && debito <= 0.009) {
+    return formatarSaldoAnteriorCreditoFatura(credito, params.money);
+  }
+  if (debito > 0.009 && credito <= 0.009) {
+    return formatarSaldoAnteriorDebitoFatura(debito, params.money);
+  }
+
+  const liquido = debito - credito;
+  if (liquido > 0.009) {
+    return formatarSaldoAnteriorDebitoFatura(liquido, params.money);
+  }
+  if (liquido < -0.009) {
+    return formatarSaldoAnteriorCreditoFatura(Math.abs(liquido), params.money);
+  }
+  return "0,00";
 }

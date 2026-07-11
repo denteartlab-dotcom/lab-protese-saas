@@ -20,6 +20,7 @@ import {
   recebimentosParciaisDaFatura,
   type LancamentoContasReceber,
 } from "@/lib/contas-receber-financeiro";
+import { resolverDataFinalizadoImpressao } from "@/lib/os-itens-impressao";
 import {
   classificarItemOs,
   type SegmentoFaturamento,
@@ -63,11 +64,13 @@ export type TrabalhoFaturaImpressao = {
   numeroOs: number;
   tipoProtese: string;
   valor: number;
+  status?: string;
   dentes?: string | null;
   cor?: string | null;
   instrucoes?: string | null;
   dataPrevista?: string | null;
   dataEntrega?: string | null;
+  updatedAt?: string | null;
   cliente?: { nome?: string | null; cro?: string | null } | null;
   paciente?: { nome?: string | null } | null;
 };
@@ -412,7 +415,12 @@ export function montarDadosFaturaImpressao(params: {
   if (trabalhos.length) {
     for (const trabalho of trabalhos) {
       const dataOs = trabalho.dataPrevista ? formatDate(trabalho.dataPrevista) : formatDate(lancamento.data);
-      const finalizado = trabalho.dataEntrega ? formatDate(trabalho.dataEntrega) : "-";
+      const finalizado =
+        resolverDataFinalizadoImpressao({
+          status: trabalho.status || "",
+          dataEntrega: trabalho.dataEntrega,
+          updatedAt: trabalho.updatedAt,
+        }) || "-";
       const osExterna = osExternaAgenda(trabalho.instrucoes) || "-";
       for (const item of itensTrabalhoFatura(trabalho)) {
         const qtd = Number(String(item.quantidade).replace(",", ".")) || 1;

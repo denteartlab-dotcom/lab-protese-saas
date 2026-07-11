@@ -77,7 +77,7 @@ import {
 } from "@/lib/fatura-impressao-html";
 import {
   calcularCreditoDisponivelClienteFatura,
-  calcularSaldoAnteriorCreditoFatura,
+  calcularSaldoAnteriorFatura,
   calcularUltimoPagamentoClienteFatura,
   FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
 } from "@/lib/fatura-cliente-financeiro";
@@ -158,6 +158,7 @@ type Trabalho = {
   instrucoes?: string | null;
   dataPrevista?: string | null;
   dataEntrega?: string | null;
+  updatedAt?: string | null;
   cliente?: { id?: string; nome?: string | null; cro?: string | null } | null;
   paciente?: { nome?: string | null } | null;
 };
@@ -3294,11 +3295,14 @@ function FinanceiroReceberConteudo() {
                   formatDate,
                   money,
                 }),
-                saldoAnterior: calcularSaldoAnteriorCreditoFatura(
+                saldoAnterior: calcularSaldoAnteriorFatura({
                   creditoDisponivel,
-                  creditoUsado,
-                  money
-                ),
+                  creditoUsadoNaFaturaAtual: creditoUsado,
+                  lancamentos: lancamentosCliente,
+                  clienteId,
+                  excluirLancamentoId: lancamento.id,
+                  money,
+                }),
                 formatDate,
                 money,
               });
@@ -3333,11 +3337,14 @@ function FinanceiroReceberConteudo() {
                   formatDate,
                   money,
                 }),
-                saldoAnterior: calcularSaldoAnteriorCreditoFatura(
+                saldoAnterior: calcularSaldoAnteriorFatura({
                   creditoDisponivel,
-                  creditoUsado,
-                  money
-                ),
+                  creditoUsadoNaFaturaAtual: creditoUsado,
+                  lancamentos: lancamentosCliente,
+                  clienteId,
+                  excluirLancamentoId: lancamento.id,
+                  money,
+                }),
                 formatDate,
                 money,
               });
