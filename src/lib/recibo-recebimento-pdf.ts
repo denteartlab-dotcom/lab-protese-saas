@@ -38,6 +38,7 @@ export async function gerarReciboRecebimentoPdf(
 ): Promise<Blob> {
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
+  pdf.setProperties({ title: "Recibo" });
   const api = pdf as unknown as Parameters<typeof desenharCabecalhoLabRelatorioPdf>[0];
   const pageW = pdf.internal.pageSize.getWidth();
   const margin = 18;

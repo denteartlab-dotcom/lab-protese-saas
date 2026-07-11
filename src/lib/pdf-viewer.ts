@@ -59,6 +59,35 @@ function navegarAbaPdf(janela: Window | null, url: string): boolean {
   }
 }
 
+function escapeHtmlTexto(texto: string) {
+  return texto
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function abrirPdfNaJanelaComTitulo(janela: Window, pdfUrl: string, titulo: string) {
+  const tituloSafe = escapeHtmlTexto(titulo);
+  const urlSafe = pdfUrl.replace(/"/g, "&quot;");
+  janela.document.open();
+  janela.document.write(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>${tituloSafe}</title>
+<style>
+html,body{margin:0;height:100%;background:#525659}
+iframe{display:block;width:100%;height:100%;border:0}
+</style>
+</head>
+<body>
+<iframe src="${urlSafe}" title="${tituloSafe}"></iframe>
+</body>
+</html>`);
+  janela.document.close();
+}
+
 function agendarRevogarUrl(url: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
 }
@@ -377,17 +406,14 @@ export async function abrirPdfBlobDiretoNaAba(
     agendarRevogarUrl(url);
 
     if (janela && !janela.closed) {
-      try {
-        janela.document.title = titulo;
-      } catch {
-        /* ignore */
-      }
-      if (navegarAbaPdf(janela, url)) return;
-      fecharJanela(janela);
+      abrirPdfNaJanelaComTitulo(janela, url, titulo);
+      return;
     }
 
-    const aberta = window.open(url, "_blank");
-    if (!aberta) {
+    const aberta = window.open("about:blank", "_blank");
+    if (aberta) {
+      abrirPdfNaJanelaComTitulo(aberta, url, titulo);
+    } else {
       baixarPdfBlob(blob, nomeArquivo);
     }
   } catch (err) {

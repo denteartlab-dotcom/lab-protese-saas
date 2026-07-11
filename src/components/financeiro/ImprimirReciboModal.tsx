@@ -41,8 +41,8 @@ export function ImprimirReciboModal({
     const janela = prepararAbaPdf();
     void abrirPdfBlobGerandoNoVisualizadorUnificado(
       () => gerarReciboRecebimentoPdf(modelo, { clienteNome, linhas }),
-      `Recibo — ${clienteNome}`,
-      "recibo.pdf",
+      "Recibo",
+      "Recibo.pdf",
       { janela, origem: "Financeiro · Recibo" }
     );
   }
