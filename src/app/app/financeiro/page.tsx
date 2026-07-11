@@ -103,7 +103,7 @@ import {
   exportarContasReceberClientesCsv,
   gerarContasReceberClientesPdf,
 } from "@/lib/contas-receber-clientes-export";
-import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, contribuiRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, recebimentosHistoricoCliente, faturaRelacionadaAoRecebimento, movimentacoesRecebimentoDaFatura } from "@/lib/contas-receber-financeiro";
+import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, contribuiRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, recebimentosHistoricoCliente, movimentacoesRecebimentoDaFatura } from "@/lib/contas-receber-financeiro";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroReceita } from "@/lib/financeiro-painel-types";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
@@ -2505,6 +2505,21 @@ function FinanceiroReceberConteudo() {
                                                   <span className="text-[10px]">Boleto</span>
                                                 </a>
                                               ) : null}
+                                              {quitada ? (
+                                                <button
+                                                  type="button"
+                                                  title="Ver movimentações"
+                                                  onClick={() =>
+                                                    setMovimentacoesRecebimento({
+                                                      cliente,
+                                                      fatura: l,
+                                                    })
+                                                  }
+                                                  className="rounded p-1 text-slate-500 hover:bg-violet-50 hover:text-violet-700"
+                                                >
+                                                  <ListTree className="h-3.5 w-3.5" />
+                                                </button>
+                                              ) : null}
                                               <button
                                                 type="button"
                                                 title="Imprimir esta nota"
@@ -2563,16 +2578,7 @@ function FinanceiroReceberConteudo() {
                                         </td>
                                       </tr>
                                     )}
-                                    {recebimentosCliente.map((l) => {
-                                      const lancamentos = data?.lancamentos || [];
-                                      const faturaRelacionada = faturaRelacionadaAoRecebimento(
-                                        l,
-                                        lancamentos
-                                      );
-                                      const faturaQuitadaRelacionada =
-                                        faturaRelacionada &&
-                                        faturaQuitada(faturaRelacionada, lancamentos);
-                                      return (
+                                    {recebimentosCliente.map((l) => (
                                       <tr key={`recebimento-${l.id}`} className="border-b border-slate-100">
                                         <td className="px-2 py-2">{formatDate(l.data)}</td>
                                         <td className="px-2 py-2">
@@ -2637,21 +2643,6 @@ function FinanceiroReceberConteudo() {
                                                 <span className="text-[10px]">Boleto</span>
                                               </a>
                                             ) : null}
-                                            {faturaQuitadaRelacionada ? (
-                                              <button
-                                                type="button"
-                                                title="Ver movimentações"
-                                                onClick={() =>
-                                                  setMovimentacoesRecebimento({
-                                                    cliente,
-                                                    fatura: faturaRelacionada as Lancamento,
-                                                  })
-                                                }
-                                                className="rounded p-1 text-slate-500 hover:bg-violet-50 hover:text-violet-700"
-                                              >
-                                                <ListTree className="h-3.5 w-3.5" />
-                                              </button>
-                                            ) : null}
                                             <button
                                               type="button"
                                               title="Estornar recebimento"
@@ -2682,8 +2673,7 @@ function FinanceiroReceberConteudo() {
                                           </div>
                                         </td>
                                       </tr>
-                                    );
-                                    })}
+                                    ))}
                                   </tbody>
                                 </table>
                               </div>
