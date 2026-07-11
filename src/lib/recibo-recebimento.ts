@@ -90,8 +90,13 @@ export function gerarReciboRecebimentoHtml(
             const valor = currencyBr(l.valor);
             const vencimento = formatDate(l.data);
             return `
-            <tr><td>${forma}</td><td>${valor}</td></tr>
-            <tr><td><strong>Fatura: ${l.numeroFatura}</strong> | Vencimento: ${vencimento}</td><td>${valor}</td></tr>`;
+            <tr>
+              <td>
+                ${forma}<br/>
+                <strong>Fatura: ${l.numeroFatura}</strong> | Vencimento: ${vencimento}
+              </td>
+              <td>${valor}</td>
+            </tr>`;
           })
           .join("")
       : "";

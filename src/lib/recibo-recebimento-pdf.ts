@@ -91,20 +91,12 @@ export async function gerarReciboRecebimentoPdf(
       const forma = (l.formaPagamento || "Pix Externo").toUpperCase();
       const valor = currencyBr(l.valor);
       const vencimento = formatDate(l.data);
-      pdf.text(forma, colX[0] + 2, y);
+      const descricao = `${forma}\nFatura: ${l.numeroFatura} | Vencimento: ${vencimento}`;
+      const linhasDescricao = pdf.splitTextToSize(descricao, colW[0] - 4);
+      const altura = Math.max(linhasDescricao.length * 4.5, 6);
+      pdf.text(linhasDescricao, colX[0] + 2, y);
       pdf.text(valor, colX[1] + colW[1] - 2, y, { align: "right" });
-      y += 5;
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(9);
-      pdf.text(
-        `Fatura: ${l.numeroFatura} | Vencimento: ${vencimento}`,
-        colX[0] + 2,
-        y
-      );
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(10);
-      pdf.text(valor, colX[1] + colW[1] - 2, y, { align: "right" });
-      y += 7;
+      y += altura + 2;
     }
     y += 4;
   } else {
