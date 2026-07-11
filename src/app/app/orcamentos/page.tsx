@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Check, Copy, Edit3, Eye, Plus, Trash2 } from "lucide-react";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
+import { ModuloCabecalho } from "@/components/ModuloCabecalho";
+import { useI18n } from "@/components/i18n-provider";
 import { BarraConfigListagem } from "@/components/listagem/BarraConfigListagem";
 import { useListagemPaginada } from "@/hooks/use-listagem-paginada";
 import { compararDataIso, compararNumero, compararTextoBr } from "@/lib/listagem-config";
@@ -69,6 +71,7 @@ function readJson<T>(key: string, fallback: T): T {
 }
 
 export default function OrcamentosPage() {
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
   const [fornecedores, setFornecedores] = useState<FornecedorContato[]>([]);
@@ -362,7 +365,7 @@ export default function OrcamentosPage() {
         estoqueJobId?: string | null;
       };
       if (!response.ok) {
-        alert(data.message || "Não foi possível atualizar o orçamento.");
+        alert(data.message || t("estoque.orcamentos.alerta.erroAtualizar"));
         return;
       }
       if (status === "aprovado") {
@@ -405,7 +408,7 @@ export default function OrcamentosPage() {
   function copiarLink(orcamento: Orcamento) {
     const url = orcamentoPublicUrl(orcamento.token);
     void navigator.clipboard.writeText(url);
-    alert("Link copiado!");
+    alert(t("estoque.orcamentos.linkCopiado"));
   }
 
   async function confirmarReabrirLinkOrcamento() {
@@ -421,7 +424,7 @@ export default function OrcamentosPage() {
       });
       const data = (await response.json()) as Orcamento & { message?: string };
       if (!response.ok) {
-        alert(data.message || "Não foi possível reabrir o orçamento.");
+        alert(data.message || t("estoque.orcamentos.alerta.erroReabrir"));
         return;
       }
 
@@ -459,7 +462,7 @@ export default function OrcamentosPage() {
   async function enviarAprovacaoWhatsApp(orcamento: Orcamento) {
     const telefone = orcamento.whatsappEnvio?.trim();
     if (!telefone) {
-      alert("Este pedido não possui WhatsApp do fornecedor cadastrado.");
+      alert(t("estoque.orcamentos.alerta.semWhatsapp"));
       return;
     }
     const texto = mensagemAprovacaoOrcamento(
@@ -478,13 +481,7 @@ export default function OrcamentosPage() {
 
   return (
     <div className="space-y-3 text-xs text-slate-600">
-      <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
-        <span>Estoque</span>
-        <span className="text-slate-400">&gt;</span>
-        <span className="font-medium text-slate-600">Orçamento</span>
-      </div>
-
-      <h1 className="text-2xl font-normal text-slate-700">Estoque</h1>
+      <ModuloCabecalho moduloKey="nav.estoque" tituloKey="nav.orcamentos" />
 
       <button
         type="button"
@@ -492,33 +489,33 @@ export default function OrcamentosPage() {
         className="inline-flex h-8 items-center gap-1.5 rounded-sm bg-emerald-500 px-4 text-[11px] font-semibold text-white shadow-sm hover:bg-emerald-600"
       >
         <Plus className="h-4 w-4" />
-        Solicitar Orçamento
+        {t("estoque.orcamentos.solicitar")}
       </button>
 
       <div className="rounded border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-end gap-4 border-b border-slate-100 px-4 py-3">
           <div className="w-44">
-            <label className="mb-1 block text-[10px] font-medium text-slate-600">Situação</label>
+            <label className="mb-1 block text-[10px] font-medium text-slate-600">{t("estoque.orcamentos.situacao")}</label>
             <select
               value={situacao}
               onChange={(e) => setSituacao(e.target.value as "todos" | StatusOrcamento)}
               className="h-8 w-full rounded-sm border border-slate-200 bg-white px-2 text-[11px] text-slate-700 outline-none focus:border-blue-400"
             >
-              <option value="todos">Todos</option>
-              <option value="enviado">Enviado</option>
-              <option value="aguardando_resposta">Aguardando Resposta</option>
-              <option value="aprovado">Aprovado</option>
-              <option value="cancelado">Cancelado</option>
+              <option value="todos">{t("estoque.orcamentos.todos")}</option>
+              <option value="enviado">{t("estoque.orcamentos.enviado")}</option>
+              <option value="aguardando_resposta">{t("estoque.orcamentos.aguardandoResposta")}</option>
+              <option value="aprovado">{t("estoque.orcamentos.aprovado")}</option>
+              <option value="cancelado">{t("estoque.orcamentos.cancelado")}</option>
             </select>
           </div>
 
           <div className="min-w-[280px] flex-1">
-            <label className="mb-1 block text-[10px] font-medium text-slate-600">Busca</label>
+            <label className="mb-1 block text-[10px] font-medium text-slate-600">{t("cadastros.comum.buscar")}</label>
             <div className="flex">
               <input
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
-                placeholder=""
+                placeholder={t("estoque.orcamentos.buscarPlaceholder")}
                 className="h-8 min-w-0 flex-1 rounded-l-sm border border-r-0 border-slate-200 px-3 text-[11px] outline-none focus:border-blue-400"
               />
               <button
@@ -526,7 +523,7 @@ export default function OrcamentosPage() {
                 onClick={() => setBusca("")}
                 className="h-8 shrink-0 rounded-r-sm border border-slate-200 bg-slate-100 px-4 text-[11px] font-medium text-slate-600 hover:bg-slate-200"
               >
-                Limpar
+                {t("cadastros.comum.limpar")}
               </button>
             </div>
           </div>

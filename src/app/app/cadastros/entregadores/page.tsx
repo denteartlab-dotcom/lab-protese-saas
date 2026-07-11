@@ -5,6 +5,8 @@ import { Edit3, Eye, MapPin, Plus, Search, Trash2, User } from "lucide-react";
 import { BotoesListagemEntregadores } from "@/components/entregadores/BotoesListagemEntregadores";
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
+import { ModuloCabecalho } from "@/components/ModuloCabecalho";
+import { useI18n } from "@/components/i18n-provider";
 import { compararTextoBr } from "@/lib/listagem-config";
 import { exibirTelefone, formatarTelefone, PLACEHOLDER_TELEFONE_BR } from "@/lib/validar-documento";
 import { Modal } from "@/components/ui";
@@ -48,6 +50,7 @@ function tituloSecao(icon: React.ReactNode, texto: string) {
 }
 
 export default function EntregadoresPage() {
+  const { t } = useI18n();
   const [busca, setBusca] = useState("");
   const [entregadores, setEntregadores] = useState<EntregadorCadastro[]>([]);
   const [entregadoresExcluidos, setEntregadoresExcluidos] = useState<EntregadorCadastro[]>([]);
@@ -138,7 +141,7 @@ export default function EntregadoresPage() {
       const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
       const data = await res.json();
       if (data.erro) {
-        alert("CEP não encontrado.");
+        alert(t("cadastros.comum.alerta.cepNaoEncontrado"));
         return;
       }
       setForm((atual) => ({
@@ -213,7 +216,7 @@ export default function EntregadoresPage() {
 
   async function imprimirListaEntregadores() {
     if (!filtrados.length) {
-      alert("Não há entregadores para imprimir.");
+      alert(t("cadastros.entregadores.alerta.semImprimir"));
       return;
     }
     setProcessandoLista(true);
@@ -224,7 +227,7 @@ export default function EntregadoresPage() {
         "Lista de Entregadores Cadastrados"
       );
     } catch {
-      alert("Não foi possível gerar a impressão.");
+      alert(t("cadastros.comum.alerta.erroImprimir"));
     } finally {
       setProcessandoLista(false);
     }
@@ -232,14 +235,14 @@ export default function EntregadoresPage() {
 
   async function exportarListaEntregadores() {
     if (!filtrados.length) {
-      alert("Não há entregadores para exportar.");
+      alert(t("cadastros.entregadores.alerta.semExportar"));
       return;
     }
     setProcessandoLista(true);
     try {
       await exportarEntregadoresExcel(filtrados);
     } catch {
-      alert("Não foi possível exportar a planilha.");
+      alert(t("cadastros.comum.alerta.erroExportar"));
     } finally {
       setProcessandoLista(false);
     }
@@ -247,11 +250,7 @@ export default function EntregadoresPage() {
 
   return (
     <div className="space-y-4 text-xs text-slate-600">
-      <div className="flex items-center gap-2">
-        <h1 className="text-lg font-medium text-slate-700">Cadastros</h1>
-        <span className="text-slate-300">/</span>
-        <span>Entregadores</span>
-      </div>
+      <ModuloCabecalho moduloKey="nav.cadastros" tituloKey="nav.entregadores" />
 
       <div className="rounded border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-3 py-2">
@@ -262,7 +261,7 @@ export default function EntregadoresPage() {
               className="inline-flex items-center gap-1 rounded bg-emerald-500 px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-600"
             >
               <Plus className="h-3.5 w-3.5" />
-              Adicionar Entregador
+              {t("cadastros.entregadores.adicionar")}
             </button>
             <button
               type="button"
@@ -270,7 +269,7 @@ export default function EntregadoresPage() {
               className="inline-flex items-center gap-1 rounded border border-blue-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-blue-600 hover:bg-blue-50"
             >
               <Eye className="h-3.5 w-3.5" />
-              {mostrarExcluidos ? "Ver Ativos" : "Ver Excluídos"}
+              {mostrarExcluidos ? t("cadastros.comum.verAtivos") : t("cadastros.comum.verExcluidos")}
             </button>
             <BotoesListagemEntregadores
               onImprimir={() => void imprimirListaEntregadores()}
@@ -285,7 +284,7 @@ export default function EntregadoresPage() {
               <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <input
                 className="h-8 w-full rounded border border-slate-300 py-1 pl-8 pr-16 text-xs outline-none focus:border-primary-400"
-                placeholder="Procurar"
+                placeholder={t("cadastros.comum.procurar")}
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
               />
@@ -294,7 +293,7 @@ export default function EntregadoresPage() {
                 onClick={() => setBusca("")}
                 className="absolute right-0 top-0 h-8 rounded-r bg-slate-500 px-4 text-[11px] font-semibold text-white hover:bg-slate-600"
               >
-                Limpar
+                {t("cadastros.comum.limpar")}
               </button>
             </div>
           </div>
@@ -321,11 +320,11 @@ export default function EntregadoresPage() {
               <table className="w-full min-w-[900px] border-collapse text-[11px]">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50 text-slate-500">
-                    <th className="px-3 py-2 text-left font-semibold">NOME</th>
-                    <th className="px-3 py-2 text-left font-semibold">CELULAR</th>
+                    <th className="px-3 py-2 text-left font-semibold">{t("cadastros.comum.nome").toUpperCase()}</th>
+                    <th className="px-3 py-2 text-left font-semibold">{t("cadastros.comum.celular").toUpperCase()}</th>
                     <th className="px-3 py-2 text-left font-semibold">WHATSAPP</th>
-                    <th className="px-3 py-2 text-left font-semibold">EMAIL</th>
-                    <th className="px-3 py-2 text-center font-semibold">OPÇÕES</th>
+                    <th className="px-3 py-2 text-left font-semibold">{t("cadastros.comum.email").toUpperCase()}</th>
+                    <th className="px-3 py-2 text-center font-semibold">{t("cadastros.comum.opcoes").toUpperCase()}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -347,7 +346,7 @@ export default function EntregadoresPage() {
                                   type="button"
                                   onClick={() => setVisualizando(aberto ? null : entregador)}
                                   className={`rounded p-1 hover:bg-blue-50 hover:text-blue-600 ${aberto ? "bg-blue-50 text-blue-500" : ""}`}
-                                  title="Visualizar"
+                                  title={t("cadastros.comum.visualizar")}
                                 >
                                   <Eye className="h-3.5 w-3.5" />
                                 </button>
@@ -356,7 +355,7 @@ export default function EntregadoresPage() {
                                   onClick={() => abrirEdicao(entregador)}
                                   disabled={mostrarExcluidos}
                                   className="rounded p-1 hover:bg-slate-100 hover:text-blue-600 disabled:opacity-40"
-                                  title="Editar"
+                                  title={t("cadastros.comum.editar")}
                                 >
                                   <Edit3 className="h-3.5 w-3.5" />
                                 </button>
@@ -367,14 +366,14 @@ export default function EntregadoresPage() {
                                       onClick={() => restaurarEntregador(entregador.id)}
                                       className="rounded bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-emerald-600"
                                     >
-                                      Restaurar
+                                      {t("cadastros.comum.restaurar")}
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => removerEntregadorDefinitivo(entregador.id)}
                                       className="rounded bg-red-500 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-red-600"
                                     >
-                                      Excluir
+                                      {t("cadastros.comum.excluir")}
                                     </button>
                                   </>
                                 ) : (
@@ -382,7 +381,7 @@ export default function EntregadoresPage() {
                                     type="button"
                                     onClick={() => excluirEntregador(entregador.id)}
                                     className="rounded p-1 text-red-500 hover:bg-red-50"
-                                    title="Excluir"
+                                    title={t("cadastros.comum.excluir")}
                                   >
                                     <Trash2 className="h-3.5 w-3.5" />
                                   </button>
@@ -431,7 +430,7 @@ export default function EntregadoresPage() {
                                     onClick={() => setVisualizando(null)}
                                     className="mt-3 rounded border border-slate-300 bg-white px-3 py-1 text-[10px] text-slate-600 hover:bg-slate-50"
                                   >
-                                    Fechar Detalhes
+                                    {t("cadastros.comum.fecharDetalhes")}
                                   </button>
                                 </div>
                               </td>
@@ -445,8 +444,8 @@ export default function EntregadoresPage() {
                     <tr>
                       <td colSpan={5} className="px-3 py-10 text-center text-slate-400">
                         {mostrarExcluidos
-                          ? "Nenhum entregador excluído."
-                          : "Nenhum entregador encontrado."}
+                          ? t("cadastros.entregadores.nenhumExcluido")
+                          : t("cadastros.entregadores.nenhumEncontrado")}
                       </td>
                     </tr>
                   ) : null}
@@ -460,7 +459,7 @@ export default function EntregadoresPage() {
       <Modal
         open={modalAberto}
         onClose={() => setModalAberto(false)}
-        title={editando ? "Editar Entregador" : "Cadastrar Entregador"}
+        title={editando ? t("cadastros.entregadores.editar") : t("cadastros.entregadores.cadastrar")}
         size="xl"
       >
         <form onSubmit={salvarEntregador} className="space-y-5 text-[11px] text-slate-600">
@@ -576,7 +575,7 @@ export default function EntregadoresPage() {
                     disabled={buscandoCep}
                     className="h-8 shrink-0 rounded border border-blue-500 bg-white px-2 text-[9px] font-semibold text-blue-600 hover:bg-blue-50 disabled:opacity-60"
                   >
-                    {buscandoCep ? "..." : "Buscar Endereço"}
+                    {buscandoCep ? "..." : t("cadastros.comum.buscarEndereco")}
                   </button>
                 </div>
               </div>
@@ -638,14 +637,14 @@ export default function EntregadoresPage() {
               type="submit"
               className="rounded bg-[#4a90d9] px-4 py-2 text-[11px] font-semibold text-white hover:bg-[#3d7fc4]"
             >
-              {editando ? "Salvar" : "Cadastrar"}
+              {editando ? t("cadastros.comum.salvar") : t("cadastros.comum.cadastrar")}
             </button>
             <button
               type="button"
               onClick={() => setModalAberto(false)}
               className="rounded border border-slate-300 bg-white px-4 py-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
             >
-              Fechar
+              {t("cadastros.comum.fechar")}
             </button>
           </div>
         </form>

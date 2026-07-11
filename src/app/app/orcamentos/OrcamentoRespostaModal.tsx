@@ -1,6 +1,7 @@
 "use client";
 
 import { I18nPortal } from "@/components/I18nPortal";
+import { useI18n } from "@/components/i18n-provider";
 import { ExternalLink, X } from "lucide-react";
 import { STATUS_ORCAMENTO, totalLiquidoOrcamento, type Orcamento } from "@/lib/orcamentos-types";
 import {
@@ -28,6 +29,7 @@ export function OrcamentoRespostaModal({
   onReabrirLink,
   processando = false,
 }: Props) {
+  const { t } = useI18n();
   if (!open || !orcamento) return null;
 
   const descontoValor =
@@ -54,7 +56,7 @@ export function OrcamentoRespostaModal({
         <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-3.5">
           <div>
             <h2 className="text-[15px] font-medium text-slate-700">
-              Orçamento do Fornecedor — Pedido #{orcamento.numeroPedido}
+              {t("estoque.orcamentos.modal.resposta", { numero: orcamento.numeroPedido })}
             </h2>
             <p className="text-[11px] text-slate-500">{orcamento.fornecedorNome}</p>
           </div>
@@ -62,7 +64,7 @@ export function OrcamentoRespostaModal({
             type="button"
             onClick={onClose}
             className="text-slate-400 hover:text-slate-600"
-            aria-label="Fechar"
+            aria-label={t("cadastros.comum.fechar")}
           >
             <X className="h-5 w-5" />
           </button>

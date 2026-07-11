@@ -1,6 +1,7 @@
 "use client";
 
 import { I18nPortal } from "@/components/I18nPortal";
+import { useI18n } from "@/components/i18n-provider";
 import type { ReactNode } from "react";
 import { Trash2 } from "lucide-react";
 import { CampoDataBr } from "@/components/ui";
@@ -64,6 +65,7 @@ export function HistoricoMovimentosModal({
   colaboradorMovimento,
   onExcluirMovimento,
 }: Props) {
+  const { t } = useI18n();
   if (!open) return null;
 
   function solicitarExclusao(movimento: MovimentoEstoque) {
@@ -84,13 +86,13 @@ export function HistoricoMovimentosModal({
       >
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
           <h2 id="historico-movimentos-titulo" className="text-[15px] font-medium text-slate-600">
-            Histórico de Movimentos de Estoque
+            {t("estoque.produtos.historico")}
           </h2>
           <button
             type="button"
             onClick={onClose}
             className="text-xl leading-none text-slate-400 hover:text-slate-600"
-            aria-label="Fechar"
+            aria-label={t("cadastros.comum.fechar")}
           >
             ×
           </button>
@@ -104,7 +106,7 @@ export function HistoricoMovimentosModal({
                 onChange={(event) => onFiltrosChange({ ...filtros, colaborador: event.target.value })}
                 className={selectClass}
               >
-                <option value="">Selecione</option>
+                <option value="">{t("cadastros.comum.selecione")}</option>
                 {colaboradores.map((nome) => (
                   <option key={nome} value={nome}>
                     {nome}
@@ -136,7 +138,7 @@ export function HistoricoMovimentosModal({
                 onChange={(event) => onFiltrosChange({ ...filtros, setor: event.target.value })}
                 className={selectClass}
               >
-                <option value="">Selecione</option>
+                <option value="">{t("cadastros.comum.selecione")}</option>
                 {setores.map((setor) => (
                   <option key={setor} value={setor}>
                     {setor}

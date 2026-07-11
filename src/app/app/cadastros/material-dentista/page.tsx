@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Edit3, Plus, Trash2 } from "lucide-react";
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
+import { ModuloCabecalho } from "@/components/ModuloCabecalho";
+import { useI18n } from "@/components/i18n-provider";
 import { Button, Input, Modal } from "@/components/ui";
 import { usePageReady } from "@/hooks/use-page-ready";
 import {
@@ -14,6 +16,7 @@ import {
 } from "@/lib/materiais-dentista-cadastro";
 
 export default function MaterialDentistaPage() {
+  const { t } = useI18n();
   const [busca, setBusca] = useState("");
   const [materiais, setMateriais] = useState<string[]>([]);
   const [modalAberto, setModalAberto] = useState(false);
@@ -86,11 +89,7 @@ export default function MaterialDentistaPage() {
 
   return (
     <div className="space-y-4 text-xs text-slate-600">
-      <div className="flex items-center gap-2 text-sm text-slate-500">
-        <span>Cadastros</span>
-        <span>/</span>
-        <span className="font-medium text-slate-700">Material Rec Dentista</span>
-      </div>
+      <ModuloCabecalho moduloKey="nav.cadastros" tituloKey="nav.materialDentista" />
 
       <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -100,14 +99,14 @@ export default function MaterialDentistaPage() {
             className="inline-flex h-7 items-center gap-1 rounded-sm bg-emerald-500 px-3 text-[10px] font-semibold text-white hover:bg-emerald-600"
           >
             <Plus className="h-3.5 w-3.5" />
-            Adicionar Material
+            {t("cadastros.materialDentista.adicionar")}
           </button>
 
           <div className="flex w-full max-w-xl items-center gap-1">
             <input
               value={busca}
               onChange={(event) => setBusca(event.target.value)}
-              placeholder="Pesquisar"
+              placeholder={t("cadastros.comum.pesquisar")}
               className="h-7 flex-1 rounded-sm border border-slate-200 px-3 text-[10px] outline-none focus:border-blue-400"
             />
             <button
@@ -115,7 +114,7 @@ export default function MaterialDentistaPage() {
               onClick={() => setBusca("")}
               className="h-7 rounded-sm bg-slate-500 px-3 text-[10px] font-semibold text-white hover:bg-slate-600"
             >
-              Limpar
+              {t("cadastros.comum.limpar")}
             </button>
           </div>
         </div>
@@ -126,8 +125,8 @@ export default function MaterialDentistaPage() {
           <table className="w-full min-w-[700px] text-[10px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50 text-slate-500">
-                <th className="px-3 py-2 text-left font-semibold uppercase">Nome</th>
-                <th className="px-3 py-2 text-center font-semibold uppercase">Opções</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("listagem.nome")}</th>
+                <th className="px-3 py-2 text-center font-semibold uppercase">{t("cadastros.comum.opcoes")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">

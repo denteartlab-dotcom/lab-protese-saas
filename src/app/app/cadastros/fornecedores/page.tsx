@@ -6,6 +6,8 @@ import { BotoesListagemFornecedores } from "@/components/fornecedores/BotoesList
 import { ImportarFornecedoresExcelModal } from "@/components/fornecedores/ImportarFornecedoresExcelModal";
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
+import { ModuloCabecalho } from "@/components/ModuloCabecalho";
+import { useI18n } from "@/components/i18n-provider";
 import { compararTextoBr } from "@/lib/listagem-config";
 import { exibirTelefone, formatarTelefone, PLACEHOLDER_TELEFONE_BR } from "@/lib/validar-documento";
 import {
@@ -101,6 +103,7 @@ function carregarCategorias() {
 }
 
 export default function FornecedoresPage() {
+  const { t } = useI18n();
   const [busca, setBusca] = useState("");
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [fornecedoresExcluidos, setFornecedoresExcluidos] = useState<Fornecedor[]>([]);
@@ -298,7 +301,7 @@ export default function FornecedoresPage() {
 
   async function imprimirListaFornecedores() {
     if (!filtrados.length) {
-      alert("Não há fornecedores para imprimir.");
+      alert(t("cadastros.fornecedores.alerta.semImprimir"));
       return;
     }
     setProcessandoLista(true);
@@ -309,7 +312,7 @@ export default function FornecedoresPage() {
         "Lista de Fornecedores Cadastrados"
       );
     } catch {
-      alert("Não foi possível gerar a impressão.");
+      alert(t("cadastros.comum.alerta.erroImprimir"));
     } finally {
       setProcessandoLista(false);
     }
@@ -317,14 +320,14 @@ export default function FornecedoresPage() {
 
   async function exportarListaFornecedores() {
     if (!filtrados.length) {
-      alert("Não há fornecedores para exportar.");
+      alert(t("cadastros.fornecedores.alerta.semExportar"));
       return;
     }
     setProcessandoLista(true);
     try {
       await exportarFornecedoresExcel(filtrados);
     } catch {
-      alert("Não foi possível exportar a planilha.");
+      alert(t("cadastros.comum.alerta.erroExportar"));
     } finally {
       setProcessandoLista(false);
     }
@@ -338,11 +341,7 @@ export default function FornecedoresPage() {
 
   return (
     <div className="space-y-4 text-xs text-slate-600">
-      <div className="flex items-center gap-2 text-sm text-slate-500">
-        <span>Cadastros</span>
-        <span>/</span>
-        <span className="font-medium text-slate-700">Fornecedores</span>
-      </div>
+      <ModuloCabecalho moduloKey="nav.cadastros" tituloKey="nav.fornecedores" />
 
       <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -353,14 +352,14 @@ export default function FornecedoresPage() {
               className="inline-flex h-7 items-center gap-1 rounded-sm bg-emerald-500 px-3 text-[10px] font-semibold text-white hover:bg-emerald-600"
             >
               <Plus className="h-3.5 w-3.5" />
-              Adicionar Fornecedor
+              {t("cadastros.fornecedores.adicionar")}
             </button>
             <button
               type="button"
               onClick={() => setMostrarExcluidos((atual) => !atual)}
               className="h-7 rounded-sm border border-slate-300 bg-white px-3 text-[10px] font-semibold text-slate-600 hover:bg-slate-50"
             >
-              {mostrarExcluidos ? "Ver Ativos" : "Ver Excluídos"}
+              {mostrarExcluidos ? t("cadastros.comum.verAtivos") : t("cadastros.comum.verExcluidos")}
             </button>
             <BotoesListagemFornecedores
               onImprimir={() => void imprimirListaFornecedores()}
@@ -375,7 +374,7 @@ export default function FornecedoresPage() {
             <input
               value={busca}
               onChange={(event) => setBusca(event.target.value)}
-              placeholder="Pesquisar"
+              placeholder={t("cadastros.comum.pesquisar")}
               className="h-7 flex-1 rounded-sm border border-slate-200 px-3 text-[10px] outline-none focus:border-blue-400"
             />
             <button
@@ -383,7 +382,7 @@ export default function FornecedoresPage() {
               onClick={() => setBusca("")}
               className="h-7 rounded-sm bg-slate-500 px-3 text-[10px] font-semibold text-white hover:bg-slate-600"
             >
-              Limpar
+              {t("cadastros.comum.limpar")}
             </button>
           </div>
         </div>
@@ -404,12 +403,12 @@ export default function FornecedoresPage() {
           <table className="w-full min-w-[900px] text-[10px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50 text-slate-500">
-                <th className="px-3 py-2 text-left font-semibold uppercase">Nome</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Contato</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Celular</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.comum.nome")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.comum.contato")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.comum.celular")}</th>
                 <th className="px-3 py-2 text-left font-semibold uppercase">WhatsApp</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Email</th>
-                <th className="px-3 py-2 text-center font-semibold uppercase">Opções</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.comum.email")}</th>
+                <th className="px-3 py-2 text-center font-semibold uppercase">{t("cadastros.comum.opcoes")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -432,7 +431,7 @@ export default function FornecedoresPage() {
                             type="button"
                             onClick={() => setVisualizando(aberto ? null : fornecedor)}
                             className={`rounded p-1 hover:bg-blue-50 hover:text-blue-600 ${aberto ? "bg-blue-50 text-blue-500" : ""}`}
-                            title="Visualizar"
+                            title={t("cadastros.comum.visualizar")}
                           >
                             <Eye className="h-3.5 w-3.5" />
                           </button>
@@ -441,7 +440,7 @@ export default function FornecedoresPage() {
                         onClick={() => abrirEdicao(fornecedor)}
                         disabled={mostrarExcluidos}
                         className="rounded p-1 hover:bg-slate-100 hover:text-blue-600"
-                        title="Editar"
+                        title={t("cadastros.comum.editar")}
                       >
                         <Edit3 className="h-3.5 w-3.5" />
                       </button>
@@ -451,15 +450,15 @@ export default function FornecedoresPage() {
                             type="button"
                             onClick={() => restaurarFornecedor(fornecedor.id)}
                             className="rounded bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-emerald-600"
-                            title="Restaurar"
+                            title={t("cadastros.comum.restaurar")}
                           >
-                            Restaurar
+                            {t("cadastros.comum.restaurar")}
                           </button>
                           <button
                             type="button"
                             onClick={() => removerFornecedorDefinitivo(fornecedor.id)}
                             className="rounded p-1 text-red-500 hover:bg-red-50"
-                            title="Remover definitivamente"
+                            title={t("cadastros.comum.removerDefinitivo")}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -469,7 +468,7 @@ export default function FornecedoresPage() {
                           type="button"
                           onClick={() => excluirFornecedor(fornecedor.id)}
                           className="rounded bg-orange-400 px-1.5 py-0.5 text-white hover:bg-orange-500"
-                          title="Excluir"
+                          title={t("cadastros.comum.excluir")}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -497,7 +496,7 @@ export default function FornecedoresPage() {
                               onClick={() => setVisualizando(null)}
                               className="mt-3 rounded border border-slate-300 bg-white px-3 py-1 text-[10px] text-slate-600 hover:bg-slate-50"
                             >
-                              Fechar Detalhes
+                              {t("cadastros.comum.fecharDetalhes")}
                             </button>
                           </div>
                         </td>
@@ -510,7 +509,7 @@ export default function FornecedoresPage() {
               {paginaPronta && filtrados.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-3 py-8 text-center text-slate-400">
-                    {mostrarExcluidos ? "Nenhum fornecedor excluído." : "Nenhum fornecedor encontrado."}
+                    {mostrarExcluidos ? t("cadastros.fornecedores.nenhumExcluido") : t("cadastros.fornecedores.nenhumEncontrado")}
                   </td>
                 </tr>
               )}
@@ -524,7 +523,7 @@ export default function FornecedoresPage() {
       <Modal
         open={modalAberto}
         onClose={() => setModalAberto(false)}
-        title={editando ? "Editar Fornecedor" : "Cadastrar Fornecedor"}
+        title={editando ? t("cadastros.fornecedores.editar") : t("cadastros.fornecedores.cadastrar")}
         size="xl"
       >
         <form onSubmit={salvarFornecedor} className="space-y-5 text-[11px] text-slate-600">
@@ -642,7 +641,7 @@ export default function FornecedoresPage() {
                 disabled={buscandoCep}
                 className="mt-6 h-10 rounded border border-slate-300 px-3 text-[11px] font-semibold text-blue-600 hover:bg-blue-50 disabled:opacity-60"
               >
-                {buscandoCep ? "Buscando..." : "Buscar Endereço"}
+                {buscandoCep ? t("cadastros.comum.buscando") : t("cadastros.comum.buscarEndereco")}
               </button>
               <Input
                 label="Rua"
@@ -710,9 +709,9 @@ export default function FornecedoresPage() {
           </section>
 
           <div className="flex justify-start gap-2 border-t border-slate-100 pt-4">
-            <Button type="submit" size="sm">{editando ? "Salvar" : "Cadastrar"}</Button>
+            <Button type="submit" size="sm">{editando ? t("cadastros.comum.salvar") : t("cadastros.comum.cadastrar")}</Button>
             <Button type="button" size="sm" variant="outline" onClick={() => setModalAberto(false)}>
-              Fechar
+              {t("cadastros.comum.fechar")}
             </Button>
           </div>
         </form>

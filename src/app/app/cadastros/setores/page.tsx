@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Edit3, Plus, Trash2 } from "lucide-react";
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
+import { ModuloCabecalho } from "@/components/ModuloCabecalho";
+import { useI18n } from "@/components/i18n-provider";
 import { Button, Input, Modal } from "@/components/ui";
 import { usePageReady } from "@/hooks/use-page-ready";
 import { readStorageArray, writeStorage } from "@/lib/persisted-storage";
@@ -28,6 +30,7 @@ function carregarLista(key: string, fallback: Setor[] = []) {
 }
 
 export default function SetoresPage() {
+  const { t } = useI18n();
   const [busca, setBusca] = useState("");
   const [setores, setSetores] = useState<Setor[]>([]);
   const [setoresExcluidos, setSetoresExcluidos] = useState<Setor[]>([]);
@@ -140,11 +143,7 @@ export default function SetoresPage() {
 
   return (
     <div className="space-y-4 text-xs text-slate-600">
-      <div className="flex items-center gap-2 text-sm text-slate-500">
-        <span>Cadastros</span>
-        <span>/</span>
-        <span className="font-medium text-slate-700">Setores</span>
-      </div>
+      <ModuloCabecalho moduloKey="nav.cadastros" tituloKey="nav.setores" />
 
       <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -155,14 +154,14 @@ export default function SetoresPage() {
               className="inline-flex h-7 items-center gap-1 rounded-sm bg-emerald-500 px-3 text-[10px] font-semibold text-white hover:bg-emerald-600"
             >
               <Plus className="h-3.5 w-3.5" />
-              Adicionar Setor
+              {t("cadastros.setores.adicionar")}
             </button>
             <button
               type="button"
               onClick={() => setMostrarExcluidos((atual) => !atual)}
               className="h-7 rounded-sm border border-slate-300 bg-white px-3 text-[10px] font-semibold text-slate-600 hover:bg-slate-50"
             >
-              {mostrarExcluidos ? "Ver Ativos" : "Ver Excluídos"}
+              {mostrarExcluidos ? t("cadastros.comum.verAtivos") : t("cadastros.comum.verExcluidos")}
             </button>
           </div>
 
@@ -170,7 +169,7 @@ export default function SetoresPage() {
             <input
               value={busca}
               onChange={(event) => setBusca(event.target.value)}
-              placeholder="Pesquisar"
+              placeholder={t("cadastros.comum.pesquisar")}
               className="h-7 flex-1 rounded-sm border border-slate-200 px-3 text-[10px] outline-none focus:border-blue-400"
             />
             <button
@@ -178,7 +177,7 @@ export default function SetoresPage() {
               onClick={() => setBusca("")}
               className="h-7 rounded-sm bg-slate-500 px-3 text-[10px] font-semibold text-white hover:bg-slate-600"
             >
-              Limpar
+              {t("cadastros.comum.limpar")}
             </button>
           </div>
         </div>
@@ -189,9 +188,9 @@ export default function SetoresPage() {
           <table className="w-full min-w-[700px] text-[10px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50 text-slate-500">
-                <th className="px-3 py-2 text-left font-semibold uppercase">Setor</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Cor</th>
-                <th className="px-3 py-2 text-center font-semibold uppercase">Opções</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.setores.coluna")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.comum.cor")}</th>
+                <th className="px-3 py-2 text-center font-semibold uppercase">{t("cadastros.comum.opcoes")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -215,7 +214,7 @@ export default function SetoresPage() {
                         onClick={() => abrirEdicao(setor)}
                         disabled={mostrarExcluidos}
                         className="rounded p-1 hover:bg-slate-100 hover:text-blue-600 disabled:opacity-40"
-                        title="Editar"
+                        title={t("cadastros.comum.editar")}
                       >
                         <Edit3 className="h-3.5 w-3.5" />
                       </button>
@@ -226,13 +225,13 @@ export default function SetoresPage() {
                             onClick={() => restaurarSetor(setor.id)}
                             className="rounded bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-emerald-600"
                           >
-                            Restaurar
+                            {t("cadastros.comum.restaurar")}
                           </button>
                           <button
                             type="button"
                             onClick={() => removerSetorDefinitivo(setor.id)}
                             className="rounded p-1 text-red-500 hover:bg-red-50"
-                            title="Remover definitivamente"
+                            title={t("cadastros.comum.removerDefinitivo")}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -242,7 +241,7 @@ export default function SetoresPage() {
                           type="button"
                           onClick={() => excluirSetor(setor.id)}
                           className="rounded p-1 text-red-500 hover:bg-red-50"
-                          title="Excluir"
+                          title={t("cadastros.comum.excluir")}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -255,7 +254,7 @@ export default function SetoresPage() {
               {paginaPronta && filtrados.length === 0 && (
                 <tr>
                   <td colSpan={3} className="px-3 py-8 text-center text-slate-400">
-                    {mostrarExcluidos ? "Nenhum setor excluído." : "Nenhum setor encontrado."}
+                    {mostrarExcluidos ? t("cadastros.setores.nenhumExcluido") : t("cadastros.setores.nenhumEncontrado")}
                   </td>
                 </tr>
               )}
@@ -269,19 +268,19 @@ export default function SetoresPage() {
       <Modal
         open={modalAberto}
         onClose={() => setModalAberto(false)}
-        title={editando ? "Editar Setor" : "Cadastrar Setor"}
+        title={editando ? t("cadastros.setores.editar") : t("cadastros.setores.cadastrar")}
         size="sm"
       >
         <form onSubmit={salvarSetor} className="space-y-4 text-[11px] text-slate-600">
           <Input
-            label="Setor"
+            label={t("cadastros.setores.coluna")}
             value={form.nome}
             onChange={(event) => setForm({ ...form, nome: event.target.value })}
             placeholder="Digite o nome do Setor"
             required
           />
           <div className="space-y-1">
-            <label className="block text-sm font-medium text-slate-700">Cor</label>
+            <label className="block text-sm font-medium text-slate-700">{t("cadastros.comum.cor")}</label>
             <input
               type="color"
               value={form.cor}
@@ -291,10 +290,10 @@ export default function SetoresPage() {
           </div>
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
             <Button type="submit" size="sm">
-              {editando ? "Salvar Setor" : "Cadastrar Setor"}
+              {editando ? t("cadastros.setores.salvar") : t("cadastros.setores.cadastrar")}
             </Button>
             <Button type="button" size="sm" variant="outline" onClick={() => setModalAberto(false)}>
-              Fechar
+              {t("cadastros.comum.fechar")}
             </Button>
           </div>
         </form>

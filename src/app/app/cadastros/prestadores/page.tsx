@@ -5,6 +5,8 @@ import { Edit3, Eye, MapPin, Percent, Plus, Trash2, UserRound } from "lucide-rea
 import { BotoesListagemPrestadores } from "@/components/prestadores/BotoesListagemPrestadores";
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
+import { ModuloCabecalho } from "@/components/ModuloCabecalho";
+import { useI18n } from "@/components/i18n-provider";
 import { compararTextoBr } from "@/lib/listagem-config";
 import { exibirTelefone, formatarTelefone, PLACEHOLDER_TELEFONE_BR } from "@/lib/validar-documento";
 import {
@@ -85,6 +87,7 @@ function carregarLista<T>(key: string): T[] {
 }
 
 export default function PrestadoresPage() {
+  const { t } = useI18n();
   const [busca, setBusca] = useState("");
   const [prestadores, setPrestadores] = useState<Prestador[]>([]);
   const [prestadoresExcluidos, setPrestadoresExcluidos] = useState<Prestador[]>([]);
@@ -216,7 +219,7 @@ export default function PrestadoresPage() {
 
   async function imprimirListaPrestadores() {
     if (!filtrados.length) {
-      alert("Não há prestadores para imprimir.");
+      alert(t("cadastros.prestadores.alerta.semImprimir"));
       return;
     }
     setProcessandoLista(true);
@@ -227,7 +230,7 @@ export default function PrestadoresPage() {
         "Lista de Prestadores de Serviço Cadastrados"
       );
     } catch {
-      alert("Não foi possível gerar a impressão.");
+      alert(t("cadastros.comum.alerta.erroImprimir"));
     } finally {
       setProcessandoLista(false);
     }
@@ -235,14 +238,14 @@ export default function PrestadoresPage() {
 
   async function exportarListaPrestadores() {
     if (!filtrados.length) {
-      alert("Não há prestadores para exportar.");
+      alert(t("cadastros.prestadores.alerta.semExportar"));
       return;
     }
     setProcessandoLista(true);
     try {
       await exportarPrestadoresExcel(filtrados);
     } catch {
-      alert("Não foi possível exportar a planilha.");
+      alert(t("cadastros.comum.alerta.erroExportar"));
     } finally {
       setProcessandoLista(false);
     }
@@ -250,11 +253,7 @@ export default function PrestadoresPage() {
 
   return (
     <div className="space-y-4 text-xs text-slate-600">
-      <div className="flex items-center gap-2 text-sm text-slate-500">
-        <span>Cadastros</span>
-        <span>/</span>
-        <span className="font-medium text-slate-700">Prestadores de Serviço</span>
-      </div>
+      <ModuloCabecalho moduloKey="nav.cadastros" tituloKey="nav.prestadores" />
 
       <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -265,14 +264,14 @@ export default function PrestadoresPage() {
               className="inline-flex h-7 items-center gap-1 rounded-sm bg-emerald-500 px-3 text-[10px] font-semibold text-white hover:bg-emerald-600"
             >
               <Plus className="h-3.5 w-3.5" />
-              Adicionar Prestador
+              {t("cadastros.prestadores.adicionar")}
             </button>
             <button
               type="button"
               onClick={() => setMostrarExcluidos((atual) => !atual)}
               className="h-7 rounded-sm border border-slate-300 bg-white px-3 text-[10px] font-semibold text-slate-600 hover:bg-slate-50"
             >
-              {mostrarExcluidos ? "Ver Ativos" : "Ver Excluídos"}
+              {mostrarExcluidos ? t("cadastros.comum.verAtivos") : t("cadastros.comum.verExcluidos")}
             </button>
             <BotoesListagemPrestadores
               onImprimir={() => void imprimirListaPrestadores()}
@@ -286,7 +285,7 @@ export default function PrestadoresPage() {
             <input
               value={busca}
               onChange={(event) => setBusca(event.target.value)}
-              placeholder="Pesquisar"
+              placeholder={t("cadastros.comum.pesquisar")}
               className="h-7 flex-1 rounded-sm border border-slate-200 px-3 text-[10px] outline-none focus:border-blue-400"
             />
             <button
@@ -294,7 +293,7 @@ export default function PrestadoresPage() {
               onClick={() => setBusca("")}
               className="h-7 rounded-sm bg-slate-500 px-3 text-[10px] font-semibold text-white hover:bg-slate-600"
             >
-              Limpar
+              {t("cadastros.comum.limpar")}
             </button>
           </div>
         </div>

@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Edit3, Plus, Trash2 } from "lucide-react";
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
+import { ModuloCabecalho } from "@/components/ModuloCabecalho";
+import { useI18n } from "@/components/i18n-provider";
 import { compararTextoBr } from "@/lib/listagem-config";
 import { Button, Input, Modal, Select } from "@/components/ui";
 import { usePageReady } from "@/hooks/use-page-ready";
@@ -60,6 +62,7 @@ function carregarLista<T>(key: string, fallback: T[]) {
 }
 
 export default function EtapasPage() {
+  const { t } = useI18n();
   const [busca, setBusca] = useState("");
   const [etapas, setEtapas] = useState<Etapa[]>([]);
   const [etapasExcluidas, setEtapasExcluidas] = useState<Etapa[]>([]);
@@ -233,17 +236,11 @@ export default function EtapasPage() {
 
   return (
     <div className="space-y-4 text-xs text-slate-600">
-      <div className="flex items-center gap-2 text-sm text-slate-500">
-        <span>Cadastros</span>
-        <span>/</span>
-        <span className="font-medium text-slate-700">Etapas</span>
-      </div>
+      <ModuloCabecalho moduloKey="nav.cadastros" tituloKey="nav.etapas" />
 
       <div className="rounded border border-orange-100 bg-orange-50 px-4 py-3 text-[11px] text-orange-700">
-        <p className="font-semibold uppercase">Atenção</p>
-        <p>
-          Os modelos serão usados nas ordens de serviço para montar etapas. No entanto, as ordens de serviço que já foram lançadas com essas etapas não serão alteradas.
-        </p>
+        <p className="font-semibold uppercase">{t("cadastros.etapas.atencao")}</p>
+        <p>{t("cadastros.etapas.avisoModelos")}</p>
       </div>
 
       <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">
@@ -255,14 +252,14 @@ export default function EtapasPage() {
               className="inline-flex h-7 items-center gap-1 rounded-sm bg-emerald-500 px-3 text-[10px] font-semibold text-white hover:bg-emerald-600"
             >
               <Plus className="h-3.5 w-3.5" />
-              Adicionar Etapa
+              {t("cadastros.etapas.adicionar")}
             </button>
             <button
               type="button"
               onClick={() => setMostrarExcluidas((atual) => !atual)}
               className="h-7 rounded-sm border border-slate-300 bg-white px-3 text-[10px] font-semibold text-slate-600 hover:bg-slate-50"
             >
-              {mostrarExcluidas ? "Ver Ativas" : "Ver Excluídas"}
+              {mostrarExcluidas ? t("cadastros.comum.verAtivas") : t("cadastros.comum.verExcluidas")}
             </button>
           </div>
 
@@ -270,7 +267,7 @@ export default function EtapasPage() {
             <input
               value={busca}
               onChange={(event) => setBusca(event.target.value)}
-              placeholder="Pesquisar"
+              placeholder={t("cadastros.comum.pesquisar")}
               className="h-7 flex-1 rounded-sm border border-slate-200 px-3 text-[10px] outline-none focus:border-blue-400"
             />
             <button
@@ -278,7 +275,7 @@ export default function EtapasPage() {
               onClick={() => setBusca("")}
               className="h-7 rounded-sm bg-slate-500 px-3 text-[10px] font-semibold text-white hover:bg-slate-600"
             >
-              Limpar
+              {t("cadastros.comum.limpar")}
             </button>
           </div>
         </div>
@@ -289,7 +286,7 @@ export default function EtapasPage() {
           opcoesExtras={[
             {
               valor: "setor",
-              label: "Setor",
+              label: t("cadastros.setores.coluna"),
               comparar: (a, b) => compararTextoBr(a.setor, b.setor),
             },
           ]}
@@ -299,13 +296,13 @@ export default function EtapasPage() {
           <table className="w-full min-w-[1080px] text-[10px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50 text-slate-500">
-                <th className="px-3 py-2 text-left font-semibold uppercase">Nome</th>
-                <th className="w-14 px-3 py-2 text-center font-semibold uppercase">Cor</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Setor</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("listagem.nome")}</th>
+                <th className="w-14 px-3 py-2 text-center font-semibold uppercase">{t("cadastros.comum.cor")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.setores.coluna")}</th>
                 <th className="px-3 py-2 text-left font-semibold uppercase">Tempo Médio Execução Minutos</th>
                 <th className="px-3 py-2 text-left font-semibold uppercase">Prazo (dias)</th>
                 <th className="px-3 py-2 text-left font-semibold uppercase">Cálculo por Elemento</th>
-                <th className="px-3 py-2 text-center font-semibold uppercase">Opções</th>
+                <th className="px-3 py-2 text-center font-semibold uppercase">{t("cadastros.comum.opcoes")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -347,7 +344,7 @@ export default function EtapasPage() {
                           onClick={() => abrirEdicao(etapa)}
                           disabled={mostrarExcluidas}
                           className="rounded p-1 hover:bg-slate-100 hover:text-blue-600 disabled:opacity-40"
-                          title="Editar"
+                          title={t("cadastros.comum.editar")}
                         >
                           <Edit3 className="h-3.5 w-3.5" />
                         </button>
@@ -358,13 +355,13 @@ export default function EtapasPage() {
                               onClick={() => restaurarEtapa(etapa.id)}
                               className="rounded bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-emerald-600"
                             >
-                              Restaurar
+                              {t("cadastros.comum.restaurar")}
                             </button>
                             <button
                               type="button"
                               onClick={() => removerEtapaDefinitivo(etapa.id)}
                               className="rounded p-1 text-red-500 hover:bg-red-50"
-                              title="Remover definitivamente"
+                              title={t("cadastros.comum.removerDefinitivo")}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -374,7 +371,7 @@ export default function EtapasPage() {
                             type="button"
                             onClick={() => excluirEtapa(etapa.id)}
                             className="rounded p-1 text-red-500 hover:bg-red-50"
-                            title="Excluir"
+                            title={t("cadastros.comum.excluir")}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -388,7 +385,7 @@ export default function EtapasPage() {
               {paginaPronta && filtradas.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-3 py-8 text-center text-slate-400">
-                    {mostrarExcluidas ? "Nenhuma etapa excluída." : "Nenhuma etapa encontrada."}
+                    {mostrarExcluidas ? t("cadastros.etapas.nenhumaExcluida") : t("cadastros.etapas.nenhumaEncontrada")}
                   </td>
                 </tr>
               )}
@@ -402,7 +399,7 @@ export default function EtapasPage() {
       <Modal
         open={modalAberto}
         onClose={() => setModalAberto(false)}
-        title={editando ? "Editar Etapa" : "Cadastrar Etapa"}
+        title={editando ? t("cadastros.etapas.editar") : t("cadastros.etapas.cadastrar")}
         size="md"
       >
         <form onSubmit={salvarEtapa} className="grid gap-3 text-[11px] text-slate-600 md:grid-cols-2">

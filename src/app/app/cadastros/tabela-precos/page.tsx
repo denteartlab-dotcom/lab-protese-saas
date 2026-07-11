@@ -18,6 +18,8 @@ import {
   X,
 } from "lucide-react";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
+import { ModuloCabecalho } from "@/components/ModuloCabecalho";
+import { useI18n } from "@/components/i18n-provider";
 import { PainelCarregando } from "@/components/ListaCarregando";
 import { BarraAcoesTabelaPrecos } from "@/components/tabela-precos/BarraAcoesTabelaPrecos";
 import {
@@ -233,6 +235,7 @@ function novaEtapaServico(): EtapaServico {
 }
 
 export default function TabelaPrecosPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [tabela, setTabela] = useState("");
   const [tabelas, setTabelas] = useState<string[]>([]);
@@ -1462,23 +1465,15 @@ export default function TabelaPrecosPage() {
   if (!paginaPronta) {
     return (
       <div className="space-y-4 text-xs text-slate-600">
-        <div className="flex items-center gap-2 text-[11px] text-slate-500">
-          <span>Cadastros</span>
-          <span className="text-slate-300">/</span>
-          <span className="text-slate-600">Tabela de Preços</span>
-        </div>
-        <PainelCarregando mensagem="Carregando tabela de preços..." />
+        <ModuloCabecalho moduloKey="nav.cadastros" tituloKey="nav.tabelaPrecos" />
+        <PainelCarregando mensagem={t("cadastros.comum.carregando")} />
       </div>
     );
   }
 
   return (
     <div className="space-y-4 text-xs text-slate-600">
-      <div className="flex items-center gap-2 text-[11px] text-slate-500">
-        <span>Cadastros</span>
-        <span className="text-slate-300">/</span>
-        <span className="text-slate-600">Tabela de Preços</span>
-      </div>
+      <ModuloCabecalho moduloKey="nav.cadastros" tituloKey="nav.tabelaPrecos" />
 
       <div className="rounded border border-slate-200 bg-white px-3 py-4 shadow-sm">
         <div className="mb-4 flex justify-center gap-6 text-[11px] text-slate-500">
@@ -1602,10 +1597,10 @@ export default function TabelaPrecosPage() {
             <div className="flex min-w-[320px] max-w-lg flex-1 justify-end">
               <input
                 className="h-8 w-full max-w-md rounded border border-slate-300 px-3 text-xs outline-none focus:border-primary-500"
-                placeholder="Procurar"
+                placeholder={t("cadastros.comum.procurar")}
               />
               <button type="button" className="h-8 rounded-r bg-slate-500 px-4 text-[11px] font-semibold text-white">
-                Limpar
+                {t("cadastros.comum.limpar")}
               </button>
             </div>
           </div>

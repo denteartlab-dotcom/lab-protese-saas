@@ -7,6 +7,8 @@ import { PdfViewerModal } from "@/components/dashboard/PdfViewerModal";
 import { CampoDataBr } from "@/components/campo-data-br";
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
+import { ModuloCabecalho } from "@/components/ModuloCabecalho";
+import { useI18n } from "@/components/i18n-provider";
 import { compararTextoBr } from "@/lib/listagem-config";
 import { exibirTelefone, formatarTelefone, PLACEHOLDER_TELEFONE_BR } from "@/lib/validar-documento";
 import { usePageReady } from "@/hooks/use-page-ready";
@@ -189,6 +191,7 @@ function carregarLista<T>(key: string, fallback: T[] = []) {
 }
 
 export default function ColaboradoresPage() {
+  const { t } = useI18n();
   const [busca, setBusca] = useState("");
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [colaboradoresExcluidos, setColaboradoresExcluidos] = useState<Colaborador[]>([]);
@@ -520,14 +523,7 @@ export default function ColaboradoresPage() {
 
   return (
     <div className="min-h-[calc(100vh-90px)] bg-slate-50 px-3 py-4 text-[11px] text-slate-600">
-      <div className="mb-3 flex items-center gap-2">
-        <h1 className="text-lg font-normal text-slate-600">Cadastros</h1>
-        <span className="text-slate-300">/</span>
-        <div className="flex items-center gap-1 text-[11px] text-slate-500">
-          <Home className="h-3 w-3 text-slate-400" />
-          <span>Colaboradores</span>
-        </div>
-      </div>
+      <ModuloCabecalho moduloKey="nav.cadastros" tituloKey="nav.colaboradores" className="mb-3" />
 
       <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1">
@@ -541,20 +537,20 @@ export default function ColaboradoresPage() {
             }}
             className="h-7 rounded bg-emerald-500 px-3 text-[10px] font-semibold text-white shadow-sm hover:bg-emerald-600"
           >
-            + Adicionar Colaborador
+            + {t("cadastros.colaboradores.adicionar")}
           </button>
           <button
             type="button"
             onClick={() => setMostrarExcluidos((atual) => !atual)}
             className="h-7 rounded border border-blue-300 bg-white px-3 text-[10px] font-semibold text-blue-600 shadow-sm hover:bg-blue-50"
           >
-            {mostrarExcluidos ? "Ver Ativos" : "Ver Excluídos"}
+            {mostrarExcluidos ? t("cadastros.comum.verAtivos") : t("cadastros.comum.verExcluidos")}
           </button>
           <button
             type="button"
             onClick={abrirPdfColaboradores}
             className="flex h-7 w-7 items-center justify-center rounded bg-blue-500 text-white shadow-sm hover:bg-blue-600"
-            aria-label="Imprimir"
+            aria-label={t("cadastros.comum.imprimir")}
           >
             <Printer className="h-3.5 w-3.5" />
           </button>

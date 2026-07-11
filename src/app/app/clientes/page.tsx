@@ -5,6 +5,8 @@ import { Eye, MessageCircle, Pencil, Plus, Search, Trash2, User } from "lucide-r
 import { BotoesListagemClientes } from "@/components/clientes/BotoesListagemClientes";
 import { ImportarClientesExcelModal } from "@/components/clientes/ImportarClientesExcelModal";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
+import { ModuloCabecalho } from "@/components/ModuloCabecalho";
+import { useI18n } from "@/components/i18n-provider";
 import { Input, Modal } from "@/components/ui";
 import { mensagemAcompanhamentoCliente, formatWhatsAppPhone } from "@/lib/whatsapp";
 import { dispararOuAbrirWhatsapp } from "@/lib/whatsapp-disparo-cliente";
@@ -173,6 +175,7 @@ const empty = {
 };
 
 export default function ClientesPage() {
+  const { t } = useI18n();
   const [list, setList] = useState<Cliente[]>([]);
   const [clienteParaExcluir, setClienteParaExcluir] = useState<Cliente | null>(null);
   const [mostrarExcluidos, setMostrarExcluidos] = useState(false);
@@ -593,7 +596,7 @@ export default function ClientesPage() {
 
   async function imprimirListaClientes() {
     if (!list.length) {
-      alert("Não há clientes para imprimir.");
+      alert(t("cadastros.clientes.alerta.semImprimir"));
       return;
     }
     setProcessandoLista(true);
@@ -604,7 +607,7 @@ export default function ClientesPage() {
         "Lista de Clientes Cadastrados"
       );
     } catch {
-      alert("Não foi possível gerar a impressão.");
+      alert(t("cadastros.comum.alerta.erroImprimir"));
     } finally {
       setProcessandoLista(false);
     }
@@ -612,14 +615,14 @@ export default function ClientesPage() {
 
   async function exportarListaClientes() {
     if (!list.length) {
-      alert("Não há clientes para exportar.");
+      alert(t("cadastros.clientes.alerta.semExportar"));
       return;
     }
     setProcessandoLista(true);
     try {
       await exportarClientesExcel(list);
     } catch {
-      alert("Não foi possível exportar a planilha.");
+      alert(t("cadastros.comum.alerta.erroExportar"));
     } finally {
       setProcessandoLista(false);
     }
@@ -666,11 +669,11 @@ export default function ClientesPage() {
 
   return (
     <div className="space-y-4 text-xs text-slate-600">
-      <div className="flex items-center gap-2">
-        <h1 className="text-lg font-medium text-slate-700">Cadastros</h1>
-        <span className="text-slate-300">/</span>
-        <span>Clientes</span>
-      </div>
+      <ModuloCabecalho
+        moduloKey="nav.cadastros"
+        tituloKey="nav.clientes"
+        hrefModulo="/app/clientes"
+      />
 
       <div className="rounded border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-3 py-2">
@@ -681,7 +684,7 @@ export default function ClientesPage() {
               className="inline-flex items-center gap-1 rounded bg-emerald-500 px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-600"
             >
               <Plus className="h-3.5 w-3.5" />
-              Adicionar Cliente
+              {t("cadastros.clientes.adicionar")}
             </button>
             <button
               type="button"
@@ -689,7 +692,7 @@ export default function ClientesPage() {
               className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
             >
               <Trash2 className="h-3.5 w-3.5 text-red-400" />
-              {mostrarExcluidos ? "Ver Ativos" : "Lixeira"}
+              {mostrarExcluidos ? t("cadastros.comum.verAtivos") : t("cadastros.comum.lixeira")}
             </button>
             <BotoesListagemClientes
               onImprimir={() => void imprimirListaClientes()}
@@ -712,7 +715,7 @@ export default function ClientesPage() {
               <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <input
                 className="h-8 w-full rounded border border-slate-300 py-1 pl-8 pr-16 text-xs outline-none focus:border-primary-400"
-                placeholder="Procurar"
+                placeholder={t("cadastros.comum.procurar")}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
               />
@@ -721,7 +724,7 @@ export default function ClientesPage() {
                 onClick={() => setQ("")}
                 className="absolute right-0 top-0 h-8 rounded-r bg-slate-500 px-4 text-[11px] font-semibold text-white hover:bg-slate-600"
               >
-                Limpar
+                {t("cadastros.comum.limpar")}
               </button>
             </div>
           </div>

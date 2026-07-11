@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Edit3, Eye, List, Plus, Printer, Search, Trash2 } from "lucide-react";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
+import { ModuloCabecalho } from "@/components/ModuloCabecalho";
+import { useI18n } from "@/components/i18n-provider";
 import { GerenciarEtiquetasCategoriaModal } from "@/components/GerenciarEtiquetasCategoriaModal";
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
@@ -55,13 +57,14 @@ function EtiquetaCategoriaBadge({
 }
 
 function IndicadorVariacaoCusto({ delta }: { delta?: number }) {
+  const { t } = useI18n();
   if (delta === undefined || delta === 0 || Math.abs(delta) < 0.005) return null;
   const valor = formatCurrency(Math.abs(delta));
   if (delta > 0) {
     return (
       <span
         className="ml-1.5 text-[9px] font-semibold text-red-600"
-        title="Aumento de custo por unidade (último orçamento aprovado)"
+        title={t("estoque.produtos.aumentoCusto")}
       >
         ↑ {valor}
       </span>
@@ -70,7 +73,7 @@ function IndicadorVariacaoCusto({ delta }: { delta?: number }) {
   return (
     <span
       className="ml-1.5 text-[9px] font-semibold text-emerald-600"
-      title="Redução de custo por unidade (último orçamento aprovado)"
+      title={t("estoque.produtos.reducaoCusto")}
     >
       ↓ {valor}
     </span>
@@ -173,6 +176,7 @@ function novoProdutoForm() {
 }
 
 function ProdutosConteudo() {
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const notifProdutoFeito = useRef(false);
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -915,11 +919,11 @@ function ProdutosConteudo() {
 
   return (
     <div className="space-y-4 text-xs text-slate-600">
-      <div className="flex items-center gap-2 text-sm text-slate-500">
-        <span>Estoque</span>
-        <span>/</span>
-        <span className="font-medium text-slate-700">Produtos</span>
-      </div>
+      <ModuloCabecalho
+        moduloKey="nav.estoque"
+        tituloKey="nav.produtos"
+        hrefModulo="/app/produtos"
+      />
 
       {listaPronta && estoqueZerado > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded border border-red-200 bg-red-50 px-4 py-2 text-[11px] text-red-700">
@@ -930,7 +934,7 @@ function ProdutosConteudo() {
             href="/app/orcamentos?novo=1"
             className="rounded bg-emerald-500 px-3 py-1.5 text-[10px] font-semibold text-white hover:bg-emerald-600"
           >
-            Solicitar Orçamento
+            {t("estoque.orcamentos.solicitar")}
           </Link>
         </div>
       )}
@@ -950,13 +954,13 @@ function ProdutosConteudo() {
               className="inline-flex h-7 items-center gap-1 rounded-sm bg-emerald-500 px-3 text-[10px] font-semibold text-white hover:bg-emerald-600"
             >
               <Plus className="h-3.5 w-3.5" />
-              Produto
+              {t("estoque.produtos.adicionar")}
             </button>
             <Link
               href={montarUrlImprimirProdutos()}
               target="_blank"
               rel="noopener noreferrer"
-              title="Imprimir relatório de produtos"
+              title={t("cadastros.comum.imprimir")}
               className="inline-flex h-7 w-7 items-center justify-center rounded-sm bg-blue-500 text-white hover:bg-blue-600"
             >
               <Printer className="h-3.5 w-3.5" />
@@ -970,7 +974,7 @@ function ProdutosConteudo() {
               className="inline-flex h-7 items-center gap-1 rounded-sm bg-blue-500 px-3 text-[10px] font-semibold text-white hover:bg-blue-600"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              Ver Excluídos
+              {t("estoque.produtos.verExcluidos")}
             </button>
             <button
               type="button"
@@ -987,7 +991,7 @@ function ProdutosConteudo() {
               <input
                 value={busca}
                 onChange={(event) => setBusca(event.target.value)}
-                placeholder="Pesquisar por Nome, Marca, Etiqueta, Código de Barras..."
+                placeholder={t("estoque.produtos.buscarPlaceholder")}
                 className="h-7 w-full rounded-sm border border-slate-200 pl-7 pr-3 text-[10px] outline-none focus:border-blue-400"
               />
             </div>
@@ -996,7 +1000,7 @@ function ProdutosConteudo() {
               onClick={() => setBusca("")}
               className="h-7 rounded-sm bg-slate-500 px-3 text-[10px] font-semibold text-white hover:bg-slate-600"
             >
-              Limpar
+              {t("cadastros.comum.limpar")}
             </button>
           </div>
         </div>

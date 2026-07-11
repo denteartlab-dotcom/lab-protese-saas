@@ -5,15 +5,18 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { DisparosWhatsappConteudo } from "@/components/disparos-whatsapp/DisparosWhatsappConteudo";
 import { ChatbotConfigConteudo } from "@/components/disparos-whatsapp/ChatbotConfigConteudo";
+import { ModuloCabecalho } from "@/components/ModuloCabecalho";
+import { useI18n } from "@/components/i18n-provider";
 
 const ABAS = [
-  { id: "disparos", label: "Disparos" },
-  { id: "chatbot", label: "Chatbot" },
+  { id: "disparos", labelKey: "cadastros.disparosWhatsapp.abaDisparos" },
+  { id: "chatbot", labelKey: "cadastros.disparosWhatsapp.abaChatbot" },
 ] as const;
 
 type AbaId = (typeof ABAS)[number]["id"];
 
 function DisparosWhatsappPagina() {
+  const { t } = useI18n();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const abaParam = searchParams.get("aba");
@@ -22,6 +25,7 @@ function DisparosWhatsappPagina() {
   return (
     <div className="min-h-full bg-[#f9fafb] pb-10">
       <div className="mx-auto max-w-[1440px] px-4 py-5 md:px-6 md:py-6">
+        <ModuloCabecalho moduloKey="nav.cadastros" tituloKey="nav.disparosWhatsapp" className="mb-5" />
         <div className="mb-5 flex flex-wrap gap-2 border-b border-slate-200">
           {ABAS.map((aba) => {
             const ativa = abaAtiva === aba.id;
@@ -37,7 +41,7 @@ function DisparosWhatsappPagina() {
                     : "border-transparent text-slate-500 hover:text-slate-800",
                 ].join(" ")}
               >
-                {aba.label}
+                {t(aba.labelKey)}
               </Link>
             );
           })}
@@ -45,7 +49,7 @@ function DisparosWhatsappPagina() {
             href="/app/disparos-whatsapp/historico"
             className="ml-auto border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-800 -mb-px"
           >
-            Histórico
+            {t("cadastros.disparosWhatsapp.historico")}
           </Link>
         </div>
 
@@ -56,11 +60,12 @@ function DisparosWhatsappPagina() {
 }
 
 export default function DisparosWhatsappPage() {
+  const { t } = useI18n();
   return (
     <Suspense
       fallback={
         <div className="min-h-full bg-[#f9fafb] px-6 py-10 text-sm text-slate-500">
-          Carregando…
+          {t("cadastros.comum.carregandoPagina")}
         </div>
       }
     >

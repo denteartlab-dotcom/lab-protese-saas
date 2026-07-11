@@ -1,6 +1,7 @@
 "use client";
 
 import { I18nPortal } from "@/components/I18nPortal";
+import { useI18n } from "@/components/i18n-provider";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Plus, Trash2, X } from "lucide-react";
 import { propsInputComSelecaoAoFocar } from "@/lib/input-selecao";
@@ -97,6 +98,7 @@ export function OrcamentoFormModal({
   produtos,
   preencherZerados = false,
 }: Props) {
+  const { t } = useI18n();
   const contadorLinha = useRef(0);
   const [mostrarZerados, setMostrarZerados] = useState(false);
   const [fornecedorId, setFornecedorId] = useState("");
@@ -401,8 +403,8 @@ export function OrcamentoFormModal({
   if (!open) return null;
 
   const titulo = somenteLeitura
-    ? `Pedido #${orcamento?.numeroPedido || ""}`
-    : "Gerar Lista de Orçamento Produtos";
+    ? `${t("estoque.orcamentos.pedido")} #${orcamento?.numeroPedido || ""}`
+    : t("estoque.orcamentos.modal.gerarLista");
 
   return (
     <I18nPortal>
