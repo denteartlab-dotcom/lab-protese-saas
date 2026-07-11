@@ -350,7 +350,7 @@ function montarParcelasCondicaoPagamentoFatura(params: {
       forma: lancamento.formaPagamento || "-",
       valor: money(totalServicos),
       pago: money(quitada ? totalServicos : totalPago),
-      recebida: totalPago > 0.009,
+      recebida: quitada,
     },
   ];
 
@@ -638,7 +638,7 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
     .items tr.meta-row td .meta-data-sep{margin:0 4px;font-weight:normal;color:#111}
     .pay th{font-size:${fsCab}px;font-weight:bold;text-align:left;padding:4px 3px;background:${thBg}}
     .pay td{font-size:${fsTabela}px;line-height:1.35;padding:4px 3px}
-    .pay tr.pay-row-received td{background:#e8f5e9;color:#2e7d32}
+    .pay tr.pay-row-received td{color:#5cb85c;background:#fff}
     .pay tr.pay-row-received td.pay-col-pago{font-weight:600}
     .right{text-align:right}
     .center{text-align:center}
@@ -856,10 +856,6 @@ function valorMonetarioSemPrefixo(valor: string) {
   return valor.trim().replace(/^R\$\s*/i, "");
 }
 
-function parcelaFoiRecebida(p: ParcelaFaturaImpressao) {
-  return Boolean(p.recebida) || parseMoney(p.pago) > 0;
-}
-
 function htmlCondicaoPagamento(
   dados: DadosFaturaImpressao,
   layout: FaturaModeloLayout,
@@ -873,14 +869,13 @@ function htmlCondicaoPagamento(
 
   const linhas = dados.parcelas
     .map((p) => {
-      const recebida = parcelaFoiRecebida(p);
-      const classePago = recebida ? ' class="pay-col-pago"' : "";
-      return `<tr${recebida ? ' class="pay-row-received"' : ""}>
+      const verde = Boolean(p.recebida);
+      return `<tr${verde ? ' class="pay-row-received"' : ""}>
         <td>${escapeHtml(p.parcela)}</td>
         <td>${escapeHtml(p.vencimento)}</td>
         ${layout.formaPgto ? `<td>${escapeHtml(p.forma)}</td>` : ""}
         <td>${escapeHtml(valorMonetarioSemPrefixo(p.valor))}</td>
-        ${exibirPago ? `<td${classePago}>${escapeHtml(valorMonetarioSemPrefixo(p.pago))}</td>` : ""}
+        ${exibirPago ? `<td>${escapeHtml(valorMonetarioSemPrefixo(p.pago))}</td>` : ""}
       </tr>`;
     })
     .join("");

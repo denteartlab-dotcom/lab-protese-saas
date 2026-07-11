@@ -438,18 +438,10 @@ function desenharCondicaoPagamento(
   const pageWidth = pdf.internal.pageSize.getWidth();
   const m = margensLinhaRequisicao(pageWidth);
   const larguraTabela = m.tabelaDir - m.tabelaEsq;
-  const corPago = hexParaRgb("#2e7d32");
-  const corFundoPago = hexParaRgb("#e8f5e9");
+  const corPago = hexParaRgb("#5cb85c");
 
   function parcelaRecebidaPdf(parcela: DadosFaturaImpressao["parcelas"][number]) {
-    if (parcela.recebida) return true;
-    const pago = Number(
-      String(parcela.pago || "")
-        .replace(/[^\d,.-]/g, "")
-        .replace(/\./g, "")
-        .replace(",", ".")
-    );
-    return Number.isFinite(pago) && pago > 0;
+    return Boolean(parcela.recebida);
   }
 
   let cursor = y + 4;
@@ -503,18 +495,13 @@ function desenharCondicaoPagamento(
     );
     const recebida = parcelaRecebidaPdf(parcela);
 
-    if (recebida) {
-      pdf.setFillColor(corFundoPago.r, corFundoPago.g, corFundoPago.b);
-      pdf.rect(m.tabelaEsq, cursor - 3.2, larguraTabela, alturaLinha + 1, "F");
-    }
-
     x = m.tabelaEsq;
     for (let i = 0; i < cols.length; i++) {
       const col = cols[i];
       const linhas = linhasPorColuna[i];
       if (recebida) {
         pdf.setTextColor(corPago.r, corPago.g, corPago.b);
-        pdf.setFont("helvetica", i === cols.length - 1 ? "bold" : "normal");
+        pdf.setFont("helvetica", col.titulo === "Pago" ? "bold" : "normal");
       } else {
         pdf.setTextColor(0, 0, 0);
         pdf.setFont("helvetica", "normal");
