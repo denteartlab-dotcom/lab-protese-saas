@@ -2481,13 +2481,7 @@ function FinanceiroReceberConteudo() {
                                       const situacao = situacaoFatura(l);
                                       const quitada = faturaQuitada(l, data?.lancamentos || []);
                                       return (
-                                        <tr
-                                          key={l.id}
-                                          className={cn(
-                                            "border-b border-slate-100",
-                                            quitada && "bg-emerald-50/80"
-                                          )}
-                                        >
+                                        <tr key={l.id} className="border-b border-slate-100">
                                           <td className="px-2 py-2">{formatDate(l.data)}</td>
                                           <td className="px-2 py-2">{numeroFatura(l)}</td>
                                           <td className="px-2 py-2">1 / 1</td>
