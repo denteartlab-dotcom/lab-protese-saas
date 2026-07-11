@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, FileSpreadsheet, Printer, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -178,7 +179,8 @@ export function ImprimirDreModal({
   const anos = [anoPadrao - 1, anoPadrao, anoPadrao + 1];
 
   return (
-    <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/40 p-4">
+    <I18nPortal>
+      <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/40 p-4">
       <div
         className={cn(
           "w-full rounded-md border border-[#e5e7eb] bg-white shadow-xl",
@@ -370,5 +372,6 @@ export function ImprimirDreModal({
         </div>
       </div>
     </div>
+    </I18nPortal>
   );
 }

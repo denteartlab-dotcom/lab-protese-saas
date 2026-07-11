@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Loader2, X } from "lucide-react";

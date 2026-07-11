@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { Button } from "@/components/ui";
 import { formatCurrency } from "@/lib/utils";
 
@@ -21,7 +22,8 @@ export function AgendaVerProdutosModal({ open, onClose, numeroOs, produtos }: Pr
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4">
+    <I18nPortal>
+      <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4">
       <div className="max-h-[85vh] w-full max-w-lg overflow-auto rounded border border-slate-200 bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
           <h2 className="text-sm font-semibold text-slate-700">
@@ -71,5 +73,6 @@ export function AgendaVerProdutosModal({ open, onClose, numeroOs, produtos }: Pr
         </div>
       </div>
     </div>
+    </I18nPortal>
   );
 }

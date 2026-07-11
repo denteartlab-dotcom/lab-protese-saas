@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useCallback, useEffect, useState } from "react";
 import { Check, Copy, Loader2, QrCode, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -131,7 +132,8 @@ export function RenovarAssinaturaPixModal({
   const pago = Boolean(cobranca?.pago && cobranca.renovadoEm);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+    <I18nPortal>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
       <div className="relative w-full max-w-md rounded-xl bg-white p-5 shadow-2xl">
         <button
           type="button"
@@ -239,5 +241,6 @@ export function RenovarAssinaturaPixModal({
         ) : null}
       </div>
     </div>
+    </I18nPortal>
   );
 }

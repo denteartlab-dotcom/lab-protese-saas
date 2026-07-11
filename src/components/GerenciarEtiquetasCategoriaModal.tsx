@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect, useState } from "react";
 import { Edit3, Plus, Trash2 } from "lucide-react";
 import { Modal } from "@/components/ui";

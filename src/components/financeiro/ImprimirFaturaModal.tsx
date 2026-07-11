@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FileText, MessageCircle, Printer, X } from "lucide-react";
@@ -314,7 +315,8 @@ export function ImprimirFaturaModal({
   if (!open || !mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[85] flex items-center justify-center bg-black/40 p-4">
+    <I18nPortal>
+      <div className="fixed inset-0 z-[85] flex items-center justify-center bg-black/40 p-4">
       <div className="absolute inset-0" onClick={onClose} aria-hidden />
       <div
         className="relative w-full max-w-lg overflow-hidden rounded-md border border-[#e5e7eb] bg-white shadow-xl"
@@ -459,7 +461,8 @@ export function ImprimirFaturaModal({
           </button>
         </div>
       </div>
-    </div>,
+    </div>
+    </I18nPortal>,
     document.body
   );
 }

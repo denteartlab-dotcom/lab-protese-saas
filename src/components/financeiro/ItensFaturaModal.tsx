@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
@@ -51,7 +52,8 @@ export function ItensFaturaModal({ open, onClose, linhas }: Props) {
   if (!open || !mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[90] flex items-start justify-center bg-black/40 p-4 pt-20 sm:pt-24">
+    <I18nPortal>
+      <div className="fixed inset-0 z-[90] flex items-start justify-center bg-black/40 p-4 pt-20 sm:pt-24">
       <div className="absolute inset-0" onClick={onClose} aria-hidden />
       <div
         className="relative w-full max-w-[960px] overflow-hidden rounded-md border border-[#e5e7eb] bg-white shadow-[0_8px_30px_rgba(0,0,0,0.12)]"
@@ -111,7 +113,8 @@ export function ItensFaturaModal({ open, onClose, linhas }: Props) {
           </table>
         </div>
       </div>
-    </div>,
+    </div>
+    </I18nPortal>,
     document.body
   );
 }

@@ -9,6 +9,13 @@ import {
 } from "@/lib/recibo-assinatura-lab";
 import { formatDate } from "@/lib/utils";
 import {
+  definirLocaleImpressao,
+  formatMoneyImpressao,
+  pl,
+  resolverLocaleImpressao,
+} from "@/lib/i18n/print-i18n";
+import type { Locale } from "@/lib/i18n";
+import {
   textoFormaPagamentoRecibo,
   type LinhaReciboRecebimento,
   type ModeloReciboRecebimento,
@@ -30,11 +37,13 @@ export async function gerarReciboRecebimentoPdf(
   opts: {
     clienteNome: string;
     linhas: LinhaReciboRecebimento[];
+    locale?: Locale;
   }
 ): Promise<Blob> {
+  definirLocaleImpressao(resolverLocaleImpressao({ locale: opts.locale }));
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
-  pdf.setProperties({ title: "Recibo" });
+  pdf.setProperties({ title: pl("print.recibo.titulo") });
   const api = pdf as unknown as Parameters<typeof desenharCabecalhoLabRelatorioPdf>[0];
   const pageW = pdf.internal.pageSize.getWidth();
   const margin = 18;
@@ -47,7 +56,7 @@ export async function gerarReciboRecebimentoPdf(
 
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(14);
-  pdf.text("RECIBO", pageW / 2, y, { align: "center" });
+  pdf.text(pl("print.recibo.titulo"), pageW / 2, y, { align: "center" });
   y += 10;
 
   pdf.setFontSize(13);
@@ -56,22 +65,22 @@ export async function gerarReciboRecebimentoPdf(
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(11);
-  pdf.text("Recebi de:", margin, y);
+  pdf.text(pl("print.recibo.recebiDe"), margin, y);
   pdf.setFont("helvetica", "bold");
-  pdf.text(opts.clienteNome, margin + pdf.getTextWidth("Recebi de: ") + 1, y);
+  pdf.text(opts.clienteNome, margin + pdf.getTextWidth(pl("print.recibo.recebiDe") + " ") + 1, y);
   y += 7;
 
   pdf.setFont("helvetica", "normal");
-  pdf.text("A quantia de:", margin, y);
+  pdf.text(pl("print.recibo.quantia"), margin, y);
   pdf.setFont("helvetica", "bold");
-  pdf.text(valorTotal, margin + pdf.getTextWidth("A quantia de: ") + 1, y);
+  pdf.text(valorTotal, margin + pdf.getTextWidth(pl("print.recibo.quantia") + " ") + 1, y);
   y += 10;
 
   if (modelo === "detalhado") {
     pdf.setFont("helvetica", "normal");
-    pdf.text("Referente a:", margin, y);
+    pdf.text(pl("print.recibo.referente"), margin, y);
     y += 5;
-    pdf.text("Recebimento das cobranças descritas abaixo:", margin, y);
+    pdf.text(pl("print.recibo.cobrancasAbaixo"), margin, y);
     y += 8;
 
     const colW = [(pageW - margin * 2) * 0.55, (pageW - margin * 2) * 0.45];
@@ -79,8 +88,8 @@ export async function gerarReciboRecebimentoPdf(
 
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(9);
-    pdf.text("Forma Pagamento", colX[0] + colW[0] / 2, y, { align: "center" });
-    pdf.text("Valor", colX[1] + colW[1] / 2, y, { align: "center" });
+    pdf.text(pl("print.recibo.formaPagamento"), colX[0] + colW[0] / 2, y, { align: "center" });
+    pdf.text(pl("print.recibo.valor"), colX[1] + colW[1] / 2, y, { align: "center" });
     y += 3;
     pdf.setDrawColor(200, 200, 200);
     pdf.line(margin, y, pageW - margin, y);
@@ -103,15 +112,15 @@ export async function gerarReciboRecebimentoPdf(
   } else {
     const referente =
       opts.linhas.length === 1
-        ? `Recebimento da fatura nº ${opts.linhas[0].numeroFatura}.`
-        : `Recebimento de ${opts.linhas.length} cobranças.`;
-    pdf.text(`Referente a: ${referente}`, margin, y);
+        ? pl("print.recibo.recebimentoFatura", { numero: opts.linhas[0].numeroFatura })
+        : pl("print.recibo.recebimentoVarias", { qtd: opts.linhas.length });
+    pdf.text(`${pl("print.recibo.referente")} ${referente}`, margin, y);
     y += 10;
   }
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(10);
-  pdf.text("e para clareza firmo o presente.", margin, y);
+  pdf.text(pl("print.recibo.firmo"), margin, y);
   y += 14;
 
   const labCfg = carregarConfigLaboratorio();

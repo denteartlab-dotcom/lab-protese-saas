@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useState } from "react";
 import { ShieldCheck, X } from "lucide-react";
 import { Button } from "@/components/ui";

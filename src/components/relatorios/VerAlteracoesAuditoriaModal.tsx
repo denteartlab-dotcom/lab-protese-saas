@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { X } from "lucide-react";
 import {
   formatarValorCampoLog,
@@ -28,7 +29,8 @@ export function VerAlteracoesAuditoriaModal({ linha, onFechar }: Props) {
       ];
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/45 p-4 pt-16">
+    <I18nPortal>
+      <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/45 p-4 pt-16">
       <div className="w-full max-w-lg overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl">
         <div className="flex items-center justify-between border-b border-[#e5e7eb] dark:border-slate-700 bg-[#f9fafb] dark:bg-slate-800/70 px-4 py-2.5">
           <h2 className="text-[13px] font-semibold text-[#374151] dark:text-slate-200">
@@ -105,5 +107,6 @@ export function VerAlteracoesAuditoriaModal({ linha, onFechar }: Props) {
         </div>
       </div>
     </div>
+    </I18nPortal>
   );
 }

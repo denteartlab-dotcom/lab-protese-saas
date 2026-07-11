@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Printer, X } from "lucide-react";
 import { Button, Modal, Select } from "@/components/ui";

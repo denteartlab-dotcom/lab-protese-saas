@@ -22,6 +22,12 @@ import {
 } from "@/lib/contas-receber-financeiro";
 import { resolverDataFinalizadoImpressao } from "@/lib/os-itens-impressao";
 import {
+  definirLocaleImpressao,
+  pl,
+  resolverLocaleImpressao,
+} from "@/lib/i18n/print-i18n";
+import type { Locale } from "@/lib/i18n";
+import {
   classificarItemOs,
   type SegmentoFaturamento,
 } from "@/lib/trabalho-os-segmento";
@@ -52,6 +58,8 @@ import {
 } from "@/lib/os-modelo1-layout";
 export type OpcoesHtmlFaturaImpressao = {
   formato: "a4" | "termica";
+  /** Idioma dos rótulos impressos. */
+  locale?: Locale;
   modelo: ModeloFaturaId;
   /** Oculta o botão «Imprimir» no HTML (pré-visualização em Configurações). */
   ocultarBotaoImprimir?: boolean;
@@ -180,7 +188,7 @@ function osExternaResumoFatura(linhas: LinhaFaturaImpressao[]): string {
 function htmlMetaDatasFaturaLinha(
   linha: LinhaFaturaImpressao,
   layout: FaturaModeloLayout,
-  rotuloFinalizado = "Finalizado",
+  rotuloFinalizado = pl("print.fatura.finalizadoMeta"),
   termica = false
 ): string {
   if (linha.segmento !== "servico") return "";
@@ -208,7 +216,7 @@ function htmlMetaDatasFaturaLinha(
 }
 
 function metaLinhaOsSmart(linha: LinhaFaturaImpressao, layout: FaturaModeloLayout) {
-  return htmlMetaDatasFaturaLinha(linha, layout, "Finalizado");
+  return htmlMetaDatasFaturaLinha(linha, layout, pl("print.fatura.finalizadoMeta"));
 }
 
 function trMetaAbaixoServico(
@@ -372,7 +380,7 @@ function montarParcelasCondicaoPagamentoFatura(params: {
 
   for (const parcial of parciais) {
     parcelas.push({
-      parcela: "Pagamento parcial",
+      parcela: pl("print.fatura.pagamentoParcial"),
       vencimento: formatDate(parcial.data),
       forma: parcial.formaPagamento || "-",
       valor: money(parcial.valor),
@@ -705,14 +713,14 @@ function htmlTabelaItensA4(
   if (smartModelo1) {
     const colgroup = `<colgroup>${colunasLarguraSmart(layout)}</colgroup>`;
     const cabecalho = `<thead><tr>
-      ${layout.numOs ? "<th>OS</th>" : ""}
-      ${layout.qtd ? '<th class="center">Qtd</th>' : ""}
-      ${layout.servico ? "<th>Serviços/Produtos</th>" : ""}
-      ${layout.numDente ? "<th>Num Dente</th>" : ""}
-      ${layout.paciente ? "<th>Paciente</th>" : ""}
-      ${layout.valorUnit ? '<th class="right">Unitário</th>' : ""}
-      ${layout.desconto ? '<th class="right">Desc</th>' : ""}
-      ${layout.subtotal ? '<th class="right">Subtotal</th>' : ""}
+      ${layout.numOs ? `<th>${pl("print.fatura.col.os")}</th>` : ""}
+      ${layout.qtd ? `<th class="center">${pl("print.fatura.col.qtd")}</th>` : ""}
+      ${layout.servico ? `<th>${pl("print.fatura.col.servicos")}</th>` : ""}
+      ${layout.numDente ? `<th>${pl("print.fatura.col.numDente")}</th>` : ""}
+      ${layout.paciente ? `<th>${pl("print.fatura.col.paciente")}</th>` : ""}
+      ${layout.valorUnit ? `<th class="right">${pl("print.fatura.col.unitario")}</th>` : ""}
+      ${layout.desconto ? `<th class="right">${pl("print.fatura.col.desconto")}</th>` : ""}
+      ${layout.subtotal ? `<th class="right">${pl("print.fatura.col.subtotal")}</th>` : ""}
     </tr></thead>`;
 
     let osAnterior = "";
@@ -759,11 +767,11 @@ function htmlTabelaItensA4(
     ${layout.numOs ? '<th>Os</th>' : ""}
     ${layout.servico ? '<th>Serviço/Produto</th>' : ""}
     ${layout.numDente ? '<th>Número Dente</th>' : ""}
-    ${layout.paciente ? '<th>Paciente</th>' : ""}
-    ${layout.qtd ? '<th class="center">Qtd</th>' : ""}
-    ${layout.valorUnit ? '<th class="right">Unitário</th>' : ""}
-    ${layout.desconto ? '<th class="right">Desc</th>' : ""}
-    ${layout.subtotal ? '<th class="right">Subtotal</th>' : ""}
+    ${layout.paciente ? '<th>${pl("print.fatura.col.paciente")}</th>' : ""}
+    ${layout.qtd ? '<th class="center">${pl("print.fatura.col.qtd")}</th>' : ""}
+    ${layout.valorUnit ? '<th class="right">${pl("print.fatura.col.unitario")}</th>' : ""}
+    ${layout.desconto ? '<th class="right">${pl("print.fatura.col.desconto")}</th>' : ""}
+    ${layout.subtotal ? '<th class="right">${pl("print.fatura.col.subtotal")}</th>' : ""}
   </tr></thead>`;
 
   let osAnterior = "";
@@ -899,16 +907,16 @@ function htmlCondicaoPagamento(
     : "";
 
   const theadPay = `<thead><tr>
-          <th>Parcela</th>
-          <th>Vencimento</th>
+          <th>${pl("print.fatura.col.parcela")}</th>
+          <th>${pl("print.fatura.col.vencimento")}</th>
           ${layout.formaPgto ? `<th>${labelForma}</th>` : ""}
-          <th>Valor</th>
-          ${exibirPago ? "<th>Pago</th>" : ""}
+          <th>${pl("print.fatura.col.valor")}</th>
+          ${exibirPago ? `<th>${pl("print.fatura.col.pago")}</th>` : ""}
         </tr></thead>`;
 
   const tabelaPay = smartModelo1
     ? `${linhaDivisoriaSmart()}
-    <p style="font-weight:bold;margin:8px 0 6px">Condição de Pagamento</p>
+    <p style="font-weight:bold;margin:8px 0 6px">${pl("print.fatura.condicaoPagamento")}</p>
     <table class="items pay smart" style="margin-bottom:0">
       ${colgroupPay}
       ${theadPay}
@@ -920,7 +928,7 @@ function htmlCondicaoPagamento(
     </table>
     ${linhaDivisoriaSmart()}`
     : `<div class="rule-thin" style="margin-bottom:0"></div>
-    <p style="font-weight:bold;margin:8px 0 6px">Condição de Pagamento</p>
+    <p style="font-weight:bold;margin:8px 0 6px">${pl("print.fatura.condicaoPagamento")}</p>
     <table class="pay">
       ${theadPay}
       <tbody>${linhas}</tbody>
@@ -937,7 +945,7 @@ function htmlAssinaturaSmart(fsSmall: number) {
   return `<div style="display:flex;justify-content:center">
     <div style="width:34%;min-width:150px;max-width:200px;text-align:center;font-size:${fsAssinatura}px;line-height:1.2">
       <div style="border-top:1px solid #000"></div>
-      <div style="padding-top:3px">Recebi o(s) serviço(s) descritos acima</div>
+      <div style="padding-top:3px">${pl("print.fatura.assinatura")}</div>
     </div>
   </div>`;
 }
@@ -947,7 +955,7 @@ function htmlPixSmart(layout: FaturaModeloLayout, aposAssinatura = false) {
     ? `<img src="${layout.pixQrImagem}" alt="QR PIX" style="width:${layout.pixQrTamanhoPx}px;height:${layout.pixQrTamanhoPx}px;object-fit:contain;display:block" />`
     : `<div style="width:${layout.pixQrTamanhoPx}px;height:${layout.pixQrTamanhoPx}px;border:1px dashed #9ca3af;display:flex;align-items:center;justify-content:center;font-size:10px;color:#6b7280">QR PIX</div>`;
   const margemTopo = aposAssinatura ? `${FATURA_SMART_ESPACO_ASSINATURA_PIX_MM}mm` : "0";
-  return `<div style="display:flex;align-items:flex-end;gap:10px;margin-top:${margemTopo}">${qr}<span style="font-size:${layout.pixQrFonte}px;line-height:1.2">Pagar com PIX</span></div>`;
+  return `<div style="display:flex;align-items:flex-end;gap:10px;margin-top:${margemTopo}">${qr}<span style="font-size:${layout.pixQrFonte}px;line-height:1.2">${pl("print.fatura.pagarPix")}</span></div>`;
 }
 
 function htmlPixAssinatura(
@@ -976,11 +984,11 @@ function htmlPixAssinatura(
 
   return `<div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr 1fr;align-items:end;font-size:${fsSmall}px;min-height:${layout.pix ? layout.pixQrTamanhoPx : 0}px">
     <div style="display:flex;align-items:center;gap:12px">
-      ${layout.pix ? `${qr}<span style="font-size:${layout.pixQrFonte}px">Pagar com PIX</span>` : ""}
+      ${layout.pix ? `${qr}<span style="font-size:${layout.pixQrFonte}px">${pl("print.fatura.pagarPix")}</span>` : ""}
     </div>
     ${
       layout.assinatura
-        ? `<div style="text-align:center"><div style="width:192px;margin:0 auto 4px;border-top:1px solid #000"></div><p>Recebi o(s) serviço(s) descritos acima</p></div>`
+        ? `<div style="text-align:center"><div style="width:192px;margin:0 auto 4px;border-top:1px solid #000"></div><p>${pl("print.fatura.assinatura")}</p></div>`
         : "<div></div>"
     }
     <div></div>
@@ -1023,10 +1031,10 @@ function gerarHtmlFaturaA4(
         ${
           layout.dadosOs
             ? `<div class="invoice" style="text-align:right;line-height:1.35;font-size:${fs}px;white-space:nowrap">
-                <span style="font-weight:bold">Fatura</span>
+                <span style="font-weight:bold">${pl("print.fatura.titulo")}</span>
                 <strong style="display:block;font-size:${fs + 8}px;line-height:1;font-weight:bold;margin:2px 0">${dados.numeroFatura}</strong>
-                ${layout.data ? `<span style="display:block;font-size:${fsSmall}px;font-weight:normal">Data: ${escapeHtml(dataFatura)}</span>` : ""}
-                ${layout.usuario ? `<span style="display:block;font-size:${fsSmall}px;font-weight:normal">Usuário: ${escapeHtml(dados.usuario)}</span>` : ""}
+                ${layout.data ? `<span style="display:block;font-size:${fsSmall}px;font-weight:normal">${pl("print.fatura.data")}: ${escapeHtml(dataFatura)}</span>` : ""}
+                ${layout.usuario ? `<span style="display:block;font-size:${fsSmall}px;font-weight:normal">${pl("print.fatura.usuario")}: ${escapeHtml(dados.usuario)}</span>` : ""}
               </div>`
             : ""
         }
@@ -1045,7 +1053,7 @@ function gerarHtmlFaturaA4(
         ? `<div class="invoice" style="text-align:right;font-size:18px;line-height:1.1">
             Fatura
             <strong style="display:block;font-size:22px;margin-top:2px">${dados.numeroFatura}</strong>
-            ${layout.data ? `<span style="display:block;margin-top:8px;font-size:8px;font-weight:normal">Data: ${escapeHtml(dados.dataEmissao)}</span>` : ""}
+            ${layout.data ? `<span style="display:block;margin-top:8px;font-size:8px;font-weight:normal">${pl("print.fatura.data")}: ${escapeHtml(dados.dataEmissao)}</span>` : ""}
           </div>`
         : ""
     }
@@ -1054,27 +1062,27 @@ function gerarHtmlFaturaA4(
   const infoCliente = faturaA4Smart
     ? `<div class="info" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:4px 0 8px;line-height:1.5;font-size:${fsSmall}px">
         <div>
-          ${layout.cliente ? `<div><strong>Cliente:</strong> ${escapeHtml(dados.clienteNome)}</div>` : ""}
-          ${layout.clienteTel ? `<div><strong>Telefones:</strong> ${escapeHtml(dados.clienteTelefones || "—")}</div>` : ""}
-          ${layout.ultimoPgto ? `<div><strong>Último Pgto:</strong> ${escapeHtml(dados.ultimoPgto || "—")}</div>` : ""}
-          ${layout.saldoAnterior && !saldoAnteriorNosTotais ? `<div><strong>Saldo Anterior:</strong> ${escapeHtml(dados.saldoAnterior || "R$ 0,00")}</div>` : ""}
+          ${layout.cliente ? `<div><strong>${pl("print.fatura.cliente")}:</strong> ${escapeHtml(dados.clienteNome)}</div>` : ""}
+          ${layout.clienteTel ? `<div><strong>${pl("print.fatura.telefones")}:</strong> ${escapeHtml(dados.clienteTelefones || "—")}</div>` : ""}
+          ${layout.ultimoPgto ? `<div><strong>${pl("print.fatura.ultimoPgto")}:</strong> ${escapeHtml(dados.ultimoPgto || "—")}</div>` : ""}
+          ${layout.saldoAnterior && !saldoAnteriorNosTotais ? `<div><strong>${pl("print.fatura.saldoAnterior")}:</strong> ${escapeHtml(dados.saldoAnterior || "R$ 0,00")}</div>` : ""}
         </div>
         <div>
-          ${layout.osExterna ? `<div><strong>OS Externa:</strong> ${escapeHtml(osExternaResumoFatura(dados.linhas))}</div>` : ""}
-          ${layout.clienteEmail ? `<div><strong>Email:</strong> ${escapeHtml(dados.clienteEmail || "—")}</div>` : ""}
-          ${layout.clienteEnd ? `<div><strong>Endereço:</strong> ${escapeHtml(dados.clienteEndereco || "—")}</div>` : ""}
+          ${layout.osExterna ? `<div><strong>${pl("print.fatura.osExterna")}:</strong> ${escapeHtml(osExternaResumoFatura(dados.linhas))}</div>` : ""}
+          ${layout.clienteEmail ? `<div><strong>${pl("print.fatura.email")}:</strong> ${escapeHtml(dados.clienteEmail || "—")}</div>` : ""}
+          ${layout.clienteEnd ? `<div><strong>${pl("print.fatura.endereco")}:</strong> ${escapeHtml(dados.clienteEndereco || "—")}</div>` : ""}
         </div>
       </div>`
     : `<div class="info" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;border-bottom:1px solid #777;padding-bottom:5px;margin-bottom:5px;line-height:1.35;font-size:${fsSmall}px">
     <div>
-      ${layout.cliente ? `<strong>Cliente:</strong> ${escapeHtml(dados.clienteNome)}<br/>` : ""}
-      ${layout.clienteTel ? `<strong>Telefones:</strong><br/>` : ""}
-      ${layout.saldoAnterior && !saldoAnteriorNosTotais ? `<strong>Saldo Anterior:</strong> ${escapeHtml(dados.saldoAnterior || "0,00")}` : ""}
+      ${layout.cliente ? `<strong>${pl("print.fatura.cliente")}:</strong> ${escapeHtml(dados.clienteNome)}<br/>` : ""}
+      ${layout.clienteTel ? `<strong>${pl("print.fatura.telefones")}:</strong><br/>` : ""}
+      ${layout.saldoAnterior && !saldoAnteriorNosTotais ? `<strong>${pl("print.fatura.saldoAnterior")}:</strong> ${escapeHtml(dados.saldoAnterior || "0,00")}` : ""}
     </div>
     <div>
-      ${layout.osExterna ? `<strong>OS Externa:</strong> ${escapeHtml(osExternaResumoFatura(dados.linhas))}<br/>` : ""}
-      ${layout.clienteEmail ? `<strong>Email:</strong><br/>` : ""}
-      ${layout.clienteEnd ? `<strong>Endereço:</strong>` : ""}
+      ${layout.osExterna ? `<strong>${pl("print.fatura.osExterna")}:</strong> ${escapeHtml(osExternaResumoFatura(dados.linhas))}<br/>` : ""}
+      ${layout.clienteEmail ? `<strong>${pl("print.fatura.email")}:</strong><br/>` : ""}
+      ${layout.clienteEnd ? `<strong>${pl("print.fatura.endereco")}:</strong>` : ""}
     </div>
   </div>`;
 
@@ -1084,7 +1092,7 @@ function gerarHtmlFaturaA4(
       : "";
 
   const corpo = `<div class="page">
-    ${ocultarBotaoImprimir ? "" : '<div class="actions"><button onclick="window.print()">Imprimir</button></div>'}
+    ${ocultarBotaoImprimir ? "" : '<div class="actions"><button onclick="window.print()">${pl("print.comum.imprimir")}</button></div>'}
     <div style="position:relative;width:100%;padding-left:${faturaA4Smart ? FATURA_SMART_CONTEUDO_INSET_MM : 0}mm;padding-right:${faturaA4Smart ? FATURA_SMART_CONTEUDO_INSET_MM : 0}mm">
       ${layout.exibirBordas ? molduraHtml(layout, faturaA4Smart ? 0 : OS_REQUISICAO_PREVIEW_INSET_MM) : ""}
       ${cabecalho}
@@ -1094,13 +1102,13 @@ function gerarHtmlFaturaA4(
       ${faturaA4Smart ? "" : '<div class="rule-thin" style="margin-top:3px;margin-bottom:2px"></div>'}
       ${htmlTotaisA4(dados, layout, modelo, fsSmall, money)}
       ${htmlCondicaoPagamento(dados, layout, fsSmall, false, faturaA4Smart)}
-      ${layout.observacao ? `<div class="obs" style="margin-top:${faturaA4Smart ? "5mm" : "10px"};font-size:${fsSmall}px"><strong>Observação:</strong> ${escapeHtml(dados.observacao || "")}</div>` : ""}
+      ${layout.observacao ? `<div class="obs" style="margin-top:${faturaA4Smart ? "5mm" : "10px"};font-size:${fsSmall}px"><strong>${pl("print.fatura.observacao")}:</strong> ${escapeHtml(dados.observacao || "")}</div>` : ""}
       ${layout.mensagem ? `<p style="margin-top:12px;text-align:center;font-style:italic;color:#4b5563;font-size:${fsSmall}px">${escapeHtml(layout.mensagem)}</p>` : ""}
       ${pixAssinatura}
     </div>
   </div>`;
 
-  return `<!doctype html><html><head><meta charset="utf-8"><title>Fatura ${dados.numeroFatura}</title>${estilosBaseA4(fs, faturaA4Smart)}</head><body>${corpo}</body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${pl("print.fatura.titulo")} ${dados.numeroFatura}</title>${estilosBaseA4(fs, faturaA4Smart)}</head><body>${corpo}</body></html>`;
 }
 
 function gerarHtmlFaturaTermica(
@@ -1131,15 +1139,15 @@ function gerarHtmlFaturaTermica(
     ${layout.logo ? `<div style="display:flex;justify-content:center;margin-top:${layout.logoMargemTopo}px;margin-left:${layout.logoMargemEsq}px">${logoHtml}</div>` : ""}
     ${layout.infoLab ? `<p style="text-align:center;font-weight:bold;margin:4px 0;font-size:${fs + 1}px">${escapeHtml(lab.responsavel)}</p>` : ""}
     <div style="font-size:${fsSmall}px;margin-top:8px">
-      ${layout.dadosOs ? linhaRotuloValor("Fatura:", String(dados.numeroFatura)) : ""}
-      ${layout.cliente ? linhaRotuloValor("Cliente:", dados.clienteNome) : ""}
-      ${layout.clienteTel ? linhaRotuloValor("Telefone:", "—") : ""}
-      ${layout.osExterna ? linhaRotuloValor("OS Externa:", osExternaResumoFatura(dados.linhas)) : ""}
-      ${layout.clienteEmail ? linhaRotuloValor("Email:", dados.clienteEmail || "—") : ""}
-      ${layout.clienteEnd ? linhaRotuloValor("Endereço:", "—") : ""}
-      ${layout.ultimoPgto ? linhaRotuloValor("Última Pgto:", dados.ultimoPgto || "—") : ""}
-      ${layout.saldoAnterior && !saldoAnteriorNosTotais ? linhaRotuloValor("Saldo Anterior:", dados.saldoAnterior || "0,00") : ""}
-      ${layout.usuario ? linhaRotuloValor("Usuário:", dados.usuario) : ""}
+      ${layout.dadosOs ? linhaRotuloValor(pl("print.fatura.titulo") + ":", String(dados.numeroFatura)) : ""}
+      ${layout.cliente ? linhaRotuloValor(pl("print.fatura.cliente") + ":", dados.clienteNome) : ""}
+      ${layout.clienteTel ? linhaRotuloValor(pl("print.fatura.telefone") + ":", "—") : ""}
+      ${layout.osExterna ? linhaRotuloValor(pl("print.fatura.osExterna") + ":", osExternaResumoFatura(dados.linhas)) : ""}
+      ${layout.clienteEmail ? linhaRotuloValor(pl("print.fatura.email") + ":", dados.clienteEmail || "—") : ""}
+      ${layout.clienteEnd ? linhaRotuloValor(pl("print.fatura.endereco") + ":", "—") : ""}
+      ${layout.ultimoPgto ? linhaRotuloValor(pl("print.fatura.ultimaPgto") + ":", dados.ultimoPgto || "—") : ""}
+      ${layout.saldoAnterior && !saldoAnteriorNosTotais ? linhaRotuloValor(pl("print.fatura.saldoAnterior") + ":", dados.saldoAnterior || "0,00") : ""}
+      ${layout.usuario ? linhaRotuloValor(pl("print.fatura.usuario") + ":", dados.usuario) : ""}
     </div>`;
 
   const itens = exibirItens
@@ -1212,24 +1220,24 @@ function gerarHtmlFaturaTermica(
             ? `<img src="${layout.pixQrImagem}" alt="QR PIX" style="width:${layout.pixQrTamanhoPx}px;height:${layout.pixQrTamanhoPx}px;object-fit:contain" />`
             : `<div style="width:${layout.pixQrTamanhoPx}px;height:${layout.pixQrTamanhoPx}px;border:1px dashed #9ca3af;display:flex;align-items:center;justify-content:center;font-size:10px;color:#6b7280">QR PIX</div>`
         }
-        <span style="font-size:${layout.pixQrFonte}px">Pagar com PIX</span>
+        <span style="font-size:${layout.pixQrFonte}px">${pl("print.fatura.pagarPix")}</span>
       </div>`
     : "";
 
   const corpo = `<div class="page">
-    <div class="actions"><button onclick="window.print()">Imprimir</button></div>
+    <div class="actions"><button onclick="window.print()">${pl("print.comum.imprimir")}</button></div>
     ${blocoTopo}
     ${itens}
     ${totais}
     ${htmlCondicaoPagamento(dados, layout, fsSmall, true)}
-    ${layout.observacao ? `<p style="margin-top:8px;font-size:${fsSmall}px">Observação: <strong>${escapeHtml(dados.observacao || "—")}</strong></p>` : ""}
+    ${layout.observacao ? `<p style="margin-top:8px;font-size:${fsSmall}px">${pl("print.fatura.observacao")}: <strong>${escapeHtml(dados.observacao || "—")}</strong></p>` : ""}
     ${layout.mensagem ? `<p style="margin-top:8px;text-align:center;font-style:italic;color:#4b5563;font-size:${fsSmall}px">${escapeHtml(layout.mensagem)}</p>` : ""}
-    ${layout.assinatura ? `<div style="margin-top:24px;text-align:center;font-size:${fsSmall - 1}px"><p style="margin:0;text-transform:lowercase">recebi o(s) serviço(s) descrito acima</p><div style="width:192px;margin:12px auto 0;border-top:1px solid ${cor}"></div></div>` : ""}
+    ${layout.assinatura ? `<div style="margin-top:24px;text-align:center;font-size:${fsSmall - 1}px"><p style="margin:0;text-transform:lowercase">${pl("print.fatura.assinaturaMinusculo")}</p><div style="width:192px;margin:12px auto 0;border-top:1px solid ${cor}"></div></div>` : ""}
     ${rodapeLab}
     ${pix}
   </div>`;
 
-  return `<!doctype html><html><head><meta charset="utf-8"><title>Fatura ${dados.numeroFatura}</title>${estilosBaseTermica(fs)}</head><body>${corpo}</body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${pl("print.fatura.titulo")} ${dados.numeroFatura}</title>${estilosBaseTermica(fs)}</head><body>${corpo}</body></html>`;
 }
 
 export function gerarHtmlFaturaImpressao(
@@ -1240,6 +1248,9 @@ export function gerarHtmlFaturaImpressao(
   money: (n: number) => string = (n) =>
     n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 ) {
+  definirLocaleImpressao(
+    resolverLocaleImpressao({ locale: opcoes.locale, configLab: cfgLab })
+  );
   const dadosImpressao: DadosFaturaImpressao = {
     ...dados,
     usuario:

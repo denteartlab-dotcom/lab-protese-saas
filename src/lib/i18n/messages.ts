@@ -20,6 +20,11 @@ import {
   messagesUiAutoEs,
   messagesUiAutoPt,
 } from "@/lib/i18n/messages-ui-auto";
+import {
+  messagesPrintEn,
+  messagesPrintEs,
+  messagesPrintPt,
+} from "@/lib/i18n/messages-print";
 
 export type MessageKey = keyof (typeof messages)["pt"];
 
@@ -509,6 +514,7 @@ export const messages = {
     ...messagesProducaoSubPt,
     ...messagesFinanceiroPt,
     ...messagesUiAutoPt,
+    ...messagesPrintPt,
   },
   en: {
     "lang.pt": "Portuguese",
@@ -993,6 +999,7 @@ export const messages = {
     ...messagesProducaoSubEn,
     ...messagesFinanceiroEn,
     ...messagesUiAutoEn,
+    ...messagesPrintEn,
   },
   es: {
     "lang.pt": "Portugués",
@@ -1477,5 +1484,6 @@ export const messages = {
     ...messagesProducaoSubEs,
     ...messagesFinanceiroEs,
     ...messagesUiAutoEs,
+    ...messagesPrintEs,
   },
 } as const;

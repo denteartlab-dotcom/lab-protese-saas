@@ -315,7 +315,7 @@ type SituacaoFaturaKey =
   | "financeiro.receber.situacao.emDia";
 
 function FinanceiroReceberConteudo() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const searchParams = useSearchParams();
   const notifDeepLinkFeito = useRef(false);
   const saveEmAndamentoRef = useRef(false);
@@ -3352,7 +3352,7 @@ function FinanceiroReceberConteudo() {
                 dados,
                 carregarConfigLaboratorio(),
                 configFaturas,
-                opcoes,
+                { ...opcoes, locale },
                 money
               );
             }}

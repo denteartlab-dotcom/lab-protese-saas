@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/ui";
 import {

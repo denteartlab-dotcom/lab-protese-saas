@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ScanBarcode } from "lucide-react";
 import { Modal } from "@/components/ui";

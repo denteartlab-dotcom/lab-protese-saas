@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect, useMemo, useState } from "react";
 import { MapPin, Truck, User } from "lucide-react";
 import { Modal, SelectPesquisavel } from "@/components/ui";

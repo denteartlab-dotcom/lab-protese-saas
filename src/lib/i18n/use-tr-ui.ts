@@ -1,8 +1,10 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useCallback } from "react";
 import { useI18n } from "@/components/i18n-provider";
 import { trUi, trUiFilho, trUiOpcoes, type TradutorUi } from "@/lib/i18n/tr-ui";
+import { trUiArvore } from "@/lib/i18n/tr-ui-arvore";
 import type { MessageKey } from "@/lib/i18n";
 
 export function useTrUi() {
@@ -16,10 +18,15 @@ export function useTrUi() {
     (opcoes: { value: string; label: string }[]) => trUiOpcoes(opcoes, t as TradutorUi),
     [t]
   );
+  const trArvore = useCallback(
+    (filho: ReactNode) => trUiArvore(filho, t as TradutorUi),
+    [t]
+  );
   return {
     tr,
     trFilho,
     trOpcoes,
+    trArvore,
     t: t as (key: MessageKey, params?: Record<string, string | number>) => string,
     locale,
   };

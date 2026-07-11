@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useI18n } from "@/components/i18n-provider";
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
 import {
   CONFIG_FATURAS_PADRAO,
@@ -29,6 +30,7 @@ export function ConfiguracoesFaturaModeloPreview({
   modeloId = "modelo1",
   termica,
 }: Props) {
+  const { locale } = useI18n();
   const html = useMemo(() => {
     if (termica) return "";
     try {
@@ -41,12 +43,13 @@ export function ConfiguracoesFaturaModeloPreview({
           modelo: modeloId,
           ocultarBotaoImprimir: true,
           layoutOverride: layout,
+          locale,
         }
       );
     } catch {
       return "<!doctype html><html><body><p>Erro ao gerar pré-visualização.</p></body></html>";
     }
-  }, [cfg, layout, modeloId, termica]);
+  }, [cfg, layout, modeloId, termica, locale]);
 
   if (termica) {
     return (

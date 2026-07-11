@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Plus, Trash2, X } from "lucide-react";
 import { propsInputComSelecaoAoFocar } from "@/lib/input-selecao";
@@ -404,7 +405,8 @@ export function OrcamentoFormModal({
     : "Gerar Lista de Orçamento Produtos";
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <I18nPortal>
+      <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
@@ -661,5 +663,6 @@ export function OrcamentoFormModal({
         </div>
       </div>
     </div>
+    </I18nPortal>
   );
 }

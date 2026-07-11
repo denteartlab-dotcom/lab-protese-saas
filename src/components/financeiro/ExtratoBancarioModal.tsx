@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { RefreshCw, X } from "lucide-react";
@@ -126,7 +127,8 @@ export function ExtratoBancarioModal({
     conta.modoVinculo === "open_finance" && Boolean(conta.openFinance?.itemId);
 
   return createPortal(
-    <div className="fixed inset-0 z-[10001] flex items-start justify-center overflow-y-auto bg-black/45 p-4 pt-8">
+    <I18nPortal>
+      <div className="fixed inset-0 z-[10001] flex items-start justify-center overflow-y-auto bg-black/45 p-4 pt-8">
       <div className="absolute inset-0" onClick={onClose} aria-hidden />
       <div className="relative my-auto w-full max-w-[900px] rounded border border-[#d4d4d4] bg-white shadow-xl dark:border-slate-600 dark:bg-slate-900">
         <div className="flex items-center justify-between border-b border-[#e5e5e5] px-4 py-3">
@@ -233,7 +235,8 @@ export function ExtratoBancarioModal({
           </button>
         </div>
       </div>
-    </div>,
+    </div>
+    </I18nPortal>,
     document.body
   );
 }

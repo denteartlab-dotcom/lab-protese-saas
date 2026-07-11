@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import type { SecaoCurvaAbc } from "@/lib/curva-abc-clientes";
 import { ModalCurvaAbcDetalheDashboard } from "@/components/relatorios/ModalCurvaAbcDetalheDashboard";
 

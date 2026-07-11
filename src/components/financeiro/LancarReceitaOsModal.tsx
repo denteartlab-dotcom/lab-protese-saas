@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Barcode, Minus, Plus, X } from "lucide-react";
@@ -424,7 +425,8 @@ export function LancarReceitaOsModal({
   const valorBrutoExibicao = semOs ? totalLiquido : valorOsSelecionadas;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto bg-black/45 p-4 pt-6">
+    <I18nPortal>
+      <div className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto bg-black/45 p-4 pt-6">
       <div
         className="absolute inset-0"
         onClick={() => {
@@ -985,7 +987,8 @@ export function LancarReceitaOsModal({
           </div>
         </form>
       </div>
-    </div>,
+    </div>
+    </I18nPortal>,
     document.body
   );
 }

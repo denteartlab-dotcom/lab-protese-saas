@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { I18nPortal } from "@/components/I18nPortal";
+import { useI18n } from "@/components/i18n-provider";
 import { Mail, MessageCircle, Printer, X } from "lucide-react";
 import {
   carregarConfigLaboratorio,
@@ -30,6 +32,7 @@ export function ImprimirReciboModal({
   clienteNome,
   linhas,
 }: ImprimirReciboModalProps) {
+  const { locale } = useI18n();
   const [modelo, setModelo] = useState<ModeloReciboRecebimento>("detalhado");
 
   useEffect(() => {
@@ -42,7 +45,7 @@ export function ImprimirReciboModal({
     const janela = prepararAbaPdf();
     const nomeArquivo = proximoNomeArquivoReciboPdf();
     void abrirPdfBlobGerandoNoVisualizadorUnificado(
-      () => gerarReciboRecebimentoPdf(modelo, { clienteNome, linhas }),
+      () => gerarReciboRecebimentoPdf(modelo, { clienteNome, linhas, locale }),
       "Recibo",
       nomeArquivo,
       { janela, origem: "Financeiro · Recibo" }
@@ -71,7 +74,8 @@ export function ImprimirReciboModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/40 p-4">
+    <I18nPortal>
+      <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/40 p-4">
       <div
         className="w-full max-w-md rounded-md border border-[#e5e7eb] bg-white shadow-xl"
         role="dialog"
@@ -158,5 +162,6 @@ export function ImprimirReciboModal({
         </div>
       </div>
     </div>
+    </I18nPortal>
   );
 }

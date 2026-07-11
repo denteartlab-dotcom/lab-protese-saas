@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, Layers } from "lucide-react";
@@ -167,7 +168,8 @@ export function PlanoContasCadastroModal({
   }
 
   return createPortal(
-    <div
+    <I18nPortal>
+      <div
       className="fixed inset-0 z-[10060] flex items-start justify-center overflow-y-auto bg-black/45 p-4 pt-10"
       role="dialog"
       aria-modal="true"
@@ -245,7 +247,8 @@ export function PlanoContasCadastroModal({
           </div>
         </form>
       </div>
-    </div>,
+    </div>
+    </I18nPortal>,
     document.body
   );
 }

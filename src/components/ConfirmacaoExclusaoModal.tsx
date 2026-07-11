@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useRef } from "react";
 import { X } from "lucide-react";
 import { useTrUi } from "@/lib/i18n/use-tr-ui";

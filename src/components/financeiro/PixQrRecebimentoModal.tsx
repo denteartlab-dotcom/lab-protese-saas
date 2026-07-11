@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, Copy, X } from "lucide-react";
@@ -50,7 +51,8 @@ export function PixQrRecebimentoModal({ open, onClose, dados, money }: Props) {
     : `data:image/png;base64,${dados.pixEncodedImage}`;
 
   return createPortal(
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+    <I18nPortal>
+      <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/45" onClick={onClose} aria-hidden />
       <div
         role="dialog"
@@ -109,7 +111,8 @@ export function PixQrRecebimentoModal({ open, onClose, dados, money }: Props) {
           </button>
         </div>
       </div>
-    </div>,
+    </div>
+    </I18nPortal>,
     document.body
   );
 }

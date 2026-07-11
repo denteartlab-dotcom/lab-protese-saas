@@ -28,7 +28,7 @@ function extrairStrings() {
       if (entry.isDirectory()) {
         if (["node_modules", ".next"].includes(entry.name)) continue;
         walk(full);
-      } else if (/\.tsx?$/.test(entry.name)) {
+      } else if (/\.(tsx?|mjs)$/.test(entry.name)) {
         const content = fs.readFileSync(full, "utf8");
         const patterns = [
           /\blabel="([^"]{1,150})"/g,
@@ -52,6 +52,10 @@ function extrairStrings() {
           /\b(?:placeholder|emptyMessage|mensagem|titulo)\s*=\s*'([^']{1,200})'/g,
           /(?:placeholder|emptyMessage|mensagem)\s*=\s*\{?"([^"]{2,120})"?\}/g,
           />([A-Za-zÀ-ú][^<>{}\n]{2,100})</g,
+          /pdf\.text\(\s*"([^"]{2,120})"/g,
+          /pdf\.text\(\s*'([^']{2,120})'/g,
+          /<strong>([^<]{2,80})<\/strong>/g,
+          /<th>([^<]{1,40})<\/th>/g,
         ];
         for (const re of patterns) {
           let m;

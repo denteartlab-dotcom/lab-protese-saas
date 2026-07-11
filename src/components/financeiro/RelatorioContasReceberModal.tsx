@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FileText, X } from "lucide-react";
 import { BotoesExtratoCompartilhar } from "@/components/financeiro/BotoesExtratoCompartilhar";
@@ -326,7 +327,8 @@ export function RelatorioContasReceberModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6">
+    <I18nPortal>
+      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6">
         <div
           className="absolute inset-0 bg-black/40"
           onClick={onClose}
@@ -613,5 +615,6 @@ export function RelatorioContasReceberModal({
           />
         ) : null}
     </div>
+    </I18nPortal>
   );
 }

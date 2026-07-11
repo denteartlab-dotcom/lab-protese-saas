@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { ExternalLink, X } from "lucide-react";
 import { STATUS_ORCAMENTO, totalLiquidoOrcamento, type Orcamento } from "@/lib/orcamentos-types";
 import {
@@ -42,7 +43,8 @@ export function OrcamentoRespostaModal({
   const podeAprovar = orcamento.status === "enviado";
 
   return (
-    <div className="fixed inset-0 z-[85] flex items-center justify-center bg-black/40 p-4">
+    <I18nPortal>
+      <div className="fixed inset-0 z-[85] flex items-center justify-center bg-black/40 p-4">
       <div
         role="dialog"
         aria-modal="true"
@@ -192,5 +194,6 @@ export function OrcamentoRespostaModal({
         </div>
       </div>
     </div>
+    </I18nPortal>
   );
 }

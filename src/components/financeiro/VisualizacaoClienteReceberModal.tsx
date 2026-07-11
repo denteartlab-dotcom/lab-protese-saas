@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -626,7 +627,8 @@ export function VisualizacaoClienteReceberModal({
   if (!open || !mounted || !cliente) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[65] flex p-2 sm:p-3">
+    <I18nPortal>
+      <div className="fixed inset-0 z-[65] flex p-2 sm:p-3">
       <div className="absolute inset-0 bg-black/45" onClick={onClose} aria-hidden />
       <div
         role="dialog"
@@ -1185,7 +1187,8 @@ export function VisualizacaoClienteReceberModal({
           gerarPdf={gerarExtratoPdfBlob}
         />
       ) : null}
-    </div>,
+    </div>
+    </I18nPortal>,
     document.body
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import type { ReactNode } from "react";
 import { Trash2 } from "lucide-react";
 import { CampoDataBr } from "@/components/ui";

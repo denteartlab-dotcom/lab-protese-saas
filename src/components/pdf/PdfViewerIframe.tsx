@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { srcIframePdfViewer } from "@/lib/pdf-viewer-iframe";
 
 type Props = {

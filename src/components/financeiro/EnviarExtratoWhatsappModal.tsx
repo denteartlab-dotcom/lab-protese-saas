@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { MessageCircle, X } from "lucide-react";
@@ -84,7 +85,8 @@ export function EnviarExtratoWhatsappModal({
   if (!open || !mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
+    <I18nPortal>
+      <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
       <div className="absolute inset-0" onClick={onClose} aria-hidden />
       <div
         className="relative w-full max-w-md overflow-hidden rounded-md border border-[#e5e7eb] bg-white shadow-xl"
@@ -162,7 +164,8 @@ export function EnviarExtratoWhatsappModal({
           </button>
         </div>
       </div>
-    </div>,
+    </div>
+    </I18nPortal>,
     document.body
   );
 }

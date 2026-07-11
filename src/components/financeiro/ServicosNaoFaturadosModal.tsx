@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useMemo, useState } from "react";
 import { FileText, Printer, X } from "lucide-react";
 import {
@@ -123,7 +124,8 @@ export function ServicosNaoFaturadosModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-start justify-center bg-black/45 p-4 pt-10">
+    <I18nPortal>
+      <div className="fixed inset-0 z-[70] flex items-start justify-center bg-black/45 p-4 pt-10">
       <div className="absolute inset-0" onClick={onClose} aria-hidden />
       <div
         className="relative flex max-h-[88vh] w-full max-w-[1120px] flex-col overflow-hidden rounded-sm border border-[#e5e7eb] bg-white shadow-2xl"
@@ -243,5 +245,6 @@ export function ServicosNaoFaturadosModal({
         </div>
       </div>
     </div>
+    </I18nPortal>
   );
 }

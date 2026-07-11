@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { X } from "lucide-react";
 import type { FaturaInadimplente } from "@/lib/dashboard-financeiro";
 import { formatarMoedaResumo } from "@/lib/dashboard-gerencial";
@@ -14,7 +15,8 @@ export function ModalInadimplentesDashboard({ aberto, faturas, onFechar }: Props
   if (!aberto) return null;
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/45 p-4 pt-16">
+    <I18nPortal>
+      <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/45 p-4 pt-16">
       <div className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-sm border border-[#e5e7eb] bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-[#e5e7eb] bg-[#f9fafb] px-4 py-3">
           <h2 className="text-[14px] font-semibold text-[#374151]">
@@ -82,5 +84,6 @@ export function ModalInadimplentesDashboard({ aberto, faturas, onFechar }: Props
         </div>
       </div>
     </div>
+    </I18nPortal>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Search, X } from "lucide-react";
@@ -117,7 +118,8 @@ export function TransferenciasAjustesSaldoModal({
   const contasAtivas = contas.filter((c) => !c.excluida);
 
   return createPortal(
-    <div className="fixed inset-0 z-[10000] flex items-start justify-center overflow-y-auto bg-black/45 p-4 pt-10">
+    <I18nPortal>
+      <div className="fixed inset-0 z-[10000] flex items-start justify-center overflow-y-auto bg-black/45 p-4 pt-10">
       <div className="absolute inset-0" onClick={onClose} aria-hidden />
       <div className="relative my-auto w-full max-w-[min(1100px,94vw)] rounded border border-[#d4d4d4] bg-white shadow-[0_12px_40px_rgba(0,0,0,0.2)]">
         <div className="flex items-center justify-between border-b border-[#e5e5e5] px-4 py-3">
@@ -257,7 +259,8 @@ export function TransferenciasAjustesSaldoModal({
           </button>
         </div>
       </div>
-    </div>,
+    </div>
+    </I18nPortal>,
     document.body
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { MapPin, Trash2, UserRound } from "lucide-react";

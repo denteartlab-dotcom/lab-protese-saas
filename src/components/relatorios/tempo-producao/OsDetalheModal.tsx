@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect, useState } from "react";
 import {
   CheckCircle2,
@@ -63,7 +64,8 @@ export function OsDetalheModal({ trabalhoId, onClose }: Props) {
   const pr = resumo ? PRIORIDADE_TEMPO_PRODUCAO[resumo.prioridade] : null;
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4 print:hidden">
+    <I18nPortal>
+      <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4 print:hidden">
       <div
         className="flex max-h-[96vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl dark:bg-slate-900 sm:rounded-2xl"
         role="dialog"
@@ -283,6 +285,7 @@ export function OsDetalheModal({ trabalhoId, onClose }: Props) {
         ) : null}
       </div>
     </div>
+    </I18nPortal>
   );
 }
 

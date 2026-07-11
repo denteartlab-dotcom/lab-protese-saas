@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useCallback, useState } from "react";
 import { Button, Input, Modal, Select, Textarea } from "@/components/ui";
 import { WhatsAppPreview } from "@/components/disparos-whatsapp/WhatsAppPreview";

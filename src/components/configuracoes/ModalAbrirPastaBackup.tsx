@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Download, FolderOpen, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui";

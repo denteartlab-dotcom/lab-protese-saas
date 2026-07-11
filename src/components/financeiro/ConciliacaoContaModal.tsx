@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Upload, User, X } from "lucide-react";
@@ -478,7 +479,8 @@ export function ConciliacaoContaModal({
   ) : null;
 
   const portalConciliacao = createPortal(
-    <div
+    <I18nPortal>
+      <div
       className="fixed inset-0 z-[10000] flex items-start justify-center overflow-y-auto bg-black/45 p-4 pt-6"
       role="dialog"
       aria-modal="true"
@@ -799,7 +801,8 @@ export function ConciliacaoContaModal({
           </button>
         </div>
       </div>
-    </div>,
+    </div>
+    </I18nPortal>,
     document.body
   );
 

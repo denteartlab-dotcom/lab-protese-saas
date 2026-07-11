@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Eye, Pencil, Plus, X } from "lucide-react";
@@ -308,7 +309,8 @@ export function LancarRecebimentoModal({
   if (!open || !mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-5">
+    <I18nPortal>
+      <div className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-5">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden />
       <div
         role="dialog"
@@ -628,7 +630,8 @@ export function LancarRecebimentoModal({
           </button>
         </div>
       </div>
-    </div>,
+    </div>
+    </I18nPortal>,
     document.body
   );
 }

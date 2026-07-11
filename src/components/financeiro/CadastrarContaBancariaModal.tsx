@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Landmark, Pencil } from "lucide-react";
@@ -98,7 +99,8 @@ export function CadastrarContaBancariaModal({
   }
 
   return createPortal(
-    <div
+    <I18nPortal>
+      <div
       className="fixed inset-0 z-[10000] flex items-start justify-center overflow-y-auto bg-black/45 p-4 pt-8"
       role="dialog"
       aria-modal="true"
@@ -258,7 +260,8 @@ export function CadastrarContaBancariaModal({
           </div>
         </form>
       </div>
-    </div>,
+    </div>
+    </I18nPortal>,
     document.body
   );
 }

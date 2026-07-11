@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { ChevronsDownUp, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -191,7 +192,8 @@ export function ModalEditarValoresTabelaPrecos({
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 p-4">
+    <I18nPortal>
+      <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 p-4">
       <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-2xl">
         <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-3">
           <h2 className="text-sm font-semibold text-slate-700">Editar Valores</h2>
@@ -375,5 +377,6 @@ export function ModalEditarValoresTabelaPrecos({
         </div>
       </div>
     </div>
+    </I18nPortal>
   );
 }

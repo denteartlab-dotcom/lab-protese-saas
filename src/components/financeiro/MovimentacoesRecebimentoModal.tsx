@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { Modal } from "@/components/ui";
 import type { LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
 import {

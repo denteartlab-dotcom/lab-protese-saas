@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect } from "react";
 
 type Props = {
@@ -19,7 +20,8 @@ export function AgendaEditarOsModal({ trabalhoId, onClose }: Props) {
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-2 md:p-4">
+    <I18nPortal>
+      <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-2 md:p-4">
       <div className="flex h-[94vh] w-full max-w-[96vw] flex-col overflow-hidden rounded border border-slate-200 bg-white shadow-xl">
         <iframe
           title="Editar Agenda"
@@ -28,5 +30,6 @@ export function AgendaEditarOsModal({ trabalhoId, onClose }: Props) {
         />
       </div>
     </div>
+    </I18nPortal>
   );
 }
