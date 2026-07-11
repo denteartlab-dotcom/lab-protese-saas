@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, DollarSign, Edit3, Eye, Trash2 } from "lucide-react";
 import { BotoesImprimirExportarToolbar } from "@/components/BotoesImprimirExportarToolbar";
 import { ControleProducaoToolbar } from "@/components/ControleProducaoToolbar";
+import { useI18n } from "@/components/i18n-provider";
+import { BreadcrumbProducao } from "@/components/producao/BreadcrumbProducao";
 import { RelatorioComissaoPrestadoresModal } from "@/components/RelatorioComissaoPrestadoresModal";
 import { CampoDataBr } from "@/components/ui";
 import {
@@ -18,6 +20,7 @@ import { gerarRelatorioComissaoPrestadoresModelo1Pdf } from "@/lib/pdf-relatorio
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
 import { carregarPrestadoresListagem } from "@/lib/prestadores-listagem";
 import { parseBrDate } from "@/lib/datas-br";
+import { labelStatusTrabalho, metaStatusTrabalho } from "@/lib/i18n/status-trabalho-i18n";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { TRABALHOS_ATUALIZADOS_EVENT } from "@/lib/trabalhos-events";
 import { STATUS_TRABALHO } from "@/lib/utils";
@@ -31,9 +34,13 @@ function ToggleComissaoZero({
   checked: boolean;
   onChange: (valor: boolean) => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <label className="flex cursor-pointer items-center gap-2">
-      <span className="whitespace-nowrap text-[11px] text-slate-600">Comissão Zero</span>
+      <span className="whitespace-nowrap text-[11px] text-slate-600">
+        {t("producao.comum.comissaoZero")}
+      </span>
       <button
         type="button"
         role="switch"
@@ -97,6 +104,7 @@ function exibirData(valor: string) {
 }
 
 export function ControleFinalizadoresServicos() {
+  const { t } = useI18n();
   const [trabalhos, setTrabalhos] = useState<TrabalhoFinalizador[]>([]);
   const [prestador, setPrestador] = useState("");
   const [periodo, setPeriodo] = useState("pedido");
@@ -220,13 +228,13 @@ export function ControleFinalizadoresServicos() {
       abrirPdfNoVisualizador(
         blob,
         "prestadores-servicos.pdf",
-        "Prestadores de Serviços",
+        t("producao.breadcrumb.prestadores"),
         janela
       );
     } catch (err) {
       console.error("imprimir prestadores", err);
       janela.close();
-      alert("Não foi possível gerar o PDF. Permita pop-ups para este site.");
+      alert(t("producao.comum.pdfPopup"));
     } finally {
       setExportandoTela(false);
     }
@@ -243,7 +251,7 @@ export function ControleFinalizadoresServicos() {
         onClick={() => setRelatorioAberto(true)}
         className="rounded bg-[#3b82f6] px-4 py-1.5 text-[11px] font-medium text-white hover:bg-blue-600"
       >
-        Relatórios
+        {t("producao.comum.relatorios")}
       </button>
       <BotoesImprimirExportarToolbar
         onImprimir={() => void imprimirTela()}
@@ -256,23 +264,19 @@ export function ControleFinalizadoresServicos() {
 
   return (
     <div className="space-y-3 text-[11px] text-slate-700">
-      <div className="text-sm text-slate-500">
-        <span>Produção</span>
-        <span className="mx-1">/</span>
-        <span className="font-medium text-slate-700">Prestadores De Serviços</span>
-      </div>
+      <BreadcrumbProducao pagina="producao.breadcrumb.prestadores" />
 
       <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">
         <ControleProducaoToolbar viewAtiva="terceirizados" barraEsquerda={barraEsquerda} />
 
         <div className="mb-3 flex flex-wrap gap-3">
           <CardResumo
-            titulo="Valor Comissões"
+            titulo={t("producao.comum.valorComissoes")}
             valor={formatarMoedaFinalizador(totalComissoes)}
             icone={<DollarSign className="h-5 w-5" strokeWidth={2} />}
           />
           <CardResumo
-            titulo="Selecionados"
+            titulo={t("producao.comum.selecionados")}
             valor={formatarMoedaFinalizador(totalSelecionados)}
             icone={<Check className="h-5 w-5" strokeWidth={2.5} />}
           />
@@ -280,13 +284,13 @@ export function ControleFinalizadoresServicos() {
 
         <div className="mb-3 grid gap-2 md:grid-cols-[1.2fr_0.9fr_0.85fr_0.85fr_1fr]">
           <div>
-            {labelFiltro("Prestadores")}
+            {labelFiltro(t("producao.comum.prestadores"))}
             <select
               value={prestador}
               onChange={(e) => setPrestador(e.target.value)}
               className={selectClassName()}
             >
-              <option value="">Todos</option>
+              <option value="">{t("common.todos")}</option>
               {prestadoresCadastro.map((p) => (
                 <option key={p.id} value={p.nome}>
                   {p.nome}
@@ -295,18 +299,18 @@ export function ControleFinalizadoresServicos() {
             </select>
           </div>
           <div>
-            {labelFiltro("Período")}
+            {labelFiltro(t("producao.comum.periodo"))}
             <select
               value={periodo}
               onChange={(e) => setPeriodo(e.target.value)}
               className={selectClassName()}
             >
-              <option value="pedido">Data Pedido</option>
-              <option value="entrega">Data Entrega</option>
+              <option value="pedido">{t("producao.comum.dataPedido")}</option>
+              <option value="entrega">{t("producao.comum.dataEntrega")}</option>
             </select>
           </div>
           <CampoDataBr
-            label="Data início"
+            label={t("producao.comum.dataInicio")}
             value={dataInicio}
             onChange={setDataInicio}
             placeholder="dd/mm/aaaa"
@@ -314,7 +318,7 @@ export function ControleFinalizadoresServicos() {
             className="[&_label]:text-[11px]"
           />
           <CampoDataBr
-            label="Data fim"
+            label={t("producao.comum.dataFim")}
             value={dataFim}
             onChange={setDataFim}
             placeholder="dd/mm/aaaa"
@@ -322,16 +326,16 @@ export function ControleFinalizadoresServicos() {
             className="[&_label]:text-[11px]"
           />
           <div>
-            {labelFiltro("Situação")}
+            {labelFiltro(t("producao.controle.filtro.situacao"))}
             <select
               value={situacao}
               onChange={(e) => setSituacao(e.target.value)}
               className={selectClassName()}
             >
-              <option value="">Todos</option>
-              {Object.entries(STATUS_TRABALHO).map(([key, value]) => (
+              <option value="">{t("producao.comum.todas")}</option>
+              {Object.keys(STATUS_TRABALHO).map((key) => (
                 <option key={key} value={key}>
-                  {value.label}
+                  {labelStatusTrabalho(t, key)}
                 </option>
               ))}
             </select>
@@ -349,29 +353,29 @@ export function ControleFinalizadoresServicos() {
                       checked={todosSelecionados}
                       onChange={toggleTodos}
                       className="h-3.5 w-3.5 rounded border-slate-300"
-                      aria-label="Selecionar todos"
+                      aria-label={t("producao.comum.selecionarTodos")}
                     />
-                    <span>Todos</span>
+                    <span>{t("common.todos")}</span>
                   </label>
                 </th>
-                <th className="px-2 py-2 text-left">OS</th>
-                <th className="px-2 py-2 text-left">Data</th>
-                <th className="px-2 py-2 text-left">Entregue</th>
-                <th className="px-2 py-2 text-left">Qtd</th>
-                <th className="px-2 py-2 text-left">Serviço</th>
-                <th className="px-2 py-2 text-left">Descrição</th>
-                <th className="px-2 py-2 text-left">Cliente</th>
-                <th className="px-2 py-2 text-left">Paciente</th>
-                <th className="px-2 py-2 text-left">Situação</th>
-                <th className="px-2 py-2 text-right">Comissão</th>
-                <th className="px-2 py-2 text-center">Opções</th>
+                <th className="px-2 py-2 text-left">{t("producao.controle.tabela.os")}</th>
+                <th className="px-2 py-2 text-left">{t("producao.comum.data")}</th>
+                <th className="px-2 py-2 text-left">{t("producao.comum.entregue")}</th>
+                <th className="px-2 py-2 text-left">{t("producao.controle.tabela.qtd")}</th>
+                <th className="px-2 py-2 text-left">{t("producao.controle.tabela.servico")}</th>
+                <th className="px-2 py-2 text-left">{t("producao.comum.descricao")}</th>
+                <th className="px-2 py-2 text-left">{t("producao.controle.tabela.cliente")}</th>
+                <th className="px-2 py-2 text-left">{t("producao.controle.tabela.paciente")}</th>
+                <th className="px-2 py-2 text-left">{t("producao.controle.tabela.situacao")}</th>
+                <th className="px-2 py-2 text-right">{t("producao.comum.comissao")}</th>
+                <th className="px-2 py-2 text-center">{t("common.opcoes")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
               {linhasFiltradas.length === 0 ? (
                 <tr>
                   <td colSpan={12} className="px-4 py-10 text-center text-slate-500">
-                    Nenhum registro de prestador encontrado para os filtros selecionados.
+                    {t("producao.comum.semRegistroPrestador")}
                   </td>
                 </tr>
               ) : (
@@ -414,7 +418,8 @@ function LinhaTabela({
   selecionado: boolean;
   onToggle: () => void;
 }) {
-  const statusInfo = STATUS_TRABALHO[linha.situacaoKey];
+  const { t } = useI18n();
+  const statusMeta = metaStatusTrabalho(linha.situacaoKey);
 
   return (
     <tr className="hover:bg-slate-50">
@@ -424,7 +429,7 @@ function LinhaTabela({
           checked={selecionado}
           onChange={onToggle}
           className="h-3.5 w-3.5 rounded border-slate-300"
-          aria-label={`Selecionar OS ${linha.numeroOs}`}
+          aria-label={`${t("producao.comum.selecionarTodos")} OS ${linha.numeroOs}`}
         />
       </td>
       <td className="px-2 py-2">{osBadge(linha.numeroOs)}</td>
@@ -442,10 +447,10 @@ function LinhaTabela({
       <td className="px-2 py-2">
         <span
           className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium ${
-            statusInfo?.color || "bg-slate-100 text-slate-700"
+            statusMeta?.color || "bg-slate-100 text-slate-700"
           }`}
         >
-          {linha.situacaoPedido}
+          {labelStatusTrabalho(t, linha.situacaoKey)}
         </span>
       </td>
       <td className="whitespace-nowrap px-2 py-2 text-right font-medium text-slate-800">
@@ -455,21 +460,21 @@ function LinhaTabela({
         <div className="flex justify-center gap-1 text-slate-500">
           <Link
             href={`/app/producao/os?os=${linha.numeroOs}`}
-            title="Ver OS"
+            title={t("producao.comum.verOs")}
             className="rounded p-1 hover:bg-slate-100 hover:text-blue-600"
           >
             <Eye className="h-4 w-4" />
           </Link>
           <Link
             href={`/app/producao/os?editar=${linha.trabalhoId}`}
-            title="Editar OS"
+            title={t("producao.comum.editarOs")}
             className="rounded p-1 hover:bg-slate-100 hover:text-blue-600"
           >
             <Edit3 className="h-4 w-4" />
           </Link>
           <button
             type="button"
-            title="Excluir"
+            title={t("common.excluir")}
             className="rounded p-1 text-red-500 hover:bg-red-50 hover:text-red-600"
             onClick={() => {
               /* exclusão vinculada à OS no cadastro */

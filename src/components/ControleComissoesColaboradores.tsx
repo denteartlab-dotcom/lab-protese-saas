@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, DollarSign, Edit3, Eye, X } from "lucide-react";
 import { BotoesImprimirExportarToolbar } from "@/components/BotoesImprimirExportarToolbar";
 import { ControleProducaoToolbar } from "@/components/ControleProducaoToolbar";
+import { useI18n } from "@/components/i18n-provider";
+import { BreadcrumbProducao } from "@/components/producao/BreadcrumbProducao";
 import { RelatorioComissaoColaboradoresModal } from "@/components/RelatorioComissaoColaboradoresModal";
 import { CampoDataBr } from "@/components/ui";
 import {
@@ -19,6 +21,7 @@ import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
 import { carregarColaboradoresListagem } from "@/lib/colaboradores-listagem";
 import { carregarEtapasCadastro } from "@/lib/etapas-os";
 import { parseBrDate } from "@/lib/datas-br";
+import { labelStatusTrabalho, metaStatusTrabalho } from "@/lib/i18n/status-trabalho-i18n";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { TRABALHOS_ATUALIZADOS_EVENT } from "@/lib/trabalhos-events";
 import { cn, STATUS_TRABALHO } from "@/lib/utils";
@@ -32,9 +35,13 @@ function ToggleComissaoZero({
   checked: boolean;
   onChange: (valor: boolean) => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <label className="flex cursor-pointer items-center gap-2">
-      <span className="whitespace-nowrap text-[11px] text-slate-600">Comissão Zero</span>
+      <span className="whitespace-nowrap text-[11px] text-slate-600">
+        {t("producao.comum.comissaoZero")}
+      </span>
       <button
         type="button"
         role="switch"
@@ -83,9 +90,13 @@ function ToggleValorServicoEtapa({
   checked: boolean;
   onChange: (valor: boolean) => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <label className="flex cursor-pointer items-center gap-2">
-      <span className="whitespace-nowrap text-[10px] text-slate-600">Valor Serviço/Etapa</span>
+      <span className="whitespace-nowrap text-[10px] text-slate-600">
+        {t("producao.comum.valorServicoEtapa")}
+      </span>
       <button
         type="button"
         role="switch"
@@ -120,11 +131,13 @@ function CardSelecionados({
   imprimindo: boolean;
   temSelecionados: boolean;
 }) {
+  const { t } = useI18n();
+
   return (
     <div className="flex min-w-[280px] flex-1 items-center justify-between rounded border border-[#e5e7eb] bg-white px-5 py-4 shadow-sm">
       <div>
         <p className="text-[22px] font-normal leading-none text-[#374151]">{valor}</p>
-        <p className="mt-2 text-[12px] text-[#6b7280]">Selecionados</p>
+        <p className="mt-2 text-[12px] text-[#6b7280]">{t("producao.comum.selecionados")}</p>
       </div>
       <div className="flex flex-col items-end gap-2">
         <div className="flex items-center gap-2">
@@ -134,7 +147,7 @@ function CardSelecionados({
             disabled={!temSelecionados || imprimindo}
             className="rounded border border-[#3b82f6] bg-white px-3 py-1 text-[10px] font-medium text-[#3b82f6] hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {imprimindo ? "Gerando..." : "Imprimir Selecionados"}
+            {imprimindo ? t("producao.comum.gerando") : t("producao.comum.imprimirSelecionados")}
           </button>
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
             <Check className="h-4 w-4" strokeWidth={2.5} />
@@ -163,6 +176,7 @@ function selectClassName() {
 }
 
 export function ControleComissoesColaboradores() {
+  const { t } = useI18n();
   const [trabalhos, setTrabalhos] = useState<TrabalhoComissao[]>([]);
   const [colaborador, setColaborador] = useState("");
   const [periodo, setPeriodo] = useState("lancamento");
@@ -310,13 +324,13 @@ export function ControleComissoesColaboradores() {
       abrirPdfNoVisualizador(
         blob,
         "comissao-colaboradores.pdf",
-        "Comissão Colaboradores",
+        t("producao.breadcrumb.comissao"),
         janela
       );
     } catch (err) {
       console.error("imprimir comissao colaboradores", err);
       janela.close();
-      alert("Não foi possível gerar o PDF. Permita pop-ups para este site.");
+      alert(t("producao.comum.pdfPopup"));
     } finally {
       setExportandoTela(false);
     }
@@ -340,7 +354,7 @@ export function ControleComissoesColaboradores() {
       abrirPdfNoVisualizador(
         blob,
         "relatorio-comissao-selecionados.pdf",
-        "Comissões Selecionados",
+        t("producao.comum.imprimirSelecionados"),
         janela
       );
     } catch (err) {
@@ -358,7 +372,7 @@ export function ControleComissoesColaboradores() {
         onClick={() => setRelatorioAberto(true)}
         className="rounded bg-[#3b82f6] px-4 py-1.5 text-[11px] font-medium text-white hover:bg-blue-600"
       >
-        Relatórios
+        {t("producao.comum.relatorios")}
       </button>
       <BotoesImprimirExportarToolbar
         onImprimir={() => void imprimirTela()}
@@ -371,18 +385,14 @@ export function ControleComissoesColaboradores() {
 
   return (
     <div className="space-y-3 text-[11px] text-slate-700">
-      <div className="text-sm text-slate-500">
-        <span>Produção</span>
-        <span className="mx-1">/</span>
-        <span className="font-medium text-slate-700">Comissão Colaboradores</span>
-      </div>
+      <BreadcrumbProducao pagina="producao.breadcrumb.comissao" />
 
       <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">
         <ControleProducaoToolbar viewAtiva="comissoes" barraEsquerda={barraEsquerda} />
 
         <div className="mb-3 flex flex-wrap gap-3">
           <CardResumo
-            titulo="Valor Comissões"
+            titulo={t("producao.comum.valorComissoes")}
             valor={formatarMoedaComissao(totalComissoes)}
             icone={<DollarSign className="h-5 w-5" strokeWidth={2} />}
           />
@@ -398,13 +408,13 @@ export function ControleComissoesColaboradores() {
 
         <div className="mb-3 grid gap-2 md:grid-cols-[1.2fr_0.9fr_0.85fr_0.85fr_1fr_1fr]">
           <div>
-            {labelFiltro("Colaboradores")}
+            {labelFiltro(t("producao.comum.colaboradores"))}
             <select
               value={colaborador}
               onChange={(e) => setColaborador(e.target.value)}
               className={selectClassName()}
             >
-              <option value="">Todos</option>
+              <option value="">{t("common.todos")}</option>
               {colaboradoresCadastro.map((c) => (
                 <option key={c.id} value={c.nome}>
                   {c.nome}
@@ -413,18 +423,18 @@ export function ControleComissoesColaboradores() {
             </select>
           </div>
           <div>
-            {labelFiltro("Período")}
+            {labelFiltro(t("producao.comum.periodo"))}
             <select
               value={periodo}
               onChange={(e) => setPeriodo(e.target.value)}
               className={selectClassName()}
             >
-              <option value="lancamento">Data Lançamento</option>
-              <option value="entrega">Data Entrega</option>
+              <option value="lancamento">{t("producao.comum.dataLancamento")}</option>
+              <option value="entrega">{t("producao.comum.dataEntrega")}</option>
             </select>
           </div>
           <CampoDataBr
-            label="Data início"
+            label={t("producao.comum.dataInicio")}
             value={dataInicio}
             onChange={setDataInicio}
             placeholder="dd/mm/aaaa"
@@ -432,7 +442,7 @@ export function ControleComissoesColaboradores() {
             className="[&_label]:text-[11px]"
           />
           <CampoDataBr
-            label="Data fim"
+            label={t("producao.comum.dataFim")}
             value={dataFim}
             onChange={setDataFim}
             placeholder="dd/mm/aaaa"
@@ -440,29 +450,29 @@ export function ControleComissoesColaboradores() {
             className="[&_label]:text-[11px]"
           />
           <div>
-            {labelFiltro("Situação")}
+            {labelFiltro(t("producao.controle.filtro.situacao"))}
             <select
               value={situacao}
               onChange={(e) => setSituacao(e.target.value)}
               className={selectClassName()}
             >
-              <option value="">Todas</option>
-              {Object.entries(STATUS_TRABALHO).map(([key, value]) => (
+              <option value="">{t("producao.comum.todas")}</option>
+              {Object.keys(STATUS_TRABALHO).map((key) => (
                 <option key={key} value={key}>
-                  {value.label}
+                  {labelStatusTrabalho(t, key)}
                 </option>
               ))}
             </select>
           </div>
           <div>
-            {labelFiltro("Etapa")}
+            {labelFiltro(t("producao.comum.etapa"))}
             <div className="relative">
               <select
                 value={etapa}
                 onChange={(e) => setEtapa(e.target.value)}
                 className={`${selectClassName()} pr-7`}
               >
-                <option value="todos">Todos</option>
+                <option value="todos">{t("common.todos")}</option>
                 {etapasCadastro.map((e) => (
                   <option key={e.id} value={e.nome}>
                     {e.nome}
@@ -474,7 +484,7 @@ export function ControleComissoesColaboradores() {
                   type="button"
                   onClick={() => setEtapa("todos")}
                   className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                  aria-label="Limpar etapa"
+                  aria-label={t("producao.comum.limparEtapa")}
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -494,30 +504,30 @@ export function ControleComissoesColaboradores() {
                       checked={todosSelecionados}
                       onChange={toggleTodos}
                       className="h-3.5 w-3.5 rounded border-slate-300"
-                      aria-label="Selecionar todos"
+                      aria-label={t("producao.comum.selecionarTodos")}
                     />
-                    <span>Todos</span>
+                    <span>{t("common.todos")}</span>
                   </label>
                 </th>
-                <th className="px-2 py-2 text-left">OS</th>
-                <th className="px-2 py-2 text-left">Data</th>
-                <th className="px-2 py-2 text-left">Entregue</th>
-                <th className="px-2 py-2 text-left">Qtd</th>
-                <th className="px-2 py-2 text-left">Serviço</th>
-                <th className="px-2 py-2 text-left">Descrição</th>
-                <th className="px-2 py-2 text-left">Cliente</th>
-                <th className="px-2 py-2 text-left">Paciente</th>
-                <th className="px-2 py-2 text-left">Situação Etapa</th>
-                <th className="px-2 py-2 text-left">Situação</th>
-                <th className="px-2 py-2 text-right">Comissão</th>
-                <th className="px-2 py-2 text-center">Opções</th>
+                <th className="px-2 py-2 text-left">{t("producao.controle.tabela.os")}</th>
+                <th className="px-2 py-2 text-left">{t("producao.comum.data")}</th>
+                <th className="px-2 py-2 text-left">{t("producao.comum.entregue")}</th>
+                <th className="px-2 py-2 text-left">{t("producao.controle.tabela.qtd")}</th>
+                <th className="px-2 py-2 text-left">{t("producao.controle.tabela.servico")}</th>
+                <th className="px-2 py-2 text-left">{t("producao.comum.descricao")}</th>
+                <th className="px-2 py-2 text-left">{t("producao.controle.tabela.cliente")}</th>
+                <th className="px-2 py-2 text-left">{t("producao.controle.tabela.paciente")}</th>
+                <th className="px-2 py-2 text-left">{t("producao.modulo.situacaoEtapa")}</th>
+                <th className="px-2 py-2 text-left">{t("producao.controle.tabela.situacao")}</th>
+                <th className="px-2 py-2 text-right">{t("producao.comum.comissao")}</th>
+                <th className="px-2 py-2 text-center">{t("common.opcoes")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
               {linhasFiltradas.length === 0 ? (
                 <tr>
                   <td colSpan={13} className="px-4 py-10 text-center text-slate-500">
-                    Nenhum registro de comissão encontrado para os filtros selecionados.
+                    {t("producao.comum.semRegistroComissao")}
                   </td>
                 </tr>
               ) : (
@@ -564,7 +574,8 @@ function LinhaTabela({
   onToggle: () => void;
   onSelecionarLinha: () => void;
 }) {
-  const statusInfo = STATUS_TRABALHO[linha.situacaoKey];
+  const { t } = useI18n();
+  const statusMeta = metaStatusTrabalho(linha.situacaoKey);
 
   return (
     <tr
@@ -580,7 +591,7 @@ function LinhaTabela({
           checked={selecionado}
           onChange={onToggle}
           className="h-3.5 w-3.5 rounded border-slate-300"
-          aria-label={`Selecionar OS ${linha.numeroOs}`}
+          aria-label={`${t("producao.comum.selecionarTodos")} OS ${linha.numeroOs}`}
         />
       </td>
       <td className="px-2 py-2">{osBadge(linha.numeroOs)}</td>
@@ -599,10 +610,10 @@ function LinhaTabela({
       <td className="px-2 py-2">
         <span
           className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium ${
-            statusInfo?.color || "bg-slate-100 text-slate-700"
+            statusMeta?.color || "bg-slate-100 text-slate-700"
           }`}
         >
-          {linha.situacao}
+          {labelStatusTrabalho(t, linha.situacaoKey)}
         </span>
       </td>
       <td className="whitespace-nowrap px-2 py-2 text-right font-medium text-slate-800">
@@ -612,14 +623,14 @@ function LinhaTabela({
         <div className="flex justify-center gap-1 text-slate-500">
           <Link
             href={`/app/producao/os?os=${linha.numeroOs}`}
-            title="Ver OS"
+            title={t("producao.comum.verOs")}
             className="rounded p-1 hover:bg-slate-100 hover:text-blue-600"
           >
             <Eye className="h-4 w-4" />
           </Link>
           <Link
             href={`/app/producao/os?editar=${linha.trabalhoId}`}
-            title="Editar OS"
+            title={t("producao.comum.editarOs")}
             className="rounded p-1 hover:bg-slate-100 hover:text-blue-600"
           >
             <Edit3 className="h-4 w-4" />

@@ -46,7 +46,12 @@ import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { persistirTemaLocal, lerTemaLocal } from "@/lib/theme-ui";
 import { instrucoesTextoLivre } from "@/lib/etapas-os";
 import { cn, STATUS_TRABALHO } from "@/lib/utils";
-import { analisarCaminhoApp, ehPaginaInicioApp, menuAppSecaoAtiva } from "@/lib/rotas-app";
+import {
+  analisarCaminhoApp,
+  ehPaginaInicioApp,
+  menuAppSecaoAtiva,
+  restanteCaminhoMenuApp,
+} from "@/lib/rotas-app";
 import {
   BarChart3,
   CheckSquare,
@@ -208,14 +213,15 @@ function AppShellInner({
     pathname.includes("/configuracoes/faturas/modelo3") ||
     pathname.includes("/configuracoes/faturas/modelo4") ||
     pathname.includes("/configuracoes/faturas/modelo5");
-  const isModuloColaborador = pathname === "/app/producao/modulo";
-  const isModuloTv = pathname.startsWith("/app/producao/modulo-tv");
+  const restanteMenuApp = restanteCaminhoMenuApp(pathname);
+  const isModuloColaborador = restanteMenuApp === "/producao/modulo";
+  const isModuloTv = restanteMenuApp.startsWith("/producao/modulo-tv");
   usePresencaApp(!isPrint && !isModuloTv);
   const isRelatorioImersivo =
     pathname.startsWith("/app/relatorios/clientes-prejuizo") ||
     pathname.startsWith("/app/relatorios/servicos-nao-concluidos");
   const isModuloImersivo =
-    isModuloColaborador || isModuloTv || isRelatorioImersivo;
+    isModuloTv || isRelatorioImersivo;
   const mostrarFaixaAssinatura =
     !isPrint && !isModuloImersivo && Boolean(dataVencimentoAssinatura);
   const isDashboard = ehPaginaInicioApp(pathname);

@@ -1,42 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Calendar,
   Check,
   DollarSign,
   Eye,
   EyeOff,
-  LockKeyhole,
-  LogOut,
-  Moon,
-  Sun,
   RefreshCw,
   ScanBarcode,
-  Settings,
   User,
   X,
 } from "lucide-react";
-import { ConfiguracoesGearMenu } from "@/components/ConfiguracoesGearMenu";
-import { LanguageMenu } from "@/components/header/LanguageMenu";
-import { NotificationsBell } from "@/components/header/NotificationsBell";
-import { SiteSearchBar, SiteSearchButton } from "@/components/header/SiteSearchBar";
 import { useI18n } from "@/components/i18n-provider";
 import { LeitorCodigoBarrasModal } from "@/components/LeitorCodigoBarrasModal";
 import { InputLeitorCodigoOs } from "@/components/InputLeitorCodigoOs";
 import { extrairNumeroOsCodigo } from "@/lib/codigo-barras-os";
 import type { MessageKey } from "@/lib/i18n";
-import { AppFaixaTopo } from "@/components/AppFaixaTopo";
-import { dimensoesLogoPx } from "@/lib/lab-logo";
+import {
+  labelStatusTrabalho,
+  metaStatusTrabalho,
+  opcoesStatusTrabalho,
+} from "@/lib/i18n/status-trabalho-i18n";
 import type { EtapaOsLinha } from "@/lib/etapas-os";
 import {
   complementosDaOs,
   formatDateModulo,
   itensDaOsModulo,
   itensDoGrupoOs,
-  statusModuloOs,
   valorLinhaInstrucao,
   type ItemModuloOs,
   type TrabalhoModuloOs,
@@ -56,18 +48,15 @@ import { useSessaoInatividade } from "@/hooks/use-sessao-inatividade";
 import {
   aplicarControleEntregaAposMudancaStatus,
 } from "@/lib/controle-entregas-automatico-cliente";
-import { readStorage, writeStorage } from "@/lib/persisted-storage";
-import { persistirTemaLocal, lerTemaLocal } from "@/lib/theme-ui";
 import { limparUltimaAtividadeSessao } from "@/lib/sessao-inatividade";
-import { useLabConfigClient } from "@/lib/use-lab-config-client";
 
 type AbaModulo = "etapas" | "anotacoes" | "imagens" | "detalhes";
 
-const abas: { id: AbaModulo; label: string }[] = [
-  { id: "etapas", label: "ETAPAS" },
-  { id: "anotacoes", label: "ANOTAÇÕES" },
-  { id: "imagens", label: "IMAGENS" },
-  { id: "detalhes", label: "DETALHES SERVIÇO" },
+const ABAS_MODULO: { id: AbaModulo; labelKey: MessageKey }[] = [
+  { id: "etapas", labelKey: "producao.modulo.aba.etapas" },
+  { id: "anotacoes", labelKey: "producao.modulo.aba.anotacoes" },
+  { id: "imagens", labelKey: "producao.modulo.aba.imagens" },
+  { id: "detalhes", labelKey: "producao.modulo.aba.detalhes" },
 ];
 
 type Props = {
@@ -75,12 +64,9 @@ type Props = {
   userRole: string;
 };
 
-export function ModuloProducaoColaborador({ userName, userRole }: Props) {
+export function ModuloProducaoColaborador({ userName: _userName, userRole: _userRole }: Props) {
   const { t } = useI18n();
-  const router = useRouter();
-  const { montado, lab, nomeLaboratorio } = useLabConfigClient();
-  const [buscaSiteAberta, setBuscaSiteAberta] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const opcoesStatus = useMemo(() => opcoesStatusTrabalho(t), [t]);
   const [buscaOs, setBuscaOs] = useState("");
   const [buscandoOs, setBuscandoOs] = useState(false);
   const [resultadosOs, setResultadosOs] = useState<TrabalhoModuloOs[]>([]);
@@ -101,9 +87,6 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
     () => carregarConfiguracoesGerais().producaoEtapaExigeAnteriorFinalizada
   );
 
-  const logoPerfil = dimensoesLogoPx(lab, { largura: 36, altura: 36 });
-  const temLogo = Boolean(lab.logoDataUrl?.startsWith("data:image"));
-  const temLogoPerfil = temLogo;
   const logoutPorInatividade = useCallback(async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
@@ -131,16 +114,6 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
     const timer = window.setTimeout(() => setAvisoEtapa(""), 4000);
     return () => window.clearTimeout(timer);
   }, [avisoEtapa]);
-
-  async function logout() {
-    setUserMenuOpen(false);
-    try {
-      await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
-    } finally {
-      limparUltimaAtividadeSessao();
-      window.location.href = "/login";
-    }
-  }
 
   const itens = osSelecionada
     ? grupoOs.length > 0
@@ -225,23 +198,6 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
     }, 250);
     return () => window.clearTimeout(timeout);
   }, [buscaPaciente, buscaPacienteAberta]);
-
-  const [darkMode, setDarkMode] = useState(false);
-
-  useEffect(() => {
-    const savedTheme = readStorage<string | null>("labProteseTheme", null);
-    const localTheme = lerTemaLocal();
-    const dark = savedTheme === "dark" || (savedTheme === null && localTheme === true);
-    setDarkMode(dark);
-    persistirTemaLocal(dark);
-  }, []);
-
-  function toggleTheme() {
-    const next = !document.documentElement.classList.contains("dark");
-    persistirTemaLocal(next);
-    writeStorage("labProteseTheme", next ? "dark" : "light");
-    setDarkMode(next);
-  }
 
   async function carregarGrupoOs(trabalho: TrabalhoModuloOs) {
     try {
@@ -392,132 +348,19 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-white text-[#333]">
-      <AppFaixaTopo
-        antes={
-          <SiteSearchBar aberto={buscaSiteAberta} onFechar={() => setBuscaSiteAberta(false)} />
-        }
-        esquerda={
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className={cn(
-              "inline-flex h-7 w-7 items-center justify-center rounded-full transition hover:bg-black/5 dark:hover:bg-white/10",
-              darkMode ? "text-sky-400" : "text-[#5b9bd5]"
-            )}
-            aria-label={darkMode ? "Ativar modo claro" : "Ativar modo escuro"}
-          >
-            {darkMode ? (
-              <Sun className="h-4 w-4" strokeWidth={1.75} />
-            ) : (
-              <Moon className="h-4 w-4" strokeWidth={1.75} />
-            )}
-          </button>
-        }
-        direita={
-          <>
-            <LanguageMenu />
-            <SiteSearchButton onAbrir={() => setBuscaSiteAberta(true)} />
-            <Suspense
-              fallback={
-                <span className="inline-flex h-7 w-7 items-center justify-center text-slate-400">
-                  <Settings className="h-[18px] w-[18px]" />
-                </span>
-              }
-            >
-              <ConfiguracoesGearMenu />
-            </Suspense>
-            <NotificationsBell />
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setUserMenuOpen((open) => !open)}
-                className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-left transition hover:bg-black/5"
-                aria-expanded={userMenuOpen}
-                aria-label="Abrir menu do usuário"
-              >
-                <div className="hidden leading-tight sm:block">
-                  <p
-                    suppressHydrationWarning
-                    className="text-[11px] font-bold text-slate-800"
-                  >
-                    {montado ? nomeLaboratorio : "\u00a0"}
-                  </p>
-                  <p className="text-[10px] text-slate-500">{userName}</p>
-                </div>
-                <div
-                  className={cn(
-                    "relative inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full",
-                    temLogoPerfil ? "bg-white ring-1 ring-slate-200/80" : "bg-[#dbeafe] text-[#4a90d9]"
-                  )}
-                >
-                  {temLogoPerfil ? (
-                    <img
-                      src={lab.logoDataUrl}
-                      alt="Logo do laboratório"
-                      className="object-contain"
-                      width={logoPerfil.largura}
-                      height={logoPerfil.altura}
-                    />
-                  ) : (
-                    <User className="h-4 w-4" />
-                  )}
-                  <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#f2f4f6] bg-emerald-500" />
-                </div>
-              </button>
-              {userMenuOpen && (
-                <div className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-lg border border-slate-200 bg-white py-2 shadow-2xl">
-                  <div className="border-b border-slate-100 px-4 pb-3 pt-2">
-                    <p
-                      suppressHydrationWarning
-                      className="text-sm font-bold text-slate-700"
-                    >
-                      {nomeLaboratorio}
-                    </p>
-                    <p className="text-xs text-slate-500">{userName}</p>
-                  </div>
-                  <div className="py-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setUserMenuOpen(false);
-                        router.push("/app/alterar-senha");
-                      }}
-                      className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-600 transition hover:bg-slate-50 hover:text-[#4a90d9]"
-                    >
-                      <LockKeyhole className="h-4 w-4 text-slate-500" />
-                      <span>{t("user.alterarSenha")}</span>
-                    </button>
-                  </div>
-                  <div className="border-t border-slate-100 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => void logout()}
-                      className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-600 transition hover:bg-red-50 hover:text-red-600"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      {t("user.logout")}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </>
-        }
-      />
-
       <main className="mx-auto w-full max-w-[1180px] flex-1 px-6 py-5 pb-24">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_250px]">
           <div className="overflow-hidden rounded border border-[#e5e7eb] bg-white">
             <div className="px-5 pb-4 pt-5">
               <label className="mb-2 block text-[13px] font-normal text-[#4b5563]">
-                Número da OS
+                {t("producao.modulo.numeroOs")}
               </label>
               <div className="flex items-center gap-2">
                 <InputLeitorCodigoOs
                   value={buscaOs}
                   onChange={setBuscaOs}
                   onCodigoLido={(numero) => void buscarOrdemServico(numero)}
-                  placeholder="Buscar serviço pela OS"
+                  placeholder={t("producao.modulo.buscaOsPlaceholder")}
                   className="h-[38px] min-w-0 flex-1 rounded border border-[#d1d5db] px-3 text-[13px] text-[#374151] outline-none focus:border-[#3b82f6]"
                 />
                 <button
@@ -536,7 +379,7 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
                   >
                     <ScanBarcode className="h-[18px] w-[18px]" strokeWidth={2} />
                   </span>
-                  {buscandoOs ? "Buscando…" : "Buscar"}
+                  {buscandoOs ? t("producao.modulo.buscando") : t("common.buscar")}
                 </button>
                 <button
                   type="button"
@@ -547,7 +390,7 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
                   className="inline-flex h-[38px] shrink-0 items-center gap-2 rounded border border-[#93c5fd] bg-white px-4 text-[13px] font-normal text-[#3b82f6] hover:bg-[#eff6ff]"
                 >
                   <User className="h-4 w-4" strokeWidth={2} />
-                  Pesquisar Paciente
+                  {t("producao.modulo.pesquisarPaciente")}
                 </button>
               </div>
             </div>
@@ -557,33 +400,33 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
                 <div className="grid gap-x-10 gap-y-1 sm:grid-cols-2">
                   <div className="space-y-1">
                     <p>
-                      <span className="font-semibold">Ordem de Serviço:</span>{" "}
+                      <span className="font-semibold">{t("producao.modulo.ordemServico")}</span>{" "}
                       {osSelecionada.numeroOs}
                     </p>
                     <p>
-                      <span className="font-semibold">Cliente:</span>{" "}
+                      <span className="font-semibold">{t("producao.modulo.cliente")}</span>{" "}
                       {osSelecionada.cliente?.nome || "—"}
                     </p>
                     <p>
-                      <span className="font-semibold">Produtos:</span>{" "}
+                      <span className="font-semibold">{t("producao.modulo.produtos")}</span>{" "}
                       {itens.map((i) => i.descricao).join(", ") || "—"}
                     </p>
                     <p>
-                      <span className="font-semibold">Observação Interna:</span>{" "}
+                      <span className="font-semibold">{t("producao.modulo.observacaoInterna")}</span>{" "}
                       {osSelecionada.observacoes?.trim() || "—"}
                     </p>
                   </div>
                   <div className="space-y-1">
                     <p>
-                      <span className="font-semibold">Data Lançamento:</span>{" "}
+                      <span className="font-semibold">{t("producao.modulo.dataLancamento")}</span>{" "}
                       {formatDateModulo(osSelecionada.dataEntrada)}
                     </p>
                     <p>
-                      <span className="font-semibold">Paciente:</span>{" "}
+                      <span className="font-semibold">{t("producao.modulo.paciente")}</span>{" "}
                       {osSelecionada.paciente?.nome || "—"}
                     </p>
                     <p>
-                      <span className="font-semibold">Materiais enviado pelo Dentista:</span>{" "}
+                      <span className="font-semibold">{t("producao.modulo.materiaisDentista")}</span>{" "}
                       {valorLinhaInstrucao(instrucoesGrupo, "Material enviado") ||
                         osSelecionada.material?.trim() ||
                         "—"}
@@ -601,16 +444,16 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
                       <Check className="mx-auto h-4 w-4 text-[#3b82f6]" strokeWidth={2.5} />
                     </th>
                     <th className="w-16 px-2 py-2.5 text-center text-[12px] font-semibold uppercase text-[#6b7280]">
-                      QTD
+                      {t("producao.modulo.tabela.qtd")}
                     </th>
                     <th className="px-3 py-2.5 text-left text-[12px] font-semibold uppercase text-[#6b7280]">
-                      Descrição
+                      {t("producao.modulo.tabela.descricao")}
                     </th>
                     <th className="w-28 px-3 py-2.5 text-left text-[12px] font-semibold uppercase text-[#6b7280]">
-                      Prazo
+                      {t("producao.modulo.tabela.prazo")}
                     </th>
                     <th className="w-32 px-3 py-2.5 text-center text-[12px] font-semibold uppercase text-[#6b7280]">
-                      Situação
+                      {t("producao.modulo.tabela.situacao")}
                     </th>
                   </tr>
                 </thead>
@@ -618,7 +461,7 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
                   {linhasTabela.map((linha) => {
                     const ativo =
                       osSelecionada && itemAtivo ? itemAtivo.id === linha.id : false;
-                    const situacao = statusModuloOs(linha.situacao);
+                    const situacaoMeta = metaStatusTrabalho(linha.situacao);
                     return (
                       <tr
                         key={linha.id}
@@ -645,10 +488,10 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
                           <span
                             className={cn(
                               "inline-block rounded px-2 py-0.5 text-[11px] font-semibold",
-                              situacao.color
+                              situacaoMeta?.color ?? "bg-slate-100 text-slate-700"
                             )}
                           >
-                            {situacao.label}
+                            {labelStatusTrabalho(t, linha.situacao)}
                           </span>
                         </td>
                       </tr>
@@ -659,7 +502,7 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
             </div>
 
             <div className="flex border-t border-[#e5e7eb]">
-              {abas.map((aba, index) => (
+              {ABAS_MODULO.map((aba, index) => (
                 <button
                   key={aba.id}
                   type="button"
@@ -672,21 +515,21 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
                   )}
                   style={index === 0 && abaAtiva === aba.id ? undefined : undefined}
                 >
-                  {aba.label}
+                  {t(aba.labelKey)}
                 </button>
               ))}
             </div>
 
             {!servicoSelecionado ? (
               <div className="bg-[#fde8d8] py-3 text-center text-[13px] font-normal text-[#e8913a]">
-                Nenhum Serviço Selecionado!
+                {t("producao.modulo.semServicoSelecionado")}
               </div>
             ) : (
               <div className="min-h-[200px] bg-white p-4 text-[13px] text-[#374151]">
                 {abaAtiva === "etapas" &&
                   (etapasOs.length === 0 ? (
                     <div className="bg-[#fde8d8] py-3 text-center text-[13px] font-normal text-[#e8913a]">
-                      Não existe Etapas cadastradas para este serviço
+                      {t("producao.modulo.semEtapasCadastradas")}
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
@@ -699,10 +542,10 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
                         <thead>
                           <tr className="border-b border-[#e5e7eb] bg-[#f9fafb] text-[11px] font-semibold uppercase text-[#6b7280]">
                             <th className="w-10 px-2 py-2 text-center">✓</th>
-                            <th className="px-3 py-2 text-left">Etapa</th>
-                            <th className="px-3 py-2 text-left">Responsável</th>
-                            <th className="px-3 py-2 text-left">Prazo</th>
-                            <th className="px-3 py-2 text-left">Observação</th>
+                            <th className="px-3 py-2 text-left">{t("producao.modulo.etapa")}</th>
+                            <th className="px-3 py-2 text-left">{t("producao.modulo.responsavel")}</th>
+                            <th className="px-3 py-2 text-left">{t("producao.modulo.tabela.prazo")}</th>
+                            <th className="px-3 py-2 text-left">{t("producao.modulo.observacao")}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -724,7 +567,9 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
                                         : "border-[#d1d5db] bg-white"
                                     )}
                                     aria-label={
-                                      ok ? "Etapa concluída" : "Marcar etapa concluída"
+                                      ok
+                                        ? t("producao.modulo.etapaConcluida")
+                                        : t("producao.modulo.marcarEtapa")
                                     }
                                   >
                                     {ok ? <Check className="h-3 w-3" /> : null}
@@ -763,42 +608,31 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
                       disabled={salvandoAnotacao}
                       className="rounded bg-[#3b82f6] px-4 py-2 text-[13px] text-white"
                     >
-                      {salvandoAnotacao ? "Salvando…" : "Gravar"}
+                      {salvandoAnotacao ? t("common.salvando") : t("producao.modulo.gravar")}
                     </button>
                   </div>
                 )}
                 {abaAtiva === "imagens" && (
-                  <p className="py-8 text-center text-[#9ca3af]">Sem imagens.</p>
+                  <p className="py-8 text-center text-[#9ca3af]">{t("producao.modulo.semImagens")}</p>
                 )}
                 {abaAtiva === "detalhes" && osSelecionada && itemAtivo && (
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <CampoDetalhe label="OS" valor={String(osSelecionada.numeroOs)} />
-                    <CampoDetalhe label="Serviço" valor={itemAtivo.descricao} />
-                    <CampoDetalhe label="Paciente" valor={osSelecionada.paciente?.nome || "—"} />
-                    <CampoDetalhe label="Cliente" valor={osSelecionada.cliente?.nome || "—"} />
-                    <CampoDetalhe label="Dentes" valor={osSelecionada.dentes || "—"} />
-                    <CampoDetalhe label="Cor" valor={osSelecionada.cor || "—"} />
+                    <CampoDetalhe label={t("producao.controle.tabela.os")} valor={String(osSelecionada.numeroOs)} />
+                    <CampoDetalhe label={t("producao.modulo.servico")} valor={itemAtivo.descricao} />
+                    <CampoDetalhe label={t("producao.controle.tabela.paciente")} valor={osSelecionada.paciente?.nome || "—"} />
+                    <CampoDetalhe label={t("producao.controle.tabela.cliente")} valor={osSelecionada.cliente?.nome || "—"} />
+                    <CampoDetalhe label={t("producao.modulo.dentes")} valor={osSelecionada.dentes || "—"} />
+                    <CampoDetalhe label={t("producao.modulo.cor")} valor={osSelecionada.cor || "—"} />
                     <div>
-                      <span className="text-[12px] text-[#6b7280]">Situação</span>
+                      <span className="text-[12px] text-[#6b7280]">{t("producao.comum.situacao")}</span>
                       <select
                         value={osSelecionada.status}
                         onChange={(e) => void atualizarSituacaoItem(e.target.value)}
                         className="mt-1 h-[34px] w-full border border-[#d1d5db] px-2 text-[13px]"
                       >
-                        {[
-                          "pedido",
-                          "producao",
-                          "prova",
-                          "finalizado",
-                          "saiu_entrega",
-                          "entregue_cliente",
-                          "recebido_cliente",
-                          "entregue",
-                          "pendente",
-                          "cancelado",
-                        ].map((st) => (
-                          <option key={st} value={st}>
-                            {statusModuloOs(st).label}
+                        {opcoesStatus.map((st) => (
+                          <option key={st.value} value={st.value}>
+                            {st.label}
                           </option>
                         ))}
                       </select>
@@ -811,13 +645,17 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
 
           <aside className="flex flex-col gap-4">
             <div className="relative rounded border border-[#e5e7eb] bg-white px-4 py-4">
-              <p className="text-[13px] font-semibold text-[#374151]">Total Comissões</p>
+              <p className="text-[13px] font-semibold text-[#374151]">{t("producao.modulo.totalComissoes")}</p>
               <div className="mt-1 flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setComissaoVisivel((v) => !v)}
                   className="text-[#9ca3af] hover:text-[#6b7280]"
-                  aria-label={comissaoVisivel ? "Ocultar valor" : "Mostrar valor"}
+                  aria-label={
+                    comissaoVisivel
+                      ? t("producao.modulo.ocultarValor")
+                      : t("producao.modulo.mostrarValor")
+                  }
                 >
                   {comissaoVisivel ? (
                     <EyeOff className="h-4 w-4" />
@@ -829,7 +667,7 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
                   type="button"
                   onClick={() => window.location.reload()}
                   className="text-[#9ca3af] hover:text-[#6b7280]"
-                  aria-label="Atualizar"
+                  aria-label={t("producao.modulo.atualizar")}
                 >
                   <RefreshCw className="h-4 w-4" />
                 </button>
@@ -846,7 +684,7 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
                 href="/app/producao/comissao"
                 className="mt-3 inline-block rounded border border-[#3b82f6] px-3 py-1 text-[12px] text-[#3b82f6] hover:bg-[#eff6ff]"
               >
-                Ver Detalhes
+                {t("producao.modulo.verDetalhes")}
               </Link>
               <div className="absolute right-4 top-1/2 flex h-[72px] w-[72px] -translate-y-1/2 items-center justify-center rounded-full bg-[#dbeafe]">
                 <DollarSign className="h-9 w-9 text-[#3b82f6]" strokeWidth={1.5} />
@@ -855,7 +693,7 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
 
             <div className="flex items-center gap-3 rounded border border-[#e5e7eb] bg-white px-4 py-6">
               <Calendar className="h-6 w-6 text-[#6b7280]" strokeWidth={1.5} />
-              <span className="text-[14px] text-[#374151]">Agenda</span>
+              <span className="text-[14px] text-[#374151]">{t("producao.modulo.agenda")}</span>
             </div>
           </aside>
         </div>
@@ -865,8 +703,14 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-28">
           <div className="w-full max-w-md rounded border border-[#e5e7eb] bg-white shadow-lg">
             <div className="flex items-center justify-between border-b border-[#e5e7eb] px-4 py-3">
-              <h2 className="text-[14px] font-semibold text-[#374151]">Pesquisar Paciente</h2>
-              <button type="button" onClick={() => setBuscaPacienteAberta(false)} aria-label="Fechar">
+              <h2 className="text-[14px] font-semibold text-[#374151]">
+                {t("producao.modulo.pesquisarPaciente")}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setBuscaPacienteAberta(false)}
+                aria-label={t("common.fechar")}
+              >
                 <X className="h-5 w-5 text-[#9ca3af]" />
               </button>
             </div>
@@ -875,7 +719,7 @@ export function ModuloProducaoColaborador({ userName, userRole }: Props) {
                 value={buscaPaciente}
                 onChange={(e) => setBuscaPaciente(e.target.value)}
                 autoFocus
-                placeholder="Nome do paciente ou cliente"
+                placeholder={t("producao.modulo.buscaPacientePlaceholder")}
                 className="h-[38px] w-full border border-[#d1d5db] px-3 text-[13px] outline-none focus:border-[#3b82f6]"
               />
               <div className="max-h-56 space-y-2 overflow-y-auto">
