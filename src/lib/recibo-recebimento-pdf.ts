@@ -3,6 +3,10 @@ import {
   desenharCabecalhoLabRelatorioPdf,
 } from "@/lib/pdf-lab-cabecalho";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
+import {
+  dadosRodapeAssinaturaRecibo,
+  formatoImagemDataUrl,
+} from "@/lib/recibo-assinatura-lab";
 import { formatDate } from "@/lib/utils";
 import {
   textoFormaPagamentoRecibo,
@@ -19,14 +23,6 @@ function moneyBr(value: number) {
 
 function currencyBr(value: number) {
   return `R$ ${moneyBr(value)}`;
-}
-
-function dataPorExtenso(value: Date) {
-  return value.toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
 }
 
 export async function gerarReciboRecebimentoPdf(
@@ -120,27 +116,39 @@ export async function gerarReciboRecebimentoPdf(
 
   const labCfg = carregarConfigLaboratorio();
   const lab = labImpressaoFromConfig();
-  const cidade =
-    labCfg.cidade?.trim() ||
-    lab.endereco?.split(",")[0]?.trim() ||
-    "Governador Valadares";
+  const rodape = dadosRodapeAssinaturaRecibo(labCfg, lab);
 
-  pdf.text(`${cidade}, ${dataPorExtenso(new Date())}.`, pageW - margin, y, {
+  pdf.text(`${rodape.cidade}, ${rodape.dataExtenso}.`, pageW - margin, y, {
     align: "right",
   });
-  y += 20;
+  y += 16;
 
-  const responsavel = lab.responsavel?.trim() || "";
-  const cnpj = labCfg.cnpj?.trim() ? `CNPJ: ${labCfg.cnpj.trim()}` : "";
-  const assinaturaW = 80;
+  const assinaturaW = 70;
+  const assinaturaH = 22;
   const assinaturaX = (pageW - assinaturaW) / 2;
+  if (rodape.assinaturaDataUrl) {
+    try {
+      pdf.addImage(
+        rodape.assinaturaDataUrl,
+        formatoImagemDataUrl(rodape.assinaturaDataUrl),
+        assinaturaX,
+        y,
+        assinaturaW,
+        assinaturaH
+      );
+      y += assinaturaH + 4;
+    } catch {
+      y += 4;
+    }
+  }
+
   pdf.setDrawColor(80, 80, 80);
   pdf.line(assinaturaX, y, assinaturaX + assinaturaW, y);
   y += 5;
-  pdf.text(responsavel, pageW / 2, y, { align: "center" });
-  if (cnpj) {
+  pdf.text(rodape.responsavel, pageW / 2, y, { align: "center" });
+  if (rodape.cnpj) {
     y += 8;
-    pdf.text(cnpj, pageW / 2, y, { align: "center" });
+    pdf.text(rodape.cnpj, pageW / 2, y, { align: "center" });
   }
 
   return pdf.output("blob");

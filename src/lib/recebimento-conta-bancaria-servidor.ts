@@ -68,7 +68,7 @@ export async function sincronizarMovimentacaoRecebimentoServidor(
       data: lancamento.data,
     },
     update: {
-      contaId,
+      contaId: contaIdDb,
       tipo: "entrada",
       valor: lancamento.valor,
       descricao,

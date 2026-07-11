@@ -66,6 +66,8 @@ export type ConfigLaboratorio = LabImpressaoConfig & {
   bairro: string;
   complemento: string;
   codMunicipio: string;
+  /** Assinatura desenhada/enviada em Dados do Laboratório — exibida no recibo. */
+  assinaturaReciboDataUrl?: string;
   /** pt | en | es — tradução do sistema. */
   idioma: Locale;
   pais: string;
@@ -109,6 +111,7 @@ export const CONFIG_LAB_PADRAO: ConfigLaboratorio = {
   bairro: "",
   complemento: "",
   codMunicipio: "",
+  assinaturaReciboDataUrl: "",
   idioma: "pt",
   pais: "Brasil",
   moeda: "Real",
@@ -268,6 +271,7 @@ export function criarFormularioLaboratorioLimpo(
     bairro: "",
     complemento: "",
     codMunicipio: "",
+    assinaturaReciboDataUrl: "",
     logoDataUrl: "",
     logoTamanho: LOGO_TAMANHO_PADRAO,
     idioma: "pt",

@@ -29,6 +29,7 @@ import {
   type EtapaOsFormLinha,
 } from "@/components/producao/EtapasOsEditor";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
+import { useI18n } from "@/components/i18n-provider";
 import { ImprimirOsModal } from "@/components/ImprimirOsModal";
 import {
   buscarRegistroParaBlocoSalvar,
@@ -166,6 +167,7 @@ import {
   urlImagemDente,
 } from "@/lib/dentes-imagens";
 import { cn, exibirTexto, formatCurrency, formatDate, STATUS_TRABALHO } from "@/lib/utils";
+import { labelStatusTrabalho } from "@/lib/i18n/status-trabalho-i18n";
 import {
   etapasConcluidasModulo,
   indiceEtapaAtualDeConcluidas,
@@ -669,10 +671,6 @@ function dateToInput(date: string | null | undefined) {
   return new Date(date).toISOString().slice(0, 10);
 }
 
-function statusLabel(status: string) {
-  return STATUS_TRABALHO[status]?.label || status;
-}
-
 function clienteNome(trabalho: Trabalho) {
   return trabalho.cliente?.nome || "";
 }
@@ -707,12 +705,13 @@ function CelulaSituacaoControle({
   onEditarStatus: () => void;
   onMarcarEntregueCliente?: () => void;
 }) {
+  const { t } = useI18n();
   const exibicao = situacaoExibicaoTrabalho(trabalho, primeiroItem);
 
   if (exibicao.kind === "produto") {
     return (
       <span className="inline-flex items-center rounded-full bg-slate-600 px-2.5 py-1 text-[10px] font-semibold text-white">
-        Produto
+        {t("producao.os.badge.produto")}
       </span>
     );
   }
@@ -720,7 +719,7 @@ function CelulaSituacaoControle({
   if (exibicao.kind === "transporte") {
     return (
       <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
-        Transporte
+        {t("producao.os.badge.transporte")}
       </span>
     );
   }
@@ -733,9 +732,9 @@ function CelulaSituacaoControle({
         type="button"
         onClick={onEditarStatus}
         className={`rounded px-2 py-1 text-[10px] font-semibold ${STATUS_TRABALHO[trabalho.status]?.color || "bg-slate-100 text-slate-700"}`}
-        title="Alterar situação"
+        title={t("producao.controle.filtro.situacao")}
       >
-        {statusLabel(trabalho.status)}
+        {labelStatusTrabalho(t, trabalho.status)}
       </button>
       {statusChave === "saiu_entrega" && onMarcarEntregueCliente ? (
         <button
@@ -993,6 +992,7 @@ function itemIdEtapasControle(
 }
 
 export default function ControlePage() {
+  const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const editarIdUrl = searchParams.get("editar");
@@ -3204,9 +3204,9 @@ export default function ControlePage() {
       {!embedAgenda && (
       <>
       <div className="flex items-center gap-2 text-sm text-slate-500">
-        <span>Produção</span>
+        <span>{t("nav.producao")}</span>
         <span>/</span>
-        <span className="font-medium text-slate-700">Controle de Produção</span>
+        <span className="font-medium text-slate-700">{t("nav.controleProducao")}</span>
       </div>
 
       <div className="rounded border border-slate-200 bg-white px-2 py-3 shadow-sm">
@@ -3214,11 +3214,11 @@ export default function ControlePage() {
 
         <div className="grid min-w-0 grid-cols-1 items-start gap-2 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)]">
           <div className="min-w-0">
-          <Select label="Situação" value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="todos">Todos</option>
-            {Object.entries(STATUS_TRABALHO).map(([key, value]) => (
+          <Select label={t("producao.controle.filtro.situacao")} value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="todos">{t("common.todos")}</option>
+            {Object.keys(STATUS_TRABALHO).map((key) => (
                 <option key={key} value={key}>
-                  {value.label}
+                  {labelStatusTrabalho(t, key)}
                 </option>
             ))}
           </Select>
@@ -3253,7 +3253,7 @@ export default function ControlePage() {
                   extras={[
                     {
                       chave: "mostrarProdutosTransportes",
-                      label: "Mostrar Produtos e Transportes",
+                      label: t("producao.filtro.mostrarProdutosTransportes"),
                     },
                   ]}
                   onAlterarExtra={(chave, valor) => {
@@ -3275,7 +3275,7 @@ export default function ControlePage() {
           </div>
           <div className="min-w-0">
             <CampoDataBr
-              label="Data lançamento"
+              label={t("producao.controle.filtro.dataLancamento")}
               value={dataEntrada}
               onChange={setDataEntrada}
               placeholder="dd/mm/aaaa"
@@ -3283,10 +3283,10 @@ export default function ControlePage() {
           </div>
           <div className="min-w-0">
             <SelectPesquisavel
-              label="Cliente"
+              label={t("producao.controle.filtro.cliente")}
               value={cliente}
               onChange={setCliente}
-              placeholder="Todos"
+              placeholder={t("common.todos")}
               permitirLimpar
               options={clientes.map((nome) => ({ value: nome, label: nome }))}
             />
@@ -3296,7 +3296,7 @@ export default function ControlePage() {
               htmlFor="controle-producao-busca"
               className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
             >
-              Buscar
+              {t("producao.controle.filtro.buscar")}
             </label>
             <div className="flex min-w-0 items-stretch gap-2">
               <div className="min-w-0 flex-1 overflow-hidden">
@@ -3304,13 +3304,13 @@ export default function ControlePage() {
                   id="controle-producao-busca"
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
-                  placeholder="Nº OS, ID, cliente, paciente ou serviço"
+                  placeholder={t("producao.controle.filtro.buscarPlaceholder")}
                   className="min-w-0"
                 />
               </div>
               <Button className="shrink-0 self-stretch px-3" size="sm" onClick={load}>
                 <Search className="h-4 w-4" />
-                Buscar
+                {t("common.buscar")}
               </Button>
             </div>
           </div>
@@ -3337,18 +3337,18 @@ export default function ControlePage() {
           <table className="w-full min-w-[1000px] text-[11px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
-                <th className="px-2 py-2 text-left font-semibold uppercase">OS</th>
-                <th className="px-2 py-2 text-left font-semibold uppercase">Caixa</th>
-                <th className="px-2 py-2 text-left font-semibold uppercase">Entrada</th>
-                <th className="px-2 py-2 text-left font-semibold uppercase">Qtd</th>
-                <th className="px-2 py-2 text-left font-semibold uppercase">Serviço</th>
-                <th className="px-2 py-2 text-left font-semibold uppercase">Cliente</th>
-                <th className="px-2 py-2 text-left font-semibold uppercase">Dentista</th>
-                <th className="px-2 py-2 text-left font-semibold uppercase">Paciente</th>
-                <th className="px-2 py-2 text-left font-semibold uppercase">Colaborador</th>
-                <th className="px-2 py-2 text-left font-semibold uppercase">Etapas</th>
-                <th className="px-2 py-2 text-left font-semibold uppercase">Situação</th>
-                <th className="px-2 py-2 text-center font-semibold uppercase">Opções</th>
+                <th className="px-2 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.os")}</th>
+                <th className="px-2 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.caixa")}</th>
+                <th className="px-2 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.entrada")}</th>
+                <th className="px-2 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.qtd")}</th>
+                <th className="px-2 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.servico")}</th>
+                <th className="px-2 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.cliente")}</th>
+                <th className="px-2 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.dentista")}</th>
+                <th className="px-2 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.paciente")}</th>
+                <th className="px-2 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.colaborador")}</th>
+                <th className="px-2 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.etapas")}</th>
+                <th className="px-2 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.situacao")}</th>
+                <th className="px-2 py-2 text-center font-semibold uppercase">{t("common.opcoes")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

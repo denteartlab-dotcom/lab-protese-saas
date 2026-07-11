@@ -12,6 +12,7 @@ import {
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, X } from "lucide-react";
 import { calcularPosicaoMenuAbaixo } from "@/lib/dropdown-portal-pos";
+import { useTrUi } from "@/lib/i18n/use-tr-ui";
 import { propsBloquearArrasteEntreCampos } from "@/lib/input-selecao";
 import { cn } from "@/lib/utils";
 
@@ -68,6 +69,7 @@ export function SelectPesquisavel({
   permitirLimpar = false,
   valorLimpar = "",
 }: Props) {
+  const { tr } = useTrUi();
   const autoId = useId();
   const inputId = id || autoId;
   const menuId = `${inputId}-menu`;
@@ -85,8 +87,11 @@ export function SelectPesquisavel({
   });
 
   const labelSelecionado = useMemo(
-    () => options.find((opcao) => opcao.value === value)?.label ?? "",
-    [options, value]
+    () => {
+      const raw = options.find((opcao) => opcao.value === value)?.label ?? "";
+      return raw ? tr(raw) : "";
+    },
+    [options, value, tr]
   );
 
   const filtrados = useMemo(() => {
@@ -210,7 +215,7 @@ export function SelectPesquisavel({
       }}
     >
       {filtrados.length === 0 ? (
-        <p className="px-3 py-2 text-[12px] text-slate-400">{emptyMessage}</p>
+        <p className="px-3 py-2 text-[12px] text-slate-400">{tr(emptyMessage)}</p>
       ) : (
         filtrados.map((opcao) => {
           const ativo = opcao.value === value;
@@ -227,7 +232,7 @@ export function SelectPesquisavel({
                 ativo && "bg-[#e8f2fc] font-medium text-[#4a90d9] dark:bg-primary-950/50 dark:text-primary-400"
               )}
             >
-              <span className="truncate">{opcao.label}</span>
+              <span className="truncate">{tr(opcao.label)}</span>
               {ativo ? <Check className="h-4 w-4 shrink-0 text-[#4a90d9]" aria-hidden /> : null}
             </button>
           );
@@ -243,7 +248,7 @@ export function SelectPesquisavel({
           htmlFor={inputId}
           className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
         >
-          {label}
+          {typeof label === "string" ? tr(label) : label}
         </label>
       ) : null}
       <div ref={anchorRef} className="relative">
@@ -252,7 +257,7 @@ export function SelectPesquisavel({
           id={inputId}
           type="text"
           value={aberto ? texto : labelSelecionado || ""}
-          placeholder={placeholder}
+          placeholder={tr(placeholder)}
           disabled={disabled}
           autoComplete="off"
           onChange={(e) => {
@@ -277,7 +282,7 @@ export function SelectPesquisavel({
             onMouseDown={(e) => e.preventDefault()}
             onClick={limparSelecao}
             className="absolute right-7 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-            aria-label="Limpar seleção"
+            aria-label={tr("Limpar seleção")}
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -289,7 +294,7 @@ export function SelectPesquisavel({
           onMouseDown={(e) => e.preventDefault()}
           onClick={abrirLista}
           className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 disabled:opacity-40"
-          aria-label="Abrir lista"
+          aria-label={tr("Abrir lista")}
         >
           <ChevronDown className={cn("h-4 w-4 transition-transform", aberto && "rotate-180")} />
         </button>

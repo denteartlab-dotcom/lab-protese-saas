@@ -47,12 +47,18 @@ export function montarConfigInicialCadastro(
     // Conta nova sempre sem foto/logo — nunca herdar de outra sessão/tenant.
     logoDataUrl: "",
     logoTamanho: LOGO_TAMANHO_PADRAO,
+    assinaturaReciboDataUrl: "",
   });
 }
 
 export async function persistirConfigLaboratorioServidor(
   config: ConfigLaboratorio,
-  opcoes?: { /** Grava o logo do payload mesmo vazio (upload/remoção na aba Logo). */ logoExplicito?: boolean }
+  opcoes?: {
+    /** Grava o logo do payload mesmo vazio (upload/remoção na aba Logo). */
+    logoExplicito?: boolean;
+    /** Grava a assinatura do payload mesmo vazia (aba Dados do Laboratório). */
+    assinaturaExplicita?: boolean;
+  }
 ): Promise<void> {
   let remoto: Partial<ConfigLaboratorio> | null = null;
   try {
@@ -67,7 +73,7 @@ export async function persistirConfigLaboratorioServidor(
     /* offline */
   }
   const preparado = prepararConfigParaSalvar(config);
-  const payload = opcoes?.logoExplicito
+  const comLogo = opcoes?.logoExplicito
     ? {
         ...preparado,
         logoDataUrl: preparado.logoDataUrl?.trim() || "",
@@ -76,6 +82,12 @@ export async function persistirConfigLaboratorioServidor(
           : LOGO_TAMANHO_PADRAO,
       }
     : preservarLogoConfigLaboratorio(preparado, remoto);
+  const assinaturaReciboDataUrl = opcoes?.assinaturaExplicita
+    ? preparado.assinaturaReciboDataUrl?.trim() || ""
+    : preparado.assinaturaReciboDataUrl?.trim() ||
+      remoto?.assinaturaReciboDataUrl?.trim() ||
+      "";
+  const payload = { ...comLogo, assinaturaReciboDataUrl };
   const res = await fetch(`/api/json-store/${encodeURIComponent(CONFIG_LAB_STORAGE_KEY)}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },

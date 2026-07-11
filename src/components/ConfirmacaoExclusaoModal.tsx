@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { X } from "lucide-react";
+import { useTrUi } from "@/lib/i18n/use-tr-ui";
 
 type Props = {
   open: boolean;
@@ -35,6 +36,7 @@ export function ConfirmacaoExclusaoModal({
   labelConfirmar = "Sim",
   labelCancelar = "Não",
 }: Props) {
+  const { tr } = useTrUi();
   const confirmandoRef = useRef(false);
 
   if (!open) return null;
@@ -53,8 +55,8 @@ export function ConfirmacaoExclusaoModal({
         console.error("[ConfirmacaoExclusaoModal]", err);
         alert(
           err instanceof Error
-            ? err.message
-            : "Não foi possível concluir a operação. Tente novamente."
+            ? tr(err.message)
+            : tr("Não foi possível concluir a operação. Tente novamente.")
         );
       })
       .finally(() => {
@@ -79,23 +81,23 @@ export function ConfirmacaoExclusaoModal({
             id="confirmacao-exclusao-titulo"
             className="pr-8 text-base font-medium text-slate-600 dark:text-slate-200"
           >
-            {titulo}
+            {tr(titulo)}
           </h2>
           <button
             type="button"
             onClick={onClose}
             disabled={processando}
             className="absolute right-[-8px] top-[-3px] flex h-9 w-9 items-center justify-center rounded-md bg-white text-3xl leading-none text-slate-500 shadow-md hover:bg-slate-50 disabled:opacity-60 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
-            aria-label="Fechar"
+            aria-label={tr("Fechar")}
           >
             <X className="h-5 w-5" strokeWidth={1.5} />
           </button>
         </div>
 
         <div className="border-y border-slate-100 px-5 py-5 text-sm leading-relaxed text-slate-600 dark:border-slate-800 dark:text-slate-300">
-          <p className="whitespace-pre-line">{mensagem}</p>
-          {aviso ? <p className="mt-2">{aviso}</p> : null}
-          {detalhe ? <p className="mt-2 text-slate-500 dark:text-slate-400">{detalhe}</p> : null}
+          <p className="whitespace-pre-line">{tr(mensagem)}</p>
+          {aviso ? <p className="mt-2">{tr(aviso)}</p> : null}
+          {detalhe ? <p className="mt-2 text-slate-500 dark:text-slate-400">{tr(detalhe)}</p> : null}
         </div>
 
         <div className="flex justify-end gap-3 rounded-b bg-white px-6 py-4 dark:bg-slate-900">
@@ -106,7 +108,7 @@ export function ConfirmacaoExclusaoModal({
               disabled={processando}
               className="h-10 rounded-md border border-slate-300 bg-white px-8 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             >
-              {labelCancelar}
+              {tr(labelCancelar)}
             </button>
           ) : null}
           <button
@@ -119,7 +121,7 @@ export function ConfirmacaoExclusaoModal({
                 : "h-10 rounded-md bg-red-500 px-8 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
             }
           >
-            {modo === "alerta" ? "OK" : labelConfirmar}
+            {modo === "alerta" ? tr("OK") : tr(labelConfirmar)}
           </button>
         </div>
       </div>

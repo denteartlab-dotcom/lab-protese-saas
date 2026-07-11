@@ -1,5 +1,6 @@
 import { carregarConfigLaboratorio } from "@/lib/configuracoes-lab";
 import { htmlCabecalhoLab, labImpressaoFromConfig } from "@/lib/lab-logo";
+import { dadosRodapeAssinaturaRecibo } from "@/lib/recibo-assinatura-lab";
 import { formatDate } from "@/lib/utils";
 
 export type ModeloReciboRecebimento = "simples" | "detalhado";
@@ -58,7 +59,9 @@ function estilosRecibo() {
     th{text-align:center;font-weight:bold}
     td{text-align:center}
     .footer{text-align:right;margin-top:26px}
-    .sign{width:420px;margin:70px auto 0;text-align:center;border-top:1px solid #444;padding-top:8px}
+    .sign{width:420px;margin:50px auto 0;text-align:center;padding-top:8px}
+    .sign-line{border-top:1px solid #444;width:280px;margin:0 auto 10px}
+    .sign-img{max-height:72px;max-width:280px;margin:0 auto 10px;display:block}
     @media print{body{padding:0}.page{max-width:none}}
   `;
 }
@@ -66,17 +69,18 @@ function estilosRecibo() {
 function rodapeRecibo() {
   const labCfg = carregarConfigLaboratorio();
   const lab = labImpressaoFromConfig();
-  const cidade =
-    labCfg.cidade?.trim() ||
-    lab.enderecoLinha2?.trim() ||
-    lab.endereco?.split(",")[0]?.trim() ||
-    "Governador Valadares";
-  const responsavel = lab.responsavel?.trim() || labCfg.responsavel?.trim() || "";
-  const cnpj = labCfg.cnpj?.trim() ? `CNPJ: ${labCfg.cnpj.trim()}` : "";
+  const rodape = dadosRodapeAssinaturaRecibo(labCfg, lab);
+  const imgAssinatura = rodape.assinaturaDataUrl
+    ? `<img src="${rodape.assinaturaDataUrl}" alt="Assinatura" class="sign-img"/>`
+    : "";
 
   return `
-    <p class="footer">${cidade}, ${dataPorExtenso(new Date())}.</p>
-    <div class="sign">${responsavel}${cnpj ? `<br/><br/>${cnpj}` : ""}</div>
+    <p class="footer">${rodape.cidade}, ${rodape.dataExtenso}.</p>
+    <div class="sign">
+      ${imgAssinatura}
+      <div class="sign-line"></div>
+      ${rodape.responsavel}${rodape.cnpj ? `<br/><br/>${rodape.cnpj}` : ""}
+    </div>
   `;
 }
 

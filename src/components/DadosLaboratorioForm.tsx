@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Building2, MapPin } from "lucide-react";
+import { AssinaturaReciboCampo } from "@/components/AssinaturaReciboCampo";
 import { Button } from "@/components/ui";
 import {
   criarFormularioLaboratorioLimpo,
@@ -504,6 +505,15 @@ export function DadosLaboratorioForm({
             />
           </Campo>
         </div>
+      </section>
+
+      <section>
+        <AssinaturaReciboCampo
+          value={form.assinaturaReciboDataUrl || ""}
+          onChange={(assinaturaReciboDataUrl) =>
+            setForm({ ...form, assinaturaReciboDataUrl })
+          }
+        />
       </section>
     </div>
   );

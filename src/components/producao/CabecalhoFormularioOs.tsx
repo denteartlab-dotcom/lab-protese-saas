@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { ImageUp, Tag, Trash2 } from "lucide-react";
 import { CampoDataBr, Input, Select, SelectPesquisavel } from "@/components/ui";
+import { useI18n } from "@/components/i18n-provider";
 import { type PrioridadeOsForm } from "@/lib/prioridade-os";
 import {
   adicionarMaterialDentistaCadastro,
@@ -57,6 +58,7 @@ export function CabecalhoFormularioOs({
   desabilitado = false,
   observacaoEditavel = true,
 }: Props) {
+  const { t } = useI18n();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [materiais, setMateriais] = useState<string[]>([]);
   const [materiaisCarregados, setMateriaisCarregados] = useState(false);
@@ -190,38 +192,38 @@ export function CabecalhoFormularioOs({
   return (
     <section className="grid gap-3 p-4 md:grid-cols-5">
       <CampoDataBr
-        label="Data Lançamento"
+        label={t("producao.os.campo.dataLancamento")}
         value={value.dataLancamento}
         onChange={(dataLancamento) => onChange({ dataLancamento })}
         disabled={desabilitado}
       />
-      <Input label="Número OS" value={value.numeroOs || "—"} readOnly />
+      <Input label={t("producao.os.campo.numeroOs")} value={value.numeroOs || "—"} readOnly />
       <Input
-        label="Caixa"
+        label={t("producao.os.campo.caixa")}
         value={value.caixa}
         onChange={(e) => onChange({ caixa: e.target.value })}
         readOnly={desabilitado}
       />
       <Input
-        label="Caso Clínico"
+        label={t("producao.os.campo.casoClinico")}
         value={value.casoUrgente}
         onChange={(e) => onChange({ casoUrgente: e.target.value })}
         readOnly={desabilitado}
       />
       <Input
-        label="Paciente"
+        label={t("producao.os.campo.paciente")}
         value={value.pacienteNome}
         onChange={(e) => onChange({ pacienteNome: e.target.value })}
-        placeholder="Digite o nome do paciente"
+        placeholder={t("producao.os.campo.pacientePlaceholder")}
         readOnly={desabilitado}
       />
 
       <div className="space-y-1">
         <SelectPesquisavel
-          label="Selecione um Cliente *"
+          label={`${t("producao.os.campo.cliente")} ${t("common.obrigatorio")}`}
           value={value.clienteId}
           onChange={(clienteId) => onChange({ clienteId })}
-          placeholder="Selecione..."
+          placeholder={t("common.selecione")}
           disabled={desabilitado}
           options={clientes.map((cliente) => ({
             value: cliente.id,
@@ -229,7 +231,7 @@ export function CabecalhoFormularioOs({
           }))}
         />
         <Select
-          label="Prioridade"
+          label={t("producao.os.campo.prioridade")}
           value={value.prioridadeOs || "media"}
           onChange={(e) =>
             onChange({
@@ -238,28 +240,29 @@ export function CabecalhoFormularioOs({
           }
           disabled={desabilitado}
         >
-          <option value="alta">Alta</option>
-          <option value="media">Média</option>
-          <option value="baixa">Baixa</option>
+          <option value="alta">{t("producao.os.prioridade.alta")}</option>
+          <option value="media">{t("producao.os.prioridade.media")}</option>
+          <option value="baixa">{t("producao.os.prioridade.baixa")}</option>
         </Select>
         {value.clienteId ? (
           <p className="text-[12px] font-medium leading-snug text-[#4a90d9]">
-            Tabela Utilizada <span className="font-semibold">{tabelaPrecoSelecionada}</span>
+            {t("producao.os.campo.tabelaUtilizada")}{" "}
+            <span className="font-semibold">{tabelaPrecoSelecionada}</span>
           </p>
         ) : null}
       </div>
 
       <Input
-        label="Dentista"
+        label={t("producao.os.campo.dentista")}
         value={value.dentista}
         onChange={(e) => onChange({ dentista: e.target.value })}
-        placeholder="Nome do dentista (opcional)"
+        placeholder={t("producao.os.campo.dentistaPlaceholder")}
         readOnly={desabilitado}
       />
 
       <div className="relative space-y-2 md:col-span-3">
         <label className="block text-sm font-medium text-slate-700">
-          Material Enviado pelo Dentista
+          {t("producao.os.campo.material")}
         </label>
         <div className="rounded border border-slate-300 bg-white p-2 shadow-sm">
           {materiaisSelecionados.length > 0 && (
@@ -281,7 +284,7 @@ export function CabecalhoFormularioOs({
             className="flex w-full items-center justify-center gap-2 rounded border border-slate-500 bg-slate-100 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Tag className="h-3.5 w-3.5 text-slate-500" />
-            Selecione Materiais
+            {t("producao.os.campo.selecioneMateriais")}
             <span className="text-slate-400">⌄</span>
           </button>
         </div>
@@ -291,7 +294,7 @@ export function CabecalhoFormularioOs({
               <Input
                 value={buscaMaterial}
                 onChange={(e) => setBuscaMaterial(e.target.value)}
-                placeholder="Procurar"
+                placeholder={t("common.procurar")}
                 className="h-8"
               />
               <button
@@ -304,14 +307,14 @@ export function CabecalhoFormularioOs({
                 }}
                 className="rounded border border-slate-300 px-3 text-xs text-slate-600 hover:bg-slate-50"
               >
-                Limpar
+                {t("common.limpar")}
               </button>
               <button
                 type="button"
                 onClick={adicionarMaterialLista}
                 className="rounded border border-emerald-300 px-3 text-xs text-emerald-700 hover:bg-emerald-50"
               >
-                + Material na Lista
+                {t("producao.os.campo.materialNaLista")}
               </button>
             </div>
             <div className="max-h-80 space-y-1 overflow-auto pr-2">
@@ -357,7 +360,7 @@ export function CabecalhoFormularioOs({
               })}
               {materiaisFiltrados.length === 0 && (
                 <p className="py-3 text-center text-xs text-slate-400">
-                  Nenhum material encontrado.
+                  {t("producao.os.campo.nenhumMaterial")}
                 </p>
               )}
             </div>
@@ -381,22 +384,25 @@ export function CabecalhoFormularioOs({
           disabled={desabilitado || galeriaEsgotada || totalAnexos >= limiteArquivos}
           className="shrink-0 rounded border border-slate-300 px-3 py-2 text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <ImageUp className="mr-2 inline h-4 w-4" /> Selecione Imagens ou Vídeos ({totalAnexos}/
-          {limiteArquivos})
+          <ImageUp className="mr-2 inline h-4 w-4" />{" "}
+          {t("producao.os.campo.imagensVideos", {
+            atual: totalAnexos,
+            limite: limiteArquivos,
+          })}
         </button>
         {galeriaEsgotada ? (
           <p className="text-[11px] text-red-600">{mensagemBloqueioUpload()}</p>
         ) : null}
         <div className="min-w-0 flex-1">
           <label className="mb-1 block text-sm font-medium text-slate-700">
-            Observação Interna
+            {t("producao.os.campo.observacaoInterna")}
           </label>
           <input
             type="text"
             value={value.observacoes}
             onChange={(e) => onChange({ observacoes: e.target.value })}
             readOnly={!observacaoEditavel}
-            placeholder="Somente para o laboratório (não aparece na OS impressa)"
+            placeholder={t("producao.os.campo.observacaoPlaceholder")}
             className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 read-only:bg-slate-50"
           />
         </div>
@@ -405,7 +411,7 @@ export function CabecalhoFormularioOs({
       {(anexosExistentes.length > 0 || previews.length > 0) && (
         <div className="md:col-span-5 rounded border border-emerald-200 bg-emerald-50 p-3 text-emerald-800">
           <p className="mb-2 font-medium">
-            Arquivos ({totalAnexos}/{limiteArquivos}):
+            {t("producao.os.campo.arquivos", { atual: totalAnexos, limite: limiteArquivos })}
           </p>
           <div className="grid gap-2 sm:grid-cols-3 md:grid-cols-5">
             {anexosExistentes.map((anexo) => (
@@ -428,7 +434,9 @@ export function CabecalhoFormularioOs({
                 ) : anexo.type.startsWith("video/") ? (
                   <video src={anexo.url} className="h-24 w-full bg-black object-cover" />
                 ) : (
-                  <div className="flex h-24 items-center justify-center text-slate-400">Arquivo</div>
+                  <div className="flex h-24 items-center justify-center text-slate-400">
+                    {t("common.arquivo")}
+                  </div>
                 )}
                 <div className="truncate px-2 py-1 text-[11px] text-slate-600">{anexo.name}</div>
               </div>
@@ -464,7 +472,9 @@ export function CabecalhoFormularioOs({
                   <video src={preview.url} className="h-24 w-full bg-black object-cover" />
                 )}
                 {!preview.isImage && !preview.isVideo && (
-                  <div className="flex h-24 items-center justify-center text-slate-400">Arquivo</div>
+                  <div className="flex h-24 items-center justify-center text-slate-400">
+                    {t("common.arquivo")}
+                  </div>
                 )}
                 <div className="truncate px-2 py-1 text-[11px] text-slate-600">
                   {preview.file.name}

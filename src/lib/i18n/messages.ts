@@ -1,5 +1,16 @@
 export type Locale = "pt" | "en" | "es";
 
+import {
+  messagesProducaoEn,
+  messagesProducaoEs,
+  messagesProducaoPt,
+} from "@/lib/i18n/messages-producao";
+import {
+  messagesUiAutoEn,
+  messagesUiAutoEs,
+  messagesUiAutoPt,
+} from "@/lib/i18n/messages-ui-auto";
+
 export type MessageKey = keyof (typeof messages)["pt"];
 
 export const messages = {
@@ -289,6 +300,13 @@ export const messages = {
     "common.gravando": "Gravando...",
     "common.cancelar": "Cancelar",
     "common.carregando": "Carregando...",
+    "common.limparData": "Limpar data",
+    "common.abrirCalendario": "Abrir calendário",
+    "common.fecharCalendario": "Fechar calendário",
+    "common.calendario": "Calendário",
+    "common.limparSelecao": "Limpar seleção",
+    "common.abrirLista": "Abrir lista",
+    "common.erroOperacao": "Não foi possível concluir a operação. Tente novamente.",
     "common.sucessoGravado": "Alterações gravadas com sucesso.",
     "idioma.titulo": "Idioma",
     "idioma.labelIdioma": "IDIOMA",
@@ -420,6 +438,8 @@ export const messages = {
     "notif.urgente_cliente":
       "{cliente} sinalizou OS {numeroOs} como urgente: {servico} (Paciente: {paciente}).",
     "notif.anotacao_lembrete": "{texto}",
+    ...messagesProducaoPt,
+    ...messagesUiAutoPt,
   },
   en: {
     "lang.pt": "Portuguese",
@@ -705,6 +725,13 @@ export const messages = {
     "common.gravando": "Saving...",
     "common.cancelar": "Cancel",
     "common.carregando": "Loading...",
+    "common.limparData": "Clear date",
+    "common.abrirCalendario": "Open calendar",
+    "common.fecharCalendario": "Close calendar",
+    "common.calendario": "Calendar",
+    "common.limparSelecao": "Clear selection",
+    "common.abrirLista": "Open list",
+    "common.erroOperacao": "Could not complete the operation. Try again.",
     "common.sucessoGravado": "Changes saved successfully.",
     "idioma.titulo": "Language",
     "idioma.labelIdioma": "LANGUAGE",
@@ -836,6 +863,8 @@ export const messages = {
     "notif.urgente_cliente":
       "{cliente} marked WO {numeroOs} as urgent: {servico} (Patient: {paciente}).",
     "notif.anotacao_lembrete": "{texto}",
+    ...messagesProducaoEn,
+    ...messagesUiAutoEn,
   },
   es: {
     "lang.pt": "Portugués",
@@ -1121,6 +1150,13 @@ export const messages = {
     "common.gravando": "Guardando...",
     "common.cancelar": "Cancelar",
     "common.carregando": "Cargando...",
+    "common.limparData": "Limpiar fecha",
+    "common.abrirCalendario": "Abrir calendario",
+    "common.fecharCalendario": "Cerrar calendario",
+    "common.calendario": "Calendario",
+    "common.limparSelecao": "Limpiar selección",
+    "common.abrirLista": "Abrir lista",
+    "common.erroOperacao": "No fue posible completar la operación. Intente nuevamente.",
     "common.sucessoGravado": "Cambios guardados con éxito.",
     "idioma.titulo": "Idioma",
     "idioma.labelIdioma": "IDIOMA",
@@ -1252,5 +1288,7 @@ export const messages = {
     "notif.urgente_cliente":
       "{cliente} señaló OS {numeroOs} como urgente: {servico} (Paciente: {paciente}).",
     "notif.anotacao_lembrete": "{texto}",
+    ...messagesProducaoEs,
+    ...messagesUiAutoEs,
   },
 } as const;

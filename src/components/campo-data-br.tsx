@@ -1,27 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CalendarDays } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
+import { localeDataIntl } from "@/lib/i18n/tr-ui";
+import { useTrUi } from "@/lib/i18n/use-tr-ui";
 import { dateToBrShort, formatDateBr, parseBrDate } from "@/lib/datas-br";
 import { cn } from "@/lib/utils";
 
-const MESES_PT_BR = [
-  "Janeiro",
-  "Fevereiro",
-  "Março",
-  "Abril",
-  "Maio",
-  "Junho",
-  "Julho",
-  "Agosto",
-  "Setembro",
-  "Outubro",
-  "Novembro",
-  "Dezembro",
-];
+function nomesMeses(locale: string) {
+  const fmt = new Intl.DateTimeFormat(locale, { month: "long" });
+  return Array.from({ length: 12 }, (_, i) => fmt.format(new Date(2000, i, 1)));
+}
 
-const DIAS_SEMANA_PT_BR = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+function diasSemana(locale: string) {
+  const fmt = new Intl.DateTimeFormat(locale, { weekday: "short" });
+  return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2000, 0, 2 + i)));
+}
 
 const ALTURA_CALENDARIO_ESTIMADA = 320;
 
@@ -94,6 +90,11 @@ export function CampoDataBr({
   /** Fecha o calendário quando outro campo de data abre no mesmo formulário. */
   forceClose?: boolean;
 }) {
+  const { locale } = useI18n();
+  const { tr } = useTrUi();
+  const localeIntl = localeDataIntl(locale);
+  const meses = useMemo(() => nomesMeses(localeIntl), [localeIntl]);
+  const diasSemanaLabels = useMemo(() => diasSemana(localeIntl), [localeIntl]);
   const [aberto, setAberto] = useState(false);
   const [mesCalendario, setMesCalendario] = useState(new Date());
   const [posicao, setPosicao] = useState<PosicaoCalendario | null>(null);
@@ -171,7 +172,7 @@ export function CampoDataBr({
           ‹
         </button>
         <strong className="text-xs text-slate-700">
-          {MESES_PT_BR[mesCalendario.getMonth()]} {mesCalendario.getFullYear()}
+          {meses[mesCalendario.getMonth()]} {mesCalendario.getFullYear()}
         </strong>
         <button
           type="button"
@@ -184,7 +185,7 @@ export function CampoDataBr({
         </button>
       </div>
       <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-slate-400">
-        {DIAS_SEMANA_PT_BR.map((dia) => (
+        {diasSemanaLabels.map((dia) => (
           <span key={dia}>{dia}</span>
         ))}
       </div>
@@ -216,7 +217,7 @@ export function CampoDataBr({
           onClick={limparData}
           className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
         >
-          Limpar data
+          {tr("Limpar data")}
         </button>
       </div>
     </div>
@@ -225,7 +226,7 @@ export function CampoDataBr({
   return (
     <div className={cn("relative space-y-1", className)}>
       {label ? (
-        <label className="block text-sm font-medium text-slate-700">{label}</label>
+        <label className="block text-sm font-medium text-slate-700">{tr(label)}</label>
       ) : null}
       <div ref={anchorRef} className="relative">
         <input
@@ -238,7 +239,7 @@ export function CampoDataBr({
             const parsed = parseBrDate(value);
             if (parsed) aplicarValor(formatDateBr(value));
           }}
-          placeholder={placeholder}
+          placeholder={tr(placeholder)}
           className={cn(
             "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20",
             disabled && "cursor-not-allowed bg-slate-50 text-slate-500",
@@ -255,8 +256,8 @@ export function CampoDataBr({
             iconPosition === "left" ? "left-2" : "right-3",
             disabled && "pointer-events-none opacity-40"
           )}
-          title="Abrir calendário"
-          aria-label="Abrir calendário"
+          title={tr("Abrir calendário")}
+          aria-label={tr("Abrir calendário")}
           aria-expanded={aberto}
         >
           <CalendarDays className="h-3.5 w-3.5" />
@@ -270,14 +271,14 @@ export function CampoDataBr({
                   type="button"
                   className="fixed inset-0 cursor-default bg-transparent"
                   style={{ zIndex: zBackdrop }}
-                  aria-label="Fechar calendário"
+                  aria-label={tr("Fechar calendário")}
                   onClick={() => definirAberto(false)}
                 />
                 <div
                   className="fixed"
                   style={{ top: posicao.top, left: posicao.left, zIndex: zPainel }}
                   role="dialog"
-                  aria-label="Calendário"
+                  aria-label={tr("Calendário")}
                 >
                   {painelCalendario}
                 </div>
@@ -289,7 +290,7 @@ export function CampoDataBr({
                 <button
                   type="button"
                   className="fixed inset-0 z-[89]"
-                  aria-label="Fechar calendário"
+                  aria-label={tr("Fechar calendário")}
                   onClick={() => setAberto(false)}
                 />
                 <div className="relative z-[90] mt-2">{painelCalendario}</div>

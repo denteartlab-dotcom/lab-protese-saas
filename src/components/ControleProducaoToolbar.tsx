@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
+import { useI18n } from "@/components/i18n-provider";
 import { usePageReady } from "@/hooks/use-page-ready";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import {
@@ -144,6 +145,7 @@ export function ControleProducaoFiltrosLista({
   onProdutosChange?: (valor: boolean) => void;
   onFichasSemServicosChange?: (valor: boolean) => void;
 }) {
+  const { t } = useI18n();
   const {
     produtosInterno,
     fichasInterno,
@@ -175,9 +177,9 @@ export function ControleProducaoFiltrosLista({
       {configLista}
       {preferenciasProntas ? (
         <>
-          <ToggleFiltro label="Produtos" checked={produtos} onChange={alterarProdutos} />
+          <ToggleFiltro label={t("producao.filtro.produtos")} checked={produtos} onChange={alterarProdutos} />
           <ToggleFiltro
-            label="Fichas sem Serviços"
+            label={t("producao.filtro.fichasSemServicos")}
             checked={fichasSemServicos}
             onChange={alterarFichasSemServicos}
           />
@@ -197,6 +199,7 @@ export function ControleProducaoToolbar({
   somenteNavegacao = false,
   barraEsquerda,
 }: Props) {
+  const { t } = useI18n();
   const {
     produtosInterno,
     fichasInterno,
@@ -230,37 +233,37 @@ export function ControleProducaoToolbar({
     <div className="flex flex-wrap items-center gap-3">
       <NavLink
         href="/app/producao/controle"
-        label="Lista"
+        label={t("producao.toolbar.lista")}
         ativo={viewAtiva === "lista"}
         icon={<List className={iconClass} />}
       />
       <NavLink
         href="/app/producao/agenda"
-        label="Agenda"
+        label={t("producao.toolbar.agenda")}
         ativo={viewAtiva === "agenda"}
         icon={<CalendarDays className={iconClass} />}
       />
       <NavLink
         href="/app/producao/comissao"
-        label="Comissões"
+        label={t("producao.toolbar.comissoes")}
         ativo={viewAtiva === "comissoes"}
         icon={<Users className={iconClass} />}
       />
       <NavLink
         href="/app/producao/finalizadores"
-        label="Prestadores De Serviços"
+        label={t("producao.toolbar.prestadores")}
         ativo={viewAtiva === "terceirizados"}
         icon={<Send className={iconClass} />}
       />
       <NavLink
         href="/app/producao/entregas"
-        label="Controle de Entregas"
+        label={t("producao.toolbar.entregas")}
         ativo={viewAtiva === "entregas"}
         icon={<Truck className={iconClass} />}
       />
       <NavLink
         href="/app/producao/modulo-tv"
-        label="Produção Módulo TV"
+        label={t("producao.toolbar.moduloTv")}
         ativo={false}
         icon={<Tv className={iconClass} />}
       />
@@ -284,9 +287,9 @@ export function ControleProducaoToolbar({
             {configLista}
             {preferenciasProntas ? (
               <>
-                <ToggleFiltro label="Produtos" checked={produtos} onChange={alterarProdutos} />
+                <ToggleFiltro label={t("producao.filtro.produtos")} checked={produtos} onChange={alterarProdutos} />
                 <ToggleFiltro
-                  label="Fichas sem Serviços"
+                  label={t("producao.filtro.fichasSemServicos")}
                   checked={fichasSemServicos}
                   onChange={alterarFichasSemServicos}
                 />

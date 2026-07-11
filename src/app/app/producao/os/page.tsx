@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, ImageUp, Info, Plus, Save, Tag, Trash2 } from "lucide-react";
 import { PainelCarregando } from "@/components/ListaCarregando";
+import { useI18n } from "@/components/i18n-provider";
 import {
   ImprimirOsModal,
   type TrabalhoImpressaoOs,
@@ -133,6 +134,7 @@ import {
 import { carregarSetoresCadastro, type SetorCadastro } from "@/lib/setores-cadastro";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { cn, exibirTexto, STATUS_TRABALHO } from "@/lib/utils";
+import { labelStatusTrabalho } from "@/lib/i18n/status-trabalho-i18n";
 import {
   etapasConcluidasModulo,
   indiceEtapaAtualDeConcluidas,
@@ -416,6 +418,7 @@ function itensFromTrabalho(trabalho: TrabalhoEdicao): ItemAdicionado[] {
 }
 
 export default function OrdemServicoPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get("edit");
@@ -3446,11 +3449,11 @@ export default function OrdemServicoPage() {
     return (
       <div className="mt-4 rounded border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
         <div className="mb-3 text-center">
-          <span className="font-medium text-slate-600 dark:text-slate-300">Itens Adicionados</span>
+          <span className="font-medium text-slate-600 dark:text-slate-300">{t("producao.os.itens.titulo")}</span>
         </div>
         <div className="mb-2 flex justify-end text-[11px] text-slate-600 dark:text-slate-300">
           <span>
-            Total Serviços:{" "}
+            {t("producao.os.itens.totalServicos")}{" "}
             {totalItensOs.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
           </span>
         </div>
@@ -3458,21 +3461,21 @@ export default function OrdemServicoPage() {
           <table className="w-full text-[11px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                <th className="px-3 py-2 text-left font-medium uppercase">Serviço/Produto</th>
-                <th className="px-3 py-2 text-left font-medium uppercase">Número Dente</th>
-                <th className="px-3 py-2 text-left font-medium uppercase">Cor Dente</th>
-                <th className="px-3 py-2 text-left font-medium uppercase">Quantidade</th>
-                <th className="px-3 py-2 text-left font-medium uppercase">Desc.</th>
-                <th className="px-3 py-2 text-left font-medium uppercase">Situação</th>
-                <th className="px-3 py-2 text-left font-medium uppercase">Valor</th>
-                <th className="px-3 py-2 text-center font-medium uppercase">Opções</th>
+                <th className="px-3 py-2 text-left font-medium uppercase">{t("producao.os.tabela.servicoProduto")}</th>
+                <th className="px-3 py-2 text-left font-medium uppercase">{t("producao.os.tabela.numeroDente")}</th>
+                <th className="px-3 py-2 text-left font-medium uppercase">{t("producao.os.tabela.corDente")}</th>
+                <th className="px-3 py-2 text-left font-medium uppercase">{t("producao.os.tabela.quantidade")}</th>
+                <th className="px-3 py-2 text-left font-medium uppercase">{t("producao.os.tabela.desc")}</th>
+                <th className="px-3 py-2 text-left font-medium uppercase">{t("producao.os.tabela.situacao")}</th>
+                <th className="px-3 py-2 text-left font-medium uppercase">{t("producao.os.tabela.valor")}</th>
+                <th className="px-3 py-2 text-center font-medium uppercase">{t("common.opcoes")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
               {itensAdicionados.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-3 py-5 text-center text-slate-400 dark:text-slate-400">
-                    Nenhum serviço adicionado para conferência.
+                    {t("producao.os.itens.vazio")}
                   </td>
                 </tr>
               )}
@@ -3493,7 +3496,7 @@ export default function OrdemServicoPage() {
                       <span>{nomeExibicaoItemOs(item)}</span>
                       {item.urgente && (
                         <span className="text-[10px] font-extrabold uppercase tracking-wide text-red-800">
-                          URGENTE
+                          {t("producao.os.badge.urgente")}
                         </span>
                       )}
                       {item.repeticao && (
@@ -3514,11 +3517,11 @@ export default function OrdemServicoPage() {
                   <td className="px-3 py-2">
                     {itemExibeBadgeProduto(item) ? (
                       <span className="inline-flex items-center rounded-full bg-slate-600 px-2.5 py-1 text-[10px] font-semibold text-white">
-                        Produto
+                        {t("producao.os.badge.produto")}
                       </span>
                     ) : itemExibeBadgeTransporte(item) ? (
                       <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-200">
-                        Transporte
+                        {t("producao.os.badge.transporte")}
                       </span>
                     ) : (
                       <span
@@ -3526,7 +3529,7 @@ export default function OrdemServicoPage() {
                           STATUS_TRABALHO[item.situacao || ""]?.color || "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200"
                         }`}
                       >
-                        {STATUS_TRABALHO[item.situacao || ""]?.label || item.situacao || "-"}
+                        {labelStatusTrabalho(t, item.situacao) || item.situacao || "-"}
                       </span>
                     )}
                   </td>
@@ -3565,11 +3568,11 @@ export default function OrdemServicoPage() {
     return (
       <div className="space-y-4 text-xs text-slate-700 dark:text-slate-200">
         <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-          <span>Produção</span>
+          <span>{t("nav.producao")}</span>
           <span>/</span>
-          <span className="font-medium text-slate-700 dark:text-slate-200">Ordem de Serviço</span>
+          <span className="font-medium text-slate-700 dark:text-slate-200">{t("nav.os")}</span>
         </div>
-        <PainelCarregando mensagem="Carregando ordem de serviço..." />
+        <PainelCarregando mensagem={t("producao.os.carregando")} />
       </div>
     );
   }
@@ -3577,9 +3580,9 @@ export default function OrdemServicoPage() {
   return (
     <div className="space-y-4 text-xs text-slate-700 dark:text-slate-200">
       <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-        <span>Produção</span>
+        <span>{t("nav.producao")}</span>
         <span>/</span>
-        <span className="font-medium text-slate-700 dark:text-slate-200">Ordem de Serviço</span>
+        <span className="font-medium text-slate-700 dark:text-slate-200">{t("nav.os")}</span>
       </div>
 
       <form
@@ -3588,37 +3591,40 @@ export default function OrdemServicoPage() {
       >
         <div className="border-b border-slate-100 bg-slate-50 px-4 py-3 text-center dark:border-slate-700 dark:bg-slate-800">
           <h1 className="text-sm font-medium text-slate-700 dark:text-slate-100">
-            {editId ? `Editar Ordem de Serviço ${form.numeroOs}` : "Ordem de Serviço"}
+            {editId
+              ? t("producao.os.tituloEditar", { numeroOs: form.numeroOs })
+              : t("producao.os.titulo")}
           </h1>
         </div>
 
         <section className="grid gap-3 p-4 md:grid-cols-5">
-          {dateField("Data Lançamento", "dataLancamento")}
-          <Input label="Número OS" value={form.numeroOs || "Gerando..."} readOnly />
-          <Input label="Caixa" value={form.caixa} onChange={(e) => setForm({ ...form, caixa: e.target.value })} />
-          <Input label="Caso Clínico" value={form.casoUrgente} onChange={(e) => setForm({ ...form, casoUrgente: e.target.value })} />
+          {dateField(t("producao.os.campo.dataLancamento"), "dataLancamento")}
+          <Input label={t("producao.os.campo.numeroOs")} value={form.numeroOs || t("producao.os.campo.gerando")} readOnly />
+          <Input label={t("producao.os.campo.caixa")} value={form.caixa} onChange={(e) => setForm({ ...form, caixa: e.target.value })} />
+          <Input label={t("producao.os.campo.casoClinico")} value={form.casoUrgente} onChange={(e) => setForm({ ...form, casoUrgente: e.target.value })} />
           <div className="space-y-1">
             <Input
-              label={requiredLabel("Paciente", Boolean(avisoAdicionarServico))}
+              label={requiredLabel(t("producao.os.campo.paciente"), Boolean(avisoAdicionarServico))}
               value={form.pacienteNome}
               onChange={(e) => setForm({ ...form, pacienteNome: e.target.value })}
-              placeholder="Digite o nome do paciente"
+              placeholder={t("producao.os.campo.pacientePlaceholder")}
               required
             />
             {!editId && avisoPacienteDuplicado?.numerosOs.length ? (
               <p className="rounded bg-red-600 px-2 py-1 text-[15px] font-medium leading-snug text-white">
-                Já existe OS nº {avisoPacienteDuplicado.numerosOs.join(", ")} para este paciente
-                neste cliente.
+                {t("producao.os.duplicataPaciente", {
+                  numeros: avisoPacienteDuplicado.numerosOs.join(", "),
+                })}
               </p>
             ) : null}
           </div>
 
           <div className="space-y-1">
             <SelectPesquisavel
-              label={requiredLabel("Selecione um Cliente", Boolean(avisoAdicionarServico))}
+              label={requiredLabel(t("producao.os.campo.cliente"), Boolean(avisoAdicionarServico))}
               value={form.clienteId}
               onChange={aplicarConfiguracaoCliente}
-              placeholder="Selecione..."
+              placeholder={t("common.selecione")}
               required
               options={clientes.map((cliente) => ({
                 value: cliente.id,
@@ -3626,7 +3632,7 @@ export default function OrdemServicoPage() {
               }))}
             />
             <Select
-              label="Prioridade"
+              label={t("producao.os.campo.prioridade")}
               value={form.prioridadeOs}
               onChange={(e) =>
                 setForm({
@@ -3635,13 +3641,13 @@ export default function OrdemServicoPage() {
                 })
               }
             >
-              <option value="alta">Alta</option>
-              <option value="media">Média</option>
-              <option value="baixa">Baixa</option>
+              <option value="alta">{t("producao.os.prioridade.alta")}</option>
+              <option value="media">{t("producao.os.prioridade.media")}</option>
+              <option value="baixa">{t("producao.os.prioridade.baixa")}</option>
             </Select>
             {form.clienteId ? (
               <p className="text-[12px] font-medium leading-snug text-[#4a90d9]">
-                Tabela Utilizada{" "}
+                {t("producao.os.campo.tabelaUtilizada")}{" "}
                 <span className="font-semibold">{tabelaPrecoSelecionada}</span>
               </p>
             ) : null}
@@ -3653,14 +3659,14 @@ export default function OrdemServicoPage() {
             ) : null}
           </div>
           <Input
-            label="Dentista"
+            label={t("producao.os.campo.dentista")}
             value={form.dentista}
             onChange={(e) => setForm({ ...form, dentista: e.target.value })}
-            placeholder="Nome do dentista (opcional)"
+            placeholder={t("producao.os.campo.dentistaPlaceholder")}
           />
           <div className="relative space-y-2 md:col-span-3">
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-              Material Enviado pelo Dentista
+              {t("producao.os.campo.material")}
             </label>
             <div className="rounded border border-slate-300 bg-white p-2 shadow-sm dark:border-slate-600 dark:bg-slate-950">
               {materiaisSelecionados.length > 0 && (
@@ -3681,7 +3687,7 @@ export default function OrdemServicoPage() {
                 className="flex w-full items-center justify-center gap-2 rounded border border-slate-500 bg-slate-100 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
               >
                 <Tag className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
-                Selecione Materiais
+                {t("producao.os.campo.selecioneMateriais")}
                 <span className="text-slate-400">⌄</span>
               </button>
             </div>
@@ -3779,20 +3785,24 @@ export default function OrdemServicoPage() {
               disabled={galeriaEsgotada || arquivos.length >= LIMITE_ARQUIVOS_OS}
               className="shrink-0 rounded border border-slate-300 px-3 py-2 text-slate-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
             >
-              <ImageUp className="mr-2 inline h-4 w-4" /> Selecione Imagens ou Vídeos ({arquivos.length}/{LIMITE_ARQUIVOS_OS})
+              <ImageUp className="mr-2 inline h-4 w-4" />{" "}
+              {t("producao.os.campo.imagensVideos", {
+                atual: arquivos.length,
+                limite: LIMITE_ARQUIVOS_OS,
+              })}
             </button>
             {galeriaEsgotada ? (
               <p className="text-[11px] text-red-600">{mensagemBloqueioUpload()}</p>
             ) : null}
             <div className="min-w-0 flex-1">
               <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                Observação Interna
+                {t("producao.os.campo.observacaoInterna")}
               </label>
               <input
                 type="text"
                 value={form.observacoes}
                 onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
-                placeholder="Somente para o laboratório (não aparece na OS impressa)"
+                placeholder={t("producao.os.campo.observacaoPlaceholder")}
                 className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm shadow-sm placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-400"
               />
             </div>
@@ -3850,7 +3860,7 @@ export default function OrdemServicoPage() {
 
         <section className="border-t border-slate-100 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-800/60">
           <h2 className="mb-4 text-center text-base font-medium text-slate-700 dark:text-slate-100">
-            {form.categoria ? rotulosItemOs.secao : "Serviço"}
+            {form.categoria ? rotulosItemOs.secao : t("producao.os.secao.servico")}
           </h2>
           <div className="rounded border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
             {itemSelecionadoId && (
@@ -3868,7 +3878,7 @@ export default function OrdemServicoPage() {
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div className="flex gap-5">
                 <label className="flex cursor-pointer flex-col items-start gap-1 text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                  <span>Urgente</span>
+                  <span>{t("producao.os.campo.urgente")}</span>
                   <span
                     className={`relative inline-flex h-5 w-10 items-center rounded-full transition ${
                       form.urgente ? "bg-red-700" : "bg-slate-200 dark:bg-slate-600"
@@ -3962,9 +3972,9 @@ export default function OrdemServicoPage() {
                   </option>
                 ))}
               </Select>
-              <Input label="Qtd" type="number" min="1" value={form.quantidade} onChange={(e) => setForm({ ...form, quantidade: e.target.value })} />
+              <Input label={t("producao.os.campo.qtd")} type="number" min="1" value={form.quantidade} onChange={(e) => setForm({ ...form, quantidade: e.target.value })} />
               <Input
-                label="Valor Un."
+                label={t("producao.os.campo.valorUn")}
                 selectOnFocus
                 value={form.valor}
                 onChange={(e) => {
@@ -4025,16 +4035,16 @@ export default function OrdemServicoPage() {
                   />
                 </div>
               </div>
-              <Select label="Situação" value={form.situacao} onChange={(e) => setForm({ ...form, situacao: e.target.value })}>
-                {Object.entries(STATUS_TRABALHO).map(([key, value]) => (
-                  <option key={key} value={key}>{value.label}</option>
+              <Select label={t("producao.os.tabela.situacao")} value={form.situacao} onChange={(e) => setForm({ ...form, situacao: e.target.value })}>
+                {Object.keys(STATUS_TRABALHO).map((key) => (
+                  <option key={key} value={key}>{labelStatusTrabalho(t, key)}</option>
                 ))}
               </Select>
 
-              {dateField("Prazo Laboratório", "dataLaboratorio")}
-              <Input label="Hora Laboratório" type="time" value={form.horaLaboratorio} onChange={(e) => setForm({ ...form, horaLaboratorio: e.target.value })} />
-              {dateField("Prazo Dentista", "dataDentista")}
-              <Input label="Hora Dentista" type="time" value={form.horaDentista} onChange={(e) => setForm({ ...form, horaDentista: e.target.value })} />
+              {dateField(t("producao.os.campo.prazoLaboratorio"), "dataLaboratorio")}
+              <Input label={t("producao.os.campo.horaLaboratorio")} type="time" value={form.horaLaboratorio} onChange={(e) => setForm({ ...form, horaLaboratorio: e.target.value })} />
+              {dateField(t("producao.os.campo.prazoDentista"), "dataDentista")}
+              <Input label={t("producao.os.campo.horaDentista")} type="time" value={form.horaDentista} onChange={(e) => setForm({ ...form, horaDentista: e.target.value })} />
               <EscalaCorCamposOs
                 escala={form.escala}
                 cor={form.cor}
@@ -4123,28 +4133,28 @@ export default function OrdemServicoPage() {
                   onClick={() => setAbaServico("etapas")}
                   className={classeAbaOs("etapas")}
                 >
-                  Etapas
+                  {t("producao.os.aba.etapas")}
                 </button>
                 <button
                   type="button"
                   onClick={() => setAbaServico("produtos")}
                   className={classeAbaOs("produtos")}
                 >
-                  {abaServico === "produtos" ? "Produtos" : "PRODUTOS"}
+                  {t("producao.os.aba.produtos")}
                 </button>
                 <button
                   type="button"
                   onClick={() => setAbaServico("colaboradores")}
                   className={classeAbaOs("colaboradores")}
                 >
-                  Colaboradores / Comissões
+                  {t("producao.os.aba.colaboradores")}
                 </button>
                 <button
                   type="button"
                   onClick={() => setAbaServico("terceirizados")}
                   className={classeAbaOs("terceirizados")}
                 >
-                  Serviços Terceirizados / Comissões
+                  {t("producao.os.aba.terceirizados")}
                 </button>
               </div>
 
@@ -4718,7 +4728,7 @@ export default function OrdemServicoPage() {
                 }`}
               >
                 {avisoAdicionarServico ? <AlertTriangle className="h-4 w-4" /> : null}
-                {avisoAdicionarServico || (itemSelecionadoId ? "Atualizar Item Selecionado" : "+ Adicionar Serviço")}
+                {avisoAdicionarServico || (itemSelecionadoId ? t("producao.os.btn.atualizarItem") : t("producao.os.btn.adicionarServico"))}
               </button>
 
               {renderItensAdicionados()}
@@ -4728,11 +4738,15 @@ export default function OrdemServicoPage() {
 
         <div className="flex justify-end gap-2 border-t border-slate-100 p-4 dark:border-slate-700">
           <Button type="button" variant="outline" onClick={() => router.push("/app/producao/controle")}>
-            Cancelar
+            {t("common.cancelar")}
           </Button>
           <Button type="submit" disabled={salvando || Boolean(bloqueioSaldoDevedorOs?.bloqueado)}>
             {salvando ? <Plus className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            {salvando ? "Salvando..." : editId ? "Salvar Alterações" : "Salvar Ordem de Serviço"}
+            {salvando
+              ? t("common.salvando")
+              : editId
+                ? t("producao.os.btn.salvarAlteracoes")
+                : t("producao.os.btn.salvarOrdem")}
           </Button>
         </div>
       </form>
@@ -4740,7 +4754,7 @@ export default function OrdemServicoPage() {
       <Modal
         open={modalMaterialAberto}
         onClose={() => setModalMaterialAberto(false)}
-        title="Cadastrar Material"
+        title={t("producao.os.modal.cadastrarMaterial")}
         size="sm"
       >
         <div className="space-y-4 text-[11px] text-slate-600">

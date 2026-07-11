@@ -16,6 +16,7 @@ import {
   type Locale,
   type MessageKey,
 } from "@/lib/i18n";
+import { trUi } from "@/lib/i18n/tr-ui";
 
 type I18nContextValue = {
   locale: Locale;
@@ -40,6 +41,17 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     document.documentElement.lang = htmlLangAttr(locale);
+  }, [locale]);
+
+  useEffect(() => {
+    const alertOriginal = window.alert.bind(window);
+    window.alert = (mensagem?: unknown) => {
+      const texto = mensagem == null ? "" : String(mensagem);
+      alertOriginal(trUi(texto, (key, params) => translate(locale, key, params)));
+    };
+    return () => {
+      window.alert = alertOriginal;
+    };
   }, [locale]);
 
   const value = useMemo<I18nContextValue>(

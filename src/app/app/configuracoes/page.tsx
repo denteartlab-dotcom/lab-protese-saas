@@ -155,7 +155,7 @@ function ConfiguracoesConteudo() {
     };
     setSalvando(true);
     try {
-      await persistirConfigLaboratorioServidor(payload);
+      await persistirConfigLaboratorioServidor(payload, { assinaturaExplicita: true });
       salvarConfigLaboratorio(payload);
       const gravado = carregarConfigLaboratorio();
       setForm(gravado);

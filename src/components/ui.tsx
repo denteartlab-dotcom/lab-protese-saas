@@ -4,6 +4,8 @@ import {
   criarHandlersSelecionarAoFocar,
   propsBloquearArrasteEntreCampos,
 } from "@/lib/input-selecao";
+import { trUi } from "@/lib/i18n/tr-ui";
+import { useTrUi } from "@/lib/i18n/use-tr-ui";
 import { cn } from "@/lib/utils";
 import { ButtonHTMLAttributes, Children, InputHTMLAttributes, cloneElement, forwardRef, isValidElement } from "react";
 
@@ -14,6 +16,7 @@ export {
 export { CampoDataBr } from "@/components/campo-data-br";
 export { CampoHoraBr } from "@/components/campo-hora-br";
 export { SelectPesquisavel, type OpcaoSelectPesquisavel } from "@/components/SelectPesquisavel";
+export { Tr } from "@/components/Tr";
 
 const inputBaseClass =
   "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-400 dark:focus:border-primary-400 dark:focus:ring-primary-400/25";
@@ -22,11 +25,13 @@ export function Button({
   className,
   variant = "primary",
   size = "md",
+  children,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "ghost" | "danger" | "outline";
   size?: "sm" | "md" | "lg";
 }) {
+  const { trFilho } = useTrUi();
   const variants = {
     primary: "bg-primary-600 text-white hover:bg-primary-700 shadow-sm",
     secondary:
@@ -50,7 +55,9 @@ export function Button({
         className
       )}
       {...props}
-    />
+    >
+      {trFilho(children)}
+    </button>
   );
 }
 
@@ -62,10 +69,13 @@ export const Input = forwardRef<
     selectOnFocus?: boolean;
   }
 >(function Input(
-  { className, label, error, id, selectOnFocus, onFocus, onClick, type, ...props },
+  { className, label, error, id, selectOnFocus, onFocus, onClick, type, placeholder, ...props },
   ref
 ) {
+  const { tr } = useTrUi();
   const inputId = id || (typeof label === "string" ? label.toLowerCase().replace(/\s/g, "-") : undefined);
+  const labelExibido = typeof label === "string" ? tr(label) : label;
+  const placeholderExibido = placeholder ? tr(placeholder) : placeholder;
   const deveSelecionar = selectOnFocus ?? type === "number";
   const handlersSelecao = deveSelecionar
     ? criarHandlersSelecionarAoFocar(onFocus, onClick)
@@ -73,21 +83,22 @@ export const Input = forwardRef<
 
   return (
     <div className="space-y-1">
-      {label && (
+      {labelExibido && (
         <label htmlFor={inputId} className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-          {label}
+          {labelExibido}
         </label>
       )}
       <input
         ref={ref}
         id={inputId}
         type={type}
+        placeholder={placeholderExibido}
         className={cn(inputBaseClass, error && "border-red-500 dark:border-red-500", className)}
         {...propsBloquearArrasteEntreCampos()}
         {...props}
         {...handlersSelecao}
       />
-      {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="text-xs text-red-600 dark:text-red-400">{tr(error)}</p>}
     </div>
   );
 });
@@ -96,7 +107,9 @@ export const Select = forwardRef<
   HTMLSelectElement,
   React.SelectHTMLAttributes<HTMLSelectElement> & { label?: React.ReactNode }
 >(function Select({ className, label, id, children, ...props }, ref) {
+  const { tr, trFilho } = useTrUi();
   const selectId = id || (typeof label === "string" ? label.toLowerCase().replace(/\s/g, "-") : undefined);
+  const labelExibido = typeof label === "string" ? tr(label) : label;
   const isPlaceholder =
     props.value === "" || props.value === "todos" || props.value === undefined;
   const options = Children.map(children, (child) => {
@@ -109,13 +122,14 @@ export const Select = forwardRef<
         child.props.value === "" ? "text-slate-400" : "text-slate-700 dark:text-slate-200",
         child.props.className
       ),
+      children: trFilho(child.props.children),
     });
   });
   return (
     <div className="space-y-1">
-      {label && (
+      {labelExibido && (
         <label htmlFor={selectId} className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-          {label}
+          {labelExibido}
         </label>
       )}
       <select
@@ -138,18 +152,22 @@ export const Select = forwardRef<
 export const Textarea = forwardRef<
   HTMLTextAreaElement,
   React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label?: React.ReactNode }
->(function Textarea({ className, label, id, ...props }, ref) {
+>(function Textarea({ className, label, id, placeholder, ...props }, ref) {
+  const { tr } = useTrUi();
   const areaId = id || (typeof label === "string" ? label.toLowerCase().replace(/\s/g, "-") : undefined);
+  const labelExibido = typeof label === "string" ? tr(label) : label;
+  const placeholderExibido = placeholder ? tr(placeholder) : placeholder;
   return (
     <div className="space-y-1">
-      {label && (
+      {labelExibido && (
         <label htmlFor={areaId} className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-          {label}
+          {labelExibido}
         </label>
       )}
       <textarea
         ref={ref}
         id={areaId}
+        placeholder={placeholderExibido}
         className={cn(inputBaseClass, "min-h-[80px]", className)}
         {...propsBloquearArrasteEntreCampos()}
         {...props}
@@ -169,6 +187,8 @@ export function Card({
   title?: string;
   action?: React.ReactNode;
 }) {
+  const { tr } = useTrUi();
+  const tituloExibido = title ? tr(title) : title;
   return (
     <div
       className={cn(
@@ -176,9 +196,9 @@ export function Card({
         className
       )}
     >
-      {(title || action) && (
+      {(tituloExibido || action) && (
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800">
-          {title && <h3 className="font-semibold text-slate-800 dark:text-slate-100">{title}</h3>}
+          {tituloExibido && <h3 className="font-semibold text-slate-800 dark:text-slate-100">{tituloExibido}</h3>}
           {action}
         </div>
       )}
@@ -219,6 +239,7 @@ export function StatCard({
   trend?: string;
   className?: string;
 }) {
+  const { tr } = useTrUi();
   return (
     <div
       className={cn(
@@ -228,9 +249,9 @@ export function StatCard({
     >
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm text-slate-500 dark:text-slate-400">{title}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{tr(title)}</p>
           <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">{value}</p>
-          {trend && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{trend}</p>}
+          {trend && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr(trend)}</p>}
         </div>
         <div className="rounded-lg bg-primary-50 p-2.5 text-primary-600 dark:bg-primary-950/40 dark:text-primary-400">
           <Icon className="h-5 w-5" />
@@ -247,6 +268,7 @@ export function Table({
   headers: string[];
   children: React.ReactNode;
 }) {
+  const { tr } = useTrUi();
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -257,7 +279,7 @@ export function Table({
                 key={h}
                 className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300"
               >
-                {h}
+                {tr(h)}
               </th>
             ))}
           </tr>
@@ -284,6 +306,7 @@ export function Modal({
   /** z-index da camada (ex.: z-[60] sobre outro modal). */
   layerClassName?: string;
 }) {
+  const { tr } = useTrUi();
   if (!open) return null;
   const sizes = {
     sm: "max-w-md",
@@ -325,12 +348,13 @@ export function Modal({
               ehSmart ? "text-base font-normal" : "text-lg font-semibold"
             )}
           >
-            {title}
+            {tr(title)}
           </h2>
           <button
             type="button"
             onClick={onClose}
             className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            aria-label={tr("Fechar")}
           >
             ✕
           </button>
