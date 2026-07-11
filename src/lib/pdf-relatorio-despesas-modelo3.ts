@@ -1,4 +1,17 @@
 import { jsPDF } from "jspdf";
+import {
+  iniciarImpressaoRelatorio,
+  moneyRelatorio,
+  obsFaturasSemAdiantamento,
+  periodoRelatorioTexto,
+  pl,
+  tituloExtratoFinanceiro,
+  tituloRelatorioDespesas,
+  tituloRelatorioFaturas,
+  tituloRelatorioParcelasAPagar,
+  tituloRelatorioParcelasAReceber,
+  tituloPeriodoCampo,
+} from "@/lib/i18n/print-relatorio-helpers";
 import { desenharCabecalhoLabRelatorioPdf } from "@/lib/pdf-lab-cabecalho";
 import {
   moneyBr,
@@ -30,21 +43,21 @@ const CINZA_FUNDO: [number, number, number] = [238, 238, 238];
 type ColDef = { titulo: string; largura: number; align: "left" | "center" | "right" };
 
 const COL_ITENS: ColDef[] = [
-  { titulo: "Descrição", largura: 78, align: "left" },
-  { titulo: "Qtd", largura: 16, align: "center" },
-  { titulo: "Un", largura: 16, align: "center" },
-  { titulo: "Valor Un", largura: 28, align: "right" },
-  { titulo: "Subtotal", largura: 28, align: "right" },
+  { titulo: pl("print.relatorio.col.descricao"), largura: 78, align: "left" },
+  { titulo: pl("print.extrato.qtd"), largura: 16, align: "center" },
+  { titulo: pl("print.relatorio.col.un"), largura: 16, align: "center" },
+  { titulo: pl("print.relatorio.col.valorUn"), largura: 28, align: "right" },
+  { titulo: pl("print.relatorio.col.subtotal"), largura: 28, align: "right" },
 ];
 
 const COL_PARCELAS: ColDef[] = [
-  { titulo: "Parcela", largura: 20, align: "center" },
-  { titulo: "Vencimento", largura: 26, align: "center" },
-  { titulo: "Forma Pagamento", largura: 44, align: "left" },
-  { titulo: "Valor", largura: 22, align: "right" },
-  { titulo: "Juros", largura: 18, align: "right" },
-  { titulo: "Pago", largura: 22, align: "right" },
-  { titulo: "Data Pagamento", largura: 30, align: "center" },
+  { titulo: pl("print.relatorio.col.parcela"), largura: 20, align: "center" },
+  { titulo: pl("print.relatorio.col.vencimento"), largura: 26, align: "center" },
+  { titulo: pl("print.relatorio.col.formaPagamento"), largura: 44, align: "left" },
+  { titulo: pl("print.relatorio.col.valor"), largura: 22, align: "right" },
+  { titulo: pl("print.relatorio.col.juros"), largura: 18, align: "right" },
+  { titulo: pl("print.relatorio.col.pago"), largura: 22, align: "right" },
+  { titulo: pl("print.relatorio.col.dataPagamento"), largura: 30, align: "center" },
 ];
 
 type PdfCtx = {
@@ -279,8 +292,8 @@ export function gerarRelatorioDespesasModelo3Pdf(
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
   const ctx = criarCtx(pdf);
 
-  const titulo = `Relatório de Despesas - (${tituloPeriodoSmart(opcoes.periodoCampo)})`;
-  const periodoTexto = `${opcoes.dataInicio} à ${opcoes.dataFinal}`;
+  const titulo = tituloRelatorioDespesas(opcoes.periodoCampo);
+  const periodoTexto = periodoRelatorioTexto(opcoes.dataInicio, opcoes.dataFinal);
 
   const api = pdf as unknown as Parameters<typeof desenharCabecalhoLabRelatorioPdf>[0];
   ctx.y = desenharCabecalhoLabRelatorioPdf(api, ctx.margin, ctx.y);

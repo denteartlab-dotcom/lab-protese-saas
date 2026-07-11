@@ -1,4 +1,17 @@
 import { jsPDF } from "jspdf";
+import {
+  iniciarImpressaoRelatorio,
+  moneyRelatorio,
+  obsFaturasSemAdiantamento,
+  periodoRelatorioTexto,
+  pl,
+  tituloExtratoFinanceiro,
+  tituloRelatorioDespesas,
+  tituloRelatorioFaturas,
+  tituloRelatorioParcelasAPagar,
+  tituloRelatorioParcelasAReceber,
+  tituloPeriodoCampo,
+} from "@/lib/i18n/print-relatorio-helpers";
 import type { LinhaRelatorioDespesa } from "@/lib/relatorio-despesas";
 import { desenharCabecalhoLabRelatorioPdf } from "@/lib/pdf-lab-cabecalho";
 import {
@@ -16,16 +29,18 @@ import {
 
 export type OpcoesRelatorioDespesasModelo1 = OpcoesPeriodoRelatorioFaturas;
 
-const COLUNAS: ColunaRelatorioFaturasSmart[] = [
-  { titulo: "Data Emissão", larguraMm: 22, align: "left" },
-  { titulo: "Qtd Parcelas", larguraMm: 18, align: "center" },
-  { titulo: "Referência", larguraMm: 20, align: "left" },
-  { titulo: "Fornecedor", larguraMm: 42, align: "left" },
-  { titulo: "Valor", larguraMm: 22, align: "right" },
-  { titulo: "Juros", larguraMm: 18, align: "right" },
-  { titulo: "Pago", larguraMm: 20, align: "right" },
-  { titulo: "Saldo", larguraMm: 20, align: "right" },
+function colunasRelatorio(): ColunaRelatorioFaturasSmart[] {
+  return [
+  { titulo: pl("print.relatorio.col.dataEmissao"), larguraMm: 22, align: "left" },
+  { titulo: pl("print.relatorio.col.qtdParcelas"), larguraMm: 18, align: "center" },
+  { titulo: pl("print.relatorio.col.referencia"), larguraMm: 20, align: "left" },
+  { titulo: pl("print.relatorio.col.fornecedor"), larguraMm: 42, align: "left" },
+  { titulo: pl("print.relatorio.col.valor"), larguraMm: 22, align: "right" },
+  { titulo: pl("print.relatorio.col.juros"), larguraMm: 18, align: "right" },
+  { titulo: pl("print.relatorio.col.pago"), larguraMm: 20, align: "right" },
+  { titulo: pl("print.relatorio.col.saldo"), larguraMm: 20, align: "right" },
 ];
+}
 
 function qtdParcelasDaLinha(parcela?: string) {
   const match = String(parcela || "").match(/\/\s*(\d+)\s*$/);
@@ -77,9 +92,9 @@ export function gerarRelatorioDespesasModelo1Pdf(
   opcoes: OpcoesRelatorioDespesasModelo1
 ): Blob {
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
-  const ctx = criarContextoTabelaFaturasSmart(pdf, COLUNAS);
+  const ctx = criarContextoTabelaFaturasSmart(pdf, colunasRelatorio());
 
-  const titulo = `Relatório de Despesas - (${tituloPeriodoSmart(opcoes.periodoCampo)})`;
+  const titulo = tituloRelatorioDespesas(opcoes.periodoCampo);
   desenharCabecalhoDespesasModelo1(ctx, titulo);
 
   const totalValor = linhas.reduce((s, l) => s + l.valor, 0);
@@ -88,7 +103,7 @@ export function gerarRelatorioDespesasModelo1Pdf(
 
   desenharLinhaTabelaFaturasSmart(
     ctx,
-    COLUNAS.map((c) => c.titulo),
+    colunasRelatorio().map((c) => c.titulo),
     { header: true }
   );
 

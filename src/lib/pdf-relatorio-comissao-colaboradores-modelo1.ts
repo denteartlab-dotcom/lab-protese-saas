@@ -1,4 +1,17 @@
 import type { LinhaComissaoColaborador } from "@/lib/comissoes-colaboradores";
+import {
+  iniciarImpressaoRelatorio,
+  moneyRelatorio,
+  obsFaturasSemAdiantamento,
+  periodoRelatorioTexto,
+  pl,
+  tituloExtratoFinanceiro,
+  tituloRelatorioDespesas,
+  tituloRelatorioFaturas,
+  tituloRelatorioParcelasAPagar,
+  tituloRelatorioParcelasAReceber,
+  tituloPeriodoCampo,
+} from "@/lib/i18n/print-relatorio-helpers";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
 import { moneyBr, PRETO } from "@/lib/pdf-relatorio-faturas-smart-comum";
 import type { FiltroRelatorioComissaoColaboradores } from "@/lib/relatorio-comissao-colaboradores";
@@ -29,8 +42,8 @@ function tituloRelatorioComissaoModelo1(
   periodoCampo: FiltroRelatorioComissaoColaboradores["periodoCampo"]
 ) {
   const periodo =
-    periodoCampo === "data_entrega" ? "Data Entrega" : "Data Lançamento";
-  return `Relatório de Comissões - ${periodo} (Serviço)`;
+    periodoCampo === "data_entrega" ? tituloPeriodoCampo("data_entrega") : tituloPeriodoCampo("data_lancamento");
+  return pl("print.relatorio.tituloComissoesServico", { periodo });
 }
 
 function textoCelula(valor: string) {
@@ -39,47 +52,49 @@ function textoCelula(valor: string) {
 }
 
 /** Proporções Smart Prótese — Modelo 1 (layout fixo da foto de referência). */
-const COLUNAS_MODELO1: ColunaComissaoPdf[] = [
-  { titulo: "Os", larguraMm: 10, align: "left", valor: (l) => String(l.numeroOs) },
+function colunasComissaoModelo1(): ColunaComissaoPdf[] {
+  return [
+  { titulo: pl("print.relatorio.col.os"), larguraMm: 10, align: "left", valor: (l) => String(l.numeroOs) },
   {
-    titulo: "Lançamento",
+    titulo: pl("print.relatorio.col.lancamento"),
     larguraMm: 20,
     align: "left",
     valor: (l) => textoCelula(l.dataLancamento),
   },
-  { titulo: "Qtd", larguraMm: 10, align: "left", valor: (l) => textoCelula(l.qtd) },
+  { titulo: pl("print.extrato.qtd"), larguraMm: 10, align: "left", valor: (l) => textoCelula(l.qtd) },
   {
-    titulo: "Descrição",
+    titulo: pl("print.relatorio.col.descricao"),
     larguraMm: 32,
     align: "left",
     valor: (l) => textoCelula(l.servico),
   },
   {
-    titulo: "Paciente",
+    titulo: pl("print.extrato.paciente"),
     larguraMm: 22,
     align: "left",
     valor: (l) => textoCelula(l.paciente),
   },
   {
-    titulo: "Situação",
+    titulo: pl("print.relatorio.col.situacao"),
     larguraMm: 18,
     align: "left",
     valor: (l) => textoCelula(l.situacao),
   },
   {
-    titulo: "Entregue",
+    titulo: pl("print.relatorio.col.entregue"),
     larguraMm: 18,
     align: "left",
     valor: (l) => textoCelula(l.dataEntrega),
   },
-  { titulo: "Desc", larguraMm: 12, align: "right", valor: () => "" },
+  { titulo: pl("print.relatorio.col.desc"), larguraMm: 12, align: "right", valor: () => "" },
   {
-    titulo: "Comissão",
+    titulo: pl("print.relatorio.col.comissao"),
     larguraMm: 16,
     align: "right",
     valor: (l) => moneyBr(l.comissaoValor),
   },
 ];
+}
 
 function escalarColunasParaPaginaA4(
   colunas: ColunaComissaoPdf[],
@@ -266,11 +281,12 @@ export async function gerarRelatorioComissaoColaboradoresModelo1Pdf(
   linhas: LinhaComissaoColaborador[],
   filtro: Pick<FiltroRelatorioComissaoColaboradores, "periodoCampo">
 ): Promise<Blob> {
+  iniciarImpressaoRelatorio();
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   const margin = 10;
   const larguraUtil = pdf.internal.pageSize.getWidth() - margin * 2;
-  const colunas = escalarColunasParaPaginaA4(COLUNAS_MODELO1, larguraUtil);
+  const colunas = escalarColunasParaPaginaA4(colunasComissaoModelo1(), larguraUtil);
   const ctx = criarCtx(pdf, colunas);
   const titulo = tituloRelatorioComissaoModelo1(filtro.periodoCampo);
 

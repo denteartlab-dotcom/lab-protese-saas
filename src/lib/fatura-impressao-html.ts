@@ -796,7 +796,7 @@ function htmlTabelaItensA4(
       }
 
       const trMeta = trMetaAbaixoServico(
-        htmlMetaDatasFaturaLinha(linha, layout, "Entregue"),
+        htmlMetaDatasFaturaLinha(linha, layout, pl("print.fatura.entregue")),
         layout,
         colunas,
         false
@@ -823,12 +823,12 @@ function htmlTotaisA4(
   if (layout.totalServicos) {
     const rotulo =
       modelo === "modelo1"
-        ? "Total Serviços (+)"
+        ? pl("print.fatura.totalServicos")
         : modelo === "modelo2"
-          ? "Total Serviços/Produtos (=)"
+          ? pl("print.fatura.totalServicosProdutos")
           : modelo === "modelo3"
-            ? "Total Serviços (=)"
-            : "Total Serviços (+)";
+            ? pl("print.fatura.totalServicosIgual")
+            : pl("print.fatura.totalServicos");
     partes.push(
       `<div><span>${rotulo}</span><strong class="right">${escapeHtml(formatarMoedaReais(dados.totalServicos, money))}</strong></div>`
     );
@@ -840,7 +840,7 @@ function htmlTotaisA4(
           ? dados.saldoAnterior
           : formatarMoedaReais(parsePreviewMoney(dados.saldoAnterior), money)
         : "R$ 0,00";
-    partes.push(`<div><span>Saldo Anterior (+)</span><span class="right">${escapeHtml(saldo)}</span></div>`);
+    partes.push(`<div><span>${pl("print.fatura.saldoAnteriorMais")}</span><span class="right">${escapeHtml(saldo)}</span></div>`);
   }
   if (layout.descontoServicos) {
     const desconto =

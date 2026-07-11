@@ -1,4 +1,17 @@
 import type { LinhaRelatorioContasReceber } from "@/lib/relatorio-contas-receber";
+import {
+  iniciarImpressaoRelatorio,
+  moneyRelatorio,
+  obsFaturasSemAdiantamento,
+  periodoRelatorioTexto,
+  pl,
+  tituloExtratoFinanceiro,
+  tituloRelatorioDespesas,
+  tituloRelatorioFaturas,
+  tituloRelatorioParcelasAPagar,
+  tituloRelatorioParcelasAReceber,
+  tituloPeriodoCampo,
+} from "@/lib/i18n/print-relatorio-helpers";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
 import { escalaLogoMultiplicador } from "@/lib/lab-logo";
@@ -17,11 +30,13 @@ import type { jsPDF } from "jspdf";
 
 const CINZA_FUNDO: [number, number, number] = [238, 238, 238];
 
-const COLUNAS: ColunaRelatorioFaturasSmart[] = [
-  { titulo: "Data Recebimento", larguraMm: 40, align: "center" },
-  { titulo: "Forma Pagamento", larguraMm: 96, align: "center" },
-  { titulo: "Valor", larguraMm: 46, align: "right" },
+function colunasRelatorio(): ColunaRelatorioFaturasSmart[] {
+  return [
+  { titulo: pl("print.relatorio.col.dataRecebimento"), larguraMm: 40, align: "center" },
+  { titulo: pl("print.relatorio.col.formaPagamento"), larguraMm: 96, align: "center" },
+  { titulo: pl("print.relatorio.col.valor"), larguraMm: 46, align: "right" },
 ];
+}
 
 export type OpcoesRelatorioRecebimentosSmart = OpcoesPeriodoRelatorioFaturas & {
   agruparPorCliente?: boolean;
@@ -170,7 +185,7 @@ function desenharCabecalhoPagina(ctx: ContextoTabelaFaturasSmart) {
   ctx.pdf.setFontSize(12);
   ctx.pdf.setTextColor(...PRETO);
   ctx.pdf.text(
-    "Relatório de Parcelas Recebidas - (Data Recebimento)",
+    pl("print.relatorio.tituloParcelasRecebidas"),
     ctx.pageW / 2,
     ctx.y,
     { align: "center" }
@@ -242,7 +257,7 @@ function desenharTabelaRecebimentos(
 
   desenharLinhaTabelaFaturasSmart(
     ctx,
-    COLUNAS.map((c) => c.titulo),
+    colunasRelatorio().map((c) => c.titulo),
     { header: true, fillHeader: true }
   );
 
@@ -274,9 +289,10 @@ export async function gerarRelatorioRecebimentosSmartPdf(
   linhas: LinhaRelatorioContasReceber[],
   opcoes: OpcoesRelatorioRecebimentosSmart
 ): Promise<Blob> {
+  iniciarImpressaoRelatorio();
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
-  const ctx = criarContextoTabelaFaturasSmart(pdf as unknown as jsPDF, COLUNAS);
+  const ctx = criarContextoTabelaFaturasSmart(pdf as unknown as jsPDF, colunasRelatorio());
 
   desenharCabecalhoPagina(ctx);
 

@@ -1,4 +1,17 @@
 import { jsPDF } from "jspdf";
+import {
+  iniciarImpressaoRelatorio,
+  moneyRelatorio,
+  obsFaturasSemAdiantamento,
+  periodoRelatorioTexto,
+  pl,
+  tituloExtratoFinanceiro,
+  tituloRelatorioDespesas,
+  tituloRelatorioFaturas,
+  tituloRelatorioParcelasAPagar,
+  tituloRelatorioParcelasAReceber,
+  tituloPeriodoCampo,
+} from "@/lib/i18n/print-relatorio-helpers";
 import { desenharCabecalhoLabRelatorioPdf } from "@/lib/pdf-lab-cabecalho";
 import {
   moneyBr,
@@ -124,7 +137,7 @@ export function gerarRelatorioParcelasAPagarModelo1Pdf(
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
   const ctx = criarCtx(pdf);
 
-  const titulo = `Relatório de Parcelas a Pagar - (${tituloPeriodoSmart(opcoes.periodoCampo)})`;
+  const titulo = tituloRelatorioParcelasAPagar(opcoes.periodoCampo);
 
   const api = pdf as unknown as Parameters<typeof desenharCabecalhoLabRelatorioPdf>[0];
   ctx.y = desenharCabecalhoLabRelatorioPdf(api, ctx.margin, ctx.y);

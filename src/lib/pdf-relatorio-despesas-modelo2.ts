@@ -1,4 +1,17 @@
 import { jsPDF } from "jspdf";
+import {
+  iniciarImpressaoRelatorio,
+  moneyRelatorio,
+  obsFaturasSemAdiantamento,
+  periodoRelatorioTexto,
+  pl,
+  tituloExtratoFinanceiro,
+  tituloRelatorioDespesas,
+  tituloRelatorioFaturas,
+  tituloRelatorioParcelasAPagar,
+  tituloRelatorioParcelasAReceber,
+  tituloPeriodoCampo,
+} from "@/lib/i18n/print-relatorio-helpers";
 import { desenharCabecalhoLabRelatorioPdf } from "@/lib/pdf-lab-cabecalho";
 import {
   criarContextoTabelaFaturasSmart,
@@ -32,15 +45,17 @@ export type OpcoesRelatorioDespesasModelo2 = OpcoesPeriodoRelatorioFaturas & {
 
 const CINZA_FUNDO: [number, number, number] = [238, 238, 238];
 
-const COLUNAS: ColunaRelatorioFaturasSmart[] = [
-  { titulo: "Parcela", larguraMm: 20, align: "center" },
-  { titulo: "Vencimento", larguraMm: 26, align: "center" },
-  { titulo: "Forma Pagamento", larguraMm: 44, align: "left" },
-  { titulo: "Valor", larguraMm: 22, align: "right" },
-  { titulo: "Juros", larguraMm: 18, align: "right" },
-  { titulo: "Pago", larguraMm: 22, align: "right" },
-  { titulo: "Data Pagamento", larguraMm: 30, align: "center" },
+function colunasRelatorio(): ColunaRelatorioFaturasSmart[] {
+  return [
+  { titulo: pl("print.relatorio.col.parcela"), larguraMm: 20, align: "center" },
+  { titulo: pl("print.relatorio.col.vencimento"), larguraMm: 26, align: "center" },
+  { titulo: pl("print.relatorio.col.formaPagamento"), larguraMm: 44, align: "left" },
+  { titulo: pl("print.relatorio.col.valor"), larguraMm: 22, align: "right" },
+  { titulo: pl("print.relatorio.col.juros"), larguraMm: 18, align: "right" },
+  { titulo: pl("print.relatorio.col.pago"), larguraMm: 22, align: "right" },
+  { titulo: pl("print.relatorio.col.dataPagamento"), larguraMm: 30, align: "center" },
 ];
+}
 
 function desenharCabecalhoPagina(
   ctx: ContextoTabelaFaturasSmart,
@@ -81,7 +96,7 @@ function desenharBlocoDespesa(ctx: ContextoTabelaFaturasSmart, bloco: DespesaMod
 
   desenharLinhaTabelaFaturasSmart(
     ctx,
-    COLUNAS.map((c) => c.titulo),
+    colunasRelatorio().map((c) => c.titulo),
     { header: true, fillHeader: true }
   );
 
@@ -132,10 +147,10 @@ export function gerarRelatorioDespesasModelo2Pdf(
   opcoes: OpcoesRelatorioDespesasModelo2
 ): Blob {
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
-  const ctx = criarContextoTabelaFaturasSmart(pdf, COLUNAS);
+  const ctx = criarContextoTabelaFaturasSmart(pdf, colunasRelatorio());
 
-  const titulo = `Relatório de Despesas - (${tituloPeriodoSmart(opcoes.periodoCampo)})`;
-  const periodoTexto = `${opcoes.dataInicio} à ${opcoes.dataFinal}`;
+  const titulo = tituloRelatorioDespesas(opcoes.periodoCampo);
+  const periodoTexto = periodoRelatorioTexto(opcoes.dataInicio, opcoes.dataFinal);
   desenharCabecalhoPagina(ctx, titulo, periodoTexto);
 
   const blocos = montarBlocosDespesasModelo2(opcoes.lancamentos, opcoes.idsIncluidos);

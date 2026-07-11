@@ -1,5 +1,18 @@
 import type { LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
 import {
+  iniciarImpressaoRelatorio,
+  moneyRelatorio,
+  obsFaturasSemAdiantamento,
+  periodoRelatorioTexto,
+  pl,
+  tituloExtratoFinanceiro,
+  tituloRelatorioDespesas,
+  tituloRelatorioFaturas,
+  tituloRelatorioParcelasAPagar,
+  tituloRelatorioParcelasAReceber,
+  tituloPeriodoCampo,
+} from "@/lib/i18n/print-relatorio-helpers";
+import {
   montarExtrato3Paciente,
   type LinhaExtrato3ComSaldo,
   type ResumoExtrato3,
@@ -28,18 +41,20 @@ type AlignCol = "left" | "center" | "right";
 
 type ColDef = { titulo: string; larguraMm: number; align: AlignCol };
 
-const COLUNAS_BASE: ColDef[] = [
-  { titulo: "Data Fatura", larguraMm: 17, align: "left" },
-  { titulo: "Fatura", larguraMm: 11, align: "left" },
-  { titulo: "OS", larguraMm: 9, align: "left" },
-  { titulo: "Qtd", larguraMm: 8, align: "center" },
-  { titulo: "Serviço / Produto", larguraMm: 36, align: "left" },
-  { titulo: "Entregue", larguraMm: 15, align: "center" },
-  { titulo: "Valor Un", larguraMm: 15, align: "right" },
-  { titulo: "Desc", larguraMm: 13, align: "right" },
-  { titulo: "Valor", larguraMm: 15, align: "right" },
-  { titulo: "Saldo", larguraMm: 15, align: "right" },
+function colunasExtratoBase(): ColDef[] {
+  return [
+  { titulo: pl("print.extrato.dataFatura"), larguraMm: 17, align: "left" },
+  { titulo: pl("print.extrato.fatura"), larguraMm: 11, align: "left" },
+  { titulo: pl("print.extrato.os"), larguraMm: 9, align: "left" },
+  { titulo: pl("print.extrato.qtd"), larguraMm: 8, align: "center" },
+  { titulo: pl("print.extrato.servicoProdutoEspaco"), larguraMm: 36, align: "left" },
+  { titulo: pl("print.relatorio.col.entregue"), larguraMm: 15, align: "center" },
+  { titulo: pl("print.relatorio.col.valorUn"), larguraMm: 15, align: "right" },
+  { titulo: pl("print.relatorio.col.desc"), larguraMm: 13, align: "right" },
+  { titulo: pl("print.relatorio.col.valor"), larguraMm: 15, align: "right" },
+  { titulo: pl("print.relatorio.col.saldo"), larguraMm: 15, align: "right" },
 ];
+}
 
 const IDX_DATA = 0;
 const IDX_FATURA = 1;
@@ -75,9 +90,9 @@ function criarCtx(pdf: jsPDF): Ctx {
   const margin = 14;
   const pageW = pdf.internal.pageSize.getWidth();
   const larguraUtil = pageW - margin * 2;
-  const soma = COLUNAS_BASE.reduce((s, c) => s + c.larguraMm, 0);
+  const soma = colunasExtratoBase().reduce((s, c) => s + c.larguraMm, 0);
   const fator = larguraUtil / soma;
-  const colunas = COLUNAS_BASE.map((c) => ({
+  const colunas = colunasExtratoBase().map((c) => ({
     ...c,
     larguraMm: c.larguraMm * fator,
   }));
@@ -189,7 +204,7 @@ function desenharTituloExtrato(ctx: Ctx, nomeCliente: string) {
   ctx.pdf.setFont("helvetica", "bold");
   ctx.pdf.setFontSize(12);
   ctx.pdf.setTextColor(...PRETO);
-  ctx.pdf.text(`Extrato Financeiro (${nomeCliente})`, ctx.pageW / 2, ctx.y, {
+  ctx.pdf.text(tituloExtratoFinanceiro(nomeCliente), ctx.pageW / 2, ctx.y, {
     align: "center",
   });
   ctx.y += 8;
@@ -321,11 +336,11 @@ function desenharResumo(ctx: Ctx, resumo: ResumoExtrato3) {
   const rowH = 5.5;
 
   const itens: [string, number, boolean][] = [
-    ["(+) Saldo Anterior", resumo.saldoAnterior, false],
-    ["(+) Total Serviços", resumo.totalServicos, false],
-    ["(-) Total Pagamentos", resumo.totalPagamentos, false],
-    ["(-) Total Descontos", resumo.totalDescontos, false],
-    ["(=) Saldo Total", resumo.saldoTotal, true],
+    [pl("print.extrato.resumoSaldoAnterior"), resumo.saldoAnterior, false],
+    [pl("print.extrato.resumoTotalServicos"), resumo.totalServicos, false],
+    [pl("print.extrato.resumoTotalPagamentos"), resumo.totalPagamentos, false],
+    [pl("print.extrato.resumoTotalDescontos"), resumo.totalDescontos, false],
+    [pl("print.extrato.resumoSaldoTotal"), resumo.saldoTotal, true],
   ];
 
   for (const [rotulo, valor, bold] of itens) {
@@ -347,6 +362,7 @@ export async function gerarRelatorioExtrato3PacienteSmartPdf(
   nomeCliente: string,
   opcoes?: OpcoesExtrato3PacientePdf
 ): Promise<Blob> {
+  iniciarImpressaoRelatorio();
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
   const ctx = criarCtx(pdf);

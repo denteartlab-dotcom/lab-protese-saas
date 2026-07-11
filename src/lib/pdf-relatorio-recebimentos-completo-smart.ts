@@ -1,4 +1,17 @@
 import type { LinhaRelatorioContasReceber } from "@/lib/relatorio-contas-receber";
+import {
+  iniciarImpressaoRelatorio,
+  moneyRelatorio,
+  obsFaturasSemAdiantamento,
+  periodoRelatorioTexto,
+  pl,
+  tituloExtratoFinanceiro,
+  tituloRelatorioDespesas,
+  tituloRelatorioFaturas,
+  tituloRelatorioParcelasAPagar,
+  tituloRelatorioParcelasAReceber,
+  tituloPeriodoCampo,
+} from "@/lib/i18n/print-relatorio-helpers";
 import { desenharCabecalhoLabRelatorioPdf } from "@/lib/pdf-lab-cabecalho";
 import {
   criarContextoTabelaFaturasSmart,
@@ -14,13 +27,17 @@ import {
 const CINZA_CLIENTE: [number, number, number] = [242, 242, 242];
 const AZUL_RECEBIMENTO: [number, number, number] = [230, 247, 255];
 
-const TITULO = "Relatório de Parcelas Recebidas - (Data Recebimento)";
+function tituloRecebimentosCompleto() {
+  return pl("print.relatorio.tituloParcelasRecebidas");
+}
 
-const COLUNAS: ColunaRelatorioFaturasSmart[] = [
-  { titulo: "Fatura", larguraMm: 61, align: "center" },
-  { titulo: "Vencimento", larguraMm: 61, align: "center" },
-  { titulo: "Valor", larguraMm: 60, align: "right" },
+function colunasRelatorio(): ColunaRelatorioFaturasSmart[] {
+  return [
+  { titulo: pl("print.extrato.fatura"), larguraMm: 61, align: "center" },
+  { titulo: pl("print.relatorio.col.vencimento"), larguraMm: 61, align: "center" },
+  { titulo: pl("print.relatorio.col.valor"), larguraMm: 60, align: "right" },
 ];
+}
 
 type OpcoesCompleto = OpcoesPeriodoRelatorioFaturas & {
   periodoAtivo?: boolean;
@@ -71,7 +88,7 @@ function desenharCabecalhoPagina(ctx: ContextoTabelaFaturasSmart) {
   ctx.pdf.setFont("helvetica", "bold");
   ctx.pdf.setFontSize(12);
   ctx.pdf.setTextColor(...PRETO);
-  ctx.pdf.text(TITULO, ctx.pageW / 2, ctx.y, { align: "center" });
+  ctx.pdf.text(tituloRecebimentosCompleto(), ctx.pageW / 2, ctx.y, { align: "center" });
   ctx.y += 10;
 }
 
@@ -128,7 +145,7 @@ function desenharTabelaFaturaRecebimento(
 ) {
   desenharLinhaTabelaFaturasSmart(
     ctx,
-    COLUNAS.map((c) => c.titulo),
+    colunasRelatorio().map((c) => c.titulo),
     { header: true, fillHeader: true }
   );
 
@@ -190,9 +207,10 @@ export async function gerarRelatorioRecebimentosCompletoSmartPdf(
   linhas: LinhaRelatorioContasReceber[],
   _opcoes: OpcoesCompleto
 ): Promise<Blob> {
+  iniciarImpressaoRelatorio();
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
-  const ctx = criarContextoTabelaFaturasSmart(pdf, COLUNAS);
+  const ctx = criarContextoTabelaFaturasSmart(pdf, colunasRelatorio());
   const grupos = agruparPorCliente(linhas);
   const totalGeral = linhas.reduce((s, l) => s + l.valor, 0);
 

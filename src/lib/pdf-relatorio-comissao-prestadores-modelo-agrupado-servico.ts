@@ -1,4 +1,17 @@
 import type { LinhaFinalizadorServico } from "@/lib/finalizadores-servicos";
+import {
+  iniciarImpressaoRelatorio,
+  moneyRelatorio,
+  obsFaturasSemAdiantamento,
+  periodoRelatorioTexto,
+  pl,
+  tituloExtratoFinanceiro,
+  tituloRelatorioDespesas,
+  tituloRelatorioFaturas,
+  tituloRelatorioParcelasAPagar,
+  tituloRelatorioParcelasAReceber,
+  tituloPeriodoCampo,
+} from "@/lib/i18n/print-relatorio-helpers";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
 import { moneyBr, PRETO } from "@/lib/pdf-relatorio-faturas-smart-comum";
 import type { FiltroRelatorioComissaoPrestadores } from "@/lib/relatorio-comissao-prestadores";
@@ -29,18 +42,20 @@ type PdfCtx = {
 };
 
 /** Layout fixo da foto de referência — 3 colunas. */
-const COLUNAS_AGRUPADO: ColunaAgrupadaPdf[] = [
-  { titulo: "Quantidade", larguraMm: 28, align: "center" },
-  { titulo: "Descrição", larguraMm: 100, align: "left" },
-  { titulo: "Valor Comissao", larguraMm: 40, align: "right" },
+function colunasComissaoAgrupado(): ColunaAgrupadaPdf[] {
+  return [
+  { titulo: pl("print.relatorio.col.quantidade"), larguraMm: 28, align: "center" },
+  { titulo: pl("print.relatorio.col.descricao"), larguraMm: 100, align: "left" },
+  { titulo: pl("print.relatorio.col.valorComissao"), larguraMm: 40, align: "right" },
 ];
+}
 
 function tituloRelatorio(
   periodoCampo: FiltroRelatorioComissaoPrestadores["periodoCampo"]
 ) {
   const periodo =
     periodoCampo === "data_entrega" ? "Data Entrega" : "Data do Pedido";
-  return `Relatório de Comissões - ${periodo} (Serviços Terceirizado)`;
+  return pl("print.relatorio.tituloComissoesTerceirizado", { periodo });
 }
 
 function parseQuantidade(valor: string) {
@@ -55,9 +70,9 @@ function formatQuantidade(valor: number) {
 }
 
 function escalarColunas(larguraUtilMm: number): ColunaAgrupadaPdf[] {
-  const soma = COLUNAS_AGRUPADO.reduce((total, col) => total + col.larguraMm, 0);
+  const soma = colunasComissaoAgrupado().reduce((total, col) => total + col.larguraMm, 0);
   const fator = larguraUtilMm / soma;
-  return COLUNAS_AGRUPADO.map((col) => ({
+  return colunasComissaoAgrupado().map((col) => ({
     ...col,
     larguraMm: Math.round(col.larguraMm * fator * 10) / 10,
   }));
@@ -259,6 +274,7 @@ export async function gerarRelatorioComissaoPrestadoresModeloAgrupadoServicoPdf(
   linhas: LinhaFinalizadorServico[],
   filtro: Pick<FiltroRelatorioComissaoPrestadores, "periodoCampo">
 ): Promise<Blob> {
+  iniciarImpressaoRelatorio();
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   const margin = 10;

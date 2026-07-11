@@ -1,4 +1,17 @@
 import type { LinhaRelatorioContasReceber } from "@/lib/relatorio-contas-receber";
+import {
+  iniciarImpressaoRelatorio,
+  moneyRelatorio,
+  obsFaturasSemAdiantamento,
+  periodoRelatorioTexto,
+  pl,
+  tituloExtratoFinanceiro,
+  tituloRelatorioDespesas,
+  tituloRelatorioFaturas,
+  tituloRelatorioParcelasAPagar,
+  tituloRelatorioParcelasAReceber,
+  tituloPeriodoCampo,
+} from "@/lib/i18n/print-relatorio-helpers";
 import { desenharCabecalhoLabRelatorioPdf } from "@/lib/pdf-lab-cabecalho";
 import {
   criarContextoTabelaFaturasSmart,
@@ -21,17 +34,16 @@ import {
 const CINZA_FUNDO: [number, number, number] = [238, 238, 238];
 
 /** Layout Smart Prótese — Faturas Modelo 2 (parcelas): bloco por fatura. */
-const COLUNAS: ColunaRelatorioFaturasSmart[] = [
-  { titulo: "Parcela", larguraMm: 20, align: "center" },
-  { titulo: "Vencimento", larguraMm: 26, align: "center" },
-  { titulo: "Forma Pagamento", larguraMm: 44, align: "left" },
-  { titulo: "Valor", larguraMm: 22, align: "right" },
-  { titulo: "Juros", larguraMm: 18, align: "right" },
-  { titulo: "Recebido", larguraMm: 22, align: "right" },
+function colunasRelatorio(): ColunaRelatorioFaturasSmart[] {
+  return [
+  { titulo: pl("print.relatorio.col.parcela"), larguraMm: 20, align: "center" },
+  { titulo: pl("print.relatorio.col.vencimento"), larguraMm: 26, align: "center" },
+  { titulo: pl("print.relatorio.col.formaPagamento"), larguraMm: 44, align: "left" },
+  { titulo: pl("print.relatorio.col.valor"), larguraMm: 22, align: "right" },
+  { titulo: pl("print.relatorio.col.juros"), larguraMm: 18, align: "right" },
+  { titulo: pl("print.relatorio.col.recebido"), larguraMm: 22, align: "right" },
 ];
-
-const OBS_MODELO2 =
-  "Obs.: Esse relatório não considera adiantamentos (crédito em haver), apenas valores das Faturas";
+}
 
 function desenharCabecalhoPagina(ctx: ContextoTabelaFaturasSmart, titulo: string) {
   ctx.y = desenharCabecalhoLabRelatorioPdf(ctx.api, ctx.margin, ctx.y);
@@ -80,7 +92,7 @@ function desenharBlocoFatura(ctx: ContextoTabelaFaturasSmart, bloco: FaturaModel
 
   desenharLinhaTabelaFaturasSmart(
     ctx,
-    COLUNAS.map((c) => c.titulo),
+    colunasRelatorio().map((c) => c.titulo),
     { header: true, fillHeader: true }
   );
 
@@ -118,11 +130,12 @@ export async function gerarRelatorioFaturasModelo2Pdf(
   linhas: LinhaRelatorioContasReceber[],
   opcoes: OpcoesPeriodoRelatorioFaturas
 ): Promise<Blob> {
+  iniciarImpressaoRelatorio();
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
-  const ctx = criarContextoTabelaFaturasSmart(pdf, COLUNAS);
+  const ctx = criarContextoTabelaFaturasSmart(pdf, colunasRelatorio());
 
-  const titulo = `Relatório de Faturas - (${tituloPeriodoSmart(opcoes.periodoCampo)})`;
+  const titulo = tituloRelatorioFaturas(opcoes.periodoCampo);
   desenharCabecalhoPagina(ctx, titulo);
 
   const blocos = montarBlocosFaturasModelo2(linhas);
@@ -148,7 +161,7 @@ export async function gerarRelatorioFaturasModelo2Pdf(
     ]);
   }
 
-  desenharObservacaoFaturasSmart(ctx, OBS_MODELO2);
+  desenharObservacaoFaturasSmart(ctx, obsFaturasSemAdiantamento());
 
   return pdf.output("blob");
 }

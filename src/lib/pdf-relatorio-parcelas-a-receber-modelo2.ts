@@ -1,4 +1,17 @@
 import type { LinhaRelatorioContasReceber } from "@/lib/relatorio-contas-receber";
+import {
+  iniciarImpressaoRelatorio,
+  moneyRelatorio,
+  obsFaturasSemAdiantamento,
+  periodoRelatorioTexto,
+  pl,
+  tituloExtratoFinanceiro,
+  tituloRelatorioDespesas,
+  tituloRelatorioFaturas,
+  tituloRelatorioParcelasAPagar,
+  tituloRelatorioParcelasAReceber,
+  tituloPeriodoCampo,
+} from "@/lib/i18n/print-relatorio-helpers";
 import { desenharCabecalhoLabRelatorioPdf } from "@/lib/pdf-lab-cabecalho";
 import {
   criarContextoTabelaFaturasSmart,
@@ -14,16 +27,18 @@ import {
 
 const CINZA_FUNDO: [number, number, number] = [238, 238, 238];
 
-const COLUNAS: ColunaRelatorioFaturasSmart[] = [
-  { titulo: "Núm Fatura", larguraMm: 16, align: "center" },
-  { titulo: "Parcela", larguraMm: 14, align: "center" },
-  { titulo: "Vencimento", larguraMm: 22, align: "center" },
-  { titulo: "Forma Pagamento", larguraMm: 54, align: "left" },
-  { titulo: "Valor", larguraMm: 20, align: "right" },
-  { titulo: "Juros", larguraMm: 16, align: "right" },
-  { titulo: "Recebido", larguraMm: 20, align: "right" },
-  { titulo: "Saldo", larguraMm: 20, align: "right" },
+function colunasRelatorio(): ColunaRelatorioFaturasSmart[] {
+  return [
+  { titulo: pl("print.relatorio.col.numFaturaCurto"), larguraMm: 16, align: "center" },
+  { titulo: pl("print.relatorio.col.parcela"), larguraMm: 14, align: "center" },
+  { titulo: pl("print.relatorio.col.vencimento"), larguraMm: 22, align: "center" },
+  { titulo: pl("print.relatorio.col.formaPagamento"), larguraMm: 54, align: "left" },
+  { titulo: pl("print.relatorio.col.valor"), larguraMm: 20, align: "right" },
+  { titulo: pl("print.relatorio.col.juros"), larguraMm: 16, align: "right" },
+  { titulo: pl("print.relatorio.col.recebido"), larguraMm: 20, align: "right" },
+  { titulo: pl("print.relatorio.col.saldo"), larguraMm: 20, align: "right" },
 ];
+}
 
 export type OpcoesRelatorioParcelasAReceberModelo2 = OpcoesPeriodoRelatorioFaturas & {
   somenteAReceber?: boolean;
@@ -159,7 +174,7 @@ function desenharTabelaParcelas(
 
   desenharLinhaTabelaFaturasSmart(
     ctx,
-    COLUNAS.map((c) => c.titulo),
+    colunasRelatorio().map((c) => c.titulo),
     { header: true, fillHeader: true }
   );
 
@@ -197,11 +212,12 @@ export async function gerarRelatorioParcelasAReceberModelo2Pdf(
   linhas: LinhaRelatorioContasReceber[],
   opcoes: OpcoesRelatorioParcelasAReceberModelo2
 ): Promise<Blob> {
+  iniciarImpressaoRelatorio();
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
-  const ctx = criarContextoTabelaFaturasSmart(pdf, COLUNAS);
+  const ctx = criarContextoTabelaFaturasSmart(pdf, colunasRelatorio());
 
-  const titulo = `Relatório de Parcelas a Receber - (${tituloPeriodoSmart(opcoes.periodoCampo)})`;
+  const titulo = tituloRelatorioParcelasAReceber(opcoes.periodoCampo);
   desenharCabecalhoPagina(ctx, titulo);
 
   const filtradas = linhasFiltradas(linhas, opcoes);

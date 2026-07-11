@@ -1,4 +1,17 @@
 import { jsPDF } from "jspdf";
+import {
+  iniciarImpressaoRelatorio,
+  moneyRelatorio,
+  obsFaturasSemAdiantamento,
+  periodoRelatorioTexto,
+  pl,
+  tituloExtratoFinanceiro,
+  tituloRelatorioDespesas,
+  tituloRelatorioFaturas,
+  tituloRelatorioParcelasAPagar,
+  tituloRelatorioParcelasAReceber,
+  tituloPeriodoCampo,
+} from "@/lib/i18n/print-relatorio-helpers";
 import { desenharCabecalhoLabRelatorioPdf } from "@/lib/pdf-lab-cabecalho";
 import {
   criarContextoTabelaFaturasSmart,
@@ -32,20 +45,22 @@ export type OpcoesRelatorioParcelasPagas = {
 
 const CINZA_FUNDO: [number, number, number] = [238, 238, 238];
 
-const COLUNAS: ColunaRelatorioFaturasSmart[] = [
-  { titulo: "Nome", larguraMm: 34, align: "left" },
-  { titulo: "Ref", larguraMm: 16, align: "center" },
-  { titulo: "Parcela", larguraMm: 16, align: "center" },
+function colunasRelatorio(): ColunaRelatorioFaturasSmart[] {
+  return [
+  { titulo: pl("print.relatorio.col.nome"), larguraMm: 34, align: "left" },
+  { titulo: pl("print.relatorio.col.ref"), larguraMm: 16, align: "center" },
+  { titulo: pl("print.relatorio.col.parcela"), larguraMm: 16, align: "center" },
   { titulo: "Venc", larguraMm: 18, align: "center" },
-  { titulo: "Pagamento", larguraMm: 22, align: "center" },
-  { titulo: "Forma Pagamento", larguraMm: 28, align: "center" },
-  { titulo: "Valor", larguraMm: 18, align: "right" },
-  { titulo: "Juros", larguraMm: 14, align: "right" },
-  { titulo: "Pago", larguraMm: 16, align: "right" },
+  { titulo: pl("print.relatorio.col.pagamento"), larguraMm: 22, align: "center" },
+  { titulo: pl("print.relatorio.col.formaPagamento"), larguraMm: 28, align: "center" },
+  { titulo: pl("print.relatorio.col.valor"), larguraMm: 18, align: "right" },
+  { titulo: pl("print.relatorio.col.juros"), larguraMm: 14, align: "right" },
+  { titulo: pl("print.relatorio.col.pago"), larguraMm: 16, align: "right" },
 ];
+}
 
 function desenharTitulo(ctx: ContextoTabelaFaturasSmart) {
-  const titulo = "Relatório de Parcelas Pagas - ( Data Pagamento )";
+  const titulo = pl("print.relatorio.tituloParcelasPagas");
   ctx.y = desenharCabecalhoLabRelatorioPdf(ctx.api, ctx.margin, ctx.y);
   ctx.pdf.setFont("helvetica", "bold");
   ctx.pdf.setFontSize(12);
@@ -94,7 +109,7 @@ function desenharSecao(ctx: ContextoTabelaFaturasSmart, secao: SecaoParcelasPaga
 
   desenharLinhaTabelaFaturasSmart(
     ctx,
-    COLUNAS.map((c) => c.titulo),
+    colunasRelatorio().map((c) => c.titulo),
     { header: true, fillHeader: true }
   );
 
@@ -119,7 +134,7 @@ function desenharSecao(ctx: ContextoTabelaFaturasSmart, secao: SecaoParcelasPaga
 
 export function gerarRelatorioParcelasPagasPdf(opcoes: OpcoesRelatorioParcelasPagas): Blob {
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
-  const ctx = criarContextoTabelaFaturasSmart(pdf, COLUNAS);
+  const ctx = criarContextoTabelaFaturasSmart(pdf, colunasRelatorio());
 
   desenharTitulo(ctx);
 

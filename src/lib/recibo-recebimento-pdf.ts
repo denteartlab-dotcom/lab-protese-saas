@@ -21,15 +21,8 @@ import {
   type ModeloReciboRecebimento,
 } from "@/lib/recibo-recebimento";
 
-function moneyBr(value: number) {
-  return value.toLocaleString("pt-BR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
 function currencyBr(value: number) {
-  return `R$ ${moneyBr(value)}`;
+  return formatMoneyImpressao(value);
 }
 
 export async function gerarReciboRecebimentoPdf(
@@ -101,7 +94,7 @@ export async function gerarReciboRecebimentoPdf(
       const formaComReferencia = textoFormaPagamentoRecibo(l);
       const valor = currencyBr(l.valor);
       const vencimento = formatDate(l.data);
-      const descricao = `${formaComReferencia}\nFatura: ${l.numeroFatura} | Vencimento: ${vencimento}`;
+      const descricao = `${formaComReferencia}\n${pl("print.recibo.faturaVencimento", { fatura: l.numeroFatura, vencimento })}`;
       const linhasDescricao = pdf.splitTextToSize(descricao, colW[0] - 4);
       const altura = Math.max(linhasDescricao.length * 4.5, 6);
       pdf.text(linhasDescricao, colX[0] + 2, y);

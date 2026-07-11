@@ -1,4 +1,17 @@
 import type { LinhaRelatorioContasReceber } from "@/lib/relatorio-contas-receber";
+import {
+  iniciarImpressaoRelatorio,
+  moneyRelatorio,
+  obsFaturasSemAdiantamento,
+  periodoRelatorioTexto,
+  pl,
+  tituloExtratoFinanceiro,
+  tituloRelatorioDespesas,
+  tituloRelatorioFaturas,
+  tituloRelatorioParcelasAPagar,
+  tituloRelatorioParcelasAReceber,
+  tituloPeriodoCampo,
+} from "@/lib/i18n/print-relatorio-helpers";
 import { desenharCabecalhoLabRelatorioPdf } from "@/lib/pdf-lab-cabecalho";
 import {
   criarContextoTabelaFaturasSmart,
@@ -24,12 +37,14 @@ function linhasFiltradas(
   return linhas.filter((linha) => linha.saldo > 0.009);
 }
 
-const COLUNAS: ColunaRelatorioFaturasSmart[] = [
-  { titulo: "Cliente", larguraMm: 78, align: "left" },
-  { titulo: "Valor a Receber", larguraMm: 36, align: "right" },
-  { titulo: "Recebido", larguraMm: 34, align: "right" },
-  { titulo: "Saldo", larguraMm: 34, align: "right" },
+function colunasRelatorio(): ColunaRelatorioFaturasSmart[] {
+  return [
+  { titulo: pl("print.relatorio.cliente"), larguraMm: 78, align: "left" },
+  { titulo: pl("print.relatorio.col.valorAReceber"), larguraMm: 36, align: "right" },
+  { titulo: pl("print.relatorio.col.recebido"), larguraMm: 34, align: "right" },
+  { titulo: pl("print.relatorio.col.saldo"), larguraMm: 34, align: "right" },
 ];
+}
 
 type LinhaCliente = {
   cliente: string;
@@ -101,11 +116,12 @@ export async function gerarRelatorioParcelasAReceberModelo1Pdf(
   linhas: LinhaRelatorioContasReceber[],
   opcoes: OpcoesRelatorioParcelasAReceberModelo1
 ): Promise<Blob> {
+  iniciarImpressaoRelatorio();
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
-  const ctx = criarContextoTabelaFaturasSmart(pdf, COLUNAS);
+  const ctx = criarContextoTabelaFaturasSmart(pdf, colunasRelatorio());
 
-  const titulo = `Relatório de Parcelas a Receber - (${tituloPeriodoSmart(opcoes.periodoCampo)})`;
+  const titulo = tituloRelatorioParcelasAReceber(opcoes.periodoCampo);
 
   const api = pdf as unknown as Parameters<typeof desenharCabecalhoLabRelatorioPdf>[0];
   ctx.y = desenharCabecalhoLabRelatorioPdf(api, ctx.margin, ctx.y);
@@ -122,7 +138,7 @@ export async function gerarRelatorioParcelasAReceberModelo1Pdf(
 
   desenharLinhaTabelaFaturasSmart(
     ctx,
-    COLUNAS.map((c) => c.titulo),
+    colunasRelatorio().map((c) => c.titulo),
     { header: true, fillHeader: true }
   );
 

@@ -1,5 +1,18 @@
 import type { LinhaRelatorioContasReceber } from "@/lib/relatorio-contas-receber";
 import {
+  iniciarImpressaoRelatorio,
+  moneyRelatorio,
+  obsFaturasSemAdiantamento,
+  periodoRelatorioTexto,
+  pl,
+  tituloExtratoFinanceiro,
+  tituloRelatorioDespesas,
+  tituloRelatorioFaturas,
+  tituloRelatorioParcelasAPagar,
+  tituloRelatorioParcelasAReceber,
+  tituloPeriodoCampo,
+} from "@/lib/i18n/print-relatorio-helpers";
+import {
   montarFaturasModelo3,
   type FaturaModelo3Bloco,
   type TrabalhoRelatorioFatura,
@@ -17,29 +30,28 @@ import type { jsPDF } from "jspdf";
 
 const CINZA_FUNDO: [number, number, number] = [238, 238, 238];
 
-const OBS_MODELO3 =
-  "Obs.: Esse relatório não considera adiantamentos (crédito em haver), apenas valores das Faturas.";
+
 
 type ColDef = { titulo: string; largura: number; align: "left" | "center" | "right" };
 
 const COL_ITENS: ColDef[] = [
-  { titulo: "Os", largura: 11, align: "center" },
-  { titulo: "Descrição", largura: 38, align: "left" },
-  { titulo: "Num Dente", largura: 17, align: "center" },
-  { titulo: "Paciente", largura: 26, align: "left" },
-  { titulo: "Dentista", largura: 26, align: "left" },
-  { titulo: "Qtd", largura: 11, align: "center" },
-  { titulo: "Valor Un", largura: 17, align: "right" },
-  { titulo: "Desc", largura: 11, align: "right" },
-  { titulo: "Subtotal", largura: 19, align: "right" },
+  { titulo: pl("print.relatorio.col.os"), largura: 11, align: "center" },
+  { titulo: pl("print.relatorio.col.descricao"), largura: 38, align: "left" },
+  { titulo: pl("print.relatorio.col.numDente"), largura: 17, align: "center" },
+  { titulo: pl("print.extrato.paciente"), largura: 26, align: "left" },
+  { titulo: pl("print.relatorio.col.dentista"), largura: 26, align: "left" },
+  { titulo: pl("print.extrato.qtd"), largura: 11, align: "center" },
+  { titulo: pl("print.relatorio.col.valorUn"), largura: 17, align: "right" },
+  { titulo: pl("print.relatorio.col.desc"), largura: 11, align: "right" },
+  { titulo: pl("print.relatorio.col.subtotal"), largura: 19, align: "right" },
 ];
 
 /** Proporções das colunas de parcelas (escala para caber à esquerda do resumo). */
 const COL_PARCELAS_BASE: ColDef[] = [
-  { titulo: "Parcela", largura: 16, align: "center" },
-  { titulo: "Vencimento", largura: 24, align: "center" },
-  { titulo: "Forma Pagamento", largura: 44, align: "left" },
-  { titulo: "Valor", largura: 20, align: "right" },
+  { titulo: pl("print.relatorio.col.parcela"), largura: 16, align: "center" },
+  { titulo: pl("print.relatorio.col.vencimento"), largura: 24, align: "center" },
+  { titulo: pl("print.relatorio.col.formaPagamento"), largura: 44, align: "left" },
+  { titulo: pl("print.relatorio.col.valor"), largura: 20, align: "right" },
 ];
 
 const LARGURA_RESUMO_MM = 68;
@@ -332,7 +344,7 @@ function desenharTotaisGerais(ctx: PdfCtx, faturas: FaturaModelo3Bloco[]) {
   ctx.pdf.setFont("helvetica", "normal");
   ctx.pdf.setFontSize(9);
   ctx.pdf.setTextColor(...VERMELHO_OBS);
-  ctx.pdf.text(OBS_MODELO3, ctx.margin, ctx.y);
+  ctx.pdf.text(obsFaturasSemAdiantamento(true), ctx.margin, ctx.y);
 }
 
 export async function gerarRelatorioFaturasModelo3Pdf(
@@ -341,12 +353,13 @@ export async function gerarRelatorioFaturasModelo3Pdf(
   lancamentos: LancamentoContasReceber[],
   trabalhos: TrabalhoRelatorioFatura[]
 ): Promise<Blob> {
+  iniciarImpressaoRelatorio();
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
   const ctx = criarCtx(pdf);
 
-  const titulo = `Relatório de Faturas - (${tituloPeriodoSmart(opcoes.periodoCampo)})`;
-  const periodoTexto = `${opcoes.dataInicio} à ${opcoes.dataFinal}`;
+  const titulo = tituloRelatorioFaturas(opcoes.periodoCampo);
+  const periodoTexto = periodoRelatorioTexto(opcoes.dataInicio, opcoes.dataFinal);
 
   const api = pdf as unknown as Parameters<typeof desenharCabecalhoLabRelatorioPdf>[0];
   ctx.y = desenharCabecalhoLabRelatorioPdf(api, ctx.margin, ctx.y);

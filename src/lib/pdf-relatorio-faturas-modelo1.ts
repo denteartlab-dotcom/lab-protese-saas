@@ -1,5 +1,18 @@
 import type { LinhaRelatorioContasReceber } from "@/lib/relatorio-contas-receber";
 import {
+  iniciarImpressaoRelatorio,
+  moneyRelatorio,
+  obsFaturasSemAdiantamento,
+  periodoRelatorioTexto,
+  pl,
+  tituloExtratoFinanceiro,
+  tituloRelatorioDespesas,
+  tituloRelatorioFaturas,
+  tituloRelatorioParcelasAPagar,
+  tituloRelatorioParcelasAReceber,
+  tituloPeriodoCampo,
+} from "@/lib/i18n/print-relatorio-helpers";
+import {
   criarContextoTabelaFaturasSmart,
   desenharCabecalhoPaginaFaturasSmart,
   desenharLinhaTabelaFaturasSmart,
@@ -14,18 +27,17 @@ import {
 
 export type OpcoesRelatorioFaturasModelo1 = OpcoesPeriodoRelatorioFaturas;
 
-const COLUNAS: ColunaRelatorioFaturasSmart[] = [
-  { titulo: "Num Fatura", larguraMm: 18, align: "center" },
-  { titulo: "Qtd Parcelas", larguraMm: 22, align: "center" },
-  { titulo: "Data Emissão", larguraMm: 24, align: "center" },
-  { titulo: "Cliente", larguraMm: 46, align: "left" },
-  { titulo: "Valor", larguraMm: 24, align: "right" },
-  { titulo: "Recebido", larguraMm: 24, align: "right" },
-  { titulo: "Saldo", larguraMm: 24, align: "right" },
+function colunasRelatorio(): ColunaRelatorioFaturasSmart[] {
+  return [
+  { titulo: pl("print.relatorio.col.numFatura"), larguraMm: 18, align: "center" },
+  { titulo: pl("print.relatorio.col.qtdParcelas"), larguraMm: 22, align: "center" },
+  { titulo: pl("print.relatorio.col.dataEmissao"), larguraMm: 24, align: "center" },
+  { titulo: pl("print.relatorio.cliente"), larguraMm: 46, align: "left" },
+  { titulo: pl("print.relatorio.col.valor"), larguraMm: 24, align: "right" },
+  { titulo: pl("print.relatorio.col.recebido"), larguraMm: 24, align: "right" },
+  { titulo: pl("print.relatorio.col.saldo"), larguraMm: 24, align: "right" },
 ];
-
-const OBS_MODELO1 =
-  "Obs.: Esse relatório não considera adiantamentos (crédito em haver), apenas valores das Faturas";
+}
 
 function qtdParcelasDaLinha(parcela: string) {
   const match = parcela.match(/\/\s*(\d+)\s*$/);
@@ -49,12 +61,13 @@ export async function gerarRelatorioFaturasModelo1Pdf(
   linhas: LinhaRelatorioContasReceber[],
   opcoes: OpcoesRelatorioFaturasModelo1
 ): Promise<Blob> {
+  iniciarImpressaoRelatorio();
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
-  const ctx = criarContextoTabelaFaturasSmart(pdf, COLUNAS);
+  const ctx = criarContextoTabelaFaturasSmart(pdf, colunasRelatorio());
 
-  const titulo = `Relatório de Faturas - (${tituloPeriodoSmart(opcoes.periodoCampo)})`;
-  const periodoTexto = `${opcoes.dataInicio} à ${opcoes.dataFinal}`;
+  const titulo = tituloRelatorioFaturas(opcoes.periodoCampo);
+  const periodoTexto = periodoRelatorioTexto(opcoes.dataInicio, opcoes.dataFinal);
 
   desenharCabecalhoPaginaFaturasSmart(ctx, titulo, periodoTexto);
 
@@ -64,7 +77,7 @@ export async function gerarRelatorioFaturasModelo1Pdf(
 
   desenharLinhaTabelaFaturasSmart(
     ctx,
-    COLUNAS.map((c) => c.titulo),
+    colunasRelatorio().map((c) => c.titulo),
     { header: true }
   );
 
@@ -105,7 +118,7 @@ export async function gerarRelatorioFaturasModelo1Pdf(
     `SALDO R$ ${moneyBr(totalSaldo)}`,
   ], 4);
 
-  desenharObservacaoFaturasSmart(ctx, OBS_MODELO1);
+  desenharObservacaoFaturasSmart(ctx, obsFaturasSemAdiantamento());
 
   return pdf.output("blob");
 }

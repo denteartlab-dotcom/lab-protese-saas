@@ -1,3 +1,4 @@
+import { pl } from "@/lib/i18n/print-i18n";
 import {
   desenharCabecalhoLabRelatorioPdf,
   desenharTituloRelatorioPdf,
@@ -131,7 +132,7 @@ export async function gerarRelatorioTabelaPdf(
   if (dados.linhas.length === 0) {
     novaPaginaSeNecessario(rowH);
     pdf.setFont("helvetica", "normal");
-    pdf.text("Nenhum registro encontrado no período.", margin + 2, y + 4);
+    pdf.text(pl("print.comum.nenhumRegistro"), margin + 2, y + 4);
   }
 
   return pdf.output("blob");

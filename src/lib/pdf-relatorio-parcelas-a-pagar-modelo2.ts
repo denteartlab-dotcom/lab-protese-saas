@@ -1,4 +1,17 @@
 import { jsPDF } from "jspdf";
+import {
+  iniciarImpressaoRelatorio,
+  moneyRelatorio,
+  obsFaturasSemAdiantamento,
+  periodoRelatorioTexto,
+  pl,
+  tituloExtratoFinanceiro,
+  tituloRelatorioDespesas,
+  tituloRelatorioFaturas,
+  tituloRelatorioParcelasAPagar,
+  tituloRelatorioParcelasAReceber,
+  tituloPeriodoCampo,
+} from "@/lib/i18n/print-relatorio-helpers";
 import { desenharCabecalhoLabRelatorioPdf } from "@/lib/pdf-lab-cabecalho";
 import {
   criarContextoTabelaFaturasSmart,
@@ -30,13 +43,15 @@ export type OpcoesRelatorioParcelasAPagarModelo2 = OpcoesPeriodoRelatorioFaturas
 
 const CINZA_FUNDO: [number, number, number] = [238, 238, 238];
 
-const COLUNAS: ColunaRelatorioFaturasSmart[] = [
-  { titulo: "Num", larguraMm: 30, align: "left" },
-  { titulo: "Parcela", larguraMm: 24, align: "center" },
-  { titulo: "Vencimento", larguraMm: 28, align: "center" },
-  { titulo: "Forma Pagamento", larguraMm: 52, align: "center" },
-  { titulo: "Valor Parcela", larguraMm: 48, align: "right" },
+function colunasRelatorio(): ColunaRelatorioFaturasSmart[] {
+  return [
+  { titulo: pl("print.relatorio.col.num"), larguraMm: 30, align: "left" },
+  { titulo: pl("print.relatorio.col.parcela"), larguraMm: 24, align: "center" },
+  { titulo: pl("print.relatorio.col.vencimento"), larguraMm: 28, align: "center" },
+  { titulo: pl("print.relatorio.col.formaPagamento"), larguraMm: 52, align: "center" },
+  { titulo: pl("print.relatorio.col.valorParcela"), larguraMm: 48, align: "right" },
 ];
+}
 
 function tituloPeriodoParcelasAPagarModelo2(
   campo: OpcoesPeriodoRelatorioFaturas["periodoCampo"]
@@ -45,7 +60,7 @@ function tituloPeriodoParcelasAPagarModelo2(
 }
 
 function desenharTitulo(ctx: ContextoTabelaFaturasSmart, periodoCampo: OpcoesPeriodoRelatorioFaturas["periodoCampo"]) {
-  const titulo = `Relatório de Parcelas a Pagar - (${tituloPeriodoParcelasAPagarModelo2(periodoCampo)})`;
+  const titulo = tituloRelatorioParcelasAPagar(periodoCampo);
   ctx.y = desenharCabecalhoLabRelatorioPdf(ctx.api, ctx.margin, ctx.y);
   ctx.pdf.setFont("helvetica", "bold");
   ctx.pdf.setFontSize(12);
@@ -94,7 +109,7 @@ function desenharGrupo(ctx: ContextoTabelaFaturasSmart, grupo: GrupoParcelasAPag
 
   desenharLinhaTabelaFaturasSmart(
     ctx,
-    COLUNAS.map((c) => c.titulo),
+    colunasRelatorio().map((c) => c.titulo),
     { header: true, fillHeader: true }
   );
 
@@ -117,7 +132,7 @@ export function gerarRelatorioParcelasAPagarModelo2Pdf(
   opcoes: OpcoesRelatorioParcelasAPagarModelo2
 ): Blob {
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
-  const ctx = criarContextoTabelaFaturasSmart(pdf, COLUNAS);
+  const ctx = criarContextoTabelaFaturasSmart(pdf, colunasRelatorio());
 
   desenharTitulo(ctx, opcoes.periodoCampo);
 

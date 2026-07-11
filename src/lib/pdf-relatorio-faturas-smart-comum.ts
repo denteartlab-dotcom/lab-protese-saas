@@ -1,4 +1,5 @@
 import { desenharCabecalhoLabRelatorioPdf } from "@/lib/pdf-lab-cabecalho";
+import { formatMoneyImpressao, pl } from "@/lib/i18n/print-i18n";
 import type { jsPDF } from "jspdf";
 
 export const VERDE_VALORES: [number, number, number] = [0, 100, 0];
@@ -20,14 +21,13 @@ export type ColunaRelatorioFaturasSmart = {
 };
 
 export function moneyBr(value: number) {
-  return value.toLocaleString("pt-BR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  return formatMoneyImpressao(value, undefined, false);
 }
 
 export function tituloPeriodoSmart(campo: OpcoesPeriodoRelatorioFaturas["periodoCampo"]) {
-  return campo === "data_lancamento" ? "Data de Lançamento" : "Data de Vencimento";
+  return campo === "data_lancamento"
+    ? pl("print.relatorio.dataLancamento")
+    : pl("print.relatorio.dataVencimento");
 }
 
 type PdfApi = Parameters<typeof desenharCabecalhoLabRelatorioPdf>[0];

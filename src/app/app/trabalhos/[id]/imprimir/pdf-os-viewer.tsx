@@ -72,6 +72,7 @@ import {
   type EtapasPorServicoOs,
 } from "@/lib/etapas-os-impressao";
 import { compactarDentesParaImpressaoOs } from "@/lib/dentes-os-resumo";
+import { iniciarImpressaoRelatorio, pl } from "@/lib/i18n/print-relatorio-helpers";
 
 const CODIGO_BARRAS_ALTURA_MM = 8;
 const CODIGO_BARRAS_ESTREITA_MM = 0.32;
@@ -293,8 +294,8 @@ function desenharPrazoFinalizadoRequisicao(
   pdf.setFont("helvetica", "normal");
 
   if (lay.dataPrazo) {
-    pdf.text("Prazo: ", cursor, y);
-    cursor += pdf.getTextWidth("Prazo: ");
+    pdf.text(`${pl("print.os.prazo")}: `, cursor, y);
+    cursor += pdf.getTextWidth(`${pl("print.os.prazo")}: `);
     pdf.setFont("helvetica", "bold");
     pdf.text(prazo || "—", cursor, y);
     cursor += pdf.getTextWidth(prazo || "—") + 1.5;
@@ -307,8 +308,8 @@ function desenharPrazoFinalizadoRequisicao(
   }
 
   if (lay.finalizado) {
-    pdf.text("Finalizado: ", cursor, y);
-    cursor += pdf.getTextWidth("Finalizado: ");
+    pdf.text(`${pl("print.os.finalizado")}: `, cursor, y);
+    cursor += pdf.getTextWidth(`${pl("print.os.finalizado")}: `);
     pdf.setFont("helvetica", "bold");
     pdf.text(finalizado || "—", cursor, y);
     pdf.setFont("helvetica", "normal");
@@ -451,8 +452,8 @@ function desenharEtapasOsRequisicao(
     if (infos.length === 0) continue;
 
     const rotulo = bloco.tituloServico
-      ? `${bloco.tituloServico} — Etapas:`
-      : "Etapas:";
+      ? `${bloco.tituloServico} — ${pl("print.os.etapas")}:`
+      : `${pl("print.os.etapas")}:`;
     pdf.text(rotulo, x, y);
     y += gapMm(4);
 
@@ -501,8 +502,8 @@ function desenharEtapasOsTermica(
     if (infos.length === 0) continue;
 
     const rotulo = bloco.tituloServico
-      ? `${bloco.tituloServico} — Etapas:`
-      : "Etapas:";
+      ? `${bloco.tituloServico} — ${pl("print.os.etapas")}:`
+      : `${pl("print.os.etapas")}:`;
     pdf.text(rotulo, mx, y);
     y += 3.6;
 
@@ -550,7 +551,7 @@ function desenharMetadadosServicoRequisicao(
   if (mostraColab) {
     labelValue(
       pdf,
-      "Colaborador: ",
+      `${pl("print.os.colaborador")}: `,
       colaboradorMetadadosImpressao({
         explicito: data.colaborador,
         colaboradores: data.colaboradoresLista,
@@ -605,7 +606,7 @@ function desenharRodapeRequisicaoA4(
     const rotuloAssinatura =
       variante === "comprovante"
         ? "Recebi o(s) serviço(s) descritos acima"
-        : "Assinatura";
+        : pl("print.os.assinatura");
     pdf.text(rotuloAssinatura, pageWidth / 2, y + 4, { align: "center" });
     y += gapMm(6);
   }
@@ -702,8 +703,8 @@ function desenharMetaOsCabecalhoDireita(
 
 function desenharMarcadoresUrgenciaRepeticao(pdf: PdfRenderApi, data: PdfOsData, xRotulo: number, y: number) {
   const marcas: string[] = [];
-  if (data.urgente) marcas.push("URGENTE");
-  if (data.repeticao) marcas.push("REPETIÇÃO");
+  if (data.urgente) marcas.push(pl("print.os.urgente"));
+  if (data.repeticao) marcas.push(pl("print.os.repeticao"));
   if (!marcas.length) return;
 
   const x = xRotulo + ESPACO_APOS_OS_EXTERNA_MM;
@@ -1312,7 +1313,7 @@ function renderTermicaModelo3(pdf: PdfRenderApi, data: PdfOsData): number {
     y = campoTermica(pdf, "Num Dente:", textoDenteParaImpressao(item.dente), mx + 2, y, larguraTexto - 22);
     y = campoTermica(pdf, "Cor Dente:", item.cor, mx + 2, y, larguraTexto - 22);
     const prazo = prazoDoItemTermica(item, data);
-    y = campoTermica(pdf, "Prazo:", prazo, mx + 2, y, larguraTexto - 14);
+    y = campoTermica(pdf, `${pl("print.os.prazo")}:`, prazo, mx + 2, y, larguraTexto - 14);
     pdf.setFontSize(8);
     y += 1;
   }
@@ -1508,16 +1509,16 @@ function renderTermicaModelo4(
         pdf.setFont("helvetica", "normal");
         let xCampo = mx + 1;
         if (lay.dataPrazo && prazo) {
-          pdf.text("Prazo: ", xCampo, y);
-          xCampo += pdf.getTextWidth("Prazo: ");
+          pdf.text(`${pl("print.os.prazo")}: `, xCampo, y);
+          xCampo += pdf.getTextWidth(`${pl("print.os.prazo")}: `);
           pdf.setFont("helvetica", "bold");
           pdf.text(prazo, xCampo, y);
           xCampo += pdf.getTextWidth(prazo) + 1.5;
           pdf.setFont("helvetica", "normal");
         }
         if (lay.finalizado && finalizado) {
-          pdf.text("Finalizado: ", xCampo, y);
-          xCampo += pdf.getTextWidth("Finalizado: ");
+          pdf.text(`${pl("print.os.finalizado")}: `, xCampo, y);
+          xCampo += pdf.getTextWidth(`${pl("print.os.finalizado")}: `);
           pdf.setFont("helvetica", "bold");
           pdf.text(finalizado, xCampo, y);
           pdf.setFont("helvetica", "normal");
@@ -1527,7 +1528,7 @@ function renderTermicaModelo4(
       if (mostraColabItem) {
         y = campoTermica(
           pdf,
-          "Colaborador:",
+          `${pl("print.os.colaborador")}:`,
           textoColaboradorTopo || "",
           mx + 1,
           y,
@@ -1775,16 +1776,16 @@ function renderTermicaModelo5(
         pdf.setFont("helvetica", "normal");
         let xCampo = mx + 1;
         if (lay.dataPrazo && prazo) {
-          pdf.text("Prazo: ", xCampo, y);
-          xCampo += pdf.getTextWidth("Prazo: ");
+          pdf.text(`${pl("print.os.prazo")}: `, xCampo, y);
+          xCampo += pdf.getTextWidth(`${pl("print.os.prazo")}: `);
           pdf.setFont("helvetica", "bold");
           pdf.text(prazo, xCampo, y);
           xCampo += pdf.getTextWidth(prazo) + 1.5;
           pdf.setFont("helvetica", "normal");
         }
         if (lay.finalizado && finalizado) {
-          pdf.text("Finalizado: ", xCampo, y);
-          xCampo += pdf.getTextWidth("Finalizado: ");
+          pdf.text(`${pl("print.os.finalizado")}: `, xCampo, y);
+          xCampo += pdf.getTextWidth(`${pl("print.os.finalizado")}: `);
           pdf.setFont("helvetica", "bold");
           pdf.text(finalizado, xCampo, y);
           pdf.setFont("helvetica", "normal");
@@ -1794,7 +1795,7 @@ function renderTermicaModelo5(
       if (mostraColabItem) {
         y = campoTermica(
           pdf,
-          "Colaborador:",
+          `${pl("print.os.colaborador")}:`,
           textoColaboradorTopo || "",
           mx + 1,
           y,
@@ -2210,6 +2211,7 @@ export function PdfOsViewer({
     const seq = ++buildPdfSeqRef.current;
 
     async function buildPdf() {
+      iniciarImpressaoRelatorio();
       setErroPdf("");
       const dadosAtuais = dadosPdfRef.current;
       const { jsPDF } = await import("jspdf");
@@ -2392,7 +2394,7 @@ export function PdfOsViewer({
         />
       ) : (
         <div className="flex flex-1 items-center justify-center text-sm text-slate-300">
-          Gerando PDF da OS...
+          {pl("print.comum.gerandoPdfOs")}
         </div>
       )}
     </div>

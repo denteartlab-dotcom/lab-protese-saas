@@ -1,5 +1,18 @@
 import type { LabImpressaoConfig } from "@/lib/lab-impressao";
 import {
+  iniciarImpressaoRelatorio,
+  moneyRelatorio,
+  obsFaturasSemAdiantamento,
+  periodoRelatorioTexto,
+  pl,
+  tituloExtratoFinanceiro,
+  tituloRelatorioDespesas,
+  tituloRelatorioFaturas,
+  tituloRelatorioParcelasAPagar,
+  tituloRelatorioParcelasAReceber,
+  tituloPeriodoCampo,
+} from "@/lib/i18n/print-relatorio-helpers";
+import {
   LOGO_PDF_CABECALHO_OS_ALTURA_MM,
   LOGO_PDF_CABECALHO_OS_LARGURA_MM,
   normalizarLogoTamanho,
@@ -283,7 +296,7 @@ export async function gerarPdfRelatorioProdutos(opts: {
   const api = pdf as unknown as PdfApi;
   const colunas = montarColunas(api);
   const geradoEm = opts.geradoEm ?? new Date();
-  const titulo = opts.titulo ?? "Relatório de Produtos";
+  const titulo = opts.titulo ?? pl("print.relatorio.tituloProdutos");
   const alturaPagina = api.internal.pageSize.getHeight();
   const totalEstoque = opts.linhas.reduce((s, linha) => s + linha.estoqueAtual, 0);
   const larguraProduto = colunas.find((col) => col.chave === "produto")?.largura ?? 40;

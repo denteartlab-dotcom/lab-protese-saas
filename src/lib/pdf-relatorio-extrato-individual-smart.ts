@@ -1,5 +1,18 @@
 import type { LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
 import {
+  iniciarImpressaoRelatorio,
+  moneyRelatorio,
+  obsFaturasSemAdiantamento,
+  periodoRelatorioTexto,
+  pl,
+  tituloExtratoFinanceiro,
+  tituloRelatorioDespesas,
+  tituloRelatorioFaturas,
+  tituloRelatorioParcelasAPagar,
+  tituloRelatorioParcelasAReceber,
+  tituloPeriodoCampo,
+} from "@/lib/i18n/print-relatorio-helpers";
+import {
   montarExtratoIndividual,
   type LinhaExtratoIndividualComSaldo,
   type ResumoExtratoIndividual,
@@ -30,17 +43,19 @@ type ColDef = {
 };
 
 /** 9 colunas — layout referência Smart Extrato Individual. */
-const COLUNAS_BASE: ColDef[] = [
-  { titulo: "Data", larguraMm: 18, align: "left" },
-  { titulo: "Num Fatura", larguraMm: 18, align: "left" },
-  { titulo: "OS", larguraMm: 10, align: "left" },
-  { titulo: "Serviço/Produto", larguraMm: 36, align: "left" },
-  { titulo: "Qtd", larguraMm: 9, align: "right" },
-  { titulo: "Paciente", larguraMm: 26, align: "left" },
-  { titulo: "Núm Dente", larguraMm: 17, align: "left" },
-  { titulo: "Valor", larguraMm: 20, align: "right" },
-  { titulo: "Saldo", larguraMm: 20, align: "right" },
+function colunasExtratoBase(): ColDef[] {
+  return [
+  { titulo: pl("print.extrato.data"), larguraMm: 18, align: "left" },
+  { titulo: pl("print.relatorio.col.numFatura"), larguraMm: 18, align: "left" },
+  { titulo: pl("print.extrato.os"), larguraMm: 10, align: "left" },
+  { titulo: pl("print.extrato.servico"), larguraMm: 36, align: "left" },
+  { titulo: pl("print.extrato.qtd"), larguraMm: 9, align: "right" },
+  { titulo: pl("print.extrato.paciente"), larguraMm: 26, align: "left" },
+  { titulo: pl("print.extrato.numDente"), larguraMm: 17, align: "left" },
+  { titulo: pl("print.relatorio.col.valor"), larguraMm: 20, align: "right" },
+  { titulo: pl("print.relatorio.col.saldo"), larguraMm: 20, align: "right" },
 ];
+}
 
 const IDX_SERVICO = 3;
 const IDX_PACIENTE = 5;
@@ -70,9 +85,9 @@ function criarCtx(pdf: jsPDF): Ctx {
   const margin = 14;
   const pageW = pdf.internal.pageSize.getWidth();
   const larguraUtil = pageW - margin * 2;
-  const somaBase = COLUNAS_BASE.reduce((s, c) => s + c.larguraMm, 0);
+  const somaBase = colunasExtratoBase().reduce((s, c) => s + c.larguraMm, 0);
   const fator = larguraUtil / somaBase;
-  const colunas = COLUNAS_BASE.map((c) => ({
+  const colunas = colunasExtratoBase().map((c) => ({
     ...c,
     larguraMm: c.larguraMm * fator,
   }));
@@ -166,7 +181,7 @@ function desenharTituloExtrato(ctx: Ctx, nomeCliente: string) {
   ctx.pdf.setFont("helvetica", "bold");
   ctx.pdf.setFontSize(12);
   ctx.pdf.setTextColor(...PRETO);
-  ctx.pdf.text(`Extrato Financeiro (${nomeCliente})`, ctx.pageW / 2, ctx.y, {
+  ctx.pdf.text(tituloExtratoFinanceiro(nomeCliente), ctx.pageW / 2, ctx.y, {
     align: "center",
   });
   ctx.y += 8;
@@ -192,7 +207,7 @@ function desenharCabecalhoColunas(ctx: Ctx) {
 function desenharLinhaSaldoAnterior(ctx: Ctx, linha: LinhaExtratoIndividualComSaldo) {
   novaPagina(ctx, ctx.rowH + 2);
   const y = ctx.y + 3.8;
-  desenharTexto(ctx, IDX_VALOR, "Saldo Anterior", y, { bold: true, align: "right" });
+  desenharTexto(ctx, IDX_VALOR, pl("print.extrato.saldoAnterior"), y, { bold: true, align: "right" });
   desenharTexto(ctx, IDX_SALDO, moneyCell(linha.saldo), y, { align: "right" });
   ctx.y += ctx.rowH;
   desenharDivisoriaRegistro(ctx);
@@ -257,11 +272,11 @@ function desenharResumo(ctx: Ctx, resumo: ResumoExtratoIndividual) {
   const x0 = ctx.margin;
 
   const itens: [string, number, boolean][] = [
-    ["(+) Saldo Anterior", resumo.saldoAnterior, false],
-    ["(+) Total Serviços", resumo.totalServicos, false],
-    ["(-) Total Pagamentos", resumo.totalPagamentos, false],
-    ["(-) Total Descontos", resumo.totalDescontos, false],
-    ["(=) Saldo Total", resumo.saldoTotal, true],
+    [pl("print.extrato.resumoSaldoAnterior"), resumo.saldoAnterior, false],
+    [pl("print.extrato.resumoTotalServicos"), resumo.totalServicos, false],
+    [pl("print.extrato.resumoTotalPagamentos"), resumo.totalPagamentos, false],
+    [pl("print.extrato.resumoTotalDescontos"), resumo.totalDescontos, false],
+    [pl("print.extrato.resumoSaldoTotal"), resumo.saldoTotal, true],
   ];
 
   ctx.pdf.setDrawColor(...CINZA_BORDA);
@@ -294,6 +309,7 @@ export async function gerarRelatorioExtratoIndividualSmartPdf(
   nomeCliente: string,
   opcoes?: OpcoesExtratoIndividualPdf
 ): Promise<Blob> {
+  iniciarImpressaoRelatorio();
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
   const ctx = criarCtx(pdf);
