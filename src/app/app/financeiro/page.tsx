@@ -101,7 +101,7 @@ import {
   exportarContasReceberClientesCsv,
   gerarContasReceberClientesPdf,
 } from "@/lib/contas-receber-clientes-export";
-import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, contribuiRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, classeReferenciaHistoricoRecebimento } from "@/lib/contas-receber-financeiro";
+import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, contribuiRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial } from "@/lib/contas-receber-financeiro";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroReceita } from "@/lib/financeiro-painel-types";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
@@ -1910,7 +1910,7 @@ function FinanceiroReceberConteudo() {
     if (quitada) {
       return { label: "Quitado", color: "bg-emerald-600 text-white font-semibold" };
     }
-    if (recebido > 0.009 && saldo > 0.009) {
+    if (faturaExibeSituacaoParcial(lancamento, data?.lancamentos || [])) {
       return { label: "Parcial", color: "bg-amber-100 text-amber-800" };
     }
     if (lancamento.status === "pago") {
@@ -2698,10 +2698,7 @@ function FinanceiroReceberConteudo() {
             onConfirmar={(payload, imprimir) => void confirmarRecebimento(payload, imprimir)}
             creditoDisponivel={creditoDisponivelCliente(recebendoCliente.clienteId)}
             onVisualizar={(lancamento) => {
-              setDetalheRecebimento({
-                cliente: recebendoCliente,
-                lancamento: lancamento as Lancamento,
-              });
+              setItensFatura(lancamento as Lancamento);
             }}
             pixAsaasDisponivel={pixAsaasDisponivel}
           />

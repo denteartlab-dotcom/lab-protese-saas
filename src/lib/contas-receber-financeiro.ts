@@ -279,6 +279,23 @@ export function textoParcelaLancamento(lancamento: LancamentoContasReceber) {
   return textoParcelaLog(parcela.numero, parcela.total);
 }
 
+export function faturaTemPagamentoParcialEmDinheiro(
+  lancamento: LancamentoContasReceber,
+  lancamentos: LancamentoContasReceber[]
+) {
+  return recebimentosParciaisDaFatura(lancamento, lancamentos).length > 0;
+}
+
+/** Parcial só quando houve recebimento parcial em dinheiro — abatimento de crédito mantém Em dia/Vencido. */
+export function faturaExibeSituacaoParcial(
+  lancamento: LancamentoContasReceber,
+  lancamentos: LancamentoContasReceber[]
+) {
+  if (lancamento.status === "pago" || lancamento.status === "cancelado") return false;
+  if (saldoFatura(lancamento, lancamentos) <= 0.009) return false;
+  return faturaTemPagamentoParcialEmDinheiro(lancamento, lancamentos);
+}
+
 export function situacaoFaturaLabel(
   lancamento: LancamentoContasReceber,
   lancamentos?: LancamentoContasReceber[]
@@ -288,7 +305,7 @@ export function situacaoFaturaLabel(
     const saldo = saldoFatura(lancamento, lancamentos);
     const recebido = recebidoNaFatura(lancamento, lancamentos);
     if (saldo <= 0.009 && recebido >= lancamento.valor - 0.009) return "Quitado";
-    if (recebido > 0.009 && saldo > 0.009) return "Parcial";
+    if (faturaExibeSituacaoParcial(lancamento, lancamentos)) return "Parcial";
   }
   if (lancamento.status === "pago") return "Recebido";
   const hoje = new Date();
