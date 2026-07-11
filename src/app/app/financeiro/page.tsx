@@ -103,7 +103,7 @@ import {
   exportarContasReceberClientesCsv,
   gerarContasReceberClientesPdf,
 } from "@/lib/contas-receber-clientes-export";
-import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, contribuiRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, recebimentosHistoricoCliente, movimentacoesRecebimentoDaFatura } from "@/lib/contas-receber-financeiro";
+import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, contribuiRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, recebimentosHistoricoCliente, movimentacoesRecebimentoDaFatura, ehFaturaCobrancaOsParaExclusao, idsLancamentosExclusaoAoRemoverFatura, type LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroReceita } from "@/lib/financeiro-painel-types";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
@@ -1236,28 +1236,44 @@ function FinanceiroReceberConteudo() {
 
   async function remove(id: string) {
     const lancamento = data?.lancamentos.find((item) => item.id === id);
+    const lancamentos = data?.lancamentos || [];
     const numerosOs = lancamento ? numerosOsDoLancamento(lancamento) : [];
-    const saldosRestante = lancamento ? saldosRestanteDoLancamento(lancamento) : [];
-    const creditosUtilizados = lancamento ? creditosUtilizadosDaFatura(lancamento) : [];
-    const idsParaExcluir = Array.from(
-      new Set([
-        id,
-        ...saldosRestante.map((item) => item.id),
-        ...creditosUtilizados.map((item) => item.id),
-      ])
-    );
+    const ehFaturaOs = lancamento && ehFaturaCobrancaOsParaExclusao(lancamento);
+    const idsParaExcluir = lancamento
+      ? ehFaturaOs
+        ? idsLancamentosExclusaoAoRemoverFatura(
+            lancamento as LancamentoContasReceber,
+            lancamentos as LancamentoContasReceber[]
+          )
+        : Array.from(
+            new Set([
+              id,
+              ...saldosRestanteDoLancamento(lancamento).map((item) => item.id),
+              ...creditosUtilizadosDaFatura(lancamento).map((item) => item.id),
+            ])
+          )
+      : [id];
+    const parciaisVinculados =
+      lancamento && ehFaturaOs
+        ? recebimentosParciaisDaFatura(lancamento).length
+        : 0;
     const avisos: string[] = [];
     if (numerosOs.length > 0 || lancamento?.trabalho?.numeroOs) {
       avisos.push(
-        "Atenção!! As OS desta fatura voltarão para Entregues | Finalizados não faturados."
+        "As OS desta fatura voltarão para Entregues | Finalizados não faturados, com o valor original da OS."
       );
     }
-    if (saldosRestante.length) {
+    if (ehFaturaOs && (parciaisVinculados > 0 || creditosUtilizadosDaFatura(lancamento).length > 0)) {
       avisos.push(
-        `O saldo restante vinculado a esta fatura (${saldosRestante.length}) também será excluído.`
+        "Todos os recebimentos vinculados a esta fatura (parciais, abatimento de crédito e saldo) também serão excluídos."
       );
     }
-    if (creditosUtilizados.length) {
+    if (!ehFaturaOs && saldosRestanteDoLancamento(lancamento!).length) {
+      avisos.push(
+        `O saldo restante vinculado a esta fatura (${saldosRestanteDoLancamento(lancamento!).length}) também será excluído.`
+      );
+    }
+    if (!ehFaturaOs && lancamento && creditosUtilizadosDaFatura(lancamento).length) {
       avisos.push("O crédito usado nesta fatura voltará para Adiantamentos.");
     }
     setConfirmacaoExclusao({
@@ -1278,12 +1294,17 @@ function FinanceiroReceberConteudo() {
         setFaturaEditando(null);
         setDetalheRecebimento(null);
         setReciboRecebimento(null);
+        setMovimentacoesRecebimento(null);
         setClienteCollapseAberto(null);
-        await Promise.all(
-          idsParaExcluir.map((lancamentoId) =>
-            fetch(`/api/financeiro/${lancamentoId}`, { method: "DELETE" })
-          )
-        );
+        if (ehFaturaOs) {
+          await fetch(`/api/financeiro/${id}`, { method: "DELETE" });
+        } else {
+          await Promise.all(
+            idsParaExcluir.map((lancamentoId) =>
+              fetch(`/api/financeiro/${lancamentoId}`, { method: "DELETE" })
+            )
+          );
+        }
         void loadPosMutacao();
       },
     });

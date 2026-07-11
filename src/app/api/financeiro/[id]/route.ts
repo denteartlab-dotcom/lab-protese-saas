@@ -13,6 +13,8 @@ import { invalidarCachePainelFinanceiro } from "@/lib/financeiro-painel-cache";
 import { lancamentoFaturaOsAtivo } from "@/lib/os-faturamento";
 import { sincronizarTrabalhosAposAlteracaoLancamento } from "@/lib/os-faturamento-sync-servidor";
 import { restaurarFaturaAposExclusaoPagamento } from "@/lib/recebimento-estorno-servidor";
+import { excluirFaturaCobrancaOsServidor } from "@/lib/fatura-exclusao-servidor";
+import { ehFaturaCobrancaOsParaExclusao } from "@/lib/contas-receber-financeiro";
 import { z } from "zod";
 
 const schema = z.object({
@@ -50,7 +52,7 @@ export async function PUT(
       where: { id, empresaId: ctx.empresaId },
       include: {
         cliente: true,
-        trabalho: { select: { numeroOs: true } },
+        trabalho: { select: { id: true, numeroOs: true } },
       },
     });
     if (!existente) {
@@ -126,31 +128,54 @@ export async function DELETE(
     where: { id, empresaId: ctx.empresaId },
     include: {
       cliente: true,
-      trabalho: { select: { numeroOs: true } },
+      trabalho: { select: { id: true, numeroOs: true } },
     },
   });
   if (!existente) {
     return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
   }
 
-  await prisma.lancamento.delete({ where: { id } });
-  try {
-    await restaurarFaturaAposExclusaoPagamento(ctx.empresaId, {
-      id: existente.id,
-      tipo: existente.tipo,
-      descricao: existente.descricao,
-      valor: existente.valor,
-      status: existente.status,
-      clienteId: existente.clienteId,
-    });
-  } catch (syncErr) {
-    console.error("[financeiro DELETE] restaurar fatura", syncErr);
+  const ehFaturaCobrancaOs = ehFaturaCobrancaOsParaExclusao({
+    tipo: existente.tipo,
+    descricao: existente.descricao,
+  });
+
+  if (ehFaturaCobrancaOs) {
+    try {
+      await excluirFaturaCobrancaOsServidor(ctx.empresaId, {
+        id: existente.id,
+        tipo: existente.tipo,
+        descricao: existente.descricao,
+        valor: existente.valor,
+        status: existente.status,
+        clienteId: existente.clienteId,
+        trabalho: existente.trabalho,
+      });
+    } catch (err) {
+      console.error("[financeiro DELETE] exclusão fatura", err);
+      return NextResponse.json({ error: "Erro ao excluir fatura" }, { status: 500 });
+    }
+  } else {
+    await prisma.lancamento.delete({ where: { id } });
+    try {
+      await restaurarFaturaAposExclusaoPagamento(ctx.empresaId, {
+        id: existente.id,
+        tipo: existente.tipo,
+        descricao: existente.descricao,
+        valor: existente.valor,
+        status: existente.status,
+        clienteId: existente.clienteId,
+      });
+    } catch (syncErr) {
+      console.error("[financeiro DELETE] restaurar fatura", syncErr);
+    }
+    try {
+      await removerMovimentacoesRecebimentoServidor(ctx.empresaId, [id]);
+    } catch (syncErr) {
+      console.error("[financeiro DELETE] sync conta bancária", syncErr);
+    }
   }
-  try {
-    await removerMovimentacoesRecebimentoServidor(ctx.empresaId, [id]);
-  } catch (syncErr) {
-    console.error("[financeiro DELETE] sync conta bancária", syncErr);
-  }
+
   try {
     await auditarExclusaoLancamento(ctx.user, existente);
   } catch (auditErr) {

@@ -568,3 +568,40 @@ export function faturaRelacionadaAoRecebimento(
   }
   return null;
 }
+
+export function ehFaturaCobrancaOsParaExclusao(
+  lancamento: Pick<LancamentoContasReceber, "tipo" | "descricao">
+) {
+  if (lancamento.tipo !== "receita") return false;
+  const descricao = lancamento.descricao.toLowerCase();
+  if (descricao.startsWith("adiantamento") || descricao.includes("crédito cliente")) return false;
+  if (descricao.startsWith("crédito utilizado") || descricao.includes("desconto com crédito")) {
+    return false;
+  }
+  return descricao.startsWith("cobrança os");
+}
+
+/** IDs a remover ao excluir fatura em Contas a Receber (fatura + parciais + crédito + saldo restante). */
+export function idsLancamentosExclusaoAoRemoverFatura(
+  fatura: LancamentoContasReceber,
+  lancamentos: LancamentoContasReceber[]
+) {
+  if (!ehFaturaCobrancaOsParaExclusao(fatura)) return [fatura.id];
+
+  const ids = new Set<string>([fatura.id]);
+  for (const parcial of recebimentosParciaisDaFatura(fatura, lancamentos)) {
+    if (parcial.id) ids.add(parcial.id);
+  }
+  for (const credito of creditosUtilizadosDaFatura(fatura, lancamentos)) {
+    if (credito.id) ids.add(credito.id);
+  }
+  const descricaoBase = descricaoReceitaSemMeta(fatura.descricao).trim();
+  const prefixoSaldo = `${descricaoBase} - Saldo restante`;
+  for (const item of lancamentos) {
+    if (item.id === fatura.id || item.tipo !== "receita") continue;
+    if (descricaoReceitaSemMeta(item.descricao).trim() === prefixoSaldo && item.id) {
+      ids.add(item.id);
+    }
+  }
+  return Array.from(ids);
+}
