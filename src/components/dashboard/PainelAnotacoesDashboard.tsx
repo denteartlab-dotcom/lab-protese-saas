@@ -9,6 +9,7 @@ import {
   removerAnotacaoDashboard,
   type AnotacaoDashboard,
 } from "@/lib/anotacoes-dashboard";
+import { apiFetch } from "@/lib/fetch-client";
 import type { Locale } from "@/lib/i18n";
 import {
   lerNotificacoesDescartadas,
@@ -38,6 +39,17 @@ export function PainelAnotacoesDashboard({
 }) {
   const [lista, setLista] = useState<AnotacaoDashboard[]>([]);
   const [texto, setTexto] = useState("");
+  const [userName, setUserName] = useState("");
+
+  useEffect(() => {
+    void apiFetch<{ name?: string }>("/api/auth/me")
+      .then((data) => {
+        if (typeof data.name === "string" && data.name.trim()) {
+          setUserName(data.name.trim());
+        }
+      })
+      .catch(() => undefined);
+  }, []);
 
   const recarregar = useCallback(() => {
     setLista(lerAnotacoesDashboard());
@@ -50,7 +62,7 @@ export function PainelAnotacoesDashboard({
   }, [recarregar]);
 
   function enviar() {
-    const nova = adicionarAnotacaoDashboard(texto);
+    const nova = adicionarAnotacaoDashboard(texto, userName || undefined);
     if (!nova) return;
     setTexto("");
     setLista(lerAnotacoesDashboard());
@@ -85,6 +97,12 @@ export function PainelAnotacoesDashboard({
                       {a.texto}
                     </p>
                     <p className="mt-1 text-[10px] text-slate-400">
+                      {a.autor ? (
+                        <>
+                          <span className="font-medium text-blue-600">{a.autor}</span>
+                          <span className="mx-1">·</span>
+                        </>
+                      ) : null}
                       {formatarDataAnotacao(a.criadoEm, locale)}
                     </p>
                   </div>

@@ -22,6 +22,8 @@ function formatarDataAnotacaoTv(iso: string) {
 export function textoLinhaAnotacaoTv(anotacao: AnotacaoDashboard) {
   const data = formatarDataAnotacaoTv(anotacao.criadoEm);
   const texto = anotacao.texto.replace(/\s+/g, " ").trim();
+  const autor = anotacao.autor?.trim();
+  if (autor) return `${autor} · ${data} — ${texto}`;
   return `${data} — ${texto}`;
 }
 

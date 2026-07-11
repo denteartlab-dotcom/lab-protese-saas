@@ -9,6 +9,8 @@ export type AnotacaoDashboard = {
   id: string;
   texto: string;
   criadoEm: string;
+  /** Nome de quem postou (compartilhado entre usuários do laboratório). */
+  autor?: string;
 };
 
 const MAX_ANOTACOES = 80;
@@ -30,13 +32,18 @@ export function salvarAnotacoesDashboard(lista: AnotacaoDashboard[]) {
   notifyAnotacoesAtualizadas();
 }
 
-export function adicionarAnotacaoDashboard(texto: string): AnotacaoDashboard | null {
+export function adicionarAnotacaoDashboard(
+  texto: string,
+  autor?: string
+): AnotacaoDashboard | null {
   const limpo = texto.trim();
   if (!limpo) return null;
+  const nomeAutor = autor?.trim();
   const nova: AnotacaoDashboard = {
     id: crypto.randomUUID(),
     texto: limpo,
     criadoEm: new Date().toISOString(),
+    ...(nomeAutor ? { autor: nomeAutor } : {}),
   };
   const lista = [nova, ...lerAnotacoesDashboard()];
   salvarAnotacoesDashboard(lista);
