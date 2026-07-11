@@ -3,7 +3,7 @@ import {
   filtrarTrabalhosCliente,
   itensDoTrabalho,
   nomePacienteTrabalho,
-  trabalhosDaFatura,
+  trabalhosDaFaturaParaExtrato,
   type TrabalhoRelatorioFatura,
 } from "@/lib/relatorio-faturas-modelo3-dados";
 import {
@@ -214,7 +214,7 @@ export function montarExtrato3Paciente(
   for (const l of receitas) {
     if (isCreditoGerado(l)) continue;
 
-    if (ehCobrancaOs(l) && trabalhosDaFatura(l, trabalhosCliente).length === 0) {
+    if (ehCobrancaOs(l) && trabalhosDaFaturaParaExtrato(l, trabalhosCliente, receitas).length === 0) {
       continue;
     }
 
@@ -305,7 +305,7 @@ export function montarExtrato3Paciente(
 
     const { texto, ordem } = dataFaturaLancamento(l);
     const numFat = String(faturaPorGrupo.get(chaveGrupo) ?? "");
-    const relacionados = trabalhosDaFatura(l, trabalhosCliente);
+    const relacionados = trabalhosDaFaturaParaExtrato(l, trabalhosCliente, receitas);
     if (relacionados.length === 0) continue;
 
     const porPaciente = new Map<string, ItemServico3[]>();

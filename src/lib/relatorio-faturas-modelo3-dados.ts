@@ -1,9 +1,11 @@
 import {
+  ehDescricaoReceitaOs,
   idsTrabalhosFaturadosNoLancamento,
   numerosOsDoLancamentoFatura,
 } from "@/lib/os-faturamento";
 import type { LinhaRelatorioContasReceber } from "@/lib/relatorio-contas-receber";
 import {
+  numeroFaturaDeLancamento,
   recebidoNaFatura,
   saldoFatura,
   textoParcelaLancamento,
@@ -254,6 +256,61 @@ export function trabalhosDaFatura(
   });
 }
 
+function dataCriacaoLancamento(lancamento: LancamentoContasReceber) {
+  return lancamento.createdAt
+    ? new Date(lancamento.createdAt).getTime()
+    : new Date(lancamento.data).getTime();
+}
+
+function ehLancamentoFaturaOsAtivo(lancamento: LancamentoContasReceber) {
+  if (lancamento.tipo !== "receita" || lancamento.status === "cancelado") return false;
+  const descricao = lancamento.descricao
+    .replace(/@@trab:[^@]+@@/gi, "")
+    .replace(/\s*\(\d+\s*\/\s*\d+\)\s*$/gi, "")
+    .trim();
+  return ehDescricaoReceitaOs(descricao);
+}
+
+/**
+ * Entre faturas que citam o mesmo trabalho/OS, retorna o lançamento canônico
+ * (menor número de fatura; em empate, o mais antigo).
+ */
+export function lancamentoDonoTrabalhoFatura(
+  trabalho: TrabalhoRelatorioFatura,
+  lancamentosReceita: LancamentoContasReceber[]
+): LancamentoContasReceber | null {
+  const candidatos = lancamentosReceita.filter((lancamento) => {
+    if (!ehLancamentoFaturaOsAtivo(lancamento)) return false;
+    return trabalhosDaFatura(lancamento, [trabalho]).some((t) => t.id === trabalho.id);
+  });
+  if (!candidatos.length) return null;
+  if (candidatos.length === 1) return candidatos[0];
+
+  const comMeta = candidatos.filter((lancamento) =>
+    idsTrabalhosFaturadosNoLancamento(lancamento).includes(trabalho.id)
+  );
+  const pool = comMeta.length > 0 ? comMeta : candidatos;
+
+  return pool.slice().sort((a, b) => {
+    const numeroA = numeroFaturaDeLancamento(a, lancamentosReceita);
+    const numeroB = numeroFaturaDeLancamento(b, lancamentosReceita);
+    if (numeroA !== numeroB) return numeroA - numeroB;
+    return dataCriacaoLancamento(a) - dataCriacaoLancamento(b);
+  })[0];
+}
+
+/** Trabalhos da fatura sem repetir o mesmo trabalho em múltiplas faturas do extrato. */
+export function trabalhosDaFaturaParaExtrato(
+  lancamento: LancamentoContasReceber,
+  trabalhos: TrabalhoRelatorioFatura[],
+  lancamentosReceita: LancamentoContasReceber[]
+): TrabalhoRelatorioFatura[] {
+  return trabalhosDaFatura(lancamento, trabalhos).filter((trabalho) => {
+    const dono = lancamentoDonoTrabalhoFatura(trabalho, lancamentosReceita);
+    return dono?.id === lancamento.id;
+  });
+}
+
 function dataEmissaoLancamento(lancamento: LancamentoContasReceber) {
   const d = lancamento.createdAt ? new Date(lancamento.createdAt) : new Date(lancamento.data);
   return formatDate(d.toISOString());
@@ -288,7 +345,7 @@ export function montarFaturasModelo3(
     const principal = lancamentosGrupo[0];
     const trabalhosRelacionados = new Map<string, TrabalhoRelatorioFatura>();
     for (const lanc of lancamentosGrupo) {
-      for (const t of trabalhosDaFatura(lanc, trabalhos)) {
+      for (const t of trabalhosDaFaturaParaExtrato(lanc, trabalhos, receitas)) {
         trabalhosRelacionados.set(t.id, t);
       }
     }

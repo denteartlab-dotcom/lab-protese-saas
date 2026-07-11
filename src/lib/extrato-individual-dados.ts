@@ -6,7 +6,7 @@ import {
   chaveAgrupamentoFatura,
   filtrarTrabalhosCliente,
   itensDoTrabalho,
-  trabalhosDaFatura,
+  trabalhosDaFaturaParaExtrato,
   type TrabalhoRelatorioFatura,
 } from "@/lib/relatorio-faturas-modelo3-dados";
 import {
@@ -103,10 +103,11 @@ function ehReceitaOs(l: LancamentoContasReceber) {
 
 function lancamentoSemTrabalhosValidos(
   l: LancamentoContasReceber,
-  trabalhosCliente: TrabalhoRelatorioFatura[]
+  trabalhosCliente: TrabalhoRelatorioFatura[],
+  receitas: LancamentoContasReceber[]
 ) {
   if (ehReceitaOs(l)) {
-    return trabalhosDaFatura(l, trabalhosCliente).length === 0;
+    return trabalhosDaFaturaParaExtrato(l, trabalhosCliente, receitas).length === 0;
   }
   if (l.trabalho?.id) {
     return !trabalhosCliente.some((t) => t.id === l.trabalho?.id);
@@ -218,7 +219,7 @@ export function montarExtratoIndividual(
   for (const l of receitas) {
     if (isCreditoGerado(l)) continue;
 
-    if (lancamentoSemTrabalhosValidos(l, trabalhosCliente)) {
+    if (lancamentoSemTrabalhosValidos(l, trabalhosCliente, receitas)) {
       continue;
     }
 
@@ -301,7 +302,7 @@ export function montarExtratoIndividual(
     const numFat = String(
       faturaPorGrupo.get(chaveGrupo) ?? numerosFatura.get(l.id) ?? ""
     );
-    const relacionados = trabalhosDaFatura(l, trabalhosCliente);
+    const relacionados = trabalhosDaFaturaParaExtrato(l, trabalhosCliente, receitas);
     if (relacionados.length === 0) continue;
 
     for (const t of relacionados) {
