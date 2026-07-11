@@ -21,6 +21,7 @@ import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal"
 import { useI18n } from "@/components/i18n-provider";
 import { BreadcrumbFinanceiro } from "@/components/financeiro/BreadcrumbFinanceiro";
 import { PlanoContasCadastroModal } from "@/components/financeiro/PlanoContasCadastroModal";
+import { nomeExibicaoPlanoContas } from "@/lib/i18n/plano-contas-i18n";
 
 function BotaoMais({
   item,
@@ -81,6 +82,7 @@ function LinhaSubconta({
   onExcluir: (item: ItemPlanoContas) => void;
   mostrarMais?: boolean;
 }) {
+  const { t } = useI18n();
   const podeExcluir = contaCriadaPeloUsuario(item);
   const profundidade = profundidadeRelativaAoGrupo(item, topico);
   const recuo =
@@ -100,7 +102,7 @@ function LinhaSubconta({
         <span className="font-medium text-sky-700 dark:text-sky-300/90">
           {item.codigo}
         </span>{" "}
-        {item.nome}
+        {nomeExibicaoPlanoContas(item, t)}
       </span>
       <div className="flex shrink-0 items-center gap-1">
         {podeExcluir ? (
@@ -127,10 +129,11 @@ function GrupoPlano({
   onExcluir: (item: ItemPlanoContas) => void;
   mostrarMaisNasLinhas?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div className="mb-7 last:mb-0">
       <p className="mb-2 text-[13px] font-semibold uppercase leading-snug tracking-wide text-sky-700 dark:text-sky-300">
-        {topico.codigo} {topico.nome}
+        {topico.codigo} {nomeExibicaoPlanoContas(topico, t)}
       </p>
       {filhos.length > 0 ? (
         <div className="overflow-hidden rounded-sm border border-slate-200 bg-white shadow-sm dark:border-slate-600/80 dark:bg-slate-900 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
@@ -288,7 +291,7 @@ export function PlanoContasConteudo() {
         mensagem={t("financeiro.plano.excluirMensagem")}
         detalhe={
           contaParaExcluir
-            ? `${contaParaExcluir.codigo} ${contaParaExcluir.nome}`
+            ? `${contaParaExcluir.codigo} ${nomeExibicaoPlanoContas(contaParaExcluir, t)}`
             : undefined
         }
         onClose={() => setContaParaExcluir(null)}

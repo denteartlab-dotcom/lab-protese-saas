@@ -1,4 +1,10 @@
 /** Traduções do módulo Financeiro — mescladas em messages.ts */
+import {
+  messagesFinanceiroPlanoItensEn,
+  messagesFinanceiroPlanoItensEs,
+  messagesFinanceiroPlanoItensPt,
+} from "@/lib/i18n/messages-financeiro-plano-itens";
+
 export const messagesFinanceiroPt = {
   "common.ver": "Ver",
   "common.pagar": "Pagar",
@@ -133,6 +139,12 @@ export const messagesFinanceiroPt = {
   "financeiro.plano.excluirConta": "Excluir conta",
   "financeiro.plano.excluirTitulo": "Excluir conta do plano",
   "financeiro.plano.excluirMensagem": "Deseja realmente excluir esta conta do plano de contas?",
+  "financeiro.plano.cadastroTitulo": "Cadastrar Plano de Contas",
+  "financeiro.plano.cadastroDados": "Dados do Plano de Contas",
+  "financeiro.plano.categoriaPertencente": "Categoria Pertencente",
+  "financeiro.plano.nome": "Nome",
+  "financeiro.plano.cadastrar": "Cadastrar",
+  "financeiro.plano.fechar": "Fechar",
   "financeiro.conta.titulo": "Financeiro",
   "financeiro.conta.adicionarConta": "Adicionar Conta",
   "financeiro.conta.conciliar": "Conciliar",
@@ -236,6 +248,7 @@ export const messagesFinanceiroPt = {
   "financeiro.receber.verQrCodePix": "Ver QR Code Pix",
   "financeiro.receber.abrirBoleto": "Abrir boleto",
   "financeiro.receber.fechar": "Fechar",
+  ...messagesFinanceiroPlanoItensPt,
 } as const;
 
 export const messagesFinanceiroEn = {
@@ -372,6 +385,12 @@ export const messagesFinanceiroEn = {
   "financeiro.plano.excluirConta": "Delete account",
   "financeiro.plano.excluirTitulo": "Delete chart account",
   "financeiro.plano.excluirMensagem": "Do you really want to delete this chart of accounts entry?",
+  "financeiro.plano.cadastroTitulo": "Register Chart of Accounts",
+  "financeiro.plano.cadastroDados": "Chart of Accounts Details",
+  "financeiro.plano.categoriaPertencente": "Parent Category",
+  "financeiro.plano.nome": "Name",
+  "financeiro.plano.cadastrar": "Register",
+  "financeiro.plano.fechar": "Close",
   "financeiro.conta.titulo": "Finance",
   "financeiro.conta.adicionarConta": "Add Account",
   "financeiro.conta.conciliar": "Reconcile",
@@ -475,6 +494,7 @@ export const messagesFinanceiroEn = {
   "financeiro.receber.verQrCodePix": "View Pix QR Code",
   "financeiro.receber.abrirBoleto": "Open bill",
   "financeiro.receber.fechar": "Close",
+  ...messagesFinanceiroPlanoItensEn,
 } as const;
 
 export const messagesFinanceiroEs = {
@@ -611,6 +631,12 @@ export const messagesFinanceiroEs = {
   "financeiro.plano.excluirConta": "Eliminar cuenta",
   "financeiro.plano.excluirTitulo": "Eliminar cuenta del plan",
   "financeiro.plano.excluirMensagem": "¿Desea realmente eliminar esta cuenta del plan de cuentas?",
+  "financeiro.plano.cadastroTitulo": "Registrar Plan de Cuentas",
+  "financeiro.plano.cadastroDados": "Datos del Plan de Cuentas",
+  "financeiro.plano.categoriaPertencente": "Categoría Pertinente",
+  "financeiro.plano.nome": "Nombre",
+  "financeiro.plano.cadastrar": "Registrar",
+  "financeiro.plano.fechar": "Cerrar",
   "financeiro.conta.titulo": "Finanzas",
   "financeiro.conta.adicionarConta": "Agregar Cuenta",
   "financeiro.conta.conciliar": "Conciliar",
@@ -714,4 +740,5 @@ export const messagesFinanceiroEs = {
   "financeiro.receber.verQrCodePix": "Ver QR Code Pix",
   "financeiro.receber.abrirBoleto": "Abrir boleto",
   "financeiro.receber.fechar": "Cerrar",
+  ...messagesFinanceiroPlanoItensEs,
 } as const;

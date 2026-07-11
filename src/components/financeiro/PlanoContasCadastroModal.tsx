@@ -10,6 +10,8 @@ import {
   type SecaoPlanoContas,
 } from "@/lib/plano-contas";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/components/i18n-provider";
+import { nomeExibicaoPlanoContas } from "@/lib/i18n/plano-contas-i18n";
 
 type Props = {
   open: boolean;
@@ -37,6 +39,7 @@ function CategoriaPertencenteSelect({
   value: string;
   onChange: (id: string) => void;
 }) {
+  const { t } = useI18n();
   const [aberto, setAberto] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -65,7 +68,9 @@ function CategoriaPertencenteSelect({
         aria-haspopup="listbox"
         aria-expanded={aberto}
       >
-        <span className="truncate">{selecionado?.nome ?? ""}</span>
+        <span className="truncate">
+          {selecionado ? nomeExibicaoPlanoContas(selecionado, t) : ""}
+        </span>
         <ChevronDown
           className={cn(
             "h-4 w-4 shrink-0 text-slate-400 transition-transform",
@@ -85,7 +90,7 @@ function CategoriaPertencenteSelect({
                 className="px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide"
                 style={{ backgroundColor: BG_GRUPO, color: AZUL_GRUPO }}
               >
-                {grupo.topico.nome}
+                {nomeExibicaoPlanoContas(grupo.topico, t)}
               </div>
               {grupo.filhos.map((filho) => {
                 const ativo = filho.id === value;
@@ -105,7 +110,7 @@ function CategoriaPertencenteSelect({
                     )}
                     style={ativo ? { backgroundColor: BG_GRUPO } : undefined}
                   >
-                    {filho.nome}
+                    {nomeExibicaoPlanoContas(filho, t)}
                   </button>
                 );
               })}
@@ -125,6 +130,7 @@ export function PlanoContasCadastroModal({
   onClose,
   onCadastrar,
 }: Props) {
+  const { t } = useI18n();
   const [portalPronto, setPortalPronto] = useState(false);
   const [categoriaId, setCategoriaId] = useState("");
   const [nome, setNome] = useState("");
@@ -174,13 +180,13 @@ export function PlanoContasCadastroModal({
             id="plano-contas-cadastro-titulo"
             className="text-[15px] font-normal text-slate-800"
           >
-            Cadastrar Plano de Contas
+            {t("financeiro.plano.cadastroTitulo")}
           </h2>
           <button
             type="button"
             onClick={onClose}
             className="text-lg leading-none text-slate-400 hover:text-slate-600"
-            aria-label="Fechar"
+            aria-label={t("financeiro.plano.fechar")}
           >
             ✕
           </button>
@@ -189,13 +195,14 @@ export function PlanoContasCadastroModal({
         <form onSubmit={handleSubmit} className="px-4 py-4">
           <div className="mb-4 flex items-center gap-2 text-[13px] text-slate-600">
             <Layers className="h-4 w-4 text-slate-400" strokeWidth={1.75} />
-            <span>Dados do Plano de Contas</span>
+            <span>{t("financeiro.plano.cadastroDados")}</span>
           </div>
 
           <div className="space-y-3">
             <div>
               <label className="mb-1 block text-[12px] text-slate-700">
-                Categoria Pertencente<span className="text-red-500">*</span>
+                {t("financeiro.plano.categoriaPertencente")}
+                <span className="text-red-500">*</span>
               </label>
               <CategoriaPertencenteSelect
                 grupos={grupos}
@@ -207,7 +214,8 @@ export function PlanoContasCadastroModal({
 
             <div>
               <label className="mb-1 block text-[12px] text-slate-700">
-                Nome<span className="text-red-500">*</span>
+                {t("financeiro.plano.nome")}
+                <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -225,14 +233,14 @@ export function PlanoContasCadastroModal({
               disabled={!categoriaSelecionada || !nome.trim()}
               className="h-9 rounded border border-[#4a90d9] bg-[#4a90d9] px-5 text-[13px] text-white hover:bg-[#3d7fc4] disabled:opacity-50"
             >
-              Cadastrar
+              {t("financeiro.plano.cadastrar")}
             </button>
             <button
               type="button"
               onClick={onClose}
               className="h-9 rounded border border-[#d4d4d4] bg-white px-5 text-[13px] text-slate-700 hover:bg-slate-50"
             >
-              Fechar
+              {t("financeiro.plano.fechar")}
             </button>
           </div>
         </form>
