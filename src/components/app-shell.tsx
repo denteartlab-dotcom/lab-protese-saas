@@ -12,7 +12,7 @@ import { LeitorCodigoBarrasModal } from "@/components/LeitorCodigoBarrasModal";
 import { InputLeitorCodigoOs } from "@/components/InputLeitorCodigoOs";
 import { extrairNumeroOsCodigo } from "@/lib/codigo-barras-os";
 import { SiteSearchBar, SiteSearchButton } from "@/components/header/SiteSearchBar";
-import { I18nProvider, useI18n } from "@/components/i18n-provider";
+import { useI18n } from "@/components/i18n-provider";
 import { usePermissoesApp } from "@/components/PermissoesAppProvider";
 import type { LabImpressaoConfig } from "@/lib/lab-impressao";
 import { dimensoesLogoPx } from "@/lib/lab-logo";
@@ -22,7 +22,6 @@ import {
   primeiroHrefPermitidoNav,
 } from "@/lib/permissoes-acesso";
 import { AppFaixaTopo } from "@/components/AppFaixaTopo";
-import { I18nAuto } from "@/components/I18nAuto";
 import { AssinaturaFaixaRodape } from "@/components/AssinaturaFaixaRodape";
 import { SuporteChatWidget } from "@/components/SuporteChatWidget";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
@@ -156,9 +155,8 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   return (
-    <I18nProvider>
-      <ArmazenamentoLaboratorioProvider>
-        <AppShellInner
+    <ArmazenamentoLaboratorioProvider>
+      <AppShellInner
           userName={userName}
           userRole={userRole}
           userEmail={userEmail}
@@ -171,7 +169,6 @@ export function AppShell({
           {children}
         </AppShellInner>
       </ArmazenamentoLaboratorioProvider>
-    </I18nProvider>
   );
 }
 
@@ -1407,7 +1404,7 @@ function AppShellInner({
                 )
           )}
         >
-          <I18nAuto>{children}</I18nAuto>
+          {children}
         </div>
       </main>
       {mostrarFaixaAssinatura && (

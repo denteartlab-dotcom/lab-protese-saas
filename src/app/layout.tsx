@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { LabConfigProvider } from "@/components/LabConfigProvider";
 import { LabDocumentHead } from "@/components/LabDocumentHead";
+import { I18nRoot } from "@/components/I18nRoot";
 import { SiteTopoMarca } from "@/components/SiteTopoMarca";
 import {
   FAVICON_PADRAO,
@@ -151,11 +152,13 @@ export default async function RootLayout({
       </head>
       <body>
         <LabConfigProvider lab={lab} configLaboratorio={configLaboratorio}>
-          <LabDocumentHead />
-          <div className="flex min-h-[calc(100dvh/var(--site-zoom,0.9))] flex-col">
-            <SiteTopoMarca />
-            <div className="flex min-h-0 flex-1 flex-col">{children}</div>
-          </div>
+          <I18nRoot>
+            <LabDocumentHead />
+            <div className="flex min-h-[calc(100dvh/var(--site-zoom,0.9))] flex-col">
+              <SiteTopoMarca />
+              <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+            </div>
+          </I18nRoot>
         </LabConfigProvider>
       </body>
     </html>

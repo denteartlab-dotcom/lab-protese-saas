@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";

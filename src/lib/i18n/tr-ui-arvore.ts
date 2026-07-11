@@ -15,6 +15,10 @@ const PROPS_TRADUZIVEIS = new Set([
   "mensagem",
   "emptyMessage",
   "titulo",
+  "aviso",
+  "subtitulo",
+  "descricao",
+  "texto",
   "alt",
   "emptymessage",
 ]);

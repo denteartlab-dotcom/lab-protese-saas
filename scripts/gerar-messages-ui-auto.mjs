@@ -29,6 +29,7 @@ function extrairStrings() {
         if (["node_modules", ".next"].includes(entry.name)) continue;
         walk(full);
       } else if (/\.(tsx?|mjs)$/.test(entry.name)) {
+        if (/[\\/]i18n[\\/]/.test(full) && /\.ts$/.test(entry.name)) continue;
         const content = fs.readFileSync(full, "utf8");
         const patterns = [
           /\blabel="([^"]{1,150})"/g,
@@ -37,7 +38,8 @@ function extrairStrings() {
           /\bplaceholder='([^']{1,150})'/g,
           /\btitle="([^"]{1,150})"/g,
           /\btitle='([^']{1,150})'/g,
-          /\bmensagem="([^"]{1,200})"/g,
+          /\baviso="([^"]{1,200})"/g,
+          /\baviso='([^']{1,200})'/g,
           /\bmensagem='([^']{1,200})'/g,
           /\bemptyMessage="([^"]{1,120})"/g,
           /\baria-label="([^"]{1,80})"/g,
@@ -51,7 +53,9 @@ function extrairStrings() {
           /\b(?:placeholder|emptyMessage|mensagem|titulo)\s*=\s*"([^"]{1,200})"/g,
           /\b(?:placeholder|emptyMessage|mensagem|titulo)\s*=\s*'([^']{1,200})'/g,
           /(?:placeholder|emptyMessage|mensagem)\s*=\s*\{?"([^"]{2,120})"?\}/g,
-          />([A-Za-zÀ-ú][^<>{}\n]{2,100})</g,
+          />([A-Za-zÀ-ú0-9][^<>{}\n]{1,120})</g,
+          /\bchildren:\s*"([^"]{2,120})"/g,
+          /\bchildren:\s*'([^']{2,120})'/g,
           /pdf\.text\(\s*"([^"]{2,120})"/g,
           /pdf\.text\(\s*'([^']{2,120})'/g,
           /<strong>([^<]{2,80})<\/strong>/g,

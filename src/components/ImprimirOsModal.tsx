@@ -1,5 +1,6 @@
 "use client";
 
+import { I18nPortal } from "@/components/I18nPortal";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Printer, X } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
