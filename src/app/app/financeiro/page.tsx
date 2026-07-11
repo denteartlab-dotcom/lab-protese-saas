@@ -115,6 +115,7 @@ import {
   PixQrRecebimentoModal,
   type DadosPixQrRecebimento,
 } from "@/components/financeiro/PixQrRecebimentoModal";
+import { useI18n } from "@/components/i18n-provider";
 
 type CobrancaAsaas = {
   id: string;
@@ -305,7 +306,15 @@ function FinanceiroRouter() {
   return <FinanceiroReceberConteudo />;
 }
 
+type SituacaoFaturaKey =
+  | "financeiro.receber.situacao.cancelado"
+  | "financeiro.receber.situacao.recebido"
+  | "financeiro.receber.situacao.parcial"
+  | "financeiro.receber.situacao.vencido"
+  | "financeiro.receber.situacao.emDia";
+
 function FinanceiroReceberConteudo() {
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const notifDeepLinkFeito = useRef(false);
   const saveEmAndamentoRef = useRef(false);
@@ -1259,26 +1268,24 @@ function FinanceiroReceberConteudo() {
         : 0;
     const avisos: string[] = [];
     if (numerosOs.length > 0 || lancamento?.trabalho?.numeroOs) {
-      avisos.push(
-        "As OS desta fatura voltarão para Entregues | Finalizados não faturados, com o valor original da OS."
-      );
+      avisos.push(t("financeiro.receber.avisoOsNaoFaturadas"));
     }
     if (ehFaturaOs && (parciaisVinculados > 0 || creditosUtilizadosDaFatura(lancamento).length > 0)) {
-      avisos.push(
-        "Todos os recebimentos vinculados a esta fatura (parciais, abatimento de crédito e saldo) também serão excluídos."
-      );
+      avisos.push(t("financeiro.receber.avisoRecebimentosVinculados"));
     }
     if (!ehFaturaOs && saldosRestanteDoLancamento(lancamento!).length) {
       avisos.push(
-        `O saldo restante vinculado a esta fatura (${saldosRestanteDoLancamento(lancamento!).length}) também será excluído.`
+        t("financeiro.receber.avisoSaldoRestante", {
+          qtd: String(saldosRestanteDoLancamento(lancamento!).length),
+        })
       );
     }
     if (!ehFaturaOs && lancamento && creditosUtilizadosDaFatura(lancamento).length) {
-      avisos.push("O crédito usado nesta fatura voltará para Adiantamentos.");
+      avisos.push(t("financeiro.receber.avisoCreditoAdiantamentos"));
     }
     setConfirmacaoExclusao({
-      title: "Excluir Lançamento",
-      message: "Deseja realmente excluir esse lançamento?",
+      title: t("financeiro.receber.confirmExcluirTitulo"),
+      message: t("financeiro.receber.confirmExcluirMensagem"),
       aviso: avisos.length > 0 ? avisos.join("\n\n") : undefined,
       onConfirm: async () => {
         const idsSet = new Set(idsParaExcluir);
@@ -1321,8 +1328,8 @@ function FinanceiroReceberConteudo() {
     const saldosRelacionados = ehCobrancaOs ? saldosRestanteDoLancamento(lancamento) : [];
 
     setConfirmacaoExclusao({
-      title: "Excluir Recebimento",
-      message: "Deseja realmente estornar esse Recebimento?",
+      title: t("financeiro.receber.confirmEstornarTitulo"),
+      message: t("financeiro.receber.confirmEstornarMensagem"),
       onConfirm: async () => {
         if (exclusaoSomente) {
           await fetch(`/api/financeiro/${lancamento.id}`, { method: "DELETE" });
@@ -1810,7 +1817,7 @@ function FinanceiroReceberConteudo() {
         alert(
           typeof json.error === "string"
             ? json.error
-            : "Não foi possível carregar o QR Code Pix."
+            : t("financeiro.receber.erroPixQr")
         );
         return;
       }
@@ -1935,36 +1942,60 @@ function FinanceiroReceberConteudo() {
     );
   }
 
-  function situacaoFatura(lancamento: Lancamento) {
+  function situacaoFatura(lancamento: Lancamento): {
+    key: SituacaoFaturaKey;
+    color: string;
+  } {
     if (lancamento.status === "cancelado") {
-      return { label: "Cancelado", color: "bg-slate-100 text-slate-600" };
+      return {
+        key: "financeiro.receber.situacao.cancelado",
+        color: "bg-slate-100 text-slate-600",
+      };
     }
-    const saldo = saldoFatura(lancamento);
-    const recebido = recebidoNaFatura(lancamento);
     const quitada = faturaQuitada(lancamento, data?.lancamentos || []);
     if (quitada) {
-      return { label: "Recebido", color: "bg-emerald-100 text-emerald-800 font-semibold" };
+      return {
+        key: "financeiro.receber.situacao.recebido",
+        color: "bg-emerald-100 text-emerald-800 font-semibold",
+      };
     }
     if (faturaExibeSituacaoParcial(lancamento, data?.lancamentos || [])) {
-      return { label: "Parcial", color: "bg-amber-100 text-amber-800" };
+      return {
+        key: "financeiro.receber.situacao.parcial",
+        color: "bg-amber-100 text-amber-800",
+      };
     }
     if (lancamento.status === "pago") {
-      return { label: "Recebido", color: "bg-emerald-100 text-emerald-700" };
+      return {
+        key: "financeiro.receber.situacao.recebido",
+        color: "bg-emerald-100 text-emerald-700",
+      };
     }
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
     const vencimento = dateOnly(lancamento.data);
     return vencimento < hoje
-      ? { label: "Vencido", color: "bg-[#dc2626] text-white font-semibold" }
-      : { label: "Em dia", color: "bg-emerald-100 text-emerald-700" };
+      ? {
+          key: "financeiro.receber.situacao.vencido",
+          color: "bg-[#dc2626] text-white font-semibold",
+        }
+      : {
+          key: "financeiro.receber.situacao.emDia",
+          color: "bg-emerald-100 text-emerald-700",
+        };
   }
 
   function situacaoFaturaLabel(lancamento: Lancamento) {
     const situacao = situacaoFatura(lancamento);
     const aReceber = lancamento.status !== "pago" && saldoFatura(lancamento) > 0.009;
-    const vencido = aReceber && situacao.label === "Vencido";
+    const vencido =
+      aReceber && situacao.key === "financeiro.receber.situacao.vencido";
     return {
-      label: vencido ? "VENCIDO" : aReceber ? "A RECEBER" : situacao.label.toUpperCase(),
+      label: vencido
+        ? t("financeiro.receber.situacao.vencidoUpper")
+        : aReceber
+          ? t("financeiro.receber.situacao.aReceberUpper")
+          : t(situacao.key).toUpperCase(),
       aReceber: aReceber && !vencido,
       vencido,
     };
@@ -2239,7 +2270,7 @@ function FinanceiroReceberConteudo() {
     setDataFinal(dateToBrShort(fim));
   }
 
-  if (!data) return <p>Carregando...</p>;
+  if (!data) return <p>{t("common.carregando")}</p>;
 
   return (
     <div className="space-y-3 text-[11px] text-slate-700">
@@ -2253,7 +2284,12 @@ function FinanceiroReceberConteudo() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-lg font-semibold text-slate-800">{money(resumoReceber.aReceber)}</p>
-              <p className="text-[11px] text-slate-500">Adiantamentos {money(resumoReceber.adiantamentos)} | A Receber {money(resumoReceber.aReceber)}</p>
+              <p className="text-[11px] text-slate-500">
+                {t("financeiro.receber.resumoAdiantamentosAReceber", {
+                  adiantamentos: money(resumoReceber.adiantamentos),
+                  aReceber: money(resumoReceber.aReceber),
+                })}
+              </p>
             </div>
             <span className="rounded-full bg-orange-50 p-2 text-orange-400">
               <FileText className="h-4 w-4" />
@@ -2264,7 +2300,7 @@ function FinanceiroReceberConteudo() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-lg font-semibold text-slate-800">{money(resumoReceber.atraso)}</p>
-              <p className="text-[11px] text-slate-500">Contas em Atraso</p>
+              <p className="text-[11px] text-slate-500">{t("financeiro.receber.resumoAtraso")}</p>
             </div>
             <span className="rounded-full bg-rose-50 p-2 text-rose-400">
               <AlertTriangle className="h-4 w-4" />
@@ -2275,7 +2311,7 @@ function FinanceiroReceberConteudo() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-lg font-semibold text-slate-800">{money(resumoReceber.recebidas)}</p>
-              <p className="text-[11px] text-slate-500">Contas Recebidas</p>
+              <p className="text-[11px] text-slate-500">{t("financeiro.receber.resumoRecebidas")}</p>
             </div>
             <span className="rounded-full bg-emerald-50 p-2 text-emerald-500">
               <Check className="h-4 w-4" />
@@ -2290,13 +2326,13 @@ function FinanceiroReceberConteudo() {
                   {money(totalNaoFaturados)}
                 </p>
                 <p className="text-[11px] text-slate-500">
-                  Entregues | Finalizados não faturados{" "}
+                  {t("financeiro.receber.naoFaturados")}{" "}
                   <button
                     type="button"
                     onClick={() => setModalNaoFaturados(true)}
                     className="rounded bg-[#4a90d9] px-1.5 py-0.5 text-[9px] font-normal text-white hover:bg-[#3b7bc4]"
                   >
-                    Ver
+                    {t("common.ver")}
                   </button>
                 </p>
               </div>
@@ -2311,7 +2347,7 @@ function FinanceiroReceberConteudo() {
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600" onClick={() => setOpen(true)}>
           <Plus className="h-3.5 w-3.5" />
-          Lançar Receita (Sem Cobrança)
+          {t("financeiro.receber.lancarReceita")}
         </Button>
         <Button
           size="sm"
@@ -2320,7 +2356,7 @@ function FinanceiroReceberConteudo() {
           onClick={() => setRelatorioAberto(true)}
         >
           <FileText className="h-3.5 w-3.5" />
-          Relatórios
+          {t("financeiro.receber.relatorios")}
         </Button>
         <BotoesImprimirExportarToolbar
           onImprimir={() => void imprimirContasReceberTela()}
@@ -2331,40 +2367,40 @@ function FinanceiroReceberConteudo() {
 
       <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">
         <div className="grid gap-3 md:grid-cols-[1.2fr_1fr_1fr_1.2fr_1.4fr_auto]">
-          <Select label="Período" value={periodo} onChange={(e) => aplicarPeriodo(e.target.value)}>
-            <option value="hoje">Hoje</option>
-            <option value="semana">Esta Semana</option>
-            <option value="mes">Este Mês</option>
-            <option value="proximos30">Próximos 30 dias</option>
-            <option value="todos">Mostrar Todos</option>
-            <option value="outro">Outro Período</option>
-            <option value="outro">Data Início / Final</option>
+          <Select label={t("financeiro.pagar.filtro.periodo")} value={periodo} onChange={(e) => aplicarPeriodo(e.target.value)}>
+            <option value="hoje">{t("financeiro.pagar.filtro.hoje")}</option>
+            <option value="semana">{t("financeiro.pagar.filtro.semana")}</option>
+            <option value="mes">{t("financeiro.pagar.filtro.mes")}</option>
+            <option value="proximos30">{t("financeiro.receber.filtro.proximos30")}</option>
+            <option value="todos">{t("financeiro.pagar.filtro.mostrarTodos")}</option>
+            <option value="outro">{t("financeiro.pagar.filtro.outroPeriodo")}</option>
+            <option value="outro">{t("financeiro.receber.filtro.dataInicioFinal")}</option>
           </Select>
           <CampoDataBr
-            label="Data Início"
+            label={t("financeiro.boletos.dataInicio")}
             value={dataInicio}
             onChange={setDataInicio}
             onValueChange={() => setPeriodo("outro")}
           />
           <CampoDataBr
-            label="Data Final"
+            label={t("financeiro.boletos.dataFim")}
             value={dataFinal}
             onChange={setDataFinal}
             onValueChange={() => setPeriodo("outro")}
           />
-          <Select label="Situação" value={situacao} onChange={(e) => setSituacao(e.target.value)}>
-            <option value="">Mostrar todos</option>
-            <option value="receber">A receber</option>
-            <option value="atraso">Em atraso</option>
+          <Select label={t("financeiro.receber.filtro.situacao")} value={situacao} onChange={(e) => setSituacao(e.target.value)}>
+            <option value="">{t("financeiro.receber.filtro.mostrarTodos")}</option>
+            <option value="receber">{t("financeiro.receber.filtro.aReceber")}</option>
+            <option value="atraso">{t("financeiro.receber.filtro.emAtraso")}</option>
           </Select>
           <Input
-            label="Procurar"
+            label={t("common.procurar")}
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            placeholder="Procurar"
+            placeholder={t("common.procurar")}
           />
           <Button className="mt-6" size="sm" variant="secondary" onClick={limparFiltros}>
-            Limpar
+            {t("common.limpar")}
           </Button>
         </div>
 
@@ -2372,12 +2408,12 @@ function FinanceiroReceberConteudo() {
           <table className="w-full min-w-[900px] text-[11px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
-                <th className="px-3 py-2 text-left font-semibold uppercase">Nome</th>
-                <th className="px-3 py-2 text-right font-semibold uppercase">A Receber</th>
-                <th className="px-3 py-2 text-right font-semibold uppercase">Recebido</th>
-                <th className="px-3 py-2 text-right font-semibold uppercase">Adiantamentos</th>
-                <th className="px-3 py-2 text-right font-semibold uppercase">Não Faturados</th>
-                <th className="px-3 py-2 text-center font-semibold uppercase">Opções</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("financeiro.pagar.col.nome")}</th>
+                <th className="px-3 py-2 text-right font-semibold uppercase">{t("financeiro.receber.col.aReceber")}</th>
+                <th className="px-3 py-2 text-right font-semibold uppercase">{t("financeiro.receber.col.recebido")}</th>
+                <th className="px-3 py-2 text-right font-semibold uppercase">{t("financeiro.receber.col.adiantamentos")}</th>
+                <th className="px-3 py-2 text-right font-semibold uppercase">{t("financeiro.receber.col.naoFaturados")}</th>
+                <th className="px-3 py-2 text-center font-semibold uppercase">{t("common.opcoes")}</th>
               </tr>
             </thead>
             <tbody>
@@ -2423,11 +2459,11 @@ function FinanceiroReceberConteudo() {
                             onClick={() => receberCliente(cliente)}
                             className="rounded bg-primary-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-primary-700"
                           >
-                            Receber
+                            {t("financeiro.receber.receber")}
                           </button>
                           <button
                             type="button"
-                            title="Visualizar faturas"
+                            title={t("financeiro.receber.visualizarFaturas")}
                             onClick={() => setClienteCollapseAberto(aberto ? null : chave)}
                             className={cn(
                               "rounded p-1 hover:bg-slate-100 hover:text-primary-700",
@@ -2451,29 +2487,28 @@ function FinanceiroReceberConteudo() {
                             <div className="rounded border border-blue-200 bg-white p-3 shadow-sm">
                               <div className="mb-3 flex items-center gap-2 text-primary-700">
                                 <FileText className="h-3.5 w-3.5" />
-                                <strong>Contas a Receber</strong>
+                                <strong>{t("financeiro.receber.secaoContasReceber")}</strong>
                               </div>
                               <div className="overflow-x-auto">
                                 <table className="w-full min-w-[850px] text-[11px]">
                                   <thead>
                                     <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
-                                      <th className="px-2 py-2 text-left">Vencimento</th>
-                                      <th className="px-2 py-2 text-left">Nº Fatura</th>
-                                      <th className="px-2 py-2 text-left">Parcela</th>
-                                      <th className="px-2 py-2 text-left">Forma Recebimento</th>
-                                      <th className="px-2 py-2 text-right">Valor</th>
-                                      <th className="px-2 py-2 text-right">Recebido</th>
-                                      <th className="px-2 py-2 text-right">Saldo</th>
-                                      <th className="px-2 py-2 text-left">Situação</th>
-                                      <th className="px-2 py-2 text-center">Opções</th>
+                                      <th className="px-2 py-2 text-left">{t("financeiro.pagar.col.vencimento")}</th>
+                                      <th className="px-2 py-2 text-left">{t("financeiro.receber.col.numeroFatura")}</th>
+                                      <th className="px-2 py-2 text-left">{t("financeiro.receber.col.parcela")}</th>
+                                      <th className="px-2 py-2 text-left">{t("financeiro.receber.col.formaRecebimento")}</th>
+                                      <th className="px-2 py-2 text-right">{t("financeiro.pagar.col.valor")}</th>
+                                      <th className="px-2 py-2 text-right">{t("financeiro.receber.col.recebido")}</th>
+                                      <th className="px-2 py-2 text-right">{t("financeiro.receber.col.saldo")}</th>
+                                      <th className="px-2 py-2 text-left">{t("financeiro.receber.filtro.situacao")}</th>
+                                      <th className="px-2 py-2 text-center">{t("common.opcoes")}</th>
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {faturasContasReceber.length === 0 && (
                                       <tr>
                                         <td colSpan={9} className="px-2 py-8 text-center text-slate-400">
-                                          Nenhuma fatura deste cliente dentro da Data Início e Data Final
-                                          selecionadas.
+                                          {t("financeiro.receber.vazioFaturas")}
                                         </td>
                                       </tr>
                                     )}
@@ -2493,7 +2528,7 @@ function FinanceiroReceberConteudo() {
                                           <td className="px-2 py-2 text-right">{money(saldoFatura(l))}</td>
                                           <td className="px-2 py-2">
                                             <span className={`rounded px-2 py-1 ${situacao.color}`}>
-                                              {situacao.label}
+                                              {t(situacao.key)}
                                             </span>
                                           </td>
                                           <td className="px-2 py-2">
@@ -2501,7 +2536,7 @@ function FinanceiroReceberConteudo() {
                                               {podeReabrirPixAsaas(l) ? (
                                                 <button
                                                   type="button"
-                                                  title="Abrir QR Code Pix"
+                                                  title={t("financeiro.receber.abrirPixQr")}
                                                   disabled={pixAbrindoLancamentoId === l.id}
                                                   onClick={() =>
                                                     void abrirPixQrLancamento(l, cliente.nome)
@@ -2509,7 +2544,7 @@ function FinanceiroReceberConteudo() {
                                                   className="inline-flex items-center gap-1 rounded p-1 text-sky-600 hover:bg-sky-50 disabled:opacity-50"
                                                 >
                                                   <QrCode className="h-3.5 w-3.5" />
-                                                  <span className="text-[10px]">Pix</span>
+                                                  <span className="text-[10px]">{t("financeiro.receber.pix")}</span>
                                                 </button>
                                               ) : null}
                                               {l.cobrancaAsaas?.bankSlipUrl ? (
@@ -2517,17 +2552,17 @@ function FinanceiroReceberConteudo() {
                                                   href={l.cobrancaAsaas.bankSlipUrl}
                                                   target="_blank"
                                                   rel="noopener noreferrer"
-                                                  title="Abrir boleto (PDF)"
+                                                  title={t("financeiro.receber.abrirBoletoPdf")}
                                                   className="inline-flex items-center gap-1 rounded p-1 text-emerald-600 hover:bg-emerald-50"
                                                 >
                                                   <FileText className="h-3.5 w-3.5" />
-                                                  <span className="text-[10px]">Boleto</span>
+                                                  <span className="text-[10px]">{t("financeiro.receber.boleto")}</span>
                                                 </a>
                                               ) : null}
                                               {quitada ? (
                                                 <button
                                                   type="button"
-                                                  title="Ver movimentações"
+                                                  title={t("financeiro.receber.verMovimentacoes")}
                                                   onClick={() =>
                                                     setMovimentacoesRecebimento({
                                                       cliente,
@@ -2541,7 +2576,7 @@ function FinanceiroReceberConteudo() {
                                               ) : null}
                                               <button
                                                 type="button"
-                                                title="Imprimir esta nota"
+                                                title={t("financeiro.receber.imprimirNota")}
                                                 onClick={() => abrirImprimirFatura(cliente, l)}
                                                 className="rounded p-1 text-slate-500 hover:bg-blue-50 hover:text-blue-700"
                                               >
@@ -2549,7 +2584,7 @@ function FinanceiroReceberConteudo() {
                                               </button>
                                               <button
                                                 type="button"
-                                                title="Editar fatura"
+                                                title={t("financeiro.receber.editarFatura")}
                                                 onClick={() => abrirEdicaoFatura(l)}
                                                 className="rounded p-1 text-slate-500 hover:bg-amber-50 hover:text-amber-600"
                                               >
@@ -2557,7 +2592,7 @@ function FinanceiroReceberConteudo() {
                                               </button>
                                               <button
                                                 type="button"
-                                                title="Excluir fatura"
+                                                title={t("financeiro.receber.excluirFatura")}
                                                 onClick={() => remove(l.id)}
                                                 className="rounded p-1 text-slate-500 hover:bg-red-50 hover:text-red-600"
                                               >
@@ -2575,25 +2610,24 @@ function FinanceiroReceberConteudo() {
                             <div className="rounded border border-emerald-200 bg-white p-3 shadow-sm">
                               <div className="mb-3 flex items-center gap-2 text-emerald-700">
                                 <Check className="h-3.5 w-3.5" />
-                                <strong>Recebimentos</strong>
+                                <strong>{t("financeiro.receber.secaoRecebimentos")}</strong>
                               </div>
                               <div className="overflow-x-auto">
                                 <table className="w-full min-w-[720px] text-[11px]">
                                   <thead>
                                     <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
-                                      <th className="px-2 py-2 text-left">Data</th>
-                                      <th className="px-2 py-2 text-left">Forma Pagamento</th>
-                                      <th className="px-2 py-2 text-left">Referência</th>
-                                      <th className="px-2 py-2 text-right">Valor</th>
-                                      <th className="px-2 py-2 text-center">Opções</th>
+                                      <th className="px-2 py-2 text-left">{t("financeiro.receber.col.data")}</th>
+                                      <th className="px-2 py-2 text-left">{t("financeiro.receber.col.formaPagamento")}</th>
+                                      <th className="px-2 py-2 text-left">{t("financeiro.receber.col.referencia")}</th>
+                                      <th className="px-2 py-2 text-right">{t("financeiro.pagar.col.valor")}</th>
+                                      <th className="px-2 py-2 text-center">{t("common.opcoes")}</th>
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {recebimentosCliente.length === 0 && (
                                       <tr>
                                         <td colSpan={5} className="px-2 py-8 text-center text-slate-400">
-                                          Nenhum recebimento encontrado para este cliente no período
-                                          selecionado.
+                                          {t("financeiro.receber.vazioRecebimentos")}
                                         </td>
                                       </tr>
                                     )}
@@ -2639,7 +2673,7 @@ function FinanceiroReceberConteudo() {
                                             {podeReabrirPixAsaas(l) ? (
                                               <button
                                                 type="button"
-                                                title="Abrir QR Code Pix"
+                                                title={t("financeiro.receber.abrirPixQr")}
                                                 disabled={pixAbrindoLancamentoId === l.id}
                                                 onClick={() =>
                                                   void abrirPixQrLancamento(l, cliente.nome)
@@ -2647,7 +2681,7 @@ function FinanceiroReceberConteudo() {
                                                 className="inline-flex items-center gap-1 rounded p-1 text-sky-600 hover:bg-sky-50 disabled:opacity-50"
                                               >
                                                 <QrCode className="h-3.5 w-3.5" />
-                                                <span className="text-[10px]">Pix</span>
+                                                <span className="text-[10px]">{t("financeiro.receber.pix")}</span>
                                               </button>
                                             ) : null}
                                             {l.cobrancaAsaas?.bankSlipUrl ? (
@@ -2655,16 +2689,16 @@ function FinanceiroReceberConteudo() {
                                                 href={l.cobrancaAsaas.bankSlipUrl}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                title="Abrir boleto (PDF)"
+                                                title={t("financeiro.receber.abrirBoletoPdf")}
                                                 className="inline-flex items-center gap-1 rounded p-1 text-emerald-600 hover:bg-emerald-50"
                                               >
                                                 <FileText className="h-3.5 w-3.5" />
-                                                <span className="text-[10px]">Boleto</span>
+                                                <span className="text-[10px]">{t("financeiro.receber.boleto")}</span>
                                               </a>
                                             ) : null}
                                             <button
                                               type="button"
-                                              title="Estornar recebimento"
+                                              title={t("financeiro.receber.estornarRecebimento")}
                                               onClick={() => void estornarRecebimento(l)}
                                               className="rounded p-1 text-slate-500 hover:bg-red-50 hover:text-red-600"
                                             >
@@ -2672,16 +2706,16 @@ function FinanceiroReceberConteudo() {
                                             </button>
                                             <button
                                               type="button"
-                                              title="Imprimir recibo"
+                                              title={t("financeiro.receber.imprimirRecibo")}
                                               onClick={() => imprimirRecibo(l, cliente)}
                                               className="inline-flex items-center gap-1 rounded p-1 text-emerald-600 hover:bg-emerald-50"
                                             >
                                               <Printer className="h-3.5 w-3.5" />
-                                              <span className="text-[10px]">Recibo</span>
+                                              <span className="text-[10px]">{t("financeiro.receber.recibo")}</span>
                                             </button>
                                             <button
                                               type="button"
-                                              title="Detalhes recebimento"
+                                              title={t("financeiro.receber.detalheRecebimento")}
                                               onClick={() =>
                                                 setDetalheRecebimento({ cliente, lancamento: l })
                                               }
@@ -2707,7 +2741,7 @@ function FinanceiroReceberConteudo() {
               {clientesReceber.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-3 py-8 text-center text-slate-400">
-                    Nenhuma conta a receber encontrada.
+                    {t("financeiro.receber.vazioClientes")}
                   </td>
                 </tr>
               )}
@@ -2845,7 +2879,7 @@ function FinanceiroReceberConteudo() {
       <Modal
         open={Boolean(faturaEditando)}
         onClose={() => setFaturaEditando(null)}
-        title="Editar Receita"
+        title={t("financeiro.receber.editarReceita")}
         size="xl"
       >
         {faturaEditando && (() => {
@@ -3104,28 +3138,28 @@ function FinanceiroReceberConteudo() {
       <Modal
         open={Boolean(detalheRecebimento)}
         onClose={() => setDetalheRecebimento(null)}
-        title="Detalhes Recebimento"
+        title={t("financeiro.receber.detalhesRecebimento")}
         size="xl"
       >
         {detalheRecebimento && (
           <div className="space-y-5 text-[13px] text-slate-600">
             <div className="space-y-1">
               <p>
-                <strong>Data Recebimento:</strong>{" "}
+                <strong>{t("financeiro.receber.dataRecebimento")}</strong>{" "}
                 {formatDate(detalheRecebimento.lancamento.data)}
               </p>
               <p>
-                <strong>Forma:</strong>{" "}
+                <strong>{t("financeiro.receber.forma")}</strong>{" "}
                 <span className="rounded bg-cyan-50 px-2 py-0.5 text-xs font-bold text-cyan-700">
                   {detalheRecebimento.lancamento.formaPagamento || "Pix Externo"}
                 </span>
               </p>
               <p>
-                <strong>Valor Recebido:</strong>{" "}
+                <strong>{t("financeiro.receber.valorRecebido")}</strong>{" "}
                 {currency(detalheRecebimento.lancamento.valor)}
               </p>
               <p>
-                <strong>Observação:</strong>
+                <strong>{t("financeiro.receber.observacao")}</strong>
               </p>
             </div>
 
@@ -3133,10 +3167,10 @@ function FinanceiroReceberConteudo() {
               <table className="w-full min-w-[720px] text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-100 text-slate-500">
-                    <th className="px-3 py-3 text-left font-bold uppercase">Nº Fatura</th>
-                    <th className="px-3 py-3 text-left font-bold uppercase">Parcela</th>
-                    <th className="px-3 py-3 text-left font-bold uppercase">Vencimento</th>
-                    <th className="px-3 py-3 text-left font-bold uppercase">Valor</th>
+                    <th className="px-3 py-3 text-left font-bold uppercase">{t("financeiro.receber.col.numeroFatura")}</th>
+                    <th className="px-3 py-3 text-left font-bold uppercase">{t("financeiro.receber.col.parcela")}</th>
+                    <th className="px-3 py-3 text-left font-bold uppercase">{t("financeiro.pagar.col.vencimento")}</th>
+                    <th className="px-3 py-3 text-left font-bold uppercase">{t("financeiro.pagar.col.valor")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -3168,7 +3202,7 @@ function FinanceiroReceberConteudo() {
                   }
                 >
                   <QrCode className="mr-2 h-4 w-4" />
-                  Ver QR Code Pix
+                  {t("financeiro.receber.verQrCodePix")}
                 </Button>
               ) : null}
               {detalheRecebimento.lancamento.cobrancaAsaas?.bankSlipUrl ? (
@@ -3179,7 +3213,7 @@ function FinanceiroReceberConteudo() {
                   className="inline-flex items-center rounded border border-emerald-300 bg-emerald-50 px-3 py-2 text-[12px] font-medium text-emerald-700 hover:bg-emerald-100"
                 >
                   <FileText className="mr-2 h-4 w-4" />
-                  Abrir boleto
+                  {t("financeiro.receber.abrirBoleto")}
                 </a>
               ) : null}
               <Button
@@ -3188,7 +3222,7 @@ function FinanceiroReceberConteudo() {
                 className="border-red-300 text-red-600 hover:bg-red-50"
                 onClick={() => setDetalheRecebimento(null)}
               >
-                × Fechar
+                × {t("financeiro.receber.fechar")}
               </Button>
             </div>
           </div>
