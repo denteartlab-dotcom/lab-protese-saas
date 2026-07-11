@@ -120,7 +120,7 @@ function linhaBase(
     valor: l.valor,
     recebido: recebidoNaFatura(l, receitas),
     saldo: saldoFatura(l, receitas),
-    situacao: situacaoFaturaLabel(l),
+    situacao: situacaoFaturaLabel(l, receitas),
     referencia: referenciaLancamento(l, receitas),
     descricao: l.descricao,
     paciente: pacienteDoLancamento(l, trabalhos),

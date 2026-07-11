@@ -101,7 +101,7 @@ import {
   exportarContasReceberClientesCsv,
   gerarContasReceberClientesPdf,
 } from "@/lib/contas-receber-clientes-export";
-import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, contribuiRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento } from "@/lib/contas-receber-financeiro";
+import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, contribuiRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, classeReferenciaHistoricoRecebimento } from "@/lib/contas-receber-financeiro";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroReceita } from "@/lib/financeiro-painel-types";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
@@ -1871,23 +1871,11 @@ function FinanceiroReceberConteudo() {
   }
 
   function recebidoNaFatura(lancamento: Lancamento) {
-    const credito = creditoUsadoNaFatura(lancamento);
-    const parciais = recebimentosParciaisDaFatura(lancamento).reduce(
-      (sum, item) => sum + item.valor,
-      0
-    );
-    const totalRecebido = credito + parciais;
-    if (lancamento.status === "pago") {
-      if (parciais > 0.009 || credito > 0.009) {
-        return Math.min(lancamento.valor, totalRecebido);
-      }
-      return lancamento.valor;
-    }
-    return Math.min(totalRecebido, lancamento.valor);
+    return recebidoNaFaturaLib(lancamento, data?.lancamentos || []);
   }
 
   function saldoFatura(lancamento: Lancamento) {
-    return Math.max(lancamento.valor - recebidoNaFatura(lancamento), 0);
+    return saldoFaturaLib(lancamento, data?.lancamentos || []);
   }
 
   function clienteTemVencido(cliente: ClienteReceber) {
@@ -1913,14 +1901,20 @@ function FinanceiroReceberConteudo() {
   }
 
   function situacaoFatura(lancamento: Lancamento) {
-    if (lancamento.status === "pago") {
-      return { label: "Recebido", color: "bg-emerald-100 text-emerald-700" };
-    }
     if (lancamento.status === "cancelado") {
       return { label: "Cancelado", color: "bg-slate-100 text-slate-600" };
     }
-    if (recebidoNaFatura(lancamento) > 0.009 && saldoFatura(lancamento) > 0.009) {
+    const saldo = saldoFatura(lancamento);
+    const recebido = recebidoNaFatura(lancamento);
+    const quitada = saldo <= 0.009 && recebido >= lancamento.valor - 0.009;
+    if (quitada) {
+      return { label: "Quitado", color: "bg-emerald-600 text-white font-semibold" };
+    }
+    if (recebido > 0.009 && saldo > 0.009) {
       return { label: "Parcial", color: "bg-amber-100 text-amber-800" };
+    }
+    if (lancamento.status === "pago") {
+      return { label: "Recebido", color: "bg-emerald-100 text-emerald-700" };
     }
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
@@ -2564,13 +2558,10 @@ function FinanceiroReceberConteudo() {
                                         </td>
                                         <td className="px-2 py-2">
                                           <span
-                                            className={
-                                              isCreditoGerado(l)
-                                                ? "rounded bg-emerald-100 px-2 py-1 text-emerald-700"
-                                                : isCreditoUtilizado(l)
-                                                  ? "rounded bg-blue-50 px-2 py-1 text-blue-700"
-                                                  : "rounded bg-blue-50 px-2 py-1 text-blue-700"
-                                            }
+                                            className={classeReferenciaHistoricoRecebimento(
+                                              l,
+                                              data?.lancamentos || []
+                                            )}
                                           >
                                             {referenciaLancamento(l)}
                                           </span>

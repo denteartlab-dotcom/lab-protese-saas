@@ -106,14 +106,12 @@ export function recebidoNaFatura(
     (sum, item) => sum + item.valor,
     0
   );
-  const totalRecebido = credito + parciais;
+  const totalParcialCredito = credito + parciais;
   if (lancamento.status === "pago") {
-    if (parciais > 0.009 || credito > 0.009) {
-      return Math.min(lancamento.valor, totalRecebido);
-    }
-    return lancamento.valor;
+    const cashFinal = valorRecebidoCashNaFaturaPaga(lancamento, lancamentos);
+    return Math.min(lancamento.valor, totalParcialCredito + cashFinal);
   }
-  return Math.min(totalRecebido, lancamento.valor);
+  return Math.min(totalParcialCredito, lancamento.valor);
 }
 
 export function lancamentoReceitaNoPeriodo(
@@ -159,9 +157,6 @@ export function contribuiRecebidoCliente(
   if (isRecebimentoParcial(lancamento)) return lancamento.valor;
   if (lancamento.descricao.toLowerCase().startsWith("cobrança os")) {
     if (lancamento.status !== "pago") return 0;
-    const parciais = recebimentosParciaisDaFatura(lancamento, lancamentos);
-    const credito = creditoUsadoNaFatura(lancamento, lancamentos);
-    if (parciais.length > 0 || credito > 0) return 0;
     return valorRecebidoCashNaFaturaPaga(lancamento, lancamentos);
   }
   return 0;
@@ -284,13 +279,45 @@ export function textoParcelaLancamento(lancamento: LancamentoContasReceber) {
   return textoParcelaLog(parcela.numero, parcela.total);
 }
 
-export function situacaoFaturaLabel(lancamento: LancamentoContasReceber) {
-  if (lancamento.status === "pago") return "Recebido";
+export function situacaoFaturaLabel(
+  lancamento: LancamentoContasReceber,
+  lancamentos?: LancamentoContasReceber[]
+) {
   if (lancamento.status === "cancelado") return "Cancelado";
+  if (lancamentos?.length) {
+    const saldo = saldoFatura(lancamento, lancamentos);
+    const recebido = recebidoNaFatura(lancamento, lancamentos);
+    if (saldo <= 0.009 && recebido >= lancamento.valor - 0.009) return "Quitado";
+    if (recebido > 0.009 && saldo > 0.009) return "Parcial";
+  }
+  if (lancamento.status === "pago") return "Recebido";
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
   const vencimento = dateOnly(lancamento.data);
   return vencimento < hoje ? "Vencido" : "Em dia";
+}
+
+export function classeReferenciaHistoricoRecebimento(
+  lancamento: LancamentoContasReceber,
+  lancamentos: LancamentoContasReceber[]
+) {
+  if (isCreditoGerado(lancamento)) {
+    return "rounded bg-emerald-100 px-2 py-1 text-emerald-700";
+  }
+  if (isCreditoUtilizado(lancamento)) {
+    return "rounded bg-blue-50 px-2 py-1 text-blue-700";
+  }
+  const ref = referenciaLancamento(lancamento, lancamentos);
+  if (ref === "Pagamento parcial") {
+    return "rounded bg-amber-100 px-2 py-1 text-amber-800";
+  }
+  if (ref === "Pagamento restante") {
+    return "rounded bg-violet-100 px-2 py-1 text-violet-800";
+  }
+  if (ref === "Pagamento da fatura") {
+    return "rounded bg-sky-100 px-2 py-1 text-sky-800";
+  }
+  return "rounded bg-blue-50 px-2 py-1 text-blue-700";
 }
 
 export function referenciaLancamento(
