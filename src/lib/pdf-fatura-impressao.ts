@@ -17,6 +17,12 @@ import {
 } from "@/lib/fatura-modelo-layout";
 import { configParaLabImpressao } from "@/lib/lab-logo";
 import { desenharCabecalhoRequisicaoPdf, type PdfCabecalhoApi } from "@/lib/pdf-cabecalho-os";
+import { pl } from "@/lib/i18n/print-relatorio-helpers";
+import {
+  definirLocaleImpressao,
+  formatMoneyImpressao,
+  resolverLocaleImpressao,
+} from "@/lib/i18n/print-i18n";
 import {
   hexParaRgb,
   margensLinhaRequisicao,
@@ -42,6 +48,10 @@ type PdfApi = PdfCabecalhoApi & {
   getLineHeightFactor?: () => number;
 };
 
+function rotuloFatura(chave: Parameters<typeof pl>[0]) {
+  return `${pl(chave)}: `;
+}
+
 type ColunaFatura = {
   chave: keyof FaturaModeloLayout;
   titulo: string;
@@ -49,16 +59,18 @@ type ColunaFatura = {
   align?: "left" | "center" | "right";
 };
 
-const COLUNAS_SMART: ColunaFatura[] = [
-  { chave: "numOs", titulo: "OS", larguraPct: 5, align: "left" },
-  { chave: "qtd", titulo: "Qtd", larguraPct: 5, align: "center" },
-  { chave: "servico", titulo: "Serviços/Produtos", larguraPct: 22, align: "left" },
-  { chave: "numDente", titulo: "Num Dente", larguraPct: 11, align: "left" },
-  { chave: "paciente", titulo: "Paciente", larguraPct: 13, align: "left" },
-  { chave: "valorUnit", titulo: "Unitário", larguraPct: 13, align: "right" },
-  { chave: "desconto", titulo: "Desc", larguraPct: 9, align: "right" },
-  { chave: "subtotal", titulo: "Subtotal", larguraPct: 13, align: "right" },
-];
+function colunasSmart(): ColunaFatura[] {
+  return [
+    { chave: "numOs", titulo: pl("print.fatura.col.os"), larguraPct: 5, align: "left" },
+    { chave: "qtd", titulo: pl("print.fatura.col.qtd"), larguraPct: 5, align: "center" },
+    { chave: "servico", titulo: pl("print.fatura.col.servicos"), larguraPct: 22, align: "left" },
+    { chave: "numDente", titulo: pl("print.fatura.col.numDente"), larguraPct: 11, align: "left" },
+    { chave: "paciente", titulo: pl("print.fatura.col.paciente"), larguraPct: 13, align: "left" },
+    { chave: "valorUnit", titulo: pl("print.fatura.col.unitario"), larguraPct: 13, align: "right" },
+    { chave: "desconto", titulo: pl("print.fatura.col.desconto"), larguraPct: 9, align: "right" },
+    { chave: "subtotal", titulo: pl("print.fatura.col.subtotal"), larguraPct: 13, align: "right" },
+  ];
+}
 
 export function faturaSuportaPdfNativo(modelo: ModeloFaturaId, formato: FormatoHtmlPdf) {
   return formato === "a4" && (modelo === "modelo1" || modelo === "modelo2" || modelo === "modelo3");
@@ -131,7 +143,7 @@ function desenharBordaRequisicaoPdf(pdf: PdfApi, corHex: string, yFimConteudo: n
 }
 
 function colunasAtivas(layout: FaturaModeloLayout) {
-  return COLUNAS_SMART.filter((c) => layout[c.chave]);
+  return colunasSmart().filter((c) => layout[c.chave]);
 }
 
 function largurasColunas(layout: FaturaModeloLayout, larguraTabela: number) {
@@ -185,11 +197,11 @@ function desenharMetaFaturaCabecalhoDireita(
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(fsSmall);
   if (layout.data) {
-    pdf.text(`Data: ${dataSomenteEmissao(dados.dataEmissao)}`, dir, yDir, { align: "right" });
+    pdf.text(`${pl("print.fatura.data")}: ${dataSomenteEmissao(dados.dataEmissao)}`, dir, yDir, { align: "right" });
     yDir += 4;
   }
   if (layout.usuario) {
-    pdf.text(`Usuário: ${dados.usuario || "—"}`, dir, yDir, { align: "right" });
+    pdf.text(`${pl("print.fatura.usuario")}: ${dados.usuario || "—"}`, dir, yDir, { align: "right" });
     yDir += 4;
   }
   return yDir;
@@ -211,32 +223,32 @@ function desenharInfoCliente(
 
   pdf.setFontSize(fsSmall);
   if (layout.cliente) {
-    labelValue(pdf, "Cliente: ", dados.clienteNome, m.conteudoEsq, yEsquerda);
+    labelValue(pdf, rotuloFatura("print.fatura.cliente"), dados.clienteNome, m.conteudoEsq, yEsquerda);
     yEsquerda += 4.5;
   }
   if (layout.clienteTel) {
-    labelValue(pdf, "Telefones: ", dados.clienteTelefones || "—", m.conteudoEsq, yEsquerda);
+    labelValue(pdf, rotuloFatura("print.fatura.telefones"), dados.clienteTelefones || "—", m.conteudoEsq, yEsquerda);
     yEsquerda += 4.5;
   }
   if (layout.ultimoPgto) {
-    labelValue(pdf, "Último Pgto: ", dados.ultimoPgto || "—", m.conteudoEsq, yEsquerda);
+    labelValue(pdf, `${pl("print.fatura.ultimoPgto")}: `, dados.ultimoPgto || "—", m.conteudoEsq, yEsquerda);
     yEsquerda += 4.5;
   }
   if (layout.saldoAnterior && !saldoAnteriorNosTotais) {
-    labelValue(pdf, "Saldo Anterior: ", dados.saldoAnterior || "R$ 0,00", m.conteudoEsq, yEsquerda);
+    labelValue(pdf, rotuloFatura("print.fatura.saldoAnterior"), dados.saldoAnterior || "R$ 0,00", m.conteudoEsq, yEsquerda);
     yEsquerda += 4.5;
   }
 
   if (layout.osExterna) {
-    labelValue(pdf, "OS Externa: ", osExternaResumo(dados.linhas), meio, yDireita);
+    labelValue(pdf, rotuloFatura("print.fatura.osExterna"), osExternaResumo(dados.linhas), meio, yDireita);
     yDireita += 4.5;
   }
   if (layout.clienteEmail) {
-    labelValue(pdf, "Email: ", dados.clienteEmail || "—", meio, yDireita);
+    labelValue(pdf, rotuloFatura("print.fatura.email"), dados.clienteEmail || "—", meio, yDireita);
     yDireita += 4.5;
   }
   if (layout.clienteEnd) {
-    labelValue(pdf, "Endereço: ", dados.clienteEndereco || "—", meio, yDireita);
+    labelValue(pdf, rotuloFatura("print.fatura.endereco"), dados.clienteEndereco || "—", meio, yDireita);
     yDireita += 4.5;
   }
 
@@ -369,10 +381,7 @@ function desenharTabelaItens(
 }
 
 function formatarMoedaPdf(valor: number) {
-  return `R$ ${valor.toLocaleString("pt-BR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  return formatMoneyImpressao(valor);
 }
 
 function desenharTotais(
@@ -401,26 +410,26 @@ function desenharTotais(
   if (layout.totalServicos) {
     const rotulo =
       modelo === "modelo2"
-        ? "Total Serviços/Produtos (=)"
+        ? pl("print.fatura.totalServicosProdutos")
         : modelo === "modelo3"
-          ? "Total Serviços (=)"
-          : "Total Serviços (+)";
+          ? pl("print.fatura.totalServicosIgual")
+          : pl("print.fatura.totalServicos");
     linhaTotal(rotulo, formatarMoedaPdf(dados.totalServicos));
   }
   if (modelo === "modelo3" && layout.saldoAnterior) {
-    linhaTotal("Saldo Anterior (+)", dados.saldoAnterior || "R$ 0,00");
+    linhaTotal(pl("print.fatura.saldoAnteriorMais"), dados.saldoAnterior || "R$ 0,00");
   }
   if (layout.descontoServicos) {
-    linhaTotal("Desconto Serviços (-)", "R$ 0,00");
+    linhaTotal(pl("print.fatura.descontoServicos"), "R$ 0,00");
   }
   if (layout.descontoFatura) {
-    linhaTotal("Desconto Fatura (-)", formatarMoedaPdf(dados.creditoFatura));
+    linhaTotal(pl("print.fatura.descontoFatura"), formatarMoedaPdf(dados.creditoFatura));
   }
   if (modelo === "modelo2") {
-    linhaTotal("Juros Fatura (+)", "R$ 0,00");
+    linhaTotal(pl("print.fatura.jurosFatura"), "R$ 0,00");
   }
   if (layout.total) {
-    linhaTotal("Total (=)", formatarMoedaPdf(dados.totalFinal), true);
+    linhaTotal(pl("print.fatura.total"), formatarMoedaPdf(dados.totalFinal), true);
   }
 
   return cursor + 2;
@@ -450,17 +459,17 @@ function desenharCondicaoPagamento(
 
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(fsSmall);
-  pdf.text("Condição de Pagamento", m.conteudoEsq, cursor);
+  pdf.text(pl("print.fatura.condicaoPagamento"), m.conteudoEsq, cursor);
   cursor += 5;
 
   const cols = [
-    { titulo: "Parcela", w: larguraTabela * 0.18, align: "left" as const },
-    { titulo: "Vencimento", w: larguraTabela * 0.18, align: "left" as const },
+    { titulo: pl("print.fatura.col.parcela"), w: larguraTabela * 0.18, align: "left" as const },
+    { titulo: pl("print.fatura.col.vencimento"), w: larguraTabela * 0.18, align: "left" as const },
     ...(layout.formaPgto
-      ? [{ titulo: "Forma Pagto", w: larguraTabela * 0.26, align: "left" as const }]
+      ? [{ titulo: pl("print.fatura.col.formaPagto"), w: larguraTabela * 0.26, align: "left" as const }]
       : []),
-    { titulo: "Valor", w: larguraTabela * 0.19, align: "right" as const },
-    { titulo: "Pago", w: larguraTabela * 0.19, align: "right" as const },
+    { titulo: pl("print.fatura.col.valor"), w: larguraTabela * 0.19, align: "right" as const },
+    { titulo: pl("print.fatura.col.pago"), w: larguraTabela * 0.19, align: "right" as const },
   ];
 
   let x = m.tabelaEsq;
@@ -501,7 +510,7 @@ function desenharCondicaoPagamento(
       const linhas = linhasPorColuna[i];
       if (recebida) {
         pdf.setTextColor(corPago.r, corPago.g, corPago.b);
-        pdf.setFont("helvetica", col.titulo === "Pago" ? "bold" : "normal");
+        pdf.setFont("helvetica", col.titulo === pl("print.fatura.col.pago") ? "bold" : "normal");
       } else {
         pdf.setTextColor(0, 0, 0);
         pdf.setFont("helvetica", "normal");
@@ -538,7 +547,7 @@ function desenharRodape(
     cursor += FATURA_SMART_ESPACO_OBS_RODAPE_MM * 0.15;
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(fsSmall);
-    pdf.text(`Observação: ${dados.observacao || ""}`, margensLinhaRequisicao(pageWidth).conteudoEsq, cursor);
+    pdf.text(`${pl("print.fatura.observacao")}: ${dados.observacao || ""}`, margensLinhaRequisicao(pageWidth).conteudoEsq, cursor);
     cursor += 6;
   }
 
@@ -555,7 +564,7 @@ function desenharRodape(
     const xLinha = (pageWidth - largura) / 2;
     linhaSegmentoPdf(pdf, xLinha, cursor, xLinha + largura);
     pdf.setFontSize(Math.max(8, fsSmall - 1));
-    pdf.text("Recebi o(s) serviço(s) descritos acima", pageWidth / 2, cursor + 4, {
+    pdf.text(pl("print.fatura.assinatura"), pageWidth / 2, cursor + 4, {
       align: "center",
     });
     cursor += 10;
@@ -569,7 +578,7 @@ function desenharRodape(
       const fmt = layout.pixQrImagem.toLowerCase().includes("png") ? "PNG" : "JPEG";
       pdf.addImage(layout.pixQrImagem, fmt, xQr, cursor - tamanhoMm + 2, tamanhoMm, tamanhoMm);
       pdf.setFontSize(layout.pixQrFonte * 0.75);
-      pdf.text("Pagar com PIX", xQr + tamanhoMm + 3, cursor);
+      pdf.text(pl("print.fatura.pagarPix"), xQr + tamanhoMm + 3, cursor);
     } catch {
       /* ignore */
     }
@@ -597,7 +606,7 @@ function renderFaturaA4SmartPdf(
   let y = desenharCabecalhoRequisicaoPdf(pdf, {
     lab,
     configLab: cfgLab,
-    tituloDireita: "Fatura",
+    tituloDireita: pl("print.fatura.titulo"),
     exibirLogo: layout.logo,
     exibirInfoLab: layout.infoLab,
     linhaEsq: m.linhaEsq,
@@ -630,6 +639,7 @@ export async function gerarPdfFaturaImpressao(opts: {
   const cfgLab =
     opts.cfgLab ??
     (typeof window !== "undefined" ? carregarConfigLaboratorio() : CONFIG_LAB_PADRAO);
+  definirLocaleImpressao(resolverLocaleImpressao({ configLab: cfgLab }));
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   renderFaturaA4SmartPdf(

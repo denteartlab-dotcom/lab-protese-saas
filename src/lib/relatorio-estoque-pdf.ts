@@ -8,17 +8,25 @@ import type { TotaisPosicaoEstoque } from "@/lib/relatorio-estoque";
 import type { TotaisVendaProduto } from "@/lib/relatorio-estoque";
 import { gerarRelatorioTabelaPdf } from "@/lib/pdf-relatorio-tabela";
 import type { OpcaoRelatorioEstoque } from "@/lib/relatorio-estoque";
+import {
+  iniciarImpressaoRelatorio,
+  periodoRelatorioTexto,
+  pl,
+} from "@/lib/i18n/print-relatorio-helpers";
 
 function periodoLabel(dataInicio: string, dataFim: string) {
-  return `${dataInicio || "—"} à ${dataFim || "—"}`;
+  return periodoRelatorioTexto(dataInicio || "—", dataFim || "—");
 }
 
-const TITULOS: Record<OpcaoRelatorioEstoque, string> = {
-  controle_produtos: "Controle de Produtos",
-  venda_produtos: "Relatório Venda de Produtos",
-  movimentacao_agrupado: "Movimentação de Estoque (Agrupado)",
-  movimentacao: "Movimentação do Estoque",
-};
+function tituloEstoque(modo: OpcaoRelatorioEstoque) {
+  const chaves = {
+    controle_produtos: "print.relatorio.estoque.controleProdutos",
+    venda_produtos: "print.relatorio.estoque.vendaProdutos",
+    movimentacao_agrupado: "print.relatorio.estoque.movimentacaoAgrupado",
+    movimentacao: "print.relatorio.estoque.movimentacao",
+  } as const;
+  return pl(chaves[modo]);
+}
 
 export async function gerarRelatorioEstoquePdf(
   modo: OpcaoRelatorioEstoque,
@@ -30,23 +38,24 @@ export async function gerarRelatorioEstoquePdf(
     | { tipo: "agrupado"; linhas: LinhaPosicaoEstoque[]; totais: TotaisPosicaoEstoque }
     | { tipo: "movimentacao"; linhas: LinhaRelatorioEstoque[] }
 ) {
+  iniciarImpressaoRelatorio();
   const periodo = periodoLabel(dataInicio, dataFim);
-  const titulo = TITULOS[modo];
+  const titulo = tituloEstoque(modo);
 
   if (dados.tipo === "controle") {
     return gerarRelatorioTabelaPdf({
       tituloRelatorio: titulo,
       periodoTexto: periodo,
       colunas: [
-        { titulo: "Código", larguraMm: 18, alinhamento: "left" },
-        { titulo: "Produto", larguraMm: 36, alinhamento: "left" },
-        { titulo: "Marca", larguraMm: 22, alinhamento: "left" },
-        { titulo: "Estoque", larguraMm: 22, alinhamento: "right" },
-        { titulo: "Mín", larguraMm: 14, alinhamento: "right" },
-        { titulo: "Máx", larguraMm: 14, alinhamento: "right" },
-        { titulo: "Custo", larguraMm: 22, alinhamento: "right" },
-        { titulo: "Venda", larguraMm: 22, alinhamento: "right" },
-        { titulo: "Total", larguraMm: 22, alinhamento: "right" },
+        { titulo: pl("print.relatorio.estoque.codigo"), larguraMm: 18, alinhamento: "left" },
+        { titulo: pl("print.relatorio.estoque.produto"), larguraMm: 36, alinhamento: "left" },
+        { titulo: pl("print.relatorio.estoque.marca"), larguraMm: 22, alinhamento: "left" },
+        { titulo: pl("print.relatorio.estoque.estoque"), larguraMm: 22, alinhamento: "right" },
+        { titulo: pl("print.relatorio.estoque.min"), larguraMm: 14, alinhamento: "right" },
+        { titulo: pl("print.relatorio.estoque.max"), larguraMm: 14, alinhamento: "right" },
+        { titulo: pl("print.relatorio.estoque.custo"), larguraMm: 22, alinhamento: "right" },
+        { titulo: pl("print.relatorio.estoque.venda"), larguraMm: 22, alinhamento: "right" },
+        { titulo: pl("print.relatorio.total"), larguraMm: 22, alinhamento: "right" },
       ],
       linhas: dados.linhas.map((l) => [
         l.codigo,
@@ -61,7 +70,7 @@ export async function gerarRelatorioEstoquePdf(
       ]),
       linhaTotal: {
         indiceRotulo: 5,
-        rotulo: "TOTAL",
+        rotulo: pl("print.relatorio.total"),
         celulas: [null, null, null, null, null, null, null, null, moneyRelatorioEstoque(dados.totais.totalGeral)],
       },
     });
@@ -72,13 +81,13 @@ export async function gerarRelatorioEstoquePdf(
       tituloRelatorio: titulo,
       periodoTexto: periodo,
       colunas: [
-        { titulo: "Data entregue", larguraMm: 28, alinhamento: "left" },
-        { titulo: "Qtd", larguraMm: 16, alinhamento: "right" },
-        { titulo: "Produto", larguraMm: 48, alinhamento: "left" },
-        { titulo: "Marca", larguraMm: 24, alinhamento: "left" },
-        { titulo: "Custo", larguraMm: 26, alinhamento: "right" },
-        { titulo: "Venda", larguraMm: 26, alinhamento: "right" },
-        { titulo: "Lucro", larguraMm: 26, alinhamento: "right" },
+        { titulo: pl("print.relatorio.estoque.dataEntregue"), larguraMm: 28, alinhamento: "left" },
+        { titulo: pl("print.extrato.qtd"), larguraMm: 16, alinhamento: "right" },
+        { titulo: pl("print.relatorio.estoque.produto"), larguraMm: 48, alinhamento: "left" },
+        { titulo: pl("print.relatorio.estoque.marca"), larguraMm: 24, alinhamento: "left" },
+        { titulo: pl("print.relatorio.estoque.custo"), larguraMm: 26, alinhamento: "right" },
+        { titulo: pl("print.relatorio.estoque.venda"), larguraMm: 26, alinhamento: "right" },
+        { titulo: pl("print.relatorio.estoque.lucro"), larguraMm: 26, alinhamento: "right" },
       ],
       linhas: dados.linhas.map((l) => [
         l.dataEntregue,
@@ -91,7 +100,7 @@ export async function gerarRelatorioEstoquePdf(
       ]),
       linhaTotal: {
         indiceRotulo: 3,
-        rotulo: "TOTAL",
+        rotulo: pl("print.relatorio.total"),
         celulas: [
           null,
           null,
@@ -106,17 +115,18 @@ export async function gerarRelatorioEstoquePdf(
   }
 
   if (dados.tipo === "agrupado") {
+    const rotuloTotais = pl("print.relatorio.estoque.totais");
     return gerarRelatorioTabelaPdf({
       tituloRelatorio: titulo,
       periodoTexto: periodo,
       colunas: [
-        { titulo: "Produto", larguraMm: 40, alinhamento: "left" },
-        { titulo: "Marca", larguraMm: 22, alinhamento: "left" },
-        { titulo: "Entradas", larguraMm: 20, alinhamento: "right" },
-        { titulo: "Saídas", larguraMm: 20, alinhamento: "right" },
-        { titulo: "Estoque", larguraMm: 24, alinhamento: "right" },
-        { titulo: "V. Unit.", larguraMm: 26, alinhamento: "right" },
-        { titulo: "Valor", larguraMm: 26, alinhamento: "right" },
+        { titulo: pl("print.relatorio.estoque.produto"), larguraMm: 40, alinhamento: "left" },
+        { titulo: pl("print.relatorio.estoque.marca"), larguraMm: 22, alinhamento: "left" },
+        { titulo: pl("print.relatorio.estoque.entradas"), larguraMm: 20, alinhamento: "right" },
+        { titulo: pl("print.relatorio.estoque.saidas"), larguraMm: 20, alinhamento: "right" },
+        { titulo: pl("print.relatorio.estoque.estoque"), larguraMm: 24, alinhamento: "right" },
+        { titulo: pl("print.relatorio.estoque.valorUnit"), larguraMm: 26, alinhamento: "right" },
+        { titulo: pl("print.relatorio.estoque.valor"), larguraMm: 26, alinhamento: "right" },
       ],
       linhas: dados.linhas.map((l) => [
         l.produto,
@@ -129,9 +139,9 @@ export async function gerarRelatorioEstoquePdf(
       ]),
       linhaTotal: {
         indiceRotulo: 0,
-        rotulo: "TOTAIS",
+        rotulo: rotuloTotais,
         celulas: [
-          "TOTAIS",
+          rotuloTotais,
           null,
           String(dados.totais.entradas),
           String(dados.totais.saidas),
@@ -147,12 +157,12 @@ export async function gerarRelatorioEstoquePdf(
     tituloRelatorio: titulo,
     periodoTexto: periodo,
     colunas: [
-      { titulo: "Data", larguraMm: 32, alinhamento: "left" },
-      { titulo: "Tipo", larguraMm: 18, alinhamento: "center" },
-      { titulo: "Produto", larguraMm: 44, alinhamento: "left" },
-      { titulo: "Qtd", larguraMm: 16, alinhamento: "right" },
-      { titulo: "Setor", larguraMm: 28, alinhamento: "left" },
-      { titulo: "Colaborador", larguraMm: 36, alinhamento: "left" },
+      { titulo: pl("print.relatorio.estoque.data"), larguraMm: 32, alinhamento: "left" },
+      { titulo: pl("print.relatorio.estoque.tipo"), larguraMm: 18, alinhamento: "center" },
+      { titulo: pl("print.relatorio.estoque.produto"), larguraMm: 44, alinhamento: "left" },
+      { titulo: pl("print.extrato.qtd"), larguraMm: 16, alinhamento: "right" },
+      { titulo: pl("print.relatorio.estoque.setor"), larguraMm: 28, alinhamento: "left" },
+      { titulo: pl("print.relatorio.estoque.colaborador"), larguraMm: 36, alinhamento: "left" },
     ],
     linhas: dados.linhas.map((l) => [
       l.dataLabel,

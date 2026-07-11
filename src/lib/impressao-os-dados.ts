@@ -1,4 +1,6 @@
-import { formatDate, STATUS_TRABALHO } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
+import { idiomaFromConfig, translate } from "@/lib/i18n";
+import { labelStatusTrabalho } from "@/lib/i18n/status-trabalho-i18n";
 import { prisma } from "@/lib/db";
 import {
   segmentoEfetivoTrabalho,
@@ -281,6 +283,14 @@ export async function carregarDadosImpressaoOs({
 
   const escalaPadrao = trabalhoServico.escala ?? t.escala;
 
+  const configLabRaw = await carregarConfigLaboratorioServidor(t.empresaId);
+  const configLab = garantirNomeLaboratorioParaImpressao(configLabRaw);
+  const configuracoesOs = await carregarConfiguracoesOsServidor(t.empresaId);
+  const usuarioCriou = nomeExibicaoLaboratorio(configLab);
+  const locale = idiomaFromConfig(configLab);
+  const tStatus = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) =>
+    translate(locale, key, params);
+
   let itens = somenteItem
     ? extrairItensImpressaoOs(
         [t.instrucoes],
@@ -316,7 +326,7 @@ export async function carregarDadosImpressaoOs({
   itens = anexarPrazosServicoPorTrabalho(
     itens,
     grupo,
-    (status) => STATUS_TRABALHO[status]?.label || status
+    (status) => labelStatusTrabalho(tStatus, status)
   );
 
   itens = sanitizarItensImpressao(itens);
@@ -355,11 +365,6 @@ export async function carregarDadosImpressaoOs({
     segmentoSomenteItem
   );
 
-  const configLabRaw = await carregarConfigLaboratorioServidor(t.empresaId);
-  const configLab = garantirNomeLaboratorioParaImpressao(configLabRaw);
-  const configuracoesOs = await carregarConfiguracoesOsServidor(t.empresaId);
-  const usuarioCriou = nomeExibicaoLaboratorio(configLab);
-
   const etapasPorServico = somenteItem
     ? segmentoEfetivoTrabalho(t) === "servico"
       ? etapasPorServicoImpressao([t], segmentoEfetivoTrabalho)
@@ -370,7 +375,7 @@ export async function carregarDadosImpressaoOs({
     numeroOs: t.numeroOs,
     usuarioCriou,
     dataEntrada: dateOrEmpty(t.dataEntrada),
-    status: STATUS_TRABALHO[t.status]?.label || t.status || "",
+    status: labelStatusTrabalho(tStatus, t.status),
     cliente: nomeCliente,
     dentista: empty(dentistaNome) || empty(cliente.cro),
     paciente: empty(paciente.nome),
@@ -399,7 +404,7 @@ export async function carregarDadosImpressaoOs({
     etapas: lineValue(linhas, "Etapas:"),
     urgente,
     repeticao,
-    producao: STATUS_TRABALHO[statusServico]?.label || statusServico || "",
+    producao: labelStatusTrabalho(tStatus, statusServico),
     pecas: formatarDentesParaImpressaoOs(t.dentes || "") || empty(t.dentes),
     obsFicha: "",
     itens,

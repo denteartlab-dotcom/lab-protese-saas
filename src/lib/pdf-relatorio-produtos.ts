@@ -19,6 +19,8 @@ import {
 } from "@/lib/lab-impressao";
 import type { LinhaControleProduto } from "@/lib/relatorio-estoque";
 import { moneyRelatorioEstoque } from "@/lib/relatorio-estoque";
+import { localeImpressaoAtual } from "@/lib/i18n/print-i18n";
+import { localeDataIntl } from "@/lib/i18n/tr-ui";
 
 type PdfApi = {
   internal: { pageSize: { getWidth: () => number; getHeight: () => number } };
@@ -45,18 +47,20 @@ type ColunaPdf = {
 };
 
 /** Pesos relativos — largura final preenche a página inteira entre as margens. */
-const COLUNAS_BASE: Array<Omit<ColunaPdf, "largura">> = [
-  { chave: "codigo", rotulo: "Cód Barras" },
-  { chave: "produto", rotulo: "Produto" },
-  { chave: "marca", rotulo: "Marca" },
-  { chave: "estoqueAtual", rotulo: "Estoque Atual", align: "right", destaqueBaixo: true },
-  { chave: "unidade", rotulo: "Unidade" },
-  { chave: "minimo", rotulo: "Mínimo", align: "right" },
-  { chave: "maximo", rotulo: "Máximo", align: "right" },
-  { chave: "custoFmt", rotulo: "Custo", align: "right" },
-  { chave: "vendaFmt", rotulo: "Venda", align: "right" },
-  { chave: "totalFmt", rotulo: "Total", align: "right" },
-];
+function colunasProdutosBase(): Array<Omit<ColunaPdf, "largura">> {
+  return [
+    { chave: "codigo", rotulo: pl("print.relatorio.estoque.codBarras") },
+    { chave: "produto", rotulo: pl("print.relatorio.estoque.produto") },
+    { chave: "marca", rotulo: pl("print.relatorio.estoque.marca") },
+    { chave: "estoqueAtual", rotulo: pl("print.relatorio.estoque.estoqueAtual"), align: "right", destaqueBaixo: true },
+    { chave: "unidade", rotulo: pl("print.relatorio.estoque.unidade") },
+    { chave: "minimo", rotulo: pl("print.relatorio.estoque.minimo"), align: "right" },
+    { chave: "maximo", rotulo: pl("print.relatorio.estoque.maximo"), align: "right" },
+    { chave: "custoFmt", rotulo: pl("print.relatorio.estoque.custo"), align: "right" },
+    { chave: "vendaFmt", rotulo: pl("print.relatorio.estoque.venda"), align: "right" },
+    { chave: "totalFmt", rotulo: pl("print.relatorio.total"), align: "right" },
+  ];
+}
 
 const PESOS_COLUNAS = [12, 22, 14, 11, 9, 9, 9, 11, 11, 12];
 
@@ -75,19 +79,20 @@ function larguraUtil(pdf: PdfApi) {
 function montarColunas(pdf: PdfApi): ColunaPdf[] {
   const util = larguraUtil(pdf);
   const pesoTotal = PESOS_COLUNAS.reduce((s, peso) => s + peso, 0);
-  return COLUNAS_BASE.map((col, index) => ({
+  return colunasProdutosBase().map((col, index) => ({
     ...col,
     largura: (PESOS_COLUNAS[index] / pesoTotal) * util,
   }));
 }
 
 function formatarGeradoEm(date: Date) {
-  const data = date.toLocaleDateString("pt-BR", {
+  const tag = localeDataIntl(localeImpressaoAtual());
+  const data = date.toLocaleDateString(tag, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
   });
-  const hora = date.toLocaleTimeString("pt-BR", {
+  const hora = date.toLocaleTimeString(tag, {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
@@ -272,7 +277,7 @@ function desenharRodapeTabela(
 
   for (const col of colunas) {
     if (col.chave === "estoqueAtual") {
-      pdf.text(`Total Estoque: ${totalEstoque}`, x, y);
+      pdf.text(`${pl("print.relatorio.estoque.totalEstoque")} ${totalEstoque}`, x, y);
     } else if (col.chave === "totalFmt") {
       pdf.text(`R$ ${moneyRelatorioEstoque(totalGeral)}`, x + col.largura - 1, y, {
         align: "right",
@@ -291,6 +296,7 @@ export async function gerarPdfRelatorioProdutos(opts: {
   totalGeral: number;
   geradoEm?: Date;
 }) {
+  iniciarImpressaoRelatorio();
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   const api = pdf as unknown as PdfApi;

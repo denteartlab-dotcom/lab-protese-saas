@@ -1,5 +1,8 @@
 import type { LabImpressaoConfig } from "@/lib/lab-impressao";
 import type { LinhaAgendaPdf } from "@/lib/agenda-producao";
+import { iniciarImpressaoRelatorio, pl } from "@/lib/i18n/print-relatorio-helpers";
+import { localeDataIntl } from "@/lib/i18n/tr-ui";
+import { localeImpressaoAtual } from "@/lib/i18n/print-i18n";
 
 type PdfApi = {
   internal: { pageSize: { getWidth: () => number; getHeight: () => number } };
@@ -16,17 +19,19 @@ type PdfApi = {
 
 type LinhaAgendaTabela = Omit<LinhaAgendaPdf, "prazoOrdenacao">;
 
-const COLUNAS: Array<{ chave: keyof LinhaAgendaTabela; rotulo: string; largura: number }> = [
-  { chave: "os", rotulo: "OS", largura: 11 },
-  { chave: "caixa", rotulo: "CAIXA", largura: 13 },
-  { chave: "prazo", rotulo: "PRAZO", largura: 27 },
-  { chave: "qtd", rotulo: "QTD", largura: 9 },
-  { chave: "servico", rotulo: "SERVIÇO", largura: 28 },
-  { chave: "cliente", rotulo: "CLIENTE", largura: 28 },
-  { chave: "paciente", rotulo: "PACIENTE", largura: 24 },
-  { chave: "colaborador", rotulo: "COLABORADOR", largura: 24 },
-  { chave: "etapas", rotulo: "ETAPAS", largura: 26 },
-];
+function colunasAgenda() {
+  return [
+    { chave: "os" as const, rotulo: pl("print.relatorio.agenda.os"), largura: 11 },
+    { chave: "caixa" as const, rotulo: pl("print.relatorio.agenda.caixa"), largura: 13 },
+    { chave: "prazo" as const, rotulo: pl("print.relatorio.agenda.prazo"), largura: 27 },
+    { chave: "qtd" as const, rotulo: pl("print.relatorio.agenda.qtd"), largura: 9 },
+    { chave: "servico" as const, rotulo: pl("print.relatorio.agenda.servico"), largura: 28 },
+    { chave: "cliente" as const, rotulo: pl("print.relatorio.agenda.cliente"), largura: 28 },
+    { chave: "paciente" as const, rotulo: pl("print.relatorio.agenda.paciente"), largura: 24 },
+    { chave: "colaborador" as const, rotulo: pl("print.relatorio.agenda.colaborador"), largura: 24 },
+    { chave: "etapas" as const, rotulo: pl("print.relatorio.agenda.etapas"), largura: 26 },
+  ];
+}
 
 const MARGEM = 10;
 const FS_CABECALHO = 8.5;
@@ -35,12 +40,13 @@ const FS_TABELA = 7;
 const ALTURA_LINHA = 4.2;
 
 function formatarGeradoEm(date: Date) {
-  const data = date.toLocaleDateString("pt-BR", {
+  const tag = localeDataIntl(localeImpressaoAtual());
+  const data = date.toLocaleDateString(tag, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
   });
-  const hora = date.toLocaleTimeString("pt-BR", {
+  const hora = date.toLocaleTimeString(tag, {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
@@ -91,6 +97,7 @@ function desenharCabecalhoPagina(
 }
 
 function desenharCabecalhoTabela(pdf: PdfApi, y: number) {
+  const colunas = colunasAgenda();
   const larguraPagina = pdf.internal.pageSize.getWidth();
   let x = MARGEM;
 
@@ -101,7 +108,7 @@ function desenharCabecalhoTabela(pdf: PdfApi, y: number) {
 
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(FS_TABELA);
-  for (const col of COLUNAS) {
+  for (const col of colunas) {
     pdf.text(col.rotulo, x, y);
     x += col.largura;
   }
@@ -117,8 +124,9 @@ function alturaCelula(pdf: PdfApi, texto: string, largura: number) {
 }
 
 function desenharLinhaTabela(pdf: PdfApi, linha: LinhaAgendaTabela, y: number) {
+  const colunas = colunasAgenda();
   let x = MARGEM;
-  const alturas = COLUNAS.map((col) =>
+  const alturas = colunas.map((col) =>
     alturaCelula(pdf, String(linha[col.chave] ?? ""), col.largura)
   );
   const altura = Math.max(...alturas, ALTURA_LINHA);
@@ -126,7 +134,7 @@ function desenharLinhaTabela(pdf: PdfApi, linha: LinhaAgendaTabela, y: number) {
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(FS_TABELA);
 
-  for (const col of COLUNAS) {
+  for (const col of colunas) {
     const valor = String(linha[col.chave] ?? "");
     const partes = pdf.splitTextToSize(valor, col.largura - 0.5);
     pdf.text(partes, x, y);
@@ -143,25 +151,27 @@ function desenharLinhaTabela(pdf: PdfApi, linha: LinhaAgendaTabela, y: number) {
 
 export async function gerarPdfAgendaProducao(opts: {
   lab: LabImpressaoConfig;
-  titulo: string;
+  titulo?: string;
   linhas: LinhaAgendaPdf[];
   geradoEm?: Date;
 }) {
+  iniciarImpressaoRelatorio();
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   const api = pdf as unknown as PdfApi;
   const geradoEm = opts.geradoEm ?? new Date();
+  const titulo = opts.titulo ?? pl("print.relatorio.agenda.titulo");
   const alturaPagina = api.internal.pageSize.getHeight();
   const linhasSemOrdenacao = opts.linhas.map(({ prazoOrdenacao: _ordenacao, ...rest }) => rest);
 
-  let y = desenharCabecalhoPagina(api, opts.lab, opts.titulo, geradoEm);
+  let y = desenharCabecalhoPagina(api, opts.lab, titulo, geradoEm);
   y = desenharCabecalhoTabela(api, y);
 
   for (const linha of linhasSemOrdenacao) {
     const proximaAltura = alturaCelula(api, linha.servico, 28) + 4;
     if (y + proximaAltura > alturaPagina - MARGEM) {
       api.addPage();
-      y = desenharCabecalhoPagina(api, opts.lab, opts.titulo, geradoEm);
+      y = desenharCabecalhoPagina(api, opts.lab, titulo, geradoEm);
       y = desenharCabecalhoTabela(api, y);
     }
     y = desenharLinhaTabela(api, linha, y);
