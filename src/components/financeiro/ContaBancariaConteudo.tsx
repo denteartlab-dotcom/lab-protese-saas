@@ -70,6 +70,7 @@ import type {
 import { cn } from "@/lib/utils";
 import type { ContaDigitalAba } from "@/components/financeiro/ContaDigitalConteudo";
 import type { MessageKey } from "@/lib/i18n";
+import { nomeExibicaoContaBancaria } from "@/lib/i18n/conta-bancaria-i18n";
 
 function ContaDigitalCarregando() {
   const { t } = useI18n();
@@ -378,8 +379,13 @@ export function ContaBancariaConteudo() {
     );
     const termo = busca.trim().toLowerCase();
     if (!termo) return lista;
-    return lista.filter((c) => c.nome.toLowerCase().includes(termo));
-  }, [contas, busca, verExcluidos]);
+    return lista.filter((c) => {
+      const nomeExibicao = nomeExibicaoContaBancaria(c, t).toLowerCase();
+      return (
+        nomeExibicao.includes(termo) || c.nome.toLowerCase().includes(termo)
+      );
+    });
+  }, [contas, busca, verExcluidos, t]);
 
   const linhas = useMemo(
     () =>
@@ -653,7 +659,7 @@ export function ContaBancariaConteudo() {
                       )}
                     >
                       <td className="px-4 py-3 font-normal text-slate-800 dark:text-slate-100">
-                        <span>{conta.nome}</span>
+                        <span>{nomeExibicaoContaBancaria(conta, t)}</span>
                         {conta.id === ID_CONTA_CARTEIRA ? (
                           <span className="ml-2 rounded bg-[#e8f2fc] px-1.5 py-0.5 text-[10px] text-[#4a90d9] dark:bg-slate-700 dark:text-sky-300">
                             Asaas
@@ -784,7 +790,7 @@ export function ContaBancariaConteudo() {
                                 strokeWidth={1.75}
                               />
                               <span className="text-[15px] font-bold leading-none text-[#4cae4c]">
-                                {conta.nome}
+                                {nomeExibicaoContaBancaria(conta, t)}
                               </span>
                             </div>
 
@@ -793,7 +799,9 @@ export function ContaBancariaConteudo() {
                                 <span className="font-bold uppercase tracking-wide text-slate-800">
                                   NOME :
                                 </span>{" "}
-                                <span className="text-slate-700">{conta.nome}</span>
+                                <span className="text-slate-700">
+                                  {nomeExibicaoContaBancaria(conta, t)}
+                                </span>
                               </div>
                               <div className="min-w-0 md:pl-2">
                                 <span className="font-semibold text-slate-800">
@@ -890,7 +898,7 @@ export function ContaBancariaConteudo() {
         mensagem={
           contaExcluirConfirmacao
             ? t("financeiro.conta.excluirMensagem", {
-                nome: contaExcluirConfirmacao.nome,
+                nome: nomeExibicaoContaBancaria(contaExcluirConfirmacao, t),
               })
             : ""
         }
