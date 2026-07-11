@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import { AgendaVerProdutosModal } from "@/components/producao/AgendaVerProdutosModal";
 import { OsDetalheCampo } from "@/components/producao/OsDetalheCampo";
 import {
@@ -33,6 +34,7 @@ export function AgendaOsDetalheExpandido({
   onAnexoAberto,
   onAdicionarImagem,
 }: Props) {
+  const { t } = useI18n();
   const [produtosAbertos, setProdutosAbertos] = useState(false);
   const { principal } = linha;
   const instrucoes = instrucoesConsolidadasGrupo(linha);
@@ -43,19 +45,25 @@ export function AgendaOsDetalheExpandido({
     <>
       <div className="grid gap-4 border-t border-slate-200 bg-white px-4 py-4 md:grid-cols-3">
         <div className="space-y-3">
-          <OsDetalheCampo label="OS Externa" value={osExternaAgenda(instrucoes)} />
-          <OsDetalheCampo label="Prazo Laboratório" value={prazoTextoAgendaGrupo(linha)} />
-          <OsDetalheCampo label="Valor Unitário" value={valorUnitarioAgendaGrupo(linha)} />
+          <OsDetalheCampo label={t("producao.os.campo.osExterna")} value={osExternaAgenda(instrucoes)} />
           <OsDetalheCampo
-            label="Material enviado pelo Dentista"
+            label={t("producao.os.campo.prazoLaboratorio")}
+            value={prazoTextoAgendaGrupo(linha)}
+          />
+          <OsDetalheCampo
+            label={t("producao.os.campo.valorUn")}
+            value={valorUnitarioAgendaGrupo(linha)}
+          />
+          <OsDetalheCampo
+            label={t("producao.os.campo.material")}
             value={exibirTexto(principal.material)}
           />
           <OsDetalheCampo
-            label="Observação Serviço"
+            label={t("producao.controle.detalhe.observacaoServico")}
             value={instrucoesTextoLivre(instrucoes)}
           />
           <OsDetalheCampo
-            label="Observação Interna (ficha)"
+            label={t("producao.controle.detalhe.observacaoInternaFicha")}
             value={principal.observacoes?.trim() || ""}
           />
           <button
@@ -63,32 +71,46 @@ export function AgendaOsDetalheExpandido({
             onClick={() => setProdutosAbertos(true)}
             className="rounded border border-emerald-400 px-3 py-1 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
           >
-            Ver Produtos
+            {t("producao.controle.detalhe.verProdutos")}
           </button>
         </div>
 
         <div className="space-y-3">
-          <OsDetalheCampo label="Número do Dente" value={exibirTexto(principal.dentes)} />
           <OsDetalheCampo
-            label="Prazo Dentista"
+            label={t("producao.os.tabela.numeroDente")}
+            value={exibirTexto(principal.dentes)}
+          />
+          <OsDetalheCampo
+            label={t("producao.os.campo.prazoDentista")}
             value={prazoDentistaTextoAgenda(principal)}
           />
-          <OsDetalheCampo label="Desconto" value={descontoTextoAgendaGrupo(linha)} />
+          <OsDetalheCampo
+            label={t("producao.controle.detalhe.desconto")}
+            value={descontoTextoAgendaGrupo(linha)}
+          />
         </div>
 
         <div className="space-y-3">
-          <OsDetalheCampo label="Cor do Dente" value={exibirTexto(principal.cor)} />
           <OsDetalheCampo
-            label="Data Finalizado/Entregue"
+            label={t("producao.os.tabela.corDente")}
+            value={exibirTexto(principal.cor)}
+          />
+          <OsDetalheCampo
+            label={t("producao.controle.detalhe.dataFinalizadoEntregue")}
             value={dataFinalizadoEntregueAgenda(linha)}
           />
-          <OsDetalheCampo label="Total" value={totalAgendaGrupo(linha)} />
+          <OsDetalheCampo
+            label={t("producao.controle.detalhe.total")}
+            value={totalAgendaGrupo(linha)}
+          />
         </div>
       </div>
 
       <div className="border-t border-slate-200 bg-white px-4 py-3">
         <div className="mb-2 flex items-center justify-between gap-2">
-          <p className="text-xs font-semibold text-slate-600">Galeria de Imagens:</p>
+          <p className="text-xs font-semibold text-slate-600">
+            {t("producao.controle.detalhe.galeriaImagens")}:
+          </p>
           {onAdicionarImagem ? (
             <button
               type="button"
@@ -96,12 +118,14 @@ export function AgendaOsDetalheExpandido({
               className="inline-flex items-center gap-1 rounded border border-emerald-300 px-2 py-1 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
             >
               <Plus className="h-3.5 w-3.5" />
-              Adicionar Imagem
+              {t("producao.controle.detalhe.adicionarImagem")}
             </button>
           ) : null}
         </div>
         {anexos.length === 0 ? (
-          <p className="text-[11px] text-slate-400">Nenhuma imagem enviada nesta OS.</p>
+          <p className="text-[11px] text-slate-400">
+            {t("producao.controle.detalhe.nenhumaImagem")}
+          </p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {anexos.map((anexo) => (
@@ -122,7 +146,7 @@ export function AgendaOsDetalheExpandido({
                   <video src={anexo.url} className="h-16 w-24 bg-black object-cover" />
                 ) : (
                   <div className="flex h-16 w-24 items-center justify-center text-[10px] text-slate-400">
-                    Arquivo
+                    {t("common.arquivo")}
                   </div>
                 )}
               </button>
@@ -147,7 +171,7 @@ export function AgendaOsDetalheExpandido({
                   {anexoAberto.name}
                 </h2>
                 <p className="text-xs text-slate-400">
-                  {anexoAberto.type || "Arquivo anexado"}
+                  {anexoAberto.type || t("producao.controle.detalhe.arquivoAnexado")}
                 </p>
               </div>
               <button
@@ -155,7 +179,7 @@ export function AgendaOsDetalheExpandido({
                 onClick={() => onAnexoAberto(null)}
                 className="rounded border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
               >
-                Fechar
+                {t("common.fechar")}
               </button>
             </div>
             <div className="flex flex-1 items-center justify-center overflow-auto bg-slate-950 p-4">
@@ -174,13 +198,13 @@ export function AgendaOsDetalheExpandido({
                 />
               ) : (
                 <div className="rounded bg-white p-8 text-center text-slate-500">
-                  <p>Pré-visualização indisponível para este arquivo.</p>
+                  <p>{t("producao.controle.detalhe.previewIndisponivel")}</p>
                   <a
                     href={anexoAberto.url}
                     download={anexoAberto.name}
                     className="mt-3 inline-block text-primary-700"
                   >
-                    Baixar arquivo
+                    {t("producao.controle.detalhe.baixarArquivo")}
                   </a>
                 </div>
               )}

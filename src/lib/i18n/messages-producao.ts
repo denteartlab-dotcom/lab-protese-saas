@@ -135,6 +135,37 @@ export const messagesProducaoPt = {
   "producao.os.duplicataPaciente":
     "Já existe OS nº {numeros} para este paciente neste cliente.",
   "producao.os.modal.cadastrarMaterial": "Cadastrar Material",
+  "producao.os.campo.osExterna": "OS Externa",
+  "producao.controle.detalhe.observacaoServico": "Observação Serviço",
+  "producao.controle.detalhe.observacaoInternaFicha": "Observação Interna (ficha)",
+  "producao.controle.detalhe.verProdutos": "Ver Produtos",
+  "producao.controle.detalhe.galeriaImagens": "Galeria de Imagens",
+  "producao.controle.detalhe.adicionarImagem": "Adicionar Imagem",
+  "producao.controle.detalhe.nenhumaImagem": "Nenhuma imagem enviada nesta OS.",
+  "producao.controle.detalhe.dataFinalizadoEntregue": "Data Finalizado/Entregue",
+  "producao.controle.detalhe.total": "Total",
+  "producao.controle.detalhe.desconto": "Desconto",
+  "producao.controle.detalhe.arquivoAnexado": "Arquivo anexado",
+  "producao.controle.detalhe.previewIndisponivel": "Pré-visualização indisponível para este arquivo.",
+  "producao.controle.detalhe.baixarArquivo": "Baixar arquivo",
+  "producao.controle.vazioNenhumaOs": "Nenhuma OS encontrada.",
+  "producao.controle.excluirOs.titulo": "Excluir Ordem de Serviço",
+  "producao.controle.excluirOs.mensagem": "Deseja realmente excluir essa Ordem de Serviço?",
+  "producao.controle.excluirOs.aviso":
+    "Atenção!! Todas as comissões serão excluídas exceto comissões já faturadas. Se a OS já foi faturada em Contas a Receber, exclua o lançamento no Financeiro antes.",
+  "producao.controle.alteracaoRapida": "Alteração Rápida",
+  "producao.controle.protocolo": "Protocolo",
+  "producao.controle.dataDisponibilidade": "Data Disponibilidade",
+  "producao.controle.observacoesInternasTecnicas": "Observações Internas / Técnicas",
+  "producao.controle.observacoesServico": "Observações Serviço",
+  "producao.controle.gravar": "Gravar",
+  "producao.controle.produtosOs": "Produtos da OS {numeroOs}",
+  "producao.controle.nenhumProdutoOs": "Nenhum produto vinculado a esta OS.",
+  "producao.controle.tabela.produto": "Produto",
+  "producao.controle.colaboradoresTooltip":
+    "Colaboradores da ordem de serviço (edite pelo ícone de lápis)",
+  "producao.controle.etapasTooltip":
+    "Etapas da ordem de serviço (edite pelo ícone de lápis)",
 } as const;
 
 export const messagesProducaoEn = {
@@ -273,6 +304,37 @@ export const messagesProducaoEn = {
   "producao.os.duplicataPaciente":
     "Work order no. {numeros} already exists for this patient and client.",
   "producao.os.modal.cadastrarMaterial": "Register Material",
+  "producao.os.campo.osExterna": "External WO",
+  "producao.controle.detalhe.observacaoServico": "Service Note",
+  "producao.controle.detalhe.observacaoInternaFicha": "Internal Note (record)",
+  "producao.controle.detalhe.verProdutos": "View Products",
+  "producao.controle.detalhe.galeriaImagens": "Image Gallery",
+  "producao.controle.detalhe.adicionarImagem": "Add Image",
+  "producao.controle.detalhe.nenhumaImagem": "No images uploaded for this work order.",
+  "producao.controle.detalhe.dataFinalizadoEntregue": "Finished/Delivered Date",
+  "producao.controle.detalhe.total": "Total",
+  "producao.controle.detalhe.desconto": "Discount",
+  "producao.controle.detalhe.arquivoAnexado": "Attached file",
+  "producao.controle.detalhe.previewIndisponivel": "Preview unavailable for this file.",
+  "producao.controle.detalhe.baixarArquivo": "Download file",
+  "producao.controle.vazioNenhumaOs": "No work orders found.",
+  "producao.controle.excluirOs.titulo": "Delete Work Order",
+  "producao.controle.excluirOs.mensagem": "Do you really want to delete this work order?",
+  "producao.controle.excluirOs.aviso":
+    "Warning! All commissions will be deleted except those already invoiced. If the work order was invoiced in Accounts Receivable, delete the entry in Finance first.",
+  "producao.controle.alteracaoRapida": "Quick Edit",
+  "producao.controle.protocolo": "Protocol",
+  "producao.controle.dataDisponibilidade": "Availability Date",
+  "producao.controle.observacoesInternasTecnicas": "Internal / Technical Notes",
+  "producao.controle.observacoesServico": "Service Notes",
+  "producao.controle.gravar": "Save",
+  "producao.controle.produtosOs": "Products for WO {numeroOs}",
+  "producao.controle.nenhumProdutoOs": "No products linked to this work order.",
+  "producao.controle.tabela.produto": "Product",
+  "producao.controle.colaboradoresTooltip":
+    "Work order staff (edit via the pencil icon)",
+  "producao.controle.etapasTooltip":
+    "Work order stages (edit via the pencil icon)",
 } as const;
 
 export const messagesProducaoEs = {
@@ -411,4 +473,35 @@ export const messagesProducaoEs = {
   "producao.os.duplicataPaciente":
     "Ya existe OS nº {numeros} para este paciente en este cliente.",
   "producao.os.modal.cadastrarMaterial": "Registrar Material",
+  "producao.os.campo.osExterna": "OS Externa",
+  "producao.controle.detalhe.observacaoServico": "Observación Servicio",
+  "producao.controle.detalhe.observacaoInternaFicha": "Observación Interna (ficha)",
+  "producao.controle.detalhe.verProdutos": "Ver Productos",
+  "producao.controle.detalhe.galeriaImagens": "Galería de Imágenes",
+  "producao.controle.detalhe.adicionarImagem": "Agregar Imagen",
+  "producao.controle.detalhe.nenhumaImagem": "Ninguna imagen enviada en esta OS.",
+  "producao.controle.detalhe.dataFinalizadoEntregue": "Fecha Finalizado/Entregado",
+  "producao.controle.detalhe.total": "Total",
+  "producao.controle.detalhe.desconto": "Descuento",
+  "producao.controle.detalhe.arquivoAnexado": "Archivo adjunto",
+  "producao.controle.detalhe.previewIndisponivel": "Vista previa no disponible para este archivo.",
+  "producao.controle.detalhe.baixarArquivo": "Descargar archivo",
+  "producao.controle.vazioNenhumaOs": "Ninguna OS encontrada.",
+  "producao.controle.excluirOs.titulo": "Eliminar Orden de Servicio",
+  "producao.controle.excluirOs.mensagem": "¿Desea realmente eliminar esta Orden de Servicio?",
+  "producao.controle.excluirOs.aviso":
+    "¡Atención! Todas las comisiones serán eliminadas excepto las ya facturadas. Si la OS ya fue facturada en Cuentas por Cobrar, elimine el registro en Finanzas antes.",
+  "producao.controle.alteracaoRapida": "Edición Rápida",
+  "producao.controle.protocolo": "Protocolo",
+  "producao.controle.dataDisponibilidade": "Fecha Disponibilidad",
+  "producao.controle.observacoesInternasTecnicas": "Observaciones Internas / Técnicas",
+  "producao.controle.observacoesServico": "Observaciones Servicio",
+  "producao.controle.gravar": "Guardar",
+  "producao.controle.produtosOs": "Productos de la OS {numeroOs}",
+  "producao.controle.nenhumProdutoOs": "Ningún producto vinculado a esta OS.",
+  "producao.controle.tabela.produto": "Producto",
+  "producao.controle.colaboradoresTooltip":
+    "Colaboradores de la orden de servicio (edite con el ícono de lápiz)",
+  "producao.controle.etapasTooltip":
+    "Etapas de la orden de servicio (edite con el ícono de lápiz)",
 } as const;

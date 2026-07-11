@@ -3421,7 +3421,7 @@ export default function ControlePage() {
                       className="max-w-[160px] truncate px-2 py-2"
                       title={
                         resumoColaborador
-                          ? "Colaboradores da ordem de serviço (edite pelo ícone de lápis)"
+                          ? t("producao.controle.colaboradoresTooltip")
                           : undefined
                       }
                     >
@@ -3431,7 +3431,7 @@ export default function ControlePage() {
                       className="max-w-[200px] px-2 py-2 align-top"
                       title={
                         etapasOs.length
-                          ? "Etapas da ordem de serviço (edite pelo ícone de lápis)"
+                          ? t("producao.controle.etapasTooltip")
                           : undefined
                       }
                     >
@@ -3456,7 +3456,7 @@ export default function ControlePage() {
                         <button
                           type="button"
                           onClick={() => setOsAberta(osAberta === trabalho.id ? null : trabalho.id)}
-                          title="Ver detalhes"
+                          title={t("producao.controle.acao.verDetalhes")}
                           className="rounded p-1 hover:bg-slate-100 hover:text-primary-700"
                         >
                           <Eye className="h-4 w-4" />
@@ -3464,7 +3464,7 @@ export default function ControlePage() {
                         <button
                           type="button"
                           onClick={() => abrirEdicao(trabalho)}
-                          title="Editar OS"
+                          title={t("producao.controle.acao.editar")}
                           className="rounded p-1 hover:bg-slate-100 hover:text-primary-700"
                         >
                           <Edit3 className="h-4 w-4" />
@@ -3472,7 +3472,7 @@ export default function ControlePage() {
                         <button
                           type="button"
                           onClick={() => setImprimirOs(trabalho)}
-                          title="Imprimir OS"
+                          title={t("producao.controle.acao.imprimir")}
                           className="rounded p-1 hover:bg-slate-100 hover:text-primary-700"
                         >
                           <Printer className="h-4 w-4" />
@@ -3486,7 +3486,7 @@ export default function ControlePage() {
                             }
                             setOsExcluindo(trabalho);
                           }}
-                          title="Excluir OS"
+                          title={t("producao.controle.acao.excluir")}
                           className="rounded p-1 hover:bg-red-50 hover:text-red-600"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -3512,7 +3512,7 @@ export default function ControlePage() {
               {listagem.totalItens === 0 && (
                 <tr>
                   <td colSpan={12} className="px-4 py-8 text-center text-slate-400">
-                    Nenhuma OS encontrada.
+                    {t("producao.controle.vazioNenhumaOs")}
                   </td>
                 </tr>
               )}
@@ -3523,9 +3523,9 @@ export default function ControlePage() {
 
       <ConfirmacaoExclusaoModal
         open={!!osExcluindo}
-        titulo="Excluir Ordem de Serviço"
-        mensagem="Deseja realmente excluir essa Ordem de Serviço?"
-        aviso="Atenção!! Todas as comissões serão excluídas exceto comissões já faturadas. Se a OS já foi faturada em Contas a Receber, exclua o lançamento no Financeiro antes."
+        titulo={t("producao.controle.excluirOs.titulo")}
+        mensagem={t("producao.controle.excluirOs.mensagem")}
+        aviso={t("producao.controle.excluirOs.aviso")}
         onClose={() => setOsExcluindo(null)}
         onConfirm={confirmarExclusaoOs}
       />
@@ -3533,7 +3533,7 @@ export default function ControlePage() {
       <ConfirmacaoExclusaoModal
         open={!!avisoExclusaoOs}
         modo="alerta"
-        titulo="Excluir Ordem de Serviço"
+        titulo={t("producao.controle.excluirOs.titulo")}
         mensagem={avisoExclusaoOs || ""}
         onClose={() => setAvisoExclusaoOs(null)}
         onConfirm={() => setAvisoExclusaoOs(null)}
@@ -3546,7 +3546,9 @@ export default function ControlePage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="max-h-[90vh] w-full max-w-xl overflow-auto rounded bg-white p-4 shadow-xl">
             <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-2">
-              <h2 className="text-sm font-semibold text-slate-700">Alteração Rápida</h2>
+              <h2 className="text-sm font-semibold text-slate-700">
+                {t("producao.controle.alteracaoRapida")}
+              </h2>
               <button
                 type="button"
                 onClick={() => setStatusEditando(null)}
@@ -3558,23 +3560,23 @@ export default function ControlePage() {
 
             <div className="space-y-3">
               <Select
-                label="Situação"
+                label={t("producao.controle.filtro.situacao")}
                 value={statusForm.status}
                 onChange={(e) => setStatusForm({ ...statusForm, status: e.target.value })}
               >
                 {Object.entries(STATUS_TRABALHO).map(([key, value]) => (
-                  <option key={key} value={key}>{value.label}</option>
+                  <option key={key} value={key}>{labelStatusTrabalho(t, key)}</option>
                 ))}
               </Select>
 
               <div className="grid gap-3 md:grid-cols-2">
                 <Input
-                  label="Protocolo"
+                  label={t("producao.controle.protocolo")}
                   value={String(statusEditando.numeroOs)}
                   readOnly
                 />
                 <Input
-                  label="Data Disponibilidade"
+                  label={t("producao.controle.dataDisponibilidade")}
                   type="date"
                   value={statusForm.dataPrevista}
                   onChange={(e) => setStatusForm({ ...statusForm, dataPrevista: e.target.value })}
@@ -3583,31 +3585,31 @@ export default function ControlePage() {
 
               <div className="grid gap-3 md:grid-cols-2">
                 <Input
-                  label="Prazo Laboratório"
+                  label={t("producao.os.campo.prazoLaboratorio")}
                   type="date"
                   value={statusForm.dataPrevista}
                   onChange={(e) => setStatusForm({ ...statusForm, dataPrevista: e.target.value })}
                 />
-                <Input label="Hora Laboratório" type="time" />
+                <Input label={t("producao.os.campo.horaLaboratorio")} type="time" />
               </div>
 
               <Textarea
-                label="Observações Internas / Técnicas"
+                label={t("producao.controle.observacoesInternasTecnicas")}
                 value={statusForm.instrucoes}
                 onChange={(e) => setStatusForm({ ...statusForm, instrucoes: e.target.value })}
               />
               <Textarea
-                label="Observações Serviço"
+                label={t("producao.controle.observacoesServico")}
                 value={statusForm.observacoes}
                 onChange={(e) => setStatusForm({ ...statusForm, observacoes: e.target.value })}
               />
 
               <div className="space-y-2 pt-2">
                 <Button className="w-full" onClick={salvarStatusRapido}>
-                  Gravar
+                  {t("producao.controle.gravar")}
                 </Button>
                 <Button variant="outline" className="w-full" onClick={() => setStatusEditando(null)}>
-                  Fechar
+                  {t("common.fechar")}
                 </Button>
               </div>
             </div>

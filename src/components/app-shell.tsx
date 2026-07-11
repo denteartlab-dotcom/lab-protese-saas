@@ -22,6 +22,7 @@ import {
   primeiroHrefPermitidoNav,
 } from "@/lib/permissoes-acesso";
 import { AppFaixaTopo } from "@/components/AppFaixaTopo";
+import { I18nAuto } from "@/components/I18nAuto";
 import { AssinaturaFaixaRodape } from "@/components/AssinaturaFaixaRodape";
 import { SuporteChatWidget } from "@/components/SuporteChatWidget";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
@@ -1406,7 +1407,7 @@ function AppShellInner({
                 )
           )}
         >
-          {children}
+          <I18nAuto>{children}</I18nAuto>
         </div>
       </main>
       {mostrarFaixaAssinatura && (
