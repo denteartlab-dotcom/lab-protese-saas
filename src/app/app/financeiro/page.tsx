@@ -1284,59 +1284,35 @@ function FinanceiroReceberConteudo() {
   }
 
   async function estornarRecebimento(lancamento: Lancamento) {
-    if (isCreditoUtilizado(lancamento)) {
-      setConfirmacaoExclusao({
-        title: "Excluir Recebimento",
-        message: "Deseja realmente estornar esse Recebimento?",
-        onConfirm: async () => {
-          await fetch(`/api/financeiro/${lancamento.id}`, { method: "DELETE" });
-          setDetalheRecebimento(null);
-          setReciboRecebimento(null);
-          setClienteCollapseAberto(null);
-          void loadPosMutacao();
-        },
-      });
-      return;
-    }
+    const exclusaoSomente =
+      isCreditoUtilizado(lancamento) ||
+      isCreditoGerado(lancamento) ||
+      isRecebimentoParcial(lancamento);
 
-    if (isCreditoGerado(lancamento)) {
-      setConfirmacaoExclusao({
-        title: "Excluir Recebimento",
-        message: "Deseja realmente estornar esse Recebimento?",
-        onConfirm: async () => {
-          await fetch(`/api/financeiro/${lancamento.id}`, { method: "DELETE" });
-          setDetalheRecebimento(null);
-          setReciboRecebimento(null);
-          setClienteCollapseAberto(null);
-          void loadPosMutacao();
-        },
-      });
-      return;
-    }
-
-    const creditosUtilizados = creditosUtilizadosDaFatura(lancamento);
-    const saldosRelacionados = saldosRestanteDoLancamento(lancamento);
-    const valorTotal = lancamento.valor + saldosRelacionados.reduce((sum, item) => sum + item.valor, 0);
+    const ehCobrancaOs = lancamento.descricao.toLowerCase().startsWith("cobrança os");
+    const creditosUtilizados = ehCobrancaOs ? creditosUtilizadosDaFatura(lancamento) : [];
+    const saldosRelacionados = ehCobrancaOs ? saldosRestanteDoLancamento(lancamento) : [];
 
     setConfirmacaoExclusao({
       title: "Excluir Recebimento",
       message: "Deseja realmente estornar esse Recebimento?",
       onConfirm: async () => {
-        await fetch(`/api/financeiro/${lancamento.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            status: "pendente",
-            valor: valorTotal,
-            formaPagamento: lancamento.formaPagamento,
-          }),
-        });
-
-        await Promise.all(
-          [...saldosRelacionados, ...creditosUtilizados].map((item) =>
-            fetch(`/api/financeiro/${item.id}`, { method: "DELETE" })
-          )
-        );
+        if (exclusaoSomente) {
+          await fetch(`/api/financeiro/${lancamento.id}`, { method: "DELETE" });
+        } else if (ehCobrancaOs) {
+          await fetch(`/api/financeiro/${lancamento.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: "pendente" }),
+          });
+          await Promise.all(
+            [...saldosRelacionados, ...creditosUtilizados].map((item) =>
+              fetch(`/api/financeiro/${item.id}`, { method: "DELETE" })
+            )
+          );
+        } else {
+          await fetch(`/api/financeiro/${lancamento.id}`, { method: "DELETE" });
+        }
 
         setDetalheRecebimento(null);
         setReciboRecebimento(null);
@@ -1364,15 +1340,18 @@ function FinanceiroReceberConteudo() {
     const trabalhosRelacionados = trabalhosDaFatura(faturaEditando).filter(
       (trabalho) => !osRemovidasEdicao.includes(trabalho.id)
     );
+    const novoValor = parseMoney(formEdicaoFatura.valor);
+    const valorAlterado = Math.abs(novoValor - faturaEditando.valor) > 0.009;
     await fetch(`/api/financeiro/${faturaEditando.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         descricao: descricaoCobrancaEditada(trabalhosRelacionados, formEdicaoFatura.descricao),
         data: brShortToIso(formEdicaoFatura.data),
-        valor: parseMoney(formEdicaoFatura.valor),
+        valor: novoValor,
         formaPagamento: formEdicaoFatura.formaPagamento,
         status: formEdicaoFatura.status,
+        alterarValorOs: valorAlterado,
       }),
     });
     setFaturaEditando(null);

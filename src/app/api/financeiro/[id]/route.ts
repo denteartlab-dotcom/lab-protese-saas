@@ -12,6 +12,7 @@ import {
 import { invalidarCachePainelFinanceiro } from "@/lib/financeiro-painel-cache";
 import { lancamentoFaturaOsAtivo } from "@/lib/os-faturamento";
 import { sincronizarTrabalhosAposAlteracaoLancamento } from "@/lib/os-faturamento-sync-servidor";
+import { restaurarFaturaAposExclusaoPagamento } from "@/lib/recebimento-estorno-servidor";
 import { z } from "zod";
 
 const schema = z.object({
@@ -20,6 +21,8 @@ const schema = z.object({
   data: z.string().optional(),
   status: z.enum(["pendente", "pago", "cancelado"]).optional(),
   formaPagamento: z.string().optional().nullable(),
+  /** Só true ao editar valor da fatura manualmente — nunca em recebimentos/estornos. */
+  alterarValorOs: z.boolean().optional(),
 });
 
 function parseDateOnly(value?: string) {
@@ -42,6 +45,7 @@ export async function PUT(
   try {
     const body = await request.json();
     const data = schema.parse(body);
+    const { alterarValorOs, ...camposAtualizacao } = data;
     const existente = await prisma.lancamento.findFirst({
       where: { id, empresaId: ctx.empresaId },
       include: {
@@ -55,7 +59,7 @@ export async function PUT(
     const lancamento = await prisma.lancamento.update({
       where: { id },
       data: {
-        ...data,
+        ...camposAtualizacao,
         data: parseDateOnly(data.data),
       },
       include: {
@@ -79,6 +83,7 @@ export async function PUT(
         console.error("[financeiro PUT] sync conta bancária", syncErr);
       }
       if (
+        data.alterarValorOs === true &&
         data.valor !== undefined &&
         Math.abs(data.valor - existente.valor) > 0.009 &&
         lancamentoFaturaOsAtivo(lancamento)
@@ -129,6 +134,18 @@ export async function DELETE(
   }
 
   await prisma.lancamento.delete({ where: { id } });
+  try {
+    await restaurarFaturaAposExclusaoPagamento(ctx.empresaId, {
+      id: existente.id,
+      tipo: existente.tipo,
+      descricao: existente.descricao,
+      valor: existente.valor,
+      status: existente.status,
+      clienteId: existente.clienteId,
+    });
+  } catch (syncErr) {
+    console.error("[financeiro DELETE] restaurar fatura", syncErr);
+  }
   try {
     await removerMovimentacoesRecebimentoServidor(ctx.empresaId, [id]);
   } catch (syncErr) {

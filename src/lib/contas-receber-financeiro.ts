@@ -162,8 +162,38 @@ export function deveExibirNoHistoricoRecebimentos(
   return parciais.length === 0 && creditos.length === 0;
 }
 
+export function descricaoFaturaVinculadaAoPagamento(descricao: string) {
+  const base = descricaoReceitaSemMeta(descricao).trim();
+  const parcial = base.match(/^recebimento parcial\s*-\s*(.+)$/i);
+  if (parcial) return parcial[1].trim();
+  const credito = base.match(/^desconto com crédito\s*-\s*(.+)$/i);
+  if (credito) return credito[1].trim();
+  const creditoLegado = base.match(/^crédito utilizado\s*-\s*(.+)$/i);
+  if (creditoLegado) return creditoLegado[1].trim();
+  return null;
+}
+
+export function localizarFaturaPorDescricao(
+  descricaoFatura: string,
+  clienteId: string | null | undefined,
+  lancamentos: LancamentoContasReceber[]
+) {
+  const alvo = descricaoFatura.trim();
+  return lancamentos.find((l) => {
+    if (!l.descricao.toLowerCase().startsWith("cobrança os")) return false;
+    if (clienteId && l.cliente?.id !== clienteId) return false;
+    const desc = descricaoReceitaSemMeta(l.descricao).trim();
+    return (
+      desc === alvo ||
+      desc.endsWith(` - ${alvo}`) ||
+      alvo.endsWith(desc) ||
+      desc.includes(alvo)
+    );
+  });
+}
+
 export function valorHistoricoRecebimentoCliente(lancamento: LancamentoContasReceber) {
-  if (isCreditoUtilizado(lancamento.descricao)) return -Math.abs(lancamento.valor);
+  if (isCreditoUtilizado(lancamento)) return -Math.abs(lancamento.valor);
   return lancamento.valor;
 }
 
