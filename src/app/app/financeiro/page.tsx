@@ -7,6 +7,7 @@ import {
   Check,
   Eye,
   FileText,
+  ListTree,
   Pencil,
   Plus,
   Printer,
@@ -15,6 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { BotoesImprimirExportarToolbar } from "@/components/BotoesImprimirExportarToolbar";
+import { MovimentacoesRecebimentoModal } from "@/components/financeiro/MovimentacoesRecebimentoModal";
 import {
   ContaBancariaConteudoLazy,
   ContaDigitalConteudoLazy,
@@ -101,7 +103,7 @@ import {
   exportarContasReceberClientesCsv,
   gerarContasReceberClientesPdf,
 } from "@/lib/contas-receber-clientes-export";
-import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, contribuiRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial } from "@/lib/contas-receber-financeiro";
+import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, contribuiRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, recebimentosHistoricoCliente, faturaRelacionadaAoRecebimento, movimentacoesRecebimentoDaFatura } from "@/lib/contas-receber-financeiro";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroReceita } from "@/lib/financeiro-painel-types";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
@@ -341,6 +343,10 @@ function FinanceiroReceberConteudo() {
   const [detalheRecebimento, setDetalheRecebimento] = useState<{
     cliente: ClienteReceber;
     lancamento: Lancamento;
+  } | null>(null);
+  const [movimentacoesRecebimento, setMovimentacoesRecebimento] = useState<{
+    cliente: ClienteReceber;
+    fatura: Lancamento;
   } | null>(null);
   const [reciboRecebimento, setReciboRecebimento] = useState<{
     clienteNome: string;
@@ -1814,16 +1820,24 @@ function FinanceiroReceberConteudo() {
     return calcularCreditoDisponivelClienteFatura(data?.lancamentos ?? [], clienteId);
   }
 
-  function recebimentosDoCliente(clienteId?: string) {
+  function recebimentosDoCliente(clienteId?: string): Lancamento[] {
     if (!clienteId) return [];
     const lancamentos = data?.lancamentos || [];
-    return lancamentos.filter(
-      (lancamento) =>
-        lancamento.tipo === "receita" &&
-        lancamento.status === "pago" &&
-        lancamento.cliente?.id === clienteId &&
-        deveExibirNoHistoricoRecebimentos(lancamento, lancamentos)
-    );
+    return recebimentosHistoricoCliente(clienteId, lancamentos) as Lancamento[];
+  }
+
+  function faturasPainelCliente(clienteId?: string): Lancamento[] {
+    if (!clienteId) return [];
+    const lancamentos = data?.lancamentos || [];
+    const inicio = dataInicio ? parseBrShortDate(dataInicio) : null;
+    const fim = dataFinal ? parseBrShortDate(dataFinal) : null;
+    if (inicio) inicio.setHours(0, 0, 0, 0);
+    if (fim) fim.setHours(23, 59, 59, 999);
+    return faturasExibicaoPainelCliente(clienteId, lancamentos, {
+      inicio,
+      fim,
+      situacao,
+    }) as Lancamento[];
   }
 
   function faturasPendentesCliente(clienteId?: string) {
@@ -1906,9 +1920,9 @@ function FinanceiroReceberConteudo() {
     }
     const saldo = saldoFatura(lancamento);
     const recebido = recebidoNaFatura(lancamento);
-    const quitada = saldo <= 0.009 && recebido >= lancamento.valor - 0.009;
+    const quitada = faturaQuitada(lancamento, data?.lancamentos || []);
     if (quitada) {
-      return { label: "Quitado", color: "bg-emerald-600 text-white font-semibold" };
+      return { label: "Recebido", color: "bg-emerald-100 text-emerald-800 font-semibold" };
     }
     if (faturaExibeSituacaoParcial(lancamento, data?.lancamentos || [])) {
       return { label: "Parcial", color: "bg-amber-100 text-amber-800" };
@@ -2345,7 +2359,7 @@ function FinanceiroReceberConteudo() {
               {clientesReceber.map((cliente) => {
                 const chave = clienteKey(cliente);
                 const aberto = clienteCollapseAberto === chave;
-                const faturasContasReceber = cliente.lancamentos.filter(isFaturaContasReceber);
+                const faturasContasReceber = faturasPainelCliente(cliente.clienteId);
                 const temFatura = faturasContasReceber.length > 0;
                 const recebimentosCliente = recebimentosDoCliente(cliente.clienteId);
 
@@ -2440,8 +2454,15 @@ function FinanceiroReceberConteudo() {
                                     )}
                                     {faturasContasReceber.map((l) => {
                                       const situacao = situacaoFatura(l);
+                                      const quitada = faturaQuitada(l, data?.lancamentos || []);
                                       return (
-                                        <tr key={l.id} className="border-b border-slate-100">
+                                        <tr
+                                          key={l.id}
+                                          className={cn(
+                                            "border-b border-slate-100",
+                                            quitada && "bg-emerald-50/80"
+                                          )}
+                                        >
                                           <td className="px-2 py-2">{formatDate(l.data)}</td>
                                           <td className="px-2 py-2">{numeroFatura(l)}</td>
                                           <td className="px-2 py-2">1 / 1</td>
@@ -2542,7 +2563,16 @@ function FinanceiroReceberConteudo() {
                                         </td>
                                       </tr>
                                     )}
-                                    {recebimentosCliente.map((l) => (
+                                    {recebimentosCliente.map((l) => {
+                                      const lancamentos = data?.lancamentos || [];
+                                      const faturaRelacionada = faturaRelacionadaAoRecebimento(
+                                        l,
+                                        lancamentos
+                                      );
+                                      const faturaQuitadaRelacionada =
+                                        faturaRelacionada &&
+                                        faturaQuitada(faturaRelacionada, lancamentos);
+                                      return (
                                       <tr key={`recebimento-${l.id}`} className="border-b border-slate-100">
                                         <td className="px-2 py-2">{formatDate(l.data)}</td>
                                         <td className="px-2 py-2">
@@ -2607,6 +2637,21 @@ function FinanceiroReceberConteudo() {
                                                 <span className="text-[10px]">Boleto</span>
                                               </a>
                                             ) : null}
+                                            {faturaQuitadaRelacionada ? (
+                                              <button
+                                                type="button"
+                                                title="Ver movimentações"
+                                                onClick={() =>
+                                                  setMovimentacoesRecebimento({
+                                                    cliente,
+                                                    fatura: faturaRelacionada as Lancamento,
+                                                  })
+                                                }
+                                                className="rounded p-1 text-slate-500 hover:bg-violet-50 hover:text-violet-700"
+                                              >
+                                                <ListTree className="h-3.5 w-3.5" />
+                                              </button>
+                                            ) : null}
                                             <button
                                               type="button"
                                               title="Estornar recebimento"
@@ -2637,7 +2682,8 @@ function FinanceiroReceberConteudo() {
                                           </div>
                                         </td>
                                       </tr>
-                                    ))}
+                                    );
+                                    })}
                                   </tbody>
                                 </table>
                               </div>
@@ -3028,6 +3074,23 @@ function FinanceiroReceberConteudo() {
           );
         })()}
       </Modal>
+
+      {movimentacoesRecebimento ? (
+        <MovimentacoesRecebimentoModal
+          open
+          onClose={() => setMovimentacoesRecebimento(null)}
+          clienteNome={movimentacoesRecebimento.cliente.nome}
+          numeroFatura={numeroFatura(movimentacoesRecebimento.fatura)}
+          movimentacoes={movimentacoesRecebimentoDaFatura(
+            movimentacoesRecebimento.fatura,
+            data?.lancamentos || []
+          )}
+          lancamentos={data?.lancamentos || []}
+          money={money}
+          formatDate={formatDate}
+          formaPagamentoExibicao={(l) => formaPagamentoExibicao(l as Lancamento)}
+        />
+      ) : null}
 
       <Modal
         open={Boolean(detalheRecebimento)}

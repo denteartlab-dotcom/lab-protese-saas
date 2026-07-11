@@ -304,7 +304,7 @@ export function situacaoFaturaLabel(
   if (lancamentos?.length) {
     const saldo = saldoFatura(lancamento, lancamentos);
     const recebido = recebidoNaFatura(lancamento, lancamentos);
-    if (saldo <= 0.009 && recebido >= lancamento.valor - 0.009) return "Quitado";
+    if (saldo <= 0.009 && recebido >= lancamento.valor - 0.009) return "Recebido";
     if (faturaExibeSituacaoParcial(lancamento, lancamentos)) return "Parcial";
   }
   if (lancamento.status === "pago") return "Recebido";
@@ -395,4 +395,176 @@ export function clienteVisivelContasReceber(totais: TotaisContasReceberCliente):
     colunaTemValorExibido(totais.adiantamentos) ||
     colunaTemValorExibido(totais.naoFaturados)
   );
+}
+
+/** Fatura Cobrança OS para exibição no painel — inclui quitadas (diferente de isFaturaContasReceber). */
+export function isFaturaExibicaoContasReceber(lancamento: LancamentoContasReceber) {
+  if (isCreditoGerado(lancamento) || isCreditoUtilizado(lancamento)) return false;
+  if (!lancamento.descricao.toLowerCase().startsWith("cobrança os")) return false;
+  if (lancamento.formaPagamento?.toLowerCase().includes("crédito")) return false;
+  return true;
+}
+
+function descricoesFaturaCoincidem(a: string, b: string) {
+  const x = a.trim();
+  const y = b.trim();
+  return x === y || x.includes(y) || y.includes(x);
+}
+
+function ordenarFaturasMaisRecentePrimeiro(
+  a: LancamentoContasReceber,
+  b: LancamentoContasReceber
+) {
+  const ca = a.createdAt ? new Date(a.createdAt).getTime() : new Date(a.data).getTime();
+  const cb = b.createdAt ? new Date(b.createdAt).getTime() : new Date(b.data).getTime();
+  return cb - ca;
+}
+
+export function faturasCobrancaOsDoCliente(
+  clienteId: string,
+  lancamentos: LancamentoContasReceber[]
+) {
+  return lancamentos
+    .filter(
+      (l) =>
+        l.cliente?.id === clienteId &&
+        l.tipo === "receita" &&
+        isFaturaExibicaoContasReceber(l)
+    )
+    .slice()
+    .sort(ordenarFaturasMaisRecentePrimeiro);
+}
+
+export function faturaQuitada(
+  fatura: LancamentoContasReceber,
+  lancamentos: LancamentoContasReceber[]
+) {
+  if (fatura.status === "cancelado") return false;
+  return fatura.status === "pago" || saldoFatura(fatura, lancamentos) <= 0.009;
+}
+
+export function faturasExibicaoPainelCliente(
+  clienteId: string,
+  lancamentos: LancamentoContasReceber[],
+  opcoes?: {
+    inicio?: Date | null;
+    fim?: Date | null;
+    situacao?: string;
+  }
+) {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const inicio = opcoes?.inicio ?? null;
+  const fim = opcoes?.fim ?? null;
+
+  return faturasCobrancaOsDoCliente(clienteId, lancamentos).filter((fatura) => {
+    if (faturaQuitada(fatura, lancamentos)) return true;
+    const vencimento = dateOnly(fatura.data);
+    if (inicio && vencimento < inicio) return false;
+    if (fim && vencimento > fim) return false;
+    if (opcoes?.situacao === "receber") return true;
+    if (opcoes?.situacao === "atraso") return vencimento < hoje;
+    return true;
+  });
+}
+
+export function recebimentoPertenceAFatura(
+  recebimento: LancamentoContasReceber,
+  fatura: LancamentoContasReceber,
+  lancamentos: LancamentoContasReceber[]
+) {
+  if (recebimento.id === fatura.id) return true;
+  const descricaoFatura = descricaoReceitaSemMeta(fatura.descricao).trim();
+  const vinculo = descricaoFaturaVinculadaAoPagamento(recebimento.descricao);
+  if (vinculo && descricoesFaturaCoincidem(vinculo, descricaoFatura)) return true;
+  if (isCreditoGerado(recebimento)) {
+    return creditosUtilizadosDaFatura(fatura, lancamentos).length > 0;
+  }
+  return false;
+}
+
+export function movimentacoesRecebimentoDaFatura(
+  fatura: LancamentoContasReceber,
+  lancamentos: LancamentoContasReceber[]
+) {
+  const resultado: LancamentoContasReceber[] = [];
+  const push = (item: LancamentoContasReceber) => {
+    if (!resultado.some((x) => x.id === item.id)) resultado.push(item);
+  };
+
+  for (const parcial of recebimentosParciaisDaFatura(fatura, lancamentos)) {
+    push(parcial as LancamentoContasReceber);
+  }
+  for (const credito of creditosUtilizadosDaFatura(fatura, lancamentos)) {
+    push(credito as LancamentoContasReceber);
+  }
+
+  if (creditosUtilizadosDaFatura(fatura, lancamentos).length > 0) {
+    for (const item of lancamentos) {
+      if (
+        item.cliente?.id === fatura.cliente?.id &&
+        isCreditoGerado(item) &&
+        item.status === "pago"
+      ) {
+        push(item);
+      }
+    }
+  }
+
+  if (fatura.status === "pago" && deveExibirNoHistoricoRecebimentos(fatura, lancamentos)) {
+    push(fatura);
+  }
+
+  return resultado.sort((a, b) => {
+    const da = new Date(a.data).getTime();
+    const db = new Date(b.data).getTime();
+    if (da !== db) return da - db;
+    const ca = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const cb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return ca - cb;
+  });
+}
+
+export function recebimentosHistoricoCliente(
+  clienteId: string,
+  lancamentos: LancamentoContasReceber[]
+) {
+  const base = lancamentos.filter(
+    (l) =>
+      l.cliente?.id === clienteId &&
+      l.tipo === "receita" &&
+      l.status === "pago" &&
+      deveExibirNoHistoricoRecebimentos(l, lancamentos)
+  );
+
+  const faturas = faturasCobrancaOsDoCliente(clienteId, lancamentos);
+  if (faturas.length <= 1) {
+    return base.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+  }
+
+  return movimentacoesRecebimentoDaFatura(faturas[0], lancamentos);
+}
+
+export function faturaRelacionadaAoRecebimento(
+  recebimento: LancamentoContasReceber,
+  lancamentos: LancamentoContasReceber[]
+) {
+  if (recebimento.descricao.toLowerCase().startsWith("cobrança os")) {
+    return recebimento;
+  }
+  const descricaoVinculada = descricaoFaturaVinculadaAoPagamento(recebimento.descricao);
+  if (descricaoVinculada && recebimento.cliente?.id) {
+    return (
+      localizarFaturaPorDescricao(descricaoVinculada, recebimento.cliente.id, lancamentos) ??
+      null
+    );
+  }
+  if (isCreditoGerado(recebimento) && recebimento.cliente?.id) {
+    const faturas = faturasCobrancaOsDoCliente(recebimento.cliente.id, lancamentos);
+    return (
+      faturas.find((fatura) => creditosUtilizadosDaFatura(fatura, lancamentos).length > 0) ??
+      null
+    );
+  }
+  return null;
 }
