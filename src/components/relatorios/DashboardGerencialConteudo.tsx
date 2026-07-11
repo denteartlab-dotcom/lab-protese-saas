@@ -85,10 +85,11 @@ function DonutProducao({
   fatias: { nome: string; valor: number; cor: string }[];
   total: number;
 }) {
+  const { t } = useI18n();
   const dados =
     fatias.length && total > 0
       ? fatias
-      : [{ nome: "Sem dados", valor: 1, cor: "#e5e7eb" }];
+      : [{ nome: t("relatorio.comum.semDados"), valor: 1, cor: "#e5e7eb" }];
 
   return (
     <div className="relative h-[240px] w-full">
@@ -120,7 +121,7 @@ function DonutProducao({
         </PieChart>
       </ResponsiveContainer>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pb-8">
-        <span className="text-[11px] text-[#9ca3af] dark:text-slate-500">Total</span>
+        <span className="text-[11px] text-[#9ca3af] dark:text-slate-500">{t("relatorio.kpi.total")}</span>
         <span className="text-[20px] font-medium text-[#374151] dark:text-slate-200">{total}</span>
       </div>
     </div>
@@ -188,14 +189,13 @@ function CardProducaoPorSetor({
   fatias: FatiaProducaoSetor[];
   total: number;
 }) {
+  const { t } = useI18n();
   return (
     <div className="overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-2 border-b border-[#f3f4f6] px-4 py-2.5">
         <h3 className="text-[13px] leading-snug text-[#374151] dark:text-slate-200">
-          Produção
-          <br />
-          por{" "}
-          <span className="rounded-sm bg-[#4a90d9] px-1 py-0.5 text-white">Setor</span>
+          {t("relatorio.dashboard.producaoPor")}{" "}
+          <span className="rounded-sm bg-[#4a90d9] px-1 py-0.5 text-white">{t("relatorio.dashboard.setor")}</span>
         </h3>
         <FiltrosMesAnoProducao
           mes={mes}
@@ -231,14 +231,17 @@ function CardProdutividadeColaborador({
   series: ReturnType<typeof montarGraficoProdutividadeColaboradores>["series"];
   maxValor: number;
 }) {
+  const { t } = useI18n();
   const { topo, ticks } = dominioEixoYProdutividade(maxValor);
 
   return (
     <div className="overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-2 border-b border-[#f3f4f6] px-4 py-2.5">
         <div>
-          <h3 className="text-[13px] font-medium text-[#374151] dark:text-slate-200">Produtividade Colaborador</h3>
-          <p className="mt-0.5 text-[11px] text-[#9ca3af] dark:text-slate-500">Produção</p>
+          <h3 className="text-[13px] font-medium text-[#374151] dark:text-slate-200">
+            {t("relatorio.dashboard.produtividadeColaborador")}
+          </h3>
+          <p className="mt-0.5 text-[11px] text-[#9ca3af] dark:text-slate-500">{t("relatorio.dashboard.producao")}</p>
         </div>
         <div className="flex items-start gap-2">
           <FiltrosMesAnoProducao
@@ -251,7 +254,7 @@ function CardProdutividadeColaborador({
           <button
             type="button"
             className="rounded p-1 text-[#9ca3af] dark:text-slate-500 hover:bg-[#f3f4f6] dark:hover:bg-slate-700 dark:bg-slate-800 hover:text-[#6b7280] dark:text-slate-400"
-            aria-label="Opções"
+            aria-label={t("relatorio.dashboard.opcoes")}
           >
             <MoreVertical className="h-4 w-4" />
           </button>
@@ -312,6 +315,7 @@ function CardDashboard({
   children: React.ReactNode;
   className?: string;
 }) {
+  const { t } = useI18n();
   return (
     <div
       className={cn(
@@ -324,7 +328,7 @@ function CardDashboard({
         <button
           type="button"
           className="rounded p-1 text-[#9ca3af] dark:text-slate-500 hover:bg-[#f3f4f6] dark:hover:bg-slate-700 dark:bg-slate-800 hover:text-[#6b7280] dark:text-slate-400"
-          aria-label="Opções"
+          aria-label={t("relatorio.dashboard.opcoes")}
         >
           <MoreVertical className="h-4 w-4" />
         </button>
@@ -388,14 +392,15 @@ function CardCurvaAbc({
   legenda: string;
   children: React.ReactNode;
 }) {
+  const { t } = useI18n();
   return (
     <div className="overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
       <div className="flex items-center justify-between border-b border-[#f3f4f6] px-4 py-2.5">
-        <h3 className="text-[13px] font-medium text-[#374151] dark:text-slate-200">Curva ABC</h3>
+        <h3 className="text-[13px] font-medium text-[#374151] dark:text-slate-200">{t("relatorio.dashboard.curvaAbc")}</h3>
         <button
           type="button"
           className="rounded p-1 text-[#9ca3af] dark:text-slate-500 hover:bg-[#f3f4f6] dark:hover:bg-slate-700 dark:bg-slate-800 hover:text-[#6b7280] dark:text-slate-400"
-          aria-label="Opções"
+          aria-label={t("relatorio.dashboard.opcoes")}
         >
           <MoreVertical className="h-4 w-4" />
         </button>
@@ -433,6 +438,7 @@ function GraficoCurvaAbc({
   cores?: readonly string[];
   onBarClick?: (classe: "A" | "B" | "C") => void;
 }) {
+  const { t } = useI18n();
   const chartData = dados.map((d) => ({
     nome: d.rotulo,
     fracao: Number(d.acumulado.toFixed(2)),
@@ -473,7 +479,7 @@ function GraficoCurvaAbc({
           <Tooltip
             formatter={(value) => [
               Number(value ?? 0).toFixed(2),
-              "Participação",
+              t("relatorio.comum.participacao"),
             ]}
             labelFormatter={(label) => label}
             contentStyle={{
@@ -675,13 +681,13 @@ export function DashboardGerencialConteudo() {
   const dadosProducao = useMemo(() => {
     const { entregues, atrasados } = resumoProducaoMes;
     if (entregues + atrasados <= 0) {
-      return [{ nome: "Sem dados", valor: 1, cor: "#e5e7eb" }];
+      return [{ nome: t("relatorio.comum.semDados"), valor: 1, cor: "#e5e7eb" }];
     }
     return [
-      { nome: "Entregues", valor: entregues, cor: COR.roxoClaro },
-      { nome: "Atrasados", valor: atrasados, cor: COR.azul },
+      { nome: t("relatorio.dashboard.entregues"), valor: entregues, cor: COR.roxoClaro },
+      { nome: t("relatorio.dashboard.atrasados"), valor: atrasados, cor: COR.azul },
     ];
-  }, [resumoProducaoMes]);
+  }, [resumoProducaoMes, t]);
 
   const graficoProdutividadeColaborador = useMemo(
     () =>
@@ -752,13 +758,13 @@ export function DashboardGerencialConteudo() {
 
       {carregando ? (
         <div className="min-h-[640px] rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
-          <PainelCarregando mensagem="Carregando dashboard gerencial..." />
+          <PainelCarregando mensagem={t("relatorio.dashboard.carregando")} />
         </div>
       ) : (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-4 rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-4 shadow-sm lg:flex-nowrap lg:gap-6">
             <ResumoMetrica
-              titulo="Inadimplentes"
+              titulo={t("relatorio.dashboard.inadimplentes")}
               valor={String(dados.resumo.inadimplentes)}
               icone={<User className="h-5 w-5" />}
               corFundo="#dbeafe"
@@ -766,21 +772,21 @@ export function DashboardGerencialConteudo() {
               onClick={() => setModalInadimplentes(true)}
             />
             <ResumoMetrica
-              titulo="Serviços Atrasados"
+              titulo={t("relatorio.dashboard.servicosAtrasados")}
               valor={String(dados.resumo.servicosAtrasados)}
               icone={<Package className="h-5 w-5" />}
               corFundo="#fee2e2"
               corIcone="#ef4444"
             />
             <ResumoMetrica
-              titulo="Contas a Pagar"
+              titulo={t("relatorio.dashboard.contasPagar")}
               valor={formatarMoedaResumo(dados.resumo.contasAPagar)}
               icone={<ArrowDown className="h-5 w-5" />}
               corFundo="#cffafe"
               corIcone="#06b6d4"
             />
             <ResumoMetrica
-              titulo="Contas a Receber"
+              titulo={t("relatorio.dashboard.contasReceber")}
               valor={formatarMoedaResumo(dados.resumo.contasAReceber)}
               icone={<DollarSign className="h-5 w-5" />}
               corFundo="#dcfce7"
@@ -802,19 +808,19 @@ export function DashboardGerencialConteudo() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
-            <CardCurvaAbc subtitulo="Serviços" legenda="Nº de Serviços">
+            <CardCurvaAbc subtitulo={t("relatorio.dashboard.servicos")} legenda={t("relatorio.dashboard.numServicos")}>
               <GraficoCurvaAbc
                 dados={dados.curvaAbc.servicos}
                 onBarClick={abrirModalCurvaAbcServicos}
               />
             </CardCurvaAbc>
-            <CardCurvaAbc subtitulo="Fornecedores" legenda="Fornecedores">
+            <CardCurvaAbc subtitulo={t("relatorio.dashboard.fornecedores")} legenda={t("relatorio.dashboard.fornecedores")}>
               <GraficoCurvaAbc
                 dados={dados.curvaAbc.fornecedores}
                 onBarClick={abrirModalCurvaAbcFornecedores}
               />
             </CardCurvaAbc>
-            <CardCurvaAbc subtitulo="Clientes" legenda="Nº de Clientes">
+            <CardCurvaAbc subtitulo={t("relatorio.dashboard.clientes")} legenda={t("relatorio.dashboard.numClientes")}>
               <GraficoCurvaAbc
                 dados={dados.curvaAbc.clientes}
                 onBarClick={abrirModalCurvaAbcClientes}
@@ -823,7 +829,7 @@ export function DashboardGerencialConteudo() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
-            <CardDashboard titulo="Produção">
+            <CardDashboard titulo={t("relatorio.dashboard.producao")}>
               <div className="mb-3 flex flex-wrap justify-end gap-2">
                 <select
                   className="h-[30px] rounded-sm border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 px-2 text-[11px] text-[#374151] dark:text-slate-200 outline-none focus:border-[#4a90d9]"
@@ -878,7 +884,7 @@ export function DashboardGerencialConteudo() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <CardDashboard titulo="Pedidos">
+            <CardDashboard titulo={t("relatorio.dashboard.pedidos")}>
               <div className="h-[240px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
@@ -892,7 +898,7 @@ export function DashboardGerencialConteudo() {
                     <Line
                       type="monotone"
                       dataKey="valor"
-                      name="Pedidos"
+                      name={t("relatorio.dashboard.pedidos")}
                       stroke={COR.roxo}
                       strokeWidth={2}
                       dot={{ r: 3, fill: COR.roxo }}
@@ -903,7 +909,7 @@ export function DashboardGerencialConteudo() {
               </div>
             </CardDashboard>
 
-            <CardDashboard titulo="Contas a Receber">
+            <CardDashboard titulo={t("relatorio.dashboard.contasReceber")}>
               <div className="h-[240px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
@@ -936,14 +942,14 @@ export function DashboardGerencialConteudo() {
                     />
                     <Bar
                       dataKey="recebido"
-                      name="Recebido"
+                      name={t("relatorio.comum.recebido")}
                       fill={COR.roxo}
                       radius={[2, 2, 0, 0]}
                       maxBarSize={28}
                     />
                     <Bar
                       dataKey="aReceber"
-                      name="A Receber"
+                      name={t("relatorio.comum.aReceber")}
                       fill={COR.roxoClaro}
                       radius={[2, 2, 0, 0]}
                       maxBarSize={28}
@@ -954,7 +960,7 @@ export function DashboardGerencialConteudo() {
             </CardDashboard>
           </div>
 
-          <CardDashboard titulo="Receitas vs Despesas">
+          <CardDashboard titulo={t("relatorio.dashboard.receitasVsDespesas")}>
             <div className="h-[280px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
@@ -995,7 +1001,7 @@ export function DashboardGerencialConteudo() {
                   <Line
                     type="monotone"
                     dataKey="receitas"
-                    name="Receitas"
+                    name={t("relatorio.financeiro.receitasLabel")}
                     stroke={COR.verde}
                     strokeWidth={2}
                     dot={{ r: 3, fill: COR.verde }}
@@ -1003,7 +1009,7 @@ export function DashboardGerencialConteudo() {
                   <Line
                     type="monotone"
                     dataKey="despesas"
-                    name="Despesas"
+                    name={t("relatorio.financeiro.despesasLabel")}
                     stroke={COR.vermelho}
                     strokeWidth={2}
                     dot={{ r: 3, fill: COR.vermelho }}
@@ -1023,18 +1029,18 @@ export function DashboardGerencialConteudo() {
 
       <ModalCurvaAbcDetalheDashboard
         aberto={secaoAbcServicos !== null}
-        titulo="Curva ABC Serviços"
-        colunaNome="Serviço"
-        mensagemVazia="Nenhum serviço nesta faixa."
+        titulo={t("relatorio.curvaAbc.tituloServicos")}
+        colunaNome={t("relatorio.comum.servico")}
+        mensagemVazia={t("relatorio.curvaAbc.nenhumServicoFaixa")}
         secao={secaoAbcServicos}
         onFechar={() => setSecaoAbcServicos(null)}
       />
 
       <ModalCurvaAbcDetalheDashboard
         aberto={secaoAbcFornecedores !== null}
-        titulo="Curva ABC Fornecedores"
-        colunaNome="Fornecedor"
-        mensagemVazia="Nenhum fornecedor nesta faixa."
+        titulo={t("relatorio.curvaAbc.tituloFornecedores")}
+        colunaNome={t("relatorio.comum.fornecedor")}
+        mensagemVazia={t("relatorio.curvaAbc.nenhumFornecedorFaixa")}
         secao={secaoAbcFornecedores}
         onFechar={() => setSecaoAbcFornecedores(null)}
       />

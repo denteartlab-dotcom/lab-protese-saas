@@ -6,11 +6,24 @@ import { messages, type Locale, type MessageKey } from "@/lib/i18n/messages";
 
 const PT_PARA_CHAVE = new Map<string, MessageKey>();
 
+function chaveLookup(texto: string): MessageKey | undefined {
+  const trimmed = texto.trim();
+  if (!trimmed) return undefined;
+  return (
+    PT_PARA_CHAVE.get(trimmed) ??
+    PT_PARA_CHAVE.get(trimmed.toLowerCase()) ??
+    PT_PARA_CHAVE.get(trimmed.toUpperCase())
+  );
+}
+
 function indexarMensagens() {
   if (PT_PARA_CHAVE.size > 0) return;
   for (const [chave, valor] of Object.entries(messages.pt)) {
     if (typeof valor === "string" && valor.trim()) {
-      PT_PARA_CHAVE.set(valor.trim(), chave as MessageKey);
+      const v = valor.trim();
+      PT_PARA_CHAVE.set(v, chave as MessageKey);
+      PT_PARA_CHAVE.set(v.toLowerCase(), chave as MessageKey);
+      PT_PARA_CHAVE.set(v.toUpperCase(), chave as MessageKey);
     }
   }
 }
@@ -26,7 +39,7 @@ export function trUi(texto: string | undefined | null, t: TradutorUi): string {
   const trimmed = String(texto).trim();
   if (!trimmed) return String(texto);
   indexarMensagens();
-  const chave = PT_PARA_CHAVE.get(trimmed);
+  const chave = chaveLookup(trimmed);
   if (chave) return t(chave);
   return String(texto);
 }

@@ -9,6 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useI18n } from "@/components/i18n-provider";
 import type { GraficosTempoProducao } from "@/lib/tempo-producao-relatorio";
 
 type Props = {
@@ -17,13 +18,16 @@ type Props = {
 };
 
 export function CollaboratorPerformanceChart({ tempoMedio }: Props) {
-  const chartData = tempoMedio.length ? tempoMedio : [{ colaborador: "Sem dados", dias: 0 }];
+  const { t } = useI18n();
+  const chartData = tempoMedio.length ? tempoMedio : [{ colaborador: t("relatorio.comum.semDados"), dias: 0 }];
 
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800/90">
-        <h3 className="mb-1 text-sm font-semibold text-slate-800 dark:text-slate-100">Tempo médio parado por colaborador</h3>
-        <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">Média de dias na etapa atual</p>
+        <h3 className="mb-1 text-sm font-semibold text-slate-800 dark:text-slate-100">
+          {t("relatorio.tempo.tempoMedioColab")}
+        </h3>
+        <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">{t("relatorio.tempo.tempoMedioColabSub")}</p>
         <div className="h-[240px] w-full tv:h-[280px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>

@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { DreMenuDownloadComparativo } from "@/components/relatorios/DreMenuDownloadComparativo";
+import { useI18n } from "@/components/i18n-provider";
 import {
   Area,
   Bar,
@@ -156,6 +157,7 @@ function CabecalhoIndicadorSmart({
   media: number;
   legenda: ReactNode;
 }) {
+  const { t } = useI18n();
   return (
     <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div>
@@ -167,7 +169,7 @@ function CabecalhoIndicadorSmart({
         ) : null}
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <div className="min-w-[76px] rounded border border-[#e5e7eb] bg-[#fafafa] px-3 py-2 text-center">
-            <p className="text-[10px] text-[#9ca3af]">média</p>
+            <p className="text-[10px] text-[#9ca3af]">{t("relatorio.comum.media")}</p>
             <p className="text-[13px] font-semibold leading-tight text-[#66bb6a]">
               {formatarTooltip(media)}
             </p>
@@ -215,6 +217,7 @@ type DreGraficosProps = {
 };
 
 export function DreGraficos({ matriz, carregando }: DreGraficosProps) {
+  const { t } = useI18n();
   const [mesComposicao, setMesComposicao] = useState(() => new Date().getMonth());
   const comparativoChartRef = useRef<HTMLDivElement>(null);
   const dados = useMemo(() => montarDadosGraficosDre(matriz), [matriz]);
@@ -271,7 +274,7 @@ export function DreGraficos({ matriz, carregando }: DreGraficosProps) {
   if (carregando) {
     return (
       <div className="py-20 text-center text-[12px] text-[#9ca3af]">
-        Carregando gráficos...
+        {t("relatorio.carregandoGraficos")}
       </div>
     );
   }
@@ -283,7 +286,7 @@ export function DreGraficos({ matriz, carregando }: DreGraficosProps) {
       {/* 1 — RECEITA / DESPESAS / LUCRO */}
       <section className="border-b border-[#e5e7eb] px-5 py-6">
         <CabecalhoGraficoSmart
-          titulo="Receita / Despesas / Lucro"
+          titulo={t("relatorio.dre.graficoReceitaDespesaLucro")}
           acaoDireita={
             <DreMenuDownloadComparativo
               chartRef={comparativoChartRef}
@@ -295,10 +298,10 @@ export function DreGraficos({ matriz, carregando }: DreGraficosProps) {
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
               <LegendaPonto
                 cor={COR.receitaBruta}
-                label="Receita Operacional Bruta"
+                label={t("relatorio.dre.receitaOperacionalBruta")}
               />
-              <LegendaPonto cor={COR.opex} label="Opex (CF + CV + Despesas)" />
-              <LegendaPonto cor={COR.lucroLiquido} label="Lucro Líquido" />
+              <LegendaPonto cor={COR.opex} label={t("relatorio.dre.opex")} />
+              <LegendaPonto cor={COR.lucroLiquido} label={t("relatorio.dre.lucroLiquido")} />
             </div>
           }
         />
@@ -326,7 +329,7 @@ export function DreGraficos({ matriz, carregando }: DreGraficosProps) {
               <Line
                 type="monotone"
                 dataKey="receitaBruta"
-                name="Receita Operacional Bruta"
+                name={t("relatorio.dre.receitaOperacionalBruta")}
                 stroke={COR.receitaBruta}
                 strokeWidth={1.5}
                 dot={{ r: 2.5, fill: COR.receitaBruta, strokeWidth: 0 }}
@@ -335,7 +338,7 @@ export function DreGraficos({ matriz, carregando }: DreGraficosProps) {
               <Line
                 type="monotone"
                 dataKey="opex"
-                name="Opex (CF + CV + Despesas)"
+                name={t("relatorio.dre.opex")}
                 stroke={COR.opex}
                 strokeWidth={1.5}
                 dot={{ r: 2.5, fill: COR.opex, strokeWidth: 0 }}
@@ -344,7 +347,7 @@ export function DreGraficos({ matriz, carregando }: DreGraficosProps) {
               <Line
                 type="monotone"
                 dataKey="lucroLiquido"
-                name="Lucro Líquido"
+                name={t("relatorio.dre.lucroLiquido")}
                 stroke={COR.lucroLiquido}
                 strokeWidth={1.5}
                 dot={{ r: 2.5, fill: COR.lucroLiquido, strokeWidth: 0 }}
@@ -359,23 +362,23 @@ export function DreGraficos({ matriz, carregando }: DreGraficosProps) {
       <section className="border-b border-[#e5e7eb] px-5 py-6">
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <TituloSmart>Margem de Contribuição — % sobre Receita Líquida</TituloSmart>
+            <TituloSmart>{t("relatorio.dre.margemContribuicaoPct")}</TituloSmart>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-              <LegendaPonto cor={COR.percentualMC} label="% MC" />
-              <LegendaPonto cor={COR.metaMC} label="Meta referência 50%" />
+              <LegendaPonto cor={COR.percentualMC} label={t("relatorio.dre.percentualMc")} />
+              <LegendaPonto cor={COR.metaMC} label={t("relatorio.dre.metaReferencia50")} />
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[#6b7280]">
             <span className="inline-flex items-center gap-1.5">
               <span className="inline-block h-0.5 w-5 rounded bg-[#66bb6a]" />
-              % MC
+              {t("relatorio.dre.percentualMc")}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span
                 className="inline-block h-0 w-5 border-t-2 border-dashed"
                 style={{ borderColor: COR.metaMC }}
               />
-              Meta referência 50%
+              {t("relatorio.dre.metaReferencia50")}
             </span>
           </div>
         </div>
@@ -420,7 +423,7 @@ export function DreGraficos({ matriz, carregando }: DreGraficosProps) {
               <Area
                 type="monotone"
                 dataKey="percentualMC"
-                name="% MC"
+                name={t("relatorio.dre.percentualMc")}
                 stroke={COR.percentualMC}
                 fill="#c8e6c9"
                 fillOpacity={0.65}
@@ -437,20 +440,20 @@ export function DreGraficos({ matriz, carregando }: DreGraficosProps) {
       {/* 3 — Margem de Contribuição (R$) */}
       <section className="border-b border-[#e5e7eb] px-5 py-6">
         <CabecalhoIndicadorSmart
-          titulo="Margem de Contribuição"
-          subtitulo="Valor (R$)"
-          nota="Receita Líquida − custos variáveis"
+          titulo={t("relatorio.dre.margemContribuicao")}
+          subtitulo={t("relatorio.dre.margemContribuicaoValor")}
+          nota={t("relatorio.dre.margemContribuicaoNota")}
           media={mediaMargemContribuicao}
           legenda={
             <>
               <LegendaPonto
                 cor={COR.mcPositiva}
-                label="MC positiva"
+                label={t("relatorio.dre.mcPositiva")}
                 formato="quadrado"
               />
               <LegendaPonto
                 cor={COR.mcReduzida}
-                label="MC reduzida"
+                label={t("relatorio.dre.mcReduzida")}
                 formato="quadrado"
               />
             </>
@@ -479,7 +482,7 @@ export function DreGraficos({ matriz, carregando }: DreGraficosProps) {
               <Tooltip content={<TooltipComparativo tipo="moeda" />} />
               <Bar
                 dataKey="margemContribuicaoBar"
-                name="Margem de Contribuição"
+                name={t("relatorio.dre.margemContribuicao")}
                 radius={[2, 2, 0, 0]}
                 maxBarSize={48}
               >
@@ -501,19 +504,19 @@ export function DreGraficos({ matriz, carregando }: DreGraficosProps) {
       {/* 4 — Ponto de Equilíbrio Mensal */}
       <section className="border-b border-[#e5e7eb] px-5 py-6">
         <CabecalhoIndicadorSmart
-          titulo="Ponto de Equilíbrio Mensal (R$)"
-          nota="Custos fixos + despesas ÷ % MC. Mostra a receita mínima necessária para não ter prejuízo."
+          titulo={t("relatorio.dre.pontoEquilibrioMensal")}
+          nota={t("relatorio.dre.pontoEquilibrioNota")}
           media={mediaPontoEquilibrio}
           legenda={
             <>
               <LegendaPonto
                 cor={COR.receitaLiquidaBar}
-                label="Receita líquida real"
+                label={t("relatorio.dre.receitaLiquidaReal")}
                 formato="quadrado"
               />
               <LegendaPonto
                 cor={COR.pontoEquilibrio}
-                label="Ponto de Equilíbrio"
+                label={t("relatorio.dre.pontoEquilibrio")}
               />
             </>
           }
@@ -541,7 +544,7 @@ export function DreGraficos({ matriz, carregando }: DreGraficosProps) {
               <Tooltip content={<TooltipComparativo tipo="moeda" />} />
               <Bar
                 dataKey="receitaLiquida"
-                name="Receita líquida real"
+                name={t("relatorio.dre.receitaLiquidaReal")}
                 fill={COR.receitaLiquidaBar}
                 radius={[2, 2, 0, 0]}
                 maxBarSize={48}
@@ -549,7 +552,7 @@ export function DreGraficos({ matriz, carregando }: DreGraficosProps) {
               <Line
                 type="monotone"
                 dataKey="pontoEquilibrio"
-                name="Ponto de Equilíbrio"
+                name={t("relatorio.dre.pontoEquilibrio")}
                 stroke="none"
                 dot={{
                   r: 4,
@@ -566,9 +569,9 @@ export function DreGraficos({ matriz, carregando }: DreGraficosProps) {
       {/* 5 — Lucratividade % */}
       <section className="border-b border-[#e5e7eb] px-5 py-6">
         <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-          <TituloSmart>Lucratividade %</TituloSmart>
+          <TituloSmart>{t("relatorio.dre.lucratividadePct")}</TituloSmart>
           <p className="text-[10px] text-[#9ca3af] sm:text-right">
-            Lucro líquido / receita bruta
+            {t("relatorio.dre.lucratividadeNota")}
           </p>
         </div>
         <div className="h-[240px] w-full">
@@ -594,7 +597,7 @@ export function DreGraficos({ matriz, carregando }: DreGraficosProps) {
               <Tooltip content={<TooltipComparativo tipo="percentual" />} />
               <Bar
                 dataKey="lucratividadePct"
-                name="Lucratividade"
+                name={t("relatorio.dre.lucratividade")}
                 fill={COR.lucratividade}
                 radius={[2, 2, 0, 0]}
                 maxBarSize={52}
@@ -627,16 +630,16 @@ export function DreGraficos({ matriz, carregando }: DreGraficosProps) {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h3 className="text-[12px] font-normal uppercase tracking-wide text-[#94a3b8]">
-              Composição do DRE
+              {t("relatorio.dre.composicaoTitulo")}
             </h3>
             <p className="mt-0.5 text-[11px] text-[#9ca3af]">
-              Distribuição dos itens do DRE por mês
+              {t("relatorio.dre.composicaoSubtitulo")}
             </p>
             <select
               className={selectComposicaoClass}
               value={mesComposicao}
               onChange={(e) => setMesComposicao(Number(e.target.value))}
-              aria-label="Mês da composição do DRE"
+              aria-label={t("relatorio.dre.mesComposicao")}
             >
               {MESES_SELECT_DRE.map((mes, i) => (
                 <option key={mes} value={i}>
@@ -646,7 +649,7 @@ export function DreGraficos({ matriz, carregando }: DreGraficosProps) {
             </select>
           </div>
           <div className="text-right sm:pt-1">
-            <p className="text-[11px] text-[#9ca3af]">Receita Operacional Bruta</p>
+            <p className="text-[11px] text-[#9ca3af]">{t("relatorio.dre.receitaOperacionalBruta")}</p>
             <p className="mt-0.5 text-[20px] font-semibold leading-tight text-[#374151]">
               R$ {formatarTooltip(composicao.receitaBruta)}
             </p>
@@ -657,7 +660,7 @@ export function DreGraficos({ matriz, carregando }: DreGraficosProps) {
           <div className="mx-auto h-[260px] w-full max-w-[320px]">
             {fatiasPizza.length === 0 ? (
               <div className="flex h-full items-center justify-center text-[12px] text-[#9ca3af]">
-                Sem valores neste mês
+                {t("relatorio.comum.semValoresMes")}
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -716,7 +719,7 @@ export function DreGraficos({ matriz, carregando }: DreGraficosProps) {
                     minimumFractionDigits: 1,
                     maximumFractionDigits: 1,
                   })}
-                  % da receita bruta
+                  {t("relatorio.comum.percentReceitaBruta")}
                 </p>
               </li>
             ))}

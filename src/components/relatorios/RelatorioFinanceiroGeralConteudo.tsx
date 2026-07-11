@@ -242,10 +242,13 @@ export function RelatorioFinanceiroGeralConteudo() {
   const tituloConcluidosModal = useMemo(() => {
     if (!detalheConcluidosMes) return "";
     if (detalheConcluidosMes.tipo === "total") {
-      return "A receber — concluídos no período";
+      return t("relatorio.financeiro.aReceberConcluidos");
     }
-    return `A receber — concluídos em ${detalheConcluidosMes.mes}/${detalheConcluidosMes.ano}`;
-  }, [detalheConcluidosMes]);
+    return t("relatorio.financeiro.aReceberConcluidosMes", {
+      mes: detalheConcluidosMes.mes,
+      ano: detalheConcluidosMes.ano,
+    });
+  }, [detalheConcluidosMes, t]);
 
   useEffect(() => {
     setPaginaModal(1);
@@ -451,80 +454,86 @@ export function RelatorioFinanceiroGeralConteudo() {
               className="inline-flex h-[34px] items-center gap-1.5 rounded-lg border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-[12px] font-medium text-[#374151] dark:text-slate-200 shadow-sm hover:bg-[#f9fafb] dark:bg-slate-800/70 disabled:opacity-50"
             >
               <FileSpreadsheet className="h-3.5 w-3.5" />
-              Exportar Excel
+              {t("relatorio.financeiro.exportarExcel")}
             </button>
           </div>
         </div>
 
         {carregando ? (
           <div className="min-h-[480px] rounded-xl border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
-            <PainelCarregando mensagem="Carregando relatório financeiro geral..." />
+            <PainelCarregando mensagem={t("relatorio.carregandoFinanceiroGeral")} />
           </div>
         ) : !dados ? (
           <div className="rounded-xl border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 p-12 text-center text-[#6b7280] dark:text-slate-400">
-            Não foi possível carregar os dados.
+            {t("relatorio.financeiro.erroCarregarDados")}
           </div>
         ) : (
           <div className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
               <CardKpi
-                titulo="Valor Bruto Total"
+                titulo={t("relatorio.financeiro.valorBrutoTotal")}
                 valor={formatarMoedaFinanceiroGeral(dados.resumo.valorBrutoTotal)}
                 cor={COR.laranja}
               />
               <CardKpi
-                titulo="Quantidade Total"
+                titulo={t("relatorio.financeiro.quantidadeTotal")}
                 valor={String(dados.resumo.quantidadeTotal)}
-                subtitulo="OS no período"
+                subtitulo={t("relatorio.financeiro.osNoPeriodo")}
                 cor={COR.azul}
               />
               <CardKpi
-                titulo="Ticket Médio"
+                titulo={t("relatorio.financeiro.ticketMedio")}
                 valor={formatarMoedaFinanceiroGeral(dados.resumo.ticketMedio)}
                 cor={COR.laranja}
               />
               <CardKpi
-                titulo="Valor Médio Mensal"
+                titulo={t("relatorio.financeiro.valorMedioMensal")}
                 valor={formatarMoedaFinanceiroGeral(dados.resumo.valorMedioMensal)}
                 cor={COR.laranja}
               />
               <CardKpi
-                titulo="Serviços Não Concluídos"
+                titulo={t("relatorio.snc.titulo")}
                 valor={String(dados.resumo.naoConcluidosQtd)}
                 subtitulo={formatarMoedaFinanceiroGeral(dados.resumo.naoConcluidosValor)}
                 cor={COR.azul}
               />
               <CardKpi
-                titulo="Serviços Concluídos"
+                titulo={t("relatorio.financeiro.servicosConcluidos")}
                 valor={String(dados.resumo.concluidosQtd)}
-                subtitulo={`${formatarMoedaFinanceiroGeral(dados.resumo.concluidosValor)} a receber`}
+                subtitulo={t("relatorio.financeiro.aReceberSubtitulo", {
+                  valor: formatarMoedaFinanceiroGeral(dados.resumo.concluidosValor),
+                })}
                 cor={COR.verde}
               />
             </div>
 
             <div className="rounded-xl border border-[#e5e7eb] dark:border-slate-700 bg-[#f9fafb] dark:bg-slate-800/70 p-4">
               <h2 className="mb-3 text-[14px] font-semibold text-[#374151] dark:text-slate-200">
-                Financeiro realizado — lançamentos pagos
+                {t("relatorio.financeiro.realizadoTitulo")}
               </h2>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <CardKpi
-                  titulo="Receitas Realizadas"
+                  titulo={t("relatorio.financeiro.receitasRealizadas")}
                   valor={formatarMoedaFinanceiroGeral(
                     dados.financeiroRealizado.resumo.receitasTotal
                   )}
-                  subtitulo={`${dados.financeiroRealizado.resumo.receitasQtd} lançamentos`}
+                  subtitulo={t("relatorio.financeiro.lancamentos", {
+                    n: dados.financeiroRealizado.resumo.receitasQtd,
+                  })}
                   cor={COR.verde}
                 />
                 <CardKpi
-                  titulo="Despesas Realizadas"
+                  titulo={t("relatorio.financeiro.despesasRealizadas")}
                   valor={formatarMoedaFinanceiroGeral(
                     dados.financeiroRealizado.resumo.despesasTotal
                   )}
-                  subtitulo={`${dados.financeiroRealizado.resumo.despesasQtd} lançamentos`}
+                  subtitulo={t("relatorio.financeiro.lancamentos", {
+                    n: dados.financeiroRealizado.resumo.despesasQtd,
+                  })}
                   cor={COR.azul}
                 />
                 <CardKpi
-                  titulo="Saldo do Período"
+                  titulo={t("relatorio.financeiro.saldoPeriodo")}
                   valor={formatarMoedaFinanceiroGeral(
                     dados.financeiroRealizado.resumo.saldoTotal
                   )}
@@ -534,7 +543,7 @@ export function RelatorioFinanceiroGeralConteudo() {
             </div>
 
             <div className="grid gap-4 xl:grid-cols-2">
-              <CardGrafico titulo="Receitas x Despesas Realizadas por Mês">
+              <CardGrafico titulo={t("relatorio.financeiro.graficoReceitasDespesas")}>
                 <div className="h-[300px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={financeiroRealizadoChart}>
@@ -550,13 +559,13 @@ export function RelatorioFinanceiroGeralConteudo() {
                       <Legend wrapperStyle={{ fontSize: 11 }} />
                       <Bar
                         dataKey="receitas"
-                        name="Receitas"
+                        name={t("relatorio.financeiro.receitasLabel")}
                         fill={COR.verde}
                         radius={[4, 4, 0, 0]}
                       />
                       <Bar
                         dataKey="despesas"
-                        name="Despesas"
+                        name={t("relatorio.financeiro.despesasLabel")}
                         fill={COR.azul}
                         radius={[4, 4, 0, 0]}
                       />
@@ -565,15 +574,15 @@ export function RelatorioFinanceiroGeralConteudo() {
                 </div>
               </CardGrafico>
 
-              <CardGrafico titulo="Saldo Realizado por Mês">
+              <CardGrafico titulo={t("relatorio.financeiro.graficoSaldo")}>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[480px] text-left text-[12px]">
                     <thead>
                       <tr className="border-b border-[#e5e7eb] dark:border-slate-700 bg-[#f9fafb] dark:bg-slate-800/70 text-[11px] uppercase tracking-wide text-[#6b7280] dark:text-slate-400">
-                        <th className="px-3 py-2">Mês</th>
-                        <th className="px-3 py-2 text-right">Receitas</th>
-                        <th className="px-3 py-2 text-right">Despesas</th>
-                        <th className="px-3 py-2 text-right">Saldo</th>
+                        <th className="px-3 py-2">{t("relatorio.comum.mes")}</th>
+                        <th className="px-3 py-2 text-right">{t("relatorio.financeiro.receitasLabel")}</th>
+                        <th className="px-3 py-2 text-right">{t("relatorio.financeiro.despesasLabel")}</th>
+                        <th className="px-3 py-2 text-right">{t("relatorio.comum.saldo")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -594,7 +603,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                         </tr>
                       ))}
                       <tr className="bg-[#f9fafb] dark:bg-slate-800/70 font-bold">
-                        <td className="px-3 py-2">TOTAL</td>
+                        <td className="px-3 py-2">{t("relatorio.kpi.total")}</td>
                         <td className="px-3 py-2 text-right text-[#2ecc71]">
                           {formatarMoedaFinanceiroGeral(
                             dados.financeiroRealizado.resumo.receitasTotal
@@ -618,7 +627,7 @@ export function RelatorioFinanceiroGeralConteudo() {
             </div>
 
             <div className="grid gap-4 xl:grid-cols-2">
-              <CardGrafico titulo="Evolução Mensal — Produção e A Receber">
+              <CardGrafico titulo={t("relatorio.financeiro.graficoEvolucao")}>
                 <div className="h-[300px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={evolucaoChart}>
@@ -634,14 +643,14 @@ export function RelatorioFinanceiroGeralConteudo() {
                       <Legend wrapperStyle={{ fontSize: 11 }} />
                       <Bar
                         dataKey="naoConcluido"
-                        name="Não Concluído"
+                        name={t("relatorio.financeiro.naoConcluido")}
                         fill={COR.azul}
                         radius={[4, 4, 0, 0]}
                         barSize={18}
                       />
                       <Bar
                         dataKey="concluido"
-                        name="A receber (concluídos)"
+                        name={t("relatorio.financeiro.aReceberConcluidosLabel")}
                         fill={COR.verde}
                         radius={[4, 4, 0, 0]}
                         barSize={18}
@@ -649,7 +658,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                       <Line
                         type="monotone"
                         dataKey="total"
-                        name="Total"
+                        name={t("relatorio.kpi.total")}
                         stroke={COR.roxo}
                         strokeWidth={2.5}
                         dot={{ r: 3, fill: COR.roxo }}
@@ -659,12 +668,12 @@ export function RelatorioFinanceiroGeralConteudo() {
                 </div>
               </CardGrafico>
 
-              <CardGrafico titulo="Distribuição por Tipo de Serviço">
+              <CardGrafico titulo={t("relatorio.financeiro.distribuicaoTipo")}>
                 <div className="h-[300px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={donutData.length ? donutData : [{ tipo: "Sem dados", valor: 1 }]}
+                        data={donutData.length ? donutData : [{ tipo: t("relatorio.comum.semDados"), valor: 1 }]}
                         dataKey="valor"
                         nameKey="tipo"
                         cx="50%"
@@ -681,7 +690,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                         }}
                         labelLine={false}
                       >
-                        {(donutData.length ? donutData : [{ tipo: "Sem dados", valor: 1 }]).map(
+                        {(donutData.length ? donutData : [{ tipo: t("relatorio.comum.semDados"), valor: 1 }]).map(
                           (entry, i) => (
                             <Cell
                               key={entry.tipo}
@@ -707,11 +716,11 @@ export function RelatorioFinanceiroGeralConteudo() {
                 </div>
               </CardGrafico>
 
-              <CardGrafico titulo="Status dos Serviços">
+              <CardGrafico titulo={t("relatorio.financeiro.statusServicos")}>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <p className="mb-2 text-center text-[12px] font-semibold text-[#3498db]">
-                      Não Concluídos
+                      {t("relatorio.financeiro.naoConcluidos")}
                     </p>
                     <div className="h-[200px]">
                       <ResponsiveContainer width="100%" height="100%">
@@ -719,7 +728,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                           <Pie
                             data={[
                               {
-                                name: "Não Concluídos",
+                                name: t("relatorio.financeiro.naoConcluidos"),
                                 value: dados.statusResumo.naoConcluidos.valor || 1,
                               },
                             ]}
@@ -755,7 +764,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                   </div>
                   <div>
                     <p className="mb-2 text-center text-[12px] font-semibold text-[#2ecc71]">
-                      Concluídos (a receber)
+                      {t("relatorio.financeiro.concluidosAReceber")}
                     </p>
                     <div className="h-[200px]">
                       <ResponsiveContainer width="100%" height="100%">
@@ -763,7 +772,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                           <Pie
                             data={[
                               {
-                                name: "Concluídos",
+                                name: t("relatorio.financeiro.concluidos"),
                                 value: dados.statusResumo.concluidos.valor || 1,
                               },
                             ]}
@@ -798,7 +807,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                 </div>
               </CardGrafico>
 
-              <CardGrafico titulo="Valor Bruto por Mês">
+              <CardGrafico titulo={t("relatorio.financeiro.valorBrutoMes")}>
                 <div className="h-[300px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={evolucaoChart}>
@@ -814,13 +823,13 @@ export function RelatorioFinanceiroGeralConteudo() {
                       <Legend wrapperStyle={{ fontSize: 11 }} />
                       <Bar
                         dataKey="naoConcluido"
-                        name="Não Concluído"
+                        name={t("relatorio.financeiro.naoConcluido")}
                         fill={COR.azul}
                         radius={[4, 4, 0, 0]}
                       />
                       <Bar
                         dataKey="concluido"
-                        name="A receber (concluídos)"
+                        name={t("relatorio.financeiro.aReceberConcluidosLabel")}
                         fill={COR.verde}
                         radius={[4, 4, 0, 0]}
                       />
@@ -830,17 +839,17 @@ export function RelatorioFinanceiroGeralConteudo() {
               </CardGrafico>
             </div>
 
-            <CardGrafico titulo="Valores por Mês">
+            <CardGrafico titulo={t("relatorio.financeiro.valoresPorMes")}>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[640px] text-left text-[12px]">
                   <thead>
                     <tr className="border-b border-[#e5e7eb] dark:border-slate-700 bg-[#f9fafb] dark:bg-slate-800/70 text-[11px] uppercase tracking-wide text-[#6b7280] dark:text-slate-400">
-                      <th className="px-3 py-2">Mês</th>
-                      <th className="px-3 py-2 text-right">Valor Não Concluído</th>
-                      <th className="px-3 py-2 text-right">A Receber (Concluídos)</th>
-                      <th className="px-3 py-2 text-right">Valor Total</th>
-                      <th className="px-3 py-2 text-center">Quantidade</th>
-                      <th className="px-3 py-2 text-right">Ticket Médio</th>
+                      <th className="px-3 py-2">{t("relatorio.comum.mes")}</th>
+                      <th className="px-3 py-2 text-right">{t("relatorio.financeiro.valorNaoConcluidoCol")}</th>
+                      <th className="px-3 py-2 text-right">{t("relatorio.financeiro.aReceberConcluidosCol")}</th>
+                      <th className="px-3 py-2 text-right">{t("relatorio.comum.valorTotal")}</th>
+                      <th className="px-3 py-2 text-center">{t("relatorio.comum.quantidade")}</th>
+                      <th className="px-3 py-2 text-right">{t("relatorio.financeiro.ticketMedio")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -865,7 +874,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                                 })
                               }
                               className="font-medium text-[#2ecc71] underline decoration-[#2ecc71]/40 underline-offset-2 transition hover:text-[#27ae60] hover:decoration-[#27ae60]"
-                              title="Ver OS concluídas deste mês"
+                              title={t("relatorio.financeiro.verOsConcluidasMes")}
                             >
                               {formatarMoedaFinanceiroGeral(m.concluido)}
                             </button>
@@ -883,7 +892,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                       </tr>
                     ))}
                     <tr className="bg-[#f9fafb] dark:bg-slate-800/70 font-bold">
-                      <td className="px-3 py-2">TOTAL</td>
+                      <td className="px-3 py-2">{t("relatorio.kpi.total")}</td>
                       <td className="px-3 py-2 text-right text-[#3498db]">
                         {formatarMoedaFinanceiroGeral(dados.resumo.naoConcluidosValor)}
                       </td>
@@ -893,7 +902,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                             type="button"
                             onClick={() => setDetalheConcluidosMes({ tipo: "total" })}
                             className="font-bold text-[#2ecc71] underline decoration-[#2ecc71]/40 underline-offset-2 transition hover:text-[#27ae60] hover:decoration-[#27ae60]"
-                            title="Ver todas as OS concluídas no período"
+                            title={t("relatorio.financeiro.verTodasOsConcluidas")}
                           >
                             {formatarMoedaFinanceiroGeral(dados.resumo.concluidosValor)}
                           </button>
@@ -914,15 +923,15 @@ export function RelatorioFinanceiroGeralConteudo() {
               </div>
             </CardGrafico>
 
-            <CardGrafico titulo="Valor por Tipo de Serviço">
+            <CardGrafico titulo={t("relatorio.financeiro.valorPorTipo")}>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[480px] text-left text-[12px]">
                   <thead>
                     <tr className="border-b border-[#e5e7eb] dark:border-slate-700 bg-[#f9fafb] dark:bg-slate-800/70 text-[11px] uppercase tracking-wide text-[#6b7280] dark:text-slate-400">
-                      <th className="px-3 py-2">Serviço</th>
-                      <th className="px-3 py-2 text-center">Quantidade</th>
-                      <th className="px-3 py-2 text-right">Valor Total</th>
-                      <th className="px-3 py-2 text-right">Percentual</th>
+                      <th className="px-3 py-2">{t("relatorio.comum.servico")}</th>
+                      <th className="px-3 py-2 text-center">{t("relatorio.comum.quantidade")}</th>
+                      <th className="px-3 py-2 text-right">{t("relatorio.comum.valorTotal")}</th>
+                      <th className="px-3 py-2 text-right">{t("relatorio.comum.percentual")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -943,7 +952,7 @@ export function RelatorioFinanceiroGeralConteudo() {
               </div>
             </CardGrafico>
 
-            <CardGrafico titulo="Serviços Detalhados">
+            <CardGrafico titulo={t("relatorio.financeiro.servicosDetalhados")}>
               <div className="mb-4 flex flex-wrap items-center gap-3">
                 <div className="relative min-w-[200px] flex-1">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9ca3af] dark:text-slate-500" />
@@ -954,7 +963,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                       setBusca(e.target.value);
                       setPagina(1);
                     }}
-                    placeholder="Buscar OS, cliente, serviço..."
+                    placeholder={t("relatorio.financeiro.buscarPlaceholder")}
                     className={`${inputClass} pl-9`}
                   />
                 </div>
@@ -966,12 +975,12 @@ export function RelatorioFinanceiroGeralConteudo() {
                     setPagina(1);
                   }}
                 >
-                  <option value="Todos">Todos os status</option>
-                  <option value="Concluídos">Concluídos</option>
-                  <option value="Não Concluídos">Não Concluídos</option>
+                  <option value="Todos">{t("relatorio.financeiro.todosStatus")}</option>
+                  <option value="Concluídos">{t("relatorio.financeiro.concluidos")}</option>
+                  <option value="Não Concluídos">{t("relatorio.financeiro.naoConcluidos")}</option>
                 </select>
                 <span className="text-[11px] text-[#9ca3af] dark:text-slate-500">
-                  {detalhesFiltrados.length} registro(s)
+                  {t("relatorio.financeiro.registrosCount", { n: detalhesFiltrados.length })}
                 </span>
               </div>
               <div className="overflow-x-auto">
@@ -980,16 +989,16 @@ export function RelatorioFinanceiroGeralConteudo() {
                     <tr className="border-b border-[#e5e7eb] dark:border-slate-700 bg-[#f9fafb] dark:bg-slate-800/70 text-[11px] uppercase tracking-wide text-[#6b7280] dark:text-slate-400">
                       {(
                         [
-                          ["numeroOs", "Nº OS"],
-                          ["cliente", "Cliente"],
-                          ["servico", "Serviço"],
-                          ["valor", "Valor"],
-                          ["dataEntrada", "Data Entrada"],
-                          ["prazo", "Prazo"],
-                          ["diasProducao", "Dias Prod."],
-                          ["statusLabel", "Status"],
-                          ["etapaAtual", "Etapa Atual"],
-                          ["responsavel", "Responsável"],
+                          ["numeroOs", t("relatorio.financeiro.colunaNumeroOs")],
+                          ["cliente", t("relatorio.comum.cliente")],
+                          ["servico", t("relatorio.comum.servico")],
+                          ["valor", t("relatorio.comum.valor")],
+                          ["dataEntrada", t("relatorio.financeiro.colunaDataEntrada")],
+                          ["prazo", t("relatorio.tempo.prazo")],
+                          ["diasProducao", t("relatorio.financeiro.colunaDiasProd")],
+                          ["statusLabel", t("relatorio.financeiro.colunaStatus")],
+                          ["etapaAtual", t("relatorio.comum.etapaAtual")],
+                          ["responsavel", t("relatorio.comum.responsavel")],
                         ] as [ColunaDetalhe, string][]
                       ).map(([col, label]) => (
                         <th key={col} className="px-3 py-2">

@@ -243,7 +243,7 @@ export function RelatorioEntregasConteudo() {
             disabled={gerando}
             className="rounded-sm bg-[#4a90d9] px-4 py-2 text-[12px] text-white hover:bg-[#3d7fc4] disabled:opacity-60"
           >
-            {gerando ? "Gerando..." : "Gerar Relatório"}
+            {gerando ? t("relatorio.gerando") : t("relatorio.gerarRelatorio")}
           </button>
           <button
             type="button"

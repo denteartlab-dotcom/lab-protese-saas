@@ -1,6 +1,7 @@
 "use client";
 
 import { I18nPortal } from "@/components/I18nPortal";
+import { useI18n } from "@/components/i18n-provider";
 import { X } from "lucide-react";
 import {
   formatarValorCampoLog,
@@ -16,13 +17,15 @@ type Props = {
 };
 
 export function VerAlteracoesAuditoriaModal({ linha, onFechar }: Props) {
+  const { t } = useI18n();
+
   if (!linha) return null;
 
   const detalhes = linha.detalhes?.length
     ? linha.detalhes
     : [
         {
-          campo: "Registro",
+          campo: t("relatorio.comum.registro"),
           antes: "—",
           depois: linha.tipoAlteracaoLabel,
         },
@@ -34,13 +37,13 @@ export function VerAlteracoesAuditoriaModal({ linha, onFechar }: Props) {
       <div className="w-full max-w-lg overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl">
         <div className="flex items-center justify-between border-b border-[#e5e7eb] dark:border-slate-700 bg-[#f9fafb] dark:bg-slate-800/70 px-4 py-2.5">
           <h2 className="text-[13px] font-semibold text-[#374151] dark:text-slate-200">
-            {linha ? rotuloOpcaoLog(linha.tipoAlteracao) : "Detalhes"}
+            {linha ? rotuloOpcaoLog(linha.tipoAlteracao) : t("relatorio.comum.detalhes")}
           </h2>
           <button
             type="button"
             onClick={onFechar}
             className="rounded p-1 text-[#9ca3af] dark:text-slate-500 hover:bg-[#f3f4f6] dark:hover:bg-slate-700 dark:bg-slate-800 hover:text-[#374151] dark:text-slate-200"
-            aria-label="Fechar"
+            aria-label={t("cadastros.comum.fechar")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -48,22 +51,22 @@ export function VerAlteracoesAuditoriaModal({ linha, onFechar }: Props) {
         <div className="space-y-3 px-4 py-4 text-[12px] text-[#374151] dark:text-slate-200">
           <div className="grid grid-cols-2 gap-2 text-[11px] text-[#6b7280] dark:text-slate-400">
             <p>
-              <span className="font-semibold text-[#374151] dark:text-slate-200">OS:</span>{" "}
+              <span className="font-semibold text-[#374151] dark:text-slate-200">{t("relatorio.comum.os")}:</span>{" "}
               {linha.numeroOs ?? "—"}
             </p>
             <p>
-              <span className="font-semibold text-[#374151] dark:text-slate-200">Serviço:</span>{" "}
+              <span className="font-semibold text-[#374151] dark:text-slate-200">{t("relatorio.comum.servico")}:</span>{" "}
               {textoServicoLog(linha)}
             </p>
             <p>
-              <span className="font-semibold text-[#374151] dark:text-slate-200">Cliente:</span>{" "}
+              <span className="font-semibold text-[#374151] dark:text-slate-200">{t("relatorio.comum.cliente")}:</span>{" "}
               {textoClienteLog(linha)}
             </p>
             <p>
-              <span className="font-semibold text-[#374151] dark:text-slate-200">Usuário:</span> {linha.usuarioNome}
+              <span className="font-semibold text-[#374151] dark:text-slate-200">{t("relatorio.comum.usuario")}:</span> {linha.usuarioNome}
             </p>
             <p className="col-span-2">
-              <span className="font-semibold text-[#374151] dark:text-slate-200">Data:</span>{" "}
+              <span className="font-semibold text-[#374151] dark:text-slate-200">{t("relatorio.comum.data")}:</span>{" "}
               {linha.dataAlteracaoFormatada}
             </p>
           </div>
@@ -71,13 +74,13 @@ export function VerAlteracoesAuditoriaModal({ linha, onFechar }: Props) {
             <thead>
               <tr className="bg-[#f3f4f6] dark:bg-slate-950 text-[#6b7280] dark:text-slate-400">
                 <th className="border border-[#e5e7eb] dark:border-slate-700 px-2 py-2 text-left font-semibold uppercase">
-                  Campo
+                  {t("relatorio.comum.campo")}
                 </th>
                 <th className="border border-[#e5e7eb] dark:border-slate-700 px-2 py-2 text-left font-semibold uppercase">
-                  Antes
+                  {t("relatorio.comum.antes")}
                 </th>
                 <th className="border border-[#e5e7eb] dark:border-slate-700 px-2 py-2 text-left font-semibold uppercase">
-                  Depois
+                  {t("relatorio.comum.depois")}
                 </th>
               </tr>
             </thead>
@@ -102,7 +105,7 @@ export function VerAlteracoesAuditoriaModal({ linha, onFechar }: Props) {
             onClick={onFechar}
             className="inline-flex h-[32px] items-center rounded-sm border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 px-4 text-[12px] text-[#374151] dark:text-slate-200 hover:bg-[#f9fafb] dark:bg-slate-800/70"
           >
-            Fechar
+            {t("cadastros.comum.fechar")}
           </button>
         </div>
       </div>

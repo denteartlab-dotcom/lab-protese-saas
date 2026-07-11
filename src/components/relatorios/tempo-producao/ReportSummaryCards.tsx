@@ -9,65 +9,74 @@ import {
   Users,
   Workflow,
 } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import { InfoTooltip } from "@/components/relatorios/tempo-producao/InfoTooltip";
-import {
-  TOOLTIPS_TEMPO_PRODUCAO,
-  type ResumoTempoProducao,
-} from "@/lib/tempo-producao-relatorio";
+import { tooltipTempo } from "@/components/relatorios/tempo-producao/tempo-i18n";
+import type { ResumoTempoProducao } from "@/lib/tempo-producao-relatorio";
+import type { MessageKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 type Props = {
   resumo: ResumoTempoProducao;
 };
 
-const cards = [
-  { key: "total", label: "OS em produção", icon: Workflow, cor: "from-slate-600 to-slate-800", tooltip: "" },
+const cards: {
+  key: "total" | "atrasadas" | "criticas" | "mediaLab" | "mediaEtapa" | "colabAtraso" | "gargalo";
+  labelKey: MessageKey;
+  icon: typeof Workflow;
+  cor: string;
+  tooltipKey?: keyof typeof import("@/components/relatorios/tempo-producao/tempo-i18n").TOOLTIP_TEMPO_KEYS;
+  destaque?: boolean;
+}[] = [
+  { key: "total", labelKey: "relatorio.tempo.kpi.osEmProducao", icon: Workflow, cor: "from-slate-600 to-slate-800" },
   {
     key: "atrasadas",
-    label: "OS atrasadas",
+    labelKey: "relatorio.tempo.kpi.osAtrasadas",
     icon: AlertTriangle,
     cor: "from-orange-500 to-orange-700",
-    tooltip: TOOLTIPS_TEMPO_PRODUCAO.diasAtraso,
+    tooltipKey: "diasAtraso",
   },
   {
     key: "criticas",
-    label: "OS críticas",
+    labelKey: "relatorio.tempo.kpi.osCriticas",
     icon: AlertTriangle,
     cor: "from-red-500 to-red-700",
-    tooltip: TOOLTIPS_TEMPO_PRODUCAO.status,
+    tooltipKey: "status",
     destaque: true,
   },
   {
     key: "mediaLab",
-    label: "Média dias no laboratório",
+    labelKey: "relatorio.tempo.kpi.mediaDiasLab",
     icon: Clock,
     cor: "from-blue-500 to-blue-700",
-    tooltip: TOOLTIPS_TEMPO_PRODUCAO.diasLaboratorio,
+    tooltipKey: "diasLaboratorio",
   },
   {
     key: "mediaEtapa",
-    label: "Média dias na etapa",
+    labelKey: "relatorio.tempo.kpi.mediaDiasEtapa",
     icon: Timer,
     cor: "from-violet-500 to-violet-700",
-    tooltip: TOOLTIPS_TEMPO_PRODUCAO.diasEtapa,
+    tooltipKey: "diasEtapa",
   },
   {
     key: "colabAtraso",
-    label: "Colaborador c/ maior atraso",
+    labelKey: "relatorio.tempo.kpi.colabMaiorAtraso",
     icon: Users,
     cor: "from-amber-500 to-amber-700",
-    tooltip: TOOLTIPS_TEMPO_PRODUCAO.responsavelAtraso,
+    tooltipKey: "responsavelAtraso",
   },
   {
     key: "gargalo",
-    label: "Etapa com maior gargalo",
+    labelKey: "relatorio.tempo.kpi.etapaGargalo",
     icon: Layers,
     cor: "from-emerald-500 to-emerald-700",
-    tooltip: TOOLTIPS_TEMPO_PRODUCAO.gargalo,
+    tooltipKey: "gargalo",
   },
-] as const;
+];
 
 export function ReportSummaryCards({ resumo }: Props) {
+  const { t } = useI18n();
+
   function valor(key: (typeof cards)[number]["key"]) {
     switch (key) {
       case "total":
@@ -98,6 +107,7 @@ export function ReportSummaryCards({ resumo }: Props) {
       {cards.map((card) => {
         const Icon = card.icon;
         const critico = card.key === "criticas" && resumo.totalCriticas > 0;
+        const tooltip = card.tooltipKey ? tooltipTempo(card.tooltipKey, t) : "";
         return (
           <div
             key={card.key}
@@ -111,8 +121,8 @@ export function ReportSummaryCards({ resumo }: Props) {
             <div className={cn("bg-gradient-to-br px-3 py-2", card.cor)}>
               <div className="flex items-center gap-2 text-white/90">
                 <Icon className="h-4 w-4 shrink-0" />
-                <span className="flex-1 text-[11px] font-medium leading-tight">{card.label}</span>
-                {card.tooltip ? <InfoTooltip texto={card.tooltip} className="[&_svg]:text-white/70" /> : null}
+                <span className="flex-1 text-[11px] font-medium leading-tight">{t(card.labelKey)}</span>
+                {tooltip ? <InfoTooltip texto={tooltip} className="[&_svg]:text-white/70" /> : null}
               </div>
             </div>
             <div className="px-3 py-3">
@@ -130,7 +140,7 @@ export function ReportSummaryCards({ resumo }: Props) {
       })}
       <div className="hidden items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-3 py-2 text-center text-xs text-slate-500 dark:border-slate-600 dark:bg-slate-800/30 dark:text-slate-400 xl:flex">
         <TrendingUp className="mr-1.5 h-4 w-4" />
-        Indicadores em tempo real
+        {t("relatorio.tempo.indicadoresTempoReal")}
       </div>
     </div>
   );

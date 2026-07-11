@@ -103,10 +103,10 @@ export function ProductionTimeReportPage() {
       setGraficos(data.graficos ?? null);
       setOpcoes(data.opcoes ?? { dentistas: [], colaboradores: [], etapas: [], tiposServico: [] });
       setFonte(data.fonte === "mock" ? "mock" : "banco");
-      setAviso(data.aviso ?? (data.fonte === "mock" ? "Exibindo dados de demonstração." : ""));
+      setAviso(data.aviso ?? (data.fonte === "mock" ? t("relatorio.comum.demonstracao") : ""));
       setPagina(1);
     } catch {
-      setAviso("Não foi possível carregar o relatório.");
+      setAviso(t("relatorio.erroCarregar"));
     } finally {
       setCarregando(false);
     }
@@ -129,8 +129,11 @@ export function ProductionTimeReportPage() {
         gerarTempoProducaoPdf(
           linhas,
           filtros.dataInicio || filtros.dataFim
-            ? `Período: ${filtros.dataInicio || "…"} a ${filtros.dataFim || "…"}`
-            : "Todas as OS em produção"
+            ? t("relatorio.comum.periodoDeAte", {
+                inicio: filtros.dataInicio || "…",
+                fim: filtros.dataFim || "…",
+              })
+            : t("relatorio.comum.todasOsProducao")
         )
       );
     } finally {
@@ -145,7 +148,7 @@ export function ProductionTimeReportPage() {
   const periodoTexto =
     filtros.dataInicio || filtros.dataFim
       ? `${filtros.dataInicio || "…"} a ${filtros.dataFim || "…"}`
-      : "Todas as OS em produção";
+      : t("relatorio.comum.todasOsProducao");
 
   return (
     <div
@@ -179,7 +182,7 @@ export function ProductionTimeReportPage() {
                 {t("relatorio.tempo.titulo")}
               </h1>
               <p className="text-sm text-slate-500 dark:text-slate-400 tv:text-base">
-                Identifique gargalos, atrasos e responsáveis em cada etapa do laboratório.
+                {t("relatorio.tempo.subtitulo")}
               </p>
             </div>
           </div>
@@ -223,12 +226,15 @@ export function ProductionTimeReportPage() {
         className="mx-auto max-w-[1600px] space-y-5 px-4 py-5 sm:px-6 tv:max-w-[2200px] tv:space-y-6 tv:px-8"
       >
         <div className="hidden print:block print:mb-4">
-          <h1 className="text-lg font-bold">Relatório — Tempo de Produção</h1>
+          <h1 className="text-lg font-bold">{t("relatorio.tempo.tituloImpressao")}</h1>
           <p className="text-sm text-slate-600">{periodoTexto}</p>
           {resumo ? (
             <p className="mt-1 text-xs text-slate-500">
-              {resumo.totalEmProducao} OS em produção · {resumo.totalAtrasadas} atrasadas ·{" "}
-              {resumo.totalCriticas} críticas
+              {t("relatorio.tempo.resumoImpressao", {
+                total: resumo.totalEmProducao,
+                atrasadas: resumo.totalAtrasadas,
+                criticas: resumo.totalCriticas,
+              })}
             </p>
           ) : null}
         </div>
@@ -236,7 +242,7 @@ export function ProductionTimeReportPage() {
         {aviso ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200 print:hidden">
             {aviso}
-            {fonte === "mock" ? " Os valores são fictícios para demonstração." : ""}
+            {fonte === "mock" ? t("relatorio.comum.valoresFicticios") : ""}
           </div>
         ) : null}
 

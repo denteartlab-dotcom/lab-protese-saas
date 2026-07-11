@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useI18n } from "@/components/i18n-provider";
 import { ConfiguracaoListaGear, type ExtraConfigLista } from "./ConfiguracaoListaGear";
 import { PaginacaoLista } from "./PaginacaoLista";
 import type { ConfigListagemPersistida } from "@/lib/listagem-config";
@@ -52,6 +53,19 @@ export function BarraConfigListagem<C extends string>({
   varianteGear = "padrao",
   children,
 }: Props<C>) {
+  const { t } = useI18n();
+  const textoRegistros =
+    totalItens !== undefined
+      ? t("listagem.registros", {
+          total: totalItens,
+          plural: totalItens === 1 ? "" : "s",
+        })
+      : "";
+  const textoPagina =
+    totalItens !== undefined && totalPaginas > 1
+      ? ` · ${t("listagem.paginaDe", { pagina, total: totalPaginas })}`
+      : "";
+
   return (
     <div
       className={
@@ -78,8 +92,8 @@ export function BarraConfigListagem<C extends string>({
           />
           {totalItens !== undefined && (
             <span className="text-[10px] text-slate-400">
-              {totalItens} registro{totalItens === 1 ? "" : "s"}
-              {totalPaginas > 1 ? ` · página ${pagina} de ${totalPaginas}` : ""}
+              {textoRegistros}
+              {textoPagina}
             </span>
           )}
         </div>
@@ -87,7 +101,7 @@ export function BarraConfigListagem<C extends string>({
       {ocultarGear && totalItens !== undefined && totalPaginas > 1 && (
         <div className="border-b border-slate-100 px-2 py-1 text-right">
           <span className="text-[10px] text-slate-400">
-            {totalItens} registro{totalItens === 1 ? "" : "s"} · página {pagina} de {totalPaginas}
+            {textoRegistros} · {t("listagem.paginaDe", { pagina, total: totalPaginas })}
           </span>
         </div>
       )}

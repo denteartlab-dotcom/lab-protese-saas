@@ -7,31 +7,31 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
+import { useI18n } from "@/components/i18n-provider";
 import { InfoTooltip } from "@/components/relatorios/tempo-producao/InfoTooltip";
-import {
-  TOOLTIPS_TEMPO_PRODUCAO,
-  type GraficosTempoProducao,
-} from "@/lib/tempo-producao-relatorio";
+import { tooltipTempo } from "@/components/relatorios/tempo-producao/tempo-i18n";
+import type { GraficosTempoProducao } from "@/lib/tempo-producao-relatorio";
 
 type Props = {
   distribuicao: GraficosTempoProducao["distribuicaoStatus"];
 };
 
 export function StatusDistributionChart({ distribuicao }: Props) {
+  const { t } = useI18n();
   const pieData = distribuicao.filter((d) => d.quantidade > 0);
   const chartPie = pieData.length
     ? pieData
-    : [{ label: "Sem dados", quantidade: 1, cor: "#e2e8f0", status: "em_dia" as const }];
+    : [{ label: t("relatorio.comum.semDados"), quantidade: 1, cor: "#e2e8f0", status: "em_dia" as const }];
 
   return (
     <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800/90">
       <div className="mb-1 flex items-center gap-2">
         <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-          Distribuição por status
+          {t("relatorio.tempo.distribuicaoStatus")}
         </h3>
-        <InfoTooltip texto={TOOLTIPS_TEMPO_PRODUCAO.status} />
+        <InfoTooltip texto={tooltipTempo("status", t)} />
       </div>
-      <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">Em dia, atenção, atrasado e crítico</p>
+      <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">{t("relatorio.tempo.distribuicaoStatusSub")}</p>
       <div className="h-[280px] w-full tv:h-[320px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>

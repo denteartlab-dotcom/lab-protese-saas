@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { Menu } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import { cn } from "@/lib/utils";
 import type { DrePontoGrafico } from "@/lib/dre-graficos";
 import {
@@ -24,6 +25,7 @@ export function DreMenuDownloadComparativo({
   dados,
   ano,
 }: DreMenuDownloadComparativoProps) {
+  const { t } = useI18n();
   const [aberto, setAberto] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -59,7 +61,7 @@ export function DreMenuDownloadComparativo({
       ref={menuRef}
       className="relative flex shrink-0 items-center gap-2 text-[11px] text-[#9ca3af]"
     >
-      <span>Comparativo mensal</span>
+      <span>{t("relatorio.dre.comparativoMensal")}</span>
       <button
         type="button"
         onClick={() => setAberto((v) => !v)}
@@ -67,7 +69,7 @@ export function DreMenuDownloadComparativo({
           "rounded p-1 text-[#6b7280] hover:bg-[#f3f4f6]",
           aberto && "bg-[#f3f4f6]"
         )}
-        aria-label="Download do gráfico"
+        aria-label={t("relatorio.dre.downloadGrafico")}
         aria-expanded={aberto}
       >
         <Menu className="h-4 w-4" />
@@ -78,13 +80,13 @@ export function DreMenuDownloadComparativo({
           role="menu"
         >
           <button type="button" className={itemClass} role="menuitem" onClick={baixarSvg}>
-            Download SVG
+            {t("relatorio.dre.downloadSvg")}
           </button>
           <button type="button" className={itemClass} role="menuitem" onClick={baixarPng}>
-            Download PNG
+            {t("relatorio.dre.downloadPng")}
           </button>
           <button type="button" className={itemClass} role="menuitem" onClick={baixarCsv}>
-            Download CSV
+            {t("relatorio.dre.downloadCsv")}
           </button>
         </div>
       ) : null}

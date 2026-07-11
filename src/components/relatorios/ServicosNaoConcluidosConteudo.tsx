@@ -305,7 +305,7 @@ export function ServicosNaoConcluidosConteudo() {
                 className="inline-flex h-[36px] items-center gap-1.5 rounded-lg border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-[12px] font-medium text-[#374151] dark:text-slate-200 shadow-sm hover:bg-[#f9fafb] dark:bg-slate-800/70 disabled:opacity-50"
               >
                 <Download className="h-3.5 w-3.5" />
-                Exportar
+                {t("relatorio.comum.exportar")}
               </button>
             </div>
           </div>
@@ -313,18 +313,18 @@ export function ServicosNaoConcluidosConteudo() {
 
         {carregando ? (
           <div className="min-h-[400px] rounded-xl border border-[#e8eaed] bg-white dark:bg-slate-900 shadow-sm">
-            <PainelCarregando mensagem="Carregando relatório..." />
+            <PainelCarregando mensagem={t("relatorio.carregando")} />
           </div>
         ) : !dados ? (
           <div className="rounded-xl border border-[#e8eaed] bg-white dark:bg-slate-900 p-12 text-center text-[#6b7280] dark:text-slate-400">
-            Não foi possível carregar o relatório.
+            {t("relatorio.erroCarregar")}
           </div>
         ) : (
           <div className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
               <CardKpi
-                titulo="Serviços Não Concluídos"
-                subtitulo="Total de serviços em andamento"
+                titulo={t("relatorio.snc.titulo")}
+                subtitulo={t("relatorio.snc.subtituloTotal")}
                 valor={String(dados.resumo.quantidade)}
                 icone={<ClipboardList className="h-5 w-5" />}
                 corValor="#8b5cf6"
@@ -332,8 +332,8 @@ export function ServicosNaoConcluidosConteudo() {
                 corFundoIcone="#ede9fe"
               />
               <CardKpi
-                titulo="Valor Total Preso"
-                subtitulo="Valor total dos serviços não concluídos"
+                titulo={t("relatorio.snc.valorTotalPreso")}
+                subtitulo={t("relatorio.snc.subtituloValorPreso")}
                 valor={formatarMoedaServicosNaoConcluidos(dados.resumo.valorTotalPreso)}
                 icone={<Wallet className="h-5 w-5" />}
                 corValor="#10b981"
@@ -341,17 +341,17 @@ export function ServicosNaoConcluidosConteudo() {
                 corFundoIcone="#d1fae5"
               />
               <CardKpi
-                titulo="Tempo Médio Parado"
-                subtitulo="Tempo médio sem conclusão"
-                valor={`${dados.resumo.tempoMedioParado} dias`}
+                titulo={t("relatorio.snc.tempoMedioParado")}
+                subtitulo={t("relatorio.snc.subtituloTempoMedio")}
+                valor={t("relatorio.comum.dias", { n: dados.resumo.tempoMedioParado })}
                 icone={<Timer className="h-5 w-5" />}
                 corValor="#f97316"
                 corIcone="#f97316"
                 corFundoIcone="#ffedd5"
               />
               <CardKpi
-                titulo="Serviços Vencidos"
-                subtitulo="Serviços com prazo excedido"
+                titulo={t("relatorio.snc.servicosVencidos")}
+                subtitulo={t("relatorio.snc.subtituloVencidos")}
                 valor={String(dados.resumo.servicosVencidos)}
                 icone={<AlertTriangle className="h-5 w-5" />}
                 corValor="#ef4444"
@@ -359,8 +359,8 @@ export function ServicosNaoConcluidosConteudo() {
                 corFundoIcone="#fee2e2"
               />
               <CardKpi
-                titulo="% do Total da Produção"
-                subtitulo="Representa do total da produção"
+                titulo={t("relatorio.snc.percentualProducao")}
+                subtitulo={t("relatorio.snc.subtituloPercentual")}
                 valor={formatarPercentualServicosNaoConcluidos(dados.resumo.percentualProducao)}
                 icone={<Percent className="h-5 w-5" />}
                 corValor="#3b82f6"
@@ -370,7 +370,7 @@ export function ServicosNaoConcluidosConteudo() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-3">
-              <CardGrafico titulo="Valor Total Não Concluído por Mês">
+              <CardGrafico titulo={t("relatorio.snc.graficoValorPorMes")}>
                 {dados.valorPorMes.length === 0 ? (
                   <SemDados />
                 ) : (
@@ -397,7 +397,7 @@ export function ServicosNaoConcluidosConteudo() {
                         <Tooltip
                           formatter={(valor) => [
                             formatarMoedaServicosNaoConcluidos(Number(valor ?? 0)),
-                            "Valor",
+                            t("relatorio.comum.valor"),
                           ]}
                           contentStyle={{ fontSize: 12, borderRadius: 8 }}
                         />
@@ -413,7 +413,7 @@ export function ServicosNaoConcluidosConteudo() {
                 )}
               </CardGrafico>
 
-              <CardGrafico titulo="Serviços Não Concluídos por Etapa">
+              <CardGrafico titulo={t("relatorio.snc.graficoPorEtapa")}>
                 {dadosPizza.length === 0 ? (
                   <SemDados />
                 ) : (
@@ -438,8 +438,11 @@ export function ServicosNaoConcluidosConteudo() {
                           formatter={(valor, _nome, props) => {
                             const pct = (props?.payload as { percentual?: number })?.percentual;
                             return [
-                              `${Number(valor ?? 0)} serviços${pct != null ? ` (${pct.toFixed(1)}%)` : ""}`,
-                              "Quantidade",
+                              t("relatorio.comum.servicosComPct", {
+                                n: Number(valor ?? 0),
+                                pct: pct != null ? pct.toFixed(1) : "0",
+                              }),
+                              t("relatorio.comum.quantidade"),
                             ];
                           }}
                           contentStyle={{ fontSize: 12, borderRadius: 8 }}
@@ -464,7 +467,7 @@ export function ServicosNaoConcluidosConteudo() {
                 )}
               </CardGrafico>
 
-              <CardGrafico titulo="Valor Não Concluído por Etapa">
+              <CardGrafico titulo={t("relatorio.snc.graficoValorPorEtapa")}>
                 {dadosBarrasHorizontais.length === 0 ? (
                   <SemDados />
                 ) : (
@@ -499,7 +502,7 @@ export function ServicosNaoConcluidosConteudo() {
                         <Tooltip
                           formatter={(valor) => [
                             formatarMoedaServicosNaoConcluidos(Number(valor ?? 0)),
-                            "Valor",
+                            t("relatorio.comum.valor"),
                           ]}
                           contentStyle={{ fontSize: 12, borderRadius: 8 }}
                         />
@@ -516,22 +519,22 @@ export function ServicosNaoConcluidosConteudo() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
-              <CardTabela titulo="Serviços Não Concluídos por Cliente" linkVerTodos>
+              <CardTabela titulo={t("relatorio.snc.tabelaPorCliente")} linkVerTodos>
                 <table className="w-full min-w-[420px] text-left text-[12px]">
                   <thead>
                     <tr className="border-b border-[#f0f0f0] dark:border-slate-700 text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af] dark:text-slate-500">
-                      <th className="px-2 py-2">Cliente</th>
-                      <th className="px-2 py-2 text-center">Qtde Serviços</th>
-                      <th className="px-2 py-2 text-right">Valor Total</th>
-                      <th className="px-2 py-2 text-center">Tempo Médio Parado</th>
-                      <th className="px-2 py-2 text-center">Maior Tempo Parado</th>
+                      <th className="px-2 py-2">{t("relatorio.comum.cliente")}</th>
+                      <th className="px-2 py-2 text-center">{t("relatorio.comum.qtdeServicos")}</th>
+                      <th className="px-2 py-2 text-right">{t("relatorio.comum.valorTotal")}</th>
+                      <th className="px-2 py-2 text-center">{t("relatorio.comum.tempoMedioParado")}</th>
+                      <th className="px-2 py-2 text-center">{t("relatorio.comum.maiorTempoParado")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {dados.porCliente.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="px-2 py-6 text-center text-[#9ca3af] dark:text-slate-500">
-                          Nenhum serviço não concluído no período.
+                          {t("relatorio.snc.semServicosPeriodo")}
                         </td>
                       </tr>
                     ) : (
@@ -543,10 +546,10 @@ export function ServicosNaoConcluidosConteudo() {
                             {formatarMoedaServicosNaoConcluidos(c.valorTotal)}
                           </td>
                           <td className="px-2 py-2.5 text-center tabular-nums">
-                            {c.tempoMedioParado} dias
+                            {t("relatorio.comum.dias", { n: c.tempoMedioParado })}
                           </td>
                           <td className="px-2 py-2.5 text-center tabular-nums">
-                            {c.maiorTempoParado} dias
+                            {t("relatorio.comum.dias", { n: c.maiorTempoParado })}
                           </td>
                         </tr>
                       ))
@@ -555,16 +558,18 @@ export function ServicosNaoConcluidosConteudo() {
                   {dados.porCliente.length > 0 ? (
                     <tfoot>
                       <tr className="bg-[#f9fafb] dark:bg-slate-800/70 font-semibold text-[#374151] dark:text-slate-200">
-                        <td className="px-2 py-2.5">Total</td>
+                        <td className="px-2 py-2.5">{t("relatorio.kpi.total")}</td>
                         <td className="px-2 py-2.5 text-center">{dados.resumo.quantidade}</td>
                         <td className="px-2 py-2.5 text-right text-[#10b981]">
                           {formatarMoedaServicosNaoConcluidos(dados.resumo.valorTotalPreso)}
                         </td>
                         <td className="px-2 py-2.5 text-center">
-                          {dados.resumo.tempoMedioParado} dias
+                          {t("relatorio.comum.dias", { n: dados.resumo.tempoMedioParado })}
                         </td>
                         <td className="px-2 py-2.5 text-center">
-                          {Math.max(...dados.porCliente.map((c) => c.maiorTempoParado), 0)} dias
+                          {t("relatorio.comum.dias", {
+                            n: Math.max(...dados.porCliente.map((c) => c.maiorTempoParado), 0),
+                          })}
                         </td>
                       </tr>
                     </tfoot>
@@ -572,22 +577,22 @@ export function ServicosNaoConcluidosConteudo() {
                 </table>
               </CardTabela>
 
-              <CardTabela titulo="Serviços Vencidos (Prazo Excedido)" linkVerTodos>
+              <CardTabela titulo={t("relatorio.snc.tabelaVencidos")} linkVerTodos>
                 <table className="w-full min-w-[380px] text-left text-[12px]">
                   <thead>
                     <tr className="border-b border-[#f0f0f0] dark:border-slate-700 text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af] dark:text-slate-500">
-                      <th className="px-2 py-2">OS</th>
-                      <th className="px-2 py-2">Cliente</th>
-                      <th className="px-2 py-2">Etapa Atual</th>
-                      <th className="px-2 py-2 text-center">Dias de Atraso</th>
-                      <th className="px-2 py-2 text-right">Valor</th>
+                      <th className="px-2 py-2">{t("relatorio.comum.os")}</th>
+                      <th className="px-2 py-2">{t("relatorio.comum.cliente")}</th>
+                      <th className="px-2 py-2">{t("relatorio.comum.etapaAtual")}</th>
+                      <th className="px-2 py-2 text-center">{t("relatorio.comum.diasAtraso")}</th>
+                      <th className="px-2 py-2 text-right">{t("relatorio.comum.valor")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {dados.vencidos.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="px-2 py-6 text-center text-[#9ca3af] dark:text-slate-500">
-                          Nenhum serviço vencido no período.
+                          {t("relatorio.snc.semVencidosPeriodo")}
                         </td>
                       </tr>
                     ) : (
@@ -600,7 +605,7 @@ export function ServicosNaoConcluidosConteudo() {
                           <td className="px-2 py-2.5 text-[#374151] dark:text-slate-200">{v.cliente}</td>
                           <td className="px-2 py-2.5 text-[#6b7280] dark:text-slate-400">{v.etapaAtual}</td>
                           <td className="px-2 py-2.5 text-center font-semibold text-[#ef4444]">
-                            {v.diasAtraso} dias
+                            {t("relatorio.comum.dias", { n: v.diasAtraso })}
                           </td>
                           <td className="px-2 py-2.5 text-right font-semibold text-[#ef4444]">
                             {formatarMoedaServicosNaoConcluidos(v.valor)}
@@ -613,7 +618,7 @@ export function ServicosNaoConcluidosConteudo() {
                     <tfoot>
                       <tr className="bg-[#f9fafb] dark:bg-slate-800/70 font-semibold text-[#374151] dark:text-slate-200">
                         <td colSpan={3} className="px-2 py-2.5">
-                          Total de Vencidos
+                          {t("relatorio.comum.totalVencidos")}
                         </td>
                         <td className="px-2 py-2.5 text-center text-[#ef4444]">
                           {dados.resumo.servicosVencidos}
@@ -632,13 +637,13 @@ export function ServicosNaoConcluidosConteudo() {
 
             <p className="flex items-center gap-1.5 text-[11px] text-[#9ca3af] dark:text-slate-500">
               <Info className="h-3.5 w-3.5" />
-              Relatório gerado em {dados.geradoEm}
+              {t("relatorio.comum.relatorioGeradoEm", { data: dados.geradoEm })}
               <span className="mx-1">·</span>
               <CalendarDays className="h-3.5 w-3.5" />
               {t("relatorio.filtro.periodo")}: {dados.periodoLabel}
               <span className="mx-1">·</span>
               <Clock className="h-3.5 w-3.5" />
-              Serviços ativos excluem Finalizado, Entregue e Cancelado
+              {t("relatorio.comum.servicosAtivosNota")}
             </p>
           </div>
         )}

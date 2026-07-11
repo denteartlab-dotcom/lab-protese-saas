@@ -1,9 +1,10 @@
 "use client";
 
 import { Layers, Timer, Users } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import type { GraficosTempoProducao } from "@/lib/tempo-producao-relatorio";
 import { InfoTooltip } from "@/components/relatorios/tempo-producao/InfoTooltip";
-import { TOOLTIPS_TEMPO_PRODUCAO } from "@/lib/tempo-producao-relatorio";
+import { tooltipTempo } from "@/components/relatorios/tempo-producao/tempo-i18n";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -12,18 +13,20 @@ type Props = {
 };
 
 export function BottleneckRanking({ rankingEtapas, rankingColaboradores }: Props) {
+  const { t } = useI18n();
+
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800/90">
         <div className="mb-3 flex items-center gap-2">
           <Layers className="h-4 w-4 text-violet-600 dark:text-violet-400" />
           <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-            Ranking de gargalos — etapas
+            {t("relatorio.tempo.rankingGargalos")}
           </h3>
-          <InfoTooltip texto={TOOLTIPS_TEMPO_PRODUCAO.gargalo} />
+          <InfoTooltip texto={tooltipTempo("gargalo", t)} />
         </div>
         <ol className="space-y-2">
-          {(rankingEtapas.length ? rankingEtapas : [{ etapa: "Sem dados", diasMedio: 0, os: 0 }]).map(
+          {(rankingEtapas.length ? rankingEtapas : [{ etapa: t("relatorio.comum.semDados"), diasMedio: 0, os: 0 }]).map(
             (item, i) => (
               <li
                 key={`${item.etapa}-${i}`}
@@ -43,13 +46,15 @@ export function BottleneckRanking({ rankingEtapas, rankingColaboradores }: Props
                   <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">
                     {item.etapa}
                   </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{item.os} OS nesta etapa</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {t("relatorio.tempo.osNestaEtapa", { n: item.os })}
+                  </p>
                 </div>
                 <div className="text-right">
                   <p className="font-mono text-sm font-bold text-violet-700 dark:text-violet-300">
                     {item.diasMedio}d
                   </p>
-                  <p className="text-[10px] text-slate-400">média parado</p>
+                  <p className="text-[10px] text-slate-400">{t("relatorio.tempo.mediaParado")}</p>
                 </div>
               </li>
             )
@@ -61,14 +66,14 @@ export function BottleneckRanking({ rankingEtapas, rankingColaboradores }: Props
         <div className="mb-3 flex items-center gap-2">
           <Users className="h-4 w-4 text-orange-600 dark:text-orange-400" />
           <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-            Ranking — colaboradores com atraso
+            {t("relatorio.tempo.rankingColaboradores")}
           </h3>
-          <InfoTooltip texto="Quantidade de OS atrasadas sob responsabilidade de cada colaborador na etapa atual." />
+          <InfoTooltip texto={t("relatorio.tempo.tooltipRankingColab")} />
         </div>
         <ol className="space-y-2">
           {(rankingColaboradores.length
             ? rankingColaboradores
-            : [{ colaborador: "Nenhum", osAtrasadas: 0 }]
+            : [{ colaborador: t("relatorio.comum.nenhum"), osAtrasadas: 0 }]
           ).map((item, i) => (
             <li
               key={`${item.colaborador}-${i}`}
@@ -89,7 +94,7 @@ export function BottleneckRanking({ rankingEtapas, rankingColaboradores }: Props
               </p>
               <span className="inline-flex items-center gap-1 font-mono text-sm font-bold text-orange-600 dark:text-orange-400">
                 <Timer className="h-3.5 w-3.5" />
-                {item.osAtrasadas} OS
+                {item.osAtrasadas} {t("relatorio.comum.os")}
               </span>
             </li>
           ))}

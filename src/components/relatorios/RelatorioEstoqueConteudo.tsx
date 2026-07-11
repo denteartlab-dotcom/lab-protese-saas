@@ -64,49 +64,49 @@ function primeiroDiaMesBr() {
   return dateToBrShort(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
 }
 
-const COLUNAS_MOVIMENTACAO = [
-  "DATA",
-  "TIPO",
-  "PRODUTO",
-  "ETIQUETA",
-  "QUANTIDADE",
-  "SETOR",
-  "COLABORADOR",
+const COLUNAS_MOVIMENTACAO_KEYS = [
+  "relatorio.estoque.colunaData",
+  "relatorio.estoque.colunaTipo",
+  "relatorio.estoque.colunaProduto",
+  "relatorio.estoque.colunaEtiqueta",
+  "relatorio.estoque.colunaQuantidade",
+  "relatorio.estoque.colunaSetor",
+  "relatorio.estoque.colunaColaborador",
 ] as const;
 
-const COLUNAS_POSICAO = [
-  "PRODUTO",
-  "ETIQUETA",
-  "MARCA",
-  "ENTRADAS",
-  "SAÍDAS",
-  "ESTOQUE ATUAL",
-  "VALOR UNITÁRIO",
-  "VALOR",
+const COLUNAS_POSICAO_KEYS = [
+  "relatorio.estoque.colunaProduto",
+  "relatorio.estoque.colunaEtiqueta",
+  "relatorio.estoque.colunaMarca",
+  "relatorio.estoque.colunaEntradas",
+  "relatorio.estoque.colunaSaidas",
+  "relatorio.estoque.colunaEstoqueAtual",
+  "relatorio.estoque.colunaValorUnitario",
+  "relatorio.estoque.colunaValor",
 ] as const;
 
-const COLUNAS_VENDA = [
-  "DATA ENTREGUE",
-  "QUANTIDADE",
-  "PRODUTO",
-  "MARCA",
-  "VALOR CUSTO (ÚLTIMA COMPRA)",
-  "VENDA",
-  "LUCRO",
+const COLUNAS_VENDA_KEYS = [
+  "relatorio.comum.dataEntregue",
+  "relatorio.estoque.colunaQuantidade",
+  "relatorio.estoque.colunaProduto",
+  "relatorio.estoque.colunaMarca",
+  "relatorio.estoque.colunaValorCusto",
+  "relatorio.estoque.colunaVenda",
+  "relatorio.estoque.colunaLucro",
 ] as const;
 
-const COLUNAS_CONTROLE = [
-  "CODIGO",
-  "PRODUTO",
-  "ETIQUETA",
-  "MARCA",
-  "ESTOQUE ATUAL",
-  "UNIDADE",
-  "MÍNIMO",
-  "MÁXIMO",
-  "CUSTO",
-  "VENDA",
-  "TOTAL",
+const COLUNAS_CONTROLE_KEYS = [
+  "relatorio.estoque.colunaCodigo",
+  "relatorio.estoque.colunaProduto",
+  "relatorio.estoque.colunaEtiqueta",
+  "relatorio.estoque.colunaMarca",
+  "relatorio.estoque.colunaEstoqueAtual",
+  "relatorio.estoque.colunaUnidade",
+  "relatorio.estoque.colunaMinimo",
+  "relatorio.estoque.colunaMaximo",
+  "relatorio.estoque.colunaCusto",
+  "relatorio.estoque.colunaVenda",
+  "relatorio.estoque.colunaTotal",
 ] as const;
 
 const thClass =
@@ -120,6 +120,7 @@ function CelulaEstoqueAtual({
   label: string;
   situacao: "Alto" | "Baixo" | null;
 }) {
+  const { t } = useI18n();
   return (
     <div className="flex justify-center">
       <div className="inline-grid grid-cols-[auto_auto] items-center gap-x-1.5">
@@ -127,12 +128,12 @@ function CelulaEstoqueAtual({
         <span className="flex min-w-[2.85rem] items-center justify-start">
           {situacao === "Alto" && (
             <span className="inline-block shrink-0 rounded-full bg-[#fde8d8] px-2 py-0.5 text-[10px] font-bold leading-none text-[#e8956c]">
-              Alto
+              {t("relatorio.comum.alto")}
             </span>
           )}
           {situacao === "Baixo" && (
             <span className="inline-block shrink-0 rounded-full bg-[#fee2e2] px-2 py-0.5 text-[10px] font-bold leading-none text-[#dc2626]">
-              Baixo
+              {t("relatorio.comum.baixo")}
             </span>
           )}
         </span>
@@ -167,6 +168,8 @@ function TabelaPosicaoEstoque({
   linhas: LinhaPosicaoEstoque[];
   totais: TotaisPosicaoEstoque;
 }) {
+  const { t } = useI18n();
+  const colunas = useMemo(() => COLUNAS_POSICAO_KEYS.map((k) => t(k)), [t]);
   return (
     <div className="overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm print:border-0 print:shadow-none">
       <div className="overflow-x-auto">
@@ -183,7 +186,7 @@ function TabelaPosicaoEstoque({
           </colgroup>
           <thead>
             <tr className="bg-[#f3f4f6] dark:bg-slate-950 text-[#6b7280] dark:text-slate-400">
-              {COLUNAS_POSICAO.map((col) => (
+              {colunas.map((col) => (
                 <th key={col} className={thClass}>
                   {col}
                 </th>
@@ -193,8 +196,8 @@ function TabelaPosicaoEstoque({
           <tbody>
             {linhas.length === 0 ? (
               <tr>
-                <td colSpan={COLUNAS_POSICAO.length} className="h-[280px] text-center text-[#9ca3af] dark:text-slate-500">
-                  Nenhum registro encontrado no período.
+                <td colSpan={colunas.length} className="h-[280px] text-center text-[#9ca3af] dark:text-slate-500">
+                  {t("cadastros.comum.nenhumRegistro")}
                 </td>
               </tr>
             ) : (
@@ -234,7 +237,7 @@ function TabelaPosicaoEstoque({
               <tr className="border-t border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 font-semibold text-[#374151] dark:text-slate-200">
                 <td className={tdClass} />
                 <td className={tdClass} />
-                <td className={cn(tdClass, "uppercase")}>Totais</td>
+                <td className={cn(tdClass, "uppercase")}>{t("relatorio.estoque.totais")}</td>
                 <td className={cn(tdClass, "tabular-nums text-[#2563eb]")}>{totais.entradas}</td>
                 <td className={cn(tdClass, "tabular-nums text-[#dc2626]")}>{totais.saidas}</td>
                 <td className={tdClass} />
@@ -258,6 +261,8 @@ function TabelaControleProdutos({
   linhas: LinhaControleProduto[];
   totais: TotaisControleProduto;
 }) {
+  const { t } = useI18n();
+  const colunas = useMemo(() => COLUNAS_CONTROLE_KEYS.map((k) => t(k)), [t]);
   return (
     <div className="overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm print:border-0 print:shadow-none">
       <div className="overflow-x-auto">
@@ -277,7 +282,7 @@ function TabelaControleProdutos({
           </colgroup>
           <thead>
             <tr className="bg-[#f3f4f6] dark:bg-slate-950 text-[#6b7280] dark:text-slate-400">
-              {COLUNAS_CONTROLE.map((col) => (
+              {colunas.map((col) => (
                 <th key={col} className={thClass}>
                   {col}
                 </th>
@@ -287,8 +292,8 @@ function TabelaControleProdutos({
           <tbody>
             {linhas.length === 0 ? (
               <tr>
-                <td colSpan={COLUNAS_CONTROLE.length} className="h-[280px] text-center text-[#9ca3af] dark:text-slate-500">
-                  Nenhum produto encontrado.
+                <td colSpan={colunas.length} className="h-[280px] text-center text-[#9ca3af] dark:text-slate-500">
+                  {t("cadastros.comum.nenhumRegistro")}
                 </td>
               </tr>
             ) : (
@@ -347,6 +352,8 @@ function TabelaVendaProdutos({
   linhas: LinhaVendaProduto[];
   totais: TotaisVendaProduto;
 }) {
+  const { t } = useI18n();
+  const colunas = useMemo(() => COLUNAS_VENDA_KEYS.map((k) => t(k)), [t]);
   return (
     <div className="overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm print:border-0 print:shadow-none">
       <div className="overflow-x-auto">
@@ -362,12 +369,12 @@ function TabelaVendaProdutos({
           </colgroup>
           <thead>
             <tr className="bg-[#f3f4f6] dark:bg-slate-950 text-[#6b7280] dark:text-slate-400">
-              {COLUNAS_VENDA.map((col) => (
+              {colunas.map((col, index) => (
                 <th
                   key={col}
                   className={cn(
                     thClass,
-                    col === "VALOR CUSTO (ÚLTIMA COMPRA)" && "px-1 text-[10px] leading-tight"
+                    index === 4 && "px-1 text-[10px] leading-tight"
                   )}
                 >
                   {col}
@@ -378,8 +385,8 @@ function TabelaVendaProdutos({
           <tbody>
             {linhas.length === 0 ? (
               <tr>
-                <td colSpan={COLUNAS_VENDA.length} className="h-[280px] text-center text-[#9ca3af] dark:text-slate-500">
-                  Nenhum registro encontrado no período.
+                <td colSpan={colunas.length} className="h-[280px] text-center text-[#9ca3af] dark:text-slate-500">
+                  {t("cadastros.comum.nenhumRegistro")}
                 </td>
               </tr>
             ) : (
@@ -410,7 +417,7 @@ function TabelaVendaProdutos({
               <td className={tdClass} />
               <td className={tdClass} />
               <td className={tdClass} />
-              <td className={cn(tdClass, "uppercase")}>Total</td>
+              <td className={cn(tdClass, "uppercase")}>{t("relatorio.kpi.total")}</td>
               <td className={cn(tdClass, "tabular-nums")}>
                 {moneyRelatorioEstoque(totais.valorCusto)}
               </td>
@@ -429,6 +436,8 @@ function TabelaVendaProdutos({
 }
 
 function TabelaMovimentacaoEstoque({ linhas }: { linhas: LinhaRelatorioEstoque[] }) {
+  const { t } = useI18n();
+  const colunas = useMemo(() => COLUNAS_MOVIMENTACAO_KEYS.map((k) => t(k)), [t]);
   return (
     <div className="overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm print:border-0 print:shadow-none">
       <div className="overflow-x-auto">
@@ -444,7 +453,7 @@ function TabelaMovimentacaoEstoque({ linhas }: { linhas: LinhaRelatorioEstoque[]
           </colgroup>
           <thead>
             <tr className="bg-[#f3f4f6] dark:bg-slate-950 text-[#6b7280] dark:text-slate-400">
-              {COLUNAS_MOVIMENTACAO.map((col) => (
+              {colunas.map((col) => (
                 <th key={col} className={thClass}>
                   {col}
                 </th>
@@ -454,8 +463,8 @@ function TabelaMovimentacaoEstoque({ linhas }: { linhas: LinhaRelatorioEstoque[]
           <tbody>
             {linhas.length === 0 ? (
               <tr>
-                <td colSpan={COLUNAS_MOVIMENTACAO.length} className="h-[280px] text-center text-[#9ca3af] dark:text-slate-500">
-                  Nenhum registro encontrado no período.
+                <td colSpan={colunas.length} className="h-[280px] text-center text-[#9ca3af] dark:text-slate-500">
+                  {t("cadastros.comum.nenhumRegistro")}
                 </td>
               </tr>
             ) : (
@@ -683,7 +692,7 @@ export function RelatorioEstoqueConteudo() {
   if (carregando) {
     return (
       <div className="min-h-[320px] bg-[#f3f4f6] dark:bg-slate-950 pb-8 pt-1">
-        <PainelCarregando mensagem="Carregando relatório de estoque..." />
+        <PainelCarregando mensagem={t("relatorio.carregandoEstoque")} />
       </div>
     );
   }

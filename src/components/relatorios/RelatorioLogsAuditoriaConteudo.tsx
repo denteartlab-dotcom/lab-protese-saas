@@ -207,7 +207,7 @@ export function RelatorioLogsAuditoriaConteudo() {
         <div className="overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
           {carregando ? (
             <div className="min-h-[320px]">
-              <PainelCarregando mensagem="Carregando logs de auditoria..." />
+              <PainelCarregando mensagem={t("relatorio.carregandoLogs")} />
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -216,37 +216,37 @@ export function RelatorioLogsAuditoriaConteudo() {
                   <tr className="bg-[#f3f4f6] dark:bg-slate-950">
                     {layout === "etapas" && (
                       <>
-                        <th className={thClass}>OS</th>
-                        <th className={thClass}>SERVIÇO</th>
-                        <th className={thClass}>ETAPA</th>
-                        <th className={thClass}>COLABORADOR</th>
+                        <th className={thClass}>{t("relatorio.logs.colunaOs")}</th>
+                        <th className={thClass}>{t("relatorio.logs.colunaServico")}</th>
+                        <th className={thClass}>{t("relatorio.logs.colunaEtapa")}</th>
+                        <th className={thClass}>{t("relatorio.logs.colunaColaborador")}</th>
                       </>
                     )}
                     {layout === "os" && (
                       <>
-                        <th className={thClass}>OS</th>
-                        <th className={thClass}>SERVIÇO</th>
-                        <th className={thClass}>CLIENTE</th>
+                        <th className={thClass}>{t("relatorio.logs.colunaOs")}</th>
+                        <th className={thClass}>{t("relatorio.logs.colunaServico")}</th>
+                        <th className={thClass}>{t("relatorio.logs.colunaCliente")}</th>
                       </>
                     )}
                     {layout === "financeiro" && (
                       <>
-                        <th className={thClass}>FATURA</th>
-                        <th className={thClass}>PARCELA</th>
-                        <th className={thClass}>CLIENTE</th>
+                        <th className={thClass}>{t("relatorio.logs.colunaFatura")}</th>
+                        <th className={thClass}>{t("relatorio.logs.colunaParcela")}</th>
+                        <th className={thClass}>{t("relatorio.logs.colunaCliente")}</th>
                       </>
                     )}
-                    <th className={thClass}>DATA ALTERAÇÃO</th>
-                    <th className={thClass}>USUÁRIO</th>
-                    <th className={thClass}>TIPO ALTERAÇÃO</th>
-                    <th className={thClass}>OPÇÕES</th>
+                    <th className={thClass}>{t("relatorio.logs.colunaDataAlteracao")}</th>
+                    <th className={thClass}>{t("relatorio.logs.colunaUsuario")}</th>
+                    <th className={thClass}>{t("relatorio.logs.colunaTipoAlteracao")}</th>
+                    <th className={thClass}>{t("relatorio.logs.colunaOpcoes")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {linhas.length === 0 ? (
                     <tr>
                       <td colSpan={colSpan} className="h-[280px] text-center text-[#9ca3af] dark:text-slate-500">
-                        Nenhum registro encontrado para os filtros selecionados.
+                        {t("relatorio.semDados")}
                       </td>
                     </tr>
                   ) : (

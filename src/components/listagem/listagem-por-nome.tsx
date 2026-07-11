@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useI18n } from "@/components/i18n-provider";
 import { BarraConfigListagem } from "./BarraConfigListagem";
 import { useListagemPaginada } from "@/hooks/use-listagem-paginada";
 import { compararTextoBr } from "@/lib/listagem-config";
@@ -23,6 +24,7 @@ export function ListagemPorNome<T extends ItemComNome>({
   embutido = true,
   children,
 }: Props<T>) {
+  const { t } = useI18n();
   type Campo = "nome" | (keyof T & string);
 
   const comparadores: Record<string, (a: T, b: T) => number> = {
@@ -33,7 +35,7 @@ export function ListagemPorNome<T extends ItemComNome>({
   }
 
   const opcoesOrdenacao = [
-    { valor: "nome" as Campo, label: "Nome" },
+    { valor: "nome" as Campo, label: t("listagem.nome") },
     ...opcoesExtras.map((o) => ({ valor: o.valor as Campo, label: o.label })),
   ];
 

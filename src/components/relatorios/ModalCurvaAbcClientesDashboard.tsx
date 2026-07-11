@@ -1,6 +1,6 @@
 "use client";
 
-import { I18nPortal } from "@/components/I18nPortal";
+import { useI18n } from "@/components/i18n-provider";
 import type { SecaoCurvaAbc } from "@/lib/curva-abc-clientes";
 import { ModalCurvaAbcDetalheDashboard } from "@/components/relatorios/ModalCurvaAbcDetalheDashboard";
 
@@ -11,12 +11,14 @@ type Props = {
 };
 
 export function ModalCurvaAbcClientesDashboard({ aberto, secao, onFechar }: Props) {
+  const { t } = useI18n();
+
   return (
     <ModalCurvaAbcDetalheDashboard
       aberto={aberto}
-      titulo="Curva ABC Clientes"
-      colunaNome="Cliente"
-      mensagemVazia="Nenhum cliente nesta faixa."
+      titulo={t("relatorio.curvaAbc.tituloClientes")}
+      colunaNome={t("relatorio.comum.cliente")}
+      mensagemVazia={t("relatorio.curvaAbc.nenhumClienteFaixa")}
       secao={secao}
       onFechar={onFechar}
     />

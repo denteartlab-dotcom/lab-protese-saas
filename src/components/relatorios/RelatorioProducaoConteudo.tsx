@@ -420,11 +420,57 @@ export function RelatorioProducaoConteudo() {
   const layoutTabela = layoutTabelaRelatorioProducao(opcaoRelatorio);
   const modoServicosAgrupados = layoutTabela === "servicos_agrupados";
   const modoServicosEtapas = layoutTabela === "servicos_etapas";
-  const colunasAtivas = modoServicosAgrupados
-    ? COLUNAS_SERVICOS_AGRUPADOS
-    : modoServicosEtapas
-      ? COLUNAS_SERVICOS_ETAPAS
-      : COLUNAS_TABELA;
+  const colunasAtivas = useMemo(() => {
+    if (modoServicosAgrupados) {
+      return [
+        t("relatorio.producao.colunaQuantidade"),
+        t("relatorio.producao.colunaDescricao"),
+        t("relatorio.producao.colunaPercentual"),
+        t("relatorio.producao.colunaValor"),
+      ];
+    }
+    if (modoServicosEtapas) {
+      return [
+        "",
+        t("relatorio.producao.colunaData"),
+        t("relatorio.producao.colunaOs"),
+        t("relatorio.producao.colunaQtd"),
+        t("relatorio.producao.colunaDescricao"),
+        t("relatorio.producao.colunaCor"),
+        t("relatorio.producao.colunaDente"),
+        t("relatorio.producao.colunaCliente"),
+        t("relatorio.producao.colunaPaciente"),
+        t("relatorio.producao.colunaColaborador"),
+        t("relatorio.producao.colunaSituacao"),
+        t("relatorio.producao.colunaValor"),
+      ];
+    }
+    return [
+      t("relatorio.producao.colunaData"),
+      t("relatorio.producao.colunaOs"),
+      t("relatorio.producao.colunaQtd"),
+      t("relatorio.producao.colunaDescricao"),
+      t("relatorio.producao.colunaCor"),
+      t("relatorio.producao.colunaDente"),
+      t("relatorio.producao.colunaCliente"),
+      t("relatorio.producao.colunaPaciente"),
+      t("relatorio.producao.colunaColaborador"),
+      t("relatorio.producao.colunaSituacao"),
+      t("relatorio.producao.colunaValor"),
+    ];
+  }, [modoServicosAgrupados, modoServicosEtapas, t]);
+
+  const subColunasEtapas = useMemo(
+    () => [
+      t("relatorio.comum.etapa"),
+      t("relatorio.comum.colaborador"),
+      t("relatorio.producao.colunaDataInicio"),
+      t("relatorio.comum.fim"),
+      t("relatorio.comum.tempoTotalMinutos"),
+      t("relatorio.producao.colunaSituacao"),
+    ],
+    [t]
+  );
 
   const recarregarTrabalhos = useCallback(async () => {
     try {
@@ -635,7 +681,7 @@ export function RelatorioProducaoConteudo() {
   if (carregando) {
     return (
       <div className="min-h-[320px] bg-[#f3f4f6] dark:bg-slate-950 pb-8 pt-1">
-        <PainelCarregando mensagem="Carregando relatório de produção..." />
+        <PainelCarregando mensagem={t("relatorio.carregandoProducao")} />
       </div>
     );
   }
@@ -659,7 +705,7 @@ export function RelatorioProducaoConteudo() {
           <div className="space-y-3 px-4 py-4">
             <div className="grid gap-3 lg:grid-cols-12">
               <div className="lg:col-span-3">
-                <label className={labelClass}>Opções de Relatório</label>
+                <label className={labelClass}>{t("relatorio.producao.opcoesRelatorio")}</label>
                 <select
                   className={selectClass}
                   value={opcaoRelatorio}
@@ -772,20 +818,20 @@ export function RelatorioProducaoConteudo() {
                 </select>
               </div>
               <div>
-                <label className={labelClass}>Ordenar por:</label>
+                <label className={labelClass}>{t("relatorio.producao.ordenarPor")}</label>
                 <select
                   className={selectClass}
                   value={ordenacao}
                   onChange={(e) => setOrdenacao(e.target.value as OrdenacaoProducao)}
                 >
                   {modoServicosAgrupados ? (
-                    <option value="servico">Serviço</option>
+                    <option value="servico">{t("relatorio.comum.servico")}</option>
                   ) : (
                     <>
-                      <option value="data">Data</option>
-                      <option value="os">OS</option>
-                      <option value="cliente">Cliente</option>
-                      <option value="paciente">Paciente</option>
+                      <option value="data">{t("relatorio.comum.data")}</option>
+                      <option value="os">{t("relatorio.comum.os")}</option>
+                      <option value="cliente">{t("relatorio.comum.cliente")}</option>
+                      <option value="paciente">{t("relatorio.comum.paciente")}</option>
                     </>
                   )}
                 </select>
@@ -799,7 +845,7 @@ export function RelatorioProducaoConteudo() {
                 className="inline-flex h-[34px] items-center gap-2 rounded-sm bg-[#5cb85c] px-4 text-[12px] font-semibold text-white hover:bg-[#4cae4c]"
               >
                 <FileText className="h-4 w-4" />
-                Gerar Relatório
+                {t("relatorio.gerarRelatorio")}
               </button>
               <button
                 type="button"
@@ -855,14 +901,14 @@ export function RelatorioProducaoConteudo() {
                       key={col}
                       className={cn(
                         "px-3 py-2.5 font-semibold uppercase",
-                        col === "VALOR" ||
-                          col === "QTD" ||
-                          col === "OS" ||
-                          col === "QUANTIDADE" ||
-                          col === "%"
+                        col === t("relatorio.producao.colunaValor") ||
+                          col === t("relatorio.producao.colunaQtd") ||
+                          col === t("relatorio.producao.colunaOs") ||
+                          col === t("relatorio.producao.colunaQuantidade") ||
+                          col === t("relatorio.producao.colunaPercentual")
                           ? "text-right"
                           : "text-left",
-                        col === "DESCRIÇÃO" && modoServicosAgrupados && "w-[55%]"
+                        col === t("relatorio.producao.colunaDescricao") && modoServicosAgrupados && "w-[55%]"
                       )}
                     >
                       {col}
@@ -929,14 +975,14 @@ export function RelatorioProducaoConteudo() {
                           </tr>
                           {expandido && (
                             <tr className="border-b border-[#e5e7eb] dark:border-slate-700 bg-[#fafafa] dark:bg-slate-800/70">
-                              <td colSpan={COLUNAS_SERVICOS_ETAPAS.length} className="px-6 py-3">
+                              <td colSpan={colunasAtivas.length} className="px-6 py-3">
                                 <p className="mb-2 text-[11px] font-semibold uppercase text-[#6b7280] dark:text-slate-400">
                                   Etapas
                                 </p>
                                 <table className="w-full max-w-4xl border-collapse text-[11px]">
                                   <thead>
                                     <tr className="border-b border-[#e5e7eb] dark:border-slate-700 bg-[#f3f4f6] dark:bg-slate-950 text-[#6b7280] dark:text-slate-400">
-                                      {SUB_COLUNAS_ETAPAS.map((col) => (
+                                      {subColunasEtapas.map((col) => (
                                         <th
                                           key={col}
                                           className={cn(
@@ -953,7 +999,7 @@ export function RelatorioProducaoConteudo() {
                                     {linha.etapas.length === 0 ? (
                                       <tr>
                                         <td
-                                          colSpan={SUB_COLUNAS_ETAPAS.length}
+                                          colSpan={subColunasEtapas.length}
                                           className="px-2 py-3 text-center text-[#9ca3af] dark:text-slate-500"
                                         >
                                           Nenhuma etapa cadastrada nesta OS.

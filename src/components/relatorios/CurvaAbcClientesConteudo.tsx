@@ -33,11 +33,14 @@ const selectClass =
 const inputDataRelatorioClass =
   "h-[34px] w-full rounded-sm border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 text-[12px] text-[#374151] dark:text-slate-200 shadow-none focus:border-[#4a90d9] focus:ring-0";
 
-const OPCOES_SIM_NAO = [
-  { value: "", label: "" },
-  { value: "sim", label: "Sim" },
-  { value: "nao", label: "Não" },
-] as const;
+import type { TradutorUi } from "@/lib/i18n/tr-ui";
+
+const OPCOES_SIM_NAO = (t: TradutorUi) =>
+  [
+    { value: "", label: "" },
+    { value: "sim", label: t("relatorio.comum.sim") },
+    { value: "nao", label: t("relatorio.comum.nao") },
+  ] as const;
 
 function money(value: number) {
   return value.toLocaleString("pt-BR", {
@@ -52,7 +55,11 @@ function primeiroDiaAnoBr() {
 }
 
 function TabelaSecaoAbc({ secao }: { secao: SecaoCurvaAbc }) {
-  const resumo = `${secao.linhas.length} Clientes representam ${secao.metaPercentual}% do Faturamento`;
+  const { t } = useI18n();
+  const resumo = t("relatorio.curvaAbc.resumoSecao", {
+    qtd: secao.linhas.length,
+    pct: secao.metaPercentual,
+  });
 
   return (
     <section className="overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm print:break-inside-avoid print:border-[#e5e7eb] dark:border-slate-700 print:shadow-none">
@@ -70,13 +77,13 @@ function TabelaSecaoAbc({ secao }: { secao: SecaoCurvaAbc }) {
           <thead>
             <tr className="bg-[#f3f4f6] dark:bg-slate-950 text-[#6b7280] dark:text-slate-400">
               <th className="px-4 py-3 text-center align-middle text-[11px] font-semibold uppercase tracking-wide">
-                Cliente
+                {t("relatorio.comum.cliente")}
               </th>
               <th className="px-4 py-3 text-center align-middle text-[11px] font-semibold uppercase tracking-wide">
                 %
               </th>
               <th className="px-4 py-3 text-center align-middle text-[11px] font-semibold uppercase tracking-wide">
-                Valor
+                {t("relatorio.comum.valor")}
               </th>
             </tr>
           </thead>
@@ -221,7 +228,7 @@ export function CurvaAbcClientesConteudo() {
     const dados =
       resultado ?? gerarCurvaAbcClientes(recebimentos, indiceTrabalhos, filtros);
     if (!gerado) setGerado(true);
-    const periodo = `${dataInicio} à ${dataFim}`;
+    const periodo = t("relatorio.comum.periodoAte", { inicio: dataInicio, fim: dataFim });
     void abrirPdfGerando(
       () => gerarCurvaAbcClientesPdf(dados, periodo),
       "curva-abc-clientes.pdf"
@@ -236,7 +243,7 @@ export function CurvaAbcClientesConteudo() {
   if (carregando) {
     return (
       <div className="min-h-[320px] bg-[#f3f4f6] dark:bg-slate-950 pb-8 pt-1">
-        <PainelCarregando mensagem="Carregando Curva ABC Clientes..." />
+        <PainelCarregando mensagem={t("relatorio.carregandoCurvaAbc")} />
       </div>
     );
   }
@@ -280,13 +287,13 @@ export function CurvaAbcClientesConteudo() {
               </div>
             </div>
             <div className="w-full min-w-[100px] sm:w-[120px]">
-              <label className={labelClass}>Repetição</label>
+              <label className={labelClass}>{t("relatorio.comum.repeticao")}</label>
               <select
                 className={selectClass}
                 value={repeticao}
                 onChange={(e) => setRepeticao(e.target.value)}
               >
-                {OPCOES_SIM_NAO.map((op) => (
+                {OPCOES_SIM_NAO(t).map((op) => (
                   <option key={op.value || "todos"} value={op.value}>
                     {op.label || "\u00a0"}
                   </option>
@@ -294,13 +301,13 @@ export function CurvaAbcClientesConteudo() {
               </select>
             </div>
             <div className="w-full min-w-[100px] sm:w-[120px]">
-              <label className={labelClass}>Urgente</label>
+              <label className={labelClass}>{t("relatorio.comum.urgente")}</label>
               <select
                 className={selectClass}
                 value={urgente}
                 onChange={(e) => setUrgente(e.target.value)}
               >
-                {OPCOES_SIM_NAO.map((op) => (
+                {OPCOES_SIM_NAO(t).map((op) => (
                   <option key={op.value || "todos"} value={op.value}>
                     {op.label || "\u00a0"}
                   </option>
@@ -314,7 +321,7 @@ export function CurvaAbcClientesConteudo() {
                 className="inline-flex h-[34px] items-center gap-2 rounded-sm bg-[#5cb85c] px-4 text-[12px] font-semibold text-white hover:bg-[#4cae4c]"
               >
                 <Search className="h-4 w-4" />
-                Gerar Relatório
+                {t("relatorio.gerarRelatorio")}
               </button>
               <button
                 type="button"
@@ -338,7 +345,7 @@ export function CurvaAbcClientesConteudo() {
 
         {!gerado ? (
           <div className="rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-16 text-center text-[#9ca3af] dark:text-slate-500 shadow-sm print:hidden">
-            Clique em Gerar Relatório para exibir os dados.
+            {t("relatorio.gerarRelatorioHint")}
           </div>
         ) : (
           <>
@@ -349,7 +356,7 @@ export function CurvaAbcClientesConteudo() {
             </div>
             <div className="w-full bg-[#f3f4f6] dark:bg-slate-950 py-3 text-center print:break-inside-avoid">
               <p className="text-[13px] font-semibold text-[#374151] dark:text-slate-200">
-                Total: <span className="tabular-nums">{money(exibir.total)}</span>
+                {t("relatorio.curvaAbc.totalLabel")} <span className="tabular-nums">{money(exibir.total)}</span>
               </p>
             </div>
           </>

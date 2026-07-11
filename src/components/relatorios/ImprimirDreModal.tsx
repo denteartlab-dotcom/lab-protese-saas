@@ -1,6 +1,7 @@
 "use client";
 
 import { I18nPortal } from "@/components/I18nPortal";
+import { useI18n } from "@/components/i18n-provider";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, FileSpreadsheet, Printer, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -43,6 +44,7 @@ export function ImprimirDreModal({
   planoContas,
   anoPadrao,
 }: ImprimirDreModalProps) {
+  const { t } = useI18n();
   const [tipo, setTipo] = useState<TipoRelatorioDre>("detalhado");
   const [mesIndex, setMesIndex] = useState(new Date().getMonth());
   const [ano, setAno] = useState(anoPadrao);
@@ -76,7 +78,7 @@ export function ImprimirDreModal({
 
   async function imprimir() {
     if (tipo === "detalhado" && categoriasSelecionadas.length === 0) {
-      alert("Selecione ao menos uma categoria para o relatório detalhado.");
+      alert(t("relatorio.dre.alertaSemCategoria"));
       return;
     }
 
@@ -88,7 +90,7 @@ export function ImprimirDreModal({
 
       if (dreMesSemDados(lancamentos, ano, mesIndex)) {
         janela?.close();
-        alert("Não há lançamentos no período selecionado.");
+        alert(t("relatorio.dre.alertaSemLancamentos"));
         onClose();
         return;
       }
@@ -107,7 +109,7 @@ export function ImprimirDreModal({
           () => gerarRelatorioDreDetalhadoPdf(relatorio),
           relatorio.titulo,
           `relatorio-dre-detalhado-${mesIndex + 1}-${ano}.pdf`,
-          { janela, origem: "Relatórios" }
+          { janela, origem: t("relatorio.origemPdf") }
         );
       } else {
         const relatorio = montarRelatorioDreMes(
@@ -120,7 +122,7 @@ export function ImprimirDreModal({
           () => gerarRelatorioDrePdf(relatorio),
           relatorio.titulo,
           `relatorio-dre-${mesIndex + 1}-${ano}.pdf`,
-          { janela, origem: "Relatórios" }
+          { janela, origem: t("relatorio.origemPdf") }
         );
       }
 
@@ -129,7 +131,7 @@ export function ImprimirDreModal({
     } catch (err) {
       janela?.close();
       console.error("gerar PDF DRE", err);
-      alert("Não foi possível gerar o PDF do relatório.");
+      alert(t("relatorio.alerta.pdfErro"));
     } finally {
       setGerando(false);
       setProgresso(0);
@@ -139,7 +141,7 @@ export function ImprimirDreModal({
   function exportarExcel() {
     if (tipo === "detalhado") {
       if (categoriasSelecionadas.length === 0) {
-        alert("Selecione ao menos uma categoria para exportar.");
+        alert(t("relatorio.dre.alertaSemCategoriaExport"));
         return;
       }
       const relatorio = montarRelatorioDreDetalhadoItens(
@@ -194,13 +196,13 @@ export function ImprimirDreModal({
             id="imprimir-dre-titulo"
             className="text-[14px] font-semibold text-[#374151]"
           >
-            Imprimir Relatório
+            {t("relatorio.dre.imprimirTitulo")}
           </h2>
           <button
             type="button"
             onClick={onClose}
             className="text-[#9ca3af] hover:text-[#374151]"
-            aria-label="Fechar"
+            aria-label={t("cadastros.comum.fechar")}
           >
             <X className="h-5 w-5" />
           </button>
@@ -216,7 +218,7 @@ export function ImprimirDreModal({
                 onChange={() => setTipo("resumo")}
                 className="accent-[#4a90d9]"
               />
-              D.R.E.
+              {t("relatorio.dre.tipoResumo")}
             </label>
             <label className="flex cursor-pointer items-center gap-2">
               <input
@@ -226,14 +228,14 @@ export function ImprimirDreModal({
                 onChange={() => setTipo("detalhado")}
                 className="accent-[#4a90d9]"
               />
-              D.R.E. (Detalhado)
+              {t("relatorio.dre.tipoDetalhado")}
             </label>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-[11px] text-[#6b7280]">
-                Selecione o mês
+                {t("relatorio.dre.selecioneMes")}
               </label>
               <select
                 className={selectClass}
@@ -249,7 +251,7 @@ export function ImprimirDreModal({
             </div>
             <div>
               <label className="mb-1 block text-[11px] text-[#6b7280]">
-                Selecione o ano
+                {t("relatorio.dre.selecioneAno")}
               </label>
               <select
                 className={selectClass}
@@ -268,7 +270,7 @@ export function ImprimirDreModal({
           {tipo === "detalhado" && (
             <div>
               <label className="mb-1 block text-[11px] text-[#6b7280]">
-                Categorias selecionadas
+                {t("relatorio.dre.categoriasSelecionadas")}
               </label>
               <div className="min-h-[80px] rounded-sm border border-[#d1d5db] bg-white p-2">
                 <div className="flex flex-wrap gap-1.5">
@@ -287,7 +289,7 @@ export function ImprimirDreModal({
                           type="button"
                           onClick={() => removerCategoria(id)}
                           className="shrink-0 rounded hover:bg-white/20"
-                          aria-label={`Remover ${cat.label}`}
+                          aria-label={t("relatorio.comum.removerItem", { item: cat.label })}
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -296,7 +298,7 @@ export function ImprimirDreModal({
                   })}
                   {categoriasSelecionadas.length === 0 && (
                     <p className="text-[11px] text-[#9ca3af]">
-                      Nenhuma categoria selecionada.
+                      {t("relatorio.dre.nenhumaCategoria")}
                     </p>
                   )}
                 </div>
@@ -307,7 +309,7 @@ export function ImprimirDreModal({
                       onClick={() => setMenuAdicionarAberto((v) => !v)}
                       className="flex items-center gap-1 text-[11px] text-[#4a90d9] hover:underline"
                     >
-                      Adicionar categoria
+                      {t("relatorio.dre.adicionarCategoria")}
                       <ChevronDown className="h-3 w-3" />
                     </button>
                     {menuAdicionarAberto && (
@@ -329,9 +331,7 @@ export function ImprimirDreModal({
                 )}
               </div>
               <p className="mt-1 text-[10px] text-[#9ca3af]">
-                Remova as categorias que não devem aparecer no relatório. Cada
-                tipo de receita/despesa do plano de contas aparece agrupado com
-                seus lançamentos.
+                {t("relatorio.dre.categoriasDica")}
               </p>
             </div>
           )}
@@ -349,9 +349,9 @@ export function ImprimirDreModal({
             <Printer className="h-4 w-4" />
             {gerando
               ? progresso > 0
-                ? `Gerando… ${progresso}%`
-                : "Gerando..."
-              : "Imprimir"}
+                ? t("relatorio.gerandoPdf", { progresso })
+                : t("relatorio.gerando")
+              : t("relatorio.imprimir")}
           </button>
           <button
             type="button"
@@ -359,7 +359,7 @@ export function ImprimirDreModal({
             className="flex h-[36px] min-w-[100px] items-center justify-center gap-2 rounded-sm bg-[#4a90d9] px-4 text-[12px] font-medium text-white hover:bg-[#3d7fc4]"
           >
             <FileSpreadsheet className="h-4 w-4" />
-            Excel
+            {t("relatorio.excel")}
           </button>
           <button
             type="button"
@@ -367,7 +367,7 @@ export function ImprimirDreModal({
             className="flex h-[36px] min-w-[100px] items-center justify-center gap-2 rounded-sm bg-[#f06292] px-4 text-[12px] font-medium text-white hover:bg-[#ec407a]"
           >
             <X className="h-4 w-4" />
-            Fechar
+            {t("cadastros.comum.fechar")}
           </button>
         </div>
       </div>

@@ -127,7 +127,7 @@ export function RelatorioRecibosEmitidosConteudo() {
   if (carregando) {
     return (
       <div className="min-h-[320px] bg-[#f3f4f6] dark:bg-slate-950 pb-8 pt-1">
-        <PainelCarregando mensagem="Carregando recibos emitidos..." />
+        <PainelCarregando mensagem={t("relatorio.carregandoRecibos")} />
       </div>
     );
   }
@@ -145,7 +145,7 @@ export function RelatorioRecibosEmitidosConteudo() {
             <div className="grid gap-3 lg:grid-cols-2">
               <div>
                 <SelectPesquisavel
-                  label="Clientes"
+                  label={t("relatorio.comum.cliente")}
                   value={clienteId}
                   onChange={setClienteId}
                   placeholder={t("relatorio.opcao.todos")}

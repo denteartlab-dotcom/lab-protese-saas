@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertOctagon, ChevronRight } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import type { ResumoTempoProducao } from "@/lib/tempo-producao-relatorio";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +11,8 @@ type Props = {
 };
 
 export function CriticalAlertBanner({ resumo, onVerOs }: Props) {
+  const { t } = useI18n();
+
   if (resumo.totalCriticas <= 0) return null;
 
   const lista = resumo.osCriticasLista ?? [];
@@ -22,10 +25,10 @@ export function CriticalAlertBanner({ resumo, onVerOs }: Props) {
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-bold text-red-800 dark:text-red-300">
-            {resumo.totalCriticas} OS em situação crítica
+            {t("relatorio.tempo.bannerCriticas", { n: resumo.totalCriticas })}
           </h2>
           <p className="mt-0.5 text-xs text-red-700/90 dark:text-red-400/90">
-            Mais de 3 dias de atraso — ação imediata recomendada para evitar perda de clientes.
+            {t("relatorio.tempo.bannerCriticasSub")}
           </p>
           {lista.length > 0 ? (
             <ul className="mt-3 flex flex-wrap gap-2">
@@ -39,7 +42,7 @@ export function CriticalAlertBanner({ resumo, onVerOs }: Props) {
                       "dark:border-red-800 dark:bg-red-950/60 dark:text-red-200 dark:hover:bg-red-900/60"
                     )}
                   >
-                    <span className="font-bold">OS {item.numeroOs}</span>
+                    <span className="font-bold">{t("relatorio.comum.os")} {item.numeroOs}</span>
                     <span className="text-red-600 dark:text-red-400">+{item.diasAtraso}d</span>
                     <span className="max-w-[100px] truncate text-red-600/80 dark:text-red-400/80">
                       {item.etapa}

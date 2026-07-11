@@ -206,7 +206,7 @@ export function MargemContribuicaoConteudo() {
   if (carregando) {
     return (
       <div className="min-h-[320px] bg-[#f3f4f6] dark:bg-slate-950 pb-8 pt-1">
-        <PainelCarregando mensagem="Carregando margens de contribuição..." />
+        <PainelCarregando mensagem={t("relatorio.margem.carregando")} />
       </div>
     );
   }
@@ -275,8 +275,8 @@ export function MargemContribuicaoConteudo() {
               <button
                 type="button"
                 className="flex h-[34px] w-[28px] items-center justify-center border-l border-[#3d7fc4] bg-[#4a90d9] text-white hover:bg-[#3d7fc4]"
-                title="Opções de impressão"
-                aria-label="Opções de impressão"
+                title={t("relatorio.dashboard.opcoesImpressao")}
+                aria-label={t("relatorio.dashboard.opcoesImpressao")}
               >
                 <ChevronDown className="h-4 w-4" />
               </button>
@@ -296,8 +296,8 @@ export function MargemContribuicaoConteudo() {
           {grupos.length === 0 ? (
             <div className="flex min-h-[280px] items-center justify-center px-4 py-12 text-[12px] text-[#9ca3af] dark:text-slate-400">
               {somenteComCustos
-                ? "Nenhum serviço com custo cadastrado para esta tabela."
-                : "Nenhum serviço sem custo cadastrado para esta tabela."}
+                ? t("relatorio.margem.semCusto")
+                : t("relatorio.margem.semCustoInverso")}
             </div>
           ) : (
             <div className="space-y-4 p-3 print:space-y-3 print:p-2">

@@ -250,7 +250,7 @@ export function DreConteudo() {
   function abrirDrilldownMes(mesIndex: number) {
     setDrilldown({
       mesIndex,
-      titulo: `Lançamentos — ${MESES_DRE[mesIndex]} / ${ano}`,
+      titulo: t("relatorio.dre.lancamentosTitulo", { mes: MESES_DRE[mesIndex], ano }),
     });
   }
 
@@ -394,7 +394,7 @@ export function DreConteudo() {
                         colSpan={13}
                         className="bg-white py-16 text-center text-[#9ca3af]"
                       >
-                        Carregando...
+                        {t("relatorio.dre.carregandoTabela")}
                       </td>
                     </tr>
                   ) : (
@@ -504,17 +504,17 @@ export function DreConteudo() {
             <div className="min-h-0 flex-1 overflow-y-auto p-4">
               {lancamentosDrill.length === 0 ? (
                 <p className="py-8 text-center text-[12px] text-[#9ca3af]">
-                  Nenhum lançamento neste período.
+                  {t("relatorio.dre.nenhumLancamentoDrilldown")}
                 </p>
               ) : (
                 <table className="w-full border-collapse text-[11px]">
                   <thead>
                     <tr className="bg-[#f3f4f6] text-left text-[#6b7280]">
-                      <th className="px-2 py-2 font-semibold">Data</th>
-                      <th className="px-2 py-2 font-semibold">Descrição</th>
-                      <th className="px-2 py-2 font-semibold">Categoria</th>
-                      <th className="px-2 py-2 text-right font-semibold">Valor</th>
-                      <th className="px-2 py-2 font-semibold">Situação</th>
+                      <th className="px-2 py-2 font-semibold">{t("relatorio.comum.data")}</th>
+                      <th className="px-2 py-2 font-semibold">{t("relatorio.dre.colunaDescricao")}</th>
+                      <th className="px-2 py-2 font-semibold">{t("relatorio.comum.categoria")}</th>
+                      <th className="px-2 py-2 text-right font-semibold">{t("relatorio.comum.valor")}</th>
+                      <th className="px-2 py-2 font-semibold">{t("relatorio.comum.situacao")}</th>
                     </tr>
                   </thead>
                   <tbody>

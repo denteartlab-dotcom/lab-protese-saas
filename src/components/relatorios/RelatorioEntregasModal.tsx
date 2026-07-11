@@ -1,6 +1,7 @@
 "use client";
 
 import { I18nPortal } from "@/components/I18nPortal";
+import { useI18n } from "@/components/i18n-provider";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
@@ -20,6 +21,7 @@ import {
   type FiltroRelatorioEntregas,
 } from "@/lib/relatorio-entregas";
 import { cn } from "@/lib/utils";
+import type { TradutorUi } from "@/lib/i18n/tr-ui";
 
 type Props = {
   open: boolean;
@@ -54,6 +56,7 @@ function CampoSelect({
   children,
   onLimpar,
   mostrarLimpar = false,
+  t,
 }: {
   label: string;
   value: string;
@@ -61,6 +64,7 @@ function CampoSelect({
   children: ReactNode;
   onLimpar?: () => void;
   mostrarLimpar?: boolean;
+  t: TradutorUi;
 }) {
   return (
     <div>
@@ -78,8 +82,8 @@ function CampoSelect({
             type="button"
             onClick={onLimpar}
             className="absolute right-7 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            title="Limpar"
-            aria-label={`Limpar ${label}`}
+            title={t("cadastros.comum.limpar")}
+            aria-label={t("relatorio.comum.limparCampo", { campo: label })}
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -99,6 +103,7 @@ export function RelatorioEntregasModal({
   entregadores,
   filtrosIniciais,
 }: Props) {
+  const { t } = useI18n();
   const { inicio: inicioPadrao, fim: fimPadrao } = periodoMesAtual();
   const [portalPronto, setPortalPronto] = useState(false);
   const [gerando, setGerando] = useState(false);
@@ -176,7 +181,7 @@ export function RelatorioEntregasModal({
       alert(
         err instanceof Error && err.message
           ? err.message
-          : "Não foi possível gerar o relatório. Tente novamente."
+          : t("relatorio.entregas.erroGerar")
       );
     } finally {
       setGerando(false);
@@ -213,13 +218,13 @@ export function RelatorioEntregasModal({
             id="relatorio-entregas-titulo"
             className="text-[15px] font-normal text-slate-800"
           >
-            Relatório Controle de Entregas
+            {t("relatorio.entregas.tituloModal")}
           </h2>
           <button
             type="button"
             onClick={onClose}
             className="text-[18px] leading-none text-slate-400 hover:text-slate-600"
-            aria-label="Fechar"
+            aria-label={t("cadastros.comum.fechar")}
           >
             ✕
           </button>
@@ -228,7 +233,8 @@ export function RelatorioEntregasModal({
         <div className="px-5 py-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <CampoSelect
-              label="Modelo Relatório"
+              t={t}
+              label={t("relatorio.comum.modeloRelatorio")}
               value={modelo}
               onChange={(value) =>
                 setModelo(value as FiltroRelatorioEntregas["modelo"])
@@ -242,27 +248,29 @@ export function RelatorioEntregasModal({
             </CampoSelect>
 
             <CampoSelect
-              label="Ordenar Por"
+              t={t}
+              label={t("relatorio.comum.ordenarPor")}
               value={ordenarPor}
               onChange={(value) =>
                 setOrdenarPor(value as FiltroRelatorioEntregas["ordenarPor"])
               }
             >
-              <option value="data_pedido">Data Pedido</option>
-              <option value="data_finalizado">Data Finalizado</option>
-              <option value="destinatario">Destinatário</option>
-              <option value="entregador">Entregador</option>
-              <option value="valor">Valor</option>
+              <option value="data_pedido">{t("relatorio.comum.dataPedido")}</option>
+              <option value="data_finalizado">{t("relatorio.filtro.dataFim")}</option>
+              <option value="destinatario">{t("relatorio.comum.destinatario")}</option>
+              <option value="entregador">{t("relatorio.comum.entregador")}</option>
+              <option value="valor">{t("relatorio.comum.valor")}</option>
             </CampoSelect>
 
             <CampoSelect
-              label="Situação"
+              t={t}
+              label={t("relatorio.comum.situacao")}
               value={situacao}
               onChange={(value) => setSituacao(value as "" | SituacaoEntrega)}
               mostrarLimpar={Boolean(situacao)}
               onLimpar={() => setSituacao("")}
             >
-              <option value="">Todos</option>
+              <option value="">{t("relatorio.opcao.todos")}</option>
               {Object.entries(SITUACOES_ENTREGA).map(([key, meta]) => (
                 <option key={key} value={key}>
                   {meta.label}
@@ -273,13 +281,14 @@ export function RelatorioEntregasModal({
 
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <CampoSelect
-              label="Entregador"
+              t={t}
+              label={t("relatorio.comum.entregador")}
               value={entregador}
               onChange={setEntregador}
               mostrarLimpar={Boolean(entregador)}
               onLimpar={() => setEntregador("")}
             >
-              <option value="">Todos</option>
+              <option value="">{t("relatorio.opcao.todos")}</option>
               {entregadores.map((nome) => (
                 <option key={nome} value={nome}>
                   {nome}
@@ -288,20 +297,21 @@ export function RelatorioEntregasModal({
             </CampoSelect>
 
             <CampoSelect
-              label="Período"
+              t={t}
+              label={t("relatorio.filtro.periodo")}
               value={periodo}
               onChange={(value) =>
                 setPeriodo(value as FiltroRelatorioEntregas["periodo"])
               }
             >
-              <option value="pedido">Data Pedido</option>
-              <option value="finalizado">Data Finalizado</option>
+              <option value="pedido">{t("relatorio.comum.dataPedido")}</option>
+              <option value="finalizado">{t("relatorio.filtro.dataFim")}</option>
             </CampoSelect>
           </div>
 
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className={labelClass}>Data Início</label>
+              <label className={labelClass}>{t("relatorio.comum.dataInicio")}</label>
               <CampoDataBr
                 value={dataInicio}
                 onChange={setDataInicio}
@@ -317,7 +327,7 @@ export function RelatorioEntregasModal({
             </div>
 
             <div>
-              <label className={labelClass}>Data Final</label>
+              <label className={labelClass}>{t("relatorio.comum.dataFinal")}</label>
               <CampoDataBr
                 value={dataFinal}
                 onChange={setDataFinal}
@@ -334,8 +344,7 @@ export function RelatorioEntregasModal({
           </div>
 
           <p className="mt-3 text-[11px] text-slate-500">
-            {totalFiltrado} entrega(s) no período. Dados sincronizados com o controle de
-            entregas e OS da produção quando informada.
+            {t("relatorio.entregas.resumoPeriodo", { total: totalFiltrado })}
           </p>
 
           <div className="mt-5 space-y-2 border-t border-slate-100 pt-4">
@@ -345,7 +354,7 @@ export function RelatorioEntregasModal({
               disabled={gerando}
               className="h-10 w-full rounded-sm bg-[#4a90d9] text-[13px] font-normal text-white hover:bg-[#3d7fc4] disabled:opacity-60"
             >
-              {gerando ? "Gerando..." : "Imprimir"}
+              {gerando ? t("relatorio.gerando") : t("relatorio.imprimir")}
             </button>
             <button
               type="button"
@@ -353,14 +362,14 @@ export function RelatorioEntregasModal({
               disabled={gerando}
               className="h-10 w-full rounded-sm border border-[#4cae4c] bg-[#f0fdf4] text-[13px] font-normal text-[#16a34a] hover:bg-[#dcfce7] disabled:opacity-60"
             >
-              Exportar CSV
+              {t("relatorio.exportarCsv")}
             </button>
             <button
               type="button"
               onClick={onClose}
               className="h-10 w-full rounded-sm border border-slate-300 bg-white text-[13px] font-normal text-slate-700 hover:bg-slate-50"
             >
-              Fechar
+              {t("cadastros.comum.fechar")}
             </button>
           </div>
         </div>

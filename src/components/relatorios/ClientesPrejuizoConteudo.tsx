@@ -317,17 +317,17 @@ export function ClientesPrejuizoConteudo() {
 
         {carregando ? (
           <div className="min-h-[400px] rounded-xl border border-[#e8eaed] bg-white dark:bg-slate-900 shadow-sm">
-            <PainelCarregando mensagem="Carregando relatório de clientes..." />
+            <PainelCarregando mensagem={t("relatorio.carregandoClientes")} />
           </div>
         ) : !dados ? (
           <div className="rounded-xl border border-[#e8eaed] bg-white dark:bg-slate-900 p-12 text-center text-[#6b7280] dark:text-slate-400">
-            Não foi possível carregar o relatório.
+            {t("relatorio.erroCarregar")}
           </div>
         ) : (
           <div className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <CardKpi
-                titulo="Retrabalhos"
+                titulo={t("relatorio.comum.retrabalhos")}
                 valor={String(dados.resumo.retrabalhos)}
                 icone={<RefreshCw className="h-5 w-5" />}
                 corValor="#ef4444"
@@ -335,7 +335,7 @@ export function ClientesPrejuizoConteudo() {
                 corFundoIcone="#fee2e2"
               />
               <CardKpi
-                titulo="Garantias"
+                titulo={t("relatorio.comum.garantias")}
                 valor={String(dados.resumo.garantias)}
                 icone={<Shield className="h-5 w-5" />}
                 corValor="#f97316"
@@ -343,7 +343,7 @@ export function ClientesPrejuizoConteudo() {
                 corFundoIcone="#ffedd5"
               />
               <CardKpi
-                titulo="Clientes Críticos"
+                titulo={t("relatorio.prejuizo.clientesCriticos")}
                 valor={String(dados.resumo.clientesCriticos)}
                 icone={<Users className="h-5 w-5" />}
                 corValor="#8b5cf6"
@@ -351,7 +351,7 @@ export function ClientesPrejuizoConteudo() {
                 corFundoIcone="#ede9fe"
               />
               <CardKpi
-                titulo="Prejuízo Estimado"
+                titulo={t("relatorio.prejuizo.prejuizoEstimado")}
                 valor={formatarMoedaClientesPrejuizo(dados.resumo.prejuizoEstimado)}
                 icone={<DollarSign className="h-5 w-5" />}
                 corValor="#16a34a"
@@ -362,11 +362,11 @@ export function ClientesPrejuizoConteudo() {
 
             <div>
               <h2 className="mb-3 text-[14px] font-semibold text-[#374151] dark:text-slate-200">
-                Análise de Repetição de Etapas
+                {t("relatorio.prejuizo.analiseRepeticao")}
               </h2>
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <CardKpi
-                  titulo="Total de Repetições"
+                  titulo={t("relatorio.prejuizo.totalRepeticoes")}
                   valor={String(dados.repeticoesResumo.totalRepeticoes)}
                   icone={<Repeat className="h-5 w-5" />}
                   corValor="#ef4444"
@@ -374,7 +374,7 @@ export function ClientesPrejuizoConteudo() {
                   corFundoIcone="#fee2e2"
                 />
                 <CardKpi
-                  titulo="Serviços com Retrabalho"
+                  titulo={t("relatorio.prejuizo.servicosRetrabalho")}
                   valor={String(dados.repeticoesResumo.servicosComRetrabalho)}
                   icone={<RefreshCw className="h-5 w-5" />}
                   corValor="#f97316"
@@ -382,7 +382,7 @@ export function ClientesPrejuizoConteudo() {
                   corFundoIcone="#ffedd5"
                 />
                 <CardKpi
-                  titulo="Etapa Mais Repetida"
+                  titulo={t("relatorio.prejuizo.etapaMaisRepetida")}
                   valor={dados.repeticoesResumo.etapaMaisRepetida}
                   icone={<BarChart3 className="h-5 w-5" />}
                   corValor="#8b5cf6"
@@ -390,7 +390,7 @@ export function ClientesPrejuizoConteudo() {
                   corFundoIcone="#ede9fe"
                 />
                 <CardKpi
-                  titulo="Cliente Mais Crítico"
+                  titulo={t("relatorio.prejuizo.clienteMaisCritico")}
                   valor={dados.repeticoesResumo.clienteMaisCritico}
                   icone={<AlertTriangle className="h-5 w-5" />}
                   corValor="#dc2626"
@@ -401,16 +401,16 @@ export function ClientesPrejuizoConteudo() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
-              <CardTabela titulo="Top 10 Clientes com Mais Retrabalho">
+              <CardTabela titulo={t("relatorio.prejuizo.top10Retrabalho")}>
                 <GraficoBarrasHorizontais
-                  titulo="Top 10 clientes"
+                  titulo={t("relatorio.prejuizo.top10Clientes")}
                   dados={dados.graficoTop10Clientes}
                   corBarra={COR_GRAFICO.vermelho}
                 />
               </CardTabela>
-              <CardTabela titulo="Etapas Mais Repetidas do Laboratório">
+              <CardTabela titulo={t("relatorio.prejuizo.etapasMaisRepetidas")}>
                 <GraficoBarrasHorizontais
-                  titulo="Etapas repetidas"
+                  titulo={t("relatorio.prejuizo.etapasRepetidas")}
                   dados={dados.graficoEtapasRepetidas}
                   corBarra={COR_GRAFICO.azul}
                 />
@@ -418,14 +418,14 @@ export function ClientesPrejuizoConteudo() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-3">
-              <CardTabela titulo="Clientes que Mais Repetem Etapas" linkVerTodos>
+              <CardTabela titulo={t("relatorio.prejuizo.clientesRepetemEtapas")} linkVerTodos>
                 <TabelaSimples
                   colunas={[
-                    "Cliente",
-                    "Serviços",
-                    "Repetições",
-                    "Etapa",
-                    "Status",
+                    t("relatorio.comum.cliente"),
+                    t("relatorio.comum.servico"),
+                    t("relatorio.comum.repeticoes"),
+                    t("relatorio.comum.etapa"),
+                    t("relatorio.filtro.status"),
                   ]}
                   linhas={dados.clientesRepetemEtapas.map((c) => [
                     c.cliente,
@@ -436,9 +436,14 @@ export function ClientesPrejuizoConteudo() {
                   ])}
                 />
               </CardTabela>
-              <CardTabela titulo="Clientes que Mais Retornam Serviços" linkVerTodos>
+              <CardTabela titulo={t("relatorio.prejuizo.clientesRetornam")} linkVerTodos>
                 <TabelaSimples
-                  colunas={["Cliente", "Retrabalhos", "Garantias", "Status"]}
+                  colunas={[
+                    t("relatorio.comum.cliente"),
+                    t("relatorio.comum.retrabalhos"),
+                    t("relatorio.comum.garantias"),
+                    t("relatorio.filtro.status"),
+                  ]}
                   linhas={dados.clientesRetorno.map((c) => [
                     c.cliente,
                     String(c.retrabalhos),
@@ -447,39 +452,39 @@ export function ClientesPrejuizoConteudo() {
                   ])}
                 />
               </CardTabela>
-              <CardTabela titulo="Clientes que Mais Demoram a Aprovar" linkVerTodos>
+              <CardTabela titulo={t("relatorio.prejuizo.clientesDemoramAprovar")} linkVerTodos>
                 <TabelaSimples
-                  colunas={["Cliente", "Tempo Médio"]}
+                  colunas={[t("relatorio.comum.cliente"), t("relatorio.comum.tempoMedio")]}
                   linhas={dados.clientesAprovacao.map((c) => [
                     c.cliente,
-                    `${c.tempoMedioDias} dias`,
+                    t("relatorio.comum.dias", { n: c.tempoMedioDias }),
                   ])}
                 />
               </CardTabela>
             </div>
 
             <div className="grid gap-4 lg:grid-cols-3">
-              <CardTabela titulo="Clientes que Mais Devolvem Trabalhos" linkVerTodos>
+              <CardTabela titulo={t("relatorio.prejuizo.clientesDevolvem")} linkVerTodos>
                 <TabelaSimples
-                  colunas={["Cliente", "Devoluções"]}
+                  colunas={[t("relatorio.comum.cliente"), t("relatorio.comum.devolucoes")]}
                   linhas={dados.clientesDevolucao.map((c) => [
                     c.cliente,
                     String(c.devolucoes),
                   ])}
                 />
               </CardTabela>
-              <CardTabela titulo="Motivos Mais Frequentes" linkVerTodos>
+              <CardTabela titulo={t("relatorio.prejuizo.motivosFrequentes")} linkVerTodos>
                 <TabelaSimples
-                  colunas={["Motivo", "Quantidade"]}
+                  colunas={[t("relatorio.comum.motivo"), t("relatorio.comum.quantidade")]}
                   linhas={dados.motivosFrequentes.map((m) => [
                     m.motivo,
                     String(m.quantidade),
                   ])}
                 />
               </CardTabela>
-              <CardTabela titulo="Prejuízo Estimado por Cliente" linkVerTodos>
+              <CardTabela titulo={t("relatorio.prejuizo.prejuizoPorCliente")} linkVerTodos>
                 <TabelaSimples
-                  colunas={["Cliente", "Valor"]}
+                  colunas={[t("relatorio.comum.cliente"), t("relatorio.comum.valor")]}
                   linhas={dados.prejuizoPorCliente.map((p) => [
                     p.cliente,
                     <span key={p.cliente} className="font-semibold text-red-600">
@@ -491,7 +496,7 @@ export function ClientesPrejuizoConteudo() {
               <div className="flex h-full flex-col rounded-xl border border-[#e8eaed] bg-white dark:bg-slate-900 shadow-sm">
                 <div className="border-b border-[#f0f0f0] dark:border-slate-700 px-4 py-3">
                   <h3 className="text-[13px] font-semibold text-[#374151] dark:text-slate-200">
-                    Alerta de Gargalos
+                    {t("relatorio.prejuizo.alertaGargalos")}
                   </h3>
                 </div>
                 <div className="flex flex-1 flex-col gap-3 p-4">

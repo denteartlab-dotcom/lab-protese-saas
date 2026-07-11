@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useI18n } from "@/components/i18n-provider";
 import { cn } from "@/lib/utils";
 import type { DreMatriz } from "@/lib/dre";
 import {
@@ -8,12 +9,14 @@ import {
   LEGENDA_RESUMO_DRE,
   MESES_ABREV_DRE,
 } from "@/lib/dre-graficos";
+import { trUi } from "@/lib/i18n/tr-ui";
 
 type DreResumoLegendaProps = {
   matriz: DreMatriz;
 };
 
 export function DreResumoLegenda({ matriz }: DreResumoLegendaProps) {
+  const { t } = useI18n();
   const [ativoId, setAtivoId] = useState<string | null>(null);
 
   const itens = useMemo(
@@ -22,11 +25,12 @@ export function DreResumoLegenda({ matriz }: DreResumoLegendaProps) {
         const linha = matriz.linhas.find((l) => l.id === meta.id);
         return {
           ...meta,
+          label: trUi(meta.label, t),
           valores: linha?.valores ?? Array(12).fill(0),
           total: linha?.total ?? 0,
         };
       }),
-    [matriz]
+    [matriz, t]
   );
 
   const itemAtivo = itens.find((i) => i.id === ativoId);
@@ -67,7 +71,7 @@ export function DreResumoLegenda({ matriz }: DreResumoLegendaProps) {
             <p className="text-[12px] font-medium text-[#374151]">{itemAtivo.label}</p>
             <div className="text-right">
               <p className="text-[10px] uppercase tracking-wide text-[#9ca3af]">
-                Total do ano {matriz.ano}
+                {t("relatorio.comum.totalAno", { ano: matriz.ano })}
               </p>
               <p className="text-[18px] font-semibold leading-tight text-[#374151]">
                 R$ {formatarTooltip(itemAtivo.total)}
@@ -76,7 +80,7 @@ export function DreResumoLegenda({ matriz }: DreResumoLegendaProps) {
           </div>
 
           <p className="mb-2 text-[10px] font-medium uppercase tracking-wide text-[#9ca3af]">
-            Por mês
+            {t("relatorio.comum.porMes")}
           </p>
           <div className="flex h-28 items-end justify-between gap-0.5 border-b border-[#e5e7eb] pb-6">
             {itemAtivo.valores.map((valor, i) => {

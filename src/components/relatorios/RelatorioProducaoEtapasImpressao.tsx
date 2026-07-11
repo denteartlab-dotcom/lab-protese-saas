@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { useI18n } from "@/components/i18n-provider";
 import {
   cabecalhoRelatorioLaboratorio,
   carregarConfigLaboratorio,
@@ -28,6 +29,7 @@ export function RelatorioProducaoEtapasImpressao({
   dataFim,
   className,
 }: Props) {
+  const { t } = useI18n();
   const [agora] = useState(() => new Date());
   const [configVersao, setConfigVersao] = useState(0);
 
@@ -48,7 +50,9 @@ export function RelatorioProducaoEtapasImpressao({
   );
 
   const periodo =
-    dataInicio && dataFim ? `${dataInicio} à ${dataFim}` : dataInicio || dataFim || "—";
+    dataInicio && dataFim
+      ? t("relatorio.comum.periodoAte", { inicio: dataInicio, fim: dataFim })
+      : dataInicio || dataFim || "—";
 
   return (
     <div
@@ -76,7 +80,7 @@ export function RelatorioProducaoEtapasImpressao({
       </div>
 
       <h1 className="mb-1 text-center text-[13px] font-bold text-[#222]">
-        Relatório de Produção - Etapas
+        {t("relatorio.producao.tituloEtapas")}
       </h1>
       <p className="mb-4 text-center text-[11px] text-[#333]">{periodo}</p>
 
@@ -84,15 +88,15 @@ export function RelatorioProducaoEtapasImpressao({
         <thead>
           <tr className="bg-[#e8e8e8]">
             {[
-              "Data",
-              "OS",
-              "Qtd.",
-              "Serviço",
-              "Cor",
-              "Dente",
-              "Cliente",
-              "Paciente",
-              "Situação",
+              t("relatorio.comum.data"),
+              t("relatorio.comum.os"),
+              t("relatorio.comum.qtd"),
+              t("relatorio.comum.servico"),
+              t("relatorio.comum.cor"),
+              t("relatorio.comum.dente"),
+              t("relatorio.comum.cliente"),
+              t("relatorio.comum.paciente"),
+              t("relatorio.comum.situacao"),
             ].map(
               (col) => (
                 <th
@@ -126,7 +130,14 @@ export function RelatorioProducaoEtapasImpressao({
                 <table className="w-full border-collapse text-[10px]">
                   <thead>
                     <tr className="bg-[#d9edf7]">
-                      {["Etapas", "Colaborador", "Início", "Fim", "Tempo", "Situação"].map(
+                      {[
+                        t("relatorio.comum.etapas"),
+                        t("relatorio.comum.colaborador"),
+                        t("relatorio.comum.inicio"),
+                        t("relatorio.comum.fim"),
+                        t("relatorio.comum.tempo"),
+                        t("relatorio.comum.situacao"),
+                      ].map(
                         (col) => (
                           <th
                             key={col}
@@ -168,7 +179,7 @@ export function RelatorioProducaoEtapasImpressao({
                         colSpan={4}
                         className="border border-[#bbb] px-1.5 py-1 text-right font-semibold text-[#4a90d9]"
                       >
-                        Tempo Total (minutos):
+                        {t("relatorio.comum.tempoTotalMinutos")}
                       </td>
                       <td className="border border-[#bbb] px-1.5 py-1 text-center font-semibold text-[#4a90d9]">
                         {linha.tempoTotalMinutos}
@@ -185,7 +196,7 @@ export function RelatorioProducaoEtapasImpressao({
       </table>
 
       <p className="mt-4 text-[11px] font-semibold text-[#333]">
-        Total de Etapas: {totalEtapas}
+        {t("relatorio.comum.totalEtapas", { total: totalEtapas })}
       </p>
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { I18nPortal } from "@/components/I18nPortal";
+import { useI18n } from "@/components/i18n-provider";
 import { useEffect, useState } from "react";
 import {
   CheckCircle2,
@@ -12,12 +13,13 @@ import {
   X,
 } from "lucide-react";
 import { LinkImprimirOs } from "@/components/LinkImprimirOs";
+import { cn } from "@/lib/utils";
 import type { DetalheTempoProducaoOs } from "@/lib/tempo-producao-detalhe";
 import {
-  PRIORIDADE_TEMPO_PRODUCAO,
-  STATUS_TEMPO_PRODUCAO,
-} from "@/lib/tempo-producao-relatorio";
-import { cn } from "@/lib/utils";
+  labelPrioridadeTempo,
+  labelStatusTempo,
+} from "@/components/relatorios/tempo-producao/tempo-i18n";
+import { PRIORIDADE_TEMPO_PRODUCAO, STATUS_TEMPO_PRODUCAO } from "@/lib/tempo-producao-relatorio";
 
 type Props = {
   trabalhoId: string | null;
@@ -25,6 +27,7 @@ type Props = {
 };
 
 export function OsDetalheModal({ trabalhoId, onClose }: Props) {
+  const { t } = useI18n();
   const [detalhe, setDetalhe] = useState<DetalheTempoProducaoOs | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState("");
@@ -77,7 +80,7 @@ export function OsDetalheModal({ trabalhoId, onClose }: Props) {
             {carregando ? (
               <div className="flex items-center gap-2 text-slate-500">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Carregando detalhes…
+                {t("relatorio.tempo.carregandoDetalhes")}
               </div>
             ) : resumo ? (
               <>
@@ -90,30 +93,30 @@ export function OsDetalheModal({ trabalhoId, onClose }: Props) {
                 <div className="mt-2 flex flex-wrap gap-2">
                   {st ? (
                     <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-bold", st.bg, st.cor)}>
-                      {st.label}
+                      {labelStatusTempo(resumo.status, t)}
                     </span>
                   ) : null}
                   {pr ? (
                     <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-semibold", pr.className)}>
-                      {pr.label}
+                      {labelPrioridadeTempo(resumo.prioridade, t)}
                     </span>
                   ) : null}
                   {resumo.diasAtraso > 0 ? (
                     <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-bold text-red-700 dark:bg-red-900/50 dark:text-red-300">
-                      {resumo.diasAtraso}d de atraso
+                      {t("relatorio.tempo.diasAtrasoBadge", { n: resumo.diasAtraso })}
                     </span>
                   ) : null}
                 </div>
               </>
             ) : (
-              <p className="text-sm text-red-600">{erro || "Não foi possível carregar."}</p>
+              <p className="text-sm text-red-600">{erro || t("relatorio.comum.erroCarregarDetalhes")}</p>
             )}
           </div>
           <button
             type="button"
             onClick={onClose}
             className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-            aria-label="Fechar"
+            aria-label={t("cadastros.comum.fechar")}
           >
             <X className="h-5 w-5" />
           </button>
@@ -123,16 +126,16 @@ export function OsDetalheModal({ trabalhoId, onClose }: Props) {
           {detalhe ? (
             <div className="space-y-6">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <Metrica label="Dias no laboratório" valor={`${resumo?.diasNoLaboratorio ?? 0}d`} />
-                <Metrica label="Parado na etapa" valor={`${resumo?.diasNaEtapaAtual ?? 0}d`} highlight />
-                <Metrica label="Prazo" valor={resumo?.prazoCombinadoBr ?? "—"} />
-                <Metrica label="Resp. pelo atraso" valor={resumo?.responsavelPeloAtraso ?? ""} alert />
+                <Metrica label={t("relatorio.tempo.diasNoLaboratorio")} valor={`${resumo?.diasNoLaboratorio ?? 0}d`} />
+                <Metrica label={t("relatorio.tempo.paradoNaEtapa")} valor={`${resumo?.diasNaEtapaAtual ?? 0}d`} highlight />
+                <Metrica label={t("relatorio.tempo.prazo")} valor={resumo?.prazoCombinadoBr ?? "—"} />
+                <Metrica label={t("relatorio.tempo.respPeloAtraso")} valor={resumo?.responsavelPeloAtraso ?? ""} alert />
               </div>
 
               <section>
                 <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
                   <Clock className="h-4 w-4 text-primary-600" />
-                  Linha do tempo da produção
+                  {t("relatorio.tempo.linhaTempo")}
                 </h3>
                 <div className="relative space-y-0 pl-6">
                   <div className="absolute bottom-2 left-[11px] top-2 w-0.5 bg-slate-200 dark:bg-slate-600" />
@@ -167,11 +170,11 @@ export function OsDetalheModal({ trabalhoId, onClose }: Props) {
                             <p className="font-semibold text-slate-800 dark:text-slate-100">{etapa.nome}</p>
                             <p className="text-xs text-slate-500 dark:text-slate-400">
                               {etapa.situacao === "concluida"
-                                ? "Concluída"
+                                ? t("relatorio.tempo.etapaConcluida")
                                 : etapa.situacao === "atual"
-                                  ? "Em andamento"
-                                  : "Aguardando"}
-                              {etapa.estimado ? " · datas estimadas" : ""}
+                                  ? t("relatorio.tempo.etapaEmAndamento")
+                                  : t("relatorio.tempo.etapaAguardando")}
+                              {etapa.estimado ? t("relatorio.tempo.datasEstimadas") : ""}
                             </p>
                           </div>
                           {etapa.diasNaEtapa != null && etapa.situacao !== "aguardando" ? (
@@ -182,19 +185,19 @@ export function OsDetalheModal({ trabalhoId, onClose }: Props) {
                         </div>
                         <dl className="mt-2 grid gap-1 text-xs sm:grid-cols-2">
                           <div>
-                            <dt className="text-slate-400">Responsável</dt>
+                            <dt className="text-slate-400">{t("relatorio.comum.responsavel")}</dt>
                             <dd className="font-medium text-slate-700 dark:text-slate-200">{etapa.responsavel}</dd>
                           </div>
                           <div>
-                            <dt className="text-slate-400">Tempo previsto</dt>
+                            <dt className="text-slate-400">{t("relatorio.tempo.tempoPrevisto")}</dt>
                             <dd className="text-slate-700 dark:text-slate-200">{etapa.tempoPrevisto}</dd>
                           </div>
                           <div>
-                            <dt className="text-slate-400">Entrada</dt>
+                            <dt className="text-slate-400">{t("relatorio.tempo.entrada")}</dt>
                             <dd className="font-mono text-slate-700 dark:text-slate-200">{etapa.entradaBr}</dd>
                           </div>
                           <div>
-                            <dt className="text-slate-400">Saída</dt>
+                            <dt className="text-slate-400">{t("relatorio.tempo.saida")}</dt>
                             <dd className="font-mono text-slate-700 dark:text-slate-200">{etapa.saidaBr}</dd>
                           </div>
                         </dl>
@@ -213,7 +216,7 @@ export function OsDetalheModal({ trabalhoId, onClose }: Props) {
                 <section className="grid gap-3 sm:grid-cols-2">
                   {detalhe.observacoes ? (
                     <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
-                      <p className="mb-1 text-xs font-semibold text-slate-500">Observações do serviço</p>
+                      <p className="mb-1 text-xs font-semibold text-slate-500">{t("relatorio.tempo.obsServico")}</p>
                       <p className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300">
                         {detalhe.observacoes}
                       </p>
@@ -221,7 +224,7 @@ export function OsDetalheModal({ trabalhoId, onClose }: Props) {
                   ) : null}
                   {detalhe.observacoesInternas ? (
                     <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
-                      <p className="mb-1 text-xs font-semibold text-slate-500">Observações internas</p>
+                      <p className="mb-1 text-xs font-semibold text-slate-500">{t("relatorio.tempo.obsInternas")}</p>
                       <p className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300">
                         {detalhe.observacoesInternas}
                       </p>
@@ -234,7 +237,7 @@ export function OsDetalheModal({ trabalhoId, onClose }: Props) {
                 <section>
                   <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
                     <FileImage className="h-4 w-4" />
-                    Fotos e anexos
+                    {t("relatorio.tempo.fotosAnexos")}
                   </h3>
                   <div className="flex flex-wrap gap-2">
                     {detalhe.anexos.map((anexo) => (
@@ -272,14 +275,14 @@ export function OsDetalheModal({ trabalhoId, onClose }: Props) {
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
             >
               <ExternalLink className="h-4 w-4" />
-              Abrir OS completa
+              {t("relatorio.tempo.abrirOsCompleta")}
             </LinkImprimirOs>
             <button
               type="button"
               onClick={onClose}
               className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
             >
-              Fechar
+              {t("cadastros.comum.fechar")}
             </button>
           </div>
         ) : null}

@@ -547,22 +547,22 @@ export function FluxoDeCaixaConteudo() {
             <thead>
               <tr className="bg-[#f3f4f6]">
                 <th className="border-b border-[#e5e7eb] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">
-                  DATA
+                  {t("relatorio.fluxo.colunaData")}
                 </th>
                 <th className="border-b border-[#e5e7eb] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">
-                  DESCRIÇÃO
+                  {t("relatorio.fluxo.colunaDescricao")}
                 </th>
                 <th className="border-b border-[#e5e7eb] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">
-                  FORMA
+                  {t("relatorio.fluxo.colunaForma")}
                 </th>
                 <th className="border-b border-[#e5e7eb] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">
-                  CONTA
+                  {t("relatorio.fluxo.colunaConta")}
                 </th>
                 <th className="border-b border-[#e5e7eb] px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">
-                  VALOR
+                  {t("relatorio.fluxo.colunaValor")}
                 </th>
                 <th className="border-b border-[#e5e7eb] px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">
-                  SALDO
+                  {t("relatorio.fluxo.colunaSaldo")}
                 </th>
               </tr>
             </thead>
@@ -570,13 +570,13 @@ export function FluxoDeCaixaConteudo() {
               {carregando ? (
                 <tr className="bg-white">
                   <td colSpan={6} className="px-4 py-12 text-center text-[#9ca3af]">
-                    Carregando...
+                    {t("relatorio.dre.carregandoTabela")}
                   </td>
                 </tr>
               ) : linhasPagina.length === 0 ? (
                 <tr className="bg-white">
                   <td colSpan={6} className="px-4 py-12 text-center text-[#9ca3af]">
-                    Nenhum lançamento no período.
+                    {t("relatorio.fluxo.nenhumLancamento")}
                   </td>
                 </tr>
               ) : (
@@ -624,7 +624,7 @@ export function FluxoDeCaixaConteudo() {
               {carregando ? (
                 <tr>
                   <td colSpan={13} className="px-4 py-12 text-center text-[#9ca3af]">
-                    Carregando...
+                    {t("relatorio.dre.carregandoTabela")}
                   </td>
                 </tr>
               ) : (
