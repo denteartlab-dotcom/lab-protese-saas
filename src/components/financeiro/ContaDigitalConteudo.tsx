@@ -15,6 +15,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui";
+import { useI18n } from "@/components/i18n-provider";
 import { AsaasSeloInstitucional } from "@/components/AsaasSeloInstitucional";
 import { ConfirmarPixSubcontaModal } from "@/components/financeiro/ConfirmarPixSubcontaModal";
 import { analisarCaminhoApp, montarCaminhoAppComSlug } from "@/lib/rotas-app";
@@ -23,6 +24,10 @@ import type { PainelFinanceiroContaDigital } from "@/lib/financeiro-painel-types
 import type { ResumoLimitePixContaDigital } from "@/lib/conta-digital-pix-limite";
 import { parseCurrencyBr } from "@/lib/cliente-financeiro";
 import { cn } from "@/lib/utils";
+import {
+  formatMoedaContaBancaria,
+  labelTipoMovimentacaoAsaas,
+} from "@/lib/i18n/conta-bancaria-i18n";
 import type { TipoMensagemForm } from "@/components/DadosLaboratorioForm";
 
 type StatusSubconta =
@@ -53,44 +58,6 @@ const labelClass = "mb-1 block text-[11px] font-medium text-slate-600";
 const inputClass =
   "h-9 w-full rounded border border-slate-300 bg-white px-2.5 text-[12px] text-slate-800 outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]";
 
-function money(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
-function formatCurrencyInput(value: string) {
-  return money(Number(value.replace(/\D/g, "")) / 100);
-}
-
-function mensagemTransferenciaPix(
-  modo: SubcontaResumo["modoIntegracao"],
-  status?: string | null
-) {
-  const pendente = !status || status === "PENDING" || status === "BANK_PROCESSING";
-  if (modo === "legado" && pendente) {
-    return "Transferência solicitada. Aprove no site ou app do Asaas (autorização crítica) para concluir.";
-  }
-  if (modo === "subconta" && pendente) {
-    return "Transferência Pix solicitada. Aguardando processamento pelo Asaas.";
-  }
-  if (status === "DONE") return "Transferência Pix concluída.";
-  return "Transferência Pix solicitada.";
-}
-
-function rotuloStatus(status: StatusSubconta) {
-  switch (status) {
-    case "aprovada":
-      return { texto: "Conta aprovada", cor: "text-emerald-700 bg-emerald-50 border-emerald-200" };
-    case "em_analise":
-      return { texto: "Em análise", cor: "text-amber-700 bg-amber-50 border-amber-200" };
-    case "reprovada":
-      return { texto: "Reprovada", cor: "text-red-700 bg-red-50 border-red-200" };
-    case "pendente_documentos":
-      return { texto: "Documentos pendentes", cor: "text-blue-700 bg-blue-50 border-blue-200" };
-    default:
-      return { texto: "Não iniciada", cor: "text-slate-600 bg-slate-50 border-slate-200" };
-  }
-}
-
 function linkConfiguracoes(pathname: string) {
   const { slug } = analisarCaminhoApp(pathname);
   if (slug) return montarCaminhoAppComSlug(slug, "/configuracoes?aba=boletos");
@@ -110,8 +77,68 @@ export function ContaDigitalConteudo({
   embedded = false,
   abaSolicitada = null,
 }: Props = {}) {
+  const { t, locale } = useI18n();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  const money = useCallback(
+    (value: number) => formatMoedaContaBancaria(value, locale),
+    [locale]
+  );
+
+  const formatCurrencyInput = useCallback(
+    (value: string) => money(Number(value.replace(/\D/g, "")) / 100),
+    [money]
+  );
+
+  const mensagemTransferenciaPix = useCallback(
+    (modo: SubcontaResumo["modoIntegracao"], status?: string | null) => {
+      const pendente = !status || status === "PENDING" || status === "BANK_PROCESSING";
+      if (modo === "legado" && pendente) {
+        return t("financeiro.conta.digital.transferenciaLegadoPendente");
+      }
+      if (modo === "subconta" && pendente) {
+        return t("financeiro.conta.digital.transferenciaSubcontaPendente");
+      }
+      if (status === "DONE") return t("financeiro.conta.digital.transferenciaConcluida");
+      return t("financeiro.conta.digital.transferenciaSolicitada");
+    },
+    [t]
+  );
+
+  const rotuloStatus = useCallback(
+    (status: StatusSubconta) => {
+      switch (status) {
+        case "aprovada":
+          return {
+            texto: t("financeiro.conta.digital.status.aprovada"),
+            cor: "text-emerald-700 bg-emerald-50 border-emerald-200",
+          };
+        case "em_analise":
+          return {
+            texto: t("financeiro.conta.digital.status.emAnalise"),
+            cor: "text-amber-700 bg-amber-50 border-amber-200",
+          };
+        case "reprovada":
+          return {
+            texto: t("financeiro.conta.digital.status.reprovada"),
+            cor: "text-red-700 bg-red-50 border-red-200",
+          };
+        case "pendente_documentos":
+          return {
+            texto: t("financeiro.conta.digital.status.pendenteDocumentos"),
+            cor: "text-blue-700 bg-blue-50 border-blue-200",
+          };
+        default:
+          return {
+            texto: t("financeiro.conta.digital.status.naoIniciada"),
+            cor: "text-slate-600 bg-slate-50 border-slate-200",
+          };
+      }
+    },
+    [t]
+  );
+
   const [subconta, setSubconta] = useState<SubcontaResumo | null>(null);
   const [saldo, setSaldo] = useState(0);
   const [movimentacoes, setMovimentacoes] = useState<
@@ -176,13 +203,13 @@ export function ContaDigitalConteudo({
       }
     } catch (err) {
       setMensagem({
-        texto: err instanceof Error ? err.message : "Erro ao carregar.",
+        texto: err instanceof Error ? err.message : t("financeiro.conta.digital.erroCarregar"),
         tipo: "erro",
       });
     } finally {
       setCarregando(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void carregar();
@@ -215,7 +242,7 @@ export function ContaDigitalConteudo({
     try {
       const limiteDiario = limiteAtivoForm ? parseCurrencyBr(limiteValorForm) : null;
       if (limiteAtivoForm && (!limiteDiario || limiteDiario <= 0)) {
-        throw new Error("Informe um limite diário maior que zero.");
+        throw new Error(t("financeiro.conta.digital.erroLimiteMaiorZero"));
       }
       const res = await fetch("/api/asaas/conta-digital", {
         method: "POST",
@@ -227,12 +254,12 @@ export function ContaDigitalConteudo({
         }),
       });
       const json = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(json.error || "Não foi possível salvar o limite.");
-      setMensagem({ texto: "Limite diário de Pix atualizado.", tipo: "sucesso" });
+      if (!res.ok) throw new Error(json.error || t("financeiro.conta.digital.erroSalvarLimite"));
+      setMensagem({ texto: t("financeiro.conta.digital.sucessoLimite"), tipo: "sucesso" });
       await carregar({ refresh: true });
     } catch (err) {
       setMensagem({
-        texto: err instanceof Error ? err.message : "Falha ao salvar limite.",
+        texto: err instanceof Error ? err.message : t("financeiro.conta.digital.erroFalhaLimite"),
         tipo: "erro",
       });
     } finally {
@@ -243,7 +270,10 @@ export function ContaDigitalConteudo({
   function validarLimiteAntesPix(valor: number) {
     if (!limitePix.ativo || limitePix.limiteDiario == null) return null;
     if (valor > (limitePix.disponivelHoje ?? 0) + 0.001) {
-      return `Limite diário de Pix: disponível hoje ${money(limitePix.disponivelHoje ?? 0)} (limite ${money(limitePix.limiteDiario)}).`;
+      return t("financeiro.conta.digital.limitePixDisponivel", {
+        disponivel: money(limitePix.disponivelHoje ?? 0),
+        limite: money(limitePix.limiteDiario),
+      });
     }
     return null;
   }
@@ -258,13 +288,13 @@ export function ContaDigitalConteudo({
         body: JSON.stringify({ acao: "validar-boleto", linhaDigitavel }),
       });
       const json = (await res.json()) as { boleto?: typeof boletoValidado; error?: string };
-      if (!res.ok) throw new Error(json.error || "Boleto inválido.");
+      if (!res.ok) throw new Error(json.error || t("financeiro.conta.digital.erroBoletoInvalido"));
       setBoletoValidado(json.boleto || null);
-      setMensagem({ texto: "Boleto validado com sucesso.", tipo: "sucesso" });
+      setMensagem({ texto: t("financeiro.conta.digital.sucessoBoletoValidado"), tipo: "sucesso" });
     } catch (err) {
       setBoletoValidado(null);
       setMensagem({
-        texto: err instanceof Error ? err.message : "Falha na validação.",
+        texto: err instanceof Error ? err.message : t("financeiro.conta.digital.erroValidacaoBoleto"),
         tipo: "erro",
       });
     } finally {
@@ -282,14 +312,14 @@ export function ContaDigitalConteudo({
         body: JSON.stringify({ acao: "pagar-boleto", linhaDigitavel }),
       });
       const json = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(json.error || "Pagamento não realizado.");
+      if (!res.ok) throw new Error(json.error || t("financeiro.conta.digital.erroPagamentoNaoRealizado"));
       setLinhaDigitavel("");
       setBoletoValidado(null);
-      setMensagem({ texto: "Pagamento solicitado com sucesso.", tipo: "sucesso" });
+      setMensagem({ texto: t("financeiro.conta.digital.sucessoPagamento"), tipo: "sucesso" });
       await carregar({ refresh: true });
     } catch (err) {
       setMensagem({
-        texto: err instanceof Error ? err.message : "Falha no pagamento.",
+        texto: err instanceof Error ? err.message : t("financeiro.conta.digital.erroPagamento"),
         tipo: "erro",
       });
     } finally {
@@ -304,10 +334,10 @@ export function ContaDigitalConteudo({
     try {
       const valor = parseCurrencyBr(valorPix);
       if (valor <= 0) {
-        throw new Error("Informe um valor válido.");
+        throw new Error(t("financeiro.conta.digital.erroValorInvalido"));
       }
       if (!chavePix.trim()) {
-        throw new Error("Informe a chave Pix.");
+        throw new Error(t("financeiro.conta.digital.erroChavePix"));
       }
       const avisoLimite = validarLimiteAntesPix(valor);
       if (avisoLimite) throw new Error(avisoLimite);
@@ -327,7 +357,7 @@ export function ContaDigitalConteudo({
         transferencia?: { status?: string };
         limitePix?: ResumoLimitePixContaDigital;
       };
-      if (!res.ok) throw new Error(json.error || "Transferência não realizada.");
+      if (!res.ok) throw new Error(json.error || t("financeiro.conta.digital.erroTransferencia"));
       if (json.limitePix) setLimitePix(json.limitePix);
       setValorPix("");
       setChavePix("");
@@ -338,7 +368,7 @@ export function ContaDigitalConteudo({
       });
       await carregar({ refresh: true });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Falha na transferência.";
+      const msg = err instanceof Error ? err.message : t("financeiro.conta.digital.erroFalhaTransferencia");
       if (modalPixSubconta) {
         setErroModalPix(msg);
       } else {
@@ -352,11 +382,11 @@ export function ContaDigitalConteudo({
   function solicitarTransferenciaPix() {
     const valor = parseCurrencyBr(valorPix);
     if (valor <= 0) {
-      setMensagem({ texto: "Informe um valor válido.", tipo: "erro" });
+      setMensagem({ texto: t("financeiro.conta.digital.erroValorInvalido"), tipo: "erro" });
       return;
     }
     if (!chavePix.trim()) {
-      setMensagem({ texto: "Informe a chave Pix.", tipo: "erro" });
+      setMensagem({ texto: t("financeiro.conta.digital.erroChavePix"), tipo: "erro" });
       return;
     }
     const avisoLimite = validarLimiteAntesPix(valor);
@@ -381,7 +411,7 @@ export function ContaDigitalConteudo({
         )}
       >
         <Loader2 className="h-4 w-4 animate-spin" />
-        Carregando conta digital…
+        {t("financeiro.conta.digital.carregando")}
       </div>
     );
   }
@@ -400,14 +430,14 @@ export function ContaDigitalConteudo({
           <div className="flex items-start gap-3">
             <Wallet className="mt-0.5 h-8 w-8 text-[#4a90d9]" />
             <div>
-              <h2 className="text-[15px] font-medium text-slate-800">Conta Digital</h2>
+              <h2 className="text-[15px] font-medium text-slate-800">
+                {t("financeiro.conta.digital.titulo")}
+              </h2>
               <p className="mt-1 text-[12px] text-slate-600">
-                Conecte sua conta Asaas para consultar saldo, pagar boletos e transferir Pix sem
-                sair do Lab Prótese.
+                {t("financeiro.conta.digital.descricaoNaoIniciada")}
               </p>
               <p className="mt-2 text-[11px] text-slate-500">
-                Se o CNPJ do laboratório for o mesmo da conta-mãe da plataforma, use a{" "}
-                <strong>chave API manual (legado)</strong> em Configurações → Boletos.
+                {t("financeiro.conta.digital.dicaLegado")}
               </p>
               <span
                 className={cn(
@@ -423,7 +453,7 @@ export function ContaDigitalConteudo({
             href={linkConfiguracoes(pathname)}
             className="mt-5 inline-flex h-9 items-center rounded bg-[#4a90d9] px-4 text-[13px] text-white hover:bg-[#3d7fc4]"
           >
-            Configurar conta Asaas
+            {t("financeiro.conta.digital.configurarAsaas")}
           </Link>
         </div>
       </div>
@@ -436,11 +466,13 @@ export function ContaDigitalConteudo({
         <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
           <Wallet className="h-5 w-5 text-[#4a90d9]" />
           <div>
-            <h3 className="text-[14px] font-semibold text-slate-800">Conta Bancária Asaas</h3>
+            <h3 className="text-[14px] font-semibold text-slate-800">
+              {t("financeiro.conta.digital.tituloEmbutido")}
+            </h3>
             <p className="text-[11px] text-slate-500">
               {modoVisualizacao
-                ? "Saldo e movimentações da conta"
-                : "Saldo, extrato, pagamento de boletos e transferências Pix"}
+                ? t("financeiro.conta.digital.subtituloVisualizacao")
+                : t("financeiro.conta.digital.subtituloCompleto")}
             </p>
           </div>
         </div>
@@ -465,12 +497,15 @@ export function ContaDigitalConteudo({
         )}
       >
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-[11px] text-slate-500">Saldo disponível</p>
+          <p className="text-[11px] text-slate-500">{t("financeiro.conta.digital.saldoDisponivel")}</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{money(saldo)}</p>
           {subconta?.conta ? (
             <p className="mt-2 text-[11px] text-slate-500">
-              Ag. {subconta.agencia || "—"} · Cc {subconta.conta}
-              {subconta.contaDigito ? `-${subconta.contaDigito}` : ""}
+              {t("financeiro.conta.digital.agenciaConta", {
+                agencia: subconta.agencia || "—",
+                conta: subconta.conta,
+                digito: subconta.contaDigito ? `-${subconta.contaDigito}` : "",
+              })}
             </p>
           ) : null}
         </div>
@@ -479,22 +514,28 @@ export function ContaDigitalConteudo({
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-2 text-slate-600">
             <Shield className="h-4 w-4 text-[#4a90d9]" />
-            <p className="text-[11px] font-medium">Limite Pix (hoje)</p>
+            <p className="text-[11px] font-medium">{t("financeiro.conta.digital.limitePixHoje")}</p>
           </div>
           {limitePix.ativo && limitePix.limiteDiario != null ? (
             <>
               <p className="mt-2 text-[13px] text-slate-800">
-                Usado: <strong>{money(limitePix.usadoHoje)}</strong>
+                {t("financeiro.conta.digital.usado")}{" "}
+                <strong>{money(limitePix.usadoHoje)}</strong>
               </p>
               <p className="mt-1 text-[13px] text-emerald-700">
-                Disponível: <strong>{money(limitePix.disponivelHoje ?? 0)}</strong>
+                {t("financeiro.conta.digital.disponivel")}{" "}
+                <strong>{money(limitePix.disponivelHoje ?? 0)}</strong>
               </p>
               <p className="mt-1 text-[10px] text-slate-400">
-                Teto diário: {money(limitePix.limiteDiario)}
+                {t("financeiro.conta.digital.tetoDiario", {
+                  valor: money(limitePix.limiteDiario),
+                })}
               </p>
             </>
           ) : (
-            <p className="mt-2 text-[12px] text-slate-500">Sem limite diário ativo.</p>
+            <p className="mt-2 text-[12px] text-slate-500">
+              {t("financeiro.conta.digital.semLimiteAtivo")}
+            </p>
           )}
         </div>
         <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-4">
@@ -502,14 +543,14 @@ export function ContaDigitalConteudo({
             <CheckCircle2 className="h-4 w-4" />
             <span className="text-[13px] font-medium">
               {subconta?.modoIntegracao === "legado"
-                ? "Conta Asaas conectada (modo legado)"
-                : "Conta digital ativa"}
+                ? t("financeiro.conta.digital.contaLegado")
+                : t("financeiro.conta.digital.contaAtiva")}
             </span>
           </div>
           <p className="mt-1 text-[12px] text-emerald-900/80">
             {subconta?.modoIntegracao === "legado"
-              ? "Saldo, pagamentos de boleto e transferências Pix usam a chave API configurada em Configurações → Boletos."
-              : "Emissão de boletos nas receitas usa automaticamente esta conta. Pagamentos e transferências abaixo debitam deste saldo."}
+              ? t("financeiro.conta.digital.infoLegado")
+              : t("financeiro.conta.digital.infoSubconta")}
           </p>
         </div>
           </>
@@ -520,9 +561,9 @@ export function ContaDigitalConteudo({
       <div className="mb-4 flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
         {(
           [
-            ["extrato", "Extrato", FileText],
-            ["pagar", "Pagar boleto", FileText],
-            ["transferir", "Transferir Pix", ArrowLeftRight],
+            ["extrato", t("financeiro.conta.digital.aba.extrato"), FileText],
+            ["pagar", t("financeiro.conta.digital.aba.pagar"), FileText],
+            ["transferir", t("financeiro.conta.digital.aba.transferir"), ArrowLeftRight],
           ] as const
         ).map(([id, label, Icon]) => (
           <button
@@ -548,17 +589,17 @@ export function ContaDigitalConteudo({
           <table className="w-full text-left text-[12px]">
             <thead className="border-b border-slate-200 bg-slate-50 text-[11px] text-slate-500">
               <tr>
-                <th className="px-3 py-2">Data</th>
-                <th className="px-3 py-2">Descrição</th>
-                <th className="px-3 py-2">Tipo</th>
-                <th className="px-3 py-2 text-right">Valor</th>
+                <th className="px-3 py-2">{t("financeiro.conta.digital.col.data")}</th>
+                <th className="px-3 py-2">{t("financeiro.conta.digital.col.descricao")}</th>
+                <th className="px-3 py-2">{t("financeiro.conta.digital.col.tipo")}</th>
+                <th className="px-3 py-2 text-right">{t("financeiro.conta.digital.col.valor")}</th>
               </tr>
             </thead>
             <tbody>
               {movimentacoes.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-3 py-6 text-center text-slate-500">
-                    Nenhuma movimentação recente.
+                    {t("financeiro.conta.digital.vazioMovimentacoes")}
                   </td>
                 </tr>
               ) : (
@@ -566,7 +607,9 @@ export function ContaDigitalConteudo({
                   <tr key={mov.id} className="border-b border-slate-100">
                     <td className="px-3 py-2 whitespace-nowrap">{mov.date}</td>
                     <td className="px-3 py-2">{mov.description || "—"}</td>
-                    <td className="px-3 py-2 text-slate-500">{mov.type}</td>
+                    <td className="px-3 py-2 text-slate-500">
+                      {labelTipoMovimentacaoAsaas(mov.type, t)}
+                    </td>
                     <td
                       className={cn(
                         "px-3 py-2 text-right font-medium",
@@ -586,7 +629,7 @@ export function ContaDigitalConteudo({
       {aba === "pagar" && modoOperacoes ? (
         <div className="max-w-xl space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div>
-            <label className={labelClass}>Linha digitável do boleto</label>
+            <label className={labelClass}>{t("financeiro.conta.digital.labelLinhaDigitavel")}</label>
             <input
               type="text"
               value={linhaDigitavel}
@@ -595,38 +638,42 @@ export function ContaDigitalConteudo({
                 setBoletoValidado(null);
               }}
               className={cn(inputClass, "font-mono text-[11px]")}
-              placeholder="Cole ou digite a linha digitável"
+              placeholder={t("financeiro.conta.digital.placeholderLinhaDigitavel")}
             />
           </div>
           {boletoValidado ? (
             <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-[12px]">
               <p>
-                <strong>Valor:</strong> {money(boletoValidado.valor)}
+                <strong>{t("financeiro.conta.digital.labelValor")}</strong> {money(boletoValidado.valor)}
               </p>
               {boletoValidado.beneficiario ? (
                 <p>
-                  <strong>Beneficiário:</strong> {boletoValidado.beneficiario}
+                  <strong>{t("financeiro.conta.digital.labelBeneficiario")}</strong>{" "}
+                  {boletoValidado.beneficiario}
                 </p>
               ) : null}
               {boletoValidado.vencimento ? (
                 <p>
-                  <strong>Vencimento:</strong>{" "}
-                  {new Date(boletoValidado.vencimento + "T12:00:00").toLocaleDateString("pt-BR")}
+                  <strong>{t("financeiro.conta.digital.labelVencimento")}</strong>{" "}
+                  {new Date(boletoValidado.vencimento + "T12:00:00").toLocaleDateString(
+                    locale === "pt" ? "pt-BR" : locale === "es" ? "es" : "en-US"
+                  )}
                 </p>
               ) : null}
               {boletoValidado.taxa != null && boletoValidado.taxa > 0 ? (
                 <p>
-                  <strong>Taxa Asaas:</strong> {money(boletoValidado.taxa)}
+                  <strong>{t("financeiro.conta.digital.labelTaxaAsaas")}</strong>{" "}
+                  {money(boletoValidado.taxa)}
                 </p>
               ) : null}
             </div>
           ) : null}
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" disabled={processando} onClick={() => void validarBoleto()}>
-              Validar boleto
+              {t("financeiro.conta.digital.validarBoleto")}
             </Button>
             <Button type="button" disabled={processando || !boletoValidado} onClick={() => void pagarBoleto()}>
-              Pagar boleto
+              {t("financeiro.conta.digital.pagarBoleto")}
             </Button>
           </div>
         </div>
@@ -637,7 +684,7 @@ export function ContaDigitalConteudo({
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
             <div className="flex items-center gap-2 text-slate-700">
               <Shield className="h-4 w-4 text-[#4a90d9]" />
-              <p className="text-[12px] font-medium">Limite diário de Pix</p>
+              <p className="text-[12px] font-medium">{t("financeiro.conta.digital.limiteDiarioPix")}</p>
             </div>
             {podeConfigurarLimite ? (
               <div className="mt-3 space-y-3">
@@ -648,10 +695,10 @@ export function ContaDigitalConteudo({
                     onChange={(e) => setLimiteAtivoForm(e.target.checked)}
                     className="h-4 w-4 rounded border-slate-300"
                   />
-                  Ativar limite diário de transferências Pix
+                  {t("financeiro.conta.digital.ativarLimitePix")}
                 </label>
                 <div>
-                  <label className={labelClass}>Valor máximo por dia</label>
+                  <label className={labelClass}>{t("financeiro.conta.digital.valorMaximoDia")}</label>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -669,38 +716,35 @@ export function ContaDigitalConteudo({
                   disabled={salvandoLimite}
                   onClick={() => void salvarLimitePix()}
                 >
-                  {salvandoLimite ? "Salvando…" : "Salvar limite"}
+                  {salvandoLimite ? t("financeiro.conta.digital.salvando") : t("financeiro.conta.digital.salvarLimite")}
                 </Button>
                 <p className="text-[10px] text-slate-500">
-                  Somente o proprietário pode alterar. O contador zera à meia-noite (horário do
-                  servidor).
+                  {t("financeiro.conta.digital.dicaLimiteProprietario")}
                 </p>
               </div>
             ) : (
               <p className="mt-2 text-[11px] text-slate-500">
                 {limitePix.ativo && limitePix.limiteDiario != null
-                  ? `Limite ativo: ${money(limitePix.limiteDiario)} por dia. Disponível hoje: ${money(limitePix.disponivelHoje ?? 0)}.`
-                  : "Nenhum limite diário configurado pelo proprietário."}
+                  ? t("financeiro.conta.digital.limiteAtivoResumo", {
+                      limite: money(limitePix.limiteDiario),
+                      disponivel: money(limitePix.disponivelHoje ?? 0),
+                    })
+                  : t("financeiro.conta.digital.semLimiteConfigurado")}
               </p>
             )}
           </div>
 
           {subconta?.modoIntegracao === "legado" ? (
             <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
-              No <strong>modo legado</strong>, saques e Pix exigem{" "}
-              <strong>aprovação manual</strong> no site ou app do Asaas (token SMS/app ou
-              autorização crítica). Isso é uma proteção da própria conta Asaas, não do Lab
-              Prótese.
+              {t("financeiro.conta.digital.avisoLegadoPix")}
             </p>
           ) : (
             <p className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-[11px] text-blue-900">
-              Na <strong>subconta BaaS</strong>, o Pix exige{" "}
-              <strong>senha do proprietário</strong> no Lab Prótese. O Asaas só conclui se a
-              transferência tiver sido autorizada aqui (webhook de segurança da conta-mãe).
+              {t("financeiro.conta.digital.avisoSubcontaPix")}
             </p>
           )}
           <div>
-            <label className={labelClass}>Valor</label>
+            <label className={labelClass}>{t("financeiro.conta.digital.labelValorPix")}</label>
             <input
               type="text"
               inputMode="numeric"
@@ -711,7 +755,7 @@ export function ContaDigitalConteudo({
             />
           </div>
           <div>
-            <label className={labelClass}>Tipo da chave</label>
+            <label className={labelClass}>{t("financeiro.conta.digital.labelTipoChave")}</label>
             <select
               value={tipoChave}
               onChange={(e) =>
@@ -719,15 +763,15 @@ export function ContaDigitalConteudo({
               }
               className={inputClass}
             >
-              <option value="EVP">Aleatória</option>
-              <option value="CPF">CPF</option>
-              <option value="CNPJ">CNPJ</option>
-              <option value="EMAIL">E-mail</option>
-              <option value="PHONE">Telefone</option>
+              <option value="EVP">{t("financeiro.conta.digital.chaveAleatoria")}</option>
+              <option value="CPF">{t("financeiro.conta.digital.chaveCpf")}</option>
+              <option value="CNPJ">{t("financeiro.conta.digital.chaveCnpj")}</option>
+              <option value="EMAIL">{t("financeiro.conta.digital.chaveEmail")}</option>
+              <option value="PHONE">{t("financeiro.conta.digital.chaveTelefone")}</option>
             </select>
           </div>
           <div>
-            <label className={labelClass}>Chave Pix</label>
+            <label className={labelClass}>{t("financeiro.conta.digital.labelChavePix")}</label>
             <input
               type="text"
               value={chavePix}
@@ -736,7 +780,7 @@ export function ContaDigitalConteudo({
             />
           </div>
           <Button type="button" disabled={processando} onClick={solicitarTransferenciaPix}>
-            Transferir Pix
+            {t("financeiro.conta.digital.transferirPix")}
           </Button>
         </div>
       ) : null}

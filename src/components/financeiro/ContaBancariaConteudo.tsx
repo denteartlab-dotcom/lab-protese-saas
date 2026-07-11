@@ -71,6 +71,7 @@ import { cn } from "@/lib/utils";
 import type { ContaDigitalAba } from "@/components/financeiro/ContaDigitalConteudo";
 import type { MessageKey } from "@/lib/i18n";
 import { nomeExibicaoContaBancaria } from "@/lib/i18n/conta-bancaria-i18n";
+import { htmlLangAttr, type Locale } from "@/lib/i18n";
 
 function ContaDigitalCarregando() {
   const { t } = useI18n();
@@ -105,8 +106,8 @@ function hidratarDadosLocais() {
   };
 }
 
-function money(value: number) {
-  return value.toLocaleString("pt-BR", {
+function money(value: number, locale: Locale) {
+  return value.toLocaleString(htmlLangAttr(locale), {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -127,7 +128,7 @@ function valorCampoConta(valor?: string) {
 }
 
 export function ContaBancariaConteudo() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const searchParams = useSearchParams();
   const [contaAsaasAtiva, setContaAsaasAtiva] = useState(false);
   const [podeVisualizarContaAsaas, setPodeVisualizarContaAsaas] = useState(false);
@@ -681,7 +682,7 @@ export function ContaBancariaConteudo() {
                           classeSaldoConta(saldo)
                         )}
                       >
-                        {money(saldo)}
+                        {money(saldo, locale)}
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex items-center justify-center gap-2">
@@ -797,7 +798,7 @@ export function ContaBancariaConteudo() {
                             <div className="grid grid-cols-1 gap-y-2 text-[12px] leading-relaxed text-slate-800 md:grid-cols-4 md:gap-x-6">
                               <div className="min-w-0">
                                 <span className="font-bold uppercase tracking-wide text-slate-800">
-                                  NOME :
+                                  {t("financeiro.conta.detalhe.nome")}
                                 </span>{" "}
                                 <span className="text-slate-700">
                                   {nomeExibicaoContaBancaria(conta, t)}
@@ -805,7 +806,7 @@ export function ContaBancariaConteudo() {
                               </div>
                               <div className="min-w-0 md:pl-2">
                                 <span className="font-semibold text-slate-800">
-                                  Agência:
+                                  {t("financeiro.conta.detalhe.agencia")}
                                 </span>{" "}
                                 <span className="text-slate-700">
                                   {valorCampoConta(conta.agencia)}
@@ -813,7 +814,7 @@ export function ContaBancariaConteudo() {
                               </div>
                               <div className="min-w-0 md:pl-2">
                                 <span className="font-semibold text-slate-800">
-                                  Número da Conta:
+                                  {t("financeiro.conta.detalhe.numeroConta")}
                                 </span>{" "}
                                 <span className="text-slate-700">
                                   {valorCampoConta(conta.numeroConta)}
@@ -821,7 +822,7 @@ export function ContaBancariaConteudo() {
                               </div>
                               <div className="min-w-0 md:pl-2">
                                 <span className="font-semibold text-slate-800">
-                                  Chave Pix:
+                                  {t("financeiro.conta.detalhe.chavePix")}
                                 </span>{" "}
                                 <span className="text-slate-700">
                                   {valorCampoConta(conta.chavePix)}
@@ -831,7 +832,7 @@ export function ContaBancariaConteudo() {
 
                             <div className="mt-3 text-[12px] text-slate-800">
                               <span className="font-bold uppercase tracking-wide">
-                                SALDO :
+                                {t("financeiro.conta.detalhe.saldo")}
                               </span>{" "}
                               <span
                                 className={cn(
@@ -839,7 +840,7 @@ export function ContaBancariaConteudo() {
                                   classeSaldoConta(saldo)
                                 )}
                               >
-                                {money(saldo)}
+                                {money(saldo, locale)}
                               </span>
                             </div>
 
@@ -849,7 +850,7 @@ export function ContaBancariaConteudo() {
                                 onClick={() => setContaVisualizada(null)}
                                 className="h-8 rounded border border-[#c8c8c8] bg-white px-4 text-[12px] font-normal text-slate-800 hover:bg-[#fafafa]"
                               >
-                                Fechar Detalhes
+                                {t("financeiro.conta.detalhe.fechar")}
                               </button>
                             </div>
                           </div>
