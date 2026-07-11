@@ -101,7 +101,7 @@ import {
   exportarContasReceberClientesCsv,
   gerarContasReceberClientesPdf,
 } from "@/lib/contas-receber-clientes-export";
-import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, contribuiRecebidoCliente } from "@/lib/contas-receber-financeiro";
+import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, contribuiRecebidoCliente, isRecebimentoParcial } from "@/lib/contas-receber-financeiro";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroReceita } from "@/lib/financeiro-painel-types";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
@@ -683,6 +683,16 @@ function FinanceiroReceberConteudo() {
       grupos.set(chave, grupo);
     });
 
+    todosReceitas.forEach((lancamento) => {
+      const clienteId = lancamento.cliente?.id;
+      if (!clienteId) return;
+      const grupo = grupos.get(clienteId);
+      if (!grupo) return;
+      if (!isCreditoGerado(lancamento) && !isRecebimentoParcial(lancamento)) return;
+      if (grupo.lancamentos.some((item) => item.id === lancamento.id)) return;
+      grupo.lancamentos.push(lancamento);
+    });
+
     trabalhosNaoFaturados.forEach((trabalho) => {
       const clienteId = trabalho.cliente?.id;
       const nome = trabalho.cliente?.nome?.trim();
@@ -705,7 +715,7 @@ function FinanceiroReceberConteudo() {
       .map((grupo) => ({
         ...grupo,
         recebido: grupo.clienteId
-          ? calcularRecebidoCliente(grupo.clienteId, todosReceitas, inicio, fim)
+          ? calcularRecebidoCliente(grupo.clienteId, todosReceitas, null, null)
           : 0,
         adiantamentos: creditoDisponivelCliente(grupo.clienteId),
       }))

@@ -328,35 +328,33 @@ function montarParcelasCondicaoPagamentoFatura(params: {
       )
     : [];
 
-  const totalPagoCash = parciais.reduce((sum, item) => sum + item.valor, 0);
-  const valorPagoPrincipal =
-    lancamento.status === "pago"
-      ? totalFinal
-      : totalPagoCash > 0
-        ? Math.min(totalPagoCash, totalFinal)
-        : 0;
+  const creditos = lancamentoCliente
+    ? creditosUtilizadosDaFatura(lancamentoCliente, lancamentos)
+        .filter((item) => isCreditoUtilizadoFatura(item.descricao))
+        .sort((a, b) => a.data.localeCompare(b.data))
+    : [];
 
-  const parcelas: ParcelaFaturaImpressao[] = [
-    {
+  const creditoTotal = creditos.reduce((sum, item) => sum + item.valor, 0);
+  const parciaisTotal = parciais.reduce((sum, item) => sum + item.valor, 0);
+  const saldoPendente = Math.max(totalFinal - creditoTotal - parciaisTotal, 0);
+
+  const parcelas: ParcelaFaturaImpressao[] = [];
+
+  if (saldoPendente > 0.009) {
+    parcelas.push({
       parcela: parcelaTexto,
       vencimento: formatDate(lancamento.data),
       forma: lancamento.formaPagamento || "-",
-      valor: money(totalFinal),
-      pago: money(valorPagoPrincipal),
-    },
-  ];
-
-  if (!params.clienteId || !lancamentoCliente) return parcelas;
-
-  const creditos = creditosUtilizadosDaFatura(lancamentoCliente, lancamentos)
-    .filter((item) => isCreditoUtilizadoFatura(item.descricao))
-    .sort((a, b) => a.data.localeCompare(b.data));
+      valor: money(saldoPendente),
+      pago: money(0),
+    });
+  }
 
   for (const credito of creditos) {
     parcelas.push({
-      parcela: "Adiantamento",
+      parcela: FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
       vencimento: formatDate(credito.data),
-      forma: credito.formaPagamento || FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
+      forma: FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
       valor: money(credito.valor),
       pago: money(credito.valor),
     });
@@ -369,6 +367,16 @@ function montarParcelasCondicaoPagamentoFatura(params: {
       forma: parcial.formaPagamento || "-",
       valor: money(parcial.valor),
       pago: money(parcial.valor),
+    });
+  }
+
+  if (!parcelas.length) {
+    parcelas.push({
+      parcela: parcelaTexto,
+      vencimento: formatDate(lancamento.data),
+      forma: lancamento.formaPagamento || "-",
+      valor: money(totalFinal),
+      pago: money(lancamento.status === "pago" ? totalFinal : 0),
     });
   }
 
@@ -630,8 +638,8 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
     .items tr.meta-row td .meta-data-item{font-size:${Math.max(10, fs - 2)}px;color:#111;line-height:1.35}
     .items tr.meta-row td .meta-data-sep{margin:0 4px;font-weight:normal;color:#111}
     .pay th{font-size:${fsCab}px;font-weight:bold;text-align:left;padding:4px 3px;background:${thBg}}
-    .pay td{font-size:${fsTabela}px;line-height:1.25}
-    .pay tr.pay-received td{color:#1a9e1a}
+    .pay td{font-size:${fsTabela}px;line-height:1.35;padding:4px 3px}
+    .pay tr.pay-received td.pay-col-pago{color:#1a9e1a;font-weight:600}
     .right{text-align:right}
     .center{text-align:center}
     .totals{width:${smartModelo1 ? "260px" : "270px"};max-width:100%;margin-left:auto;padding-top:4px}
@@ -866,24 +874,24 @@ function htmlCondicaoPagamento(
   const linhas = dados.parcelas
     .map((p) => {
       const recebida = parcelaFoiRecebida(p);
-      const classe = recebida ? ' class="pay-received"' : "";
-      return `<tr${classe}>
+      const classePago = recebida ? ' class="pay-col-pago"' : "";
+      return `<tr${recebida ? ' class="pay-received"' : ""}>
         <td>${escapeHtml(p.parcela)}</td>
         <td>${escapeHtml(p.vencimento)}</td>
         ${layout.formaPgto ? `<td>${escapeHtml(p.forma)}</td>` : ""}
         <td>${escapeHtml(valorMonetarioSemPrefixo(p.valor))}</td>
-        ${exibirPago ? `<td>${escapeHtml(valorMonetarioSemPrefixo(p.pago))}</td>` : ""}
+        ${exibirPago ? `<td${classePago}>${escapeHtml(valorMonetarioSemPrefixo(p.pago))}</td>` : ""}
       </tr>`;
     })
     .join("");
 
   const colgroupPay = smartModelo1
     ? `<colgroup>
-        <col style="width:12%" />
-        <col style="width:22%" />
-        ${layout.formaPgto ? '<col style="width:28%" />' : ""}
-        <col style="width:${layout.formaPgto ? "19%" : "33%"}" />
-        ${exibirPago ? `<col style="width:${layout.formaPgto ? "19%" : "33%"}" />` : ""}
+        <col style="width:18%" />
+        <col style="width:18%" />
+        ${layout.formaPgto ? '<col style="width:26%" />' : ""}
+        <col style="width:${layout.formaPgto ? "19%" : "32%"}" />
+        ${exibirPago ? `<col style="width:${layout.formaPgto ? "19%" : "32%"}" />` : ""}
       </colgroup>`
     : "";
 

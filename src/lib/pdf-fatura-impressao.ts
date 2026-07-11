@@ -35,6 +35,8 @@ type PdfApi = PdfCabecalhoApi & {
   addPage: () => void;
   output: (type: "blob") => Blob;
   setLineWidth: (width: number) => void;
+  setTextColor: (r: number, g: number, b: number) => void;
+  splitTextToSize: (text: string, maxWidth: number) => string[];
   getLineHeightFactor?: () => number;
 };
 
@@ -434,6 +436,7 @@ function desenharCondicaoPagamento(
   const pageWidth = pdf.internal.pageSize.getWidth();
   const m = margensLinhaRequisicao(pageWidth);
   const larguraTabela = m.tabelaDir - m.tabelaEsq;
+  const corPago = hexParaRgb("#1a9e1a");
 
   let cursor = y + 4;
   linhaRequisicaoPdf(pdf, cursor, pageWidth);
@@ -445,10 +448,10 @@ function desenharCondicaoPagamento(
   cursor += 5;
 
   const cols = [
-    { titulo: "Parcela", w: larguraTabela * 0.12, align: "left" as const },
-    { titulo: "Vencimento", w: larguraTabela * 0.22, align: "left" as const },
+    { titulo: "Parcela", w: larguraTabela * 0.18, align: "left" as const },
+    { titulo: "Vencimento", w: larguraTabela * 0.18, align: "left" as const },
     ...(layout.formaPgto
-      ? [{ titulo: "Forma Pagto", w: larguraTabela * 0.28, align: "left" as const }]
+      ? [{ titulo: "Forma Pagto", w: larguraTabela * 0.26, align: "left" as const }]
       : []),
     { titulo: "Valor", w: larguraTabela * 0.19, align: "right" as const },
     { titulo: "Pago", w: larguraTabela * 0.19, align: "right" as const },
@@ -456,6 +459,7 @@ function desenharCondicaoPagamento(
 
   let x = m.tabelaEsq;
   pdf.setFont("helvetica", "bold");
+  pdf.setTextColor(0, 0, 0);
   for (const col of cols) {
     pdf.text(col.titulo, col.align === "right" ? x + col.w - 1 : x + 1, cursor, {
       align: col.align,
@@ -467,8 +471,8 @@ function desenharCondicaoPagamento(
   cursor += 4;
 
   pdf.setFont("helvetica", "normal");
+  const lineHeight = 4.2;
   for (const parcela of dados.parcelas) {
-    x = m.tabelaEsq;
     const valores = [
       parcela.parcela,
       parcela.vencimento,
@@ -476,14 +480,39 @@ function desenharCondicaoPagamento(
       parcela.valor.replace(/^R\$\s*/i, ""),
       parcela.pago.replace(/^R\$\s*/i, ""),
     ];
+    const linhasPorColuna = cols.map((col, i) =>
+      pdf.splitTextToSize(valores[i] || "", Math.max(col.w - 2, 8))
+    );
+    const alturaLinha = Math.max(
+      lineHeight,
+      ...linhasPorColuna.map((linhas) => linhas.length * lineHeight)
+    );
+
+    x = m.tabelaEsq;
     for (let i = 0; i < cols.length; i++) {
       const col = cols[i];
-      pdf.text(valores[i] || "", col.align === "right" ? x + col.w - 1 : x + 1, cursor, {
-        align: col.align,
-      });
+      const linhas = linhasPorColuna[i];
+      const isColunaPago = col.titulo === "Pago";
+      const valorPago = Number(String(valores[i] || "").replace(/\./g, "").replace(",", ".")) || 0;
+      if (isColunaPago && valorPago > 0) {
+        pdf.setTextColor(corPago.r, corPago.g, corPago.b);
+        pdf.setFont("helvetica", "bold");
+      } else {
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFont("helvetica", "normal");
+      }
+      let yTexto = cursor;
+      for (const linha of linhas) {
+        pdf.text(linha, col.align === "right" ? x + col.w - 1 : x + 1, yTexto, {
+          align: col.align,
+        });
+        yTexto += lineHeight;
+      }
       x += col.w;
     }
-    cursor += 4.5;
+    pdf.setTextColor(0, 0, 0);
+    pdf.setFont("helvetica", "normal");
+    cursor += alturaLinha + 1.2;
   }
 
   linhaRequisicaoPdf(pdf, cursor, pageWidth);
