@@ -103,6 +103,8 @@ export type ParcelaFaturaImpressao = {
   forma: string;
   valor: string;
   pago: string;
+  /** Linha de pagamento recebido — destaque verde claro. */
+  recebida?: boolean;
 };
 
 export type DadosFaturaImpressao = {
@@ -305,11 +307,12 @@ function montarParcelasCondicaoPagamentoFatura(params: {
   clienteId?: string;
   clienteNome?: string;
   lancamentos?: LancamentoResumoFatura[];
+  totalServicos: number;
   totalFinal: number;
   formatDate: (iso: string) => string;
   money: (n: number) => string;
 }): ParcelaFaturaImpressao[] {
-  const { lancamento, totalFinal, formatDate, money } = params;
+  const { lancamento, totalServicos, totalFinal, formatDate, money } = params;
   const parcela = parseParcelaNaDescricao(lancamento.descricao);
   const parcelaTexto = textoParcelaLog(parcela?.numero ?? 1, parcela?.total ?? 1);
   const lancamentos = params.lancamentos || [];
@@ -336,19 +339,22 @@ function montarParcelasCondicaoPagamentoFatura(params: {
 
   const creditoTotal = creditos.reduce((sum, item) => sum + item.valor, 0);
   const parciaisTotal = parciais.reduce((sum, item) => sum + item.valor, 0);
-  const saldoPendente = Math.max(totalFinal - creditoTotal - parciaisTotal, 0);
+  const totalPago = creditoTotal + parciaisTotal;
+  const quitada =
+    lancamento.status === "pago" || totalPago >= Math.max(totalFinal, 0) - 0.009;
 
-  const parcelas: ParcelaFaturaImpressao[] = [];
-
-  if (saldoPendente > 0.009) {
-    parcelas.push({
+  const parcelas: ParcelaFaturaImpressao[] = [
+    {
       parcela: parcelaTexto,
       vencimento: formatDate(lancamento.data),
       forma: lancamento.formaPagamento || "-",
-      valor: money(saldoPendente),
-      pago: money(0),
-    });
-  }
+      valor: money(totalServicos),
+      pago: money(quitada ? totalServicos : totalPago),
+      recebida: totalPago > 0.009,
+    },
+  ];
+
+  if (quitada) return parcelas;
 
   for (const credito of creditos) {
     parcelas.push({
@@ -357,6 +363,7 @@ function montarParcelasCondicaoPagamentoFatura(params: {
       forma: FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
       valor: money(credito.valor),
       pago: money(credito.valor),
+      recebida: true,
     });
   }
 
@@ -367,16 +374,7 @@ function montarParcelasCondicaoPagamentoFatura(params: {
       forma: parcial.formaPagamento || "-",
       valor: money(parcial.valor),
       pago: money(parcial.valor),
-    });
-  }
-
-  if (!parcelas.length) {
-    parcelas.push({
-      parcela: parcelaTexto,
-      vencimento: formatDate(lancamento.data),
-      forma: lancamento.formaPagamento || "-",
-      valor: money(totalFinal),
-      pago: money(lancamento.status === "pago" ? totalFinal : 0),
+      recebida: true,
     });
   }
 
@@ -479,6 +477,7 @@ export function montarDadosFaturaImpressao(params: {
       clienteId: params.clienteId,
       clienteNome: params.clienteNome,
       lancamentos: params.lancamentosCliente,
+      totalServicos,
       totalFinal,
       formatDate,
       money,
@@ -639,7 +638,8 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
     .items tr.meta-row td .meta-data-sep{margin:0 4px;font-weight:normal;color:#111}
     .pay th{font-size:${fsCab}px;font-weight:bold;text-align:left;padding:4px 3px;background:${thBg}}
     .pay td{font-size:${fsTabela}px;line-height:1.35;padding:4px 3px}
-    .pay tr.pay-received td.pay-col-pago{color:#1a9e1a;font-weight:600}
+    .pay tr.pay-row-received td{background:#e8f5e9;color:#2e7d32}
+    .pay tr.pay-row-received td.pay-col-pago{font-weight:600}
     .right{text-align:right}
     .center{text-align:center}
     .totals{width:${smartModelo1 ? "260px" : "270px"};max-width:100%;margin-left:auto;padding-top:4px}
@@ -857,7 +857,7 @@ function valorMonetarioSemPrefixo(valor: string) {
 }
 
 function parcelaFoiRecebida(p: ParcelaFaturaImpressao) {
-  return parseMoney(p.pago) > 0;
+  return Boolean(p.recebida) || parseMoney(p.pago) > 0;
 }
 
 function htmlCondicaoPagamento(
@@ -875,7 +875,7 @@ function htmlCondicaoPagamento(
     .map((p) => {
       const recebida = parcelaFoiRecebida(p);
       const classePago = recebida ? ' class="pay-col-pago"' : "";
-      return `<tr${recebida ? ' class="pay-received"' : ""}>
+      return `<tr${recebida ? ' class="pay-row-received"' : ""}>
         <td>${escapeHtml(p.parcela)}</td>
         <td>${escapeHtml(p.vencimento)}</td>
         ${layout.formaPgto ? `<td>${escapeHtml(p.forma)}</td>` : ""}
