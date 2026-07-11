@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Plus } from "lucide-react";
 import { AgendaVerProdutosModal } from "@/components/producao/AgendaVerProdutosModal";
 import { OsDetalheCampo } from "@/components/producao/OsDetalheCampo";
 import {
@@ -16,15 +17,22 @@ import {
   valorUnitarioAgendaGrupo,
   type LinhaAgendaGrupoOs,
 } from "@/lib/agenda-producao-grupo";
+import { instrucoesTextoLivre } from "@/lib/etapas-os";
 import { exibirTexto } from "@/lib/utils";
 
 type Props = {
   linha: LinhaAgendaGrupoOs;
   anexoAberto: { name: string; type: string; url: string } | null;
   onAnexoAberto: (anexo: { name: string; type: string; url: string } | null) => void;
+  onAdicionarImagem?: () => void;
 };
 
-export function AgendaOsDetalheExpandido({ linha, anexoAberto, onAnexoAberto }: Props) {
+export function AgendaOsDetalheExpandido({
+  linha,
+  anexoAberto,
+  onAnexoAberto,
+  onAdicionarImagem,
+}: Props) {
   const [produtosAbertos, setProdutosAbertos] = useState(false);
   const { principal } = linha;
   const instrucoes = instrucoesConsolidadasGrupo(linha);
@@ -43,7 +51,11 @@ export function AgendaOsDetalheExpandido({ linha, anexoAberto, onAnexoAberto }: 
             value={exibirTexto(principal.material)}
           />
           <OsDetalheCampo
-            label="Observação Interna"
+            label="Observação Serviço"
+            value={instrucoesTextoLivre(instrucoes)}
+          />
+          <OsDetalheCampo
+            label="Observação Interna (ficha)"
             value={principal.observacoes?.trim() || ""}
           />
           <button
@@ -77,6 +89,16 @@ export function AgendaOsDetalheExpandido({ linha, anexoAberto, onAnexoAberto }: 
       <div className="border-t border-slate-200 bg-white px-4 py-3">
         <div className="mb-2 flex items-center justify-between gap-2">
           <p className="text-xs font-semibold text-slate-600">Galeria de Imagens:</p>
+          {onAdicionarImagem ? (
+            <button
+              type="button"
+              onClick={onAdicionarImagem}
+              className="inline-flex items-center gap-1 rounded border border-emerald-300 px-2 py-1 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Adicionar Imagem
+            </button>
+          ) : null}
         </div>
         {anexos.length === 0 ? (
           <p className="text-[11px] text-slate-400">Nenhuma imagem enviada nesta OS.</p>

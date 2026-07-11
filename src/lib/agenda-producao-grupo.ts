@@ -20,7 +20,7 @@ import {
 } from "@/lib/modulo-producao-os";
 import { etapaAtualLinhaOsComMapa } from "@/lib/modulo-producao-etapas";
 import { trabalhoVisivelModuloTv } from "@/lib/status-os";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 
 export type TrabalhoAgendaGrupo = TrabalhoAgenda & {
   segmentoFaturamento?: string | null;
@@ -211,7 +211,7 @@ export function descontoTextoAgendaGrupo(linha: LinhaAgendaGrupoOs) {
       .filter((d) => d && d !== "0" && d !== "0,00")
   );
   const primeiro = descontos[0];
-  if (!primeiro) return "";
+  if (!primeiro) return "% 0,00";
   return primeiro.includes("%") ? primeiro : `% ${primeiro}`;
 }
 
@@ -276,12 +276,31 @@ export function anexosAgendaGrupo(linha: LinhaAgendaGrupoOs): AnexoAgendaOs[] {
 
 export function dataFinalizadoEntregueAgenda(linha: LinhaAgendaGrupoOs) {
   for (const t of linha.grupoCompleto) {
-    if (t.dataEntrega) return formatDate(t.dataEntrega);
+    if (t.dataEntrega) return formatDateTime(t.dataEntrega);
     if (t.status === "entregue" || t.status === "finalizado") {
       return formatDate(t.dataPrevista) || formatDate(t.dataEntrada);
     }
   }
   return "";
+}
+
+/** Monta linha expandida (3 colunas + galeria) a partir dos trabalhos do controle ou agenda. */
+export function linhaAgendaGrupoDeTrabalhos<T extends TrabalhoAgendaGrupo>(
+  referencia: T,
+  todos: T[]
+): LinhaAgendaGrupoOs {
+  const numeroOs = referencia.numeroOs;
+  const grupoCompleto = todos.filter((t) => t.numeroOs === numeroOs);
+  const servicos = grupoCompleto.filter(
+    (t) => segmentoEfetivoTrabalho(t) === "servico"
+  );
+  const baseServicos = servicos.length > 0 ? servicos : grupoCompleto;
+  return {
+    chaveGrupo: String(numeroOs),
+    principal: escolherTrabalhoServicoGrupoOs(baseServicos) as TrabalhoAgendaGrupo,
+    servicos: baseServicos,
+    grupoCompleto,
+  };
 }
 
 export function linhasServicoAgenda(linha: LinhaAgendaGrupoOs) {

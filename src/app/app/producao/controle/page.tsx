@@ -19,6 +19,7 @@ import {
   ControleProducaoToolbar,
 } from "@/components/ControleProducaoToolbar";
 import { CabecalhoFormularioOs } from "@/components/producao/CabecalhoFormularioOs";
+import { AgendaOsDetalheExpandido } from "@/components/producao/AgendaOsDetalheExpandido";
 import { EscalaCorCamposOs } from "@/components/producao/EscalaCorCamposOs";
 import { EtapasControleCelula } from "@/components/producao/EtapasControleCelula";
 import {
@@ -104,7 +105,6 @@ import {
   formatarLinhaColaborador,
   formatarLinhaEtapa,
   nomeEtapaSemSetor,
-  instrucoesTextoLivre,
   parseComplementosInstrucoesGrupo,
   parseEtapasInstrucoes,
   removerComplementosOsDoCorpo,
@@ -118,6 +118,7 @@ import {
   filtrarTrabalhosVencendoPeriodo,
   type TipoPrazoProducao,
 } from "@/lib/controle-producao-prazos";
+import { linhaAgendaGrupoDeTrabalhos } from "@/lib/agenda-producao-grupo";
 import { BarraConfigListagem } from "@/components/listagem/BarraConfigListagem";
 import { useListagemPaginada } from "@/hooks/use-listagem-paginada";
 import {
@@ -132,7 +133,6 @@ import {
   type LancamentoFaturaOs,
 } from "@/lib/os-faturamento";
 import {
-  anexosFromGrupoTrabalhos,
   anexosFromInstrucoes,
 } from "@/lib/os-anexos";
 import {
@@ -3496,65 +3496,13 @@ export default function ControlePage() {
                   </tr>
                   {osAberta === trabalho.id && (
                     <tr>
-                      <td colSpan={12} className="bg-slate-50 px-4 py-3">
-                        {(() => {
-                          const anexos = anexosFromGrupoTrabalhos(grupoOs);
-                          return anexos.length > 0 ? (
-                            <div className="mb-3">
-                              <p className="mb-2 text-xs font-semibold text-slate-600">Imagem:</p>
-                              <div className="flex flex-wrap gap-2">
-                                {anexos.map((anexo) => (
-                                  <button
-                                    type="button"
-                                    key={`${anexo.url}-${anexo.name}`}
-                                    onClick={() => setAnexoAberto(anexo)}
-                                    className="overflow-hidden rounded border border-slate-200 bg-white shadow-sm hover:border-primary-300"
-                                    title={anexo.name}
-                                  >
-                                    {anexo.type.startsWith("image/") ? (
-                                      <img src={anexo.url} alt={anexo.name} className="h-16 w-24 object-cover" />
-                                    ) : anexo.type.startsWith("video/") ? (
-                                      <video src={anexo.url} className="h-16 w-24 bg-black object-cover" />
-                                    ) : (
-                                      <div className="flex h-16 w-24 items-center justify-center text-[10px] text-slate-400">Arquivo</div>
-                                    )}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          ) : null;
-                        })()}
-                        <div className="grid gap-3 md:grid-cols-4">
-                          <Detail label="OS Externa" value="-" />
-                          <Detail label="Prazo Laboratório" value={formatDate(trabalho.dataPrevista)} />
-                          <Detail label="Valor Unitário" value={formatCurrency(trabalho.valor)} />
-                          <Detail label="Número do Dente" value={exibirTexto(trabalho.dentes)} />
-                          <Detail label="Cor do Dente" value={exibirTexto(trabalho.cor)} />
-                          <Detail label="Material enviado" value={trabalho.material || ""} />
-                          <Detail
-                            label="Observação Serviço"
-                            value={instrucoesTextoLivre(trabalho.instrucoes)}
-                            emptyValue=""
-                          />
-                          <Detail
-                            label="Observação Interna / Técnica"
-                            value={trabalho.observacoes?.trim() || ""}
-                            emptyValue=""
-                          />
-                        </div>
-                        <div className="mt-3 flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            type="button"
-                            onClick={() => setImprimirOs(trabalho)}
-                          >
-                            Ver Protocolo
-                          </Button>
-                          <button className="rounded border border-emerald-300 px-3 py-1 text-emerald-700">
-                            + Adicionar Imagem
-                          </button>
-                        </div>
+                      <td colSpan={12} className="bg-slate-50 p-0">
+                        <AgendaOsDetalheExpandido
+                          linha={linhaAgendaGrupoDeTrabalhos(trabalho, trabalhos)}
+                          anexoAberto={anexoAberto}
+                          onAnexoAberto={setAnexoAberto}
+                          onAdicionarImagem={() => abrirEdicao(trabalho)}
+                        />
                       </td>
                     </tr>
                   )}
@@ -3591,57 +3539,6 @@ export default function ControlePage() {
         onConfirm={() => setAvisoExclusaoOs(null)}
       />
 
-      {anexoAberto && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4">
-          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-              <div className="min-w-0">
-                <h2 className="truncate text-sm font-semibold text-slate-700">{anexoAberto.name}</h2>
-                <p className="text-xs text-slate-400">{anexoAberto.type || "Arquivo anexado"}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <a
-                  href={anexoAberto.url}
-                  download={anexoAberto.name}
-                  className="rounded border border-primary-200 px-3 py-2 text-xs font-medium text-primary-700 hover:bg-primary-50"
-                >
-                  Baixar
-                </a>
-                <button
-                  type="button"
-                  onClick={() => setAnexoAberto(null)}
-                  className="rounded border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                >
-                  Fechar
-                </button>
-              </div>
-            </div>
-            <div className="flex flex-1 items-center justify-center overflow-auto bg-slate-950 p-4">
-              {anexoAberto.type.startsWith("image/") ? (
-                <img
-                  src={anexoAberto.url}
-                  alt={anexoAberto.name}
-                  className="max-h-[78vh] max-w-full rounded bg-white object-contain"
-                />
-              ) : anexoAberto.type.startsWith("video/") ? (
-                <video
-                  src={anexoAberto.url}
-                  controls
-                  autoPlay
-                  className="max-h-[78vh] max-w-full rounded bg-black"
-                />
-              ) : (
-                <div className="rounded bg-white p-8 text-center text-slate-500">
-                  <p>Pré-visualização indisponível para este arquivo.</p>
-                  <a href={anexoAberto.url} download={anexoAberto.name} className="mt-3 inline-block text-primary-700">
-                    Baixar arquivo
-                  </a>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
       </>
       )}
 
@@ -5018,15 +4915,6 @@ export default function ControlePage() {
         }
       />
       )}
-    </div>
-  );
-}
-
-function Detail({ label, value, emptyValue = "-" }: { label: string; value: string; emptyValue?: string }) {
-  return (
-    <div>
-      <p className="font-semibold text-slate-500">{label}:</p>
-      <p className="whitespace-pre-wrap text-slate-700">{value || emptyValue}</p>
     </div>
   );
 }
