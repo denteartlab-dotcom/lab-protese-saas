@@ -1,27 +1,48 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
-import { Eraser, ImageUp, PenLine } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Eraser, FileUp, ImageUp, PenLine } from "lucide-react";
 import { Button } from "@/components/ui";
+import { pdfPrimeiraPaginaParaDataUrl } from "@/lib/pdf-pagina-imagem";
 
 const LARGURA = 420;
 const ALTURA = 130;
+/** Posição Y da linha-guia (assinatura apoiada aqui no recibo). */
+const LINHA_ASSINATURA_Y = ALTURA - 28;
+const MARGEM_LINHA = 24;
 
 type Props = {
   value: string;
   onChange: (dataUrl: string) => void;
 };
 
+function desenharGuiaAssinatura(ctx: CanvasRenderingContext2D) {
+  ctx.save();
+  ctx.strokeStyle = "#d1d5db";
+  ctx.lineWidth = 1;
+  ctx.setLineDash([5, 4]);
+  ctx.beginPath();
+  ctx.moveTo(MARGEM_LINHA, LINHA_ASSINATURA_Y);
+  ctx.lineTo(LARGURA - MARGEM_LINHA, LINHA_ASSINATURA_Y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
 export function AssinaturaReciboCampo({ value, onChange }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const desenhando = useRef(false);
   const ultimoPonto = useRef<{ x: number; y: number } | null>(null);
-  const inputArquivo = useRef<HTMLInputElement>(null);
+  const inputImagem = useRef<HTMLInputElement>(null);
+  const inputPdf = useRef<HTMLInputElement>(null);
   const ignorarProximaCarga = useRef(false);
+  const [carregandoPdf, setCarregandoPdf] = useState(false);
+  const [erroUpload, setErroUpload] = useState("");
 
   const limparCanvas = useCallback((ctx: CanvasRenderingContext2D) => {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, LARGURA, ALTURA);
+    desenharGuiaAssinatura(ctx);
   }, []);
 
   const carregarImagem = useCallback(
@@ -34,12 +55,17 @@ export function AssinaturaReciboCampo({ value, onChange }: Props) {
       if (!dataUrl) return;
       const img = new Image();
       img.onload = () => {
-        const escala = Math.min(LARGURA / img.width, ALTURA / img.height, 1);
+        const escala = Math.min(
+          (LARGURA - MARGEM_LINHA * 2) / img.width,
+          (LINHA_ASSINATURA_Y - 8) / img.height,
+          1
+        );
         const w = img.width * escala;
         const h = img.height * escala;
         const x = (LARGURA - w) / 2;
-        const y = (ALTURA - h) / 2;
+        const y = LINHA_ASSINATURA_Y - h - 2;
         ctx.drawImage(img, x, y, w, h);
+        desenharGuiaAssinatura(ctx);
       };
       img.src = dataUrl;
     },
@@ -47,12 +73,22 @@ export function AssinaturaReciboCampo({ value, onChange }: Props) {
   );
 
   useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!ctx) return;
     if (ignorarProximaCarga.current) {
       ignorarProximaCarga.current = false;
       return;
     }
     carregarImagem(value);
   }, [value, carregarImagem]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!ctx || value) return;
+    limparCanvas(ctx);
+  }, [value, limparCanvas]);
 
   function posicaoCanvas(event: React.MouseEvent | React.TouchEvent) {
     const canvas = canvasRef.current!;
@@ -113,10 +149,12 @@ export function AssinaturaReciboCampo({ value, onChange }: Props) {
     limparCanvas(ctx);
     ignorarProximaCarga.current = true;
     onChange("");
+    setErroUpload("");
   }
 
-  function aoEnviarArquivo(arquivo: File | null) {
+  function aoEnviarImagem(arquivo: File | null) {
     if (!arquivo || !arquivo.type.startsWith("image/")) return;
+    setErroUpload("");
     const leitor = new FileReader();
     leitor.onload = () => {
       const dataUrl = String(leitor.result || "");
@@ -127,6 +165,26 @@ export function AssinaturaReciboCampo({ value, onChange }: Props) {
     leitor.readAsDataURL(arquivo);
   }
 
+  async function aoEnviarPdf(arquivo: File | null) {
+    if (!arquivo) return;
+    if (arquivo.type !== "application/pdf" && !arquivo.name.toLowerCase().endsWith(".pdf")) {
+      setErroUpload("Envie um arquivo PDF válido.");
+      return;
+    }
+    setErroUpload("");
+    setCarregandoPdf(true);
+    try {
+      const dataUrl = await pdfPrimeiraPaginaParaDataUrl(arquivo);
+      ignorarProximaCarga.current = true;
+      onChange(dataUrl);
+      carregarImagem(dataUrl);
+    } catch {
+      setErroUpload("Não foi possível ler o PDF. Tente uma imagem PNG ou JPG.");
+    } finally {
+      setCarregandoPdf(false);
+    }
+  }
+
   return (
     <section>
       <div className="mb-3 flex items-center gap-2 text-slate-800 dark:text-slate-100">
@@ -134,8 +192,8 @@ export function AssinaturaReciboCampo({ value, onChange }: Props) {
         <h2 className="text-[15px] font-normal">Assinatura do recibo</h2>
       </div>
       <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
-        Desenhe com o mouse ou toque, ou envie uma imagem. A assinatura aparece automaticamente nos
-        recibos de recebimento.
+        Desenhe acima da linha tracejada, envie uma imagem ou um PDF com o scan da assinatura. Ela
+        aparece alinhada à linha nos recibos de recebimento.
       </p>
       <div className="inline-block max-w-full rounded border border-slate-300 bg-white p-2 shadow-sm dark:border-slate-600 dark:bg-slate-950">
         <canvas
@@ -158,18 +216,39 @@ export function AssinaturaReciboCampo({ value, onChange }: Props) {
           variant="outline"
           size="sm"
           className="gap-1.5"
-          onClick={() => inputArquivo.current?.click()}
+          onClick={() => inputImagem.current?.click()}
         >
           <ImageUp className="h-3.5 w-3.5" />
           Enviar imagem
         </Button>
         <input
-          ref={inputArquivo}
+          ref={inputImagem}
           type="file"
           accept="image/png,image/jpeg,image/webp"
           className="hidden"
           onChange={(e) => {
-            aoEnviarArquivo(e.target.files?.[0] ?? null);
+            aoEnviarImagem(e.target.files?.[0] ?? null);
+            e.target.value = "";
+          }}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          disabled={carregandoPdf}
+          onClick={() => inputPdf.current?.click()}
+        >
+          <FileUp className="h-3.5 w-3.5" />
+          {carregandoPdf ? "Lendo PDF…" : "Enviar PDF (scan)"}
+        </Button>
+        <input
+          ref={inputPdf}
+          type="file"
+          accept="application/pdf,.pdf"
+          className="hidden"
+          onChange={(e) => {
+            void aoEnviarPdf(e.target.files?.[0] ?? null);
             e.target.value = "";
           }}
         />
@@ -184,6 +263,9 @@ export function AssinaturaReciboCampo({ value, onChange }: Props) {
           Limpar
         </Button>
       </div>
+      {erroUpload ? (
+        <p className="mt-2 text-xs text-red-600 dark:text-red-400">{erroUpload}</p>
+      ) : null}
     </section>
   );
 }

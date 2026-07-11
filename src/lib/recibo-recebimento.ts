@@ -59,9 +59,12 @@ function estilosRecibo() {
     th{text-align:center;font-weight:bold}
     td{text-align:center}
     .footer{text-align:right;margin-top:26px}
-    .sign{width:420px;margin:50px auto 0;text-align:center;padding-top:8px}
-    .sign-line{border-top:1px solid #444;width:280px;margin:0 auto 10px}
-    .sign-img{max-height:72px;max-width:280px;margin:0 auto 10px;display:block}
+    .sign{width:280px;margin:50px auto 0;text-align:center}
+    .sign-img-wrap{display:flex;align-items:flex-end;justify-content:center;min-height:72px;width:100%}
+    .sign-img{max-height:72px;max-width:260px;object-fit:contain;display:block;margin:0 auto}
+    .sign-line{border-top:1px solid #444;width:100%;margin:0;height:0}
+    .sign-name{margin-top:10px;font-size:12px}
+    .sign-cnpj{margin-top:8px;font-size:11px;color:#444}
     @media print{body{padding:0}.page{max-width:none}}
   `;
 }
@@ -77,9 +80,12 @@ function rodapeRecibo() {
   return `
     <p class="footer">${rodape.cidade}, ${rodape.dataExtenso}.</p>
     <div class="sign">
-      ${imgAssinatura}
+      <div class="sign-img-wrap">
+        ${imgAssinatura}
+      </div>
       <div class="sign-line"></div>
-      ${rodape.responsavel}${rodape.cnpj ? `<br/><br/>${rodape.cnpj}` : ""}
+      <div class="sign-name">${rodape.responsavel}</div>
+      ${rodape.cnpj ? `<div class="sign-cnpj">${rodape.cnpj}</div>` : ""}
     </div>
   `;
 }

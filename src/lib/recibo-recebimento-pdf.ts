@@ -5,7 +5,7 @@ import {
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
 import {
   dadosRodapeAssinaturaRecibo,
-  formatoImagemDataUrl,
+  desenharRodapeAssinaturaReciboPdf,
 } from "@/lib/recibo-assinatura-lab";
 import { formatDate } from "@/lib/utils";
 import {
@@ -118,38 +118,7 @@ export async function gerarReciboRecebimentoPdf(
   const lab = labImpressaoFromConfig();
   const rodape = dadosRodapeAssinaturaRecibo(labCfg, lab);
 
-  pdf.text(`${rodape.cidade}, ${rodape.dataExtenso}.`, pageW - margin, y, {
-    align: "right",
-  });
-  y += 16;
-
-  const assinaturaW = 70;
-  const assinaturaH = 22;
-  const assinaturaX = (pageW - assinaturaW) / 2;
-  if (rodape.assinaturaDataUrl) {
-    try {
-      pdf.addImage(
-        rodape.assinaturaDataUrl,
-        formatoImagemDataUrl(rodape.assinaturaDataUrl),
-        assinaturaX,
-        y,
-        assinaturaW,
-        assinaturaH
-      );
-      y += assinaturaH + 4;
-    } catch {
-      y += 4;
-    }
-  }
-
-  pdf.setDrawColor(80, 80, 80);
-  pdf.line(assinaturaX, y, assinaturaX + assinaturaW, y);
-  y += 5;
-  pdf.text(rodape.responsavel, pageW / 2, y, { align: "center" });
-  if (rodape.cnpj) {
-    y += 8;
-    pdf.text(rodape.cnpj, pageW / 2, y, { align: "center" });
-  }
+  desenharRodapeAssinaturaReciboPdf(pdf, pageW, margin, y, rodape);
 
   return pdf.output("blob");
 }
