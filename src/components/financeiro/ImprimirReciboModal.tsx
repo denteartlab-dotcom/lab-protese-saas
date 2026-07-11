@@ -9,6 +9,7 @@ import {
 import { prepararAbaPdf } from "@/lib/pdf-viewer";
 import { abrirPdfBlobGerandoNoVisualizadorUnificado } from "@/lib/pdf-viewer-unificado";
 import { gerarReciboRecebimentoPdf } from "@/lib/recibo-recebimento-pdf";
+import { proximoNomeArquivoReciboPdf } from "@/lib/recibo-arquivo-nome";
 import {
   montarTextoReciboCompartilhar,
   type LinhaReciboRecebimento,
@@ -39,10 +40,11 @@ export function ImprimirReciboModal({
 
   function imprimir() {
     const janela = prepararAbaPdf();
+    const nomeArquivo = proximoNomeArquivoReciboPdf();
     void abrirPdfBlobGerandoNoVisualizadorUnificado(
       () => gerarReciboRecebimentoPdf(modelo, { clienteNome, linhas }),
       "Recibo",
-      "Recibo.pdf",
+      nomeArquivo,
       { janela, origem: "Financeiro · Recibo" }
     );
   }

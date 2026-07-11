@@ -406,12 +406,29 @@ export async function abrirPdfBlobDiretoNaAba(
     agendarRevogarUrl(url);
 
     if (janela && !janela.closed) {
+      try {
+        janela.document.title = titulo;
+      } catch {
+        /* ignore */
+      }
+      // Navegação direta preserva o nome do File no diálogo Salvar do Chrome.
+      if (navegarAbaPdf(janela, url)) {
+        return;
+      }
       abrirPdfNaJanelaComTitulo(janela, url, titulo);
       return;
     }
 
     const aberta = window.open("about:blank", "_blank");
     if (aberta) {
+      try {
+        aberta.document.title = titulo;
+      } catch {
+        /* ignore */
+      }
+      if (navegarAbaPdf(aberta, url)) {
+        return;
+      }
       abrirPdfNaJanelaComTitulo(aberta, url, titulo);
     } else {
       baixarPdfBlob(blob, nomeArquivo);
