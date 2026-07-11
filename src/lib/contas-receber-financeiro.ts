@@ -162,6 +162,11 @@ export function deveExibirNoHistoricoRecebimentos(
   return parciais.length === 0 && creditos.length === 0;
 }
 
+export function valorHistoricoRecebimentoCliente(lancamento: LancamentoContasReceber) {
+  if (isCreditoUtilizado(lancamento.descricao)) return -Math.abs(lancamento.valor);
+  return lancamento.valor;
+}
+
 export function calcularRecebidoCliente(
   clienteId: string,
   lancamentos: LancamentoContasReceber[],

@@ -101,7 +101,7 @@ import {
   exportarContasReceberClientesCsv,
   gerarContasReceberClientesPdf,
 } from "@/lib/contas-receber-clientes-export";
-import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, contribuiRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos } from "@/lib/contas-receber-financeiro";
+import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, contribuiRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente } from "@/lib/contas-receber-financeiro";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroReceita } from "@/lib/financeiro-painel-types";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
@@ -2599,7 +2599,14 @@ function FinanceiroReceberConteudo() {
                                             {referenciaLancamento(l)}
                                           </span>
                                         </td>
-                                        <td className="px-2 py-2 text-right">{money(l.valor)}</td>
+                                        <td
+                                          className={cn(
+                                            "px-2 py-2 text-right",
+                                            isCreditoUtilizado(l) && "font-medium text-red-600"
+                                          )}
+                                        >
+                                          {money(valorHistoricoRecebimentoCliente(l))}
+                                        </td>
                                         <td className="px-2 py-2">
                                           <div className="flex items-center justify-center gap-1">
                                             {podeReabrirPixAsaas(l) ? (
