@@ -100,7 +100,12 @@ export function recebidoNaFatura(
     0
   );
   const totalRecebido = credito + parciais;
-  if (lancamento.status === "pago") return lancamento.valor;
+  if (lancamento.status === "pago") {
+    if (parciais > 0.009 || credito > 0.009) {
+      return Math.min(lancamento.valor, totalRecebido);
+    }
+    return lancamento.valor;
+  }
   return Math.min(totalRecebido, lancamento.valor);
 }
 
@@ -137,9 +142,24 @@ export function contribuiRecebidoCliente(
   if (isCreditoGerado(lancamento)) return lancamento.valor;
   if (isRecebimentoParcial(lancamento)) return lancamento.valor;
   if (lancamento.descricao.toLowerCase().startsWith("cobrança os")) {
+    if (lancamento.status !== "pago") return 0;
+    const parciais = recebimentosParciaisDaFatura(lancamento, lancamentos);
+    const credito = creditoUsadoNaFatura(lancamento, lancamentos);
+    if (parciais.length > 0 || credito > 0) return 0;
     return valorRecebidoCashNaFaturaPaga(lancamento, lancamentos);
   }
   return 0;
+}
+
+/** Cobrança OS quitada por parciais/crédito não entra na lista de recebimentos (evita duplicar o total). */
+export function deveExibirNoHistoricoRecebimentos(
+  lancamento: LancamentoContasReceber,
+  lancamentos: LancamentoContasReceber[]
+) {
+  if (!lancamento.descricao.toLowerCase().startsWith("cobrança os")) return true;
+  const parciais = recebimentosParciaisDaFatura(lancamento, lancamentos);
+  const creditos = creditosUtilizadosDaFatura(lancamento, lancamentos);
+  return parciais.length === 0 && creditos.length === 0;
 }
 
 export function calcularRecebidoCliente(

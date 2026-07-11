@@ -101,7 +101,7 @@ import {
   exportarContasReceberClientesCsv,
   gerarContasReceberClientesPdf,
 } from "@/lib/contas-receber-clientes-export";
-import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, contribuiRecebidoCliente, isRecebimentoParcial } from "@/lib/contas-receber-financeiro";
+import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, contribuiRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos } from "@/lib/contas-receber-financeiro";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroReceita } from "@/lib/financeiro-painel-types";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
@@ -1704,13 +1704,6 @@ function FinanceiroReceberConteudo() {
               descricao: empacotarReceitaConta(l.descricao, contaRecebimento),
             }),
           });
-          faturasPagas.push({
-            ...l,
-            valor: l.valor,
-            status: "pago",
-            formaPagamento: formaPrincipal,
-            data: dataIso,
-          });
         }
       }
 
@@ -1779,6 +1772,7 @@ function FinanceiroReceberConteudo() {
 
   function referenciaLancamento(lancamento: Lancamento) {
     if (isCreditoGerado(lancamento)) return "Adiantamento";
+    if (isRecebimentoParcial(lancamento)) return "Pagamento parcial";
     if (isCreditoUtilizado(lancamento)) {
       const descricao = lancamento.descricao.replace(/^desconto com crédito\s*-\s*/i, "").trim();
       if (descricao.toLowerCase().startsWith("cobrança os")) return "Pagamento da fatura";
@@ -1851,11 +1845,13 @@ function FinanceiroReceberConteudo() {
 
   function recebimentosDoCliente(clienteId?: string) {
     if (!clienteId) return [];
-    return (data?.lancamentos || []).filter(
+    const lancamentos = data?.lancamentos || [];
+    return lancamentos.filter(
       (lancamento) =>
         lancamento.tipo === "receita" &&
         lancamento.status === "pago" &&
-        lancamento.cliente?.id === clienteId
+        lancamento.cliente?.id === clienteId &&
+        deveExibirNoHistoricoRecebimentos(lancamento, lancamentos)
     );
   }
 
@@ -1905,7 +1901,12 @@ function FinanceiroReceberConteudo() {
       0
     );
     const totalRecebido = credito + parciais;
-    if (lancamento.status === "pago") return lancamento.valor;
+    if (lancamento.status === "pago") {
+      if (parciais > 0.009 || credito > 0.009) {
+        return Math.min(lancamento.valor, totalRecebido);
+      }
+      return lancamento.valor;
+    }
     return Math.min(totalRecebido, lancamento.valor);
   }
 
