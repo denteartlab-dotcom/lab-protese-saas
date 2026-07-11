@@ -22,6 +22,8 @@ import {
   saldoFatura,
   situacaoFaturaLabel,
   textoParcelaLancamento,
+  deveExibirNoHistoricoRecebimentos,
+  valorHistoricoRecebimentoCliente,
   type LancamentoContasReceber,
   type TrabalhoContasReceber,
 } from "@/lib/contas-receber-financeiro";
@@ -119,7 +121,7 @@ function linhaBase(
     recebido: recebidoNaFatura(l, receitas),
     saldo: saldoFatura(l, receitas),
     situacao: situacaoFaturaLabel(l),
-    referencia: referenciaLancamento(l),
+    referencia: referenciaLancamento(l, receitas),
     descricao: l.descricao,
     paciente: pacienteDoLancamento(l, trabalhos),
     dataOrdenacao: venc,
@@ -169,21 +171,24 @@ export function linhasRecebimentosFromLancamentos(
         l.cliente.nome?.trim() &&
         l.status === "pago" &&
         !isCreditoGerado(l) &&
-        !isCreditoUtilizado(l)
+        !isCreditoUtilizado(l) &&
+        deveExibirNoHistoricoRecebimentos(l, receitas)
     )
     .map((l) => {
       const base = linhaBase(l, receitas, trabalhos);
       const pack = desempacotarDespesa(l.descricao);
+      const valorExibido = valorHistoricoRecebimentoCliente(l, receitas);
       const dataVenc = l.createdAt ? formatDate(l.createdAt) : base.vencimento;
       const dataReceb = formatDate(l.data);
       return {
         ...base,
-        recebido: l.valor,
+        recebido: valorExibido,
         saldo: 0,
         situacao: "Recebido",
         dataRecebimento: dataReceb,
         vencimento: dataVenc,
-        valorBase: l.valor,
+        valor: valorExibido,
+        valorBase: valorExibido,
         juros: 0,
         desconto: 0,
         categoria: pack.categoria && pack.categoria !== "—" ? pack.categoria : "Receitas de Serviços",
@@ -208,7 +213,8 @@ export function linhasExtratoFromLancamentos(
         return { ...base, situacao: "Crédito usado", saldo: 0 };
       }
       if (l.status === "pago" && l.descricao.toLowerCase().startsWith("cobrança os")) {
-        return { ...base, situacao: "Recebido", saldo: 0, recebido: l.valor };
+        const valorExibido = valorHistoricoRecebimentoCliente(l, receitas);
+        return { ...base, situacao: "Recebido", saldo: 0, recebido: valorExibido, valor: valorExibido };
       }
       return base;
     });

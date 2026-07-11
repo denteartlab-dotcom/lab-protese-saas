@@ -56,27 +56,34 @@ export function creditosUtilizadosDaFatura(
   lancamento: Pick<LancamentoContasReceber, "descricao" | "cliente">,
   lancamentos: LancamentoFaturaFinanceiroRef[]
 ) {
-  const descricao = lancamento.descricao.trim();
-  return lancamentos.filter(
-    (item) =>
-      isCreditoUtilizado(item) &&
-      item.cliente?.id === lancamento.cliente?.id &&
-      (item.descricao.trim() === `Desconto com crédito - ${descricao}` ||
-        item.descricao.trim() === `Crédito utilizado - ${descricao}` ||
-        item.descricao.trim().endsWith(` - ${descricao}`))
-  );
+  const descricaoFatura = descricaoReceitaSemMeta(lancamento.descricao).trim();
+  const prefixos = [
+    `Desconto com crédito - ${descricaoFatura}`,
+    `Crédito utilizado - ${descricaoFatura}`,
+  ];
+  return lancamentos.filter((item) => {
+    if (!isCreditoUtilizado(item) || item.cliente?.id !== lancamento.cliente?.id) {
+      return false;
+    }
+    const base = descricaoReceitaSemMeta(item.descricao).trim();
+    return (
+      prefixos.includes(base) ||
+      base.endsWith(` - ${descricaoFatura}`) ||
+      base.includes(descricaoFatura)
+    );
+  });
 }
 
 export function recebimentosParciaisDaFatura(
   lancamento: Pick<LancamentoContasReceber, "descricao" | "cliente">,
   lancamentos: LancamentoFaturaFinanceiroRef[]
 ) {
-  const descricaoBase = lancamento.descricao.trim();
+  const descricaoBase = descricaoReceitaSemMeta(lancamento.descricao).trim();
   const prefixo = `Recebimento parcial - ${descricaoBase}`;
   return lancamentos.filter((item) => {
     if (item.tipo !== "receita" || item.status !== "pago") return false;
     if (item.cliente?.id !== lancamento.cliente?.id) return false;
-    return descricaoReceitaSemMeta(item.descricao) === prefixo;
+    return descricaoReceitaSemMeta(item.descricao).trim() === prefixo;
   });
 }
 
@@ -132,6 +139,15 @@ function valorRecebidoCashNaFaturaPaga(
   return Math.max(lancamento.valor - parciais - credito, 0);
 }
 
+export function faturaTevePagamentoParcialOuCredito(
+  lancamento: LancamentoContasReceber,
+  lancamentos: LancamentoContasReceber[]
+) {
+  const parciais = recebimentosParciaisDaFatura(lancamento, lancamentos);
+  const credito = creditoUsadoNaFatura(lancamento, lancamentos);
+  return parciais.length > 0 || credito > 0.009;
+}
+
 /** Valor em dinheiro recebido de um lançamento para a coluna Recebido do cliente. */
 export function contribuiRecebidoCliente(
   lancamento: LancamentoContasReceber,
@@ -151,15 +167,15 @@ export function contribuiRecebidoCliente(
   return 0;
 }
 
-/** Cobrança OS quitada por parciais/crédito não entra na lista de recebimentos (evita duplicar o total). */
+/** Cobrança OS quitada só por parcial/crédito (sem dinheiro na linha da fatura) não duplica o histórico. */
 export function deveExibirNoHistoricoRecebimentos(
   lancamento: LancamentoContasReceber,
   lancamentos: LancamentoContasReceber[]
 ) {
   if (!lancamento.descricao.toLowerCase().startsWith("cobrança os")) return true;
-  const parciais = recebimentosParciaisDaFatura(lancamento, lancamentos);
-  const creditos = creditosUtilizadosDaFatura(lancamento, lancamentos);
-  return parciais.length === 0 && creditos.length === 0;
+  if (lancamento.status !== "pago") return false;
+  if (!faturaTevePagamentoParcialOuCredito(lancamento, lancamentos)) return true;
+  return valorRecebidoCashNaFaturaPaga(lancamento, lancamentos) > 0.009;
 }
 
 export function descricaoFaturaVinculadaAoPagamento(descricao: string) {
@@ -192,8 +208,18 @@ export function localizarFaturaPorDescricao(
   });
 }
 
-export function valorHistoricoRecebimentoCliente(lancamento: LancamentoContasReceber) {
+export function valorHistoricoRecebimentoCliente(
+  lancamento: LancamentoContasReceber,
+  lancamentos: LancamentoContasReceber[]
+) {
   if (isCreditoUtilizado(lancamento)) return -Math.abs(lancamento.valor);
+  if (
+    lancamento.descricao.toLowerCase().startsWith("cobrança os") &&
+    lancamento.status === "pago" &&
+    faturaTevePagamentoParcialOuCredito(lancamento, lancamentos)
+  ) {
+    return valorRecebidoCashNaFaturaPaga(lancamento, lancamentos);
+  }
   return lancamento.valor;
 }
 
@@ -267,14 +293,27 @@ export function situacaoFaturaLabel(lancamento: LancamentoContasReceber) {
   return vencimento < hoje ? "Vencido" : "Em dia";
 }
 
-export function referenciaLancamento(lancamento: LancamentoContasReceber) {
+export function referenciaLancamento(
+  lancamento: LancamentoContasReceber,
+  lancamentos?: LancamentoContasReceber[]
+) {
   if (isCreditoGerado(lancamento)) return "Adiantamento";
+  if (isRecebimentoParcial(lancamento)) return "Pagamento parcial";
   if (isCreditoUtilizado(lancamento)) {
     const descricao = lancamento.descricao.replace(/^desconto com crédito\s*-\s*/i, "").trim();
     if (descricao.toLowerCase().startsWith("cobrança os")) return "Pagamento da fatura";
     return descricao || "Abatimento de crédito";
   }
-  if (lancamento.descricao.toLowerCase().startsWith("cobrança os")) return "Pagamento da fatura";
+  if (lancamento.descricao.toLowerCase().startsWith("cobrança os")) {
+    if (
+      lancamentos &&
+      faturaTevePagamentoParcialOuCredito(lancamento, lancamentos) &&
+      valorRecebidoCashNaFaturaPaga(lancamento, lancamentos) > 0.009
+    ) {
+      return "Pagamento restante";
+    }
+    return "Pagamento da fatura";
+  }
   return "Recebimento";
 }
 

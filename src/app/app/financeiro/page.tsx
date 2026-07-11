@@ -101,7 +101,7 @@ import {
   exportarContasReceberClientesCsv,
   gerarContasReceberClientesPdf,
 } from "@/lib/contas-receber-clientes-export";
-import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, contribuiRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente } from "@/lib/contas-receber-financeiro";
+import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, contribuiRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento } from "@/lib/contas-receber-financeiro";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroReceita } from "@/lib/financeiro-painel-types";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
@@ -1750,15 +1750,7 @@ function FinanceiroReceberConteudo() {
   }
 
   function referenciaLancamento(lancamento: Lancamento) {
-    if (isCreditoGerado(lancamento)) return "Adiantamento";
-    if (isRecebimentoParcial(lancamento)) return "Pagamento parcial";
-    if (isCreditoUtilizado(lancamento)) {
-      const descricao = lancamento.descricao.replace(/^desconto com crédito\s*-\s*/i, "").trim();
-      if (descricao.toLowerCase().startsWith("cobrança os")) return "Pagamento da fatura";
-      return descricao || "Abatimento de crédito";
-    }
-    if (lancamento.descricao.toLowerCase().startsWith("cobrança os")) return "Pagamento da fatura";
-    return "Recebimento";
+    return referenciaHistoricoRecebimento(lancamento, data?.lancamentos || []);
   }
 
   function formaPagamentoExibicao(lancamento: Lancamento) {
@@ -1850,26 +1842,31 @@ function FinanceiroReceberConteudo() {
   }
 
   function creditosUtilizadosDaFatura(lancamento: Lancamento) {
-    const descricao = lancamento.descricao.trim();
-    return (data?.lancamentos || [])
-      .filter(
-        (item) =>
-          isCreditoUtilizado(item) &&
-          item.cliente?.id === lancamento.cliente?.id &&
-          (item.descricao.trim() === `Desconto com crédito - ${descricao}` ||
-            item.descricao.trim() === `Crédito utilizado - ${descricao}` ||
-            item.descricao.trim().endsWith(` - ${descricao}`))
+    const descricaoFatura = descricaoReceitaSemMeta(lancamento.descricao).trim();
+    const prefixos = [
+      `Desconto com crédito - ${descricaoFatura}`,
+      `Crédito utilizado - ${descricaoFatura}`,
+    ];
+    return (data?.lancamentos || []).filter((item) => {
+      if (!isCreditoUtilizado(item) || item.cliente?.id !== lancamento.cliente?.id) {
+        return false;
+      }
+      const base = descricaoReceitaSemMeta(item.descricao).trim();
+      return (
+        prefixos.includes(base) ||
+        base.endsWith(` - ${descricaoFatura}`) ||
+        base.includes(descricaoFatura)
       );
+    });
   }
 
   function recebimentosParciaisDaFatura(lancamento: Lancamento) {
-    const descricaoBase = lancamento.descricao.trim();
+    const descricaoBase = descricaoReceitaSemMeta(lancamento.descricao).trim();
     const prefixo = `Recebimento parcial - ${descricaoBase}`;
     return (data?.lancamentos || []).filter((item) => {
       if (item.tipo !== "receita" || item.status !== "pago") return false;
       if (item.cliente?.id !== lancamento.cliente?.id) return false;
-      const base = descricaoReceitaSemMeta(item.descricao);
-      return base === prefixo;
+      return descricaoReceitaSemMeta(item.descricao).trim() === prefixo;
     });
   }
 
@@ -2584,7 +2581,12 @@ function FinanceiroReceberConteudo() {
                                             isCreditoUtilizado(l) && "font-medium text-red-600"
                                           )}
                                         >
-                                          {money(valorHistoricoRecebimentoCliente(l))}
+                                          {money(
+                                            valorHistoricoRecebimentoCliente(
+                                              l,
+                                              data?.lancamentos || []
+                                            )
+                                          )}
                                         </td>
                                         <td className="px-2 py-2">
                                           <div className="flex items-center justify-center gap-1">
