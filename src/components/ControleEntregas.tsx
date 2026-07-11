@@ -14,6 +14,8 @@ import {
   X,
 } from "lucide-react";
 import { usePageReady } from "@/hooks/use-page-ready";
+import { useI18n } from "@/components/i18n-provider";
+import { BreadcrumbProducao } from "@/components/producao/BreadcrumbProducao";
 import { BotoesImprimirExportarToolbar } from "@/components/BotoesImprimirExportarToolbar";
 import { ControleProducaoToolbar } from "@/components/ControleProducaoToolbar";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
@@ -56,6 +58,7 @@ import {
   gerarLinhasRelatorioEntregas,
   imprimirRelatorioEntregas,
 } from "@/lib/relatorio-entregas";
+import { labelSituacaoEntrega } from "@/lib/i18n/entrega-i18n";
 
 function labelFiltro(texto: string) {
   return <span className="mb-0.5 block text-[11px] text-slate-600">{texto}</span>;
@@ -71,12 +74,14 @@ function CardResumoEntrega({
   icone,
   ativo,
   onVer,
+  labelVer,
 }: {
   valor: number;
   titulo: string;
   icone: React.ReactNode;
   ativo: boolean;
   onVer: () => void;
+  labelVer: string;
 }) {
   return (
     <div
@@ -93,7 +98,7 @@ function CardResumoEntrega({
             onClick={onVer}
             className="ml-1 rounded bg-blue-500 px-1.5 py-0.5 text-[9px] font-semibold text-white hover:bg-blue-600"
           >
-            Ver
+            {labelVer}
           </button>
         </p>
       </div>
@@ -103,6 +108,7 @@ function CardResumoEntrega({
 }
 
 export function ControleEntregas() {
+  const { t } = useI18n();
   const [entregas, setEntregas] = useState<EntregaControle[]>([]);
   const [historico, setHistorico] = useState<EntregaHistorico[]>([]);
   const [entregadores, setEntregadores] = useState<string[]>([]);
@@ -212,7 +218,7 @@ export function ControleEntregas() {
       alert(
         err instanceof Error && err.message
           ? err.message
-          : "Não foi possível gerar o relatório. Tente novamente."
+          : t("producao.comum.relatorioErro")
       );
     } finally {
       setExportandoRelatorio(false);
@@ -273,7 +279,7 @@ export function ControleEntregas() {
       await excluirHistoricoEntregaPersistido(item.id);
       recarregar();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Não foi possível excluir o registro do histórico.");
+      alert(err instanceof Error ? err.message : t("producao.comum.erroExcluirHistorico"));
       recarregar();
     }
   }
@@ -286,7 +292,7 @@ export function ControleEntregas() {
         alert(
           err instanceof Error && err.message
             ? err.message
-            : "Não foi possível imprimir o histórico. Tente novamente."
+            : t("producao.comum.erroImprimirHistorico")
         );
       })
       .finally(() => setImprimindoHistorico(false));
@@ -299,7 +305,7 @@ export function ControleEntregas() {
         onClick={() => setRelatorioAberto(true)}
         className="rounded bg-[#3b82f6] px-4 py-1.5 text-[11px] font-medium text-white hover:bg-blue-600"
       >
-        Relatórios
+        {t("producao.comum.relatorios")}
       </button>
       <BotoesImprimirExportarToolbar
         onImprimir={() => void imprimirRelatorioTela()}
@@ -312,18 +318,14 @@ export function ControleEntregas() {
         className="inline-flex items-center gap-1 rounded bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-600"
       >
         <Plus className="h-3.5 w-3.5" />
-        Nova Entrega
+        {t("producao.comum.novaEntrega")}
       </button>
     </>
   );
 
   return (
     <div className="space-y-3 text-[11px] text-slate-700">
-      <div className="text-sm text-slate-500">
-        <span>Produção</span>
-        <span className="mx-1">/</span>
-        <span className="font-medium text-slate-700">Controle de Entregas</span>
-      </div>
+      <BreadcrumbProducao pagina="producao.breadcrumb.entregas" />
 
       <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">
         <ControleProducaoToolbar viewAtiva="entregas" barraEsquerda={barraEsquerda} />
@@ -331,21 +333,24 @@ export function ControleEntregas() {
         <div className="mb-3 flex flex-wrap gap-3">
           <CardResumoEntrega
             valor={totais.pendente}
-            titulo="Pendentes"
+            titulo={t("producao.comum.pendentes")}
+            labelVer={t("producao.comum.ver")}
             ativo={filtroCard === "pendente"}
             onVer={() => alternarFiltroCard("pendente")}
             icone={<AlertTriangle className="h-6 w-6 text-red-500" />}
           />
           <CardResumoEntrega
             valor={totais.em_rota}
-            titulo="Em Rota"
+            titulo={t("producao.comum.emRota")}
+            labelVer={t("producao.comum.ver")}
             ativo={filtroCard === "em_rota"}
             onVer={() => alternarFiltroCard("em_rota")}
             icone={<MapPin className="h-6 w-6 text-blue-500" />}
           />
           <CardResumoEntrega
             valor={totais.entregue}
-            titulo="Entregues"
+            titulo={t("producao.comum.entregues")}
+            labelVer={t("producao.comum.ver")}
             ativo={historicoAberto}
             onVer={() => setHistoricoAberto(true)}
             icone={<CheckCircle2 className="h-6 w-6 text-emerald-500" />}
@@ -354,13 +359,13 @@ export function ControleEntregas() {
 
         <div className="mb-3 grid gap-2 md:grid-cols-[1.3fr_1.4fr_0.8fr_1fr]">
           <div>
-            {labelFiltro("Selecione um Entregador")}
+            {labelFiltro(t("producao.comum.selecioneEntregador"))}
             <select
               value={entregador}
               onChange={(e) => setEntregador(e.target.value)}
               className={selectClassName()}
             >
-              <option value="">Todos</option>
+              <option value="">{t("common.todos")}</option>
               {entregadores.map((nome) => (
                 <option key={nome} value={nome}>
                   {nome}
@@ -370,15 +375,15 @@ export function ControleEntregas() {
           </div>
 
           <div>
-            {labelFiltro("Período")}
+            {labelFiltro(t("producao.comum.periodo"))}
             <div className="flex flex-wrap items-center gap-1.5">
               <select
                 value={periodo}
                 onChange={(e) => setPeriodo(e.target.value as "pedido" | "finalizado")}
                 className={`${selectClassName()} max-w-[130px]`}
               >
-                <option value="pedido">Data Pedido</option>
-                <option value="finalizado">Data Finalizado</option>
+                <option value="pedido">{t("producao.comum.dataPedido")}</option>
+                <option value="finalizado">{t("producao.comum.dataFinalizado")}</option>
               </select>
               <CampoDataBr
                 value={dataInicio}
@@ -387,7 +392,7 @@ export function ControleEntregas() {
                 inputClassName="h-8 text-[11px]"
                 className="min-w-[110px] flex-1 [&_label]:hidden"
               />
-              <span className="text-slate-400">a</span>
+              <span className="text-slate-400">{t("producao.comum.ate")}</span>
               <CampoDataBr
                 value={dataFim}
                 onChange={setDataFim}
@@ -399,17 +404,17 @@ export function ControleEntregas() {
           </div>
 
           <div>
-            {labelFiltro("Situação")}
+            {labelFiltro(t("producao.comum.situacao"))}
             <div className="relative">
               <select
                 value={situacao}
                 onChange={(e) => setSituacao(e.target.value)}
                 className={`${selectClassName()} pr-7`}
               >
-                <option value="">Todos</option>
+                <option value="">{t("common.todos")}</option>
                 {SITUACOES_ENTREGA_ATIVAS.map((key) => (
                   <option key={key} value={key}>
-                    {SITUACOES_ENTREGA[key].label}
+                    {labelSituacaoEntrega(t, key)}
                   </option>
                 ))}
               </select>
@@ -418,7 +423,7 @@ export function ControleEntregas() {
                   type="button"
                   onClick={() => setSituacao("")}
                   className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                  aria-label="Limpar situação"
+                  aria-label={t("producao.comum.limparSituacao")}
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -427,14 +432,14 @@ export function ControleEntregas() {
           </div>
 
           <div>
-            {labelFiltro("Busca")}
+            {labelFiltro(t("producao.comum.busca"))}
             <div className="flex items-center gap-1">
               <div className="relative flex-1">
                 <Search className="absolute left-2 top-1.5 h-3.5 w-3.5 text-slate-300" />
                 <input
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
-                  placeholder="destinatário, descrição e nome recebedor"
+                  placeholder={t("producao.comum.buscaEntregaPlaceholder")}
                   className="h-8 w-full rounded border border-[#d1d5db] bg-white pl-7 pr-2 text-[11px] text-slate-700 focus:border-blue-500 focus:outline-none"
                 />
               </div>
@@ -443,7 +448,7 @@ export function ControleEntregas() {
                 onClick={() => setBusca("")}
                 className="h-8 shrink-0 rounded bg-slate-500 px-3 text-[10px] font-semibold text-white hover:bg-slate-600"
               >
-                Limpar
+                {t("common.limpar")}
               </button>
             </div>
           </div>
@@ -459,25 +464,25 @@ export function ControleEntregas() {
                     checked={todosSelecionados}
                     onChange={toggleTodos}
                     className="h-3.5 w-3.5 rounded border-slate-300"
-                    aria-label="Selecionar todos"
+                    aria-label={t("producao.comum.selecionarTodos")}
                   />
                 </th>
-                <th className="px-2 py-2 text-left">Data/Hora Pedido</th>
-                <th className="px-2 py-2 text-left">Destinatário</th>
-                <th className="px-2 py-2 text-left">Entregador</th>
-                <th className="px-2 py-2 text-left">Descrição</th>
-                <th className="px-2 py-2 text-left">Data Finalizado</th>
-                <th className="px-2 py-2 text-left">Nome Recebedor</th>
-                <th className="px-2 py-2 text-left">Situação</th>
-                <th className="px-2 py-2 text-right">Valor</th>
-                <th className="px-2 py-2 text-center">Opções</th>
+                <th className="px-2 py-2 text-left">{t("producao.comum.dataHoraPedido")}</th>
+                <th className="px-2 py-2 text-left">{t("producao.comum.destinatario")}</th>
+                <th className="px-2 py-2 text-left">{t("producao.comum.entregador")}</th>
+                <th className="px-2 py-2 text-left">{t("producao.comum.descricao")}</th>
+                <th className="px-2 py-2 text-left">{t("producao.comum.dataFinalizado")}</th>
+                <th className="px-2 py-2 text-left">{t("producao.comum.nomeRecebedor")}</th>
+                <th className="px-2 py-2 text-left">{t("producao.comum.situacao")}</th>
+                <th className="px-2 py-2 text-right">{t("producao.comum.valor")}</th>
+                <th className="px-2 py-2 text-center">{t("common.opcoes")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
               {entregasFiltradas.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="px-4 py-10 text-center text-slate-500">
-                    Nenhuma entrega encontrada para os filtros selecionados.
+                    {t("producao.comum.semEntregaFiltro")}
                   </td>
                 </tr>
               ) : (
@@ -507,7 +512,7 @@ export function ControleEntregas() {
                           SITUACOES_ENTREGA[entrega.situacao].badge
                         }`}
                       >
-                        {SITUACOES_ENTREGA[entrega.situacao].label}
+                        {labelSituacaoEntrega(t, entrega.situacao)}
                       </span>
                     </td>
                     <td className="px-2 py-2 text-right">{formatarMoedaEntrega(entrega.valor)}</td>
@@ -517,7 +522,7 @@ export function ControleEntregas() {
                           type="button"
                           onClick={() => setVisualizando(entrega)}
                           className="rounded p-1 hover:bg-blue-50 hover:text-blue-600"
-                          title="Visualizar"
+                          title={t("producao.comum.visualizar")}
                         >
                           <Eye className="h-3.5 w-3.5" />
                         </button>
@@ -525,7 +530,7 @@ export function ControleEntregas() {
                           type="button"
                           onClick={() => abrirEdicao(entrega)}
                           className="rounded p-1 hover:bg-slate-100 hover:text-blue-600"
-                          title="Editar"
+                          title={t("common.editar")}
                         >
                           <Edit3 className="h-3.5 w-3.5" />
                         </button>
@@ -533,7 +538,7 @@ export function ControleEntregas() {
                           type="button"
                           onClick={() => setExcluindo(entrega)}
                           className="rounded p-1 text-red-500 hover:bg-red-50"
-                          title="Excluir"
+                          title={t("common.excluir")}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -557,7 +562,7 @@ export function ControleEntregas() {
       <Modal
         open={historicoAberto}
         onClose={() => setHistoricoAberto(false)}
-        title="Histórico de entregas"
+        title={t("producao.comum.historicoEntregas")}
         size="lg"
       >
         <div className="space-y-3 text-[11px] text-slate-600">
@@ -569,24 +574,24 @@ export function ControleEntregas() {
               className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Printer className="h-3.5 w-3.5" />
-              Imprimir
+              {t("producao.comum.imprimir")}
             </button>
           </div>
           {historico.length === 0 ? (
             <p className="py-6 text-center text-slate-500">
-              Nenhuma entrega concluída registrada no histórico.
+              {t("producao.comum.semHistoricoEntregas")}
             </p>
           ) : (
             <div className="max-h-[420px] overflow-y-auto rounded border border-slate-200">
               <table className="w-full text-[11px]">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                    <th className="px-3 py-2 text-left">OS</th>
-                    <th className="px-3 py-2 text-left">Destinatário</th>
-                    <th className="px-3 py-2 text-left">Descrição</th>
-                    <th className="px-3 py-2 text-left">Entregue em</th>
-                    <th className="px-3 py-2 text-left">Situação</th>
-                    <th className="px-3 py-2 text-center">Opções</th>
+                    <th className="px-3 py-2 text-left">{t("producao.controle.tabela.os")}</th>
+                    <th className="px-3 py-2 text-left">{t("producao.comum.destinatario")}</th>
+                    <th className="px-3 py-2 text-left">{t("producao.comum.descricao")}</th>
+                    <th className="px-3 py-2 text-left">{t("producao.comum.entregueEm")}</th>
+                    <th className="px-3 py-2 text-left">{t("producao.comum.situacao")}</th>
+                    <th className="px-3 py-2 text-center">{t("common.opcoes")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
@@ -612,7 +617,7 @@ export function ControleEntregas() {
                         </span>
                         {item.nomeRecebedor ? (
                           <p className="mt-1 text-[10px] text-slate-500">
-                            Recebedor: {item.nomeRecebedor}
+                            {t("producao.comum.recebedor")}: {item.nomeRecebedor}
                           </p>
                         ) : null}
                       </td>
@@ -622,7 +627,7 @@ export function ControleEntregas() {
                             type="button"
                             onClick={() => setHistoricoExcluindo(item)}
                             className="rounded p-1 text-red-500 hover:bg-red-50"
-                            title="Excluir do histórico"
+                            title={t("producao.comum.excluirHistorico")}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -635,7 +640,7 @@ export function ControleEntregas() {
             </div>
           )}
           <Button type="button" size="sm" variant="outline" onClick={() => setHistoricoAberto(false)}>
-            Fechar
+            {t("common.fechar")}
           </Button>
         </div>
       </Modal>
@@ -643,27 +648,31 @@ export function ControleEntregas() {
       <Modal
         open={Boolean(visualizando)}
         onClose={() => setVisualizando(null)}
-        title={visualizando ? `Entrega: ${visualizando.destinatario}` : "Entrega"}
+        title={
+          visualizando
+            ? `${t("producao.comum.entrega")}: ${visualizando.destinatario}`
+            : t("producao.comum.entrega")
+        }
         size="md"
       >
         {visualizando ? (
           <div className="space-y-3 text-[11px] text-slate-600">
             {visualizando.numeroOs ? (
               <p>
-                <span className="font-semibold text-slate-700">OS:</span> {visualizando.numeroOs}
+                <span className="font-semibold text-slate-700">{t("producao.controle.tabela.os")}:</span> {visualizando.numeroOs}
               </p>
             ) : null}
             <p>
-              <span className="font-semibold text-slate-700">Data/Hora Pedido:</span>{" "}
+              <span className="font-semibold text-slate-700">{t("producao.comum.dataHoraPedido")}:</span>{" "}
               {formatarDataHoraEntrega(visualizando.dataPedido)}
             </p>
             <p>
-              <span className="font-semibold text-slate-700">Destinatário:</span>{" "}
+              <span className="font-semibold text-slate-700">{t("producao.comum.destinatario")}:</span>{" "}
               {visualizando.destinatario}
             </p>
             {visualizando.rua || visualizando.cep ? (
               <p>
-                <span className="font-semibold text-slate-700">Endereço:</span>{" "}
+                <span className="font-semibold text-slate-700">{t("producao.comum.endereco")}:</span>{" "}
                 {[
                   visualizando.rua,
                   visualizando.numeroEndereco,
@@ -677,38 +686,38 @@ export function ControleEntregas() {
               </p>
             ) : null}
             <p>
-              <span className="font-semibold text-slate-700">Entregador:</span>{" "}
+              <span className="font-semibold text-slate-700">{t("producao.comum.entregador")}:</span>{" "}
               {visualizando.entregador || "—"}
               {visualizando.tipoEntregador ? ` (${visualizando.tipoEntregador})` : ""}
             </p>
             <p>
-              <span className="font-semibold text-slate-700">Descrição:</span>{" "}
+              <span className="font-semibold text-slate-700">{t("producao.comum.descricao")}:</span>{" "}
               {visualizando.descricao || "—"}
             </p>
             {visualizando.observacao ? (
               <p>
-                <span className="font-semibold text-slate-700">Observação:</span>{" "}
+                <span className="font-semibold text-slate-700">{t("producao.os.campo.observacao")}:</span>{" "}
                 {visualizando.observacao}
               </p>
             ) : null}
             <p>
-              <span className="font-semibold text-slate-700">Data Finalizado:</span>{" "}
+              <span className="font-semibold text-slate-700">{t("producao.comum.dataFinalizado")}:</span>{" "}
               {formatarDataEntrega(visualizando.dataFinalizado)}
             </p>
             <p>
-              <span className="font-semibold text-slate-700">Nome Recebedor:</span>{" "}
+              <span className="font-semibold text-slate-700">{t("producao.comum.nomeRecebedor")}:</span>{" "}
               {visualizando.nomeRecebedor || "—"}
             </p>
             <p>
-              <span className="font-semibold text-slate-700">Situação:</span>{" "}
-              {SITUACOES_ENTREGA[visualizando.situacao].label}
+              <span className="font-semibold text-slate-700">{t("producao.comum.situacao")}:</span>{" "}
+              {labelSituacaoEntrega(t, visualizando.situacao)}
             </p>
             <p>
-              <span className="font-semibold text-slate-700">Valor:</span>{" "}
+              <span className="font-semibold text-slate-700">{t("producao.comum.valor")}:</span>{" "}
               {formatarMoedaEntrega(visualizando.valor)}
             </p>
             <Button type="button" size="sm" variant="outline" onClick={() => setVisualizando(null)}>
-              Fechar
+              {t("common.fechar")}
             </Button>
           </div>
         ) : null}
@@ -716,8 +725,8 @@ export function ControleEntregas() {
 
       <ConfirmacaoExclusaoModal
         open={Boolean(historicoExcluindo)}
-        titulo="Excluir do histórico"
-        mensagem="Deseja remover este registro do histórico de entregas?"
+        titulo={t("producao.comum.excluirHistorico")}
+        mensagem={t("producao.comum.confirmarExcluirHistorico")}
         detalhe={
           historicoExcluindo
             ? historicoExcluindo.numeroOs
@@ -731,8 +740,8 @@ export function ControleEntregas() {
 
       <ConfirmacaoExclusaoModal
         open={Boolean(excluindo)}
-        titulo="Excluir Entrega"
-        mensagem="Deseja realmente excluir esta entrega?"
+        titulo={t("producao.comum.excluirEntrega")}
+        mensagem={t("producao.comum.confirmarExcluirEntrega")}
         detalhe={excluindo?.destinatario}
         onClose={() => setExcluindo(null)}
         onConfirm={confirmarExclusao}

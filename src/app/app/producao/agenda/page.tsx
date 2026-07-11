@@ -3,6 +3,8 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Edit3, Eye, Printer, Search, Trash2 } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
+import { BreadcrumbProducao } from "@/components/producao/BreadcrumbProducao";
 import { AgendaEditarOsModal } from "@/components/producao/AgendaEditarOsModal";
 import { AgendaOsDetalheExpandido } from "@/components/producao/AgendaOsDetalheExpandido";
 import { EtapasControleCelula } from "@/components/producao/EtapasControleCelula";
@@ -45,6 +47,8 @@ import {
   compararTextoBr,
 } from "@/lib/listagem-config";
 import { formatDate, STATUS_TRABALHO } from "@/lib/utils";
+import { labelStatusTrabalho } from "@/lib/i18n/status-trabalho-i18n";
+import type { MessageKey } from "@/lib/i18n";
 
 function clienteNome(trabalho: TrabalhoAgendaGrupo) {
   return trabalho.cliente?.nome || "";
@@ -66,15 +70,21 @@ function osBadge(numeroOs: number) {
   );
 }
 
-const filtrosDia = [
-  { id: "1", label: "Seg" },
-  { id: "2", label: "Ter" },
-  { id: "3", label: "Qua" },
-  { id: "4", label: "Qui" },
-  { id: "5", label: "Sex" },
-  { id: "6", label: "Sáb" },
-  { id: "0", label: "Dom" },
-];
+const FILTROS_DIA_IDS = ["1", "2", "3", "4", "5", "6", "0"] as const;
+
+const CHAVES_DIA: Record<(typeof FILTROS_DIA_IDS)[number], MessageKey> = {
+  "1": "producao.agenda.dia.seg",
+  "2": "producao.agenda.dia.ter",
+  "3": "producao.agenda.dia.qua",
+  "4": "producao.agenda.dia.qui",
+  "5": "producao.agenda.dia.sex",
+  "6": "producao.agenda.dia.sab",
+  "0": "producao.agenda.dia.dom",
+};
+
+const VALOR_SEM_COLABORADOR = "Sem colaborador";
+
+type Tradutor = (key: MessageKey, params?: Record<string, string | number>) => string;
 
 function dateKey(date: Date) {
   const year = date.getFullYear();
@@ -95,7 +105,7 @@ function formatDiaMes(date: Date) {
   });
 }
 
-function semanaAgenda(semanaOffset: number) {
+function semanaAgenda(semanaOffset: number, t: Tradutor) {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
   const diaAtual = hoje.getDay();
@@ -103,10 +113,10 @@ function semanaAgenda(semanaOffset: number) {
   const segunda = new Date(hoje);
   segunda.setDate(hoje.getDate() + diffSegunda + semanaOffset * 7);
 
-  return filtrosDia.map((dia, index) => {
+  return FILTROS_DIA_IDS.map((id, index) => {
     const date = new Date(segunda);
     date.setDate(segunda.getDate() + index);
-    return { ...dia, date, key: dateKey(date) };
+    return { id, label: t(CHAVES_DIA[id]), date, key: dateKey(date) };
   });
 }
 
@@ -121,14 +131,6 @@ function prazoOrdenacaoLinha(linha: LinhaAgendaGrupoOs) {
 
 type CampoOrdenacaoAgenda = "numeroOs" | "dataEntrada" | "prazo" | "cliente" | "paciente";
 
-const OPCOES_ORDENACAO_AGENDA = [
-  { valor: "numeroOs" as const, label: "Num OS" },
-  { valor: "dataEntrada" as const, label: "Entrada" },
-  { valor: "prazo" as const, label: "Prazo" },
-  { valor: "cliente" as const, label: "Cliente" },
-  { valor: "paciente" as const, label: "Paciente" },
-];
-
 const COMPARADORES_AGENDA: Record<
   CampoOrdenacaoAgenda,
   (a: LinhaAgendaGrupoOs, b: LinhaAgendaGrupoOs) => number
@@ -142,6 +144,7 @@ const COMPARADORES_AGENDA: Record<
 };
 
 export default function AgendaPage() {
+  const { t } = useI18n();
   const [trabalhos, setTrabalhos] = useState<TrabalhoAgendaGrupo[]>([]);
   const [lancamentosFatura, setLancamentosFatura] = useState<LancamentoFaturaOs[]>([]);
   const [cliente, setCliente] = useState("");
@@ -159,6 +162,18 @@ export default function AgendaPage() {
     type: string;
     url: string;
   } | null>(null);
+
+  const opcoesOrdenacaoAgenda = useMemo(
+    () =>
+      [
+        { valor: "numeroOs" as const, label: t("producao.agenda.ordenarNumOs") },
+        { valor: "dataEntrada" as const, label: t("producao.agenda.ordenarEntrada") },
+        { valor: "prazo" as const, label: t("producao.agenda.ordenarPrazo") },
+        { valor: "cliente" as const, label: t("producao.agenda.ordenarCliente") },
+        { valor: "paciente" as const, label: t("producao.agenda.ordenarPaciente") },
+      ] satisfies { valor: CampoOrdenacaoAgenda; label: string }[],
+    [t]
+  );
 
   const load = useCallback(async () => {
     const params = new URLSearchParams();
@@ -208,7 +223,7 @@ export default function AgendaPage() {
       if (cliente && clienteNome(linha.principal) !== cliente) return false;
       if (colaborador) {
         const colab = colaboradorAgendaGrupo(linha);
-        if (colaborador === "Sem colaborador") {
+        if (colaborador === VALOR_SEM_COLABORADOR) {
           if (colab.trim()) return false;
         } else if (!colab.toLowerCase().includes(colaborador.toLowerCase())) {
           return false;
@@ -219,7 +234,7 @@ export default function AgendaPage() {
   }, [linhasAgrupadas, cliente, colaborador]);
 
   const atrasados = baseFiltrada.filter(isAtrasadoLinha);
-  const diasAgenda = useMemo(() => semanaAgenda(semanaOffset), [semanaOffset]);
+  const diasAgenda = useMemo(() => semanaAgenda(semanaOffset, t), [semanaOffset, t]);
 
   const filtrados = useMemo(() => {
     if (filtroAgenda === "atrasados") {
@@ -306,18 +321,14 @@ export default function AgendaPage() {
         notificarTrabalhosAtualizados({ trabalhoId: id });
       }
     } catch {
-      setAvisoExclusaoOs("Não foi possível excluir a ordem de serviço.");
+      setAvisoExclusaoOs(t("producao.agenda.erroExcluirOs"));
     }
     void load();
   }
 
   return (
     <div className="space-y-3 text-[11px] text-slate-700">
-      <div className="flex items-center gap-2 text-sm text-slate-500">
-        <span>Produção</span>
-        <span>/</span>
-        <span className="font-medium text-slate-700">Agenda de Produção</span>
-      </div>
+      <BreadcrumbProducao pagina="producao.breadcrumb.agenda" />
 
       <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">
         <ControleProducaoToolbar viewAtiva="agenda" somenteNavegacao />
@@ -330,35 +341,39 @@ export default function AgendaPage() {
               className="gap-1.5 bg-[#4a90d9] text-white hover:bg-[#3d7fc4]"
             >
               <Printer className="h-4 w-4" />
-              Imprimir Agenda
+              {t("producao.agenda.imprimir")}
             </Button>
           </Link>
         </div>
 
         <div className="mt-3 grid gap-2 md:grid-cols-[1fr_1fr_1.4fr_auto]">
           <SelectPesquisavel
-            label="Cliente"
+            label={t("producao.controle.filtro.cliente")}
             value={cliente}
             onChange={setCliente}
-            placeholder="Todos"
+            placeholder={t("common.todos")}
             options={[
-              { value: "", label: "Todos" },
+              { value: "", label: t("common.todos") },
               ...clientes.map((nome) => ({ value: nome, label: nome })),
             ]}
           />
-          <Select label="Colaborador" value={colaborador} onChange={(e) => setColaborador(e.target.value)}>
-            <option value="">Todos</option>
-            <option value="Sem colaborador">Sem colaborador</option>
+          <Select
+            label={t("producao.controle.tabela.colaborador")}
+            value={colaborador}
+            onChange={(e) => setColaborador(e.target.value)}
+          >
+            <option value="">{t("common.todos")}</option>
+            <option value={VALOR_SEM_COLABORADOR}>{t("producao.agenda.semColaborador")}</option>
           </Select>
           <Input
-            label="Busca"
+            label={t("producao.controle.filtro.buscar")}
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            placeholder="OS, cliente, paciente, dentista ou parceiro"
+            placeholder={t("producao.agenda.buscaPlaceholder")}
           />
           <Button className="mt-6" size="sm" onClick={load}>
             <Search className="h-4 w-4" />
-            Buscar
+            {t("common.buscar")}
           </Button>
         </div>
 
@@ -370,7 +385,7 @@ export default function AgendaPage() {
               setFiltroAgenda("todos");
             }}
             className="min-w-12 border-r border-slate-400 px-3 py-2 text-lg text-slate-500 hover:bg-slate-50"
-            title="Semana anterior"
+            title={t("producao.agenda.semanaAnterior")}
           >
             ‹
           </button>
@@ -381,7 +396,7 @@ export default function AgendaPage() {
               filtroAgenda === "todos" ? "bg-primary-50" : "hover:bg-slate-50"
             }`}
           >
-            <span className="block text-slate-500">Todos</span>
+            <span className="block text-slate-500">{t("common.todos")}</span>
             <span className="mt-1 inline-flex min-w-6 items-center justify-center rounded bg-primary-600 px-1.5 py-0.5 font-bold text-white">
               {baseFiltrada.length}
             </span>
@@ -393,7 +408,7 @@ export default function AgendaPage() {
               filtroAgenda === "atrasados" ? "bg-red-50" : "hover:bg-slate-50"
             }`}
           >
-            <span className="block text-slate-500">Atrasados</span>
+            <span className="block text-slate-500">{t("producao.agenda.atrasados")}</span>
             <span className="mt-1 inline-flex min-w-6 items-center justify-center rounded bg-red-500 px-1.5 py-0.5 font-bold text-white">
               {atrasados.length}
             </span>
@@ -444,7 +459,7 @@ export default function AgendaPage() {
               setFiltroAgenda("todos");
             }}
             className="min-w-12 px-3 py-2 text-lg text-slate-500 hover:bg-slate-50"
-            title="Próxima semana"
+            title={t("producao.agenda.proximaSemana")}
           >
             ›
           </button>
@@ -459,7 +474,7 @@ export default function AgendaPage() {
         }
         onFecharConfig={listagem.fecharConfig}
         rascunho={listagem.rascunho}
-        opcoesOrdenacao={OPCOES_ORDENACAO_AGENDA}
+        opcoesOrdenacao={opcoesOrdenacaoAgenda}
         onAlterarOrdenarPor={(valor) => listagem.atualizarRascunho({ ordenarPor: valor })}
         onAlterarDirecao={(direcao) => listagem.atualizarRascunho({ direcao })}
         onAlterarPorPagina={(porPagina) => listagem.atualizarRascunho({ porPagina })}
@@ -473,18 +488,18 @@ export default function AgendaPage() {
           <table className="w-full min-w-[1050px] text-[11px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
-                <th className="px-3 py-2 text-left font-semibold uppercase">OS</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Caixa</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Entrada</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Prazo</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Qtd</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Serviço</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Cliente</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Paciente</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Colaborador</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Etapas</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Situação</th>
-                <th className="px-3 py-2 text-center font-semibold uppercase">Opções</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.os")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.caixa")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.entrada")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("producao.modulo.tabela.prazo")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.qtd")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.servico")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.cliente")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.paciente")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.colaborador")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.etapas")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.situacao")}</th>
+                <th className="px-3 py-2 text-center font-semibold uppercase">{t("common.opcoes")}</th>
               </tr>
             </thead>
             <tbody>
@@ -515,14 +530,14 @@ export default function AgendaPage() {
                             itemId={contextoEtapas.itemId}
                           />
                         ) : (
-                          "Produção"
+                          t("status.producao")
                         )}
                       </td>
                       <td className="px-3 py-2">
                         <span
                           className={`rounded px-2 py-1 text-[10px] font-semibold ${STATUS_TRABALHO[principal.status]?.color || "bg-slate-100 text-slate-700"}`}
                         >
-                          {STATUS_TRABALHO[principal.status]?.label || principal.status}
+                          {labelStatusTrabalho(t, principal.status) || principal.status}
                         </span>
                       </td>
                       <td className="px-3 py-2">
@@ -532,7 +547,7 @@ export default function AgendaPage() {
                             onClick={() =>
                               setOsAberta(expandida ? null : linha.chaveGrupo)
                             }
-                            title="Ver detalhes"
+                            title={t("producao.controle.acao.verDetalhes")}
                             className={`rounded p-1 hover:bg-white ${
                               expandida
                                 ? "text-primary-700"
@@ -544,7 +559,7 @@ export default function AgendaPage() {
                           <button
                             type="button"
                             onClick={() => abrirEdicao(linha)}
-                            title="Editar OS"
+                            title={t("producao.controle.acao.editar")}
                             className="rounded p-1 text-slate-500 hover:bg-white hover:text-primary-700"
                           >
                             <Edit3 className="h-4 w-4" />
@@ -552,7 +567,7 @@ export default function AgendaPage() {
                           <button
                             type="button"
                             onClick={() => setImprimirOs(principal)}
-                            title="Imprimir OS"
+                            title={t("producao.controle.acao.imprimir")}
                             className="rounded p-1 text-red-500 hover:bg-white hover:text-red-600"
                           >
                             <Printer className="h-4 w-4" />
@@ -566,7 +581,7 @@ export default function AgendaPage() {
                               }
                               setOsExcluindo(linha);
                             }}
-                            title="Excluir OS"
+                            title={t("producao.controle.acao.excluir")}
                             className="rounded p-1 text-slate-500 hover:bg-red-50 hover:text-red-600"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -591,7 +606,7 @@ export default function AgendaPage() {
               {listagem.totalItens === 0 && (
                 <tr>
                   <td colSpan={12} className="px-3 py-8 text-center text-slate-400">
-                    Nenhuma OS em produção encontrada na agenda.
+                    {t("producao.agenda.vazio")}
                   </td>
                 </tr>
               )}
@@ -602,8 +617,8 @@ export default function AgendaPage() {
 
       <ConfirmacaoExclusaoModal
         open={!!osExcluindo}
-        titulo="Excluir Ordem de Serviço"
-        mensagem="Deseja realmente excluir essa Ordem de Serviço?"
+        titulo={t("producao.agenda.excluirOs")}
+        mensagem={t("producao.agenda.confirmarExcluirOs")}
         aviso="Atenção!! Todas as comissões serão excluídas exceto comissões já faturadas. Se a OS já foi faturada em Contas a Receber, exclua o lançamento no Financeiro antes."
         onClose={() => setOsExcluindo(null)}
         onConfirm={confirmarExclusaoOs}
@@ -612,7 +627,7 @@ export default function AgendaPage() {
       <ConfirmacaoExclusaoModal
         open={!!avisoExclusaoOs}
         modo="alerta"
-        titulo="Excluir Ordem de Serviço"
+        titulo={t("producao.agenda.excluirOs")}
         mensagem={avisoExclusaoOs || ""}
         onClose={() => setAvisoExclusaoOs(null)}
         onConfirm={() => setAvisoExclusaoOs(null)}

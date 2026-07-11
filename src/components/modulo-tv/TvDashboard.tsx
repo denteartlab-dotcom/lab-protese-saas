@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import { useTvDashboard } from "@/components/modulo-tv/hooks/useTvDashboard";
 import { useTvDashboardStore } from "@/components/modulo-tv/store/tv-dashboard-store";
 import { useLabConfigClient } from "@/lib/use-lab-config-client";
@@ -13,6 +14,7 @@ import { TvSidebar } from "@/components/modulo-tv/TvSidebar";
 import { cn } from "@/lib/utils";
 
 export function TvDashboard() {
+  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const { nomeLaboratorio } = useLabConfigClient();
@@ -114,7 +116,7 @@ export function TvDashboard() {
             className="absolute left-2 top-2 z-20 inline-flex w-fit items-center gap-1.5 rounded-lg border border-slate-700/50 bg-slate-900/80 px-2.5 py-1 text-[10px] text-slate-400 backdrop-blur-sm transition hover:text-white tv-hd:text-[11px] tv:text-xs"
           >
             <ArrowLeft className="h-3 w-3 tv-hd:h-3.5 tv-hd:w-3.5" />
-            Sair do painel TV
+            {t("producao.tv.sairPainel")}
           </Link>
         ) : null}
 
@@ -131,24 +133,19 @@ export function TvDashboard() {
 
         {socketServidorAtivo === false ? (
           <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-center text-[11px] text-amber-200 tv:text-xs">
-            Tempo real indisponível: o servidor está em modo <strong>next start</strong>. Reinicie
-            com <strong>npm run dev</strong> ou <strong>npm run start</strong> para ativar o
-            Socket.IO.
+            {t("producao.tv.tempoRealIndisponivel")}
           </div>
         ) : null}
 
         {erroCarregamento ? (
           <div className="flex items-center justify-between gap-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-[11px] text-red-200 tv:text-xs">
-            <span>
-              Não foi possível carregar as ordens do painel TV. Verifique se o servidor está
-              rodando com <strong>npm run dev</strong> e se você está logado.
-            </span>
+            <span>{t("producao.tv.erroCarregar")}</span>
             <button
               type="button"
               onClick={() => void recarregar()}
               className="shrink-0 rounded-md border border-red-400/40 px-2.5 py-1 font-semibold text-red-100 transition hover:bg-red-500/20"
             >
-              Tentar de novo
+              {t("producao.tv.tentarNovamente")}
             </button>
           </div>
         ) : null}

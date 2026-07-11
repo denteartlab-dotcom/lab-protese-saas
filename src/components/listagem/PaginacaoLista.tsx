@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 
 type Props = {
   pagina: number;
@@ -10,6 +11,8 @@ type Props = {
 };
 
 export function PaginacaoLista({ pagina, totalPaginas, onPagina, className = "" }: Props) {
+  const { t } = useI18n();
+
   if (totalPaginas <= 1) return null;
 
   const paginasVisiveis = paginasParaExibir(pagina, totalPaginas);
@@ -23,7 +26,7 @@ export function PaginacaoLista({ pagina, totalPaginas, onPagina, className = "" 
         disabled={pagina <= 1}
         onClick={() => onPagina(pagina - 1)}
         className="inline-flex h-8 w-8 items-center justify-center rounded border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-        aria-label="Página anterior"
+        aria-label={t("producao.listagem.paginaAnterior")}
       >
         <ChevronLeft className="h-4 w-4" />
       </button>
@@ -55,7 +58,7 @@ export function PaginacaoLista({ pagina, totalPaginas, onPagina, className = "" 
         disabled={pagina >= totalPaginas}
         onClick={() => onPagina(pagina + 1)}
         className="inline-flex h-8 w-8 items-center justify-center rounded border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-        aria-label="Próxima página"
+        aria-label={t("producao.listagem.proximaPagina")}
       >
         <ChevronRight className="h-4 w-4" />
       </button>

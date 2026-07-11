@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Activity, Maximize2, Minimize2, Wifi } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import { TV_GLASS_PANEL } from "@/components/modulo-tv/tv-styles";
 import { cn } from "@/lib/utils";
 
@@ -26,12 +27,13 @@ export function TvHeader({
   onToggleFullscreen,
   modoKiosk = false,
 }: Props) {
+  const { t } = useI18n();
   const statusLabel = wsConectado
-    ? "Sistema Online"
-    : "Reconectando";
+    ? t("producao.tv.sistemaOnline")
+    : t("producao.tv.reconectando");
   const statusHint = wsConectado
-    ? "Tempo real ativo"
-    : "Atualização automática";
+    ? t("producao.tv.tempoRealAtivo")
+    : t("producao.tv.atualizacaoAutomatica");
 
   return (
     <header
@@ -64,7 +66,7 @@ export function TvHeader({
               ) : null}
             </p>
             <h1 className="truncate text-base font-bold text-white tv:text-xl tv-4k:text-2xl">
-              Painel de Produção
+              {t("producao.tv.painelProducao")}
             </h1>
             <p className="truncate text-xs text-slate-400 tv:text-sm">
               {nomeLaboratorio}
@@ -124,7 +126,7 @@ export function TvHeader({
           <button
             type="button"
             onClick={onToggleFullscreen}
-            title={fullscreen ? "Sair da tela cheia" : "Tela cheia TV"}
+            title={fullscreen ? t("producao.tv.sairTelaCheia") : t("producao.tv.telaCheia")}
             className="rounded-lg border border-slate-600/50 bg-slate-800/50 p-2 text-slate-300 transition hover:border-blue-500/40 hover:text-white tv:p-2.5"
           >
             {fullscreen ? (

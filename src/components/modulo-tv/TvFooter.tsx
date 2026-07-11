@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { RefreshCw } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import { useFraseMotivacional } from "@/components/modulo-tv/hooks/useFraseMotivacional";
 import { useAnotacoesTvRodape } from "@/components/modulo-tv/hooks/useAnotacoesTvRodape";
 import { TV_GLASS_PANEL } from "@/components/modulo-tv/tv-styles";
@@ -32,6 +33,7 @@ export function TvFooter({
   maioresAtrasos,
   wsConectado,
 }: Props) {
+  const { t } = useI18n();
   const fraseMotivacional = useFraseMotivacional(ultimaAtualizacao);
   const [indiceAnotacao, setIndiceAnotacao] = useState(0);
   const { linhaAtual: linhaAnotacao, total: totalAnotacoes } =
@@ -51,17 +53,20 @@ export function TvFooter({
         {/* Esquerda — ATENÇÃO */}
         <div className="rounded-lg border border-red-500/25 bg-red-500/8 px-4 py-3 tv:px-5 tv:py-3.5">
           <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-red-400 tv:text-[10px]">
-            Atenção
+            {t("producao.tv.atencao")}
           </p>
           <p className="mt-1 font-tv-mono text-sm font-bold uppercase text-red-300 tv:text-base tv-4k:text-lg">
-            {totalAtrasadas} {totalAtrasadas === 1 ? "Ordem Atrasada" : "Ordens Atrasadas"}
+            {totalAtrasadas}{" "}
+            {totalAtrasadas === 1
+              ? t("producao.tv.ordemAtrasada")
+              : t("producao.tv.ordensAtrasadas")}
           </p>
         </div>
 
         {/* Centro — maiores atrasos + frase */}
         <div className="text-center">
           <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500 tv:text-[10px]">
-            Maiores Atrasos
+            {t("producao.tv.maioresAtrasos")}
           </p>
           <div className="mt-1.5 space-y-0.5">
             {maioresAtrasos.length > 0 ? (
@@ -70,12 +75,13 @@ export function TvFooter({
                   key={a.numeroOs}
                   className="font-tv-mono text-[11px] font-semibold text-red-300/90 tv:text-xs"
                 >
-                  OS #{a.numeroOs} — {a.dias} {a.dias === 1 ? "dia" : "dias"}
+                  OS #{a.numeroOs} — {a.dias}{" "}
+                  {a.dias === 1 ? t("producao.tv.dia") : t("producao.tv.dias")}
                 </p>
               ))
             ) : (
               <p className="text-[11px] text-emerald-400/80 tv:text-xs">
-                Nenhum atraso crítico
+                {t("producao.tv.semAtrasoCritico")}
               </p>
             )}
           </div>
@@ -114,7 +120,7 @@ export function TvFooter({
           {linhaAnotacao ? (
             <div className="mb-2 border-b border-slate-600/30 pb-2">
               <p className="text-[8px] font-bold uppercase tracking-[0.14em] text-cyan-400/80 tv:text-[9px]">
-                Anotações
+                {t("producao.tv.anotacoes")}
               </p>
               <AnimatePresence mode="wait">
                 <motion.p
@@ -132,7 +138,7 @@ export function TvFooter({
             </div>
           ) : null}
           <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500 tv:text-[10px]">
-            Última Atualização
+            {t("producao.tv.ultimaAtualizacao")}
           </p>
           <div className="mt-1 flex items-center justify-end gap-2">
             <RefreshCw

@@ -6,6 +6,11 @@ import {
   messagesProducaoPt,
 } from "@/lib/i18n/messages-producao";
 import {
+  messagesProducaoSubEn,
+  messagesProducaoSubEs,
+  messagesProducaoSubPt,
+} from "@/lib/i18n/messages-producao-submodulos";
+import {
   messagesUiAutoEn,
   messagesUiAutoEs,
   messagesUiAutoPt,
@@ -496,6 +501,7 @@ export const messages = {
       "{cliente} sinalizou OS {numeroOs} como urgente: {servico} (Paciente: {paciente}).",
     "notif.anotacao_lembrete": "{texto}",
     ...messagesProducaoPt,
+    ...messagesProducaoSubPt,
     ...messagesUiAutoPt,
   },
   en: {
@@ -978,6 +984,7 @@ export const messages = {
       "{cliente} marked WO {numeroOs} as urgent: {servico} (Patient: {paciente}).",
     "notif.anotacao_lembrete": "{texto}",
     ...messagesProducaoEn,
+    ...messagesProducaoSubEn,
     ...messagesUiAutoEn,
   },
   es: {
@@ -1460,6 +1467,7 @@ export const messages = {
       "{cliente} señaló OS {numeroOs} como urgente: {servico} (Paciente: {paciente}).",
     "notif.anotacao_lembrete": "{texto}",
     ...messagesProducaoEs,
+    ...messagesProducaoSubEs,
     ...messagesUiAutoEs,
   },
 } as const;
