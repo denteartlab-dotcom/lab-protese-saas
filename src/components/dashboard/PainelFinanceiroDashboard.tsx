@@ -8,23 +8,11 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useI18n } from "@/components/i18n-provider";
 import type { ResumoFinanceiroDashboard } from "@/lib/dashboard-financeiro";
-
-const MESES = [
-  "Janeiro",
-  "Fevereiro",
-  "Março",
-  "Abril",
-  "Maio",
-  "Junho",
-  "Julho",
-  "Agosto",
-  "Setembro",
-  "Outubro",
-  "Novembro",
-  "Dezembro",
-];
+import { nomesMesesLocale } from "@/lib/i18n/meses-locale";
+import type { Locale } from "@/lib/i18n";
+import { formatCurrency } from "@/lib/utils";
 
 type Props = {
   titulo: string;
@@ -33,6 +21,7 @@ type Props = {
   ano: number;
   onMesChange: (mes: number) => void;
   onAnoChange: (ano: number) => void;
+  locale: Locale;
 };
 
 export function PainelFinanceiroDashboard({
@@ -42,7 +31,10 @@ export function PainelFinanceiroDashboard({
   ano,
   onMesChange,
   onAnoChange,
+  locale,
 }: Props) {
+  const { t } = useI18n();
+  const meses = nomesMesesLocale(locale);
   const anos = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
 
   return (
@@ -55,7 +47,7 @@ export function PainelFinanceiroDashboard({
             onChange={(e) => onMesChange(Number(e.target.value))}
             className="rounded border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-600"
           >
-            {MESES.map((nome, index) => (
+            {meses.map((nome, index) => (
               <option key={nome} value={index}>
                 {nome}
               </option>
@@ -77,32 +69,32 @@ export function PainelFinanceiroDashboard({
       <div className="space-y-3 p-4">
         <FinanceRow
           icon={TrendingUp}
-          title="Receitas"
-          subtitle="a Receber"
+          title={t("dashboard.finReceitas")}
+          subtitle={t("dashboard.finAReceber")}
           value={formatCurrency(resumo.receitasAReceber)}
           tone="blue"
           href="/app/financeiro?acao=receber"
         />
         <FinanceRow
           icon={DollarSign}
-          title="Receitas"
-          subtitle="Inadimplência"
+          title={t("dashboard.finReceitas")}
+          subtitle={t("dashboard.finInadimplencia")}
           value={formatCurrency(resumo.receitasInadimplencia)}
           tone="rose"
           href="/app/financeiro?acao=receber&situacao=atraso"
         />
         <FinanceRow
           icon={CheckCircle2}
-          title="Despesas"
-          subtitle="a Pagar"
+          title={t("dashboard.finDespesas")}
+          subtitle={t("dashboard.finAPagar")}
           value={formatCurrency(resumo.despesasAPagar)}
           tone="cyan"
           href="/app/financeiro?tipo=despesa"
         />
         <FinanceRow
           icon={TrendingDown}
-          title="Despesas"
-          subtitle="Contas Vencidas"
+          title={t("dashboard.finDespesas")}
+          subtitle={t("dashboard.finContasVencidas")}
           value={formatCurrency(resumo.despesasVencidas)}
           tone="amber"
           href="/app/financeiro?tipo=despesa&tipoDespesa=atraso"

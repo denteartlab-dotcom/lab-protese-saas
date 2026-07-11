@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useI18n } from "@/components/i18n-provider";
 import {
   formatarTamanhoMbCard,
   LIMITE_ARMAZENAMENTO_BYTES,
@@ -16,10 +17,11 @@ function percentualUsadoBarra(resumo: UploadsResumoUi) {
   return Math.min(100, (resumo.bytesUsados / limite) * 100);
 }
 
-function rotuloPercentualUsado(resumo: UploadsResumoUi) {
+function rotuloPercentualUsado(resumo: UploadsResumoUi, locale: string) {
   const pct = percentualUsadoBarra(resumo);
   if (resumo.bytesUsados <= 0) return "0";
-  if (pct < 1) return (Math.round(pct * 10) / 10).toLocaleString("pt-BR");
+  const tag = locale === "pt" ? "pt-BR" : locale === "es" ? "es-ES" : "en-US";
+  if (pct < 1) return (Math.round(pct * 10) / 10).toLocaleString(tag);
   return String(Math.round(pct));
 }
 
@@ -31,10 +33,11 @@ export function PainelUploadsDashboard({
   resumo: UploadsResumoUi;
   onResumoAtualizado?: () => void;
 }) {
+  const { t, locale } = useI18n();
   const limiteBytes = resumo.limiteBytes ?? LIMITE_ARMAZENAMENTO_BYTES;
   const bytesLivres = Math.max(0, limiteBytes - resumo.bytesUsados);
   const pctUsado = percentualUsadoBarra(resumo);
-  const textoPercentual = rotuloPercentualUsado(resumo);
+  const textoPercentual = rotuloPercentualUsado(resumo, locale);
   const textoUsado = formatarTamanhoMbCard(resumo.bytesUsados);
   const textoLivre = formatarTamanhoMbCard(bytesLivres);
   const galeriaEsgotada = bytesLivres <= 0;
@@ -50,25 +53,27 @@ export function PainelUploadsDashboard({
       <div className="p-4">
         <div className="mb-3 flex items-center justify-between gap-2 text-[11px]">
           <span className="text-slate-500">
-            <span className="font-semibold text-sky-700">Usado: {textoUsado}</span>
+            <span className="font-semibold text-sky-700">
+              {t("dashboard.usadoValor", { valor: textoUsado })}
+            </span>
             <span className="mx-1 text-slate-300">·</span>
             <span className={galeriaEsgotada ? "font-semibold text-red-600" : ""}>
-              Livre: {textoLivre}
+              {t("dashboard.livreValor", { valor: textoLivre })}
             </span>
           </span>
           <Link
             href="/app/liberar-espaco"
             className="shrink-0 font-medium text-[#4a90d9] hover:underline"
           >
-            Liberar espaço
+            {t("dashboard.liberarEspaco")}
           </Link>
         </div>
         <div className="mb-4 flex gap-4 text-[11px]">
           <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-sky-500" /> Usado
+            <span className="h-2 w-2 rounded-full bg-sky-500" /> {t("dashboard.usado")}
           </span>
           <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" /> Livre
+            <span className="h-2 w-2 rounded-full bg-emerald-500" /> {t("dashboard.livre")}
           </span>
         </div>
         <div className="relative flex h-16 overflow-hidden rounded">
@@ -89,11 +94,11 @@ export function PainelUploadsDashboard({
         </div>
         {galeriaEsgotada ? (
           <p className="mt-2 text-[11px] font-medium text-red-600">
-            Espaço esgotado — novos uploads estão bloqueados.{" "}
+            {t("dashboard.espacoEsgotado")}{" "}
             <Link href="/app/liberar-espaco" className="text-[#4a90d9] hover:underline">
-              Liberar espaço
+              {t("dashboard.liberarEspaco")}
             </Link>{" "}
-            para excluir arquivos.
+            {t("dashboard.paraExcluirArquivos")}
           </p>
         ) : null}
         <div className="mt-3 flex justify-between text-[10px] text-slate-400">

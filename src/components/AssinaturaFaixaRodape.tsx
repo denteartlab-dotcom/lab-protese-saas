@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MessageCircle } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import { formatarDataAssinatura, diasRestantesAssinatura } from "@/lib/assinatura-empresa";
 import { RenovarAssinaturaPixModal } from "@/components/assinatura/RenovarAssinaturaPixModal";
 import { abrirSuporteChat } from "@/components/SuporteChatWidget";
@@ -25,6 +26,7 @@ export function AssinaturaFaixaRodape({
   dataVencimento,
   whatsappSuporte,
 }: Props) {
+  const { t } = useI18n();
   const [modalPixAberto, setModalPixAberto] = useState(false);
 
   if (!dataVencimento) return null;
@@ -42,9 +44,9 @@ export function AssinaturaFaixaRodape({
       <footer className="sticky bottom-0 z-30 border-t border-slate-200 bg-white shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
         <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-5">
           <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
-            <span>Está com dúvidas?</span>
+            <span>{t("footer.duvidas")}</span>
             <span className="text-slate-400">—</span>
-            <span className="font-medium text-slate-700">Suporte</span>
+            <span className="font-medium text-slate-700">{t("footer.suporte")}</span>
             {linkWhatsapp ? (
               <a
                 href={linkWhatsapp}
@@ -53,12 +55,12 @@ export function AssinaturaFaixaRodape({
                 className="inline-flex items-center gap-1.5 rounded-full bg-[#25D366] px-3 py-1 text-[11px] font-medium text-white hover:bg-[#1fb855]"
               >
                 {iconeWhatsApp()}
-                Whatsapp
+                {t("footer.whatsapp")}
               </a>
             ) : (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-[#25D366] px-3 py-1 text-[11px] font-medium text-white opacity-80">
                 {iconeWhatsApp()}
-                Whatsapp
+                {t("footer.whatsapp")}
               </span>
             )}
             <button
@@ -67,7 +69,7 @@ export function AssinaturaFaixaRodape({
               onClick={abrirSuporteChat}
             >
               <MessageCircle className="h-3.5 w-3.5" />
-              Chat
+              {t("footer.chat")}
             </button>
           </div>
 
@@ -81,7 +83,7 @@ export function AssinaturaFaixaRodape({
               <span className="text-base leading-none" aria-hidden>
                 ⚠
               </span>
-              Sua Assinatura expira em <strong className="text-slate-800">{dataFormatada}</strong>
+              {t("footer.assinaturaExpira", { data: dataFormatada })}
             </span>
             {urgente ? (
               <button
@@ -89,7 +91,7 @@ export function AssinaturaFaixaRodape({
                 onClick={() => setModalPixAberto(true)}
                 className="rounded-full bg-red-100 px-3 py-1 text-[11px] font-medium text-red-700 hover:bg-red-200"
               >
-                renovar
+                {t("footer.renovar")}
               </button>
             ) : null}
           </div>

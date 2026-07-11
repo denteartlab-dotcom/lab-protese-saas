@@ -1,3 +1,4 @@
+import type { Locale } from "@/lib/i18n";
 import { normalizarChaveStatusOs } from "@/lib/status-os";
 
 export type TipoPrazoProducao = "lab" | "dentista";
@@ -102,20 +103,23 @@ export function dateKeyLocal(date: Date) {
   return `${y}-${m}-${d}`;
 }
 
-export function formatDiaMesBr(date: Date) {
-  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+export function formatDiaMesBr(date: Date, locale: Locale = "pt") {
+  const tag = locale === "pt" ? "pt-BR" : locale === "es" ? "es-ES" : "en-US";
+  return date.toLocaleDateString(tag, { day: "2-digit", month: "2-digit" });
 }
 
 /** Hoje + próximos N dias no formato do Smart Prótese (até DD/MM). */
-export function opcoesPeriodoVencendo(diasFuturos = 5) {
+export function opcoesPeriodoVencendo(diasFuturos = 5, locale: Locale = "pt") {
   const hoje = localDate(new Date());
-  const opcoes: Array<{ value: string; label: string }> = [{ value: "hoje", label: "Hoje" }];
+  const hojeLabel = locale === "en" ? "Today" : locale === "es" ? "Hoy" : "Hoje";
+  const prefixo = locale === "en" ? "until " : locale === "es" ? "hasta " : "até ";
+  const opcoes: Array<{ value: string; label: string }> = [{ value: "hoje", label: hojeLabel }];
   for (let i = 1; i <= diasFuturos; i++) {
     const dia = new Date(hoje);
     dia.setDate(hoje.getDate() + i);
     opcoes.push({
       value: dateKeyLocal(dia),
-      label: `até ${formatDiaMesBr(dia)}`,
+      label: `${prefixo}${formatDiaMesBr(dia, locale)}`,
     });
   }
   return opcoes;

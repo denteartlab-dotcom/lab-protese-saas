@@ -4,6 +4,8 @@ import {
   prazoTrabalho,
   type TipoPrazoProducao,
 } from "@/lib/controle-producao-prazos";
+import type { Locale } from "@/lib/i18n";
+import { localeDataIntl } from "@/lib/i18n/tr-ui";
 import {
   colaboradoresParaExibicaoControle,
   parseComplementosInstrucoesGrupo,
@@ -111,9 +113,10 @@ export function agruparTrabalhosPainelServicos(
   return grupos;
 }
 
-export function rotuloFimPeriodoVencendo(periodo: string) {
+export function rotuloFimPeriodoVencendo(periodo: string, locale: Locale = "pt") {
+  const tag = localeDataIntl(locale);
   if (periodo === "hoje") {
-    return new Date().toLocaleDateString("pt-BR", {
+    return new Date().toLocaleDateString(tag, {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -121,7 +124,7 @@ export function rotuloFimPeriodoVencendo(periodo: string) {
   }
   const [year, month, day] = periodo.split("-").map(Number);
   if (!year || !month || !day) return periodo;
-  return new Date(year, month - 1, day).toLocaleDateString("pt-BR", {
+  return new Date(year, month - 1, day).toLocaleDateString(tag, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",

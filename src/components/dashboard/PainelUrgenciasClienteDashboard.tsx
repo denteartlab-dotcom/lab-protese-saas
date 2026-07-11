@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { useI18n } from "@/components/i18n-provider";
+import { localeDataIntl } from "@/lib/i18n/tr-ui";
 import { cn } from "@/lib/utils";
 import type { UrgenteClienteDashboardItem } from "@/lib/urgencia-cliente-util";
 
@@ -12,9 +14,9 @@ type Props = {
   labelVisualizar: string;
 };
 
-function formatarDataHora(iso: string) {
+function formatarDataHora(iso: string, locale: string) {
   try {
-    return new Date(iso).toLocaleString("pt-BR", {
+    return new Date(iso).toLocaleString(localeDataIntl(locale as "pt" | "en" | "es"), {
       day: "2-digit",
       month: "2-digit",
       hour: "2-digit",
@@ -30,6 +32,7 @@ export function PainelUrgenciasClienteDashboard({
   lista,
   labelVisualizar,
 }: Props) {
+  const { t, locale } = useI18n();
   const [aberto, setAberto] = useState(false);
   const total = lista.length;
 
@@ -54,8 +57,7 @@ export function PainelUrgenciasClienteDashboard({
           <div>
             <h2 className="text-sm font-semibold text-red-800">{titulo}</h2>
             <p className="text-[12px] text-red-700/80">
-              {total} trabalho{total === 1 ? "" : "s"} urgente{total === 1 ? "" : "s"} sinalizado
-              {total === 1 ? "" : "s"} pelo cliente
+              {t("dashboard.urgentesResumo", { total })}
             </p>
           </div>
         </div>
@@ -67,7 +69,7 @@ export function PainelUrgenciasClienteDashboard({
       {aberto ? (
         total === 0 ? (
           <p className="px-4 py-6 text-center text-[12px] text-slate-500">
-            Nenhum trabalho urgente sinalizado pelo cliente no momento.
+            {t("dashboard.semUrgentes")}
           </p>
         ) : (
           <ul className="divide-y divide-slate-100">
@@ -78,13 +80,15 @@ export function PainelUrgenciasClienteDashboard({
               >
                 <div>
                   <p className="font-semibold text-slate-800">
-                    OS {item.numeroOs} · {item.pacienteNome}
+                    {t("dashboard.os")} {item.numeroOs} · {item.pacienteNome}
                   </p>
                   <p className="text-slate-600">
                     {item.clienteNome} — {item.tipoProtese}
                   </p>
                   <p className="text-[11px] text-slate-400">
-                    Sinalizado em {formatarDataHora(item.criadoEm)}
+                    {t("dashboard.sinalizadoEm", {
+                      data: formatarDataHora(item.criadoEm, locale),
+                    })}
                   </p>
                 </div>
                 {item.linkAcompanhamento ? (

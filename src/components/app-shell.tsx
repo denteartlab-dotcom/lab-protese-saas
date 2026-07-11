@@ -39,7 +39,8 @@ import type { MessageKey } from "@/lib/i18n";
 import { ArmazenamentoLaboratorioProvider } from "@/components/ArmazenamentoLaboratorioProvider";
 import { useSessaoInatividade } from "@/hooks/use-sessao-inatividade";
 import { usePresencaApp } from "@/hooks/usePresencaApp";
-import { lerUltimoLaboratorioLogin, rotuloPapelUsuario, salvarLogoLaboratorioLogin } from "@/lib/auth-client";
+import { lerUltimoLaboratorioLogin, salvarLogoLaboratorioLogin } from "@/lib/auth-client";
+import { rotuloPapelUsuarioI18n } from "@/lib/i18n/papel-usuario-i18n";
 import { limparUltimaAtividadeSessao } from "@/lib/sessao-inatividade";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { persistirTemaLocal, lerTemaLocal } from "@/lib/theme-ui";
@@ -246,7 +247,7 @@ function AppShellInner({
     (nomeLaboratorio.trim() && nomeLaboratorio.trim() !== NOME_LAB_PADRAO
       ? nomeLaboratorio
       : nomeServidor);
-  const papelUsuario = rotuloPapelUsuario(userRole);
+  const papelUsuario = rotuloPapelUsuarioI18n(userRole, t);
   const fecharMenuMobile = useCallback(() => setMenuMobileAberto(false), []);
   const alternarMenuMobile = useCallback(
     () => setMenuMobileAberto((atual) => !atual),

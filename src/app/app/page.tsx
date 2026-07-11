@@ -136,7 +136,7 @@ type DashboardSecundario = Pick<
   const [prazoVencendo, setPrazoVencendo] = useState<TipoPrazoProducao>("lab");
   const [periodoVencendo, setPeriodoVencendo] = useState("hoje");
   const [prazoAtrasados, setPrazoAtrasados] = useState<TipoPrazoProducao>("lab");
-  const opcoesDiaVencendo = useMemo(() => opcoesPeriodoVencendo(5), []);
+  const opcoesDiaVencendo = useMemo(() => opcoesPeriodoVencendo(5, locale), [locale]);
   const [painelExpandido, setPainelExpandido] = useState<"vencendo" | "atrasados" | null>(null);
   const [mesFiltro, setMesFiltro] = useState(new Date().getMonth());
   const [anoFiltro, setAnoFiltro] = useState(new Date().getFullYear());
@@ -243,14 +243,14 @@ type DashboardSecundario = Pick<
     try {
       const blob = await gerar();
       if (!blob || blob.size === 0) {
-        window.alert("Não foi possível gerar o PDF. Tente novamente.");
+        window.alert(t("dashboard.pdfErro"));
         return;
       }
       const url = URL.createObjectURL(blob);
       if (urlAtual) URL.revokeObjectURL(urlAtual);
       atualizarUrl(url);
     } catch {
-      window.alert("Não foi possível gerar o PDF. Tente novamente.");
+      window.alert(t("dashboard.pdfErro"));
     }
   }
 
@@ -260,7 +260,7 @@ type DashboardSecundario = Pick<
         gerarPdfServicosVencendo({
           lab,
           grupos: vencendoGrupos,
-          tituloPeriodo: rotuloFimPeriodoVencendo(periodoVencendo),
+          tituloPeriodo: rotuloFimPeriodoVencendo(periodoVencendo, locale),
         }),
       setPdfVencendoUrl,
       pdfVencendoUrl
@@ -351,8 +351,8 @@ type DashboardSecundario = Pick<
                 onChange={(v) => setPrazoVencendo(v as TipoPrazoProducao)}
                 tom="warning"
                 opcoes={[
-                  { value: "lab", label: "Prazo Lab" },
-                  { value: "dentista", label: "Prazo Dentista" },
+                  { value: "lab", label: t("dashboard.prazoLab") },
+                  { value: "dentista", label: t("dashboard.prazoDentista") },
                 ]}
               />
               <FiltroSelect
@@ -384,8 +384,8 @@ type DashboardSecundario = Pick<
               onChange={(v) => setPrazoAtrasados(v as TipoPrazoProducao)}
               tom="neutral"
               opcoes={[
-                { value: "lab", label: "Prazo Lab" },
-                { value: "dentista", label: "Prazo Dentista" },
+                { value: "lab", label: t("dashboard.prazoLab") },
+                { value: "dentista", label: t("dashboard.prazoDentista") },
               ]}
             />
           }
@@ -415,13 +415,14 @@ type DashboardSecundario = Pick<
             concluido: t("dashboard.concluido"),
             pendente: t("dashboard.pendente"),
             finalizado: t("dashboard.finalizado"),
-            saiuEntrega: "Saiu p/ Entrega",
+            saiuEntrega: t("dashboard.saiuEntrega"),
             entregue: t("dashboard.entregue"),
             producao: t("dashboard.producao"),
             emProva: t("dashboard.emProva"),
-            pendenteStatus: "Pendente",
-            pedido: "Pedido",
+            pendenteStatus: t("dashboard.pendente"),
+            pedido: t("status.pedido"),
           }}
+          locale={locale}
         />
 
         {podeFinanceiro ? (
@@ -432,10 +433,11 @@ type DashboardSecundario = Pick<
             ano={anoFiltro}
             onMesChange={setMesFiltro}
             onAnoChange={setAnoFiltro}
+            locale={locale}
           />
         ) : null}
 
-        <PainelAnotacoesDashboard titulo="Anotações" locale={locale} />
+        <PainelAnotacoesDashboard titulo={t("dashboard.anotacoes")} locale={locale} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -456,7 +458,7 @@ type DashboardSecundario = Pick<
             <DashboardWidgetSkeleton />
           ) : (
             <PainelClientesServicosDashboard
-              titulo="Clientes - Serviços"
+              titulo={t("dashboard.clientesServicos")}
               lista={dashboard.clientesSemServico ?? []}
               diasMinimos={diasSemServico}
               onDiasChange={setDiasSemServico}
@@ -474,7 +476,7 @@ type DashboardSecundario = Pick<
           <DashboardWidgetSkeleton />
         ) : (
           <PainelUploadsDashboard
-            titulo="Uploads"
+            titulo={t("dashboard.uploads")}
             resumo={dashboard.uploadsResumo ?? uploadsResumoVazio}
             onResumoAtualizado={() => void carregarDashboardSecundario()}
           />
@@ -483,20 +485,22 @@ type DashboardSecundario = Pick<
 
       {pdfVencendoUrl ? (
         <PdfViewerModal
-          titulo={`Serviços vencendo até ${rotuloFimPeriodoVencendo(periodoVencendo)}`}
+          titulo={t("dashboard.servicosVencendoAte", {
+            periodo: rotuloFimPeriodoVencendo(periodoVencendo, locale),
+          })}
           pdfUrl={pdfVencendoUrl}
           nomeArquivo={`servicos-vencendo-${periodoVencendo}.pdf`}
-          iframeTitle="PDF serviços vencendo"
+          iframeTitle={t("dashboard.pdfServicosVencendo")}
           onFechar={fecharPdfVencendo}
         />
       ) : null}
 
       {pdfAtrasadosUrl ? (
         <PdfViewerModal
-          titulo={`Serviços Atrasados (${atrasadosGrupos.length})`}
+          titulo={t("dashboard.servicosAtrasadosN", { n: atrasadosGrupos.length })}
           pdfUrl={pdfAtrasadosUrl}
           nomeArquivo="servicos-atrasados.pdf"
-          iframeTitle="PDF serviços atrasados"
+          iframeTitle={t("dashboard.pdfServicosAtrasados")}
           onFechar={fecharPdfAtrasados}
         />
       ) : null}
@@ -589,6 +593,7 @@ function IndicadorEstoque({
   href: string;
   label: string;
 }) {
+  const { t } = useI18n();
   const circle =
     tom === "amber"
       ? "bg-orange-100 text-orange-600 border border-orange-200"
@@ -606,7 +611,7 @@ function IndicadorEstoque({
           href={href}
           className={`text-[10px] font-medium underline-offset-2 hover:underline ${link}`}
         >
-          ver
+          {t("dashboard.verLink")}
         </Link>
         <p className="mt-0.5 text-[11px] text-slate-600">{label}</p>
       </div>

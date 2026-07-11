@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useI18n } from "@/components/i18n-provider";
 import {
   LIMITE_CLIENTES_SERVICO_PAINEL,
   OPCOES_DIAS_SEM_SERVICO,
@@ -24,8 +25,18 @@ export function PainelClientesServicosDashboard({
   onDiasChange: (dias: number) => void;
   carregarListaImpressao?: () => Promise<ClienteSemServicoItem[]>;
 }) {
+  const { t } = useI18n();
   const [expandido, setExpandido] = useState(false);
   const [imprimindo, setImprimindo] = useState(false);
+
+  const opcoesDias = useMemo(
+    () =>
+      OPCOES_DIAS_SEM_SERVICO.map((op) => ({
+        ...op,
+        label: t("dashboard.diasN", { n: op.value }),
+      })),
+    [t]
+  );
 
   useEffect(() => {
     setExpandido(false);
@@ -59,7 +70,7 @@ export function PainelClientesServicosDashboard({
         titulo,
         "clientes-sem-servico.pdf",
         {
-          subtitulo: `Não solicita serviço há mais de ${diasMinimos} dias`,
+          subtitulo: t("dashboard.naoSolicitaServico", { dias: diasMinimos }),
         }
       );
     } catch (err) {
@@ -67,7 +78,7 @@ export function PainelClientesServicosDashboard({
       alert(
         err instanceof Error && err.message
           ? err.message
-          : "Não foi possível gerar o relatório. Tente novamente."
+          : t("dashboard.relatorioErro")
       );
     } finally {
       setImprimindo(false);
@@ -82,9 +93,9 @@ export function PainelClientesServicosDashboard({
           value={String(diasMinimos)}
           onChange={(e) => onDiasChange(Number(e.target.value))}
           className="h-6 max-w-[88px] rounded border border-slate-200 bg-white px-1.5 text-[10px] text-slate-600"
-          aria-label="Dias sem serviço"
+          aria-label={t("dashboard.diasSemServico")}
         >
-          {OPCOES_DIAS_SEM_SERVICO.map((op) => (
+          {opcoesDias.map((op) => (
             <option key={op.value} value={op.value}>
               {op.label}
             </option>
@@ -93,11 +104,11 @@ export function PainelClientesServicosDashboard({
       </div>
       <div className="p-4">
         <p className="mb-3 text-[11px] text-slate-500">
-          Não solicita serviço há mais de {diasMinimos} dias
+          {t("dashboard.naoSolicitaServico", { dias: diasMinimos })}
         </p>
         <div className="mb-1 grid grid-cols-[1fr_auto] gap-2 border-b border-slate-100 pb-1 text-[10px] font-medium uppercase tracking-wide text-slate-400">
-          <span>Cliente</span>
-          <span>Data último</span>
+          <span>{t("dashboard.cliente")}</span>
+          <span>{t("dashboard.dataUltimo")}</span>
         </div>
         <div
           className={`space-y-0 overflow-y-auto ${
@@ -106,7 +117,7 @@ export function PainelClientesServicosDashboard({
         >
           {visiveis.length === 0 ? (
             <p className="py-4 text-center text-[11px] text-slate-400">
-              Nenhum cliente neste período.
+              {t("dashboard.nenhumClientePeriodo")}
             </p>
           ) : (
             visiveis.map((c) => (
@@ -131,7 +142,7 @@ export function PainelClientesServicosDashboard({
               onClick={() => setExpandido((atual) => !atual)}
               className="rounded border border-primary-600 px-3 py-1 text-[11px] font-medium text-primary-600 hover:bg-primary-50"
             >
-              {expandido ? "Ver menos" : "Ver Mais"}
+              {expandido ? t("dashboard.verMenos") : t("dashboard.verMais")}
             </button>
           ) : null}
           <button
@@ -140,7 +151,7 @@ export function PainelClientesServicosDashboard({
             disabled={imprimindo}
             className="rounded border border-primary-600 bg-primary-600 px-3 py-1 text-[11px] font-medium text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {imprimindo ? "Gerando..." : "Imprimir"}
+            {imprimindo ? t("dashboard.gerando") : t("dashboard.imprimir")}
           </button>
         </div>
       </div>

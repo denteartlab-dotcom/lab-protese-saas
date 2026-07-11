@@ -6,21 +6,9 @@ import {
   hrefControlePorStatus,
   type ResumoProducaoDashboard,
 } from "@/lib/dashboard-producao";
-
-const MESES = [
-  "Janeiro",
-  "Fevereiro",
-  "Março",
-  "Abril",
-  "Maio",
-  "Junho",
-  "Julho",
-  "Agosto",
-  "Setembro",
-  "Outubro",
-  "Novembro",
-  "Dezembro",
-];
+import { nomesMesesLocale } from "@/lib/i18n/meses-locale";
+import type { Locale } from "@/lib/i18n";
+import { useI18n } from "@/components/i18n-provider";
 
 type Props = {
   titulo: string;
@@ -29,6 +17,7 @@ type Props = {
   ano: number;
   onMesChange: (mes: number) => void;
   onAnoChange: (ano: number) => void;
+  locale: Locale;
   labels: {
     concluido: string;
     pendente: string;
@@ -49,8 +38,11 @@ export function PainelProducaoDashboard({
   ano,
   onMesChange,
   onAnoChange,
+  locale,
   labels,
 }: Props) {
+  const { t } = useI18n();
+  const meses = nomesMesesLocale(locale);
   const anos = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
 
   return (
@@ -63,7 +55,7 @@ export function PainelProducaoDashboard({
             onChange={(e) => onMesChange(Number(e.target.value))}
             className="rounded border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-600"
           >
-            {MESES.map((nome, index) => (
+            {meses.map((nome, index) => (
               <option key={nome} value={index}>
                 {nome}
               </option>
@@ -99,37 +91,44 @@ export function PainelProducaoDashboard({
             label={labels.finalizado}
             value={resumo.porStatus.finalizado}
             href={hrefControlePorStatus("finalizado")}
+            verTitulo={t("dashboard.visualizar")}
           />
           <LinhaStatus
             label={labels.producao}
             value={resumo.porStatus.producao}
             href={hrefControlePorStatus("producao")}
+            verTitulo={t("dashboard.visualizar")}
           />
           <LinhaStatus
             label={labels.saiuEntrega}
             value={resumo.porStatus.saiu_entrega}
             href={hrefControlePorStatus("saiu_entrega")}
+            verTitulo={t("dashboard.visualizar")}
           />
           <LinhaStatus
             label={labels.emProva}
             value={resumo.porStatus.prova}
             href={hrefControlePorStatus("prova")}
+            verTitulo={t("dashboard.visualizar")}
           />
           <LinhaStatus
             label={labels.entregue}
             value={resumo.porStatus.entregue}
             href={hrefControlePorStatus("entregue")}
+            verTitulo={t("dashboard.visualizar")}
           />
           <LinhaStatus
             label={labels.pendenteStatus}
             value={resumo.porStatus.pendente}
             href={hrefControlePorStatus("pendente")}
+            verTitulo={t("dashboard.visualizar")}
           />
           {resumo.porStatus.pedido > 0 && (
             <LinhaStatus
               label={labels.pedido}
               value={resumo.porStatus.pedido}
               href={hrefControlePorStatus("pedido")}
+              verTitulo={t("dashboard.visualizar")}
             />
           )}
         </div>
@@ -142,10 +141,12 @@ function LinhaStatus({
   label,
   value,
   href,
+  verTitulo,
 }: {
   label: string;
   value: number;
   href: string;
+  verTitulo: string;
 }) {
   return (
     <div className="flex items-center justify-between gap-1">
@@ -153,7 +154,7 @@ function LinhaStatus({
         <Link
           href={href}
           className="shrink-0 text-slate-400 transition hover:text-primary-600"
-          title={`Ver no controle: ${label}`}
+          title={`${verTitulo}: ${label}`}
         >
           <Eye className="h-3.5 w-3.5" />
         </Link>
