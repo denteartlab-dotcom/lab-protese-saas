@@ -1,9 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useI18n } from "@/components/i18n-provider";
 
 function CarregandoAbaFinanceiro() {
-  return <p className="p-4 text-sm text-slate-500">Carregando...</p>;
+  const { t } = useI18n();
+  return <p className="p-4 text-sm text-slate-500">{t("common.carregando")}</p>;
 }
 
 /** Abas do Financeiro — carregadas sob demanda conforme a rota (?aba= / ?tipo=). */

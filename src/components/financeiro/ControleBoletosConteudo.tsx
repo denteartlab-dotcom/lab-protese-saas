@@ -27,6 +27,7 @@ import {
   YAxis,
 } from "recharts";
 import { CampoDataBr, Button } from "@/components/ui";
+import { useI18n } from "@/components/i18n-provider";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { AdicionarImagensComprovanteModal } from "@/components/financeiro/AdicionarImagensComprovanteModal";
 import { DespesaDetalheModal } from "@/components/financeiro/DespesaDetalheModal";
@@ -47,7 +48,6 @@ import {
   filtrarLinhasBoletos,
   formatarMoedaBoleto,
   graficoBoletosPorMes,
-  labelStatusBoleto,
   lancamentoEhDespesaBoleto,
   ordenarLinhasBoletos,
   type ColunaOrdenacaoBoleto,
@@ -71,6 +71,11 @@ import {
   lerFornecedoresStorage,
 } from "@/lib/lancamento-despesa";
 import { debounceCallback } from "@/lib/debounce-callback";
+import {
+  labelGrupoBoleto,
+  labelStatusBoletoI18n,
+  textoDiasVencimentoBoleto,
+} from "@/lib/i18n/boleto-i18n";
 import { cn, formatDate } from "@/lib/utils";
 
 const LancarDespesaModal = dynamic(
@@ -140,7 +145,8 @@ function CardKpi({
 }
 
 function BadgeStatus({ linha }: { linha: LinhaBoleto }) {
-  const label = labelStatusBoleto(linha);
+  const { t } = useI18n();
+  const label = labelStatusBoletoI18n(t, linha);
   const cls =
     linha.lancamento.status === "pago"
       ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
@@ -156,22 +162,16 @@ function BadgeStatus({ linha }: { linha: LinhaBoleto }) {
   );
 }
 
-const rotuloGrupo: Record<
-  GrupoBoletoTabela,
-  { titulo: string; cor: string; bg: string }
-> = {
+const estiloGrupo: Record<GrupoBoletoTabela, { cor: string; bg: string }> = {
   vencidos: {
-    titulo: "Vencidos",
     cor: "text-red-700 dark:text-red-300",
     bg: "bg-red-50 border-red-100 dark:bg-red-950/40 dark:border-red-900",
   },
   proximos: {
-    titulo: "Próximos do vencimento",
     cor: "text-amber-800 dark:text-amber-300",
     bg: "bg-amber-50 border-amber-100 dark:bg-amber-950/40 dark:border-amber-900",
   },
   pagos: {
-    titulo: "Pagos",
     cor: "text-emerald-700 dark:text-emerald-300",
     bg: "bg-emerald-50 border-emerald-100 dark:bg-emerald-950/40 dark:border-emerald-900",
   },
@@ -184,9 +184,10 @@ function CabecalhoGrupo({
   grupo: GrupoBoletoTabela;
   linhas: LinhaBoleto[];
 }) {
+  const { t } = useI18n();
   if (linhas.length === 0) return null;
   const total = linhas.reduce((s, l) => s + l.lancamento.valor, 0);
-  const meta = rotuloGrupo[grupo];
+  const meta = estiloGrupo[grupo];
   return (
     <tr>
       <td
@@ -197,7 +198,11 @@ function CabecalhoGrupo({
           meta.cor
         )}
       >
-        {meta.titulo} — {linhas.length} boleto(s) — {formatarMoedaBoleto(total)}
+        {t("financeiro.boletos.grupoCabecalho", {
+          titulo: labelGrupoBoleto(t, grupo),
+          qtd: linhas.length,
+          valor: formatarMoedaBoleto(total),
+        })}
       </td>
     </tr>
   );
@@ -260,6 +265,7 @@ function LinhaTabela({
   onPagar: () => void;
   onEditar: () => void;
 }) {
+  const { t } = useI18n();
   const venc = dateOnlyBoleto(linha.lancamento.data);
   const emissao = dataEmissaoBoleto(linha.lancamento);
   return (
@@ -286,11 +292,7 @@ function LinhaTabela({
               linha.grupo === "vencidos" ? "text-red-600" : "text-slate-400"
             )}
           >
-            {linha.grupo === "vencidos"
-              ? `${Math.abs(linha.diasAteVencimento)} dia(s) em atraso`
-              : linha.diasAteVencimento === 0
-                ? "Vence hoje"
-                : `Em ${linha.diasAteVencimento} dia(s)`}
+            {textoDiasVencimentoBoleto(t, linha)}
           </p>
         ) : null}
       </td>
@@ -304,7 +306,7 @@ function LinhaTabela({
             onClick={onVer}
             className="rounded-md px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
           >
-            Ver
+            {t("common.ver")}
           </button>
           {linha.lancamento.status === "pendente" ? (
             <button
@@ -312,14 +314,14 @@ function LinhaTabela({
               onClick={onPagar}
               className="rounded-md bg-emerald-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-emerald-700"
             >
-              Pagar
+              {t("common.pagar")}
             </button>
           ) : null}
           <button
             type="button"
             onClick={onEditar}
             className="rounded-md p-1 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-            aria-label="Editar"
+            aria-label={t("common.editar")}
           >
             <Pencil className="h-3.5 w-3.5" />
           </button>
@@ -330,6 +332,7 @@ function LinhaTabela({
 }
 
 export function ControleBoletosConteudo() {
+  const { t } = useI18n();
   const [lancamentos, setLancamentos] = useState<LancamentoBoletoResumo[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erroLista, setErroLista] = useState("");
@@ -384,11 +387,11 @@ export function ControleBoletosConteudo() {
       );
     } catch {
       setLancamentos([]);
-      setErroLista("Não foi possível carregar os boletos.");
+      setErroLista(t("financeiro.boletos.erroCarregar"));
     } finally {
       setCarregando(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -548,11 +551,10 @@ export function ControleBoletosConteudo() {
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-[26px] font-bold text-slate-900 dark:text-slate-100">
-            Controle de Boletos / Contas a Pagar
+            {t("financeiro.boletos.titulo")}
           </h1>
           <p className="mt-1 text-[13px] text-slate-500 dark:text-slate-400">
-            Acompanhe boletos e despesas em boleto bancário sincronizados com Contas a Pagar ·{" "}
-            {dateToBrShort(new Date())}
+            {t("financeiro.boletos.subtitulo", { data: dateToBrShort(new Date()) })}
           </p>
         </div>
         <div className="flex gap-2">
@@ -560,7 +562,7 @@ export function ControleBoletosConteudo() {
             href="/app/financeiro?tipo=despesa"
             className="inline-flex h-10 items-center rounded-lg border border-slate-200 bg-white px-4 text-[13px] font-medium text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
           >
-            Visão clássica
+            {t("financeiro.boletos.visaoClassica")}
           </Link>
           <Button
             type="button"
@@ -571,41 +573,41 @@ export function ControleBoletosConteudo() {
             className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-emerald-600 px-4 text-[13px] font-semibold text-white shadow-sm hover:bg-emerald-700"
           >
             <Plus className="h-4 w-4" />
-            Novo Boleto
+            {t("financeiro.boletos.novoBoleto")}
           </Button>
         </div>
       </div>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <CardKpi
-          titulo="Em análise"
+          titulo={t("financeiro.boletos.kpi.emAnalise")}
           quantidade={resumo.emAnaliseQtd}
           valor={resumo.emAnaliseValor}
-          subtitulo="Vencimento acima de 14 dias"
+          subtitulo={t("financeiro.boletos.kpi.emAnaliseSub")}
           corBorda="#f59e0b"
           icone={Clock}
         />
         <CardKpi
-          titulo="Aguardando pagamento"
+          titulo={t("financeiro.boletos.kpi.aguardando")}
           quantidade={resumo.aguardandoQtd}
           valor={resumo.aguardandoValor}
-          subtitulo="Vence nos próximos 14 dias"
+          subtitulo={t("financeiro.boletos.kpi.aguardandoSub")}
           corBorda="#0ea5e9"
           icone={Calendar}
         />
         <CardKpi
-          titulo="Pagos no mês"
+          titulo={t("financeiro.boletos.kpi.pagosMes")}
           quantidade={resumo.pagosMesQtd}
           valor={resumo.pagosMesValor}
-          subtitulo="Liquidados no mês atual"
+          subtitulo={t("financeiro.boletos.kpi.pagosMesSub")}
           corBorda="#10b981"
           icone={CheckCircle2}
         />
         <CardKpi
-          titulo="Vencidos"
+          titulo={t("financeiro.boletos.kpi.vencidos")}
           quantidade={resumo.vencidosQtd}
           valor={resumo.vencidosValor}
-          subtitulo="Ação necessária"
+          subtitulo={t("financeiro.boletos.kpi.vencidosSub")}
           corBorda="#ef4444"
           icone={AlertTriangle}
         />
@@ -621,7 +623,7 @@ export function ControleBoletosConteudo() {
                   type="search"
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
-                  placeholder="Buscar fornecedor, categoria..."
+                  placeholder={t("financeiro.boletos.buscarPlaceholder")}
                   className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 text-[13px] outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
                 />
               </div>
@@ -629,14 +631,14 @@ export function ControleBoletosConteudo() {
                 label=""
                 value={dataInicio}
                 onChange={setDataInicio}
-                placeholder="Data início"
+                placeholder={t("financeiro.boletos.dataInicio")}
                 className="min-w-[130px]"
               />
               <CampoDataBr
                 label=""
                 value={dataFim}
                 onChange={setDataFim}
-                placeholder="Data fim"
+                placeholder={t("financeiro.boletos.dataFim")}
                 className="min-w-[130px]"
               />
               <select
@@ -644,11 +646,11 @@ export function ControleBoletosConteudo() {
                 onChange={(e) => setFiltroStatus(e.target.value as FiltroStatusBoleto)}
                 className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-[13px] text-slate-700 outline-none focus:border-emerald-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
               >
-                <option value="todos">Todos os status</option>
-                <option value="em_analise">Em análise</option>
-                <option value="aguardando">Aguardando pagamento</option>
-                <option value="vencidos">Vencidos</option>
-                <option value="pagos">Pagos</option>
+                <option value="todos">{t("financeiro.boletos.statusTodos")}</option>
+                <option value="em_analise">{t("financeiro.boletos.statusEmAnalise")}</option>
+                <option value="aguardando">{t("financeiro.boletos.statusAguardando")}</option>
+                <option value="vencidos">{t("financeiro.boletos.statusVencidos")}</option>
+                <option value="pagos">{t("financeiro.boletos.statusPagos")}</option>
               </select>
             </div>
           </div>
@@ -656,10 +658,12 @@ export function ControleBoletosConteudo() {
           {erroLista ? (
             <p className="p-6 text-center text-sm text-red-600">{erroLista}</p>
           ) : carregando ? (
-            <p className="p-10 text-center text-sm text-slate-400">Carregando boletos...</p>
+            <p className="p-10 text-center text-sm text-slate-400">
+              {t("financeiro.boletos.carregando")}
+            </p>
           ) : linhasOrdenadas.length === 0 ? (
             <p className="p-10 text-center text-sm text-slate-400">
-              Nenhum boleto encontrado. Lance uma despesa com forma de pagamento Boleto.
+              {t("financeiro.boletos.vazio")}
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -668,7 +672,7 @@ export function ControleBoletosConteudo() {
                   <tr className="border-b border-slate-100 bg-slate-50/80 text-[10px] dark:border-slate-700 dark:bg-slate-800/80">
                     <th className="px-4 py-3">
                       <ThOrdenavelBoleto
-                        titulo="Fornecedor"
+                        titulo={t("financeiro.boletos.col.fornecedor")}
                         coluna="fornecedor"
                         colunaAtiva={colunaOrdenacao}
                         direcao={direcaoOrdenacao}
@@ -677,7 +681,7 @@ export function ControleBoletosConteudo() {
                     </th>
                     <th className="px-4 py-3">
                       <ThOrdenavelBoleto
-                        titulo="Categoria"
+                        titulo={t("financeiro.boletos.col.categoria")}
                         coluna="categoria"
                         colunaAtiva={colunaOrdenacao}
                         direcao={direcaoOrdenacao}
@@ -686,7 +690,7 @@ export function ControleBoletosConteudo() {
                     </th>
                     <th className="px-4 py-3 text-right">
                       <ThOrdenavelBoleto
-                        titulo="Valor"
+                        titulo={t("financeiro.boletos.col.valor")}
                         coluna="valor"
                         colunaAtiva={colunaOrdenacao}
                         direcao={direcaoOrdenacao}
@@ -696,7 +700,7 @@ export function ControleBoletosConteudo() {
                     </th>
                     <th className="px-4 py-3">
                       <ThOrdenavelBoleto
-                        titulo="Emissão"
+                        titulo={t("financeiro.boletos.col.emissao")}
                         coluna="emissao"
                         colunaAtiva={colunaOrdenacao}
                         direcao={direcaoOrdenacao}
@@ -705,7 +709,7 @@ export function ControleBoletosConteudo() {
                     </th>
                     <th className="px-4 py-3">
                       <ThOrdenavelBoleto
-                        titulo="Vencimento"
+                        titulo={t("financeiro.boletos.col.vencimento")}
                         coluna="vencimento"
                         colunaAtiva={colunaOrdenacao}
                         direcao={direcaoOrdenacao}
@@ -714,7 +718,7 @@ export function ControleBoletosConteudo() {
                     </th>
                     <th className="px-4 py-3">
                       <ThOrdenavelBoleto
-                        titulo="Status"
+                        titulo={t("financeiro.boletos.col.status")}
                         coluna="status"
                         colunaAtiva={colunaOrdenacao}
                         direcao={direcaoOrdenacao}
@@ -722,7 +726,7 @@ export function ControleBoletosConteudo() {
                       />
                     </th>
                     <th className="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                      Ações
+                      {t("financeiro.comum.acoes")}
                     </th>
                   </tr>
                 </thead>
@@ -792,11 +796,11 @@ export function ControleBoletosConteudo() {
             <div className="mb-3 flex items-center gap-2">
               <Bell className="h-4 w-4 text-amber-500" />
               <h2 className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
-                Alertas de vencimento
+                {t("financeiro.boletos.alertasTitulo")}
               </h2>
             </div>
             {alertas.length === 0 ? (
-              <p className="text-[12px] text-slate-400">Nenhum alerta no momento.</p>
+              <p className="text-[12px] text-slate-400">{t("financeiro.boletos.semAlertas")}</p>
             ) : (
               <ul className="space-y-2">
                 {alertas.map((alerta) => (
@@ -824,7 +828,7 @@ export function ControleBoletosConteudo() {
             <div className="mb-3 flex items-center gap-2">
               <BarChart3 className="h-4 w-4 text-emerald-600" />
               <h2 className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">
-                Fluxo de boletos
+                {t("financeiro.boletos.graficoTitulo")}
               </h2>
             </div>
             <div className="h-[200px] w-full">
@@ -847,7 +851,9 @@ export function ControleBoletosConteudo() {
                   <Tooltip
                     formatter={(v, name) => [
                       formatarMoedaBoleto(Number(v ?? 0)),
-                      name === "pagos" ? "Pagos" : "Pendentes",
+                      name === "pagos"
+                        ? t("financeiro.boletos.graficoPagos")
+                        : t("financeiro.boletos.graficoPendentes"),
                     ]}
                   />
                   <Bar dataKey="pendentes" fill="#f59e0b" radius={[4, 4, 0, 0]} />
@@ -858,10 +864,9 @@ export function ControleBoletosConteudo() {
           </div>
 
           <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4 text-[12px] text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
-            <p className="font-semibold">Sincronização automática</p>
+            <p className="font-semibold">{t("financeiro.boletos.sincTitulo")}</p>
             <p className="mt-1 text-emerald-800/90 dark:text-emerald-300/90">
-              Despesas em boleto bancário lançadas em Contas a Pagar aparecem aqui em tempo real.
-              Pix, transferência e outras formas ficam só na visão clássica.
+              {t("financeiro.boletos.sincDesc")}
             </p>
           </div>
         </aside>
@@ -914,12 +919,14 @@ export function ControleBoletosConteudo() {
       <ConfirmacaoExclusaoModal
         open={Boolean(despesaExcluir)}
         titulo={
-          despesaExcluir?.status === "pago" ? "Desmarcar pagamento" : "Excluir despesa"
+          despesaExcluir?.status === "pago"
+            ? t("financeiro.boletos.desmarcarPagamento")
+            : t("financeiro.boletos.excluirDespesa")
         }
         mensagem={
           despesaExcluir?.status === "pago"
-            ? "Deseja desmarcar o pagamento deste boleto?"
-            : "Deseja excluir este boleto/despesa?"
+            ? t("financeiro.boletos.confirmDesmarcar")
+            : t("financeiro.boletos.confirmExcluir")
         }
         onClose={() => setDespesaExcluir(null)}
         onConfirm={confirmarExclusao}
@@ -936,7 +943,7 @@ export function ControleBoletosConteudo() {
           onSubmit={salvarDespesaModal}
           entidades={fornecedores}
           salvando={salvando}
-          tituloEdicao={editando ? "Editar Boleto" : "Novo Boleto"}
+          tituloEdicao={editando ? t("financeiro.boletos.editarBoleto") : t("financeiro.boletos.novoBoleto")}
           lancamentoEdicao={editando}
           todosLancamentosEdicao={lancamentos}
           anexosIniciais={

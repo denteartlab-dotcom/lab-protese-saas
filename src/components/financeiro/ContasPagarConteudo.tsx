@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { Button, CampoDataBr } from "@/components/ui";
+import { useI18n } from "@/components/i18n-provider";
 import type { LancarReceitaPayload } from "@/components/financeiro/LancarReceitaModal";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { RelatorioDespesasModal } from "@/components/financeiro/RelatorioDespesasModal";
@@ -108,25 +109,38 @@ function dateOnly(value: string) {
   return date;
 }
 
-const abasEntidade: Array<{
+const abasEntidadeBase: Array<{
   id: EntidadeDespesa;
-  label: string;
+  labelKey:
+    | "financeiro.pagar.aba.todos"
+    | "financeiro.pagar.aba.fornecedores"
+    | "financeiro.pagar.aba.colaboradores"
+    | "financeiro.pagar.aba.prestadores"
+    | "financeiro.pagar.aba.entregadores"
+    | "financeiro.pagar.aba.clientes";
   icon: typeof List;
 }> = [
-  { id: "todos", label: "Todos", icon: List },
-  { id: "fornecedores", label: "Fornecedores", icon: ShoppingCart },
-  { id: "colaboradores", label: "Colaboradores", icon: Users },
-  { id: "prestadores", label: "Prestadores", icon: Filter },
-  { id: "entregadores", label: "Entregadores", icon: Truck },
-  { id: "clientes", label: "Clientes", icon: User },
+  { id: "todos", labelKey: "financeiro.pagar.aba.todos", icon: List },
+  { id: "fornecedores", labelKey: "financeiro.pagar.aba.fornecedores", icon: ShoppingCart },
+  { id: "colaboradores", labelKey: "financeiro.pagar.aba.colaboradores", icon: Users },
+  { id: "prestadores", labelKey: "financeiro.pagar.aba.prestadores", icon: Filter },
+  { id: "entregadores", labelKey: "financeiro.pagar.aba.entregadores", icon: Truck },
+  { id: "clientes", labelKey: "financeiro.pagar.aba.clientes", icon: User },
 ];
 
-const rotuloVinculoEntidade: Record<Exclude<EntidadeDespesa, "todos">, string> = {
-  fornecedores: "Fornecedor",
-  colaboradores: "Colaborador",
-  prestadores: "Prestador",
-  entregadores: "Entregador",
-  clientes: "Cliente",
+const rotuloVinculoEntidadeKeys: Record<
+  Exclude<EntidadeDespesa, "todos">,
+  | "financeiro.pagar.vinculo.fornecedor"
+  | "financeiro.pagar.vinculo.colaborador"
+  | "financeiro.pagar.vinculo.prestador"
+  | "financeiro.pagar.vinculo.entregador"
+  | "financeiro.pagar.vinculo.cliente"
+> = {
+  fornecedores: "financeiro.pagar.vinculo.fornecedor",
+  colaboradores: "financeiro.pagar.vinculo.colaborador",
+  prestadores: "financeiro.pagar.vinculo.prestador",
+  entregadores: "financeiro.pagar.vinculo.entregador",
+  clientes: "financeiro.pagar.vinculo.cliente",
 };
 
 function despesaCorrespondeVinculo(
@@ -266,19 +280,21 @@ function ThOrdenavel({
 }
 
 function BadgePago() {
+  const { t } = useI18n();
   return (
     <span className="inline-block whitespace-nowrap rounded bg-[#4cae4c] px-2.5 py-1 text-[11px] font-medium text-white">
-      Pago
+      {t("financeiro.pagar.badgePago")}
     </span>
   );
 }
 
 function exibirFormaPagamento(forma?: string | null) {
+  const { t } = useI18n();
   const valor = forma?.trim();
   if (!valor) {
     return (
       <span className="inline-block whitespace-nowrap rounded bg-slate-100 px-2.5 py-1 text-[11px] text-slate-600">
-        Não Informado
+        {t("financeiro.pagar.formaNaoInformado")}
       </span>
     );
   }
@@ -290,7 +306,9 @@ function exibirFormaPagamento(forma?: string | null) {
 }
 
 function exibirConta(conta?: string | null) {
-  const valor = conta?.trim() && conta !== "—" ? conta : "Caixa Principal";
+  const { t } = useI18n();
+  const valor =
+    conta?.trim() && conta !== "—" ? conta : t("financeiro.pagar.contaCaixaPrincipal");
   return (
     <span className="inline-block whitespace-nowrap rounded bg-cyan-50 px-2.5 py-1 text-[11px] font-medium text-cyan-600">
       {valor}
@@ -307,6 +325,7 @@ function exibirParcela(pack: { parcela: string; texto: string }) {
 }
 
 export function ContasPagarConteudo() {
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const deepLinkFeito = useRef(false);
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
@@ -370,6 +389,23 @@ export function ContasPagarConteudo() {
     []
   );
 
+  const abasEntidade = useMemo(
+    () =>
+      abasEntidadeBase.map((aba) => ({
+        ...aba,
+        label: t(aba.labelKey),
+      })),
+    [t]
+  );
+
+  const rotuloVinculoEntidade = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(rotuloVinculoEntidadeKeys).map(([id, key]) => [id, t(key)])
+      ) as Record<Exclude<EntidadeDespesa, "todos">, string>,
+    [t]
+  );
+
   const load = useCallback(async (opts?: { silencioso?: boolean }) => {
     if (!opts?.silencioso) {
       setCarregando(true);
@@ -393,11 +429,11 @@ export function ContasPagarConteudo() {
       }
     } catch {
       setLancamentos([]);
-      setErroLista("Não foi possível carregar as despesas.");
+      setErroLista(t("financeiro.pagar.erroCarregar"));
     } finally {
       setCarregando(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -704,7 +740,7 @@ export function ContasPagarConteudo() {
     }>
   ) {
     if (parcelasApi.length === 0) {
-      throw new Error("Informe um valor maior que zero para salvar a despesa.");
+      throw new Error(t("financeiro.pagar.erroValorZero"));
     }
 
     if (parcelasApi.length === 1) {
@@ -726,7 +762,7 @@ export function ContasPagarConteudo() {
       });
       const json = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
-        throw new Error(json.error || "Não foi possível salvar a despesa.");
+        throw new Error(json.error || t("financeiro.pagar.erroSalvar"));
       }
       return;
     }
@@ -743,7 +779,7 @@ export function ContasPagarConteudo() {
     });
     const json = (await res.json().catch(() => ({}))) as { error?: string };
     if (!res.ok) {
-      throw new Error(json.error || "Não foi possível salvar a despesa.");
+      throw new Error(json.error || t("financeiro.pagar.erroSalvar"));
     }
   }
 
@@ -798,7 +834,7 @@ export function ContasPagarConteudo() {
       });
       if (!res.ok) {
         const json = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(json.error || "Não foi possível desativar a despesa fixa.");
+        throw new Error(json.error || t("financeiro.pagar.erroDesativarFixa"));
       }
     }
   }
@@ -900,7 +936,7 @@ export function ContasPagarConteudo() {
           });
           if (!res.ok) {
             const json = (await res.json().catch(() => ({}))) as { error?: string };
-            alert(json.error || "Não foi possível salvar a despesa.");
+            alert(json.error || t("financeiro.pagar.erroSalvar"));
             return;
           }
         }
@@ -919,7 +955,7 @@ export function ContasPagarConteudo() {
             diaVencimento
           );
           if (!parcelasApi.length) {
-            alert("Informe um valor maior que zero para salvar a despesa.");
+            alert(t("financeiro.pagar.erroValorZero"));
             return;
           }
           const descricaoBase = empacotarDespesa(
@@ -930,7 +966,7 @@ export function ContasPagarConteudo() {
         } else {
           const parcelasApi = parcelasPayloadParaApi(payload);
           if (!parcelasApi.length) {
-            alert("Informe um valor maior que zero para salvar a despesa.");
+            alert(t("financeiro.pagar.erroValorZero"));
             return;
           }
           const descricaoBase = empacotarDespesa(textoDespesa, montarMeta());
@@ -947,9 +983,7 @@ export function ContasPagarConteudo() {
       setEditando(null);
       notificarFinanceiroAtualizado();
     } catch (err) {
-      alert(
-        err instanceof Error ? err.message : "Não foi possível salvar a despesa."
-      );
+      alert(err instanceof Error ? err.message : t("financeiro.pagar.erroSalvar"));
     } finally {
       salvarDespesaEmAndamentoRef.current = false;
       setSalvando(false);
@@ -959,7 +993,7 @@ export function ContasPagarConteudo() {
   async function imprimirListaDespesas() {
     const janela = prepararAbaPdf();
     if (!janela) {
-      alert("Não foi possível abrir a nova aba. Permita pop-ups para este site.");
+      alert(t("financeiro.pagar.erroPopup"));
       return;
     }
 
@@ -971,7 +1005,7 @@ export function ContasPagarConteudo() {
     } catch (err) {
       console.error("imprimir lista despesas", err);
       janela.close();
-      alert("Não foi possível gerar o PDF da lista de despesas.");
+      alert(t("financeiro.pagar.erroPdf"));
     } finally {
       setExportandoLista(false);
     }
@@ -1003,7 +1037,7 @@ export function ContasPagarConteudo() {
       });
       if (!res.ok) {
         const json = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(json.error || "Não foi possível desmarcar o pagamento.");
+        throw new Error(json.error || t("financeiro.pagar.erroDesmarcar"));
       }
       setLancamentos((lista) =>
         lista.map((item) =>
@@ -1025,9 +1059,7 @@ export function ContasPagarConteudo() {
         );
       } catch (err) {
         alert(
-          err instanceof Error
-            ? err.message
-            : "Não foi possível excluir a instância da despesa fixa."
+          err instanceof Error ? err.message : t("financeiro.pagar.erroExcluirFixa")
         );
         return;
       }
@@ -1038,7 +1070,7 @@ export function ContasPagarConteudo() {
     const res = await fetch(`/api/financeiro/${id}`, { method: "DELETE" });
     if (!res.ok) {
       const json = (await res.json().catch(() => ({}))) as { error?: string };
-      throw new Error(json.error || "Não foi possível excluir a despesa.");
+      throw new Error(json.error || t("financeiro.pagar.erroExcluir"));
     }
     notificarFinanceiroAtualizado();
   }
@@ -1052,7 +1084,7 @@ export function ContasPagarConteudo() {
               <p className="text-xl font-semibold text-slate-800">
                 {money(resumo.aPagar)}
               </p>
-              <p className="text-[11px] text-slate-500">A Pagar</p>
+              <p className="text-[11px] text-slate-500">{t("financeiro.pagar.resumoAPagar")}</p>
             </div>
             <span className="rounded-full bg-orange-50 p-2 text-orange-500">
               <Flag className="h-4 w-4" strokeWidth={2} />
@@ -1066,13 +1098,13 @@ export function ContasPagarConteudo() {
                 {money(resumo.atraso)}
               </p>
               <p className="text-[11px] text-slate-500">
-                Contas em Atraso{" "}
+                {t("financeiro.pagar.resumoAtraso")}{" "}
                 <button
                   type="button"
                   onClick={() => setTipoDespesa("atraso")}
                   className="rounded bg-[#4a90d9] px-1.5 py-0.5 text-[9px] font-normal text-white hover:bg-[#3b7bc4]"
                 >
-                  Ver
+                  {t("common.ver")}
                 </button>
               </p>
             </div>
@@ -1087,7 +1119,7 @@ export function ContasPagarConteudo() {
               <p className="text-xl font-semibold text-slate-800">
                 {money(resumo.pagas)}
               </p>
-              <p className="text-[11px] text-slate-500">Contas Pagas</p>
+              <p className="text-[11px] text-slate-500">{t("financeiro.pagar.resumoPagas")}</p>
             </div>
             <span className="rounded-full bg-emerald-50 p-2 text-emerald-500">
               <Check className="h-4 w-4" />
@@ -1105,14 +1137,14 @@ export function ContasPagarConteudo() {
               onClick={abrirNovo}
             >
               <Plus className="h-4 w-4" />
-              Lançar Despesa
+              {t("financeiro.pagar.lancarDespesa")}
             </Button>
             <Button
               size="sm"
               className="inline-flex items-center gap-1.5 rounded bg-[#4a90d9] px-4 py-2 text-[13px] font-normal text-white hover:bg-[#3d7fc4]"
               onClick={() => setRelatorioAberto(true)}
             >
-              Relatório
+              {t("financeiro.pagar.relatorio")}
             </Button>
             <BotoesImprimirExportarToolbar
               onImprimir={() => void imprimirListaDespesas()}
@@ -1151,25 +1183,25 @@ export function ContasPagarConteudo() {
         <div className="border-b border-slate-200 px-3 py-3">
           <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
             <div className="w-[140px] shrink-0">
-              <span className={filtroLabelClass}>Tipo Despesa</span>
+              <span className={filtroLabelClass}>{t("financeiro.pagar.filtro.tipoDespesa")}</span>
               <div className="relative">
                 <select
                   value={tipoDespesa}
                   onChange={(e) => setTipoDespesa(e.target.value)}
                   className={cn(filtroInputClass, "appearance-none pr-8 text-[12px]")}
                 >
-                  <option value="a_pagar">A Pagar</option>
-                  <option value="pagas">Pagas</option>
-                  <option value="atraso">Em Atraso</option>
-                  <option value="todas">Todas</option>
+                  <option value="a_pagar">{t("financeiro.pagar.filtro.aPagar")}</option>
+                  <option value="pagas">{t("financeiro.pagar.filtro.pagas")}</option>
+                  <option value="atraso">{t("financeiro.pagar.filtro.emAtraso")}</option>
+                  <option value="todas">{t("financeiro.pagar.filtro.todas")}</option>
                 </select>
                 {tipoDespesa !== "todas" ? (
                   <button
                     type="button"
                     onClick={() => setTipoDespesa("todas")}
                     className="absolute right-7 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    title="Limpar filtro"
-                    aria-label="Limpar tipo despesa"
+                    title={t("financeiro.pagar.filtro.limparTipo")}
+                    aria-label={t("financeiro.pagar.filtro.limparTipoAria")}
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -1206,18 +1238,18 @@ export function ContasPagarConteudo() {
             ) : null}
 
             <div className="shrink-0">
-              <span className={filtroLabelClass}>Período</span>
+              <span className={filtroLabelClass}>{t("financeiro.pagar.filtro.periodo")}</span>
               <div className="flex items-center gap-1.5">
                 <select
                   value={periodo}
                   onChange={(e) => aplicarPeriodo(e.target.value)}
                   className={cn(filtroInputClass, "w-[118px] shrink-0 text-[12px]")}
                 >
-                  <option value="hoje">Hoje</option>
-                  <option value="semana">Esta Semana</option>
-                  <option value="mes">Este Mês</option>
-                  <option value="todos">Mostrar Todos</option>
-                  <option value="outro">Outro Período</option>
+                  <option value="hoje">{t("financeiro.pagar.filtro.hoje")}</option>
+                  <option value="semana">{t("financeiro.pagar.filtro.semana")}</option>
+                  <option value="mes">{t("financeiro.pagar.filtro.mes")}</option>
+                  <option value="todos">{t("financeiro.pagar.filtro.mostrarTodos")}</option>
+                  <option value="outro">{t("financeiro.pagar.filtro.outroPeriodo")}</option>
                 </select>
                 <div className="w-[108px] shrink-0">
                   <CampoDataBr
@@ -1247,14 +1279,14 @@ export function ContasPagarConteudo() {
             <div className="min-w-[220px] flex-1">
               <span className={cn(filtroLabelClass, "inline-flex items-center gap-1")}>
                 <Search className="h-3 w-3 text-slate-500" />
-                Procurar
+                {t("common.procurar")}
               </span>
               <div className="relative">
                 <input
                   type="text"
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
-                  placeholder="Procurar"
+                  placeholder={t("common.procurar")}
                   className="h-9 w-full rounded border border-slate-300 bg-white py-1 pl-2.5 pr-[72px] text-[12px] text-slate-800 outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]"
                 />
                 <button
@@ -1262,7 +1294,7 @@ export function ContasPagarConteudo() {
                   onClick={() => setBusca("")}
                   className="absolute right-0 top-0 h-9 rounded-r border border-l-0 border-slate-300 bg-slate-500 px-4 text-[11px] font-semibold text-white hover:bg-slate-600"
                 >
-                  Limpar
+                  {t("common.limpar")}
                 </button>
               </div>
             </div>
@@ -1286,7 +1318,11 @@ export function ContasPagarConteudo() {
               <tr>
                 <th className={cn(thClass, "pl-3 pr-2")}>
                   <ThOrdenavel
-                    titulo={tipoDespesa === "pagas" ? "Pagamento" : "Vencimento"}
+                    titulo={
+                      tipoDespesa === "pagas"
+                        ? t("financeiro.pagar.col.pagamento")
+                        : t("financeiro.pagar.col.vencimento")
+                    }
                     coluna="vencimento"
                     colunaAtiva={colunaOrdenacao}
                     direcao={direcaoOrdenacao}
@@ -1295,7 +1331,7 @@ export function ContasPagarConteudo() {
                 </th>
                 <th className={cn(thClass, "px-1")}>
                   <ThOrdenavel
-                    titulo="Parc."
+                    titulo={t("financeiro.pagar.col.parcela")}
                     coluna="parcela"
                     colunaAtiva={colunaOrdenacao}
                     direcao={direcaoOrdenacao}
@@ -1304,7 +1340,7 @@ export function ContasPagarConteudo() {
                 </th>
                 <th className={cn(thClass, "px-2")}>
                   <ThOrdenavel
-                    titulo="Nome"
+                    titulo={t("financeiro.pagar.col.nome")}
                     coluna="nome"
                     colunaAtiva={colunaOrdenacao}
                     direcao={direcaoOrdenacao}
@@ -1313,7 +1349,7 @@ export function ContasPagarConteudo() {
                 </th>
                 <th className={cn(thClass, "px-2")}>
                   <ThOrdenavel
-                    titulo="Referencia"
+                    titulo={t("financeiro.pagar.col.referencia")}
                     coluna="referencia"
                     colunaAtiva={colunaOrdenacao}
                     direcao={direcaoOrdenacao}
@@ -1322,7 +1358,7 @@ export function ContasPagarConteudo() {
                 </th>
                 <th className={cn(thClass, "px-3")}>
                   <ThOrdenavel
-                    titulo="Categoria"
+                    titulo={t("financeiro.pagar.col.categoria")}
                     coluna="categoria"
                     colunaAtiva={colunaOrdenacao}
                     direcao={direcaoOrdenacao}
@@ -1331,7 +1367,7 @@ export function ContasPagarConteudo() {
                 </th>
                 <th className={cn(thClass, "px-2")}>
                   <ThOrdenavel
-                    titulo="Forma Pagamento"
+                    titulo={t("financeiro.pagar.col.formaPagamento")}
                     coluna="formaPagamento"
                     colunaAtiva={colunaOrdenacao}
                     direcao={direcaoOrdenacao}
@@ -1340,7 +1376,7 @@ export function ContasPagarConteudo() {
                 </th>
                 <th className={cn(thClass, "px-2 text-right")}>
                   <ThOrdenavel
-                    titulo="Valor"
+                    titulo={t("financeiro.pagar.col.valor")}
                     coluna="valor"
                     colunaAtiva={colunaOrdenacao}
                     direcao={direcaoOrdenacao}
@@ -1350,21 +1386,21 @@ export function ContasPagarConteudo() {
                 </th>
                 <th className={cn(thClass, "px-2")}>
                   <ThOrdenavel
-                    titulo="Conta"
+                    titulo={t("financeiro.pagar.col.conta")}
                     coluna="conta"
                     colunaAtiva={colunaOrdenacao}
                     direcao={direcaoOrdenacao}
                     onOrdenar={alternarOrdenacao}
                   />
                 </th>
-                <th className={cn(thClass, "px-2 pr-3 text-right")}>Opções</th>
+                <th className={cn(thClass, "px-2 pr-3 text-right")}>{t("common.opcoes")}</th>
               </tr>
             </thead>
             <tbody>
               {carregando ? (
                 <tr>
                   <td colSpan={9} className="px-3 py-12 text-center text-slate-400">
-                    Carregando…
+                    {t("common.carregando")}
                   </td>
                 </tr>
               ) : linhas.length === 0 ? (
@@ -1374,15 +1410,14 @@ export function ContasPagarConteudo() {
                       <span className="text-red-600">{erroLista}</span>
                     ) : lancamentos.length > 0 ? (
                       <>
-                        Nenhuma despesa com os filtros atuais.
+                        {t("financeiro.pagar.vazioFiltrado")}
                         <br />
                         <span className="text-[11px] text-slate-400">
-                          Você tem {lancamentos.length} despesa(s) salva(s). Tente
-                          &quot;Todas&quot; ou &quot;Pagas&quot; se marcou como pago.
+                          {t("financeiro.pagar.vazioFiltradoDica", { n: lancamentos.length })}
                         </span>
                       </>
                     ) : (
-                      "Nenhuma despesa encontrada."
+                      t("financeiro.pagar.vazio")
                     )}
                   </td>
                 </tr>
@@ -1416,18 +1451,18 @@ export function ContasPagarConteudo() {
                             ) : (
                               <button
                                 type="button"
-                                title="Marcar como pago"
+                                title={t("financeiro.pagar.marcarPago")}
                                 onClick={() =>
                                   setDespesaPagar({ lancamento, ref })
                                 }
                                 className="rounded bg-[#4a90d9] px-3 py-1 text-[11px] font-normal text-white hover:bg-[#3d7fc4]"
                               >
-                                Pagar
+                                {t("common.pagar")}
                               </button>
                             )}
                             <button
                               type="button"
-                              title="Ver detalhes"
+                              title={t("financeiro.pagar.verDetalhes")}
                               onClick={() =>
                                 setDespesaAberta({ lancamento, ref })
                               }
@@ -1437,7 +1472,7 @@ export function ContasPagarConteudo() {
                             </button>
                             <button
                               type="button"
-                              title="Editar"
+                              title={t("common.editar")}
                               onClick={() => abrirEdicao(lancamento)}
                               className="rounded p-0.5 text-slate-400 hover:text-slate-600"
                             >
@@ -1445,7 +1480,7 @@ export function ContasPagarConteudo() {
                             </button>
                             <button
                               type="button"
-                              title="Excluir"
+                              title={t("common.excluir")}
                               onClick={() => setDespesaParaExcluir(lancamento)}
                               className="rounded p-0.5 text-red-500 hover:text-red-600"
                             >
@@ -1507,13 +1542,13 @@ export function ContasPagarConteudo() {
         open={!!despesaParaExcluir}
         titulo={
           despesaParaExcluir?.status === "pago"
-            ? "Desmarcar pagamento"
-            : "Excluir Despesa"
+            ? t("financeiro.pagar.desmarcarPagamento")
+            : t("financeiro.pagar.excluirDespesa")
         }
         mensagem={
           despesaParaExcluir?.status === "pago"
-            ? "Esta despesa está paga. Deseja desmarcar e voltar para A Pagar?"
-            : "Deseja realmente excluir essa despesa?"
+            ? t("financeiro.pagar.confirmDesmarcar")
+            : t("financeiro.pagar.confirmExcluir")
         }
         detalhe={
           despesaParaExcluir
@@ -1523,7 +1558,9 @@ export function ContasPagarConteudo() {
         tipoConfirmacao={
           despesaParaExcluir?.status === "pago" ? "primario" : "exclusao"
         }
-        labelConfirmar={despesaParaExcluir?.status === "pago" ? "Desmarcar" : "Sim"}
+        labelConfirmar={
+          despesaParaExcluir?.status === "pago" ? t("financeiro.pagar.desmarcar") : t("common.sim")
+        }
         onClose={() => setDespesaParaExcluir(null)}
         onConfirm={confirmarExclusaoDespesa}
       />
@@ -1545,7 +1582,7 @@ export function ContasPagarConteudo() {
           onSubmit={salvarDespesaModal}
           entidades={fornecedores}
           salvando={salvando}
-          tituloEdicao={editando ? "Editar Despesa" : undefined}
+          tituloEdicao={editando ? t("financeiro.pagar.editarDespesa") : undefined}
           lancamentoEdicao={editando}
           todosLancamentosEdicao={lancamentos}
           anexosIniciais={
