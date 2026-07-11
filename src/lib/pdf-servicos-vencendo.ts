@@ -6,22 +6,27 @@ import {
   PDF_JSPDF_FOLHA_A4_PAISAGEM,
 } from "@/lib/lab-impressao";
 import type { GrupoOsPainelServicos } from "@/lib/painel-servicos-dashboard";
+import { translate, type Locale, type MessageKey } from "@/lib/i18n";
+import { labelStatusTrabalho } from "@/lib/i18n/status-trabalho-i18n";
+import { iniciarImpressaoRelatorio } from "@/lib/i18n/print-relatorio-helpers";
 
 type GerarPdfServicosPainelOpts = {
   lab: LabImpressaoConfig;
   grupos: GrupoOsPainelServicos[];
   titulo: string;
+  locale?: Locale;
 };
 
 type GerarPdfServicosVencendoOpts = {
   lab: LabImpressaoConfig;
   grupos: GrupoOsPainelServicos[];
   tituloPeriodo: string;
+  locale?: Locale;
 };
 
 type ColunaPdf = {
   chave: keyof ReturnType<typeof linhaGrupoPdf>;
-  titulo: string;
+  tituloKey: MessageKey;
   peso: number;
   alinhar?: "left" | "center" | "right";
 };
@@ -33,14 +38,14 @@ const FONTE_CORPO = 7;
 const FONTE_CABECALHO_TABELA = 7.5;
 
 const COLUNAS: ColunaPdf[] = [
-  { chave: "os", titulo: "OS", peso: 8, alinhar: "center" },
-  { chave: "cliente", titulo: "Cliente", peso: 18, alinhar: "left" },
-  { chave: "servicos", titulo: "Serviços", peso: 28, alinhar: "left" },
-  { chave: "paciente", titulo: "Paciente", peso: 16, alinhar: "left" },
-  { chave: "situacao", titulo: "Situação", peso: 12, alinhar: "left" },
-  { chave: "colaborador", titulo: "Colaborador", peso: 14, alinhar: "left" },
-  { chave: "prazoLab", titulo: "Prazo Lab.", peso: 12, alinhar: "center" },
-  { chave: "prazoDent", titulo: "Prazo Dent.", peso: 12, alinhar: "center" },
+  { chave: "os", tituloKey: "dashboard.os", peso: 8, alinhar: "center" },
+  { chave: "cliente", tituloKey: "dashboard.cliente", peso: 18, alinhar: "left" },
+  { chave: "servicos", tituloKey: "dashboard.servicos", peso: 28, alinhar: "left" },
+  { chave: "paciente", tituloKey: "dashboard.paciente", peso: 16, alinhar: "left" },
+  { chave: "situacao", tituloKey: "dashboard.situacao", peso: 12, alinhar: "left" },
+  { chave: "colaborador", tituloKey: "dashboard.colaborador", peso: 14, alinhar: "left" },
+  { chave: "prazoLab", tituloKey: "dashboard.prazoLab", peso: 12, alinhar: "center" },
+  { chave: "prazoDent", tituloKey: "dashboard.prazoDentista", peso: 12, alinhar: "center" },
 ];
 
 function truncar(texto: string, max = 120) {
@@ -50,13 +55,15 @@ function truncar(texto: string, max = 120) {
   return `${limpo.slice(0, max - 1)}…`;
 }
 
-function linhaGrupoPdf(grupo: GrupoOsPainelServicos) {
+function linhaGrupoPdf(grupo: GrupoOsPainelServicos, locale: Locale) {
+  const t = (key: MessageKey, params?: Record<string, string | number>) =>
+    translate(locale, key, params);
   return {
     os: String(grupo.numeroOs),
     cliente: truncar(grupo.clienteNome, 48),
     servicos: truncar(grupo.servicos.join(", "), 90),
     paciente: truncar(grupo.pacienteNome, 40),
-    situacao: truncar(grupo.situacao, 28),
+    situacao: truncar(labelStatusTrabalho(t, grupo.status), 28),
     colaborador: truncar(grupo.colaborador, 36),
     prazoLab: grupo.prazoLab === "—" ? "—" : grupo.prazoLab,
     prazoDent: grupo.prazoDent === "—" ? "—" : grupo.prazoDent,
@@ -73,7 +80,11 @@ function linhasCelula(doc: jsPDF, texto: string, largura: number) {
   return doc.splitTextToSize(limpo, Math.max(4, largura - PADDING_CELULA * 2));
 }
 
-function alturaLinhaTabela(doc: jsPDF, linha: ReturnType<typeof linhaGrupoPdf>, larguras: number[]) {
+function alturaLinhaTabela(
+  doc: jsPDF,
+  linha: ReturnType<typeof linhaGrupoPdf>,
+  larguras: number[]
+) {
   let maxLinhas = 1;
   COLUNAS.forEach((col, i) => {
     const qtd = linhasCelula(doc, String(linha[col.chave]), larguras[i]).length;
@@ -151,7 +162,13 @@ function desenharLinhaGrade(
   }
 }
 
-function desenharCabecalhoTabela(doc: jsPDF, x0: number, y: number, larguras: number[]) {
+function desenharCabecalhoTabela(
+  doc: jsPDF,
+  x0: number,
+  y: number,
+  larguras: number[],
+  locale: Locale
+) {
   const altura = ALTURA_LINHA_TEXTO + PADDING_CELULA * 2;
   desenharLinhaGrade(doc, x0, y, larguras, altura, 0.2);
 
@@ -168,7 +185,7 @@ function desenharCabecalhoTabela(doc: jsPDF, x0: number, y: number, larguras: nu
         : col.alinhar === "right"
           ? x + w - PADDING_CELULA
           : x + PADDING_CELULA;
-    doc.text(col.titulo, textoX, y + PADDING_CELULA + ALTURA_LINHA_TEXTO * 0.85, {
+    doc.text(translate(locale, col.tituloKey), textoX, y + PADDING_CELULA + ALTURA_LINHA_TEXTO * 0.85, {
       align: col.alinhar ?? "left",
     });
     x += w;
@@ -220,23 +237,31 @@ export async function gerarPdfServicosVencendo({
   lab,
   grupos,
   tituloPeriodo,
+  locale,
 }: GerarPdfServicosVencendoOpts): Promise<Blob> {
+  iniciarImpressaoRelatorio({ locale });
+  const loc = locale ?? "pt";
   return gerarPdfServicosPainel({
     lab,
     grupos,
-    titulo: `Serviços vencendo até ${tituloPeriodo}`,
+    titulo: translate(loc, "dashboard.servicosVencendoAte", { periodo: tituloPeriodo }),
+    locale: loc,
   });
 }
 
 export async function gerarPdfServicosAtrasados({
   lab,
   grupos,
+  locale,
 }: Omit<GerarPdfServicosPainelOpts, "titulo">): Promise<Blob> {
+  iniciarImpressaoRelatorio({ locale });
+  const loc = locale ?? "pt";
   const ordenados = [...grupos].sort((a, b) => a.numeroOs - b.numeroOs);
   return gerarPdfServicosPainel({
     lab,
     grupos: ordenados,
-    titulo: `Serviços Atrasados (${ordenados.length})`,
+    titulo: translate(loc, "dashboard.servicosAtrasadosN", { n: ordenados.length }),
+    locale: loc,
   });
 }
 
@@ -244,6 +269,7 @@ async function gerarPdfServicosPainel({
   lab,
   grupos,
   titulo,
+  locale = "pt",
 }: GerarPdfServicosPainelOpts): Promise<Blob> {
   const { default: jsPDF } = await import("jspdf");
   const doc = new jsPDF(PDF_JSPDF_FOLHA_A4_PAISAGEM);
@@ -253,19 +279,20 @@ async function gerarPdfServicosPainel({
   const tableW = pageW - MARGEM_MM * 2;
   const larguras = largurasColunas(tableW);
   const x0 = MARGEM_MM;
+  const msgVazio = translate(locale, "dashboard.nenhumServicoFiltro");
 
   let y = desenharCabecalhoLaboratorio(doc, lab, MARGEM_MM);
   y = desenharTituloRelatorio(doc, titulo, y);
-  y = desenharCabecalhoTabela(doc, x0, y, larguras);
+  y = desenharCabecalhoTabela(doc, x0, y, larguras, locale);
 
-  const linhas = grupos.map(linhaGrupoPdf);
+  const linhas = grupos.map((g) => linhaGrupoPdf(g, locale));
 
   for (const linha of linhas) {
     const altura = alturaLinhaTabela(doc, linha, larguras);
     if (y + altura > pageH - MARGEM_MM) {
       doc.addPage();
       y = MARGEM_MM;
-      y = desenharCabecalhoTabela(doc, x0, y, larguras);
+      y = desenharCabecalhoTabela(doc, x0, y, larguras, locale);
     }
     y = desenharLinhaDados(doc, linha, x0, y, larguras);
   }
@@ -275,7 +302,7 @@ async function gerarPdfServicosPainel({
       doc,
       {
         os: "—",
-        cliente: "Nenhum serviço neste filtro.",
+        cliente: msgVazio,
         servicos: "—",
         paciente: "—",
         situacao: "—",
@@ -292,7 +319,7 @@ async function gerarPdfServicosPainel({
     desenharLinhaGrade(doc, x0, y, larguras, altura);
     doc.setFont("helvetica", "italic");
     doc.setFontSize(FONTE_CORPO);
-    doc.text("Nenhum serviço neste filtro.", x0 + PADDING_CELULA, y + altura / 2 + 1);
+    doc.text(msgVazio, x0 + PADDING_CELULA, y + altura / 2 + 1);
   }
 
   return doc.output("blob");

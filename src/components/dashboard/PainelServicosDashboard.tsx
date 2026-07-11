@@ -1,8 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useI18n } from "@/components/i18n-provider";
 import type { TipoPrazoProducao } from "@/lib/controle-producao-prazos";
 import type { GrupoOsPainelServicos } from "@/lib/painel-servicos-dashboard";
+import { labelStatusTrabalho } from "@/lib/i18n/status-trabalho-i18n";
+import { localeDataIntl } from "@/lib/i18n/tr-ui";
 import { ModalOsResumoDashboard } from "@/components/dashboard/ModalOsResumoDashboard";
 
 type Props = {
@@ -27,7 +30,8 @@ type DirecaoOrdenacao = "asc" | "desc";
 function ordenarGruposPainel(
   lista: GrupoOsPainelServicos[],
   campo: CampoOrdenacao,
-  direcao: DirecaoOrdenacao
+  direcao: DirecaoOrdenacao,
+  localeTag: string
 ) {
   const copia = [...lista];
   copia.sort((a, b) => {
@@ -37,7 +41,7 @@ function ordenarGruposPainel(
     } else {
       const pa = a.dataExibicao === "—" ? "" : a.dataExibicao;
       const pb = b.dataExibicao === "—" ? "" : b.dataExibicao;
-      diff = pa.localeCompare(pb, "pt-BR");
+      diff = pa.localeCompare(pb, localeTag);
     }
     return direcao === "desc" ? -diff : diff;
   });
@@ -59,6 +63,9 @@ export function PainelServicosDashboard({
   linkImprimir,
   onImprimir,
 }: Props) {
+  const { t, locale } = useI18n();
+  const localeTag = localeDataIntl(locale);
+
   const outline =
     tom === "warning"
       ? "border-amber-400 text-amber-600 hover:bg-amber-50"
@@ -79,8 +86,8 @@ export function PainelServicosDashboard({
   const [grupoModal, setGrupoModal] = useState<GrupoOsPainelServicos | null>(null);
 
   const ordenados = useMemo(
-    () => ordenarGruposPainel(grupos, ordenacao.campo, ordenacao.direcao),
-    [grupos, ordenacao]
+    () => ordenarGruposPainel(grupos, ordenacao.campo, ordenacao.direcao, localeTag),
+    [grupos, ordenacao, localeTag]
   );
 
   function alternarOrdenacao(campo: CampoOrdenacao) {
@@ -141,52 +148,64 @@ export function PainelServicosDashboard({
         <div className="border-t border-slate-100 px-3 pb-3">
           <div className="mb-1 flex justify-end gap-3 pr-1 pt-2 text-[10px]">
             <BotaoOrdenacao
-              label="OS"
+              label={t("dashboard.os")}
               ativo={ordenacao.campo === "os"}
               direcao={ordenacao.direcao}
               onClick={() => alternarOrdenacao("os")}
+              tituloDesc={t("dashboard.ordenacaoMaiorPrimeiro")}
+              tituloAsc={t("dashboard.ordenacaoMenorPrimeiro")}
             />
             <BotaoOrdenacao
-              label="Data"
+              label={t("dashboard.data")}
               ativo={ordenacao.campo === "data"}
               direcao={ordenacao.direcao}
               onClick={() => alternarOrdenacao("data")}
+              tituloDesc={t("dashboard.ordenacaoMaiorPrimeiro")}
+              tituloAsc={t("dashboard.ordenacaoMenorPrimeiro")}
             />
           </div>
           <div className="max-h-[min(42vh,300px)] overflow-y-auto">
             {ordenados.length === 0 ? (
-              <p className="py-8 text-center text-[12px] text-slate-400">Nenhum serviço neste filtro.</p>
+              <p className="py-8 text-center text-[12px] text-slate-400">
+                {t("dashboard.nenhumServicoFiltro")}
+              </p>
             ) : (
               <ul>
-                {ordenados.map((grupo) => (
-                  <li key={grupo.chave} className="border-b border-slate-100 last:border-0">
-                    <div className="grid grid-cols-[52px_1fr] gap-3 py-2.5">
-                      <button
-                        type="button"
-                        onClick={() => setGrupoModal(grupo)}
-                        className={`flex h-9 w-9 items-center justify-center rounded text-[13px] font-bold transition hover:opacity-80 ${badgeOs}`}
-                        title="Ver resumo da OS"
-                      >
-                        {grupo.numeroOs}
-                      </button>
-                      <div className="min-w-0 text-[11px] leading-snug text-slate-600">
-                        <p className="font-semibold text-slate-700">
-                          {[
-                            grupo.dataExibicao,
-                            grupo.caixa ? `Caixa: ${grupo.caixa}` : "Caixa:",
-                            grupo.situacao,
-                          ].join(" | ")}
-                        </p>
-                        <p className="mt-0.5 truncate">
-                          {grupo.servicos.join(" | ")} | Paciente: {grupo.pacienteNome}
-                        </p>
-                        {grupo.clienteNome !== "—" ? (
-                          <p className="mt-0.5 truncate text-slate-500">Cliente: {grupo.clienteNome}</p>
-                        ) : null}
+                {ordenados.map((grupo) => {
+                  const situacao = labelStatusTrabalho(t, grupo.status);
+                  return (
+                    <li key={grupo.chave} className="border-b border-slate-100 last:border-0">
+                      <div className="grid grid-cols-[52px_1fr] gap-3 py-2.5">
+                        <button
+                          type="button"
+                          onClick={() => setGrupoModal(grupo)}
+                          className={`flex h-9 w-9 items-center justify-center rounded text-[13px] font-bold transition hover:opacity-80 ${badgeOs}`}
+                          title={t("dashboard.verResumoOs")}
+                        >
+                          {grupo.numeroOs}
+                        </button>
+                        <div className="min-w-0 text-[11px] leading-snug text-slate-600">
+                          <p className="font-semibold text-slate-700">
+                            {[
+                              grupo.dataExibicao,
+                              `${t("dashboard.caixa")}: ${grupo.caixa || "—"}`,
+                              situacao,
+                            ].join(" | ")}
+                          </p>
+                          <p className="mt-0.5 truncate">
+                            {grupo.servicos.join(" | ")} | {t("dashboard.paciente")}:{" "}
+                            {grupo.pacienteNome}
+                          </p>
+                          {grupo.clienteNome !== "—" ? (
+                            <p className="mt-0.5 truncate text-slate-500">
+                              {t("dashboard.cliente")}: {grupo.clienteNome}
+                            </p>
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
@@ -209,11 +228,15 @@ function BotaoOrdenacao({
   ativo,
   direcao,
   onClick,
+  tituloDesc,
+  tituloAsc,
 }: {
   label: string;
   ativo: boolean;
   direcao: DirecaoOrdenacao;
   onClick: () => void;
+  tituloDesc: string;
+  tituloAsc: string;
 }) {
   return (
     <button
@@ -222,7 +245,7 @@ function BotaoOrdenacao({
       className={`inline-flex items-center gap-0.5 transition hover:text-slate-600 ${
         ativo ? "font-medium text-slate-500" : "text-slate-400"
       }`}
-      title={direcao === "desc" ? "Maior primeiro (clique para inverter)" : "Menor primeiro (clique para inverter)"}
+      title={direcao === "desc" ? tituloDesc : tituloAsc}
     >
       {label}
       {ativo ? (direcao === "desc" ? " ↓" : " ↑") : ""}

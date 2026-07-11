@@ -50,8 +50,8 @@ function chaveGrupoOs(trabalho: TrabalhoPainelServicos) {
   return `os-${trabalho.numeroOs}-${paciente}`;
 }
 
-function formatDataCompleta(date: Date) {
-  return date.toLocaleDateString("pt-BR", {
+function formatDataCompleta(date: Date, locale: Locale) {
+  return date.toLocaleDateString(localeDataIntl(locale), {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -67,7 +67,8 @@ function dataExibicaoGrupo(trabalho: TrabalhoPainelServicos, tipoPrazo: TipoPraz
 
 export function agruparTrabalhosPainelServicos(
   trabalhos: TrabalhoPainelServicos[],
-  tipoPrazo: TipoPrazoProducao = "lab"
+  tipoPrazo: TipoPrazoProducao = "lab",
+  locale: Locale = "pt"
 ): GrupoOsPainelServicos[] {
   const mapa = new Map<string, TrabalhoPainelServicos[]>();
 
@@ -102,8 +103,8 @@ export function agruparTrabalhosPainelServicos(
       status: principal.status,
       situacao: STATUS_TRABALHO[principal.status]?.label || principal.status,
       colaborador: resumoColaboradorControle(cols) || "—",
-      prazoLab: prazoLab ? formatDataCompleta(prazoLab) : "—",
-      prazoDent: prazoDent ? formatDataCompleta(prazoDent) : "—",
+      prazoLab: prazoLab ? formatDataCompleta(prazoLab, locale) : "—",
+      prazoDent: prazoDent ? formatDataCompleta(prazoDent, locale) : "—",
       caixa: caixaDeInstrucoes(textos.join("\n")),
       dataExibicao: dataExibicaoGrupo(principal, tipoPrazo),
       trabalhos: lista,

@@ -1,8 +1,8 @@
 "use client";
 
-import { I18nPortal } from "@/components/I18nPortal";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Printer, X } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import { Button, Modal, Select } from "@/components/ui";
 import {
   rotuloSegmentoOs,
@@ -15,11 +15,11 @@ import {
   formatoPorModeloOs,
   modelosOsPorFormato,
   modeloPadraoParaFormato,
-  nomeModeloOs,
   sincronizarConfiguracoesOsDoServidor,
   type ConfiguracoesOs,
   type ModeloOsId,
 } from "@/lib/configuracoes-os";
+import { nomeModeloOsI18n } from "@/lib/i18n/os-modelo-i18n";
 import {
   carregarConfiguracoesEtiquetas,
   CONFIG_ETIQUETAS_ATUALIZADA_EVENT,
@@ -109,6 +109,7 @@ export function ImprimirOsModal({
   multiplosSegmentos,
   permitirSomenteItem = true,
 }: ImprimirOsModalProps) {
+  const { t } = useI18n();
   const [configOs, setConfigOs] = useState<ConfiguracoesOs>(() => carregarConfiguracoesOs());
   const [configEtiquetas, setConfigEtiquetas] = useState<ConfiguracoesEtiquetas>(() =>
     carregarConfiguracoesEtiquetas()
@@ -277,38 +278,43 @@ export function ImprimirOsModal({
   }
 
   const segmentoLabel = trabalho ? rotuloSegmentoOs(trabalho) : "";
+  const servicoLabel = t("os.segmento.servico");
   const itemAtual =
     trabalho?.tipoProtese?.trim() ||
-    (segmentoLabel !== "Serviço" ? segmentoLabel : "Serviço");
+    (segmentoLabel !== servicoLabel ? segmentoLabel : servicoLabel);
 
   const modelosDoFormato =
     formato === "a4" ? modelosA4 : formato === "termica" ? modelosTermica : [];
 
   function rotuloOpcaoModelo(id: ModeloOsId) {
-    const nome = nomeModeloOs(id);
-    return id === configOs.modeloPadrao ? `${nome} (padrão)` : nome;
+    const nome = nomeModeloOsI18n(t, id);
+    return id === configOs.modeloPadrao
+      ? `${nome} ${t("os.imprimir.padraoSuffix")}`
+      : nome;
   }
 
   function rotuloOpcaoEtiqueta(id: ModeloEtiquetaId) {
     const nome = nomeModeloEtiqueta(id);
-    return id === configEtiquetas.modeloPadrao ? `${nome} (padrão)` : nome;
+    return id === configEtiquetas.modeloPadrao
+      ? `${nome} ${t("os.imprimir.padraoSuffix")}`
+      : nome;
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Imprimir Ordem de Serviço" size="lg">
+    <Modal open={open} onClose={onClose} title={t("os.imprimir.titulo")} size="lg">
       {trabalho && (
         <div className="space-y-4">
           <div className="rounded-md border border-sky-200 bg-sky-50 px-4 py-3 text-center text-sm font-semibold text-sky-900">
-            Ordem de Serviço {trabalho.numeroOs}
+            {t("os.imprimir.ordemServico", { n: trabalho.numeroOs })}
             {permitirSomenteItem && multiplosSegmentos && somenteItem === "sim" ? (
               <span className="mt-1 block text-xs font-normal text-sky-800">
-                Item: {itemAtual}
+                {t("os.imprimir.item", { item: itemAtual })}
               </span>
             ) : null}
           </div>
 
           {sincronizando ? (
-            <p className="text-center text-xs text-slate-500">Sincronizando modelos da configuração…</p>
+            <p className="text-center text-xs text-slate-500">{t("os.imprimir.sincronizando")}</p>
           ) : null}
 
           <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-700">
@@ -320,7 +326,7 @@ export function ImprimirOsModal({
                 onChange={() => aoMudarFormato("a4")}
                 className="accent-primary-600"
               />
-              Folha A4
+              {t("os.imprimir.formatoA4")}
             </label>
             <label className="flex cursor-pointer items-center gap-2">
               <input
@@ -330,16 +336,14 @@ export function ImprimirOsModal({
                 onChange={() => aoMudarFormato("termica")}
                 className="accent-primary-600"
               />
-              Térmica 80mm
+              {t("os.imprimir.formatoTermica")}
             </label>
             <label
               className={`flex items-center gap-2 ${
                 etiquetasAtivas ? "cursor-pointer" : "cursor-not-allowed opacity-50"
               }`}
               title={
-                etiquetasAtivas
-                  ? undefined
-                  : "Defina uma etiqueta padrão em Configurações → Etiquetas"
+                etiquetasAtivas ? undefined : t("os.imprimir.etiquetasDesativadasTitle")
               }
             >
               <input
@@ -350,7 +354,7 @@ export function ImprimirOsModal({
                 disabled={!etiquetasAtivas}
                 className="accent-primary-600"
               />
-              Etiquetas
+              {t("os.imprimir.formatoEtiquetas")}
             </label>
           </div>
 
@@ -359,7 +363,7 @@ export function ImprimirOsModal({
           >
             {formato === "etiquetas" ? (
               <Select
-                label="Modelo OS"
+                label={t("os.imprimir.modeloOs")}
                 value={modeloEtiqueta}
                 onChange={(e) => aoMudarModeloEtiqueta(e.target.value)}
                 disabled={sincronizando}
@@ -378,7 +382,11 @@ export function ImprimirOsModal({
               </Select>
             ) : formato === "a4" || formato === "termica" ? (
               <Select
-                label={formato === "a4" ? "Modelo OS (A4)" : "Modelo OS (Térmica 80mm)"}
+                label={
+                  formato === "a4"
+                    ? t("os.imprimir.modeloOsA4")
+                    : t("os.imprimir.modeloOsTermica")
+                }
                 value={modelo}
                 onChange={(e) => aoMudarModelo(e.target.value)}
                 disabled={sincronizando || modelosDoFormato.length === 0}
@@ -394,53 +402,56 @@ export function ImprimirOsModal({
             {permitirSomenteItem ? (
               multiplosSegmentos ? (
                 <Select
-                  label="Somente Item Selecionado"
+                  label={t("os.imprimir.somenteItem")}
                   value={somenteItem}
                   onChange={(e) => setSomenteItem(e.target.value)}
                 >
-                  <option value="sim">Sim</option>
-                  <option value="nao">Não</option>
+                  <option value="sim">{t("os.imprimir.sim")}</option>
+                  <option value="nao">{t("os.imprimir.nao")}</option>
                 </Select>
               ) : (
                 <div className="space-y-1">
                   <span className="block text-sm font-medium text-slate-700">
-                    Somente Item Selecionado
+                    {t("os.imprimir.somenteItem")}
                   </span>
                   <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
-                    Não — único item nesta OS
+                    {t("os.imprimir.unicoItem")}
                   </p>
                 </div>
               )
             ) : null}
 
             <Select
-              label="Imprimir em 2 vias"
+              label={t("os.imprimir.duasVias")}
               value={duasVias}
               onChange={(e) => setDuasVias(e.target.value)}
             >
-              <option value="nao">Não</option>
-              <option value="sim">Sim</option>
+              <option value="nao">{t("os.imprimir.nao")}</option>
+              <option value="sim">{t("os.imprimir.sim")}</option>
             </Select>
           </div>
 
           {formato !== "etiquetas" ? (
             <p className="text-center text-xs text-slate-500">
-              Modelos conforme{" "}
-              <span className="font-medium">Configurações → Ordem de Serviço</span>
+              {t("os.imprimir.modelosConforme")}{" "}
+              <span className="font-medium">{t("os.imprimir.configOs")}</span>
               {configOs.modeloPadrao ? (
                 <>
                   {" "}
-                  · padrão: <span className="font-medium">{nomeModeloOs(configOs.modeloPadrao)}</span>
+                  · {t("os.imprimir.padrao")}:{" "}
+                  <span className="font-medium">
+                    {nomeModeloOsI18n(t, configOs.modeloPadrao)}
+                  </span>
                 </>
               ) : null}
             </p>
           ) : etiquetasAtivas ? (
             <p className="text-center text-xs text-slate-500">
-              Tamanhos de etiqueta SLP — Seiko Smart Label Printer
+              {t("os.imprimir.etiquetasSlp")}
               {configEtiquetas.modeloPadrao ? (
                 <>
                   {" "}
-                  · padrão:{" "}
+                  · {t("os.imprimir.padrao")}:{" "}
                   <span className="font-medium">
                     {nomeModeloEtiqueta(configEtiquetas.modeloPadrao)}
                   </span>
@@ -449,21 +460,21 @@ export function ImprimirOsModal({
             </p>
           ) : (
             <p className="text-center text-xs text-amber-700">
-              Impressão de etiquetas desativada. Defina um modelo padrão em{" "}
-              <span className="font-medium">Configurações → Etiquetas</span>.
+              {t("os.imprimir.etiquetasDesativadas")}{" "}
+              <span className="font-medium">{t("os.imprimir.configEtiquetas")}</span>.
             </p>
           )}
 
           {permitirSomenteItem && multiplosSegmentos ? (
             <p className="text-center text-xs text-slate-500">
-              Com <strong>Sim</strong>, a requisição inclui apenas o item desta linha (
-              {itemAtual}). Com <strong>Não</strong>, inclui todos os serviços, produtos e
-              transportes da mesma OS.
+              {t("os.imprimir.ajudaSomenteItemPrefix")}{" "}
+              <strong>{t("os.imprimir.sim")}</strong>
+              {t("os.imprimir.ajudaSomenteItemMeio", { item: itemAtual })}{" "}
+              <strong>{t("os.imprimir.nao")}</strong>
+              {t("os.imprimir.ajudaSomenteItemSuffix")}
             </p>
           ) : !permitirSomenteItem && multiplosSegmentos ? (
-            <p className="text-center text-xs text-slate-500">
-              A requisição incluirá todos os serviços, produtos e transporte desta OS.
-            </p>
+            <p className="text-center text-xs text-slate-500">{t("os.imprimir.ajudaTodosItens")}</p>
           ) : null}
 
           <div className="flex justify-center gap-3 border-t border-slate-100 pt-4">
@@ -474,11 +485,11 @@ export function ImprimirOsModal({
               disabled={sincronizando || (formato === "etiquetas" && !etiquetasAtivas)}
             >
               <Printer className="h-4 w-4" />
-              Imprimir
+              {t("os.imprimir.imprimir")}
             </Button>
             <Button type="button" variant="outline" onClick={onClose}>
               <X className="h-4 w-4 text-red-500" />
-              Fechar
+              {t("os.imprimir.fechar")}
             </Button>
           </div>
         </div>

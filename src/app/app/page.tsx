@@ -227,12 +227,12 @@ type DashboardSecundario = Pick<
     [trabalhosControle, prazoAtrasados]
   );
   const vencendoGrupos = useMemo(
-    () => agruparTrabalhosPainelServicos(vencendoLista, prazoVencendo),
-    [vencendoLista, prazoVencendo]
+    () => agruparTrabalhosPainelServicos(vencendoLista, prazoVencendo, locale),
+    [vencendoLista, prazoVencendo, locale]
   );
   const atrasadosGrupos = useMemo(
-    () => agruparTrabalhosPainelServicos(atrasadosLista, prazoAtrasados),
-    [atrasadosLista, prazoAtrasados]
+    () => agruparTrabalhosPainelServicos(atrasadosLista, prazoAtrasados, locale),
+    [atrasadosLista, prazoAtrasados, locale]
   );
 
   async function abrirPdfServicosPainel(
@@ -261,6 +261,7 @@ type DashboardSecundario = Pick<
           lab,
           grupos: vencendoGrupos,
           tituloPeriodo: rotuloFimPeriodoVencendo(periodoVencendo, locale),
+          locale,
         }),
       setPdfVencendoUrl,
       pdfVencendoUrl
@@ -278,6 +279,7 @@ type DashboardSecundario = Pick<
         gerarPdfServicosAtrasados({
           lab,
           grupos: atrasadosGrupos,
+          locale,
         }),
       setPdfAtrasadosUrl,
       pdfAtrasadosUrl
