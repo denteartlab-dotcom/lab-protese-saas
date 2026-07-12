@@ -59,6 +59,22 @@ export default async function RootLayout({
           }}
         />
         <Script
+          id="aplicar-idioma-inicial"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                try {
+                  var id = localStorage.getItem("labProteseIdioma");
+                  if (id === "en") document.documentElement.lang = "en";
+                  else if (id === "es") document.documentElement.lang = "es";
+                  else if (id === "pt") document.documentElement.lang = "pt-BR";
+                } catch (e) { /* ignore */ }
+              })();
+            `,
+          }}
+        />
+        <Script
           id="app-build-cache-bust"
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{

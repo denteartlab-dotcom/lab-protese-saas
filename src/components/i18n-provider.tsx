@@ -8,7 +8,9 @@ import {
   useMemo,
   useState,
 } from "react";
+import { ARMAZENAMENTO_LAB_PRONTO_EVENT } from "@/lib/armazenamento-laboratorio";
 import { LAB_CONFIG_ATUALIZADA_EVENT } from "@/lib/configuracoes-lab";
+import { lerIdiomaLocal } from "@/lib/idioma-ui";
 import {
   carregarIdiomaSite,
   htmlLangAttr,
@@ -26,8 +28,13 @@ type I18nContextValue = {
 
 const I18nContext = createContext<I18nContextValue | null>(null);
 
+function localeInicialCliente(): Locale {
+  if (typeof window === "undefined") return "pt";
+  return lerIdiomaLocal() ?? carregarIdiomaSite();
+}
+
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocale] = useState<Locale>("pt");
+  const [locale, setLocale] = useState<Locale>(localeInicialCliente);
 
   const refreshLocale = useCallback(() => {
     setLocale(carregarIdiomaSite());
@@ -35,8 +42,13 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     refreshLocale();
-    window.addEventListener(LAB_CONFIG_ATUALIZADA_EVENT, refreshLocale);
-    return () => window.removeEventListener(LAB_CONFIG_ATUALIZADA_EVENT, refreshLocale);
+    const onAtualizar = () => refreshLocale();
+    window.addEventListener(LAB_CONFIG_ATUALIZADA_EVENT, onAtualizar);
+    window.addEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, onAtualizar);
+    return () => {
+      window.removeEventListener(LAB_CONFIG_ATUALIZADA_EVENT, onAtualizar);
+      window.removeEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, onAtualizar);
+    };
   }, [refreshLocale]);
 
   useEffect(() => {

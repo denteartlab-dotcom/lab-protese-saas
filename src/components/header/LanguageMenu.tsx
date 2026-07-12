@@ -3,11 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import {
   carregarConfigLaboratorio,
+  prepararConfigParaSalvar,
   salvarConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
 import { useI18n } from "@/components/i18n-provider";
 import { FlagIcon } from "@/components/header/FlagIcon";
 import type { Locale } from "@/lib/i18n";
+import { persistirIdiomaLocal } from "@/lib/idioma-ui";
+import { persistirConfigLaboratorioServidor } from "@/lib/lab-config-sync";
 import { cn } from "@/lib/utils";
 
 const opcoes: { locale: Locale; labelKey: "lang.pt" | "lang.en" | "lang.es" }[] = [
@@ -31,6 +34,7 @@ export function LanguageMenu() {
   }, [aberto]);
 
   function escolher(novo: Locale) {
+    persistirIdiomaLocal(novo);
     const cfg = carregarConfigLaboratorio();
     const patch =
       novo === "en"
@@ -38,7 +42,9 @@ export function LanguageMenu() {
         : novo === "es"
           ? { idioma: novo, pais: "España", moeda: "Euro", codigoPaisTelefone: "+34" }
           : { idioma: novo, pais: "Brasil", moeda: "Real", codigoPaisTelefone: "+55" };
-    salvarConfigLaboratorio({ ...cfg, ...patch });
+    const atualizado = prepararConfigParaSalvar({ ...cfg, ...patch });
+    salvarConfigLaboratorio(atualizado);
+    void persistirConfigLaboratorioServidor(atualizado).catch(() => undefined);
     refreshLocale();
     setAberto(false);
   }

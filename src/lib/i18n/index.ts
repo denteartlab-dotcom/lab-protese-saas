@@ -4,6 +4,7 @@ import {
 } from "@/lib/configuracoes-lab";
 import { aplicarFallbackTraducao } from "@/lib/i18n/i18n-fallback";
 import { messages, type Locale, type MessageKey } from "@/lib/i18n/messages";
+import { lerIdiomaLocal, persistirIdiomaLocal } from "@/lib/idioma-ui";
 
 export type { Locale, MessageKey };
 export { messages };
@@ -21,7 +22,11 @@ export function idiomaFromConfig(config?: Pick<ConfigLaboratorio, "idioma">): Lo
 
 export function carregarIdiomaSite(): Locale {
   if (typeof window === "undefined") return "pt";
-  return idiomaFromConfig(carregarConfigLaboratorio());
+  const preferenciaLocal = lerIdiomaLocal();
+  if (preferenciaLocal) return preferenciaLocal;
+  const doConfig = idiomaFromConfig(carregarConfigLaboratorio());
+  if (doConfig !== "pt") persistirIdiomaLocal(doConfig);
+  return doConfig;
 }
 
 export function translate(

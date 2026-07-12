@@ -6,6 +6,7 @@ import type { TipoMensagemForm } from "@/components/DadosLaboratorioForm";
 import { useI18n } from "@/components/i18n-provider";
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
 import { normalizarIdioma, type Locale } from "@/lib/i18n";
+import { persistirIdiomaLocal } from "@/lib/idioma-ui";
 
 type Props = {
   form: ConfigLaboratorio;
@@ -31,6 +32,7 @@ export function IdiomaLaboratorioTab({
   const idioma = normalizarIdioma(form.idioma);
 
   function aoMudarIdioma(novo: Locale) {
+    persistirIdiomaLocal(novo);
     const patch: Partial<ConfigLaboratorio> = { idioma: novo };
     if (novo === "en") {
       patch.pais = patch.pais || "Estados Unidos";

@@ -19,6 +19,8 @@ import { LOGO_TAMANHO_PADRAO, normalizarLogoTamanho } from "@/lib/lab-impressao"
 import { normalizarCabecalhoRequisicao } from "@/lib/cabecalho-requisicao";
 import { normalizarConfigLaboratorio } from "@/lib/configuracoes-lab-parse";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
+import { lerIdiomaLocal } from "@/lib/idioma-ui";
+import { normalizarIdioma } from "@/lib/i18n";
 import { aplicarEspelhoServidor } from "@/lib/persisted-storage";
 import { configLaboratorioCabecalhoAtual } from "@/lib/configuracoes-lab";
 
@@ -243,9 +245,15 @@ export function mesclarConfigLaboratorio(
   const nomeLaboratorio = resolverNomeLaboratorioMesclado(local, remoto);
   const remotoNorm = normalizarConfigLaboratorio(remoto);
 
+  const idiomaPreferido =
+    lerIdiomaLocal() ??
+    normalizarIdioma(local.idioma) ??
+    normalizarIdioma(remotoNorm.idioma);
+
   return prepararConfigParaSalvar({
     ...local,
     ...remotoNorm,
+    idioma: idiomaPreferido,
     logoDataUrl,
     logoTamanho,
     cabecalhoRequisicao: normalizarCabecalhoRequisicao({
