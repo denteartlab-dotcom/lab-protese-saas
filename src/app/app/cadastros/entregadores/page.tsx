@@ -224,7 +224,7 @@ export default function EntregadoresPage() {
       await abrirPdfGerando(
         () => gerarListaEntregadoresPdf(filtrados),
         "lista-entregadores.pdf",
-        "Lista de Entregadores Cadastrados"
+        t("cadastros.entregadores.pdfTitulo")
       );
     } catch {
       alert(t("cadastros.comum.alerta.erroImprimir"));
@@ -305,12 +305,12 @@ export default function EntregadoresPage() {
           opcoesExtras={[
             {
               valor: "email",
-              label: "E-mail",
+              label: t("cadastros.comum.email"),
               comparar: (a, b) => compararTextoBr(a.email, b.email),
             },
             {
               valor: "celular",
-              label: "Celular",
+              label: t("cadastros.comum.celular"),
               comparar: (a, b) => compararTextoBr(a.celular, b.celular),
             },
           ]}
@@ -322,7 +322,7 @@ export default function EntregadoresPage() {
                   <tr className="border-b border-slate-100 bg-slate-50 text-slate-500">
                     <th className="px-3 py-2 text-left font-semibold">{t("cadastros.comum.nome").toUpperCase()}</th>
                     <th className="px-3 py-2 text-left font-semibold">{t("cadastros.comum.celular").toUpperCase()}</th>
-                    <th className="px-3 py-2 text-left font-semibold">WHATSAPP</th>
+                    <th className="px-3 py-2 text-left font-semibold">{t("cadastros.comum.whatsapp").toUpperCase()}</th>
                     <th className="px-3 py-2 text-left font-semibold">{t("cadastros.comum.email").toUpperCase()}</th>
                     <th className="px-3 py-2 text-center font-semibold">{t("cadastros.comum.opcoes").toUpperCase()}</th>
                   </tr>
@@ -399,27 +399,27 @@ export default function EntregadoresPage() {
                                   </div>
                                   <div className="grid gap-x-8 gap-y-3 border-b border-slate-100 pb-3 md:grid-cols-4">
                                     <p>
-                                      <span className="font-semibold text-slate-700">Nome:</span>{" "}
+                                      <span className="font-semibold text-slate-700">{t("cadastros.comum.detalheNome")}</span>{" "}
                                       {entregador.nome}
                                     </p>
                                     <p>
-                                      <span className="font-semibold text-slate-700">Tipo:</span>{" "}
+                                      <span className="font-semibold text-slate-700">{t("cadastros.comum.detalheTipo")}</span>{" "}
                                       {entregador.tipoEntregador || "—"}
                                     </p>
                                     <p>
-                                      <span className="font-semibold text-slate-700">Celular:</span>{" "}
+                                      <span className="font-semibold text-slate-700">{t("cadastros.comum.detalheCelular")}</span>{" "}
                                       {entregador.celular || "—"}
                                     </p>
                                     <p>
-                                      <span className="font-semibold text-slate-700">WhatsApp:</span>{" "}
+                                      <span className="font-semibold text-slate-700">{t("cadastros.comum.detalheWhatsapp")}</span>{" "}
                                       {entregador.whatsapp || "—"}
                                     </p>
                                     <p>
-                                      <span className="font-semibold text-slate-700">Email:</span>{" "}
+                                      <span className="font-semibold text-slate-700">{t("cadastros.comum.detalheEmail")}</span>{" "}
                                       {entregador.email || "—"}
                                     </p>
                                     <p className="md:col-span-2">
-                                      <span className="font-semibold text-slate-700">Endereço:</span>{" "}
+                                      <span className="font-semibold text-slate-700">{t("cadastros.comum.detalheEndereco")}</span>{" "}
                                       {[entregador.rua, entregador.numero, entregador.bairro, entregador.cidade, entregador.uf]
                                         .filter(Boolean)
                                         .join(", ") || "—"}
@@ -464,10 +464,10 @@ export default function EntregadoresPage() {
       >
         <form onSubmit={salvarEntregador} className="space-y-5 text-[11px] text-slate-600">
           <section className="space-y-3">
-            {tituloSecao(<User className="h-3.5 w-3.5" />, "Dados do Entregador")}
+            {tituloSecao(<User className="h-3.5 w-3.5" />, t("cadastros.comum.secaoDadosEntregador"))}
             <div className="grid gap-3 md:grid-cols-[1.6fr_0.8fr]">
               <div>
-                {labelCampo("Nome do Entregador")}
+                {labelCampo(t("cadastros.entregadores.nomeObrigatorio"))}
                 <input
                   value={form.nome}
                   onChange={(e) => setForm({ ...form, nome: e.target.value })}
@@ -476,7 +476,7 @@ export default function EntregadoresPage() {
                 />
               </div>
               <div>
-                {labelCampo("Tipo Entregador")}
+                {labelCampo(t("cadastros.comum.tipoEntregador"))}
                 <select
                   value={form.tipoEntregador}
                   onChange={(e) => setForm({ ...form, tipoEntregador: e.target.value })}
@@ -492,7 +492,7 @@ export default function EntregadoresPage() {
             </div>
             <div className="grid gap-3 md:grid-cols-3">
               <div>
-                {labelCampo("CPF")}
+                {labelCampo(t("cadastros.comum.cpf"))}
                 <input
                   value={form.cpf}
                   onChange={(e) => setForm({ ...form, cpf: e.target.value })}
@@ -500,7 +500,7 @@ export default function EntregadoresPage() {
                 />
               </div>
               <div>
-                {labelCampo("CNPJ")}
+                {labelCampo(t("cadastros.comum.cnpj"))}
                 <input
                   value={form.cnpj}
                   onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
@@ -508,7 +508,7 @@ export default function EntregadoresPage() {
                 />
               </div>
               <div>
-                {labelCampo("Email")}
+                {labelCampo(t("cadastros.comum.email"))}
                 <input
                   type="email"
                   value={form.email}
@@ -519,7 +519,7 @@ export default function EntregadoresPage() {
             </div>
             <div className="grid gap-3 md:grid-cols-4">
               <div>
-                {labelCampo("Telefone Residencial")}
+                {labelCampo(t("cadastros.comum.telefoneResidencial"))}
                 <input
                   value={form.telefoneResidencial}
                   placeholder={PLACEHOLDER_TELEFONE_BR}
@@ -528,7 +528,7 @@ export default function EntregadoresPage() {
                 />
               </div>
               <div>
-                {labelCampo("Telefone Comercial")}
+                {labelCampo(t("cadastros.comum.telefoneComercial"))}
                 <input
                   value={form.telefoneComercial}
                   placeholder={PLACEHOLDER_TELEFONE_BR}
@@ -537,7 +537,7 @@ export default function EntregadoresPage() {
                 />
               </div>
               <div>
-                {labelCampo("Celular")}
+                {labelCampo(t("cadastros.comum.celular"))}
                 <input
                   value={form.celular}
                   placeholder={PLACEHOLDER_TELEFONE_BR}
@@ -546,7 +546,7 @@ export default function EntregadoresPage() {
                 />
               </div>
               <div>
-                {labelCampo("WhatsApp")}
+                {labelCampo(t("cadastros.comum.whatsapp"))}
                 <input
                   value={form.whatsapp}
                   placeholder={PLACEHOLDER_TELEFONE_BR}
@@ -558,15 +558,15 @@ export default function EntregadoresPage() {
           </section>
 
           <section className="space-y-3">
-            {tituloSecao(<MapPin className="h-3.5 w-3.5" />, "Endereço")}
+            {tituloSecao(<MapPin className="h-3.5 w-3.5" />, t("cadastros.comum.secaoEndereco"))}
             <div className="grid gap-3 md:grid-cols-[0.9fr_1.6fr_0.5fr]">
               <div>
-                {labelCampo("CEP")}
+                {labelCampo(t("cadastros.comum.cep"))}
                 <div className="flex gap-1">
                   <input
                     value={form.cep}
                     onChange={(e) => setForm({ ...form, cep: formatarCepEntrega(e.target.value) })}
-                    placeholder="00000-000"
+                    placeholder={t("cadastros.comum.placeholderCep")}
                     className={inputClassName()}
                   />
                   <button
@@ -580,7 +580,7 @@ export default function EntregadoresPage() {
                 </div>
               </div>
               <div>
-                {labelCampo("Rua")}
+                {labelCampo(t("cadastros.comum.rua"))}
                 <input
                   value={form.rua}
                   onChange={(e) => setForm({ ...form, rua: e.target.value })}
@@ -588,7 +588,7 @@ export default function EntregadoresPage() {
                 />
               </div>
               <div>
-                {labelCampo("Número")}
+                {labelCampo(t("cadastros.comum.numero"))}
                 <input
                   value={form.numero}
                   onChange={(e) => setForm({ ...form, numero: e.target.value })}
@@ -598,7 +598,7 @@ export default function EntregadoresPage() {
             </div>
             <div className="grid gap-3 md:grid-cols-4">
               <div>
-                {labelCampo("Cidade")}
+                {labelCampo(t("cadastros.comum.cidade"))}
                 <input
                   value={form.cidade}
                   onChange={(e) => setForm({ ...form, cidade: e.target.value })}
@@ -606,7 +606,7 @@ export default function EntregadoresPage() {
                 />
               </div>
               <div>
-                {labelCampo("UF")}
+                {labelCampo(t("cadastros.comum.uf"))}
                 <input
                   value={form.uf}
                   onChange={(e) => setForm({ ...form, uf: e.target.value.toUpperCase().slice(0, 2) })}
@@ -614,7 +614,7 @@ export default function EntregadoresPage() {
                 />
               </div>
               <div>
-                {labelCampo("Bairro")}
+                {labelCampo(t("cadastros.comum.bairro"))}
                 <input
                   value={form.bairro}
                   onChange={(e) => setForm({ ...form, bairro: e.target.value })}
@@ -622,7 +622,7 @@ export default function EntregadoresPage() {
                 />
               </div>
               <div>
-                {labelCampo("Complemento")}
+                {labelCampo(t("cadastros.comum.complemento"))}
                 <input
                   value={form.complemento}
                   onChange={(e) => setForm({ ...form, complemento: e.target.value })}

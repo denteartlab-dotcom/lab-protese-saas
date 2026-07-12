@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { useI18n } from "@/components/i18n-provider";
 import { FAIXA_TOPO_ALTURA, LogoMarcaDenteArt } from "@/components/LogoMarcaDenteArt";
 
 type Props = {
@@ -21,6 +22,7 @@ export function AppFaixaTopo({
   logoHref = "/app",
   antes,
 }: Props) {
+  const { t } = useI18n();
   return (
     <header className="site-topo-marca relative shrink-0" role="banner">
       {antes}
@@ -35,7 +37,7 @@ export function AppFaixaTopo({
         <Link
           href={logoHref}
           className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 outline-none transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-primary-500/30"
-          title="Ir para o início"
+          title={t("shell.topo.irInicio")}
         >
           <LogoMarcaDenteArt variant="topo" />
         </Link>

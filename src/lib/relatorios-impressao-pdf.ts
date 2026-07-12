@@ -41,7 +41,7 @@ export async function gerarCurvaAbcClientesPdf(
   iniciarImpressaoRelatorio();
   const linhas: string[][] = [];
   for (const secao of resultado.secoes) {
-    linhas.push([`Classe ${secao.classe} (${secao.metaPercentual}%)`, "", ""]);
+    linhas.push([pl("print.relatorio.col.classeSecao", { classe: secao.classe, percentual: secao.metaPercentual }), "", ""]);
     for (const l of secao.linhas) {
       linhas.push([
         l.cliente,
@@ -50,7 +50,7 @@ export async function gerarCurvaAbcClientesPdf(
       ]);
     }
     linhas.push([
-      `Subtotal ${secao.classe}`,
+      pl("print.relatorio.subtotalClasse", { classe: secao.classe }),
       "",
       money(secao.subtotal),
     ]);
@@ -68,7 +68,7 @@ export async function gerarCurvaAbcClientesPdf(
     linhaTotal: {
       indiceRotulo: 0,
       rotulo: pl("print.relatorio.total"),
-      celulas: ["TOTAL", "", money(resultado.total)],
+      celulas: [pl("print.relatorio.total"), "", money(resultado.total)],
     },
   });
 }
@@ -184,7 +184,7 @@ export async function gerarRelatorioContasReceberPdf(
   const totalValor = linhas.reduce((s, l) => s + l.valor, 0);
   const totalRecebido = linhas.reduce((s, l) => s + l.recebido, 0);
   const totalSaldo = linhas.reduce((s, l) => s + l.saldo, 0);
-  const titulo = `Relatório Receitas — ${tituloModelo}`;
+  const titulo = pl("print.relatorio.tituloReceitas", { modelo: tituloModelo });
 
   if (opcoes) {
     const periodoPdf = {
@@ -285,7 +285,7 @@ export async function gerarRelatorioContasReceberPdf(
     colunas: [
       { titulo: pl("print.relatorio.col.venc"), larguraMm: 20, alinhamento: "left" },
       { titulo: pl("print.extrato.fatura"), larguraMm: 14, alinhamento: "center" },
-      { titulo: "Parc.", larguraMm: 14, alinhamento: "center" },
+      { titulo: pl("print.relatorio.col.parcelaAbrev"), larguraMm: 14, alinhamento: "center" },
       { titulo: pl("print.relatorio.cliente"), larguraMm: 32, alinhamento: "left" },
       { titulo: pl("print.extrato.os"), larguraMm: 16, alinhamento: "left" },
       { titulo: pl("print.relatorio.col.forma"), larguraMm: 22, alinhamento: "left" },
@@ -354,7 +354,7 @@ export async function gerarRelatorioDespesasPdf(
     colunas: [
       { titulo: pl("print.relatorio.col.vencimento"), larguraMm: 24, alinhamento: "left" },
       { titulo: pl("print.relatorio.col.nome"), larguraMm: 36, alinhamento: "left" },
-      { titulo: "Categoria", larguraMm: 28, alinhamento: "left" },
+      { titulo: pl("print.relatorio.col.categoria"), larguraMm: 28, alinhamento: "left" },
       { titulo: pl("print.relatorio.col.forma"), larguraMm: 24, alinhamento: "left" },
       { titulo: pl("print.relatorio.col.valor"), larguraMm: 24, alinhamento: "right" },
       { titulo: pl("print.relatorio.col.situacao"), larguraMm: 22, alinhamento: "center" },
@@ -365,11 +365,11 @@ export async function gerarRelatorioDespesasPdf(
       l.categoria,
       l.formaPagamento,
       money(l.valor),
-      l.status === "pago" ? "Pago" : "Pendente",
+      l.status === "pago" ? pl("print.relatorio.situacao.pago") : pl("print.relatorio.situacao.pendente"),
     ]),
     linhaTotal: {
       indiceRotulo: 3,
-      rotulo: "Total",
+      rotulo: pl("print.relatorio.total"),
       celulas: [null, null, null, null, money(total), null],
     },
   });
@@ -386,15 +386,15 @@ export async function gerarRelatorioEntregasPdf(
 
   if (modelo === "entregas-modelo-3") {
     return gerarRelatorioTabelaPdf({
-      tituloRelatorio: `Relatório Entregas — ${tituloModelo}`,
+      tituloRelatorio: pl("print.relatorio.entregas.titulo", { modelo: tituloModelo }),
       periodoTexto: periodoLabel,
       colunas: [
         { titulo: pl("print.relatorio.col.dataPedido"), larguraMm: 22, alinhamento: "left" },
-        { titulo: "Destinatário", larguraMm: 28, alinhamento: "left" },
-        { titulo: "Entregador", larguraMm: 22, alinhamento: "left" },
+        { titulo: pl("print.relatorio.col.destinatario"), larguraMm: 28, alinhamento: "left" },
+        { titulo: pl("print.relatorio.col.entregador"), larguraMm: 22, alinhamento: "left" },
         { titulo: pl("print.extrato.os"), larguraMm: 12, alinhamento: "center" },
-        { titulo: "Sit. OS", larguraMm: 18, alinhamento: "center" },
-        { titulo: "Cliente OS", larguraMm: 24, alinhamento: "left" },
+        { titulo: pl("print.relatorio.col.sitOs"), larguraMm: 18, alinhamento: "center" },
+        { titulo: pl("print.relatorio.col.clienteOs"), larguraMm: 24, alinhamento: "left" },
         { titulo: pl("print.relatorio.col.situacao"), larguraMm: 18, alinhamento: "center" },
         { titulo: pl("print.relatorio.col.valor"), larguraMm: 20, alinhamento: "right" },
       ],
@@ -410,8 +410,8 @@ export async function gerarRelatorioEntregasPdf(
       ]),
       linhaTotal: {
         indiceRotulo: 6,
-        rotulo: "Total",
-        celulas: [null, null, null, null, null, null, "Total", money(total)],
+        rotulo: pl("print.relatorio.total"),
+        celulas: [null, null, null, null, null, null, pl("print.relatorio.total"), money(total)],
       },
     });
   }
@@ -419,7 +419,7 @@ export async function gerarRelatorioEntregasPdf(
   if (modelo === "entregas-modelo-2") {
     const rowsPdf: string[][] = [];
     for (const [entregador, grupo] of agruparPorEntregador(linhas)) {
-      rowsPdf.push([`Entregador: ${entregador}`, "", "", "", "", ""]);
+      rowsPdf.push([pl("print.relatorio.entregas.entregadorGrupo", { nome: entregador }), "", "", "", "", ""]);
       for (const linha of grupo) {
         rowsPdf.push([
           linha.dataPedido,
@@ -432,11 +432,11 @@ export async function gerarRelatorioEntregasPdf(
       }
     }
     return gerarRelatorioTabelaPdf({
-      tituloRelatorio: `Relatório Entregas — ${tituloModelo}`,
+      tituloRelatorio: pl("print.relatorio.entregas.titulo", { modelo: tituloModelo }),
       periodoTexto: periodoLabel,
       colunas: [
         { titulo: pl("print.relatorio.col.dataPedido"), larguraMm: 28, alinhamento: "left" },
-        { titulo: "Destinatário", larguraMm: 32, alinhamento: "left" },
+        { titulo: pl("print.relatorio.col.destinatario"), larguraMm: 32, alinhamento: "left" },
         { titulo: pl("print.relatorio.col.descricao"), larguraMm: 36, alinhamento: "left" },
         { titulo: pl("print.relatorio.col.situacao"), larguraMm: 22, alinhamento: "center" },
         { titulo: pl("print.relatorio.col.valor"), larguraMm: 24, alinhamento: "right" },
@@ -445,19 +445,19 @@ export async function gerarRelatorioEntregasPdf(
       linhas: rowsPdf,
       linhaTotal: {
         indiceRotulo: 3,
-        rotulo: "Total",
-        celulas: [null, null, null, "Total", money(total), null],
+        rotulo: pl("print.relatorio.total"),
+        celulas: [null, null, null, pl("print.relatorio.total"), money(total), null],
       },
     });
   }
 
   return gerarRelatorioTabelaPdf({
-    tituloRelatorio: `Relatório Entregas — ${tituloModelo}`,
+    tituloRelatorio: pl("print.relatorio.entregas.titulo", { modelo: tituloModelo }),
     periodoTexto: periodoLabel,
     colunas: [
       { titulo: pl("print.relatorio.col.dataPedido"), larguraMm: 28, alinhamento: "left" },
-      { titulo: "Destinatário", larguraMm: 32, alinhamento: "left" },
-      { titulo: "Entregador", larguraMm: 28, alinhamento: "left" },
+      { titulo: pl("print.relatorio.col.destinatario"), larguraMm: 32, alinhamento: "left" },
+      { titulo: pl("print.relatorio.col.entregador"), larguraMm: 28, alinhamento: "left" },
       { titulo: pl("print.relatorio.col.descricao"), larguraMm: 36, alinhamento: "left" },
       { titulo: pl("print.relatorio.col.situacao"), larguraMm: 22, alinhamento: "center" },
       { titulo: pl("print.relatorio.col.valor"), larguraMm: 24, alinhamento: "right" },
@@ -472,8 +472,8 @@ export async function gerarRelatorioEntregasPdf(
     ]),
     linhaTotal: {
       indiceRotulo: 4,
-      rotulo: "Total",
-      celulas: [null, null, null, null, "Total", money(total)],
+      rotulo: pl("print.relatorio.total"),
+      celulas: [null, null, null, null, pl("print.relatorio.total"), money(total)],
     },
   });
 }
@@ -497,21 +497,21 @@ export async function gerarHistoricoEntregasPdf(
   const total = linhas.reduce((s, l) => s + l.valor, 0);
 
   return gerarRelatorioTabelaPdf({
-    tituloRelatorio: "Histórico de entregas",
+    tituloRelatorio: pl("print.relatorio.entregas.historicoTitulo"),
     periodoTexto,
     colunas: [
       { titulo: pl("print.extrato.os"), larguraMm: 11, alinhamento: "center" },
-      { titulo: "Destinatário", larguraMm: 24, alinhamento: "left" },
+      { titulo: pl("print.relatorio.col.destinatario"), larguraMm: 24, alinhamento: "left" },
       { titulo: pl("print.relatorio.col.descricao"), larguraMm: 28, alinhamento: "left" },
-      { titulo: "Entregador", larguraMm: 20, alinhamento: "left" },
-      { titulo: "Entregue em", larguraMm: 22, alinhamento: "left" },
+      { titulo: pl("print.relatorio.col.entregador"), larguraMm: 20, alinhamento: "left" },
+      { titulo: pl("print.relatorio.col.entregueEm"), larguraMm: 22, alinhamento: "left" },
       { titulo: pl("print.relatorio.col.situacao"), larguraMm: 24, alinhamento: "center" },
-      { titulo: "Recebedor", larguraMm: 22, alinhamento: "left" },
+      { titulo: pl("print.relatorio.col.recebedor"), larguraMm: 22, alinhamento: "left" },
       { titulo: pl("print.relatorio.col.valor"), larguraMm: 17, alinhamento: "right" },
     ],
     linhas:
       linhas.length === 0
-        ? [["—", "Nenhuma entrega no histórico.", "—", "—", "—", "—", "—", "0,00"]]
+        ? [["—", pl("print.relatorio.entregas.semDados"), "—", "—", "—", "—", "—", "0,00"]]
         : linhas.map((l) => [
             l.numeroOs,
             l.destinatario,
@@ -524,8 +524,8 @@ export async function gerarHistoricoEntregasPdf(
           ]),
     linhaTotal: {
       indiceRotulo: 6,
-      rotulo: "Total",
-      celulas: [null, null, null, null, null, null, "Total", money(total)],
+      rotulo: pl("print.relatorio.total"),
+      celulas: [null, null, null, null, null, null, pl("print.relatorio.total"), money(total)],
     },
   });
 }
@@ -542,14 +542,14 @@ export async function gerarMargemContribuicaoPdf(
 ) {
   iniciarImpressaoRelatorio();
   return gerarRelatorioTabelaPdf({
-    tituloRelatorio: "Margem de Contribuição",
+    tituloRelatorio: pl("print.relatorio.margemContribuicao"),
     periodoTexto,
     colunas: [
-      { titulo: "Categoria", larguraMm: 40, alinhamento: "left" },
+      { titulo: pl("print.relatorio.col.categoria"), larguraMm: 40, alinhamento: "left" },
       { titulo: pl("print.relatorio.col.nome"), larguraMm: 48, alinhamento: "left" },
       { titulo: pl("print.relatorio.col.valor"), larguraMm: 28, alinhamento: "right" },
-      { titulo: "Custo", larguraMm: 28, alinhamento: "right" },
-      { titulo: "Margem", larguraMm: 28, alinhamento: "right" },
+      { titulo: pl("print.relatorio.custo"), larguraMm: 28, alinhamento: "right" },
+      { titulo: pl("print.relatorio.margem"), larguraMm: 28, alinhamento: "right" },
     ],
     linhas: linhas.map((l) => [
       l.categoria,
@@ -567,19 +567,19 @@ export async function gerarTempoProducaoPdf(
 ) {
   iniciarImpressaoRelatorio();
   return gerarRelatorioTabelaPdf({
-    tituloRelatorio: "Tempo de Produção",
+    tituloRelatorio: pl("print.relatorio.tempoProducao"),
     periodoTexto,
     colunas: [
       { titulo: pl("print.extrato.os"), larguraMm: 12, alinhamento: "center" },
       { titulo: pl("print.extrato.paciente"), larguraMm: 28, alinhamento: "left" },
-      { titulo: "Etapa", larguraMm: 24, alinhamento: "left" },
-      { titulo: "Colab.", larguraMm: 20, alinhamento: "left" },
-      { titulo: "Resp.", larguraMm: 20, alinhamento: "left" },
-      { titulo: "Lab.", larguraMm: 10, alinhamento: "center" },
-      { titulo: "Parado", larguraMm: 10, alinhamento: "center" },
-      { titulo: "Atraso", larguraMm: 10, alinhamento: "center" },
-      { titulo: "Status", larguraMm: 20, alinhamento: "center" },
-      { titulo: "Prior.", larguraMm: 16, alinhamento: "center" },
+      { titulo: pl("print.relatorio.col.etapa"), larguraMm: 24, alinhamento: "left" },
+      { titulo: pl("print.relatorio.col.colabAbrev"), larguraMm: 20, alinhamento: "left" },
+      { titulo: pl("print.relatorio.col.respAbrev"), larguraMm: 20, alinhamento: "left" },
+      { titulo: pl("print.relatorio.col.labAbrev"), larguraMm: 10, alinhamento: "center" },
+      { titulo: pl("print.relatorio.col.parado"), larguraMm: 10, alinhamento: "center" },
+      { titulo: pl("print.relatorio.col.atraso"), larguraMm: 10, alinhamento: "center" },
+      { titulo: pl("print.relatorio.col.situacao"), larguraMm: 20, alinhamento: "center" },
+      { titulo: pl("print.relatorio.col.priorAbrev"), larguraMm: 16, alinhamento: "center" },
     ],
     linhas: linhas.map((l) => [
       String(l.numeroOs),

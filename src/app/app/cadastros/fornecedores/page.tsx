@@ -309,7 +309,7 @@ export default function FornecedoresPage() {
       await abrirPdfGerando(
         () => gerarListaFornecedoresPdf(filtrados),
         "lista-fornecedores.pdf",
-        "Lista de Fornecedores Cadastrados"
+        t("cadastros.fornecedores.pdfTitulo")
       );
     } catch {
       alert(t("cadastros.comum.alerta.erroImprimir"));
@@ -393,7 +393,7 @@ export default function FornecedoresPage() {
           opcoesExtras={[
             {
               valor: "email",
-              label: "E-mail",
+              label: t("cadastros.comum.email"),
               comparar: (a, b) => compararTextoBr(a.email, b.email),
             },
           ]}
@@ -406,7 +406,7 @@ export default function FornecedoresPage() {
                 <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.comum.nome")}</th>
                 <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.comum.contato")}</th>
                 <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.comum.celular")}</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">WhatsApp</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.comum.whatsapp")}</th>
                 <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.comum.email")}</th>
                 <th className="px-3 py-2 text-center font-semibold uppercase">{t("cadastros.comum.opcoes")}</th>
               </tr>
@@ -485,11 +485,11 @@ export default function FornecedoresPage() {
                               {fornecedor.nome}
                             </div>
                             <div className="grid gap-x-8 gap-y-3 border-b border-slate-100 pb-3 md:grid-cols-5">
-                              <p><span className="font-semibold text-slate-700">Nome:</span> {fornecedor.nome}</p>
-                              <p><span className="font-semibold text-slate-700">Contato:</span> {fornecedor.contato}</p>
-                              <p><span className="font-semibold text-slate-700">Celular:</span> {fornecedor.celular}</p>
-                              <p><span className="font-semibold text-slate-700">WhatsApp:</span> {fornecedor.whatsapp}</p>
-                              <p><span className="font-semibold text-slate-700">Email:</span> {fornecedor.email}</p>
+                              <p><span className="font-semibold text-slate-700">{t("cadastros.comum.detalheNome")}</span> {fornecedor.nome}</p>
+                              <p><span className="font-semibold text-slate-700">{t("cadastros.comum.detalheContato")}</span> {fornecedor.contato}</p>
+                              <p><span className="font-semibold text-slate-700">{t("cadastros.comum.detalheCelular")}</span> {fornecedor.celular}</p>
+                              <p><span className="font-semibold text-slate-700">{t("cadastros.comum.detalheWhatsapp")}</span> {fornecedor.whatsapp}</p>
+                              <p><span className="font-semibold text-slate-700">{t("cadastros.comum.detalheEmail")}</span> {fornecedor.email}</p>
                             </div>
                             <button
                               type="button"
@@ -530,34 +530,34 @@ export default function FornecedoresPage() {
           <section className="space-y-3">
             <h3 className="flex items-center gap-2 text-xs font-semibold text-slate-600">
               <UserRound className="h-3.5 w-3.5" />
-              Dados do Fornecedor
+              {t("cadastros.comum.secaoDadosFornecedor")}
             </h3>
             <div className="grid gap-3 md:grid-cols-2">
               <Input
-                label="Nome do Fornecedor *"
+                label={t("cadastros.fornecedores.nomeObrigatorio")}
                 value={form.nome}
                 onChange={(event) => setForm({ ...form, nome: event.target.value })}
                 required
               />
               <Input
-                label="CPF"
+                label={t("cadastros.comum.cpf")}
                 value={form.cpf}
                 onChange={(event) => setForm({ ...form, cpf: event.target.value })}
               />
               <Input
-                label="CNPJ"
+                label={t("cadastros.comum.cnpj")}
                 value={form.cnpj}
                 onChange={(event) => setForm({ ...form, cnpj: event.target.value })}
               />
               <div className="space-y-1">
                 <div className="flex items-center justify-between gap-2">
-                  <label className="block text-sm font-medium text-slate-700">Categoria</label>
+                  <label className="block text-sm font-medium text-slate-700">{t("cadastros.comum.categoria")}</label>
                   <button
                     type="button"
                     onClick={() => setModalCategoriaAberto(true)}
                     className="rounded bg-emerald-500 px-2 py-1 text-[10px] font-semibold text-white hover:bg-emerald-600"
                   >
-                    + Adicionar Categoria
+                    {t("cadastros.comum.adicionarCategoria")}
                   </button>
                 </div>
                 <div className="flex gap-2">
@@ -568,7 +568,7 @@ export default function FornecedoresPage() {
                       form.categoria ? "text-slate-700" : "text-slate-400"
                     }`}
                   >
-                    <option value="" hidden style={{ color: "#94a3b8" }}>Selecione</option>
+                    <option value="" hidden style={{ color: "#94a3b8" }}>{t("cadastros.comum.selecione")}</option>
                     {categorias.map((categoria) => (
                       <option key={categoria} value={categoria} style={{ color: "#334155" }}>
                         {categoria}
@@ -580,14 +580,14 @@ export default function FornecedoresPage() {
                     onClick={() => removerCategoria(form.categoria)}
                     disabled={!form.categoria}
                     className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-red-200 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
-                    title="Remover categoria selecionada"
+                    title={t("cadastros.comum.removerCategoriaSelecionada")}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
               </div>
               <Input
-                label="Email"
+                label={t("cadastros.comum.email")}
                 type="email"
                 value={form.email}
                 onChange={(event) => atualizarFornecedorEspelhandoRepresentante("email", event.target.value)}
@@ -596,13 +596,13 @@ export default function FornecedoresPage() {
             </div>
             <div className="grid gap-3 md:grid-cols-4">
               <Input
-                label="Telefone Residencial"
+                label={t("cadastros.comum.telefoneResidencial")}
                 placeholder={PLACEHOLDER_TELEFONE_BR}
                 value={form.telefoneResidencial}
                 onChange={(event) => setForm({ ...form, telefoneResidencial: formatarTelefone(event.target.value) })}
               />
               <Input
-                label="Telefone Comercial"
+                label={t("cadastros.comum.telefoneComercial")}
                 placeholder={PLACEHOLDER_TELEFONE_BR}
                 value={form.telefoneComercial}
                 onChange={(event) =>
@@ -610,13 +610,13 @@ export default function FornecedoresPage() {
                 }
               />
               <Input
-                label="Celular"
+                label={t("cadastros.comum.celular")}
                 placeholder={PLACEHOLDER_TELEFONE_BR}
                 value={form.celular}
                 onChange={(event) => setForm({ ...form, celular: formatarTelefone(event.target.value) })}
               />
               <Input
-                label="WhatsApp"
+                label={t("cadastros.comum.whatsapp")}
                 placeholder={PLACEHOLDER_TELEFONE_BR}
                 value={form.whatsapp}
                 onChange={(event) => atualizarFornecedorEspelhandoRepresentante("whatsapp", formatarTelefone(event.target.value))}
@@ -627,11 +627,11 @@ export default function FornecedoresPage() {
           <section className="space-y-3">
             <h3 className="flex items-center gap-2 text-xs font-semibold text-slate-600">
               <MapPin className="h-3.5 w-3.5" />
-              Endereço
+              {t("cadastros.comum.secaoEndereco")}
             </h3>
             <div className="grid gap-3 md:grid-cols-[1fr_auto_2fr_1fr]">
               <Input
-                label="CEP"
+                label={t("cadastros.comum.cep")}
                 value={form.cep}
                 onChange={(event) => setForm({ ...form, cep: formatCepInput(event.target.value) })}
               />
@@ -644,34 +644,34 @@ export default function FornecedoresPage() {
                 {buscandoCep ? t("cadastros.comum.buscando") : t("cadastros.comum.buscarEndereco")}
               </button>
               <Input
-                label="Rua"
+                label={t("cadastros.comum.rua")}
                 value={form.rua}
                 onChange={(event) => setForm({ ...form, rua: event.target.value })}
               />
               <Input
-                label="Número"
+                label={t("cadastros.comum.numero")}
                 value={form.numero}
                 onChange={(event) => setForm({ ...form, numero: event.target.value })}
               />
             </div>
             <div className="grid gap-3 md:grid-cols-[1.3fr_0.7fr_1.5fr_1fr]">
               <Input
-                label="Cidade"
+                label={t("cadastros.comum.cidade")}
                 value={form.cidade}
                 onChange={(event) => setForm({ ...form, cidade: event.target.value })}
               />
               <Input
-                label="UF"
+                label={t("cadastros.comum.uf")}
                 value={form.uf}
                 onChange={(event) => setForm({ ...form, uf: event.target.value.toUpperCase().slice(0, 2) })}
               />
               <Input
-                label="Bairro"
+                label={t("cadastros.comum.bairro")}
                 value={form.bairro}
                 onChange={(event) => setForm({ ...form, bairro: event.target.value })}
               />
               <Input
-                label="Complemento"
+                label={t("cadastros.comum.complemento")}
                 value={form.complemento}
                 onChange={(event) => setForm({ ...form, complemento: event.target.value })}
               />
@@ -681,26 +681,26 @@ export default function FornecedoresPage() {
           <section className="space-y-3">
             <h3 className="flex items-center gap-2 text-xs font-semibold text-slate-600">
               <UserRound className="h-3.5 w-3.5" />
-              Contato do Representante
+              {t("cadastros.comum.secaoContatoRepresentante")}
             </h3>
             <div className="grid gap-3 md:grid-cols-[1.3fr_0.8fr_0.8fr_1.5fr]">
               <Input
-                label="Contato"
+                label={t("cadastros.comum.contato")}
                 value={form.contato}
                 onChange={(event) => setForm({ ...form, contato: event.target.value })}
               />
               <Input
-                label="Telefone Comercial"
+                label={t("cadastros.comum.telefoneComercial")}
                 value={form.representanteTelefoneComercial}
                 onChange={(event) => setForm({ ...form, representanteTelefoneComercial: event.target.value })}
               />
               <Input
-                label="WhatsApp"
+                label={t("cadastros.comum.whatsapp")}
                 value={form.representanteWhatsapp}
                 onChange={(event) => setForm({ ...form, representanteWhatsapp: event.target.value })}
               />
               <Input
-                label="Email"
+                label={t("cadastros.comum.email")}
                 type="email"
                 value={form.representanteEmail}
                 onChange={(event) => setForm({ ...form, representanteEmail: event.target.value })}
@@ -720,22 +720,22 @@ export default function FornecedoresPage() {
       <Modal
         open={modalCategoriaAberto}
         onClose={() => setModalCategoriaAberto(false)}
-        title="Adicionar Categoria"
+        title={t("cadastros.comum.modalAdicionarCategoria")}
         size="sm"
       >
         <form onSubmit={adicionarCategoria} className="space-y-4">
           <Input
-            label="Nome da Categoria"
+            label={t("cadastros.comum.nomeCategoria")}
             value={novaCategoria}
             onChange={(event) => setNovaCategoria(event.target.value)}
-            placeholder="Digite o nome da categoria"
+            placeholder={t("cadastros.comum.placeholderNomeCategoria")}
             required
           />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setModalCategoriaAberto(false)}>
-              Fechar
+              {t("cadastros.comum.fechar")}
             </Button>
-            <Button type="submit">Adicionar</Button>
+            <Button type="submit">{t("cadastros.comum.adicionar")}</Button>
           </div>
         </form>
       </Modal>

@@ -1233,7 +1233,7 @@ export default function TabelaPrecosPage() {
     setMostrarServicosExcluidos((ativo) => {
       if (!ativo) {
         if (totalServicosExcluidos === 0) {
-          alert("Não há serviços excluídos nesta tabela.");
+          alert(t("cadastros.tabelaPrecos.alerta.semServicosExcluidos"));
           return false;
         }
         setModoArrastarCategorias(false);
@@ -1327,7 +1327,7 @@ export default function TabelaPrecosPage() {
 
   function enviarTabelaPorEmail() {
     if (!totalServicos) {
-      alert("Não há itens na tabela para enviar.");
+      alert(t("cadastros.tabelaPrecos.alerta.semItensEnviar"));
       return;
     }
     const assunto = encodeURIComponent(`Tabela de Preços — ${tabela}`);
@@ -1337,14 +1337,14 @@ export default function TabelaPrecosPage() {
 
   async function exportarTabelaExcel() {
     if (!totalServicos) {
-      alert("Não há itens na tabela para exportar.");
+      alert(t("cadastros.tabelaPrecos.alerta.semItensExportar"));
       return;
     }
     setProcessandoAcoes(true);
     try {
       await exportarTabelaPrecosExcel(tabela, categoriasParaExportacao());
     } catch {
-      alert("Não foi possível exportar a planilha.");
+      alert(t("cadastros.tabelaPrecos.alerta.erroExportar"));
     } finally {
       setProcessandoAcoes(false);
     }
@@ -1352,7 +1352,7 @@ export default function TabelaPrecosPage() {
 
   async function baixarTabelaPdf() {
     if (!totalServicos) {
-      alert("Não há itens na tabela para exportar.");
+      alert(t("cadastros.tabelaPrecos.alerta.semItensExportar"));
       return;
     }
     setProcessandoAcoes(true);
@@ -1366,7 +1366,7 @@ export default function TabelaPrecosPage() {
       const data = new Date().toLocaleDateString("pt-BR").replace(/\//g, "-");
       baixarPdfTabelaPrecos(blob, `tabela-precos-${data}.pdf`);
     } catch {
-      alert("Não foi possível gerar o PDF.");
+      alert(t("cadastros.tabelaPrecos.alerta.erroPdf"));
     } finally {
       setProcessandoAcoes(false);
     }
@@ -1374,7 +1374,7 @@ export default function TabelaPrecosPage() {
 
   async function imprimirTabela() {
     if (!totalServicos) {
-      alert("Não há itens na tabela para imprimir.");
+      alert(t("cadastros.tabelaPrecos.alerta.semItensImprimir"));
       return;
     }
     setProcessandoAcoes(true);
@@ -1386,7 +1386,7 @@ export default function TabelaPrecosPage() {
         `Tabela de Preços — ${tabela}`
       );
     } catch {
-      alert("Não foi possível gerar a impressão.");
+      alert(t("cadastros.tabelaPrecos.alerta.erroImprimir"));
     } finally {
       setProcessandoAcoes(false);
     }
@@ -1412,7 +1412,7 @@ export default function TabelaPrecosPage() {
 
   function abrirModalEditarValores() {
     if (!totalServicos) {
-      alert("Não há itens na tabela para reajustar.");
+      alert(t("cadastros.tabelaPrecos.alerta.semItensReajustar"));
       return;
     }
     setModalEditarValores(true);
@@ -1441,7 +1441,7 @@ export default function TabelaPrecosPage() {
   function solicitarExcluirTabela(nomeTabela?: string) {
     const alvo = nomeTabela ?? tabela;
     if (tabelas.length <= 1) {
-      alert("Não é possível excluir a única tabela cadastrada.");
+      alert(t("cadastros.tabelaPrecos.alerta.unicaTabela"));
       return;
     }
     setTabelaParaExcluir(alvo);
@@ -1489,7 +1489,7 @@ export default function TabelaPrecosPage() {
         <>
           <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="relative w-full max-w-[520px] space-y-1">
-            <label className="block text-[11px] text-slate-600">Selecione uma Tabela</label>
+            <label className="block text-[11px] text-slate-600">{t("cadastros.tabelaPrecos.selecioneTabela")}</label>
             <button
               type="button"
               onClick={() => setDropdownTabelaAberto((aberto) => !aberto)}
@@ -1505,7 +1505,7 @@ export default function TabelaPrecosPage() {
                   onClick={adicionarTabela}
                   className="flex w-full items-center gap-2 border-b border-slate-100 px-3 py-2 text-left font-semibold text-emerald-600 hover:bg-emerald-50"
                 >
-                  + Adicionar Tabela
+                  {t("cadastros.tabelaPrecos.adicionarTabela")}
                 </button>
                 {tabelas.map((item) => {
                   const selected = item === tabela;
@@ -1585,7 +1585,7 @@ export default function TabelaPrecosPage() {
                 onClick={adicionarTabela}
                 className="rounded bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-600"
               >
-                + Adicionar Tabela
+                {t("cadastros.tabelaPrecos.adicionarTabela")}
               </button>
               <button
                 type="button"
@@ -1609,10 +1609,10 @@ export default function TabelaPrecosPage() {
             <table className="w-full min-w-[900px] text-[11px]">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50 text-slate-500">
-                  <th className="px-3 py-2 text-left font-semibold">NOME DA TABELA</th>
-                  <th className="px-3 py-2 text-left font-semibold">SELECIONAR CLIENTES</th>
-                  <th className="px-3 py-2 text-left font-semibold">DUPLICAR</th>
-                  <th className="px-3 py-2 text-center font-semibold">OPÇÕES</th>
+                  <th className="px-3 py-2 text-left font-semibold">{t("cadastros.tabelaPrecos.colunaNomeTabela")}</th>
+                  <th className="px-3 py-2 text-left font-semibold">{t("cadastros.tabelaPrecos.selecionarClientes")}</th>
+                  <th className="px-3 py-2 text-left font-semibold">{t("cadastros.tabelaPrecos.duplicar").toUpperCase()}</th>
+                  <th className="px-3 py-2 text-center font-semibold">{t("cadastros.comum.opcoes").toUpperCase()}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -1656,7 +1656,7 @@ export default function TabelaPrecosPage() {
                           type="button"
                           onClick={() => solicitarExcluirTabela(item)}
                           disabled={tabelas.length <= 1}
-                          title="Excluir tabela"
+                          title={t("cadastros.tabelaPrecos.excluirTabela")}
                           className="text-red-400 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -1725,16 +1725,16 @@ export default function TabelaPrecosPage() {
               </div>
               <div className="flex items-center gap-2 text-slate-400">
                 {!modoArrastarCategorias && (
-                <button type="button" title="Selecionar" className="hover:text-primary-700">
+                <button type="button" title={t("cadastros.tabelaPrecos.selecionar")} className="hover:text-primary-700">
                   <CheckSquare className="h-3.5 w-3.5" />
                 </button>
                 )}
-                <button type="button" title="Visualizar" className="hover:text-primary-700">
+                <button type="button" title={t("cadastros.comum.visualizar")} className="hover:text-primary-700">
                   <Eye className="h-3.5 w-3.5" />
                 </button>
                 <button
                   type="button"
-                  title="Editar categoria"
+                  title={t("cadastros.tabelaPrecos.editarCategoria")}
                   onClick={() => editarNomeCategoria(categoria)}
                   className="hover:text-primary-700"
                 >
@@ -1742,7 +1742,7 @@ export default function TabelaPrecosPage() {
                 </button>
                 <button
                   type="button"
-                  title="Excluir categoria"
+                  title={t("cadastros.tabelaPrecos.excluirCategoria")}
                   onClick={() => solicitarRemoverCategoria(categoria.id)}
                   className="text-red-400 hover:text-red-600"
                 >
@@ -1750,7 +1750,7 @@ export default function TabelaPrecosPage() {
                 </button>
                 <button
                   type="button"
-                  title={recolhida ? "Expandir" : "Recolher"}
+                  title={recolhida ? t("cadastros.tabelaPrecos.expandir") : t("cadastros.tabelaPrecos.recolher")}
                   onClick={() => toggleRecolherCategoria(categoria.id)}
                   className="hover:text-primary-700"
                 >
@@ -1764,11 +1764,11 @@ export default function TabelaPrecosPage() {
               <table className="w-full min-w-[900px] text-[10px]">
                 <thead>
                   <tr className="border-b border-slate-100 bg-[#f4f3fb] text-slate-500">
-                    <th className="px-3 py-2 text-center font-semibold uppercase">NOME SERVIÇO</th>
-                    <th className="w-28 px-3 py-2 text-center font-semibold uppercase">VALOR</th>
-                    <th className="w-40 px-3 py-2 text-center font-semibold uppercase">ETAPAS</th>
-                    <th className="w-28 px-3 py-2 text-center font-semibold uppercase">OCULTAR</th>
-                    <th className="w-24 px-3 py-2 text-center font-semibold uppercase">OPÇÕES</th>
+                    <th className="px-3 py-2 text-center font-semibold uppercase">{t("cadastros.tabelaPrecos.colunaNomeServico")}</th>
+                    <th className="w-28 px-3 py-2 text-center font-semibold uppercase">{t("cadastros.tabelaPrecos.valor").toUpperCase()}</th>
+                    <th className="w-40 px-3 py-2 text-center font-semibold uppercase">{t("cadastros.tabelaPrecos.etapas").toUpperCase()}</th>
+                    <th className="w-28 px-3 py-2 text-center font-semibold uppercase">{t("cadastros.tabelaPrecos.ocultar").toUpperCase()}</th>
+                    <th className="w-24 px-3 py-2 text-center font-semibold uppercase">{t("cadastros.comum.opcoes").toUpperCase()}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -1858,14 +1858,14 @@ export default function TabelaPrecosPage() {
               <table className="w-full min-w-[900px] text-[11px]">
                 <thead>
                   <tr className="border-b border-slate-100 bg-[#f4f3fb] text-slate-500">
-                    <th className="px-3 py-2 text-left font-semibold uppercase">Nome serviço</th>
-                    <th className="w-28 px-3 py-2 text-right font-semibold uppercase">Valor</th>
-                    <th className="w-40 px-3 py-2 text-center font-semibold uppercase">Etapas</th>
+                    <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.tabelaPrecos.nomeServicoCurto")}</th>
+                    <th className="w-28 px-3 py-2 text-right font-semibold uppercase">{t("cadastros.tabelaPrecos.valor")}</th>
+                    <th className="w-40 px-3 py-2 text-center font-semibold uppercase">{t("cadastros.tabelaPrecos.etapas")}</th>
                     <th className="w-28 px-3 py-2 text-center font-semibold uppercase">
                       Custos
                     </th>
-                    <th className="w-28 px-3 py-2 text-center font-semibold uppercase">Ocultar</th>
-                    <th className="w-24 px-3 py-2 text-center font-semibold">OPÇÕES</th>
+                    <th className="w-28 px-3 py-2 text-center font-semibold uppercase">{t("cadastros.tabelaPrecos.ocultar")}</th>
+                    <th className="w-24 px-3 py-2 text-center font-semibold">{t("cadastros.comum.opcoes").toUpperCase()}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -1896,7 +1896,7 @@ export default function TabelaPrecosPage() {
                       </td>
                       <td className="px-3 py-1.5 text-center">
                         {excluido ? (
-                          <span className="inline-flex rounded-sm p-1.5 text-red-500" title="Indisponível para serviço excluído">
+                          <span className="inline-flex rounded-sm p-1.5 text-red-500" title={t("cadastros.tabelaPrecos.indisponivelServicoExcluido")}>
                             <Ban className="h-3.5 w-3.5" strokeWidth={1.75} />
                           </span>
                         ) : (
@@ -1904,7 +1904,7 @@ export default function TabelaPrecosPage() {
                           type="button"
                           onClick={() => abrirModalCustos(categoria.id, item)}
                           className="inline-flex rounded-sm p-1.5 text-red-500 hover:bg-red-50 hover:text-red-600"
-                          title={item.tipo === "servico" ? "Gerenciar custos com produtos do estoque" : "Editar custo do item"}
+                          title={item.tipo === "servico" ? t("cadastros.tabelaPrecos.gerenciarCustosEstoque") : t("cadastros.tabelaPrecos.editarCustoItem")}
                         >
                           <Gem className="h-3.5 w-3.5" strokeWidth={1.75} />
                         </button>
@@ -1937,7 +1937,7 @@ export default function TabelaPrecosPage() {
                             onClick={() => editarItemCategoria(categoria, item)}
                             className="text-slate-500 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-40"
                             disabled={item.tipo === "produto"}
-                            title={item.tipo === "produto" ? "Edite o produto no estoque" : "Editar"}
+                            title={item.tipo === "produto" ? t("cadastros.tabelaPrecos.editarProdutoEstoque") : t("cadastros.comum.editar")}
                           >
                             <Edit3 className="h-3.5 w-3.5" />
                           </button>
@@ -1986,7 +1986,7 @@ export default function TabelaPrecosPage() {
                         type="button"
                         onClick={fecharModalCustos}
                         className="text-slate-400 hover:text-slate-700"
-                        aria-label="Fechar"
+                        aria-label={t("cadastros.comum.fechar")}
                       >
                         <X className="h-5 w-5" />
                       </button>
@@ -2030,7 +2030,7 @@ export default function TabelaPrecosPage() {
                                     <button
                                       type="button"
                                       className="fixed inset-0 z-[100]"
-                                      aria-label="Fechar lista"
+                                      aria-label={t("cadastros.tabelaPrecos.fecharLista")}
                                       onClick={() => setSelectProdutoCustoAberto(false)}
                                     />
                                     <div className="absolute left-0 right-0 top-full z-[101] mt-1 overflow-hidden rounded-sm border border-slate-200 bg-white shadow-lg">
@@ -2038,7 +2038,7 @@ export default function TabelaPrecosPage() {
                                         <input
                                           value={buscaProdutoCusto}
                                           onChange={(e) => setBuscaProdutoCusto(e.target.value)}
-                                          placeholder="Buscar produto..."
+                                          placeholder={t("cadastros.tabelaPrecos.buscarProduto")}
                                           className="h-8 w-full rounded-sm border border-slate-200 px-2 text-[12px] outline-none focus:border-blue-400"
                                           autoFocus
                                         />
@@ -2079,18 +2079,18 @@ export default function TabelaPrecosPage() {
                               </div>
                             </div>
                             <div className="col-span-2">
-                              <label className="mb-1 block text-[11px] text-slate-600">Qtd (Unid)</label>
+                              <label className="mb-1 block text-[11px] text-slate-600">{t("cadastros.tabelaPrecos.qtdUnid")}</label>
                               <input
                                 value={formCustoProduto.qtd}
                                 onChange={(e) =>
                                   setFormCustoProduto((s) => ({ ...s, qtd: e.target.value }))
                                 }
                                 className="h-9 w-full rounded-sm border border-slate-200 bg-white px-2 text-[12px] text-slate-700 outline-none focus:border-blue-400"
-                                placeholder="Ex: 20g"
+                                placeholder={t("cadastros.tabelaPrecos.exemploQuantidade")}
                               />
                             </div>
                             <div className="col-span-4">
-                              <label className="mb-1 block text-[11px] text-slate-600">Custo</label>
+                              <label className="mb-1 block text-[11px] text-slate-600">{t("cadastros.tabelaPrecos.custo")}</label>
                               <div className="flex gap-2">
                                 <div className="flex h-9 min-w-0 flex-1 overflow-hidden rounded-sm border border-slate-200 bg-white">
                                   <span className="flex w-10 shrink-0 items-center justify-center border-r border-slate-200 text-[12px] text-slate-500">
@@ -2105,7 +2105,7 @@ export default function TabelaPrecosPage() {
                                       }))
                                     }
                                     className="w-full min-w-0 px-2 text-[12px] text-slate-700 outline-none"
-                                    placeholder="0,00"
+                                    placeholder={t("cadastros.tabelaPrecos.placeholderValor")}
                                   />
                                 </div>
                                 <button
@@ -2124,7 +2124,7 @@ export default function TabelaPrecosPage() {
                             {listaCustos.length === 0 ? (
                               <div className="flex h-[200px] flex-col items-center justify-center gap-2 text-slate-300">
                                 <Box className="h-10 w-10" />
-                                <p className="text-[12px]">Nada adicionado ainda...</p>
+                                <p className="text-[12px]">{t("cadastros.tabelaPrecos.nadaAdicionado")}</p>
                               </div>
                             ) : (
                               <ul className="divide-y divide-slate-100 py-1">
@@ -2141,7 +2141,7 @@ export default function TabelaPrecosPage() {
                                           type="button"
                                           onClick={() => removerCustoProduto(custoItem.id)}
                                           className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-red-600 hover:bg-red-50"
-                                          title="Remover"
+                                          title={t("cadastros.tabelaPrecos.remover")}
                                           aria-label={`Remover ${custoItem.nome}`}
                                         >
                                           <Trash2 className="h-4 w-4" />
@@ -2172,12 +2172,12 @@ export default function TabelaPrecosPage() {
                       ) : (
                         <div className="grid grid-cols-12 gap-3">
                           <div className="col-span-4">
-                            <label className="mb-1 block text-[11px] text-slate-600">Custo</label>
+                            <label className="mb-1 block text-[11px] text-slate-600">{t("cadastros.tabelaPrecos.custo")}</label>
                             <input
                               value={formCustoItem.custo}
                               onChange={(e) => setFormCustoItem({ custo: formatMoneyInput(e.target.value) })}
                               className="h-9 w-full rounded-sm border border-slate-200 bg-white px-2 text-[12px] text-slate-700 outline-none focus:border-blue-400"
-                              placeholder="0,00"
+                              placeholder={t("cadastros.tabelaPrecos.placeholderValor")}
                             />
                           </div>
                         </div>
@@ -2193,7 +2193,7 @@ export default function TabelaPrecosPage() {
                             onClick={fecharModalCustos}
                             className="h-9 rounded-sm border border-slate-200 bg-white px-4 text-[12px] font-semibold text-slate-600 hover:bg-slate-50"
                           >
-                            Fechar
+                            {t("cadastros.comum.fechar")}
                           </button>
                           <button
                             type="button"
@@ -2266,7 +2266,7 @@ export default function TabelaPrecosPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg rounded bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <h2 className="text-sm font-semibold text-slate-700">Minhas Tabelas</h2>
+              <h2 className="text-sm font-semibold text-slate-700">{t("cadastros.tabelaPrecos.minhasTabelas")}</h2>
               <button type="button" onClick={() => setModalTabelas(false)} className="text-slate-400 hover:text-slate-700">
                 ×
               </button>
@@ -2288,7 +2288,7 @@ export default function TabelaPrecosPage() {
                     }`}
                   >
                     <span>{item}</span>
-                    {item === tabela && <span>Atual</span>}
+                    {item === tabela && <span>{t("cadastros.tabelaPrecos.atual")}</span>}
                   </button>
                 ))}
               </div>
@@ -2308,23 +2308,23 @@ export default function TabelaPrecosPage() {
         <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/45 p-4 pt-16">
           <div className="relative w-full max-w-sm rounded bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-              <h2 className="text-sm font-medium text-slate-700">Cadastrar Tabela</h2>
+              <h2 className="text-sm font-medium text-slate-700">{t("cadastros.tabelaPrecos.cadastrarTabela")}</h2>
               <button
                 type="button"
                 onClick={() => setModalCadastrarTabela(false)}
                 className="flex h-7 w-7 items-center justify-center rounded bg-white text-xl leading-none text-slate-500 hover:bg-slate-100"
-                aria-label="Fechar"
+                aria-label={t("cadastros.comum.fechar")}
               >
                 ×
               </button>
             </div>
             <div className="space-y-4 px-4 py-4">
               <div className="space-y-1">
-                <label className="block text-[11px] font-medium text-slate-600">Nome da Tabela</label>
+                <label className="block text-[11px] font-medium text-slate-600">{t("cadastros.tabelaPrecos.nomeTabela")}</label>
                 <input
                   value={nomeNovaTabela}
                   onChange={(event) => setNomeNovaTabela(event.target.value)}
-                  placeholder="Digite o nome da Tabela"
+                  placeholder={t("cadastros.tabelaPrecos.placeholderNomeTabela")}
                   className="h-9 w-full rounded border border-slate-300 px-3 text-xs outline-none focus:border-primary-500"
                   autoFocus
                 />
@@ -2342,7 +2342,7 @@ export default function TabelaPrecosPage() {
                   onClick={() => setModalCadastrarTabela(false)}
                   className="rounded border border-slate-300 bg-white px-4 py-2 text-xs text-slate-600 hover:bg-slate-50"
                 >
-                  Fechar
+                  {t("cadastros.comum.fechar")}
                 </button>
               </div>
             </div>
@@ -2361,7 +2361,7 @@ export default function TabelaPrecosPage() {
                 type="button"
                 onClick={fecharModalClientesTabela}
                 className="flex h-7 w-7 items-center justify-center rounded bg-white text-xl leading-none text-slate-500 hover:bg-slate-100"
-                aria-label="Fechar"
+                aria-label={t("cadastros.comum.fechar")}
               >
                 ×
               </button>
@@ -2370,13 +2370,13 @@ export default function TabelaPrecosPage() {
               <p className="text-slate-500">
                 Marque os clientes que vão usar esta tabela de preços. O cadastro do cliente será
                 atualizado em{" "}
-                <span className="font-semibold text-slate-700">Configuração → Tabela de Preço</span>.
+                <span className="font-semibold text-slate-700">{t("cadastros.tabelaPrecos.configTabelaPreco")}</span>.
               </p>
               <div className="flex gap-2">
                 <input
                   value={buscaClienteTabela}
                   onChange={(event) => setBuscaClienteTabela(event.target.value)}
-                  placeholder="Procurar cliente..."
+                  placeholder={t("cadastros.tabelaPrecos.procurarCliente")}
                   className="h-9 flex-1 rounded border border-slate-300 px-3 outline-none focus:border-primary-500"
                 />
                 <button
@@ -2392,9 +2392,9 @@ export default function TabelaPrecosPage() {
                   <thead className="sticky top-0 bg-[#f4f3fb] text-slate-500">
                     <tr>
                       <th className="w-10 px-3 py-2 text-center">#</th>
-                      <th className="px-3 py-2 text-left font-semibold uppercase">Cliente</th>
-                      <th className="px-3 py-2 text-left font-semibold uppercase">Cidade</th>
-                      <th className="px-3 py-2 text-left font-semibold uppercase">Tabela atual</th>
+                      <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.tabelaPrecos.colunaCliente")}</th>
+                      <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.comum.cidade")}</th>
+                      <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.tabelaPrecos.tabelaAtual")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -2444,7 +2444,7 @@ export default function TabelaPrecosPage() {
                   onClick={fecharModalClientesTabela}
                   className="rounded border border-slate-300 bg-white px-4 py-2 text-xs text-slate-600 hover:bg-slate-50"
                 >
-                  Fechar
+                  {t("cadastros.comum.fechar")}
                 </button>
                 <button
                   type="button"
@@ -2471,7 +2471,7 @@ export default function TabelaPrecosPage() {
                 type="button"
                 onClick={() => setCategoriaServico(null)}
                 className="flex h-7 w-7 items-center justify-center rounded bg-white text-xl leading-none text-slate-500 hover:bg-slate-100"
-                aria-label="Fechar"
+                aria-label={t("cadastros.comum.fechar")}
               >
                 ×
               </button>
@@ -2479,7 +2479,7 @@ export default function TabelaPrecosPage() {
             <div className="min-h-0 flex-1 space-y-8 overflow-y-auto px-6 py-6 text-xs text-slate-600">
               <div className="grid gap-4 md:grid-cols-[1.4fr_0.85fr_0.85fr_0.65fr_0.65fr]">
                 <div className="space-y-1">
-                  <label className="block text-[11px] text-slate-600">Nome do Serviço</label>
+                  <label className="block text-[11px] text-slate-600">{t("cadastros.tabelaPrecos.nomeServico")}</label>
                   <input
                     value={formServico.nome}
                     onChange={(event) => setFormServico((current) => ({ ...current, nome: event.target.value }))}
@@ -2488,7 +2488,7 @@ export default function TabelaPrecosPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="block text-[11px] text-slate-600">Valor</label>
+                  <label className="block text-[11px] text-slate-600">{t("cadastros.tabelaPrecos.valor")}</label>
                   <div className="flex h-9 overflow-hidden rounded border border-slate-300 bg-white">
                     <span className="flex w-9 items-center justify-center border-r border-slate-200 text-xs text-slate-500">$</span>
                     <input
@@ -2501,7 +2501,7 @@ export default function TabelaPrecosPage() {
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <label className="block text-[11px] text-slate-600">Desconto Repetição</label>
+                  <label className="block text-[11px] text-slate-600">{t("cadastros.tabelaPrecos.descontoRepeticao")}</label>
                   <div className="flex h-9 overflow-hidden rounded border border-slate-300 bg-white">
                     <span className="flex w-9 items-center justify-center border-r border-slate-200 text-xs text-slate-500">%</span>
                     <input
@@ -2514,23 +2514,23 @@ export default function TabelaPrecosPage() {
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <label className="block text-[11px] text-slate-600">Prazo Lab</label>
+                  <label className="block text-[11px] text-slate-600">{t("cadastros.tabelaPrecos.prazoLab")}</label>
                   <input
                     value={formServico.prazo}
                     onChange={(event) => setFormServico((current) => ({ ...current, prazo: event.target.value }))}
-                    placeholder="Dias"
+                    placeholder={t("cadastros.tabelaPrecos.dias")}
                     className="h-9 w-full rounded border border-slate-300 px-3 text-xs outline-none focus:border-primary-500"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="block text-[11px] text-slate-600">Prazo Dentista</label>
+                  <label className="block text-[11px] text-slate-600">{t("cadastros.tabelaPrecos.prazoDentista")}</label>
                   <input
                     value={formServico.prazoDentista}
                     onChange={(event) =>
                       setFormServico((current) => ({ ...current, prazoDentista: event.target.value }))
                     }
-                    placeholder="Dias antes"
-                    title="Dias antes do prazo do laboratório para entrega ao dentista"
+                    placeholder={t("cadastros.tabelaPrecos.diasAntes")}
+                    title={t("cadastros.tabelaPrecos.diasAntesPrazoLab")}
                     className="h-9 w-full rounded border border-slate-300 px-3 text-xs outline-none focus:border-primary-500"
                   />
                 </div>
@@ -2554,7 +2554,7 @@ export default function TabelaPrecosPage() {
                           }}
                           className="h-9 w-full rounded border border-slate-300 bg-white px-3 text-xs outline-none focus:border-primary-500"
                         >
-                          <option value="">Selecione</option>
+                          <option value="">{t("cadastros.comum.selecione")}</option>
                           {colaboradoresCadastro.map((colaborador) => (
                             <option key={colaborador.id} value={colaborador.nome}>
                               {colaborador.nome}
@@ -2567,7 +2567,7 @@ export default function TabelaPrecosPage() {
                         </select>
                       </div>
                       <div className="space-y-1">
-                        <label className="block text-[11px] text-slate-600">Valor da Comissão</label>
+                        <label className="block text-[11px] text-slate-600">{t("cadastros.comum.valorComissao")}</label>
                         <div className="flex h-9 overflow-hidden rounded border border-slate-300 bg-white">
                           <span className="flex w-9 items-center justify-center border-r border-slate-200 text-xs text-slate-500">%</span>
                           <input
@@ -2585,7 +2585,7 @@ export default function TabelaPrecosPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <label className="block text-[11px] text-slate-600">Valor da Comissão (Repetição)</label>
+                        <label className="block text-[11px] text-slate-600">{t("cadastros.comum.valorComissaoRepeticao")}</label>
                         <div className="flex h-9 overflow-hidden rounded border border-slate-300 bg-white">
                           <span className="flex w-9 items-center justify-center border-r border-slate-200 text-xs text-slate-500">%</span>
                           <input
@@ -2603,7 +2603,7 @@ export default function TabelaPrecosPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <label className="block text-[11px] text-slate-600">Padrão</label>
+                        <label className="block text-[11px] text-slate-600">{t("cadastros.tabelaPrecos.padraoLabel")}</label>
                         <select
                           value={comissao.padrao}
                           onChange={(event) =>
@@ -2611,15 +2611,15 @@ export default function TabelaPrecosPage() {
                           }
                           className="h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs outline-none focus:border-primary-500"
                         >
-                          <option>Nao</option>
-                          <option>Sim</option>
+                          <option>{t("cadastros.comum.nao")}</option>
+                          <option>{t("cadastros.comum.sim")}</option>
                         </select>
                       </div>
                       <button
                         type="button"
                         onClick={() => removerComissao("comissoesColaboradores", comissao.id)}
                         className="mb-1 flex h-8 w-8 items-center justify-center rounded border border-red-200 text-red-500 hover:bg-red-50"
-                        aria-label="Remover comissão colaborador"
+                        aria-label={t("cadastros.tabelaPrecos.removerComissaoColaborador")}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -2659,13 +2659,13 @@ export default function TabelaPrecosPage() {
                           }
                           className="h-9 w-full rounded border border-slate-300 bg-white px-3 text-xs outline-none focus:border-primary-500"
                         >
-                          <option value="">Selecione</option>
-                          <option value="Prestador 1">Prestador 1</option>
-                          <option value="Prestador 2">Prestador 2</option>
+                          <option value="">{t("cadastros.comum.selecione")}</option>
+                          <option value="Prestador 1">{t("cadastros.tabelaPrecos.prestador1")}</option>
+                          <option value="Prestador 2">{t("cadastros.tabelaPrecos.prestador2")}</option>
                         </select>
                       </div>
                       <div className="space-y-1">
-                        <label className="block text-[11px] text-slate-600">Valor da Comissão</label>
+                        <label className="block text-[11px] text-slate-600">{t("cadastros.comum.valorComissao")}</label>
                         <div className="flex h-9 overflow-hidden rounded border border-slate-300 bg-white">
                           <span className="flex w-9 items-center justify-center border-r border-slate-200 text-xs text-slate-500">%</span>
                           <input
@@ -2683,7 +2683,7 @@ export default function TabelaPrecosPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <label className="block text-[11px] text-slate-600">Valor da Comissão (Repetição)</label>
+                        <label className="block text-[11px] text-slate-600">{t("cadastros.comum.valorComissaoRepeticao")}</label>
                         <div className="flex h-9 overflow-hidden rounded border border-slate-300 bg-white">
                           <span className="flex w-9 items-center justify-center border-r border-slate-200 text-xs text-slate-500">%</span>
                           <input
@@ -2701,7 +2701,7 @@ export default function TabelaPrecosPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <label className="block text-[11px] text-slate-600">Padrão</label>
+                        <label className="block text-[11px] text-slate-600">{t("cadastros.tabelaPrecos.padraoLabel")}</label>
                         <select
                           value={comissao.padrao}
                           onChange={(event) =>
@@ -2709,15 +2709,15 @@ export default function TabelaPrecosPage() {
                           }
                           className="h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs outline-none focus:border-primary-500"
                         >
-                          <option>Nao</option>
-                          <option>Sim</option>
+                          <option>{t("cadastros.comum.nao")}</option>
+                          <option>{t("cadastros.comum.sim")}</option>
                         </select>
                       </div>
                       <button
                         type="button"
                         onClick={() => removerComissao("comissoesTerceirizados", comissao.id)}
                         className="mb-1 flex h-8 w-8 items-center justify-center rounded border border-red-200 text-red-500 hover:bg-red-50"
-                        aria-label="Remover comissão terceirizado"
+                        aria-label={t("cadastros.tabelaPrecos.removerComissaoTerceirizado")}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -2734,7 +2734,7 @@ export default function TabelaPrecosPage() {
               </div>
 
               <div className="border-t border-slate-100 pt-5">
-                <p className="mb-4 flex items-center gap-2 text-sm text-slate-600">☰ Etapas</p>
+                <p className="mb-4 flex items-center gap-2 text-sm text-slate-600">{t("cadastros.tabelaPrecos.menuEtapas")}</p>
                 {etapasCadastro.length > 0 && (
                   <p className="mb-3 text-[10px] text-slate-500">
                     Opções sincronizadas com{" "}
@@ -2751,7 +2751,7 @@ export default function TabelaPrecosPage() {
                         type="button"
                         onClick={() => removerEtapa(etapa.id)}
                         className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded border border-red-200 text-red-500 hover:bg-red-50"
-                        aria-label="Remover etapa"
+                        aria-label={t("cadastros.tabelaPrecos.removerEtapa")}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -2781,7 +2781,7 @@ export default function TabelaPrecosPage() {
                         </select>
                       </div>
                       <div className="space-y-1">
-                        <label className="block text-[11px] text-slate-600">Valor da Etapa</label>
+                        <label className="block text-[11px] text-slate-600">{t("cadastros.tabelaPrecos.valorEtapa")}</label>
                         <div className="flex h-9 overflow-hidden rounded border border-slate-300 bg-white">
                           <span className="flex w-9 items-center justify-center border-r border-slate-200 text-xs text-slate-500">$</span>
                           <input
@@ -2827,7 +2827,7 @@ export default function TabelaPrecosPage() {
                   onClick={() => setCategoriaServico(null)}
                   className="rounded border border-slate-300 bg-white px-4 py-2 text-xs text-slate-600 hover:bg-slate-50"
                 >
-                  Fechar
+                  {t("cadastros.comum.fechar")}
                 </button>
               </div>
             </div>
@@ -2846,7 +2846,7 @@ export default function TabelaPrecosPage() {
                 type="button"
                 onClick={fecharModalEtapas}
                 className="text-xl text-slate-400 hover:text-slate-700"
-                aria-label="Fechar"
+                aria-label={t("cadastros.comum.fechar")}
               >
                 ×
               </button>
@@ -2871,7 +2871,7 @@ export default function TabelaPrecosPage() {
                       type="button"
                       onClick={() => removerEtapa(etapa.id)}
                       className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded border border-red-200 text-red-500 hover:bg-red-50"
-                      aria-label="Remover etapa"
+                      aria-label={t("cadastros.tabelaPrecos.removerEtapa")}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -2901,7 +2901,7 @@ export default function TabelaPrecosPage() {
                       </select>
                     </div>
                     <div className="space-y-1">
-                      <label className="block text-[11px] text-slate-600">Valor da Etapa</label>
+                      <label className="block text-[11px] text-slate-600">{t("cadastros.tabelaPrecos.valorEtapa")}</label>
                       <div className="flex h-9 overflow-hidden rounded border border-slate-300 bg-white">
                         <span className="flex w-9 items-center justify-center border-r border-slate-200 text-xs text-slate-500">
                           $
@@ -2959,12 +2959,12 @@ export default function TabelaPrecosPage() {
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 p-4">
           <div className="w-full max-w-md rounded bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <h2 className="text-sm font-semibold text-slate-700">Cadastrar etapas do serviço</h2>
+              <h2 className="text-sm font-semibold text-slate-700">{t("cadastros.tabelaPrecos.cadastrarEtapasServico")}</h2>
               <button
                 type="button"
                 onClick={() => setModalCadastroEtapasServico(false)}
                 className="text-xl text-slate-400 hover:text-slate-700"
-                aria-label="Fechar"
+                aria-label={t("cadastros.comum.fechar")}
               >
                 ×
               </button>
@@ -2987,7 +2987,7 @@ export default function TabelaPrecosPage() {
                       adicionarOpcaoEtapaServico();
                     }
                   }}
-                  placeholder="Nome da etapa"
+                  placeholder={t("cadastros.tabelaPrecos.nomeEtapa")}
                   className="h-9 flex-1 rounded border border-slate-300 px-3 outline-none focus:border-primary-500"
                   autoFocus
                 />
@@ -3021,14 +3021,14 @@ export default function TabelaPrecosPage() {
                               ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
                               : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                           )}
-                          title={jaNaTabela ? "Etapa já adicionada ao serviço" : "Adicionar etapa ao serviço"}
+                          title={jaNaTabela ? t("cadastros.tabelaPrecos.etapaJaAdicionada") : t("cadastros.tabelaPrecos.adicionarEtapaServico")}
                           aria-label={jaNaTabela ? `${opcao} já adicionada` : `Adicionar ${opcao}`}
                         >
                           <Plus className="h-3.5 w-3.5" />
                         </button>
                         <span className="truncate text-slate-700">
                         {opcao}
-                        {padrao && <span className="ml-1 text-[10px] text-slate-400">(padrão)</span>}
+                        {padrao && <span className="ml-1 text-[10px] text-slate-400">{t("cadastros.tabelaPrecos.padrao")}</span>}
                       </span>
                       </div>
                       {!padrao && (
@@ -3063,14 +3063,14 @@ export default function TabelaPrecosPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg rounded bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <h2 className="text-sm font-semibold text-slate-700">Editar Tabela</h2>
+              <h2 className="text-sm font-semibold text-slate-700">{t("cadastros.tabelaPrecos.editarTabela")}</h2>
               <button type="button" onClick={() => setModalEditarTabela(false)} className="text-slate-400 hover:text-slate-700">
                 ×
               </button>
             </div>
             <div className="space-y-4 p-5">
               <div className="space-y-1">
-                <label className="block text-xs font-medium text-slate-600">Nome da Tabela</label>
+                <label className="block text-xs font-medium text-slate-600">{t("cadastros.tabelaPrecos.nomeTabela")}</label>
                 <input
                   value={nomeTabelaEditando}
                   onChange={(event) => setNomeTabelaEditando(event.target.value)}
@@ -3083,7 +3083,7 @@ export default function TabelaPrecosPage() {
                   onClick={() => setModalEditarTabela(false)}
                   className="rounded border border-slate-300 px-4 py-2 text-xs text-slate-600 hover:bg-slate-50"
                 >
-                  Fechar
+                  {t("cadastros.comum.fechar")}
                 </button>
                 <button
                   type="button"
@@ -3102,12 +3102,12 @@ export default function TabelaPrecosPage() {
         <div className="fixed inset-0 z-[70] flex items-start justify-center bg-black/45 p-4 pt-10">
           <div className="relative w-full max-w-4xl rounded bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-              <h2 className="text-sm font-semibold text-slate-700">Adicionar Produtos — Tabela de Preços</h2>
+              <h2 className="text-sm font-semibold text-slate-700">{t("cadastros.tabelaPrecos.adicionarProdutos")}</h2>
               <button
                 type="button"
                 onClick={fecharModalProdutos}
                 className="flex h-7 w-7 items-center justify-center rounded text-xl text-slate-500 hover:bg-slate-100"
-                aria-label="Fechar"
+                aria-label={t("cadastros.comum.fechar")}
               >
                 ×
               </button>
@@ -3118,7 +3118,7 @@ export default function TabelaPrecosPage() {
                   <input
                     value={buscaProdutoEstoque}
                     onChange={(event) => setBuscaProdutoEstoque(event.target.value)}
-                    placeholder="Nome do Produto"
+                    placeholder={t("cadastros.tabelaPrecos.nomeProduto")}
                     className="h-9 flex-1 rounded-l border border-slate-300 px-3 text-xs outline-none focus:border-primary-500"
                   />
                   <button
@@ -3156,13 +3156,13 @@ export default function TabelaPrecosPage() {
                             }
                           }}
                           className="h-3.5 w-3.5 accent-primary-600"
-                          title="Selecionar todos"
+                          title={t("cadastros.tabelaPrecos.selecionarTodos")}
                         />
                       </th>
-                      <th className="px-3 py-2 text-left font-semibold uppercase">Nome</th>
-                      <th className="w-32 px-3 py-2 text-left font-semibold uppercase">Marca</th>
-                      <th className="w-28 px-3 py-2 text-right font-semibold uppercase">Valor de custo</th>
-                      <th className="w-28 px-3 py-2 text-right font-semibold uppercase">Valor de venda</th>
+                      <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.comum.nome")}</th>
+                      <th className="w-32 px-3 py-2 text-left font-semibold uppercase">{t("cadastros.tabelaPrecos.marca")}</th>
+                      <th className="w-28 px-3 py-2 text-right font-semibold uppercase">{t("cadastros.tabelaPrecos.valorCusto")}</th>
+                      <th className="w-28 px-3 py-2 text-right font-semibold uppercase">{t("cadastros.tabelaPrecos.valorVenda")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -3224,7 +3224,7 @@ export default function TabelaPrecosPage() {
                   onClick={fecharModalProdutos}
                   className="rounded border border-slate-300 bg-white px-6 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 sm:w-32"
                 >
-                  Fechar
+                  {t("cadastros.comum.fechar")}
                 </button>
               </div>
             </div>
@@ -3234,9 +3234,9 @@ export default function TabelaPrecosPage() {
 
       <ConfirmacaoExclusaoModal
         open={!!categoriaParaRemover}
-        titulo="Excluir categoria"
-        mensagem="Deseja realmente remover esta categoria e todos os itens?"
-        aviso="Atenção!! Esta ação não pode ser desfeita."
+        titulo={t("cadastros.tabelaPrecos.excluirCategoriaTitulo")}
+        mensagem={t("cadastros.tabelaPrecos.excluirCategoriaMensagem")}
+        aviso={t("cadastros.comum.avisoAcaoIrreversivel")}
         detalhe={categoriaParaRemover?.nome}
         onClose={() => setCategoriaParaRemover(null)}
         onConfirm={confirmarRemoverCategoria}
@@ -3244,9 +3244,9 @@ export default function TabelaPrecosPage() {
 
       <ConfirmacaoExclusaoModal
         open={!!tabelaParaExcluir}
-        titulo="Excluir tabela"
-        mensagem="Deseja realmente excluir esta tabela de preços?"
-        aviso="Atenção!! Esta ação não pode ser desfeita."
+        titulo={t("cadastros.tabelaPrecos.excluirTabelaTitulo")}
+        mensagem={t("cadastros.tabelaPrecos.excluirTabelaMensagem")}
+        aviso={t("cadastros.comum.avisoAcaoIrreversivel")}
         detalhe={tabelaParaExcluir ?? undefined}
         onClose={() => setTabelaParaExcluir(null)}
         onConfirm={confirmarExcluirTabela}
@@ -3290,7 +3290,7 @@ export default function TabelaPrecosPage() {
                 />
               </div>
               <div className="space-y-1">
-                <label className="font-medium text-slate-600">Valor</label>
+                <label className="font-medium text-slate-600">{t("cadastros.tabelaPrecos.valor")}</label>
                 <div className="flex h-9 overflow-hidden rounded border border-slate-300">
                   <span className="flex w-9 items-center justify-center border-r border-slate-200 text-slate-500">$</span>
                   <input
@@ -3324,7 +3324,7 @@ export default function TabelaPrecosPage() {
                   onClick={fecharModalTransporte}
                   className="rounded border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
                 >
-                  Fechar
+                  {t("cadastros.comum.fechar")}
                 </button>
               </div>
             </div>

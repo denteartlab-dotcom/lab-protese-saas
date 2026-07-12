@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Shield } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 
 export default function MasterLoginForm() {
+  const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("admin@labprotese.com");
@@ -37,14 +39,14 @@ export default function MasterLoginForm() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setErro(data.error || "Credenciais inválidas.");
+        setErro(data.error || t("admin.master.login.erroCredenciais"));
         return;
       }
       const destino = searchParams.get("redirect") || "/admin-master";
       router.replace(destino);
       router.refresh();
     } catch {
-      setErro("Erro de conexão. Tente novamente.");
+      setErro(t("admin.master.login.erroConexao"));
     } finally {
       setCarregando(false);
     }
@@ -57,13 +59,15 @@ export default function MasterLoginForm() {
           <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#4a90d9] text-white">
             <Shield className="h-7 w-7" />
           </div>
-          <h1 className="text-lg font-semibold text-slate-800">Painel Master</h1>
-          <p className="mt-1 text-sm text-slate-500">Acesso exclusivo do proprietário da plataforma</p>
+          <h1 className="text-lg font-semibold text-slate-800">{t("admin.master.login.titulo")}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t("admin.master.login.subtitulo")}</p>
         </div>
 
         <form onSubmit={enviar} className="space-y-4">
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">E-mail</label>
+            <label className="mb-1 block text-xs font-medium text-slate-600">
+              {t("admin.master.campo.email")}
+            </label>
             <input
               type="email"
               value={email}
@@ -74,7 +78,9 @@ export default function MasterLoginForm() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Senha</label>
+            <label className="mb-1 block text-xs font-medium text-slate-600">
+              {t("admin.master.campo.senha")}
+            </label>
             <div className="relative">
               <input
                 type={mostrarSenha ? "text" : "password"}
@@ -100,7 +106,7 @@ export default function MasterLoginForm() {
               onChange={(e) => setRemember(e.target.checked)}
               className="rounded border-slate-300"
             />
-            Manter conectado
+            {t("admin.master.login.manterConectado")}
           </label>
           {erro && (
             <p className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">{erro}</p>
@@ -110,7 +116,7 @@ export default function MasterLoginForm() {
             disabled={carregando}
             className="w-full rounded-md bg-[#4a90d9] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#3a7bc8] disabled:opacity-60"
           >
-            {carregando ? "Entrando..." : "Entrar no Painel Master"}
+            {carregando ? t("admin.master.login.entrando") : t("admin.master.login.entrar")}
           </button>
         </form>
       </div>

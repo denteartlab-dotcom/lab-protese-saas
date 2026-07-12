@@ -18,6 +18,22 @@ const ROTULOS: Record<FormaPagamentoOrcamento, string> = {
   boleto: "Boleto",
 };
 
+type TradutorOrcamento = (
+  key: `estoque.orcamentos.pagamento.${FormaPagamentoOrcamento}` | "estoque.orcamentos.pagamento.parcelas",
+  params?: Record<string, string | number>
+) => string;
+
+export function rotuloCondicoesPagamentoI18n(
+  c: CondicoesPagamentoOrcamento,
+  t: TradutorOrcamento
+): string {
+  const base = t(`estoque.orcamentos.pagamento.${c.forma}`);
+  if (c.forma === "cartao_credito" || c.forma === "boleto") {
+    return t("estoque.orcamentos.pagamento.parcelas", { base, parcelas: c.parcelas });
+  }
+  return base;
+}
+
 export function rotuloCondicoesPagamento(c: CondicoesPagamentoOrcamento): string {
   const base = ROTULOS[c.forma];
   if (c.forma === "cartao_credito" || c.forma === "boleto") {

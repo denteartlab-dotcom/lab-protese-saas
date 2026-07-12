@@ -1,3 +1,5 @@
+import { pl } from "@/lib/i18n/print-i18n";
+
 /** Converte a primeira página de um PDF em data URL PNG (uso no cliente). */
 export async function pdfPrimeiraPaginaParaDataUrl(
   arquivo: File,
@@ -17,7 +19,7 @@ export async function pdfPrimeiraPaginaParaDataUrl(
   canvas.width = viewport.width;
   canvas.height = viewport.height;
   const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Não foi possível preparar o canvas.");
+  if (!ctx) throw new Error(pl("print.comum.erroPrepararCanvas"));
 
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);

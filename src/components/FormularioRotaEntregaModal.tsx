@@ -1,7 +1,6 @@
 "use client";
 
 import { useI18n } from "@/components/i18n-provider";
-import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect, useMemo, useState } from "react";
 import { MapPin, Truck, User } from "lucide-react";
 import { Modal, SelectPesquisavel } from "@/components/ui";
@@ -21,7 +20,6 @@ import {
   formRotaParaEntrega,
   formatarCepEntrega,
   formatarMoedaEntrega,
-  labelNomeDestinatario,
   TIPOS_DESTINATARIO_ENTREGA,
   TIPOS_ENTREGADOR,
   type EntregaControle,
@@ -111,6 +109,30 @@ export function FormularioRotaEntregaModal({
   onSalvo,
 }: Props) {
   const { t } = useI18n();
+
+  const opcoesTipoDestinatario = useMemo(
+    () =>
+      TIPOS_DESTINATARIO_ENTREGA.map((item) => ({
+        value: item.value,
+        label:
+          item.value === ""
+            ? t("producao.entregas.rota.selecioneDestinatario")
+            : item.value === "cliente"
+              ? t("producao.entregas.rota.tipoCliente")
+              : item.value === "fornecedor"
+                ? t("producao.entregas.rota.tipoFornecedor")
+                : t("producao.entregas.rota.tipoPrestador"),
+      })),
+    [t]
+  );
+
+  function labelNomeDestinatarioI18n(tipo: TipoDestinatarioEntregaForm) {
+    if (tipo === "cliente") return t("producao.entregas.rota.nomeCliente");
+    if (tipo === "fornecedor") return t("producao.entregas.rota.nomeFornecedor");
+    if (tipo === "prestador") return t("producao.entregas.rota.nomePrestador");
+    return t("producao.entregas.rota.nomeDestinatario");
+  }
+
   const [form, setForm] = useState<FormRotaEntrega>(formRotaEntregaPadrao());
   const [clientes, setClientes] = useState<ClienteApi[]>([]);
   const [entregadoresCadastro, setEntregadoresCadastro] = useState<EntregadorCadastro[]>([]);
@@ -264,7 +286,7 @@ export function FormularioRotaEntregaModal({
       const data = await res.json();
       const trabalho = (Array.isArray(data) ? data[0] : null) as TrabalhoApi | null;
       if (!trabalho) {
-        alert("OS não encontrada.");
+        alert(t("producao.entregas.rota.osNaoEncontrada"));
         return;
       }
       setForm((atual) => {
@@ -296,7 +318,7 @@ export function FormularioRotaEntregaModal({
       const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
       const data = await res.json();
       if (data.erro) {
-        alert("CEP não encontrado.");
+        alert(t("cadastros.comum.alerta.cepNaoEncontrado"));
         return;
       }
       setForm((atual) => ({
@@ -342,20 +364,27 @@ export function FormularioRotaEntregaModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={editando ? "Editar Rota de Entrega" : "Cadastrar Rota de Entrega"}
+      title={
+        editando
+          ? t("producao.entregas.rota.editarTitulo")
+          : t("producao.entregas.rota.cadastrarTitulo")
+      }
       size="xl"
     >
       <form onSubmit={salvar} className="space-y-5 text-[11px] text-slate-600">
         <section className="space-y-3">
-          {tituloSecao(<User className="h-3.5 w-3.5" />, "Cadastrar Rota de Entrega")}
+          {tituloSecao(
+            <User className="h-3.5 w-3.5" />,
+            t("producao.entregas.rota.cadastrarTitulo")
+          )}
           <div className="grid gap-3 md:grid-cols-[1.2fr_0.8fr_1fr]">
             <div>
-              {labelCampo("Número da OS (opcional)")}
+              {labelCampo(t("producao.entregas.rota.numeroOsOpcional"))}
               <div className="flex gap-1">
                 <input
                   value={form.numeroOs}
                   onChange={(e) => atualizar("numeroOs", e.target.value)}
-                  placeholder="Buscar informações pela OS"
+                  placeholder={t("producao.entregas.rota.buscarInfoOs")}
                   className={inputClassName()}
                 />
                 <button
@@ -364,12 +393,12 @@ export function FormularioRotaEntregaModal({
                   disabled={buscandoOs}
                   className="h-8 shrink-0 rounded border border-slate-300 bg-slate-100 px-3 text-[10px] font-semibold text-slate-600 hover:bg-slate-200 disabled:opacity-60"
                 >
-                  {buscandoOs ? "..." : "Buscar"}
+                  {buscandoOs ? "..." : t("cadastros.comum.buscar")}
                 </button>
               </div>
             </div>
             <div>
-              {labelCampo("Tipo Destinatário")}
+              {labelCampo(t("producao.entregas.rota.tipoDestinatario"))}
               <select
                 value={form.tipoDestinatario}
                 onChange={(e) => {
@@ -382,7 +411,7 @@ export function FormularioRotaEntregaModal({
                 }}
                 className={selectClassName()}
               >
-                {TIPOS_DESTINATARIO_ENTREGA.map((item) => (
+                {opcoesTipoDestinatario.map((item) => (
                   <option key={item.value || "placeholder"} value={item.value}>
                     {item.label}
                   </option>
@@ -391,10 +420,10 @@ export function FormularioRotaEntregaModal({
             </div>
             <div>
               <SelectPesquisavel
-                label={labelNomeDestinatario(form.tipoDestinatario)}
+                label={labelNomeDestinatarioI18n(form.tipoDestinatario)}
                 value={form.nomeDestinatario}
                 onChange={aoSelecionarDestinatario}
-                placeholder="Selecione"
+                placeholder={t("cadastros.comum.selecione")}
                 disabled={!form.tipoDestinatario}
                 inputClassName={selectClassName()}
                 menuEmPortal
@@ -405,15 +434,15 @@ export function FormularioRotaEntregaModal({
         </section>
 
         <section className="space-y-3">
-          {tituloSecao(<MapPin className="h-3.5 w-3.5" />, "Endereço")}
+          {tituloSecao(<MapPin className="h-3.5 w-3.5" />, t("cadastros.comum.endereco"))}
           <div className="grid gap-3 md:grid-cols-[0.9fr_1.6fr_0.5fr]">
             <div>
-              {labelCampo("CEP")}
+              {labelCampo(t("cadastros.comum.cep"))}
               <div className="flex gap-1">
                 <input
                   value={form.cep}
                   onChange={(e) => atualizar("cep", formatarCepEntrega(e.target.value))}
-                  placeholder="00000-000"
+                  placeholder={t("producao.entregas.rota.placeholderCep")}
                   className={inputClassName()}
                 />
                 <button
@@ -422,12 +451,12 @@ export function FormularioRotaEntregaModal({
                   disabled={buscandoCep}
                   className="h-8 shrink-0 rounded border border-slate-300 bg-slate-100 px-2 text-[9px] font-semibold text-slate-600 hover:bg-slate-200 disabled:opacity-60"
                 >
-                  {buscandoCep ? "..." : "Buscar Endereço"}
+                  {buscandoCep ? "..." : t("cadastros.comum.buscarEndereco")}
                 </button>
               </div>
             </div>
             <div>
-              {labelCampo("Rua")}
+              {labelCampo(t("cadastros.comum.rua"))}
               <input
                 value={form.rua}
                 onChange={(e) => atualizar("rua", e.target.value)}
@@ -435,7 +464,7 @@ export function FormularioRotaEntregaModal({
               />
             </div>
             <div>
-              {labelCampo("Número")}
+              {labelCampo(t("cadastros.comum.numero"))}
               <input
                 value={form.numeroEndereco}
                 onChange={(e) => atualizar("numeroEndereco", e.target.value)}
@@ -445,7 +474,7 @@ export function FormularioRotaEntregaModal({
           </div>
           <div className="grid gap-3 md:grid-cols-4">
             <div>
-              {labelCampo("Cidade")}
+              {labelCampo(t("cadastros.comum.cidade"))}
               <input
                 value={form.cidade}
                 onChange={(e) => atualizar("cidade", e.target.value)}
@@ -453,7 +482,7 @@ export function FormularioRotaEntregaModal({
               />
             </div>
             <div>
-              {labelCampo("UF")}
+              {labelCampo(t("cadastros.comum.uf"))}
               <input
                 value={form.uf}
                 onChange={(e) => atualizar("uf", e.target.value.toUpperCase().slice(0, 2))}
@@ -461,7 +490,7 @@ export function FormularioRotaEntregaModal({
               />
             </div>
             <div>
-              {labelCampo("Bairro")}
+              {labelCampo(t("cadastros.comum.bairro"))}
               <input
                 value={form.bairro}
                 onChange={(e) => atualizar("bairro", e.target.value)}
@@ -469,7 +498,7 @@ export function FormularioRotaEntregaModal({
               />
             </div>
             <div>
-              {labelCampo("Complemento")}
+              {labelCampo(t("cadastros.comum.complemento"))}
               <input
                 value={form.complemento}
                 onChange={(e) => atualizar("complemento", e.target.value)}
@@ -480,36 +509,36 @@ export function FormularioRotaEntregaModal({
         </section>
 
         <section className="space-y-3">
-          {tituloSecao(<Truck className="h-3.5 w-3.5" />, "Entregador")}
+          {tituloSecao(<Truck className="h-3.5 w-3.5" />, t("producao.comum.entregador"))}
           <div className="grid gap-3 md:grid-cols-4">
             <div>
               <SelectPesquisavel
-                label="Nome do Entregador*"
+                label={t("producao.entregas.rota.nomeEntregadorObrigatorio")}
                 value={form.entregador}
                 onChange={aoSelecionarEntregador}
-                placeholder="Selecione"
+                placeholder={t("cadastros.comum.selecione")}
                 inputClassName={selectClassName()}
                 menuEmPortal
                 options={opcoesEntregador}
               />
               {entregadoresCadastro.length === 0 ? (
                 <p className="mt-1 text-[10px] text-slate-500">
-                  Nenhum entregador cadastrado. Cadastre em Cadastros › Entregadores.
+                  {t("producao.entregas.rota.semEntregadorCadastro")}
                 </p>
               ) : null}
             </div>
             <div>
               <CampoDataBr
-                label="Data*"
+                label={`${t("producao.comum.data")}*`}
                 value={form.dataEntrega}
                 onChange={(valor) => atualizar("dataEntrega", valor)}
-                placeholder="dd/mm/aaaa"
+                placeholder={t("cadastros.comum.placeholderData")}
                 inputClassName="h-8 text-[11px]"
                 className="[&_label]:text-[11px]"
               />
             </div>
             <div>
-              {labelCampo("Hora")}
+              {labelCampo(t("producao.entregas.rota.hora"))}
               <input
                 type="time"
                 value={form.hora}
@@ -518,7 +547,7 @@ export function FormularioRotaEntregaModal({
               />
             </div>
             <div>
-              {labelCampo("Valor")}
+              {labelCampo(t("producao.comum.valor"))}
               <div className="flex h-8 items-center overflow-hidden rounded border border-[#d1d5db] bg-white">
                 <span className="border-r border-slate-200 bg-slate-50 px-2 text-[11px] text-slate-500">
                   R$
@@ -535,13 +564,13 @@ export function FormularioRotaEntregaModal({
           </div>
           <div className="grid gap-3 md:grid-cols-3">
             <div>
-              {labelCampo("Tipo Entregador")}
+              {labelCampo(t("cadastros.comum.tipoEntregador"))}
               <select
                 value={form.tipoEntregador}
                 onChange={(e) => atualizar("tipoEntregador", e.target.value)}
                 className={selectClassName()}
               >
-                <option value="">Selecione</option>
+                <option value="">{t("cadastros.comum.selecione")}</option>
                 {TIPOS_ENTREGADOR.map((tipo) => (
                   <option key={tipo} value={tipo}>
                     {tipo}
@@ -550,12 +579,12 @@ export function FormularioRotaEntregaModal({
               </select>
             </div>
             <div>
-              {labelCampo("Descrição*")}
+              {labelCampo(`${t("producao.comum.descricao")}*`)}
               <input
                 list="descricoes-rota"
                 value={form.descricao}
                 onChange={(e) => atualizar("descricao", e.target.value)}
-                placeholder="Selecione na lista ou digite"
+                placeholder={t("producao.entregas.rota.descricaoPlaceholder")}
                 className={inputClassName()}
                 required
               />
@@ -566,7 +595,7 @@ export function FormularioRotaEntregaModal({
               </datalist>
             </div>
             <div>
-              {labelCampo("Observação")}
+              {labelCampo(t("producao.entregas.rota.observacao"))}
               <input
                 value={form.observacao}
                 onChange={(e) => atualizar("observacao", e.target.value)}
@@ -582,18 +611,19 @@ export function FormularioRotaEntregaModal({
               type="submit"
               className="rounded bg-[#4a90d9] px-4 py-2 text-[11px] font-semibold text-white hover:bg-[#3d7fc4]"
             >
-              Gravar Alterações
+              {t("common.gravarAlteracoes")}
             </button>
             <button
               type="button"
               onClick={onClose}
               className="rounded border border-slate-300 bg-white px-4 py-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
             >
-              Fechar
+              {t("cadastros.comum.fechar")}
             </button>
           </div>
           <p className="text-[11px] text-slate-500">
-            Destinatário: <span className="font-medium text-slate-700">{destinatarioRodape}</span>
+            {t("producao.entregas.rota.destinatarioRodape")}{" "}
+            <span className="font-medium text-slate-700">{destinatarioRodape}</span>
           </p>
         </div>
       </form>

@@ -1,17 +1,9 @@
 "use client";
 
+import { useI18n } from "@/components/i18n-provider";
+import { htmlLangAttr } from "@/lib/i18n";
 import type { SuporteMensagemDto } from "@/lib/suporte-chat-types";
 import { cn } from "@/lib/utils";
-
-function formatarHora(iso: string) {
-  return new Date(iso).toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-}
 
 export function SuporteMensagemBubble({
   mensagem,
@@ -20,10 +12,19 @@ export function SuporteMensagemBubble({
   mensagem: SuporteMensagemDto;
   alinhamento: "esquerda" | "direita";
 }) {
+  const { t, locale } = useI18n();
   const ehDireita = alinhamento === "direita";
   const mostrarNome =
     (mensagem.remetenteTipo === "suporte" && !ehDireita) ||
     (mensagem.remetenteTipo === "usuario" && !ehDireita);
+
+  const horaFormatada = new Date(mensagem.createdAt).toLocaleString(htmlLangAttr(locale), {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 
   return (
     <div className={cn("flex", ehDireita ? "justify-end" : "justify-start")}>
@@ -55,7 +56,7 @@ export function SuporteMensagemBubble({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={mensagem.imagemUrl}
-              alt="Imagem enviada no chat"
+              alt={t("suporte.imagemEnviada")}
               className="max-h-48 max-w-full object-contain"
             />
           </a>
@@ -69,7 +70,7 @@ export function SuporteMensagemBubble({
             ehDireita ? "text-white/70" : "text-slate-400"
           )}
         >
-          {formatarHora(mensagem.createdAt)}
+          {horaFormatada}
         </p>
       </div>
     </div>

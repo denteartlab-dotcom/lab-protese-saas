@@ -4,6 +4,7 @@ import { I18nPortal } from "@/components/I18nPortal";
 import { useI18n } from "@/components/i18n-provider";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Plus, Trash2, X } from "lucide-react";
+import type { MessageKey } from "@/lib/i18n";
 import { propsInputComSelecaoAoFocar } from "@/lib/input-selecao";
 import {
   calcularTotaisItens,
@@ -67,7 +68,10 @@ type Props = {
 
 type OpcaoContato = { value: string; label: string };
 
-function telefonesDoFornecedor(fornecedor: FornecedorContato): OpcaoContato[] {
+function telefonesDoFornecedor(
+  fornecedor: FornecedorContato,
+  t: (key: MessageKey, params?: Record<string, string | number>) => string
+): OpcaoContato[] {
   const opcoes: OpcaoContato[] = [];
   const vistos = new Set<string>();
 
@@ -79,10 +83,15 @@ function telefonesDoFornecedor(fornecedor: FornecedorContato): OpcaoContato[] {
   };
 
   adicionar(fornecedor.whatsapp, fornecedor.whatsapp);
-  adicionar(fornecedor.celular, `Celular — ${fornecedor.celular}`);
+  adicionar(
+    fornecedor.celular,
+    t("estoque.orcamentos.telefoneCelular", { numero: fornecedor.celular || "" })
+  );
   adicionar(
     fornecedor.representanteWhatsapp,
-    `WhatsApp representante — ${fornecedor.representanteWhatsapp}`
+    t("estoque.orcamentos.telefoneWhatsappRep", {
+      numero: fornecedor.representanteWhatsapp || "",
+    })
   );
 
   return opcoes;
@@ -111,8 +120,9 @@ export function OrcamentoFormModal({
   );
 
   const telefonesFornecedor = useMemo(
-    () => (fornecedorSelecionado ? telefonesDoFornecedor(fornecedorSelecionado) : []),
-    [fornecedorSelecionado]
+    () =>
+      fornecedorSelecionado ? telefonesDoFornecedor(fornecedorSelecionado, t) : [],
+    [fornecedorSelecionado, t]
   );
 
   const aoSelecionarFornecedor = useCallback(
@@ -125,7 +135,7 @@ export function OrcamentoFormModal({
       const fornecedor = fornecedores.find((item) => item.id === id);
       if (!fornecedor) return;
 
-      const telefones = telefonesDoFornecedor(fornecedor);
+      const telefones = telefonesDoFornecedor(fornecedor, t);
       const whatsapp = whatsappSalvo?.trim();
 
       setWhatsappEnvio(
@@ -134,7 +144,7 @@ export function OrcamentoFormModal({
           : telefones[0]?.value || ""
       );
     },
-    [fornecedores]
+    [fornecedores, t]
   );
 
   const produtosMap = useMemo(
@@ -264,14 +274,14 @@ export function OrcamentoFormModal({
     const fornecedor = fornecedores.find((item) => item.id === fornecedorId);
     if (!fornecedor) return;
 
-    const telefones = telefonesDoFornecedor(fornecedor);
+    const telefones = telefonesDoFornecedor(fornecedor, t);
 
     if (whatsappEnvio && !telefones.some((item) => item.value === whatsappEnvio)) {
       setWhatsappEnvio(telefones[0]?.value || "");
     } else if (!whatsappEnvio && telefones[0]) {
       setWhatsappEnvio(telefones[0].value);
     }
-  }, [open, fornecedores, fornecedorId, somenteLeitura, whatsappEnvio]);
+  }, [open, fornecedores, fornecedorId, somenteLeitura, whatsappEnvio, t]);
 
   useEffect(() => {
     if (!open || somenteLeitura || orcamento || !preencherZerados) return;
@@ -350,12 +360,12 @@ export function OrcamentoFormModal({
     if (itensSelecionados.length === 0) return;
 
     if (!fornecedorId) {
-      alert("Selecione o fornecedor para enviar o orçamento.");
+      alert(t("estoque.orcamentos.alerta.selecioneFornecedor"));
       return;
     }
 
     if (!whatsappEnvio.trim()) {
-      alert("Cadastre um WhatsApp ou celular no fornecedor selecionado.");
+      alert(t("estoque.orcamentos.alerta.cadastreWhatsapp"));
       return;
     }
 
@@ -390,8 +400,7 @@ export function OrcamentoFormModal({
         const envio = await dispararOuAbrirWhatsapp(resultado.whatsappEnvio, texto);
         if (envio.modo === "erro") {
           window.alert(
-            envio.error ||
-              "Orçamento salvo, mas não foi possível enviar pelo WhatsApp. Verifique o número ou a conexão em Configurações → WhatsApp."
+            envio.error || t("estoque.orcamentos.alerta.salvoWhatsappErro")
           );
         }
       }
@@ -421,7 +430,7 @@ export function OrcamentoFormModal({
             type="button"
             onClick={onClose}
             className="text-slate-400 hover:text-slate-600"
-            aria-label="Fechar"
+            aria-label={t("estoque.orcamentos.fechar")}
           >
             <X className="h-5 w-5" />
           </button>
@@ -447,20 +456,20 @@ export function OrcamentoFormModal({
                   }`}
                 />
               </span>
-              <span className="text-[11px] text-slate-600">Mostrar produtos com estoque zero</span>
+              <span className="text-[11px] text-slate-600">{t("estoque.orcamentos.mostrarZerados")}</span>
             </label>
           )}
 
           <div className="mb-3 grid gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-1 block text-[11px] text-slate-600">Fornecedor</label>
+              <label className="mb-1 block text-[11px] text-slate-600">{t("estoque.orcamentos.fornecedor")}</label>
               <select
                 value={fornecedorId}
                 disabled={somenteLeitura}
                 onChange={(e) => aoSelecionarFornecedor(e.target.value)}
                 className="h-9 w-full rounded-sm border border-slate-200 bg-white px-2 text-[11px] text-slate-600 outline-none focus:border-blue-400 disabled:bg-slate-50"
               >
-                <option value="">Selecione o fornecedor</option>
+                <option value="">{t("estoque.orcamentos.selecioneFornecedor")}</option>
                 {fornecedores.map((fornecedor) => (
                   <option key={fornecedor.id} value={fornecedor.id}>
                     {fornecedor.nome}
@@ -469,7 +478,7 @@ export function OrcamentoFormModal({
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-[11px] text-slate-600">Whatsapp:</label>
+              <label className="mb-1 block text-[11px] text-slate-600">{t("estoque.orcamentos.whatsapp")}</label>
               <select
                 value={whatsappEnvio}
                 disabled={somenteLeitura || !fornecedorId}
@@ -479,9 +488,9 @@ export function OrcamentoFormModal({
                 <option value="">
                   {fornecedorId
                     ? telefonesFornecedor.length > 0
-                      ? "Selecione um telefone"
-                      : "Sem telefone no cadastro"
-                    : "Selecione o fornecedor antes"}
+                      ? t("estoque.orcamentos.selecioneTelefone")
+                      : t("estoque.orcamentos.semTelefoneCadastro")
+                    : t("estoque.orcamentos.selecioneFornecedorAntes")}
                 </option>
                 {telefonesFornecedor.map((opcao) => (
                   <option key={opcao.value} value={opcao.value}>
@@ -491,14 +500,14 @@ export function OrcamentoFormModal({
               </select>
               {fornecedorId && telefonesFornecedor.length === 0 && !somenteLeitura && (
                 <p className="mt-1 text-[10px] text-amber-600">
-                  Cadastre WhatsApp ou celular em Cadastros → Fornecedores.
+                  {t("estoque.orcamentos.cadastreWhatsappHint")}
                 </p>
               )}
             </div>
           </div>
 
           <div className="mb-4 rounded-sm bg-[#f8e8c8] px-4 py-2.5 text-center text-[11px] font-medium text-[#9a7b3c]">
-            Selecione os produtos que deseja realizar o orçamento!
+            {t("estoque.orcamentos.selecioneProdutos")}
           </div>
 
           <div className="overflow-hidden rounded-sm border border-slate-200">
@@ -516,17 +525,17 @@ export function OrcamentoFormModal({
                         className="h-4 w-4 cursor-pointer rounded border-slate-300 text-slate-600 accent-slate-500"
                       />
                       <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                        Todos
+                        {t("estoque.orcamentos.selecionarTodos")}
                       </span>
                     </label>
                   </th>
-                  <th className="w-[34%] px-2 py-2.5 text-left font-semibold uppercase">Nome</th>
-                  <th className="w-[22%] px-2 py-2.5 text-left font-semibold uppercase">Marca</th>
-                  <th className="w-[10%] px-2 py-2.5 text-right font-semibold uppercase">Estoque</th>
+                  <th className="w-[34%] px-2 py-2.5 text-left font-semibold uppercase">{t("estoque.orcamentos.col.nome")}</th>
+                  <th className="w-[22%] px-2 py-2.5 text-left font-semibold uppercase">{t("estoque.orcamentos.col.marca")}</th>
+                  <th className="w-[10%] px-2 py-2.5 text-right font-semibold uppercase">{t("estoque.orcamentos.col.estoque")}</th>
                   <th className="w-[12%] px-2 py-2.5 text-right font-semibold uppercase">
-                    Quantidade
+                    {t("estoque.orcamentos.col.quantidade")}
                   </th>
-                  <th className="w-[10%] px-2 py-2.5 text-right font-semibold uppercase">Opções</th>
+                  <th className="w-[10%] px-2 py-2.5 text-right font-semibold uppercase">{t("estoque.orcamentos.col.opcoes")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -616,7 +625,7 @@ export function OrcamentoFormModal({
                               type="button"
                               onClick={() => removerLinha(linha.linhaId)}
                               className="inline-flex text-red-500 hover:text-red-600"
-                              aria-label="Remover"
+                              aria-label={t("estoque.orcamentos.excluirTitle")}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -637,7 +646,7 @@ export function OrcamentoFormModal({
               className="mt-3 inline-flex h-7 items-center gap-1 rounded-sm bg-[#8bc34a] px-3 text-[10px] font-semibold text-white hover:bg-[#7cb342]"
             >
               <Plus className="h-3.5 w-3.5" />
-              Adicionar Produtos
+              {t("estoque.orcamentos.adicionarProdutos")}
             </button>
           )}
         </div>
@@ -650,7 +659,7 @@ export function OrcamentoFormModal({
               disabled={enviando}
               className="h-11 bg-[#8bc34a] text-[12px] font-medium text-white hover:bg-[#7cb342] disabled:opacity-60"
             >
-              {enviando ? "Enviando..." : "Enviar Orçamento"}
+              {enviando ? t("estoque.orcamentos.enviando") : t("estoque.orcamentos.enviar")}
             </button>
           ) : (
             <div className="h-11 bg-slate-100" />
@@ -660,7 +669,7 @@ export function OrcamentoFormModal({
             onClick={onClose}
             className="h-11 border-l border-slate-200 bg-white text-[12px] font-medium text-slate-700 hover:bg-slate-50"
           >
-            Fechar
+            {t("estoque.orcamentos.fechar")}
           </button>
         </div>
       </div>

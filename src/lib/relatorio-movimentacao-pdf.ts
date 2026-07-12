@@ -1,6 +1,13 @@
 import type { LinhaFluxoCaixa } from "@/lib/fluxo-de-caixa";
 import { inicioFimPeriodo } from "@/lib/fluxo-de-caixa";
 import { dateToBrShort } from "@/lib/datas-br";
+import type { Locale } from "@/lib/i18n";
+import { formatMoneyImpressao, formatDateImpressao } from "@/lib/i18n/print-i18n";
+import {
+  iniciarImpressaoRelatorio,
+  pl,
+} from "@/lib/i18n/print-relatorio-helpers";
+import { localeDataIntl } from "@/lib/i18n/tr-ui";
 
 export type DadosRelatorioMovimentacao = {
   linhas: LinhaFluxoCaixa[];
@@ -11,28 +18,29 @@ export type DadosRelatorioMovimentacao = {
 };
 
 function moneyPdf(value: number) {
-  return value.toLocaleString("pt-BR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  return formatMoneyImpressao(value, undefined, false);
 }
 
 export function labelPeriodoFluxoCaixa(
   periodo: string,
   dataInicio: string,
-  dataFim: string
+  dataFim: string,
+  locale?: Locale
 ) {
+  iniciarImpressaoRelatorio({ locale });
   const { inicio, fim } = inicioFimPeriodo(periodo, dataInicio, dataFim);
-  const fmt = (d: Date | null) => (d ? d.toLocaleDateString("pt-BR") : "");
-  if (periodo === "todos") return "Todos";
+  const tag = localeDataIntl(locale ?? "pt");
+  const fmt = (d: Date | null) => (d ? d.toLocaleDateString(tag) : "");
+  if (periodo === "todos") return pl("print.relatorio.movimentacao.periodoTodos");
   const ini = fmt(inicio) || dataInicio || "—";
   const end = fmt(fim) || dataFim || "—";
-  return `${ini} a ${end}`;
+  return pl("print.relatorio.periodoIntervalo", { inicio: ini, fim: end });
 }
 
 export async function gerarRelatorioMovimentacaoPdf(
   dados: DadosRelatorioMovimentacao
 ): Promise<Blob> {
+  iniciarImpressaoRelatorio();
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = pdf.internal.pageSize.getWidth();
@@ -64,7 +72,14 @@ export async function gerarRelatorioMovimentacaoPdf(
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(8);
     pdf.setTextColor(107, 114, 128);
-    const headers = ["Data", "Descrição", "Forma", "Conta", "Valor", "Saldo"];
+    const headers = [
+      pl("print.extrato.data"),
+      pl("print.relatorio.col.descricao"),
+      pl("print.relatorio.col.forma"),
+      pl("print.relatorio.col.conta"),
+      pl("print.relatorio.col.valor"),
+      pl("print.extrato.saldo"),
+    ];
     headers.forEach((h, i) => {
       const align = i >= 4 ? "right" : "left";
       const x = i >= 4 ? colX[i] + colWidths[i] - 2 : colX[i] + 2;
@@ -78,18 +93,30 @@ export async function gerarRelatorioMovimentacaoPdf(
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(14);
   pdf.setTextColor(51, 51, 51);
-  pdf.text("Relatório Movimentação", margin, y);
+  pdf.text(pl("print.relatorio.movimentacao.titulo"), margin, y);
   y += 9;
 
   pdf.setFontSize(10);
   pdf.setFont("helvetica", "normal");
-  pdf.text(`Conta: ${dados.contaLabel}`, margin, y);
-  pdf.text(`Período: ${dados.periodoLabel}`, pageW - margin, y, { align: "right" });
+  pdf.text(pl("print.relatorio.movimentacao.conta", { conta: dados.contaLabel }), margin, y);
+  pdf.text(
+    pl("print.relatorio.movimentacao.periodo", { periodo: dados.periodoLabel }),
+    pageW - margin,
+    y,
+    { align: "right" }
+  );
   y += 5;
-  pdf.text(`Total Geral: ${moneyPdf(dados.totalGeral)}`, margin, y);
-  pdf.text(`Data Impressão: ${dados.dataImpressao}`, pageW - margin, y, {
-    align: "right",
-  });
+  pdf.text(
+    pl("print.relatorio.movimentacao.totalGeral", { valor: moneyPdf(dados.totalGeral) }),
+    margin,
+    y
+  );
+  pdf.text(
+    pl("print.relatorio.movimentacao.dataImpressao", { data: dados.dataImpressao }),
+    pageW - margin,
+    y,
+    { align: "right" }
+  );
   y += 10;
 
   desenharCabecalhoTabela();
@@ -134,7 +161,7 @@ export async function gerarRelatorioMovimentacaoPdf(
 
   if (dados.linhas.length === 0) {
     novaPaginaSeNecessario(rowH);
-    pdf.text("Nenhuma movimentação no período.", margin + 2, y + 4);
+    pdf.text(pl("print.relatorio.movimentacao.semDados"), margin + 2, y + 4);
     y += rowH;
   }
 

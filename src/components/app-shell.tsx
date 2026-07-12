@@ -41,6 +41,11 @@ import { useSessaoInatividade } from "@/hooks/use-sessao-inatividade";
 import { usePresencaApp } from "@/hooks/usePresencaApp";
 import { lerUltimoLaboratorioLogin, salvarLogoLaboratorioLogin } from "@/lib/auth-client";
 import { rotuloPapelUsuarioI18n } from "@/lib/i18n/papel-usuario-i18n";
+import {
+  labelStatusTrabalho,
+  metaStatusTrabalho,
+} from "@/lib/i18n/status-trabalho-i18n";
+import { localeDataIntl } from "@/lib/i18n/tr-ui";
 import { limparUltimaAtividadeSessao } from "@/lib/sessao-inatividade";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { persistirTemaLocal, lerTemaLocal } from "@/lib/theme-ui";
@@ -193,7 +198,7 @@ function AppShellInner({
   initialNomeLaboratorio?: string;
   children: React.ReactNode;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const pathname = usePathname();
   const router = useRouter();
   const isPrint =
@@ -497,18 +502,22 @@ function AppShellInner({
     if (!value) return "-";
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "-";
-    return date.toLocaleDateString("pt-BR");
+    return date.toLocaleDateString(localeDataIntl(locale));
   }
 
   function money(value: number) {
-    return value.toLocaleString("pt-BR", {
+    return value.toLocaleString(localeDataIntl(locale), {
       style: "currency",
-      currency: "BRL",
+      currency: locale === "en" ? "USD" : "BRL",
     });
   }
 
   function statusOs(status: string) {
-    return STATUS_TRABALHO[status] || { label: status, color: "bg-slate-100 text-slate-700" };
+    const meta = metaStatusTrabalho(status);
+    return {
+      label: labelStatusTrabalho(t, status) || status,
+      color: meta?.color || "bg-slate-100 text-slate-700",
+    };
   }
 
   function materiaisOs(trabalho: TrabalhoBuscaOs) {
@@ -595,7 +604,7 @@ function AppShellInner({
             : "bg-red-100/70 text-red-700"
         )}
       >
-        {faturada ? "Sim" : "Não"}
+        {faturada ? t("shell.buscaOs.faturadoSim") : t("shell.buscaOs.faturadoNao")}
       </span>
     );
   }
@@ -987,9 +996,9 @@ function AppShellInner({
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/45 p-4 pt-20">
           <div className="relative w-full max-w-6xl rounded bg-white shadow-2xl">
             <div className="flex h-9 items-center justify-between border-b border-slate-100 px-4">
-              <h2 className="text-[11px] font-medium text-slate-700">Busca Rápida de Ordem de Serviço</h2>
+              <h2 className="text-[11px] font-medium text-slate-700">{t("shell.buscaOs.titulo")}</h2>
               <span className="ml-auto mr-4 text-[11px] font-semibold text-emerald-600">
-                OS: {osSelecionada?.numeroOs || ""}
+                {t("nav.os")}: {osSelecionada?.numeroOs || ""}
               </span>
               <button
                 type="button"
@@ -998,7 +1007,7 @@ function AppShellInner({
                   setBuscaOsAberta(false);
                 }}
                 className="flex h-7 w-7 items-center justify-center rounded text-lg leading-none text-slate-500 hover:bg-slate-100"
-                aria-label="Fechar"
+                aria-label={t("cadastros.comum.fechar")}
               >
                 ×
               </button>
@@ -1006,21 +1015,21 @@ function AppShellInner({
 
             <div className="space-y-3 px-4 py-4 text-[11px] text-slate-600">
               <div className="space-y-1">
-                <label className="block text-[10px] text-slate-500">Número da OS</label>
+                <label className="block text-[10px] text-slate-500">{t("shell.buscaOs.numeroOs")}</label>
                 <div className="flex items-center gap-2">
                   <InputLeitorCodigoOs
                     value={buscaOs}
                     onChange={setBuscaOs}
                     onCodigoLido={(numero, bruto) => aoCodigoBarrasLido(numero, bruto)}
                     onCodigoInvalido={(bruto) =>
-                      setCodigoBarrasMensagem(`Código não reconhecido: ${bruto}`)
+                      setCodigoBarrasMensagem(t("shell.buscaOs.codigoNaoReconhecido", { codigo: bruto }))
                     }
                     capturaGlobal
                     capturaGlobalAtivo={buscaOsAberta && !leitorCodigoAberto}
                     autoFocus
                     readOnly={leitorCodigoAberto}
                     mostrarStatusLeitor
-                    placeholder="Busque número pela OS ou passe o leitor de código de barras"
+                    placeholder={t("shell.buscaOs.placeholder")}
                     className="h-7 min-w-0 flex-1 rounded border border-slate-300 px-3 text-[11px] outline-none focus:border-blue-500"
                   />
                   <button
@@ -1029,14 +1038,14 @@ function AppShellInner({
                     disabled={buscandoOs}
                     className="inline-flex h-7 shrink-0 items-center justify-center rounded bg-blue-600 px-2.5 text-[10px] font-semibold leading-none text-white hover:bg-blue-700 disabled:opacity-60"
                   >
-                    {buscandoOs ? "..." : "Buscar"}
+                    {buscandoOs ? "..." : t("cadastros.comum.buscar")}
                   </button>
                   <button
                     type="button"
                     onClick={() => setLeitorCodigoAberto(true)}
                     className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-blue-600 text-white shadow-sm transition hover:bg-blue-700"
-                    title="Abrir leitor de código de barras"
-                    aria-label="Abrir leitor de código de barras"
+                    title={t("shell.buscaOs.abrirLeitor")}
+                    aria-label={t("shell.buscaOs.abrirLeitor")}
                   >
                     <ScanBarcode className="h-4 w-4" strokeWidth={2.4} />
                   </button>
@@ -1048,7 +1057,7 @@ function AppShellInner({
                     }}
                     className="inline-flex h-7 shrink-0 items-center justify-center rounded border border-slate-300 bg-white px-2.5 text-[10px] font-semibold leading-none text-slate-600 hover:bg-slate-50"
                   >
-                    Pesquisar Paciente
+                    {t("shell.buscaOs.pesquisarPaciente")}
                   </button>
                 </div>
               </div>
@@ -1061,7 +1070,7 @@ function AppShellInner({
 
               {buscaOsExecutada && resultadosOs.length === 0 && (
                 <div className="rounded bg-orange-50 px-3 py-2 text-[10px] text-orange-600">
-                  Nenhuma ordem de serviço encontrada.
+                  {t("shell.buscaOs.nenhumaOs")}
                 </div>
               )}
 
@@ -1069,14 +1078,14 @@ function AppShellInner({
                 <table className="w-full min-w-[900px] text-[10px]">
                   <thead>
                     <tr className="border-b border-slate-100 bg-[#f4f3fb] uppercase text-slate-500">
-                      <th className="px-3 py-2 text-left">OS</th>
-                      <th className="px-3 py-2 text-left">Descrição</th>
-                      <th className="px-3 py-2 text-left">Prazo</th>
-                      <th className="px-3 py-2 text-center">Qtd</th>
-                      <th className="px-3 py-2 text-right">Desc</th>
-                      <th className="px-3 py-2 text-right">Valor</th>
-                      <th className="px-3 py-2 text-center">Situação</th>
-                      <th className="px-3 py-2 text-center">Faturado</th>
+                      <th className="px-3 py-2 text-left">{t("nav.os")}</th>
+                      <th className="px-3 py-2 text-left">{t("shell.buscaOs.col.descricao")}</th>
+                      <th className="px-3 py-2 text-left">{t("shell.buscaOs.col.prazo")}</th>
+                      <th className="px-3 py-2 text-center">{t("shell.buscaOs.col.qtd")}</th>
+                      <th className="px-3 py-2 text-right">{t("shell.buscaOs.col.desc")}</th>
+                      <th className="px-3 py-2 text-right">{t("shell.buscaOs.col.valor")}</th>
+                      <th className="px-3 py-2 text-center">{t("shell.buscaOs.col.situacao")}</th>
+                      <th className="px-3 py-2 text-center">{t("shell.buscaOs.col.faturado")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1134,7 +1143,7 @@ function AppShellInner({
                     {resultadosOs.length === 0 && (
                       <tr>
                         <td colSpan={8} className="px-3 py-5 text-center text-slate-400">
-                          Busque pelo número da OS ou passe o leitor de código de barras.
+                          {t("shell.buscaOs.instrucaoTabela")}
                         </td>
                       </tr>
                     )}
@@ -1148,7 +1157,7 @@ function AppShellInner({
                 return (
                 <div className="overflow-hidden rounded border border-slate-200 bg-white">
                   <div className="bg-blue-50 px-3 py-2 text-[10px] font-semibold uppercase text-blue-700">
-                    Materiais
+                    {t("shell.buscaOs.materiais")}
                   </div>
                   <div className="min-h-16 bg-blue-50/70 px-4 py-2 text-[10px] text-blue-800">
                     {materiaisOs(osSelecionada).length > 0 ? (
@@ -1158,12 +1167,21 @@ function AppShellInner({
                         ))}
                       </ul>
                     ) : (
-                      <span>Nenhum material informado.</span>
+                      <span>{t("shell.buscaOs.nenhumMaterial")}</span>
                     )}
                   </div>
 
                   <div className="grid grid-cols-6 border-b border-slate-100 text-center text-[10px] font-semibold text-slate-500">
-                    {["DADOS", "ETAPAS", "ANOTAÇÕES", "COMISSÕES", "TERCEIRIZADO", "IMAGENS"].map((aba, index) => (
+                    {(
+                      [
+                        t("shell.buscaOs.aba.dados"),
+                        t("shell.buscaOs.aba.etapas"),
+                        t("shell.buscaOs.aba.anotacoes"),
+                        t("shell.buscaOs.aba.comissoes"),
+                        t("shell.buscaOs.aba.terceirizado"),
+                        t("shell.buscaOs.aba.imagens"),
+                      ] as const
+                    ).map((aba, index) => (
                       <button
                         key={aba}
                         type="button"
@@ -1182,60 +1200,60 @@ function AppShellInner({
                       <p className="text-[11px] font-semibold text-emerald-600">{itemAtivo?.descricao || osSelecionada.tipoProtese}</p>
                       <div className="flex gap-4 text-[10px] text-slate-500">
                       <label className="inline-flex items-center gap-1">
-                        <input type="checkbox" className="h-3 w-3" /> Urgente
+                        <input type="checkbox" className="h-3 w-3" /> {t("shell.buscaOs.urgente")}
                       </label>
                       <label className="inline-flex items-center gap-1">
-                        <input type="checkbox" className="h-3 w-3" /> Repetição
+                        <input type="checkbox" className="h-3 w-3" /> {t("shell.buscaOs.repeticao")}
                       </label>
                       </div>
                     </div>
                     <div className={cn("grid gap-3", detalheCompleto ? "md:grid-cols-4" : "md:grid-cols-2")}>
                       <div className="space-y-1">
-                        <label className="block text-[10px] text-slate-500">Data Lançamento</label>
+                        <label className="block text-[10px] text-slate-500">{t("shell.buscaOs.dataLancamento")}</label>
                         <input readOnly value={formatDate(osSelecionada.dataEntrada)} className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-[10px]" />
                       </div>
                       <div className="space-y-1">
-                        <label className="block text-[10px] text-slate-500">Data Entrega p/Finalizado</label>
+                        <label className="block text-[10px] text-slate-500">{t("shell.buscaOs.dataEntregaFinalizado")}</label>
                         <input readOnly value={formatDate(osSelecionada.dataPrevista)} className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-[10px]" />
                       </div>
                       {detalheCompleto && (
                         <>
                       <div className="space-y-1">
-                        <label className="block text-[10px] text-slate-500">Situação</label>
+                        <label className="block text-[10px] text-slate-500">{t("shell.buscaOs.col.situacao")}</label>
                         <select
                           value={osSelecionada.status}
                           onChange={(event) => atualizarSituacaoOs(event.target.value)}
                           className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-[10px] text-slate-700 outline-none focus:border-blue-500"
                         >
-                          {Object.entries(STATUS_TRABALHO).map(([key, value]) => (
+                          {Object.keys(STATUS_TRABALHO).map((key) => (
                             <option key={key} value={key}>
-                              {value.label}
+                              {labelStatusTrabalho(t, key)}
                             </option>
                           ))}
                         </select>
                       </div>
                       <div className="space-y-1">
-                        <label className="block text-[10px] text-slate-500">Paciente</label>
+                        <label className="block text-[10px] text-slate-500">{t("relatorio.comum.paciente")}</label>
                         <input readOnly value={osSelecionada.paciente?.nome || "-"} className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-[10px]" />
                       </div>
                       <div className="space-y-1">
-                        <label className="block text-[10px] text-slate-500">Caixa Organizadora</label>
+                        <label className="block text-[10px] text-slate-500">{t("shell.buscaOs.caixaOrganizadora")}</label>
                         <input readOnly value="-" className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-[10px]" />
                       </div>
                       <div className="space-y-1">
-                        <label className="block text-[10px] text-slate-500">Prazo Laboratório</label>
+                        <label className="block text-[10px] text-slate-500">{t("shell.buscaOs.prazoLaboratorio")}</label>
                         <input readOnly value={formatDate(osSelecionada.dataPrevista)} className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-[10px]" />
                       </div>
                       <div className="space-y-1">
-                        <label className="block text-[10px] text-slate-500">Hora Laboratório</label>
+                        <label className="block text-[10px] text-slate-500">{t("shell.buscaOs.horaLaboratorio")}</label>
                         <input readOnly value="14:00" className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-[10px]" />
                       </div>
                       <div className="space-y-1">
-                        <label className="block text-[10px] text-slate-500">Prazo Dentista</label>
+                        <label className="block text-[10px] text-slate-500">{t("shell.buscaOs.prazoDentista")}</label>
                         <input readOnly value={formatDate(osSelecionada.dataPrevista)} className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-[10px]" />
                       </div>
                       <div className="space-y-1 md:col-start-4">
-                        <label className="block text-[10px] text-slate-500">Hora Dentista</label>
+                        <label className="block text-[10px] text-slate-500">{t("shell.buscaOs.horaDentista")}</label>
                         <input readOnly value="-" className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-[10px]" />
                       </div>
                         </>
@@ -1245,11 +1263,11 @@ function AppShellInner({
                     {detalheCompleto && (
                     <div className="grid gap-3 md:grid-cols-2">
                       <div className="space-y-1">
-                        <label className="block text-[10px] text-slate-500">Observação Interna</label>
+                        <label className="block text-[10px] text-slate-500">{t("shell.buscaOs.obsInterna")}</label>
                         <textarea readOnly value={osSelecionada.observacoes || ""} className="min-h-20 w-full rounded border border-slate-300 bg-white px-2 py-2 text-[10px]" />
                       </div>
                       <div className="space-y-1">
-                        <label className="block text-[10px] text-slate-500">Observação Serviço</label>
+                        <label className="block text-[10px] text-slate-500">{t("shell.buscaOs.obsServico")}</label>
                         <textarea
                           readOnly
                           value={instrucoesTextoLivre(osSelecionada.instrucoes)}
@@ -1271,7 +1289,7 @@ function AppShellInner({
                         }
                         className="h-8 rounded border border-emerald-200 bg-white px-3 text-[10px] font-semibold text-emerald-600 hover:bg-emerald-50"
                       >
-                        Imprimir
+                        {t("cadastros.comum.imprimir")}
                       </button>
                       <button
                         type="button"
@@ -1281,7 +1299,7 @@ function AppShellInner({
                         }}
                         className="h-8 rounded border border-emerald-200 bg-white px-3 text-[10px] font-semibold text-emerald-600 hover:bg-emerald-50"
                       >
-                        Controle de Entregas
+                        {t("shell.buscaOs.controleEntregas")}
                       </button>
                       {itemAtivo?.tipo === "produto" && (
                         <button
@@ -1292,7 +1310,7 @@ function AppShellInner({
                           }}
                           className="h-8 rounded border border-emerald-200 bg-white px-3 text-[10px] font-semibold text-emerald-600 hover:bg-emerald-50"
                         >
-                          Baixar Produto no Estoque
+                          {t("shell.buscaOs.baixarProdutoEstoque")}
                         </button>
                       )}
                       <button
@@ -1303,14 +1321,14 @@ function AppShellInner({
                         }}
                         className="h-8 rounded bg-blue-600 px-4 text-[10px] font-semibold text-white hover:bg-blue-700"
                       >
-                        Gravar
+                        {t("common.gravar")}
                       </button>
                       <button
                         type="button"
                         onClick={() => setBuscaOsAberta(false)}
                         className="h-8 rounded border border-slate-300 bg-white px-4 text-[10px] text-slate-600 hover:bg-slate-50"
                       >
-                        Fechar
+                        {t("cadastros.comum.fechar")}
                       </button>
                     </div>
                   </div>
@@ -1325,12 +1343,12 @@ function AppShellInner({
         <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/20 p-4 pt-24">
           <div className="relative w-full max-w-md rounded bg-white shadow-2xl">
             <div className="flex h-9 items-center justify-between border-b border-slate-100 px-4">
-              <h2 className="text-[11px] font-medium text-slate-700">Buscar por Paciente</h2>
+              <h2 className="text-[11px] font-medium text-slate-700">{t("shell.buscaPaciente.titulo")}</h2>
               <button
                 type="button"
                 onClick={() => setBuscaPacienteAberta(false)}
                 className="flex h-7 w-7 items-center justify-center rounded text-lg leading-none text-slate-500 hover:bg-slate-100"
-                aria-label="Fechar"
+                aria-label={t("cadastros.comum.fechar")}
               >
                 ×
               </button>
@@ -1346,20 +1364,20 @@ function AppShellInner({
                   }
                 }}
                 autoFocus
-                placeholder="Digite o nome do paciente"
+                placeholder={t("shell.buscaPaciente.placeholder")}
                 className="h-8 w-full rounded border border-slate-300 px-3 text-[11px] outline-none focus:border-blue-500"
               />
               <div className="space-y-1">
                 {buscaPaciente.trim().length < 2 && (
                   <p className="text-center text-[10px] text-slate-400">
-                    Digite ao menos 2 caracteres para buscar
+                    {t("shell.buscaPaciente.minChars")}
                   </p>
                 )}
                 {buscaPaciente.trim().length >= 2 && buscandoOs && (
-                  <p className="text-center text-[10px] text-slate-400">Buscando paciente...</p>
+                  <p className="text-center text-[10px] text-slate-400">{t("shell.buscaPaciente.buscando")}</p>
                 )}
                 {buscaPaciente.trim().length >= 2 && !buscandoOs && resultadosOs.length === 0 && (
-                  <p className="text-center text-[10px] text-slate-400">Nenhuma OS encontrada.</p>
+                  <p className="text-center text-[10px] text-slate-400">{t("shell.buscaPaciente.nenhumaOs")}</p>
                 )}
                 {resultadosOs.map((trabalho) => (
                   <button

@@ -1,9 +1,11 @@
 import type { DreRelatorioMes, LinhaRelatorioDre } from "@/lib/dre-relatorio";
 import { formatarTooltip } from "@/lib/dre-graficos";
+import { iniciarImpressaoRelatorio, pl } from "@/lib/i18n/print-relatorio-helpers";
+import { formatMoneyImpressao } from "@/lib/i18n/print-i18n";
 
 function moneyPdf(value: number, comPrefixo: boolean) {
   const fmt = formatarTooltip(value);
-  return comPrefixo ? `R$ ${fmt}` : fmt;
+  return comPrefixo ? formatMoneyImpressao(value) : fmt;
 }
 
 function fmtPct(value: number) {
@@ -31,6 +33,7 @@ function coresLinha(estilo: LinhaRelatorioDre["estilo"]) {
 export async function gerarRelatorioDrePdf(
   relatorio: DreRelatorioMes
 ): Promise<Blob> {
+  iniciarImpressaoRelatorio();
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = pdf.internal.pageSize.getWidth();
@@ -82,7 +85,7 @@ export async function gerarRelatorioDrePdf(
   if (relatorio.linhas.length === 0) {
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(10);
-    pdf.text("O relatório não possui dados para o período selecionado.", pageW / 2, y, {
+    pdf.text(pl("print.comum.nenhumRegistro"), pageW / 2, y, {
       align: "center",
     });
     return pdf.output("blob");

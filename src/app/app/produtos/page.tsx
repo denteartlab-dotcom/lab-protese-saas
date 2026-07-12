@@ -175,6 +175,33 @@ function novoProdutoForm() {
   };
 }
 
+const UNIDADES_MEDIDA = [
+  { value: "un (Unitário)", key: "estoque.produtos.unidade.un" },
+  { value: "cx (Caixa)", key: "estoque.produtos.unidade.cx" },
+  { value: "kg (Quilograma)", key: "estoque.produtos.unidade.kg" },
+  { value: "g (Grama)", key: "estoque.produtos.unidade.g" },
+  { value: "l (Litro)", key: "estoque.produtos.unidade.l" },
+  { value: "m (Metro)", key: "estoque.produtos.unidade.m" },
+  { value: "ml (Mililitro)", key: "estoque.produtos.unidade.ml" },
+] as const;
+
+function OpcoesUnidadeMedida({
+  t,
+}: {
+  t: (key: (typeof UNIDADES_MEDIDA)[number]["key"], params?: Record<string, string | number>) => string;
+}) {
+  return UNIDADES_MEDIDA.map((unidade) => (
+    <option key={unidade.value} value={unidade.value}>
+      {t(unidade.key)}
+    </option>
+  ));
+}
+
+function ProdutosCarregandoFallback() {
+  const { t } = useI18n();
+  return <ListaCarregando colSpan={10} mensagem={t("estoque.produtos.carregando")} />;
+}
+
 function ProdutosConteudo() {
   const { t } = useI18n();
   const searchParams = useSearchParams();
@@ -764,29 +791,44 @@ function ProdutosConteudo() {
   }
 
   function labelTipoMovimento(tipo: MovimentoEstoque["tipo"]) {
-    return tipo === "entrada" ? "Entrada" : "Saída";
+    return tipo === "entrada" ? t("estoque.produtos.movimentoEntrada") : t("estoque.produtos.movimentoSaida");
   }
 
   function textoMovimentoHistorico(movimento: MovimentoEstoque, unidade: string) {
     const quantidade = formatQuantidade(movimento.quantidade, unidade);
+    const tipo = labelTipoMovimento(movimento.tipo);
     if (movimento.origem === "os") {
-      const numero = movimento.numeroOs ? `OS ${movimento.numeroOs}` : movimento.responsavel || "OS";
-      const paciente = movimento.pacienteNome ? `Paciente: ${movimento.pacienteNome}` : "";
-      const cliente = movimento.clienteNome ? `Cliente: ${movimento.clienteNome}` : "";
+      const numero = movimento.numeroOs
+        ? t("estoque.produtos.movimentoOs", { numero: movimento.numeroOs })
+        : movimento.responsavel || t("estoque.produtos.movimentoOsAbrev");
+      const paciente = movimento.pacienteNome
+        ? t("estoque.produtos.movimentoPaciente", { nome: movimento.pacienteNome })
+        : "";
+      const cliente = movimento.clienteNome
+        ? t("estoque.produtos.movimentoCliente", { nome: movimento.clienteNome })
+        : "";
       const detalhes = [numero, paciente, cliente].filter(Boolean).join(" · ");
-      return `${labelTipoMovimento(movimento.tipo)} ${quantidade}${detalhes ? ` — ${detalhes}` : ""}`;
+      return detalhes
+        ? t("estoque.produtos.movimentoTextoOs", { tipo, quantidade, detalhes })
+        : `${tipo} ${quantidade}`;
     }
     const origem =
       movimento.origem === "fornecedor"
-        ? "Fornecedor"
+        ? t("estoque.produtos.origemFornecedor")
         : movimento.origem === "prestador"
-          ? "Prestador"
+          ? t("estoque.produtos.origemPrestador")
           : movimento.origem === "colaborador"
-            ? "Colaborador"
-            : "Manual";
+            ? t("estoque.produtos.origemColaborador")
+            : t("estoque.produtos.origemManual");
     const referencia = movimento.responsavel ? ` (${movimento.responsavel})` : "";
-    const obs = movimento.observacao ? ` — ${movimento.observacao}` : "";
-    return `${labelTipoMovimento(movimento.tipo)} ${quantidade} · ${origem}${referencia}${obs}`;
+    const observacao = movimento.observacao ? ` — ${movimento.observacao}` : "";
+    return t("estoque.produtos.movimentoTextoPadrao", {
+      tipo,
+      quantidade,
+      origem,
+      referencia,
+      observacao,
+    });
   }
 
   function colaboradorDoMovimento(movimento: MovimentoEstoque) {
@@ -859,10 +901,10 @@ function ProdutosConteudo() {
   }
 
   function labelResponsavelMovimento() {
-    if (movimentoForm.origem === "fornecedor") return "Fornecedor";
-    if (movimentoForm.origem === "prestador") return "Prestador de Serviço";
-    if (movimentoForm.origem === "colaborador") return "Colaborador";
-    return "Referência";
+    if (movimentoForm.origem === "fornecedor") return t("estoque.produtos.origemFornecedor");
+    if (movimentoForm.origem === "prestador") return t("estoque.produtos.origemPrestador");
+    if (movimentoForm.origem === "colaborador") return t("estoque.produtos.origemColaborador");
+    return t("estoque.produtos.referencia");
   }
 
   function alterarUnidadeMovimento(unidadeMedida: string) {
@@ -928,7 +970,9 @@ function ProdutosConteudo() {
       {listaPronta && estoqueZerado > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded border border-red-200 bg-red-50 px-4 py-2 text-[11px] text-red-700">
           <span>
-            Atenção! {estoqueZerado} {estoqueZerado === 1 ? "produto está" : "produtos estão"} com estoque zerado.
+            {estoqueZerado === 1
+              ? t("estoque.produtos.alerta.estoqueZeradoUm")
+              : t("estoque.produtos.alerta.estoqueZeradoVarios", { count: estoqueZerado })}
           </span>
           <Link
             href="/app/orcamentos?novo=1"
@@ -940,9 +984,9 @@ function ProdutosConteudo() {
       )}
 
       <div className="grid gap-4 md:grid-cols-3">
-        <ResumoCard label="Estoque Mínimo" value={estoqueBaixo} tone="emerald" active={filtroEstoque === "minimo"} onView={() => alternarFiltroEstoque("minimo")} />
-        <ResumoCard label="Estoque Máximo" value={estoqueMaximo} tone="amber" active={filtroEstoque === "maximo"} onView={() => alternarFiltroEstoque("maximo")} />
-        <ResumoCard label="Estoque Zero" value={estoqueZerado} tone="rose" active={filtroEstoque === "zero"} onView={() => alternarFiltroEstoque("zero")} />
+        <ResumoCard label={t("estoque.produtos.estoqueMinimo")} value={estoqueBaixo} tone="emerald" active={filtroEstoque === "minimo"} onView={() => alternarFiltroEstoque("minimo")} />
+        <ResumoCard label={t("estoque.produtos.estoqueMaximo")} value={estoqueMaximo} tone="amber" active={filtroEstoque === "maximo"} onView={() => alternarFiltroEstoque("maximo")} />
+        <ResumoCard label={t("estoque.produtos.estoqueZero")} value={estoqueZerado} tone="rose" active={filtroEstoque === "zero"} onView={() => alternarFiltroEstoque("zero")} />
       </div>
 
       <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">
@@ -982,7 +1026,7 @@ function ProdutosConteudo() {
               className="inline-flex h-7 items-center gap-1 rounded-sm bg-emerald-500 px-3 text-[10px] font-semibold text-white hover:bg-emerald-600"
             >
               <Plus className="h-3.5 w-3.5" />
-              Etiqueta (Categoria)
+              {t("estoque.produtos.etiquetaCategoria")}
             </button>
           </div>
           <div className="flex w-full max-w-xl items-center gap-1">
@@ -1011,12 +1055,12 @@ function ProdutosConteudo() {
           opcoesExtras={[
             {
               valor: "valor",
-              label: "Valor de Venda",
+              label: t("estoque.produtos.valorVenda"),
               comparar: (a, b) => compararNumero(a.valor, b.valor),
             },
             {
               valor: "estoque",
-              label: "Estoque",
+              label: t("estoque.produtos.estoque"),
               comparar: (a, b) => compararNumero(a.estoque || 0, b.estoque || 0),
             },
           ]}
@@ -1026,30 +1070,30 @@ function ProdutosConteudo() {
           <table className="w-full min-w-[1000px] text-[10px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50 text-slate-500">
-                <th className="w-10 px-3 py-2 text-left font-semibold uppercase">Todos</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Código de Barras</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Nome</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Etiqueta</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Marca</th>
-                <th className="px-3 py-2 text-center font-semibold uppercase">Estoque</th>
-                <th className="px-3 py-2 text-right font-semibold uppercase">Valor de Custo</th>
-                <th className="px-3 py-2 text-right font-semibold uppercase">Valor de Venda</th>
+                <th className="w-10 px-3 py-2 text-left font-semibold uppercase">{t("estoque.orcamentos.todos")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("estoque.produtos.codigoBarras")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.comum.nome")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("estoque.produtos.etiqueta")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("estoque.produtos.marca")}</th>
+                <th className="px-3 py-2 text-center font-semibold uppercase">{t("estoque.produtos.estoque")}</th>
+                <th className="px-3 py-2 text-right font-semibold uppercase">{t("estoque.produtos.valorCusto")}</th>
+                <th className="px-3 py-2 text-right font-semibold uppercase">{t("estoque.produtos.valorVenda")}</th>
                 <th className="px-3 py-2 text-right font-semibold uppercase">
                   <button
                     type="button"
                     onClick={() => setLucroFormato((atual) => (atual === "percentual" ? "valor" : "percentual"))}
                     className="inline-flex items-center gap-1 rounded px-1 py-0.5 hover:bg-slate-100"
-                    title="Alternar lucro entre porcentagem e reais"
+                    title={t("estoque.produtos.lucroAlternarTitulo")}
                   >
-                    Lucro ({lucroFormato === "percentual" ? "%" : "R$"}) <span className="text-[9px]">▾</span>
+                    {t("estoque.produtos.lucro")} ({lucroFormato === "percentual" ? "%" : "R$"}) <span className="text-[9px]">▾</span>
                   </button>
                 </th>
-                <th className="px-3 py-2 text-center font-semibold uppercase">Opções</th>
+                <th className="px-3 py-2 text-center font-semibold uppercase">{t("cadastros.comum.opcoes")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {!listaPronta ? (
-                <ListaCarregando colSpan={10} mensagem="Carregando produtos..." />
+                <ListaCarregando colSpan={10} mensagem={t("estoque.produtos.carregando")} />
               ) : (
                 itensPagina.map((produto) => {
                 const aberto = visualizandoProduto?.id === produto.id;
@@ -1080,7 +1124,7 @@ function ProdutosConteudo() {
                             type="button"
                             onClick={() => abrirHistoricoProduto(produto)}
                             className="rounded p-1 hover:bg-slate-100 hover:text-slate-700"
-                            title="Histórico de movimentos"
+                            title={t("estoque.produtos.historico")}
                           >
                             <List className="h-3.5 w-3.5" />
                           </button>
@@ -1090,7 +1134,7 @@ function ProdutosConteudo() {
                             className={`rounded p-1 hover:bg-blue-50 hover:text-blue-600 ${
                               aberto ? "bg-blue-50 text-blue-500" : ""
                             }`}
-                            title="Visualizar"
+                            title={t("cadastros.comum.visualizar")}
                           >
                             <Eye className="h-3.5 w-3.5" />
                           </button>
@@ -1098,7 +1142,7 @@ function ProdutosConteudo() {
                             type="button"
                             onClick={() => abrirEdicaoProduto(produto)}
                             className="rounded p-1 hover:bg-slate-100 hover:text-blue-600"
-                            title="Editar"
+                            title={t("cadastros.comum.editar")}
                           >
                             <Edit3 className="h-3.5 w-3.5" />
                           </button>
@@ -1106,7 +1150,7 @@ function ProdutosConteudo() {
                             type="button"
                             onClick={() => setProdutoParaExcluir(produto)}
                             className="rounded p-1 text-red-500 hover:bg-red-50"
-                            title="Excluir"
+                            title={t("cadastros.comum.excluir")}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -1115,7 +1159,7 @@ function ProdutosConteudo() {
                             onClick={() => abrirMovimentacao(produto)}
                             className="rounded bg-emerald-500 px-2 py-0.5 text-[9px] font-semibold text-white hover:bg-emerald-600"
                           >
-                            Movimentar
+                            {t("estoque.produtos.movimentar")}
                           </button>
                         </div>
                       </td>
@@ -1129,39 +1173,39 @@ function ProdutosConteudo() {
                               {produto.nome}
                             </div>
                             <div className="grid gap-x-8 gap-y-3 border-b border-slate-100 pb-3 md:grid-cols-4">
-                              <p><span className="font-semibold text-slate-700">Código de Barras:</span> {produto.codigoBarras || ""}</p>
+                              <p><span className="font-semibold text-slate-700">{t("estoque.produtos.codigoBarras")}:</span> {produto.codigoBarras || ""}</p>
                               <p className="flex flex-wrap items-center gap-1.5">
-                                <span className="font-semibold text-slate-700">Etiqueta:</span>
+                                <span className="font-semibold text-slate-700">{t("estoque.produtos.etiqueta")}:</span>
                                 <EtiquetaCategoriaBadge nome={produto.etiqueta} etiquetas={etiquetasCategoria} />
                               </p>
-                              <p><span className="font-semibold text-slate-700">Marca:</span> {produto.marca || ""}</p>
+                              <p><span className="font-semibold text-slate-700">{t("estoque.produtos.marca")}:</span> {produto.marca || ""}</p>
                               <p>
-                                <span className="font-semibold text-slate-700">Estoque:</span>{" "}
+                                <span className="font-semibold text-slate-700">{t("estoque.produtos.estoque")}:</span>{" "}
                                 {formatQuantidade(produto.estoque || 0, produto.unidadeMedida || "un (Unitário)")}
                               </p>
                               <p>
-                                <span className="font-semibold text-slate-700">Estoque Mínimo:</span>{" "}
+                                <span className="font-semibold text-slate-700">{t("estoque.produtos.estoqueMinimo")}:</span>{" "}
                                 {formatQuantidade(produto.estoqueMinimo || 0, produto.unidadeMedida || "un (Unitário)")}
                               </p>
                               <p>
-                                <span className="font-semibold text-slate-700">Estoque Máximo:</span>{" "}
+                                <span className="font-semibold text-slate-700">{t("estoque.produtos.estoqueMaximo")}:</span>{" "}
                                 {formatQuantidade(produto.estoqueMaximo || 0, produto.unidadeMedida || "un (Unitário)")}
                               </p>
                               <p className="inline-flex flex-wrap items-center gap-1">
-                                <span className="font-semibold text-slate-700">Valor de Custo:</span>{" "}
+                                <span className="font-semibold text-slate-700">{t("estoque.produtos.valorCusto")}:</span>{" "}
                                 {formatCurrency(produto.valorCusto || 0)}
                                 <IndicadorVariacaoCusto delta={produto.valorCustoDelta} />
                               </p>
-                              <p><span className="font-semibold text-slate-700">Valor de Venda:</span> {formatCurrency(produto.valor || 0)}</p>
+                              <p><span className="font-semibold text-slate-700">{t("estoque.produtos.valorVenda")}:</span> {formatCurrency(produto.valor || 0)}</p>
                             </div>
                             {(produto.estoque || 0) === 0 && (
                               <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-red-700">
-                                <span>Este produto está com estoque zerado.</span>
+                                <span>{t("estoque.produtos.produtoEstoqueZerado")}</span>
                                 <Link
                                   href="/app/orcamentos?novo=1"
                                   className="rounded bg-emerald-500 px-3 py-1.5 text-[10px] font-semibold text-white hover:bg-emerald-600"
                                 >
-                                  Solicitar Orçamento
+                                  {t("estoque.orcamentos.solicitar")}
                                 </Link>
                               </div>
                             )}
@@ -1170,7 +1214,7 @@ function ProdutosConteudo() {
                               onClick={() => setVisualizandoProduto(null)}
                               className="mt-3 rounded border border-slate-300 bg-white px-3 py-1 text-[10px] text-slate-600 hover:bg-slate-50"
                             >
-                              Fechar Detalhes
+                              {t("cadastros.comum.fecharDetalhes")}
                             </button>
                           </div>
                         </td>
@@ -1183,7 +1227,7 @@ function ProdutosConteudo() {
               {listaPronta && produtosFiltrados.length === 0 && (
                 <tr>
                   <td colSpan={10} className="px-3 py-8 text-center text-slate-400">
-                    Nenhum produto encontrado.
+                    {t("estoque.produtos.nenhumEncontrado")}
                   </td>
                 </tr>
               )}
@@ -1201,40 +1245,44 @@ function ProdutosConteudo() {
           setOpen(false);
           setEditandoProduto(null);
         }}
-        title={editandoProduto ? `Editar Produto: ${editandoProduto.nome}` : "Cadastrar Produto"}
+        title={
+          editandoProduto
+            ? t("estoque.produtos.editarComNome", { nome: editandoProduto.nome })
+            : t("estoque.produtos.cadastrarTitulo")
+        }
         size="xl"
       >
         <form onSubmit={save} className="space-y-5 text-[11px] text-slate-600">
           <section className="space-y-3">
             <h3 className="flex items-center gap-2 text-xs font-semibold text-slate-600">
               <Plus className="h-3.5 w-3.5" />
-              Dados do Produto
+              {t("estoque.produtos.dadosProduto")}
             </h3>
             <div className="grid gap-3 md:grid-cols-2">
               <Input
-                label="Código de Barras"
+                label={t("estoque.produtos.codigoBarras")}
                 value={form.codigoBarras}
                 onChange={(e) => setForm({ ...form, codigoBarras: e.target.value })}
               />
               <Input
-                label="Nome"
+                label={t("cadastros.comum.nome")}
                 value={form.nome}
                 onChange={(e) => setForm({ ...form, nome: e.target.value })}
                 required
               />
               <Input
-                label="Marca"
+                label={t("estoque.produtos.marca")}
                 value={form.marca}
                 onChange={(e) => setForm({ ...form, marca: e.target.value })}
               />
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="space-y-1">
                   <Select
-                    label="Etiqueta"
+                    label={t("estoque.produtos.etiqueta")}
                     value={etiquetaCategoriaAtiva(form.etiqueta, etiquetasCategoria)}
                     onChange={(e) => setForm({ ...form, etiqueta: e.target.value })}
                   >
-                    <option value="">Selecione...</option>
+                    <option value="">{t("estoque.produtos.selecioneEllipsis")}</option>
                     {etiquetasCategoria.map((etiqueta) => (
                       <option key={etiqueta.id} value={etiqueta.nome}>
                         {etiqueta.nome}
@@ -1246,43 +1294,37 @@ function ProdutosConteudo() {
                     onClick={() => setModalEtiquetasAberto(true)}
                     className="text-[10px] font-semibold text-emerald-600 hover:text-emerald-700 hover:underline"
                   >
-                    + adicionar etiqueta
+                    {t("estoque.produtos.adicionarEtiqueta")}
                   </button>
                 </div>
                 <Select
-                  label="Unidade de Medida"
+                  label={t("estoque.produtos.unidadeMedida")}
                   value={form.unidadeMedida}
                   onChange={(e) => alterarUnidadeMedida(e.target.value)}
                 >
-                  <option>un (Unitário)</option>
-                  <option>cx (Caixa)</option>
-                  <option>kg (Quilograma)</option>
-                  <option>g (Grama)</option>
-                  <option>l (Litro)</option>
-                  <option>m (Metro)</option>
-                  <option>ml (Mililitro)</option>
+                  <OpcoesUnidadeMedida t={t} />
                 </Select>
               </div>
               <Input
-                label="Estoque Mínimo"
+                label={t("estoque.produtos.estoqueMinimo")}
                 selectOnFocus
                 value={form.estoqueMinimo}
                 onChange={(e) => setForm({ ...form, estoqueMinimo: formatQuantidadeInput(e.target.value, form.unidadeMedida) })}
               />
               <Input
-                label="Estoque Máximo"
+                label={t("estoque.produtos.estoqueMaximo")}
                 selectOnFocus
                 value={form.estoqueMaximo}
                 onChange={(e) => setForm({ ...form, estoqueMaximo: formatQuantidadeInput(e.target.value, form.unidadeMedida) })}
               />
               <Input
-                label="Preço de Custo"
+                label={t("estoque.produtos.precoCusto")}
                 selectOnFocus
                 value={form.valorCusto}
                 onChange={(e) => setForm({ ...form, valorCusto: formatCurrencyInput(e.target.value) })}
               />
               <Input
-                label="Preço de Venda"
+                label={t("estoque.produtos.precoVenda")}
                 selectOnFocus
                 value={form.valor}
                 onChange={(e) => setForm({ ...form, valor: formatCurrencyInput(e.target.value) })}
@@ -1294,11 +1336,11 @@ function ProdutosConteudo() {
             <Button type="submit" size="sm" disabled={salvandoProduto}>
               {salvandoProduto
                 ? editandoProduto
-                  ? "Salvando..."
-                  : "Cadastrando..."
+                  ? t("estoque.produtos.salvando")
+                  : t("estoque.produtos.cadastrando")
                 : editandoProduto
-                  ? "Salvar"
-                  : "Cadastrar"}
+                  ? t("cadastros.comum.salvar")
+                  : t("cadastros.comum.cadastrar")}
             </Button>
             <Button
               type="button"
@@ -1310,7 +1352,7 @@ function ProdutosConteudo() {
                 setEditandoProduto(null);
               }}
             >
-              Fechar
+              {t("cadastros.comum.fechar")}
             </Button>
           </div>
         </form>
@@ -1318,9 +1360,9 @@ function ProdutosConteudo() {
 
       <ConfirmacaoExclusaoModal
         open={Boolean(produtoParaExcluir)}
-        titulo="Excluir Produto"
-        mensagem="Deseja realmente excluir esse produto?"
-        aviso="Atenção!! O produto sairá da lista principal e ficará em Ver Excluídos."
+        titulo={t("estoque.produtos.excluirTitulo")}
+        mensagem={t("estoque.produtos.excluirMensagem")}
+        aviso={t("estoque.produtos.excluirAviso")}
         detalhe={produtoParaExcluir?.nome}
         onClose={() => setProdutoParaExcluir(null)}
         onConfirm={confirmarExclusaoProduto}
@@ -1328,18 +1370,18 @@ function ProdutosConteudo() {
 
       <ConfirmacaoExclusaoModal
         open={Boolean(movimentoParaExcluir)}
-        titulo="Excluir Movimentação"
-        mensagem="Deseja realmente excluir essa movimentação?"
-        aviso="Atenção!! O estoque do produto será recalculado sem este registro."
+        titulo={t("estoque.produtos.excluirMovimentacaoTitulo")}
+        mensagem={t("estoque.produtos.excluirMovimentacaoMensagem")}
+        aviso={t("estoque.produtos.excluirMovimentacaoAviso")}
         onClose={() => setMovimentoParaExcluir(null)}
         onConfirm={confirmarExclusaoMovimento}
       />
 
       <ConfirmacaoExclusaoModal
         open={Boolean(produtoParaExcluirPermanente)}
-        titulo="Excluir Produto Permanentemente"
-        mensagem="Deseja realmente excluir esse produto de forma permanente?"
-        aviso="Atenção!! Esta ação não pode ser desfeita."
+        titulo={t("estoque.produtos.excluirPermanenteTitulo")}
+        mensagem={t("estoque.produtos.excluirPermanenteMensagem")}
+        aviso={t("estoque.produtos.excluirPermanenteAviso")}
         detalhe={produtoParaExcluirPermanente?.nome}
         onClose={() => setProdutoParaExcluirPermanente(null)}
         onConfirm={confirmarExclusaoPermanente}
@@ -1359,7 +1401,7 @@ function ProdutosConteudo() {
       <Modal
         open={modalExcluidosAberto}
         onClose={() => setModalExcluidosAberto(false)}
-        title="Produtos Excluídos"
+        title={t("estoque.produtos.excluidosTitulo")}
         size="lg"
       >
         <div className="space-y-4 text-[11px] text-slate-600">
@@ -1369,7 +1411,7 @@ function ProdutosConteudo() {
               <input
                 value={buscaExcluidos}
                 onChange={(event) => setBuscaExcluidos(event.target.value)}
-                placeholder="Pesquisar por Nome, Marca, Etiqueta, Código de Barras..."
+                placeholder={t("estoque.produtos.buscarExcluidosPlaceholder")}
                 className="h-7 w-full rounded-sm border border-slate-200 pl-7 pr-3 text-[10px] outline-none focus:border-blue-400"
               />
             </div>
@@ -1378,7 +1420,7 @@ function ProdutosConteudo() {
               onClick={() => setBuscaExcluidos("")}
               className="h-7 rounded-sm bg-slate-500 px-3 text-[10px] font-semibold text-white hover:bg-slate-600"
             >
-              Limpar
+              {t("cadastros.comum.limpar")}
             </button>
           </div>
 
@@ -1386,18 +1428,18 @@ function ProdutosConteudo() {
             <table className="min-w-full text-left">
               <thead className="bg-slate-50 text-[10px] uppercase text-slate-400">
                 <tr>
-                  <th className="px-3 py-2">Código de Barras</th>
-                  <th className="px-3 py-2">Nome</th>
-                  <th className="px-3 py-2">Marca</th>
-                  <th className="px-3 py-2 text-center">Estoque</th>
-                  <th className="px-3 py-2 text-center">Opções</th>
+                  <th className="px-3 py-2">{t("estoque.produtos.codigoBarras")}</th>
+                  <th className="px-3 py-2">{t("cadastros.comum.nome")}</th>
+                  <th className="px-3 py-2">{t("estoque.produtos.marca")}</th>
+                  <th className="px-3 py-2 text-center">{t("estoque.produtos.estoque")}</th>
+                  <th className="px-3 py-2 text-center">{t("cadastros.comum.opcoes")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {produtosExcluidosFiltrados.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-3 py-6 text-center text-slate-400">
-                      Nenhum produto excluído.
+                      {t("estoque.produtos.nenhumExcluido")}
                     </td>
                   </tr>
                 ) : (
@@ -1416,14 +1458,14 @@ function ProdutosConteudo() {
                             onClick={() => restaurarProduto(produto)}
                             className="rounded bg-emerald-500 px-2 py-0.5 text-[9px] font-semibold text-white hover:bg-emerald-600"
                           >
-                            Restaurar
+                            {t("cadastros.comum.restaurar")}
                           </button>
                           <button
                             type="button"
                             onClick={() => solicitarExclusaoPermanente(produto)}
                             className="rounded p-1 text-red-500 hover:bg-red-50"
-                            title="Excluir permanentemente"
-                            aria-label="Excluir permanentemente"
+                            title={t("cadastros.comum.removerDefinitivo")}
+                            aria-label={t("cadastros.comum.removerDefinitivo")}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -1444,7 +1486,7 @@ function ProdutosConteudo() {
               className="min-w-[120px]"
               onClick={() => setModalExcluidosAberto(false)}
             >
-              Fechar
+              {t("cadastros.comum.fechar")}
             </Button>
           </div>
         </div>
@@ -1453,14 +1495,14 @@ function ProdutosConteudo() {
       <Modal
         open={Boolean(movimentoProduto)}
         onClose={() => setMovimentoProduto(null)}
-        title="Movimentar Estoque"
+        title={t("estoque.produtos.movimentarEstoque")}
         size="md"
       >
         <form onSubmit={salvarMovimentoEstoque} className="space-y-4 text-[11px] text-slate-600">
           <div className="rounded border border-slate-100 bg-slate-50 p-3">
             <p className="font-semibold text-slate-700">{movimentoProduto?.nome}</p>
             <p className="text-slate-500">
-              Estoque atual:{" "}
+              {t("estoque.produtos.estoqueAtual")}{" "}
               {movimentoProduto
                 ? formatQuantidade(movimentoProduto.estoque || 0, movimentoProduto.unidadeMedida || "un (Unitário)")
                 : "-"}
@@ -1469,46 +1511,40 @@ function ProdutosConteudo() {
 
           <div className="grid gap-3 md:grid-cols-2">
             <Select
-              label="Tipo"
+              label={t("estoque.produtos.tipo")}
               value={movimentoForm.tipo}
               onChange={(event) => alterarTipoMovimento(event.target.value as "entrada" | "saida")}
             >
-              <option value="entrada">Entrada / acrescentar</option>
-              <option value="saida">Saída / diminuir</option>
+              <option value="entrada">{t("estoque.produtos.tipoEntrada")}</option>
+              <option value="saida">{t("estoque.produtos.tipoSaida")}</option>
             </Select>
             <Select
-              label="Origem"
+              label={t("estoque.produtos.origem")}
               value={movimentoForm.origem}
               onChange={(event) =>
                 setMovimentoForm({ ...movimentoForm, origem: event.target.value as typeof movimentoForm.origem, responsavel: "" })
               }
             >
               {movimentoForm.tipo === "entrada" ? (
-                <option value="fornecedor">Fornecedor</option>
+                <option value="fornecedor">{t("estoque.produtos.origemFornecedor")}</option>
               ) : (
                 <>
-                  <option value="colaborador">Colaborador</option>
-                  <option value="prestador">Prestador de Serviço</option>
-                  <option value="os">Ordem de Serviço</option>
+                  <option value="colaborador">{t("estoque.produtos.origemColaborador")}</option>
+                  <option value="prestador">{t("estoque.produtos.origemPrestador")}</option>
+                  <option value="os">{t("estoque.produtos.origemOs")}</option>
                 </>
               )}
-              <option value="manual">Manual</option>
+              <option value="manual">{t("estoque.produtos.origemManual")}</option>
             </Select>
             <Select
-              label="Unidade de Medida"
+              label={t("estoque.produtos.unidadeMedida")}
               value={movimentoForm.unidadeMedida}
               onChange={(event) => alterarUnidadeMovimento(event.target.value)}
             >
-              <option>un (Unitário)</option>
-              <option>cx (Caixa)</option>
-              <option>kg (Quilograma)</option>
-              <option>g (Grama)</option>
-              <option>l (Litro)</option>
-              <option>m (Metro)</option>
-              <option>ml (Mililitro)</option>
+              <OpcoesUnidadeMedida t={t} />
             </Select>
             <Input
-              label="Quantidade"
+              label={t("estoque.produtos.quantidade")}
               selectOnFocus
               value={movimentoForm.quantidade}
               onChange={(event) =>
@@ -1527,7 +1563,7 @@ function ProdutosConteudo() {
                 value={movimentoForm.responsavel}
                 onChange={(event) => setMovimentoForm({ ...movimentoForm, responsavel: event.target.value })}
               >
-                <option value="">Selecione</option>
+                <option value="">{t("cadastros.comum.selecione")}</option>
                 {responsaveisPorOrigem().map((nome) => (
                   <option key={nome} value={nome}>
                     {nome}
@@ -1536,25 +1572,25 @@ function ProdutosConteudo() {
               </Select>
             ) : (
               <Input
-                label="Referência"
+                label={t("estoque.produtos.referencia")}
                 value={movimentoForm.responsavel}
                 onChange={(event) => setMovimentoForm({ ...movimentoForm, responsavel: event.target.value })}
-                placeholder="Número da OS ou motivo"
+                placeholder={t("estoque.produtos.referenciaPlaceholder")}
               />
             )}
           </div>
 
           <Input
-            label="Observação"
+            label={t("estoque.produtos.observacao")}
             value={movimentoForm.observacao}
             onChange={(event) => setMovimentoForm({ ...movimentoForm, observacao: event.target.value })}
-            placeholder="Compra, devolução, consumo, ajuste..."
+            placeholder={t("estoque.produtos.observacaoPlaceholder")}
           />
 
           <div className="flex justify-start gap-2 border-t border-slate-100 pt-4">
-            <Button type="submit" size="sm">Salvar Movimento</Button>
+            <Button type="submit" size="sm">{t("estoque.produtos.salvarMovimento")}</Button>
             <Button type="button" size="sm" variant="outline" onClick={() => setMovimentoProduto(null)}>
-              Fechar
+              {t("cadastros.comum.fechar")}
             </Button>
           </div>
         </form>
@@ -1582,7 +1618,7 @@ function ProdutosConteudo() {
 
 export default function ProdutosPage() {
   return (
-    <Suspense fallback={<ListaCarregando colSpan={10} mensagem="Carregando produtos..." />}>
+    <Suspense fallback={<ProdutosCarregandoFallback />}>
       <ProdutosConteudo />
     </Suspense>
   );
@@ -1601,6 +1637,7 @@ function ResumoCard({
   active: boolean;
   onView: () => void;
 }) {
+  const { t } = useI18n();
   const toneClass = {
     emerald: "bg-emerald-50 text-emerald-600",
     amber: "bg-amber-50 text-amber-600",
@@ -1619,7 +1656,7 @@ function ResumoCard({
               onClick={onView}
               className="ml-1 rounded bg-blue-500 px-1.5 py-0.5 text-[9px] font-semibold text-white hover:bg-blue-600"
             >
-              Ver
+              {t("estoque.produtos.ver")}
             </button>
           </p>
         </div>

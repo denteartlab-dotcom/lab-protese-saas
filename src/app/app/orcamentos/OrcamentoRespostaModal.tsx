@@ -3,10 +3,11 @@
 import { I18nPortal } from "@/components/I18nPortal";
 import { useI18n } from "@/components/i18n-provider";
 import { ExternalLink, X } from "lucide-react";
-import { STATUS_ORCAMENTO, totalLiquidoOrcamento, type Orcamento } from "@/lib/orcamentos-types";
+import type { MessageKey } from "@/lib/i18n";
+import { STATUS_ORCAMENTO, totalLiquidoOrcamento, type Orcamento, type StatusOrcamento } from "@/lib/orcamentos-types";
 import {
   parseCondicoesPagamento,
-  rotuloCondicoesPagamento,
+  rotuloCondicoesPagamentoI18n,
 } from "@/lib/orcamentos-pagamento";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -19,6 +20,13 @@ type Props = {
   onReabrirLink?: (orcamento: Orcamento) => void;
   processando?: boolean;
 };
+
+function rotuloStatusOrcamento(
+  status: StatusOrcamento,
+  t: (key: MessageKey, params?: Record<string, string | number>) => string
+) {
+  return t(`estoque.orcamentos.status.${status}` as MessageKey);
+}
 
 export function OrcamentoRespostaModal({
   open,
@@ -75,10 +83,10 @@ export function OrcamentoRespostaModal({
             <span
               className={`inline-block rounded px-2 py-0.5 text-[10px] font-semibold ${status.className}`}
             >
-              {status.label}
+              {rotuloStatusOrcamento(orcamento.status, t)}
             </span>
             <span>
-              <span className="text-slate-500">Data resposta:</span>{" "}
+              <span className="text-slate-500">{t("estoque.orcamentos.dataResposta")}</span>{" "}
               {formatDate(orcamento.dataResposta)}
             </span>
           </div>
@@ -87,11 +95,11 @@ export function OrcamentoRespostaModal({
             <table className="w-full text-[10px]">
               <thead>
                 <tr className="bg-slate-50 text-slate-500">
-                  <th className="px-3 py-2 text-left font-semibold uppercase">Produto</th>
-                  <th className="px-3 py-2 text-left font-semibold uppercase">Marca</th>
-                  <th className="px-3 py-2 text-center font-semibold uppercase">Qtd</th>
-                  <th className="px-3 py-2 text-right font-semibold uppercase">Valor Unit.</th>
-                  <th className="px-3 py-2 text-right font-semibold uppercase">Subtotal</th>
+                  <th className="px-3 py-2 text-left font-semibold uppercase">{t("estoque.orcamentos.col.produto")}</th>
+                  <th className="px-3 py-2 text-left font-semibold uppercase">{t("estoque.orcamentos.col.marca")}</th>
+                  <th className="px-3 py-2 text-center font-semibold uppercase">{t("estoque.orcamentos.col.qtd")}</th>
+                  <th className="px-3 py-2 text-right font-semibold uppercase">{t("estoque.orcamentos.col.valorUnit")}</th>
+                  <th className="px-3 py-2 text-right font-semibold uppercase">{t("estoque.orcamentos.col.subtotal")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -113,15 +121,15 @@ export function OrcamentoRespostaModal({
           <div className="mt-4 flex justify-end">
             <div className="w-full max-w-xs space-y-1.5 text-[11px]">
               <div className="flex justify-between">
-                <span className="text-slate-500">Valor total:</span>
+                <span className="text-slate-500">{t("estoque.orcamentos.valorTotal")}</span>
                 <span className="font-medium">{formatCurrency(orcamento.subtotal)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Desconto:</span>
+                <span className="text-slate-500">{t("estoque.orcamentos.desconto")}</span>
                 <span>{formatCurrency(descontoValor)}</span>
               </div>
               <div className="flex justify-between border-t border-slate-100 pt-1.5 text-sm font-semibold text-blue-600">
-                <span>Total líquido:</span>
+                <span>{t("estoque.orcamentos.totalLiquidoLabel")}</span>
                 <span>{formatCurrency(liquido)}</span>
               </div>
             </div>
@@ -129,7 +137,7 @@ export function OrcamentoRespostaModal({
 
           {orcamento.observacoes && (
             <div className="mt-4">
-              <p className="mb-1 font-medium text-slate-700">Observação</p>
+              <p className="mb-1 font-medium text-slate-700">{t("estoque.orcamentos.observacao")}</p>
               <p className="rounded-sm border border-slate-100 bg-slate-50 p-2 text-slate-600">
                 {orcamento.observacoes}
               </p>
@@ -138,10 +146,11 @@ export function OrcamentoRespostaModal({
 
           {orcamento.condicoesPagamento && (
             <div className="mt-3">
-              <p className="mb-1 font-medium text-slate-700">Condições de pagamento</p>
+              <p className="mb-1 font-medium text-slate-700">{t("estoque.orcamentos.condicoesPagamento")}</p>
               <p className="rounded-sm border border-slate-100 bg-slate-50 p-2 text-slate-600">
-                {rotuloCondicoesPagamento(
-                  parseCondicoesPagamento(orcamento.condicoesPagamento)
+                {rotuloCondicoesPagamentoI18n(
+                  parseCondicoesPagamento(orcamento.condicoesPagamento),
+                  t
                 )}
               </p>
             </div>
@@ -154,7 +163,7 @@ export function OrcamentoRespostaModal({
             onClick={onClose}
             className="h-9 rounded-sm border border-slate-300 bg-white px-4 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
           >
-            Fechar
+            {t("estoque.orcamentos.fechar")}
           </button>
           {podeAprovar && onReabrirLink && (
             <button
@@ -162,10 +171,10 @@ export function OrcamentoRespostaModal({
               disabled={processando}
               onClick={() => onReabrirLink(orcamento)}
               className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-blue-200 bg-blue-50 px-4 text-[11px] font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-60"
-              title="Reabre o link para editar e reenvia ao fornecedor pelo WhatsApp"
+              title={t("estoque.orcamentos.editarReenviarTitle")}
             >
               <ExternalLink className="h-3.5 w-3.5" />
-              Editar / Reenviar link
+              {t("estoque.orcamentos.editarReenviar")}
             </button>
           )}
           {podeAprovar && (
@@ -176,7 +185,7 @@ export function OrcamentoRespostaModal({
                 onClick={() => onRecusar(orcamento)}
                 className="h-9 rounded-sm border border-red-200 bg-red-50 px-4 text-[11px] font-medium text-red-600 hover:bg-red-100 disabled:opacity-60"
               >
-                Recusar
+                {t("estoque.orcamentos.recusar")}
               </button>
               <button
                 type="button"
@@ -184,13 +193,13 @@ export function OrcamentoRespostaModal({
                 onClick={() => onAprovar(orcamento)}
                 className="h-9 rounded-sm bg-emerald-500 px-4 text-[11px] font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
               >
-                Aprovar Orçamento
+                {t("estoque.orcamentos.aprovarOrcamento")}
               </button>
             </>
           )}
           {orcamento.status === "aprovado" && (
             <span className="flex h-9 items-center rounded-sm bg-emerald-50 px-4 text-[11px] font-medium text-emerald-700">
-              Orçamento aprovado
+              {t("estoque.orcamentos.orcamentoAprovado")}
             </span>
           )}
         </div>

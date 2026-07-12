@@ -9,11 +9,19 @@ import { useI18n } from "@/components/i18n-provider";
 import { LogoMarcaDenteArt } from "@/components/LogoMarcaDenteArt";
 import { SeletorPaisComBusca } from "@/components/cadastro/SeletorPaisComBusca";
 import { salvarUltimoLaboratorioLogin } from "@/lib/auth-client";
+import type { MessageKey } from "@/lib/i18n/messages";
 import { WHATSAPP_LANDING_URL } from "@/lib/landing-content";
 import { paisPorIso } from "@/lib/paises-telefone";
 import { cn } from "@/lib/utils";
 import { formatarTelefone } from "@/lib/validar-documento";
 import { validarForcaSenha } from "@/lib/validar-senha";
+
+const ERROS_SENHA_PARA_CHAVE: Record<string, MessageKey> = {
+  "Mínimo de 8 caracteres.": "cadastro.senhaErroMinimo",
+  "Inclua uma letra minúscula.": "cadastro.senhaErroMinuscula",
+  "Inclua uma letra maiúscula.": "cadastro.senhaErroMaiuscula",
+  "Inclua um número.": "cadastro.senhaErroNumero",
+};
 
 export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }) {
   const { t } = useI18n();
@@ -39,6 +47,11 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
   });
 
   const forcaSenha = validarForcaSenha(form.adminSenha);
+
+  function traduzirErroSenha(msg: string) {
+    const chave = ERROS_SENHA_PARA_CHAVE[msg];
+    return chave ? t(chave) : msg;
+  }
 
   function atualizar<K extends keyof typeof form>(campo: K, valor: typeof form[K]) {
     setForm((f) => ({ ...f, [campo]: valor }));
@@ -75,13 +88,13 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
         aguardarSegundos?: number;
       };
       if (!res.ok) {
-        setError(data.error || "Não foi possível enviar o código.");
+        setError(data.error || t("cadastro.erroEnviarCodigo"));
         return;
       }
       setCodigoEnviado(true);
-      setInfoCodigo(data.message || "Código enviado! Verifique sua caixa de entrada.");
+      setInfoCodigo(data.message || t("cadastro.codigoEnviadoSucesso"));
     } catch {
-      setError("Erro de conexão ao enviar o código.");
+      setError(t("cadastro.erroConexaoCodigo"));
     } finally {
       setEnviandoCodigo(false);
     }
@@ -92,28 +105,32 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
     setError("");
 
     if (form.adminSenha !== form.confirmarSenha) {
-      setError("As senhas não conferem.");
+      setError(t("login.senhasDiferentes"));
       return;
     }
 
     if (!forcaSenha.valida) {
-      setError(forcaSenha.erros[0] || "Senha fraca. Use maiúscula, minúscula e número.");
+      setError(
+        forcaSenha.erros[0]
+          ? traduzirErroSenha(forcaSenha.erros[0])
+          : t("cadastro.senhaFraca")
+      );
       return;
     }
 
     const codigo = form.codigoVerificacao.replace(/\D/g, "");
     if (codigo.length !== 6) {
-      setError("Informe o código de 6 dígitos enviado por e-mail.");
+      setError(t("cadastro.informeCodigoEmail"));
       return;
     }
 
     if (!codigoEnviado) {
-      setError("Clique em \"Enviar código\" para receber a verificação no e-mail.");
+      setError(t("cadastro.cliqueEnviarCodigo"));
       return;
     }
 
     if (!aceiteTermos) {
-      setError("Você precisa aceitar os Termos de Uso e a Política de Privacidade.");
+      setError(t("cadastro.aceiteTermosObrigatorio"));
       return;
     }
 
@@ -141,7 +158,7 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
         empresa?: { slug?: string; nome?: string };
       };
       if (!res.ok) {
-        setError(data.error || "Não foi possível criar a conta.");
+        setError(data.error || t("cadastro.erroCriarConta"));
         return;
       }
       const slug = data.empresa?.slug?.trim();
@@ -163,7 +180,7 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
       }
       router.push("/login?cadastro=ok");
     } catch {
-      setError("Erro de conexão. Tente novamente.");
+      setError(t("cadastro.erroConexao"));
     } finally {
       setLoading(false);
     }
@@ -202,14 +219,14 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
           <form onSubmit={handleSubmit} className="space-y-3.5">
             <div>
               <label className={labelCls} htmlFor="cadastro-nome">
-                Nome do Laboratório
+                {t("login.nomeLaboratorio")}
               </label>
               <input
                 id="cadastro-nome"
                 className={inputCls}
                 value={form.nome}
                 onChange={(e) => atualizar("nome", e.target.value)}
-                placeholder="Digite o nome do laboratório"
+                placeholder={t("cadastro.placeholderNomeLaboratorio")}
                 required
                 autoComplete="organization"
               />
@@ -217,7 +234,7 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
 
             <div>
               <label className={labelCls} htmlFor="cadastro-email">
-                E-mail
+                {t("login.email")}
               </label>
               <div className="flex gap-2">
                 <input
@@ -231,7 +248,7 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
                     setInfoCodigo("");
                     atualizar("codigoVerificacao", "");
                   }}
-                  placeholder="seu@email.com"
+                  placeholder={t("cadastro.emailPlaceholder")}
                   required
                   autoComplete="email"
                 />
@@ -241,7 +258,11 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
                   disabled={enviandoCodigo || !form.email.trim()}
                   className="shrink-0 rounded-lg border border-[#0066FF] px-3 text-xs font-semibold text-[#0066FF] transition hover:bg-blue-50 disabled:opacity-50"
                 >
-                  {enviandoCodigo ? "..." : codigoEnviado ? "Reenviar" : "Enviar código"}
+                  {enviandoCodigo
+                    ? t("login.enviandoCodigo")
+                    : codigoEnviado
+                      ? t("login.reenviarCodigo")
+                      : t("cadastro.enviarCodigo")}
                 </button>
               </div>
               {infoCodigo ? (
@@ -252,7 +273,7 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
             {codigoEnviado ? (
               <div>
                 <label className={labelCls} htmlFor="cadastro-codigo">
-                  Código de verificação
+                  {t("cadastro.codigoVerificacao")}
                 </label>
                 <input
                   id="cadastro-codigo"
@@ -264,33 +285,33 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
                   onChange={(e) =>
                     atualizar("codigoVerificacao", e.target.value.replace(/\D/g, "").slice(0, 6))
                   }
-                  placeholder="000000"
+                  placeholder={t("login.codigoPlaceholder")}
                   required
                   autoComplete="one-time-code"
                   autoFocus
                 />
                 <p className="mt-1 text-[10px] text-slate-400">
-                  Enviamos um código de 6 dígitos para o seu e-mail. Válido por 10 minutos.
+                  {t("cadastro.codigoEnviadoEmail")}
                 </p>
               </div>
             ) : null}
 
             <div>
               <label className={labelCls} htmlFor="cadastro-pais">
-                País
+                {t("idioma.labelPais")}
               </label>
               <SeletorPaisComBusca
                 id="cadastro-pais"
                 modo="pais"
                 value={form.pais}
                 onChange={(iso) => selecionarPais(iso)}
-                aria-label="País"
+                aria-label={t("cadastro.paisAria")}
               />
             </div>
 
             <div>
               <label className={labelCls} htmlFor="cadastro-whatsapp">
-                Celular (WhatsApp)
+                {t("cadastro.celularWhatsapp")}
               </label>
               <div className="flex gap-2">
                 <SeletorPaisComBusca
@@ -305,7 +326,7 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
                     }));
                   }}
                   className="w-[112px] shrink-0"
-                  aria-label="Código telefone país"
+                  aria-label={t("cadastro.codigoTelefoneAria")}
                 />
                 <input
                   id="cadastro-whatsapp"
@@ -318,7 +339,11 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
                       form.pais === "BR" ? formatarTelefone(e.target.value) : e.target.value
                     )
                   }
-                  placeholder={form.pais === "BR" ? "(00) 00000-0000" : "Número com DDD"}
+                  placeholder={
+                    form.pais === "BR"
+                      ? t("login.whatsappPlaceholder")
+                      : t("cadastro.numeroComDdd")
+                  }
                   required
                   autoComplete="tel"
                 />
@@ -327,7 +352,7 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
 
             <div>
               <label className={labelCls} htmlFor="cadastro-senha">
-                Nova Senha
+                {t("cadastro.novaSenha")}
               </label>
               <div className="relative">
                 <input
@@ -336,7 +361,7 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
                   className={cn(inputCls, "pr-10")}
                   value={form.adminSenha}
                   onChange={(e) => atualizar("adminSenha", e.target.value)}
-                  placeholder="Mínimo 8 caracteres"
+                  placeholder={t("cadastro.senhaMinimo")}
                   required
                   autoComplete="new-password"
                 />
@@ -344,7 +369,7 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
                   type="button"
                   onClick={() => setMostrarSenha((v) => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
+                  aria-label={mostrarSenha ? t("login.ocultarSenha") : t("login.mostrarSenha")}
                 >
                   {mostrarSenha ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -353,7 +378,7 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
 
             <div>
               <label className={labelCls} htmlFor="cadastro-confirmar">
-                Confirmar a Senha
+                {t("cadastro.confirmarSenhaLabel")}
               </label>
               <div className="relative">
                 <input
@@ -362,7 +387,7 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
                   className={cn(inputCls, "pr-10")}
                   value={form.confirmarSenha}
                   onChange={(e) => atualizar("confirmarSenha", e.target.value)}
-                  placeholder="Repita a senha"
+                  placeholder={t("cadastro.repitaSenha")}
                   required
                   autoComplete="new-password"
                 />
@@ -370,7 +395,9 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
                   type="button"
                   onClick={() => setMostrarConfirmar((v) => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  aria-label={mostrarConfirmar ? "Ocultar senha" : "Mostrar senha"}
+                  aria-label={
+                    mostrarConfirmar ? t("login.ocultarSenha") : t("login.mostrarSenha")
+                  }
                 >
                   {mostrarConfirmar ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -390,25 +417,25 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
                 required
               />
               <span className="text-[11px] leading-relaxed text-slate-600">
-                Li e concordo com os{" "}
+                {t("cadastro.aceiteTermosPrefixo")}{" "}
                 <Link
                   href="/termos"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="font-medium text-[#0066FF] hover:underline"
                 >
-                  Termos de Uso
+                  {t("cadastro.termosUso")}
                 </Link>{" "}
-                e a{" "}
+                {t("cadastro.eA")}{" "}
                 <Link
                   href="/privacidade"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="font-medium text-[#0066FF] hover:underline"
                 >
-                  Política de Privacidade
+                  {t("cadastro.politicaPrivacidade")}
                 </Link>{" "}
-                do Lab Prótese.
+                {t("cadastro.doLabProtese")}
               </span>
             </label>
 
@@ -417,15 +444,15 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
               disabled={loading || !aceiteTermos}
               className="mt-1 h-11 w-full rounded-lg bg-[#0066FF] text-sm font-semibold text-white transition hover:bg-[#0052cc] disabled:opacity-60"
             >
-              {loading ? "Cadastrando..." : "Cadastrar"}
+              {loading ? t("cadastro.cadastrando") : t("cadastro.cadastrar")}
             </button>
           </form>
         </div>
 
         <p className="mt-4 text-center text-xs text-slate-500">
-          Já tem uma conta?{" "}
+          {t("cadastro.jaTemConta")}{" "}
           <Link href="/login" className="font-medium text-[#0066FF] hover:underline">
-            Entrar
+            {t("login.entrar")}
           </Link>
           {" · "}
           <a
@@ -434,7 +461,7 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
             rel="noopener noreferrer"
             className="font-medium text-[#0066FF] hover:underline"
           >
-            Fale conosco
+            {t("cadastro.faleConosco")}
           </a>
         </p>
 

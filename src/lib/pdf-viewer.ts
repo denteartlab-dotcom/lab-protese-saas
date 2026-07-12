@@ -1,4 +1,6 @@
 import { srcIframePdfViewer } from "@/lib/pdf-viewer-iframe";
+import { pl, localeImpressaoAtual } from "@/lib/i18n/print-i18n";
+import { localeDataIntl } from "@/lib/i18n/tr-ui";
 
 export type PdfViewerOpcoes = {
   revogarAoFechar?: boolean;
@@ -6,6 +8,18 @@ export type PdfViewerOpcoes = {
 };
 
 let janelaPdfReservada: Window | null = null;
+
+function htmlLangImpressao() {
+  return localeDataIntl(localeImpressaoAtual());
+}
+
+function textoCarregandoPdf() {
+  return pl("print.comum.carregandoPdf");
+}
+
+function textoGerandoPdf() {
+  return pl("print.comum.gerandoPdf");
+}
 
 /**
  * Reserva uma aba no clique do usuário (antes de gerar o PDF).
@@ -22,9 +36,10 @@ function criarAbaPdfCarregando(): Window | null {
     const w = window.open("about:blank", "_blank");
     if (!w) return null;
     try {
-      w.document.title = "Carregando PDF...";
+      const carregando = textoCarregandoPdf();
+      w.document.title = carregando;
       w.document.body.innerHTML =
-        "<div style='font-family:system-ui,sans-serif;padding:32px;color:#334155'>Carregando PDF...</div>";
+        `<div style='font-family:system-ui,sans-serif;padding:32px;color:#334155'>${carregando}</div>`;
     } catch {
       /* Aba aberta; navegação via location.replace ainda pode funcionar. */
     }
@@ -72,7 +87,7 @@ function abrirPdfNaJanelaComTitulo(janela: Window, pdfUrl: string, titulo: strin
   const urlSafe = pdfUrl.replace(/"/g, "&quot;");
   janela.document.open();
   janela.document.write(`<!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="${htmlLangImpressao()}">
 <head>
 <meta charset="utf-8">
 <title>${tituloSafe}</title>
@@ -94,7 +109,7 @@ function agendarRevogarUrl(url: string) {
 
 /** Nome padrão para salvar PDF de ordem de serviço. */
 export function nomeArquivoOsPdf(numeroOs: number) {
-  return `OS ${numeroOs}.pdf`;
+  return pl("print.comum.arquivoOs", { n: numeroOs });
 }
 
 function limparSegmentoNomeArquivo(texto: string) {
@@ -108,8 +123,10 @@ function limparSegmentoNomeArquivo(texto: string) {
 /** Nome sugerido para salvar PDF de fatura (ex.: Fatura 49 - Dr João Silva.pdf). */
 export function nomeArquivoFaturaPdf(numeroFatura: number, clienteNome?: string | null) {
   const cliente = limparSegmentoNomeArquivo(clienteNome ?? "");
-  if (cliente) return `Fatura ${numeroFatura} - ${cliente}.pdf`;
-  return `Fatura ${numeroFatura}.pdf`;
+  if (cliente) {
+    return pl("print.comum.arquivoFaturaCliente", { n: numeroFatura, cliente });
+  }
+  return pl("print.comum.arquivoFatura", { n: numeroFatura });
 }
 
 /** Blob URL com nome sugerido (melhora título/salvar no visualizador do navegador). */
@@ -134,9 +151,10 @@ export function baixarPdfBlob(blob: Blob, nomeArquivo: string) {
 }
 
 /** Abre o diálogo de impressão do navegador com o mesmo PDF gerado para download. */
-export function imprimirPdfBlob(blob: Blob, titulo = "Documento"): Promise<void> {
+export function imprimirPdfBlob(blob: Blob, titulo?: string): Promise<void> {
+  const tituloDoc = titulo ?? pl("print.comum.documento");
   if (typeof window === "undefined") {
-    return Promise.reject(new Error("Impressão disponível apenas no navegador."));
+    return Promise.reject(new Error(pl("print.comum.impressaoSomenteNavegador")));
   }
 
   return new Promise((resolve, reject) => {
@@ -144,7 +162,7 @@ export function imprimirPdfBlob(blob: Blob, titulo = "Documento"): Promise<void>
     const iframe = document.createElement("iframe");
     iframe.style.cssText =
       "position:fixed;left:0;top:0;width:0;height:0;border:0;opacity:0;pointer-events:none;";
-    iframe.title = titulo;
+    iframe.title = tituloDoc;
     document.body.appendChild(iframe);
 
     let finalizado = false;
@@ -167,7 +185,7 @@ export function imprimirPdfBlob(blob: Blob, titulo = "Documento"): Promise<void>
           window.clearTimeout(timerSeguranca);
           iframe.remove();
           URL.revokeObjectURL(url);
-          reject(new Error("Não foi possível abrir o PDF para impressão."));
+          reject(new Error(pl("print.comum.erroAbrirPdfImpressao")));
           return;
         }
         const aoFechar = () => {
@@ -181,7 +199,7 @@ export function imprimirPdfBlob(blob: Blob, titulo = "Documento"): Promise<void>
         window.clearTimeout(timerSeguranca);
         iframe.remove();
         URL.revokeObjectURL(url);
-        reject(err instanceof Error ? err : new Error("Falha ao imprimir o PDF."));
+        reject(err instanceof Error ? err : new Error(pl("print.comum.erroImprimirPdf")));
       }
     };
 
@@ -189,7 +207,7 @@ export function imprimirPdfBlob(blob: Blob, titulo = "Documento"): Promise<void>
       window.clearTimeout(timerSeguranca);
       iframe.remove();
       URL.revokeObjectURL(url);
-      reject(new Error("Não foi possível carregar o PDF para impressão."));
+      reject(new Error(pl("print.comum.erroCarregarPdfImpressao")));
     };
 
     iframe.src = url;
@@ -205,7 +223,7 @@ export async function baixarPdfUrl(url: string, nomeArquivo: string) {
 /** Abre o PDF no visualizador nativo do navegador (uma única nova aba). */
 export function visualizarPdfUrl(
   url: string,
-  nomeArquivo = "documento.pdf",
+  nomeArquivo = pl("print.comum.documentoPdf"),
   titulo?: string,
   opcoes?: PdfViewerOpcoes
 ) {
@@ -249,7 +267,7 @@ export function visualizarPdfUrl(
 
 export function abrirPdfNoVisualizador(
   blob: Blob,
-  nomeArquivo = "documento.pdf",
+  nomeArquivo = pl("print.comum.documentoPdf"),
   titulo?: string,
   janela?: Window | null
 ) {
@@ -280,16 +298,17 @@ export async function abrirPdfGerando(
 /** Abre HTML em nova aba — mesma renderização do preview em Configurações (sem rasterizar). */
 export function abrirHtmlDocumentoNoVisualizador(
   html: string,
-  titulo = "Documento",
+  titulo?: string,
   janela?: Window | null
 ) {
+  const tituloDoc = titulo ?? pl("print.comum.documento");
   const alvo = consumirJanelaReservada(janela);
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
   const url = URL.createObjectURL(blob);
 
   if (alvo && !alvo.closed) {
     try {
-      alvo.document.title = titulo;
+      alvo.document.title = tituloDoc;
     } catch {
       /* ignore */
     }
@@ -305,10 +324,10 @@ export function abrirHtmlDocumentoNoVisualizador(
   const nova = window.open(url, "_blank");
   if (!nova) {
     URL.revokeObjectURL(url);
-    throw new Error("Não foi possível abrir a fatura. Verifique o bloqueio de pop-ups.");
+    throw new Error(pl("print.comum.erroAbrirPopups"));
   }
   try {
-    nova.document.title = titulo;
+    nova.document.title = tituloDoc;
   } catch {
     /* ignore */
   }
@@ -331,13 +350,14 @@ export async function abrirHtmlGerando(gerar: () => Promise<string>, titulo?: st
 /** Abre o HTML no visualizador do app e dispara impressão ao carregar. */
 export async function abrirHtmlParaImpressao(
   gerar: () => Promise<string>,
-  titulo = "Documento",
-  nomeArquivo = "documento.html",
+  titulo?: string,
+  nomeArquivo = pl("print.comum.documentoHtml"),
   opcoes?: { subtitulo?: string }
 ) {
+  const tituloDoc = titulo ?? pl("print.comum.documento");
   const janela = prepararAbaPdf();
   try {
-    await abrirHtmlNoVisualizadorPagina(gerar, titulo, nomeArquivo, {
+    await abrirHtmlNoVisualizadorPagina(gerar, tituloDoc, nomeArquivo, {
       janela,
       imprimirAoCarregar: true,
       subtitulo: opcoes?.subtitulo,
@@ -356,7 +376,7 @@ export async function abrirHtmlParaImpressao(
 export async function abrirPdfNoVisualizadorPagina(
   gerar: () => Promise<Blob>,
   titulo: string,
-  nomeArquivo = "documento.pdf",
+  nomeArquivo = pl("print.comum.documentoPdf"),
   opcoes?: {
     janela?: Window | null;
     imprimirAoCarregar?: boolean;
@@ -371,7 +391,7 @@ export async function abrirPdfNoVisualizadorPagina(
 export async function abrirPdfGerandoNoVisualizadorPagina(
   gerar: () => Promise<Blob>,
   titulo: string,
-  nomeArquivo = "documento.pdf",
+  nomeArquivo = pl("print.comum.documentoPdf"),
   opcoes?: { janela?: Window | null; subtitulo?: string }
 ) {
   await abrirPdfBlobDiretoNaAba(gerar, titulo, nomeArquivo, {
@@ -386,16 +406,17 @@ export async function abrirPdfGerandoNoVisualizadorPagina(
 export async function abrirPdfBlobDiretoNaAba(
   gerar: () => Promise<Blob>,
   titulo: string,
-  nomeArquivo = "documento.pdf",
+  nomeArquivo = pl("print.comum.documentoPdf"),
   opcoes?: { janela?: Window | null }
 ) {
   const janela = consumirJanelaReservada(opcoes?.janela) ?? prepararAbaPdf();
   try {
     if (janela && !janela.closed) {
       try {
-        janela.document.title = `Gerando: ${titulo}`;
+        janela.document.title = pl("print.comum.gerandoTitulo", { titulo });
+        const gerando = textoGerandoPdf();
         janela.document.body.innerHTML =
-          "<div style='font-family:system-ui,sans-serif;padding:32px;color:#334155'>Gerando PDF...</div>";
+          `<div style='font-family:system-ui,sans-serif;padding:32px;color:#334155'>${gerando}</div>`;
       } catch {
         /* ignore */
       }
@@ -443,7 +464,7 @@ export async function abrirPdfBlobDiretoNaAba(
 export async function abrirPdfParaImpressaoNoVisualizador(
   gerar: () => Promise<Blob>,
   titulo: string,
-  nomeArquivo = "documento.pdf",
+  nomeArquivo = pl("print.comum.documentoPdf"),
   opcoes?: { subtitulo?: string }
 ) {
   const janela = prepararAbaPdf();
@@ -463,7 +484,7 @@ export async function abrirPdfParaImpressaoNoVisualizador(
 export async function abrirHtmlNoVisualizadorPagina(
   gerar: () => Promise<string>,
   titulo: string,
-  _nomeArquivo = "documento.html",
+  _nomeArquivo = pl("print.comum.documentoHtml"),
   opcoes?: { janela?: Window | null; imprimirAoCarregar?: boolean; subtitulo?: string }
 ) {
   const janela =
@@ -494,12 +515,12 @@ export async function abrirHtmlNoVisualizadorPagina(
 export async function abrirHtmlGerandoNoVisualizador(
   gerar: () => Promise<string>,
   titulo?: string,
-  nomeArquivo = "documento.html",
+  nomeArquivo = pl("print.comum.documentoHtml"),
   opcoes?: { subtitulo?: string }
 ) {
   const janela = prepararAbaPdf();
   try {
-    await abrirHtmlNoVisualizadorPagina(gerar, titulo ?? "Documento", nomeArquivo, {
+    await abrirHtmlNoVisualizadorPagina(gerar, titulo ?? pl("print.comum.documento"), nomeArquivo, {
       janela,
       subtitulo: opcoes?.subtitulo,
     });

@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { ImagePlus, Send, X } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -23,11 +24,13 @@ export function SuporteChatInput({
   onImagemSelecionada,
   onEnviar,
   enviando,
-  placeholder = "Digite sua mensagem...",
+  placeholder,
   disabled = false,
   motivoDesabilitado,
 }: Props) {
+  const { t } = useI18n();
   const inputArquivoRef = useRef<HTMLInputElement>(null);
+  const placeholderTexto = placeholder ?? t("suporte.placeholder");
 
   function selecionarImagem(file: File | null) {
     if (!file) {
@@ -50,7 +53,7 @@ export function SuporteChatInput({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={imagemPreview}
-            alt="Pré-visualização"
+            alt={t("suporte.preVisualizacao")}
             className="max-h-24 rounded-md border border-slate-200 object-contain"
           />
           <button
@@ -60,7 +63,7 @@ export function SuporteChatInput({
               if (inputArquivoRef.current) inputArquivoRef.current.value = "";
             }}
             className="absolute -right-2 -top-2 rounded-full bg-slate-700 p-0.5 text-white hover:bg-slate-900"
-            aria-label="Remover imagem"
+            aria-label={t("suporte.removerImagem")}
           >
             <X className="h-3 w-3" />
           </button>
@@ -80,8 +83,8 @@ export function SuporteChatInput({
           onClick={() => inputArquivoRef.current?.click()}
           disabled={enviando || disabled}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-50"
-          title="Enviar imagem"
-          aria-label="Enviar imagem"
+          title={t("suporte.enviarImagem")}
+          aria-label={t("suporte.enviarImagem")}
         >
           <ImagePlus className="h-4 w-4" />
         </button>
@@ -95,7 +98,7 @@ export function SuporteChatInput({
             }
           }}
           rows={2}
-          placeholder={placeholder}
+          placeholder={placeholderTexto}
           disabled={disabled}
           className="min-h-[44px] flex-1 resize-none rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-[#4a90d9] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
         />
@@ -106,7 +109,7 @@ export function SuporteChatInput({
           className={cn(
             "flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#4a90d9] text-white transition hover:bg-[#3a7bc8] disabled:opacity-50"
           )}
-          aria-label="Enviar mensagem"
+          aria-label={t("suporte.enviarMensagem")}
         >
           <Send className="h-4 w-4" />
         </button>

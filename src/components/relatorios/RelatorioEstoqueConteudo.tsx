@@ -30,8 +30,6 @@ import {
   gerarRelatorioPosicaoEstoque,
   gerarRelatorioVendaProdutos,
   moneyRelatorioEstoque,
-  OPCOES_ESTOQUE_CONTROLE,
-  OPCOES_RELATORIO_ESTOQUE,
   type FiltrosRelatorioEstoque,
   type LinhaControleProduto,
   type LinhaPosicaoEstoque,
@@ -45,6 +43,10 @@ import {
   type TotaisVendaProduto,
   type TrabalhoDataEntregaRelatorio,
 } from "@/lib/relatorio-estoque";
+import {
+  opcoesEstoqueControleI18n,
+  opcoesRelatorioEstoqueI18n,
+} from "@/lib/i18n/relatorio-estoque-i18n";
 import { readStorage } from "@/lib/persisted-storage";
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import { gerarRelatorioEstoquePdf } from "@/lib/relatorio-estoque-pdf";
@@ -500,6 +502,8 @@ function TabelaMovimentacaoEstoque({ linhas }: { linhas: LinhaRelatorioEstoque[]
 
 export function RelatorioEstoqueConteudo() {
   const { t } = useI18n();
+  const opcoesRelatorio = useMemo(() => opcoesRelatorioEstoqueI18n(t), [t]);
+  const opcoesEstoque = useMemo(() => opcoesEstoqueControleI18n(t), [t]);
   const [carregando, setCarregando] = useState(true);
   const [movimentos, setMovimentos] = useState<MovimentoEstoque[]>([]);
   const [produtosPorId, setProdutosPorId] = useState<Map<string, ProdutoRelatorioEstoque>>(
@@ -709,14 +713,14 @@ export function RelatorioEstoqueConteudo() {
           <div className="space-y-3 px-4 py-4">
             <div className="flex flex-wrap items-end gap-3">
               <div className="min-w-[200px] flex-1">
-                <label className={labelClass}>Opções de Relatório</label>
+                <label className={labelClass}>{t("relatorio.estoque.opcoesRelatorio")}</label>
                 <div className="relative">
                   <select
                     className={cn(selectClass, "appearance-none pr-8")}
                     value={opcaoRelatorio}
                     onChange={(e) => setOpcaoRelatorio(e.target.value as OpcaoRelatorioEstoque)}
                   >
-                    {OPCOES_RELATORIO_ESTOQUE.map((op) => (
+                    {opcoesRelatorio.map((op) => (
                       <option key={op.value} value={op.value}>
                         {op.label}
                       </option>
@@ -729,14 +733,14 @@ export function RelatorioEstoqueConteudo() {
               {modoControle && (
                 <>
                   <div className="w-[160px]">
-                    <label className={labelClass}>Opções de Estoque</label>
+                    <label className={labelClass}>{t("relatorio.estoque.opcoesEstoque")}</label>
                     <div className="relative">
                       <select
                         className={cn(selectClass, "appearance-none pr-8")}
                         value={opcaoEstoque}
                         onChange={(e) => setOpcaoEstoque(e.target.value as OpcaoEstoqueControle)}
                       >
-                        {OPCOES_ESTOQUE_CONTROLE.map((op) => (
+                        {opcoesEstoque.map((op) => (
                           <option key={op.value} value={op.value}>
                             {op.label}
                           </option>
@@ -746,7 +750,7 @@ export function RelatorioEstoqueConteudo() {
                     </div>
                   </div>
                   <div className="w-[140px]">
-                    <label className={labelClass}>Etiqueta</label>
+                    <label className={labelClass}>{t("relatorio.estoque.colunaEtiqueta")}</label>
                     <div className="relative">
                       <select
                         className={cn(selectClass, "appearance-none pr-8")}
@@ -755,7 +759,7 @@ export function RelatorioEstoqueConteudo() {
                       >
                         {opcoesEtiqueta.map((op) => (
                           <option key={op} value={op}>
-                            {op}
+                            {op === "Todas" ? t("relatorio.opcao.todas") : op}
                           </option>
                         ))}
                       </select>
@@ -810,7 +814,7 @@ export function RelatorioEstoqueConteudo() {
             {!modoControle && !modoVenda && (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               <div>
-                <label className={labelClass}>Colaboradores</label>
+                <label className={labelClass}>{t("relatorio.filtro.colaborador")}</label>
                 <select
                   className={selectClass}
                   value={colaborador}
@@ -824,7 +828,7 @@ export function RelatorioEstoqueConteudo() {
                 </select>
               </div>
               <div>
-                <label className={labelClass}>Etiqueta</label>
+                <label className={labelClass}>{t("relatorio.estoque.colunaEtiqueta")}</label>
                 <select
                   className={selectClass}
                   value={etiqueta}
@@ -832,29 +836,29 @@ export function RelatorioEstoqueConteudo() {
                 >
                   {opcoesEtiqueta.map((op) => (
                     <option key={op} value={op}>
-                      {op}
+                      {op === "Todas" ? t("relatorio.opcao.todas") : op}
                     </option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className={labelClass}>Tipo Movimento</label>
+                <label className={labelClass}>{t("relatorio.estoque.colunaTipo")}</label>
                 <select
                   className={selectClass}
                   value={tipoMovimento}
                   onChange={(e) => setTipoMovimento(e.target.value)}
                 >
-                  <option value="Todos">Todos</option>
-                  <option value="Entrada">Entrada</option>
-                  <option value="Saída">Saída</option>
+                  <option value="Todos">{t("relatorio.opcao.todos")}</option>
+                  <option value="Entrada">{t("estoque.produtos.movimentoEntrada")}</option>
+                  <option value="Saída">{t("estoque.produtos.movimentoSaida")}</option>
                 </select>
               </div>
               <div>
-                <label className={labelClass}>Setor</label>
+                <label className={labelClass}>{t("relatorio.filtro.setor")}</label>
                 <select className={selectClass} value={setor} onChange={(e) => setSetor(e.target.value)}>
                   {opcoesSetor.map((op) => (
                     <option key={op} value={op}>
-                      {op === "Todos" ? "Todos" : op}
+                      {op === "Todos" ? t("relatorio.opcao.todos") : op}
                     </option>
                   ))}
                 </select>

@@ -216,7 +216,7 @@ export function NovoUsuarioConteudo() {
 
       <div className="mt-4 rounded-sm bg-white px-5 py-5 shadow-sm md:px-6 md:py-6">
         <div className="mb-4 rounded-sm border border-[#f0ad4e] bg-[#fcf8e3] px-3 py-2.5 text-[12px] leading-snug text-[#8a6d3b]">
-          <span className="font-semibold">{t("ui.auto.obs")}</span> {t("settings.usuariosObsSenha")}
+          <span className="font-semibold">{t("settings.obsAbrev")}</span> {t("settings.usuariosObsSenha")}
           {cotas && !cotas.ilimitado && cotas.restantes != null ? (
             <>
               {" "}

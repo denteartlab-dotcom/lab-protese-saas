@@ -149,6 +149,7 @@ function CampoValorComissao({
   onValorChange: (valor: string) => void;
   onTipoChange: (tipo: string) => void;
 }) {
+  const { t } = useI18n();
   const labelClass = "mb-1 block text-[9px] text-slate-500";
   return (
     <div>
@@ -158,7 +159,7 @@ function CampoValorComissao({
           value={tipo}
           onChange={(event) => onTipoChange(event.target.value)}
           className="w-9 shrink-0 border-r border-slate-200 bg-white text-center text-[10px] text-slate-500 outline-none"
-          aria-label={`Unidade de ${label}`}
+          aria-label={t("cadastros.comum.unidadeDe", { label })}
         >
           <option value="%">%</option>
           <option value="R$">R$</option>
@@ -300,7 +301,7 @@ export default function ColaboradoresPage() {
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.text("Lista de Colaboradores Cadastrados", 105, 18, { align: "center" });
+    doc.text(t("cadastros.colaboradores.pdfTitulo"), 105, 18, { align: "center" });
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6);
     doc.text(hoje, 105, 24, { align: "center" });
@@ -315,55 +316,55 @@ export default function ColaboradoresPage() {
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(6);
-      doc.text(`Colaborador:`, 22, y);
+      doc.text(t("cadastros.colaboradores.pdfColaborador"), 22, y);
       doc.setFont("helvetica", "normal");
       doc.text(colaborador.nome || "-", 38, y);
       doc.setFont("helvetica", "bold");
-      doc.text(`CPF:`, 73, y);
+      doc.text(`${t("cadastros.comum.cpf")}:`, 73, y);
       doc.setFont("helvetica", "normal");
       doc.text(dados.cpf || "-", 81, y);
       doc.setFont("helvetica", "bold");
-      doc.text(`CRO:`, 105, y);
+      doc.text(`${t("cadastros.comum.cro")}:`, 105, y);
       doc.setFont("helvetica", "normal");
       doc.text(dados.cro || "-", 114, y);
       doc.setFont("helvetica", "bold");
-      doc.text(`CNPJ:`, 137, y);
+      doc.text(`${t("cadastros.comum.cnpj")}:`, 137, y);
       doc.setFont("helvetica", "normal");
       doc.text("-", 147, y);
       doc.setFont("helvetica", "bold");
-      doc.text(`Email:`, 154, y);
+      doc.text(`${t("cadastros.comum.email")}:`, 154, y);
       doc.setFont("helvetica", "normal");
       doc.text(colaborador.email || "-", 165, y);
 
       y += 5;
       doc.setFont("helvetica", "bold");
-      doc.text(`Cargo:`, 22, y);
+      doc.text(t("cadastros.colaboradores.pdfCargo"), 22, y);
       doc.setFont("helvetica", "normal");
       doc.text(dados.cargo || colaborador.setorAtuacao || "-", 33, y);
       doc.setFont("helvetica", "bold");
-      doc.text(`Data Contratação:`, 62, y);
+      doc.text(t("cadastros.colaboradores.pdfDataContratacao"), 62, y);
       doc.setFont("helvetica", "normal");
       doc.text(dados.dataContratacao || "-", 88, y);
       doc.setFont("helvetica", "bold");
-      doc.text(`Data Nascimento:`, 112, y);
+      doc.text(t("cadastros.colaboradores.pdfDataNascimento"), 112, y);
       doc.setFont("helvetica", "normal");
       doc.text(dados.dataNascimento || "-", 137, y);
 
       y += 5;
       doc.setFont("helvetica", "bold");
-      doc.text(`Tel Residencial:`, 22, y);
+      doc.text(t("cadastros.colaboradores.pdfTelResidencial"), 22, y);
       doc.setFont("helvetica", "normal");
       doc.text(dados.telefoneResidencial || "-", 45, y);
       doc.setFont("helvetica", "bold");
-      doc.text(`Tel Comercial:`, 70, y);
+      doc.text(t("cadastros.colaboradores.pdfTelComercial"), 70, y);
       doc.setFont("helvetica", "normal");
       doc.text(dados.telefoneComercial || "-", 91, y);
       doc.setFont("helvetica", "bold");
-      doc.text(`Celular:`, 112, y);
+      doc.text(`${t("cadastros.comum.celular")}:`, 112, y);
       doc.setFont("helvetica", "normal");
       doc.text(colaborador.celular || "-", 125, y);
       doc.setFont("helvetica", "bold");
-      doc.text(`Whatsapp:`, 145, y);
+      doc.text(`${t("cadastros.comum.whatsapp")}:`, 145, y);
       doc.setFont("helvetica", "normal");
       doc.text(colaborador.whatsapp || "-", 162, y);
 
@@ -438,7 +439,9 @@ export default function ColaboradoresPage() {
     setColaboradorEditando(colaborador);
     const dados = colaborador.dados || {};
     const tipoRemuneracao =
-      dados.tipoContratacao === "Terceirizado" ? "Salário + Comissão" : dados.tipoContratacao;
+      dados.tipoContratacao === "Terceirizado"
+        ? t("cadastros.comum.remuneracaoSalarioComissao")
+        : dados.tipoContratacao;
     setForm({
       ...formularioVazio,
       ...dados,
@@ -557,7 +560,7 @@ export default function ColaboradoresPage() {
           <button
             type="button"
             className="flex h-7 w-7 items-center justify-center rounded bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"
-            aria-label="Exportar"
+            aria-label={t("cadastros.comum.exportarAria")}
           >
             <span className="text-xs font-bold">E</span>
           </button>
@@ -568,7 +571,7 @@ export default function ColaboradoresPage() {
             value={busca}
             onChange={(event) => setBusca(event.target.value)}
             className="h-7 w-full rounded-l border border-slate-300 bg-white px-3 text-[11px] text-slate-600 outline-none placeholder:text-slate-400 focus:border-blue-400"
-            placeholder="Procurar"
+            placeholder={t("cadastros.comum.procurar")}
           />
           <button
             type="button"
@@ -586,12 +589,12 @@ export default function ColaboradoresPage() {
         opcoesExtras={[
           {
             valor: "email",
-            label: "E-mail",
+            label: t("cadastros.comum.email"),
             comparar: (a, b) => compararTextoBr(a.email, b.email),
           },
           {
             valor: "setorAtuacao",
-            label: "Setor",
+            label: t("cadastros.comum.setor"),
             comparar: (a, b) => compararTextoBr(a.setorAtuacao, b.setorAtuacao),
           },
         ]}
@@ -601,12 +604,12 @@ export default function ColaboradoresPage() {
         <table className="w-full min-w-[960px] border-collapse text-[10px]">
           <thead>
             <tr className="border-y border-slate-100 bg-[#f4f3fb] text-[9px] uppercase tracking-wide text-slate-500">
-              <th className="w-[22%] px-4 py-2 text-left font-semibold">Nome</th>
-              <th className="w-[22%] px-4 py-2 text-left font-semibold">Email</th>
-              <th className="w-[18%] px-4 py-2 text-left font-semibold">Celular</th>
-              <th className="w-[17%] px-4 py-2 text-left font-semibold">Whatsapp</th>
-              <th className="w-[16%] px-4 py-2 text-center font-semibold">Setor Atuação</th>
-              <th className="w-[5%] px-4 py-2 text-center font-semibold">Opções</th>
+              <th className="w-[22%] px-4 py-2 text-left font-semibold">{t("cadastros.comum.nome")}</th>
+              <th className="w-[22%] px-4 py-2 text-left font-semibold">{t("cadastros.comum.email")}</th>
+              <th className="w-[18%] px-4 py-2 text-left font-semibold">{t("cadastros.comum.celular")}</th>
+              <th className="w-[17%] px-4 py-2 text-left font-semibold">{t("cadastros.comum.whatsapp")}</th>
+              <th className="w-[16%] px-4 py-2 text-center font-semibold">{t("cadastros.comum.setorAtuacao")}</th>
+              <th className="w-[5%] px-4 py-2 text-center font-semibold">{t("cadastros.comum.opcoes")}</th>
             </tr>
           </thead>
           <tbody>
@@ -638,7 +641,7 @@ export default function ColaboradoresPage() {
                           type="button"
                           onClick={() => setColaboradorAberto(aberto ? null : colaborador.id)}
                           className={aberto ? "text-blue-600" : "text-slate-500 hover:text-blue-600"}
-                          aria-label="Visualizar"
+                          aria-label={t("cadastros.comum.visualizar")}
                         >
                           <Eye className="h-3.5 w-3.5" />
                         </button>
@@ -648,7 +651,7 @@ export default function ColaboradoresPage() {
                               type="button"
                               onClick={() => abrirEdicaoColaborador(colaborador)}
                               className="text-slate-500 hover:text-blue-600"
-                              aria-label="Editar"
+                              aria-label={t("cadastros.comum.editar")}
                             >
                               <Edit3 className="h-3.5 w-3.5" />
                             </button>
@@ -656,7 +659,7 @@ export default function ColaboradoresPage() {
                               type="button"
                               onClick={() => excluirColaborador(colaborador.id)}
                               className="text-red-400 hover:text-red-600"
-                              aria-label="Excluir"
+                              aria-label={t("cadastros.comum.excluir")}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -675,8 +678,8 @@ export default function ColaboradoresPage() {
                               type="button"
                               onClick={() => removerColaboradorDefinitivo(colaborador.id)}
                               className="text-red-400 hover:text-red-600"
-                              aria-label="Remover definitivamente"
-                              title="Remover definitivamente"
+                              aria-label={t("cadastros.comum.removerDefinitivo")}
+                              title={t("cadastros.comum.removerDefinitivo")}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -692,52 +695,52 @@ export default function ColaboradoresPage() {
                           <div className="mb-4 border-b border-slate-100 pb-4">
                             <h3 className="mb-3 flex items-center gap-2 text-[10px] font-semibold text-emerald-600">
                               <UserRound className="h-3 w-3" />
-                              Dados Pessoais
+                              {t("cadastros.comum.secaoDadosPessoais")}
                             </h3>
                             <div className="grid gap-x-10 gap-y-2 md:grid-cols-3">
-                              <p><strong>CPF/CNPJ:</strong> {dados.cpf || ""}</p>
-                              <p><strong>DATA NASCIMENTO:</strong> {dados.dataNascimento || ""}</p>
-                              <p><strong>CRO:</strong> {dados.cro || ""}</p>
-                              <p><strong>EMAIL:</strong> {dados.email || colaborador.email}</p>
-                              <p><strong>DATA CONTRATAÇÃO:</strong> {dados.dataContratacao || ""}</p>
-                              <p><strong>CARGO:</strong> {dados.cargo || ""}</p>
-                              <p><strong>TIPO REMUNERAÇÃO:</strong> {dados.tipoContratacao || ""}</p>
-                              <p><strong>SALÁRIO:</strong> {formatarSalarioExibicao(dados.valorSalario || "0,00")}</p>
-                              <p><strong>TEL. RESIDENCIAL:</strong> {dados.telefoneResidencial || ""}</p>
-                              <p><strong>TEL. COMERCIAL:</strong> {dados.telefoneComercial || ""}</p>
-                              <p><strong>CELULAR:</strong> {dados.celular || colaborador.celular}</p>
-                              <p><strong>WHATSAPP:</strong> {dados.whatsapp || colaborador.whatsapp}</p>
-                              <p><strong>CEP:</strong> {dados.cep || ""}</p>
-                              <p><strong>ENDEREÇO:</strong> {dados.rua || ""}</p>
-                              <p><strong>BAIRRO:</strong> {dados.bairro || ""}</p>
-                              <p><strong>CIDADE:</strong> {dados.cidade || ""}</p>
-                              <p><strong>COMPLEMENTO:</strong> {dados.complemento || ""}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheCpfCnpj")}</strong> {dados.cpf || ""}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheDataNascimento")}</strong> {dados.dataNascimento || ""}</p>
+                              <p><strong>{t("cadastros.comum.detalheCro")}</strong> {dados.cro || ""}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheWhatsapp").replace("WHATSAPP", "EMAIL")}</strong> {dados.email || colaborador.email}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheDataContratacao")}</strong> {dados.dataContratacao || ""}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheCargo")}</strong> {dados.cargo || ""}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheTipoRemuneracao")}</strong> {dados.tipoContratacao || ""}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheSalario")}</strong> {formatarSalarioExibicao(dados.valorSalario || "0,00")}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheTelResidencial")}</strong> {dados.telefoneResidencial || ""}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheTelComercial")}</strong> {dados.telefoneComercial || ""}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheCelular")}</strong> {dados.celular || colaborador.celular}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheWhatsapp")}</strong> {dados.whatsapp || colaborador.whatsapp}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheCep")}</strong> {dados.cep || ""}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheEndereco")}</strong> {dados.rua || ""}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheBairro")}</strong> {dados.bairro || ""}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheCidade")}</strong> {dados.cidade || ""}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheComplemento")}</strong> {dados.complemento || ""}</p>
                             </div>
                           </div>
 
                           <div className="mb-4 border-b border-slate-100 pb-4">
                             <h3 className="mb-3 flex items-center gap-2 text-[10px] font-semibold text-emerald-600">
                               <BriefcaseBusiness className="h-3 w-3" />
-                              Carteira de Trabalho
+                              {t("cadastros.comum.secaoCarteiraTrabalho")}
                             </h3>
                             <div className="grid gap-x-10 gap-y-2 md:grid-cols-4">
-                              <p><strong>PIS/PASEP:</strong> {dados.pisPasep || ""}</p>
-                              <p><strong>Nº da CTPS:</strong> {dados.numeroCtps || ""}</p>
-                              <p><strong>Série:</strong> {dados.serie || ""}</p>
-                              <p><strong>UF:</strong> {dados.uf || ""}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalhePisPasep")}</strong> {dados.pisPasep || ""}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheNumeroCtps")}</strong> {dados.numeroCtps || ""}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheSerie")}</strong> {dados.serie || ""}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheUf")}</strong> {dados.uf || ""}</p>
                             </div>
                           </div>
 
                           <div>
                             <h3 className="mb-3 flex items-center gap-2 text-[10px] font-semibold text-emerald-600">
                               <CreditCard className="h-3 w-3" />
-                              Dados Bancários
+                              {t("cadastros.comum.secaoDadosBancarios")}
                             </h3>
                             <div className="grid gap-x-10 gap-y-2 md:grid-cols-4">
-                              <p><strong>Código Banco:</strong> {dados.codigoBanco || ""}</p>
-                              <p><strong>Agência:</strong> {dados.agencia || ""}</p>
-                              <p><strong>Conta:</strong> {dados.conta || ""}</p>
-                              <p><strong>Chave Pix:</strong> {dados.chavePix || ""}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheCodigoBanco")}</strong> {dados.codigoBanco || ""}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheAgencia")}</strong> {dados.agencia || ""}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheConta")}</strong> {dados.conta || ""}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheChavePix")}</strong> {dados.chavePix || ""}</p>
                             </div>
                           </div>
 
@@ -746,7 +749,7 @@ export default function ColaboradoresPage() {
                             onClick={() => setColaboradorAberto(null)}
                             className="mt-4 h-7 rounded border border-slate-300 bg-white px-3 text-[10px] text-slate-600 hover:bg-slate-50"
                           >
-                            Fechar Cadastro
+                            {t("cadastros.comum.fecharCadastro")}
                           </button>
                         </div>
                       </td>
@@ -760,7 +763,7 @@ export default function ColaboradoresPage() {
             {paginaPronta && colaboradoresFiltrados.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-xs text-slate-400">
-                  Nenhum colaborador encontrado.
+                  {t("cadastros.colaboradores.nenhumEncontrado")}
                 </td>
               </tr>
             )}
@@ -775,13 +778,13 @@ export default function ColaboradoresPage() {
           <div className="relative w-full max-w-[1180px] rounded bg-white shadow-2xl">
             <div className="flex h-9 items-center justify-between border-b border-slate-100 px-4">
               <h2 className="text-[11px] font-medium text-slate-700">
-                {colaboradorEditando ? "Dados do Colaborador" : "Cadastrar Colaborador"}
+                {colaboradorEditando ? t("cadastros.colaboradores.modalTituloEditar") : t("cadastros.colaboradores.modalTituloCadastrar")}
               </h2>
               <button
                 type="button"
                 onClick={fecharModalColaborador}
                 className="flex h-7 w-7 items-center justify-center rounded text-lg leading-none text-slate-500 hover:bg-slate-100"
-                aria-label="Fechar"
+                aria-label={t("cadastros.comum.fechar")}
               >
                 ×
               </button>
@@ -791,38 +794,38 @@ export default function ColaboradoresPage() {
               <section className="space-y-3">
                 <h3 className="flex items-center gap-2 text-[12px] font-medium text-slate-600">
                   <UserRound className="h-3.5 w-3.5" />
-                  Dados do Colaborador
+                  {t("cadastros.comum.secaoDadosColaborador")}
                 </h3>
                 <div className="grid gap-3 md:grid-cols-[1.2fr_0.55fr_0.55fr]">
                   <div>
-                    <label className={labelClass}>Nome do Colaborador*</label>
+                    <label className={labelClass}>{t("cadastros.colaboradores.campoNomeObrigatorio")}</label>
                     <input value={form.nome} onChange={(event) => setCampo("nome", event.target.value)} className={inputClass} />
                   </div>
                   <div>
-                    <label className={labelClass}>CRO</label>
+                    <label className={labelClass}>{t("cadastros.comum.cro")}</label>
                     <input value={form.cro} onChange={(event) => setCampo("cro", event.target.value)} className={inputClass} />
                   </div>
                   <div>
-                    <label className={labelClass}>Cargo</label>
+                    <label className={labelClass}>{t("cadastros.comum.cargo")}</label>
                     <input value={form.cargo} onChange={(event) => setCampo("cargo", event.target.value)} className={inputClass} />
                   </div>
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-4">
                   <div>
-                    <label className={labelClass}>CPF</label>
+                    <label className={labelClass}>{t("cadastros.comum.cpf")}</label>
                     <input value={form.cpf} onChange={(event) => setCampo("cpf", event.target.value)} className={inputClass} />
                   </div>
                   <div>
-                    <label className={labelClass}>Email</label>
+                    <label className={labelClass}>{t("cadastros.comum.email")}</label>
                     <input value={form.email} onChange={(event) => setCampo("email", event.target.value)} className={inputClass} />
                   </div>
                   <div>
                     <CampoDataBr
-                      label="Data de Nascimento"
+                      label={t("cadastros.comum.dataNascimento")}
                       value={form.dataNascimento}
                       onChange={(valor) => setCampo("dataNascimento", valor)}
-                      placeholder="dd/mm/aaaa"
+                      placeholder={t("cadastros.comum.placeholderData")}
                       iconPosition="left"
                       calendarZIndex={9999}
                       inputClassName="h-8 rounded border-slate-300 px-2 pl-8 text-[10px] text-slate-600 shadow-none focus:border-blue-400 focus:ring-0"
@@ -830,26 +833,26 @@ export default function ColaboradoresPage() {
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>RG</label>
+                    <label className={labelClass}>{t("cadastros.comum.rg")}</label>
                     <input value={form.rg} onChange={(event) => setCampo("rg", event.target.value)} className={inputClass} />
                   </div>
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-4">
                   <div>
-                    <label className={labelClass}>Telefone Residencial</label>
+                    <label className={labelClass}>{t("cadastros.comum.telefoneResidencial")}</label>
                     <input value={form.telefoneResidencial} placeholder={PLACEHOLDER_TELEFONE_BR} onChange={(event) => setCampo("telefoneResidencial", formatarTelefone(event.target.value))} className={inputClass} />
                   </div>
                   <div>
-                    <label className={labelClass}>Telefone Comercial</label>
+                    <label className={labelClass}>{t("cadastros.comum.telefoneComercial")}</label>
                     <input value={form.telefoneComercial} placeholder={PLACEHOLDER_TELEFONE_BR} onChange={(event) => setCampo("telefoneComercial", formatarTelefone(event.target.value))} className={inputClass} />
                   </div>
                   <div>
-                    <label className={labelClass}>Celular</label>
+                    <label className={labelClass}>{t("cadastros.comum.celular")}</label>
                     <input value={form.celular} placeholder={PLACEHOLDER_TELEFONE_BR} onChange={(event) => setCampo("celular", formatarTelefone(event.target.value))} className={inputClass} />
                   </div>
                   <div>
-                    <label className={labelClass}>Whatsapp</label>
+                    <label className={labelClass}>{t("cadastros.comum.whatsapp")}</label>
                     <input value={form.whatsapp} placeholder={PLACEHOLDER_TELEFONE_BR} onChange={(event) => setCampo("whatsapp", formatarTelefone(event.target.value))} className={inputClass} />
                   </div>
                 </div>
@@ -857,18 +860,18 @@ export default function ColaboradoresPage() {
                 <div className="grid gap-3 md:grid-cols-[0.55fr_1fr_0.55fr]">
                   <label className="flex h-8 items-center gap-2 pt-4 text-[10px] text-slate-500">
                     <input type="checkbox" className="h-3.5 w-3.5 accent-blue-600" />
-                    Ativo
+                    {t("cadastros.comum.ativo")}
                   </label>
                   <div>
-                    <label className={labelClass}>Tipo de Remuneração</label>
+                    <label className={labelClass}>Tipo de {t("cadastros.comum.secaoRemuneracao")}</label>
                     <select value={form.tipoContratacao} onChange={(event) => setCampo("tipoContratacao", event.target.value)} className={inputClass}>
-                      <option>Salário</option>
-                      <option>Comissão</option>
-                      <option>Salário + Comissão</option>
+                      <option>{t("cadastros.comum.remuneracaoSalario")}</option>
+                      <option>{t("cadastros.comum.secaoComissao")}</option>
+                      <option>Salário + {t("cadastros.comum.secaoComissao")}</option>
                     </select>
                   </div>
                   <CampoValorSalario
-                    label="Valor do Salário"
+                    label={t("cadastros.comum.valorSalario")}
                     valor={form.valorSalario}
                     onChange={(valor) => setCampo("valorSalario", valor)}
                     disabled={!exibeSalario}
@@ -877,7 +880,7 @@ export default function ColaboradoresPage() {
 
                 <div className="grid gap-3 md:grid-cols-[1fr_0.32fr]">
                   <div className="relative">
-                    <label className={labelClass}>Setor</label>
+                    <label className={labelClass}>{t("cadastros.comum.setor")}</label>
                     <button
                       type="button"
                       onClick={() => setDropdownSetorAberto((aberto) => !aberto)}
@@ -896,7 +899,7 @@ export default function ColaboradoresPage() {
                           }}
                           className="flex w-full items-center px-3 py-2 text-left font-medium text-emerald-600 hover:bg-emerald-50"
                         >
-                          + Adicionar Setor
+                          {t("cadastros.comum.adicionarSetor")}
                         </button>
                         {setores.map((setor) => (
                           <div
@@ -919,7 +922,7 @@ export default function ColaboradoresPage() {
                               type="button"
                               onClick={() => excluirSetor(setor.nome)}
                               className="ml-2 text-red-400 hover:text-red-600"
-                              aria-label={`Excluir setor ${setor.nome}`}
+                              aria-label={t("cadastros.comum.excluirSetor", { nome: setor.nome })}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -933,7 +936,7 @@ export default function ColaboradoresPage() {
                     onClick={() => setModalCargaHorariaAberto(true)}
                     className="mt-4 h-8 rounded bg-blue-500 px-3 text-[10px] font-semibold text-white hover:bg-blue-600"
                   >
-                    Configurar Carga Horária
+                    {t("cadastros.comum.configurarCargaHoraria")}
                   </button>
                 </div>
               </section>
@@ -941,26 +944,26 @@ export default function ColaboradoresPage() {
               <section className="space-y-3 border-t border-slate-100 pt-3">
                 <h3 className="flex items-center gap-2 text-[12px] font-medium text-slate-600">
                   <BriefcaseBusiness className="h-3.5 w-3.5" />
-                  Carteira de Trabalho
+                  {t("cadastros.comum.secaoCarteiraTrabalho")}
                 </h3>
                 <div className="grid gap-3 md:grid-cols-4">
-                  <div><label className={labelClass}>PIS/PASEP</label><input value={form.pisPasep} onChange={(event) => setCampo("pisPasep", event.target.value)} className={inputClass} /></div>
-                  <div><label className={labelClass}>Número da CTPS</label><input value={form.numeroCtps} onChange={(event) => setCampo("numeroCtps", event.target.value)} className={inputClass} /></div>
-                  <div><label className={labelClass}>Série</label><input value={form.serie} onChange={(event) => setCampo("serie", event.target.value)} className={inputClass} /></div>
-                  <div><label className={labelClass}>UF</label><input value={form.uf} onChange={(event) => setCampo("uf", event.target.value)} className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("cadastros.comum.pisPasep")}</label><input value={form.pisPasep} onChange={(event) => setCampo("pisPasep", event.target.value)} className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("cadastros.comum.numeroCtps")}</label><input value={form.numeroCtps} onChange={(event) => setCampo("numeroCtps", event.target.value)} className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("cadastros.comum.serie")}</label><input value={form.serie} onChange={(event) => setCampo("serie", event.target.value)} className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("cadastros.comum.uf")}</label><input value={form.uf} onChange={(event) => setCampo("uf", event.target.value)} className={inputClass} /></div>
                 </div>
               </section>
 
               <section className="space-y-3 border-t border-slate-100 pt-3">
                 <h3 className="flex items-center gap-2 text-[12px] font-medium text-slate-600">
                   <CreditCard className="h-3.5 w-3.5" />
-                  Dados Bancários
+                  {t("cadastros.comum.secaoDadosBancarios")}
                 </h3>
                 <div className="grid gap-3 md:grid-cols-4">
-                  <div><label className={labelClass}>Código Banco</label><input value={form.codigoBanco} onChange={(event) => setCampo("codigoBanco", event.target.value)} className={inputClass} /></div>
-                  <div><label className={labelClass}>Agência</label><input value={form.agencia} onChange={(event) => setCampo("agencia", event.target.value)} className={inputClass} /></div>
-                  <div><label className={labelClass}>Conta</label><input value={form.conta} onChange={(event) => setCampo("conta", event.target.value)} className={inputClass} /></div>
-                  <div><label className={labelClass}>Chave Pix</label><input value={form.chavePix} onChange={(event) => setCampo("chavePix", event.target.value)} className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("cadastros.comum.codigoBanco")}</label><input value={form.codigoBanco} onChange={(event) => setCampo("codigoBanco", event.target.value)} className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("cadastros.comum.agencia")}</label><input value={form.agencia} onChange={(event) => setCampo("agencia", event.target.value)} className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("cadastros.comum.conta")}</label><input value={form.conta} onChange={(event) => setCampo("conta", event.target.value)} className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("cadastros.comum.chavePix")}</label><input value={form.chavePix} onChange={(event) => setCampo("chavePix", event.target.value)} className={inputClass} /></div>
                 </div>
               </section>
 
@@ -968,26 +971,26 @@ export default function ColaboradoresPage() {
               <section className="space-y-3 border-t border-slate-100 pt-3">
                 <h3 className="flex items-center gap-2 text-[12px] font-medium text-slate-600">
                   <Percent className="h-3.5 w-3.5" />
-                  Comissão
+                  {t("cadastros.comum.secaoComissao")}
                 </h3>
                 <p className="text-[10px] text-slate-400">{textoExemploRemuneracao}</p>
                 <div className="grid gap-3 md:grid-cols-3">
                   <CampoValorComissao
-                    label="Valor da Comissão"
+                    label={t("cadastros.comum.valorComissao")}
                     valor={form.valorComissao}
                     tipo={form.tipoValorComissao}
                     onValorChange={(valor) => setCampo("valorComissao", valor)}
                     onTipoChange={(tipo) => setCampo("tipoValorComissao", tipo)}
                   />
                   <div>
-                    <label className={labelClass}>Desconto na comissão</label>
+                    <label className={labelClass}>{t("cadastros.comum.descontoComissao")}</label>
                     <select value={form.descricaoComissao} onChange={(event) => setCampo("descricaoComissao", event.target.value)} className={inputClass}>
-                      <option>Não</option>
-                      <option>Sim</option>
+                      <option>{t("cadastros.comum.nao")}</option>
+                      <option>{t("cadastros.comum.sim")}</option>
                     </select>
                   </div>
                   <CampoValorComissao
-                    label="Valor da Comissão (Repetição)"
+                    label={t("cadastros.comum.valorComissaoRepeticao")}
                     valor={form.comissaoRepeticao}
                     tipo={form.tipoValorComissaoRepeticao}
                     onValorChange={(valor) => setCampo("comissaoRepeticao", valor)}
@@ -1001,7 +1004,7 @@ export default function ColaboradoresPage() {
               <section className="space-y-3 border-t border-slate-100 pt-3">
                 <h3 className="flex items-center gap-2 text-[12px] font-medium text-slate-600">
                   <Percent className="h-3.5 w-3.5" />
-                  Remuneração
+                  {t("cadastros.comum.secaoRemuneracao")}
                 </h3>
                 <p className="text-[10px] text-slate-400">{textoExemploRemuneracao}</p>
               </section>
@@ -1010,11 +1013,11 @@ export default function ColaboradoresPage() {
               <section className="space-y-3 border-t border-slate-100 pt-3">
                 <h3 className="flex items-center gap-2 text-[12px] font-medium text-slate-600">
                   <MapPin className="h-3.5 w-3.5" />
-                  Endereço
+                  {t("cadastros.comum.secaoEndereco")}
                 </h3>
                 <div className="grid gap-3 md:grid-cols-[0.7fr_1.5fr_0.7fr]">
                   <div>
-                    <label className={labelClass}>CEP</label>
+                    <label className={labelClass}>{t("cadastros.comum.cep")}</label>
                     <div className="flex">
                       <input
                         value={form.cep}
@@ -1033,18 +1036,18 @@ export default function ColaboradoresPage() {
                         disabled={buscandoCep}
                         className="h-8 rounded-r border border-l-0 border-slate-300 bg-white px-3 text-[10px] text-blue-600 hover:bg-slate-50 disabled:opacity-60"
                       >
-                        {buscandoCep ? "Buscando..." : "Buscar Endereço"}
+                        {buscandoCep ? t("cadastros.comum.buscando") : t("cadastros.comum.buscarEndereco")}
                       </button>
                     </div>
                   </div>
-                  <div><label className={labelClass}>Rua</label><input value={form.rua} onChange={(event) => setCampo("rua", event.target.value)} className={inputClass} /></div>
-                  <div><label className={labelClass}>Número</label><input value={form.numero} onChange={(event) => setCampo("numero", event.target.value)} className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("cadastros.comum.rua")}</label><input value={form.rua} onChange={(event) => setCampo("rua", event.target.value)} className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("cadastros.comum.numero")}</label><input value={form.numero} onChange={(event) => setCampo("numero", event.target.value)} className={inputClass} /></div>
                 </div>
                 <div className="grid gap-3 md:grid-cols-4">
-                  <div><label className={labelClass}>Cidade</label><input value={form.cidade} onChange={(event) => setCampo("cidade", event.target.value)} className={inputClass} /></div>
-                  <div><label className={labelClass}>UF</label><input value={form.ufEndereco} onChange={(event) => setCampo("ufEndereco", event.target.value)} className={inputClass} /></div>
-                  <div><label className={labelClass}>Bairro</label><input value={form.bairro} onChange={(event) => setCampo("bairro", event.target.value)} className={inputClass} /></div>
-                  <div><label className={labelClass}>Complemento</label><input value={form.complemento} onChange={(event) => setCampo("complemento", event.target.value)} className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("cadastros.comum.cidade")}</label><input value={form.cidade} onChange={(event) => setCampo("cidade", event.target.value)} className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("cadastros.comum.uf")}</label><input value={form.ufEndereco} onChange={(event) => setCampo("ufEndereco", event.target.value)} className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("cadastros.comum.bairro")}</label><input value={form.bairro} onChange={(event) => setCampo("bairro", event.target.value)} className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("cadastros.comum.complemento")}</label><input value={form.complemento} onChange={(event) => setCampo("complemento", event.target.value)} className={inputClass} /></div>
                 </div>
               </section>
 
@@ -1054,14 +1057,14 @@ export default function ColaboradoresPage() {
                   onClick={cadastrarColaborador}
                   className="h-8 rounded bg-blue-600 px-4 text-[10px] font-semibold text-white hover:bg-blue-700"
                 >
-                  {colaboradorEditando ? "Editar Alterações" : "Cadastrar"}
+                  {colaboradorEditando ? t("cadastros.comum.editarAlteracoes") : t("cadastros.comum.cadastrar")}
                 </button>
                 <button
                   type="button"
                   onClick={fecharModalColaborador}
                   className="h-8 rounded border border-slate-300 bg-white px-4 text-[10px] text-slate-600 hover:bg-slate-50"
                 >
-                  {colaboradorEditando ? "Cancelar" : "Fechar"}
+                  {colaboradorEditando ? t("cadastros.comum.cancelar") : t("cadastros.comum.fechar")}
                 </button>
               </div>
             </div>
@@ -1073,29 +1076,29 @@ export default function ColaboradoresPage() {
         <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/45 p-4 pt-24">
           <div className="relative w-full max-w-sm rounded bg-white shadow-2xl">
             <div className="flex h-9 items-center justify-between border-b border-slate-100 px-4">
-              <h2 className="text-[11px] font-medium text-slate-700">Cadastrar Setor</h2>
+              <h2 className="text-[11px] font-medium text-slate-700">{t("cadastros.setores.cadastrar")}</h2>
               <button
                 type="button"
                 onClick={() => setModalSetorAberto(false)}
                 className="flex h-7 w-7 items-center justify-center rounded text-lg leading-none text-slate-500 hover:bg-slate-100"
-                aria-label="Fechar"
+                aria-label={t("cadastros.comum.fechar")}
               >
                 ×
               </button>
             </div>
             <div className="space-y-4 px-4 py-4 text-[10px] text-slate-600">
               <div>
-                <label className={labelClass}>Setor</label>
+                <label className={labelClass}>{t("cadastros.comum.setor")}</label>
                 <input
                   value={novoSetor.nome}
                   onChange={(event) => setNovoSetor((atual) => ({ ...atual, nome: event.target.value }))}
-                  placeholder="Digite o nome do Setor"
+                  placeholder={t("cadastros.comum.placeholderNomeSetor")}
                   className={inputClass}
                   autoFocus
                 />
               </div>
               <div>
-                <label className={labelClass}>Cor</label>
+                <label className={labelClass}>{t("cadastros.comum.cor")}</label>
                 <input
                   type="color"
                   value={novoSetor.cor}
@@ -1109,7 +1112,7 @@ export default function ColaboradoresPage() {
                   onClick={cadastrarSetor}
                   className="h-8 rounded bg-blue-600 px-4 text-[10px] font-semibold text-white hover:bg-blue-700"
                 >
-                  Cadastrar Setor
+                  {t("cadastros.setores.cadastrar")}
                 </button>
                 <button
                   type="button"
@@ -1134,10 +1137,10 @@ export default function ColaboradoresPage() {
 
       {pdfColaboradoresUrl ? (
         <PdfViewerModal
-          titulo="Lista de Colaboradores Cadastrados"
+          titulo={t("cadastros.colaboradores.pdfTitulo")}
           pdfUrl={pdfColaboradoresUrl}
           nomeArquivo="colaboradores.pdf"
-          iframeTitle="PDF colaboradores"
+          iframeTitle={t("cadastros.colaboradores.pdfIframeTitle")}
           onFechar={fecharPdfColaboradores}
         />
       ) : null}

@@ -70,7 +70,7 @@ export default function MaterialDentistaPage() {
       const salva = await salvarMateriaisDentistaCadastro(proxima);
       setMateriais(salva);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Não foi possível salvar o material.");
+      alert(err instanceof Error ? err.message : t("cadastros.materialDentista.erroSalvar"));
       return;
     }
     setModalAberto(false);
@@ -83,7 +83,7 @@ export default function MaterialDentistaPage() {
       const proxima = await removerMaterialDentistaCadastro(material, materiais);
       setMateriais(proxima);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Não foi possível excluir o material.");
+      alert(err instanceof Error ? err.message : t("cadastros.materialDentista.erroExcluir"));
     }
   }
 
@@ -142,7 +142,7 @@ export default function MaterialDentistaPage() {
                         type="button"
                         onClick={() => abrirEdicao(item.nome)}
                         className="rounded p-1 hover:bg-slate-100 hover:text-blue-600"
-                        title="Editar"
+                        title={t("cadastros.comum.editar")}
                       >
                         <Edit3 className="h-3.5 w-3.5" />
                       </button>
@@ -150,7 +150,7 @@ export default function MaterialDentistaPage() {
                         type="button"
                         onClick={() => excluirMaterial(item.nome)}
                         className="rounded p-1 text-red-500 hover:bg-red-50"
-                        title="Excluir"
+                        title={t("cadastros.comum.excluir")}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -162,7 +162,7 @@ export default function MaterialDentistaPage() {
               {paginaPronta && filtrados.length === 0 && (
                 <tr>
                   <td colSpan={2} className="px-3 py-8 text-center text-slate-400">
-                    Nenhum material encontrado.
+                    {t("cadastros.materialDentista.nenhumEncontrado")}
                   </td>
                 </tr>
               )}
@@ -176,23 +176,23 @@ export default function MaterialDentistaPage() {
       <Modal
         open={modalAberto}
         onClose={() => setModalAberto(false)}
-        title={editando ? "Editar Material" : "Cadastrar Material"}
+        title={editando ? t("cadastros.materialDentista.editar") : t("cadastros.materialDentista.cadastrar")}
         size="sm"
       >
         <form onSubmit={salvarMaterial} className="space-y-4 text-[11px] text-slate-600">
           <Input
-            label="Material"
+            label={t("cadastros.materialDentista.campoMaterial")}
             value={nomeMaterial}
             onChange={(event) => setNomeMaterial(event.target.value)}
-            placeholder="Digite o nome do material"
+            placeholder={t("cadastros.comum.placeholderNomeMaterial")}
             required
           />
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
             <Button type="submit" size="sm">
-              {editando ? "Salvar Material" : "Cadastrar Material"}
+              {editando ? t("cadastros.materialDentista.salvarMaterial") : t("cadastros.materialDentista.cadastrar")}
             </Button>
             <Button type="button" size="sm" variant="outline" onClick={() => setModalAberto(false)}>
-              Fechar
+              {t("cadastros.comum.fechar")}
             </Button>
           </div>
         </form>

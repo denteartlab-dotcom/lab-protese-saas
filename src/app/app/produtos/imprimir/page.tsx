@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { PdfRelatorioProdutosViewer } from "@/components/PdfRelatorioProdutosViewer";
+import { useI18n } from "@/components/i18n-provider";
 import { getProdutosEstoqueExtras } from "@/lib/estoque";
 import { readStorage } from "@/lib/persisted-storage";
 import {
@@ -62,7 +63,17 @@ function filtrarBusca(produtos: ProdutoRelatorioEstoque[], termo: string) {
   );
 }
 
+function ImprimirProdutosCarregando() {
+  const { t } = useI18n();
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[#525659] text-sm text-slate-200">
+      {t("print.produtos.carregando")}
+    </div>
+  );
+}
+
 function ImprimirProdutosConteudo() {
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const opcaoEstoque = opcaoEstoqueValida(searchParams.get("estoque"));
   const busca = String(searchParams.get("q") || "");
@@ -98,7 +109,7 @@ function ImprimirProdutosConteudo() {
         setExtras(extrasLocal);
       } catch (err) {
         if (!ativo) return;
-        setErro(err instanceof Error ? err.message : "Não foi possível carregar os produtos.");
+        setErro(err instanceof Error ? err.message : t("print.produtos.erroCarregar"));
       } finally {
         if (ativo) setCarregando(false);
       }
@@ -108,7 +119,7 @@ function ImprimirProdutosConteudo() {
     return () => {
       ativo = false;
     };
-  }, []);
+  }, [t]);
 
   const relatorio = useMemo(() => {
     const mapa = new Map<string, ProdutoRelatorioEstoque>();
@@ -124,11 +135,7 @@ function ImprimirProdutosConteudo() {
   }, [produtos, extras, busca, opcaoEstoque]);
 
   if (carregando) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#525659] text-sm text-slate-200">
-        Carregando produtos...
-      </div>
-    );
+    return <ImprimirProdutosCarregando />;
   }
 
   if (erro) {
@@ -136,7 +143,7 @@ function ImprimirProdutosConteudo() {
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-slate-100 p-6 text-center">
         <p className="font-medium text-slate-800">{erro}</p>
         <Link href="/app/produtos" className="text-sm text-[#4a90d9] hover:underline">
-          Voltar para produtos
+          {t("print.produtos.voltar")}
         </Link>
       </div>
     );
@@ -144,6 +151,7 @@ function ImprimirProdutosConteudo() {
 
   return (
     <PdfRelatorioProdutosViewer
+      titulo={t("print.produtos.tituloRelatorio")}
       linhas={relatorio.linhas}
       totalGeral={relatorio.totais.totalGeral}
     />
@@ -152,13 +160,7 @@ function ImprimirProdutosConteudo() {
 
 export default function ImprimirProdutosPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center bg-[#525659] text-sm text-slate-200">
-          Carregando relatório...
-        </div>
-      }
-    >
+    <Suspense fallback={<ImprimirProdutosCarregando />}>
       <ImprimirProdutosConteudo />
     </Suspense>
   );

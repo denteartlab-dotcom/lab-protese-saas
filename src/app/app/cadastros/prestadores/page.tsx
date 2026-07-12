@@ -227,7 +227,7 @@ export default function PrestadoresPage() {
       await abrirPdfGerando(
         () => gerarListaPrestadoresPdf(filtrados),
         "lista-prestadores.pdf",
-        "Lista de Prestadores de Serviço Cadastrados"
+        t("cadastros.prestadores.pdfTitulo")
       );
     } catch {
       alert(t("cadastros.comum.alerta.erroImprimir"));
@@ -304,7 +304,7 @@ export default function PrestadoresPage() {
           opcoesExtras={[
             {
               valor: "tipoServico",
-              label: "Tipo de Serviço",
+              label: t("cadastros.comum.tipoServico"),
               comparar: (a, b) => compararTextoBr(a.tipoServico, b.tipoServico),
             },
           ]}
@@ -314,12 +314,12 @@ export default function PrestadoresPage() {
           <table className="w-full min-w-[900px] text-[10px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50 text-slate-500">
-                <th className="px-3 py-2 text-left font-semibold uppercase">Nome</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Tipo de Serviço</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Celular</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">WhatsApp</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Email</th>
-                <th className="px-3 py-2 text-center font-semibold uppercase">Opções</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.comum.nome")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.comum.tipoServico")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.comum.celular")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.comum.whatsapp")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.comum.email")}</th>
+                <th className="px-3 py-2 text-center font-semibold uppercase">{t("cadastros.comum.opcoes")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -342,7 +342,7 @@ export default function PrestadoresPage() {
                             type="button"
                             onClick={() => setVisualizando(aberto ? null : prestador)}
                             className={`rounded p-1 hover:bg-blue-50 hover:text-blue-600 ${aberto ? "bg-blue-50 text-blue-500" : ""}`}
-                            title="Visualizar"
+                            title={t("cadastros.comum.visualizar")}
                           >
                             <Eye className="h-3.5 w-3.5" />
                           </button>
@@ -351,7 +351,7 @@ export default function PrestadoresPage() {
                         onClick={() => abrirEdicao(prestador)}
                         disabled={mostrarExcluidos}
                         className="rounded p-1 hover:bg-slate-100 hover:text-blue-600 disabled:opacity-40"
-                        title="Editar"
+                        title={t("cadastros.comum.editar")}
                       >
                         <Edit3 className="h-3.5 w-3.5" />
                       </button>
@@ -362,13 +362,13 @@ export default function PrestadoresPage() {
                             onClick={() => restaurarPrestador(prestador.id)}
                             className="rounded bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-emerald-600"
                           >
-                            Restaurar
+                            {t("cadastros.comum.restaurar")}
                           </button>
                           <button
                             type="button"
                             onClick={() => removerPrestadorDefinitivo(prestador.id)}
                             className="rounded p-1 text-red-500 hover:bg-red-50"
-                            title="Remover definitivamente"
+                            title={t("cadastros.comum.removerDefinitivo")}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -378,7 +378,7 @@ export default function PrestadoresPage() {
                           type="button"
                           onClick={() => excluirPrestador(prestador.id)}
                           className="rounded bg-orange-400 px-1.5 py-0.5 text-white hover:bg-orange-500"
-                          title="Excluir"
+                          title={t("cadastros.comum.excluir")}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -395,18 +395,18 @@ export default function PrestadoresPage() {
                               {prestador.nome}
                             </div>
                             <div className="grid gap-x-8 gap-y-3 border-b border-slate-100 pb-3 md:grid-cols-5">
-                              <p><span className="font-semibold text-slate-700">Nome:</span> {prestador.nome}</p>
-                              <p><span className="font-semibold text-slate-700">Tipo de Serviço:</span> {prestador.tipoServico}</p>
-                              <p><span className="font-semibold text-slate-700">Celular:</span> {prestador.celular}</p>
-                              <p><span className="font-semibold text-slate-700">WhatsApp:</span> {prestador.whatsapp}</p>
-                              <p><span className="font-semibold text-slate-700">Email:</span> {prestador.email}</p>
+                              <p><span className="font-semibold text-slate-700">{t("cadastros.comum.detalheNome")}</span> {prestador.nome}</p>
+                              <p><span className="font-semibold text-slate-700">{t("cadastros.comum.detalheTipoServico")}</span> {prestador.tipoServico}</p>
+                              <p><span className="font-semibold text-slate-700">{t("cadastros.comum.detalheCelular")}</span> {prestador.celular}</p>
+                              <p><span className="font-semibold text-slate-700">{t("cadastros.comum.detalheWhatsapp")}</span> {prestador.whatsapp}</p>
+                              <p><span className="font-semibold text-slate-700">{t("cadastros.comum.detalheEmail")}</span> {prestador.email}</p>
                             </div>
                             <button
                               type="button"
                               onClick={() => setVisualizando(null)}
                               className="mt-3 rounded border border-slate-300 bg-white px-3 py-1 text-[10px] text-slate-600 hover:bg-slate-50"
                             >
-                              Fechar Detalhes
+                              {t("cadastros.comum.fecharDetalhes")}
                             </button>
                           </div>
                         </td>
@@ -419,7 +419,7 @@ export default function PrestadoresPage() {
               {paginaPronta && filtrados.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-3 py-8 text-center text-slate-400">
-                    {mostrarExcluidos ? "Nenhum prestador excluído." : "Nenhum prestador encontrado."}
+                    {mostrarExcluidos ? t("cadastros.prestadores.nenhumExcluido") : t("cadastros.prestadores.nenhumEncontrado")}
                   </td>
                 </tr>
               )}
@@ -433,51 +433,51 @@ export default function PrestadoresPage() {
       <Modal
         open={modalAberto}
         onClose={() => setModalAberto(false)}
-        title={editando ? "Editar Prestador de Serviço" : "Cadastrar Prestador de Serviço"}
+        title={editando ? t("cadastros.prestadores.modalTituloEditar") : t("cadastros.prestadores.modalTituloCadastrar")}
         size="xl"
       >
         <form onSubmit={salvarPrestador} className="space-y-5 text-[11px] text-slate-600">
           <section className="space-y-3">
             <h3 className="flex items-center gap-2 text-xs font-semibold text-slate-600">
               <UserRound className="h-3.5 w-3.5" />
-              Dados do Prestador de Serviço
+              {t("cadastros.comum.secaoDadosPrestador")}
             </h3>
             <div className="grid gap-3 md:grid-cols-2">
-              <Input label="Nome do Prestador *" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
-              <Input label="Tipo de Serviço" value={form.tipoServico} onChange={(e) => setForm({ ...form, tipoServico: e.target.value })} />
-              <Input label="CPF" value={form.cpf} onChange={(e) => setForm({ ...form, cpf: e.target.value })} />
-              <Input label="CNPJ" value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} />
-              <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              <Input label={t("cadastros.prestadores.nomeObrigatorio")} value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
+              <Input label={t("cadastros.comum.tipoServico")} value={form.tipoServico} onChange={(e) => setForm({ ...form, tipoServico: e.target.value })} />
+              <Input label={t("cadastros.comum.cpf")} value={form.cpf} onChange={(e) => setForm({ ...form, cpf: e.target.value })} />
+              <Input label={t("cadastros.comum.cnpj")} value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} />
+              <Input label={t("cadastros.comum.email")} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </div>
             <div className="grid gap-3 md:grid-cols-4">
-              <Input label="Telefone Residencial" placeholder={PLACEHOLDER_TELEFONE_BR} value={form.telefoneResidencial} onChange={(e) => setForm({ ...form, telefoneResidencial: formatarTelefone(e.target.value) })} />
-              <Input label="Telefone Comercial" placeholder={PLACEHOLDER_TELEFONE_BR} value={form.telefoneComercial} onChange={(e) => setForm({ ...form, telefoneComercial: formatarTelefone(e.target.value) })} />
-              <Input label="Celular" placeholder={PLACEHOLDER_TELEFONE_BR} value={form.celular} onChange={(e) => setForm({ ...form, celular: formatarTelefone(e.target.value) })} />
-              <Input label="WhatsApp" placeholder={PLACEHOLDER_TELEFONE_BR} value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: formatarTelefone(e.target.value) })} />
+              <Input label={t("cadastros.comum.telefoneResidencial")} placeholder={PLACEHOLDER_TELEFONE_BR} value={form.telefoneResidencial} onChange={(e) => setForm({ ...form, telefoneResidencial: formatarTelefone(e.target.value) })} />
+              <Input label={t("cadastros.comum.telefoneComercial")} placeholder={PLACEHOLDER_TELEFONE_BR} value={form.telefoneComercial} onChange={(e) => setForm({ ...form, telefoneComercial: formatarTelefone(e.target.value) })} />
+              <Input label={t("cadastros.comum.celular")} placeholder={PLACEHOLDER_TELEFONE_BR} value={form.celular} onChange={(e) => setForm({ ...form, celular: formatarTelefone(e.target.value) })} />
+              <Input label={t("cadastros.comum.whatsapp")} placeholder={PLACEHOLDER_TELEFONE_BR} value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: formatarTelefone(e.target.value) })} />
             </div>
           </section>
 
           <section className="space-y-3">
             <h3 className="flex items-center gap-2 text-xs font-semibold text-slate-600">
               <Percent className="h-3.5 w-3.5" />
-              Comissão
+              {t("cadastros.comum.secaoComissao")}
             </h3>
             <div className="grid gap-3 md:grid-cols-3">
               <Input
-                label="Valor da Comissão"
+                label={t("cadastros.comum.valorComissao")}
                 value={form.valorComissao}
                 onChange={(e) => setForm({ ...form, valorComissao: formatPercentInput(e.target.value) })}
               />
               <Select
-                label="Desconto na comissão"
+                label={t("cadastros.comum.descontoComissao")}
                 value={form.descontoComissao}
                 onChange={(e) => setForm({ ...form, descontoComissao: e.target.value })}
               >
-                <option>Não</option>
-                <option>Sim</option>
+                <option>{t("cadastros.comum.nao")}</option>
+                <option>{t("cadastros.comum.sim")}</option>
               </Select>
               <Input
-                label="Valor da Comissão (Repetição)"
+                label={t("cadastros.comum.valorComissaoRepeticao")}
                 value={form.valorComissaoRepeticao}
                 onChange={(e) => setForm({ ...form, valorComissaoRepeticao: formatPercentInput(e.target.value) })}
               />
@@ -487,33 +487,33 @@ export default function PrestadoresPage() {
           <section className="space-y-3">
             <h3 className="flex items-center gap-2 text-xs font-semibold text-slate-600">
               <MapPin className="h-3.5 w-3.5" />
-              Endereço
+              {t("cadastros.comum.secaoEndereco")}
             </h3>
             <div className="grid gap-3 md:grid-cols-[1fr_auto_2fr_1fr]">
-              <Input label="CEP" value={form.cep} onChange={(e) => setForm({ ...form, cep: formatCepInput(e.target.value) })} />
+              <Input label={t("cadastros.comum.cep")} value={form.cep} onChange={(e) => setForm({ ...form, cep: formatCepInput(e.target.value) })} />
               <button
                 type="button"
                 onClick={() => buscarEnderecoPorCep()}
                 disabled={buscandoCep}
                 className="mt-6 h-10 rounded border border-slate-300 px-3 text-[11px] font-semibold text-blue-600 hover:bg-blue-50 disabled:opacity-60"
               >
-                {buscandoCep ? "Buscando..." : "Buscar Endereço"}
+                {buscandoCep ? t("cadastros.comum.buscando") : t("cadastros.comum.buscarEndereco")}
               </button>
-              <Input label="Rua" value={form.rua} onChange={(e) => setForm({ ...form, rua: e.target.value })} />
-              <Input label="Número" value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} />
+              <Input label={t("cadastros.comum.rua")} value={form.rua} onChange={(e) => setForm({ ...form, rua: e.target.value })} />
+              <Input label={t("cadastros.comum.numero")} value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} />
             </div>
             <div className="grid gap-3 md:grid-cols-[1.3fr_0.7fr_1.5fr_1fr]">
-              <Input label="Cidade" value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} />
-              <Input label="UF" value={form.uf} onChange={(e) => setForm({ ...form, uf: e.target.value.toUpperCase().slice(0, 2) })} />
-              <Input label="Bairro" value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} />
-              <Input label="Complemento" value={form.complemento} onChange={(e) => setForm({ ...form, complemento: e.target.value })} />
+              <Input label={t("cadastros.comum.cidade")} value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} />
+              <Input label={t("cadastros.comum.uf")} value={form.uf} onChange={(e) => setForm({ ...form, uf: e.target.value.toUpperCase().slice(0, 2) })} />
+              <Input label={t("cadastros.comum.bairro")} value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} />
+              <Input label={t("cadastros.comum.complemento")} value={form.complemento} onChange={(e) => setForm({ ...form, complemento: e.target.value })} />
             </div>
           </section>
 
           <div className="flex justify-start gap-2 border-t border-slate-100 pt-4">
-            <Button type="submit" size="sm">{editando ? "Salvar" : "Cadastrar"}</Button>
+            <Button type="submit" size="sm">{editando ? t("cadastros.comum.salvar") : t("cadastros.comum.cadastrar")}</Button>
             <Button type="button" size="sm" variant="outline" onClick={() => setModalAberto(false)}>
-              Fechar
+              {t("cadastros.comum.fechar")}
             </Button>
           </div>
         </form>

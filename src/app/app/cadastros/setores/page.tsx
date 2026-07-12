@@ -276,7 +276,7 @@ export default function SetoresPage() {
             label={t("cadastros.setores.coluna")}
             value={form.nome}
             onChange={(event) => setForm({ ...form, nome: event.target.value })}
-            placeholder="Digite o nome do Setor"
+            placeholder={t("cadastros.comum.placeholderNomeSetor")}
             required
           />
           <div className="space-y-1">

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PainelCarregando } from "@/components/ListaCarregando";
+import { useI18n } from "@/components/i18n-provider";
 import { PainelConfigImpressaoTabelaPrecos } from "@/components/tabela-precos/PainelConfigImpressaoTabelaPrecos";
 import { PreviewImpressaoTabelaPrecos } from "@/components/tabela-precos/PreviewImpressaoTabelaPrecos";
 import { usePageReady } from "@/hooks/use-page-ready";
@@ -54,6 +55,7 @@ function categoriasParaPreview(
 }
 
 export default function ConfiguracaoImpressaoTabelaPrecosPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const nomeTabelaParam = searchParams.get("tabela")?.trim() || "";
@@ -81,7 +83,7 @@ export default function ConfiguracaoImpressaoTabelaPrecosPage() {
       nomeTabelaParam ||
       dados?.tabela?.trim() ||
       nomes[0] ||
-      "Tabela Principal";
+      t("cadastros.clientes.tabelaPrincipal");
 
     setTabelasCadastradas(nomes);
     setNomeTabela(tabelaAtiva);
@@ -147,7 +149,7 @@ export default function ConfiguracaoImpressaoTabelaPrecosPage() {
       setConfigGravada(novo);
       setConfigPreview(novo);
     } catch {
-      alert("Não foi possível salvar as configurações.");
+      alert(t("cadastros.tabelaPrecos.impressao.erroSalvar"));
     } finally {
       setSalvando(false);
     }
@@ -159,11 +161,11 @@ export default function ConfiguracaoImpressaoTabelaPrecosPage() {
     try {
       await abrirPdfGerando(
         () => gerarPdfTabelaPrecos(nomeTabela, categorias, configPreview),
-        "tabela-precos.pdf",
-        `Tabela de Preços — ${nomeTabela}`
+        t("cadastros.tabelaPrecos.impressao.arquivoPdf"),
+        t("cadastros.tabelaPrecos.impressao.tituloPdf", { nome: nomeTabela })
       );
     } catch {
-      alert("Não foi possível gerar a impressão.");
+      alert(t("cadastros.tabelaPrecos.alerta.erroImprimir"));
     } finally {
       setImprimindo(false);
     }
@@ -172,7 +174,7 @@ export default function ConfiguracaoImpressaoTabelaPrecosPage() {
   if (!paginaPronta) {
     return (
       <div className={montserrat.variable}>
-        <PainelCarregando mensagem="Carregando configuração de impressão..." />
+        <PainelCarregando mensagem={t("cadastros.tabelaPrecos.impressao.carregando")} />
       </div>
     );
   }
@@ -196,7 +198,7 @@ export default function ConfiguracaoImpressaoTabelaPrecosPage() {
                 setBuscaTabela("");
                 setDropdownTabelasAberto(true);
               }}
-              placeholder="Buscar tabela..."
+              placeholder={t("cadastros.tabelaPrecos.impressao.buscarTabela")}
               disabled={trocandoTabela}
               className="h-8 w-56 rounded-l border-0 bg-white px-2 text-xs text-slate-700 placeholder:text-slate-400 disabled:opacity-60"
             />
@@ -208,7 +210,7 @@ export default function ConfiguracaoImpressaoTabelaPrecosPage() {
                 if (!dropdownTabelasAberto) setBuscaTabela("");
               }}
               className="flex h-8 items-center rounded-r border-l border-slate-200 bg-white px-2 text-slate-600 hover:bg-slate-50 disabled:opacity-60"
-              title="Tabelas cadastradas"
+              title={t("cadastros.tabelaPrecos.impressao.tabelasCadastradas")}
             >
               <ChevronDown
                 className={cn("h-3.5 w-3.5 transition", dropdownTabelasAberto && "rotate-180")}
@@ -219,7 +221,9 @@ export default function ConfiguracaoImpressaoTabelaPrecosPage() {
           {dropdownTabelasAberto && (
             <div className="absolute right-0 top-full z-50 mt-1 max-h-64 w-56 overflow-y-auto rounded border border-slate-300 bg-white text-xs text-slate-700 shadow-xl">
               {tabelasFiltradas.length === 0 ? (
-                <p className="px-3 py-2 text-slate-500">Nenhuma tabela encontrada.</p>
+                <p className="px-3 py-2 text-slate-500">
+                  {t("cadastros.tabelaPrecos.impressao.nenhumaTabela")}
+                </p>
               ) : (
                 tabelasFiltradas.map((item) => {
                   const selecionada = item === nomeTabela;
@@ -248,7 +252,7 @@ export default function ConfiguracaoImpressaoTabelaPrecosPage() {
           className="flex items-center gap-1.5 rounded bg-slate-500 px-3 py-1.5 text-xs font-medium hover:bg-slate-600"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Voltar
+          {t("cadastros.trabalhos.voltar")}
         </Link>
         <button
           type="button"
@@ -257,7 +261,7 @@ export default function ConfiguracaoImpressaoTabelaPrecosPage() {
           className="flex items-center gap-1.5 rounded bg-emerald-600 px-3 py-1.5 text-xs font-semibold hover:bg-emerald-700 disabled:opacity-60"
         >
           <Printer className="h-3.5 w-3.5" />
-          {imprimindo ? "Gerando..." : "Imprimir"}
+          {imprimindo ? t("relatorio.gerando") : t("cadastros.comum.imprimir")}
         </button>
       </header>
 

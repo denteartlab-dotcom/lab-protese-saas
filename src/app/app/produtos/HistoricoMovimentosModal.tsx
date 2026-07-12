@@ -100,7 +100,7 @@ export function HistoricoMovimentosModal({
 
         <div className="overflow-y-auto px-5 py-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <CampoFiltro label="Colaboradores">
+            <CampoFiltro label={t("estoque.produtos.historicoColaboradores")}>
               <select
                 value={filtros.colaborador}
                 onChange={(event) => onFiltrosChange({ ...filtros, colaborador: event.target.value })}
@@ -115,7 +115,7 @@ export function HistoricoMovimentosModal({
               </select>
             </CampoFiltro>
 
-            <CampoFiltro label="Tipo Movimento">
+            <CampoFiltro label={t("estoque.produtos.historicoTipoMovimento")}>
               <select
                 value={filtros.tipoMovimento}
                 onChange={(event) =>
@@ -126,13 +126,13 @@ export function HistoricoMovimentosModal({
                 }
                 className={selectClass}
               >
-                <option value="todos">Todos</option>
-                <option value="entrada">Entrada</option>
-                <option value="saida">Saída</option>
+                <option value="todos">{t("estoque.orcamentos.todos")}</option>
+                <option value="entrada">{t("estoque.produtos.movimentoEntrada")}</option>
+                <option value="saida">{t("estoque.produtos.movimentoSaida")}</option>
               </select>
             </CampoFiltro>
 
-            <CampoFiltro label="Setor">
+            <CampoFiltro label={t("estoque.produtos.historicoSetor")}>
               <select
                 value={filtros.setor}
                 onChange={(event) => onFiltrosChange({ ...filtros, setor: event.target.value })}
@@ -147,7 +147,7 @@ export function HistoricoMovimentosModal({
               </select>
             </CampoFiltro>
 
-            <CampoFiltro label="Período">
+            <CampoFiltro label={t("estoque.produtos.historicoPeriodo")}>
               <div className="grid grid-cols-2 gap-2">
                 <CampoDataBr
                   value={filtros.dataInicial}
@@ -167,12 +167,12 @@ export function HistoricoMovimentosModal({
             <table className="min-w-full text-left text-[11px]">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                  <th className="px-4 py-2.5">Data</th>
-                  <th className="px-4 py-2.5">Tipo</th>
-                  <th className="px-4 py-2.5">Movimento</th>
-                  <th className="px-4 py-2.5">Setor</th>
-                  <th className="px-4 py-2.5">Colaborador</th>
-                  <th className="px-4 py-2.5 text-center">Opções</th>
+                  <th className="px-4 py-2.5">{t("estoque.produtos.historicoData")}</th>
+                  <th className="px-4 py-2.5">{t("estoque.produtos.tipo")}</th>
+                  <th className="px-4 py-2.5">{t("estoque.produtos.historicoMovimento")}</th>
+                  <th className="px-4 py-2.5">{t("estoque.produtos.historicoSetor")}</th>
+                  <th className="px-4 py-2.5">{t("estoque.produtos.historicoColaborador")}</th>
+                  <th className="px-4 py-2.5 text-center">{t("cadastros.comum.opcoes")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-600">
@@ -193,7 +193,7 @@ export function HistoricoMovimentosModal({
                           type="button"
                           onClick={() => solicitarExclusao(movimento)}
                           className="rounded p-1 text-red-500 hover:bg-red-50"
-                          title="Excluir movimentação"
+                          title={t("estoque.produtos.excluirMovimentacao")}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -210,7 +210,7 @@ export function HistoricoMovimentosModal({
             onClick={onClose}
             className="mt-4 w-full rounded-sm border border-slate-200 bg-slate-100 py-2 text-[11px] font-medium text-slate-600 hover:bg-slate-200"
           >
-            Fechar
+            {t("cadastros.comum.fechar")}
           </button>
         </div>
       </div>

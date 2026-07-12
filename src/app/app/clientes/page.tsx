@@ -268,7 +268,7 @@ export default function ClientesPage() {
   async function buscarEnderecoPorCep(cepInformado = form.cep) {
     const cep = cepInformado.replace(/\D/g, "");
     if (cep.length !== 8) {
-      alert("Informe um CEP com 8 números.");
+      alert(t("cadastros.comum.alerta.cepInvalido"));
       return;
     }
 
@@ -277,12 +277,12 @@ export default function ClientesPage() {
     try {
       const endereco = await buscarCepApi(cepInformado);
       if (!endereco) {
-        alert("CEP não encontrado.");
+        alert(t("cadastros.comum.alerta.cepNaoEncontrado"));
         return;
       }
       aplicarEnderecoCep(endereco);
     } catch {
-      alert("Não foi possível consultar o CEP. Tente novamente.");
+      alert(t("cadastros.comum.alerta.erroConsultarCep"));
     } finally {
       setBuscandoCep(false);
     }
@@ -518,7 +518,7 @@ export default function ClientesPage() {
     });
     if (!res.ok) {
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      alert(data.error || "Não foi possível salvar o cliente.");
+      alert(data.error || t("cadastros.clientes.erroSalvar"));
       return;
     }
     setOpen(false);
@@ -543,10 +543,10 @@ export default function ClientesPage() {
         const res = await fetch(url, { method: "DELETE" });
         const data = (await res.json().catch(() => ({}))) as { error?: string };
         if (!res.ok) {
-          erros.push(data.error || "Falha ao excluir um cliente.");
+          erros.push(data.error || t("cadastros.clientes.erroExcluirUm"));
         }
       } catch {
-        erros.push("Falha ao excluir um cliente.");
+        erros.push(t("cadastros.clientes.erroExcluirUm"));
       }
     }
 
@@ -568,13 +568,13 @@ export default function ClientesPage() {
       const res = await fetch(url, { method: "DELETE" });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
-        alert(data.error || "Não foi possível excluir o cliente.");
+        alert(data.error || t("cadastros.clientes.erroExcluir"));
         void load();
         return;
       }
       void load();
     } catch {
-      alert("Não foi possível excluir o cliente.");
+      alert(t("cadastros.clientes.erroExcluir"));
       void load();
     }
   }
@@ -587,7 +587,7 @@ export default function ClientesPage() {
     });
     if (!res.ok) {
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      alert(data.error || "Não foi possível restaurar o cliente.");
+      alert(data.error || t("cadastros.clientes.erroRestaurar"));
       return;
     }
     setMostrarExcluidos(false);
@@ -604,7 +604,7 @@ export default function ClientesPage() {
       await abrirPdfGerando(
         () => gerarListaClientesPdf(list),
         "lista-clientes.pdf",
-        "Lista de Clientes Cadastrados"
+        t("cadastros.clientes.pdfTitulo")
       );
     } catch {
       alert(t("cadastros.comum.alerta.erroImprimir"));
@@ -632,7 +632,7 @@ export default function ClientesPage() {
     const telefone = telefoneWhatsappCliente(cliente) || cliente.celular || cliente.telefone || "";
     if (!telefone.trim()) {
       alert(
-        "Cadastre o celular ou WhatsApp do cliente para enviar o link de acompanhamento."
+        t("cadastros.clientes.alerta.semWhatsapp")
       );
       return;
     }
@@ -644,7 +644,7 @@ export default function ClientesPage() {
       const data = await res.json();
       if (!res.ok || !data.publicUrl) {
         janelaWhatsapp?.close();
-        alert(data.error || "Não foi possível gerar o link de acompanhamento.");
+        alert(data.error || t("cadastros.clientes.alerta.erroLinkAcompanhamento"));
         return;
       }
       const texto = mensagemAcompanhamentoCliente(cliente.nome, data.publicUrl);
@@ -656,12 +656,12 @@ export default function ClientesPage() {
         janelaWhatsapp?.close();
         alert(
           resultado.error ||
-            "Link gerado, mas não foi possível abrir o WhatsApp. Verifique o número cadastrado."
+            t("cadastros.clientes.alerta.erroAbrirWhatsapp")
         );
       }
     } catch {
       janelaWhatsapp?.close();
-      alert("Erro ao preparar o envio pelo WhatsApp.");
+      alert(t("cadastros.clientes.alerta.erroWhatsapp"));
     } finally {
       setEnviandoWhatsAppId(null);
     }
@@ -702,8 +702,8 @@ export default function ClientesPage() {
               onExcluirSelecionados={() => setExclusaoMultiplaAberta(true)}
               tituloExcluirSelecionados={
                 mostrarExcluidos
-                  ? "Excluir definitivamente os selecionados"
-                  : "Enviar selecionados para a lixeira"
+                  ? t("cadastros.clientes.excluirDefinitivoSelecionados")
+                  : t("cadastros.clientes.enviarLixeiraSelecionados")
               }
               processando={processandoLista}
               disabled={mostrarExcluidos}
@@ -739,9 +739,9 @@ export default function ClientesPage() {
           onFecharConfig={listagem.fecharConfig}
           rascunho={listagem.rascunho}
           opcoesOrdenacao={[
-            { valor: "nome", label: "Nome" },
-            { valor: "cidade", label: "Cidade" },
-            { valor: "email", label: "E-mail" },
+            { valor: "nome", label: t("cadastros.comum.nome") },
+            { valor: "cidade", label: t("cadastros.comum.cidade") },
+            { valor: "email", label: t("cadastros.comum.email") },
           ]}
           onAlterarOrdenarPor={(valor) => listagem.atualizarRascunho({ ordenarPor: valor })}
           onAlterarDirecao={(direcao) => listagem.atualizarRascunho({ direcao })}
@@ -765,15 +765,15 @@ export default function ClientesPage() {
                       if (el) el.indeterminate = algumPaginaSelecionado && !todosPaginaSelecionados;
                     }}
                     onChange={alternarSelecaoPaginaAtual}
-                    aria-label="Selecionar todos desta página"
+                    aria-label={t("cadastros.comum.selecionarTodosPagina")}
                   />
                 </th>
-                <th className="px-3 py-2 text-left font-semibold">NOME</th>
-                <th className="px-3 py-2 text-left font-semibold">CONTATO</th>
-                <th className="px-3 py-2 text-left font-semibold">CELULAR</th>
-                <th className="px-3 py-2 text-left font-semibold">WHATSAPP</th>
-                <th className="px-3 py-2 text-left font-semibold">EMAIL</th>
-                <th className="px-3 py-2 text-center font-semibold">OPÇÕES</th>
+                <th className="px-3 py-2 text-left font-semibold">{t("cadastros.comum.nome").toUpperCase()}</th>
+                <th className="px-3 py-2 text-left font-semibold">{t("cadastros.comum.contato").toUpperCase()}</th>
+                <th className="px-3 py-2 text-left font-semibold">{t("cadastros.comum.celular").toUpperCase()}</th>
+                <th className="px-3 py-2 text-left font-semibold">{t("cadastros.comum.whatsapp").toUpperCase()}</th>
+                <th className="px-3 py-2 text-left font-semibold">{t("cadastros.comum.email").toUpperCase()}</th>
+                <th className="px-3 py-2 text-center font-semibold">{t("cadastros.comum.opcoes").toUpperCase()}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -797,7 +797,7 @@ export default function ClientesPage() {
                           className="h-3.5 w-3.5 accent-primary-600"
                           checked={selecionado}
                           onChange={() => alternarSelecao(c.id)}
-                          aria-label={`Selecionar ${c.nome}`}
+                          aria-label={t("cadastros.comum.selecionarItem", { nome: c.nome })}
                         />
                       </td>
                       <td className="px-3 py-2 font-medium text-slate-600">{c.nome}</td>
@@ -825,7 +825,7 @@ export default function ClientesPage() {
                             type="button"
                             onClick={() => void enviarAcompanhamentoWhatsApp(c)}
                             disabled={enviandoWhatsAppId === c.id}
-                            title="Enviar link de acompanhamento da produção no WhatsApp"
+                            title={t("cadastros.clientes.whatsappAcompanhamento")}
                             className="rounded p-1 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50"
                           >
                             <IconWhatsApp />
@@ -833,19 +833,19 @@ export default function ClientesPage() {
                           <button
                             type="button"
                             onClick={() => setDetalhe(aberto ? null : c)}
-                            title="Visualizar"
+                            title={t("cadastros.comum.visualizar")}
                             className={`rounded p-1 hover:bg-blue-50 hover:text-blue-600 ${aberto ? "bg-blue-50 text-blue-500" : ""}`}
                           >
                             <Eye className="h-3.5 w-3.5" />
                           </button>
-                          <button type="button" onClick={() => openEdit(c)} title="Editar" className="hover:text-primary-700">
+                          <button type="button" onClick={() => openEdit(c)} title={t("cadastros.comum.editar")} className="hover:text-primary-700">
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
                           {mostrarExcluidos ? (
                             <button
                               type="button"
                               onClick={() => void restaurarCliente(c)}
-                              title="Restaurar cliente"
+                              title={t("cadastros.clientes.restaurarCliente")}
                               className="rounded px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600 hover:bg-emerald-50"
                             >
                               Restaurar
@@ -871,17 +871,17 @@ export default function ClientesPage() {
                               {c.nome}
                             </div>
                             <div className="grid gap-x-8 gap-y-3 border-b border-slate-100 pb-3 md:grid-cols-4">
-                              <p><span className="font-semibold text-slate-700">Nome:</span> {c.nome}</p>
-                              <p><span className="font-semibold text-slate-700">Razão Social:</span> {c.razaoSocial || ""}</p>
-                              <p><span className="font-semibold text-slate-700">CPF/CNPJ:</span> {c.cnpjCpf || ""}</p>
-                              <p><span className="font-semibold text-slate-700">CRO:</span> {c.cro || ""}</p>
-                              <p><span className="font-semibold text-slate-700">Telefone:</span> {c.telefone || ""}</p>
-                              <p><span className="font-semibold text-slate-700">Celular:</span> {c.celular || ""}</p>
-                              <p><span className="font-semibold text-slate-700">Email:</span> {c.email || ""}</p>
-                              <p><span className="font-semibold text-slate-700">Cidade/UF:</span> {[c.cidade, c.uf].filter(Boolean).join(" / ")}</p>
-                              <p className="md:col-span-2"><span className="font-semibold text-slate-700">Endereço:</span> {c.endereco || ""}</p>
-                              <p><span className="font-semibold text-slate-700">Representante:</span> {nomeRepresentanteColaboradorCliente(c, colaboradores) || ""}</p>
-                              <p className="md:col-span-2"><span className="font-semibold text-slate-700">Observações:</span> {observacoesTextoLivreCliente(c.observacoes) || ""}</p>
+                              <p><span className="font-semibold text-slate-700">{t("cadastros.comum.detalheNome")}</span> {c.nome}</p>
+                              <p><span className="font-semibold text-slate-700">{t("cadastros.comum.detalheRazaoSocial")}</span> {c.razaoSocial || ""}</p>
+                              <p><span className="font-semibold text-slate-700">{t("cadastros.comum.detalheCpfCnpj")}</span> {c.cnpjCpf || ""}</p>
+                              <p><span className="font-semibold text-slate-700">{t("cadastros.comum.detalheCro")}</span> {c.cro || ""}</p>
+                              <p><span className="font-semibold text-slate-700">{t("cadastros.comum.detalheTelefone")}</span> {c.telefone || ""}</p>
+                              <p><span className="font-semibold text-slate-700">{t("cadastros.comum.detalheCelular")}</span> {c.celular || ""}</p>
+                              <p><span className="font-semibold text-slate-700">{t("cadastros.comum.detalheEmail")}</span> {c.email || ""}</p>
+                              <p><span className="font-semibold text-slate-700">{t("cadastros.comum.detalheCidadeUf")}</span> {[c.cidade, c.uf].filter(Boolean).join(" / ")}</p>
+                              <p className="md:col-span-2"><span className="font-semibold text-slate-700">{t("cadastros.comum.detalheEndereco")}</span> {c.endereco || ""}</p>
+                              <p><span className="font-semibold text-slate-700">{t("cadastros.comum.detalheRepresentante")}</span> {nomeRepresentanteColaboradorCliente(c, colaboradores) || ""}</p>
+                              <p className="md:col-span-2"><span className="font-semibold text-slate-700">{t("cadastros.comum.detalheObservacoes")}</span> {observacoesTextoLivreCliente(c.observacoes) || ""}</p>
                             </div>
                             <button
                               type="button"
@@ -900,7 +900,7 @@ export default function ClientesPage() {
               {listagem.totalItens === 0 && (
                 <tr>
                   <td colSpan={7} className="px-3 py-10 text-center text-slate-400">
-                    Nenhum cliente encontrado.
+                    {t("cadastros.clientes.nenhumEncontrado")}
                   </td>
                 </tr>
               )}
@@ -913,15 +913,15 @@ export default function ClientesPage() {
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title={editing ? "Editar Cliente" : "Cadastro de Cliente"}
+        title={editing ? t("cadastros.clientes.editarTitulo") : t("cadastros.clientes.cadastrarTitulo")}
         size="smart"
       >
         <form onSubmit={save} className="space-y-4 text-xs text-slate-800">
           <div className="flex flex-wrap gap-1 border-b border-slate-200">
             {[
-              { id: "dados", label: "Dados do Cliente" },
-              { id: "endereco", label: "Endereço" },
-              { id: "configuracao", label: "Configuração" },
+              { id: "dados", label: t("cadastros.clientes.abaDadosCliente") },
+              { id: "endereco", label: t("cadastros.clientes.abaEndereco") },
+              { id: "configuracao", label: t("cadastros.clientes.abaConfiguracao") },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -942,49 +942,49 @@ export default function ClientesPage() {
           <>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <SelectCliente
-              label="Tipo de Cliente"
+              label={t("cadastros.clientes.tipoCliente")}
               value={form.tipoCliente}
               onChange={(e) => setForm({ ...form, tipoCliente: e.target.value })}
             >
-              <option>Dentista</option>
-              <option>Clínica</option>
-              <option>Laboratório</option>
+              <option>{t("cadastros.clientes.tipoDentista")}</option>
+              <option>{t("cadastros.clientes.tipoClinica")}</option>
+              <option>{t("cadastros.clientes.tipoLaboratorio")}</option>
             </SelectCliente>
             <SelectCliente
-              label="Abreviação"
+              label={t("cadastros.clientes.abreviacao")}
               value={form.abreviacao}
               onChange={(e) => setForm({ ...form, abreviacao: e.target.value })}
             >
               <option value=""></option>
-              <option>Dr.</option>
-              <option>Dra.</option>
+              <option>{t("cadastros.clientes.prefixoDr")}</option>
+              <option>{t("cadastros.clientes.prefixoDra")}</option>
             </SelectCliente>
-            <CampoCliente label="Razão Social" value={form.razaoSocial} onChange={(e) => setForm({ ...form, razaoSocial: e.target.value })} />
-            <CampoCliente label="Nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
-            <CampoCliente label="Data de Nascimento" value={form.dataNascimento} onChange={(e) => setForm({ ...form, dataNascimento: formatDateInput(e.target.value) })} placeholder="dd/mm/aaaa" />
+            <CampoCliente label={t("cadastros.comum.razaoSocial")} value={form.razaoSocial} onChange={(e) => setForm({ ...form, razaoSocial: e.target.value })} />
+            <CampoCliente label={t("cadastros.comum.nome")} value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
+            <CampoCliente label={t("cadastros.comum.dataNascimento")} value={form.dataNascimento} onChange={(e) => setForm({ ...form, dataNascimento: formatDateInput(e.target.value) })} placeholder={t("cadastros.comum.placeholderData")} />
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <CampoCliente label="CRO Responsável" value={form.cro} onChange={(e) => setForm({ ...form, cro: e.target.value })} />
-            <CampoCliente label="CNPJ" value={form.cnpjCpf} onChange={(e) => setForm({ ...form, cnpjCpf: e.target.value })} />
-            <CampoCliente label="CPF" value={form.cpf} onChange={(e) => setForm({ ...form, cpf: e.target.value })} />
-            <CampoCliente label="RG" value={form.rg} onChange={(e) => setForm({ ...form, rg: e.target.value })} />
-            <CampoCliente label="Email" type="email" value={form.email} onChange={(e) => atualizarDadosClienteEspelhandoContato("email", e.target.value)} />
+            <CampoCliente label={t("cadastros.clientes.croResponsavel")} value={form.cro} onChange={(e) => setForm({ ...form, cro: e.target.value })} />
+            <CampoCliente label={t("cadastros.comum.cnpj")} value={form.cnpjCpf} onChange={(e) => setForm({ ...form, cnpjCpf: e.target.value })} />
+            <CampoCliente label={t("cadastros.comum.cpf")} value={form.cpf} onChange={(e) => setForm({ ...form, cpf: e.target.value })} />
+            <CampoCliente label={t("cadastros.comum.rg")} value={form.rg} onChange={(e) => setForm({ ...form, rg: e.target.value })} />
+            <CampoCliente label={t("cadastros.comum.email")} type="email" value={form.email} onChange={(e) => atualizarDadosClienteEspelhandoContato("email", e.target.value)} />
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <CampoCliente label="Telefone Residencial" placeholder={PLACEHOLDER_TELEFONE_BR} value={form.telefone} onChange={(e) => setForm({ ...form, telefone: formatarTelefone(e.target.value) })} />
-            <CampoCliente label="Telefone Comercial" placeholder={PLACEHOLDER_TELEFONE_BR} value={form.telefoneComercial} onChange={(e) => atualizarDadosClienteEspelhandoContato("telefoneComercial", formatarTelefone(e.target.value))} />
-            <CampoCliente label="Celular" placeholder={PLACEHOLDER_TELEFONE_BR} value={form.celular} onChange={(e) => setForm({ ...form, celular: formatarTelefone(e.target.value) })} />
-            <CampoCliente label="WhatsApp" placeholder={PLACEHOLDER_TELEFONE_BR} value={form.whatsapp} onChange={(e) => atualizarDadosClienteEspelhandoContato("whatsapp", formatarTelefone(e.target.value))} />
+            <CampoCliente label={t("cadastros.comum.telefoneResidencial")} placeholder={PLACEHOLDER_TELEFONE_BR} value={form.telefone} onChange={(e) => setForm({ ...form, telefone: formatarTelefone(e.target.value) })} />
+            <CampoCliente label={t("cadastros.comum.telefoneComercial")} placeholder={PLACEHOLDER_TELEFONE_BR} value={form.telefoneComercial} onChange={(e) => atualizarDadosClienteEspelhandoContato("telefoneComercial", formatarTelefone(e.target.value))} />
+            <CampoCliente label={t("cadastros.comum.celular")} placeholder={PLACEHOLDER_TELEFONE_BR} value={form.celular} onChange={(e) => setForm({ ...form, celular: formatarTelefone(e.target.value) })} />
+            <CampoCliente label={t("cadastros.comum.whatsapp")} placeholder={PLACEHOLDER_TELEFONE_BR} value={form.whatsapp} onChange={(e) => atualizarDadosClienteEspelhandoContato("whatsapp", formatarTelefone(e.target.value))} />
           </div>
 
           <div className="space-y-1 pt-1">
-            <label className="block text-[11px] font-normal text-slate-600">Observações</label>
+            <label className="block text-[11px] font-normal text-slate-600">{t("cadastros.comum.observacoes")}</label>
             <textarea
               value={form.observacoes}
               onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
-              placeholder="Digite aqui as observações..."
+              placeholder={t("cadastros.comum.placeholderObservacoes")}
               rows={4}
               className="min-h-[88px] w-full resize-y rounded border border-slate-300 bg-white px-2.5 py-2 text-xs text-slate-800 shadow-sm outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]/30"
             />
@@ -993,22 +993,22 @@ export default function ClientesPage() {
           <div className="border-t border-slate-200 pt-4">
             <div className="mb-3 flex items-center gap-2 text-[13px] font-medium text-slate-700">
               <User className="h-4 w-4 text-slate-500" strokeWidth={1.75} />
-              <span>Contato</span>
+              <span>{t("cadastros.clientes.abaContato")}</span>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <CampoCliente label="Contato" value={form.contato} onChange={(e) => setForm({ ...form, contato: e.target.value })} />
-              <CampoCliente label="Telefone Comercial" placeholder={PLACEHOLDER_TELEFONE_BR} value={form.contatoTelefoneComercial} onChange={(e) => setForm({ ...form, contatoTelefoneComercial: formatarTelefone(e.target.value) })} />
-              <CampoCliente label="WhatsApp" placeholder={PLACEHOLDER_TELEFONE_BR} value={form.contatoWhatsapp} onChange={(e) => setForm({ ...form, contatoWhatsapp: formatarTelefone(e.target.value) })} />
-              <CampoCliente label="Email" type="email" value={form.contatoEmail} onChange={(e) => setForm({ ...form, contatoEmail: e.target.value })} />
+              <CampoCliente label={t("cadastros.comum.contato")} value={form.contato} onChange={(e) => setForm({ ...form, contato: e.target.value })} />
+              <CampoCliente label={t("cadastros.comum.telefoneComercial")} placeholder={PLACEHOLDER_TELEFONE_BR} value={form.contatoTelefoneComercial} onChange={(e) => setForm({ ...form, contatoTelefoneComercial: formatarTelefone(e.target.value) })} />
+              <CampoCliente label={t("cadastros.comum.whatsapp")} placeholder={PLACEHOLDER_TELEFONE_BR} value={form.contatoWhatsapp} onChange={(e) => setForm({ ...form, contatoWhatsapp: formatarTelefone(e.target.value) })} />
+              <CampoCliente label={t("cadastros.comum.email")} type="email" value={form.contatoEmail} onChange={(e) => setForm({ ...form, contatoEmail: e.target.value })} />
             </div>
           </div>
 
           <div className="space-y-1 md:max-w-md">
             <label className="flex items-center gap-1.5 text-[11px] font-normal text-slate-600">
-              Representante (Colaborador)
+              {t("cadastros.clientes.representanteColaborador")}
               <span
                 className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#4a90d9] text-[10px] font-bold text-white"
-                title="Colaborador responsável pelos trabalhos deste cliente nas ordens de serviço"
+                title={t("cadastros.clientes.colaboradorResponsavel")}
               >
                 i
               </span>
@@ -1020,7 +1020,7 @@ export default function ClientesPage() {
               }
               className="h-9 w-full rounded border border-slate-300 bg-white px-2.5 text-xs text-slate-800 shadow-sm outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]/30"
             >
-              <option value="">Selecione um colaborador...</option>
+              <option value="">{t("cadastros.clientes.selecioneColaborador")}</option>
               {colaboradores.map((colaborador) => (
                 <option key={colaborador.id} value={colaborador.id}>
                   {colaborador.nome}
@@ -1034,22 +1034,22 @@ export default function ClientesPage() {
           {abaModal === "endereco" && (
             <div className="space-y-7">
               <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                <span>Endereço Principal</span>
+                <span>{t("cadastros.clientes.enderecoPrincipal")}</span>
               </div>
 
               <div className="grid gap-4 md:grid-cols-12">
                 <div className="md:col-span-4">
                   <Input
-                    label="Descrição (Apelido)"
+                    label={t("cadastros.clientes.descricaoApelido")}
                     value={form.descricaoEndereco}
                     onChange={(e) => setForm({ ...form, descricaoEndereco: e.target.value })}
-                    placeholder="Endereço Principal"
+                    placeholder={t("cadastros.clientes.enderecoPrincipal")}
                   />
                 </div>
 
                 <div className="md:col-span-4 md:col-start-1">
                   <Input
-                    label="CEP"
+                    label={t("cadastros.comum.cep")}
                     value={form.cep}
                     onChange={(e) => setForm({ ...form, cep: formatCepInput(e.target.value) })}
                   />
@@ -1061,36 +1061,36 @@ export default function ClientesPage() {
                     disabled={buscandoCep}
                     className="h-9 w-full whitespace-nowrap rounded border border-primary-500 bg-white px-3 text-[11px] text-primary-700 hover:bg-primary-50 disabled:opacity-60"
                   >
-                    {buscandoCep ? "Buscando..." : "Buscar CEP"}
+                    {buscandoCep ? t("cadastros.comum.buscando") : t("cadastros.clientes.buscarCep")}
                   </button>
                 </div>
                 <div className="md:col-span-5">
-                  <Input label="Rua" value={form.rua} onChange={(e) => setForm({ ...form, rua: e.target.value })} />
+                  <Input label={t("cadastros.comum.rua")} value={form.rua} onChange={(e) => setForm({ ...form, rua: e.target.value })} />
                 </div>
                 <div className="md:col-span-2">
-                  <Input label="Número" value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} />
+                  <Input label={t("cadastros.comum.numero")} value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} />
                 </div>
 
                 <div className="md:col-span-3">
-                  <Input label="Cidade" value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} />
+                  <Input label={t("cadastros.comum.cidade")} value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} />
                 </div>
                 <div className="md:col-span-2">
-                  <Input label="UF" value={form.uf} onChange={(e) => setForm({ ...form, uf: e.target.value })} />
+                  <Input label={t("cadastros.comum.uf")} value={form.uf} onChange={(e) => setForm({ ...form, uf: e.target.value })} />
                 </div>
                 <div className="md:col-span-4">
-                  <Input label="Bairro" value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} />
+                  <Input label={t("cadastros.comum.bairro")} value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} />
                 </div>
                 <div className="md:col-span-3">
-                  <Input label="Complemento" value={form.complemento} onChange={(e) => setForm({ ...form, complemento: e.target.value })} />
+                  <Input label={t("cadastros.comum.complemento")} value={form.complemento} onChange={(e) => setForm({ ...form, complemento: e.target.value })} />
                 </div>
 
                 <div className="space-y-1 md:col-span-4">
-                  <label className="block text-[11px] text-slate-600">Entregador</label>
+                  <label className="block text-[11px] text-slate-600">{t("cadastros.clientes.entregador")}</label>
                   <input
                     list="entregadores-cliente"
                     value={form.entregador}
                     onChange={(e) => setForm({ ...form, entregador: e.target.value })}
-                    placeholder="Selecione ou digite"
+                    placeholder={t("cadastros.clientes.selecioneOuDigite")}
                     className="h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs outline-none focus:border-primary-500"
                   />
                   <datalist id="entregadores-cliente">
@@ -1100,13 +1100,13 @@ export default function ClientesPage() {
                   </datalist>
                 </div>
                 <div className="space-y-1 md:col-span-4">
-                  <label className="block text-[11px] text-slate-600">Tipo Entregador</label>
+                  <label className="block text-[11px] text-slate-600">{t("cadastros.comum.tipoEntregador")}</label>
                   <select
                     value={form.tipoEntregador}
                     onChange={(e) => setForm({ ...form, tipoEntregador: e.target.value })}
                     className="h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs outline-none focus:border-primary-500"
                   >
-                    <option value="">Selecione...</option>
+                    <option value="">{t("cadastros.comum.selecione")}...</option>
                     {TIPOS_ENTREGADOR.map((tipo) => (
                       <option key={tipo} value={tipo}>
                         {tipo}
@@ -1115,7 +1115,7 @@ export default function ClientesPage() {
                   </select>
                 </div>
                 <div className="space-y-1 md:col-span-4">
-                  <label className="block text-[11px] text-slate-600">Custo de Entrega</label>
+                  <label className="block text-[11px] text-slate-600">{t("cadastros.clientes.custoEntrega")}</label>
                   <div className="flex h-9 overflow-hidden rounded border border-slate-300 bg-white">
                     <span className="flex w-9 items-center justify-center border-r border-slate-200 text-xs text-slate-500">
                       R$
@@ -1136,7 +1136,7 @@ export default function ClientesPage() {
                   type="button"
                   className="rounded bg-emerald-500 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-600"
                 >
-                  + Endereço Extra
+                  + {t("cadastros.clientes.enderecoExtra")}
                 </button>
               </div>
             </div>
@@ -1146,19 +1146,19 @@ export default function ClientesPage() {
             <div className="space-y-5">
               <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
                 <span className="text-base">$</span>
-                <span>Cobranças</span>
+                <span>{t("cadastros.clientes.abaCobrancas")}</span>
               </div>
 
               <div className="grid gap-4 md:grid-cols-4">
                 <div className="space-y-1">
-                  <label className="block text-[11px] text-slate-600">Tabela de Preço</label>
+                  <label className="block text-[11px] text-slate-600">{t("cadastros.clientes.tabelaPreco")}</label>
                   <select
                     value={form.tabelaPreco}
                     onChange={(e) => setForm({ ...form, tabelaPreco: e.target.value })}
                     className="h-9 w-full rounded border border-slate-300 bg-white px-2 text-xs outline-none focus:border-primary-500"
                   >
                     {opcoesTabelaPreco.length === 0 ? (
-                      <option value="Tabela Principal">Tabela Principal</option>
+                      <option value={t("cadastros.clientes.tabelaPrincipal")}>{t("cadastros.clientes.tabelaPrincipal")}</option>
                     ) : (
                       opcoesTabelaPreco.map((nome) => (
                         <option key={nome} value={nome}>
@@ -1168,19 +1168,17 @@ export default function ClientesPage() {
                     )}
                   </select>
                   <p className="mt-1 text-[10px] text-slate-400">
-                    Esta tabela será usada na ordem de serviço deste cliente. Cadastre
-                    novas tabelas em Cadastros → Tabela de Preços.
+                    {t("cadastros.clientes.ajudaTabelaPreco")}
                   </p>
                   {tabelasPreco.length <= 1 ? (
                     <p className="mt-0.5 text-[10px] text-amber-700">
-                      Só uma tabela encontrada — abra Tabela de Preços uma vez para
-                      sincronizar as demais.
+                      {t("cadastros.clientes.ajudaUmaTabela")}
                     </p>
                   ) : null}
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[11px] text-slate-600">Desconto Geral</label>
+                  <label className="block text-[11px] text-slate-600">{t("cadastros.clientes.descontoGeral")}</label>
                   <div className="flex h-9 overflow-hidden rounded border border-slate-300 bg-white">
                     <select
                       value={form.descontoGeralTipo}
@@ -1214,7 +1212,7 @@ export default function ClientesPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[11px] text-slate-600">Limite Saldo Devedor</label>
+                  <label className="block text-[11px] text-slate-600">{t("cadastros.clientes.limiteSaldoDevedor")}</label>
                   <div className="flex h-9 overflow-hidden rounded border border-slate-300 bg-white">
                     <span className="flex w-9 items-center justify-center border-r border-slate-200 text-xs text-slate-500">$</span>
                     <input
@@ -1224,13 +1222,12 @@ export default function ClientesPage() {
                     />
                   </div>
                   <p className="mt-1 text-[10px] text-slate-400">
-                    Ao atingir este limite com títulos em aberto há mais de 30 dias, novas ordens de
-                    serviço para este cliente serão bloqueadas.
+                    {t("cadastros.clientes.ajudaLimiteSaldo")}
                   </p>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[11px] text-slate-600">Dia da Cobrança</label>
+                  <label className="block text-[11px] text-slate-600">{t("cadastros.clientes.diaCobranca")}</label>
                   <div className="relative">
                     <input
                       value={form.diaCobranca}
@@ -1240,7 +1237,7 @@ export default function ClientesPage() {
                           diaCobranca: e.target.value.replace(/\D/g, "").slice(0, 2),
                         })
                       }
-                      placeholder="1 a 31"
+                      placeholder={t("cadastros.clientes.diaCobrancaIntervalo")}
                       className="h-9 w-full rounded border border-emerald-300 px-2 pr-8 text-xs outline-none focus:border-emerald-500"
                     />
                     {form.diaCobranca ? (
@@ -1250,8 +1247,7 @@ export default function ClientesPage() {
                     ) : null}
                   </div>
                   <p className="text-[10px] text-slate-400">
-                    No dia {form.diaCobranca || "—"} de cada mês você recebe um lembrete no
-                    sino para cobrar este cliente.
+                    {t("cadastros.clientes.ajudaDiaCobranca", { dia: form.diaCobranca || "—" })}
                   </p>
                 </div>
               </div>
@@ -1263,14 +1259,14 @@ export default function ClientesPage() {
               type="submit"
               className="rounded bg-[#4a90d9] px-5 py-2 text-sm font-normal text-white hover:bg-[#3d7fc4]"
             >
-              {editing ? "Gravar Alterações" : "Cadastrar Cliente"}
+              {editing ? t("cadastros.clientes.gravarAlteracoes") : t("cadastros.clientes.cadastrarCliente")}
             </button>
             <button
               type="button"
               onClick={() => setOpen(false)}
               className="rounded border border-slate-300 bg-white px-5 py-2 text-sm font-normal text-slate-700 hover:bg-slate-50"
             >
-              Fechar
+              {t("cadastros.comum.fechar")}
             </button>
           </div>
         </form>
@@ -1286,18 +1282,18 @@ export default function ClientesPage() {
         open={exclusaoMultiplaAberta}
         titulo={
           mostrarExcluidos
-            ? "Excluir clientes definitivamente"
-            : "Enviar clientes para a lixeira"
+            ? t("cadastros.clientes.excluirMultiploDefinitivoTitulo")
+            : t("cadastros.clientes.excluirMultiploLixeiraTitulo")
         }
         mensagem={
           mostrarExcluidos
-            ? `Deseja remover ${quantidadeSelecionados} cliente(s) do sistema? Só é possível se não houver OS, pacientes ou lançamentos vinculados.`
-            : `Deseja enviar ${quantidadeSelecionados} cliente(s) para a lixeira? Eles sairão da lista de ativos, mas OS e histórico permanecem.`
+            ? t("cadastros.clientes.excluirMultiploDefinitivoMensagem", { n: quantidadeSelecionados })
+            : t("cadastros.clientes.excluirMultiploLixeiraMensagem", { n: quantidadeSelecionados })
         }
         aviso={
           mostrarExcluidos
-            ? "Se ainda existir vínculo, o cadastro continuará apenas inativo."
-            : "Clientes com OS ou pacientes ficam inativos (não apagam o histórico)."
+            ? t("cadastros.clientes.excluirMultiploDefinitivoAviso")
+            : t("cadastros.clientes.excluirMultiploLixeiraAviso")
         }
         onClose={() => setExclusaoMultiplaAberta(false)}
         onConfirm={confirmarExclusaoMultipla}
@@ -1305,16 +1301,16 @@ export default function ClientesPage() {
 
       <ConfirmacaoExclusaoModal
         open={!!clienteParaExcluir}
-        titulo={mostrarExcluidos ? "Excluir definitivamente" : "Enviar para a lixeira"}
+        titulo={mostrarExcluidos ? t("cadastros.clientes.excluirDefinitivo") : t("cadastros.clientes.enviarLixeira")}
         mensagem={
           mostrarExcluidos
-            ? "Deseja remover este cliente do sistema? Só é possível se não houver OS, pacientes ou lançamentos vinculados."
-            : "Deseja enviar este cliente para a lixeira? Ele sairá da lista de ativos, mas OS e histórico permanecem."
+            ? t("cadastros.clientes.excluirUnicoDefinitivoMensagem")
+            : t("cadastros.clientes.excluirUnicoLixeiraMensagem")
         }
         aviso={
           mostrarExcluidos
-            ? "Se ainda existir vínculo, o cadastro continuará apenas inativo."
-            : "Clientes com OS ou pacientes ficam inativos (não apagam o histórico)."
+            ? t("cadastros.clientes.excluirMultiploDefinitivoAviso")
+            : t("cadastros.clientes.excluirMultiploLixeiraAviso")
         }
         detalhe={clienteParaExcluir?.nome}
         onClose={() => setClienteParaExcluir(null)}

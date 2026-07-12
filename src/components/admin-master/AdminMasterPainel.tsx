@@ -19,7 +19,8 @@ import {
   Wallet,
 } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
-import { LIMITES_PLANO_PADRAO, rotuloPlanoEmpresa } from "@/lib/master-planos";
+import type { Locale, MessageKey } from "@/lib/i18n";
+import { LIMITES_PLANO_PADRAO } from "@/lib/master-planos";
 import { cn } from "@/lib/utils";
 import {
   Bar,
@@ -74,6 +75,8 @@ type CobrancaAssinaturaItem = {
   createdAt: string;
 };
 
+type TranslateFn = (key: MessageKey, params?: Record<string, string | number>) => string;
+
 const ESTADOS_BR = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG",
   "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
@@ -101,44 +104,56 @@ const formularioVazio = () => ({
   adminConfirmarSenha: "",
 });
 
-function formatarMoeda(valor: number) {
-  return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+function localeTag(locale: Locale) {
+  if (locale === "pt") return "pt-BR";
+  if (locale === "es") return "es-ES";
+  return "en-US";
 }
 
-function formatarData(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("pt-BR");
+function rotuloPlano(plano: string, t: TranslateFn) {
+  const mapa: Record<string, MessageKey> = {
+    basico: "admin.master.plano.basico",
+    profissional: "admin.master.plano.profissional",
+    premium: "admin.master.plano.premium",
+  };
+  return t(mapa[plano] ?? "admin.master.plano.basico");
 }
 
-function badgeStatus(status: string) {
+function rotuloStatus(status: string, t: TranslateFn) {
+  const mapa: Record<string, MessageKey> = {
+    ativo: "admin.master.status.ativo",
+    pendente: "admin.master.status.pendente",
+    inativo: "admin.master.status.inativo",
+    bloqueado: "admin.master.status.bloqueado",
+  };
+  return t(mapa[status] ?? "admin.master.status.inativo");
+}
+
+function badgeStatus(status: string, t: TranslateFn) {
   const mapa: Record<string, string> = {
     ativo: "bg-emerald-100 text-emerald-700",
     pendente: "bg-amber-100 text-amber-800",
     inativo: "bg-slate-100 text-slate-600",
     bloqueado: "bg-red-100 text-red-700",
   };
-  const rotulo: Record<string, string> = {
-    ativo: "Ativo",
-    pendente: "Pendente",
-    inativo: "Inativo",
-    bloqueado: "Bloqueado",
-  };
   return (
     <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", mapa[status] ?? mapa.inativo)}>
-      {rotulo[status] ?? status}
+      {rotuloStatus(status, t)}
     </span>
   );
 }
 
-function rotuloProvedor(provedor: string) {
-  return provedor === "mercadopago" ? "Mercado Pago" : "Asaas";
+function rotuloProvedor(provedor: string, t: TranslateFn) {
+  return provedor === "mercadopago"
+    ? t("admin.master.provedor.mercadopago")
+    : t("admin.master.provedor.asaas");
 }
 
-function badgeCobranca(pago: boolean, statusAsaas: string) {
+function badgeCobranca(pago: boolean, statusAsaas: string, t: TranslateFn) {
   if (pago) {
     return (
       <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-        Paga
+        {t("admin.master.cobranca.paga")}
       </span>
     );
   }
@@ -155,12 +170,32 @@ function badgeCobranca(pago: boolean, statusAsaas: string) {
         mapa[statusAsaas] ?? "bg-slate-100 text-slate-600"
       )}
     >
-      Pendente
+      {t("admin.master.cobranca.pendente")}
     </span>
   );
 }
 
-function tabelaCobrancas(titulo: string, itens: CobrancaAssinaturaItem[], vazio: string) {
+function badgePlano(plano: string, t: TranslateFn) {
+  const mapa: Record<string, string> = {
+    basico: "bg-sky-100 text-sky-700",
+    profissional: "bg-violet-100 text-violet-700",
+    premium: "bg-amber-100 text-amber-800",
+  };
+  return (
+    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", mapa[plano] ?? mapa.basico)}>
+      {rotuloPlano(plano, t)}
+    </span>
+  );
+}
+
+function tabelaCobrancas(
+  titulo: string,
+  itens: CobrancaAssinaturaItem[],
+  vazio: string,
+  t: TranslateFn,
+  formatarData: (iso: string | null) => string,
+  formatarMoeda: (valor: number) => string
+) {
   return (
     <div>
       <h3 className="mb-2 text-xs font-semibold text-slate-600">
@@ -175,35 +210,29 @@ function tabelaCobrancas(titulo: string, itens: CobrancaAssinaturaItem[], vazio:
           <table className="w-full min-w-[720px] text-left text-xs">
             <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-3 py-2">Data</th>
-                <th className="px-3 py-2">Empresa</th>
-                <th className="px-3 py-2">Provedor</th>
-                <th className="px-3 py-2">Plano</th>
-                <th className="px-3 py-2">Valor</th>
-                <th className="px-3 py-2">Dias</th>
-                <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2">Pago em</th>
+                <th className="px-3 py-2">{t("admin.master.col.data")}</th>
+                <th className="px-3 py-2">{t("admin.master.col.empresa")}</th>
+                <th className="px-3 py-2">{t("admin.master.col.provedor")}</th>
+                <th className="px-3 py-2">{t("admin.master.col.plano")}</th>
+                <th className="px-3 py-2">{t("admin.master.col.valor")}</th>
+                <th className="px-3 py-2">{t("admin.master.col.dias")}</th>
+                <th className="px-3 py-2">{t("admin.master.col.status")}</th>
+                <th className="px-3 py-2">{t("admin.master.col.pagoEm")}</th>
               </tr>
             </thead>
             <tbody>
               {itens.map((item) => (
                 <tr key={item.id} className="border-t border-slate-100 hover:bg-slate-50/80">
-                  <td className="px-3 py-2 text-slate-600">
-                    {formatarData(item.createdAt)}
-                  </td>
+                  <td className="px-3 py-2 text-slate-600">{formatarData(item.createdAt)}</td>
                   <td className="px-3 py-2">
                     <p className="font-medium text-slate-800">{item.empresaNome}</p>
-                    <p className="font-mono text-[10px] text-slate-400">
-                      {item.empresaCodigo ?? "—"}
-                    </p>
+                    <p className="font-mono text-[10px] text-slate-400">{item.empresaCodigo ?? "—"}</p>
                   </td>
-                  <td className="px-3 py-2 text-slate-600">{rotuloProvedor(item.provedor)}</td>
-                  <td className="px-3 py-2">{badgePlano(item.plano)}</td>
-                  <td className="px-3 py-2 font-medium text-slate-700">
-                    {formatarMoeda(item.valor)}
-                  </td>
+                  <td className="px-3 py-2 text-slate-600">{rotuloProvedor(item.provedor, t)}</td>
+                  <td className="px-3 py-2">{badgePlano(item.plano, t)}</td>
+                  <td className="px-3 py-2 font-medium text-slate-700">{formatarMoeda(item.valor)}</td>
                   <td className="px-3 py-2 text-slate-600">+{item.diasRenovacao}</td>
-                  <td className="px-3 py-2">{badgeCobranca(item.pago, item.statusAsaas)}</td>
+                  <td className="px-3 py-2">{badgeCobranca(item.pago, item.statusAsaas, t)}</td>
                   <td className="px-3 py-2 text-slate-600">
                     {item.pagoEm ? formatarData(item.pagoEm) : "—"}
                   </td>
@@ -217,21 +246,8 @@ function tabelaCobrancas(titulo: string, itens: CobrancaAssinaturaItem[], vazio:
   );
 }
 
-function badgePlano(plano: string) {
-  const mapa: Record<string, string> = {
-    basico: "bg-sky-100 text-sky-700",
-    profissional: "bg-violet-100 text-violet-700",
-    premium: "bg-amber-100 text-amber-800",
-  };
-  return (
-    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", mapa[plano] ?? mapa.basico)}>
-      {rotuloPlanoEmpresa(plano)}
-    </span>
-  );
-}
-
 export function AdminMasterPainel() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [empresas, setEmpresas] = useState<EmpresaItem[]>([]);
   const [form, setForm] = useState(formularioVazio);
@@ -242,6 +258,21 @@ export function AdminMasterPainel() {
   const [diasAtivacao, setDiasAtivacao] = useState<Record<string, number>>({});
   const [cobrancasPendentes, setCobrancasPendentes] = useState<CobrancaAssinaturaItem[]>([]);
   const [cobrancasPagas, setCobrancasPagas] = useState<CobrancaAssinaturaItem[]>([]);
+
+  const tag = localeTag(locale);
+
+  const formatarMoeda = useCallback(
+    (valor: number) => valor.toLocaleString(tag, { style: "currency", currency: "BRL" }),
+    [tag]
+  );
+
+  const formatarData = useCallback(
+    (iso: string | null) => {
+      if (!iso) return "—";
+      return new Date(iso).toLocaleDateString(tag);
+    },
+    [tag]
+  );
 
   const carregar = useCallback(async () => {
     const opcoesFetch: RequestInit = { cache: "no-store" };
@@ -271,11 +302,11 @@ export function AdminMasterPainel() {
 
   const graficoReceita = useMemo(
     () => [
-      { nome: "Mensal", valor: dashboard?.receitaMensal ?? 0 },
-      { nome: "Anual", valor: dashboard?.receitaAnual ?? 0 },
-      { nome: "Total", valor: dashboard?.faturamentoTotal ?? 0 },
+      { nome: t("admin.master.chart.mensal"), valor: dashboard?.receitaMensal ?? 0 },
+      { nome: t("admin.master.chart.anual"), valor: dashboard?.receitaAnual ?? 0 },
+      { nome: t("admin.master.chart.total"), valor: dashboard?.faturamentoTotal ?? 0 },
     ],
-    [dashboard]
+    [dashboard, t]
   );
 
   function alterarPlano(plano: "basico" | "profissional" | "premium") {
@@ -320,16 +351,16 @@ export function AdminMasterPainel() {
     setErro("");
     setMensagem("");
     if (!form.nome.trim()) {
-      setErro("Informe o nome da empresa.");
+      setErro(t("admin.master.erro.nomeEmpresa"));
       return;
     }
     if (!editandoId) {
       if (!form.adminNome.trim() || !form.adminEmail.trim() || !form.adminSenha) {
-        setErro("Preencha os dados do administrador.");
+        setErro(t("admin.master.erro.dadosAdmin"));
         return;
       }
       if (form.adminSenha !== form.adminConfirmarSenha) {
-        setErro("As senhas não conferem.");
+        setErro(t("admin.master.erro.senhasNaoConferem"));
         return;
       }
     }
@@ -367,14 +398,16 @@ export function AdminMasterPainel() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setErro(data.error || "Erro ao salvar.");
+        setErro(data.error || t("admin.master.erro.salvar"));
         return;
       }
-      setMensagem(editandoId ? "Conta atualizada com sucesso." : "Conta criada com sucesso.");
+      setMensagem(
+        editandoId ? t("admin.master.sucesso.contaAtualizada") : t("admin.master.sucesso.contaCriada")
+      );
       limparFormulario();
       await carregar();
     } catch {
-      setErro("Erro de conexão.");
+      setErro(t("admin.master.erro.conexao"));
     } finally {
       setSalvando(false);
     }
@@ -389,15 +422,15 @@ export function AdminMasterPainel() {
     });
     const data = await res.json();
     if (!res.ok) {
-      setErro(data.error || "Erro ao ativar assinatura.");
+      setErro(data.error || t("admin.master.erro.ativarAssinatura"));
       return;
     }
-    setMensagem(`Assinatura ativada por ${dias} dias.`);
+    setMensagem(t("admin.master.sucesso.assinaturaAtivada", { dias }));
     await carregar();
   }
 
   async function acaoEmpresa(id: string, acao: "bloquear" | "reativar" | "excluir") {
-    if (acao === "excluir" && !confirm("Excluir esta empresa e todos os dados? Esta ação é irreversível.")) {
+    if (acao === "excluir" && !confirm(t("admin.master.confirm.excluirEmpresa"))) {
       return;
     }
     setErro("");
@@ -408,31 +441,47 @@ export function AdminMasterPainel() {
     const res = await fetch(url, { method: acao === "excluir" ? "DELETE" : "POST" });
     if (!res.ok) {
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      setErro(data.error || "Não foi possível concluir a ação.");
+      setErro(data.error || t("admin.master.erro.acao"));
       await carregar();
       return;
     }
     if (acao === "excluir") {
       setEmpresas((atual) => atual.filter((empresa) => empresa.id !== id));
       if (editandoId === id) limparFormulario();
-      setMensagem("Conta excluída com sucesso.");
+      setMensagem(t("admin.master.sucesso.contaExcluida"));
     }
     await carregar();
   }
 
   const proximoCodigo = `EMP-${String((empresas.length || 0) + 1).padStart(5, "0")}`;
 
+  const camposEmpresa: Array<{ label: MessageKey; key: keyof ReturnType<typeof formularioVazio> }> = [
+    { label: "admin.master.campo.nomeEmpresa", key: "nome" },
+    { label: "admin.master.campo.responsavel", key: "responsavel" },
+    { label: "admin.master.campo.cnpj", key: "cnpj" },
+    { label: "admin.master.campo.telefone", key: "telefone" },
+    { label: "admin.master.campo.whatsapp", key: "whatsapp" },
+    { label: "admin.master.campo.email", key: "email" },
+    { label: "admin.master.campo.cidade", key: "cidade" },
+  ];
+
+  const planos: Array<{ id: "basico" | "profissional" | "premium"; label: MessageKey; Icon: typeof Star }> = [
+    { id: "basico", label: "admin.master.plano.basico", Icon: Star },
+    { id: "profissional", label: "admin.master.plano.profissional", Icon: Crown },
+    { id: "premium", label: "admin.master.plano.premium", Icon: Diamond },
+  ];
+
+  const statusOpcoes = ["ativo", "pendente", "inativo", "bloqueado"] as const;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-slate-800">
-            {editandoId ? "Editar Conta" : "Cadastro de Nova Conta"}
+            {editandoId ? t("admin.master.titulo.editarConta") : t("admin.master.titulo.novaConta")}
           </h1>
           <p className="text-sm text-slate-500">
-            {editandoId
-              ? "Atualize os dados do laboratório selecionado."
-              : "Cadastre novos laboratórios no sistema."}
+            {editandoId ? t("admin.master.subtitulo.editar") : t("admin.master.subtitulo.nova")}
           </p>
         </div>
         <button
@@ -447,19 +496,41 @@ export function AdminMasterPainel() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { titulo: "Total de Contas", valor: dashboard?.totalEmpresas ?? 0, sub: "Laboratórios", cor: "text-[#4a90d9]", Icon: Building2 },
-          { titulo: "Contas Ativas", valor: dashboard?.empresasAtivas ?? 0, sub: "Ativas", cor: "text-emerald-600", Icon: Unlock },
-          { titulo: "Contas Bloqueadas", valor: dashboard?.empresasBloqueadas ?? 0, sub: "Bloqueadas", cor: "text-orange-600", Icon: Lock },
-          { titulo: "Faturamento Mensal", valor: formatarMoeda(dashboard?.receitaMensal ?? 0), sub: "Assinaturas pagas no mês", cor: "text-violet-600", Icon: Wallet },
+          {
+            titulo: t("admin.master.kpi.totalContas"),
+            valor: dashboard?.totalEmpresas ?? 0,
+            sub: t("admin.master.kpi.laboratorios"),
+            cor: "text-[#4a90d9]",
+            Icon: Building2,
+          },
+          {
+            titulo: t("admin.master.kpi.contasAtivas"),
+            valor: dashboard?.empresasAtivas ?? 0,
+            sub: t("admin.master.kpi.ativas"),
+            cor: "text-emerald-600",
+            Icon: Unlock,
+          },
+          {
+            titulo: t("admin.master.kpi.contasBloqueadas"),
+            valor: dashboard?.empresasBloqueadas ?? 0,
+            sub: t("admin.master.kpi.bloqueadas"),
+            cor: "text-orange-600",
+            Icon: Lock,
+          },
+          {
+            titulo: t("admin.master.kpi.faturamentoMensal"),
+            valor: formatarMoeda(dashboard?.receitaMensal ?? 0),
+            sub: t("admin.master.kpi.assinaturasMes"),
+            cor: "text-violet-600",
+            Icon: Wallet,
+          },
         ].map((card) => (
           <div key={card.titulo} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-slate-500">{card.titulo}</p>
               <card.Icon className={cn("h-4 w-4", card.cor)} />
             </div>
-            <p className={cn("mt-2 text-2xl font-bold", card.cor)}>
-              {typeof card.valor === "number" ? card.valor : card.valor}
-            </p>
+            <p className={cn("mt-2 text-2xl font-bold", card.cor)}>{card.valor}</p>
             <p className="text-[11px] text-slate-400">{card.sub}</p>
           </div>
         ))}
@@ -468,10 +539,22 @@ export function AdminMasterPainel() {
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="grid gap-4 sm:grid-cols-2 lg:col-span-2">
           {[
-            { titulo: "Total de Usuários", valor: dashboard?.totalUsuarios ?? 0, Icon: Users },
-            { titulo: "Total de Trabalhos", valor: dashboard?.totalTrabalhos ?? 0, Icon: BarChart3 },
-            { titulo: "Receita Anual", valor: formatarMoeda(dashboard?.receitaAnual ?? 0), Icon: Wallet },
-            { titulo: "Inadimplentes", valor: dashboard?.empresasInadimplentes ?? 0, Icon: Lock },
+            { titulo: t("admin.master.kpi.totalUsuarios"), valor: dashboard?.totalUsuarios ?? 0, Icon: Users },
+            {
+              titulo: t("admin.master.kpi.totalTrabalhos"),
+              valor: dashboard?.totalTrabalhos ?? 0,
+              Icon: BarChart3,
+            },
+            {
+              titulo: t("admin.master.kpi.receitaAnual"),
+              valor: formatarMoeda(dashboard?.receitaAnual ?? 0),
+              Icon: Wallet,
+            },
+            {
+              titulo: t("admin.master.kpi.inadimplentes"),
+              valor: dashboard?.empresasInadimplentes ?? 0,
+              Icon: Lock,
+            },
           ].map((card) => (
             <div key={card.titulo} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex items-center gap-2 text-slate-500">
@@ -483,16 +566,14 @@ export function AdminMasterPainel() {
           ))}
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="mb-3 text-xs font-semibold text-slate-600">Receita da Plataforma</p>
+          <p className="mb-3 text-xs font-semibold text-slate-600">{t("admin.master.kpi.receitaPlataforma")}</p>
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={graficoReceita}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="nome" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-                <Tooltip
-                  formatter={(v) => formatarMoeda(typeof v === "number" ? v : Number(v) || 0)}
-                />
+                <Tooltip formatter={(v) => formatarMoeda(typeof v === "number" ? v : Number(v) || 0)} />
                 <Bar dataKey="valor" fill="#4a90d9" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -503,35 +584,31 @@ export function AdminMasterPainel() {
       <div className="grid gap-6 xl:grid-cols-[1fr_280px]">
         <div className="space-y-6">
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-4 text-sm font-semibold text-slate-700">Dados da Empresa</h2>
+            <h2 className="mb-4 text-sm font-semibold text-slate-700">{t("admin.master.secao.dadosEmpresa")}</h2>
             <div className="grid gap-3 sm:grid-cols-2">
-              {[
-                ["Nome da Empresa *", "nome"],
-                ["Responsável", "responsavel"],
-                ["CNPJ", "cnpj"],
-                ["Telefone", "telefone"],
-                ["WhatsApp", "whatsapp"],
-                ["E-mail", "email"],
-                ["Cidade", "cidade"],
-              ].map(([label, key]) => (
+              {camposEmpresa.map(({ label, key }) => (
                 <div key={key}>
-                  <label className="mb-1 block text-[11px] font-medium text-slate-500">{label}</label>
+                  <label className="mb-1 block text-[11px] font-medium text-slate-500">{t(label)}</label>
                   <input
-                    value={form[key as keyof typeof form] as string}
+                    value={form[key] as string}
                     onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
                     className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#4a90d9]"
                   />
                 </div>
               ))}
               <div>
-                <label className="mb-1 block text-[11px] font-medium text-slate-500">Estado</label>
+                <label className="mb-1 block text-[11px] font-medium text-slate-500">
+                  {t("admin.master.campo.estado")}
+                </label>
                 <select
                   value={form.estado}
                   onChange={(e) => setForm((f) => ({ ...f, estado: e.target.value }))}
                   className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#4a90d9]"
                 >
                   {ESTADOS_BR.map((uf) => (
-                    <option key={uf} value={uf}>{uf}</option>
+                    <option key={uf} value={uf}>
+                      {uf}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -539,19 +616,23 @@ export function AdminMasterPainel() {
           </section>
 
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-4 text-sm font-semibold text-slate-700">Dados de Acesso (Administrador)</h2>
+            <h2 className="mb-4 text-sm font-semibold text-slate-700">{t("admin.master.secao.dadosAcesso")}</h2>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-[11px] font-medium text-slate-500">Usuário Administrador</label>
+                <label className="mb-1 block text-[11px] font-medium text-slate-500">
+                  {t("admin.master.campo.adminUsuario")}
+                </label>
                 <input
                   value={form.adminNome}
                   onChange={(e) => setForm((f) => ({ ...f, adminNome: e.target.value }))}
                   className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#4a90d9]"
-                  placeholder={editandoId ? "Deixe vazio para manter" : ""}
+                  placeholder={editandoId ? t("admin.master.placeholder.manterVazio") : ""}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-[11px] font-medium text-slate-500">E-mail Administrador</label>
+                <label className="mb-1 block text-[11px] font-medium text-slate-500">
+                  {t("admin.master.campo.adminEmail")}
+                </label>
                 <input
                   type="email"
                   value={form.adminEmail}
@@ -560,7 +641,9 @@ export function AdminMasterPainel() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-[11px] font-medium text-slate-500">Senha</label>
+                <label className="mb-1 block text-[11px] font-medium text-slate-500">
+                  {t("admin.master.campo.senha")}
+                </label>
                 <input
                   type="password"
                   value={form.adminSenha}
@@ -569,7 +652,9 @@ export function AdminMasterPainel() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-[11px] font-medium text-slate-500">Confirmar Senha</label>
+                <label className="mb-1 block text-[11px] font-medium text-slate-500">
+                  {t("admin.master.campo.confirmarSenha")}
+                </label>
                 <input
                   type="password"
                   value={form.adminConfirmarSenha}
@@ -581,13 +666,9 @@ export function AdminMasterPainel() {
           </section>
 
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-4 text-sm font-semibold text-slate-700">Plano Contratado</h2>
+            <h2 className="mb-4 text-sm font-semibold text-slate-700">{t("admin.master.secao.planoContratado")}</h2>
             <div className="mb-4 grid gap-3 sm:grid-cols-3">
-              {([
-                { id: "basico", label: "Básico", Icon: Star },
-                { id: "profissional", label: "Profissional", Icon: Crown },
-                { id: "premium", label: "Premium", Icon: Diamond },
-              ] as const).map((plano) => (
+              {planos.map((plano) => (
                 <button
                   key={plano.id}
                   type="button"
@@ -600,13 +681,15 @@ export function AdminMasterPainel() {
                   )}
                 >
                   <plano.Icon className="mb-2 h-5 w-5 text-[#4a90d9]" />
-                  <p className="text-sm font-semibold text-slate-800">{plano.label}</p>
+                  <p className="text-sm font-semibold text-slate-800">{t(plano.label)}</p>
                 </button>
               ))}
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-[11px] font-medium text-slate-500">Limite de Usuários</label>
+                <label className="mb-1 block text-[11px] font-medium text-slate-500">
+                  {t("admin.master.campo.limiteUsuarios")}
+                </label>
                 <input
                   type="number"
                   min={1}
@@ -616,7 +699,9 @@ export function AdminMasterPainel() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-[11px] font-medium text-slate-500">Limite de Trabalhos/Mês</label>
+                <label className="mb-1 block text-[11px] font-medium text-slate-500">
+                  {t("admin.master.campo.limiteTrabalhos")}
+                </label>
                 <input
                   type="number"
                   min={1}
@@ -627,7 +712,7 @@ export function AdminMasterPainel() {
               </div>
               <div>
                 <label className="mb-1 block text-[11px] font-medium text-slate-500">
-                  Dias de assinatura
+                  {t("admin.master.campo.diasAssinatura")}
                 </label>
                 <input
                   type="number"
@@ -638,12 +723,12 @@ export function AdminMasterPainel() {
                   }
                   className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#4a90d9]"
                 />
-                <p className="mt-1 text-[10px] text-slate-400">
-                  Ao ativar, a data de vencimento será hoje + dias informados.
-                </p>
+                <p className="mt-1 text-[10px] text-slate-400">{t("admin.master.dica.diasAssinatura")}</p>
               </div>
               <div>
-                <label className="mb-1 block text-[11px] font-medium text-slate-500">Data de Vencimento</label>
+                <label className="mb-1 block text-[11px] font-medium text-slate-500">
+                  {t("admin.master.campo.dataVencimento")}
+                </label>
                 <input
                   type="date"
                   value={form.dataVencimento}
@@ -652,9 +737,11 @@ export function AdminMasterPainel() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-[11px] font-medium text-slate-500">Status</label>
+                <label className="mb-1 block text-[11px] font-medium text-slate-500">
+                  {t("admin.master.campo.status")}
+                </label>
                 <div className="flex gap-2">
-                  {(["ativo", "pendente", "inativo", "bloqueado"] as const).map((status) => (
+                  {statusOpcoes.map((status) => (
                     <button
                       key={status}
                       type="button"
@@ -666,20 +753,22 @@ export function AdminMasterPainel() {
                             ? "bg-emerald-600 text-white"
                             : status === "pendente"
                               ? "bg-amber-500 text-white"
-                            : status === "bloqueado"
-                              ? "bg-red-600 text-white"
-                              : "bg-slate-600 text-white"
+                              : status === "bloqueado"
+                                ? "bg-red-600 text-white"
+                                : "bg-slate-600 text-white"
                           : "bg-slate-100 text-slate-600"
                       )}
                     >
-                      {status}
+                      {rotuloStatus(status, t)}
                     </button>
                   ))}
                 </div>
               </div>
             </div>
             <div className="mt-3">
-              <label className="mb-1 block text-[11px] font-medium text-slate-500">Observações</label>
+              <label className="mb-1 block text-[11px] font-medium text-slate-500">
+                {t("admin.master.campo.observacoes")}
+              </label>
               <textarea
                 rows={3}
                 value={form.observacoes}
@@ -700,14 +789,18 @@ export function AdminMasterPainel() {
               className="flex items-center gap-2 rounded-md bg-[#4a90d9] px-4 py-2 text-sm font-medium text-white hover:bg-[#3a7bc8] disabled:opacity-60"
             >
               <Save className="h-4 w-4" />
-              {salvando ? "Salvando..." : editandoId ? "Atualizar Conta" : "Salvar Conta"}
+              {salvando
+                ? t("admin.master.botao.salvando")
+                : editandoId
+                  ? t("admin.master.botao.atualizarConta")
+                  : t("admin.master.botao.salvarConta")}
             </button>
             <button
               type="button"
               onClick={limparFormulario}
               className="rounded-md border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100"
             >
-              Limpar Formulário
+              {t("admin.master.botao.limparFormulario")}
             </button>
             {editandoId && (
               <button
@@ -715,32 +808,37 @@ export function AdminMasterPainel() {
                 onClick={limparFormulario}
                 className="rounded-md border border-red-300 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-100"
               >
-                Cancelar Edição
+                {t("admin.master.botao.cancelarEdicao")}
               </button>
             )}
           </div>
         </div>
 
         <aside className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-3 text-sm font-semibold text-slate-700">Ambiente do Sistema</h2>
+          <h2 className="mb-3 text-sm font-semibold text-slate-700">{t("admin.master.secao.ambienteSistema")}</h2>
           <div className="space-y-3 text-xs text-slate-600">
             <div>
-              <p className="font-medium text-slate-500">URL de acesso</p>
+              <p className="font-medium text-slate-500">{t("admin.master.sidebar.urlAcesso")}</p>
               <p className="mt-1 break-all rounded bg-slate-50 px-2 py-1.5 font-mono text-[11px]">
                 /app/{form.nome ? form.nome.toLowerCase().replace(/\s+/g, "-") : "empresa"}
               </p>
             </div>
             <div>
-              <p className="font-medium text-slate-500">ID da Empresa</p>
+              <p className="font-medium text-slate-500">{t("admin.master.sidebar.idEmpresa")}</p>
               <p className="mt-1 font-mono text-sm font-semibold text-[#4a90d9]">{proximoCodigo}</p>
             </div>
             <div>
-              <p className="font-medium text-slate-500">Plano</p>
-              <p>{rotuloPlanoEmpresa(form.plano)}</p>
+              <p className="font-medium text-slate-500">{t("admin.master.sidebar.plano")}</p>
+              <p>{rotuloPlano(form.plano, t)}</p>
             </div>
             <div>
-              <p className="font-medium text-slate-500">Limites</p>
-              <p>{form.limiteUsuarios} usuários · {form.limiteTrabalhos} trabalhos/mês</p>
+              <p className="font-medium text-slate-500">{t("admin.master.sidebar.limites")}</p>
+              <p>
+                {t("admin.master.sidebar.limitesValor", {
+                  usuarios: form.limiteUsuarios,
+                  trabalhos: form.limiteTrabalhos,
+                })}
+              </p>
             </div>
           </div>
         </aside>
@@ -748,54 +846,56 @@ export function AdminMasterPainel() {
 
       <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 px-5 py-4">
-          <h2 className="text-sm font-semibold text-slate-700">Cobranças de Assinatura (PIX)</h2>
-          <p className="mt-0.5 text-xs text-slate-500">
-            Renovações automáticas geradas pelos laboratórios.
-          </p>
+          <h2 className="text-sm font-semibold text-slate-700">{t("admin.master.secao.cobrancas")}</h2>
+          <p className="mt-0.5 text-xs text-slate-500">{t("admin.master.secao.cobrancasSub")}</p>
         </div>
         <div className="grid gap-6 p-5 lg:grid-cols-2">
           {tabelaCobrancas(
-            "Pendentes",
+            t("admin.master.cobrancas.pendentes"),
             cobrancasPendentes,
-            "Nenhuma cobrança PIX pendente no momento."
+            t("admin.master.cobrancas.vazioPendentes"),
+            t,
+            formatarData,
+            formatarMoeda
           )}
           {tabelaCobrancas(
-            "Pagas",
+            t("admin.master.cobrancas.pagas"),
             cobrancasPagas,
-            "Nenhuma cobrança PIX paga registrada ainda."
+            t("admin.master.cobrancas.vazioPagas"),
+            t,
+            formatarData,
+            formatarMoeda
           )}
         </div>
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 px-5 py-4">
-          <h2 className="text-sm font-semibold text-slate-700">Contas Cadastradas</h2>
+          <h2 className="text-sm font-semibold text-slate-700">{t("admin.master.secao.contasCadastradas")}</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-left text-xs">
             <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-3">ID</th>
-                <th className="px-4 py-3">Empresa</th>
-                <th className="px-4 py-3">Responsável</th>
-                <th className="px-4 py-3">Plano</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Usuários</th>
-                <th className="px-4 py-3">Trabalhos</th>
-                <th className="px-4 py-3">Vencimento</th>
-                <th className="px-4 py-3">Ações</th>
+                <th className="px-4 py-3">{t("admin.master.col.id")}</th>
+                <th className="px-4 py-3">{t("admin.master.col.empresa")}</th>
+                <th className="px-4 py-3">{t("admin.master.col.responsavel")}</th>
+                <th className="px-4 py-3">{t("admin.master.col.plano")}</th>
+                <th className="px-4 py-3">{t("admin.master.col.status")}</th>
+                <th className="px-4 py-3">{t("admin.master.col.usuarios")}</th>
+                <th className="px-4 py-3">{t("admin.master.col.trabalhos")}</th>
+                <th className="px-4 py-3">{t("admin.master.col.vencimento")}</th>
+                <th className="px-4 py-3">{t("admin.master.col.acoes")}</th>
               </tr>
             </thead>
             <tbody>
               {empresas.map((empresa) => (
                 <tr key={empresa.id} className="border-t border-slate-100 hover:bg-slate-50/80">
-                  <td className="px-4 py-3 font-mono text-[11px] text-slate-500">
-                    {empresa.codigo ?? "—"}
-                  </td>
+                  <td className="px-4 py-3 font-mono text-[11px] text-slate-500">{empresa.codigo ?? "—"}</td>
                   <td className="px-4 py-3 font-medium text-slate-800">{empresa.nome}</td>
                   <td className="px-4 py-3 text-slate-600">{empresa.responsavel ?? "—"}</td>
-                  <td className="px-4 py-3">{badgePlano(empresa.plano)}</td>
-                  <td className="px-4 py-3">{badgeStatus(empresa.status)}</td>
+                  <td className="px-4 py-3">{badgePlano(empresa.plano, t)}</td>
+                  <td className="px-4 py-3">{badgeStatus(empresa.status, t)}</td>
                   <td className="px-4 py-3 text-slate-600">
                     {empresa.totalUsuarios} / {empresa.limiteUsuarios}
                   </td>
@@ -818,22 +918,22 @@ export function AdminMasterPainel() {
                               }))
                             }
                             className="w-14 rounded border border-slate-200 px-1 py-0.5 text-[10px]"
-                            title="Dias de assinatura"
+                            title={t("admin.master.acao.diasAssinatura")}
                           />
                           <button
                             type="button"
                             onClick={() => ativarAssinatura(empresa.id)}
                             className="rounded bg-emerald-600 px-2 py-1 text-[10px] font-medium text-white hover:bg-emerald-700"
-                            title="Ativar assinatura"
+                            title={t("admin.master.acao.ativarAssinatura")}
                           >
-                            Ativar
+                            {t("admin.master.acao.ativar")}
                           </button>
                         </>
                       )}
                       <Link
                         href={`/admin-master/empresas/${empresa.id}`}
                         className="rounded p-1.5 text-[#4a90d9] hover:bg-blue-50"
-                        title="Visualizar"
+                        title={t("admin.master.visualizar")}
                       >
                         <Eye className="h-3.5 w-3.5" />
                       </Link>
@@ -841,7 +941,7 @@ export function AdminMasterPainel() {
                         type="button"
                         onClick={() => preencherEdicao(empresa)}
                         className="rounded p-1.5 text-slate-600 hover:bg-slate-100"
-                        title="Editar"
+                        title={t("admin.master.editar")}
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
@@ -850,7 +950,7 @@ export function AdminMasterPainel() {
                           type="button"
                           onClick={() => acaoEmpresa(empresa.id, "reativar")}
                           className="rounded p-1.5 text-emerald-600 hover:bg-emerald-50"
-                          title="Reativar"
+                          title={t("admin.master.desbloquear")}
                         >
                           <Unlock className="h-3.5 w-3.5" />
                         </button>
@@ -859,7 +959,7 @@ export function AdminMasterPainel() {
                           type="button"
                           onClick={() => acaoEmpresa(empresa.id, "bloquear")}
                           className="rounded p-1.5 text-orange-600 hover:bg-orange-50"
-                          title="Bloquear"
+                          title={t("admin.master.bloquear")}
                         >
                           <Lock className="h-3.5 w-3.5" />
                         </button>
@@ -868,7 +968,7 @@ export function AdminMasterPainel() {
                         type="button"
                         onClick={() => acaoEmpresa(empresa.id, "excluir")}
                         className="rounded p-1.5 text-red-600 hover:bg-red-50"
-                        title="Excluir"
+                        title={t("admin.master.excluir")}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -879,7 +979,7 @@ export function AdminMasterPainel() {
               {empresas.length === 0 && (
                 <tr>
                   <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
-                    Nenhuma empresa cadastrada.
+                    {t("admin.master.vazio.nenhumaEmpresa")}
                   </td>
                 </tr>
               )}

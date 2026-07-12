@@ -20,6 +20,7 @@ import {
 } from "@/lib/orcamentos";
 import { linkOrcamentoAtivo } from "@/lib/orcamentos-types";
 import { readStorage } from "@/lib/persisted-storage";
+import type { MessageKey } from "@/lib/i18n";
 import {
   exigeParcelamento,
   parseCondicoesPagamento,
@@ -68,6 +69,13 @@ function IconWhatsApp({ className = "h-4 w-4" }: { className?: string }) {
 function readJson<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
   return readStorage(key, fallback);
+}
+
+function rotuloStatusOrcamento(
+  status: StatusOrcamento,
+  t: (key: MessageKey, params?: Record<string, string | number>) => string
+) {
+  return t(`estoque.orcamentos.status.${status}` as MessageKey);
 }
 
 export default function OrcamentosPage() {
@@ -160,7 +168,7 @@ export default function OrcamentosPage() {
         return (
           String(orcamento.numeroPedido).includes(termo) ||
           orcamento.fornecedorNome.toLowerCase().includes(termo) ||
-          STATUS_ORCAMENTO[orcamento.status].label.toLowerCase().includes(termo)
+          rotuloStatusOrcamento(orcamento.status, t).toLowerCase().includes(termo)
         );
       });
   }, [busca, orcamentos, situacao]);
@@ -302,7 +310,7 @@ export default function OrcamentosPage() {
         });
 
     if (!response.ok) {
-      alert("Não foi possível salvar o orçamento.");
+      alert(t("estoque.orcamentos.alerta.erroSalvar"));
       return null;
     }
 
@@ -334,14 +342,14 @@ export default function OrcamentosPage() {
       });
       const data = (await response.json()) as { message?: string; parcelasFinanceiro?: number };
       if (!response.ok) {
-        alert(data.message || "Não foi possível gerar as parcelas.");
+        alert(data.message || t("estoque.orcamentos.alerta.erroParcelas"));
         return;
       }
       const n = data.parcelasFinanceiro ?? 0;
       alert(
         n > 0
-          ? `${n} parcela(s) registrada(s) em Contas a Pagar.`
-          : "Nenhuma parcela foi gerada. Verifique o total líquido e o parcelamento."
+          ? t("estoque.orcamentos.alerta.parcelasRegistradas", { n })
+          : t("estoque.orcamentos.alerta.nenhumaParcela")
       );
     } finally {
       setProcessandoAprovacao(false);
@@ -375,13 +383,11 @@ export default function OrcamentosPage() {
           const parcelado = exigeParcelamento(cond.forma);
           alert(
             parcelado
-              ? `Orçamento aprovado. ${n} parcela(s) em Contas a Pagar (vencimento a cada 30 dias). Veja em Financeiro › Contas a Pagar com filtro "Todos".`
-              : `Orçamento aprovado. Despesa registrada em Contas a Pagar.`
+              ? t("estoque.orcamentos.alerta.aprovadoParcelado", { n })
+              : t("estoque.orcamentos.alerta.aprovadoDespesa")
           );
         } else if (exigeParcelamento(cond.forma)) {
-          alert(
-            "Orçamento aprovado, mas as parcelas não foram geradas. Verifique o valor líquido e tente novamente."
-          );
+          alert(t("estoque.orcamentos.alerta.parcelasNaoGeradas"));
         }
 
         /** Estoque + custos em job (issue 029) — não bloqueia o modal no client. */
@@ -392,9 +398,7 @@ export default function OrcamentosPage() {
             void carregarProdutos();
           } catch (err) {
             console.warn("[orcamento] job estoque", err);
-            alert(
-              "Orçamento aprovado, mas a atualização de estoque ainda está processando. Atualize a página de produtos em instantes."
-            );
+            alert(t("estoque.orcamentos.alerta.estoqueProcessando"));
           }
         }
       }
@@ -442,14 +446,11 @@ export default function OrcamentosPage() {
         const resultado = await dispararOuAbrirWhatsapp(telefone, texto);
         if (resultado.modo === "erro") {
           alert(
-            resultado.error ||
-              "Orçamento reaberto e link aberto no navegador. Não foi possível enviar pelo WhatsApp — verifique o número ou a conexão em Configurações → WhatsApp."
+            resultado.error || t("estoque.orcamentos.alerta.reabertoWhatsappErro")
           );
         }
       } else {
-        alert(
-          "Orçamento reaberto. O link foi aberto em nova aba. Cadastre o WhatsApp do fornecedor para reenviar automaticamente."
-        );
+        alert(t("estoque.orcamentos.alerta.reabertoSemWhatsapp"));
       }
 
       setOrcamentoParaReabrir(null);
@@ -467,15 +468,12 @@ export default function OrcamentosPage() {
     }
     const texto = mensagemAprovacaoOrcamento(
       orcamento.numeroPedido,
-      orcamento.fornecedorNome || "Fornecedor",
+      orcamento.fornecedorNome || t("estoque.orcamentos.fornecedorPadrao"),
       formatCurrency(totalLiquido(orcamento))
     );
     const resultado = await dispararOuAbrirWhatsapp(telefone, texto);
     if (resultado.modo === "erro") {
-      alert(
-        resultado.error ||
-          "Não foi possível enviar pelo WhatsApp. Verifique o número ou a conexão em Configurações → WhatsApp."
-      );
+      alert(resultado.error || t("estoque.orcamentos.alerta.erroWhatsapp"));
     }
   }
 
@@ -538,9 +536,9 @@ export default function OrcamentosPage() {
           onFecharConfig={listagem.fecharConfig}
           rascunho={listagem.rascunho}
           opcoesOrdenacao={[
-            { valor: "numeroPedido", label: "ID" },
-            { valor: "data", label: "Data" },
-            { valor: "fornecedor", label: "Fornecedor" },
+            { valor: "numeroPedido", label: t("estoque.orcamentos.col.id") },
+            { valor: "data", label: t("estoque.orcamentos.col.data") },
+            { valor: "fornecedor", label: t("estoque.orcamentos.col.fornecedor") },
           ]}
           onAlterarOrdenarPor={(valor) => listagem.atualizarRascunho({ ordenarPor: valor })}
           onAlterarDirecao={(direcao) => listagem.atualizarRascunho({ direcao })}
@@ -555,20 +553,20 @@ export default function OrcamentosPage() {
           <table className="w-full min-w-[960px] text-[10px]">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-slate-500">
-                <th className="px-3 py-2.5 text-left font-semibold uppercase">ID</th>
-                <th className="px-3 py-2.5 text-left font-semibold uppercase">Data</th>
-                <th className="px-3 py-2.5 text-left font-semibold uppercase">Data Resposta</th>
-                <th className="px-3 py-2.5 text-left font-semibold uppercase">Fornecedor</th>
-                <th className="px-3 py-2.5 text-left font-semibold uppercase">Status</th>
-                <th className="px-3 py-2.5 text-center font-semibold uppercase">Aprovação</th>
-                <th className="px-3 py-2.5 text-center font-semibold uppercase">Enviar resposta</th>
-                <th className="px-3 py-2.5 text-right font-semibold uppercase">Subtotal</th>
+                <th className="px-3 py-2.5 text-left font-semibold uppercase">{t("estoque.orcamentos.col.id")}</th>
+                <th className="px-3 py-2.5 text-left font-semibold uppercase">{t("estoque.orcamentos.col.data")}</th>
+                <th className="px-3 py-2.5 text-left font-semibold uppercase">{t("estoque.orcamentos.col.dataResposta")}</th>
+                <th className="px-3 py-2.5 text-left font-semibold uppercase">{t("estoque.orcamentos.col.fornecedor")}</th>
+                <th className="px-3 py-2.5 text-left font-semibold uppercase">{t("estoque.orcamentos.col.status")}</th>
+                <th className="px-3 py-2.5 text-center font-semibold uppercase">{t("estoque.orcamentos.col.aprovacao")}</th>
+                <th className="px-3 py-2.5 text-center font-semibold uppercase">{t("estoque.orcamentos.col.enviarResposta")}</th>
+                <th className="px-3 py-2.5 text-right font-semibold uppercase">{t("estoque.orcamentos.col.subtotal")}</th>
                 <th className="px-3 py-2.5 text-center font-semibold uppercase">
-                  Parcelamento
+                  {t("estoque.orcamentos.col.parcelamento")}
                 </th>
-                <th className="px-3 py-2.5 text-right font-semibold uppercase">Desc</th>
-                <th className="px-3 py-2.5 text-right font-semibold uppercase">Total Líq</th>
-                <th className="px-3 py-2.5 text-center font-semibold uppercase">Opções</th>
+                <th className="px-3 py-2.5 text-right font-semibold uppercase">{t("estoque.orcamentos.col.desconto")}</th>
+                <th className="px-3 py-2.5 text-right font-semibold uppercase">{t("estoque.orcamentos.col.totalLiquido")}</th>
+                <th className="px-3 py-2.5 text-center font-semibold uppercase">{t("estoque.orcamentos.col.opcoes")}</th>
               </tr>
             </thead>
             <tbody>
@@ -597,7 +595,7 @@ export default function OrcamentosPage() {
                         <span
                           className={`inline-block rounded px-2 py-0.5 text-[9px] font-semibold ${status.className}`}
                         >
-                          {status.label}
+                          {rotuloStatusOrcamento(orcamento.status, t)}
                         </span>
                       </td>
                       <td className="px-3 py-2 text-center">
@@ -608,7 +606,7 @@ export default function OrcamentosPage() {
                               onClick={() => abrirAprovacao(orcamento)}
                               className="rounded-sm border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-semibold text-blue-700 hover:bg-blue-100"
                             >
-                              Ver orçamento
+                              {t("estoque.orcamentos.verOrcamento")}
                             </button>
                             <button
                               type="button"
@@ -617,13 +615,13 @@ export default function OrcamentosPage() {
                               className="inline-flex items-center gap-0.5 rounded-sm border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
                             >
                               <Check className="h-3 w-3" />
-                              Aprovar
+                              {t("estoque.orcamentos.aprovar")}
                             </button>
                           </div>
                         ) : orcamento.status === "aprovado" ? (
-                          <span className="text-[9px] font-semibold text-emerald-700">Aprovado</span>
+                          <span className="text-[9px] font-semibold text-emerald-700">{t("estoque.orcamentos.aprovado")}</span>
                         ) : orcamento.status === "cancelado" ? (
-                          <span className="text-[9px] font-semibold text-red-600">Recusado</span>
+                          <span className="text-[9px] font-semibold text-red-600">{t("estoque.orcamentos.recusado")}</span>
                         ) : (
                           <span className="text-slate-300">—</span>
                         )}
@@ -634,7 +632,7 @@ export default function OrcamentosPage() {
                             type="button"
                             onClick={() => void enviarAprovacaoWhatsApp(orcamento)}
                             className="inline-flex h-7 w-7 items-center justify-center rounded-full text-emerald-600 transition hover:bg-emerald-50 hover:text-emerald-700"
-                            title="Enviar resposta ao fornecedor no WhatsApp"
+                            title={t("estoque.orcamentos.enviarWhatsappTitle")}
                           >
                             <IconWhatsApp />
                           </button>
@@ -662,9 +660,9 @@ export default function OrcamentosPage() {
                                 disabled={processandoAprovacao}
                                 onClick={() => void sincronizarFinanceiroOrcamento(orcamento)}
                                 className="text-[9px] font-medium text-blue-600 hover:underline disabled:opacity-50"
-                                title="Gerar parcelas em Contas a Pagar"
+                                title={t("estoque.orcamentos.gerarParcelasTitle")}
                               >
-                                Gerar parcelas
+                                {t("estoque.orcamentos.gerarParcelas")}
                               </button>
                             )}
                         </div>
@@ -686,7 +684,7 @@ export default function OrcamentosPage() {
                               type="button"
                               onClick={() => copiarLink(orcamento)}
                               className="text-slate-500 hover:text-slate-700"
-                              title="Copiar link para o fornecedor"
+                              title={t("estoque.orcamentos.copiarLinkTitle")}
                             >
                               <Copy className="h-3.5 w-3.5" />
                             </button>
@@ -697,8 +695,8 @@ export default function OrcamentosPage() {
                             className="text-blue-500 hover:text-blue-600"
                             title={
                               orcamento.status === "enviado" || orcamento.status === "aprovado"
-                                ? "Ver resposta do fornecedor"
-                                : "Visualizar pedido"
+                                ? t("estoque.orcamentos.verRespostaTitle")
+                                : t("estoque.orcamentos.visualizarPedidoTitle")
                             }
                           >
                             <Eye className="h-3.5 w-3.5" />
@@ -708,7 +706,7 @@ export default function OrcamentosPage() {
                               type="button"
                               onClick={() => abrirEdicao(orcamento)}
                               className="text-amber-500 hover:text-amber-600"
-                              title="Editar"
+                              title={t("estoque.orcamentos.editarTitle")}
                             >
                               <Edit3 className="h-3.5 w-3.5" />
                             </button>
@@ -717,7 +715,7 @@ export default function OrcamentosPage() {
                             type="button"
                             onClick={() => setOrcamentoParaExcluir(orcamento)}
                             className="text-red-500 hover:text-red-600"
-                            title="Excluir"
+                            title={t("estoque.orcamentos.excluirTitle")}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -756,16 +754,18 @@ export default function OrcamentosPage() {
 
       <ConfirmacaoExclusaoModal
         open={!!orcamentoParaAprovar}
-        titulo="Aprovar orçamento"
+        titulo={t("estoque.orcamentos.confirm.aprovarTitulo")}
         mensagem={
           orcamentoParaAprovar
-            ? `Deseja aprovar o orçamento #${orcamentoParaAprovar.numeroPedido}?`
+            ? t("estoque.orcamentos.confirm.aprovarMensagem", {
+                numero: orcamentoParaAprovar.numeroPedido,
+              })
             : ""
         }
-        aviso="O custo dos produtos e o estoque serão atualizados. Despesas serão registradas em Contas a Pagar conforme o parcelamento."
+        aviso={t("estoque.orcamentos.confirm.aprovarAviso")}
         detalhe={
           orcamentoParaAprovar
-            ? `${orcamentoParaAprovar.fornecedorNome || "Fornecedor"}`
+            ? `${orcamentoParaAprovar.fornecedorNome || t("estoque.orcamentos.fornecedorPadrao")}`
             : undefined
         }
         tipoConfirmacao="primario"
@@ -776,16 +776,18 @@ export default function OrcamentosPage() {
 
       <ConfirmacaoExclusaoModal
         open={!!orcamentoParaRecusar}
-        titulo="Recusar orçamento"
+        titulo={t("estoque.orcamentos.confirm.recusarTitulo")}
         mensagem={
           orcamentoParaRecusar
-            ? `Deseja recusar o orçamento #${orcamentoParaRecusar.numeroPedido}?`
+            ? t("estoque.orcamentos.confirm.recusarMensagem", {
+                numero: orcamentoParaRecusar.numeroPedido,
+              })
             : ""
         }
-        aviso="O pedido será marcado como cancelado."
+        aviso={t("estoque.orcamentos.confirm.recusarAviso")}
         detalhe={
           orcamentoParaRecusar
-            ? `${orcamentoParaRecusar.fornecedorNome || "Fornecedor"}`
+            ? `${orcamentoParaRecusar.fornecedorNome || t("estoque.orcamentos.fornecedorPadrao")}`
             : undefined
         }
         processando={processandoAprovacao}
@@ -795,21 +797,23 @@ export default function OrcamentosPage() {
 
       <ConfirmacaoExclusaoModal
         open={!!orcamentoParaReabrir}
-        titulo="Reabrir orçamento"
+        titulo={t("estoque.orcamentos.confirm.reabrirTitulo")}
         mensagem={
           orcamentoParaReabrir
-            ? `Reabrir o pedido #${orcamentoParaReabrir.numeroPedido} para edição?`
+            ? t("estoque.orcamentos.confirm.reabrirMensagem", {
+                numero: orcamentoParaReabrir.numeroPedido,
+              })
             : ""
         }
-        aviso='O status voltará para "Aguardando Resposta", o link será reaberto e o WhatsApp abrirá para você reenviar ao fornecedor.'
+        aviso={t("estoque.orcamentos.confirm.reabrirAviso")}
         detalhe={
           orcamentoParaReabrir
-            ? `${orcamentoParaReabrir.fornecedorNome || "Fornecedor"}`
+            ? `${orcamentoParaReabrir.fornecedorNome || t("estoque.orcamentos.fornecedorPadrao")}`
             : undefined
         }
         tipoConfirmacao="primario"
-        labelConfirmar="Sim"
-        labelCancelar="Não"
+        labelConfirmar={t("estoque.orcamentos.confirm.sim")}
+        labelCancelar={t("estoque.orcamentos.confirm.nao")}
         processando={processandoAprovacao}
         onClose={() => setOrcamentoParaReabrir(null)}
         onConfirm={() => void confirmarReabrirLinkOrcamento()}
@@ -817,12 +821,17 @@ export default function OrcamentosPage() {
 
       <ConfirmacaoExclusaoModal
         open={!!orcamentoParaExcluir}
-        titulo="Excluir Orçamento"
-        mensagem="Deseja realmente excluir esse orçamento?"
-        aviso="Atenção!! O link público deixará de funcionar e o pedido será marcado como excluído."
+        titulo={t("estoque.orcamentos.confirm.excluirTitulo")}
+        mensagem={t("estoque.orcamentos.confirm.excluirMensagem")}
+        aviso={t("estoque.orcamentos.confirm.excluirAviso")}
         detalhe={
           orcamentoParaExcluir
-            ? `Pedido #${orcamentoParaExcluir.numeroPedido} — ${orcamentoParaExcluir.fornecedorNome || "Fornecedor"}`
+            ? t("estoque.orcamentos.confirm.excluirDetalhe", {
+                numero: orcamentoParaExcluir.numeroPedido,
+                fornecedor:
+                  orcamentoParaExcluir.fornecedorNome ||
+                  t("estoque.orcamentos.fornecedorPadrao"),
+              })
             : undefined
         }
         onClose={() => setOrcamentoParaExcluir(null)}

@@ -1,6 +1,8 @@
 import { configValueFromObservacoes } from "@/lib/cliente-financeiro";
 import { telefoneWhatsappCliente } from "@/lib/cliente-observacoes";
 import { baixarExcel } from "@/lib/exportar-excel";
+import { formatDateImpressao } from "@/lib/i18n/print-i18n";
+import { iniciarImpressaoRelatorio, pl } from "@/lib/i18n/print-relatorio-helpers";
 
 export type ClienteListagemExport = {
   id?: string;
@@ -93,13 +95,14 @@ export async function exportarClientesExcel(clientes: ClienteListagemExport[]) {
 }
 
 export async function gerarListaClientesPdf(clientes: ClienteListagemExport[]) {
+  iniciarImpressaoRelatorio();
   const { default: jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: "a4" });
-  const hoje = new Date().toLocaleDateString("pt-BR");
+  const hoje = formatDateImpressao(new Date().toISOString().slice(0, 10));
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.text("Lista de Clientes Cadastrados", 105, 18, { align: "center" });
+  doc.text(pl("print.clientes.lista.titulo"), 105, 18, { align: "center" });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6);
   doc.text(hoje, 105, 24, { align: "center" });
@@ -123,41 +126,41 @@ export async function gerarListaClientesPdf(clientes: ClienteListagemExport[]) {
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(6);
-    doc.text("Cliente:", 22, y);
+    doc.text(pl("print.clientes.lista.cliente"), 22, y);
     doc.setFont("helvetica", "normal");
     doc.text(cliente.nome || "", 35, y);
     doc.setFont("helvetica", "bold");
-    doc.text("Razão Social:", 73, y);
+    doc.text(pl("print.clientes.lista.razaoSocial"), 73, y);
     doc.setFont("helvetica", "normal");
     doc.text(texto(cliente.razaoSocial), 92, y);
     doc.setFont("helvetica", "bold");
-    doc.text("CPF:", 130, y);
+    doc.text(pl("print.clientes.lista.cpf"), 130, y);
     doc.setFont("helvetica", "normal");
     doc.text(cpf, 138, y);
     doc.setFont("helvetica", "bold");
-    doc.text("CNPJ:", 154, y);
+    doc.text(pl("print.clientes.lista.cnpj"), 154, y);
     doc.setFont("helvetica", "normal");
     doc.text(cnpj, 163, y);
     doc.setFont("helvetica", "bold");
-    doc.text("E-mail:", 178, y);
+    doc.text(pl("print.clientes.lista.email"), 178, y);
     doc.setFont("helvetica", "normal");
     doc.text(texto(cliente.email), 188, y);
 
     y += 5;
     doc.setFont("helvetica", "bold");
-    doc.text("Tel Comercial:", 22, y);
+    doc.text(pl("print.clientes.lista.telComercial"), 22, y);
     doc.setFont("helvetica", "normal");
     doc.text(telComercial, 42, y);
     doc.setFont("helvetica", "bold");
-    doc.text("Tel Residencial:", 73, y);
+    doc.text(pl("print.clientes.lista.telResidencial"), 73, y);
     doc.setFont("helvetica", "normal");
     doc.text(telResidencial, 95, y);
     doc.setFont("helvetica", "bold");
-    doc.text("Celular:", 130, y);
+    doc.text(pl("print.clientes.lista.celular"), 130, y);
     doc.setFont("helvetica", "normal");
     doc.text(celular, 142, y);
     doc.setFont("helvetica", "bold");
-    doc.text("Whatsapp:", 154, y);
+    doc.text(pl("print.clientes.lista.whatsapp"), 154, y);
     doc.setFont("helvetica", "normal");
     doc.text(whatsapp, 168, y);
 

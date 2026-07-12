@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Download, ExternalLink, Printer } from "lucide-react";
 import { Button } from "@/components/ui";
+import { useI18n } from "@/components/i18n-provider";
 import { PdfViewerIframe } from "@/components/pdf/PdfViewerIframe";
 import { PDF_VIEWER_PAGINA_CLASSES } from "@/lib/pdf-viewer-iframe";
 import { prepararAbaPdf, visualizarPdfUrl } from "@/lib/pdf-viewer";
@@ -20,10 +21,12 @@ type PdfRelatorioProdutosViewerProps = {
 };
 
 export function PdfRelatorioProdutosViewer({
-  titulo = "Relat├│rio de Produtos",
+  titulo,
   linhas,
   totalGeral,
 }: PdfRelatorioProdutosViewerProps) {
+  const { t } = useI18n();
+  const tituloPdf = titulo ?? t("print.produtos.tituloRelatorio");
   const [pdfUrl, setPdfUrl] = useState("");
   const [erroPdf, setErroPdf] = useState("");
   const [labPronto, setLabPronto] = useState(false);
@@ -54,16 +57,16 @@ export function PdfRelatorioProdutosViewer({
         void carregarConfigLaboratorio();
         const blob = await gerarPdfRelatorioProdutos({
           lab,
-          titulo,
+          titulo: tituloPdf,
           linhas,
           totalGeral,
         });
         url = URL.createObjectURL(blob);
         setPdfUrl(url);
       } catch (err) {
-        console.error("gerar PDF relat├│rio produtos", err);
+        console.error("gerar PDF relatório produtos", err);
         setErroPdf(
-          err instanceof Error ? err.message : "N├úo foi poss├¡vel gerar o PDF do relat├│rio de produtos."
+          err instanceof Error ? err.message : t("print.produtos.erroPdf")
         );
       }
     }
@@ -72,7 +75,7 @@ export function PdfRelatorioProdutosViewer({
     return () => {
       if (url) URL.revokeObjectURL(url);
     };
-  }, [labPronto, titulo, linhas, totalGeral]);
+  }, [labPronto, tituloPdf, linhas, totalGeral, t]);
 
   function imprimirPdf() {
     if (!pdfUrl) return;
@@ -87,7 +90,7 @@ export function PdfRelatorioProdutosViewer({
   function abrirEmNovaAba() {
     if (!pdfUrl) return;
     const janela = prepararAbaPdf();
-    visualizarPdfUrl(pdfUrl, "relatorio-produtos.pdf", titulo, {
+    visualizarPdfUrl(pdfUrl, "relatorio-produtos.pdf", tituloPdf, {
       janela,
       revogarAoFechar: false,
     });
@@ -97,8 +100,10 @@ export function PdfRelatorioProdutosViewer({
     <div className={PDF_VIEWER_PAGINA_CLASSES}>
       <div className="flex items-center justify-between border-b border-slate-700 bg-[#3c3c3c] px-4 py-3 text-white">
         <div>
-          <h1 className="text-sm font-semibold">{titulo}</h1>
-          <p className="text-xs text-slate-300">Estoque ÔÇö Relat├│rio de Produtos</p>
+          <h1 className="text-sm font-semibold">{tituloPdf}</h1>
+          <p className="text-xs text-slate-300">
+            {t("nav.estoque")} — {t("print.produtos.tituloRelatorio")}
+          </p>
         </div>
         <div className="flex gap-2">
           {pdfUrl && (
@@ -110,7 +115,7 @@ export function PdfRelatorioProdutosViewer({
                   className="gap-1.5 border-slate-500 bg-transparent text-white"
                 >
                   <Download className="h-3.5 w-3.5" />
-                  Baixar
+                  {t("print.comum.baixar")}
                 </Button>
               </a>
               <Button
@@ -120,7 +125,7 @@ export function PdfRelatorioProdutosViewer({
                 onClick={imprimirPdf}
               >
                 <Printer className="h-3.5 w-3.5" />
-                Imprimir
+                {t("print.comum.imprimir")}
               </Button>
               <Button
                 type="button"
@@ -129,7 +134,7 @@ export function PdfRelatorioProdutosViewer({
                 onClick={abrirEmNovaAba}
               >
                 <ExternalLink className="h-3.5 w-3.5" />
-                Nova aba
+                {t("print.comum.novaAba")}
               </Button>
             </>
           )}
@@ -139,18 +144,18 @@ export function PdfRelatorioProdutosViewer({
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center text-white">
           <p className="text-sm font-medium text-red-300">{erroPdf}</p>
           <Button type="button" onClick={() => window.location.reload()}>
-            Tentar novamente
+            {t("print.comum.tentarNovamente")}
           </Button>
         </div>
       ) : pdfUrl ? (
         <PdfViewerIframe
           id="pdf-relatorio-produtos-viewer"
-          title={titulo}
+          title={tituloPdf}
           pdfUrl={pdfUrl}
         />
       ) : (
         <div className="flex flex-1 items-center justify-center text-sm text-slate-300">
-          Gerando PDF do relat├│rio...
+          {t("print.comum.gerandoPdf")}
         </div>
       )}
     </div>

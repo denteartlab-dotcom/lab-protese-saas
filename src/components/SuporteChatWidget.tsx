@@ -69,11 +69,11 @@ export function SuporteChatWidget() {
       setConversaExpirada(false);
       rolarParaFim();
     } catch {
-      setErro("Não foi possível carregar o chat.");
+      setErro(t("suporte.erroCarregar"));
     } finally {
       setCarregando(false);
     }
-  }, [rolarParaFim]);
+  }, [rolarParaFim, t]);
 
   useEffect(() => {
     void carregarContagem();

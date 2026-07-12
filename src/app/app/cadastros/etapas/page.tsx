@@ -299,9 +299,9 @@ export default function EtapasPage() {
                 <th className="px-3 py-2 text-left font-semibold uppercase">{t("listagem.nome")}</th>
                 <th className="w-14 px-3 py-2 text-center font-semibold uppercase">{t("cadastros.comum.cor")}</th>
                 <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.setores.coluna")}</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Tempo Médio Execução Minutos</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Prazo (dias)</th>
-                <th className="px-3 py-2 text-left font-semibold uppercase">Cálculo por Elemento</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.etapas.tempoMedioExecucao")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.etapas.prazoDiasCol")}</th>
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("cadastros.etapas.calculoPorElemento")}</th>
                 <th className="px-3 py-2 text-center font-semibold uppercase">{t("cadastros.comum.opcoes")}</th>
               </tr>
             </thead>
@@ -334,7 +334,7 @@ export default function EtapasPage() {
                     <td className="px-3 py-2 text-slate-700">{etapa.prazoDias || "-"}</td>
                     <td className="px-3 py-2">
                       <span className="rounded bg-slate-500 px-2 py-0.5 text-[9px] font-semibold text-white">
-                        {etapa.calculoPorElemento || "Não"}
+                        {etapa.calculoPorElemento || t("cadastros.comum.nao")}
                       </span>
                     </td>
                     <td className="px-3 py-2">
@@ -404,14 +404,14 @@ export default function EtapasPage() {
       >
         <form onSubmit={salvarEtapa} className="grid gap-3 text-[11px] text-slate-600 md:grid-cols-2">
           <Input
-            label="Nome"
+            label={t("cadastros.comum.nome")}
             value={form.nome}
             onChange={(event) => setForm({ ...form, nome: event.target.value })}
             required
           />
           <div className="space-y-1 md:col-span-2">
             <label className="block text-sm font-medium text-slate-700">
-              Cor de fundo do nome
+              {t("cadastros.etapas.corFundoNome")}
             </label>
             <div className="flex flex-wrap items-center gap-3">
               <input
@@ -419,7 +419,7 @@ export default function EtapasPage() {
                 value={form.cor}
                 onChange={(event) => setForm({ ...form, cor: event.target.value })}
                 className="h-10 w-14 cursor-pointer rounded-lg border border-slate-300 bg-white p-1"
-                title="Escolher cor"
+                title={t("cadastros.etapas.escolherCor")}
               />
               <span
                 className="inline-block h-10 w-10 shrink-0 rounded-lg border border-slate-300 shadow-inner"
@@ -432,19 +432,19 @@ export default function EtapasPage() {
                   color: corTextoSobreFundo(form.cor),
                 }}
               >
-                {form.nome.trim() || "Prévia do nome"}
+                {form.nome.trim() || t("cadastros.etapas.previaNome")}
               </span>
             </div>
           </div>
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-2">
-              <label className="block text-sm font-medium text-slate-700">Setor</label>
+              <label className="block text-sm font-medium text-slate-700">{t("cadastros.comum.setor")}</label>
               <button
                 type="button"
                 onClick={() => setModalSetorAberto(true)}
                 className="rounded bg-emerald-500 px-2 py-1 text-[10px] font-semibold text-white hover:bg-emerald-600"
               >
-                + Adicionar Setor
+                {t("cadastros.comum.adicionarSetor")}
               </button>
             </div>
             <div className="flex gap-2">
@@ -455,7 +455,7 @@ export default function EtapasPage() {
                   form.setor ? "text-slate-700" : "text-slate-400"
                 }`}
               >
-                <option value="" hidden style={{ color: "#94a3b8" }}>Selecione</option>
+                <option value="" hidden style={{ color: "#94a3b8" }}>{t("cadastros.comum.selecione")}</option>
                 {setores.map((setor) => (
                   <option key={setor.id || setor.nome} value={setor.nome} style={{ color: "#334155" }}>
                     {setor.nome}
@@ -466,7 +466,7 @@ export default function EtapasPage() {
           </div>
           <div className="grid grid-cols-[1fr_auto] items-end gap-2">
             <Input
-              label="Tempo Médio Execução Minutos"
+              label={t("cadastros.etapas.tempoMedioExecucao")}
               type="number"
               min="0"
               value={form.tempoMedio}
@@ -486,31 +486,31 @@ export default function EtapasPage() {
                   : "border-slate-300 bg-white text-slate-500"
               }`}
             >
-              {form.cor === "__sem_fundo__" ? "Sem Fundo (ativo)" : "Sem Fundo"}
+              {form.cor === "__sem_fundo__" ? t("cadastros.etapas.semFundoAtivo") : t("cadastros.etapas.semFundo")}
             </button>
           </div>
           <Input
-            label="Prazo em dias"
+            label={t("cadastros.etapas.prazoEmDias")}
             type="number"
             min="0"
             value={form.prazoDias}
             onChange={(event) => setForm({ ...form, prazoDias: event.target.value })}
-            placeholder="Ex.: 3"
+            placeholder={t("cadastros.etapas.placeholderPrazoDias")}
           />
           <Select
-            label="Cálculo por Elemento"
+            label={t("cadastros.etapas.calculoPorElemento")}
             value={form.calculoPorElemento}
             onChange={(event) => setForm({ ...form, calculoPorElemento: event.target.value })}
           >
-            <option>Não</option>
-            <option>Sim</option>
+            <option>{t("cadastros.comum.nao")}</option>
+            <option>{t("cadastros.comum.sim")}</option>
           </Select>
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-4 md:col-span-2">
             <Button type="submit" size="sm">
-              {editando ? "Salvar Etapa" : "Cadastrar Etapa"}
+              {editando ? t("cadastros.etapas.salvarEtapa") : t("cadastros.etapas.cadastrarEtapa")}
             </Button>
             <Button type="button" size="sm" variant="outline" onClick={() => setModalAberto(false)}>
-              Fechar
+              {t("cadastros.comum.fechar")}
             </Button>
           </div>
         </form>
@@ -519,19 +519,19 @@ export default function EtapasPage() {
       <Modal
         open={modalSetorAberto}
         onClose={() => setModalSetorAberto(false)}
-        title="Cadastrar Setor"
+        title={t("cadastros.setores.cadastrar")}
         size="sm"
       >
         <form onSubmit={adicionarSetor} className="space-y-4 text-[11px] text-slate-600">
           <Input
-            label="Setor"
+            label={t("cadastros.setores.coluna")}
             value={novoSetor.nome}
             onChange={(event) => setNovoSetor((current) => ({ ...current, nome: event.target.value }))}
-            placeholder="Digite o nome do Setor"
+            placeholder={t("cadastros.comum.placeholderNomeSetor")}
             required
           />
           <div className="space-y-1">
-            <label className="block text-sm font-medium text-slate-700">Cor</label>
+            <label className="block text-sm font-medium text-slate-700">{t("cadastros.comum.cor")}</label>
             <input
               type="color"
               value={novoSetor.cor}
@@ -541,10 +541,10 @@ export default function EtapasPage() {
           </div>
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
             <Button type="submit" size="sm">
-              Cadastrar Setor
+              {t("cadastros.setores.cadastrar")}
             </Button>
             <Button type="button" size="sm" variant="outline" onClick={() => setModalSetorAberto(false)}>
-              Fechar
+              {t("cadastros.comum.fechar")}
             </Button>
           </div>
         </form>

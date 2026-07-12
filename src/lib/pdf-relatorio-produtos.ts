@@ -19,7 +19,7 @@ import {
 } from "@/lib/lab-impressao";
 import type { LinhaControleProduto } from "@/lib/relatorio-estoque";
 import { moneyRelatorioEstoque } from "@/lib/relatorio-estoque";
-import { localeImpressaoAtual } from "@/lib/i18n/print-i18n";
+import { localeImpressaoAtual, formatMoneyImpressao } from "@/lib/i18n/print-i18n";
 import { localeDataIntl } from "@/lib/i18n/tr-ui";
 
 type PdfApi = {
@@ -180,7 +180,9 @@ function valorCelula(linha: LinhaControleProduto, col: ColunaPdf) {
   if (col.chave === "estoqueAtual") {
     return Number.isInteger(linha.estoqueAtual)
       ? String(linha.estoqueAtual)
-      : linha.estoqueAtual.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
+      : linha.estoqueAtual.toLocaleString(localeDataIntl(localeImpressaoAtual()), {
+          maximumFractionDigits: 3,
+        });
   }
   if (col.chave === "minimo" || col.chave === "maximo") {
     const valor = linha[col.chave];
@@ -279,7 +281,7 @@ function desenharRodapeTabela(
     if (col.chave === "estoqueAtual") {
       pdf.text(`${pl("print.relatorio.estoque.totalEstoque")} ${totalEstoque}`, x, y);
     } else if (col.chave === "totalFmt") {
-      pdf.text(`R$ ${moneyRelatorioEstoque(totalGeral)}`, x + col.largura - 1, y, {
+      pdf.text(formatMoneyImpressao(totalGeral), x + col.largura - 1, y, {
         align: "right",
       });
     }
