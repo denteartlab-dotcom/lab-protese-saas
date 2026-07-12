@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -10,10 +9,16 @@ import {
   FileSpreadsheet,
   Flag,
   List,
-  MessageCircle,
   Printer,
 } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
+import {
+  labelLinhaFluxoMensal,
+  traduzirDescricaoFluxo,
+  traduzirFormaPagamentoFluxo,
+} from "@/lib/i18n/relatorio-fluxo-i18n";
+import { localeMoeda, nomeMesLocale } from "@/lib/i18n/relatorio-comum-i18n";
+import { trUi } from "@/lib/i18n/tr-ui";
 import { CampoDataBr } from "@/components/campo-data-br";
 import { RelatorioCabecalho } from "@/components/relatorios/RelatorioCabecalho";
 import {
@@ -75,7 +80,7 @@ function periodoMesAtualBr() {
 const periodoMesInicial = periodoMesAtualBr();
 
 export function FluxoDeCaixaConteudo() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [lancamentos, setLancamentos] = useState<LancamentoFluxo[]>([]);
   const [contas, setContas] = useState<ContaBancaria[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -276,7 +281,7 @@ export function FluxoDeCaixaConteudo() {
             dataImpressao: dataImpressaoHoje(),
             totalGeral: resultadoDiario.saldoFinal,
           }),
-        "Relatório Movimentação — Fluxo de Caixa",
+        t("relatorio.fluxo.tituloPdf"),
         "relatorio-movimentacao.pdf",
         { janela, origem: t("relatorio.origemPdf") }
       );
@@ -312,7 +317,7 @@ export function FluxoDeCaixaConteudo() {
     "inline-flex h-[34px] items-center gap-2 px-4 text-[12px] font-medium transition-colors";
 
   return (
-    <div className="pb-16 text-[11px] text-slate-600">
+    <div className="pb-4 text-[11px] text-slate-600">
       <RelatorioCabecalho
         labelKey="nav.relatorio.fluxoCaixa"
         acoes={
@@ -410,7 +415,9 @@ export function FluxoDeCaixaConteudo() {
             >
               {formasOpcoes.map((f) => (
                 <option key={f} value={f}>
-                  {f}
+                  {f === "Forma Pagamento"
+                    ? t("relatorio.filtro.formaPagamento")
+                    : traduzirFormaPagamentoFluxo(t, f)}
                 </option>
               ))}
             </select>
@@ -589,9 +596,13 @@ export function FluxoDeCaixaConteudo() {
                     )}
                   >
                     <td className="px-4 py-3 text-[#374151]">{linha.dataLabel}</td>
-                    <td className="px-4 py-3 text-[#374151]">{linha.descricao}</td>
-                    <td className="px-4 py-3 text-[#374151]">{linha.forma}</td>
-                    <td className="px-4 py-3 text-[#374151]">{linha.conta}</td>
+                    <td className="px-4 py-3 text-[#374151]">
+                      {traduzirDescricaoFluxo(t, linha.descricao)}
+                    </td>
+                    <td className="px-4 py-3 text-[#374151]">
+                      {traduzirFormaPagamentoFluxo(t, linha.forma)}
+                    </td>
+                    <td className="px-4 py-3 text-[#374151]">{trUi(linha.conta, t, locale)}</td>
                     <td className="px-4 py-3 text-right text-[13px] font-normal text-[#4a90d9]">
                       {linha.kind === "saldo_inicial" ? money(0) : money(linha.valor)}
                     </td>
@@ -610,12 +621,12 @@ export function FluxoDeCaixaConteudo() {
             <thead>
               <tr className="bg-[#f3f4f6]">
                 <th className="min-w-[120px] border-b border-[#e5e7eb] px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" />
-                {MESES_FLUXO_CAIXA.map((mes) => (
+                {MESES_FLUXO_CAIXA.map((mes, mesIndex) => (
                   <th
                     key={mes}
                     className="min-w-[72px] border-b border-[#e5e7eb] px-2 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]"
                   >
-                    {mes}
+                    {nomeMesLocale(locale, mesIndex)}
                   </th>
                 ))}
               </tr>
@@ -636,7 +647,9 @@ export function FluxoDeCaixaConteudo() {
                       rowIndex % 2 === 0 ? "bg-white" : "bg-[#fafafa]"
                     )}
                   >
-                    <td className="px-3 py-3 font-medium text-[#374151]">{linha.label}</td>
+                    <td className="px-3 py-3 font-medium text-[#374151]">
+                      {labelLinhaFluxoMensal(t, linha.id)}
+                    </td>
                     {linha.valores.map((valor, mesIndex) => (
                       <td
                         key={`${linha.id}-${mesIndex}`}
@@ -660,7 +673,7 @@ export function FluxoDeCaixaConteudo() {
             disabled={pagina <= 1}
             onClick={() => setPagina((p) => Math.max(1, p - 1))}
             className="text-[#9ca3af] hover:text-[#6b7280] disabled:opacity-30"
-            aria-label="Página anterior"
+            aria-label={t("relatorio.comum.paginaAnterior")}
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
@@ -675,7 +688,7 @@ export function FluxoDeCaixaConteudo() {
             disabled={pagina >= totalPaginas}
             onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
             className="text-[#9ca3af] hover:text-[#6b7280] disabled:opacity-30"
-            aria-label="Próxima página"
+            aria-label={t("relatorio.comum.proximaPagina")}
           >
             <ChevronRight className="h-5 w-5" />
           </button>
@@ -690,34 +703,6 @@ export function FluxoDeCaixaConteudo() {
           }
         }
       `}</style>
-
-      <footer className="fixed bottom-0 left-0 right-0 z-20 flex items-center justify-between border-t border-[#e8e8e8] bg-white px-6 py-2.5 text-[12px] md:left-56">
-        <div className="flex flex-wrap items-center gap-2 text-[#6b7280]">
-          <span>Está com dúvidas? - Suporte</span>
-          <a
-            href="https://wa.me/5533988466838"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center rounded-full bg-[#25d366] px-4 py-1 text-[12px] text-white"
-          >
-            Whatsapp
-          </a>
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 rounded-full bg-[#3b82f6] px-4 py-1 text-[12px] text-white"
-          >
-            <MessageCircle className="h-3.5 w-3.5" />
-            Chat
-          </button>
-        </div>
-        <div className="hidden items-center gap-1 text-[#6b7280] sm:flex">
-          <AlertTriangle className="h-4 w-4 text-[#f59e0b]" />
-          <span>Seu teste termina em 21/06/2026</span>
-          <button type="button" className="font-semibold text-[#3b82f6] hover:underline">
-            assinar
-          </button>
-        </div>
-      </footer>
     </div>
   );
 }

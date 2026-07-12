@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
+import { trUi } from "@/lib/i18n/tr-ui";
 import { BadgeSituacaoOs } from "@/components/BadgeSituacaoOs";
 import { CampoDataBr } from "@/components/campo-data-br";
 import { RelatorioCabecalho, RelatorioTituloLateral } from "@/components/relatorios/RelatorioCabecalho";
@@ -167,11 +168,13 @@ function PaginacaoRelatorioControles({
   totalPaginas,
   onPagina,
   colSpan,
+  t,
 }: {
   pagina: number;
   totalPaginas: number;
   onPagina: (pagina: number) => void;
   colSpan: number;
+  t: ReturnType<typeof useI18n>["t"];
 }) {
   if (totalPaginas <= 1) return null;
 
@@ -190,7 +193,7 @@ function PaginacaoRelatorioControles({
             onClick={() => onPagina(pagina - 1)}
             className="rounded border border-[#d1d5db] dark:border-slate-600 px-2 py-0.5 text-[11px] text-[#374151] dark:text-slate-200 hover:bg-[#f3f4f6] dark:hover:bg-slate-700 dark:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Anterior
+            {t("relatorio.comum.anterior")}
           </button>
           {botoes.map((p) => (
             <button
@@ -213,10 +216,10 @@ function PaginacaoRelatorioControles({
             onClick={() => onPagina(pagina + 1)}
             className="rounded border border-[#d1d5db] dark:border-slate-600 px-2 py-0.5 text-[11px] text-[#374151] dark:text-slate-200 hover:bg-[#f3f4f6] dark:hover:bg-slate-700 dark:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Próxima
+            {t("relatorio.comum.proxima")}
           </button>
           <span className="ml-1 text-[10px] text-[#9ca3af] dark:text-slate-500">
-            Página {pagina} de {totalPaginas}
+            {t("relatorio.comum.paginaDe", { pagina, total: totalPaginas })}
           </span>
         </div>
       </td>
@@ -253,6 +256,7 @@ function SelectSituacaoMulti({
   selecionados: string[];
   onChange: (keys: string[]) => void;
 }) {
+  const { t } = useI18n();
   const [aberto, setAberto] = useState(false);
   const [posicao, setPosicao] = useState<{ top: number; left: number; width: number } | null>(
     null
@@ -328,7 +332,7 @@ function SelectSituacaoMulti({
 
   return (
     <div className="relative" ref={anchorRef}>
-      <label className={labelClass}>Situação</label>
+      <label className={labelClass}>{t("relatorio.comum.situacao")}</label>
       <button
         type="button"
         onClick={() => {
@@ -732,9 +736,9 @@ export function RelatorioProducaoConteudo() {
                       )
                     }
                   >
-                    <option value="data_lancamento">Data Lançamento</option>
-                    <option value="data_entrega">Data Entrega</option>
-                    <option value="data_prevista">Data Prevista</option>
+                    <option value="data_lancamento">{t("relatorio.producao.dataLancamento")}</option>
+                    <option value="data_entrega">{t("relatorio.producao.dataEntrega")}</option>
+                    <option value="data_prevista">{t("relatorio.producao.dataPrevista")}</option>
                   </select>
                   <CampoDataBr
                     value={dataInicio}
@@ -923,7 +927,7 @@ export function RelatorioProducaoConteudo() {
                       colSpan={colunasAtivas.length}
                       className="h-[280px] text-center text-[#9ca3af] dark:text-slate-500"
                     >
-                      Clique em Gerar Relatório para exibir os dados.
+                      {t("relatorio.gerarRelatorioHint")}
                     </td>
                   </tr>
                 ) : totalRegistrosExibidos === 0 ? (
@@ -1055,6 +1059,7 @@ export function RelatorioProducaoConteudo() {
                       );
                     })}
                     <PaginacaoRelatorioControles
+                      t={t}
                       pagina={paginacaoEtapas.paginaAtual}
                       totalPaginas={paginacaoEtapas.totalPaginas}
                       onPagina={irParaPaginaLista}
@@ -1079,6 +1084,7 @@ export function RelatorioProducaoConteudo() {
                       </tr>
                     ))}
                     <PaginacaoRelatorioControles
+                      t={t}
                       pagina={paginacaoServicosAgrupados.paginaAtual}
                       totalPaginas={paginacaoServicosAgrupados.totalPaginas}
                       onPagina={irParaPaginaLista}
@@ -1128,6 +1134,7 @@ export function RelatorioProducaoConteudo() {
                         </tr>
                       )),
                       <PaginacaoRelatorioControles
+                      t={t}
                         key={`${bloco.id}-pag`}
                         pagina={paginaAtual}
                         totalPaginas={totalPaginas}
@@ -1164,6 +1171,7 @@ export function RelatorioProducaoConteudo() {
                       </tr>
                     ))}
                     <PaginacaoRelatorioControles
+                      t={t}
                       pagina={paginacaoListaDetalhada.paginaAtual}
                       totalPaginas={paginacaoListaDetalhada.totalPaginas}
                       onPagina={irParaPaginaLista}

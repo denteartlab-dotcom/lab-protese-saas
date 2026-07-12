@@ -120,10 +120,12 @@ function CardTabela({
   titulo,
   children,
   linkVerTodos,
+  t,
 }: {
   titulo: string;
   children: React.ReactNode;
   linkVerTodos?: boolean;
+  t: ReturnType<typeof useI18n>["t"];
 }) {
   return (
     <div className="flex h-full flex-col rounded-xl border border-[#e8eaed] bg-white dark:bg-slate-900 shadow-sm">
@@ -137,7 +139,7 @@ function CardTabela({
             type="button"
             className="text-[12px] font-medium text-[#4a90d9] hover:underline"
           >
-            Ver todos
+            {t("relatorio.comum.verTodos")}
           </button>
         </div>
       ) : null}
@@ -145,10 +147,10 @@ function CardTabela({
   );
 }
 
-function SemDados() {
+function SemDados({ t }: { t: ReturnType<typeof useI18n>["t"] }) {
   return (
     <div className="flex h-full min-h-[220px] items-center justify-center text-[12px] text-[#9ca3af] dark:text-slate-500">
-      Sem dados no período selecionado.
+      {t("relatorio.comum.semDadosPeriodo")}
     </div>
   );
 }
@@ -259,10 +261,10 @@ export function ServicosNaoConcluidosConteudo() {
         <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <h1 className="text-[20px] font-bold text-[#1f2937] dark:text-slate-100 sm:text-[22px]">
-              Relatório de Serviços Não Concluídos
+              {t("relatorio.snc.tituloPagina")}
             </h1>
             <p className="mt-1 max-w-2xl text-[13px] text-[#6b7280] dark:text-slate-400">
-              Análise dos serviços em andamento e valor total preso no laboratório.
+              {t("relatorio.snc.subtituloPagina")}
             </p>
           </div>
           <div className="flex flex-wrap items-end gap-2">
@@ -372,7 +374,7 @@ export function ServicosNaoConcluidosConteudo() {
             <div className="grid gap-4 lg:grid-cols-3">
               <CardGrafico titulo={t("relatorio.snc.graficoValorPorMes")}>
                 {dados.valorPorMes.length === 0 ? (
-                  <SemDados />
+                  <SemDados t={t} />
                 ) : (
                   <div className="h-[260px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
@@ -415,7 +417,7 @@ export function ServicosNaoConcluidosConteudo() {
 
               <CardGrafico titulo={t("relatorio.snc.graficoPorEtapa")}>
                 {dadosPizza.length === 0 ? (
-                  <SemDados />
+                  <SemDados t={t} />
                 ) : (
                   <div className="flex h-[260px] flex-col items-center">
                     <ResponsiveContainer width="100%" height="75%">
@@ -469,7 +471,7 @@ export function ServicosNaoConcluidosConteudo() {
 
               <CardGrafico titulo={t("relatorio.snc.graficoValorPorEtapa")}>
                 {dadosBarrasHorizontais.length === 0 ? (
-                  <SemDados />
+                  <SemDados t={t} />
                 ) : (
                   <div className="h-[260px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
@@ -519,7 +521,7 @@ export function ServicosNaoConcluidosConteudo() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
-              <CardTabela titulo={t("relatorio.snc.tabelaPorCliente")} linkVerTodos>
+              <CardTabela titulo={t("relatorio.snc.tabelaPorCliente")} linkVerTodos t={t}>
                 <table className="w-full min-w-[420px] text-left text-[12px]">
                   <thead>
                     <tr className="border-b border-[#f0f0f0] dark:border-slate-700 text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af] dark:text-slate-500">
@@ -577,7 +579,7 @@ export function ServicosNaoConcluidosConteudo() {
                 </table>
               </CardTabela>
 
-              <CardTabela titulo={t("relatorio.snc.tabelaVencidos")} linkVerTodos>
+              <CardTabela titulo={t("relatorio.snc.tabelaVencidos")} linkVerTodos t={t}>
                 <table className="w-full min-w-[380px] text-left text-[12px]">
                   <thead>
                     <tr className="border-b border-[#f0f0f0] dark:border-slate-700 text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af] dark:text-slate-500">

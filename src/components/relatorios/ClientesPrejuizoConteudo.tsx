@@ -91,10 +91,12 @@ function CardTabela({
   titulo,
   children,
   linkVerTodos,
+  t,
 }: {
   titulo: string;
   children: React.ReactNode;
   linkVerTodos?: boolean;
+  t: ReturnType<typeof useI18n>["t"];
 }) {
   return (
     <div className="flex h-full flex-col rounded-xl border border-[#e8eaed] bg-white dark:bg-slate-900 shadow-sm">
@@ -108,7 +110,7 @@ function CardTabela({
             type="button"
             className="text-[12px] font-medium text-[#4a90d9] hover:underline"
           >
-            Ver todos
+            {t("relatorio.comum.verTodos")}
           </button>
         </div>
       ) : null}
@@ -161,15 +163,17 @@ function GraficoBarrasHorizontais({
   titulo,
   dados,
   corBarra,
+  t,
 }: {
   titulo: string;
   dados: { nome: string; valor: number }[];
   corBarra: string;
+  t: ReturnType<typeof useI18n>["t"];
 }) {
   if (!dados.length) {
     return (
       <div className="flex h-full min-h-[220px] items-center justify-center text-[12px] text-[#9ca3af] dark:text-slate-500">
-        Sem dados no período selecionado.
+        {t("relatorio.comum.semDadosPeriodo")}
       </div>
     );
   }
@@ -257,11 +261,10 @@ export function ClientesPrejuizoConteudo() {
         <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <h1 className="text-[20px] font-bold text-[#1f2937] dark:text-slate-100 sm:text-[22px]">
-              Relatório: Clientes que Mais Geram Retrabalho
+              {t("relatorio.prejuizo.titulo")}
             </h1>
             <p className="mt-1 max-w-2xl text-[13px] text-[#6b7280] dark:text-slate-400">
-              Identifique clientes com maior número de retornos, garantias, atrasos e
-              prejuízo estimado.
+              {t("relatorio.prejuizo.descricao")}
             </p>
           </div>
           <div className="flex flex-wrap items-end gap-2">
@@ -401,24 +404,26 @@ export function ClientesPrejuizoConteudo() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
-              <CardTabela titulo={t("relatorio.prejuizo.top10Retrabalho")}>
+              <CardTabela titulo={t("relatorio.prejuizo.top10Retrabalho")} t={t}>
                 <GraficoBarrasHorizontais
                   titulo={t("relatorio.prejuizo.top10Clientes")}
                   dados={dados.graficoTop10Clientes}
                   corBarra={COR_GRAFICO.vermelho}
+                  t={t}
                 />
               </CardTabela>
-              <CardTabela titulo={t("relatorio.prejuizo.etapasMaisRepetidas")}>
+              <CardTabela titulo={t("relatorio.prejuizo.etapasMaisRepetidas")} t={t}>
                 <GraficoBarrasHorizontais
                   titulo={t("relatorio.prejuizo.etapasRepetidas")}
                   dados={dados.graficoEtapasRepetidas}
                   corBarra={COR_GRAFICO.azul}
+                  t={t}
                 />
               </CardTabela>
             </div>
 
             <div className="grid gap-4 lg:grid-cols-3">
-              <CardTabela titulo={t("relatorio.prejuizo.clientesRepetemEtapas")} linkVerTodos>
+              <CardTabela titulo={t("relatorio.prejuizo.clientesRepetemEtapas")} linkVerTodos t={t}>
                 <TabelaSimples
                   colunas={[
                     t("relatorio.comum.cliente"),
@@ -436,7 +441,7 @@ export function ClientesPrejuizoConteudo() {
                   ])}
                 />
               </CardTabela>
-              <CardTabela titulo={t("relatorio.prejuizo.clientesRetornam")} linkVerTodos>
+              <CardTabela titulo={t("relatorio.prejuizo.clientesRetornam")} linkVerTodos t={t}>
                 <TabelaSimples
                   colunas={[
                     t("relatorio.comum.cliente"),
@@ -452,7 +457,7 @@ export function ClientesPrejuizoConteudo() {
                   ])}
                 />
               </CardTabela>
-              <CardTabela titulo={t("relatorio.prejuizo.clientesDemoramAprovar")} linkVerTodos>
+              <CardTabela titulo={t("relatorio.prejuizo.clientesDemoramAprovar")} linkVerTodos t={t}>
                 <TabelaSimples
                   colunas={[t("relatorio.comum.cliente"), t("relatorio.comum.tempoMedio")]}
                   linhas={dados.clientesAprovacao.map((c) => [
@@ -464,7 +469,7 @@ export function ClientesPrejuizoConteudo() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-3">
-              <CardTabela titulo={t("relatorio.prejuizo.clientesDevolvem")} linkVerTodos>
+              <CardTabela titulo={t("relatorio.prejuizo.clientesDevolvem")} linkVerTodos t={t}>
                 <TabelaSimples
                   colunas={[t("relatorio.comum.cliente"), t("relatorio.comum.devolucoes")]}
                   linhas={dados.clientesDevolucao.map((c) => [
@@ -473,7 +478,7 @@ export function ClientesPrejuizoConteudo() {
                   ])}
                 />
               </CardTabela>
-              <CardTabela titulo={t("relatorio.prejuizo.motivosFrequentes")} linkVerTodos>
+              <CardTabela titulo={t("relatorio.prejuizo.motivosFrequentes")} linkVerTodos t={t}>
                 <TabelaSimples
                   colunas={[t("relatorio.comum.motivo"), t("relatorio.comum.quantidade")]}
                   linhas={dados.motivosFrequentes.map((m) => [
@@ -482,7 +487,7 @@ export function ClientesPrejuizoConteudo() {
                   ])}
                 />
               </CardTabela>
-              <CardTabela titulo={t("relatorio.prejuizo.prejuizoPorCliente")} linkVerTodos>
+              <CardTabela titulo={t("relatorio.prejuizo.prejuizoPorCliente")} linkVerTodos t={t}>
                 <TabelaSimples
                   colunas={[t("relatorio.comum.cliente"), t("relatorio.comum.valor")]}
                   linhas={dados.prejuizoPorCliente.map((p) => [

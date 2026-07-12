@@ -1638,6 +1638,109 @@ export const messagesModulosPt = {
   "relatorio.estoque.opcao.estoqueZerado": "Estoque Zerado",
   "relatorio.estoque.opcoesRelatorio": "Opções de Relatório",
   "relatorio.estoque.opcoesEstoque": "Opções de Estoque",
+
+  "relatorio.dre.tabela": "Tabela",
+  "relatorio.dre.graficos": "Gráficos",
+  "relatorio.dre.indicativos": "Indicativos",
+  "relatorio.dre.notaExplicativa":
+    "A D.R.E considera somente receitas já recebidas e despesas já pagas (status Pago no Financeiro). Cobranças de OS pendentes não entram até o recebimento. Para ver os lançamentos, clique no nome do mês ou nos valores.",
+  "relatorio.dre.tituloLinhaMes": "{linha} — {mes} / {ano}",
+  "relatorio.dre.linha.impostos": "(-) Impostos",
+  "relatorio.dre.linha.receitaOperacionalLiquida": "Receita Operacional Líquida",
+  "relatorio.dre.linha.custosFixos": "(-) Custos Fixos",
+  "relatorio.dre.linha.custosVariaveis": "(-) Custos Variáveis",
+  "relatorio.dre.linha.despesas": "(-) Despesas",
+  "relatorio.dre.linha.resultadoOperacional": "Resultado Operacional",
+  "relatorio.dre.linha.despesasNaoOperacionais":
+    "(-) Despesas Não Operacionais / Investimentos",
+  "relatorio.dre.linha.lair": "L.A.I.R.",
+  "relatorio.dre.linha.irpjCsll": "(-) IRPJ / CSLL",
+
+  "relatorio.fluxo.tituloPdf": "Relatório Movimentação — Fluxo de Caixa",
+  "relatorio.fluxo.linha.saldoInicial": "Saldo Inicial",
+  "relatorio.fluxo.linha.entradas": "Entradas",
+  "relatorio.fluxo.linha.saidas": "Saídas",
+  "relatorio.fluxo.linha.saldoFinal": "Saldo Final",
+  "relatorio.fluxo.forma.movimentacao": "Movimentação",
+  "relatorio.fluxo.descricao.cobrancaOs": "Cobrança OS {os}",
+
+  "relatorio.margem.selecioneTabela": "Selecione uma Tabela",
+  "relatorio.margem.ordenacao": "Ordenação",
+  "relatorio.margem.nomeServico": "Nome do Serviço",
+  "relatorio.margem.margemContribuicao": "Margem de Contribuição",
+  "relatorio.margem.margemContribuicaoPct": "Margem de Contribuição %",
+  "relatorio.margem.somenteComCustos": "Mostrar apenas serviços com custos",
+  "relatorio.margem.colunaItem": "Item",
+  "relatorio.margem.colunaCustos": "Custos",
+  "relatorio.margem.colunaMargem": "Margem",
+  "relatorio.margem.pdfTabela": "Tabela: {tabela}",
+
+  "relatorio.entregas.modelo1": "Entregas - Modelo 1",
+  "relatorio.entregas.modelo2": "Entregas - Modelo 2 (por entregador)",
+  "relatorio.entregas.modelo3": "Entregas - Modelo 3 (completo)",
+  "relatorio.entregas.modeloPendentes": "Entregas Pendentes",
+  "relatorio.entregas.modeloEmRota": "Entregas Em Rota",
+  "relatorio.entregas.modeloFinalizadas": "Entregas Finalizadas",
+  "relatorio.entregas.dataFinalizado": "Data Finalizado",
+  "relatorio.entregas.colunaSitOs": "Sit. OS",
+  "relatorio.entregas.semEntregas": "Nenhuma entrega encontrada para os filtros selecionados.",
+  "relatorio.entregas.totalRegistros": "Total ({n} registros)",
+
+  "relatorio.comum.anterior": "Anterior",
+  "relatorio.comum.proxima": "Próxima",
+  "relatorio.comum.verTodos": "Ver todos",
+  "relatorio.comum.item": "Item",
+  "relatorio.comum.nenhumRegistroPeriodo": "Nenhum registro encontrado no período.",
+  "relatorio.comum.semDadosPeriodo": "Sem dados no período selecionado.",
+  "relatorio.comum.expandirEtapas": "Expandir etapas",
+  "relatorio.comum.recolherEtapas": "Recolher etapas",
+  "relatorio.comum.nenhumaEtapaOs": "Nenhuma etapa cadastrada nesta OS.",
+  "relatorio.comum.totalQtdServicos": "Total Quantidade Serviços:",
+  "relatorio.comum.totalRegistrosCount": "{n} Registros",
+
+  "relatorio.producao.dataLancamento": "Data Lançamento",
+  "relatorio.producao.dataEntrega": "Data Entrega",
+  "relatorio.producao.dataPrevista": "Data Prevista",
+  "relatorio.producao.reparticao": "Repartição",
+  "relatorio.producao.servicosLista": "Serviços (Lista)",
+
+  "relatorio.recibos.dataRecebimento": "Data de Recebimento",
+  "relatorio.recibos.semRecibos": "Nenhum recibo encontrado no período.",
+  "relatorio.recibos.imprimirRecibo": "Imprimir recibo",
+  "relatorio.recibos.colunaOpcoes": "OPÇÕES",
+
+  "relatorio.financeiro.titulo": "Relatório Financeiro Geral",
+  "relatorio.financeiro.descricao":
+    "Produção em aberto: valor do serviço a receber de serviços finalizados ou entregues no período tanto em Contas a Receber incluindo produtos e transporte da OS. Saiu para Entrega conta como em aberto.",
+  "relatorio.financeiro.dataInicial": "Data Inicial",
+  "relatorio.financeiro.tipoServico": "Tipo de Serviço",
+  "relatorio.financeiro.exportarPdf": "Exportar PDF",
+  "relatorio.financeiro.semServicos": "Nenhum serviço encontrado.",
+  "relatorio.financeiro.modalDescricao":
+    "OS concluídas (finalizadas ou entregues) no período com valor ainda pendente de recebimento.",
+  "relatorio.financeiro.semOsConcluidas": "Nenhuma OS concluída neste período.",
+  "relatorio.financeiro.colunaConclusao": "Conclusão",
+  "relatorio.financeiro.totalOs": "TOTAL ({n} OS)",
+  "relatorio.financeiro.noPeriodo": "no período",
+
+  "relatorio.prejuizo.titulo": "Relatório: Clientes que Mais Geram Retrabalho",
+  "relatorio.prejuizo.descricao":
+    "Identifique clientes com maior número de retornos, garantias, atrasos e prejuízo estimado.",
+  "relatorio.prejuizo.dadosBaseadosPeriodo":
+    "Os dados apresentados são baseados no período: {periodo}",
+
+  "relatorio.snc.tituloPagina": "Relatório de Serviços Não Concluídos",
+  "relatorio.snc.subtituloPagina":
+    "Análise dos serviços em andamento e valor total preso nos laboratórios.",
+
+  "relatorio.logs.tipoAlteracao": "Tipo Alteração",
+
+  "relatorio.dashboard.redefinir": "Redefinir",
+  "relatorio.dashboard.modificarColunas": "Modificar Colunas",
+  "relatorio.dashboard.geral": "Geral",
+  "relatorio.dashboard.lucratividadeBruta": "Lucratividade Bruta",
+  "relatorio.dashboard.ticketMedio": "Ticket Médio",
+  "relatorio.dashboard.saldoPeriodo": "Saldo do período",
 } as const;
 
 export const messagesModulosEn: Record<keyof typeof messagesModulosPt, string> = {
@@ -3277,6 +3380,108 @@ export const messagesModulosEn: Record<keyof typeof messagesModulosPt, string> =
   "relatorio.estoque.opcao.estoqueZerado": "Zero Stock",
   "relatorio.estoque.opcoesRelatorio": "Report Options",
   "relatorio.estoque.opcoesEstoque": "Stock Options",
+
+  "relatorio.dre.tabela": "Table",
+  "relatorio.dre.graficos": "Charts",
+  "relatorio.dre.indicativos": "Indicators",
+  "relatorio.dre.notaExplicativa":
+    "The P&L only includes revenue already received and expenses already paid (Paid status in Finance). Pending WO charges are not included until received. To view entries, click the month name or the values.",
+  "relatorio.dre.tituloLinhaMes": "{linha} — {mes} / {ano}",
+  "relatorio.dre.linha.impostos": "(-) Taxes",
+  "relatorio.dre.linha.receitaOperacionalLiquida": "Net Operating Revenue",
+  "relatorio.dre.linha.custosFixos": "(-) Fixed Costs",
+  "relatorio.dre.linha.custosVariaveis": "(-) Variable Costs",
+  "relatorio.dre.linha.despesas": "(-) Expenses",
+  "relatorio.dre.linha.resultadoOperacional": "Operating Result",
+  "relatorio.dre.linha.despesasNaoOperacionais": "(-) Non-Operating Expenses / Investments",
+  "relatorio.dre.linha.lair": "EBIT",
+  "relatorio.dre.linha.irpjCsll": "(-) Income Tax",
+
+  "relatorio.fluxo.tituloPdf": "Movement Report — Cash Flow",
+  "relatorio.fluxo.linha.saldoInicial": "Opening Balance",
+  "relatorio.fluxo.linha.entradas": "Inflows",
+  "relatorio.fluxo.linha.saidas": "Outflows",
+  "relatorio.fluxo.linha.saldoFinal": "Closing Balance",
+  "relatorio.fluxo.forma.movimentacao": "Transfer",
+  "relatorio.fluxo.descricao.cobrancaOs": "WO Charge {os}",
+
+  "relatorio.margem.selecioneTabela": "Select a Table",
+  "relatorio.margem.ordenacao": "Sort by",
+  "relatorio.margem.nomeServico": "Service Name",
+  "relatorio.margem.margemContribuicao": "Contribution Margin",
+  "relatorio.margem.margemContribuicaoPct": "Contribution Margin %",
+  "relatorio.margem.somenteComCustos": "Show only services with costs",
+  "relatorio.margem.colunaItem": "Item",
+  "relatorio.margem.colunaCustos": "Costs",
+  "relatorio.margem.colunaMargem": "Margin",
+  "relatorio.margem.pdfTabela": "Table: {tabela}",
+
+  "relatorio.entregas.modelo1": "Deliveries - Model 1",
+  "relatorio.entregas.modelo2": "Deliveries - Model 2 (by courier)",
+  "relatorio.entregas.modelo3": "Deliveries - Model 3 (full)",
+  "relatorio.entregas.modeloPendentes": "Pending Deliveries",
+  "relatorio.entregas.modeloEmRota": "Deliveries In Transit",
+  "relatorio.entregas.modeloFinalizadas": "Completed Deliveries",
+  "relatorio.entregas.dataFinalizado": "Completed Date",
+  "relatorio.entregas.colunaSitOs": "WO Status",
+  "relatorio.entregas.semEntregas": "No deliveries found for the selected filters.",
+  "relatorio.entregas.totalRegistros": "Total ({n} records)",
+
+  "relatorio.comum.anterior": "Previous",
+  "relatorio.comum.proxima": "Next",
+  "relatorio.comum.verTodos": "View all",
+  "relatorio.comum.item": "Item",
+  "relatorio.comum.nenhumRegistroPeriodo": "No records found in the period.",
+  "relatorio.comum.semDadosPeriodo": "No data in the selected period.",
+  "relatorio.comum.expandirEtapas": "Expand stages",
+  "relatorio.comum.recolherEtapas": "Collapse stages",
+  "relatorio.comum.nenhumaEtapaOs": "No stages registered for this WO.",
+  "relatorio.comum.totalQtdServicos": "Total Service Quantity:",
+  "relatorio.comum.totalRegistrosCount": "{n} Records",
+
+  "relatorio.producao.dataLancamento": "Posting Date",
+  "relatorio.producao.dataEntrega": "Delivery Date",
+  "relatorio.producao.dataPrevista": "Expected Date",
+  "relatorio.producao.reparticao": "Department",
+  "relatorio.producao.servicosLista": "Services (List)",
+
+  "relatorio.recibos.dataRecebimento": "Receipt Date",
+  "relatorio.recibos.semRecibos": "No receipts found in the period.",
+  "relatorio.recibos.imprimirRecibo": "Print receipt",
+  "relatorio.recibos.colunaOpcoes": "OPTIONS",
+
+  "relatorio.financeiro.titulo": "General Financial Report",
+  "relatorio.financeiro.descricao":
+    "Open production: amount to receive from finished or delivered services in the period in Accounts Receivable including products and WO shipping. Out for Delivery counts as open.",
+  "relatorio.financeiro.dataInicial": "Start Date",
+  "relatorio.financeiro.tipoServico": "Service Type",
+  "relatorio.financeiro.exportarPdf": "Export PDF",
+  "relatorio.financeiro.semServicos": "No services found.",
+  "relatorio.financeiro.modalDescricao":
+    "Completed WOs (finished or delivered) in the period with amount still pending receipt.",
+  "relatorio.financeiro.semOsConcluidas": "No completed WOs in this period.",
+  "relatorio.financeiro.colunaConclusao": "Completion",
+  "relatorio.financeiro.totalOs": "TOTAL ({n} WOs)",
+  "relatorio.financeiro.noPeriodo": "in the period",
+
+  "relatorio.prejuizo.titulo": "Report: Clients Generating the Most Rework",
+  "relatorio.prejuizo.descricao":
+    "Identify clients with the highest number of returns, warranties, delays and estimated loss.",
+  "relatorio.prejuizo.dadosBaseadosPeriodo":
+    "Data shown is based on the period: {periodo}",
+
+  "relatorio.snc.tituloPagina": "Unfinished Services Report",
+  "relatorio.snc.subtituloPagina":
+    "Analysis of services in progress and total value stuck in the lab.",
+
+  "relatorio.logs.tipoAlteracao": "Change Type",
+
+  "relatorio.dashboard.redefinir": "Reset",
+  "relatorio.dashboard.modificarColunas": "Modify Columns",
+  "relatorio.dashboard.geral": "General",
+  "relatorio.dashboard.lucratividadeBruta": "Gross Profitability",
+  "relatorio.dashboard.ticketMedio": "Average Ticket",
+  "relatorio.dashboard.saldoPeriodo": "Period balance",
 };
 
 export const messagesModulosEs: Record<keyof typeof messagesModulosPt, string> = {
@@ -4917,4 +5122,106 @@ export const messagesModulosEs: Record<keyof typeof messagesModulosPt, string> =
   "relatorio.estoque.opcao.estoqueZerado": "Stock agotado",
   "relatorio.estoque.opcoesRelatorio": "Opciones de informe",
   "relatorio.estoque.opcoesEstoque": "Opciones de stock",
+
+  "relatorio.dre.tabela": "Tabla",
+  "relatorio.dre.graficos": "Gráficos",
+  "relatorio.dre.indicativos": "Indicadores",
+  "relatorio.dre.notaExplicativa":
+    "El estado de resultados considera solo ingresos ya recibidos y gastos ya pagados (estado Pagado en Finanzas). Los cobros de OS pendientes no entran hasta el cobro. Para ver los asientos, haga clic en el mes o en los valores.",
+  "relatorio.dre.tituloLinhaMes": "{linha} — {mes} / {ano}",
+  "relatorio.dre.linha.impostos": "(-) Impuestos",
+  "relatorio.dre.linha.receitaOperacionalLiquida": "Ingresos Operativos Netos",
+  "relatorio.dre.linha.custosFixos": "(-) Costos Fijos",
+  "relatorio.dre.linha.custosVariaveis": "(-) Costos Variables",
+  "relatorio.dre.linha.despesas": "(-) Gastos",
+  "relatorio.dre.linha.resultadoOperacional": "Resultado Operativo",
+  "relatorio.dre.linha.despesasNaoOperacionais": "(-) Gastos No Operativos / Inversiones",
+  "relatorio.dre.linha.lair": "EBIT",
+  "relatorio.dre.linha.irpjCsll": "(-) Impuesto sobre la Renta",
+
+  "relatorio.fluxo.tituloPdf": "Informe de Movimiento — Flujo de Caja",
+  "relatorio.fluxo.linha.saldoInicial": "Saldo Inicial",
+  "relatorio.fluxo.linha.entradas": "Entradas",
+  "relatorio.fluxo.linha.saidas": "Salidas",
+  "relatorio.fluxo.linha.saldoFinal": "Saldo Final",
+  "relatorio.fluxo.forma.movimentacao": "Movimiento",
+  "relatorio.fluxo.descricao.cobrancaOs": "Cobro OS {os}",
+
+  "relatorio.margem.selecioneTabela": "Seleccione una Tabla",
+  "relatorio.margem.ordenacao": "Ordenación",
+  "relatorio.margem.nomeServico": "Nombre del Servicio",
+  "relatorio.margem.margemContribuicao": "Margen de Contribución",
+  "relatorio.margem.margemContribuicaoPct": "Margen de Contribución %",
+  "relatorio.margem.somenteComCustos": "Mostrar solo servicios con costos",
+  "relatorio.margem.colunaItem": "Ítem",
+  "relatorio.margem.colunaCustos": "Costos",
+  "relatorio.margem.colunaMargem": "Margen",
+  "relatorio.margem.pdfTabela": "Tabla: {tabela}",
+
+  "relatorio.entregas.modelo1": "Entregas - Modelo 1",
+  "relatorio.entregas.modelo2": "Entregas - Modelo 2 (por repartidor)",
+  "relatorio.entregas.modelo3": "Entregas - Modelo 3 (completo)",
+  "relatorio.entregas.modeloPendentes": "Entregas Pendientes",
+  "relatorio.entregas.modeloEmRota": "Entregas En Ruta",
+  "relatorio.entregas.modeloFinalizadas": "Entregas Finalizadas",
+  "relatorio.entregas.dataFinalizado": "Fecha Finalizado",
+  "relatorio.entregas.colunaSitOs": "Sit. OS",
+  "relatorio.entregas.semEntregas": "No se encontraron entregas para los filtros seleccionados.",
+  "relatorio.entregas.totalRegistros": "Total ({n} registros)",
+
+  "relatorio.comum.anterior": "Anterior",
+  "relatorio.comum.proxima": "Siguiente",
+  "relatorio.comum.verTodos": "Ver todos",
+  "relatorio.comum.item": "Ítem",
+  "relatorio.comum.nenhumRegistroPeriodo": "No se encontraron registros en el período.",
+  "relatorio.comum.semDadosPeriodo": "Sin datos en el período seleccionado.",
+  "relatorio.comum.expandirEtapas": "Expandir etapas",
+  "relatorio.comum.recolherEtapas": "Contraer etapas",
+  "relatorio.comum.nenhumaEtapaOs": "Ninguna etapa registrada en esta OS.",
+  "relatorio.comum.totalQtdServicos": "Cantidad Total de Servicios:",
+  "relatorio.comum.totalRegistrosCount": "{n} Registros",
+
+  "relatorio.producao.dataLancamento": "Fecha de Lanzamiento",
+  "relatorio.producao.dataEntrega": "Fecha de Entrega",
+  "relatorio.producao.dataPrevista": "Fecha Prevista",
+  "relatorio.producao.reparticao": "Repartición",
+  "relatorio.producao.servicosLista": "Servicios (Lista)",
+
+  "relatorio.recibos.dataRecebimento": "Fecha de Recepción",
+  "relatorio.recibos.semRecibos": "No se encontraron recibos en el período.",
+  "relatorio.recibos.imprimirRecibo": "Imprimir recibo",
+  "relatorio.recibos.colunaOpcoes": "OPCIONES",
+
+  "relatorio.financeiro.titulo": "Informe Financiero General",
+  "relatorio.financeiro.descricao":
+    "Producción abierta: valor del servicio a cobrar de servicios finalizados o entregados en el período en Cuentas por Cobrar incluyendo productos y transporte de la OS. Salió para Entrega cuenta como abierto.",
+  "relatorio.financeiro.dataInicial": "Fecha Inicial",
+  "relatorio.financeiro.tipoServico": "Tipo de Servicio",
+  "relatorio.financeiro.exportarPdf": "Exportar PDF",
+  "relatorio.financeiro.semServicos": "No se encontraron servicios.",
+  "relatorio.financeiro.modalDescricao":
+    "OS concluidas (finalizadas o entregadas) en el período con valor pendiente de cobro.",
+  "relatorio.financeiro.semOsConcluidas": "Ninguna OS concluida en este período.",
+  "relatorio.financeiro.colunaConclusao": "Conclusión",
+  "relatorio.financeiro.totalOs": "TOTAL ({n} OS)",
+  "relatorio.financeiro.noPeriodo": "en el período",
+
+  "relatorio.prejuizo.titulo": "Informe: Clientes que Más Generan Retrabajo",
+  "relatorio.prejuizo.descricao":
+    "Identifique clientes con mayor número de devoluciones, garantías, retrasos y pérdida estimada.",
+  "relatorio.prejuizo.dadosBaseadosPeriodo":
+    "Los datos presentados se basan en el período: {periodo}",
+
+  "relatorio.snc.tituloPagina": "Informe de Servicios No Concluidos",
+  "relatorio.snc.subtituloPagina":
+    "Análisis de los servicios en curso y valor total retenido en el laboratorio.",
+
+  "relatorio.logs.tipoAlteracao": "Tipo de Cambio",
+
+  "relatorio.dashboard.redefinir": "Restablecer",
+  "relatorio.dashboard.modificarColunas": "Modificar Columnas",
+  "relatorio.dashboard.geral": "General",
+  "relatorio.dashboard.lucratividadeBruta": "Rentabilidad Bruta",
+  "relatorio.dashboard.ticketMedio": "Ticket Medio",
+  "relatorio.dashboard.saldoPeriodo": "Saldo del período",
 };

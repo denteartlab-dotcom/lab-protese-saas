@@ -24,6 +24,12 @@ import {
   type FiltroRelatorioEntregas,
   type LinhaRelatorioEntrega,
 } from "@/lib/relatorio-entregas";
+import {
+  labelModeloEntregas,
+  labelSituacaoEntrega,
+} from "@/lib/i18n/relatorio-entregas-i18n";
+import { localeMoeda } from "@/lib/i18n/relatorio-comum-i18n";
+import { trUi } from "@/lib/i18n/tr-ui";
 
 const labelClass = "mb-1 block text-[11px] font-normal text-[#6b7280]";
 const selectClass =
@@ -31,15 +37,15 @@ const selectClass =
 const dataInputClass =
   "h-[34px] w-full rounded-sm border border-[#d1d5db] bg-white pl-8 pr-2 text-[12px] text-[#374151] shadow-none focus:border-[#4a90d9] focus:ring-0";
 
-function money(value: number) {
-  return value.toLocaleString("pt-BR", {
+function money(value: number, locale: ReturnType<typeof useI18n>["locale"]) {
+  return value.toLocaleString(localeMoeda(locale), {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
 }
 
 export function RelatorioEntregasConteudo() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [carregando, setCarregando] = useState(true);
   const [gerando, setGerando] = useState(false);
   const [entregas, setEntregas] = useState<EntregaControle[]>([]);
@@ -137,7 +143,7 @@ export function RelatorioEntregasConteudo() {
       <div className="rounded border border-slate-200 bg-white p-4 shadow-sm">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           <div>
-            <label className={labelClass}>Modelo Relatório</label>
+            <label className={labelClass}>{t("relatorio.comum.modeloRelatorio")}</label>
             <select
               value={modelo}
               onChange={(e) =>
@@ -147,13 +153,13 @@ export function RelatorioEntregasConteudo() {
             >
               {MODELOS_RELATORIO_ENTREGAS.map((item) => (
                 <option key={item.value} value={item.value}>
-                  {item.label}
+                  {labelModeloEntregas(t, item.value)}
                 </option>
               ))}
             </select>
           </div>
           <div>
-            <label className={labelClass}>Ordenar Por</label>
+            <label className={labelClass}>{t("relatorio.comum.ordenarPor")}</label>
             <select
               value={ordenarPor}
               onChange={(e) =>
@@ -161,24 +167,24 @@ export function RelatorioEntregasConteudo() {
               }
               className={selectClass}
             >
-              <option value="data_pedido">Data Pedido</option>
-              <option value="data_finalizado">Data Finalizado</option>
-              <option value="destinatario">Destinatário</option>
-              <option value="entregador">Entregador</option>
-              <option value="valor">Valor</option>
+              <option value="data_pedido">{t("relatorio.comum.dataPedido")}</option>
+              <option value="data_finalizado">{t("relatorio.entregas.dataFinalizado")}</option>
+              <option value="destinatario">{t("relatorio.comum.destinatario")}</option>
+              <option value="entregador">{t("relatorio.comum.entregador")}</option>
+              <option value="valor">{t("relatorio.comum.valor")}</option>
             </select>
           </div>
           <div>
-            <label className={labelClass}>Situação</label>
+            <label className={labelClass}>{t("relatorio.comum.situacao")}</label>
             <select
               value={situacao}
               onChange={(e) => setSituacao(e.target.value as "" | SituacaoEntrega)}
               className={selectClass}
             >
-              <option value="">Todos</option>
+              <option value="">{t("relatorio.opcao.todos")}</option>
               {Object.entries(SITUACOES_ENTREGA).map(([key, meta]) => (
                 <option key={key} value={key}>
-                  {meta.label}
+                  {labelSituacaoEntrega(t, key as SituacaoEntrega, meta.label)}
                 </option>
               ))}
             </select>
@@ -187,13 +193,13 @@ export function RelatorioEntregasConteudo() {
 
         <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-4">
           <div>
-            <label className={labelClass}>Entregador</label>
+            <label className={labelClass}>{t("relatorio.comum.entregador")}</label>
             <select
               value={entregador}
               onChange={(e) => setEntregador(e.target.value)}
               className={selectClass}
             >
-              <option value="">Todos</option>
+              <option value="">{t("relatorio.opcao.todos")}</option>
               {entregadores.map((nome) => (
                 <option key={nome} value={nome}>
                   {nome}
@@ -210,12 +216,12 @@ export function RelatorioEntregasConteudo() {
               }
               className={selectClass}
             >
-              <option value="pedido">Data Pedido</option>
-              <option value="finalizado">Data Finalizado</option>
+              <option value="pedido">{t("relatorio.comum.dataPedido")}</option>
+              <option value="finalizado">{t("relatorio.entregas.dataFinalizado")}</option>
             </select>
           </div>
           <div>
-            <label className={labelClass}>Data Início</label>
+            <label className={labelClass}>{t("relatorio.comum.dataInicio")}</label>
             <CampoDataBr
               value={dataInicio}
               onChange={setDataInicio}
@@ -225,7 +231,7 @@ export function RelatorioEntregasConteudo() {
             />
           </div>
           <div>
-            <label className={labelClass}>Data Final</label>
+            <label className={labelClass}>{t("relatorio.comum.dataFinal")}</label>
             <CampoDataBr
               value={dataFinal}
               onChange={setDataFinal}
@@ -271,20 +277,20 @@ export function RelatorioEntregasConteudo() {
           <table className="min-w-full text-left text-[11px]">
             <thead className="bg-slate-50 text-[10px] uppercase text-slate-500">
               <tr>
-                <th className="px-3 py-2">Data Pedido</th>
-                <th className="px-3 py-2">Destinatário</th>
-                <th className="px-3 py-2">Entregador</th>
-                <th className="px-3 py-2">OS</th>
-                <th className="px-3 py-2">Sit. OS</th>
-                <th className="px-3 py-2">Situação</th>
-                <th className="px-3 py-2 text-right">Valor</th>
+                <th className="px-3 py-2">{t("relatorio.comum.dataPedido")}</th>
+                <th className="px-3 py-2">{t("relatorio.comum.destinatario")}</th>
+                <th className="px-3 py-2">{t("relatorio.comum.entregador")}</th>
+                <th className="px-3 py-2">{t("relatorio.comum.os")}</th>
+                <th className="px-3 py-2">{t("relatorio.entregas.colunaSitOs")}</th>
+                <th className="px-3 py-2">{t("relatorio.comum.situacao")}</th>
+                <th className="px-3 py-2 text-right">{t("relatorio.comum.valor")}</th>
               </tr>
             </thead>
             <tbody>
               {linhas.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-3 py-6 text-center text-slate-500">
-                    Nenhuma entrega encontrada para os filtros selecionados.
+                    {t("relatorio.entregas.semEntregas")}
                   </td>
                 </tr>
               ) : (
@@ -294,8 +300,8 @@ export function RelatorioEntregasConteudo() {
                     <td className="px-3 py-2">{linha.destinatario}</td>
                     <td className="px-3 py-2">{linha.entregador}</td>
                     <td className="px-3 py-2">{linha.numeroOs}</td>
-                    <td className="px-3 py-2">{linha.situacaoOs || "—"}</td>
-                    <td className="px-3 py-2">{linha.situacaoLabel}</td>
+                    <td className="px-3 py-2">{trUi(linha.situacaoOs || "—", t, locale)}</td>
+                    <td className="px-3 py-2">{trUi(linha.situacaoLabel, t, locale)}</td>
                     <td className="px-3 py-2 text-right">{linha.valorLabel}</td>
                   </tr>
                 ))
@@ -305,9 +311,9 @@ export function RelatorioEntregasConteudo() {
               <tfoot>
                 <tr className="border-t border-slate-200 bg-slate-50 font-medium">
                   <td colSpan={6} className="px-3 py-2 text-right">
-                    Total ({linhas.length} registros)
+                    {t("relatorio.entregas.totalRegistros", { n: linhas.length })}
                   </td>
-                  <td className="px-3 py-2 text-right">R$ {money(totalValor)}</td>
+                  <td className="px-3 py-2 text-right">R$ {money(totalValor, locale)}</td>
                 </tr>
               </tfoot>
             ) : null}

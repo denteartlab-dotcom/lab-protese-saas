@@ -38,16 +38,22 @@ function money(value: number) {
   });
 }
 
-function DetalheCustosLinha({ itens }: { itens: ItemCustoMargem[] }) {
+function DetalheCustosLinha({
+  itens,
+  t,
+}: {
+  itens: ItemCustoMargem[];
+  t: ReturnType<typeof useI18n>["t"];
+}) {
   return (
     <tr className="print:break-inside-avoid">
       <td colSpan={4} className="p-0">
         <table className="w-full border-collapse text-[11px]">
           <thead>
             <tr className="border-b border-[#e5e7eb] dark:border-slate-700 bg-[#ececec] dark:bg-slate-700 text-[10px] font-semibold uppercase tracking-wide text-[#6b7280] dark:text-slate-400">
-              <th className="py-1.5 pl-8 text-left">Item</th>
-              <th className="w-[32%] py-1.5 text-center">Quantidade</th>
-              <th className="w-[22%] py-1.5 pr-8 text-right">Valor</th>
+              <th className="py-1.5 pl-8 text-left">{t("relatorio.margem.colunaItem")}</th>
+              <th className="w-[32%] py-1.5 text-center">{t("relatorio.comum.quantidade")}</th>
+              <th className="w-[22%] py-1.5 pr-8 text-right">{t("relatorio.comum.valor")}</th>
             </tr>
           </thead>
           <tbody>
@@ -74,10 +80,12 @@ function LinhasMargemTabela({
   linhas,
   expandidoId,
   onToggle,
+  t,
 }: {
   linhas: LinhaMargemContribuicao[];
   expandidoId: string | null;
   onToggle: (id: string) => void;
+  t: ReturnType<typeof useI18n>["t"];
 }) {
   return (
     <>
@@ -112,7 +120,7 @@ function LinhasMargemTabela({
               </td>
             </tr>
             {expandido && podeExpandir && (
-              <DetalheCustosLinha itens={linha.itensCusto} />
+              <DetalheCustosLinha itens={linha.itensCusto} t={t} />
             )}
           </Fragment>
         );
@@ -197,7 +205,7 @@ export function MargemContribuicaoConteudo() {
             custo: l.custo,
             margem: l.margem,
           })),
-          `Tabela: ${tabela || "—"}`
+          t("relatorio.margem.pdfTabela", { tabela: tabela || "—" })
         ),
       "margem-contribuicao.pdf"
     );
@@ -221,7 +229,7 @@ export function MargemContribuicaoConteudo() {
       <div className="overflow-hidden rounded-sm border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm print:border-0 print:shadow-none">
         <div className="flex flex-wrap items-end gap-x-4 gap-y-3 px-4 py-4 print:hidden">
           <div className="min-w-[220px] flex-1">
-            <label className={labelClass}>Selecione uma Tabela</label>
+            <label className={labelClass}>{t("relatorio.margem.selecioneTabela")}</label>
             <select
               className={selectClass}
               value={tabela}
@@ -236,7 +244,7 @@ export function MargemContribuicaoConteudo() {
           </div>
 
           <div className="w-[180px] shrink-0">
-            <label className={labelClass}>Ordenação</label>
+            <label className={labelClass}>{t("relatorio.margem.ordenacao")}</label>
             <select
               className={selectClass}
               value={ordenacao}
@@ -244,11 +252,11 @@ export function MargemContribuicaoConteudo() {
                 setOrdenacao(e.target.value as OrdenacaoMargemContribuicao)
               }
             >
-              <option value="nome_servico">Nome do Serviço</option>
-              <option value="valor">Valor</option>
-              <option value="custo">Custo</option>
-              <option value="margem">Margem de Contribuição</option>
-              <option value="margem_pct">Margem de Contribuição %</option>
+              <option value="nome_servico">{t("relatorio.margem.nomeServico")}</option>
+              <option value="valor">{t("relatorio.comum.valor")}</option>
+              <option value="custo">{t("relatorio.comum.custo")}</option>
+              <option value="margem">{t("relatorio.margem.margemContribuicao")}</option>
+              <option value="margem_pct">{t("relatorio.margem.margemContribuicaoPct")}</option>
             </select>
           </div>
 
@@ -259,7 +267,7 @@ export function MargemContribuicaoConteudo() {
               onChange={(e) => setSomenteComCustos(e.target.checked)}
               className="h-3.5 w-3.5 accent-[#4a90d9]"
             />
-            Mostrar apenas serviços com custos
+            {t("relatorio.margem.somenteComCustos")}
           </label>
 
           <div className="ml-auto flex shrink-0 items-end gap-2">
@@ -315,15 +323,15 @@ export function MargemContribuicaoConteudo() {
                     <table className="w-full min-w-[720px] border-collapse text-[11px]">
                       <thead>
                         <tr className="border-b border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 text-left text-[#6b7280] dark:text-slate-400">
-                          <th className="px-3 py-2 font-semibold uppercase">Serviço</th>
+                          <th className="px-3 py-2 font-semibold uppercase">{t("relatorio.comum.servico")}</th>
                           <th className="w-28 px-3 py-2 text-right font-semibold uppercase">
-                            Valor
+                            {t("relatorio.comum.valor")}
                           </th>
                           <th className="w-28 px-3 py-2 text-right font-semibold uppercase">
-                            Custos
+                            {t("relatorio.margem.colunaCustos")}
                           </th>
                           <th className="w-36 px-3 py-2 text-right font-semibold uppercase">
-                            Margem
+                            {t("relatorio.margem.colunaMargem")}
                           </th>
                         </tr>
                       </thead>
@@ -332,6 +340,7 @@ export function MargemContribuicaoConteudo() {
                           linhas={grupo.linhas}
                           expandidoId={expandidoId}
                           onToggle={toggleExpandido}
+                          t={t}
                         />
                       </tbody>
                     </table>

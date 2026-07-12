@@ -157,7 +157,7 @@ export function RelatorioRecibosEmitidosConteudo() {
                 />
               </div>
               <div>
-                <label className={labelClass}>Data de Recebimento</label>
+                <label className={labelClass}>{t("relatorio.recibos.dataRecebimento")}</label>
                 <div className="flex items-center gap-2">
                   <CampoDataBr
                     value={dataInicio}
@@ -184,7 +184,7 @@ export function RelatorioRecibosEmitidosConteudo() {
                 className="inline-flex h-[34px] items-center gap-2 rounded-sm bg-[#5cb85c] px-4 text-[12px] font-semibold text-white hover:bg-[#4cae4c]"
               >
                 <FileText className="h-4 w-4" />
-                Gerar Relatório
+                {t("relatorio.gerarRelatorio")}
               </button>
               <button
                 type="button"
@@ -217,23 +217,23 @@ export function RelatorioRecibosEmitidosConteudo() {
               </colgroup>
               <thead>
                 <tr className="bg-[#f3f4f6] dark:bg-slate-950 text-[#6b7280] dark:text-slate-400">
-                  <th className={thClass}>DATA</th>
-                  <th className={thClass}>CLIENTE</th>
-                  <th className={thClass}>VALOR</th>
-                  <th className={thClass}>OPÇÕES</th>
+                  <th className={thClass}>{t("relatorio.comum.data")}</th>
+                  <th className={thClass}>{t("relatorio.comum.cliente")}</th>
+                  <th className={thClass}>{t("relatorio.comum.valor")}</th>
+                  <th className={thClass}>{t("relatorio.recibos.colunaOpcoes")}</th>
                 </tr>
               </thead>
               <tbody>
                 {!gerado ? (
                   <tr>
                     <td colSpan={4} className="h-[280px] text-center text-[#9ca3af] dark:text-slate-500">
-                      Clique em Gerar Relatório para exibir os dados.
+                      {t("relatorio.gerarRelatorioHint")}
                     </td>
                   </tr>
                 ) : linhasExibidas.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="h-[280px] text-center text-[#9ca3af] dark:text-slate-500">
-                      Nenhum recibo encontrado no período.
+                      {t("relatorio.recibos.semRecibos")}
                     </td>
                   </tr>
                 ) : (
@@ -250,7 +250,7 @@ export function RelatorioRecibosEmitidosConteudo() {
                       <td className={tdClass}>
                         <button
                           type="button"
-                          title="Imprimir recibo"
+                          title={t("relatorio.recibos.imprimirRecibo")}
                           onClick={() => abrirReciboLinha(linha)}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-[#4a90d9] hover:bg-[#eef2ff] dark:bg-slate-800 print:hidden"
                         >

@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FileSpreadsheet, Printer, X } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
+import { localeDataIntl, trUi } from "@/lib/i18n/tr-ui";
+import { labelLinhaDre } from "@/lib/i18n/relatorio-dre-i18n";
+import { localeMoeda, nomeMesLocale } from "@/lib/i18n/relatorio-comum-i18n";
 import { DreGraficos } from "@/components/relatorios/DreGraficos";
 import { ImprimirDreModal } from "@/components/relatorios/ImprimirDreModal";
 import { RelatorioCabecalho } from "@/components/relatorios/RelatorioCabecalho";
@@ -44,8 +47,8 @@ const labelClass = "mb-1 block text-[11px] font-normal text-[#6b7280]";
 const selectClass =
   "h-[34px] w-[120px] rounded-sm border border-[#d1d5db] bg-white px-2 text-[12px] text-[#374151] outline-none focus:border-[#4a90d9]";
 
-function money(value: number) {
-  return value.toLocaleString("pt-BR", {
+function money(value: number, locale: ReturnType<typeof useI18n>["locale"]) {
+  return value.toLocaleString(localeMoeda(locale), {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -156,7 +159,7 @@ type DrilldownState = {
 };
 
 export function DreConteudo() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [lancamentos, setLancamentos] = useState<LancamentoDre[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [ano, setAno] = useState(new Date().getFullYear());
@@ -250,7 +253,10 @@ export function DreConteudo() {
   function abrirDrilldownMes(mesIndex: number) {
     setDrilldown({
       mesIndex,
-      titulo: t("relatorio.dre.lancamentosTitulo", { mes: MESES_DRE[mesIndex], ano }),
+      titulo: t("relatorio.dre.lancamentosTitulo", {
+        mes: nomeMesLocale(locale, mesIndex),
+        ano,
+      }),
     });
   }
 
@@ -259,7 +265,11 @@ export function DreConteudo() {
     setDrilldown({
       mesIndex,
       linhaId: linha.id,
-      titulo: `${linha.label} — ${MESES_DRE[mesIndex]} / ${ano}`,
+      titulo: t("relatorio.dre.tituloLinhaMes", {
+        linha: labelLinhaDre(t, linha.id),
+        mes: nomeMesLocale(locale, mesIndex),
+        ano,
+      }),
     });
   }
 
@@ -305,7 +315,7 @@ export function DreConteudo() {
                     : "border-transparent text-[#6b7280] hover:text-[#374151]"
                 )}
               >
-                Tabela
+                {t("relatorio.dre.tabela")}
               </button>
               <button
                 type="button"
@@ -317,7 +327,7 @@ export function DreConteudo() {
                     : "border-transparent text-[#6b7280] hover:text-[#374151]"
                 )}
               >
-                Gráficos
+                {t("relatorio.dre.graficos")}
               </button>
             </div>
           </div>
@@ -333,7 +343,7 @@ export function DreConteudo() {
                   : "border-[#7ec8e3] bg-[#e8f4fc] text-[#2563eb] hover:bg-[#dbeafe]"
               )}
             >
-              Indicativos
+              {t("relatorio.dre.indicativos")}
             </button>
             <button
               type="button"
@@ -381,7 +391,7 @@ export function DreConteudo() {
                           onClick={() => abrirDrilldownMes(mesIndex)}
                           className="m-0 w-full cursor-pointer border-0 bg-transparent p-0 text-[11px] font-semibold uppercase tracking-wide text-[#4a90d9] hover:underline print:no-underline"
                         >
-                          {mes}
+                          {nomeMesLocale(locale, mesIndex)}
                         </button>
                       </th>
                     ))}
@@ -409,7 +419,7 @@ export function DreConteudo() {
                               style={estiloColunaLabel(linha.estilo, ehLucro)}
                               className="pl-5 pr-3 text-left text-[12px]"
                             >
-                              {linha.label}
+                              {labelLinhaDre(t, linha.id)}
                             </td>
                             {linha.valores.map((valor, mesIndex) => (
                               <td
@@ -426,10 +436,10 @@ export function DreConteudo() {
                                     className={btnCelulaClass}
                                     style={{ color: corValor }}
                                   >
-                                    {money(valor)}
+                                    {money(valor, locale)}
                                   </button>
                                 ) : (
-                                  <span style={{ color: corValor }}>{money(valor)}</span>
+                                  <span style={{ color: corValor }}>{money(valor, locale)}</span>
                                 )}
                               </td>
                             ))}
@@ -446,7 +456,7 @@ export function DreConteudo() {
                               }}
                               className="pl-5 pr-3 text-left text-[12px]"
                             >
-                              {linha.label}
+                              {trUi(linha.label, t, locale)}
                             </td>
                             {linha.valores.map((valor, mesIndex) => (
                               <td
@@ -470,9 +480,7 @@ export function DreConteudo() {
             </div>
 
             <div className="border-t border-[#bfdbfe] bg-[#eff6ff] px-5 py-3.5 text-[12px] leading-relaxed text-[#1d4ed8] print:hidden">
-              A D.R.E. considera somente receitas já recebidas e despesas já pagas (status
-              Pago no Financeiro). Cobranças de OS pendentes não entram até o recebimento.
-              Para ver os lançamentos, clique no nome do mês ou nos valores.
+              {t("relatorio.dre.notaExplicativa")}
             </div>
           </>
         ) : (
@@ -523,22 +531,22 @@ export function DreConteudo() {
                       return (
                         <tr key={l.id} className="border-b border-[#f3f4f6]">
                           <td className="px-2 py-2 text-[#374151]">
-                            {new Date(l.data).toLocaleDateString("pt-BR")}
+                            {new Date(l.data).toLocaleDateString(localeDataIntl(locale))}
                           </td>
                           <td className="px-2 py-2 text-[#374151]">
-                            {descricaoLancamentoExibicao(l.descricao)}
+                            {trUi(descricaoLancamentoExibicao(l.descricao), t, locale)}
                           </td>
-                          <td className="px-2 py-2 text-[#6b7280]">{pack.categoria}</td>
+                          <td className="px-2 py-2 text-[#6b7280]">{trUi(pack.categoria, t, locale)}</td>
                           <td
                             className={cn(
                               "px-2 py-2 text-right font-medium",
                               l.tipo === "receita" ? "text-[#2e7d32]" : "text-[#c62828]"
                             )}
                           >
-                            {money(l.valor)}
+                            {money(l.valor, locale)}
                           </td>
                           <td className="px-2 py-2 capitalize text-[#6b7280]">
-                            {l.status}
+                            {trUi(l.status, t, locale)}
                           </td>
                         </tr>
                       );

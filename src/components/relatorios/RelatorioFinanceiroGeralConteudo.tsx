@@ -347,12 +347,10 @@ export function RelatorioFinanceiroGeralConteudo() {
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-[26px] font-semibold text-[#1f2937] dark:text-slate-100">
-              Relatório Financeiro Geral
+              {t("relatorio.financeiro.titulo")}
             </h1>
             <p className="mt-1 text-[13px] text-[#6b7280] dark:text-slate-400">
-              Produção em aberto (valor do serviço) e a receber de serviços Finalizados ou Entregues
-              no período (saldo em Contas a Receber, incluindo produto e transporte da OS). Saiu para
-              Entrega conta como em aberto.
+              {t("relatorio.financeiro.descricao")}
             </p>
           </div>
         </div>
@@ -360,7 +358,7 @@ export function RelatorioFinanceiroGeralConteudo() {
         <div className="mb-6 rounded-xl border border-[#e5e7eb] dark:border-slate-700 bg-[#fafafa] dark:bg-slate-800/70 p-4 shadow-sm">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <div>
-              <label className={labelClass}>Data Inicial</label>
+              <label className={labelClass}>{t("relatorio.financeiro.dataInicial")}</label>
               <CampoDataBr
                 value={filtros.dataInicio}
                 onChange={(v) => setFiltros((f) => ({ ...f, dataInicio: v }))}
@@ -371,7 +369,7 @@ export function RelatorioFinanceiroGeralConteudo() {
               />
             </div>
             <div>
-              <label className={labelClass}>Data Final</label>
+              <label className={labelClass}>{t("relatorio.comum.dataFinal")}</label>
               <CampoDataBr
                 value={filtros.dataFim}
                 onChange={(v) => setFiltros((f) => ({ ...f, dataFim: v }))}
@@ -397,7 +395,7 @@ export function RelatorioFinanceiroGeralConteudo() {
               </select>
             </div>
             <div>
-              <label className={labelClass}>Tipo de Serviço</label>
+              <label className={labelClass}>{t("relatorio.financeiro.tipoServico")}</label>
               <select
                 className={selectClass}
                 value={filtros.tipoServico}
@@ -445,7 +443,7 @@ export function RelatorioFinanceiroGeralConteudo() {
               className="inline-flex h-[34px] items-center gap-1.5 rounded-lg border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-[12px] font-medium text-[#374151] dark:text-slate-200 shadow-sm hover:bg-[#f9fafb] dark:bg-slate-800/70 disabled:opacity-50"
             >
               <FileText className="h-3.5 w-3.5" />
-              Exportar PDF
+              {t("relatorio.financeiro.exportarPdf")}
             </button>
             <button
               type="button"
@@ -1045,7 +1043,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                     {detalhesPagina.length === 0 ? (
                       <tr>
                         <td colSpan={10} className="px-3 py-8 text-center text-[#9ca3af] dark:text-slate-500">
-                          Nenhum serviço encontrado.
+                          {t("relatorio.financeiro.semServicos")}
                         </td>
                       </tr>
                     ) : null}
@@ -1060,7 +1058,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                     onClick={() => setPagina((p) => Math.max(1, p - 1))}
                     className="rounded-lg border border-[#e5e7eb] dark:border-slate-700 px-3 py-1 text-[12px] disabled:opacity-40"
                   >
-                    Anterior
+                    {t("relatorio.comum.anterior")}
                   </button>
                   <span className="text-[12px] text-[#6b7280] dark:text-slate-400">
                     Página {pagina} de {totalPaginas}
@@ -1071,7 +1069,7 @@ export function RelatorioFinanceiroGeralConteudo() {
                     onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
                     className="rounded-lg border border-[#e5e7eb] dark:border-slate-700 px-3 py-1 text-[12px] disabled:opacity-40"
                   >
-                    Próxima
+                    {t("relatorio.comum.proxima")}
                   </button>
                 </div>
               ) : null}
@@ -1104,7 +1102,7 @@ export function RelatorioFinanceiroGeralConteudo() {
         </div>
         {linhasConcluidosModal.length === 0 ? (
           <p className="py-8 text-center text-sm text-[#9ca3af] dark:text-slate-500">
-            Nenhuma OS concluída neste período.
+            {t("relatorio.financeiro.semOsConcluidas")}
           </p>
         ) : (
           <>
