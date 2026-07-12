@@ -14,11 +14,13 @@ import {
 import { useI18n } from "@/components/i18n-provider";
 import {
   labelLinhaFluxoMensal,
+  labelOpcaoFormaPagamentoFluxo,
+  traduzirContaFluxo,
   traduzirDescricaoFluxo,
   traduzirFormaPagamentoFluxo,
 } from "@/lib/i18n/relatorio-fluxo-i18n";
 import { localeMoeda, nomeMesLocale } from "@/lib/i18n/relatorio-comum-i18n";
-import { trUi } from "@/lib/i18n/tr-ui";
+import { iniciarImpressaoRelatorio } from "@/lib/i18n/print-relatorio-helpers";
 import { CampoDataBr } from "@/components/campo-data-br";
 import { RelatorioCabecalho } from "@/components/relatorios/RelatorioCabecalho";
 import {
@@ -60,8 +62,8 @@ const labelClass = "mb-1 block text-[11px] font-normal text-[#6b7280]";
 const inputDataFluxoClass =
   "h-[34px] w-full rounded-sm border border-[#d1d5db] bg-white text-[12px] text-[#374151] shadow-none focus:border-[#4a90d9] focus:ring-0";
 
-function money(value: number) {
-  return value.toLocaleString("pt-BR", {
+function money(value: number, locale: ReturnType<typeof useI18n>["locale"]) {
+  return value.toLocaleString(localeMoeda(locale), {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -266,10 +268,14 @@ export function FluxoDeCaixaConteudo() {
     setPdfProgresso(10);
     const janela = prepararAbaPdf();
     try {
+      iniciarImpressaoRelatorio({ locale });
       const contaLabel =
         conta === "Todos"
           ? t("relatorio.opcao.todas")
-          : contas.find((c) => c.id === conta || c.nome === conta)?.nome ?? conta;
+          : traduzirContaFluxo(
+              t,
+              contas.find((c) => c.id === conta || c.nome === conta)?.nome ?? conta
+            );
 
       setPdfProgresso(40);
       await abrirPdfBlobGerandoNoVisualizadorUnificado(
@@ -277,7 +283,7 @@ export function FluxoDeCaixaConteudo() {
           gerarRelatorioMovimentacaoPdf({
             linhas: resultadoDiario.linhas,
             contaLabel,
-            periodoLabel: labelPeriodoFluxoCaixa(periodo, dataInicio, dataFinal),
+            periodoLabel: labelPeriodoFluxoCaixa(periodo, dataInicio, dataFinal, locale),
             dataImpressao: dataImpressaoHoje(),
             totalGeral: resultadoDiario.saldoFinal,
           }),
@@ -359,7 +365,7 @@ export function FluxoDeCaixaConteudo() {
         <div className="flex items-center justify-between rounded border border-slate-200 bg-white px-5 py-4 shadow-sm">
           <div>
             <p className="text-2xl font-semibold text-slate-800">
-              {money(resultadoDiario.totalReceitas)}
+              {money(resultadoDiario.totalReceitas, locale)}
             </p>
             <p className="mt-0.5 text-[11px] text-slate-500">{t("relatorio.kpi.totalReceitas")}</p>
           </div>
@@ -370,7 +376,7 @@ export function FluxoDeCaixaConteudo() {
         <div className="flex items-center justify-between rounded border border-slate-200 bg-white px-5 py-4 shadow-sm">
           <div>
             <p className="text-2xl font-semibold text-slate-800">
-              {money(resultadoDiario.totalDespesas)}
+              {money(resultadoDiario.totalDespesas, locale)}
             </p>
             <p className="mt-0.5 text-[11px] text-slate-500">{t("relatorio.kpi.totalDespesas")}</p>
           </div>
@@ -393,7 +399,9 @@ export function FluxoDeCaixaConteudo() {
             >
               {opcoesConta.map((c) => (
                 <option key={c.id} value={c.id === "Todos" ? "Todos" : c.nome}>
-                  {c.id === "Todos" ? t("relatorio.opcao.todos") : c.nome}
+                  {c.id === "Todos"
+                    ? t("relatorio.opcao.todos")
+                    : traduzirContaFluxo(t, c.nome)}
                 </option>
               ))}
             </select>
@@ -415,9 +423,7 @@ export function FluxoDeCaixaConteudo() {
             >
               {formasOpcoes.map((f) => (
                 <option key={f} value={f}>
-                  {f === "Forma Pagamento"
-                    ? t("relatorio.filtro.formaPagamento")
-                    : traduzirFormaPagamentoFluxo(t, f)}
+                  {labelOpcaoFormaPagamentoFluxo(t, f)}
                 </option>
               ))}
             </select>
@@ -506,7 +512,9 @@ export function FluxoDeCaixaConteudo() {
               >
                 {opcoesConta.map((c) => (
                   <option key={c.id} value={c.id === "Todos" ? "Todos" : c.nome}>
-                    {c.id === "Todos" ? t("relatorio.opcao.todos") : c.nome}
+                    {c.id === "Todos"
+                      ? t("relatorio.opcao.todos")
+                      : traduzirContaFluxo(t, c.nome)}
                   </option>
                 ))}
               </select>
@@ -602,12 +610,12 @@ export function FluxoDeCaixaConteudo() {
                     <td className="px-4 py-3 text-[#374151]">
                       {traduzirFormaPagamentoFluxo(t, linha.forma)}
                     </td>
-                    <td className="px-4 py-3 text-[#374151]">{trUi(linha.conta, t, locale)}</td>
+                    <td className="px-4 py-3 text-[#374151]">{traduzirContaFluxo(t, linha.conta)}</td>
                     <td className="px-4 py-3 text-right text-[13px] font-normal text-[#4a90d9]">
-                      {linha.kind === "saldo_inicial" ? money(0) : money(linha.valor)}
+                      {linha.kind === "saldo_inicial" ? money(0, locale) : money(linha.valor, locale)}
                     </td>
                     <td className="px-4 py-3 text-right text-[13px] font-normal text-[#4a90d9]">
-                      {money(linha.saldo)}
+                      {money(linha.saldo, locale)}
                     </td>
                   </tr>
                 ))
@@ -655,7 +663,7 @@ export function FluxoDeCaixaConteudo() {
                         key={`${linha.id}-${mesIndex}`}
                         className="px-2 py-3 text-right text-[#374151]"
                       >
-                        {money(valor)}
+                        {money(valor, locale)}
                       </td>
                     ))}
                   </tr>
