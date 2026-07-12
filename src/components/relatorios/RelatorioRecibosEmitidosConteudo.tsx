@@ -42,7 +42,7 @@ function primeiroDiaMesBr() {
 }
 
 export function RelatorioRecibosEmitidosConteudo() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [carregando, setCarregando] = useState(true);
   const [lancamentos, setLancamentos] = useState<LancamentoReciboEmitido[]>([]);
   const [clienteId, setClienteId] = useState("todos");
@@ -105,7 +105,7 @@ export function RelatorioRecibosEmitidosConteudo() {
       setGerado(true);
     }
     void abrirPdfGerando(
-      () => gerarRelatorioRecibosEmitidosPdf(linhas, dataInicio, dataFim),
+      () => gerarRelatorioRecibosEmitidosPdf(linhas, dataInicio, dataFim, { locale }),
       "recibos-emitidos.pdf"
     );
   }

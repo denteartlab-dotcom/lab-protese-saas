@@ -398,7 +398,7 @@ function SelectSituacaoMulti({
 }
 
 export function RelatorioProducaoConteudo() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [carregando, setCarregando] = useState(true);
   const [trabalhos, setTrabalhos] = useState<TrabalhoRelatorioProducao[]>([]);
   const [gerado, setGerado] = useState(false);
@@ -670,7 +670,8 @@ export function RelatorioProducaoConteudo() {
         gerarRelatorioProducaoPdf(
           dados.linhas,
           titulo,
-          `${dataInicio} à ${dataFim}`
+          t("relatorio.comum.periodoAte", { inicio: dataInicio, fim: dataFim }),
+          { locale }
         ),
       "relatorio-producao.pdf"
     );

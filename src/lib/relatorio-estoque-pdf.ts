@@ -8,11 +8,16 @@ import type { TotaisPosicaoEstoque } from "@/lib/relatorio-estoque";
 import type { TotaisVendaProduto } from "@/lib/relatorio-estoque";
 import { gerarRelatorioTabelaPdf } from "@/lib/pdf-relatorio-tabela";
 import type { OpcaoRelatorioEstoque } from "@/lib/relatorio-estoque";
+import type { Locale } from "@/lib/i18n";
 import {
   iniciarImpressaoRelatorio,
   periodoRelatorioTexto,
   pl,
 } from "@/lib/i18n/print-relatorio-helpers";
+import {
+  traduzirTipoMovimentoEstoquePdf,
+  trImpressao,
+} from "@/lib/i18n/relatorio-print-i18n";
 
 function periodoLabel(dataInicio: string, dataFim: string) {
   return periodoRelatorioTexto(dataInicio || "—", dataFim || "—");
@@ -36,9 +41,10 @@ export async function gerarRelatorioEstoquePdf(
     | { tipo: "controle"; linhas: LinhaControleProduto[]; totais: TotaisControleProduto }
     | { tipo: "venda"; linhas: LinhaVendaProduto[]; totais: TotaisVendaProduto }
     | { tipo: "agrupado"; linhas: LinhaPosicaoEstoque[]; totais: TotaisPosicaoEstoque }
-    | { tipo: "movimentacao"; linhas: LinhaRelatorioEstoque[] }
+    | { tipo: "movimentacao"; linhas: LinhaRelatorioEstoque[] },
+  opts?: { locale?: Locale }
 ) {
-  iniciarImpressaoRelatorio();
+  iniciarImpressaoRelatorio({ locale: opts?.locale });
   const periodo = periodoLabel(dataInicio, dataFim);
   const titulo = tituloEstoque(modo);
 
@@ -59,8 +65,8 @@ export async function gerarRelatorioEstoquePdf(
       ],
       linhas: dados.linhas.map((l) => [
         l.codigo,
-        l.produto,
-        l.marca,
+        trImpressao(l.produto),
+        trImpressao(l.marca),
         l.estoqueAtualLabel,
         l.minimoLabel,
         l.maximoLabel,
@@ -92,8 +98,8 @@ export async function gerarRelatorioEstoquePdf(
       linhas: dados.linhas.map((l) => [
         l.dataEntregue,
         l.quantidadeLabel,
-        l.produto,
-        l.marca,
+        trImpressao(l.produto),
+        trImpressao(l.marca),
         moneyRelatorioEstoque(l.valorCusto),
         moneyRelatorioEstoque(l.venda),
         moneyRelatorioEstoque(l.lucro),
@@ -129,8 +135,8 @@ export async function gerarRelatorioEstoquePdf(
         { titulo: pl("print.relatorio.estoque.valor"), larguraMm: 26, alinhamento: "right" },
       ],
       linhas: dados.linhas.map((l) => [
-        l.produto,
-        l.marca,
+        trImpressao(l.produto),
+        trImpressao(l.marca),
         String(l.entradas),
         String(l.saidas),
         l.estoqueAtualLabel,
@@ -166,10 +172,10 @@ export async function gerarRelatorioEstoquePdf(
     ],
     linhas: dados.linhas.map((l) => [
       l.dataLabel,
-      l.tipo,
-      l.produto,
+      traduzirTipoMovimentoEstoquePdf(l.tipoKey),
+      trImpressao(l.produto),
       l.quantidadeLabel,
-      l.setor,
+      trImpressao(l.setor),
       l.colaborador,
     ]),
   });

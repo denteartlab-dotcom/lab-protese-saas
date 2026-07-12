@@ -7,6 +7,11 @@ import {
   iniciarImpressaoRelatorio,
   pl,
 } from "@/lib/i18n/print-relatorio-helpers";
+import {
+  traduzirContaPdf,
+  traduzirDescricaoPdf,
+  traduzirFormaPagamentoPdf,
+} from "@/lib/i18n/relatorio-print-i18n";
 import { localeDataIntl } from "@/lib/i18n/tr-ui";
 
 export type DadosRelatorioMovimentacao = {
@@ -15,6 +20,7 @@ export type DadosRelatorioMovimentacao = {
   periodoLabel: string;
   dataImpressao: string;
   totalGeral: number;
+  locale?: Locale;
 };
 
 function moneyPdf(value: number) {
@@ -40,7 +46,7 @@ export function labelPeriodoFluxoCaixa(
 export async function gerarRelatorioMovimentacaoPdf(
   dados: DadosRelatorioMovimentacao
 ): Promise<Blob> {
-  iniciarImpressaoRelatorio();
+  iniciarImpressaoRelatorio({ locale: dados.locale });
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = pdf.internal.pageSize.getWidth();
@@ -138,9 +144,9 @@ export async function gerarRelatorioMovimentacaoPdf(
       linha.kind === "saldo_inicial" ? moneyPdf(0) : moneyPdf(linha.valor);
     const cells = [
       linha.dataLabel,
-      linha.descricao,
-      linha.forma,
-      linha.conta,
+      traduzirDescricaoPdf(linha.descricao),
+      traduzirFormaPagamentoPdf(linha.forma),
+      traduzirContaPdf(linha.conta),
       valorTxt,
       moneyPdf(linha.saldo),
     ];

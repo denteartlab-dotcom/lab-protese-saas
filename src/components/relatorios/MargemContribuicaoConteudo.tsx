@@ -130,7 +130,7 @@ function LinhasMargemTabela({
 }
 
 export function MargemContribuicaoConteudo() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [tabelas, setTabelas] = useState<string[]>([]);
   const [tabela, setTabela] = useState("");
   const [ordenacao, setOrdenacao] = useState<OrdenacaoMargemContribuicao>("nome_servico");
@@ -205,7 +205,8 @@ export function MargemContribuicaoConteudo() {
             custo: l.custo,
             margem: l.margem,
           })),
-          t("relatorio.margem.pdfTabela", { tabela: tabela || "—" })
+          t("relatorio.margem.pdfTabela", { tabela: tabela || "—" }),
+          { locale }
         ),
       "margem-contribuicao.pdf"
     );

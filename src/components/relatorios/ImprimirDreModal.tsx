@@ -44,7 +44,7 @@ export function ImprimirDreModal({
   planoContas,
   anoPadrao,
 }: ImprimirDreModalProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [tipo, setTipo] = useState<TipoRelatorioDre>("detalhado");
   const [mesIndex, setMesIndex] = useState(new Date().getMonth());
   const [ano, setAno] = useState(anoPadrao);
@@ -106,7 +106,7 @@ export function ImprimirDreModal({
           categoriasSelecionadas
         );
         await abrirPdfBlobGerandoNoVisualizadorUnificado(
-          () => gerarRelatorioDreDetalhadoPdf(relatorio),
+          () => gerarRelatorioDreDetalhadoPdf(relatorio, { locale }),
           relatorio.titulo,
           `relatorio-dre-detalhado-${mesIndex + 1}-${ano}.pdf`,
           { janela, origem: t("relatorio.origemPdf") }
@@ -119,7 +119,7 @@ export function ImprimirDreModal({
           "resumo"
         );
         await abrirPdfBlobGerandoNoVisualizadorUnificado(
-          () => gerarRelatorioDrePdf(relatorio),
+          () => gerarRelatorioDrePdf(relatorio, { locale }),
           relatorio.titulo,
           `relatorio-dre-${mesIndex + 1}-${ano}.pdf`,
           { janela, origem: t("relatorio.origemPdf") }

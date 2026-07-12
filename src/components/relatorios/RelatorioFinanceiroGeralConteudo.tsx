@@ -164,7 +164,7 @@ type FiltroConcluidosMes =
 const ITENS_POR_PAGINA = 10;
 
 export function RelatorioFinanceiroGeralConteudo() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [filtros, setFiltros] = useState<FiltrosRelatorioFinanceiroGeral>({
     dataInicio: primeiroDiaAnoBr(),
     dataFim: hojeBr(),
@@ -269,7 +269,8 @@ export function RelatorioFinanceiroGeralConteudo() {
       exportarModalAReceberConcluidosPdf(
         tituloConcluidosModal,
         linhasConcluidosModal,
-        totalConcluidosModal
+        totalConcluidosModal,
+        { locale }
       )
     );
   };
@@ -328,7 +329,7 @@ export function RelatorioFinanceiroGeralConteudo() {
 
   const exportarPdf = () => {
     if (!dados) return;
-    void abrirPdfGerando(() => exportarRelatorioFinanceiroGeralPdf(dados, filtrosAplicados));
+    void abrirPdfGerando(() => exportarRelatorioFinanceiroGeralPdf(dados, filtrosAplicados, { locale }));
   };
 
   const exportarExcel = () => {

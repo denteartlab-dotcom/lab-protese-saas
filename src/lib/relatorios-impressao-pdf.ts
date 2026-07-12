@@ -16,18 +16,25 @@ import {
   type ModeloRelatorioEntregas,
 } from "@/lib/relatorio-entregas-tipos";
 import type { LinhaRelatorioProducao } from "@/lib/relatorio-producao";
-import {
-  STATUS_TEMPO_PRODUCAO,
-  PRIORIDADE_TEMPO_PRODUCAO,
-  type LinhaTempoProducao,
-} from "@/lib/tempo-producao-relatorio";
+import type { LinhaTempoProducao } from "@/lib/tempo-producao-relatorio";
 import { gerarRelatorioTabelaPdf } from "@/lib/pdf-relatorio-tabela";
+import type { Locale } from "@/lib/i18n";
 import {
   iniciarImpressaoRelatorio,
   moneyRelatorio,
   pl,
   tituloPeriodoCampo,
 } from "@/lib/i18n/print-relatorio-helpers";
+import {
+  diasAbrevPdf,
+  labelPrioridadeTempoProducaoPdf,
+  labelSemEntregadorPdf,
+  labelStatusTempoProducaoPdf,
+  periodoPdf,
+  traduzirFormaPagamentoPdf,
+  traduzirSituacaoPdf,
+  trImpressao,
+} from "@/lib/i18n/relatorio-print-i18n";
 import { formatDate, normalizarColaborador } from "@/lib/utils";
 
 function money(value: number) {
@@ -36,9 +43,10 @@ function money(value: number) {
 
 export async function gerarCurvaAbcClientesPdf(
   resultado: ResultadoCurvaAbcClientes,
-  periodoTexto: string
+  periodoTexto: string,
+  opts?: { locale?: Locale }
 ) {
-  iniciarImpressaoRelatorio();
+  iniciarImpressaoRelatorio({ locale: opts?.locale });
   const linhas: string[][] = [];
   for (const secao of resultado.secoes) {
     linhas.push([pl("print.relatorio.col.classeSecao", { classe: secao.classe, percentual: secao.metaPercentual }), "", ""]);
@@ -61,7 +69,7 @@ export async function gerarCurvaAbcClientesPdf(
     periodoTexto,
     colunas: [
       { titulo: pl("print.relatorio.cliente"), larguraMm: 88, alinhamento: "left" },
-      { titulo: "%", larguraMm: 28, alinhamento: "center" },
+      { titulo: pl("print.relatorio.col.percentual"), larguraMm: 28, alinhamento: "center" },
       { titulo: pl("print.relatorio.col.valor"), larguraMm: 60, alinhamento: "right" },
     ],
     linhas,
@@ -76,9 +84,10 @@ export async function gerarCurvaAbcClientesPdf(
 export async function gerarRelatorioProducaoPdf(
   linhas: LinhaRelatorioProducao[],
   titulo: string,
-  periodoTexto: string
+  periodoTexto: string,
+  opts?: { locale?: Locale }
 ) {
-  iniciarImpressaoRelatorio();
+  iniciarImpressaoRelatorio({ locale: opts?.locale });
   const corpo = linhas.filter((l) => l.tipo === "dados");
   return gerarRelatorioTabelaPdf({
     tituloRelatorio: titulo,
@@ -94,10 +103,10 @@ export async function gerarRelatorioProducaoPdf(
     linhas: corpo.map((l) => [
       l.data,
       l.os === "" ? "" : String(l.os),
-      l.descricao,
+      trImpressao(l.descricao),
       l.cliente,
       l.paciente,
-      l.situacao,
+      traduzirSituacaoPdf(l.situacao),
     ]),
   });
 }
@@ -170,9 +179,10 @@ export async function gerarRelatorioContasReceberPdf(
   tituloModelo: string,
   periodoLabel: string,
   modelo: ModeloRelatorioReceitas,
-  opcoes?: OpcoesImpressaoRelatorioReceitas
+  opcoes?: OpcoesImpressaoRelatorioReceitas,
+  opts?: { locale?: Locale }
 ) {
-  iniciarImpressaoRelatorio();
+  iniciarImpressaoRelatorio({ locale: opts?.locale });
   if (modeloEhExtratoIndividual(modelo) || modeloEhExtrato2Individual(modelo)) {
     return pdfExtratoFinanceiroIndividual(linhas, opcoes, modelo);
   }
@@ -299,10 +309,10 @@ export async function gerarRelatorioContasReceberPdf(
       l.parcela,
       l.cliente,
       l.os,
-      l.formaRecebimento,
+      traduzirFormaPagamentoPdf(l.formaRecebimento),
       money(l.valor),
       money(l.saldo),
-      l.situacao,
+      traduzirSituacaoPdf(l.situacao),
     ]),
     linhaTotal: {
       indiceRotulo: 5,
@@ -333,9 +343,10 @@ export async function gerarRelatorioDespesasPdf(
   linhas: LinhaRelatorioDespesa[],
   tituloModelo: string,
   periodoLabel: string,
-  opcoes?: OpcoesGerarRelatorioDespesasPdf
+  opcoes?: OpcoesGerarRelatorioDespesasPdf,
+  opts?: { locale?: Locale }
 ) {
-  iniciarImpressaoRelatorio();
+  iniciarImpressaoRelatorio({ locale: opts?.locale });
   if (opcoes?.modelo === "despesas-modelo-1") {
     const { gerarRelatorioDespesasModelo1Pdf } = await import(
       "@/lib/pdf-relatorio-despesas-modelo1"
@@ -362,8 +373,8 @@ export async function gerarRelatorioDespesasPdf(
     linhas: linhas.map((l) => [
       l.vencimento,
       l.nome,
-      l.categoria,
-      l.formaPagamento,
+      trImpressao(l.categoria),
+      traduzirFormaPagamentoPdf(l.formaPagamento),
       money(l.valor),
       l.status === "pago" ? pl("print.relatorio.situacao.pago") : pl("print.relatorio.situacao.pendente"),
     ]),
@@ -379,9 +390,10 @@ export async function gerarRelatorioEntregasPdf(
   linhas: LinhaRelatorioEntrega[],
   tituloModelo: string,
   periodoLabel: string,
-  modelo: ModeloRelatorioEntregas
+  modelo: ModeloRelatorioEntregas,
+  opts?: { locale?: Locale }
 ) {
-  iniciarImpressaoRelatorio();
+  iniciarImpressaoRelatorio({ locale: opts?.locale });
   const total = linhas.reduce((s, l) => s + l.valor, 0);
 
   if (modelo === "entregas-modelo-3") {
@@ -401,11 +413,11 @@ export async function gerarRelatorioEntregasPdf(
       linhas: linhas.map((l) => [
         l.dataPedido,
         l.destinatario,
-        l.entregador,
+        l.entregador === "Sem entregador" ? labelSemEntregadorPdf() : l.entregador,
         l.numeroOs,
-        l.situacaoOs || "—",
+        traduzirSituacaoPdf(l.situacaoOs || "—"),
         l.clienteOs || "—",
-        l.situacaoLabel,
+        traduzirSituacaoPdf(l.situacaoLabel),
         money(l.valor),
       ]),
       linhaTotal: {
@@ -419,13 +431,15 @@ export async function gerarRelatorioEntregasPdf(
   if (modelo === "entregas-modelo-2") {
     const rowsPdf: string[][] = [];
     for (const [entregador, grupo] of agruparPorEntregador(linhas)) {
-      rowsPdf.push([pl("print.relatorio.entregas.entregadorGrupo", { nome: entregador }), "", "", "", "", ""]);
+      const nomeEntregador =
+        entregador === "Sem entregador" ? labelSemEntregadorPdf() : entregador;
+      rowsPdf.push([pl("print.relatorio.entregas.entregadorGrupo", { nome: nomeEntregador }), "", "", "", "", ""]);
       for (const linha of grupo) {
         rowsPdf.push([
           linha.dataPedido,
           linha.destinatario,
-          linha.descricao,
-          linha.situacaoLabel,
+          trImpressao(linha.descricao),
+          traduzirSituacaoPdf(linha.situacaoLabel),
           money(linha.valor),
           linha.numeroOs,
         ]);
@@ -465,9 +479,9 @@ export async function gerarRelatorioEntregasPdf(
     linhas: linhas.map((l) => [
       l.dataPedido,
       l.destinatario,
-      l.entregador,
-      l.descricao,
-      l.situacaoLabel,
+      l.entregador === "Sem entregador" ? labelSemEntregadorPdf() : l.entregador,
+      trImpressao(l.descricao),
+      traduzirSituacaoPdf(l.situacaoLabel),
       money(l.valor),
     ]),
     linhaTotal: {
@@ -491,9 +505,10 @@ export type LinhaHistoricoEntregaPdf = {
 
 export async function gerarHistoricoEntregasPdf(
   linhas: LinhaHistoricoEntregaPdf[],
-  periodoTexto: string
+  periodoTexto: string,
+  opts?: { locale?: Locale }
 ) {
-  iniciarImpressaoRelatorio();
+  iniciarImpressaoRelatorio({ locale: opts?.locale });
   const total = linhas.reduce((s, l) => s + l.valor, 0);
 
   return gerarRelatorioTabelaPdf({
@@ -515,10 +530,10 @@ export async function gerarHistoricoEntregasPdf(
         : linhas.map((l) => [
             l.numeroOs,
             l.destinatario,
-            l.descricao,
-            l.entregador,
+            trImpressao(l.descricao),
+            l.entregador === "Sem entregador" ? labelSemEntregadorPdf() : l.entregador,
             l.entregueEm,
-            l.situacao,
+            traduzirSituacaoPdf(l.situacao),
             l.recebedor,
             money(l.valor),
           ]),
@@ -538,9 +553,10 @@ export async function gerarMargemContribuicaoPdf(
     custo: number;
     margem: number;
   }[],
-  periodoTexto: string
+  periodoTexto: string,
+  opts?: { locale?: Locale }
 ) {
-  iniciarImpressaoRelatorio();
+  iniciarImpressaoRelatorio({ locale: opts?.locale });
   return gerarRelatorioTabelaPdf({
     tituloRelatorio: pl("print.relatorio.margemContribuicao"),
     periodoTexto,
@@ -552,8 +568,8 @@ export async function gerarMargemContribuicaoPdf(
       { titulo: pl("print.relatorio.margem"), larguraMm: 28, alinhamento: "right" },
     ],
     linhas: linhas.map((l) => [
-      l.categoria,
-      l.nome,
+      trImpressao(l.categoria),
+      trImpressao(l.nome),
       money(l.valor),
       money(l.custo),
       money(l.margem),
@@ -563,9 +579,10 @@ export async function gerarMargemContribuicaoPdf(
 
 export async function gerarTempoProducaoPdf(
   linhas: LinhaTempoProducao[],
-  periodoTexto?: string
+  periodoTexto?: string,
+  opts?: { locale?: Locale }
 ) {
-  iniciarImpressaoRelatorio();
+  iniciarImpressaoRelatorio({ locale: opts?.locale });
   return gerarRelatorioTabelaPdf({
     tituloRelatorio: pl("print.relatorio.tempoProducao"),
     periodoTexto,
@@ -584,14 +601,14 @@ export async function gerarTempoProducaoPdf(
     linhas: linhas.map((l) => [
       String(l.numeroOs),
       l.paciente,
-      l.etapaAtual,
+      trImpressao(l.etapaAtual),
       normalizarColaborador(l.colaborador),
       normalizarColaborador(l.responsavelPeloAtraso),
       String(l.diasNoLaboratorio),
-      `${l.diasNaEtapaAtual}d`,
-      l.diasAtraso > 0 ? `${l.diasAtraso}d` : "—",
-      STATUS_TEMPO_PRODUCAO[l.status].label,
-      PRIORIDADE_TEMPO_PRODUCAO[l.prioridade].label,
+      diasAbrevPdf(l.diasNaEtapaAtual),
+      l.diasAtraso > 0 ? diasAbrevPdf(l.diasAtraso) : "—",
+      labelStatusTempoProducaoPdf(l.status),
+      labelPrioridadeTempoProducaoPdf(l.prioridade),
     ]),
   });
 }

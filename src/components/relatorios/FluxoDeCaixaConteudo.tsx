@@ -286,6 +286,7 @@ export function FluxoDeCaixaConteudo() {
             periodoLabel: labelPeriodoFluxoCaixa(periodo, dataInicio, dataFinal, locale),
             dataImpressao: dataImpressaoHoje(),
             totalGeral: resultadoDiario.saldoFinal,
+            locale,
           }),
         t("relatorio.fluxo.tituloPdf"),
         "relatorio-movimentacao.pdf",

@@ -2,6 +2,11 @@ import type { DreRelatorioMes, LinhaRelatorioDre } from "@/lib/dre-relatorio";
 import { formatarTooltip } from "@/lib/dre-graficos";
 import { iniciarImpressaoRelatorio, pl } from "@/lib/i18n/print-relatorio-helpers";
 import { formatMoneyImpressao } from "@/lib/i18n/print-i18n";
+import {
+  labelLinhaDrePdf,
+  tituloDrePdf,
+} from "@/lib/i18n/relatorio-print-i18n";
+import type { Locale } from "@/lib/i18n";
 
 function moneyPdf(value: number, comPrefixo: boolean) {
   const fmt = formatarTooltip(value);
@@ -31,9 +36,10 @@ function coresLinha(estilo: LinhaRelatorioDre["estilo"]) {
 }
 
 export async function gerarRelatorioDrePdf(
-  relatorio: DreRelatorioMes
+  relatorio: DreRelatorioMes,
+  opts?: { locale?: Locale }
 ): Promise<Blob> {
-  iniciarImpressaoRelatorio();
+  iniciarImpressaoRelatorio({ locale: opts?.locale });
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = pdf.internal.pageSize.getWidth();
@@ -69,7 +75,7 @@ export async function gerarRelatorioDrePdf(
         ? fmtPct(linha.valor)
         : moneyPdf(linha.valor, !!linha.prefixoMoeda);
 
-    pdf.text(linha.label, margin + 2, y + 4.8);
+    pdf.text(labelLinhaDrePdf(linha.label), margin + 2, y + 4.8);
     pdf.text(valorTxt, margin + colLabelW + colValorW - 2, y + 4.8, {
       align: "right",
     });
@@ -79,7 +85,12 @@ export async function gerarRelatorioDrePdf(
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(13);
   pdf.setTextColor(51, 51, 51);
-  pdf.text(relatorio.titulo, pageW / 2, y, { align: "center" });
+  pdf.text(
+    tituloDrePdf(relatorio.mesIndex, relatorio.ano),
+    pageW / 2,
+    y,
+    { align: "center" }
+  );
   y += 12;
 
   if (relatorio.linhas.length === 0) {

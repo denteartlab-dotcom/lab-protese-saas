@@ -501,7 +501,7 @@ function TabelaMovimentacaoEstoque({ linhas }: { linhas: LinhaRelatorioEstoque[]
 }
 
 export function RelatorioEstoqueConteudo() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const opcoesRelatorio = useMemo(() => opcoesRelatorioEstoqueI18n(t), [t]);
   const opcoesEstoque = useMemo(() => opcoesEstoqueControleI18n(t), [t]);
   const [carregando, setCarregando] = useState(true);
@@ -658,26 +658,26 @@ export function RelatorioEstoqueConteudo() {
           tipo: "controle",
           linhas: controle.linhas,
           totais: controle.totais,
-        });
+        }, { locale });
       }
       if (modoVenda) {
         return gerarRelatorioEstoquePdf("venda_produtos", dataInicio, dataFim, {
           tipo: "venda",
           linhas: venda.linhas,
           totais: venda.totais,
-        });
+        }, { locale });
       }
       if (modoAgrupado) {
         return gerarRelatorioEstoquePdf("movimentacao_agrupado", dataInicio, dataFim, {
           tipo: "agrupado",
           linhas: posicao.linhas,
           totais: posicao.totais,
-        });
+        }, { locale });
       }
       return gerarRelatorioEstoquePdf("movimentacao", dataInicio, dataFim, {
         tipo: "movimentacao",
         linhas: linhasMovimentacao,
-      });
+      }, { locale });
     }, "relatorio-estoque.pdf");
   }
 

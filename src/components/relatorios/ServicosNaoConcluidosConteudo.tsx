@@ -156,7 +156,7 @@ function SemDados({ t }: { t: ReturnType<typeof useI18n>["t"] }) {
 }
 
 export function ServicosNaoConcluidosConteudo() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const padrao = filtrosPadraoServicosNaoConcluidos();
   const [filtros, setFiltros] = useState<FiltrosServicosNaoConcluidos>(padrao);
   const [filtrosAplicados, setFiltrosAplicados] = useState<FiltrosServicosNaoConcluidos>(padrao);
@@ -218,7 +218,7 @@ export function ServicosNaoConcluidosConteudo() {
     try {
       if (tipo === "pdf") {
         await abrirPdfGerando(() =>
-          exportarServicosNaoConcluidosPdf(dados, filtrosAplicados)
+          exportarServicosNaoConcluidosPdf(dados, filtrosAplicados, { locale })
         );
       } else if (tipo === "excel") {
         exportarServicosNaoConcluidosExcel(dados, filtrosAplicados);

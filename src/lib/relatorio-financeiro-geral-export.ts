@@ -1,27 +1,43 @@
 import { baixarCsv } from "@/lib/exportar-csv";
 import { baixarExcel } from "@/lib/exportar-excel";
 import { gerarRelatorioTabelaPdf } from "@/lib/pdf-relatorio-tabela";
+import type { Locale } from "@/lib/i18n";
 import type {
   FiltrosRelatorioFinanceiroGeral,
   LinhaDetalheFinanceiroGeral,
   RelatorioFinanceiroGeralPayload,
 } from "@/lib/relatorio-financeiro-geral";
 import {
-  formatarMoedaFinanceiroGeral,
   formatarPercentualFinanceiroGeral,
   periodoTextoFinanceiroGeral,
 } from "@/lib/relatorio-financeiro-geral";
+import {
+  iniciarImpressaoRelatorio,
+  moneyRelatorio,
+  pl,
+} from "@/lib/i18n/print-relatorio-helpers";
+import {
+  labelMesFinanceiroPdf,
+  periodoPdfDeAte,
+  tradutorImpressao,
+  traduzirSituacaoPdf,
+  trImpressao,
+} from "@/lib/i18n/relatorio-print-i18n";
 
 function moeda(valor: number) {
-  return formatarMoedaFinanceiroGeral(valor);
+  return moneyRelatorio(valor);
 }
 
 export async function exportarRelatorioFinanceiroGeralPdf(
   dados: RelatorioFinanceiroGeralPayload,
-  filtros: FiltrosRelatorioFinanceiroGeral
+  filtros: FiltrosRelatorioFinanceiroGeral,
+  opts?: { locale?: Locale }
 ) {
+  iniciarImpressaoRelatorio({ locale: opts?.locale });
+  const t = tradutorImpressao();
+
   const linhasMes = dados.tabelaPorMes.map((m) => [
-    `${m.mes}/${m.ano}`,
+    labelMesFinanceiroPdf(m.mesIdx, m.ano),
     moeda(m.naoConcluido),
     moeda(m.concluido),
     moeda(m.total),
@@ -40,32 +56,32 @@ export async function exportarRelatorioFinanceiroGeralPdf(
   );
 
   return gerarRelatorioTabelaPdf({
-    tituloRelatorio: "Relatório Financeiro Geral",
-    periodoTexto: periodoTextoFinanceiroGeral(filtros),
+    tituloRelatorio: t("relatorio.financeiro.titulo"),
+    periodoTexto: periodoPdfDeAte(filtros.dataInicio, filtros.dataFim),
     colunas: [
-      { titulo: "Mês", larguraMm: 18 },
-      { titulo: "Não Concl.", larguraMm: 24, alinhamento: "right" },
-      { titulo: "A Receber", larguraMm: 24, alinhamento: "right" },
-      { titulo: "Total", larguraMm: 24, alinhamento: "right" },
-      { titulo: "Qtd", larguraMm: 12, alinhamento: "center" },
-      { titulo: "Ticket", larguraMm: 24, alinhamento: "right" },
+      { titulo: t("relatorio.comum.mes"), larguraMm: 18 },
+      { titulo: t("relatorio.financeiro.naoConcluido"), larguraMm: 24, alinhamento: "right" },
+      { titulo: t("relatorio.financeiro.aReceberConcluidosCol"), larguraMm: 24, alinhamento: "right" },
+      { titulo: pl("print.relatorio.total"), larguraMm: 24, alinhamento: "right" },
+      { titulo: t("relatorio.financeiro.colunaQtd"), larguraMm: 12, alinhamento: "center" },
+      { titulo: t("relatorio.financeiro.colunaTicket"), larguraMm: 24, alinhamento: "right" },
     ],
     linhas: [
       ...linhasMes,
       ...dados.detalhes.slice(0, 40).map((d) => [
         String(d.numeroOs),
         d.cliente,
-        d.servico,
+        trImpressao(d.servico),
         moeda(d.valor),
         d.dataEntrada,
-        d.statusLabel,
+        traduzirSituacaoPdf(d.statusLabel),
       ]),
     ],
     linhaTotal: {
       indiceRotulo: 0,
-      rotulo: "TOTAL",
+      rotulo: pl("print.relatorio.total"),
       celulas: [
-        "TOTAL",
+        pl("print.relatorio.total"),
         moeda(totalMes.nao),
         moeda(totalMes.sim),
         moeda(totalMes.total),
@@ -79,32 +95,42 @@ export async function exportarRelatorioFinanceiroGeralPdf(
 export async function exportarModalAReceberConcluidosPdf(
   titulo: string,
   linhas: LinhaDetalheFinanceiroGeral[],
-  total: number
+  total: number,
+  opts?: { locale?: Locale }
 ) {
+  iniciarImpressaoRelatorio({ locale: opts?.locale });
+  const t = tradutorImpressao();
+
   return gerarRelatorioTabelaPdf({
-    tituloRelatorio: titulo,
-    periodoTexto:
-      "Valores a receber (serviço + produto + transporte da mesma OS, saldo em Contas a Receber ou valor da OS)",
+    tituloRelatorio: trImpressao(titulo),
+    periodoTexto: t("relatorio.financeiro.pdfDescricaoAReceber"),
     colunas: [
-      { titulo: "OS", larguraMm: 14 },
-      { titulo: "Cliente", larguraMm: 36 },
-      { titulo: "Serviço", larguraMm: 36 },
-      { titulo: "Conclusão", larguraMm: 22 },
-      { titulo: "Situação", larguraMm: 28 },
-      { titulo: "A receber", larguraMm: 28, alinhamento: "right" },
+      { titulo: pl("print.extrato.os"), larguraMm: 14 },
+      { titulo: pl("print.relatorio.cliente"), larguraMm: 36 },
+      { titulo: pl("print.relatorio.col.servico"), larguraMm: 36 },
+      { titulo: t("relatorio.financeiro.colunaConclusao"), larguraMm: 22 },
+      { titulo: t("relatorio.financeiro.colunaStatus"), larguraMm: 28 },
+      { titulo: t("relatorio.comum.aReceber"), larguraMm: 28, alinhamento: "right" },
     ],
     linhas: linhas.map((l) => [
       String(l.numeroOs),
       l.cliente,
-      l.servico,
+      trImpressao(l.servico),
       l.dataConclusao,
-      l.statusLabel,
+      traduzirSituacaoPdf(l.statusLabel),
       moeda(l.valor),
     ]),
     linhaTotal: {
       indiceRotulo: 0,
-      rotulo: `TOTAL (${linhas.length} OS)`,
-      celulas: [`TOTAL (${linhas.length} OS)`, null, null, null, null, moeda(total)],
+      rotulo: t("relatorio.financeiro.totalOs", { n: linhas.length }),
+      celulas: [
+        t("relatorio.financeiro.totalOs", { n: linhas.length }),
+        null,
+        null,
+        null,
+        null,
+        moeda(total),
+      ],
     },
   });
 }
@@ -113,7 +139,7 @@ export function exportarRelatorioFinanceiroGeralExcel(
   dados: RelatorioFinanceiroGeralPayload,
   filtros: FiltrosRelatorioFinanceiroGeral
 ) {
-  const periodo = periodoTextoFinanceiroGeral(filtros).replace(/\//g, "-");
+  const periodo = periodoPdfDeAte(filtros.dataInicio, filtros.dataFim).replace(/\//g, "-");
   void baixarExcel(
     `relatorio-financeiro-geral-${periodo}`,
     [

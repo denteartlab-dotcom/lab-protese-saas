@@ -124,7 +124,7 @@ function TabelaSecaoAbc({ secao }: { secao: SecaoCurvaAbc }) {
 }
 
 export function CurvaAbcClientesConteudo() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [carregando, setCarregando] = useState(true);
   const [recebimentos, setRecebimentos] = useState<RecebimentoCurvaAbc[]>([]);
   const [indiceTrabalhos, setIndiceTrabalhos] = useState<IndiceTrabalhosCurvaAbc>(() =>
@@ -230,7 +230,7 @@ export function CurvaAbcClientesConteudo() {
     if (!gerado) setGerado(true);
     const periodo = t("relatorio.comum.periodoAte", { inicio: dataInicio, fim: dataFim });
     void abrirPdfGerando(
-      () => gerarCurvaAbcClientesPdf(dados, periodo),
+      () => gerarCurvaAbcClientesPdf(dados, periodo, { locale }),
       "curva-abc-clientes.pdf"
     );
   }

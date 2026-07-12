@@ -1,14 +1,28 @@
 import type { DreRelatorioDetalhadoItens } from "@/lib/dre-relatorio-detalhado";
 import { formatarTooltip } from "@/lib/dre-graficos";
+import type { Locale } from "@/lib/i18n";
+import { iniciarImpressaoRelatorio, pl } from "@/lib/i18n/print-relatorio-helpers";
+import { formatMoneyImpressao } from "@/lib/i18n/print-i18n";
+import {
+  labelGrupoDreDetalhadoPdf,
+  labelTotalDreDetalhadoPdf,
+  tituloDrePdf,
+  traduzirDescricaoPdf,
+  traduzirFormaPagamentoPdf,
+  tradutorImpressao,
+} from "@/lib/i18n/relatorio-print-i18n";
 
 function moneyPdf(value: number, comPrefixo = false) {
   const fmt = formatarTooltip(value);
-  return comPrefixo ? `R$ ${fmt}` : fmt;
+  return comPrefixo ? formatMoneyImpressao(value) : fmt;
 }
 
 export async function gerarRelatorioDreDetalhadoPdf(
-  relatorio: DreRelatorioDetalhadoItens
+  relatorio: DreRelatorioDetalhadoItens,
+  opts?: { locale?: Locale }
 ): Promise<Blob> {
+  iniciarImpressaoRelatorio({ locale: opts?.locale });
+  const t = tradutorImpressao();
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = pdf.internal.pageSize.getWidth();
@@ -41,7 +55,12 @@ export async function gerarRelatorioDreDetalhadoPdf(
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(8);
     pdf.setTextColor(75, 85, 99);
-    const headers = ["Data", "Descrição", "Forma", "Valor"];
+    const headers = [
+      pl("print.extrato.data"),
+      pl("print.relatorio.col.descricao"),
+      pl("print.relatorio.col.forma"),
+      pl("print.relatorio.col.valor"),
+    ];
     headers.forEach((h, i) => {
       const align = i === 3 ? "right" : "left";
       const x = i === 3 ? colX[i] + colWidths[i] - 2 : colX[i] + 2;
@@ -80,7 +99,7 @@ export async function gerarRelatorioDreDetalhadoPdf(
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(8);
     const centro = margin + tableW / 2;
-    pdf.text("Subtotal", centro, y + 4.2, { align: "center" });
+    pdf.text(t("relatorio.dre.detalhe.subtotal"), centro, y + 4.2, { align: "center" });
     pdf.text(moneyPdf(valor, true), colX[3] + colWidths[3] - 2, y + 4.2, {
       align: "right",
     });
@@ -97,7 +116,7 @@ export async function gerarRelatorioDreDetalhadoPdf(
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(9);
     pdf.setTextColor(55, 65, 81);
-    pdf.text(titulo, margin + 2, y + 4.8);
+    pdf.text(labelGrupoDreDetalhadoPdf(titulo), margin + 2, y + 4.8);
     y += headerSecaoH;
     desenharCabecalhoTabela();
   }
@@ -122,18 +141,17 @@ export async function gerarRelatorioDreDetalhadoPdf(
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(13);
   pdf.setTextColor(51, 51, 51);
-  pdf.text(relatorio.titulo, pageW / 2, y, { align: "center" });
+  pdf.text(tituloDrePdf(relatorio.mesIndex, relatorio.ano), pageW / 2, y, {
+    align: "center",
+  });
   y += 14;
 
   if (relatorio.secoes.length === 0) {
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(10);
-    pdf.text(
-      "Nenhum lançamento encontrado para as categorias e o período selecionados.",
-      pageW / 2,
-      y,
-      { align: "center" }
-    );
+    pdf.text(t("relatorio.dre.detalhe.semLancamentos"), pageW / 2, y, {
+      align: "center",
+    });
   }
 
   for (const secao of relatorio.secoes) {
@@ -142,14 +160,17 @@ export async function gerarRelatorioDreDetalhadoPdf(
       for (const item of grupo.itens) {
         desenharLinhaItem(
           item.dataLabel,
-          item.descricao,
-          item.formaPagamento,
+          traduzirDescricaoPdf(item.descricao),
+          traduzirFormaPagamentoPdf(item.formaPagamento),
           item.valor
         );
       }
       desenharSubtotal(grupo.subtotal);
     }
-    desenharTotalSecao(secao.rotuloTotal, secao.totalSecao);
+    desenharTotalSecao(
+      labelTotalDreDetalhadoPdf(secao.categoriaId, secao.rotuloTotal),
+      secao.totalSecao
+    );
   }
 
   return pdf.output("blob");

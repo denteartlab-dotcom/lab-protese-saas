@@ -7,6 +7,7 @@ import {
   type EntregaControle,
   type SituacaoEntrega,
 } from "@/lib/controle-entregas";
+import type { Locale } from "@/lib/i18n";
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import { gerarRelatorioEntregasPdf } from "@/lib/relatorios-impressao-pdf";
 import { metaStatusOs } from "@/lib/status-os";
@@ -275,12 +276,13 @@ export async function carregarTrabalhosParaRelatorioEntregas(): Promise<
 export async function imprimirRelatorioEntregas(
   linhas: LinhaRelatorioEntrega[],
   filtro: FiltroRelatorioEntregas,
-  _janelaReservada?: Window | null
+  _janelaReservada?: Window | null,
+  opts?: { locale?: Locale }
 ) {
   const tituloModelo = modeloLabelRelatorioEntregas(filtro.modelo);
   const periodo = periodoLabelRelatorioEntregas(filtro);
   await abrirPdfGerando(
-    () => gerarRelatorioEntregasPdf(linhas, tituloModelo, periodo, filtro.modelo),
+    () => gerarRelatorioEntregasPdf(linhas, tituloModelo, periodo, filtro.modelo, opts),
     "relatorio-entregas.pdf",
     `Relatório Entregas — ${tituloModelo}`
   );

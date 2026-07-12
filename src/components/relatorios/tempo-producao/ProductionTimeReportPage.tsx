@@ -40,7 +40,7 @@ const filtrosIniciais: FiltrosTempoProducao = {};
 const POR_PAGINA_PADRAO = 15;
 
 export function ProductionTimeReportPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [filtros, setFiltros] = useState<FiltrosTempoProducao>(filtrosIniciais);
   const [linhas, setLinhas] = useState<LinhaTempoProducao[]>([]);
   const [resumo, setResumo] = useState<ResumoTempoProducao | null>(null);
@@ -133,7 +133,8 @@ export function ProductionTimeReportPage() {
                 inicio: filtros.dataInicio || "…",
                 fim: filtros.dataFim || "…",
               })
-            : t("relatorio.comum.todasOsProducao")
+            : t("relatorio.comum.todasOsProducao"),
+          { locale }
         )
       );
     } finally {
