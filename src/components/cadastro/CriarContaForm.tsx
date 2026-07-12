@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { AsaasSeloInstitucional } from "@/components/AsaasSeloInstitucional";
+import { useI18n } from "@/components/i18n-provider";
 import { LogoMarcaDenteArt } from "@/components/LogoMarcaDenteArt";
 import { SeletorPaisComBusca } from "@/components/cadastro/SeletorPaisComBusca";
 import { salvarUltimoLaboratorioLogin } from "@/lib/auth-client";
@@ -15,6 +16,7 @@ import { formatarTelefone } from "@/lib/validar-documento";
 import { validarForcaSenha } from "@/lib/validar-senha";
 
 export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }) {
+  const { t } = useI18n();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [enviandoCodigo, setEnviandoCodigo] = useState(false);
@@ -56,7 +58,7 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
     setInfoCodigo("");
     const email = form.email.trim();
     if (!email) {
-      setError("Informe o e-mail antes de solicitar o código.");
+      setError(t("login.informeEmailCodigo"));
       return;
     }
 
@@ -194,7 +196,7 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
           </div>
 
           <h1 className="mb-6 text-center text-lg font-bold text-slate-900">
-            Crie sua conta grátis 🚀
+            {t("cadastro.titulo")}
           </h1>
 
           <form onSubmit={handleSubmit} className="space-y-3.5">

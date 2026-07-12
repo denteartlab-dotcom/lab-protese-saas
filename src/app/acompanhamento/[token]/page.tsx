@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PackageCheck, Search } from "lucide-react";
 import { useParams, useSearchParams } from "next/navigation";
+import { useI18n } from "@/components/i18n-provider";
 import {
   compararTrabalhosAcompanhamento,
   opcoesFiltroSituacaoAcompanhamento,
@@ -31,6 +32,7 @@ function formatarDataHora(iso: string) {
 }
 
 export default function AcompanhamentoClientePage() {
+  const { t } = useI18n();
   const params = useParams();
   const searchParams = useSearchParams();
   const token = String(params.token || "");
@@ -57,7 +59,7 @@ export default function AcompanhamentoClientePage() {
         token
       );
       if (!res.ok) {
-        setErro(res.message || res.error || "Link indisponível.");
+        setErro(res.message || res.error || t("acompanhamento.linkIndisponivel"));
         setDados(null);
         return;
       }
@@ -65,7 +67,7 @@ export default function AcompanhamentoClientePage() {
       setDados(res.dados.entidade);
       setUltimaAtualizacao(new Date());
     } catch {
-      setErro("Não foi possível carregar o acompanhamento.");
+      setErro(t("acompanhamento.erroCarregar"));
       setDados(null);
     } finally {
       if (!silencioso) setCarregando(false);
@@ -97,15 +99,15 @@ export default function AcompanhamentoClientePage() {
         const json = await res.json();
         if (!res.ok) {
           setUrgenteErro(true);
-          setUrgenteMsg(json.message || "Não foi possível sinalizar como urgente.");
+          setUrgenteMsg(json.message || t("acompanhamento.erroUrgente"));
           return;
         }
         setUrgenteErro(false);
-        setUrgenteMsg(json.message || "Trabalho sinalizado como urgente.");
+        setUrgenteMsg(json.message || t("acompanhamento.sucessoUrgente"));
         await carregar(true);
       } catch {
         setUrgenteErro(true);
-        setUrgenteMsg("Não foi possível sinalizar como urgente.");
+        setUrgenteMsg(t("acompanhamento.erroUrgente"));
       } finally {
         setUrgenteEnviando(null);
       }
@@ -127,15 +129,15 @@ export default function AcompanhamentoClientePage() {
         const json = await res.json();
         if (!res.ok) {
           setUrgenteErro(true);
-          setUrgenteMsg(json.message || "Não foi possível remover a urgência.");
+          setUrgenteMsg(json.message || t("acompanhamento.erroRemoverUrgente"));
           return;
         }
         setUrgenteErro(false);
-        setUrgenteMsg(json.message || "Urgência removida.");
+        setUrgenteMsg(json.message || t("acompanhamento.sucessoRemoverUrgente"));
         await carregar(true);
       } catch {
         setUrgenteErro(true);
-        setUrgenteMsg("Não foi possível remover a urgência.");
+        setUrgenteMsg(t("acompanhamento.erroRemoverUrgente"));
       } finally {
         setUrgenteRemovendo(null);
       }
@@ -148,7 +150,7 @@ export default function AcompanhamentoClientePage() {
     const nome = nomeRecebedor.trim();
     if (nome.length < 2) {
       setUrgenteErro(true);
-      setUrgenteMsg("Informe o nome de quem recebeu (mínimo 2 caracteres).");
+      setUrgenteMsg(t("acompanhamento.erroNomeRecebedor"));
       return;
     }
 
@@ -167,17 +169,17 @@ export default function AcompanhamentoClientePage() {
       const json = await res.json();
       if (!res.ok) {
         setUrgenteErro(true);
-        setUrgenteMsg(json.message || "Não foi possível confirmar o recebimento.");
+        setUrgenteMsg(json.message || t("acompanhamento.erroConfirmarRecebimento"));
         return;
       }
       setUrgenteErro(false);
-      setUrgenteMsg(json.message || "Recebimento confirmado. Obrigado!");
+      setUrgenteMsg(json.message || t("acompanhamento.sucessoRecebimento"));
       setRecebidoModalTrabalhoId(null);
       setNomeRecebedor("");
       await carregar(true);
     } catch {
       setUrgenteErro(true);
-      setUrgenteMsg("Não foi possível confirmar o recebimento.");
+      setUrgenteMsg(t("acompanhamento.erroConfirmarRecebimento"));
     } finally {
       setRecebidoEnviando(false);
     }
@@ -215,7 +217,7 @@ export default function AcompanhamentoClientePage() {
   if (carregando && !dados) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-500">
-        Carregando acompanhamento…
+        {t("acompanhamento.carregando")}
       </div>
     );
   }
@@ -224,7 +226,7 @@ export default function AcompanhamentoClientePage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
         <div className="max-w-md rounded-lg border border-slate-200 bg-white p-6 text-center shadow-sm">
-          <p className="text-sm text-slate-600">{erro || "Link inválido."}</p>
+          <p className="text-sm text-slate-600">{erro || t("acompanhamento.linkInvalido")}</p>
         </div>
       </div>
     );
@@ -237,18 +239,19 @@ export default function AcompanhamentoClientePage() {
           {dados.labNome}
         </p>
         <h1 className="mt-1 text-lg font-medium text-slate-800">
-          Acompanhamento de produção
+          {t("acompanhamento.titulo")}
         </h1>
         <p className="mt-1 text-sm text-slate-600">
           {dados.cliente.nomeExibicao || dados.cliente.nome}
         </p>
         {ultimaAtualizacao ? (
           <p className="mt-2 text-[11px] text-slate-400">
-            Atualizado automaticamente às{" "}
-            {ultimaAtualizacao.toLocaleTimeString("pt-BR", {
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
+            {t("acompanhamento.atualizadoAs", {
+              hora: ultimaAtualizacao.toLocaleTimeString("pt-BR", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              }),
             })}
           </p>
         ) : null}
@@ -260,7 +263,7 @@ export default function AcompanhamentoClientePage() {
             <aside className="md:w-52 md:shrink-0">
               <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm md:sticky md:top-4">
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                  Situação
+                  {t("acompanhamento.situacao")}
                 </p>
                 <nav className="flex gap-2 overflow-x-auto pb-1 md:flex-col md:overflow-visible md:pb-0">
                   <button
@@ -273,7 +276,7 @@ export default function AcompanhamentoClientePage() {
                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     )}
                   >
-                    <span>Todos</span>
+                    <span>{t("acompanhamento.todos")}</span>
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
                       {dados.trabalhos.length}
                     </span>
@@ -317,8 +320,12 @@ export default function AcompanhamentoClientePage() {
         {dados.trabalhos.length > 0 ? (
           <>
             <p className="text-[11px] text-slate-500">
-              Urgências: {dados.limitesUrgencia.ativos}/{dados.limitesUrgencia.maxAtivos}{" "}
-              ativas · {dados.limitesUrgencia.hoje}/{dados.limitesUrgencia.maxPorDia} hoje
+              {t("acompanhamento.urgenciasResumo", {
+                ativos: dados.limitesUrgencia.ativos,
+                maxAtivos: dados.limitesUrgencia.maxAtivos,
+                hoje: dados.limitesUrgencia.hoje,
+                maxDia: dados.limitesUrgencia.maxPorDia,
+              })}
             </p>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -326,7 +333,7 @@ export default function AcompanhamentoClientePage() {
                 type="search"
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
-                placeholder="Buscar por paciente ou número da OS…"
+                placeholder={t("acompanhamento.buscarPlaceholder")}
                 className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-800 shadow-sm outline-none placeholder:text-slate-400 focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]/30"
               />
             </div>
@@ -334,58 +341,58 @@ export default function AcompanhamentoClientePage() {
         ) : null}
         {dados.trabalhos.length === 0 ? (
           <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-            Nenhum trabalho disponível para acompanhamento.
+            {t("acompanhamento.nenhumTrabalho")}
           </div>
         ) : trabalhosFiltrados.length === 0 ? (
           <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
             {busca.trim()
-              ? `Nenhum trabalho encontrado para "${busca.trim()}".`
-              : "Nenhum trabalho com a situação selecionada."}
+              ? t("acompanhamento.nenhumBusca", { termo: busca.trim() })
+              : t("acompanhamento.nenhumFiltro")}
           </div>
         ) : (
-          trabalhosFiltrados.map((t) => (
+          trabalhosFiltrados.map((trabalho) => (
             <article
-              key={t.id}
+              key={trabalho.id}
               className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
             >
               <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-100 bg-slate-50/80 px-4 py-3">
                 <div>
                   <p className="text-[11px] font-semibold uppercase text-slate-400">
-                    OS {t.numeroOs}
+                    OS {trabalho.numeroOs}
                   </p>
                   <p className="text-sm font-medium text-slate-800">
-                    {t.pacienteNome}
+                    {trabalho.pacienteNome}
                   </p>
-                  <p className="text-[12px] text-slate-500">{t.tipoProtese}</p>
-                  {t.etapaAtual ? (
+                  <p className="text-[12px] text-slate-500">{trabalho.tipoProtese}</p>
+                  {trabalho.etapaAtual ? (
                     <p className="mt-1 text-[11px] font-medium text-[#4a90d9]">
-                      Etapa atual: {t.etapaAtual}
+                      {t("acompanhamento.etapaAtual", { etapa: trabalho.etapaAtual })}
                     </p>
                   ) : null}
                 </div>
                 <div className="flex flex-col items-end gap-1">
-                  {t.urgente ? (
+                  {trabalho.urgente ? (
                     <span className="rounded-full bg-red-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-red-700">
-                      Urgente
+                      {t("acompanhamento.urgente")}
                     </span>
                   ) : null}
                   <span
                     className={cn(
                       "rounded-full px-2.5 py-1 text-[11px] font-semibold",
-                      t.statusColor
+                      trabalho.statusColor
                     )}
                   >
-                    {t.statusLabel}
+                    {trabalho.statusLabel}
                   </span>
-                  {t.historicoRecebimento ? (
+                  {trabalho.historicoRecebimento ? (
                     <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-0.5 text-[10px] text-teal-800">
                       <p>
-                        <span className="font-semibold">Recebido por:</span>{" "}
-                        {t.historicoRecebimento.nomeRecebedor}
+                        <span className="font-semibold">{t("acompanhamento.recebidoPor")}</span>{" "}
+                        {trabalho.historicoRecebimento.nomeRecebedor}
                       </p>
                       <p>
-                        <span className="font-semibold">Em:</span>{" "}
-                        {formatarDataHora(t.historicoRecebimento.registradoEm)}
+                        <span className="font-semibold">{t("acompanhamento.em")}</span>{" "}
+                        {formatarDataHora(trabalho.historicoRecebimento.registradoEm)}
                       </p>
                     </div>
                   ) : null}
@@ -394,30 +401,30 @@ export default function AcompanhamentoClientePage() {
 
               <div className="grid grid-cols-2 gap-2 border-b border-slate-100 px-4 py-3 text-[11px] text-slate-600">
                 <p>
-                  <span className="font-semibold text-slate-700">Entrada:</span>{" "}
-                  {formatDate(t.dataEntrada)}
+                  <span className="font-semibold text-slate-700">{t("acompanhamento.entrada")}</span>{" "}
+                  {formatDate(trabalho.dataEntrada)}
                 </p>
-                {t.dataPrevista ? (
+                {trabalho.dataPrevista ? (
                   <p>
-                    <span className="font-semibold text-slate-700">Previsão:</span>{" "}
-                    {formatDate(t.dataPrevista)}
+                    <span className="font-semibold text-slate-700">{t("acompanhamento.previsao")}</span>{" "}
+                    {formatDate(trabalho.dataPrevista)}
                   </p>
                 ) : null}
-                {t.dataEntrega ? (
+                {trabalho.dataEntrega ? (
                   <p className="col-span-2">
-                    <span className="font-semibold text-slate-700">Entrega:</span>{" "}
-                    {formatDate(t.dataEntrega)}
+                    <span className="font-semibold text-slate-700">{t("acompanhamento.entrega")}</span>{" "}
+                    {formatDate(trabalho.dataEntrega)}
                   </p>
                 ) : null}
               </div>
 
-              {t.etapas.length > 0 ? (
+              {trabalho.etapas.length > 0 ? (
                 <div className="px-4 py-2.5">
                   <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                    Etapas de produção
+                    {t("acompanhamento.etapasProducao")}
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {t.etapas.map((etapa, idx) => (
+                    {trabalho.etapas.map((etapa, idx) => (
                       <div
                         key={`${etapa.nome}-${idx}`}
                         title={[
@@ -444,15 +451,15 @@ export default function AcompanhamentoClientePage() {
                         <span className="mt-0.5 flex items-center gap-1">
                           {etapa.situacao === "atual" ? (
                             <span className="text-[10px] font-bold uppercase tracking-wide text-[#4a90d9]">
-                              Agora
+                              {t("acompanhamento.etapaAgora")}
                             </span>
                           ) : etapa.situacao === "concluida" ? (
                             <span className="text-[10px] font-bold uppercase tracking-wide text-emerald-600">
-                              Ok
+                              {t("acompanhamento.etapaOk")}
                             </span>
                           ) : (
                             <span className="text-[10px] uppercase tracking-wide text-slate-400">
-                              Pendente
+                              {t("acompanhamento.etapaPendente")}
                             </span>
                           )}
                         </span>
@@ -467,52 +474,52 @@ export default function AcompanhamentoClientePage() {
                 </div>
               ) : (
                 <p className="px-4 py-3 text-[12px] text-slate-400">
-                  Etapas serão exibidas conforme o laboratório atualizar a OS.
+                  {t("acompanhamento.etapasPendentes")}
                 </p>
               )}
 
               <div className="relative border-t border-slate-100 px-4 py-2">
                 <p className="text-[10px] text-slate-400">
-                  Última alteração: {formatarDataHora(t.atualizadoEm)}
+                  {t("acompanhamento.ultimaAlteracao", { data: formatarDataHora(trabalho.atualizadoEm) })}
                 </p>
                 <div className="absolute bottom-2 right-3 flex flex-wrap items-center justify-end gap-2">
-                  {t.podeConfirmarRecebido ? (
+                  {trabalho.podeConfirmarRecebido ? (
                     <button
                       type="button"
                       onClick={() => {
-                        setRecebidoModalTrabalhoId(t.id);
+                        setRecebidoModalTrabalhoId(trabalho.id);
                         setNomeRecebedor("");
                       }}
                       className="inline-flex items-center gap-1 rounded-full border border-teal-300 bg-teal-50 px-3 py-1.5 text-[11px] font-semibold text-teal-800 shadow-sm transition hover:bg-teal-100"
-                      title="Confirmar que você recebeu este trabalho"
+                      title={t("acompanhamento.recebidoTitulo")}
                     >
                       <PackageCheck className="h-3.5 w-3.5" />
-                      Recebido
+                      {t("acompanhamento.recebido")}
                     </button>
                   ) : null}
-                  {t.podeSolicitarUrgente ? (
+                  {trabalho.podeSolicitarUrgente ? (
                     <button
                       type="button"
-                      disabled={urgenteEnviando === t.id}
-                      onClick={() => void solicitarUrgente(t.id)}
+                      disabled={urgenteEnviando === trabalho.id}
+                      onClick={() => void solicitarUrgente(trabalho.id)}
                       className="inline-flex items-center gap-1 rounded-full border border-red-300 bg-red-50 px-3 py-1.5 text-[11px] font-semibold text-red-700 shadow-sm transition hover:bg-red-100 disabled:opacity-60"
-                      title="Sinalizar este trabalho como urgente"
+                      title={t("acompanhamento.urgenteTitulo")}
                     >
-                      {urgenteEnviando === t.id ? "Enviando…" : "⚡ Urgente"}
+                      {urgenteEnviando === trabalho.id ? t("acompanhamento.enviando") : t("acompanhamento.urgenteBotao")}
                     </button>
-                  ) : t.podeRemoverUrgente ? (
+                  ) : trabalho.podeRemoverUrgente ? (
                     <button
                       type="button"
-                      disabled={urgenteRemovendo === t.id}
-                      onClick={() => void removerUrgente(t.id)}
+                      disabled={urgenteRemovendo === trabalho.id}
+                      onClick={() => void removerUrgente(trabalho.id)}
                       className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
-                      title="Remover a marcação de urgência deste trabalho"
+                      title={t("acompanhamento.removerUrgenciaTitulo")}
                     >
-                      {urgenteRemovendo === t.id ? "Removendo…" : "Remover urgência"}
+                      {urgenteRemovendo === trabalho.id ? t("acompanhamento.removendo") : t("acompanhamento.removerUrgencia")}
                     </button>
-                  ) : t.urgente ? (
+                  ) : trabalho.urgente ? (
                     <span className="text-[10px] font-semibold uppercase text-red-600">
-                      Sinalizado urgente
+                      {t("acompanhamento.sinalizadoUrgente")}
                     </span>
                   ) : null}
                 </div>
@@ -531,20 +538,19 @@ export default function AcompanhamentoClientePage() {
           setRecebidoModalTrabalhoId(null);
           setNomeRecebedor("");
         }}
-        title="Confirmar recebimento"
+        title={t("acompanhamento.confirmarRecebimento")}
         size="sm"
       >
         <p className="mb-4 text-sm text-slate-600">
-          Informe o nome de quem recebeu o trabalho. A situação será atualizada para{" "}
-          <strong>Recebido</strong> no laboratório.
+          {t("acompanhamento.confirmarRecebimentoTexto")}
         </p>
         <label className="block text-xs font-medium text-slate-700">
-          Nome de quem recebeu
+          {t("acompanhamento.nomeRecebedor")}
           <input
             type="text"
             value={nomeRecebedor}
             onChange={(e) => setNomeRecebedor(e.target.value)}
-            placeholder="Ex.: Dr. João Silva"
+            placeholder={t("acompanhamento.nomeRecebedorPlaceholder")}
             maxLength={120}
             className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm text-slate-800 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500/30"
             disabled={recebidoEnviando}
@@ -563,7 +569,7 @@ export default function AcompanhamentoClientePage() {
             }}
             className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-60"
           >
-            Cancelar
+            {t("cadastros.comum.cancelar")}
           </button>
           <button
             type="button"
@@ -571,7 +577,7 @@ export default function AcompanhamentoClientePage() {
             onClick={() => void confirmarRecebido()}
             className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60"
           >
-            {recebidoEnviando ? "Salvando…" : "Confirmar recebimento"}
+            {recebidoEnviando ? t("acompanhamento.salvando") : t("acompanhamento.confirmarRecebimentoBotao")}
           </button>
         </div>
       </Modal>

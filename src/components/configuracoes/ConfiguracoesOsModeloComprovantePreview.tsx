@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useI18n } from "@/components/i18n-provider";
 import { Code39Barcode } from "@/lib/code39-barcode";
 import {
   montarTextosCabecalhoRequisicao,
@@ -66,6 +67,7 @@ export function PreviewOsModeloComprovante({
   cfg: ConfigLaboratorio;
   layout: OsModelo1Layout;
 }) {
+  const { t } = useI18n();
   const lab = useMemo(() => configParaLabImpressao(cfg), [cfg]);
   const cab = useMemo(
     () => normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao),
@@ -122,7 +124,7 @@ export function PreviewOsModeloComprovante({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={cfg.logoDataUrl}
-                  alt="Logo"
+                  alt={t("settings.logo")}
                   style={{ width: logoW, height: logoH, objectFit: "contain" }}
                 />
               ) : (
@@ -130,7 +132,7 @@ export function PreviewOsModeloComprovante({
                   className="flex items-center justify-center border border-dashed border-slate-300 bg-slate-100 text-slate-400"
                   style={{ width: logoW, height: logoH, fontSize: 10 }}
                 >
-                  Logo
+                  {t("settings.logo")}
                 </div>
               )}
             </div>
@@ -152,19 +154,19 @@ export function PreviewOsModeloComprovante({
           )}
 
           <div className="shrink-0 text-right" style={{ fontSize: `${fsSmall}px` }}>
-            <p className="font-normal">Ordem de Serviço</p>
+            <p className="font-normal">{t("print.os.titulo")}</p>
             <p className="font-bold leading-none" style={{ fontSize: `${fs + 10}px` }}>
               {amostra.numeroOs}
             </p>
             {layout.dataOs ? (
               <p className="mt-1">
-                <span className="font-bold">Data: </span>
+                <span className="font-bold">{`${t("print.os.data")}: `}</span>
                 {amostra.dataEntrada}
               </p>
             ) : null}
             {layout.usuario ? (
               <p>
-                <span className="font-bold">Usuário: </span>
+                <span className="font-bold">{`${t("print.os.usuario")}: `}</span>
                 {nomeUsuarioDocumentosLaboratorio(cfg)}
               </p>
             ) : null}
@@ -183,31 +185,33 @@ export function PreviewOsModeloComprovante({
         >
           <div style={{ display: "flex", flexDirection: "column", gap: gap(0.5) }}>
             {layout.numOs ? (
-              <LinhaRotuloValor rotulo="Num. OS:" valor={String(amostra.numeroOs)} />
+              <LinhaRotuloValor rotulo={`${t("print.os.numOs")}:`} valor={String(amostra.numeroOs)} />
             ) : null}
             {layout.cliente ? (
-              <LinhaRotuloValor rotulo="Cliente:" valor={amostra.cliente} />
+              <LinhaRotuloValor rotulo={`${t("print.os.cliente")}:`} valor={amostra.cliente} />
             ) : null}
             {layout.dentista ? (
-              <LinhaRotuloValor rotulo="Dentista:" valor={amostra.dentista} />
+              <LinhaRotuloValor rotulo={`${t("print.os.dentista")}:`} valor={amostra.dentista} />
             ) : null}
             {layout.paciente ? (
-              <LinhaRotuloValor rotulo="Paciente:" valor={amostra.paciente} />
+              <LinhaRotuloValor rotulo={`${t("print.os.paciente")}:`} valor={amostra.paciente} />
             ) : null}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: gap(0.5) }}>
             {layout.osExterna ? (
-              <LinhaRotuloValor rotulo="OS Externa:" valor={amostra.osExterna} />
+              <LinhaRotuloValor rotulo={`${t("print.os.osExterna")}:`} valor={amostra.osExterna} />
             ) : null}
-            {layout.caixa ? <LinhaRotuloValor rotulo="Caixa:" valor={amostra.caixa} /> : null}
+            {layout.caixa ? (
+              <LinhaRotuloValor rotulo={`${t("print.os.caixa")}:`} valor={amostra.caixa} />
+            ) : null}
             {layout.clienteTel ? (
-              <LinhaRotuloValor rotulo="Telefones:" valor={amostra.telefones} />
+              <LinhaRotuloValor rotulo={`${t("print.os.telefones")}:`} valor={amostra.telefones} />
             ) : null}
             {layout.clienteEmail ? (
-              <LinhaRotuloValor rotulo="Email:" valor={amostra.email} />
+              <LinhaRotuloValor rotulo={`${t("print.os.email")}:`} valor={amostra.email} />
             ) : null}
             {layout.clienteEnd ? (
-              <LinhaRotuloValor rotulo="Endereço:" valor={amostra.endereco} />
+              <LinhaRotuloValor rotulo={`${t("print.os.endereco")}:`} valor={amostra.endereco} />
             ) : null}
           </div>
         </div>
@@ -221,18 +225,22 @@ export function PreviewOsModeloComprovante({
         >
           <thead>
             <tr style={estiloLinhaInferiorRequisicaoPreview()}>
-              <th className="py-0.5 pr-2 text-left font-bold">Qtd</th>
-              <th className="py-0.5 pr-2 text-left font-bold">Descrição</th>
+              <th className="py-0.5 pr-2 text-left font-bold">{t("print.os.qtd")}</th>
+              <th className="py-0.5 pr-2 text-left font-bold">{t("print.os.descricao")}</th>
               {layout.numDente ? (
-                <th className="py-0.5 px-1 text-center font-bold">Número Dente</th>
+                <th className="py-0.5 px-1 text-center font-bold">{t("print.os.dente")}</th>
               ) : null}
-              {layout.corDente ? <th className="py-0.5 px-1 text-center font-bold">Cor</th> : null}
+              {layout.corDente ? (
+                <th className="py-0.5 px-1 text-center font-bold">{t("print.os.cor")}</th>
+              ) : null}
               {layout.valorUnit ? (
-                <th className="py-0.5 px-1 text-right font-bold">Unitário</th>
+                <th className="py-0.5 px-1 text-right font-bold">{t("print.os.unitario")}</th>
               ) : null}
-              {layout.desconto ? <th className="py-0.5 pl-1 text-right font-bold">Desc</th> : null}
+              {layout.desconto ? (
+                <th className="py-0.5 pl-1 text-right font-bold">{t("print.os.desc")}</th>
+              ) : null}
               {layout.subtotal ? (
-                <th className="py-0.5 pl-1 text-right font-bold">Subtotal</th>
+                <th className="py-0.5 pl-1 text-right font-bold">{t("print.os.subtotal")}</th>
               ) : null}
             </tr>
           </thead>
@@ -251,7 +259,7 @@ export function PreviewOsModeloComprovante({
                   <div>{item.descricao}</div>
                   {indice === 0 ? (
                     <p style={{ marginTop: gap(0.5), fontSize: `${fsSmall - 1}px` }}>
-                      <span>Prazo: Produção: </span>
+                      <span>{t("settings.prazoProducao")} </span>
                       <span className="font-bold">{amostra.prazo}</span>
                     </p>
                   ) : null}
@@ -288,26 +296,26 @@ export function PreviewOsModeloComprovante({
         >
           {layout.finalizado ? (
             <p>
-              <span>Finalizado: </span>
+              <span>{`${t("print.os.finalizado")}: `}</span>
               <span className="font-bold">{amostra.finalizado}</span>
             </p>
           ) : null}
           {mostraColaboradorTopo ? (
             <p>
-              <span>Colaborador: </span>
+              <span>{`${t("print.os.colaborador")}: `}</span>
               <span className="font-bold">{textoColaboradorTopo || ""}</span>
             </p>
           ) : null}
           {layout.produtos && amostra.produtos ? (
             <p>
-              <span>Produtos: </span>
+              <span>{t("settings.produtos")} </span>
               <span className="font-bold">{amostra.produtos}</span>
             </p>
           ) : null}
           {layout.producao ? (
             <p>
-              <span>Produção: </span>
-              <span className="font-bold">Em produção</span>
+              <span>{`${t("print.os.producao")}: `}</span>
+              <span className="font-bold">{t("settings.emProducaoPreview")}</span>
             </p>
           ) : null}
         </div>
@@ -339,15 +347,15 @@ export function PreviewOsModeloComprovante({
               }}
             >
               <p>
-                <span className="font-bold">Total Serviços </span>
+                <span className="font-bold">{`${t("print.fatura.totalServicosIgual").replace(" (=)", "")} `}</span>
                 {money(totalServicos)}
               </p>
               <p>
-                <span className="font-bold">(-) Descontos </span>
+                <span className="font-bold">{`(-) ${t("print.os.descontosCol")} `}</span>
                 {money(totalDescontos)}
               </p>
               <p>
-                <span className="font-bold">(=) Total </span>
+                <span className="font-bold">{`${t("print.os.totalFinal")} `}</span>
                 {money(totalFinal)}
               </p>
             </div>
@@ -356,14 +364,14 @@ export function PreviewOsModeloComprovante({
 
         {layout.materialRec ? (
           <p style={{ fontSize: `${fsSmall}px`, marginTop: gap(2) }}>
-            <span>Materiais: </span>
+            <span>{`${t("print.os.materiais")}: `}</span>
             <span className="font-bold">{amostra.materiais}</span>
           </p>
         ) : null}
 
         {layout.obsFicha ? (
           <p style={{ fontSize: `${fsSmall}px`, marginTop: gap(1) }}>
-            <span>Observação: </span>
+            <span>{`${t("print.os.observacao")}: `}</span>
             <span className="font-bold">{amostra.obsFicha}</span>
           </p>
         ) : null}
@@ -381,7 +389,7 @@ export function PreviewOsModeloComprovante({
           >
             <div className="mx-auto w-56" style={estiloLinhaRequisicaoPreview()} />
             <p className="text-slate-800" style={{ marginTop: gap(1) }}>
-              Recebi o(s) serviço(s) descritos acima
+              {t("print.os.recebiServicos")}
             </p>
           </div>
         ) : null}

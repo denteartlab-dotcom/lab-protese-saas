@@ -11,12 +11,14 @@ import {
 } from "@/lib/usuarios-sistema";
 import type { CotasUsuariosEmpresa } from "@/lib/limite-usuarios-empresa";
 import { cn, exibirTexto } from "@/lib/utils";
+import { useI18n } from "@/components/i18n-provider";
 
 const thClass =
   "px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#6b7280] dark:text-slate-400";
 const tdClass = "px-3 py-2.5 align-middle text-[12px] text-[#374151] dark:text-slate-300";
 
 export function MeusUsuariosTab() {
+  const { t } = useI18n();
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [usuarios, setUsuarios] = useState<UsuarioListagem[]>([]);
@@ -35,7 +37,7 @@ export function MeusUsuariosTab() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setErro(data.error || "Não foi possível carregar os usuários.");
+        setErro(data.error || t("settings.usuariosErroCarregar"));
         setUsuarios([]);
         setCotas(null);
         return;
@@ -43,12 +45,12 @@ export function MeusUsuariosTab() {
       setUsuarios(Array.isArray(data.usuarios) ? data.usuarios : []);
       setCotas(data.cotas ?? null);
     } catch {
-      setErro("Erro de conexão ao carregar usuários.");
+      setErro(t("settings.usuariosErroConexao"));
       setUsuarios([]);
     } finally {
       setCarregando(false);
     }
-  }, [mostrarExcluidos]);
+  }, [mostrarExcluidos, t]);
 
   useEffect(() => {
     void (async () => {
@@ -86,13 +88,13 @@ export function MeusUsuariosTab() {
   }, [busca, usuarios]);
 
   async function excluir(usuario: UsuarioListagem) {
-    if (!window.confirm(`Excluir o usuário ${usuario.name}?`)) return;
+    if (!window.confirm(t("settings.usuariosConfirmarExcluir", { nome: usuario.name }))) return;
     setSalvando(true);
     try {
       const res = await fetch(`/api/usuarios/${usuario.id}`, { method: "DELETE" });
       const data = await res.json();
       if (!res.ok) {
-        setErro(data.error || "Não foi possível excluir.");
+        setErro(data.error || t("settings.usuariosErroExcluir"));
         return;
       }
       await carregarUsuarios();
@@ -112,7 +114,7 @@ export function MeusUsuariosTab() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setErro(data.error || "Não foi possível restaurar o usuário.");
+        setErro(data.error || t("settings.usuariosErroRestaurar"));
         return;
       }
       await carregarUsuarios();
@@ -121,21 +123,30 @@ export function MeusUsuariosTab() {
     }
   }
 
-  const textoCotas = cotas
-    ? cotas.ilimitado
-      ? `${cotas.total} usuários · plano ${cotas.planoLabel} (ilimitado)`
-      : `${cotas.total} / ${cotas.limite} usuários · plano ${cotas.planoLabel}${
-          cotas.restantes != null && cotas.restantes > 0
-            ? ` · pode adicionar mais ${cotas.restantes}`
-            : ""
-        }`
-    : null;
+  const textoCotas = useMemo(() => {
+    if (!cotas) return null;
+    if (cotas.ilimitado) {
+      return t("settings.usuariosCotasIlimitado", {
+        total: cotas.total,
+        plano: cotas.planoLabel,
+      });
+    }
+    let texto = t("settings.usuariosCotas", {
+      total: cotas.total,
+      limite: cotas.limite,
+      plano: cotas.planoLabel,
+    });
+    if (cotas.restantes != null && cotas.restantes > 0) {
+      texto += t("settings.usuariosCotasRestantes", { n: cotas.restantes });
+    }
+    return texto;
+  }, [cotas, t]);
 
   if (!podeGerenciar) {
     return (
       <div className="py-16 text-center text-sm text-[#6b7280]">
-        <p className="font-medium text-[#374151]">Acesso restrito</p>
-        <p className="mt-2">Somente o proprietário pode gerenciar usuários do sistema.</p>
+        <p className="font-medium text-[#374151]">{t("settings.usuariosAcessoRestrito")}</p>
+        <p className="mt-2">{t("settings.usuariosSomenteProprietario")}</p>
       </div>
     );
   }
@@ -144,9 +155,9 @@ export function MeusUsuariosTab() {
     <div className="meus-usuarios text-[12px] text-[#374151]">
       <p className="mb-3 flex flex-wrap items-center gap-1 text-xs text-[#6b7280]">
         <Home className="h-3.5 w-3.5" />
-        <span className="font-semibold text-[#374151]">Configurações</span>
+        <span className="font-semibold text-[#374151]">{t("settings.titulo")}</span>
         <span className="text-[#d1d5db]">›</span>
-        <span>Meus Usuários</span>
+        <span>{t("settings.usuarios")}</span>
       </p>
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -157,15 +168,15 @@ export function MeusUsuariosTab() {
               className="inline-flex h-[34px] items-center gap-1.5 rounded-sm bg-[#5cb85c] px-4 text-[12px] font-normal text-white hover:bg-[#4cae4c]"
             >
               <Plus className="h-3.5 w-3.5" />
-              Adicionar Usuário
+              {t("settings.usuariosAdicionar")}
             </Link>
           ) : (
             <span
-              title="Limite de usuários do plano atingido"
+              title={t("settings.usuariosLimitePlano")}
               className="inline-flex h-[34px] cursor-not-allowed items-center gap-1.5 rounded-sm bg-[#9ca3af] px-4 text-[12px] font-normal text-white"
             >
               <Plus className="h-3.5 w-3.5" />
-              Adicionar Usuário
+              {t("settings.usuariosAdicionar")}
             </span>
           )}
           <button
@@ -182,7 +193,7 @@ export function MeusUsuariosTab() {
             )}
           >
             <Eye className="h-3.5 w-3.5" />
-            {mostrarExcluidos ? "Ver Ativos" : "Ver Excluídos"}
+            {mostrarExcluidos ? t("settings.usuariosVerAtivos") : t("settings.usuariosVerExcluidos")}
           </button>
         </div>
 
@@ -193,7 +204,7 @@ export function MeusUsuariosTab() {
         <div className="flex items-center gap-2">
           <input
             type="search"
-            placeholder="Procurar"
+            placeholder={t("settings.usuariosProcurar")}
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             className="h-[34px] w-[200px] rounded-sm border border-[#d1d5db] bg-white px-3 text-[12px] outline-none focus:border-[#4a90d9] sm:w-[240px]"
@@ -203,7 +214,7 @@ export function MeusUsuariosTab() {
             onClick={() => setBusca("")}
             className="h-[34px] rounded-sm border border-[#d1d5db] bg-white px-3 text-[12px] text-[#374151] hover:bg-[#f9fafb]"
           >
-            Limpar
+            {t("settings.usuariosLimpar")}
           </button>
         </div>
       </div>
@@ -216,27 +227,30 @@ export function MeusUsuariosTab() {
 
       {cotas && !cotas.podeAdicionar && !cotas.ilimitado ? (
         <p className="mb-3 rounded-sm border border-[#f0ad4e] bg-[#fcf8e3] px-3 py-2 text-[12px] text-[#8a6d3b]">
-          Limite do plano {cotas.planoLabel} atingido ({cotas.limite} usuário
-          {cotas.limite === 1 ? "" : "s"}). Faça upgrade para adicionar mais usuários.
+          {t("settings.usuariosLimiteAtingido", {
+            plano: cotas.planoLabel,
+            limite: cotas.limite,
+            s: cotas.limite === 1 ? "" : "s",
+          })}
         </p>
       ) : null}
 
       <div className="overflow-x-auto rounded-sm border border-[#e5e7eb] bg-white">
         {carregando ? (
           <div className="px-3 py-10 text-center text-sm text-slate-400">
-            Carregando usuários...
+            {t("settings.usuariosCarregando")}
           </div>
         ) : (
           <table className="w-full min-w-[880px] border-collapse">
             <thead>
               <tr className="border-b border-[#e5e7eb] bg-[#f9fafb]">
-                <th className={cn(thClass, "w-[72px]")}>Avatar</th>
-                <th className={thClass}>Nome</th>
-                <th className={thClass}>Email</th>
-                <th className={thClass}>Funcionário</th>
-                <th className={thClass}>Tipo Usuário</th>
-                <th className={cn(thClass, "text-center")}>Módulo Produção</th>
-                <th className={cn(thClass, "w-[80px] text-center")}>Opções</th>
+                <th className={cn(thClass, "w-[72px]")}>{t("settings.usuariosColAvatar")}</th>
+                <th className={thClass}>{t("settings.colNome")}</th>
+                <th className={thClass}>{t("settings.email")}</th>
+                <th className={thClass}>{t("settings.usuariosColFuncionario")}</th>
+                <th className={thClass}>{t("settings.usuariosColTipo")}</th>
+                <th className={cn(thClass, "text-center")}>{t("settings.usuariosColModuloProducao")}</th>
+                <th className={cn(thClass, "w-[80px] text-center")}>{t("settings.usuariosColOpcoes")}</th>
               </tr>
             </thead>
             <tbody>
@@ -244,8 +258,8 @@ export function MeusUsuariosTab() {
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-[#9ca3af]">
                     {mostrarExcluidos
-                      ? "Nenhum usuário excluído."
-                      : "Nenhum usuário encontrado."}
+                      ? t("settings.usuariosNenhumExcluido")
+                      : t("settings.usuariosNenhumEncontrado")}
                   </td>
                 </tr>
               ) : (
@@ -281,32 +295,32 @@ export function MeusUsuariosTab() {
                         usuario.moduloProducao ? "text-[#16a34a]" : "text-[#ef4444]"
                       )}
                     >
-                      {usuario.moduloProducao ? "Sim" : "Não"}
+                      {usuario.moduloProducao ? t("os.imprimir.sim") : t("os.imprimir.nao")}
                     </td>
                     <td className={cn(tdClass, "text-center")}>
                       {mostrarExcluidos ? (
                         cotas?.podeAdicionar ? (
                           <button
                             type="button"
-                            title="Restaurar"
+                            title={t("settings.usuariosRestaurar")}
                             onClick={() => void restaurar(usuario)}
                             className="text-[11px] text-[#4a90d9] hover:underline"
                           >
-                            Restaurar
+                            {t("settings.usuariosRestaurar")}
                           </button>
                         ) : (
                           <span
-                            title="Limite de usuários do plano atingido"
+                            title={t("settings.usuariosLimitePlano")}
                             className="cursor-not-allowed text-[11px] text-[#9ca3af]"
                           >
-                            Restaurar
+                            {t("settings.usuariosRestaurar")}
                           </span>
                         )
                       ) : (
                         <div className="flex items-center justify-center gap-1">
                           <Link
                             href={`/app/configuracoes/usuarios/${usuario.id}/editar`}
-                            title="Editar"
+                            title={t("settings.usuariosEditar")}
                             className="inline-flex h-7 w-7 items-center justify-center rounded text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#374151]"
                           >
                             <Edit3 className="h-3.5 w-3.5" />
@@ -314,7 +328,7 @@ export function MeusUsuariosTab() {
                           {!usuarioEhProprietario(usuario.role) ? (
                             <button
                               type="button"
-                              title="Excluir"
+                              title={t("settings.usuariosExcluir")}
                               disabled={salvando}
                               onClick={() => void excluir(usuario)}
                               className="inline-flex h-7 w-7 items-center justify-center rounded text-[#6b7280] hover:bg-red-50 hover:text-red-600"

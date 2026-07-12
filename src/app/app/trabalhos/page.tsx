@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Plus, Search, Printer, Eye } from "lucide-react";
 import { LinkImprimirOs } from "@/components/LinkImprimirOs";
 import { BarraConfigListagem } from "@/components/listagem/BarraConfigListagem";
+import { useI18n } from "@/components/i18n-provider";
 import { Button, Card, Badge, Table } from "@/components/ui";
 import { useListagemPaginada } from "@/hooks/use-listagem-paginada";
 import { compararDataIso, compararNumero, compararTextoBr } from "@/lib/listagem-config";
@@ -23,6 +24,7 @@ type Trabalho = {
 };
 
 export default function TrabalhosPage() {
+  const { t } = useI18n();
   const [list, setList] = useState<Trabalho[]>([]);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
@@ -55,12 +57,12 @@ export default function TrabalhosPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Trabalhos / OS</h1>
-          <p className="text-slate-600">Ordens de serviço e requisições</p>
+          <h1 className="text-2xl font-bold">{t("cadastros.trabalhos.titulo")}</h1>
+          <p className="text-slate-600">{t("cadastros.trabalhos.subtitulo")}</p>
         </div>
         <Link href="/app/trabalhos/novo">
           <Button>
-            <Plus className="h-4 w-4" /> Nova OS
+            <Plus className="h-4 w-4" /> {t("cadastros.trabalhos.nova")}
           </Button>
         </Link>
       </div>
@@ -71,7 +73,7 @@ export default function TrabalhosPage() {
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
             <input
               className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm"
-              placeholder="Buscar OS, paciente, cliente..."
+              placeholder={t("cadastros.trabalhos.buscarPlaceholder")}
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
@@ -81,7 +83,7 @@ export default function TrabalhosPage() {
             value={status}
             onChange={(e) => setStatus(e.target.value)}
           >
-            <option value="">Todos os status</option>
+            <option value="">{t("cadastros.trabalhos.todosStatus")}</option>
             {Object.entries(STATUS_TRABALHO).map(([k, v]) => (
               <option key={k} value={k}>
                 {v.label}
@@ -98,10 +100,10 @@ export default function TrabalhosPage() {
           onFecharConfig={listagem.fecharConfig}
           rascunho={listagem.rascunho}
           opcoesOrdenacao={[
-            { valor: "numeroOs", label: "Num OS" },
-            { valor: "paciente", label: "Paciente" },
-            { valor: "cliente", label: "Cliente" },
-            { valor: "dataPrevista", label: "Previsão" },
+            { valor: "numeroOs", label: t("relatorio.comum.os") },
+            { valor: "paciente", label: t("relatorio.comum.paciente") },
+            { valor: "cliente", label: t("relatorio.comum.cliente") },
+            { valor: "dataPrevista", label: t("cadastros.trabalhos.colunaPrevisao") },
           ]}
           onAlterarOrdenarPor={(valor) => listagem.atualizarRascunho({ ordenarPor: valor })}
           onAlterarDirecao={(direcao) => listagem.atualizarRascunho({ direcao })}
@@ -114,41 +116,41 @@ export default function TrabalhosPage() {
         >
         <Table
           headers={[
-            "OS",
-            "Paciente",
-            "Cliente",
-            "Tipo",
-            "Status",
-            "Valor",
-            "Previsão",
-            "Ações",
+            t("relatorio.comum.os"),
+            t("relatorio.comum.paciente"),
+            t("relatorio.comum.cliente"),
+            t("cadastros.trabalhos.colunaTipo"),
+            t("relatorio.filtro.status"),
+            t("cadastros.trabalhos.colunaValor"),
+            t("cadastros.trabalhos.colunaPrevisao"),
+            t("cadastros.comum.acoes"),
           ]}
         >
-          {listagem.itensPagina.map((t) => (
-            <tr key={t.id} className="hover:bg-slate-50">
+          {listagem.itensPagina.map((trabalho) => (
+            <tr key={trabalho.id} className="hover:bg-slate-50">
               <td className="px-4 py-3">
                 <span className="inline-flex min-w-8 items-center justify-center rounded bg-slate-100 px-2 py-1 font-semibold text-slate-600">
-                  {t.numeroOs}
+                  {trabalho.numeroOs}
                 </span>
               </td>
-              <td className="px-4 py-3">{t.paciente.nome}</td>
-              <td className="px-4 py-3">{t.cliente.nome}</td>
-              <td className="px-4 py-3">{t.tipoProtese}</td>
+              <td className="px-4 py-3">{trabalho.paciente.nome}</td>
+              <td className="px-4 py-3">{trabalho.cliente.nome}</td>
+              <td className="px-4 py-3">{trabalho.tipoProtese}</td>
               <td className="px-4 py-3">
-                <Badge className={STATUS_TRABALHO[t.status]?.color}>
-                  {STATUS_TRABALHO[t.status]?.label}
+                <Badge className={STATUS_TRABALHO[trabalho.status]?.color}>
+                  {STATUS_TRABALHO[trabalho.status]?.label}
                 </Badge>
               </td>
-              <td className="px-4 py-3">{formatCurrency(t.valor)}</td>
-              <td className="px-4 py-3">{formatDate(t.dataPrevista)}</td>
+              <td className="px-4 py-3">{formatCurrency(trabalho.valor)}</td>
+              <td className="px-4 py-3">{formatDate(trabalho.dataPrevista)}</td>
               <td className="px-4 py-3">
                 <div className="flex gap-1">
-                  <Link href={`/app/trabalhos/${t.id}`}>
+                  <Link href={`/app/trabalhos/${trabalho.id}`}>
                     <Button size="sm" variant="ghost">
                       <Eye className="h-4 w-4" />
                     </Button>
                   </Link>
-                  <LinkImprimirOs trabalho={t}>
+                  <LinkImprimirOs trabalho={trabalho}>
                     <Button size="sm" variant="ghost" type="button">
                       <Printer className="h-4 w-4" />
                     </Button>

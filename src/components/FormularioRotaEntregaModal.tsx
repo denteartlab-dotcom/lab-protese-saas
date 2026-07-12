@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/components/i18n-provider";
 import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect, useMemo, useState } from "react";
 import { MapPin, Truck, User } from "lucide-react";
@@ -109,6 +110,7 @@ export function FormularioRotaEntregaModal({
   onClose,
   onSalvo,
 }: Props) {
+  const { t } = useI18n();
   const [form, setForm] = useState<FormRotaEntrega>(formRotaEntregaPadrao());
   const [clientes, setClientes] = useState<ClienteApi[]>([]);
   const [entregadoresCadastro, setEntregadoresCadastro] = useState<EntregadorCadastro[]>([]);

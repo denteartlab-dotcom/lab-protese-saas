@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -13,21 +13,25 @@ import {
   X,
   FlaskConical,
 } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
-
-const nav = [
-  { href: "/app", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/app/clientes", label: "Clientes", icon: Users },
-  { href: "/app/pacientes", label: "Pacientes", icon: UserCircle },
-  { href: "/app/trabalhos", label: "Trabalhos / OS", icon: ClipboardList },
-  { href: "/app/financeiro", label: "Financeiro", icon: Wallet },
-];
+import { useMemo, useState } from "react";
 
 export function Sidebar({ userName }: { userName: string }) {
+  const { t } = useI18n();
   const pathname = usePathname();
-  const router = useRouter();
   const [open, setOpen] = useState(false);
+
+  const nav = useMemo(
+    () => [
+      { href: "/app", label: t("sidebar.dashboard"), icon: LayoutDashboard },
+      { href: "/app/clientes", label: t("nav.clientes"), icon: Users },
+      { href: "/app/pacientes", label: t("cadastros.pacientes.titulo"), icon: UserCircle },
+      { href: "/app/trabalhos", label: t("cadastros.trabalhos.titulo"), icon: ClipboardList },
+      { href: "/app/financeiro", label: t("nav.financeiro"), icon: Wallet },
+    ],
+    [t]
+  );
 
   async function logout() {
     try {
@@ -46,7 +50,7 @@ export function Sidebar({ userName }: { userName: string }) {
         <FlaskConical className="h-7 w-7 text-sky-400" />
         <div>
           <p className="font-bold text-white">Lab Prótese</p>
-          <p className="text-xs text-slate-400">Gestão do laboratório</p>
+          <p className="text-xs text-slate-400">{t("sidebar.gestaoLab")}</p>
         </div>
       </div>
       <nav className="flex-1 space-y-1 p-3">
@@ -79,7 +83,7 @@ export function Sidebar({ userName }: { userName: string }) {
           className="mt-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-slate-800 hover:text-white"
         >
           <LogOut className="h-4 w-4" />
-          Sair
+          {t("user.logout")}
         </button>
       </div>
     </>

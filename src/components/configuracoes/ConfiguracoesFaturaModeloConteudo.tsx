@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Minus, Plus, Settings } from "lucide-react";
 import { Button } from "@/components/ui";
+import { useI18n } from "@/components/i18n-provider";
 import { cn } from "@/lib/utils";
 import { ConfiguracoesFaturaModeloPreview } from "@/components/configuracoes/ConfiguracoesFaturaModeloPreview";
 import {
@@ -112,12 +113,13 @@ function PixQrConfiguracao({
   layout: FaturaModeloLayout;
   patchLayout: (patch: Partial<FaturaModeloLayout>) => void;
 }) {
+  const { t } = useI18n();
   if (!layout.pix) return null;
 
   function escolherImagem(file: File | undefined) {
     if (!file || !file.type.startsWith("image/")) return;
     if (file.size > 500_000) {
-      window.alert("Imagem muito grande. Use um arquivo de até 500 KB.");
+      window.alert(t("settings.imagemGrande", { kb: 500 }));
       return;
     }
     const reader = new FileReader();
@@ -132,10 +134,10 @@ function PixQrConfiguracao({
 
   return (
     <div className="space-y-2 rounded border border-slate-300/80 bg-white/60 p-3">
-      <span className="block text-[11px] font-semibold text-slate-700">PIX — QR Code</span>
+      <span className="block text-[11px] font-semibold text-slate-700">{t("settings.pixQrTitulo")}</span>
       <div className="flex flex-wrap items-center gap-2">
         <label className="cursor-pointer rounded border border-slate-300 bg-white px-3 py-1.5 text-[11px] text-slate-700 hover:bg-slate-50">
-          Escolher imagem
+          {t("settings.escolherImagem")}
           <input
             type="file"
             accept="image/*"
@@ -152,7 +154,7 @@ function PixQrConfiguracao({
             className="text-[11px] text-red-600 hover:underline"
             onClick={() => patchLayout({ pixQrImagem: "" })}
           >
-            Remover
+            {t("settings.remover")}
           </button>
         ) : null}
       </div>
@@ -160,7 +162,7 @@ function PixQrConfiguracao({
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={layout.pixQrImagem}
-          alt="Prévia QR PIX"
+          alt={t("settings.pixQrTitulo")}
           className="border border-slate-200 bg-white"
           style={{
             width: previewPx,
@@ -169,17 +171,17 @@ function PixQrConfiguracao({
           }}
         />
       ) : (
-        <p className="text-[10px] text-slate-500">Nenhuma imagem selecionada.</p>
+        <p className="text-[10px] text-slate-500">{t("settings.nenhumaImagem")}</p>
       )}
       <CampoNumero
-        label="Tamanho da imagem (px)"
+        label={t("settings.tamanhoImagemPx")}
         value={layout.pixQrTamanhoPx}
         onChange={(v) => patchLayout({ pixQrTamanhoPx: v })}
         min={32}
         max={240}
       />
       <CampoNumero
-        label="Tamanho da fonte (legenda)"
+        label={t("settings.tamanhoFonteLegenda")}
         value={layout.pixQrFonte}
         onChange={(v) => patchLayout({ pixQrFonte: v })}
         min={7}
@@ -190,6 +192,7 @@ function PixQrConfiguracao({
 }
 
 export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
+  const { t } = useI18n();
   const router = useRouter();
   const [cfg, setCfg] = useState<ConfigLaboratorio | null>(null);
   const [config, setConfig] = useState<ConfiguracoesFaturas | null>(null);
@@ -261,11 +264,9 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
     salvarConfiguracoesFaturas(novaConfig);
     try {
       await persistirConfiguracoesFaturasServidor(novaConfig);
-      setMensagem("Configuração salva com sucesso.");
+      setMensagem(t("settings.salvoConfigSucesso"));
     } catch {
-      setMensagem(
-        "Salvo neste navegador, mas não foi possível gravar no servidor. Tente novamente."
-      );
+      setMensagem(t("settings.erroSalvarServidor"));
     } finally {
       setSalvando(false);
       window.setTimeout(() => setMensagem(""), 5000);
@@ -283,7 +284,7 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
         )}
       >
         <Settings className="h-4 w-4" />
-        Personalizar
+        {t("settings.personalizar")}
       </button>
 
       <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
@@ -291,7 +292,7 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
           value={modeloId}
           onChange={(e) => trocarModelo(e.target.value as ModeloFaturaId)}
           className="max-w-full truncate rounded border border-[#5a6068] bg-white px-3 py-2 text-[12px] text-slate-800 outline-none focus:border-[#4a90d9]"
-          aria-label="Selecionar modelo de fatura"
+          aria-label={t("settings.selecionarModeloFatura")}
         >
           {MODELOS_FATURA.map((m) => (
             <option key={m.id} value={m.id}>
@@ -303,7 +304,7 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
           href="/app/configuracoes?aba=faturas"
           className="shrink-0 rounded bg-[#5a6068] px-5 py-2 text-[12px] text-white hover:bg-[#6a7078]"
         >
-          Voltar
+          {t("settings.voltar")}
         </Link>
       </div>
     </header>
@@ -315,9 +316,9 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
         <div className="flex min-h-0 flex-1 flex-col">
           {barraSuperior}
           <p className="p-6 text-sm text-slate-600">
-            Modelo não encontrado.{" "}
+            {t("settings.modeloNaoEncontrado")}{" "}
             <Link href="/app/configuracoes?aba=faturas" className="text-[#4a90d9] hover:underline">
-              Voltar para Faturas
+              {t("settings.voltarFaturas")}
             </Link>
           </p>
         </div>
@@ -331,7 +332,7 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
         <div className="flex min-h-0 flex-1 flex-col">
           {barraSuperior}
           <div className="flex min-h-0 flex-1 items-center justify-center bg-[#e8eaed]">
-            <p className="text-sm text-slate-500">Carregando…</p>
+            <p className="text-sm text-slate-500">{t("common.carregando")}</p>
           </div>
         </div>
       </div>
@@ -353,7 +354,7 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
             <>
               <div>
                 <span className="mb-1 block text-[11px] font-semibold text-slate-700">
-                  Cabeçalho
+                  {t("settings.cabecalho")}
                 </span>
                 <div className="grid grid-cols-2 gap-x-2 gap-y-1">
                   {CAMPOS_FATURA_CABECALHO.map(({ key, label }) => (
@@ -368,7 +369,7 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
               </div>
 
               <CampoNumero
-                label="Tamanho da Fonte"
+                label={t("settings.tamanhoFonte")}
                 value={layout.tamanhoFonte}
                 onChange={(v) => patchLayout({ tamanhoFonte: v })}
                 min={8}
@@ -400,25 +401,25 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
 
               <div>
                 <span className="mb-1 block text-[11px] font-semibold text-slate-700">
-                  Mensagens
+                  {t("settings.mensagens")}
                 </span>
                 <textarea
                   value={layout.mensagem}
                   onChange={(e) => patchLayout({ mensagem: e.target.value })}
                   rows={3}
-                  placeholder="Texto opcional exibido na fatura"
+                  placeholder={t("settings.mensagemFatura")}
                   className="w-full resize-y rounded border border-slate-300 bg-white px-2 py-1.5 text-[12px] outline-none focus:border-[#4a90d9]"
                 />
               </div>
 
               <div>
                 <span className="mb-1 block text-[11px] font-semibold text-slate-700">
-                  Bordas
-                  <span className="ml-1 font-normal text-slate-500">(cor só da moldura)</span>
+                  {t("settings.bordas")}
+                  <span className="ml-1 font-normal text-slate-500">{t("settings.bordasCorMoldura")}</span>
                 </span>
                 <div className="flex items-center gap-2">
                   <CheckboxCampo
-                    label="Bordas"
+                    label={t("settings.bordas")}
                     checked={layout.exibirBordas}
                     onChange={(v) => patchLayout({ exibirBordas: v })}
                   />
@@ -428,7 +429,7 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
                     onChange={(e) => patchLayout({ bordas: e.target.value })}
                     disabled={!layout.exibirBordas}
                     className="h-8 w-10 shrink-0 cursor-pointer rounded border border-slate-300 bg-white p-0.5 disabled:cursor-not-allowed disabled:opacity-40"
-                    title="Cor da borda da página"
+                    title={t("settings.corBordaPagina")}
                   />
                   <input
                     type="text"
@@ -445,7 +446,7 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
             <>
               <div>
                 <span className="mb-1 block text-[11px] font-semibold text-slate-700">
-                  Cabeçalho
+                  {t("settings.cabecalho")}
                 </span>
                 <div className="grid grid-cols-2 gap-x-2 gap-y-1">
                   {CAMPOS_FATURA_TERMICA_CABECALHO.map(({ key, label }) => (
@@ -460,7 +461,7 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
               </div>
 
               <CampoNumero
-                label="Tamanho da Logo (px)"
+                label={t("settings.tamanhoLogoPx")}
                 value={layout.logoTamanhoPx}
                 onChange={(v) => patchLayout({ logoTamanhoPx: v })}
                 min={40}
@@ -468,20 +469,20 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
               />
               <div className="grid grid-cols-2 gap-2">
                 <CampoNumero
-                  label="Logo Margem Esq"
+                  label={t("settings.logoMargemEsq")}
                   value={layout.logoMargemEsq}
                   onChange={(v) => patchLayout({ logoMargemEsq: v })}
                   max={40}
                 />
                 <CampoNumero
-                  label="Logo Margem Topo"
+                  label={t("settings.logoMargemTopo")}
                   value={layout.logoMargemTopo}
                   onChange={(v) => patchLayout({ logoMargemTopo: v })}
                   max={40}
                 />
               </div>
               <CampoNumero
-                label="Tamanho da Fonte"
+                label={t("settings.tamanhoFonte")}
                 value={layout.tamanhoFonte}
                 onChange={(v) => patchLayout({ tamanhoFonte: v })}
                 min={8}
@@ -512,13 +513,13 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
 
               <div>
                 <span className="mb-1 block text-[11px] font-semibold text-slate-700">
-                  Mensagem
+                  {t("settings.mensagem")}
                 </span>
                 <textarea
                   value={layout.mensagem}
                   onChange={(e) => patchLayout({ mensagem: e.target.value })}
                   rows={3}
-                  placeholder="Texto opcional exibido na fatura"
+                  placeholder={t("settings.mensagemFatura")}
                   className="w-full resize-y rounded border border-slate-300 bg-white px-2 py-1.5 text-[12px] outline-none focus:border-[#4a90d9]"
                 />
               </div>
@@ -533,7 +534,7 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
             disabled={salvando}
             className="w-full rounded bg-[#5cb85c] py-2.5 text-sm font-normal text-white hover:bg-[#4cae4c]"
           >
-            {salvando ? "Salvando…" : "Salvar Alterações"}
+            {salvando ? t("common.gravando") : t("settings.salvarAlteracoes")}
           </Button>
         </div>
       </aside>
@@ -546,7 +547,7 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
         ) : null}
         {alteracoesPendentes ? (
           <div className="shrink-0 bg-amber-500 px-4 py-2.5 text-center text-[12px] font-medium text-white">
-            Alterações não salvas — clique em &quot;Salvar Alterações&quot; para aplicar na impressão.
+            {t("settings.alteracoesPendentes")}
           </div>
         ) : null}
         {barraSuperior}

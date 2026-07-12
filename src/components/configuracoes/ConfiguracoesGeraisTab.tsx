@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui";
+import { useI18n } from "@/components/i18n-provider";
 import type { TipoMensagemForm } from "@/components/DadosLaboratorioForm";
 import {
   carregarConfiguracoesGerais,
@@ -69,6 +70,7 @@ function BadgeStatus({
 }
 
 export function ConfiguracoesGeraisTab({ onMensagem }: Props) {
+  const { t } = useI18n();
   const [config, setConfig] = useState<ConfiguracoesGerais>(() =>
     carregarConfiguracoesGerais()
   );
@@ -97,77 +99,78 @@ export function ConfiguracoesGeraisTab({ onMensagem }: Props) {
     salvarConfiguracoesGerais(config);
     try {
       await persistirConfiguracoesGeraisServidor(config);
-      onMensagem?.("Alterações salvas com sucesso.", "sucesso");
+      onMensagem?.(t("settings.salvoSucesso"), "sucesso");
     } catch {
-      onMensagem?.(
-        "Salvo neste navegador, mas não foi possível gravar no servidor. Tente novamente.",
-        "erro"
-      );
+      onMensagem?.(t("settings.erroSalvarServidor"), "erro");
     } finally {
       setSalvando(false);
     }
   }
 
   if (carregando) {
-    return <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">Carregando…</p>;
+    return (
+      <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+        {t("common.carregando")}
+      </p>
+    );
   }
 
   return (
     <div className="space-y-6">
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="space-y-5">
-          <CardSecao titulo="Faturas">
+          <CardSecao titulo={t("settings.geraisFaturas")}>
             <LinhaOpcao
               checked={config.faturasAlterarSituacaoEntregue}
               onChange={(v) => patch({ faturasAlterarSituacaoEntregue: v })}
             >
-              <span>Alterar Situação para</span>
-              <BadgeStatus variant="entregue">Entregue</BadgeStatus>
+              <span>{t("settings.geraisAlterarSituacao")}</span>
+              <BadgeStatus variant="entregue">{t("dashboard.entregue")}</BadgeStatus>
             </LinhaOpcao>
             <LinhaOpcao
               checked={config.faturasAdicionarControleEntregas}
               onChange={(v) => patch({ faturasAdicionarControleEntregas: v })}
             >
-              Adicionar automaticamente ao Controle de Entregas
+              {t("settings.geraisControleEntregas")}
             </LinhaOpcao>
           </CardSecao>
 
-          <CardSecao titulo="Financeiro">
+          <CardSecao titulo={t("settings.geraisFinanceiro")}>
             <LinhaOpcao
               checked={config.financeiroEmitirNfseAoReceber}
               onChange={(v) => patch({ financeiroEmitirNfseAoReceber: v })}
             >
-              Emitir Nota Fiscal ao Lançar Recebimento
+              {t("settings.geraisEmitirNfse")}
             </LinhaOpcao>
           </CardSecao>
         </div>
 
-        <CardSecao titulo="Produção">
+        <CardSecao titulo={t("settings.geraisProducao")}>
           <LinhaOpcao
             checked={config.producaoExcluirCaixaAoProva}
             onChange={(v) => patch({ producaoExcluirCaixaAoProva: v })}
           >
-            <span>Excluir caixa organizadora ao mudar para</span>
-            <BadgeStatus variant="prova">Prova</BadgeStatus>
+            <span>{t("settings.geraisExcluirCaixaProva")}</span>
+            <BadgeStatus variant="prova">{t("dashboard.emProva")}</BadgeStatus>
           </LinhaOpcao>
           <LinhaOpcao
             checked={config.producaoExcluirCaixaAoEntregue}
             onChange={(v) => patch({ producaoExcluirCaixaAoEntregue: v })}
           >
-            <span>Excluir caixa organizadora ao mudar para</span>
-            <BadgeStatus variant="entregue">Entregue</BadgeStatus>
+            <span>{t("settings.geraisExcluirCaixaEntregue")}</span>
+            <BadgeStatus variant="entregue">{t("dashboard.entregue")}</BadgeStatus>
           </LinhaOpcao>
           <LinhaOpcao
             checked={config.producaoPermitirAlterarDataEntrega}
             onChange={(v) => patch({ producaoPermitirAlterarDataEntrega: v })}
           >
-            Permitir alteração &apos;Data Entrega / Finalizado&apos;
+            {t("settings.geraisPermitirDataEntrega")}
           </LinhaOpcao>
           <LinhaOpcao
             checked={config.producaoEtapaExigeAnteriorFinalizada}
             onChange={(v) => patch({ producaoEtapaExigeAnteriorFinalizada: v })}
           >
-            Permitir início de uma Etapa, somente se a anterior estiver Finalizada
+            {t("settings.geraisEtapaAnterior")}
           </LinhaOpcao>
         </CardSecao>
       </div>
@@ -178,7 +181,7 @@ export function ConfiguracoesGeraisTab({ onMensagem }: Props) {
         onClick={() => void salvar()}
         className="h-11 w-full rounded bg-[#4a90d9] text-[14px] font-normal text-white hover:bg-[#3d7fc4] disabled:opacity-60"
       >
-        {salvando ? "Salvando…" : "Salvar Alterações"}
+        {salvando ? t("common.gravando") : t("settings.salvarAlteracoes")}
       </Button>
     </div>
   );

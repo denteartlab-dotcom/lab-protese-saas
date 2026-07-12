@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/components/i18n-provider";
 import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -130,6 +131,7 @@ export function RelatorioComissaoColaboradoresModal({
   etapas,
   idsSelecionados,
 }: Props) {
+  const { t } = useI18n();
   const [portalPronto, setPortalPronto] = useState(false);
   const [ordenarPor, setOrdenarPor] = useState<OrdenarPorRelatorioComissao>("paciente");
   const [colaborador, setColaborador] = useState("todos");
@@ -240,7 +242,7 @@ export function RelatorioComissaoColaboradoresModal({
     } catch (err) {
       console.error("relatorio comissao pdf", err);
       janela.close();
-      setErroPdf("Não foi possível gerar o PDF do relatório de comissão.");
+      setErroPdf(t("comissao.relatorio.erroPdf"));
     } finally {
       setGerandoPdf(false);
     }
@@ -266,13 +268,13 @@ export function RelatorioComissaoColaboradoresModal({
             id="relatorio-comissao-titulo"
             className="text-[15px] font-normal text-slate-800"
           >
-            Relatório Comissão
+            {t("comissao.relatorio.titulo")}
           </h2>
           <button
             type="button"
             onClick={onClose}
             className="text-[18px] leading-none text-slate-400 hover:text-slate-600"
-            aria-label="Fechar"
+            aria-label={t("cadastros.comum.fechar")}
           >
             ✕
           </button>
@@ -280,14 +282,14 @@ export function RelatorioComissaoColaboradoresModal({
 
         <div className="px-5 py-4">
           <CampoSelect
-            label="Ordenar Por"
+            label={t("relatorio.comum.ordenarPor")}
             value={ordenarPor}
             onChange={(value) => setOrdenarPor(value as OrdenarPorRelatorioComissao)}
           >
-            <option value="paciente">Paciente</option>
-            <option value="cliente">Cliente</option>
-            <option value="colaborador">Colaborador</option>
-            <option value="os">OS</option>
+            <option value="paciente">{t("relatorio.comum.paciente")}</option>
+            <option value="cliente">{t("relatorio.comum.cliente")}</option>
+            <option value="colaborador">{t("relatorio.comum.colaborador")}</option>
+            <option value="os">{t("relatorio.comum.os")}</option>
             <option value="data_lancamento">Data Lançamento</option>
             <option value="data_entrega">Data Entrega</option>
             <option value="servico">Serviço</option>
@@ -296,7 +298,7 @@ export function RelatorioComissaoColaboradoresModal({
 
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <CampoSelect
-              label="Colaboradores"
+              label={t("relatorio.comum.colaborador")}
               value={colaborador}
               onChange={setColaborador}
             >
@@ -310,7 +312,7 @@ export function RelatorioComissaoColaboradoresModal({
             </CampoSelect>
 
             <div>
-              <label className={labelClass}>Período</label>
+              <label className={labelClass}>{t("relatorio.filtro.periodo")}</label>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 <div className="relative">
                   <select

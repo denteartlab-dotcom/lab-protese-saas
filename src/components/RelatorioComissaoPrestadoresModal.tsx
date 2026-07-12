@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/components/i18n-provider";
 import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -125,6 +126,7 @@ export function RelatorioComissaoPrestadoresModal({
   prestadores,
   idsSelecionados,
 }: Props) {
+  const { t } = useI18n();
   const [portalPronto, setPortalPronto] = useState(false);
   const [ordenarPor, setOrdenarPor] = useState<OrdenarPorRelatorioComissaoPrestador>("os");
   const [prestador, setPrestador] = useState("todos");
@@ -254,13 +256,13 @@ export function RelatorioComissaoPrestadoresModal({
             id="relatorio-prestador-titulo"
             className="text-[15px] font-normal text-slate-800"
           >
-            Relatório Prestador
+            {t("comissao.relatorio.tituloPrestadores")}
           </h2>
           <button
             type="button"
             onClick={onClose}
             className="text-[18px] leading-none text-slate-400 hover:text-slate-600"
-            aria-label="Fechar"
+            aria-label={t("cadastros.comum.fechar")}
           >
             ✕
           </button>
@@ -268,7 +270,7 @@ export function RelatorioComissaoPrestadoresModal({
 
         <div className="px-5 py-4">
           <CampoSelect
-            label="Ordenar Por"
+            label={t("relatorio.comum.ordenarPor")}
             value={ordenarPor}
             onChange={(value) =>
               setOrdenarPor(value as OrdenarPorRelatorioComissaoPrestador)

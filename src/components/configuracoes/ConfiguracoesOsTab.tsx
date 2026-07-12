@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Settings } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import {
   MODELOS_OS,
   MODELOS_OS_IDS,
@@ -21,10 +22,14 @@ function ToggleSimNao({
   valor,
   onClick,
   titulo,
+  rotuloSim,
+  rotuloNao,
 }: {
   valor: boolean;
   onClick: () => void;
   titulo: string;
+  rotuloSim: string;
+  rotuloNao: string;
 }) {
   return (
     <button
@@ -38,12 +43,13 @@ function ToggleSimNao({
           : "bg-[#d9edf7] text-[#31708f] hover:bg-[#c4e3f3]"
       )}
     >
-      {valor ? "Sim" : "Não"}
+      {valor ? rotuloSim : rotuloNao}
     </button>
   );
 }
 
 export function ConfiguracoesOsTab() {
+  const { t } = useI18n();
   const router = useRouter();
   const [config, setConfig] = useState<ConfiguracoesOs>(() => carregarConfiguracoesOs());
   const [carregando, setCarregando] = useState(true);
@@ -91,7 +97,7 @@ export function ConfiguracoesOsTab() {
   }
 
   if (carregando) {
-    return <p className="py-8 text-center text-sm text-slate-500">Carregando…</p>;
+    return <p className="py-8 text-center text-sm text-slate-500">{t("common.carregando")}</p>;
   }
 
   return (
@@ -100,16 +106,16 @@ export function ConfiguracoesOsTab() {
         <thead>
           <tr className="border-b border-slate-200 bg-[#f5f6f8]">
             <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
-              Nome
+              {t("settings.colNome")}
             </th>
             <th className="w-28 px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-slate-600">
-              Padrão
+              {t("settings.colPadrao")}
             </th>
             <th className="w-28 px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-slate-600">
-              Duas vias
+              {t("settings.colDuasVias")}
             </th>
             <th className="w-36 px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-slate-600">
-              Configurar
+              {t("settings.colConfigurar")}
             </th>
           </tr>
         </thead>
@@ -124,14 +130,18 @@ export function ConfiguracoesOsTab() {
                 <ToggleSimNao
                   valor={config.modeloPadrao === modelo.id}
                   onClick={() => alternarPadrao(modelo.id)}
-                  titulo="Definir como modelo padrão"
+                  titulo={t("settings.definirModeloPadrao")}
+                  rotuloSim={t("os.imprimir.sim")}
+                  rotuloNao={t("os.imprimir.nao")}
                 />
               </td>
               <td className="px-4 py-3.5 text-center">
                 <ToggleSimNao
                   valor={config.duasVias[modelo.id]}
                   onClick={() => alternarDuasVias(modelo.id)}
-                  titulo="Imprimir em duas vias"
+                  titulo={t("settings.imprimirDuasVias")}
+                  rotuloSim={t("os.imprimir.sim")}
+                  rotuloNao={t("os.imprimir.nao")}
                 />
               </td>
               <td className="px-4 py-3.5 text-center">
@@ -141,7 +151,7 @@ export function ConfiguracoesOsTab() {
                   className="inline-flex items-center gap-1.5 rounded border border-[#5cb85c] bg-white px-3 py-1.5 text-[12px] font-medium text-[#5cb85c] transition hover:bg-[#f0faf0]"
                 >
                   <Settings className="h-3.5 w-3.5" />
-                  Configurar
+                  {t("settings.colConfigurar")}
                 </button>
               </td>
             </tr>

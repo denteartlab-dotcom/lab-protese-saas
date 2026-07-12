@@ -2,6 +2,7 @@ import {
   carregarConfigLaboratorio,
   type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
+import { aplicarFallbackTraducao } from "@/lib/i18n/i18n-fallback";
 import { messages, type Locale, type MessageKey } from "@/lib/i18n/messages";
 
 export type { Locale, MessageKey };
@@ -28,8 +29,10 @@ export function translate(
   key: MessageKey,
   params?: Record<string, string | number>
 ): string {
-  const texto =
-    messages[locale][key] ?? messages.pt[key] ?? key;
+  const ptTexto = messages.pt[key];
+  let texto: string =
+    messages[locale][key] ?? ptTexto ?? key;
+  texto = aplicarFallbackTraducao(locale, ptTexto, texto);
   if (!params) return texto;
   let out: string = texto;
   for (const [nome, valor] of Object.entries(params)) {

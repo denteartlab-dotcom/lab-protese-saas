@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useMemo } from "react";
+import { useI18n } from "@/components/i18n-provider";
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
 import { nomeUsuarioDocumentosLaboratorio } from "@/lib/configuracoes-lab";
 import { configParaLabImpressao } from "@/lib/lab-logo";
@@ -46,6 +47,7 @@ export function PreviewFaturaModelo4Termica({
   layout: FaturaModeloLayout;
   modeloId?: ModeloFaturaId;
 }) {
+  const { t } = useI18n();
   const lab = useMemo(() => configParaLabImpressao(cfg), [cfg]);
   const amostra = PREVIEW_FATURA_TERMICA_AMOSTRA;
   const fs = layout.tamanhoFonte;
@@ -99,7 +101,7 @@ export function PreviewFaturaModelo4Termica({
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={cfg.logoDataUrl}
-              alt="Logo"
+              alt={t("settings.logo")}
               style={{
                 width: layout.logoTamanhoPx,
                 height: Math.round(layout.logoTamanhoPx * 0.85),
@@ -115,7 +117,7 @@ export function PreviewFaturaModelo4Termica({
                 fontSize: 10,
               }}
             >
-              Logo
+              {t("settings.logo")}
             </div>
           )}
         </div>
@@ -132,31 +134,31 @@ export function PreviewFaturaModelo4Termica({
 
       <div className="mt-2 space-y-0.5" style={{ fontSize: `${fsSmall}px` }}>
         {layout.dadosOs ? (
-          <LinhaRotuloValor rotulo="Fatura:" valor={String(amostra.numFatura)} />
+          <LinhaRotuloValor rotulo={`${t("print.fatura.titulo")}:`} valor={String(amostra.numFatura)} />
         ) : null}
         {layout.cliente ? (
-          <LinhaRotuloValor rotulo="Cliente:" valor={amostra.cliente} />
+          <LinhaRotuloValor rotulo={`${t("print.fatura.cliente")}:`} valor={amostra.cliente} />
         ) : null}
         {layout.clienteTel ? (
-          <LinhaRotuloValor rotulo="Telefone:" valor={amostra.telefones} />
+          <LinhaRotuloValor rotulo={`${t("print.fatura.telefone")}:`} valor={amostra.telefones} />
         ) : null}
         {layout.osExterna ? (
-          <LinhaRotuloValor rotulo="OS Externa:" valor={osExternaResumo || "—"} />
+          <LinhaRotuloValor rotulo={`${t("print.fatura.osExterna")}:`} valor={osExternaResumo || "—"} />
         ) : null}
         {layout.clienteEmail ? (
-          <LinhaRotuloValor rotulo="Email:" valor={amostra.email} />
+          <LinhaRotuloValor rotulo={`${t("print.fatura.email")}:`} valor={amostra.email} />
         ) : null}
         {layout.clienteEnd ? (
-          <LinhaRotuloValor rotulo="Endereço:" valor={amostra.endereco} />
+          <LinhaRotuloValor rotulo={`${t("print.fatura.endereco")}:`} valor={amostra.endereco} />
         ) : null}
         {layout.ultimoPgto ? (
-          <LinhaRotuloValor rotulo="Última Pgto:" valor={amostra.ultimoPgto} />
+          <LinhaRotuloValor rotulo={`${t("print.fatura.ultimaPgto")}:`} valor={amostra.ultimoPgto} />
         ) : null}
         {layout.saldoAnterior && !saldoAnteriorNosTotais ? (
-          <LinhaRotuloValor rotulo="Saldo Anterior:" valor={amostra.saldoAnterior} />
+          <LinhaRotuloValor rotulo={`${t("print.fatura.saldoAnterior")}:`} valor={amostra.saldoAnterior} />
         ) : null}
         {layout.usuario ? (
-          <LinhaRotuloValor rotulo="Usuário:" valor={nomeUsuarioDocumentosLaboratorio(cfg)} />
+          <LinhaRotuloValor rotulo={`${t("print.fatura.usuario")}:`} valor={nomeUsuarioDocumentosLaboratorio(cfg)} />
         ) : null}
       </div>
 
@@ -170,16 +172,16 @@ export function PreviewFaturaModelo4Termica({
             <thead>
               <tr className="border-b" style={{ borderColor: corLinha }}>
                 {layout.qtd ? (
-                  <th className="w-6 py-0.5 text-left font-bold">Qtd</th>
+                  <th className="w-6 py-0.5 text-left font-bold">{t("print.fatura.col.qtd")}</th>
                 ) : null}
                 {layout.servico ? (
-                  <th className="py-0.5 pr-1 text-left font-bold">Descrição</th>
+                  <th className="py-0.5 pr-1 text-left font-bold">{t("print.os.descricao")}</th>
                 ) : null}
                 {layout.valorUnit ? (
-                  <th className="w-[4.2rem] py-0.5 text-right font-bold">Valor Unit</th>
+                  <th className="w-[4.2rem] py-0.5 text-right font-bold">{t("print.os.unitario")}</th>
                 ) : null}
                 {layout.desconto ? (
-                  <th className="w-[3.2rem] py-0.5 text-right font-bold">Desc.</th>
+                  <th className="w-[3.2rem] py-0.5 text-right font-bold">{t("print.os.desc")}</th>
                 ) : null}
               </tr>
             </thead>
@@ -213,7 +215,7 @@ export function PreviewFaturaModelo4Termica({
                         <div className="space-y-0.5">
                           {layout.numOs ? (
                             <p>
-                              <span>OS: </span>
+                              <span>{t("print.fatura.col.os")}: </span>
                               <span className="font-bold">{linha.os}</span>
                             </p>
                           ) : null}
@@ -221,14 +223,14 @@ export function PreviewFaturaModelo4Termica({
                             <p>
                               {layout.paciente ? (
                                 <>
-                                  <span>Paciente: </span>
+                                  <span>{t("print.os.paciente")}: </span>
                                   <span className="font-bold">{linha.paciente}</span>
                                 </>
                               ) : null}
                               {layout.paciente && layout.dentista ? " " : null}
                               {layout.dentista ? (
                                 <>
-                                  <span>Dr: </span>
+                                  <span>{t("print.os.dentista")}: </span>
                                   <span className="font-bold">{amostra.dentista}</span>
                                 </>
                               ) : null}
@@ -238,14 +240,14 @@ export function PreviewFaturaModelo4Termica({
                             <p>
                               {layout.numDente ? (
                                 <>
-                                  <span>Mat/Dente: </span>
+                                  <span>{t("print.os.dente")}: </span>
                                   <span className="font-bold">{linha.dentes}</span>
                                 </>
                               ) : null}
                               {layout.numDente && layout.corDente ? " " : null}
                               {layout.corDente ? (
                                 <>
-                                  <span>Cor Dente: </span>
+                                  <span>{t("print.os.cor")}: </span>
                                   <span className="font-bold">{linha.cor}</span>
                                 </>
                               ) : null}
@@ -255,7 +257,7 @@ export function PreviewFaturaModelo4Termica({
                             <p>
                               {layout.data ? (
                                 <>
-                                  <span>Data: </span>
+                                  <span>{t("print.fatura.dataMeta")}: </span>
                                   <span className="font-bold">{linha.dataOs}</span>
                                 </>
                               ) : null}
@@ -264,7 +266,7 @@ export function PreviewFaturaModelo4Termica({
                               ) : null}
                               {layout.finalizado ? (
                                 <>
-                                  <span>Entregue: </span>
+                                  <span>{t("print.fatura.entregue")}: </span>
                                   <span className="font-bold">{linha.finalizado}</span>
                                 </>
                               ) : null}
@@ -293,31 +295,31 @@ export function PreviewFaturaModelo4Termica({
         >
           {layout.totalServicos ? (
             <p>
-              <span className="font-bold">Total Serviços(+): </span>
+              <span className="font-bold">{t("print.fatura.totalServicos")}: </span>
               {amostra.totalServicos}
             </p>
           ) : null}
           {saldoAnteriorNosTotais ? (
             <p>
-              <span className="font-bold">Saldo Anterior(+): </span>
+              <span className="font-bold">{t("print.fatura.saldoAnteriorMais")}: </span>
               {amostra.saldoAnterior}
             </p>
           ) : null}
           {layout.descontoServicos ? (
             <p>
-              <span className="font-bold">Desconto Serviços(-): </span>
+              <span className="font-bold">{t("print.fatura.descontoServicos")}: </span>
               {amostra.descontoServicos}
             </p>
           ) : null}
           {layout.descontoFatura ? (
             <p>
-              <span className="font-bold">Desconto Fatura(-): </span>
+              <span className="font-bold">{t("print.fatura.descontoFatura")}: </span>
               {amostra.descontoFatura}
             </p>
           ) : null}
           {layout.total ? (
             <p className="font-bold">
-              <span>Total(=): </span>
+              <span>{t("print.fatura.total")}: </span>
               {amostra.total}
             </p>
           ) : null}
@@ -326,16 +328,16 @@ export function PreviewFaturaModelo4Termica({
 
       {layout.condicaoPagamento ? (
         <div className="mt-2" style={{ fontSize: `${fsSmall}px` }}>
-          <p className="mb-1 font-bold">Condição de Pagamento</p>
+          <p className="mb-1 font-bold">{t("print.fatura.condicaoPagamento")}</p>
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b" style={{ borderColor: corLinha }}>
-                <th className="py-0.5 text-left font-bold">Parcela</th>
-                <th className="py-0.5 text-left font-bold">Vencimento</th>
+                <th className="py-0.5 text-left font-bold">{t("print.fatura.col.parcela")}</th>
+                <th className="py-0.5 text-left font-bold">{t("print.fatura.col.vencimento")}</th>
                 {layout.formaPgto ? (
-                  <th className="py-0.5 text-left font-bold">Forma Pgto</th>
+                  <th className="py-0.5 text-left font-bold">{t("print.fatura.col.formaPagto")}</th>
                 ) : null}
-                <th className="py-0.5 text-left font-bold">Valor</th>
+                <th className="py-0.5 text-left font-bold">{t("print.fatura.col.valor")}</th>
               </tr>
             </thead>
             <tbody>
@@ -354,7 +356,7 @@ export function PreviewFaturaModelo4Termica({
 
       {layout.observacao ? (
         <p className="mt-2" style={{ fontSize: `${fsSmall}px` }}>
-          <span>Observação: </span>
+          <span>{t("print.fatura.observacao")}: </span>
           <span className="font-bold">{amostra.observacao}</span>
         </p>
       ) : null}
@@ -370,7 +372,7 @@ export function PreviewFaturaModelo4Termica({
 
       {layout.assinatura ? (
         <div className="mt-6 text-center" style={{ fontSize: `${fsSmall - 1}px` }}>
-          <p className="lowercase text-slate-800">recebi o(s) serviço(s) descrito acima</p>
+          <p className="lowercase text-slate-800">{t("print.fatura.assinaturaMinusculo")}</p>
           <div className="mx-auto mt-3 w-48 border-t" style={{ borderColor: corLinha }} />
         </div>
       ) : null}
@@ -382,7 +384,7 @@ export function PreviewFaturaModelo4Termica({
         <p>{lab.enderecoLinha1}</p>
         <p>{lab.enderecoLinha2?.replace(" / ", "/")}</p>
         <p>{lab.telefones}</p>
-        <p>email: {lab.email}</p>
+        <p>{t("print.os.email").toLowerCase()}: {lab.email}</p>
       </div>
 
       {layout.pix ? (
@@ -391,7 +393,7 @@ export function PreviewFaturaModelo4Termica({
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={layout.pixQrImagem}
-              alt="QR Code PIX"
+              alt={t("settings.pixQrTitulo")}
               style={{
                 width: layout.pixQrTamanhoPx,
                 height: layout.pixQrTamanhoPx,
@@ -410,7 +412,7 @@ export function PreviewFaturaModelo4Termica({
               QR PIX
             </div>
           )}
-          <span style={{ fontSize: `${layout.pixQrFonte}px` }}>Pagar com PIX</span>
+          <span style={{ fontSize: `${layout.pixQrFonte}px` }}>{t("print.fatura.pagarPix")}</span>
         </div>
       ) : null}
     </div>

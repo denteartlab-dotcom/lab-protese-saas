@@ -21,6 +21,7 @@ import {
   normalizarOsModelo4Layout,
   type OsModelo4Layout,
 } from "@/lib/os-modelo4-layout";
+import { useI18n } from "@/components/i18n-provider";
 import { PreviewOsModelo4Termica } from "@/components/configuracoes/ConfiguracoesOsModelo4Preview";
 import { ConfiguracoesOsBarraEditor } from "@/components/configuracoes/ConfiguracoesOsBarraEditor";
 
@@ -37,6 +38,7 @@ function CampoNumero({
   min?: number;
   max?: number;
 }) {
+  const { t } = useI18n();
   return (
     <div>
       <span className="mb-1 block text-[11px] text-slate-600">{label}</span>
@@ -45,7 +47,7 @@ function CampoNumero({
           type="button"
           className="flex h-8 w-8 items-center justify-center border-r border-slate-200 text-slate-600 hover:bg-slate-50"
           onClick={() => onChange(Math.max(min, value - 1))}
-          aria-label={`Diminuir ${label}`}
+          aria-label={t("settings.diminuir", { label })}
         >
           <Minus className="h-3.5 w-3.5" />
         </button>
@@ -61,7 +63,7 @@ function CampoNumero({
           type="button"
           className="flex h-8 w-8 items-center justify-center border-l border-slate-200 text-slate-600 hover:bg-slate-50"
           onClick={() => onChange(Math.min(max, value + 1))}
-          aria-label={`Aumentar ${label}`}
+          aria-label={t("settings.aumentar", { label })}
         >
           <Plus className="h-3.5 w-3.5" />
         </button>
@@ -124,6 +126,7 @@ function GridCheckboxes({
 }
 
 export function ConfiguracoesOsModelo4Conteudo() {
+  const { t } = useI18n();
   const [cfg, setCfg] = useState<ConfigLaboratorio | null>(null);
   const [configOs, setConfigOs] = useState<ConfiguracoesOs>(() => carregarConfiguracoesOs());
   const [layout, setLayout] = useState<OsModelo4Layout>(() =>
@@ -171,11 +174,9 @@ export function ConfiguracoesOsModelo4Conteudo() {
     try {
       await persistirConfiguracoesOsServidor(novaConfig);
       setLayout(layoutNorm);
-      setMensagem("Configuração salva com sucesso.");
+      setMensagem(t("settings.salvoConfigSucesso"));
     } catch {
-      setMensagem(
-        "Salvo neste navegador, mas não foi possível gravar no servidor. Tente novamente."
-      );
+      setMensagem(t("settings.erroSalvarServidor"));
     } finally {
       setSalvando(false);
       window.setTimeout(() => setMensagem(""), 5000);
@@ -185,7 +186,7 @@ export function ConfiguracoesOsModelo4Conteudo() {
   if (carregando || !cfg) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#4a4f56]">
-        <p className="text-sm text-slate-300">Carregando…</p>
+        <p className="text-sm text-slate-300">{t("common.carregando")}</p>
       </div>
     );
   }
@@ -197,7 +198,7 @@ export function ConfiguracoesOsModelo4Conteudo() {
       <aside className="flex h-full w-full shrink-0 flex-col border-b border-slate-300 bg-[#d9dde3] lg:w-[360px] lg:border-b-0 lg:border-r">
         <div className="flex-1 space-y-3 overflow-y-auto p-4">
           <CampoNumero
-            label="Tamanho da Logo (px)"
+            label={t("settings.tamanhoLogoPx")}
             value={layout.logoTamanhoPx}
             onChange={(v) => patchLayout({ logoTamanhoPx: v })}
             min={40}
@@ -206,13 +207,13 @@ export function ConfiguracoesOsModelo4Conteudo() {
 
           <div className="grid grid-cols-2 gap-2">
             <CampoNumero
-              label="Logo Margem Esq"
+              label={t("settings.logoMargemEsq")}
               value={layout.logoMargemEsq}
               onChange={(v) => patchLayout({ logoMargemEsq: v })}
               max={80}
             />
             <CampoNumero
-              label="Logo Margem Topo"
+              label={t("settings.logoMargemTopo")}
               value={layout.logoMargemTopo}
               onChange={(v) => patchLayout({ logoMargemTopo: v })}
               max={80}
@@ -220,7 +221,7 @@ export function ConfiguracoesOsModelo4Conteudo() {
           </div>
 
           <CampoNumero
-            label="Tamanho da Fonte"
+            label={t("settings.tamanhoFonte")}
             value={layout.tamanhoFonte}
             onChange={(v) => patchLayout({ tamanhoFonte: v })}
             min={8}
@@ -229,7 +230,7 @@ export function ConfiguracoesOsModelo4Conteudo() {
 
           <div>
             <span className="mb-1 block text-[11px] font-semibold text-slate-700">
-              Cor das linhas
+              {t("settings.corLinhas")}
             </span>
             <div className="flex items-center gap-2">
               <input
@@ -237,7 +238,7 @@ export function ConfiguracoesOsModelo4Conteudo() {
                 value={corLinha.length === 7 ? corLinha : "#000000"}
                 onChange={(e) => patchLayout({ bordas: e.target.value })}
                 className="h-8 w-10 shrink-0 cursor-pointer rounded border border-slate-300 bg-white p-0.5"
-                title="Cor das linhas do cupom"
+                title={t("settings.corLinhasCupom")}
               />
               <input
                 type="text"
@@ -264,7 +265,7 @@ export function ConfiguracoesOsModelo4Conteudo() {
 
           <div className="grid grid-cols-2 gap-x-2 border-t border-slate-300/80 pt-2">
             <CheckboxCampo
-              label="Modelo padrão"
+              label={t("settings.modeloPadrao")}
               checked={configOs.modeloPadrao === "modelo4"}
               onChange={(v) =>
                 setConfigOs((atual) => ({
@@ -274,7 +275,7 @@ export function ConfiguracoesOsModelo4Conteudo() {
               }
             />
             <CheckboxCampo
-              label="Duas vias"
+              label={t("settings.duasViasCheckbox")}
               checked={configOs.duasVias.modelo4}
               onChange={(v) =>
                 setConfigOs((atual) => ({
@@ -293,7 +294,7 @@ export function ConfiguracoesOsModelo4Conteudo() {
             disabled={salvando}
             className="w-full rounded bg-[#5cb85c] py-2.5 text-sm font-normal text-white hover:bg-[#4cae4c]"
           >
-            {salvando ? "Salvando…" : "Salvar Alterações"}
+            {salvando ? t("common.gravando") : t("settings.salvarAlteracoes")}
           </Button>
         </div>
       </aside>

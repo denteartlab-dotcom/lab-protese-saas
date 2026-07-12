@@ -9,18 +9,22 @@ import type { MessageKey } from "@/lib/i18n";
 
 export function useTrUi() {
   const { t, locale } = useI18n();
-  const tr = useCallback((texto: string | undefined | null) => trUi(texto, t as TradutorUi), [t]);
+  const tr = useCallback(
+    (texto: string | undefined | null) => trUi(texto, t as TradutorUi, locale),
+    [t, locale]
+  );
   const trFilho = useCallback(
-    (filho: React.ReactNode) => trUiFilho(filho, t as TradutorUi),
-    [t]
+    (filho: React.ReactNode) => trUiFilho(filho, t as TradutorUi, locale),
+    [t, locale]
   );
   const trOpcoes = useCallback(
-    (opcoes: { value: string; label: string }[]) => trUiOpcoes(opcoes, t as TradutorUi),
-    [t]
+    (opcoes: { value: string; label: string }[]) =>
+      trUiOpcoes(opcoes, t as TradutorUi, locale),
+    [t, locale]
   );
   const trArvore = useCallback(
-    (filho: ReactNode) => trUiArvore(filho, t as TradutorUi),
-    [t]
+    (filho: ReactNode) => trUiArvore(filho, t as TradutorUi, locale),
+    [t, locale]
   );
   return {
     tr,

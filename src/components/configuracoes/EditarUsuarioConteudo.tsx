@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Home } from "lucide-react";
 import { GradePermissoesUsuario } from "@/components/configuracoes/GradePermissoesUsuario";
+import { useI18n } from "@/components/i18n-provider";
 import { carregarSetoresCadastro } from "@/lib/setores-cadastro";
 import {
   mesclarModulosPermissoes,
@@ -28,6 +29,7 @@ const selectClass = inputClass;
 type AbaEdicao = "informacoes" | "senha";
 
 export function EditarUsuarioConteudo() {
+  const { t } = useI18n();
   const params = useParams();
   const router = useRouter();
   const id = typeof params.id === "string" ? params.id : "";
@@ -60,7 +62,7 @@ export function EditarUsuarioConteudo() {
       const res = await fetch(`/api/usuarios/${id}`, { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) {
-        setErro(data.error || "Usuário não encontrado.");
+        setErro(data.error || t("settings.usuarioNaoEncontrado"));
         setUsuario(null);
         return;
       }
@@ -81,11 +83,11 @@ export function EditarUsuarioConteudo() {
       const perm = normalizarPermissoesCompletas(u.permissoes, u.role);
       setModulos(mesclarModulosPermissoes(perm.modulos));
     } catch {
-      setErro("Erro ao carregar usuário.");
+      setErro(t("settings.erroCarregarUsuario"));
     } finally {
       setCarregando(false);
     }
-  }, [id]);
+  }, [id, t]);
 
   useEffect(() => {
     setSetores(carregarSetoresCadastro().map((s) => ({ nome: s.nome })));
@@ -111,7 +113,7 @@ export function EditarUsuarioConteudo() {
   async function atualizar() {
     if (!usuario) return;
     if (aba === "senha" && novaSenha && novaSenha !== confirmarSenha) {
-      setErro("As senhas não conferem.");
+      setErro(t("settings.senhasNaoConferem"));
       return;
     }
     setSalvando(true);
@@ -137,13 +139,13 @@ export function EditarUsuarioConteudo() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setErro(data.error || "Não foi possível atualizar.");
+        setErro(data.error || t("settings.erroAtualizar"));
         return;
       }
       router.push("/app/configuracoes?aba=usuarios");
       router.refresh();
     } catch {
-      setErro("Erro de conexão ao atualizar.");
+      setErro(t("settings.erroConexaoAtualizar"));
     } finally {
       setSalvando(false);
     }
@@ -152,7 +154,7 @@ export function EditarUsuarioConteudo() {
   if (carregando) {
     return (
       <div className="rounded-sm bg-white px-5 py-10 text-center text-sm text-slate-500 shadow-sm">
-        Carregando usuário...
+        {t("common.carregando")}
       </div>
     );
   }
@@ -160,12 +162,12 @@ export function EditarUsuarioConteudo() {
   if (!usuario) {
     return (
       <div className="py-16 text-center text-sm text-[#6b7280]">
-        <p className="font-medium text-[#374151]">{erro || "Usuário não encontrado."}</p>
+        <p className="font-medium text-[#374151]">{erro || t("settings.usuarioNaoEncontrado")}</p>
         <Link
           href="/app/configuracoes?aba=usuarios"
           className="mt-4 inline-block text-[12px] text-[#4a90d9] hover:underline"
         >
-          Voltar
+          {t("settings.voltar")}
         </Link>
       </div>
     );
@@ -173,17 +175,17 @@ export function EditarUsuarioConteudo() {
 
   return (
     <div className="editar-usuario text-[12px] text-[#374151]">
-      <h1 className="text-[17px] font-normal text-slate-800">Configurações</h1>
+      <h1 className="text-[17px] font-normal text-slate-800">{t("settings.titulo")}</h1>
       <p className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-slate-600">
         <Link href="/app" className="inline-flex items-center text-slate-600 hover:text-[#4a90d9]">
           <Home className="h-3.5 w-3.5" />
         </Link>
         <span className="text-slate-500">›</span>
         <Link href="/app/configuracoes?aba=usuarios" className="hover:text-[#4a90d9]">
-          Configurações
+          {t("settings.titulo")}
         </Link>
         <span className="text-slate-500">›</span>
-        <span>Editar Usuário</span>
+        <span>{t("settings.editarUsuario")}</span>
       </p>
 
       <div className="mt-4 rounded-sm bg-white shadow-sm">
@@ -198,7 +200,7 @@ export function EditarUsuarioConteudo() {
                 : "bg-[#f3f4f6] text-[#6b7280] hover:bg-[#e5e7eb]"
             )}
           >
-            Informações
+            {t("settings.abaInformacoes")}
           </button>
           <button
             type="button"
@@ -210,7 +212,7 @@ export function EditarUsuarioConteudo() {
                 : "bg-[#f3f4f6] text-[#6b7280] hover:bg-[#e5e7eb]"
             )}
           >
-            Senha
+            {t("settings.abaSenha")}
           </button>
         </div>
 
@@ -219,7 +221,7 @@ export function EditarUsuarioConteudo() {
             <>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
                 <div className="md:col-span-2">
-                  <label className={labelClass}>Nome</label>
+                  <label className={labelClass}>{t("settings.colNome")}</label>
                   <input
                     className={inputClass}
                     value={name}
@@ -227,7 +229,7 @@ export function EditarUsuarioConteudo() {
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className={labelClass}>Email</label>
+                  <label className={labelClass}>{t("settings.email")}</label>
                   <input
                     type="email"
                     className={inputClass}
@@ -236,13 +238,13 @@ export function EditarUsuarioConteudo() {
                   />
                 </div>
                 <div>
-                  <label className={labelClass}>Setor</label>
+                  <label className={labelClass}>{t("settings.setor")}</label>
                   <select
                     className={selectClass}
                     value={setor}
                     onChange={(e) => setSetor(e.target.value)}
                   >
-                    <option value="">Selecione</option>
+                    <option value="">{t("settings.selecione")}</option>
                     {setores.map((s) => (
                       <option key={s.nome} value={s.nome}>
                         {s.nome}
@@ -251,7 +253,7 @@ export function EditarUsuarioConteudo() {
                   </select>
                 </div>
                 <div>
-                  <label className={labelClass}>Situação</label>
+                  <label className={labelClass}>{t("settings.situacao")}</label>
                   <select
                     className={selectClass}
                     value={situacao}
@@ -259,12 +261,12 @@ export function EditarUsuarioConteudo() {
                       setSituacao(e.target.value === "inativo" ? "inativo" : "ativo")
                     }
                   >
-                    <option value="ativo">Ativo</option>
-                    <option value="inativo">Inativo</option>
+                    <option value="ativo">{t("settings.ativo")}</option>
+                    <option value="inativo">{t("settings.inativo")}</option>
                   </select>
                 </div>
                 <div>
-                  <label className={labelClass}>Tipo Usuário</label>
+                  <label className={labelClass}>{t("settings.usuariosColTipo")}</label>
                   <select
                     className={selectClass}
                     value={role}
@@ -294,7 +296,7 @@ export function EditarUsuarioConteudo() {
                     checked={permitirAlterarSenha}
                     onChange={(e) => setPermitirAlterarSenha(e.target.checked)}
                   />
-                  Permitir Alteração de Senha
+                  {t("settings.permitirAlterarSenha")}
                 </label>
                 <label className="flex cursor-pointer items-center gap-2 text-[12px]">
                   <input
@@ -303,14 +305,14 @@ export function EditarUsuarioConteudo() {
                     checked={acessoMobile}
                     onChange={(e) => setAcessoMobile(e.target.checked)}
                   />
-                  Acesso Mobile
+                  {t("settings.acessoMobile")}
                 </label>
               </div>
             </>
           ) : (
             <div className="mx-auto max-w-md space-y-4">
               <div>
-                <label className={labelClass}>Nova senha</label>
+                <label className={labelClass}>{t("settings.novaSenha")}</label>
                 <input
                   type="password"
                   className={inputClass}
@@ -320,7 +322,7 @@ export function EditarUsuarioConteudo() {
                 />
               </div>
               <div>
-                <label className={labelClass}>Confirmar nova senha</label>
+                <label className={labelClass}>{t("settings.confirmarNovaSenha")}</label>
                 <input
                   type="password"
                   className={inputClass}
@@ -330,7 +332,7 @@ export function EditarUsuarioConteudo() {
                 />
               </div>
               <p className="text-[11px] text-[#9ca3af]">
-                Deixe em branco para manter a senha atual. Mínimo de 6 caracteres.
+                {t("settings.senhaManterDica")}
               </p>
             </div>
           )}
@@ -348,13 +350,13 @@ export function EditarUsuarioConteudo() {
               onClick={() => void atualizar()}
               className="h-[36px] rounded-sm bg-[#4a90d9] px-6 text-[12px] font-semibold uppercase tracking-wide text-white hover:bg-[#3d7fc4] disabled:opacity-60"
             >
-              {salvando ? "Atualizando..." : "Atualizar"}
+              {salvando ? t("settings.atualizando") : t("settings.atualizar")}
             </button>
             <Link
               href="/app/configuracoes?aba=usuarios"
               className="inline-flex h-[36px] items-center rounded-sm border border-[#d1d5db] bg-[#f3f4f6] px-5 text-[12px] font-semibold uppercase tracking-wide text-[#374151] hover:bg-[#e5e7eb]"
             >
-              Fechar
+              {t("settings.fechar")}
             </Link>
           </div>
         </div>

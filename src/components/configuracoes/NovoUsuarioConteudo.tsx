@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Home, Plus, UserCog } from "lucide-react";
 import { PainelCarregando } from "@/components/ListaCarregando";
+import { useI18n } from "@/components/i18n-provider";
 import { carregarColaboradoresListagem } from "@/lib/colaboradores-listagem";
 import {
   ROLES_USUARIO,
@@ -33,6 +34,7 @@ type FormNovoUsuario = {
 };
 
 export function NovoUsuarioConteudo() {
+  const { t } = useI18n();
   const router = useRouter();
   const inputImagemRef = useRef<HTMLInputElement>(null);
   const [verificando, setVerificando] = useState(true);
@@ -89,7 +91,7 @@ export function NovoUsuarioConteudo() {
   function escolherImagem(file: File | undefined) {
     if (!file || !file.type.startsWith("image/")) return;
     if (file.size > 400_000) {
-      setErro("Imagem muito grande. Use um arquivo de até 400 KB.");
+      setErro(t("settings.imagemGrande", { kb: 400 }));
       return;
     }
     const reader = new FileReader();
@@ -103,11 +105,11 @@ export function NovoUsuarioConteudo() {
 
   async function cadastrar() {
     if (!form.name.trim()) {
-      setErro("Informe o nome.");
+      setErro(t("settings.informeNome"));
       return;
     }
     if (!form.email.trim()) {
-      setErro("Informe o e-mail.");
+      setErro(t("settings.informeEmail"));
       return;
     }
     setSalvando(true);
@@ -133,7 +135,7 @@ export function NovoUsuarioConteudo() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setErro(data.error || "Não foi possível cadastrar o usuário.");
+        setErro(data.error || t("settings.erroCadastrarUsuario"));
         return;
       }
       const idNovo = data?.usuario?.id as string | undefined;
@@ -144,26 +146,26 @@ export function NovoUsuarioConteudo() {
       }
       router.refresh();
     } catch {
-      setErro("Erro de conexão ao cadastrar.");
+      setErro(t("settings.erroConexaoCadastrar"));
     } finally {
       setSalvando(false);
     }
   }
 
   if (verificando) {
-    return <PainelCarregando mensagem="Carregando..." />;
+    return <PainelCarregando mensagem={t("common.carregando")} />;
   }
 
   if (!podeGerenciar) {
     return (
       <div className="py-16 text-center text-sm text-[#6b7280]">
-        <p className="font-medium text-[#374151]">Acesso restrito</p>
-        <p className="mt-2">Somente o proprietário pode cadastrar usuários.</p>
+        <p className="font-medium text-[#374151]">{t("settings.usuariosAcessoRestrito")}</p>
+        <p className="mt-2">{t("settings.usuariosSomenteProprietarioCadastro")}</p>
         <Link
           href="/app/configuracoes?aba=usuarios"
           className="mt-4 inline-block text-[12px] text-[#4a90d9] hover:underline"
         >
-          Voltar
+          {t("settings.voltar")}
         </Link>
       </div>
     );
@@ -172,20 +174,22 @@ export function NovoUsuarioConteudo() {
   if (cotas && !cotas.podeAdicionar && !cotas.ilimitado) {
     return (
       <div className="novo-usuario text-[12px] text-[#374151]">
-        <h1 className="text-[17px] font-normal text-slate-800">Configurações</h1>
+        <h1 className="text-[17px] font-normal text-slate-800">{t("settings.titulo")}</h1>
         <div className="mt-6 rounded-sm border border-[#f0ad4e] bg-[#fcf8e3] px-4 py-4 text-[12px] text-[#8a6d3b]">
-          <p className="font-semibold">Limite de usuários atingido</p>
+          <p className="font-semibold">{t("settings.usuariosLimiteTitulo")}</p>
           <p className="mt-2">
-            Seu plano {cotas.planoLabel} permite até {cotas.limite} usuário
-            {cotas.limite === 1 ? "" : "s"} e você já possui {cotas.total} ativo
-            {cotas.total === 1 ? "" : "s"}. Faça upgrade do plano para cadastrar mais
-            usuários.
+            {t("settings.usuariosLimiteDescricao", {
+              plano: cotas.planoLabel,
+              limite: cotas.limite,
+              total: cotas.total,
+              s: cotas.limite === 1 ? "" : "s",
+            })}
           </p>
           <Link
             href="/app/configuracoes?aba=usuarios"
             className="mt-4 inline-block text-[#4a90d9] hover:underline"
           >
-            Voltar para Meus Usuários
+            {t("settings.voltarMeusUsuarios")}
           </Link>
         </div>
       </div>
@@ -194,7 +198,7 @@ export function NovoUsuarioConteudo() {
 
   return (
     <div className="novo-usuario text-[12px] text-[#374151]">
-      <h1 className="text-[17px] font-normal text-slate-800">Configurações</h1>
+      <h1 className="text-[17px] font-normal text-slate-800">{t("settings.titulo")}</h1>
       <p className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-slate-600">
         <Link
           href="/app"
@@ -204,21 +208,23 @@ export function NovoUsuarioConteudo() {
         </Link>
         <span className="text-slate-500">›</span>
         <Link href="/app/configuracoes?aba=usuarios" className="hover:text-[#4a90d9]">
-          Configurações
+          {t("settings.titulo")}
         </Link>
         <span className="text-slate-500">›</span>
-        <span>Novo Usuário</span>
+        <span>{t("settings.novoUsuario")}</span>
       </p>
 
       <div className="mt-4 rounded-sm bg-white px-5 py-5 shadow-sm md:px-6 md:py-6">
         <div className="mb-4 rounded-sm border border-[#f0ad4e] bg-[#fcf8e3] px-3 py-2.5 text-[12px] leading-snug text-[#8a6d3b]">
-          <span className="font-semibold">Obs.:</span> A senha de acesso será gerada
-          automaticamente e enviada para o e-mail informado! Utilize um e-mail válido
+          <span className="font-semibold">{t("ui.auto.obs")}</span> {t("settings.usuariosObsSenha")}
           {cotas && !cotas.ilimitado && cotas.restantes != null ? (
             <>
               {" "}
-              · Você pode adicionar mais {cotas.restantes} usuário
-              {cotas.restantes === 1 ? "" : "s"} no plano {cotas.planoLabel}.
+              {t("settings.usuariosPodeAdicionar", {
+                n: cotas.restantes,
+                plano: cotas.planoLabel,
+                s: cotas.restantes === 1 ? "" : "s",
+              })}
             </>
           ) : null}
         </div>
@@ -238,14 +244,14 @@ export function NovoUsuarioConteudo() {
               className="inline-flex h-[34px] items-center gap-1.5 rounded-sm bg-[#5cb85c] px-4 text-[12px] font-normal text-white hover:bg-[#4cae4c]"
             >
               <Plus className="h-3.5 w-3.5" />
-              Adicionar Imagem
+              {t("settings.adicionarImagem")}
             </button>
             {form.avatarDataUrl ? (
               <div className="mt-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={form.avatarDataUrl}
-                  alt="Avatar"
+                  alt={t("settings.usuariosColAvatar")}
                   className="h-16 w-16 rounded-full border border-[#e5e7eb] object-cover"
                 />
               </div>
@@ -255,7 +261,7 @@ export function NovoUsuarioConteudo() {
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label className={labelClass}>Nome</label>
+            <label className={labelClass}>{t("settings.colNome")}</label>
             <input
               className={inputClass}
               value={form.name}
@@ -263,7 +269,7 @@ export function NovoUsuarioConteudo() {
             />
           </div>
           <div>
-            <label className={labelClass}>Email</label>
+            <label className={labelClass}>{t("settings.email")}</label>
             <input
               type="email"
               className={inputClass}
@@ -275,7 +281,7 @@ export function NovoUsuarioConteudo() {
 
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
           <div>
-            <label className={labelClass}>Acesso Exclusivo Módulo Colaboradores</label>
+            <label className={labelClass}>{t("settings.acessoModuloColaboradores")}</label>
             <select
               className={selectClass}
               value={form.moduloColaboradores ? "sim" : "nao"}
@@ -286,12 +292,12 @@ export function NovoUsuarioConteudo() {
                 }))
               }
             >
-              <option value="nao">Não</option>
-              <option value="sim">Sim</option>
+              <option value="nao">{t("os.imprimir.nao")}</option>
+              <option value="sim">{t("os.imprimir.sim")}</option>
             </select>
           </div>
           <div>
-            <label className={labelClass}>Funcionário (opcional)</label>
+            <label className={labelClass}>{t("settings.funcionarioOpcional")}</label>
             <select
               className={selectClass}
               value={form.colaboradorId}
@@ -305,7 +311,7 @@ export function NovoUsuarioConteudo() {
                 }));
               }}
             >
-              <option value="">Selecione um Funcionário</option>
+              <option value="">{t("settings.selecioneFuncionario")}</option>
               {colaboradores.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.nome}
@@ -314,7 +320,7 @@ export function NovoUsuarioConteudo() {
             </select>
           </div>
           <div>
-            <label className={labelClass}>Tipo Usuário</label>
+            <label className={labelClass}>{t("settings.usuariosColTipo")}</label>
             <select
               className={selectClass}
               value={form.role}
@@ -334,7 +340,7 @@ export function NovoUsuarioConteudo() {
         <div className="mt-6 border-t border-[#e5e7eb] pt-5">
           <div className="mb-3 flex items-center gap-2 text-[13px] font-semibold text-[#374151]">
             <UserCog className="h-4 w-4 text-[#6b7280]" />
-            Permissões Adicionais
+            {t("settings.permissoesAdicionais")}
           </div>
           <div className="space-y-2.5">
             <label className="flex cursor-pointer items-center gap-2 text-[12px] text-[#374151]">
@@ -349,7 +355,7 @@ export function NovoUsuarioConteudo() {
                   }))
                 }
               />
-              Permitir Retiradas na Carteira Digital
+              {t("settings.permitirRetiradasCarteira")}
             </label>
             <label className="flex cursor-pointer items-center gap-2 text-[12px] text-[#374151]">
               <input
@@ -363,7 +369,7 @@ export function NovoUsuarioConteudo() {
                   }))
                 }
               />
-              Permitir Alterar a Chave Pix (Conta Bancária)
+              {t("settings.permitirAlterarChavePix")}
             </label>
           </div>
         </div>
@@ -381,13 +387,13 @@ export function NovoUsuarioConteudo() {
             onClick={() => void cadastrar()}
             className="h-[34px] rounded-sm bg-[#4a90d9] px-5 text-[12px] font-normal text-white hover:bg-[#3d7fc4] disabled:opacity-60"
           >
-            {salvando ? "Cadastrando..." : "Cadastrar Usuário"}
+            {salvando ? t("settings.cadastrando") : t("settings.cadastrarUsuario")}
           </button>
           <Link
             href="/app/configuracoes?aba=usuarios"
             className="inline-flex h-[34px] items-center rounded-sm border border-[#d1d5db] bg-white px-5 text-[12px] font-normal text-[#374151] hover:bg-[#f9fafb]"
           >
-            Voltar
+            {t("settings.voltar")}
           </Link>
         </div>
       </div>

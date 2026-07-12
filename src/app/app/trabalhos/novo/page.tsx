@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import { Button, Card, Input, Select, SelectPesquisavel, Textarea } from "@/components/ui";
 import { TIPOS_PROTESE } from "@/lib/utils";
 
@@ -11,6 +12,7 @@ type Cliente = { id: string; nome: string };
 type Paciente = { id: string; nome: string; clienteId: string };
 
 export default function NovaOSPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
@@ -53,8 +55,8 @@ export default function NovaOSPage() {
       }),
     });
     if (res.ok) {
-      const t = await res.json();
-      router.push(`/app/trabalhos/${t.id}`);
+      const trabalho = await res.json();
+      router.push(`/app/trabalhos/${trabalho.id}`);
     }
   }
 
@@ -64,67 +66,67 @@ export default function NovaOSPage() {
         href="/app/trabalhos"
         className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-primary-600"
       >
-        <ArrowLeft className="h-4 w-4" /> Voltar
+        <ArrowLeft className="h-4 w-4" /> {t("cadastros.trabalhos.voltar")}
       </Link>
-      <h1 className="text-2xl font-bold">Nova Ordem de Serviço</h1>
-      <Card title="Requisição de trabalho">
+      <h1 className="text-2xl font-bold">{t("cadastros.trabalhos.novaTitulo")}</h1>
+      <Card title={t("cadastros.trabalhos.requisicao")}>
         <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
           <SelectPesquisavel
-            label="Cliente *"
+            label={`${t("relatorio.comum.cliente")} *`}
             value={form.clienteId}
             onChange={(clienteId) => setForm({ ...form, clienteId, pacienteId: "" })}
-            placeholder="Selecione o dentista/clínica"
+            placeholder={t("cadastros.trabalhos.clientePlaceholder")}
             required
             options={clientes.map((c) => ({ value: c.id, label: c.nome }))}
           />
           <SelectPesquisavel
-            label="Paciente *"
+            label={`${t("relatorio.comum.paciente")} *`}
             value={form.pacienteId}
             onChange={(pacienteId) => setForm({ ...form, pacienteId })}
-            placeholder="Selecione o paciente"
+            placeholder={t("cadastros.trabalhos.pacientePlaceholder")}
             required
             disabled={!form.clienteId}
             options={pacientes.map((p) => ({ value: p.id, label: p.nome }))}
           />
           <Select
-            label="Tipo de prótese *"
+            label={t("cadastros.trabalhos.campoTipoProtese")}
             value={form.tipoProtese}
             onChange={(e) => setForm({ ...form, tipoProtese: e.target.value })}
           >
-            {TIPOS_PROTESE.map((t) => (
-              <option key={t} value={t}>
-                {t}
+            {TIPOS_PROTESE.map((tipo) => (
+              <option key={tipo} value={tipo}>
+                {tipo}
               </option>
             ))}
           </Select>
           <Input
-            label="Dentes (ex: 16, 17)"
+            label={t("cadastros.trabalhos.campoDentes")}
             value={form.dentes}
             onChange={(e) => setForm({ ...form, dentes: e.target.value })}
           />
           <Input
-            label="Cor"
+            label={t("cadastros.trabalhos.campoCor")}
             value={form.cor}
             onChange={(e) => setForm({ ...form, cor: e.target.value })}
           />
           <Input
-            label="Material"
+            label={t("cadastros.trabalhos.campoMaterial")}
             value={form.material}
             onChange={(e) => setForm({ ...form, material: e.target.value })}
           />
           <Input
-            label="Escala"
+            label={t("cadastros.trabalhos.campoEscala")}
             value={form.escala}
             onChange={(e) => setForm({ ...form, escala: e.target.value })}
           />
           <Input
-            label="Data prevista"
+            label={t("cadastros.trabalhos.campoDataPrevista")}
             type="date"
             value={form.dataPrevista}
             onChange={(e) => setForm({ ...form, dataPrevista: e.target.value })}
           />
           <Input
-            label="Valor (R$)"
+            label={t("cadastros.trabalhos.campoValor")}
             type="number"
             step="0.01"
             value={form.valor}
@@ -132,23 +134,23 @@ export default function NovaOSPage() {
           />
           <div className="sm:col-span-2">
             <Textarea
-              label="Instruções técnicas"
+              label={t("cadastros.trabalhos.campoInstrucoes")}
               value={form.instrucoes}
               onChange={(e) => setForm({ ...form, instrucoes: e.target.value })}
             />
           </div>
           <div className="sm:col-span-2">
             <Textarea
-              label="Observações"
+              label={t("cadastros.trabalhos.campoObservacoes")}
               value={form.observacoes}
               onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
             />
           </div>
           <div className="flex gap-2 sm:col-span-2">
-            <Button type="submit">Criar OS</Button>
+            <Button type="submit">{t("cadastros.trabalhos.criar")}</Button>
             <Link href="/app/trabalhos">
               <Button type="button" variant="outline">
-                Cancelar
+                {t("cadastros.comum.cancelar")}
               </Button>
             </Link>
           </div>

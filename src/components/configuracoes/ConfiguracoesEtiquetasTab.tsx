@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "@/components/i18n-provider";
 import {
   MODELOS_ETIQUETA,
   carregarConfiguracoesEtiquetas,
@@ -17,10 +18,14 @@ function ToggleSimNao({
   valor,
   onClick,
   titulo,
+  rotuloSim,
+  rotuloNao,
 }: {
   valor: boolean;
   onClick: () => void;
   titulo: string;
+  rotuloSim: string;
+  rotuloNao: string;
 }) {
   return (
     <button
@@ -34,12 +39,13 @@ function ToggleSimNao({
           : "bg-[#d9edf7] text-[#31708f] hover:bg-[#c4e3f3]"
       )}
     >
-      {valor ? "Sim" : "Não"}
+      {valor ? rotuloSim : rotuloNao}
     </button>
   );
 }
 
 export function ConfiguracoesEtiquetasTab() {
+  const { t } = useI18n();
   const [config, setConfig] = useState<ConfiguracoesEtiquetas>(() =>
     carregarConfiguracoesEtiquetas()
   );
@@ -65,7 +71,6 @@ export function ConfiguracoesEtiquetasTab() {
     void persistirConfiguracoesEtiquetasServidor(novaConfig).catch(() => undefined);
   }
 
-  /** Sim: define este modelo como padrão. Sim novamente no padrão atual: remove o padrão (sem auto-selecionar outro). */
   function alternarPadrao(id: ModeloEtiquetaId) {
     if (config.modeloPadrao === id) {
       aplicar({ ...config, modeloPadrao: null });
@@ -75,15 +80,14 @@ export function ConfiguracoesEtiquetasTab() {
   }
 
   if (carregando) {
-    return <p className="py-8 text-center text-sm text-slate-500">Carregando…</p>;
+    return <p className="py-8 text-center text-sm text-slate-500">{t("common.carregando")}</p>;
   }
 
   return (
     <div className="space-y-3">
       {!config.modeloPadrao ? (
         <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          Nenhuma etiqueta padrão selecionada. A impressão de etiquetas ficará desativada até
-          marcar <strong>Sim</strong> em um dos modelos abaixo.
+          {t("settings.etiquetasSemPadrao")}
         </p>
       ) : null}
 
@@ -92,10 +96,10 @@ export function ConfiguracoesEtiquetasTab() {
           <thead>
             <tr className="border-b border-slate-200 bg-[#f5f6f8]">
               <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
-                Nome
+                {t("settings.colNome")}
               </th>
               <th className="w-32 px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-slate-600">
-                Padrão
+                {t("settings.colPadrao")}
               </th>
             </tr>
           </thead>
@@ -112,9 +116,11 @@ export function ConfiguracoesEtiquetasTab() {
                     onClick={() => alternarPadrao(modelo.id)}
                     titulo={
                       config.modeloPadrao === modelo.id
-                        ? "Remover como padrão"
-                        : "Definir como etiqueta padrão"
+                        ? t("settings.removerPadrao")
+                        : t("settings.definirEtiquetaPadrao")
                     }
+                    rotuloSim={t("os.imprimir.sim")}
+                    rotuloNao={t("os.imprimir.nao")}
                   />
                 </td>
               </tr>

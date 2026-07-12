@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useMemo } from "react";
+import { useI18n } from "@/components/i18n-provider";
 import { Code39Barcode } from "@/lib/code39-barcode";
 import { configParaLabImpressao } from "@/lib/lab-logo";
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
@@ -40,6 +41,7 @@ export function PreviewOsModelo5Termica({
   cfg: ConfigLaboratorio;
   layout: OsModelo5Layout;
 }) {
+  const { t } = useI18n();
   const lab = useMemo(() => configParaLabImpressao(cfg), [cfg]);
   const amostra = PREVIEW_OS_MODELO5;
   const fs = layout.tamanhoFonte;
@@ -69,7 +71,7 @@ export function PreviewOsModelo5Termica({
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={cfg.logoDataUrl}
-                alt="Logo"
+                alt={t("settings.logo")}
                 style={{
                   width: logoPx,
                   height: Math.round(logoPx * 0.85),
@@ -81,7 +83,7 @@ export function PreviewOsModelo5Termica({
                 className="flex items-center justify-center bg-slate-200 text-slate-500"
                 style={{ width: logoPx, height: Math.round(logoPx * 0.85), fontSize: 9 }}
               >
-                Logo
+                {t("settings.logo")}
               </div>
             )}
           </div>
@@ -109,32 +111,37 @@ export function PreviewOsModelo5Termica({
 
       <div className="mt-2 space-y-0.5" style={{ fontSize: `${fsSmall}px` }}>
         {layout.numOs ? (
-          <LinhaRotuloValor rotulo="Num OS:" valor={String(amostra.numeroOs)} />
+          <LinhaRotuloValor rotulo={`${t("print.os.numOs")}:`} valor={String(amostra.numeroOs)} />
         ) : null}
         {layout.osExterna ? (
-          <LinhaRotuloValor rotulo="OS Interna:" valor={amostra.osInterna} />
+          <LinhaRotuloValor rotulo={`${t("print.os.osInterna")}:`} valor={amostra.osInterna} />
         ) : null}
-        {layout.caixa ? <LinhaRotuloValor rotulo="Caixa:" valor={amostra.caixa} /> : null}
+        {layout.caixa ? (
+          <LinhaRotuloValor rotulo={`${t("print.os.caixa")}:`} valor={amostra.caixa} />
+        ) : null}
         {layout.cliente ? (
-          <LinhaRotuloValor rotulo="Cliente:" valor={amostra.cliente} />
+          <LinhaRotuloValor rotulo={`${t("print.os.cliente")}:`} valor={amostra.cliente} />
         ) : null}
         {layout.dentista ? (
-          <LinhaRotuloValor rotulo="Dentista:" valor={amostra.dentista} />
+          <LinhaRotuloValor rotulo={`${t("print.os.dentista")}:`} valor={amostra.dentista} />
         ) : null}
         {layout.paciente ? (
-          <LinhaRotuloValor rotulo="Paciente:" valor={amostra.paciente} />
+          <LinhaRotuloValor rotulo={`${t("print.os.paciente")}:`} valor={amostra.paciente} />
         ) : null}
         {layout.clienteTel ? (
-          <LinhaRotuloValor rotulo="Telefone:" valor={amostra.telefone} />
+          <LinhaRotuloValor rotulo={`${t("print.fatura.telefone")}:`} valor={amostra.telefone} />
         ) : null}
         {layout.clienteEmail ? (
-          <LinhaRotuloValor rotulo="Email:" valor={amostra.email} />
+          <LinhaRotuloValor rotulo={`${t("print.os.email")}:`} valor={amostra.email} />
         ) : null}
         {layout.clienteEnd ? (
-          <LinhaRotuloValor rotulo="Endereço:" valor={amostra.endereco} />
+          <LinhaRotuloValor rotulo={`${t("print.os.endereco")}:`} valor={amostra.endereco} />
         ) : null}
         {layout.usuario ? (
-          <LinhaRotuloValor rotulo="Usuário:" valor={nomeUsuarioDocumentosLaboratorio(cfg)} />
+          <LinhaRotuloValor
+            rotulo={`${t("print.os.usuario")}:`}
+            valor={nomeUsuarioDocumentosLaboratorio(cfg)}
+          />
         ) : null}
       </div>
 
@@ -147,13 +154,13 @@ export function PreviewOsModelo5Termica({
           >
             <thead>
               <tr className="border-b" style={{ borderColor: corLinha }}>
-                <th className="w-6 py-0.5 text-left font-bold">Qtd</th>
-                <th className="py-0.5 pr-1 text-left font-bold">Descrição</th>
+                <th className="w-6 py-0.5 text-left font-bold">{t("print.os.qtd")}</th>
+                <th className="py-0.5 pr-1 text-left font-bold">{t("print.os.descricao")}</th>
                 {layout.valorUnit ? (
-                  <th className="w-[4.2rem] py-0.5 text-right font-bold">Unitário</th>
+                  <th className="w-[4.2rem] py-0.5 text-right font-bold">{t("print.os.unitario")}</th>
                 ) : null}
                 {layout.desconto ? (
-                  <th className="w-[3.2rem] py-0.5 text-right font-bold">Descontos</th>
+                  <th className="w-[3.2rem] py-0.5 text-right font-bold">{t("print.os.descontosCol")}</th>
                 ) : null}
               </tr>
             </thead>
@@ -192,13 +199,13 @@ export function PreviewOsModelo5Termica({
           <div className="mt-1 space-y-0.5" style={{ fontSize: `${fsSmall}px` }}>
             {layout.numDente ? (
               <p>
-                <span>Num Dente: </span>
+                <span>{`${t("print.fatura.col.numDente")}: `}</span>
                 <span className="font-bold">{amostra.itens[0].dente}</span>
               </p>
             ) : null}
             {layout.corDente ? (
               <p>
-                <span>Cor Dente: </span>
+                <span>{`${t("print.os.cor")} ${t("print.os.dente").replace(/^Número /, "")}: `}</span>
                 <span className="font-bold">{amostra.itens[0].cor}</span>
               </p>
             ) : null}
@@ -206,14 +213,14 @@ export function PreviewOsModelo5Termica({
               <p>
                 {layout.dataPrazo ? (
                   <>
-                    <span>Prazo: </span>
+                    <span>{`${t("print.os.prazo")}: `}</span>
                     <span className="font-bold">{amostra.prazo}</span>
                   </>
                 ) : null}
                 {layout.dataPrazo && layout.finalizado ? " " : null}
                 {layout.finalizado ? (
                   <>
-                    <span>Finalizado: </span>
+                    <span>{`${t("print.os.finalizado")}: `}</span>
                     <span className="font-bold">{amostra.finalizado}</span>
                   </>
                 ) : null}
@@ -221,7 +228,7 @@ export function PreviewOsModelo5Termica({
             ) : null}
             {layout.colaborador ? (
               <p>
-                <span>Colaborador: </span>
+                <span>{`${t("print.os.colaborador")}: `}</span>
                 <span className="font-bold">{amostra.colaborador}</span>
               </p>
             ) : null}
@@ -237,23 +244,23 @@ export function PreviewOsModelo5Termica({
         >
           {layout.subtotal ? (
             <p>
-              <span className="font-bold">Subtotal: </span>
+              <span className="font-bold">{`${t("print.os.subtotal")}: `}</span>
               {money(amostra.total)}
             </p>
           ) : null}
           <p>
-            <span className="font-bold">Total Serviços: </span>
+            <span className="font-bold">{`${t("print.fatura.totalServicosIgual").replace(" (=)", "")}: `}</span>
             {money(amostra.totalServicos)}
           </p>
           {layout.desconto ? (
             <p>
-              <span className="font-bold">(-) Descontos: </span>
+              <span className="font-bold">{`(-) ${t("print.os.descontosCol")}: `}</span>
               {money(amostra.totalDescontos)}
             </p>
           ) : null}
           {layout.total ? (
             <p className="font-bold">
-              <span>(=) Total: </span>
+              <span>{`${t("print.os.totalFinal")}: `}</span>
               {money(amostra.total)}
             </p>
           ) : null}
@@ -262,14 +269,14 @@ export function PreviewOsModelo5Termica({
 
       {layout.materialRec ? (
         <p className="mt-2" style={{ fontSize: `${fsSmall}px` }}>
-          <span>Materiais: </span>
+          <span>{`${t("print.os.materiais")}: `}</span>
           <span className="font-bold">{amostra.materiais}</span>
         </p>
       ) : null}
 
       {layout.obsFicha ? (
         <p className="mt-1.5" style={{ fontSize: `${fsSmall}px` }}>
-          <span>Observação: </span>
+          <span>{`${t("print.os.observacao")}: `}</span>
           <span className="font-bold">{amostra.obsFicha}</span>
         </p>
       ) : null}
@@ -277,9 +284,7 @@ export function PreviewOsModelo5Termica({
       {layout.assinatura ? (
         <div className="mt-6 text-center" style={{ fontSize: `${fsSmall - 1}px` }}>
           <div className="mx-auto w-48 border-t" style={{ borderColor: corLinha }} />
-          <p className="mt-1.5 lowercase text-slate-800">
-            recebi o(s) serviço(s) descrito acima
-          </p>
+          <p className="mt-1.5 lowercase text-slate-800">{t("print.fatura.assinaturaMinusculo")}</p>
         </div>
       ) : null}
 
@@ -290,7 +295,7 @@ export function PreviewOsModelo5Termica({
         <p>{lab.enderecoLinha1}</p>
         <p>{lab.enderecoLinha2?.replace(" / ", "/")}</p>
         <p>{lab.telefones}</p>
-        <p>email: {lab.email}</p>
+        <p>{`${t("print.os.email").toLowerCase()}: ${lab.email}`}</p>
       </div>
 
       {layout.codBarras ? (

@@ -2,7 +2,9 @@
  * Traduz texto de UI em português usando o catálogo messages (lookup reverso pt → key).
  */
 import type { ReactNode } from "react";
-import { messages, type Locale, type MessageKey } from "@/lib/i18n/messages";
+import type { Locale } from "@/lib/i18n/messages";
+import { traduzirTextoUiLivre } from "@/lib/i18n/i18n-fallback";
+import { messages, type MessageKey } from "@/lib/i18n/messages";
 
 const PT_PARA_CHAVE = new Map<string, MessageKey>();
 
@@ -34,31 +36,37 @@ export type TradutorUi = (
 ) => string;
 
 /** Traduz literal em português ou devolve o texto se não houver chave. */
-export function trUi(texto: string | undefined | null, t: TradutorUi): string {
+export function trUi(
+  texto: string | undefined | null,
+  t: TradutorUi,
+  locale: Locale = "pt"
+): string {
   if (texto == null) return "";
   const trimmed = String(texto).trim();
   if (!trimmed) return String(texto);
   indexarMensagens();
   const chave = chaveLookup(trimmed);
   if (chave) return t(chave);
-  return String(texto);
+  return traduzirTextoUiLivre(locale, String(texto));
 }
 
 /** Traduz children se for string simples ou array de strings. */
 export function trUiFilho(
   filho: ReactNode,
-  t: TradutorUi
+  t: TradutorUi,
+  locale: Locale = "pt"
 ): ReactNode {
-  if (typeof filho === "string") return trUi(filho, t);
-  if (Array.isArray(filho)) return filho.map((item) => trUiFilho(item, t));
+  if (typeof filho === "string") return trUi(filho, t, locale);
+  if (Array.isArray(filho)) return filho.map((item) => trUiFilho(item, t, locale));
   return filho;
 }
 
 export function trUiOpcoes(
   opcoes: { value: string; label: string }[],
-  t: TradutorUi
+  t: TradutorUi,
+  locale: Locale = "pt"
 ) {
-  return opcoes.map((o) => ({ ...o, label: trUi(o.label, t) }));
+  return opcoes.map((o) => ({ ...o, label: trUi(o.label, t, locale) }));
 }
 
 export function localeDataIntl(locale: Locale): string {

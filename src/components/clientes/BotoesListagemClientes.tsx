@@ -1,6 +1,7 @@
 "use client";
 
 import { FileSpreadsheet, FileUp, Printer, Trash2 } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 
 type Props = {
   onImprimir: () => void;
@@ -19,10 +20,11 @@ export function BotoesListagemClientes({
   onExportarExcel,
   quantidadeSelecionados = 0,
   onExcluirSelecionados,
-  tituloExcluirSelecionados = "Excluir selecionados",
+  tituloExcluirSelecionados,
   disabled,
   processando,
 }: Props) {
+  const { t } = useI18n();
   const bloqueadoLista = disabled || processando;
   const temSelecao = quantidadeSelecionados > 0 && Boolean(onExcluirSelecionados);
 
@@ -30,7 +32,7 @@ export function BotoesListagemClientes({
     <>
       <button
         type="button"
-        title="Imprimir lista de clientes"
+        title={t("cadastros.clientes.botoes.imprimirLista")}
         disabled={bloqueadoLista}
         onClick={onImprimir}
         className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-sm bg-[#4a90d9] text-white hover:bg-[#3d7fc4] disabled:cursor-not-allowed disabled:opacity-60"
@@ -39,7 +41,7 @@ export function BotoesListagemClientes({
       </button>
       <button
         type="button"
-        title="Importar clientes do Excel"
+        title={t("cadastros.clientes.botoes.importarExcel")}
         disabled={bloqueadoLista}
         onClick={onImportar}
         className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-sm bg-[#4a90d9] text-white hover:bg-[#3d7fc4] disabled:cursor-not-allowed disabled:opacity-60"
@@ -48,7 +50,7 @@ export function BotoesListagemClientes({
       </button>
       <button
         type="button"
-        title="Exportar clientes para Excel"
+        title={t("cadastros.clientes.botoes.exportarExcel")}
         disabled={bloqueadoLista}
         onClick={onExportarExcel}
         className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-sm bg-[#22c55e] text-white hover:bg-[#16a34a] disabled:cursor-not-allowed disabled:opacity-60"
@@ -58,7 +60,7 @@ export function BotoesListagemClientes({
       {temSelecao ? (
         <button
           type="button"
-          title={tituloExcluirSelecionados}
+          title={tituloExcluirSelecionados || t("cadastros.clientes.botoes.excluirSelecionados")}
           disabled={processando}
           onClick={onExcluirSelecionados}
           className="relative flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-sm border border-red-200 bg-white text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"

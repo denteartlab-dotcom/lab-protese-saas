@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MessageCircle, X } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import type { SuporteMensagemDto } from "@/lib/suporte-chat-types";
 import { SuporteChatInput } from "@/components/suporte/SuporteChatInput";
 import { SuporteMensagemBubble } from "@/components/suporte/SuporteMensagemBubble";
@@ -10,6 +11,7 @@ import { useSuporteChatRealtime } from "@/hooks/useSuporteChatRealtime";
 export const EVENTO_ABRIR_SUPORTE_CHAT = "lab-protese:abrir-suporte-chat";
 
 export function SuporteChatWidget() {
+  const { t } = useI18n();
   const [aberto, setAberto] = useState(false);
   const [mensagens, setMensagens] = useState<SuporteMensagemDto[]>([]);
   const [suporteEmail, setSuporteEmail] = useState("admin@labprotese.com");
@@ -51,7 +53,7 @@ export function SuporteChatWidget() {
     try {
       const res = await fetch("/api/suporte/conversa/contexto", { cache: "no-store" });
       if (!res.ok) {
-        setErro("Não foi possível carregar o chat.");
+        setErro(t("suporte.erroCarregar"));
         return;
       }
       const data = (await res.json()) as {
@@ -143,7 +145,7 @@ export function SuporteChatWidget() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setErro((data as { error?: string }).error || "Erro ao enviar.");
+        setErro((data as { error?: string }).error || t("suporte.erroEnviar"));
         return;
       }
       setTexto("");
@@ -160,7 +162,7 @@ export function SuporteChatWidget() {
         await carregarMensagens();
       }
     } catch {
-      setErro("Erro ao enviar mensagem.");
+      setErro(t("suporte.erroEnviarMensagem"));
     } finally {
       setEnviando(false);
     }
@@ -168,9 +170,9 @@ export function SuporteChatWidget() {
 
   const chatBloqueado = !suporteOnline;
   const motivoDesabilitado = conversaExpirada
-    ? "Esta conversa expirou por inatividade (10 min). Inicie um novo chat quando o suporte estiver online."
+    ? t("suporte.motivoExpirado")
     : chatBloqueado
-      ? "O suporte está offline. Aguarde um atendente ficar disponível para iniciar ou continuar a conversa."
+      ? t("suporte.motivoOffline")
       : undefined;
 
   return (
@@ -179,8 +181,8 @@ export function SuporteChatWidget() {
         type="button"
         onClick={() => setAberto((v) => !v)}
         className="fixed bottom-20 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-[#4a90d9] text-white shadow-lg transition hover:bg-[#3a7bc8] sm:bottom-6 sm:right-6"
-        title="Chat com suporte"
-        aria-label="Abrir chat com suporte"
+        title={t("suporte.chatTitulo")}
+        aria-label={t("suporte.abrirChat")}
       >
         <MessageCircle className="h-5 w-5" />
         {naoLidas > 0 && (
@@ -194,17 +196,17 @@ export function SuporteChatWidget() {
         <div className="fixed bottom-36 right-4 z-50 flex w-[min(100vw-2rem,380px)] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900 sm:bottom-20">
           <div className="flex items-center justify-between border-b border-slate-100 bg-[#4a90d9] px-4 py-3 text-white">
             <div>
-              <p className="text-sm font-semibold">Suporte Lab Prótese</p>
+              <p className="text-sm font-semibold">{t("suporte.titulo")}</p>
               <p className="text-[11px] text-white/80">{suporteEmail}</p>
               <p className="text-[10px] text-white/70">
-                {suporteOnline ? "● Online" : "○ Offline"}
+                {suporteOnline ? t("suporte.online") : t("suporte.offline")}
               </p>
             </div>
             <button
               type="button"
               onClick={() => setAberto(false)}
               className="rounded p-1 hover:bg-white/15"
-              aria-label="Fechar chat"
+              aria-label={t("suporte.fecharChat")}
             >
               <X className="h-4 w-4" />
             </button>
@@ -215,15 +217,15 @@ export function SuporteChatWidget() {
             className="flex max-h-[min(50vh,360px)] min-h-[220px] flex-1 flex-col gap-2 overflow-y-auto bg-slate-50 p-3 dark:bg-slate-950"
           >
             {carregando && mensagens.length === 0 && (
-              <p className="text-center text-xs text-slate-400">Carregando...</p>
+              <p className="text-center text-xs text-slate-400">{t("suporte.carregando")}</p>
             )}
             {!carregando && mensagens.length === 0 && (
               <p className="text-center text-xs text-slate-500">
                 {conversaExpirada
-                  ? "Sua conversa anterior foi encerrada por inatividade. Envie uma nova mensagem para recomeçar."
+                  ? t("suporte.conversaExpirada")
                   : suporteOnline
-                    ? "Envie uma mensagem para falar com nossa equipe de suporte."
-                    : "O suporte está offline no momento. Você poderá enviar mensagens quando um atendente estiver disponível."}
+                    ? t("suporte.iniciarConversa")
+                    : t("suporte.offlineMensagem")}
               </p>
             )}
             {mensagens.map((m) => (
@@ -252,8 +254,8 @@ export function SuporteChatWidget() {
             motivoDesabilitado={motivoDesabilitado}
             placeholder={
               chatBloqueado
-                ? "Aguardando suporte online..."
-                : "Digite sua mensagem..."
+                ? t("suporte.aguardandoOnline")
+                : t("suporte.placeholder")
             }
           />
         </div>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, Search, Users } from "lucide-react";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { BarraConfigListagem } from "@/components/listagem/BarraConfigListagem";
+import { useI18n } from "@/components/i18n-provider";
 import { Button, Card, Input, Modal, SelectPesquisavel, Table } from "@/components/ui";
 import { useListagemPaginada } from "@/hooks/use-listagem-paginada";
 import { compararTextoBr } from "@/lib/listagem-config";
@@ -33,6 +34,7 @@ type PainelPacientesResposta = {
 };
 
 export default function PacientesPage() {
+  const { t } = useI18n();
   const [list, setList] = useState<Paciente[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [painel, setPainel] = useState<PainelPacienteResumo[]>([]);
@@ -124,11 +126,11 @@ export default function PacientesPage() {
       const res = await fetch(`/api/pacientes/${paciente.id}`, { method: "DELETE" });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        alert(data.error || "Não foi possível excluir o paciente.");
+        alert(data.error || t("cadastros.pacientes.erroExcluir"));
         void load();
       }
     } catch {
-      alert("Não foi possível excluir o paciente.");
+      alert(t("cadastros.pacientes.erroExcluir"));
       void load();
     }
   }
@@ -137,11 +139,11 @@ export default function PacientesPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Pacientes</h1>
-          <p className="text-slate-600">Pacientes vinculados aos clientes</p>
+          <h1 className="text-2xl font-bold">{t("cadastros.pacientes.titulo")}</h1>
+          <p className="text-slate-600">{t("cadastros.pacientes.subtitulo")}</p>
         </div>
         <Button onClick={openNew} disabled={clientes.length === 0}>
-          <Plus className="h-4 w-4" /> Novo paciente
+          <Plus className="h-4 w-4" /> {t("cadastros.pacientes.novo")}
         </Button>
       </div>
 
@@ -154,7 +156,7 @@ export default function PacientesPage() {
               </div>
               <div>
                 <p className="text-[11px] uppercase tracking-wide text-slate-500">
-                  Pacientes com trabalho
+                  {t("cadastros.pacientes.comTrabalho")}
                 </p>
                 <p className="text-lg font-semibold">{totalPainel}</p>
               </div>
@@ -163,12 +165,11 @@ export default function PacientesPage() {
           {painel.slice(0, 2).map((p) => (
             <Card key={p.pacienteId} className="p-4">
               <p className="text-[11px] uppercase tracking-wide text-slate-500">
-                Mais recente
+                {t("cadastros.pacientes.maisRecente")}
               </p>
               <p className="font-semibold">{p.pacienteNome}</p>
               <p className="text-xs text-slate-500">
-                {p.cliente?.nome || "—"} · {p.totalTrabalhos} trabalho
-                {p.totalTrabalhos === 1 ? "" : "s"}
+                {p.cliente?.nome || "—"} · {t("cadastros.pacientes.trabalhos", { n: p.totalTrabalhos })}
               </p>
             </Card>
           ))}
@@ -181,7 +182,7 @@ export default function PacientesPage() {
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
             <input
               className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm"
-              placeholder="Buscar paciente..."
+              placeholder={t("cadastros.pacientes.buscarPlaceholder")}
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
@@ -196,8 +197,8 @@ export default function PacientesPage() {
           onFecharConfig={listagem.fecharConfig}
           rascunho={listagem.rascunho}
           opcoesOrdenacao={[
-            { valor: "nome", label: "Nome" },
-            { valor: "cliente", label: "Cliente" },
+            { valor: "nome", label: t("cadastros.comum.nome") },
+            { valor: "cliente", label: t("relatorio.comum.cliente") },
           ]}
           onAlterarOrdenarPor={(valor) => listagem.atualizarRascunho({ ordenarPor: valor })}
           onAlterarDirecao={(direcao) => listagem.atualizarRascunho({ direcao })}
@@ -208,7 +209,13 @@ export default function PacientesPage() {
           onPagina={listagem.setPagina}
           totalItens={listagem.totalItens}
         >
-        <Table headers={["Nome", "Cliente", "CPF", "Telefone", "Ações"]}>
+        <Table headers={[
+          t("cadastros.comum.nome"),
+          t("relatorio.comum.cliente"),
+          t("cadastros.pacientes.campoCpf"),
+          t("cadastros.pacientes.campoTelefone"),
+          t("cadastros.comum.acoes"),
+        ]}>
           {listagem.itensPagina.map((p) => (
             <tr key={p.id}>
               <td className="px-4 py-3 font-medium">{p.nome}</td>
@@ -234,48 +241,48 @@ export default function PacientesPage() {
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title={editing ? "Editar paciente" : "Novo paciente"}
+        title={editing ? t("cadastros.pacientes.editar") : t("cadastros.pacientes.novo")}
       >
         <form onSubmit={save} className="space-y-4">
           <SelectPesquisavel
-            label="Cliente (dentista/clínica) *"
+            label={t("cadastros.pacientes.campoCliente")}
             value={form.clienteId}
             onChange={(clienteId) => setForm({ ...form, clienteId })}
-            placeholder="Selecione..."
+            placeholder={t("cadastros.comum.selecione")}
             required
             menuEmPortal
             options={clientes.map((c) => ({ value: c.id, label: c.nome }))}
           />
           <Input
-            label="Nome do paciente *"
+            label={t("cadastros.pacientes.campoNome")}
             value={form.nome}
             onChange={(e) => setForm({ ...form, nome: e.target.value })}
             required
           />
           <Input
-            label="CPF"
+            label={t("cadastros.pacientes.campoCpf")}
             value={form.cpf}
             onChange={(e) => setForm({ ...form, cpf: e.target.value })}
           />
           <Input
-            label="Telefone"
+            label={t("cadastros.pacientes.campoTelefone")}
             placeholder={PLACEHOLDER_TELEFONE_BR}
             value={form.telefone}
             onChange={(e) => setForm({ ...form, telefone: formatarTelefone(e.target.value) })}
           />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
+              {t("cadastros.comum.cancelar")}
             </Button>
-            <Button type="submit">Salvar</Button>
+            <Button type="submit">{t("cadastros.comum.salvar")}</Button>
           </div>
         </form>
       </Modal>
 
       <ConfirmacaoExclusaoModal
         open={!!pacienteParaExcluir}
-        titulo="Excluir Paciente"
-        mensagem="Deseja realmente excluir esse paciente?"
+        titulo={t("cadastros.pacientes.excluirTitulo")}
+        mensagem={t("cadastros.pacientes.excluirConfirmacao")}
         detalhe={pacienteParaExcluir?.nome}
         onClose={() => setPacienteParaExcluir(null)}
         onConfirm={confirmarExclusaoPaciente}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui";
+import { useI18n } from "@/components/i18n-provider";
 import {
   montarTextosCabecalhoRequisicao,
   normalizarCabecalhoRequisicao,
@@ -33,6 +34,7 @@ function CampoNumero({
   max?: number;
   step?: number;
 }) {
+  const { t } = useI18n();
   return (
     <div>
       <span className="mb-1 block text-[11px] text-slate-600">{label}</span>
@@ -41,7 +43,7 @@ function CampoNumero({
           type="button"
           className="flex h-8 w-8 items-center justify-center border-r border-slate-200 text-slate-600 hover:bg-slate-50"
           onClick={() => onChange(Math.max(min, value - step))}
-          aria-label={`Diminuir ${label}`}
+          aria-label={t("settings.diminuir", { label })}
         >
           <Minus className="h-3.5 w-3.5" />
         </button>
@@ -58,7 +60,7 @@ function CampoNumero({
           type="button"
           className="flex h-8 w-8 items-center justify-center border-l border-slate-200 text-slate-600 hover:bg-slate-50"
           onClick={() => onChange(Math.min(max, value + step))}
-          aria-label={`Aumentar ${label}`}
+          aria-label={t("settings.aumentar", { label })}
         >
           <Plus className="h-3.5 w-3.5" />
         </button>
@@ -74,6 +76,7 @@ function PreviewCabecalho({
   cfg: ConfigLaboratorio;
   cab: CabecalhoRequisicaoConfig;
 }) {
+  const { t } = useI18n();
   const lab = useMemo(() => configParaLabImpressao(cfg), [cfg]);
   const textos = useMemo(
     () => montarTextosCabecalhoRequisicao(cfg, lab, cab),
@@ -97,7 +100,7 @@ function PreviewCabecalho({
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={cfg.logoDataUrl}
-              alt="Logo"
+              alt={t("settings.logo")}
               style={{ width: logoW, height: logoH, objectFit: "contain" }}
             />
           ) : (
@@ -105,7 +108,7 @@ function PreviewCabecalho({
               className="flex items-center justify-center rounded border border-dashed border-slate-300 bg-slate-50 text-slate-400"
               style={{ width: logoW, height: logoH }}
             >
-              <span className="text-[10px]">Logo</span>
+              <span className="text-[10px]">{t("settings.logo")}</span>
             </div>
           )}
         </div>
@@ -120,7 +123,7 @@ function PreviewCabecalho({
             className="font-bold leading-tight text-slate-900"
             style={{ fontSize: cab.fonteNomePt }}
           >
-            {textos.nome || "Nome do laboratório"}
+            {textos.nome || t("settings.nomeLabPlaceholder")}
           </p>
           {textos.linhas.map((linha) => (
             <p
@@ -133,18 +136,18 @@ function PreviewCabecalho({
           ))}
         </div>
         <div className="shrink-0 text-right text-slate-800">
-          <p className="text-[13px] font-normal">Ordem de Serviço</p>
+          <p className="text-[13px] font-normal">{t("print.os.titulo")}</p>
           <p className="mt-1 text-[22px] font-bold leading-none">194</p>
           <p className="mt-2 text-[11px]">
-            <span className="font-bold">Data: </span>
+            <span className="font-bold">{t("print.os.data")}: </span>
             <span className="font-normal">19/08/2021 08:35</span>
           </p>
           <p className="text-[11px]">
-            <span className="font-bold">Status: </span>
-            <span className="font-normal">Em Produção</span>
+            <span className="font-bold">{t("print.os.status")}: </span>
+            <span className="font-normal">{t("settings.emProducao")}</span>
           </p>
           <p className="text-[11px]">
-            <span className="font-bold">Usuário: </span>
+            <span className="font-bold">{t("print.os.usuario")}: </span>
             <span className="font-normal">Fernando</span>
           </p>
         </div>
@@ -155,6 +158,7 @@ function PreviewCabecalho({
 }
 
 export function ConfiguracoesCabecalhoConteudo() {
+  const { t } = useI18n();
   const [cfg, setCfg] = useState<ConfigLaboratorio | null>(null);
   const [cab, setCab] = useState<CabecalhoRequisicaoConfig>(
     normalizarCabecalhoRequisicao()
@@ -184,7 +188,6 @@ export function ConfiguracoesCabecalhoConteudo() {
     if (!cfg) return;
     setSalvando(true);
     setMensagem("");
-    // Cabeçalho não altera logo — gravação parcial nunca herda foto de cache/outro tenant.
     const merged = {
       ...cfg,
       cabecalhoRequisicao: normalizarCabecalhoRequisicao(cab),
@@ -195,11 +198,9 @@ export function ConfiguracoesCabecalhoConteudo() {
       salvarConfigLaboratorio(merged);
       const gravado = carregarConfigLaboratorio();
       setCfg(gravado);
-      setMensagem("Alterações salvas com sucesso.");
+      setMensagem(t("settings.salvoSucesso"));
     } catch {
-      setMensagem(
-        "Salvo neste navegador, mas não foi possível gravar no servidor. Tente novamente."
-      );
+      setMensagem(t("settings.erroSalvarServidor"));
     } finally {
       setSalvando(false);
       window.setTimeout(() => setMensagem(""), 5000);
@@ -209,24 +210,32 @@ export function ConfiguracoesCabecalhoConteudo() {
   if (!cfg) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#4a4f56]">
-        <p className="text-sm text-slate-300">Carregando…</p>
+        <p className="text-sm text-slate-300">{t("common.carregando")}</p>
       </div>
     );
   }
+
+  const camposInfo = [
+    ["exibirEndereco", "settings.endereco"],
+    ["exibirCelular", "settings.celular"],
+    ["exibirEmail", "settings.email"],
+    ["exibirTelComercial", "settings.telComercial"],
+    ["exibirSite", "settings.paginaWeb"],
+  ] as const;
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden lg:flex-row">
       <aside className="flex h-full w-full shrink-0 flex-col border-b border-slate-300 bg-[#d9dde3] lg:w-[360px] lg:border-b-0 lg:border-r">
         <div className="flex-1 space-y-5 overflow-y-auto p-4">
           <div>
-            <h1 className="text-[15px] font-normal text-slate-800">Cabeçalho</h1>
-            <p className="text-[11px] text-slate-600">Requisições e ordens de serviço</p>
+            <h1 className="text-[15px] font-normal text-slate-800">{t("settings.cabecalho")}</h1>
+            <p className="text-[11px] text-slate-600">{t("settings.cabecalhoSubtitulo")}</p>
           </div>
           <div>
-            <h2 className="text-[13px] font-semibold text-slate-800">Logo</h2>
+            <h2 className="text-[13px] font-semibold text-slate-800">{t("settings.logo")}</h2>
             <div className="mt-2 grid grid-cols-1 gap-3">
               <CampoNumero
-                label="Tamanho (px)"
+                label={t("settings.tamanhoPx")}
                 value={cab.logoTamanhoPx}
                 onChange={(v) => patchCab({ logoTamanhoPx: v })}
                 min={40}
@@ -234,50 +243,48 @@ export function ConfiguracoesCabecalhoConteudo() {
               />
               <div className="grid grid-cols-2 gap-2">
                 <CampoNumero
-                  label="Margem Esquerda"
+                  label={t("settings.margemEsquerda")}
                   value={cab.logoMargemEsquerda}
                   onChange={(v) => patchCab({ logoMargemEsquerda: v })}
                   max={120}
                 />
                 <CampoNumero
-                  label="Margem Topo"
+                  label={t("settings.margemTopo")}
                   value={cab.logoMargemTopo}
                   onChange={(v) => patchCab({ logoMargemTopo: v })}
                   max={80}
                 />
               </div>
             </div>
-            <p className="mt-2 text-[10px] text-slate-500">
-              A imagem do logo é definida em Configurações › Logo.
-            </p>
+            <p className="mt-2 text-[10px] text-slate-500">{t("settings.cabecalhoLogoDica")}</p>
           </div>
 
           <div>
             <h2 className="text-[13px] font-semibold text-slate-800">
-              Informações Laboratório
+              {t("settings.cabecalhoInfoLab")}
             </h2>
             <div className="mt-2 grid grid-cols-2 gap-2">
               <CampoNumero
-                label="Margem Esquerda"
+                label={t("settings.margemEsquerda")}
                 value={cab.infoMargemEsquerda}
                 onChange={(v) => patchCab({ infoMargemEsquerda: v })}
                 max={120}
               />
               <CampoNumero
-                label="Margem Topo"
+                label={t("settings.margemTopo")}
                 value={cab.infoMargemTopo}
                 onChange={(v) => patchCab({ infoMargemTopo: v })}
                 max={80}
               />
               <CampoNumero
-                label="Tam Fonte Nome"
+                label={t("settings.tamFonteNome")}
                 value={cab.fonteNomePt}
                 onChange={(v) => patchCab({ fonteNomePt: v })}
                 min={10}
                 max={32}
               />
               <CampoNumero
-                label="Tam Fonte Info"
+                label={t("settings.tamFonteInfo")}
                 value={cab.fonteInfoPt}
                 onChange={(v) => patchCab({ fonteInfoPt: v })}
                 min={8}
@@ -285,15 +292,7 @@ export function ConfiguracoesCabecalhoConteudo() {
               />
             </div>
             <div className="mt-3 space-y-1.5 text-[12px] text-slate-700">
-              {(
-                [
-                  ["exibirEndereco", "Endereço"],
-                  ["exibirCelular", "Celular"],
-                  ["exibirEmail", "Email"],
-                  ["exibirTelComercial", "Tel Comercial"],
-                  ["exibirSite", "Página Web"],
-                ] as const
-              ).map(([key, label]) => (
+              {camposInfo.map(([key, labelKey]) => (
                 <label key={key} className="flex cursor-pointer items-center gap-2">
                   <input
                     type="checkbox"
@@ -301,23 +300,21 @@ export function ConfiguracoesCabecalhoConteudo() {
                     onChange={(e) => patchCab({ [key]: e.target.checked })}
                     className="h-3.5 w-3.5 rounded border-slate-300 accent-[#4a90d9]"
                   />
-                  {label}
+                  {t(labelKey)}
                 </label>
               ))}
             </div>
             <label className="mt-3 block text-[11px] text-slate-600">
-              Informações Adicionais
+              {t("settings.infoAdicionais")}
               <textarea
                 value={cab.informacoesAdicionais}
                 onChange={(e) => patchCab({ informacoesAdicionais: e.target.value })}
                 rows={3}
                 className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-[12px] outline-none focus:border-[#4a90d9]"
-                placeholder="Texto extra abaixo do e-mail"
+                placeholder={t("settings.infoAdicionaisPlaceholder")}
               />
             </label>
-            <p className="mt-2 text-[10px] text-slate-500">
-              Nome, endereço e contatos vêm de Configurações › Dados do Laboratório.
-            </p>
+            <p className="mt-2 text-[10px] text-slate-500">{t("settings.cabecalhoDadosDica")}</p>
           </div>
         </div>
         <div className="shrink-0 border-t border-slate-300 bg-[#d9dde3] p-4">
@@ -327,13 +324,13 @@ export function ConfiguracoesCabecalhoConteudo() {
             disabled={salvando}
             className="w-full rounded bg-[#5cb85c] py-2.5 text-sm font-normal text-white hover:bg-[#4cae4c]"
           >
-            {salvando ? "Salvando…" : "Salvar Alterações"}
+            {salvando ? t("common.gravando") : t("settings.salvarAlteracoes")}
           </Button>
           {mensagem ? (
             <p
               className={cn(
                 "mt-2 text-center text-[11px]",
-                mensagem.includes("sucesso") ? "text-emerald-700" : "text-amber-800"
+                mensagem === t("settings.salvoSucesso") ? "text-emerald-700" : "text-amber-800"
               )}
             >
               {mensagem}
@@ -348,7 +345,7 @@ export function ConfiguracoesCabecalhoConteudo() {
             href="/app/configuracoes?aba=dados"
             className="rounded bg-[#5a6068] px-5 py-2 text-[12px] text-white hover:bg-[#6a7078]"
           >
-            Voltar
+            {t("settings.voltar")}
           </Link>
         </div>
         <div className="min-h-0 flex-1 overflow-auto p-4 md:p-6">

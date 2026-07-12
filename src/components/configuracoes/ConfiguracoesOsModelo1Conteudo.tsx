@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui";
+import { useI18n } from "@/components/i18n-provider";
 import { Code39Barcode } from "@/lib/code39-barcode";
 import {
   montarTextosCabecalhoRequisicao,
@@ -100,6 +101,7 @@ function CampoNumero({
   min?: number;
   max?: number;
 }) {
+  const { t } = useI18n();
   return (
     <div>
       <span className="mb-1 block text-[11px] text-slate-600">{label}</span>
@@ -108,7 +110,7 @@ function CampoNumero({
           type="button"
           className="flex h-8 w-8 items-center justify-center border-r border-slate-200 text-slate-600 hover:bg-slate-50"
           onClick={() => onChange(Math.max(min, value - 1))}
-          aria-label={`Diminuir ${label}`}
+          aria-label={t("settings.diminuir", { label })}
         >
           <Minus className="h-3.5 w-3.5" />
         </button>
@@ -124,7 +126,7 @@ function CampoNumero({
           type="button"
           className="flex h-8 w-8 items-center justify-center border-l border-slate-200 text-slate-600 hover:bg-slate-50"
           onClick={() => onChange(Math.min(max, value + 1))}
-          aria-label={`Aumentar ${label}`}
+          aria-label={t("settings.aumentar", { label })}
         >
           <Plus className="h-3.5 w-3.5" />
         </button>
@@ -177,6 +179,7 @@ function PreviewOsModeloProducao({
   layout: OsModelo1Layout;
   amostra: PreviewAmostra;
 }) {
+  const { t } = useI18n();
   const lab = useMemo(() => configParaLabImpressao(cfg), [cfg]);
   const cab = useMemo(
     () => normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao),
@@ -229,7 +232,7 @@ function PreviewOsModeloProducao({
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={cfg.logoDataUrl}
-                alt="Logo"
+                alt={t("settings.logo")}
                 style={{ width: logoW, height: logoH, objectFit: "contain" }}
               />
             ) : (
@@ -237,7 +240,7 @@ function PreviewOsModeloProducao({
                 className="flex items-center justify-center border border-dashed border-slate-300 bg-slate-100 text-slate-400"
                 style={{ width: logoW, height: logoH, fontSize: 10 }}
               >
-                Logo
+                {t("settings.logo")}
               </div>
             )}
           </div>
@@ -259,19 +262,19 @@ function PreviewOsModeloProducao({
         )}
 
         <div className="shrink-0 text-right" style={{ fontSize: `${fsSmall}px` }}>
-          <p className="font-normal">Ordem de Serviço</p>
+          <p className="font-normal">{t("print.os.titulo")}</p>
           <p className="font-bold leading-none" style={{ fontSize: `${fs + 10}px` }}>
             {amostra.numeroOs}
           </p>
           {layout.dataOs ? (
             <p className="mt-1">
-              <span className="font-bold">Data: </span>
+              <span className="font-bold">{`${t("print.os.data")}: `}</span>
               {amostra.dataEntrada}
             </p>
           ) : null}
           {layout.usuario ? (
             <p>
-              <span className="font-bold">Usuário: </span>
+              <span className="font-bold">{`${t("print.os.usuario")}: `}</span>
               {nomeUsuarioDocumentosLaboratorio(cfg)}
             </p>
           ) : null}
@@ -290,31 +293,33 @@ function PreviewOsModeloProducao({
       >
         <div style={{ display: "flex", flexDirection: "column", gap: gap(0.5) }}>
           {layout.numOs ? (
-            <LinhaRotuloValor rotulo="Num. OS:" valor={String(amostra.numeroOs)} />
+            <LinhaRotuloValor rotulo={`${t("print.os.numOs")}:`} valor={String(amostra.numeroOs)} />
           ) : null}
           {layout.cliente ? (
-            <LinhaRotuloValor rotulo="Cliente:" valor={amostra.cliente} />
+            <LinhaRotuloValor rotulo={`${t("print.os.cliente")}:`} valor={amostra.cliente} />
           ) : null}
           {layout.dentista ? (
-            <LinhaRotuloValor rotulo="Dentista:" valor={amostra.dentista} />
+            <LinhaRotuloValor rotulo={`${t("print.os.dentista")}:`} valor={amostra.dentista} />
           ) : null}
           {layout.paciente ? (
-            <LinhaRotuloValor rotulo="Paciente:" valor={amostra.paciente} />
+            <LinhaRotuloValor rotulo={`${t("print.os.paciente")}:`} valor={amostra.paciente} />
           ) : null}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: gap(0.5) }}>
           {layout.osExterna ? (
-            <LinhaRotuloValor rotulo="OS Externa:" valor={amostra.osExterna} />
+            <LinhaRotuloValor rotulo={`${t("print.os.osExterna")}:`} valor={amostra.osExterna} />
           ) : null}
-          {layout.caixa ? <LinhaRotuloValor rotulo="Caixa:" valor={amostra.caixa} /> : null}
+          {layout.caixa ? (
+            <LinhaRotuloValor rotulo={`${t("print.os.caixa")}:`} valor={amostra.caixa} />
+          ) : null}
           {layout.clienteTel ? (
-            <LinhaRotuloValor rotulo="Telefones:" valor={amostra.telefones} />
+            <LinhaRotuloValor rotulo={`${t("print.os.telefones")}:`} valor={amostra.telefones} />
           ) : null}
           {layout.clienteEmail ? (
-            <LinhaRotuloValor rotulo="Email:" valor={amostra.email} />
+            <LinhaRotuloValor rotulo={`${t("print.os.email")}:`} valor={amostra.email} />
           ) : null}
           {layout.clienteEnd ? (
-            <LinhaRotuloValor rotulo="Endereço:" valor={amostra.endereco} />
+            <LinhaRotuloValor rotulo={`${t("print.os.endereco")}:`} valor={amostra.endereco} />
           ) : null}
         </div>
       </div>
@@ -328,17 +333,23 @@ function PreviewOsModeloProducao({
       >
         <thead>
           <tr style={estiloLinhaInferiorRequisicaoPreview()}>
-            <th className="py-0.5 pr-2 text-left font-bold">Qtd</th>
-            <th className="py-0.5 pr-2 text-left font-bold">Descrição</th>
+            <th className="py-0.5 pr-2 text-left font-bold">{t("print.os.qtd")}</th>
+            <th className="py-0.5 pr-2 text-left font-bold">{t("print.os.descricao")}</th>
             {layout.numDente ? (
-              <th className="py-1 px-1 text-center font-bold">Número Dente</th>
+              <th className="py-1 px-1 text-center font-bold">{t("print.os.dente")}</th>
             ) : null}
-            {layout.corDente ? <th className="py-1 px-1 text-center font-bold">Cor</th> : null}
+            {layout.corDente ? (
+              <th className="py-1 px-1 text-center font-bold">{t("print.os.cor")}</th>
+            ) : null}
             {layout.valorUnit ? (
-              <th className="py-1 px-1 text-right font-bold">Unitário</th>
+              <th className="py-1 px-1 text-right font-bold">{t("print.os.unitario")}</th>
             ) : null}
-            {layout.desconto ? <th className="py-1 pl-1 text-right font-bold">Desc</th> : null}
-            {layout.subtotal ? <th className="py-1 pl-1 text-right font-bold">Subtotal</th> : null}
+            {layout.desconto ? (
+              <th className="py-1 pl-1 text-right font-bold">{t("print.os.desc")}</th>
+            ) : null}
+            {layout.subtotal ? (
+              <th className="py-1 pl-1 text-right font-bold">{t("print.os.subtotal")}</th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -391,7 +402,7 @@ function PreviewOsModeloProducao({
               <p>
                 {layout.dataPrazo ? (
                   <>
-                    <span>Prazo: </span>
+                    <span>{`${t("print.os.prazo")}: `}</span>
                     <span className="font-bold">{amostra.prazo}</span>
                   </>
                 ) : null}
@@ -400,7 +411,7 @@ function PreviewOsModeloProducao({
                 ) : null}
                 {layout.finalizado ? (
                   <>
-                    <span>Finalizado: </span>
+                    <span>{`${t("print.os.finalizado")}: `}</span>
                     <span className="font-bold">{amostra.finalizado}</span>
                   </>
                 ) : null}
@@ -408,13 +419,13 @@ function PreviewOsModeloProducao({
             ) : null}
             {mostraColaboradorTopo ? (
               <p>
-                <span>Colaborador: </span>
+                <span>{`${t("print.os.colaborador")}: `}</span>
                 <span className="font-bold">{textoColaboradorTopo || ""}</span>
               </p>
             ) : null}
             {layout.producao ? (
               <p>
-                <span>Produção: </span>
+                <span>{`${t("print.os.producao")}: `}</span>
                 <span className="font-bold">{amostra.producao || "—"}</span>
               </p>
             ) : null}
@@ -439,26 +450,26 @@ function PreviewOsModeloProducao({
         <>
           <LinhaSeparador marginTop={gap(2)} />
           <p className="text-right font-bold" style={{ marginTop: gap(1.5) }}>
-            Total {money(amostra.total)}
+            {`${t("print.os.total")} ${money(amostra.total)}`}
           </p>
         </>
       ) : null}
 
       {layout.materialRec ? (
         <p style={{ fontSize: `${fsSmall}px`, marginTop: gap(2) }}>
-          <span>Materiais: </span>
+          <span>{`${t("print.os.materiais")}: `}</span>
           <span className="font-bold">{amostra.materiais}</span>
         </p>
       ) : null}
       {layout.obsFicha ? (
         <p style={{ fontSize: `${fsSmall}px` }}>
-          <span>Observação: </span>
+          <span>{`${t("print.os.observacao")}: `}</span>
           <span className="font-bold">{amostra.obsFicha}</span>
         </p>
       ) : null}
       {layout.pecas && amostra.pecas ? (
         <p style={{ fontSize: `${fsSmall}px` }}>
-          <span>Peças: </span>
+          <span>{`${t("print.os.pecas")}: `}</span>
           <span className="font-bold">{amostra.pecas}</span>
         </p>
       ) : null}
@@ -472,7 +483,7 @@ function PreviewOsModeloProducao({
         <div className="text-center" style={{ fontSize: `${fsSmall - 1}px`, marginTop: gap(6), ...estiloLimiteLinhasPaginaPreview() }}>
           <div className="mx-auto w-48" style={estiloLinhaRequisicaoPreview()} />
           <p className="text-slate-600" style={{ marginTop: gap(1) }}>
-            Assinatura
+            {t("print.os.assinatura")}
           </p>
         </div>
       ) : null}
@@ -547,6 +558,7 @@ export function ConfiguracoesOsModeloProducaoConteudo({
 }: {
   editor: ModeloProducaoEditorConfig;
 }) {
+  const { t } = useI18n();
   const [cfg, setCfg] = useState<ConfigLaboratorio | null>(null);
   const [configOs, setConfigOs] = useState<ConfiguracoesOs>(() => carregarConfiguracoesOs());
   const [layout, setLayout] = useState<OsModelo1Layout>(() =>
@@ -594,11 +606,9 @@ export function ConfiguracoesOsModeloProducaoConteudo({
     try {
       await persistirConfiguracoesOsServidor(novaConfig);
       setLayout(layoutNorm);
-      setMensagem("Configuração salva com sucesso.");
+      setMensagem(t("settings.salvoConfigSucesso"));
     } catch {
-      setMensagem(
-        "Salvo neste navegador, mas não foi possível gravar no servidor. Tente novamente."
-      );
+      setMensagem(t("settings.erroSalvarServidor"));
     } finally {
       setSalvando(false);
       window.setTimeout(() => setMensagem(""), 5000);
@@ -608,7 +618,7 @@ export function ConfiguracoesOsModeloProducaoConteudo({
   if (carregando || !cfg) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#4a4f56]">
-        <p className="text-sm text-slate-300">Carregando…</p>
+        <p className="text-sm text-slate-300">{t("common.carregando")}</p>
       </div>
     );
   }
@@ -621,12 +631,12 @@ export function ConfiguracoesOsModeloProducaoConteudo({
         <div className="flex-1 space-y-3 overflow-y-auto p-4">
           <div>
             <span className="mb-1 block text-[11px] font-semibold text-slate-700">
-              Bordas
-              <span className="ml-1 font-normal text-slate-500">(cor só da moldura)</span>
+              {t("settings.bordas")}
+              <span className="ml-1 font-normal text-slate-500">{t("settings.bordasCorMoldura")}</span>
             </span>
             <div className="flex items-center gap-2">
               <CheckboxCampo
-                label="Bordas"
+                label={t("settings.bordas")}
                 checked={layout.exibirBordas}
                 onChange={(v) => patchLayout({ exibirBordas: v })}
               />
@@ -636,7 +646,7 @@ export function ConfiguracoesOsModeloProducaoConteudo({
                 onChange={(e) => patchLayout({ bordas: e.target.value })}
                 disabled={!layout.exibirBordas}
                 className="h-8 w-10 shrink-0 cursor-pointer rounded border border-slate-300 bg-white p-0.5 disabled:cursor-not-allowed disabled:opacity-40"
-                title="Cor da borda da página"
+                title={t("settings.corBordaPagina")}
               />
               <input
                 type="text"
@@ -661,13 +671,13 @@ export function ConfiguracoesOsModeloProducaoConteudo({
           </div>
 
           <CampoNumero
-            label="Tamanho da Fonte"
+            label={t("settings.tamanhoFonte")}
             value={layout.tamanhoFonte}
             onChange={(v) => patchLayout({ tamanhoFonte: v })}
           />
 
           <CampoNumero
-            label="Espaçamento"
+            label={t("settings.espacamento")}
             value={layout.espacamentoRequisicao}
             min={OS_REQUISICAO_ESPACAMENTO_MIN}
             max={OS_REQUISICAO_ESPACAMENTO_MAX}
@@ -678,26 +688,26 @@ export function ConfiguracoesOsModeloProducaoConteudo({
 
           {editor.exibirOpcaoEtapasComDatas ? (
             <CheckboxCampo
-              label="Etapas com datas"
+              label={t("settings.etapasComDatas")}
               checked={layout.etapasComDatas}
               onChange={(v) => patchLayout({ etapasComDatas: v })}
             />
           ) : null}
 
           <label className="block">
-            <span className="mb-1 block text-[11px] font-semibold text-slate-700">Mensagem</span>
+            <span className="mb-1 block text-[11px] font-semibold text-slate-700">{t("settings.mensagem")}</span>
             <textarea
               value={layout.mensagem}
               onChange={(e) => patchLayout({ mensagem: e.target.value })}
               rows={3}
               className="w-full resize-y rounded border border-slate-300 bg-white px-2 py-1.5 text-[12px] outline-none focus:border-[#4a90d9]"
-              placeholder="Texto opcional no rodapé da requisição"
+              placeholder={t("settings.mensagemRodapeOs")}
             />
           </label>
 
           <div className="grid grid-cols-2 gap-x-2 border-t border-slate-300/80 pt-2">
             <CheckboxCampo
-              label="Modelo padrão"
+              label={t("settings.modeloPadrao")}
               checked={configOs.modeloPadrao === editor.modeloId}
               onChange={(v) =>
                 setConfigOs((atual) => ({
@@ -707,7 +717,7 @@ export function ConfiguracoesOsModeloProducaoConteudo({
               }
             />
             <CheckboxCampo
-              label="Duas vias"
+              label={t("settings.duasViasCheckbox")}
               checked={configOs.duasVias[editor.modeloId]}
               onChange={(v) =>
                 setConfigOs((atual) => ({
@@ -726,7 +736,7 @@ export function ConfiguracoesOsModeloProducaoConteudo({
             disabled={salvando}
             className="w-full rounded bg-[#5cb85c] py-2.5 text-sm font-normal text-white hover:bg-[#4cae4c]"
           >
-            {salvando ? "Salvando…" : "Salvar Alterações"}
+            {salvando ? t("common.gravando") : t("settings.salvarAlteracoes")}
           </Button>
         </div>
       </aside>

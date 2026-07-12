@@ -18,9 +18,12 @@ function coletarValoresPt() {
   }
   for (const file of [
     "messages.ts",
+    "messages-modulos.ts",
     "messages-producao.ts",
+    "messages-producao-submodulos.ts",
     "messages-financeiro.ts",
     "messages-print.ts",
+    "messages-ui-auto.ts",
   ]) {
     const c = fs.readFileSync(path.join(root, "src/lib/i18n", file), "utf8");
     for (const m of c.matchAll(/:\s*"((?:\\.|[^"\\])*)"/g)) {

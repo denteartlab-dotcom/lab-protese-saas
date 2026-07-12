@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/components/i18n-provider";
 import {
   SECOES_MENU_PERMISSOES,
   type MenuPermissaoSecao,
@@ -15,14 +16,23 @@ type Props = {
 
 type ColunaAcao = keyof PermissaoCrud;
 
-const colunas: { key: ColunaAcao; label: string }[] = [
-  { key: "ver", label: "Ver" },
-  { key: "criar", label: "Criar" },
-  { key: "editar", label: "Editar" },
-  { key: "excluir", label: "Excluir" },
-];
+const COLUNAS: ColunaAcao[] = ["ver", "criar", "editar", "excluir"];
 
 export function GradePermissoesUsuario({ modulos, onChange, somenteLeitura }: Props) {
+  const { t } = useI18n();
+
+  const colunas = COLUNAS.map((key) => ({
+    key,
+    label:
+      key === "ver"
+        ? t("settings.permVer")
+        : key === "criar"
+          ? t("settings.permCriar")
+          : key === "editar"
+            ? t("settings.permEditar")
+            : t("settings.permExcluir"),
+  }));
+
   function atualizar(id: string, coluna: ColunaAcao, valor: boolean) {
     if (somenteLeitura) return;
     onChange({
@@ -58,6 +68,8 @@ export function GradePermissoesUsuario({ modulos, onChange, somenteLeitura }: Pr
               modulos={modulos}
               somenteLeitura={somenteLeitura}
               atualizar={atualizar}
+              colunas={colunas}
+              t={t}
             />
           ))}
         </tbody>
@@ -71,11 +83,15 @@ function SecaoGrade({
   modulos,
   somenteLeitura,
   atualizar,
+  colunas,
+  t,
 }: {
   secao: MenuPermissaoSecao;
   modulos: Record<string, PermissaoCrud>;
   somenteLeitura?: boolean;
   atualizar: (id: string, coluna: ColunaAcao, valor: boolean) => void;
+  colunas: { key: ColunaAcao; label: string }[];
+  t: ReturnType<typeof useI18n>["t"];
 }) {
   return (
     <>
@@ -101,7 +117,7 @@ function SecaoGrade({
                 checked={Boolean(modulos[item.id]?.[col.key])}
                 disabled={somenteLeitura}
                 onChange={(e) => atualizar(item.id, col.key, e.target.checked)}
-                aria-label={`${item.label} — ${col.label}`}
+                aria-label={t("settings.permAria", { item: item.label, acao: col.label })}
               />
             </td>
           ))}

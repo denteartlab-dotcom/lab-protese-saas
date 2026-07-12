@@ -1,4 +1,7 @@
+"use client";
+
 import { ControleProducaoToolbar, type ControleProducaoView } from "@/components/ControleProducaoToolbar";
+import { useI18n } from "@/components/i18n-provider";
 import { Card, Table } from "@/components/ui";
 
 const linhas = [
@@ -16,10 +19,12 @@ export function ProducaoSimplePage({
   description: string;
   viewAtiva?: ControleProducaoView;
 }) {
+  const { t } = useI18n();
+
   return (
     <div className="space-y-4 text-sm">
       <div className="text-sm text-slate-500">
-        Produção / <span className="font-medium text-slate-700">{title}</span>
+        {t("producao.module.producao")} / <span className="font-medium text-slate-700">{title}</span>
       </div>
       {viewAtiva ? (
         <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">
@@ -30,8 +35,16 @@ export function ProducaoSimplePage({
         <h1 className="text-xl font-semibold text-slate-800">{title}</h1>
         <p className="mt-1 text-sm text-slate-500">{description}</p>
       </Card>
-      <Card title="Serviços">
-        <Table headers={["OS", "Paciente", "Serviço", "Status", "Prazo"]}>
+      <Card title={t("producao.module.servicos")}>
+        <Table
+          headers={[
+            t("relatorio.comum.os"),
+            t("relatorio.comum.paciente"),
+            t("relatorio.comum.servico"),
+            t("relatorio.filtro.status"),
+            t("producao.module.colunaPrazo"),
+          ]}
+        >
           {linhas.map((linha) => (
             <tr key={linha[0]}>
               {linha.map((coluna) => (

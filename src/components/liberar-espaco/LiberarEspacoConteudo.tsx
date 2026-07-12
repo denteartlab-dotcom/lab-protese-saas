@@ -12,6 +12,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
+import { useI18n } from "@/components/i18n-provider";
 import { Modal } from "@/components/ui";
 import { brShortToIso, dateToBrShort, parseBrDate } from "@/lib/datas-br";
 import {
@@ -47,6 +48,7 @@ function formatarDataArquivo(iso: string) {
 }
 
 export function LiberarEspacoConteudo() {
+  const { t } = useI18n();
   const [arquivos, setArquivos] = useState<ArquivoGaleriaItem[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [excluindo, setExcluindo] = useState(false);
@@ -156,13 +158,16 @@ export function LiberarEspacoConteudo() {
     if (paths.length === 0) return;
     const msg =
       paths.length === 1
-        ? "Excluir este arquivo da galeria?"
-        : `Excluir ${paths.length} arquivos selecionados (${formatarMbExclusao(
+        ? t("liberarEspaco.confirmarExcluirUm")
+        : t("liberarEspaco.confirmarExcluirVarios", {
+            n: paths.length,
+            mb: formatarMbExclusao(
             paths.reduce((s, p) => {
               const arq = arquivos.find((a) => a.relativePath === p);
               return s + (arq?.bytes ?? 0);
             }, 0)
-          )} MB)?`;
+          ),
+          });
     if (!confirm(msg)) return;
 
     setExcluindo(true);
@@ -177,7 +182,7 @@ export function LiberarEspacoConteudo() {
         erros?: string[];
       };
       if (!res.ok || (data.erros?.length ?? 0) > 0) {
-        alert("Não foi possível excluir todos os arquivos.");
+        alert(t("liberarEspaco.erroExcluir"));
       }
       await recarregarLista();
       notificarUploadsAtualizados();
@@ -213,21 +218,21 @@ export function LiberarEspacoConteudo() {
     <div className="bg-[#f3f4f6] pb-8 pt-1 text-[12px] text-[#374151] dark:bg-slate-950 dark:text-slate-200">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-[22px] font-normal leading-none text-[#6b7280] dark:text-slate-400">
-          Liberar Espaço
+          {t("liberarEspaco.titulo")}
         </h1>
         <div className="flex items-center gap-1.5 text-[12px] text-[#9ca3af] dark:text-slate-500">
           <Link href="/app" className="inline-flex items-center hover:text-[#4a90d9]">
             <Home className="h-3.5 w-3.5 shrink-0" />
           </Link>
           <span className="text-[#d1d5db] dark:text-slate-600">/</span>
-          <span className="text-[#6b7280] dark:text-slate-400">Imagens</span>
+          <span className="text-[#6b7280] dark:text-slate-400">{t("liberarEspaco.breadcrumbImagens")}</span>
         </div>
       </div>
 
       <div className="overflow-hidden rounded-sm border border-[#e5e7eb] bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e5e7eb] px-4 py-3 dark:border-slate-700">
           <h2 className="text-[13px] font-medium text-[#374151] dark:text-slate-200">
-            Galeria de Imagens
+            {t("liberarEspaco.galeriaTitulo")}
           </h2>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -237,7 +242,7 @@ export function LiberarEspacoConteudo() {
               className="inline-flex items-center gap-1.5 rounded border border-[#4a90d9] bg-[#4a90d9] px-3 py-1.5 text-[11px] font-medium text-white hover:bg-[#3a7bc8] disabled:cursor-not-allowed disabled:opacity-40"
             >
               <CheckSquare className="h-3.5 w-3.5" />
-              {todosSelecionados ? "Desmarcar todos" : "Marcar Todos"}
+              {todosSelecionados ? t("liberarEspaco.desmarcarTodos") : t("liberarEspaco.marcarTodos")}
             </button>
             <button
               type="button"
@@ -246,14 +251,14 @@ export function LiberarEspacoConteudo() {
               className="inline-flex items-center gap-1.5 rounded border border-red-300 bg-red-500 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              Excluir {formatarMbExclusao(bytesSelecionados)} MB
+              {t("liberarEspaco.excluirMb", { mb: formatarMbExclusao(bytesSelecionados) })}
             </button>
           </div>
         </div>
 
         <div className="border-b border-[#e5e7eb] px-4 py-3 dark:border-slate-700">
           <p className="mb-2 text-[11px] font-medium text-[#6b7280] dark:text-slate-400">
-            Período
+            {t("liberarEspaco.periodo")}
           </p>
           <div className="flex flex-wrap items-end gap-3">
             <div className="w-36">
@@ -263,7 +268,7 @@ export function LiberarEspacoConteudo() {
                 inputClassName="h-[34px] w-full rounded-sm border border-[#d1d5db] bg-white px-2 text-[12px] dark:border-slate-600 dark:bg-slate-900"
               />
             </div>
-            <span className="pb-2 text-[11px] text-[#9ca3af]">até</span>
+            <span className="pb-2 text-[11px] text-[#9ca3af]">{t("liberarEspaco.ate")}</span>
             <div className="w-36">
               <CampoDataBr
                 value={dataFim}
@@ -274,9 +279,9 @@ export function LiberarEspacoConteudo() {
             <div className="flex flex-wrap gap-1.5 pb-0.5">
               {(
                 [
-                  ["ano", "Ano vigente"],
-                  ["mes", "Mês vigente"],
-                  ["todos", "Mostrar todos"],
+                  ["ano", t("liberarEspaco.anoVigente")],
+                  ["mes", t("liberarEspaco.mesVigente")],
+                  ["todos", t("liberarEspaco.mostrarTodos")],
                 ] as const
               ).map(([id, rotulo]) => (
                 <button
@@ -291,7 +296,7 @@ export function LiberarEspacoConteudo() {
             </div>
           </div>
           {!periodoValido ? (
-            <p className="mt-2 text-[11px] text-red-600">Período inválido.</p>
+            <p className="mt-2 text-[11px] text-red-600">{t("liberarEspaco.periodoInvalido")}</p>
           ) : null}
         </div>
 

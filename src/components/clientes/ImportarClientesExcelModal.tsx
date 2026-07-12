@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/components/i18n-provider";
 import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/ui";
@@ -17,6 +18,7 @@ type Props = {
 };
 
 export function ImportarClientesExcelModal({ aberto, onFechar, onImportado }: Props) {
+  const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const [arquivo, setArquivo] = useState<File | null>(null);
@@ -55,24 +57,24 @@ export function ImportarClientesExcelModal({ aberto, onFechar, onImportado }: Pr
       const parsed = await parsearArquivoClientesExcel(file);
       if (!parsed.length) {
         setLinhas([]);
-        setErro("Nenhum cliente válido encontrado no arquivo. Verifique o cabeçalho e a coluna Nome.");
+        setErro(t("cadastros.clientes.importar.erroSemValidos"));
         return;
       }
       setLinhas(parsed);
     } catch {
       setLinhas([]);
-      setErro("Não foi possível ler o arquivo. Use Excel (.xls, .xlsx) ou CSV.");
+      setErro(t("cadastros.clientes.importar.erroLerArquivo"));
     }
   }
 
   function mensagemErroImportacao(erroImport: unknown): string {
     if (erroImport instanceof ErroJobCliente) return erroImport.message;
-    return "Erro de conexão ao importar os clientes.";
+    return t("cadastros.clientes.importar.erroConexao");
   }
 
   async function importarDados() {
     if (!linhas.length) {
-      setErro("Selecione um arquivo Excel com clientes para importar.");
+      setErro(t("cadastros.clientes.importar.erroSelecioneArquivo"));
       return;
     }
 
@@ -101,11 +103,13 @@ export function ImportarClientesExcelModal({ aberto, onFechar, onImportado }: Pr
 
       if (ignorados > 0) {
         alert(
-          `${total} cliente(s) importado(s). ${ignorados} linha(s) ignorada(s).` +
-            (avisos ? `\n\n${avisos}` : "")
+          t("cadastros.clientes.importar.sucessoComIgnorados", {
+            total,
+            ignorados,
+          }) + (avisos ? `\n\n${avisos}` : "")
         );
       } else {
-        alert(`${total} cliente(s) importado(s) com sucesso.`);
+        alert(t("cadastros.clientes.importar.sucesso", { n: total }));
       }
 
       onImportado();
@@ -122,13 +126,13 @@ export function ImportarClientesExcelModal({ aberto, onFechar, onImportado }: Pr
 
   const rotuloBotaoImportar =
     importando && progresso > 0
-      ? `Importando… ${progresso}%`
+      ? t("cadastros.clientes.importar.importandoPct", { pct: progresso })
       : importando
-        ? "Importando…"
-        : "Importar Dados";
+        ? t("cadastros.clientes.importar.importando")
+        : t("cadastros.clientes.importar.botaoImportar");
 
   return (
-    <Modal open={aberto} onClose={fechar} title="Importar Lista de Clientes em Excel">
+    <Modal open={aberto} onClose={fechar} title={t("cadastros.clientes.importar.titulo")}>
       <div className="space-y-4">
         <div className="flex gap-0 overflow-hidden rounded border border-[#d1d5db]">
           <input
@@ -142,7 +146,7 @@ export function ImportarClientesExcelModal({ aberto, onFechar, onImportado }: Pr
           <input
             readOnly
             value={arquivo?.name || ""}
-            placeholder="Escolha um arquivo Excel ou arraste aqui"
+            placeholder={t("cadastros.clientes.importar.placeholderArquivo")}
             className="h-[34px] min-w-0 flex-1 border-0 bg-white px-3 text-[12px] text-[#374151] outline-none placeholder:text-[#9ca3af] disabled:opacity-60"
             onClick={() => !importando && inputRef.current?.click()}
           />
@@ -152,13 +156,13 @@ export function ImportarClientesExcelModal({ aberto, onFechar, onImportado }: Pr
             onClick={() => inputRef.current?.click()}
             className="shrink-0 border-l border-[#d1d5db] bg-white px-4 text-[12px] font-normal text-[#374151] hover:bg-[#f9fafb] disabled:opacity-60"
           >
-            Importar Arquivo
+            {t("cadastros.clientes.importar.botaoArquivo")}
           </button>
         </div>
 
         {linhas.length > 0 ? (
           <p className="text-[12px] text-[#16a34a]">
-            {linhas.length} cliente(s) pronto(s) para importação.
+            {t("cadastros.clientes.importar.prontos", { n: linhas.length })}
           </p>
         ) : null}
 
@@ -171,7 +175,7 @@ export function ImportarClientesExcelModal({ aberto, onFechar, onImportado }: Pr
               />
             </div>
             <p className="text-[11px] text-slate-500">
-              Processando em segundo plano… você pode aguardar nesta tela.
+              {t("cadastros.clientes.importar.processando")}
             </p>
           </div>
         ) : null}
@@ -185,7 +189,7 @@ export function ImportarClientesExcelModal({ aberto, onFechar, onImportado }: Pr
             disabled={importando}
             className="h-[34px] flex-1 rounded-sm bg-[#6b7280] text-[13px] font-semibold text-white hover:bg-[#4b5563] disabled:opacity-60"
           >
-            Cancelar
+            {t("cadastros.comum.cancelar")}
           </button>
           <button
             type="button"

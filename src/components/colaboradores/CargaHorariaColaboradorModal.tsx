@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/components/i18n-provider";
 import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect, useState } from "react";
 import { Modal } from "@/components/ui";
@@ -24,6 +25,7 @@ export function CargaHorariaColaboradorModal({
   valorInicial,
   onSave,
 }: Props) {
+  const { t } = useI18n();
   const [config, setConfig] = useState<HorarioFuncionamentoConfig>(() =>
     clonarHorarioFuncionamento(valorInicial)
   );
@@ -37,7 +39,7 @@ export function CargaHorariaColaboradorModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={`Carga Horária${colaboradorNome.trim() ? ` — ${colaboradorNome.trim()}` : ""}`}
+      title={`${t("cadastros.colaboradores.cargaHorariaTitulo")}${colaboradorNome.trim() ? ` — ${colaboradorNome.trim()}` : ""}`}
       size="xl"
       layerClassName="z-[70]"
     >
@@ -49,7 +51,7 @@ export function CargaHorariaColaboradorModal({
           onSave(config);
           onClose();
         }}
-        gravarLabel="Gravar"
+        gravarLabel={t("cadastros.colaboradores.gravar")}
       />
     </Modal>
   );

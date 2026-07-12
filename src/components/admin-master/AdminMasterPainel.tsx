@@ -18,6 +18,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 import { LIMITES_PLANO_PADRAO, rotuloPlanoEmpresa } from "@/lib/master-planos";
 import { cn } from "@/lib/utils";
 import {
@@ -230,6 +231,7 @@ function badgePlano(plano: string) {
 }
 
 export function AdminMasterPainel() {
+  const { t } = useI18n();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [empresas, setEmpresas] = useState<EmpresaItem[]>([]);
   const [form, setForm] = useState(formularioVazio);
@@ -439,7 +441,7 @@ export function AdminMasterPainel() {
           className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
         >
           <RefreshCw className="h-3.5 w-3.5" />
-          Atualizar
+          {t("admin.master.atualizar")}
         </button>
       </div>
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/components/i18n-provider";
 import {
   formatarDataHoraEtapaImpressao,
   nomeEtapaSemSetor,
@@ -21,16 +22,17 @@ export function OsEtapasListaPreview({
   fontSize?: number;
   gapMm?: string;
   marginTop?: string;
-  /** Ignorado: colaborador não aparece nas etapas. */
   exibirColaborador?: boolean;
   exibirDatas?: boolean;
-  /** Quando há mais de um serviço na OS (ex.: "Prótese Total — Etapas:"). */
   tituloServico?: string;
 }) {
+  const { t } = useI18n();
   const lista = etapas.filter((e) => nomeEtapaSemSetor(e.nome));
   if (lista.length === 0) return null;
 
-  const rotulo = tituloServico ? `${tituloServico} — Etapas:` : "Etapas:";
+  const rotulo = tituloServico
+    ? t("print.os.etapasServico", { servico: tituloServico })
+    : `${t("print.os.etapas")}:`;
 
   return (
     <div

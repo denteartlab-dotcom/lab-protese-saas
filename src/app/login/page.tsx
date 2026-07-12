@@ -7,6 +7,7 @@ import { obterAppBuildIdServidor } from "@/lib/app-build-id-servidor";
 import { obterEmpresaContexto } from "@/lib/empresa-context";
 import { carregarBrandingLoginServidor } from "@/lib/login-branding-servidor";
 import { LoginForm } from "./LoginForm";
+import { LoginLoadingFallback } from "./LoginLoadingFallback";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -46,11 +47,7 @@ export default async function LoginPage({ searchParams }: Props) {
   return (
     <I18nProvider>
       <Suspense
-        fallback={
-          <div className="flex min-h-[50vh] flex-1 items-center justify-center bg-[#0a2f6e] text-sm text-white">
-            Carregando…
-          </div>
-        }
+        fallback={<LoginLoadingFallback />}
       >
         <div className="login-hero-shell flex flex-1 flex-col">
           <LoginForm
