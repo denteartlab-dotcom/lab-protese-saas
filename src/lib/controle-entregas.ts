@@ -3,8 +3,14 @@ import {
   carregarNomesEntregadores,
   garantirEntregadorCadastro,
 } from "@/lib/entregadores-cadastro";
-import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import {
+  persistirArmazenamentoImediato,
+  readStorage,
+  writeStorage,
+} from "@/lib/persisted-storage";
+import {
+  carregarHistoricoEntregas,
+  ENTREGAS_HISTORICO_STORAGE_KEY,
   entregaParaHistorico,
   registrarHistoricoEntregas,
   type SituacaoHistoricoEntrega,
@@ -370,6 +376,18 @@ export function atualizarEntrega(id: string, dados: Partial<EntregaControle>) {
     return;
   }
   salvarEntregas(atualizada);
+}
+
+/** Atualiza e grava no servidor na hora (evita perder conclusão no refresh). */
+export async function atualizarEntregaPersistido(
+  id: string,
+  dados: Partial<EntregaControle>
+) {
+  atualizarEntrega(id, dados);
+  const ativas = carregarEntregas();
+  const historico = carregarHistoricoEntregas();
+  await persistirArmazenamentoImediato(ENTREGAS_STORAGE_KEY, ativas);
+  await persistirArmazenamentoImediato(ENTREGAS_HISTORICO_STORAGE_KEY, historico);
 }
 
 export function excluirEntrega(id: string) {

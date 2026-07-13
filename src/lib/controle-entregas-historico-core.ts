@@ -1,5 +1,5 @@
 import { type EntregaControle } from "@/lib/controle-entregas";
-import { aplicarEspelhoServidor } from "@/lib/armazenamento-laboratorio";
+import { aplicarEspelhoServidor, chaveComSalvamentoPendente } from "@/lib/armazenamento-laboratorio";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 
 export const ENTREGAS_HISTORICO_STORAGE_KEY = "labProteseControleEntregasHistorico";
@@ -124,6 +124,7 @@ export function excluirHistoricoEntrega(id: string) {
 
 export async function sincronizarHistoricoEntregasCliente(): Promise<boolean> {
   if (typeof window === "undefined") return false;
+  if (chaveComSalvamentoPendente(ENTREGAS_HISTORICO_STORAGE_KEY)) return false;
   try {
     const res = await fetch(
       `/api/json-store/${encodeURIComponent(ENTREGAS_HISTORICO_STORAGE_KEY)}`,

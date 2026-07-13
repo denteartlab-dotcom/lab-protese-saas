@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Button, Modal } from "@/components/ui";
 import { useI18n } from "@/components/i18n-provider";
 import {
-  atualizarEntrega,
+  atualizarEntregaPersistido,
   type EntregaControle,
   type SituacaoEntrega,
 } from "@/lib/controle-entregas";
@@ -34,7 +34,7 @@ export function SituacaoEntregaModal({ open, entrega, onClose, onSalvo }: Props)
     setSalvando(false);
   }, [open, entrega]);
 
-  function salvar() {
+  async function salvar() {
     if (!entrega || salvando) return;
     setSalvando(true);
     try {
@@ -44,9 +44,11 @@ export function SituacaoEntregaModal({ open, entrega, onClose, onSalvo }: Props)
       } else {
         patch.dataFinalizado = null;
       }
-      atualizarEntrega(entrega.id, patch);
+      await atualizarEntregaPersistido(entrega.id, patch);
       onSalvo();
       onClose();
+    } catch {
+      alert("Não foi possível salvar a situação. Tente novamente.");
     } finally {
       setSalvando(false);
     }

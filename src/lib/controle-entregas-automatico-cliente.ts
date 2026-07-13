@@ -11,7 +11,7 @@ import {
   type EntregaControle,
   type SituacaoEntrega,
 } from "@/lib/controle-entregas";
-import { aplicarEspelhoServidor } from "@/lib/armazenamento-laboratorio";
+import { aplicarEspelhoServidor, chaveComSalvamentoPendente } from "@/lib/armazenamento-laboratorio";
 import {
   concluirEntregasControlePorNumeroOs,
   STATUS_ENTREGUE_CLIENTE,
@@ -172,6 +172,7 @@ export function aplicarControleEntregaAposMudancaStatus(
 /** Atualiza o espelho local com entregas gravadas no servidor (outra aba / API). */
 export async function sincronizarEntregasControleCliente(): Promise<boolean> {
   if (typeof window === "undefined") return false;
+  if (chaveComSalvamentoPendente(ENTREGAS_STORAGE_KEY)) return false;
   try {
     const res = await fetch(
       `/api/json-store/${encodeURIComponent(ENTREGAS_STORAGE_KEY)}`,

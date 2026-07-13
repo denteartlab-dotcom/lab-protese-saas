@@ -376,9 +376,12 @@ async function flushSalvarPendentes() {
 
   const entradas: Record<string, unknown> = {};
   for (const [key, valor] of Object.entries(entradasBrutas)) {
-    if (gravacaoSeguraParaServidor(key, valor)) {
-      entradas[key] = valor;
+    // Anti-wipe só antes do bootstrap: depois, lista vazia é legítima
+    // (ex.: última entrega marcada como Concluído e arquivada no histórico).
+    if (!bootstrapOk && !gravacaoSeguraParaServidor(key, valor)) {
+      continue;
     }
+    entradas[key] = valor;
   }
   if (Object.keys(entradas).length === 0) return;
 
@@ -471,6 +474,11 @@ function agendarSalvar(key: string, valor: unknown) {
 /** Indica se há alterações ainda não confirmadas no servidor. */
 export function armazenamentoTemSalvamentosPendentes() {
   return filaSalvar.size > 0;
+}
+
+/** Indica se uma chave específica ainda aguarda flush no servidor. */
+export function chaveComSalvamentoPendente(key: string) {
+  return filaSalvar.has(key);
 }
 
 async function carregarBootstrapServidor(
