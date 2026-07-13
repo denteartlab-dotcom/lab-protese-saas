@@ -1,6 +1,7 @@
 /** Normaliza e valida telefones brasileiros para WhatsApp. */
 
-export const PLACEHOLDER_TELEFONE_BR = "553198270-9866";
+/** Placeholder dos campos de telefone nos modais — vazio para não parecer número preenchido. */
+export const PLACEHOLDER_TELEFONE_BR = "";
 
 export function apenasDigitos(valor: string) {
   return valor.replace(/\D/g, "");
