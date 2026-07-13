@@ -518,26 +518,10 @@ export default function ClientesPage() {
     });
     const data = (await res.json().catch(() => ({}))) as {
       error?: string;
-      syncDesconto?: {
-        trabalhosAtualizados?: number;
-        lancamentosAtualizados?: number;
-      };
     };
     if (!res.ok) {
       alert(data.error || t("cadastros.clientes.erroSalvar"));
       return;
-    }
-    if (editing) {
-      const sync = data.syncDesconto;
-      if (
-        sync &&
-        ((sync.trabalhosAtualizados ?? 0) > 0 ||
-          (sync.lancamentosAtualizados ?? 0) > 0)
-      ) {
-        alert(
-          `Desconto geral aplicado automaticamente: ${sync.trabalhosAtualizados ?? 0} OS e ${sync.lancamentosAtualizados ?? 0} fatura(s) pendente(s) atualizadas.`
-        );
-      }
     }
     setOpen(false);
     load();
