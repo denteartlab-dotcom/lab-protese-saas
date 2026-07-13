@@ -16,6 +16,7 @@ export const MODELOS_RELATORIO_RECEITAS = [
 export type ModeloRelatorioReceitas =
   (typeof MODELOS_RELATORIO_RECEITAS)[number]["value"];
 
+/** Labels PT de fallback; UI usa `labelModeloRelatorioReceitasI18n`. */
 export function labelModeloRelatorioReceitas(modelo: ModeloRelatorioReceitas) {
   return (
     MODELOS_RELATORIO_RECEITAS.find((m) => m.value === modelo)?.label ?? modelo

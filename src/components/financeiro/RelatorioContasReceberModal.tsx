@@ -1,6 +1,7 @@
 "use client";
 
 import { I18nPortal } from "@/components/I18nPortal";
+import { useI18n } from "@/components/i18n-provider";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FileText, X } from "lucide-react";
 import { BotoesExtratoCompartilhar } from "@/components/financeiro/BotoesExtratoCompartilhar";
@@ -10,6 +11,7 @@ import { SelectPesquisavel } from "@/components/SelectPesquisavel";
 import { dateToBrShort } from "@/lib/datas-br";
 import { exportarExtratoRelatorioExcel } from "@/lib/extrato-relatorio-export";
 import type { LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
+import { labelModeloRelatorioReceitasI18n } from "@/lib/i18n/relatorio-receitas-i18n";
 import { prepararAbaPdf } from "@/lib/pdf-viewer";
 import { abrirPdfBlobGerandoNoVisualizadorUnificado } from "@/lib/pdf-viewer-unificado";
 import { cn } from "@/lib/utils";
@@ -22,7 +24,6 @@ import {
   type FiltroRelatorioContasReceber,
 } from "@/lib/relatorio-contas-receber";
 import {
-  labelModeloRelatorioReceitas,
   MODELOS_RELATORIO_RECEITAS,
   modeloEhExtratoPorCliente,
   modeloEhParcelasAReceber,
@@ -81,6 +82,7 @@ export function RelatorioContasReceberModal({
   trabalhos = [],
   contatosClientes = [],
 }: Props) {
+  const { t } = useI18n();
   const { inicio: inicioPadrao, fim: fimPadrao } = periodoMesAtual();
 
   const [modelo, setModelo] = useState<ModeloRelatorioReceitas>("faturas-modelo-1");
@@ -207,10 +209,10 @@ export function RelatorioContasReceberModal({
     const filtro = montarFiltro();
     const filtradas = filtrarLinhasRelatorioContasReceber(linhasBase, filtro);
     const ordenadas = ordenarLinhasRelatorioContasReceber(filtradas, ordenarPor, modelo);
-    const modeloLabel = labelModeloRelatorioReceitas(modelo);
+    const modeloLabel = labelModeloRelatorioReceitasI18n(t, modelo);
     const periodoLabel = filtro.periodoAtivo
       ? `${dataInicio} à ${dataFinal}`
-      : "Período: todos";
+      : t("financeiro.receber.relatorio.periodoTodos");
     const nomeClienteExtrato = clienteExtratoSelecionado?.nome;
     const clienteIdExtrato = clienteExtratoSelecionado?.id ?? null;
 
@@ -244,6 +246,7 @@ export function RelatorioContasReceberModal({
     parcelasSomenteAReceber,
     cliente,
     trabalhosAtivos,
+    t,
   ]);
 
   function extratoPronto() {
@@ -252,7 +255,7 @@ export function RelatorioContasReceberModal({
 
   function exportarExtratoExcel() {
     if (!clienteExtratoSelecionado?.nome) {
-      alert("Selecione um cliente para exportar o extrato.");
+      alert(t("financeiro.receber.relatorio.alertaClienteExportar"));
       return;
     }
     exportarExtratoRelatorioExcel(
@@ -289,12 +292,12 @@ export function RelatorioContasReceberModal({
       ordenarPor,
       modelo
     );
-    const modeloLabel = labelModeloRelatorioReceitas(modelo);
+    const modeloLabel = labelModeloRelatorioReceitasI18n(t, modelo);
     const periodoLabel = filtro.periodoAtivo
       ? `${dataInicio} à ${dataFinal}`
-      : "Período: todos";
+      : t("financeiro.receber.relatorio.periodoTodos");
     if (extratoExigeCliente && (!filtro.cliente || filtro.cliente === "todos")) {
-      alert("Selecione um cliente para gerar o Extrato Financeiro.");
+      alert(t("financeiro.receber.relatorio.alertaClienteExtrato"));
       return;
     }
 
@@ -310,7 +313,7 @@ export function RelatorioContasReceberModal({
       : null;
 
     if (extratoExigeCliente && !nomeClienteExtrato) {
-      alert("Selecione um cliente para gerar o Extrato Financeiro.");
+      alert(t("financeiro.receber.relatorio.alertaClienteExtrato"));
       return;
     }
 
@@ -344,7 +347,7 @@ export function RelatorioContasReceberModal({
     )
       .catch(() => {
         janela?.close();
-        alert("Não foi possível gerar o PDF. Permita pop-ups para abrir em nova aba.");
+        alert(t("financeiro.receber.relatorio.erroPdfPopup"));
       })
       .finally(() => setGerandoPdf(false));
   }
@@ -371,13 +374,13 @@ export function RelatorioContasReceberModal({
               id="relatorio-receitas-titulo"
               className="text-[15px] font-medium text-slate-700"
             >
-              Relatório Receitas
+              {t("financeiro.receber.relatorio.titulo")}
             </h2>
             <button
               type="button"
               onClick={onClose}
               className="text-slate-400 hover:text-slate-600"
-              aria-label="Fechar"
+              aria-label={t("common.fechar")}
             >
               <X className="h-5 w-5" />
             </button>
@@ -386,7 +389,9 @@ export function RelatorioContasReceberModal({
           <div className="space-y-5 px-6 py-5">
             <div className="grid grid-cols-2 gap-6">
               <div className="min-w-0">
-                <label className={labelClass}>Modelo Relatório</label>
+                <label className={labelClass}>
+                  {t("financeiro.receber.relatorio.modeloLabel")}
+                </label>
                 <select
                   value={modelo}
                   onChange={(e) => {
@@ -411,13 +416,15 @@ export function RelatorioContasReceberModal({
                 >
                   {MODELOS_RELATORIO_RECEITAS.map((m) => (
                     <option key={m.value} value={m.value}>
-                      {m.label}
+                      {labelModeloRelatorioReceitasI18n(t, m.value)}
                     </option>
                   ))}
                 </select>
               </div>
               <div className="min-w-0">
-                <label className={labelClass}>Ordenar Por</label>
+                <label className={labelClass}>
+                  {t("financeiro.receber.relatorio.ordenarPor")}
+                </label>
                 <select
                   value={
                     modelo === "parcelas-a-receber-modelo-1" ? "nao_disponivel" : ordenarPor
@@ -431,14 +438,26 @@ export function RelatorioContasReceberModal({
                   className={selectClass}
                 >
                   {modelo === "parcelas-a-receber-modelo-1" ? (
-                    <option value="nao_disponivel">Não disponível</option>
+                    <option value="nao_disponivel">
+                      {t("financeiro.receber.relatorio.naoDisponivel")}
+                    </option>
                   ) : (
                     <>
-                      <option value="data_lancamento">Data Lançamento</option>
-                      <option value="vencimento">Data Vencimento</option>
-                      <option value="cliente">Cliente</option>
-                      <option value="valor">Valor</option>
-                      <option value="fatura">Nº Fatura</option>
+                      <option value="data_lancamento">
+                        {t("financeiro.receber.relatorio.ordenar.dataLancamento")}
+                      </option>
+                      <option value="vencimento">
+                        {t("financeiro.receber.relatorio.ordenar.vencimento")}
+                      </option>
+                      <option value="cliente">
+                        {t("financeiro.receber.relatorio.ordenar.cliente")}
+                      </option>
+                      <option value="valor">
+                        {t("financeiro.receber.relatorio.ordenar.valor")}
+                      </option>
+                      <option value="fatura">
+                        {t("financeiro.receber.relatorio.ordenar.fatura")}
+                      </option>
                     </>
                   )}
                 </select>
@@ -455,7 +474,7 @@ export function RelatorioContasReceberModal({
                       onChange={(e) => setParcelasSomenteAReceber(e.target.checked)}
                       className="h-4 w-4 rounded border-slate-300 text-[#4a90d9] focus:ring-[#4a90d9]"
                     />
-                    Mostrar somente a receber
+                    {t("financeiro.receber.relatorio.mostrarSomenteAReceber")}
                   </label>
                 )}
                 {(modelo === "parcelas-a-receber-modelo-2" || modelo === "recebimentos") && (
@@ -476,7 +495,7 @@ export function RelatorioContasReceberModal({
                       }}
                       className="h-4 w-4 rounded border-slate-300 text-[#4a90d9] focus:ring-[#4a90d9]"
                     />
-                    Agrupar por cliente
+                    {t("financeiro.receber.relatorio.agruparPorCliente")}
                   </label>
                 )}
               </div>
@@ -487,7 +506,7 @@ export function RelatorioContasReceberModal({
                 <SelectPesquisavel
                   label={
                     <>
-                      Clientes
+                      {t("financeiro.receber.relatorio.clientes")}
                       {extratoExigeCliente ? (
                         <span className="ml-1 text-red-500">*</span>
                       ) : null}
@@ -498,10 +517,10 @@ export function RelatorioContasReceberModal({
                   required={extratoExigeCliente}
                   placeholder={
                     extratoExigeCliente && clientesNoSelect.length > 0
-                      ? "Selecione um cliente"
+                      ? t("financeiro.receber.relatorio.selecioneCliente")
                       : extratoExigeCliente && !clientesNoSelect.length
-                        ? "Nenhum cliente disponível"
-                        : "Todos"
+                        ? t("financeiro.receber.relatorio.nenhumCliente")
+                        : t("relatorio.opcao.todos")
                   }
                   disabled={extratoExigeCliente && !clientesNoSelect.length}
                   inputClassName={cn(
@@ -513,12 +532,12 @@ export function RelatorioContasReceberModal({
                   menuEmPortal
                   options={clientesNoSelect.map((c) => ({
                     value: c,
-                    label: c === "todos" ? "Todos" : c,
+                    label: c === "todos" ? t("relatorio.opcao.todos") : c,
                   }))}
                 />
                 {extratoExigeCliente ? (
                   <p className="mt-1 text-[11px] text-amber-700">
-                    Obrigatório escolher um cliente para o extrato.
+                    {t("financeiro.receber.relatorio.obrigatorioCliente")}
                   </p>
                 ) : null}
                 {modelo === "parcelas-a-receber-modelo-1" && (
@@ -529,7 +548,7 @@ export function RelatorioContasReceberModal({
                       onChange={(e) => setParcelasSomenteAReceber(e.target.checked)}
                       className="h-4 w-4 rounded border-slate-300 text-[#4a90d9] focus:ring-[#4a90d9]"
                     />
-                    Mostrar somente a receber
+                    {t("financeiro.receber.relatorio.mostrarSomenteAReceber")}
                   </label>
                 )}
                 <button
@@ -539,7 +558,7 @@ export function RelatorioContasReceberModal({
                     gerandoPdf ||
                     (extratoExigeCliente && (!cliente || cliente === "todos"))
                   }
-                  title="Visualizar relatório em PDF"
+                  title={t("financeiro.receber.relatorio.tituloPdf")}
                   className="mt-2.5 flex h-[34px] w-[34px] items-center justify-center rounded border border-[#4a90d9] bg-white text-[#4a90d9] hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <FileText className="h-4 w-4" />
@@ -547,7 +566,9 @@ export function RelatorioContasReceberModal({
               </div>
 
               <div className="min-w-0">
-                <label className={labelClass}>Período</label>
+                <label className={labelClass}>
+                  {t("financeiro.receber.relatorio.periodo")}
+                </label>
                 <div className="flex h-[34px] w-full items-stretch gap-1.5">
                   <select
                     value={periodoCampo}
@@ -558,8 +579,12 @@ export function RelatorioContasReceberModal({
                     }
                     className="h-full w-[11.25rem] shrink-0 rounded border border-slate-300 bg-white px-2 text-[13px] text-slate-800 outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]"
                   >
-                    <option value="data_lancamento">Data Lançamento</option>
-                    <option value="vencimento">Data Vencimento</option>
+                    <option value="data_lancamento">
+                      {t("financeiro.receber.relatorio.ordenar.dataLancamento")}
+                    </option>
+                    <option value="vencimento">
+                      {t("financeiro.receber.relatorio.ordenar.vencimento")}
+                    </option>
                   </select>
                   <label className="flex w-6 shrink-0 items-center justify-center">
                     <input
@@ -567,7 +592,7 @@ export function RelatorioContasReceberModal({
                       checked={periodoAtivo}
                       onChange={(e) => setPeriodoAtivo(e.target.checked)}
                       className="h-4 w-4 rounded border-slate-300 text-[#4a90d9] focus:ring-[#4a90d9]"
-                      aria-label="Filtrar por período"
+                      aria-label={t("financeiro.receber.relatorio.filtrarPeriodo")}
                     />
                   </label>
                   <CampoDataBr
@@ -596,7 +621,7 @@ export function RelatorioContasReceberModal({
                   onExcel={exportarExtratoExcel}
                   onWhatsapp={() => {
                     if (!extratoPronto()) {
-                      alert("Selecione um cliente para enviar o extrato.");
+                      alert(t("financeiro.receber.relatorio.alertaClienteEnviar"));
                       return;
                     }
                     setWhatsappExtratoAberto(true);
@@ -616,14 +641,16 @@ export function RelatorioContasReceberModal({
                   }
                   className="h-11 rounded-sm bg-[#4a90d9] text-sm font-normal text-white hover:bg-[#3d7fc4] disabled:opacity-60"
                 >
-                  {gerandoPdf ? "Gerando PDF..." : "Imprimir"}
+                  {gerandoPdf
+                    ? t("financeiro.receber.relatorio.gerandoPdf")
+                    : t("financeiro.receber.relatorio.imprimir")}
                 </button>
                 <button
                   type="button"
                   onClick={onClose}
                   className="h-11 rounded-sm border border-slate-500 bg-white text-sm font-normal text-slate-700 hover:bg-slate-50"
                 >
-                  Fechar
+                  {t("common.fechar")}
                 </button>
               </div>
             </div>
