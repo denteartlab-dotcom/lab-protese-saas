@@ -1,5 +1,9 @@
 import { type EntregaControle } from "@/lib/controle-entregas";
-import { aplicarEspelhoServidor, chaveComSalvamentoPendente } from "@/lib/armazenamento-laboratorio";
+import {
+  aplicarEspelhoServidor,
+  chaveComSalvamentoPendente,
+  persistirArmazenamentoImediato,
+} from "@/lib/armazenamento-laboratorio";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 
 export const ENTREGAS_HISTORICO_STORAGE_KEY = "labProteseControleEntregasHistorico";
@@ -133,8 +137,22 @@ export async function sincronizarHistoricoEntregasCliente(): Promise<boolean> {
     if (!res.ok) return false;
     const lista = await res.json();
     if (!Array.isArray(lista)) return false;
-    aplicarEspelhoServidor(ENTREGAS_HISTORICO_STORAGE_KEY, lista);
+
+    const doServidor = lista
+      .map((item) => normalizarHistorico(item as Partial<EntregaHistorico>))
+      .filter((item): item is EntregaHistorico => Boolean(item));
+    const local = carregarHistoricoEntregas();
+    // Une servidor + local para não perder item acabado de concluir (corrida de sync).
+    const mesclada = mesclarHistorico(doServidor, local);
+    aplicarEspelhoServidor(ENTREGAS_HISTORICO_STORAGE_KEY, mesclada);
     window.dispatchEvent(new Event(ENTREGAS_HISTORICO_EVENT));
+
+    if (mesclada.length > doServidor.length) {
+      void persistirArmazenamentoImediato(
+        ENTREGAS_HISTORICO_STORAGE_KEY,
+        mesclada
+      );
+    }
     return true;
   } catch {
     return false;

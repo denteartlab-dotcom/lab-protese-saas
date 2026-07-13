@@ -10,8 +10,10 @@ import {
 } from "@/lib/persisted-storage";
 import {
   carregarHistoricoEntregas,
+  ENTREGAS_HISTORICO_EVENT,
   ENTREGAS_HISTORICO_STORAGE_KEY,
   entregaParaHistorico,
+  mesclarHistorico,
   registrarHistoricoEntregas,
   type SituacaoHistoricoEntrega,
 } from "@/lib/controle-entregas-historico-core";
@@ -383,11 +385,51 @@ export async function atualizarEntregaPersistido(
   id: string,
   dados: Partial<EntregaControle>
 ) {
-  atualizarEntrega(id, dados);
-  const ativas = carregarEntregas();
-  const historico = carregarHistoricoEntregas();
-  await persistirArmazenamentoImediato(ENTREGAS_STORAGE_KEY, ativas);
-  await persistirArmazenamentoImediato(ENTREGAS_HISTORICO_STORAGE_KEY, historico);
+  const lista = carregarEntregas();
+  const atual = lista.find((item) => item.id === id);
+  if (!atual) return;
+
+  const merged =
+    normalizarEntrega({ ...atual, ...dados, id: atual.id }) || atual;
+  if (merged.entregador) registrarEntregador(merged.entregador);
+
+  // Concluído/recebido: grava histórico ANTES de tirar da lista ativa.
+  // Se gravar a lista vazia primeiro e o histórico falhar, a entrega some dos dois lados.
+  if (entregaEstaFinalizada(merged.situacao)) {
+    const histItem = entregaParaHistorico(merged, {
+      situacao:
+        merged.situacao === "recebido" ? "recebido" : "entregue",
+      nomeRecebedor: merged.nomeRecebedor,
+      dataFinalizado: merged.dataFinalizado || new Date().toISOString(),
+    });
+    const historicoNovo = mesclarHistorico(carregarHistoricoEntregas(), [
+      histItem,
+    ]);
+    const ativas = lista
+      .filter((item) => item.id !== id)
+      .map((item) => normalizarEntrega(item))
+      .filter((item): item is EntregaControle => Boolean(item));
+
+    await persistirArmazenamentoImediato(
+      ENTREGAS_HISTORICO_STORAGE_KEY,
+      historicoNovo
+    );
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event(ENTREGAS_HISTORICO_EVENT));
+    }
+
+    await persistirArmazenamentoImediato(ENTREGAS_STORAGE_KEY, ativas);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event(ENTREGAS_EVENT));
+    }
+    return;
+  }
+
+  const atualizada = lista.map((item) => (item.id === id ? merged : item));
+  await persistirArmazenamentoImediato(ENTREGAS_STORAGE_KEY, atualizada);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(ENTREGAS_EVENT));
+  }
 }
 
 export function excluirEntrega(id: string) {
