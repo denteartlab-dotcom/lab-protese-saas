@@ -9,6 +9,63 @@ function dataPorExtenso(value: Date) {
   });
 }
 
+/** Dimensões do canvas do editor de assinatura (espelhadas em AssinaturaReciboCampo). */
+export const ASSINATURA_EDITOR_LARGURA_PX = 420;
+export const ASSINATURA_EDITOR_ALTURA_PX = 130;
+/** Y da linha-guia no editor; conteúdo útil fica acima dela. */
+export const ASSINATURA_EDITOR_GUIA_Y = ASSINATURA_EDITOR_ALTURA_PX - 28;
+
+/**
+ * Remove a faixa da linha pontilhada de PNGs gerados pelo editor antigo
+ * (guia era pintada no canvas e ia para o PDF). Uploads de outras dimensões
+ * passam intactos.
+ */
+export async function assinaturaReciboSemLinhaGuia(
+  dataUrl: string
+): Promise<string> {
+  if (!dataUrl || typeof document === "undefined") return dataUrl;
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const veioDoEditor =
+        img.width === ASSINATURA_EDITOR_LARGURA_PX &&
+        img.height === ASSINATURA_EDITOR_ALTURA_PX;
+      if (!veioDoEditor) {
+        resolve(dataUrl);
+        return;
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = ASSINATURA_EDITOR_LARGURA_PX;
+      canvas.height = ASSINATURA_EDITOR_ALTURA_PX;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(dataUrl);
+        return;
+      }
+
+      const fonteH = ASSINATURA_EDITOR_GUIA_Y - 1;
+      const margem = 24;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const escala = Math.min(
+        (ASSINATURA_EDITOR_LARGURA_PX - margem * 2) / img.width,
+        (ASSINATURA_EDITOR_GUIA_Y - 8) / fonteH,
+        1
+      );
+      const w = img.width * escala;
+      const h = fonteH * escala;
+      const x = (ASSINATURA_EDITOR_LARGURA_PX - w) / 2;
+      const y = ASSINATURA_EDITOR_GUIA_Y - h - 2;
+      ctx.drawImage(img, 0, 0, img.width, fonteH, x, y, w, h);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 export function cidadeReciboLaboratorio(
   labCfg: ConfigLaboratorio,
   lab: LabImpressaoConfig

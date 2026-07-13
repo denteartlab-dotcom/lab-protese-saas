@@ -16,19 +16,6 @@ type Props = {
   onChange: (dataUrl: string) => void;
 };
 
-function desenharGuiaAssinatura(ctx: CanvasRenderingContext2D) {
-  ctx.save();
-  ctx.strokeStyle = "#d1d5db";
-  ctx.lineWidth = 1;
-  ctx.setLineDash([5, 4]);
-  ctx.beginPath();
-  ctx.moveTo(MARGEM_LINHA, LINHA_ASSINATURA_Y);
-  ctx.lineTo(LARGURA - MARGEM_LINHA, LINHA_ASSINATURA_Y);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.restore();
-}
-
 export function AssinaturaReciboCampo({ value, onChange }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const desenhando = useRef(false);
@@ -39,10 +26,10 @@ export function AssinaturaReciboCampo({ value, onChange }: Props) {
   const [carregandoPdf, setCarregandoPdf] = useState(false);
   const [erroUpload, setErroUpload] = useState("");
 
+  /** Só fundo branco — a linha pontilhada fica no overlay CSS e não vai no PNG/PDF. */
   const limparCanvas = useCallback((ctx: CanvasRenderingContext2D) => {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, LARGURA, ALTURA);
-    desenharGuiaAssinatura(ctx);
   }, []);
 
   const carregarImagem = useCallback(
@@ -55,17 +42,20 @@ export function AssinaturaReciboCampo({ value, onChange }: Props) {
       if (!dataUrl) return;
       const img = new Image();
       img.onload = () => {
+        // PNG antigo do editor (420×130) pode trazer a pontilhada embutida.
+        const veioDoEditor =
+          img.width === LARGURA && img.height === ALTURA;
+        const fonteH = veioDoEditor ? LINHA_ASSINATURA_Y - 1 : img.height;
         const escala = Math.min(
           (LARGURA - MARGEM_LINHA * 2) / img.width,
-          (LINHA_ASSINATURA_Y - 8) / img.height,
+          (LINHA_ASSINATURA_Y - 8) / fonteH,
           1
         );
         const w = img.width * escala;
-        const h = img.height * escala;
+        const h = fonteH * escala;
         const x = (LARGURA - w) / 2;
         const y = LINHA_ASSINATURA_Y - h - 2;
-        ctx.drawImage(img, x, y, w, h);
-        desenharGuiaAssinatura(ctx);
+        ctx.drawImage(img, 0, 0, img.width, fonteH, x, y, w, h);
       };
       img.src = dataUrl;
     },
@@ -192,23 +182,35 @@ export function AssinaturaReciboCampo({ value, onChange }: Props) {
         <h2 className="text-[15px] font-normal">Assinatura do recibo</h2>
       </div>
       <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
-        Desenhe acima da linha tracejada, envie uma imagem ou um PDF com o scan da assinatura. Ela
-        aparece alinhada à linha nos recibos de recebimento.
+        Desenhe acima da linha pontilhada (só guia na tela), envie uma imagem ou um PDF com o scan.
+        No recibo impresso fica apenas a linha sólida de assinatura, alinhada com a guia.
       </p>
       <div className="inline-block max-w-full rounded border border-slate-300 bg-white p-2 shadow-sm dark:border-slate-600 dark:bg-slate-950">
-        <canvas
-          ref={canvasRef}
-          width={LARGURA}
-          height={ALTURA}
-          className="block w-full max-w-[420px] cursor-crosshair touch-none"
-          onMouseDown={iniciarDesenho}
-          onMouseMove={desenhar}
-          onMouseUp={finalizarDesenho}
-          onMouseLeave={finalizarDesenho}
-          onTouchStart={iniciarDesenho}
-          onTouchMove={desenhar}
-          onTouchEnd={finalizarDesenho}
-        />
+        <div className="relative w-full max-w-[420px]">
+          <canvas
+            ref={canvasRef}
+            width={LARGURA}
+            height={ALTURA}
+            className="block w-full cursor-crosshair touch-none"
+            onMouseDown={iniciarDesenho}
+            onMouseMove={desenhar}
+            onMouseUp={finalizarDesenho}
+            onMouseLeave={finalizarDesenho}
+            onTouchStart={iniciarDesenho}
+            onTouchMove={desenhar}
+            onTouchEnd={finalizarDesenho}
+          />
+          {/* Guia só na tela — não entra no PNG salvo nem no PDF do recibo */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute border-t border-dashed border-slate-300"
+            style={{
+              left: `${(MARGEM_LINHA / LARGURA) * 100}%`,
+              right: `${(MARGEM_LINHA / LARGURA) * 100}%`,
+              top: `${(LINHA_ASSINATURA_Y / ALTURA) * 100}%`,
+            }}
+          />
+        </div>
       </div>
       <div className="mt-2 flex flex-wrap gap-2">
         <Button

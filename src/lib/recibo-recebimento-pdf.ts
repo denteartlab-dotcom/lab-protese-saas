@@ -4,6 +4,7 @@ import {
 } from "@/lib/pdf-lab-cabecalho";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
 import {
+  assinaturaReciboSemLinhaGuia,
   dadosRodapeAssinaturaRecibo,
   desenharRodapeAssinaturaReciboPdf,
 } from "@/lib/recibo-assinatura-lab";
@@ -119,6 +120,11 @@ export async function gerarReciboRecebimentoPdf(
   const labCfg = carregarConfigLaboratorio();
   const lab = labImpressaoFromConfig();
   const rodape = dadosRodapeAssinaturaRecibo(labCfg, lab);
+  if (rodape.assinaturaDataUrl) {
+    rodape.assinaturaDataUrl = await assinaturaReciboSemLinhaGuia(
+      rodape.assinaturaDataUrl
+    );
+  }
 
   desenharRodapeAssinaturaReciboPdf(pdf, pageW, margin, y, rodape);
 
