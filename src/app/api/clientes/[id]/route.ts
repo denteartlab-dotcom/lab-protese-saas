@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 import { schemaNomeCliente } from "@/lib/cliente-validacao";
 import { garantirTokenAcompanhamentoCliente } from "@/lib/cliente-acompanhamento";
+import { sincronizarFaturasPendentesDescontoCliente, descontoGeralClienteMudou } from "@/lib/desconto-cliente-fatura";
 import { z } from "zod";
 
 const schema = z.object({
@@ -66,6 +67,9 @@ export async function PUT(
     if (!existente.tokenAcompanhamento) {
       await garantirTokenAcompanhamentoCliente(id, null);
     }
+
+    const descontoAntesObs = existente.observacoes;
+
     const cliente = await prisma.cliente.update({
       where: { id },
       data: {
@@ -73,6 +77,19 @@ export async function PUT(
         ...(data.nome !== undefined ? { nome: data.nome } : {}),
       },
     });
+
+    if (descontoGeralClienteMudou(descontoAntesObs, cliente.observacoes)) {
+      try {
+        await sincronizarFaturasPendentesDescontoCliente({
+          empresaId: session.empresaId,
+          clienteId: id,
+          observacoes: cliente.observacoes,
+        });
+      } catch (err) {
+        console.error("[clientes] sync desconto faturas", err);
+      }
+    }
+
     return NextResponse.json(cliente);
   } catch (error) {
     if (error instanceof z.ZodError) {
