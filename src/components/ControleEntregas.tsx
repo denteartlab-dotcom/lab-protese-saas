@@ -20,6 +20,7 @@ import { BotoesImprimirExportarToolbar } from "@/components/BotoesImprimirExport
 import { ControleProducaoToolbar } from "@/components/ControleProducaoToolbar";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { FormularioRotaEntregaModal } from "@/components/FormularioRotaEntregaModal";
+import { SituacaoEntregaModal } from "@/components/SituacaoEntregaModal";
 import { RelatorioEntregasModal } from "@/components/relatorios/RelatorioEntregasModal";
 import { Button, Modal } from "@/components/ui";
 import { CampoDataBr } from "@/components/campo-data-br";
@@ -127,6 +128,7 @@ export function ControleEntregas() {
   const [editando, setEditando] = useState<EntregaControle | null>(null);
   const [visualizando, setVisualizando] = useState<EntregaControle | null>(null);
   const [excluindo, setExcluindo] = useState<EntregaControle | null>(null);
+  const [situacaoEditando, setSituacaoEditando] = useState<EntregaControle | null>(null);
   const [relatorioAberto, setRelatorioAberto] = useState(false);
   const [exportandoRelatorio, setExportandoRelatorio] = useState(false);
 
@@ -507,13 +509,16 @@ export function ControleEntregas() {
                     </td>
                     <td className="px-2 py-2">{entrega.nomeRecebedor || "—"}</td>
                     <td className="px-2 py-2">
-                      <span
-                        className={`inline-flex rounded px-2 py-0.5 text-[10px] font-semibold ${
+                      <button
+                        type="button"
+                        onClick={() => setSituacaoEditando(entrega)}
+                        className={`inline-flex rounded px-2 py-0.5 text-[10px] font-semibold transition hover:opacity-90 hover:ring-2 hover:ring-blue-200 ${
                           SITUACOES_ENTREGA[entrega.situacao].badge
                         }`}
+                        title={t("producao.entregas.modalSituacao.alterar")}
                       >
                         {labelSituacaoEntrega(t, entrega.situacao)}
-                      </span>
+                      </button>
                     </td>
                     <td className="px-2 py-2 text-right">{formatarMoedaEntrega(entrega.valor)}</td>
                     <td className="px-2 py-2">
@@ -556,6 +561,13 @@ export function ControleEntregas() {
         open={modalAberto}
         editando={editando}
         onClose={fecharModalRota}
+        onSalvo={recarregar}
+      />
+
+      <SituacaoEntregaModal
+        open={Boolean(situacaoEditando)}
+        entrega={situacaoEditando}
+        onClose={() => setSituacaoEditando(null)}
         onSalvo={recarregar}
       />
 

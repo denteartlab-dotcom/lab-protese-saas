@@ -201,6 +201,13 @@ const pt = {
   "entrega.situacao.em_rota": "Em Rota",
   "entrega.situacao.entregue": "Entregue",
   "entrega.situacao.recebido": "Recebido",
+  "entrega.situacao.concluido": "Concluído",
+  "producao.entregas.modalSituacao.titulo": "Situação da entrega",
+  "producao.entregas.modalSituacao.descricao":
+    "Escolha a situação desta entrega: Pendente, Em rota ou Concluído.",
+  "producao.entregas.modalSituacao.alterar": "Alterar situação",
+  "producao.entregas.modalSituacao.salvar": "Salvar",
+  "producao.entregas.modalSituacao.destinatario": "Destinatário",
 } as const;
 
 const en: Record<keyof typeof pt, string> = {
@@ -404,6 +411,13 @@ const en: Record<keyof typeof pt, string> = {
   "entrega.situacao.em_rota": "In Route",
   "entrega.situacao.entregue": "Delivered",
   "entrega.situacao.recebido": "Received",
+  "entrega.situacao.concluido": "Completed",
+  "producao.entregas.modalSituacao.titulo": "Delivery status",
+  "producao.entregas.modalSituacao.descricao":
+    "Choose this delivery status: Pending, In route, or Completed.",
+  "producao.entregas.modalSituacao.alterar": "Change status",
+  "producao.entregas.modalSituacao.salvar": "Save",
+  "producao.entregas.modalSituacao.destinatario": "Recipient",
 };
 
 const es: Record<keyof typeof pt, string> = {
@@ -607,6 +621,13 @@ const es: Record<keyof typeof pt, string> = {
   "entrega.situacao.em_rota": "En Ruta",
   "entrega.situacao.entregue": "Entregado",
   "entrega.situacao.recebido": "Recibido",
+  "entrega.situacao.concluido": "Concluido",
+  "producao.entregas.modalSituacao.titulo": "Situación de la entrega",
+  "producao.entregas.modalSituacao.descricao":
+    "Elija la situación de esta entrega: Pendiente, En ruta o Concluido.",
+  "producao.entregas.modalSituacao.alterar": "Cambiar situación",
+  "producao.entregas.modalSituacao.salvar": "Guardar",
+  "producao.entregas.modalSituacao.destinatario": "Destinatario",
 };
 
 export const messagesProducaoSubPt = pt;
