@@ -18,7 +18,8 @@ import {
 import {
   calcularMatrizDre,
   exportarDreCsv,
-  lancamentosDrilldownDre,
+  lancamentosDaCelulaDre,
+  dataLancamentoDreIso,
   MESES_DRE,
   type DreLinha,
   type DreLinhaId,
@@ -30,7 +31,6 @@ import {
   desempacotarDespesa,
   descricaoLancamentoExibicao,
 } from "@/lib/lancamento-despesa";
-import { lancamentoEfetivadoFinanceiro } from "@/lib/lancamento-financeiro-realizado";
 import { FINANCEIRO_ATUALIZADO_EVENT } from "@/lib/financeiro-events";
 
 const LINHAS_CLICAVEIS = new Set<DreLinhaId>([
@@ -133,7 +133,7 @@ function corTextoValor(linhaId: DreLinhaId, ehLucro: boolean) {
 }
 
 const btnCelulaClass =
-  "m-0 w-full cursor-pointer border-0 bg-transparent p-0 text-right text-[12px] hover:underline print:no-underline";
+  "m-0 w-full cursor-pointer border-0 bg-transparent p-0 text-right text-[12px] hover:underline print:no-underline disabled:cursor-default disabled:no-underline disabled:opacity-80";
 
 const estiloLabelIndicativo = {
   backgroundColor: "#e0f7fa",
@@ -179,7 +179,15 @@ export function DreConteudo() {
     try {
       const res = await fetch("/api/financeiro", { cache: "no-store" });
       const data = await res.json();
-      setLancamentos(Array.isArray(data.lancamentos) ? data.lancamentos : []);
+      const lista = Array.isArray(data.lancamentos) ? data.lancamentos : [];
+      setLancamentos(
+        lista.map((item: LancamentoDre) => ({
+          ...item,
+          data: dataLancamentoDreIso(item.data) || String(item.data || ""),
+          status: String(item.status || "").trim().toLowerCase(),
+          tipo: String(item.tipo || "").trim().toLowerCase(),
+        }))
+      );
       setPlanoContas(carregarPlanoContas());
     } catch {
       setLancamentos([]);
@@ -229,26 +237,8 @@ export function DreConteudo() {
 
   const lancamentosDrill = useMemo(() => {
     if (!drilldown) return [];
-    if (drilldown.linhaId) {
-      return lancamentosDrilldownDre(
-        lancamentos,
-        ano,
-        drilldown.mesIndex,
-        drilldown.linhaId,
-        planoContas
-      );
-    }
-    return lancamentos.filter((l) => {
-      if (!lancamentoEfetivadoFinanceiro(l)) return false;
-      const d = new Date(l.data);
-      return d.getFullYear() === ano && d.getMonth() === drilldown.mesIndex;
-    });
-  }, [drilldown, lancamentos, ano, planoContas]);
-
-  useEffect(() => {
-    if (!drilldown || lancamentosDrill.length > 0) return;
-    setDrilldown(null);
-  }, [drilldown, lancamentosDrill.length]);
+    return lancamentosDaCelulaDre(matriz, drilldown.mesIndex, drilldown.linhaId);
+  }, [drilldown, matriz]);
 
   function abrirDrilldownMes(mesIndex: number) {
     setDrilldown({
@@ -260,8 +250,9 @@ export function DreConteudo() {
     });
   }
 
-  function abrirDrilldownCelula(linha: DreLinha, mesIndex: number) {
+  function abrirDrilldownCelula(linha: DreLinha, mesIndex: number, valor: number) {
     if (!LINHAS_CLICAVEIS.has(linha.id)) return;
+    if (!Number.isFinite(valor) || Math.abs(valor) < 0.005) return;
     setDrilldown({
       mesIndex,
       linhaId: linha.id,
@@ -431,10 +422,11 @@ export function DreConteudo() {
                                   <button
                                     type="button"
                                     onClick={() =>
-                                      abrirDrilldownCelula(linha, mesIndex)
+                                      abrirDrilldownCelula(linha, mesIndex, valor)
                                     }
                                     className={btnCelulaClass}
                                     style={{ color: corValor }}
+                                    disabled={Math.abs(valor) < 0.005}
                                   >
                                     {money(valor, locale)}
                                   </button>

@@ -7,5 +7,5 @@ export type LancamentoFinanceiroBasico = {
  * recebidos ou pagos (status Pago no Financeiro). Pendente e cancelado não entram.
  */
 export function lancamentoEfetivadoFinanceiro(lancamento: LancamentoFinanceiroBasico): boolean {
-  return lancamento.status === "pago";
+  return String(lancamento.status || "").trim().toLowerCase() === "pago";
 }

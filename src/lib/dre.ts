@@ -53,6 +53,10 @@ export type DreMatriz = {
   ano: number;
   linhas: DreLinha[];
   lancamentos: LancamentoDre[];
+  /** Lançamentos que formaram cada célula clicável: `${linhaId}:${mesIndex}`. */
+  drilldownPorCelula: Record<string, LancamentoDre[]>;
+  /** Todos os lançamentos efetivados do mês (cabeçalho). */
+  drilldownPorMes: LancamentoDre[][];
 };
 
 export type DreFiltroDrilldown = {
@@ -60,17 +64,46 @@ export type DreFiltroDrilldown = {
   mesIndex: number;
 };
 
-function mesIndexDaData(dataIso: string) {
-  const match = dataIso.match(/^(\d{4})-(\d{2})/);
+/** Chave estável para lookup do drill-down da célula. */
+export function chaveDrilldownDre(linhaId: DreLinhaId, mesIndex: number) {
+  return `${linhaId}:${mesIndex}`;
+}
+
+/** Normaliza data da API (string ISO, Date ou similar) para ISO estável. */
+export function dataLancamentoDreIso(data: unknown): string {
+  if (typeof data === "string" && data.trim()) return data.trim();
+  if (data instanceof Date && !Number.isNaN(data.getTime())) return data.toISOString();
+  if (data != null && typeof data === "object" && "toISOString" in data) {
+    try {
+      const iso = (data as Date).toISOString();
+      if (typeof iso === "string") return iso;
+    } catch {
+      /* ignore */
+    }
+  }
+  return "";
+}
+
+export function mesIndexDaData(dataIso: string) {
+  const iso = dataLancamentoDreIso(dataIso);
+  const match = iso.match(/^(\d{4})-(\d{2})/);
   if (match) return Number(match[2]) - 1;
-  const d = new Date(dataIso);
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return -1;
   return d.getMonth();
 }
 
-function anoDaData(dataIso: string) {
-  const match = dataIso.match(/^(\d{4})/);
+export function anoDaData(dataIso: string) {
+  const iso = dataLancamentoDreIso(dataIso);
+  const match = iso.match(/^(\d{4})/);
   if (match) return Number(match[1]);
-  return new Date(dataIso).getFullYear();
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return NaN;
+  return d.getFullYear();
+}
+
+function tipoLancamentoDre(tipo: string) {
+  return String(tipo || "").trim().toLowerCase();
 }
 
 export function categoriaDoLancamento(
@@ -79,7 +112,7 @@ export function categoriaDoLancamento(
 ) {
   const pack = desempacotarDespesa(lancamento.descricao);
   if (pack.categoria && pack.categoria !== "—") return pack.categoria;
-  return lancamento.tipo === "receita"
+  return tipoLancamentoDre(lancamento.tipo) === "receita"
     ? categoriaPadraoLancamento(plano, "receitas")
     : categoriaPadraoLancamento(plano, "despesas");
 }
@@ -101,12 +134,12 @@ export function codigoPlanoDaCategoria(
 
   if (!item) {
     item =
-      tipo === "receita"
+      tipoLancamentoDre(tipo) === "receita"
         ? plano.find((i) => i.codigo === "3.1.1")
         : plano.find((i) => i.codigo === "4.4.11");
   }
 
-  return item?.codigo ?? (tipo === "receita" ? "3.1.1" : "4.4.11");
+  return item?.codigo ?? (tipoLancamentoDre(tipo) === "receita" ? "3.1.1" : "4.4.11");
 }
 
 export type DreBucket =
@@ -127,7 +160,7 @@ export function classificarLancamentoDre(
   const categoria = categoriaDoLancamento(lancamento, plano);
   const codigo = codigoPlanoDaCategoria(categoria, plano, lancamento.tipo);
 
-  if (lancamento.tipo === "receita") {
+  if (tipoLancamentoDre(lancamento.tipo) === "receita") {
     if (codigo.startsWith("3.1")) return "receita_bruta";
     return "receita_financeira_nao_op";
   }
@@ -171,6 +204,41 @@ function linhaPertenceDrilldown(
   }
 }
 
+function adicionarDrilldownCelula(
+  mapa: Record<string, LancamentoDre[]>,
+  linhaId: DreLinhaId,
+  mesIndex: number,
+  lancamento: LancamentoDre
+) {
+  const chave = chaveDrilldownDre(linhaId, mesIndex);
+  const lista = mapa[chave] ?? (mapa[chave] = []);
+  lista.push(lancamento);
+}
+
+function bucketsParaLinhaDrilldown(bucket: DreBucket): DreLinhaId[] {
+  switch (bucket) {
+    case "receita_bruta":
+      return ["receita_bruta"];
+    case "impostos":
+      return ["impostos"];
+    case "custos_fixos":
+      return ["custos_fixos"];
+    case "custos_variaveis":
+      return ["custos_variaveis"];
+    case "despesas":
+      return ["despesas"];
+    case "despesas_nao_operacionais":
+    case "investimentos":
+      return ["despesas_nao_operacionais"];
+    case "irpj_csll":
+      return ["irpj_csll"];
+    case "receita_financeira_nao_op":
+      return [];
+    default:
+      return [];
+  }
+}
+
 export function lancamentosDrilldownDre(
   lancamentos: LancamentoDre[],
   ano: number,
@@ -179,10 +247,11 @@ export function lancamentosDrilldownDre(
   plano: ItemPlanoContas[]
 ) {
   return lancamentos.filter((l) => {
+    const dataIso = dataLancamentoDreIso(l.data);
     if (!lancamentoEfetivadoFinanceiro(l)) return false;
-    if (anoDaData(l.data) !== ano) return false;
-    if (mesIndexDaData(l.data) !== mesIndex) return false;
-    const bucket = classificarLancamentoDre(l, plano);
+    if (anoDaData(dataIso) !== ano) return false;
+    if (mesIndexDaData(dataIso) !== mesIndex) return false;
+    const bucket = classificarLancamentoDre({ ...l, data: dataIso }, plano);
     if (linhaId === "receita_liquida") {
       return bucket === "receita_bruta" || bucket === "impostos";
     }
@@ -191,6 +260,19 @@ export function lancamentosDrilldownDre(
     }
     return linhaPertenceDrilldown(bucket, linhaId);
   });
+}
+
+/** Preferência: lançamentos indexados na própria matriz (mesma origem dos totais). */
+export function lancamentosDaCelulaDre(
+  matriz: DreMatriz,
+  mesIndex: number,
+  linhaId?: DreLinhaId
+): LancamentoDre[] {
+  if (mesIndex < 0 || mesIndex > 11) return [];
+  if (!linhaId) {
+    return matriz.drilldownPorMes[mesIndex] ?? [];
+  }
+  return matriz.drilldownPorCelula[chaveDrilldownDre(linhaId, mesIndex)] ?? [];
 }
 
 export function calcularMatrizDre(
@@ -209,18 +291,22 @@ export function calcularMatrizDre(
     investimentos: 0,
     irpj_csll: 0,
   }));
+  const drilldownPorCelula: Record<string, LancamentoDre[]> = {};
+  const drilldownPorMes: LancamentoDre[][] = Array.from({ length: 12 }, () => []);
 
-  for (const l of lancamentos) {
+  for (const bruto of lancamentos) {
+    const dataIso = dataLancamentoDreIso(bruto.data);
+    const l: LancamentoDre = { ...bruto, data: dataIso || bruto.data };
     if (!lancamentoEfetivadoFinanceiro(l)) continue;
     if (anoDaData(l.data) !== ano) continue;
     const m = mesIndexDaData(l.data);
     if (m < 0 || m > 11) continue;
     const bucket = classificarLancamentoDre(l, plano);
     const valor = Math.abs(l.valor);
-    if (bucket === "receita_bruta" || bucket === "receita_financeira_nao_op") {
-      buckets[m][bucket] += valor;
-    } else {
-      buckets[m][bucket] += valor;
+    buckets[m][bucket] += valor;
+    drilldownPorMes[m].push(l);
+    for (const linhaId of bucketsParaLinhaDrilldown(bucket)) {
+      adicionarDrilldownCelula(drilldownPorCelula, linhaId, m, l);
     }
   }
 
@@ -267,7 +353,7 @@ export function calcularMatrizDre(
     linhaDef("lucro_liquido", "Lucro Líquido", "lucro", lucroLiquido),
   ];
 
-  return { ano, linhas, lancamentos };
+  return { ano, linhas, lancamentos, drilldownPorCelula, drilldownPorMes };
 }
 
 function linhaDef(
