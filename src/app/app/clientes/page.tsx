@@ -185,6 +185,8 @@ export default function ClientesPage() {
   const [detalhe, setDetalhe] = useState<Cliente | null>(null);
   const [abaModal, setAbaModal] = useState("dados");
   const [form, setForm] = useState(empty);
+  const [gravacaoOk, setGravacaoOk] = useState(false);
+  const [msgGravacao, setMsgGravacao] = useState("");
   const [enviandoWhatsAppId, setEnviandoWhatsAppId] = useState<string | null>(null);
   const [tabelasPreco, setTabelasPreco] = useState<string[]>(["Tabela Principal"]);
   const [buscandoCep, setBuscandoCep] = useState(false);
@@ -405,6 +407,8 @@ export default function ClientesPage() {
     const tabelasLocal = carregarNomesTabelasPreco();
     const tabelas = tabelasLocal.length ? tabelasLocal : tabelasPreco;
     setEditing(null);
+    setGravacaoOk(false);
+    setMsgGravacao("");
     ultimoCepBuscado.current = "";
     setForm({
       ...empty,
@@ -419,6 +423,8 @@ export default function ClientesPage() {
     const cols = carregarColaboradoresListagem();
     setColaboradores(cols);
     setEditing(c);
+    setGravacaoOk(false);
+    setMsgGravacao("");
     ultimoCepBuscado.current = (c.cep || "").replace(/\D/g, "");
     setForm({
       tipoCliente: tipoClienteCadastro(c.observacoes) || "Dentista",
@@ -523,8 +529,15 @@ export default function ClientesPage() {
       alert(data.error || t("cadastros.clientes.erroSalvar"));
       return;
     }
+    void load();
+    if (editing) {
+      setGravacaoOk(true);
+      setMsgGravacao(
+        abaModal === "configuracao" ? "Desconto aplicado" : "Alterações gravadas"
+      );
+      return;
+    }
     setOpen(false);
-    load();
   }
 
   async function confirmarExclusaoMultipla() {
@@ -1256,20 +1269,37 @@ export default function ClientesPage() {
             </div>
           )}
 
-          <div className="flex justify-end gap-3 border-t border-slate-200 pt-4">
-            <button
-              type="submit"
-              className="rounded bg-[#4a90d9] px-5 py-2 text-sm font-normal text-white hover:bg-[#3d7fc4]"
-            >
-              {editing ? t("cadastros.clientes.gravarAlteracoes") : t("cadastros.clientes.cadastrarCliente")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="rounded border border-slate-300 bg-white px-5 py-2 text-sm font-normal text-slate-700 hover:bg-slate-50"
-            >
-              {t("cadastros.comum.fechar")}
-            </button>
+          <div className="flex flex-col gap-3 border-t border-slate-200 pt-4">
+            {msgGravacao ? (
+              <p className="text-center text-sm font-medium text-emerald-700">
+                {msgGravacao}
+              </p>
+            ) : null}
+            <div className="flex justify-end gap-3">
+              <button
+                type="submit"
+                className={
+                  gravacaoOk
+                    ? "rounded bg-emerald-300 px-5 py-2 text-sm font-normal text-emerald-950 hover:bg-emerald-400"
+                    : "rounded bg-[#4a90d9] px-5 py-2 text-sm font-normal text-white hover:bg-[#3d7fc4]"
+                }
+              >
+                {editing
+                  ? t("cadastros.clientes.gravarAlteracoes")
+                  : t("cadastros.clientes.cadastrarCliente")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setGravacaoOk(false);
+                  setMsgGravacao("");
+                  setOpen(false);
+                }}
+                className="rounded border border-slate-300 bg-white px-5 py-2 text-sm font-normal text-slate-700 hover:bg-slate-50"
+              >
+                {t("cadastros.comum.fechar")}
+              </button>
+            </div>
           </div>
         </form>
       </Modal>
