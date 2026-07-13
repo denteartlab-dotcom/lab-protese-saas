@@ -260,6 +260,20 @@ sudo ufw enable
 
 ## 13. Domínio denteartlab.com.br (HostGator → VPS)
 
+### Opção A — Cloudflare Free (recomendado)
+
+CDN, SSL na borda, proteção DDoS e IP oculto. Guia completo: **`deploy/CLOUDFLARE-FREE.md`**
+
+```bash
+cd /opt/lab-protese-saas
+git pull origin main
+bash deploy/configurar-cloudflare-free.sh
+```
+
+No painel Cloudflare: DNS com nuvem **laranja** (Proxied) apontando A `@` e `www` para o IP da VPS. SSL: **Full (strict)** após certificado de origem.
+
+### Opção B — DNS direto (HostGator → VPS, sem Cloudflare)
+
 **Ordem correta** — não copie `nginx-denteartlab.conf` antes do Certbot.
 
 1. No painel HostGator, aponte o DNS do domínio para o IP do VPS:

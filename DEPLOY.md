@@ -127,3 +127,21 @@ O arquivo `prisma/platform.db` continua sendo a **origem** para o próximo `npm 
 - **`db:publicar-neon` apaga tudo no Neon** do projeto. Só rode quando quiser substituir o site antigo.  
 - Faça backup no Neon (export) se ainda precisar de algo do site antigo.  
 - Se o build na Vercel falhar, abra o log; quase sempre é variável de ambiente faltando.
+
+---
+
+## Produção na VPS com Cloudflare Free
+
+O ambiente principal do sistema roda na **VPS Ubuntu** (Nginx + PM2 + PostgreSQL), não na Vercel. Para CDN, SSL na borda e proteção DDoS sem migrar para Cloudflare Pages:
+
+1. Guia completo: **`deploy/CLOUDFLARE-FREE.md`**
+2. Na VPS, após DNS com nuvem laranja no Cloudflare:
+
+```bash
+cd /opt/lab-protese-saas
+git pull origin main
+npm run vps:cloudflare
+# ou: bash deploy/configurar-cloudflare-free.sh
+```
+
+3. Deploy de código na VPS: `npm run vps:deploy` — ver também `deploy/VPS-UBUNTU.md`.

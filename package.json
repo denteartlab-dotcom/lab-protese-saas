@@ -40,6 +40,7 @@
     "db:reparar-usuarios-empresa": "node node_modules/tsx/dist/cli.mjs scripts/reparar-usuarios-empresa.ts",
     "vps:validar": "node node_modules/tsx/dist/cli.mjs scripts/migrar-empresa-fase6.ts",
     "vps:deploy": "bash deploy/atualizar-producao.sh",
+    "vps:cloudflare": "bash deploy/configurar-cloudflare-free.sh",
     "db:publicar-neon": "node node_modules/tsx/dist/cli.mjs scripts/publicar-banco-neon.ts",
     "db:migrar-financeiro": "node node_modules/tsx/dist/cli.mjs scripts/migrar-financeiro-neon.ts",
     "backup:diario": "node node_modules/tsx/dist/cli.mjs scripts/backup-diario.ts",
