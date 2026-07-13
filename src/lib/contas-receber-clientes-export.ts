@@ -1,4 +1,10 @@
 import { baixarCsv } from "@/lib/exportar-csv";
+import type { Locale } from "@/lib/i18n";
+import {
+  iniciarImpressaoRelatorio,
+  periodoRelatorioTexto,
+  pl,
+} from "@/lib/i18n/print-relatorio-helpers";
 import { gerarRelatorioTabelaPdf } from "@/lib/pdf-relatorio-tabela";
 import { formatCurrency } from "@/lib/utils";
 
@@ -11,10 +17,10 @@ export type LinhaContasReceberCliente = {
 };
 
 function periodoLabel(dataInicio: string, dataFinal: string) {
-  if (dataInicio && dataFinal) return `${dataInicio} a ${dataFinal}`;
-  if (dataInicio) return `A partir de ${dataInicio}`;
-  if (dataFinal) return `Até ${dataFinal}`;
-  return "Todos os períodos";
+  if (dataInicio && dataFinal) return periodoRelatorioTexto(dataInicio, dataFinal);
+  if (dataInicio) return pl("print.relatorio.contasReceber.aPartirDe", { data: dataInicio });
+  if (dataFinal) return pl("print.relatorio.contasReceber.ate", { data: dataFinal });
+  return pl("print.relatorio.contasReceber.todosPeriodos");
 }
 
 function totaisLinhas(linhas: LinhaContasReceberCliente[]) {
@@ -29,11 +35,25 @@ function totaisLinhas(linhas: LinhaContasReceberCliente[]) {
   );
 }
 
-export function exportarContasReceberClientesCsv(linhas: LinhaContasReceberCliente[]) {
+function cabecalhosContasReceber() {
+  return [
+    pl("print.relatorio.col.nome").toUpperCase(),
+    pl("print.relatorio.col.aReceber").toUpperCase(),
+    pl("print.relatorio.col.recebido").toUpperCase(),
+    pl("print.relatorio.col.adiantamentos").toUpperCase(),
+    pl("print.relatorio.col.naoFaturados").toUpperCase(),
+  ];
+}
+
+export function exportarContasReceberClientesCsv(
+  linhas: LinhaContasReceberCliente[],
+  opts?: { locale?: Locale }
+) {
+  iniciarImpressaoRelatorio({ locale: opts?.locale });
   const totais = totaisLinhas(linhas);
   baixarCsv(
     "contas-a-receber.csv",
-    ["NOME", "A RECEBER", "RECEBIDO", "ADIANTAMENTOS", "NÃO FATURADOS"],
+    cabecalhosContasReceber(),
     [
       ...linhas.map((l) => [
         l.nome,
@@ -43,7 +63,7 @@ export function exportarContasReceberClientesCsv(linhas: LinhaContasReceberClien
         l.naoFaturados,
       ]),
       [
-        "TOTAL",
+        pl("print.relatorio.total"),
         totais.aReceber,
         totais.recebido,
         totais.adiantamentos,
@@ -56,18 +76,29 @@ export function exportarContasReceberClientesCsv(linhas: LinhaContasReceberClien
 export async function gerarContasReceberClientesPdf(
   linhas: LinhaContasReceberCliente[],
   dataInicio = "",
-  dataFinal = ""
+  dataFinal = "",
+  opts?: { locale?: Locale }
 ) {
+  iniciarImpressaoRelatorio({ locale: opts?.locale });
   const totais = totaisLinhas(linhas);
+  const totalLabel = pl("print.relatorio.total");
   return gerarRelatorioTabelaPdf({
-    tituloRelatorio: "Contas a Receber",
+    tituloRelatorio: pl("print.relatorio.contasReceber.titulo"),
     periodoTexto: periodoLabel(dataInicio, dataFinal),
     colunas: [
-      { titulo: "Nome", larguraMm: 62, alinhamento: "left" },
-      { titulo: "A Receber", larguraMm: 28, alinhamento: "right" },
-      { titulo: "Recebido", larguraMm: 28, alinhamento: "right" },
-      { titulo: "Adiantamentos", larguraMm: 32, alinhamento: "right" },
-      { titulo: "Não Faturados", larguraMm: 32, alinhamento: "right" },
+      { titulo: pl("print.relatorio.col.nome"), larguraMm: 62, alinhamento: "left" },
+      { titulo: pl("print.relatorio.col.aReceber"), larguraMm: 28, alinhamento: "right" },
+      { titulo: pl("print.relatorio.col.recebido"), larguraMm: 28, alinhamento: "right" },
+      {
+        titulo: pl("print.relatorio.col.adiantamentos"),
+        larguraMm: 32,
+        alinhamento: "right",
+      },
+      {
+        titulo: pl("print.relatorio.col.naoFaturados"),
+        larguraMm: 32,
+        alinhamento: "right",
+      },
     ],
     linhas: linhas.map((l) => [
       l.nome,
@@ -78,9 +109,9 @@ export async function gerarContasReceberClientesPdf(
     ]),
     linhaTotal: {
       indiceRotulo: 0,
-      rotulo: "TOTAL",
+      rotulo: totalLabel,
       celulas: [
-        "TOTAL",
+        totalLabel,
         formatCurrency(totais.aReceber),
         formatCurrency(totais.recebido),
         formatCurrency(totais.adiantamentos),

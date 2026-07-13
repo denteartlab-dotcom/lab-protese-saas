@@ -309,6 +309,13 @@ export const messagesPrintPt = {
   "print.clientes.lista.telResidencial": "Tel Residencial:",
   "print.clientes.lista.celular": "Celular:",
   "print.clientes.lista.whatsapp": "Whatsapp:",
+  "print.relatorio.contasReceber.titulo": "Contas a Receber",
+  "print.relatorio.contasReceber.todosPeriodos": "Todos os períodos",
+  "print.relatorio.contasReceber.aPartirDe": "A partir de {data}",
+  "print.relatorio.contasReceber.ate": "Até {data}",
+  "print.relatorio.col.aReceber": "A Receber",
+  "print.relatorio.col.adiantamentos": "Adiantamentos",
+  "print.relatorio.col.naoFaturados": "Não Faturados",
 } as const;
 
 export const messagesPrintEn: Record<keyof typeof messagesPrintPt, string> = {
@@ -621,6 +628,13 @@ export const messagesPrintEn: Record<keyof typeof messagesPrintPt, string> = {
   "print.clientes.lista.telResidencial": "Home phone:",
   "print.clientes.lista.celular": "Mobile:",
   "print.clientes.lista.whatsapp": "WhatsApp:",
+  "print.relatorio.contasReceber.titulo": "Accounts Receivable",
+  "print.relatorio.contasReceber.todosPeriodos": "All periods",
+  "print.relatorio.contasReceber.aPartirDe": "From {data}",
+  "print.relatorio.contasReceber.ate": "Until {data}",
+  "print.relatorio.col.aReceber": "To Receive",
+  "print.relatorio.col.adiantamentos": "Advances",
+  "print.relatorio.col.naoFaturados": "Not Invoiced",
 };
 
 export const messagesPrintEs: Record<keyof typeof messagesPrintPt, string> = {
@@ -933,6 +947,13 @@ export const messagesPrintEs: Record<keyof typeof messagesPrintPt, string> = {
   "print.clientes.lista.telResidencial": "Tel. residencial:",
   "print.clientes.lista.celular": "Celular:",
   "print.clientes.lista.whatsapp": "WhatsApp:",
-};;
+  "print.relatorio.contasReceber.titulo": "Cuentas por Cobrar",
+  "print.relatorio.contasReceber.todosPeriodos": "Todos los períodos",
+  "print.relatorio.contasReceber.aPartirDe": "A partir de {data}",
+  "print.relatorio.contasReceber.ate": "Hasta {data}",
+  "print.relatorio.col.aReceber": "Por Cobrar",
+  "print.relatorio.col.adiantamentos": "Anticipos",
+  "print.relatorio.col.naoFaturados": "No Facturados",
+};
 
 export type PrintMessageKey = keyof typeof messagesPrintPt;

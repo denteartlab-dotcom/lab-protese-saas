@@ -2239,20 +2239,26 @@ function FinanceiroReceberConteudo() {
       const blob = await gerarContasReceberClientesPdf(
         linhasContasReceberTela,
         dataInicio,
-        dataFinal
+        dataFinal,
+        { locale }
       );
-      abrirPdfNoVisualizador(blob, "contas-a-receber.pdf", "Contas a Receber", janela);
+      abrirPdfNoVisualizador(
+        blob,
+        "contas-a-receber.pdf",
+        t("financeiro.receber.secaoContasReceber"),
+        janela
+      );
     } catch (err) {
       console.error("imprimir contas a receber", err);
       janela.close();
-      alert("Não foi possível gerar o PDF. Permita pop-ups para este site.");
+      alert(t("financeiro.receber.relatorio.erroPdfPopup"));
     } finally {
       setExportandoContasReceberTela(false);
     }
   }
 
   function exportarContasReceberTela() {
-    exportarContasReceberClientesCsv(linhasContasReceberTela);
+    exportarContasReceberClientesCsv(linhasContasReceberTela, { locale });
   }
 
   function toggleOsReceita(id: string) {
