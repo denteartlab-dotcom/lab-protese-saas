@@ -9,6 +9,7 @@ import type {
   DadosFaturaImpressao,
   LinhaFaturaImpressao,
 } from "@/lib/fatura-impressao-html";
+import { descontoFaturaImpressaoTotal } from "@/lib/fatura-impressao-html";
 import type { FaturaModeloLayout } from "@/lib/fatura-modelo-layout";
 import {
   FATURA_SMART_ESPACO_ASSINATURA_PIX_MM,
@@ -420,10 +421,16 @@ function desenharTotais(
     linhaTotal(pl("print.fatura.saldoAnteriorMais"), dados.saldoAnterior || "R$ 0,00");
   }
   if (layout.descontoServicos) {
-    linhaTotal(pl("print.fatura.descontoServicos"), "R$ 0,00");
+    linhaTotal(
+      pl("print.fatura.descontoServicos"),
+      formatarMoedaPdf(dados.descontoServicos ?? 0)
+    );
   }
   if (layout.descontoFatura) {
-    linhaTotal(pl("print.fatura.descontoFatura"), formatarMoedaPdf(dados.creditoFatura));
+    linhaTotal(
+      pl("print.fatura.descontoFatura"),
+      formatarMoedaPdf(descontoFaturaImpressaoTotal(dados))
+    );
   }
   if (modelo === "modelo2") {
     linhaTotal(pl("print.fatura.jurosFatura"), "R$ 0,00");

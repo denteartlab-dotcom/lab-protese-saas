@@ -237,6 +237,7 @@ function itensNotaFromTrabalho(trabalho: Trabalho) {
     quantidade: item.qtd,
     valorUn: item.valorUn,
     subtotal: item.subtotal,
+    descPercent: item.descPercent,
   }));
 }
 
@@ -2017,18 +2018,27 @@ function FinanceiroReceberConteudo() {
     const primeiraFatura = lancamentos[0];
     const credito = primeiraFatura ? creditoUsadoNaFatura(primeiraFatura) : 0;
     let totalServicos = 0;
+    let totalLiquidoItens = 0;
     const linhas = lancamentos
       .flatMap((l) => {
         const trabalhosRelacionados = trabalhosDaFatura(l, cliente.clienteId);
         if (!trabalhosRelacionados.length) {
           const os = l.trabalho?.numeroOs || "-";
           totalServicos += l.valor;
-          return [`<tr><td>${os}</td><td>${descricaoExibicaoCobranca(l.descricao)}</td><td>-</td><td>-</td><td class="center">1</td><td class="right">${money(l.valor)}</td><td class="right">0,00 %</td><td class="right">${money(l.valor)}</td></tr>`];
+          totalLiquidoItens += l.valor;
+          return [`<tr><td>${os}</td><td>${descricaoExibicaoCobranca(l.descricao)}</td><td>-</td><td>-</td><td class="center">1</td><td class="right">${money(l.valor)}</td><td class="right">% 0.00</td><td class="right">${money(l.valor)}</td></tr>`];
         }
         return trabalhosRelacionados.flatMap((trabalho) => {
           return itensNotaFromTrabalho(trabalho).map((item) => {
+            totalLiquidoItens += item.subtotal;
+            // Unitário na tabela legado já vem líquido; Desconto mostra o % da OS.
             totalServicos += item.subtotal;
             const data = trabalho.dataPrevista ? formatDate(trabalho.dataPrevista) : formatDate(l.data);
+            const descTexto = (item.descPercent || "0,00").trim();
+            const descFmt =
+              descTexto.startsWith("%") || descTexto.startsWith("R$")
+                ? descTexto
+                : `% ${descTexto.replace("%", "").replace(",", ".").trim() || "0.00"}`;
             return `<tr>
             <td>${trabalho.numeroOs}<br/><span>Data: ${data}</span></td>
             <td>${item.servico}</td>
@@ -2036,14 +2046,20 @@ function FinanceiroReceberConteudo() {
             <td>${trabalho.paciente?.nome || "-"}</td>
             <td class="center">${item.quantidade}</td>
             <td class="right">${money(item.valorUn)}</td>
-            <td class="right">0,00 %</td>
+            <td class="right">${descFmt}</td>
             <td class="right">${money(item.subtotal)}</td>
           </tr>`;
           });
         });
       })
       .join("");
-    const totalFinal = Math.max(totalServicos - credito, 0);
+    const valorNota = primeiraFatura?.valor ?? totalLiquidoItens;
+    const descontoFaturaExtra = Math.max(
+      0,
+      Math.round((totalLiquidoItens - valorNota) * 100) / 100
+    );
+    const totalFinal = Math.max(valorNota - credito, 0);
+    const descontoFaturaExibir = credito + descontoFaturaExtra;
     const lab = labImpressaoFromConfig();
     const cabecalhoLab = htmlCabecalhoLab(lab);
     return `<!doctype html><html><head><title>Fatura</title><style>
@@ -2096,7 +2112,7 @@ function FinanceiroReceberConteudo() {
         <div class="totals">
           <div><span>Total Serviços / Produtos (=)</span><strong class="right">R$ ${money(totalServicos)}</strong></div>
           <div><span>Desconto Serviços (-)</span><span class="right">R$ 0,00</span></div>
-          <div><span>Desconto Fatura (-)</span><span class="right">R$ ${money(credito)}</span></div>
+          <div><span>Desconto Fatura (-)</span><span class="right">R$ ${money(descontoFaturaExibir)}</span></div>
           <div><span>Juros Fatura (+)</span><span class="right">R$ 0,00</span></div>
           <div><strong>Total (=)</strong><strong class="right">R$ ${money(totalFinal)}</strong></div>
         </div>

@@ -29,6 +29,9 @@ import {
 import type { Locale } from "@/lib/i18n";
 import {
   classificarItemOs,
+  formatarDescontoImpressaoOs,
+  parseDescontoTipoLinhaItem,
+  valorLiquidoDeLinhaItemAdicionado,
   type SegmentoFaturamento,
 } from "@/lib/trabalho-os-segmento";
 import { osExternaAgenda } from "@/lib/agenda-producao-grupo";
@@ -132,10 +135,17 @@ export type DadosFaturaImpressao = {
   ultimoPgto?: string;
   saldoAnterior?: string;
   descontoServicos?: number;
+  /** Desconto aplicado na fatura (form.desconto), além do crédito utilizado. */
+  descontoFatura?: number;
   linhas: LinhaFaturaImpressao[];
   parcelas: ParcelaFaturaImpressao[];
   totalServicos: number;
   totalFinal: number;
+};
+
+/** Valor exibido em «Desconto Fatura»: crédito utilizado + desconto da fatura. */
+export function descontoFaturaImpressaoTotal(dados: DadosFaturaImpressao) {
+  return Math.max(0, (dados.creditoFatura || 0) + (dados.descontoFatura || 0));
 };
 
 function escapeHtml(texto: string) {
@@ -275,16 +285,29 @@ function itensTrabalhoFatura(trabalho: TrabalhoFaturaImpressao) {
       if (!match) return null;
       const servico = match[1]?.trim() || trabalho.tipoProtese;
       const produtoId = line.match(/ - produtoId ([^\s-]+)/i)?.[1]?.trim();
+      const valorBruto = parseMoney(
+        line.match(
+          / - valor (.*?)(?: - categoria| - desc| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
+        )?.[1] ||
+          match[5] ||
+          ""
+      );
+      const descontoRaw = line
+        .match(
+          / - desc (.*?)(?: - descTipo| - categoria| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
+        )?.[1]
+        ?.trim();
+      const descontoTipo = parseDescontoTipoLinhaItem(line, descontoRaw || "");
+      const valorLiquido =
+        valorLiquidoDeLinhaItemAdicionado(line) ?? valorBruto;
       return {
         servico,
         dentes: match[2]?.trim() || trabalho.dentes || "-",
         cor: match[3]?.trim() || trabalho.cor || "-",
         quantidade: match[4]?.trim() || "1",
-        valor: parseMoney(
-          line.match(
-            / - valor (.*?)(?: - categoria| - desc| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
-          )?.[1] || match[5] || ""
-        ),
+        valorBruto,
+        valorLiquido,
+        descontoLabel: formatarDescontoImpressaoOs(descontoRaw, descontoTipo),
         produtoId,
         segmento: classificarItemOs({ servico, produtoId }),
       };
@@ -294,7 +317,9 @@ function itensTrabalhoFatura(trabalho: TrabalhoFaturaImpressao) {
     dentes: string;
     cor: string;
     quantidade: string;
-    valor: number;
+    valorBruto: number;
+    valorLiquido: number;
+    descontoLabel: string;
     produtoId?: string;
     segmento: SegmentoFaturamento;
   }>;
@@ -307,7 +332,9 @@ function itensTrabalhoFatura(trabalho: TrabalhoFaturaImpressao) {
           dentes: trabalho.dentes || "-",
           cor: trabalho.cor || "-",
           quantidade: "1",
-          valor: trabalho.valor || 0,
+          valorBruto: trabalho.valor || 0,
+          valorLiquido: trabalho.valor || 0,
+          descontoLabel: formatarDescontoImpressaoOs(),
           segmento: classificarItemOs({ servico: trabalho.tipoProtese }),
         },
       ];
@@ -419,6 +446,7 @@ export function montarDadosFaturaImpressao(params: {
 
   const linhas: LinhaFaturaImpressao[] = [];
   let totalServicos = 0;
+  let descontoServicos = 0;
 
   if (trabalhos.length) {
     for (const trabalho of trabalhos) {
@@ -432,9 +460,11 @@ export function montarDadosFaturaImpressao(params: {
       const osExterna = osExternaAgenda(trabalho.instrucoes) || "-";
       for (const item of itensTrabalhoFatura(trabalho)) {
         const qtd = Number(String(item.quantidade).replace(",", ".")) || 1;
-        const subtotal = item.valor;
-        const valorUnitario = qtd > 0 ? item.valor / qtd : item.valor;
-        totalServicos += subtotal;
+        const bruto = item.valorBruto;
+        const liquido = item.valorLiquido;
+        const valorUnitario = qtd > 0 ? bruto / qtd : bruto;
+        totalServicos += bruto;
+        descontoServicos += Math.max(0, bruto - liquido);
         linhas.push({
           os: String(trabalho.numeroOs),
           osExterna,
@@ -446,8 +476,8 @@ export function montarDadosFaturaImpressao(params: {
           paciente: trabalho.paciente?.nome?.trim() || "-",
           qtd: item.quantidade,
           unitario: money(valorUnitario),
-          desconto: "0,00 %",
-          subtotal: money(subtotal),
+          desconto: item.descontoLabel,
+          subtotal: money(liquido),
           segmento: item.segmento,
         });
       }
@@ -465,13 +495,18 @@ export function montarDadosFaturaImpressao(params: {
       paciente: "-",
       qtd: "1",
       unitario: money(lancamento.valor),
-      desconto: "0,00 %",
+      desconto: formatarDescontoImpressaoOs(),
       subtotal: money(lancamento.valor),
       segmento: classificarItemOs({ servico: observacao || lancamento.descricao }),
     });
   }
 
-  const totalFinal = Math.max(totalServicos - creditoFatura, 0);
+  const liquidoItens = Math.max(0, totalServicos - descontoServicos);
+  // Desconto da fatura (form.desconto) já embutido em lancamento.valor; crédito é aparte.
+  const descontoFatura = trabalhos.length
+    ? Math.max(0, Math.round((liquidoItens - lancamento.valor) * 100) / 100)
+    : 0;
+  const totalFinal = Math.max(lancamento.valor - creditoFatura, 0);
   const agora = new Date();
 
   return {
@@ -482,6 +517,8 @@ export function montarDadosFaturaImpressao(params: {
     dataEmissao: `${agora.toLocaleDateString("pt-BR")} ${agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
     usuario: "—",
     creditoFatura,
+    descontoFatura,
+    descontoServicos,
     clienteTelefones: params.clienteTelefones,
     clienteEmail: params.clienteEmail,
     clienteEndereco: params.clienteEndereco,
@@ -493,7 +530,7 @@ export function montarDadosFaturaImpressao(params: {
       clienteId: params.clienteId,
       clienteNome: params.clienteNome,
       lancamentos: params.lancamentosCliente,
-      totalServicos,
+      totalServicos: totalFinal,
       totalFinal,
       formatDate,
       money,
@@ -851,7 +888,7 @@ function htmlTotaisA4(
   }
   if (layout.descontoFatura) {
     partes.push(
-      `<div><span>Desconto Fatura (-)</span><span class="right">${escapeHtml(formatarMoedaReais(dados.creditoFatura, money))}</span></div>`
+      `<div><span>Desconto Fatura (-)</span><span class="right">${escapeHtml(formatarMoedaReais(descontoFaturaImpressaoTotal(dados), money))}</span></div>`
     );
   }
   if (modelo === "modelo2") {
@@ -1200,9 +1237,9 @@ function gerarHtmlFaturaTermica(
       ? `<div style="margin-top:6px;text-align:right;font-size:${fsSmall}px">
           ${layout.totalServicos ? `<p style="margin:2px 0"><strong>Total Serviços(+): </strong>${escapeHtml(money(dados.totalServicos))}</p>` : ""}
           ${saldoAnteriorNosTotais ? `<p style="margin:2px 0"><strong>Saldo Anterior(+): </strong>${escapeHtml(dados.saldoAnterior || "0,00")}</p>` : ""}
-          ${layout.descontoServicos ? `<p style="margin:2px 0"><strong>Desconto Serviços(-): </strong>R$ 0,00</p>` : ""}
-          ${layout.descontoFatura ? `<p style="margin:2px 0"><strong>Desconto Fatura(-): </strong>R$ ${escapeHtml(money(dados.creditoFatura))}</p>` : ""}
-          ${layout.total ? `<p style="margin:2px 0;font-weight:bold"><strong>Total(=): </strong>R$ ${escapeHtml(money(dados.totalFinal))}</p>` : ""}
+          ${layout.descontoServicos ? `<p style="margin:2px 0"><strong>Desconto Serviços(-): </strong>${escapeHtml(formatarMoedaReais(dados.descontoServicos ?? 0, money))}</p>` : ""}
+          ${layout.descontoFatura ? `<p style="margin:2px 0"><strong>Desconto Fatura(-): </strong>${escapeHtml(formatarMoedaReais(descontoFaturaImpressaoTotal(dados), money))}</p>` : ""}
+          ${layout.total ? `<p style="margin:2px 0;font-weight:bold"><strong>Total(=): </strong>${escapeHtml(formatarMoedaReais(dados.totalFinal, money))}</p>` : ""}
         </div>`
       : "";
 
