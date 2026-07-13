@@ -8,6 +8,7 @@ import {
 import { fetchComTimeout } from "@/lib/http-integracao";
 import { prisma } from "@/lib/db";
 import { lerJsonStoreTenant, salvarJsonStoreTenant } from "@/lib/json-store-tenant";
+import { webhookAceitaSemSegredo } from "@/lib/webhook-seguranca";
 
 export type AsaasCustomer = {
   id: string;
@@ -96,7 +97,7 @@ export async function listarWebhookTokensAsaas(): Promise<string[]> {
 
 export async function validarWebhookTokenAsaas(tokenRecebido: string): Promise<boolean> {
   const configurados = await listarWebhookTokensAsaas();
-  if (configurados.length === 0) return true;
+  if (configurados.length === 0) return webhookAceitaSemSegredo();
   if (!tokenRecebido) return false;
   return configurados.includes(tokenRecebido);
 }

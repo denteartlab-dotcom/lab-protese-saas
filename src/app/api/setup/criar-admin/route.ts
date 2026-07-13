@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { hashPassword } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { podeExporSenhaSetup, setupBloqueado } from "@/lib/setup-guard";
 
 const EMAIL_ADMIN = "admin@labprotese.com";
 const SENHA_PADRAO = "admin123";
@@ -8,7 +9,10 @@ const SLUG_EMPRESA = "denteart";
 const NOME_EMPRESA = "DenteArt";
 
 /** Cria empresa padrão e usuário admin no banco se ainda não existir ninguém. */
-export async function GET() {
+export async function GET(request: Request) {
+  const bloqueio = setupBloqueado(request);
+  if (bloqueio) return bloqueio;
+
   if (!process.env.DATABASE_URL?.trim()) {
     return NextResponse.json(
       { ok: false, erro: "DATABASE_URL não configurada na Vercel." },
@@ -66,7 +70,7 @@ export async function GET() {
       mensagem: "Empresa e administrador criados com sucesso.",
       empresa: { nome: NOME_EMPRESA, slug: SLUG_EMPRESA },
       email: EMAIL_ADMIN,
-      senha: SENHA_PADRAO,
+      ...(podeExporSenhaSetup() ? { senha: SENHA_PADRAO } : {}),
       proximoPasso: `Acesse /login e entre com esse e-mail e senha. URL do app: /app/${SLUG_EMPRESA}`,
     });
   } catch (err) {

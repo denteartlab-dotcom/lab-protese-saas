@@ -9,6 +9,12 @@ import {
 import { montarSessionUserComAssinatura } from "@/lib/sessao-assinatura";
 import { registrarUltimoAcessoEmpresaImediato } from "@/lib/empresa-ultimo-acesso";
 import { parsePermissoesUsuario } from "@/lib/usuarios-sistema";
+import {
+  extrairIpLogin,
+  limparFalhasLogin,
+  loginBloqueadoPorRateLimit,
+  registrarFalhaLogin,
+} from "@/lib/login-rate-limit";
 import { z } from "zod";
 
 const schema = z.object({
@@ -64,6 +70,17 @@ export async function POST(request: Request) {
   const { email, password, remember, empresaSlug } = parsed.data;
   const emailNorm = email.trim().toLowerCase();
   const slugInformado = empresaSlug?.trim().toLowerCase();
+  const ip = extrairIpLogin(request);
+
+  if (loginBloqueadoPorRateLimit(ip, emailNorm)) {
+    return NextResponse.json(
+      {
+        error:
+          "Muitas tentativas de login. Aguarde alguns minutos e tente novamente.",
+      },
+      { status: 429 }
+    );
+  }
 
   try {
     return await runWithRlsBypass(async () => {
@@ -78,6 +95,7 @@ export async function POST(request: Request) {
     });
 
     if (candidatos.length === 0) {
+      registrarFalhaLogin(ip, emailNorm);
       return NextResponse.json(
         { error: "E-mail ou senha inválidos." },
         { status: 401 }
@@ -92,12 +110,14 @@ export async function POST(request: Request) {
     }
 
     if (comSenhaValida.length === 0) {
+      registrarFalhaLogin(ip, emailNorm);
       return NextResponse.json(
         { error: "E-mail ou senha inválidos." },
         { status: 401 }
       );
     }
 
+    limparFalhasLogin(ip, emailNorm);
     if (!slugInformado && comSenhaValida.length > 1) {
       return NextResponse.json(
         {

@@ -124,6 +124,6 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("[asaas/webhook]", error);
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: false, erro: "Falha ao processar webhook." }, { status: 500 });
   }
 }

@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { hashPassword } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { podeExporSenhaSetup, setupBloqueado } from "@/lib/setup-guard";
 
 const EMAIL_PADRAO = "admin@labprotese.com";
 const SENHA_PADRAO = "789654";
 
 /** Cria o usuário master se a tabela estiver vazia. */
-export async function GET() {
+export async function GET(request: Request) {
+  const bloqueio = setupBloqueado(request);
+  if (bloqueio) return bloqueio;
+
   if (!process.env.DATABASE_URL?.trim()) {
     return NextResponse.json(
       { ok: false, erro: "DATABASE_URL não configurada." },
@@ -52,7 +56,7 @@ export async function GET() {
       ok: true,
       mensagem: "Perfil master criado com sucesso.",
       email: master.email,
-      senha,
+      ...(podeExporSenhaSetup() ? { senha } : {}),
       painel: "/admin-master/login",
     });
   } catch (err) {

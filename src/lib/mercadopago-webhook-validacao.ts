@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { obterConfigMercadoPagoPlataforma } from "@/lib/mercadopago-plataforma-config";
+import { webhookAceitaSemSegredo } from "@/lib/webhook-seguranca";
 
 function parseAssinaturaHeader(xSignature: string): { ts: string; v1: string } | null {
   let ts = "";
@@ -14,14 +15,14 @@ function parseAssinaturaHeader(xSignature: string): { ts: string; v1: string } |
   return { ts, v1 };
 }
 
-/** Valida x-signature do Mercado Pago (Webhooks v2). Sem secret configurado, aceita. */
+/** Valida x-signature do Mercado Pago (Webhooks v2). Em produção exige secret. */
 export function validarAssinaturaWebhookMercadoPago(params: {
   xSignature: string | null;
   xRequestId: string | null;
   dataId: string | null;
 }): boolean {
   const { webhookSecret } = obterConfigMercadoPagoPlataforma();
-  if (!webhookSecret) return true;
+  if (!webhookSecret) return webhookAceitaSemSegredo();
 
   const { xSignature, xRequestId, dataId } = params;
   if (!xSignature || !xRequestId || !dataId) return false;

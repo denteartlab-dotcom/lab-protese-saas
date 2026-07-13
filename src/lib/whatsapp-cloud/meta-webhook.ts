@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { PayloadMensagemRecebidaWhatsapp } from "@/lib/whatsapp-chat/processar-mensagem";
+import { webhookAceitaSemSegredo } from "@/lib/webhook-seguranca";
 
 type MetaWebhookBody = {
   object?: string;
@@ -115,7 +116,7 @@ export function extrairMensagensMetaCloud(body: MetaWebhookBody) {
 
 export function verificarAssinaturaMeta(rawBody: string, assinaturaHeader: string | null) {
   const segredo = process.env.WHATSAPP_APP_SECRET?.trim();
-  if (!segredo) return true;
+  if (!segredo) return webhookAceitaSemSegredo();
   if (!assinaturaHeader?.startsWith("sha256=")) return false;
 
   const esperado = assinaturaHeader.slice("sha256=".length);

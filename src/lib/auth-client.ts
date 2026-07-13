@@ -7,13 +7,11 @@ import {
 const AUTH_JA_ENTROU_KEY = "labProteseJaEntrou";
 /** Legado no JsonStore — não usar para credenciais (era global e sobrescrevia contas). */
 const LEMBRAR_LOGIN_KEY = "labProteseLembrarLogin";
-/** Credenciais lembradas ficam só neste navegador (localStorage). */
+/** Credenciais lembradas ficam só neste navegador (localStorage). Só e-mail — nunca senha. */
 const LEMBRAR_LOGIN_LOCAL_KEY = "denteartLoginLembrete";
-const PWD_PREFIX = "b64:";
 
 export type LembrarLoginSalvo = {
   email: string;
-  password?: string;
 };
 
 type LembrarLoginArmazenado = {
@@ -21,19 +19,6 @@ type LembrarLoginArmazenado = {
   password?: string;
   v?: number;
 };
-
-function codificarSenhaLembrete(senha: string): string {
-  return PWD_PREFIX + btoa(unescape(encodeURIComponent(senha)));
-}
-
-function decodificarSenhaLembrete(codificado?: string): string {
-  if (!codificado?.startsWith(PWD_PREFIX)) return "";
-  try {
-    return decodeURIComponent(escape(atob(codificado.slice(PWD_PREFIX.length))));
-  } catch {
-    return "";
-  }
-}
 
 function lerLembreteLocalStorage(): LembrarLoginSalvo | null {
   if (typeof window === "undefined") return null;
@@ -43,8 +28,12 @@ function lerLembreteLocalStorage(): LembrarLoginSalvo | null {
     const parsed = JSON.parse(raw) as LembrarLoginArmazenado;
     const email = parsed.email?.trim();
     if (!email) return null;
-    const password = decodificarSenhaLembrete(parsed.password);
-    return password ? { email, password } : { email };
+    // Migra entradas antigas que guardavam senha em base64.
+    if (parsed.password) {
+      const limpo = { email, v: 2 };
+      window.localStorage.setItem(LEMBRAR_LOGIN_LOCAL_KEY, JSON.stringify(limpo));
+    }
+    return { email };
   } catch {
     return null;
   }
@@ -56,12 +45,8 @@ function gravarLembreteLocalStorage(dados: LembrarLoginSalvo) {
   if (!email) return;
   const payload: LembrarLoginArmazenado = {
     email,
-    v: 1,
+    v: 2,
   };
-  const senha = dados.password ?? "";
-  if (senha) {
-    payload.password = codificarSenhaLembrete(senha);
-  }
   window.localStorage.setItem(LEMBRAR_LOGIN_LOCAL_KEY, JSON.stringify(payload));
 }
 

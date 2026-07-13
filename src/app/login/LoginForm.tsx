@@ -274,7 +274,6 @@ export function LoginForm({
     const salvo = lerLembrarLogin();
     if (salvo?.email) {
       setEmail(salvo.email);
-      if (salvo.password) setPassword(salvo.password);
       setLembrarSenha(true);
     }
   }, []);
@@ -334,7 +333,7 @@ export function LoginForm({
 
       if (data.code === "ASSINATURA_VENCIDA" || data.redirect === "/assinatura-vencida") {
         if (lembrarSenha) {
-          salvarLembrarLogin({ email: email.trim(), password });
+          salvarLembrarLogin({ email: email.trim() });
         } else {
           limparLembrarLogin();
         }
@@ -345,7 +344,7 @@ export function LoginForm({
 
       if (data.redirect?.trim()) {
         if (lembrarSenha) {
-          salvarLembrarLogin({ email: email.trim(), password });
+          salvarLembrarLogin({ email: email.trim() });
         } else {
           limparLembrarLogin();
         }
@@ -393,7 +392,7 @@ export function LoginForm({
       }
 
       if (lembrarSenha) {
-        salvarLembrarLogin({ email: email.trim(), password });
+        salvarLembrarLogin({ email: email.trim() });
       } else {
         limparLembrarLogin();
       }

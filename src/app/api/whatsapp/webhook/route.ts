@@ -16,6 +16,7 @@ import {
   verificarAssinaturaMeta,
   verificarWebhookMeta,
 } from "@/lib/whatsapp-cloud/meta-webhook";
+import { webhookAceitaSemSegredo } from "@/lib/webhook-seguranca";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ const schemaBaileys = z
 
 function autorizadoWebhookBaileys(request: Request) {
   const tokenEsperado = process.env.WHATSAPP_HTTP_TOKEN?.trim();
-  if (!tokenEsperado) return true;
+  if (!tokenEsperado) return webhookAceitaSemSegredo();
 
   const auth = request.headers.get("authorization") || "";
   if (auth === `Bearer ${tokenEsperado}`) return true;
