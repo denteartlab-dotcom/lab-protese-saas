@@ -142,17 +142,14 @@ export function RelatorioContasReceberModal({
   );
 
   const nomesClientes = useMemo(() => {
-    if (contatosClientes.length > 0) {
-      const nomes = contatosClientes
-        .map((c) => c.nome.trim())
-        .filter(Boolean)
-        .sort((a, b) => a.localeCompare(b, "pt-BR"));
-      return ["todos", ...nomes];
-    }
     const set = new Set<string>();
+    for (const c of contatosClientes) {
+      const nome = c.nome?.trim();
+      if (nome) set.add(nome);
+    }
     for (const l of lancamentosAtivos) {
       if (l.tipo !== "receita") continue;
-      const nome = l.cliente?.nome;
+      const nome = l.cliente?.nome?.trim();
       if (nome) set.add(nome);
     }
     return ["todos", ...Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"))];

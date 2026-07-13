@@ -79,10 +79,7 @@ function montarResumoFinanceiro(
 
 async function listarTrabalhosPainelReceita(empresaId: string) {
   return prisma.trabalho.findMany({
-    where: {
-      empresaId,
-      OR: [{ clienteId: null }, { cliente: { ativo: true } }],
-    },
+    where: { empresaId },
     orderBy: { createdAt: "desc" },
     include: {
       cliente: { select: { id: true, nome: true, cro: true } },
@@ -125,19 +122,26 @@ async function carregarPlanoContasServidor(empresaId: string) {
 export async function montarPainelFinanceiroReceita(
   empresaId: string
 ): Promise<PainelFinanceiroReceita> {
-  const [lancamentos, clientes, trabalhos] = await Promise.all([
+  const [lancamentosBrutos, clientes, trabalhosBrutos] = await Promise.all([
     findLancamentosFinanceiro({
-      where: {
-        empresaId,
-        tipo: "receita",
-        // Soft-delete: cliente excluído (ativo=false) some do Contas a Receber até restaurar
-        OR: [{ clienteId: null }, { cliente: { ativo: true } }],
-      },
+      where: { empresaId, tipo: "receita" },
       orderBy: { data: "desc" },
     }),
     listarClientesAtivosPainel(empresaId),
     listarTrabalhosPainelReceita(empresaId),
   ]);
+
+  // Filtra no servidor após a query: cliente excluído (ativo=false) não entra no painel.
+  // Evita where Prisma com OR na relação (que quebrava a listagem inteira).
+  const idsAtivos = new Set(clientes.map((c) => c.id));
+  const lancamentos = lancamentosBrutos.filter((l) => {
+    const id = l.cliente?.id;
+    return !id || idsAtivos.has(id);
+  });
+  const trabalhos = trabalhosBrutos.filter((t) => {
+    const id = t.cliente?.id;
+    return !id || idsAtivos.has(id);
+  });
 
   return serializarPainelJson({
     aba: "receita",

@@ -14,7 +14,7 @@ export type CobrancaAsaasResumo = {
 };
 
 const lancamentoIncludeBase = {
-  cliente: { select: { id: true, nome: true } },
+  cliente: { select: { id: true, nome: true, ativo: true } },
   trabalho: { select: { id: true, numeroOs: true } },
 } satisfies Prisma.LancamentoInclude;
 
