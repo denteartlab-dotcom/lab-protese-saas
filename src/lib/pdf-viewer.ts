@@ -137,7 +137,29 @@ export function criarUrlPdfNomeada(blob: Blob, nomeArquivo: string) {
   return URL.createObjectURL(file);
 }
 
-export function baixarPdfBlob(blob: Blob, nomeArquivo: string) {
+export async function baixarPdfBlob(blob: Blob, nomeArquivo: string) {
+  if (typeof window !== "undefined" && "showSaveFilePicker" in window) {
+    try {
+      const handle = await (
+        window as Window & {
+          showSaveFilePicker: (options: {
+            suggestedName: string;
+            types: { description: string; accept: Record<string, string[]> }[];
+          }) => Promise<FileSystemFileHandle>;
+        }
+      ).showSaveFilePicker({
+        suggestedName: nomeArquivo,
+        types: [{ description: "PDF", accept: { "application/pdf": [".pdf"] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+    }
+  }
+
   const url = criarUrlPdfNomeada(blob, nomeArquivo);
   const link = document.createElement("a");
   link.href = url;
@@ -217,7 +239,7 @@ export function imprimirPdfBlob(blob: Blob, titulo?: string): Promise<void> {
 export async function baixarPdfUrl(url: string, nomeArquivo: string) {
   const res = await fetch(url);
   const blob = await res.blob();
-  baixarPdfBlob(blob, nomeArquivo);
+  await baixarPdfBlob(blob, nomeArquivo);
 }
 
 /** Abre o PDF no visualizador nativo do navegador (uma única nova aba). */

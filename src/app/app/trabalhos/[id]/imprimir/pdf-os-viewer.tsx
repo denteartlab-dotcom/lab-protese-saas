@@ -2302,7 +2302,7 @@ export function PdfOsViewer({
 
   function baixarPdf() {
     if (pdfBlobRef.current) {
-      baixarPdfBlob(pdfBlobRef.current, nomeArquivoPdf);
+      void baixarPdfBlob(pdfBlobRef.current, nomeArquivoPdf);
       return;
     }
     if (pdfUrl) void baixarPdfUrl(pdfUrl, nomeArquivoPdf);
@@ -2356,6 +2356,7 @@ export function PdfOsViewer({
                 variant="outline"
                 className="gap-1.5 border-slate-500 bg-transparent text-white"
                 onClick={baixarPdf}
+                title={nomeArquivoPdf}
               >
                 <Download className="h-3.5 w-3.5" />
                 {pl("print.comum.baixar")}
@@ -2394,6 +2395,7 @@ export function PdfOsViewer({
           id="pdf-os-viewer"
           title={`OS ${data.numeroOs}`}
           pdfUrl={pdfUrl}
+          ocultarToolbarNativo
         />
       ) : (
         <div className="flex flex-1 items-center justify-center text-sm text-slate-300">

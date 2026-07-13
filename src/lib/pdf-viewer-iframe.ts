@@ -1,7 +1,16 @@
+type SrcIframePdfViewerOpcoes = {
+  /** Esconde a barra do visualizador do Chrome (download com UUID) — use o botão Baixar do app. */
+  ocultarToolbarNativo?: boolean;
+};
+
 /** URL do PDF sem forçar zoom — o visualizador nativo do navegador centraliza o A4. */
-export function srcIframePdfViewer(pdfUrl: string) {
+export function srcIframePdfViewer(pdfUrl: string, opcoes?: SrcIframePdfViewerOpcoes) {
   if (!pdfUrl.trim()) return "";
-  return pdfUrl.split("#")[0] ?? pdfUrl;
+  const base = pdfUrl.split("#")[0] ?? pdfUrl;
+  if (opcoes?.ocultarToolbarNativo) {
+    return `${base}#toolbar=0&navpanes=0`;
+  }
+  return base;
 }
 
 export const PDF_VIEWER_TELA_CHEIA_CLASSES =

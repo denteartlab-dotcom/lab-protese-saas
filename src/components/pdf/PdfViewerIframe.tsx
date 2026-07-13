@@ -8,15 +8,22 @@ type Props = {
   title: string;
   pdfUrl: string;
   onLoad?: () => void;
+  ocultarToolbarNativo?: boolean;
 };
 
-export function PdfViewerIframe({ id, title, pdfUrl, onLoad }: Props) {
+export function PdfViewerIframe({
+  id,
+  title,
+  pdfUrl,
+  onLoad,
+  ocultarToolbarNativo,
+}: Props) {
   return (
     <div className="relative min-h-0 flex-1 overflow-hidden bg-[#525659]">
       <iframe
         id={id}
         title={title}
-        src={srcIframePdfViewer(pdfUrl)}
+        src={srcIframePdfViewer(pdfUrl, { ocultarToolbarNativo })}
         onLoad={onLoad}
         className="absolute inset-0 h-full w-full border-0 bg-[#525659]"
       />
