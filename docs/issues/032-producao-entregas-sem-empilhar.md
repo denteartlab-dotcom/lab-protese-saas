@@ -32,7 +32,8 @@ Módulo Produção tem modais dispersos sem issue fase-2 dedicada (issues 007/00
 - [ ] `RelatorioEntregasModal` → geração PDF direto na aba (sem viewer modal)
 - [ ] `ImprimirOsModal`: abrir PDF via `abrirPdfBlobGerandoNoVisualizadorUnificado`
 - [ ] Agenda: manter `AgendaOsDetalheExpandido` inline; avaliar fundir `AgendaEditarOsModal` no painel expandido
-- [ ] Documentar `TvOsResumoModal` e `OsDetalheModal` — manter se uso pontual
+- [ ] Documentar `OsDetalheModal` — manter se uso pontual
+- [ ] `TvOsResumoModal` → tratado na **issue 037** (UX do módulo TV)
 
 ## Critérios de aceite
 

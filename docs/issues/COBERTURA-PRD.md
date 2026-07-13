@@ -6,8 +6,8 @@
 | §4 Arquitetura / RNF | 001, 002, 003, 004, 025 |
 | §5.1 Landing / onboarding | 021 |
 | §5.2 Dashboard | 005, 006, 019, 020, 035 |
-| §5.3 Produção | 004, 007, 008, 019, 032 |
-| §5.4 Financeiro | 009, 010, 011, 030 |
+| §5.3 Produção | 004, 007, 008, 019, 032, 037 |
+| §5.4 Financeiro | 009, 010, 011, 030, 038 |
 | §5.5 Estoque | 014, 029, 034 |
 | §5.6 Cadastros | 012, 013, 028, 031, 033 |
 | §5.7 Relatórios | 015, 016 |
@@ -19,7 +19,7 @@
 | §7 Fluxos críticos | 024, 007, 009 |
 | §12 Menu / shell | 019, 020 |
 
-**Total: 36 issues** (+ inventário gerado em `inventario-modais.md`).
+**Total: 38 issues** (+ inventário gerado em `inventario-modais.md`).
 
 ## Status de implementação (local)
 
@@ -49,3 +49,5 @@
 | 034 | Pendente | Estoque/orçamentos detalhe inline |
 | 035 | Pendente | Dashboard drill-down |
 | 036 | Pendente | Configurações backup/horário |
+| 037 | Pendente | Módulo TV — resumo OS sem empilhar |
+| 038 | Pendente | Financeiro — painéis/conciliação sem empilhar |

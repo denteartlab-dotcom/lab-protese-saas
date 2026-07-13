@@ -85,5 +85,7 @@ Comando: `node scripts/inventario-modais.mjs`
 - **Estoque/Orçamentos:** detalhe inline → issue **034**
 - **Dashboard:** drill-down → issue **035**
 - **Configurações:** backup/horário → issue **036**
+- **Módulo TV:** resumo OS → issue **037**
+- **Financeiro formulários:** conciliação + painel receber → issue **038**
 - **Relatórios PDF:** concluído (issues 015 + 010a)
 - **Cadastros imports:** issue 012 (async; modais de import mantidos)

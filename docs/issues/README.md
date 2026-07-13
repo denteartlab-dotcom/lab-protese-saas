@@ -58,6 +58,8 @@ Baseado no [PRD](../PRD.md) (seções 5.x) e no [SDD](../SDD.md).
 | 034 | [Estoque/Orçamentos — detalhe inline](./034-estoque-orcamentos-detalhe-inline.md) | 5.5 | P2 | 2 |
 | 035 | [Dashboard — drill-down sem modais](./035-dashboard-drilldown-drawer.md) | 5.2 | P3 | 2 |
 | 036 | [Configurações — modais unificados](./036-configuracoes-modais-unificados.md) | 5.8 | P3 | 2 |
+| 037 | [Módulo TV — resumo OS sem empilhar](./037-modulo-tv-sem-empilhar.md) | 5.3 / 11 | P3 | 2 |
+| 038 | [Financeiro — painéis sem empilhar](./038-financeiro-paineis-sem-empilhar.md) | 5.4 | P2 | 2 |
 
 Ver mapa completo: [COBERTURA-PRD.md](./COBERTURA-PRD.md).
 
@@ -66,10 +68,11 @@ Ver mapa completo: [COBERTURA-PRD.md](./COBERTURA-PRD.md).
 Auditoria jul/2026 — ordem para reduzir janelas de multi-ações:
 
 ```
-031 (Tabela de preços) → 010b + 019b → 032 → 033 → 034 → 035 → 036
+031 (Tabela de preços) → 010b + 019b → 038 → 032 → 033 → 034 → 035 → 036 → 037
 ```
 
-Módulos **sem issue necessária** (já razoáveis): Disparos WhatsApp (wizard inline), Assinatura (1 modal), PDF relatórios (issue 015).
+Módulos **sem issue necessária** (já razoáveis): Disparos WhatsApp (wizard inline), Assinatura UX (1 modal), PDF relatórios (issue 015).  
+Lacunas fechadas nesta rodada: TV (037), Financeiro formulários (038).
 
 ## Labels sugeridas (GitHub)
 

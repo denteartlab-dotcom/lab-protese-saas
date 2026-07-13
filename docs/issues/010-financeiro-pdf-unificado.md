@@ -39,12 +39,12 @@ Um único fluxo: `abrirPdfNoVisualizadorPagina` / blob na aba do navegador com m
 - [ ] Nota de cobrança inline em `VisualizacaoClienteReceberModal` (evitar modal sobre modal ao imprimir)
 - [ ] `VisualizadorAnexoDespesa` (`z-[10050]`): preview em aba ou painel, não overlay sobre `PagarDespesaModal`
 
-## Modais fora do escopo PDF (issues separadas)
+## Modais fora do escopo PDF (issue 038)
 
 Empilhamento por **formulário**, não por impressão — não bloqueia fechamento da 010:
 
-- `ConciliacaoContaModal` + `LancarReceitaModal`/`LancarDespesaModal` (z-index 10000→10001) — avaliar issue futura de painel financeiro
-- `VisualizacaoClienteReceberModal` como painel multi-ação — manter; só unificar saídas PDF
+- `ConciliacaoContaModal` + `LancarReceitaModal`/`LancarDespesaModal` (z-index 10000→10001) → **issue 038**
+- `VisualizacaoClienteReceberModal` como painel multi-ação → **issue 038** (PDF já na 010)
 
 ## Critérios de aceite
 
