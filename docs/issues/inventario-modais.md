@@ -77,7 +77,13 @@ Comando: `node scripts/inventario-modais.mjs`
 
 ## Próximos candidatos a unificar (manual)
 
-- **Financeiro:** modais de PDF → issue 010
-- **Relatórios:** viewers PDF → issues 015 + 010
-- **Shell:** busca OS + leitor → issue 019
-- **Cadastros:** imports Excel → issue 012
+- **Tabela de preços:** 10+ modais na mesma página → issue **031** (prioridade P1)
+- **Financeiro PDF:** fase 2b → issue **010** (despesas, SNC, extrato bancário)
+- **Shell:** busca OS + leitor + paciente → issue **019** fase 2b
+- **Produção:** entregas, imprimir OS → issue **032**
+- **Cadastros CRUD:** painel lateral → issue **033**
+- **Estoque/Orçamentos:** detalhe inline → issue **034**
+- **Dashboard:** drill-down → issue **035**
+- **Configurações:** backup/horário → issue **036**
+- **Relatórios PDF:** concluído (issues 015 + 010a)
+- **Cadastros imports:** issue 012 (async; modais de import mantidos)

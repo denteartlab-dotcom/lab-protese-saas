@@ -52,8 +52,24 @@ Baseado no [PRD](../PRD.md) (seções 5.x) e no [SDD](../SDD.md).
 | 028 | [Pacientes — painel](./028-cadastros-pacientes-painel.md) | 5.6 | P2 | 1 |
 | 029 | [Orçamentos — async](./029-estoque-orcamentos-async.md) | 5.5 / 5.9 | P2 | 1 |
 | 030 | [NFS-e e boletos async](./030-financeiro-nfse-boletos-async.md) | 5.4 / §6 | P1 | 1 |
+| 031 | [Tabela de preços — painel único](./031-tabela-precos-painel-unico.md) | 5.6 | P1 | 2 |
+| 032 | [Produção — entregas/OS sem empilhar](./032-producao-entregas-sem-empilhar.md) | 5.3 | P2 | 2 |
+| 033 | [Cadastros CRUD — painel lateral](./033-cadastros-crud-painel-lateral.md) | 5.6 | P2 | 2 |
+| 034 | [Estoque/Orçamentos — detalhe inline](./034-estoque-orcamentos-detalhe-inline.md) | 5.5 | P2 | 2 |
+| 035 | [Dashboard — drill-down sem modais](./035-dashboard-drilldown-drawer.md) | 5.2 | P3 | 2 |
+| 036 | [Configurações — modais unificados](./036-configuracoes-modais-unificados.md) | 5.8 | P3 | 2 |
 
 Ver mapa completo: [COBERTURA-PRD.md](./COBERTURA-PRD.md).
+
+## Prioridade fase 2 (menos modais)
+
+Auditoria jul/2026 — ordem para reduzir janelas de multi-ações:
+
+```
+031 (Tabela de preços) → 010b + 019b → 032 → 033 → 034 → 035 → 036
+```
+
+Módulos **sem issue necessária** (já razoáveis): Disparos WhatsApp (wizard inline), Assinatura (1 modal), PDF relatórios (issue 015).
 
 ## Labels sugeridas (GitHub)
 

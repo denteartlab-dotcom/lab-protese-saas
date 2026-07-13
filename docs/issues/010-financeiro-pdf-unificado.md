@@ -2,7 +2,8 @@
 
 **PRD:** §5.4 (Visualizador PDF integrado)  
 **Labels:** `otimizacao`, `fase-2`, `financeiro`  
-**Prioridade:** P2
+**Prioridade:** P2  
+**Status:** Parcial (piloto concluído — ver fase 2b abaixo)
 
 ## Contexto
 
@@ -14,14 +15,14 @@ Cada um abre uma “janela de ação” com contexto próprio.
 
 ## Objetivo
 
-Um único fluxo: `abrirPdfNoVisualizadorPagina` / `/app/visualizar-pdf` com metadados `{ titulo, origem, blobUrl | sessionId }`.
+Um único fluxo: `abrirPdfNoVisualizadorPagina` / blob na aba do navegador com metadados `{ titulo, origem, blobUrl }` via `lib/pdf-viewer-unificado.ts`.
 
-## Escopo
+## Escopo — fase 2a (concluída)
 
 - [x] Inventariar modais de PDF financeiro (issue 020)
 - [x] Adapter `lib/pdf-viewer-unificado.ts` que substitui abertura de modal
 - [x] Migrar 3 fluxos piloto: recibo, fatura, extrato
-- [x] Modais de configuração mantidos; abertura via `/app/financeiro/relatorio-pdf`
+- [x] Remover stack morto `/app/financeiro/relatorio-pdf` (issue 015)
 
 ## Fluxos migrados
 
@@ -29,16 +30,35 @@ Um único fluxo: `abrirPdfNoVisualizadorPagina` / `/app/visualizar-pdf` com meta
 - `ImprimirFaturaModal` → `abrirHtmlNoVisualizadorUnificado`
 - `RelatorioContasReceberModal` + `VisualizacaoClienteReceberModal` (extrato) → visualizador único
 
-## Backlog (fora do escopo desta issue)
+## Escopo — fase 2b (backlog restante)
 
-- Nota de cobrança inline, despesas, serviços não faturados, dashboard `PdfViewerModal`
+- [ ] `RelatorioDespesasModal` → visualizador unificado (sem viewer modal)
+- [ ] `ServicosNaoFaturadosModal` → visualizador unificado
+- [ ] `ExtratoBancarioModal` → PDF em aba após filtros
+- [ ] `PdfViewerModal` no dashboard/colaboradores → `pdf-viewer-unificado`
+- [ ] Nota de cobrança inline em `VisualizacaoClienteReceberModal` (evitar modal sobre modal ao imprimir)
+- [ ] `VisualizadorAnexoDespesa` (`z-[10050]`): preview em aba ou painel, não overlay sobre `PagarDespesaModal`
+
+## Modais fora do escopo PDF (issues separadas)
+
+Empilhamento por **formulário**, não por impressão — não bloqueia fechamento da 010:
+
+- `ConciliacaoContaModal` + `LancarReceitaModal`/`LancarDespesaModal` (z-index 10000→10001) — avaliar issue futura de painel financeiro
+- `VisualizacaoClienteReceberModal` como painel multi-ação — manter; só unificar saídas PDF
 
 ## Critérios de aceite
 
 - Mesma qualidade de PDF/impressão
-- Usuário não precisa fechar 2 modais empilhados para voltar à lista
-- Fluxos não migrados continuam funcionando
+- Usuário não precisa fechar 2 modais empilhados para voltar à lista (fluxos migrados)
+- Fluxos da fase 2b: mesmo critério ao concluir cada item
 
 ## Fase
 
 Requer fase 1 estável; **mexe no frontend** módulo a módulo.
+
+## Referências
+
+- `src/lib/pdf-viewer-unificado.ts`
+- `src/components/financeiro/RelatorioDespesasModal.tsx`
+- `src/components/financeiro/ServicosNaoFaturadosModal.tsx`
+- `docs/issues/inventario-modais.md`
