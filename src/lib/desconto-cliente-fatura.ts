@@ -10,7 +10,7 @@ import {
   numerosOsDoLancamentoFatura,
   trabalhosRelacionadosLancamentoFatura,
 } from "@/lib/os-faturamento";
-import { valorLiquidoItemOs } from "@/lib/trabalho-os-segmento";
+import { valorLiquidoItemOs, classificarItemOs, type SegmentoFaturamento } from "@/lib/trabalho-os-segmento";
 
 function arredondar2(n: number) {
   return Math.round(n * 100) / 100;
@@ -59,8 +59,9 @@ function removerDescDaLinhaItem(line: string) {
 }
 
 /**
- * Regrava `- desc` / `- descTipo` nas linhas da OS conforme o Desconto Geral atual do cliente.
- * Tipo valor: rateia o R$ proporcionalmente pelo bruto de cada linha.
+ * Regrava `- desc` / `- descTipo` nas linhas de **serviço** da OS conforme o Desconto Geral.
+ * Produto e transporte ficam sem desconto (valor bruto).
+ * Tipo valor: rateia o R$ só entre as linhas de serviço.
  */
 export function reescreverInstrucoesComDescontoCliente(
   instrucoes: string | null | undefined,
@@ -68,30 +69,56 @@ export function reescreverInstrucoesComDescontoCliente(
   tipo: "percentual" | "valor"
 ): { instrucoes: string; valorLiquido: number; valorBruto: number } {
   const linhas = (instrucoes || "").split("\n");
-  const brutos = linhas.map((line) => extrairValorBrutoLinhaItem(line));
-  const brutoTotal = brutos.reduce<number>((s, v) => s + (v ?? 0), 0);
+  const metadados = linhas.map((line) => {
+    if (!/^Item adicionado:/i.test(line)) {
+      return { bruto: null as number | null, segmento: "servico" as SegmentoFaturamento };
+    }
+    const match = line.match(
+      /^Item adicionado:\s*(.*?)\s*-\s*dentes\s*/i
+    );
+    const servico = match?.[1]?.trim() || "";
+    const produtoId = line.match(/ - produtoId ([^\s-]+)/i)?.[1]?.trim();
+    const bruto = extrairValorBrutoLinhaItem(line);
+    return {
+      bruto,
+      segmento: classificarItemOs({ servico, produtoId }),
+    };
+  });
+
+  const brutoServicos = metadados.reduce<number>(
+    (s, m) => (m.segmento === "servico" && m.bruto != null ? s + m.bruto : s),
+    0
+  );
+  const brutoTotal = metadados.reduce<number>((s, m) => s + (m.bruto ?? 0), 0);
 
   const descontoLimpo = descontoTexto.trim() || (tipo === "valor" ? "R$ 0,00" : "0,00");
   const descontoValorAbs =
     tipo === "valor"
       ? parseCurrencyBr(descontoLimpo)
-      : brutoTotal *
+      : brutoServicos *
         (Math.min(Math.max(Number(String(descontoLimpo).replace(",", ".") || 0), 0), 100) /
           100);
 
   let valorLiquido = 0;
   const novas = linhas.map((line, idx) => {
-    const bruto = brutos[idx];
+    const meta = metadados[idx];
+    const bruto = meta.bruto;
     if (bruto == null) return line;
+
+    // Produto / transporte: sem desconto geral
+    if (meta.segmento !== "servico") {
+      valorLiquido += bruto;
+      return removerDescDaLinhaItem(line);
+    }
 
     let descLinha = descontoLimpo;
     let tipoLinha: "percentual" | "valor" = tipo;
 
     if (tipo === "valor") {
-      if (brutoTotal <= 0.009 || descontoEstaZerado(descontoLimpo)) {
+      if (brutoServicos <= 0.009 || descontoEstaZerado(descontoLimpo)) {
         descLinha = "R$ 0,00";
       } else {
-        const parte = arredondar2((bruto / brutoTotal) * descontoValorAbs);
+        const parte = arredondar2((bruto / brutoServicos) * descontoValorAbs);
         descLinha = `R$ ${parte.toLocaleString("pt-BR", {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,

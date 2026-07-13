@@ -1494,6 +1494,7 @@ export default function ControlePage() {
 
   useEffect(() => {
     if (!editando || !form?.clienteId || itemSelecionadoId) return;
+    if (painelEdicaoItem === "produto" || painelEdicaoItem === "transporte") return;
     const { desconto, descontoTipo } = descontoGeralClienteControle(
       form.clienteId,
       clientesCatalogo,
@@ -1512,7 +1513,7 @@ export default function ControlePage() {
       }
       return { ...atual, descontoTipo, desconto: nextDesconto };
     });
-  }, [editando, form?.clienteId, clientesCatalogo, itemSelecionadoId]);
+  }, [editando, form?.clienteId, clientesCatalogo, itemSelecionadoId, painelEdicaoItem]);
 
   function formVazioEdicao(trabalho: Trabalho, todos: Trabalho[] = trabalhos): EditForm {
     const complementos = complementosEdicaoTrabalho(trabalho, todos);
@@ -2262,16 +2263,19 @@ export default function ControlePage() {
     const descontoItem = item.desconto || "0,00";
     const descontoTipoItem =
       item.descontoTipo || (descontoItem.startsWith("R$") ? "valor" : "percentual");
-    const descontoResolvido = descontoItemResolvidoParaValor(
-      unitario,
-      descontoItem,
-      descontoGeralClienteControle(
-        form?.clienteId || editando!.clienteId,
-        clientesCatalogo,
-        editando
-      ).desconto,
-      descontoTipoItem
-    );
+    const descontoResolvido =
+      classificarItemOs(item) !== "servico"
+        ? descontoZeradoPorTipo(descontoTipoItem)
+        : descontoItemResolvidoParaValor(
+            unitario,
+            descontoItem,
+            descontoGeralClienteControle(
+              form?.clienteId || editando!.clienteId,
+              clientesCatalogo,
+              editando
+            ).desconto,
+            descontoTipoItem
+          );
     setForm((atual) => ({
       ...(atual || formVazioEdicao(editando!)),
       categoria: categoriaDoServicoNaTabela(categoriasTabelaPreco, item.servico) || "",
@@ -2368,17 +2372,24 @@ export default function ControlePage() {
 
     const qtd = Number(form.quantidade || 1) || 1;
     const valorUnitario = parseCurrencyBr(form.valor);
+    const itemAtual = itemSelecionadoId
+      ? editItems.find((i) => i.id === itemSelecionadoId)
+      : null;
+    const aplicarDescontoCliente =
+      !itemAtual || classificarItemOs(itemAtual) === "servico";
     const descontoCliente = descontoGeralClienteControle(
       form.clienteId,
       clientesCatalogo,
       editando
     );
-    const desconto = descontoFormularioParaValorUn(
-      valorUnitario,
-      form.descontoTipo,
-      form.desconto,
-      descontoCliente.desconto
-    );
+    const desconto = aplicarDescontoCliente
+      ? descontoFormularioParaValorUn(
+          valorUnitario,
+          form.descontoTipo,
+          form.desconto,
+          descontoCliente.desconto
+        )
+      : descontoZeradoPorTipo(form.descontoTipo);
     const nomeServico = form.tipoProtese;
     return {
       ...base,

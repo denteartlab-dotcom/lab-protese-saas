@@ -1413,12 +1413,15 @@ export default function OrdemServicoPage() {
         ? valorNumero.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
         : "R$ 0,00";
     const descontoCliente = descontoGeralDoClienteSelecionado();
-    const descontoServico = descontoFormularioParaValorUn(
-      valorNumero,
-      descontoCliente.descontoTipo,
-      descontoCliente.desconto,
-      descontoCliente.desconto
-    );
+    const descontoServico =
+      tipo === "servico"
+        ? descontoFormularioParaValorUn(
+            valorNumero,
+            descontoCliente.descontoTipo,
+            descontoCliente.desconto,
+            descontoCliente.desconto
+          )
+        : descontoZeradoPorTipo(descontoCliente.descontoTipo);
 
     if (tipo === "transporte") {
       setProdutosOs([]);
@@ -1432,6 +1435,7 @@ export default function OrdemServicoPage() {
         produtoId: "",
         valor: valorFmt,
         desconto: descontoServico,
+        descontoTipo: descontoCliente.descontoTipo,
         quantidade: "1",
         dataLaboratorio: "",
         dataDentista: "",
@@ -1452,6 +1456,7 @@ export default function OrdemServicoPage() {
         produtoId: servico.produtoId || servico.id,
         valor: valorFmt,
         desconto: descontoServico,
+        descontoTipo: descontoCliente.descontoTipo,
         quantidade: "1",
         dataLaboratorio: "",
         dataDentista: "",
@@ -2143,16 +2148,26 @@ export default function OrdemServicoPage() {
       .map((dente) => dente.trim())
       .filter((dente) => /^\d+$/.test(dente));
     const denticaoItem = tipoDenticaoFromDentes(dentesItemExplicitos);
+    const ehProdutoOuTransporte =
+      itemExibeBadgeTransporte(item) ||
+      item.servico.startsWith("Produto:") ||
+      Boolean(item.produtoId);
 
     setItemSelecionadoId(item.id);
     setTipoDenticao(denticaoItem);
     setDentes(dentesFromResumo(item.numeroDente, denticaoItem));
-    const descontoResolvido = descontoItemResolvidoParaValor(
-      unitario,
-      item.desconto,
-      descontoGeralDoClienteSelecionado().desconto,
-      item.descontoTipo || (item.desconto?.startsWith("R$") ? "valor" : "percentual")
-    );
+    const tipoDesc =
+      item.descontoTipo || (item.desconto?.startsWith("R$") ? "valor" : "percentual");
+    const descontoResolvido = ehProdutoOuTransporte
+      ? item.desconto && !/^0|^R\$ 0/.test(item.desconto.trim())
+        ? item.desconto
+        : descontoZeradoPorTipo(tipoDesc)
+      : descontoItemResolvidoParaValor(
+          unitario,
+          item.desconto,
+          descontoGeralDoClienteSelecionado().desconto,
+          tipoDesc
+        );
     setForm((current) => ({
       ...current,
       categoria: categoriaServico || current.categoria,
