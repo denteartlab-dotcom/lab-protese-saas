@@ -52,6 +52,7 @@ export async function gerarRelatorioMovimentacaoPdf(
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
   const margin = 14;
+  const footerH = 10;
   const colWidths = [22, 58, 28, 32, 24, 24];
   const colX = [margin];
   for (let i = 0; i < colWidths.length - 1; i++) {
@@ -63,7 +64,7 @@ export async function gerarRelatorioMovimentacaoPdf(
   let y = margin;
 
   function novaPaginaSeNecessario(altura: number) {
-    if (y + altura > pageH - margin) {
+    if (y + altura > pageH - margin - footerH) {
       pdf.addPage();
       y = margin;
       desenharCabecalhoTabela();
@@ -169,6 +170,23 @@ export async function gerarRelatorioMovimentacaoPdf(
     novaPaginaSeNecessario(rowH);
     pdf.text(pl("print.relatorio.movimentacao.semDados"), margin + 2, y + 4);
     y += rowH;
+  }
+
+  const totalPaginas = pdf.getNumberOfPages();
+  for (let i = 1; i <= totalPaginas; i++) {
+    pdf.setPage(i);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8);
+    pdf.setTextColor(107, 114, 128);
+    pdf.text(
+      pl("print.relatorio.paginaDe", {
+        pagina: String(i),
+        total: String(totalPaginas),
+      }),
+      pageW / 2,
+      pageH - 6,
+      { align: "center" }
+    );
   }
 
   return pdf.output("blob");
