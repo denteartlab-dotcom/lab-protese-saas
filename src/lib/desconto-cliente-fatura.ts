@@ -7,6 +7,8 @@ import { prisma } from "@/lib/db";
 import {
   ehDescricaoReceitaOs,
   idsTrabalhosFaturadosNoLancamento,
+  numerosOsDoLancamentoFatura,
+  trabalhosRelacionadosLancamentoFatura,
 } from "@/lib/os-faturamento";
 import { valorLiquidoItemOs } from "@/lib/trabalho-os-segmento";
 
@@ -130,46 +132,31 @@ export function reescreverInstrucoesComDescontoCliente(
   };
 }
 
-export function valorLiquidoTrabalhoComDescontoCliente(
-  trabalho: { instrucoes?: string | null; valor?: number },
-  descontoTexto: string,
-  tipo: "percentual" | "valor"
-) {
-  const r = reescreverInstrucoesComDescontoCliente(
-    trabalho.instrucoes,
-    descontoTexto,
-    tipo
-  );
-  if (r.valorBruto > 0.009) return r.valorLiquido;
-  const brutoCampo = Number(trabalho.valor) || 0;
-  return arredondar2(
-    valorLiquidoItemOs({
-      valor: brutoCampo,
-      desconto: descontoTexto,
-      descontoTipo: tipo,
-    })
-  );
-}
-
 function chaveGrupoCobranca(lancamento: {
   id: string;
   descricao: string;
   trabalhoId?: string | null;
-  trabalho?: { id?: string | null } | null;
 }) {
   const ids = idsTrabalhosFaturadosNoLancamento({
     id: lancamento.id,
     status: "pendente",
     descricao: lancamento.descricao,
-    trabalho: lancamento.trabalhoId
-      ? { id: lancamento.trabalhoId }
-      : lancamento.trabalho?.id
-        ? { id: lancamento.trabalho.id }
-        : null,
+    trabalho: lancamento.trabalhoId ? { id: lancamento.trabalhoId } : null,
   })
     .slice()
     .sort();
   if (ids.length) return `trab:${ids.join(",")}`;
+
+  const numeros = numerosOsDoLancamentoFatura({
+    id: lancamento.id,
+    status: "pendente",
+    descricao: lancamento.descricao,
+    trabalho: lancamento.trabalhoId ? { id: lancamento.trabalhoId } : null,
+  })
+    .slice()
+    .sort((a, b) => a - b);
+  if (numeros.length) return `os:${numeros.join(",")}`;
+
   return `desc:${lancamento.descricao
     .replace(/@@trab:[a-zA-Z0-9_,-]+@@/gi, "")
     .replace(/\s*\(\d+\s*\/\s*\d+\)\s*$/g, "")
@@ -177,15 +164,21 @@ function chaveGrupoCobranca(lancamento: {
     .toLowerCase()}`;
 }
 
+export type SyncDescontoClienteResultado = {
+  lancamentosAtualizados: number;
+  trabalhosAtualizados: number;
+};
+
 /**
- * Ao alterar o Desconto Geral do cliente, recalcula OS vinculadas e faturas
- * (Cobrança OS) ainda pendentes — sem precisar refaturar manualmente.
+ * Ao alterar o Desconto Geral do cliente:
+ * - atualiza valores/descontos de TODAS as OS do cliente
+ * - recalcula faturas (Cobrança OS) já lançadas ainda pendentes
  */
 export async function sincronizarFaturasPendentesDescontoCliente(params: {
   empresaId: string;
   clienteId: string;
   observacoes: string | null | undefined;
-}) {
+}): Promise<SyncDescontoClienteResultado> {
   const desconto = descontoGeralClienteObservacoes(params.observacoes) || "0,00";
   const tipo = descontoGeralTipoClienteObservacoes(params.observacoes) as
     | "percentual"
@@ -193,7 +186,14 @@ export async function sincronizarFaturasPendentesDescontoCliente(params: {
 
   const trabalhos = await prisma.trabalho.findMany({
     where: { empresaId: params.empresaId, clienteId: params.clienteId },
-    select: { id: true, instrucoes: true, valor: true },
+    select: {
+      id: true,
+      numeroOs: true,
+      grupoOsId: true,
+      instrucoes: true,
+      valor: true,
+      clienteId: true,
+    },
   });
 
   const valorPorTrabalho = new Map<string, number>();
@@ -206,7 +206,7 @@ export async function sincronizarFaturasPendentesDescontoCliente(params: {
       tipo
     );
 
-    // Sem linhas "Item adicionado:", o campo valor pode já ser líquido — não reaplica.
+    // Sem linhas "Item adicionado:", mantém o valor atual (pode já ser líquido).
     if (atualizado.valorBruto <= 0.009) {
       valorPorTrabalho.set(trabalho.id, Number(trabalho.valor) || 0);
       continue;
@@ -256,10 +256,30 @@ export async function sincronizarFaturasPendentesDescontoCliente(params: {
   }
 
   let lancamentosAtualizados = 0;
+  const trabalhosParaLookup = trabalhos.map((t) => ({
+    id: t.id,
+    numeroOs: t.numeroOs,
+    clienteId: t.clienteId,
+    grupoOsId: t.grupoOsId,
+  }));
 
   for (const [, grupo] of grupos) {
     const idsTrabalho = new Set<string>();
+
     for (const l of grupo) {
+      const relacionados = trabalhosRelacionadosLancamentoFatura(
+        {
+          id: l.id,
+          status: l.status,
+          descricao: l.descricao,
+          trabalho: l.trabalhoId ? { id: l.trabalhoId } : null,
+          cliente: { id: params.clienteId },
+        },
+        trabalhosParaLookup,
+        params.clienteId
+      );
+      for (const t of relacionados) idsTrabalho.add(t.id);
+
       for (const id of idsTrabalhosFaturadosNoLancamento({
         id: l.id,
         status: l.status,

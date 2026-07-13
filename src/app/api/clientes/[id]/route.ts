@@ -78,19 +78,46 @@ export async function PUT(
       },
     });
 
-    if (descontoGeralClienteMudou(descontoAntesObs, cliente.observacoes)) {
+    let syncDesconto: {
+      lancamentosAtualizados: number;
+      trabalhosAtualizados: number;
+    } | null = null;
+
+    // Sempre sincroniza se observações vieram no PUT (desconto geral no formulário).
+    // A regravação é idempotente quando o desconto não mudou.
+    if (data.observacoes !== undefined) {
       try {
-        await sincronizarFaturasPendentesDescontoCliente({
+        syncDesconto = await sincronizarFaturasPendentesDescontoCliente({
           empresaId: session.empresaId,
           clienteId: id,
           observacoes: cliente.observacoes,
         });
       } catch (err) {
-        console.error("[clientes] sync desconto faturas", err);
+        console.error("[clientes] sync desconto OS/faturas", err);
+      }
+    } else if (descontoGeralClienteMudou(descontoAntesObs, cliente.observacoes)) {
+      try {
+        syncDesconto = await sincronizarFaturasPendentesDescontoCliente({
+          empresaId: session.empresaId,
+          clienteId: id,
+          observacoes: cliente.observacoes,
+        });
+      } catch (err) {
+        console.error("[clientes] sync desconto OS/faturas", err);
       }
     }
 
-    return NextResponse.json(cliente);
+    return NextResponse.json({
+      ...cliente,
+      ...(syncDesconto
+        ? {
+            syncDesconto: {
+              ...syncDesconto,
+              aplicado: true,
+            },
+          }
+        : {}),
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
