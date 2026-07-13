@@ -658,6 +658,11 @@ function FinanceiroReceberConteudo() {
     notifDeepLinkFeito.current = false;
   }, [searchParams.toString()]);
 
+  const idsClientesAtivos = useMemo(
+    () => new Set(clientes.map((c) => c.id)),
+    [clientes]
+  );
+
   const clientesReceber = useMemo(() => {
     const grupos = new Map<string, ClienteReceber>();
     const inicio = dataInicio ? parseBrShortDate(dataInicio) : null;
@@ -670,6 +675,7 @@ function FinanceiroReceberConteudo() {
       const clienteId = lancamento.cliente?.id;
       const nome = lancamento.cliente?.nome?.trim();
       if (!clienteId || !nome) return;
+      if (idsClientesAtivos.size > 0 && !idsClientesAtivos.has(clienteId)) return;
       const chave = clienteId;
       const grupo = grupos.get(chave) || {
         clienteId: lancamento.cliente?.id,
@@ -714,6 +720,7 @@ function FinanceiroReceberConteudo() {
       const clienteId = trabalho.cliente?.id;
       const nome = trabalho.cliente?.nome?.trim();
       if (!clienteId || !nome) return;
+      if (idsClientesAtivos.size > 0 && !idsClientesAtivos.has(clienteId)) return;
       const chave = clienteId;
       const grupo = grupos.get(chave) || {
         clienteId: trabalho.cliente?.id,
@@ -736,9 +743,14 @@ function FinanceiroReceberConteudo() {
           : 0,
         adiantamentos: creditoDisponivelCliente(grupo.clienteId),
       }))
-      .filter((grupo) => clienteVisivelContasReceber(grupo))
+      .filter((grupo) => {
+        if (idsClientesAtivos.size > 0 && grupo.clienteId && !idsClientesAtivos.has(grupo.clienteId)) {
+          return false;
+        }
+        return clienteVisivelContasReceber(grupo);
+      })
       .sort((a, b) => a.nome.localeCompare(b.nome));
-  }, [receitasFiltradas, trabalhosNaoFaturados, data, dataInicio, dataFinal]);
+  }, [receitasFiltradas, trabalhosNaoFaturados, data, dataInicio, dataFinal, idsClientesAtivos]);
 
   const creditoDisponivelReceita = useMemo(
     () =>
@@ -799,7 +811,14 @@ function FinanceiroReceberConteudo() {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
     const { inicio: inicioMes, fim: fimMes } = intervaloMesVigente(hoje);
-    const lancamentos = (data?.lancamentos || []).filter((l) => l.tipo === "receita");
+    const lancamentos = (data?.lancamentos || []).filter((l) => {
+      if (l.tipo !== "receita") return false;
+      const clienteId = l.cliente?.id;
+      if (clienteId && idsClientesAtivos.size > 0 && !idsClientesAtivos.has(clienteId)) {
+        return false;
+      }
+      return true;
+    });
 
     return lancamentos.reduce(
       (acc, l) => {
@@ -831,15 +850,26 @@ function FinanceiroReceberConteudo() {
       },
       { aReceber: 0, atraso: 0, recebidas: 0, adiantamentos: 0, naoFaturados: 0 }
     );
-  }, [data]);
+  }, [data, idsClientesAtivos]);
 
   const trabalhosSelecionados = useMemo(
     () => trabalhos.filter((trabalho) => osSelecionadas.includes(trabalho.id)),
     [trabalhos, osSelecionadas]
   );
+  const trabalhosNaoFaturadosAtivos = useMemo(
+    () =>
+      idsClientesAtivos.size === 0
+        ? trabalhosNaoFaturados
+        : trabalhosNaoFaturados.filter((trabalho) => {
+            const clienteId = trabalho.cliente?.id;
+            return !clienteId || idsClientesAtivos.has(clienteId);
+          }),
+    [trabalhosNaoFaturados, idsClientesAtivos]
+  );
   const totalNaoFaturados = useMemo(
-    () => trabalhosNaoFaturados.reduce((sum, trabalho) => sum + valorTrabalho(trabalho), 0),
-    [trabalhosNaoFaturados]
+    () =>
+      trabalhosNaoFaturadosAtivos.reduce((sum, trabalho) => sum + valorTrabalho(trabalho), 0),
+    [trabalhosNaoFaturadosAtivos]
   );
   const valorOsSelecionadas = trabalhosSelecionados.reduce((sum, trabalho) => sum + valorTrabalho(trabalho), 0);
   const valorBruto = form.semOs ? parseDecimal(form.valor || "0") : valorOsSelecionadas;
@@ -2294,7 +2324,7 @@ function FinanceiroReceberConteudo() {
       <div
         className={cn(
           "grid gap-3",
-          trabalhosNaoFaturados.length > 0 ? "md:grid-cols-4" : "md:grid-cols-3"
+          trabalhosNaoFaturadosAtivos.length > 0 ? "md:grid-cols-4" : "md:grid-cols-3"
         )}
       >
         <div className="rounded border border-slate-100 bg-white p-4 shadow-sm">
@@ -2335,7 +2365,7 @@ function FinanceiroReceberConteudo() {
             </span>
           </div>
         </div>
-        {trabalhosNaoFaturados.length > 0 ? (
+        {trabalhosNaoFaturadosAtivos.length > 0 ? (
           <div className="rounded border border-slate-100 bg-white p-4 shadow-sm">
             <div className="flex items-start justify-between">
               <div>
@@ -3406,7 +3436,7 @@ function FinanceiroReceberConteudo() {
           <ServicosNaoFaturadosModalLazy
             open
             onClose={() => setModalNaoFaturados(false)}
-            trabalhos={trabalhosNaoFaturados}
+            trabalhos={trabalhosNaoFaturadosAtivos}
             valorTrabalho={valorTrabalho}
           />
         </Suspense>

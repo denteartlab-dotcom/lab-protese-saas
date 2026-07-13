@@ -79,7 +79,10 @@ function montarResumoFinanceiro(
 
 async function listarTrabalhosPainelReceita(empresaId: string) {
   return prisma.trabalho.findMany({
-    where: { empresaId },
+    where: {
+      empresaId,
+      OR: [{ clienteId: null }, { cliente: { ativo: true } }],
+    },
     orderBy: { createdAt: "desc" },
     include: {
       cliente: { select: { id: true, nome: true, cro: true } },
@@ -124,7 +127,12 @@ export async function montarPainelFinanceiroReceita(
 ): Promise<PainelFinanceiroReceita> {
   const [lancamentos, clientes, trabalhos] = await Promise.all([
     findLancamentosFinanceiro({
-      where: { empresaId, tipo: "receita" },
+      where: {
+        empresaId,
+        tipo: "receita",
+        // Soft-delete: cliente excluído (ativo=false) some do Contas a Receber até restaurar
+        OR: [{ clienteId: null }, { cliente: { ativo: true } }],
+      },
       orderBy: { data: "desc" },
     }),
     listarClientesAtivosPainel(empresaId),

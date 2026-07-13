@@ -113,22 +113,50 @@ export function RelatorioContasReceberModal({
     setRecebimentosAgruparPorCliente(true);
   }, [open]);
 
-  const linhasBase = useMemo(
-    () => linhasRelatorioFromLancamentos(lancamentos, trabalhos, modelo),
-    [lancamentos, trabalhos, modelo]
-  );
-
   const extratoExigeCliente = modeloEhExtratoPorCliente(modelo);
 
+  const idsClientesAtivos = useMemo(
+    () => new Set(contatosClientes.map((c) => c.id)),
+    [contatosClientes]
+  );
+
+  const lancamentosAtivos = useMemo(() => {
+    if (idsClientesAtivos.size === 0) return lancamentos;
+    return lancamentos.filter((l) => {
+      const id = l.cliente?.id;
+      return !id || idsClientesAtivos.has(id);
+    });
+  }, [lancamentos, idsClientesAtivos]);
+
+  const trabalhosAtivos = useMemo(() => {
+    if (idsClientesAtivos.size === 0) return trabalhos;
+    return trabalhos.filter((t) => {
+      const id = t.cliente?.id;
+      return !id || idsClientesAtivos.has(id);
+    });
+  }, [trabalhos, idsClientesAtivos]);
+
+  const linhasBase = useMemo(
+    () => linhasRelatorioFromLancamentos(lancamentosAtivos, trabalhosAtivos, modelo),
+    [lancamentosAtivos, trabalhosAtivos, modelo]
+  );
+
   const nomesClientes = useMemo(() => {
+    if (contatosClientes.length > 0) {
+      const nomes = contatosClientes
+        .map((c) => c.nome.trim())
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b, "pt-BR"));
+      return ["todos", ...nomes];
+    }
     const set = new Set<string>();
-    for (const l of lancamentos) {
+    for (const l of lancamentosAtivos) {
       if (l.tipo !== "receita") continue;
       const nome = l.cliente?.nome;
       if (nome) set.add(nome);
     }
     return ["todos", ...Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"))];
-  }, [lancamentos]);
+  }, [contatosClientes, lancamentosAtivos]);
 
   const clientesNoSelect = useMemo(
     () =>
@@ -148,7 +176,7 @@ export function RelatorioContasReceberModal({
     const contato =
       contatosClientes.find((c) => c.nome.trim().toLowerCase() === nomeFiltro) ??
       contatosClientes.find((c) => c.id === cliente);
-    const lancamentoCliente = lancamentos.find(
+    const lancamentoCliente = lancamentosAtivos.find(
       (l) =>
         l.tipo === "receita" && l.cliente?.nome?.trim().toLowerCase() === nomeFiltro
     );
@@ -157,7 +185,7 @@ export function RelatorioContasReceberModal({
       id: contato?.id ?? lancamentoCliente?.cliente?.id ?? null,
       celular: contato?.celular ?? null,
     };
-  }, [extratoExigeCliente, cliente, contatosClientes, lancamentos]);
+  }, [extratoExigeCliente, cliente, contatosClientes, lancamentosAtivos]);
 
   function montarFiltro(): FiltroRelatorioContasReceber {
     return {
@@ -201,15 +229,15 @@ export function RelatorioContasReceberModal({
         ordenarPor: filtro.ordenarPor,
         nomeClienteExtrato,
         clienteIdExtrato,
-        lancamentos: lancamentos as LancamentoContasReceber[],
-        trabalhos,
+        lancamentos: lancamentosAtivos as LancamentoContasReceber[],
+        trabalhos: trabalhosAtivos,
       },
     };
   }, [
     clienteExtratoSelecionado,
     dataFinal,
     dataInicio,
-    lancamentos,
+    lancamentosAtivos,
     linhasBase,
     modelo,
     ordenarPor,
@@ -218,7 +246,7 @@ export function RelatorioContasReceberModal({
     parcelasAgruparPorCliente,
     parcelasSomenteAReceber,
     cliente,
-    trabalhos,
+    trabalhosAtivos,
   ]);
 
   function extratoPronto() {
@@ -232,8 +260,8 @@ export function RelatorioContasReceberModal({
     }
     exportarExtratoRelatorioExcel(
       modelo,
-      lancamentos as LancamentoContasReceber[],
-      trabalhos,
+      lancamentosAtivos as LancamentoContasReceber[],
+      trabalhosAtivos,
       clienteExtratoSelecionado.nome,
       {
         periodoAtivo,
@@ -277,7 +305,7 @@ export function RelatorioContasReceberModal({
       filtro.cliente !== "todos" ? filtro.cliente : undefined;
     const nomeClienteFiltro = (nomeClienteExtrato ?? "").trim().toLowerCase();
     const clienteIdExtrato = nomeClienteExtrato
-      ? lancamentos.find(
+      ? lancamentosAtivos.find(
           (l) =>
             l.tipo === "receita" &&
             l.cliente?.nome?.trim().toLowerCase() === nomeClienteFiltro
@@ -306,8 +334,8 @@ export function RelatorioContasReceberModal({
             ordenarPor: filtro.ordenarPor,
             nomeClienteExtrato,
             clienteIdExtrato,
-            lancamentos,
-            trabalhos,
+            lancamentos: lancamentosAtivos as LancamentoContasReceber[],
+            trabalhos: trabalhosAtivos,
             parcelasSomenteAReceber: filtro.parcelasSomenteAReceber,
             parcelasAgruparPorCliente: filtro.parcelasAgruparPorCliente,
             recebimentosAgruparPorCliente: filtro.recebimentosAgruparPorCliente,
