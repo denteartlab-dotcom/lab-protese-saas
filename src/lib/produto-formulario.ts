@@ -18,6 +18,7 @@ export type ProdutoFormulario = {
   valorCusto: string;
   valor: string;
   observacoes: string;
+  imagemUrl: string;
 };
 
 export function novoProdutoFormulario(): ProdutoFormulario {
@@ -35,6 +36,7 @@ export function novoProdutoFormulario(): ProdutoFormulario {
     valorCusto: "R$ 0,00",
     valor: "R$ 0,00",
     observacoes: "",
+    imagemUrl: "",
   };
 }
 
@@ -142,6 +144,7 @@ export async function cadastrarNovoProduto(
       estoqueMinimo: parseQuantidadeProduto(form.estoqueMinimo),
       estoqueMaximo: parseQuantidadeProduto(form.estoqueMaximo),
       valorCusto,
+      imagemUrl: form.imagemUrl.trim() || undefined,
     },
   });
 
@@ -152,6 +155,7 @@ export async function cadastrarNovoProduto(
     nome: produto.nome || nome,
     marca: form.marca || undefined,
     codigoBarras: form.codigoBarras || undefined,
+    imagemUrl: form.imagemUrl.trim() || undefined,
     valorCusto,
     estoque,
   };

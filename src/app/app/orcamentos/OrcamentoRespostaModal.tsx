@@ -95,6 +95,9 @@ export function OrcamentoRespostaModal({
             <table className="w-full text-[10px]">
               <thead>
                 <tr className="bg-slate-50 text-slate-500">
+                  <th className="w-12 px-3 py-2 text-center font-semibold uppercase">
+                    {t("estoque.orcamentos.col.foto")}
+                  </th>
                   <th className="px-3 py-2 text-left font-semibold uppercase">{t("estoque.orcamentos.col.produto")}</th>
                   <th className="px-3 py-2 text-left font-semibold uppercase">{t("estoque.orcamentos.col.marca")}</th>
                   <th className="px-3 py-2 text-center font-semibold uppercase">{t("estoque.orcamentos.col.qtd")}</th>
@@ -105,6 +108,20 @@ export function OrcamentoRespostaModal({
               <tbody>
                 {orcamento.itens.map((item, index) => (
                   <tr key={`${item.produtoId}-${index}`} className="border-t border-slate-50">
+                    <td className="px-3 py-2 text-center">
+                      <div className="mx-auto flex h-9 w-9 items-center justify-center overflow-hidden rounded border border-slate-200 bg-slate-50">
+                        {item.imagemUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={item.imagemUrl}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-[9px] text-slate-300">—</span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-3 py-2 font-medium text-slate-700">{item.produtoNome}</td>
                     <td className="px-3 py-2 text-slate-500">{item.marca || ""}</td>
                     <td className="px-3 py-2 text-center">{item.quantidade}</td>

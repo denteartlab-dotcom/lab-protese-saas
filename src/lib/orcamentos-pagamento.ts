@@ -130,6 +130,7 @@ export function itemOrcamentoLinhaNova(): {
   produtoNome: string;
   marca: string;
   codigoBarras: string;
+  imagemUrl?: string;
   quantidade: number;
   valorUnitario: number;
 } {
@@ -138,6 +139,7 @@ export function itemOrcamentoLinhaNova(): {
     produtoNome: "",
     marca: "",
     codigoBarras: "",
+    imagemUrl: undefined,
     quantidade: 1,
     valorUnitario: 0,
   };

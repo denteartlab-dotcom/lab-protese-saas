@@ -6,7 +6,7 @@ import {
   normalizarSlugPastaUploads,
 } from "@/lib/uploads-armazenamento-server";
 
-export type PastaUpload = "os" | "despesas" | "receitas" | "disparos-whatsapp";
+export type PastaUpload = "os" | "despesas" | "receitas" | "disparos-whatsapp" | "produtos";
 
 export type ArquivoEnviado = {
   name: string;
@@ -20,6 +20,7 @@ export function pastaUploadValida(pasta: string | null): PastaUpload {
   if (pasta === "despesas") return "despesas";
   if (pasta === "receitas") return "receitas";
   if (pasta === "disparos-whatsapp") return "disparos-whatsapp";
+  if (pasta === "produtos") return "produtos";
   return "os";
 }
 

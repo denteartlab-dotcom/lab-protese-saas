@@ -34,6 +34,7 @@ import {
 import { usePageReady } from "@/hooks/use-page-ready";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { formatCurrency } from "@/lib/utils";
+import { ProdutoFotoCampo } from "@/components/estoque/ProdutoFotoCampo";
 
 function EtiquetaCategoriaBadge({
   nome,
@@ -90,6 +91,7 @@ type Produto = {
   marca?: string;
   etiqueta?: string;
   codigoBarras?: string;
+  imagemUrl?: string;
   valorCusto?: number;
   valorCustoDelta?: number;
   estoqueMinimo?: number;
@@ -172,6 +174,7 @@ function novoProdutoForm() {
     valorCusto: "R$ 0,00",
     valor: "R$ 0,00",
     observacoes: "",
+    imagemUrl: "",
   };
 }
 
@@ -380,6 +383,10 @@ function ProdutosConteudo() {
       ),
       codigoBarras: extras[produto.id]?.codigoBarras ?? produto.codigoBarras ?? "",
       unidadeMedida: extras[produto.id]?.unidadeMedida ?? produto.unidadeMedida ?? "un (Unitário)",
+      imagemUrl:
+        typeof extras[produto.id]?.imagemUrl === "string"
+          ? extras[produto.id]?.imagemUrl
+          : produto.imagemUrl ?? "",
     }));
   }, [produtos, extras, produtosRemovidosPermanentemente, etiquetasCategoria]);
 
@@ -497,6 +504,7 @@ function ProdutosConteudo() {
       valorCusto: (produto.valorCusto || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
       valor: (produto.valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
       observacoes: produto.observacoes || "",
+      imagemUrl: produto.imagemUrl || "",
     };
   }
 
@@ -521,6 +529,7 @@ function ProdutosConteudo() {
           estoqueMinimo: parseQuantidade(form.estoqueMinimo),
           estoqueMaximo: parseQuantidade(form.estoqueMaximo),
           valorCusto: parseCurrency(form.valorCusto),
+          imagemUrl: form.imagemUrl.trim() || undefined,
         };
         setProdutos((atuais) =>
           atuais.map((produto) =>
@@ -570,6 +579,7 @@ function ProdutosConteudo() {
             estoqueMinimo: parseQuantidade(form.estoqueMinimo),
             estoqueMaximo: parseQuantidade(form.estoqueMaximo),
             valorCusto: parseCurrency(form.valorCusto),
+            imagemUrl: form.imagemUrl.trim() || undefined,
           },
         }));
       }
@@ -612,6 +622,10 @@ function ProdutosConteudo() {
       etiqueta: extras[id]?.etiqueta ?? base.etiqueta ?? "",
       codigoBarras: extras[id]?.codigoBarras ?? base.codigoBarras ?? "",
       unidadeMedida: extras[id]?.unidadeMedida ?? base.unidadeMedida ?? "un (Unitário)",
+      imagemUrl:
+        typeof extras[id]?.imagemUrl === "string"
+          ? extras[id]?.imagemUrl
+          : base.imagemUrl ?? "",
     };
   }
 
@@ -1270,6 +1284,13 @@ function ProdutosConteudo() {
                 onChange={(e) => setForm({ ...form, nome: e.target.value })}
                 required
               />
+              <div className="md:col-span-2">
+                <ProdutoFotoCampo
+                  value={form.imagemUrl}
+                  disabled={salvandoProduto}
+                  onChange={(imagemUrl) => setForm({ ...form, imagemUrl })}
+                />
+              </div>
               <Input
                 label={t("estoque.produtos.marca")}
                 value={form.marca}

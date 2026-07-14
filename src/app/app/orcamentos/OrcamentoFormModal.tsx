@@ -44,6 +44,7 @@ export type ProdutoOpcao = {
   nome: string;
   marca?: string;
   codigoBarras?: string;
+  imagemUrl?: string;
   valorCusto: number;
   estoque: number;
 };
@@ -376,6 +377,7 @@ export function OrcamentoFormModal({
         produtoNome: produto.nome,
         marca: produto.marca,
         codigoBarras: produto.codigoBarras,
+        imagemUrl: produto.imagemUrl,
         quantidade: linha.quantidade,
         valorUnitario: 0,
       };
@@ -529,7 +531,10 @@ export function OrcamentoFormModal({
                       </span>
                     </label>
                   </th>
-                  <th className="w-[34%] px-2 py-2.5 text-left font-semibold uppercase">{t("estoque.orcamentos.col.nome")}</th>
+                  <th className="w-10 px-2 py-2.5 text-center font-semibold uppercase">
+                    {t("estoque.orcamentos.col.foto")}
+                  </th>
+                  <th className="w-[30%] px-2 py-2.5 text-left font-semibold uppercase">{t("estoque.orcamentos.col.nome")}</th>
                   <th className="w-[22%] px-2 py-2.5 text-left font-semibold uppercase">{t("estoque.orcamentos.col.marca")}</th>
                   <th className="w-[10%] px-2 py-2.5 text-right font-semibold uppercase">{t("estoque.orcamentos.col.estoque")}</th>
                   <th className="w-[12%] px-2 py-2.5 text-right font-semibold uppercase">
@@ -541,7 +546,7 @@ export function OrcamentoFormModal({
               <tbody>
                 {linhas.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="h-12" />
+                    <td colSpan={7} className="h-12" />
                   </tr>
                 ) : (
                   linhas.map((linha) => {
@@ -570,6 +575,20 @@ export function OrcamentoFormModal({
                               className="h-4 w-4 cursor-pointer rounded border-slate-300 text-slate-600 accent-slate-500 disabled:cursor-not-allowed"
                             />
                           </label>
+                        </td>
+                        <td className="px-2 py-2 text-center align-middle">
+                          <div className="mx-auto flex h-9 w-9 items-center justify-center overflow-hidden rounded border border-slate-200 bg-slate-50">
+                            {produto?.imagemUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={produto.imagemUrl}
+                                alt=""
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-[9px] text-slate-300">—</span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-2 py-2 align-middle">
                           {somenteLeitura ? (

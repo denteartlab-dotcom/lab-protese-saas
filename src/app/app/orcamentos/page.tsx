@@ -152,6 +152,7 @@ export default function OrcamentosPage() {
         nome: produto.nome,
         marca: produto.marca,
         codigoBarras: produto.codigoBarras,
+        imagemUrl: produto.imagemUrl,
         valorCusto: produto.valorCusto ?? 0,
         estoque: produto.estoque ?? 0,
       })),

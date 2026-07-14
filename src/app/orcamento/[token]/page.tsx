@@ -347,6 +347,7 @@ export default function OrcamentoPublicoPage() {
                       />
                     </th>
                   )}
+                  <th className="w-12 px-2 py-2 text-center font-semibold uppercase">Foto</th>
                   <th className="px-2 py-2 text-left font-semibold uppercase">Cod Barras</th>
                   <th className="px-2 py-2 text-left font-semibold uppercase">Produto</th>
                   <th className="px-2 py-2 text-left font-semibold uppercase">Marca</th>
@@ -377,6 +378,20 @@ export default function OrcamentoPublicoPage() {
                         />
                       </td>
                     )}
+                    <td className="px-2 py-2 text-center">
+                      <div className="mx-auto flex h-10 w-10 items-center justify-center overflow-hidden rounded border border-slate-200 bg-slate-50">
+                        {item.imagemUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={item.imagemUrl}
+                            alt={item.produtoNome || "Produto"}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-[10px] text-slate-300">—</span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-2 py-2">
                       {somenteLeitura ? (
                         <span className="text-slate-500">{item.codigoBarras || ""}</span>

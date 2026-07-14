@@ -17,7 +17,7 @@ import {
   listarArquivosBanco,
 } from "@/lib/upload-arquivo-server";
 
-const PASTAS_UPLOAD: PastaUpload[] = ["os", "despesas", "receitas"];
+const PASTAS_UPLOAD: PastaUpload[] = ["os", "despesas", "receitas", "produtos"];
 
 export function normalizarSlugPastaUploads(empresaSlug: string): string {
   return empresaSlug

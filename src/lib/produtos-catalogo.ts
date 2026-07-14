@@ -9,6 +9,7 @@ export type ProdutoCatalogo = {
   nome: string;
   marca?: string;
   codigoBarras?: string;
+  imagemUrl?: string;
   valorCusto: number;
   estoque: number;
 };
@@ -47,6 +48,10 @@ export async function listarProdutosCatalogo(): Promise<ProdutoCatalogo[]> {
       nome: item.nome,
       marca: extra?.marca as string | undefined,
       codigoBarras: extra?.codigoBarras as string | undefined,
+      imagemUrl:
+        typeof extra?.imagemUrl === "string" && extra.imagemUrl.trim()
+          ? extra.imagemUrl.trim()
+          : undefined,
       valorCusto: Number(extra?.valorCusto ?? item.valor ?? 0),
       estoque: Number(extra?.estoque ?? 0),
     });

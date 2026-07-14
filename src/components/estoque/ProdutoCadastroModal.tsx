@@ -21,6 +21,7 @@ import {
   type ProdutoFormulario,
 } from "@/lib/produto-formulario";
 import type { ProdutoCatalogo } from "@/lib/produtos-catalogo";
+import { ProdutoFotoCampo } from "@/components/estoque/ProdutoFotoCampo";
 
 type Props = {
   open: boolean;
@@ -125,6 +126,13 @@ export function ProdutoCadastroModal({ open, onClose, onSalvo }: Props) {
                   onChange={(e) => setForm({ ...form, nome: e.target.value })}
                   required
                 />
+                <div className="md:col-span-2">
+                  <ProdutoFotoCampo
+                    value={form.imagemUrl}
+                    disabled={salvando}
+                    onChange={(imagemUrl) => setForm({ ...form, imagemUrl })}
+                  />
+                </div>
                 <Input
                   label="Marca"
                   value={form.marca}

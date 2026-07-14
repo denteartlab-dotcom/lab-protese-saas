@@ -11,6 +11,7 @@ export type ItemOrcamento = {
   produtoNome: string;
   marca?: string;
   codigoBarras?: string;
+  imagemUrl?: string;
   quantidade: number;
   valorUnitario: number;
 };
