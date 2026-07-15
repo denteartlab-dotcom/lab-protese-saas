@@ -1,8 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { FileSpreadsheet, Plus, Printer, Send, Trash2, Upload } from "lucide-react";
+import {
+  FileSpreadsheet,
+  ImagePlus,
+  Plus,
+  Printer,
+  Send,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
 import {
   calcularTotaisItens,
   totalLiquidoOrcamento,
@@ -59,6 +68,10 @@ export default function OrcamentoPublicoPage() {
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
   const [selecionados, setSelecionados] = useState<Set<number>>(new Set());
+  const [fotoModalIndex, setFotoModalIndex] = useState<number | null>(null);
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
+  const [erroFoto, setErroFoto] = useState("");
+  const inputFotoRef = useRef<HTMLInputElement>(null);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -238,6 +251,64 @@ export default function OrcamentoPublicoPage() {
     }
   }
 
+  function abrirModalFoto(index: number) {
+    if (enviado) return;
+    setErroFoto("");
+    setFotoModalIndex(index);
+  }
+
+  function fecharModalFoto() {
+    if (enviandoFoto) return;
+    setFotoModalIndex(null);
+    setErroFoto("");
+    if (inputFotoRef.current) inputFotoRef.current.value = "";
+  }
+
+  async function onSelecionarFotoItem(file: File | null) {
+    if (fotoModalIndex == null || !file || enviado || enviandoFoto) return;
+    setErroFoto("");
+    if (!file.type.startsWith("image/")) {
+      setErroFoto("Selecione um arquivo de imagem.");
+      return;
+    }
+    setEnviandoFoto(true);
+    try {
+      const formData = new FormData();
+      formData.append("files", file);
+      const res = await fetch(`/api/orcamentos/public/${token}/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      const json = (await res.json().catch(() => null)) as
+        | Array<{ url?: string }>
+        | { error?: string }
+        | null;
+      if (!res.ok) {
+        const err =
+          json && !Array.isArray(json) ? json.error : undefined;
+        throw new Error(err || "Não foi possível enviar a foto.");
+      }
+      const uploaded = Array.isArray(json) ? json : [];
+      const url = uploaded[0]?.url?.trim();
+      if (!url) throw new Error("Resposta de upload inválida.");
+      atualizarItem(fotoModalIndex, "imagemUrl", url);
+    } catch (err) {
+      setErroFoto(err instanceof Error ? err.message : "Falha no upload da foto.");
+    } finally {
+      setEnviandoFoto(false);
+      if (inputFotoRef.current) inputFotoRef.current.value = "";
+    }
+  }
+
+  function removerFotoItem() {
+    if (fotoModalIndex == null || enviado) return;
+    atualizarItem(fotoModalIndex, "imagemUrl", undefined);
+    setErroFoto("");
+  }
+
+  const itemFotoModal =
+    fotoModalIndex != null ? itens[fotoModalIndex] ?? null : null;
+
   if (carregando) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f3f4f6] text-sm text-slate-500">
@@ -347,7 +418,7 @@ export default function OrcamentoPublicoPage() {
                       />
                     </th>
                   )}
-                  <th className="w-12 px-2 py-2 text-center font-semibold uppercase">Foto</th>
+                  <th className="w-16 px-2 py-2 text-center font-semibold uppercase">Foto</th>
                   <th className="px-2 py-2 text-left font-semibold uppercase">Cod Barras</th>
                   <th className="px-2 py-2 text-left font-semibold uppercase">Produto</th>
                   <th className="px-2 py-2 text-left font-semibold uppercase">Marca</th>
@@ -379,18 +450,47 @@ export default function OrcamentoPublicoPage() {
                       </td>
                     )}
                     <td className="px-2 py-2 text-center">
-                      <div className="mx-auto flex h-10 w-10 items-center justify-center overflow-hidden rounded border border-slate-200 bg-slate-50">
-                        {item.imagemUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={item.imagemUrl}
-                            alt={item.produtoNome || "Produto"}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <span className="text-[10px] text-slate-300">—</span>
-                        )}
-                      </div>
+                      {somenteLeitura ? (
+                        <div className="mx-auto flex h-14 w-14 items-center justify-center overflow-hidden rounded border border-slate-200 bg-slate-50">
+                          {item.imagemUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={item.imagemUrl}
+                              alt={item.produtoNome || "Produto"}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-[10px] text-slate-300">—</span>
+                          )}
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => abrirModalFoto(index)}
+                          title={
+                            item.imagemUrl
+                              ? "Alterar foto do produto"
+                              : "Adicionar foto do produto"
+                          }
+                          aria-label={
+                            item.imagemUrl
+                              ? "Alterar foto do produto"
+                              : "Adicionar foto do produto"
+                          }
+                          className="mx-auto flex h-14 w-14 items-center justify-center overflow-hidden rounded border border-slate-200 bg-slate-50 transition hover:border-[#4a90d9] hover:bg-blue-50/50"
+                        >
+                          {item.imagemUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={item.imagemUrl}
+                              alt={item.produtoNome || "Produto"}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <ImagePlus className="h-5 w-5 text-slate-300" aria-hidden />
+                          )}
+                        </button>
+                      )}
                     </td>
                     <td className="px-2 py-2">
                       {somenteLeitura ? (
@@ -653,6 +753,103 @@ export default function OrcamentoPublicoPage() {
           )}
         </div>
       </div>
+
+      {itemFotoModal && fotoModalIndex != null && !somenteLeitura ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 print:hidden"
+          onClick={fecharModalFoto}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-foto-titulo"
+            className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2
+                  id="modal-foto-titulo"
+                  className="text-sm font-semibold text-slate-800"
+                >
+                  Foto do produto
+                </h2>
+                <p className="mt-0.5 text-[11px] text-slate-500">
+                  {itemFotoModal.produtoNome?.trim() ||
+                    `Item ${fotoModalIndex + 1}`}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={fecharModalFoto}
+                disabled={enviandoFoto}
+                className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50"
+                aria-label="Fechar"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mx-auto mb-4 flex h-36 w-36 items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-slate-50">
+              {itemFotoModal.imagemUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={itemFotoModal.imagemUrl}
+                  alt={itemFotoModal.produtoNome || "Produto"}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <ImagePlus className="h-8 w-8 text-slate-300" aria-hidden />
+              )}
+            </div>
+
+            <input
+              ref={inputFotoRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={enviandoFoto}
+              onChange={(e) =>
+                void onSelecionarFotoItem(e.target.files?.[0] ?? null)
+              }
+            />
+
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                disabled={enviandoFoto}
+                onClick={() => inputFotoRef.current?.click()}
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-[11px] font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                {enviandoFoto
+                  ? "Enviando..."
+                  : itemFotoModal.imagemUrl
+                    ? "Trocar foto"
+                    : "Adicionar foto"}
+              </button>
+              {itemFotoModal.imagemUrl ? (
+                <button
+                  type="button"
+                  disabled={enviandoFoto}
+                  onClick={removerFotoItem}
+                  className="inline-flex items-center gap-1 rounded border border-slate-200 bg-white px-3 py-2 text-[11px] text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Remover
+                </button>
+              ) : null}
+            </div>
+
+            {erroFoto ? (
+              <p className="mt-3 text-center text-[10px] text-rose-600">{erroFoto}</p>
+            ) : (
+              <p className="mt-3 text-center text-[10px] text-slate-400">
+                A foto será enviada junto com o orçamento. Máx. 4 MB.
+              </p>
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -531,7 +531,7 @@ export function OrcamentoFormModal({
                       </span>
                     </label>
                   </th>
-                  <th className="w-10 px-2 py-2.5 text-center font-semibold uppercase">
+                  <th className="w-14 px-2 py-2.5 text-center font-semibold uppercase">
                     {t("estoque.orcamentos.col.foto")}
                   </th>
                   <th className="w-[30%] px-2 py-2.5 text-left font-semibold uppercase">{t("estoque.orcamentos.col.nome")}</th>
@@ -577,7 +577,7 @@ export function OrcamentoFormModal({
                           </label>
                         </td>
                         <td className="px-2 py-2 text-center align-middle">
-                          <div className="mx-auto flex h-9 w-9 items-center justify-center overflow-hidden rounded border border-slate-200 bg-slate-50">
+                          <div className="mx-auto flex h-12 w-12 items-center justify-center overflow-hidden rounded border border-slate-200 bg-slate-50">
                             {produto?.imagemUrl ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img

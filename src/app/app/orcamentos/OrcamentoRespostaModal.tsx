@@ -109,7 +109,7 @@ export function OrcamentoRespostaModal({
                 {orcamento.itens.map((item, index) => (
                   <tr key={`${item.produtoId}-${index}`} className="border-t border-slate-50">
                     <td className="px-3 py-2 text-center">
-                      <div className="mx-auto flex h-9 w-9 items-center justify-center overflow-hidden rounded border border-slate-200 bg-slate-50">
+                      <div className="mx-auto flex h-12 w-12 items-center justify-center overflow-hidden rounded border border-slate-200 bg-slate-50">
                         {item.imagemUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
