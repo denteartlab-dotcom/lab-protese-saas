@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, runWithRlsBypass } from "@/lib/prisma-tenant";
 import { getMasterSession } from "@/lib/master-auth";
 
 export async function exigirMasterAdmin() {
@@ -8,10 +8,12 @@ export async function exigirMasterAdmin() {
     throw new Error("UNAUTHORIZED");
   }
 
-  const master = await prisma.masterUser.findUnique({
-    where: { id: session.id },
-    select: { id: true, nome: true, email: true, role: true, ativo: true },
-  });
+  const master = await runWithRlsBypass(() =>
+    prisma.masterUser.findUnique({
+      where: { id: session.id },
+      select: { id: true, nome: true, email: true, role: true, ativo: true },
+    })
+  );
 
   if (!master || !master.ativo || master.role !== "MASTER_ADMIN") {
     throw new Error("UNAUTHORIZED");
@@ -26,9 +28,11 @@ export function respostaNaoAutorizadoMaster() {
 
 export async function emailEhMasterAdmin(email: string): Promise<boolean> {
   const normalizado = email.trim().toLowerCase();
-  const master = await prisma.masterUser.findUnique({
-    where: { email: normalizado },
-    select: { ativo: true, role: true },
-  });
+  const master = await runWithRlsBypass(() =>
+    prisma.masterUser.findUnique({
+      where: { email: normalizado },
+      select: { ativo: true, role: true },
+    })
+  );
   return Boolean(master?.ativo && master.role === "MASTER_ADMIN");
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { sessaoComPapelAtualizado } from "@/lib/auth-acesso";
 import { emailEhMasterAdmin } from "@/lib/exigir-master-admin";
-import { prisma } from "@/lib/db";
+import { prisma, runWithRlsBypass, runWithTenantContext } from "@/lib/prisma-tenant";
 import {
   parsePermissoesUsuario,
   podeGerenciarUsuarios,
@@ -15,10 +15,14 @@ export async function GET() {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.id },
-    select: { permissoesJson: true },
-  });
+  const lerPermissoes = () =>
+    prisma.user.findUnique({
+      where: { id: session.id },
+      select: { permissoesJson: true },
+    });
+  const user = session.empresaId
+    ? await runWithTenantContext(session.empresaId, lerPermissoes)
+    : await runWithRlsBypass(lerPermissoes);
 
   const permissoes = normalizarPermissoesCompletas(
     parsePermissoesUsuario(user?.permissoesJson),
