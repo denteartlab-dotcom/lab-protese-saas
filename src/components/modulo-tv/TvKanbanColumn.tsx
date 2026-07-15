@@ -23,7 +23,7 @@ export function TvKanbanColumn({
 }: Props) {
   const { setNodeRef, isOver } = useDroppable({
     id: coluna.id,
-    data: { coluna: coluna.id },
+    data: { type: "coluna", coluna: coluna.id },
   });
 
   return (

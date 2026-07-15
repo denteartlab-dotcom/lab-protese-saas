@@ -5,11 +5,13 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  TouchSensor,
   closestCorners,
   useSensor,
   useSensors,
   type DragEndEvent,
   type DragStartEvent,
+  type Over,
 } from "@dnd-kit/core";
 import { COLUNAS_KANBAN } from "@/components/modulo-tv/constants";
 import { ordenarOrdensColunaTv } from "@/components/modulo-tv/lib/ordenar-ordens-tv";
@@ -17,6 +19,7 @@ import { TvKanbanColumn } from "@/components/modulo-tv/TvKanbanColumn";
 import { TvOsCard } from "@/components/modulo-tv/TvOsCard";
 import { TvOsResumoModal } from "@/components/modulo-tv/TvOsResumoModal";
 import type { ColunaKanbanId, OrdemServicoTv } from "@/components/modulo-tv/types";
+import { isColunaKanbanId } from "@/lib/tv/tv-coluna-override";
 
 type Props = {
   ordens: OrdemServicoTv[];
@@ -24,13 +27,31 @@ type Props = {
   onMoverOrdem: (id: string, coluna: ColunaKanbanId) => void;
 };
 
+/** Resolve a coluna alvo mesmo quando o drop cai sobre outro card. */
+function resolverColunaDrop(
+  over: Over,
+  ordens: OrdemServicoTv[]
+): ColunaKanbanId | null {
+  const overId = String(over.id);
+  if (isColunaKanbanId(overId)) return overId;
+
+  const data = over.data.current as { coluna?: unknown } | undefined;
+  if (isColunaKanbanId(data?.coluna)) return data.coluna;
+
+  const ordemAlvo = ordens.find((o) => o.id === overId);
+  return ordemAlvo?.coluna ?? null;
+}
+
 export function TvKanbanBoard({ ordens, carregando, onMoverOrdem }: Props) {
   const [ordemAtiva, setOrdemAtiva] = useState<OrdemServicoTv | null>(null);
   const [ordemResumo, setOrdemResumo] = useState<OrdemServicoTv | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
+      activationConstraint: { distance: 10 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 180, tolerance: 8 },
     })
   );
 
@@ -45,9 +66,9 @@ export function TvKanbanBoard({ ordens, carregando, onMoverOrdem }: Props) {
     if (!over) return;
 
     const ordemId = String(active.id);
-    const novaColuna = String(over.id) as ColunaKanbanId;
+    const novaColuna = resolverColunaDrop(over, ordens);
     const ordem = ordens.find((o) => o.id === ordemId);
-    if (!ordem || ordem.coluna === novaColuna) return;
+    if (!ordem || !novaColuna || ordem.coluna === novaColuna) return;
 
     onMoverOrdem(ordemId, novaColuna);
   }

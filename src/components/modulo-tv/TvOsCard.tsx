@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { motion } from "framer-motion";
 import { useEtapaTempo } from "@/components/modulo-tv/hooks/useEtapaTempo";
@@ -31,13 +32,18 @@ export function TvOsCard({
   const isNova = useTvDashboardStore((s) => s.novasOsIds.includes(ordem.id));
   const categoriaPrazo = classificarPrazoTv(ordem);
   const estiloPrazo = estilosCardPrazoTv(categoriaPrazo);
+  const ignorarProximoClique = useRef(false);
 
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: ordem.id,
-      data: { coluna: ordem.coluna, ordem },
+      data: { type: "ordem", coluna: ordem.coluna, ordem },
       disabled: isOverlay,
     });
+
+  if (isDragging) {
+    ignorarProximoClique.current = true;
+  }
 
   const style = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
@@ -57,6 +63,15 @@ export function TvOsCard({
       exit={{ opacity: 0, scale: 0.97 }}
       transition={{ duration: 0.3, delay: index * 0.02 }}
       whileHover={isOverlay ? undefined : { y: -1 }}
+      {...(isOverlay ? {} : { ...listeners, ...attributes })}
+      onClick={() => {
+        if (isOverlay || !onAbrirResumo) return;
+        if (ignorarProximoClique.current) {
+          ignorarProximoClique.current = false;
+          return;
+        }
+        onAbrirResumo(ordem);
+      }}
       className={cn(
         "p-3 tv:p-3.5 tv-4k:p-4",
         TV_OS_CARD,
@@ -66,34 +81,18 @@ export function TvOsCard({
         estiloPrazo.shadow,
         categoriaPrazo === "atrasada" && "tv-atrasada-pulse",
         isNova && "ring-offset-1 ring-offset-[#070b12]",
-        !isOverlay && "hover:brightness-110"
+        !isOverlay && "cursor-grab hover:brightness-110 active:cursor-grabbing",
+        isOverlay && "cursor-default"
       )}
     >
-      <div
-        {...(isOverlay ? {} : { ...listeners, ...attributes })}
-        className={cn(
-          "mb-2.5 flex cursor-grab items-start justify-between gap-2 active:cursor-grabbing",
-          isOverlay && "cursor-default"
-        )}
-      >
+      <div className="mb-2.5 flex items-start justify-between gap-2">
         <span className="font-tv-mono text-sm font-bold text-white tv:text-base">
           OS {ordem.numeroOs}
         </span>
         <TvBadge prioridade={ordem.prioridade} />
       </div>
 
-      <button
-        type="button"
-        disabled={isOverlay || !onAbrirResumo}
-        onClick={() => onAbrirResumo?.(ordem)}
-        className={cn(
-          "w-full space-y-1.5 rounded-lg text-left text-[11px] transition tv:text-xs tv-4k:text-sm",
-          !isOverlay &&
-            onAbrirResumo &&
-            "cursor-pointer hover:bg-slate-800/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-500/50",
-          (isOverlay || !onAbrirResumo) && "cursor-default"
-        )}
-      >
+      <div className="w-full space-y-1.5 text-left text-[11px] tv:text-xs tv-4k:text-sm">
         <p className="truncate font-semibold text-slate-100">{ordem.paciente}</p>
         <p className="truncate text-slate-400">{ordem.dentista}</p>
         <p className={cn("font-medium", estiloPrazo.prazo)}>
@@ -109,7 +108,7 @@ export function TvOsCard({
             Resp. <span className="text-slate-300">{ordem.colaborador}</span>
           </p>
         ) : null}
-      </button>
+      </div>
 
       <p className="mt-2.5 truncate rounded-md bg-slate-800/60 px-2 py-1 text-[10px] text-slate-400 tv:text-[11px]">
         {ordem.status}

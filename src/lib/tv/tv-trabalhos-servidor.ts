@@ -32,6 +32,11 @@ import {
 } from "@/lib/prioridade-os";
 import { colunaTvPorNomeServico } from "@/lib/tv/tv-servico-coluna";
 import {
+  isColunaKanbanId,
+  MODULO_TV_COLUNAS_STORAGE_KEY,
+  type MapaColunasTv,
+} from "@/lib/tv/tv-coluna-override";
+import {
   indiceEtapaAtualDeConcluidas,
   MODULO_PRODUCAO_ETAPAS_STORAGE_KEY,
 } from "@/lib/modulo-producao-etapas";
@@ -158,7 +163,8 @@ function chaveItemModulo(trabalhoId: string, itemId: string) {
 function resolverColunaAtual(
   trabalho: TrabalhoTvRow,
   etapas: EtapaOsLinha[],
-  mapaConcluidas: MapaEtapasConcluidas
+  mapaConcluidas: MapaEtapasConcluidas,
+  mapaColunas?: MapaColunasTv
 ): { coluna: ColunaKanbanId; etapaAtual?: EtapaOsLinha; itemChave: string } {
   const moduloOs: TrabalhoModuloOs = {
     id: trabalho.id,
@@ -183,6 +189,23 @@ function resolverColunaAtual(
 
   if (trabalho.status === "saiu_entrega") {
     return { coluna: "pronto_entrega", itemChave };
+  }
+
+  const etapaAtualPorProgresso = (() => {
+    if (etapas.length === 0) return undefined;
+    for (let i = 0; i < etapas.length; i++) {
+      if (!concluidas.has(i)) return etapas[i];
+    }
+    return etapas[etapas.length - 1];
+  })();
+
+  const override = mapaColunas?.[trabalho.id];
+  if (isColunaKanbanId(override)) {
+    return {
+      coluna: override,
+      etapaAtual: etapaAtualPorProgresso,
+      itemChave,
+    };
   }
 
   const colunaFixaServico = colunaTvPorNomeServico(trabalho.tipoProtese);
@@ -307,7 +330,8 @@ function trabalhoParaOrdem(
   mapaConcluidas: MapaEtapasConcluidas,
   colaboradoresCadastro: ColaboradorCadastro[],
   instrucoesGrupo: string[] = [],
-  etapaDesde: Date
+  etapaDesde: Date,
+  mapaColunas?: MapaColunasTv
 ) {
   const moduloOs: TrabalhoModuloOs = {
     id: trabalho.id,
@@ -325,7 +349,8 @@ function trabalhoParaOrdem(
   const { coluna, etapaAtual } = resolverColunaAtual(
     trabalho,
     etapasGrupo,
-    mapaConcluidas
+    mapaConcluidas,
+    mapaColunas
   );
 
   const prazoDate = trabalho.dataPrevista ?? trabalho.dataEntrada;
@@ -439,26 +464,32 @@ export async function carregarColaboradoresTv(
 export async function carregarOrdensTv(
   empresaId: string
 ): Promise<TvOrdensResponse> {
-  const [trabalhos, mapaConcluidas, colaboradores] = await Promise.all([
-    prisma.trabalho.findMany({
-      where: {
+  const [trabalhos, mapaConcluidas, mapaColunasTv, colaboradores] =
+    await Promise.all([
+      prisma.trabalho.findMany({
+        where: {
+          empresaId,
+          status: { in: [...STATUS_VISIVEIS_TV] },
+        },
+        orderBy: [{ numeroOs: "desc" }, { createdAt: "desc" }],
+        include: {
+          cliente: { select: { nome: true } },
+          paciente: { select: { nome: true } },
+        },
+      }) as Promise<TrabalhoTvRow[]>,
+      lerJsonStoreTenant<MapaEtapasConcluidas>(
         empresaId,
-        status: { in: [...STATUS_VISIVEIS_TV] },
-      },
-      orderBy: [{ numeroOs: "desc" }, { createdAt: "desc" }],
-      include: {
-        cliente: { select: { nome: true } },
-        paciente: { select: { nome: true } },
-      },
-    }) as Promise<TrabalhoTvRow[]>,
-    lerJsonStoreTenant<MapaEtapasConcluidas>(
-      empresaId,
-      MODULO_PRODUCAO_ETAPAS_STORAGE_KEY
-    ),
-    lerJsonStoreTenant<ColaboradorCadastro[]>(empresaId, "labProteseColaboradores"),
-  ]);
+        MODULO_PRODUCAO_ETAPAS_STORAGE_KEY
+      ),
+      lerJsonStoreTenant<MapaColunasTv>(empresaId, MODULO_TV_COLUNAS_STORAGE_KEY),
+      lerJsonStoreTenant<ColaboradorCadastro[]>(
+        empresaId,
+        "labProteseColaboradores"
+      ),
+    ]);
 
   const mapa = mapaConcluidas ?? {};
+  const mapaColunas = mapaColunasTv ?? {};
   const colabCadastro = colaboradores ?? [];
 
   const porNumero = new Map<number, TrabalhoTvRow[]>();
@@ -483,7 +514,12 @@ export async function carregarOrdensTv(
 
     const instrucoesGrupo = grupo.map((t) => t.instrucoes || "");
     const { etapas } = parseComplementosInstrucoesGrupo(instrucoesGrupo);
-    const { etapaAtual, itemChave } = resolverColunaAtual(principal, etapas, mapa);
+    const { etapaAtual, itemChave } = resolverColunaAtual(
+      principal,
+      etapas,
+      mapa,
+      mapaColunas
+    );
 
     candidatosEtapa.push({
       trabalho: principal,
@@ -511,7 +547,8 @@ export async function carregarOrdensTv(
         mapa,
         colabCadastro,
         candidato.instrucoesGrupo,
-        etapaDesde
+        etapaDesde,
+        mapaColunas
       )
     );
   }
@@ -540,17 +577,34 @@ function indicesEtapasAteColuna(
     return etapas.map((_, i) => i);
   }
 
-  const indices: number[] = [];
+  const alvoIdx = ORDEM_COLUNAS_KANBAN.indexOf(colunaAlvo);
+  let primeiraNaOuAposAlvo = -1;
+
   for (let i = 0; i < etapas.length; i++) {
     const etapa = etapas[i];
     const col = mapearNomeEtapaParaColuna(etapa.nome, {
       indice: i,
       totalEtapas: etapas.length,
     });
-    if (col === colunaAlvo) break;
-    indices.push(i);
+    const colIdx = ORDEM_COLUNAS_KANBAN.indexOf(col);
+    if (colIdx >= alvoIdx) {
+      primeiraNaOuAposAlvo = i;
+      break;
+    }
   }
-  return indices;
+
+  if (primeiraNaOuAposAlvo >= 0) {
+    return Array.from({ length: primeiraNaOuAposAlvo }, (_, i) => i);
+  }
+
+  // Nenhuma etapa mapeia para a coluna (ou depois): estima pelo progresso relativo.
+  const maxCol = Math.max(1, ORDEM_COLUNAS_KANBAN.length - 1);
+  const ratio = alvoIdx / maxCol;
+  const indiceAtual = Math.min(
+    etapas.length - 1,
+    Math.max(0, Math.round(ratio * Math.max(0, etapas.length - 1)))
+  );
+  return Array.from({ length: indiceAtual }, (_, i) => i);
 }
 
 export async function moverTrabalhoTvColuna(
@@ -604,12 +658,18 @@ export async function moverTrabalhoTvColuna(
   const { etapas, trabalhoId: idServicoPrincipal, itemId } =
     contextoEtapasModuloOsGrupo(trabalhosGrupo);
   const chave = chaveItemModulo(idServicoPrincipal, itemId);
+  const idPersistir = idServicoPrincipal || trabalhoId;
 
-  const mapa =
-    (await lerJsonStoreTenant<MapaEtapasConcluidas>(
+  const [mapaEtapasAtual, mapaColunasAtual] = await Promise.all([
+    lerJsonStoreTenant<MapaEtapasConcluidas>(
       empresaId,
       MODULO_PRODUCAO_ETAPAS_STORAGE_KEY
-    )) ?? {};
+    ),
+    lerJsonStoreTenant<MapaColunasTv>(empresaId, MODULO_TV_COLUNAS_STORAGE_KEY),
+  ]);
+
+  const mapa = mapaEtapasAtual ?? {};
+  const mapaColunas: MapaColunasTv = { ...(mapaColunasAtual ?? {}) };
 
   const concluidasAnteriores = mapa[chave] ?? [];
   const indiceAnterior = etapas.length
@@ -623,6 +683,12 @@ export async function moverTrabalhoTvColuna(
   const indiceNovo = etapas.length
     ? indiceEtapaAtualDeConcluidas(mapa[chave] ?? [], etapas.length)
     : 0;
+
+  if (coluna === "pronto_entrega") {
+    delete mapaColunas[idPersistir];
+  } else {
+    mapaColunas[idPersistir] = coluna;
+  }
 
   const novoStatus =
     coluna === "pronto_entrega"
@@ -642,8 +708,9 @@ export async function moverTrabalhoTvColuna(
 
   await Promise.all([
     salvarJsonStoreTenant(empresaId, MODULO_PRODUCAO_ETAPAS_STORAGE_KEY, mapa),
+    salvarJsonStoreTenant(empresaId, MODULO_TV_COLUNAS_STORAGE_KEY, mapaColunas),
     prisma.trabalho.update({
-      where: { id: trabalhoId },
+      where: { id: idPersistir },
       data: payloadStatus,
     }),
     indiceAnterior !== indiceNovo
@@ -671,7 +738,7 @@ export async function moverTrabalhoTvColuna(
   } else if (deveAdicionarControleEntregasPorStatus(trabalho.status, novoStatus)) {
     try {
       await adicionarTrabalhoControleEntregasAutomaticoServidor(empresaId, {
-        id: trabalho.id,
+        id: idPersistir,
         numeroOs: trabalho.numeroOs,
         tipoProtese: trabalho.tipoProtese,
         valor: trabalho.valor,
@@ -735,6 +802,12 @@ export async function carregarResumoOsTv(
       MODULO_PRODUCAO_ETAPAS_STORAGE_KEY
     )) ?? {};
 
+  const mapaColunas =
+    (await lerJsonStoreTenant<MapaColunasTv>(
+      empresaId,
+      MODULO_TV_COLUNAS_STORAGE_KEY
+    )) ?? {};
+
   const colaboradores =
     (await lerJsonStoreTenant<ColaboradorCadastro[]>(
       empresaId,
@@ -760,7 +833,8 @@ export async function carregarResumoOsTv(
   const { coluna, etapaAtual, itemChave } = resolverColunaAtual(
     principalTv,
     etapas,
-    mapa
+    mapa,
+    mapaColunas
   );
 
   const concluidas = new Set(mapa[itemChave] ?? []);
