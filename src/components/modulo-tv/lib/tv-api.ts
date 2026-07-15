@@ -19,7 +19,14 @@ export async function fetchTvChart(): Promise<TvChartResponse> {
 export async function moverOrdemTv(
   id: string,
   coluna: ColunaKanbanId
-): Promise<TvOrdensResponse & { ordem: TvOrdensResponse["ordens"][0] }> {
+): Promise<
+  TvOrdensResponse & {
+    ordem: TvOrdensResponse["ordens"][0] | null;
+    mapaEtapas?: Record<string, number[]>;
+    chaveEtapaMovida?: string;
+    indiceEtapaMovida?: number;
+  }
+> {
   const res = await fetch(`/api/tv/ordens/${id}`, {
     method: "PATCH",
     credentials: "include",

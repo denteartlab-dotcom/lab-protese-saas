@@ -160,6 +160,59 @@ function chaveItemModulo(trabalhoId: string, itemId: string) {
   return `${trabalhoId}:${itemId}`;
 }
 
+/** Índice da etapa atual correspondente à coluna do kanban TV. */
+function indiceEtapaParaColuna(
+  etapas: EtapaOsLinha[],
+  colunaAlvo: ColunaKanbanId
+): number {
+  if (etapas.length === 0) return 0;
+  if (colunaAlvo === "entrada") return 0;
+  if (colunaAlvo === "pronto_entrega") return Math.max(0, etapas.length - 1);
+
+  // Preferir etapa cujo nome mapeia exatamente para a coluna (ex.: Acabamento/Finalização).
+  for (let i = 0; i < etapas.length; i++) {
+    const col = mapearNomeEtapaParaColuna(etapas[i].nome, {
+      indice: i,
+      totalEtapas: etapas.length,
+    });
+    if (col === colunaAlvo) return i;
+  }
+
+  const alvoIdx = ORDEM_COLUNAS_KANBAN.indexOf(colunaAlvo);
+  for (let i = 0; i < etapas.length; i++) {
+    const col = mapearNomeEtapaParaColuna(etapas[i].nome, {
+      indice: i,
+      totalEtapas: etapas.length,
+    });
+    if (ORDEM_COLUNAS_KANBAN.indexOf(col) >= alvoIdx) return i;
+  }
+
+  const maxCol = Math.max(1, ORDEM_COLUNAS_KANBAN.length - 1);
+  const ratio = alvoIdx / maxCol;
+  return Math.min(
+    etapas.length - 1,
+    Math.max(0, Math.round(ratio * Math.max(0, etapas.length - 1)))
+  );
+}
+
+/** Índices de etapas a marcar como concluídas ao mover para uma coluna. */
+function indicesEtapasAteColuna(
+  etapas: EtapaOsLinha[],
+  colunaAlvo: ColunaKanbanId
+): number[] {
+  if (colunaAlvo === "entrada") return [];
+  if (colunaAlvo === "pronto_entrega") {
+    return etapas.map((_, i) => i);
+  }
+  const indiceAtual = indiceEtapaParaColuna(etapas, colunaAlvo);
+  return Array.from({ length: indiceAtual }, (_, i) => i);
+}
+
+function listasIndicesIguais(a: number[] | undefined, b: number[]) {
+  if (!a || a.length !== b.length) return false;
+  return a.every((v, i) => v === b[i]);
+}
+
 function resolverColunaAtual(
   trabalho: TrabalhoTvRow,
   etapas: EtapaOsLinha[],
@@ -201,9 +254,12 @@ function resolverColunaAtual(
 
   const override = mapaColunas?.[trabalho.id];
   if (isColunaKanbanId(override)) {
+    const indicePelaColuna =
+      etapas.length > 0 ? indiceEtapaParaColuna(etapas, override) : 0;
     return {
       coluna: override,
-      etapaAtual: etapaAtualPorProgresso,
+      etapaAtual:
+        etapas[indicePelaColuna] ?? etapaAtualPorProgresso,
       itemChave,
     };
   }
@@ -530,6 +586,27 @@ export async function carregarOrdensTv(
     });
   }
 
+  // Se a coluna foi alterada no TV mas o mapa de etapas ficou atrasado, alinha.
+  let mapaEtapasReconciliado = false;
+  for (const candidato of candidatosEtapa) {
+    const colunaOverride = mapaColunas[candidato.trabalho.id];
+    if (!isColunaKanbanId(colunaOverride) || candidato.etapas.length === 0) {
+      continue;
+    }
+    const desejado = indicesEtapasAteColuna(candidato.etapas, colunaOverride);
+    if (!listasIndicesIguais(mapa[candidato.itemChave], desejado)) {
+      mapa[candidato.itemChave] = desejado;
+      mapaEtapasReconciliado = true;
+    }
+  }
+  if (mapaEtapasReconciliado) {
+    await salvarJsonStoreTenant(
+      empresaId,
+      MODULO_PRODUCAO_ETAPAS_STORAGE_KEY,
+      mapa
+    );
+  }
+
   const mapaEtapaDesde = await resolverMapaEtapaDesde(
     empresaId,
     candidatosEtapa,
@@ -567,51 +644,18 @@ export async function carregarOrdensTv(
   };
 }
 
-/** Índices de etapas a marcar como concluídas ao mover para uma coluna. */
-function indicesEtapasAteColuna(
-  etapas: EtapaOsLinha[],
-  colunaAlvo: ColunaKanbanId
-): number[] {
-  if (colunaAlvo === "entrada") return [];
-  if (colunaAlvo === "pronto_entrega") {
-    return etapas.map((_, i) => i);
-  }
-
-  const alvoIdx = ORDEM_COLUNAS_KANBAN.indexOf(colunaAlvo);
-  let primeiraNaOuAposAlvo = -1;
-
-  for (let i = 0; i < etapas.length; i++) {
-    const etapa = etapas[i];
-    const col = mapearNomeEtapaParaColuna(etapa.nome, {
-      indice: i,
-      totalEtapas: etapas.length,
-    });
-    const colIdx = ORDEM_COLUNAS_KANBAN.indexOf(col);
-    if (colIdx >= alvoIdx) {
-      primeiraNaOuAposAlvo = i;
-      break;
-    }
-  }
-
-  if (primeiraNaOuAposAlvo >= 0) {
-    return Array.from({ length: primeiraNaOuAposAlvo }, (_, i) => i);
-  }
-
-  // Nenhuma etapa mapeia para a coluna (ou depois): estima pelo progresso relativo.
-  const maxCol = Math.max(1, ORDEM_COLUNAS_KANBAN.length - 1);
-  const ratio = alvoIdx / maxCol;
-  const indiceAtual = Math.min(
-    etapas.length - 1,
-    Math.max(0, Math.round(ratio * Math.max(0, etapas.length - 1)))
-  );
-  return Array.from({ length: indiceAtual }, (_, i) => i);
-}
-
 export async function moverTrabalhoTvColuna(
   trabalhoId: string,
   coluna: ColunaKanbanId,
   empresaId: string
-): Promise<TvOrdensResponse | null> {
+): Promise<
+  | (TvOrdensResponse & {
+      mapaEtapas: Record<string, number[]>;
+      chaveEtapaMovida: string;
+      indiceEtapaMovida: number;
+    })
+  | null
+> {
   const trabalho = await prisma.trabalho.findFirst({
     where: { id: trabalhoId, empresaId },
     include: {
@@ -749,7 +793,13 @@ export async function moverTrabalhoTvColuna(
     }
   }
 
-  return carregarOrdensTv(empresaId);
+  const snapshot = await carregarOrdensTv(empresaId);
+  return {
+    ...snapshot,
+    mapaEtapas: mapa,
+    chaveEtapaMovida: chave,
+    indiceEtapaMovida: indiceNovo,
+  };
 }
 
 export function snapshotParaChart(ordens: OrdemServicoTv[]) {

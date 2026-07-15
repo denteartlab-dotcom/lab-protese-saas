@@ -281,6 +281,8 @@ function mesclarBootstrap(data: Record<string, unknown>): boolean {
 export function aplicarEspelhoServidor(key: string, valor: unknown) {
   espelho.set(key, valor);
   atualizarSnapshotServidor(key, valor);
+  // Evita que um flush pendente (valores antigos) sobrescreva o servidor.
+  filaSalvar.delete(key);
 }
 
 function valorSerializadoVazio(serializado: string) {

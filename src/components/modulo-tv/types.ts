@@ -76,6 +76,10 @@ export type TvOrdensResponse = {
   colaboradores: ColaboradorTv[];
   stats: TvDashboardStats;
   ultimaAtualizacao: string;
+  /** Presente após mover card no kanban — espelho local do Controle/Módulo. */
+  mapaEtapas?: Record<string, number[]>;
+  chaveEtapaMovida?: string;
+  indiceEtapaMovida?: number;
 };
 
 export type TvChartResponse = {

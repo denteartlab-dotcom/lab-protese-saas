@@ -6,7 +6,10 @@ import {
   etapasUnicasComCor,
   type EtapaOsLinha,
 } from "@/lib/etapas-os";
-import { ARMAZENAMENTO_LAB_PRONTO_EVENT } from "@/lib/armazenamento-laboratorio";
+import {
+  ARMAZENAMENTO_LAB_PRONTO_EVENT,
+  revalidarArmazenamentoLaboratorio,
+} from "@/lib/armazenamento-laboratorio";
 import { etapaAtualLinhaOs } from "@/lib/modulo-producao-etapas";
 import { TRABALHOS_ATUALIZADOS_EVENT } from "@/lib/trabalhos-events";
 
@@ -22,12 +25,19 @@ export function EtapasControleCelula({ etapas, trabalhoId, itemId, className }: 
 
   useEffect(() => {
     const atualizar = () => setVersao((v) => v + 1);
-    window.addEventListener("focus", atualizar);
+    const revalidarEAtualizar = () => {
+      void revalidarArmazenamentoLaboratorio(true).finally(atualizar);
+    };
+
+    window.addEventListener("focus", revalidarEAtualizar);
     window.addEventListener("storage", atualizar);
     window.addEventListener(TRABALHOS_ATUALIZADOS_EVENT, atualizar);
     window.addEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, atualizar);
+    // Progresso gravado no Módulo TV precisa chegar ao Controle.
+    void revalidarArmazenamentoLaboratorio(true).finally(atualizar);
+
     return () => {
-      window.removeEventListener("focus", atualizar);
+      window.removeEventListener("focus", revalidarEAtualizar);
       window.removeEventListener("storage", atualizar);
       window.removeEventListener(TRABALHOS_ATUALIZADOS_EVENT, atualizar);
       window.removeEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, atualizar);

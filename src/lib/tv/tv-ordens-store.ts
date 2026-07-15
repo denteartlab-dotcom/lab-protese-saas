@@ -139,19 +139,33 @@ export class TvOrdensStore {
   async moverOrdem(
     id: string,
     coluna: ColunaKanbanId
-  ): Promise<OrdemServicoTv | null> {
+  ): Promise<{
+    ordem: OrdemServicoTv | null;
+    snapshot: TvOrdensResponse;
+    mapaEtapas: Record<string, number[]>;
+    chaveEtapaMovida: string;
+    indiceEtapaMovida: number;
+  } | null> {
     const resultado = await moverTrabalhoTvColuna(id, coluna, this.empresaId);
     if (!resultado) return null;
 
-    this.state.snapshot = resultado;
-    this.appendChart(resultado.ordens);
+    const { mapaEtapas, chaveEtapaMovida, indiceEtapaMovida, ...snapshot } =
+      resultado;
+    this.state.snapshot = snapshot;
+    this.appendChart(snapshot.ordens);
 
-    const ordem = resultado.ordens.find((o) => o.id === id) ?? null;
+    const ordem = snapshot.ordens.find((o) => o.id === id) ?? null;
     this.syncBroadcast();
     if (ordem) {
       emitTvEvent(this.empresaId, "tv:ordem:moved", { ordem: { ...ordem } });
     }
-    return ordem;
+    return {
+      ordem,
+      snapshot,
+      mapaEtapas,
+      chaveEtapaMovida,
+      indiceEtapaMovida,
+    };
   }
 }
 

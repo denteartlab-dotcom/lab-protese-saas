@@ -35,11 +35,17 @@ export async function PATCH(request: Request, { params }: Params) {
   }
 
   const store = getTvOrdensStore(ctx.empresaId);
-  const ordem = await store.moverOrdem(id, parsed.data.coluna as ColunaKanbanId);
+  const movido = await store.moverOrdem(id, parsed.data.coluna as ColunaKanbanId);
 
-  if (!ordem) {
+  if (!movido) {
     return NextResponse.json({ error: "OS não encontrada" }, { status: 404 });
   }
 
-  return NextResponse.json({ ordem, ...store.getSnapshot() });
+  return NextResponse.json({
+    ordem: movido.ordem,
+    ...movido.snapshot,
+    mapaEtapas: movido.mapaEtapas,
+    chaveEtapaMovida: movido.chaveEtapaMovida,
+    indiceEtapaMovida: movido.indiceEtapaMovida,
+  });
 }

@@ -173,7 +173,11 @@ import {
   indiceEtapaAtualDeConcluidas,
   persistirEtapaAtualOs,
 } from "@/lib/modulo-producao-etapas";
-import { contextoEtapasControleLinha, flagsUrgenciaTrabalho, itensDaOsModulo } from "@/lib/modulo-producao-os";
+import {
+  contextoEtapasModuloOsGrupo,
+  flagsUrgenciaTrabalho,
+  itensDaOsModulo,
+} from "@/lib/modulo-producao-os";
 import { removerMarcacaoUrgenteInstrucoes } from "@/lib/urgencia-cliente-util";
 import {
   OPCOES_TIPO_REPETICAO_OS,
@@ -3369,30 +3373,19 @@ export default function ControlePage() {
                 const linhaProdutoOuTransporte =
                   exibicaoLinha.kind === "produto" || exibicaoLinha.kind === "transporte";
                 const grupoOs = gruposPorNumeroOs.get(trabalho.numeroOs) ?? [trabalho];
-                const contextoEtapas = contextoEtapasControleLinha(
-                  {
-                    id: trabalho.id,
-                    numeroOs: trabalho.numeroOs,
-                    tipoProtese: trabalho.tipoProtese,
-                    valor: trabalho.valor ?? 0,
-                    status: trabalho.status,
-                    instrucoes: trabalho.instrucoes,
-                    dataEntrada: trabalho.dataEntrada,
-                    dataPrevista: trabalho.dataPrevista,
-                    segmentoFaturamento: trabalho.segmentoFaturamento,
-                  },
-                  grupoOs.map((registro) => ({
-                    id: registro.id,
-                    numeroOs: registro.numeroOs,
-                    tipoProtese: registro.tipoProtese,
-                    valor: registro.valor ?? 0,
-                    status: registro.status,
-                    instrucoes: registro.instrucoes,
-                    dataEntrada: registro.dataEntrada,
-                    dataPrevista: registro.dataPrevista,
-                    segmentoFaturamento: registro.segmentoFaturamento,
-                  }))
-                );
+                const grupoModulo = grupoOs.map((registro) => ({
+                  id: registro.id,
+                  numeroOs: registro.numeroOs,
+                  tipoProtese: registro.tipoProtese,
+                  valor: registro.valor ?? 0,
+                  status: registro.status,
+                  instrucoes: registro.instrucoes,
+                  dataEntrada: registro.dataEntrada,
+                  dataPrevista: registro.dataPrevista,
+                  segmentoFaturamento: registro.segmentoFaturamento,
+                }));
+                // Mesma chave/etapas do Módulo TV (arrastar coluna atualiza este progresso).
+                const contextoEtapas = contextoEtapasModuloOsGrupo(grupoModulo);
                 const complementosOs = parseComplementosInstrucoesGrupo(
                   grupoOs.map((registro) => registro.instrucoes || "")
                 );

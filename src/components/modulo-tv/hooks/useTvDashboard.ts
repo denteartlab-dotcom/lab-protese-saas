@@ -13,6 +13,12 @@ import type {
 } from "@/components/modulo-tv/types";
 import { TV_QUERY_KEYS, useTvSocket } from "@/components/modulo-tv/hooks/useTvSocket";
 import { playTvSound } from "@/components/modulo-tv/lib/tv-sounds";
+import {
+  aplicarEspelhoServidor,
+  ARMAZENAMENTO_LAB_PRONTO_EVENT,
+} from "@/lib/armazenamento-laboratorio";
+import { MODULO_PRODUCAO_ETAPAS_STORAGE_KEY } from "@/lib/modulo-producao-etapas";
+import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
 
 function formatRelogio(date: Date) {
   return date.toLocaleTimeString("pt-BR", {
@@ -108,13 +114,20 @@ export function useTvDashboard() {
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(TV_QUERY_KEYS.ordens, ctx.prev);
     },
-    onSuccess: (data) => {
+    onSuccess: (data, vars) => {
       queryClient.setQueryData(TV_QUERY_KEYS.ordens, {
         ordens: data.ordens,
         colaboradores: data.colaboradores,
         stats: data.stats,
         ultimaAtualizacao: data.ultimaAtualizacao,
       });
+      if (data.mapaEtapas) {
+        aplicarEspelhoServidor(MODULO_PRODUCAO_ETAPAS_STORAGE_KEY, data.mapaEtapas);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event(ARMAZENAMENTO_LAB_PRONTO_EVENT));
+        }
+        notificarTrabalhosAtualizados({ trabalhoId: vars.id });
+      }
     },
   });
 
