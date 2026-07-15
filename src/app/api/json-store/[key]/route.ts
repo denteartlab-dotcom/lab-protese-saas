@@ -6,15 +6,24 @@ import {
   lerJsonStoreTenant,
   salvarJsonStoreTenant,
 } from "@/lib/json-store-tenant";
+import { negarSeSemPermissao } from "@/lib/require-permissao";
+import { usuarioEhProprietario } from "@/lib/usuarios-sistema";
 
 type Params = { params: Promise<{ key: string }> };
+
+/** Chaves sensíveis — só proprietário/gestor de config pode gravar. */
+const CHAVES_SENSIVEIS_JSON_STORE = new Set([
+  "labProteseConfigLaboratorio",
+  "labProteseUsuarios",
+  "labProteseBackup",
+]);
 
 export async function GET(_request: Request, { params }: Params) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
-
+  // Sessão autenticada da empresa basta para leitura do espelho do lab.
   const { key } = await params;
   const valor = await lerJsonStoreTenant(ctx.empresaId, key);
   if (valor === null) {
@@ -30,6 +39,17 @@ export async function PUT(request: Request, { params }: Params) {
   }
 
   const { key } = await params;
+
+  if (CHAVES_SENSIVEIS_JSON_STORE.has(key) && !usuarioEhProprietario(ctx.user.role)) {
+    const negado = await negarSeSemPermissao(ctx, "configuracoes-dados", "editar");
+    if (negado) return negado;
+  }
+
+  if (key === MODULO_PRODUCAO_ETAPAS_STORAGE_KEY) {
+    const negado = await negarSeSemPermissao(ctx, "producao-modulo", "editar");
+    if (negado) return negado;
+  }
+
   const body = await request.json();
 
   let mapaAnterior: Record<string, number[]> = {};

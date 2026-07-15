@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { negarSeSemPermissao } from "@/lib/require-permissao";
 import { getTvOrdensStore } from "@/lib/tv/tv-ordens-store";
 import type { ColunaKanbanId } from "@/components/modulo-tv/types";
 
@@ -22,6 +23,8 @@ export async function PATCH(request: Request, { params }: Params) {
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
+  const negado = await negarSeSemPermissao(ctx, "producao-modulo-tv", "editar");
+  if (negado) return negado;
 
   const { id } = await params;
   const body = await request.json().catch(() => null);

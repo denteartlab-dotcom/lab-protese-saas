@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { negarSeSemPermissao } from "@/lib/require-permissao";
 import { invalidarCachePainelFinanceiro } from "@/lib/financeiro-painel-cache";
 import { tentarEmitirBoletoParaLancamento } from "@/lib/asaas-boleto";
 import { tentarEmitirPixParaLancamento } from "@/lib/asaas-pix-cobranca";
@@ -80,9 +81,12 @@ function dadosCreateLancamento(
 export async function GET(request: Request) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-
   const { searchParams } = new URL(request.url);
   const tipo = searchParams.get("tipo");
+  const modulo =
+    tipo === "despesa" ? "financeiro-tipo-despesa" : "financeiro-tipo-receita";
+  const negado = await negarSeSemPermissao(ctx, modulo, "ver");
+  if (negado) return negado;
   const status = searchParams.get("status");
   const mes = searchParams.get("mes");
 
@@ -148,6 +152,12 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const data = schema.parse(body);
+    const modulo =
+      data.tipo === "despesa"
+        ? "financeiro-tipo-despesa"
+        : "financeiro-tipo-receita";
+    const negado = await negarSeSemPermissao(ctx, modulo, "criar");
+    if (negado) return negado;
     const { emitirBoleto, emitirBoletoAsync, emitirPix, parcelas: parcelasBody, valorCobrancaAsaas } =
       data;
     const { empresaId, user: session } = ctx;

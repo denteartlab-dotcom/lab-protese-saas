@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { negarSeSemPermissao } from "@/lib/require-permissao";
 import {
   LIMITE_ARMAZENAMENTO_BYTES,
   LIMITE_GALERIA_GB,
@@ -15,6 +16,8 @@ import {
 export async function GET() {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(ctx, "produtos", "ver");
+  if (negado) return negado;
   const resumo = await calcularArmazenamentoGaleria(
     ctx.empresaId,
     ctx.empresaSlug,
@@ -26,6 +29,8 @@ export async function GET() {
 export async function POST(request: Request) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(ctx, "produtos", "criar");
+  if (negado) return negado;
 
   try {
     const formData = await request.formData();

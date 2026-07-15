@@ -1,6 +1,6 @@
 -- Papel da aplicação (sem superuser) — RLS passa a valer de verdade.
--- Rode com DIRECT_URL (owner/superuser): npm run db:role-app
--- Depois crie DATABASE_URL_APP no .env e use na aplicação.
+-- Prefira: LAB_APP_PASSWORD=... npm run db:role-app  (scripts/create-app-role.mjs)
+-- Este arquivo é legado; a senha abaixo é só para bootstrap local.
 
 DO $$
 BEGIN

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { negarSeSemPermissao } from "@/lib/require-permissao";
 import {
   formatClienteLogAuditoria,
   formatServicoLogAuditoria,
@@ -72,6 +73,8 @@ export async function GET(
 ) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(ctx, "producao-os", "ver");
+  if (negado) return negado;
 
   const { id } = await params;
   const trabalho = await prisma.trabalho.findFirst({
@@ -99,6 +102,8 @@ export async function PUT(
 ) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(ctx, "producao-os", "editar");
+  if (negado) return negado;
 
   const { id } = await params;
   try {
@@ -365,6 +370,8 @@ export async function DELETE(
 ) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(ctx, "producao-os", "excluir");
+  if (negado) return negado;
 
   const { id } = await params;
   try {

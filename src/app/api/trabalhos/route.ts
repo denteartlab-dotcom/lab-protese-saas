@@ -3,6 +3,10 @@ import { prisma } from "@/lib/db";
 import { extrairNumeroOsCodigo } from "@/lib/codigo-barras-os";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
+  acaoHttpParaPermissao,
+  negarSeSemPermissao,
+} from "@/lib/require-permissao";
+import {
   formatClienteLogAuditoria,
   formatServicoLogAuditoria,
   nomeUsuarioParaLogAuditoria,
@@ -47,6 +51,12 @@ function parseDateOnly(value: string) {
 export async function GET(request: Request) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(
+    ctx,
+    "producao-os",
+    acaoHttpParaPermissao(request.method)
+  );
+  if (negado) return negado;
 
   const { searchParams } = new URL(request.url);
   const q = (searchParams.get("q") || "").trim();
@@ -113,6 +123,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(ctx, "producao-os", "criar");
+  if (negado) return negado;
 
   try {
     const body = await request.json();

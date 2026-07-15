@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { jwtVerify } from "jose";
 import { sessaoCookieSecure } from "@/lib/cookie-secure";
 import { requisicaoTvSocket } from "@/lib/tv/tv-socket-path";
 import {
@@ -31,51 +32,39 @@ type PayloadSessao = {
   assinaturaVencida?: boolean;
 };
 
-/** Verificação leve no Edge (sem jose — evita erro de build na Vercel). */
-function lerPayloadSessao(token: string): PayloadSessao | null {
-  const parts = token.split(".");
-  if (parts.length !== 3) return null;
+function secretJwt(): Uint8Array | null {
+  const secret = process.env.JWT_SECRET?.trim();
+  if (!secret) return null;
+  return new TextEncoder().encode(secret);
+}
+
+/** Verificação completa com jose (HMAC) no Edge. */
+async function verificarPayloadSessao(token: string): Promise<PayloadSessao | null> {
+  const secret = secretJwt();
+  if (!secret) return null;
   try {
-    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
-    return JSON.parse(atob(padded)) as PayloadSessao;
+    const { payload } = await jwtVerify(token, secret);
+    return payload as PayloadSessao;
   } catch {
     return null;
   }
 }
 
-function sessionTokenAceito(token: string): boolean {
-  const payload = lerPayloadSessao(token);
+async function sessionTokenAceito(token: string): Promise<boolean> {
+  const payload = await verificarPayloadSessao(token);
   if (!payload) return false;
-  if (typeof payload.exp === "number" && payload.exp * 1000 < Date.now()) {
-    return false;
-  }
   return typeof payload.id === "string" && payload.id.length > 0;
 }
 
-function masterTokenAceito(token: string): boolean {
-  const payload = lerPayloadSessao(token);
+async function masterTokenAceito(token: string): Promise<boolean> {
+  const payload = await verificarPayloadSessao(token);
   if (!payload) return false;
-  if (typeof payload.exp === "number" && payload.exp * 1000 < Date.now()) {
-    return false;
-  }
   return (
     payload.master === true &&
     payload.role === "MASTER_ADMIN" &&
     typeof payload.id === "string" &&
     payload.id.length > 0
   );
-}
-
-function slugDaSessao(token: string): string | null {
-  const payload = lerPayloadSessao(token);
-  const slug = payload?.empresaSlug?.trim();
-  return slug || null;
-}
-
-function assinaturaVencidaNoToken(token: string): boolean {
-  const payload = lerPayloadSessao(token);
-  return payload?.assinaturaVencida === true;
 }
 
 function limparCookieSessao(response: NextResponse) {
@@ -137,7 +126,7 @@ function processarRotaApp(
   return NextResponse.rewrite(url);
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const redirectWww = redirecionarParaWww(request);
   if (redirectWww) return redirectWww;
 
@@ -218,14 +207,14 @@ export function middleware(request: NextRequest) {
       pathname === "/admin-master/login" || pathname === "/api/admin-master/auth/login";
     if (masterPublico) {
       const masterToken = request.cookies.get(MASTER_COOKIE_NAME)?.value;
-      if (masterToken && masterTokenAceito(masterToken)) {
+      if (masterToken && (await masterTokenAceito(masterToken))) {
         return NextResponse.redirect(new URL("/admin-master", request.url));
       }
       return NextResponse.next();
     }
 
     const masterToken = request.cookies.get(MASTER_COOKIE_NAME)?.value;
-    if (!masterToken || !masterTokenAceito(masterToken)) {
+    if (!masterToken || !(await masterTokenAceito(masterToken))) {
       if (pathname.startsWith("/api/admin-master")) {
         return NextResponse.json({ error: "Acesso restrito ao proprietário." }, { status: 403 });
       }
@@ -240,7 +229,7 @@ export function middleware(request: NextRequest) {
   if (PUBLIC.includes(pathname)) {
     const token = request.cookies.get(COOKIE_NAME)?.value;
     const res =
-      token && !sessionTokenAceito(token)
+      token && !(await sessionTokenAceito(token))
         ? limparCookieSessao(NextResponse.next())
         : NextResponse.next();
 
@@ -258,7 +247,7 @@ export function middleware(request: NextRequest) {
 
   if (rotasRenovacao && !pathname.startsWith("/api")) {
     const tokenRenovacao = request.cookies.get(COOKIE_NAME)?.value;
-    if (!tokenRenovacao || !sessionTokenAceito(tokenRenovacao)) {
+    if (!tokenRenovacao || !(await sessionTokenAceito(tokenRenovacao))) {
       const login = new URL("/login", request.url);
       login.searchParams.set("redirect", pathname);
       return limparCookieSessao(NextResponse.redirect(login));
@@ -277,7 +266,8 @@ export function middleware(request: NextRequest) {
   }
 
   const token = request.cookies.get(COOKIE_NAME)?.value;
-  if (!token || !sessionTokenAceito(token)) {
+  const payloadSessao = token ? await verificarPayloadSessao(token) : null;
+  if (!token || !payloadSessao?.id) {
     if (pathname.startsWith("/api")) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
@@ -286,7 +276,7 @@ export function middleware(request: NextRequest) {
     return limparCookieSessao(NextResponse.redirect(login));
   }
 
-  if (assinaturaVencidaNoToken(token)) {
+  if (payloadSessao.assinaturaVencida === true) {
     if (pathname.startsWith("/app")) {
       return NextResponse.redirect(new URL("/assinatura-vencida", request.url));
     }
@@ -299,7 +289,11 @@ export function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith("/app")) {
-    const rotaApp = processarRotaApp(request, pathname, slugDaSessao(token));
+    const rotaApp = processarRotaApp(
+      request,
+      pathname,
+      payloadSessao.empresaSlug?.trim() || null
+    );
     if (rotaApp) return rotaApp;
   }
 

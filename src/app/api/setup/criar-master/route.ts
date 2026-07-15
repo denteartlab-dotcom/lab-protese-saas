@@ -1,19 +1,23 @@
 import { NextResponse } from "next/server";
 import { hashPassword } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { podeExporSenhaSetup, setupBloqueado } from "@/lib/setup-guard";
+import {
+  podeExporSenhaSetup,
+  senhaBootstrapObrigatoria,
+  setupBloqueado,
+} from "@/lib/setup-guard";
+import { runWithRlsBypass } from "@/lib/prisma-tenant";
 
 const EMAIL_PADRAO = "admin@labprotese.com";
-const SENHA_PADRAO = "789654";
 
 /** Cria o usuário master se a tabela estiver vazia. */
 export async function GET(request: Request) {
   const bloqueio = setupBloqueado(request);
   if (bloqueio) return bloqueio;
 
-  if (!process.env.DATABASE_URL?.trim()) {
+  if (!process.env.DATABASE_URL?.trim() && !process.env.DATABASE_URL_APP?.trim()) {
     return NextResponse.json(
-      { ok: false, erro: "DATABASE_URL não configurada." },
+      { ok: false, erro: "DATABASE_URL / DATABASE_URL_APP não configurada." },
       { status: 503 }
     );
   }
@@ -26,38 +30,44 @@ export async function GET(request: Request) {
   }
 
   const email = (process.env.MASTER_ADMIN_EMAIL ?? EMAIL_PADRAO).trim().toLowerCase();
-  const senha = process.env.MASTER_ADMIN_PASSWORD?.trim() || SENHA_PADRAO;
+  const senhaCfg = senhaBootstrapObrigatoria("MASTER_ADMIN_PASSWORD");
+  if (!senhaCfg.ok) {
+    return NextResponse.json({ ok: false, erro: senhaCfg.erro }, { status: 503 });
+  }
 
   try {
-    const total = await prisma.masterUser.count();
-    if (total > 0) {
-      const existente = await prisma.masterUser.findUnique({ where: { email } });
+    return await runWithRlsBypass(async () => {
+      const total = await prisma.masterUser.count();
+      if (total > 0) {
+        const existente = await prisma.masterUser.findUnique({ where: { email } });
+        return NextResponse.json({
+          ok: true,
+          mensagem: "Master já existe no banco. Setup não recria contas.",
+          totalMasters: total,
+          email: existente?.email ?? email,
+          painel: "/admin-master/login",
+          dica: "Rotacione senhas padrão antigas se ainda estiverem ativas. Desligue ALLOW_SETUP.",
+        });
+      }
+
+      const senhaHash = await hashPassword(senhaCfg.senha);
+      const master = await prisma.masterUser.create({
+        data: {
+          nome: "Proprietário Plataforma",
+          email,
+          senhaHash,
+          role: "MASTER_ADMIN",
+        },
+      });
+
       return NextResponse.json({
         ok: true,
-        mensagem: "Master já existe no banco.",
-        totalMasters: total,
-        email: existente?.email ?? email,
+        mensagem: "Perfil master criado com sucesso.",
+        email: master.email,
+        ...(podeExporSenhaSetup() ? { senha: senhaCfg.senha } : {}),
         painel: "/admin-master/login",
-        dica: "Use a senha definida em MASTER_ADMIN_PASSWORD ou rode npm run db:criar-master.",
+        proximoPasso: "Desligue ALLOW_SETUP e remova SETUP_SECRET após o bootstrap.",
       });
-    }
-
-    const senhaHash = await hashPassword(senha);
-    const master = await prisma.masterUser.create({
-      data: {
-        nome: "Proprietário Plataforma",
-        email,
-        senhaHash,
-        role: "MASTER_ADMIN",
-      },
-    });
-
-    return NextResponse.json({
-      ok: true,
-      mensagem: "Perfil master criado com sucesso.",
-      email: master.email,
-      ...(podeExporSenhaSetup() ? { senha } : {}),
-      painel: "/admin-master/login",
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

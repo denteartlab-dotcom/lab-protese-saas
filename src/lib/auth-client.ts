@@ -28,9 +28,9 @@ function lerLembreteLocalStorage(): LembrarLoginSalvo | null {
     const parsed = JSON.parse(raw) as LembrarLoginArmazenado;
     const email = parsed.email?.trim();
     if (!email) return null;
-    // Migra entradas antigas que guardavam senha em base64.
-    if (parsed.password) {
-      const limpo = { email, v: 2 };
+    // Migra/remove entradas antigas que guardavam senha (nunca persistir senha).
+    if (parsed.password || parsed.v !== 2) {
+      const limpo = { email, v: 2 as const };
       window.localStorage.setItem(LEMBRAR_LOGIN_LOCAL_KEY, JSON.stringify(limpo));
     }
     return { email };

@@ -3,7 +3,12 @@ import {
   empresaPrecisaPaginaRenovacao,
   empresaTemAcessoAssinatura,
 } from "@/lib/assinatura-empresa";
-import { prisma, runWithRlsBypass, runWithTenantContext } from "@/lib/prisma-tenant";
+import {
+  prisma,
+  runWithRlsBypass,
+  runWithTenantContext,
+  tenantStorage,
+} from "@/lib/prisma-tenant";
 import { montarSessionUserComAssinatura } from "@/lib/sessao-assinatura";
 
 export type EmpresaContext = {
@@ -110,12 +115,17 @@ async function requireEmpresaContextInterno(): Promise<EmpresaContext> {
   const session = await requireSession();
   const atualizada = await sincronizarSessaoEmpresa(session);
 
-  return {
+  const ctx: EmpresaContext = {
     empresaId: atualizada.empresaId!,
     empresaSlug: atualizada.empresaSlug!,
     empresaNome: atualizada.empresaNome ?? atualizada.empresaSlug!,
     user: atualizada,
   };
+
+  // Liga RLS no restante do request (pool de conexões exige set_config por operação).
+  tenantStorage.enterWith({ empresaId: ctx.empresaId, bypass: false });
+
+  return ctx;
 }
 
 /** APIs de renovação PIX — permite empresa com assinatura vencida. */

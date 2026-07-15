@@ -3,6 +3,13 @@ import { verifyPassword } from "@/lib/auth";
 import { createMasterSession } from "@/lib/master-auth";
 import { ipDaRequisicao, registrarLogMaster } from "@/lib/master-audit";
 import { prisma } from "@/lib/db";
+import { runWithRlsBypass } from "@/lib/prisma-tenant";
+import {
+  extrairIpLogin,
+  limparFalhasLogin,
+  loginBloqueadoPorRateLimit,
+  registrarFalhaLogin,
+} from "@/lib/login-rate-limit";
 import { z } from "zod";
 
 const schema = z.object({
@@ -15,16 +22,30 @@ export async function POST(request: Request) {
   try {
     const body = schema.parse(await request.json());
     const email = body.email.trim().toLowerCase();
+    const ip = extrairIpLogin(request);
 
-    const master = await prisma.masterUser.findUnique({ where: { email } });
+    if (loginBloqueadoPorRateLimit(ip, email)) {
+      return NextResponse.json(
+        { error: "Muitas tentativas. Tente novamente em alguns minutos." },
+        { status: 429 }
+      );
+    }
+
+    const master = await runWithRlsBypass(() =>
+      prisma.masterUser.findUnique({ where: { email } })
+    );
     if (!master || !master.ativo || master.role !== "MASTER_ADMIN") {
+      registrarFalhaLogin(ip, email);
       return NextResponse.json({ error: "Credenciais inválidas." }, { status: 401 });
     }
 
     const senhaOk = await verifyPassword(body.password, master.senhaHash);
     if (!senhaOk) {
+      registrarFalhaLogin(ip, email);
       return NextResponse.json({ error: "Credenciais inválidas." }, { status: 401 });
     }
+
+    limparFalhasLogin(ip, email);
 
     await createMasterSession(
       {
@@ -36,10 +57,12 @@ export async function POST(request: Request) {
       { remember: body.remember === true }
     );
 
-    await registrarLogMaster(master.id, "LOGIN_MASTER", {
-      detalhes: `Login: ${master.email}`,
-      ip: ipDaRequisicao(request),
-    });
+    await runWithRlsBypass(() =>
+      registrarLogMaster(master.id, "LOGIN_MASTER", {
+        detalhes: `Login: ${master.email}`,
+        ip: ipDaRequisicao(request),
+      })
+    );
 
     return NextResponse.json({
       id: master.id,

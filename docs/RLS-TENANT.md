@@ -2,7 +2,7 @@
 
 Cada laboratório só vê dados do seu `empresaId` **no banco**, mesmo se houver bug no código.
 
-## Comandos (copie e cole no PowerShell)
+## Comandos (PowerShell)
 
 ```powershell
 cd "c:\Users\meuco\.cursor\projects\empty-window\lab-protese-saas"
@@ -10,47 +10,55 @@ cd "c:\Users\meuco\.cursor\projects\empty-window\lab-protese-saas"
 # 1. Schema
 npm run db:push
 
-# 2. Dados iniciais (antes ou depois do RLS — seed usa conexão owner)
+# 2. Seed / master (usa DATABASE_URL / DIRECT_URL — owner)
 npm run db:seed
+# MASTER_ADMIN_PASSWORD=... npm run db:criar-master
 
-# 3. Aplicar políticas RLS
+# 3. Políticas RLS (ENABLE)
 npm run db:rls
 
-# 4. Criar papel lab_app (sem superuser — obrigatório para RLS valer)
+# 4. Papel lab_app (senha forte obrigatória)
+$env:LAB_APP_PASSWORD = "sua-senha-forte-aqui"
 npm run db:role-app
 
-# 5. No .env, adicione (ajuste host/senha do seu Neon):
-# DATABASE_URL_APP=postgresql://lab_app:lab_app_dev_trocar_em_producao@HOST/neondb?sslmode=require
+# 5. FORCE RLS — owner também respeita policies (app deve usar lab_app)
+npm run db:rls-force
 
-# 6. Testar
+# 6. No .env da aplicação (runtime):
+# DATABASE_URL_APP=postgresql://lab_app:SUA_SENHA@HOST/neondb?sslmode=require
+# DATABASE_URL / DIRECT_URL continuam com o owner para migrate/seed
+
+# 7. Testar
 npm run db:testar-rls
 npm run db:testar-isolamento
 ```
 
 ## Importante
 
-- **Superuser ignora RLS** — a `DATABASE_URL` normal (owner Neon) não é filtrada.
-- Use **`DATABASE_URL_APP`** com o papel `lab_app` na aplicação em produção.
-- Migrações/seed: continuam com `DIRECT_URL` / owner.
+- **Superuser / owner sem FORCE** ignora RLS. Por isso `DATABASE_URL_APP` + `npm run db:rls-force`.
+- Runtime da app: **`DATABASE_URL_APP`** (papel `lab_app`).
+- Migrações/seed: `DATABASE_URL` / `DIRECT_URL` (owner) + `runWithRlsBypass` no código.
+- Login master e setup usam `runWithRlsBypass` (tabelas com policy só-bypass).
+
+## Setup HTTP (`/api/setup/*`)
+
+Em produção:
+- `ALLOW_SETUP=true` **e** header `x-setup-secret: $SETUP_SECRET`
+- Senhas via `SETUP_ADMIN_PASSWORD` / `MASTER_ADMIN_PASSWORD` (mín. 8) — sem defaults fracos
+- Após bootstrap: desligue `ALLOW_SETUP` e rotacione qualquer senha padrão antiga (`admin123` / `789654`)
+
+## Webhooks
+
+Fail-closed sem secret. Em dev, só com `WEBHOOK_ALLOW_INSECURE=true`.
 
 ## Na aplicação
 
-```typescript
-import { withEmpresaContext } from "@/lib/empresa-context";
+`requireEmpresaContext()` liga o tenant no ALS (`enterWith`) para o restante do request.
+`withEmpresaContext` / `apiComTenant` também disponíveis.
 
-export async function GET() {
-  return withEmpresaContext(async (ctx) => {
-    // use prisma dentro — com DATABASE_URL_APP + runWithTenantContext
-  });
-}
-```
-
-Login usa `runWithRlsBypass` automaticamente.
-
-## Reverter (emergência)
+## Reverter FORCE (emergência)
 
 ```sql
-ALTER TABLE "Cliente" DISABLE ROW LEVEL SECURITY;
+-- ou: prisma/sql/disable-force-rls.sql
+ALTER TABLE "Cliente" NO FORCE ROW LEVEL SECURITY;
 ```
-
-Ou restaure backup.
