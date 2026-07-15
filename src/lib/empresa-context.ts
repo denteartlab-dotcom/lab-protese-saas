@@ -46,7 +46,10 @@ async function carregarUsuarioEmpresa(session: SessionUser) {
   return runWithRlsBypass(consulta);
 }
 
-async function sincronizarSessaoEmpresa(session: SessionUser): Promise<SessionUser> {
+async function sincronizarSessaoEmpresa(
+  session: SessionUser,
+  options?: { persistirCookie?: boolean }
+): Promise<SessionUser> {
   const registro = await carregarUsuarioEmpresa(session);
 
   if (
@@ -69,24 +72,32 @@ async function sincronizarSessaoEmpresa(session: SessionUser): Promise<SessionUs
     assinaturaVencida: false,
   };
 
-  if (
+  const precisaAtualizar =
     session.empresaId !== atualizada.empresaId ||
     session.empresaSlug !== atualizada.empresaSlug ||
     session.empresaNome !== atualizada.empresaNome ||
-    session.assinaturaVencida !== atualizada.assinaturaVencida
-  ) {
-    await createSession(atualizada);
+    session.assinaturaVencida !== atualizada.assinaturaVencida;
+
+  // Server Components não podem cookies().set — só Route Handlers / Server Actions.
+  if (precisaAtualizar && options?.persistirCookie !== false) {
+    try {
+      await createSession(atualizada);
+    } catch {
+      /* página RSC: segue com JWT atual até o próximo login/API */
+    }
   }
 
   return atualizada;
 }
 
-export async function obterEmpresaContexto(): Promise<EmpresaContext | null> {
+export async function obterEmpresaContexto(options?: {
+  persistirCookie?: boolean;
+}): Promise<EmpresaContext | null> {
   const session = await getSession();
   if (!session) return null;
 
   try {
-    const atualizada = await sincronizarSessaoEmpresa(session);
+    const atualizada = await sincronizarSessaoEmpresa(session, options);
     return {
       empresaId: atualizada.empresaId!,
       empresaSlug: atualizada.empresaSlug!,

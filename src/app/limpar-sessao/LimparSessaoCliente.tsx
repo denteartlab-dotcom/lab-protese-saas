@@ -3,12 +3,19 @@
 import { useEffect } from "react";
 import { limparCachesAplicacao } from "@/lib/app-cache-recovery";
 
-/** Limpa cache do navegador e redireciona ao login (sessão já apagada no servidor). */
+/** Apaga sessão via API (Route Handler) e limpa cache do navegador. */
 export function LimparSessaoCliente() {
   useEffect(() => {
-    void limparCachesAplicacao().finally(() => {
-      window.location.replace(`/login?_fresh=${Date.now()}`);
-    });
+    void fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+    })
+      .catch(() => undefined)
+      .then(() => limparCachesAplicacao())
+      .finally(() => {
+        window.location.replace(`/login?_fresh=${Date.now()}`);
+      });
   }, []);
 
   return (

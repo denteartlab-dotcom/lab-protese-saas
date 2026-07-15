@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
-import { destroySession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export default async function LogoutPage() {
-  await destroySession();
-  redirect("/login");
+/** Cookie só pode ser limpo em Route Handler — redireciona para a API. */
+export default function LogoutPage() {
+  redirect("/api/auth/logout?redirect=/login");
 }
