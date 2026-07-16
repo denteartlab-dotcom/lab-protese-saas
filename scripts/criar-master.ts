@@ -1,6 +1,12 @@
 /**
- * Cria ou atualiza o usuário master (tabela master_users).
- * Uso: npm run db:criar-master
+ * Cria ou atualiza o usuário master (tabela master_users)
+ * E sincroniza o mesmo e-mail/senha no User proprietário do lab (login /app).
+ *
+ * Uso:
+ *   MASTER_ADMIN_EMAIL=... MASTER_ADMIN_PASSWORD=... npm run db:criar-master
+ *
+ * Se trocou o e-mail, informe o antigo para migrar o perfil do lab:
+ *   MASTER_ADMIN_EMAIL_ANTERIOR=admin@labprotese.com
  */
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
@@ -20,9 +26,99 @@ function emailMaster(): string {
   return env || EMAIL_PADRAO;
 }
 
+function emailAnterior(): string | null {
+  const env = process.env.MASTER_ADMIN_EMAIL_ANTERIOR?.trim().toLowerCase();
+  if (env) return env;
+  const atual = emailMaster();
+  // Se o e-mail novo é outro, tenta migrar o padrão antigo.
+  if (atual !== EMAIL_PADRAO) return EMAIL_PADRAO;
+  return null;
+}
+
+async function sincronizarProprietarioLab(email: string, senhaHash: string) {
+  const slug =
+    process.env.EMPRESA_SLUG_PADRAO?.trim().toLowerCase() || "denteart";
+  const empresa = await prisma.empresa.findUnique({
+    where: { slug },
+    select: { id: true, nome: true, slug: true },
+  });
+
+  if (!empresa) {
+    console.warn(
+      `Empresa slug="${slug}" não encontrada — master ok, mas perfil do lab não foi sincronizado.`
+    );
+    return;
+  }
+
+  const emailsBusca = Array.from(
+    new Set([email, emailAnterior()].filter(Boolean) as string[])
+  );
+
+  let user = await prisma.user.findFirst({
+    where: {
+      empresaId: empresa.id,
+      excluidoEm: null,
+      email: { in: emailsBusca },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (!user) {
+    user = await prisma.user.findFirst({
+      where: {
+        empresaId: empresa.id,
+        excluidoEm: null,
+        role: { in: ["proprietario", "admin", "admin_empresa"] },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+  }
+
+  if (!user) {
+    user = await prisma.user.create({
+      data: {
+        name: "Proprietário",
+        email,
+        password: senhaHash,
+        role: "proprietario",
+        empresaId: empresa.id,
+      },
+    });
+    console.log("Proprietário do lab criado.");
+  } else {
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        email,
+        password: senhaHash,
+        role:
+          user.role === "admin" || user.role === "admin_empresa"
+            ? user.role
+            : "proprietario",
+        excluidoEm: null,
+      },
+    });
+    console.log("Proprietário do lab atualizado (e-mail + senha).");
+  }
+
+  console.log(`  Lab:    /login  →  ${user.email}  (${empresa.slug})`);
+}
+
 async function main() {
   const email = emailMaster();
   const senha = senhaMaster();
+
+  if (!process.env.MASTER_ADMIN_PASSWORD?.trim()) {
+    console.warn(
+      "AVISO: MASTER_ADMIN_PASSWORD não definida no ambiente — usando fallback fraco. Defina no .env."
+    );
+  }
+  if (senha === SENHA_PADRAO || senha.length < 8) {
+    console.warn(
+      "AVISO: senha fraca ou padrão. Use MASTER_ADMIN_PASSWORD com mínimo 8 caracteres."
+    );
+  }
+
   const senhaHash = await bcrypt.hash(senha, 10);
 
   try {
@@ -42,10 +138,21 @@ async function main() {
       },
     });
 
+    // Se o e-mail mudou, desativa o master antigo com e-mail anterior (evita 789654 vivo).
+    const anterior = emailAnterior();
+    if (anterior && anterior !== email) {
+      await prisma.masterUser.updateMany({
+        where: { email: anterior, id: { not: master.id } },
+        data: { ativo: false },
+      });
+    }
+
     console.log("Master criado/atualizado com sucesso.");
     console.log(`  E-mail: ${master.email}`);
     console.log(`  Senha:  ${senha}`);
     console.log(`  Painel: /admin-master/login`);
+
+    await sincronizarProprietarioLab(email, senhaHash);
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error("Falha ao criar master:", msg);
