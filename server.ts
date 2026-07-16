@@ -49,7 +49,15 @@ import { retomarCampanhasPendentesServidor } from "./src/lib/whatsapp-disparos/c
 import { iniciarMonitorConexaoWhatsapp } from "./src/lib/whatsapp-disparos/conexao-monitor";
 
 const dev = process.env.NODE_ENV !== "production";
-const hostname = process.env.HOSTNAME || "0.0.0.0";
+/** Endereço de bind do HTTP (0.0.0.0 = todas as interfaces). NÃO use isso em redirects. */
+const listenHost = process.env.HOSTNAME || "0.0.0.0";
+/**
+ * Hostname interno do Next (URLs/redirects). Nunca 0.0.0.0 — o browser rejeita.
+ * URL pública real continua em NEXT_PUBLIC_APP_URL / URL_PUBLICA_DO_APP.
+ */
+const nextHostname =
+  process.env.NEXT_HOSTNAME?.trim() ||
+  (listenHost === "0.0.0.0" || listenHost === "::" ? "localhost" : listenHost);
 const port = parseInt(process.env.PORT || "3000", 10);
 const projectDir = path.resolve(process.cwd());
 
@@ -68,7 +76,7 @@ process.on("uncaughtException", (erro) => {
   console.error("[process] uncaughtException:", erro);
 });
 
-const app = next({ dev, hostname, port, dir: projectDir });
+const app = next({ dev, hostname: nextHostname, port, dir: projectDir });
 const handle = app.getRequestHandler();
 
 app
@@ -274,8 +282,8 @@ app
         process.exit(1);
       });
 
-      httpServer.listen(port, () => {
-        console.log(`> Lab Prótese pronto em http://${hostname}:${port}`);
+      httpServer.listen(port, listenHost, () => {
+        console.log(`> Lab Prótese ouvindo em ${listenHost}:${port} (Next hostname=${nextHostname})`);
         console.log(`> Socket.io TV: ${TV_SOCKET_PATH}`);
         iniciarMonitorConexaoWhatsapp();
         void retomarCampanhasPendentesServidor();
