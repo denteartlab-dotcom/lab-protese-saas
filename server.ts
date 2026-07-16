@@ -51,13 +51,36 @@ import { iniciarMonitorConexaoWhatsapp } from "./src/lib/whatsapp-disparos/conex
 const dev = process.env.NODE_ENV !== "production";
 /** Endereço de bind do HTTP (0.0.0.0 = todas as interfaces). NÃO use isso em redirects. */
 const listenHost = process.env.HOSTNAME || "0.0.0.0";
+
+function hostnamePublicoParaNext(): string {
+  const explícito = process.env.NEXT_HOSTNAME?.trim();
+  if (explícito && explícito !== "0.0.0.0" && explícito !== "::") {
+    return explícito;
+  }
+  for (const raw of [
+    process.env.URL_PUBLICA_DO_APP,
+    process.env.NEXT_PUBLIC_APP_URL,
+  ]) {
+    const v = raw?.trim();
+    if (!v) continue;
+    try {
+      const host = new URL(v).hostname.toLowerCase();
+      if (host && host !== "0.0.0.0" && host !== "localhost" && host !== "127.0.0.1") {
+        return host;
+      }
+    } catch {
+      /* ignora */
+    }
+  }
+  // Dev local: ok. Produção sem URL pública: evita 0.0.0.0 no browser.
+  return "localhost";
+}
+
 /**
- * Hostname interno do Next (URLs/redirects). Nunca 0.0.0.0 — o browser rejeita.
- * URL pública real continua em NEXT_PUBLIC_APP_URL / URL_PUBLICA_DO_APP.
+ * Hostname do Next (redirects absolutos). Deve ser o domínio público
+ * (ex.: www.denteartlab.com.br), NUNCA 0.0.0.0 nem bind address.
  */
-const nextHostname =
-  process.env.NEXT_HOSTNAME?.trim() ||
-  (listenHost === "0.0.0.0" || listenHost === "::" ? "localhost" : listenHost);
+const nextHostname = hostnamePublicoParaNext();
 const port = parseInt(process.env.PORT || "3000", 10);
 const projectDir = path.resolve(process.cwd());
 
