@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma, runWithRlsBypass } from "@/lib/prisma-tenant";
-import { createSession, verifyPassword } from "@/lib/auth";
+import { anexarCookieSessao, verifyPassword } from "@/lib/auth";
 import {
   empresaPrecisaPaginaRenovacao,
   empresaTemAcessoAssinatura,
@@ -172,10 +172,9 @@ export async function POST(request: Request) {
         assinaturaVencida: precisaRenovacao,
       };
 
-    await createSession(sessionUser, { remember: remember === true });
     await registrarUltimoAcessoEmpresaImediato(user.empresaId);
 
-    return NextResponse.json({
+    const resposta = NextResponse.json({
       user: {
         id: user.id,
         name: user.name,
@@ -186,6 +185,10 @@ export async function POST(request: Request) {
       ...(precisaRenovacao
         ? { code: "ASSINATURA_VENCIDA", redirect: "/assinatura-vencida" }
         : {}),
+    });
+    return anexarCookieSessao(resposta, sessionUser, {
+      remember: remember === true,
+      request,
     });
     });
   } catch (err) {

@@ -68,13 +68,16 @@ async function masterTokenAceito(token: string): Promise<boolean> {
 }
 
 function limparCookieSessao(response: NextResponse) {
-  response.cookies.set(COOKIE_NAME, "", {
+  const base = {
     httpOnly: true,
     secure: sessaoCookieSecure(),
-    sameSite: "lax",
+    sameSite: "lax" as const,
     path: "/",
     maxAge: 0,
-  });
+  };
+  // Limpa host-only e Domain=.denteartlab.com.br (login apex/www).
+  response.cookies.set(COOKIE_NAME, "", base);
+  response.cookies.set(COOKIE_NAME, "", { ...base, domain: ".denteartlab.com.br" });
   return response;
 }
 

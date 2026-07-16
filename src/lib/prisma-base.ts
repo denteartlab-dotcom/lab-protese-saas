@@ -2,11 +2,27 @@ import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as { prismaBase?: PrismaClient };
 
+/** Senha com # em URL quebra o parser (# = fragmento). Codifica a senha se necessário. */
+function normalizarUrlPostgres(url: string): string {
+  const m = url.match(/^(postgres(?:ql)?:\/\/[^:/?#]+:)([^@/?#]*)(@[^#]*)$/i);
+  if (!m) return url;
+  const senha = m[2];
+  if (!senha.includes("#") && !senha.includes("?") && !senha.includes("/")) {
+    return url;
+  }
+  try {
+    return `${m[1]}${encodeURIComponent(decodeURIComponent(senha))}${m[3]}`;
+  } catch {
+    return `${m[1]}${encodeURIComponent(senha)}${m[3]}`;
+  }
+}
+
 function urlConexaoApp(): string | undefined {
   // Preferir papel sem superuser (RLS vale de verdade). Migrações/seed usam DATABASE_URL/DIRECT_URL.
   const app = process.env.DATABASE_URL_APP?.trim();
-  if (app) return app;
-  return process.env.DATABASE_URL?.trim() || undefined;
+  if (app) return normalizarUrlPostgres(app);
+  const owner = process.env.DATABASE_URL?.trim();
+  return owner ? normalizarUrlPostgres(owner) : undefined;
 }
 
 function criarPrismaBase(): PrismaClient {
