@@ -7,18 +7,37 @@ import {
 const AUTH_JA_ENTROU_KEY = "labProteseJaEntrou";
 /** Legado no JsonStore — não usar para credenciais (era global e sobrescrevia contas). */
 const LEMBRAR_LOGIN_KEY = "labProteseLembrarLogin";
-/** Credenciais lembradas ficam só neste navegador (localStorage). Só e-mail — nunca senha. */
+/** Credenciais lembradas neste navegador (localStorage). */
 const LEMBRAR_LOGIN_LOCAL_KEY = "denteartLoginLembrete";
 
 export type LembrarLoginSalvo = {
   email: string;
+  /** Só quando o usuário marca “lembrar e-mail e senha”. */
+  password?: string;
 };
 
 type LembrarLoginArmazenado = {
   email: string;
+  /** Senha ofuscada (base64) — não é criptografia forte; só neste PC. */
   password?: string;
   v?: number;
 };
+
+function ofuscarSenha(senha: string): string {
+  try {
+    return window.btoa(unescape(encodeURIComponent(senha)));
+  } catch {
+    return "";
+  }
+}
+
+function revelarSenha(ofuscada: string): string {
+  try {
+    return decodeURIComponent(escape(window.atob(ofuscada)));
+  } catch {
+    return "";
+  }
+}
 
 function lerLembreteLocalStorage(): LembrarLoginSalvo | null {
   if (typeof window === "undefined") return null;
@@ -28,11 +47,13 @@ function lerLembreteLocalStorage(): LembrarLoginSalvo | null {
     const parsed = JSON.parse(raw) as LembrarLoginArmazenado;
     const email = parsed.email?.trim();
     if (!email) return null;
-    // Migra/remove entradas antigas que guardavam senha (nunca persistir senha).
-    if (parsed.password || parsed.v !== 2) {
-      const limpo = { email, v: 2 as const };
-      window.localStorage.setItem(LEMBRAR_LOGIN_LOCAL_KEY, JSON.stringify(limpo));
+
+    // v3 = e-mail + senha; v2 = só e-mail (migração da fase de hardening).
+    if (parsed.v === 3 && parsed.password) {
+      const password = revelarSenha(parsed.password);
+      return password ? { email, password } : { email };
     }
+
     return { email };
   } catch {
     return null;
@@ -43,10 +64,10 @@ function gravarLembreteLocalStorage(dados: LembrarLoginSalvo) {
   if (typeof window === "undefined") return;
   const email = dados.email.trim();
   if (!email) return;
-  const payload: LembrarLoginArmazenado = {
-    email,
-    v: 2,
-  };
+  const senha = dados.password?.trim() || "";
+  const payload: LembrarLoginArmazenado = senha
+    ? { email, password: ofuscarSenha(senha), v: 3 }
+    : { email, v: 2 };
   window.localStorage.setItem(LEMBRAR_LOGIN_LOCAL_KEY, JSON.stringify(payload));
 }
 
@@ -67,10 +88,16 @@ function limparLembreteLegadoServidor() {
 }
 
 function migrarLembreteLegado(): LembrarLoginSalvo | null {
-  const legado = readStorage<{ email?: string } | null>(LEMBRAR_LOGIN_KEY, null);
+  const legado = readStorage<{ email?: string; password?: string } | null>(
+    LEMBRAR_LOGIN_KEY,
+    null
+  );
   const email = legado?.email?.trim();
   if (!email) return null;
-  const dados = { email };
+  const dados: LembrarLoginSalvo = {
+    email,
+    ...(legado?.password?.trim() ? { password: legado.password.trim() } : {}),
+  };
   gravarLembreteLocalStorage(dados);
   limparLembreteLegadoServidor();
   return dados;
