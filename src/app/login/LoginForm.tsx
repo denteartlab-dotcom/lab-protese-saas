@@ -264,6 +264,16 @@ export function LoginForm({
     document.title = montarTituloDocumento();
   }, []);
 
+  // Cloudflare faz 301 apex→www no /api; login no apex perde o cookie.
+  // Força a página de login a ficar no www antes de qualquer POST.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const host = window.location.hostname.toLowerCase();
+    if (host !== "denteartlab.com.br") return;
+    const dest = `https://www.denteartlab.com.br${window.location.pathname}${window.location.search}${window.location.hash}`;
+    window.location.replace(dest);
+  }, []);
+
   useEffect(() => {
     setClientePronto(true);
     if (jaEntrouInicial) return;
