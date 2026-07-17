@@ -73,10 +73,16 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_APP_BUILD_ID: appBuildId,
   },
   async headers() {
+    // unsafe-eval só em dev (HMR/Next). Em produção: sem eval; inline ainda necessário
+    // para Next sem nonces e Cloudflare Insights.
+    const scriptSrc =
+      process.env.NODE_ENV === "production"
+        ? "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com"
+        : "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com";
+
     const csp = [
       "default-src 'self'",
-      // Cloudflare Insights + PDF worker / widgets leves
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com",
+      scriptSrc,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",

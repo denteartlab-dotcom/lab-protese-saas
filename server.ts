@@ -171,7 +171,11 @@ app
       path: TV_SOCKET_PATH,
       cors: {
         origin: (origin, callback) => {
-          // Handshake sem Origin (apps nativos / same-origin) ou lista explícita.
+          // Em produção exige Origin do browser na allowlist (sem Origin vazio).
+          if (process.env.NODE_ENV === "production" && !origin) {
+            callback(new Error("Origin Socket.IO obrigatória"), false);
+            return;
+          }
           if (!origin || origensSocketPermitidas.includes(origin)) {
             callback(null, true);
             return;

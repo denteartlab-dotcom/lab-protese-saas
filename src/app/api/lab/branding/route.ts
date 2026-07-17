@@ -18,13 +18,10 @@ export async function GET(request: Request) {
     const email = params.get("email")?.trim().toLowerCase() || "";
 
     if (slug) {
-      const branding = await carregarBrandingLaboratorioPorSlug(slug);
-      if (!branding) {
-        return NextResponse.json(
-          { error: "Laboratório não encontrado." },
-          { status: 404 }
-        );
-      }
+      // Sempre 200 (lab ou genérico) — evita oráculo de existência de slug.
+      const branding =
+        (await carregarBrandingLaboratorioPorSlug(slug)) ??
+        brandingPlataformaLogin();
       return NextResponse.json(branding, {
         headers: { "Cache-Control": CACHE_BRANDING },
       });

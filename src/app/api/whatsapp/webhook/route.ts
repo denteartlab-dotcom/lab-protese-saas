@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { runWithRlsBypass, runWithTenantContext } from "@/lib/db";
 import { processarMensagemRecebidaWhatsapp } from "@/lib/whatsapp-chat/processar-mensagem";
 import {
   chatbotWhatsappHabilitado,
@@ -17,6 +18,7 @@ import {
   verificarWebhookMeta,
 } from "@/lib/whatsapp-cloud/meta-webhook";
 import { webhookAceitaSemSegredo } from "@/lib/webhook-seguranca";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +45,7 @@ function autorizadoWebhookBaileys(request: Request) {
   return header === tokenEsperado;
 }
 
-/** Ping ou verificação da Meta (hub.challenge). */
+/** Ping ou verificação da Meta (hub.challenge). Detalhes de config só com sessão. */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const challenge = verificarWebhookMeta(searchParams);
@@ -51,6 +53,14 @@ export async function GET(request: Request) {
     return new NextResponse(challenge, {
       status: 200,
       headers: { "Content-Type": "text/plain" },
+    });
+  }
+
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
+    return NextResponse.json({
+      ok: true,
+      webhook: "whatsapp-chat",
     });
   }
 
@@ -64,7 +74,15 @@ export async function GET(request: Request) {
   });
 }
 
+/**
+ * Endpoint anônimo (token Meta / Baileys): bypass RLS só para resolver o tenant;
+ * processamento roda com contexto da empresa identificada.
+ */
 export async function POST(request: Request) {
+  return runWithRlsBypass(() => processarWebhookWhatsapp(request));
+}
+
+async function processarWebhookWhatsapp(request: Request) {
   if (!chatbotWhatsappHabilitado()) {
     return NextResponse.json({ ok: true, ignorado: true, motivo: "chatbot_desabilitado" });
   }
@@ -106,11 +124,12 @@ export async function POST(request: Request) {
         continue;
       }
 
-      await sincronizarSessaoWebhook(empresaId, item.displayPhoneNumber);
-
-      const resultado = await processarMensagemRecebidaWhatsapp(empresaId, {
-        ...item.payload,
-        phoneNumberId: item.phoneNumberId,
+      const resultado = await runWithTenantContext(empresaId, async () => {
+        await sincronizarSessaoWebhook(empresaId, item.displayPhoneNumber);
+        return processarMensagemRecebidaWhatsapp(empresaId, {
+          ...item.payload,
+          phoneNumberId: item.phoneNumberId,
+        });
       });
       resultados.push(resultado);
     }
@@ -135,9 +154,10 @@ export async function POST(request: Request) {
       );
     }
 
-    await sincronizarSessaoWebhook(empresaId, data.numeroConectado);
-
-    const resultado = await processarMensagemRecebidaWhatsapp(empresaId, data);
+    const resultado = await runWithTenantContext(empresaId, async () => {
+      await sincronizarSessaoWebhook(empresaId, data.numeroConectado);
+      return processarMensagemRecebidaWhatsapp(empresaId, data);
+    });
     return NextResponse.json(resultado);
   } catch (err) {
     if (err instanceof z.ZodError) {

@@ -7,7 +7,11 @@ export function chatbotWhatsappHabilitado() {
   return process.env.WHATSAPP_CHATBOT_ENABLED !== "false";
 }
 
-/** Resolve o laboratório (tenant) para mensagens recebidas sem sessão de usuário. */
+/**
+ * Resolve o laboratório (tenant) para mensagens recebidas sem sessão de usuário.
+ * Só retorna quando a empresa é única ou identificável pelo número — sem fallback
+ * ambíguo (sessoes[0] / empresas[0]), que misturaria tenants sob owner/bypass.
+ */
 export async function resolverEmpresaIdWebhook(opts?: {
   numeroConectado?: string | null;
   phoneNumberId?: string | null;
@@ -31,7 +35,7 @@ export async function resolverEmpresaIdWebhook(opts?: {
       );
       if (porNumero) return porNumero.empresaId;
     }
-    return sessoes[0]?.empresaId ?? null;
+    return null;
   }
 
   const empresasAtivas = await prisma.empresa.findMany({
@@ -41,13 +45,7 @@ export async function resolverEmpresaIdWebhook(opts?: {
   });
   if (empresasAtivas.length === 1) return empresasAtivas[0].id;
 
-  const ultimaSessao = await prisma.whatsappSession.findFirst({
-    orderBy: { updatedAt: "desc" },
-    select: { empresaId: true },
-  });
-  if (ultimaSessao) return ultimaSessao.empresaId;
-
-  return empresasAtivas[0]?.id ?? null;
+  return null;
 }
 
 /** Mantém WhatsappSession como conectada quando o Baileys envia o número ativo. */
