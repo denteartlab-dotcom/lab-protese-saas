@@ -63,12 +63,41 @@ async function carregarUsuarioApp(userId: string, empresaId: string) {
 
 export async function obterContextoAppServidor(): Promise<ContextoAppServidor | null> {
   const session = await getSession();
-  if (!session?.empresaId || !session.empresaSlug) return null;
+  if (!session?.empresaId || !session.empresaSlug) {
+    console.error(
+      "[contexto-app] sessao incompleta:",
+      JSON.stringify({
+        temSessao: Boolean(session),
+        empresaId: session?.empresaId ?? null,
+        empresaSlug: session?.empresaSlug ?? null,
+      })
+    );
+    return null;
+  }
 
   try {
     const user = await carregarUsuarioApp(session.id, session.empresaId);
-    if (!user || user.excluidoEm || !user.empresa) return null;
-    if (!empresaTemAcessoAssinatura(user.empresa)) return null;
+    if (!user || user.excluidoEm || !user.empresa) {
+      console.error(
+        "[contexto-app] usuario invalido:",
+        JSON.stringify({
+          achou: Boolean(user),
+          excluido: Boolean(user?.excluidoEm),
+          temEmpresa: Boolean(user?.empresa),
+        })
+      );
+      return null;
+    }
+    if (!empresaTemAcessoAssinatura(user.empresa)) {
+      console.error(
+        "[contexto-app] assinatura sem acesso:",
+        JSON.stringify({
+          status: user.empresa.status,
+          dataVencimento: user.empresa.dataVencimento,
+        })
+      );
+      return null;
+    }
 
     const configLab = await runWithTenantContext(session.empresaId, () =>
       carregarConfigLaboratorioServidor(session.empresaId)
