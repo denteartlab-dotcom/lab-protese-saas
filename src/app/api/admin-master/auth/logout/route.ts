@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { destroyMasterSession } from "@/lib/master-auth";
+import { anexarLimpezaCookieMasterSessao } from "@/lib/master-auth";
 import { exigirMasterAdmin, respostaNaoAutorizadoMaster } from "@/lib/exigir-master-admin";
 import { ipDaRequisicao, registrarLogMaster } from "@/lib/master-audit";
 
@@ -9,10 +9,10 @@ export async function POST(request: Request) {
     await registrarLogMaster(master.id, "LOGOUT_MASTER", {
       ip: ipDaRequisicao(request),
     });
-    await destroyMasterSession();
-    return NextResponse.json({ ok: true });
+    const resposta = NextResponse.json({ ok: true });
+    return anexarLimpezaCookieMasterSessao(resposta);
   } catch {
-    await destroyMasterSession();
-    return respostaNaoAutorizadoMaster();
+    const resposta = respostaNaoAutorizadoMaster();
+    return anexarLimpezaCookieMasterSessao(resposta);
   }
 }
