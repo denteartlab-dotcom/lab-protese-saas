@@ -1,5 +1,6 @@
 import type { SuporteConversaResumoDto, SuporteMensagemDto } from "@/lib/suporte-chat-types";
 import { prisma } from "@/lib/db";
+import { runWithRlsBypass } from "@/lib/prisma-tenant";
 import { enviarEmailResend } from "@/lib/email-resend";
 import { resumoTextoMensagemSuporte } from "@/lib/suporte-chat-anexo";
 import { masterSuporteEstaOnline } from "@/lib/suporte/presenca-suporte-master";
@@ -217,91 +218,95 @@ export async function enviarMensagemUsuario(params: {
 }
 
 export async function listarConversasMaster() {
-  const conversas = await prisma.suporteConversa.findMany({
-    include: {
-      empresa: { select: { id: true, nome: true } },
-      mensagens: {
-        orderBy: { createdAt: "desc" },
-        take: 1,
-        select: { texto: true, imagemUrl: true, createdAt: true },
-      },
-    },
-    orderBy: { ultimaMensagemEm: "desc" },
-  });
-
-  const naoLidasPorConversa = await Promise.all(
-    conversas.map((c) =>
-      prisma.suporteMensagem.count({
-        where: {
-          conversaId: c.id,
-          remetenteTipo: "usuario",
-          lidaEm: null,
+  return runWithRlsBypass(async () => {
+    const conversas = await prisma.suporteConversa.findMany({
+      include: {
+        empresa: { select: { id: true, nome: true } },
+        mensagens: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { texto: true, imagemUrl: true, createdAt: true },
         },
-      })
-    )
-  );
+      },
+      orderBy: { ultimaMensagemEm: "desc" },
+    });
 
-  const lista: SuporteConversaResumoDto[] = conversas.map((c, i) => {
-    const ultima = c.mensagens[0];
-    return {
-      empresaId: c.empresaId,
-      empresaNome: c.empresa.nome,
-      ultimaMensagemEm: c.ultimaMensagemEm.toISOString(),
-      ultimaMensagemTexto: ultima
-        ? resumoTextoMensagemSuporte(ultima.texto, ultima.imagemUrl)
-        : null,
-      naoLidas: naoLidasPorConversa[i] ?? 0,
-    };
+    const naoLidasPorConversa = await Promise.all(
+      conversas.map((c) =>
+        prisma.suporteMensagem.count({
+          where: {
+            conversaId: c.id,
+            remetenteTipo: "usuario",
+            lidaEm: null,
+          },
+        })
+      )
+    );
+
+    const lista: SuporteConversaResumoDto[] = conversas.map((c, i) => {
+      const ultima = c.mensagens[0];
+      return {
+        empresaId: c.empresaId,
+        empresaNome: c.empresa.nome,
+        ultimaMensagemEm: c.ultimaMensagemEm.toISOString(),
+        ultimaMensagemTexto: ultima
+          ? resumoTextoMensagemSuporte(ultima.texto, ultima.imagemUrl)
+          : null,
+        naoLidas: naoLidasPorConversa[i] ?? 0,
+      };
+    });
+
+    const totalNaoLidas = naoLidasPorConversa.reduce((s, n) => s + n, 0);
+
+    return { conversas: lista, totalNaoLidas };
   });
-
-  const totalNaoLidas = naoLidasPorConversa.reduce((s, n) => s + n, 0);
-
-  return { conversas: lista, totalNaoLidas };
 }
 
 export async function listarMensagensMaster(empresaId: string, marcarLidas = false) {
-  await expirarConversaEmpresaSeInativa(empresaId);
+  return runWithRlsBypass(async () => {
+    await expirarConversaEmpresaSeInativa(empresaId);
 
-  const conversa = await prisma.suporteConversa.findUnique({
-    where: { empresaId },
-    include: {
-      empresa: { select: { id: true, nome: true } },
-    },
-  });
-
-  if (!conversa) {
-    return {
-      conversaId: null,
-      empresaId,
-      empresaNome: "",
-      mensagens: [] as SuporteMensagemDto[],
-    };
-  }
-
-  if (marcarLidas) {
-    await prisma.suporteMensagem.updateMany({
-      where: {
-        conversaId: conversa.id,
-        remetenteTipo: "usuario",
-        lidaEm: null,
+    const conversa = await prisma.suporteConversa.findUnique({
+      where: { empresaId },
+      include: {
+        empresa: { select: { id: true, nome: true } },
       },
-      data: { lidaEm: new Date() },
     });
-    emitSuporteConversasAtualizadas();
-  }
 
-  const mensagens = await prisma.suporteMensagem.findMany({
-    where: { conversaId: conversa.id },
-    orderBy: { createdAt: "asc" },
-    take: 200,
+    if (!conversa) {
+      return {
+        conversaId: null,
+        empresaId,
+        empresaNome: "",
+        mensagens: [] as SuporteMensagemDto[],
+      };
+    }
+
+    if (marcarLidas) {
+      await prisma.suporteMensagem.updateMany({
+        where: {
+          conversaId: conversa.id,
+          remetenteTipo: "usuario",
+          lidaEm: null,
+        },
+        data: { lidaEm: new Date() },
+      });
+      emitSuporteConversasAtualizadas();
+    }
+
+    const mensagens = await prisma.suporteMensagem.findMany({
+      where: { conversaId: conversa.id },
+      orderBy: { createdAt: "asc" },
+      take: 200,
+    });
+
+    return {
+      conversaId: conversa.id,
+      empresaId: conversa.empresaId,
+      empresaNome: conversa.empresa.nome,
+      mensagens: mensagens.map(mapMensagem),
+    };
   });
-
-  return {
-    conversaId: conversa.id,
-    empresaId: conversa.empresaId,
-    empresaNome: conversa.empresa.nome,
-    mensagens: mensagens.map(mapMensagem),
-  };
 }
 
 export async function enviarMensagemSuporte(params: {
@@ -311,33 +316,35 @@ export async function enviarMensagemSuporte(params: {
   texto: string;
   imagemUrl?: string | null;
 }) {
-  const texto = params.texto.trim();
-  const imagemUrl = params.imagemUrl?.trim() || null;
-  validarConteudoMensagem(texto, imagemUrl);
+  return runWithRlsBypass(async () => {
+    const texto = params.texto.trim();
+    const imagemUrl = params.imagemUrl?.trim() || null;
+    validarConteudoMensagem(texto, imagemUrl);
 
-  const conversa = await garantirConversa(params.empresaId);
-  const agora = new Date();
+    const conversa = await garantirConversa(params.empresaId);
+    const agora = new Date();
 
-  const mensagem = await prisma.suporteMensagem.create({
-    data: {
-      conversaId: conversa.id,
-      remetenteTipo: "suporte",
-      remetenteMasterId: params.masterId,
-      remetenteNome: params.masterNome || rotuloSuportePlataforma(),
-      texto,
-      imagemUrl,
-    },
+    const mensagem = await prisma.suporteMensagem.create({
+      data: {
+        conversaId: conversa.id,
+        remetenteTipo: "suporte",
+        remetenteMasterId: params.masterId,
+        remetenteNome: params.masterNome || rotuloSuportePlataforma(),
+        texto,
+        imagemUrl,
+      },
+    });
+
+    await prisma.suporteConversa.update({
+      where: { id: conversa.id },
+      data: { ultimaMensagemEm: agora },
+    });
+
+    const dto = mapMensagem(mensagem);
+    await publicarMensagemSuporte(params.empresaId, dto);
+
+    return dto;
   });
-
-  await prisma.suporteConversa.update({
-    where: { id: conversa.id },
-    data: { ultimaMensagemEm: agora },
-  });
-
-  const dto = mapMensagem(mensagem);
-  await publicarMensagemSuporte(params.empresaId, dto);
-
-  return dto;
 }
 
 async function notificarSuporteNovaMensagem(params: {

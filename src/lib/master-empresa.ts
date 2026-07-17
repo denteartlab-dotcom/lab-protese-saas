@@ -2,6 +2,7 @@ import { hashPassword } from "@/lib/auth";
 import { calcularDataVencimentoAssinatura } from "@/lib/assinatura-empresa";
 import { gravarDadosPadraoEmpresa, validarSlugEmpresa } from "@/lib/empresa-padrao";
 import { prisma } from "@/lib/db";
+import { executarSemRls, runWithRlsBypass } from "@/lib/prisma-tenant";
 import {
   DIAS_TESTE_GRATIS,
   limitesDoPlano,
@@ -60,7 +61,7 @@ function gerarSlugDeNome(nome: string): string {
 }
 
 async function gerarCodigoEmpresa(): Promise<string> {
-  const total = await prisma.empresa.count();
+  const total = await executarSemRls((tx) => tx.empresa.count());
   return `EMP-${String(total + 1).padStart(5, "0")}`;
 }
 
@@ -86,12 +87,17 @@ export async function criarEmpresaMaster(dados: DadosCriarEmpresaMaster) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail)) throw new Error("EMAIL_INVALIDO");
   if (adminSenha.length < 6) throw new Error("SENHA_INVALIDA");
 
-  let slug = dados.slug?.trim() ? validarSlugEmpresa(dados.slug) : gerarSlugDeNome(nome);
-  if (!slug) throw new Error("SLUG_INVALIDO");
+  const slugValidado = dados.slug?.trim()
+    ? validarSlugEmpresa(dados.slug)
+    : gerarSlugDeNome(nome);
+  if (!slugValidado) throw new Error("SLUG_INVALIDO");
 
+  let slug: string = slugValidado;
   const slugBase = slug;
   let tentativa = 0;
-  while (await prisma.empresa.findUnique({ where: { slug } })) {
+  while (
+    await executarSemRls((tx) => tx.empresa.findUnique({ where: { slug } }))
+  ) {
     tentativa += 1;
     slug = `${slugBase}-${tentativa}`;
     if (tentativa > 50) throw new Error("SLUG_EM_USO");
@@ -116,7 +122,7 @@ export async function criarEmpresaMaster(dados: DadosCriarEmpresaMaster) {
   const codigo = await gerarCodigoEmpresa();
   const password = await hashPassword(adminSenha);
 
-  const resultado = await prisma.$transaction(async (tx) => {
+  const resultado = await executarSemRls(async (tx) => {
     const empresa = await tx.empresa.create({
       data: {
         codigo,
@@ -165,7 +171,9 @@ export async function criarEmpresaMaster(dados: DadosCriarEmpresaMaster) {
     return { empresa, admin };
   });
 
-  await gravarDadosPadraoEmpresa(resultado.empresa.id, nome);
+  await runWithRlsBypass(async () => {
+    await gravarDadosPadraoEmpresa(resultado.empresa.id, nome);
+  });
   await garantirPastasUploadEmpresa(resultado.empresa.slug);
   void garantirPastaDriveEmpresa({
     empresaId: resultado.empresa.id,
@@ -179,276 +187,284 @@ export async function criarEmpresaMaster(dados: DadosCriarEmpresaMaster) {
 }
 
 export async function obterDashboardMaster() {
-  await reconciliarCobrancasAssinaturaPendentes();
+  return runWithRlsBypass(async () => {
+    await reconciliarCobrancasAssinaturaPendentes();
 
-  const agora = new Date();
-  const { inicio: inicioMes, fim: fimMes } = periodoMesBrasilia(agora);
-  const inicioAno = inicioAnoBrasilia(agora);
+    const agora = new Date();
+    const { inicio: inicioMes, fim: fimMes } = periodoMesBrasilia(agora);
+    const inicioAno = inicioAnoBrasilia(agora);
 
-  const [
-    totalEmpresas,
-    empresasAtivas,
-    empresasBloqueadas,
-    empresasInadimplentes,
-    totalUsuarios,
-    totalTrabalhos,
-    faturamentoTotal,
-    receitaMensal,
-    receitaAnual,
-  ] = await Promise.all([
-    prisma.empresa.count(),
-    prisma.empresa.count({ where: { status: "ativo" } }),
-    prisma.empresa.count({ where: { status: "bloqueado" } }),
-    prisma.empresa.count({
-      where: {
-        status: "ativo",
-        dataVencimento: { lt: agora },
-      },
-    }),
-    prisma.user.count({ where: { excluidoEm: null } }),
-    prisma.trabalho.count(),
-    prisma.cobrancaAssinatura.aggregate({
-      where: whereCobrancaAssinaturaPagaTotal(),
-      _sum: { valor: true },
-    }),
-    prisma.cobrancaAssinatura.aggregate({
-      where: whereCobrancaAssinaturaPagaNoPeriodo(inicioMes, fimMes),
-      _sum: { valor: true },
-    }),
-    prisma.cobrancaAssinatura.aggregate({
-      where: whereCobrancaAssinaturaPagaNoPeriodo(inicioAno),
-      _sum: { valor: true },
-    }),
-  ]);
+    const [
+      totalEmpresas,
+      empresasAtivas,
+      empresasBloqueadas,
+      empresasInadimplentes,
+      totalUsuarios,
+      totalTrabalhos,
+      faturamentoTotal,
+      receitaMensal,
+      receitaAnual,
+    ] = await Promise.all([
+      prisma.empresa.count(),
+      prisma.empresa.count({ where: { status: "ativo" } }),
+      prisma.empresa.count({ where: { status: "bloqueado" } }),
+      prisma.empresa.count({
+        where: {
+          status: "ativo",
+          dataVencimento: { lt: agora },
+        },
+      }),
+      prisma.user.count({ where: { excluidoEm: null } }),
+      prisma.trabalho.count(),
+      prisma.cobrancaAssinatura.aggregate({
+        where: whereCobrancaAssinaturaPagaTotal(),
+        _sum: { valor: true },
+      }),
+      prisma.cobrancaAssinatura.aggregate({
+        where: whereCobrancaAssinaturaPagaNoPeriodo(inicioMes, fimMes),
+        _sum: { valor: true },
+      }),
+      prisma.cobrancaAssinatura.aggregate({
+        where: whereCobrancaAssinaturaPagaNoPeriodo(inicioAno),
+        _sum: { valor: true },
+      }),
+    ]);
 
-  return {
-    totalEmpresas,
-    empresasAtivas,
-    empresasBloqueadas,
-    empresasInadimplentes,
-    totalUsuarios,
-    totalTrabalhos,
-    faturamentoTotal: faturamentoTotal._sum.valor ?? 0,
-    receitaMensal: receitaMensal._sum.valor ?? 0,
-    receitaAnual: receitaAnual._sum.valor ?? 0,
-  };
+    return {
+      totalEmpresas,
+      empresasAtivas,
+      empresasBloqueadas,
+      empresasInadimplentes,
+      totalUsuarios,
+      totalTrabalhos,
+      faturamentoTotal: faturamentoTotal._sum.valor ?? 0,
+      receitaMensal: receitaMensal._sum.valor ?? 0,
+      receitaAnual: receitaAnual._sum.valor ?? 0,
+    };
+  });
 }
 
 export async function listarEmpresasMaster() {
-  const empresas = await prisma.empresa.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      _count: {
-        select: {
-          users: { where: { excluidoEm: null } },
-          trabalhos: true,
+  return runWithRlsBypass(async () => {
+    const empresas = await prisma.empresa.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        _count: {
+          select: {
+            users: { where: { excluidoEm: null } },
+            trabalhos: true,
+          },
         },
       },
-    },
-  });
+    });
 
-  return empresas.map((e) => ({
-    id: e.id,
-    codigo: e.codigo,
-    nome: e.nome,
-    slug: e.slug,
-    responsavel: e.responsavel,
-    cnpj: e.cnpj,
-    telefone: e.telefone,
-    whatsapp: e.whatsapp,
-    email: e.email,
-    cidade: e.cidade,
-    estado: e.estado,
-    plano: e.plano,
-    limiteUsuarios: e.limiteUsuarios,
-    limiteTrabalhos: e.limiteTrabalhos,
-    dataVencimento: e.dataVencimento?.toISOString() ?? null,
-    observacoes: e.observacoes,
-    status: e.status,
-    createdAt: e.createdAt.toISOString(),
-    totalUsuarios: e._count.users,
-    totalTrabalhos: e._count.trabalhos,
-    urlAcesso: `/app/${e.slug}`,
-  }));
+    return empresas.map((e) => ({
+      id: e.id,
+      codigo: e.codigo,
+      nome: e.nome,
+      slug: e.slug,
+      responsavel: e.responsavel,
+      cnpj: e.cnpj,
+      telefone: e.telefone,
+      whatsapp: e.whatsapp,
+      email: e.email,
+      cidade: e.cidade,
+      estado: e.estado,
+      plano: e.plano,
+      limiteUsuarios: e.limiteUsuarios,
+      limiteTrabalhos: e.limiteTrabalhos,
+      dataVencimento: e.dataVencimento?.toISOString() ?? null,
+      observacoes: e.observacoes,
+      status: e.status,
+      createdAt: e.createdAt.toISOString(),
+      totalUsuarios: e._count.users,
+      totalTrabalhos: e._count.trabalhos,
+      urlAcesso: `/app/${e.slug}`,
+    }));
+  });
 }
 
 export async function obterEmpresaDetalheMaster(empresaId: string) {
-  const empresa = await prisma.empresa.findUnique({
-    where: { id: empresaId },
-    include: {
-      users: {
-        where: { excluidoEm: null },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          createdAt: true,
+  return runWithRlsBypass(async () => {
+    const empresa = await prisma.empresa.findUnique({
+      where: { id: empresaId },
+      include: {
+        users: {
+          where: { excluidoEm: null },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            createdAt: true,
+          },
+          orderBy: { name: "asc" },
         },
-        orderBy: { name: "asc" },
-      },
-      _count: {
-        select: {
-          clientes: true,
-          trabalhos: true,
-          lancamentos: true,
+        _count: {
+          select: {
+            clientes: true,
+            trabalhos: true,
+            lancamentos: true,
+          },
         },
       },
-    },
-  });
+    });
 
-  if (!empresa) return null;
+    if (!empresa) return null;
 
-  const [receitas, despesas, configLab] = await Promise.all([
-    prisma.lancamento.aggregate({
-      where: { empresaId, tipo: "receita", status: "pago" },
-      _sum: { valor: true },
-    }),
-    prisma.lancamento.aggregate({
-      where: { empresaId, tipo: "despesa", status: "pago" },
-      _sum: { valor: true },
-    }),
-    prisma.jsonStore.findUnique({
-      where: { key: chaveJsonStoreTenant(empresaId, CONFIG_LAB_STORAGE_KEY) },
-      select: { payload: true },
-    }),
-  ]);
+    const [receitas, despesas, configLab] = await Promise.all([
+      prisma.lancamento.aggregate({
+        where: { empresaId, tipo: "receita", status: "pago" },
+        _sum: { valor: true },
+      }),
+      prisma.lancamento.aggregate({
+        where: { empresaId, tipo: "despesa", status: "pago" },
+        _sum: { valor: true },
+      }),
+      prisma.jsonStore.findUnique({
+        where: { key: chaveJsonStoreTenant(empresaId, CONFIG_LAB_STORAGE_KEY) },
+        select: { payload: true },
+      }),
+    ]);
 
-  let configuracoes: Record<string, unknown> | null = null;
-  if (configLab?.payload) {
-    try {
-      configuracoes = JSON.parse(configLab.payload) as Record<string, unknown>;
-    } catch {
-      configuracoes = null;
+    let configuracoes: Record<string, unknown> | null = null;
+    if (configLab?.payload) {
+      try {
+        configuracoes = JSON.parse(configLab.payload) as Record<string, unknown>;
+      } catch {
+        configuracoes = null;
+      }
     }
-  }
 
-  const clientes = await prisma.cliente.findMany({
-    where: { empresaId },
-    select: { id: true, nome: true, email: true, telefone: true, ativo: true },
-    take: 50,
-    orderBy: { nome: "asc" },
+    const clientes = await prisma.cliente.findMany({
+      where: { empresaId },
+      select: { id: true, nome: true, email: true, telefone: true, ativo: true },
+      take: 50,
+      orderBy: { nome: "asc" },
+    });
+
+    const trabalhosRecentes = await prisma.trabalho.findMany({
+      where: { empresaId },
+      select: {
+        id: true,
+        numeroOs: true,
+        tipoProtese: true,
+        status: true,
+        valor: true,
+        dataEntrada: true,
+        cliente: { select: { nome: true } },
+      },
+      take: 30,
+      orderBy: { dataEntrada: "desc" },
+    });
+
+    const lancamentosRecentes = await prisma.lancamento.findMany({
+      where: { empresaId },
+      select: {
+        id: true,
+        tipo: true,
+        descricao: true,
+        valor: true,
+        status: true,
+        data: true,
+      },
+      take: 30,
+      orderBy: { data: "desc" },
+    });
+
+    return {
+      empresa: {
+        id: empresa.id,
+        codigo: empresa.codigo,
+        nome: empresa.nome,
+        slug: empresa.slug,
+        responsavel: empresa.responsavel,
+        cnpj: empresa.cnpj,
+        telefone: empresa.telefone,
+        whatsapp: empresa.whatsapp,
+        email: empresa.email,
+        cidade: empresa.cidade,
+        estado: empresa.estado,
+        plano: empresa.plano,
+        limiteUsuarios: empresa.limiteUsuarios,
+        limiteTrabalhos: empresa.limiteTrabalhos,
+        dataVencimento: empresa.dataVencimento?.toISOString() ?? null,
+        observacoes: empresa.observacoes,
+        status: empresa.status,
+        createdAt: empresa.createdAt.toISOString(),
+        urlAcesso: `/app/${empresa.slug}`,
+      },
+      usuarios: empresa.users,
+      clientes,
+      trabalhos: trabalhosRecentes,
+      financeiro: {
+        totalReceitas: receitas._sum.valor ?? 0,
+        totalDespesas: despesas._sum.valor ?? 0,
+        lancamentosRecentes,
+      },
+      totais: {
+        clientes: empresa._count.clientes,
+        trabalhos: empresa._count.trabalhos,
+        lancamentos: empresa._count.lancamentos,
+        usuarios: empresa.users.length,
+      },
+      configuracoes,
+    };
   });
-
-  const trabalhosRecentes = await prisma.trabalho.findMany({
-    where: { empresaId },
-    select: {
-      id: true,
-      numeroOs: true,
-      tipoProtese: true,
-      status: true,
-      valor: true,
-      dataEntrada: true,
-      cliente: { select: { nome: true } },
-    },
-    take: 30,
-    orderBy: { dataEntrada: "desc" },
-  });
-
-  const lancamentosRecentes = await prisma.lancamento.findMany({
-    where: { empresaId },
-    select: {
-      id: true,
-      tipo: true,
-      descricao: true,
-      valor: true,
-      status: true,
-      data: true,
-    },
-    take: 30,
-    orderBy: { data: "desc" },
-  });
-
-  return {
-    empresa: {
-      id: empresa.id,
-      codigo: empresa.codigo,
-      nome: empresa.nome,
-      slug: empresa.slug,
-      responsavel: empresa.responsavel,
-      cnpj: empresa.cnpj,
-      telefone: empresa.telefone,
-      whatsapp: empresa.whatsapp,
-      email: empresa.email,
-      cidade: empresa.cidade,
-      estado: empresa.estado,
-      plano: empresa.plano,
-      limiteUsuarios: empresa.limiteUsuarios,
-      limiteTrabalhos: empresa.limiteTrabalhos,
-      dataVencimento: empresa.dataVencimento?.toISOString() ?? null,
-      observacoes: empresa.observacoes,
-      status: empresa.status,
-      createdAt: empresa.createdAt.toISOString(),
-      urlAcesso: `/app/${empresa.slug}`,
-    },
-    usuarios: empresa.users,
-    clientes,
-    trabalhos: trabalhosRecentes,
-    financeiro: {
-      totalReceitas: receitas._sum.valor ?? 0,
-      totalDespesas: despesas._sum.valor ?? 0,
-      lancamentosRecentes,
-    },
-    totais: {
-      clientes: empresa._count.clientes,
-      trabalhos: empresa._count.trabalhos,
-      lancamentos: empresa._count.lancamentos,
-      usuarios: empresa.users.length,
-    },
-    configuracoes,
-  };
 }
 
 export async function listarCobrancasAssinaturaMaster() {
-  await reconciliarCobrancasAssinaturaPendentes();
+  return runWithRlsBypass(async () => {
+    await reconciliarCobrancasAssinaturaPendentes();
 
-  const cobrancas = await prisma.cobrancaAssinatura.findMany({
-    orderBy: { createdAt: "desc" },
-    take: 300,
-    include: {
-      empresa: {
-        select: {
-          id: true,
-          nome: true,
-          slug: true,
-          codigo: true,
+    const cobrancas = await prisma.cobrancaAssinatura.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 300,
+      include: {
+        empresa: {
+          select: {
+            id: true,
+            nome: true,
+            slug: true,
+            codigo: true,
+          },
         },
       },
-    },
-  });
+    });
 
-  return cobrancas.map((c) => {
-    const pago =
-      statusCobrancaAssinaturaPago(c.provedor, c.statusAsaas) ||
-      Boolean(c.pagoEm) ||
-      Boolean(c.renovadoEm);
-    const pixAberta =
-      !pago &&
-      cobrancaAssinaturaPixAberta({
+    return cobrancas.map((c) => {
+      const pago =
+        statusCobrancaAssinaturaPago(c.provedor, c.statusAsaas) ||
+        Boolean(c.pagoEm) ||
+        Boolean(c.renovadoEm);
+      const pixAberta =
+        !pago &&
+        cobrancaAssinaturaPixAberta({
+          provedor: c.provedor,
+          statusAsaas: c.statusAsaas,
+          pixExpiraEm: c.pixExpiraEm,
+          createdAt: c.createdAt,
+          pagoEm: c.pagoEm,
+        });
+      return {
+        id: c.id,
+        empresaId: c.empresaId,
+        empresaNome: c.empresa.nome,
+        empresaSlug: c.empresa.slug,
+        empresaCodigo: c.empresa.codigo,
         provedor: c.provedor,
+        asaasPaymentId: c.asaasPaymentId,
+        plano: c.plano,
+        valor: c.valor,
+        diasRenovacao: c.diasRenovacao,
         statusAsaas: c.statusAsaas,
-        pixExpiraEm: c.pixExpiraEm,
-        createdAt: c.createdAt,
-        pagoEm: c.pagoEm,
-      });
-    return {
-      id: c.id,
-      empresaId: c.empresaId,
-      empresaNome: c.empresa.nome,
-      empresaSlug: c.empresa.slug,
-      empresaCodigo: c.empresa.codigo,
-      provedor: c.provedor,
-      asaasPaymentId: c.asaasPaymentId,
-      plano: c.plano,
-      valor: c.valor,
-      diasRenovacao: c.diasRenovacao,
-      statusAsaas: c.statusAsaas,
-      pixExpiraEm: c.pixExpiraEm?.toISOString() ?? null,
-      pago,
-      pixAberta,
-      pagoEm: c.pagoEm?.toISOString() ?? null,
-      renovadoEm: c.renovadoEm?.toISOString() ?? null,
-      createdAt: c.createdAt.toISOString(),
-    };
+        pixExpiraEm: c.pixExpiraEm?.toISOString() ?? null,
+        pago,
+        pixAberta,
+        pagoEm: c.pagoEm?.toISOString() ?? null,
+        renovadoEm: c.renovadoEm?.toISOString() ?? null,
+        createdAt: c.createdAt.toISOString(),
+      };
+    });
   });
 }

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { hashPassword } from "@/lib/auth";
-import { prisma } from "@/lib/db";
 import { exigirMasterAdmin, respostaNaoAutorizadoMaster } from "@/lib/exigir-master-admin";
 import { excluirEmpresaCompleta } from "@/lib/exclusao-empresa";
 import { ipDaRequisicao, registrarLogMaster } from "@/lib/master-audit";
@@ -8,6 +7,7 @@ import { obterEmpresaDetalheMaster } from "@/lib/master-empresa";
 import { validarSlugEmpresa } from "@/lib/empresa-padrao";
 import { limitesDoPlano, normalizarPlanoEmpresa } from "@/lib/master-planos";
 import { calcularDataVencimentoAssinatura } from "@/lib/assinatura-empresa";
+import { executarSemRls, runWithRlsBypass } from "@/lib/prisma-tenant";
 import { z } from "zod";
 
 const schemaAtualizar = z.object({
@@ -65,7 +65,9 @@ export async function PATCH(request: Request, { params }: Params) {
     const { id } = await params;
     const body = schemaAtualizar.parse(await request.json());
 
-    const existente = await prisma.empresa.findUnique({ where: { id } });
+    const existente = await executarSemRls((tx) =>
+      tx.empresa.findUnique({ where: { id } })
+    );
     if (!existente) {
       return NextResponse.json({ error: "Empresa não encontrada." }, { status: 404 });
     }
@@ -105,16 +107,18 @@ export async function PATCH(request: Request, { params }: Params) {
       if (!slug) {
         return NextResponse.json({ error: "Slug inválido." }, { status: 400 });
       }
-      const slugEmUso = await prisma.empresa.findFirst({
-        where: { slug, NOT: { id } },
-      });
+      const slugEmUso = await executarSemRls((tx) =>
+        tx.empresa.findFirst({
+          where: { slug, NOT: { id } },
+        })
+      );
       if (slugEmUso) {
         return NextResponse.json({ error: "Slug já em uso." }, { status: 400 });
       }
       dadosEmpresa.slug = slug;
     }
 
-    await prisma.$transaction(async (tx) => {
+    await executarSemRls(async (tx) => {
       if (Object.keys(dadosEmpresa).length > 0) {
         await tx.empresa.update({ where: { id }, data: dadosEmpresa });
       }
@@ -158,20 +162,24 @@ export async function DELETE(request: Request, { params }: Params) {
     const { master } = await exigirMasterAdmin();
     const { id } = await params;
 
-    const existente = await prisma.empresa.findUnique({
-      where: { id },
-      select: { id: true, nome: true, slug: true, codigo: true },
-    });
+    const existente = await executarSemRls((tx) =>
+      tx.empresa.findUnique({
+        where: { id },
+        select: { id: true, nome: true, slug: true, codigo: true },
+      })
+    );
     if (!existente) {
       return NextResponse.json({ error: "Empresa não encontrada." }, { status: 404 });
     }
 
-    await excluirEmpresaCompleta(existente, {
-      motivo: "manual",
-      masterId: master.id,
-      ip: ipDaRequisicao(request),
-      aguardarArquivos: false,
-    });
+    await runWithRlsBypass(() =>
+      excluirEmpresaCompleta(existente, {
+        motivo: "manual",
+        masterId: master.id,
+        ip: ipDaRequisicao(request),
+        aguardarArquivos: false,
+      })
+    );
 
     return NextResponse.json({ ok: true });
   } catch (error) {

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { exigirMasterAdmin, respostaNaoAutorizadoMaster } from "@/lib/exigir-master-admin";
 import { ipDaRequisicao, registrarLogMaster } from "@/lib/master-audit";
 import { calcularDataVencimentoAssinatura } from "@/lib/assinatura-empresa";
+import { executarSemRls } from "@/lib/prisma-tenant";
 import { z } from "zod";
 
 const schema = z.object({
@@ -17,29 +17,33 @@ export async function POST(request: Request, { params }: Params) {
     const { id } = await params;
     const body = schema.parse(await request.json());
 
-    const empresa = await prisma.empresa.findUnique({
-      where: { id },
-      select: { id: true, nome: true, status: true, dataVencimento: true },
-    });
+    const empresa = await executarSemRls((tx) =>
+      tx.empresa.findUnique({
+        where: { id },
+        select: { id: true, nome: true, status: true, dataVencimento: true },
+      })
+    );
     if (!empresa) {
       return NextResponse.json({ error: "Empresa não encontrada." }, { status: 404 });
     }
 
     const dataVencimento = calcularDataVencimentoAssinatura(body.dias);
 
-    const atualizada = await prisma.empresa.update({
-      where: { id },
-      data: {
-        status: "ativo",
-        dataVencimento,
-      },
-      select: {
-        id: true,
-        nome: true,
-        status: true,
-        dataVencimento: true,
-      },
-    });
+    const atualizada = await executarSemRls((tx) =>
+      tx.empresa.update({
+        where: { id },
+        data: {
+          status: "ativo",
+          dataVencimento,
+        },
+        select: {
+          id: true,
+          nome: true,
+          status: true,
+          dataVencimento: true,
+        },
+      })
+    );
 
     await registrarLogMaster(master.id, "ATIVAR_ASSINATURA", {
       empresaId: id,

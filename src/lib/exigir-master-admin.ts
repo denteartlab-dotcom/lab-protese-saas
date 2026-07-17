@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { executarSemRls } from "@/lib/prisma-tenant";
+import { definirTenantNoRequest, executarSemRls } from "@/lib/prisma-tenant";
 import { getMasterSession } from "@/lib/master-auth";
 
 export async function exigirMasterAdmin() {
@@ -18,6 +18,10 @@ export async function exigirMasterAdmin() {
   if (!master || !master.ativo || master.role !== "MASTER_ADMIN") {
     throw new Error("UNAUTHORIZED");
   }
+
+  // Demais queries do painel (Empresa, User, etc.) precisam do bypass
+  // no store do request — master_users / Empresa com FORCE RLS.
+  definirTenantNoRequest({ bypass: true });
 
   return { session, master };
 }

@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { verifyPassword } from "@/lib/auth";
 import { anexarCookieMasterSessao } from "@/lib/master-auth";
 import { ipDaRequisicao, registrarLogMaster } from "@/lib/master-audit";
-import { prisma } from "@/lib/db";
-import { runWithRlsBypass } from "@/lib/prisma-tenant";
+import { executarSemRls } from "@/lib/prisma-tenant";
 import {
   extrairIpLogin,
   limparFalhasLogin,
@@ -31,8 +30,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const master = await runWithRlsBypass(() =>
-      prisma.masterUser.findUnique({ where: { email } })
+    // executarSemRls: set_config na MESMA transação — o runWithRlsBypass
+    // sozinho depende do AsyncLocalStorage atravessar o bundle, o que já
+    // falhou em produção (master_users tem policy bypass-only).
+    const master = await executarSemRls((tx) =>
+      tx.masterUser.findUnique({ where: { email } })
     );
     if (!master || !master.ativo || master.role !== "MASTER_ADMIN") {
       registrarFalhaLogin(ip, email);
@@ -47,12 +49,10 @@ export async function POST(request: Request) {
 
     limparFalhasLogin(ip, email);
 
-    await runWithRlsBypass(() =>
-      registrarLogMaster(master.id, "LOGIN_MASTER", {
-        detalhes: `Login: ${master.email}`,
-        ip: ipDaRequisicao(request),
-      })
-    );
+    await registrarLogMaster(master.id, "LOGIN_MASTER", {
+      detalhes: `Login: ${master.email}`,
+      ip: ipDaRequisicao(request),
+    });
 
     const resposta = NextResponse.json({
       id: master.id,

@@ -7,6 +7,9 @@
  *
  * Se trocou o e-mail, informe o antigo para migrar o perfil do lab:
  *   MASTER_ADMIN_EMAIL_ANTERIOR=admin@labprotese.com
+ *
+ * Com FORCE RLS ativo, todas as queries usam set_config('app.rls_bypass')
+ * na mesma transação (owner também respeita policies).
  */
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
@@ -30,78 +33,90 @@ function emailAnterior(): string | null {
   const env = process.env.MASTER_ADMIN_EMAIL_ANTERIOR?.trim().toLowerCase();
   if (env) return env;
   const atual = emailMaster();
-  // Se o e-mail novo é outro, tenta migrar o padrão antigo.
   if (atual !== EMAIL_PADRAO) return EMAIL_PADRAO;
   return null;
+}
+
+async function comBypassRls<T>(
+  fn: (tx: Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">) => Promise<T>
+): Promise<T> {
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.rls_bypass', 'true', true)`;
+    await tx.$executeRaw`SELECT set_config('app.current_tenant', '', true)`;
+    return fn(tx);
+  });
 }
 
 async function sincronizarProprietarioLab(email: string, senhaHash: string) {
   const slug =
     process.env.EMPRESA_SLUG_PADRAO?.trim().toLowerCase() || "denteart";
-  const empresa = await prisma.empresa.findUnique({
-    where: { slug },
-    select: { id: true, nome: true, slug: true },
-  });
 
-  if (!empresa) {
-    console.warn(
-      `Empresa slug="${slug}" não encontrada — master ok, mas perfil do lab não foi sincronizado.`
+  await comBypassRls(async (tx) => {
+    const empresa = await tx.empresa.findUnique({
+      where: { slug },
+      select: { id: true, nome: true, slug: true },
+    });
+
+    if (!empresa) {
+      console.warn(
+        `Empresa slug="${slug}" não encontrada — master ok, mas perfil do lab não foi sincronizado.`
+      );
+      return;
+    }
+
+    const emailsBusca = Array.from(
+      new Set([email, emailAnterior()].filter(Boolean) as string[])
     );
-    return;
-  }
 
-  const emailsBusca = Array.from(
-    new Set([email, emailAnterior()].filter(Boolean) as string[])
-  );
-
-  let user = await prisma.user.findFirst({
-    where: {
-      empresaId: empresa.id,
-      excluidoEm: null,
-      email: { in: emailsBusca },
-    },
-    orderBy: { createdAt: "asc" },
-  });
-
-  if (!user) {
-    user = await prisma.user.findFirst({
+    let user = await tx.user.findFirst({
       where: {
         empresaId: empresa.id,
         excluidoEm: null,
-        role: { in: ["proprietario", "admin", "admin_empresa"] },
+        email: { in: emailsBusca },
       },
       orderBy: { createdAt: "asc" },
     });
-  }
 
-  if (!user) {
-    user = await prisma.user.create({
-      data: {
-        name: "Proprietário",
-        email,
-        password: senhaHash,
-        role: "proprietario",
-        empresaId: empresa.id,
-      },
-    });
-    console.log("Proprietário do lab criado.");
-  } else {
-    user = await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        email,
-        password: senhaHash,
-        role:
-          user.role === "admin" || user.role === "admin_empresa"
-            ? user.role
-            : "proprietario",
-        excluidoEm: null,
-      },
-    });
-    console.log("Proprietário do lab atualizado (e-mail + senha).");
-  }
+    if (!user) {
+      user = await tx.user.findFirst({
+        where: {
+          empresaId: empresa.id,
+          excluidoEm: null,
+          role: { in: ["proprietario", "admin", "admin_empresa"] },
+        },
+        orderBy: { createdAt: "asc" },
+      });
+    }
 
-  console.log(`  Lab:    /login  →  ${user.email}  (${empresa.slug})`);
+    if (!user) {
+      user = await tx.user.create({
+        data: {
+          name: "Proprietário",
+          email,
+          password: senhaHash,
+          role: "proprietario",
+          empresaId: empresa.id,
+        },
+      });
+      console.log("Proprietário do lab criado.");
+    } else {
+      user = await tx.user.update({
+        where: { id: user.id },
+        data: {
+          email,
+          password: senhaHash,
+          role:
+            user.role === "admin" || user.role === "admin_empresa"
+              ? user.role
+              : "proprietario",
+          excluidoEm: null,
+        },
+      });
+      console.log("Proprietário do lab atualizado (e-mail + senha).");
+    }
+
+    console.log(`  Lab:    /login  →  ${user.email}  (${empresa.slug})`);
+  });
 }
 
 async function main() {
@@ -122,30 +137,33 @@ async function main() {
   const senhaHash = await bcrypt.hash(senha, 10);
 
   try {
-    const master = await prisma.masterUser.upsert({
-      where: { email },
-      update: {
-        nome: "Proprietário Plataforma",
-        senhaHash,
-        role: "MASTER_ADMIN",
-        ativo: true,
-      },
-      create: {
-        nome: "Proprietário Plataforma",
-        email,
-        senhaHash,
-        role: "MASTER_ADMIN",
-      },
-    });
-
-    // Se o e-mail mudou, desativa o master antigo com e-mail anterior (evita 789654 vivo).
-    const anterior = emailAnterior();
-    if (anterior && anterior !== email) {
-      await prisma.masterUser.updateMany({
-        where: { email: anterior, id: { not: master.id } },
-        data: { ativo: false },
+    const master = await comBypassRls(async (tx) => {
+      const row = await tx.masterUser.upsert({
+        where: { email },
+        update: {
+          nome: "Proprietário Plataforma",
+          senhaHash,
+          role: "MASTER_ADMIN",
+          ativo: true,
+        },
+        create: {
+          nome: "Proprietário Plataforma",
+          email,
+          senhaHash,
+          role: "MASTER_ADMIN",
+        },
       });
-    }
+
+      const anterior = emailAnterior();
+      if (anterior && anterior !== email) {
+        await tx.masterUser.updateMany({
+          where: { email: anterior, id: { not: row.id } },
+          data: { ativo: false },
+        });
+      }
+
+      return row;
+    });
 
     console.log("Master criado/atualizado com sucesso.");
     console.log(`  E-mail: ${master.email}`);
