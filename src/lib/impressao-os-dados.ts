@@ -1,7 +1,7 @@
 import { formatDate } from "@/lib/utils";
 import { idiomaFromConfig, translate } from "@/lib/i18n";
 import { labelStatusTrabalho } from "@/lib/i18n/status-trabalho-i18n";
-import { prisma } from "@/lib/db";
+import { prisma, runWithTenantContext } from "@/lib/db";
 import {
   segmentoEfetivoTrabalho,
   whereGrupoOs,
@@ -205,7 +205,18 @@ export function sanitizarDadosPdfOs<T>(valor: T): T {
   ) as T;
 }
 
-export async function carregarDadosImpressaoOs({
+export async function carregarDadosImpressaoOs(params: {
+  id: string;
+  empresaId: string;
+  sp: Record<string, string | string[] | undefined>;
+}): Promise<ResultadoImpressaoOs> {
+  // Página RSC chama direto com session.empresaId — garante tenant no RLS.
+  return runWithTenantContext(params.empresaId, () =>
+    carregarDadosImpressaoOsInterno(params)
+  );
+}
+
+async function carregarDadosImpressaoOsInterno({
   id,
   empresaId,
   sp,

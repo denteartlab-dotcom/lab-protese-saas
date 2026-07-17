@@ -5,7 +5,7 @@ import {
   salvarJsonStoreCache,
 } from "@/lib/json-store-cache";
 import { ARMAZENAMENTO_LAB_PREFIX, chaveBootstrapAdiada } from "@/lib/armazenamento-laboratorio-keys";
-import { prisma } from "@/lib/db";
+import { executarSemRls, prisma } from "@/lib/db";
 
 const PREFIXO_TENANT = "t:";
 
@@ -126,8 +126,11 @@ export async function buscarJsonStorePublicoPorToken<T>(
   const limpo = token.trim();
   if (!limpo) return null;
 
+  // Acesso público autenticado pelo token — precisa de bypass sob lab_app/RLS.
   const chaveLegado = `${prefixoChave}${limpo}`;
-  const legado = await prisma.jsonStore.findUnique({ where: { key: chaveLegado } });
+  const legado = await executarSemRls((tx) =>
+    tx.jsonStore.findUnique({ where: { key: chaveLegado } })
+  );
   if (legado?.payload) {
     try {
       return JSON.parse(legado.payload) as T;
@@ -137,9 +140,11 @@ export async function buscarJsonStorePublicoPorToken<T>(
   }
 
   const sufixo = `:${prefixoChave}${limpo}`;
-  const tenant = await prisma.jsonStore.findFirst({
-    where: { key: { endsWith: sufixo } },
-  });
+  const tenant = await executarSemRls((tx) =>
+    tx.jsonStore.findFirst({
+      where: { key: { endsWith: sufixo } },
+    })
+  );
   if (!tenant?.payload) return null;
   try {
     return JSON.parse(tenant.payload) as T;
@@ -157,10 +162,12 @@ export async function resolverEmpresaIdJsonStorePublico(
   if (!limpo) return null;
 
   const sufixo = `:${prefixoChave}${limpo}`;
-  const tenant = await prisma.jsonStore.findFirst({
-    where: { key: { endsWith: sufixo } },
-    select: { key: true },
-  });
+  const tenant = await executarSemRls((tx) =>
+    tx.jsonStore.findFirst({
+      where: { key: { endsWith: sufixo } },
+      select: { key: true },
+    })
+  );
   if (!tenant?.key.startsWith(PREFIXO_TENANT)) return null;
 
   const restante = tenant.key.slice(PREFIXO_TENANT.length);
