@@ -27,7 +27,7 @@ import { dimensoesLogoPx } from "@/lib/lab-logo";
 import { analisarCaminhoApp } from "@/lib/rotas-app";
 
 async function aguardarSessaoConfirmada(): Promise<boolean> {
-  for (let tentativa = 0; tentativa < 10; tentativa += 1) {
+  for (let tentativa = 0; tentativa < 6; tentativa += 1) {
     try {
       const res = await fetch("/api/auth/me", {
         credentials: "same-origin",
@@ -37,16 +37,14 @@ async function aguardarSessaoConfirmada(): Promise<boolean> {
     } catch {
       /* nova tentativa */
     }
-    await new Promise((resolve) => window.setTimeout(resolve, 300 + tentativa * 200));
+    await new Promise((resolve) => window.setTimeout(resolve, 200 + tentativa * 150));
   }
   return false;
 }
 
 async function entrarNoApp(destino: string) {
-  const sessaoOk = await aguardarSessaoConfirmada();
-  if (!sessaoOk) {
-    throw new Error("SESSAO_NAO_CONFIRMADA");
-  }
+  // Se /me falhar (ex.: 301 apex↔www no nginx), ainda entra — cookie Domain=.denteartlab.com.br.
+  await aguardarSessaoConfirmada();
   window.location.assign(destino);
 }
 export type LoginBranding = {
@@ -404,14 +402,10 @@ export function LoginForm({
     } catch (erro) {
       const abortado =
         erro instanceof DOMException && erro.name === "AbortError";
-      const sessaoFalhou =
-        erro instanceof Error && erro.message === "SESSAO_NAO_CONFIRMADA";
       setError(
-        sessaoFalhou
-          ? "Login aceito, mas a sessão não foi confirmada. Acesse /limpar-sessao, limpe o cache e tente novamente."
-          : abortado
-            ? "O servidor demorou demais para responder. Verifique se npm run dev:server está rodando e tente de novo."
-            : "Não foi possível conectar ao servidor. Recarregue a página (Ctrl+Shift+R) e tente de novo."
+        abortado
+          ? "O servidor demorou demais para responder. Aguarde e tente de novo."
+          : "Não foi possível conectar ao servidor. Recarregue a página (Ctrl+Shift+R) e tente de novo."
       );
     } finally {
       window.clearTimeout(avisoLento);

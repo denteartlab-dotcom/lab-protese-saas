@@ -23,24 +23,35 @@ export async function verifyPassword(password: string, hash: string) {
 
 /** Apex + www compartilham o mesmo cookie (evita “sessão não confirmada”). */
 export function dominioCookieSessao(request?: Request): string | undefined {
+  const hosts: string[] = [];
   const hostHeader = request?.headers.get("host")?.split(":")[0]?.toLowerCase();
-  const hostEnv = (() => {
-    const raw =
-      process.env.NEXT_PUBLIC_APP_URL?.trim() ||
-      process.env.URL_PUBLICA_DO_APP?.trim() ||
-      "";
+  if (hostHeader) hosts.push(hostHeader);
+  for (const raw of [
+    process.env.NEXT_PUBLIC_APP_URL?.trim(),
+    process.env.URL_PUBLICA_DO_APP?.trim(),
+  ]) {
+    if (!raw) continue;
     try {
-      return raw ? new URL(raw).hostname.toLowerCase() : "";
+      const h = new URL(raw).hostname.toLowerCase();
+      if (h) hosts.push(h);
     } catch {
-      return "";
+      /* ignora */
     }
-  })();
-  const host = hostHeader || hostEnv;
-  if (!host || host === "localhost" || host === "127.0.0.1") return undefined;
-  if (host === "denteartlab.com.br" || host === "www.denteartlab.com.br") {
+  }
+  // Preferir .env: atrás do nginx o Host às vezes vem 127.0.0.1 e o cookie
+  // ficava host-only no www após 301 apex→www — /api/auth/me no apex falhava.
+  for (const host of hosts) {
+    if (
+      host === "denteartlab.com.br" ||
+      host === "www.denteartlab.com.br" ||
+      host.endsWith(".denteartlab.com.br")
+    ) {
+      return ".denteartlab.com.br";
+    }
+  }
+  if (process.env.NODE_ENV === "production") {
     return ".denteartlab.com.br";
   }
-  if (host.endsWith(".denteartlab.com.br")) return ".denteartlab.com.br";
   return undefined;
 }
 

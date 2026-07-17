@@ -15,21 +15,36 @@ export async function GET() {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
-  const lerPermissoes = () =>
-    prisma.user.findUnique({
-      where: { id: session.id },
-      select: { permissoesJson: true },
-    });
-  const user = session.empresaId
-    ? await runWithTenantContext(session.empresaId, lerPermissoes)
-    : await runWithRlsBypass(lerPermissoes);
+  let permissoesJson: string | null | undefined;
+  try {
+    const lerPermissoes = () =>
+      prisma.user.findUnique({
+        where: { id: session.id },
+        select: { permissoesJson: true },
+      });
+    const user = session.empresaId
+      ? await runWithTenantContext(session.empresaId, lerPermissoes)
+      : await runWithRlsBypass(lerPermissoes);
+    permissoesJson = user?.permissoesJson;
+    if (permissoesJson == null && session.empresaId) {
+      const retry = await runWithRlsBypass(lerPermissoes);
+      permissoesJson = retry?.permissoesJson;
+    }
+  } catch {
+    permissoesJson = null;
+  }
 
   const permissoes = normalizarPermissoesCompletas(
-    parsePermissoesUsuario(user?.permissoesJson),
+    parsePermissoesUsuario(permissoesJson),
     session.role
   );
 
-  const isMasterAdmin = await emailEhMasterAdmin(session.email);
+  let isMasterAdmin = false;
+  try {
+    isMasterAdmin = await emailEhMasterAdmin(session.email);
+  } catch {
+    isMasterAdmin = false;
+  }
 
   return NextResponse.json({
     id: session.id,

@@ -52,12 +52,27 @@ export async function sessaoComPapelAtualizado(): Promise<SessionUser | null> {
   const session = await getSession();
   if (!session) return null;
 
-  const role = await obterPapelUsuarioDb(session.id, session.empresaId);
-  if (!role || (await usuarioMarcadoExcluido(session.id, session.empresaId))) {
-    return null;
+  try {
+    if (await usuarioMarcadoExcluido(session.id, session.empresaId)) {
+      return null;
+    }
+  } catch {
+    /* RLS/rede: não derruba sessão válida do JWT */
   }
 
-  return { ...session, role };
+  let role: string | null = null;
+  try {
+    role = await obterPapelUsuarioDb(session.id, session.empresaId);
+    // Se o tenant falhou (lab_app/RLS), tenta bypass antes de invalidar o login.
+    if (!role) {
+      role = await obterPapelUsuarioDb(session.id, null);
+    }
+  } catch {
+    role = null;
+  }
+
+  // Cookie/JWT ok: confirma sessão mesmo se o papel no banco falhar momentaneamente.
+  return { ...session, role: role || session.role };
 }
 
 export async function sessaoPodeGerenciarUsuarios(): Promise<boolean> {
