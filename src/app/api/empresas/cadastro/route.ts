@@ -133,6 +133,7 @@ const MENSAGENS: Record<string, string> = {
   SLUG_EM_USO: "Este laboratório já possui cadastro. Tente outro nome.",
   LABORATORIO_EXISTE: "Já existe um laboratório com este nome.",
   EMAIL_RESERVADO: "Este e-mail não pode ser utilizado no cadastro.",
+  EMAIL_EM_USO: "Este e-mail já está cadastrado. Faça login ou use outro e-mail.",
   NOME_INVALIDO: "Nome do laboratório inválido.",
   RESPONSAVEL_INVALIDO: "Nome do responsável inválido.",
   DOCUMENTO_INVALIDO: "CPF ou CNPJ inválido.",
@@ -222,12 +223,14 @@ export async function POST(request: Request) {
       { status: 201 }
     );
   } catch (err) {
+    console.error("[empresas/cadastro]", err);
     const codigo = err instanceof Error ? err.message : "ERRO";
     const mensagem = MENSAGENS[codigo] || "Não foi possível criar o laboratório.";
     const status =
       codigo === "SLUG_EM_USO" ||
       codigo === "LABORATORIO_EXISTE" ||
-      codigo === "EMAIL_RESERVADO"
+      codigo === "EMAIL_RESERVADO" ||
+      codigo === "EMAIL_EM_USO"
         ? 409
         : 400;
     return NextResponse.json({ error: mensagem, code: codigo }, { status });

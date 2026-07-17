@@ -1,7 +1,7 @@
 import { hashPassword } from "@/lib/auth";
 import { calcularDataVencimentoAssinatura } from "@/lib/assinatura-empresa";
 import { gravarDadosPadraoEmpresa, validarSlugEmpresa } from "@/lib/empresa-padrao";
-import { prisma } from "@/lib/db";
+import { executarSemRls, runWithTenantContext } from "@/lib/db";
 import {
   DIAS_TESTE_GRATIS,
   limitesDoPlano,
@@ -64,10 +64,15 @@ function gerarSlugDeNome(nome: string): string {
 }
 
 async function gerarCodigoEmpresa(): Promise<string> {
-  const total = await prisma.empresa.count();
+  const total = await executarSemRls((tx) => tx.empresa.count());
   return `EMP-${String(total + 1).padStart(5, "0")}`;
 }
 
+/**
+ * Cadastro público / master: cria empresa sem sessão de tenant.
+ * Toda leitura/escrita cross-tenant usa bypass RLS; dados do lab novo
+ * gravam-se depois com runWithTenantContext.
+ */
 export async function provisionarNovaEmpresa(
   dados: DadosProvisionarEmpresa
 ): Promise<EmpresaProvisionada> {
@@ -97,23 +102,38 @@ export async function provisionarNovaEmpresa(
     throw new Error("EMAIL_RESERVADO");
   }
 
-  const master = await prisma.masterUser.findUnique({ where: { email: adminEmail } });
+  const master = await executarSemRls((tx) =>
+    tx.masterUser.findUnique({ where: { email: adminEmail } })
+  );
   if (master) throw new Error("EMAIL_RESERVADO");
+
+  const emailEmUso = await executarSemRls((tx) =>
+    tx.user.findFirst({
+      where: { email: adminEmail, excluidoEm: null },
+      select: { id: true },
+    })
+  );
+  if (emailEmUso) throw new Error("EMAIL_EM_USO");
 
   const senhaCheck = validarForcaSenha(adminSenha);
   if (!senhaCheck.valida) throw new Error("SENHA_FRACA");
 
-  let slug = dados.slug?.trim() ? validarSlugEmpresa(dados.slug) : gerarSlugDeNome(nome);
-  if (!slug) throw new Error("SLUG_INVALIDO");
+  let slugCand = dados.slug?.trim() ? validarSlugEmpresa(dados.slug) : gerarSlugDeNome(nome);
+  if (!slugCand) throw new Error("SLUG_INVALIDO");
+  let slug: string = slugCand;
 
-  const nomeEmUso = await prisma.empresa.findFirst({
-    where: { nome: { equals: nome, mode: "insensitive" } },
-  });
+  const nomeEmUso = await executarSemRls((tx) =>
+    tx.empresa.findFirst({
+      where: { nome: { equals: nome, mode: "insensitive" } },
+    })
+  );
   if (nomeEmUso) throw new Error("LABORATORIO_EXISTE");
 
   const slugBase = slug;
   let tentativa = 0;
-  while (await prisma.empresa.findUnique({ where: { slug } })) {
+  while (
+    await executarSemRls((tx) => tx.empresa.findUnique({ where: { slug } }))
+  ) {
     tentativa += 1;
     slug = `${slugBase}-${tentativa}`;
     if (tentativa > 50) throw new Error("SLUG_EM_USO");
@@ -125,7 +145,7 @@ export async function provisionarNovaEmpresa(
   const codigo = await gerarCodigoEmpresa();
   const password = await hashPassword(adminSenha);
 
-  const resultado = await prisma.$transaction(async (tx) => {
+  const resultado = await executarSemRls(async (tx) => {
     const empresa = await tx.empresa.create({
       data: {
         codigo,
@@ -174,14 +194,17 @@ export async function provisionarNovaEmpresa(
     return { empresa, admin };
   });
 
-  await gravarDadosPadraoEmpresa(resultado.empresa.id, nome);
-  if (dados.periodoCobranca) {
-    await salvarJsonStoreTenant(
-      resultado.empresa.id,
-      PERIODO_ASSINATURA_STORAGE_KEY,
-      normalizarPeriodoCobranca(dados.periodoCobranca)
-    );
-  }
+  await runWithTenantContext(resultado.empresa.id, async () => {
+    await gravarDadosPadraoEmpresa(resultado.empresa.id, nome);
+    if (dados.periodoCobranca) {
+      await salvarJsonStoreTenant(
+        resultado.empresa.id,
+        PERIODO_ASSINATURA_STORAGE_KEY,
+        normalizarPeriodoCobranca(dados.periodoCobranca)
+      );
+    }
+  });
+
   await garantirPastasUploadEmpresa(resultado.empresa.slug);
   void garantirPastaDriveEmpresa({
     empresaId: resultado.empresa.id,
