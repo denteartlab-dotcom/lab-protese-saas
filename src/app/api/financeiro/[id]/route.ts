@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { acaoHttpParaPermissao, negarSeSemPermissao } from "@/lib/require-permissao";
 import {
   auditarAlteracaoLancamento,
   auditarExclusaoLancamento,
@@ -58,6 +59,10 @@ export async function PUT(
     if (!existente) {
       return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
     }
+    const modulo =
+      existente.tipo === "despesa" ? "financeiro-tipo-despesa" : "financeiro-tipo-receita";
+    const negado = await negarSeSemPermissao(ctx, modulo, acaoHttpParaPermissao("PUT"));
+    if (negado) return negado;
     const lancamento = await prisma.lancamento.update({
       where: { id },
       data: {
@@ -134,6 +139,10 @@ export async function DELETE(
   if (!existente) {
     return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
   }
+  const modulo =
+    existente.tipo === "despesa" ? "financeiro-tipo-despesa" : "financeiro-tipo-receita";
+  const negado = await negarSeSemPermissao(ctx, modulo, acaoHttpParaPermissao("DELETE"));
+  if (negado) return negado;
 
   const ehFaturaCobrancaOs = ehFaturaCobrancaOsParaExclusao({
     tipo: existente.tipo,

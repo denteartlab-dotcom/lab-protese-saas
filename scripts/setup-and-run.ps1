@@ -18,5 +18,5 @@ if (Test-Path .next) { Remove-Item -Recurse -Force .next -ErrorAction SilentlyCo
 
 Write-Host ""
 Write-Host "Iniciando em http://localhost:3000"
-Write-Host "Login: admin@labprotese.com / admin123"
+Write-Host "Login: defina SEED_SENHA_PROPRIETARIO / MASTER_ADMIN_PASSWORD no .env (min. 8 chars)"
 npm run dev

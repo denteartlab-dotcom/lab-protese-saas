@@ -31,10 +31,14 @@ Acesse: http://localhost:3000
 
 **Publicar de novo (GitHub + Neon + Vercel):** [DEPLOY.md](./DEPLOY.md)
 
-### Credenciais demo
+### Credenciais iniciais
 
-- **E-mail:** admin@labprotese.com
-- **Senha:** admin123
+Defina no `.env` antes do seed:
+
+- `SEED_SENHA_PROPRIETARIO` (mín. 8 caracteres)
+- `MASTER_ADMIN_PASSWORD` (mín. 8 caracteres)
+
+Não use senhas padrão (`789654` / `admin123`) — o seed rejeita.
 
 ## Scripts
 

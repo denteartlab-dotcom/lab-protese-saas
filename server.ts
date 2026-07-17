@@ -141,9 +141,45 @@ app
   .then(() => {
     const httpServer = createServer();
 
+    const origensSocketPermitidas = (() => {
+      const urls = [
+        process.env.NEXT_PUBLIC_APP_URL?.trim(),
+        process.env.URL_PUBLICA_DO_APP?.trim(),
+        "https://www.denteartlab.com.br",
+        "https://denteartlab.com.br",
+      ].filter(Boolean) as string[];
+      const set = new Set<string>();
+      for (const raw of urls) {
+        try {
+          const u = new URL(raw.includes("://") ? raw : `https://${raw}`);
+          set.add(u.origin);
+          const host = u.hostname.replace(/^www\./, "");
+          set.add(`${u.protocol}//${host}`);
+          set.add(`${u.protocol}//www.${host}`);
+        } catch {
+          /* ignore */
+        }
+      }
+      if (process.env.NODE_ENV !== "production") {
+        set.add("http://localhost:3000");
+        set.add("http://127.0.0.1:3000");
+      }
+      return [...set];
+    })();
+
     const io = new SocketIOServer(httpServer, {
       path: TV_SOCKET_PATH,
-      cors: { origin: true, credentials: true },
+      cors: {
+        origin: (origin, callback) => {
+          // Handshake sem Origin (apps nativos / same-origin) ou lista explícita.
+          if (!origin || origensSocketPermitidas.includes(origin)) {
+            callback(null, true);
+            return;
+          }
+          callback(new Error(`Origin Socket.IO não permitida: ${origin}`), false);
+        },
+        credentials: true,
+      },
       transports: ["polling", "websocket"],
       pingTimeout: 60_000,
       pingInterval: 25_000,

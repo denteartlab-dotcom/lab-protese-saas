@@ -1,26 +1,25 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
+import { acaoHttpParaPermissao, negarSeSemPermissao } from "@/lib/require-permissao";
 import {
   carregarConfigNfse,
   salvarConfigNfse,
 } from "@/lib/nfse/servico";
 import {
-  NFSE_CONFIG_PADRAO,
   nfseConfigurada,
   type NfseConfig,
   type NfseProvedor,
 } from "@/lib/nfse-config";
 
 export async function GET() {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
-  if (!session.empresaId) {
-    return NextResponse.json({ error: "Empresa não identificada." }, { status: 401 });
-  }
+  const negado = await negarSeSemPermissao(ctx, "configuracoes-nfse", "ver");
+  if (negado) return negado;
 
-  const config = await carregarConfigNfse(session.empresaId);
+  const config = await carregarConfigNfse(ctx.empresaId);
   return NextResponse.json({
     config: {
       provedor: config.provedor,
@@ -35,13 +34,12 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
-  if (!session.empresaId) {
-    return NextResponse.json({ error: "Empresa não identificada." }, { status: 401 });
-  }
+  const negado = await negarSeSemPermissao(ctx, "configuracoes-nfse", acaoHttpParaPermissao("PUT"));
+  if (negado) return negado;
 
   try {
     const body = (await request.json()) as Partial<NfseConfig> & {
@@ -51,7 +49,7 @@ export async function PUT(request: Request) {
       manterSecret?: boolean;
       manterApiKey?: boolean;
     };
-    const atual = await carregarConfigNfse(session.empresaId);
+    const atual = await carregarConfigNfse(ctx.empresaId);
 
     const provedor: NfseProvedor =
       body.provedor === "nuvemfiscal" || body.provedor === "plugnotas"
@@ -75,7 +73,7 @@ export async function PUT(request: Request) {
         body.descricaoServicoPadrao?.trim() || atual.descricaoServicoPadrao,
     };
 
-    await salvarConfigNfse(session.empresaId, config);
+    await salvarConfigNfse(ctx.empresaId, config);
 
     return NextResponse.json({ ok: true });
   } catch {

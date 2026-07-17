@@ -79,11 +79,17 @@ export async function carregarBrandingLaboratorioPorSlug(
   return montarBrandingPublico(config, empresa.nome, empresa.slug);
 }
 
+/**
+ * Branding por e-mail: se não houver exatamente 1 lab, devolve branding genérico
+ * (mesmo payload) para não enumerar existência de contas.
+ */
 export async function carregarBrandingLaboratorioPorEmail(
   email: string
-): Promise<LabBrandingPublico | null> {
+): Promise<LabBrandingPublico> {
   const normalizado = email.trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizado)) return null;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizado)) {
+    return brandingPlataformaLogin();
+  }
 
   const usuarios = await executarSemRls((tx) =>
     tx.user.findMany({
@@ -99,7 +105,9 @@ export async function carregarBrandingLaboratorioPorEmail(
     if (!usuario.empresa) continue;
     empresas.set(usuario.empresa.slug, usuario.empresa);
   }
-  if (empresas.size !== 1) return null;
+  if (empresas.size !== 1) {
+    return brandingPlataformaLogin();
+  }
 
   const empresa = [...empresas.values()][0];
   const config = await runWithTenantContext(empresa.id, () =>

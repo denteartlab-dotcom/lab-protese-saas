@@ -5,15 +5,34 @@ import { calcularDataVencimentoAssinatura } from "../src/lib/assinatura-empresa"
 const prisma = new PrismaClient();
 
 const EMAIL_PROPRIETARIO = "admin@labprotese.com";
-const SENHA_PROPRIETARIO = "789654";
 const EMAIL_MASTER = (process.env.MASTER_ADMIN_EMAIL ?? EMAIL_PROPRIETARIO).trim().toLowerCase();
-const SENHA_MASTER =
-  process.env.MASTER_ADMIN_PASSWORD?.trim() || SENHA_PROPRIETARIO;
 const SLUG_EMPRESA = "denteart";
 const NOME_EMPRESA = "DenteArt";
 
+function senhaObrigatoria(envName: string, valor: string | undefined): string {
+  const senha = valor?.trim() || "";
+  if (!senha || senha.length < 8) {
+    throw new Error(
+      `${envName} obrigatória para o seed (mín. 8 caracteres). Sem fallback de senha padrão.`
+    );
+  }
+  if (senha === "789654" || senha.toLowerCase() === "admin123") {
+    throw new Error(`${envName} não pode ser senha padrão fraca (789654/admin123).`);
+  }
+  return senha;
+}
+
 /** Garante empresa padrão e usuário proprietário (sem dados demo). */
 async function main() {
+  const SENHA_PROPRIETARIO = senhaObrigatoria(
+    "SEED_SENHA_PROPRIETARIO",
+    process.env.SEED_SENHA_PROPRIETARIO || process.env.MASTER_ADMIN_PASSWORD
+  );
+  const SENHA_MASTER = senhaObrigatoria(
+    "MASTER_ADMIN_PASSWORD",
+    process.env.MASTER_ADMIN_PASSWORD || SENHA_PROPRIETARIO
+  );
+
   const dataVencimentoPadrao = calcularDataVencimentoAssinatura(365);
   const empresa = await prisma.empresa.upsert({
     where: { slug: SLUG_EMPRESA },
@@ -88,11 +107,14 @@ async function main() {
   }
 
   console.log(
-    `Seed OK — ${NOME_EMPRESA} (/${SLUG_EMPRESA}). Login: ${EMAIL_PROPRIETARIO} / ${SENHA_PROPRIETARIO}`
+    `Seed OK — ${NOME_EMPRESA} (/${SLUG_EMPRESA}). Login: ${EMAIL_PROPRIETARIO} (senha via SEED_SENHA_PROPRIETARIO)`
   );
-  console.log(`Master Admin: ${EMAIL_MASTER} / ${SENHA_MASTER} — Painel: /admin-master`);
+  console.log(`Master Admin: ${EMAIL_MASTER} — Painel: /admin-master`);
 }
 
 main()
-  .catch(console.error)
+  .catch((err) => {
+    console.error(err instanceof Error ? err.message : err);
+    process.exitCode = 1;
+  })
   .finally(() => prisma.$disconnect());

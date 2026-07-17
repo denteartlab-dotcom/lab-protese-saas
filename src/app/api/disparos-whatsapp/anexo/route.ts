@@ -13,16 +13,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Arquivo não enviado" }, { status: 400 });
     }
 
+    // Campanha lê o anexo pelo id no banco (campaign-queue) — forçar DB mesmo em modo disco.
     const salvos = await salvarArquivosUpload(
       "disparos-whatsapp",
       [arquivo],
       ctx.empresaId,
-      ctx.empresaSlug
+      ctx.empresaSlug,
+      { forcarBanco: true }
     );
     const item = salvos[0];
     if (!item) return NextResponse.json({ error: "Falha ao salvar anexo" }, { status: 500 });
 
     const uploadId = item.url.match(/\/api\/uploads\/arquivo\/([^/]+)/)?.[1] || null;
+    if (!uploadId) {
+      return NextResponse.json(
+        { error: "Anexo sem id no banco — não pode ser usado na campanha." },
+        { status: 500 }
+      );
+    }
 
     let anexoTipo: string = "documento";
     if (arquivo.type.startsWith("image/")) anexoTipo = "imagem";

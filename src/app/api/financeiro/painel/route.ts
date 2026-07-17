@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { medirHandlerApi } from "@/lib/api-observabilidade";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { negarSeSemPermissao } from "@/lib/require-permissao";
 import {
   gravarCachePainelFinanceiro,
   lerCachePainelFinanceiro,
@@ -13,6 +14,22 @@ import { ABAS_PAINEL_FINANCEIRO } from "@/lib/financeiro-painel-types";
 
 function abaSuportada(valor: string): valor is AbaPainelFinanceiro {
   return (ABAS_PAINEL_FINANCEIRO as readonly string[]).includes(valor);
+}
+
+function moduloDaAbaPainel(aba: AbaPainelFinanceiro): string {
+  switch (aba) {
+    case "despesa":
+      return "financeiro-tipo-despesa";
+    case "boletos":
+      return "financeiro-aba-boletos";
+    case "plano-de-contas":
+      return "financeiro-aba-plano-de-contas";
+    case "conta-bancaria":
+    case "conta-digital":
+      return "financeiro-aba-conta-bancaria";
+    default:
+      return "financeiro-tipo-receita";
+  }
 }
 
 export const GET = medirHandlerApi("/api/financeiro/painel", async function GET(request: Request) {
@@ -31,6 +48,8 @@ export const GET = medirHandlerApi("/api/financeiro/painel", async function GET(
   }
 
   const aba = abaParam;
+  const negado = await negarSeSemPermissao(ctx, moduloDaAbaPainel(aba), "ver");
+  if (negado) return negado;
   const abaComSyncFixa = aba === "despesa" || aba === "boletos";
 
   try {

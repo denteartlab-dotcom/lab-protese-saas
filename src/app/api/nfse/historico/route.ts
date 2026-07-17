@@ -1,19 +1,19 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
+import { negarSeSemPermissao } from "@/lib/require-permissao";
 import { prisma } from "@/lib/db";
 
 export async function GET() {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
-  if (!session.empresaId) {
-    return NextResponse.json({ error: "Empresa não identificada." }, { status: 401 });
-  }
+  const negado = await negarSeSemPermissao(ctx, "configuracoes-nfse", "ver");
+  if (negado) return negado;
 
   try {
     const notas = await prisma.nfseEmissao.findMany({
-      where: { empresaId: session.empresaId },
+      where: { empresaId: ctx.empresaId },
       orderBy: { createdAt: "desc" },
       take: 50,
       include: {

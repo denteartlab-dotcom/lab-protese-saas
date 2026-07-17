@@ -6,6 +6,7 @@ import {
 import { listarWebhookTokensAsaas, validarWebhookTokenAsaas } from "@/lib/asaas-client";
 import { contaMaeAsaasConfigurada } from "@/lib/asaas-conta-mae-config";
 import { APP_URL } from "@/lib/app-url";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 
 const WEBHOOK_PATH = "/api/asaas/webhook";
 
@@ -18,14 +19,19 @@ const EVENTOS_PAGAMENTO = [
   "PAYMENT_REFUNDED",
 ];
 
-/** Confirma no navegador que o endpoint está publicado (o Asaas usa POST). */
+/** Health público mínimo; detalhes de config só com sessão autenticada. */
 export async function GET() {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
+    return NextResponse.json({
+      ok: true,
+      provedor: "asaas",
+      metodoAsaas: "POST",
+    });
+  }
+
   const tokens = await listarWebhookTokensAsaas();
   const contaMaeConfigurada = contaMaeAsaasConfigurada();
-  const chaveContaMaeTamanho = contaMaeConfigurada
-    ? (process.env["ASAAS_CONTA_MAE_API_KEY"] || process.env["ASAAS_PLATAFORMA_API_KEY"] || "")
-        .trim().length
-    : 0;
   return NextResponse.json({
     ok: true,
     provedor: "asaas",
@@ -33,7 +39,6 @@ export async function GET() {
     metodoAsaas: "POST",
     tokenConfigurado: tokens.length > 0,
     contaMaeConfigurada,
-    chaveContaMaeTamanho,
     instrucoes: contaMaeConfigurada
       ? "Cadastre esta URL no painel Asaas (Integrações → Webhooks). O Asaas envia POST com o header asaas-access-token igual ao token configurado no servidor. Para autorização de saques Pix em subcontas, cadastre também " +
         `${APP_URL}/api/asaas/autorizacao-saque em Integrações → Mecanismos de segurança.`

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { validarWebhookTokenAsaas } from "@/lib/asaas-client";
 import { contaMaeAsaasConfigurada } from "@/lib/asaas-conta-mae-config";
 import { APP_URL } from "@/lib/app-url";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
   avaliarAutorizacaoSaqueAsaas,
   limparAutorizacoesPixExpiradas,
@@ -9,8 +10,17 @@ import {
 
 const ROTA = "/api/asaas/autorizacao-saque";
 
-/** Diagnóstico — cadastre esta URL em Asaas → Integrações → Mecanismos de segurança. */
+/** Health público mínimo; detalhes só com sessão autenticada. */
 export async function GET() {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
+    return NextResponse.json({
+      ok: true,
+      provedor: "asaas",
+      metodoAsaas: "POST",
+    });
+  }
+
   return NextResponse.json({
     ok: true,
     provedor: "asaas",

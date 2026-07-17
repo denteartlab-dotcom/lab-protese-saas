@@ -81,7 +81,8 @@ export async function salvarArquivosUpload(
   pasta: PastaUpload,
   files: File[],
   empresaId?: string,
-  empresaSlug?: string
+  empresaSlug?: string,
+  opcoes?: { forcarBanco?: boolean }
 ): Promise<ArquivoEnviado[]> {
   if (!files.length) return [];
 
@@ -93,7 +94,7 @@ export async function salvarArquivosUpload(
     }
   }
 
-  if (uploadUsaBancoDados()) {
+  if (opcoes?.forcarBanco || uploadUsaBancoDados()) {
     if (!empresaId) {
       throw new Error("empresaId obrigatório para upload no banco.");
     }

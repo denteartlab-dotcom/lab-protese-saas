@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { negarSeSemPermissao } from "@/lib/require-permissao";
 import { listarContasBancariasServidor } from "@/lib/conta-bancaria-servidor";
 import { contaOfxCombina, parseOfxArquivo } from "@/lib/extrato-ofx";
 
@@ -12,6 +13,8 @@ export async function POST(request: Request) {
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
+  const negado = await negarSeSemPermissao(ctx, "financeiro-aba-conta-bancaria", "criar");
+  if (negado) return negado;
 
   try {
     const form = await request.formData();

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { acaoHttpParaPermissao, negarSeSemPermissao } from "@/lib/require-permissao";
 import { invalidarCachePainelFinanceiro } from "@/lib/financeiro-painel-cache";
 import {
   listarContasBancariasServidor,
@@ -76,6 +77,12 @@ export async function GET() {
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
+  const negado = await negarSeSemPermissao(
+    ctx,
+    "financeiro-aba-conta-bancaria",
+    acaoHttpParaPermissao("GET")
+  );
+  if (negado) return negado;
 
   try {
     const [contas, movimentacoes, extrato] = await Promise.all([
@@ -98,6 +105,12 @@ export async function PUT(request: Request) {
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
+  const negado = await negarSeSemPermissao(
+    ctx,
+    "financeiro-aba-conta-bancaria",
+    acaoHttpParaPermissao("PUT")
+  );
+  if (negado) return negado;
 
   try {
     const body = await request.json();

@@ -31,13 +31,8 @@ export async function GET(request: Request) {
     }
 
     if (email) {
+      // Sempre 200 com branding (lab ou genérico) — evita oráculo de existência de e-mail.
       const branding = await carregarBrandingLaboratorioPorEmail(email);
-      if (!branding) {
-        return NextResponse.json(
-          { error: "Nenhum laboratório identificado para este e-mail." },
-          { status: 404 }
-        );
-      }
       return NextResponse.json(branding, {
         headers: { "Cache-Control": CACHE_BRANDING },
       });

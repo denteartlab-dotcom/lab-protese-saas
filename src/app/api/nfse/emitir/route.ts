@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
+import { negarSeSemPermissao } from "@/lib/require-permissao";
 import { emitirNfseParaCliente } from "@/lib/nfse/servico";
 import { z } from "zod";
 
@@ -11,19 +12,18 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
-  if (!session.empresaId) {
-    return NextResponse.json({ error: "Empresa não identificada." }, { status: 401 });
-  }
+  const negado = await negarSeSemPermissao(ctx, "configuracoes-nfse", "criar");
+  if (negado) return negado;
 
   try {
     const body = schema.parse(await request.json());
     const nota = await emitirNfseParaCliente({
       ...body,
-      empresaId: session.empresaId,
+      empresaId: ctx.empresaId,
     });
     return NextResponse.json(nota, { status: 201 });
   } catch (err) {
