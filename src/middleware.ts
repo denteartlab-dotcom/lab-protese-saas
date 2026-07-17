@@ -81,11 +81,14 @@ function limparCookieSessao(response: NextResponse) {
   return response;
 }
 
-/** Origem pública sem :3000 (Next atrás do nginx às vezes monta request.url com a porta interna). */
+/**
+ * Origem pública sem :3000. Mantém o MESMO host da requisição (apex ou www) —
+ * forçar www causava loop com o proxy que redireciona www → apex.
+ */
 function origemPublica(request: NextRequest): string {
   const host = request.headers.get("host")?.split(":")[0]?.toLowerCase() || "";
   if (host === "denteartlab.com.br" || host === "www.denteartlab.com.br") {
-    return "https://www.denteartlab.com.br";
+    return `https://${host}`;
   }
   const env =
     process.env.NEXT_PUBLIC_APP_URL?.trim() ||
@@ -108,17 +111,6 @@ function origemPublica(request: NextRequest): string {
 
 function urlNoSite(request: NextRequest, caminho: string): URL {
   return new URL(caminho, origemPublica(request));
-}
-
-function redirecionarParaWww(request: NextRequest) {
-  const host = request.headers.get("host")?.split(":")[0]?.toLowerCase();
-  if (host !== "denteartlab.com.br") return null;
-
-  const destino = new URL(
-    `${request.nextUrl.pathname}${request.nextUrl.search}`,
-    "https://www.denteartlab.com.br"
-  );
-  return NextResponse.redirect(destino, 308);
 }
 
 function processarRotaApp(
@@ -159,9 +151,8 @@ function processarRotaApp(
 }
 
 export async function middleware(request: NextRequest) {
-  const redirectWww = redirecionarParaWww(request);
-  if (redirectWww) return redirectWww;
-
+  // Sem redirect apex↔www aqui: o proxy já decide o host canônico.
+  // O cookie usa Domain=.denteartlab.com.br e vale nos dois.
   const { pathname } = request.nextUrl;
 
   if (
