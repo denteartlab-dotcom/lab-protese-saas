@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
   type AsaasConfig,
 } from "@/lib/asaas-config";
@@ -12,16 +12,13 @@ import {
 import { laboratorioUsaCnpjContaMae } from "@/lib/asaas-subconta";
 
 export async function GET() {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
-  if (!session.empresaId) {
-    return NextResponse.json({ error: "Empresa não identificada." }, { status: 401 });
-  }
 
-  const config = await obterConfigAsaas(session.empresaId);
-  const podeUsarIntegracaoManual = await laboratorioUsaCnpjContaMae(session.empresaId);
+  const config = await obterConfigAsaas(ctx.empresaId);
+  const podeUsarIntegracaoManual = await laboratorioUsaCnpjContaMae(ctx.empresaId);
   return NextResponse.json({
     config: {
       ambiente: config.ambiente,
@@ -35,16 +32,13 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-  }
-  if (!session.empresaId) {
-    return NextResponse.json({ error: "Empresa não identificada." }, { status: 401 });
   }
 
   try {
-    const podeUsarIntegracaoManual = await laboratorioUsaCnpjContaMae(session.empresaId);
+    const podeUsarIntegracaoManual = await laboratorioUsaCnpjContaMae(ctx.empresaId);
     if (!podeUsarIntegracaoManual) {
       return NextResponse.json(
         {
@@ -60,7 +54,7 @@ export async function PUT(request: Request) {
       manterApiKey?: boolean;
       manterWebhookToken?: boolean;
     };
-    const atual = await obterConfigAsaas(session.empresaId);
+    const atual = await obterConfigAsaas(ctx.empresaId);
     const apiKey =
       body.apiKey?.trim() ||
       (body.manterApiKey ? atual.apiKey : "") ||
@@ -79,7 +73,7 @@ export async function PUT(request: Request) {
       webhookToken,
     };
 
-    await salvarConfigAsaas(session.empresaId, config);
+    await salvarConfigAsaas(ctx.empresaId, config);
 
     return NextResponse.json({ ok: true });
   } catch {

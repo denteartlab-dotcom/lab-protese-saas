@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
   criarSubcontaEmpresa,
   listarDocumentosSubconta,
@@ -9,28 +9,28 @@ import {
 import { montarSubcontaPainelContaDigital } from "@/lib/asaas-conta-digital";
 
 export async function GET() {
-  const session = await getSession();
-  if (!session?.empresaId) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   try {
-    let sub = await obterSubcontaEmpresa(session.empresaId);
+    let sub = await obterSubcontaEmpresa(ctx.empresaId);
     if (sub?.apiKey) {
-      sub = await sincronizarStatusSubconta(session.empresaId);
+      sub = await sincronizarStatusSubconta(ctx.empresaId);
     }
 
     let documentos: Awaited<ReturnType<typeof listarDocumentosSubconta>> = [];
     if (sub?.apiKey && sub.status !== "aprovada") {
       try {
-        documentos = await listarDocumentosSubconta(session.empresaId);
+        documentos = await listarDocumentosSubconta(ctx.empresaId);
       } catch {
         documentos = [];
       }
     }
 
     return NextResponse.json({
-      subconta: await montarSubcontaPainelContaDigital(session.empresaId),
+      subconta: await montarSubcontaPainelContaDigital(ctx.empresaId),
       documentos: documentos.map((doc) => ({
         id: doc.id,
         type: doc.type,
@@ -50,23 +50,23 @@ export async function GET() {
 }
 
 export async function POST() {
-  const session = await getSession();
-  if (!session?.empresaId) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   try {
-    await criarSubcontaEmpresa(session.empresaId);
+    await criarSubcontaEmpresa(ctx.empresaId);
     let documentos: Awaited<ReturnType<typeof listarDocumentosSubconta>> = [];
     try {
-      documentos = await listarDocumentosSubconta(session.empresaId);
+      documentos = await listarDocumentosSubconta(ctx.empresaId);
     } catch {
       documentos = [];
     }
 
     return NextResponse.json(
       {
-        subconta: await montarSubcontaPainelContaDigital(session.empresaId),
+        subconta: await montarSubcontaPainelContaDigital(ctx.empresaId),
         documentos: documentos.map((doc) => ({
           id: doc.id,
           type: doc.type,

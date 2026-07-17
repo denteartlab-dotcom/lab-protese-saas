@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
   obterExtratoContaDigital,
   obterSaldoContaDigital,
@@ -23,8 +23,8 @@ import {
 } from "@/lib/seguranca-pix-subconta";
 
 export async function GET(request: Request) {
-  const session = await getSession();
-  if (!session?.empresaId) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
 
   try {
     if (acao === "extrato") {
-      const movimentacoes = await obterExtratoContaDigital(session.empresaId, {
+      const movimentacoes = await obterExtratoContaDigital(ctx.empresaId, {
         startDate: searchParams.get("inicio") || undefined,
         finishDate: searchParams.get("fim") || undefined,
         offset: Number(searchParams.get("offset") || "0") || 0,
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ movimentacoes });
     }
 
-    const { saldo } = await obterSaldoContaDigital(session.empresaId);
+    const { saldo } = await obterSaldoContaDigital(ctx.empresaId);
     return NextResponse.json({ saldo });
   } catch (err) {
     return NextResponse.json(
@@ -53,8 +53,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session?.empresaId) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Informe a linha digitável." }, { status: 400 });
       }
       const boleto = await validarBoletoContaDigital(
-        session.empresaId,
+        ctx.empresaId,
         body.linhaDigitavel
       );
       return NextResponse.json({ boleto });
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
       if (!body.linhaDigitavel?.trim()) {
         return NextResponse.json({ error: "Informe a linha digitável." }, { status: 400 });
       }
-      const pagamento = await pagarBoletoContaDigital(session.empresaId, {
+      const pagamento = await pagarBoletoContaDigital(ctx.empresaId, {
         linhaDigitavel: body.linhaDigitavel,
         descricao: body.descricao,
         agendarPara: body.agendarPara,
@@ -108,11 +108,11 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Informe um limite válido." }, { status: 400 });
       }
 
-      const config = await salvarConfigLimitePixContaDigital(session.empresaId, {
+      const config = await salvarConfigLimitePixContaDigital(ctx.empresaId, {
         ativo: Boolean(body.limiteAtivo),
         limiteDiario,
       });
-      invalidarCachePainelFinanceiro(session.empresaId, "conta-digital");
+      invalidarCachePainelFinanceiro(ctx.empresaId, "conta-digital");
       return NextResponse.json({ limitePix: montarResumoLimitePix(config) });
     }
 
@@ -125,9 +125,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Informe um valor válido." }, { status: 400 });
       }
 
-      await validarLimitePixDiarioContaDigital(session.empresaId, valor);
+      await validarLimitePixDiarioContaDigital(ctx.empresaId, valor);
 
-      const { modo } = await resolverContaDigitalOperacional(session.empresaId);
+      const { modo } = await resolverContaDigitalOperacional(ctx.empresaId);
       let pendingId: string | undefined;
 
       if (modo === "subconta") {
@@ -150,7 +150,7 @@ export async function POST(request: Request) {
         }
 
         pendingId = await criarAutorizacaoPixSubconta({
-          empresaId: session.empresaId,
+          empresaId: ctx.empresaId,
           usuarioId: prop.session.id,
           valor,
           chavePix: body.chavePix,
@@ -158,7 +158,7 @@ export async function POST(request: Request) {
         });
       }
 
-      const transferencia = await transferirPixContaDigital(session.empresaId, {
+      const transferencia = await transferirPixContaDigital(ctx.empresaId, {
         valor,
         chavePix: body.chavePix,
         tipoChave: body.tipoChave,
@@ -169,8 +169,8 @@ export async function POST(request: Request) {
         await vincularTransferenciaAsaas(pendingId, transferencia.id);
       }
 
-      const limitePix = await registrarPixTransferidoContaDigital(session.empresaId, valor);
-      invalidarCachePainelFinanceiro(session.empresaId, "conta-digital");
+      const limitePix = await registrarPixTransferidoContaDigital(ctx.empresaId, valor);
+      invalidarCachePainelFinanceiro(ctx.empresaId, "conta-digital");
 
       return NextResponse.json({ transferencia, limitePix });
     }
