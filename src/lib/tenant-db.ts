@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { executarSemRls, prisma, runWithTenantContext } from "@/lib/db";
 import { nomeExibicaoLaboratorio } from "@/lib/configuracoes-lab";
 import { carregarConfigLaboratorioServidor } from "@/lib/lab-config-servidor";
 import { lerJsonStoreTenant } from "@/lib/json-store-tenant";
@@ -69,30 +69,38 @@ async function buscarTrabalhosAcompanhamentoCliente(cliente: ClienteAcompanhamen
 }
 
 export async function buscarClientePublicoPorToken(token: string) {
-  const cliente = await prisma.cliente.findFirst({
-    where: { tokenAcompanhamento: token },
-    select: {
-      id: true,
-      empresaId: true,
-      nome: true,
-      razaoSocial: true,
-      observacoes: true,
-      cro: true,
-      cnpjCpf: true,
-      email: true,
-    },
-  });
+  // Link público (sem sessão): resolve o cliente pelo token com bypass e,
+  // a partir daí, roda tudo com o tenant da empresa dele (lab_app + RLS).
+  const cliente = await executarSemRls((tx) =>
+    tx.cliente.findFirst({
+      where: { tokenAcompanhamento: token },
+      select: {
+        id: true,
+        empresaId: true,
+        nome: true,
+        razaoSocial: true,
+        observacoes: true,
+        cro: true,
+        cnpjCpf: true,
+        email: true,
+      },
+    })
+  );
 
   if (!cliente) return null;
 
-  const [trabalhos, configLab, mapaEtapasRaw] = await Promise.all([
-    buscarTrabalhosAcompanhamentoCliente(cliente),
-    carregarConfigLaboratorioServidor(cliente.empresaId),
-    lerJsonStoreTenant<Record<string, number[]>>(
-      cliente.empresaId,
-      MODULO_PRODUCAO_ETAPAS_STORAGE_KEY
-    ),
-  ]);
+  const [trabalhos, configLab, mapaEtapasRaw] = await runWithTenantContext(
+    cliente.empresaId,
+    () =>
+      Promise.all([
+        buscarTrabalhosAcompanhamentoCliente(cliente),
+        carregarConfigLaboratorioServidor(cliente.empresaId),
+        lerJsonStoreTenant<Record<string, number[]>>(
+          cliente.empresaId,
+          MODULO_PRODUCAO_ETAPAS_STORAGE_KEY
+        ),
+      ])
+  );
 
   const mapaEtapas =
     mapaEtapasRaw && typeof mapaEtapasRaw === "object" && !Array.isArray(mapaEtapasRaw)
@@ -105,9 +113,11 @@ export async function buscarClientePublicoPorToken(token: string) {
 }
 
 export async function buscarOrcamentoPublicoPorToken(token: string) {
-  const orcamento = await prisma.orcamento.findFirst({
-    where: { token, linkAtivo: true },
-  });
+  const orcamento = await executarSemRls((tx) =>
+    tx.orcamento.findFirst({
+      where: { token, linkAtivo: true },
+    })
+  );
   if (!orcamento) return null;
   return { orcamento };
 }

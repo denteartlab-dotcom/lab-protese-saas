@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { buscarClientePublicoPorToken } from "@/lib/tenant-db";
 import { MENSAGEM_LINK_ACOMPANHAMENTO_INVALIDO } from "@/lib/cliente-acompanhamento";
+import { runWithTenantContext } from "@/lib/db";
 import { removerUrgenciaCliente } from "@/lib/urgencia-cliente";
 
 type Params = { params: Promise<{ token: string }> };
@@ -35,17 +36,19 @@ export async function POST(request: Request, { params }: Params) {
   }
 
   const { cliente, trabalhos } = resultado;
-  const res = await removerUrgenciaCliente({
-    cliente: { id: cliente.id },
-    trabalhoId,
-    trabalhosVisiveis: trabalhos.map((t) => ({
-      id: t.id,
-      numeroOs: t.numeroOs,
-      status: t.status,
-      tipoProtese: t.tipoProtese,
-      instrucoes: t.instrucoes,
-    })),
-  });
+  const res = await runWithTenantContext(cliente.empresaId, () =>
+    removerUrgenciaCliente({
+      cliente: { id: cliente.id },
+      trabalhoId,
+      trabalhosVisiveis: trabalhos.map((t) => ({
+        id: t.id,
+        numeroOs: t.numeroOs,
+        status: t.status,
+        tipoProtese: t.tipoProtese,
+        instrucoes: t.instrucoes,
+      })),
+    })
+  );
 
   if (!res.ok) {
     return NextResponse.json(

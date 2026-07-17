@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { buscarClientePublicoPorToken } from "@/lib/tenant-db";
 import { MENSAGEM_LINK_ACOMPANHAMENTO_INVALIDO } from "@/lib/cliente-acompanhamento";
+import { runWithTenantContext } from "@/lib/db";
 import { confirmarRecebimentoCliente } from "@/lib/recebimento-cliente";
 
 type Params = { params: Promise<{ token: string }> };
@@ -44,16 +45,18 @@ export async function POST(request: Request, { params }: Params) {
   }
 
   const { cliente, trabalhos } = resultado;
-  const res = await confirmarRecebimentoCliente({
-    cliente: { id: cliente.id, nome: cliente.nome },
-    trabalhoId,
-    nomeRecebedor,
-    trabalhosVisiveis: trabalhos.map((t) => ({
-      id: t.id,
-      numeroOs: t.numeroOs,
-      status: t.status,
-    })),
-  });
+  const res = await runWithTenantContext(cliente.empresaId, () =>
+    confirmarRecebimentoCliente({
+      cliente: { id: cliente.id, nome: cliente.nome },
+      trabalhoId,
+      nomeRecebedor,
+      trabalhosVisiveis: trabalhos.map((t) => ({
+        id: t.id,
+        numeroOs: t.numeroOs,
+        status: t.status,
+      })),
+    })
+  );
 
   if (!res.ok) {
     const status =

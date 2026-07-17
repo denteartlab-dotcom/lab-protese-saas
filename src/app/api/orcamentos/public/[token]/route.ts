@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { buscarOrcamentoPublicoPorToken } from "@/lib/tenant-db";
-import { prisma } from "@/lib/db";
+import { executarSemRls } from "@/lib/db";
 import {
   calcularTotaisItens,
   linkOrcamentoAtivo,
@@ -100,7 +100,9 @@ export async function PATCH(request: Request, { params }: Params) {
   const dataResposta = new Date();
   const condicoesPagamento = condicoesPagamentoFromBody(body) || null;
 
-  const updated = await prisma.orcamento.update({
+  // Link público autenticado pelo token — bypass no mesmo transaction.
+  const updated = await executarSemRls((tx) =>
+    tx.orcamento.update({
     where: { token },
     data: {
       itensJson: JSON.stringify(body.itens),
@@ -115,7 +117,8 @@ export async function PATCH(request: Request, { params }: Params) {
       dataResposta,
       updatedAt: new Date(),
     },
-  });
+    })
+  );
 
   /** 202 Accepted — confirmação rápida ao fornecedor (issue 029). */
   return NextResponse.json(

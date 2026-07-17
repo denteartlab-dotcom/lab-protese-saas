@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { executarSemRls, runWithTenantContext } from "@/lib/db";
 import { mapOrcamento } from "@/lib/orcamentos-db";
 import { linkOrcamentoAtivo } from "@/lib/orcamentos-types";
 import {
@@ -15,10 +15,12 @@ type Params = { params: Promise<{ token: string }> };
 
 export async function POST(request: Request, { params }: Params) {
   const { token } = await params;
-  const row = await prisma.orcamento.findFirst({
-    where: { token, linkAtivo: true },
-    include: { empresa: { select: { id: true, slug: true, nome: true } } },
-  });
+  const row = await executarSemRls((tx) =>
+    tx.orcamento.findFirst({
+      where: { token, linkAtivo: true },
+      include: { empresa: { select: { id: true, slug: true, nome: true } } },
+    })
+  );
 
   if (!row) {
     return NextResponse.json({ error: "Orçamento não encontrado" }, { status: 404 });
@@ -63,10 +65,12 @@ export async function POST(request: Request, { params }: Params) {
       );
     }
 
-    const resumo = await calcularArmazenamentoGaleria(
-      row.empresa.id,
-      row.empresa.slug,
-      row.empresa.nome
+    const resumo = await runWithTenantContext(row.empresa.id, () =>
+      calcularArmazenamentoGaleria(
+        row.empresa.id,
+        row.empresa.slug,
+        row.empresa.nome
+      )
     );
     const novosBytes = files.reduce((s, f) => s + f.size, 0);
     if (
@@ -83,11 +87,8 @@ export async function POST(request: Request, { params }: Params) {
       );
     }
 
-    const uploaded = await salvarArquivosUpload(
-      "produtos",
-      files,
-      row.empresa.id,
-      row.empresa.slug
+    const uploaded = await runWithTenantContext(row.empresa.id, () =>
+      salvarArquivosUpload("produtos", files, row.empresa.id, row.empresa.slug)
     );
     return NextResponse.json(uploaded);
   } catch (err) {

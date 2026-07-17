@@ -4,6 +4,7 @@ import {
   MENSAGEM_LINK_ACOMPANHAMENTO_INVALIDO,
   montarAcompanhamentoPublico,
 } from "@/lib/cliente-acompanhamento";
+import { runWithTenantContext } from "@/lib/db";
 import { carregarStoreUrgenciasCliente } from "@/lib/urgencia-cliente";
 import { carregarStoreRecebimentosCliente } from "@/lib/recebimento-cliente";
 
@@ -22,8 +23,14 @@ export async function GET(_request: Request, { params }: Params) {
   }
 
   const { cliente, trabalhos, labNome, mapaEtapas } = resultado;
-  const storeUrgencias = await carregarStoreUrgenciasCliente(cliente.empresaId);
-  const storeRecebimentos = await carregarStoreRecebimentosCliente(cliente.empresaId);
+  const [storeUrgencias, storeRecebimentos] = await runWithTenantContext(
+    cliente.empresaId,
+    () =>
+      Promise.all([
+        carregarStoreUrgenciasCliente(cliente.empresaId),
+        carregarStoreRecebimentosCliente(cliente.empresaId),
+      ])
+  );
 
   const payload = montarAcompanhamentoPublico(
     {

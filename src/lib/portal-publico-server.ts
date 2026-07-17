@@ -16,6 +16,7 @@ import {
   brandingPlataformaLogin,
   carregarBrandingLaboratorioPorEmpresaId,
 } from "@/lib/lab-branding";
+import { runWithTenantContext } from "@/lib/db";
 import { resolverEmpresaIdJsonStorePublico } from "@/lib/json-store-tenant";
 import { mapOrcamento } from "@/lib/orcamentos-db";
 import { linkOrcamentoAtivo } from "@/lib/orcamentos-types";
@@ -56,11 +57,15 @@ async function montarAcompanhamento(token: string): Promise<PortalPublicoPagina>
   }
 
   const { cliente, trabalhos, labNome, mapaEtapas } = resultado;
-  const [storeUrgencias, storeRecebimentos, lab] = await Promise.all([
-    carregarStoreUrgenciasCliente(cliente.empresaId),
-    carregarStoreRecebimentosCliente(cliente.empresaId),
-    brandingParaEmpresa(cliente.empresaId),
-  ]);
+  const [storeUrgencias, storeRecebimentos, lab] = await runWithTenantContext(
+    cliente.empresaId,
+    () =>
+      Promise.all([
+        carregarStoreUrgenciasCliente(cliente.empresaId),
+        carregarStoreRecebimentosCliente(cliente.empresaId),
+        brandingParaEmpresa(cliente.empresaId),
+      ])
+  );
 
   const entidade = montarAcompanhamentoPublico(
     {
