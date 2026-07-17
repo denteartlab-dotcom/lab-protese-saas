@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyPassword } from "@/lib/auth";
-import { createMasterSession } from "@/lib/master-auth";
+import { anexarCookieMasterSessao } from "@/lib/master-auth";
 import { ipDaRequisicao, registrarLogMaster } from "@/lib/master-audit";
 import { prisma } from "@/lib/db";
 import { runWithRlsBypass } from "@/lib/prisma-tenant";
@@ -47,16 +47,6 @@ export async function POST(request: Request) {
 
     limparFalhasLogin(ip, email);
 
-    await createMasterSession(
-      {
-        id: master.id,
-        name: master.nome,
-        email: master.email,
-        role: master.role,
-      },
-      { remember: body.remember === true }
-    );
-
     await runWithRlsBypass(() =>
       registrarLogMaster(master.id, "LOGIN_MASTER", {
         detalhes: `Login: ${master.email}`,
@@ -64,12 +54,18 @@ export async function POST(request: Request) {
       })
     );
 
-    return NextResponse.json({
+    const resposta = NextResponse.json({
       id: master.id,
       name: master.nome,
       email: master.email,
       role: master.role,
     });
+    return anexarCookieMasterSessao(resposta, {
+      id: master.id,
+      name: master.nome,
+      email: master.email,
+      role: master.role,
+    }, { remember: body.remember === true });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Dados inválidos." }, { status: 400 });

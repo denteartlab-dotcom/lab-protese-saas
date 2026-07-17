@@ -16,9 +16,16 @@ import {
 
 let tabelaHistoricoGarantida = false;
 
-/** Cria a tabela historico_etapas no PostgreSQL se ainda não existir (deploy sem db push). */
+/** Garante historico_etapas. Com lab_app, CREATE TABLE exige CREATE no schema — se a tabela já existe, só SELECT. */
 export async function garantirTabelaHistoricoEtapas() {
   if (tabelaHistoricoGarantida) return;
+  try {
+    await prisma.$queryRawUnsafe(`SELECT 1 FROM "historico_etapas" LIMIT 1`);
+    tabelaHistoricoGarantida = true;
+    return;
+  } catch {
+    /* tabela ausente ou sem SELECT — tenta DDL abaixo (owner / role com CREATE) */
+  }
   try {
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "historico_etapas" (
@@ -72,8 +79,15 @@ export async function garantirTabelaHistoricoEtapas() {
     );
     tabelaHistoricoGarantida = true;
   } catch (error) {
-    console.error("[historico-etapas] garantir tabela:", error);
-    throw error;
+    // lab_app sem CREATE: não derrubar login/TV se a tabela já for usável
+    try {
+      await prisma.$queryRawUnsafe(`SELECT 1 FROM "historico_etapas" LIMIT 1`);
+      tabelaHistoricoGarantida = true;
+      return;
+    } catch {
+      console.error("[historico-etapas] garantir tabela:", error);
+      throw error;
+    }
   }
 }
 

@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import type { NextResponse } from "next/server";
 import { sessaoCookieSecure } from "@/lib/cookie-secure";
 import {
   MASTER_COOKIE_NAME,
@@ -14,6 +15,16 @@ export {
   verifyMasterSessionToken,
 } from "@/lib/master-auth-token";
 
+function opcoesCookieMaster(maxAge: number) {
+  return {
+    httpOnly: true,
+    secure: sessaoCookieSecure(),
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge,
+  };
+}
+
 export async function createMasterSession(
   user: MasterSessionUser,
   options?: { remember?: boolean }
@@ -23,24 +34,30 @@ export async function createMasterSession(
   const token = await criarTokenMasterSessao(user, options);
 
   const cookieStore = await cookies();
-  cookieStore.set(MASTER_COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: sessaoCookieSecure(),
-    sameSite: "lax",
-    path: "/",
-    maxAge,
-  });
+  cookieStore.set(MASTER_COOKIE_NAME, token, opcoesCookieMaster(maxAge));
+}
+
+/** Preferível em Route Handlers: grava Set-Cookie na resposta HTTP. */
+export async function anexarCookieMasterSessao(
+  response: NextResponse,
+  user: MasterSessionUser,
+  options?: { remember?: boolean }
+) {
+  const dias = options?.remember ? 30 : 7;
+  const maxAge = 60 * 60 * 24 * dias;
+  const token = await criarTokenMasterSessao(user, options);
+  response.cookies.set(MASTER_COOKIE_NAME, token, opcoesCookieMaster(maxAge));
+  return response;
 }
 
 export async function destroyMasterSession() {
   const cookieStore = await cookies();
-  cookieStore.set(MASTER_COOKIE_NAME, "", {
-    httpOnly: true,
-    secure: sessaoCookieSecure(),
-    sameSite: "lax",
-    path: "/",
-    maxAge: 0,
-  });
+  cookieStore.set(MASTER_COOKIE_NAME, "", opcoesCookieMaster(0));
+}
+
+export async function anexarLimpezaCookieMasterSessao(response: NextResponse) {
+  response.cookies.set(MASTER_COOKIE_NAME, "", opcoesCookieMaster(0));
+  return response;
 }
 
 export async function getMasterSession(): Promise<MasterSessionUser | null> {
