@@ -6,8 +6,7 @@ import { registrarUltimoAcessoEmpresa } from "@/lib/empresa-ultimo-acesso";
 import { nomeExibicaoLaboratorio } from "@/lib/configuracoes-lab";
 import { configParaLabImpressao } from "@/lib/lab-logo";
 import type { LabImpressaoConfig } from "@/lib/lab-impressao";
-import { prismaBase } from "@/lib/prisma-base";
-import { runWithTenantContext } from "@/lib/prisma-tenant";
+import { prisma, runWithRlsBypass, runWithTenantContext } from "@/lib/prisma-tenant";
 import { normalizarPermissoesCompletas } from "@/lib/usuarios-menu-permissoes";
 import type { PermissaoCrud } from "@/lib/usuarios-sistema";
 import { parsePermissoesUsuario, usuarioEhProprietario } from "@/lib/usuarios-sistema";
@@ -33,36 +32,47 @@ export type ContextoAppServidor = {
   suporteWhatsapp: string | null;
 };
 
+async function carregarUsuarioApp(userId: string, empresaId: string) {
+  const consulta = () =>
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        role: true,
+        permissoesJson: true,
+        excluidoEm: true,
+        empresaId: true,
+        empresa: {
+          select: {
+            id: true,
+            nome: true,
+            slug: true,
+            status: true,
+            dataVencimento: true,
+          },
+        },
+      },
+    });
+
+  // Usar `prisma` (extensão RLS), NÃO prismaBase — senão lab_app não vê a linha.
+  let user = await runWithTenantContext(empresaId, consulta);
+  if (!user) {
+    user = await runWithRlsBypass(consulta);
+  }
+  return user;
+}
+
 export async function obterContextoAppServidor(): Promise<ContextoAppServidor | null> {
   const session = await getSession();
   if (!session?.empresaId || !session.empresaSlug) return null;
 
-  return runWithTenantContext(session.empresaId, async () => {
-    const [user, configLab] = await Promise.all([
-      prismaBase.user.findUnique({
-        where: { id: session.id },
-        select: {
-          role: true,
-          permissoesJson: true,
-          excluidoEm: true,
-          empresaId: true,
-          empresa: {
-            select: {
-              id: true,
-              nome: true,
-              slug: true,
-              status: true,
-              dataVencimento: true,
-            },
-          },
-        },
-      }),
-      carregarConfigLaboratorioServidor(session.empresaId),
-    ]);
+  try {
+    const user = await carregarUsuarioApp(session.id, session.empresaId);
+    if (!user || user.excluidoEm || !user.empresa) return null;
+    if (!empresaTemAcessoAssinatura(user.empresa)) return null;
 
-    if (!user || user.excluidoEm || !user.empresa || !empresaTemAcessoAssinatura(user.empresa)) {
-      return null;
-    }
+    const configLab = await runWithTenantContext(session.empresaId, () =>
+      carregarConfigLaboratorioServidor(session.empresaId)
+    );
 
     void registrarUltimoAcessoEmpresa(user.empresa.id);
 
@@ -74,7 +84,12 @@ export async function obterContextoAppServidor(): Promise<ContextoAppServidor | 
       user.role
     );
 
-    const isMasterAdmin = await emailEhMasterAdmin(session.email);
+    let isMasterAdmin = false;
+    try {
+      isMasterAdmin = await emailEhMasterAdmin(session.email);
+    } catch {
+      isMasterAdmin = false;
+    }
 
     return {
       user: {
@@ -96,5 +111,8 @@ export async function obterContextoAppServidor(): Promise<ContextoAppServidor | 
       isMasterAdmin,
       suporteWhatsapp: process.env.SUPPORT_WHATSAPP?.trim() || null,
     };
-  });
+  } catch (erro) {
+    console.error("[contexto-app-servidor]", erro);
+    return null;
+  }
 }

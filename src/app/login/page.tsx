@@ -26,17 +26,22 @@ export default async function LoginPage({ searchParams }: Props) {
   const params = await searchParams;
 
   if (session?.empresaId) {
-    /** Cookie antigo sem usuário no banco (ex.: pós-RLS) gerava loop login ↔ app. */
     const contexto = await obterEmpresaContexto({ persistirCookie: false });
-    if (!contexto) {
-      redirect("/api/auth/logout?redirect=/login");
+    if (contexto) {
+      const padrao = await obterDestinoPosLogin(session.empresaId);
+      let destino = padrao;
+      if (padrao.startsWith("/app") && params.redirect?.startsWith("/app")) {
+        destino = params.redirect;
+      }
+      redirect(destino);
     }
-    const padrao = await obterDestinoPosLogin(session.empresaId);
-    let destino = padrao;
-    if (padrao.startsWith("/app") && params.redirect?.startsWith("/app")) {
-      destino = params.redirect;
+
+    // Cookie JWT válido: NÃO fazer logout (isso apagava a sessão após /app falhar por RLS).
+    // Tenta entrar pelo slug do JWT; se não houver, mostra o formulário.
+    const slug = session.empresaSlug?.trim();
+    if (slug) {
+      redirect(`/app/${slug}`);
     }
-    redirect(destino);
   }
 
   const { brandingInicial, brandingLaboratorio, jaEntrou } =

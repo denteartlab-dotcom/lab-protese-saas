@@ -41,7 +41,8 @@ async function carregarUsuarioEmpresa(session: SessionUser) {
     });
 
   if (session.empresaId) {
-    return runWithTenantContext(session.empresaId, consulta);
+    const comTenant = await runWithTenantContext(session.empresaId, consulta);
+    if (comTenant) return comTenant;
   }
   return runWithRlsBypass(consulta);
 }
