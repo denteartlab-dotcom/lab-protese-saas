@@ -33,15 +33,13 @@ export default async function LoginPage({ searchParams }: Props) {
       if (padrao.startsWith("/app") && params.redirect?.startsWith("/app")) {
         destino = params.redirect;
       }
-      redirect(destino);
+      // "/login" aqui significa sem acesso — deixa o formulário aparecer (sem loop).
+      if (destino !== "/login") {
+        redirect(destino);
+      }
     }
-
-    // Cookie JWT válido: NÃO fazer logout (isso apagava a sessão após /app falhar por RLS).
-    // Tenta entrar pelo slug do JWT; se não houver, mostra o formulário.
-    const slug = session.empresaSlug?.trim();
-    if (slug) {
-      redirect(`/app/${slug}`);
-    }
+    // Sem contexto (ex.: assinatura vencida/RLS): mostra o formulário.
+    // NUNCA redirecionar para /app nem fazer logout aqui — isso criava loop infinito.
   }
 
   const { brandingInicial, brandingLaboratorio, jaEntrou } =
