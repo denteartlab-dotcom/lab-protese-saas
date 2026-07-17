@@ -407,12 +407,8 @@ export function ContaDigitalConteudo({
       setMensagem({ texto: avisoLimite, tipo: "erro" });
       return;
     }
-    if (subconta?.modoIntegracao === "subconta") {
-      setErroModalPix(null);
-      setModalPixSubconta(true);
-      return;
-    }
-    void transferirPix();
+    setErroModalPix(null);
+    setModalPixSubconta(true);
   }
 
   if (carregando) {

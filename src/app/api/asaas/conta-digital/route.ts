@@ -127,28 +127,29 @@ export async function POST(request: Request) {
 
       await validarLimitePixDiarioContaDigital(ctx.empresaId, valor);
 
+      const prop = await exigirProprietario();
+      if (prop.erro) return prop.erro;
+
+      const senha = body.senhaProprietario?.trim() || "";
+      if (!senha) {
+        return NextResponse.json(
+          { error: "Informe a senha de acesso para autorizar o Pix." },
+          { status: 400 }
+        );
+      }
+      const senhaOk = await verificarSenhaProprietario(prop.session.id, senha);
+      if (!senhaOk) {
+        return NextResponse.json(
+          { error: "Senha incorreta. Use a mesma senha do login." },
+          { status: 403 }
+        );
+      }
+
       const { modo } = await resolverContaDigitalOperacional(ctx.empresaId);
       let pendingId: string | undefined;
 
+      // Subconta: também registra autorização para o webhook de saque do Asaas.
       if (modo === "subconta") {
-        const prop = await exigirProprietario();
-        if (prop.erro) return prop.erro;
-
-        const senha = body.senhaProprietario?.trim() || "";
-        if (!senha) {
-          return NextResponse.json(
-            { error: "Informe a senha do proprietário para autorizar o Pix." },
-            { status: 400 }
-          );
-        }
-        const senhaOk = await verificarSenhaProprietario(prop.session.id, senha);
-        if (!senhaOk) {
-          return NextResponse.json(
-            { error: "Senha do proprietário incorreta." },
-            { status: 403 }
-          );
-        }
-
         pendingId = await criarAutorizacaoPixSubconta({
           empresaId: ctx.empresaId,
           usuarioId: prop.session.id,

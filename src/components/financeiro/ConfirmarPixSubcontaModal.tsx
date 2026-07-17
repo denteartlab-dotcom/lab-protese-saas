@@ -1,7 +1,6 @@
 "use client";
 
-import { I18nPortal } from "@/components/I18nPortal";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ShieldCheck, X } from "lucide-react";
 import { Button } from "@/components/ui";
 
@@ -35,6 +34,10 @@ export function ConfirmarPixSubcontaModal({
   onConfirmar,
 }: Props) {
   const [senha, setSenha] = useState("");
+
+  useEffect(() => {
+    if (!open) setSenha("");
+  }, [open]);
 
   if (!open) return null;
 
@@ -73,7 +76,7 @@ export function ConfirmarPixSubcontaModal({
                 Confirmar transferência Pix
               </h2>
               <p className="mt-1 text-[12px] text-slate-500">
-                Subcontas exigem a senha do proprietário antes de enviar ao Asaas.
+                Digite a mesma senha do login para autorizar o Pix.
               </p>
             </div>
           </div>
@@ -104,7 +107,7 @@ export function ConfirmarPixSubcontaModal({
               htmlFor="senha-proprietario-pix"
               className="mb-1 block text-[11px] font-medium text-slate-600"
             >
-              Senha do proprietário
+              Senha de acesso
             </label>
             <input
               id="senha-proprietario-pix"
@@ -112,8 +115,9 @@ export function ConfirmarPixSubcontaModal({
               autoComplete="current-password"
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
+              autoFocus
               className="h-9 w-full rounded border border-slate-300 px-2.5 text-[12px] outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]"
-              placeholder="Digite sua senha de acesso"
+              placeholder="Mesma senha usada no login"
               disabled={processando}
             />
           </div>
