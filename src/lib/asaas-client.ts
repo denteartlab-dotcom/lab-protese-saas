@@ -6,7 +6,7 @@ import {
   type AsaasConfig,
 } from "@/lib/asaas-config";
 import { fetchComTimeout } from "@/lib/http-integracao";
-import { prisma } from "@/lib/db";
+import { executarSemRls, prisma } from "@/lib/db";
 import { lerJsonStoreTenant, salvarJsonStoreTenant } from "@/lib/json-store-tenant";
 import { webhookAceitaSemSegredo } from "@/lib/webhook-seguranca";
 import { timingSafeEqual } from "crypto";
@@ -68,7 +68,10 @@ export async function salvarConfigAsaas(empresaId: string, config: AsaasConfig) 
   await salvarJsonStoreTenant(empresaId, ASAAS_CONFIG_KEY, config);
 }
 
-/** Tokens de webhook configurados (legado global + todos os tenants). */
+/**
+ * Tokens de webhook configurados (legado global + todos os tenants).
+ * Consulta cross-tenant para autenticar webhook anônimo — exige bypass RLS.
+ */
 export async function listarWebhookTokensAsaas(): Promise<string[]> {
   const tokens = new Set<string>();
 
@@ -78,9 +81,11 @@ export async function listarWebhookTokensAsaas(): Promise<string[]> {
   const tokenPlataforma = process.env["ASAAS_PLATAFORMA_WEBHOOK_TOKEN"]?.trim();
   if (tokenPlataforma) tokens.add(tokenPlataforma);
 
-  const legado = await prisma.jsonStore.findUnique({
-    where: { key: ASAAS_CONFIG_KEY },
-  });
+  const legado = await executarSemRls((tx) =>
+    tx.jsonStore.findUnique({
+      where: { key: ASAAS_CONFIG_KEY },
+    })
+  );
   if (legado?.payload) {
     try {
       const parsed = JSON.parse(legado.payload) as Partial<AsaasConfig>;
@@ -91,9 +96,11 @@ export async function listarWebhookTokensAsaas(): Promise<string[]> {
     }
   }
 
-  const tenants = await prisma.jsonStore.findMany({
-    where: { key: { endsWith: `:${ASAAS_CONFIG_KEY}` } },
-  });
+  const tenants = await executarSemRls((tx) =>
+    tx.jsonStore.findMany({
+      where: { key: { endsWith: `:${ASAAS_CONFIG_KEY}` } },
+    })
+  );
   for (const row of tenants) {
     try {
       const parsed = JSON.parse(row.payload) as Partial<AsaasConfig>;

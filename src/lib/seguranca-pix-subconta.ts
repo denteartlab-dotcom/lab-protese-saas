@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { executarSemRls } from "@/lib/db";
 
 const TTL_MS = 15 * 60 * 1000;
 const PREFIX_PENDENTE = "pixPendente:";
@@ -21,8 +21,13 @@ type MapaAsaasPix = {
   empresaId: string;
 };
 
+/**
+ * Registros de segurança do Pix são globais (sem prefixo t:<tenant>:) porque o
+ * webhook do Asaas os consulta sem sessão. A policy de RLS do JsonStore só
+ * libera chaves do tenant, então estas operações precisam de bypass explícito.
+ */
 async function lerJsonStoreGlobal<T>(key: string): Promise<T | null> {
-  const row = await prisma.jsonStore.findUnique({ where: { key } });
+  const row = await executarSemRls((tx) => tx.jsonStore.findUnique({ where: { key } }));
   if (!row?.payload) return null;
   try {
     return JSON.parse(row.payload) as T;
@@ -33,15 +38,17 @@ async function lerJsonStoreGlobal<T>(key: string): Promise<T | null> {
 
 async function gravarJsonStoreGlobal(key: string, valor: unknown) {
   const payload = JSON.stringify(valor);
-  await prisma.jsonStore.upsert({
-    where: { key },
-    create: { key, payload },
-    update: { payload },
-  });
+  await executarSemRls((tx) =>
+    tx.jsonStore.upsert({
+      where: { key },
+      create: { key, payload },
+      update: { payload },
+    })
+  );
 }
 
 async function excluirJsonStoreGlobal(key: string) {
-  await prisma.jsonStore.deleteMany({ where: { key } });
+  await executarSemRls((tx) => tx.jsonStore.deleteMany({ where: { key } }));
 }
 
 export async function criarAutorizacaoPixSubconta(params: {
@@ -157,10 +164,12 @@ export async function avaliarAutorizacaoSaqueAsaas(
 
 /** Remove registros antigos (best-effort). */
 export async function limparAutorizacoesPixExpiradas() {
-  const rows = await prisma.jsonStore.findMany({
-    where: { key: { startsWith: PREFIX_PENDENTE } },
-    select: { key: true, payload: true },
-  });
+  const rows = await executarSemRls((tx) =>
+    tx.jsonStore.findMany({
+      where: { key: { startsWith: PREFIX_PENDENTE } },
+      select: { key: true, payload: true },
+    })
+  );
   const agora = Date.now();
   for (const row of rows) {
     try {

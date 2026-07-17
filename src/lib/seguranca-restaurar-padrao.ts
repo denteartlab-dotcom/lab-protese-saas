@@ -1,5 +1,5 @@
 import { hashPassword, verifyPassword } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { executarSemRls, prisma } from "@/lib/db";
 
 export const JSON_KEY_PALAVRA_CHAVE_RESTAURAR = "labProtesePalavraChaveRestaurar";
 export const JSON_KEY_TENTATIVAS_SENHA_RESTAURAR = "labProteseTentativasSenhaRestaurar";
@@ -14,8 +14,9 @@ type PalavraChaveArmazenada = {
 
 type MapaTentativas = Record<string, { tentativas: number }>;
 
+// Chaves globais (sem prefixo t:<tenant>:) — RLS do JsonStore exige bypass explícito.
 async function lerJsonStore<T>(key: string): Promise<T | null> {
-  const row = await prisma.jsonStore.findUnique({ where: { key } });
+  const row = await executarSemRls((tx) => tx.jsonStore.findUnique({ where: { key } }));
   if (!row?.payload) return null;
   try {
     return JSON.parse(row.payload) as T;
@@ -26,11 +27,13 @@ async function lerJsonStore<T>(key: string): Promise<T | null> {
 
 async function gravarJsonStore(key: string, valor: unknown) {
   const payload = JSON.stringify(valor);
-  await prisma.jsonStore.upsert({
-    where: { key },
-    create: { key, payload },
-    update: { payload },
-  });
+  await executarSemRls((tx) =>
+    tx.jsonStore.upsert({
+      where: { key },
+      create: { key, payload },
+      update: { payload },
+    })
+  );
 }
 
 export async function obterPalavraChaveRestaurar() {

@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { executarSemRls } from "@/lib/db";
 
 const PREFIXO_CHAVE = "webhook:assinatura:";
 
@@ -6,13 +6,15 @@ function chaveJsonStore(chaveIdempotencia: string): string {
   return `${PREFIXO_CHAVE}${chaveIdempotencia}`;
 }
 
-/** Evento já processado com sucesso (issue 024). */
+/** Evento já processado com sucesso (issue 024). Chave global — bypass RLS. */
 export async function eventoWebhookAssinaturaJaProcessado(
   chaveIdempotencia: string
 ): Promise<boolean> {
-  const row = await prisma.jsonStore.findUnique({
-    where: { key: chaveJsonStore(chaveIdempotencia) },
-  });
+  const row = await executarSemRls((tx) =>
+    tx.jsonStore.findUnique({
+      where: { key: chaveJsonStore(chaveIdempotencia) },
+    })
+  );
   return Boolean(row);
 }
 
@@ -25,9 +27,11 @@ export async function marcarEventoWebhookAssinaturaProcessado(
     resultado: resultado ?? null,
   });
 
-  await prisma.jsonStore.upsert({
-    where: { key: chaveJsonStore(chaveIdempotencia) },
-    create: { key: chaveJsonStore(chaveIdempotencia), payload },
-    update: { payload },
-  });
+  await executarSemRls((tx) =>
+    tx.jsonStore.upsert({
+      where: { key: chaveJsonStore(chaveIdempotencia) },
+      create: { key: chaveJsonStore(chaveIdempotencia), payload },
+      update: { payload },
+    })
+  );
 }
