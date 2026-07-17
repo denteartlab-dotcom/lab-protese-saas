@@ -7,6 +7,7 @@ import { listarWebhookTokensAsaas, validarWebhookTokenAsaas } from "@/lib/asaas-
 import { contaMaeAsaasConfigurada } from "@/lib/asaas-conta-mae-config";
 import { APP_URL } from "@/lib/app-url";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { runWithRlsBypass } from "@/lib/db";
 
 const WEBHOOK_PATH = "/api/asaas/webhook";
 
@@ -46,7 +47,15 @@ export async function GET() {
   });
 }
 
+/**
+ * Endpoint anônimo autenticado por token: precisa de bypass RLS para enxergar
+ * tokens/cobranças de qualquer tenant (sem bypass o Pix não baixa a fatura).
+ */
 export async function POST(request: Request) {
+  return runWithRlsBypass(() => processarWebhookAsaas(request));
+}
+
+async function processarWebhookAsaas(request: Request) {
   const tokenRecebido =
     request.headers.get("asaas-access-token") ||
     request.headers.get("x-asaas-access-token") ||

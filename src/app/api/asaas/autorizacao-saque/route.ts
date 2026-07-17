@@ -3,6 +3,7 @@ import { validarWebhookTokenAsaas } from "@/lib/asaas-client";
 import { contaMaeAsaasConfigurada } from "@/lib/asaas-conta-mae-config";
 import { APP_URL } from "@/lib/app-url";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { runWithRlsBypass } from "@/lib/db";
 import {
   avaliarAutorizacaoSaqueAsaas,
   limparAutorizacoesPixExpiradas,
@@ -32,7 +33,12 @@ export async function GET() {
   });
 }
 
+/** Endpoint anônimo autenticado por token — bypass RLS (jsonStore global). */
 export async function POST(request: Request) {
+  return runWithRlsBypass(() => processarAutorizacaoSaque(request));
+}
+
+async function processarAutorizacaoSaque(request: Request) {
   const tokenRecebido =
     request.headers.get("asaas-access-token") ||
     request.headers.get("x-asaas-access-token") ||

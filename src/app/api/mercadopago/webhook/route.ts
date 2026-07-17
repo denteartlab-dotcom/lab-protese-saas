@@ -8,6 +8,7 @@ import {
   urlWebhookMercadoPagoPlataforma,
 } from "@/lib/mercadopago-plataforma-config";
 import { validarAssinaturaWebhookMercadoPago } from "@/lib/mercadopago-webhook-validacao";
+import { runWithRlsBypass } from "@/lib/db";
 
 type WebhookBody = {
   action?: string;
@@ -31,7 +32,12 @@ function extrairPaymentId(body: WebhookBody, url: URL): string {
   return "";
 }
 
+/** Endpoint anônimo autenticado por assinatura — bypass RLS para resolver cobranças. */
 export async function POST(request: Request) {
+  return runWithRlsBypass(() => processarWebhookMercadoPago(request));
+}
+
+async function processarWebhookMercadoPago(request: Request) {
   const url = new URL(request.url);
   let body: WebhookBody = {};
 
