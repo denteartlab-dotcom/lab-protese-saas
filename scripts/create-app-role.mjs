@@ -34,7 +34,9 @@ BEGIN
 END
 $$;
 
-GRANT USAGE ON SCHEMA public TO lab_app;
+-- USAGE: ler/escrever objetos. CREATE: CREATE TABLE IF NOT EXISTS em runtime
+-- (ex.: historico_etapas). Sem CREATE → "permission denied for schema public".
+GRANT USAGE, CREATE ON SCHEMA public TO lab_app;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO lab_app;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO lab_app;
