@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { PackageCheck, Search } from "lucide-react";
+import { MessageSquare, PackageCheck, Search } from "lucide-react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useI18n } from "@/components/i18n-provider";
 import {
@@ -48,6 +48,11 @@ export default function AcompanhamentoClientePage() {
   const [recebidoModalTrabalhoId, setRecebidoModalTrabalhoId] = useState<string | null>(null);
   const [nomeRecebedor, setNomeRecebedor] = useState("");
   const [recebidoEnviando, setRecebidoEnviando] = useState(false);
+  const [observacaoTrabalhoId, setObservacaoTrabalhoId] = useState<string | null>(null);
+  const [textoObservacao, setTextoObservacao] = useState("");
+  const [observacaoEnviando, setObservacaoEnviando] = useState(false);
+  const [observacaoMsg, setObservacaoMsg] = useState<string | null>(null);
+  const [observacaoErro, setObservacaoErro] = useState(false);
   const [busca, setBusca] = useState("");
   const [filtroSituacao, setFiltroSituacao] = useState("todos");
 
@@ -185,6 +190,45 @@ export default function AcompanhamentoClientePage() {
     }
   }, [token, recebidoModalTrabalhoId, nomeRecebedor, carregar]);
 
+  const enviarObservacao = useCallback(async () => {
+    if (!observacaoTrabalhoId) return;
+    const texto = textoObservacao.trim();
+    if (texto.length < 3) {
+      setObservacaoErro(true);
+      setObservacaoMsg(t("acompanhamento.erroObservacaoCurta"));
+      return;
+    }
+
+    setObservacaoEnviando(true);
+    setObservacaoMsg(null);
+    setObservacaoErro(false);
+    try {
+      const res = await fetch(`/api/clientes/public/${token}/observacao`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          trabalhoId: observacaoTrabalhoId,
+          texto,
+        }),
+      });
+      const json = (await res.json()) as { message?: string };
+      if (!res.ok) {
+        setObservacaoErro(true);
+        setObservacaoMsg(json.message || t("acompanhamento.erroObservacao"));
+        return;
+      }
+      setObservacaoErro(false);
+      setObservacaoMsg(json.message || t("acompanhamento.sucessoObservacao"));
+      setObservacaoTrabalhoId(null);
+      setTextoObservacao("");
+    } catch {
+      setObservacaoErro(true);
+      setObservacaoMsg(t("acompanhamento.erroObservacao"));
+    } finally {
+      setObservacaoEnviando(false);
+    }
+  }, [token, observacaoTrabalhoId, textoObservacao, t]);
+
   const opcoesSituacao = useMemo(
     () => (dados ? opcoesFiltroSituacaoAcompanhamento(dados.trabalhos) : []),
     [dados]
@@ -315,6 +359,18 @@ export default function AcompanhamentoClientePage() {
             )}
           >
             {urgenteMsg}
+          </p>
+        ) : null}
+        {observacaoMsg ? (
+          <p
+            className={cn(
+              "rounded-lg border px-4 py-2 text-[12px]",
+              observacaoErro
+                ? "border-red-200 bg-red-50 text-red-800"
+                : "border-emerald-200 bg-emerald-50 text-emerald-800"
+            )}
+          >
+            {observacaoMsg}
           </p>
         ) : null}
         {dados.trabalhos.length > 0 ? (
@@ -478,11 +534,25 @@ export default function AcompanhamentoClientePage() {
                 </p>
               )}
 
-              <div className="relative border-t border-slate-100 px-4 py-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-4 py-2">
                 <p className="text-[10px] text-slate-400">
                   {t("acompanhamento.ultimaAlteracao", { data: formatarDataHora(trabalho.atualizadoEm) })}
                 </p>
-                <div className="absolute bottom-2 right-3 flex flex-wrap items-center justify-end gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setObservacaoTrabalhoId(trabalho.id);
+                      setTextoObservacao("");
+                      setObservacaoMsg(null);
+                      setObservacaoErro(false);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-full border border-blue-300 bg-blue-50 px-3 py-1.5 text-[11px] font-semibold text-blue-800 shadow-sm transition hover:bg-blue-100"
+                    title={t("acompanhamento.observacaoTitulo")}
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    {t("acompanhamento.observacaoBotao")}
+                  </button>
                   {trabalho.podeConfirmarRecebido ? (
                     <button
                       type="button"
@@ -530,6 +600,60 @@ export default function AcompanhamentoClientePage() {
           </div>
         </div>
       </main>
+
+      <Modal
+        open={observacaoTrabalhoId !== null}
+        onClose={() => {
+          if (observacaoEnviando) return;
+          setObservacaoTrabalhoId(null);
+          setTextoObservacao("");
+        }}
+        title={t("acompanhamento.observacaoModalTitulo")}
+        size="sm"
+      >
+        <p className="mb-4 text-sm text-slate-600">
+          {t("acompanhamento.observacaoModalTexto")}
+        </p>
+        <label className="block text-xs font-medium text-slate-700">
+          {t("acompanhamento.observacaoLabel")}
+          <textarea
+            value={textoObservacao}
+            onChange={(e) => setTextoObservacao(e.target.value)}
+            placeholder={t("acompanhamento.observacaoPlaceholder")}
+            maxLength={1000}
+            rows={6}
+            autoFocus
+            className="mt-1 w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+            disabled={observacaoEnviando}
+          />
+        </label>
+        <p className="mt-1 text-right text-[11px] text-slate-400">
+          {textoObservacao.length}/1000
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            disabled={observacaoEnviando}
+            onClick={() => {
+              setObservacaoTrabalhoId(null);
+              setTextoObservacao("");
+            }}
+            className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+          >
+            {t("cadastros.comum.cancelar")}
+          </button>
+          <button
+            type="button"
+            disabled={observacaoEnviando || textoObservacao.trim().length < 3}
+            onClick={() => void enviarObservacao()}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+          >
+            {observacaoEnviando
+              ? t("acompanhamento.enviando")
+              : t("acompanhamento.observacaoEnviar")}
+          </button>
+        </div>
+      </Modal>
 
       <Modal
         open={recebidoModalTrabalhoId !== null}

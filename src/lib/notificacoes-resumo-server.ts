@@ -41,6 +41,7 @@ import {
   montarUrgentesClienteDashboard,
   podarEventosUrgenciaInativos,
 } from "@/lib/urgencia-cliente";
+import { carregarStoreObservacoesCliente } from "@/lib/observacao-cliente-trabalho";
 import { calcularResumoEstoqueDashboardServer } from "@/lib/dashboard-estoque-server";
 
 function vencimentoBr(data: Date) {
@@ -64,6 +65,7 @@ export type NotificacaoApi = {
     | "servico_vencendo"
     | "servico_atrasado"
     | "urgente_cliente"
+    | "observacao_cliente"
     | "boleto_vencido"
     | "boleto_vencendo";
   href: string;
@@ -359,6 +361,30 @@ export async function montarNotificacoesEmpresa(empresaId: string) {
       criadoEm: u.criadoEm,
     });
   }
+
+  const storeObservacoes = await carregarStoreObservacoesCliente(empresaId);
+  const notificacoesObservacoes: NotificacaoApi[] = storeObservacoes.eventos
+    .slice()
+    .sort((a, b) => b.criadoEm.localeCompare(a.criadoEm))
+    .slice(0, 50)
+    .map((evento) => ({
+      id: `observacao-cliente-${evento.id}`,
+      kind: "observacao_cliente",
+      href: hrefOsEditar(evento.trabalhoId),
+      params: {
+        numeroOs: evento.numeroOs,
+        cliente: evento.clienteNome,
+        paciente: evento.pacienteNome,
+        servico: evento.tipoProtese,
+        texto:
+          evento.texto.length > 240
+            ? `${evento.texto.slice(0, 237)}...`
+            : evento.texto,
+      },
+      criadoEm: evento.criadoEm,
+    }));
+  // Observações enviadas pelo cliente precisam aparecer primeiro no sino.
+  lista.unshift(...notificacoesObservacoes);
 
   const unicos = new Map<string, NotificacaoApi>();
   for (const n of lista) {

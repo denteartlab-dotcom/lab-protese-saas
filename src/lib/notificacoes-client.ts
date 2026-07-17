@@ -31,6 +31,7 @@ const TITULO_POR_KIND: Partial<Record<MessageKey, MessageKey>> = {
   "notif.servico_vencendo": "notif.titulo.servico_vencendo",
   "notif.servico_atrasado": "notif.titulo.servico_atrasado",
   "notif.urgente_cliente": "notif.titulo.urgente_cliente",
+  "notif.observacao_cliente": "notif.titulo.observacao_cliente",
   "notif.anotacao_lembrete": "notif.titulo.anotacao_lembrete",
 };
 
@@ -121,6 +122,7 @@ export function mapApiNotificacao(n: NotificacaoApi): NotificacaoUi {
     servico_vencendo: "notif.servico_vencendo",
     servico_atrasado: "notif.servico_atrasado",
     urgente_cliente: "notif.urgente_cliente",
+    observacao_cliente: "notif.observacao_cliente",
   };
   const kind = kindMap[n.kind];
   return {

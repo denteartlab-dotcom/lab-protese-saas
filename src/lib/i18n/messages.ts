@@ -761,6 +761,7 @@ export const messages = {
     "notif.titulo.servico_vencendo": "Serviço vencendo",
     "notif.titulo.servico_atrasado": "Serviço atrasado",
     "notif.titulo.urgente_cliente": "Urgência do cliente",
+    "notif.titulo.observacao_cliente": "Observação do cliente",
     "notif.titulo.anotacao_lembrete": "Lembrete",
     "notif.titulo.geral": "Aviso",
     "notif.estoque_zerado": "Produto \"{produto}\" está com estoque zerado.",
@@ -780,6 +781,8 @@ export const messages = {
     "notif.servico_atrasado": "OS {numeroOs} atrasada desde {prazo}: {servico} (Paciente: {paciente}).",
     "notif.urgente_cliente":
       "{cliente} sinalizou OS {numeroOs} como urgente: {servico} (Paciente: {paciente}).",
+    "notif.observacao_cliente":
+      "{cliente} adicionou uma observação na OS {numeroOs} — {servico} (Paciente: {paciente}): “{texto}”",
     "notif.anotacao_lembrete": "{texto}",
     ...messagesProducaoPt,
     ...messagesProducaoSubPt,
@@ -1511,6 +1514,7 @@ export const messages = {
     "notif.titulo.servico_vencendo": "Service due soon",
     "notif.titulo.servico_atrasado": "Overdue service",
     "notif.titulo.urgente_cliente": "Client urgent request",
+    "notif.titulo.observacao_cliente": "Client note",
     "notif.titulo.anotacao_lembrete": "Reminder",
     "notif.titulo.geral": "Alert",
     "notif.estoque_zerado": "Product \"{produto}\" is out of stock.",
@@ -1530,6 +1534,8 @@ export const messages = {
     "notif.servico_atrasado": "WO {numeroOs} overdue since {prazo}: {servico} (Patient: {paciente}).",
     "notif.urgente_cliente":
       "{cliente} marked WO {numeroOs} as urgent: {servico} (Patient: {paciente}).",
+    "notif.observacao_cliente":
+      "{cliente} added a note to WO {numeroOs} — {servico} (Patient: {paciente}): “{texto}”",
     "notif.anotacao_lembrete": "{texto}",
     ...messagesProducaoEn,
     ...messagesProducaoSubEn,
@@ -2262,6 +2268,7 @@ export const messages = {
     "notif.titulo.servico_vencendo": "Servicio por vencer",
     "notif.titulo.servico_atrasado": "Servicio atrasado",
     "notif.titulo.urgente_cliente": "Urgencia del cliente",
+    "notif.titulo.observacao_cliente": "Observación del cliente",
     "notif.titulo.anotacao_lembrete": "Recordatorio",
     "notif.titulo.geral": "Aviso",
     "notif.estoque_zerado": "Producto \"{produto}\" sin stock.",
@@ -2281,6 +2288,8 @@ export const messages = {
     "notif.servico_atrasado": "OS {numeroOs} atrasada desde {prazo}: {servico} (Paciente: {paciente}).",
     "notif.urgente_cliente":
       "{cliente} señaló OS {numeroOs} como urgente: {servico} (Paciente: {paciente}).",
+    "notif.observacao_cliente":
+      "{cliente} agregó una observación en la OS {numeroOs} — {servico} (Paciente: {paciente}): “{texto}”",
     "notif.anotacao_lembrete": "{texto}",
     ...messagesProducaoEs,
     ...messagesProducaoSubEs,
