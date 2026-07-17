@@ -22,6 +22,7 @@ import {
 import { CampoDataBr } from "@/components/ui";
 import { SelectPesquisavel } from "@/components/SelectPesquisavel";
 import { EntidadeDespesaSelect } from "@/components/financeiro/EntidadeDespesaSelect";
+import { SelectFormaRecebimentoAsaas } from "@/components/financeiro/SelectFormaRecebimentoAsaas";
 import { FORNECEDORES_ATUALIZADO_EVENT } from "@/lib/fornecedores-cadastro";
 import { dateToBrShort, somarDiasBr } from "@/lib/datas-br";
 import { parseNotaFiscalArquivo } from "@/lib/nfe-import";
@@ -152,6 +153,8 @@ type Props = {
   conciliacaoInicial?: ConciliacaoInicial | null;
   contasBancarias?: { nome: string }[];
   overlayZIndex?: number;
+  /** Libera Pix/Boleto Asaas quando a conta digital estiver ativa. */
+  pixAsaasDisponivel?: boolean;
 };
 
 const cfgModo = {
@@ -196,6 +199,7 @@ export function LancarReceitaModal({
   conciliacaoInicial = null,
   contasBancarias = [],
   overlayZIndex = 9999,
+  pixAsaasDisponivel = false,
 }: Props) {
   const ehConciliacao = variante === "conciliacao-smart";
   const cfg = cfgModo[modo];
@@ -1033,20 +1037,15 @@ export function LancarReceitaModal({
                     <label className={labelClass}>
                       {modo === "receita" ? "Forma Recebimento" : "Forma Pagamento"}
                     </label>
-                    <select
+                    <SelectFormaRecebimentoAsaas
+                      variante="simples"
                       value={parcelas[0]?.formaPagamento || ""}
-                      onChange={(e) =>
-                        atualizarParcela(0, { formaPagamento: e.target.value })
-                      }
+                      asaasDisponivel={pixAsaasDisponivel}
                       className={selectClass}
-                    >
-                      <option value="">Forma Pagamento</option>
-                      <option value="Pix">Pix</option>
-                      <option value="Dinheiro">Dinheiro</option>
-                      <option value="Cartão">Cartão</option>
-                      <option value="Boleto">Boleto</option>
-                      <option value="Transferência">Transferência</option>
-                    </select>
+                      onChange={(formaPagamento) =>
+                        atualizarParcela(0, { formaPagamento })
+                      }
+                    />
                   </div>
                   <div className="col-span-5 md:col-span-2">
                     <label className={labelClass}>Conta</label>
@@ -1593,22 +1592,15 @@ export function LancarReceitaModal({
                       />
                     </td>
                     <td className="px-2 py-1.5">
-                      <select
+                      <SelectFormaRecebimentoAsaas
+                        variante="simples"
                         value={parcela.formaPagamento}
-                        onChange={(e) =>
-                          atualizarParcela(index, {
-                            formaPagamento: e.target.value,
-                          })
-                        }
+                        asaasDisponivel={pixAsaasDisponivel}
                         className={selectClass}
-                      >
-                        <option value="">Selecione</option>
-                        <option value="Pix">Pix</option>
-                        <option value="Dinheiro">Dinheiro</option>
-                        <option value="Cartão">Cartão</option>
-                        <option value="Boleto">Boleto</option>
-                        <option value="Transferência">Transferência</option>
-                      </select>
+                        onChange={(formaPagamento) =>
+                          atualizarParcela(index, { formaPagamento })
+                        }
+                      />
                     </td>
                     <td className="px-2 py-1.5">
                       <select

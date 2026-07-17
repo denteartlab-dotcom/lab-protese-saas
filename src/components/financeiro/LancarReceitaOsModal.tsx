@@ -15,10 +15,10 @@ import {
   contasAnaliticasPlano,
   PLANO_CONTAS_ATUALIZADO_EVENT,
 } from "@/lib/plano-contas";
-import {
-  AnexosReciboCampo,
+import { AnexosReciboCampo,
   type AnexosReciboCampoRef,
 } from "@/components/financeiro/AnexosReciboCampo";
+import { SelectFormaRecebimentoAsaas } from "@/components/financeiro/SelectFormaRecebimentoAsaas";
 import type { AnexoDespesa } from "@/lib/lancamento-despesa";
 import { cn, STATUS_TRABALHO } from "@/lib/utils";
 import { useEntradaLeitorCodigo } from "@/hooks/use-entrada-leitor-codigo-barras";
@@ -291,6 +291,19 @@ export function LancarReceitaOsModal({
     setAlterarEntregue(config.faturasAlterarSituacaoEntregue);
     setEnviarControleEntrega(config.faturasAdicionarControleEntregas);
   }
+
+  useEffect(() => {
+    if (!open || pixAsaasDisponivel) return;
+    setParcelas((lista) =>
+      lista.map((p) => {
+        const f = (p.formaPagamento || "").trim().toLowerCase();
+        if (f === "pix" || f.includes("boleto")) {
+          return { ...p, formaPagamento: "Forma Pagamento" };
+        }
+        return p;
+      })
+    );
+  }, [open, pixAsaasDisponivel, setParcelas]);
 
   useEffect(() => {
     if (!open) return;
@@ -775,6 +788,13 @@ export function LancarReceitaOsModal({
             </p>
           ) : null}
 
+          {!pixAsaasDisponivel ? (
+            <p className="mb-3 rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-center text-[11px] text-slate-600">
+              <strong>Pix</strong> e <strong>Boleto Bancário</strong> ficam disponíveis após
+              criar a conta digital Asaas (subconta) em Conta Bancária.
+            </p>
+          ) : null}
+
           {pixAsaasDisponivel &&
           parcelas.some((p) => (p.formaPagamento || "").trim().toLowerCase() === "pix") ? (
             <p className="mb-3 rounded-sm border border-sky-200 bg-sky-50 px-3 py-2 text-center text-[11px] text-sky-900">
@@ -856,22 +876,14 @@ export function LancarReceitaOsModal({
                         />
                       </td>
                       <td className="px-1 py-1">
-                        <select
+                        <SelectFormaRecebimentoAsaas
                           value={p.formaPagamento}
-                          onChange={(e) =>
-                            atualizarParcela(index, { formaPagamento: e.target.value })
-                          }
+                          asaasDisponivel={pixAsaasDisponivel}
                           className={cn(fieldClass, "h-8")}
-                        >
-                          <option>Forma Pagamento</option>
-                          <option>Dinheiro</option>
-                          {pixAsaasDisponivel ? <option>Pix</option> : null}
-                          <option>Pix Externo</option>
-                          <option>Cartão de Crédito</option>
-                          <option>Cartão de Débito</option>
-                          <option>Boleto Bancário</option>
-                          <option>Transferência Bancária</option>
-                        </select>
+                          onChange={(formaPagamento) =>
+                            atualizarParcela(index, { formaPagamento })
+                          }
+                        />
                       </td>
                       <td className="px-1 py-1">
                         <select

@@ -3094,18 +3094,36 @@ function FinanceiroReceberConteudo() {
                   <Select
                     label="Forma Recebimento"
                     value={formEdicaoFatura.formaPagamento}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      if (
+                        !pixAsaasDisponivel &&
+                        (next.trim().toLowerCase() === "pix" ||
+                          next.toLowerCase().includes("boleto"))
+                      ) {
+                        return;
+                      }
                       setFormEdicaoFatura((current) => ({
                         ...current,
-                        formaPagamento: e.target.value,
-                      }))
-                    }
+                        formaPagamento: next,
+                      }));
+                    }}
                     className="h-8 rounded border-slate-300 text-[11px]"
+                    title={
+                      pixAsaasDisponivel
+                        ? undefined
+                        : "Pix e Boleto liberam após criar a conta digital Asaas."
+                    }
                   >
                     <option>Pix Externo</option>
                     <option>Dinheiro</option>
                     <option>Cartão</option>
-                    <option>Boleto</option>
+                    <option disabled={!pixAsaasDisponivel} style={!pixAsaasDisponivel ? { color: "#c0c4cc" } : undefined}>
+                      {pixAsaasDisponivel ? "Pix" : "Pix (conta digital)"}
+                    </option>
+                    <option disabled={!pixAsaasDisponivel} style={!pixAsaasDisponivel ? { color: "#c0c4cc" } : undefined}>
+                      {pixAsaasDisponivel ? "Boleto" : "Boleto (conta digital)"}
+                    </option>
                   </Select>
                   <Select label="Conta" value="Caixa Principal" onChange={() => undefined} className="h-8 rounded border-slate-300 text-[11px]">
                     <option>Caixa Principal</option>
