@@ -43,9 +43,14 @@ async function aguardarSessaoConfirmada(): Promise<boolean> {
 }
 
 async function entrarNoApp(destino: string) {
-  // Se /me falhar (ex.: 301 apex↔www no nginx), ainda entra — cookie Domain=.denteartlab.com.br.
-  await aguardarSessaoConfirmada();
-  window.location.assign(destino);
+  const sessaoOk = await aguardarSessaoConfirmada();
+  const path = destino.startsWith("/") ? destino : `/${destino}`;
+  // Sempre no MESMO host da página (evita 301 apex↔www roubar o cookie).
+  const url = `${window.location.origin}${path}`;
+  if (!sessaoOk) {
+    throw new Error("SESSAO_NAO_CONFIRMADA");
+  }
+  window.location.assign(url);
 }
 export type LoginBranding = {
   lab: LabImpressaoConfig;
@@ -402,10 +407,14 @@ export function LoginForm({
     } catch (erro) {
       const abortado =
         erro instanceof DOMException && erro.name === "AbortError";
+      const sessaoFalhou =
+        erro instanceof Error && erro.message === "SESSAO_NAO_CONFIRMADA";
       setError(
-        abortado
-          ? "O servidor demorou demais para responder. Aguarde e tente de novo."
-          : "Não foi possível conectar ao servidor. Recarregue a página (Ctrl+Shift+R) e tente de novo."
+        sessaoFalhou
+          ? "Login ok, mas o cookie não ficou neste domínio (nginx redireciona apex↔www). Use https://www.denteartlab.com.br/login ou corrija o nginx sem 301 entre os hosts."
+          : abortado
+            ? "O servidor demorou demais para responder. Aguarde e tente de novo."
+            : "Não foi possível conectar ao servidor. Recarregue a página (Ctrl+Shift+R) e tente de novo."
       );
     } finally {
       window.clearTimeout(avisoLento);
