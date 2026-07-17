@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "crypto";
 import { hashPassword } from "@/lib/auth";
 import { enviarEmailResend } from "@/lib/email-resend";
-import { prisma } from "@/lib/db";
+import { executarSemRls } from "@/lib/db";
 import { urlPublicaApp } from "@/lib/url-publica-app";
 
 const VALIDADE_HORAS = 1;
@@ -22,6 +22,7 @@ function escapeHtml(texto: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/** Fluxo público — User/PasswordResetToken sob RLS exigem bypass. */
 export async function solicitarRecuperacaoSenha(emailBruto: string): Promise<{
   enviado: boolean;
   erroInterno?: string;
@@ -29,15 +30,17 @@ export async function solicitarRecuperacaoSenha(emailBruto: string): Promise<{
   const email = emailBruto.trim().toLowerCase();
   if (!email) return { enviado: true };
 
-  const usuarios = await prisma.user.findMany({
-    where: { email, excluidoEm: null },
-    select: {
-      id: true,
-      name: true,
-      empresa: { select: { nome: true, slug: true } },
-    },
-    orderBy: { createdAt: "asc" },
-  });
+  const usuarios = await executarSemRls((tx) =>
+    tx.user.findMany({
+      where: { email, excluidoEm: null },
+      select: {
+        id: true,
+        name: true,
+        empresa: { select: { nome: true, slug: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    })
+  );
 
   if (usuarios.length === 0) {
     return { enviado: true };
@@ -51,16 +54,17 @@ export async function solicitarRecuperacaoSenha(emailBruto: string): Promise<{
     const token = gerarTokenRecuperacao();
     const tokenHash = hashTokenRecuperacao(token);
 
-    await prisma.passwordResetToken.deleteMany({
-      where: { userId: usuario.id, usedAt: null },
-    });
-
-    await prisma.passwordResetToken.create({
-      data: {
-        userId: usuario.id,
-        tokenHash,
-        expiresAt: expiraEm,
-      },
+    await executarSemRls(async (tx) => {
+      await tx.passwordResetToken.deleteMany({
+        where: { userId: usuario.id, usedAt: null },
+      });
+      await tx.passwordResetToken.create({
+        data: {
+          userId: usuario.id,
+          tokenHash,
+          expiresAt: expiraEm,
+        },
+      });
     });
 
     const lab = usuario.empresa?.nome?.trim() || "Laboratório";
@@ -114,14 +118,16 @@ export async function redefinirSenhaComToken(
   }
 
   const tokenHash = hashTokenRecuperacao(token);
-  const registro = await prisma.passwordResetToken.findUnique({
-    where: { tokenHash },
-    include: {
-      user: {
-        select: { id: true, excluidoEm: true },
+  const registro = await executarSemRls((tx) =>
+    tx.passwordResetToken.findUnique({
+      where: { tokenHash },
+      include: {
+        user: {
+          select: { id: true, excluidoEm: true },
+        },
       },
-    },
-  });
+    })
+  );
 
   if (!registro || registro.usedAt || registro.user.excluidoEm) {
     return { ok: false, erro: "Link inválido ou expirado." };
@@ -131,19 +137,20 @@ export async function redefinirSenhaComToken(
     return { ok: false, erro: "Link expirado. Solicite um novo e-mail." };
   }
 
-  await prisma.$transaction([
-    prisma.user.update({
+  const senhaHash = await hashPassword(novaSenha);
+  await executarSemRls(async (tx) => {
+    await tx.user.update({
       where: { id: registro.userId },
-      data: { password: await hashPassword(novaSenha) },
-    }),
-    prisma.passwordResetToken.update({
+      data: { password: senhaHash },
+    });
+    await tx.passwordResetToken.update({
       where: { id: registro.id },
       data: { usedAt: new Date() },
-    }),
-    prisma.passwordResetToken.deleteMany({
+    });
+    await tx.passwordResetToken.deleteMany({
       where: { userId: registro.userId, usedAt: null },
-    }),
-  ]);
+    });
+  });
 
   return { ok: true };
 }

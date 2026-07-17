@@ -1,6 +1,6 @@
 import { createHash, randomInt } from "crypto";
 import { enviarEmailResend } from "@/lib/email-resend";
-import { prisma } from "@/lib/db";
+import { executarSemRls } from "@/lib/db";
 
 const VALIDADE_MINUTOS = 10;
 const INTERVALO_REENVIO_MS = 60_000;
@@ -21,15 +21,18 @@ function escapeHtml(texto: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/** Cadastro público: User/Master/CadastroVerificacaoEmail exigem bypass RLS. */
 async function emailJaCadastrado(email: string): Promise<boolean> {
-  const usuario = await prisma.user.findFirst({
-    where: { email, excluidoEm: null },
-    select: { id: true },
-  });
-  if (usuario) return true;
+  return executarSemRls(async (tx) => {
+    const usuario = await tx.user.findFirst({
+      where: { email, excluidoEm: null },
+      select: { id: true },
+    });
+    if (usuario) return true;
 
-  const master = await prisma.masterUser.findUnique({ where: { email } });
-  return Boolean(master);
+    const master = await tx.masterUser.findUnique({ where: { email } });
+    return Boolean(master);
+  });
 }
 
 export async function enviarCodigoVerificacaoCadastro(emailBruto: string): Promise<{
@@ -49,10 +52,12 @@ export async function enviarCodigoVerificacaoCadastro(emailBruto: string): Promi
     };
   }
 
-  const ultimo = await prisma.cadastroVerificacaoEmail.findFirst({
-    where: { email, usedAt: null },
-    orderBy: { createdAt: "desc" },
-  });
+  const ultimo = await executarSemRls((tx) =>
+    tx.cadastroVerificacaoEmail.findFirst({
+      where: { email, usedAt: null },
+      orderBy: { createdAt: "desc" },
+    })
+  );
 
   if (ultimo) {
     const decorrido = Date.now() - ultimo.createdAt.getTime();
@@ -70,16 +75,17 @@ export async function enviarCodigoVerificacaoCadastro(emailBruto: string): Promi
   const codigoHash = hashCodigoVerificacao(email, codigo);
   const expiraEm = new Date(Date.now() + VALIDADE_MINUTOS * 60 * 1000);
 
-  await prisma.cadastroVerificacaoEmail.deleteMany({
-    where: { email, usedAt: null },
-  });
-
-  await prisma.cadastroVerificacaoEmail.create({
-    data: {
-      email,
-      codigoHash,
-      expiresAt: expiraEm,
-    },
+  await executarSemRls(async (tx) => {
+    await tx.cadastroVerificacaoEmail.deleteMany({
+      where: { email, usedAt: null },
+    });
+    await tx.cadastroVerificacaoEmail.create({
+      data: {
+        email,
+        codigoHash,
+        expiresAt: expiraEm,
+      },
+    });
   });
 
   const html = `
@@ -100,9 +106,11 @@ export async function enviarCodigoVerificacaoCadastro(emailBruto: string): Promi
   });
 
   if (!resultado.ok) {
-    await prisma.cadastroVerificacaoEmail.deleteMany({
-      where: { email, codigoHash },
-    });
+    await executarSemRls((tx) =>
+      tx.cadastroVerificacaoEmail.deleteMany({
+        where: { email, codigoHash },
+      })
+    );
     return { enviado: false, erro: resultado.erro || "Não foi possível enviar o e-mail." };
   }
 
@@ -120,10 +128,12 @@ export async function validarCodigoVerificacaoCadastro(
     return { ok: false, erro: "Informe o código de 6 dígitos enviado por e-mail." };
   }
 
-  const registro = await prisma.cadastroVerificacaoEmail.findFirst({
-    where: { email, usedAt: null },
-    orderBy: { createdAt: "desc" },
-  });
+  const registro = await executarSemRls((tx) =>
+    tx.cadastroVerificacaoEmail.findFirst({
+      where: { email, usedAt: null },
+      orderBy: { createdAt: "desc" },
+    })
+  );
 
   if (!registro) {
     return { ok: false, erro: "Código não encontrado. Solicite um novo código." };
@@ -142,8 +152,10 @@ export async function validarCodigoVerificacaoCadastro(
 }
 
 export async function marcarCodigoVerificacaoUsado(registroId: string): Promise<void> {
-  await prisma.cadastroVerificacaoEmail.update({
-    where: { id: registroId },
-    data: { usedAt: new Date() },
-  });
+  await executarSemRls((tx) =>
+    tx.cadastroVerificacaoEmail.update({
+      where: { id: registroId },
+      data: { usedAt: new Date() },
+    })
+  );
 }

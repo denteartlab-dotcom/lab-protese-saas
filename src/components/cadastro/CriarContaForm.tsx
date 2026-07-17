@@ -82,11 +82,17 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
-      const data = (await res.json()) as {
+      let data: {
         error?: string;
         message?: string;
         aguardarSegundos?: number;
-      };
+      } = {};
+      try {
+        data = (await res.json()) as typeof data;
+      } catch {
+        setError(t("cadastro.erroEnviarCodigo"));
+        return;
+      }
       if (!res.ok) {
         setError(data.error || t("cadastro.erroEnviarCodigo"));
         return;
