@@ -6,6 +6,7 @@ import {
   salvarBootstrapCache,
 } from "@/lib/bootstrap-cache";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { runWithTenantContext } from "@/lib/prisma-tenant";
 import {
   bootstrapJsonStoreTenant,
   type FaseBootstrapJsonStore,
@@ -35,7 +36,9 @@ export async function GET(request: Request) {
     }
 
     const data = await Promise.race([
-      bootstrapJsonStoreTenant(ctx.empresaId, fase),
+      runWithTenantContext(ctx.empresaId, () =>
+        bootstrapJsonStoreTenant(ctx.empresaId, fase)
+      ),
       new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error("BOOTSTRAP_TIMEOUT")), TIMEOUT_BOOTSTRAP_SERVIDOR_MS);
       }),

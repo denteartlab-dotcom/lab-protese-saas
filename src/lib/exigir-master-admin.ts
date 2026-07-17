@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma, runWithRlsBypass } from "@/lib/prisma-tenant";
+import { executarSemRls } from "@/lib/prisma-tenant";
 import { getMasterSession } from "@/lib/master-auth";
 
 export async function exigirMasterAdmin() {
@@ -8,8 +8,8 @@ export async function exigirMasterAdmin() {
     throw new Error("UNAUTHORIZED");
   }
 
-  const master = await runWithRlsBypass(() =>
-    prisma.masterUser.findUnique({
+  const master = await executarSemRls((tx) =>
+    tx.masterUser.findUnique({
       where: { id: session.id },
       select: { id: true, nome: true, email: true, role: true, ativo: true },
     })
@@ -28,8 +28,8 @@ export function respostaNaoAutorizadoMaster() {
 
 export async function emailEhMasterAdmin(email: string): Promise<boolean> {
   const normalizado = email.trim().toLowerCase();
-  const master = await runWithRlsBypass(() =>
-    prisma.masterUser.findUnique({
+  const master = await executarSemRls((tx) =>
+    tx.masterUser.findUnique({
       where: { email: normalizado },
       select: { ativo: true, role: true },
     })

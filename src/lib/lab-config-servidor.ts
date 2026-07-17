@@ -7,7 +7,7 @@ import {
 import { normalizarConfigLaboratorio } from "@/lib/configuracoes-lab-parse";
 import { garantirNomeLaboratorioParaImpressao } from "@/lib/lab-nome-exibicao";
 import { lerJsonStoreTenant } from "@/lib/json-store-tenant";
-import { prisma } from "@/lib/db";
+import { prisma, runWithTenantContext } from "@/lib/db";
 import { cache } from "react";
 
 function configLaboratorioPadrao(): ConfigLaboratorio {
@@ -36,13 +36,16 @@ export const carregarConfigLaboratorioServidor = cache(
   }
 
   try {
-    const [parsed, empresa] = await Promise.all([
-      lerJsonStoreTenant<Partial<ConfigLaboratorio>>(empresaId, CONFIG_LAB_STORAGE_KEY),
-      prisma.empresa.findUnique({
-        where: { id: empresaId },
-        select: { nome: true },
-      }),
-    ]);
+    // Garante tenant no Postgres (lab_app + RLS) mesmo quando o chamador esqueceu.
+    const [parsed, empresa] = await runWithTenantContext(empresaId, () =>
+      Promise.all([
+        lerJsonStoreTenant<Partial<ConfigLaboratorio>>(empresaId, CONFIG_LAB_STORAGE_KEY),
+        prisma.empresa.findUnique({
+          where: { id: empresaId },
+          select: { nome: true },
+        }),
+      ])
+    );
     if (parsed) {
       const config = normalizarConfigLaboratorio(parsed);
       return prepararConfigParaSalvar(

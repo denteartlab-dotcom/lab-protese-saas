@@ -4,8 +4,8 @@ import {
   empresaTemAcessoAssinatura,
 } from "@/lib/assinatura-empresa";
 import {
+  executarSemRls,
   prisma,
-  runWithRlsBypass,
   runWithTenantContext,
   tenantStorage,
 } from "@/lib/prisma-tenant";
@@ -18,33 +18,55 @@ export type EmpresaContext = {
   user: SessionUser;
 };
 
-async function carregarUsuarioEmpresa(session: SessionUser) {
-  const consulta = () =>
-    prisma.user.findUnique({
-      where: { id: session.id },
-      select: {
-        name: true,
-        email: true,
-        role: true,
-        excluidoEm: true,
-        empresaId: true,
-        empresa: {
-          select: {
-            id: true,
-            nome: true,
-            slug: true,
-            status: true,
-            dataVencimento: true,
-          },
-        },
-      },
-    });
+const selectUsuarioEmpresa = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  excluidoEm: true,
+  empresaId: true,
+  empresa: {
+    select: {
+      id: true,
+      nome: true,
+      slug: true,
+      status: true,
+      dataVencimento: true,
+    },
+  },
+} as const;
 
-  if (session.empresaId) {
-    const comTenant = await runWithTenantContext(session.empresaId, consulta);
-    if (comTenant) return comTenant;
+/**
+ * Bypass no MESMO transaction do SELECT (padrão de contexto-app-servidor):
+ * com lab_app + RLS, runWithRlsBypass/runWithTenantContext no cliente
+ * estendido às vezes não aplica set_config — o tx explícito é determinístico.
+ */
+async function carregarUsuarioEmpresa(session: SessionUser) {
+  const porId = await executarSemRls((tx) =>
+    tx.user.findUnique({
+      where: { id: session.id },
+      select: selectUsuarioEmpresa,
+    })
+  );
+  if (porId) return porId;
+
+  // Fallback: JWT com id desatualizado — busca pelo e-mail da sessão.
+  if (session.email?.trim()) {
+    const porEmail = await executarSemRls((tx) =>
+      tx.user.findFirst({
+        where: {
+          email: session.email.trim().toLowerCase(),
+          excluidoEm: null,
+          ...(session.empresaId ? { empresaId: session.empresaId } : {}),
+        },
+        select: selectUsuarioEmpresa,
+        orderBy: { createdAt: "asc" },
+      })
+    );
+    if (porEmail) return porEmail;
   }
-  return runWithRlsBypass(consulta);
+
+  return null;
 }
 
 async function sincronizarSessaoEmpresa(
@@ -63,7 +85,8 @@ async function sincronizarSessaoEmpresa(
   }
 
   const atualizada: SessionUser = {
-    id: session.id,
+    // registro.id pode diferir de session.id (JWT antigo recuperado via e-mail)
+    id: registro.id,
     name: registro.name,
     email: registro.email,
     role: registro.role,
@@ -74,6 +97,7 @@ async function sincronizarSessaoEmpresa(
   };
 
   const precisaAtualizar =
+    session.id !== atualizada.id ||
     session.empresaId !== atualizada.empresaId ||
     session.empresaSlug !== atualizada.empresaSlug ||
     session.empresaNome !== atualizada.empresaNome ||
@@ -156,7 +180,7 @@ export async function requireEmpresaContextRenovacao(): Promise<EmpresaContext> 
     throw new Error("SEM_EMPRESA");
   }
 
-  const atualizada = await montarSessionUserComAssinatura(session.id);
+  const atualizada = await montarSessionUserComAssinatura(registro.id);
   if (!atualizada) {
     throw new Error("SEM_EMPRESA");
   }
@@ -191,8 +215,8 @@ export function filtroTrabalhoEmpresa(empresaId: string) {
 }
 
 export async function empresaAtivaPorSlug(slug: string) {
-  return runWithRlsBypass(() =>
-    prisma.empresa.findFirst({
+  return executarSemRls((tx) =>
+    tx.empresa.findFirst({
       where: { slug, status: "ativo" },
       select: { id: true, nome: true, slug: true, status: true },
     })
@@ -200,8 +224,8 @@ export async function empresaAtivaPorSlug(slug: string) {
 }
 
 export async function carregarEmpresaUsuario(userId: string) {
-  return runWithRlsBypass(() =>
-    prisma.user.findUnique({
+  return executarSemRls((tx) =>
+    tx.user.findUnique({
       where: { id: userId },
       select: {
         empresaId: true,

@@ -1,5 +1,5 @@
 import { getSession, type SessionUser } from "@/lib/auth";
-import { prisma, runWithRlsBypass, runWithTenantContext } from "@/lib/prisma-tenant";
+import { executarComTenant, executarSemRls } from "@/lib/prisma-tenant";
 import { podeGerenciarUsuarios } from "@/lib/usuarios-sistema";
 
 async function lerUsuarioAuth<T>(
@@ -7,17 +7,15 @@ async function lerUsuarioAuth<T>(
   empresaId: string | null | undefined,
   select: { role?: boolean; excluidoEm?: boolean; permissoesJson?: boolean }
 ): Promise<T | null> {
-  const consulta = () =>
-    prisma.user.findUnique({
-      where: { id: userId },
-      select,
-    }) as Promise<T | null>;
-
-  // FORCE RLS: sem tenant/bypass o lab_app não vê a linha → /api/auth/me quebra o login.
+  // set_config no MESMO transaction do SELECT — determinístico com lab_app + RLS.
   if (empresaId) {
-    return runWithTenantContext(empresaId, consulta);
+    return executarComTenant(empresaId, (tx) =>
+      tx.user.findUnique({ where: { id: userId }, select }) as Promise<T | null>
+    );
   }
-  return runWithRlsBypass(consulta);
+  return executarSemRls((tx) =>
+    tx.user.findUnique({ where: { id: userId }, select }) as Promise<T | null>
+  );
 }
 
 /** Papel atual no banco (não confia só no JWT). */

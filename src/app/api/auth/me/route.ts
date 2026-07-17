@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { sessaoComPapelAtualizado } from "@/lib/auth-acesso";
 import { emailEhMasterAdmin } from "@/lib/exigir-master-admin";
-import { prisma, runWithRlsBypass, runWithTenantContext } from "@/lib/prisma-tenant";
+import { executarComTenant, executarSemRls } from "@/lib/prisma-tenant";
 import {
   parsePermissoesUsuario,
   podeGerenciarUsuarios,
@@ -17,17 +17,22 @@ export async function GET() {
 
   let permissoesJson: string | null | undefined;
   try {
-    const lerPermissoes = () =>
-      prisma.user.findUnique({
-        where: { id: session.id },
-        select: { permissoesJson: true },
-      });
     const user = session.empresaId
-      ? await runWithTenantContext(session.empresaId, lerPermissoes)
-      : await runWithRlsBypass(lerPermissoes);
+      ? await executarComTenant(session.empresaId, (tx) =>
+          tx.user.findUnique({
+            where: { id: session.id },
+            select: { permissoesJson: true },
+          })
+        )
+      : null;
     permissoesJson = user?.permissoesJson;
-    if (permissoesJson == null && session.empresaId) {
-      const retry = await runWithRlsBypass(lerPermissoes);
+    if (permissoesJson == null) {
+      const retry = await executarSemRls((tx) =>
+        tx.user.findUnique({
+          where: { id: session.id },
+          select: { permissoesJson: true },
+        })
+      );
       permissoesJson = retry?.permissoesJson;
     }
   } catch {

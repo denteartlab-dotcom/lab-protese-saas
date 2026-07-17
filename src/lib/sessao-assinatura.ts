@@ -1,12 +1,13 @@
 import { createSession, type SessionUser } from "@/lib/auth";
 import { empresaPrecisaPaginaRenovacao } from "@/lib/assinatura-empresa";
-import { prisma, runWithRlsBypass } from "@/lib/prisma-tenant";
+import { executarSemRls } from "@/lib/prisma-tenant";
 
 export async function montarSessionUserComAssinatura(
   userId: string
 ): Promise<SessionUser | null> {
-  const user = await runWithRlsBypass(() =>
-    prisma.user.findUnique({
+  // Bypass no mesmo transaction — determinístico com lab_app + RLS.
+  const user = await executarSemRls((tx) =>
+    tx.user.findUnique({
       where: { id: userId },
       select: {
         id: true,

@@ -3,7 +3,7 @@ import { NOME_LAB_PADRAO } from "@/lib/document-title";
 import { carregarConfigLaboratorioServidor } from "@/lib/lab-config-servidor";
 import { LAB_IMPRESSAO_PADRAO } from "@/lib/lab-impressao";
 import { configParaLabImpressao } from "@/lib/lab-logo";
-import { prisma } from "@/lib/db";
+import { executarSemRls, runWithTenantContext } from "@/lib/db";
 
 export type { LabBrandingPublico } from "@/lib/lab-branding-types";
 import type { LabBrandingPublico } from "@/lib/lab-branding-types";
@@ -64,13 +64,18 @@ function montarBrandingPublico(
 export async function carregarBrandingLaboratorioPorSlug(
   slug: string
 ): Promise<LabBrandingPublico | null> {
-  const empresa = await prisma.empresa.findUnique({
-    where: { slug: slug.trim().toLowerCase() },
-    select: { id: true, nome: true, slug: true },
-  });
+  // Endpoint público (sem sessão): com lab_app + RLS a consulta precisa de bypass.
+  const empresa = await executarSemRls((tx) =>
+    tx.empresa.findUnique({
+      where: { slug: slug.trim().toLowerCase() },
+      select: { id: true, nome: true, slug: true },
+    })
+  );
   if (!empresa) return null;
 
-  const config = await carregarConfigLaboratorioServidor(empresa.id);
+  const config = await runWithTenantContext(empresa.id, () =>
+    carregarConfigLaboratorioServidor(empresa.id)
+  );
   return montarBrandingPublico(config, empresa.nome, empresa.slug);
 }
 
@@ -80,12 +85,14 @@ export async function carregarBrandingLaboratorioPorEmail(
   const normalizado = email.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizado)) return null;
 
-  const usuarios = await prisma.user.findMany({
-    where: { email: normalizado, excluidoEm: null },
-    select: {
-      empresa: { select: { id: true, nome: true, slug: true } },
-    },
-  });
+  const usuarios = await executarSemRls((tx) =>
+    tx.user.findMany({
+      where: { email: normalizado, excluidoEm: null },
+      select: {
+        empresa: { select: { id: true, nome: true, slug: true } },
+      },
+    })
+  );
 
   const empresas = new Map<string, { id: string; nome: string; slug: string }>();
   for (const usuario of usuarios) {
@@ -95,20 +102,26 @@ export async function carregarBrandingLaboratorioPorEmail(
   if (empresas.size !== 1) return null;
 
   const empresa = [...empresas.values()][0];
-  const config = await carregarConfigLaboratorioServidor(empresa.id);
+  const config = await runWithTenantContext(empresa.id, () =>
+    carregarConfigLaboratorioServidor(empresa.id)
+  );
   return montarBrandingPublico(config, empresa.nome, empresa.slug);
 }
 
 export async function carregarBrandingLaboratorioPorEmpresaId(
   empresaId: string
 ): Promise<LabBrandingPublico> {
-  const empresa = await prisma.empresa.findUnique({
-    where: { id: empresaId },
-    select: { id: true, nome: true, slug: true },
-  });
+  const empresa = await executarSemRls((tx) =>
+    tx.empresa.findUnique({
+      where: { id: empresaId },
+      select: { id: true, nome: true, slug: true },
+    })
+  );
   if (!empresa) return brandingPlataformaLogin();
 
-  const config = await carregarConfigLaboratorioServidor(empresa.id);
+  const config = await runWithTenantContext(empresa.id, () =>
+    carregarConfigLaboratorioServidor(empresa.id)
+  );
   return montarBrandingPublico(config, empresa.nome, empresa.slug);
 }
 
