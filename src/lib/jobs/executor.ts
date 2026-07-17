@@ -1,4 +1,5 @@
 import { ZodError } from "zod";
+import { runWithTenantContext } from "@/lib/db";
 import { atualizarJob, obterJobTenant } from "@/lib/jobs/store";
 import { manipularJobBackupExport } from "@/lib/jobs/handlers/backup-export";
 import { manipularJobBackupImport } from "@/lib/jobs/handlers/backup-import";
@@ -42,6 +43,11 @@ function mensagemErroJob(erro: unknown): string {
 }
 
 export async function executarJob(jobId: string, empresaId: string) {
+  // Jobs em background perdem o ALS do request — repor tenant para RLS.
+  return runWithTenantContext(empresaId, () => executarJobNoTenant(jobId, empresaId));
+}
+
+async function executarJobNoTenant(jobId: string, empresaId: string) {
   const job = await obterJobTenant(empresaId, jobId);
   if (!job) return;
   if (job.status !== "pendente") return;

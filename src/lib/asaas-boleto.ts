@@ -6,8 +6,10 @@ import {
   obterConfigAsaas,
 } from "@/lib/asaas-client";
 import { asaasConfigurado } from "@/lib/asaas-config";
+import { invalidarCachePainelFinanceiro } from "@/lib/financeiro-painel-cache";
 import { descricaoPublicaLancamento } from "@/lib/lancamento-despesa";
 import { cobrancaPorLancamentoId } from "@/lib/lancamentos-cobranca";
+import { empacotarReceitaConta, RECEITA_CONTA_SEP } from "@/lib/receita-conta-bancaria";
 
 function formaEhBoleto(forma?: string | null): boolean {
   return (forma || "").toLowerCase().includes("boleto");
@@ -82,7 +84,8 @@ export async function tentarEmitirBoletoParaLancamento(
 
 export async function sincronizarPagamentoAsaas(
   asaasPaymentId: string,
-  statusAsaas: string
+  statusAsaas: string,
+  pagoEm?: Date | null
 ) {
   const cobranca = await prisma.cobrancaAsaas.findUnique({
     where: { asaasPaymentId },
@@ -96,19 +99,38 @@ export async function sincronizarPagamentoAsaas(
   });
 
   const pago = ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"].includes(statusAsaas);
-  if (pago && cobranca.lancamento.status !== "pago") {
-    const atualizado = await prisma.lancamento.update({
-      where: { id: cobranca.lancamentoId },
-      data: { status: "pago" },
-    });
-    if (atualizado.tipo === "receita") {
-      const { sincronizarMovimentacaoRecebimentoServidor } = await import(
-        "@/lib/recebimento-conta-bancaria-servidor"
-      );
-      await sincronizarMovimentacaoRecebimentoServidor(
-        atualizado.empresaId,
-        atualizado
-      );
-    }
+  if (!pago) return;
+
+  const lancamento = cobranca.lancamento;
+  const dataPagamento =
+    pagoEm && !Number.isNaN(pagoEm.getTime()) ? pagoEm : new Date();
+
+  // Já quitado: ainda reforça data/conta se o webhook atrasou vs UI.
+  const precisaMarcarPago = lancamento.status !== "pago";
+  const precisaConta = !lancamento.descricao.includes(RECEITA_CONTA_SEP);
+  if (!precisaMarcarPago && !precisaConta) {
+    return;
   }
+
+  const descricaoAtualizada = precisaConta
+    ? empacotarReceitaConta(lancamento.descricao, "Conta Bancária")
+    : lancamento.descricao;
+
+  const atualizado = await prisma.lancamento.update({
+    where: { id: cobranca.lancamentoId },
+    data: {
+      ...(precisaMarcarPago ? { status: "pago" as const } : {}),
+      data: dataPagamento,
+      descricao: descricaoAtualizada,
+    },
+  });
+
+  if (atualizado.tipo === "receita" && atualizado.status === "pago") {
+    const { sincronizarMovimentacaoRecebimentoServidor } = await import(
+      "@/lib/recebimento-conta-bancaria-servidor"
+    );
+    await sincronizarMovimentacaoRecebimentoServidor(atualizado.empresaId, atualizado);
+  }
+
+  invalidarCachePainelFinanceiro(atualizado.empresaId);
 }

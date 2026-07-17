@@ -529,20 +529,31 @@ export function recebimentosHistoricoCliente(
   clienteId: string,
   lancamentos: LancamentoContasReceber[]
 ) {
-  const base = lancamentos.filter(
-    (l) =>
-      l.cliente?.id === clienteId &&
-      l.tipo === "receita" &&
-      l.status === "pago" &&
-      deveExibirNoHistoricoRecebimentos(l, lancamentos)
-  );
-
   const faturas = faturasCobrancaOsDoCliente(clienteId, lancamentos);
-  if (faturas.length <= 1) {
-    return base.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+  if (faturas.length === 0) {
+    return lancamentos
+      .filter(
+        (l) =>
+          l.cliente?.id === clienteId &&
+          l.tipo === "receita" &&
+          l.status === "pago" &&
+          deveExibirNoHistoricoRecebimentos(l, lancamentos)
+      )
+      .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
   }
 
-  return movimentacoesRecebimentoDaFatura(faturas[0], lancamentos);
+  // Todas as faturas do cliente — não só a mais recente (senão Pix pago some quando há boleto mais novo).
+  const resultado: LancamentoContasReceber[] = [];
+  const visto = new Set<string>();
+  for (const fatura of faturas) {
+    for (const mov of movimentacoesRecebimentoDaFatura(fatura, lancamentos)) {
+      if (visto.has(mov.id)) continue;
+      visto.add(mov.id);
+      resultado.push(mov);
+    }
+  }
+
+  return resultado.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
 }
 
 export function faturaRelacionadaAoRecebimento(
