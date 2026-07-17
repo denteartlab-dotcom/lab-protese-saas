@@ -8,7 +8,8 @@ import { Server as SocketIOServer } from "socket.io";
 import { getSessionFromCookieHeader } from "./src/lib/auth-token";
 import { getMasterSessionFromCookieHeader } from "./src/lib/master-auth-token";
 import { marcarBancoIndisponivel, tratarErroBancoSilencioso } from "./src/lib/banco-circuit-breaker";
-import { prisma } from "./src/lib/db";
+import { executarSemRls } from "./src/lib/db";
+import { tenantStorage } from "./src/lib/prisma-tenant";
 import { requisicaoTvSocket } from "./src/lib/tv/tv-socket-client";
 import { TV_SOCKET_PATH } from "./src/lib/tv/tv-socket-events";
 import {
@@ -161,23 +162,27 @@ app
 
         let empresaId = session.empresaId;
         if (!empresaId && session.empresaSlug) {
-          const empresa = await prisma.empresa.findUnique({
-            where: { slug: session.empresaSlug },
-            select: { id: true },
-          });
+          const empresa = await executarSemRls((tx) =>
+            tx.empresa.findUnique({
+              where: { slug: session.empresaSlug! },
+              select: { id: true },
+            })
+          );
           empresaId = empresa?.id;
         }
         if (!empresaId) return null;
 
-        const usuario = await prisma.user.findFirst({
-          where: { id: session.id, empresaId, excluidoEm: null },
-          select: {
-            id: true,
-            name: true,
-            colaboradorId: true,
-            colaboradorNome: true,
-          },
-        });
+        const usuario = await executarSemRls((tx) =>
+          tx.user.findFirst({
+            where: { id: session.id, empresaId, excluidoEm: null },
+            select: {
+              id: true,
+              name: true,
+              colaboradorId: true,
+              colaboradorNome: true,
+            },
+          })
+        );
         if (!usuario) return null;
 
         presencaEmpresaId = empresaId;
@@ -197,10 +202,12 @@ app
         const session = await getSessionFromCookieHeader(cookie);
         let empresaId = session?.empresaId;
         if (!empresaId && session?.empresaSlug) {
-          const empresa = await prisma.empresa.findUnique({
-            where: { slug: session.empresaSlug },
-            select: { id: true },
-          });
+          const empresa = await executarSemRls((tx) =>
+            tx.empresa.findUnique({
+              where: { slug: session.empresaSlug! },
+              select: { id: true },
+            })
+          );
           empresaId = empresa?.id;
         }
         if (!empresaId) return;
@@ -281,7 +288,12 @@ app
         });
       }
 
-      handle(req, res, parsedUrl);
+      // Store mutável por request: requireEmpresaContext preenche empresaId e
+      // o Prisma (RLS) enxerga em qualquer ponto do request — sem depender de
+      // enterWith atravessar as fronteiras async do Next em produção.
+      tenantStorage.run({}, () => {
+        void handle(req, res, parsedUrl);
+      });
     });
 
     iniciarTvRefreshAutomatico();

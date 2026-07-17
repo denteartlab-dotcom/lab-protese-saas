@@ -4,10 +4,10 @@ import {
   empresaTemAcessoAssinatura,
 } from "@/lib/assinatura-empresa";
 import {
+  definirTenantNoRequest,
   executarSemRls,
   prisma,
   runWithTenantContext,
-  tenantStorage,
 } from "@/lib/prisma-tenant";
 import { montarSessionUserComAssinatura } from "@/lib/sessao-assinatura";
 
@@ -159,7 +159,7 @@ async function requireEmpresaContextInterno(): Promise<EmpresaContext> {
   };
 
   // Liga RLS no restante do request (pool de conexões exige set_config por operação).
-  tenantStorage.enterWith({ empresaId: ctx.empresaId, bypass: false });
+  definirTenantNoRequest({ empresaId: ctx.empresaId, bypass: false });
 
   return ctx;
 }

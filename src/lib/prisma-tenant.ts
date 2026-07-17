@@ -7,7 +7,38 @@ export type TenantContext = {
   bypass?: boolean;
 };
 
-export const tenantStorage = new AsyncLocalStorage<TenantContext>();
+/**
+ * Singleton REAL via globalThis: em produção o server customizado (esbuild),
+ * as páginas RSC e as rotas de API carregam cópias separadas deste módulo.
+ * Sem isso, cada cópia teria seu próprio AsyncLocalStorage e o contexto de
+ * tenant definido numa cópia fica invisível para o Prisma de outra — RLS cego.
+ */
+const globalForTenant = globalThis as unknown as {
+  labTenantStorage?: AsyncLocalStorage<TenantContext>;
+};
+
+export const tenantStorage: AsyncLocalStorage<TenantContext> =
+  globalForTenant.labTenantStorage ?? new AsyncLocalStorage<TenantContext>();
+
+if (!globalForTenant.labTenantStorage) {
+  globalForTenant.labTenantStorage = tenantStorage;
+}
+
+/**
+ * Define o tenant no contexto do request atual.
+ * Prefere MUTAR o store criado no início do request (server.ts) — mutação é
+ * visível em qualquer ponto do request, ao contrário do enterWith, que pode
+ * se perder entre fronteiras async do Next em produção.
+ */
+export function definirTenantNoRequest(ctx: TenantContext): void {
+  const store = tenantStorage.getStore();
+  if (store) {
+    store.empresaId = ctx.empresaId;
+    store.bypass = ctx.bypass;
+    return;
+  }
+  tenantStorage.enterWith({ ...ctx });
+}
 
 async function aplicarSessaoRls(
   tx: Prisma.TransactionClient,
