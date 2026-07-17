@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { acaoHttpParaPermissao, negarSeSemPermissao } from "@/lib/require-permissao";
 import { z } from "zod";
 
 const schema = z.object({
@@ -18,6 +19,9 @@ export async function PUT(
 ) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(ctx, "pacientes", acaoHttpParaPermissao("PUT"));
+  if (negado) return negado;
+
 
   const { id } = await params;
   try {
@@ -61,6 +65,9 @@ export async function DELETE(
 ) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(ctx, "pacientes", acaoHttpParaPermissao("DELETE"));
+  if (negado) return negado;
+
 
   const { id } = await params;
   const existente = await prisma.paciente.findFirst({

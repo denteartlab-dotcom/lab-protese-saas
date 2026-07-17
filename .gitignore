@@ -7,4 +7,5 @@ prisma/*.db-journal
 .DS_Store
 backups/
 data/whatsapp-auth/
+var/uploads/
 .build-id

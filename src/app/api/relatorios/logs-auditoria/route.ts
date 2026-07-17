@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { acaoHttpParaPermissao, negarSeSemPermissao } from "@/lib/require-permissao";
 import {
   listarLogsAuditoria,
   registrarLogAuditoria,
@@ -49,6 +50,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
+  const negado = await negarSeSemPermissao(ctx, "relatorios-logs-auditoria", acaoHttpParaPermissao("GET"));
+  if (negado) return negado;
+
   const { searchParams } = new URL(request.url);
   const filtros: FiltrosLogsAuditoria = {
     categoria: searchParams.get("categoria") || "os",
@@ -74,6 +78,9 @@ export async function POST(request: Request) {
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
+
+  const negadoPost = await negarSeSemPermissao(ctx, "relatorios-logs-auditoria", acaoHttpParaPermissao("POST"));
+  if (negadoPost) return negadoPost;
 
   try {
     const body = await request.json();

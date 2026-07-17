@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { acaoHttpParaPermissao, negarSeSemPermissao } from "@/lib/require-permissao";
 import { prisma } from "@/lib/db";
 import { lerJsonStoreTenant } from "@/lib/json-store-tenant";
 import { MODULO_PRODUCAO_ETAPAS_STORAGE_KEY } from "@/lib/modulo-producao-etapas";
@@ -28,6 +29,9 @@ export async function GET(request: Request) {
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
+
+  const negado = await negarSeSemPermissao(ctx, "relatorios-servicos-nao-concluidos", acaoHttpParaPermissao("GET"));
+  if (negado) return negado;
 
   const { searchParams } = new URL(request.url);
   const padrao = filtrosPadraoServicosNaoConcluidos();

@@ -1,9 +1,11 @@
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, writeFile, readFile, access } from "fs/promises";
 import path from "path";
 import { prisma } from "@/lib/db";
 import {
   garantirPastasUploadEmpresa,
   normalizarSlugPastaUploads,
+  caminhoPastaUploads,
+  resolverArquivoUploadsSeguro,
 } from "@/lib/uploads-armazenamento-server";
 
 export type PastaUpload = "os" | "despesas" | "receitas" | "disparos-whatsapp" | "produtos";
@@ -45,6 +47,34 @@ function mimeDeArquivo(file: File) {
   if (nome.endsWith(".png")) return "image/png";
   if (nome.endsWith(".webp")) return "image/webp";
   return "application/octet-stream";
+}
+
+/** URL autenticada para arquivo em disco (fora de public/). */
+export function urlUploadDisco(slug: string, pasta: PastaUpload, filename: string) {
+  const s = normalizarSlugPastaUploads(slug);
+  return `/api/uploads/disco/${s}/${pasta}/${filename}`;
+}
+
+/**
+ * Converte URLs legadas `/uploads/...` para a rota autenticada.
+ * Mantém `/api/uploads/...` e URLs absolutas intactas.
+ */
+export function normalizarUrlUploadParaApi(url: string): string {
+  const u = url.trim();
+  if (!u) return u;
+  if (u.startsWith("/api/uploads/")) return u;
+  if (u.startsWith("/uploads/")) {
+    return `/api/uploads/disco/${u.slice("/uploads/".length)}`;
+  }
+  try {
+    const parsed = new URL(u, "https://local.invalid");
+    if (parsed.pathname.startsWith("/uploads/")) {
+      return `/api/uploads/disco/${parsed.pathname.slice("/uploads/".length)}`;
+    }
+  } catch {
+    /* ignore */
+  }
+  return u;
 }
 
 export async function salvarArquivosUpload(
@@ -96,7 +126,7 @@ export async function salvarArquivosUpload(
 
   const slug = normalizarSlugPastaUploads(empresaSlug);
   await garantirPastasUploadEmpresa(slug);
-  const uploadDir = path.join(process.cwd(), "public", "uploads", slug, pasta);
+  const uploadDir = path.join(caminhoPastaUploads(slug), pasta);
 
   return Promise.all(
     files.map(async (file) => {
@@ -107,7 +137,7 @@ export async function salvarArquivosUpload(
       return {
         name: file.name,
         type: mimeType,
-        url: `/uploads/${slug}/${pasta}/${filename}`,
+        url: urlUploadDisco(slug, pasta, filename),
       };
     })
   );
@@ -115,6 +145,28 @@ export async function salvarArquivosUpload(
 
 export async function lerArquivoUploadPorId(id: string) {
   return prisma.arquivoUpload.findUnique({ where: { id } });
+}
+
+export async function lerArquivoDiscoPorCaminhoRelativo(
+  empresaSlug: string,
+  relativePath: string
+): Promise<{ bytes: Buffer; mimeType: string; nome: string } | null> {
+  const alvo = resolverArquivoUploadsSeguro(relativePath, empresaSlug);
+  try {
+    await access(alvo);
+  } catch {
+    return null;
+  }
+  const bytes = await readFile(alvo);
+  const nome = path.basename(alvo);
+  const lower = nome.toLowerCase();
+  let mimeType = "application/octet-stream";
+  if (lower.endsWith(".pdf")) mimeType = "application/pdf";
+  else if (/\.jpe?g$/.test(lower)) mimeType = "image/jpeg";
+  else if (lower.endsWith(".png")) mimeType = "image/png";
+  else if (lower.endsWith(".webp")) mimeType = "image/webp";
+  else if (lower.endsWith(".gif")) mimeType = "image/gif";
+  return { bytes, mimeType, nome };
 }
 
 export async function bytesTotalArquivosBanco(empresaId?: string) {

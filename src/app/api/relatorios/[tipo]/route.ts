@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { acaoHttpParaPermissao, negarSeSemPermissao } from "@/lib/require-permissao";
 
 export type RelatorioResposta = {
   colunas: string[];
@@ -44,6 +45,15 @@ export async function GET(request: Request, { params }: Params) {
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   const { tipo } = await params;
+  const moduloRelatorio =
+    tipo === "fluxo-de-caixa"
+      ? "relatorios-fluxo-de-caixa"
+      : tipo === "producao"
+        ? "relatorios-producao"
+        : `relatorios-${tipo}`;
+  const negado = await negarSeSemPermissao(ctx, moduloRelatorio, acaoHttpParaPermissao("GET"));
+  if (negado) return negado;
+
   if (!TIPOS_SUPORTADOS.has(tipo)) {
     return NextResponse.json({ error: "Tipo de relatório não suportado." }, { status: 400 });
   }

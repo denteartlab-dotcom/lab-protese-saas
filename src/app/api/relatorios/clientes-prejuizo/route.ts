@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { acaoHttpParaPermissao, negarSeSemPermissao } from "@/lib/require-permissao";
 import { prisma } from "@/lib/db";
 import { listarHistoricoEtapas } from "@/lib/historico-etapas";
 import { calcularRelatorioClientesPrejuizo } from "@/lib/relatorio-clientes-prejuizo-servidor";
@@ -10,6 +11,9 @@ export async function GET(request: Request) {
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
+
+  const negado = await negarSeSemPermissao(ctx, "relatorios-clientes-prejuizo", acaoHttpParaPermissao("GET"));
+  if (negado) return negado;
 
   const { searchParams } = new URL(request.url);
   const periodo = (searchParams.get("periodo") || "30dias") as PeriodoClientesPrejuizo;

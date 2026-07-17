@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { acaoHttpParaPermissao, negarSeSemPermissao } from "@/lib/require-permissao";
 import { gerarDetalheMockTempoProducao } from "@/lib/tempo-producao-detalhe";
 import { carregarDetalheTempoProducaoServidor } from "@/lib/tempo-producao-relatorio-servidor";
 import { gerarLinhasMockTempoProducao } from "@/lib/tempo-producao-relatorio";
@@ -12,6 +13,9 @@ export async function GET(
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
+
+  const negado = await negarSeSemPermissao(ctx, "relatorios-tempo-producao", acaoHttpParaPermissao("GET"));
+  if (negado) return negado;
 
   const { id } = await params;
 

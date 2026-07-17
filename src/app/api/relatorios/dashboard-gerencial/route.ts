@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { acaoHttpParaPermissao, negarSeSemPermissao } from "@/lib/require-permissao";
 import {
   calcularDashboardGerencial,
   type TrabalhoDashboardGerencial,
@@ -11,6 +12,9 @@ export async function GET(request: Request) {
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
+
+  const negado = await negarSeSemPermissao(ctx, "relatorios-dashboard-gerencial", acaoHttpParaPermissao("GET"));
+  if (negado) return negado;
 
   const { searchParams } = new URL(request.url);
   const ano = Number(searchParams.get("ano") || new Date().getFullYear());

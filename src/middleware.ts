@@ -170,6 +170,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Legado: /uploads/... → rota autenticada (arquivos saíram de public/)
+  if (pathname.startsWith("/uploads/")) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/api/uploads/disco/${pathname.slice("/uploads/".length)}`;
+    return NextResponse.rewrite(url);
+  }
+
   if (
     process.env.NODE_ENV !== "production" &&
     pathname.startsWith("/api/dev/")
@@ -200,6 +207,7 @@ export async function middleware(request: NextRequest) {
   if (
     pathname === "/api/mercadopago/webhook" ||
     pathname === "/api/asaas/webhook" ||
+    pathname === "/api/asaas/autorizacao-saque" ||
     pathname === "/api/whatsapp/webhook"
   ) {
     return NextResponse.next();

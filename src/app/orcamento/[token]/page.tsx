@@ -50,6 +50,21 @@ function formatTelefone(raw?: string) {
   return raw || "";
 }
 
+/** Imagens de upload no link público passam pelo proxy autenticado pelo token. */
+function urlImagemOrcamentoPublico(token: string, imagemUrl?: string) {
+  const u = imagemUrl?.trim();
+  if (!u) return "";
+  if (u.startsWith("data:") || u.startsWith("blob:")) return u;
+  if (
+    u.startsWith("/uploads/") ||
+    u.startsWith("/api/uploads/disco/") ||
+    u.startsWith("/api/uploads/arquivo/")
+  ) {
+    return `/api/orcamentos/public/${encodeURIComponent(token)}/arquivo?u=${encodeURIComponent(u)}`;
+  }
+  return u;
+}
+
 export default function OrcamentoPublicoPage() {
   const params = useParams();
   const token = String(params.token || "");
@@ -455,7 +470,7 @@ export default function OrcamentoPublicoPage() {
                           {item.imagemUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
-                              src={item.imagemUrl}
+                              src={urlImagemOrcamentoPublico(token, item.imagemUrl)}
                               alt={item.produtoNome || "Produto"}
                               className="h-full w-full object-cover"
                             />
@@ -482,7 +497,7 @@ export default function OrcamentoPublicoPage() {
                           {item.imagemUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
-                              src={item.imagemUrl}
+                              src={urlImagemOrcamentoPublico(token, item.imagemUrl)}
                               alt={item.produtoNome || "Produto"}
                               className="h-full w-full object-cover"
                             />
@@ -794,7 +809,7 @@ export default function OrcamentoPublicoPage() {
               {itemFotoModal.imagemUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={itemFotoModal.imagemUrl}
+                  src={urlImagemOrcamentoPublico(token, itemFotoModal.imagemUrl)}
                   alt={itemFotoModal.produtoNome || "Produto"}
                   className="h-full w-full object-cover"
                 />

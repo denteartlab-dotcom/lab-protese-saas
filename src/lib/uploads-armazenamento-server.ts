@@ -17,7 +17,13 @@ import {
   listarArquivosBanco,
 } from "@/lib/upload-arquivo-server";
 
-const PASTAS_UPLOAD: PastaUpload[] = ["os", "despesas", "receitas", "produtos"];
+const PASTAS_UPLOAD: PastaUpload[] = [
+  "os",
+  "despesas",
+  "receitas",
+  "produtos",
+  "disparos-whatsapp",
+];
 
 export function normalizarSlugPastaUploads(empresaSlug: string): string {
   return empresaSlug
@@ -28,9 +34,21 @@ export function normalizarSlugPastaUploads(empresaSlug: string): string {
 }
 
 export function caminhoPastaUploads(empresaSlug?: string) {
-  const base = path.join(process.cwd(), "public", "uploads");
+  // Fora de public/ — não é servido como estático pelo Next.
+  const base = path.join(process.cwd(), "var", "uploads");
   if (!empresaSlug?.trim()) return base;
   return path.join(base, normalizarSlugPastaUploads(empresaSlug));
+}
+
+/** Resolve caminho relativo dentro da pasta da empresa; rejeita path traversal. */
+export function resolverArquivoUploadsSeguro(relativePath: string, empresaSlug?: string) {
+  const base = path.resolve(caminhoPastaUploads(empresaSlug));
+  const limpo = relativePath.replace(/^[/\\]+/, "").replace(/\\/g, "/");
+  const alvo = path.resolve(base, limpo);
+  if (alvo !== base && !alvo.startsWith(base + path.sep)) {
+    throw new Error("Caminho inválido");
+  }
+  return alvo;
 }
 
 export async function garantirPastasUploadEmpresa(empresaSlug: string) {
@@ -42,12 +60,7 @@ export async function garantirPastasUploadEmpresa(empresaSlug: string) {
 }
 
 function resolverArquivoUploads(relativePath: string, empresaSlug?: string) {
-  const base = path.resolve(caminhoPastaUploads(empresaSlug));
-  const alvo = path.resolve(base, relativePath.replace(/^[/\\]+/, ""));
-  if (alvo !== base && !alvo.startsWith(base + path.sep)) {
-    throw new Error("Caminho inválido");
-  }
-  return alvo;
+  return resolverArquivoUploadsSeguro(relativePath, empresaSlug);
 }
 
 export type ArquivoGaleria = ArquivoGaleriaItem;
@@ -82,7 +95,7 @@ export async function listarArquivosGaleria(
             relativePath: rel.replace(/\\/g, "/"),
             nome: entry.name,
             bytes: info.size,
-            url: `/uploads/${urlPath}`,
+            url: `/api/uploads/disco/${urlPath}`,
             criadoEm: info.mtime.toISOString(),
           });
         }

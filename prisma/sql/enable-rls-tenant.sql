@@ -253,3 +253,68 @@ DROP POLICY IF EXISTS bypass_only_master_audit ON "master_audit_logs";
 CREATE POLICY bypass_only_master_audit ON "master_audit_logs"
   FOR ALL USING (app_rls_bypass())
   WITH CHECK (app_rls_bypass());
+
+-- WhatsApp: isolamento por tenant (telefones, campanhas e conversas)
+DO $wa$
+DECLARE
+  t text;
+  tables_empresa text[] := ARRAY[
+    'whatsapp_sessions',
+    'whatsapp_campaigns',
+    'whatsapp_logs',
+    'whatsapp_chat_conversas',
+    'whatsapp_chatbot_configs'
+  ];
+BEGIN
+  FOREACH t IN ARRAY tables_empresa LOOP
+    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('DROP POLICY IF EXISTS tenant_isolation ON %I', t);
+    EXECUTE format(
+      'CREATE POLICY tenant_isolation ON %I FOR ALL
+         USING (app_tenant_matches("empresaId"))
+         WITH CHECK (app_tenant_matches("empresaId"))',
+      t
+    );
+  END LOOP;
+END
+$wa$;
+
+ALTER TABLE "whatsapp_campaign_contacts" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON "whatsapp_campaign_contacts";
+CREATE POLICY tenant_isolation ON "whatsapp_campaign_contacts"
+  FOR ALL USING (
+    app_rls_bypass()
+    OR EXISTS (
+      SELECT 1 FROM "whatsapp_campaigns" c
+      WHERE c.id = "whatsapp_campaign_contacts"."campaignId"
+        AND app_tenant_matches(c."empresaId")
+    )
+  )
+  WITH CHECK (
+    app_rls_bypass()
+    OR EXISTS (
+      SELECT 1 FROM "whatsapp_campaigns" c
+      WHERE c.id = "whatsapp_campaign_contacts"."campaignId"
+        AND app_tenant_matches(c."empresaId")
+    )
+  );
+
+ALTER TABLE "whatsapp_chat_mensagens" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON "whatsapp_chat_mensagens";
+CREATE POLICY tenant_isolation ON "whatsapp_chat_mensagens"
+  FOR ALL USING (
+    app_rls_bypass()
+    OR EXISTS (
+      SELECT 1 FROM "whatsapp_chat_conversas" c
+      WHERE c.id = "whatsapp_chat_mensagens"."conversaId"
+        AND app_tenant_matches(c."empresaId")
+    )
+  )
+  WITH CHECK (
+    app_rls_bypass()
+    OR EXISTS (
+      SELECT 1 FROM "whatsapp_chat_conversas" c
+      WHERE c.id = "whatsapp_chat_mensagens"."conversaId"
+        AND app_tenant_matches(c."empresaId")
+    )
+  );

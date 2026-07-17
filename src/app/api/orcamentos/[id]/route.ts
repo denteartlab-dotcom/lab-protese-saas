@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { acaoHttpParaPermissao, negarSeSemPermissao } from "@/lib/require-permissao";
 import { prisma } from "@/lib/db";
 import { criarJob, executarJobEmBackground } from "@/lib/jobs";
 import {
@@ -18,6 +19,9 @@ export async function PATCH(request: Request, { params }: Params) {
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
+
+  const negado = await negarSeSemPermissao(ctx, "orcamentos", acaoHttpParaPermissao("PATCH"));
+  if (negado) return negado;
 
   const { id } = await params;
   const body = (await request.json()) as {
@@ -153,6 +157,9 @@ export async function DELETE(_request: Request, { params }: Params) {
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
+
+  const negado = await negarSeSemPermissao(ctx, "orcamentos", acaoHttpParaPermissao("DELETE"));
+  if (negado) return negado;
 
   const { id } = await params;
   const atual = await prisma.orcamento.findFirst({

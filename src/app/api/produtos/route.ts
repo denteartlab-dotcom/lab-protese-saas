@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { acaoHttpParaPermissao, negarSeSemPermissao } from "@/lib/require-permissao";
 import { z } from "zod";
 
 const schema = z.object({
@@ -13,6 +14,9 @@ const schema = z.object({
 export async function GET() {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(ctx, "produtos", acaoHttpParaPermissao("GET"));
+  if (negado) return negado;
+
 
   const produtos = await prisma.produto.findMany({
     where: { empresaId: ctx.empresaId, ativo: true },
@@ -25,6 +29,9 @@ export async function GET() {
 export async function POST(request: Request) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(ctx, "produtos", acaoHttpParaPermissao("POST"));
+  if (negado) return negado;
+
 
   try {
     const data = schema.parse(await request.json());
@@ -46,6 +53,9 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(ctx, "produtos", acaoHttpParaPermissao("DELETE"));
+  if (negado) return negado;
+
 
   const id = new URL(request.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "ID obrigatório" }, { status: 400 });

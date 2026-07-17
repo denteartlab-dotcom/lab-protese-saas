@@ -24,11 +24,28 @@ function urlConexaoApp(): string | undefined {
     process.env.USE_DATABASE_URL_OWNER === "1" ||
     process.env.USE_DATABASE_URL_OWNER === "true";
   const owner = process.env.DATABASE_URL?.trim();
-  if (forcarOwner && owner) return normalizarUrlPostgres(owner);
+  if (forcarOwner) {
+    if (process.env.NODE_ENV === "production") {
+      console.error(
+        "[prisma] ALERTA DE SEGURANÇA: USE_DATABASE_URL_OWNER ativo em produção — RLS do lab_app está anulado."
+      );
+    } else {
+      console.warn("[prisma] USE_DATABASE_URL_OWNER ativo — usando DATABASE_URL (owner).");
+    }
+    if (owner) return normalizarUrlPostgres(owner);
+  }
 
   // Preferir papel sem superuser (RLS vale de verdade). Migrações/seed usam DATABASE_URL/DIRECT_URL.
   const app = process.env.DATABASE_URL_APP?.trim();
   if (app) return normalizarUrlPostgres(app);
+
+  // Em produção, sem DATABASE_URL_APP a app não deve cair silenciosamente no owner.
+  if (process.env.NODE_ENV === "production" && !forcarOwner) {
+    throw new Error(
+      "DATABASE_URL_APP obrigatória em produção (papel lab_app com RLS). Defina no .env ou use USE_DATABASE_URL_OWNER=true apenas em emergência."
+    );
+  }
+
   return owner ? normalizarUrlPostgres(owner) : undefined;
 }
 

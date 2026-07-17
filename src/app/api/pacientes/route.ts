@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { acaoHttpParaPermissao, negarSeSemPermissao } from "@/lib/require-permissao";
 import { z } from "zod";
 
 const schema = z.object({
@@ -15,6 +16,9 @@ const schema = z.object({
 export async function GET(request: Request) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(ctx, "pacientes", acaoHttpParaPermissao("GET"));
+  if (negado) return negado;
+
 
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q") || "";
@@ -40,6 +44,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(ctx, "pacientes", acaoHttpParaPermissao("POST"));
+  if (negado) return negado;
+
 
   try {
     const body = await request.json();

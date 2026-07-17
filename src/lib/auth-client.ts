@@ -7,37 +7,19 @@ import {
 const AUTH_JA_ENTROU_KEY = "labProteseJaEntrou";
 /** Legado no JsonStore — não usar para credenciais (era global e sobrescrevia contas). */
 const LEMBRAR_LOGIN_KEY = "labProteseLembrarLogin";
-/** Credenciais lembradas neste navegador (localStorage). */
+/** E-mail lembrado neste navegador (localStorage). Senha NÃO é armazenada. */
 const LEMBRAR_LOGIN_LOCAL_KEY = "denteartLoginLembrete";
 
 export type LembrarLoginSalvo = {
   email: string;
-  /** Só quando o usuário marca “lembrar e-mail e senha”. */
-  password?: string;
 };
 
 type LembrarLoginArmazenado = {
   email: string;
-  /** Senha ofuscada (base64) — não é criptografia forte; só neste PC. */
+  /** @deprecated nunca gravar senha — campo legado removido na leitura */
   password?: string;
   v?: number;
 };
-
-function ofuscarSenha(senha: string): string {
-  try {
-    return window.btoa(unescape(encodeURIComponent(senha)));
-  } catch {
-    return "";
-  }
-}
-
-function revelarSenha(ofuscada: string): string {
-  try {
-    return decodeURIComponent(escape(window.atob(ofuscada)));
-  } catch {
-    return "";
-  }
-}
 
 function lerLembreteLocalStorage(): LembrarLoginSalvo | null {
   if (typeof window === "undefined") return null;
@@ -47,13 +29,10 @@ function lerLembreteLocalStorage(): LembrarLoginSalvo | null {
     const parsed = JSON.parse(raw) as LembrarLoginArmazenado;
     const email = parsed.email?.trim();
     if (!email) return null;
-
-    // v3 = e-mail + senha; v2 = só e-mail (migração da fase de hardening).
-    if (parsed.v === 3 && parsed.password) {
-      const password = revelarSenha(parsed.password);
-      return password ? { email, password } : { email };
+    // Migra v3 (com senha ofuscada) → só e-mail
+    if (parsed.password || parsed.v === 3) {
+      gravarLembreteLocalStorage({ email });
     }
-
     return { email };
   } catch {
     return null;
@@ -64,10 +43,7 @@ function gravarLembreteLocalStorage(dados: LembrarLoginSalvo) {
   if (typeof window === "undefined") return;
   const email = dados.email.trim();
   if (!email) return;
-  const senha = dados.password?.trim() || "";
-  const payload: LembrarLoginArmazenado = senha
-    ? { email, password: ofuscarSenha(senha), v: 3 }
-    : { email, v: 2 };
+  const payload: LembrarLoginArmazenado = { email, v: 4 };
   window.localStorage.setItem(LEMBRAR_LOGIN_LOCAL_KEY, JSON.stringify(payload));
 }
 
@@ -94,18 +70,16 @@ function migrarLembreteLegado(): LembrarLoginSalvo | null {
   );
   const email = legado?.email?.trim();
   if (!email) return null;
-  const dados: LembrarLoginSalvo = {
-    email,
-    ...(legado?.password?.trim() ? { password: legado.password.trim() } : {}),
-  };
+  const dados: LembrarLoginSalvo = { email };
   gravarLembreteLocalStorage(dados);
   limparLembreteLegadoServidor();
   return dados;
 }
 
+/** Salva apenas o e-mail. A senha fica no cookie de sessão (remember) / gerenciador do navegador. */
 export function salvarLembrarLogin(dados: LembrarLoginSalvo) {
   if (typeof window === "undefined") return;
-  gravarLembreteLocalStorage(dados);
+  gravarLembreteLocalStorage({ email: dados.email });
   limparLembreteLegadoServidor();
 }
 

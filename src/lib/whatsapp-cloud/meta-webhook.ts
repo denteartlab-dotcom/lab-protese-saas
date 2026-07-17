@@ -125,6 +125,6 @@ export function verificarAssinaturaMeta(rawBody: string, assinaturaHeader: strin
   try {
     return timingSafeEqual(Buffer.from(calculado, "hex"), Buffer.from(esperado, "hex"));
   } catch {
-    return calculado === esperado;
+    return false;
   }
 }

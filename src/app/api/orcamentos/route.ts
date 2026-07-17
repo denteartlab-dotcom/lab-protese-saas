@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { acaoHttpParaPermissao, negarSeSemPermissao } from "@/lib/require-permissao";
 import { prisma } from "@/lib/db";
 import {
   calcularTotaisItens,
@@ -18,6 +19,9 @@ export async function GET() {
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
+
+  const negado = await negarSeSemPermissao(ctx, "orcamentos", acaoHttpParaPermissao("GET"));
+  if (negado) return negado;
 
   const rows = await prisma.orcamento.findMany({
     where: { empresaId: ctx.empresaId },
@@ -47,6 +51,9 @@ export async function POST(request: Request) {
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
+
+  const negado = await negarSeSemPermissao(ctx, "orcamentos", acaoHttpParaPermissao("POST"));
+  if (negado) return negado;
 
   const body = (await request.json()) as BodyCriar;
   if (!Array.isArray(body.itens) || body.itens.length === 0) {

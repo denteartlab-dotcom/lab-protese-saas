@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireEmpresaContext } from "@/lib/empresa-context";
-import { gerarTokenAcompanhamentoCliente, garantirTokenAcompanhamentoCliente, preencherTokensAcompanhamentoAusentes } from "@/lib/cliente-acompanhamento";
+import { acaoHttpParaPermissao, negarSeSemPermissao } from "@/lib/require-permissao";
+import {
+  gerarTokenAcompanhamentoCliente,
+  preencherTokensAcompanhamentoAusentes,
+} from "@/lib/cliente-acompanhamento";
 import { schemaNomeCliente } from "@/lib/cliente-validacao";
 import { z } from "zod";
 
@@ -28,6 +32,9 @@ export async function GET(request: Request) {
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
+
+  const negado = await negarSeSemPermissao(ctx, "clientes", acaoHttpParaPermissao("GET"));
+  if (negado) return negado;
 
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q") || "";
@@ -64,6 +71,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
+  const negado = await negarSeSemPermissao(ctx, "clientes", acaoHttpParaPermissao("POST"));
+  if (negado) return negado;
+
   try {
     const body = await request.json();
     const data = schema.parse(body);
@@ -78,11 +88,9 @@ export async function POST(request: Request) {
     return NextResponse.json(cliente, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.issues[0]?.message || "Dados inválidos" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
     }
-    return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
+    console.error("[clientes POST]", error);
+    return NextResponse.json({ error: "Erro ao criar cliente" }, { status: 500 });
   }
 }

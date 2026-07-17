@@ -4,9 +4,9 @@
  * Uso:
  *   npx tsx scripts/zerar-sistema-virgem.ts --confirmar=ZERAR
  *
- * Variáveis opcionais:
- *   ZERAR_EMAIL_PROPRIETARIO  (padrão: admin@labprotese.com)
- *   ZERAR_SENHA_PROPRIETARIO  (padrão: 789654)
+ * Variáveis obrigatórias:
+ *   ZERAR_EMAIL_PROPRIETARIO  (ou usa admin@labprotese.com)
+ *   ZERAR_SENHA_PROPRIETARIO  (obrigatória, mín. 8, sem senhas padrão)
  */
 import { rm } from "fs/promises";
 import path from "path";
@@ -23,7 +23,19 @@ import {
 const prisma = new PrismaClient();
 
 const EMAIL_PADRAO = process.env.ZERAR_EMAIL_PROPRIETARIO?.trim() || "admin@labprotese.com";
-const SENHA_PADRAO = process.env.ZERAR_SENHA_PROPRIETARIO?.trim() || "789654";
+const SENHA_ENV = process.env.ZERAR_SENHA_PROPRIETARIO?.trim() || "";
+
+function senhaObrigatoria(): string {
+  if (!SENHA_ENV || SENHA_ENV.length < 8) {
+    throw new Error(
+      "ZERAR_SENHA_PROPRIETARIO obrigatória (mín. 8 caracteres). Sem fallback de senha padrão."
+    );
+  }
+  if (SENHA_ENV === "789654" || SENHA_ENV.toLowerCase() === "admin123") {
+    throw new Error("ZERAR_SENHA_PROPRIETARIO não pode ser senha padrão fraca.");
+  }
+  return SENHA_ENV;
+}
 
 const TABELA_PRECOS_VAZIA = {
   tabela: "Tabela Principal",
@@ -106,6 +118,7 @@ function hostBanco(url: string) {
 async function limparPastasLocais() {
   const pastas = [
     path.join(process.cwd(), "public", "uploads"),
+    path.join(process.cwd(), "var", "uploads"),
     path.join(process.cwd(), "backups"),
   ];
   for (const pasta of pastas) {
@@ -172,7 +185,8 @@ async function main() {
   console.log("[zerar] Limpando pastas locais (uploads, backups)...");
   await limparPastasLocais();
 
-  const password = await bcrypt.hash(SENHA_PADRAO, 10);
+  const senha = senhaObrigatoria();
+  const password = await bcrypt.hash(senha, 10);
   const proprietario = await prisma.user.create({
     data: {
       name: "Proprietário",
@@ -189,7 +203,7 @@ async function main() {
   console.log("");
   console.log("Sistema zerado com sucesso.");
   console.log(`Proprietário: ${proprietario.email}`);
-  console.log(`Senha: ${SENHA_PADRAO}`);
+  console.log("Senha: (definida via ZERAR_SENHA_PROPRIETARIO — não exibida)");
   console.log("Nenhum cliente, OS, produto ou financeiro cadastrado.");
 }
 

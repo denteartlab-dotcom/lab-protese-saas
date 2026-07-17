@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { acaoHttpParaPermissao, negarSeSemPermissao } from "@/lib/require-permissao";
 import { schemaNomeCliente } from "@/lib/cliente-validacao";
 import { garantirTokenAcompanhamentoCliente } from "@/lib/cliente-acompanhamento";
 import { sincronizarFaturasPendentesDescontoCliente, descontoGeralClienteMudou } from "@/lib/desconto-cliente-fatura";
@@ -29,6 +30,9 @@ export async function GET(
 ) {
   const session = await requireEmpresaContext().catch(() => null);
   if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(session, "clientes", acaoHttpParaPermissao("GET"));
+  if (negado) return negado;
+
 
   const { id } = await params;
   const cliente = await prisma.cliente.findFirst({
@@ -53,6 +57,9 @@ export async function PUT(
 ) {
   const session = await requireEmpresaContext().catch(() => null);
   if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(session, "clientes", acaoHttpParaPermissao("PUT"));
+  if (negado) return negado;
+
 
   const { id } = await params;
   try {
@@ -135,6 +142,9 @@ export async function DELETE(
 ) {
   const session = await requireEmpresaContext().catch(() => null);
   if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(session, "clientes", acaoHttpParaPermissao("DELETE"));
+  if (negado) return negado;
+
 
   const { id } = await params;
   const permanente = new URL(request.url).searchParams.get("permanente") === "1";

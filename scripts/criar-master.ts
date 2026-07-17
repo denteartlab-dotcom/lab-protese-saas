@@ -17,11 +17,20 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 const EMAIL_PADRAO = "admin@labprotese.com";
-const SENHA_PADRAO = "789654";
 
 function senhaMaster(): string {
   const env = process.env.MASTER_ADMIN_PASSWORD?.trim();
-  return env || SENHA_PADRAO;
+  if (!env || env.length < 8) {
+    throw new Error(
+      "MASTER_ADMIN_PASSWORD obrigatória (mín. 8 caracteres). Defina no .env ou exporte antes de npm run db:criar-master."
+    );
+  }
+  if (env === "789654" || env.toLowerCase() === "admin123") {
+    throw new Error(
+      "MASTER_ADMIN_PASSWORD não pode ser uma senha padrão fraca (789654/admin123)."
+    );
+  }
+  return env;
 }
 
 function emailMaster(): string {
@@ -123,17 +132,6 @@ async function main() {
   const email = emailMaster();
   const senha = senhaMaster();
 
-  if (!process.env.MASTER_ADMIN_PASSWORD?.trim()) {
-    console.warn(
-      "AVISO: MASTER_ADMIN_PASSWORD não definida no ambiente — usando fallback fraco. Defina no .env."
-    );
-  }
-  if (senha === SENHA_PADRAO || senha.length < 8) {
-    console.warn(
-      "AVISO: senha fraca ou padrão. Use MASTER_ADMIN_PASSWORD com mínimo 8 caracteres."
-    );
-  }
-
   const senhaHash = await bcrypt.hash(senha, 10);
 
   try {
@@ -167,7 +165,7 @@ async function main() {
 
     console.log("Master criado/atualizado com sucesso.");
     console.log(`  E-mail: ${master.email}`);
-    console.log(`  Senha:  ${senha}`);
+    console.log("  Senha:  (definida via MASTER_ADMIN_PASSWORD — não exibida)");
     console.log(`  Painel: /admin-master/login`);
 
     await sincronizarProprietarioLab(email, senhaHash);

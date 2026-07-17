@@ -9,6 +9,18 @@ import { fetchComTimeout } from "@/lib/http-integracao";
 import { prisma } from "@/lib/db";
 import { lerJsonStoreTenant, salvarJsonStoreTenant } from "@/lib/json-store-tenant";
 import { webhookAceitaSemSegredo } from "@/lib/webhook-seguranca";
+import { timingSafeEqual } from "crypto";
+
+function tokenAsaasIgual(a: string, b: string): boolean {
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ba.length !== bb.length) return false;
+  try {
+    return timingSafeEqual(ba, bb);
+  } catch {
+    return false;
+  }
+}
 
 export type AsaasCustomer = {
   id: string;
@@ -99,7 +111,7 @@ export async function validarWebhookTokenAsaas(tokenRecebido: string): Promise<b
   const configurados = await listarWebhookTokensAsaas();
   if (configurados.length === 0) return webhookAceitaSemSegredo();
   if (!tokenRecebido) return false;
-  return configurados.includes(tokenRecebido);
+  return configurados.some((token) => tokenAsaasIgual(token, tokenRecebido));
 }
 
 export async function asaasFetch<T>(
