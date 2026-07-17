@@ -81,6 +81,35 @@ function limparCookieSessao(response: NextResponse) {
   return response;
 }
 
+/** Origem pública sem :3000 (Next atrás do nginx às vezes monta request.url com a porta interna). */
+function origemPublica(request: NextRequest): string {
+  const host = request.headers.get("host")?.split(":")[0]?.toLowerCase() || "";
+  if (host === "denteartlab.com.br" || host === "www.denteartlab.com.br") {
+    return "https://www.denteartlab.com.br";
+  }
+  const env =
+    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+    process.env.URL_PUBLICA_DO_APP?.trim() ||
+    "";
+  if (env) {
+    try {
+      return new URL(env).origin;
+    } catch {
+      /* ignora */
+    }
+  }
+  const u = request.nextUrl.clone();
+  if (u.port === "3000") {
+    u.port = "";
+    if (u.protocol === "http:") u.protocol = "https:";
+  }
+  return u.origin;
+}
+
+function urlNoSite(request: NextRequest, caminho: string): URL {
+  return new URL(caminho, origemPublica(request));
+}
+
 function redirecionarParaWww(request: NextRequest) {
   const host = request.headers.get("host")?.split(":")[0]?.toLowerCase();
   if (host !== "denteartlab.com.br") return null;
@@ -100,7 +129,7 @@ function processarRotaApp(
   if (!pathname.startsWith("/app")) return null;
 
   if (!slugSessao) {
-    const login = new URL("/login", request.url);
+    const login = urlNoSite(request, "/login");
     login.searchParams.set("redirect", pathname);
     return limparCookieSessao(NextResponse.redirect(login));
   }
@@ -111,14 +140,14 @@ function processarRotaApp(
   if (legado) {
     const destino = montarCaminhoAppComSlug(slugSessao, restante) + search;
     if (destino !== pathname + search) {
-      return NextResponse.redirect(new URL(destino, request.url));
+      return NextResponse.redirect(urlNoSite(request, destino));
     }
     return null;
   }
 
   if (slug !== slugSessao) {
     const destino = montarCaminhoAppComSlug(slugSessao, restante) + search;
-    return NextResponse.redirect(new URL(destino, request.url));
+    return NextResponse.redirect(urlNoSite(request, destino));
   }
 
   const interno = caminhoInternoApp(restante);
@@ -211,7 +240,7 @@ export async function middleware(request: NextRequest) {
     if (masterPublico) {
       const masterToken = request.cookies.get(MASTER_COOKIE_NAME)?.value;
       if (masterToken && (await masterTokenAceito(masterToken))) {
-        return NextResponse.redirect(new URL("/admin-master", request.url));
+        return NextResponse.redirect(urlNoSite(request, "/admin-master"));
       }
       return NextResponse.next();
     }
@@ -221,7 +250,7 @@ export async function middleware(request: NextRequest) {
       if (pathname.startsWith("/api/admin-master")) {
         return NextResponse.json({ error: "Acesso restrito ao proprietário." }, { status: 403 });
       }
-      const login = new URL("/admin-master/login", request.url);
+      const login = urlNoSite(request, "/admin-master/login");
       login.searchParams.set("redirect", pathname);
       return NextResponse.redirect(login);
     }
@@ -274,14 +303,14 @@ export async function middleware(request: NextRequest) {
     if (pathname.startsWith("/api")) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
-    const login = new URL("/login", request.url);
+    const login = urlNoSite(request, "/login");
     login.searchParams.set("redirect", pathname);
     return limparCookieSessao(NextResponse.redirect(login));
   }
 
   if (payloadSessao.assinaturaVencida === true) {
     if (pathname.startsWith("/app")) {
-      return NextResponse.redirect(new URL("/assinatura-vencida", request.url));
+      return NextResponse.redirect(urlNoSite(request, "/assinatura-vencida"));
     }
     if (pathname.startsWith("/api") && !apiLiberadaAssinaturaVencida(pathname)) {
       return NextResponse.json(

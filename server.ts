@@ -81,7 +81,35 @@ function hostnamePublicoParaNext(): string {
  * (ex.: www.denteartlab.com.br), NUNCA 0.0.0.0 nem bind address.
  */
 const nextHostname = hostnamePublicoParaNext();
-const port = parseInt(process.env.PORT || "3000", 10);
+/** Porta em que o Node escuta (nginx faz proxy → 3000). */
+const listenPort = parseInt(process.env.PORT || "3000", 10);
+/**
+ * Porta que o Next usa em redirects absolutos.
+ * Em produção atrás de nginx/HTTPS, NÃO usar 3000 — o browser tenta
+ * denteartlab.com.br:3000 e dá timeout (porta fechada na internet).
+ */
+function portaPublicaParaNext(): number {
+  if (!dev) {
+    const explícita = process.env.NEXT_PUBLIC_PORT?.trim();
+    if (explícita && /^\d+$/.test(explícita)) return parseInt(explícita, 10);
+    try {
+      const base =
+        process.env.URL_PUBLICA_DO_APP?.trim() ||
+        process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+        "";
+      if (base) {
+        const u = new URL(base);
+        if (u.port) return parseInt(u.port, 10);
+        return u.protocol === "https:" ? 443 : 80;
+      }
+    } catch {
+      /* ignora */
+    }
+    return 443;
+  }
+  return listenPort;
+}
+const nextPort = portaPublicaParaNext();
 const projectDir = path.resolve(process.cwd());
 
 if (dev && process.platform === "win32") {
@@ -99,7 +127,12 @@ process.on("uncaughtException", (erro) => {
   console.error("[process] uncaughtException:", erro);
 });
 
-const app = next({ dev, hostname: nextHostname, port, dir: projectDir });
+const app = next({
+  dev,
+  hostname: nextHostname,
+  port: nextPort,
+  dir: projectDir,
+});
 const handle = app.getRequestHandler();
 
 app
@@ -269,12 +302,12 @@ app
       httpServer.once("error", (erro: NodeJS.ErrnoException) => {
         if (erro.code === "EADDRINUSE" && tentativa < 4) {
           console.warn(
-            `> Porta ${port} ocupada (tentativa ${tentativa}/3). Liberando e tentando de novo...`
+            `> Porta ${listenPort} ocupada (tentativa ${tentativa}/3). Liberando e tentando de novo...`
           );
           try {
             if (process.platform === "win32") {
               const ps = execSync(
-                `powershell -NoProfile -Command "(Get-NetTCPConnection -LocalPort ${port} -State Listen -ErrorAction SilentlyContinue).OwningProcess"`,
+                `powershell -NoProfile -Command "(Get-NetTCPConnection -LocalPort ${listenPort} -State Listen -ErrorAction SilentlyContinue).OwningProcess"`,
                 { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }
               );
               for (const linha of ps.split(/\r?\n/)) {
@@ -284,7 +317,7 @@ app
                 }
               }
             } else {
-              const saida = execSync(`lsof -ti tcp:${port}`, {
+              const saida = execSync(`lsof -ti tcp:${listenPort}`, {
                 encoding: "utf8",
                 stdio: ["pipe", "pipe", "ignore"],
               });
@@ -301,18 +334,20 @@ app
           setTimeout(() => iniciarHttp(tentativa + 1), 600);
           return;
         }
-        console.error("Falha ao escutar na porta", port, erro);
+        console.error("Falha ao escutar na porta", listenPort, erro);
         process.exit(1);
       });
 
-      httpServer.listen(port, listenHost, () => {
-        console.log(`> Lab Prótese ouvindo em ${listenHost}:${port} (Next hostname=${nextHostname})`);
+      httpServer.listen(listenPort, listenHost, () => {
+        console.log(
+          `> Lab Prótese ouvindo em ${listenHost}:${listenPort} (Next hostname=${nextHostname} publicPort=${nextPort})`
+        );
         console.log(`> Socket.io TV: ${TV_SOCKET_PATH}`);
         iniciarMonitorConexaoWhatsapp();
         void retomarCampanhasPendentesServidor();
 
         if (dev && process.env.DEV_PREWARM !== "0") {
-          const base = `http://127.0.0.1:${port}`;
+          const base = `http://127.0.0.1:${listenPort}`;
           const slugDev = process.env.DEV_PREWARM_SLUG?.trim() || "denteart";
           setTimeout(() => {
             console.log("> Pré-compilando rotas críticas (dev)…");
