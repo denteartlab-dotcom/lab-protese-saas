@@ -276,10 +276,7 @@ export function ContaBancariaConteudo() {
         Boolean(sub?.podeVisualizarContaDigital) || integracaoAtiva || subcontaIniciada
       );
     } catch {
-      setSaldoAsaas(null);
-      setContaAsaasAtiva(false);
-      setPodeVisualizarContaAsaas(false);
-      setModoIntegracaoAsaas(null);
+      // Não zera flags se a conta já estava visível — evita “sumir” a conta após Pix.
     }
   }, []);
 

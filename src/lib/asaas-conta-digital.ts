@@ -17,7 +17,9 @@ export async function resolverContaDigitalOperacional(empresaId: string): Promis
   if (subconta) return { config: subconta, modo: "subconta" };
 
   const legado = await obterConfigAsaas(empresaId);
-  if (asaasConfigurado(legado) && (await laboratorioUsaCnpjContaMae(empresaId))) {
+  // Chave já salva em Configurações → Boletos: operar sem reconsultar CNPJ na API Asaas.
+  // A checagem laboratorioUsaCnpjContaMae vale só ao gravar a chave (PUT /api/asaas/config).
+  if (asaasConfigurado(legado)) {
     return { config: legado, modo: "legado" };
   }
 

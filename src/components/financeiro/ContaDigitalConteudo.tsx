@@ -182,7 +182,8 @@ export function ContaDigitalConteudo({
   const [podeConfigurarLimite, setPodeConfigurarLimite] = useState(false);
 
   const carregar = useCallback(async (opts?: { refresh?: boolean }) => {
-    setCarregando(true);
+    const isRefresh = Boolean(opts?.refresh);
+    if (!isRefresh) setCarregando(true);
     try {
       const painel = await fetchPainelFinanceiro<PainelFinanceiroContaDigital>(
         "conta-digital",
@@ -202,14 +203,25 @@ export function ContaDigitalConteudo({
         );
       }
     } catch (err) {
-      setMensagem({
-        texto: err instanceof Error ? err.message : t("financeiro.conta.digital.erroCarregar"),
-        tipo: "erro",
-      });
+      // Em refresh (ex.: após Pix), não zera a conta — só mostra o erro.
+      if (!isRefresh) {
+        setMensagem({
+          texto: err instanceof Error ? err.message : t("financeiro.conta.digital.erroCarregar"),
+          tipo: "erro",
+        });
+      } else {
+        setMensagem({
+          texto:
+            err instanceof Error
+              ? err.message
+              : t("financeiro.conta.digital.erroCarregar"),
+          tipo: "erro",
+        });
+      }
     } finally {
-      setCarregando(false);
+      if (!isRefresh) setCarregando(false);
     }
-  }, [t]);
+  }, [money, t]);
 
   useEffect(() => {
     void carregar();
@@ -366,6 +378,7 @@ export function ContaDigitalConteudo({
         texto: mensagemTransferenciaPix(subconta?.modoIntegracao, json.transferencia?.status),
         tipo: "sucesso",
       });
+      setAba("transferir");
       await carregar({ refresh: true });
     } catch (err) {
       const msg = err instanceof Error ? err.message : t("financeiro.conta.digital.erroFalhaTransferencia");
