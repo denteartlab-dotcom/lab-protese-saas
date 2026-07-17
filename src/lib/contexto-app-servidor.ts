@@ -6,7 +6,12 @@ import { registrarUltimoAcessoEmpresa } from "@/lib/empresa-ultimo-acesso";
 import { nomeExibicaoLaboratorio } from "@/lib/configuracoes-lab";
 import { configParaLabImpressao } from "@/lib/lab-logo";
 import type { LabImpressaoConfig } from "@/lib/lab-impressao";
-import { prisma, runWithRlsBypass, runWithTenantContext } from "@/lib/prisma-tenant";
+import {
+  executarSemRls,
+  prisma,
+  runWithRlsBypass,
+  runWithTenantContext,
+} from "@/lib/prisma-tenant";
 import { normalizarPermissoesCompletas } from "@/lib/usuarios-menu-permissoes";
 import type { PermissaoCrud } from "@/lib/usuarios-sistema";
 import { parsePermissoesUsuario, usuarioEhProprietario } from "@/lib/usuarios-sistema";
@@ -32,33 +37,76 @@ export type ContextoAppServidor = {
   suporteWhatsapp: string | null;
 };
 
-async function carregarUsuarioApp(userId: string, empresaId: string) {
-  const consulta = () =>
-    prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        role: true,
-        permissoesJson: true,
-        excluidoEm: true,
-        empresaId: true,
-        empresa: {
-          select: {
-            id: true,
-            nome: true,
-            slug: true,
-            status: true,
-            dataVencimento: true,
-          },
-        },
-      },
-    });
+type UsuarioAppRow = {
+  role: string;
+  permissoesJson: string | null;
+  excluidoEm: Date | null;
+  empresaId: string;
+  empresa: {
+    id: string;
+    nome: string;
+    slug: string;
+    status: string;
+    dataVencimento: Date | null;
+  } | null;
+};
 
-  // Usar `prisma` (extensão RLS), NÃO prismaBase — senão lab_app não vê a linha.
-  let user = await runWithTenantContext(empresaId, consulta);
-  if (!user) {
-    user = await runWithRlsBypass(consulta);
+const selectUsuarioApp = {
+  role: true,
+  permissoesJson: true,
+  excluidoEm: true,
+  empresaId: true,
+  empresa: {
+    select: {
+      id: true,
+      nome: true,
+      slug: true,
+      status: true,
+      dataVencimento: true,
+    },
+  },
+} as const;
+
+/** Bypass no MESMO transaction do SELECT — runWithRlsBypass+prisma às vezes não aplica set_config. */
+async function carregarUsuarioApp(
+  userId: string,
+  empresaId: string,
+  email?: string
+): Promise<UsuarioAppRow | null> {
+  const porId = await executarSemRls((tx) =>
+    tx.user.findUnique({
+      where: { id: userId },
+      select: selectUsuarioApp,
+    })
+  );
+  if (porId) return porId as UsuarioAppRow;
+
+  // Fallback: JWT com id desatualizado — busca pelo e-mail da sessão.
+  if (email?.trim()) {
+    const porEmail = await executarSemRls((tx) =>
+      tx.user.findFirst({
+        where: {
+          email: email.trim().toLowerCase(),
+          excluidoEm: null,
+          ...(empresaId ? { empresaId } : {}),
+        },
+        select: selectUsuarioApp,
+        orderBy: { createdAt: "asc" },
+      })
+    );
+    if (porEmail) return porEmail as UsuarioAppRow;
   }
-  return user;
+
+  // Última tentativa: tenant no cliente estendido.
+  let user = await runWithTenantContext(empresaId, () =>
+    prisma.user.findUnique({ where: { id: userId }, select: selectUsuarioApp })
+  );
+  if (!user) {
+    user = await runWithRlsBypass(() =>
+      prisma.user.findUnique({ where: { id: userId }, select: selectUsuarioApp })
+    );
+  }
+  return (user as UsuarioAppRow | null) ?? null;
 }
 
 export async function obterContextoAppServidor(): Promise<ContextoAppServidor | null> {
@@ -76,11 +124,17 @@ export async function obterContextoAppServidor(): Promise<ContextoAppServidor | 
   }
 
   try {
-    const user = await carregarUsuarioApp(session.id, session.empresaId);
+    const user = await carregarUsuarioApp(
+      session.id,
+      session.empresaId,
+      session.email
+    );
     if (!user || user.excluidoEm || !user.empresa) {
       console.error(
         "[contexto-app] usuario invalido:",
         JSON.stringify({
+          sessionId: session.id,
+          sessionEmail: session.email,
           achou: Boolean(user),
           excluido: Boolean(user?.excluidoEm),
           temEmpresa: Boolean(user?.empresa),
@@ -104,7 +158,7 @@ export async function obterContextoAppServidor(): Promise<ContextoAppServidor | 
     );
 
     void runWithTenantContext(user.empresa.id, () =>
-      registrarUltimoAcessoEmpresa(user.empresa.id)
+      registrarUltimoAcessoEmpresa(user.empresa!.id)
     );
 
     const lab = configParaLabImpressao(configLab);

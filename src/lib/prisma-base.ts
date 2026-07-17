@@ -18,10 +18,17 @@ function normalizarUrlPostgres(url: string): string {
 }
 
 function urlConexaoApp(): string | undefined {
+  // Emergência: USE_DATABASE_URL_OWNER=true força o owner (ignora RLS do lab_app).
+  // Use só para restaurar login; depois volte a lab_app.
+  const forcarOwner =
+    process.env.USE_DATABASE_URL_OWNER === "1" ||
+    process.env.USE_DATABASE_URL_OWNER === "true";
+  const owner = process.env.DATABASE_URL?.trim();
+  if (forcarOwner && owner) return normalizarUrlPostgres(owner);
+
   // Preferir papel sem superuser (RLS vale de verdade). Migrações/seed usam DATABASE_URL/DIRECT_URL.
   const app = process.env.DATABASE_URL_APP?.trim();
   if (app) return normalizarUrlPostgres(app);
-  const owner = process.env.DATABASE_URL?.trim();
   return owner ? normalizarUrlPostgres(owner) : undefined;
 }
 
