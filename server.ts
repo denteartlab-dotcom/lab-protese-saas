@@ -171,11 +171,10 @@ app
       path: TV_SOCKET_PATH,
       cors: {
         origin: (origin, callback) => {
-          // Em produção exige Origin do browser na allowlist (sem Origin vazio).
-          if (process.env.NODE_ENV === "production" && !origin) {
-            callback(new Error("Origin Socket.IO obrigatória"), false);
-            return;
-          }
+          // Handshake inicial do Engine.IO é GET same-origin e frequentemente
+          // vem sem header Origin — bloquear Origin vazio derruba o módulo TV.
+          // Sem Origin: permitir (sessão por cookie ainda autentica).
+          // Com Origin: só allowlist (bloqueia sites terceiros).
           if (!origin || origensSocketPermitidas.includes(origin)) {
             callback(null, true);
             return;
