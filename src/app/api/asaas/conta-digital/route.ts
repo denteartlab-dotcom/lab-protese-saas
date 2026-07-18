@@ -21,12 +21,15 @@ import {
   criarAutorizacaoPixSubconta,
   vincularTransferenciaAsaas,
 } from "@/lib/seguranca-pix-subconta";
+import { negarSeSemPermissao } from "@/lib/require-permissao";
 
 export async function GET(request: Request) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
+  const negado = await negarSeSemPermissao(ctx, "financeiro-aba-conta-bancaria", "ver");
+  if (negado) return negado;
 
   const { searchParams } = new URL(request.url);
   const acao = searchParams.get("acao");
@@ -57,6 +60,12 @@ export async function POST(request: Request) {
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
+  const negado = await negarSeSemPermissao(
+    ctx,
+    "financeiro-aba-conta-bancaria",
+    "criar"
+  );
+  if (negado) return negado;
 
   try {
     const body = (await request.json()) as {

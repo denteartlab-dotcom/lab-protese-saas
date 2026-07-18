@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 import { salvarArquivosUpload } from "@/lib/upload-arquivo-server";
+import { negarSeSemPermissao } from "@/lib/require-permissao";
 
 export async function POST(request: Request) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(ctx, "disparos-whatsapp", "criar");
+  if (negado) return negado;
 
   try {
     const formData = await request.formData();

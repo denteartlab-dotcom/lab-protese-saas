@@ -7,12 +7,16 @@ import {
   sincronizarStatusSubconta,
 } from "@/lib/asaas-subconta";
 import { montarSubcontaPainelContaDigital } from "@/lib/asaas-conta-digital";
+import { exigirProprietario } from "@/lib/exigir-proprietario";
+import { negarSeSemPermissao } from "@/lib/require-permissao";
 
 export async function GET() {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
+  const negado = await negarSeSemPermissao(ctx, "configuracoes-boletos", "ver");
+  if (negado) return negado;
 
   try {
     let sub = await obterSubcontaEmpresa(ctx.empresaId);
@@ -50,6 +54,8 @@ export async function GET() {
 }
 
 export async function POST() {
+  const prop = await exigirProprietario();
+  if (prop.erro) return prop.erro;
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });

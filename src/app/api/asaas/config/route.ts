@@ -10,12 +10,16 @@ import {
   salvarConfigAsaas,
 } from "@/lib/asaas-client";
 import { laboratorioUsaCnpjContaMae } from "@/lib/asaas-subconta";
+import { exigirProprietario } from "@/lib/exigir-proprietario";
+import { negarSeSemPermissao } from "@/lib/require-permissao";
 
 export async function GET() {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
+  const negado = await negarSeSemPermissao(ctx, "configuracoes-boletos", "ver");
+  if (negado) return negado;
 
   const config = await obterConfigAsaas(ctx.empresaId);
   const podeUsarIntegracaoManual = await laboratorioUsaCnpjContaMae(ctx.empresaId);
@@ -32,6 +36,8 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
+  const prop = await exigirProprietario();
+  if (prop.erro) return prop.erro;
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });

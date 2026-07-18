@@ -23,8 +23,13 @@ export async function GET(_request: Request, { params }: Params) {
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
-  // Sessão autenticada da empresa basta para leitura do espelho do lab.
   const { key } = await params;
+
+  if (CHAVES_SENSIVEIS_JSON_STORE.has(key) && !usuarioEhProprietario(ctx.user.role)) {
+    const negado = await negarSeSemPermissao(ctx, "configuracoes-dados", "ver");
+    if (negado) return negado;
+  }
+
   const valor = await lerJsonStoreTenant(ctx.empresaId, key);
   if (valor === null) {
     return NextResponse.json(null);

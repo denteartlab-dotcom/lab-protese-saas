@@ -1,24 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { cronAutorizado } from "@/lib/cron-auth";
 import { executarLimpezaContasInativas } from "@/lib/exclusao-empresa";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
-function autorizado(request: Request) {
-  const segredo = process.env.CRON_SECRET?.trim();
-  if (!segredo) return false;
-
-  const auth = request.headers.get("authorization") ?? "";
-  if (auth === `Bearer ${segredo}`) return true;
-
-  const query = new URL(request.url).searchParams.get("secret");
-  return query === segredo;
-}
-
 /** Exclui contas com 30+ dias sem acesso e sem assinatura paga (cron externo). */
 export async function GET(request: Request) {
-  if (!autorizado(request)) {
+  if (!cronAutorizado(request)) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 

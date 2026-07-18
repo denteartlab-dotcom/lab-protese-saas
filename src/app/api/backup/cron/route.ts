@@ -2,24 +2,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { executarBackupAutomatico } from "@/lib/backup-automatico";
 import { carregarConfigBackupAutomatico } from "@/lib/backup-automatico-config";
+import { cronAutorizado } from "@/lib/cron-auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-function autorizado(request: Request) {
-  const segredo = process.env.CRON_SECRET?.trim();
-  if (!segredo) return false;
-
-  const auth = request.headers.get("authorization") ?? "";
-  if (auth === `Bearer ${segredo}`) return true;
-
-  const query = new URL(request.url).searchParams.get("secret");
-  return query === segredo;
-}
-
 /** Dispara backup de todas as empresas ativas (cron externo). */
 export async function GET(request: Request) {
-  if (!autorizado(request)) {
+  if (!cronAutorizado(request)) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 

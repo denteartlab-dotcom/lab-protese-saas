@@ -15,8 +15,17 @@ import {
 /**
  * Diagnóstico do fluxo de login/app para o PRÓPRIO usuário logado.
  * Mostra qual checagem devolve null e derruba o /app para /login.
+ * Em produção: desligado, salvo ALLOW_DIAGNOSTICO_SESSAO=true.
  */
 export async function GET() {
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.ALLOW_DIAGNOSTICO_SESSAO !== "1" &&
+    process.env.ALLOW_DIAGNOSTICO_SESSAO !== "true"
+  ) {
+    return NextResponse.json({ error: "Indisponível em produção" }, { status: 404 });
+  }
+
   const out: Record<string, unknown> = {};
 
   const session = await getSession();

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireEmpresaContext } from "@/lib/empresa-context";
+import { exigirProprietario } from "@/lib/exigir-proprietario";
 import { abrirPastaUploadsNoSistema } from "@/lib/uploads-armazenamento-server";
 
 export async function POST() {
-  const ctx = await requireEmpresaContext().catch(() => null);
-  if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const prop = await exigirProprietario();
+  if (prop.erro) return prop.erro;
 
-  const resultado = await abrirPastaUploadsNoSistema(ctx.empresaSlug);
+  const resultado = await abrirPastaUploadsNoSistema(prop.session.empresaSlug);
   return NextResponse.json(resultado);
 }

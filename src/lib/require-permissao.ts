@@ -59,6 +59,43 @@ export async function negarSeSemPermissao(
   return null;
 }
 
+/** Permite se o usuário tiver ao menos uma das permissões listadas. */
+export async function negarSeSemPermissaoEmAlgum(
+  ctx: EmpresaContext,
+  opcoes: Array<{ moduloId: string; acao?: AcaoPermissao }>
+): Promise<NextResponse | null> {
+  if (usuarioEhProprietario(ctx.user.role)) {
+    return null;
+  }
+
+  const row = await prisma.user.findFirst({
+    where: { id: ctx.user.id, empresaId: ctx.empresaId },
+    select: { role: true, permissoesJson: true },
+  });
+
+  if (!row) {
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  }
+
+  if (usuarioEhProprietario(row.role)) {
+    return null;
+  }
+
+  const parsed = parsePermissoesUsuario(row.permissoesJson);
+  const normalizadas = normalizarPermissoesCompletas(parsed, row.role);
+  const modulos = normalizadas.modulos ?? {};
+
+  for (const { moduloId, acao = "ver" } of opcoes) {
+    if (!podeVerModulo(false, modulos, moduloId)) continue;
+    if (modulos[moduloId]?.[acao]) return null;
+  }
+
+  return NextResponse.json(
+    { error: "Sem permissão para esta operação." },
+    { status: 403 }
+  );
+}
+
 export function acaoHttpParaPermissao(method: string): AcaoPermissao {
   switch (method.toUpperCase()) {
     case "POST":

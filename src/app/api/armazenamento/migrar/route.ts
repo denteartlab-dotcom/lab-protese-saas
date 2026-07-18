@@ -6,6 +6,7 @@ import {
   migrarJsonStoreTenant,
   salvarJsonStoreTenant,
 } from "@/lib/json-store-tenant";
+import { exigirProprietario } from "@/lib/exigir-proprietario";
 
 const schema = z.object({
   entradas: z.record(z.string(), z.unknown()),
@@ -13,6 +14,8 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
+  const prop = await exigirProprietario();
+  if (prop.erro) return prop.erro;
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
