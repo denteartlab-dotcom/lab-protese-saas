@@ -330,9 +330,9 @@ app
       // Store mutável por request: requireEmpresaContext preenche empresaId e
       // o Prisma (RLS) enxerga em qualquer ponto do request — sem depender de
       // enterWith atravessar as fronteiras async do Next em produção.
-      tenantStorage.run({}, () => {
-        void handle(req, res, parsedUrl);
-      });
+      // Importante: NÃO usar void handle() dentro do run — isso encerra o ALS
+      // antes do request terminar e o fail-closed do Prisma derruba o app.
+      void tenantStorage.run({}, () => handle(req, res, parsedUrl));
     });
 
     iniciarTvRefreshAutomatico();

@@ -14,8 +14,12 @@ export default async function AppLayout({
 }) {
   const session = await getSession();
   if (session?.empresaId) {
-    const destino = await obterDestinoPosLogin(session.empresaId);
-    if (destino === "/assinatura-vencida") redirect(destino);
+    try {
+      const destino = await obterDestinoPosLogin(session.empresaId);
+      if (destino === "/assinatura-vencida") redirect(destino);
+    } catch (erro) {
+      console.error("[app/layout] obterDestinoPosLogin", erro);
+    }
   }
 
   const ctx = await obterContextoAppServidor();

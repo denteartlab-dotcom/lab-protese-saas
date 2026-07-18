@@ -5,7 +5,12 @@ import {
   salvarJsonStoreCache,
 } from "@/lib/json-store-cache";
 import { ARMAZENAMENTO_LAB_PREFIX, chaveBootstrapAdiada } from "@/lib/armazenamento-laboratorio-keys";
-import { executarSemRls, prisma } from "@/lib/db";
+import {
+  contextoTenantAtual,
+  executarSemRls,
+  prisma,
+  runWithTenantContext,
+} from "@/lib/db";
 
 const PREFIXO_TENANT = "t:";
 
@@ -41,19 +46,26 @@ export async function lerJsonStoreTenant<T>(
     return emCache as T;
   }
 
-  const tenantKey = chaveJsonStoreTenant(empresaId, key);
-  const row = await prisma.jsonStore.findUnique({ where: { key: tenantKey } });
-  if (row?.payload) {
-    try {
-      const valor = JSON.parse(row.payload) as T;
-      salvarJsonStoreCache(empresaId, key, valor);
-      return valor;
-    } catch {
-      return null;
+  const ctx = contextoTenantAtual();
+  const ler = async () => {
+    const tenantKey = chaveJsonStoreTenant(empresaId, key);
+    const row = await prisma.jsonStore.findUnique({ where: { key: tenantKey } });
+    if (row?.payload) {
+      try {
+        const valor = JSON.parse(row.payload) as T;
+        salvarJsonStoreCache(empresaId, key, valor);
+        return valor;
+      } catch {
+        return null;
+      }
     }
-  }
+    return null;
+  };
 
-  return null;
+  if (ctx?.bypass || ctx?.empresaId === empresaId) {
+    return ler();
+  }
+  return runWithTenantContext(empresaId, ler);
 }
 
 export async function salvarJsonStoreTenant(
@@ -63,11 +75,19 @@ export async function salvarJsonStoreTenant(
 ) {
   const tenantKey = chaveJsonStoreTenant(empresaId, key);
   const payload = JSON.stringify(valor);
-  await prisma.jsonStore.upsert({
-    where: { key: tenantKey },
-    create: { key: tenantKey, payload },
-    update: { payload },
-  });
+  const gravar = () =>
+    prisma.jsonStore.upsert({
+      where: { key: tenantKey },
+      create: { key: tenantKey, payload },
+      update: { payload },
+    });
+
+  const ctx = contextoTenantAtual();
+  if (ctx?.bypass || ctx?.empresaId === empresaId) {
+    await gravar();
+  } else {
+    await runWithTenantContext(empresaId, gravar);
+  }
   invalidarJsonStoreCache(empresaId, key);
   invalidarBootstrapCache(empresaId);
 }

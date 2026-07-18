@@ -4,7 +4,7 @@
  * - `prismaBase` — conexão crua (seed, scripts); preferir `executarSemRls`
  */
 export { prismaBase } from "@/lib/prisma-base";
-export { prisma, executarComTenant, executarSemRls, runWithRlsBypass, runWithTenantContext } from "@/lib/prisma-tenant";
+export { prisma, executarComTenant, executarSemRls, runWithRlsBypass, runWithTenantContext, contextoTenantAtual } from "@/lib/prisma-tenant";
 
 import { prisma } from "@/lib/prisma-tenant";
 export default prisma;

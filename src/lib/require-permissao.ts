@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { EmpresaContext } from "@/lib/empresa-context";
-import { prisma } from "@/lib/prisma-tenant";
+import { prisma, runWithTenantContext } from "@/lib/prisma-tenant";
 import { podeVerModulo } from "@/lib/permissoes-acesso";
 import {
   parsePermissoesUsuario,
@@ -24,10 +24,12 @@ export async function negarSeSemPermissao(
     return null;
   }
 
-  const row = await prisma.user.findFirst({
-    where: { id: ctx.user.id, empresaId: ctx.empresaId },
-    select: { role: true, permissoesJson: true },
-  });
+  const row = await runWithTenantContext(ctx.empresaId, () =>
+    prisma.user.findFirst({
+      where: { id: ctx.user.id, empresaId: ctx.empresaId },
+      select: { role: true, permissoesJson: true },
+    })
+  );
 
   if (!row) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
@@ -68,10 +70,12 @@ export async function negarSeSemPermissaoEmAlgum(
     return null;
   }
 
-  const row = await prisma.user.findFirst({
-    where: { id: ctx.user.id, empresaId: ctx.empresaId },
-    select: { role: true, permissoesJson: true },
-  });
+  const row = await runWithTenantContext(ctx.empresaId, () =>
+    prisma.user.findFirst({
+      where: { id: ctx.user.id, empresaId: ctx.empresaId },
+      select: { role: true, permissoesJson: true },
+    })
+  );
 
   if (!row) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });

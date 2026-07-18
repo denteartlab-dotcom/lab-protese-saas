@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, runWithTenantContext } from "@/lib/db";
 import { extrairNumeroOsCodigo } from "@/lib/codigo-barras-os";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
@@ -71,51 +71,53 @@ export async function GET(request: Request) {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
-  const trabalhos = await prisma.trabalho.findMany({
-    where: {
-      empresaId: ctx.empresaId,
-      ...(status ? { status } : {}),
-      ...(atrasados
-        ? {
-            status: { notIn: ["finalizado", "entregue", "cancelado"] },
-            dataPrevista: { lt: hoje },
-          }
-        : {}),
-      ...(dataInicio && dataFim
-        ? {
-            dataEntrada: {
-              gte: dataInicio,
-              lte: dataFim,
-            },
-          }
-        : {}),
-      ...(q
-        ? isNumeroOs
-          ? { numeroOs }
-          : {
-              OR: [
-                { id: q },
-                {
-                  paciente: {
-                    nome: { contains: q, mode: "insensitive" },
-                  },
-                },
-                {
-                  cliente: {
-                    nome: { contains: q, mode: "insensitive" },
-                  },
-                },
-                { tipoProtese: { contains: q, mode: "insensitive" } },
-              ],
+  const trabalhos = await runWithTenantContext(ctx.empresaId, () =>
+    prisma.trabalho.findMany({
+      where: {
+        empresaId: ctx.empresaId,
+        ...(status ? { status } : {}),
+        ...(atrasados
+          ? {
+              status: { notIn: ["finalizado", "entregue", "cancelado"] },
+              dataPrevista: { lt: hoje },
             }
-        : {}),
-    },
-    orderBy: { createdAt: "desc" },
-    include: {
-      cliente: { select: { id: true, nome: true, cro: true } },
-      paciente: { select: { id: true, nome: true } },
-    },
-  });
+          : {}),
+        ...(dataInicio && dataFim
+          ? {
+              dataEntrada: {
+                gte: dataInicio,
+                lte: dataFim,
+              },
+            }
+          : {}),
+        ...(q
+          ? isNumeroOs
+            ? { numeroOs }
+            : {
+                OR: [
+                  { id: q },
+                  {
+                    paciente: {
+                      nome: { contains: q, mode: "insensitive" },
+                    },
+                  },
+                  {
+                    cliente: {
+                      nome: { contains: q, mode: "insensitive" },
+                    },
+                  },
+                  { tipoProtese: { contains: q, mode: "insensitive" } },
+                ],
+              }
+          : {}),
+      },
+      orderBy: { createdAt: "desc" },
+      include: {
+        cliente: { select: { id: true, nome: true, cro: true } },
+        paciente: { select: { id: true, nome: true } },
+      },
+    })
+  );
 
   return NextResponse.json(trabalhos);
 }

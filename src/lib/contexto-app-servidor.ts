@@ -7,6 +7,7 @@ import { nomeExibicaoLaboratorio } from "@/lib/configuracoes-lab";
 import { configParaLabImpressao } from "@/lib/lab-logo";
 import type { LabImpressaoConfig } from "@/lib/lab-impressao";
 import {
+  definirTenantNoRequest,
   executarSemRls,
   prisma,
   runWithRlsBypass,
@@ -175,6 +176,9 @@ export async function obterContextoAppServidor(): Promise<ContextoAppServidor | 
     } catch {
       isMasterAdmin = false;
     }
+
+    // Deixa o tenant no ALS do request (RSC + APIs no mesmo ciclo).
+    definirTenantNoRequest({ empresaId: user.empresa.id, bypass: false });
 
     return {
       user: {
