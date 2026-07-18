@@ -1,13 +1,15 @@
 /**
- * Rate limit em memória por processo (IP + e-mail).
- * Suficiente para VPS com poucas instâncias.
+ * Rate limit por IP + e-mail.
+ * Usa Redis quando REDIS_URL está definida; senão (ou se Redis falhar), memória do processo.
  */
+import { redisDel, redisGet, redisIncrComTtl } from "@/lib/redis-client";
+
 const MAX_FALHAS_LOGIN = 10;
-const JANELA_LOGIN_MS = 15 * 60 * 1000;
+const JANELA_LOGIN_S = 15 * 60;
 
 const MAX_ACOES_EMAIL = 5;
 const MAX_ACOES_IP = 20;
-const JANELA_ACOES_MS = 15 * 60 * 1000;
+const JANELA_ACOES_S = 15 * 60;
 
 type Entrada = {
   falhas: number;
@@ -21,17 +23,22 @@ function chaveLogin(ip: string, email: string) {
   return `${ip.trim()}|${email.trim().toLowerCase()}`;
 }
 
-function incrementar(mapa: Map<string, Entrada>, chave: string, janelaMs: number) {
+function incrementarMemoria(
+  mapa: Map<string, Entrada>,
+  chave: string,
+  janelaMs: number
+) {
   const agora = Date.now();
   const atual = mapa.get(chave);
   if (!atual || agora >= atual.resetAt) {
     mapa.set(chave, { falhas: 1, resetAt: agora + janelaMs });
-    return;
+    return 1;
   }
   atual.falhas += 1;
+  return atual.falhas;
 }
 
-function bloqueado(mapa: Map<string, Entrada>, chave: string, max: number) {
+function bloqueadoMemoria(mapa: Map<string, Entrada>, chave: string, max: number) {
   const agora = Date.now();
   const atual = mapa.get(chave);
   if (!atual) return false;
@@ -42,9 +49,29 @@ function bloqueado(mapa: Map<string, Entrada>, chave: string, max: number) {
   return atual.falhas >= max;
 }
 
+async function contarOuMemoria(
+  redisKey: string,
+  mapa: Map<string, Entrada>,
+  chaveMem: string,
+  janelaS: number
+): Promise<number> {
+  const n = await redisIncrComTtl(redisKey, janelaS);
+  if (n != null) return n;
+  return incrementarMemoria(mapa, chaveMem, janelaS * 1000);
+}
+
+async function bloqueadoOuMemoria(
+  redisKey: string,
+  mapa: Map<string, Entrada>,
+  chaveMem: string,
+  max: number
+): Promise<boolean> {
+  const raw = await redisGet(redisKey);
+  if (raw != null && Number(raw) >= max) return true;
+  return bloqueadoMemoria(mapa, chaveMem, max);
+}
+
 export function extrairIpLogin(request: Request): string {
-  // Preferir o último hop confiável se o proxy strippar XFF do cliente;
-  // com um proxy na frente, o primeiro valor costuma ser o IP real.
   const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   if (forwarded) return forwarded;
   const realIp = request.headers.get("x-real-ip")?.trim();
@@ -52,42 +79,53 @@ export function extrairIpLogin(request: Request): string {
   return "desconhecido";
 }
 
-export function loginBloqueadoPorRateLimit(ip: string, email: string): boolean {
-  return bloqueado(tentativasLogin, chaveLogin(ip, email), MAX_FALHAS_LOGIN);
+export async function loginBloqueadoPorRateLimit(
+  ip: string,
+  email: string
+): Promise<boolean> {
+  const k = chaveLogin(ip, email);
+  return bloqueadoOuMemoria(`rl:login:${k}`, tentativasLogin, k, MAX_FALHAS_LOGIN);
 }
 
-export function registrarFalhaLogin(ip: string, email: string) {
-  incrementar(tentativasLogin, chaveLogin(ip, email), JANELA_LOGIN_MS);
+export async function registrarFalhaLogin(ip: string, email: string) {
+  const k = chaveLogin(ip, email);
+  await contarOuMemoria(`rl:login:${k}`, tentativasLogin, k, JANELA_LOGIN_S);
 }
 
-export function limparFalhasLogin(ip: string, email: string) {
-  tentativasLogin.delete(chaveLogin(ip, email));
+export async function limparFalhasLogin(ip: string, email: string) {
+  const k = chaveLogin(ip, email);
+  tentativasLogin.delete(k);
+  await redisDel(`rl:login:${k}`);
 }
 
 /**
  * Rate limit para ações públicas por e-mail (recuperar senha, cadastro).
- * Conta por (bucket+ip+email) e por (bucket+ip) contra spray.
  */
-export function acaoEmailBloqueada(
+export async function acaoEmailBloqueada(
   bucket: "recuperar-senha" | "cadastro-codigo",
   ip: string,
   email: string
-): boolean {
+): Promise<boolean> {
   const emailNorm = email.trim().toLowerCase();
   const kEmail = `${bucket}|${ip.trim()}|${emailNorm}`;
   const kIp = `${bucket}|ip|${ip.trim()}`;
-  return (
-    bloqueado(acoesEmail, kEmail, MAX_ACOES_EMAIL) ||
-    bloqueado(acoesEmail, kIp, MAX_ACOES_IP)
-  );
+  const [bEmail, bIp] = await Promise.all([
+    bloqueadoOuMemoria(`rl:acao:${kEmail}`, acoesEmail, kEmail, MAX_ACOES_EMAIL),
+    bloqueadoOuMemoria(`rl:acao:${kIp}`, acoesEmail, kIp, MAX_ACOES_IP),
+  ]);
+  return bEmail || bIp;
 }
 
-export function registrarAcaoEmail(
+export async function registrarAcaoEmail(
   bucket: "recuperar-senha" | "cadastro-codigo",
   ip: string,
   email: string
 ) {
   const emailNorm = email.trim().toLowerCase();
-  incrementar(acoesEmail, `${bucket}|${ip.trim()}|${emailNorm}`, JANELA_ACOES_MS);
-  incrementar(acoesEmail, `${bucket}|ip|${ip.trim()}`, JANELA_ACOES_MS);
+  const kEmail = `${bucket}|${ip.trim()}|${emailNorm}`;
+  const kIp = `${bucket}|ip|${ip.trim()}`;
+  await Promise.all([
+    contarOuMemoria(`rl:acao:${kEmail}`, acoesEmail, kEmail, JANELA_ACOES_S),
+    contarOuMemoria(`rl:acao:${kIp}`, acoesEmail, kIp, JANELA_ACOES_S),
+  ]);
 }

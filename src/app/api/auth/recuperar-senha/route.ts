@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     const { email } = schema.parse(body);
     const ip = extrairIpLogin(request);
 
-    if (acaoEmailBloqueada("recuperar-senha", ip, email)) {
+    if (await acaoEmailBloqueada("recuperar-senha", ip, email)) {
       return NextResponse.json(
         {
           error:
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
         { status: 429 }
       );
     }
-    registrarAcaoEmail("recuperar-senha", ip, email);
+    await registrarAcaoEmail("recuperar-senha", ip, email);
 
     const resultado = await solicitarRecuperacaoSenha(email);
 

@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     const { email } = schema.parse(body);
     const ip = extrairIpLogin(request);
 
-    if (acaoEmailBloqueada("cadastro-codigo", ip, email)) {
+    if (await acaoEmailBloqueada("cadastro-codigo", ip, email)) {
       return NextResponse.json(
         {
           error:
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
         { status: 429 }
       );
     }
-    registrarAcaoEmail("cadastro-codigo", ip, email);
+    await registrarAcaoEmail("cadastro-codigo", ip, email);
 
     const resultado = await enviarCodigoVerificacaoCadastro(email);
 

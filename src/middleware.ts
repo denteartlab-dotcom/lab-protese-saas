@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 import { sessaoCookieSecure } from "@/lib/cookie-secure";
+import { gerarNonceCsp, montarContentSecurityPolicy } from "@/lib/csp";
 import { requisicaoTvSocket } from "@/lib/tv/tv-socket-path";
 import {
   analisarCaminhoApp,
@@ -81,6 +82,38 @@ function limparCookieSessao(response: NextResponse) {
   return response;
 }
 
+function aplicarCsp(response: NextResponse, nonce: string) {
+  response.headers.set("Content-Security-Policy", montarContentSecurityPolicy(nonce));
+  return response;
+}
+
+function headersRequestComNonce(request: NextRequest, nonce: string) {
+  const csp = montarContentSecurityPolicy(nonce);
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("Content-Security-Policy", csp);
+  return { requestHeaders, csp };
+}
+
+/** Passa nonce/CSP ao RSC (Next lê CSP na request) e na resposta HTTP. */
+function nextComCsp(request: NextRequest, nonce: string) {
+  const { requestHeaders, csp } = headersRequestComNonce(request, nonce);
+  const response = NextResponse.next({
+    request: { headers: requestHeaders },
+  });
+  response.headers.set("Content-Security-Policy", csp);
+  return response;
+}
+
+function rewriteComCsp(request: NextRequest, url: URL, nonce: string) {
+  const { requestHeaders, csp } = headersRequestComNonce(request, nonce);
+  const response = NextResponse.rewrite(url, {
+    request: { headers: requestHeaders },
+  });
+  response.headers.set("Content-Security-Policy", csp);
+  return response;
+}
+
 /**
  * Origem pública sem :3000. Mantém o MESMO host da requisição (apex ou www) —
  * forçar www causava loop com o proxy que redireciona www → apex.
@@ -116,14 +149,15 @@ function urlNoSite(request: NextRequest, caminho: string): URL {
 function processarRotaApp(
   request: NextRequest,
   pathname: string,
-  slugSessao: string | null
+  slugSessao: string | null,
+  nonce: string
 ): NextResponse | null {
   if (!pathname.startsWith("/app")) return null;
 
   if (!slugSessao) {
     const login = urlNoSite(request, "/login");
     login.searchParams.set("redirect", pathname);
-    return limparCookieSessao(NextResponse.redirect(login));
+    return aplicarCsp(limparCookieSessao(NextResponse.redirect(login)), nonce);
   }
 
   const { slug, restante, legado } = analisarCaminhoApp(pathname);
@@ -132,14 +166,14 @@ function processarRotaApp(
   if (legado) {
     const destino = montarCaminhoAppComSlug(slugSessao, restante) + search;
     if (destino !== pathname + search) {
-      return NextResponse.redirect(urlNoSite(request, destino));
+      return aplicarCsp(NextResponse.redirect(urlNoSite(request, destino)), nonce);
     }
     return null;
   }
 
   if (slug !== slugSessao) {
     const destino = montarCaminhoAppComSlug(slugSessao, restante) + search;
-    return NextResponse.redirect(urlNoSite(request, destino));
+    return aplicarCsp(NextResponse.redirect(urlNoSite(request, destino)), nonce);
   }
 
   const interno = caminhoInternoApp(restante);
@@ -147,12 +181,13 @@ function processarRotaApp(
 
   const url = request.nextUrl.clone();
   url.pathname = interno;
-  return NextResponse.rewrite(url);
+  return rewriteComCsp(request, url, nonce);
 }
 
 export async function middleware(request: NextRequest) {
   // Sem redirect apex↔www aqui: o proxy já decide o host canônico.
   // O cookie usa Domain=.denteartlab.com.br e vale nos dois.
+  const nonce = gerarNonceCsp();
   const { pathname } = request.nextUrl;
 
   if (
@@ -163,45 +198,45 @@ export async function middleware(request: NextRequest) {
     pathname === "/api/version" ||
     pathname === "/api/health"
   ) {
-    return NextResponse.next();
+    return nextComCsp(request, nonce);
   }
 
   if (pathname.startsWith("/api/orcamentos/public")) {
-    return NextResponse.next();
+    return nextComCsp(request, nonce);
   }
 
   // Legado: /uploads/... → rota autenticada (arquivos saíram de public/)
   if (pathname.startsWith("/uploads/")) {
     const url = request.nextUrl.clone();
     url.pathname = `/api/uploads/disco/${pathname.slice("/uploads/".length)}`;
-    return NextResponse.rewrite(url);
+    return rewriteComCsp(request, url, nonce);
   }
 
   if (
     process.env.NODE_ENV !== "production" &&
     pathname.startsWith("/api/dev/")
   ) {
-    return NextResponse.next();
+    return nextComCsp(request, nonce);
   }
 
   if (pathname.startsWith("/api/clientes/public")) {
-    return NextResponse.next();
+    return nextComCsp(request, nonce);
   }
 
   if (pathname.startsWith("/api/public/")) {
-    return NextResponse.next();
+    return nextComCsp(request, nonce);
   }
 
   if (pathname === "/api/lab/branding") {
-    return NextResponse.next();
+    return nextComCsp(request, nonce);
   }
 
   if (pathname.startsWith("/api/financeiro/fatura-publica/")) {
-    return NextResponse.next();
+    return nextComCsp(request, nonce);
   }
 
   if (pathname.startsWith("/api/financeiro/extrato-publica/")) {
-    return NextResponse.next();
+    return nextComCsp(request, nonce);
   }
 
   if (
@@ -210,27 +245,27 @@ export async function middleware(request: NextRequest) {
     pathname === "/api/asaas/autorizacao-saque" ||
     pathname === "/api/whatsapp/webhook"
   ) {
-    return NextResponse.next();
+    return nextComCsp(request, nonce);
   }
 
   if (requisicaoTvSocket(pathname) || pathname === "/api/tv/socket-health") {
-    return NextResponse.next();
+    return nextComCsp(request, nonce);
   }
 
   if (pathname.startsWith("/fatura/")) {
-    return NextResponse.next();
+    return nextComCsp(request, nonce);
   }
 
   if (pathname.startsWith("/extrato/")) {
-    return NextResponse.next();
+    return nextComCsp(request, nonce);
   }
 
   if (pathname.startsWith("/orcamento/")) {
-    return NextResponse.next();
+    return nextComCsp(request, nonce);
   }
 
   if (pathname.startsWith("/acompanhamento/")) {
-    return NextResponse.next();
+    return nextComCsp(request, nonce);
   }
 
   if (pathname.startsWith("/admin-master") || pathname.startsWith("/api/admin-master")) {
@@ -239,30 +274,36 @@ export async function middleware(request: NextRequest) {
     if (masterPublico) {
       const masterToken = request.cookies.get(MASTER_COOKIE_NAME)?.value;
       if (masterToken && (await masterTokenAceito(masterToken))) {
-        return NextResponse.redirect(urlNoSite(request, "/admin-master"));
+        return aplicarCsp(
+          NextResponse.redirect(urlNoSite(request, "/admin-master")),
+          nonce
+        );
       }
-      return NextResponse.next();
+      return nextComCsp(request, nonce);
     }
 
     const masterToken = request.cookies.get(MASTER_COOKIE_NAME)?.value;
     if (!masterToken || !(await masterTokenAceito(masterToken))) {
       if (pathname.startsWith("/api/admin-master")) {
-        return NextResponse.json({ error: "Acesso restrito ao proprietário." }, { status: 403 });
+        return aplicarCsp(
+          NextResponse.json({ error: "Acesso restrito ao proprietário." }, { status: 403 }),
+          nonce
+        );
       }
       const login = urlNoSite(request, "/admin-master/login");
       login.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(login);
+      return aplicarCsp(NextResponse.redirect(login), nonce);
     }
 
-    return NextResponse.next();
+    return nextComCsp(request, nonce);
   }
 
   if (PUBLIC.includes(pathname)) {
     const token = request.cookies.get(COOKIE_NAME)?.value;
     const res =
       token && !(await sessionTokenAceito(token))
-        ? limparCookieSessao(NextResponse.next())
-        : NextResponse.next();
+        ? limparCookieSessao(nextComCsp(request, nonce))
+        : nextComCsp(request, nonce);
 
     res.headers.set(
       "Cache-Control",
@@ -281,15 +322,15 @@ export async function middleware(request: NextRequest) {
     if (!tokenRenovacao || !(await sessionTokenAceito(tokenRenovacao))) {
       const login = new URL("/login", request.url);
       login.searchParams.set("redirect", pathname);
-      return limparCookieSessao(NextResponse.redirect(login));
+      return aplicarCsp(limparCookieSessao(NextResponse.redirect(login)), nonce);
     }
-    return NextResponse.next();
+    return nextComCsp(request, nonce);
   }
 
   const needsAuthLegacy = pathname.startsWith("/app") || pathname.startsWith("/api");
 
   if (!needsAuthLegacy) {
-    const res = NextResponse.next();
+    const res = nextComCsp(request, nonce);
     if (pathname.match(/\.(png|jpg|jpeg|gif|webp|svg|ico|woff2?)$/i)) {
       res.headers.set("Cache-Control", "public, max-age=86400, must-revalidate");
     }
@@ -300,21 +341,30 @@ export async function middleware(request: NextRequest) {
   const payloadSessao = token ? await verificarPayloadSessao(token) : null;
   if (!token || !payloadSessao?.id) {
     if (pathname.startsWith("/api")) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+      return aplicarCsp(
+        NextResponse.json({ error: "Não autorizado" }, { status: 401 }),
+        nonce
+      );
     }
     const login = urlNoSite(request, "/login");
     login.searchParams.set("redirect", pathname);
-    return limparCookieSessao(NextResponse.redirect(login));
+    return aplicarCsp(limparCookieSessao(NextResponse.redirect(login)), nonce);
   }
 
   if (payloadSessao.assinaturaVencida === true) {
     if (pathname.startsWith("/app")) {
-      return NextResponse.redirect(urlNoSite(request, "/assinatura-vencida"));
+      return aplicarCsp(
+        NextResponse.redirect(urlNoSite(request, "/assinatura-vencida")),
+        nonce
+      );
     }
     if (pathname.startsWith("/api") && !apiLiberadaAssinaturaVencida(pathname)) {
-      return NextResponse.json(
-        { error: "Assinatura vencida. Regularize em /assinatura-vencida." },
-        { status: 403 }
+      return aplicarCsp(
+        NextResponse.json(
+          { error: "Assinatura vencida. Regularize em /assinatura-vencida." },
+          { status: 403 }
+        ),
+        nonce
       );
     }
   }
@@ -323,12 +373,13 @@ export async function middleware(request: NextRequest) {
     const rotaApp = processarRotaApp(
       request,
       pathname,
-      payloadSessao.empresaSlug?.trim() || null
+      payloadSessao.empresaSlug?.trim() || null,
+      nonce
     );
     if (rotaApp) return rotaApp;
   }
 
-  const res = NextResponse.next();
+  const res = nextComCsp(request, nonce);
   res.headers.set("X-Content-Type-Options", "nosniff");
   if (pathname.startsWith("/api")) {
     res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");

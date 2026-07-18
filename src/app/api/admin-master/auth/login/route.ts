@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     const email = body.email.trim().toLowerCase();
     const ip = extrairIpLogin(request);
 
-    if (loginBloqueadoPorRateLimit(ip, email)) {
+    if (await loginBloqueadoPorRateLimit(ip, email)) {
       return NextResponse.json(
         { error: "Muitas tentativas. Tente novamente em alguns minutos." },
         { status: 429 }
@@ -37,17 +37,17 @@ export async function POST(request: Request) {
       tx.masterUser.findUnique({ where: { email } })
     );
     if (!master || !master.ativo || master.role !== "MASTER_ADMIN") {
-      registrarFalhaLogin(ip, email);
+      await registrarFalhaLogin(ip, email);
       return NextResponse.json({ error: "Credenciais inválidas." }, { status: 401 });
     }
 
     const senhaOk = await verifyPassword(body.password, master.senhaHash);
     if (!senhaOk) {
-      registrarFalhaLogin(ip, email);
+      await registrarFalhaLogin(ip, email);
       return NextResponse.json({ error: "Credenciais inválidas." }, { status: 401 });
     }
 
-    limparFalhasLogin(ip, email);
+    await limparFalhasLogin(ip, email);
 
     await registrarLogMaster(master.id, "LOGIN_MASTER", {
       detalhes: `Login: ${master.email}`,

@@ -72,7 +72,7 @@ export async function POST(request: Request) {
   const slugInformado = empresaSlug?.trim().toLowerCase();
   const ip = extrairIpLogin(request);
 
-  if (loginBloqueadoPorRateLimit(ip, emailNorm)) {
+  if (await loginBloqueadoPorRateLimit(ip, emailNorm)) {
     return NextResponse.json(
       {
         error:
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
     });
 
     if (candidatos.length === 0) {
-      registrarFalhaLogin(ip, emailNorm);
+      await registrarFalhaLogin(ip, emailNorm);
       return NextResponse.json(
         { error: "E-mail ou senha inválidos." },
         { status: 401 }
@@ -110,14 +110,14 @@ export async function POST(request: Request) {
     }
 
     if (comSenhaValida.length === 0) {
-      registrarFalhaLogin(ip, emailNorm);
+      await registrarFalhaLogin(ip, emailNorm);
       return NextResponse.json(
         { error: "E-mail ou senha inválidos." },
         { status: 401 }
       );
     }
 
-    limparFalhasLogin(ip, emailNorm);
+    await limparFalhasLogin(ip, emailNorm);
     if (!slugInformado && comSenhaValida.length > 1) {
       return NextResponse.json(
         {

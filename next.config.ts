@@ -61,7 +61,7 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   outputFileTracingRoot: projectRoot,
   /** Evita bundling de libs Node (unzipper puxa @aws-sdk/client-s3 opcional). */
-  serverExternalPackages: ["archiver", "unzipper"],
+  serverExternalPackages: ["archiver", "unzipper", "ioredis"],
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -73,30 +73,7 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_APP_BUILD_ID: appBuildId,
   },
   async headers() {
-    // unsafe-eval só em dev (HMR/Next). Em produção: sem eval; inline ainda necessário
-    // para Next sem nonces e Cloudflare Insights.
-    const scriptSrc =
-      process.env.NODE_ENV === "production"
-        ? "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com"
-        : "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com";
-
-    const csp = [
-      "default-src 'self'",
-      scriptSrc,
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https:",
-      "font-src 'self' data:",
-      "connect-src 'self' https: wss:",
-      // PDF da OS/fatura em iframe (blob:) — sem isso o Chrome bloqueia o visualizador
-      "frame-src 'self' blob: data:",
-      "child-src 'self' blob: data:",
-      "worker-src 'self' blob:",
-      "object-src 'self' blob: data:",
-      "frame-ancestors 'self'",
-      "base-uri 'self'",
-      "form-action 'self'",
-    ].join("; ");
-
+    // CSP com nonce fica no middleware (não usar CSP estática aqui — conflito).
     const securityHeaders = [
       { key: "X-Content-Type-Options", value: "nosniff" },
       { key: "X-Frame-Options", value: "SAMEORIGIN" },
@@ -105,7 +82,6 @@ const nextConfig: NextConfig = {
         key: "Permissions-Policy",
         value: "camera=(), microphone=(), geolocation=()",
       },
-      { key: "Content-Security-Policy", value: csp },
       ...(process.env.NODE_ENV === "production"
         ? [
             {

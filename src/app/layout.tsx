@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { headers } from "next/headers";
 import { LabConfigProvider } from "@/components/LabConfigProvider";
 import { LabDocumentHead } from "@/components/LabDocumentHead";
 import { I18nRoot } from "@/components/I18nRoot";
@@ -36,6 +37,7 @@ export default async function RootLayout({
   const lab = configParaLabImpressao(configLaboratorio);
   const buildId = process.env.NEXT_PUBLIC_APP_BUILD_ID ?? "dev";
   const devBoot = process.env.NEXT_PUBLIC_DEV_BOOT ?? "";
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
     <html lang="pt-BR" suppressHydrationWarning>
@@ -43,6 +45,7 @@ export default async function RootLayout({
         <Script
           id="aplicar-tema-inicial"
           strategy="beforeInteractive"
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `
               (function () {
@@ -61,6 +64,7 @@ export default async function RootLayout({
         <Script
           id="aplicar-idioma-inicial"
           strategy="beforeInteractive"
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `
               (function () {
@@ -77,6 +81,7 @@ export default async function RootLayout({
         <Script
           id="app-build-cache-bust"
           strategy="beforeInteractive"
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `
               (function () {
@@ -119,6 +124,7 @@ export default async function RootLayout({
         <Script
           id="remove-cursor-test-attrs"
           strategy="beforeInteractive"
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `
               (function () {
@@ -141,6 +147,7 @@ export default async function RootLayout({
         <Script
           id="bloquear-arraste-entre-campos"
           strategy="beforeInteractive"
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `
               (function () {
