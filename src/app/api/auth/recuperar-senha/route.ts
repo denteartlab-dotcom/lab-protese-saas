@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { emailResendConfigurado } from "@/lib/email-resend";
 import { solicitarRecuperacaoSenha } from "@/lib/recuperacao-senha";
+import {
+  acaoEmailBloqueada,
+  extrairIpLogin,
+  registrarAcaoEmail,
+} from "@/lib/login-rate-limit";
 
 const schema = z.object({
   email: z.string().email("Informe um e-mail válido."),
@@ -27,6 +32,19 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { email } = schema.parse(body);
+    const ip = extrairIpLogin(request);
+
+    if (acaoEmailBloqueada("recuperar-senha", ip, email)) {
+      return NextResponse.json(
+        {
+          error:
+            "Muitas tentativas. Aguarde alguns minutos e tente novamente.",
+        },
+        { status: 429 }
+      );
+    }
+    registrarAcaoEmail("recuperar-senha", ip, email);
+
     const resultado = await solicitarRecuperacaoSenha(email);
 
     if (!resultado.enviado) {

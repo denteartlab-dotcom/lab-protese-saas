@@ -1,4 +1,4 @@
-import { mkdir, writeFile, readFile, access } from "fs/promises";
+import { writeFile, readFile, access } from "fs/promises";
 import path from "path";
 import { prisma } from "@/lib/db";
 import {
@@ -17,6 +17,33 @@ export type ArquivoEnviado = {
 };
 
 const MAX_BYTES_ARQUIVO = 4 * 1024 * 1024;
+
+const MIME_BASE = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+]);
+
+const MIME_WHATSAPP = new Set([
+  ...MIME_BASE,
+  "image/gif",
+  "audio/mpeg",
+  "audio/ogg",
+  "audio/mp4",
+  "video/mp4",
+  "video/webm",
+]);
+
+const MIME_BLOQUEADOS = new Set([
+  "image/svg+xml",
+  "text/html",
+  "text/xml",
+  "application/xhtml+xml",
+  "application/javascript",
+  "text/javascript",
+  "application/x-javascript",
+]);
 
 export function pastaUploadValida(pasta: string | null): PastaUpload {
   if (pasta === "despesas") return "despesas";
@@ -39,14 +66,113 @@ function safeName(name: string) {
     .replace(/-+/g, "-");
 }
 
-function mimeDeArquivo(file: File) {
-  if (file.type?.trim()) return file.type;
-  const nome = file.name.toLowerCase();
-  if (nome.endsWith(".pdf")) return "application/pdf";
-  if (/\.(jpe?g)$/.test(nome)) return "image/jpeg";
-  if (nome.endsWith(".png")) return "image/png";
-  if (nome.endsWith(".webp")) return "image/webp";
-  return "application/octet-stream";
+function allowlistParaPasta(pasta: PastaUpload): Set<string> {
+  return pasta === "disparos-whatsapp" ? MIME_WHATSAPP : MIME_BASE;
+}
+
+/** Detecta MIME pelos magic bytes (ignora declaração do cliente). */
+export function detectarMimePorMagic(bytes: Buffer): string | null {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return "image/jpeg";
+  }
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47
+  ) {
+    return "image/png";
+  }
+  if (
+    bytes.length >= 12 &&
+    bytes.toString("ascii", 0, 4) === "RIFF" &&
+    bytes.toString("ascii", 8, 12) === "WEBP"
+  ) {
+    return "image/webp";
+  }
+  if (bytes.length >= 4 && bytes.toString("ascii", 0, 4) === "%PDF") {
+    return "application/pdf";
+  }
+  if (
+    bytes.length >= 6 &&
+    (bytes.toString("ascii", 0, 6) === "GIF87a" || bytes.toString("ascii", 0, 6) === "GIF89a")
+  ) {
+    return "image/gif";
+  }
+  if (bytes.length >= 4 && bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) {
+    return "video/webm";
+  }
+  if (bytes.length >= 12 && bytes.toString("ascii", 4, 8) === "ftyp") {
+    return "video/mp4";
+  }
+  if (bytes.length >= 3 && bytes[0] === 0xff && (bytes[1] === 0xfb || bytes[1] === 0xf3 || bytes[1] === 0xf2)) {
+    return "audio/mpeg";
+  }
+  if (bytes.length >= 3 && bytes.toString("ascii", 0, 3) === "ID3") {
+    return "audio/mpeg";
+  }
+  if (bytes.length >= 4 && bytes.toString("ascii", 0, 4) === "OggS") {
+    return "audio/ogg";
+  }
+  return null;
+}
+
+function mimePorExtensao(nome: string): string | null {
+  const lower = nome.toLowerCase();
+  if (lower.endsWith(".pdf")) return "application/pdf";
+  if (/\.jpe?g$/.test(lower)) return "image/jpeg";
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".webp")) return "image/webp";
+  if (lower.endsWith(".gif")) return "image/gif";
+  if (lower.endsWith(".mp3")) return "audio/mpeg";
+  if (lower.endsWith(".ogg") || lower.endsWith(".oga")) return "audio/ogg";
+  if (lower.endsWith(".mp4") || lower.endsWith(".m4a")) return "video/mp4";
+  if (lower.endsWith(".webm")) return "video/webm";
+  return null;
+}
+
+export function validarMimeUpload(
+  pasta: PastaUpload,
+  bytes: Buffer,
+  file: File
+): string {
+  const magic = detectarMimePorMagic(bytes);
+  const declarado = file.type?.trim().toLowerCase() || "";
+  const porExt = mimePorExtensao(file.name);
+
+  const mime = magic || (declarado && !MIME_BLOQUEADOS.has(declarado) ? declarado : null) || porExt;
+  if (!mime || MIME_BLOQUEADOS.has(mime)) {
+    throw new Error(
+      `O arquivo "${file.name}" tem tipo não permitido (SVG/HTML/scripts bloqueados).`
+    );
+  }
+
+  const allow = allowlistParaPasta(pasta);
+  if (!allow.has(mime)) {
+    throw new Error(
+      `O arquivo "${file.name}" não é permitido nesta pasta. Use PDF ou imagens JPEG/PNG/WebP${
+        pasta === "disparos-whatsapp" ? " (ou mídia WhatsApp permitida)" : ""
+      }.`
+    );
+  }
+
+  if (magic && declarado && declarado !== magic && !MIME_BLOQUEADOS.has(declarado)) {
+    // Cliente mentiu o Content-Type: confiar no magic.
+  }
+
+  return mime;
+}
+
+/** Imagens seguras inline; demais como attachment (mitiga XSS stored). */
+export function contentDispositionUpload(mimeType: string, nome: string): string {
+  const safe = encodeURIComponent(nome || "arquivo");
+  const inline =
+    mimeType === "image/jpeg" ||
+    mimeType === "image/png" ||
+    mimeType === "image/webp" ||
+    mimeType === "image/gif";
+  return `${inline ? "inline" : "attachment"}; filename="${safe}"`;
 }
 
 /** URL autenticada para arquivo em disco (fora de public/). */
@@ -101,7 +227,7 @@ export async function salvarArquivosUpload(
     const uploaded: ArquivoEnviado[] = [];
     for (const file of files) {
       const bytes = Buffer.from(await file.arrayBuffer());
-      const mimeType = mimeDeArquivo(file);
+      const mimeType = validarMimeUpload(pasta, bytes, file);
       const registro = await prisma.arquivoUpload.create({
         data: {
           empresaId,
@@ -129,19 +255,19 @@ export async function salvarArquivosUpload(
   await garantirPastasUploadEmpresa(slug);
   const uploadDir = path.join(caminhoPastaUploads(slug), pasta);
 
-  return Promise.all(
-    files.map(async (file) => {
-      const bytes = await file.arrayBuffer();
-      const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName(file.name)}`;
-      await writeFile(path.join(uploadDir, filename), Buffer.from(bytes));
-      const mimeType = mimeDeArquivo(file);
-      return {
-        name: file.name,
-        type: mimeType,
-        url: urlUploadDisco(slug, pasta, filename),
-      };
-    })
-  );
+  const uploaded: ArquivoEnviado[] = [];
+  for (const file of files) {
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const mimeType = validarMimeUpload(pasta, bytes, file);
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName(file.name)}`;
+    await writeFile(path.join(uploadDir, filename), bytes);
+    uploaded.push({
+      name: file.name,
+      type: mimeType,
+      url: urlUploadDisco(slug, pasta, filename),
+    });
+  }
+  return uploaded;
 }
 
 export async function lerArquivoUploadPorId(id: string) {
@@ -160,13 +286,8 @@ export async function lerArquivoDiscoPorCaminhoRelativo(
   }
   const bytes = await readFile(alvo);
   const nome = path.basename(alvo);
-  const lower = nome.toLowerCase();
-  let mimeType = "application/octet-stream";
-  if (lower.endsWith(".pdf")) mimeType = "application/pdf";
-  else if (/\.jpe?g$/.test(lower)) mimeType = "image/jpeg";
-  else if (lower.endsWith(".png")) mimeType = "image/png";
-  else if (lower.endsWith(".webp")) mimeType = "image/webp";
-  else if (lower.endsWith(".gif")) mimeType = "image/gif";
+  const magic = detectarMimePorMagic(bytes);
+  const mimeType = magic || mimePorExtensao(nome) || "application/octet-stream";
   return { bytes, mimeType, nome };
 }
 

@@ -2,10 +2,21 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { enviarCodigoVerificacaoCadastro } from "@/lib/cadastro-verificacao-email";
 import { emailResendConfigurado } from "@/lib/email-resend";
+import {
+  acaoEmailBloqueada,
+  extrairIpLogin,
+  registrarAcaoEmail,
+} from "@/lib/login-rate-limit";
 
 const schema = z.object({
   email: z.string().email("Informe um e-mail válido."),
 });
+
+const RESPOSTA_OK = {
+  ok: true,
+  message:
+    "Se este e-mail puder ser usado no cadastro, você receberá um código em alguns minutos. Verifique a caixa de entrada e o spam.",
+};
 
 export async function POST(request: Request) {
   if (!emailResendConfigurado()) {
@@ -20,6 +31,19 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { email } = schema.parse(body);
+    const ip = extrairIpLogin(request);
+
+    if (acaoEmailBloqueada("cadastro-codigo", ip, email)) {
+      return NextResponse.json(
+        {
+          error:
+            "Muitas tentativas. Aguarde alguns minutos e tente novamente.",
+        },
+        { status: 429 }
+      );
+    }
+    registrarAcaoEmail("cadastro-codigo", ip, email);
+
     const resultado = await enviarCodigoVerificacaoCadastro(email);
 
     if (!resultado.enviado) {
@@ -32,10 +56,7 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({
-      ok: true,
-      message: "Código enviado! Verifique sua caixa de entrada e o spam.",
-    });
+    return NextResponse.json(RESPOSTA_OK);
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json(

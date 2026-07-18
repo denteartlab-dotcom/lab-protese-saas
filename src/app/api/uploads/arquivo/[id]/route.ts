@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
-import { lerArquivoUploadPorId } from "@/lib/upload-arquivo-server";
+import { lerArquivoUploadPorId, contentDispositionUpload } from "@/lib/upload-arquivo-server";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -20,7 +20,7 @@ export async function GET(_request: Request, { params }: Params) {
       "Content-Type": arquivo.mimeType,
       "Content-Length": String(arquivo.tamanho),
       "Cache-Control": "private, no-cache, must-revalidate",
-      "Content-Disposition": `inline; filename="${encodeURIComponent(arquivo.nome)}"`,
+      "Content-Disposition": contentDispositionUpload(arquivo.mimeType, arquivo.nome),
     },
   });
 }

@@ -70,7 +70,20 @@ export const prisma = prismaBase.$extends({
       async $allOperations({ model, operation, args, query }) {
         const ctx = tenantStorage.getStore();
         if (!ctx?.bypass && !ctx?.empresaId) {
-          return query(args);
+          const permitirSemTenant =
+            process.env.PRISMA_ALLOW_SEM_TENANT === "1" ||
+            process.env.PRISMA_ALLOW_SEM_TENANT === "true";
+          if (permitirSemTenant) {
+            if (process.env.NODE_ENV === "production") {
+              console.error(
+                `[prisma] ALERTA: ${model}.${operation} sem tenant/bypass (PRISMA_ALLOW_SEM_TENANT ativo).`
+              );
+            }
+            return query(args);
+          }
+          throw new Error(
+            `[prisma] ${model}.${operation} sem tenant/bypass RLS. Use runWithTenantContext, apiComTenant ou executarSemRls.`
+          );
         }
 
         return prismaBase.$transaction(async (tx) => {

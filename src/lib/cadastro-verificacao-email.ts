@@ -46,10 +46,8 @@ export async function enviarCodigoVerificacaoCadastro(emailBruto: string): Promi
   }
 
   if (await emailJaCadastrado(email)) {
-    return {
-      enviado: false,
-      erro: "Este e-mail já está cadastrado. Faça login ou use outro e-mail.",
-    };
+    // Não revelar existência do e-mail — resposta idêntica ao sucesso.
+    return { enviado: true };
   }
 
   const ultimo = await executarSemRls((tx) =>
