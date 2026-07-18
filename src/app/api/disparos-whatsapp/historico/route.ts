@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { negarSeSemPermissao } from "@/lib/require-permissao";
 import { listarCampanhasWhatsapp } from "@/lib/whatsapp-disparos/campanha-servidor";
 
 export async function GET(request: Request) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(ctx, "disparos-whatsapp", "ver");
+  if (negado) return negado;
 
   const url = new URL(request.url);
   const status = url.searchParams.get("status") || "todos";

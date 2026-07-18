@@ -16,7 +16,7 @@ export type FaturaImpressaoSessao = {
 };
 
 export function criarIdFaturaImpressao() {
-  return `fatura-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  return crypto.randomUUID();
 }
 
 /** Publica HTML no servidor antes de abrir a nova aba (igual fluxo confiável da OS). */

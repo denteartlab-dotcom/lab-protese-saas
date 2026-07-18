@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { sessaoComPapelAtualizado } from "@/lib/auth-acesso";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import { lerPdfFaturaImpressaoServidor } from "@/lib/fatura-impressao-pdf-servidor";
 
 export async function GET(
   request: Request,
   _context: { params: Promise<{ arquivo: string }> }
 ) {
-  const session = await sessaoComPapelAtualizado();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
@@ -16,7 +16,7 @@ export async function GET(
     return NextResponse.json({ error: "ID ausente." }, { status: 400 });
   }
 
-  const entrada = lerPdfFaturaImpressaoServidor(id);
+  const entrada = lerPdfFaturaImpressaoServidor(id, ctx.empresaId);
   if (!entrada) {
     return NextResponse.json({ error: "PDF não encontrado." }, { status: 404 });
   }

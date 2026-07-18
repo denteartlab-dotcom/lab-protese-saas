@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { negarSeSemPermissao } from "@/lib/require-permissao";
 import {
   obterChatbotConfig,
   salvarChatbotConfig,
@@ -48,6 +49,8 @@ const schema = z.object({
 export async function GET() {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(ctx, "disparos-whatsapp", "ver");
+  if (negado) return negado;
 
   const config = await obterChatbotConfig(ctx.empresaId);
   const empresa = await prisma.empresa.findUnique({
@@ -62,6 +65,8 @@ export async function GET() {
 export async function PUT(request: Request) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(ctx, "disparos-whatsapp", "editar");
+  if (negado) return negado;
 
   try {
     const body = await request.json();

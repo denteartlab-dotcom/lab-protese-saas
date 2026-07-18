@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { negarSeSemPermissao } from "@/lib/require-permissao";
 import {
   criarCampanhaWhatsapp,
   listarCampanhasWhatsapp,
@@ -43,6 +44,8 @@ const schema = z.object({
 export async function GET(request: Request) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(ctx, "disparos-whatsapp", "ver");
+  if (negado) return negado;
 
   const url = new URL(request.url);
   const status = url.searchParams.get("status") || undefined;
@@ -54,6 +57,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(ctx, "disparos-whatsapp", "criar");
+  if (negado) return negado;
 
   try {
     const body = await request.json();

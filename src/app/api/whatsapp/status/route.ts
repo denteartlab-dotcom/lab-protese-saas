@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { negarSeSemPermissao } from "@/lib/require-permissao";
 import { consultarStatusBaileys } from "@/lib/whatsapp-baileys-status";
 import {
   whatsappAutomacaoServidorHabilitada,
@@ -13,6 +14,8 @@ export async function GET() {
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
+  const negado = await negarSeSemPermissao(ctx, "disparos-whatsapp", "ver");
+  if (negado) return negado;
 
   const habilitado = whatsappAutomacaoServidorHabilitada();
   const baileys = whatsappBaileysConfigurado();

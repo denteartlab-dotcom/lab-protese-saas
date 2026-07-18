@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { negarSeSemPermissao } from "@/lib/require-permissao";
 import { baileysPairingCode, baileysStatus } from "@/lib/whatsapp-disparos/baileys-service";
 import { sincronizarConexaoWhatsappSocket } from "@/lib/whatsapp-disparos/conexao-monitor";
 
 export async function POST(req: Request) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(ctx, "disparos-whatsapp", "editar");
+  if (negado) return negado;
 
   const body = (await req.json().catch(() => ({}))) as { telefone?: string };
   const telefone = String(body.telefone || "").trim();

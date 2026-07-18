@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { sessaoComPapelAtualizado } from "@/lib/auth-acesso";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import type { FaturaImpressaoSessao } from "@/lib/fatura-impressao-sessao";
 import {
   lerFaturaImpressaoSessaoServidor,
@@ -20,8 +20,8 @@ function payloadValido(payload: unknown): payload is FaturaImpressaoSessao {
 }
 
 export async function POST(request: Request) {
-  const session = await sessaoComPapelAtualizado();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
@@ -37,13 +37,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Sessão inválida." }, { status: 400 });
   }
 
-  salvarFaturaImpressaoSessaoServidor(id, body.payload);
-  return NextResponse.json({ ok: true });
+  try {
+    salvarFaturaImpressaoSessaoServidor(id, ctx.empresaId, body.payload);
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: "Não foi possível gravar a sessão." }, { status: 403 });
+  }
 }
 
 export async function GET(request: Request) {
-  const session = await sessaoComPapelAtualizado();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
@@ -52,7 +56,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "ID ausente." }, { status: 400 });
   }
 
-  const payload = lerFaturaImpressaoSessaoServidor(id);
+  const payload = lerFaturaImpressaoSessaoServidor(id, ctx.empresaId);
   if (!payload) {
     return NextResponse.json({ error: "Sessão não encontrada." }, { status: 404 });
   }

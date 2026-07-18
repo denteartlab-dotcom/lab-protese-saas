@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { negarSeSemPermissao } from "@/lib/require-permissao";
 import { baileysStatus, baileysReconectar } from "@/lib/whatsapp-disparos/baileys-service";
 import {
   aguardarQrBaileys,
@@ -31,6 +32,8 @@ type BaileysStatusExtra = {
 export async function GET() {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(ctx, "disparos-whatsapp", "ver");
+  if (negado) return negado;
 
   const [status, metricas, sessao] = await Promise.all([
     baileysStatus(),
@@ -89,6 +92,8 @@ export async function GET() {
 export async function POST(req: Request) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const negado = await negarSeSemPermissao(ctx, "disparos-whatsapp", "editar");
+  if (negado) return negado;
 
   const body = (await req.json().catch(() => ({}))) as { reset?: boolean };
   const atual = (await baileysStatus()) as BaileysStatusExtra | null;

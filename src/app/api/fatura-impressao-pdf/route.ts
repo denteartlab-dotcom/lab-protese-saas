@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { sessaoComPapelAtualizado } from "@/lib/auth-acesso";
+import { requireEmpresaContext } from "@/lib/empresa-context";
+import { lerFaturaImpressaoSessaoServidor } from "@/lib/fatura-impressao-sessao-servidor";
 import { salvarPdfFaturaImpressaoServidor } from "@/lib/fatura-impressao-pdf-servidor";
 
 export async function POST(request: Request) {
-  const session = await sessaoComPapelAtualizado();
-  if (!session) {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
@@ -25,6 +26,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "PDF inválido." }, { status: 400 });
   }
 
+  // Só grava PDF se a sessão HTML for do mesmo tenant.
+  if (!lerFaturaImpressaoSessaoServidor(id, ctx.empresaId)) {
+    return NextResponse.json({ error: "Sessão não encontrada." }, { status: 404 });
+  }
+
   try {
     const bytes = Buffer.from(pdfBase64, "base64");
     if (!bytes.length) {
@@ -32,6 +38,7 @@ export async function POST(request: Request) {
     }
     salvarPdfFaturaImpressaoServidor(
       id,
+      ctx.empresaId,
       bytes,
       body.nomeArquivo?.trim() || "Fatura.pdf"
     );
