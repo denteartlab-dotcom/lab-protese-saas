@@ -10,5 +10,5 @@ export async function GET() {
 
   const store = getTvOrdensStore(ctx.empresaId);
   const snapshot = await store.refreshFromDb();
-  return NextResponse.json(snapshot);
+  return NextResponse.json(snapshot ?? store.getSnapshot());
 }

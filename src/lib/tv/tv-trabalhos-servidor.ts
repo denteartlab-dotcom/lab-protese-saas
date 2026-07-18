@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { prisma, runWithTenantContext } from "@/lib/db";
 import { calcularStats, criarPontoChart } from "@/components/modulo-tv/mock-data";
 import { COLUNAS_KANBAN } from "@/components/modulo-tv/constants";
 import type {
@@ -520,6 +520,13 @@ export async function carregarColaboradoresTv(
 export async function carregarOrdensTv(
   empresaId: string
 ): Promise<TvOrdensResponse> {
+  // Socket/timer chamam sem ALS de request — precisa do tenant explícito sob FORCE RLS.
+  return runWithTenantContext(empresaId, () => carregarOrdensTvInterno(empresaId));
+}
+
+async function carregarOrdensTvInterno(
+  empresaId: string
+): Promise<TvOrdensResponse> {
   const [trabalhos, mapaConcluidas, mapaColunasTv, colaboradores] =
     await Promise.all([
       prisma.trabalho.findMany({
@@ -645,6 +652,23 @@ export async function carregarOrdensTv(
 }
 
 export async function moverTrabalhoTvColuna(
+  trabalhoId: string,
+  coluna: ColunaKanbanId,
+  empresaId: string
+): Promise<
+  | (TvOrdensResponse & {
+      mapaEtapas: Record<string, number[]>;
+      chaveEtapaMovida: string;
+      indiceEtapaMovida: number;
+    })
+  | null
+> {
+  return runWithTenantContext(empresaId, () =>
+    moverTrabalhoTvColunaInterno(trabalhoId, coluna, empresaId)
+  );
+}
+
+async function moverTrabalhoTvColunaInterno(
   trabalhoId: string,
   coluna: ColunaKanbanId,
   empresaId: string
@@ -811,6 +835,15 @@ function labelColunaKanban(coluna: ColunaKanbanId) {
 }
 
 export async function carregarResumoOsTv(
+  trabalhoId: string,
+  empresaId: string
+): Promise<TvOsResumo | null> {
+  return runWithTenantContext(empresaId, () =>
+    carregarResumoOsTvInterno(trabalhoId, empresaId)
+  );
+}
+
+async function carregarResumoOsTvInterno(
   trabalhoId: string,
   empresaId: string
 ): Promise<TvOsResumo | null> {

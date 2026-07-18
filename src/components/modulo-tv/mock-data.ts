@@ -151,8 +151,8 @@ export function calcularStats(ordens: OrdemServicoTv[]): TvDashboardStats {
     prazoHoje,
     prazoAmanha,
     prazoAposAmanha,
-    entregasHoje: entregasHoje || Math.min(3, prontas),
-    entregasConcluidas: entregasConcluidas || 1,
+    entregasHoje,
+    entregasConcluidas,
     colaboradoresOnline: COLABORADORES_TV.filter((c) => c.online).length,
     percentualConcluido,
   };
