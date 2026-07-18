@@ -117,7 +117,6 @@ export function ConfirmarPixSubcontaModal({
               onChange={(e) => setSenha(e.target.value)}
               autoFocus
               className="h-9 w-full rounded border border-slate-300 px-2.5 text-[12px] outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]"
-              placeholder="Mesma senha usada no login"
               disabled={processando}
             />
           </div>
