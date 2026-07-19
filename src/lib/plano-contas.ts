@@ -315,14 +315,14 @@ export const PLANO_CONTAS_PADRAO: ItemPlanoContas[] = [
 ];
 
 export function carregarPlanoContas(): ItemPlanoContas[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined") return PLANO_CONTAS_PADRAO;
   try {
     const versaoSalva = readStorage<string | null>(PLANO_CONTAS_STORAGE_VERSION_KEY, null);
     const parsed = readStorage<ItemPlanoContas[] | null>(PLANO_CONTAS_STORAGE_KEY, null);
     const lista = Array.isArray(parsed) ? parsed : [];
 
     if (versaoSalva !== String(PLANO_CONTAS_STORAGE_VERSION)) {
-      if (chaveExisteNoServidor(PLANO_CONTAS_STORAGE_KEY)) {
+      if (chaveExisteNoServidor(PLANO_CONTAS_STORAGE_KEY) && lista.length > 0) {
         salvarPlanoContas(lista);
         return lista;
       }
@@ -330,9 +330,14 @@ export function carregarPlanoContas(): ItemPlanoContas[] {
       return PLANO_CONTAS_PADRAO;
     }
 
+    if (lista.length === 0) {
+      salvarPlanoContas(PLANO_CONTAS_PADRAO);
+      return PLANO_CONTAS_PADRAO;
+    }
+
     return lista;
   } catch {
-    return [];
+    return PLANO_CONTAS_PADRAO;
   }
 }
 
@@ -383,7 +388,9 @@ export function agruparPlanoContas(itens: ItemPlanoContas[]) {
 
 export function filhosDoGrupo(topico: ItemPlanoContas, itens: ItemPlanoContas[]) {
   const prefixo = `${topico.codigo}.`;
-  return itens.filter((item) => item.codigo.startsWith(prefixo));
+  return itens.filter(
+    (item) => item.nivel > 1 && item.codigo.startsWith(prefixo)
+  );
 }
 
 export function profundidadeRelativaAoGrupo(
