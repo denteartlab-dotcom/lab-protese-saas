@@ -200,6 +200,93 @@ type Props = {
   salvando?: boolean;
 };
 
+function BlocoTotaisReceita({
+  valorTotal,
+  descontoTipo,
+  desconto,
+  totalLiquidoFmt,
+  onDescontoTipo,
+  onDesconto,
+  formatDecimalInput,
+  formatCurrencyInput,
+  creditoDisponivelSeguro = 0,
+  abaterCredito = false,
+  creditoAplicado = 0,
+  totalAReceberComCredito = 0,
+  currency,
+}: {
+  valorTotal: string;
+  descontoTipo: string;
+  desconto: string;
+  totalLiquidoFmt: string;
+  onDescontoTipo: (tipo: string) => void;
+  onDesconto: (valor: string) => void;
+  formatDecimalInput: (value: string) => string;
+  formatCurrencyInput: (value: string) => string;
+  creditoDisponivelSeguro?: number;
+  abaterCredito?: boolean;
+  creditoAplicado?: number;
+  totalAReceberComCredito?: number;
+  currency: (n: number) => string;
+}) {
+  return (
+    <div className="w-full max-w-[260px] shrink-0 text-[12px] leading-none">
+      <div className="flex items-center justify-between border-t border-[#e5e7eb] py-2.5">
+        <span className="text-[#6b7280]">Valor Total</span>
+        <span className="tabular-nums text-[#374151]">{valorTotal}</span>
+      </div>
+      <div className="flex items-center justify-between border-t border-[#e5e7eb] py-2">
+        <span className="text-[#6b7280]">Desconto</span>
+        <div className="flex h-7 overflow-hidden rounded-sm border border-[#d1d5db]">
+          <select
+            value={descontoTipo}
+            onChange={(e) => onDescontoTipo(e.target.value)}
+            className="h-7 w-10 border-r border-[#d1d5db] bg-white text-center text-[11px] text-[#374151] outline-none"
+          >
+            <option value="percentual">%</option>
+            <option value="valor">R$</option>
+          </select>
+          <input
+            type="text"
+            value={desconto}
+            onChange={(e) =>
+              onDesconto(
+                descontoTipo === "valor"
+                  ? formatCurrencyInput(e.target.value)
+                  : formatDecimalInput(e.target.value)
+              )
+            }
+            className="h-7 w-[72px] border-0 bg-white px-1.5 text-right text-[11px] tabular-nums text-[#374151] outline-none"
+          />
+        </div>
+      </div>
+      <div className="flex items-center justify-between border-t border-b border-[#e5e7eb] py-2.5">
+        <span className="text-[15px] font-semibold text-[#4a90d9]">Total Líquido</span>
+        <span className="text-[15px] font-semibold tabular-nums text-[#4a90d9]">
+          {totalLiquidoFmt}
+        </span>
+      </div>
+      {abaterCredito && creditoAplicado > 0 ? (
+        <>
+          <div className="flex items-center justify-between border-t border-[#e8eaed] py-2 text-[12px] text-emerald-700">
+            <span>Desconto com crédito</span>
+            <span className="tabular-nums">- {currency(creditoAplicado)}</span>
+          </div>
+          <div className="flex items-center justify-between py-2 text-[12px] font-semibold text-[#374151]">
+            <span>Total a cobrar</span>
+            <span className="tabular-nums">{currency(totalAReceberComCredito)}</span>
+          </div>
+        </>
+      ) : creditoDisponivelSeguro > 0.009 ? (
+        <div className="flex items-center justify-between border-t border-[#e8eaed] py-2 text-[12px] font-semibold text-[#374151]">
+          <span>Total a cobrar</span>
+          <span className="tabular-nums">{totalLiquidoFmt}</span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function ToggleSmart({
   checked,
   onChange,
@@ -591,68 +678,27 @@ export function LancarReceitaOsModal({
               ) : null}
 
               <div className="flex justify-end">
-                <div className="w-full max-w-[280px] shrink-0 space-y-0 text-[13px]">
-                  <div className="flex items-center justify-between border-b border-[#e8eaed] py-2">
-                    <span className="text-[#6b7280]">Valor Total</span>
-                    <span className="font-medium text-[#374151]">
-                      {form.valor?.trim() ? form.valor : "0,00"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between border-b border-[#e8eaed] py-2">
-                    <span className="text-[#6b7280]">Desconto</span>
-                    <div className="flex overflow-hidden rounded-sm border border-[#d1d5db]">
-                      <select
-                        value={form.descontoTipo}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            descontoTipo: e.target.value,
-                            desconto: e.target.value === "valor" ? "R$ 0,00" : "0,00",
-                          }))
-                        }
-                        className="h-[30px] w-12 border-r border-[#d1d5db] bg-white text-center text-[12px] outline-none"
-                      >
-                        <option value="percentual">%</option>
-                        <option value="valor">R$</option>
-                      </select>
-                      <input
-                        type="text"
-                        value={form.desconto}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            desconto:
-                              f.descontoTipo === "valor"
-                                ? formatCurrencyInput(e.target.value)
-                                : formatDecimalInput(e.target.value),
-                          }))
-                        }
-                        className="h-[30px] w-24 border-0 bg-white px-2 text-right text-[12px] outline-none"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between border-b border-[#e8eaed] py-2.5">
-                    <span className="text-[14px] font-semibold text-[#4a90d9]">Total Líquido</span>
-                    <span className="text-[18px] font-bold text-[#4a90d9]">{currency(totalLiquido)}</span>
-                  </div>
-                  {abaterCredito && creditoAplicado > 0 ? (
-                    <>
-                      <div className="flex items-center justify-between border-t border-[#e8eaed] py-2 text-emerald-700">
-                        <span>Desconto com crédito</span>
-                        <span>- {currency(creditoAplicado)}</span>
-                      </div>
-                      <div className="flex items-center justify-between py-2 font-semibold text-[#374151]">
-                        <span>Total a cobrar</span>
-                        <span>{currency(totalAReceberComCredito)}</span>
-                      </div>
-                    </>
-                  ) : creditoDisponivelSeguro > 0.009 ? (
-                    <div className="flex items-center justify-between border-t border-[#e8eaed] py-2 font-semibold text-[#374151]">
-                      <span>Total a cobrar</span>
-                      <span>{currency(totalLiquido)}</span>
-                    </div>
-                  ) : null}
-                </div>
+                <BlocoTotaisReceita
+                  valorTotal={form.valor?.trim() ? form.valor : "0,00"}
+                  descontoTipo={form.descontoTipo}
+                  desconto={form.desconto}
+                  totalLiquidoFmt={money(totalLiquido)}
+                  onDescontoTipo={(tipo) =>
+                    setForm((f) => ({
+                      ...f,
+                      descontoTipo: tipo,
+                      desconto: tipo === "valor" ? "R$ 0,00" : "0,00",
+                    }))
+                  }
+                  onDesconto={(valor) => setForm((f) => ({ ...f, desconto: valor }))}
+                  formatDecimalInput={formatDecimalInput}
+                  formatCurrencyInput={formatCurrencyInput}
+                  creditoDisponivelSeguro={creditoDisponivelSeguro}
+                  abaterCredito={abaterCredito}
+                  creditoAplicado={creditoAplicado}
+                  totalAReceberComCredito={totalAReceberComCredito}
+                  currency={money}
+                />
               </div>
             </div>
           ) : (
@@ -974,65 +1020,28 @@ export function LancarReceitaOsModal({
               ) : null}
             </div>
 
-            <div className="w-full max-w-[280px] shrink-0 space-y-0 text-[13px] sm:ml-auto">
-              <div className="flex items-center justify-between border-b border-[#e8eaed] py-2">
-                <span className="text-[#6b7280]">Valor Total</span>
-                <span className="font-medium text-[#374151]">{money(valorBrutoExibicao)}</span>
-              </div>
-              <div className="flex items-center justify-between border-b border-[#e8eaed] py-2">
-                <span className="text-[#6b7280]">Desconto</span>
-                <div className="flex overflow-hidden rounded-sm border border-[#d1d5db]">
-                  <select
-                    value={form.descontoTipo}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        descontoTipo: e.target.value,
-                        desconto: e.target.value === "valor" ? "R$ 0,00" : "0,00",
-                      }))
-                    }
-                    className="h-[30px] w-12 border-r border-[#d1d5db] bg-white text-center text-[12px] outline-none"
-                  >
-                    <option value="percentual">%</option>
-                    <option value="valor">R$</option>
-                  </select>
-                  <input
-                    type="text"
-                    value={form.desconto}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        desconto:
-                          f.descontoTipo === "valor"
-                            ? formatCurrencyInput(e.target.value)
-                            : formatDecimalInput(e.target.value),
-                      }))
-                    }
-                    className="h-[30px] w-24 border-0 bg-white px-2 text-right text-[12px] outline-none"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-[14px] font-semibold text-[#4a90d9]">Total Líquido</span>
-                <span className="text-[18px] font-bold text-[#4a90d9]">{currency(totalLiquido)}</span>
-              </div>
-              {abaterCredito && creditoAplicado > 0 ? (
-                <>
-                  <div className="flex items-center justify-between border-t border-[#e8eaed] py-2 text-emerald-700">
-                    <span>Desconto com crédito</span>
-                    <span>- {currency(creditoAplicado)}</span>
-                  </div>
-                  <div className="flex items-center justify-between py-2 font-semibold text-[#374151]">
-                    <span>Total a cobrar</span>
-                    <span>{currency(totalAReceberComCredito)}</span>
-                  </div>
-                </>
-              ) : creditoDisponivelSeguro > 0.009 ? (
-                <div className="flex items-center justify-between border-t border-[#e8eaed] py-2 font-semibold text-[#374151]">
-                  <span>Total a cobrar</span>
-                  <span>{currency(totalLiquido)}</span>
-                </div>
-              ) : null}
+            <div className="w-full max-w-[260px] shrink-0 sm:ml-auto">
+              <BlocoTotaisReceita
+                valorTotal={money(valorBrutoExibicao)}
+                descontoTipo={form.descontoTipo}
+                desconto={form.desconto}
+                totalLiquidoFmt={money(totalLiquido)}
+                onDescontoTipo={(tipo) =>
+                  setForm((f) => ({
+                    ...f,
+                    descontoTipo: tipo,
+                    desconto: tipo === "valor" ? "R$ 0,00" : "0,00",
+                  }))
+                }
+                onDesconto={(valor) => setForm((f) => ({ ...f, desconto: valor }))}
+                formatDecimalInput={formatDecimalInput}
+                formatCurrencyInput={formatCurrencyInput}
+                creditoDisponivelSeguro={creditoDisponivelSeguro}
+                abaterCredito={abaterCredito}
+                creditoAplicado={creditoAplicado}
+                totalAReceberComCredito={totalAReceberComCredito}
+                currency={money}
+              />
             </div>
           </div>
           ) : null}
