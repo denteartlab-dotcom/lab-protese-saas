@@ -447,21 +447,23 @@ export function VisualizacaoClienteReceberModal({
     [lancamentosFiltrados, isFaturaContasReceber]
   );
 
-  const recebimentosVisiveis = useMemo(() => {
+  const recebimentosVisiveis = useMemo((): LancamentoClienteModal[] => {
     if (!cliente) return [];
     const idsPeriodo = new Set(lancamentosMes.map((l) => l.id));
+    const porId = new Map(cliente.lancamentos.map((l) => [l.id, l]));
     const historico = cliente.clienteId
       ? recebimentosHistoricoCliente(
           cliente.clienteId,
           cliente.lancamentos as LancamentoContasReceber[]
         )
       : (cliente.lancamentos as LancamentoContasReceber[]).filter(
-          (l) =>
-            l.status === "pago" &&
-            !isCreditoUtilizado(l)
+          (l) => l.status === "pago" && !isCreditoUtilizado(l)
         );
 
-    return historico.filter((l) => idsPeriodo.has(l.id));
+    return historico
+      .filter((l) => idsPeriodo.has(l.id))
+      .map((l) => porId.get(l.id))
+      .filter((l): l is LancamentoClienteModal => Boolean(l));
   }, [cliente, lancamentosMes]);
 
   const totalRecebimentosMes = useMemo(
