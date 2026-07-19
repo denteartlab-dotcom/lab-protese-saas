@@ -527,43 +527,50 @@ export function LancarReceitaOsModal({
 
   return createPortal(
     <I18nPortal>
-      <div className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto bg-black/45 p-4 pt-6">
-      <div
-        className="absolute inset-0"
-        onClick={() => {
-          if (!ocupado) onClose();
-        }}
-        aria-hidden
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="lancar-receita-os-titulo"
-        className="relative my-4 flex w-full max-w-[1180px] flex-col rounded-sm border border-[#e5e7eb] bg-white shadow-2xl"
-      >
-        <div className="flex items-center justify-between border-b border-[#e5e7eb] px-5 py-3">
-          <h2 id="lancar-receita-os-titulo" className="text-[15px] font-normal text-[#374151]">
-            Lançar Receita
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={ocupado}
-            className="rounded p-1 text-[#9ca3af] hover:bg-[#f3f4f6] hover:text-[#374151] disabled:opacity-40"
-            aria-label="Fechar"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-2 sm:p-3">
+        <div
+          className="absolute inset-0"
+          onClick={() => {
+            if (!ocupado) onClose();
+          }}
+          aria-hidden
+        />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="lancar-receita-os-titulo"
+          className="relative flex h-[94vh] w-[96vw] max-w-[1580px] flex-col overflow-hidden rounded-sm border border-[#d0d5dd] bg-white shadow-2xl"
+        >
+          <div className="flex shrink-0 items-center justify-between border-b border-[#e5e7eb] px-5 py-2.5">
+            <h2
+              id="lancar-receita-os-titulo"
+              className="text-[16px] font-normal text-[#374151]"
+            >
+              Lançar Receita
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={ocupado}
+              className="rounded p-1 text-[#9ca3af] hover:bg-[#f3f4f6] hover:text-[#374151] disabled:opacity-40"
+              aria-label="Fechar"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
 
-        <form onSubmit={enviarFormulario} className="max-h-[calc(100vh-5rem)] overflow-y-auto px-5 py-4 text-[12px]">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#f3f4f6] pb-4">
+          <form
+            onSubmit={enviarFormulario}
+            className="flex min-h-0 flex-1 flex-col text-[12px]"
+          >
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
+          <div className="flex flex-wrap items-end justify-between gap-3 pb-3">
             <ToggleSmart
               checked={semOs}
               onChange={(v) => setForm((f) => ({ ...f, semOs: v }))}
               label="Lançar uma Cobrança ou Outras Receitas sem O.S."
             />
-            <div className="w-full min-w-[200px] max-w-[280px]">
+            <div className="w-full min-w-[220px] max-w-[320px]">
               <label className={labelClass}>Categorias</label>
               <PlanoContasCategoriaSelect
                 secao="receitas"
@@ -575,10 +582,10 @@ export function LancarReceitaOsModal({
             </div>
           </div>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-4">
             <div>
               <SelectPesquisavel
-                label="Clientes"
+                label="Cliente"
                 value={form.clienteId}
                 onChange={(clienteId) => {
                   setForm((f) => ({ ...f, clienteId }));
@@ -643,8 +650,8 @@ export function LancarReceitaOsModal({
             </div>
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <div className="flex min-w-[240px] flex-1 overflow-hidden rounded-sm border border-[#d1d5db]">
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <div className="flex min-w-[280px] flex-[2] overflow-hidden rounded-sm border border-[#d1d5db]">
               <input
                 type="text"
                 placeholder="O.S., serviço ou paciente"
@@ -660,7 +667,7 @@ export function LancarReceitaOsModal({
                 Limpar
               </button>
             </div>
-            <div className="flex min-w-[220px] flex-1 flex-col gap-1">
+            <div className="flex min-w-[260px] flex-1 flex-col gap-1">
               <div className="flex items-center gap-2">
                 <Barcode className="h-5 w-5 shrink-0 text-[#6b7280]" />
                 <input
@@ -690,9 +697,9 @@ export function LancarReceitaOsModal({
           </div>
 
           {!semOs ? (
-            <div className="mt-4 overflow-hidden rounded-sm border border-[#e5e7eb]">
-              <div className="max-h-[280px] overflow-auto">
-                <table className="w-full min-w-[980px] border-collapse text-[12px]">
+            <div className="mt-3 overflow-hidden rounded-sm border border-[#d0d5dd]">
+              <div className="max-h-[min(38vh,420px)] min-h-[220px] overflow-auto">
+                <table className="w-full min-w-[1100px] border-collapse text-[12px]">
                   <thead className="sticky top-0 z-[1]">
                     <tr className="bg-[#f3f4f6] text-[11px] font-semibold uppercase text-[#6b7280]">
                       <th className="w-16 px-2 py-2.5 text-left">
@@ -878,8 +885,8 @@ export function LancarReceitaOsModal({
             </div>
           ) : null}
 
-          <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
-            <div className="flex flex-col gap-3 pt-1">
+          <div className="mt-3 flex flex-wrap items-start justify-between gap-6">
+            <div className="flex flex-col gap-2.5 pt-1">
               {creditoDisponivelSeguro > 0.009 ? (
                 <ToggleSmart
                   checked={abaterCredito}
@@ -899,8 +906,8 @@ export function LancarReceitaOsModal({
               />
             </div>
 
-            <div className="w-full max-w-[320px] space-y-0 text-[13px]">
-              <div className="flex items-center justify-between border-b border-[#f3f4f6] py-2.5">
+            <div className="ml-auto w-full max-w-[280px] space-y-0 text-[13px]">
+              <div className="flex items-center justify-between border-b border-[#e8eaed] py-2">
                 <span className="text-[#6b7280]">Valor Total</span>
                 {semOs ? (
                   <input
@@ -918,7 +925,7 @@ export function LancarReceitaOsModal({
                   <span className="font-medium text-[#374151]">{money(valorBrutoExibicao)}</span>
                 )}
               </div>
-              <div className="flex items-center justify-between border-b border-[#f3f4f6] py-2.5">
+              <div className="flex items-center justify-between border-b border-[#e8eaed] py-2">
                 <span className="text-[#6b7280]">Desconto</span>
                 <div className="flex overflow-hidden rounded-sm border border-[#d1d5db]">
                   <select
@@ -947,17 +954,17 @@ export function LancarReceitaOsModal({
                             : formatDecimalInput(e.target.value),
                       }))
                     }
-                    className="h-[30px] w-20 border-0 bg-white px-2 text-right text-[12px] outline-none"
+                    className="h-[30px] w-24 border-0 bg-white px-2 text-right text-[12px] outline-none"
                   />
                 </div>
               </div>
-              <div className="flex items-center justify-between py-3">
-                <span className="font-semibold text-[#4a90d9]">Total Líquido</span>
-                <span className="text-[15px] font-bold text-[#4a90d9]">{currency(totalLiquido)}</span>
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-[14px] font-semibold text-[#4a90d9]">Total Líquido</span>
+                <span className="text-[18px] font-bold text-[#4a90d9]">{currency(totalLiquido)}</span>
               </div>
               {abaterCredito && creditoAplicado > 0 ? (
                 <>
-                  <div className="flex items-center justify-between border-t border-[#f3f4f6] py-2 text-emerald-700">
+                  <div className="flex items-center justify-between border-t border-[#e8eaed] py-2 text-emerald-700">
                     <span>Desconto com crédito</span>
                     <span>- {currency(creditoAplicado)}</span>
                   </div>
@@ -967,7 +974,7 @@ export function LancarReceitaOsModal({
                   </div>
                 </>
               ) : creditoDisponivelSeguro > 0.009 ? (
-                <div className="flex items-center justify-between border-t border-[#f3f4f6] py-2 font-semibold text-[#374151]">
+                <div className="flex items-center justify-between border-t border-[#e8eaed] py-2 font-semibold text-[#374151]">
                   <span>Total a cobrar</span>
                   <span>{currency(totalLiquido)}</span>
                 </div>
@@ -975,7 +982,7 @@ export function LancarReceitaOsModal({
             </div>
           </div>
 
-          <p className="mt-6 text-center text-[12px] text-[#6b7280]">
+          <p className="mt-5 mb-2 text-center text-[13px] text-[#6b7280]">
             Escolha a(s) forma(s) de recebimento
           </p>
 
@@ -1015,14 +1022,14 @@ export function LancarReceitaOsModal({
             </p>
           ) : null}
 
-          <div className="rounded-sm border border-[#d1d5db] bg-[#fafafa] p-3">
+          <div className="rounded-sm border border-[#d0d5dd] bg-white p-3">
             <div className="mb-3 flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-[#6b7280]">Parcelas</span>
+                <span className="text-[12px] text-[#6b7280]">Parcelas</span>
                 <button
                   type="button"
                   onClick={() => setNumParcelas((n) => Math.max(1, n - 1))}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm border border-[#d1d5db] bg-white text-[#374151] hover:bg-[#f3f4f6]"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-[#d1d5db] bg-white text-[#374151] hover:bg-[#f3f4f6]"
                 >
                   <Minus className="h-3.5 w-3.5" />
                 </button>
@@ -1030,12 +1037,12 @@ export function LancarReceitaOsModal({
                   type="text"
                   readOnly
                   value={String(numParcelas)}
-                  className={cn(fieldClass, "h-7 w-12 text-center")}
+                  className={cn(fieldClass, "h-8 w-14 text-center")}
                 />
                 <button
                   type="button"
                   onClick={() => setNumParcelas((n) => Math.min(24, n + 1))}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm border border-[#d1d5db] bg-white text-[#374151] hover:bg-[#f3f4f6]"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-[#d1d5db] bg-white text-[#374151] hover:bg-[#f3f4f6]"
                 >
                   <Plus className="h-3.5 w-3.5" />
                 </button>
@@ -1162,12 +1169,12 @@ export function LancarReceitaOsModal({
             </div>
           </div>
 
-          <div className="mt-4">
+          <div className="mt-3">
             <label className={labelClass}>Observações</label>
             <textarea
               value={form.observacoes}
               onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))}
-              rows={4}
+              rows={3}
               className="w-full rounded-sm border border-[#d1d5db] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]"
             />
           </div>
@@ -1175,29 +1182,30 @@ export function LancarReceitaOsModal({
           <AnexosReciboCampo
             ref={anexosRef}
             pasta="receitas"
-            className="mt-4"
+            className="mt-3"
           />
+            </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-3 border-t border-[#f3f4f6] pt-4">
-            <button
-              type="submit"
-              disabled={ocupado}
-              className="h-10 rounded-sm bg-[#4a90d9] text-[13px] font-normal text-white hover:bg-[#3d7fc4] disabled:cursor-wait disabled:opacity-60"
-            >
-              {ocupado ? "Cadastrando…" : "Cadastrar"}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={ocupado}
-              className="h-10 rounded-sm border border-[#d1d5db] bg-white text-[13px] font-normal text-[#374151] hover:bg-[#f9fafb] disabled:opacity-50"
-            >
-              Fechar
-            </button>
-          </div>
-        </form>
+            <div className="grid shrink-0 grid-cols-2 gap-3 border-t border-[#e5e7eb] bg-white px-5 py-3">
+              <button
+                type="submit"
+                disabled={ocupado}
+                className="h-11 rounded-sm bg-[#4a90d9] text-[14px] font-normal text-white hover:bg-[#3d7fc4] disabled:cursor-wait disabled:opacity-60"
+              >
+                {ocupado ? "Cadastrando…" : "Cadastrar"}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={ocupado}
+                className="h-11 rounded-sm border border-[#d1d5db] bg-white text-[14px] font-normal text-[#374151] hover:bg-[#f9fafb] disabled:opacity-50"
+              >
+                Fechar
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
     </I18nPortal>,
     document.body
   );
