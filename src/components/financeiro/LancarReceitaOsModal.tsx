@@ -523,7 +523,7 @@ export function LancarReceitaOsModal({
   if (!open || !portalPronto) return null;
 
   const semOs = form.semOs;
-  const valorBrutoExibicao = semOs ? totalLiquido : valorOsSelecionadas;
+  const valorBrutoExibicao = valorOsSelecionadas;
 
   return createPortal(
     <I18nPortal>
@@ -567,21 +567,152 @@ export function LancarReceitaOsModal({
           <div className="flex flex-wrap items-end justify-between gap-3 pb-3">
             <ToggleSmart
               checked={semOs}
-              onChange={(v) => setForm((f) => ({ ...f, semOs: v }))}
+              onChange={(v) => {
+                setForm((f) => ({ ...f, semOs: v }));
+                if (v) onLimparOsSelecionadas();
+              }}
               label="Lançar uma Cobrança ou Outras Receitas sem O.S."
             />
-            <div className="w-full min-w-[220px] max-w-[320px]">
-              <label className={labelClass}>Categorias</label>
-              <PlanoContasCategoriaSelect
-                secao="receitas"
-                value={form.categoria}
-                onChange={(v) => setForm((f) => ({ ...f, categoria: v }))}
-                triggerClassName={fieldClass}
-                menuEmPortal
-              />
-            </div>
+            {!semOs ? (
+              <div className="w-full min-w-[220px] max-w-[320px]">
+                <label className={labelClass}>Categorias</label>
+                <PlanoContasCategoriaSelect
+                  secao="receitas"
+                  value={form.categoria}
+                  onChange={(v) => setForm((f) => ({ ...f, categoria: v }))}
+                  triggerClassName={fieldClass}
+                  menuEmPortal
+                />
+              </div>
+            ) : null}
           </div>
 
+          {semOs ? (
+            <div className="flex flex-wrap items-start gap-6">
+              <div className="min-w-0 flex-1 space-y-3">
+                <div className="grid gap-3 md:grid-cols-[minmax(0,1.5fr)_minmax(130px,170px)_minmax(200px,260px)]">
+                  <div>
+                    <SelectPesquisavel
+                      label="Clientes"
+                      value={form.clienteId}
+                      onChange={(clienteId) => {
+                        setForm((f) => ({ ...f, clienteId }));
+                        onLimparOsSelecionadas();
+                      }}
+                      placeholder="Selecione"
+                      inputClassName={fieldClass}
+                      menuEmPortal
+                      options={clientes.map((c) => ({ value: c.id, label: c.nome }))}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Valor</label>
+                    <input
+                      type="text"
+                      value={form.valor}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          valor: formatDecimalInput(e.target.value),
+                        }))
+                      }
+                      className={cn(fieldClass, "text-right")}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Categorias</label>
+                    <PlanoContasCategoriaSelect
+                      secao="receitas"
+                      value={form.categoria}
+                      onChange={(v) => setForm((f) => ({ ...f, categoria: v }))}
+                      triggerClassName={fieldClass}
+                      menuEmPortal
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className={labelClass}>Descrição</label>
+                  <input
+                    type="text"
+                    value={form.descricao}
+                    onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
+                    className={fieldClass}
+                  />
+                </div>
+                {creditoDisponivelSeguro > 0.009 ? (
+                  <ToggleSmart
+                    checked={abaterCredito}
+                    onChange={setAbaterCredito}
+                    label={`Abater do Crédito de ${currency(creditoDisponivelSeguro)}`}
+                  />
+                ) : null}
+              </div>
+
+              <div className="w-full max-w-[280px] shrink-0 space-y-0 text-[13px]">
+                <div className="flex items-center justify-between border-b border-[#e8eaed] py-2">
+                  <span className="text-[#6b7280]">Valor Total</span>
+                  <span className="font-medium text-[#374151]">
+                    {form.valor?.trim() ? form.valor : "0,00"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-b border-[#e8eaed] py-2">
+                  <span className="text-[#6b7280]">Desconto</span>
+                  <div className="flex overflow-hidden rounded-sm border border-[#d1d5db]">
+                    <select
+                      value={form.descontoTipo}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          descontoTipo: e.target.value,
+                          desconto: e.target.value === "valor" ? "R$ 0,00" : "0,00",
+                        }))
+                      }
+                      className="h-[30px] w-12 border-r border-[#d1d5db] bg-white text-center text-[12px] outline-none"
+                    >
+                      <option value="percentual">%</option>
+                      <option value="valor">R$</option>
+                    </select>
+                    <input
+                      type="text"
+                      value={form.desconto}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          desconto:
+                            f.descontoTipo === "valor"
+                              ? formatCurrencyInput(e.target.value)
+                              : formatDecimalInput(e.target.value),
+                        }))
+                      }
+                      className="h-[30px] w-24 border-0 bg-white px-2 text-right text-[12px] outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between py-2.5">
+                  <span className="text-[14px] font-semibold text-[#4a90d9]">Total Líquido</span>
+                  <span className="text-[18px] font-bold text-[#4a90d9]">{currency(totalLiquido)}</span>
+                </div>
+                {abaterCredito && creditoAplicado > 0 ? (
+                  <>
+                    <div className="flex items-center justify-between border-t border-[#e8eaed] py-2 text-emerald-700">
+                      <span>Desconto com crédito</span>
+                      <span>- {currency(creditoAplicado)}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-2 font-semibold text-[#374151]">
+                      <span>Total a cobrar</span>
+                      <span>{currency(totalAReceberComCredito)}</span>
+                    </div>
+                  </>
+                ) : creditoDisponivelSeguro > 0.009 ? (
+                  <div className="flex items-center justify-between border-t border-[#e8eaed] py-2 font-semibold text-[#374151]">
+                    <span>Total a cobrar</span>
+                    <span>{currency(totalLiquido)}</span>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <>
           <div className="grid gap-3 md:grid-cols-4">
             <div>
               <SelectPesquisavel
@@ -695,6 +826,8 @@ export function LancarReceitaOsModal({
               )}
             </div>
           </div>
+            </>
+          )}
 
           {!semOs ? (
             <div className="mt-3 overflow-hidden rounded-sm border border-[#d0d5dd]">
@@ -885,6 +1018,7 @@ export function LancarReceitaOsModal({
             </div>
           ) : null}
 
+          {!semOs ? (
           <div className="mt-3 flex flex-wrap items-start justify-between gap-6">
             <div className="flex min-w-0 flex-1 flex-col gap-2.5 pt-1">
               {creditoDisponivelSeguro > 0.009 ? (
@@ -899,21 +1033,7 @@ export function LancarReceitaOsModal({
             <div className="w-full max-w-[280px] shrink-0 space-y-0 text-[13px] sm:ml-auto">
               <div className="flex items-center justify-between border-b border-[#e8eaed] py-2">
                 <span className="text-[#6b7280]">Valor Total</span>
-                {semOs ? (
-                  <input
-                    type="text"
-                    value={form.valor}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        valor: formatDecimalInput(e.target.value),
-                      }))
-                    }
-                    className={cn(fieldClass, "h-8 max-w-[120px] text-right")}
-                  />
-                ) : (
-                  <span className="font-medium text-[#374151]">{money(valorBrutoExibicao)}</span>
-                )}
+                <span className="font-medium text-[#374151]">{money(valorBrutoExibicao)}</span>
               </div>
               <div className="flex items-center justify-between border-b border-[#e8eaed] py-2">
                 <span className="text-[#6b7280]">Desconto</span>
@@ -971,7 +1091,9 @@ export function LancarReceitaOsModal({
               ) : null}
             </div>
           </div>
+          ) : null}
 
+          {!semOs ? (
           <div className="mt-4 mb-2 flex shrink-0 flex-wrap items-center gap-x-8 gap-y-2">
             <ToggleSmart
               checked={alterarEntregue}
@@ -984,8 +1106,9 @@ export function LancarReceitaOsModal({
               label="Enviar para Controle de Entregas"
             />
           </div>
+          ) : null}
 
-          <p className="mb-2 text-center text-[13px] font-medium text-[#4a5568]">
+          <p className="mb-2 mt-4 text-center text-[13px] font-medium text-[#4a5568]">
             Escolha a(s) forma(s) de recebimento
           </p>
 
