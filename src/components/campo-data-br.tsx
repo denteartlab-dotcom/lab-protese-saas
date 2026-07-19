@@ -7,6 +7,7 @@ import { useI18n } from "@/components/i18n-provider";
 import { localeDataIntl } from "@/lib/i18n/tr-ui";
 import { useTrUi } from "@/lib/i18n/use-tr-ui";
 import { dateToBrShort, formatDateBr, parseBrDate } from "@/lib/datas-br";
+import { lerZoomDocumento } from "@/lib/dropdown-portal-pos";
 import { cn } from "@/lib/utils";
 
 function nomesMeses(locale: string) {
@@ -20,6 +21,7 @@ function diasSemana(locale: string) {
 }
 
 const ALTURA_CALENDARIO_ESTIMADA = 320;
+const LARGURA_CALENDARIO = 256;
 
 function diasDoMes(mesCalendario: Date) {
   const year = mesCalendario.getFullYear();
@@ -39,20 +41,25 @@ type PosicaoCalendario = {
 
 function calcularPosicaoCalendario(anchor: HTMLElement): PosicaoCalendario {
   const rect = anchor.getBoundingClientRect();
-  const espacoAbaixo = window.innerHeight - rect.bottom;
+  const zoom = lerZoomDocumento();
+  const gap = 6;
+
+  const espacoAbaixo = (window.innerHeight - rect.bottom) / zoom;
+  const espacoAcima = rect.top / zoom;
   const abrirAcima =
     espacoAbaixo < ALTURA_CALENDARIO_ESTIMADA &&
-    rect.top > ALTURA_CALENDARIO_ESTIMADA;
+    espacoAcima > ALTURA_CALENDARIO_ESTIMADA;
 
-  const larguraCalendario = 256;
-  let left = rect.left;
-  if (left + larguraCalendario > window.innerWidth - 8) {
-    left = Math.max(8, window.innerWidth - larguraCalendario - 8);
+  let left = rect.left / zoom;
+  const maxLeft = window.innerWidth / zoom - LARGURA_CALENDARIO - 8;
+  if (left + LARGURA_CALENDARIO > window.innerWidth / zoom - 8) {
+    left = Math.max(8, maxLeft);
   }
+  left = Math.max(8, left);
 
   const top = abrirAcima
-    ? rect.top - ALTURA_CALENDARIO_ESTIMADA - 6
-    : rect.bottom + 6;
+    ? rect.top / zoom - ALTURA_CALENDARIO_ESTIMADA - gap
+    : rect.bottom / zoom + gap;
 
   return { top, left };
 }
@@ -121,8 +128,11 @@ export function CampoDataBr({
     const date = parseBrDate(value);
     setMesCalendario(date || new Date());
     if (!aberto) {
-      atualizarPosicao();
-      definirAberto(true);
+      // Mede após o paint para ancorar no campo certo (com zoom do site).
+      requestAnimationFrame(() => {
+        atualizarPosicao();
+        definirAberto(true);
+      });
     } else {
       definirAberto(false);
     }
