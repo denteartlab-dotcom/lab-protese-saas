@@ -370,6 +370,8 @@ export function LancarReceitaOsModal({
   const [feedbackCodigo, setFeedbackCodigo] = useState<{ tipo: "ok" | "erro"; msg: string } | null>(
     null
   );
+  const [leitorCodigoAtivo, setLeitorCodigoAtivo] = useState(false);
+  const leitorCodigoRef = useRef<HTMLInputElement>(null);
   const [numParcelas, setNumParcelas] = useState(1);
   const [imprimirRecibo, setImprimirRecibo] = useState(false);
   const [osExpandidaId, setOsExpandidaId] = useState<string | null>(null);
@@ -409,8 +411,23 @@ export function LancarReceitaOsModal({
   const { onKeyDown: onKeyDownCodigo, onChange: onChangeCodigo, leitorUsbAtivo } =
     useEntradaLeitorCodigo({
       onLido: (numero) => aplicarCodigoOs(numero),
+      capturaGlobal: true,
+      capturaGlobalAtivo: open && leitorCodigoAtivo && !form.semOs,
+      onEntrada: setCodigoBarras,
+      ignorarElemento: leitorCodigoRef,
     });
 
+  function alternarLeitorCodigo() {
+    setLeitorCodigoAtivo((ativo) => {
+      if (ativo) {
+        leitorCodigoRef.current?.blur();
+        return false;
+      }
+      setFeedbackCodigo(null);
+      window.setTimeout(() => leitorCodigoRef.current?.focus({ preventScroll: true }), 50);
+      return true;
+    });
+  }
   useEffect(() => {
     setPortalPronto(true);
   }, []);
@@ -440,6 +457,7 @@ export function LancarReceitaOsModal({
     setAbaterCredito(false);
     setCodigoBarras("");
     setFeedbackCodigo(null);
+    setLeitorCodigoAtivo(false);
     setNumParcelas(1);
     setImprimirRecibo(false);
     setOsExpandidaId(null);
@@ -611,7 +629,10 @@ export function LancarReceitaOsModal({
               checked={semOs}
               onChange={(v) => {
                 setForm((f) => ({ ...f, semOs: v }));
-                if (v) onLimparOsSelecionadas();
+                if (v) {
+                  onLimparOsSelecionadas();
+                  setLeitorCodigoAtivo(false);
+                }
               }}
               label="Lançar uma Cobrança ou Outras Receitas sem O.S."
             />
@@ -789,25 +810,64 @@ export function LancarReceitaOsModal({
               </button>
             </div>
             <div className="flex min-w-[260px] flex-1 flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <Barcode className="h-5 w-5 shrink-0 text-[#6b7280]" />
+              <div
+                className={cn(
+                  "flex overflow-hidden rounded-sm border",
+                  leitorCodigoAtivo ? "border-emerald-400" : "border-[#d1d5db]"
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={alternarLeitorCodigo}
+                  className={cn(
+                    "flex w-10 shrink-0 items-center justify-center border-r transition",
+                    leitorCodigoAtivo
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-600"
+                      : "border-[#d1d5db] bg-[#f9fafb] text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#374151]"
+                  )}
+                  title={
+                    leitorCodigoAtivo
+                      ? "Desativar leitor de código de barras"
+                      : "Ativar leitor de código de barras"
+                  }
+                  aria-label={
+                    leitorCodigoAtivo
+                      ? "Desativar leitor de código de barras"
+                      : "Ativar leitor de código de barras"
+                  }
+                  aria-pressed={leitorCodigoAtivo}
+                >
+                  <Barcode className="h-5 w-5" />
+                </button>
                 <input
+                  ref={leitorCodigoRef}
                   type="text"
                   value={codigoBarras}
                   onChange={(e) => onChangeCodigo(e, setCodigoBarras)}
                   onKeyDown={(e) => onKeyDownCodigo(e, setCodigoBarras)}
-                  placeholder="Leitor de Código de Barras"
-                  className={fieldClass}
+                  placeholder={
+                    leitorCodigoAtivo
+                      ? "Passe o leitor USB na OS..."
+                      : "Leitor de Código de Barras"
+                  }
+                  className="min-w-0 flex-1 border-0 bg-white px-3 py-2 text-[13px] outline-none"
                   autoComplete="off"
                 />
               </div>
-              {leitorUsbAtivo && (
-                <p className="pl-7 text-[10px] font-medium text-emerald-600">Leitor USB detectado</p>
+              {leitorCodigoAtivo && (
+                <p className="pl-1 text-[10px] font-medium text-emerald-600">
+                  {leitorUsbAtivo
+                    ? "Leitor USB detectado — aguardando código"
+                    : "Leitor ativo — clique no campo ou passe o código"}
+                </p>
+              )}
+              {!leitorCodigoAtivo && leitorUsbAtivo && (
+                <p className="pl-1 text-[10px] font-medium text-emerald-600">Leitor USB detectado</p>
               )}
               {feedbackCodigo && (
                 <p
                   className={cn(
-                    "pl-7 text-[10px] font-medium",
+                    "pl-1 text-[10px] font-medium",
                     feedbackCodigo.tipo === "ok" ? "text-emerald-600" : "text-red-600"
                   )}
                 >
