@@ -894,18 +894,6 @@ export function LancarReceitaOsModal({
                   label={`Abater do Crédito de ${currency(creditoDisponivelSeguro)}`}
                 />
               ) : null}
-              <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
-                <ToggleSmart
-                  checked={alterarEntregue}
-                  onChange={setAlterarEntregue}
-                  label="Alterar Situação para Entregue"
-                />
-                <ToggleSmart
-                  checked={enviarControleEntrega}
-                  onChange={setEnviarControleEntrega}
-                  label="Enviar para Controle de Entregas"
-                />
-              </div>
             </div>
 
             <div className="w-full max-w-[280px] shrink-0 space-y-0 text-[13px] sm:ml-auto">
@@ -987,6 +975,19 @@ export function LancarReceitaOsModal({
           <p className="mt-5 mb-2 text-center text-[13px] font-medium text-[#4a5568]">
             Escolha a(s) forma(s) de recebimento
           </p>
+
+          <div className="mb-3 flex shrink-0 flex-wrap items-center gap-x-8 gap-y-2">
+            <ToggleSmart
+              checked={alterarEntregue}
+              onChange={setAlterarEntregue}
+              label="Alterar Situação para Entregue"
+            />
+            <ToggleSmart
+              checked={enviarControleEntrega}
+              onChange={setEnviarControleEntrega}
+              label="Enviar para Controle de Entregas"
+            />
+          </div>
 
           {formaSelecionadaEhBoleto(parcelas) ? (
             <p className="mb-3 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-center text-[11px] text-amber-900">
