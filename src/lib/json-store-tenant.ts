@@ -204,19 +204,22 @@ export async function excluirJsonStoreTenant(empresaId: string) {
 }
 
 export async function copiarJsonStoreLegadoParaTenant(empresaId: string) {
-  const legado = await prisma.jsonStore.findMany({
-    where: { key: { startsWith: ARMAZENAMENTO_LAB_PREFIX } },
-  });
-  let copiados = 0;
-  for (const row of legado) {
-    if (row.key.startsWith(PREFIXO_TENANT)) continue;
-    const tenantKey = chaveJsonStoreTenant(empresaId, row.key);
-    const existente = await prisma.jsonStore.findUnique({ where: { key: tenantKey } });
-    if (existente) continue;
-    await prisma.jsonStore.create({
-      data: { key: tenantKey, payload: row.payload },
+  // Chaves legadas (sem prefixo t:) e cópia cross-tenant exigem bypass RLS.
+  return executarSemRls(async (tx) => {
+    const legado = await tx.jsonStore.findMany({
+      where: { key: { startsWith: ARMAZENAMENTO_LAB_PREFIX } },
     });
-    copiados += 1;
-  }
-  return copiados;
+    let copiados = 0;
+    for (const row of legado) {
+      if (row.key.startsWith(PREFIXO_TENANT)) continue;
+      const tenantKey = chaveJsonStoreTenant(empresaId, row.key);
+      const existente = await tx.jsonStore.findUnique({ where: { key: tenantKey } });
+      if (existente) continue;
+      await tx.jsonStore.create({
+        data: { key: tenantKey, payload: row.payload },
+      });
+      copiados += 1;
+    }
+    return copiados;
+  });
 }
