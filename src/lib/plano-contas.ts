@@ -323,8 +323,9 @@ export function carregarPlanoContas(): ItemPlanoContas[] {
 
     if (versaoSalva !== String(PLANO_CONTAS_STORAGE_VERSION)) {
       if (chaveExisteNoServidor(PLANO_CONTAS_STORAGE_KEY) && lista.length > 0) {
-        salvarPlanoContas(lista);
-        return lista;
+        const mesclado = mesclarContasPadraoFaltantes(lista);
+        salvarPlanoContas(mesclado);
+        return mesclado;
       }
       salvarPlanoContas(PLANO_CONTAS_PADRAO);
       return PLANO_CONTAS_PADRAO;
@@ -335,10 +336,25 @@ export function carregarPlanoContas(): ItemPlanoContas[] {
       return PLANO_CONTAS_PADRAO;
     }
 
-    return lista;
+    const mesclado = mesclarContasPadraoFaltantes(lista);
+    if (mesclado !== lista) {
+      salvarPlanoContas(mesclado);
+    }
+    return mesclado;
   } catch {
     return PLANO_CONTAS_PADRAO;
   }
+}
+
+/** Garante contas padrão (ex.: Outras Receitas) mesmo em planos salvos antigos/incompletos. */
+function mesclarContasPadraoFaltantes(lista: ItemPlanoContas[]): ItemPlanoContas[] {
+  const codigos = new Set(lista.map((item) => item.codigo));
+  const ids = new Set(lista.map((item) => item.id));
+  const faltantes = PLANO_CONTAS_PADRAO.filter(
+    (item) => !codigos.has(item.codigo) && !ids.has(item.id)
+  );
+  if (faltantes.length === 0) return lista;
+  return [...lista, ...faltantes];
 }
 
 export function salvarPlanoContas(itens: ItemPlanoContas[]) {
