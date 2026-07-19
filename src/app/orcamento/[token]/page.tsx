@@ -83,6 +83,7 @@ export default function OrcamentoPublicoPage() {
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
   const [selecionados, setSelecionados] = useState<Set<number>>(new Set());
+  const [buscaProduto, setBuscaProduto] = useState("");
   const [fotoModalIndex, setFotoModalIndex] = useState<number | null>(null);
   const [enviandoFoto, setEnviandoFoto] = useState(false);
   const [erroFoto, setErroFoto] = useState("");
@@ -154,6 +155,34 @@ export default function OrcamentoPublicoPage() {
   const algunsSelecionados =
     selecionados.size > 0 && selecionados.size < itens.length;
 
+  const termoBuscaProduto = buscaProduto.trim().toLowerCase();
+  const itensVisiveis = useMemo(() => {
+    if (!termoBuscaProduto) {
+      return itens.map((item, index) => ({ item, index }));
+    }
+    return itens
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => {
+        const haystack = [item.produtoNome, item.marca, item.codigoBarras]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(termoBuscaProduto);
+      });
+  }, [itens, termoBuscaProduto]);
+
+  const indicesVisiveis = useMemo(
+    () => itensVisiveis.map(({ index }) => index),
+    [itensVisiveis]
+  );
+
+  const todosVisiveisSelecionados =
+    indicesVisiveis.length > 0 &&
+    indicesVisiveis.every((index) => selecionados.has(index));
+  const algunsVisiveisSelecionados =
+    indicesVisiveis.some((index) => selecionados.has(index)) &&
+    !todosVisiveisSelecionados;
+
   function toggleSelecionar(index: number) {
     setSelecionados((atual) => {
       const next = new Set(atual);
@@ -164,6 +193,18 @@ export default function OrcamentoPublicoPage() {
   }
 
   function toggleSelecionarTodos() {
+    if (termoBuscaProduto) {
+      setSelecionados((atual) => {
+        const next = new Set(atual);
+        if (todosVisiveisSelecionados) {
+          for (const index of indicesVisiveis) next.delete(index);
+        } else {
+          for (const index of indicesVisiveis) next.add(index);
+        }
+        return next;
+      });
+      return;
+    }
     if (todosSelecionados) {
       setSelecionados(new Set());
       return;
@@ -406,16 +447,38 @@ export default function OrcamentoPublicoPage() {
           </div>
 
           <div className="overflow-x-auto px-5 py-4">
-            {!somenteLeitura && (
-              <button
-                type="button"
-                onClick={adicionarLinhaProduto}
-                className="mb-3 inline-flex items-center gap-1 rounded border border-[#8bc34a] bg-white px-2.5 py-1 text-[10px] font-medium text-[#689f38] hover:bg-[#f1f8e9]"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                produto
-              </button>
-            )}
+            <div className="mb-3 flex flex-wrap items-end gap-3">
+              {!somenteLeitura && (
+                <button
+                  type="button"
+                  onClick={adicionarLinhaProduto}
+                  className="inline-flex items-center gap-1 rounded border border-[#8bc34a] bg-white px-2.5 py-1 text-[10px] font-medium text-[#689f38] hover:bg-[#f1f8e9]"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  produto
+                </button>
+              )}
+              <div className="min-w-[240px] flex-1">
+                <label className="mb-1 block text-[10px] font-medium text-slate-600">
+                  Buscar
+                </label>
+                <div className="flex">
+                  <input
+                    value={buscaProduto}
+                    onChange={(e) => setBuscaProduto(e.target.value)}
+                    placeholder="Buscar produto..."
+                    className="h-8 min-w-0 flex-1 rounded-l-sm border border-r-0 border-slate-200 px-3 text-[11px] outline-none focus:border-blue-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setBuscaProduto("")}
+                    className="h-8 shrink-0 rounded-r-sm border border-slate-200 bg-slate-100 px-4 text-[11px] font-medium text-slate-600 hover:bg-slate-200"
+                  >
+                    Limpar
+                  </button>
+                </div>
+              </div>
+            </div>
             <table className="w-full min-w-[760px] text-[10px]">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50 text-slate-500">
@@ -423,9 +486,17 @@ export default function OrcamentoPublicoPage() {
                     <th className="w-9 px-2 py-2 text-center">
                       <input
                         type="checkbox"
-                        checked={todosSelecionados}
+                        checked={
+                          termoBuscaProduto
+                            ? todosVisiveisSelecionados
+                            : todosSelecionados
+                        }
                         ref={(el) => {
-                          if (el) el.indeterminate = algunsSelecionados;
+                          if (el) {
+                            el.indeterminate = termoBuscaProduto
+                              ? algunsVisiveisSelecionados
+                              : algunsSelecionados;
+                          }
                         }}
                         onChange={toggleSelecionarTodos}
                         className="h-4 w-4 accent-[#4a90d9]"
@@ -446,7 +517,19 @@ export default function OrcamentoPublicoPage() {
                 </tr>
               </thead>
               <tbody>
-                {itens.map((item, index) => (
+                {itensVisiveis.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={somenteLeitura ? 7 : 9}
+                      className="px-3 py-8 text-center text-[11px] text-slate-400"
+                    >
+                      {itens.length === 0
+                        ? "Nenhum produto no orçamento."
+                        : "Nenhum produto encontrado com esse nome."}
+                    </td>
+                  </tr>
+                ) : (
+                  itensVisiveis.map(({ item, index }) => (
                   <tr
                     key={`${item.produtoId}-${index}`}
                     className={`border-b border-slate-50 ${
@@ -601,7 +684,8 @@ export default function OrcamentoPublicoPage() {
                       </td>
                     )}
                   </tr>
-                ))}
+                ))
+                )}
               </tbody>
             </table>
           </div>

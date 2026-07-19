@@ -113,6 +113,7 @@ export function OrcamentoFormModal({
   const [mostrarZerados, setMostrarZerados] = useState(false);
   const [fornecedorId, setFornecedorId] = useState("");
   const [whatsappEnvio, setWhatsappEnvio] = useState("");
+  const [buscaProduto, setBuscaProduto] = useState("");
   const [linhas, setLinhas] = useState<LinhaProduto[]>([]);
 
   const fornecedorSelecionado = useMemo(
@@ -181,6 +182,26 @@ export function OrcamentoFormModal({
     [produtos]
   );
 
+  function produtoCombinaBusca(produto: ProdutoOpcao | undefined, termo: string) {
+    if (!termo) return true;
+    if (!produto) return false;
+    const haystack = [produto.nome, produto.marca, produto.codigoBarras]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    return haystack.includes(termo);
+  }
+
+  const termoBuscaProduto = buscaProduto.trim().toLowerCase();
+
+  const linhasVisiveis = useMemo(() => {
+    if (!termoBuscaProduto) return linhas;
+    return linhas.filter((linha) => {
+      if (!linha.produtoId) return true;
+      return produtoCombinaBusca(produtosMap.get(linha.produtoId), termoBuscaProduto);
+    });
+  }, [linhas, produtosMap, termoBuscaProduto]);
+
   function produtosParaSelect(linhaId: string) {
     const idsUsados = new Set(
       linhas
@@ -190,7 +211,7 @@ export function OrcamentoFormModal({
 
     return produtos.filter((produto) => {
       if (idsUsados.has(produto.id)) return false;
-      return true;
+      return produtoCombinaBusca(produto, termoBuscaProduto);
     });
   }
 
@@ -232,6 +253,8 @@ export function OrcamentoFormModal({
 
   useEffect(() => {
     if (!open) return;
+
+    setBuscaProduto("");
 
     if (orcamento) {
       aoSelecionarFornecedor(
@@ -295,9 +318,9 @@ export function OrcamentoFormModal({
   }, [open, somenteLeitura, mostrarZerados, produtosEstoqueZero, mesclarProdutosZerados]);
 
   const todosSelecionados =
-    linhas.length > 0 && linhas.every((linha) => linha.selecionado);
+    linhasVisiveis.length > 0 && linhasVisiveis.every((linha) => linha.selecionado);
   const algunsSelecionados =
-    linhas.some((linha) => linha.selecionado) && !todosSelecionados;
+    linhasVisiveis.some((linha) => linha.selecionado) && !todosSelecionados;
   const refCheckboxTodos = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -309,7 +332,12 @@ export function OrcamentoFormModal({
 
   function alternarTodos() {
     const marcar = !todosSelecionados;
-    setLinhas((atual) => atual.map((linha) => ({ ...linha, selecionado: marcar })));
+    const idsVisiveis = new Set(linhasVisiveis.map((linha) => linha.linhaId));
+    setLinhas((atual) =>
+      atual.map((linha) =>
+        idsVisiveis.has(linha.linhaId) ? { ...linha, selecionado: marcar } : linha
+      )
+    );
   }
 
   function adicionarLinha() {
@@ -512,6 +540,27 @@ export function OrcamentoFormModal({
             {t("estoque.orcamentos.selecioneProdutos")}
           </div>
 
+          <div className="mb-3">
+            <label className="mb-1 block text-[10px] font-medium text-slate-600">
+              {t("cadastros.comum.buscar")}
+            </label>
+            <div className="flex">
+              <input
+                value={buscaProduto}
+                onChange={(e) => setBuscaProduto(e.target.value)}
+                placeholder={t("estoque.produtos.buscarPlaceholder")}
+                className="h-8 min-w-0 flex-1 rounded-l-sm border border-r-0 border-slate-200 px-3 text-[11px] outline-none focus:border-blue-400"
+              />
+              <button
+                type="button"
+                onClick={() => setBuscaProduto("")}
+                className="h-8 shrink-0 rounded-r-sm border border-slate-200 bg-slate-100 px-4 text-[11px] font-medium text-slate-600 hover:bg-slate-200"
+              >
+                {t("cadastros.comum.limpar")}
+              </button>
+            </div>
+          </div>
+
           <div className="overflow-hidden rounded-sm border border-slate-200">
             <table className="w-full table-fixed text-[10px]">
               <thead>
@@ -522,7 +571,7 @@ export function OrcamentoFormModal({
                         ref={refCheckboxTodos}
                         type="checkbox"
                         checked={todosSelecionados}
-                        disabled={somenteLeitura || linhas.length === 0}
+                        disabled={somenteLeitura || linhasVisiveis.length === 0}
                         onChange={alternarTodos}
                         className="h-4 w-4 cursor-pointer rounded border-slate-300 text-slate-600 accent-slate-500"
                       />
@@ -544,12 +593,18 @@ export function OrcamentoFormModal({
                 </tr>
               </thead>
               <tbody>
-                {linhas.length === 0 ? (
+                {linhasVisiveis.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="h-12" />
+                    <td colSpan={7} className="px-3 py-6 text-center text-[11px] text-slate-400">
+                      {linhas.length === 0 ? (
+                        <span className="inline-block h-4" />
+                      ) : (
+                        t("estoque.orcamentos.nenhumProdutoBusca")
+                      )}
+                    </td>
                   </tr>
                 ) : (
-                  linhas.map((linha) => {
+                  linhasVisiveis.map((linha) => {
                     const produto = linha.produtoId
                       ? produtosMap.get(linha.produtoId)
                       : undefined;
